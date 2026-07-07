@@ -96,4 +96,57 @@ describe("@exact/core", () => {
 
     expect(unwrap(isVNode(nodes[0]) ? nodes[0].children[0] : undefined)).toBe("original");
   });
+
+  it("creates reactive template and lambda values on component instances", () => {
+    let instance!: Component<{ first: string; last: string; formal: boolean }>;
+
+    function Person(this: Component<{ first: string; last: string; formal: boolean }>) {
+      instance = this;
+      this.state.first = "Ada";
+      this.state.last = "Lovelace";
+      this.state.formal = false;
+
+      const fullName = this.reactive`${this.state.first} ${this.state.last}`;
+      const label = this.reactive(() => this.state.formal == true ? `Countess ${fullName}` : fullName);
+
+      return () => createVNode("span", null, label);
+    }
+
+    const component = createComponentInstance(Person, {});
+    const nodes = renderInstance(component, () => undefined);
+
+    expect(unwrap(isVNode(nodes[0]) ? nodes[0].children[0] : undefined)).toBe("Ada Lovelace");
+    instance.state.formal = true;
+    flushSync();
+    expect(unwrap(isVNode(nodes[0]) ? nodes[0].children[0] : undefined)).toBe("Countess Ada Lovelace");
+  });
+
+  it("reruns tasks when reactive value dependencies change", () => {
+    let instance!: Component<{ first: string; last: string }>;
+    const values: string[] = [];
+    const aborts: string[] = [];
+
+    function Person(this: Component<{ first: string; last: string }>) {
+      instance = this;
+      this.state.first = "Ada";
+      this.state.last = "Lovelace";
+      const fullName = this.reactive`${this.state.first} ${this.state.last}`;
+
+      this.task(fullName, (name, { signal }) => {
+        values.push(String(name));
+        signal.addEventListener("abort", () => aborts.push(String(name)));
+      });
+
+      return () => null;
+    }
+
+    createComponentInstance(Person, {});
+    instance.state.first = "Ada";
+    flushSync();
+    instance.state.last = "Byron";
+    flushSync();
+
+    expect(values).toEqual(["Ada Lovelace", "Ada Byron"]);
+    expect(aborts).toEqual(["Ada Lovelace"]);
+  });
 });

@@ -1,4 +1,5 @@
 import {
+  computed,
   reactive,
   ref as reactiveRef,
   subscribe,
@@ -6,12 +7,13 @@ import {
   unwrap,
   watch,
   type Reactive,
+  type ReactiveValue,
   type ReactiveRef,
   type StopHandle
 } from "@exact/reactive";
 
-export type { Reactive, StopHandle } from "@exact/reactive";
-export { unwrap, watch } from "@exact/reactive";
+export type { Reactive, ReactiveValue, StopHandle } from "@exact/reactive";
+export { computed, unwrap, watch } from "@exact/reactive";
 
 export const Fragment = Symbol.for("exact.fragment");
 export const Text = Symbol.for("exact.text");
@@ -68,7 +70,7 @@ export type TaskContext = {
 export type Cleanup = void | (() => void | Promise<void>);
 export type TaskResult = Cleanup | Promise<Cleanup>;
 export type Unwrapped<Deps extends readonly unknown[]> = {
-  [K in keyof Deps]: Deps[K] extends Reactive<infer T> ? T : Deps[K];
+  [K in keyof Deps]: Deps[K] extends ReactiveValue<infer T> ? T : Deps[K] extends Reactive<infer T> ? T : Deps[K];
 };
 
 export type LifecycleHandler = (ctx: { signal: AbortSignal; reason?: string }) => void;
@@ -78,6 +80,8 @@ export interface Component<State extends object> {
   state: Reactive<State>;
   getContext<T>(token: ContextToken<T>): Reactive<T>;
   setContext<T>(token: ContextToken<T>, value: T): void;
+  reactive(strings: TemplateStringsArray, ...values: unknown[]): ReactiveValue<string>;
+  reactive<T>(compute: () => T): ReactiveValue<T>;
   task(work: (ctx: TaskContext) => TaskResult): void;
   task<Deps extends readonly unknown[]>(
     ...args: [...deps: Deps, work: (...args: [...Unwrapped<Deps>, TaskContext]) => TaskResult]
@@ -223,6 +227,20 @@ export function createComponentInstance<State extends object, Props extends Reco
     setContext<T>(token: ContextToken<T>, value: T): void {
       instance.contexts.set(token.id, reactiveValue(value));
     },
+    reactive<T>(input: TemplateStringsArray | (() => T), ...values: unknown[]): ReactiveValue<string> | ReactiveValue<T> {
+      if (typeof input === "function") {
+        return computed(input);
+      }
+
+      return computed(() => {
+        let result = "";
+        for (let index = 0; index < input.length; index++) {
+          result += input[index];
+          if (index < values.length) result += String(unwrap(values[index]) ?? "");
+        }
+        return result;
+      });
+    },
     task(...args: unknown[]): void {
       const work = args[args.length - 1];
       if (typeof work !== "function") {
@@ -357,6 +375,10 @@ function createTask(deps: unknown[], work: (...args: any[]) => TaskResult): Task
 }
 
 function reactiveValue<T>(value: T): Reactive<T> {
+  if (reactiveRef(value)) {
+    return value as Reactive<T>;
+  }
+
   if (value && typeof value === "object") {
     return reactive(value as object) as Reactive<T>;
   }

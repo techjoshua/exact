@@ -37,7 +37,7 @@ export namespace JSX {
   export type Element = VNode;
   export type ElementType = string | typeof Fragment | ComponentFunction<any, any>;
   export type EventHandler<TEvent extends Event = Event> = (event: TEvent) => void;
-  export type StyleValue = string | number | boolean | null | undefined;
+  export type StyleValue = unknown;
   export type StyleObject = Record<string, StyleValue>;
   export interface IntrinsicAttributes {
     key?: string;

@@ -209,6 +209,111 @@ describe("@exact/dom", () => {
     expect(box.style.paddingTop).toBe("");
   });
 
+  it("updates reactive text compositions without rerendering the component", () => {
+    let instance!: Component<{ first: string; last: string }>;
+    const rendered = vi.fn();
+
+    function Person(this: Component<{ first: string; last: string }>) {
+      instance = this;
+      this.state.first = "Ada";
+      this.state.last = "Lovelace";
+      const fullName = this.reactive`${this.state.first} ${this.state.last}`;
+
+      return () => {
+        rendered();
+        return jsx("span", { children: fullName });
+      };
+    }
+
+    const container = document.createElement("div");
+    render(jsx(Person, {}), container);
+    expect(container.textContent).toBe("Ada Lovelace");
+
+    instance.state.last = "Byron";
+    flushSync();
+
+    expect(container.textContent).toBe("Ada Byron");
+    expect(rendered).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses reactive values in props and style entries", () => {
+    let instance!: Component<{ first: string; last: string; color: string }>;
+    const rendered = vi.fn();
+
+    function Person(this: Component<{ first: string; last: string; color: string }>) {
+      instance = this;
+      this.state.first = "Ada";
+      this.state.last = "Lovelace";
+      this.state.color = "red";
+      const fullName = this.reactive`${this.state.first} ${this.state.last}`;
+      const tone = this.reactive(() => this.state.color);
+
+      return () => {
+        rendered();
+        return jsx("span", {
+          title: fullName,
+          style: { color: tone },
+          children: "name"
+        });
+      };
+    }
+
+    const container = document.createElement("div");
+    render(jsx(Person, {}), container);
+    const span = container.querySelector("span")!;
+    expect(span.title).toBe("Ada Lovelace");
+    expect(span.style.color).toBe("red");
+
+    instance.state.last = "Byron";
+    instance.state.color = "blue";
+    flushSync();
+
+    expect(span.title).toBe("Ada Byron");
+    expect(span.style.color).toBe("blue");
+    expect(rendered).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not update reactive DOM bindings for structurally identical reloads", () => {
+    let instance!: Component<{ user: { name: string; roles: string[] } }>;
+    const rendered = vi.fn();
+    const titleWrites: string[] = [];
+
+    function Person(this: Component<{ user: { name: string; roles: string[] } }>) {
+      instance = this;
+      this.state.user = { name: "Ada", roles: ["admin"] };
+      const title = this.reactive(() => this.state.user.name);
+
+      return () => {
+        rendered();
+        return jsx("span", { title, children: "name" });
+      };
+    }
+
+    const container = document.createElement("div");
+    render(jsx(Person, {}), container);
+    const span = container.querySelector("span")!;
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "title")!;
+    Object.defineProperty(span, "title", {
+      get() {
+        return descriptor.get?.call(this);
+      },
+      set(value: string) {
+        titleWrites.push(value);
+        descriptor.set?.call(this, value);
+      },
+      configurable: true
+    });
+
+    instance.state.user = { name: "Ada", roles: ["admin"] };
+    flushSync();
+    instance.state.user = { name: "Grace", roles: ["admin"] };
+    flushSync();
+
+    expect(span.title).toBe("Grace");
+    expect(titleWrites).toEqual(["Grace"]);
+    expect(rendered).toHaveBeenCalledTimes(1);
+  });
+
   it("updates primitive props.children without rerendering parent or child", () => {
     let instance!: Component<{ message: string }>;
     const parentRendered = vi.fn();

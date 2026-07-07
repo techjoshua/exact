@@ -71,3 +71,27 @@ function TodoList(this: Component<{ todos: { id: string; text: string }[] }>) {
 ```
 
 The key function receives only the item, not the index, so list identity stays domain-based.
+
+## Reactive Values
+
+Use `this.reactive` for derived values that should work anywhere state works: text, props, style entries, and task dependencies.
+
+```tsx
+function Profile(this: Component<{ firstName: string; lastName: string; saving: boolean }>) {
+  const fullName = this.reactive`${this.state.firstName} ${this.state.lastName}`;
+  const tone = this.reactive(() => this.state.saving == true ? "gray" : "black");
+
+  this.task(fullName, (name, { signal }) => {
+    void signal;
+    console.log(name);
+  });
+
+  return () => (
+    <span title={fullName} style={{ color: tone }}>
+      {fullName}
+    </span>
+  );
+}
+```
+
+Reactive values are cached after first use and recompute when their tracked dependencies change. Plain object and array replacements use structural equality, so reloading identical data does not cause unnecessary updates.
