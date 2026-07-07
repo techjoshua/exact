@@ -113,6 +113,102 @@ describe("@exact/dom", () => {
     expect(instance.refs.get(buttonRef)).toBe(container.querySelector("button"));
   });
 
+  it("clears the previous ref when a DOM node receives a new ref", () => {
+    const firstRef = createRef<HTMLButtonElement>("first");
+    const secondRef = createRef<HTMLButtonElement>("second");
+    let instance!: Component<{ useFirst: boolean }>;
+
+    function Button(this: Component<{ useFirst: boolean }>) {
+      instance = this;
+      this.state.useFirst = true;
+
+      return () => jsx("button", {
+        ref: this.state.useFirst == true ? this.ref(firstRef) : this.ref(secondRef),
+        children: "Save"
+      });
+    }
+
+    const container = document.createElement("div");
+    render(jsx(Button, {}), container);
+    const button = container.querySelector("button");
+    expect(instance.refs.get(firstRef)).toBe(button);
+
+    instance.state.useFirst = false;
+    flushSync();
+
+    expect(instance.refs.get(firstRef)).toBeUndefined();
+    expect(instance.refs.get(secondRef)).toBe(button);
+  });
+
+  it("updates className, boolean properties, and style props", () => {
+    let instance!: Component<{ disabled: boolean; tone: string; compact: boolean }>;
+
+    function Button(this: Component<{ disabled: boolean; tone: string; compact: boolean }>) {
+      instance = this;
+      this.state.disabled = true;
+      this.state.tone = "red";
+      this.state.compact = false;
+
+      return () => jsx("button", {
+        className: this.state.compact == true ? "compact" : "spacious",
+        disabled: this.state.disabled,
+        style: {
+          color: this.state.tone,
+          backgroundColor: this.state.compact == true ? "black" : undefined
+        },
+        children: "Save"
+      });
+    }
+
+    const container = document.createElement("div");
+    render(jsx(Button, {}), container);
+    const button = container.querySelector("button")!;
+
+    expect(button.className).toBe("spacious");
+    expect(button.disabled).toBe(true);
+    expect(button.hasAttribute("disabled")).toBe(true);
+    expect(button.style.color).toBe("red");
+    expect(button.style.backgroundColor).toBe("");
+
+    instance.state.disabled = false;
+    instance.state.tone = "blue";
+    instance.state.compact = true;
+    flushSync();
+
+    expect(button.className).toBe("compact");
+    expect(button.disabled).toBe(false);
+    expect(button.hasAttribute("disabled")).toBe(false);
+    expect(button.style.color).toBe("blue");
+    expect(button.style.backgroundColor).toBe("black");
+  });
+
+  it("removes replaced style object properties", () => {
+    let instance!: Component<{ compact: boolean }>;
+
+    function Box(this: Component<{ compact: boolean }>) {
+      instance = this;
+      this.state.compact = true;
+
+      return () => jsx("div", {
+        style: this.state.compact == true
+          ? { color: "red", paddingTop: "4px" }
+          : { color: "blue" }
+      });
+    }
+
+    const container = document.createElement("div");
+    render(jsx(Box, {}), container);
+    const box = container.querySelector("div")!;
+    expect(box.style.color).toBe("red");
+    expect(box.style.paddingTop).toBe("4px");
+
+    instance.state.compact = false;
+    flushSync();
+
+    expect(box.style.color).toBe("blue");
+    expect(box.style.paddingTop).toBe("");
+  });
+
   it("updates primitive props.children without rerendering parent or child", () => {
     let instance!: Component<{ message: string }>;
     const parentRendered = vi.fn();

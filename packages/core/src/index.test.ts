@@ -80,4 +80,20 @@ describe("@exact/core", () => {
     expect(isVNode(nodes[0])).toBe(true);
     expect(isVNode(nodes[0]) ? nodes[0].type : undefined).toBe(Symbol.for("exact.fragment"));
   });
+
+  it("prevents child components from writing to parent-owned props", () => {
+    function Child(this: Component<{}>, props: { text: string }) {
+      return () => {
+        expect(() => {
+          props.text = "changed";
+        }).toThrow(TypeError);
+        return createVNode("span", null, props.text);
+      };
+    }
+
+    const instance = createComponentInstance(Child, { text: "original" });
+    const nodes = renderInstance(instance, () => undefined);
+
+    expect(unwrap(isVNode(nodes[0]) ? nodes[0].children[0] : undefined)).toBe("original");
+  });
 });

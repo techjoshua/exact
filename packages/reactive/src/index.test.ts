@@ -15,6 +15,21 @@ describe("@exact/reactive", () => {
     expect(render).toHaveBeenCalledTimes(2);
   });
 
+  it("does not run a stopped watcher that was already queued", () => {
+    const state = reactive({ count: 0 });
+    const seen: number[] = [];
+
+    const stop = watch(() => {
+      seen.push(Number(state.count));
+    });
+
+    state.count = 1;
+    stop();
+    flushSync();
+
+    expect(seen).toEqual([0]);
+  });
+
   it("reads with peek without tracking", () => {
     const state = reactive({ count: 0, ignored: 0 });
     const render = vi.fn(() => {

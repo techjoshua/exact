@@ -251,20 +251,23 @@ function bindText(mounted: Mounted, value: unknown): void {
 
 function updateProps(root: Root, element: Element, previous: Record<string, unknown>, next: Record<string, unknown>): void {
   for (const key of Object.keys(previous)) {
-    if (!(key in next)) setProp(root, element, key, undefined);
+    if (!(key in next)) setProp(root, element, key, undefined, previous[key]);
   }
 
   for (const [key, value] of Object.entries(next)) {
-    if (!Object.is(previous[key], value)) setProp(root, element, key, value);
+    if (!Object.is(previous[key], value)) setProp(root, element, key, value, previous[key]);
   }
 }
 
-function setProp(root: Root, element: Element, key: string, value: unknown): void {
+function setProp(root: Root, element: Element, key: string, value: unknown, previous?: unknown): void {
   if (key === "children") return;
 
   clearPropBinding(element, key);
 
   if (key === "ref") {
+    if (previous && previous !== value) {
+      (previous as RefBinding<unknown>).fulfill(undefined);
+    }
     (value as RefBinding<unknown> | undefined)?.fulfill(element);
     return;
   }
@@ -286,8 +289,12 @@ function setProp(root: Root, element: Element, key: string, value: unknown): voi
     return;
   }
 
-  if (value === false || value === null || value === undefined) {
-    element.removeAttribute(key);
+  if (key === "style") {
+    if (previous !== value) {
+      (element as HTMLElement).removeAttribute("style");
+    }
+    const stop = bindStyle(element as HTMLElement, value);
+    setPropBinding(element, key, stop);
     return;
   }
 
@@ -295,28 +302,104 @@ function setProp(root: Root, element: Element, key: string, value: unknown): voi
     const actual = unwrap(value);
 
     if (actual === false || actual === null || actual === undefined) {
-      element.removeAttribute(key);
+      clearDomProp(element, key);
       return;
     }
 
-    if (key in element) {
+    setDomProp(element, key, actual);
+  });
+
+  setPropBinding(element, key, stop);
+}
+
+function bindStyle(element: HTMLElement, value: unknown): StopHandle {
+  let previousNames = new Set<string>();
+  return watch(() => {
+    const actual = unwrap(value);
+
+    if (actual === false || actual === null || actual === undefined) {
+      element.removeAttribute("style");
+      previousNames.clear();
+      return;
+    }
+
+    if (typeof actual === "string") {
+      element.style.cssText = actual;
+      previousNames.clear();
+      return;
+    }
+
+    if (!actual || typeof actual !== "object") {
+      element.removeAttribute("style");
+      previousNames.clear();
+      return;
+    }
+
+    const nextNames = new Set<string>();
+    for (const [name, rawValue] of Object.entries(actual)) {
+      const styleValue = unwrap(rawValue);
+      nextNames.add(name);
+      if (styleValue === null || styleValue === undefined || styleValue === false) {
+        element.style.removeProperty(toCssProperty(name));
+      } else {
+        element.style.setProperty(toCssProperty(name), String(styleValue));
+      }
+    }
+
+    for (const name of previousNames) {
+      if (!nextNames.has(name)) element.style.removeProperty(toCssProperty(name));
+    }
+    previousNames = nextNames;
+  });
+}
+
+function setDomProp(element: Element, key: string, value: unknown): void {
+  const property = normalizePropName(key);
+
+  if (property in element) {
       try {
-        (element as unknown as Record<string, unknown>)[key] = actual;
+      (element as unknown as Record<string, unknown>)[property] = value;
+      if (typeof value === "boolean") {
+        if (value) {
+          element.setAttribute(property, "");
+        } else {
+          element.removeAttribute(property);
+        }
+      }
         return;
       } catch {
         // Fall through to attribute setting for readonly DOM properties.
       }
     }
 
-    element.setAttribute(key, String(actual));
-  });
+  element.setAttribute(property, String(value));
+}
 
-  let bindings = propBindings.get(element);
-  if (!bindings) {
-    bindings = new Map();
-    propBindings.set(element, bindings);
+function clearDomProp(element: Element, key: string): void {
+  const property = normalizePropName(key);
+
+  if (property in element) {
+    const current = (element as unknown as Record<string, unknown>)[property];
+    try {
+      if (typeof current === "boolean") {
+        (element as unknown as Record<string, unknown>)[property] = false;
+      } else if (typeof current === "string") {
+        (element as unknown as Record<string, unknown>)[property] = "";
+      }
+    } catch {
+      // Attribute removal below is still the portable fallback.
+    }
   }
-  bindings.set(key, stop);
+
+  element.removeAttribute(property);
+}
+
+function normalizePropName(key: string): string {
+  return key === "className" ? "class" : key;
+}
+
+function toCssProperty(name: string): string {
+  return name.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`);
 }
 
 function ensureDelegated(root: Root, type: string): void {
@@ -418,4 +501,13 @@ function clearPropBinding(element: Element, key: string): void {
   if (!stop) return;
   stop();
   bindings?.delete(key);
+}
+
+function setPropBinding(element: Element, key: string, stop: StopHandle): void {
+  let bindings = propBindings.get(element);
+  if (!bindings) {
+    bindings = new Map();
+    propBindings.set(element, bindings);
+  }
+  bindings.set(key, stop);
 }

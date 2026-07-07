@@ -1,0 +1,42 @@
+/** @jsxImportSource @exact/jsx-runtime */
+import { describe, expect, it } from "vitest";
+import { createRef, type Component, type RefBinding } from "@exact/core";
+import type { JSX } from "./jsx-runtime.js";
+
+type LabelProps = {
+  text: string;
+  children?: JSX.Element;
+};
+
+function Label(this: Component<{}>, props: LabelProps) {
+  return () => <span className="label">{props.text}{props.children}</span>;
+}
+
+describe("@exact/jsx-runtime types", () => {
+  it("compiles TSX through the automatic runtime", () => {
+    const button = createRef<HTMLButtonElement>("button");
+    const ref = { key: button, owner: undefined as never, fulfill() {} } satisfies RefBinding<HTMLButtonElement>;
+    const event: JSX.EventHandler = mouseEvent => {
+      expect(mouseEvent.type).toBe("click");
+    };
+
+    const vnode = (
+      <section className="panel" data-kind="example">
+        <Label text="Save">
+          <button
+            ref={ref}
+            disabled={false}
+            onClick={event}
+            style={{ backgroundColor: "black", opacity: 1 }}
+          >
+            Go
+          </button>
+        </Label>
+        <>tail</>
+      </section>
+    );
+
+    expect(vnode.type).toBe("section");
+    expect(vnode.children).toHaveLength(2);
+  });
+});

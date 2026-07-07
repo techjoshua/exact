@@ -1,4 +1,4 @@
-import { createVNode, Fragment, type Child, type ComponentFunction, type VNode } from "@exact/core";
+import { createVNode, Fragment, type Child, type ComponentFunction, type RefBinding, type VNode } from "@exact/core";
 
 export { Fragment };
 
@@ -7,15 +7,25 @@ type Props = Record<string, unknown> & {
   key?: string;
 };
 
-export function jsx(type: string | ComponentFunction<any, any> | typeof Fragment, props: Props | null, key?: string): VNode {
+type JsxType = string | ComponentFunction<any, any> | typeof Fragment;
+
+export function jsx<P extends Props>(type: ComponentFunction<any, P>, props: P | null, key?: string): VNode<P>;
+export function jsx(type: string | typeof Fragment, props: Props | null, key?: string): VNode;
+export function jsx(type: JsxType, props: Props | null, key?: string): VNode {
   return createJsxVNode(type, props, key);
 }
 
-export function jsxs(type: string | ComponentFunction<any, any> | typeof Fragment, props: Props | null, key?: string): VNode {
+export function jsxs<P extends Props>(type: ComponentFunction<any, P>, props: P | null, key?: string): VNode<P>;
+export function jsxs(type: string | typeof Fragment, props: Props | null, key?: string): VNode;
+export function jsxs(type: JsxType, props: Props | null, key?: string): VNode {
   return createJsxVNode(type, props, key);
 }
 
-function createJsxVNode(type: string | ComponentFunction<any, any> | typeof Fragment, props: Props | null, key?: string): VNode {
+export function jsxDEV(type: JsxType, props: Props | null, key?: string): VNode {
+  return createJsxVNode(type, props, key);
+}
+
+function createJsxVNode(type: JsxType, props: Props | null, key?: string): VNode {
   const { children, ...rest } = props ?? {};
   const normalizedKey = key ?? (typeof rest.key === "string" ? rest.key : undefined);
   if ("key" in rest) delete rest.key;
@@ -25,11 +35,30 @@ function createJsxVNode(type: string | ComponentFunction<any, any> | typeof Frag
 
 export namespace JSX {
   export type Element = VNode;
-  export type ElementType = string | ComponentFunction<any, any>;
+  export type ElementType = string | typeof Fragment | ComponentFunction<any, any>;
+  export type EventHandler<TEvent extends Event = Event> = (event: TEvent) => void;
+  export type StyleValue = string | number | boolean | null | undefined;
+  export type StyleObject = Record<string, StyleValue>;
+  export interface IntrinsicAttributes {
+    key?: string;
+  }
   export interface ElementChildrenAttribute {
     children: {};
   }
+  export interface IntrinsicElementProps {
+    children?: Child | Child[];
+    key?: string;
+    ref?: RefBinding<unknown>;
+    class?: unknown;
+    className?: unknown;
+    style?: string | StyleObject;
+    disabled?: unknown;
+    checked?: unknown;
+    value?: unknown;
+    [eventName: `on${string}`]: EventHandler | undefined;
+    [attributeName: string]: unknown;
+  }
   export interface IntrinsicElements {
-    [elementName: string]: Record<string, unknown>;
+    [elementName: string]: IntrinsicElementProps;
   }
 }

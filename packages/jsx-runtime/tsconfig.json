@@ -4,9 +4,9 @@
     "composite": true,
     "rootDir": "src",
     "outDir": "dist",
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "DOM"],
     "jsx": "react-jsx",
-    "jsxImportSource": "@exact"
+    "jsxImportSource": "@exact/jsx-runtime"
   },
   "references": [
     { "path": "../core" }

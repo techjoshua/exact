@@ -8,6 +8,7 @@ export type ReactiveRef<T = unknown> = {
 };
 
 type Reaction = {
+  active: boolean;
   deps: Set<Dep>;
   run(): void;
   schedule(): void;
@@ -43,8 +44,10 @@ export function reactive<T extends object>(value: T, options: ReactiveOptions = 
 
 export function watch(fn: () => void, scheduler?: () => void): StopHandle {
   const reaction: Reaction = {
+    active: true,
     deps: new Set(),
     run() {
+      if (!reaction.active) return;
       cleanupReaction(reaction);
       reactionStack.push(reaction);
       try {
@@ -54,6 +57,7 @@ export function watch(fn: () => void, scheduler?: () => void): StopHandle {
       }
     },
     schedule() {
+      if (!reaction.active) return;
       if (scheduler) {
         scheduler();
         return;
@@ -63,6 +67,7 @@ export function watch(fn: () => void, scheduler?: () => void): StopHandle {
       scheduleFlush();
     },
     stop() {
+      reaction.active = false;
       cleanupReaction(reaction);
     }
   };
@@ -74,10 +79,12 @@ export function watch(fn: () => void, scheduler?: () => void): StopHandle {
 export function subscribe<T>(source: ReactiveRef<T>, callback: () => void): StopHandle {
   const dep = getDep(source.target, source.key);
   const reaction: Reaction = {
+    active: true,
     deps: new Set([dep]),
     run: callback,
     schedule: callback,
     stop() {
+      reaction.active = false;
       dep.delete(reaction);
       reaction.deps.clear();
     }
@@ -149,7 +156,7 @@ export function flushSync(): void {
   flushScheduled = false;
 
   for (const reaction of reactions) {
-    reaction.run();
+    if (reaction.active) reaction.run();
   }
 }
 
