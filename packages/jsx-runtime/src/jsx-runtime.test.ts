@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getCellVNode, isCellVNode } from "@exact/core";
 import { Fragment, jsx, jsxs } from "./jsx-runtime.js";
 
 describe("@exact/jsx-runtime", () => {
@@ -10,13 +11,20 @@ describe("@exact/jsx-runtime", () => {
       ]
     });
 
-    expect(vnode.type).toBe("ul");
-    expect(vnode.children).toHaveLength(2);
+    expect(isCellVNode(vnode)).toBe(true);
+    if (!isCellVNode(vnode)) throw new Error("Expected cell vnode");
+    const inner = getCellVNode(vnode);
+    expect(inner.type).toBe("ul");
+    expect(inner.children).toHaveLength(2);
+    expect(inner.children.every(isCellVNode)).toBe(true);
   });
 
   it("supports fragments", () => {
     const vnode = jsxs(Fragment, { children: ["a", "b"] });
-    expect(vnode.type).toBe(Fragment);
-    expect(vnode.children).toEqual(["a", "b"]);
+    expect(isCellVNode(vnode)).toBe(true);
+    if (!isCellVNode(vnode)) throw new Error("Expected cell vnode");
+    const inner = getCellVNode(vnode);
+    expect(inner.type).toBe(Fragment);
+    expect(inner.children).toEqual(["a", "b"]);
   });
 });

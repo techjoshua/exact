@@ -17,14 +17,20 @@ export { computed, unwrap, watch } from "@exact/reactive";
 
 export const Fragment = Symbol.for("exact.fragment");
 export const Text = Symbol.for("exact.text");
+export const Cell = Symbol.for("exact.cell");
 
-export type VNodeType = string | typeof Fragment | typeof Text | ComponentFunction<any, any>;
+export type VNodeType = string | typeof Fragment | typeof Text | typeof Cell | ComponentFunction<any, any>;
 
 export type VNode<Props = Record<string, unknown>> = {
   type: VNodeType;
   props: Props;
   children: Child[];
   key?: string;
+};
+
+export type VNodeCell = {
+  readonly id: symbol;
+  readonly vnode: VNode;
 };
 
 export type ListBinding<T = unknown> = {
@@ -148,6 +154,20 @@ export function createTextVNode(value: unknown): VNode {
   };
 }
 
+export function createCellVNode(vnode: VNode): VNode<{ cell: VNodeCell }> {
+  return {
+    type: Cell,
+    props: {
+      cell: {
+        id: Symbol("exact.cell"),
+        vnode
+      }
+    },
+    children: [],
+    key: vnode.key
+  };
+}
+
 export function normalizeChildren(children: unknown[]): Child[] {
   const normalized: Child[] = [];
 
@@ -172,6 +192,14 @@ export function createRef<T>(description: string): RefKey<T> {
 
 export function isVNode(value: unknown): value is VNode {
   return !!value && typeof value === "object" && "type" in value && "props" in value && "children" in value;
+}
+
+export function isCellVNode(value: unknown): value is VNode<{ cell: VNodeCell }> {
+  return isVNode(value) && value.type === Cell;
+}
+
+export function getCellVNode(vnode: VNode<{ cell: VNodeCell }>): VNode {
+  return vnode.props.cell.vnode;
 }
 
 export function createComponentInstance<State extends object, Props extends Record<string, unknown>>(

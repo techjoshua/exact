@@ -95,3 +95,5 @@ function Profile(this: Component<{ firstName: string; lastName: string; saving: 
 ```
 
 Reactive values are cached after first use and recompute when their tracked dependencies change. Plain object and array replacements use structural equality, so reloading identical data does not cause unnecessary updates.
+
+JSX elements are internally mounted through cell boundaries. These cells let the renderer patch an already chosen JSX subtree in place, while `this.reactive()` remains the public API for preserving dynamic expressions that JavaScript would otherwise evaluate before JSX runtime calls.

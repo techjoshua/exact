@@ -1,6 +1,6 @@
 /** @jsxImportSource @exact/jsx-runtime */
 import { describe, expect, it } from "vitest";
-import { createRef, type Component, type RefBinding } from "@exact/core";
+import { createRef, getCellVNode, isCellVNode, type Component, type RefBinding } from "@exact/core";
 import type { JSX } from "./jsx-runtime.js";
 
 type LabelProps = {
@@ -36,7 +36,10 @@ describe("@exact/jsx-runtime types", () => {
       </section>
     );
 
-    expect(vnode.type).toBe("section");
-    expect(vnode.children).toHaveLength(2);
+    expect(isCellVNode(vnode)).toBe(true);
+    if (!isCellVNode(vnode)) throw new Error("Expected cell vnode");
+    const inner = getCellVNode(vnode);
+    expect(inner.type).toBe("section");
+    expect(inner.children).toHaveLength(2);
   });
 });

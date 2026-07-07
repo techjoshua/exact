@@ -273,6 +273,40 @@ describe("@exact/dom", () => {
     expect(rendered).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps sibling cell DOM stable when a reactive prop updates", () => {
+    let instance!: Component<{ label: string }>;
+    const rendered = vi.fn();
+
+    function Panel(this: Component<{ label: string }>) {
+      instance = this;
+      this.state.label = "Alpha";
+      const label = this.reactive(() => this.state.label);
+
+      return () => {
+        rendered();
+        return jsx("section", {
+          children: [
+            jsx("span", { title: label, children: "dynamic" }),
+            jsx("strong", { children: "stable" })
+          ]
+        });
+      };
+    }
+
+    const container = document.createElement("div");
+    render(jsx(Panel, {}), container);
+    const dynamic = container.querySelector("span")!;
+    const stable = container.querySelector("strong")!;
+
+    instance.state.label = "Beta";
+    flushSync();
+
+    expect(dynamic.title).toBe("Beta");
+    expect(container.querySelector("span")).toBe(dynamic);
+    expect(container.querySelector("strong")).toBe(stable);
+    expect(rendered).toHaveBeenCalledTimes(1);
+  });
+
   it("does not update reactive DOM bindings for structurally identical reloads", () => {
     let instance!: Component<{ user: { name: string; roles: string[] } }>;
     const rendered = vi.fn();

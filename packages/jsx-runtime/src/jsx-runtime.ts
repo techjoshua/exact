@@ -1,4 +1,4 @@
-import { createVNode, Fragment, type Child, type ComponentFunction, type RefBinding, type VNode } from "@exact/core";
+import { createCellVNode, createVNode, Fragment, type Child, type ComponentFunction, type RefBinding, type VNode } from "@exact/core";
 
 export { Fragment };
 
@@ -30,7 +30,7 @@ function createJsxVNode(type: JsxType, props: Props | null, key?: string): VNode
   const normalizedKey = key ?? (typeof rest.key === "string" ? rest.key : undefined);
   if ("key" in rest) delete rest.key;
   const childList = Array.isArray(children) ? children : children === undefined ? [] : [children];
-  return createVNode(type, normalizedKey ? { ...rest, key: normalizedKey } : rest, ...childList);
+  return createCellVNode(createVNode(type, normalizedKey ? { ...rest, key: normalizedKey } : rest, ...childList));
 }
 
 export namespace JSX {

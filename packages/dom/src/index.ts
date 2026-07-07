@@ -1,8 +1,11 @@
 import {
+  Cell,
   Fragment,
   Text,
   createComponentInstance,
   createTextVNode,
+  getCellVNode,
+  isCellVNode,
   isVNode,
   normalizeRenderResult,
   renderInstance,
@@ -47,6 +50,13 @@ export function render(vnode: VNode, container: Element): void {
 }
 
 function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>): Mounted {
+  if (isCellVNode(vnode)) {
+    const marker = document.createComment("exact-cell");
+    const mounted: Mounted = { vnode, dom: marker, children: [] };
+    mounted.children = mountDetachedChildren(root, [getCellVNode(vnode)], parentInstance);
+    return mounted;
+  }
+
   if (vnode.type === Text) {
     const node = document.createTextNode("");
     const mounted: Mounted = { vnode, dom: node, children: [] };
@@ -86,7 +96,7 @@ function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>
     return mounted;
   }
 
-  const element = document.createElement(vnode.type);
+  const element = document.createElement(vnode.type as string);
   const mounted: Mounted = { vnode, dom: element, children: [] };
   updateProps(root, element, {}, vnode.props);
   mounted.children = mountChildren(root, element, vnode.children, parentInstance);
@@ -114,6 +124,19 @@ function patch(
     unmountMounted(mounted);
     removeMountedNodes(parent, mounted);
     return replacement;
+  }
+
+  if (isCellVNode(next)) {
+    mounted.vnode = next;
+    mounted.children = patchChildren(
+      root,
+      parent,
+      mounted.children,
+      [getCellVNode(next)],
+      parentInstance,
+      afterMountedChildren(mounted)
+    );
+    return mounted;
   }
 
   if (next.type === Text) {
@@ -420,7 +443,7 @@ function ensureDelegated(root: Root, type: string): void {
 }
 
 function appendMountedChildren(parent: Node, mounted: Mounted, before?: Node | null): void {
-  if (mounted.vnode.type !== Fragment && typeof mounted.vnode.type !== "function") return;
+  if (mounted.vnode.type !== Cell && mounted.vnode.type !== Fragment && typeof mounted.vnode.type !== "function") return;
   for (const child of mounted.children) {
     parent.insertBefore(child.dom, before ?? null);
     appendMountedChildren(parent, child, before);
