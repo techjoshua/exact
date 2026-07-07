@@ -1,0 +1,999 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>eXact API Design Summary</title>
+  <style>
+    :root {
+      --bg: #fbfbfc;
+      --paper: #ffffff;
+      --ink: #172033;
+      --muted: #657084;
+      --line: #e3e8f0;
+      --accent: #4338ca;
+      --accent-bg: #eef2ff;
+      --code-bg: #111827;
+      --code-fg: #e5e7eb;
+      --ok-bg: #ecfdf5;
+      --ok-line: #a7f3d0;
+      --warn-bg: #fff7ed;
+      --warn-line: #fed7aa;
+      --bad-bg: #fef2f2;
+      --bad-line: #fecaca;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+    }
+
+    main {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    header.hero {
+      background: linear-gradient(135deg, #eef2ff, #ffffff 70%);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 40px;
+      box-shadow: 0 12px 32px rgba(17, 24, 39, 0.06);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2.5rem, 6vw, 5rem);
+      line-height: 0.95;
+      letter-spacing: -0.06em;
+    }
+
+    .x { color: var(--accent); }
+
+    .subtitle {
+      margin: 18px 0 0;
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 1.15rem;
+    }
+
+    .meta {
+      margin-top: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 0.88rem;
+      color: #374151;
+    }
+
+    nav {
+      margin: 28px 0;
+      padding: 18px 22px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+    }
+
+    nav a {
+      display: inline-block;
+      margin: 4px 14px 4px 0;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.94rem;
+    }
+
+    section {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 28px;
+      margin-top: 24px;
+      box-shadow: 0 6px 20px rgba(17, 24, 39, 0.035);
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 1.7rem;
+      letter-spacing: -0.025em;
+    }
+
+    h3 {
+      margin: 24px 0 10px;
+      font-size: 1.18rem;
+    }
+
+    h4 {
+      margin: 18px 0 8px;
+      font-size: 1rem;
+    }
+
+    p { margin: 10px 0; }
+
+    ul, ol { padding-left: 1.35rem; }
+
+    li { margin: 7px 0; }
+
+    code {
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 0.12rem 0.34rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 0.92em;
+    }
+
+    pre {
+      margin: 16px 0;
+      overflow: auto;
+      background: var(--code-bg);
+      color: var(--code-fg);
+      border-radius: 14px;
+      padding: 18px;
+      line-height: 1.45;
+      font-size: 0.92rem;
+    }
+
+    pre code {
+      background: transparent;
+      border: 0;
+      padding: 0;
+      color: inherit;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0;
+      font-size: 0.95rem;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 8px;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th { color: #374151; background: #f9fafb; }
+
+    .callout {
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin: 16px 0;
+      border: 1px solid var(--line);
+    }
+
+    .callout.ok { background: var(--ok-bg); border-color: var(--ok-line); }
+    .callout.warn { background: var(--warn-bg); border-color: var(--warn-line); }
+    .callout.bad { background: var(--bad-bg); border-color: var(--bad-line); }
+    .callout.note { background: var(--accent-bg); border-color: #c7d2fe; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      background: #fff;
+    }
+
+    .card h3 { margin-top: 0; }
+
+    .small { color: var(--muted); font-size: 0.92rem; }
+
+    .decision {
+      display: grid;
+      grid-template-columns: 170px 1fr;
+      gap: 10px;
+      border-top: 1px solid var(--line);
+      padding: 12px 0;
+    }
+
+    .decision:first-child { border-top: 0; }
+
+    .decision strong { color: #111827; }
+
+    @media (max-width: 720px) {
+      header.hero { padding: 28px; }
+      section { padding: 22px; }
+      .decision { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header class="hero">
+    <h1>e<span class="x">X</span>act</h1>
+    <p class="subtitle">An extensible reactive web framework with explicit component state, durable component instances, standard JSX ergonomics, scoped context, typed refs, and lifecycle-managed tasks.</p>
+    <div class="meta">
+      <span class="pill">eXtensible</span>
+      <span class="pill">Reactive</span>
+      <span class="pill">Explicit state</span>
+      <span class="pill">Hook-free core</span>
+      <span class="pill">Plugin-oriented</span>
+    </div>
+  </header>
+
+  <nav aria-label="Table of contents">
+    <a href="#philosophy">Philosophy</a>
+    <a href="#component-model">Component model</a>
+    <a href="#reactivity">Reactivity</a>
+    <a href="#state-props-context">State, props, context</a>
+    <a href="#tasks">Tasks</a>
+    <a href="#events">Events</a>
+    <a href="#refs">Refs</a>
+    <a href="#lists">Lists and keys</a>
+    <a href="#errors">Errors</a>
+    <a href="#plugins">Plugins</a>
+    <a href="#ssr">SSR and hydration</a>
+    <a href="#examples">Examples</a>
+    <a href="#open-questions">Open questions</a>
+  </nav>
+
+  <section id="philosophy">
+    <h2>1. Philosophy</h2>
+    <p>eXact is not intended to copy React's API surface. The goal is to support the same user-facing experiences while avoiding the accidental complexity introduced by render-time hooks, positional state slots, dependency arrays, and implicit component instances.</p>
+    <div class="grid">
+      <div class="card">
+        <h3>Explicit instance</h3>
+        <p>Each component has a durable instance exposed as <code>this</code>. State, refs, tasks, lifecycle handlers, and diagnostics belong to that instance.</p>
+      </div>
+      <div class="card">
+        <h3>Render is repeatable</h3>
+        <p>The component constructor runs once per instance and returns a render function. The render function can run many times.</p>
+      </div>
+      <div class="card">
+        <h3>Reactive by default</h3>
+        <p>State, props, and context are reactive proxies. Reads during render become render dependencies. Writes schedule updates.</p>
+      </div>
+      <div class="card">
+        <h3>Extensible core</h3>
+        <p>Plugins may decorate instances, augment TypeScript types, and subscribe to lifecycle events without bloating the framework core.</p>
+      </div>
+    </div>
+
+    <h3>Design rule</h3>
+    <div class="callout note">
+      <p><strong>Prefer fewer orthogonal primitives.</strong> Before adding a new API, ask whether it can be built from state, props, context, task, ref, render, lifecycle events, or plugins.</p>
+    </div>
+  </section>
+
+  <section id="component-model">
+    <h2>2. Component model</h2>
+    <p>A component is a function called once per component instance. It initializes state, registers lifecycle handlers or tasks, and returns a render function.</p>
+
+<pre><code class="language-tsx">type CounterState = {
+  count: number;
+};
+
+type CounterProps = {
+  step?: number;
+};
+
+function Counter(
+  this: Component&lt;CounterState&gt;,
+  { step = 1 }: CounterProps
+) {
+  // Runs once per instance.
+  this.state.count = 0;
+
+  return () =&gt; {
+    // Runs whenever render dependencies change.
+    return (
+      &lt;button onClick={() =&gt; this.state.count += step}&gt;
+        Count: {this.state.count}
+      &lt;/button&gt;
+    );
+  };
+}</code></pre>
+
+    <h3>Why this shape?</h3>
+    <div class="decision"><strong>Constructor once</strong><span>Initialization is normal code. There is no <code>initState()</code> ordering rule inside render and no hook-like slot order.</span></div>
+    <div class="decision"><strong>Render many times</strong><span>The returned function is the only repeated UI projection. Its reactive reads define what should rerender.</span></div>
+    <div class="decision"><strong>Props stay separate</strong><span>Props are external inputs from the parent. State is internal instance-owned data. Context is ambient capability/shared state.</span></div>
+
+    <h3>Root rendering</h3>
+<pre><code class="language-tsx">import { render } from "@exact/dom";
+
+render(&lt;App /&gt;, document.getElementById("app")!);</code></pre>
+  </section>
+
+  <section id="reactivity">
+    <h2>3. Reactivity semantics</h2>
+    <p>State, props, and context values are reactive proxies created to eXact's specification. The framework can detect both values and their underlying reactive references, while preserving natural authoring ergonomics as much as possible.</p>
+
+    <h3>Render dependency tracking</h3>
+    <p>During render, reactive reads are tracked automatically. When any tracked reference changes, the instance is scheduled for update.</p>
+
+<pre><code class="language-tsx">return () =&gt; (
+  &lt;section&gt;
+    &lt;h1&gt;{this.state.title}&lt;/h1&gt;
+    &lt;p&gt;Theme: {this.getContext(themeContext).name}&lt;/p&gt;
+  &lt;/section&gt;
+);</code></pre>
+
+    <p>This render depends on <code>state.title</code> and <code>themeContext.name</code>. It does not depend on unrelated state or context fields.</p>
+
+    <h3>Element-level dependency tracking</h3>
+    <p>Generated JSX elements may capture their own reactive dependencies. Primitive state passed through JSX children or DOM props should be consumed by the generated element, not by the ancestor component render that created the element.</p>
+
+    <p>This prevents changes to child text, DOM props, or <code>props.children</code> payloads from forcing ancestor component rerenders when the ancestor structure itself has not changed.</p>
+
+    <h3>State writes</h3>
+    <p>State writes schedule UI updates, but they do not automatically become task dependencies. Writes are batched so multiple state mutations in the same turn produce one update.</p>
+
+<pre><code class="language-ts">this.state.loading = true;
+this.state.error = undefined;
+this.state.options = [];
+// One scheduled update, not three independent patches.</code></pre>
+
+    <h3>Reactive primitive wrappers</h3>
+    <p>Reactive proxy fields may internally wrap primitives so framework APIs can distinguish a plain value from its reactive source reference.</p>
+    <p>For example, <code>this.state.query</code> may behave like a string while carrying internal metadata identifying <code>state.query</code> as a reactive reference. In control-flow comparisons, use loose equality such as <code>state.mode == "compact"</code> and <code>state.mode != "full"</code>, or explicitly unwrap when strict primitive identity is required.</p>
+
+    <div class="callout warn">
+      <p><strong>Caveat:</strong> primitive wrappers can create JavaScript edge cases around <code>===</code>, <code>typeof</code>, and third-party library brand checks. Loose equality intentionally unwraps reactive primitives through JavaScript coercion, but strict equality cannot. Framework APIs should unwrap values automatically. Low-level unwrap/reference utilities should exist for plugins and advanced interop, but should not be part of the everyday component authoring path.</p>
+    </div>
+
+    <h3>Framework-level reactive utilities</h3>
+    <p>The runtime should expose low-level utilities for plugins and internal APIs, such as:</p>
+
+<pre><code class="language-ts">reactive.unwrap(value);        // get the plain value
+reactive.ref(value);           // get the reactive reference, if present
+reactive.isReactive(value);    // detect reactive wrappers/proxies
+reactive.peek(fn);             // read without tracking
+reactive.snapshot(value);      // produce debug/serialization snapshot</code></pre>
+
+    <p>Average application developers should rarely need these directly. They exist so framework APIs like <code>task</code>, refs, devtools, SSR, hydration, and plugins can reason about reactive values correctly.</p>
+  </section>
+
+  <section id="state-props-context">
+    <h2>4. State, props, and context</h2>
+
+    <h3>State</h3>
+    <p>State is typed through the component's <code>this</code> parameter and belongs to the durable component instance.</p>
+
+<pre><code class="language-tsx">type UserEditorState = {
+  saving: boolean;
+  draftName: string;
+};
+
+function UserEditor(this: Component&lt;UserEditorState&gt;, props: UserEditorProps) {
+  this.state.saving = false;
+  this.state.draftName = "";
+
+  return () =&gt; &lt;input value={this.state.draftName} /&gt;;
+}</code></pre>
+
+    <h3>Props</h3>
+    <p>Props are typed parameters. They are external, parent-owned, and reactive. Children are handled like React: <code>props.children</code>.</p>
+
+<pre><code class="language-tsx">type CardProps = {
+  title: string;
+  children?: JSX.Children;
+};
+
+function Card(this: Component&lt;{}&gt;, props: CardProps) {
+  return () =&gt; (
+    &lt;section&gt;
+      &lt;h2&gt;{props.title}&lt;/h2&gt;
+      {props.children}
+    &lt;/section&gt;
+  );
+}</code></pre>
+
+    <h3>Context</h3>
+    <p>Context is identified at runtime with typed symbols/tokens. This preserves TypeScript types while avoiding erased-generic ambiguity at runtime.</p>
+
+<pre><code class="language-ts">type UserContextValue = {
+  user: User;
+  renameUser(name: string): Promise&lt;void&gt;;
+};
+
+export const userContext = createContext&lt;UserContextValue&gt;("user");</code></pre>
+
+<pre><code class="language-tsx">function UserProvider(this: Component&lt;ProviderState&gt;, props: Props) {
+  this.setContext(userContext, {
+    get user() {
+      return this.state.user;
+    },
+    renameUser: async (name) =&gt; {
+      this.state.user.name = name;
+      await api.renameUser(this.state.user.id, name);
+    }
+  });
+
+  return () =&gt; props.children;
+}</code></pre>
+
+<pre><code class="language-tsx">function UserMenu(this: Component&lt;{}&gt;) {
+  return () =&gt; {
+    const { user, renameUser } = this.getContext(userContext);
+
+    return &lt;button onClick={() =&gt; renameUser("New name")}&gt;{user.name}&lt;/button&gt;;
+  };
+}</code></pre>
+
+    <div class="callout note">
+      <p><strong>Context scoping:</strong> <code>setContext</code> creates a sub-context scope for descendants only. The provider component's own execution still uses its ancestor context. This is especially important for error handling fallback.</p>
+    </div>
+  </section>
+
+  <section id="tasks">
+    <h2>5. Tasks</h2>
+    <p><code>this.task()</code> is the lifecycle-managed work primitive. It handles async work, cleanup, cancellation, and dependency-triggered reruns.</p>
+
+    <h3>Final task direction</h3>
+    <p>Render dependencies are automatic. Task dependencies are explicit by passing dependency values before the task callback. The task callback receives unwrapped dependency values as positional parameters, followed by the task context.</p>
+
+<pre><code class="language-ts">this.task(work);</code></pre>
+
+<p>Runs once and cleans up on unmount.</p>
+
+<pre><code class="language-ts">this.task(dep1, dep2, dep3, async (value1, value2, value3, { signal }) =&gt; {
+  // reruns when dep1, dep2, or dep3 changes
+});</code></pre>
+
+    <h3>Why explicit task dependencies?</h3>
+    <p>Fully automatic task tracking creates feedback-loop hazards. A task often reads and writes related state fields. If reads inside the task body became dependencies, writes could restart the same task unnecessarily.</p>
+
+    <div class="callout bad">
+      <p><strong>Avoided problem:</strong> An autocomplete task reads <code>query</code>, <code>loading</code>, or <code>error</code>, then writes <code>loading</code>, <code>error</code>, and <code>options</code>. If all task reads were auto-tracked, internal state updates could cause redundant or self-triggered reruns.</p>
+    </div>
+
+    <h3>Task rules</h3>
+    <ul>
+      <li><code>this.task(work)</code> runs once and is aborted/cleaned up on unmount.</li>
+      <li><code>this.task(dep1, dep2, ..., work)</code> reruns when any dependency changes.</li>
+      <li>All previous task executions are aborted before rerun.</li>
+      <li>Cleanup functions are called before rerun and on unmount.</li>
+      <li>Task dependency values are unwrapped before being passed to the callback.</li>
+      <li>Task work is not dependency-tracked by default.</li>
+      <li>State writes inside task work schedule renders but do not themselves become task dependencies.</li>
+    </ul>
+
+    <h3>TypeScript shape</h3>
+<pre><code class="language-ts">type TaskContext = {
+  signal: AbortSignal;
+};
+
+type Cleanup = void | (() =&gt; void | Promise&lt;void&gt;);
+
+type TaskResult = Cleanup | Promise&lt;Cleanup&gt;;
+
+interface Component&lt;State&gt; {
+  task(work: (ctx: TaskContext) =&gt; TaskResult): void;
+
+  task&lt;Deps extends readonly unknown[]&gt;(
+    ...args: [
+      ...deps: Deps,
+      work: (...args: [...values: Unwrapped&lt;Deps&gt;, ctx: TaskContext]) =&gt; TaskResult
+    ]
+  ): void;
+}</code></pre>
+
+    <h3>Autocomplete task example</h3>
+<pre><code class="language-tsx">function Autocomplete&lt;T&gt;(
+  this: Component&lt;AutocompleteState&lt;T&gt;&gt;,
+  props: AutocompleteProps&lt;T&gt;
+) {
+  this.state.query = "";
+  this.state.loading = false;
+  this.state.options = [];
+  this.state.error = undefined;
+
+  this.task(
+    this.state.query,
+    props.search,
+    async (query, search, { signal }) =&gt; {
+      const trimmed = query.trim();
+
+      if (!trimmed) {
+        this.state.options = [];
+        this.state.loading = false;
+        this.state.error = undefined;
+        return;
+      }
+
+      this.state.loading = true;
+      this.state.error = undefined;
+
+      await delay(200, signal); // debounce
+
+      try {
+        this.state.options = await search(trimmed, signal);
+      } catch (err) {
+        if (!signal.aborted) {
+          this.state.error = "Could not load options";
+        }
+      } finally {
+        if (!signal.aborted) {
+          this.state.loading = false;
+        }
+      }
+    }
+  );
+
+  return () =&gt; (
+    &lt;div class="autocomplete"&gt;
+      &lt;input
+        value={this.state.query}
+        placeholder={props.placeholder}
+        onInput={e =&gt; this.state.query = e.currentTarget.value}
+      /&gt;
+
+      {this.state.loading &amp;&amp; &lt;div&gt;Loading...&lt;/div&gt;}
+      {this.state.error &amp;&amp; &lt;div&gt;{this.state.error}&lt;/div&gt;}
+
+      {!!this.state.options.length &amp;&amp; (
+        &lt;ul&gt;
+          {this.map(
+            this.state.options,
+            props.getKey,
+            option =&gt; (
+              &lt;li onClick={() =&gt; props.onSelect(option)}&gt;
+                {props.renderOption(option)}
+              &lt;/li&gt;
+            )
+          )}
+        &lt;/ul&gt;
+      )}
+    &lt;/div&gt;
+  );
+}</code></pre>
+
+    <h3>Run-once task example</h3>
+<pre><code class="language-tsx">function Clock(this: Component&lt;{ now: Date }&gt;) {
+  this.state.now = new Date();
+
+  this.task(async ({ signal }) =&gt; {
+    while (!signal.aborted) {
+      await delay(1000, signal);
+      this.state.now = new Date();
+    }
+  });
+
+  return () =&gt; &lt;time&gt;{this.state.now.toLocaleTimeString()}&lt;/time&gt;;
+}</code></pre>
+  </section>
+
+  <section id="events">
+    <h2>6. Events</h2>
+    <p>Events use standard JSX props. No custom JSX transform is required beyond standard JSX-to-function-call translation.</p>
+
+<pre><code class="language-tsx">return () =&gt; (
+  &lt;button onClick={event =&gt; {
+    // `this` is the component instance.
+    this.state.count++;
+
+    // DOM element is available through browser semantics.
+    event.currentTarget.disabled = this.state.count &gt; 10;
+  }}&gt;
+    Increment
+  &lt;/button&gt;
+);</code></pre>
+
+    <h3>Design decisions</h3>
+    <ul>
+      <li>Event handlers are stored by the runtime, typically through delegated listeners.</li>
+      <li>Handlers run with <code>this</code> bound to the component instance.</li>
+      <li>The DOM element remains available as <code>event.currentTarget</code>.</li>
+      <li>Event reads do not create render dependencies unless explicitly run inside a tracked context.</li>
+      <li>Inline lambdas are supported; the runtime updates handler metadata rather than attaching/removing native listeners constantly.</li>
+    </ul>
+  </section>
+
+  <section id="refs">
+    <h2>7. Refs</h2>
+    <p>Refs are typed references to resources, not just DOM elements. They are symbol-backed keys with owner-bound bindings.</p>
+
+<pre><code class="language-ts">export const inputRef = createRef&lt;HTMLInputElement&gt;("input");
+export const editorRef = createRef&lt;MonacoEditor&gt;("editor");</code></pre>
+
+<pre><code class="language-tsx">function SearchBox(this: Component&lt;SearchState&gt;) {
+  return () =&gt; &lt;input ref={this.ref(inputRef)} /&gt;;
+}</code></pre>
+
+<pre><code class="language-ts">this.refs.get(inputRef)?.focus();</code></pre>
+
+    <h3>Forward-ref-like behavior</h3>
+    <p>There is no special <code>forwardRef</code>. A parent can pass an owned ref binding through props. The child attaches it to a DOM node or resource.</p>
+
+<pre><code class="language-tsx">const searchInput = createRef&lt;HTMLInputElement&gt;("searchInput");
+
+function Page(this: Component&lt;PageState&gt;) {
+  return () =&gt; &lt;SearchBox inputRef={this.ref(searchInput)} /&gt;;
+}
+
+function SearchBox(
+  this: Component&lt;SearchBoxState&gt;,
+  props: { inputRef?: RefBinding&lt;HTMLInputElement&gt; }
+) {
+  return () =&gt; &lt;input ref={props.inputRef} /&gt;;
+}</code></pre>
+
+    <h3>No <code>expose()</code></h3>
+    <p>The design avoids a separate imperative handle API. If a child owns a resource, it can fulfill a ref binding with that resource. The resource might be an element, Monaco editor instance, Leaflet map, WebGL context, video player, or anything else.</p>
+  </section>
+
+  <section id="lists">
+    <h2>8. Lists and keys</h2>
+    <p>eXact centralizes keyed list rendering with <code>this.map()</code>. JSX for each item does not specify a <code>key</code>; the framework returns a reactive fragment, derives keys from the collection-aware mapping call, and attaches them to generated children.</p>
+
+<pre><code class="language-tsx">{this.map(
+  items,
+  item =&gt; item.id,
+  item =&gt; &lt;li&gt;{item.description}&lt;/li&gt;
+)}</code></pre>
+
+    <h3>Map signature</h3>
+    <p><code>this.map()</code> accepts the collection, a typed key generator, and a typed render lambda. The key generator must return the stable string identity for the item.</p>
+
+<pre><code class="language-ts">this.map&lt;T&gt;(
+  collection: Iterable&lt;T&gt;,
+  key: (item: T) =&gt; string,
+  render: (item: T) =&gt; JSX.Element
+): JSX.Element;</code></pre>
+
+    <h3>Why keys live outside JSX</h3>
+    <p>Keeping keys in <code>this.map()</code> makes keyed rendering explicit at the collection boundary and keeps item JSX focused on DOM/component props. The returned fragment owns the collection dependency, so structural add/remove/reorder updates can be reconciled without rerendering the parent component.</p>
+
+    <ul>
+      <li>The key lambda receives a typed collection item and returns the durable domain identity.</li>
+      <li>The render lambda receives the same typed item and returns JSX without a <code>key</code> prop.</li>
+      <li>The runtime attaches keys to rendered children before reconciliation.</li>
+      <li>The list fragment, not the parent component render, owns structural collection invalidation.</li>
+      <li>Dev mode should warn for dynamic arrays rendered without stable identity.</li>
+    </ul>
+
+    <div class="callout note">
+      <p><strong>Identity principle:</strong> keys are not a React-specific quirk. Any framework preserving component instances across reorder/insert/delete needs collection identity.</p>
+    </div>
+  </section>
+
+  <section id="lifecycle">
+    <h2>9. Lifecycle</h2>
+    <p>Lifecycle handlers are instance event subscriptions registered during construction. They can have multiple subscribers.</p>
+
+<pre><code class="language-tsx">function Widget(this: Component&lt;WidgetState&gt;) {
+  this.onMount(({ signal }) =&gt; {
+    // component is mounted
+  });
+
+  this.onUnmount(({ reason }) =&gt; {
+    // cleanup not already covered by tasks
+  });
+
+  return () =&gt; &lt;div /&gt;;
+}</code></pre>
+
+    <p>Because component construction runs once, these are not hook-like. Registering lifecycle handlers during construction does not create render-time ordering rules.</p>
+
+    <h3>Potential lifecycle events</h3>
+    <table>
+      <thead><tr><th>Event</th><th>Purpose</th><th>Core?</th></tr></thead>
+      <tbody>
+        <tr><td><code>onMount</code></td><td>Instance enters mounted lifecycle.</td><td>Yes</td></tr>
+        <tr><td><code>onUnmount</code></td><td>Instance is removed; tasks are aborted and cleanup runs.</td><td>Yes</td></tr>
+        <tr><td><code>onRender</code></td><td>Instrumentation: render started/completed, duration, dependencies.</td><td>Useful for plugins/devtools</td></tr>
+        <tr><td><code>onCommit</code></td><td>After DOM patch commit; refs available.</td><td>Possible, but avoid until use cases demand it</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="errors">
+    <h2>10. Error handling</h2>
+    <p>Error handling can be modeled as a known context token exported by the framework or an error plugin.</p>
+
+<pre><code class="language-ts">export const errorContext = createContext&lt;ErrorReporter&gt;("errors");
+
+type ErrorReporter = {
+  report(error: unknown, source: ErrorSource): void;
+};</code></pre>
+
+<pre><code class="language-tsx">function ErrorBoundary(this: Component&lt;{ error?: unknown }&gt;, props: Props) {
+  this.state.error = undefined;
+
+  this.setContext(errorContext, {
+    report: (error) =&gt; {
+      this.state.error = error;
+    }
+  });
+
+  return () =&gt; {
+    if (this.state.error) {
+      return &lt;ErrorView error={this.state.error} /&gt;;
+    }
+
+    return props.children;
+  };
+}</code></pre>
+
+    <h3>Context fallback rule</h3>
+    <p><code>setContext</code> affects children only. Therefore an error handler provided by a component is itself executed under that component's ancestor context. If the handler throws, the runtime can naturally report that failure to the ancestor error context.</p>
+
+    <div class="callout ok">
+      <p><strong>No special boundary type required:</strong> error boundaries fall out of scoped context plus runtime error reporting.</p>
+    </div>
+  </section>
+
+  <section id="plugins">
+    <h2>11. Plugins</h2>
+    <p>Plugins are the main extension mechanism. They may augment component typing with new decorated instance methods and may subscribe to instance lifecycle events.</p>
+
+<pre><code class="language-ts">type Plugin = {
+  name: string;
+  setup?(app: AppRuntime): void;
+  createInstance?(instance: Component&lt;any&gt;): void;
+};</code></pre>
+
+    <h3>Type augmentation</h3>
+<pre><code class="language-ts">// @exact/logging
+
+declare module "@exact/core" {
+  interface Component&lt;State&gt; {
+    log: Logger;
+  }
+}</code></pre>
+
+    <h3>Instance decoration and lifecycle subscription</h3>
+<pre><code class="language-ts">export const performancePlugin: Plugin = {
+  name: "performance",
+
+  createInstance(instance) {
+    const createdAt = performance.now();
+
+    instance.onMount(() =&gt; {
+      metrics.count(`${instance.type.name}.created`);
+      metrics.timing(`${instance.type.name}.createMs`, performance.now() - createdAt);
+    });
+
+    instance.onRender(({ duration }) =&gt; {
+      metrics.count(`${instance.type.name}.rendered`);
+      metrics.timing(`${instance.type.name}.renderMs`, duration);
+    });
+
+    instance.onUnmount(() =&gt; {
+      metrics.count(`${instance.type.name}.unmounted`);
+    });
+  }
+};</code></pre>
+
+    <h3>Logging and debug as plugins/capabilities</h3>
+    <p><code>log</code> and <code>debug</code> should not be separate vertical systems baked into core.</p>
+    <ul>
+      <li><code>this.log</code> can be added by a logging plugin and routed through a logging context. Default behavior may write to console; apps may route by level/message to Datadog, server logs, or other sinks.</li>
+      <li><code>this.debug</code> should be local-only: console/test output for developer introspection. It should not route through production logging infrastructure.</li>
+      <li>Debug can include state, props, context tokens, tasks, refs, dependency information, and instance identity.</li>
+    </ul>
+
+<pre><code class="language-ts">function SaveButton(this: Component&lt;State&gt;) {
+  this.log.info("SaveButton created");
+
+  this.debug("initial state");
+
+  return () =&gt; &lt;button&gt;Save&lt;/button&gt;;
+}</code></pre>
+
+    <div class="callout note">
+      <p><strong>Core policy:</strong> plugins may add helpers and subscribe to instance events, but should be built from core primitives rather than requiring special syntax.</p>
+    </div>
+  </section>
+
+  <section id="ssr">
+    <h2>12. SSR and hydration</h2>
+    <p>The primitives do not create a major barrier to SSR, but SSR and hydration should be separate extensions to keep server-only and client-only logic out of each other's bundles.</p>
+
+    <h3>Package split</h3>
+<pre><code class="language-ts">// Server only
+import { renderToString } from "@exact/ssr";
+
+// Client only
+import { hydrate } from "@exact/hydrate";</code></pre>
+
+    <table>
+      <thead><tr><th>Package</th><th>Responsibilities</th></tr></thead>
+      <tbody>
+        <tr><td><code>@exact/ssr</code></td><td>Server render, async constructor resolution, state capture, HTML markers, serialized payload generation.</td></tr>
+        <tr><td><code>@exact/hydrate</code></td><td>Client reattachment, state restore, event binding, DOM reconciliation against existing HTML.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>SSR behavior rules</h3>
+    <ul>
+      <li>Constructor may run on the server.</li>
+      <li>Render may run on the server.</li>
+      <li>Tasks, refs, browser events, and DOM lifecycle should be client-only by default unless explicitly marked server-safe.</li>
+      <li>State serialization should be controlled by SSR extension policy, not hardcoded into core.</li>
+    </ul>
+
+<pre><code class="language-html">&lt;div data-exact-id="UserEditor:42"&gt;...&lt;/div&gt;
+&lt;script type="application/json" id="__EXACT_STATE__"&gt;
+  { "42": { "draftName": "", "saving": false } }
+&lt;/script&gt;</code></pre>
+  </section>
+
+  <section id="examples">
+    <h2>13. Full example: autocomplete</h2>
+<pre><code class="language-tsx">type AutocompleteState&lt;T&gt; = {
+  query: string;
+  loading: boolean;
+  options: T[];
+  error?: string;
+};
+
+type AutocompleteProps&lt;T&gt; = {
+  placeholder?: string;
+  search(query: string, signal: AbortSignal): Promise&lt;T[]&gt;;
+  getKey(option: T): string;
+  renderOption(option: T): JSX.Element;
+  onSelect(option: T): void;
+};
+
+function Autocomplete&lt;T&gt;(
+  this: Component&lt;AutocompleteState&lt;T&gt;&gt;,
+  props: AutocompleteProps&lt;T&gt;
+) {
+  this.state.query = "";
+  this.state.loading = false;
+  this.state.options = [];
+
+  this.task(
+    this.state.query,
+    props.search,
+    async (query, search, { signal }) =&gt; {
+      const q = query.trim();
+
+      if (!q) {
+        this.state.options = [];
+        this.state.loading = false;
+        this.state.error = undefined;
+        return;
+      }
+
+      this.state.loading = true;
+      this.state.error = undefined;
+
+      await delay(200, signal);
+
+      try {
+        this.state.options = await search(q, signal);
+      } catch (err) {
+        if (!signal.aborted) this.state.error = "Could not load options";
+      } finally {
+        if (!signal.aborted) this.state.loading = false;
+      }
+    }
+  );
+
+  return () =&gt; (
+    &lt;div class="autocomplete"&gt;
+      &lt;input
+        value={this.state.query}
+        placeholder={props.placeholder}
+        onInput={event =&gt; {
+          this.state.query = event.currentTarget.value;
+        }}
+      /&gt;
+
+      {this.state.loading &amp;&amp; &lt;div class="status"&gt;Loading...&lt;/div&gt;}
+      {this.state.error &amp;&amp; &lt;div class="error"&gt;{this.state.error}&lt;/div&gt;}
+
+      &lt;ul&gt;
+        {this.map(
+          this.state.options,
+          props.getKey,
+          option =&gt; (
+            &lt;li onClick={() =&gt; props.onSelect(option)}&gt;
+              {props.renderOption(option)}
+            &lt;/li&gt;
+          )
+        )}
+      &lt;/ul&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+
+    <h3>Why this is performant</h3>
+    <ul>
+      <li>Typing changes <code>state.query</code>, which schedules a render and restarts only the query-dependent task.</li>
+      <li>Previous debounce/fetch work is aborted.</li>
+      <li>State writes to <code>loading</code>, <code>error</code>, and <code>options</code> update the UI but do not restart the task.</li>
+      <li>Event delegation avoids listener churn.</li>
+      <li>Keyed list reconciliation preserves row identity.</li>
+      <li>DOM patching preserves focus and selection in the input.</li>
+    </ul>
+  </section>
+
+  <section id="react-comparison">
+    <h2>14. React capability mapping</h2>
+    <table>
+      <thead><tr><th>React capability</th><th>eXact equivalent</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>useState</code></td><td><code>this.state</code></td><td>Named instance state, not positional slots.</td></tr>
+        <tr><td><code>useEffect</code></td><td><code>this.task(...)</code></td><td>Lifecycle-managed, abortable, explicit dependencies.</td></tr>
+        <tr><td><code>useContext</code></td><td><code>this.getContext(token)</code></td><td>Symbol-backed runtime identity with TypeScript typing.</td></tr>
+        <tr><td><code>children</code></td><td><code>props.children</code></td><td>Handled like React.</td></tr>
+        <tr><td><code>key</code></td><td><code>this.map(collection, key, render)</code></td><td>Framework-owned keyed rendering; item JSX does not include <code>key</code>.</td></tr>
+        <tr><td><code>ref</code></td><td><code>this.ref(key)</code></td><td>Typed resource refs, not only DOM refs.</td></tr>
+        <tr><td><code>forwardRef</code></td><td>Pass ref bindings through props</td><td>No special wrapper required.</td></tr>
+        <tr><td><code>useImperativeHandle</code></td><td>Resource refs</td><td>No separate <code>expose()</code> API needed.</td></tr>
+        <tr><td><code>useMemo/useCallback/memo</code></td><td>Usually unnecessary</td><td>Stable instances and dependency tracking reduce the need.</td></tr>
+        <tr><td>Error boundaries</td><td>Error context</td><td>Boundary is context provider behavior.</td></tr>
+        <tr><td>Portals</td><td>Alternate render targets / overlay roots</td><td>Can be built on top; not necessarily core.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="open-questions">
+    <h2>15. Open questions and implementation-sensitive decisions</h2>
+    <ol>
+      <li><strong>Reactive primitive wrappers:</strong> Are wrapper semantics acceptable if reactive primitive comparisons intentionally use <code>==</code>/<code>!=</code> or explicit unwrap rather than <code>===</code>/<code>!==</code>?</li>
+      <li><strong>Task typing:</strong> How precise can variadic dependency typing be while keeping overloads understandable?</li>
+      <li><strong>Commit lifecycle:</strong> Is <code>onCommit</code> needed in core, or can refs/tasks cover the practical cases?</li>
+      <li><strong>Unkeyed arrays:</strong> How strongly should dev mode warn when plain <code>Array.prototype.map</code> produces dynamic children instead of <code>this.map()</code>?</li>
+      <li><strong>Hot reload:</strong> Constructor-once semantics require a deliberate HMR policy for preserving state while restarting tasks/lifecycle registrations.</li>
+      <li><strong>SSR serialization:</strong> Which state is serializable by default, and how does the SSR extension let apps opt in/out?</li>
+      <li><strong>React compatibility:</strong> A separate tree-shakable compatibility package can exist, but the core should not absorb React's hook semantics.</li>
+    </ol>
+  </section>
+
+  <section id="summary">
+    <h2>16. Current minimal core</h2>
+    <p>The current proposed core API is intentionally small:</p>
+
+<pre><code class="language-ts">interface Component&lt;State&gt; {
+  state: Reactive&lt;State&gt;;
+
+  getContext&lt;T&gt;(token: ContextToken&lt;T&gt;): Reactive&lt;T&gt;;
+  setContext&lt;T&gt;(token: ContextToken&lt;T&gt;, value: T): void;
+
+  task(work: (ctx: TaskContext) =&gt; TaskResult): void;
+  task&lt;Deps extends readonly unknown[]&gt;(
+    ...args: [...deps: Deps, work: (...args: [...Unwrapped&lt;Deps&gt;, TaskContext]) =&gt; TaskResult]
+  ): void;
+
+  ref&lt;T&gt;(key: RefKey&lt;T&gt;): RefBinding&lt;T&gt;;
+  refs: RefRegistry;
+
+  map&lt;T&gt;(
+    collection: Iterable&lt;T&gt;,
+    key: (item: T) =&gt; string,
+    render: (item: T) =&gt; JSX.Element
+  ): JSX.Element;
+
+  onMount(handler: LifecycleHandler): void;
+  onUnmount(handler: LifecycleHandler): void;
+
+  // Instrumentation/lifecycle events used by plugins/devtools.
+  onRender?(handler: RenderEventHandler): void;
+}</code></pre>
+
+    <div class="callout ok">
+      <p><strong>Core identity:</strong> eXact is an instance-oriented reactive component runtime where construction, rendering, and managed work are distinct phases. It preserves JSX ergonomics while avoiding hook ordering, dependency arrays, and hidden state slots.</p>
+    </div>
+  </section>
+</main>
+</body>
+</html>

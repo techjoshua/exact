@@ -1,0 +1,9 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/reactive" },
+    { "path": "./packages/core" },
+    { "path": "./packages/jsx-runtime" },
+    { "path": "./packages/dom" }
+  ]
+}
