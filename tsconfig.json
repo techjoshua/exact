@@ -4,6 +4,8 @@
     { "path": "./packages/reactive" },
     { "path": "./packages/core" },
     { "path": "./packages/jsx-runtime" },
-    { "path": "./packages/dom" }
+    { "path": "./packages/dom" },
+    { "path": "./packages/compiler" },
+    { "path": "./packages/vite-plugin" }
   ]
 }

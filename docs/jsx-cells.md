@@ -13,9 +13,11 @@ Each JSX call produces a cell-backed vnode. A component instance still runs its 
 
 When a JSX cell is patched, the DOM renderer patches that mounted cell subtree in place. It does not rerun the whole component instance unless the invalidated read belongs to the component render scope that chose a different tree shape.
 
-## Runtime First
+## Runtime And Compiler
 
-The implementation works with normal TypeScript automatic JSX output. A future compiler transform may optimize the same model by preserving finer expression boundaries, but compiler support is not required for v1.
+The runtime JSX implementation works with normal TypeScript automatic JSX output. Compiler mode adds an eXact transform that preserves JSX expressions as reactive bindings, so ordinary JSX expressions can update at their owning text, prop, style, child, or component-prop boundary.
+
+The compiler lowers JSX to internal core helpers. It is additive: runtime JSX remains supported, and `this.reactive()` remains useful for named/reused derived values and task dependencies.
 
 ## Key Scenarios
 

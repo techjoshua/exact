@@ -1,5 +1,6 @@
 import {
   Cell,
+  Dynamic,
   Fragment,
   Text,
   createComponentInstance,
@@ -19,6 +20,7 @@ import {
   unwrap,
   watch
 } from "@exact/core";
+import { computed, type ReactiveValue } from "@exact/reactive";
 
 type Mounted = {
   vnode: VNode;
@@ -79,6 +81,27 @@ function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>
         mounted.children = patchChildren(root, parent, mounted.children, nextChildren, parentInstance, afterMountedChildren(mounted));
       });
     }
+    return mounted;
+  }
+
+  if (vnode.type === Dynamic) {
+    const marker = document.createComment("exact-dynamic");
+    const mounted: Mounted = { vnode, dom: marker, children: [] };
+    const value = vnode.props.value;
+    mounted.children = mountDetachedChildren(root, normalizeRenderResult(unwrap(value) as Child | Child[]), parentInstance);
+    mounted.stop = watch(() => {
+      const nextChildren = normalizeRenderResult(unwrap(value) as Child | Child[]);
+      const parent = marker.parentNode;
+      if (!parent) return;
+      mounted.children = patchChildren(
+        root,
+        parent,
+        mounted.children,
+        nextChildren,
+        parentInstance,
+        afterMountedChildren(mounted)
+      );
+    });
     return mounted;
   }
 
@@ -175,6 +198,32 @@ function patch(
     } else if (!nextList) {
       mounted.children = patchChildren(root, parent, mounted.children, next.children, parentInstance, afterMountedChildren(mounted));
     }
+    return mounted;
+  }
+
+  if (next.type === Dynamic) {
+    mounted.vnode = next;
+    const value = next.props.value;
+    mounted.stop?.();
+    mounted.children = patchChildren(
+      root,
+      parent,
+      mounted.children,
+      normalizeRenderResult(unwrap(value) as Child | Child[]),
+      parentInstance,
+      afterMountedChildren(mounted)
+    );
+    mounted.stop = watch(() => {
+      const nextChildren = normalizeRenderResult(unwrap(value) as Child | Child[]);
+      mounted.children = patchChildren(
+        root,
+        mounted.dom.parentNode ?? parent,
+        mounted.children,
+        nextChildren,
+        parentInstance,
+        afterMountedChildren(mounted)
+      );
+    });
     return mounted;
   }
 
@@ -329,7 +378,7 @@ function setProp(root: Root, element: Element, key: string, value: unknown, prev
       return;
     }
 
-    setDomProp(element, key, actual);
+    setDomProp(element, key, key === "class" || key === "className" ? normalizeClass(actual) : actual);
   });
 
   setPropBinding(element, key, stop);
@@ -374,6 +423,42 @@ function bindStyle(element: HTMLElement, value: unknown): StopHandle {
     }
     previousNames = nextNames;
   });
+}
+
+export type CssValue = string | number | ReactiveValue<string>;
+
+type CssInput = unknown;
+
+export const px = unit("px");
+export const rem = unit("rem");
+export const em = unit("em");
+export const percent = unit("%");
+export const vh = unit("vh");
+export const vw = unit("vw");
+export const vmin = unit("vmin");
+export const vmax = unit("vmax");
+export const fr = unit("fr");
+export const ms = unit("ms");
+export const s = unit("s");
+export const deg = unit("deg");
+export const rad = unit("rad");
+export const turn = unit("turn");
+
+function unit(suffix: string): (value: CssInput) => ReactiveValue<string> {
+  return (value: CssInput) => computed(() => `${unwrap(value) ?? ""}${suffix}`);
+}
+
+function normalizeClass(value: unknown): string {
+  const actual = unwrap(value);
+  if (actual === false || actual === null || actual === undefined) return "";
+  if (typeof actual === "string") return actual;
+  if (Array.isArray(actual)) {
+    return actual.map(item => normalizeClass(item)).filter(Boolean).join(" ");
+  }
+  if (typeof actual === "object") {
+    return Object.entries(actual).filter(([, enabled]) => Boolean(unwrap(enabled))).map(([name]) => name).join(" ");
+  }
+  return String(actual);
 }
 
 function setDomProp(element: Element, key: string, value: unknown): void {
@@ -443,7 +528,7 @@ function ensureDelegated(root: Root, type: string): void {
 }
 
 function appendMountedChildren(parent: Node, mounted: Mounted, before?: Node | null): void {
-  if (mounted.vnode.type !== Cell && mounted.vnode.type !== Fragment && typeof mounted.vnode.type !== "function") return;
+  if (mounted.vnode.type !== Cell && mounted.vnode.type !== Fragment && mounted.vnode.type !== Dynamic && typeof mounted.vnode.type !== "function") return;
   for (const child of mounted.children) {
     parent.insertBefore(child.dom, before ?? null);
     appendMountedChildren(parent, child, before);

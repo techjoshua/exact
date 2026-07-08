@@ -18,8 +18,9 @@ export { computed, unwrap, watch } from "@exact/reactive";
 export const Fragment = Symbol.for("exact.fragment");
 export const Text = Symbol.for("exact.text");
 export const Cell = Symbol.for("exact.cell");
+export const Dynamic = Symbol.for("exact.dynamic");
 
-export type VNodeType = string | typeof Fragment | typeof Text | typeof Cell | ComponentFunction<any, any>;
+export type VNodeType = string | typeof Fragment | typeof Text | typeof Cell | typeof Dynamic | ComponentFunction<any, any>;
 
 export type VNode<Props = Record<string, unknown>> = {
   type: VNodeType;
@@ -135,7 +136,8 @@ type TaskRegistration = {
 
 export function createVNode(type: VNodeType, props: Record<string, unknown> | null, ...children: unknown[]): VNode {
   const normalizedProps = { ...(props ?? {}) };
-  const key = typeof normalizedProps.key === "string" ? normalizedProps.key : undefined;
+  const rawKey = unwrap(normalizedProps.key);
+  const key = rawKey === null || rawKey === undefined ? undefined : String(rawKey);
   delete normalizedProps.key;
 
   return {
@@ -166,6 +168,24 @@ export function createCellVNode(vnode: VNode): VNode<{ cell: VNodeCell }> {
     children: [],
     key: vnode.key
   };
+}
+
+export function createCompiledVNode(type: VNodeType, props: Record<string, unknown> | null, ...children: unknown[]): VNode {
+  return createCellVNode(createVNode(type, props, ...children));
+}
+
+export function createCompiledFragment(props: Record<string, unknown> | null, ...children: unknown[]): VNode {
+  return createCompiledVNode(Fragment, props, ...children);
+}
+
+export function createExpression<T>(compute: () => T): ReactiveValue<T> {
+  return computed(compute);
+}
+
+export function createDynamicChild(compute: () => RenderResult): VNode {
+  return createVNode(Dynamic, {
+    value: computed(compute)
+  });
 }
 
 export function normalizeChildren(children: unknown[]): Child[] {

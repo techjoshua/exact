@@ -8,6 +8,8 @@ The repository is an npm workspace monorepo. The current implementation slice co
 - `@exact/core`: component instances, readonly props, context, refs, tasks, lifecycle hooks, vnodes, and `this.map()`.
 - `@exact/jsx-runtime`: automatic JSX runtime entrypoints for `jsx`, `jsxs`, and `Fragment`.
 - `@exact/dom`: browser mounting, DOM patching, delegated events, DOM refs, and keyed list reconciliation.
+- `@exact/compiler`: eXact JSX/TSX transform core for expression-preserving compiled JSX.
+- `@exact/vite-plugin`: Vite integration for the eXact compiler.
 
 ## Development
 
@@ -19,7 +21,7 @@ npm test
 
 ## JSX
 
-Use the automatic JSX runtime with `jsxImportSource` set to `@exact/jsx-runtime`:
+The runtime JSX path uses the automatic JSX runtime with `jsxImportSource` set to `@exact/jsx-runtime`:
 
 ```json
 {
@@ -29,6 +31,34 @@ Use the automatic JSX runtime with `jsxImportSource` set to `@exact/jsx-runtime`
   }
 }
 ```
+
+Compiler mode is build-tool agnostic through `@exact/compiler`:
+
+```ts
+import { transformSource } from "@exact/compiler";
+
+const result = transformSource(source, { filename: "Component.tsx" });
+```
+
+For projects that want a precompile step before their existing TypeScript build, use `exactc`:
+
+```sh
+npx exactc --rootDir src --outDir .exact src
+```
+
+That rewrites `.tsx` files to `.ts` and `.jsx` files to `.js` under the output directory, preserving relative paths. Your normal TypeScript/bundler pipeline can then compile the generated sources.
+
+Vite is supported through a thin adapter over the same compiler:
+
+```ts
+import { exact } from "@exact/vite-plugin";
+
+export default {
+  plugins: [exact()]
+};
+```
+
+The compiler preserves JSX expressions as reactive bindings, so ordinary JSX values can update at their owning text, prop, style, child, or component-prop boundary. Runtime JSX remains supported for tests and non-compiled usage.
 
 Browser apps mount through `@exact/dom`:
 
@@ -97,3 +127,47 @@ function Profile(this: Component<{ firstName: string; lastName: string; saving: 
 Reactive values are cached after first use and recompute when their tracked dependencies change. Plain object and array replacements use structural equality, so reloading identical data does not cause unnecessary updates.
 
 JSX elements are internally mounted through cell boundaries. These cells let the renderer patch an already chosen JSX subtree in place, while `this.reactive()` remains the public API for preserving dynamic expressions that JavaScript would otherwise evaluate before JSX runtime calls.
+
+## Compiled JSX Conveniences
+
+Compiler mode supports normal fragment shorthand for unkeyed fragments:
+
+```tsx
+<>
+  <span />
+</>
+```
+
+Use the reserved `_` tag for keyed or prop-bearing fragments:
+
+```tsx
+<_ key={id}>
+  <span />
+</_>
+```
+
+Prop punning lowers a local binding into a same-named prop:
+
+```tsx
+<UserCard {user} {selected} />
+```
+
+`class` and `className` accept plain strings, arrays, and truthy maps:
+
+```tsx
+<div className="panel active" />
+<div className={["panel", isActive && "active"]} />
+<div className={{ panel: true, active: isActive }} />
+```
+
+`style` accepts plain CSS strings, plain objects, reactive entries, and CSS unit helpers from `@exact/dom`:
+
+```tsx
+import { percent, px, rem } from "@exact/dom";
+
+<div style="height: 10px; margin-top: 1rem" />
+<div style={{ height: "10px", marginTop: "1rem" }} />
+<div style={{ height: px(this.state.height), marginTop: rem(this.state.top), width: percent(this.state.progress) }} />
+```
+
+The v1 unit helpers are `px`, `rem`, `em`, `percent`, `vh`, `vw`, `vmin`, `vmax`, `fr`, `ms`, `s`, `deg`, `rad`, and `turn`.
