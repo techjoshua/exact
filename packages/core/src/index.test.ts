@@ -149,4 +149,29 @@ describe("@exact/core", () => {
     expect(values).toEqual(["Ada Lovelace", "Ada Byron"]);
     expect(aborts).toEqual(["Ada Lovelace"]);
   });
+
+  it("runs fluent tasks on component reactive values", () => {
+    let instance!: Component<{ query: string }>;
+    const values: string[] = [];
+    const aborts: string[] = [];
+
+    function Search(this: Component<{ query: string }>) {
+      instance = this;
+      this.state.query = "ada";
+
+      this.reactive(() => this.state.query).task((query, { signal }) => {
+        values.push(String(query));
+        signal.addEventListener("abort", () => aborts.push(String(query)));
+      });
+
+      return () => null;
+    }
+
+    createComponentInstance(Search, {});
+    instance.state.query = "grace";
+    flushSync();
+
+    expect(values).toEqual(["ada", "grace"]);
+    expect(aborts).toEqual(["ada"]);
+  });
 });

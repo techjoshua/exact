@@ -45,6 +45,26 @@ describe("@exact/compiler", () => {
     expect(output).toContain("disabled: __exactExpression(() => disabled)");
   });
 
+  it("captures this.reactive value arguments as expressions", () => {
+    const output = transform("function View() { const query = this.reactive(this.state.query); }");
+
+    expect(output).toContain("this.reactive(() => this.state.query)");
+  });
+
+  it("captures this.task dependency arguments as component reactive values", () => {
+    const output = transform("function View() { this.task(this.state.query, this.state.page, async (query, page) => {}); }");
+
+    expect(output).toContain("this.task(this.reactive(() => this.state.query), this.reactive(() => this.state.page), async (query, page) => { });");
+  });
+
+  it("does not recapture existing reactive lambdas or run-once tasks", () => {
+    const output = transform("function View() { this.reactive(() => this.state.query); this.task(({ signal }) => {}); }");
+
+    expect(output).toContain("this.reactive(() => this.state.query)");
+    expect(output).toContain("this.task(({ signal }) => { });");
+    expect(output).not.toContain("this.reactive(() => () => this.state.query)");
+  });
+
   it("preprocesses Svelte-like prop punning", () => {
     expect(preprocessPropPunning("<UserCard {user} {selected} />")).toBe("<UserCard user={user} selected={selected} />");
   });

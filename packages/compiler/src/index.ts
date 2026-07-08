@@ -165,6 +165,9 @@ function exactJsxTransformer(context: ts.TransformationContext): ts.Transformer<
         sawJsx = true;
         return transformJsxFragment(node, context, visitor, helpers);
       }
+      if (ts.isCallExpression(node)) {
+        return transformCapturedCall(node, context, visitor);
+      }
       return ts.visitEachChild(node, visitor, context);
     };
 
@@ -344,6 +347,76 @@ function tagExpression(tagName: ts.JsxTagNameExpression): ts.Expression {
   }
 
   return ts.factory.createStringLiteral(tagName.getText());
+}
+
+function transformCapturedCall(node: ts.CallExpression, context: ts.TransformationContext, visitor: ts.Visitor): ts.Expression {
+  if (isThisMethodCall(node, "reactive")) {
+    return transformReactiveCall(node, context, visitor);
+  }
+
+  if (isThisMethodCall(node, "task")) {
+    return transformTaskCall(node, context, visitor);
+  }
+
+  return ts.visitEachChild(node, visitor, context);
+}
+
+function transformReactiveCall(node: ts.CallExpression, context: ts.TransformationContext, visitor: ts.Visitor): ts.Expression {
+  if (node.arguments.length !== 1) return ts.visitEachChild(node, visitor, context);
+  const [argument] = node.arguments;
+  if (!argument || isFunctionLikeExpression(argument)) return ts.visitEachChild(node, visitor, context);
+
+  return context.factory.updateCallExpression(
+    node,
+    ts.visitNode(node.expression, visitor) as ts.Expression,
+    node.typeArguments,
+    [captureArgument(context, argument, visitor)]
+  );
+}
+
+function transformTaskCall(node: ts.CallExpression, context: ts.TransformationContext, visitor: ts.Visitor): ts.Expression {
+  if (node.arguments.length < 2) return ts.visitEachChild(node, visitor, context);
+  const work = node.arguments[node.arguments.length - 1]!;
+  if (!isFunctionLikeExpression(work)) return ts.visitEachChild(node, visitor, context);
+
+  const nextArguments = node.arguments.map((argument, index) => {
+    if (index === node.arguments.length - 1 || isFunctionLikeExpression(argument)) {
+      return ts.visitNode(argument, visitor) as ts.Expression;
+    }
+    return context.factory.createCallExpression(
+      context.factory.createPropertyAccessExpression(context.factory.createThis(), "reactive"),
+      undefined,
+      [captureArgument(context, argument, visitor)]
+    );
+  });
+
+  return context.factory.updateCallExpression(
+    node,
+    ts.visitNode(node.expression, visitor) as ts.Expression,
+    node.typeArguments,
+    nextArguments
+  );
+}
+
+function captureArgument(context: ts.TransformationContext, expression: ts.Expression, visitor: ts.Visitor): ts.ArrowFunction {
+  return context.factory.createArrowFunction(
+    undefined,
+    undefined,
+    [],
+    undefined,
+    context.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+    ts.visitNode(expression, visitor) as ts.Expression
+  );
+}
+
+function isThisMethodCall(node: ts.CallExpression, methodName: string): boolean {
+  return ts.isPropertyAccessExpression(node.expression)
+    && node.expression.name.text === methodName
+    && node.expression.expression.kind === ts.SyntaxKind.ThisKeyword;
+}
+
+function isFunctionLikeExpression(node: ts.Expression): boolean {
+  return ts.isArrowFunction(node) || ts.isFunctionExpression(node);
 }
 
 function allocateHelperNames(sourceFile: ts.SourceFile): HelperNames {

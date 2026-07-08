@@ -79,6 +79,9 @@ export type TaskResult = Cleanup | Promise<Cleanup>;
 export type Unwrapped<Deps extends readonly unknown[]> = {
   [K in keyof Deps]: Deps[K] extends ReactiveValue<infer T> ? T : Deps[K] extends Reactive<infer T> ? T : Deps[K];
 };
+export type ComponentReactiveValue<T> = ReactiveValue<T> & {
+  task(work: (value: T, ctx: TaskContext) => TaskResult): void;
+};
 
 export type LifecycleHandler = (ctx: { signal: AbortSignal; reason?: string }) => void;
 export type RenderEventHandler = (event: { duration: number; dependencies?: unknown[] }) => void;
@@ -87,8 +90,8 @@ export interface Component<State extends object> {
   state: Reactive<State>;
   getContext<T>(token: ContextToken<T>): Reactive<T>;
   setContext<T>(token: ContextToken<T>, value: T): void;
-  reactive(strings: TemplateStringsArray, ...values: unknown[]): ReactiveValue<string>;
-  reactive<T>(compute: () => T): ReactiveValue<T>;
+  reactive(strings: TemplateStringsArray, ...values: unknown[]): ComponentReactiveValue<string>;
+  reactive<T>(compute: () => T): ComponentReactiveValue<T>;
   task(work: (ctx: TaskContext) => TaskResult): void;
   task<Deps extends readonly unknown[]>(
     ...args: [...deps: Deps, work: (...args: [...Unwrapped<Deps>, TaskContext]) => TaskResult]
@@ -275,19 +278,19 @@ export function createComponentInstance<State extends object, Props extends Reco
     setContext<T>(token: ContextToken<T>, value: T): void {
       instance.contexts.set(token.id, reactiveValue(value));
     },
-    reactive<T>(input: TemplateStringsArray | (() => T), ...values: unknown[]): ReactiveValue<string> | ReactiveValue<T> {
+    reactive<T>(input: TemplateStringsArray | (() => T), ...values: unknown[]): ComponentReactiveValue<string> | ComponentReactiveValue<T> {
       if (typeof input === "function") {
-        return computed(input);
+        return createComponentReactiveValue(instance, computed(input));
       }
 
-      return computed(() => {
+      return createComponentReactiveValue(instance, computed(() => {
         let result = "";
         for (let index = 0; index < input.length; index++) {
           result += input[index];
           if (index < values.length) result += String(unwrap(values[index]) ?? "");
         }
         return result;
-      });
+      }));
     },
     task(...args: unknown[]): void {
       const work = args[args.length - 1];
@@ -420,6 +423,16 @@ function createTask(deps: unknown[], work: (...args: any[]) => TaskResult): Task
   };
 
   return task;
+}
+
+function createComponentReactiveValue<T>(instance: ComponentInstance<any>, value: ReactiveValue<T>): ComponentReactiveValue<T> {
+  return Object.assign(value, {
+    task(work: (value: T, ctx: TaskContext) => TaskResult): void {
+      const task = createTask([value], work as (...args: any[]) => TaskResult);
+      instance.tasks.push(task);
+      task.run();
+    }
+  });
 }
 
 function reactiveValue<T>(value: T): Reactive<T> {
