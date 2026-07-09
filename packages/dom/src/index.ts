@@ -141,6 +141,13 @@ function patch(
   }
 
   if (mounted.vnode.type !== next.type || mounted.vnode.key !== next.key) {
+    domDebug("replace node", {
+      previousType: describeVNodeType(mounted.vnode.type),
+      previousKey: mounted.vnode.key ?? "none",
+      nextType: describeVNodeType(next.type),
+      nextKey: next.key ?? "none",
+      parent: describeNode(parent)
+    });
     const replacement = mount(root, next, parentInstance);
     parent.insertBefore(replacement.dom, mounted.dom);
     appendMountedChildren(parent, replacement);
@@ -271,6 +278,23 @@ function patchChildren(
   parentInstance?: ComponentInstance<any>,
   before?: Node | null
 ): Mounted[] {
+  domDebug("patch children", {
+    parent: describeNode(parent),
+    oldCount: oldChildren.length,
+    nextCount: nextChildren.length,
+    before: describeNode(before)
+  });
+  return preserveFocus(() => patchChildrenInner(root, parent, oldChildren, nextChildren, parentInstance, before));
+}
+
+function patchChildrenInner(
+  root: Root,
+  parent: Node,
+  oldChildren: Mounted[],
+  nextChildren: Child[],
+  parentInstance?: ComponentInstance<any>,
+  before?: Node | null
+): Mounted[] {
   const oldByKey = new Map<string, Mounted>();
   const unkeyed = [...oldChildren];
 
@@ -307,8 +331,29 @@ function patchChildren(
   return nextMounted;
 }
 
+function preserveFocus<T>(work: () => T): T {
+  const active = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+  const result = work();
+  if (
+    active
+    && active.isConnected
+    && document.activeElement === document.body
+  ) {
+    domDebug("restore focus", {
+      active: describeNode(active),
+      bodyOwnsFocus: document.activeElement === document.body
+    });
+    active.focus({ preventScroll: true });
+  }
+  return result;
+}
+
 function rerenderComponent(root: Root, mounted: Mounted): void {
   if (!mounted.instance) return;
+  domDebug("rerender component", {
+    type: describeVNodeType(mounted.vnode.type),
+    key: mounted.vnode.key ?? "none"
+  });
   const nextChildren = normalizeRenderResult(renderInstance(mounted.instance, () => rerenderComponent(root, mounted)));
   mounted.children = patchChildren(root, mounted.dom.parentNode ?? root.container, mounted.children, nextChildren, mounted.instance, afterMountedChildren(mounted));
 }
@@ -322,13 +367,15 @@ function bindText(mounted: Mounted, value: unknown): void {
 }
 
 function updateProps(root: Root, element: Element, previous: Record<string, unknown>, next: Record<string, unknown>): void {
-  for (const key of Object.keys(previous)) {
-    if (!(key in next)) setProp(root, element, key, undefined, previous[key]);
-  }
+  preserveFocus(() => {
+    for (const key of Object.keys(previous)) {
+      if (!(key in next)) setProp(root, element, key, undefined, previous[key]);
+    }
 
-  for (const [key, value] of Object.entries(next)) {
-    if (!Object.is(previous[key], value)) setProp(root, element, key, value, previous[key]);
-  }
+    for (const [key, value] of Object.entries(next)) {
+      if (!Object.is(previous[key], value)) setProp(root, element, key, value, previous[key]);
+    }
+  });
 }
 
 function setProp(root: Root, element: Element, key: string, value: unknown, previous?: unknown): void {
@@ -370,7 +417,7 @@ function setProp(root: Root, element: Element, key: string, value: unknown, prev
     return;
   }
 
-  const stop = watch(() => {
+  const stop = watch(() => preserveFocus(() => {
     const actual = unwrap(value);
 
     if (actual === false || actual === null || actual === undefined) {
@@ -379,7 +426,7 @@ function setProp(root: Root, element: Element, key: string, value: unknown, prev
     }
 
     setDomProp(element, key, key === "class" || key === "className" ? normalizeClass(actual) : actual);
-  });
+  }));
 
   setPropBinding(element, key, stop);
 }
@@ -464,6 +511,23 @@ function normalizeClass(value: unknown): string {
 function setDomProp(element: Element, key: string, value: unknown): void {
   const property = normalizePropName(key);
 
+  if (property === "defaultValue" && isFocusedTextControl(element)) {
+    domDebug("skip focused defaultValue", {
+      element: describeNode(element),
+      value
+    });
+    return;
+  }
+
+  if (property === "value" || property === "defaultValue") {
+    domDebug("set form value prop", {
+      element: describeNode(element),
+      property,
+      active: describeNode(document.activeElement),
+      value
+    });
+  }
+
   if (property in element) {
       try {
       const record = element as unknown as Record<string, unknown>;
@@ -509,6 +573,14 @@ function normalizePropName(key: string): string {
   return key === "className" ? "class" : key;
 }
 
+function isFocusedTextControl(element: Element): boolean {
+  return document.activeElement === element
+    && (
+      element instanceof HTMLInputElement
+      || element instanceof HTMLTextAreaElement
+    );
+}
+
 function toCssProperty(name: string): string {
   return name.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`);
 }
@@ -520,7 +592,7 @@ function ensureDelegated(root: Root, type: string): void {
     let cursor = eventTargetElement(event.target);
     while (cursor && cursor !== root.container.parentElement) {
       const handler = eventHandlers.get(cursor)?.get(type);
-      if (handler) handler.call(cursor, event);
+      if (handler) preserveFocus(() => handler.call(cursor, event));
       if (event.cancelBubble) break;
       if (cursor === root.container) break;
       cursor = cursor.parentElement;
@@ -547,8 +619,30 @@ function appendMountedChildren(parent: Node, mounted: Mounted, before?: Node | n
 
 function insertBeforeIfNeeded(parent: Node, node: Node, before?: Node | null): void {
   const cursor = before ?? null;
-  if (node === cursor) return;
-  if (node.parentNode === parent && node.nextSibling === cursor) return;
+  if (node === cursor) {
+    domDebug("skip placement", {
+      reason: "node-is-cursor",
+      parent: describeNode(parent),
+      node: describeNode(node),
+      before: describeNode(cursor)
+    });
+    return;
+  }
+  if (node.parentNode === parent && node.nextSibling === cursor) {
+    domDebug("skip placement", {
+      reason: "already-before-cursor",
+      parent: describeNode(parent),
+      node: describeNode(node),
+      before: describeNode(cursor)
+    });
+    return;
+  }
+  domDebug("place node", {
+    parent: describeNode(parent),
+    node: describeNode(node),
+    before: describeNode(cursor),
+    active: describeNode(document.activeElement)
+  });
   parent.insertBefore(node, cursor);
 }
 
@@ -635,4 +729,37 @@ function setPropBinding(element: Element, key: string, stop: StopHandle): void {
     propBindings.set(element, bindings);
   }
   bindings.set(key, stop);
+}
+
+function domDebug(message: string, details?: Record<string, unknown>): void {
+  try {
+    if (
+      globalThis.localStorage?.getItem("exact.dom.debug") !== "1"
+      && globalThis.localStorage?.getItem("exact.kanban.debug") !== "1"
+    ) {
+      return;
+    }
+  } catch {
+    return;
+  }
+
+  console.log(`[exact-dom] ${message}`, details ?? {});
+}
+
+function describeNode(node: Node | null | undefined): string {
+  if (!node) return "none";
+  if (node instanceof Element) {
+    const id = node.id ? `#${node.id}` : "";
+    const className = typeof node.className === "string" && node.className
+      ? `.${node.className.split(/\s+/).filter(Boolean).join(".")}`
+      : "";
+    return `${node.tagName.toLowerCase()}${id}${className}`;
+  }
+  return node.nodeName;
+}
+
+function describeVNodeType(type: VNode["type"]): string {
+  if (typeof type === "string") return type;
+  if (typeof type === "function") return type.name || "anonymous";
+  return String(type.description ?? type.toString());
 }

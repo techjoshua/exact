@@ -288,6 +288,7 @@ describe("@exact/dom", () => {
     });
 
     textarea.value = "Initial!";
+    textarea.focus();
     valueWrites.length = 0;
     textarea.dispatchEvent(new InputEvent("input", { bubbles: true }));
     flushSync();
@@ -295,6 +296,52 @@ describe("@exact/dom", () => {
     expect(instance.state.notes).toBe("Initial!");
     expect(container.querySelector("textarea")).toBe(textarea);
     expect(valueWrites).toEqual([]);
+    expect(document.activeElement).toBe(textarea);
+    container.remove();
+  });
+
+  it("does not rewrite defaultValue on a focused text control", () => {
+    let instance!: Component<{ title: string }>;
+
+    function Editor(this: Component<{ title: string }>) {
+      instance = this;
+      this.state.title = "Initial";
+
+      return () => jsx("input", {
+        defaultValue: this.state.title,
+        onInput: (event: Event) => {
+          this.state.title = (event.target as HTMLInputElement).value;
+        }
+      });
+    }
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    render(jsx(Editor, {}), container);
+    const input = container.querySelector("input")!;
+    const defaultValueWrites: string[] = [];
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "defaultValue")!;
+    Object.defineProperty(input, "defaultValue", {
+      get() {
+        return descriptor.get!.call(this);
+      },
+      set(value: string) {
+        defaultValueWrites.push(value);
+        descriptor.set!.call(this, value);
+      },
+      configurable: true
+    });
+
+    input.value = "Initial!";
+    input.focus();
+    defaultValueWrites.length = 0;
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    flushSync();
+
+    expect(instance.state.title).toBe("Initial!");
+    expect(container.querySelector("input")).toBe(input);
+    expect(defaultValueWrites).toEqual([]);
+    expect(document.activeElement).toBe(input);
     container.remove();
   });
 
@@ -348,6 +395,7 @@ describe("@exact/dom", () => {
     });
 
     textarea.value = "Initial!";
+    textarea.focus();
     valueWrites.length = 0;
     textarea.dispatchEvent(new InputEvent("input", { bubbles: true }));
     flushSync();
