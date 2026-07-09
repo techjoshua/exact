@@ -466,7 +466,10 @@ function setDomProp(element: Element, key: string, value: unknown): void {
 
   if (property in element) {
       try {
-      (element as unknown as Record<string, unknown>)[property] = value;
+      const record = element as unknown as Record<string, unknown>;
+      if (!Object.is(record[property], value)) {
+        record[property] = value;
+      }
       if (typeof value === "boolean") {
         if (value) {
           element.setAttribute(property, "");

@@ -237,6 +237,49 @@ describe("@exact/dom", () => {
     expect(select.value).toBe("todo");
   });
 
+  it("keeps focused textarea stable while input updates reactive state", () => {
+    let instance!: Component<{ notes: string }>;
+
+    function Notes(this: Component<{ notes: string }>) {
+      instance = this;
+      this.state.notes = "Initial";
+
+      return () => jsx("textarea", {
+        value: this.state.notes,
+        onInput: (event: Event) => {
+          this.state.notes = (event.target as HTMLTextAreaElement).value;
+        }
+      });
+    }
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    render(jsx(Notes, {}), container);
+    const textarea = container.querySelector("textarea")!;
+    const valueWrites: string[] = [];
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!;
+    Object.defineProperty(textarea, "value", {
+      get() {
+        return descriptor.get!.call(this);
+      },
+      set(value: string) {
+        valueWrites.push(value);
+        descriptor.set!.call(this, value);
+      },
+      configurable: true
+    });
+
+    textarea.value = "Initial!";
+    valueWrites.length = 0;
+    textarea.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    flushSync();
+
+    expect(instance.state.notes).toBe("Initial!");
+    expect(container.querySelector("textarea")).toBe(textarea);
+    expect(valueWrites).toEqual([]);
+    container.remove();
+  });
+
   it("normalizes className strings, arrays, and truthy maps", () => {
     let instance!: Component<{ active: boolean; hidden: boolean }>;
 
