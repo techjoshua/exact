@@ -1,6 +1,5 @@
 import type { Component } from "@exact/core";
-import { columns } from "../data.js";
-import type { Status, Task, TaskActions } from "../types.js";
+import type { Task, TaskActions } from "../types.js";
 
 type TaskCardProps = {
   task: Task;
@@ -13,7 +12,16 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
   const startDrag = (event: DragEvent) => {
     event.dataTransfer?.setData("text/plain", props.task.id);
     event.dataTransfer?.setData("application/x-exact-task", props.task.id);
-    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+    if (!event.dataTransfer) return;
+
+    event.dataTransfer.effectAllowed = "move";
+    const card = event.currentTarget as HTMLElement;
+    const dragImage = card.cloneNode(true) as HTMLElement;
+    dragImage.classList.add("card-drag-image");
+    dragImage.style.width = `${card.offsetWidth}px`;
+    document.body.appendChild(dragImage);
+    event.dataTransfer.setDragImage(dragImage, Math.min(24, card.offsetWidth / 2), 18);
+    window.setTimeout(() => dragImage.remove(), 0);
   };
 
   return () => (
@@ -28,14 +36,9 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
       </button>
       {hasNotes ? <p className="card-notes">Has notes</p> : null}
       <div className="card-actions">
-        <select
-          value={props.task.status}
-          onChange={event => props.actions.moveTask(props.task, (event.target as HTMLSelectElement).value as Status)}
-        >
-          {columns.map(column => (
-            <option value={column.id}>{column.title}</option>
-          ))}
-        </select>
+        <button type="button" className="secondary-button" onClick={() => props.actions.openTask(props.task)}>
+          Notes
+        </button>
         <button type="button" onClick={() => props.actions.removeTask(props.task)}>
           Remove
         </button>
