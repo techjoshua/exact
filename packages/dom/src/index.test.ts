@@ -9,6 +9,7 @@ import {
   createRef,
   type Child,
   type Component,
+  type FrameworkError,
   type LogEvent,
   type Logger
 } from "@exact/core";
@@ -143,6 +144,60 @@ describe("@exact/dom", () => {
     container.querySelector("div")!.firstChild!.dispatchEvent(new Event("dragstart", { bubbles: true }));
 
     expect(started).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders a boundary fallback when an event handler throws", () => {
+    const errors: FrameworkError[] = [];
+
+    function Panel(this: Component<{}>) {
+      this.onError(error => {
+        errors.push(error);
+        return jsx("p", { children: "Recovered" });
+      });
+
+      return () => jsx("button", {
+        onClick: () => {
+          throw new Error("click failed");
+        },
+        children: "Break"
+      });
+    }
+
+    const container = document.createElement("div");
+    render(jsx(Panel, {}), container);
+    container.querySelector("button")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    flushSync();
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.source).toBe("event");
+    expect(container.textContent).toBe("Recovered");
+    expect(container.querySelector("button")).toBeNull();
+  });
+
+  it("renders a parent boundary fallback when child construction throws", () => {
+    const errors: FrameworkError[] = [];
+
+    function Broken(): never {
+      throw new Error("construct failed");
+    }
+
+    function Parent(this: Component<{}>) {
+      this.onError(error => {
+        errors.push(error);
+        return jsx("p", { children: "Child failed" });
+      });
+
+      return () => jsx("section", {
+        children: jsx(Broken, {})
+      });
+    }
+
+    const container = document.createElement("div");
+    render(jsx(Parent, {}), container);
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.source).toBe("construct");
+    expect(container.textContent).toBe("Child failed");
   });
 
   it("replaces delegated event handlers", () => {

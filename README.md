@@ -150,7 +150,31 @@ The main instance APIs are:
 - `this.getContext(...)` / `this.setContext(...)`: descendant-scoped services.
 - `this.ref(...)` / `this.refs`: DOM ref binding and lookup.
 - `this.onMount(...)` / `this.onUnmount(...)` / `this.onRender(...)`: lifecycle hooks.
+- `this.onError(...)`: component-scoped error boundary handling.
 - `this.log`: component-scoped logging.
+
+## Error Boundaries
+
+Components can register an error boundary with `this.onError`. A boundary can observe the failure, log/report it, and optionally return fallback UI:
+
+```tsx
+function Panel(this: Component<{}>) {
+  this.onError(error => {
+    this.log.error("panel failed", error.error, {
+      source: error.source,
+      phase: error.phase
+    });
+
+    return <p>Something went wrong.</p>;
+  });
+
+  return () => <RiskyWidget />;
+}
+```
+
+Failures include construction, render, event, task, lifecycle, reactive, and DOM phases. If a boundary returns fallback UI, eXact patches the failed subtree to that fallback. If no boundary handles the failure, eXact logs it and rethrows it asynchronously so development tools and tests can still see the error.
+
+Task failures are captured for both synchronous throws and rejected promises. Lifecycle cleanup continues even when one cleanup handler throws.
 
 ## Reactive Values
 

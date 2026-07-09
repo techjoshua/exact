@@ -4,8 +4,10 @@ import {
   Fragment,
   Text,
   createComponentInstance,
+  createFrameworkError,
   createTextVNode,
   getCellVNode,
+  handleComponentError,
   isCellVNode,
   isVNode,
   logFrameworkEvent,
@@ -42,6 +44,7 @@ type Root = {
 
 const roots = new WeakMap<Element, Root>();
 const eventHandlers = new WeakMap<Element, Map<string, EventListener>>();
+const elementOwners = new WeakMap<Element, ComponentInstance<any>>();
 const propBindings = new WeakMap<Element, Map<string, StopHandle>>();
 
 export type RenderOptions = {
@@ -114,21 +117,31 @@ function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>
   }
 
   if (typeof vnode.type === "function") {
-    const instance = createComponentInstance(
-      vnode.type as ComponentFunction<any, Record<string, unknown>>,
-      getComponentProps(vnode),
-      parentInstance
-    );
-    const rendered = renderInstance(instance, () => rerenderComponent(root, mounted));
     const wrapper = document.createComment("exact-component");
-    const mounted: Mounted = { vnode, dom: wrapper, children: [], instance };
-    mounted.children = mountDetachedChildren(root, rendered, instance);
-    instance.markMounted();
+    const mounted: Mounted = { vnode, dom: wrapper, children: [] };
+    try {
+      const instance = createComponentInstance(
+        vnode.type as ComponentFunction<any, Record<string, unknown>>,
+        getComponentProps(vnode),
+        parentInstance
+      );
+      mounted.instance = instance;
+      const rendered = renderInstance(instance, () => rerenderComponent(root, mounted));
+      mounted.children = mountDetachedChildren(root, rendered, instance);
+      instance.markMounted();
+    } catch (error) {
+      handleComponentError(
+        parentInstance,
+        createFrameworkError(error, "construct", parentInstance, describeVNodeType(vnode.type))
+      );
+      mounted.children = [];
+    }
     return mounted;
   }
 
   const element = document.createElement(vnode.type as string);
   const mounted: Mounted = { vnode, dom: element, children: [] };
+  if (parentInstance) elementOwners.set(element, parentInstance);
   mounted.children = mountChildren(root, element, vnode.children, parentInstance);
   updateProps(root, element, {}, vnode.props);
   return mounted;
@@ -634,7 +647,17 @@ function ensureDelegated(root: Root, type: string): void {
     let cursor = eventTargetElement(event.target);
     while (cursor && cursor !== root.container.parentElement) {
       const handler = eventHandlers.get(cursor)?.get(type);
-      if (handler) preserveFocus(root, () => handler.call(cursor, event));
+      if (handler) {
+        const current = cursor;
+        preserveFocus(root, () => {
+          try {
+            handler.call(current, event);
+          } catch (error) {
+            const owner = findOwnerInstance(current);
+            handleComponentError(owner, createFrameworkError(error, "event", owner, type));
+          }
+        });
+      }
       if (event.cancelBubble) break;
       if (cursor === root.container) break;
       cursor = cursor.parentElement;
@@ -739,6 +762,7 @@ function unmountMounted(mounted: Mounted): void {
     }
     propBindings.delete(mounted.dom);
     eventHandlers.delete(mounted.dom);
+    elementOwners.delete(mounted.dom);
   }
 
   const ref = mounted.vnode.props.ref as RefBinding<unknown> | undefined;
@@ -806,6 +830,16 @@ function setPropBinding(element: Element, key: string, stop: StopHandle): void {
 
 function domDebug(root: Root, message: string, details?: Record<string, unknown>): void {
   logFrameworkEvent("trace", "dom", "patch", message, details, root.logger);
+}
+
+function findOwnerInstance(element: Element): ComponentInstance<any> | undefined {
+  let cursor: Element | null = element;
+  while (cursor) {
+    const owner = elementOwners.get(cursor);
+    if (owner) return owner;
+    cursor = cursor.parentElement;
+  }
+  return undefined;
 }
 
 function describeNode(node: Node | null | undefined): string {

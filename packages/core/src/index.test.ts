@@ -9,6 +9,7 @@ import {
   logFrameworkEvent,
   renderInstance,
   type Component,
+  type FrameworkError,
   type LogEvent,
   type Logger
 } from "./index.js";
@@ -295,5 +296,92 @@ describe("@exact/core", () => {
     } finally {
       warn.mockRestore();
     }
+  });
+
+  it("uses an error boundary fallback when render throws", () => {
+    const errors: FrameworkError[] = [];
+
+    const instance = createComponentInstance(function Broken(this: Component<{}>) {
+      this.onError(error => {
+        errors.push(error);
+        return createVNode("span", null, "fallback");
+      });
+
+      return () => {
+        throw new Error("render failed");
+      };
+    }, {});
+
+    const nodes = renderInstance(instance, () => undefined);
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.source).toBe("render");
+    expect(isVNode(nodes[0]) ? nodes[0].children[0] : undefined).toBe("fallback");
+  });
+
+  it("captures synchronous task failures with component boundaries", () => {
+    const errors: FrameworkError[] = [];
+
+    createComponentInstance(function Worker(this: Component<{}>) {
+      this.onError(error => {
+        errors.push(error);
+        return null;
+      });
+      this.task(() => {
+        throw new Error("task failed");
+      });
+      return () => null;
+    }, {});
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.source).toBe("task");
+    expect(errors[0]!.phase).toBe("run");
+  });
+
+  it("captures rejected task promises with component boundaries", async () => {
+    const errors: FrameworkError[] = [];
+
+    createComponentInstance(function Worker(this: Component<{}>) {
+      this.onError(error => {
+        errors.push(error);
+        return null;
+      });
+      this.task(async () => {
+        throw new Error("async task failed");
+      });
+      return () => null;
+    }, {});
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.source).toBe("task");
+    expect(errors[0]!.phase).toBe("promise");
+  });
+
+  it("continues unmount cleanup after lifecycle failures", () => {
+    const errors: FrameworkError[] = [];
+    const cleanup = vi.fn();
+
+    const instance = createComponentInstance(function Worker(this: Component<{}>) {
+      this.onError(error => {
+        errors.push(error);
+        return null;
+      });
+      this.onUnmount(() => {
+        throw new Error("unmount failed");
+      });
+      this.onUnmount(cleanup);
+      return () => null;
+    }, {});
+
+    instance.markMounted();
+    instance.unmount();
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.source).toBe("lifecycle");
+    expect(errors[0]!.phase).toBe("unmount");
+    expect(cleanup).toHaveBeenCalledTimes(1);
   });
 });

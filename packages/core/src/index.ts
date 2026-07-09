@@ -50,6 +50,34 @@ export type ComponentFunction<State extends object = Record<string, unknown>, Pr
   props: Props
 ) => RenderFunction | RenderResult;
 
+export type ErrorSource =
+  | "construct"
+  | "render"
+  | "task"
+  | "event"
+  | "lifecycle"
+  | "reactive"
+  | "dom";
+
+export type FrameworkError = {
+  error: unknown;
+  source: ErrorSource;
+  component?: {
+    id: string;
+    name: string;
+    mounted: boolean;
+  };
+  phase?: string;
+};
+
+export type ErrorBoundaryResult =
+  | void
+  | Child
+  | Child[]
+  | RenderFunction;
+
+export type ErrorBoundaryHandler = (event: FrameworkError) => ErrorBoundaryResult;
+
 export type ContextToken<T> = {
   readonly id: symbol;
   readonly description: string;
@@ -181,6 +209,7 @@ export interface Component<State extends object> {
   onMount(handler: LifecycleHandler): void;
   onUnmount(handler: LifecycleHandler): void;
   onRender?(handler: RenderEventHandler): void;
+  onError(handler: ErrorBoundaryHandler): void;
 }
 
 export type ComponentInstance<State extends object> = Component<State> & {
@@ -197,6 +226,9 @@ export type ComponentInstance<State extends object> = Component<State> & {
   mountHandlers: LifecycleHandler[];
   unmountHandlers: LifecycleHandler[];
   renderHandlers: RenderEventHandler[];
+  errorHandlers: ErrorBoundaryHandler[];
+  invalidate?: () => void;
+  errorFallback?: RenderFunction;
   markMounted(): void;
   updateProps(props: Record<string, unknown>): void;
   unmount(reason?: string): void;
@@ -368,6 +400,7 @@ export function createComponentInstance<State extends object, Props extends Reco
     mountHandlers: [],
     unmountHandlers: [],
     renderHandlers: [],
+    errorHandlers: [],
     get mounted() {
       return mounted;
     },
@@ -422,7 +455,7 @@ export function createComponentInstance<State extends object, Props extends Reco
       }
 
       const deps = args.slice(0, -1);
-      const task = createTask(deps, work as (...args: any[]) => TaskResult);
+      const task = createTask(instance, deps, work as (...args: any[]) => TaskResult);
       instance.tasks.push(task);
       task.run();
     },
@@ -458,12 +491,19 @@ export function createComponentInstance<State extends object, Props extends Reco
     onRender(handler: RenderEventHandler): void {
       instance.renderHandlers.push(handler);
     },
+    onError(handler: ErrorBoundaryHandler): void {
+      instance.errorHandlers.push(handler);
+    },
     markMounted(): void {
       if (mounted) return;
       mounted = true;
       instance.mountController = new AbortController();
       for (const handler of instance.mountHandlers) {
-        handler({ signal: instance.mountController.signal });
+        try {
+          handler({ signal: instance.mountController.signal });
+        } catch (error) {
+          handleComponentError(instance, createFrameworkError(error, "lifecycle", instance, "mount"));
+        }
       }
     },
     updateProps(nextProps): void {
@@ -476,7 +516,11 @@ export function createComponentInstance<State extends object, Props extends Reco
       instance.mountController?.abort(reason);
       for (const task of instance.tasks) task.stop();
       for (const handler of instance.unmountHandlers) {
-        handler({ signal: AbortSignal.abort(reason), reason });
+        try {
+          handler({ signal: AbortSignal.abort(reason), reason });
+        } catch (error) {
+          handleComponentError(instance, createFrameworkError(error, "lifecycle", instance, "unmount"));
+        }
       }
     }
   };
@@ -493,10 +537,21 @@ export function renderInstance(instance: ComponentInstance<any>, onInvalidate: (
   let output: RenderResult = null;
   const start = performanceNow();
 
+  instance.invalidate = onInvalidate;
   instance.renderStop?.();
   instance.renderStop = watch(
     () => {
-      output = instance.renderFunction();
+      try {
+        output = (instance.errorFallback ?? instance.renderFunction)();
+      } catch (error) {
+        const fallback = handleComponentError(instance, createFrameworkError(error, "render", instance));
+        if (!fallback) {
+          output = null;
+          return;
+        }
+        instance.errorFallback = fallback;
+        output = fallback();
+      }
     },
     onInvalidate
   );
@@ -507,6 +562,73 @@ export function renderInstance(instance: ComponentInstance<any>, onInvalidate: (
   }
 
   return normalizeRenderResult(output);
+}
+
+export function createFrameworkError(
+  error: unknown,
+  source: ErrorSource,
+  component?: ComponentInstance<any>,
+  phase?: string
+): FrameworkError {
+  return {
+    error,
+    source,
+    component: component ? componentLogScope(component).component : undefined,
+    phase
+  };
+}
+
+export function handleComponentError(
+  instance: ComponentInstance<any> | undefined,
+  event: FrameworkError
+): RenderFunction | undefined {
+  let cursor = instance;
+  while (cursor) {
+    for (const handler of cursor.errorHandlers) {
+      try {
+        const result = handler(event);
+        if (result !== undefined) {
+          const fallback = errorBoundaryResultToRenderFunction(result);
+          cursor.errorFallback = fallback;
+          cursor.invalidate?.();
+          cursor.log.error("error boundary handled failure", event.error, {
+            source: event.source,
+            phase: event.phase,
+            component: event.component
+          });
+          return fallback;
+        }
+      } catch (error) {
+        cursor.log.error("error boundary handler failed", error, {
+          source: event.source,
+          phase: event.phase,
+          component: event.component
+        });
+      }
+    }
+    cursor = cursor.parent;
+  }
+
+  reportUnhandledError(instance, event);
+  return undefined;
+}
+
+export function reportUnhandledError(instance: ComponentInstance<any> | undefined, event: FrameworkError): void {
+  if (instance) {
+    instance.log.error("unhandled framework error", event.error, {
+      source: event.source,
+      phase: event.phase,
+      component: event.component
+    });
+  } else {
+    logFrameworkEvent("error", "core", event.source, "unhandled framework error", {
+      phase: event.phase,
+      component: event.component
+    });
+  }
+  queueMicrotask(() => {
+    throw event.error;
+  });
 }
 
 export function normalizeRenderResult(result: RenderResult): Child[] {
@@ -535,7 +657,7 @@ export function logFrameworkEvent(
   });
 }
 
-function createTask(deps: unknown[], work: (...args: any[]) => TaskResult): TaskRegistration {
+function createTask(instance: ComponentInstance<any>, deps: unknown[], work: (...args: any[]) => TaskResult): TaskRegistration {
   const sources = deps.map(dep => reactiveRef(dep)).filter((source): source is ReactiveRef => !!source);
   const task: TaskRegistration = {
     deps,
@@ -547,11 +669,19 @@ function createTask(deps: unknown[], work: (...args: any[]) => TaskResult): Task
       void task.cleanup?.();
       task.controller = new AbortController();
       const values = task.deps.map(dep => unwrap(dep));
-      const result = task.work(...values, { signal: task.controller.signal });
+      let result: TaskResult;
+      try {
+        result = task.work(...values, { signal: task.controller.signal });
+      } catch (error) {
+        handleComponentError(instance, createFrameworkError(error, "task", instance, "run"));
+        return;
+      }
 
       if (result instanceof Promise) {
         void result.then(cleanup => {
           if (typeof cleanup === "function") task.cleanup = cleanup;
+        }).catch(error => {
+          handleComponentError(instance, createFrameworkError(error, "task", instance, "promise"));
         });
       } else if (typeof result === "function") {
         task.cleanup = result;
@@ -563,7 +693,11 @@ function createTask(deps: unknown[], work: (...args: any[]) => TaskResult): Task
     },
     stop() {
       task.controller?.abort("unmount");
-      void task.cleanup?.();
+      try {
+        void task.cleanup?.();
+      } catch (error) {
+        handleComponentError(instance, createFrameworkError(error, "task", instance, "cleanup"));
+      }
       for (const stop of task.stops) stop();
       task.stops = [];
     }
@@ -575,11 +709,15 @@ function createTask(deps: unknown[], work: (...args: any[]) => TaskResult): Task
 function createComponentReactiveValue<T>(instance: ComponentInstance<any>, value: ReactiveValue<T>): ComponentReactiveValue<T> {
   return Object.assign(value, {
     task(work: (value: T, ctx: TaskContext) => TaskResult): void {
-      const task = createTask([value], work as (...args: any[]) => TaskResult);
+      const task = createTask(instance, [value], work as (...args: any[]) => TaskResult);
       instance.tasks.push(task);
       task.run();
     }
   });
+}
+
+function errorBoundaryResultToRenderFunction(result: Exclude<ErrorBoundaryResult, void>): RenderFunction {
+  return typeof result === "function" ? result as RenderFunction : () => result;
 }
 
 function applyInternalPlugins(instance: ComponentInstance<any>): void {
