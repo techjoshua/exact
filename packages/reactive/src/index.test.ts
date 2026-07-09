@@ -156,6 +156,41 @@ describe("@exact/reactive", () => {
     expect(unwrap(list)).toBe("ba");
   });
 
+  it("tracks direct array length truncation", () => {
+    const state = reactive({ items: ["a", "b", "c"] });
+    const list = computed(() => state.items.join(""));
+    const seen: string[] = [];
+    const source = ref(list)!;
+
+    subscribe(source, () => seen.push(source.get()));
+    expect(unwrap(list)).toBe("abc");
+
+    state.items.length = 1;
+    flushSync();
+
+    expect(seen).toEqual(["a"]);
+    expect(unwrap(list)).toBe("a");
+  });
+
+  it("tracks array splice, sort, and reverse as structural changes", () => {
+    const state = reactive({ items: ["c", "a", "b"] });
+    const list = computed(() => state.items.join(""));
+    const seen: string[] = [];
+    const source = ref(list)!;
+
+    subscribe(source, () => seen.push(source.get()));
+    expect(unwrap(list)).toBe("cab");
+
+    state.items.splice(1, 1, "d");
+    flushSync();
+    state.items.sort();
+    flushSync();
+    state.items.reverse();
+    flushSync();
+
+    expect(seen).toEqual(["cdb", "bcd", "dcb"]);
+  });
+
   it("does not notify for structurally identical object replacement", () => {
     const state = reactive({ user: { name: "Ada", roles: ["admin"] } });
     const seen: string[] = [];

@@ -312,6 +312,7 @@ function childrenExpressions(
 
 function shouldWrapAttribute(name: string, expression: ts.Expression): boolean {
   if (name === "key") return false;
+  if (name === "ref") return false;
   if (/^on[A-Z]/.test(name)) return false;
   if (ts.isArrowFunction(expression) || ts.isFunctionExpression(expression)) return false;
   return true;

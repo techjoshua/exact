@@ -45,6 +45,14 @@ describe("@exact/compiler", () => {
     expect(output).toContain("disabled: __exactExpression(() => disabled)");
   });
 
+  it("preserves ref bindings as direct values", () => {
+    const output = transform("const view = <button ref={this.ref(button)} title={title} />;");
+
+    expect(output).toContain("ref: this.ref(button)");
+    expect(output).toContain("title: __exactExpression(() => title)");
+    expect(output).not.toContain("ref: __exactExpression");
+  });
+
   it("quotes non-identifier JSX prop names", () => {
     const output = transform("const view = <div data-task-id={task.id} aria-label=\"Task\" />;");
 

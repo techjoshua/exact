@@ -573,7 +573,13 @@ export function createComponentInstance<State extends object, Props extends Reco
 
   applyInternalPlugins(instance);
 
-  const result = type.call(instance, props as Props);
+  let result: RenderFunction | RenderResult;
+  try {
+    result = type.call(instance, props as Props);
+  } catch (error) {
+    cleanupFailedConstruction(instance);
+    throw error;
+  }
   renderFunction = typeof result === "function" ? result as RenderFunction : () => result;
 
   return instance;
@@ -753,6 +759,12 @@ function createComponentReactiveValue<T>(instance: ComponentInstance<any>, value
       task.run();
     }
   });
+}
+
+function cleanupFailedConstruction(instance: ComponentInstance<any>): void {
+  instance.renderStop?.();
+  instance.mountController?.abort("construct-failed");
+  for (const task of instance.tasks) task.stop();
 }
 
 function applyInternalPlugins(instance: ComponentInstance<any>): void {

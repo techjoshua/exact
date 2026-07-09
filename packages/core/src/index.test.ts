@@ -61,6 +61,17 @@ describe("@exact/core", () => {
     expect(aborts).toEqual([true]);
   });
 
+  it("stops tasks when construction fails", () => {
+    const cleanup = vi.fn();
+
+    expect(() => createComponentInstance(function Broken(this: Component<{}>) {
+      this.task(() => cleanup);
+      throw new Error("construct failed");
+    }, {})).toThrow("construct failed");
+
+    expect(cleanup).toHaveBeenCalledTimes(1);
+  });
+
   it("scopes contexts to descendants and stores refs", () => {
     const token = createContext<{ name: string }>("user");
     const input = createRef<{ focus(): void }>("input");

@@ -1,11 +1,14 @@
 import {
   Cell,
   Dynamic,
+  ErrorContext,
   Fragment,
   Text,
   createComponentInstance,
+  createErrorContext,
   createErrorReport,
   createTextVNode,
+  createVNode,
   getCellVNode,
   handleComponentError,
   isCellVNode,
@@ -14,8 +17,11 @@ import {
   normalizeRenderResult,
   renderInstance,
   type Child,
+  type Component,
   type ComponentFunction,
   type ComponentInstance,
+  type ErrorContextValue,
+  type ErrorReport,
   type ListBinding,
   type Logger,
   type RefBinding,
@@ -24,7 +30,7 @@ import {
   unwrap,
   watch
 } from "@exact/core";
-import { computed, type ReactiveValue } from "@exact/reactive";
+import { computed, flushSync, type ReactiveValue } from "@exact/reactive";
 
 type Mounted = {
   vnode: VNode;
@@ -39,6 +45,10 @@ type Root = {
   container: Element;
   mounted?: Mounted;
   delegated: Map<string, EventListener>;
+  errors: ErrorContextValue;
+  current: VNode;
+  version: number;
+  boundary: ComponentFunction<{}, { version: number }>;
   logger?: Logger;
 };
 
@@ -54,12 +64,57 @@ export type RenderOptions = {
 export function render(vnode: VNode, container: Element, options: RenderOptions = {}): void {
   let root = roots.get(container);
   if (!root) {
-    root = { container, delegated: new Map() };
+    root = {
+      container,
+      delegated: new Map(),
+      errors: createErrorContext(),
+      current: vnode,
+      version: 0,
+      boundary: undefined as never
+    };
+    root.boundary = createRootBoundary(root);
     roots.set(container, root);
   }
+  root.current = vnode;
+  root.version++;
   root.logger = options.logger;
 
-  root.mounted = patch(root, container, root.mounted, vnode, undefined);
+  root.mounted = patch(root, container, root.mounted, createVNode(root.boundary, {
+    version: root.version
+  }), undefined);
+  flushSync();
+}
+
+function createRootBoundary(root: Root): ComponentFunction<{}, { version: number }> {
+  return function RootBoundary(this: Component<{}>, props: { version: number }) {
+    this.setContext(ErrorContext, root.errors);
+
+    return () => {
+      void props.version;
+      return root.errors.errors.length
+        ? createRootErrorView(root.errors.errors)
+        : root.current;
+    };
+  };
+}
+
+function createRootErrorView(errors: ErrorReport[]): VNode {
+  const reports: ErrorReport[] = [];
+  for (let index = 0; index < errors.length; index++) {
+    reports.push(errors[index]!);
+  }
+  return createVNode(
+    "section",
+    { role: "alert", className: "exact-error-boundary" },
+    createVNode("h1", null, "Application error"),
+    ...reports.map(error => createVNode(
+      "article",
+      { key: error.id, className: "exact-error" },
+      createVNode("h2", null, error.component?.name ?? "Application"),
+      createVNode("p", null, `${error.source}${error.phase ? `:${error.phase}` : ""}`),
+      createVNode("pre", null, formatError(error.error))
+    ))
+  );
 }
 
 function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>): Mounted {
@@ -317,7 +372,7 @@ function patchChildrenInner(
   before?: Node | null
 ): Mounted[] {
   const oldByKey = new Map<string, Mounted>();
-  const unkeyed = [...oldChildren];
+  const unkeyed = oldChildren.filter(child => !child.vnode.key);
 
   for (const child of oldChildren) {
     if (child.vnode.key) {
@@ -860,4 +915,9 @@ function describeVNodeType(type: VNode["type"]): string {
   if (typeof type === "string") return type;
   if (typeof type === "function") return type.name || "anonymous";
   return String(type.description ?? type.toString());
+}
+
+function formatError(error: unknown): string {
+  if (error instanceof Error) return error.stack ?? error.message;
+  return String(error);
 }

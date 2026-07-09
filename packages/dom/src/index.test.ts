@@ -274,6 +274,47 @@ describe("@exact/dom", () => {
     }
   });
 
+  it("keeps root default error contexts isolated per container", () => {
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    let firstErrors!: ErrorContextValue;
+    let secondErrors!: ErrorContextValue;
+
+    function First(this: Component<{}>) {
+      firstErrors = this.getContext(ErrorContext);
+      return () => jsx("button", {
+        onClick: () => {
+          throw new Error("first failed");
+        },
+        children: "First"
+      });
+    }
+
+    function Second(this: Component<{}>) {
+      secondErrors = this.getContext(ErrorContext);
+      return () => jsx("p", { children: "Second ok" });
+    }
+
+    try {
+      const first = document.createElement("div");
+      const second = document.createElement("div");
+      render(jsx(First, {}), first);
+      render(jsx(Second, {}), second);
+
+      first.querySelector("button")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      flushSync();
+
+      expect(firstErrors).not.toBe(secondErrors);
+      expect(firstErrors.errors).toHaveLength(1);
+      expect(secondErrors.errors).toHaveLength(0);
+      expect(first.textContent).toContain("first failed");
+      expect(second.textContent).toBe("Second ok");
+    } finally {
+      firstErrors?.clearAll();
+      secondErrors?.clearAll();
+      errorLog.mockRestore();
+    }
+  });
+
   it("replaces delegated event handlers", () => {
     let button!: Component<{ mode: "a" | "b" }>;
     const first = vi.fn();
@@ -1407,6 +1448,34 @@ describe("@exact/dom", () => {
     expect(rendered).toHaveBeenCalledTimes(1);
   });
 
+  it("does not reuse keyed children as unkeyed siblings during patching", () => {
+    let instance!: Component<{ label: string }>;
+
+    function Panel(this: Component<{ label: string }>) {
+      instance = this;
+      this.state.label = "first";
+
+      return () => jsx("section", {
+        children: [
+          jsx("h1", { children: "Heading" }),
+          jsx("article", { key: "report", children: this.state.label })
+        ]
+      });
+    }
+
+    const container = document.createElement("div");
+    render(jsx(Panel, {}), container);
+    const heading = container.querySelector("h1")!;
+    const article = container.querySelector("article")!;
+
+    instance.state.label = "second";
+    flushSync();
+
+    expect(container.querySelector("h1")).toBe(heading);
+    expect(container.querySelector("article")).toBe(article);
+    expect(container.textContent).toBe("Headingsecond");
+  });
+
   it("adds a keyed child without rerendering the parent", () => {
     let instance!: Component<{ items: { id: string; label: string }[] }>;
     const rendered = vi.fn();
@@ -1627,6 +1696,39 @@ describe("@exact/dom", () => {
     expect(container.textContent).toBe("hidden");
     expect(container.querySelector("span")).toBeNull();
     expect(removedSpan.isConnected).toBe(false);
+  });
+
+  it("stops reactive style watchers when DOM nodes are removed", () => {
+    let parent!: Component<{ show: boolean; color: string }>;
+
+    function Parent(this: Component<{ show: boolean; color: string }>) {
+      parent = this;
+      this.state.show = true;
+      this.state.color = "red";
+
+      return () => this.state.show == true
+        ? jsx("section", {
+          children: jsx("span", {
+            style: { color: this.state.color },
+            children: "styled"
+          })
+        })
+        : jsx("section", { children: "gone" });
+    }
+
+    const container = document.createElement("div");
+    render(jsx(Parent, {}), container);
+    const removedSpan = container.querySelector("span")!;
+    expect(removedSpan.style.color).toBe("red");
+
+    parent.state.show = false;
+    flushSync();
+    parent.state.color = "blue";
+    flushSync();
+
+    expect(container.textContent).toBe("gone");
+    expect(removedSpan.isConnected).toBe(false);
+    expect(removedSpan.style.color).toBe("red");
   });
 
   it("clears refs when keyed DOM nodes are removed", () => {
