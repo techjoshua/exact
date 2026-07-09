@@ -255,6 +255,71 @@ describe("@exact/dom", () => {
     expect(select.value).toBe("todo");
   });
 
+  it("does not rewrite unchanged select and option values during rerender", () => {
+    let instance!: Component<{ label: string; status: "todo" | "doing" | "done" }>;
+
+    function StatusSelect(this: Component<{ label: string; status: "todo" | "doing" | "done" }>) {
+      instance = this;
+      this.state.label = "Ready";
+      this.state.status = "todo";
+
+      return () => jsx("label", {
+        children: [
+          jsx("span", { children: this.state.label }),
+          jsx("select", {
+            value: this.state.status,
+            children: [
+              jsx("option", { value: "todo", children: "To do" }),
+              jsx("option", { value: "doing", children: "Doing" }),
+              jsx("option", { value: "done", children: "Done" })
+            ]
+          })
+        ]
+      });
+    }
+
+    const container = document.createElement("div");
+    render(jsx(StatusSelect, {}), container);
+    const select = container.querySelector("select")!;
+    const options = Array.from(container.querySelectorAll("option"));
+    const selectWrites: string[] = [];
+    const optionWrites: string[] = [];
+    const selectDescriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!;
+    const optionDescriptor = Object.getOwnPropertyDescriptor(HTMLOptionElement.prototype, "value")!;
+
+    Object.defineProperty(select, "value", {
+      get() {
+        return selectDescriptor.get!.call(this);
+      },
+      set(value: string) {
+        selectWrites.push(value);
+        selectDescriptor.set!.call(this, value);
+      },
+      configurable: true
+    });
+
+    for (const option of options) {
+      Object.defineProperty(option, "value", {
+        get() {
+          return optionDescriptor.get!.call(this);
+        },
+        set(value: string) {
+          optionWrites.push(value);
+          optionDescriptor.set!.call(this, value);
+        },
+        configurable: true
+      });
+    }
+
+    instance.state.label = "Updated";
+    flushSync();
+
+    expect(select.value).toBe("todo");
+    expect(Array.from(container.querySelectorAll("option"))).toEqual(options);
+    expect(selectWrites).toEqual([]);
+    expect(optionWrites).toEqual([]);
+  });
+
   it("keeps focused textarea stable while input updates reactive state", () => {
     let instance!: Component<{ notes: string }>;
 
@@ -1009,6 +1074,44 @@ describe("@exact/dom", () => {
 
     expect(container.textContent).toBe("Goodbye");
     expect(childRendered).toHaveBeenCalledTimes(2);
+  });
+
+  it("updates derived compiled object prop fields without rerendering parent or child", () => {
+    let parent!: Component<{ task: { id: string; title: string } }>;
+    const parentRendered = vi.fn();
+    const childRendered = vi.fn();
+
+    function CardTitle(this: Component<{}>, props: { task: { id: string; title: string } }) {
+      const title = this.reactive(() => props.task.title);
+
+      return () => {
+        childRendered();
+        return createCompiledVNode("span", {}, title);
+      };
+    }
+
+    function Parent(this: Component<{ task: { id: string; title: string } }>) {
+      parent = this;
+      this.state.task = { id: "a", title: "First" };
+      return () => {
+        parentRendered();
+        return createCompiledVNode(CardTitle, {
+          task: createExpression(() => this.state.task)
+        });
+      };
+    }
+
+    const container = document.createElement("div");
+    render(createCompiledVNode(Parent, {}), container);
+    const span = container.querySelector("span")!;
+
+    parent.state.task = { id: "a", title: "Second" };
+    flushSync();
+
+    expect(container.querySelector("span")).toBe(span);
+    expect(container.textContent).toBe("Second");
+    expect(parentRendered).toHaveBeenCalledTimes(1);
+    expect(childRendered).toHaveBeenCalledTimes(1);
   });
 
   it("rerenders a child component when updated props drive control flow", () => {

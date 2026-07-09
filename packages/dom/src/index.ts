@@ -545,35 +545,43 @@ function setDomProp(element: Element, key: string, value: unknown): void {
     return;
   }
 
-  if (property === "value" || property === "defaultValue") {
-    domDebug("set form value prop", {
-      element: describeNode(element),
-      property,
-      active: describeNode(document.activeElement),
-      value
-    });
+  if (property in element) {
+    try {
+      const record = element as unknown as Record<string, unknown>;
+      if (Object.is(record[property], value)) {
+        syncBooleanAttribute(element, property, value);
+        return;
+      }
+
+      if (property === "value" || property === "defaultValue") {
+        domDebug("set form value prop", {
+          element: describeNode(element),
+          property,
+          active: describeNode(document.activeElement),
+          value
+        });
+      }
+      record[property] = value;
+      syncBooleanAttribute(element, property, value);
+      return;
+    } catch {
+      // Fall through to attribute setting for readonly DOM properties.
+    }
   }
 
-  if (property in element) {
-      try {
-      const record = element as unknown as Record<string, unknown>;
-      if (!Object.is(record[property], value)) {
-        record[property] = value;
-      }
-      if (typeof value === "boolean") {
-        if (value) {
-          element.setAttribute(property, "");
-        } else {
-          element.removeAttribute(property);
-        }
-      }
-        return;
-      } catch {
-        // Fall through to attribute setting for readonly DOM properties.
-      }
-    }
+  const attributeValue = String(value);
+  if (element.getAttribute(property) !== attributeValue) {
+    element.setAttribute(property, attributeValue);
+  }
+}
 
-  element.setAttribute(property, String(value));
+function syncBooleanAttribute(element: Element, property: string, value: unknown): void {
+  if (typeof value !== "boolean") return;
+  if (value) {
+    if (!element.hasAttribute(property)) element.setAttribute(property, "");
+  } else {
+    if (element.hasAttribute(property)) element.removeAttribute(property);
+  }
 }
 
 function clearDomProp(element: Element, key: string): void {

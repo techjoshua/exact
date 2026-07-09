@@ -81,7 +81,9 @@ export function computed<T>(compute: () => T): ReactiveValue<T> {
 
     stop = watch(
       () => {
-        const next = unwrap(compute()) as T;
+        const computedValue = compute();
+        ref(computedValue)?.get();
+        const next = unwrap(computedValue) as T;
         if (!initialized) {
           current = next;
           initialized = true;
@@ -237,21 +239,25 @@ export function snapshot<T>(value: T): T {
 }
 
 export function flushSync(): void {
-  while (queuedComputations.size) {
-    const computations = [...queuedComputations];
-    queuedComputations.clear();
-    for (const computation of computations) {
-      computation();
+  while (queuedComputations.size || queuedReactions.size) {
+    while (queuedComputations.size) {
+      const computations = [...queuedComputations];
+      queuedComputations.clear();
+      for (const computation of computations) {
+        computation();
+      }
+    }
+
+    const reactions = [...queuedReactions];
+    queuedReactions.clear();
+    flushScheduled = false;
+
+    for (const reaction of reactions) {
+      if (reaction.active) reaction.run();
     }
   }
 
-  const reactions = [...queuedReactions];
-  queuedReactions.clear();
   flushScheduled = false;
-
-  for (const reaction of reactions) {
-    if (reaction.active) reaction.run();
-  }
 }
 
 export function updateReactive<T extends object>(target: Reactive<T>, next: Partial<T>): void {
@@ -273,11 +279,24 @@ export function updateReactive<T extends object>(target: Reactive<T>, next: Part
     const previous = Reflect.get(raw, key);
     const value = Reflect.get(next, key);
     const hadKey = Reflect.has(raw, key);
+    if (canUpdateNestedReactive(previous, value)) {
+      updateReactive(previous as object, unwrap(value) as Partial<object>);
+      continue;
+    }
     if (!reactiveValueChanged(previous, value) && !hasChanged(previous, value)) continue;
     Reflect.set(raw, key, value);
     trigger(raw, key);
     if (!hadKey || isArrayStructureKey(raw, key)) trigger(raw, iterateKey);
   }
+}
+
+function canUpdateNestedReactive(previous: unknown, next: unknown): boolean {
+  const unwrappedPrevious = unwrap(previous);
+  const unwrappedNext = unwrap(next);
+  if (Object.is(unwrappedPrevious, unwrappedNext)) return false;
+  return (isReactive(previous) || (!!unwrappedPrevious && typeof unwrappedPrevious === "object" && rawObjectRefs.has(unwrappedPrevious)))
+    && isPlainObject(unwrappedPrevious)
+    && isPlainObject(unwrappedNext);
 }
 
 function createReactive(value: object, options: ReactiveOptions): object {

@@ -78,6 +78,22 @@ describe("@exact/reactive", () => {
     expect(compute).toHaveBeenCalledTimes(2);
   });
 
+  it("tracks computed values that return reactive object references", () => {
+    const state = reactive({ task: { title: "First" } });
+    const task = computed(() => state.task);
+    const title = computed(() => task.get().title);
+    const seen: string[] = [];
+    const source = ref(title)!;
+
+    subscribe(source, () => seen.push(source.get()));
+    expect(unwrap(title)).toBe("First");
+
+    state.task = { title: "Second" };
+    flushSync();
+
+    expect(seen).toEqual(["Second"]);
+  });
+
   it("switches computed dependencies when conditional reads change", () => {
     const state = reactive({ useNickname: true, nickname: "Ace", firstName: "Ada" });
     const label = computed(() => state.useNickname == true ? state.nickname : state.firstName);

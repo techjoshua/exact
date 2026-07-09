@@ -14,18 +14,16 @@ type TaskDetailsDialogProps = {
 };
 
 export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: TaskDetailsDialogProps) {
-  this.state.taskId = props.task?.id;
-  this.onMount(() => debugLog("details mount", { taskId: props.task?.id }));
-  this.onUnmount(() => debugLog("details unmount", { taskId: props.task?.id }));
+  const taskId = props.task?.id ?? "";
+  const title = this.reactive(() => props.task?.title ?? "");
+  const status = this.reactive(() => props.task?.status ?? "todo");
+  const notes = this.reactive(() => props.task?.notes ?? "");
+
+  this.state.taskId = taskId;
+  this.onMount(() => debugLog("details mount", { taskId }));
+  this.onUnmount(() => debugLog("details unmount", { taskId }));
 
   return () => {
-    const task = props.task;
-    if (!task) return null;
-
-    if (this.state.taskId !== task.id) {
-      this.state.taskId = task.id;
-    }
-
     return <div className="dialog-backdrop" onClick={props.close}>
       <section
         className="task-dialog"
@@ -34,14 +32,14 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
         }}
         onFocusIn={event => {
           debugLog("details focusin", {
-            taskId: task.id,
+            taskId,
             target: eventTargetName(event.target),
             active: activeElementName()
           });
         }}
         onFocusOut={event => {
           debugLog("details focusout", {
-            taskId: task.id,
+            taskId,
             target: eventTargetName(event.target),
             relatedTarget: eventTargetName((event as FocusEvent).relatedTarget),
             active: activeElementName()
@@ -58,17 +56,17 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
         <label>
           <span>Title</span>
           <input
-            defaultValue={task.title}
+            defaultValue={title}
             onFocusIn={event => {
               debugLog("title focusin", {
-                taskId: task.id,
+                taskId,
                 target: eventTargetName(event.target),
                 active: activeElementName()
               });
             }}
             onFocusOut={event => {
               debugLog("title focusout", {
-                taskId: task.id,
+                taskId,
                 relatedTarget: eventTargetName((event as FocusEvent).relatedTarget),
                 active: activeElementName()
               });
@@ -76,11 +74,11 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
             onInput={event => {
               const title = (event.target as HTMLInputElement).value;
               debugLog("title input", {
-                taskId: task.id,
+                taskId,
                 value: title,
                 active: activeElementName()
               });
-              props.actions.updateTask(task.id, {
+              props.actions.updateTask(taskId, {
                 title
               });
             }}
@@ -90,9 +88,9 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
         <label>
           <span>Status</span>
           <select
-            value={task.status}
+            value={status}
             onChange={event => {
-              props.actions.updateTask(task.id, {
+              props.actions.updateTask(taskId, {
                 status: (event.target as HTMLSelectElement).value as Status
               });
             }}
@@ -106,18 +104,18 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
         <label>
           <span>Notes</span>
           <textarea
-            defaultValue={task.notes}
+            defaultValue={notes}
             rows={8}
             onFocusIn={event => {
               debugLog("notes focusin", {
-                taskId: task.id,
+                taskId,
                 target: eventTargetName(event.target),
                 active: activeElementName()
               });
             }}
             onFocusOut={event => {
               debugLog("notes focusout", {
-                taskId: task.id,
+                taskId,
                 relatedTarget: eventTargetName((event as FocusEvent).relatedTarget),
                 active: activeElementName()
               });
@@ -125,11 +123,11 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
             onInput={event => {
               const notes = (event.target as HTMLTextAreaElement).value;
               debugLog("notes input", {
-                taskId: task.id,
+                taskId,
                 length: notes.length,
                 active: activeElementName()
               });
-              props.actions.updateTask(task.id, {
+              props.actions.updateTask(taskId, {
                 notes
               });
             }}
