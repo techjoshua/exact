@@ -51,6 +51,7 @@ export type ComponentFunction<State extends object = Record<string, unknown>, Pr
 ) => RenderFunction | RenderResult;
 
 export type ErrorSource =
+  | "component"
   | "construct"
   | "render"
   | "task"
@@ -69,6 +70,19 @@ export type ErrorReport = {
     mounted: boolean;
   };
   phase?: string;
+};
+
+export type ErrorReportOptions = {
+  source?: ErrorSource;
+  phase?: string;
+  component?: ErrorReport["component"];
+};
+
+export type ErrorContextValue = {
+  errors: ErrorReport[];
+  report(error: unknown, options?: ErrorReportOptions): ErrorReport;
+  clear(error: ErrorReport | string): void;
+  clearAll(): void;
 };
 
 export type ContextToken<T> = {
@@ -148,7 +162,7 @@ export function createConsoleLogger(options: ConsoleLoggerOptions = {}): Logger 
 }
 
 export const LoggerContext = createContext<Logger>("logger");
-export const ErrorContext = createContext<ErrorReport[]>("error");
+export const ErrorContext = createContext<ErrorContextValue>("error");
 
 export type RefKey<T> = {
   readonly id: symbol;
@@ -249,7 +263,7 @@ type DefaultContextProvider = {
 };
 
 const defaultConsoleLogger = createConsoleLogger();
-const defaultErrors = reactive([] as ErrorReport[]);
+const defaultErrorContext = createErrorContext();
 const defaultContexts = new Map<symbol, unknown>();
 const internalPlugins: InternalPlugin[] = [
   {
@@ -261,7 +275,7 @@ const internalPlugins: InternalPlugin[] = [
       },
       {
         token: ErrorContext as ContextToken<unknown>,
-        value: defaultErrors
+        value: defaultErrorContext
       }
     ],
     augmentComponent(instance) {
@@ -331,6 +345,27 @@ export function createDynamicChild(compute: () => RenderResult): VNode {
   return createVNode(Dynamic, {
     value: computed(compute)
   });
+}
+
+export function createErrorContext(errors = reactive([] as ErrorReport[])): ErrorContextValue {
+  return {
+    errors,
+    report(error, options) {
+      const report = isErrorReport(error)
+        ? error
+        : createErrorReportFromOptions(error, options);
+      errors.push(report);
+      return report;
+    },
+    clear(error) {
+      const id = typeof error === "string" ? error : error.id;
+      const index = errors.findIndex(item => item.id === id);
+      if (index >= 0) errors.splice(index, 1);
+    },
+    clearAll() {
+      errors.splice(0, errors.length);
+    }
+  };
 }
 
 function createDefaultErrorView(errors: Iterable<ErrorReport>): VNode {
@@ -588,6 +623,16 @@ export function createErrorReport(
   };
 }
 
+function createErrorReportFromOptions(error: unknown, options: ErrorReportOptions = {}): ErrorReport {
+  return {
+    id: `e${nextErrorId++}`,
+    error,
+    source: options.source ?? "component",
+    component: options.component,
+    phase: options.phase
+  };
+}
+
 export function handleComponentError(
   instance: ComponentInstance<any> | undefined,
   event: ErrorReport
@@ -595,17 +640,17 @@ export function handleComponentError(
   let cursor = instance;
   while (cursor) {
     if (cursor.contexts.has(ErrorContext.id)) {
-      const errors = unwrap(cursor.contexts.get(ErrorContext.id)) as ErrorReport[];
-      errors.push(event);
+      const context = unwrap(cursor.contexts.get(ErrorContext.id)) as ErrorContextValue;
+      context.report(event);
       cursor.invalidate?.();
       return undefined;
     }
     cursor = cursor.parent;
   }
 
-  const errors = defaultContexts.get(ErrorContext.id) as ErrorReport[];
-  errors.push(event);
-  const fallback = () => createDefaultErrorView(errors);
+  const context = defaultContexts.get(ErrorContext.id) as ErrorContextValue;
+  context.report(event);
+  const fallback = () => createDefaultErrorView(context.errors);
   if (instance) {
     instance.errorFallback = fallback;
     instance.invalidate?.();
@@ -812,6 +857,14 @@ function evaluateLogValue<T>(value: LazyLogValue<T>): T {
 
 function isErrorLike(value: unknown): boolean {
   return value instanceof Error;
+}
+
+function isErrorReport(value: unknown): value is ErrorReport {
+  return !!value
+    && typeof value === "object"
+    && "id" in value
+    && "error" in value
+    && "source" in value;
 }
 
 function formatError(error: unknown): string {

@@ -336,6 +336,10 @@ h1 {
   line-height: 1.45;
 }
 
+.error-item button {
+  margin-top: 12px;
+}
+
 @media (max-width: 780px) {
   .toolbar {
     align-items: stretch;

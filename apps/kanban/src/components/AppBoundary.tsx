@@ -1,4 +1,4 @@
-import { ErrorContext, LoggerContext, type Child, type Component, type ErrorReport, type Logger } from "@exact/core";
+import { ErrorContext, LoggerContext, createErrorContext, type Child, type Component, type ErrorReport, type Logger } from "@exact/core";
 
 type AppBoundaryState = {
   errors: ErrorReport[];
@@ -11,12 +11,12 @@ type AppBoundaryProps = {
 
 export function AppBoundary(this: Component<AppBoundaryState>, props: AppBoundaryProps) {
   this.state.errors = [];
+  const errors = createErrorContext(this.state.errors);
   if (props.logger) this.setContext(LoggerContext, props.logger);
-  this.setContext(ErrorContext, this.state.errors);
+  this.setContext(ErrorContext, errors);
 
   const clearErrors = () => {
-    this.state.errors = [];
-    this.setContext(ErrorContext, this.state.errors);
+    errors.clearAll();
   };
 
   return () => this.state.errors.length
@@ -42,6 +42,9 @@ export function AppBoundary(this: Component<AppBoundaryState>, props: AppBoundar
                   <h2>{error.component?.name ?? "Application"}</h2>
                   <p>{error.source}{error.phase ? `:${error.phase}` : ""}</p>
                   <pre>{formatError(error.error)}</pre>
+                  <button type="button" className="quiet-button" onClick={() => errors.clear(error)}>
+                    Clear
+                  </button>
                 </article>
               )
             )}

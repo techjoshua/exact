@@ -1,4 +1,4 @@
-import type { Component } from "@exact/core";
+import { ErrorContext, type Component } from "@exact/core";
 import { BoardContext } from "../context.js";
 
 type BoardHeaderProps = {
@@ -8,6 +8,7 @@ type BoardHeaderProps = {
 
 export function BoardHeader(this: Component<{}>, props: BoardHeaderProps) {
   const board = this.getContext(BoardContext);
+  const errors = this.getContext(ErrorContext);
   const summary = this.reactive(() => `${props.total} ${props.total == 1 ? "task" : "tasks"} saved locally`);
 
   return () => (
@@ -21,10 +22,22 @@ export function BoardHeader(this: Component<{}>, props: BoardHeaderProps) {
           type="button"
           className="quiet-button"
           onClick={() => {
+            errors.report(new Error("Sample reported error"), {
+              source: "component",
+              phase: "manual"
+            });
+          }}
+        >
+          Report error
+        </button>
+        <button
+          type="button"
+          className="quiet-button"
+          onClick={() => {
             throw new Error("Sample error boundary test");
           }}
         >
-          Test error
+          Throw error
         </button>
         <form
           className="new-task"

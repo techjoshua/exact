@@ -4,6 +4,7 @@ import {
   LoggerContext,
   createComponentInstance,
   createContext,
+  createErrorContext,
   createRef,
   createVNode,
   isVNode,
@@ -305,7 +306,7 @@ describe("@exact/core", () => {
     const component = createComponentInstance(function Broken(this: Component<{ errors: ErrorReport[] }>) {
       instance = this;
       this.state.errors = [];
-      this.setContext(ErrorContext, this.state.errors);
+      this.setContext(ErrorContext, createErrorContext(this.state.errors));
 
       return () => {
         if (this.state.errors.length) return createVNode("span", null, "fallback");
@@ -328,7 +329,7 @@ describe("@exact/core", () => {
     createComponentInstance(function Worker(this: Component<{ errors: ErrorReport[] }>) {
       instance = this;
       this.state.errors = [];
-      this.setContext(ErrorContext, this.state.errors);
+      this.setContext(ErrorContext, createErrorContext(this.state.errors));
       this.task(() => {
         throw new Error("task failed");
       });
@@ -347,7 +348,7 @@ describe("@exact/core", () => {
     createComponentInstance(function Worker(this: Component<{ errors: ErrorReport[] }>) {
       instance = this;
       this.state.errors = [];
-      this.setContext(ErrorContext, this.state.errors);
+      this.setContext(ErrorContext, createErrorContext(this.state.errors));
       this.task(() => {
         throw new Error("first task failed");
       });
@@ -361,13 +362,41 @@ describe("@exact/core", () => {
     expect(instance.state.errors[0]!.id).not.toBe(instance.state.errors[1]!.id);
   });
 
+  it("lets components report and clear errors through error context", () => {
+    let instance!: Component<{ errors: ErrorReport[] }>;
+    let report!: ErrorReport;
+
+    const parent = createComponentInstance(function Boundary(this: Component<{ errors: ErrorReport[] }>) {
+      instance = this;
+      this.state.errors = [];
+      this.setContext(ErrorContext, createErrorContext(this.state.errors));
+      return () => null;
+    }, {});
+
+    createComponentInstance(function Reporter(this: Component<{}>) {
+      const errors = this.getContext(ErrorContext);
+      report = errors.report(new Error("manual failure"), {
+        source: "component",
+        phase: "validate"
+      });
+      errors.clear(report.id);
+      errors.report("second failure");
+      errors.clearAll();
+      return () => null;
+    }, {}, parent);
+
+    expect(report.source).toBe("component");
+    expect(report.phase).toBe("validate");
+    expect(instance.state.errors).toHaveLength(0);
+  });
+
   it("routes rejected task promises to the nearest error context", async () => {
     let instance!: Component<{ errors: ErrorReport[] }>;
 
     createComponentInstance(function Worker(this: Component<{ errors: ErrorReport[] }>) {
       instance = this;
       this.state.errors = [];
-      this.setContext(ErrorContext, this.state.errors);
+      this.setContext(ErrorContext, createErrorContext(this.state.errors));
       this.task(async () => {
         throw new Error("async task failed");
       });
@@ -389,7 +418,7 @@ describe("@exact/core", () => {
     const component = createComponentInstance(function Worker(this: Component<{ errors: ErrorReport[] }>) {
       instance = this;
       this.state.errors = [];
-      this.setContext(ErrorContext, this.state.errors);
+      this.setContext(ErrorContext, createErrorContext(this.state.errors));
       this.onUnmount(() => {
         throw new Error("unmount failed");
       });

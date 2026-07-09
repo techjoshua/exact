@@ -7,6 +7,7 @@ import {
   createDynamicChild,
   createExpression,
   ErrorContext,
+  createErrorContext,
   createRef,
   type Child,
   type Component,
@@ -153,7 +154,7 @@ describe("@exact/dom", () => {
     function Panel(this: Component<{ errors: ErrorReport[] }>) {
       panel = this;
       this.state.errors = [];
-      this.setContext(ErrorContext, this.state.errors);
+      this.setContext(ErrorContext, createErrorContext(this.state.errors));
 
       return () => this.state.errors.length
         ? jsx("p", { children: "Recovered" })
@@ -186,7 +187,7 @@ describe("@exact/dom", () => {
     function Parent(this: Component<{ errors: ErrorReport[] }>) {
       parent = this;
       this.state.errors = [];
-      this.setContext(ErrorContext, this.state.errors);
+      this.setContext(ErrorContext, createErrorContext(this.state.errors));
 
       return () => this.state.errors.length
         ? jsx("p", { children: "Child failed" })

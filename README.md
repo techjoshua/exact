@@ -154,14 +154,15 @@ The main instance APIs are:
 
 ## Error Boundaries
 
-Errors are delivered through `ErrorContext`. A component becomes an error boundary by providing a reactive `ErrorReport[]` for descendants. Its render function can then decide whether to show errors, hide children, keep rendering, or report the failures elsewhere:
+Errors are delivered through `ErrorContext`. A component becomes an error boundary by providing an error receiver for descendants. Its render function can then decide whether to show errors, hide children, keep rendering, or report the failures elsewhere:
 
 ```tsx
-import { ErrorContext, type Child, type Component, type ErrorReport } from "@exact/core";
+import { ErrorContext, createErrorContext, type Child, type Component, type ErrorReport } from "@exact/core";
 
 function Boundary(this: Component<{ errors: ErrorReport[] }>, props: { children?: Child | Child[] }) {
   this.state.errors = [];
-  this.setContext(ErrorContext, this.state.errors);
+  const errors = createErrorContext(this.state.errors);
+  this.setContext(ErrorContext, errors);
 
   return () => this.state.errors.length
     ? (
@@ -170,15 +171,30 @@ function Boundary(this: Component<{ errors: ErrorReport[] }>, props: { children?
         {this.map(
           this.state.errors,
           error => error.id,
-          error => <pre>{String(error.error)}</pre>
+          error => (
+            <article>
+              <pre>{String(error.error)}</pre>
+              <button type="button" onClick={() => errors.clear(error)}>Clear</button>
+            </article>
+          )
         )}
+        <button type="button" onClick={() => errors.clearAll()}>Clear all</button>
       </section>
     )
     : props.children;
 }
 ```
 
-Failures include construction, render, event, task, lifecycle, reactive, and DOM phases. If no component-provided `ErrorContext` receives the failure, eXact's root context records all reported errors and renders them in place of the app.
+Failures include construction, render, event, task, lifecycle, reactive, and DOM phases. Components can also report errors without throwing:
+
+```ts
+this.getContext(ErrorContext).report(new Error("Save failed"), {
+  source: "component",
+  phase: "save"
+});
+```
+
+If no component-provided `ErrorContext` receives the failure, eXact's root context records all reported errors and renders them in place of the app.
 
 Task failures are captured for both synchronous throws and rejected promises. Lifecycle cleanup continues even when one cleanup handler throws.
 
