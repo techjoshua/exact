@@ -140,6 +140,13 @@ h1 {
   cursor: grabbing;
 }
 
+.card.dragging {
+  position: relative;
+  z-index: 10;
+  opacity: 0.86;
+  pointer-events: none;
+}
+
 .drag-handle {
   display: inline-block;
   margin-bottom: 8px;

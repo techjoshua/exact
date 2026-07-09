@@ -10,39 +10,63 @@ type TaskCardProps = {
 export function TaskCard(this: Component<{}>, props: TaskCardProps) {
   const hasNotes = this.reactive(props.task.notes.trim().length > 0);
 
-  const startDrag = (event: DragEvent) => {
-    debugLog("dragstart", {
-      taskId: props.task.id,
-      target: targetName(event.target),
-      hasDataTransfer: Boolean(event.dataTransfer)
-    });
-    event.dataTransfer?.setData("text/plain", props.task.id);
-    event.dataTransfer?.setData("application/x-exact-task", props.task.id);
-    if (!event.dataTransfer) return;
+  const startPointerDrag = (event: PointerEvent) => {
+    if (event.button !== 0 || isInteractiveTarget(event.target)) return;
 
-    event.dataTransfer.effectAllowed = "move";
     const card = (event.target as HTMLElement | null)?.closest(".card") as HTMLElement | null;
     if (!card) return;
 
-    const dragImage = card.cloneNode(true) as HTMLElement;
-    dragImage.classList.add("card-drag-image");
-    dragImage.style.width = `${card.offsetWidth}px`;
-    document.body.appendChild(dragImage);
-    event.dataTransfer.setDragImage(dragImage, Math.min(24, card.offsetWidth / 2), 18);
-    window.setTimeout(() => dragImage.remove(), 0);
+    const startX = event.clientX;
+    const startY = event.clientY;
+    let dragging = false;
+
+    const move = (moveEvent: PointerEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+      if (!dragging && Math.hypot(deltaX, deltaY) > 4) {
+        dragging = true;
+        card.classList.add("dragging");
+        debugLog("pointer dragstart", { taskId: props.task.id });
+      }
+
+      if (dragging) {
+        card.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+      }
+    };
+
+    const end = (upEvent: PointerEvent) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      card.classList.remove("dragging");
+      card.style.transform = "";
+
+      const column = document.elementFromPoint(upEvent.clientX, upEvent.clientY)?.closest(".column");
+      const status = column?.id.replace("column-", "");
+      debugLog("pointer dragend", {
+        taskId: props.task.id,
+        dragging,
+        status
+      });
+
+      if (dragging && (status === "todo" || status === "doing" || status === "done")) {
+        props.actions.moveTaskById(props.task.id, status);
+      }
+    };
+
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
   };
 
   return () => (
     <div
       className="card"
-      draggable={true}
       onMouseDown={event => {
         debugLog("card mousedown", {
           taskId: props.task.id,
           target: targetName(event.target)
         });
       }}
-      onDragStart={event => startDrag(event as DragEvent)}
+      onPointerDown={event => startPointerDrag(event as PointerEvent)}
     >
       <span
         className="drag-handle"
@@ -85,4 +109,8 @@ function targetName(target: EventTarget | null): string {
   if (target instanceof Element) return target.tagName.toLowerCase();
   if (target instanceof Node) return `node:${target.nodeName}`;
   return "unknown";
+}
+
+function isInteractiveTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && Boolean(target.closest("button, input, select, textarea"));
 }

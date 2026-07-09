@@ -79,6 +79,7 @@ export function Board(this: Component<BoardState>) {
 
       {this.state.selectedTaskId ? (
         <TaskDetailsDialog
+          key={this.state.selectedTaskId}
           task={this.state.tasks.find(task => task.id === this.state.selectedTaskId)!}
           actions={actions}
           close={() => {
