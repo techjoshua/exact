@@ -59,7 +59,8 @@ export type ErrorSource =
   | "reactive"
   | "dom";
 
-export type FrameworkError = {
+export type ErrorReport = {
+  id: string;
   error: unknown;
   source: ErrorSource;
   component?: {
@@ -69,14 +70,6 @@ export type FrameworkError = {
   };
   phase?: string;
 };
-
-export type ErrorBoundaryResult =
-  | void
-  | Child
-  | Child[]
-  | RenderFunction;
-
-export type ErrorBoundaryHandler = (event: FrameworkError) => ErrorBoundaryResult;
 
 export type ContextToken<T> = {
   readonly id: symbol;
@@ -155,6 +148,7 @@ export function createConsoleLogger(options: ConsoleLoggerOptions = {}): Logger 
 }
 
 export const LoggerContext = createContext<Logger>("logger");
+export const ErrorContext = createContext<ErrorReport[]>("error");
 
 export type RefKey<T> = {
   readonly id: symbol;
@@ -209,7 +203,6 @@ export interface Component<State extends object> {
   onMount(handler: LifecycleHandler): void;
   onUnmount(handler: LifecycleHandler): void;
   onRender?(handler: RenderEventHandler): void;
-  onError(handler: ErrorBoundaryHandler): void;
 }
 
 export type ComponentInstance<State extends object> = Component<State> & {
@@ -226,7 +219,6 @@ export type ComponentInstance<State extends object> = Component<State> & {
   mountHandlers: LifecycleHandler[];
   unmountHandlers: LifecycleHandler[];
   renderHandlers: RenderEventHandler[];
-  errorHandlers: ErrorBoundaryHandler[];
   invalidate?: () => void;
   errorFallback?: RenderFunction;
   markMounted(): void;
@@ -257,6 +249,7 @@ type DefaultContextProvider = {
 };
 
 const defaultConsoleLogger = createConsoleLogger();
+const defaultErrors = reactive([] as ErrorReport[]);
 const defaultContexts = new Map<symbol, unknown>();
 const internalPlugins: InternalPlugin[] = [
   {
@@ -265,6 +258,10 @@ const internalPlugins: InternalPlugin[] = [
       {
         token: LoggerContext as ContextToken<unknown>,
         value: defaultConsoleLogger
+      },
+      {
+        token: ErrorContext as ContextToken<unknown>,
+        value: defaultErrors
       }
     ],
     augmentComponent(instance) {
@@ -274,6 +271,7 @@ const internalPlugins: InternalPlugin[] = [
 ];
 
 let nextComponentId = 1;
+let nextErrorId = 1;
 
 for (const plugin of internalPlugins) {
   for (const provider of plugin.defaultContexts ?? []) {
@@ -333,6 +331,21 @@ export function createDynamicChild(compute: () => RenderResult): VNode {
   return createVNode(Dynamic, {
     value: computed(compute)
   });
+}
+
+function createDefaultErrorView(errors: Iterable<ErrorReport>): VNode {
+  return createVNode(
+    "section",
+    { role: "alert", className: "exact-error-boundary" },
+    createVNode("h1", null, "Application error"),
+    ...Array.from(errors).map(error => createVNode(
+      "article",
+      { key: error.id, className: "exact-error" },
+      createVNode("h2", null, error.component?.name ?? "Framework"),
+      createVNode("p", null, `${error.source}${error.phase ? `:${error.phase}` : ""}`),
+      createVNode("pre", null, formatError(error.error))
+    ))
+  );
 }
 
 export function normalizeChildren(children: unknown[]): Child[] {
@@ -400,7 +413,6 @@ export function createComponentInstance<State extends object, Props extends Reco
     mountHandlers: [],
     unmountHandlers: [],
     renderHandlers: [],
-    errorHandlers: [],
     get mounted() {
       return mounted;
     },
@@ -491,9 +503,6 @@ export function createComponentInstance<State extends object, Props extends Reco
     onRender(handler: RenderEventHandler): void {
       instance.renderHandlers.push(handler);
     },
-    onError(handler: ErrorBoundaryHandler): void {
-      instance.errorHandlers.push(handler);
-    },
     markMounted(): void {
       if (mounted) return;
       mounted = true;
@@ -502,7 +511,7 @@ export function createComponentInstance<State extends object, Props extends Reco
         try {
           handler({ signal: instance.mountController.signal });
         } catch (error) {
-          handleComponentError(instance, createFrameworkError(error, "lifecycle", instance, "mount"));
+          handleComponentError(instance, createErrorReport(error, "lifecycle", instance, "mount"));
         }
       }
     },
@@ -519,7 +528,7 @@ export function createComponentInstance<State extends object, Props extends Reco
         try {
           handler({ signal: AbortSignal.abort(reason), reason });
         } catch (error) {
-          handleComponentError(instance, createFrameworkError(error, "lifecycle", instance, "unmount"));
+          handleComponentError(instance, createErrorReport(error, "lifecycle", instance, "unmount"));
         }
       }
     }
@@ -544,7 +553,7 @@ export function renderInstance(instance: ComponentInstance<any>, onInvalidate: (
       try {
         output = (instance.errorFallback ?? instance.renderFunction)();
       } catch (error) {
-        const fallback = handleComponentError(instance, createFrameworkError(error, "render", instance));
+        const fallback = handleComponentError(instance, createErrorReport(error, "render", instance));
         if (!fallback) {
           output = null;
           return;
@@ -564,13 +573,14 @@ export function renderInstance(instance: ComponentInstance<any>, onInvalidate: (
   return normalizeRenderResult(output);
 }
 
-export function createFrameworkError(
+export function createErrorReport(
   error: unknown,
   source: ErrorSource,
   component?: ComponentInstance<any>,
   phase?: string
-): FrameworkError {
+): ErrorReport {
   return {
+    id: `e${nextErrorId++}`,
     error,
     source,
     component: component ? componentLogScope(component).component : undefined,
@@ -580,55 +590,37 @@ export function createFrameworkError(
 
 export function handleComponentError(
   instance: ComponentInstance<any> | undefined,
-  event: FrameworkError
+  event: ErrorReport
 ): RenderFunction | undefined {
   let cursor = instance;
   while (cursor) {
-    for (const handler of cursor.errorHandlers) {
-      try {
-        const result = handler(event);
-        if (result !== undefined) {
-          const fallback = errorBoundaryResultToRenderFunction(result);
-          cursor.errorFallback = fallback;
-          cursor.invalidate?.();
-          cursor.log.error("error boundary handled failure", event.error, {
-            source: event.source,
-            phase: event.phase,
-            component: event.component
-          });
-          return fallback;
-        }
-      } catch (error) {
-        cursor.log.error("error boundary handler failed", error, {
-          source: event.source,
-          phase: event.phase,
-          component: event.component
-        });
-      }
+    if (cursor.contexts.has(ErrorContext.id)) {
+      const errors = unwrap(cursor.contexts.get(ErrorContext.id)) as ErrorReport[];
+      errors.push(event);
+      cursor.invalidate?.();
+      return undefined;
     }
     cursor = cursor.parent;
   }
 
-  reportUnhandledError(instance, event);
-  return undefined;
-}
-
-export function reportUnhandledError(instance: ComponentInstance<any> | undefined, event: FrameworkError): void {
+  const errors = defaultContexts.get(ErrorContext.id) as ErrorReport[];
+  errors.push(event);
+  const fallback = () => createDefaultErrorView(errors);
   if (instance) {
-    instance.log.error("unhandled framework error", event.error, {
+    instance.errorFallback = fallback;
+    instance.invalidate?.();
+    instance.log.error("root error context handled failure", event.error, {
       source: event.source,
       phase: event.phase,
       component: event.component
     });
   } else {
-    logFrameworkEvent("error", "core", event.source, "unhandled framework error", {
+    logFrameworkEvent("error", "core", event.source, "root error context handled failure", {
       phase: event.phase,
       component: event.component
     });
   }
-  queueMicrotask(() => {
-    throw event.error;
-  });
+  return fallback;
 }
 
 export function normalizeRenderResult(result: RenderResult): Child[] {
@@ -673,7 +665,7 @@ function createTask(instance: ComponentInstance<any>, deps: unknown[], work: (..
       try {
         result = task.work(...values, { signal: task.controller.signal });
       } catch (error) {
-        handleComponentError(instance, createFrameworkError(error, "task", instance, "run"));
+        handleComponentError(instance, createErrorReport(error, "task", instance, "run"));
         return;
       }
 
@@ -681,7 +673,7 @@ function createTask(instance: ComponentInstance<any>, deps: unknown[], work: (..
         void result.then(cleanup => {
           if (typeof cleanup === "function") task.cleanup = cleanup;
         }).catch(error => {
-          handleComponentError(instance, createFrameworkError(error, "task", instance, "promise"));
+          handleComponentError(instance, createErrorReport(error, "task", instance, "promise"));
         });
       } else if (typeof result === "function") {
         task.cleanup = result;
@@ -696,7 +688,7 @@ function createTask(instance: ComponentInstance<any>, deps: unknown[], work: (..
       try {
         void task.cleanup?.();
       } catch (error) {
-        handleComponentError(instance, createFrameworkError(error, "task", instance, "cleanup"));
+        handleComponentError(instance, createErrorReport(error, "task", instance, "cleanup"));
       }
       for (const stop of task.stops) stop();
       task.stops = [];
@@ -714,10 +706,6 @@ function createComponentReactiveValue<T>(instance: ComponentInstance<any>, value
       task.run();
     }
   });
-}
-
-function errorBoundaryResultToRenderFunction(result: Exclude<ErrorBoundaryResult, void>): RenderFunction {
-  return typeof result === "function" ? result as RenderFunction : () => result;
 }
 
 function applyInternalPlugins(instance: ComponentInstance<any>): void {
@@ -824,6 +812,13 @@ function evaluateLogValue<T>(value: LazyLogValue<T>): T {
 
 function isErrorLike(value: unknown): boolean {
   return value instanceof Error;
+}
+
+function formatError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.stack ?? error.message;
+  }
+  return String(error);
 }
 
 function reactiveValue<T>(value: T): Reactive<T> {

@@ -6,10 +6,11 @@ import {
   createCompiledVNode,
   createDynamicChild,
   createExpression,
+  ErrorContext,
   createRef,
   type Child,
   type Component,
-  type FrameworkError,
+  type ErrorReport,
   type LogEvent,
   type Logger
 } from "@exact/core";
@@ -146,21 +147,22 @@ describe("@exact/dom", () => {
     expect(started).toHaveBeenCalledTimes(1);
   });
 
-  it("renders a boundary fallback when an event handler throws", () => {
-    const errors: FrameworkError[] = [];
+  it("routes event handler failures to the nearest error context", () => {
+    let panel!: Component<{ errors: ErrorReport[] }>;
 
-    function Panel(this: Component<{}>) {
-      this.onError(error => {
-        errors.push(error);
-        return jsx("p", { children: "Recovered" });
-      });
+    function Panel(this: Component<{ errors: ErrorReport[] }>) {
+      panel = this;
+      this.state.errors = [];
+      this.setContext(ErrorContext, this.state.errors);
 
-      return () => jsx("button", {
-        onClick: () => {
-          throw new Error("click failed");
-        },
-        children: "Break"
-      });
+      return () => this.state.errors.length
+        ? jsx("p", { children: "Recovered" })
+        : jsx("button", {
+          onClick: () => {
+            throw new Error("click failed");
+          },
+          children: "Break"
+        });
     }
 
     const container = document.createElement("div");
@@ -168,35 +170,37 @@ describe("@exact/dom", () => {
     container.querySelector("button")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     flushSync();
 
-    expect(errors).toHaveLength(1);
-    expect(errors[0]!.source).toBe("event");
+    expect(panel.state.errors).toHaveLength(1);
+    expect(panel.state.errors[0]!.source).toBe("event");
     expect(container.textContent).toBe("Recovered");
     expect(container.querySelector("button")).toBeNull();
   });
 
-  it("renders a parent boundary fallback when child construction throws", () => {
-    const errors: FrameworkError[] = [];
+  it("routes child construction failures to the nearest parent error context", () => {
+    let parent!: Component<{ errors: ErrorReport[] }>;
 
     function Broken(): never {
       throw new Error("construct failed");
     }
 
-    function Parent(this: Component<{}>) {
-      this.onError(error => {
-        errors.push(error);
-        return jsx("p", { children: "Child failed" });
-      });
+    function Parent(this: Component<{ errors: ErrorReport[] }>) {
+      parent = this;
+      this.state.errors = [];
+      this.setContext(ErrorContext, this.state.errors);
 
-      return () => jsx("section", {
-        children: jsx(Broken, {})
-      });
+      return () => this.state.errors.length
+        ? jsx("p", { children: "Child failed" })
+        : jsx("section", {
+          children: jsx(Broken, {})
+        });
     }
 
     const container = document.createElement("div");
     render(jsx(Parent, {}), container);
+    flushSync();
 
-    expect(errors).toHaveLength(1);
-    expect(errors[0]!.source).toBe("construct");
+    expect(parent.state.errors).toHaveLength(1);
+    expect(parent.state.errors[0]!.source).toBe("construct");
     expect(container.textContent).toBe("Child failed");
   });
 

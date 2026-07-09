@@ -4,7 +4,7 @@ import {
   Fragment,
   Text,
   createComponentInstance,
-  createFrameworkError,
+  createErrorReport,
   createTextVNode,
   getCellVNode,
   handleComponentError,
@@ -130,11 +130,13 @@ function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>
       mounted.children = mountDetachedChildren(root, rendered, instance);
       instance.markMounted();
     } catch (error) {
-      handleComponentError(
+      const fallback = handleComponentError(
         parentInstance,
-        createFrameworkError(error, "construct", parentInstance, describeVNodeType(vnode.type))
+        createErrorReport(error, "construct", parentInstance, describeVNodeType(vnode.type))
       );
-      mounted.children = [];
+      mounted.children = fallback
+        ? mountDetachedChildren(root, normalizeRenderResult(fallback()), parentInstance)
+        : [];
     }
     return mounted;
   }
@@ -654,7 +656,7 @@ function ensureDelegated(root: Root, type: string): void {
             handler.call(current, event);
           } catch (error) {
             const owner = findOwnerInstance(current);
-            handleComponentError(owner, createFrameworkError(error, "event", owner, type));
+            handleComponentError(owner, createErrorReport(error, "event", owner, type));
           }
         });
       }

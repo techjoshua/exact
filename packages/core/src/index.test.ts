@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  ErrorContext,
   LoggerContext,
   createComponentInstance,
   createContext,
@@ -9,7 +10,7 @@ import {
   logFrameworkEvent,
   renderInstance,
   type Component,
-  type FrameworkError,
+  type ErrorReport,
   type LogEvent,
   type Logger
 } from "./index.js";
@@ -298,54 +299,75 @@ describe("@exact/core", () => {
     }
   });
 
-  it("uses an error boundary fallback when render throws", () => {
-    const errors: FrameworkError[] = [];
+  it("routes render failures to the nearest error context", () => {
+    let instance!: Component<{ errors: ErrorReport[] }>;
 
-    const instance = createComponentInstance(function Broken(this: Component<{}>) {
-      this.onError(error => {
-        errors.push(error);
-        return createVNode("span", null, "fallback");
-      });
+    const component = createComponentInstance(function Broken(this: Component<{ errors: ErrorReport[] }>) {
+      instance = this;
+      this.state.errors = [];
+      this.setContext(ErrorContext, this.state.errors);
 
       return () => {
+        if (this.state.errors.length) return createVNode("span", null, "fallback");
         throw new Error("render failed");
       };
     }, {});
 
-    const nodes = renderInstance(instance, () => undefined);
+    renderInstance(component, () => renderInstance(component, () => undefined));
+    flushSync();
+    const nodes = renderInstance(component, () => undefined);
 
-    expect(errors).toHaveLength(1);
-    expect(errors[0]!.source).toBe("render");
+    expect(instance.state.errors).toHaveLength(1);
+    expect(instance.state.errors[0]!.source).toBe("render");
     expect(isVNode(nodes[0]) ? nodes[0].children[0] : undefined).toBe("fallback");
   });
 
-  it("captures synchronous task failures with component boundaries", () => {
-    const errors: FrameworkError[] = [];
+  it("routes synchronous task failures to the nearest error context", () => {
+    let instance!: Component<{ errors: ErrorReport[] }>;
 
-    createComponentInstance(function Worker(this: Component<{}>) {
-      this.onError(error => {
-        errors.push(error);
-        return null;
-      });
+    createComponentInstance(function Worker(this: Component<{ errors: ErrorReport[] }>) {
+      instance = this;
+      this.state.errors = [];
+      this.setContext(ErrorContext, this.state.errors);
       this.task(() => {
         throw new Error("task failed");
       });
       return () => null;
     }, {});
 
-    expect(errors).toHaveLength(1);
-    expect(errors[0]!.source).toBe("task");
-    expect(errors[0]!.phase).toBe("run");
+    expect(instance.state.errors).toHaveLength(1);
+    expect(instance.state.errors[0]!.id).toMatch(/^e\d+$/);
+    expect(instance.state.errors[0]!.source).toBe("task");
+    expect(instance.state.errors[0]!.phase).toBe("run");
   });
 
-  it("captures rejected task promises with component boundaries", async () => {
-    const errors: FrameworkError[] = [];
+  it("assigns stable ids to multiple error reports", () => {
+    let instance!: Component<{ errors: ErrorReport[] }>;
 
-    createComponentInstance(function Worker(this: Component<{}>) {
-      this.onError(error => {
-        errors.push(error);
-        return null;
+    createComponentInstance(function Worker(this: Component<{ errors: ErrorReport[] }>) {
+      instance = this;
+      this.state.errors = [];
+      this.setContext(ErrorContext, this.state.errors);
+      this.task(() => {
+        throw new Error("first task failed");
       });
+      this.task(() => {
+        throw new Error("second task failed");
+      });
+      return () => null;
+    }, {});
+
+    expect(instance.state.errors).toHaveLength(2);
+    expect(instance.state.errors[0]!.id).not.toBe(instance.state.errors[1]!.id);
+  });
+
+  it("routes rejected task promises to the nearest error context", async () => {
+    let instance!: Component<{ errors: ErrorReport[] }>;
+
+    createComponentInstance(function Worker(this: Component<{ errors: ErrorReport[] }>) {
+      instance = this;
+      this.state.errors = [];
+      this.setContext(ErrorContext, this.state.errors);
       this.task(async () => {
         throw new Error("async task failed");
       });
@@ -355,20 +377,19 @@ describe("@exact/core", () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(errors).toHaveLength(1);
-    expect(errors[0]!.source).toBe("task");
-    expect(errors[0]!.phase).toBe("promise");
+    expect(instance.state.errors).toHaveLength(1);
+    expect(instance.state.errors[0]!.source).toBe("task");
+    expect(instance.state.errors[0]!.phase).toBe("promise");
   });
 
   it("continues unmount cleanup after lifecycle failures", () => {
-    const errors: FrameworkError[] = [];
+    let instance!: Component<{ errors: ErrorReport[] }>;
     const cleanup = vi.fn();
 
-    const instance = createComponentInstance(function Worker(this: Component<{}>) {
-      this.onError(error => {
-        errors.push(error);
-        return null;
-      });
+    const component = createComponentInstance(function Worker(this: Component<{ errors: ErrorReport[] }>) {
+      instance = this;
+      this.state.errors = [];
+      this.setContext(ErrorContext, this.state.errors);
       this.onUnmount(() => {
         throw new Error("unmount failed");
       });
@@ -376,12 +397,12 @@ describe("@exact/core", () => {
       return () => null;
     }, {});
 
-    instance.markMounted();
-    instance.unmount();
+    component.markMounted();
+    component.unmount();
 
-    expect(errors).toHaveLength(1);
-    expect(errors[0]!.source).toBe("lifecycle");
-    expect(errors[0]!.phase).toBe("unmount");
+    expect(instance.state.errors).toHaveLength(1);
+    expect(instance.state.errors[0]!.source).toBe("lifecycle");
+    expect(instance.state.errors[0]!.phase).toBe("unmount");
     expect(cleanup).toHaveBeenCalledTimes(1);
   });
 });
