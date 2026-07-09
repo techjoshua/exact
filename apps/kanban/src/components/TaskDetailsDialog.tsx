@@ -2,16 +2,32 @@ import type { Component } from "@exact/core";
 import { columns } from "../data.js";
 import type { Status, Task, TaskActions } from "../types.js";
 
+type TaskDetailsState = {
+  taskId?: string;
+  title: string;
+  notes: string;
+};
+
 type TaskDetailsDialogProps = {
   task?: Task;
   actions: TaskActions;
   close(): void;
 };
 
-export function TaskDetailsDialog(this: Component<{}>, props: TaskDetailsDialogProps) {
+export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: TaskDetailsDialogProps) {
+  this.state.taskId = props.task?.id;
+  this.state.title = props.task?.title ?? "";
+  this.state.notes = props.task?.notes ?? "";
+
   return () => {
     const task = props.task;
     if (!task) return null;
+
+    if (this.state.taskId !== task.id) {
+      this.state.taskId = task.id;
+      this.state.title = task.title;
+      this.state.notes = task.notes;
+    }
 
     return <div className="dialog-backdrop" onClick={props.close}>
       <section
@@ -30,10 +46,11 @@ export function TaskDetailsDialog(this: Component<{}>, props: TaskDetailsDialogP
         <label>
           <span>Title</span>
           <input
-            value={task.title}
+            value={this.state.title}
             onInput={event => {
+              this.state.title = (event.target as HTMLInputElement).value;
               props.actions.updateTask(task.id, {
-                title: (event.target as HTMLInputElement).value
+                title: this.state.title
               });
             }}
           />
@@ -58,11 +75,12 @@ export function TaskDetailsDialog(this: Component<{}>, props: TaskDetailsDialogP
         <label>
           <span>Notes</span>
           <textarea
-            value={task.notes}
+            value={this.state.notes}
             rows={8}
             onInput={event => {
+              this.state.notes = (event.target as HTMLTextAreaElement).value;
               props.actions.updateTask(task.id, {
-                notes: (event.target as HTMLTextAreaElement).value
+                notes: this.state.notes
               });
             }}
           />

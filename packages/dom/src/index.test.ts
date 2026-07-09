@@ -280,6 +280,64 @@ describe("@exact/dom", () => {
     container.remove();
   });
 
+  it("keeps compiled textarea stable when a reactive object prop is replaced during input", () => {
+    let parent!: Component<{ task: { id: string; notes: string } }>;
+
+    function Editor(
+      this: Component<{}>,
+      props: {
+        task: { id: string; notes: string };
+        update(id: string, notes: string): void;
+      }
+    ) {
+      return () => {
+        const task = props.task;
+        return createCompiledVNode("textarea", {
+          value: createExpression(() => task.notes),
+          onInput: (event: Event) => {
+            props.update(task.id, (event.target as HTMLTextAreaElement).value);
+          }
+        });
+      };
+    }
+
+    function Parent(this: Component<{ task: { id: string; notes: string } }>) {
+      parent = this;
+      this.state.task = { id: "a", notes: "Initial" };
+      return () => createCompiledVNode(Editor, {
+        task: createExpression(() => this.state.task),
+        update: (id: string, notes: string) => {
+          this.state.task = { id, notes };
+        }
+      });
+    }
+
+    const container = document.createElement("div");
+    render(createCompiledVNode(Parent, {}), container);
+    const textarea = container.querySelector("textarea")!;
+    const valueWrites: string[] = [];
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!;
+    Object.defineProperty(textarea, "value", {
+      get() {
+        return descriptor.get!.call(this);
+      },
+      set(value: string) {
+        valueWrites.push(value);
+        descriptor.set!.call(this, value);
+      },
+      configurable: true
+    });
+
+    textarea.value = "Initial!";
+    valueWrites.length = 0;
+    textarea.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    flushSync();
+
+    expect(parent.state.task.notes).toBe("Initial!");
+    expect(container.querySelector("textarea")).toBe(textarea);
+    expect(valueWrites).toEqual([]);
+  });
+
   it("normalizes className strings, arrays, and truthy maps", () => {
     let instance!: Component<{ active: boolean; hidden: boolean }>;
 
