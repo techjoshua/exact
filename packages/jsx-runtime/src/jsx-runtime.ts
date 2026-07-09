@@ -2,6 +2,8 @@ import { createCellVNode, createVNode, Fragment, type Child, type ComponentFunct
 
 export { Fragment };
 
+export const _ = Fragment as unknown as ComponentFunction<any, { children?: Child | Child[] }>;
+
 type Props = Record<string, unknown> & {
   children?: Child | Child[];
   key?: string;

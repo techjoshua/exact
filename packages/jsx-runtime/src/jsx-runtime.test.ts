@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getCellVNode, isCellVNode } from "@exact/core";
-import { Fragment, jsx, jsxs } from "./jsx-runtime.js";
+import { _, Fragment, jsx, jsxs } from "./jsx-runtime.js";
 
 describe("@exact/jsx-runtime", () => {
   it("creates vnodes and normalizes children", () => {
@@ -26,5 +26,9 @@ describe("@exact/jsx-runtime", () => {
     const inner = getCellVNode(vnode);
     expect(inner.type).toBe(Fragment);
     expect(inner.children).toEqual(["a", "b"]);
+  });
+
+  it("exports underscore as the keyed fragment JSX marker", () => {
+    expect(_).toBe(Fragment);
   });
 });

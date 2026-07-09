@@ -1,6 +1,7 @@
 /** @jsxImportSource @exact/jsx-runtime */
 import { describe, expect, it } from "vitest";
 import { createRef, getCellVNode, isCellVNode, type Component, type RefBinding } from "@exact/core";
+import { _ } from "./jsx-runtime.js";
 import type { JSX } from "./jsx-runtime.js";
 
 type LabelProps = {
@@ -32,7 +33,7 @@ describe("@exact/jsx-runtime types", () => {
             Go
           </button>
         </Label>
-        <>tail</>
+        <_ key="tail">tail</_>
       </section>
     );
 
