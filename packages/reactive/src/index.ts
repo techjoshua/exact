@@ -300,11 +300,14 @@ function canUpdateNestedReactive(previous: unknown, next: unknown): boolean {
 }
 
 function createReactive(value: object, options: ReactiveOptions): object {
+  const reactiveTarget = isReactive(value)
+    ? (value as { [rawTarget]: object })[rawTarget]
+    : value;
   const cache = options.readonly ? readonlyProxyCache : proxyCache;
-  const cached = cache.get(value);
+  const cached = cache.get(reactiveTarget);
   if (cached) return cached;
 
-  const proxy = new Proxy(value, {
+  const proxy = new Proxy(reactiveTarget, {
     get(target, key, receiver) {
       if (key === proxyMarker) return true;
       if (key === rawTarget) return target;
@@ -321,19 +324,30 @@ function createReactive(value: object, options: ReactiveOptions): object {
 
       if (isReactiveValue(current)) {
         track(target, key);
-        return current.get();
+        const currentValue = current.get();
+        return currentValue && typeof currentValue === "object"
+          ? createReactive(unwrap(currentValue) as object, options)
+          : currentValue;
       }
 
       if (current && typeof current === "object") {
-        const proxy = createReactive(current, options);
+        const currentTarget = unwrap(current) as object;
+        const proxy = createReactive(currentTarget, options);
         const source = {
           target,
           key,
           get() {
             track(target, key);
             const next = Reflect.get(target, key);
-            if (isReactiveValue(next)) return next.get();
-            return next && typeof next === "object" ? createReactive(next, options) : next;
+            if (isReactiveValue(next)) {
+              const nextValue = next.get();
+              return nextValue && typeof nextValue === "object"
+                ? createReactive(unwrap(nextValue) as object, options)
+                : nextValue;
+            }
+            return next && typeof next === "object"
+              ? createReactive(unwrap(next) as object, options)
+              : next;
           },
           set(value: unknown) {
             const previous = Reflect.get(target, key);
@@ -345,7 +359,7 @@ function createReactive(value: object, options: ReactiveOptions): object {
           }
         };
         objectRefs.set(proxy, source);
-        rawObjectRefs.set(current, source);
+        rawObjectRefs.set(currentTarget, source);
         return proxy;
       }
 
@@ -390,7 +404,7 @@ function createReactive(value: object, options: ReactiveOptions): object {
     }
   });
 
-  cache.set(value, proxy);
+  cache.set(reactiveTarget, proxy);
   return proxy;
 }
 

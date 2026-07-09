@@ -94,6 +94,23 @@ describe("@exact/reactive", () => {
     expect(seen).toEqual(["Second"]);
   });
 
+  it("tracks nested fields read through computed readonly object props", () => {
+    const state = reactive({ task: { title: "First" } });
+    const props = reactive({ task: computed(() => state.task) as unknown as { title: string } }, { readonly: true });
+    const title = computed(() => props.task.title);
+    const seen: string[] = [];
+    const source = ref(title)!;
+
+    subscribe(source, () => seen.push(source.get()));
+    expect(unwrap(title)).toBe("First");
+
+    state.task.title = "Second";
+    flushSync();
+
+    expect(seen).toEqual(["Second"]);
+    expect(unwrap(title)).toBe("Second");
+  });
+
   it("switches computed dependencies when conditional reads change", () => {
     const state = reactive({ useNickname: true, nickname: "Ace", firstName: "Ada" });
     const label = computed(() => state.useNickname == true ? state.nickname : state.firstName);

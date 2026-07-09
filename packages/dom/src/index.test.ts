@@ -1114,6 +1114,44 @@ describe("@exact/dom", () => {
     expect(childRendered).toHaveBeenCalledTimes(1);
   });
 
+  it("updates child bindings when a reactive object prop mutates in place", () => {
+    let parent!: Component<{ task: { id: string; title: string } }>;
+    const parentRendered = vi.fn();
+    const childRendered = vi.fn();
+
+    function CardTitle(this: Component<{}>, props: { task: { id: string; title: string } }) {
+      const title = this.reactive(() => props.task.title);
+
+      return () => {
+        childRendered();
+        return createCompiledVNode("span", {}, title);
+      };
+    }
+
+    function Parent(this: Component<{ task: { id: string; title: string } }>) {
+      parent = this;
+      this.state.task = { id: "a", title: "First" };
+      return () => {
+        parentRendered();
+        return createCompiledVNode(CardTitle, {
+          task: createExpression(() => this.state.task)
+        });
+      };
+    }
+
+    const container = document.createElement("div");
+    render(createCompiledVNode(Parent, {}), container);
+    const span = container.querySelector("span")!;
+
+    parent.state.task.title = "Second";
+    flushSync();
+
+    expect(container.querySelector("span")).toBe(span);
+    expect(container.textContent).toBe("Second");
+    expect(parentRendered).toHaveBeenCalledTimes(1);
+    expect(childRendered).toHaveBeenCalledTimes(1);
+  });
+
   it("rerenders a child component when updated props drive control flow", () => {
     let parent!: Component<{ mode: "compact" | "full" }>;
     const childRendered = vi.fn();
