@@ -518,6 +518,7 @@ function ensureDelegated(root: Root, type: string): void {
     while (cursor && cursor !== root.container.parentElement) {
       const handler = eventHandlers.get(cursor)?.get(type);
       if (handler) handler.call(cursor, event);
+      if (event.cancelBubble) break;
       if (cursor === root.container) break;
       cursor = cursor.parentElement;
     }

@@ -45,6 +45,31 @@ describe("@exact/dom", () => {
     expect(clicked).toBe(1);
   });
 
+  it("respects stopPropagation in delegated event handlers", () => {
+    const childClicked = vi.fn();
+    const parentClicked = vi.fn();
+
+    function Panel() {
+      return () => jsx("section", {
+        onClick: parentClicked,
+        children: jsx("button", {
+          onClick: (event: Event) => {
+            event.stopPropagation();
+            childClicked();
+          },
+          children: "Close"
+        })
+      });
+    }
+
+    const container = document.createElement("div");
+    render(jsx(Panel, {}), container);
+    container.querySelector("button")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(childClicked).toHaveBeenCalledTimes(1);
+    expect(parentClicked).not.toHaveBeenCalled();
+  });
+
   it("replaces delegated event handlers", () => {
     let button!: Component<{ mode: "a" | "b" }>;
     const first = vi.fn();

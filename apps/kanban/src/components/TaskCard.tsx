@@ -15,7 +15,9 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
     if (!event.dataTransfer) return;
 
     event.dataTransfer.effectAllowed = "move";
-    const card = event.currentTarget as HTMLElement;
+    const card = (event.target as HTMLElement | null)?.closest(".card") as HTMLElement | null;
+    if (!card) return;
+
     const dragImage = card.cloneNode(true) as HTMLElement;
     dragImage.classList.add("card-drag-image");
     dragImage.style.width = `${card.offsetWidth}px`;
@@ -29,17 +31,30 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
       className="card"
       draggable={true}
       onDragStart={event => startDrag(event as DragEvent)}
-      onDoubleClick={() => props.actions.openTask(props.task)}
+      onClick={() => props.actions.openTask(props.task)}
     >
-      <button className="card-title" type="button" onClick={() => props.actions.openTask(props.task)}>
+      <p className="card-title">
         {props.task.title}
-      </button>
+      </p>
       {hasNotes ? <p className="card-notes">Has notes</p> : null}
       <div className="card-actions">
-        <button type="button" className="secondary-button" onClick={() => props.actions.openTask(props.task)}>
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={event => {
+            event.stopPropagation();
+            props.actions.openTask(props.task);
+          }}
+        >
           Notes
         </button>
-        <button type="button" onClick={() => props.actions.removeTask(props.task)}>
+        <button
+          type="button"
+          onClick={event => {
+            event.stopPropagation();
+            props.actions.removeTask(props.task);
+          }}
+        >
           Remove
         </button>
       </div>
