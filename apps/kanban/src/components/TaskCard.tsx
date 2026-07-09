@@ -20,6 +20,7 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
 
     const startX = event.clientX;
     const startY = event.clientY;
+    let clone: HTMLElement | undefined;
     let dragging = false;
 
     const move = (moveEvent: PointerEvent) => {
@@ -28,15 +29,18 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
       if (!dragging && Math.hypot(deltaX, deltaY) > 4) {
         dragging = true;
         const rect = card.getBoundingClientRect();
-        card.style.left = `${rect.left}px`;
-        card.style.top = `${rect.top}px`;
-        card.style.width = `${rect.width}px`;
-        card.classList.add("dragging");
+        clone = card.cloneNode(true) as HTMLElement;
+        clone.classList.add("dragging");
+        clone.style.left = `${rect.left}px`;
+        clone.style.top = `${rect.top}px`;
+        clone.style.width = `${rect.width}px`;
+        document.body.appendChild(clone);
+        card.classList.add("drag-source");
         debugLog("pointer dragstart", { taskId: props.task.id });
       }
 
       if (dragging) {
-        card.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+        if (clone) clone.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
       }
     };
 
@@ -44,11 +48,8 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointermove", preview);
       window.removeEventListener("pointerup", end);
-      card.classList.remove("dragging");
-      card.style.left = "";
-      card.style.top = "";
-      card.style.width = "";
-      card.style.transform = "";
+      clone?.remove();
+      card.classList.remove("drag-source");
 
       const placement = findDropPlacement(props.task.id, upEvent.clientX, upEvent.clientY);
       debugLog("pointer dragend", {

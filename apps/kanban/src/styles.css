@@ -140,6 +140,10 @@ h1 {
   cursor: grabbing;
 }
 
+.card.drag-source {
+  display: none;
+}
+
 .card.dragging {
   position: fixed;
   z-index: 10;
