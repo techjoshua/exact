@@ -27,6 +27,10 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
       const deltaY = moveEvent.clientY - startY;
       if (!dragging && Math.hypot(deltaX, deltaY) > 4) {
         dragging = true;
+        const rect = card.getBoundingClientRect();
+        card.style.left = `${rect.left}px`;
+        card.style.top = `${rect.top}px`;
+        card.style.width = `${rect.width}px`;
         card.classList.add("dragging");
         debugLog("pointer dragstart", { taskId: props.task.id });
       }
@@ -41,6 +45,9 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
       window.removeEventListener("pointermove", preview);
       window.removeEventListener("pointerup", end);
       card.classList.remove("dragging");
+      card.style.left = "";
+      card.style.top = "";
+      card.style.width = "";
       card.style.transform = "";
 
       const placement = findDropPlacement(props.task.id, upEvent.clientX, upEvent.clientY);

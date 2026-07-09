@@ -141,10 +141,11 @@ h1 {
 }
 
 .card.dragging {
-  position: relative;
+  position: fixed;
   z-index: 10;
   opacity: 0.86;
   pointer-events: none;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.18);
 }
 
 .drop-marker {
