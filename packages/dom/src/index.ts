@@ -644,7 +644,7 @@ function eventTargetElement(target: EventTarget | null): Element | null {
 }
 
 function placeMountedBefore(parent: Node, mounted: Mounted, before?: Node | null): void {
-  const cursor = before ?? null;
+  const cursor = before?.parentNode === parent ? before : null;
   const nodes = mountedDomNodes(mounted);
   const first = nodes[0];
   const last = nodes[nodes.length - 1];
@@ -682,7 +682,7 @@ function areContiguous(nodes: Node[]): boolean {
 }
 
 function insertBeforeIfNeeded(parent: Node, node: Node, before?: Node | null): void {
-  const cursor = before ?? null;
+  const cursor = before?.parentNode === parent ? before : null;
   if (node === cursor) {
     domDebug("skip placement", {
       reason: "node-is-cursor",
