@@ -11,6 +11,7 @@ import {
   createRef,
   type Child,
   type Component,
+  type ErrorContextValue,
   type ErrorReport,
   type LogEvent,
   type Logger
@@ -177,6 +178,45 @@ describe("@exact/dom", () => {
     expect(container.querySelector("button")).toBeNull();
   });
 
+  it("routes failures to the nearest nested error context only", () => {
+    let parent!: Component<{ errors: ErrorReport[] }>;
+    let child!: Component<{ errors: ErrorReport[] }>;
+
+    function ChildBoundary(this: Component<{ errors: ErrorReport[] }>) {
+      child = this;
+      this.state.errors = [];
+      this.setContext(ErrorContext, createErrorContext(this.state.errors));
+
+      return () => this.state.errors.length
+        ? jsx("p", { children: "Child recovered" })
+        : jsx("button", {
+          onClick: () => {
+            throw new Error("child failed");
+          },
+          children: "Break child"
+        });
+    }
+
+    function ParentBoundary(this: Component<{ errors: ErrorReport[] }>) {
+      parent = this;
+      this.state.errors = [];
+      this.setContext(ErrorContext, createErrorContext(this.state.errors));
+
+      return () => this.state.errors.length
+        ? jsx("p", { children: "Parent recovered" })
+        : jsx("section", { children: jsx(ChildBoundary, {}) });
+    }
+
+    const container = document.createElement("div");
+    render(jsx(ParentBoundary, {}), container);
+    container.querySelector("button")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    flushSync();
+
+    expect(parent.state.errors).toHaveLength(0);
+    expect(child.state.errors).toHaveLength(1);
+    expect(container.textContent).toBe("Child recovered");
+  });
+
   it("routes child construction failures to the nearest parent error context", () => {
     let parent!: Component<{ errors: ErrorReport[] }>;
 
@@ -203,6 +243,35 @@ describe("@exact/dom", () => {
     expect(parent.state.errors).toHaveLength(1);
     expect(parent.state.errors[0]!.source).toBe("construct");
     expect(container.textContent).toBe("Child failed");
+  });
+
+  it("renders the root default error view for unclaimed event failures", () => {
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    let errors!: ErrorContextValue;
+
+    function Panel(this: Component<{}>) {
+      errors = this.getContext(ErrorContext);
+      return () => jsx("button", {
+        onClick: () => {
+          throw new Error("root failed");
+        },
+        children: "Break"
+      });
+    }
+
+    try {
+      const container = document.createElement("div");
+      render(jsx(Panel, {}), container);
+      container.querySelector("button")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      flushSync();
+
+      expect(errors.errors).toHaveLength(1);
+      expect(container.textContent).toContain("Application error");
+      expect(container.textContent).toContain("root failed");
+    } finally {
+      errors.clearAll();
+      errorLog.mockRestore();
+    }
   });
 
   it("replaces delegated event handlers", () => {

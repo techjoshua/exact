@@ -347,23 +347,25 @@ export function createDynamicChild(compute: () => RenderResult): VNode {
   });
 }
 
-export function createErrorContext(errors = reactive([] as ErrorReport[])): ErrorContextValue {
+export function createErrorContext(errors: ErrorReport[] = []): ErrorContextValue {
+  const reactiveErrors = reactive(errors);
+
   return {
-    errors,
+    errors: reactiveErrors,
     report(error, options) {
       const report = isErrorReport(error)
         ? error
         : createErrorReportFromOptions(error, options);
-      errors.push(report);
+      reactiveErrors.push(report);
       return report;
     },
     clear(error) {
       const id = typeof error === "string" ? error : error.id;
-      const index = errors.findIndex(item => item.id === id);
-      if (index >= 0) errors.splice(index, 1);
+      const index = reactiveErrors.findIndex(item => item.id === id);
+      if (index >= 0) reactiveErrors.splice(index, 1);
     },
     clearAll() {
-      errors.splice(0, errors.length);
+      reactiveErrors.splice(0, reactiveErrors.length);
     }
   };
 }

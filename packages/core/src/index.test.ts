@@ -15,7 +15,7 @@ import {
   type LogEvent,
   type Logger
 } from "./index.js";
-import { flushSync, unwrap } from "@exact/reactive";
+import { flushSync, unwrap, watch } from "@exact/reactive";
 
 describe("@exact/core", () => {
   it("constructs once and renders repeatedly from tracked state", () => {
@@ -388,6 +388,24 @@ describe("@exact/core", () => {
     expect(report.source).toBe("component");
     expect(report.phase).toBe("validate");
     expect(instance.state.errors).toHaveLength(0);
+  });
+
+  it("makes plain error context arrays reactive", () => {
+    const errors = createErrorContext([]);
+    let count = 0;
+
+    const stop = watch(() => {
+      void errors.errors.length;
+      count++;
+    });
+
+    errors.report("first");
+    flushSync();
+    errors.clearAll();
+    flushSync();
+    stop();
+
+    expect(count).toBe(3);
   });
 
   it("routes rejected task promises to the nearest error context", async () => {
