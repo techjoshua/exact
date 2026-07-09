@@ -5,8 +5,6 @@ import type { Status, Task, TaskActions } from "../types.js";
 
 type TaskDetailsState = {
   taskId?: string;
-  title: string;
-  notes: string;
 };
 
 type TaskDetailsDialogProps = {
@@ -17,8 +15,6 @@ type TaskDetailsDialogProps = {
 
 export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: TaskDetailsDialogProps) {
   this.state.taskId = props.task?.id;
-  this.state.title = props.task?.title ?? "";
-  this.state.notes = props.task?.notes ?? "";
   this.onMount(() => debugLog("details mount", { taskId: props.task?.id }));
   this.onUnmount(() => debugLog("details unmount", { taskId: props.task?.id }));
 
@@ -28,8 +24,6 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
 
     if (this.state.taskId !== task.id) {
       this.state.taskId = task.id;
-      this.state.title = task.title;
-      this.state.notes = task.notes;
     }
 
     return <div className="dialog-backdrop" onClick={props.close}>
@@ -64,7 +58,7 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
         <label>
           <span>Title</span>
           <input
-            value={this.state.title}
+            defaultValue={task.title}
             onFocusIn={event => {
               debugLog("title focusin", {
                 taskId: task.id,
@@ -80,14 +74,14 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
               });
             }}
             onInput={event => {
-              this.state.title = (event.target as HTMLInputElement).value;
+              const title = (event.target as HTMLInputElement).value;
               debugLog("title input", {
                 taskId: task.id,
-                value: this.state.title,
+                value: title,
                 active: activeElementName()
               });
               props.actions.updateTask(task.id, {
-                title: this.state.title
+                title
               });
             }}
           />
@@ -112,7 +106,7 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
         <label>
           <span>Notes</span>
           <textarea
-            value={this.state.notes}
+            defaultValue={task.notes}
             rows={8}
             onFocusIn={event => {
               debugLog("notes focusin", {
@@ -129,14 +123,14 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
               });
             }}
             onInput={event => {
-              this.state.notes = (event.target as HTMLTextAreaElement).value;
+              const notes = (event.target as HTMLTextAreaElement).value;
               debugLog("notes input", {
                 taskId: task.id,
-                length: this.state.notes.length,
+                length: notes.length,
                 active: activeElementName()
               });
               props.actions.updateTask(task.id, {
-                notes: this.state.notes
+                notes
               });
             }}
           />
