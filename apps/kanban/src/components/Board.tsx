@@ -12,12 +12,22 @@ export function Board(this: Component<BoardState>) {
   this.state.draft = "";
   this.state.selectedTaskId = undefined;
 
-  this.reactive(this.state.tasks).task(tasks => {
-    localStorage.setItem(storageKey, JSON.stringify(tasks));
+  const taskTotal = this.reactive(() => this.state.tasks.length);
+  const selectedTask = this.reactive(() => {
+    const selectedTaskId = this.state.selectedTaskId;
+    return selectedTaskId ? this.state.tasks.find(task => task.id === selectedTaskId) : undefined;
+  });
+
+  this.reactive<string>(() => JSON.stringify(this.state.tasks)).task(tasksJson => {
+    localStorage.setItem(storageKey, tasksJson);
   });
 
   const updateTask = (taskId: string, patch: Partial<Pick<Task, "title" | "notes" | "status">>) => {
-    this.state.tasks = this.state.tasks.map(task => task.id === taskId ? { ...task, ...patch } : task);
+    const task = this.state.tasks.find(task => task.id === taskId);
+    if (!task) return;
+    if (patch.title !== undefined) task.title = patch.title;
+    if (patch.notes !== undefined) task.notes = patch.notes;
+    if (patch.status !== undefined) task.status = patch.status;
   };
 
   const moveTask = (task: Task, status: Status) => {
@@ -54,7 +64,7 @@ export function Board(this: Component<BoardState>) {
     <main className="shell">
       <BoardHeader
         draft={this.state.draft}
-        total={this.state.tasks.length}
+        total={taskTotal as unknown as number}
         setDraft={value => {
           this.state.draft = value;
         }}
@@ -80,7 +90,7 @@ export function Board(this: Component<BoardState>) {
       {this.state.selectedTaskId ? (
         <TaskDetailsDialog
           key={this.state.selectedTaskId}
-          task={this.state.tasks.find(task => task.id === this.state.selectedTaskId)!}
+          task={selectedTask as unknown as Task}
           actions={actions}
           close={() => {
             this.state.selectedTaskId = undefined;
