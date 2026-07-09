@@ -38,30 +38,45 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
 
     const end = (upEvent: PointerEvent) => {
       window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointermove", preview);
       window.removeEventListener("pointerup", end);
       card.classList.remove("dragging");
       card.style.transform = "";
 
-      const column = document.elementFromPoint(upEvent.clientX, upEvent.clientY)?.closest(".column");
-      const status = column?.id.replace("column-", "");
+      const placement = findDropPlacement(props.task.id, upEvent.clientX, upEvent.clientY);
       debugLog("pointer dragend", {
         taskId: props.task.id,
         dragging,
-        status
+        status: placement?.status,
+        beforeTaskId: placement?.beforeTaskId
       });
 
-      if (dragging && (status === "todo" || status === "doing" || status === "done")) {
-        board.moveTaskById(props.task.id, status);
+      if (dragging && placement) {
+        board.commitTaskDrop(props.task.id, placement.status, placement.beforeTaskId);
+      } else {
+        board.clearTaskDropPreview();
+      }
+    };
+
+    const preview = (moveEvent: PointerEvent) => {
+      if (!dragging) return;
+      const placement = findDropPlacement(props.task.id, moveEvent.clientX, moveEvent.clientY);
+      if (placement) {
+        board.previewTaskDrop(props.task.id, placement.status, placement.beforeTaskId);
+      } else {
+        board.clearTaskDropPreview();
       }
     };
 
     window.addEventListener("pointermove", move);
+    window.addEventListener("pointermove", preview);
     window.addEventListener("pointerup", end);
   };
 
   return () => (
     <div
       className="card"
+      data-task-id={props.task.id}
       onMouseDown={event => {
         debugLog("card mousedown", {
           taskId: props.task.id,
@@ -105,6 +120,32 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
       </div>
     </div>
   );
+}
+
+type DropPlacement = {
+  status: "todo" | "doing" | "done";
+  beforeTaskId?: string;
+};
+
+function findDropPlacement(draggedTaskId: string, clientX: number, clientY: number): DropPlacement | undefined {
+  const column = document.elementFromPoint(clientX, clientY)?.closest(".column") as HTMLElement | null;
+  if (!column) return undefined;
+  const status = column?.id.replace("column-", "");
+  if (status !== "todo" && status !== "doing" && status !== "done") return undefined;
+
+  const cards = Array.from(column.querySelectorAll<HTMLElement>(".card[data-task-id]"))
+    .filter(card => card.dataset.taskId !== draggedTaskId);
+  for (const card of cards) {
+    const rect = card.getBoundingClientRect();
+    if (clientY < rect.top + rect.height / 2) {
+      return {
+        status,
+        beforeTaskId: card.dataset.taskId
+      };
+    }
+  }
+
+  return { status };
 }
 
 function targetName(target: EventTarget | null): string {

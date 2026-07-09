@@ -1,12 +1,13 @@
 import type { Component } from "@exact/core";
 import { BoardContext } from "../context.js";
 import { debugLog } from "../debug.js";
-import type { Column, Task } from "../types.js";
+import type { Column, DragPlacement, Task } from "../types.js";
 import { TaskCard } from "./TaskCard.jsx";
 
 type ColumnViewProps = {
   column: Column;
   tasks: Task[];
+  dragPlacement?: DragPlacement;
 };
 
 export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
@@ -21,7 +22,7 @@ export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
       taskId,
       hasDataTransfer: Boolean(event.dataTransfer)
     });
-    if (taskId) board.moveTaskById(taskId, props.column.id);
+    if (taskId) board.commitTaskDrop(taskId, props.column.id);
   };
 
   const allowDrop = (event: DragEvent) => {
@@ -48,19 +49,37 @@ export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
 
       <div className="cards">
         {props.tasks.length === 0 ? (
+          props.dragPlacement?.status === props.column.id ? (
+            <DropMarker />
+          ) : (
           <p className="empty-state">Drop a card here</p>
-        ) : (
-          this.map(
-            props.tasks,
-            task => task.id,
-            task => (
-              <TaskCard
-                task={task}
-              />
-            )
           )
+        ) : (
+          <>
+            {this.map(
+              props.tasks,
+              task => task.id,
+              task => (
+                <>
+                  {props.dragPlacement?.status === props.column.id && props.dragPlacement.beforeTaskId === task.id ? (
+                    <DropMarker />
+                  ) : null}
+                  <TaskCard
+                    task={task}
+                  />
+                </>
+              )
+            )}
+            {props.dragPlacement?.status === props.column.id && props.dragPlacement.beforeTaskId === undefined ? (
+              <DropMarker />
+            ) : null}
+          </>
         )}
       </div>
     </article>
   );
+}
+
+function DropMarker() {
+  return () => <div className="drop-marker" />;
 }

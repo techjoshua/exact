@@ -45,6 +45,13 @@ describe("@exact/compiler", () => {
     expect(output).toContain("disabled: __exactExpression(() => disabled)");
   });
 
+  it("quotes non-identifier JSX prop names", () => {
+    const output = transform("const view = <div data-task-id={task.id} aria-label=\"Task\" />;");
+
+    expect(output).toContain("\"data-task-id\": __exactExpression(() => task.id)");
+    expect(output).toContain("\"aria-label\": \"Task\"");
+  });
+
   it("captures this.reactive value arguments as expressions", () => {
     const output = transform("function View() { const query = this.reactive(this.state.query); }");
 

@@ -147,6 +147,14 @@ h1 {
   pointer-events: none;
 }
 
+.drop-marker {
+  height: 42px;
+  border: 2px dashed #2563eb;
+  border-radius: 8px;
+  background: rgba(37, 99, 235, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.14);
+}
+
 .drag-handle {
   display: inline-block;
   margin-bottom: 8px;

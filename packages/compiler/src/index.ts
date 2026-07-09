@@ -259,23 +259,29 @@ function propsObject(context: ts.TransformationContext, attributes: ts.JsxAttrib
 
     const name = property.name.getText();
     if (!property.initializer) {
-      properties.push(factory.createPropertyAssignment(name, factory.createTrue()));
+      properties.push(factory.createPropertyAssignment(propName(name), factory.createTrue()));
       continue;
     }
 
     if (ts.isStringLiteral(property.initializer)) {
-      properties.push(factory.createPropertyAssignment(name, property.initializer));
+      properties.push(factory.createPropertyAssignment(propName(name), property.initializer));
       continue;
     }
 
     if (ts.isJsxExpression(property.initializer)) {
       const expression = property.initializer.expression;
       if (!expression) continue;
-      properties.push(factory.createPropertyAssignment(name, shouldWrapAttribute(name, expression) ? wrapExpression(context, expression, visitor, helpers) : ts.visitNode(expression, visitor) as ts.Expression));
+      properties.push(factory.createPropertyAssignment(propName(name), shouldWrapAttribute(name, expression) ? wrapExpression(context, expression, visitor, helpers) : ts.visitNode(expression, visitor) as ts.Expression));
     }
   }
 
   return factory.createObjectLiteralExpression(properties, false);
+}
+
+function propName(name: string): ts.PropertyName {
+  return /^[$A-Z_a-z][$\w]*$/.test(name)
+    ? ts.factory.createIdentifier(name)
+    : ts.factory.createStringLiteral(name);
 }
 
 function childrenExpressions(

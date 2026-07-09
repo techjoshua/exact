@@ -16,6 +16,13 @@ export type BoardState = {
   tasks: Task[];
   draft: string;
   selectedTaskId?: string;
+  dragPlacement?: DragPlacement;
+};
+
+export type DragPlacement = {
+  taskId: string;
+  status: Status;
+  beforeTaskId?: string;
 };
 
 export type BoardServices = {
@@ -24,6 +31,9 @@ export type BoardServices = {
   closeTask(): void;
   moveTask(task: Task, status: Status): void;
   moveTaskById(taskId: string, status: Status): void;
+  previewTaskDrop(taskId: string, status: Status, beforeTaskId?: string): void;
+  commitTaskDrop(taskId: string, status: Status, beforeTaskId?: string): void;
+  clearTaskDropPreview(): void;
   removeTask(task: Task): void;
   openTask(task: Task): void;
   updateTask(taskId: string, patch: Partial<Pick<Task, "title" | "notes" | "status">>): void;

@@ -12,6 +12,7 @@ export function Board(this: Component<BoardState>) {
   this.state.tasks = loadTasks();
   this.state.draft = "";
   this.state.selectedTaskId = undefined;
+  this.state.dragPlacement = undefined;
 
   const taskTotal = this.reactive(() => this.state.tasks.length);
   const selectedTask = this.reactive(() => {
@@ -39,6 +40,27 @@ export function Board(this: Component<BoardState>) {
     updateTask(taskId, { status });
   };
 
+  const reorderTask = (taskId: string, status: Status, beforeTaskId?: string) => {
+    const task = this.state.tasks.find(item => item.id === taskId);
+    if (!task) return;
+
+    const remaining = this.state.tasks.filter(item => item.id !== taskId);
+    task.status = status;
+    const insertAt = beforeTaskId
+      ? remaining.findIndex(item => item.id === beforeTaskId)
+      : findAfterLastColumnTask(remaining, status);
+
+    if (insertAt < 0) {
+      this.state.tasks = [...remaining, task];
+    } else {
+      this.state.tasks = [
+        ...remaining.slice(0, insertAt),
+        task,
+        ...remaining.slice(insertAt)
+      ];
+    }
+  };
+
   const removeTask = (task: Task) => {
     this.state.tasks = this.state.tasks.filter(item => item.id !== task.id);
     if (this.state.selectedTaskId === task.id) this.state.selectedTaskId = undefined;
@@ -62,6 +84,20 @@ export function Board(this: Component<BoardState>) {
     },
     moveTask,
     moveTaskById,
+    previewTaskDrop: (taskId, status, beforeTaskId) => {
+      this.state.dragPlacement = {
+        taskId,
+        status,
+        beforeTaskId
+      };
+    },
+    commitTaskDrop: (taskId, status, beforeTaskId) => {
+      reorderTask(taskId, status, beforeTaskId);
+      this.state.dragPlacement = undefined;
+    },
+    clearTaskDropPreview: () => {
+      this.state.dragPlacement = undefined;
+    },
     removeTask,
     updateTask,
     openTask: task => {
@@ -87,6 +123,7 @@ export function Board(this: Component<BoardState>) {
               <ColumnView
                 column={column}
                 tasks={this.state.tasks.filter(task => task.status === column.id)}
+                dragPlacement={this.state.dragPlacement}
               />
             </_>
           )
@@ -101,4 +138,12 @@ export function Board(this: Component<BoardState>) {
       ) : null}
     </main>
   );
+}
+
+function findAfterLastColumnTask(tasks: Task[], status: Status): number {
+  let insertAt = -1;
+  for (let index = 0; index < tasks.length; index++) {
+    if (tasks[index]!.status === status) insertAt = index + 1;
+  }
+  return insertAt;
 }
