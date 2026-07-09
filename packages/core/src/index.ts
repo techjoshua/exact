@@ -55,6 +55,79 @@ export type ContextToken<T> = {
   readonly description: string;
 };
 
+export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
+
+export type LogScope = {
+  source: "component" | "framework";
+  packageName?: string;
+  category?: string;
+  component?: {
+    id: string;
+    name: string;
+    mounted: boolean;
+  };
+};
+
+export type LogEvent = {
+  level: LogLevel;
+  message: string;
+  data?: unknown;
+  error?: unknown;
+  scope: LogScope;
+};
+
+export type Logger = {
+  isEnabled?(level: LogLevel, scope: LogScope): boolean;
+  log(event: LogEvent): void;
+};
+
+type LazyLogValue<T> = T | (() => T);
+
+export type ComponentLog = {
+  trace(message: LazyLogValue<string>, data?: LazyLogValue<unknown>): void;
+  debug(message: LazyLogValue<string>, data?: LazyLogValue<unknown>): void;
+  info(message: LazyLogValue<string>, data?: LazyLogValue<unknown>): void;
+  warn(message: LazyLogValue<string>, data?: LazyLogValue<unknown>): void;
+  error(message: LazyLogValue<string>, error?: LazyLogValue<unknown>, data?: LazyLogValue<unknown>): void;
+};
+
+export type ConsoleLoggerOptions = {
+  level?: LogLevel;
+};
+
+const logLevelOrder: Record<LogLevel, number> = {
+  trace: 0,
+  debug: 1,
+  info: 2,
+  warn: 3,
+  error: 4
+};
+
+export function createConsoleLogger(options: ConsoleLoggerOptions = {}): Logger {
+  const minimumLevel = options.level ?? "info";
+
+  return {
+    isEnabled(level) {
+      return logLevelOrder[level] >= logLevelOrder[minimumLevel];
+    },
+    log(event) {
+      const prefix = `${formatLogScope(event.scope)} ${event.message}`;
+      const consoleMethod = getConsoleMethod(event.level);
+      if (event.error !== undefined && event.data !== undefined) {
+        consoleMethod(prefix, event.error, event.data);
+      } else if (event.error !== undefined) {
+        consoleMethod(prefix, event.error);
+      } else if (event.data !== undefined) {
+        consoleMethod(prefix, event.data);
+      } else {
+        consoleMethod(prefix);
+      }
+    }
+  };
+}
+
+export const LoggerContext = createContext<Logger>("logger");
+
 export type RefKey<T> = {
   readonly id: symbol;
   readonly description: string;
@@ -88,6 +161,7 @@ export type RenderEventHandler = (event: { duration: number; dependencies?: unkn
 
 export interface Component<State extends object> {
   state: Reactive<State>;
+  log: ComponentLog;
   getContext<T>(token: ContextToken<T>): Reactive<T>;
   setContext<T>(token: ContextToken<T>, value: T): void;
   reactive<T>(value: T): ComponentReactiveValue<T>;
@@ -114,6 +188,7 @@ export type ComponentInstance<State extends object> = Component<State> & {
   readonly parent?: ComponentInstance<any>;
   readonly props: Reactive<Record<string, unknown>>;
   readonly contexts: Map<symbol, unknown>;
+  readonly id: string;
   readonly mounted: boolean;
   readonly renderFunction: RenderFunction;
   renderStop?: StopHandle;
@@ -137,6 +212,42 @@ type TaskRegistration = {
   run(): void;
   stop(): void;
 };
+
+type InternalPlugin = {
+  readonly name: string;
+  readonly defaultContexts?: readonly DefaultContextProvider[];
+  augmentComponent?(instance: ComponentInstance<any>): void;
+};
+
+type DefaultContextProvider = {
+  readonly token: ContextToken<unknown>;
+  readonly value: unknown;
+};
+
+const defaultConsoleLogger = createConsoleLogger();
+const defaultContexts = new Map<symbol, unknown>();
+const internalPlugins: InternalPlugin[] = [
+  {
+    name: "exact.logging",
+    defaultContexts: [
+      {
+        token: LoggerContext as ContextToken<unknown>,
+        value: defaultConsoleLogger
+      }
+    ],
+    augmentComponent(instance) {
+      instance.log = createComponentLog(instance);
+    }
+  }
+];
+
+let nextComponentId = 1;
+
+for (const plugin of internalPlugins) {
+  for (const provider of plugin.defaultContexts ?? []) {
+    defaultContexts.set(provider.token.id, provider.value);
+  }
+}
 
 export function createVNode(type: VNodeType, props: Record<string, unknown> | null, ...children: unknown[]): VNode {
   const normalizedProps = { ...(props ?? {}) };
@@ -243,11 +354,14 @@ export function createComponentInstance<State extends object, Props extends Reco
 
   let mounted = false;
   let renderFunction: RenderFunction = () => null;
+  const id = `c${nextComponentId++}`;
 
   const instance: ComponentInstance<State> = {
     type,
     parent,
+    id,
     state,
+    log: createNoopComponentLog(),
     props,
     contexts: new Map(),
     tasks: [],
@@ -272,6 +386,10 @@ export function createComponentInstance<State extends object, Props extends Reco
           return cursor.contexts.get(token.id) as Reactive<T>;
         }
         cursor = cursor.parent;
+      }
+
+      if (defaultContexts.has(token.id)) {
+        return reactiveValue(defaultContexts.get(token.id) as T);
       }
 
       throw new Error(`Context "${token.description}" was not provided`);
@@ -363,6 +481,8 @@ export function createComponentInstance<State extends object, Props extends Reco
     }
   };
 
+  applyInternalPlugins(instance);
+
   const result = type.call(instance, props as Props);
   renderFunction = typeof result === "function" ? result as RenderFunction : () => result;
 
@@ -391,6 +511,28 @@ export function renderInstance(instance: ComponentInstance<any>, onInvalidate: (
 
 export function normalizeRenderResult(result: RenderResult): Child[] {
   return Array.isArray(result) ? normalizeChildren(result) : normalizeChildren([result]);
+}
+
+export function logFrameworkEvent(
+  level: LogLevel,
+  packageName: string,
+  category: string,
+  message: LazyLogValue<string>,
+  data?: LazyLogValue<unknown>
+): void {
+  const scope: LogScope = {
+    source: "framework",
+    packageName,
+    category
+  };
+  const logger = defaultConsoleLogger;
+  if (logger.isEnabled && !logger.isEnabled(level, scope)) return;
+  logger.log({
+    level,
+    message: evaluateLogValue(message),
+    data: data === undefined ? undefined : evaluateLogValue(data),
+    scope
+  });
 }
 
 function createTask(deps: unknown[], work: (...args: any[]) => TaskResult): TaskRegistration {
@@ -440,6 +582,112 @@ function createComponentReactiveValue<T>(instance: ComponentInstance<any>, value
   });
 }
 
+function applyInternalPlugins(instance: ComponentInstance<any>): void {
+  for (const plugin of internalPlugins) {
+    plugin.augmentComponent?.(instance);
+  }
+}
+
+function createNoopComponentLog(): ComponentLog {
+  const noop = () => undefined;
+  return {
+    trace: noop,
+    debug: noop,
+    info: noop,
+    warn: noop,
+    error: noop
+  };
+}
+
+function createComponentLog(instance: ComponentInstance<any>): ComponentLog {
+  return {
+    trace(message, data) {
+      emitComponentLog(instance, "trace", message, data);
+    },
+    debug(message, data) {
+      emitComponentLog(instance, "debug", message, data);
+    },
+    info(message, data) {
+      emitComponentLog(instance, "info", message, data);
+    },
+    warn(message, data) {
+      emitComponentLog(instance, "warn", message, data);
+    },
+    error(message, errorOrData, data) {
+      emitComponentLog(instance, "error", message, errorOrData, data);
+    }
+  };
+}
+
+function emitComponentLog(
+  instance: ComponentInstance<any>,
+  level: LogLevel,
+  message: LazyLogValue<string>,
+  errorOrData?: LazyLogValue<unknown>,
+  data?: LazyLogValue<unknown>
+): void {
+  const scope = componentLogScope(instance);
+  const logger = resolveLogger(instance);
+  if (logger.isEnabled && !logger.isEnabled(level, scope)) return;
+
+  const evaluatedMessage = evaluateLogValue(message);
+  let evaluatedError: unknown;
+  let evaluatedData: unknown;
+
+  if (level === "error" && data !== undefined) {
+    evaluatedError = evaluateLogValue(errorOrData);
+    evaluatedData = evaluateLogValue(data);
+  } else if (level === "error" && errorOrData !== undefined) {
+    const value = evaluateLogValue(errorOrData);
+    if (isErrorLike(value)) {
+      evaluatedError = value;
+    } else {
+      evaluatedData = value;
+    }
+  } else if (errorOrData !== undefined) {
+    evaluatedData = evaluateLogValue(errorOrData);
+  }
+
+  logger.log({
+    level,
+    message: evaluatedMessage,
+    error: evaluatedError,
+    data: evaluatedData,
+    scope
+  });
+}
+
+function resolveLogger(instance: ComponentInstance<any>): Logger {
+  let cursor: ComponentInstance<any> | undefined = instance.parent;
+  while (cursor) {
+    if (cursor.contexts.has(LoggerContext.id)) {
+      return unwrap(cursor.contexts.get(LoggerContext.id)) as Logger;
+    }
+    cursor = cursor.parent;
+  }
+
+  return defaultContexts.get(LoggerContext.id) as Logger;
+}
+
+function componentLogScope(instance: ComponentInstance<any>): LogScope {
+  return {
+    source: "component",
+    component: {
+      id: instance.id,
+      name: instance.type.name || "anonymous",
+      mounted: instance.mounted
+    }
+  };
+}
+
+function evaluateLogValue<T>(value: LazyLogValue<T>): T {
+  return typeof value === "function" ? (value as () => T)() : value;
+}
+
+function isErrorLike(value: unknown): boolean {
+  return value instanceof Error;
+}
+
 function reactiveValue<T>(value: T): Reactive<T> {
   if (reactiveRef(value)) {
     return value as Reactive<T>;
@@ -458,4 +706,25 @@ function performanceNow(): number {
 
 function isTemplateStringsArray(value: unknown): value is TemplateStringsArray {
   return Array.isArray(value) && Array.isArray((value as { raw?: unknown }).raw);
+}
+
+function formatLogScope(scope: LogScope): string {
+  if (scope.source === "component" && scope.component) {
+    return `[exact] [component:${scope.component.name}#${scope.component.id}]`;
+  }
+
+  const frameworkName = [
+    "framework",
+    scope.packageName,
+    scope.category
+  ].filter(Boolean).join(":");
+  return `[exact] [${frameworkName}]`;
+}
+
+function getConsoleMethod(level: LogLevel): (...args: unknown[]) => void {
+  if (level === "trace") return console.trace?.bind(console) ?? console.debug.bind(console);
+  if (level === "debug") return console.debug.bind(console);
+  if (level === "info") return console.info.bind(console);
+  if (level === "warn") return console.warn.bind(console);
+  return console.error.bind(console);
 }

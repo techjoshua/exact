@@ -1,6 +1,5 @@
 import type { Component } from "@exact/core";
 import { BoardContext } from "../context.js";
-import { debugLog } from "../debug.js";
 import type { Column, DragPlacement, Task } from "../types.js";
 import { TaskCard } from "./TaskCard.jsx";
 
@@ -17,7 +16,7 @@ export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
   const dropTask = (event: DragEvent) => {
     event.preventDefault();
     const taskId = event.dataTransfer?.getData("text/plain");
-    debugLog("drop", {
+    this.log.debug("drop", {
       column: props.column.id,
       taskId,
       hasDataTransfer: Boolean(event.dataTransfer)
@@ -28,7 +27,7 @@ export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
   const allowDrop = (event: DragEvent) => {
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
-    debugLog("dragover", {
+    this.log.trace("dragover", {
       column: props.column.id,
       hasDataTransfer: Boolean(event.dataTransfer)
     });

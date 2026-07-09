@@ -1,5 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
-import { createComponentInstance, createContext, createRef, createVNode, isVNode, renderInstance, type Component } from "./index.js";
+import {
+  LoggerContext,
+  createComponentInstance,
+  createContext,
+  createRef,
+  createVNode,
+  isVNode,
+  logFrameworkEvent,
+  renderInstance,
+  type Component,
+  type LogEvent,
+  type Logger
+} from "./index.js";
 import { flushSync, unwrap } from "@exact/reactive";
 
 describe("@exact/core", () => {
@@ -173,5 +185,115 @@ describe("@exact/core", () => {
 
     expect(values).toEqual(["ada", "grace"]);
     expect(aborts).toEqual(["ada"]);
+  });
+
+  it("provides a default component logger", () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+
+    try {
+      createComponentInstance(function Logged(this: Component<{}>) {
+        this.log.info("hello", { answer: 42 });
+        return () => null;
+      }, {});
+
+      expect(info).toHaveBeenCalledTimes(1);
+      const [message, data] = info.mock.calls[0]!;
+      expect(message).toMatch(/^\[exact\] \[component:Logged#c\d+\] hello$/);
+      expect(data).toEqual({ answer: 42 });
+    } finally {
+      info.mockRestore();
+    }
+  });
+
+  it("does not evaluate lazy log payloads for disabled levels", () => {
+    const log = vi.fn();
+    const logger: Logger = {
+      isEnabled: () => false,
+      log
+    };
+
+    const parent = createComponentInstance(function Parent(this: Component<{}>) {
+      this.setContext(LoggerContext, logger);
+      return () => null;
+    }, {});
+
+    createComponentInstance(function Child(this: Component<{}>) {
+      this.log.debug(
+        () => {
+          throw new Error("message should not be evaluated");
+        },
+        () => {
+          throw new Error("data should not be evaluated");
+        }
+      );
+      return () => null;
+    }, {}, parent);
+
+    expect(log).not.toHaveBeenCalled();
+  });
+
+  it("passes error objects as separate console arguments", () => {
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const error = new Error("boom");
+
+    try {
+      createComponentInstance(function Broken(this: Component<{}>) {
+        this.log.error("failed", error, { taskId: "task-1" });
+        return () => null;
+      }, {});
+
+      expect(errorLog).toHaveBeenCalledTimes(1);
+      const [message, actualError, data] = errorLog.mock.calls[0]!;
+      expect(message).toMatch(/^\[exact\] \[component:Broken#c\d+\] failed$/);
+      expect(actualError).toBe(error);
+      expect(data).toEqual({ taskId: "task-1" });
+    } finally {
+      errorLog.mockRestore();
+    }
+  });
+
+  it("resolves logger context at call time", () => {
+    const firstEvents: LogEvent[] = [];
+    const secondEvents: LogEvent[] = [];
+    const firstLogger: Logger = {
+      log: event => firstEvents.push(event)
+    };
+    const secondLogger: Logger = {
+      log: event => secondEvents.push(event)
+    };
+    let callback!: () => void;
+
+    const parent = createComponentInstance(function Parent(this: Component<{}>) {
+      this.setContext(LoggerContext, firstLogger);
+      return () => null;
+    }, {});
+
+    createComponentInstance(function Child(this: Component<{}>) {
+      callback = () => this.log.info("later");
+      return () => null;
+    }, {}, parent);
+
+    parent.setContext(LoggerContext, secondLogger);
+    callback();
+
+    expect(firstEvents).toHaveLength(0);
+    expect(secondEvents).toHaveLength(1);
+    expect(secondEvents[0]!.message).toBe("later");
+  });
+
+  it("emits framework-scoped logs through the console logger contract", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    try {
+      logFrameworkEvent("warn", "dom", "patch", "placement skipped", { reason: "stable" });
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0]).toEqual([
+        "[exact] [framework:dom:patch] placement skipped",
+        { reason: "stable" }
+      ]);
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

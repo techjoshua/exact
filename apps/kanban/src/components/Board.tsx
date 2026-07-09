@@ -1,4 +1,4 @@
-import type { Component } from "@exact/core";
+import { createConsoleLogger, LoggerContext, type Component } from "@exact/core";
 import { px } from "@exact/dom";
 import { BoardContext } from "../context.js";
 import { columns, createTask, loadTasks, storageKey } from "../data.js";
@@ -9,6 +9,8 @@ import { ColumnView } from "./ColumnView.jsx";
 import { TaskDetailsDialog } from "./TaskDetailsDialog.jsx";
 
 export function Board(this: Component<BoardState>) {
+  this.setContext(LoggerContext, createConsoleLogger({ level: "debug" }));
+
   this.state.tasks = loadTasks();
   this.state.draft = "";
   this.state.selectedTaskId = undefined;

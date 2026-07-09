@@ -8,6 +8,7 @@ import {
   getCellVNode,
   isCellVNode,
   isVNode,
+  logFrameworkEvent,
   normalizeRenderResult,
   renderInstance,
   type Child,
@@ -796,15 +797,7 @@ function setPropBinding(element: Element, key: string, stop: StopHandle): void {
 }
 
 function domDebug(message: string, details?: Record<string, unknown>): void {
-  try {
-    if (globalThis.localStorage?.getItem("exact.dom.debug") !== "1") {
-      return;
-    }
-  } catch {
-    return;
-  }
-
-  console.log(`[exact-dom] ${message}`, details ?? {});
+  logFrameworkEvent("trace", "dom", "patch", message, details);
 }
 
 function describeNode(node: Node | null | undefined): string {

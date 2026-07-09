@@ -1,7 +1,6 @@
 import type { Component } from "@exact/core";
 import { BoardContext } from "../context.js";
 import { columns } from "../data.js";
-import { debugLog } from "../debug.js";
 import type { Status, Task } from "../types.js";
 
 type TaskDetailsState = {
@@ -20,8 +19,8 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
   const notes = this.reactive(() => props.task?.notes ?? "");
 
   this.state.taskId = taskId;
-  this.onMount(() => debugLog("details mount", { taskId }));
-  this.onUnmount(() => debugLog("details unmount", { taskId }));
+  this.onMount(() => this.log.debug("details mount", { taskId }));
+  this.onUnmount(() => this.log.debug("details unmount", { taskId }));
 
   return () => {
     return <div className="dialog-backdrop" onClick={board.closeTask}>
@@ -31,14 +30,14 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
           event.stopPropagation();
         }}
         onFocusIn={event => {
-          debugLog("details focusin", {
+          this.log.debug("details focusin", {
             taskId,
             target: eventTargetName(event.target),
             active: activeElementName()
           });
         }}
         onFocusOut={event => {
-          debugLog("details focusout", {
+          this.log.debug("details focusout", {
             taskId,
             target: eventTargetName(event.target),
             relatedTarget: eventTargetName((event as FocusEvent).relatedTarget),
@@ -58,14 +57,14 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
           <input
             defaultValue={title}
             onFocusIn={event => {
-              debugLog("title focusin", {
+              this.log.debug("title focusin", {
                 taskId,
                 target: eventTargetName(event.target),
                 active: activeElementName()
               });
             }}
             onFocusOut={event => {
-              debugLog("title focusout", {
+              this.log.debug("title focusout", {
                 taskId,
                 relatedTarget: eventTargetName((event as FocusEvent).relatedTarget),
                 active: activeElementName()
@@ -73,7 +72,7 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
             }}
             onInput={event => {
               const title = (event.target as HTMLInputElement).value;
-              debugLog("title input", {
+              this.log.debug("title input", {
                 taskId,
                 value: title,
                 active: activeElementName()
@@ -107,14 +106,14 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
             defaultValue={notes}
             rows={8}
             onFocusIn={event => {
-              debugLog("notes focusin", {
+              this.log.debug("notes focusin", {
                 taskId,
                 target: eventTargetName(event.target),
                 active: activeElementName()
               });
             }}
             onFocusOut={event => {
-              debugLog("notes focusout", {
+              this.log.debug("notes focusout", {
                 taskId,
                 relatedTarget: eventTargetName((event as FocusEvent).relatedTarget),
                 active: activeElementName()
@@ -122,7 +121,7 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
             }}
             onInput={event => {
               const notes = (event.target as HTMLTextAreaElement).value;
-              debugLog("notes input", {
+              this.log.debug("notes input", {
                 taskId,
                 length: notes.length,
                 active: activeElementName()

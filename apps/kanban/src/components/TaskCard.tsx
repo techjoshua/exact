@@ -1,6 +1,5 @@
 import type { Component } from "@exact/core";
 import { BoardContext } from "../context.js";
-import { debugLog } from "../debug.js";
 import type { Task } from "../types.js";
 
 type TaskCardProps = {
@@ -36,7 +35,7 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
         clone.style.width = `${rect.width}px`;
         document.body.appendChild(clone);
         card.classList.add("drag-source");
-        debugLog("pointer dragstart", { taskId: props.task.id });
+        this.log.debug("pointer dragstart", { taskId: props.task.id });
       }
 
       if (dragging) {
@@ -52,7 +51,7 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
       card.classList.remove("drag-source");
 
       const placement = findDropPlacement(props.task.id, upEvent.clientX, upEvent.clientY);
-      debugLog("pointer dragend", {
+      this.log.debug("pointer dragend", {
         taskId: props.task.id,
         dragging,
         status: placement?.status,
@@ -86,7 +85,7 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
       className="card"
       data-task-id={props.task.id}
       onMouseDown={event => {
-        debugLog("card mousedown", {
+        this.log.debug("card mousedown", {
           taskId: props.task.id,
           target: targetName(event.target)
         });
