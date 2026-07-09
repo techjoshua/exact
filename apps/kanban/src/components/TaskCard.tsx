@@ -33,6 +33,7 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
       onDragStart={event => startDrag(event as DragEvent)}
       onClick={() => props.actions.openTask(props.task)}
     >
+      <span className="drag-handle">Drag</span>
       <p className="card-title">
         {props.task.title}
       </p>

@@ -514,7 +514,7 @@ function ensureDelegated(root: Root, type: string): void {
   if (root.delegated.has(type)) return;
 
   const listener = (event: Event) => {
-    let cursor = event.target as Element | null;
+    let cursor = eventTargetElement(event.target);
     while (cursor && cursor !== root.container.parentElement) {
       const handler = eventHandlers.get(cursor)?.get(type);
       if (handler) handler.call(cursor, event);
@@ -526,6 +526,12 @@ function ensureDelegated(root: Root, type: string): void {
 
   root.container.addEventListener(type, listener);
   root.delegated.set(type, listener);
+}
+
+function eventTargetElement(target: EventTarget | null): Element | null {
+  if (target instanceof Element) return target;
+  if (target instanceof Node) return target.parentElement;
+  return null;
 }
 
 function appendMountedChildren(parent: Node, mounted: Mounted, before?: Node | null): void {

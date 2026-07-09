@@ -41,8 +41,9 @@ describe("@exact/dom", () => {
     const container = document.createElement("div");
     render(jsx(Button, {}), container);
     container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    container.querySelector("button")?.firstChild?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
-    expect(clicked).toBe(1);
+    expect(clicked).toBe(2);
   });
 
   it("respects stopPropagation in delegated event handlers", () => {
@@ -64,7 +65,7 @@ describe("@exact/dom", () => {
 
     const container = document.createElement("div");
     render(jsx(Panel, {}), container);
-    container.querySelector("button")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    container.querySelector("button")!.firstChild!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     expect(childClicked).toHaveBeenCalledTimes(1);
     expect(parentClicked).not.toHaveBeenCalled();
