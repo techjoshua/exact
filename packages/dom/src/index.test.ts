@@ -71,6 +71,24 @@ describe("@exact/dom", () => {
     expect(parentClicked).not.toHaveBeenCalled();
   });
 
+  it("delegates dragstart events from text node targets", () => {
+    const started = vi.fn();
+
+    function Card() {
+      return () => jsx("div", {
+        draggable: true,
+        onDragStart: started,
+        children: "Drag"
+      });
+    }
+
+    const container = document.createElement("div");
+    render(jsx(Card, {}), container);
+    container.querySelector("div")!.firstChild!.dispatchEvent(new Event("dragstart", { bubbles: true }));
+
+    expect(started).toHaveBeenCalledTimes(1);
+  });
+
   it("replaces delegated event handlers", () => {
     let button!: Component<{ mode: "a" | "b" }>;
     const first = vi.fn();

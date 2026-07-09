@@ -1,5 +1,6 @@
 import type { Component } from "@exact/core";
 import { columns } from "../data.js";
+import { debugLog } from "../debug.js";
 import type { Status, Task, TaskActions } from "../types.js";
 
 type TaskDetailsState = {
@@ -18,6 +19,8 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
   this.state.taskId = props.task?.id;
   this.state.title = props.task?.title ?? "";
   this.state.notes = props.task?.notes ?? "";
+  this.onMount(() => debugLog("details mount", { taskId: props.task?.id }));
+  this.onUnmount(() => debugLog("details unmount", { taskId: props.task?.id }));
 
   return () => {
     const task = props.task;
@@ -49,6 +52,11 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
             value={this.state.title}
             onInput={event => {
               this.state.title = (event.target as HTMLInputElement).value;
+              debugLog("title input", {
+                taskId: task.id,
+                value: this.state.title,
+                active: activeElementName()
+              });
               props.actions.updateTask(task.id, {
                 title: this.state.title
               });
@@ -79,6 +87,11 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
             rows={8}
             onInput={event => {
               this.state.notes = (event.target as HTMLTextAreaElement).value;
+              debugLog("notes input", {
+                taskId: task.id,
+                length: this.state.notes.length,
+                active: activeElementName()
+              });
               props.actions.updateTask(task.id, {
                 notes: this.state.notes
               });
@@ -88,4 +101,9 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
       </section>
     </div>;
   };
+}
+
+function activeElementName(): string {
+  const active = document.activeElement;
+  return active ? active.tagName.toLowerCase() : "none";
 }

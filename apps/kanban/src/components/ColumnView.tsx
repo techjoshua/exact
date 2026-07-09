@@ -1,4 +1,5 @@
 import type { Component } from "@exact/core";
+import { debugLog } from "../debug.js";
 import type { Column, Task, TaskActions } from "../types.js";
 import { TaskCard } from "./TaskCard.jsx";
 
@@ -14,12 +15,21 @@ export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
   const dropTask = (event: DragEvent) => {
     event.preventDefault();
     const taskId = event.dataTransfer?.getData("text/plain");
+    debugLog("drop", {
+      column: props.column.id,
+      taskId,
+      hasDataTransfer: Boolean(event.dataTransfer)
+    });
     if (taskId) props.actions.moveTaskById(taskId, props.column.id);
   };
 
   const allowDrop = (event: DragEvent) => {
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    debugLog("dragover", {
+      column: props.column.id,
+      hasDataTransfer: Boolean(event.dataTransfer)
+    });
   };
 
   return () => (

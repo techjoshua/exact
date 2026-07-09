@@ -1,4 +1,5 @@
 import type { Component } from "@exact/core";
+import { debugLog } from "../debug.js";
 import type { Task, TaskActions } from "../types.js";
 
 type TaskCardProps = {
@@ -10,6 +11,11 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
   const hasNotes = this.reactive(props.task.notes.trim().length > 0);
 
   const startDrag = (event: DragEvent) => {
+    debugLog("dragstart", {
+      taskId: props.task.id,
+      target: targetName(event.target),
+      hasDataTransfer: Boolean(event.dataTransfer)
+    });
     event.dataTransfer?.setData("text/plain", props.task.id);
     event.dataTransfer?.setData("application/x-exact-task", props.task.id);
     if (!event.dataTransfer) return;
@@ -30,6 +36,12 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
     <div
       className="card"
       draggable={true}
+      onMouseDown={event => {
+        debugLog("card mousedown", {
+          taskId: props.task.id,
+          target: targetName(event.target)
+        });
+      }}
       onDragStart={event => startDrag(event as DragEvent)}
     >
       <span
@@ -67,4 +79,10 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
       </div>
     </div>
   );
+}
+
+function targetName(target: EventTarget | null): string {
+  if (target instanceof Element) return target.tagName.toLowerCase();
+  if (target instanceof Node) return `node:${target.nodeName}`;
+  return "unknown";
 }
