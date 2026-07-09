@@ -4,12 +4,15 @@
   "type": "module",
   "packageManager": "npm@11.6.4",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "scripts": {
     "build": "tsc -b",
     "test": "vitest run --dir packages",
-    "typecheck": "tsc -b --pretty"
+    "typecheck": "tsc -b --pretty",
+    "dev:kanban": "npm run dev -w @exact/sample-kanban",
+    "build:kanban": "npm run build -w @exact/sample-kanban"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

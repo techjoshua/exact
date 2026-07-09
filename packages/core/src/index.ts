@@ -90,6 +90,7 @@ export interface Component<State extends object> {
   state: Reactive<State>;
   getContext<T>(token: ContextToken<T>): Reactive<T>;
   setContext<T>(token: ContextToken<T>, value: T): void;
+  reactive<T>(value: T): ComponentReactiveValue<T>;
   reactive(strings: TemplateStringsArray, ...values: unknown[]): ComponentReactiveValue<string>;
   reactive<T>(compute: () => T): ComponentReactiveValue<T>;
   task(work: (ctx: TaskContext) => TaskResult): void;
@@ -278,9 +279,13 @@ export function createComponentInstance<State extends object, Props extends Reco
     setContext<T>(token: ContextToken<T>, value: T): void {
       instance.contexts.set(token.id, reactiveValue(value));
     },
-    reactive<T>(input: TemplateStringsArray | (() => T), ...values: unknown[]): ComponentReactiveValue<string> | ComponentReactiveValue<T> {
+    reactive<T>(input: TemplateStringsArray | (() => T) | T, ...values: unknown[]): ComponentReactiveValue<string> | ComponentReactiveValue<T> {
       if (typeof input === "function") {
-        return createComponentReactiveValue(instance, computed(input));
+        return createComponentReactiveValue(instance, computed(input as () => T));
+      }
+
+      if (!isTemplateStringsArray(input)) {
+        return createComponentReactiveValue(instance, computed(() => input));
       }
 
       return createComponentReactiveValue(instance, computed(() => {
@@ -449,4 +454,8 @@ function reactiveValue<T>(value: T): Reactive<T> {
 
 function performanceNow(): number {
   return typeof globalThis.performance?.now === "function" ? globalThis.performance.now() : Date.now();
+}
+
+function isTemplateStringsArray(value: unknown): value is TemplateStringsArray {
+  return Array.isArray(value) && Array.isArray((value as { raw?: unknown }).raw);
 }

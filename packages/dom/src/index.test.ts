@@ -182,6 +182,35 @@ describe("@exact/dom", () => {
     expect(button.style.backgroundColor).toBe("black");
   });
 
+  it("applies select value after options are mounted and can return to the first option", () => {
+    let instance!: Component<{ status: "todo" | "doing" | "done" }>;
+
+    function StatusSelect(this: Component<{ status: "todo" | "doing" | "done" }>) {
+      instance = this;
+      this.state.status = "done";
+
+      return () => jsx("select", {
+        value: this.state.status,
+        children: [
+          jsx("option", { value: "todo", children: "To do" }),
+          jsx("option", { value: "doing", children: "Doing" }),
+          jsx("option", { value: "done", children: "Done" })
+        ]
+      });
+    }
+
+    const container = document.createElement("div");
+    render(jsx(StatusSelect, {}), container);
+    const select = container.querySelector("select")!;
+
+    expect(select.value).toBe("done");
+
+    instance.state.status = "todo";
+    flushSync();
+
+    expect(select.value).toBe("todo");
+  });
+
   it("normalizes className strings, arrays, and truthy maps", () => {
     let instance!: Component<{ active: boolean; hidden: boolean }>;
 
@@ -378,6 +407,55 @@ describe("@exact/dom", () => {
     expect(span.title).toBe("Done");
     expect(span.style.color).toBe("blue");
     expect(rendered).toHaveBeenCalledTimes(1);
+  });
+
+  it("unwraps reactive component props when children read them", () => {
+    let parent!: Component<{ items: { id: string; status: "open" | "done" }[] }>;
+    const parentRendered = vi.fn();
+    const childRendered = vi.fn();
+
+    function Column(this: Component<{}>, props: { items: { id: string; status: "open" | "done" }[] }) {
+      return () => {
+        childRendered();
+        return jsxs("section", {
+          children: [
+            jsx("span", { children: props.items.length }),
+            jsx("ul", {
+              children: props.items.map(item => jsx("li", { children: item.id }))
+            })
+          ]
+        });
+      };
+    }
+
+    function Board(this: Component<{ items: { id: string; status: "open" | "done" }[] }>) {
+      parent = this;
+      this.state.items = [
+        { id: "a", status: "open" },
+        { id: "b", status: "done" }
+      ];
+
+      return () => {
+        parentRendered();
+        return createCompiledVNode(Column, {
+          items: createExpression(() => this.state.items.filter(item => item.status === "open"))
+        });
+      };
+    }
+
+    const container = document.createElement("div");
+    render(createCompiledVNode(Board, {}), container);
+
+    expect(container.textContent).toBe("1a");
+    parent.state.items = [
+      { id: "a", status: "open" },
+      { id: "b", status: "open" }
+    ];
+    flushSync();
+
+    expect(container.textContent).toBe("2ab");
+    expect(parentRendered).toHaveBeenCalledTimes(1);
+    expect(childRendered).toHaveBeenCalledTimes(2);
   });
 
   it("patches compiled dynamic child branches at their own boundary", () => {

@@ -121,8 +121,8 @@ function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>
 
   const element = document.createElement(vnode.type as string);
   const mounted: Mounted = { vnode, dom: element, children: [] };
-  updateProps(root, element, {}, vnode.props);
   mounted.children = mountChildren(root, element, vnode.children, parentInstance);
+  updateProps(root, element, {}, vnode.props);
   return mounted;
 }
 
@@ -235,8 +235,8 @@ function patch(
 
   const previousProps = mounted.vnode.props;
   mounted.vnode = next;
-  updateProps(root, mounted.dom as Element, previousProps, next.props);
   mounted.children = patchChildren(root, mounted.dom, mounted.children, next.children, parentInstance);
+  updateProps(root, mounted.dom as Element, previousProps, next.props);
   return mounted;
 }
 

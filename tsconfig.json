@@ -6,6 +6,7 @@
     { "path": "./packages/jsx-runtime" },
     { "path": "./packages/dom" },
     { "path": "./packages/compiler" },
-    { "path": "./packages/vite-plugin" }
+    { "path": "./packages/vite-plugin" },
+    { "path": "./apps/kanban" }
   ]
 }

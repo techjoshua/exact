@@ -271,9 +271,9 @@ export function updateReactive<T extends object>(target: Reactive<T>, next: Part
 
   for (const key of Reflect.ownKeys(next)) {
     const previous = Reflect.get(raw, key);
-    const value = unwrap(Reflect.get(next, key));
+    const value = Reflect.get(next, key);
     const hadKey = Reflect.has(raw, key);
-    if (!hasChanged(previous, value)) continue;
+    if (!reactiveValueChanged(previous, value) && !hasChanged(previous, value)) continue;
     Reflect.set(raw, key, value);
     trigger(raw, key);
     if (!hadKey || isArrayStructureKey(raw, key)) trigger(raw, iterateKey);
@@ -300,6 +300,11 @@ function createReactive(value: object, options: ReactiveOptions): object {
         return current;
       }
 
+      if (isReactiveValue(current)) {
+        track(target, key);
+        return current.get();
+      }
+
       if (current && typeof current === "object") {
         const proxy = createReactive(current, options);
         const source = {
@@ -308,6 +313,7 @@ function createReactive(value: object, options: ReactiveOptions): object {
           get() {
             track(target, key);
             const next = Reflect.get(target, key);
+            if (isReactiveValue(next)) return next.get();
             return next && typeof next === "object" ? createReactive(next, options) : next;
           },
           set(value: unknown) {
@@ -420,6 +426,10 @@ function scheduleFlush(): void {
 
 function hasChanged(previous: unknown, next: unknown): boolean {
   return !structurallyEqual(previous, next);
+}
+
+function reactiveValueChanged(previous: unknown, next: unknown): boolean {
+  return (isReactiveValue(previous) || isReactiveValue(next)) && !Object.is(previous, next);
 }
 
 function structurallyEqual(left: unknown, right: unknown): boolean {

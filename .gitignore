@@ -1,3 +1,5 @@
 node_modules/
 packages/*/dist/
 packages/*/*.tsbuildinfo
+apps/*/dist/
+apps/*/*.tsbuildinfo

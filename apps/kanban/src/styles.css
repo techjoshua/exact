@@ -1,0 +1,171 @@
+:root {
+  color: #1e293b;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f5f7fb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.shell {
+  width: min(1180px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 32px 0;
+}
+
+.toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 32px;
+  line-height: 1.1;
+}
+
+.toolbar p {
+  margin-top: 6px;
+  color: #64748b;
+}
+
+.new-task {
+  display: flex;
+  gap: 8px;
+}
+
+.new-task input {
+  width: min(360px, 42vw);
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: white;
+}
+
+button {
+  border: 0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}
+
+button:disabled {
+  background: #94a3b8;
+  cursor: default;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.column {
+  min-height: 420px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  padding: 14px;
+  background: #eef3f8;
+}
+
+.column.empty {
+  background: #f7f9fc;
+}
+
+.column header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.column h2 {
+  font-size: 17px;
+}
+
+.column span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.cards {
+  display: grid;
+  gap: 10px;
+}
+
+.card {
+  border: 1px solid #d4dce8;
+  border-radius: 8px;
+  padding: 12px;
+  background: white;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.card p {
+  line-height: 1.35;
+}
+
+.card-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.card-actions select {
+  min-width: 110px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 7px 8px;
+  background: white;
+}
+
+.card-actions button {
+  background: #e11d48;
+  padding: 7px 9px;
+}
+
+.empty-state {
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 24px 12px;
+  color: #64748b;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+@media (max-width: 780px) {
+  .toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .new-task input {
+    flex: 1;
+    width: auto;
+  }
+
+  .board {
+    grid-template-columns: 1fr;
+  }
+}
