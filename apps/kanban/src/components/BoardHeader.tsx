@@ -16,24 +16,35 @@ export function BoardHeader(this: Component<{}>, props: BoardHeaderProps) {
         <h1>eXact Kanban</h1>
         <p>{summary}</p>
       </div>
-      <form
-        className="new-task"
-        onSubmit={event => {
-          event.preventDefault();
-          board.addTask();
-        }}
-      >
-        <input
-          value={props.draft}
-          placeholder="Add a task"
-          onInput={event => {
-            board.setDraft((event.target as HTMLInputElement).value);
+      <div className="toolbar-actions">
+        <button
+          type="button"
+          className="quiet-button"
+          onClick={() => {
+            throw new Error("Sample error boundary test");
           }}
-        />
-        <button type="submit" disabled={props.draft.trim().length === 0}>
-          Add
+        >
+          Test error
         </button>
-      </form>
+        <form
+          className="new-task"
+          onSubmit={event => {
+            event.preventDefault();
+            board.addTask();
+          }}
+        >
+          <input
+            value={props.draft}
+            placeholder="Add a task"
+            onInput={event => {
+              board.setDraft((event.target as HTMLInputElement).value);
+            }}
+          />
+          <button type="submit" disabled={props.draft.trim().length === 0}>
+            Add
+          </button>
+        </form>
+      </div>
     </header>
   );
 }

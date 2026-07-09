@@ -63,6 +63,12 @@ h1 {
   color: #64748b;
 }
 
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .new-task {
   display: flex;
   gap: 8px;
@@ -282,8 +288,61 @@ h1 {
   color: #1f2937;
 }
 
+.error-panel {
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  padding: 18px;
+  background: white;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.error-panel header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.error-panel p {
+  margin-top: 6px;
+  color: #64748b;
+}
+
+.error-list {
+  display: grid;
+  gap: 12px;
+}
+
+.error-item {
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+  padding: 14px;
+  background: #fff1f2;
+}
+
+.error-item h2 {
+  font-size: 17px;
+}
+
+.error-item pre {
+  overflow: auto;
+  margin: 12px 0 0;
+  border-radius: 6px;
+  padding: 12px;
+  background: #1f2937;
+  color: #f8fafc;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 @media (max-width: 780px) {
   .toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .toolbar-actions {
     align-items: stretch;
     flex-direction: column;
   }
@@ -291,6 +350,11 @@ h1 {
   .new-task input {
     flex: 1;
     width: auto;
+  }
+
+  .error-panel header {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .board {
