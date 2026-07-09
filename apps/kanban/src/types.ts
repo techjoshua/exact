@@ -18,7 +18,10 @@ export type BoardState = {
   selectedTaskId?: string;
 };
 
-export type TaskActions = {
+export type BoardServices = {
+  setDraft(value: string): void;
+  addTask(): void;
+  closeTask(): void;
   moveTask(task: Task, status: Status): void;
   moveTaskById(taskId: string, status: Status): void;
   removeTask(task: Task): void;

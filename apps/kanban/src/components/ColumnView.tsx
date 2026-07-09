@@ -1,15 +1,16 @@
 import type { Component } from "@exact/core";
+import { BoardContext } from "../context.js";
 import { debugLog } from "../debug.js";
-import type { Column, Task, TaskActions } from "../types.js";
+import type { Column, Task } from "../types.js";
 import { TaskCard } from "./TaskCard.jsx";
 
 type ColumnViewProps = {
   column: Column;
   tasks: Task[];
-  actions: TaskActions;
 };
 
 export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
+  const board = this.getContext(BoardContext);
   const countLabel = this.reactive(props.tasks.length === 1 ? "1 task" : `${props.tasks.length} tasks`);
 
   const dropTask = (event: DragEvent) => {
@@ -20,7 +21,7 @@ export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
       taskId,
       hasDataTransfer: Boolean(event.dataTransfer)
     });
-    if (taskId) props.actions.moveTaskById(taskId, props.column.id);
+    if (taskId) board.moveTaskById(taskId, props.column.id);
   };
 
   const allowDrop = (event: DragEvent) => {
@@ -55,7 +56,6 @@ export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
             task => (
               <TaskCard
                 task={task}
-                actions={props.actions}
               />
             )
           )

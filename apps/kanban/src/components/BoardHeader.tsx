@@ -1,13 +1,13 @@
 import type { Component } from "@exact/core";
+import { BoardContext } from "../context.js";
 
 type BoardHeaderProps = {
   draft: string;
   total: number;
-  setDraft(value: string): void;
-  addTask(): void;
 };
 
 export function BoardHeader(this: Component<{}>, props: BoardHeaderProps) {
+  const board = this.getContext(BoardContext);
   const summary = this.reactive(() => `${props.total} ${props.total == 1 ? "task" : "tasks"} saved locally`);
 
   return () => (
@@ -20,14 +20,14 @@ export function BoardHeader(this: Component<{}>, props: BoardHeaderProps) {
         className="new-task"
         onSubmit={event => {
           event.preventDefault();
-          props.addTask();
+          board.addTask();
         }}
       >
         <input
           value={props.draft}
           placeholder="Add a task"
           onInput={event => {
-            props.setDraft((event.target as HTMLInputElement).value);
+            board.setDraft((event.target as HTMLInputElement).value);
           }}
         />
         <button type="submit" disabled={props.draft.trim().length === 0}>

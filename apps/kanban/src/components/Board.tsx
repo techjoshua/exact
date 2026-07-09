@@ -1,7 +1,8 @@
 import type { Component } from "@exact/core";
 import { px } from "@exact/dom";
+import { BoardContext } from "../context.js";
 import { columns, createTask, loadTasks, storageKey } from "../data.js";
-import type { BoardState, Status, Task, TaskActions } from "../types.js";
+import type { BoardServices, BoardState, Status, Task } from "../types.js";
 import { _ } from "./Fragment.jsx";
 import { BoardHeader } from "./BoardHeader.jsx";
 import { ColumnView } from "./ColumnView.jsx";
@@ -43,7 +44,22 @@ export function Board(this: Component<BoardState>) {
     if (this.state.selectedTaskId === task.id) this.state.selectedTaskId = undefined;
   };
 
-  const actions: TaskActions = {
+  const addTask = () => {
+    const title = this.state.draft.trim();
+    if (!title) return;
+
+    this.state.tasks = [createTask(title), ...this.state.tasks];
+    this.state.draft = "";
+  };
+
+  const services: BoardServices = {
+    setDraft: value => {
+      this.state.draft = value;
+    },
+    addTask,
+    closeTask: () => {
+      this.state.selectedTaskId = undefined;
+    },
     moveTask,
     moveTaskById,
     removeTask,
@@ -53,22 +69,13 @@ export function Board(this: Component<BoardState>) {
     }
   };
 
-  const addTask = () => {
-    const title = this.state.draft.trim();
-    if (!title) return;
+  this.setContext(BoardContext, services);
 
-    this.state.tasks = [createTask(title), ...this.state.tasks];
-    this.state.draft = "";
-  };
   return () => (
     <main className="shell">
       <BoardHeader
         draft={this.state.draft}
         total={taskTotal as unknown as number}
-        setDraft={value => {
-          this.state.draft = value;
-        }}
-        addTask={addTask}
       />
 
       <section className="board" style={{ gap: px(16) }}>
@@ -80,7 +87,6 @@ export function Board(this: Component<BoardState>) {
               <ColumnView
                 column={column}
                 tasks={this.state.tasks.filter(task => task.status === column.id)}
-                actions={actions}
               />
             </_>
           )
@@ -91,10 +97,6 @@ export function Board(this: Component<BoardState>) {
         <TaskDetailsDialog
           key={this.state.selectedTaskId}
           task={selectedTask as unknown as Task}
-          actions={actions}
-          close={() => {
-            this.state.selectedTaskId = undefined;
-          }}
         />
       ) : null}
     </main>

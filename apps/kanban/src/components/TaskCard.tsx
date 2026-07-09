@@ -1,13 +1,14 @@
 import type { Component } from "@exact/core";
+import { BoardContext } from "../context.js";
 import { debugLog } from "../debug.js";
-import type { Task, TaskActions } from "../types.js";
+import type { Task } from "../types.js";
 
 type TaskCardProps = {
   task: Task;
-  actions: TaskActions;
 };
 
 export function TaskCard(this: Component<{}>, props: TaskCardProps) {
+  const board = this.getContext(BoardContext);
   const title = this.reactive<string>(() => props.task.title);
   const hasNotes = this.reactive<boolean>(() => props.task.notes.trim().length > 0);
 
@@ -50,7 +51,7 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
       });
 
       if (dragging && (status === "todo" || status === "doing" || status === "done")) {
-        props.actions.moveTaskById(props.task.id, status);
+        board.moveTaskById(props.task.id, status);
       }
     };
 
@@ -87,7 +88,7 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
           className="secondary-button"
           onClick={event => {
             event.stopPropagation();
-            props.actions.openTask(props.task);
+            board.openTask(props.task);
           }}
         >
           Notes
@@ -96,7 +97,7 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
           type="button"
           onClick={event => {
             event.stopPropagation();
-            props.actions.removeTask(props.task);
+            board.removeTask(props.task);
           }}
         >
           Remove

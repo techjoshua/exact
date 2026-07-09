@@ -1,7 +1,8 @@
 import type { Component } from "@exact/core";
+import { BoardContext } from "../context.js";
 import { columns } from "../data.js";
 import { debugLog } from "../debug.js";
-import type { Status, Task, TaskActions } from "../types.js";
+import type { Status, Task } from "../types.js";
 
 type TaskDetailsState = {
   taskId?: string;
@@ -9,11 +10,10 @@ type TaskDetailsState = {
 
 type TaskDetailsDialogProps = {
   task?: Task;
-  actions: TaskActions;
-  close(): void;
 };
 
 export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: TaskDetailsDialogProps) {
+  const board = this.getContext(BoardContext);
   const taskId = props.task?.id ?? "";
   const title = this.reactive(() => props.task?.title ?? "");
   const status = this.reactive(() => props.task?.status ?? "todo");
@@ -24,7 +24,7 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
   this.onUnmount(() => debugLog("details unmount", { taskId }));
 
   return () => {
-    return <div className="dialog-backdrop" onClick={props.close}>
+    return <div className="dialog-backdrop" onClick={board.closeTask}>
       <section
         className="task-dialog"
         onClick={event => {
@@ -48,7 +48,7 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
       >
         <header>
           <h2>Edit card</h2>
-          <button type="button" className="quiet-button" onClick={props.close}>
+          <button type="button" className="quiet-button" onClick={board.closeTask}>
             Close
           </button>
         </header>
@@ -78,7 +78,7 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
                 value: title,
                 active: activeElementName()
               });
-              props.actions.updateTask(taskId, {
+              board.updateTask(taskId, {
                 title
               });
             }}
@@ -90,7 +90,7 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
           <select
             value={status}
             onChange={event => {
-              props.actions.updateTask(taskId, {
+              board.updateTask(taskId, {
                 status: (event.target as HTMLSelectElement).value as Status
               });
             }}
@@ -127,7 +127,7 @@ export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: Task
                 length: notes.length,
                 active: activeElementName()
               });
-              props.actions.updateTask(taskId, {
+              board.updateTask(taskId, {
                 notes
               });
             }}
