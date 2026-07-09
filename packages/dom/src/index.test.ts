@@ -2,7 +2,16 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it, vi } from "vitest";
-import { createCompiledVNode, createDynamicChild, createExpression, createRef, type Child, type Component } from "@exact/core";
+import {
+  createCompiledVNode,
+  createDynamicChild,
+  createExpression,
+  createRef,
+  type Child,
+  type Component,
+  type LogEvent,
+  type Logger
+} from "@exact/core";
 import { jsx, jsxs } from "@exact/jsx-runtime";
 import { flushSync } from "@exact/reactive";
 import { percent, px, rem, render } from "./index.js";
@@ -29,6 +38,28 @@ describe("@exact/dom", () => {
     flushSync();
     expect(container.textContent).toBe("2");
     expect(rendered).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses the root logger for framework diagnostics", () => {
+    const events: LogEvent[] = [];
+    const logger: Logger = {
+      isEnabled: () => true,
+      log: event => events.push(event)
+    };
+
+    const container = document.createElement("div");
+    render(jsx("span", { children: "first" }), container, { logger });
+    render(jsx("strong", { children: "second" }), container, { logger });
+
+    expect(events).toContainEqual(expect.objectContaining({
+      level: "trace",
+      message: "replace node",
+      scope: {
+        source: "framework",
+        packageName: "dom",
+        category: "patch"
+      }
+    }));
   });
 
   it("delegates events and preserves instance access", () => {

@@ -80,6 +80,19 @@ function Counter(this: Component<{ count: number }>) {
 render(<Counter />, document.getElementById("app")!);
 ```
 
+`render()` accepts root options for framework-level services:
+
+```tsx
+import { createConsoleLogger } from "@exact/core";
+import { render } from "@exact/dom";
+
+const logger = createConsoleLogger({ level: "debug" });
+
+render(<App logger={logger} />, document.getElementById("app")!, { logger });
+```
+
+If no logger is provided, eXact uses its default console logger.
+
 ## Keyed Lists
 
 Use `this.map()` for lists. The framework owns the JSX `key`; item JSX should not specify it.
@@ -160,6 +173,52 @@ this.reactive(() => this.state.query).task(async query => {})
 ```
 
 JSX elements are internally mounted through cell boundaries. In compiler mode, expression cells and `ReactiveValue`s let the renderer patch an already chosen JSX subtree in place without rerunning unrelated component code.
+
+## Logging
+
+Every component instance has a logger facade:
+
+```tsx
+function SaveButton(this: Component<{}>) {
+  return () => (
+    <button
+      onClick={() => {
+        this.log.info("saving");
+      }}
+    >
+      Save
+    </button>
+  );
+}
+```
+
+Supported levels are `trace`, `debug`, `info`, `warn`, and `error`. Log message, data, and error arguments can be lazy functions; disabled levels do not evaluate those functions:
+
+```ts
+this.log.trace(
+  () => `patching ${items.length} items`,
+  () => ({ items })
+);
+```
+
+Errors are preserved as native console error arguments:
+
+```ts
+this.log.error("save failed", error, { taskId });
+```
+
+Apps can override component logging through context:
+
+```tsx
+import { LoggerContext, createConsoleLogger } from "@exact/core";
+
+function App(this: Component<{}>) {
+  this.setContext(LoggerContext, createConsoleLogger({ level: "debug" }));
+  return () => <Dashboard />;
+}
+```
+
+Framework diagnostics use the root logger passed to `render()`. The default console logger prints `info` and above; `trace` and `debug` are opt-in.
 
 ## Compiled JSX Conveniences
 

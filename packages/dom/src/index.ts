@@ -15,6 +15,7 @@ import {
   type ComponentFunction,
   type ComponentInstance,
   type ListBinding,
+  type Logger,
   type RefBinding,
   type StopHandle,
   type VNode,
@@ -36,18 +37,24 @@ type Root = {
   container: Element;
   mounted?: Mounted;
   delegated: Map<string, EventListener>;
+  logger?: Logger;
 };
 
 const roots = new WeakMap<Element, Root>();
 const eventHandlers = new WeakMap<Element, Map<string, EventListener>>();
 const propBindings = new WeakMap<Element, Map<string, StopHandle>>();
 
-export function render(vnode: VNode, container: Element): void {
+export type RenderOptions = {
+  logger?: Logger;
+};
+
+export function render(vnode: VNode, container: Element, options: RenderOptions = {}): void {
   let root = roots.get(container);
   if (!root) {
     root = { container, delegated: new Map() };
     roots.set(container, root);
   }
+  root.logger = options.logger;
 
   root.mounted = patch(root, container, root.mounted, vnode, undefined);
 }
@@ -136,12 +143,12 @@ function patch(
 ): Mounted {
   if (!mounted) {
     const created = mount(root, next, parentInstance);
-    placeMountedBefore(parent, created, null);
+    placeMountedBefore(root, parent, created, null);
     return created;
   }
 
   if (mounted.vnode.type !== next.type || mounted.vnode.key !== next.key) {
-    domDebug("replace node", {
+    domDebug(root, "replace node", {
       previousType: describeVNodeType(mounted.vnode.type),
       previousKey: mounted.vnode.key ?? "none",
       nextType: describeVNodeType(next.type),
@@ -149,7 +156,7 @@ function patch(
       parent: describeNode(parent)
     });
     const replacement = mount(root, next, parentInstance);
-    placeMountedBefore(parent, replacement, mounted.dom);
+    placeMountedBefore(root, parent, replacement, mounted.dom);
     unmountMounted(mounted);
     removeMountedNodes(parent, mounted);
     return replacement;
@@ -164,7 +171,7 @@ function patch(
     } else {
       const child = mount(root, nextChild, parentInstance);
       mounted.children = [child];
-      placeMountedBefore(parent, child, mounted.dom.nextSibling);
+      placeMountedBefore(root, parent, child, mounted.dom.nextSibling);
     }
     return mounted;
   }
@@ -264,7 +271,7 @@ function mountChildren(root: Root, parent: Node, children: Child[], parentInstan
     if (!vnode) continue;
     const childMounted = mount(root, vnode, parentInstance);
     mounted.push(childMounted);
-    placeMountedBefore(parent, childMounted, null);
+    placeMountedBefore(root, parent, childMounted, null);
   }
   return mounted;
 }
@@ -277,13 +284,13 @@ function patchChildren(
   parentInstance?: ComponentInstance<any>,
   before?: Node | null
 ): Mounted[] {
-  domDebug("patch children", {
+  domDebug(root, "patch children", {
     parent: describeNode(parent),
     oldCount: oldChildren.length,
     nextCount: nextChildren.length,
     before: describeNode(before)
   });
-  return preserveFocus(() => patchChildrenInner(root, parent, oldChildren, nextChildren, parentInstance, before));
+  return preserveFocus(root, () => patchChildrenInner(root, parent, oldChildren, nextChildren, parentInstance, before));
 }
 
 function patchChildrenInner(
@@ -315,7 +322,7 @@ function patchChildrenInner(
     if (old?.vnode.key) oldByKey.delete(old.vnode.key);
     const patched = patch(root, parent, old, vnode, parentInstance);
     nextMounted.unshift(patched);
-    placeMountedBefore(parent, patched, cursor);
+    placeMountedBefore(root, parent, patched, cursor);
     cursor = patched.dom;
   }
 
@@ -329,7 +336,7 @@ function patchChildrenInner(
   return nextMounted;
 }
 
-function preserveFocus<T>(work: () => T): T {
+function preserveFocus<T>(root: Root, work: () => T): T {
   const active = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
   const result = work();
   if (
@@ -337,7 +344,7 @@ function preserveFocus<T>(work: () => T): T {
     && active.isConnected
     && document.activeElement === document.body
   ) {
-    domDebug("restore focus", {
+    domDebug(root, "restore focus", {
       active: describeNode(active),
       bodyOwnsFocus: document.activeElement === document.body
     });
@@ -348,7 +355,7 @@ function preserveFocus<T>(work: () => T): T {
 
 function rerenderComponent(root: Root, mounted: Mounted): void {
   if (!mounted.instance) return;
-  domDebug("rerender component", {
+  domDebug(root, "rerender component", {
     type: describeVNodeType(mounted.vnode.type),
     key: mounted.vnode.key ?? "none"
   });
@@ -368,7 +375,7 @@ function bindText(mounted: Mounted, value: unknown): void {
 }
 
 function updateProps(root: Root, element: Element, previous: Record<string, unknown>, next: Record<string, unknown>): void {
-  preserveFocus(() => {
+  preserveFocus(root, () => {
     for (const key of Object.keys(previous)) {
       if (!(key in next)) setProp(root, element, key, undefined, previous[key]);
     }
@@ -418,7 +425,7 @@ function setProp(root: Root, element: Element, key: string, value: unknown, prev
     return;
   }
 
-  const stop = watch(() => preserveFocus(() => {
+  const stop = watch(() => preserveFocus(root, () => {
     const actual = unwrap(value);
 
     if (actual === false || actual === null || actual === undefined) {
@@ -426,7 +433,7 @@ function setProp(root: Root, element: Element, key: string, value: unknown, prev
       return;
     }
 
-    setDomProp(element, key, key === "class" || key === "className" ? normalizeClass(actual) : actual);
+    setDomProp(root, element, key, key === "class" || key === "className" ? normalizeClass(actual) : actual);
   }));
 
   setPropBinding(element, key, stop);
@@ -535,11 +542,11 @@ function normalizeClass(value: unknown): string {
   return String(actual);
 }
 
-function setDomProp(element: Element, key: string, value: unknown): void {
+function setDomProp(root: Root, element: Element, key: string, value: unknown): void {
   const property = normalizePropName(key);
 
   if (property === "defaultValue" && isFocusedTextControl(element)) {
-    domDebug("skip focused defaultValue", {
+    domDebug(root, "skip focused defaultValue", {
       element: describeNode(element),
       value
     });
@@ -555,7 +562,7 @@ function setDomProp(element: Element, key: string, value: unknown): void {
       }
 
       if (property === "value" || property === "defaultValue") {
-        domDebug("set form value prop", {
+        domDebug(root, "set form value prop", {
           element: describeNode(element),
           property,
           active: describeNode(document.activeElement),
@@ -627,7 +634,7 @@ function ensureDelegated(root: Root, type: string): void {
     let cursor = eventTargetElement(event.target);
     while (cursor && cursor !== root.container.parentElement) {
       const handler = eventHandlers.get(cursor)?.get(type);
-      if (handler) preserveFocus(() => handler.call(cursor, event));
+      if (handler) preserveFocus(root, () => handler.call(cursor, event));
       if (event.cancelBubble) break;
       if (cursor === root.container) break;
       cursor = cursor.parentElement;
@@ -644,14 +651,14 @@ function eventTargetElement(target: EventTarget | null): Element | null {
   return null;
 }
 
-function placeMountedBefore(parent: Node, mounted: Mounted, before?: Node | null): void {
+function placeMountedBefore(root: Root, parent: Node, mounted: Mounted, before?: Node | null): void {
   const cursor = before?.parentNode === parent ? before : null;
   const nodes = mountedDomNodes(mounted);
   const first = nodes[0];
   const last = nodes[nodes.length - 1];
 
   if (first.parentNode === parent && last.nextSibling === cursor && areContiguous(nodes)) {
-    domDebug("skip placement", {
+    domDebug(root, "skip placement", {
       reason: "mounted-range-already-before-cursor",
       parent: describeNode(parent),
       node: describeNode(first),
@@ -661,7 +668,7 @@ function placeMountedBefore(parent: Node, mounted: Mounted, before?: Node | null
   }
 
   for (const node of nodes) {
-    insertBeforeIfNeeded(parent, node, cursor);
+    insertBeforeIfNeeded(root, parent, node, cursor);
   }
 }
 
@@ -682,10 +689,10 @@ function areContiguous(nodes: Node[]): boolean {
   return true;
 }
 
-function insertBeforeIfNeeded(parent: Node, node: Node, before?: Node | null): void {
+function insertBeforeIfNeeded(root: Root, parent: Node, node: Node, before?: Node | null): void {
   const cursor = before?.parentNode === parent ? before : null;
   if (node === cursor) {
-    domDebug("skip placement", {
+    domDebug(root, "skip placement", {
       reason: "node-is-cursor",
       parent: describeNode(parent),
       node: describeNode(node),
@@ -694,7 +701,7 @@ function insertBeforeIfNeeded(parent: Node, node: Node, before?: Node | null): v
     return;
   }
   if (node.parentNode === parent && node.nextSibling === cursor) {
-    domDebug("skip placement", {
+    domDebug(root, "skip placement", {
       reason: "already-before-cursor",
       parent: describeNode(parent),
       node: describeNode(node),
@@ -702,7 +709,7 @@ function insertBeforeIfNeeded(parent: Node, node: Node, before?: Node | null): v
     });
     return;
   }
-  domDebug("place node", {
+  domDebug(root, "place node", {
     parent: describeNode(parent),
     node: describeNode(node),
     before: describeNode(cursor),
@@ -796,8 +803,8 @@ function setPropBinding(element: Element, key: string, stop: StopHandle): void {
   bindings.set(key, stop);
 }
 
-function domDebug(message: string, details?: Record<string, unknown>): void {
-  logFrameworkEvent("trace", "dom", "patch", message, details);
+function domDebug(root: Root, message: string, details?: Record<string, unknown>): void {
+  logFrameworkEvent("trace", "dom", "patch", message, details, root.logger);
 }
 
 function describeNode(node: Node | null | undefined): string {

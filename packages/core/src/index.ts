@@ -518,14 +518,14 @@ export function logFrameworkEvent(
   packageName: string,
   category: string,
   message: LazyLogValue<string>,
-  data?: LazyLogValue<unknown>
+  data?: LazyLogValue<unknown>,
+  logger: Logger = defaultConsoleLogger
 ): void {
   const scope: LogScope = {
     source: "framework",
     packageName,
     category
   };
-  const logger = defaultConsoleLogger;
   if (logger.isEnabled && !logger.isEnabled(level, scope)) return;
   logger.log({
     level,

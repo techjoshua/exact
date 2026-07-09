@@ -1,4 +1,4 @@
-import { createConsoleLogger, LoggerContext, type Component } from "@exact/core";
+import { createConsoleLogger, LoggerContext, type Component, type Logger } from "@exact/core";
 import { px } from "@exact/dom";
 import { BoardContext } from "../context.js";
 import { columns, createTask, loadTasks, storageKey } from "../data.js";
@@ -8,8 +8,12 @@ import { BoardHeader } from "./BoardHeader.jsx";
 import { ColumnView } from "./ColumnView.jsx";
 import { TaskDetailsDialog } from "./TaskDetailsDialog.jsx";
 
-export function Board(this: Component<BoardState>) {
-  this.setContext(LoggerContext, createConsoleLogger({ level: "debug" }));
+type BoardProps = {
+  logger?: Logger;
+};
+
+export function Board(this: Component<BoardState>, props: BoardProps) {
+  this.setContext(LoggerContext, props.logger ?? createConsoleLogger({ level: "debug" }));
 
   this.state.tasks = loadTasks();
   this.state.draft = "";
