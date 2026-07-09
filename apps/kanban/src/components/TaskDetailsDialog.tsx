@@ -3,14 +3,17 @@ import { columns } from "../data.js";
 import type { Status, Task, TaskActions } from "../types.js";
 
 type TaskDetailsDialogProps = {
-  task: Task;
+  task?: Task;
   actions: TaskActions;
   close(): void;
 };
 
 export function TaskDetailsDialog(this: Component<{}>, props: TaskDetailsDialogProps) {
-  return () => (
-    <div className="dialog-backdrop" onClick={props.close}>
+  return () => {
+    const task = props.task;
+    if (!task) return null;
+
+    return <div className="dialog-backdrop" onClick={props.close}>
       <section
         className="task-dialog"
         onClick={event => {
@@ -27,9 +30,9 @@ export function TaskDetailsDialog(this: Component<{}>, props: TaskDetailsDialogP
         <label>
           <span>Title</span>
           <input
-            value={props.task.title}
+            value={task.title}
             onInput={event => {
-              props.actions.updateTask(props.task.id, {
+              props.actions.updateTask(task.id, {
                 title: (event.target as HTMLInputElement).value
               });
             }}
@@ -39,9 +42,9 @@ export function TaskDetailsDialog(this: Component<{}>, props: TaskDetailsDialogP
         <label>
           <span>Status</span>
           <select
-            value={props.task.status}
+            value={task.status}
             onChange={event => {
-              props.actions.updateTask(props.task.id, {
+              props.actions.updateTask(task.id, {
                 status: (event.target as HTMLSelectElement).value as Status
               });
             }}
@@ -55,16 +58,16 @@ export function TaskDetailsDialog(this: Component<{}>, props: TaskDetailsDialogP
         <label>
           <span>Notes</span>
           <textarea
-            value={props.task.notes}
+            value={task.notes}
             rows={8}
             onInput={event => {
-              props.actions.updateTask(props.task.id, {
+              props.actions.updateTask(task.id, {
                 notes: (event.target as HTMLTextAreaElement).value
               });
             }}
           />
         </label>
       </section>
-    </div>
-  );
+    </div>;
+  };
 }

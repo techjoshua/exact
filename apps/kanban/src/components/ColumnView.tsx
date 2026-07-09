@@ -17,12 +17,16 @@ export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
     if (taskId) props.actions.moveTaskById(taskId, props.column.id);
   };
 
+  const allowDrop = (event: DragEvent) => {
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+  };
+
   return () => (
     <article
       className={["column", { empty: props.tasks.length === 0 }]}
-      onDragOver={event => {
-        event.preventDefault();
-      }}
+      onDragEnter={event => allowDrop(event as DragEvent)}
+      onDragOver={event => allowDrop(event as DragEvent)}
       onDrop={event => dropTask(event as DragEvent)}
     >
       <header>
