@@ -8,7 +8,8 @@ type TaskCardProps = {
 };
 
 export function TaskCard(this: Component<{}>, props: TaskCardProps) {
-  const hasNotes = this.reactive(props.task.notes.trim().length > 0);
+  const title = this.reactive<string>(() => props.task.title);
+  const hasNotes = this.reactive<boolean>(() => props.task.notes.trim().length > 0);
 
   const startPointerDrag = (event: PointerEvent) => {
     if (event.button !== 0 || isInteractiveTarget(event.target)) return;
@@ -77,9 +78,9 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
         Drag
       </span>
       <p className="card-title">
-        {props.task.title}
+        {title}
       </p>
-      {hasNotes ? <p className="card-notes">Has notes</p> : null}
+      {hasNotes.get() ? <p className="card-notes">Has notes</p> : null}
       <div className="card-actions">
         <button
           type="button"
