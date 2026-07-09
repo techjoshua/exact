@@ -333,6 +333,7 @@ describe("@exact/dom", () => {
     const container = document.createElement("div");
     render(createCompiledVNode(Parent, {}), container);
     const textarea = container.querySelector("textarea")!;
+    const insertBefore = vi.spyOn(Node.prototype, "insertBefore");
     const valueWrites: string[] = [];
     const descriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!;
     Object.defineProperty(textarea, "value", {
@@ -354,6 +355,8 @@ describe("@exact/dom", () => {
     expect(parent.state.task.notes).toBe("Initial!");
     expect(container.querySelector("textarea")).toBe(textarea);
     expect(valueWrites).toEqual([]);
+    expect(insertBefore).not.toHaveBeenCalled();
+    insertBefore.mockRestore();
   });
 
   it("normalizes className strings, arrays, and truthy maps", () => {

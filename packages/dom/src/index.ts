@@ -292,7 +292,7 @@ function patchChildren(
     if (old?.vnode.key) oldByKey.delete(old.vnode.key);
     const patched = patch(root, parent, old, vnode, parentInstance);
     nextMounted.unshift(patched);
-    parent.insertBefore(patched.dom, cursor);
+    insertBeforeIfNeeded(parent, patched.dom, cursor);
     appendMountedChildren(parent, patched, cursor);
     cursor = patched.dom;
   }
@@ -540,9 +540,16 @@ function eventTargetElement(target: EventTarget | null): Element | null {
 function appendMountedChildren(parent: Node, mounted: Mounted, before?: Node | null): void {
   if (mounted.vnode.type !== Cell && mounted.vnode.type !== Fragment && mounted.vnode.type !== Dynamic && typeof mounted.vnode.type !== "function") return;
   for (const child of mounted.children) {
-    parent.insertBefore(child.dom, before ?? null);
+    insertBeforeIfNeeded(parent, child.dom, before ?? null);
     appendMountedChildren(parent, child, before);
   }
+}
+
+function insertBeforeIfNeeded(parent: Node, node: Node, before?: Node | null): void {
+  const cursor = before ?? null;
+  if (node === cursor) return;
+  if (node.parentNode === parent && node.nextSibling === cursor) return;
+  parent.insertBefore(node, cursor);
 }
 
 function afterMountedChildren(mounted: Mounted): Node | null {
