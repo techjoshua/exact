@@ -4,7 +4,7 @@ eXact is an experimental TypeScript web framework built around reactive state, c
 
 The repository is an npm workspace monorepo. The current implementation slice contains:
 
-- `@exact/reactive`: reactive proxies, primitive wrappers, refs, tracking, batching, `unwrap`, `peek`, and snapshots.
+- `@exact/reactive`: reactive proxies, refs, tracking, batching, `unwrap`, `peek`, computed values, and snapshots.
 - `@exact/core`: component instances, readonly props, context, refs, tasks, lifecycle hooks, vnodes, and `this.map()`.
 - `@exact/jsx-runtime`: automatic JSX runtime entrypoints for `jsx`, `jsxs`, and `Fragment`.
 - `@exact/dom`: browser mounting, DOM patching, delegated events, DOM refs, and keyed list reconciliation.
@@ -21,7 +21,7 @@ npm test
 
 ## JSX
 
-The runtime JSX path uses the automatic JSX runtime with `jsxImportSource` set to `@exact/jsx-runtime`:
+The full eXact rendering model is compiler-based. Runtime JSX is still available as a structural fallback through the automatic JSX runtime with `jsxImportSource` set to `@exact/jsx-runtime`:
 
 ```json
 {
@@ -58,7 +58,7 @@ export default {
 };
 ```
 
-The compiler preserves JSX expressions as reactive bindings, so ordinary JSX values can update at their owning text, prop, style, child, or component-prop boundary. Runtime JSX remains supported for tests and non-compiled usage.
+The compiler preserves JSX expressions as reactive bindings, so ordinary JSX values can update at their owning text, prop, style, child, or component-prop boundary. Runtime JSX remains supported for tests and non-compiled usage, but it does not preserve arbitrary expression boundaries after JavaScript has evaluated them.
 
 Browser apps mount through `@exact/dom`:
 
@@ -145,7 +145,21 @@ const query = this.reactive(() => this.state.query);
 
 `this.task(dep, ..., work)` dependency arguments are captured the same way in compiler mode. Runtime-only code should use explicit lambdas or existing reactive values when source identity matters.
 
-JSX elements are internally mounted through cell boundaries. These cells let the renderer patch an already chosen JSX subtree in place, while `this.reactive()` remains the public API for preserving dynamic expressions that JavaScript would otherwise evaluate before JSX runtime calls.
+Reactive state fields read as normal JavaScript values. In compiler mode, expression positions preserve the reactive source:
+
+```ts
+this.reactive(this.state.query)
+this.task(this.state.query, async query => {})
+```
+
+Runtime-only code should write the expression boundary explicitly:
+
+```ts
+this.reactive(() => this.state.query)
+this.reactive(() => this.state.query).task(async query => {})
+```
+
+JSX elements are internally mounted through cell boundaries. In compiler mode, expression cells and `ReactiveValue`s let the renderer patch an already chosen JSX subtree in place without rerunning unrelated component code.
 
 ## Compiled JSX Conveniences
 

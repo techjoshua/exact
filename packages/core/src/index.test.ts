@@ -32,7 +32,7 @@ describe("@exact/core", () => {
 
     function Search(this: Component<{ query: string }>) {
       this.state.query = "a";
-      this.task(this.state.query, (query, { signal }) => {
+      this.reactive(() => this.state.query).task((query, { signal }) => {
         expect(typeof query).toBe("string");
         signal.addEventListener("abort", () => aborts.push(true));
       });
@@ -106,7 +106,7 @@ describe("@exact/core", () => {
       this.state.last = "Lovelace";
       this.state.formal = false;
 
-      const fullName = this.reactive`${this.state.first} ${this.state.last}`;
+      const fullName = this.reactive(() => `${this.state.first} ${this.state.last}`);
       const label = this.reactive(() => this.state.formal == true ? `Countess ${fullName}` : fullName);
 
       return () => createVNode("span", null, label);
@@ -130,7 +130,7 @@ describe("@exact/core", () => {
       instance = this;
       this.state.first = "Ada";
       this.state.last = "Lovelace";
-      const fullName = this.reactive`${this.state.first} ${this.state.last}`;
+      const fullName = this.reactive(() => `${this.state.first} ${this.state.last}`);
 
       this.task(fullName, (name, { signal }) => {
         values.push(String(name));

@@ -28,7 +28,7 @@ describe("@exact/dom", () => {
     instance.state.count = 2;
     flushSync();
     expect(container.textContent).toBe("2");
-    expect(rendered).toHaveBeenCalledTimes(1);
+    expect(rendered).toHaveBeenCalledTimes(2);
   });
 
   it("delegates events and preserves instance access", () => {
@@ -220,11 +220,15 @@ describe("@exact/dom", () => {
 
       return () => {
         rendered();
+        const height = createExpression(() => px(this.state.height));
+        const marginTop = createExpression(() => rem(this.state.top));
+        const width = createExpression(() => percent(this.state.progress));
+
         return jsx("div", {
           style: {
-            height: px(this.state.height),
-            marginTop: rem(this.state.top),
-            width: percent(this.state.progress)
+            height,
+            marginTop,
+            width
           }
         });
       };
@@ -284,7 +288,7 @@ describe("@exact/dom", () => {
       instance = this;
       this.state.first = "Ada";
       this.state.last = "Lovelace";
-      const fullName = this.reactive`${this.state.first} ${this.state.last}`;
+      const fullName = this.reactive(() => `${this.state.first} ${this.state.last}`);
 
       return () => {
         rendered();
@@ -312,7 +316,7 @@ describe("@exact/dom", () => {
       this.state.first = "Ada";
       this.state.last = "Lovelace";
       this.state.color = "red";
-      const fullName = this.reactive`${this.state.first} ${this.state.last}`;
+      const fullName = this.reactive(() => `${this.state.first} ${this.state.last}`);
       const tone = this.reactive(() => this.state.color);
 
       return () => {
@@ -484,7 +488,7 @@ describe("@exact/dom", () => {
     expect(rendered).toHaveBeenCalledTimes(1);
   });
 
-  it("updates primitive props.children without rerendering parent or child", () => {
+  it("updates runtime primitive props.children by rerendering the parent", () => {
     let instance!: Component<{ message: string }>;
     const parentRendered = vi.fn();
     const childRendered = vi.fn();
@@ -514,8 +518,8 @@ describe("@exact/dom", () => {
     flushSync();
 
     expect(container.textContent).toBe("Goodbye");
-    expect(parentRendered).toHaveBeenCalledTimes(1);
-    expect(childRendered).toHaveBeenCalledTimes(1);
+    expect(parentRendered).toHaveBeenCalledTimes(2);
+    expect(childRendered).toHaveBeenCalledTimes(2);
   });
 
   it("updates a props.children list fragment without rerendering parent or child", () => {
@@ -641,7 +645,7 @@ describe("@exact/dom", () => {
     expect(container.textContent).toBe("new");
   });
 
-  it("updates primitive child component props without rerendering the child", () => {
+  it("updates runtime primitive child component props by rerendering the child", () => {
     let parent!: Component<{ text: string }>;
     const childRendered = vi.fn();
 
@@ -666,7 +670,7 @@ describe("@exact/dom", () => {
     flushSync();
 
     expect(container.textContent).toBe("Goodbye");
-    expect(childRendered).toHaveBeenCalledTimes(1);
+    expect(childRendered).toHaveBeenCalledTimes(2);
   });
 
   it("rerenders a child component when updated props drive control flow", () => {

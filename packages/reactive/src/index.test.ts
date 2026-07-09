@@ -44,23 +44,24 @@ describe("@exact/reactive", () => {
     expect(render).toHaveBeenCalledTimes(1);
   });
 
-  it("exposes primitive refs and snapshots reactive values", () => {
+  it("returns raw primitives and snapshots reactive values", () => {
     const state = reactive({ query: "abc", nested: { ok: true } });
     const source = ref(state.query);
 
-    expect(source?.get()).toBe("abc");
+    expect(source).toBeUndefined();
     expect(unwrap(state.query)).toBe("abc");
+    expect(typeof state.query).toBe("string");
     expect(isReactive(state)).toBe(true);
     expect(snapshot(state)).toEqual({ query: "abc", nested: { ok: true } });
   });
 
-  it("supports loose equality comparisons for reactive primitives", () => {
+  it("supports normal equality comparisons for reactive primitives", () => {
     const state = reactive({ mode: "compact", count: 1, enabled: true });
 
     expect(state.mode == "compact").toBe(true);
     expect(state.count == 1).toBe(true);
     expect(state.enabled != false).toBe(true);
-    expect(state.mode === "compact").toBe(false);
+    expect(state.mode === "compact").toBe(true);
   });
 
   it("caches computed values until dependencies change", () => {

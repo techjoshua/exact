@@ -51,6 +51,12 @@ describe("@exact/compiler", () => {
     expect(output).toContain("this.reactive(() => this.state.query)");
   });
 
+  it("captures this.reactive tagged templates as expressions", () => {
+    const output = transform("function View() { const name = this.reactive`${this.state.first} ${this.state.last}`; }");
+
+    expect(output).toContain("this.reactive(() => `${this.state.first} ${this.state.last}`)");
+  });
+
   it("captures this.task dependency arguments as component reactive values", () => {
     const output = transform("function View() { this.task(this.state.query, this.state.page, async (query, page) => {}); }");
 

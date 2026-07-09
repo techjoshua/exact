@@ -26,10 +26,8 @@ type Reaction = {
 type Dep = Set<Reaction>;
 
 const proxyMarker = Symbol.for("exact.reactive.proxy");
-const wrapperMarker = Symbol.for("exact.reactive.wrapper");
 const reactiveValueMarker = Symbol.for("exact.reactive.value");
 const rawTarget = Symbol.for("exact.reactive.raw");
-const primitiveRef = Symbol.for("exact.reactive.primitiveRef");
 const reactiveValueRef = Symbol.for("exact.reactive.valueRef");
 const iterateKey = Symbol.for("exact.reactive.iterate");
 
@@ -193,10 +191,6 @@ export function unwrap<T>(value: T): T {
     return value.get() as T;
   }
 
-  if (isPrimitiveWrapper(value)) {
-    return value[primitiveRef].get() as T;
-  }
-
   if (isReactive(value)) {
     return (value as { [rawTarget]: T })[rawTarget];
   }
@@ -210,10 +204,6 @@ export function ref<T>(value: T): ReactiveRef<T> | undefined {
   if (isReactiveValue(value)) {
     value.get();
     return value[reactiveValueRef] as ReactiveRef<T>;
-  }
-
-  if (isPrimitiveWrapper(value)) {
-    return value[primitiveRef] as ReactiveRef<T>;
   }
 
   if (value && typeof value === "object") {
@@ -310,10 +300,6 @@ function createReactive(value: object, options: ReactiveOptions): object {
         return current;
       }
 
-      if (isPrimitiveWrapper(current)) {
-        return current;
-      }
-
       if (current && typeof current === "object") {
         const proxy = createReactive(current, options);
         const source = {
@@ -338,7 +324,8 @@ function createReactive(value: object, options: ReactiveOptions): object {
         return proxy;
       }
 
-      return createPrimitiveWrapper(target, key, current);
+      track(target, key);
+      return current;
     },
     set(target, key, next, receiver) {
       if (options.readonly) {
@@ -380,62 +367,6 @@ function createReactive(value: object, options: ReactiveOptions): object {
 
   cache.set(value, proxy);
   return proxy;
-}
-
-function createPrimitiveWrapper(target: object, key: PropertyKey, initial: unknown): unknown {
-  if (initial !== null && (typeof initial === "object" || typeof initial === "function")) {
-    return initial;
-  }
-
-  const source: ReactiveRef = {
-    target,
-    key,
-    get() {
-      track(target, key);
-      return Reflect.get(target, key);
-    },
-    set(value) {
-      const previous = Reflect.get(target, key);
-      const unwrapped = unwrap(value);
-      if (!hasChanged(previous, unwrapped)) return;
-      Reflect.set(target, key, unwrapped);
-      trigger(target, key);
-      if (isArrayStructureKey(target, key)) trigger(target, iterateKey);
-    }
-  };
-
-  const wrapper = {
-    [wrapperMarker]: true,
-    [primitiveRef]: source,
-    valueOf: () => source.get(),
-    toString: () => String(source.get()),
-    toJSON: () => source.get(),
-    [Symbol.toPrimitive]: () => source.get()
-  };
-
-  return new Proxy(wrapper, {
-    get(object, property, receiver) {
-      if (property in object) {
-        return Reflect.get(object, property, receiver);
-      }
-
-      const value = source.get();
-      const member = Reflect.get(Object(value), property);
-      return typeof member === "function" ? member.bind(value) : member;
-    },
-    set(_object, property, value) {
-      if (property === "value") {
-        source.set(value);
-        return true;
-      }
-
-      return false;
-    }
-  });
-}
-
-function isPrimitiveWrapper(value: unknown): value is { [primitiveRef]: ReactiveRef } {
-  return !!value && typeof value === "object" && wrapperMarker in value;
 }
 
 function isReactiveValue(value: unknown): value is ReactiveValue & { [reactiveValueRef]: ReactiveRef } {

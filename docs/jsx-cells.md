@@ -15,9 +15,9 @@ When a JSX cell is patched, the DOM renderer patches that mounted cell subtree i
 
 ## Runtime And Compiler
 
-The runtime JSX implementation works with normal TypeScript automatic JSX output. Compiler mode adds an eXact transform that preserves JSX expressions as reactive bindings, so ordinary JSX expressions can update at their owning text, prop, style, child, or component-prop boundary.
+Runtime JSX works with normal TypeScript automatic JSX output and remains useful for structural tests and simple non-compiled usage. The full reactive rendering model is compiler mode: the eXact transform preserves JSX expressions and selected API arguments as reactive bindings, so ordinary expressions can update at their owning text, prop, style, child, or component-prop boundary.
 
-The compiler lowers JSX to internal core helpers. It is additive: runtime JSX remains supported, and `this.reactive()` remains useful for named/reused derived values and task dependencies.
+The compiler lowers JSX and captured API expression positions to internal core helpers. Runtime JSX does not attempt to recover source identity from already-evaluated primitive values; runtime-only code should use explicit lambdas or existing `ReactiveValue`s when it needs expression capture.
 
 ## Key Scenarios
 

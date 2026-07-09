@@ -168,6 +168,9 @@ function exactJsxTransformer(context: ts.TransformationContext): ts.Transformer<
       if (ts.isCallExpression(node)) {
         return transformCapturedCall(node, context, visitor);
       }
+      if (ts.isTaggedTemplateExpression(node)) {
+        return transformReactiveTaggedTemplate(node, context, visitor);
+      }
       return ts.visitEachChild(node, visitor, context);
     };
 
@@ -361,6 +364,18 @@ function transformCapturedCall(node: ts.CallExpression, context: ts.Transformati
   return ts.visitEachChild(node, visitor, context);
 }
 
+function transformReactiveTaggedTemplate(node: ts.TaggedTemplateExpression, context: ts.TransformationContext, visitor: ts.Visitor): ts.Expression {
+  if (!isThisMethodAccess(node.tag, "reactive")) {
+    return ts.visitEachChild(node, visitor, context);
+  }
+
+  return context.factory.createCallExpression(
+    ts.visitNode(node.tag, visitor) as ts.Expression,
+    node.typeArguments,
+    [captureArgument(context, templateToExpression(node.template), visitor)]
+  );
+}
+
 function transformReactiveCall(node: ts.CallExpression, context: ts.TransformationContext, visitor: ts.Visitor): ts.Expression {
   if (node.arguments.length !== 1) return ts.visitEachChild(node, visitor, context);
   const [argument] = node.arguments;
@@ -410,13 +425,28 @@ function captureArgument(context: ts.TransformationContext, expression: ts.Expre
 }
 
 function isThisMethodCall(node: ts.CallExpression, methodName: string): boolean {
-  return ts.isPropertyAccessExpression(node.expression)
-    && node.expression.name.text === methodName
-    && node.expression.expression.kind === ts.SyntaxKind.ThisKeyword;
+  return isThisMethodAccess(node.expression, methodName);
+}
+
+function isThisMethodAccess(expression: ts.Expression, methodName: string): boolean {
+  return ts.isPropertyAccessExpression(expression)
+    && expression.name.text === methodName
+    && expression.expression.kind === ts.SyntaxKind.ThisKeyword;
 }
 
 function isFunctionLikeExpression(node: ts.Expression): boolean {
   return ts.isArrowFunction(node) || ts.isFunctionExpression(node);
+}
+
+function templateToExpression(template: ts.TemplateLiteral): ts.Expression {
+  if (ts.isNoSubstitutionTemplateLiteral(template)) {
+    return ts.factory.createStringLiteral(template.text);
+  }
+
+  return ts.factory.createTemplateExpression(
+    template.head,
+    template.templateSpans.map(span => ts.factory.createTemplateSpan(span.expression, span.literal))
+  );
 }
 
 function allocateHelperNames(sourceFile: ts.SourceFile): HelperNames {
