@@ -738,6 +738,7 @@ function unmountMounted(mounted: Mounted): void {
       stop();
     }
     propBindings.delete(mounted.dom);
+    eventHandlers.delete(mounted.dom);
   }
 
   const ref = mounted.vnode.props.ref as RefBinding<unknown> | undefined;

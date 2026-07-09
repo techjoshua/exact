@@ -11,12 +11,21 @@ The repository is an npm workspace monorepo. The current implementation slice co
 - `@exact/compiler`: eXact JSX/TSX transform core for expression-preserving compiled JSX.
 - `@exact/vite-plugin`: Vite integration for the eXact compiler.
 
+Each package publishes a single public entrypoint today, except `@exact/compiler`, which also exposes the `exactc` CLI entrypoint. Browser rendering is intentionally exported from `@exact/dom`; platform-neutral component APIs live in `@exact/core`.
+
 ## Development
 
 ```sh
 npm install
 npm run build
 npm test
+```
+
+The Kanban sample can be run from the workspace root:
+
+```sh
+npm run dev:kanban
+npm run build:kanban
 ```
 
 ## JSX
@@ -114,6 +123,34 @@ function TodoList(this: Component<{ todos: { id: string; text: string }[] }>) {
 ```
 
 The key function receives only the item, not the index, so list identity stays domain-based.
+
+## Component API
+
+Component functions construct component instances. They run once, initialize instance state/services, and return a render function:
+
+```tsx
+function Counter(this: Component<{ count: number }>) {
+  this.state.count = 0;
+
+  this.onMount(() => this.log.info("mounted"));
+  this.task(({ signal }) => {
+    void signal;
+  });
+
+  return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
+}
+```
+
+The main instance APIs are:
+
+- `this.state`: reactive instance-owned state.
+- `this.reactive(...)`: derived reactive values for text, props, styles, and task dependencies.
+- `this.task(...)`: run-once or dependency-driven work with `AbortSignal` cleanup.
+- `this.map(collection, key, render)`: keyed list rendering with framework-managed keys.
+- `this.getContext(...)` / `this.setContext(...)`: descendant-scoped services.
+- `this.ref(...)` / `this.refs`: DOM ref binding and lookup.
+- `this.onMount(...)` / `this.onUnmount(...)` / `this.onRender(...)`: lifecycle hooks.
+- `this.log`: component-scoped logging.
 
 ## Reactive Values
 

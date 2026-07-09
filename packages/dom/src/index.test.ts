@@ -62,6 +62,31 @@ describe("@exact/dom", () => {
     }));
   });
 
+  it("does not retain delegated event handlers after DOM replacement", () => {
+    let instance!: Component<{ asButton: boolean }>;
+    const clicked = vi.fn();
+
+    function Switcher(this: Component<{ asButton: boolean }>) {
+      instance = this;
+      this.state.asButton = true;
+
+      return () => this.state.asButton == true
+        ? jsx("button", { onClick: clicked, children: "Old" })
+        : jsx("span", { children: "New" });
+    }
+
+    const container = document.createElement("div");
+    render(jsx(Switcher, {}), container);
+    const oldButton = container.querySelector("button")!;
+
+    instance.state.asButton = false;
+    flushSync();
+    container.appendChild(oldButton);
+    oldButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(clicked).not.toHaveBeenCalled();
+  });
+
   it("delegates events and preserves instance access", () => {
     let clicked = 0;
 
@@ -1446,6 +1471,35 @@ describe("@exact/dom", () => {
     expect(container.querySelectorAll("span")).toHaveLength(0);
   });
 
+  it("stops removed dynamic child watchers", () => {
+    let parent!: Component<{ show: boolean; label: string }>;
+
+    function Parent(this: Component<{ show: boolean; label: string }>) {
+      parent = this;
+      this.state.show = true;
+      this.state.label = "visible";
+
+      return () => this.state.show == true
+        ? jsx("section", {
+          children: createDynamicChild(() => jsx("span", { children: this.state.label }))
+        })
+        : jsx("section", { children: "hidden" });
+    }
+
+    const container = document.createElement("div");
+    render(jsx(Parent, {}), container);
+    const removedSpan = container.querySelector("span")!;
+
+    parent.state.show = false;
+    flushSync();
+    parent.state.label = "changed";
+    flushSync();
+
+    expect(container.textContent).toBe("hidden");
+    expect(container.querySelector("span")).toBeNull();
+    expect(removedSpan.isConnected).toBe(false);
+  });
+
   it("clears refs when keyed DOM nodes are removed", () => {
     const itemRef = createRef<HTMLLIElement>("item");
     let list!: Component<{ items: { id: string }[] }>;
@@ -1489,6 +1543,31 @@ describe("@exact/dom", () => {
 
     const container = document.createElement("div");
     render(jsx(Parent, {}), container);
+    expect(parent.refs.get(buttonRef)).toBe(container.querySelector("button"));
+
+    parent.state.mode = "input";
+    flushSync();
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector("input")).toBeTruthy();
+    expect(parent.refs.get(buttonRef)).toBeUndefined();
+  });
+
+  it("clears refs when compiled cell subtrees are replaced", () => {
+    const buttonRef = createRef<HTMLButtonElement>("compiled-button");
+    let parent!: Component<{ mode: "button" | "input" }>;
+
+    function Parent(this: Component<{ mode: "button" | "input" }>) {
+      parent = this;
+      this.state.mode = "button";
+
+      return () => createCompiledVNode("section", {}, this.state.mode == "button"
+        ? createCompiledVNode("button", { ref: this.ref(buttonRef) }, "Save")
+        : createCompiledVNode("input", { value: "Saved" }));
+    }
+
+    const container = document.createElement("div");
+    render(createCompiledVNode(Parent, {}), container);
     expect(parent.refs.get(buttonRef)).toBe(container.querySelector("button"));
 
     parent.state.mode = "input";
