@@ -721,6 +721,37 @@ describe("@exact/dom", () => {
     expect(rendered).toHaveBeenCalledTimes(1);
   });
 
+  it("does not reinsert stable cell ranges during a component rerender", () => {
+    let instance!: Component<{ label: string }>;
+
+    function Panel(this: Component<{ label: string }>) {
+      instance = this;
+      this.state.label = "Alpha";
+
+      return () => jsx("section", {
+        children: [
+          jsx("span", { children: this.state.label }),
+          jsx("strong", { children: "stable" })
+        ]
+      });
+    }
+
+    const container = document.createElement("div");
+    render(jsx(Panel, {}), container);
+    const span = container.querySelector("span")!;
+    const strong = container.querySelector("strong")!;
+    const insertBefore = vi.spyOn(Node.prototype, "insertBefore");
+
+    instance.state.label = "Beta";
+    flushSync();
+
+    expect(container.querySelector("span")).toBe(span);
+    expect(container.querySelector("strong")).toBe(strong);
+    expect(container.textContent).toBe("Betastable");
+    expect(insertBefore).not.toHaveBeenCalled();
+    insertBefore.mockRestore();
+  });
+
   it("does not update reactive DOM bindings for structurally identical reloads", () => {
     let instance!: Component<{ user: { name: string; roles: string[] } }>;
     const rendered = vi.fn();
@@ -760,6 +791,39 @@ describe("@exact/dom", () => {
     expect(span.title).toBe("Grace");
     expect(titleWrites).toEqual(["Grace"]);
     expect(rendered).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not rewrite unchanged reactive style entries", () => {
+    let instance!: Component<{ color: string; padding: string }>;
+    const setProperty = vi.spyOn(CSSStyleDeclaration.prototype, "setProperty");
+
+    function Box(this: Component<{ color: string; padding: string }>) {
+      instance = this;
+      this.state.color = "red";
+      this.state.padding = "4px";
+      const color = this.reactive(() => this.state.color);
+      const paddingTop = this.reactive(() => this.state.padding);
+
+      return () => jsx("div", {
+        style: {
+          color,
+          paddingTop
+        }
+      });
+    }
+
+    const container = document.createElement("div");
+    render(jsx(Box, {}), container);
+    setProperty.mockClear();
+
+    instance.state.color = "blue";
+    flushSync();
+
+    expect(container.querySelector("div")!.style.color).toBe("blue");
+    expect(container.querySelector("div")!.style.paddingTop).toBe("4px");
+    expect(setProperty).toHaveBeenCalledTimes(1);
+    expect(setProperty).toHaveBeenCalledWith("color", "blue");
+    setProperty.mockRestore();
   });
 
   it("updates runtime primitive props.children by rerendering the parent", () => {

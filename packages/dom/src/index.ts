@@ -135,8 +135,7 @@ function patch(
 ): Mounted {
   if (!mounted) {
     const created = mount(root, next, parentInstance);
-    parent.appendChild(created.dom);
-    appendMountedChildren(parent, created);
+    placeMountedBefore(parent, created, null);
     return created;
   }
 
@@ -149,8 +148,7 @@ function patch(
       parent: describeNode(parent)
     });
     const replacement = mount(root, next, parentInstance);
-    parent.insertBefore(replacement.dom, mounted.dom);
-    appendMountedChildren(parent, replacement);
+    placeMountedBefore(parent, replacement, mounted.dom);
     unmountMounted(mounted);
     removeMountedNodes(parent, mounted);
     return replacement;
@@ -158,14 +156,15 @@ function patch(
 
   if (isCellVNode(next)) {
     mounted.vnode = next;
-    mounted.children = patchChildren(
-      root,
-      parent,
-      mounted.children,
-      [getCellVNode(next)],
-      parentInstance,
-      afterMountedChildren(mounted)
-    );
+    const nextChild = getCellVNode(next);
+    const previousChild = mounted.children[0];
+    if (previousChild) {
+      mounted.children = [patch(root, parent, previousChild, nextChild, parentInstance)];
+    } else {
+      const child = mount(root, nextChild, parentInstance);
+      mounted.children = [child];
+      placeMountedBefore(parent, child, mounted.dom.nextSibling);
+    }
     return mounted;
   }
 
@@ -264,8 +263,7 @@ function mountChildren(root: Root, parent: Node, children: Child[], parentInstan
     if (!vnode) continue;
     const childMounted = mount(root, vnode, parentInstance);
     mounted.push(childMounted);
-    parent.appendChild(childMounted.dom);
-    appendMountedChildren(parent, childMounted);
+    placeMountedBefore(parent, childMounted, null);
   }
   return mounted;
 }
@@ -316,8 +314,7 @@ function patchChildrenInner(
     if (old?.vnode.key) oldByKey.delete(old.vnode.key);
     const patched = patch(root, parent, old, vnode, parentInstance);
     nextMounted.unshift(patched);
-    insertBeforeIfNeeded(parent, patched.dom, cursor);
-    appendMountedChildren(parent, patched, cursor);
+    placeMountedBefore(parent, patched, cursor);
     cursor = patched.dom;
   }
 
@@ -362,7 +359,10 @@ function bindText(mounted: Mounted, value: unknown): void {
   mounted.stop?.();
   const node = mounted.dom as CharacterData;
   mounted.stop = watch(() => {
-    node.data = String(unwrap(value) ?? "");
+    const text = String(unwrap(value) ?? "");
+    if (node.data !== text) {
+      node.data = text;
+    }
   });
 }
 
@@ -433,40 +433,66 @@ function setProp(root: Root, element: Element, key: string, value: unknown, prev
 
 function bindStyle(element: HTMLElement, value: unknown): StopHandle {
   let previousNames = new Set<string>();
+  let previousCssText: string | undefined;
+  const previousValues = new Map<string, string>();
   return watch(() => {
     const actual = unwrap(value);
 
     if (actual === false || actual === null || actual === undefined) {
-      element.removeAttribute("style");
+      if (element.hasAttribute("style")) {
+        element.removeAttribute("style");
+      }
       previousNames.clear();
+      previousCssText = undefined;
+      previousValues.clear();
       return;
     }
 
     if (typeof actual === "string") {
-      element.style.cssText = actual;
+      if (previousCssText !== actual || element.style.cssText !== actual) {
+        element.style.cssText = actual;
+      }
       previousNames.clear();
+      previousCssText = actual;
+      previousValues.clear();
       return;
     }
 
     if (!actual || typeof actual !== "object") {
-      element.removeAttribute("style");
+      if (element.hasAttribute("style")) {
+        element.removeAttribute("style");
+      }
       previousNames.clear();
+      previousCssText = undefined;
+      previousValues.clear();
       return;
     }
 
+    previousCssText = undefined;
     const nextNames = new Set<string>();
     for (const [name, rawValue] of Object.entries(actual)) {
       const styleValue = unwrap(rawValue);
-      nextNames.add(name);
+      const property = toCssProperty(name);
+      nextNames.add(property);
       if (styleValue === null || styleValue === undefined || styleValue === false) {
-        element.style.removeProperty(toCssProperty(name));
+        if (previousValues.has(property) || element.style.getPropertyValue(property)) {
+          element.style.removeProperty(property);
+        }
+        previousValues.delete(property);
       } else {
-        element.style.setProperty(toCssProperty(name), String(styleValue));
+        const nextValue = String(styleValue);
+        if (previousValues.get(property) !== nextValue || element.style.getPropertyValue(property) !== nextValue) {
+          element.style.setProperty(property, nextValue);
+        }
+        previousValues.set(property, nextValue);
       }
     }
 
     for (const name of previousNames) {
-      if (!nextNames.has(name)) element.style.removeProperty(toCssProperty(name));
+      if (!nextNames.has(name)) {
+        element.style.removeProperty(name);
+        previousValues.delete(name);
+      }
     }
     previousNames = nextNames;
   });
@@ -609,12 +635,42 @@ function eventTargetElement(target: EventTarget | null): Element | null {
   return null;
 }
 
-function appendMountedChildren(parent: Node, mounted: Mounted, before?: Node | null): void {
-  if (mounted.vnode.type !== Cell && mounted.vnode.type !== Fragment && mounted.vnode.type !== Dynamic && typeof mounted.vnode.type !== "function") return;
-  for (const child of mounted.children) {
-    insertBeforeIfNeeded(parent, child.dom, before ?? null);
-    appendMountedChildren(parent, child, before);
+function placeMountedBefore(parent: Node, mounted: Mounted, before?: Node | null): void {
+  const cursor = before ?? null;
+  const nodes = mountedDomNodes(mounted);
+  const first = nodes[0];
+  const last = nodes[nodes.length - 1];
+
+  if (first.parentNode === parent && last.nextSibling === cursor && areContiguous(nodes)) {
+    domDebug("skip placement", {
+      reason: "mounted-range-already-before-cursor",
+      parent: describeNode(parent),
+      node: describeNode(first),
+      before: describeNode(cursor)
+    });
+    return;
   }
+
+  for (const node of nodes) {
+    insertBeforeIfNeeded(parent, node, cursor);
+  }
+}
+
+function mountedDomNodes(mounted: Mounted): Node[] {
+  const nodes = [mounted.dom];
+  if (mounted.vnode.type === Cell || mounted.vnode.type === Fragment || mounted.vnode.type === Dynamic || typeof mounted.vnode.type === "function") {
+    for (const child of mounted.children) {
+      nodes.push(...mountedDomNodes(child));
+    }
+  }
+  return nodes;
+}
+
+function areContiguous(nodes: Node[]): boolean {
+  for (let index = 0; index < nodes.length - 1; index++) {
+    if (nodes[index]!.nextSibling !== nodes[index + 1]) return false;
+  }
+  return true;
 }
 
 function insertBeforeIfNeeded(parent: Node, node: Node, before?: Node | null): void {
@@ -733,10 +789,7 @@ function setPropBinding(element: Element, key: string, stop: StopHandle): void {
 
 function domDebug(message: string, details?: Record<string, unknown>): void {
   try {
-    if (
-      globalThis.localStorage?.getItem("exact.dom.debug") !== "1"
-      && globalThis.localStorage?.getItem("exact.kanban.debug") !== "1"
-    ) {
+    if (globalThis.localStorage?.getItem("exact.dom.debug") !== "1") {
       return;
     }
   } catch {
