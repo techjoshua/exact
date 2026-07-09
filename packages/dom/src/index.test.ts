@@ -1731,6 +1731,69 @@ describe("@exact/dom", () => {
     expect(removedSpan.style.color).toBe("red");
   });
 
+  it("stops reactive prop watchers when DOM nodes are removed", () => {
+    let parent!: Component<{ show: boolean; label: string }>;
+
+    function Parent(this: Component<{ show: boolean; label: string }>) {
+      parent = this;
+      this.state.show = true;
+      this.state.label = "ready";
+
+      return () => this.state.show == true
+        ? jsx("section", {
+          children: jsx("button", {
+            title: this.state.label,
+            children: "Action"
+          })
+        })
+        : jsx("section", { children: "gone" });
+    }
+
+    const container = document.createElement("div");
+    render(jsx(Parent, {}), container);
+    const removedButton = container.querySelector("button")!;
+    expect(removedButton.title).toBe("ready");
+
+    parent.state.show = false;
+    flushSync();
+    parent.state.label = "stale";
+    flushSync();
+
+    expect(container.textContent).toBe("gone");
+    expect(removedButton.isConnected).toBe(false);
+    expect(removedButton.title).toBe("ready");
+  });
+
+  it("stops reactive text watchers when text nodes are removed", () => {
+    let parent!: Component<{ show: boolean; label: string }>;
+
+    function Parent(this: Component<{ show: boolean; label: string }>) {
+      parent = this;
+      this.state.show = true;
+      this.state.label = "ready";
+
+      return () => this.state.show == true
+        ? jsx("section", {
+          children: jsx("span", { children: this.state.label })
+        })
+        : jsx("section", { children: "gone" });
+    }
+
+    const container = document.createElement("div");
+    render(jsx(Parent, {}), container);
+    const removedText = container.querySelector("span")!.firstChild as CharacterData;
+    expect(removedText.data).toBe("ready");
+
+    parent.state.show = false;
+    flushSync();
+    parent.state.label = "stale";
+    flushSync();
+
+    expect(container.textContent).toBe("gone");
+    expect(removedText.isConnected).toBe(false);
+    expect(removedText.data).toBe("ready");
+  });
+
   it("clears refs when keyed DOM nodes are removed", () => {
     const itemRef = createRef<HTMLLIElement>("item");
     let list!: Component<{ items: { id: string }[] }>;

@@ -53,6 +53,12 @@ describe("@exact/compiler", () => {
     expect(output).not.toContain("ref: __exactExpression");
   });
 
+  it("preserves spread prop ordering around compiled reactive props", () => {
+    const output = transform("const view = <Panel id=\"fixed\" {...shared} title={title} {...extra} />;");
+
+    expect(output).toContain("id: \"fixed\", ...shared, title: __exactExpression(() => title), ...extra");
+  });
+
   it("quotes non-identifier JSX prop names", () => {
     const output = transform("const view = <div data-task-id={task.id} aria-label=\"Task\" />;");
 
