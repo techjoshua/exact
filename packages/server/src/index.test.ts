@@ -250,4 +250,27 @@ describe("@exact/server", () => {
       patches: [{ type: "replace", id: "allowed-boundary", html: "<section>Updated</section>" }]
     });
   });
+
+  it("passes boundary html snapshots to refresh handlers", async () => {
+    const refresh = vi.fn(input => ({
+      patches: [{ type: "replace" as const, id: "allowed-boundary", html: String(input.boundaryHtml ?? "") }]
+    }));
+    const result = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "refresh",
+        id: "allowed-boundary",
+        boundaryHtml: "<p>Previous</p>"
+      }
+    }, context({
+      refreshBoundaries: {
+        "allowed-boundary": refresh
+      }
+    }));
+
+    expect(result.status).toBe(200);
+    expect(refresh).toHaveBeenCalledWith(expect.objectContaining({
+      boundaryHtml: "<p>Previous</p>"
+    }), expect.any(Object));
+  });
 });
