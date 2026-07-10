@@ -37,7 +37,16 @@ describe("@exact/server", () => {
     const manifest = createExactServerManifest({
       version: 1,
       serverActions: {
-        serverTask: { id: "serverTask", componentId: "Page", taskId: "task-1", placement: "server" },
+        serverTask: {
+          id: "serverTask",
+          componentId: "Page",
+          taskId: "task-1",
+          placement: "server",
+          stateContract: {
+            reads: [{ path: "project.id", kind: "read", confidence: "exact" }],
+            writes: [{ path: "project.title", kind: "write", confidence: "exact" }]
+          }
+        },
         sharedTask: { id: "sharedTask", componentId: "Page", taskId: "task-2", placement: "isomorphic" },
         clientTask: { id: "clientTask", componentId: "Widget", taskId: "task-3", placement: "client" }
       },
@@ -51,7 +60,16 @@ describe("@exact/server", () => {
       version: 1,
       endpoint: "/__exact",
       actions: {
-        serverTask: { id: "serverTask", componentId: "Page", taskId: "task-1", placement: "server" },
+        serverTask: {
+          id: "serverTask",
+          componentId: "Page",
+          taskId: "task-1",
+          placement: "server",
+          stateContract: {
+            reads: [{ path: "project.id", kind: "read", confidence: "exact" }],
+            writes: [{ path: "project.title", kind: "write", confidence: "exact" }]
+          }
+        },
         sharedTask: { id: "sharedTask", componentId: "Page", taskId: "task-2", placement: "isomorphic" }
       },
       boundaries: {
@@ -79,6 +97,53 @@ describe("@exact/server", () => {
 
     expect(denied.status).toBe(404);
     expect(JSON.parse(denied.body)).toEqual({ error: "not_found" });
+  });
+
+  it("rejects action requests missing exact state contract reads", async () => {
+    const withState = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "action",
+        id: "allowed-action",
+        payload: { title: "Ready" },
+        state: { project: { id: "p1" } }
+      }
+    }, context({
+      manifest: {
+        version: 1,
+        actions: {
+          "allowed-action": {
+            id: "allowed-action",
+            placement: "server",
+            stateContract: {
+              reads: [{ path: "project.id", kind: "read", confidence: "exact" }]
+            }
+          }
+        }
+      }
+    }));
+    expect(withState.status).toBe(200);
+
+    const missingState = await handleExactRequest({
+      method: "POST",
+      body: { type: "action", id: "allowed-action", state: { project: {} } }
+    }, context({
+      manifest: {
+        version: 1,
+        actions: {
+          "allowed-action": {
+            id: "allowed-action",
+            placement: "server",
+            stateContract: {
+              reads: [{ path: "project.id", kind: "read", confidence: "exact" }]
+            }
+          }
+        }
+      }
+    }));
+
+    expect(missingState.status).toBe(400);
+    expect(JSON.parse(missingState.body)).toEqual({ error: "bad_request" });
   });
 
   it("does not dispatch allowlisted ids without registered server handlers", async () => {

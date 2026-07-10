@@ -53,6 +53,10 @@ export type ExactCompilerManifest = {
     componentId: string;
     taskId: string;
     placement: ExactPlacement;
+    stateContract: {
+      reads: ExactStateEffect[];
+      writes: ExactStateEffect[];
+    };
   }>;
   diagnostics: string[];
 };
@@ -161,7 +165,11 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
           id: task.id,
           componentId: component.id,
           taskId: task.id,
-          placement: task.placement
+          placement: task.placement,
+          stateContract: {
+            reads: task.reads,
+            writes: task.writes
+          }
         };
       }
     }
@@ -496,6 +504,8 @@ function analyzeTask(
           confidence: statePath(target).includes("*") ? "broad" : "exact"
         });
       }
+      visit(current.right);
+      return;
     }
 
     if (ts.isCallExpression(current)) {

@@ -14,11 +14,23 @@ export type ExactManifestAction = {
   componentId?: string;
   taskId?: string;
   placement?: "server" | "isomorphic";
+  stateContract?: ExactStateContract;
 };
 
 export type ExactManifestBoundary = {
   id: string;
   componentId?: string;
+};
+
+export type ExactStateContract = {
+  reads?: ExactStatePath[];
+  writes?: ExactStatePath[];
+};
+
+export type ExactStatePath = {
+  path: string;
+  kind: "read" | "write";
+  confidence: "exact" | "broad" | "unknown";
 };
 
 export type ExactCompilerManifestLike = {
@@ -28,6 +40,7 @@ export type ExactCompilerManifestLike = {
     componentId?: string;
     taskId?: string;
     placement?: "server" | "isomorphic" | "client" | "unknown";
+    stateContract?: ExactStateContract;
   }>;
   components?: readonly {
     id: string;
@@ -96,7 +109,8 @@ export function createExactServerManifest(
       id: action.id,
       componentId: action.componentId,
       taskId: action.taskId,
-      placement: action.placement
+      placement: action.placement,
+      stateContract: action.stateContract
     };
   }
 
@@ -139,6 +153,12 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
   if (!allowed) {
     logReject(context, "rejected unknown exact invocation id");
     return jsonResponse(404, { error: "not_found" });
+  }
+
+  const action = input.type === "action" ? context.manifest.actions?.[input.id] : undefined;
+  if (action?.stateContract && !stateMatchesContract(input.state, action.stateContract)) {
+    logReject(context, "rejected exact invocation with mismatched state contract");
+    return jsonResponse(400, { error: "bad_request" });
   }
 
   if (context.authorize && !await context.authorize(request, input)) {
@@ -291,6 +311,25 @@ function isPatchSafe(patch: unknown): patch is ExactPatch {
     default:
       return false;
   }
+}
+
+function stateMatchesContract(state: unknown, contract: ExactStateContract): boolean {
+  for (const read of contract.reads ?? []) {
+    if (read.kind !== "read" || read.confidence !== "exact") continue;
+    if (!hasStatePath(state, read.path)) return false;
+  }
+  return true;
+}
+
+function hasStatePath(value: unknown, path: string): boolean {
+  if (path === "*") return value !== undefined;
+  let cursor = value;
+  for (const segment of path.split(".")) {
+    if (!cursor || typeof cursor !== "object" || Array.isArray(cursor)) return false;
+    if (!Object.prototype.hasOwnProperty.call(cursor, segment)) return false;
+    cursor = (cursor as Record<string, unknown>)[segment];
+  }
+  return true;
 }
 
 function isJsonSafe(value: unknown, seen = new Set<object>()): boolean {

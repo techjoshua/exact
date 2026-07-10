@@ -52,6 +52,11 @@ describe("@exact/compiler", () => {
       kind: "write",
       confidence: "exact"
     });
+    expect(component.tasks[0]!.reads).toEqual([]);
+    expect(Object.values(manifest.serverActions)[0]!.stateContract).toMatchObject({
+      reads: [],
+      writes: [{ path: "project", kind: "write", confidence: "exact" }]
+    });
     expect(component.tasks[1]!.diagnostics).toContain("task writes component state and references browser-only globals; classify as client and split at this boundary");
     expect(Object.keys(manifest.serverActions)).toEqual([component.tasks[0]!.id]);
   });
