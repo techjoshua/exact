@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   analyzeSource,
+  createClientIslandRegistryEntries,
   compileFile,
   compileFileArtifacts,
   compileProject,
@@ -397,6 +398,38 @@ describe("@exact/compiler", () => {
         default: "./dist/components/page.exact.client.ts"
       }
     });
+  });
+
+  it("creates client island registry entries for generated client artifacts", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-island-registry-"));
+    const input = path.join(root, "src", "panel.tsx");
+    const outDir = path.join(root, "dist");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, `
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ count: number }>) {
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
+      }
+    `);
+
+    const result = await compileFileArtifacts(input, {
+      outDir,
+      rootDir: path.join(root, "src")
+    });
+
+    expect(createClientIslandRegistryEntries([result], {
+      rootDir: root
+    })).toEqual([{
+      id: expect.any(String),
+      name: "Panel_ExactClient_1",
+      exportName: "Panel_ExactClient_1",
+      module: "./dist/panel.exact.client.ts",
+      componentId: result.manifest.components[0]!.id
+    }]);
   });
 
   it("emits server boundary stubs for pure client components", async () => {

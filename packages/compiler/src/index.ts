@@ -149,6 +149,18 @@ export type PackageExportEntry = {
   [condition: string]: string;
 };
 
+export type ClientIslandRegistryOptions = {
+  rootDir?: string;
+};
+
+export type ClientIslandRegistryEntry = {
+  id: string;
+  name: string;
+  exportName: string;
+  module: string;
+  componentId?: string;
+};
+
 const helperModule = "@exact/core";
 const elementHelper = "__exactVNode";
 const fragmentHelper = "__exactFragment";
@@ -379,6 +391,29 @@ export function createPackageExportMap(
   return output;
 }
 
+export function createClientIslandRegistryEntries(
+  results: readonly CompileArtifactsResult[],
+  options: ClientIslandRegistryOptions = {}
+): ClientIslandRegistryEntry[] {
+  const entries: ClientIslandRegistryEntry[] = [];
+
+  for (const result of results) {
+    const modulePath = clientRegistryModulePath(result.clientFile, options.rootDir ?? path.dirname(result.manifestFile));
+    for (const symbol of result.manifest.symbols) {
+      if (symbol.role !== "client-island" || symbol.target !== "client" || !symbol.exportName) continue;
+      entries.push({
+        id: symbol.id,
+        name: symbol.generatedName,
+        exportName: symbol.exportName,
+        module: modulePath,
+        componentId: symbol.componentId
+      });
+    }
+  }
+
+  return entries.sort((left, right) => left.id.localeCompare(right.id));
+}
+
 function packageExportSpecifier(inputFile: string, sourceRoot: string): string {
   const relative = slashPath(path.relative(sourceRoot, inputFile)).replace(/\.[jt]sx$/i, "");
   return relative ? `./${relative}` : ".";
@@ -386,6 +421,12 @@ function packageExportSpecifier(inputFile: string, sourceRoot: string): string {
 
 function packageExportTarget(file: string, packageRoot: string): string {
   return `./${slashPath(path.relative(packageRoot, file))}`;
+}
+
+function clientRegistryModulePath(file: string, rootDir: string): string {
+  const relative = slashPath(path.relative(rootDir, file));
+  if (relative.startsWith(".")) return relative;
+  return `./${relative}`;
 }
 
 export function preprocessPropPunning(source: string): string {
