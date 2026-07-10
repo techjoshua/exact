@@ -65,6 +65,20 @@ export type KeyedListSnapshotItem = {
   html: string;
 };
 
+type ParsedHtmlNode = ParsedHtmlElement | ParsedHtmlText;
+
+type ParsedHtmlElement = {
+  kind: "element";
+  tagName: string;
+  attributes: Map<string, string>;
+  children: ParsedHtmlNode[];
+};
+
+type ParsedHtmlText = {
+  kind: "text";
+  value: string;
+};
+
 type SsrContext = {
   markers: boolean;
   nextId: number;
@@ -186,6 +200,9 @@ export function diffBoundaryHtml(
     return [boundaryPatch(boundaryId, nextHtml, "text")];
   }
   if (strategy === "element") {
+    const exactPatches = diffExactElementHtml(previousHtml, nextHtml);
+    if (exactPatches) return exactPatches;
+
     const previous = parseSimpleElement(previousHtml);
     const next = parseSimpleElement(nextHtml);
     if (previous && next && previous.tagName === next.tagName) {
@@ -210,6 +227,45 @@ export function diffBoundaryHtml(
     }
   }
   return [boundaryPatch(boundaryId, nextHtml, "replace")];
+}
+
+function diffExactElementHtml(previousHtml: string, nextHtml: string): ExactPatch[] | undefined {
+  const previousTree = parseHtmlNodes(previousHtml);
+  const nextTree = parseHtmlNodes(nextHtml);
+  if (!previousTree || !nextTree) return undefined;
+
+  const previousById = collectExactElements(previousTree);
+  const nextById = collectExactElements(nextTree);
+  if (!previousById.size && !nextById.size) return undefined;
+  if (!sameKeys(previousById, nextById)) return undefined;
+
+  const patches: ExactPatch[] = [];
+  for (const [id, next] of nextById) {
+    const previous = previousById.get(id);
+    if (!previous || previous.tagName !== next.tagName) return undefined;
+
+    for (const [name, value] of next.attributes) {
+      if (name === "data-exact-id") continue;
+      if (previous.attributes.get(name) !== value) {
+        patches.push({ type: "prop", id, name, value });
+      }
+    }
+    for (const name of previous.attributes.keys()) {
+      if (name === "data-exact-id") continue;
+      if (!next.attributes.has(name)) {
+        patches.push({ type: "prop", id, name, value: null });
+      }
+    }
+
+    const previousText = textOnlyContent(previous);
+    const nextText = textOnlyContent(next);
+    if (previousText !== undefined || nextText !== undefined) {
+      if (previousText === undefined || nextText === undefined) return undefined;
+      if (previousText !== nextText) patches.push({ type: "text", id, value: nextText });
+    }
+  }
+
+  return normalizedHtmlShape(previousTree) === normalizedHtmlShape(nextTree) ? patches : undefined;
 }
 
 export function diffKeyedListItems(
@@ -256,6 +312,87 @@ export function diffKeyedListItems(
   }
 
   return patches;
+}
+
+function parseHtmlNodes(html: string): ParsedHtmlNode[] | undefined {
+  const root: ParsedHtmlElement = { kind: "element", tagName: "", attributes: new Map(), children: [] };
+  const stack: ParsedHtmlElement[] = [root];
+  const tokenPattern = /<!--[\s\S]*?-->|<\/?[A-Za-z][A-Za-z0-9:-]*(?:\s+[^<>]*)?>|[^<]+/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = tokenPattern.exec(html))) {
+    if (match.index !== lastIndex) return undefined;
+    const token = match[0];
+    lastIndex = tokenPattern.lastIndex;
+    if (token.startsWith("<!--")) continue;
+
+    const parent = stack[stack.length - 1]!;
+    if (token.startsWith("</")) {
+      const tagName = token.slice(2, -1).trim().toLowerCase();
+      const current = stack.pop();
+      if (!current || current === root || current.tagName !== tagName) return undefined;
+      continue;
+    }
+
+    if (token.startsWith("<")) {
+      const start = /^<([A-Za-z][A-Za-z0-9:-]*)([^<>]*?)(\/?)>$/.exec(token);
+      if (!start) return undefined;
+      const tagName = start[1]!.toLowerCase();
+      const attributes = parseSimpleAttributes(start[2] ?? "");
+      if (!attributes) return undefined;
+      const element: ParsedHtmlElement = { kind: "element", tagName, attributes, children: [] };
+      parent.children.push(element);
+      if (!start[3] && !voidElements.has(tagName)) stack.push(element);
+      continue;
+    }
+
+    parent.children.push({ kind: "text", value: decodeEscapedText(token) });
+  }
+
+  if (lastIndex !== html.length || stack.length !== 1) return undefined;
+  return root.children;
+}
+
+function collectExactElements(nodes: readonly ParsedHtmlNode[], output = new Map<string, ParsedHtmlElement>()): Map<string, ParsedHtmlElement> {
+  for (const node of nodes) {
+    if (node.kind !== "element") continue;
+    const id = node.attributes.get("data-exact-id");
+    if (id) output.set(id, node);
+    collectExactElements(node.children, output);
+  }
+  return output;
+}
+
+function sameKeys<T>(left: Map<string, T>, right: Map<string, T>): boolean {
+  if (left.size !== right.size) return false;
+  for (const key of left.keys()) {
+    if (!right.has(key)) return false;
+  }
+  return true;
+}
+
+function textOnlyContent(element: ParsedHtmlElement): string | undefined {
+  let text = "";
+  for (const child of element.children) {
+    if (child.kind !== "text") return undefined;
+    text += child.value;
+  }
+  return text;
+}
+
+function normalizedHtmlShape(nodes: readonly ParsedHtmlNode[]): string {
+  return nodes.map(node => {
+    if (node.kind === "text") return `t:${node.value}`;
+    const id = node.attributes.get("data-exact-id");
+    const attrs = id ? `#${id}` : Array.from(node.attributes)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([name, value]) => `${name}=${value}`)
+      .join(",");
+    const childShape = id && textOnlyContent(node) !== undefined
+      ? "text"
+      : normalizedHtmlShape(node.children);
+    return `e:${node.tagName}[${attrs}](${childShape})`;
+  }).join("");
 }
 
 function boundaryPatch(boundaryId: string, html: string, strategy: BoundaryRefreshOptions["patchStrategy"]): ExactPatch {

@@ -366,6 +366,33 @@ describe("@exact/ssr", () => {
     ]);
   });
 
+  it("creates patches for nested compiler assigned exact ids", () => {
+    expect(diffBoundaryHtml(
+      "profile",
+      "<section data-exact-id=\"root\"><h1 data-exact-id=\"title\" class=\"old\">Loading</h1><p data-exact-id=\"body\">Draft</p></section>",
+      "<section data-exact-id=\"root\"><h1 data-exact-id=\"title\" class=\"new\">Ready</h1><p data-exact-id=\"body\">Draft</p></section>",
+      "element"
+    )).toEqual([
+      { type: "prop", id: "title", name: "class", value: "new" },
+      { type: "text", id: "title", value: "Ready" }
+    ]);
+  });
+
+  it("falls back when nested exact id structure changes", () => {
+    expect(diffBoundaryHtml(
+      "profile",
+      "<section data-exact-id=\"root\"><h1 data-exact-id=\"title\">Loading</h1></section>",
+      "<section data-exact-id=\"root\"><h1 data-exact-id=\"title\">Ready</h1><p data-exact-id=\"body\">New</p></section>",
+      "element"
+    )).toEqual([
+      {
+        type: "replace",
+        id: "profile",
+        html: "<section data-exact-id=\"root\"><h1 data-exact-id=\"title\">Ready</h1><p data-exact-id=\"body\">New</p></section>"
+      }
+    ]);
+  });
+
   it("falls back to replacement patches when element strategy shape changes", async () => {
     const response = await handleExactRequest({
       method: "POST",
