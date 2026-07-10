@@ -379,7 +379,7 @@ describe("@exact/compiler", () => {
     await writeFile(input, `
       export function Panel(this: Component<{ count: number }>) {
         this.state.count = 0;
-        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
+        return () => <button className="primary" disabled onClick={() => this.state.count++}>{this.state.count}</button>;
       }
     `);
 
@@ -403,6 +403,8 @@ describe("@exact/compiler", () => {
     expect(server).toContain("createServerBoundary as");
     expect(server).toContain("Panel_ExactClient_1");
     expect(server).toContain(island.id);
+    expect(server).toContain("className: \"primary\"");
+    expect(server).toContain("disabled: true");
     expect(server).not.toContain("onClick");
   });
 

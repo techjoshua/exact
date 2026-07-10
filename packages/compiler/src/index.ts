@@ -413,7 +413,7 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
         sawJsx = true;
         if (target === "server" && jsxElementIsClientIsland(node.openingElement.attributes)) {
           sawBoundary = true;
-          return createClientIslandBoundaryCall(sourceFile, context, helpers, componentStack[componentStack.length - 1], islandCounts);
+          return createClientIslandBoundaryCall(sourceFile, context, helpers, componentStack[componentStack.length - 1], islandCounts, node.openingElement.attributes);
         }
         return transformJsxElement(node, context, visitor, helpers);
       }
@@ -421,7 +421,7 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
         sawJsx = true;
         if (target === "server" && jsxElementIsClientIsland(node.attributes)) {
           sawBoundary = true;
-          return createClientIslandBoundaryCall(sourceFile, context, helpers, componentStack[componentStack.length - 1], islandCounts);
+          return createClientIslandBoundaryCall(sourceFile, context, helpers, componentStack[componentStack.length - 1], islandCounts, node.attributes);
         }
         return transformJsxSelfClosingElement(node, context, visitor, helpers);
       }
@@ -891,7 +891,8 @@ function createClientIslandBoundaryCall(
   context: ts.TransformationContext,
   helpers: HelperNames,
   componentName: string | undefined,
-  islandCounts: Map<string, number>
+  islandCounts: Map<string, number>,
+  attributes: ts.JsxAttributes
 ): ts.Expression {
   const factory = context.factory;
   const owner = componentName ?? "Anonymous";
@@ -902,8 +903,26 @@ function createClientIslandBoundaryCall(
   return factory.createCallExpression(factory.createIdentifier(helpers.boundary), undefined, [
     factory.createStringLiteral(id),
     factory.createStringLiteral(generatedName),
-    factory.createObjectLiteralExpression([], false)
+    staticIslandProps(context, attributes)
   ]);
+}
+
+function staticIslandProps(context: ts.TransformationContext, attributes: ts.JsxAttributes): ts.ObjectLiteralExpression {
+  const props: ts.PropertyAssignment[] = [];
+  const factory = context.factory;
+  for (const attribute of attributes.properties) {
+    if (ts.isJsxSpreadAttribute(attribute)) continue;
+    const name = attribute.name.getText();
+    if (/^on[A-Z]/.test(name) || name === "ref") continue;
+    if (!attribute.initializer) {
+      props.push(factory.createPropertyAssignment(propName(name), factory.createTrue()));
+      continue;
+    }
+    if (ts.isStringLiteral(attribute.initializer)) {
+      props.push(factory.createPropertyAssignment(propName(name), factory.createStringLiteral(attribute.initializer.text)));
+    }
+  }
+  return factory.createObjectLiteralExpression(props, false);
 }
 
 function callElement(
