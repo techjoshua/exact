@@ -7,6 +7,7 @@
     { "path": "./packages/dom" },
     { "path": "./packages/compiler" },
     { "path": "./packages/vite-plugin" },
-    { "path": "./apps/kanban" }
+    { "path": "./apps/kanban" },
+    { "path": "./apps/workbench" }
   ]
 }

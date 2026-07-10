@@ -15,7 +15,7 @@ import {
   type Logger
 } from "@exact/core";
 import { flushSync } from "@exact/reactive";
-import { jsx } from "@exact/jsx-runtime";
+import { jsx } from "@exact/jsx";
 import { render } from "./index.js";
 
 describe("eXact conformance", () => {

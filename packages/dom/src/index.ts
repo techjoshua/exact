@@ -30,11 +30,19 @@ import {
   unwrap,
   watch
 } from "@exact/core";
-import { computed, flushSync, type ReactiveValue } from "@exact/reactive";
+import {
+  computed,
+  createEffectScope,
+  flushSync,
+  withEffectScope,
+  type EffectScope,
+  type ReactiveValue
+} from "@exact/reactive";
 
 type Mounted = {
   vnode: VNode;
   dom: Node;
+  scope: EffectScope;
   children: Mounted[];
   instance?: ComponentInstance<any>;
   delegatedEvents?: Map<string, EventListener>;
@@ -81,7 +89,7 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 
   root.mounted = patch(root, container, root.mounted, createVNode(root.boundary, {
     version: root.version
-  }), undefined);
+  }), undefined, undefined);
   flushSync();
 }
 
@@ -117,34 +125,38 @@ function createRootErrorView(errors: ErrorReport[]): VNode {
   );
 }
 
-function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>): Mounted {
+function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>, parentScope?: EffectScope): Mounted {
+  const scope = createEffectScope(parentScope);
   if (isCellVNode(vnode)) {
     const marker = document.createComment("exact-cell");
-    const mounted: Mounted = { vnode, dom: marker, children: [] };
-    mounted.children = mountDetachedChildren(root, [getCellVNode(vnode)], parentInstance);
+    const mounted: Mounted = { vnode, dom: marker, scope, children: [] };
+    mounted.children = mountDetachedChildren(root, [getCellVNode(vnode)], parentInstance, mounted.scope);
     return mounted;
   }
 
   if (vnode.type === Text) {
     const node = document.createTextNode("");
-    const mounted: Mounted = { vnode, dom: node, children: [] };
+    const mounted: Mounted = { vnode, dom: node, scope, children: [] };
     bindText(mounted, vnode.props.value);
     return mounted;
   }
 
   if (vnode.type === Fragment) {
     const marker = document.createComment("exact-fragment");
-    const mounted: Mounted = { vnode, dom: marker, children: [] };
+    const mounted: Mounted = { vnode, dom: marker, scope, children: [] };
     const list = getListBinding(vnode);
     mounted.children = list
-      ? mountDetachedChildren(root, materializeList(list), parentInstance)
-      : mountDetachedChildren(root, vnode.children, parentInstance);
+      ? mountDetachedChildren(root, materializeList(list), parentInstance, mounted.scope)
+      : mountDetachedChildren(root, vnode.children, parentInstance, mounted.scope);
     if (list) {
       mounted.stop = watch(() => {
         const nextChildren = materializeList(list);
         const parent = marker.parentNode;
         if (!parent) return;
-        mounted.children = patchChildren(root, parent, mounted.children, nextChildren, parentInstance, afterMountedChildren(mounted));
+        mounted.children = patchChildren(root, parent, mounted.children, nextChildren, parentInstance, mounted.scope, afterMountedChildren(mounted));
+      }, undefined, {
+        scope: mounted.scope,
+        onSchedule: () => stopRemovedListChildren(mounted, list)
       });
     }
     return mounted;
@@ -152,9 +164,9 @@ function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>
 
   if (vnode.type === Dynamic) {
     const marker = document.createComment("exact-dynamic");
-    const mounted: Mounted = { vnode, dom: marker, children: [] };
+    const mounted: Mounted = { vnode, dom: marker, scope, children: [] };
     const value = vnode.props.value;
-    mounted.children = mountDetachedChildren(root, normalizeRenderResult(unwrap(value) as Child | Child[]), parentInstance);
+    mounted.children = mountDetachedChildren(root, normalizeRenderResult(unwrap(value) as Child | Child[]), parentInstance, mounted.scope);
     mounted.stop = watch(() => {
       const nextChildren = normalizeRenderResult(unwrap(value) as Child | Child[]);
       const parent = marker.parentNode;
@@ -165,24 +177,28 @@ function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>
         mounted.children,
         nextChildren,
         parentInstance,
+        mounted.scope,
         afterMountedChildren(mounted)
       );
+    }, undefined, {
+      scope: mounted.scope,
+      onSchedule: () => stopReplacedChildren(mounted, normalizeRenderResult(unwrap(value) as Child | Child[]))
     });
     return mounted;
   }
 
   if (typeof vnode.type === "function") {
     const wrapper = document.createComment("exact-component");
-    const mounted: Mounted = { vnode, dom: wrapper, children: [] };
+    const mounted: Mounted = { vnode, dom: wrapper, scope, children: [] };
     try {
-      const instance = createComponentInstance(
-        vnode.type as ComponentFunction<any, Record<string, unknown>>,
-        getComponentProps(vnode),
-        parentInstance
-      );
+      const instance = withEffectScope(mounted.scope, () => createComponentInstance(
+          vnode.type as ComponentFunction<any, Record<string, unknown>>,
+          getComponentProps(vnode),
+          parentInstance
+        ));
       mounted.instance = instance;
-      const rendered = renderInstance(instance, () => rerenderComponent(root, mounted));
-      mounted.children = mountDetachedChildren(root, rendered, instance);
+      const rendered = withEffectScope(mounted.scope, () => renderInstance(instance, () => rerenderComponent(root, mounted)));
+      mounted.children = mountDetachedChildren(root, rendered, instance, mounted.scope);
       instance.markMounted();
     } catch (error) {
       const fallback = handleComponentError(
@@ -190,17 +206,17 @@ function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>
         createErrorReport(error, "construct", parentInstance, describeVNodeType(vnode.type))
       );
       mounted.children = fallback
-        ? mountDetachedChildren(root, normalizeRenderResult(fallback()), parentInstance)
+        ? mountDetachedChildren(root, normalizeRenderResult(fallback()), parentInstance, mounted.scope)
         : [];
     }
     return mounted;
   }
 
   const element = document.createElement(vnode.type as string);
-  const mounted: Mounted = { vnode, dom: element, children: [] };
+  const mounted: Mounted = { vnode, dom: element, scope, children: [] };
   if (parentInstance) elementOwners.set(element, parentInstance);
-  mounted.children = mountChildren(root, element, vnode.children, parentInstance);
-  updateProps(root, element, {}, vnode.props);
+  mounted.children = mountChildren(root, element, vnode.children, parentInstance, mounted.scope);
+  updateProps(root, element, {}, vnode.props, mounted.scope);
   return mounted;
 }
 
@@ -209,10 +225,11 @@ function patch(
   parent: Node,
   mounted: Mounted | undefined,
   next: VNode,
-  parentInstance?: ComponentInstance<any>
+  parentInstance?: ComponentInstance<any>,
+  parentScope?: EffectScope
 ): Mounted {
   if (!mounted) {
-    const created = mount(root, next, parentInstance);
+    const created = mount(root, next, parentInstance, parentScope);
     placeMountedBefore(root, parent, created, null);
     return created;
   }
@@ -225,7 +242,7 @@ function patch(
       nextKey: next.key ?? "none",
       parent: describeNode(parent)
     });
-    const replacement = mount(root, next, parentInstance);
+    const replacement = mount(root, next, parentInstance, parentScope);
     placeMountedBefore(root, parent, replacement, mounted.dom);
     unmountMounted(mounted);
     removeMountedNodes(parent, mounted);
@@ -237,9 +254,9 @@ function patch(
     const nextChild = getCellVNode(next);
     const previousChild = mounted.children[0];
     if (previousChild) {
-      mounted.children = [patch(root, parent, previousChild, nextChild, parentInstance)];
+      mounted.children = [patch(root, parent, previousChild, nextChild, parentInstance, mounted.scope)];
     } else {
-      const child = mount(root, nextChild, parentInstance);
+      const child = mount(root, nextChild, parentInstance, mounted.scope);
       mounted.children = [child];
       placeMountedBefore(root, parent, child, mounted.dom.nextSibling);
     }
@@ -265,6 +282,7 @@ function patch(
         mounted.children,
         nextList ? materializeList(nextList) : next.children,
         parentInstance,
+        mounted.scope,
         afterMountedChildren(mounted)
       );
       if (nextList) {
@@ -275,12 +293,16 @@ function patch(
             mounted.children,
             materializeList(nextList),
             parentInstance,
+            mounted.scope,
             afterMountedChildren(mounted)
           );
+        }, undefined, {
+          scope: mounted.scope,
+          onSchedule: () => stopRemovedListChildren(mounted, nextList)
         });
       }
     } else if (!nextList) {
-      mounted.children = patchChildren(root, parent, mounted.children, next.children, parentInstance, afterMountedChildren(mounted));
+      mounted.children = patchChildren(root, parent, mounted.children, next.children, parentInstance, mounted.scope, afterMountedChildren(mounted));
     }
     return mounted;
   }
@@ -295,6 +317,7 @@ function patch(
       mounted.children,
       normalizeRenderResult(unwrap(value) as Child | Child[]),
       parentInstance,
+      mounted.scope,
       afterMountedChildren(mounted)
     );
     mounted.stop = watch(() => {
@@ -305,8 +328,12 @@ function patch(
         mounted.children,
         nextChildren,
         parentInstance,
+        mounted.scope,
         afterMountedChildren(mounted)
       );
+    }, undefined, {
+      scope: mounted.scope,
+      onSchedule: () => stopReplacedChildren(mounted, normalizeRenderResult(unwrap(value) as Child | Child[]))
     });
     return mounted;
   }
@@ -319,27 +346,27 @@ function patch(
 
   const previousProps = mounted.vnode.props;
   mounted.vnode = next;
-  mounted.children = patchChildren(root, mounted.dom, mounted.children, next.children, parentInstance);
-  updateProps(root, mounted.dom as Element, previousProps, next.props);
+  mounted.children = patchChildren(root, mounted.dom, mounted.children, next.children, parentInstance, mounted.scope);
+  updateProps(root, mounted.dom as Element, previousProps, next.props, mounted.scope);
   return mounted;
 }
 
-function mountDetachedChildren(root: Root, children: Child[], parentInstance?: ComponentInstance<any>): Mounted[] {
+function mountDetachedChildren(root: Root, children: Child[], parentInstance?: ComponentInstance<any>, parentScope?: EffectScope): Mounted[] {
   const mounted: Mounted[] = [];
   for (const child of children) {
     const vnode = childToVNode(child);
     if (!vnode) continue;
-    mounted.push(mount(root, vnode, parentInstance));
+    mounted.push(mount(root, vnode, parentInstance, parentScope));
   }
   return mounted;
 }
 
-function mountChildren(root: Root, parent: Node, children: Child[], parentInstance?: ComponentInstance<any>): Mounted[] {
+function mountChildren(root: Root, parent: Node, children: Child[], parentInstance?: ComponentInstance<any>, parentScope?: EffectScope): Mounted[] {
   const mounted: Mounted[] = [];
   for (const child of children) {
     const vnode = childToVNode(child);
     if (!vnode) continue;
-    const childMounted = mount(root, vnode, parentInstance);
+    const childMounted = mount(root, vnode, parentInstance, parentScope);
     mounted.push(childMounted);
     placeMountedBefore(root, parent, childMounted, null);
   }
@@ -352,6 +379,7 @@ function patchChildren(
   oldChildren: Mounted[],
   nextChildren: Child[],
   parentInstance?: ComponentInstance<any>,
+  parentScope?: EffectScope,
   before?: Node | null
 ): Mounted[] {
   domDebug(root, "patch children", {
@@ -360,7 +388,7 @@ function patchChildren(
     nextCount: nextChildren.length,
     before: describeNode(before)
   });
-  return preserveFocus(root, () => patchChildrenInner(root, parent, oldChildren, nextChildren, parentInstance, before));
+  return preserveFocus(root, () => patchChildrenInner(root, parent, oldChildren, nextChildren, parentInstance, parentScope, before));
 }
 
 function patchChildrenInner(
@@ -369,6 +397,7 @@ function patchChildrenInner(
   oldChildren: Mounted[],
   nextChildren: Child[],
   parentInstance?: ComponentInstance<any>,
+  parentScope?: EffectScope,
   before?: Node | null
 ): Mounted[] {
   const oldByKey = new Map<string, Mounted>();
@@ -390,7 +419,7 @@ function patchChildrenInner(
     const vnode = nextVNodes[index]!;
     const old = vnode.key ? oldByKey.get(vnode.key) : unkeyed.pop();
     if (old?.vnode.key) oldByKey.delete(old.vnode.key);
-    const patched = patch(root, parent, old, vnode, parentInstance);
+    const patched = patch(root, parent, old, vnode, parentInstance, parentScope);
     nextMounted.unshift(patched);
     placeMountedBefore(root, parent, patched, cursor);
     cursor = patched.dom;
@@ -425,12 +454,24 @@ function preserveFocus<T>(root: Root, work: () => T): T {
 
 function rerenderComponent(root: Root, mounted: Mounted): void {
   if (!mounted.instance) return;
+  if (!mounted.scope.active) return;
   domDebug(root, "rerender component", {
     type: describeVNodeType(mounted.vnode.type),
     key: mounted.vnode.key ?? "none"
   });
-  const nextChildren = normalizeRenderResult(renderInstance(mounted.instance, () => rerenderComponent(root, mounted)));
-  mounted.children = patchChildren(root, mounted.dom.parentNode ?? root.container, mounted.children, nextChildren, mounted.instance, afterMountedChildren(mounted));
+  const nextChildren = withEffectScope(
+    mounted.scope,
+    () => normalizeRenderResult(renderInstance(mounted.instance!, () => rerenderComponent(root, mounted)))
+  );
+  mounted.children = patchChildren(
+    root,
+    mounted.dom.parentNode ?? root.container,
+    mounted.children,
+    nextChildren,
+    mounted.instance,
+    mounted.scope,
+    afterMountedChildren(mounted)
+  );
 }
 
 function bindText(mounted: Mounted, value: unknown): void {
@@ -441,22 +482,22 @@ function bindText(mounted: Mounted, value: unknown): void {
     if (node.data !== text) {
       node.data = text;
     }
-  });
+  }, undefined, { scope: mounted.scope });
 }
 
-function updateProps(root: Root, element: Element, previous: Record<string, unknown>, next: Record<string, unknown>): void {
+function updateProps(root: Root, element: Element, previous: Record<string, unknown>, next: Record<string, unknown>, scope: EffectScope): void {
   preserveFocus(root, () => {
     for (const key of Object.keys(previous)) {
-      if (!(key in next)) setProp(root, element, key, undefined, previous[key]);
+      if (!(key in next)) setProp(root, element, key, undefined, previous[key], scope);
     }
 
     for (const [key, value] of Object.entries(next)) {
-      if (!Object.is(previous[key], value)) setProp(root, element, key, value, previous[key]);
+      if (!Object.is(previous[key], value)) setProp(root, element, key, value, previous[key], scope);
     }
   });
 }
 
-function setProp(root: Root, element: Element, key: string, value: unknown, previous?: unknown): void {
+function setProp(root: Root, element: Element, key: string, value: unknown, previous: unknown, scope: EffectScope): void {
   if (key === "children") return;
 
   clearPropBinding(element, key);
@@ -490,7 +531,7 @@ function setProp(root: Root, element: Element, key: string, value: unknown, prev
     if (previous !== value) {
       (element as HTMLElement).removeAttribute("style");
     }
-    const stop = bindStyle(element as HTMLElement, value);
+    const stop = bindStyle(element as HTMLElement, value, scope);
     setPropBinding(element, key, stop);
     return;
   }
@@ -504,12 +545,12 @@ function setProp(root: Root, element: Element, key: string, value: unknown, prev
     }
 
     setDomProp(root, element, key, key === "class" || key === "className" ? normalizeClass(actual) : actual);
-  }));
+  }), undefined, { scope });
 
   setPropBinding(element, key, stop);
 }
 
-function bindStyle(element: HTMLElement, value: unknown): StopHandle {
+function bindStyle(element: HTMLElement, value: unknown, scope: EffectScope): StopHandle {
   let previousNames = new Set<string>();
   let previousCssText: string | undefined;
   const previousValues = new Map<string, string>();
@@ -573,7 +614,7 @@ function bindStyle(element: HTMLElement, value: unknown): StopHandle {
       }
     }
     previousNames = nextNames;
-  });
+  }, undefined, { scope });
 }
 
 export type CssValue = string | number | ReactiveValue<string>;
@@ -708,7 +749,7 @@ function ensureDelegated(root: Root, type: string): void {
         const current = cursor;
         preserveFocus(root, () => {
           try {
-            handler.call(current, event);
+            callDelegatedHandler(handler, current, event);
           } catch (error) {
             const owner = findOwnerInstance(current);
             handleComponentError(owner, createErrorReport(error, "event", owner, type));
@@ -723,6 +764,23 @@ function ensureDelegated(root: Root, type: string): void {
 
   root.container.addEventListener(type, listener);
   root.delegated.set(type, listener);
+}
+
+function callDelegatedHandler(handler: EventListener, current: Element, event: Event): void {
+  const ownDescriptor = Object.getOwnPropertyDescriptor(event, "currentTarget");
+  Object.defineProperty(event, "currentTarget", {
+    configurable: true,
+    value: current
+  });
+  try {
+    handler.call(current, event);
+  } finally {
+    if (ownDescriptor) {
+      Object.defineProperty(event, "currentTarget", ownDescriptor);
+    } else {
+      delete (event as { currentTarget?: EventTarget | null }).currentTarget;
+    }
+  }
 }
 
 function eventTargetElement(target: EventTarget | null): Element | null {
@@ -808,7 +866,44 @@ function lastMountedNode(mounted: Mounted): Node {
   return lastChild ? lastMountedNode(lastChild) : mounted.dom;
 }
 
+function stopReplacedChildren(mounted: Mounted, nextChildren: Child[]): void {
+  const nextVNodes = nextChildren
+    .map(childToVNode)
+    .filter((vnode): vnode is VNode => !!vnode);
+
+  const keyed = new Map<string, VNode>();
+  const unkeyed: VNode[] = [];
+  for (const vnode of nextVNodes) {
+    if (vnode.key) keyed.set(vnode.key, vnode);
+    else unkeyed.push(vnode);
+  }
+
+  for (const child of mounted.children) {
+    const next = child.vnode.key ? keyed.get(child.vnode.key) : unkeyed.shift();
+    if (next && canPatchMounted(child, next)) continue;
+    child.scope.stop();
+  }
+}
+
+function canPatchMounted(mounted: Mounted, next: VNode): boolean {
+  if (mounted.vnode.type !== next.type || mounted.vnode.key !== next.key) return false;
+  if (isCellVNode(next)) {
+    const previousChild = mounted.children[0];
+    return previousChild ? canPatchMounted(previousChild, getCellVNode(next)) : false;
+  }
+  return true;
+}
+
+function stopRemovedListChildren<T>(mounted: Mounted, list: ListBinding<T>): void {
+  const nextKeys = new Set(materializeList(list).map(child => child.key).filter((key): key is string => key !== undefined));
+  for (const child of mounted.children) {
+    if (child.vnode.key && nextKeys.has(child.vnode.key)) continue;
+    child.scope.stop();
+  }
+}
+
 function unmountMounted(mounted: Mounted): void {
+  mounted.scope.stop();
   for (const child of mounted.children) unmountMounted(child);
   if (mounted.instance) mounted.instance.unmount();
   mounted.stop?.();

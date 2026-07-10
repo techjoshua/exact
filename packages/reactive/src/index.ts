@@ -17,6 +17,7 @@ export type ReactiveValue<T = unknown> = {
 
 type Reaction = {
   active: boolean;
+  scope?: EffectScopeImpl;
   deps: Set<Dep>;
   run(): void;
   schedule(): void;
@@ -50,11 +51,65 @@ export type ReactiveOptions = {
 
 export type StopHandle = () => void;
 
+export type EffectScope = {
+  active: boolean;
+  stop(): void;
+};
+
+type EffectScopeImpl = EffectScope & {
+  parent?: EffectScopeImpl;
+  children: Set<EffectScopeImpl>;
+  reactions: Set<Reaction>;
+};
+
+export type WatchOptions = {
+  scope?: EffectScope;
+  onSchedule?(): void;
+};
+
+const scopeStack: EffectScopeImpl[] = [];
+
+export function createEffectScope(parent: EffectScope | undefined = currentEffectScope()): EffectScope {
+  const scope: EffectScopeImpl = {
+    active: true,
+    parent: parent as EffectScopeImpl | undefined,
+    children: new Set(),
+    reactions: new Set(),
+    stop() {
+      if (!scope.active) return;
+      scope.active = false;
+      for (const child of [...scope.children]) child.stop();
+      for (const reaction of [...scope.reactions]) reaction.stop();
+      scope.children.clear();
+      scope.reactions.clear();
+      scope.parent?.children.delete(scope);
+      scope.parent = undefined;
+    }
+  };
+  scope.parent?.children.add(scope);
+  return scope;
+}
+
+export function withEffectScope<T>(scope: EffectScope | undefined, fn: () => T): T {
+  if (!scope || !scope.active) return fn();
+  scopeStack.push(scope as EffectScopeImpl);
+  try {
+    return fn();
+  } finally {
+    scopeStack.pop();
+  }
+}
+
+function currentEffectScope(): EffectScopeImpl | undefined {
+  return scopeStack[scopeStack.length - 1];
+}
+
 export function reactive<T extends object>(value: T, options: ReactiveOptions = {}): Reactive<T> {
   return createReactive(value, options) as Reactive<T>;
 }
 
 export function computed<T>(compute: () => T): ReactiveValue<T> {
+  const scope = currentEffectScope();
   const target = {};
   const key = "value";
   let initialized = false;
@@ -77,6 +132,7 @@ export function computed<T>(compute: () => T): ReactiveValue<T> {
   };
 
   function ensure(): void {
+    if (scope && !scope.active) return;
     if (stop) return;
 
     stop = watch(
@@ -92,11 +148,13 @@ export function computed<T>(compute: () => T): ReactiveValue<T> {
 
         current = next;
       },
-      queueRecompute
+      queueRecompute,
+      { scope }
     );
   }
 
   function queueRecompute(): void {
+    if (scope && !scope.active) return;
     if (queued) return;
     queued = true;
     queuedComputations.add(recomputeAndNotify);
@@ -106,6 +164,7 @@ export function computed<T>(compute: () => T): ReactiveValue<T> {
   function recomputeAndNotify(): void {
     queued = false;
     queuedComputations.delete(recomputeAndNotify);
+    if (scope && !scope.active) return;
     stop?.();
     stop = undefined;
     const previous = initialized ? current : undefined;
@@ -127,12 +186,18 @@ export function computed<T>(compute: () => T): ReactiveValue<T> {
   } as ReactiveValue<T>;
 }
 
-export function watch(fn: () => void, scheduler?: () => void): StopHandle {
+export function watch(fn: () => void, scheduler?: () => void, options: WatchOptions = {}): StopHandle {
+  const scope = (options.scope ?? currentEffectScope()) as EffectScopeImpl | undefined;
   const reaction: Reaction = {
     active: true,
+    scope,
     deps: new Set(),
     run() {
       if (!reaction.active) return;
+      if (reaction.scope && !reaction.scope.active) {
+        reaction.stop();
+        return;
+      }
       cleanupReaction(reaction);
       reactionStack.push(reaction);
       try {
@@ -143,6 +208,11 @@ export function watch(fn: () => void, scheduler?: () => void): StopHandle {
     },
     schedule() {
       if (!reaction.active) return;
+      if (reaction.scope && !reaction.scope.active) {
+        reaction.stop();
+        return;
+      }
+      options.onSchedule?.();
       if (scheduler) {
         scheduler();
         return;
@@ -154,9 +224,11 @@ export function watch(fn: () => void, scheduler?: () => void): StopHandle {
     stop() {
       reaction.active = false;
       cleanupReaction(reaction);
+      reaction.scope?.reactions.delete(reaction);
     }
   };
 
+  scope?.reactions.add(reaction);
   reaction.run();
   return reaction.stop;
 }
@@ -253,7 +325,7 @@ export function flushSync(): void {
     flushScheduled = false;
 
     for (const reaction of reactions) {
-      if (reaction.active) reaction.run();
+      if (reaction.active && (!reaction.scope || reaction.scope.active)) reaction.run();
     }
   }
 

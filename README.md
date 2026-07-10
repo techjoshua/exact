@@ -6,7 +6,7 @@ The repository is an npm workspace monorepo. The current implementation slice co
 
 - `@exact/reactive`: reactive proxies, refs, tracking, batching, `unwrap`, `peek`, computed values, and snapshots.
 - `@exact/core`: component instances, readonly props, context, refs, tasks, lifecycle hooks, vnodes, and `this.map()`.
-- `@exact/jsx-runtime`: automatic JSX runtime entrypoints for `jsx`, `jsxs`, and `Fragment`.
+- `@exact/jsx`: TypeScript JSX entrypoints and JSX namespace types used by the compiler toolchain.
 - `@exact/dom`: browser mounting, DOM patching, delegated events, DOM refs, and keyed list reconciliation.
 - `@exact/compiler`: eXact JSX/TSX transform core for expression-preserving compiled JSX.
 - `@exact/vite-plugin`: Vite integration for the eXact compiler.
@@ -54,9 +54,9 @@ The package entrypoints are:
 - `@exact/core`
   - App surface: `Component`, `Child`, `ContextToken`, `createContext`, `createRef`, `LoggerContext`, `createConsoleLogger`, `ErrorContext`, `createErrorContext`, logging and error types.
   - Framework/lower-level surface used by eXact packages and tests: vnode creation, component instance creation/rendering, compiled JSX helpers, and framework logging/error routing hooks.
-- `@exact/jsx-runtime`
+- `@exact/jsx`
   - Root exports: `jsx`, `jsxs`, `Fragment`, `_`.
-  - Automatic JSX subpaths: `@exact/jsx-runtime/jsx-runtime` and `@exact/jsx-runtime/jsx-dev-runtime`.
+  - Automatic JSX subpaths: `@exact/jsx/jsx-runtime` and `@exact/jsx/jsx-dev-runtime`.
   - Keyed fragment marker: `_`.
   - JSX namespace types.
 - `@exact/dom`
@@ -72,13 +72,15 @@ The next export cleanup should split `@exact/core` into clearer app-facing and f
 
 ## JSX
 
-The full eXact rendering model is compiler-based. Runtime JSX is still available as a structural fallback through the automatic JSX runtime with `jsxImportSource` set to `@exact/jsx-runtime`:
+The eXact rendering model is compiler-based. JSX expressions become fine-grained reactive DOM and component boundaries only when the eXact compiler runs. `@exact/jsx` supplies the TypeScript JSX entrypoints and JSX namespace types that the compiler toolchain expects; it is support infrastructure, not a second app runtime.
+
+Configure TypeScript with `jsxImportSource` set to `@exact/jsx`:
 
 ```json
 {
   "compilerOptions": {
     "jsx": "react-jsx",
-    "jsxImportSource": "@exact/jsx-runtime"
+    "jsxImportSource": "@exact/jsx"
   }
 }
 ```
@@ -109,12 +111,12 @@ export default {
 };
 ```
 
-The compiler preserves JSX expressions as reactive bindings, so ordinary JSX values can update at their owning text, prop, style, child, or component-prop boundary. Runtime JSX remains supported for tests and non-compiled usage, but it does not preserve arbitrary expression boundaries after JavaScript has evaluated them.
+The compiler preserves JSX expressions as reactive bindings, so ordinary JSX values can update at their owning text, prop, style, child, or component-prop boundary. Uncompiled JSX may create structural VNodes in narrow tests, but it does not preserve arbitrary expression boundaries after JavaScript has evaluated them. Apps should use `@exact/vite-plugin` or `exactc`.
 
 Browser apps mount through `@exact/dom`:
 
 ```tsx
-/** @jsxImportSource @exact/jsx-runtime */
+/** @jsxImportSource @exact/jsx */
 import { render } from "@exact/dom";
 import type { Component } from "@exact/core";
 

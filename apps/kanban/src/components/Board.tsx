@@ -3,7 +3,7 @@ import { px } from "@exact/dom";
 import { BoardContext } from "../context.js";
 import { columns, createTask, loadTasks, storageKey } from "../data.js";
 import type { BoardServices, BoardState, Status, Task } from "../types.js";
-import { _ } from "@exact/jsx-runtime";
+import { _ } from "@exact/jsx";
 import { BoardHeader } from "./BoardHeader.jsx";
 import { ColumnView } from "./ColumnView.jsx";
 import { TaskDetailsDialog } from "./TaskDetailsDialog.jsx";

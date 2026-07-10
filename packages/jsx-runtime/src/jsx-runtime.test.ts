@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getCellVNode, isCellVNode } from "@exact/core";
 import { _, Fragment, jsx, jsxs } from "./jsx-runtime.js";
 
-describe("@exact/jsx-runtime", () => {
+describe("@exact/jsx", () => {
   it("creates vnodes and normalizes children", () => {
     const vnode = jsxs("ul", {
       children: [

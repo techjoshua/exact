@@ -16,7 +16,7 @@ import {
   type LogEvent,
   type Logger
 } from "@exact/core";
-import { jsx, jsxs } from "@exact/jsx-runtime";
+import { jsx, jsxs } from "@exact/jsx";
 import { flushSync } from "@exact/reactive";
 import { percent, px, rem, render } from "./index.js";
 
@@ -544,6 +544,49 @@ describe("@exact/dom", () => {
     expect(Array.from(container.querySelectorAll("option"))).toEqual(options);
     expect(selectWrites).toEqual([]);
     expect(optionWrites).toEqual([]);
+  });
+
+  it("keeps compiled controlled select values stable through change events", () => {
+    let instance!: Component<{ priority: "low" | "medium" | "high"; label: string }>;
+
+    function PrioritySelect(this: Component<{ priority: "low" | "medium" | "high"; label: string }>) {
+      instance = this;
+      this.state.priority = "medium";
+      this.state.label = "Ready";
+
+      return () => createCompiledVNode("label", {},
+        createCompiledVNode("span", {}, createExpression(() => this.state.label)),
+        createCompiledVNode("select", {
+          value: createExpression(() => this.state.priority),
+          onChange: (event: Event) => {
+            this.state.priority = (event.currentTarget as HTMLSelectElement).value as "low" | "medium" | "high";
+          }
+        },
+          createCompiledVNode("option", { value: "low" }, "low"),
+          createCompiledVNode("option", { value: "medium" }, "medium"),
+          createCompiledVNode("option", { value: "high" }, "high")
+        )
+      );
+    }
+
+    const container = document.createElement("div");
+    render(createCompiledVNode(PrioritySelect, {}), container);
+    const select = container.querySelector("select")!;
+
+    expect(select.value).toBe("medium");
+
+    select.value = "high";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    flushSync();
+
+    expect(instance.state.priority).toBe("high");
+    expect(select.value).toBe("high");
+
+    instance.state.label = "Updated";
+    flushSync();
+
+    expect(instance.state.priority).toBe("high");
+    expect(select.value).toBe("high");
   });
 
   it("keeps focused textarea stable while input updates reactive state", () => {
@@ -1448,6 +1491,94 @@ describe("@exact/dom", () => {
     expect(rendered).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps queued reactive bindings active when keyed nodes move", () => {
+    let instance!: Component<{ items: { id: string; label: string }[] }>;
+    const rendered = vi.fn();
+
+    function Row(this: Component<{}>, props: { item: { id: string; label: string } }) {
+      return () => {
+        rendered();
+        return createCompiledVNode("li", {
+          title: createExpression(() => props.item.label)
+        }, createExpression(() => props.item.label));
+      };
+    }
+
+    function List(this: Component<{ items: { id: string; label: string }[] }>) {
+      instance = this;
+      this.state.items = [
+        { id: "a", label: "A" },
+        { id: "b", label: "B" }
+      ];
+
+      return () => createCompiledVNode("ul", {},
+        this.map(
+          this.state.items,
+          item => item.id,
+          item => createCompiledVNode(Row, { item })
+        )
+      );
+    }
+
+    const container = document.createElement("div");
+    render(createCompiledVNode(List, {}), container);
+    const rows = Array.from(container.querySelectorAll("li"));
+    const moved = rows[1]!;
+
+    instance.state.items[1]!.label = "B+";
+    instance.state.items = [instance.state.items[1]!, instance.state.items[0]!];
+    flushSync();
+
+    expect(container.querySelectorAll("li")[0]).toBe(moved);
+    expect(container.contains(moved)).toBe(true);
+    expect(moved.textContent).toBe("B+");
+    expect(moved.title).toBe("B+");
+    expect(rendered).toHaveBeenCalledTimes(2);
+  });
+
+  it("updates keyed child component props when list item fields mutate", () => {
+    let instance!: Component<{ items: { id: string; label: string; priority: string }[] }>;
+    const rendered = vi.fn();
+
+    function Row(this: Component<{}>, props: { item: { id: string; label: string; priority: string } }) {
+      return () => {
+        rendered();
+        return createCompiledVNode("li", {},
+          createCompiledVNode("strong", {}, createExpression(() => props.item.label)),
+          createCompiledVNode("span", {}, createExpression(() => props.item.priority))
+        );
+      };
+    }
+
+    function List(this: Component<{ items: { id: string; label: string; priority: string }[] }>) {
+      instance = this;
+      this.state.items = [
+        { id: "a", label: "A", priority: "medium" },
+        { id: "b", label: "B", priority: "low" }
+      ];
+
+      return () => createCompiledVNode("ul", {},
+        this.map(
+          this.state.items,
+          item => item.id,
+          item => createCompiledVNode(Row, { item })
+        )
+      );
+    }
+
+    const container = document.createElement("div");
+    render(createCompiledVNode(List, {}), container);
+    const rows = Array.from(container.querySelectorAll("li"));
+
+    instance.state.items[0]!.label = "A+";
+    instance.state.items[0]!.priority = "high";
+    flushSync();
+
+    expect(Array.from(container.querySelectorAll("li"))).toEqual(rows);
+    expect(container.querySelectorAll("li")[0]!.textContent).toBe("A+high");
+    expect(rendered).toHaveBeenCalledTimes(2);
+  });
+
   it("does not reuse keyed children as unkeyed siblings during patching", () => {
     let instance!: Component<{ label: string }>;
 
@@ -1696,6 +1827,40 @@ describe("@exact/dom", () => {
     expect(container.textContent).toBe("hidden");
     expect(container.querySelector("span")).toBeNull();
     expect(removedSpan.isConnected).toBe(false);
+  });
+
+  it("does not run stale compiled component prop bindings before dynamic branch replacement", () => {
+    let parent!: Component<{ selected?: { id: string; title: string } }>;
+
+    function Detail(this: Component<{}>, props: { task: { id: string; title: string } }) {
+      return () => createCompiledVNode("strong", {}, createExpression(() => props.task.title));
+    }
+
+    function Empty() {
+      return () => createCompiledVNode("span", {}, "empty");
+    }
+
+    function Parent(this: Component<{ selected?: { id: string; title: string } }>) {
+      parent = this;
+      this.state.selected = { id: "a", title: "Alpha" };
+
+      return () => createCompiledVNode("section", {},
+        createDynamicChild(() => this.state.selected
+          ? createCompiledVNode(Detail, {
+            key: this.state.selected.id,
+            task: createExpression(() => this.state.selected as { id: string; title: string })
+          })
+          : createCompiledVNode(Empty, {}))
+      );
+    }
+
+    const container = document.createElement("div");
+    render(createCompiledVNode(Parent, {}), container);
+
+    parent.state.selected = undefined;
+    flushSync();
+
+    expect(container.textContent).toBe("empty");
   });
 
   it("stops reactive style watchers when DOM nodes are removed", () => {

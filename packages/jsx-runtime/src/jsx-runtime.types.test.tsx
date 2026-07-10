@@ -1,4 +1,4 @@
-/** @jsxImportSource @exact/jsx-runtime */
+/** @jsxImportSource @exact/jsx */
 import { describe, expect, it } from "vitest";
 import { createRef, getCellVNode, isCellVNode, type Component, type RefBinding } from "@exact/core";
 import { _ } from "./jsx-runtime.js";
@@ -13,7 +13,7 @@ function Label(this: Component<{}>, props: LabelProps) {
   return () => <span className="label">{props.text}{props.children}</span>;
 }
 
-describe("@exact/jsx-runtime types", () => {
+describe("@exact/jsx types", () => {
   it("compiles TSX through the automatic runtime", () => {
     const button = createRef<HTMLButtonElement>("button");
     const ref = { key: button, owner: undefined as never, fulfill() {} } satisfies RefBinding<HTMLButtonElement>;
