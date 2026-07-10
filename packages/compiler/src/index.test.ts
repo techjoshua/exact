@@ -355,19 +355,13 @@ describe("@exact/compiler", () => {
       server: "page.exact.server.ts",
       manifest: "page.exact.manifest.json",
       exports: [{ name: "Page", kind: "component", placement: "isomorphic" }],
-      symbols: expect.arrayContaining([expect.objectContaining({
+      symbols: [expect.objectContaining({
         exportName: "Page",
         localName: "Page",
         generatedName: "Page",
         role: "root",
         target: "both"
-      }), expect.objectContaining({
-        exportName: "Page_ExactClient_1",
-        localName: "Page_ExactClient_1",
-        generatedName: "Page_ExactClient_1",
-        role: "client-island",
-        target: "client"
-      })])
+      })]
     });
   });
 
@@ -379,7 +373,10 @@ describe("@exact/compiler", () => {
     await writeFile(input, `
       export function Panel(this: Component<{ count: number }>) {
         this.state.count = 0;
-        return () => <button className="primary" disabled onClick={() => this.state.count++}>{this.state.count}</button>;
+        return () => <section>
+          <button className="primary" disabled onClick={() => this.state.count++}>{this.state.count}</button>
+          <input ref={this.ref(inputRef)} />
+        </section>;
       }
     `);
 
@@ -389,8 +386,11 @@ describe("@exact/compiler", () => {
     });
     const client = await readFile(result.clientFile, "utf8");
     const server = await readFile(result.serverFile, "utf8");
-    const island = result.manifest.symbols.find(symbol => symbol.role === "client-island")!;
+    const islands = result.manifest.symbols.filter(symbol => symbol.role === "client-island");
+    const island = islands[0]!;
 
+    expect(result.manifest.components[0]!.clientIslandCount).toBe(2);
+    expect(islands.map(symbol => symbol.generatedName)).toEqual(["Panel_ExactClient_1", "Panel_ExactClient_2"]);
     expect(island).toMatchObject({
       generatedName: "Panel_ExactClient_1",
       localName: "Panel_ExactClient_1",
@@ -400,8 +400,10 @@ describe("@exact/compiler", () => {
     });
     expect(client).toContain("export function Panel");
     expect(client).toContain("export const Panel_ExactClient_1 = Panel;");
+    expect(client).toContain("export const Panel_ExactClient_2 = Panel;");
     expect(server).toContain("createServerBoundary as");
     expect(server).toContain("Panel_ExactClient_1");
+    expect(server).toContain("Panel_ExactClient_2");
     expect(server).toContain(island.id);
     expect(server).toContain("className: \"primary\"");
     expect(server).toContain("disabled: true");

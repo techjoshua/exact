@@ -40,6 +40,7 @@ export type ExactComponentIR = {
   name: string;
   exported: boolean;
   placement: ExactPlacement;
+  clientIslandCount: number;
   tasks: ExactTaskIR[];
   splitBoundaries: string[];
   diagnostics: string[];
@@ -483,6 +484,7 @@ function analyzeComponent(
   const diagnostics: string[] = [];
   let hasClientEffect = false;
   let hasServerEffect = false;
+  let clientIslandCount = 0;
   let taskIndex = 0;
 
   function visit(current: ts.Node): void {
@@ -496,6 +498,10 @@ function analyzeComponent(
         hasServerEffect = true;
       }
       diagnostics.push(...task.diagnostics);
+    }
+
+    if ((ts.isJsxOpeningElement(current) || ts.isJsxSelfClosingElement(current)) && jsxElementIsClientIsland(current.attributes)) {
+      clientIslandCount++;
     }
 
     if (ts.isJsxAttribute(current)) {
@@ -535,6 +541,7 @@ function analyzeComponent(
     name,
     exported: false,
     placement,
+    clientIslandCount,
     tasks,
     splitBoundaries: [...splitBoundaries].sort(),
     diagnostics
@@ -722,21 +729,21 @@ function createClientIslandSymbols(sourceFile: ts.SourceFile, components: ExactC
   const symbols: ExactSymbolIR[] = [];
   for (const component of components) {
     if (!component.exported) continue;
-    if (!component.splitBoundaries.some(boundary => boundary === "event-handler" || boundary === "ref" || boundary.startsWith("browser:"))) continue;
-    const index = 1;
-    const generatedName = generatedComponentName(component.name, "client-island", index);
-    symbols.push({
-      id: stableId(sourceFile.fileName, component.name, "client-island", String(index)),
-      componentId: component.id,
-      exportName: generatedName,
-      localName: generatedName,
-      generatedName,
-      debugName: `${component.name}:client-island:${index}`,
-      kind: "component",
-      role: "client-island",
-      target: "client",
-      placement: "client"
-    });
+    for (let index = 1; index <= component.clientIslandCount; index++) {
+      const generatedName = generatedComponentName(component.name, "client-island", index);
+      symbols.push({
+        id: stableId(sourceFile.fileName, component.name, "client-island", String(index)),
+        componentId: component.id,
+        exportName: generatedName,
+        localName: generatedName,
+        generatedName,
+        debugName: `${component.name}:client-island:${index}`,
+        kind: "component",
+        role: "client-island",
+        target: "client",
+        placement: "client"
+      });
+    }
   }
   return symbols;
 }
