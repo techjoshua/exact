@@ -9,6 +9,7 @@ The repository is an npm workspace monorepo. The current implementation slice co
 - `@exact/jsx`: TypeScript JSX entrypoints and JSX namespace types used by the compiler toolchain.
 - `@exact/dom`: browser mounting, DOM patching, delegated events, DOM refs, and keyed list reconciliation.
 - `@exact/compiler`: eXact JSX/TSX transform core for expression-preserving compiled JSX.
+- `@exact/server`: adapter-neutral secure server-component/action request handling.
 - `@exact/vite-plugin`: Vite integration for the eXact compiler.
 
 Each package publishes a single public entrypoint today, except `@exact/compiler`, which also exposes the `exactc` CLI entrypoint. Browser rendering is intentionally exported from `@exact/dom`; platform-neutral component APIs live in `@exact/core`.
@@ -64,7 +65,12 @@ The package entrypoints are:
   - CSS helper surface: `px`, `rem`, `em`, `percent`, `vh`, `vw`, `vmin`, `vmax`, `fr`, `ms`, `s`, `deg`, `rad`, `turn`.
 - `@exact/compiler`
   - Build-tool surface: `transform`, `transformSource`, `compileFile`, `compileProject`, `preprocessPropPunning`.
+  - Semantic surface: `analyzeSource` and emitted manifests for component/task placement planning.
   - CLI: `exactc`.
+- `@exact/server`
+  - Server runtime surface: `handleExactRequest(request, context)`.
+  - Adapter helpers: `createFetchHandler`, `createExpressHandler`, `createHapiHandler`.
+  - Security model: manifest-allowlisted action and boundary IDs only; no client-provided module or function dispatch.
 - `@exact/vite-plugin`
   - Vite adapter: `exact()`.
 
@@ -303,9 +309,9 @@ JSX elements are internally mounted through cell boundaries. In compiler mode, e
 
 ## SSR And Hydration
 
-SSR and hydration are intentionally not implemented in this slice. The current planning note is in `docs/ssr-hydration-plan.md`.
+SSR and hydration are intentionally incomplete in this slice. The current planning note is in `docs/ssr-hydration-plan.md`.
 
-The short version: SSR should be a new `@exact/ssr` package that depends on `@exact/core`, and hydration should be a separate `@exact/hydrate` package that depends on `@exact/core` and browser DOM behavior. Core should remain platform-neutral.
+The short version: SSR should use platform-neutral component semantics from `@exact/core`, hydration should stay separate from fresh DOM mounting, and server component/action requests should pass through `@exact/server` so validation and manifest-allowlisted dispatch are centralized across Express, Hapi, Fetch-compatible runtimes, and other JavaScript servers.
 
 ## Logging
 

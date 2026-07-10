@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { compileFile, compileProject, preprocessPropPunning, transform, transformSource } from "./index.js";
+import { analyzeSource, compileFile, compileProject, preprocessPropPunning, transform, transformSource } from "./index.js";
 
 describe("@exact/compiler", () => {
   it("lowers JSX to eXact compiled vnode helpers", () => {
@@ -21,6 +21,39 @@ describe("@exact/compiler", () => {
     expect(result.filename).toBe("view.tsx");
     expect(result.map).toBeNull();
     expect(result.code).toContain("__exactVNode(\"span\"");
+    expect(result.manifest.filename).toBe("view.tsx");
+  });
+
+  it("builds semantic task metadata for server component planning", () => {
+    const manifest = analyzeSource(`
+      import { readFile } from "node:fs/promises";
+
+      function ProjectPage(this: Component<{ project?: string; width?: number }>) {
+        this.task(async ({ signal }) => {
+          this.state.project = await readFile("project.txt", "utf8");
+        });
+        this.task(({ signal }) => {
+          this.state.width = window.innerWidth;
+        });
+        this.task(({ signal }) => {
+          window.addEventListener("resize", () => {});
+        });
+        return () => <button onClick={() => save()} ref={this.ref(button)}>{this.state.project}</button>;
+      }
+    `, { filename: "ProjectPage.tsx" });
+
+    const component = manifest.components[0]!;
+    expect(component.name).toBe("ProjectPage");
+    expect(component.placement).toBe("isomorphic");
+    expect(component.splitBoundaries).toEqual(expect.arrayContaining(["browser:window", "event-handler", "ref", "server-import:readFile"]));
+    expect(component.tasks.map(task => task.placement)).toEqual(["server", "client", "client"]);
+    expect(component.tasks[0]!.writes).toContainEqual({
+      path: "project",
+      kind: "write",
+      confidence: "exact"
+    });
+    expect(component.tasks[1]!.diagnostics).toContain("task writes component state and references browser-only globals; classify as client and split at this boundary");
+    expect(Object.keys(manifest.serverActions)).toEqual([component.tasks[0]!.id]);
   });
 
   it("lowers shorthand and underscore fragments", () => {

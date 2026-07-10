@@ -10,6 +10,47 @@ export type TransformResult = {
   code: string;
   map: null;
   filename: string;
+  manifest: ExactCompilerManifest;
+};
+
+export type ExactPlacement = "server" | "client" | "isomorphic" | "unknown";
+
+export type ExactStateEffect = {
+  path: string;
+  kind: "read" | "write";
+  confidence: "exact" | "broad" | "unknown";
+};
+
+export type ExactTaskIR = {
+  id: string;
+  placement: ExactPlacement;
+  async: boolean;
+  browserEffects: boolean;
+  reads: ExactStateEffect[];
+  writes: ExactStateEffect[];
+  diagnostics: string[];
+};
+
+export type ExactComponentIR = {
+  id: string;
+  name: string;
+  placement: ExactPlacement;
+  tasks: ExactTaskIR[];
+  splitBoundaries: string[];
+  diagnostics: string[];
+};
+
+export type ExactCompilerManifest = {
+  version: 1;
+  filename: string;
+  components: ExactComponentIR[];
+  serverActions: Record<string, {
+    id: string;
+    componentId: string;
+    taskId: string;
+    placement: ExactPlacement;
+  }>;
+  diagnostics: string[];
 };
 
 export type CompileFileOptions = TransformOptions & {
@@ -60,7 +101,64 @@ export function transformSource(source: string, options: TransformOptions = {}):
   return {
     code: printed,
     map: null,
-    filename
+    filename,
+    manifest: analyzeSource(normalized, { filename })
+  };
+}
+
+export function analyzeSource(source: string, options: TransformOptions = {}): ExactCompilerManifest {
+  const normalized = preprocessPropPunning(source);
+  const filename = options.filename ?? "input.tsx";
+  const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
+  const components: ExactComponentIR[] = [];
+  const manifestDiagnostics: string[] = [];
+  const serverActions: ExactCompilerManifest["serverActions"] = {};
+  const serverOnlyImports = new Set<string>();
+
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    const specifier = statement.moduleSpecifier.text;
+    if (isServerOnlyModule(specifier)) {
+      const clause = statement.importClause;
+      if (clause?.name) serverOnlyImports.add(clause.name.text);
+      if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+        for (const element of clause.namedBindings.elements) {
+          serverOnlyImports.add(element.name.text);
+        }
+      }
+    }
+  }
+
+  function visit(node: ts.Node): void {
+    if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
+      components.push(analyzeComponent(node.name.text, node, sourceFile, serverOnlyImports));
+      return;
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+
+  for (const component of components) {
+    for (const task of component.tasks) {
+      if (task.placement === "server" || task.placement === "isomorphic") {
+        serverActions[task.id] = {
+          id: task.id,
+          componentId: component.id,
+          taskId: task.id,
+          placement: task.placement
+        };
+      }
+    }
+    manifestDiagnostics.push(...component.diagnostics);
+  }
+
+  return {
+    version: 1,
+    filename,
+    components,
+    serverActions,
+    diagnostics: manifestDiagnostics
   };
 }
 
@@ -194,6 +292,253 @@ function exactJsxTransformer(context: ts.TransformationContext): ts.Transformer<
 
     return factory.updateSourceFile(visited, insertAfterDirectivePrologue(visited.statements, importDeclaration));
   };
+}
+
+function analyzeComponent(
+  name: string,
+  node: ts.FunctionDeclaration,
+  sourceFile: ts.SourceFile,
+  serverOnlyImports: Set<string>
+): ExactComponentIR {
+  const tasks: ExactTaskIR[] = [];
+  const splitBoundaries = new Set<string>();
+  const diagnostics: string[] = [];
+  let hasClientEffect = false;
+  let hasServerEffect = false;
+  let taskIndex = 0;
+
+  function visit(current: ts.Node): void {
+    if (ts.isCallExpression(current) && isThisMethodCall(current, "task")) {
+      const task = analyzeTask(`${name}:task:${taskIndex++}`, current, sourceFile, serverOnlyImports);
+      tasks.push(task);
+      if (task.placement === "client") hasClientEffect = true;
+      if (task.placement === "server") hasServerEffect = true;
+      if (task.placement === "isomorphic") {
+        hasClientEffect = true;
+        hasServerEffect = true;
+      }
+      diagnostics.push(...task.diagnostics);
+    }
+
+    if (ts.isJsxAttribute(current)) {
+      const propName = current.name.getText(sourceFile);
+      if (/^on[A-Z]/.test(propName) || propName === "ref") {
+        hasClientEffect = true;
+        splitBoundaries.add(propName === "ref" ? "ref" : "event-handler");
+      }
+    }
+
+    if (ts.isIdentifier(current)) {
+      if (browserGlobals.has(current.text)) {
+        hasClientEffect = true;
+        splitBoundaries.add(`browser:${current.text}`);
+      }
+      if (serverOnlyImports.has(current.text)) {
+        hasServerEffect = true;
+        splitBoundaries.add(`server-import:${current.text}`);
+      }
+    }
+
+    ts.forEachChild(current, visit);
+  }
+
+  visit(node);
+
+  const placement: ExactPlacement = hasClientEffect && hasServerEffect
+    ? "isomorphic"
+    : hasServerEffect
+      ? "server"
+      : hasClientEffect
+        ? "client"
+        : "server";
+
+  return {
+    id: stableId(sourceFile.fileName, name),
+    name,
+    placement,
+    tasks,
+    splitBoundaries: [...splitBoundaries].sort(),
+    diagnostics
+  };
+}
+
+function analyzeTask(
+  seed: string,
+  node: ts.CallExpression,
+  sourceFile: ts.SourceFile,
+  serverOnlyImports: Set<string>
+): ExactTaskIR {
+  const work = node.arguments[node.arguments.length - 1];
+  const reads: ExactStateEffect[] = [];
+  const writes: ExactStateEffect[] = [];
+  const diagnostics: string[] = [];
+  let browserEffects = false;
+  let serverEffects = false;
+  let isAsync = false;
+
+  if (!work || !isFunctionLikeExpression(work)) {
+    return {
+      id: stableId(sourceFile.fileName, seed),
+      placement: "unknown",
+      async: false,
+      browserEffects: false,
+      reads,
+      writes,
+      diagnostics: ["task work callback could not be analyzed"]
+    };
+  }
+
+  isAsync = ts.canHaveModifiers(work)
+    ? Boolean(ts.getModifiers(work)?.some(modifier => modifier.kind === ts.SyntaxKind.AsyncKeyword))
+    : false;
+
+  function visit(current: ts.Node): void {
+    if (ts.isIdentifier(current)) {
+      if (browserGlobals.has(current.text)) browserEffects = true;
+      if (serverOnlyImports.has(current.text)) serverEffects = true;
+    }
+
+    if (ts.isPropertyAccessExpression(current) && isThisStateAccess(current.expression)) {
+      reads.push({
+        path: current.name.text,
+        kind: "read",
+        confidence: "exact"
+      });
+    }
+
+    if (ts.isBinaryExpression(current) && isAssignmentOperator(current.operatorToken.kind)) {
+      const target = current.left;
+      if (isStatePathExpression(target)) {
+        writes.push({
+          path: statePath(target),
+          kind: "write",
+          confidence: statePath(target).includes("*") ? "broad" : "exact"
+        });
+      }
+    }
+
+    if (ts.isCallExpression(current)) {
+      const expression = current.expression;
+      if (ts.isPropertyAccessExpression(expression)) {
+        if (isThisStateAccess(expression.expression) || isStatePathExpression(expression.expression)) {
+          const method = expression.name.text;
+          if (mutatingStateMethods.has(method)) {
+            writes.push({
+              path: statePath(expression.expression),
+              kind: "write",
+              confidence: "broad"
+            });
+          }
+        }
+        if (expression.name.text === "assign" && expression.expression.getText(sourceFile) === "Object") {
+          const target = current.arguments[0];
+          if (target && isStatePathExpression(target)) {
+            writes.push({
+              path: statePath(target),
+              kind: "write",
+              confidence: "broad"
+            });
+          }
+        }
+      }
+    }
+
+    ts.forEachChild(current, visit);
+  }
+
+  visit(work);
+
+  if (browserEffects && writes.length) {
+    diagnostics.push("task writes component state and references browser-only globals; classify as client and split at this boundary");
+  }
+  if (!browserEffects && !serverEffects && !writes.length) {
+    diagnostics.push("task has no detected state writes or environment-specific effects; classify as client lifecycle work");
+  }
+
+  const placement: ExactPlacement = browserEffects
+    ? "client"
+    : serverEffects
+      ? "server"
+      : writes.length
+        ? "isomorphic"
+        : "client";
+
+  return {
+    id: stableId(sourceFile.fileName, seed),
+    placement,
+    async: isAsync,
+    browserEffects,
+    reads: uniqueEffects(reads),
+    writes: uniqueEffects(writes),
+    diagnostics
+  };
+}
+
+function isComponentLikeFunction(node: ts.FunctionDeclaration): boolean {
+  const first = node.name?.text[0];
+  return !!first && first === first.toUpperCase();
+}
+
+const browserGlobals = new Set(["window", "document", "localStorage", "sessionStorage", "navigator", "HTMLElement", "Node"]);
+const mutatingStateMethods = new Set(["push", "pop", "shift", "unshift", "splice", "sort", "reverse", "set", "delete", "clear"]);
+
+function isServerOnlyModule(specifier: string): boolean {
+  if (specifier.startsWith("node:")) return true;
+  return ["fs", "path", "crypto", "http", "https", "net", "tls", "child_process"].includes(specifier);
+}
+
+function isAssignmentOperator(kind: ts.SyntaxKind): boolean {
+  return kind >= ts.SyntaxKind.FirstAssignment && kind <= ts.SyntaxKind.LastAssignment;
+}
+
+function isThisStateAccess(expression: ts.Expression): boolean {
+  return ts.isPropertyAccessExpression(expression)
+    && expression.name.text === "state"
+    && expression.expression.kind === ts.SyntaxKind.ThisKeyword;
+}
+
+function isStatePathExpression(expression: ts.Expression): boolean {
+  if (isThisStateAccess(expression)) return true;
+  if (ts.isPropertyAccessExpression(expression)) return isStatePathExpression(expression.expression);
+  if (ts.isElementAccessExpression(expression)) return isStatePathExpression(expression.expression);
+  return false;
+}
+
+function statePath(expression: ts.Expression): string {
+  if (isThisStateAccess(expression)) return "*";
+  if (ts.isPropertyAccessExpression(expression) && isStatePathExpression(expression.expression)) {
+    const parent = statePath(expression.expression);
+    return parent === "*" ? expression.name.text : `${parent}.${expression.name.text}`;
+  }
+  if (ts.isElementAccessExpression(expression) && isStatePathExpression(expression.expression)) {
+    const parent = statePath(expression.expression);
+    const argument = expression.argumentExpression;
+    const segment = argument && ts.isStringLiteralLike(argument) ? argument.text : "*";
+    return parent === "*" ? segment : `${parent}.${segment}`;
+  }
+  return "*";
+}
+
+function uniqueEffects(effects: ExactStateEffect[]): ExactStateEffect[] {
+  const seen = new Set<string>();
+  const output: ExactStateEffect[] = [];
+  for (const effect of effects) {
+    const key = `${effect.kind}:${effect.path}:${effect.confidence}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    output.push(effect);
+  }
+  return output.sort((left, right) => `${left.kind}:${left.path}`.localeCompare(`${right.kind}:${right.path}`));
+}
+
+function stableId(...parts: string[]): string {
+  const input = parts.join(":");
+  let hash = 2166136261;
+  for (let index = 0; index < input.length; index++) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `x${(hash >>> 0).toString(36)}`;
 }
 
 function transformJsxElement(node: ts.JsxElement, context: ts.TransformationContext, visitor: ts.Visitor, helpers: HelperNames): ts.Expression {
