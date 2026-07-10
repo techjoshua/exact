@@ -65,4 +65,43 @@ describe("exactc", () => {
     expect(output).toContain("window.innerWidth");
     expect(Object.keys(manifest.serverActions)).toHaveLength(1);
   });
+
+  it("emits paired target artifacts through the CLI", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-cli-artifacts-"));
+    const input = path.join(root, "src", "page.tsx");
+    const outDir = path.join(root, "out");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, `
+      import { readFile } from "node:fs/promises";
+      function Page(this: Component<{ title?: string; width?: number }>) {
+        this.task.server(async () => {
+          this.state.title = await readFile("title.txt", "utf8");
+        });
+        this.task.client(() => {
+          this.state.width = window.innerWidth;
+        });
+        return () => <h1>{this.state.title}</h1>;
+      }
+    `);
+
+    await execFileAsync(process.execPath, [
+      path.resolve("packages/compiler/dist/cli.js"),
+      "--rootDir",
+      path.join(root, "src"),
+      "--outDir",
+      outDir,
+      "--artifacts",
+      input
+    ]);
+
+    const client = await readFile(path.join(outDir, "page.exact.client.ts"), "utf8");
+    const server = await readFile(path.join(outDir, "page.exact.server.ts"), "utf8");
+    const manifest = JSON.parse(await readFile(path.join(outDir, "page.exact.manifest.json"), "utf8"));
+
+    expect(client).not.toContain("node:fs/promises");
+    expect(client).toContain("window.innerWidth");
+    expect(server).toContain("node:fs/promises");
+    expect(server).not.toContain("window.innerWidth");
+    expect(Object.keys(manifest.serverActions)).toHaveLength(1);
+  });
 });

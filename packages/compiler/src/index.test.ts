@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { analyzeSource, compileFile, compileProject, preprocessPropPunning, transform, transformSource } from "./index.js";
+import { analyzeSource, compileFile, compileFileArtifacts, compileProject, preprocessPropPunning, transform, transformSource } from "./index.js";
 
 describe("@exact/compiler", () => {
   it("lowers JSX to eXact compiled vnode helpers", () => {
@@ -270,6 +270,42 @@ describe("@exact/compiler", () => {
     expect(result.manifestFile).toBe(path.join(outDir, "page.exact.json"));
     expect(Object.keys(manifest.serverActions)).toHaveLength(1);
     expect(manifest.components[0].name).toBe("Page");
+  });
+
+  it("emits paired client/server artifacts and a manifest", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-artifacts-"));
+    const input = path.join(root, "src", "components", "page.tsx");
+    const outDir = path.join(root, "out");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, `
+      import { readFile } from "node:fs/promises";
+      function Page(this: Component<{ title?: string; width?: number }>) {
+        this.task.server(async () => {
+          this.state.title = await readFile("title.txt", "utf8");
+        });
+        this.task.client(() => {
+          this.state.width = window.innerWidth;
+        });
+        return () => <h1>{this.state.title}</h1>;
+      }
+    `);
+
+    const result = await compileFileArtifacts(input, {
+      outDir,
+      rootDir: path.join(root, "src")
+    });
+    const client = await readFile(result.clientFile, "utf8");
+    const server = await readFile(result.serverFile, "utf8");
+    const manifest = JSON.parse(await readFile(result.manifestFile, "utf8"));
+
+    expect(result.clientFile).toBe(path.join(outDir, "components", "page.exact.client.ts"));
+    expect(result.serverFile).toBe(path.join(outDir, "components", "page.exact.server.ts"));
+    expect(result.manifestFile).toBe(path.join(outDir, "components", "page.exact.manifest.json"));
+    expect(client).not.toContain("node:fs/promises");
+    expect(client).toContain("window.innerWidth");
+    expect(server).toContain("node:fs/promises");
+    expect(server).not.toContain("window.innerWidth");
+    expect(Object.keys(manifest.serverActions)).toHaveLength(1);
   });
 
   it("compiles TSX and JSX files from directories", async () => {

@@ -75,6 +75,22 @@ export type CompileProjectOptions = TransformOptions & {
   emitManifest?: boolean;
 };
 
+export type CompileArtifactsOptions = {
+  outDir: string;
+  rootDir?: string;
+  filename?: string;
+};
+
+export type CompileArtifactsResult = {
+  inputFile: string;
+  clientFile: string;
+  serverFile: string;
+  manifestFile: string;
+  client: TransformResult;
+  server: TransformResult;
+  manifest: ExactCompilerManifest;
+};
+
 const helperModule = "@exact/core";
 const elementHelper = "__exactVNode";
 const fragmentHelper = "__exactFragment";
@@ -195,6 +211,44 @@ export async function compileProject(inputs: readonly string[], options: Compile
       rootDir,
       target: options.target,
       emitManifest: options.emitManifest
+    }));
+  }
+
+  return results;
+}
+
+export async function compileFileArtifacts(inputFile: string, options: CompileArtifactsOptions): Promise<CompileArtifactsResult> {
+  const source = await readFile(inputFile, "utf8");
+  const filename = options.filename ?? inputFile;
+  const client = transformSource(source, { filename, target: "client" });
+  const server = transformSource(source, { filename, target: "server" });
+  const manifest = analyzeSource(source, { filename });
+  const paths = artifactPathsFor(inputFile, options.outDir, options.rootDir);
+
+  await mkdir(path.dirname(paths.clientFile), { recursive: true });
+  await writeFile(paths.clientFile, client.code);
+  await writeFile(paths.serverFile, server.code);
+  await writeFile(paths.manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
+
+  return {
+    inputFile,
+    ...paths,
+    client,
+    server,
+    manifest
+  };
+}
+
+export async function compileProjectArtifacts(inputs: readonly string[], options: CompileArtifactsOptions): Promise<CompileArtifactsResult[]> {
+  const files = await collectInputFiles(inputs);
+  const rootDir = options.rootDir ?? commonRoot(files);
+  const results: CompileArtifactsResult[] = [];
+
+  for (const file of files) {
+    results.push(await compileFileArtifacts(file, {
+      outDir: options.outDir,
+      rootDir,
+      filename: options.filename
     }));
   }
 
@@ -1147,6 +1201,23 @@ function outputPathFor(inputFile: string, outDir: string, rootDir?: string): str
 
 function manifestPathFor(outputFile: string): string {
   return outputFile.replace(/\.[^.\\/]+$/i, ".exact.json");
+}
+
+function artifactPathsFor(inputFile: string, outDir: string, rootDir?: string): {
+  clientFile: string;
+  serverFile: string;
+  manifestFile: string;
+} {
+  const root = rootDir ?? path.dirname(inputFile);
+  const relative = path.relative(root, inputFile);
+  const parsed = path.parse(relative);
+  const extension = parsed.ext.toLowerCase() === ".tsx" ? ".ts" : ".js";
+  const base = path.join(outDir, parsed.dir, parsed.name);
+  return {
+    clientFile: `${base}.exact.client${extension}`,
+    serverFile: `${base}.exact.server${extension}`,
+    manifestFile: `${base}.exact.manifest.json`
+  };
 }
 
 function commonRoot(files: readonly string[]): string {

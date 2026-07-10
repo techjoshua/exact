@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { compileProject } from "./index.js";
+import { compileProject, compileProjectArtifacts } from "./index.js";
 import type { TransformTarget } from "./index.js";
 
 type CliOptions = {
@@ -8,6 +8,7 @@ type CliOptions = {
   rootDir?: string;
   target?: TransformTarget;
   emitManifest?: boolean;
+  artifacts?: boolean;
 };
 
 async function main(argv: string[]): Promise<void> {
@@ -15,6 +16,20 @@ async function main(argv: string[]): Promise<void> {
   if (!options.inputs.length) {
     printUsage();
     process.exitCode = 1;
+    return;
+  }
+
+  if (options.artifacts) {
+    if (!options.outDir) throw new Error("exactc --artifacts requires --outDir");
+    const results = await compileProjectArtifacts(options.inputs, {
+      outDir: options.outDir,
+      rootDir: options.rootDir
+    });
+    for (const result of results) {
+      console.log(`${result.inputFile} -> ${result.clientFile}`);
+      console.log(`${result.inputFile} -> ${result.serverFile}`);
+      console.log(`${result.inputFile} -> ${result.manifestFile}`);
+    }
     return;
   }
 
@@ -47,6 +62,7 @@ function parseArgs(argv: string[]): CliOptions {
   let rootDir: string | undefined;
   let target: TransformTarget | undefined;
   let emitManifest = false;
+  let artifacts = false;
 
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index]!;
@@ -58,6 +74,8 @@ function parseArgs(argv: string[]): CliOptions {
       target = parseTarget(argv[++index]);
     } else if (arg === "--manifest") {
       emitManifest = true;
+    } else if (arg === "--artifacts") {
+      artifacts = true;
     } else if (arg === "--help" || arg === "-h") {
       printUsage();
       process.exit(0);
@@ -66,11 +84,11 @@ function parseArgs(argv: string[]): CliOptions {
     }
   }
 
-  return { inputs, outDir, rootDir, target, emitManifest };
+  return { inputs, outDir, rootDir, target, emitManifest, artifacts };
 }
 
 function printUsage(): void {
-  console.log("Usage: exactc [--outDir dir] [--rootDir dir] [--target default|client|server] [--manifest] <file-or-directory...>");
+  console.log("Usage: exactc [--outDir dir] [--rootDir dir] [--target default|client|server] [--manifest] [--artifacts] <file-or-directory...>");
 }
 
 function parseTarget(value: string | undefined): TransformTarget {

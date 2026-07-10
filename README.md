@@ -116,10 +116,18 @@ For projects that want a precompile step before their existing TypeScript build,
 ```sh
 npx exactc --rootDir src --outDir .exact src
 npx exactc --rootDir src --outDir .exact --target server --manifest src
+npx exactc --rootDir src --outDir .exact --artifacts src
 ```
 
 That rewrites `.tsx` files to `.ts` and `.jsx` files to `.js` under the output directory, preserving relative paths. Your normal TypeScript/bundler pipeline can then compile the generated sources.
 `--target client|server` emits target-specific artifacts from the compiler's task placement analysis, and `--manifest` writes a sibling `.exact.json` manifest for the secure server runtime.
+`--artifacts` emits paired files for package/app multi-target builds:
+
+- `Component.exact.client.ts`
+- `Component.exact.server.ts`
+- `Component.exact.manifest.json`
+
+Packaged component libraries can publish these generated variants and let app build tooling choose the client or server file based on the render target.
 
 Vite is supported through a thin adapter over the same compiler:
 
