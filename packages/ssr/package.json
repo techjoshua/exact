@@ -12,7 +12,8 @@
   "types": "./dist/index.d.ts",
   "dependencies": {
     "@exact/core": "file:../core",
-    "@exact/reactive": "file:../reactive"
+    "@exact/reactive": "file:../reactive",
+    "@exact/server": "file:../server"
   },
   "scripts": {
     "build": "tsc -b",

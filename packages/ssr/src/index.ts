@@ -21,6 +21,7 @@ import {
   type VNode
 } from "@exact/core";
 import { unwrap } from "@exact/reactive";
+import type { ExactInvocationRequest, ExactInvocationResult, ExactServerContext } from "@exact/server";
 
 export type RenderToStringOptions = {
   markers?: boolean;
@@ -44,6 +45,15 @@ export type HydrationScriptOptions = {
 export type HydratableStringResult = RenderToStringResult & {
   hydrationScript: string;
   htmlWithHydration: string;
+};
+
+export type BoundaryRenderFunction = (
+  input: ExactInvocationRequest,
+  context: ExactServerContext
+) => VNode | Promise<VNode>;
+
+export type BoundaryRefreshOptions = RenderToStringOptions & {
+  boundaryId: string;
 };
 
 type SsrContext = {
@@ -130,6 +140,24 @@ export function renderHydrationScript(options: HydrationScriptOptions = {}): str
   const id = options.scriptId ?? "__exact_hydration";
   const nonce = options.nonce ? ` nonce="${escapeAttr(options.nonce)}"` : "";
   return `<script type="application/json" id="${escapeAttr(id)}"${nonce}>${payload}</script>`;
+}
+
+export function createBoundaryRefreshHandler(
+  render: BoundaryRenderFunction,
+  options: BoundaryRefreshOptions
+): (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> {
+  return async (input, context) => {
+    const vnode = await render(input, context);
+    const result = await renderToStringAsync(vnode, options);
+    return {
+      patches: [{
+        type: "replace",
+        id: options.boundaryId,
+        html: result.html
+      }],
+      state: result.state
+    };
+  };
 }
 
 function renderChildren(context: SsrContext, children: readonly Child[], parent?: ComponentInstance<any>): string {

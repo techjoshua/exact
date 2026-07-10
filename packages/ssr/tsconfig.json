@@ -9,7 +9,8 @@
   },
   "references": [
     { "path": "../core" },
-    { "path": "../reactive" }
+    { "path": "../reactive" },
+    { "path": "../server" }
   ],
   "include": ["src"]
 }

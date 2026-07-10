@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { createCompiledVNode, createDynamicChild, createVNode, type Component } from "@exact/core";
-import { renderHydrationScript, renderToHydratableString, renderToStream, renderToString, renderToStringAsync } from "./index.js";
+import { handleExactRequest } from "@exact/server";
+import {
+  createBoundaryRefreshHandler,
+  renderHydrationScript,
+  renderToHydratableString,
+  renderToStream,
+  renderToString,
+  renderToStringAsync
+} from "./index.js";
 
 describe("@exact/ssr", () => {
   it("renders elements, attributes, text escaping, and styles to html", () => {
@@ -140,5 +148,36 @@ describe("@exact/ssr", () => {
     const result = await renderToStringAsync(createVNode(Parent, {}), { markers: false });
 
     expect(result.html).toBe("<section><strong>Ready</strong></section>");
+  });
+
+  it("creates server boundary refresh handlers that return replacement patches", async () => {
+    const response = await handleExactRequest({
+      method: "POST",
+      body: { type: "refresh", id: "profile", payload: { name: "Ada" } }
+    }, {
+      manifest: {
+        version: 1,
+        boundaries: {
+          profile: { id: "profile" }
+        }
+      },
+      refreshBoundaries: {
+        profile: createBoundaryRefreshHandler(input => {
+          const name = (input.payload as { name: string }).name;
+          return createVNode("p", null, name);
+        }, {
+          boundaryId: "profile",
+          markers: false,
+          state: { refreshed: true }
+        })
+      }
+    });
+
+    expect(response.status).toBe(200);
+    expect(JSON.parse(response.body)).toMatchObject({
+      ok: true,
+      state: { refreshed: true },
+      patches: [{ type: "replace", id: "profile", html: "<p>Ada</p>" }]
+    });
   });
 });
