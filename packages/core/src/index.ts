@@ -196,6 +196,22 @@ export type ComponentReactiveValue<T> = ReactiveValue<T> & {
   task(work: (value: T, ctx: TaskContext) => TaskResult): void;
 };
 
+export type ComponentTask = {
+  (work: (ctx: TaskContext) => TaskResult): void;
+  <Deps extends readonly unknown[]>(
+    ...args: [...deps: Deps, work: (...args: [...Unwrapped<Deps>, TaskContext]) => TaskResult]
+  ): void;
+  server: ComponentTaskRegistration;
+  client: ComponentTaskRegistration;
+};
+
+export type ComponentTaskRegistration = {
+  (work: (ctx: TaskContext) => TaskResult): void;
+  <Deps extends readonly unknown[]>(
+    ...args: [...deps: Deps, work: (...args: [...Unwrapped<Deps>, TaskContext]) => TaskResult]
+  ): void;
+};
+
 export type LifecycleHandler = (ctx: { signal: AbortSignal; reason?: string }) => void;
 export type RenderEventHandler = (event: { duration: number; dependencies?: unknown[] }) => void;
 
@@ -207,10 +223,7 @@ export interface Component<State extends object> {
   reactive<T>(value: T): ComponentReactiveValue<T>;
   reactive(strings: TemplateStringsArray, ...values: unknown[]): ComponentReactiveValue<string>;
   reactive<T>(compute: () => T): ComponentReactiveValue<T>;
-  task(work: (ctx: TaskContext) => TaskResult): void;
-  task<Deps extends readonly unknown[]>(
-    ...args: [...deps: Deps, work: (...args: [...Unwrapped<Deps>, TaskContext]) => TaskResult]
-  ): void;
+  task: ComponentTask;
   ref<T>(key: RefKey<T>): RefBinding<T>;
   refs: RefRegistry;
   map<T>(
@@ -502,7 +515,7 @@ export function createComponentInstance<State extends object, Props extends Reco
         return result;
       }));
     },
-    task(...args: unknown[]): void {
+    task: Object.assign(function task(...args: unknown[]): void {
       const work = args[args.length - 1];
       if (typeof work !== "function") {
         throw new TypeError("this.task() requires a work callback");
@@ -512,7 +525,14 @@ export function createComponentInstance<State extends object, Props extends Reco
       const task = createTask(instance, deps, work as (...args: any[]) => TaskResult);
       instance.tasks.push(task);
       task.run();
-    },
+    }, {
+      server(...args: unknown[]): void {
+        (instance.task as (...args: unknown[]) => void)(...args);
+      },
+      client(...args: unknown[]): void {
+        (instance.task as (...args: unknown[]) => void)(...args);
+      }
+    }) as ComponentTask,
     ref<T>(key: RefKey<T>): RefBinding<T> {
       return {
         key,

@@ -209,7 +209,8 @@ The main instance APIs are:
 
 - `this.state`: reactive instance-owned state.
 - `this.reactive(...)`: derived reactive values for text, props, styles, and task dependencies.
-- `this.task(...)`: run-once or dependency-driven work with `AbortSignal` cleanup.
+- `this.task(...)`: inferred run-once or dependency-driven work with `AbortSignal` cleanup.
+- `this.task.server(...)` / `this.task.client(...)`: explicit compiler placement escape hatches for SSR/server-component builds; explicit server tasks may not reference browser-only globals, and explicit client tasks may not reference server-only imports.
 - `this.map(collection, key, render)`: keyed list rendering with framework-managed keys.
 - `this.getContext(...)` / `this.setContext(...)`: descendant-scoped services.
 - `this.ref(...)` / `this.refs`: DOM ref binding and lookup.
@@ -332,6 +333,7 @@ The current SSR/server-component foundation implements:
 - `@exact/server` owns adapter-neutral request handling and rejects anything not present in the manifest allowlist.
 - `createExactServerManifest()` converts compiler manifests into runtime action/boundary allowlists.
 - `createBoundaryRefreshHandler()` rerenders a server boundary and returns a replacement patch through the same secure endpoint path.
+- `this.task(...)` placement is inferred by the compiler. Use `this.task.server(...)` or `this.task.client(...)` only when inference needs an explicit boundary; contradictory environment usage fails compilation.
 
 Example:
 

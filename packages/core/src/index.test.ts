@@ -355,6 +355,33 @@ describe("@exact/core", () => {
     expect(instance.state.errors[0]!.phase).toBe("run");
   });
 
+  it("supports explicit server and client task aliases at runtime", () => {
+    let instance!: Component<{ value: number; serverRuns: number; clientRuns: number }>;
+
+    createComponentInstance(function Worker(this: Component<{ value: number; serverRuns: number; clientRuns: number }>) {
+      instance = this;
+      this.state.value = 1;
+      this.state.serverRuns = 0;
+      this.state.clientRuns = 0;
+      this.task.server(this.reactive<number>(() => this.state.value), value => {
+        this.state.serverRuns = value;
+      });
+      this.task.client(this.reactive<number>(() => this.state.value), value => {
+        this.state.clientRuns = value;
+      });
+      return () => null;
+    }, {});
+
+    expect(instance.state.serverRuns).toBe(1);
+    expect(instance.state.clientRuns).toBe(1);
+
+    instance.state.value = 2;
+    flushSync();
+
+    expect(instance.state.serverRuns).toBe(2);
+    expect(instance.state.clientRuns).toBe(2);
+  });
+
   it("assigns stable ids to multiple error reports", () => {
     let instance!: Component<{ errors: ErrorReport[] }>;
 

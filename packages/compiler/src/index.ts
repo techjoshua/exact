@@ -27,6 +27,7 @@ export type ExactStateEffect = {
 export type ExactTaskIR = {
   id: string;
   placement: ExactPlacement;
+  requestedPlacement?: "server" | "client";
   async: boolean;
   browserEffects: boolean;
   reads: ExactStateEffect[];
@@ -99,6 +100,11 @@ export function transformSource(source: string, options: TransformOptions = {}):
   if (diagnostics.length) {
     throw new Error(formatDiagnostics(diagnostics));
   }
+  const manifest = analyzeSource(normalized, { filename });
+  const semanticErrors = manifest.diagnostics.filter(diagnostic => diagnostic.startsWith("error:"));
+  if (semanticErrors.length) {
+    throw new Error(semanticErrors.join("\n"));
+  }
   const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
   const result = ts.transform(sourceFile, [exactJsxTransformer(target)]);
   const transformed = result.transformed[0]!;
@@ -109,7 +115,7 @@ export function transformSource(source: string, options: TransformOptions = {}):
     code: printed,
     map: null,
     filename,
-    manifest: analyzeSource(normalized, { filename })
+    manifest
   };
 }
 
@@ -255,7 +261,7 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
     let sawJsx = false;
 
     const visitor: ts.Visitor = node => {
-      if (ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) && isThisMethodCall(node.expression, "task")) {
+      if (ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) && isThisTaskCall(node.expression)) {
         const task = analyzeTask("target-task", node.expression, sourceFile, serverOnlyImports);
         if (shouldOmitPlacement(task.placement, target)) {
           return factory.createEmptyStatement();
@@ -274,7 +280,7 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
         return transformJsxFragment(node, context, visitor, helpers);
       }
       if (ts.isCallExpression(node)) {
-        if (isThisMethodCall(node, "task")) {
+        if (isThisTaskCall(node)) {
           const task = analyzeTask("target-task", node, sourceFile, serverOnlyImports);
           if (shouldOmitPlacement(task.placement, target)) {
             return factory.createVoidExpression(factory.createNumericLiteral(0));
@@ -327,7 +333,7 @@ function analyzeComponent(
   let taskIndex = 0;
 
   function visit(current: ts.Node): void {
-    if (ts.isCallExpression(current) && isThisMethodCall(current, "task")) {
+    if (ts.isCallExpression(current) && isThisTaskCall(current)) {
       const task = analyzeTask(`${name}:task:${taskIndex++}`, current, sourceFile, serverOnlyImports);
       tasks.push(task);
       if (task.placement === "client") hasClientEffect = true;
@@ -394,12 +400,13 @@ function analyzeTask(
   let browserEffects = false;
   let serverEffects = false;
   let isAsync = false;
-  let directivePlacement: "server" | "client" | undefined;
+  const requestedPlacement = taskRequestedPlacement(node);
 
   if (!work || !isFunctionLikeExpression(work)) {
     return {
       id: stableId(sourceFile.fileName, seed),
       placement: "unknown",
+      requestedPlacement,
       async: false,
       browserEffects: false,
       reads,
@@ -411,7 +418,6 @@ function analyzeTask(
   isAsync = ts.canHaveModifiers(work)
     ? Boolean(ts.getModifiers(work)?.some(modifier => modifier.kind === ts.SyntaxKind.AsyncKeyword))
     : false;
-  directivePlacement = taskPlacementDirective(work);
 
   function visit(current: ts.Node): void {
     if (ts.isIdentifier(current)) {
@@ -483,13 +489,20 @@ function analyzeTask(
       : writes.length
         ? "isomorphic"
         : "client";
-  if (directivePlacement) {
-    diagnostics.push(`task placement forced by ${directivePlacement} directive`);
+  if (requestedPlacement === "server" && browserEffects) {
+    diagnostics.push("error: this.task.server() cannot reference browser-only globals");
+  }
+  if (requestedPlacement === "client" && serverEffects) {
+    diagnostics.push("error: this.task.client() cannot reference server-only imports");
+  }
+  if (requestedPlacement) {
+    diagnostics.push(`task placement forced by this.task.${requestedPlacement}()`);
   }
 
   return {
     id: stableId(sourceFile.fileName, seed),
-    placement: directivePlacement ?? inferredPlacement,
+    placement: requestedPlacement ?? inferredPlacement,
+    requestedPlacement,
     async: isAsync,
     browserEffects,
     reads: uniqueEffects(reads),
@@ -537,18 +550,6 @@ function isServerOnlyImportDeclaration(statement: ts.Statement): boolean {
 function isServerOnlyModule(specifier: string): boolean {
   if (specifier.startsWith("node:")) return true;
   return ["fs", "path", "crypto", "http", "https", "net", "tls", "child_process"].includes(specifier);
-}
-
-function taskPlacementDirective(work: ts.Expression): "server" | "client" | undefined {
-  if (!isFunctionLikeExpression(work)) return undefined;
-  const body = work.body;
-  if (!ts.isBlock(body)) return undefined;
-  const first = body.statements[0];
-  if (!first || !ts.isExpressionStatement(first)) return undefined;
-  if (!ts.isStringLiteral(first.expression)) return undefined;
-  if (first.expression.text === "use server") return "server";
-  if (first.expression.text === "use client") return "client";
-  return undefined;
 }
 
 function shouldOmitPlacement(placement: ExactPlacement, target: TransformTarget): boolean {
@@ -779,7 +780,7 @@ function transformCapturedCall(node: ts.CallExpression, context: ts.Transformati
     return transformReactiveCall(node, context, visitor);
   }
 
-  if (isThisMethodCall(node, "task")) {
+  if (isThisTaskCall(node)) {
     return transformTaskCall(node, context, visitor);
   }
 
@@ -848,6 +849,18 @@ function captureArgument(context: ts.TransformationContext, expression: ts.Expre
 
 function isThisMethodCall(node: ts.CallExpression, methodName: string): boolean {
   return isThisMethodAccess(node.expression, methodName);
+}
+
+function isThisTaskCall(node: ts.CallExpression): boolean {
+  return isThisMethodCall(node, "task") || taskRequestedPlacement(node) !== undefined;
+}
+
+function taskRequestedPlacement(node: ts.CallExpression): "server" | "client" | undefined {
+  const expression = node.expression;
+  if (!ts.isPropertyAccessExpression(expression)) return undefined;
+  const placement = expression.name.text;
+  if (placement !== "server" && placement !== "client") return undefined;
+  return isThisMethodAccess(expression.expression, "task") ? placement : undefined;
 }
 
 function isThisMethodAccess(expression: ts.Expression, methodName: string): boolean {

@@ -82,15 +82,13 @@ describe("@exact/compiler", () => {
     expect(server).not.toContain("window.innerWidth");
   });
 
-  it("honors task placement directives as compiler escape hatches", () => {
+  it("honors explicit task placement aliases as compiler escape hatches", () => {
     const source = `
       function Page(this: Component<{ title?: string; width?: number }>) {
-        this.task(() => {
-          "use server";
+        this.task.server(() => {
           this.state.title = "server";
         });
-        this.task(() => {
-          "use client";
+        this.task.client(this.state.width, width => {
           this.state.width = 1;
         });
         return () => <p>{this.state.title}</p>;
@@ -102,11 +100,34 @@ describe("@exact/compiler", () => {
     const server = transform(source, { filename: "Page.tsx", target: "server" });
 
     expect(manifest.components[0]!.tasks.map(task => task.placement)).toEqual(["server", "client"]);
-    expect(manifest.components[0]!.tasks[0]!.diagnostics).toContain("task placement forced by server directive");
+    expect(manifest.components[0]!.tasks.map(task => task.requestedPlacement)).toEqual(["server", "client"]);
+    expect(manifest.components[0]!.tasks[0]!.diagnostics).toContain("task placement forced by this.task.server()");
     expect(client).not.toContain("server");
     expect(client).toContain("width = 1");
+    expect(client).toContain("this.task.client(this.reactive(() => this.state.width)");
     expect(server).toContain("server");
     expect(server).not.toContain("width = 1");
+  });
+
+  it("fails compilation when explicit task placement contradicts detected environment usage", () => {
+    expect(() => transform(`
+      function Page(this: Component<{}>) {
+        this.task.server(() => {
+          window.addEventListener("resize", () => {});
+        });
+        return () => <p />;
+      }
+    `)).toThrow("this.task.server() cannot reference browser-only globals");
+
+    expect(() => transform(`
+      import { readFile } from "node:fs/promises";
+      function Page(this: Component<{}>) {
+        this.task.client(async () => {
+          await readFile("title.txt", "utf8");
+        });
+        return () => <p />;
+      }
+    `)).toThrow("this.task.client() cannot reference server-only imports");
   });
 
   it("lowers shorthand and underscore fragments", () => {
