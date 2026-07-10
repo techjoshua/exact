@@ -1,19 +1,35 @@
 import { render } from "@exact/dom";
 import { logFrameworkEvent, type Logger, type VNode } from "@exact/core";
-import type { ExactPatch } from "@exact/server";
+import type { ExactInvocationKind, ExactInvocationResult, ExactPatch } from "@exact/server";
 
 export type HydrateOptions = {
   endpoint?: string;
   state?: unknown;
   logger?: Logger;
   onMismatch?: "replace" | "throw";
+  fetch?: FetchLike;
+  headers?: Record<string, string>;
 };
 
-export type HydrationRoot = {
+export type FetchLike = (input: string, init: {
+  method: string;
+  headers: Record<string, string>;
+  body: string;
+}) => Promise<{
+  ok: boolean;
+  status: number;
+  json(): Promise<unknown>;
+}>;
+
+export type ExactClient = {
   readonly endpoint?: string;
-  readonly state?: unknown;
+  state?: unknown;
   applyPatches(patches: readonly ExactPatch[]): void;
+  invokeAction(id: string, payload?: unknown): Promise<ExactInvocationResult>;
+  refreshBoundary(id: string, payload?: unknown): Promise<ExactInvocationResult>;
 };
+
+export type HydrationRoot = ExactClient;
 
 const roots = new WeakMap<Element, HydrationRoot>();
 
@@ -25,19 +41,90 @@ export function hydrate(vnode: VNode, container: Element, options: HydrateOption
     render(vnode, container, { logger: options.logger });
   }
 
-  const root: HydrationRoot = {
-    endpoint: options.endpoint,
-    state: options.state,
-    applyPatches(patches) {
-      applyPatches(container, patches, options);
-    }
-  };
+  const root = createExactClient(container, options);
   roots.set(container, root);
   return root;
 }
 
+export function createExactClient(container: Element, options: HydrateOptions = {}): ExactClient {
+  const client: ExactClient = {
+    endpoint: options.endpoint,
+    state: options.state,
+    applyPatches(patches) {
+      applyPatches(container, patches, options);
+    },
+    invokeAction(id, payload) {
+      return invokeAndApply(container, client, "action", id, payload, options);
+    },
+    refreshBoundary(id, payload) {
+      return invokeAndApply(container, client, "refresh", id, payload, options);
+    }
+  };
+  return client;
+}
+
 export function getHydrationRoot(container: Element): HydrationRoot | undefined {
   return roots.get(container);
+}
+
+async function invokeAndApply(
+  container: Element,
+  client: ExactClient,
+  type: ExactInvocationKind,
+  id: string,
+  payload: unknown,
+  options: HydrateOptions
+): Promise<ExactInvocationResult> {
+  const result = await invokeExact({
+    endpoint: requireEndpoint(client.endpoint),
+    type,
+    id,
+    payload,
+    state: client.state,
+    fetch: options.fetch,
+    headers: options.headers,
+    logger: options.logger
+  });
+  if (result.patches) applyPatches(container, result.patches, options);
+  if ("state" in result) client.state = result.state;
+  return result;
+}
+
+export type InvokeExactOptions = {
+  endpoint: string;
+  type: ExactInvocationKind;
+  id: string;
+  payload?: unknown;
+  state?: unknown;
+  fetch?: FetchLike;
+  headers?: Record<string, string>;
+  logger?: Logger;
+};
+
+export async function invokeExact(options: InvokeExactOptions): Promise<ExactInvocationResult> {
+  const fetchImpl = options.fetch ?? globalThis.fetch;
+  if (!fetchImpl) throw new Error("eXact endpoint invocation requires fetch");
+
+  const response = await fetchImpl(options.endpoint, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...options.headers
+    },
+    body: JSON.stringify({
+      type: options.type,
+      id: options.id,
+      payload: options.payload,
+      state: options.state
+    })
+  });
+
+  const body = await response.json();
+  if (!response.ok) {
+    logFrameworkEvent("warn", "hydrate", "request", `exact ${options.type} invocation failed with ${response.status}`, undefined, options.logger);
+    throw new Error(`eXact ${options.type} invocation failed`);
+  }
+  return body as ExactInvocationResult;
 }
 
 export function applyPatches(container: Element, patches: readonly ExactPatch[], options: HydrateOptions = {}): void {
@@ -51,6 +138,11 @@ export function applyPatches(container: Element, patches: readonly ExactPatch[],
       return;
     }
   }
+}
+
+function requireEndpoint(endpoint: string | undefined): string {
+  if (!endpoint) throw new Error("eXact endpoint is not configured");
+  return endpoint;
 }
 
 function applyPatch(container: Element, patch: ExactPatch): boolean {
