@@ -136,7 +136,7 @@ When the compiler splits one authored component into generated server/client pie
 The Vite plugin also supports `.exact` facade imports. With `exact({ target: "client" })`, `import { ProjectCard } from "./ProjectCard.exact"` resolves to `ProjectCard.exact.client.ts`; with `target: "server"` it resolves to `ProjectCard.exact.server.ts`.
 For packaged component libraries that publish `exact-client` and `exact-server` export conditions, the same plugin target adds the matching resolver condition during Vite config setup.
 
-In server-target artifacts, simple interactive JSX islands such as elements with `onClick` or `ref` are replaced with server-rendered client-boundary placeholders. The compiler also splits clear self-closing/no-child client component tags out of server artifacts, replacing them with a boundary named after the client component and omitting that client component body from the server file. The client artifact preserves the interactive component and exports generated island aliases for element-level splits, which can be registered during hydration:
+In server-target artifacts, simple interactive JSX islands such as elements with `onClick` or `ref` are replaced with server-rendered client-boundary placeholders. The compiler also splits clear self-closing/no-child client component tags out of server artifacts, replacing them with a boundary named after the client component, omitting that client component body from the server file, and pruning imports that become unused after the split. The client artifact preserves the interactive component and exports generated island aliases for element-level splits, which can be registered during hydration:
 
 ```tsx
 import { hydrateClientIslands } from "@exact/hydrate";

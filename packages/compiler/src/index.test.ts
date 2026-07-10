@@ -482,6 +482,37 @@ describe("@exact/compiler", () => {
     expect(server).not.toContain("onClick");
   });
 
+  it("removes imports used only by split client components from server artifacts", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-prune-imports-"));
+    const input = path.join(root, "src", "page.tsx");
+    const outDir = path.join(root, "out");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, `
+      import { Chart } from "chart-lib";
+
+      export function ClientChart(this: Component<{ width: number }>) {
+        this.state.width = window.innerWidth;
+        return () => <button onClick={() => Chart.render()} />;
+      }
+
+      export function Page() {
+        return () => <ClientChart />;
+      }
+    `);
+
+    const result = await compileFileArtifacts(input, {
+      outDir,
+      rootDir: path.join(root, "src")
+    });
+    const client = await readFile(result.clientFile, "utf8");
+    const server = await readFile(result.serverFile, "utf8");
+
+    expect(client).toContain("chart-lib");
+    expect(server).not.toContain("chart-lib");
+    expect(server).not.toContain("Chart.render");
+    expect(server).toContain("\"ClientChart\"");
+  });
+
   it("generates deterministic split component names from author names", () => {
     expect(generatedComponentName("ProjectCard", "client-island", 1)).toBe("ProjectCard_ExactClient_1");
     expect(generatedComponentName("ProjectCard", "server-part", 2)).toBe("ProjectCard_ExactServer_2");
