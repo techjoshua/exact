@@ -384,7 +384,7 @@ const config = readExactHydrationConfig(document);
 hydrate(<App />, document.getElementById("app")!, config);
 ```
 
-Server components are not yet a full distributed component protocol. The pieces now in place are the semantic compiler manifest, client/server compiler targets, secure generic endpoint, hydration state exchange, and server boundary replacement patches. The remaining work is deeper compiler-owned component splitting, fine-grained server patch generation beyond boundary replacement, and bundler orchestration for separate client/server artifact graphs.
+Server components are not yet a full distributed component protocol. The pieces now in place are the semantic compiler manifest, client/server compiler targets, secure generic endpoint, hydration state exchange, server boundary replacement patches, text/element boundary diffs, and keyed list diff helpers. The remaining work is deeper compiler-owned component splitting, richer automatic server patch generation, and bundler orchestration for separate client/server artifact graphs.
 
 ## Logging
 
