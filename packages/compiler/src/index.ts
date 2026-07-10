@@ -165,6 +165,7 @@ type HelperNames = {
 };
 
 type StateSnapshotTree = Map<string, StateSnapshotTree | ts.Expression>;
+type ClientIslandElementNode = ts.JsxElement | ts.JsxSelfClosingElement;
 
 export function transform(source: string, options: TransformOptions = {}): string {
   return transformSource(source, options).code;
@@ -474,7 +475,13 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
         }
         if (target === "server" && jsxElementIsClientIsland(node.openingElement.attributes)) {
           sawBoundary = true;
-          return createClientIslandBoundaryCall(sourceFile, context, helpers, componentStack[componentStack.length - 1], islandCounts, node.openingElement.attributes);
+          return createClientIslandBoundaryCall(sourceFile, context, helpers, componentStack[componentStack.length - 1], islandCounts, node.openingElement.attributes, node.children);
+        }
+        if (target === "client" && jsxElementIsClientIsland(node.openingElement.attributes)) {
+          const owner = componentStack[componentStack.length - 1];
+          if (!owner || componentPlacements.get(owner) !== "client") {
+            recordClientIslandDefinition(sourceFile, context, visitor, helpers, owner, islandCounts, node, clientIslandDefinitions);
+          }
         }
         return transformJsxElement(sourceFile, node, context, visitor, helpers);
       }
@@ -483,7 +490,7 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
         if (target === "client" && jsxElementIsClientIsland(node.attributes)) {
           const owner = componentStack[componentStack.length - 1];
           if (!owner || componentPlacements.get(owner) !== "client") {
-            recordClientIslandDefinition(sourceFile, context, helpers, owner, islandCounts, node, clientIslandDefinitions);
+            recordClientIslandDefinition(sourceFile, context, visitor, helpers, owner, islandCounts, node, clientIslandDefinitions);
           }
         }
         if (target === "server" && jsxTagIsClientComponent(node.tagName, componentPlacements)) {
@@ -1103,7 +1110,8 @@ function createClientIslandBoundaryCall(
   helpers: HelperNames,
   componentName: string | undefined,
   islandCounts: Map<string, number>,
-  attributes: ts.JsxAttributes
+  attributes: ts.JsxAttributes,
+  children?: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[]
 ): ts.Expression {
   const factory = context.factory;
   const owner = componentName ?? "Anonymous";
@@ -1114,36 +1122,41 @@ function createClientIslandBoundaryCall(
   return factory.createCallExpression(factory.createIdentifier(helpers.boundary), undefined, [
     factory.createStringLiteral(id),
     factory.createStringLiteral(generatedName),
-    islandProps(context, attributes)
+    islandProps(context, attributes, children)
   ]);
 }
 
 function recordClientIslandDefinition(
   sourceFile: ts.SourceFile,
   context: ts.TransformationContext,
+  visitor: ts.Visitor,
   helpers: HelperNames,
   componentName: string | undefined,
   islandCounts: Map<string, number>,
-  node: ts.JsxSelfClosingElement,
+  node: ClientIslandElementNode,
   definitions: ts.FunctionDeclaration[]
 ): void {
   const owner = componentName ?? "Anonymous";
   const next = (islandCounts.get(owner) ?? 0) + 1;
   islandCounts.set(owner, next);
-  definitions.push(createClientIslandDefinition(sourceFile, context, helpers, owner, next, node));
+  definitions.push(createClientIslandDefinition(sourceFile, context, visitor, helpers, owner, next, node));
 }
 
 function createClientIslandDefinition(
   sourceFile: ts.SourceFile,
   context: ts.TransformationContext,
+  visitor: ts.Visitor,
   helpers: HelperNames,
   owner: string,
   index: number,
-  node: ts.JsxSelfClosingElement
+  node: ClientIslandElementNode
 ): ts.FunctionDeclaration {
   const factory = context.factory;
   const props = factory.createIdentifier("props");
   const generatedName = generatedComponentName(owner, "client-island", index);
+  const tagName = ts.isJsxElement(node) ? node.openingElement.tagName : node.tagName;
+  const attributes = ts.isJsxElement(node) ? node.openingElement.attributes : node.attributes;
+  const children = ts.isJsxElement(node) ? node.children : [];
   return factory.createFunctionDeclaration(
     [factory.createModifier(ts.SyntaxKind.ExportKeyword)],
     undefined,
@@ -1167,8 +1180,9 @@ function createClientIslandDefinition(
         undefined,
         factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
         factory.createCallExpression(factory.createIdentifier(helpers.element), undefined, [
-          tagExpression(node.tagName),
-          clientIslandElementProps(sourceFile, context, node, props)
+          tagExpression(tagName),
+          clientIslandElementProps(sourceFile, context, tagName, attributes, node, props),
+          ...childrenExpressions(context, children, visitor, helpers)
         ])
       ))
     ], true)
@@ -1192,16 +1206,18 @@ function createClientIslandStateInit(factory: ts.NodeFactory, props: ts.Identifi
 function clientIslandElementProps(
   sourceFile: ts.SourceFile,
   context: ts.TransformationContext,
-  node: ts.JsxSelfClosingElement,
+  tagName: ts.JsxTagNameExpression,
+  attributes: ts.JsxAttributes,
+  node: ts.Node,
   props: ts.Identifier
 ): ts.ObjectLiteralExpression {
   const factory = context.factory;
   const properties: ts.ObjectLiteralElementLike[] = [];
-  const exactId = exactElementId(sourceFile, node.tagName, node);
+  const exactId = exactElementId(sourceFile, tagName, node);
   if (exactId) {
     properties.push(factory.createPropertyAssignment(factory.createStringLiteral("data-exact-id"), factory.createStringLiteral(exactId)));
   }
-  for (const attribute of node.attributes.properties) {
+  for (const attribute of attributes.properties) {
     if (ts.isJsxSpreadAttribute(attribute)) {
       properties.push(factory.createSpreadAssignment(props));
       continue;
@@ -1283,10 +1299,14 @@ function createClientComponentServerStub(
   );
 }
 
-function islandProps(context: ts.TransformationContext, attributes: ts.JsxAttributes): ts.ObjectLiteralExpression {
+function islandProps(
+  context: ts.TransformationContext,
+  attributes: ts.JsxAttributes,
+  children?: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[]
+): ts.ObjectLiteralExpression {
   const props: ts.ObjectLiteralElementLike[] = [];
   const factory = context.factory;
-  const stateReads = collectAttributeStateReads(attributes);
+  const stateReads = collectIslandStateReads(attributes, children);
   if (stateReads.length) {
     props.push(factory.createPropertyAssignment(
       factory.createStringLiteral("__exactState"),
@@ -1316,7 +1336,7 @@ function islandProps(context: ts.TransformationContext, attributes: ts.JsxAttrib
   return factory.createObjectLiteralExpression(props, false);
 }
 
-function collectAttributeStateReads(attributes: ts.JsxAttributes): string[] {
+function collectIslandStateReads(attributes: ts.JsxAttributes, children?: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[]): string[] {
   const paths = new Set<string>();
   for (const attribute of attributes.properties) {
     if (ts.isJsxSpreadAttribute(attribute)) {
@@ -1326,6 +1346,9 @@ function collectAttributeStateReads(attributes: ts.JsxAttributes): string[] {
     if (attribute.initializer && ts.isJsxExpression(attribute.initializer) && attribute.initializer.expression) {
       collectStateReads(attribute.initializer.expression, paths);
     }
+  }
+  for (const child of children ?? []) {
+    collectStateReads(child, paths);
   }
   return [...paths].sort();
 }

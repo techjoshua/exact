@@ -487,6 +487,31 @@ describe("@exact/compiler", () => {
     expect(output).not.toContain("export const Panel_ExactClient_1 = Panel");
   });
 
+  it("generates child-bearing client island components with state bridge props", () => {
+    const source = `
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ count: number; label: string }>) {
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        return () => <button title={this.state.label} onClick={() => this.state.count++}>
+          Save {this.state.count}
+        </button>;
+      }
+    `;
+    const client = transform(source, { filename: "Panel.tsx", target: "client" });
+    const server = transform(source, { filename: "Panel.tsx", target: "server" });
+
+    expect(client).toContain("export function Panel_ExactClient_1(props = {})");
+    expect(client).toContain("title: props.title");
+    expect(client).toContain("onClick: () => this.state.count++");
+    expect(client).toContain("__exactDynamic(() => this.state.count)");
+    expect(server).toContain("\"__exactState\": { count: this.state.count, label: this.state.label }");
+    expect(server).toContain("title: this.state.label");
+    expect(server).not.toContain("onClick");
+  });
+
   it("splits self-closing client components out of server artifacts", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "exact-component-split-"));
     const input = path.join(root, "src", "page.tsx");
