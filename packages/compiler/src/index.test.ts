@@ -432,8 +432,8 @@ describe("@exact/compiler", () => {
       placement: "client"
     });
     expect(client).toContain("export function Panel");
-    expect(client).toContain("export const Panel_ExactClient_1 = Panel;");
-    expect(client).toContain("export const Panel_ExactClient_2 = Panel;");
+    expect(client).not.toContain("export function Panel_ExactClient_1");
+    expect(client).not.toContain("export function Panel_ExactClient_2");
     expect(server).toContain("createServerBoundary as");
     expect(server).toContain("export function Panel(props = {})");
     expect(server).toContain("\"Panel\"");
@@ -463,8 +463,28 @@ describe("@exact/compiler", () => {
     `, { filename: "Panel.tsx", target: "server" });
 
     expect(output).toContain("title: label");
+    expect(output).toContain("\"__exactState\": { count: this.state.count }");
     expect(output).toContain("Panel_ExactClient_1");
     expect(output).not.toContain("onClick");
+  });
+
+  it("generates client island components with state bridge initialization", () => {
+    const output = transform(`
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ count: number }>) {
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        return () => <button title={this.state.count} onClick={() => this.state.count++} />;
+      }
+    `, { filename: "Panel.tsx", target: "client" });
+
+    expect(output).toContain("export function Panel_ExactClient_1(props = {})");
+    expect(output).toContain("Object.assign(this.state, props.__exactState)");
+    expect(output).toContain("title: props.title");
+    expect(output).toContain("onClick: () => this.state.count++");
+    expect(output).not.toContain("export const Panel_ExactClient_1 = Panel");
   });
 
   it("splits self-closing client components out of server artifacts", async () => {
