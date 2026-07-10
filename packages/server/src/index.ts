@@ -21,6 +21,25 @@ export type ExactManifestBoundary = {
   componentId?: string;
 };
 
+export type ExactCompilerManifestLike = {
+  version: 1;
+  serverActions?: Record<string, {
+    id: string;
+    componentId?: string;
+    taskId?: string;
+    placement?: "server" | "isomorphic" | "client" | "unknown";
+  }>;
+  components?: readonly {
+    id: string;
+    placement?: "server" | "isomorphic" | "client" | "unknown";
+  }[];
+};
+
+export type CreateExactServerManifestOptions = {
+  endpoint?: string;
+  boundaries?: Record<string, ExactManifestBoundary>;
+};
+
 export type ExactRequestLike = {
   method: string;
   url?: string;
@@ -65,6 +84,38 @@ export type ExactServerContext = {
   validateCsrf?(request: ExactRequestLike, input: ExactInvocationRequest): Promise<boolean> | boolean;
   logger?: Logger;
 };
+
+export function createExactServerManifest(
+  compilerManifest: ExactCompilerManifestLike,
+  options: CreateExactServerManifestOptions = {}
+): ExactServerManifest {
+  const actions: Record<string, ExactManifestAction> = {};
+  for (const action of Object.values(compilerManifest.serverActions ?? {})) {
+    if (action.placement !== "server" && action.placement !== "isomorphic") continue;
+    actions[action.id] = {
+      id: action.id,
+      componentId: action.componentId,
+      taskId: action.taskId,
+      placement: action.placement
+    };
+  }
+
+  const boundaries: Record<string, ExactManifestBoundary> = { ...options.boundaries };
+  for (const component of compilerManifest.components ?? []) {
+    if (component.placement === "client") continue;
+    boundaries[component.id] ??= {
+      id: component.id,
+      componentId: component.id
+    };
+  }
+
+  return {
+    version: 1,
+    endpoint: options.endpoint,
+    actions,
+    boundaries
+  };
+}
 
 export async function handleExactRequest(request: ExactRequestLike, context: ExactServerContext): Promise<ExactResponseLike> {
   if (request.method.toUpperCase() !== "POST") {

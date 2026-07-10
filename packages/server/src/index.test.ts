@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { handleExactRequest, type ExactServerContext } from "./index.js";
+import { createExactServerManifest, handleExactRequest, type ExactServerContext } from "./index.js";
 
 const noopLogger = {
   isEnabled: () => false,
@@ -33,6 +33,33 @@ function context(overrides: Partial<ExactServerContext> = {}): ExactServerContex
 }
 
 describe("@exact/server", () => {
+  it("creates runtime allowlists from compiler manifests", () => {
+    const manifest = createExactServerManifest({
+      version: 1,
+      serverActions: {
+        serverTask: { id: "serverTask", componentId: "Page", taskId: "task-1", placement: "server" },
+        sharedTask: { id: "sharedTask", componentId: "Page", taskId: "task-2", placement: "isomorphic" },
+        clientTask: { id: "clientTask", componentId: "Widget", taskId: "task-3", placement: "client" }
+      },
+      components: [
+        { id: "Page", placement: "server" },
+        { id: "Widget", placement: "client" }
+      ]
+    }, { endpoint: "/__exact" });
+
+    expect(manifest).toEqual({
+      version: 1,
+      endpoint: "/__exact",
+      actions: {
+        serverTask: { id: "serverTask", componentId: "Page", taskId: "task-1", placement: "server" },
+        sharedTask: { id: "sharedTask", componentId: "Page", taskId: "task-2", placement: "isomorphic" }
+      },
+      boundaries: {
+        Page: { id: "Page", componentId: "Page" }
+      }
+    });
+  });
+
   it("dispatches only manifest-allowlisted actions", async () => {
     const allowed = await handleExactRequest({
       method: "POST",
