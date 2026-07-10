@@ -138,6 +138,57 @@ describe("@exact/hydrate", () => {
     expect(container.querySelector("[data-exact-client-hydrated=\"true\"]")).not.toBeNull();
   });
 
+  it("auto-hydrates refreshed client islands from configured registries", async () => {
+    const container = document.createElement("main");
+    container.innerHTML = "<!--exact:panel--><p>Old</p><!--/exact:panel-->";
+    const fetch = async (_input: string, init: { body: string }) => {
+      const response = await handleExactRequest({
+        method: "POST",
+        body: JSON.parse(init.body)
+      }, {
+        manifest: {
+          version: 1,
+          boundaries: {
+            panel: { id: "panel" }
+          }
+        },
+        refreshBoundaries: {
+          panel: () => ({
+            patches: [{
+              type: "replace",
+              id: "panel",
+              html: "<div data-exact-client-boundary=\"counter\" data-exact-client-name=\"Counter_ExactClient_1\" data-exact-client-props='{\"props\":{\"count\":7}}'></div>"
+            }]
+          })
+        }
+      });
+      return {
+        ok: response.status >= 200 && response.status < 300,
+        status: response.status,
+        async json() {
+          return JSON.parse(response.body);
+        }
+      };
+    };
+
+    function Counter(this: Component<{ count: number }>, props: { count: number }) {
+      this.state.count = props.count;
+      return () => createVNode("button", null, String(this.state.count));
+    }
+
+    const client = createExactClient(container, {
+      endpoint: "/__exact",
+      fetch,
+      islands: {
+        Counter_ExactClient_1: Counter
+      }
+    });
+    await client.refreshBoundary("panel");
+
+    expect(container.querySelector("button")?.textContent).toBe("7");
+    expect(container.querySelector("[data-exact-client-hydrated=\"true\"]")).not.toBeNull();
+  });
+
   it("applies text patches to exact marker ranges", () => {
     const container = document.createElement("div");
     container.innerHTML = "<!--exact:title-->Old<!--/exact:title-->";

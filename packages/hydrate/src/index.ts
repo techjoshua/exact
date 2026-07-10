@@ -10,6 +10,7 @@ export type HydrateOptions = {
   fetch?: FetchLike;
   headers?: Record<string, string>;
   stateContracts?: Record<string, ExactStateContract>;
+  islands?: ClientIslandRegistry;
 };
 
 export type ExactHydrationConfig = {
@@ -91,9 +92,13 @@ export function createExactClient(container: Element, options: HydrateOptions = 
       return invokeAndApply(container, client, "refresh", id, payload, resolvedOptions);
     },
     async refreshIsland(id, registry, payload) {
-      const result = await invokeAndApply(container, client, "refresh", id, payload, resolvedOptions);
-      hydrateClientIslands(container, registry, resolvedOptions);
-      return result;
+      return invokeAndApply(container, client, "refresh", id, payload, {
+        ...resolvedOptions,
+        islands: {
+          ...resolvedOptions.islands,
+          ...registry
+        }
+      });
     }
   };
   return client;
@@ -142,6 +147,7 @@ async function invokeAndApply(
     logger: options.logger
   });
   if (result.patches) applyPatches(container, result.patches, options);
+  if (type === "refresh" && options.islands) hydrateClientIslands(container, options.islands, options);
   if ("state" in result) client.state = result.state;
   return result;
 }
