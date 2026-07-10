@@ -378,6 +378,19 @@ describe("@exact/ssr", () => {
     ]);
   });
 
+  it("creates style patches for compiler assigned exact ids", () => {
+    expect(diffBoundaryHtml(
+      "profile",
+      "<p data-exact-id=\"body\" style=\"color: red; margin-top: 4px;\">Draft</p>",
+      "<p data-exact-id=\"body\" style=\"color: blue; opacity: 1;\">Draft</p>",
+      "element"
+    )).toEqual([
+      { type: "style", id: "body", name: "color", value: "blue" },
+      { type: "style", id: "body", name: "opacity", value: "1" },
+      { type: "style", id: "body", name: "margin-top", value: null }
+    ]);
+  });
+
   it("falls back when nested exact id structure changes", () => {
     expect(diffBoundaryHtml(
       "profile",

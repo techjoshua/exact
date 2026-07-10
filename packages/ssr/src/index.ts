@@ -247,13 +247,25 @@ function diffExactElementHtml(previousHtml: string, nextHtml: string): ExactPatc
     for (const [name, value] of next.attributes) {
       if (name === "data-exact-id") continue;
       if (previous.attributes.get(name) !== value) {
-        patches.push({ type: "prop", id, name, value });
+        if (name === "style") {
+          const stylePatches = diffStyleAttribute(id, previous.attributes.get(name), value);
+          if (!stylePatches) return undefined;
+          patches.push(...stylePatches);
+        } else {
+          patches.push({ type: "prop", id, name, value });
+        }
       }
     }
     for (const name of previous.attributes.keys()) {
       if (name === "data-exact-id") continue;
       if (!next.attributes.has(name)) {
-        patches.push({ type: "prop", id, name, value: null });
+        if (name === "style") {
+          const stylePatches = diffStyleAttribute(id, previous.attributes.get(name), undefined);
+          if (!stylePatches) return undefined;
+          patches.push(...stylePatches);
+        } else {
+          patches.push({ type: "prop", id, name, value: null });
+        }
       }
     }
 
@@ -378,6 +390,41 @@ function textOnlyContent(element: ParsedHtmlElement): string | undefined {
     text += child.value;
   }
   return text;
+}
+
+function diffStyleAttribute(id: string, previous: string | undefined, next: string | undefined): ExactPatch[] | undefined {
+  const previousStyle = parseStyleAttribute(previous ?? "");
+  const nextStyle = parseStyleAttribute(next ?? "");
+  if (!previousStyle || !nextStyle) return undefined;
+  const patches: ExactPatch[] = [];
+  for (const [name, value] of nextStyle) {
+    if (previousStyle.get(name) !== value) {
+      patches.push({ type: "style", id, name, value });
+    }
+  }
+  for (const name of previousStyle.keys()) {
+    if (!nextStyle.has(name)) {
+      patches.push({ type: "style", id, name, value: null });
+    }
+  }
+  return patches;
+}
+
+function parseStyleAttribute(value: string): Map<string, string> | undefined {
+  const styles = new Map<string, string>();
+  const trimmed = value.trim();
+  if (!trimmed) return styles;
+  for (const declaration of trimmed.split(";")) {
+    const part = declaration.trim();
+    if (!part) continue;
+    const separator = part.indexOf(":");
+    if (separator <= 0) return undefined;
+    const name = part.slice(0, separator).trim();
+    const styleValue = part.slice(separator + 1).trim();
+    if (!name || !styleValue) return undefined;
+    styles.set(name, styleValue);
+  }
+  return styles;
 }
 
 function normalizedHtmlShape(nodes: readonly ParsedHtmlNode[]): string {
