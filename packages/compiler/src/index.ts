@@ -486,7 +486,7 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
           sawBoundary = true;
           return createClientIslandBoundaryCall(sourceFile, context, helpers, componentStack[componentStack.length - 1], islandCounts, node.openingElement.attributes);
         }
-        return transformJsxElement(node, context, visitor, helpers);
+        return transformJsxElement(sourceFile, node, context, visitor, helpers);
       }
       if (ts.isJsxSelfClosingElement(node)) {
         sawJsx = true;
@@ -498,7 +498,7 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
           sawBoundary = true;
           return createClientIslandBoundaryCall(sourceFile, context, helpers, componentStack[componentStack.length - 1], islandCounts, node.attributes);
         }
-        return transformJsxSelfClosingElement(node, context, visitor, helpers);
+        return transformJsxSelfClosingElement(sourceFile, node, context, visitor, helpers);
       }
       if (ts.isJsxFragment(node)) {
         sawJsx = true;
@@ -1001,23 +1001,23 @@ function stableId(...parts: string[]): string {
   return `x${(hash >>> 0).toString(36)}`;
 }
 
-function transformJsxElement(node: ts.JsxElement, context: ts.TransformationContext, visitor: ts.Visitor, helpers: HelperNames): ts.Expression {
+function transformJsxElement(sourceFile: ts.SourceFile, node: ts.JsxElement, context: ts.TransformationContext, visitor: ts.Visitor, helpers: HelperNames): ts.Expression {
   const opening = node.openingElement;
   const tagName = opening.tagName.getText();
   if (tagName === "_") {
     return callFragment(context, opening.attributes, node.children, visitor, helpers);
   }
 
-  return callElement(context, tagExpression(opening.tagName), opening.attributes, node.children, visitor, helpers);
+  return callElement(context, tagExpression(opening.tagName), opening.attributes, node.children, visitor, helpers, exactElementId(sourceFile, opening.tagName, node));
 }
 
-function transformJsxSelfClosingElement(node: ts.JsxSelfClosingElement, context: ts.TransformationContext, visitor: ts.Visitor, helpers: HelperNames): ts.Expression {
+function transformJsxSelfClosingElement(sourceFile: ts.SourceFile, node: ts.JsxSelfClosingElement, context: ts.TransformationContext, visitor: ts.Visitor, helpers: HelperNames): ts.Expression {
   const tagName = node.tagName.getText();
   if (tagName === "_") {
     return callFragment(context, node.attributes, [], visitor, helpers);
   }
 
-  return callElement(context, tagExpression(node.tagName), node.attributes, [], visitor, helpers);
+  return callElement(context, tagExpression(node.tagName), node.attributes, [], visitor, helpers, exactElementId(sourceFile, node.tagName, node));
 }
 
 function transformJsxFragment(node: ts.JsxFragment, context: ts.TransformationContext, visitor: ts.Visitor, helpers: HelperNames): ts.Expression {
@@ -1150,6 +1150,16 @@ function jsxTagIsClientComponent(tagName: ts.JsxTagNameExpression, placements: M
   return placements.get(tagName.text) === "client";
 }
 
+function exactElementId(sourceFile: ts.SourceFile, tagName: ts.JsxTagNameExpression, node: ts.Node): string | undefined {
+  if (!jsxTagIsIntrinsicElement(tagName)) return undefined;
+  return stableId(sourceFile.fileName, "element", String(node.getStart(sourceFile)), String(node.getEnd()));
+}
+
+function jsxTagIsIntrinsicElement(tagName: ts.JsxTagNameExpression): boolean {
+  if (ts.isIdentifier(tagName)) return /^[a-z]/.test(tagName.text);
+  return ts.isJsxNamespacedName(tagName);
+}
+
 function jsxElementHasNoMeaningfulChildren(node: ts.JsxElement): boolean {
   return node.children.every(child => ts.isJsxText(child) && !child.text.trim());
 }
@@ -1160,11 +1170,12 @@ function callElement(
   attributes: ts.JsxAttributes | undefined,
   children: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[],
   visitor: ts.Visitor,
-  helpers: HelperNames
+  helpers: HelperNames,
+  exactId?: string
 ): ts.Expression {
   return context.factory.createCallExpression(context.factory.createIdentifier(helpers.element), undefined, [
     tag,
-    propsObject(context, attributes, visitor, helpers),
+    propsObject(context, attributes, visitor, helpers, exactId),
     ...childrenExpressions(context, children, visitor, helpers)
   ]);
 }
@@ -1182,9 +1193,12 @@ function callFragment(
   ]);
 }
 
-function propsObject(context: ts.TransformationContext, attributes: ts.JsxAttributes | undefined, visitor: ts.Visitor, helpers: HelperNames): ts.Expression {
+function propsObject(context: ts.TransformationContext, attributes: ts.JsxAttributes | undefined, visitor: ts.Visitor, helpers: HelperNames, exactId?: string): ts.Expression {
   const factory = context.factory;
   const properties: ts.ObjectLiteralElementLike[] = [];
+  if (exactId) {
+    properties.push(factory.createPropertyAssignment(factory.createStringLiteral("data-exact-id"), factory.createStringLiteral(exactId)));
+  }
 
   for (const property of attributes?.properties ?? []) {
     if (ts.isJsxSpreadAttribute(property)) {

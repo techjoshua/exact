@@ -3,6 +3,7 @@ import { createCompiledVNode, createDynamicChild, createServerBoundary, createTe
 import { handleExactRequest } from "@exact/server";
 import {
   createBoundaryRefreshHandler,
+  diffBoundaryHtml,
   diffKeyedListItems,
   renderHydrationScript,
   renderToHydratableString,
@@ -351,6 +352,18 @@ describe("@exact/ssr", () => {
         { type: "text", id: "profile", value: "Ready" }
       ]
     });
+  });
+
+  it("targets simple element patches with compiler assigned exact ids", () => {
+    expect(diffBoundaryHtml(
+      "profile",
+      "<p data-exact-id=\"node-1\" class=\"old\">Loading</p>",
+      "<p data-exact-id=\"node-1\" class=\"new\">Ready</p>",
+      "element"
+    )).toEqual([
+      { type: "prop", id: "node-1", name: "class", value: "new" },
+      { type: "text", id: "node-1", value: "Ready" }
+    ]);
   });
 
   it("falls back to replacement patches when element strategy shape changes", async () => {

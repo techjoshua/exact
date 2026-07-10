@@ -34,6 +34,14 @@ describe("@exact/compiler", () => {
     expect(result.manifest.filename).toBe("view.tsx");
   });
 
+  it("emits stable exact ids for compiled dom elements", () => {
+    const output = transform("const view = <section><Label /><span>Ready</span></section>;", { filename: "view.tsx" });
+
+    expect(output).toMatch(/"data-exact-id": "x[a-z0-9]+"/);
+    expect(output.match(/"data-exact-id":/g)).toHaveLength(2);
+    expect(output).toContain("__exactVNode(Label, {})");
+  });
+
   it("builds semantic task metadata for server component planning", () => {
     const manifest = analyzeSource(`
       import { readFile } from "node:fs/promises";

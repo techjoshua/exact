@@ -189,19 +189,22 @@ export function diffBoundaryHtml(
     const previous = parseSimpleElement(previousHtml);
     const next = parseSimpleElement(nextHtml);
     if (previous && next && previous.tagName === next.tagName) {
+      const targetId = next.attributes.get("data-exact-id") ?? previous.attributes.get("data-exact-id") ?? boundaryId;
       const patches: ExactPatch[] = [];
       for (const [name, value] of next.attributes) {
+        if (name === "data-exact-id") continue;
         if (previous.attributes.get(name) !== value) {
-          patches.push({ type: "prop", id: boundaryId, name, value });
+          patches.push({ type: "prop", id: targetId, name, value });
         }
       }
       for (const name of previous.attributes.keys()) {
+        if (name === "data-exact-id") continue;
         if (!next.attributes.has(name)) {
-          patches.push({ type: "prop", id: boundaryId, name, value: null });
+          patches.push({ type: "prop", id: targetId, name, value: null });
         }
       }
       if (previous.text !== next.text) {
-        patches.push({ type: "text", id: boundaryId, value: decodeEscapedText(next.text) });
+        patches.push({ type: "text", id: targetId, value: decodeEscapedText(next.text) });
       }
       return patches.length ? patches : [];
     }
