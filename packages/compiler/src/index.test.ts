@@ -60,7 +60,7 @@ describe("@exact/compiler", () => {
       kind: "component",
       placement: "isomorphic"
     });
-    expect(manifest.symbols).toEqual([expect.objectContaining({
+    expect(manifest.symbols).toEqual(expect.arrayContaining([expect.objectContaining({
       id: expect.stringMatching(/^x/),
       componentId: component.id,
       exportName: "ProjectPage",
@@ -71,7 +71,15 @@ describe("@exact/compiler", () => {
       role: "root",
       target: "both",
       placement: "isomorphic"
-    })]);
+    }), expect.objectContaining({
+      componentId: component.id,
+      exportName: "ProjectPage_ExactClient_1",
+      localName: "ProjectPage_ExactClient_1",
+      generatedName: "ProjectPage_ExactClient_1",
+      role: "client-island",
+      target: "client",
+      placement: "client"
+    })]));
     expect(component.splitBoundaries).toEqual(expect.arrayContaining(["browser:window", "event-handler", "ref", "server-import:readFile"]));
     expect(component.tasks.map(task => task.placement)).toEqual(["server", "client", "client"]);
     expect(component.tasks[0]!.writes).toContainEqual({
@@ -347,14 +355,55 @@ describe("@exact/compiler", () => {
       server: "page.exact.server.ts",
       manifest: "page.exact.manifest.json",
       exports: [{ name: "Page", kind: "component", placement: "isomorphic" }],
-      symbols: [expect.objectContaining({
+      symbols: expect.arrayContaining([expect.objectContaining({
         exportName: "Page",
         localName: "Page",
         generatedName: "Page",
         role: "root",
         target: "both"
-      })]
+      }), expect.objectContaining({
+        exportName: "Page_ExactClient_1",
+        localName: "Page_ExactClient_1",
+        generatedName: "Page_ExactClient_1",
+        role: "client-island",
+        target: "client"
+      })])
     });
+  });
+
+  it("splits simple interactive JSX into server boundaries and client island exports", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-split-"));
+    const input = path.join(root, "src", "panel.tsx");
+    const outDir = path.join(root, "out");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, `
+      export function Panel(this: Component<{ count: number }>) {
+        this.state.count = 0;
+        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
+      }
+    `);
+
+    const result = await compileFileArtifacts(input, {
+      outDir,
+      rootDir: path.join(root, "src")
+    });
+    const client = await readFile(result.clientFile, "utf8");
+    const server = await readFile(result.serverFile, "utf8");
+    const island = result.manifest.symbols.find(symbol => symbol.role === "client-island")!;
+
+    expect(island).toMatchObject({
+      generatedName: "Panel_ExactClient_1",
+      localName: "Panel_ExactClient_1",
+      exportName: "Panel_ExactClient_1",
+      target: "client",
+      placement: "client"
+    });
+    expect(client).toContain("export function Panel");
+    expect(client).toContain("export const Panel_ExactClient_1 = Panel;");
+    expect(server).toContain("createServerBoundary as");
+    expect(server).toContain("Panel_ExactClient_1");
+    expect(server).toContain(island.id);
+    expect(server).not.toContain("onClick");
   });
 
   it("generates deterministic split component names from author names", () => {

@@ -132,12 +132,14 @@ const elementHelper = "__exactVNode";
 const fragmentHelper = "__exactFragment";
 const expressionHelper = "__exactExpression";
 const dynamicHelper = "__exactDynamic";
+const boundaryHelper = "__exactBoundary";
 
 type HelperNames = {
   element: string;
   fragment: string;
   expression: string;
   dynamic: string;
+  boundary: string;
 };
 
 export function transform(source: string, options: TransformOptions = {}): string {
@@ -206,6 +208,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
     });
   }
   symbols.push(...createRootSymbols(sourceFile, components, exports));
+  symbols.push(...createClientIslandSymbols(sourceFile, components));
 
   for (const component of components) {
     for (const task of component.tasks) {
@@ -279,10 +282,11 @@ export async function compileProject(inputs: readonly string[], options: Compile
 export async function compileFileArtifacts(inputFile: string, options: CompileArtifactsOptions): Promise<CompileArtifactsResult> {
   const source = await readFile(inputFile, "utf8");
   const filename = options.filename ?? inputFile;
-  const client = transformSource(source, { filename, target: "client" });
+  const manifestBase = analyzeSource(source, { filename });
+  const client = withClientIslandExports(transformSource(source, { filename, target: "client" }), manifestBase);
   const server = transformSource(source, { filename, target: "server" });
   const paths = artifactPathsFor(inputFile, options.outDir, options.rootDir);
-  const manifest = withArtifactMetadata(analyzeSource(source, { filename }), inputFile, paths);
+  const manifest = withArtifactMetadata(manifestBase, inputFile, paths);
 
   await mkdir(path.dirname(paths.clientFile), { recursive: true });
   await writeFile(paths.clientFile, client.code);
@@ -312,6 +316,22 @@ export async function compileProjectArtifacts(inputs: readonly string[], options
   }
 
   return results;
+}
+
+function withClientIslandExports(result: TransformResult, manifest: ExactCompilerManifest): TransformResult {
+  const aliases: string[] = [];
+  const componentNameById = new Map(manifest.components.map(component => [component.id, component.name]));
+  for (const symbol of manifest.symbols) {
+    if (symbol.role !== "client-island" || !symbol.componentId) continue;
+    const rootName = componentNameById.get(symbol.componentId);
+    if (!rootName || rootName === symbol.generatedName) continue;
+    aliases.push(`export const ${symbol.generatedName} = ${rootName};`);
+  }
+  if (!aliases.length) return result;
+  return {
+    ...result,
+    code: `${result.code}\n${aliases.join("\n")}\n`
+  };
 }
 
 export function preprocessPropPunning(source: string): string {
@@ -372,8 +392,17 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
     const helpers = allocateHelperNames(sourceFile);
     const serverOnlyImports = collectServerOnlyImports(sourceFile);
     let sawJsx = false;
+    let sawBoundary = false;
+    const componentStack: string[] = [];
+    const islandCounts = new Map<string, number>();
 
     const visitor: ts.Visitor = node => {
+      if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
+        componentStack.push(node.name.text);
+        const visited = ts.visitEachChild(node, visitor, context);
+        componentStack.pop();
+        return visited;
+      }
       if (ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) && isThisTaskCall(node.expression)) {
         const task = analyzeTask("target-task", node.expression, sourceFile, serverOnlyImports);
         if (shouldOmitPlacement(task.placement, target)) {
@@ -382,10 +411,18 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
       }
       if (ts.isJsxElement(node)) {
         sawJsx = true;
+        if (target === "server" && jsxElementIsClientIsland(node.openingElement.attributes)) {
+          sawBoundary = true;
+          return createClientIslandBoundaryCall(sourceFile, context, helpers, componentStack[componentStack.length - 1], islandCounts);
+        }
         return transformJsxElement(node, context, visitor, helpers);
       }
       if (ts.isJsxSelfClosingElement(node)) {
         sawJsx = true;
+        if (target === "server" && jsxElementIsClientIsland(node.attributes)) {
+          sawBoundary = true;
+          return createClientIslandBoundaryCall(sourceFile, context, helpers, componentStack[componentStack.length - 1], islandCounts);
+        }
         return transformJsxSelfClosingElement(node, context, visitor, helpers);
       }
       if (ts.isJsxFragment(node)) {
@@ -411,7 +448,7 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
       ? factory.updateSourceFile(sourceFile, sourceFile.statements.filter(statement => !isServerOnlyImportDeclaration(statement)))
       : sourceFile;
     const visited = ts.visitEachChild(transformInput, visitor, context);
-    if (!sawJsx) return visited;
+    if (!sawJsx && !sawBoundary) return visited;
 
     const importDeclaration = factory.createImportDeclaration(
       undefined,
@@ -422,7 +459,10 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
           factory.createImportSpecifier(false, factory.createIdentifier("createCompiledVNode"), factory.createIdentifier(helpers.element)),
           factory.createImportSpecifier(false, factory.createIdentifier("createCompiledFragment"), factory.createIdentifier(helpers.fragment)),
           factory.createImportSpecifier(false, factory.createIdentifier("createExpression"), factory.createIdentifier(helpers.expression)),
-          factory.createImportSpecifier(false, factory.createIdentifier("createDynamicChild"), factory.createIdentifier(helpers.dynamic))
+          factory.createImportSpecifier(false, factory.createIdentifier("createDynamicChild"), factory.createIdentifier(helpers.dynamic)),
+          ...(sawBoundary
+            ? [factory.createImportSpecifier(false, factory.createIdentifier("createServerBoundary"), factory.createIdentifier(helpers.boundary))]
+            : [])
         ])
       ),
       factory.createStringLiteral(helperModule)
@@ -678,6 +718,29 @@ function createRootSymbols(sourceFile: ts.SourceFile, components: ExactComponent
     });
 }
 
+function createClientIslandSymbols(sourceFile: ts.SourceFile, components: ExactComponentIR[]): ExactSymbolIR[] {
+  const symbols: ExactSymbolIR[] = [];
+  for (const component of components) {
+    if (!component.exported) continue;
+    if (!component.splitBoundaries.some(boundary => boundary === "event-handler" || boundary === "ref" || boundary.startsWith("browser:"))) continue;
+    const index = 1;
+    const generatedName = generatedComponentName(component.name, "client-island", index);
+    symbols.push({
+      id: stableId(sourceFile.fileName, component.name, "client-island", String(index)),
+      componentId: component.id,
+      exportName: generatedName,
+      localName: generatedName,
+      generatedName,
+      debugName: `${component.name}:client-island:${index}`,
+      kind: "component",
+      role: "client-island",
+      target: "client",
+      placement: "client"
+    });
+  }
+  return symbols;
+}
+
 export function generatedComponentName(authorName: string, role: "server-part" | "client-island", index: number): string {
   const base = sanitizeIdentifier(authorName || "Component");
   const suffix = role === "server-part" ? "ExactServer" : "ExactClient";
@@ -813,6 +876,34 @@ function transformJsxSelfClosingElement(node: ts.JsxSelfClosingElement, context:
 
 function transformJsxFragment(node: ts.JsxFragment, context: ts.TransformationContext, visitor: ts.Visitor, helpers: HelperNames): ts.Expression {
   return callFragment(context, undefined, node.children, visitor, helpers);
+}
+
+function jsxElementIsClientIsland(attributes: ts.JsxAttributes): boolean {
+  return attributes.properties.some(property => {
+    if (ts.isJsxSpreadAttribute(property)) return false;
+    const name = property.name.getText();
+    return /^on[A-Z]/.test(name) || name === "ref";
+  });
+}
+
+function createClientIslandBoundaryCall(
+  sourceFile: ts.SourceFile,
+  context: ts.TransformationContext,
+  helpers: HelperNames,
+  componentName: string | undefined,
+  islandCounts: Map<string, number>
+): ts.Expression {
+  const factory = context.factory;
+  const owner = componentName ?? "Anonymous";
+  const next = (islandCounts.get(owner) ?? 0) + 1;
+  islandCounts.set(owner, next);
+  const generatedName = generatedComponentName(owner, "client-island", next);
+  const id = stableId(sourceFile.fileName, owner, "client-island", String(next));
+  return factory.createCallExpression(factory.createIdentifier(helpers.boundary), undefined, [
+    factory.createStringLiteral(id),
+    factory.createStringLiteral(generatedName),
+    factory.createObjectLiteralExpression([], false)
+  ]);
 }
 
 function callElement(
@@ -1078,7 +1169,8 @@ function allocateHelperNames(sourceFile: ts.SourceFile): HelperNames {
     element: allocateName(elementHelper, used),
     fragment: allocateName(fragmentHelper, used),
     expression: allocateName(expressionHelper, used),
-    dynamic: allocateName(dynamicHelper, used)
+    dynamic: allocateName(dynamicHelper, used),
+    boundary: allocateName(boundaryHelper, used)
   };
 }
 

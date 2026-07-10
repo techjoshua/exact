@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createCompiledVNode, createDynamicChild, createVNode, type Component } from "@exact/core";
+import { createCompiledVNode, createDynamicChild, createServerBoundary, createVNode, type Component } from "@exact/core";
 import { handleExactRequest } from "@exact/server";
 import {
   createBoundaryRefreshHandler,
@@ -72,6 +72,18 @@ describe("@exact/ssr", () => {
     expect(result.html).toContain(":b");
     expect(result.html).toContain("<li>A</li>");
     expect(result.html).toContain("<li>B</li>");
+  });
+
+  it("renders server client-boundary placeholders", () => {
+    const result = renderToString(createServerBoundary("island-1", "Panel_ExactClient_1", {
+      title: "</script>"
+    }));
+
+    expect(result.html).toContain("exact:client-boundary");
+    expect(result.html).toContain("data-exact-client-boundary=\"island-1\"");
+    expect(result.html).toContain("data-exact-client-name=\"Panel_ExactClient_1\"");
+    expect(result.html).toContain("\\u003C/script&gt;");
+    expect(result.html).not.toContain("</script>");
   });
 
   it("can expose rendered html as a readable stream", async () => {

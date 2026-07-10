@@ -2,6 +2,7 @@ import {
   Cell,
   Dynamic,
   Fragment,
+  ServerBoundary,
   Text,
   createComponentInstance,
   createErrorReport,
@@ -203,6 +204,10 @@ function renderVNode(context: SsrContext, vnode: VNode, parent?: ComponentInstan
     });
   }
 
+  if (vnode.type === ServerBoundary) {
+    return renderServerBoundary(context, vnode);
+  }
+
   if (typeof vnode.type === "function") {
     return renderComponent(context, vnode, parent);
   }
@@ -267,6 +272,10 @@ async function renderVNodeAsync(
     return markerPair(context, markerId(context, "dynamic", undefined, vnode.key), async () => {
       return renderChildrenAsync(context, normalizeRenderResult(unwrap(vnode.props.value) as Child | Child[]), parent, options);
     });
+  }
+
+  if (vnode.type === ServerBoundary) {
+    return renderServerBoundary(context, vnode);
   }
 
   if (typeof vnode.type === "function") {
@@ -338,6 +347,14 @@ function renderElement(context: SsrContext, vnode: VNode, parent?: ComponentInst
   return `<${tag}${attrs}>${renderChildren(context, vnode.children, parent)}</${tag}>`;
 }
 
+function renderServerBoundary(context: SsrContext, vnode: VNode): string {
+  const id = String(unwrap(vnode.props.id) ?? "");
+  const name = String(unwrap(vnode.props.name) ?? "");
+  const props = unwrap(vnode.props.props) ?? {};
+  const html = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}"></div>`;
+  return markerPair(context, markerId(context, "client-boundary", name, id), () => html);
+}
+
 function renderAttrs(props: Record<string, unknown>): string {
   let attrs = "";
   for (const [name, rawValue] of Object.entries(props)) {
@@ -404,7 +421,7 @@ function componentName(type: VNode["type"]): string {
   return typeof type === "function" ? type.name || "anonymous" : String(type);
 }
 
-function serializeHydrationPayload(payload: { endpoint?: string; state?: unknown }): string {
+function serializeHydrationPayload(payload: Record<string, unknown>): string {
   return JSON.stringify(payload)
     .replace(/</g, "\\u003C")
     .replace(/\u2028/g, "\\u2028")

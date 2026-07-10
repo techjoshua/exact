@@ -19,8 +19,9 @@ export const Fragment = Symbol.for("exact.fragment");
 export const Text = Symbol.for("exact.text");
 export const Cell = Symbol.for("exact.cell");
 export const Dynamic = Symbol.for("exact.dynamic");
+export const ServerBoundary = Symbol.for("exact.server-boundary");
 
-export type VNodeType = string | typeof Fragment | typeof Text | typeof Cell | typeof Dynamic | ComponentFunction<any, any>;
+export type VNodeType = string | typeof Fragment | typeof Text | typeof Cell | typeof Dynamic | typeof ServerBoundary | ComponentFunction<any, any>;
 
 export type VNode<Props = Record<string, unknown>> = {
   type: VNodeType;
@@ -362,6 +363,14 @@ export function createExpression<T>(compute: () => T): ReactiveValue<T> {
 export function createDynamicChild(compute: () => RenderResult): VNode {
   return createVNode(Dynamic, {
     value: computed(compute)
+  });
+}
+
+export function createServerBoundary(id: string, name: string, props: Record<string, unknown> = {}): VNode {
+  return createVNode(ServerBoundary, {
+    id,
+    name,
+    props
   });
 }
 
