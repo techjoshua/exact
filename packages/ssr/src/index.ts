@@ -160,7 +160,7 @@ export function createBoundaryRefreshHandler(
   return async (input, context) => {
     const vnode = await render(input, context);
     const result = await renderToStringAsync(vnode, options);
-    const previousHtml = await options.previousHtml?.(input, context);
+    const previousHtml = await options.previousHtml?.(input, context) ?? input.boundaryHtml;
     return {
       patches: previousHtml === undefined
         ? [boundaryPatch(options.boundaryId, result.html, options.patchStrategy)]

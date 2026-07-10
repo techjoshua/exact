@@ -318,6 +318,40 @@ describe("@exact/ssr", () => {
     });
   });
 
+  it("uses request boundary html as the default previous html for element patches", async () => {
+    const response = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "refresh",
+        id: "profile",
+        boundaryHtml: "<p class=\"old\">Loading</p>"
+      }
+    }, {
+      manifest: {
+        version: 1,
+        boundaries: { profile: { id: "profile" } }
+      },
+      refreshBoundaries: {
+        profile: createBoundaryRefreshHandler(
+          () => createVNode("p", { className: "new" }, "Ready"),
+          {
+            boundaryId: "profile",
+            markers: false,
+            patchStrategy: "element"
+          }
+        )
+      }
+    });
+
+    expect(JSON.parse(response.body)).toMatchObject({
+      ok: true,
+      patches: [
+        { type: "prop", id: "profile", name: "class", value: "new" },
+        { type: "text", id: "profile", value: "Ready" }
+      ]
+    });
+  });
+
   it("falls back to replacement patches when element strategy shape changes", async () => {
     const response = await handleExactRequest({
       method: "POST",

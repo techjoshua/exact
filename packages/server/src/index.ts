@@ -79,6 +79,7 @@ export type ExactInvocationRequest = {
   id: string;
   payload?: unknown;
   state?: unknown;
+  boundaryHtml?: string;
 };
 
 export type ExactInvocationResult = {
@@ -292,7 +293,8 @@ function parseInvocation(body: unknown): ExactInvocationRequest {
     type: record.type,
     id: record.id,
     payload: record.payload,
-    state: record.state
+    state: record.state,
+    boundaryHtml: typeof record.boundaryHtml === "string" ? record.boundaryHtml : undefined
   };
 }
 

@@ -134,6 +134,7 @@ async function invokeAndApply(
     id,
     payload,
     state: type === "action" ? stateForContract(client.state, client.stateContracts?.[id]) : client.state,
+    boundaryHtml: type === "refresh" ? boundaryInnerHtml(container, id) : undefined,
     fetch: options.fetch,
     headers: options.headers,
     logger: options.logger
@@ -149,6 +150,7 @@ export type InvokeExactOptions = {
   id: string;
   payload?: unknown;
   state?: unknown;
+  boundaryHtml?: string;
   fetch?: FetchLike;
   headers?: Record<string, string>;
   logger?: Logger;
@@ -168,7 +170,8 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
       type: options.type,
       id: options.id,
       payload: options.payload,
-      state: options.state
+      state: options.state,
+      boundaryHtml: options.boundaryHtml
     })
   });
 
@@ -210,6 +213,18 @@ function parseIslandProps(raw: string | null): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+function boundaryInnerHtml(container: Element, id: string): string | undefined {
+  const range = findExactRange(container, id);
+  if (!range) return undefined;
+  const wrapper = document.createElement("div");
+  let cursor = range.start.nextSibling;
+  while (cursor && cursor !== range.end) {
+    wrapper.appendChild(cursor.cloneNode(true));
+    cursor = cursor.nextSibling;
+  }
+  return wrapper.innerHTML;
 }
 
 function stateForContract(state: unknown, contract: ExactStateContract | undefined): unknown {

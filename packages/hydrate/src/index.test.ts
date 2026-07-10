@@ -215,6 +215,34 @@ describe("@exact/hydrate", () => {
     expect(client.state).toEqual({ saved: true });
   });
 
+  it("sends current boundary html with refresh requests", async () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<!--exact:panel--><p class=\"old\">Loading</p><!--/exact:panel-->";
+    const requests: unknown[] = [];
+    const fetch = async (_input: string, init: { body: string }) => {
+      requests.push(JSON.parse(init.body));
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { ok: true, patches: [] };
+        }
+      };
+    };
+
+    const client = createExactClient(container, {
+      endpoint: "/__exact",
+      fetch
+    });
+    await client.refreshBoundary("panel");
+
+    expect(requests).toEqual([{
+      type: "refresh",
+      id: "panel",
+      boundaryHtml: "<p class=\"old\">Loading</p>"
+    }]);
+  });
+
   it("sends only exact state contract reads for actions when available", async () => {
     const container = document.createElement("div");
     const requests: unknown[] = [];
