@@ -449,6 +449,39 @@ describe("@exact/compiler", () => {
     expect(output).not.toContain("onClick");
   });
 
+  it("splits self-closing client components out of server artifacts", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-component-split-"));
+    const input = path.join(root, "src", "page.tsx");
+    const outDir = path.join(root, "out");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, `
+      export function ClientWidget(this: Component<{ width: number }>, props: { title: string }) {
+        this.state.width = window.innerWidth;
+        return () => <button onClick={() => this.state.width++}>{props.title}</button>;
+      }
+
+      export function Page(this: Component<{ title: string }>) {
+        this.state.title = "Ready";
+        return () => <section><ClientWidget title={this.state.title} /></section>;
+      }
+    `);
+
+    const result = await compileFileArtifacts(input, {
+      outDir,
+      rootDir: path.join(root, "src")
+    });
+    const client = await readFile(result.clientFile, "utf8");
+    const server = await readFile(result.serverFile, "utf8");
+
+    expect(client).toContain("export function ClientWidget");
+    expect(client).toContain("window.innerWidth");
+    expect(server).toContain("__exactBoundary");
+    expect(server).toContain("\"ClientWidget\"");
+    expect(server).toContain("title: this.state.title");
+    expect(server).not.toContain("window.innerWidth");
+    expect(server).not.toContain("onClick");
+  });
+
   it("generates deterministic split component names from author names", () => {
     expect(generatedComponentName("ProjectCard", "client-island", 1)).toBe("ProjectCard_ExactClient_1");
     expect(generatedComponentName("ProjectCard", "server-part", 2)).toBe("ProjectCard_ExactServer_2");

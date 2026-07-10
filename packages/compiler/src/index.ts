@@ -435,6 +435,8 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
     const factory = context.factory;
     const helpers = allocateHelperNames(sourceFile);
     const serverOnlyImports = collectServerOnlyImports(sourceFile);
+    const componentPlacements = collectComponentPlacements(sourceFile, serverOnlyImports);
+    const splitComponentTags = collectClientComponentTags(sourceFile, componentPlacements);
     let sawJsx = false;
     let sawBoundary = false;
     const componentStack: string[] = [];
@@ -442,6 +444,9 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
 
     const visitor: ts.Visitor = node => {
       if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
+        if (target === "server" && splitComponentTags.has(node.name.text)) {
+          return factory.createEmptyStatement();
+        }
         componentStack.push(node.name.text);
         const visited = ts.visitEachChild(node, visitor, context);
         componentStack.pop();
@@ -455,6 +460,14 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
       }
       if (ts.isJsxElement(node)) {
         sawJsx = true;
+        if (
+          target === "server"
+          && jsxElementHasNoMeaningfulChildren(node)
+          && jsxTagIsClientComponent(node.openingElement.tagName, componentPlacements)
+        ) {
+          sawBoundary = true;
+          return createComponentIslandBoundaryCall(sourceFile, context, helpers, node.openingElement.tagName, node.openingElement.attributes);
+        }
         if (target === "server" && jsxElementIsClientIsland(node.openingElement.attributes)) {
           sawBoundary = true;
           return createClientIslandBoundaryCall(sourceFile, context, helpers, componentStack[componentStack.length - 1], islandCounts, node.openingElement.attributes);
@@ -463,6 +476,10 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
       }
       if (ts.isJsxSelfClosingElement(node)) {
         sawJsx = true;
+        if (target === "server" && jsxTagIsClientComponent(node.tagName, componentPlacements)) {
+          sawBoundary = true;
+          return createComponentIslandBoundaryCall(sourceFile, context, helpers, node.tagName, node.attributes);
+        }
         if (target === "server" && jsxElementIsClientIsland(node.attributes)) {
           sawBoundary = true;
           return createClientIslandBoundaryCall(sourceFile, context, helpers, componentStack[componentStack.length - 1], islandCounts, node.attributes);
@@ -589,6 +606,42 @@ function analyzeComponent(
     splitBoundaries: [...splitBoundaries].sort(),
     diagnostics
   };
+}
+
+function collectComponentPlacements(sourceFile: ts.SourceFile, serverOnlyImports: Set<string>): Map<string, ExactPlacement> {
+  const placements = new Map<string, ExactPlacement>();
+
+  function visit(node: ts.Node): void {
+    if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
+      placements.set(node.name.text, analyzeComponent(node.name.text, node, sourceFile, serverOnlyImports).placement);
+      return;
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return placements;
+}
+
+function collectClientComponentTags(sourceFile: ts.SourceFile, placements: Map<string, ExactPlacement>): Set<string> {
+  const tags = new Set<string>();
+
+  function visit(node: ts.Node): void {
+    if (ts.isJsxSelfClosingElement(node) && jsxTagIsClientComponent(node.tagName, placements)) {
+      tags.add(node.tagName.getText(sourceFile));
+    }
+    if (
+      ts.isJsxElement(node)
+      && jsxElementHasNoMeaningfulChildren(node)
+      && jsxTagIsClientComponent(node.openingElement.tagName, placements)
+    ) {
+      tags.add(node.openingElement.tagName.getText(sourceFile));
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return tags;
 }
 
 function analyzeTask(
@@ -957,6 +1010,23 @@ function createClientIslandBoundaryCall(
   ]);
 }
 
+function createComponentIslandBoundaryCall(
+  sourceFile: ts.SourceFile,
+  context: ts.TransformationContext,
+  helpers: HelperNames,
+  tagName: ts.JsxTagNameExpression,
+  attributes: ts.JsxAttributes
+): ts.Expression {
+  const factory = context.factory;
+  const componentName = tagName.getText(sourceFile);
+  const id = stableId(sourceFile.fileName, componentName, "component-island");
+  return factory.createCallExpression(factory.createIdentifier(helpers.boundary), undefined, [
+    factory.createStringLiteral(id),
+    factory.createStringLiteral(componentName),
+    islandProps(context, attributes)
+  ]);
+}
+
 function islandProps(context: ts.TransformationContext, attributes: ts.JsxAttributes): ts.ObjectLiteralExpression {
   const props: ts.ObjectLiteralElementLike[] = [];
   const factory = context.factory;
@@ -981,6 +1051,16 @@ function islandProps(context: ts.TransformationContext, attributes: ts.JsxAttrib
     }
   }
   return factory.createObjectLiteralExpression(props, false);
+}
+
+function jsxTagIsClientComponent(tagName: ts.JsxTagNameExpression, placements: Map<string, ExactPlacement>): boolean {
+  if (!ts.isIdentifier(tagName)) return false;
+  if (/^[a-z]/.test(tagName.text)) return false;
+  return placements.get(tagName.text) === "client";
+}
+
+function jsxElementHasNoMeaningfulChildren(node: ts.JsxElement): boolean {
+  return node.children.every(child => ts.isJsxText(child) && !child.text.trim());
 }
 
 function callElement(
