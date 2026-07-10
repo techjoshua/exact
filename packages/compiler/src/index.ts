@@ -168,12 +168,12 @@ type StateSnapshotTree = Map<string, StateSnapshotTree | ts.Expression>;
 type ClientIslandElementNode = ts.JsxElement | ts.JsxSelfClosingElement;
 type ComponentLocalInfo = {
   names: Set<string>;
-  functions: Map<string, ts.FunctionDeclaration>;
+  functions: Map<string, ts.Statement>;
 };
 
 type ClientIslandCaptures = {
   values: string[];
-  functions: ts.FunctionDeclaration[];
+  functions: ts.Statement[];
 };
 
 export function transform(source: string, options: TransformOptions = {}): string {
@@ -1129,7 +1129,7 @@ function jsxElementIsClientIsland(attributes: ts.JsxAttributes): boolean {
 
 function collectComponentLocalInfo(node: ts.FunctionDeclaration): ComponentLocalInfo {
   const names = new Set<string>();
-  const functions = new Map<string, ts.FunctionDeclaration>();
+  const functions = new Map<string, ts.Statement>();
   function visit(current: ts.Node): void {
     if (current !== node && ts.isFunctionDeclaration(current) && current.name) {
       names.add(current.name.text);
@@ -1137,11 +1137,25 @@ function collectComponentLocalInfo(node: ts.FunctionDeclaration): ComponentLocal
       return;
     }
     if (current !== node && (ts.isFunctionLike(current) || ts.isClassLike(current))) return;
-    if (ts.isVariableDeclaration(current)) collectBindingNames(current.name, names);
+    if (ts.isVariableDeclaration(current)) {
+      collectBindingNames(current.name, names);
+      if (ts.isIdentifier(current.name) && current.initializer && isFunctionLikeExpression(current.initializer)) {
+        functions.set(current.name.text, cloneableFunctionVariable(current.name, current.initializer));
+      }
+    }
     ts.forEachChild(current, visit);
   }
   if (node.body) visit(node.body);
   return { names, functions };
+}
+
+function cloneableFunctionVariable(name: ts.Identifier, initializer: ts.Expression): ts.VariableStatement {
+  return ts.factory.createVariableStatement(
+    undefined,
+    ts.factory.createVariableDeclarationList([
+      ts.factory.createVariableDeclaration(name, undefined, undefined, initializer)
+    ], ts.NodeFlags.Const)
+  );
 }
 
 function collectBindingNames(name: ts.BindingName, output: Set<string>): void {
@@ -1159,7 +1173,7 @@ function clientIslandCaptures(node: ClientIslandElementNode, locals: ComponentLo
   const captures = new Set<string>();
   collectCapturedIdentifiers(node, locals.names, captures);
   const values: string[] = [];
-  const functions: ts.FunctionDeclaration[] = [];
+  const functions: ts.Statement[] = [];
   for (const name of [...captures].sort()) {
     const declaration = locals.functions.get(name);
     if (declaration) functions.push(declaration);
@@ -1363,10 +1377,10 @@ function rewriteCapturedNode<T extends ts.Node>(
 
 function capturedFunctionDeclarations(
   context: ts.TransformationContext,
-  functions: readonly ts.FunctionDeclaration[],
+  functions: readonly ts.Statement[],
   props: ts.Identifier,
   captures: readonly string[]
-): ts.FunctionDeclaration[] {
+): ts.Statement[] {
   return functions.map(fn => rewriteCapturedNode(context, fn, props, captures));
 }
 

@@ -556,6 +556,26 @@ describe("@exact/compiler", () => {
     expect(client).toContain("onClick: () => save()");
   });
 
+  it("clones component-local arrow function captures into generated client islands", () => {
+    const source = `
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ count: number }>) {
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        const save = () => this.state.count++;
+        return () => <button onClick={() => save()}>Save</button>;
+      }
+    `;
+    const client = transform(source, { filename: "Panel.tsx", target: "client" });
+    const server = transform(source, { filename: "Panel.tsx", target: "server" });
+
+    expect(server).not.toContain("__exactCapture");
+    expect(client).toContain("const save = () => this.state.count++;");
+    expect(client).toContain("onClick: () => save()");
+  });
+
   it("does not generate nested client islands inside an extracted element island", () => {
     const source = `
       import { readFile } from "node:fs/promises";
