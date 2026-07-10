@@ -19,7 +19,9 @@ export type ExactManifestAction = {
 
 export type ExactManifestBoundary = {
   id: string;
+  name?: string;
   componentId?: string;
+  kind?: string;
 };
 
 export type ExactStateContract = {
@@ -125,7 +127,9 @@ export function createExactServerManifest(
   for (const boundary of compilerManifest.boundaries ?? []) {
     boundaries[boundary.id] ??= {
       id: boundary.id,
-      componentId: boundary.componentId
+      name: boundary.name,
+      componentId: boundary.componentId,
+      kind: boundary.kind
     };
   }
   for (const component of compilerManifest.components ?? []) {
