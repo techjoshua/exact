@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { createExactHydrationStateContracts, createExactServerManifest, handleExactRequest, type ExactServerContext } from "./index.js";
+import {
+  createExactHydrationStateContracts,
+  createExactServerManifest,
+  createExpressHandler,
+  createFetchHandler,
+  createHapiHandler,
+  handleExactRequest,
+  type ExactServerContext
+} from "./index.js";
 
 const noopLogger = {
   isEnabled: () => false,
@@ -272,5 +280,81 @@ describe("@exact/server", () => {
     expect(refresh).toHaveBeenCalledWith(expect.objectContaining({
       boundaryHtml: "<p>Previous</p>"
     }), expect.any(Object));
+  });
+
+  it("dispatches through fetch-compatible adapters", async () => {
+    const handler = createFetchHandler(context());
+    const response = await handler(new Request("https://app.test/__exact", {
+      method: "POST",
+      body: JSON.stringify({ type: "action", id: "allowed-action", payload: { title: "Fetch" } }),
+      headers: { "content-type": "application/json" }
+    }));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: true,
+      patches: [{ type: "text", id: "title", value: "Fetch" }]
+    });
+  });
+
+  it("dispatches through express-style adapters", async () => {
+    const sent = new Promise<{ status: number; headers: Record<string, string>; body: string }>(resolve => {
+      const headers: Record<string, string> = {};
+      createExpressHandler(context())({
+        method: "POST",
+        url: "/__exact",
+        body: { type: "action", id: "allowed-action", payload: { title: "Express" } },
+        headers: {}
+      }, {
+        statusCode: 200,
+        status(value: number) {
+          this.statusCode = value;
+          return this;
+        },
+        setHeader(name: string, value: string) {
+          headers[name] = value;
+        },
+        send(body: string) {
+          resolve({ status: this.statusCode, headers, body });
+        }
+      });
+    });
+
+    const response = await sent;
+    expect(response.status).toBe(200);
+    expect(JSON.parse(response.body)).toMatchObject({
+      ok: true,
+      patches: [{ type: "text", id: "title", value: "Express" }]
+    });
+  });
+
+  it("dispatches through hapi-style adapters", async () => {
+    const handler = createHapiHandler(context());
+    const response = await handler({
+      method: "POST",
+      url: { path: "/__exact" },
+      headers: {},
+      payload: { type: "action", id: "allowed-action", payload: { title: "Hapi" } }
+    }, {
+      response(body: string) {
+        return {
+          body,
+          statusCode: 200,
+          code(value: number) {
+            this.statusCode = value;
+            return this;
+          },
+          header() {
+            return this;
+          }
+        };
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body)).toMatchObject({
+      ok: true,
+      patches: [{ type: "text", id: "title", value: "Hapi" }]
+    });
   });
 });

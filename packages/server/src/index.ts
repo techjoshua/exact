@@ -221,7 +221,13 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
 
 export function createFetchHandler(context: ExactServerContext): (request: Request) => Promise<Response> {
   return async request => {
-    const response = await handleExactRequest(request, context);
+    const response = await handleExactRequest({
+      method: request.method,
+      url: request.url,
+      headers: request.headers,
+      json: () => request.json(),
+      text: () => request.text()
+    }, context);
     return new Response(response.body, {
       status: response.status,
       headers: response.headers
