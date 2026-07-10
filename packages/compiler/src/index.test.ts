@@ -498,6 +498,19 @@ describe("@exact/compiler", () => {
     expect(result.manifest.artifacts?.boundaries).toEqual(result.manifest.boundaries);
   });
 
+  it("fails clearly when a client component with children cannot be split", () => {
+    expect(() => transform(`
+      export function ClientShell(this: Component<{ width: number }>, props: { children?: unknown }) {
+        this.state.width = window.innerWidth;
+        return () => <section>{props.children}</section>;
+      }
+
+      export function Page() {
+        return () => <ClientShell><p>Server child</p></ClientShell>;
+      }
+    `, { target: "server" })).toThrow("Cannot split client component ClientShell with children in server target");
+  });
+
   it("removes imports used only by split client components from server artifacts", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "exact-prune-imports-"));
     const input = path.join(root, "src", "page.tsx");

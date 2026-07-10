@@ -476,9 +476,11 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
         sawJsx = true;
         if (
           target === "server"
-          && jsxElementHasNoMeaningfulChildren(node)
           && jsxTagIsClientComponent(node.openingElement.tagName, componentPlacements)
         ) {
+          if (!jsxElementHasNoMeaningfulChildren(node)) {
+            throw new Error(`Cannot split client component ${node.openingElement.tagName.getText(sourceFile)} with children in server target; make the client component self-closing or extract the children into a server-rendered boundary.`);
+          }
           sawBoundary = true;
           return createComponentIslandBoundaryCall(sourceFile, context, helpers, node.openingElement.tagName, node.openingElement.attributes);
         }
