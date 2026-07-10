@@ -5,6 +5,8 @@ export type ExactPluginOptions = {
   include?: FilterPattern;
   exclude?: FilterPattern;
   target?: TransformTarget;
+  clientCondition?: string;
+  serverCondition?: string;
 };
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
@@ -12,6 +14,7 @@ type FilterPattern = string | RegExp | readonly (string | RegExp)[];
 export type ExactPlugin = {
   name: string;
   enforce: "pre";
+  config?(): { resolve: { conditions: string[] } };
   resolveId?(source: string, importer?: string): string | null;
   transform(code: string, id: string): { code: string; map: null } | null;
 };
@@ -20,6 +23,16 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
   return {
     name: "exact",
     enforce: "pre",
+    config() {
+      const condition = options.target === "server"
+        ? options.serverCondition ?? "exact-server"
+        : options.clientCondition ?? "exact-client";
+      return {
+        resolve: {
+          conditions: [condition]
+        }
+      };
+    },
     resolveId(source, importer) {
       if (!source.endsWith(".exact")) return null;
       const target = options.target === "server" ? "server" : "client";

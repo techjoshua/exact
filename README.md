@@ -85,6 +85,7 @@ The package entrypoints are:
   - Security model: manifest-allowlisted action and boundary IDs only; no client-provided module or function dispatch.
 - `@exact/vite-plugin`
   - Vite adapter: `exact({ target?: "default" | "client" | "server" })`.
+  - Adds `exact-client` or `exact-server` package export conditions based on the configured target.
 
 The next export cleanup should split `@exact/core` into clearer app-facing and framework-internal subpaths before external publication. For now the single entrypoint keeps package integration straightforward while the framework is still being shaped.
 
@@ -132,6 +133,7 @@ The generated target files are real ESM modules that preserve named exports, so 
 `createPackageExportMap()` can turn `compileProjectArtifacts()` results into package export entries with `exact-client` and `exact-server` conditions, so libraries can generate their multi-target `exports` map instead of hand-maintaining per-component paths.
 When the compiler splits one authored component into generated server/client pieces, the authored root keeps its public name and generated pieces use deterministic names derived from it, such as `ProjectCard_ExactClient_1`. Manifest protocol identity should use stable generated IDs, not JavaScript function names, because bundlers and minifiers may rename local symbols.
 The Vite plugin also supports `.exact` facade imports. With `exact({ target: "client" })`, `import { ProjectCard } from "./ProjectCard.exact"` resolves to `ProjectCard.exact.client.ts`; with `target: "server"` it resolves to `ProjectCard.exact.server.ts`.
+For packaged component libraries that publish `exact-client` and `exact-server` export conditions, the same plugin target adds the matching resolver condition during Vite config setup.
 
 In server-target artifacts, simple interactive JSX islands such as elements with `onClick` or `ref` are replaced with server-rendered client-boundary placeholders. The client artifact preserves the interactive component and exports generated island aliases, which can be registered during hydration:
 

@@ -31,6 +31,15 @@ describe("@exact/vite-plugin", () => {
     expect(exact().resolveId?.("./Panel", "/app/src/main.ts")).toBeNull();
   });
 
+  it("adds target export conditions for packaged exact artifacts", () => {
+    expect(exact({ target: "client" }).config?.()).toEqual({
+      resolve: { conditions: ["exact-client"] }
+    });
+    expect(exact({ target: "server" }).config?.()).toEqual({
+      resolve: { conditions: ["exact-server"] }
+    });
+  });
+
   it("honors include and exclude filters", () => {
     expect(exact({ include: "/src/" }).transform("const view = <span />;", "/src/view.tsx")).not.toBeNull();
     expect(exact({ include: "/src/" }).transform("const view = <span />;", "/test/view.tsx")).toBeNull();
