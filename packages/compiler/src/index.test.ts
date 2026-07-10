@@ -399,7 +399,7 @@ describe("@exact/compiler", () => {
     });
   });
 
-  it("splits simple interactive JSX into server boundaries and client island exports", async () => {
+  it("emits server boundary stubs for pure client components", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "exact-split-"));
     const input = path.join(root, "src", "panel.tsx");
     const outDir = path.join(root, "out");
@@ -421,11 +421,10 @@ describe("@exact/compiler", () => {
     const client = await readFile(result.clientFile, "utf8");
     const server = await readFile(result.serverFile, "utf8");
     const islands = result.manifest.symbols.filter(symbol => symbol.role === "client-island");
-    const island = islands[0]!;
 
     expect(result.manifest.components[0]!.clientIslandCount).toBe(2);
     expect(islands.map(symbol => symbol.generatedName)).toEqual(["Panel_ExactClient_1", "Panel_ExactClient_2"]);
-    expect(island).toMatchObject({
+    expect(islands[0]!).toMatchObject({
       generatedName: "Panel_ExactClient_1",
       localName: "Panel_ExactClient_1",
       exportName: "Panel_ExactClient_1",
@@ -436,22 +435,26 @@ describe("@exact/compiler", () => {
     expect(client).toContain("export const Panel_ExactClient_1 = Panel;");
     expect(client).toContain("export const Panel_ExactClient_2 = Panel;");
     expect(server).toContain("createServerBoundary as");
-    expect(server).toContain("Panel_ExactClient_1");
-    expect(server).toContain("Panel_ExactClient_2");
-    expect(server).toContain(island.id);
-    expect(server).toContain("className: \"primary\"");
-    expect(server).toContain("title: this.state.count");
-    expect(server).toContain("disabled: true");
+    expect(server).toContain("export function Panel(props = {})");
+    expect(server).toContain("\"Panel\"");
+    expect(server).not.toContain("Panel_ExactClient_1");
+    expect(server).not.toContain("className: \"primary\"");
+    expect(server).not.toContain("title: this.state.count");
     expect(server).not.toContain("onClick");
   });
 
-  it("infers arbitrary dynamic client island props in server artifacts", () => {
+  it("infers arbitrary dynamic client island props in isomorphic server artifacts", () => {
     const output = transform(`
+      import { readFile } from "node:fs/promises";
+
       export function Panel(this: Component<{ count: number }>) {
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
         const label = String(this.state.count);
         return () => <button title={label} onClick={() => this.state.count++} />;
       }
-    `, { target: "server" });
+    `, { filename: "Panel.tsx", target: "server" });
 
     expect(output).toContain("title: label");
     expect(output).toContain("Panel_ExactClient_1");
@@ -496,6 +499,21 @@ describe("@exact/compiler", () => {
       kind: "client-island"
     });
     expect(result.manifest.artifacts?.boundaries).toEqual(result.manifest.boundaries);
+  });
+
+  it("emits server-safe boundary stubs for client components", () => {
+    const server = transform(`
+      export function ClientWidget(this: Component<{ width: number }>, props: { title: string }) {
+        this.state.width = window.innerWidth;
+        return () => <button onClick={() => this.state.width++}>{props.title}</button>;
+      }
+    `, { filename: "ClientWidget.tsx", target: "server" });
+
+    expect(server).toContain("export function ClientWidget(props = {})");
+    expect(server).toContain("__exactBoundary");
+    expect(server).toContain("\"ClientWidget\"");
+    expect(server).not.toContain("window.innerWidth");
+    expect(server).not.toContain("onClick");
   });
 
   it("fails clearly when a client component with children cannot be split", () => {

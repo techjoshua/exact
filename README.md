@@ -136,7 +136,7 @@ When the compiler splits one authored component into generated server/client pie
 The Vite plugin also supports `.exact` facade imports. With `exact({ target: "client" })`, `import { ProjectCard } from "./ProjectCard.exact"` resolves to `ProjectCard.exact.client.ts`; with `target: "server"` it resolves to `ProjectCard.exact.server.ts`.
 For packaged component libraries that publish `exact-client` and `exact-server` export conditions, the same plugin target adds the matching resolver condition during Vite config setup.
 
-In server-target artifacts, simple interactive JSX islands such as elements with `onClick` or `ref` are replaced with server-rendered client-boundary placeholders. The compiler also splits clear self-closing/no-child client component tags out of server artifacts, replacing them with a boundary named after the client component, omitting that client component body from the server file, and pruning imports that become unused after the split. The client artifact preserves the interactive component and exports generated island aliases for element-level splits, which can be registered during hydration:
+In server-target artifacts, pure client components are emitted as server-safe boundary stubs instead of leaking browser-only code into the server bundle. Isomorphic components can still split simple interactive JSX islands such as elements with `onClick` or `ref` into server-rendered client-boundary placeholders. The compiler also splits clear self-closing/no-child client component tags out of server artifacts, replacing them with a boundary named after the client component and pruning imports that become unused after the split. The client artifact preserves the interactive component and exports generated island aliases for element-level splits, which can be registered during hydration:
 
 ```tsx
 import { hydrateClientIslands } from "@exact/hydrate";
@@ -147,7 +147,7 @@ hydrateClientIslands(document, {
 });
 ```
 
-This first split path handles clear element-level client islands and no-child client component islands. Static props, spreads, exact `this.state.*` reads, and other dynamic prop expressions are inferred and serialized into the boundary payload during server render, so the client can hydrate without a waterfall. Boundary props must evaluate to JSON-serializable values; non-serializable values fail during server rendering. More advanced splitting, endpoint-backed boundary data, and expression-level distributed execution remain compiler/runtime expansion points.
+This first split path handles pure client component stubs, clear element-level client islands inside isomorphic components, and no-child client component islands. Static props, spreads, exact `this.state.*` reads, and other dynamic prop expressions are inferred and serialized into the boundary payload during server render, so the client can hydrate without a waterfall. Boundary props must evaluate to JSON-serializable values; non-serializable values fail during server rendering. Client component tags with meaningful JSX children fail clearly in the server target until richer child-boundary serialization exists. More advanced splitting, endpoint-backed boundary data, and expression-level distributed execution remain compiler/runtime expansion points.
 
 Vite is supported through a thin adapter over the same compiler:
 

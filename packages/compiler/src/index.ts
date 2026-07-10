@@ -458,8 +458,9 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
 
     const visitor: ts.Visitor = node => {
       if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
-        if (target === "server" && splitComponentTags.has(node.name.text)) {
-          return factory.createEmptyStatement();
+        if (target === "server" && componentPlacements.get(node.name.text) === "client") {
+          sawBoundary = true;
+          return createClientComponentServerStub(sourceFile, context, helpers, node);
         }
         componentStack.push(node.name.text);
         const visited = ts.visitEachChild(node, visitor, context);
@@ -1118,6 +1119,50 @@ function createComponentIslandBoundaryCall(
     factory.createStringLiteral(componentName),
     islandProps(context, attributes)
   ]);
+}
+
+function createClientComponentServerStub(
+  sourceFile: ts.SourceFile,
+  context: ts.TransformationContext,
+  helpers: HelperNames,
+  node: ts.FunctionDeclaration
+): ts.FunctionDeclaration {
+  const factory = context.factory;
+  const componentName = node.name!.text;
+  const props = factory.createIdentifier("props");
+  const id = stableId(sourceFile.fileName, componentName, "component-island");
+  return factory.updateFunctionDeclaration(
+    node,
+    node.modifiers,
+    node.asteriskToken,
+    node.name,
+    undefined,
+    [
+      factory.createParameterDeclaration(
+        undefined,
+        undefined,
+        props,
+        undefined,
+        undefined,
+        factory.createObjectLiteralExpression([], false)
+      )
+    ],
+    undefined,
+    factory.createBlock([
+      factory.createReturnStatement(factory.createArrowFunction(
+        undefined,
+        undefined,
+        [],
+        undefined,
+        factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+        factory.createCallExpression(factory.createIdentifier(helpers.boundary), undefined, [
+          factory.createStringLiteral(id),
+          factory.createStringLiteral(componentName),
+          props
+        ])
+      ))
+    ], true)
+  );
 }
 
 function islandProps(context: ts.TransformationContext, attributes: ts.JsxAttributes): ts.ObjectLiteralExpression {
