@@ -868,9 +868,12 @@ function createClientIslandBoundaries(
   splitComponentTags: Set<string>
 ): ExactBoundaryIR[] {
   const boundaries: ExactBoundaryIR[] = [];
+  const seen = new Set<string>();
   const componentByName = new Map(components.map(component => [component.name, component]));
   for (const component of components) {
     for (let index = 1; index <= component.clientIslandCount; index++) {
+      const id = stableId(sourceFile.fileName, component.name, "client-island", String(index));
+      seen.add(id);
       boundaries.push({
         id: stableId(sourceFile.fileName, component.name, "client-island", String(index)),
         name: generatedComponentName(component.name, "client-island", index),
@@ -878,10 +881,25 @@ function createClientIslandBoundaries(
         kind: "client-island"
       });
     }
+    if (component.exported && component.placement === "client") {
+      const id = stableId(sourceFile.fileName, component.name, "component-island");
+      if (!seen.has(id)) {
+        seen.add(id);
+        boundaries.push({
+          id,
+          name: component.name,
+          componentId: component.id,
+          kind: "client-island"
+        });
+      }
+    }
   }
   for (const name of [...splitComponentTags].sort()) {
+    const id = stableId(sourceFile.fileName, name, "component-island");
+    if (seen.has(id)) continue;
+    seen.add(id);
     boundaries.push({
-      id: stableId(sourceFile.fileName, name, "component-island"),
+      id,
       name,
       componentId: componentByName.get(name)?.id,
       kind: "client-island"

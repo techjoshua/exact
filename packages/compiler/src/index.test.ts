@@ -441,6 +441,12 @@ describe("@exact/compiler", () => {
     expect(server).not.toContain("className: \"primary\"");
     expect(server).not.toContain("title: this.state.count");
     expect(server).not.toContain("onClick");
+    expect(result.manifest.boundaries).toContainEqual({
+      id: expect.any(String),
+      name: "Panel",
+      componentId: result.manifest.components[0]!.id,
+      kind: "client-island"
+    });
   });
 
   it("infers arbitrary dynamic client island props in isomorphic server artifacts", () => {
