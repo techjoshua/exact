@@ -230,6 +230,20 @@ describe("@exact/server", () => {
     expect(unsafe.status).toBe(400);
   });
 
+  it("rejects invocation requests with unknown protocol fields", async () => {
+    const result = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "action",
+        id: "allowed-action",
+        module: "../server/private"
+      }
+    }, context());
+
+    expect(result.status).toBe(400);
+    expect(JSON.parse(result.body)).toEqual({ error: "bad_request" });
+  });
+
   it("rejects malformed invocation results before returning them to clients", async () => {
     const result = await handleExactRequest({
       method: "POST",
@@ -244,6 +258,35 @@ describe("@exact/server", () => {
 
     expect(result.status).toBe(500);
     expect(JSON.parse(result.body)).toEqual({ error: "internal_error" });
+  });
+
+  it("rejects invocation results and patches with unknown protocol fields", async () => {
+    const extraResult = await handleExactRequest({
+      method: "POST",
+      body: { type: "action", id: "allowed-action" }
+    }, context({
+      actions: {
+        "allowed-action": () => ({
+          patches: [],
+          module: "../server/private"
+        } as any)
+      }
+    }));
+
+    expect(extraResult.status).toBe(500);
+
+    const extraPatch = await handleExactRequest({
+      method: "POST",
+      body: { type: "action", id: "allowed-action" }
+    }, context({
+      actions: {
+        "allowed-action": () => ({
+          patches: [{ type: "replace", id: "panel", html: "<p />", module: "../server/private" } as any]
+        })
+      }
+    }));
+
+    expect(extraPatch.status).toBe(500);
   });
 
   it("refreshes only manifest-allowlisted boundaries", async () => {

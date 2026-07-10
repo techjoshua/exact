@@ -293,6 +293,7 @@ function parseInvocation(body: unknown): ExactInvocationRequest {
   const value = typeof body === "string" ? JSON.parse(body) : body;
   if (!value || typeof value !== "object") throw new Error("invalid invocation");
   const record = value as Record<string, unknown>;
+  if (!hasOnlyKeys(record, ["type", "id", "payload", "state", "boundaryHtml"])) throw new Error("unknown invocation field");
   if (record.type !== "action" && record.type !== "refresh") throw new Error("invalid invocation type");
   if (typeof record.id !== "string" || !record.id) throw new Error("invalid invocation id");
   return {
@@ -323,6 +324,7 @@ function isInvocationResultSafe(result: unknown): result is ExactInvocationResul
   if (!isJsonSafe(result)) return false;
   if (!result || typeof result !== "object" || Array.isArray(result)) return false;
   const record = result as Record<string, unknown>;
+  if (!hasOnlyKeys(record, ["patches", "state", "html"])) return false;
   if (record.patches !== undefined) {
     if (!Array.isArray(record.patches)) return false;
     if (!record.patches.every(isPatchSafe)) return false;
@@ -338,20 +340,21 @@ function isPatchSafe(patch: unknown): patch is ExactPatch {
 
   switch (record.type) {
     case "text":
-      return typeof record.value === "string";
+      return hasOnlyKeys(record, ["type", "id", "value"]) && typeof record.value === "string";
     case "prop":
-      return typeof record.name === "string" && "value" in record;
+      return hasOnlyKeys(record, ["type", "id", "name", "value"]) && typeof record.name === "string" && "value" in record;
     case "style":
-      return typeof record.name === "string" && (typeof record.value === "string" || record.value === null);
+      return hasOnlyKeys(record, ["type", "id", "name", "value"]) && typeof record.name === "string" && (typeof record.value === "string" || record.value === null);
     case "list":
-      return typeof record.key === "string"
+      return hasOnlyKeys(record, ["type", "id", "op", "key", "before", "html"])
+        && typeof record.key === "string"
         && (record.op === "insert" || record.op === "move" || record.op === "remove")
         && (record.before === undefined || typeof record.before === "string")
         && (record.html === undefined || typeof record.html === "string");
     case "state":
-      return "value" in record;
+      return hasOnlyKeys(record, ["type", "id", "value"]) && "value" in record;
     case "replace":
-      return typeof record.html === "string";
+      return hasOnlyKeys(record, ["type", "id", "html"]) && typeof record.html === "string";
     default:
       return false;
   }
@@ -385,4 +388,9 @@ function isJsonSafe(value: unknown, seen = new Set<object>()): boolean {
   if (Array.isArray(value)) return value.every(item => isJsonSafe(item, seen));
   if (Object.getPrototypeOf(value) !== Object.prototype) return false;
   return Object.values(value as Record<string, unknown>).every(item => isJsonSafe(item, seen));
+}
+
+function hasOnlyKeys(record: Record<string, unknown>, allowed: readonly string[]): boolean {
+  const allowedSet = new Set(allowed);
+  return Object.keys(record).every(key => allowedSet.has(key));
 }
