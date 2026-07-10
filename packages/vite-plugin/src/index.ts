@@ -1,8 +1,9 @@
-import { transformSource } from "@exact/compiler";
+import { transformSource, type TransformTarget } from "@exact/compiler";
 
 export type ExactPluginOptions = {
   include?: FilterPattern;
   exclude?: FilterPattern;
+  target?: TransformTarget;
 };
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
@@ -21,7 +22,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
       if (!shouldTransform(id, code, options)) return null;
       try {
         return {
-          code: transformSource(code, { filename: id }).code,
+          code: transformSource(code, { filename: id, target: options.target }).code,
           map: null
         };
       } catch (error) {

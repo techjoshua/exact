@@ -9,6 +9,22 @@ describe("@exact/vite-plugin", () => {
     expect(result?.code).toContain("__exactVNode(\"span\"");
   });
 
+  it("passes compiler targets through to transformed files", () => {
+    const plugin = exact({ target: "client" });
+    const result = plugin.transform(`
+      import { readFile } from "node:fs/promises";
+      function Page(this: Component<{ title?: string }>) {
+        this.task(async () => {
+          this.state.title = await readFile("title.txt", "utf8");
+        });
+        return () => <p>{this.state.title}</p>;
+      }
+    `, "/src/page.tsx");
+
+    expect(result?.code).not.toContain("node:fs/promises");
+    expect(result?.code).not.toContain("readFile");
+  });
+
   it("honors include and exclude filters", () => {
     expect(exact({ include: "/src/" }).transform("const view = <span />;", "/src/view.tsx")).not.toBeNull();
     expect(exact({ include: "/src/" }).transform("const view = <span />;", "/test/view.tsx")).toBeNull();
