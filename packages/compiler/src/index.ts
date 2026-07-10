@@ -927,9 +927,26 @@ function staticIslandProps(context: ts.TransformationContext, attributes: ts.Jsx
     }
     if (ts.isStringLiteral(attribute.initializer)) {
       props.push(factory.createPropertyAssignment(propName(name), factory.createStringLiteral(attribute.initializer.text)));
+      continue;
+    }
+    if (ts.isJsxExpression(attribute.initializer) && attribute.initializer.expression) {
+      const expression = attribute.initializer.expression;
+      if (isSerializableIslandExpression(expression)) {
+        props.push(factory.createPropertyAssignment(propName(name), expression));
+        continue;
+      }
+      throw new Error(`Client island prop "${name}" must be static or an exact this.state path`);
     }
   }
   return factory.createObjectLiteralExpression(props, false);
+}
+
+function isSerializableIslandExpression(expression: ts.Expression): boolean {
+  if (isStatePathExpression(expression)) return true;
+  if (ts.isStringLiteralLike(expression)) return true;
+  if (ts.isNumericLiteral(expression)) return true;
+  if (expression.kind === ts.SyntaxKind.TrueKeyword || expression.kind === ts.SyntaxKind.FalseKeyword || expression.kind === ts.SyntaxKind.NullKeyword) return true;
+  return false;
 }
 
 function callElement(

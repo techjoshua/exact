@@ -374,7 +374,7 @@ describe("@exact/compiler", () => {
       export function Panel(this: Component<{ count: number }>) {
         this.state.count = 0;
         return () => <section>
-          <button className="primary" disabled onClick={() => this.state.count++}>{this.state.count}</button>
+          <button className="primary" title={this.state.count} disabled onClick={() => this.state.count++}>{this.state.count}</button>
           <input ref={this.ref(inputRef)} />
         </section>;
       }
@@ -406,8 +406,18 @@ describe("@exact/compiler", () => {
     expect(server).toContain("Panel_ExactClient_2");
     expect(server).toContain(island.id);
     expect(server).toContain("className: \"primary\"");
+    expect(server).toContain("title: this.state.count");
     expect(server).toContain("disabled: true");
     expect(server).not.toContain("onClick");
+  });
+
+  it("rejects unsupported dynamic client island props in server artifacts", () => {
+    expect(() => transform(`
+      export function Panel(this: Component<{ count: number }>) {
+        const label = String(this.state.count);
+        return () => <button title={label} onClick={() => this.state.count++} />;
+      }
+    `, { target: "server" })).toThrow("Client island prop \"title\" must be static or an exact this.state path");
   });
 
   it("generates deterministic split component names from author names", () => {

@@ -86,6 +86,19 @@ describe("@exact/ssr", () => {
     expect(result.html).not.toContain("</script>");
   });
 
+  it("serializes state-derived client boundary props at render time", () => {
+    function Host(this: Component<{ title: string }>) {
+      this.state.title = "Ready";
+      return () => createServerBoundary("island-2", "Panel_ExactClient_1", {
+        title: this.state.title
+      });
+    }
+
+    const result = renderToString(createVNode(Host, {}));
+
+    expect(result.html).toContain("&quot;title&quot;:&quot;Ready&quot;");
+  });
+
   it("can expose rendered html as a readable stream", async () => {
     const stream = renderToStream(createVNode("p", null, "streamed"), { markers: false });
     const reader = stream.getReader();
