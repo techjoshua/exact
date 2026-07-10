@@ -230,7 +230,8 @@ export interface Component<State extends object> {
   map<T>(
     collection: Iterable<T>,
     key: (item: T) => string,
-    render: (item: T) => VNode
+    render: (item: T) => VNode,
+    id?: string
   ): VNode;
   onMount(handler: LifecycleHandler): void;
   onUnmount(handler: LifecycleHandler): void;
@@ -555,8 +556,9 @@ export function createComponentInstance<State extends object, Props extends Reco
         }
       };
     },
-    map<T>(collection: Iterable<T>, key: (item: T) => string, render: (item: T) => VNode): VNode {
+    map<T>(collection: Iterable<T>, key: (item: T) => string, render: (item: T) => VNode, id?: string): VNode {
       return createVNode(Fragment, {
+        key: id,
         list: {
           collection,
           source: reactiveRef(collection) as ReactiveRef<Iterable<T>> | undefined,

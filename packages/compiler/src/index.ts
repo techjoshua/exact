@@ -574,7 +574,7 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
             return factory.createVoidExpression(factory.createNumericLiteral(0));
           }
         }
-        return transformCapturedCall(node, context, visitor);
+        return transformCapturedCall(sourceFile, node, context, visitor);
       }
       if (ts.isTaggedTemplateExpression(node)) {
         return transformReactiveTaggedTemplate(node, context, visitor);
@@ -1782,13 +1782,17 @@ function tagExpression(tagName: ts.JsxTagNameExpression): ts.Expression {
   return ts.factory.createStringLiteral(tagName.getText());
 }
 
-function transformCapturedCall(node: ts.CallExpression, context: ts.TransformationContext, visitor: ts.Visitor): ts.Expression {
+function transformCapturedCall(sourceFile: ts.SourceFile, node: ts.CallExpression, context: ts.TransformationContext, visitor: ts.Visitor): ts.Expression {
   if (isThisMethodCall(node, "reactive")) {
     return transformReactiveCall(node, context, visitor);
   }
 
   if (isThisTaskCall(node)) {
     return transformTaskCall(node, context, visitor);
+  }
+
+  if (isThisMethodCall(node, "map")) {
+    return transformMapCall(sourceFile, node, context, visitor);
   }
 
   return ts.visitEachChild(node, visitor, context);
@@ -1840,6 +1844,20 @@ function transformTaskCall(node: ts.CallExpression, context: ts.TransformationCo
     ts.visitNode(node.expression, visitor) as ts.Expression,
     node.typeArguments,
     nextArguments
+  );
+}
+
+function transformMapCall(sourceFile: ts.SourceFile, node: ts.CallExpression, context: ts.TransformationContext, visitor: ts.Visitor): ts.Expression {
+  if (node.arguments.length !== 3) return ts.visitEachChild(node, visitor, context);
+  const id = stableId(sourceFile.fileName, "list", String(node.getStart(sourceFile)), String(node.getEnd()));
+  return context.factory.updateCallExpression(
+    node,
+    ts.visitNode(node.expression, visitor) as ts.Expression,
+    node.typeArguments,
+    [
+      ...node.arguments.map(argument => ts.visitNode(argument, visitor) as ts.Expression),
+      context.factory.createStringLiteral(id)
+    ]
   );
 }
 

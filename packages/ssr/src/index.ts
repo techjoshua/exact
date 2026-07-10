@@ -600,8 +600,9 @@ function renderVNode(context: SsrContext, vnode: VNode, parent?: ComponentInstan
   }
 
   if (vnode.type === Fragment) {
-    return withMarker(context, "fragment", vnode.key, () => {
-      const list = vnode.props.list as { collection: Iterable<unknown>; source?: { get(): Iterable<unknown> }; key(item: unknown): string; render(item: unknown): VNode } | undefined;
+    const list = vnode.props.list as { collection: Iterable<unknown>; source?: { get(): Iterable<unknown> }; key(item: unknown): string; render(item: unknown): VNode } | undefined;
+    const marker = list && vnode.key ? exactMarkerId(vnode.key) : markerId(context, "fragment", undefined, vnode.key);
+    return markerPair(context, marker, () => {
       if (!list) return renderChildren(context, vnode.children, parent);
       const collection = list.source ? list.source.get() : list.collection;
       let html = "";
@@ -669,8 +670,9 @@ async function renderVNodeAsync(
   }
 
   if (vnode.type === Fragment) {
-    return markerPair(context, markerId(context, "fragment", undefined, vnode.key), async () => {
-      const list = vnode.props.list as { collection: Iterable<unknown>; source?: { get(): Iterable<unknown> }; key(item: unknown): string; render(item: unknown): VNode } | undefined;
+    const list = vnode.props.list as { collection: Iterable<unknown>; source?: { get(): Iterable<unknown> }; key(item: unknown): string; render(item: unknown): VNode } | undefined;
+    const marker = list && vnode.key ? exactMarkerId(vnode.key) : markerId(context, "fragment", undefined, vnode.key);
+    return markerPair(context, marker, async () => {
       if (!list) return renderChildrenAsync(context, vnode.children, parent, options);
       const collection = list.source ? list.source.get() : list.collection;
       let html = "";

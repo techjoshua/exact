@@ -79,6 +79,23 @@ describe("@exact/ssr", () => {
     expect(result.html).toContain("<li>B</li>");
   });
 
+  it("renders keyed list fragments with stable exact markers when map ids are provided", () => {
+    function List(this: Component<{}>) {
+      return () => this.map(
+        [{ id: "a", label: "A" }],
+        item => item.id,
+        item => createVNode("li", null, item.label),
+        "tasks"
+      );
+    }
+
+    const result = renderToString(createVNode("ul", null, createVNode(List, {})));
+
+    expect(result.html).toContain("<!--exact:tasks-->");
+    expect(result.html).toContain("<!--/exact:tasks-->");
+    expect(result.html).toContain("<!--exact:item:");
+  });
+
   it("renders server client-boundary placeholders", () => {
     const result = renderToString(createServerBoundary("island-1", "Panel_ExactClient_1", {
       title: "</script>"

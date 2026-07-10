@@ -241,6 +241,16 @@ describe("@exact/compiler", () => {
     expect(output).toContain("this.task(this.reactive(() => this.state.query), this.reactive(() => this.state.page), async (query, page) => { });");
   });
 
+  it("adds stable compiler ids to this.map list boundaries", () => {
+    const output = transform(`
+      function View(this: Component<{}>) {
+        return () => this.map(items, item => item.id, item => <li>{item.title}</li>);
+      }
+    `, { filename: "View.tsx" });
+
+    expect(output).toMatch(/this\.map\(items, item => item\.id, item => __exactVNode\("li", \{ "data-exact-id": "x[a-z0-9]+" \}, __exactDynamic\(\(\) => item\.title\)\), "x[a-z0-9]+"\)/);
+  });
+
   it("does not recapture existing reactive lambdas or run-once tasks", () => {
     const output = transform("function View() { this.reactive(() => this.state.query); this.task(({ signal }) => {}); }");
 
