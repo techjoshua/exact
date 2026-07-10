@@ -60,6 +60,11 @@ export type BoundaryRefreshOptions = RenderToStringOptions & {
   previousHtml?(input: ExactInvocationRequest, context: ExactServerContext): string | Promise<string | undefined> | undefined;
 };
 
+export type KeyedListSnapshotItem = {
+  key: string;
+  html: string;
+};
+
 type SsrContext = {
   markers: boolean;
   nextId: number;
@@ -202,6 +207,52 @@ export function diffBoundaryHtml(
     }
   }
   return [boundaryPatch(boundaryId, nextHtml, "replace")];
+}
+
+export function diffKeyedListItems(
+  listId: string,
+  previousItems: readonly KeyedListSnapshotItem[],
+  nextItems: readonly KeyedListSnapshotItem[]
+): ExactPatch[] {
+  const patches: ExactPatch[] = [];
+  const previousKeys = previousItems.map(item => item.key);
+  const nextKeys = nextItems.map(item => item.key);
+  const previousByKey = new Map(previousItems.map(item => [item.key, item]));
+  const nextByKey = new Map(nextItems.map(item => [item.key, item]));
+
+  for (const key of previousKeys) {
+    if (!nextByKey.has(key)) {
+      patches.push({ type: "list", id: listId, op: "remove", key });
+    }
+  }
+
+  const working = previousKeys.filter(key => nextByKey.has(key));
+  for (let index = 0; index < nextKeys.length; index++) {
+    const key = nextKeys[index]!;
+    const before = nextKeys[index + 1];
+    const previous = previousByKey.get(key);
+    const next = nextByKey.get(key)!;
+    const currentIndex = working.indexOf(key);
+    if (!previous) {
+      patches.push({ type: "list", id: listId, op: "insert", key, before, html: next.html });
+      working.splice(index, 0, key);
+      continue;
+    }
+    if (previous.html !== next.html) {
+      patches.push({ type: "list", id: listId, op: "remove", key });
+      patches.push({ type: "list", id: listId, op: "insert", key, before, html: next.html });
+      if (currentIndex >= 0) working.splice(currentIndex, 1);
+      working.splice(index, 0, key);
+      continue;
+    }
+    if (currentIndex !== index) {
+      patches.push({ type: "list", id: listId, op: "move", key, before });
+      if (currentIndex >= 0) working.splice(currentIndex, 1);
+      working.splice(index, 0, key);
+    }
+  }
+
+  return patches;
 }
 
 function boundaryPatch(boundaryId: string, html: string, strategy: BoundaryRefreshOptions["patchStrategy"]): ExactPatch {

@@ -3,6 +3,7 @@ import { createCompiledVNode, createDynamicChild, createServerBoundary, createTe
 import { handleExactRequest } from "@exact/server";
 import {
   createBoundaryRefreshHandler,
+  diffKeyedListItems,
   renderHydrationScript,
   renderToHydratableString,
   renderToStream,
@@ -378,5 +379,23 @@ describe("@exact/ssr", () => {
       ok: true,
       patches: [{ type: "replace", id: "profile", html: "<section>Ready</section>" }]
     });
+  });
+
+  it("diffs keyed list snapshots into insert move remove patches", () => {
+    expect(diffKeyedListItems("tasks", [
+      { key: "a", html: "<li>A</li>" },
+      { key: "b", html: "<li>B</li>" },
+      { key: "c", html: "<li>C</li>" }
+    ], [
+      { key: "c", html: "<li>C</li>" },
+      { key: "a", html: "<li>A*</li>" },
+      { key: "d", html: "<li>D</li>" }
+    ])).toEqual([
+      { type: "list", id: "tasks", op: "remove", key: "b" },
+      { type: "list", id: "tasks", op: "move", key: "c", before: "a" },
+      { type: "list", id: "tasks", op: "remove", key: "a" },
+      { type: "list", id: "tasks", op: "insert", key: "a", before: "d", html: "<li>A*</li>" },
+      { type: "list", id: "tasks", op: "insert", key: "d", html: "<li>D</li>" }
+    ]);
   });
 });
