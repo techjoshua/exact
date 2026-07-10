@@ -137,11 +137,15 @@ export async function renderToHydratableStringAsync(vnode: VNode, options: Rende
 }
 
 export function renderHydrationScript(options: HydrationScriptOptions = {}): string {
-  const payload = serializeHydrationPayload({
+  const payloadValue = omitUndefinedProperties({
     endpoint: options.endpoint,
     state: options.state,
     stateContracts: options.stateContracts
   });
+  if (!isStrictJsonSafe(payloadValue)) {
+    throw new Error("Hydration payload must be JSON-serializable");
+  }
+  const payload = serializeHydrationPayload(payloadValue);
   const id = options.scriptId ?? "__exact_hydration";
   const nonce = options.nonce ? ` nonce="${escapeAttr(options.nonce)}"` : "";
   return `<script type="application/json" id="${escapeAttr(id)}"${nonce}>${payload}</script>`;
@@ -433,6 +437,26 @@ function serializeHydrationPayload(payload: Record<string, unknown>): string {
     .replace(/</g, "\\u003C")
     .replace(/\u2028/g, "\\u2028")
     .replace(/\u2029/g, "\\u2029");
+}
+
+function omitUndefinedProperties(value: Record<string, unknown>): Record<string, unknown> {
+  const output: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (item !== undefined) output[key] = item;
+  }
+  return output;
+}
+
+function isStrictJsonSafe(value: unknown, seen = new Set<object>()): boolean {
+  if (value === null) return true;
+  if (typeof value === "string" || typeof value === "boolean") return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value !== "object") return false;
+  if (seen.has(value)) return false;
+  seen.add(value);
+  if (Array.isArray(value)) return value.every(item => isStrictJsonSafe(item, seen));
+  if (Object.getPrototypeOf(value) !== Object.prototype) return false;
+  return Object.values(value as Record<string, unknown>).every(item => isStrictJsonSafe(item, seen));
 }
 
 function isJsonSafe(value: unknown, seen = new Set<object>()): boolean {

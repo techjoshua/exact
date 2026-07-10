@@ -141,6 +141,12 @@ describe("@exact/ssr", () => {
     expect(script).not.toContain("</script><img>");
   });
 
+  it("rejects non-json-safe hydration payloads", () => {
+    expect(() => renderHydrationScript({
+      state: { onSave() {} }
+    })).toThrow("Hydration payload must be JSON-serializable");
+  });
+
   it("renders html with hydration bootstrap data", () => {
     const result = renderToHydratableString(createVNode("p", null, "ready"), {
       markers: false,
