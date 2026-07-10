@@ -196,6 +196,34 @@ describe("@exact/compiler", () => {
     expect(output).toContain("__exactVNode(\"span\"");
   });
 
+  it("can emit compiler manifests beside compiled files", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-manifest-"));
+    const input = path.join(root, "src", "page.tsx");
+    const outDir = path.join(root, "out");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, `
+      import { readFile } from "node:fs/promises";
+      function Page(this: Component<{ title?: string }>) {
+        this.task(async () => {
+          this.state.title = await readFile("title.txt", "utf8");
+        });
+        return () => <h1>{this.state.title}</h1>;
+      }
+    `);
+
+    const result = await compileFile(input, {
+      outDir,
+      rootDir: path.join(root, "src"),
+      target: "server",
+      emitManifest: true
+    });
+    const manifest = JSON.parse(await readFile(result.manifestFile!, "utf8"));
+
+    expect(result.manifestFile).toBe(path.join(outDir, "page.exact.json"));
+    expect(Object.keys(manifest.serverActions)).toHaveLength(1);
+    expect(manifest.components[0].name).toBe("Page");
+  });
+
   it("compiles TSX and JSX files from directories", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "exact-project-"));
     await writeFile(path.join(root, "one.tsx"), "const one = <span />;");

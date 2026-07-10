@@ -59,16 +59,19 @@ export type ExactCompilerManifest = {
 export type CompileFileOptions = TransformOptions & {
   outDir?: string;
   rootDir?: string;
+  emitManifest?: boolean;
 };
 
 export type CompileFileResult = TransformResult & {
   inputFile: string;
   outputFile?: string;
+  manifestFile?: string;
 };
 
-export type CompileProjectOptions = {
+export type CompileProjectOptions = TransformOptions & {
   outDir?: string;
   rootDir?: string;
+  emitManifest?: boolean;
 };
 
 const helperModule = "@exact/core";
@@ -154,18 +157,24 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
 
 export async function compileFile(inputFile: string, options: CompileFileOptions = {}): Promise<CompileFileResult> {
   const source = await readFile(inputFile, "utf8");
-  const result = transformSource(source, { filename: options.filename ?? inputFile });
+  const result = transformSource(source, { filename: options.filename ?? inputFile, target: options.target });
   const outputFile = options.outDir ? outputPathFor(inputFile, options.outDir, options.rootDir) : undefined;
+  const manifestFile = outputFile && options.emitManifest ? manifestPathFor(outputFile) : undefined;
 
   if (outputFile) {
     await mkdir(path.dirname(outputFile), { recursive: true });
     await writeFile(outputFile, result.code);
   }
+  if (manifestFile) {
+    await mkdir(path.dirname(manifestFile), { recursive: true });
+    await writeFile(manifestFile, `${JSON.stringify(result.manifest, null, 2)}\n`);
+  }
 
   return {
     ...result,
     inputFile,
-    outputFile
+    outputFile,
+    manifestFile
   };
 }
 
@@ -175,7 +184,12 @@ export async function compileProject(inputs: readonly string[], options: Compile
   const results: CompileFileResult[] = [];
 
   for (const file of files) {
-    results.push(await compileFile(file, { outDir: options.outDir, rootDir }));
+    results.push(await compileFile(file, {
+      outDir: options.outDir,
+      rootDir,
+      target: options.target,
+      emitManifest: options.emitManifest
+    }));
   }
 
   return results;
@@ -1099,6 +1113,10 @@ function outputPathFor(inputFile: string, outDir: string, rootDir?: string): str
   const root = rootDir ?? path.dirname(inputFile);
   const relative = path.relative(root, inputFile);
   return path.join(outDir, relative).replace(/\.(tsx|jsx)$/i, (_match, ext: string) => ext.toLowerCase() === "tsx" ? ".ts" : ".js");
+}
+
+function manifestPathFor(outputFile: string): string {
+  return outputFile.replace(/\.[^.\\/]+$/i, ".exact.json");
 }
 
 function commonRoot(files: readonly string[]): string {
