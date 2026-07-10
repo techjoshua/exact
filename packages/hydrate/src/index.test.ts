@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { createVNode } from "@exact/core";
-import { hydrate, applyPatches, createExactClient, invokeExact } from "./index.js";
+import { hydrate, applyPatches, createExactClient, invokeExact, readExactHydrationConfig } from "./index.js";
 
 const noopLogger = {
   isEnabled: () => false,
@@ -17,6 +17,16 @@ describe("@exact/hydrate", () => {
     hydrate(createVNode("p", null, "ready"), container, { logger: noopLogger });
 
     expect(container.querySelector("p")?.textContent).toBe("ready");
+  });
+
+  it("reads endpoint and state from the hydration bootstrap script", () => {
+    const root = document.createElement("main");
+    root.innerHTML = "<script type=\"application/json\" id=\"__exact_hydration\">{\"endpoint\":\"/__exact\",\"state\":{\"ready\":true}}</script>";
+
+    expect(readExactHydrationConfig(root)).toEqual({
+      endpoint: "/__exact",
+      state: { ready: true }
+    });
   });
 
   it("applies text patches to exact marker ranges", () => {

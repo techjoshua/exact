@@ -34,6 +34,18 @@ export type RenderToStringResult = {
   state?: unknown;
 };
 
+export type HydrationScriptOptions = {
+  endpoint?: string;
+  state?: unknown;
+  scriptId?: string;
+  nonce?: string;
+};
+
+export type HydratableStringResult = RenderToStringResult & {
+  hydrationScript: string;
+  htmlWithHydration: string;
+};
+
 type SsrContext = {
   markers: boolean;
   nextId: number;
@@ -54,6 +66,21 @@ export function renderToString(vnode: VNode, options: RenderToStringOptions = {}
   return {
     html: renderVNode(context, vnode, undefined),
     state: options.state
+  };
+}
+
+export function renderToHydratableString(vnode: VNode, options: RenderToStringOptions & HydrationScriptOptions = {}): HydratableStringResult {
+  const result = renderToString(vnode, options);
+  const hydrationScript = renderHydrationScript({
+    endpoint: options.endpoint,
+    state: result.state,
+    scriptId: options.scriptId,
+    nonce: options.nonce
+  });
+  return {
+    ...result,
+    hydrationScript,
+    htmlWithHydration: `${result.html}${hydrationScript}`
   };
 }
 
@@ -78,6 +105,31 @@ export async function renderToStringAsync(vnode: VNode, options: RenderToStringO
     html: await renderVNodeAsync(context, vnode, undefined, options),
     state: options.state
   };
+}
+
+export async function renderToHydratableStringAsync(vnode: VNode, options: RenderToStringOptions & HydrationScriptOptions = {}): Promise<HydratableStringResult> {
+  const result = await renderToStringAsync(vnode, options);
+  const hydrationScript = renderHydrationScript({
+    endpoint: options.endpoint,
+    state: result.state,
+    scriptId: options.scriptId,
+    nonce: options.nonce
+  });
+  return {
+    ...result,
+    hydrationScript,
+    htmlWithHydration: `${result.html}${hydrationScript}`
+  };
+}
+
+export function renderHydrationScript(options: HydrationScriptOptions = {}): string {
+  const payload = serializeHydrationPayload({
+    endpoint: options.endpoint,
+    state: options.state
+  });
+  const id = options.scriptId ?? "__exact_hydration";
+  const nonce = options.nonce ? ` nonce="${escapeAttr(options.nonce)}"` : "";
+  return `<script type="application/json" id="${escapeAttr(id)}"${nonce}>${payload}</script>`;
 }
 
 function renderChildren(context: SsrContext, children: readonly Child[], parent?: ComponentInstance<any>): string {
@@ -322,6 +374,13 @@ function getComponentProps(vnode: VNode): Record<string, unknown> {
 
 function componentName(type: VNode["type"]): string {
   return typeof type === "function" ? type.name || "anonymous" : String(type);
+}
+
+function serializeHydrationPayload(payload: { endpoint?: string; state?: unknown }): string {
+  return JSON.stringify(payload)
+    .replace(/</g, "\\u003C")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
 }
 
 function escapeText(value: string): string {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createCompiledVNode, createDynamicChild, createVNode, type Component } from "@exact/core";
-import { renderToStream, renderToString, renderToStringAsync } from "./index.js";
+import { renderHydrationScript, renderToHydratableString, renderToStream, renderToString, renderToStringAsync } from "./index.js";
 
 describe("@exact/ssr", () => {
   it("renders elements, attributes, text escaping, and styles to html", () => {
@@ -79,6 +79,33 @@ describe("@exact/ssr", () => {
     }
 
     expect(chunks.join("")).toBe("<p>streamed</p>");
+  });
+
+  it("serializes hydration endpoint and state as inert escaped json", () => {
+    const script = renderHydrationScript({
+      endpoint: "/__exact",
+      state: { title: "</script><img>" },
+      nonce: "abc\"123"
+    });
+
+    expect(script).toContain("type=\"application/json\"");
+    expect(script).toContain("id=\"__exact_hydration\"");
+    expect(script).toContain("nonce=\"abc&quot;123\"");
+    expect(script).toContain("\\u003C/script>");
+    expect(script).not.toContain("</script><img>");
+  });
+
+  it("renders html with hydration bootstrap data", () => {
+    const result = renderToHydratableString(createVNode("p", null, "ready"), {
+      markers: false,
+      endpoint: "/__exact",
+      state: { ready: true }
+    });
+
+    expect(result.html).toBe("<p>ready</p>");
+    expect(result.htmlWithHydration).toContain("<p>ready</p><script");
+    expect(result.htmlWithHydration).toContain("\"endpoint\":\"/__exact\"");
+    expect(result.htmlWithHydration).toContain("\"ready\":true");
   });
 
   it("waits for async tasks before rendering a component in async mode", async () => {

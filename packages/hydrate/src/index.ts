@@ -11,6 +11,11 @@ export type HydrateOptions = {
   headers?: Record<string, string>;
 };
 
+export type ExactHydrationConfig = {
+  endpoint?: string;
+  state?: unknown;
+};
+
 export type FetchLike = (input: string, init: {
   method: string;
   headers: Record<string, string>;
@@ -32,6 +37,22 @@ export type ExactClient = {
 export type HydrationRoot = ExactClient;
 
 const roots = new WeakMap<Element, HydrationRoot>();
+
+export function readExactHydrationConfig(root: ParentNode = document, scriptId = "__exact_hydration"): ExactHydrationConfig {
+  const script = root.querySelector(`#${cssEscape(scriptId)}`);
+  if (!script) return {};
+  try {
+    const value = JSON.parse(script.textContent ?? "{}");
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    const record = value as Record<string, unknown>;
+    return {
+      endpoint: typeof record.endpoint === "string" ? record.endpoint : undefined,
+      state: record.state
+    };
+  } catch {
+    return {};
+  }
+}
 
 export function hydrate(vnode: VNode, container: Element, options: HydrateOptions = {}): HydrationRoot {
   if (!hasExactMarkers(container)) {
