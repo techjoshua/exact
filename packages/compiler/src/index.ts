@@ -647,6 +647,9 @@ function analyzeComponent(
       || (ts.isJsxSelfClosingElement(current) && jsxElementIsClientIsland(current.attributes))
     )) {
       clientIslandCount++;
+      if (containsServerOnlyIdentifier(current, serverOnlyImports)) {
+        diagnostics.push("error: client island cannot reference server-only imports");
+      }
     }
 
     if (ts.isJsxAttribute(current)) {
@@ -691,6 +694,21 @@ function analyzeComponent(
     splitBoundaries: [...splitBoundaries].sort(),
     diagnostics
   };
+}
+
+function containsServerOnlyIdentifier(node: ts.Node, serverOnlyImports: Set<string>): boolean {
+  if (!serverOnlyImports.size) return false;
+  let found = false;
+  function visit(current: ts.Node): void {
+    if (found) return;
+    if (ts.isIdentifier(current) && serverOnlyImports.has(current.text)) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(current, visit);
+  }
+  visit(node);
+  return found;
 }
 
 function collectComponentPlacements(sourceFile: ts.SourceFile, serverOnlyImports: Set<string>): Map<string, ExactPlacement> {

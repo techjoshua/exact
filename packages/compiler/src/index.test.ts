@@ -701,6 +701,19 @@ describe("@exact/compiler", () => {
     `, { target: "server" })).toThrow("Cannot split client component ClientShell with children in server target");
   });
 
+  it("fails clearly when a generated client island references server-only imports", () => {
+    expect(() => transform(`
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ count: number }>) {
+        this.task.server(async () => {
+          this.state.count = 1;
+        });
+        return () => <button onClick={() => readFile("secret.txt", "utf8")}>Read</button>;
+      }
+    `, { filename: "Panel.tsx", target: "server" })).toThrow("client island cannot reference server-only imports");
+  });
+
   it("removes imports used only by split client components from server artifacts", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "exact-prune-imports-"));
     const input = path.join(root, "src", "page.tsx");
