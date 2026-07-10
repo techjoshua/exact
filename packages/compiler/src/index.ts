@@ -444,6 +444,7 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
     const componentLocalStack: Set<string>[] = [];
     const islandCounts = new Map<string, number>();
     const clientIslandDefinitions: ts.FunctionDeclaration[] = [];
+    let clientIslandDepth = 0;
 
     const visitor: ts.Visitor = node => {
       if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
@@ -482,9 +483,15 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
         }
         if (target === "client" && jsxElementIsClientIsland(node.openingElement.attributes)) {
           const owner = componentStack[componentStack.length - 1];
-          if (!owner || componentPlacements.get(owner) !== "client") {
+          if (clientIslandDepth === 0 && (!owner || componentPlacements.get(owner) !== "client")) {
+            clientIslandDepth++;
             recordClientIslandDefinition(sourceFile, context, visitor, helpers, owner, islandCounts, node, clientIslandDefinitions, clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1]));
+            clientIslandDepth--;
           }
+          clientIslandDepth++;
+          const transformed = transformJsxElement(sourceFile, node, context, visitor, helpers);
+          clientIslandDepth--;
+          return transformed;
         }
         return transformJsxElement(sourceFile, node, context, visitor, helpers);
       }
@@ -492,7 +499,7 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
         sawJsx = true;
         if (target === "client" && jsxElementIsClientIsland(node.attributes)) {
           const owner = componentStack[componentStack.length - 1];
-          if (!owner || componentPlacements.get(owner) !== "client") {
+          if (clientIslandDepth === 0 && (!owner || componentPlacements.get(owner) !== "client")) {
             recordClientIslandDefinition(sourceFile, context, visitor, helpers, owner, islandCounts, node, clientIslandDefinitions, clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1]));
           }
         }
@@ -571,7 +578,7 @@ function analyzeComponent(
   let clientIslandCount = 0;
   let taskIndex = 0;
 
-  function visit(current: ts.Node): void {
+  function visit(current: ts.Node, islandDepth = 0): void {
     if (ts.isCallExpression(current) && isThisTaskCall(current)) {
       const task = analyzeTask(`${name}:task:${taskIndex++}`, current, sourceFile, serverOnlyImports);
       tasks.push(task);
@@ -584,7 +591,11 @@ function analyzeComponent(
       diagnostics.push(...task.diagnostics);
     }
 
-    if ((ts.isJsxOpeningElement(current) || ts.isJsxSelfClosingElement(current)) && jsxElementIsClientIsland(current.attributes)) {
+    const isIslandElement = ts.isJsxElement(current) && jsxElementIsClientIsland(current.openingElement.attributes);
+    if (islandDepth === 0 && (
+      isIslandElement
+      || (ts.isJsxSelfClosingElement(current) && jsxElementIsClientIsland(current.attributes))
+    )) {
       clientIslandCount++;
     }
 
@@ -607,7 +618,7 @@ function analyzeComponent(
       }
     }
 
-    ts.forEachChild(current, visit);
+    ts.forEachChild(current, child => visit(child, isIslandElement ? islandDepth + 1 : islandDepth));
   }
 
   visit(node);

@@ -534,6 +534,30 @@ describe("@exact/compiler", () => {
     expect(client).toContain("__exactDynamic(() => props.__exactCapture.label)");
   });
 
+  it("does not generate nested client islands inside an extracted element island", () => {
+    const source = `
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ count: number }>) {
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        return () => <section onClick={() => this.state.count++}>
+          <button onClick={() => this.state.count++}>Nested</button>
+        </section>;
+      }
+    `;
+    const manifest = analyzeSource(source, { filename: "Panel.tsx" });
+    const client = transform(source, { filename: "Panel.tsx", target: "client" });
+    const server = transform(source, { filename: "Panel.tsx", target: "server" });
+
+    expect(manifest.components[0]!.clientIslandCount).toBe(1);
+    expect(client).toContain("export function Panel_ExactClient_1(props = {})");
+    expect(client).not.toContain("export function Panel_ExactClient_2");
+    expect(server).toContain("Panel_ExactClient_1");
+    expect(server).not.toContain("Panel_ExactClient_2");
+  });
+
   it("splits self-closing client components out of server artifacts", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "exact-component-split-"));
     const input = path.join(root, "src", "page.tsx");
