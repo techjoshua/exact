@@ -244,12 +244,35 @@ export function createKeyedListRefreshHandler<T>(
       ...options,
       items: nextItems
     });
-    const previous = await options.previousItems?.(input, context);
+    const previous = await options.previousItems?.(input, context)
+      ?? parseKeyedListSnapshotHtml(options.listId, input.boundaryHtml)?.items;
     return {
       patches: previous
         ? diffKeyedListItems(options.listId, previous, next.items)
         : [{ type: "replace", id: options.listId, html: next.innerHtml } as ExactPatch]
     };
+  };
+}
+
+export function parseKeyedListSnapshotHtml(listId: string, html: string | undefined): KeyedListSnapshot | undefined {
+  if (html === undefined) return undefined;
+  const items: KeyedListSnapshotItem[] = [];
+  const pattern = /<!--exact:(item:[^>]*)-->([\s\S]*?)<!--\/exact:\1-->/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(html))) {
+    const marker = match[1]!;
+    if (!marker.startsWith("item:")) continue;
+    items.push({
+      key: marker.slice("item:".length),
+      html: match[0]
+    });
+  }
+  if (!items.length) return undefined;
+  return {
+    listId,
+    html: markerPair({ markers: true, nextId: 0 }, exactMarkerId(listId), () => html),
+    innerHtml: html,
+    items
   };
 }
 

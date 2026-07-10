@@ -6,6 +6,7 @@ import {
   createKeyedListRefreshHandler,
   diffBoundaryHtml,
   diffKeyedListItems,
+  parseKeyedListSnapshotHtml,
   renderKeyedListSnapshot,
   renderHydrationScript,
   renderToHydratableString,
@@ -471,10 +472,31 @@ describe("@exact/ssr", () => {
     expect(snapshot.innerHtml).toBe(snapshot.items.map(item => item.html).join(""));
   });
 
-  it("creates keyed list refresh handlers that return list patches", async () => {
+  it("parses keyed list snapshots from submitted boundary html", () => {
+    expect(parseKeyedListSnapshotHtml("tasks", [
+      "<!--exact:item:a--><li>A</li><!--/exact:item:a-->",
+      "<!--exact:item:b--><li>B</li><!--/exact:item:b-->"
+    ].join(""))).toMatchObject({
+      listId: "tasks",
+      innerHtml: "<!--exact:item:a--><li>A</li><!--/exact:item:a--><!--exact:item:b--><li>B</li><!--/exact:item:b-->",
+      items: [
+        { key: "a", html: "<!--exact:item:a--><li>A</li><!--/exact:item:a-->" },
+        { key: "b", html: "<!--exact:item:b--><li>B</li><!--/exact:item:b-->" }
+      ]
+    });
+  });
+
+  it("creates keyed list refresh handlers that infer previous snapshots from boundary html", async () => {
     const response = await handleExactRequest({
       method: "POST",
-      body: { type: "refresh", id: "tasks" }
+      body: {
+        type: "refresh",
+        id: "tasks",
+        boundaryHtml: [
+          "<!--exact:item:a--><li>A</li><!--/exact:item:a-->",
+          "<!--exact:item:b--><li>B</li><!--/exact:item:b-->"
+        ].join("")
+      }
     }, {
       manifest: {
         version: 1,
@@ -484,10 +506,6 @@ describe("@exact/ssr", () => {
         tasks: createKeyedListRefreshHandler({
           listId: "tasks",
           items: () => [{ id: "b", label: "B" }, { id: "c", label: "C" }],
-          previousItems: () => [
-            { key: "a", html: "<!--exact:item:a--><li>A</li><!--/exact:item:a-->" },
-            { key: "b", html: "<!--exact:item:b--><li>B</li><!--/exact:item:b-->" }
-          ],
           key: item => item.id,
           render: item => createVNode("li", null, item.label)
         })
