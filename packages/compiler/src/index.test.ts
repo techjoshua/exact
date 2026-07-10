@@ -512,6 +512,28 @@ describe("@exact/compiler", () => {
     expect(server).not.toContain("onClick");
   });
 
+  it("bridges owner-local captures into generated client islands", () => {
+    const source = `
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ count: number }>) {
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        const label = String(this.state.count);
+        return () => <button onClick={() => console.log(label)}>
+          {label}
+        </button>;
+      }
+    `;
+    const client = transform(source, { filename: "Panel.tsx", target: "client" });
+    const server = transform(source, { filename: "Panel.tsx", target: "server" });
+
+    expect(server).toContain("\"__exactCapture\": { label: label }");
+    expect(client).toContain("console.log(props.__exactCapture.label)");
+    expect(client).toContain("__exactDynamic(() => props.__exactCapture.label)");
+  });
+
   it("splits self-closing client components out of server artifacts", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "exact-component-split-"));
     const input = path.join(root, "src", "page.tsx");
