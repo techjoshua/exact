@@ -623,12 +623,13 @@ function analyzeComponent(
   const tasks: ExactTaskIR[] = [];
   const splitBoundaries = new Set<string>();
   const diagnostics: string[] = [];
+  const browserGlobalsOutsideClientBoundary = new Set<string>();
   let hasClientEffect = false;
   let hasServerEffect = false;
   let clientIslandCount = 0;
   let taskIndex = 0;
 
-  function visit(current: ts.Node, islandDepth = 0): void {
+  function visit(current: ts.Node, islandDepth = 0, taskDepth = 0): void {
     if (ts.isCallExpression(current) && isThisTaskCall(current)) {
       const task = analyzeTask(`${name}:task:${taskIndex++}`, current, sourceFile, serverOnlyImports);
       tasks.push(task);
@@ -639,13 +640,13 @@ function analyzeComponent(
         hasServerEffect = true;
       }
       diagnostics.push(...task.diagnostics);
+      ts.forEachChild(current, child => visit(child, islandDepth, taskDepth + 1));
+      return;
     }
 
     const isIslandElement = ts.isJsxElement(current) && jsxElementIsClientIsland(current.openingElement.attributes);
-    if (islandDepth === 0 && (
-      isIslandElement
-      || (ts.isJsxSelfClosingElement(current) && jsxElementIsClientIsland(current.attributes))
-    )) {
+    const isIslandNode = isIslandElement || (ts.isJsxSelfClosingElement(current) && jsxElementIsClientIsland(current.attributes));
+    if (islandDepth === 0 && isIslandNode) {
       clientIslandCount++;
       if (containsServerOnlyIdentifier(current, serverOnlyImports)) {
         diagnostics.push("error: client island cannot reference server-only imports");
@@ -664,6 +665,9 @@ function analyzeComponent(
       if (browserGlobals.has(current.text)) {
         hasClientEffect = true;
         splitBoundaries.add(`browser:${current.text}`);
+        if (islandDepth === 0 && taskDepth === 0) {
+          browserGlobalsOutsideClientBoundary.add(current.text);
+        }
       }
       if (serverOnlyImports.has(current.text)) {
         hasServerEffect = true;
@@ -671,7 +675,7 @@ function analyzeComponent(
       }
     }
 
-    ts.forEachChild(current, child => visit(child, isIslandElement ? islandDepth + 1 : islandDepth));
+    ts.forEachChild(current, child => visit(child, isIslandNode ? islandDepth + 1 : islandDepth, taskDepth));
   }
 
   visit(node);
@@ -683,6 +687,12 @@ function analyzeComponent(
       : hasClientEffect
         ? "client"
         : "server";
+
+  if (hasServerEffect) {
+    for (const global of [...browserGlobalsOutsideClientBoundary].sort()) {
+      diagnostics.push(`error: browser-only global ${global} cannot be used in server-rendered component code; move it into a client island or client task`);
+    }
+  }
 
   return {
     id: stableId(sourceFile.fileName, name),

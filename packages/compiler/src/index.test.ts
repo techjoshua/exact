@@ -714,6 +714,30 @@ describe("@exact/compiler", () => {
     `, { filename: "Panel.tsx", target: "server" })).toThrow("client island cannot reference server-only imports");
   });
 
+  it("fails clearly when isomorphic server-rendered code references browser globals outside a client island", () => {
+    expect(() => transform(`
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ title: string }>) {
+        this.task.server(async () => {
+          this.state.title = await readFile("title.txt", "utf8");
+        });
+        return () => <p>{window.innerWidth}</p>;
+      }
+    `, { filename: "Panel.tsx", target: "server" })).toThrow("browser-only global window cannot be used in server-rendered component code");
+  });
+
+  it("allows browser globals in pure client components that become server stubs", () => {
+    const server = transform(`
+      export function Panel() {
+        return () => <p>{window.innerWidth}</p>;
+      }
+    `, { filename: "Panel.tsx", target: "server" });
+
+    expect(server).toContain("__exactBoundary");
+    expect(server).not.toContain("window.innerWidth");
+  });
+
   it("removes imports used only by split client components from server artifacts", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "exact-prune-imports-"));
     const input = path.join(root, "src", "page.tsx");
