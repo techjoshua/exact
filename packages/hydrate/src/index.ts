@@ -1,6 +1,6 @@
 import { render } from "@exact/dom";
 import { createVNode, logFrameworkEvent, type ComponentFunction, type Logger, type VNode } from "@exact/core";
-import type { ExactInvocationKind, ExactInvocationResult, ExactPatch } from "@exact/server";
+import type { ExactInvocationKind, ExactInvocationResult, ExactPatch, ExactStateContract } from "@exact/server";
 
 export type HydrateOptions = {
   endpoint?: string;
@@ -9,11 +9,13 @@ export type HydrateOptions = {
   onMismatch?: "replace" | "throw";
   fetch?: FetchLike;
   headers?: Record<string, string>;
+  stateContracts?: Record<string, ExactStateContract>;
 };
 
 export type ExactHydrationConfig = {
   endpoint?: string;
   state?: unknown;
+  stateContracts?: Record<string, ExactStateContract>;
 };
 
 export type ClientIslandRegistry = Record<string, ComponentFunction<any, any>>;
@@ -31,6 +33,7 @@ export type FetchLike = (input: string, init: {
 export type ExactClient = {
   readonly endpoint?: string;
   state?: unknown;
+  readonly stateContracts?: Record<string, ExactStateContract>;
   applyPatches(patches: readonly ExactPatch[]): void;
   invokeAction(id: string, payload?: unknown): Promise<ExactInvocationResult>;
   refreshBoundary(id: string, payload?: unknown): Promise<ExactInvocationResult>;
@@ -50,7 +53,8 @@ export function readExactHydrationConfig(root: ParentNode = document, scriptId =
     const record = value as Record<string, unknown>;
     return {
       endpoint: typeof record.endpoint === "string" ? record.endpoint : undefined,
-      state: record.state
+      state: record.state,
+      stateContracts: isStateContractMap(record.stateContracts) ? record.stateContracts : undefined
     };
   } catch {
     return {};
@@ -74,6 +78,7 @@ export function createExactClient(container: Element, options: HydrateOptions = 
   const client: ExactClient = {
     endpoint: options.endpoint,
     state: options.state,
+    stateContracts: options.stateContracts,
     applyPatches(patches) {
       applyPatches(container, patches, options);
     },
@@ -128,7 +133,7 @@ async function invokeAndApply(
     type,
     id,
     payload,
-    state: client.state,
+    state: type === "action" ? stateForContract(client.state, client.stateContracts?.[id]) : client.state,
     fetch: options.fetch,
     headers: options.headers,
     logger: options.logger
@@ -205,6 +210,54 @@ function parseIslandProps(raw: string | null): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+function stateForContract(state: unknown, contract: ExactStateContract | undefined): unknown {
+  if (!contract) return state;
+  const reads = contract.reads?.filter(read => read.kind === "read" && read.confidence === "exact") ?? [];
+  if (!reads.length) return {};
+  const output: Record<string, unknown> = {};
+  for (const read of reads) {
+    const value = getPath(state, read.path);
+    if (value !== undefined) setPath(output, read.path, value);
+  }
+  return output;
+}
+
+function getPath(value: unknown, path: string): unknown {
+  if (path === "*") return value;
+  let cursor = value;
+  for (const segment of path.split(".")) {
+    if (!cursor || typeof cursor !== "object" || Array.isArray(cursor)) return undefined;
+    if (!Object.prototype.hasOwnProperty.call(cursor, segment)) return undefined;
+    cursor = (cursor as Record<string, unknown>)[segment];
+  }
+  return cursor;
+}
+
+function setPath(target: Record<string, unknown>, path: string, value: unknown): void {
+  if (path === "*") return;
+  const segments = path.split(".");
+  let cursor: Record<string, unknown> = target;
+  for (const segment of segments.slice(0, -1)) {
+    const next = cursor[segment];
+    if (!next || typeof next !== "object" || Array.isArray(next)) {
+      cursor[segment] = {};
+    }
+    cursor = cursor[segment] as Record<string, unknown>;
+  }
+  cursor[segments[segments.length - 1]!] = value;
+}
+
+function isStateContractMap(value: unknown): value is Record<string, ExactStateContract> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  return Object.values(value as Record<string, unknown>).every(isStateContract);
+}
+
+function isStateContract(value: unknown): value is ExactStateContract {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return (record.reads === undefined || Array.isArray(record.reads)) && (record.writes === undefined || Array.isArray(record.writes));
 }
 
 function applyPatch(container: Element, patch: ExactPatch): boolean {

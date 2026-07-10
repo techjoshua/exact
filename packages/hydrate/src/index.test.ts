@@ -22,11 +22,16 @@ describe("@exact/hydrate", () => {
 
   it("reads endpoint and state from the hydration bootstrap script", () => {
     const root = document.createElement("main");
-    root.innerHTML = "<script type=\"application/json\" id=\"__exact_hydration\">{\"endpoint\":\"/__exact\",\"state\":{\"ready\":true}}</script>";
+    root.innerHTML = "<script type=\"application/json\" id=\"__exact_hydration\">{\"endpoint\":\"/__exact\",\"state\":{\"ready\":true},\"stateContracts\":{\"save\":{\"reads\":[{\"path\":\"project.id\",\"kind\":\"read\",\"confidence\":\"exact\"}]}}}</script>";
 
     expect(readExactHydrationConfig(root)).toEqual({
       endpoint: "/__exact",
-      state: { ready: true }
+      state: { ready: true },
+      stateContracts: {
+        save: {
+          reads: [{ path: "project.id", kind: "read", confidence: "exact" }]
+        }
+      }
     });
   });
 
@@ -192,6 +197,43 @@ describe("@exact/hydrate", () => {
     }]);
     expect(container.textContent).toBe("New");
     expect(client.state).toEqual({ saved: true });
+  });
+
+  it("sends only exact state contract reads for actions when available", async () => {
+    const container = document.createElement("div");
+    const requests: unknown[] = [];
+    const fetch = async (_input: string, init: { body: string }) => {
+      requests.push(JSON.parse(init.body));
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { ok: true };
+        }
+      };
+    };
+
+    const client = createExactClient(container, {
+      endpoint: "/__exact",
+      state: {
+        project: { id: "p1", title: "Hidden" },
+        user: { id: "u1" }
+      },
+      stateContracts: {
+        "save-project": {
+          reads: [{ path: "project.id", kind: "read", confidence: "exact" }]
+        }
+      },
+      fetch
+    });
+
+    await client.invokeAction("save-project");
+
+    expect(requests).toEqual([{
+      type: "action",
+      id: "save-project",
+      state: { project: { id: "p1" } }
+    }]);
   });
 
   it("rejects failed endpoint invocations", async () => {

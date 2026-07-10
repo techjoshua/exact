@@ -124,12 +124,19 @@ describe("@exact/ssr", () => {
     const script = renderHydrationScript({
       endpoint: "/__exact",
       state: { title: "</script><img>" },
+      stateContracts: {
+        save: {
+          reads: [{ path: "project.id", kind: "read", confidence: "exact" }]
+        }
+      },
       nonce: "abc\"123"
     });
 
     expect(script).toContain("type=\"application/json\"");
     expect(script).toContain("id=\"__exact_hydration\"");
     expect(script).toContain("nonce=\"abc&quot;123\"");
+    expect(script).toContain("\"stateContracts\"");
+    expect(script).toContain("\"project.id\"");
     expect(script).toContain("\\u003C/script>");
     expect(script).not.toContain("</script><img>");
   });
@@ -138,13 +145,19 @@ describe("@exact/ssr", () => {
     const result = renderToHydratableString(createVNode("p", null, "ready"), {
       markers: false,
       endpoint: "/__exact",
-      state: { ready: true }
+      state: { ready: true },
+      stateContracts: {
+        save: {
+          reads: [{ path: "ready", kind: "read", confidence: "exact" }]
+        }
+      }
     });
 
     expect(result.html).toBe("<p>ready</p>");
     expect(result.htmlWithHydration).toContain("<p>ready</p><script");
     expect(result.htmlWithHydration).toContain("\"endpoint\":\"/__exact\"");
     expect(result.htmlWithHydration).toContain("\"ready\":true");
+    expect(result.htmlWithHydration).toContain("\"stateContracts\"");
   });
 
   it("waits for async tasks before rendering a component in async mode", async () => {

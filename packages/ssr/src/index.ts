@@ -22,7 +22,7 @@ import {
   type VNode
 } from "@exact/core";
 import { unwrap } from "@exact/reactive";
-import type { ExactInvocationRequest, ExactInvocationResult, ExactServerContext } from "@exact/server";
+import type { ExactInvocationRequest, ExactInvocationResult, ExactServerContext, ExactStateContract } from "@exact/server";
 
 export type RenderToStringOptions = {
   markers?: boolean;
@@ -39,6 +39,7 @@ export type RenderToStringResult = {
 export type HydrationScriptOptions = {
   endpoint?: string;
   state?: unknown;
+  stateContracts?: Record<string, ExactStateContract>;
   scriptId?: string;
   nonce?: string;
 };
@@ -85,6 +86,7 @@ export function renderToHydratableString(vnode: VNode, options: RenderToStringOp
   const hydrationScript = renderHydrationScript({
     endpoint: options.endpoint,
     state: result.state,
+    stateContracts: options.stateContracts,
     scriptId: options.scriptId,
     nonce: options.nonce
   });
@@ -123,6 +125,7 @@ export async function renderToHydratableStringAsync(vnode: VNode, options: Rende
   const hydrationScript = renderHydrationScript({
     endpoint: options.endpoint,
     state: result.state,
+    stateContracts: options.stateContracts,
     scriptId: options.scriptId,
     nonce: options.nonce
   });
@@ -136,7 +139,8 @@ export async function renderToHydratableStringAsync(vnode: VNode, options: Rende
 export function renderHydrationScript(options: HydrationScriptOptions = {}): string {
   const payload = serializeHydrationPayload({
     endpoint: options.endpoint,
-    state: options.state
+    state: options.state,
+    stateContracts: options.stateContracts
   });
   const id = options.scriptId ?? "__exact_hydration";
   const nonce = options.nonce ? ` nonce="${escapeAttr(options.nonce)}"` : "";

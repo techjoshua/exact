@@ -357,6 +357,7 @@ The current SSR/server-component foundation implements:
 - `renderToStringAsync()` waits for observed `this.task()` promises before rendering the component instance, so server-loaded reactive state can be serialized into the first response.
 - `renderHydrationScript()` serializes endpoint/state bootstrap data as inert escaped JSON.
 - `@exact/hydrate` can read that bootstrap data, invoke the configured endpoint, and apply returned patches.
+- Hydration bootstrap data may include per-action state contracts; when present, the client sends only the exact state reads required for that action.
 - `@exact/server` owns adapter-neutral request handling and rejects anything not present in the manifest allowlist.
 - `createExactServerManifest()` converts compiler manifests into runtime action/boundary allowlists.
 - If the manifest includes an endpoint path, the shared handler rejects requests for any other path before dispatching.
