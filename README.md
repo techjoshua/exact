@@ -9,6 +9,8 @@ The repository is an npm workspace monorepo. The current implementation slice co
 - `@exact/jsx`: TypeScript JSX entrypoints and JSX namespace types used by the compiler toolchain.
 - `@exact/dom`: browser mounting, DOM patching, delegated events, DOM refs, and keyed list reconciliation.
 - `@exact/compiler`: eXact JSX/TSX transform core for expression-preserving compiled JSX.
+- `@exact/ssr`: server-side HTML rendering with hydration boundary markers.
+- `@exact/hydrate`: client hydration entrypoint and server patch application.
 - `@exact/server`: adapter-neutral secure server-component/action request handling.
 - `@exact/vite-plugin`: Vite integration for the eXact compiler.
 
@@ -67,6 +69,12 @@ The package entrypoints are:
   - Build-tool surface: `transform`, `transformSource`, `compileFile`, `compileProject`, `preprocessPropPunning`.
   - Semantic surface: `analyzeSource` and emitted manifests for component/task placement planning.
   - CLI: `exactc`.
+- `@exact/ssr`
+  - Server render surface: `renderToString(vnode, options?)`, `renderToStream(vnode, options?)`.
+  - Emits deterministic comment markers for component, cell, dynamic, fragment, and keyed-list item boundaries.
+- `@exact/hydrate`
+  - Client hydration surface: `hydrate(vnode, container, options?)`.
+  - Patch surface: `applyPatches(container, patches, options?)`.
 - `@exact/server`
   - Server runtime surface: `handleExactRequest(request, context)`.
   - Adapter helpers: `createFetchHandler`, `createExpressHandler`, `createHapiHandler`.

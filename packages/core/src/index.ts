@@ -183,6 +183,10 @@ export type TaskContext = {
   signal: AbortSignal;
 };
 
+export type TaskObserver = {
+  register(promise: Promise<unknown>, instance: ComponentInstance<any>): void;
+};
+
 export type Cleanup = void | (() => void | Promise<void>);
 export type TaskResult = Cleanup | Promise<Cleanup>;
 export type Unwrapped<Deps extends readonly unknown[]> = {
@@ -286,6 +290,7 @@ const internalPlugins: InternalPlugin[] = [
 
 let nextComponentId = 1;
 let nextErrorId = 1;
+const taskObserverStack: TaskObserver[] = [];
 
 for (const plugin of internalPlugins) {
   for (const provider of plugin.defaultContexts ?? []) {
@@ -616,6 +621,16 @@ export function renderInstance(instance: ComponentInstance<any>, onInvalidate: (
   return normalizeRenderResult(output);
 }
 
+export function withTaskObserver<T>(observer: TaskObserver | undefined, fn: () => T): T {
+  if (!observer) return fn();
+  taskObserverStack.push(observer);
+  try {
+    return fn();
+  } finally {
+    taskObserverStack.pop();
+  }
+}
+
 export function createErrorReport(
   error: unknown,
   source: ErrorSource,
@@ -723,11 +738,12 @@ function createTask(instance: ComponentInstance<any>, deps: unknown[], work: (..
       }
 
       if (result instanceof Promise) {
-        void result.then(cleanup => {
+        const observed = result.then(cleanup => {
           if (typeof cleanup === "function") task.cleanup = cleanup;
         }).catch(error => {
           handleComponentError(instance, createErrorReport(error, "task", instance, "promise"));
         });
+        taskObserverStack[taskObserverStack.length - 1]?.register(observed, instance);
       } else if (typeof result === "function") {
         task.cleanup = result;
       }

@@ -10,10 +10,12 @@ import {
   isVNode,
   logFrameworkEvent,
   renderInstance,
+  withTaskObserver,
   type Component,
   type ErrorReport,
   type LogEvent,
-  type Logger
+  type Logger,
+  type TaskObserver
 } from "./index.js";
 import { flushSync, unwrap, watch } from "@exact/reactive";
 
@@ -438,6 +440,30 @@ describe("@exact/core", () => {
     expect(instance.state.errors).toHaveLength(1);
     expect(instance.state.errors[0]!.source).toBe("task");
     expect(instance.state.errors[0]!.phase).toBe("promise");
+  });
+
+  it("lets render environments observe async task completion", async () => {
+    const observed: Promise<unknown>[] = [];
+    const observer: TaskObserver = {
+      register: promise => observed.push(promise)
+    };
+    let instance!: Component<{ ready: boolean }>;
+
+    withTaskObserver(observer, () => {
+      createComponentInstance(function Worker(this: Component<{ ready: boolean }>) {
+        instance = this;
+        this.state.ready = false;
+        this.task(async () => {
+          await Promise.resolve();
+          this.state.ready = true;
+        });
+        return () => null;
+      }, {});
+    });
+
+    expect(observed).toHaveLength(1);
+    await Promise.all(observed);
+    expect(instance.state.ready).toBe(true);
   });
 
   it("continues unmount cleanup after lifecycle failures", () => {
