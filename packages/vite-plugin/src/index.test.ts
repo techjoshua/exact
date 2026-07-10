@@ -25,6 +25,12 @@ describe("@exact/vite-plugin", () => {
     expect(result?.code).not.toContain("readFile");
   });
 
+  it("resolves exact facade imports to target artifacts", () => {
+    expect(exact({ target: "client" }).resolveId?.("./Panel.exact", "/app/src/main.ts")).toMatch(/Panel\.exact\.client\.ts$/);
+    expect(exact({ target: "server" }).resolveId?.("./Panel.exact", "/app/src/main.ts")).toMatch(/Panel\.exact\.server\.ts$/);
+    expect(exact().resolveId?.("./Panel", "/app/src/main.ts")).toBeNull();
+  });
+
   it("honors include and exclude filters", () => {
     expect(exact({ include: "/src/" }).transform("const view = <span />;", "/src/view.tsx")).not.toBeNull();
     expect(exact({ include: "/src/" }).transform("const view = <span />;", "/test/view.tsx")).toBeNull();

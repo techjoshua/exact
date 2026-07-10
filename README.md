@@ -130,6 +130,7 @@ That rewrites `.tsx` files to `.ts` and `.jsx` files to `.js` under the output d
 Packaged component libraries can publish these generated variants and let app build tooling choose the client or server file based on the render target.
 The generated target files are real ESM modules that preserve named exports, so package authors can expose them through package export conditions and bundlers can tree-shake unused components independently. The `.exact.manifest.json` file records the source file, target artifact paths, and exported names for resolver/tooling integration.
 When the compiler splits one authored component into generated server/client pieces, the authored root keeps its public name and generated pieces use deterministic names derived from it, such as `ProjectCard_ExactClient_1`. Manifest protocol identity should use stable generated IDs, not JavaScript function names, because bundlers and minifiers may rename local symbols.
+The Vite plugin also supports `.exact` facade imports. With `exact({ target: "client" })`, `import { ProjectCard } from "./ProjectCard.exact"` resolves to `ProjectCard.exact.client.ts`; with `target: "server"` it resolves to `ProjectCard.exact.server.ts`.
 
 Vite is supported through a thin adapter over the same compiler:
 

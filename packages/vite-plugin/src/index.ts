@@ -1,4 +1,5 @@
 import { transformSource, type TransformTarget } from "@exact/compiler";
+import path from "node:path";
 
 export type ExactPluginOptions = {
   include?: FilterPattern;
@@ -11,6 +12,7 @@ type FilterPattern = string | RegExp | readonly (string | RegExp)[];
 export type ExactPlugin = {
   name: string;
   enforce: "pre";
+  resolveId?(source: string, importer?: string): string | null;
   transform(code: string, id: string): { code: string; map: null } | null;
 };
 
@@ -18,6 +20,13 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
   return {
     name: "exact",
     enforce: "pre",
+    resolveId(source, importer) {
+      if (!source.endsWith(".exact")) return null;
+      const target = options.target === "server" ? "server" : "client";
+      const resolved = `${source}.${target}.ts`;
+      if (!importer || path.isAbsolute(resolved)) return resolved;
+      return path.resolve(path.dirname(importer), resolved);
+    },
     transform(code, id) {
       if (!shouldTransform(id, code, options)) return null;
       try {
