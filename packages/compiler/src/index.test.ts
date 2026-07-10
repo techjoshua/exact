@@ -2,7 +2,16 @@ import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { analyzeSource, compileFile, compileFileArtifacts, compileProject, preprocessPropPunning, transform, transformSource } from "./index.js";
+import {
+  analyzeSource,
+  compileFile,
+  compileFileArtifacts,
+  compileProject,
+  generatedComponentName,
+  preprocessPropPunning,
+  transform,
+  transformSource
+} from "./index.js";
 
 describe("@exact/compiler", () => {
   it("lowers JSX to eXact compiled vnode helpers", () => {
@@ -51,6 +60,18 @@ describe("@exact/compiler", () => {
       kind: "component",
       placement: "isomorphic"
     });
+    expect(manifest.symbols).toEqual([expect.objectContaining({
+      id: expect.stringMatching(/^x/),
+      componentId: component.id,
+      exportName: "ProjectPage",
+      localName: "ProjectPage",
+      generatedName: "ProjectPage",
+      debugName: "ProjectPage",
+      kind: "component",
+      role: "root",
+      target: "both",
+      placement: "isomorphic"
+    })]);
     expect(component.splitBoundaries).toEqual(expect.arrayContaining(["browser:window", "event-handler", "ref", "server-import:readFile"]));
     expect(component.tasks.map(task => task.placement)).toEqual(["server", "client", "client"]);
     expect(component.tasks[0]!.writes).toContainEqual({
@@ -325,8 +346,21 @@ describe("@exact/compiler", () => {
       client: "page.exact.client.ts",
       server: "page.exact.server.ts",
       manifest: "page.exact.manifest.json",
-      exports: [{ name: "Page", kind: "component", placement: "isomorphic" }]
+      exports: [{ name: "Page", kind: "component", placement: "isomorphic" }],
+      symbols: [expect.objectContaining({
+        exportName: "Page",
+        localName: "Page",
+        generatedName: "Page",
+        role: "root",
+        target: "both"
+      })]
     });
+  });
+
+  it("generates deterministic split component names from author names", () => {
+    expect(generatedComponentName("ProjectCard", "client-island", 1)).toBe("ProjectCard_ExactClient_1");
+    expect(generatedComponentName("ProjectCard", "server-part", 2)).toBe("ProjectCard_ExactServer_2");
+    expect(generatedComponentName("123 Weird-Name", "client-island", 3)).toBe("_123_Weird_Name_ExactClient_3");
   });
 
   it("compiles TSX and JSX files from directories", async () => {

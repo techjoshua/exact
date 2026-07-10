@@ -51,12 +51,26 @@ export type ExactExportIR = {
   placement: ExactPlacement;
 };
 
+export type ExactSymbolIR = {
+  id: string;
+  componentId?: string;
+  exportName?: string;
+  localName: string;
+  generatedName: string;
+  debugName: string;
+  kind: "component" | "value";
+  role: "root" | "server-part" | "client-island";
+  target: "client" | "server" | "both";
+  placement: ExactPlacement;
+};
+
 export type ExactArtifactManifest = {
   source: string;
   client: string;
   server: string;
   manifest: string;
   exports: ExactExportIR[];
+  symbols: ExactSymbolIR[];
 };
 
 export type ExactCompilerManifest = {
@@ -64,6 +78,7 @@ export type ExactCompilerManifest = {
   filename: string;
   components: ExactComponentIR[];
   exports: ExactExportIR[];
+  symbols: ExactSymbolIR[];
   artifacts?: ExactArtifactManifest;
   serverActions: Record<string, {
     id: string;
@@ -162,6 +177,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
   const components: ExactComponentIR[] = [];
   const exports: ExactExportIR[] = [];
+  const symbols: ExactSymbolIR[] = [];
   const manifestDiagnostics: string[] = [];
   const serverActions: ExactCompilerManifest["serverActions"] = {};
   const serverOnlyImports = collectServerOnlyImports(sourceFile);
@@ -189,6 +205,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
       placement: component?.placement ?? "unknown"
     });
   }
+  symbols.push(...createRootSymbols(sourceFile, components, exports));
 
   for (const component of components) {
     for (const task of component.tasks) {
@@ -213,6 +230,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
     filename,
     components,
     exports,
+    symbols,
     serverActions,
     diagnostics: manifestDiagnostics
   };
@@ -637,6 +655,39 @@ function collectExports(sourceFile: ts.SourceFile): Set<string> {
   }
 
   return exports;
+}
+
+function createRootSymbols(sourceFile: ts.SourceFile, components: ExactComponentIR[], exports: ExactExportIR[]): ExactSymbolIR[] {
+  const exportByName = new Map(exports.map(item => [item.name, item]));
+  return components
+    .filter(component => component.exported)
+    .map(component => {
+      const exported = exportByName.get(component.name);
+      return {
+        id: stableId(sourceFile.fileName, "symbol", component.id, "root"),
+        componentId: component.id,
+        exportName: exported?.name,
+        localName: component.name,
+        generatedName: component.name,
+        debugName: component.name,
+        kind: "component",
+        role: "root",
+        target: component.placement === "client" ? "client" : component.placement === "server" ? "server" : "both",
+        placement: component.placement
+      };
+    });
+}
+
+export function generatedComponentName(authorName: string, role: "server-part" | "client-island", index: number): string {
+  const base = sanitizeIdentifier(authorName || "Component");
+  const suffix = role === "server-part" ? "ExactServer" : "ExactClient";
+  return `${base}_${suffix}_${index}`;
+}
+
+function sanitizeIdentifier(value: string): string {
+  const cleaned = value.replace(/[^A-Za-z0-9_$]/g, "_");
+  if (/^[A-Za-z_$]/.test(cleaned)) return cleaned;
+  return `_${cleaned}`;
 }
 
 function hasExportModifier(node: ts.Node): boolean {
@@ -1308,7 +1359,8 @@ function withArtifactMetadata(
       client: slashPath(path.relative(root, paths.clientFile)),
       server: slashPath(path.relative(root, paths.serverFile)),
       manifest: slashPath(path.relative(root, paths.manifestFile)),
-      exports: manifest.exports
+      exports: manifest.exports,
+      symbols: manifest.symbols
     }
   };
 }
