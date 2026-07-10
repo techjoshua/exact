@@ -3,6 +3,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { createVNode, type Component } from "@exact/core";
+import { handleExactRequest } from "@exact/server";
 import { hydrate, applyPatches, createExactClient, hydrateClientIslands, invokeExact, readExactHydrationConfig } from "./index.js";
 
 const noopLogger = {
@@ -53,6 +54,57 @@ describe("@exact/hydrate", () => {
 
     expect(hydrateClientIslands(container, {}, { logger: noopLogger })).toBe(0);
     expect(container.querySelector("[data-exact-client-boundary]")).not.toBeNull();
+  });
+
+  it("refreshes a server boundary and hydrates returned client islands", async () => {
+    const container = document.createElement("main");
+    container.innerHTML = "<!--exact:panel--><p>Old</p><!--/exact:panel-->";
+    const fetch = async (_input: string, init: { body: string }) => {
+      const response = await handleExactRequest({
+        method: "POST",
+        body: JSON.parse(init.body)
+      }, {
+        manifest: {
+          version: 1,
+          boundaries: {
+            panel: { id: "panel" }
+          }
+        },
+        refreshBoundaries: {
+          panel: () => ({
+            patches: [{
+              type: "replace",
+              id: "panel",
+              html: "<div data-exact-client-boundary=\"counter\" data-exact-client-name=\"Counter_ExactClient_1\" data-exact-client-props='{\"props\":{\"count\":4}}'></div>"
+            }]
+          })
+        }
+      });
+      return {
+        ok: response.status >= 200 && response.status < 300,
+        status: response.status,
+        async json() {
+          return JSON.parse(response.body);
+        }
+      };
+    };
+
+    function Counter(this: Component<{ count: number }>, props: { count: number }) {
+      this.state.count = props.count;
+      return () => createVNode("button", null, String(this.state.count));
+    }
+
+    const client = createExactClient(container, {
+      endpoint: "/__exact",
+      fetch
+    });
+    await client.refreshIsland("panel", {
+      Counter_ExactClient_1: Counter
+    });
+
+    expect(container.querySelector("p")).toBeNull();
+    expect(container.querySelector("button")?.textContent).toBe("4");
+    expect(container.querySelector("[data-exact-client-hydrated=\"true\"]")).not.toBeNull();
   });
 
   it("applies text patches to exact marker ranges", () => {

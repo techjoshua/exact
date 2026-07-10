@@ -34,6 +34,7 @@ export type ExactClient = {
   applyPatches(patches: readonly ExactPatch[]): void;
   invokeAction(id: string, payload?: unknown): Promise<ExactInvocationResult>;
   refreshBoundary(id: string, payload?: unknown): Promise<ExactInvocationResult>;
+  refreshIsland(id: string, registry: ClientIslandRegistry, payload?: unknown): Promise<ExactInvocationResult>;
 };
 
 export type HydrationRoot = ExactClient;
@@ -81,6 +82,11 @@ export function createExactClient(container: Element, options: HydrateOptions = 
     },
     refreshBoundary(id, payload) {
       return invokeAndApply(container, client, "refresh", id, payload, options);
+    },
+    async refreshIsland(id, registry, payload) {
+      const result = await invokeAndApply(container, client, "refresh", id, payload, options);
+      hydrateClientIslands(container, registry, options);
+      return result;
     }
   };
   return client;
