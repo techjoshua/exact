@@ -22,7 +22,7 @@ import {
   type VNode
 } from "@exact/core";
 import { unwrap } from "@exact/reactive";
-import type { ExactInvocationRequest, ExactInvocationResult, ExactServerContext, ExactStateContract } from "@exact/server";
+import type { ExactInvocationRequest, ExactInvocationResult, ExactPatch, ExactServerContext, ExactStateContract } from "@exact/server";
 
 export type RenderToStringOptions = {
   markers?: boolean;
@@ -56,6 +56,7 @@ export type BoundaryRenderFunction = (
 
 export type BoundaryRefreshOptions = RenderToStringOptions & {
   boundaryId: string;
+  patchStrategy?: "replace" | "text";
 };
 
 type SsrContext = {
@@ -159,14 +160,36 @@ export function createBoundaryRefreshHandler(
     const vnode = await render(input, context);
     const result = await renderToStringAsync(vnode, options);
     return {
-      patches: [{
-        type: "replace",
-        id: options.boundaryId,
-        html: result.html
-      }],
+      patches: [boundaryPatch(options.boundaryId, result.html, options.patchStrategy)],
       state: result.state
     };
   };
+}
+
+function boundaryPatch(boundaryId: string, html: string, strategy: BoundaryRefreshOptions["patchStrategy"]): ExactPatch {
+  if (strategy === "text" && isTextOnlyHtml(html)) {
+    return {
+      type: "text",
+      id: boundaryId,
+      value: decodeEscapedText(html)
+    };
+  }
+  return {
+    type: "replace",
+    id: boundaryId,
+    html
+  };
+}
+
+function isTextOnlyHtml(html: string): boolean {
+  return !/[<>]/.test(html);
+}
+
+function decodeEscapedText(value: string): string {
+  return value
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
 }
 
 function renderChildren(context: SsrContext, children: readonly Child[], parent?: ComponentInstance<any>): string {

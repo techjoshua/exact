@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createCompiledVNode, createDynamicChild, createServerBoundary, createVNode, type Component } from "@exact/core";
+import { createCompiledVNode, createDynamicChild, createServerBoundary, createTextVNode, createVNode, type Component } from "@exact/core";
 import { handleExactRequest } from "@exact/server";
 import {
   createBoundaryRefreshHandler,
@@ -227,6 +227,60 @@ describe("@exact/ssr", () => {
     expect(JSON.parse(response.body)).toMatchObject({
       ok: true,
       state: { refreshed: true },
+      patches: [{ type: "replace", id: "profile", html: "<p>Ada</p>" }]
+    });
+  });
+
+  it("can create text patches for text-only boundary refreshes", async () => {
+    const response = await handleExactRequest({
+      method: "POST",
+      body: { type: "refresh", id: "profile" }
+    }, {
+      manifest: {
+        version: 1,
+        boundaries: { profile: { id: "profile" } }
+      },
+      refreshBoundaries: {
+        profile: createBoundaryRefreshHandler(
+          () => createTextVNode("Ada & Lin"),
+          {
+            boundaryId: "profile",
+            markers: false,
+            patchStrategy: "text"
+          }
+        )
+      }
+    });
+
+    expect(JSON.parse(response.body)).toMatchObject({
+      ok: true,
+      patches: [{ type: "text", id: "profile", value: "Ada & Lin" }]
+    });
+  });
+
+  it("falls back to replacement patches when text strategy renders html", async () => {
+    const response = await handleExactRequest({
+      method: "POST",
+      body: { type: "refresh", id: "profile" }
+    }, {
+      manifest: {
+        version: 1,
+        boundaries: { profile: { id: "profile" } }
+      },
+      refreshBoundaries: {
+        profile: createBoundaryRefreshHandler(
+          () => createVNode("p", null, "Ada"),
+          {
+            boundaryId: "profile",
+            markers: false,
+            patchStrategy: "text"
+          }
+        )
+      }
+    });
+
+    expect(JSON.parse(response.body)).toMatchObject({
+      ok: true,
       patches: [{ type: "replace", id: "profile", html: "<p>Ada</p>" }]
     });
   });
