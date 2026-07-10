@@ -364,7 +364,7 @@ The current SSR/server-component foundation implements:
 - `createExactServerManifest()` converts compiler manifests into runtime action/boundary allowlists, including compiler-generated client island boundary IDs.
 - `createExactHydrationStateContracts()` extracts the compiler-derived action state contracts for `renderHydrationScript()` / `@exact/hydrate`.
 - If the manifest includes an endpoint path, the shared handler rejects requests for any other path before dispatching.
-- `createBoundaryRefreshHandler()` rerenders a server boundary and returns patches through the same secure endpoint path. It defaults to boundary replacement and can emit text patches for text-only boundary output with `patchStrategy: "text"`.
+- `createBoundaryRefreshHandler()` rerenders a server boundary and returns patches through the same secure endpoint path. It defaults to boundary replacement, can emit text patches for text-only boundary output with `patchStrategy: "text"`, and can diff simple same-tag element output with `patchStrategy: "element"` when previous boundary HTML is supplied.
 - `this.task(...)` placement is inferred by the compiler. Use `this.task.server(...)` or `this.task.client(...)` only when inference needs an explicit boundary; contradictory environment usage fails compilation.
 - Compiler manifests include state read/write contracts for server-capable tasks. The server runtime validates exact state reads on action requests before dispatch, giving server actions a narrow data contract instead of requiring whole-app state by default.
 

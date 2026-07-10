@@ -144,6 +144,22 @@ describe("@exact/hydrate", () => {
     expect(button.getAttribute("style")).toContain("color: red");
   });
 
+  it("applies prop patches to the first element in an exact marker range", () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<!--exact:panel--><p class=\"old\" hidden=\"true\">Loading</p><!--/exact:panel-->";
+
+    applyPatches(container, [
+      { type: "prop", id: "panel", name: "class", value: "new" },
+      { type: "prop", id: "panel", name: "hidden", value: null },
+      { type: "text", id: "panel", value: "Ready" }
+    ]);
+
+    const paragraph = container.querySelector("p")!;
+    expect(paragraph.getAttribute("class")).toBe("new");
+    expect(paragraph.hasAttribute("hidden")).toBe(false);
+    expect(paragraph.textContent).toBe("Ready");
+  });
+
   it("applies keyed list insert, move, and remove patches", () => {
     const container = document.createElement("div");
     container.innerHTML = "<ul><!--exact:list--><!--exact:item:1:a--><li>A</li><!--/exact:item:1:a--><!--exact:item:2:b--><li>B</li><!--/exact:item:2:b--><!--/exact:list--></ul>";

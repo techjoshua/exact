@@ -284,4 +284,65 @@ describe("@exact/ssr", () => {
       patches: [{ type: "replace", id: "profile", html: "<p>Ada</p>" }]
     });
   });
+
+  it("can create prop and text patches for simple element boundary refreshes", async () => {
+    const response = await handleExactRequest({
+      method: "POST",
+      body: { type: "refresh", id: "profile" }
+    }, {
+      manifest: {
+        version: 1,
+        boundaries: { profile: { id: "profile" } }
+      },
+      refreshBoundaries: {
+        profile: createBoundaryRefreshHandler(
+          () => createVNode("p", { className: "new", title: "Ada" }, "Ready"),
+          {
+            boundaryId: "profile",
+            markers: false,
+            patchStrategy: "element",
+            previousHtml: () => "<p class=\"old\" hidden=\"true\">Loading</p>"
+          }
+        )
+      }
+    });
+
+    expect(JSON.parse(response.body)).toMatchObject({
+      ok: true,
+      patches: [
+        { type: "prop", id: "profile", name: "class", value: "new" },
+        { type: "prop", id: "profile", name: "title", value: "Ada" },
+        { type: "prop", id: "profile", name: "hidden", value: null },
+        { type: "text", id: "profile", value: "Ready" }
+      ]
+    });
+  });
+
+  it("falls back to replacement patches when element strategy shape changes", async () => {
+    const response = await handleExactRequest({
+      method: "POST",
+      body: { type: "refresh", id: "profile" }
+    }, {
+      manifest: {
+        version: 1,
+        boundaries: { profile: { id: "profile" } }
+      },
+      refreshBoundaries: {
+        profile: createBoundaryRefreshHandler(
+          () => createVNode("section", null, "Ready"),
+          {
+            boundaryId: "profile",
+            markers: false,
+            patchStrategy: "element",
+            previousHtml: () => "<p>Loading</p>"
+          }
+        )
+      }
+    });
+
+    expect(JSON.parse(response.body)).toMatchObject({
+      ok: true,
+      patches: [{ type: "replace", id: "profile", html: "<section>Ready</section>" }]
+    });
+  });
 });

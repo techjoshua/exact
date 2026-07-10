@@ -269,7 +269,7 @@ function applyPatch(container: Element, patch: ExactPatch): boolean {
   }
 
   if (patch.type === "prop") {
-    const target = findExactElement(container, patch.id);
+    const target = findExactElementTarget(container, patch.id);
     if (!target) return false;
     if (patch.value === false || patch.value === null || patch.value === undefined) {
       target.removeAttribute(patch.name);
@@ -280,7 +280,7 @@ function applyPatch(container: Element, patch: ExactPatch): boolean {
   }
 
   if (patch.type === "style") {
-    const target = findExactElement(container, patch.id) as HTMLElement | undefined;
+    const target = findExactElementTarget(container, patch.id) as HTMLElement | undefined;
     if (!target) return false;
     if (patch.value === null) target.style.removeProperty(patch.name);
     else target.style.setProperty(patch.name, patch.value);
@@ -351,6 +351,19 @@ function findExactTarget(container: Element, id: string): Node | undefined {
 
 function findExactElement(container: Element, id: string): Element | undefined {
   return container.querySelector(`[data-exact-id="${cssEscape(id)}"]`) ?? undefined;
+}
+
+function findExactElementTarget(container: Element, id: string): Element | undefined {
+  const exact = findExactElement(container, id);
+  if (exact) return exact;
+  const range = findExactRange(container, id);
+  if (!range) return undefined;
+  let node = range.start.nextSibling;
+  while (node && node !== range.end) {
+    if (node.nodeType === Node.ELEMENT_NODE) return node as Element;
+    node = node.nextSibling;
+  }
+  return undefined;
 }
 
 function findExactRange(container: Element, id: string): { start: Comment; end: Comment } | undefined {

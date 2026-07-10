@@ -56,7 +56,8 @@ export type BoundaryRenderFunction = (
 
 export type BoundaryRefreshOptions = RenderToStringOptions & {
   boundaryId: string;
-  patchStrategy?: "replace" | "text";
+  patchStrategy?: "replace" | "text" | "element";
+  previousHtml?(input: ExactInvocationRequest, context: ExactServerContext): string | Promise<string | undefined> | undefined;
 };
 
 type SsrContext = {
@@ -159,11 +160,48 @@ export function createBoundaryRefreshHandler(
   return async (input, context) => {
     const vnode = await render(input, context);
     const result = await renderToStringAsync(vnode, options);
+    const previousHtml = await options.previousHtml?.(input, context);
     return {
-      patches: [boundaryPatch(options.boundaryId, result.html, options.patchStrategy)],
+      patches: previousHtml === undefined
+        ? [boundaryPatch(options.boundaryId, result.html, options.patchStrategy)]
+        : diffBoundaryHtml(options.boundaryId, previousHtml, result.html, options.patchStrategy),
       state: result.state
     };
   };
+}
+
+export function diffBoundaryHtml(
+  boundaryId: string,
+  previousHtml: string,
+  nextHtml: string,
+  strategy: BoundaryRefreshOptions["patchStrategy"] = "replace"
+): ExactPatch[] {
+  if (previousHtml === nextHtml) return [];
+  if (strategy === "text" && isTextOnlyHtml(previousHtml) && isTextOnlyHtml(nextHtml)) {
+    return [boundaryPatch(boundaryId, nextHtml, "text")];
+  }
+  if (strategy === "element") {
+    const previous = parseSimpleElement(previousHtml);
+    const next = parseSimpleElement(nextHtml);
+    if (previous && next && previous.tagName === next.tagName) {
+      const patches: ExactPatch[] = [];
+      for (const [name, value] of next.attributes) {
+        if (previous.attributes.get(name) !== value) {
+          patches.push({ type: "prop", id: boundaryId, name, value });
+        }
+      }
+      for (const name of previous.attributes.keys()) {
+        if (!next.attributes.has(name)) {
+          patches.push({ type: "prop", id: boundaryId, name, value: null });
+        }
+      }
+      if (previous.text !== next.text) {
+        patches.push({ type: "text", id: boundaryId, value: decodeEscapedText(next.text) });
+      }
+      return patches.length ? patches : [];
+    }
+  }
+  return [boundaryPatch(boundaryId, nextHtml, "replace")];
 }
 
 function boundaryPatch(boundaryId: string, html: string, strategy: BoundaryRefreshOptions["patchStrategy"]): ExactPatch {
@@ -190,6 +228,27 @@ function decodeEscapedText(value: string): string {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&");
+}
+
+function parseSimpleElement(html: string): { tagName: string; attributes: Map<string, string>; text: string } | undefined {
+  const match = /^<([A-Za-z][A-Za-z0-9:-]*)([^>]*)>([^<>]*)<\/\1>$/.exec(html);
+  if (!match) return undefined;
+  const [, tagName, rawAttributes, text] = match;
+  const attributes = parseSimpleAttributes(rawAttributes ?? "");
+  if (!attributes) return undefined;
+  return { tagName: tagName!.toLowerCase(), attributes, text: text ?? "" };
+}
+
+function parseSimpleAttributes(raw: string): Map<string, string> | undefined {
+  const attributes = new Map<string, string>();
+  let rest = raw.trim();
+  while (rest) {
+    const match = /^([A-Za-z_:][A-Za-z0-9_:.-]*)(?:="([^"]*)")?/.exec(rest);
+    if (!match) return undefined;
+    attributes.set(match[1]!, decodeEscapedText(match[2] ?? "true"));
+    rest = rest.slice(match[0].length).trim();
+  }
+  return attributes;
 }
 
 function renderChildren(context: SsrContext, children: readonly Child[], parent?: ComponentInstance<any>): string {
