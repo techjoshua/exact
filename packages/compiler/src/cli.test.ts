@@ -2,10 +2,12 @@ import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
 
 const execFileAsync = promisify(execFile);
+const cliPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dist/cli.js");
 
 describe("exactc", () => {
   it("compiles TSX files through the CLI", async () => {
@@ -16,7 +18,7 @@ describe("exactc", () => {
     await writeFile(input, "const view = <span />;");
 
     await execFileAsync(process.execPath, [
-      path.resolve("packages/compiler/dist/cli.js"),
+      cliPath,
       "--rootDir",
       path.join(root, "src"),
       "--outDir",
@@ -47,7 +49,7 @@ describe("exactc", () => {
     `);
 
     await execFileAsync(process.execPath, [
-      path.resolve("packages/compiler/dist/cli.js"),
+      cliPath,
       "--rootDir",
       path.join(root, "src"),
       "--outDir",
@@ -85,7 +87,7 @@ describe("exactc", () => {
     `);
 
     await execFileAsync(process.execPath, [
-      path.resolve("packages/compiler/dist/cli.js"),
+      cliPath,
       "--rootDir",
       path.join(root, "src"),
       "--outDir",

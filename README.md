@@ -66,7 +66,7 @@ The package entrypoints are:
   - Browser app surface: `render(vnode, container, options?)`.
   - CSS helper surface: `px`, `rem`, `em`, `percent`, `vh`, `vw`, `vmin`, `vmax`, `fr`, `ms`, `s`, `deg`, `rad`, `turn`.
 - `@exact/compiler`
-  - Build-tool surface: `transform`, `transformSource`, `compileFile`, `compileProject`, `preprocessPropPunning`.
+  - Build-tool surface: `transform`, `transformSource`, `compileFile`, `compileProject`, `compileFileArtifacts`, `compileProjectArtifacts`, `createPackageExportMap`, `preprocessPropPunning`.
   - Semantic surface: `analyzeSource` and emitted manifests for component/task placement planning.
   - CLI: `exactc`.
 - `@exact/ssr`
@@ -129,6 +129,7 @@ That rewrites `.tsx` files to `.ts` and `.jsx` files to `.js` under the output d
 
 Packaged component libraries can publish these generated variants and let app build tooling choose the client or server file based on the render target.
 The generated target files are real ESM modules that preserve named exports, so package authors can expose them through package export conditions and bundlers can tree-shake unused components independently. The `.exact.manifest.json` file records the source file, target artifact paths, and exported names for resolver/tooling integration.
+`createPackageExportMap()` can turn `compileProjectArtifacts()` results into package export entries with `exact-client` and `exact-server` conditions, so libraries can generate their multi-target `exports` map instead of hand-maintaining per-component paths.
 When the compiler splits one authored component into generated server/client pieces, the authored root keeps its public name and generated pieces use deterministic names derived from it, such as `ProjectCard_ExactClient_1`. Manifest protocol identity should use stable generated IDs, not JavaScript function names, because bundlers and minifiers may rename local symbols.
 The Vite plugin also supports `.exact` facade imports. With `exact({ target: "client" })`, `import { ProjectCard } from "./ProjectCard.exact"` resolves to `ProjectCard.exact.client.ts`; with `target: "server"` it resolves to `ProjectCard.exact.server.ts`.
 

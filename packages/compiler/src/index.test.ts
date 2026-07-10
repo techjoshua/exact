@@ -7,6 +7,7 @@ import {
   compileFile,
   compileFileArtifacts,
   compileProject,
+  createPackageExportMap,
   generatedComponentName,
   preprocessPropPunning,
   transform,
@@ -362,6 +363,30 @@ describe("@exact/compiler", () => {
         role: "root",
         target: "both"
       })]
+    });
+  });
+
+  it("creates package export maps for generated target artifacts", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-package-"));
+    const input = path.join(root, "src", "components", "page.tsx");
+    const outDir = path.join(root, "dist");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, "export function Page() { return () => <p />; }");
+
+    const result = await compileFileArtifacts(input, {
+      outDir,
+      rootDir: path.join(root, "src")
+    });
+
+    expect(createPackageExportMap([result], {
+      packageRoot: root,
+      sourceRoot: path.join(root, "src")
+    })).toEqual({
+      "./components/page": {
+        "exact-client": "./dist/components/page.exact.client.ts",
+        "exact-server": "./dist/components/page.exact.server.ts",
+        default: "./dist/components/page.exact.client.ts"
+      }
     });
   });
 

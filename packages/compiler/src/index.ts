@@ -128,6 +128,18 @@ export type CompileArtifactsResult = {
   manifest: ExactCompilerManifest;
 };
 
+export type PackageExportMapOptions = {
+  packageRoot: string;
+  sourceRoot?: string;
+  clientCondition?: string;
+  serverCondition?: string;
+  defaultTarget?: "client" | "server";
+};
+
+export type PackageExportEntry = {
+  [condition: string]: string;
+};
+
 const helperModule = "@exact/core";
 const elementHelper = "__exactVNode";
 const fragmentHelper = "__exactFragment";
@@ -319,6 +331,28 @@ export async function compileProjectArtifacts(inputs: readonly string[], options
   return results;
 }
 
+export function createPackageExportMap(
+  results: readonly CompileArtifactsResult[],
+  options: PackageExportMapOptions
+): Record<string, PackageExportEntry> {
+  const clientCondition = options.clientCondition ?? "exact-client";
+  const serverCondition = options.serverCondition ?? "exact-server";
+  const output: Record<string, PackageExportEntry> = {};
+
+  for (const result of results) {
+    const specifier = packageExportSpecifier(result.inputFile, options.sourceRoot ?? options.packageRoot);
+    const client = packageExportTarget(result.clientFile, options.packageRoot);
+    const server = packageExportTarget(result.serverFile, options.packageRoot);
+    output[specifier] = {
+      [clientCondition]: client,
+      [serverCondition]: server,
+      default: options.defaultTarget === "server" ? server : client
+    };
+  }
+
+  return output;
+}
+
 function withClientIslandExports(result: TransformResult, manifest: ExactCompilerManifest): TransformResult {
   const aliases: string[] = [];
   const componentNameById = new Map(manifest.components.map(component => [component.id, component.name]));
@@ -333,6 +367,15 @@ function withClientIslandExports(result: TransformResult, manifest: ExactCompile
     ...result,
     code: `${result.code}\n${aliases.join("\n")}\n`
   };
+}
+
+function packageExportSpecifier(inputFile: string, sourceRoot: string): string {
+  const relative = slashPath(path.relative(sourceRoot, inputFile)).replace(/\.[jt]sx$/i, "");
+  return relative ? `./${relative}` : ".";
+}
+
+function packageExportTarget(file: string, packageRoot: string): string {
+  return `./${slashPath(path.relative(packageRoot, file))}`;
 }
 
 export function preprocessPropPunning(source: string): string {
