@@ -143,7 +143,7 @@ hydrateClientIslands(document, {
 });
 ```
 
-This first split path handles clear element-level client islands. More advanced splitting, including dynamic prop contracts and expression-level distributed execution, remains a compiler/runtime expansion point.
+This first split path handles clear element-level client islands. Static JSON-safe props and exact `this.state.*` prop reads are serialized into the boundary payload during server render, so the client can hydrate without a waterfall. Unsupported dynamic island props fail compilation until they can be represented by an explicit server data contract. More advanced splitting, endpoint-backed boundary data, and expression-level distributed execution remain compiler/runtime expansion points.
 
 Vite is supported through a thin adapter over the same compiler:
 
