@@ -124,6 +124,22 @@ describe("@exact/server", () => {
     expect(unsafe.status).toBe(400);
   });
 
+  it("rejects malformed invocation results before returning them to clients", async () => {
+    const result = await handleExactRequest({
+      method: "POST",
+      body: { type: "action", id: "allowed-action" }
+    }, context({
+      actions: {
+        "allowed-action": () => ({
+          patches: [{ type: "replace", id: 1, html: "<p>bad</p>" } as any]
+        })
+      }
+    }));
+
+    expect(result.status).toBe(500);
+    expect(JSON.parse(result.body)).toEqual({ error: "internal_error" });
+  });
+
   it("refreshes only manifest-allowlisted boundaries", async () => {
     const result = await handleExactRequest({
       method: "POST",

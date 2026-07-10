@@ -162,7 +162,7 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
 
   try {
     const result = await handler(input, context);
-    if (!isJsonSafe(result)) {
+    if (!isInvocationResultSafe(result)) {
       logReject(context, "rejected non-serializable exact invocation result");
       return jsonResponse(500, { error: "internal_error" });
     }
@@ -253,6 +253,44 @@ function jsonResponse(status: number, body: unknown): ExactResponseLike {
 
 function logReject(context: ExactServerContext, message: string): void {
   logFrameworkEvent("warn", "server", "security", message, undefined, context.logger);
+}
+
+function isInvocationResultSafe(result: unknown): result is ExactInvocationResult {
+  if (!isJsonSafe(result)) return false;
+  if (!result || typeof result !== "object" || Array.isArray(result)) return false;
+  const record = result as Record<string, unknown>;
+  if (record.patches !== undefined) {
+    if (!Array.isArray(record.patches)) return false;
+    if (!record.patches.every(isPatchSafe)) return false;
+  }
+  if (record.html !== undefined && typeof record.html !== "string") return false;
+  return true;
+}
+
+function isPatchSafe(patch: unknown): patch is ExactPatch {
+  if (!patch || typeof patch !== "object" || Array.isArray(patch)) return false;
+  const record = patch as Record<string, unknown>;
+  if (typeof record.type !== "string" || typeof record.id !== "string" || !record.id) return false;
+
+  switch (record.type) {
+    case "text":
+      return typeof record.value === "string";
+    case "prop":
+      return typeof record.name === "string" && "value" in record;
+    case "style":
+      return typeof record.name === "string" && (typeof record.value === "string" || record.value === null);
+    case "list":
+      return typeof record.key === "string"
+        && (record.op === "insert" || record.op === "move" || record.op === "remove")
+        && (record.before === undefined || typeof record.before === "string")
+        && (record.html === undefined || typeof record.html === "string");
+    case "state":
+      return "value" in record;
+    case "replace":
+      return typeof record.html === "string";
+    default:
+      return false;
+  }
 }
 
 function isJsonSafe(value: unknown, seen = new Set<object>()): boolean {
