@@ -534,6 +534,27 @@ describe("@exact/compiler", () => {
     expect(client).toContain("__exactDynamic(() => props.__exactCapture.label)");
   });
 
+  it("bridges component-local function captures into generated client islands", () => {
+    const source = `
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ count: number }>) {
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        function save() {
+          this.state.count++;
+        }
+        return () => <button onClick={() => save()}>Save</button>;
+      }
+    `;
+    const client = transform(source, { filename: "Panel.tsx", target: "client" });
+    const server = transform(source, { filename: "Panel.tsx", target: "server" });
+
+    expect(server).toContain("\"__exactCapture\": { save: save }");
+    expect(client).toContain("onClick: () => props.__exactCapture.save()");
+  });
+
   it("does not generate nested client islands inside an extracted element island", () => {
     const source = `
       import { readFile } from "node:fs/promises";

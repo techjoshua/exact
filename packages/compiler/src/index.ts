@@ -1121,6 +1121,10 @@ function jsxElementIsClientIsland(attributes: ts.JsxAttributes): boolean {
 function collectComponentLocalBindings(node: ts.FunctionDeclaration): Set<string> {
   const locals = new Set<string>();
   function visit(current: ts.Node): void {
+    if (current !== node && ts.isFunctionDeclaration(current) && current.name) {
+      locals.add(current.name.text);
+      return;
+    }
     if (current !== node && (ts.isFunctionLike(current) || ts.isClassLike(current))) return;
     if (ts.isVariableDeclaration(current)) collectBindingNames(current.name, locals);
     ts.forEachChild(current, visit);
