@@ -1,5 +1,5 @@
 import { render } from "@exact/dom";
-import { logFrameworkEvent, type Logger, type VNode } from "@exact/core";
+import { createVNode, logFrameworkEvent, type ComponentFunction, type Logger, type VNode } from "@exact/core";
 import type { ExactInvocationKind, ExactInvocationResult, ExactPatch } from "@exact/server";
 
 export type HydrateOptions = {
@@ -15,6 +15,8 @@ export type ExactHydrationConfig = {
   endpoint?: string;
   state?: unknown;
 };
+
+export type ClientIslandRegistry = Record<string, ComponentFunction<any, any>>;
 
 export type FetchLike = (input: string, init: {
   method: string;
@@ -86,6 +88,25 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 
 export function getHydrationRoot(container: Element): HydrationRoot | undefined {
   return roots.get(container);
+}
+
+export function hydrateClientIslands(container: Element | Document, registry: ClientIslandRegistry, options: HydrateOptions = {}): number {
+  const boundaries = Array.from(container.querySelectorAll("[data-exact-client-boundary]"));
+  let hydrated = 0;
+  for (const boundary of boundaries) {
+    const name = boundary.getAttribute("data-exact-client-name");
+    if (!name) continue;
+    const component = registry[name];
+    if (!component) {
+      logFrameworkEvent("warn", "hydrate", "island", `missing client island ${name}`, undefined, options.logger);
+      continue;
+    }
+    const props = parseIslandProps(boundary.getAttribute("data-exact-client-props"));
+    render(createVNode(component, props), boundary, { logger: options.logger });
+    boundary.setAttribute("data-exact-client-hydrated", "true");
+    hydrated++;
+  }
+  return hydrated;
 }
 
 async function invokeAndApply(
@@ -164,6 +185,20 @@ export function applyPatches(container: Element, patches: readonly ExactPatch[],
 function requireEndpoint(endpoint: string | undefined): string {
   if (!endpoint) throw new Error("eXact endpoint is not configured");
   return endpoint;
+}
+
+function parseIslandProps(raw: string | null): Record<string, unknown> {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const props = (parsed as Record<string, unknown>).props;
+    return props && typeof props === "object" && !Array.isArray(props)
+      ? props as Record<string, unknown>
+      : {};
+  } catch {
+    return {};
+  }
 }
 
 function applyPatch(container: Element, patch: ExactPatch): boolean {

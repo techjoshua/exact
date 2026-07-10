@@ -2,8 +2,8 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it } from "vitest";
-import { createVNode } from "@exact/core";
-import { hydrate, applyPatches, createExactClient, invokeExact, readExactHydrationConfig } from "./index.js";
+import { createVNode, type Component } from "@exact/core";
+import { hydrate, applyPatches, createExactClient, hydrateClientIslands, invokeExact, readExactHydrationConfig } from "./index.js";
 
 const noopLogger = {
   isEnabled: () => false,
@@ -27,6 +27,32 @@ describe("@exact/hydrate", () => {
       endpoint: "/__exact",
       state: { ready: true }
     });
+  });
+
+  it("hydrates server-rendered client island placeholders", () => {
+    const container = document.createElement("main");
+    container.innerHTML = "<div data-exact-client-boundary=\"island-1\" data-exact-client-name=\"Counter_ExactClient_1\" data-exact-client-props='{\"props\":{\"count\":2}}'></div>";
+
+    function Counter(this: Component<{ count: number }>, props: { count: number }) {
+      this.state.count = props.count;
+      return () => createVNode("button", null, String(this.state.count));
+    }
+
+    const hydrated = hydrateClientIslands(container, {
+      Counter_ExactClient_1: Counter
+    });
+
+    expect(hydrated).toBe(1);
+    expect(container.querySelector("[data-exact-client-hydrated=\"true\"]")).not.toBeNull();
+    expect(container.querySelector("button")?.textContent).toBe("2");
+  });
+
+  it("leaves unknown client island placeholders in place", () => {
+    const container = document.createElement("main");
+    container.innerHTML = "<div data-exact-client-boundary=\"island-1\" data-exact-client-name=\"Missing_ExactClient_1\"></div>";
+
+    expect(hydrateClientIslands(container, {}, { logger: noopLogger })).toBe(0);
+    expect(container.querySelector("[data-exact-client-boundary]")).not.toBeNull();
   });
 
   it("applies text patches to exact marker ranges", () => {
