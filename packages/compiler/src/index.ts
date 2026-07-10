@@ -38,16 +38,33 @@ export type ExactTaskIR = {
 export type ExactComponentIR = {
   id: string;
   name: string;
+  exported: boolean;
   placement: ExactPlacement;
   tasks: ExactTaskIR[];
   splitBoundaries: string[];
   diagnostics: string[];
 };
 
+export type ExactExportIR = {
+  name: string;
+  kind: "component" | "value";
+  placement: ExactPlacement;
+};
+
+export type ExactArtifactManifest = {
+  source: string;
+  client: string;
+  server: string;
+  manifest: string;
+  exports: ExactExportIR[];
+};
+
 export type ExactCompilerManifest = {
   version: 1;
   filename: string;
   components: ExactComponentIR[];
+  exports: ExactExportIR[];
+  artifacts?: ExactArtifactManifest;
   serverActions: Record<string, {
     id: string;
     componentId: string;
@@ -144,6 +161,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const filename = options.filename ?? "input.tsx";
   const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
   const components: ExactComponentIR[] = [];
+  const exports: ExactExportIR[] = [];
   const manifestDiagnostics: string[] = [];
   const serverActions: ExactCompilerManifest["serverActions"] = {};
   const serverOnlyImports = collectServerOnlyImports(sourceFile);
@@ -157,6 +175,20 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   }
 
   visit(sourceFile);
+
+  const componentByName = new Map(components.map(component => [component.name, component]));
+  const exportedNames = collectExports(sourceFile);
+  for (const component of components) {
+    component.exported = exportedNames.has(component.name);
+  }
+  for (const name of [...exportedNames].sort()) {
+    const component = componentByName.get(name);
+    exports.push({
+      name,
+      kind: component ? "component" : "value",
+      placement: component?.placement ?? "unknown"
+    });
+  }
 
   for (const component of components) {
     for (const task of component.tasks) {
@@ -180,6 +212,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
     version: 1,
     filename,
     components,
+    exports,
     serverActions,
     diagnostics: manifestDiagnostics
   };
@@ -230,8 +263,8 @@ export async function compileFileArtifacts(inputFile: string, options: CompileAr
   const filename = options.filename ?? inputFile;
   const client = transformSource(source, { filename, target: "client" });
   const server = transformSource(source, { filename, target: "server" });
-  const manifest = analyzeSource(source, { filename });
   const paths = artifactPathsFor(inputFile, options.outDir, options.rootDir);
+  const manifest = withArtifactMetadata(analyzeSource(source, { filename }), inputFile, paths);
 
   await mkdir(path.dirname(paths.clientFile), { recursive: true });
   await writeFile(paths.clientFile, client.code);
@@ -442,6 +475,7 @@ function analyzeComponent(
   return {
     id: stableId(sourceFile.fileName, name),
     name,
+    exported: false,
     placement,
     tasks,
     splitBoundaries: [...splitBoundaries].sort(),
@@ -578,6 +612,37 @@ function analyzeTask(
 function isComponentLikeFunction(node: ts.FunctionDeclaration): boolean {
   const first = node.name?.text[0];
   return !!first && first === first.toUpperCase();
+}
+
+function collectExports(sourceFile: ts.SourceFile): Set<string> {
+  const exports = new Set<string>();
+
+  for (const statement of sourceFile.statements) {
+    if (hasExportModifier(statement)) {
+      if ((ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement)) && statement.name) {
+        exports.add(statement.name.text);
+      }
+      if (ts.isVariableStatement(statement)) {
+        for (const declaration of statement.declarationList.declarations) {
+          if (ts.isIdentifier(declaration.name)) exports.add(declaration.name.text);
+        }
+      }
+    }
+
+    if (ts.isExportDeclaration(statement) && statement.exportClause && ts.isNamedExports(statement.exportClause)) {
+      for (const element of statement.exportClause.elements) {
+        exports.add(element.name.text);
+      }
+    }
+  }
+
+  return exports;
+}
+
+function hasExportModifier(node: ts.Node): boolean {
+  return ts.canHaveModifiers(node)
+    ? Boolean(ts.getModifiers(node)?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword))
+    : false;
 }
 
 const browserGlobals = new Set(["window", "document", "localStorage", "sessionStorage", "navigator", "HTMLElement", "Node"]);
@@ -1228,6 +1293,28 @@ function artifactPathsFor(inputFile: string, outDir: string, rootDir?: string): 
     serverFile: `${base}.exact.server${extension}`,
     manifestFile: `${base}.exact.manifest.json`
   };
+}
+
+function withArtifactMetadata(
+  manifest: ExactCompilerManifest,
+  inputFile: string,
+  paths: { clientFile: string; serverFile: string; manifestFile: string }
+): ExactCompilerManifest {
+  const root = path.dirname(paths.manifestFile);
+  return {
+    ...manifest,
+    artifacts: {
+      source: slashPath(path.relative(root, inputFile)),
+      client: slashPath(path.relative(root, paths.clientFile)),
+      server: slashPath(path.relative(root, paths.serverFile)),
+      manifest: slashPath(path.relative(root, paths.manifestFile)),
+      exports: manifest.exports
+    }
+  };
+}
+
+function slashPath(value: string): string {
+  return value.split(path.sep).join("/");
 }
 
 function commonRoot(files: readonly string[]): string {

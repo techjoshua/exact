@@ -28,7 +28,7 @@ describe("@exact/compiler", () => {
     const manifest = analyzeSource(`
       import { readFile } from "node:fs/promises";
 
-      function ProjectPage(this: Component<{ project?: string; width?: number }>) {
+      export function ProjectPage(this: Component<{ project?: string; width?: number }>) {
         this.task(async ({ signal }) => {
           this.state.project = await readFile("project.txt", "utf8");
         });
@@ -44,7 +44,13 @@ describe("@exact/compiler", () => {
 
     const component = manifest.components[0]!;
     expect(component.name).toBe("ProjectPage");
+    expect(component.exported).toBe(true);
     expect(component.placement).toBe("isomorphic");
+    expect(manifest.exports).toContainEqual({
+      name: "ProjectPage",
+      kind: "component",
+      placement: "isomorphic"
+    });
     expect(component.splitBoundaries).toEqual(expect.arrayContaining(["browser:window", "event-handler", "ref", "server-import:readFile"]));
     expect(component.tasks.map(task => task.placement)).toEqual(["server", "client", "client"]);
     expect(component.tasks[0]!.writes).toContainEqual({
@@ -284,7 +290,7 @@ describe("@exact/compiler", () => {
     await mkdir(path.dirname(input), { recursive: true });
     await writeFile(input, `
       import { readFile } from "node:fs/promises";
-      function Page(this: Component<{ title?: string; width?: number }>) {
+      export function Page(this: Component<{ title?: string; width?: number }>) {
         this.task.server(async () => {
           this.state.title = await readFile("title.txt", "utf8");
         });
@@ -308,9 +314,19 @@ describe("@exact/compiler", () => {
     expect(result.manifestFile).toBe(path.join(outDir, "components", "page.exact.manifest.json"));
     expect(client).not.toContain("node:fs/promises");
     expect(client).toContain("window.innerWidth");
+    expect(client).toContain("export function Page");
     expect(server).toContain("node:fs/promises");
     expect(server).not.toContain("window.innerWidth");
+    expect(server).toContain("export function Page");
     expect(Object.keys(manifest.serverActions)).toHaveLength(1);
+    expect(manifest.exports).toEqual([{ name: "Page", kind: "component", placement: "isomorphic" }]);
+    expect(manifest.artifacts).toEqual({
+      source: "../../src/components/page.tsx",
+      client: "page.exact.client.ts",
+      server: "page.exact.server.ts",
+      manifest: "page.exact.manifest.json",
+      exports: [{ name: "Page", kind: "component", placement: "isomorphic" }]
+    });
   });
 
   it("compiles TSX and JSX files from directories", async () => {

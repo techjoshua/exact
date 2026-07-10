@@ -128,6 +128,7 @@ That rewrites `.tsx` files to `.ts` and `.jsx` files to `.js` under the output d
 - `Component.exact.manifest.json`
 
 Packaged component libraries can publish these generated variants and let app build tooling choose the client or server file based on the render target.
+The generated target files are real ESM modules that preserve named exports, so package authors can expose them through package export conditions and bundlers can tree-shake unused components independently. The `.exact.manifest.json` file records the source file, target artifact paths, and exported names for resolver/tooling integration.
 
 Vite is supported through a thin adapter over the same compiler:
 
