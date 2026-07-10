@@ -136,6 +136,11 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
     return jsonResponse(405, { error: "method_not_allowed" });
   }
 
+  if (!matchesConfiguredEndpoint(request, context.manifest.endpoint)) {
+    logReject(context, "rejected exact invocation for mismatched endpoint");
+    return jsonResponse(404, { error: "not_found" });
+  }
+
   let input: ExactInvocationRequest;
   try {
     input = parseInvocation(await readBody(request));
@@ -237,6 +242,17 @@ function isManifestAllowed(input: ExactInvocationRequest, manifest: ExactServerM
   if (input.type === "action") return Boolean(manifest.actions?.[input.id]);
   if (input.type === "refresh") return Boolean(manifest.boundaries?.[input.id]);
   return false;
+}
+
+function matchesConfiguredEndpoint(request: ExactRequestLike, endpoint: string | undefined): boolean {
+  if (!endpoint || !request.url) return true;
+  try {
+    const expected = new URL(endpoint, "http://exact.local");
+    const actual = new URL(request.url, "http://exact.local");
+    return actual.pathname === expected.pathname;
+  } catch {
+    return false;
+  }
 }
 
 async function readBody(request: ExactRequestLike): Promise<unknown> {

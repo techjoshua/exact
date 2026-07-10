@@ -171,6 +171,28 @@ describe("@exact/server", () => {
     expect(action).not.toHaveBeenCalled();
   });
 
+  it("rejects requests outside the configured endpoint", async () => {
+    const action = vi.fn();
+    const result = await handleExactRequest({
+      method: "POST",
+      url: "/wrong",
+      body: { type: "action", id: "allowed-action" }
+    }, context({
+      manifest: {
+        version: 1,
+        endpoint: "/__exact",
+        actions: {
+          "allowed-action": { id: "allowed-action", placement: "server" }
+        }
+      },
+      actions: { "allowed-action": action }
+    }));
+
+    expect(result.status).toBe(404);
+    expect(JSON.parse(result.body)).toEqual({ error: "not_found" });
+    expect(action).not.toHaveBeenCalled();
+  });
+
   it("rejects malformed and non-json-safe payloads", async () => {
     const malformed = await handleExactRequest({
       method: "POST",

@@ -357,6 +357,7 @@ The current SSR/server-component foundation implements:
 - `@exact/hydrate` can read that bootstrap data, invoke the configured endpoint, and apply returned patches.
 - `@exact/server` owns adapter-neutral request handling and rejects anything not present in the manifest allowlist.
 - `createExactServerManifest()` converts compiler manifests into runtime action/boundary allowlists.
+- If the manifest includes an endpoint path, the shared handler rejects requests for any other path before dispatching.
 - `createBoundaryRefreshHandler()` rerenders a server boundary and returns a replacement patch through the same secure endpoint path.
 - `this.task(...)` placement is inferred by the compiler. Use `this.task.server(...)` or `this.task.client(...)` only when inference needs an explicit boundary; contradictory environment usage fails compilation.
 - Compiler manifests include state read/write contracts for server-capable tasks. The server runtime validates exact state reads on action requests before dispatch, giving server actions a narrow data contract instead of requiring whole-app state by default.
