@@ -132,6 +132,19 @@ The generated target files are real ESM modules that preserve named exports, so 
 When the compiler splits one authored component into generated server/client pieces, the authored root keeps its public name and generated pieces use deterministic names derived from it, such as `ProjectCard_ExactClient_1`. Manifest protocol identity should use stable generated IDs, not JavaScript function names, because bundlers and minifiers may rename local symbols.
 The Vite plugin also supports `.exact` facade imports. With `exact({ target: "client" })`, `import { ProjectCard } from "./ProjectCard.exact"` resolves to `ProjectCard.exact.client.ts`; with `target: "server"` it resolves to `ProjectCard.exact.server.ts`.
 
+In server-target artifacts, simple interactive JSX islands such as elements with `onClick` or `ref` are replaced with server-rendered client-boundary placeholders. The client artifact preserves the interactive component and exports generated island aliases, which can be registered during hydration:
+
+```tsx
+import { hydrateClientIslands } from "@exact/hydrate";
+import { ProjectCard_ExactClient_1 } from "./ProjectCard.exact";
+
+hydrateClientIslands(document, {
+  ProjectCard_ExactClient_1
+});
+```
+
+This first split path handles clear element-level client islands. More advanced splitting, including dynamic prop contracts and expression-level distributed execution, remains a compiler/runtime expansion point.
+
 Vite is supported through a thin adapter over the same compiler:
 
 ```ts
