@@ -81,6 +81,7 @@ The package entrypoints are:
 - `@exact/server`
   - Server runtime surface: `handleExactRequest(request, context)`.
   - Manifest bridge: `createExactServerManifest(compilerManifest, options?)`.
+  - Hydration bridge: `createExactHydrationStateContracts(serverManifest)`.
   - Adapter helpers: `createFetchHandler`, `createExpressHandler`, `createHapiHandler`.
   - Security model: manifest-allowlisted action and boundary IDs only; no client-provided module or function dispatch.
 - `@exact/vite-plugin`
@@ -360,6 +361,7 @@ The current SSR/server-component foundation implements:
 - Hydration bootstrap data may include per-action state contracts; when present, the client sends only the exact state reads required for that action.
 - `@exact/server` owns adapter-neutral request handling and rejects anything not present in the manifest allowlist.
 - `createExactServerManifest()` converts compiler manifests into runtime action/boundary allowlists.
+- `createExactHydrationStateContracts()` extracts the compiler-derived action state contracts for `renderHydrationScript()` / `@exact/hydrate`.
 - If the manifest includes an endpoint path, the shared handler rejects requests for any other path before dispatching.
 - `createBoundaryRefreshHandler()` rerenders a server boundary and returns a replacement patch through the same secure endpoint path.
 - `this.task(...)` placement is inferred by the compiler. Use `this.task.server(...)` or `this.task.client(...)` only when inference needs an explicit boundary; contradictory environment usage fails compilation.

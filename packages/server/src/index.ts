@@ -131,6 +131,14 @@ export function createExactServerManifest(
   };
 }
 
+export function createExactHydrationStateContracts(manifest: ExactServerManifest): Record<string, ExactStateContract> {
+  const contracts: Record<string, ExactStateContract> = {};
+  for (const [id, action] of Object.entries(manifest.actions ?? {})) {
+    if (action.stateContract) contracts[id] = action.stateContract;
+  }
+  return contracts;
+}
+
 export async function handleExactRequest(request: ExactRequestLike, context: ExactServerContext): Promise<ExactResponseLike> {
   if (request.method.toUpperCase() !== "POST") {
     return jsonResponse(405, { error: "method_not_allowed" });

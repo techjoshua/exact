@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createExactServerManifest, handleExactRequest, type ExactServerContext } from "./index.js";
+import { createExactHydrationStateContracts, createExactServerManifest, handleExactRequest, type ExactServerContext } from "./index.js";
 
 const noopLogger = {
   isEnabled: () => false,
@@ -74,6 +74,13 @@ describe("@exact/server", () => {
       },
       boundaries: {
         Page: { id: "Page", componentId: "Page" }
+      }
+    });
+
+    expect(createExactHydrationStateContracts(manifest)).toEqual({
+      serverTask: {
+        reads: [{ path: "project.id", kind: "read", confidence: "exact" }],
+        writes: [{ path: "project.title", kind: "write", confidence: "exact" }]
       }
     });
   });
