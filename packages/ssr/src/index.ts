@@ -65,6 +65,28 @@ export type KeyedListSnapshotItem = {
   html: string;
 };
 
+export type KeyedListSnapshot = {
+  listId: string;
+  html: string;
+  innerHtml: string;
+  items: KeyedListSnapshotItem[];
+};
+
+export type KeyedListSnapshotOptions<T> = RenderToStringOptions & {
+  listId: string;
+  items: Iterable<T>;
+  key(item: T): string;
+  render(item: T): VNode;
+};
+
+export type KeyedListRefreshOptions<T> = RenderToStringOptions & {
+  listId: string;
+  key(item: T): string;
+  render(item: T): VNode;
+  items(input: ExactInvocationRequest, context: ExactServerContext): Iterable<T> | Promise<Iterable<T>>;
+  previousItems?(input: ExactInvocationRequest, context: ExactServerContext): readonly KeyedListSnapshotItem[] | Promise<readonly KeyedListSnapshotItem[] | undefined> | undefined;
+};
+
 type ParsedHtmlNode = ParsedHtmlElement | ParsedHtmlText;
 
 type ParsedHtmlElement = {
@@ -185,6 +207,48 @@ export function createBoundaryRefreshHandler(
         ? [boundaryPatch(options.boundaryId, result.html, options.patchStrategy)]
         : diffBoundaryHtml(options.boundaryId, previousHtml, result.html, options.patchStrategy),
       state: result.state
+    };
+  };
+}
+
+export function renderKeyedListSnapshot<T>(options: KeyedListSnapshotOptions<T>): KeyedListSnapshot {
+  const context: SsrContext = {
+    markers: options.markers ?? true,
+    nextId: 0,
+    logger: options.logger
+  };
+  const items: KeyedListSnapshotItem[] = [];
+  let html = "";
+  for (const item of options.items) {
+    const key = String(options.key(item));
+    const child = options.render(item);
+    const itemHtml = markerPair(context, keyedItemMarkerId(key), () => renderVNode(context, { ...child, key }, undefined));
+    items.push({ key, html: itemHtml });
+    html += itemHtml;
+  }
+
+  return {
+    listId: options.listId,
+    html: markerPair(context, exactMarkerId(options.listId), () => html),
+    innerHtml: html,
+    items
+  };
+}
+
+export function createKeyedListRefreshHandler<T>(
+  options: KeyedListRefreshOptions<T>
+): (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> {
+  return async (input, context) => {
+    const nextItems = await options.items(input, context);
+    const next = renderKeyedListSnapshot({
+      ...options,
+      items: nextItems
+    });
+    const previous = await options.previousItems?.(input, context);
+    return {
+      patches: previous
+        ? diffKeyedListItems(options.listId, previous, next.items)
+        : [{ type: "replace", id: options.listId, html: next.innerHtml } as ExactPatch]
     };
   };
 }
@@ -739,6 +803,14 @@ function markerPair(context: SsrContext, id: string, render: () => string | Prom
 function markerId(context: SsrContext, kind: string, name?: string, key?: string): string {
   const id = `${kind}:${context.nextId++}${name ? `:${name}` : ""}${key ? `:${key}` : ""}`;
   return id.replace(/--/g, "");
+}
+
+function exactMarkerId(id: string): string {
+  return id.startsWith("exact:") ? id.slice("exact:".length) : id;
+}
+
+function keyedItemMarkerId(key: string): string {
+  return `item:${key}`.replace(/--/g, "");
 }
 
 function getComponentProps(vnode: VNode): Record<string, unknown> {

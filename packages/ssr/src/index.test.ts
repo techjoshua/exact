@@ -3,8 +3,10 @@ import { createCompiledVNode, createDynamicChild, createServerBoundary, createTe
 import { handleExactRequest } from "@exact/server";
 import {
   createBoundaryRefreshHandler,
+  createKeyedListRefreshHandler,
   diffBoundaryHtml,
   diffKeyedListItems,
+  renderKeyedListSnapshot,
   renderHydrationScript,
   renderToHydratableString,
   renderToStream,
@@ -450,5 +452,54 @@ describe("@exact/ssr", () => {
       { type: "list", id: "tasks", op: "insert", key: "a", before: "d", html: "<li>A*</li>" },
       { type: "list", id: "tasks", op: "insert", key: "d", html: "<li>D</li>" }
     ]);
+  });
+
+  it("renders keyed list snapshots with list and item markers", () => {
+    const snapshot = renderKeyedListSnapshot({
+      listId: "tasks",
+      items: [{ id: "a", label: "A" }, { id: "b", label: "B" }],
+      key: item => item.id,
+      render: item => createVNode("li", null, item.label)
+    });
+
+    expect(snapshot.html).toContain("<!--exact:tasks-->");
+    expect(snapshot.html).toContain("<!--/exact:tasks-->");
+    expect(snapshot.items).toEqual([
+      { key: "a", html: "<!--exact:item:a--><li>A</li><!--/exact:item:a-->" },
+      { key: "b", html: "<!--exact:item:b--><li>B</li><!--/exact:item:b-->" }
+    ]);
+    expect(snapshot.innerHtml).toBe(snapshot.items.map(item => item.html).join(""));
+  });
+
+  it("creates keyed list refresh handlers that return list patches", async () => {
+    const response = await handleExactRequest({
+      method: "POST",
+      body: { type: "refresh", id: "tasks" }
+    }, {
+      manifest: {
+        version: 1,
+        boundaries: { tasks: { id: "tasks" } }
+      },
+      refreshBoundaries: {
+        tasks: createKeyedListRefreshHandler({
+          listId: "tasks",
+          items: () => [{ id: "b", label: "B" }, { id: "c", label: "C" }],
+          previousItems: () => [
+            { key: "a", html: "<!--exact:item:a--><li>A</li><!--/exact:item:a-->" },
+            { key: "b", html: "<!--exact:item:b--><li>B</li><!--/exact:item:b-->" }
+          ],
+          key: item => item.id,
+          render: item => createVNode("li", null, item.label)
+        })
+      }
+    });
+
+    expect(JSON.parse(response.body)).toMatchObject({
+      ok: true,
+      patches: [
+        { type: "list", id: "tasks", op: "remove", key: "a" },
+        { type: "list", id: "tasks", op: "insert", key: "c", html: "<!--exact:item:c--><li>C</li><!--/exact:item:c-->" }
+      ]
+    });
   });
 });
