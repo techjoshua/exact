@@ -362,7 +362,8 @@ describe("@exact/compiler", () => {
         generatedName: "Page",
         role: "root",
         target: "both"
-      })]
+      })],
+      boundaries: []
     });
   });
 
@@ -480,6 +481,13 @@ describe("@exact/compiler", () => {
     expect(server).toContain("title: this.state.title");
     expect(server).not.toContain("window.innerWidth");
     expect(server).not.toContain("onClick");
+    expect(result.manifest.boundaries).toContainEqual({
+      id: expect.any(String),
+      name: "ClientWidget",
+      componentId: expect.any(String),
+      kind: "client-island"
+    });
+    expect(result.manifest.artifacts?.boundaries).toEqual(result.manifest.boundaries);
   });
 
   it("removes imports used only by split client components from server artifacts", async () => {

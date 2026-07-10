@@ -46,6 +46,12 @@ export type ExactCompilerManifestLike = {
     id: string;
     placement?: "server" | "isomorphic" | "client" | "unknown";
   }[];
+  boundaries?: readonly {
+    id: string;
+    name?: string;
+    componentId?: string;
+    kind?: string;
+  }[];
 };
 
 export type CreateExactServerManifestOptions = {
@@ -115,6 +121,12 @@ export function createExactServerManifest(
   }
 
   const boundaries: Record<string, ExactManifestBoundary> = { ...options.boundaries };
+  for (const boundary of compilerManifest.boundaries ?? []) {
+    boundaries[boundary.id] ??= {
+      id: boundary.id,
+      componentId: boundary.componentId
+    };
+  }
   for (const component of compilerManifest.components ?? []) {
     if (component.placement === "client") continue;
     boundaries[component.id] ??= {

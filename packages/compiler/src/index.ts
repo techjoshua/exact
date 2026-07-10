@@ -65,6 +65,13 @@ export type ExactSymbolIR = {
   placement: ExactPlacement;
 };
 
+export type ExactBoundaryIR = {
+  id: string;
+  name: string;
+  componentId?: string;
+  kind: "client-island";
+};
+
 export type ExactArtifactManifest = {
   source: string;
   client: string;
@@ -72,6 +79,7 @@ export type ExactArtifactManifest = {
   manifest: string;
   exports: ExactExportIR[];
   symbols: ExactSymbolIR[];
+  boundaries: ExactBoundaryIR[];
 };
 
 export type ExactCompilerManifest = {
@@ -80,6 +88,7 @@ export type ExactCompilerManifest = {
   components: ExactComponentIR[];
   exports: ExactExportIR[];
   symbols: ExactSymbolIR[];
+  boundaries: ExactBoundaryIR[];
   artifacts?: ExactArtifactManifest;
   serverActions: Record<string, {
     id: string;
@@ -193,6 +202,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const components: ExactComponentIR[] = [];
   const exports: ExactExportIR[] = [];
   const symbols: ExactSymbolIR[] = [];
+  const boundaries: ExactBoundaryIR[] = [];
   const manifestDiagnostics: string[] = [];
   const serverActions: ExactCompilerManifest["serverActions"] = {};
   const serverOnlyImports = collectServerOnlyImports(sourceFile);
@@ -208,6 +218,8 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   visit(sourceFile);
 
   const componentByName = new Map(components.map(component => [component.name, component]));
+  const componentPlacements = new Map(components.map(component => [component.name, component.placement]));
+  const splitComponentTags = collectClientComponentTags(sourceFile, componentPlacements);
   const exportedNames = collectExports(sourceFile);
   for (const component of components) {
     component.exported = exportedNames.has(component.name);
@@ -222,6 +234,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   }
   symbols.push(...createRootSymbols(sourceFile, components, exports));
   symbols.push(...createClientIslandSymbols(sourceFile, components));
+  boundaries.push(...createClientIslandBoundaries(sourceFile, components, splitComponentTags));
 
   for (const component of components) {
     for (const task of component.tasks) {
@@ -247,6 +260,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
     components,
     exports,
     symbols,
+    boundaries,
     serverActions,
     diagnostics: manifestDiagnostics
   };
@@ -843,6 +857,34 @@ function createClientIslandSymbols(sourceFile: ts.SourceFile, components: ExactC
     }
   }
   return symbols;
+}
+
+function createClientIslandBoundaries(
+  sourceFile: ts.SourceFile,
+  components: ExactComponentIR[],
+  splitComponentTags: Set<string>
+): ExactBoundaryIR[] {
+  const boundaries: ExactBoundaryIR[] = [];
+  const componentByName = new Map(components.map(component => [component.name, component]));
+  for (const component of components) {
+    for (let index = 1; index <= component.clientIslandCount; index++) {
+      boundaries.push({
+        id: stableId(sourceFile.fileName, component.name, "client-island", String(index)),
+        name: generatedComponentName(component.name, "client-island", index),
+        componentId: component.id,
+        kind: "client-island"
+      });
+    }
+  }
+  for (const name of [...splitComponentTags].sort()) {
+    boundaries.push({
+      id: stableId(sourceFile.fileName, name, "component-island"),
+      name,
+      componentId: componentByName.get(name)?.id,
+      kind: "client-island"
+    });
+  }
+  return boundaries;
 }
 
 export function generatedComponentName(authorName: string, role: "server-part" | "client-island", index: number): string {
@@ -1658,7 +1700,8 @@ function withArtifactMetadata(
       server: slashPath(path.relative(root, paths.serverFile)),
       manifest: slashPath(path.relative(root, paths.manifestFile)),
       exports: manifest.exports,
-      symbols: manifest.symbols
+      symbols: manifest.symbols,
+      boundaries: manifest.boundaries
     }
   };
 }

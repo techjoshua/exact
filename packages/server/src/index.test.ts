@@ -53,6 +53,9 @@ describe("@exact/server", () => {
       components: [
         { id: "Page", placement: "server" },
         { id: "Widget", placement: "client" }
+      ],
+      boundaries: [
+        { id: "client-widget-boundary", name: "Widget", componentId: "Widget", kind: "client-island" }
       ]
     }, { endpoint: "/__exact" });
 
@@ -73,6 +76,7 @@ describe("@exact/server", () => {
         sharedTask: { id: "sharedTask", componentId: "Page", taskId: "task-2", placement: "isomorphic" }
       },
       boundaries: {
+        "client-widget-boundary": { id: "client-widget-boundary", componentId: "Widget" },
         Page: { id: "Page", componentId: "Page" }
       }
     });
