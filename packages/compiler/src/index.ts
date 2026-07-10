@@ -394,6 +394,7 @@ function analyzeTask(
   let browserEffects = false;
   let serverEffects = false;
   let isAsync = false;
+  let directivePlacement: "server" | "client" | undefined;
 
   if (!work || !isFunctionLikeExpression(work)) {
     return {
@@ -410,6 +411,7 @@ function analyzeTask(
   isAsync = ts.canHaveModifiers(work)
     ? Boolean(ts.getModifiers(work)?.some(modifier => modifier.kind === ts.SyntaxKind.AsyncKeyword))
     : false;
+  directivePlacement = taskPlacementDirective(work);
 
   function visit(current: ts.Node): void {
     if (ts.isIdentifier(current)) {
@@ -474,17 +476,20 @@ function analyzeTask(
     diagnostics.push("task has no detected state writes or environment-specific effects; classify as client lifecycle work");
   }
 
-  const placement: ExactPlacement = browserEffects
+  const inferredPlacement: ExactPlacement = browserEffects
     ? "client"
     : serverEffects
       ? "server"
       : writes.length
         ? "isomorphic"
         : "client";
+  if (directivePlacement) {
+    diagnostics.push(`task placement forced by ${directivePlacement} directive`);
+  }
 
   return {
     id: stableId(sourceFile.fileName, seed),
-    placement,
+    placement: directivePlacement ?? inferredPlacement,
     async: isAsync,
     browserEffects,
     reads: uniqueEffects(reads),
@@ -532,6 +537,18 @@ function isServerOnlyImportDeclaration(statement: ts.Statement): boolean {
 function isServerOnlyModule(specifier: string): boolean {
   if (specifier.startsWith("node:")) return true;
   return ["fs", "path", "crypto", "http", "https", "net", "tls", "child_process"].includes(specifier);
+}
+
+function taskPlacementDirective(work: ts.Expression): "server" | "client" | undefined {
+  if (!isFunctionLikeExpression(work)) return undefined;
+  const body = work.body;
+  if (!ts.isBlock(body)) return undefined;
+  const first = body.statements[0];
+  if (!first || !ts.isExpressionStatement(first)) return undefined;
+  if (!ts.isStringLiteral(first.expression)) return undefined;
+  if (first.expression.text === "use server") return "server";
+  if (first.expression.text === "use client") return "client";
+  return undefined;
 }
 
 function shouldOmitPlacement(placement: ExactPlacement, target: TransformTarget): boolean {
@@ -839,7 +856,7 @@ function isThisMethodAccess(expression: ts.Expression, methodName: string): bool
     && expression.expression.kind === ts.SyntaxKind.ThisKeyword;
 }
 
-function isFunctionLikeExpression(node: ts.Expression): boolean {
+function isFunctionLikeExpression(node: ts.Expression): node is ts.ArrowFunction | ts.FunctionExpression {
   return ts.isArrowFunction(node) || ts.isFunctionExpression(node);
 }
 

@@ -82,6 +82,33 @@ describe("@exact/compiler", () => {
     expect(server).not.toContain("window.innerWidth");
   });
 
+  it("honors task placement directives as compiler escape hatches", () => {
+    const source = `
+      function Page(this: Component<{ title?: string; width?: number }>) {
+        this.task(() => {
+          "use server";
+          this.state.title = "server";
+        });
+        this.task(() => {
+          "use client";
+          this.state.width = 1;
+        });
+        return () => <p>{this.state.title}</p>;
+      }
+    `;
+
+    const manifest = analyzeSource(source, { filename: "Page.tsx" });
+    const client = transform(source, { filename: "Page.tsx", target: "client" });
+    const server = transform(source, { filename: "Page.tsx", target: "server" });
+
+    expect(manifest.components[0]!.tasks.map(task => task.placement)).toEqual(["server", "client"]);
+    expect(manifest.components[0]!.tasks[0]!.diagnostics).toContain("task placement forced by server directive");
+    expect(client).not.toContain("server");
+    expect(client).toContain("width = 1");
+    expect(server).toContain("server");
+    expect(server).not.toContain("width = 1");
+  });
+
   it("lowers shorthand and underscore fragments", () => {
     const output = transform("const view = <_ key={id}><span /></_>; const next = <>tail</>;");
 
