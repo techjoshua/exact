@@ -411,13 +411,17 @@ describe("@exact/compiler", () => {
     expect(server).not.toContain("onClick");
   });
 
-  it("rejects unsupported dynamic client island props in server artifacts", () => {
-    expect(() => transform(`
+  it("infers arbitrary dynamic client island props in server artifacts", () => {
+    const output = transform(`
       export function Panel(this: Component<{ count: number }>) {
         const label = String(this.state.count);
         return () => <button title={label} onClick={() => this.state.count++} />;
       }
-    `, { target: "server" })).toThrow("Client island prop \"title\" must be static or an exact this.state path");
+    `, { target: "server" });
+
+    expect(output).toContain("title: label");
+    expect(output).toContain("Panel_ExactClient_1");
+    expect(output).not.toContain("onClick");
   });
 
   it("generates deterministic split component names from author names", () => {

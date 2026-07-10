@@ -351,6 +351,9 @@ function renderServerBoundary(context: SsrContext, vnode: VNode): string {
   const id = String(unwrap(vnode.props.id) ?? "");
   const name = String(unwrap(vnode.props.name) ?? "");
   const props = unwrap(vnode.props.props) ?? {};
+  if (!isJsonSafe(props)) {
+    throw new Error(`Client boundary ${name || id} props must be JSON-serializable`);
+  }
   const html = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}"></div>`;
   return markerPair(context, markerId(context, "client-boundary", name, id), () => html);
 }
@@ -426,6 +429,18 @@ function serializeHydrationPayload(payload: Record<string, unknown>): string {
     .replace(/</g, "\\u003C")
     .replace(/\u2028/g, "\\u2028")
     .replace(/\u2029/g, "\\u2029");
+}
+
+function isJsonSafe(value: unknown, seen = new Set<object>()): boolean {
+  if (value === undefined || value === null) return true;
+  if (typeof value === "string" || typeof value === "boolean") return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value !== "object") return false;
+  if (seen.has(value)) return false;
+  seen.add(value);
+  if (Array.isArray(value)) return value.every(item => isJsonSafe(item, seen));
+  if (Object.getPrototypeOf(value) !== Object.prototype) return false;
+  return Object.values(value as Record<string, unknown>).every(item => isJsonSafe(item, seen));
 }
 
 function escapeText(value: string): string {

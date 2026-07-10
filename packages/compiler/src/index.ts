@@ -910,15 +910,18 @@ function createClientIslandBoundaryCall(
   return factory.createCallExpression(factory.createIdentifier(helpers.boundary), undefined, [
     factory.createStringLiteral(id),
     factory.createStringLiteral(generatedName),
-    staticIslandProps(context, attributes)
+    islandProps(context, attributes)
   ]);
 }
 
-function staticIslandProps(context: ts.TransformationContext, attributes: ts.JsxAttributes): ts.ObjectLiteralExpression {
-  const props: ts.PropertyAssignment[] = [];
+function islandProps(context: ts.TransformationContext, attributes: ts.JsxAttributes): ts.ObjectLiteralExpression {
+  const props: ts.ObjectLiteralElementLike[] = [];
   const factory = context.factory;
   for (const attribute of attributes.properties) {
-    if (ts.isJsxSpreadAttribute(attribute)) continue;
+    if (ts.isJsxSpreadAttribute(attribute)) {
+      props.push(factory.createSpreadAssignment(attribute.expression));
+      continue;
+    }
     const name = attribute.name.getText();
     if (/^on[A-Z]/.test(name) || name === "ref") continue;
     if (!attribute.initializer) {
@@ -931,22 +934,10 @@ function staticIslandProps(context: ts.TransformationContext, attributes: ts.Jsx
     }
     if (ts.isJsxExpression(attribute.initializer) && attribute.initializer.expression) {
       const expression = attribute.initializer.expression;
-      if (isSerializableIslandExpression(expression)) {
-        props.push(factory.createPropertyAssignment(propName(name), expression));
-        continue;
-      }
-      throw new Error(`Client island prop "${name}" must be static or an exact this.state path`);
+      props.push(factory.createPropertyAssignment(propName(name), expression));
     }
   }
   return factory.createObjectLiteralExpression(props, false);
-}
-
-function isSerializableIslandExpression(expression: ts.Expression): boolean {
-  if (isStatePathExpression(expression)) return true;
-  if (ts.isStringLiteralLike(expression)) return true;
-  if (ts.isNumericLiteral(expression)) return true;
-  if (expression.kind === ts.SyntaxKind.TrueKeyword || expression.kind === ts.SyntaxKind.FalseKeyword || expression.kind === ts.SyntaxKind.NullKeyword) return true;
-  return false;
 }
 
 function callElement(

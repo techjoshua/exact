@@ -99,6 +99,12 @@ describe("@exact/ssr", () => {
     expect(result.html).toContain("&quot;title&quot;:&quot;Ready&quot;");
   });
 
+  it("rejects non-serializable client boundary props", () => {
+    expect(() => renderToString(createServerBoundary("bad", "Bad_ExactClient_1", {
+      onSave() {}
+    }))).toThrow("Client boundary Bad_ExactClient_1 props must be JSON-serializable");
+  });
+
   it("can expose rendered html as a readable stream", async () => {
     const stream = renderToStream(createVNode("p", null, "streamed"), { markers: false });
     const reader = stream.getReader();
