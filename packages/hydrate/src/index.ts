@@ -252,15 +252,25 @@ function applyPatch(container: Element, patch: ExactPatch): boolean {
     const range = findExactRange(container, patch.id);
     if (!range) return false;
     if (patch.op === "remove") {
-      const item = findExactRange(container, `item:${patch.key}`);
+      const item = findExactItemRange(container, patch.key, range);
       if (!item) return false;
       replaceRange(item, "");
       return true;
     }
+    const before = patch.before ? findExactItemRange(container, patch.before, range) : undefined;
+    const anchor = before?.start ?? range.end;
+    if (patch.op === "move") {
+      const item = findExactItemRange(container, patch.key, range);
+      if (!item) {
+        if (!patch.html) return false;
+        insertHtmlBefore(anchor, patch.html);
+        return true;
+      }
+      moveRangeBefore(item, anchor);
+      return true;
+    }
     if (!patch.html) return false;
-    const template = document.createElement("template");
-    template.innerHTML = patch.html;
-    range.end.parentNode?.insertBefore(template.content, range.end);
+    insertHtmlBefore(anchor, patch.html);
     return true;
   }
 
@@ -301,6 +311,32 @@ function findExactRange(container: Element, id: string): { start: Comment; end: 
   return undefined;
 }
 
+function findExactItemRange(
+  container: Element,
+  key: string,
+  within?: { start: Comment; end: Comment }
+): { start: Comment; end: Comment } | undefined {
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_COMMENT);
+  let inRange = !within;
+  let start: Comment | undefined;
+  while (walker.nextNode()) {
+    const comment = walker.currentNode as Comment;
+    if (within && comment === within.start) {
+      inRange = true;
+      continue;
+    }
+    if (within && comment === within.end) return undefined;
+    if (!inRange) continue;
+    if (isExactItemStart(comment, key)) start = comment;
+    if (start && comment.data === `/${start.data}`) return { start, end: comment };
+  }
+  return undefined;
+}
+
+function isExactItemStart(comment: Comment, key: string): boolean {
+  return comment.data.startsWith("exact:item:") && comment.data.endsWith(`:${key}`);
+}
+
 function replaceRange(range: { start: Comment; end: Comment }, html: string): void {
   let cursor = range.start.nextSibling;
   while (cursor && cursor !== range.end) {
@@ -312,6 +348,35 @@ function replaceRange(range: { start: Comment; end: Comment }, html: string): vo
   const template = document.createElement("template");
   template.innerHTML = html;
   range.end.parentNode?.insertBefore(template.content, range.end);
+}
+
+function insertHtmlBefore(anchor: Node, html: string): void {
+  const template = document.createElement("template");
+  template.innerHTML = html;
+  anchor.parentNode?.insertBefore(template.content, anchor);
+}
+
+function moveRangeBefore(range: { start: Comment; end: Comment }, anchor: Node): void {
+  if (isNodeInsideRange(anchor, range)) return;
+  const fragment = document.createDocumentFragment();
+  let cursor: Node | null = range.start;
+  while (cursor) {
+    const next: Node | null = cursor.nextSibling;
+    fragment.appendChild(cursor);
+    if (cursor === range.end) break;
+    cursor = next;
+  }
+  anchor.parentNode?.insertBefore(fragment, anchor);
+}
+
+function isNodeInsideRange(node: Node, range: { start: Comment; end: Comment }): boolean {
+  let cursor: Node | null = range.start;
+  while (cursor) {
+    if (cursor === node) return true;
+    if (cursor === range.end) return false;
+    cursor = cursor.nextSibling;
+  }
+  return false;
 }
 
 function reportMismatch(options: HydrateOptions, message: string): void {

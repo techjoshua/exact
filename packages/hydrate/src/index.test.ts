@@ -139,6 +139,19 @@ describe("@exact/hydrate", () => {
     expect(button.getAttribute("style")).toContain("color: red");
   });
 
+  it("applies keyed list insert, move, and remove patches", () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<ul><!--exact:list--><!--exact:item:1:a--><li>A</li><!--/exact:item:1:a--><!--exact:item:2:b--><li>B</li><!--/exact:item:2:b--><!--/exact:list--></ul>";
+
+    applyPatches(container, [
+      { type: "list", id: "list", op: "insert", key: "c", before: "b", html: "<!--exact:item:3:c--><li>C</li><!--/exact:item:3:c-->" },
+      { type: "list", id: "list", op: "move", key: "a", before: "c" },
+      { type: "list", id: "list", op: "remove", key: "b" }
+    ]);
+
+    expect(Array.from(container.querySelectorAll("li")).map(item => item.textContent)).toEqual(["A", "C"]);
+  });
+
   it("throws on patch mismatch in strict mode", () => {
     const container = document.createElement("div");
 
