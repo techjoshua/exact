@@ -166,6 +166,15 @@ type HelperNames = {
 
 type StateSnapshotTree = Map<string, StateSnapshotTree | ts.Expression>;
 type ClientIslandElementNode = ts.JsxElement | ts.JsxSelfClosingElement;
+type ComponentLocalInfo = {
+  names: Set<string>;
+  functions: Map<string, ts.FunctionDeclaration>;
+};
+
+type ClientIslandCaptures = {
+  values: string[];
+  functions: ts.FunctionDeclaration[];
+};
 
 export function transform(source: string, options: TransformOptions = {}): string {
   return transformSource(source, options).code;
@@ -441,7 +450,7 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
     let sawJsx = false;
     let sawBoundary = false;
     const componentStack: string[] = [];
-    const componentLocalStack: Set<string>[] = [];
+    const componentLocalStack: ComponentLocalInfo[] = [];
     const islandCounts = new Map<string, number>();
     const clientIslandDefinitions: ts.FunctionDeclaration[] = [];
     let clientIslandDepth = 0;
@@ -453,7 +462,7 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
           return createClientComponentServerStub(sourceFile, context, helpers, node);
         }
         componentStack.push(node.name.text);
-        componentLocalStack.push(collectComponentLocalBindings(node));
+        componentLocalStack.push(collectComponentLocalInfo(node));
         const visited = ts.visitEachChild(node, visitor, context);
         componentLocalStack.pop();
         componentStack.pop();
@@ -1118,19 +1127,21 @@ function jsxElementIsClientIsland(attributes: ts.JsxAttributes): boolean {
   });
 }
 
-function collectComponentLocalBindings(node: ts.FunctionDeclaration): Set<string> {
-  const locals = new Set<string>();
+function collectComponentLocalInfo(node: ts.FunctionDeclaration): ComponentLocalInfo {
+  const names = new Set<string>();
+  const functions = new Map<string, ts.FunctionDeclaration>();
   function visit(current: ts.Node): void {
     if (current !== node && ts.isFunctionDeclaration(current) && current.name) {
-      locals.add(current.name.text);
+      names.add(current.name.text);
+      functions.set(current.name.text, current);
       return;
     }
     if (current !== node && (ts.isFunctionLike(current) || ts.isClassLike(current))) return;
-    if (ts.isVariableDeclaration(current)) collectBindingNames(current.name, locals);
+    if (ts.isVariableDeclaration(current)) collectBindingNames(current.name, names);
     ts.forEachChild(current, visit);
   }
   if (node.body) visit(node.body);
-  return locals;
+  return { names, functions };
 }
 
 function collectBindingNames(name: ts.BindingName, output: Set<string>): void {
@@ -1143,11 +1154,18 @@ function collectBindingNames(name: ts.BindingName, output: Set<string>): void {
   }
 }
 
-function clientIslandCaptures(node: ClientIslandElementNode, locals: Set<string> | undefined): string[] {
-  if (!locals?.size) return [];
+function clientIslandCaptures(node: ClientIslandElementNode, locals: ComponentLocalInfo | undefined): ClientIslandCaptures {
+  if (!locals?.names.size) return { values: [], functions: [] };
   const captures = new Set<string>();
-  collectCapturedIdentifiers(node, locals, captures);
-  return [...captures].sort();
+  collectCapturedIdentifiers(node, locals.names, captures);
+  const values: string[] = [];
+  const functions: ts.FunctionDeclaration[] = [];
+  for (const name of [...captures].sort()) {
+    const declaration = locals.functions.get(name);
+    if (declaration) functions.push(declaration);
+    else values.push(name);
+  }
+  return { values, functions };
 }
 
 function collectCapturedIdentifiers(node: ts.Node, locals: Set<string>, captures: Set<string>): void {
@@ -1180,7 +1198,7 @@ function createClientIslandBoundaryCall(
   islandCounts: Map<string, number>,
   attributes: ts.JsxAttributes,
   children?: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[],
-  captures: readonly string[] = []
+  captures: ClientIslandCaptures = emptyClientIslandCaptures()
 ): ts.Expression {
   const factory = context.factory;
   const owner = componentName ?? "Anonymous";
@@ -1191,7 +1209,7 @@ function createClientIslandBoundaryCall(
   return factory.createCallExpression(factory.createIdentifier(helpers.boundary), undefined, [
     factory.createStringLiteral(id),
     factory.createStringLiteral(generatedName),
-    islandProps(context, attributes, children, captures)
+    islandProps(context, attributes, children, captures.values)
   ]);
 }
 
@@ -1204,7 +1222,7 @@ function recordClientIslandDefinition(
   islandCounts: Map<string, number>,
   node: ClientIslandElementNode,
   definitions: ts.FunctionDeclaration[],
-  captures: readonly string[] = []
+  captures: ClientIslandCaptures = emptyClientIslandCaptures()
 ): void {
   const owner = componentName ?? "Anonymous";
   const next = (islandCounts.get(owner) ?? 0) + 1;
@@ -1220,7 +1238,7 @@ function createClientIslandDefinition(
   owner: string,
   index: number,
   node: ClientIslandElementNode,
-  captures: readonly string[]
+  captures: ClientIslandCaptures
 ): ts.FunctionDeclaration {
   const factory = context.factory;
   const props = factory.createIdentifier("props");
@@ -1243,6 +1261,7 @@ function createClientIslandDefinition(
     )],
     undefined,
     factory.createBlock([
+      ...capturedFunctionDeclarations(context, captures.functions, props, captures.values),
       createClientIslandStateInit(factory, props),
       factory.createReturnStatement(factory.createArrowFunction(
         undefined,
@@ -1252,8 +1271,8 @@ function createClientIslandDefinition(
         factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
         factory.createCallExpression(factory.createIdentifier(helpers.element), undefined, [
           tagExpression(tagName),
-          clientIslandElementProps(sourceFile, context, tagName, attributes, node, props, captures),
-          ...clientIslandChildrenExpressions(context, children, visitor, helpers, props, captures)
+          clientIslandElementProps(sourceFile, context, tagName, attributes, node, props, captures.values),
+          ...clientIslandChildrenExpressions(context, children, visitor, helpers, props, captures.values)
         ])
       ))
     ], true)
@@ -1340,6 +1359,19 @@ function rewriteCapturedNode<T extends ts.Node>(
     return ts.visitEachChild(current, visitor, context);
   };
   return ts.visitNode(node, visitor) as T;
+}
+
+function capturedFunctionDeclarations(
+  context: ts.TransformationContext,
+  functions: readonly ts.FunctionDeclaration[],
+  props: ts.Identifier,
+  captures: readonly string[]
+): ts.FunctionDeclaration[] {
+  return functions.map(fn => rewriteCapturedNode(context, fn, props, captures));
+}
+
+function emptyClientIslandCaptures(): ClientIslandCaptures {
+  return { values: [], functions: [] };
 }
 
 function createComponentIslandBoundaryCall(

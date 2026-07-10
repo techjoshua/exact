@@ -551,8 +551,9 @@ describe("@exact/compiler", () => {
     const client = transform(source, { filename: "Panel.tsx", target: "client" });
     const server = transform(source, { filename: "Panel.tsx", target: "server" });
 
-    expect(server).toContain("\"__exactCapture\": { save: save }");
-    expect(client).toContain("onClick: () => props.__exactCapture.save()");
+    expect(server).not.toContain("__exactCapture");
+    expect(client).toContain("function save()");
+    expect(client).toContain("onClick: () => save()");
   });
 
   it("does not generate nested client islands inside an extracted element island", () => {
