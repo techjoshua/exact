@@ -70,17 +70,21 @@ The package entrypoints are:
   - Semantic surface: `analyzeSource` and emitted manifests for component/task placement planning.
   - CLI: `exactc`.
 - `@exact/ssr`
-  - Server render surface: `renderToString(vnode, options?)`, `renderToStream(vnode, options?)`.
+  - Server render surface: `renderToString(vnode, options?)`, `renderToStringAsync(vnode, options?)`, `renderToStream(vnode, options?)`.
+  - Hydration bootstrap surface: `renderHydrationScript(options?)`, `renderToHydratableString(vnode, options?)`, `renderToHydratableStringAsync(vnode, options?)`.
+  - Server boundary surface: `createBoundaryRefreshHandler(render, options)`.
   - Emits deterministic comment markers for component, cell, dynamic, fragment, and keyed-list item boundaries.
 - `@exact/hydrate`
   - Client hydration surface: `hydrate(vnode, container, options?)`.
+  - Client endpoint surface: `createExactClient(container, options?)`, `invokeExact(options)`, `readExactHydrationConfig(root?, scriptId?)`.
   - Patch surface: `applyPatches(container, patches, options?)`.
 - `@exact/server`
   - Server runtime surface: `handleExactRequest(request, context)`.
+  - Manifest bridge: `createExactServerManifest(compilerManifest, options?)`.
   - Adapter helpers: `createFetchHandler`, `createExpressHandler`, `createHapiHandler`.
   - Security model: manifest-allowlisted action and boundary IDs only; no client-provided module or function dispatch.
 - `@exact/vite-plugin`
-  - Vite adapter: `exact()`.
+  - Vite adapter: `exact({ target?: "default" | "client" | "server" })`.
 
 The next export cleanup should split `@exact/core` into clearer app-facing and framework-internal subpaths before external publication. For now the single entrypoint keeps package integration straightforward while the framework is still being shaped.
 
@@ -111,9 +115,11 @@ For projects that want a precompile step before their existing TypeScript build,
 
 ```sh
 npx exactc --rootDir src --outDir .exact src
+npx exactc --rootDir src --outDir .exact --target server --manifest src
 ```
 
 That rewrites `.tsx` files to `.ts` and `.jsx` files to `.js` under the output directory, preserving relative paths. Your normal TypeScript/bundler pipeline can then compile the generated sources.
+`--target client|server` emits target-specific artifacts from the compiler's task placement analysis, and `--manifest` writes a sibling `.exact.json` manifest for the secure server runtime.
 
 Vite is supported through a thin adapter over the same compiler:
 
@@ -317,9 +323,32 @@ JSX elements are internally mounted through cell boundaries. In compiler mode, e
 
 ## SSR And Hydration
 
-SSR and hydration are intentionally incomplete in this slice. The current planning note is in `docs/ssr-hydration-plan.md`.
+The current SSR/server-component foundation implements:
 
-The short version: SSR should use platform-neutral component semantics from `@exact/core`, hydration should stay separate from fresh DOM mounting, and server component/action requests should pass through `@exact/server` so validation and manifest-allowlisted dispatch are centralized across Express, Hapi, Fetch-compatible runtimes, and other JavaScript servers.
+- `@exact/ssr` renders VNodes/components to HTML with boundary markers.
+- `renderToStringAsync()` waits for observed `this.task()` promises before rendering the component instance, so server-loaded reactive state can be serialized into the first response.
+- `renderHydrationScript()` serializes endpoint/state bootstrap data as inert escaped JSON.
+- `@exact/hydrate` can read that bootstrap data, invoke the configured endpoint, and apply returned patches.
+- `@exact/server` owns adapter-neutral request handling and rejects anything not present in the manifest allowlist.
+- `createExactServerManifest()` converts compiler manifests into runtime action/boundary allowlists.
+- `createBoundaryRefreshHandler()` rerenders a server boundary and returns a replacement patch through the same secure endpoint path.
+
+Example:
+
+```tsx
+import { hydrate, readExactHydrationConfig } from "@exact/hydrate";
+import { renderToHydratableStringAsync } from "@exact/ssr";
+
+const server = await renderToHydratableStringAsync(<App />, {
+  endpoint: "/__exact",
+  state: { userId: "u1" }
+});
+
+const config = readExactHydrationConfig(document);
+hydrate(<App />, document.getElementById("app")!, config);
+```
+
+Server components are not yet a full distributed component protocol. The pieces now in place are the semantic compiler manifest, client/server compiler targets, secure generic endpoint, hydration state exchange, and server boundary replacement patches. The remaining work is deeper compiler-owned component splitting, fine-grained server patch generation beyond boundary replacement, and bundler orchestration for separate client/server artifact graphs.
 
 ## Logging
 
