@@ -4,7 +4,10 @@ import path from "node:path";
 
 export type TransformOptions = {
   filename?: string;
+  target?: TransformTarget;
 };
+
+export type TransformTarget = "default" | "client" | "server";
 
 export type TransformResult = {
   code: string;
@@ -88,12 +91,13 @@ export function transform(source: string, options: TransformOptions = {}): strin
 export function transformSource(source: string, options: TransformOptions = {}): TransformResult {
   const normalized = preprocessPropPunning(source);
   const filename = options.filename ?? "input.tsx";
+  const target = options.target ?? "default";
   const diagnostics = validateSource(normalized, filename);
   if (diagnostics.length) {
     throw new Error(formatDiagnostics(diagnostics));
   }
   const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
-  const result = ts.transform(sourceFile, [exactJsxTransformer]);
+  const result = ts.transform(sourceFile, [exactJsxTransformer(target)]);
   const transformed = result.transformed[0]!;
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
   const printed = printer.printFile(transformed as ts.SourceFile);
@@ -113,21 +117,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const components: ExactComponentIR[] = [];
   const manifestDiagnostics: string[] = [];
   const serverActions: ExactCompilerManifest["serverActions"] = {};
-  const serverOnlyImports = new Set<string>();
-
-  for (const statement of sourceFile.statements) {
-    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
-    const specifier = statement.moduleSpecifier.text;
-    if (isServerOnlyModule(specifier)) {
-      const clause = statement.importClause;
-      if (clause?.name) serverOnlyImports.add(clause.name.text);
-      if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
-        for (const element of clause.namedBindings.elements) {
-          serverOnlyImports.add(element.name.text);
-        }
-      }
-    }
-  }
+  const serverOnlyImports = collectServerOnlyImports(sourceFile);
 
   function visit(node: ts.Node): void {
     if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
@@ -243,14 +233,20 @@ export function preprocessPropPunning(source: string): string {
   return output;
 }
 
-function exactJsxTransformer(context: ts.TransformationContext): ts.Transformer<ts.SourceFile> {
-  const factory = context.factory;
-
-  return sourceFile => {
+function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.SourceFile> {
+  return context => sourceFile => {
+    const factory = context.factory;
     const helpers = allocateHelperNames(sourceFile);
+    const serverOnlyImports = collectServerOnlyImports(sourceFile);
     let sawJsx = false;
 
     const visitor: ts.Visitor = node => {
+      if (ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) && isThisMethodCall(node.expression, "task")) {
+        const task = analyzeTask("target-task", node.expression, sourceFile, serverOnlyImports);
+        if (shouldOmitPlacement(task.placement, target)) {
+          return factory.createEmptyStatement();
+        }
+      }
       if (ts.isJsxElement(node)) {
         sawJsx = true;
         return transformJsxElement(node, context, visitor, helpers);
@@ -264,6 +260,12 @@ function exactJsxTransformer(context: ts.TransformationContext): ts.Transformer<
         return transformJsxFragment(node, context, visitor, helpers);
       }
       if (ts.isCallExpression(node)) {
+        if (isThisMethodCall(node, "task")) {
+          const task = analyzeTask("target-task", node, sourceFile, serverOnlyImports);
+          if (shouldOmitPlacement(task.placement, target)) {
+            return factory.createVoidExpression(factory.createNumericLiteral(0));
+          }
+        }
         return transformCapturedCall(node, context, visitor);
       }
       if (ts.isTaggedTemplateExpression(node)) {
@@ -272,7 +274,10 @@ function exactJsxTransformer(context: ts.TransformationContext): ts.Transformer<
       return ts.visitEachChild(node, visitor, context);
     };
 
-    const visited = ts.visitEachChild(sourceFile, visitor, context);
+    const transformInput = target === "client"
+      ? factory.updateSourceFile(sourceFile, sourceFile.statements.filter(statement => !isServerOnlyImportDeclaration(statement)))
+      : sourceFile;
+    const visited = ts.visitEachChild(transformInput, visitor, context);
     if (!sawJsx) return visited;
 
     const importDeclaration = factory.createImportDeclaration(
@@ -482,9 +487,43 @@ function isComponentLikeFunction(node: ts.FunctionDeclaration): boolean {
 const browserGlobals = new Set(["window", "document", "localStorage", "sessionStorage", "navigator", "HTMLElement", "Node"]);
 const mutatingStateMethods = new Set(["push", "pop", "shift", "unshift", "splice", "sort", "reverse", "set", "delete", "clear"]);
 
+function collectServerOnlyImports(sourceFile: ts.SourceFile): Set<string> {
+  const imports = new Set<string>();
+
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    if (!isServerOnlyModule(statement.moduleSpecifier.text)) continue;
+
+    const clause = statement.importClause;
+    if (clause?.name) imports.add(clause.name.text);
+    if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+      for (const element of clause.namedBindings.elements) {
+        imports.add(element.name.text);
+      }
+    }
+    if (clause?.namedBindings && ts.isNamespaceImport(clause.namedBindings)) {
+      imports.add(clause.namedBindings.name.text);
+    }
+  }
+
+  return imports;
+}
+
+function isServerOnlyImportDeclaration(statement: ts.Statement): boolean {
+  return ts.isImportDeclaration(statement)
+    && ts.isStringLiteral(statement.moduleSpecifier)
+    && isServerOnlyModule(statement.moduleSpecifier.text);
+}
+
 function isServerOnlyModule(specifier: string): boolean {
   if (specifier.startsWith("node:")) return true;
   return ["fs", "path", "crypto", "http", "https", "net", "tls", "child_process"].includes(specifier);
+}
+
+function shouldOmitPlacement(placement: ExactPlacement, target: TransformTarget): boolean {
+  if (target === "default") return false;
+  if (target === "client") return placement === "server";
+  return placement === "client";
 }
 
 function isAssignmentOperator(kind: ts.SyntaxKind): boolean {

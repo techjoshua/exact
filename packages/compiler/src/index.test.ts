@@ -56,6 +56,32 @@ describe("@exact/compiler", () => {
     expect(Object.keys(manifest.serverActions)).toEqual([component.tasks[0]!.id]);
   });
 
+  it("emits target-specific client and server task artifacts", () => {
+    const source = `
+      import { readFile } from "node:fs/promises";
+
+      function ProjectPage(this: Component<{ project?: string; width?: number }>) {
+        this.task(async ({ signal }) => {
+          this.state.project = await readFile("project.txt", "utf8");
+        });
+        this.task(({ signal }) => {
+          this.state.width = window.innerWidth;
+        });
+        return () => <span>{this.state.project}</span>;
+      }
+    `;
+
+    const client = transform(source, { filename: "ProjectPage.tsx", target: "client" });
+    const server = transform(source, { filename: "ProjectPage.tsx", target: "server" });
+
+    expect(client).not.toContain("node:fs/promises");
+    expect(client).not.toContain("readFile");
+    expect(client).toContain("window.innerWidth");
+    expect(server).toContain("node:fs/promises");
+    expect(server).toContain("readFile");
+    expect(server).not.toContain("window.innerWidth");
+  });
+
   it("lowers shorthand and underscore fragments", () => {
     const output = transform("const view = <_ key={id}><span /></_>; const next = <>tail</>;");
 
