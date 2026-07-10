@@ -35,6 +35,32 @@ describe("@exact/hydrate", () => {
     });
   });
 
+  it("creates clients from hydration bootstrap data by default", async () => {
+    document.body.innerHTML = "<script type=\"application/json\" id=\"__exact_hydration\">{\"endpoint\":\"/__exact\",\"state\":{\"project\":{\"id\":\"p1\",\"secret\":\"hidden\"}},\"stateContracts\":{\"save\":{\"reads\":[{\"path\":\"project.id\",\"kind\":\"read\",\"confidence\":\"exact\"}]}}}</script>";
+    const container = document.createElement("main");
+    document.body.appendChild(container);
+    let requestBody: any;
+    const client = createExactClient(container, {
+      fetch: async (input, init) => {
+        requestBody = JSON.parse(init.body);
+        expect(input).toBe("/__exact");
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return { ok: true };
+          }
+        };
+      }
+    });
+
+    await client.invokeAction("save");
+
+    expect(client.state).toEqual({ project: { id: "p1", secret: "hidden" } });
+    expect(requestBody.state).toEqual({ project: { id: "p1" } });
+    document.body.innerHTML = "";
+  });
+
   it("hydrates server-rendered client island placeholders", () => {
     const container = document.createElement("main");
     container.innerHTML = "<div data-exact-client-boundary=\"island-1\" data-exact-client-name=\"Counter_ExactClient_1\" data-exact-client-props='{\"props\":{\"count\":2}}'></div>";

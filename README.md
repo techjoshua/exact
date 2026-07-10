@@ -358,13 +358,13 @@ The current SSR/server-component foundation implements:
 - `renderToStringAsync()` waits for observed `this.task()` promises before rendering the component instance, so server-loaded reactive state can be serialized into the first response.
 - `renderHydrationScript()` serializes endpoint/state bootstrap data as inert escaped JSON.
 - Hydration state and state contract payloads must be JSON-serializable; non-serializable bootstrap data fails during SSR.
-- `@exact/hydrate` can read that bootstrap data, invoke the configured endpoint, and apply returned patches.
+- `@exact/hydrate` automatically reads bootstrap data from the hydration script, invokes the configured endpoint, and applies returned patches.
 - Hydration bootstrap data may include per-action state contracts; when present, the client sends only the exact state reads required for that action.
 - `@exact/server` owns adapter-neutral request handling and rejects anything not present in the manifest allowlist.
 - `createExactServerManifest()` converts compiler manifests into runtime action/boundary allowlists, including compiler-generated client island boundary IDs.
 - `createExactHydrationStateContracts()` extracts the compiler-derived action state contracts for `renderHydrationScript()` / `@exact/hydrate`.
 - If the manifest includes an endpoint path, the shared handler rejects requests for any other path before dispatching.
-- `createBoundaryRefreshHandler()` rerenders a server boundary and returns patches through the same secure endpoint path. It defaults to boundary replacement, can emit text patches for text-only boundary output with `patchStrategy: "text"`, and can diff simple same-tag element output with `patchStrategy: "element"` when previous boundary HTML is supplied. `@exact/hydrate` includes the current boundary HTML on refresh requests as a diff hint; the server still renders authoritative next HTML and falls back to boundary replacement if the hint cannot be used.
+- `createBoundaryRefreshHandler()` rerenders a server boundary and returns patches through the same secure endpoint path. It defaults to boundary replacement, can emit text patches for text-only boundary output with `patchStrategy: "text"`, and can diff compiler-assigned `data-exact-id` elements with `patchStrategy: "element"`, including nested text, prop, and style updates. `@exact/hydrate` includes the current boundary HTML on refresh requests as a diff hint; the server still renders authoritative next HTML and falls back to boundary replacement if the hint cannot be used safely.
 - `diffKeyedListItems()` converts previous/next keyed list item snapshots into list insert/move/remove patches for the hydrate patch applier.
 - `this.task(...)` placement is inferred by the compiler. Use `this.task.server(...)` or `this.task.client(...)` only when inference needs an explicit boundary; contradictory environment usage fails compilation.
 - Compiler manifests include state read/write contracts for server-capable tasks. The server runtime validates exact state reads on action requests before dispatch, giving server actions a narrow data contract instead of requiring whole-app state by default.
@@ -372,7 +372,7 @@ The current SSR/server-component foundation implements:
 Example:
 
 ```tsx
-import { hydrate, readExactHydrationConfig } from "@exact/hydrate";
+import { hydrate } from "@exact/hydrate";
 import { renderToHydratableStringAsync } from "@exact/ssr";
 
 const server = await renderToHydratableStringAsync(<App />, {
@@ -380,11 +380,10 @@ const server = await renderToHydratableStringAsync(<App />, {
   state: { userId: "u1" }
 });
 
-const config = readExactHydrationConfig(document);
-hydrate(<App />, document.getElementById("app")!, config);
+hydrate(<App />, document.getElementById("app")!);
 ```
 
-Server components are not yet a full distributed component protocol. The pieces now in place are the semantic compiler manifest, client/server compiler targets, secure generic endpoint, hydration state exchange, server boundary replacement patches, text/element boundary diffs, and keyed list diff helpers. The remaining work is deeper compiler-owned component splitting, richer automatic server patch generation, and bundler orchestration for separate client/server artifact graphs.
+Server components are not yet a full distributed component protocol. The pieces now in place are the semantic compiler manifest, client/server compiler targets, secure generic endpoint, hydration state exchange, server boundary replacement patches, text/exact-element boundary diffs, and keyed list diff helpers. The remaining work is broader compiler-owned component splitting, richer automatic list snapshot integration, and bundler orchestration for separate client/server artifact graphs.
 
 ## Logging
 

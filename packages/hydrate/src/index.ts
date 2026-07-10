@@ -62,35 +62,37 @@ export function readExactHydrationConfig(root: ParentNode = document, scriptId =
 }
 
 export function hydrate(vnode: VNode, container: Element, options: HydrateOptions = {}): HydrationRoot {
+  const resolvedOptions = resolveHydrateOptions(container, options);
   if (!hasExactMarkers(container)) {
-    reportMismatch(options, "missing exact hydration markers");
-    render(vnode, container, { logger: options.logger });
+    reportMismatch(resolvedOptions, "missing exact hydration markers");
+    render(vnode, container, { logger: resolvedOptions.logger });
   } else {
-    render(vnode, container, { logger: options.logger });
+    render(vnode, container, { logger: resolvedOptions.logger });
   }
 
-  const root = createExactClient(container, options);
+  const root = createExactClient(container, resolvedOptions);
   roots.set(container, root);
   return root;
 }
 
 export function createExactClient(container: Element, options: HydrateOptions = {}): ExactClient {
+  const resolvedOptions = resolveHydrateOptions(container, options);
   const client: ExactClient = {
-    endpoint: options.endpoint,
-    state: options.state,
-    stateContracts: options.stateContracts,
+    endpoint: resolvedOptions.endpoint,
+    state: resolvedOptions.state,
+    stateContracts: resolvedOptions.stateContracts,
     applyPatches(patches) {
-      applyPatches(container, patches, options);
+      applyPatches(container, patches, resolvedOptions);
     },
     invokeAction(id, payload) {
-      return invokeAndApply(container, client, "action", id, payload, options);
+      return invokeAndApply(container, client, "action", id, payload, resolvedOptions);
     },
     refreshBoundary(id, payload) {
-      return invokeAndApply(container, client, "refresh", id, payload, options);
+      return invokeAndApply(container, client, "refresh", id, payload, resolvedOptions);
     },
     async refreshIsland(id, registry, payload) {
-      const result = await invokeAndApply(container, client, "refresh", id, payload, options);
-      hydrateClientIslands(container, registry, options);
+      const result = await invokeAndApply(container, client, "refresh", id, payload, resolvedOptions);
+      hydrateClientIslands(container, registry, resolvedOptions);
       return result;
     }
   };
@@ -199,6 +201,20 @@ export function applyPatches(container: Element, patches: readonly ExactPatch[],
 function requireEndpoint(endpoint: string | undefined): string {
   if (!endpoint) throw new Error("eXact endpoint is not configured");
   return endpoint;
+}
+
+function resolveHydrateOptions(container: Element, options: HydrateOptions): HydrateOptions {
+  const config = readExactHydrationConfig(hydrationConfigRoot(container));
+  return {
+    ...options,
+    endpoint: options.endpoint ?? config.endpoint,
+    state: options.state === undefined ? config.state : options.state,
+    stateContracts: options.stateContracts ?? config.stateContracts
+  };
+}
+
+function hydrationConfigRoot(container: Element): ParentNode {
+  return container.ownerDocument ?? (typeof document !== "undefined" ? document : container);
 }
 
 function parseIslandProps(raw: string | null): Record<string, unknown> {
