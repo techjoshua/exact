@@ -2331,11 +2331,10 @@ function collectStateAliases(
 
   function visit(current: ts.Node): void {
     if (current !== node && isTaskNestedFunction(current)) return;
-    if (ts.isVariableDeclaration(current) && ts.isIdentifier(current.name) && current.initializer) {
+    if (ts.isVariableDeclaration(current) && current.initializer) {
       const path = stateEffectPath(current.initializer, sourceFile, semanticReferences, aliases);
       if (path !== undefined) {
-        const declaration = semanticDeclarationForIdentifier(current.name, semanticDeclarations, sourceFile);
-        if (declaration) aliases.set(declaration.id, path);
+        collectStateBindingAliases(current.name, path, sourceFile, semanticDeclarations, aliases);
       }
     }
     ts.forEachChild(current, visit);
@@ -2343,6 +2342,45 @@ function collectStateAliases(
 
   visit(node);
   return aliases;
+}
+
+function collectStateBindingAliases(
+  name: ts.BindingName,
+  basePath: string,
+  sourceFile: ts.SourceFile,
+  semanticDeclarations: SemanticDeclarationIndex,
+  aliases: Map<string, string>
+): void {
+  if (ts.isIdentifier(name)) {
+    const declaration = semanticDeclarationForIdentifier(name, semanticDeclarations, sourceFile);
+    if (declaration) aliases.set(declaration.id, basePath);
+    return;
+  }
+
+  if (ts.isObjectBindingPattern(name)) {
+    for (const element of name.elements) {
+      if (element.dotDotDotToken) continue;
+      const segment = bindingPropertySegment(element.propertyName ?? element.name, sourceFile);
+      const childPath = appendStatePath(basePath, segment);
+      collectStateBindingAliases(element.name, childPath, sourceFile, semanticDeclarations, aliases);
+    }
+    return;
+  }
+
+  name.elements.forEach((element, index) => {
+    if (ts.isOmittedExpression(element) || element.dotDotDotToken) return;
+    collectStateBindingAliases(element.name, appendStatePath(basePath, String(index)), sourceFile, semanticDeclarations, aliases);
+  });
+}
+
+function bindingPropertySegment(name: ts.PropertyName | ts.BindingName, sourceFile: ts.SourceFile): string {
+  if (ts.isIdentifier(name)) return name.text;
+  if (ts.isStringLiteralLike(name) || ts.isNumericLiteral(name)) return name.text;
+  return "*";
+}
+
+function appendStatePath(basePath: string, segment: string): string {
+  return basePath === "*" ? segment : `${basePath}.${segment}`;
 }
 
 function isTaskNestedFunction(node: ts.Node): boolean {

@@ -240,6 +240,29 @@ describe("@exact/compiler", () => {
     ]));
   });
 
+  it("traces destructured state aliases in task state contracts", () => {
+    const manifest = analyzeSource(`
+      export function ProjectPage(this: Component<{ project: { title: string }; queue: string[] }>) {
+        this.task(() => {
+          const { project: currentProject, queue } = this.state;
+          const { title } = currentProject;
+          currentProject.title = title.trim();
+          queue.push("done");
+        });
+        return () => <p>{this.state.project.title}</p>;
+      }
+    `, { filename: "ProjectPage.tsx" });
+
+    const task = manifest.components[0]!.tasks[0]!;
+    expect(task.writes).toEqual(expect.arrayContaining([
+      { path: "project.title", kind: "write", confidence: "exact" },
+      { path: "queue", kind: "write", confidence: "broad" }
+    ]));
+    expect(task.reads).toEqual(expect.arrayContaining([
+      { path: "project.title", kind: "read", confidence: "exact" }
+    ]));
+  });
+
   it("uses state aliases in server action contracts", () => {
     const manifest = analyzeSource(`
       import { readFile } from "node:fs/promises";
