@@ -108,36 +108,39 @@ export type ExactServerContext = {
 };
 
 export function createExactServerManifest(
-  compilerManifest: ExactCompilerManifestLike,
+  compilerManifest: ExactCompilerManifestLike | readonly ExactCompilerManifestLike[],
   options: CreateExactServerManifestOptions = {}
 ): ExactServerManifest {
   const actions: Record<string, ExactManifestAction> = {};
-  for (const action of Object.values(compilerManifest.serverActions ?? {})) {
-    if (action.placement !== "server" && action.placement !== "isomorphic") continue;
-    actions[action.id] = {
-      id: action.id,
-      componentId: action.componentId,
-      taskId: action.taskId,
-      placement: action.placement,
-      stateContract: action.stateContract
-    };
-  }
-
   const boundaries: Record<string, ExactManifestBoundary> = { ...options.boundaries };
-  for (const boundary of compilerManifest.boundaries ?? []) {
-    boundaries[boundary.id] ??= {
-      id: boundary.id,
-      name: boundary.name,
-      componentId: boundary.componentId,
-      kind: boundary.kind
-    };
-  }
-  for (const component of compilerManifest.components ?? []) {
-    if (component.placement === "client") continue;
-    boundaries[component.id] ??= {
-      id: component.id,
-      componentId: component.id
-    };
+
+  for (const manifest of normalizeCompilerManifests(compilerManifest)) {
+    for (const action of Object.values(manifest.serverActions ?? {})) {
+      if (action.placement !== "server" && action.placement !== "isomorphic") continue;
+      actions[action.id] = {
+        id: action.id,
+        componentId: action.componentId,
+        taskId: action.taskId,
+        placement: action.placement,
+        stateContract: action.stateContract
+      };
+    }
+
+    for (const boundary of manifest.boundaries ?? []) {
+      boundaries[boundary.id] ??= {
+        id: boundary.id,
+        name: boundary.name,
+        componentId: boundary.componentId,
+        kind: boundary.kind
+      };
+    }
+    for (const component of manifest.components ?? []) {
+      if (component.placement === "client") continue;
+      boundaries[component.id] ??= {
+        id: component.id,
+        componentId: component.id
+      };
+    }
   }
 
   return {
@@ -146,6 +149,14 @@ export function createExactServerManifest(
     actions,
     boundaries
   };
+}
+
+function normalizeCompilerManifests(manifest: ExactCompilerManifestLike | readonly ExactCompilerManifestLike[]): readonly ExactCompilerManifestLike[] {
+  return isCompilerManifestList(manifest) ? manifest : [manifest];
+}
+
+function isCompilerManifestList(value: ExactCompilerManifestLike | readonly ExactCompilerManifestLike[]): value is readonly ExactCompilerManifestLike[] {
+  return Array.isArray(value);
 }
 
 export function createExactHydrationStateContracts(manifest: ExactServerManifest): Record<string, ExactStateContract> {

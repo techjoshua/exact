@@ -82,7 +82,7 @@ The package entrypoints are:
   - Patch surface: `applyPatches(container, patches, options?)`.
 - `@exact/server`
   - Server runtime surface: `handleExactRequest(request, context)`.
-  - Manifest bridge: `createExactServerManifest(compilerManifest, options?)`.
+  - Manifest bridge: `createExactServerManifest(compilerManifest | compilerManifest[], options?)`.
   - Hydration bridge: `createExactHydrationStateContracts(serverManifest)`.
   - Adapter helpers: `createFetchHandler`, `createExpressHandler`, `createHapiHandler`.
   - Security model: manifest-allowlisted action and boundary IDs only; no client-provided module or function dispatch.
@@ -371,7 +371,7 @@ The current SSR/server-component foundation implements:
 - `@exact/hydrate` automatically reads bootstrap data from the hydration script, invokes the configured endpoint, and applies returned patches.
 - Hydration bootstrap data may include per-action state contracts; when present, the client sends only the exact state reads required for that action.
 - `@exact/server` owns adapter-neutral request handling and rejects anything not present in the manifest allowlist.
-- `createExactServerManifest()` converts compiler manifests into runtime action/boundary allowlists, including compiler-generated client island boundary IDs.
+- `createExactServerManifest()` converts one or more compiler manifests into runtime action/boundary allowlists, including compiler-generated client island boundary IDs.
 - `createExactHydrationStateContracts()` extracts the compiler-derived action state contracts for `renderHydrationScript()` / `@exact/hydrate`.
 - If the manifest includes an endpoint path, the shared handler rejects requests for any other path before dispatching.
 - Request, response, and patch protocol objects are strict: unknown fields are rejected instead of being forwarded through the server runtime.

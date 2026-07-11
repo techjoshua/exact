@@ -102,6 +102,41 @@ describe("@exact/server", () => {
     });
   });
 
+  it("merges runtime allowlists from multiple compiler manifests", () => {
+    const manifest = createExactServerManifest([
+      {
+        version: 1,
+        serverActions: {
+          pageTask: { id: "pageTask", componentId: "Page", taskId: "task-1", placement: "server" }
+        },
+        components: [{ id: "Page", placement: "server" }],
+        boundaries: [{ id: "page-widget", name: "Widget", componentId: "Widget", kind: "client-island" }]
+      },
+      {
+        version: 1,
+        serverActions: {
+          panelTask: { id: "panelTask", componentId: "Panel", taskId: "task-2", placement: "isomorphic" },
+          clientOnly: { id: "clientOnly", componentId: "ClientOnly", taskId: "task-3", placement: "client" }
+        },
+        components: [{ id: "Panel", placement: "isomorphic" }, { id: "ClientOnly", placement: "client" }]
+      }
+    ], {
+      boundaries: {
+        "page-widget": { id: "page-widget", name: "AppWidgetOverride" }
+      }
+    });
+
+    expect(manifest.actions).toEqual({
+      pageTask: { id: "pageTask", componentId: "Page", taskId: "task-1", placement: "server" },
+      panelTask: { id: "panelTask", componentId: "Panel", taskId: "task-2", placement: "isomorphic" }
+    });
+    expect(manifest.boundaries).toEqual({
+      "page-widget": { id: "page-widget", name: "AppWidgetOverride" },
+      Page: { id: "Page", componentId: "Page" },
+      Panel: { id: "Panel", componentId: "Panel" }
+    });
+  });
+
   it("dispatches only manifest-allowlisted actions", async () => {
     const allowed = await handleExactRequest({
       method: "POST",
