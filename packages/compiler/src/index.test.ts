@@ -88,6 +88,14 @@ describe("@exact/compiler", () => {
       placement: "isomorphic"
     }), expect.objectContaining({
       componentId: component.id,
+      exportName: "ProjectPage_ExactServer_1",
+      localName: "ProjectPage",
+      generatedName: "ProjectPage_ExactServer_1",
+      role: "server-part",
+      target: "server",
+      placement: "isomorphic"
+    }), expect.objectContaining({
+      componentId: component.id,
       exportName: "ProjectPage_ExactClient_1",
       localName: "ProjectPage_ExactClient_1",
       generatedName: "ProjectPage_ExactClient_1",
@@ -115,14 +123,14 @@ describe("@exact/compiler", () => {
     const source = `
       import { readFile } from "node:fs/promises";
 
-      function ProjectPage(this: Component<{ project?: string; width?: number }>) {
+      export function ProjectPage(this: Component<{ project?: string; width?: number }>) {
         this.task(async ({ signal }) => {
           this.state.project = await readFile("project.txt", "utf8");
         });
         this.task(({ signal }) => {
           this.state.width = window.innerWidth;
         });
-        return () => <span>{this.state.project}</span>;
+        return () => <button onClick={() => this.state.width++}>{this.state.project}</button>;
       }
     `;
 
@@ -135,6 +143,7 @@ describe("@exact/compiler", () => {
     expect(server).toContain("node:fs/promises");
     expect(server).toContain("readFile");
     expect(server).not.toContain("window.innerWidth");
+    expect(server).toContain("export { ProjectPage as ProjectPage_ExactServer_1 };");
   });
 
   it("honors explicit task placement aliases as compiler escape hatches", () => {
@@ -588,6 +597,7 @@ describe("@exact/compiler", () => {
     expect(client).not.toContain("export function Panel_ExactClient_2");
     expect(server).toContain("createServerBoundary as");
     expect(server).toContain("export function Panel(props = {})");
+    expect(server).not.toContain("Panel_ExactServer_1");
     expect(server).toContain("\"Panel\"");
     expect(server).not.toContain("Panel_ExactClient_1");
     expect(server).not.toContain("className: \"primary\"");
@@ -599,6 +609,7 @@ describe("@exact/compiler", () => {
       componentId: result.manifest.components[0]!.id,
       kind: "client-island"
     });
+    expect(result.manifest.artifacts?.symbols).toEqual(result.manifest.symbols);
   });
 
   it("infers arbitrary dynamic client island props in isomorphic server artifacts", () => {

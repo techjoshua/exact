@@ -312,6 +312,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
     });
   }
   symbols.push(...createRootSymbols(sourceFile, components, exports));
+  symbols.push(...createServerPartSymbols(sourceFile, components));
   symbols.push(...createClientIslandSymbols(sourceFile, components));
   boundaries.push(...createClientIslandBoundaries(sourceFile, components, splitComponentTags));
   boundaries.push(...createServerSlotBoundaries(sourceFile, components, componentPlacements));
@@ -726,7 +727,10 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
     const withIslands = target === "client" && clientIslandDefinitions.length
       ? factory.updateSourceFile(transformed, [...transformed.statements, ...clientIslandDefinitions])
       : transformed;
-    const visited = target === "default" ? withIslands : pruneUnusedImports(withIslands, factory);
+    const withServerParts = target === "server"
+      ? appendServerPartExportAliases(sourceFile, withIslands, factory, islandCounts, componentPlacements)
+      : withIslands;
+    const visited = target === "default" ? withServerParts : pruneUnusedImports(withServerParts, factory);
     if (!sawJsx && !sawBoundary) return visited;
 
     const importDeclaration = factory.createImportDeclaration(
@@ -1069,6 +1073,29 @@ function createRootSymbols(sourceFile: ts.SourceFile, components: ExactComponent
         placement: component.placement
       };
     });
+}
+
+function createServerPartSymbols(sourceFile: ts.SourceFile, components: ExactComponentIR[]): ExactSymbolIR[] {
+  const symbols: ExactSymbolIR[] = [];
+  for (const component of components) {
+    if (!component.exported) continue;
+    if (component.placement === "client") continue;
+    if (component.clientIslandCount <= 0) continue;
+    const generatedName = generatedComponentName(component.name, "server-part", 1);
+    symbols.push({
+      id: stableId(sourceFile.fileName, component.name, "server-part", "1"),
+      componentId: component.id,
+      exportName: generatedName,
+      localName: component.name,
+      generatedName,
+      debugName: `${component.name}:server-part:1`,
+      kind: "component",
+      role: "server-part",
+      target: "server",
+      placement: component.placement
+    });
+  }
+  return symbols;
 }
 
 function createClientIslandSymbols(sourceFile: ts.SourceFile, components: ExactComponentIR[]): ExactSymbolIR[] {
@@ -1546,6 +1573,37 @@ function createClientIslandStateInit(factory: ts.NodeFactory, props: ts.Identifi
       ]
     ))
   );
+}
+
+function appendServerPartExportAliases(
+  sourceFile: ts.SourceFile,
+  transformed: ts.SourceFile,
+  factory: ts.NodeFactory,
+  islandCounts: Map<string, number>,
+  componentPlacements: Map<string, ExactPlacement>
+): ts.SourceFile {
+  const exportedNames = collectExports(sourceFile);
+  const aliases: ts.ExportDeclaration[] = [];
+  for (const [name, count] of [...islandCounts].sort(([left], [right]) => left.localeCompare(right))) {
+    if (count <= 0) continue;
+    if (!exportedNames.has(name)) continue;
+    if (componentPlacements.get(name) === "client") continue;
+    aliases.push(factory.createExportDeclaration(
+      undefined,
+      false,
+      factory.createNamedExports([
+        factory.createExportSpecifier(
+          false,
+          factory.createIdentifier(name),
+          factory.createIdentifier(generatedComponentName(name, "server-part", 1))
+        )
+      ]),
+      undefined
+    ));
+  }
+  return aliases.length
+    ? factory.updateSourceFile(transformed, [...transformed.statements, ...aliases])
+    : transformed;
 }
 
 function clientIslandElementProps(
