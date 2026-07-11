@@ -898,6 +898,23 @@ describe("@exact/compiler", () => {
     }, "Panel.exact.manifest.json")).toThrow("Malformed eXact compiler manifest");
   });
 
+  it("validates semantic graph metadata in parsed compiler manifests", () => {
+    const manifest = analyzeSource(`
+      export function Panel() {
+        return () => <p>Ready</p>;
+      }
+    `, { filename: "Panel.tsx" });
+
+    expect(parseExactCompilerManifest(manifest, "Panel.exact.manifest.json").semanticGraph?.exports).toHaveLength(1);
+    expect(() => parseExactCompilerManifest({
+      ...manifest,
+      semanticGraph: {
+        ...manifest.semanticGraph,
+        references: [{ name: "Panel" }]
+      }
+    }, "Panel.exact.manifest.json")).toThrow("Malformed eXact compiler semantic graph");
+  });
+
   it("rejects malformed generated artifact metadata", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "exact-artifact-manifest-malformed-"));
     const manifestFile = path.join(root, "panel.exact.manifest.json");
