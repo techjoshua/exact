@@ -1554,6 +1554,12 @@ function exactJsxTransformer(
         componentStack.pop();
         return visited;
       }
+      if (componentDerivedStack.length && isAnalyzableFunctionLike(node)) {
+        componentDerivedStack.push(collectDerivedReactiveLocals(node, sourceFile, semanticReferences, semanticDeclarations, componentDerivedStack[componentDerivedStack.length - 1]));
+        const visited = ts.visitEachChild(node, visitor, context);
+        componentDerivedStack.pop();
+        return visited;
+      }
       if (ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) && isThisTaskCall(node.expression)) {
         const task = analyzeTask("target-task", node.expression, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations);
         if (shouldOmitPlacement(task.placement, target)) {
@@ -2531,14 +2537,24 @@ function isThisStateAccess(expression: ts.Expression): boolean {
     && expression.expression.kind === ts.SyntaxKind.ThisKeyword;
 }
 
+function isAnalyzableFunctionLike(node: ts.Node): node is ts.FunctionLikeDeclaration {
+  return ts.isFunctionDeclaration(node)
+    || ts.isFunctionExpression(node)
+    || ts.isArrowFunction(node)
+    || ts.isMethodDeclaration(node)
+    || ts.isGetAccessorDeclaration(node)
+    || ts.isSetAccessorDeclaration(node);
+}
+
 function collectDerivedReactiveLocals(
-  node: ts.FunctionDeclaration,
+  node: ts.FunctionLikeDeclaration,
   sourceFile: ts.SourceFile,
   semanticReferences: SemanticReferenceIndex,
-  semanticDeclarations: SemanticDeclarationIndex
+  semanticDeclarations: SemanticDeclarationIndex,
+  baseDerived: DerivedReactiveIndex = new Map()
 ): DerivedReactiveIndex {
-  const derived = new Map<string, ts.Expression>();
-  const reactiveSources = collectComponentReactiveSources(node, sourceFile, semanticDeclarations);
+  const derived = new Map(baseDerived);
+  const reactiveSources = collectFunctionReactiveSources(node, sourceFile, semanticDeclarations);
 
   function visit(current: ts.Node): void {
     if (current !== node && (ts.isFunctionLike(current) || ts.isClassLike(current))) return;
@@ -2558,8 +2574,8 @@ function collectDerivedReactiveLocals(
   return derived;
 }
 
-function collectComponentReactiveSources(
-  node: ts.FunctionDeclaration,
+function collectFunctionReactiveSources(
+  node: ts.FunctionLikeDeclaration,
   sourceFile: ts.SourceFile,
   semanticDeclarations: SemanticDeclarationIndex
 ): ReactiveSourceIndex {

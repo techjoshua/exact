@@ -673,6 +673,32 @@ describe("@exact/compiler", () => {
     expect(output).toContain("this.task(this.reactive(() => (`${props.query}!`)), async (value) => { });");
   });
 
+  it("inlines safe derived consts declared inside render functions", () => {
+    const output = transform(`
+      function View(this: Component<{ first: string; last: string }>) {
+        return () => {
+          const fullName = \`\${this.state.first} \${this.state.last}\`;
+          return <p>{fullName}</p>;
+        };
+      }
+    `);
+
+    expect(output).toContain("__exactDynamic(() => (`${this.state.first} ${this.state.last}`))");
+  });
+
+  it("inlines safe derived consts declared inside map render callbacks", () => {
+    const output = transform(`
+      function View(this: Component<{ tasks: { id: string; title: string }[] }>) {
+        return () => this.map(this.state.tasks, task => task.id, task => {
+          const title = task.title;
+          return <li>{title}</li>;
+        });
+      }
+    `, { filename: "View.tsx" });
+
+    expect(output).toContain("__exactDynamic(() => (task.title))");
+  });
+
   it("inlines safe derived consts inside explicit reactive captures", () => {
     const output = transform(`
       function View(this: Component<{ query: string }>) {
