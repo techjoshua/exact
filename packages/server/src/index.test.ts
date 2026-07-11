@@ -656,6 +656,28 @@ describe("@exact/server", () => {
     expect(action).not.toHaveBeenCalled();
   });
 
+  it("rejects duplicate batch operation ids before dispatch", async () => {
+    const action = vi.fn();
+    const result = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "batch",
+        operations: [
+          { type: "action", id: "allowed-action", opId: "save" },
+          { type: "action", id: "allowed-action", opId: "save" }
+        ]
+      }
+    }, context({
+      actions: {
+        "allowed-action": action
+      }
+    }));
+
+    expect(result.status).toBe(400);
+    expect(JSON.parse(result.body)).toEqual({ error: "bad_request" });
+    expect(action).not.toHaveBeenCalled();
+  });
+
   it("rejects unauthorized batches before dispatch", async () => {
     const action = vi.fn();
     const result = await handleExactRequest({

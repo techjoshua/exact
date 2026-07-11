@@ -449,13 +449,20 @@ function parseBatch(record: Record<string, unknown>): ExactBatchRequest {
   if (!hasOnlyKeys(record, ["type", "version", "operations"])) throw new Error("unknown batch field");
   if (record.version !== undefined && record.version !== 1) throw new Error("invalid batch version");
   if (!Array.isArray(record.operations)) throw new Error("invalid batch operations");
+  const operations = record.operations.map(operation => {
+    if (!operation || typeof operation !== "object" || Array.isArray(operation)) throw new Error("invalid batch operation");
+    return parseInvocationRecord(operation as Record<string, unknown>);
+  });
+  const operationIds = new Set<string>();
+  for (const operation of operations) {
+    if (!operation.opId) continue;
+    if (operationIds.has(operation.opId)) throw new Error("duplicate batch operation id");
+    operationIds.add(operation.opId);
+  }
   return {
     type: "batch",
     version: record.version === 1 ? 1 : undefined,
-    operations: record.operations.map(operation => {
-      if (!operation || typeof operation !== "object" || Array.isArray(operation)) throw new Error("invalid batch operation");
-      return parseInvocationRecord(operation as Record<string, unknown>);
-    })
+    operations
   };
 }
 
