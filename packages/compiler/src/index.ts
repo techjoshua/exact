@@ -2191,6 +2191,9 @@ function analyzeTask(
   if (browserEffects && writes.length) {
     diagnostics.push("task writes component state and references browser-only globals; classify as client and split at this boundary");
   }
+  if (!requestedPlacement && !browserEffects && !serverEffects && writes.length) {
+    diagnostics.push("task writes component state without environment-specific effects; classify as isomorphic so SSR can run it and hydration can skip duplicate initial work");
+  }
   if (!browserEffects && !serverEffects && !writes.length) {
     diagnostics.push("task has no detected state writes or environment-specific effects; classify as client lifecycle work");
   }

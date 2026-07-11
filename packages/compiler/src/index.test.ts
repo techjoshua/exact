@@ -445,6 +445,9 @@ describe("@exact/compiler", () => {
 
     const component = manifest.components[0]!;
     expect(component.tasks.map(task => task.placement)).toEqual(["isomorphic", "isomorphic"]);
+    expect(component.tasks[0]!.diagnostics).toContain("task writes component state without environment-specific effects; classify as isomorphic so SSR can run it and hydration can skip duplicate initial work");
+    expect(component.tasks[1]!.diagnostics).toContain("task writes component state without environment-specific effects; classify as isomorphic so SSR can run it and hydration can skip duplicate initial work");
+    expect(manifest.diagnostics).toContain("task writes component state without environment-specific effects; classify as isomorphic so SSR can run it and hydration can skip duplicate initial work");
     expect(component.splitBoundaries).not.toContain("server-import:readFile");
     expect(component.splitBoundaries).not.toContain("browser:window");
   });
@@ -464,6 +467,7 @@ describe("@exact/compiler", () => {
 
     const component = manifest.components[0]!;
     expect(component.tasks[0]!.placement).toBe("isomorphic");
+    expect(component.tasks[0]!.diagnostics).toContain("task writes component state without environment-specific effects; classify as isomorphic so SSR can run it and hydration can skip duplicate initial work");
     expect(component.splitBoundaries).not.toContain("server-import:Stats");
     expect(Object.values(manifest.serverActions)[0]!.stateContract.writes).toContainEqual({
       path: "title",

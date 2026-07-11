@@ -55,6 +55,7 @@ This note records the implemented SSR/hydration foundation and the remaining des
 
 - Emits compiler manifests for components, tasks, state effects, render edges, symbols, boundaries, and server actions.
 - Infers `this.task(...)` placement and supports `this.task.server(...)` / `this.task.client(...)` escape hatches.
+- Emits task diagnostics for inferred placement decisions, including state-writing tasks promoted to isomorphic SSR/hydration work and lifecycle tasks kept client-side.
 - Emits paired client/server artifacts and manifest files with `exactc --artifacts --serverComponents`.
 - Splits clear server/client boundaries for pure client components, imported client components, event handlers, refs, generated client islands, server slots, and server parts.
 - Provides bundler-neutral artifact plans, dev-server update state, package export maps, registry modules, and manifest readers.
@@ -108,5 +109,5 @@ The current foundation is usable for the sample path and core protocol tests, bu
 - Richer server patch generation for complex structural changes beyond the current text, element, list, state, and boundary replacement paths.
 - Stronger generated registry/context glue for larger apps with many manifests.
 - Micro frontend support beyond dynamically loaded remote manifests, per-boundary endpoints, per-endpoint batching, and same-realm global context tokens.
-- Better diagnostics for ambiguous placement inference.
+- Broader production diagnostics surfaced by build tools and dev servers.
 - Production guidance for cache headers, deployment topology, auth/session integration, and package publishing conventions.
