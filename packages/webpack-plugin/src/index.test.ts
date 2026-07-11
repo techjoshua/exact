@@ -2,6 +2,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   ExactWebpackPlugin,
+  applyExactWebpackResolver,
   addWebpackConditions,
   createExactWebpackRule,
   resolveExactWebpackRequest,
@@ -51,11 +52,52 @@ describe("@exact/webpack-plugin", () => {
   });
 
   it("applies conditions and loader rules to a compiler", () => {
+    let resolverFactory: ((resolver: any) => any) | undefined;
     const compiler: WebpackCompilerLike = { options: {} };
+    compiler.hooks = {
+      normalModuleFactory: {
+        tap(_name, handler) {
+          handler({
+            hooks: {
+              resolver: {
+                tap(_pluginName, factory) {
+                  resolverFactory = factory;
+                }
+              }
+            }
+          });
+        }
+      }
+    };
 
     new ExactWebpackPlugin({ target: "server" }).apply(compiler);
 
     expect(compiler.options.resolve?.conditionNames).toEqual(["exact-server"]);
     expect(compiler.options.module?.rules).toHaveLength(1);
+    expect(resolverFactory).toBeTypeOf("function");
+  });
+
+  it("rewrites exact facade requests through Webpack resolver hooks", () => {
+    let handler!: (request: { request?: string; path?: string }, context: unknown, callback: (error?: Error | null, result?: unknown) => void) => void;
+    const resolver = applyExactWebpackResolver({
+      hooks: {
+        resolve: {
+          tapAsync(_name, next) {
+            handler = next;
+          }
+        }
+      }
+    }, { target: "server" });
+
+    expect(resolver).toBeDefined();
+
+    let result: unknown;
+    handler({ request: "./Panel.exact", path: "/app/src" }, {}, (_error, value) => {
+      result = value;
+    });
+
+    expect(result).toMatchObject({
+      request: path.resolve("/app/src/Panel.exact.server.ts")
+    });
   });
 });

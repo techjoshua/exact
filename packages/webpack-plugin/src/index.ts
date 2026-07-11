@@ -4,6 +4,7 @@ import {
   transformSource,
   type TransformTarget
 } from "@exact/compiler";
+import path from "node:path";
 
 export type ExactWebpackPluginOptions = {
   target?: TransformTarget;
@@ -63,6 +64,9 @@ export class ExactWebpackPlugin {
     compiler.options.module ??= {};
     compiler.options.module.rules ??= [];
     compiler.options.module.rules.push(createExactWebpackRule(this.options));
+    compiler.hooks?.normalModuleFactory?.tap?.("ExactWebpackPlugin", factory => {
+      factory.hooks?.resolver?.tap?.("ExactWebpackPlugin", resolver => applyExactWebpackResolver(resolver, this.options));
+    });
   }
 }
 
@@ -87,6 +91,33 @@ export function transformExactWebpackSource(source: string, filename: string, op
 
 export function resolveExactWebpackRequest(request: string, importer: string | undefined, options: ExactWebpackPluginOptions = {}): string | null {
   return resolveExactArtifactImport(request, importer, targetFor(options))?.id ?? null;
+}
+
+export function applyExactWebpackResolver(resolver: WebpackResolverLike, options: ExactWebpackPluginOptions = {}): WebpackResolverLike {
+  const resolveHook = resolver.getHook?.("resolve") ?? resolver.hooks?.resolve;
+  const targetHook = resolver.ensureHook?.("resolved") ?? resolveHook;
+  resolveHook?.tapAsync?.("ExactWebpackPlugin", (request, context, callback) => {
+    if (!request.request) {
+      callback();
+      return;
+    }
+    const importer = request.path ? path.join(request.path, "__exact_importer.ts") : undefined;
+    const resolved = resolveExactWebpackRequest(request.request, importer, options);
+    if (!resolved) {
+      callback();
+      return;
+    }
+    const nextRequest = {
+      ...request,
+      request: resolved
+    };
+    if (resolver.doResolve && targetHook) {
+      resolver.doResolve(targetHook, nextRequest, "resolved eXact target artifact", context, callback);
+      return;
+    }
+    callback(null, nextRequest);
+  });
+  return resolver;
 }
 
 export function addWebpackConditions(compiler: WebpackCompilerLike, conditions: readonly string[]): void {
