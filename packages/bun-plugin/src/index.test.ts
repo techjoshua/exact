@@ -5,6 +5,8 @@ import {
   mergeConditions,
   resolveExactBunRequest,
   transformExactBunSource,
+  type BunLoadArgs,
+  type BunLoadResult,
   type BunBuildLike
 } from "./index.js";
 
@@ -24,23 +26,34 @@ describe("@exact/bun-plugin", () => {
     expect(mergeConditions(["browser", "exact-client"], ["exact-client"])).toEqual(["exact-client", "browser"]);
   });
 
-  it("registers Bun resolve and load hooks", () => {
-    const resolveHooks: unknown[] = [];
-    const loadHooks: unknown[] = [];
+  it("registers and executes Bun resolve and load hooks", async () => {
+    let resolveHook!: (args: { path: string; importer?: string }) => { path?: string } | Promise<{ path?: string }>;
+    let loadHook!: (args: BunLoadArgs) => BunLoadResult | Promise<BunLoadResult>;
     const build: BunBuildLike = {
       config: { conditions: ["browser"] },
-      onResolve(options, handler) {
-        resolveHooks.push({ options, handler });
+      onResolve(_options, handler) {
+        resolveHook = handler;
       },
-      onLoad(options, handler) {
-        loadHooks.push({ options, handler });
+      onLoad(_options, handler) {
+        loadHook = handler;
       }
     };
 
     exact({ target: "server" }).setup(build);
 
     expect(build.config?.conditions).toEqual(["exact-server", "browser"]);
-    expect(resolveHooks).toHaveLength(1);
-    expect(loadHooks).toHaveLength(1);
+    await expect(Promise.resolve(resolveHook({
+      path: "./Panel.exact",
+      importer: "/app/src/main.ts"
+    }))).resolves.toEqual({
+      path: path.resolve("/app/src/Panel.exact.server.ts")
+    });
+    await expect(loadHook({
+      path: "/app/src/view.tsx",
+      text: async () => "const view = <span />;"
+    })).resolves.toMatchObject({
+      contents: expect.stringContaining("__exactVNode(\"span\""),
+      loader: "tsx"
+    });
   });
 });
