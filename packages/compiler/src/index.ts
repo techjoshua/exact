@@ -810,10 +810,7 @@ export function createExactArtifactRegistryModules(
 export async function readExactArtifactManifestEntries(manifestFiles: readonly string[]): Promise<ExactArtifactGraphEntry[]> {
   const entries: ExactArtifactGraphEntry[] = [];
   for (const manifestFile of manifestFiles) {
-    const manifest = JSON.parse(await readFile(manifestFile, "utf8")) as ExactCompilerManifest;
-    if (manifest.version !== exactCompilerManifestVersion) {
-      throw new Error(`Unsupported eXact artifact manifest version in ${manifestFile}: ${String((manifest as { version?: unknown }).version)}`);
-    }
+    const manifest = parseExactCompilerManifest(JSON.parse(await readFile(manifestFile, "utf8")), manifestFile, "artifact");
     if (!manifest.artifacts) {
       throw new Error(`eXact artifact manifest ${manifestFile} is missing artifact metadata`);
     }
@@ -830,6 +827,28 @@ export async function readExactArtifactManifestEntries(manifestFiles: readonly s
     });
   }
   return entries.sort((left, right) => left.manifestFile.localeCompare(right.manifestFile));
+}
+
+export function parseExactCompilerManifest(value: unknown, source = "manifest", kind = "compiler"): ExactCompilerManifest {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`Malformed eXact ${kind} manifest in ${source}`);
+  }
+  const manifest = value as Partial<ExactCompilerManifest> & { version?: unknown };
+  if (manifest.version !== exactCompilerManifestVersion) {
+    throw new Error(`Unsupported eXact ${kind} manifest version in ${source}: ${String(manifest.version)}`);
+  }
+  if (typeof manifest.filename !== "string"
+    || !Array.isArray(manifest.components)
+    || !Array.isArray(manifest.exports)
+    || !Array.isArray(manifest.symbols)
+    || !Array.isArray(manifest.boundaries)
+    || !manifest.serverActions
+    || typeof manifest.serverActions !== "object"
+    || Array.isArray(manifest.serverActions)
+    || !Array.isArray(manifest.diagnostics)) {
+    throw new Error(`Malformed eXact ${kind} manifest in ${source}`);
+  }
+  return manifest as ExactCompilerManifest;
 }
 
 function isExactArtifactManifest(value: unknown): value is ExactArtifactManifest {

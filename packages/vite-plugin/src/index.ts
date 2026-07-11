@@ -1,5 +1,6 @@
 import {
   exactExportConditions,
+  parseExactCompilerManifest,
   resolveExactArtifactImport,
   transformSource,
   type ExactCompilerManifest,
@@ -65,7 +66,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 function importedManifestsFor(options: { importedManifests?: readonly ExactCompilerManifest[]; manifestFiles?: readonly string[] }): ExactCompilerManifest[] {
   return [
     ...(options.importedManifests ?? []),
-    ...(options.manifestFiles ?? []).map(file => JSON.parse(readFileSync(file, "utf8")) as ExactCompilerManifest)
+    ...(options.manifestFiles ?? []).map(file => parseExactCompilerManifest(JSON.parse(readFileSync(file, "utf8")), file))
   ];
 }
 

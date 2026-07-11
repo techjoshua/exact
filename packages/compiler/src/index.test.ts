@@ -22,6 +22,7 @@ import {
   exactExportConditions,
   exactCompilerManifestVersion,
   generatedComponentName,
+  parseExactCompilerManifest,
   preprocessPropPunning,
   readExactArtifactManifestEntries,
   resolveExactArtifactImport,
@@ -561,11 +562,24 @@ describe("@exact/compiler", () => {
     await expect(readExactArtifactManifestEntries([manifestFile])).rejects.toThrow("Unsupported eXact artifact manifest version");
   });
 
+  it("rejects malformed compiler manifests before use", () => {
+    expect(() => parseExactCompilerManifest({
+      version: exactCompilerManifestVersion,
+      filename: "Panel.tsx",
+      components: []
+    }, "Panel.exact.manifest.json")).toThrow("Malformed eXact compiler manifest");
+  });
+
   it("rejects malformed generated artifact metadata", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "exact-artifact-manifest-malformed-"));
     const manifestFile = path.join(root, "panel.exact.manifest.json");
     await writeFile(manifestFile, JSON.stringify({
       version: exactCompilerManifestVersion,
+      filename: "panel.tsx",
+      components: [],
+      exports: [],
+      symbols: [],
+      boundaries: [],
       artifacts: {
         source: 1,
         client: "panel.exact.client.ts",
@@ -574,7 +588,9 @@ describe("@exact/compiler", () => {
         exports: [],
         symbols: [],
         boundaries: []
-      }
+      },
+      serverActions: {},
+      diagnostics: []
     }));
 
     await expect(readExactArtifactManifestEntries([manifestFile])).rejects.toThrow("malformed artifact metadata");

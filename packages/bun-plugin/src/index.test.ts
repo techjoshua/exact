@@ -67,6 +67,16 @@ describe("@exact/bun-plugin", () => {
     expect(transformExactBunSource(source, "/src/Page.tsx", { target: "server", manifestFiles: [manifestFile] })?.code).toContain("__exactBoundary");
   });
 
+  it("rejects malformed manifest files", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "exact-bun-bad-manifest-"));
+    const manifestFile = path.join(root, "bad.exact.manifest.json");
+    writeFileSync(manifestFile, JSON.stringify({ version: 1, filename: "bad.tsx" }));
+
+    expect(() => transformExactBunSource("const view = <span />;", "/src/view.tsx", {
+      manifestFiles: [manifestFile]
+    })).toThrow("Malformed eXact compiler manifest");
+  });
+
   it("resolves exact facade imports through shared artifact resolution", () => {
     expect(resolveExactBunRequest("./Panel.exact", "/app/src/main.ts", { target: "server" })).toBe(path.resolve("/app/src/Panel.exact.server.ts"));
     expect(resolveExactBunRequest("./Panel", "/app/src/main.ts")).toBeNull();
