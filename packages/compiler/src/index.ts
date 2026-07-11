@@ -146,6 +146,14 @@ export type CompileArtifactsResult = {
   manifest: ExactCompilerManifest;
 };
 
+export type ExactArtifactGraphInput = {
+  inputFile: string;
+  clientFile: string;
+  serverFile: string;
+  manifestFile: string;
+  manifest: ExactCompilerManifest;
+};
+
 export type CompileArtifactPlanEntriesOptions = {
   filename?(entry: ExactArtifactPlanEntry): string;
 };
@@ -555,7 +563,7 @@ export function diffExactArtifactPlans(
 }
 
 export function createPackageExportMap(
-  results: readonly CompileArtifactsResult[],
+  results: readonly ExactArtifactGraphInput[],
   options: PackageExportMapOptions
 ): Record<string, PackageExportEntry> {
   const clientCondition = options.clientCondition ?? "exact-client";
@@ -597,7 +605,7 @@ export function resolveExactArtifactImport(
 }
 
 export function createExactArtifactGraph(
-  results: readonly CompileArtifactsResult[],
+  results: readonly ExactArtifactGraphInput[],
   options: ExactArtifactGraphOptions
 ): ExactArtifactGraph {
   return {
@@ -622,8 +630,27 @@ export function createExactArtifactGraph(
   };
 }
 
+export async function readExactArtifactManifestEntries(manifestFiles: readonly string[]): Promise<ExactArtifactGraphEntry[]> {
+  const entries: ExactArtifactGraphEntry[] = [];
+  for (const manifestFile of manifestFiles) {
+    const manifest = JSON.parse(await readFile(manifestFile, "utf8")) as ExactCompilerManifest;
+    if (!manifest.artifacts) {
+      throw new Error(`eXact artifact manifest ${manifestFile} is missing artifact metadata`);
+    }
+    const root = path.dirname(manifestFile);
+    entries.push({
+      inputFile: path.resolve(root, manifest.artifacts.source),
+      clientFile: path.resolve(root, manifest.artifacts.client),
+      serverFile: path.resolve(root, manifest.artifacts.server),
+      manifestFile,
+      manifest
+    });
+  }
+  return entries.sort((left, right) => left.manifestFile.localeCompare(right.manifestFile));
+}
+
 export function createClientIslandRegistryEntries(
-  results: readonly CompileArtifactsResult[],
+  results: readonly ExactArtifactGraphInput[],
   options: ClientIslandRegistryOptions = {}
 ): ClientIslandRegistryEntry[] {
   const entries: ClientIslandRegistryEntry[] = [];
@@ -646,7 +673,7 @@ export function createClientIslandRegistryEntries(
 }
 
 export function createServerPartRegistryEntries(
-  results: readonly CompileArtifactsResult[],
+  results: readonly ExactArtifactGraphInput[],
   options: ServerPartRegistryOptions = {}
 ): ServerPartRegistryEntry[] {
   const entries: ServerPartRegistryEntry[] = [];

@@ -18,6 +18,7 @@ import {
   exactExportConditions,
   generatedComponentName,
   preprocessPropPunning,
+  readExactArtifactManifestEntries,
   resolveExactArtifactImport,
   transform,
   transformSource
@@ -486,6 +487,52 @@ describe("@exact/compiler", () => {
       clientFile: result.clientFile,
       serverFile: result.serverFile,
       manifestFile: result.manifestFile
+    })]);
+  });
+
+  it("reads generated artifact manifests into graph entries", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-artifact-manifest-entries-"));
+    const input = path.join(root, "src", "panel.tsx");
+    const outDir = path.join(root, "dist");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, `
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ count: number }>) {
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
+      }
+    `);
+
+    const compiled = await compileFileArtifacts(input, {
+      outDir,
+      rootDir: path.join(root, "src")
+    });
+    const entries = await readExactArtifactManifestEntries([compiled.manifestFile]);
+    const graph = createExactArtifactGraph(entries, {
+      packageRoot: root,
+      sourceRoot: path.join(root, "src"),
+      rootDir: root
+    });
+
+    expect(entries).toEqual([{
+      inputFile: compiled.inputFile,
+      clientFile: compiled.clientFile,
+      serverFile: compiled.serverFile,
+      manifestFile: compiled.manifestFile,
+      manifest: expect.objectContaining({
+        filename: compiled.manifest.filename
+      })
+    }]);
+    expect(graph.clientIslands).toEqual([expect.objectContaining({
+      name: "Panel_ExactClient_1",
+      module: "./dist/panel.exact.client.ts"
+    })]);
+    expect(graph.serverParts).toEqual([expect.objectContaining({
+      name: "Panel_ExactServer_1",
+      module: "./dist/panel.exact.server.ts"
     })]);
   });
 
