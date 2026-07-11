@@ -222,6 +222,7 @@ export type InvokeExactOptions = {
   id: string;
   payload?: unknown;
   state?: unknown;
+  context?: Record<string, unknown>;
   boundaryHtml?: string;
   boundaryHtmls?: Record<string, string>;
   fetch?: FetchLike;
@@ -265,6 +266,7 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
       id: options.id,
       payload: options.payload,
       state: options.state,
+      context: options.context,
       boundaryHtml: options.boundaryHtml,
       boundaryHtmls: options.boundaryHtmls
     })

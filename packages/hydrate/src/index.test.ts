@@ -726,6 +726,40 @@ describe("@exact/hydrate", () => {
     });
   });
 
+  it("sends serialized context through direct endpoint invocations", async () => {
+    let requestBody: unknown;
+    const result = await invokeExact({
+      endpoint: "/__exact",
+      type: "action",
+      id: "save",
+      context: {
+        AuthContext: { id: "u1" }
+      },
+      fetch: async (_input, init) => {
+        requestBody = JSON.parse(init.body);
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              ok: true,
+              state: { saved: true }
+            };
+          }
+        };
+      }
+    });
+
+    expect(requestBody).toEqual({
+      type: "action",
+      id: "save",
+      context: {
+        AuthContext: { id: "u1" }
+      }
+    });
+    expect(result).toEqual({ state: { saved: true } });
+  });
+
   it("parses out-of-order streaming batch results into request order", async () => {
     const results = await invokeExactBatch({
       endpoint: "/__exact",
