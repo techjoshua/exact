@@ -5,8 +5,10 @@ import { describe, expect, it } from "vitest";
 import {
   analyzeSource,
   createClientIslandRegistryEntries,
+  createClientIslandRegistryModule,
   createExactArtifactGraph,
   createExactArtifactPlan,
+  createServerPartRegistryModule,
   compileArtifactPlanEntries,
   compileFile,
   compileFileArtifacts,
@@ -757,6 +759,46 @@ describe("@exact/compiler", () => {
       module: "./dist/panel.exact.server.ts",
       componentId: result.manifest.components[0]!.id
     }]);
+  });
+
+  it("creates ESM modules for client and server registries", () => {
+    expect(createClientIslandRegistryModule([{
+      id: "client-1",
+      name: "Panel_ExactClient_1",
+      exportName: "Panel_ExactClient_1",
+      module: "./panel.exact.client.ts"
+    }])).toBe([
+      "import { Panel_ExactClient_1 as __exactRegistry0 } from \"./panel.exact.client.ts\";",
+      "",
+      "export const exactClientIslands = {",
+      "  \"Panel_ExactClient_1\": __exactRegistry0",
+      "};",
+      ""
+    ].join("\n"));
+
+    expect(createServerPartRegistryModule([{
+      id: "server-1",
+      name: "Panel_ExactServer_1",
+      exportName: "Panel_ExactServer_1",
+      module: "./panel.exact.server.ts"
+    }], { exportName: "parts" })).toContain("export const parts");
+  });
+
+  it("rejects duplicate registry module names", () => {
+    expect(() => createClientIslandRegistryModule([
+      {
+        id: "one",
+        name: "Panel",
+        exportName: "Panel",
+        module: "./one.ts"
+      },
+      {
+        id: "two",
+        name: "Panel",
+        exportName: "Panel",
+        module: "./two.ts"
+      }
+    ])).toThrow("Duplicate eXact registry entry Panel");
   });
 
   it("emits server boundary stubs for pure client components", async () => {

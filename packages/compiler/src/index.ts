@@ -256,6 +256,10 @@ export type ServerPartRegistryEntry = {
   componentId?: string;
 };
 
+export type ExactRegistryModuleOptions = {
+  exportName?: string;
+};
+
 const helperModule = "@exact/core";
 const elementHelper = "__exactVNode";
 const fragmentHelper = "__exactFragment";
@@ -676,6 +680,13 @@ export function createClientIslandRegistryEntries(
   return entries.sort((left, right) => left.id.localeCompare(right.id));
 }
 
+export function createClientIslandRegistryModule(
+  entries: readonly ClientIslandRegistryEntry[],
+  options: ExactRegistryModuleOptions = {}
+): string {
+  return createNamedRegistryModule(entries, options.exportName ?? "exactClientIslands");
+}
+
 function clientRegistrySymbol(symbol: ExactSymbolIR): symbol is ExactSymbolIR & { exportName: string } {
   if (symbol.target !== "client" || !symbol.exportName) return false;
   return symbol.role === "client-island" || (symbol.role === "root" && symbol.placement === "client");
@@ -702,6 +713,33 @@ export function createServerPartRegistryEntries(
   }
 
   return entries.sort((left, right) => left.id.localeCompare(right.id));
+}
+
+export function createServerPartRegistryModule(
+  entries: readonly ServerPartRegistryEntry[],
+  options: ExactRegistryModuleOptions = {}
+): string {
+  return createNamedRegistryModule(entries, options.exportName ?? "exactServerParts");
+}
+
+function createNamedRegistryModule(
+  entries: readonly (ClientIslandRegistryEntry | ServerPartRegistryEntry)[],
+  exportName: string
+): string {
+  const sorted = [...entries].sort((left, right) => left.name.localeCompare(right.name) || left.module.localeCompare(right.module));
+  const seen = new Set<string>();
+  const imports: string[] = [];
+  const properties: string[] = [];
+  sorted.forEach((entry, index) => {
+    if (seen.has(entry.name)) {
+      throw new Error(`Duplicate eXact registry entry ${entry.name}`);
+    }
+    seen.add(entry.name);
+    const local = `__exactRegistry${index}`;
+    imports.push(`import { ${entry.exportName} as ${local} } from ${JSON.stringify(entry.module)};`);
+    properties.push(`  ${JSON.stringify(entry.name)}: ${local}`);
+  });
+  return `${imports.join("\n")}\n\nexport const ${exportName} = {\n${properties.join(",\n")}\n};\n`;
 }
 
 function packageExportSpecifier(inputFile: string, sourceRoot: string): string {
