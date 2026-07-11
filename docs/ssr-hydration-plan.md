@@ -33,6 +33,7 @@ This note records the implemented SSR/hydration foundation and the remaining des
 - Hydrates generated client islands from `data-exact-client-boundary` placeholders.
 - Creates an endpoint client with same-tick batching.
 - Sends action, refresh, state contract, dependency, and boundary snapshot payloads.
+- Validates successful endpoint response shapes before applying returned patches.
 - Applies text, prop, style, keyed-list, state, and replacement patches.
 - Falls back to authoritative server replacement HTML when a fine-grained patch misses.
 
@@ -88,7 +89,7 @@ The endpoint accepts:
 - `refresh`: rerender one manifest-allowlisted server boundary.
 - `batch`: send same-tick operations together.
 
-Batch operations are independent unless `dependsOn` references a previous `opId`. This lets the client send GraphQL-style operation groups without forcing unrelated operations to fail together.
+Batch operations are independent unless `dependsOn` references a previous unique `opId`. This lets the client send GraphQL-style operation groups without forcing unrelated operations to fail together.
 
 ## Remaining Work
 
