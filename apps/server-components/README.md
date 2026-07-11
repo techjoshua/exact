@@ -13,6 +13,7 @@ npx exactc --rootDir apps/server-components/src --outDir apps/server-components/
 - create a secure server manifest from compiler manifest data
 - derive hydration config from that manifest
 - create a manifest-scoped runtime context with `createExactServerRuntime`
+- stream a hydratable initial document through `renderProfilePageResponse`
 - dispatch requests through `handleExactRequest`
 
 The runtime accepts app-provided functions, but it only exposes IDs already present in the manifest.

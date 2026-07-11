@@ -8,6 +8,7 @@ import {
 } from "@exact/server";
 import {
   createExactServerRuntime,
+  renderToHydratableProgressiveHtmlResponse,
   renderToHydratableStringAsync
 } from "@exact/ssr";
 import profileCompilerManifest from "../.exact/ProfilePage.exact.manifest.json" with { type: "json" };
@@ -43,6 +44,14 @@ export const exactRuntime = createExactServerRuntime({
 export async function renderProfilePage(name: string) {
   return renderToHydratableStringAsync(createVNode(ProfilePage, { name }), {
     markers: false,
+    ...createExactHydrationManifestConfig(exactManifest, { profile: { name } })
+  });
+}
+
+export function renderProfilePageResponse(name: string) {
+  return renderToHydratableProgressiveHtmlResponse(createVNode(ProfilePage, { name }), {
+    markers: false,
+    rootId: "app",
     ...createExactHydrationManifestConfig(exactManifest, { profile: { name } })
   });
 }

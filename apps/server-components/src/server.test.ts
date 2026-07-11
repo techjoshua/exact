@@ -8,9 +8,34 @@ import {
   readExactHydrationConfig
 } from "@exact/hydrate";
 import { ProfilePage_ExactClient_1 } from "../.exact/ProfilePage.exact.client.js";
-import { handleExactServerRequest, renderProfilePage } from "./server.js";
+import { handleExactServerRequest, renderProfilePage, renderProfilePageResponse } from "./server.js";
+
+async function readStreamText(stream: ReadableStream<Uint8Array>): Promise<string> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  while (true) {
+    const next = await reader.read();
+    if (next.done) return text;
+    text += decoder.decode(next.value);
+  }
+}
 
 describe("@exact/sample-server-components", () => {
+  it("streams the initial document as a hydratable html response", async () => {
+    const response = renderProfilePageResponse("Ada");
+
+    expect(response.status).toBe(200);
+    expect(response.headers["content-type"]).toBe("text/html; charset=utf-8");
+
+    const html = await readStreamText(response.stream!);
+
+    expect(html).toContain("<div id=\"app\">");
+    expect(html).toContain("Ada");
+    expect(html).toContain("<script type=\"application/json\" id=\"__exact_hydration\">");
+    expect(html).toContain("\"endpoint\":\"/__exact\"");
+  });
+
   it("hydrates a generated client island and applies a server action refresh", async () => {
     const rendered = await renderProfilePage("Ada");
     const container = document.createElement("div");
