@@ -144,6 +144,7 @@ export function createExactClient(container: Element, options: HydrateOptions = 
     },
     registerManifest(config) {
       mergeHydrationRegistration(runtimeOptions, config);
+      if (config.islands) hydrateClientIslands(container, runtimeOptions.islands ?? {}, runtimeOptions);
     }
   };
   return client;
@@ -157,6 +158,7 @@ export function hydrateClientIslands(container: Element | Document, registry: Cl
   const boundaries = Array.from(container.querySelectorAll("[data-exact-client-boundary]"));
   let hydrated = 0;
   for (const boundary of boundaries) {
+    if (boundary.getAttribute("data-exact-client-hydrated") === "true") continue;
     const name = boundary.getAttribute("data-exact-client-name");
     if (!name) continue;
     const component = registry[name];

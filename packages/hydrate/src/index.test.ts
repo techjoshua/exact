@@ -1296,6 +1296,34 @@ describe("@exact/hydrate", () => {
     expect(container.querySelector("button")?.textContent).toBe("Loaded");
   });
 
+  it("hydrates existing client island placeholders when registering a remote manifest", () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<div data-exact-client-boundary=\"remote-island\" data-exact-client-name=\"RemoteIsland\" data-exact-client-props='{\"props\":{\"label\":\"Loaded\"}}'></div>";
+    let renders = 0;
+    function RemoteIsland(this: Component<{}>, props: { label: string }) {
+      renders++;
+      return () => createVNode("button", null, props.label);
+    }
+
+    const client = createExactClient(container, {
+      endpoint: "/__exact"
+    });
+    client.registerManifest({
+      islands: {
+        RemoteIsland
+      }
+    });
+    client.registerManifest({
+      islands: {
+        RemoteIsland
+      }
+    });
+
+    expect(container.querySelector("[data-exact-client-boundary=\"remote-island\"]")?.getAttribute("data-exact-client-hydrated")).toBe("true");
+    expect(container.querySelector("button")?.textContent).toBe("Loaded");
+    expect(renders).toBe(1);
+  });
+
   it("uses endpoint-specific transports for registered remote operations", async () => {
     const container = document.createElement("div");
     const remoteRequests: { input: string; headers: Record<string, string>; body: unknown }[] = [];
