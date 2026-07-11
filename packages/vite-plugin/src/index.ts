@@ -1,5 +1,9 @@
-import { transformSource, type TransformTarget } from "@exact/compiler";
-import path from "node:path";
+import {
+  exactExportConditions,
+  resolveExactArtifactImport,
+  transformSource,
+  type TransformTarget
+} from "@exact/compiler";
 
 export type ExactPluginOptions = {
   include?: FilterPattern;
@@ -24,21 +28,14 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
     name: "exact",
     enforce: "pre",
     config() {
-      const condition = options.target === "server"
-        ? options.serverCondition ?? "exact-server"
-        : options.clientCondition ?? "exact-client";
       return {
         resolve: {
-          conditions: [condition]
+          conditions: exactExportConditions(options.target === "server" ? "server" : "client", options)
         }
       };
     },
     resolveId(source, importer) {
-      if (!source.endsWith(".exact")) return null;
-      const target = options.target === "server" ? "server" : "client";
-      const resolved = `${source}.${target}.ts`;
-      if (!importer || path.isAbsolute(resolved)) return resolved;
-      return path.resolve(path.dirname(importer), resolved);
+      return resolveExactArtifactImport(source, importer, options.target === "server" ? "server" : "client")?.id ?? null;
     },
     transform(code, id) {
       if (!shouldTransform(id, code, options)) return null;

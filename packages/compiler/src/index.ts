@@ -149,6 +149,38 @@ export type PackageExportEntry = {
   [condition: string]: string;
 };
 
+export type ExactArtifactTarget = "client" | "server";
+
+export type ExactExportConditionOptions = {
+  clientCondition?: string;
+  serverCondition?: string;
+};
+
+export type ExactArtifactImportResolution = {
+  id: string;
+  target: ExactArtifactTarget;
+};
+
+export type ExactArtifactGraphOptions = PackageExportMapOptions & ClientIslandRegistryOptions;
+
+export type ExactArtifactGraph = {
+  conditions: {
+    client: string[];
+    server: string[];
+  };
+  packageExports: Record<string, PackageExportEntry>;
+  clientIslands: ClientIslandRegistryEntry[];
+  artifacts: ExactArtifactGraphEntry[];
+};
+
+export type ExactArtifactGraphEntry = {
+  inputFile: string;
+  clientFile: string;
+  serverFile: string;
+  manifestFile: string;
+  manifest: ExactCompilerManifest;
+};
+
 export type ClientIslandRegistryOptions = {
   rootDir?: string;
 };
@@ -389,6 +421,49 @@ export function createPackageExportMap(
   }
 
   return output;
+}
+
+export function exactExportConditions(
+  target: ExactArtifactTarget,
+  options: ExactExportConditionOptions = {}
+): string[] {
+  return [target === "server" ? options.serverCondition ?? "exact-server" : options.clientCondition ?? "exact-client"];
+}
+
+export function resolveExactArtifactImport(
+  source: string,
+  importer: string | undefined,
+  target: ExactArtifactTarget
+): ExactArtifactImportResolution | null {
+  if (!source.endsWith(".exact")) return null;
+  const resolved = `${source}.${target}.ts`;
+  return {
+    id: !importer || path.isAbsolute(resolved) ? resolved : path.resolve(path.dirname(importer), resolved),
+    target
+  };
+}
+
+export function createExactArtifactGraph(
+  results: readonly CompileArtifactsResult[],
+  options: ExactArtifactGraphOptions
+): ExactArtifactGraph {
+  return {
+    conditions: {
+      client: exactExportConditions("client", options),
+      server: exactExportConditions("server", options)
+    },
+    packageExports: createPackageExportMap(results, options),
+    clientIslands: createClientIslandRegistryEntries(results, {
+      rootDir: options.rootDir ?? options.packageRoot
+    }),
+    artifacts: results.map(result => ({
+      inputFile: result.inputFile,
+      clientFile: result.clientFile,
+      serverFile: result.serverFile,
+      manifestFile: result.manifestFile,
+      manifest: result.manifest
+    }))
+  };
 }
 
 export function createClientIslandRegistryEntries(

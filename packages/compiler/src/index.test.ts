@@ -5,12 +5,15 @@ import { describe, expect, it } from "vitest";
 import {
   analyzeSource,
   createClientIslandRegistryEntries,
+  createExactArtifactGraph,
   compileFile,
   compileFileArtifacts,
   compileProject,
   createPackageExportMap,
+  exactExportConditions,
   generatedComponentName,
   preprocessPropPunning,
+  resolveExactArtifactImport,
   transform,
   transformSource
 } from "./index.js";
@@ -408,6 +411,63 @@ describe("@exact/compiler", () => {
         default: "./dist/components/page.exact.client.ts"
       }
     });
+  });
+
+  it("resolves exact artifact facade imports without bundler-specific code", () => {
+    expect(exactExportConditions("client")).toEqual(["exact-client"]);
+    expect(exactExportConditions("server", { serverCondition: "react-server" })).toEqual(["react-server"]);
+    expect(resolveExactArtifactImport("./Panel.exact", "/app/src/main.ts", "client")).toEqual({
+      id: path.resolve("/app/src/Panel.exact.client.ts"),
+      target: "client"
+    });
+    expect(resolveExactArtifactImport("./Panel", "/app/src/main.ts", "client")).toBeNull();
+  });
+
+  it("creates bundler-neutral exact artifact graphs", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-artifact-graph-"));
+    const input = path.join(root, "src", "panel.tsx");
+    const outDir = path.join(root, "dist");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, `
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ count: number }>) {
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
+      }
+    `);
+
+    const result = await compileFileArtifacts(input, {
+      outDir,
+      rootDir: path.join(root, "src")
+    });
+    const graph = createExactArtifactGraph([result], {
+      packageRoot: root,
+      sourceRoot: path.join(root, "src")
+    });
+
+    expect(graph.conditions).toEqual({
+      client: ["exact-client"],
+      server: ["exact-server"]
+    });
+    expect(graph.packageExports["./panel"]).toEqual({
+      "exact-client": "./dist/panel.exact.client.ts",
+      "exact-server": "./dist/panel.exact.server.ts",
+      default: "./dist/panel.exact.client.ts"
+    });
+    expect(graph.clientIslands).toEqual([expect.objectContaining({
+      name: "Panel_ExactClient_1",
+      exportName: "Panel_ExactClient_1",
+      module: "./dist/panel.exact.client.ts"
+    })]);
+    expect(graph.artifacts).toEqual([expect.objectContaining({
+      inputFile: input,
+      clientFile: result.clientFile,
+      serverFile: result.serverFile,
+      manifestFile: result.manifestFile
+    })]);
   });
 
   it("creates client island registry entries for generated client artifacts", async () => {
