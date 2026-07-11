@@ -93,6 +93,60 @@ describe("@exact/hydrate", () => {
     });
   });
 
+  it("auto-hydrates client islands returned from action patches", async () => {
+    const container = document.createElement("main");
+    container.innerHTML = "<!--exact:panel--><p>Old</p><!--/exact:panel-->";
+    const fetch = async (_input: string, init: { body: string }) => {
+      const response = await handleExactRequest({
+        method: "POST",
+        body: JSON.parse(init.body)
+      }, {
+        manifest: {
+          version: 1,
+          actions: {
+            save: { id: "save", placement: "server" }
+          },
+          boundaries: {
+            panel: { id: "panel" }
+          }
+        },
+        actions: {
+          save: () => ({
+            patches: [{
+              type: "replace",
+              id: "panel",
+              html: "<div data-exact-client-boundary=\"counter\" data-exact-client-name=\"Counter_ExactClient_1\" data-exact-client-props='{\"props\":{\"count\":8}}'></div>"
+            }]
+          })
+        }
+      });
+      return {
+        ok: response.status >= 200 && response.status < 300,
+        status: response.status,
+        async json() {
+          return JSON.parse(response.body);
+        }
+      };
+    };
+
+    function Counter(this: Component<{ count: number }>, props: { count: number }) {
+      this.state.count = props.count;
+      return () => createVNode("button", null, String(this.state.count));
+    }
+
+    const client = createExactClient(container, {
+      endpoint: "/__exact",
+      fetch,
+      islands: {
+        Counter_ExactClient_1: Counter
+      }
+    });
+    await client.invokeAction("save");
+
+    expect(container.querySelector("button")?.textContent).toBe("8");
+    expect(container.querySelector("[data-exact-client-hydrated=\"true\"]")).not.toBeNull();
+  });
+
   it("hydrates server-rendered client island placeholders", () => {
     const container = document.createElement("main");
     container.innerHTML = "<div data-exact-client-boundary=\"island-1\" data-exact-client-name=\"Counter_ExactClient_1\" data-exact-client-props='{\"props\":{\"count\":2}}'></div>";

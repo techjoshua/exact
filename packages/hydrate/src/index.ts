@@ -151,7 +151,7 @@ async function invokeAndApply(
     logger: options.logger
   });
   if (result.patches) applyPatches(container, result.patches, options);
-  if (type === "refresh" && options.islands) hydrateClientIslands(container, options.islands, options);
+  if (result.patches && options.islands) hydrateClientIslands(container, options.islands, options);
   if ("state" in result) client.state = result.state;
   return result;
 }
