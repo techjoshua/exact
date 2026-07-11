@@ -477,6 +477,19 @@ describe("@exact/hydrate", () => {
     expect(container.querySelector("[data-exact-client-boundary=\"panel\"] p")?.textContent).toBe("New");
   });
 
+  it("applies replacement patches to exact id elements", () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<section data-exact-id=\"panel\"><p>Old</p></section>";
+
+    applyPatches(container, [{
+      type: "replace",
+      id: "panel",
+      html: "<section data-exact-id=\"panel\"><strong>New</strong></section>"
+    }]);
+
+    expect(container.querySelector("[data-exact-id=\"panel\"] strong")?.textContent).toBe("New");
+  });
+
   it("applies prop and style patches to exact id elements", () => {
     const container = document.createElement("div");
     container.innerHTML = "<button data-exact-id=\"save\">Save</button>";

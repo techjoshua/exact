@@ -676,6 +676,11 @@ function applyPatch(container: Element, patch: ExactPatch): boolean {
         replaceElement(clientBoundary, patch.html);
         return true;
       }
+      const exactElement = findExactElement(container, patch.id);
+      if (exactElement) {
+        replaceElement(exactElement, patch.html);
+        return true;
+      }
       const slot = findServerSlotElement(container, patch.id);
       if (!slot) return false;
       replaceElementChildren(slot, patch.html);

@@ -467,7 +467,7 @@ function diffExactElementHtml(previousHtml: string, nextHtml: string): ExactPatc
   const previousById = collectExactElements(previousTree);
   const nextById = collectExactElements(nextTree);
   if (!previousById.size && !nextById.size) return undefined;
-  if (!sameKeys(previousById, nextById)) return undefined;
+  if (!sameKeys(previousById, nextById)) return rootExactElementReplace(previousTree, nextTree, nextHtml);
 
   const patches: ExactPatch[] = [];
   for (const [id, next] of nextById) {
@@ -507,7 +507,23 @@ function diffExactElementHtml(previousHtml: string, nextHtml: string): ExactPatc
     }
   }
 
-  return normalizedHtmlShape(previousTree) === normalizedHtmlShape(nextTree) ? patches : undefined;
+  return normalizedHtmlShape(previousTree) === normalizedHtmlShape(nextTree)
+    ? patches
+    : rootExactElementReplace(previousTree, nextTree, nextHtml);
+}
+
+function rootExactElementReplace(
+  previousTree: readonly ParsedHtmlNode[],
+  nextTree: readonly ParsedHtmlNode[],
+  nextHtml: string
+): ExactPatch[] | undefined {
+  if (previousTree.length !== 1 || nextTree.length !== 1) return undefined;
+  const previous = previousTree[0];
+  const next = nextTree[0];
+  if (previous?.kind !== "element" || next?.kind !== "element") return undefined;
+  const id = previous.attributes.get("data-exact-id");
+  if (!id || next.attributes.get("data-exact-id") !== id || previous.tagName !== next.tagName) return undefined;
+  return [{ type: "replace", id, html: nextHtml }];
 }
 
 export function diffKeyedListItems(

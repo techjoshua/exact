@@ -611,7 +611,7 @@ describe("@exact/ssr", () => {
     ]);
   });
 
-  it("falls back when nested exact id structure changes", () => {
+  it("replaces stable root exact elements when nested exact id structure changes", () => {
     expect(diffBoundaryHtml(
       "profile",
       "<section data-exact-id=\"root\"><h1 data-exact-id=\"title\">Loading</h1></section>",
@@ -620,7 +620,7 @@ describe("@exact/ssr", () => {
     )).toEqual([
       {
         type: "replace",
-        id: "profile",
+        id: "root",
         html: "<section data-exact-id=\"root\"><h1 data-exact-id=\"title\">Ready</h1><p data-exact-id=\"body\">New</p></section>"
       }
     ]);
