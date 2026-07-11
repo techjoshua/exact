@@ -1,0 +1,176 @@
+{
+  "version": 1,
+  "filename": "apps\\server-components\\src\\ProfilePage.tsx",
+  "components": [
+    {
+      "id": "xqvx4d9",
+      "name": "ProfilePage",
+      "exported": true,
+      "placement": "isomorphic",
+      "subgraphPlacement": "isomorphic",
+      "renderEdges": [],
+      "clientIslandCount": 1,
+      "tasks": [
+        {
+          "id": "xxhbu5y",
+          "placement": "server",
+          "requestedPlacement": "server",
+          "async": true,
+          "browserEffects": false,
+          "reads": [],
+          "writes": [
+            {
+              "path": "status",
+              "kind": "write",
+              "confidence": "exact"
+            }
+          ],
+          "diagnostics": [
+            "task placement forced by this.task.server()"
+          ]
+        }
+      ],
+      "splitBoundaries": [
+        "event-handler"
+      ],
+      "diagnostics": [
+        "task placement forced by this.task.server()"
+      ]
+    }
+  ],
+  "exports": [
+    {
+      "name": "ProfilePage",
+      "kind": "component",
+      "placement": "isomorphic"
+    }
+  ],
+  "symbols": [
+    {
+      "id": "xjajidn",
+      "componentId": "xqvx4d9",
+      "exportName": "ProfilePage",
+      "localName": "ProfilePage",
+      "generatedName": "ProfilePage",
+      "debugName": "ProfilePage",
+      "kind": "component",
+      "role": "root",
+      "target": "both",
+      "placement": "isomorphic"
+    },
+    {
+      "id": "x4gpi7t",
+      "componentId": "xqvx4d9",
+      "exportName": "ProfilePage_ExactServer_1",
+      "localName": "ProfilePage",
+      "generatedName": "ProfilePage_ExactServer_1",
+      "debugName": "ProfilePage:server-part:1",
+      "kind": "component",
+      "role": "server-part",
+      "target": "server",
+      "placement": "isomorphic"
+    },
+    {
+      "id": "x1wcbdtx",
+      "componentId": "xqvx4d9",
+      "exportName": "ProfilePage_ExactClient_1",
+      "localName": "ProfilePage_ExactClient_1",
+      "generatedName": "ProfilePage_ExactClient_1",
+      "debugName": "ProfilePage:client-island:1",
+      "kind": "component",
+      "role": "client-island",
+      "target": "client",
+      "placement": "client"
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "x1wcbdtx",
+      "name": "ProfilePage_ExactClient_1",
+      "componentId": "xqvx4d9",
+      "ownerComponentId": "xqvx4d9",
+      "kind": "client-island"
+    }
+  ],
+  "serverActions": {
+    "xxhbu5y": {
+      "id": "xxhbu5y",
+      "componentId": "xqvx4d9",
+      "taskId": "xxhbu5y",
+      "placement": "server",
+      "stateContract": {
+        "reads": [],
+        "writes": [
+          {
+            "path": "status",
+            "kind": "write",
+            "confidence": "exact"
+          }
+        ]
+      }
+    }
+  },
+  "diagnostics": [
+    "task placement forced by this.task.server()"
+  ],
+  "artifacts": {
+    "source": "../src/ProfilePage.tsx",
+    "client": "ProfilePage.exact.client.ts",
+    "server": "ProfilePage.exact.server.ts",
+    "manifest": "ProfilePage.exact.manifest.json",
+    "exports": [
+      {
+        "name": "ProfilePage",
+        "kind": "component",
+        "placement": "isomorphic"
+      }
+    ],
+    "symbols": [
+      {
+        "id": "xjajidn",
+        "componentId": "xqvx4d9",
+        "exportName": "ProfilePage",
+        "localName": "ProfilePage",
+        "generatedName": "ProfilePage",
+        "debugName": "ProfilePage",
+        "kind": "component",
+        "role": "root",
+        "target": "both",
+        "placement": "isomorphic"
+      },
+      {
+        "id": "x4gpi7t",
+        "componentId": "xqvx4d9",
+        "exportName": "ProfilePage_ExactServer_1",
+        "localName": "ProfilePage",
+        "generatedName": "ProfilePage_ExactServer_1",
+        "debugName": "ProfilePage:server-part:1",
+        "kind": "component",
+        "role": "server-part",
+        "target": "server",
+        "placement": "isomorphic"
+      },
+      {
+        "id": "x1wcbdtx",
+        "componentId": "xqvx4d9",
+        "exportName": "ProfilePage_ExactClient_1",
+        "localName": "ProfilePage_ExactClient_1",
+        "generatedName": "ProfilePage_ExactClient_1",
+        "debugName": "ProfilePage:client-island:1",
+        "kind": "component",
+        "role": "client-island",
+        "target": "client",
+        "placement": "client"
+      }
+    ],
+    "boundaries": [
+      {
+        "id": "x1wcbdtx",
+        "name": "ProfilePage_ExactClient_1",
+        "componentId": "xqvx4d9",
+        "ownerComponentId": "xqvx4d9",
+        "kind": "client-island"
+      }
+    ]
+  }
+}

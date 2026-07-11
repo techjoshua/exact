@@ -5,7 +5,8 @@
     "noEmit": true,
     "lib": ["ES2022", "DOM"],
     "jsx": "preserve",
-    "jsxImportSource": "@exact/jsx"
+    "jsxImportSource": "@exact/jsx",
+    "resolveJsonModule": true
   },
   "references": [
     { "path": "../../packages/core" },
@@ -13,5 +14,5 @@
     { "path": "../../packages/server" },
     { "path": "../../packages/ssr" }
   ],
-  "include": ["src"]
+  "include": ["src", ".exact/**/*.exact.server.ts", ".exact/**/*.exact.manifest.json"]
 }

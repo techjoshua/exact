@@ -174,6 +174,27 @@ describe("@exact/server", () => {
     });
   });
 
+  it("merges app-provided action allowlists with compiler manifests", () => {
+    const manifest = createExactServerManifest({
+      version: 1,
+      components: [{ id: "Profile", placement: "isomorphic" }],
+      boundaries: [
+        { id: "profile-client", componentId: "ClientWidget", ownerComponentId: "Profile", kind: "client-island" }
+      ]
+    }, {
+      actions: {
+        "save-profile": { id: "save-profile", componentId: "Profile", placement: "server" }
+      }
+    });
+
+    expect(manifest.actions).toEqual({
+      "save-profile": { id: "save-profile", componentId: "Profile", placement: "server" }
+    });
+    expect(manifest.actionBoundaries).toEqual({
+      "save-profile": ["Profile", "profile-client"]
+    });
+  });
+
   it("dispatches only manifest-allowlisted actions", async () => {
     const allowed = await handleExactRequest({
       method: "POST",

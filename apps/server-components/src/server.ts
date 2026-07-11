@@ -10,34 +10,22 @@ import {
   createExactServerHandlerRegistry,
   renderToHydratableStringAsync
 } from "@exact/ssr";
-import { ProfilePage } from "./ProfilePage.js";
+import profileCompilerManifest from "../.exact/ProfilePage.exact.manifest.json" with { type: "json" };
+import { ProfilePage } from "../.exact/ProfilePage.exact.server.js";
 
-const compilerManifest = {
-  version: 1,
-  serverActions: {
+const generatedProfileManifest = profileCompilerManifest as ExactCompilerManifestLike & typeof profileCompilerManifest;
+const profileComponentId = profileCompilerManifest.components.find(component => component.name === "ProfilePage")!.id;
+const profileBoundaryId = profileCompilerManifest.boundaries.find(boundary => boundary.ownerComponentId === profileComponentId)!.id;
+
+export const exactManifest = createExactServerManifest(generatedProfileManifest, {
+  endpoint: "/__exact",
+  actions: {
     "save-profile": {
       id: "save-profile",
-      componentId: "ProfilePage",
-      taskId: "save-profile",
+      componentId: profileComponentId,
       placement: "server"
     }
-  },
-  components: [
-    { id: "ProfilePage", placement: "server" }
-  ],
-  boundaries: [
-    {
-      id: "profile",
-      name: "ProfilePage",
-      componentId: "ProfilePage",
-      ownerComponentId: "ProfilePage",
-      kind: "client-island"
-    }
-  ]
-} satisfies ExactCompilerManifestLike;
-
-export const exactManifest = createExactServerManifest(compilerManifest, {
-  endpoint: "/__exact"
+  }
 });
 
 export const exactHandlers = createExactServerHandlerRegistry({
@@ -48,7 +36,7 @@ export const exactHandlers = createExactServerHandlerRegistry({
     "save-profile": () => ({ state: { saved: true } })
   },
   boundaries: {
-    profile: () => createVNode("section", { className: "saved" }, "Saved on the server")
+    [profileBoundaryId]: () => createVNode("section", { className: "saved" }, "Saved on the server")
   }
 });
 

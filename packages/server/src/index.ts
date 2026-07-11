@@ -61,6 +61,7 @@ export type ExactCompilerManifestLike = {
 
 export type CreateExactServerManifestOptions = {
   endpoint?: string;
+  actions?: Record<string, ExactManifestAction>;
   boundaries?: Record<string, ExactManifestBoundary>;
 };
 
@@ -154,7 +155,7 @@ export function createExactServerManifest(
   compilerManifest: ExactCompilerManifestLike | readonly ExactCompilerManifestLike[],
   options: CreateExactServerManifestOptions = {}
 ): ExactServerManifest {
-  const actions: Record<string, ExactManifestAction> = {};
+  const actions: Record<string, ExactManifestAction> = { ...options.actions };
   const boundaries: Record<string, ExactManifestBoundary> = { ...options.boundaries };
 
   for (const manifest of normalizeCompilerManifests(compilerManifest)) {

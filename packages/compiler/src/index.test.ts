@@ -1039,7 +1039,7 @@ describe("@exact/compiler", () => {
       }
     `, { filename: "Panel.tsx", target: "client" });
 
-    expect(output).toContain("export function Panel_ExactClient_1(props = {})");
+    expect(output).toContain("export function Panel_ExactClient_1(this: any, props: any = {})");
     expect(output).toContain("Object.assign(this.state, props.__exactState)");
     expect(output).toContain("title: props.title");
     expect(output).toContain("onClick: () => this.state.count++");
@@ -1058,7 +1058,7 @@ describe("@exact/compiler", () => {
       }
     `, { filename: "Panel.tsx", target: "client", serverComponents: true });
 
-    expect(output).toContain("export function Panel_ExactClient_1(props = {})");
+    expect(output).toContain("export function Panel_ExactClient_1(this: any, props: any = {})");
     expect(output).not.toContain("export function Panel(");
     expect(output).not.toContain("node:fs/promises");
     expect(output).not.toContain("readFile");
@@ -1097,7 +1097,7 @@ describe("@exact/compiler", () => {
     const client = transform(source, { filename: "Panel.tsx", target: "client" });
     const server = transform(source, { filename: "Panel.tsx", target: "server" });
 
-    expect(client).toContain("export function Panel_ExactClient_1(props = {})");
+    expect(client).toContain("export function Panel_ExactClient_1(this: any, props: any = {})");
     expect(client).toContain("title: props.title");
     expect(client).toContain("onClick: () => this.state.count++");
     expect(client).toContain("__exactDynamic(() => this.state.count)");
@@ -1188,7 +1188,7 @@ describe("@exact/compiler", () => {
     const server = transform(source, { filename: "Panel.tsx", target: "server" });
 
     expect(manifest.components[0]!.clientIslandCount).toBe(1);
-    expect(client).toContain("export function Panel_ExactClient_1(props = {})");
+    expect(client).toContain("export function Panel_ExactClient_1(this: any, props: any = {})");
     expect(client).not.toContain("export function Panel_ExactClient_2");
     expect(server).toContain("Panel_ExactClient_1");
     expect(server).not.toContain("Panel_ExactClient_2");

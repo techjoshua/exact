@@ -2185,14 +2185,23 @@ function createClientIslandDefinition(
     undefined,
     factory.createIdentifier(generatedName),
     undefined,
-    [factory.createParameterDeclaration(
-      undefined,
-      undefined,
-      props,
-      undefined,
-      undefined,
-      factory.createObjectLiteralExpression([], false)
-    )],
+    [
+      factory.createParameterDeclaration(
+        undefined,
+        undefined,
+        factory.createIdentifier("this"),
+        undefined,
+        factory.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword)
+      ),
+      factory.createParameterDeclaration(
+        undefined,
+        undefined,
+        props,
+        undefined,
+        factory.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword),
+        factory.createObjectLiteralExpression([], false)
+      )
+    ],
     undefined,
     factory.createBlock([
       ...capturedFunctionDeclarations(context, captures.functions, props, captures.values),
