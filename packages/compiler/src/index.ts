@@ -193,6 +193,7 @@ export type ExactArtifactGraph = {
   };
   packageExports: Record<string, PackageExportEntry>;
   clientIslands: ClientIslandRegistryEntry[];
+  serverParts: ServerPartRegistryEntry[];
   artifacts: ExactArtifactGraphEntry[];
 };
 
@@ -209,6 +210,18 @@ export type ClientIslandRegistryOptions = {
 };
 
 export type ClientIslandRegistryEntry = {
+  id: string;
+  name: string;
+  exportName: string;
+  module: string;
+  componentId?: string;
+};
+
+export type ServerPartRegistryOptions = {
+  rootDir?: string;
+};
+
+export type ServerPartRegistryEntry = {
   id: string;
   name: string;
   exportName: string;
@@ -514,6 +527,9 @@ export function createExactArtifactGraph(
     clientIslands: createClientIslandRegistryEntries(results, {
       rootDir: options.rootDir ?? options.packageRoot
     }),
+    serverParts: createServerPartRegistryEntries(results, {
+      rootDir: options.rootDir ?? options.packageRoot
+    }),
     artifacts: results.map(result => ({
       inputFile: result.inputFile,
       clientFile: result.clientFile,
@@ -534,6 +550,29 @@ export function createClientIslandRegistryEntries(
     const modulePath = clientRegistryModulePath(result.clientFile, options.rootDir ?? path.dirname(result.manifestFile));
     for (const symbol of result.manifest.symbols) {
       if (symbol.role !== "client-island" || symbol.target !== "client" || !symbol.exportName) continue;
+      entries.push({
+        id: symbol.id,
+        name: symbol.generatedName,
+        exportName: symbol.exportName,
+        module: modulePath,
+        componentId: symbol.componentId
+      });
+    }
+  }
+
+  return entries.sort((left, right) => left.id.localeCompare(right.id));
+}
+
+export function createServerPartRegistryEntries(
+  results: readonly CompileArtifactsResult[],
+  options: ServerPartRegistryOptions = {}
+): ServerPartRegistryEntry[] {
+  const entries: ServerPartRegistryEntry[] = [];
+
+  for (const result of results) {
+    const modulePath = clientRegistryModulePath(result.serverFile, options.rootDir ?? path.dirname(result.manifestFile));
+    for (const symbol of result.manifest.symbols) {
+      if (symbol.role !== "server-part" || symbol.target !== "server" || !symbol.exportName) continue;
       entries.push({
         id: symbol.id,
         name: symbol.generatedName,

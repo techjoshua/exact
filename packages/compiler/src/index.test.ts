@@ -11,6 +11,7 @@ import {
   compileFileArtifacts,
   compileProject,
   createPackageExportMap,
+  createServerPartRegistryEntries,
   diffExactArtifactPlans,
   exactExportConditions,
   generatedComponentName,
@@ -473,6 +474,11 @@ describe("@exact/compiler", () => {
       exportName: "Panel_ExactClient_1",
       module: "./dist/panel.exact.client.ts"
     })]);
+    expect(graph.serverParts).toEqual([expect.objectContaining({
+      name: "Panel_ExactServer_1",
+      exportName: "Panel_ExactServer_1",
+      module: "./dist/panel.exact.server.ts"
+    })]);
     expect(graph.artifacts).toEqual([expect.objectContaining({
       inputFile: input,
       clientFile: result.clientFile,
@@ -556,6 +562,38 @@ describe("@exact/compiler", () => {
       name: "Panel_ExactClient_1",
       exportName: "Panel_ExactClient_1",
       module: "./dist/panel.exact.client.ts",
+      componentId: result.manifest.components[0]!.id
+    }]);
+  });
+
+  it("creates server part registry entries for generated server artifacts", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-server-part-registry-"));
+    const input = path.join(root, "src", "panel.tsx");
+    const outDir = path.join(root, "dist");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, `
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ count: number }>) {
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
+      }
+    `);
+
+    const result = await compileFileArtifacts(input, {
+      outDir,
+      rootDir: path.join(root, "src")
+    });
+
+    expect(createServerPartRegistryEntries([result], {
+      rootDir: root
+    })).toEqual([{
+      id: expect.any(String),
+      name: "Panel_ExactServer_1",
+      exportName: "Panel_ExactServer_1",
+      module: "./dist/panel.exact.server.ts",
       componentId: result.manifest.components[0]!.id
     }]);
   });
