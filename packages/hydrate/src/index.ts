@@ -37,7 +37,7 @@ export type ExactClient = {
   readonly endpoint?: string;
   state?: unknown;
   readonly stateContracts?: Record<string, ExactStateContract>;
-  applyPatches(patches: readonly ExactPatch[]): void;
+  applyPatches(patches: readonly ExactPatch[]): boolean;
   invokeAction(id: string, payload?: unknown): Promise<ExactInvocationResult>;
   refreshBoundary(id: string, payload?: unknown): Promise<ExactInvocationResult>;
   refreshIsland(id: string, registry: ClientIslandRegistry, payload?: unknown): Promise<ExactInvocationResult>;
@@ -86,7 +86,7 @@ export function createExactClient(container: Element, options: HydrateOptions = 
     state: resolvedOptions.state,
     stateContracts: resolvedOptions.stateContracts,
     applyPatches(patches) {
-      applyPatches(container, patches, resolvedOptions);
+      return applyPatches(container, patches, resolvedOptions);
     },
     invokeAction(id, payload) {
       return invokeAndApply(container, client, "action", id, payload, resolvedOptions);
@@ -150,7 +150,10 @@ async function invokeAndApply(
     headers: options.headers,
     logger: options.logger
   });
-  if (result.patches) applyPatches(container, result.patches, options);
+  const patchesApplied = result.patches ? applyPatches(container, result.patches, options) : true;
+  if (!patchesApplied && type === "refresh" && result.html) {
+    applyPatches(container, [{ type: "replace", id, html: result.html }], options);
+  }
   if (result.patches && options.islands) hydrateClientIslands(container, options.islands, options);
   if ("state" in result) client.state = result.state;
   return result;
@@ -197,7 +200,7 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
   return body as ExactInvocationResult;
 }
 
-export function applyPatches(container: Element, patches: readonly ExactPatch[], options: HydrateOptions = {}): void {
+export function applyPatches(container: Element, patches: readonly ExactPatch[], options: HydrateOptions = {}): boolean {
   for (const patch of patches) {
     const ok = applyPatch(container, patch);
     if (!ok) {
@@ -205,9 +208,10 @@ export function applyPatches(container: Element, patches: readonly ExactPatch[],
       if (options.onMismatch === "throw") {
         throw new Error(`Could not apply exact patch ${patch.type}:${patch.id}`);
       }
-      return;
+      return false;
     }
   }
+  return true;
 }
 
 function requireEndpoint(endpoint: string | undefined): string {

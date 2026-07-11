@@ -220,6 +220,7 @@ export function createBoundaryRefreshHandler(
       patches: previousHtml === undefined
         ? [boundaryPatch(options.boundaryId, result.html, options.patchStrategy)]
         : diffBoundaryHtml(options.boundaryId, previousHtml, result.html, options.patchStrategy),
+      html: result.html,
       state: result.state
     };
   };

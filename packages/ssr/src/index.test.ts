@@ -269,6 +269,7 @@ describe("@exact/ssr", () => {
     expect(JSON.parse(response.body)).toMatchObject({
       ok: true,
       state: { refreshed: true },
+      html: "<p>Ada</p>",
       patches: [{ type: "replace", id: "profile", html: "<p>Ada</p>" }]
     });
   });

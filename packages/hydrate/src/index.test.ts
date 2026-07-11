@@ -293,6 +293,45 @@ describe("@exact/hydrate", () => {
     expect(container.querySelector("[data-exact-client-hydrated=\"true\"]")).not.toBeNull();
   });
 
+  it("falls back to refresh replacement html when fine-grained patches miss", async () => {
+    const container = document.createElement("main");
+    container.innerHTML = "<!--exact:panel--><p>Old</p><!--/exact:panel-->";
+    const fetch = async (_input: string, init: { body: string }) => {
+      const response = await handleExactRequest({
+        method: "POST",
+        body: JSON.parse(init.body)
+      }, {
+        manifest: {
+          version: 1,
+          boundaries: {
+            panel: { id: "panel" }
+          }
+        },
+        refreshBoundaries: {
+          panel: () => ({
+            patches: [{ type: "text", id: "missing", value: "No target" }],
+            html: "<section>Fallback</section>"
+          })
+        }
+      });
+      return {
+        ok: response.status >= 200 && response.status < 300,
+        status: response.status,
+        async json() {
+          return JSON.parse(response.body);
+        }
+      };
+    };
+
+    const client = createExactClient(container, {
+      endpoint: "/__exact",
+      fetch
+    });
+    await client.refreshBoundary("panel");
+
+    expect(container.innerHTML).toBe("<!--exact:panel--><section>Fallback</section><!--/exact:panel-->");
+  });
+
   it("refreshes server child slots without replacing the client island", async () => {
     const container = document.createElement("main");
     container.innerHTML = "<div data-exact-client-boundary=\"island-children\" data-exact-client-name=\"Shell_ExactClient_1\" data-exact-client-props='{\"props\":{\"children\":{\"__exactServerSlot\":\"island-children:children\"}}}'><span data-exact-server-slot=\"island-children:children\" style=\"display: contents;\"><p>Old child</p></span></div>";
@@ -355,9 +394,15 @@ describe("@exact/hydrate", () => {
     const container = document.createElement("div");
     container.innerHTML = "<!--exact:title-->Old<!--/exact:title-->";
 
-    applyPatches(container, [{ type: "text", id: "title", value: "New" }]);
+    expect(applyPatches(container, [{ type: "text", id: "title", value: "New" }])).toBe(true);
 
     expect(container.textContent).toBe("New");
+  });
+
+  it("reports false when patches cannot apply", () => {
+    const container = document.createElement("div");
+
+    expect(applyPatches(container, [{ type: "text", id: "missing", value: "New" }], { logger: noopLogger })).toBe(false);
   });
 
   it("applies text and replacement patches to server child slots", () => {
