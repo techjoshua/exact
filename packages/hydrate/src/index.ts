@@ -10,6 +10,7 @@ export type HydrateOptions = {
   onMismatch?: "replace" | "throw";
   fetch?: FetchLike;
   headers?: Record<string, string>;
+  transports?: Record<string, ExactEndpointTransport>;
   stateContracts?: Record<string, ExactStateContract>;
   actionBoundaries?: Record<string, readonly string[]>;
   islands?: ClientIslandRegistry;
@@ -26,6 +27,7 @@ export type ExactHydrationConfig = {
 
 export type ExactHydrationRegistration = ExactHydrationConfig & {
   islands?: ClientIslandRegistry;
+  transports?: Record<string, ExactEndpointTransport>;
 };
 
 export type ExactEndpointRoutes = {
@@ -44,6 +46,11 @@ export type FetchLike = (input: string, init: {
   status: number;
   json(): Promise<unknown>;
 }>;
+
+export type ExactEndpointTransport = {
+  fetch?: FetchLike;
+  headers?: Record<string, string>;
+};
 
 export type ExactClient = {
   readonly endpoint?: string;
@@ -101,7 +108,8 @@ export function createExactClient(container: Element, options: HydrateOptions = 
     endpoints: cloneEndpointRoutes(resolvedOptions.endpoints),
     stateContracts: { ...(resolvedOptions.stateContracts ?? {}) },
     actionBoundaries: { ...(resolvedOptions.actionBoundaries ?? {}) },
-    islands: { ...(resolvedOptions.islands ?? {}) }
+    islands: { ...(resolvedOptions.islands ?? {}) },
+    transports: { ...(resolvedOptions.transports ?? {}) }
   };
   const client: ExactClient = {
     get endpoint() {
@@ -179,19 +187,20 @@ async function invokeAndApply(
     boundaryHtmls: type === "action" ? boundaryHtmlsFor(container, options.actionBoundaries?.[id]) : undefined
   };
   const endpoint = requireEndpoint(endpointForOperation(client, type, id));
+  const transport = transportForEndpoint(options, endpoint);
   const result = options.batch === false
     ? await invokeExact({
       endpoint,
       ...operation,
-      fetch: options.fetch,
-      headers: options.headers,
+      fetch: transport.fetch,
+      headers: transport.headers,
       logger: options.logger
     })
     : await enqueueExactOperation(container, {
       endpoint,
       operation,
-      fetch: options.fetch,
-      headers: options.headers,
+      fetch: transport.fetch,
+      headers: transport.headers,
       logger: options.logger
     });
   const patchesApplied = result.patches ? applyPatches(container, result.patches, options) : true;
@@ -226,6 +235,7 @@ type ExactBatchQueue = {
   endpoint: string;
   fetch?: FetchLike;
   headers?: Record<string, string>;
+  headersKey: string;
   logger?: Logger;
   pending: PendingExactOperation[];
   scheduled: boolean;
@@ -309,12 +319,14 @@ function enqueueExactOperation(
     queues = [];
     batchQueues.set(container, queues);
   }
-  let queue = queues.find(item => item.endpoint === options.endpoint && item.fetch === options.fetch && item.headers === options.headers && item.logger === options.logger);
+  const headersKey = headersCacheKey(options.headers);
+  let queue = queues.find(item => item.endpoint === options.endpoint && item.fetch === options.fetch && item.headersKey === headersKey && item.logger === options.logger);
   if (!queue) {
     queue = {
       endpoint: options.endpoint,
       fetch: options.fetch,
       headers: options.headers,
+      headersKey,
       logger: options.logger,
       pending: [],
       scheduled: false
@@ -412,6 +424,17 @@ function endpointForOperation(client: ExactClient, type: ExactInvocationKind, id
   return client.endpoints?.boundaries?.[id] ?? client.endpoint;
 }
 
+function transportForEndpoint(options: HydrateOptions, endpoint: string): { fetch?: FetchLike; headers?: Record<string, string> } {
+  const transport = options.transports?.[endpoint];
+  return {
+    fetch: transport?.fetch ?? options.fetch,
+    headers: {
+      ...(options.headers ?? {}),
+      ...(transport?.headers ?? {})
+    }
+  };
+}
+
 function resolveHydrateOptions(container: Element, options: HydrateOptions): HydrateOptions {
   const config = readExactHydrationConfig(hydrationConfigRoot(container));
   return {
@@ -465,6 +488,12 @@ function mergeHydrationRegistration(options: HydrateOptions, registration: Exact
     };
   }
   if (registration.islands) mergeClientIslands(options, registration.islands);
+  if (registration.transports) {
+    options.transports = {
+      ...(options.transports ?? {}),
+      ...registration.transports
+    };
+  }
 }
 
 function mergeClientIslands(options: HydrateOptions, islands: ClientIslandRegistry): void {
@@ -472,6 +501,14 @@ function mergeClientIslands(options: HydrateOptions, islands: ClientIslandRegist
     ...(options.islands ?? {}),
     ...islands
   };
+}
+
+function headersCacheKey(headers: Record<string, string> | undefined): string {
+  if (!headers) return "";
+  return Object.entries(headers)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([name, value]) => `${name}:${value}`)
+    .join("\n");
 }
 
 function hydrationConfigRoot(container: Element): ParentNode {

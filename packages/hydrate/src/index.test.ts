@@ -1047,6 +1047,83 @@ describe("@exact/hydrate", () => {
     expect(container.querySelector("button")?.textContent).toBe("Loaded");
   });
 
+  it("uses endpoint-specific transports for registered remote operations", async () => {
+    const container = document.createElement("div");
+    const remoteRequests: { input: string; headers: Record<string, string>; body: unknown }[] = [];
+    const rootFetch = async () => {
+      throw new Error("root fetch should not receive remote operations");
+    };
+    const remoteFetch = async (input: string, init: { headers: Record<string, string>; body: string }) => {
+      remoteRequests.push({ input, headers: init.headers, body: JSON.parse(init.body) });
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          const body = JSON.parse(init.body);
+          return {
+            ok: true,
+            version: 1,
+            results: body.operations.map((operation: { type: string; id: string }) => ({
+              ok: true,
+              type: operation.type,
+              id: operation.id,
+              patches: []
+            }))
+          };
+        }
+      };
+    };
+
+    const client = createExactClient(container, {
+      endpoint: "/__exact",
+      fetch: rootFetch,
+      headers: {
+        "x-root": "root",
+        "x-shared": "root"
+      }
+    });
+    client.registerManifest({
+      endpoints: {
+        actions: {
+          "remote-a": "https://remote.test/__exact",
+          "remote-b": "https://remote.test/__exact"
+        }
+      },
+      transports: {
+        "https://remote.test/__exact": {
+          fetch: remoteFetch,
+          headers: {
+            "x-remote": "remote",
+            "x-shared": "remote"
+          }
+        }
+      }
+    });
+
+    await Promise.all([
+      client.invokeAction("remote-a"),
+      client.invokeAction("remote-b")
+    ]);
+
+    expect(remoteRequests).toEqual([{
+      input: "https://remote.test/__exact",
+      headers: {
+        "content-type": "application/json",
+        "x-root": "root",
+        "x-shared": "remote",
+        "x-remote": "remote"
+      },
+      body: {
+        type: "batch",
+        version: 1,
+        operations: [
+          { type: "action", id: "remote-a" },
+          { type: "action", id: "remote-b" }
+        ]
+      }
+    }]);
+  });
+
   it("applies successful batched client operations when a sibling operation fails", async () => {
     const container = document.createElement("div");
     container.innerHTML = "<!--exact:title-->Old<!--/exact:title-->";

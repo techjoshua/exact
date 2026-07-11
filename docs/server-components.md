@@ -127,7 +127,7 @@ Hydration restores serialized state before the initial client render and skips d
 
 Apps can also provide per-action and per-boundary endpoint routes in the hydration config. The root `endpoint` remains the default, while routed operations are sent to their configured endpoint and batched separately from same-tick operations targeting other endpoints.
 
-Dynamically loaded bundles can register additional hydration metadata against an existing root with `client.registerManifest(...)`. Registration merges endpoint routes, state contracts, action boundary hints, and client island components so a remote subtree can route server operations to its own endpoint and hydrate returned client islands without recreating the shell root.
+Dynamically loaded bundles can register additional hydration metadata against an existing root with `client.registerManifest(...)`. Registration merges endpoint routes, state contracts, action boundary hints, client island components, and optional per-endpoint transport hooks so a remote subtree can route server operations to its own endpoint and hydrate returned client islands without recreating the shell root.
 
 ## Protocol
 
@@ -167,7 +167,7 @@ The expected model:
 - Endpoint routing is manifest/action/boundary scoped. A shell action can use `/__exact`, while a billing boundary can use `https://billing.example.com/__exact`.
 - Client batching groups same-tick operations per endpoint. Operations for different remotes produce separate endpoint batches, while preserving each endpoint's existing `opId` / `dependsOn` dependency behavior.
 - A remote endpoint should only accept IDs from the manifests it owns or that the host explicitly provides. Patches from a remote endpoint should only target boundaries owned by that remote manifest unless the host grants cross-manifest authority.
-- Dynamically loaded remotes can register manifest metadata, endpoint routing, and client islands at runtime. Optional per-remote transport hooks remain future work.
+- Dynamically loaded remotes can register manifest metadata, endpoint routing, client islands, and optional per-endpoint transport hooks at runtime.
 
 Context sharing across micro frontend bundles also needs an explicit design:
 
