@@ -207,6 +207,64 @@ describe("@exact/hydrate", () => {
     expect(container.querySelector("[data-exact-client-hydrated=\"true\"]")).not.toBeNull();
   });
 
+  it("refreshes server child slots without replacing the client island", async () => {
+    const container = document.createElement("main");
+    container.innerHTML = "<div data-exact-client-boundary=\"island-children\" data-exact-client-name=\"Shell_ExactClient_1\" data-exact-client-props='{\"props\":{\"children\":{\"__exactServerSlot\":\"island-children:children\"}}}'><span data-exact-server-slot=\"island-children:children\" style=\"display: contents;\"><p>Old child</p></span></div>";
+    let requestBody: any;
+    const fetch = async (_input: string, init: { body: string }) => {
+      requestBody = JSON.parse(init.body);
+      const response = await handleExactRequest({
+        method: "POST",
+        body: requestBody
+      }, {
+        manifest: {
+          version: 1,
+          boundaries: {
+            "island-children:children": { id: "island-children:children" }
+          }
+        },
+        refreshBoundaries: {
+          "island-children:children": () => ({
+            patches: [{
+              type: "replace",
+              id: "island-children:children",
+              html: "<p>New child</p>"
+            }]
+          })
+        }
+      });
+      return {
+        ok: response.status >= 200 && response.status < 300,
+        status: response.status,
+        async json() {
+          return JSON.parse(response.body);
+        }
+      };
+    };
+
+    function Shell(this: Component<{}>, props: { children?: unknown }) {
+      return () => createVNode("section", { "data-shell": "stable" }, props.children);
+    }
+
+    const client = createExactClient(container, {
+      endpoint: "/__exact",
+      fetch,
+      islands: {
+        Shell_ExactClient_1: Shell
+      }
+    });
+    hydrateClientIslands(container, {
+      Shell_ExactClient_1: Shell
+    });
+    const shell = container.querySelector("section");
+
+    await client.refreshBoundary("island-children:children");
+
+    expect(requestBody.boundaryHtml).toBe("<p>Old child</p>");
+    expect(container.querySelector("section")).toBe(shell);
+    expect(container.querySelector("[data-exact-server-slot=\"island-children:children\"] p")?.textContent).toBe("New child");
+  });
+
   it("applies text patches to exact marker ranges", () => {
     const container = document.createElement("div");
     container.innerHTML = "<!--exact:title-->Old<!--/exact:title-->";
@@ -214,6 +272,17 @@ describe("@exact/hydrate", () => {
     applyPatches(container, [{ type: "text", id: "title", value: "New" }]);
 
     expect(container.textContent).toBe("New");
+  });
+
+  it("applies text and replacement patches to server child slots", () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<span data-exact-server-slot=\"slot-1\" style=\"display: contents;\"><p>Old</p></span>";
+
+    applyPatches(container, [{ type: "text", id: "slot-1", value: "Plain" }]);
+    expect(container.querySelector("[data-exact-server-slot=\"slot-1\"]")?.textContent).toBe("Plain");
+
+    applyPatches(container, [{ type: "replace", id: "slot-1", html: "<strong>Rich</strong>" }]);
+    expect(container.querySelector("[data-exact-server-slot=\"slot-1\"] strong")?.textContent).toBe("Rich");
   });
 
   it("applies replacement patches to exact marker ranges", () => {

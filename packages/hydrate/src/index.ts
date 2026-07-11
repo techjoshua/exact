@@ -253,7 +253,7 @@ function reviveServerSlots(value: unknown): unknown {
 
 function boundaryInnerHtml(container: Element, id: string): string | undefined {
   const range = findExactRange(container, id);
-  if (!range) return undefined;
+  if (!range) return findServerSlotElement(container, id)?.innerHTML;
   const wrapper = document.createElement("div");
   let cursor = range.start.nextSibling;
   while (cursor && cursor !== range.end) {
@@ -313,7 +313,7 @@ function isStateContract(value: unknown): value is ExactStateContract {
 
 function applyPatch(container: Element, patch: ExactPatch): boolean {
   if (patch.type === "text") {
-    const target = findExactTarget(container, patch.id);
+    const target = findExactTarget(container, patch.id) ?? findServerSlotElement(container, patch.id);
     if (!target) return false;
     target.textContent = patch.value;
     return true;
@@ -340,7 +340,12 @@ function applyPatch(container: Element, patch: ExactPatch): boolean {
 
   if (patch.type === "replace") {
     const range = findExactRange(container, patch.id);
-    if (!range) return false;
+    if (!range) {
+      const slot = findServerSlotElement(container, patch.id);
+      if (!slot) return false;
+      replaceElementChildren(slot, patch.html);
+      return true;
+    }
     replaceRange(range, patch.html);
     return true;
   }
@@ -404,6 +409,10 @@ function findExactElement(container: Element, id: string): Element | undefined {
   return container.querySelector(`[data-exact-id="${cssEscape(id)}"]`) ?? undefined;
 }
 
+function findServerSlotElement(container: Element, id: string): Element | undefined {
+  return container.querySelector(`[data-exact-server-slot="${cssEscape(id)}"]`) ?? undefined;
+}
+
 function findExactElementTarget(container: Element, id: string): Element | undefined {
   const exact = findExactElement(container, id);
   if (exact) return exact;
@@ -465,6 +474,14 @@ function replaceRange(range: { start: Comment; end: Comment }, html: string): vo
   const template = document.createElement("template");
   template.innerHTML = html;
   range.end.parentNode?.insertBefore(template.content, range.end);
+}
+
+function replaceElementChildren(element: Element, html: string): void {
+  element.replaceChildren();
+  if (!html) return;
+  const template = document.createElement("template");
+  template.innerHTML = html;
+  element.appendChild(template.content);
 }
 
 function insertHtmlBefore(anchor: Node, html: string): void {
