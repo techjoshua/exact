@@ -635,6 +635,40 @@ describe("@exact/hydrate", () => {
         async json() {
           return {
             ok: true,
+            patches: [{ type: "state", id: "profile", value: undefined }]
+          };
+        }
+      })
+    })).rejects.toThrow("eXact action invocation returned malformed result");
+
+    await expect(invokeExact({
+      endpoint: "/__exact",
+      type: "action",
+      id: "save",
+      fetch: async () => ({
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            ok: true,
+            state: { savedAt: new Date("2026-01-01T00:00:00.000Z") }
+          };
+        }
+      })
+    })).rejects.toThrow("eXact action invocation returned malformed result");
+
+    const cyclicPatchValue: Record<string, unknown> = {};
+    cyclicPatchValue.self = cyclicPatchValue;
+    await expect(invokeExact({
+      endpoint: "/__exact",
+      type: "action",
+      id: "save",
+      fetch: async () => ({
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            ok: true,
             patches: [{ type: "text", id: 1, value: "Saved" }]
           };
         }
@@ -667,7 +701,7 @@ describe("@exact/hydrate", () => {
         async json() {
           return {
             ok: true,
-            patches: [{ type: "state", id: "profile", value: undefined }]
+            patches: [{ type: "state", id: "profile", value: cyclicPatchValue }]
           };
         }
       })
@@ -685,6 +719,24 @@ describe("@exact/hydrate", () => {
           return {
             version: 1,
             results: []
+          };
+        }
+      })
+    })).rejects.toThrow("eXact batch invocation returned malformed results");
+
+    await expect(invokeExactBatch({
+      endpoint: "/__exact",
+      operations: [{ type: "action", id: "save" }],
+      fetch: async () => ({
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            ok: true,
+            version: 1,
+            results: [
+              { ok: true, type: "action", id: "save", opId: undefined, patches: [] }
+            ]
           };
         }
       })

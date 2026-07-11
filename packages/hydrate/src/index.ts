@@ -723,6 +723,7 @@ function reportMismatch(options: HydrateOptions, message: string): void {
 
 function parseExactInvocationResponse(body: unknown, message: string): ExactInvocationResult {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(message);
+  if (!isJsonSafe(body)) throw new Error(message);
   const record = body as Record<string, unknown>;
   if (record.ok !== true) throw new Error(message);
   if (!hasOnlyKeys(record, ["ok", "patches", "state", "html"])) throw new Error(message);
@@ -739,6 +740,7 @@ function parseExactInvocationResponse(body: unknown, message: string): ExactInvo
 function parseExactBatchResponse(body: unknown): ExactOperationResult[] {
   const message = "eXact batch invocation returned malformed results";
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(message);
+  if (!isJsonSafe(body)) throw new Error(message);
   const record = body as Record<string, unknown>;
   if (record.ok !== true) throw new Error(message);
   if (!hasOnlyKeys(record, ["ok", "version", "results"])) throw new Error(message);
@@ -749,6 +751,7 @@ function parseExactBatchResponse(body: unknown): ExactOperationResult[] {
 
 function parseExactOperationResult(value: unknown): ExactOperationResult {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("eXact batch invocation returned malformed results");
+  if (!isJsonSafe(value)) throw new Error("eXact batch invocation returned malformed results");
   const record = value as Record<string, unknown>;
   if (record.ok === true) {
     if (!hasOnlyKeys(record, ["ok", "type", "id", "opId", "patches", "state", "html"])) throw new Error("eXact batch invocation returned malformed results");
@@ -792,6 +795,7 @@ function parseExactOperationResult(value: unknown): ExactOperationResult {
 
 function isPatchLike(value: unknown): value is ExactPatch {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  if (!isJsonSafe(value)) return false;
   const record = value as Record<string, unknown>;
   if (typeof record.type !== "string" || typeof record.id !== "string" || !record.id) return false;
   switch (record.type) {
@@ -817,6 +821,19 @@ function isPatchLike(value: unknown): value is ExactPatch {
     default:
       return false;
   }
+}
+
+function isJsonSafe(value: unknown, seen = new Set<object>()): boolean {
+  if (value === undefined) return false;
+  if (value === null) return true;
+  if (typeof value === "string" || typeof value === "boolean") return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value !== "object") return false;
+  if (seen.has(value)) return false;
+  seen.add(value);
+  if (Array.isArray(value)) return value.every(item => isJsonSafe(item, seen));
+  if (Object.getPrototypeOf(value) !== Object.prototype) return false;
+  return Object.values(value as Record<string, unknown>).every(item => isJsonSafe(item, seen));
 }
 
 function hasOnlyKeys(record: Record<string, unknown>, allowed: readonly string[]): boolean {
