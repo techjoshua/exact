@@ -1925,7 +1925,7 @@ describe("@exact/compiler", () => {
           await readFile("panel.txt", "utf8");
         });
         return () => <section onClick={() => this.state.count++}>
-          <ServerSummary />
+          <div className="summary"><ServerSummary /></div>
         </section>;
       }
     `;
@@ -1944,6 +1944,7 @@ describe("@exact/compiler", () => {
     expect(client).not.toContain("readFile");
     expect(server).toContain("__exactBoundary");
     expect(server).toContain("Panel_ExactClient_1");
+    expect(server).toContain("__exactVNode(\"div\"");
     expect(server).toContain("__exactVNode(ServerSummary");
     expect(server).toContain("readFile");
   });

@@ -1882,19 +1882,30 @@ function clientIslandHasServerSlotChildren(
   sourceFile: ts.SourceFile,
   componentPlacements: Map<string, ExactPlacement> = new Map()
 ): boolean {
-  return node.children.some(child => {
-    if (ts.isJsxText(child)) return false;
-    if (ts.isJsxExpression(child)) {
-      return !!child.expression && containsServerOnlyIdentifier(child.expression, serverOnlyImports, semanticReferences, sourceFile);
+  return node.children.some(child => containsServerOwnedSubgraph(child, serverOnlyImports, semanticReferences, sourceFile, componentPlacements));
+}
+
+function containsServerOwnedSubgraph(
+  node: ts.Node,
+  serverOnlyImports: Set<string>,
+  semanticReferences: SemanticReferenceIndex,
+  sourceFile: ts.SourceFile,
+  componentPlacements: Map<string, ExactPlacement>
+): boolean {
+  if (ts.isJsxText(node)) return false;
+  if (ts.isJsxExpression(node)) {
+    return !!node.expression && containsServerOwnedSubgraph(node.expression, serverOnlyImports, semanticReferences, sourceFile, componentPlacements);
+  }
+  if (ts.isJsxElement(node) && jsxTagPlacement(node.openingElement.tagName, componentPlacements) === "server") return true;
+  if (ts.isJsxSelfClosingElement(node) && jsxTagPlacement(node.tagName, componentPlacements) === "server") return true;
+  if (containsServerOnlyIdentifier(node, serverOnlyImports, semanticReferences, sourceFile)) return true;
+  let found = false;
+  ts.forEachChild(node, child => {
+    if (!found && containsServerOwnedSubgraph(child, serverOnlyImports, semanticReferences, sourceFile, componentPlacements)) {
+      found = true;
     }
-    if (ts.isJsxElement(child)) {
-      if (jsxTagPlacement(child.openingElement.tagName, componentPlacements) === "server") return true;
-    }
-    if (ts.isJsxSelfClosingElement(child)) {
-      if (jsxTagPlacement(child.tagName, componentPlacements) === "server") return true;
-    }
-    return containsServerOnlyIdentifier(child, serverOnlyImports, semanticReferences, sourceFile);
   });
+  return found;
 }
 
 function jsxTagPlacement(tagName: ts.JsxTagNameExpression, componentPlacements: Map<string, ExactPlacement>): ExactPlacement | undefined {
