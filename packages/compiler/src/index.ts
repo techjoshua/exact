@@ -5,6 +5,7 @@ import path from "node:path";
 export type TransformOptions = {
   filename?: string;
   target?: TransformTarget;
+  importedManifests?: readonly ExactCompilerManifest[];
 };
 
 export type TransformTarget = "default" | "client" | "server";
@@ -72,6 +73,12 @@ export type ExactBoundaryIR = {
   kind: "client-island" | "server-slot";
 };
 
+export type ExactImportedComponentIR = {
+  name: string;
+  placement: ExactPlacement;
+  componentId?: string;
+};
+
 export type ExactArtifactManifest = {
   source: string;
   client: string;
@@ -125,6 +132,7 @@ export type CompileArtifactsOptions = {
   outDir: string;
   rootDir?: string;
   filename?: string;
+  importedManifests?: readonly ExactCompilerManifest[];
 };
 
 export type CompileArtifactsResult = {
@@ -277,13 +285,13 @@ export function transformSource(source: string, options: TransformOptions = {}):
   if (diagnostics.length) {
     throw new Error(formatDiagnostics(diagnostics));
   }
-  const manifest = analyzeSource(normalized, { filename });
+  const manifest = analyzeSource(normalized, { filename, importedManifests: options.importedManifests });
   const semanticErrors = manifest.diagnostics.filter(diagnostic => diagnostic.startsWith("error:"));
   if (semanticErrors.length) {
     throw new Error(semanticErrors.join("\n"));
   }
   const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
-  const result = ts.transform(sourceFile, [exactJsxTransformer(target)]);
+  const result = ts.transform(sourceFile, [exactJsxTransformer(target, options.importedManifests ?? [])]);
   const transformed = result.transformed[0]!;
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
   const printed = printer.printFile(transformed as ts.SourceFile);
@@ -319,7 +327,17 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   visit(sourceFile);
 
   const componentByName = new Map(components.map(component => [component.name, component]));
-  const componentPlacements = new Map(components.map(component => [component.name, component.placement]));
+  const importedComponents = collectImportedComponents(sourceFile, options.importedManifests ?? []);
+  const componentInfo = new Map<string, ExactImportedComponentIR>();
+  for (const component of importedComponents) componentInfo.set(component.name, component);
+  for (const component of components) {
+    componentInfo.set(component.name, {
+      name: component.name,
+      placement: component.placement,
+      componentId: component.id
+    });
+  }
+  const componentPlacements = new Map([...componentInfo].map(([name, component]) => [name, component.placement]));
   const exportedNames = collectExports(sourceFile);
   for (const component of components) {
     component.exported = exportedNames.has(component.name);
@@ -336,8 +354,8 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   symbols.push(...createServerPartSymbols(sourceFile, components));
   symbols.push(...createClientIslandSymbols(sourceFile, components));
   boundaries.push(...createClientIslandBoundaries(sourceFile, components));
-  boundaries.push(...createClientComponentTagBoundaries(sourceFile, components, componentPlacements));
-  boundaries.push(...createServerSlotBoundaries(sourceFile, components, componentPlacements));
+  boundaries.push(...createClientComponentTagBoundaries(sourceFile, componentInfo, componentPlacements));
+  boundaries.push(...createServerSlotBoundaries(sourceFile, componentInfo, componentPlacements));
 
   for (const component of components) {
     for (const task of component.tasks) {
@@ -412,9 +430,9 @@ export async function compileProject(inputs: readonly string[], options: Compile
 export async function compileFileArtifacts(inputFile: string, options: CompileArtifactsOptions): Promise<CompileArtifactsResult> {
   const source = await readFile(inputFile, "utf8");
   const filename = options.filename ?? inputFile;
-  const manifestBase = analyzeSource(source, { filename });
-  const client = transformSource(source, { filename, target: "client" });
-  const server = transformSource(source, { filename, target: "server" });
+  const manifestBase = analyzeSource(source, { filename, importedManifests: options.importedManifests });
+  const client = transformSource(source, { filename, target: "client", importedManifests: options.importedManifests });
+  const server = transformSource(source, { filename, target: "server", importedManifests: options.importedManifests });
   const paths = artifactPathsFor(inputFile, options.outDir, options.rootDir);
   const manifest = withArtifactMetadata(manifestBase, inputFile, paths);
 
@@ -444,20 +462,33 @@ export async function compileArtifactPlanEntries(
   options: CompileArtifactPlanEntriesOptions = {}
 ): Promise<CompileArtifactsResult[]> {
   const results: CompileArtifactsResult[] = [];
+  const manifestBases = new Map<string, ExactCompilerManifest>();
 
   for (const entry of entries) {
-    results.push(await compileArtifactPlanEntry(entry, options.filename?.(entry) ?? entry.inputFile));
+    const filename = options.filename?.(entry) ?? entry.inputFile;
+    const source = await readFile(entry.inputFile, "utf8");
+    manifestBases.set(path.resolve(entry.inputFile), analyzeSource(source, { filename }));
+  }
+  const importedManifests = [...manifestBases.values()];
+
+  for (const entry of entries) {
+    const filename = options.filename?.(entry) ?? entry.inputFile;
+    results.push(await compileArtifactPlanEntry(entry, filename, importedManifests));
   }
 
   return results;
 }
 
-async function compileArtifactPlanEntry(entry: ExactArtifactPlanEntry, filename: string): Promise<CompileArtifactsResult> {
+async function compileArtifactPlanEntry(
+  entry: ExactArtifactPlanEntry,
+  filename: string,
+  importedManifests: readonly ExactCompilerManifest[] = []
+): Promise<CompileArtifactsResult> {
   const source = await readFile(entry.inputFile, "utf8");
-  const manifestBase = analyzeSource(source, { filename });
-  const client = transformSource(source, { filename, target: "client" });
-  const server = transformSource(source, { filename, target: "server" });
-  const manifest = withArtifactMetadata(manifestBase, entry.inputFile, entry);
+  const base = analyzeSource(source, { filename, importedManifests });
+  const client = transformSource(source, { filename, target: "client", importedManifests });
+  const server = transformSource(source, { filename, target: "server", importedManifests });
+  const manifest = withArtifactMetadata(base, entry.inputFile, entry);
 
   await mkdir(path.dirname(entry.clientFile), { recursive: true });
   await writeFile(entry.clientFile, client.code);
@@ -706,12 +737,12 @@ export function preprocessPropPunning(source: string): string {
   return output;
 }
 
-function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.SourceFile> {
+function exactJsxTransformer(target: TransformTarget, importedManifests: readonly ExactCompilerManifest[] = []): ts.TransformerFactory<ts.SourceFile> {
   return context => sourceFile => {
     const factory = context.factory;
     const helpers = allocateHelperNames(sourceFile);
     const serverOnlyImports = collectServerOnlyImports(sourceFile);
-    const componentPlacements = collectComponentPlacements(sourceFile, serverOnlyImports);
+    const componentPlacements = collectComponentPlacements(sourceFile, serverOnlyImports, importedManifests);
     let sawJsx = false;
     let sawBoundary = false;
     const componentStack: string[] = [];
@@ -949,8 +980,15 @@ function containsServerOnlyIdentifier(node: ts.Node, serverOnlyImports: Set<stri
   return found;
 }
 
-function collectComponentPlacements(sourceFile: ts.SourceFile, serverOnlyImports: Set<string>): Map<string, ExactPlacement> {
+function collectComponentPlacements(
+  sourceFile: ts.SourceFile,
+  serverOnlyImports: Set<string>,
+  importedManifests: readonly ExactCompilerManifest[] = []
+): Map<string, ExactPlacement> {
   const placements = new Map<string, ExactPlacement>();
+  for (const component of collectImportedComponents(sourceFile, importedManifests)) {
+    placements.set(component.name, component.placement);
+  }
 
   function visit(node: ts.Node): void {
     if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
@@ -1222,12 +1260,11 @@ function createClientIslandBoundaries(
 
 function createClientComponentTagBoundaries(
   sourceFile: ts.SourceFile,
-  components: ExactComponentIR[],
+  componentInfo: Map<string, ExactImportedComponentIR>,
   componentPlacements: Map<string, ExactPlacement>
 ): ExactBoundaryIR[] {
   const boundaries: ExactBoundaryIR[] = [];
   const seen = new Set<string>();
-  const componentByName = new Map(components.map(component => [component.name, component]));
 
   function visit(node: ts.Node): void {
     if (ts.isJsxElement(node) && jsxTagIsClientComponent(node.openingElement.tagName, componentPlacements)) {
@@ -1245,7 +1282,7 @@ function createClientComponentTagBoundaries(
     boundaries.push({
       id,
       name: componentName,
-      componentId: componentByName.get(componentName)?.id,
+      componentId: componentInfo.get(componentName)?.componentId,
       kind: "client-island"
     });
   }
@@ -1256,12 +1293,11 @@ function createClientComponentTagBoundaries(
 
 function createServerSlotBoundaries(
   sourceFile: ts.SourceFile,
-  components: ExactComponentIR[],
+  componentInfo: Map<string, ExactImportedComponentIR>,
   componentPlacements: Map<string, ExactPlacement>
 ): ExactBoundaryIR[] {
   const boundaries: ExactBoundaryIR[] = [];
   const seen = new Set<string>();
-  const componentByName = new Map(components.map(component => [component.name, component]));
 
   function visit(node: ts.Node): void {
     if (ts.isJsxElement(node) && jsxTagIsClientComponent(node.openingElement.tagName, componentPlacements) && clientComponentHasServerSlotChildren(node)) {
@@ -1273,7 +1309,7 @@ function createServerSlotBoundaries(
         boundaries.push({
           id,
           name: `${componentName}:children`,
-          componentId: componentByName.get(componentName)?.id,
+          componentId: componentInfo.get(componentName)?.componentId,
           kind: "server-slot"
         });
       }
@@ -1313,6 +1349,63 @@ function hasExportModifier(node: ts.Node): boolean {
 
 const browserGlobals = new Set(["window", "document", "localStorage", "sessionStorage", "navigator", "HTMLElement", "Node"]);
 const mutatingStateMethods = new Set(["push", "pop", "shift", "unshift", "splice", "sort", "reverse", "set", "delete", "clear"]);
+
+function collectImportedComponents(sourceFile: ts.SourceFile, manifests: readonly ExactCompilerManifest[]): ExactImportedComponentIR[] {
+  if (!manifests.length) return [];
+  const bySource = new Map<string, ExactCompilerManifest[]>();
+  for (const manifest of manifests) {
+    const keys = manifestSourceKeys(manifest);
+    for (const key of keys) {
+      const entries = bySource.get(key) ?? [];
+      entries.push(manifest);
+      bySource.set(key, entries);
+    }
+  }
+
+  const imported: ExactImportedComponentIR[] = [];
+  const sourceDir = path.dirname(path.resolve(sourceFile.fileName));
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    const manifestsForImport = bySource.get(moduleSpecifierKey(statement.moduleSpecifier.text, sourceDir));
+    if (!manifestsForImport?.length) continue;
+    const clause = statement.importClause;
+    if (!clause?.namedBindings || !ts.isNamedImports(clause.namedBindings)) continue;
+    for (const element of clause.namedBindings.elements) {
+      const exportedName = element.propertyName?.text ?? element.name.text;
+      for (const manifest of manifestsForImport) {
+        const exported = manifest.exports.find(item => item.name === exportedName && item.kind === "component");
+        if (!exported) continue;
+        const component = manifest.components.find(item => item.name === exportedName);
+        imported.push({
+          name: element.name.text,
+          placement: exported.placement,
+          componentId: component?.id
+        });
+        break;
+      }
+    }
+  }
+  return imported;
+}
+
+function manifestSourceKeys(manifest: ExactCompilerManifest): string[] {
+  const keys = new Set<string>();
+  keys.add(moduleSpecifierKey(manifest.filename, process.cwd()));
+  if (manifest.artifacts?.source) {
+    keys.add(moduleSpecifierKey(manifest.artifacts.source, process.cwd()));
+  }
+  return [...keys];
+}
+
+function moduleSpecifierKey(specifier: string, baseDir: string): string {
+  const resolved = specifier.startsWith(".")
+    ? path.resolve(baseDir, specifier)
+    : specifier;
+  return slashPath(resolved)
+    .replace(/\.exact\.(client|server)(\.[cm]?[jt]sx?)?$/i, "")
+    .replace(/\.exact$/i, "")
+    .replace(/\.[cm]?[jt]sx?$/i, "");
+}
 
 function collectServerOnlyImports(sourceFile: ts.SourceFile): Set<string> {
   const imports = new Set<string>();

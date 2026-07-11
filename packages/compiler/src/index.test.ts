@@ -11,6 +11,7 @@ import {
   compileFile,
   compileFileArtifacts,
   compileProject,
+  compileProjectArtifacts,
   createPackageExportMap,
   createServerPartRegistryEntries,
   diffExactArtifactPlans,
@@ -1070,6 +1071,55 @@ describe("@exact/compiler", () => {
     expect(server).not.toContain("chart-lib");
     expect(server).not.toContain("Chart.render");
     expect(server).toContain("\"ClientChart\"");
+  });
+
+  it("splits imported client components using project manifests", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-imported-component-split-"));
+    const srcDir = path.join(root, "src");
+    const outDir = path.join(root, "out");
+    const widgetFile = path.join(srcDir, "ClientWidget.tsx");
+    const pageFile = path.join(srcDir, "Page.tsx");
+    await mkdir(srcDir, { recursive: true });
+    await writeFile(widgetFile, `
+      export function ClientWidget(this: Component<{ width: number }>, props: { title: string; children?: unknown }) {
+        this.state.width = window.innerWidth;
+        return () => <button onClick={() => this.state.width++}>{props.title}{props.children}</button>;
+      }
+    `);
+    await writeFile(pageFile, `
+      import { ClientWidget } from "./ClientWidget";
+
+      export function Page(this: Component<{ title: string }>) {
+        this.state.title = "Ready";
+        return () => <section><ClientWidget title={this.state.title}><p>Server child</p></ClientWidget></section>;
+      }
+    `);
+
+    const results = await compileProjectArtifacts([srcDir], {
+      outDir,
+      rootDir: srcDir
+    });
+    const page = results.find(result => result.inputFile === pageFile)!;
+    const widget = results.find(result => result.inputFile === widgetFile)!;
+    const server = await readFile(page.serverFile, "utf8");
+
+    expect(server).toContain("__exactBoundary");
+    expect(server).toContain("\"ClientWidget\"");
+    expect(server).toContain("title: this.state.title");
+    expect(server).toContain("__exactVNode(\"p\"");
+    expect(server).toContain("\"Server child\"");
+    expect(server).not.toContain("from \"./ClientWidget\"");
+    expect(server).not.toContain("window.innerWidth");
+    expect(page.manifest.boundaries).toContainEqual(expect.objectContaining({
+      name: "ClientWidget",
+      componentId: widget.manifest.components[0]!.id,
+      kind: "client-island"
+    }));
+    expect(page.manifest.boundaries).toContainEqual(expect.objectContaining({
+      name: "ClientWidget:children",
+      componentId: widget.manifest.components[0]!.id,
+      kind: "server-slot"
+    }));
   });
 
   it("generates deterministic split component names from author names", () => {
