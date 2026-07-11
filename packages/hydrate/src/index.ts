@@ -1,6 +1,6 @@
 import { render } from "@exact/dom";
 import { createServerSlot, createVNode, logFrameworkEvent, type ComponentFunction, type Logger, type VNode } from "@exact/core";
-import type { ExactInvocationKind, ExactInvocationResult, ExactPatch, ExactStateContract } from "@exact/server";
+import type { ExactInvocationKind, ExactInvocationRequest, ExactInvocationResult, ExactOperationResult, ExactPatch, ExactStateContract } from "@exact/server";
 
 export type HydrateOptions = {
   endpoint?: string;
@@ -12,6 +12,7 @@ export type HydrateOptions = {
   stateContracts?: Record<string, ExactStateContract>;
   actionBoundaries?: Record<string, readonly string[]>;
   islands?: ClientIslandRegistry;
+  batch?: boolean;
 };
 
 export type ExactHydrationConfig = {
@@ -138,18 +139,29 @@ async function invokeAndApply(
   payload: unknown,
   options: HydrateOptions
 ): Promise<ExactInvocationResult> {
-  const result = await invokeExact({
-    endpoint: requireEndpoint(client.endpoint),
+  const operation: ExactInvocationRequest = {
     type,
     id,
     payload,
     state: type === "action" ? stateForContract(client.state, client.stateContracts?.[id]) : client.state,
     boundaryHtml: type === "refresh" ? boundaryInnerHtml(container, id) : undefined,
-    boundaryHtmls: type === "action" ? boundaryHtmlsFor(container, options.actionBoundaries?.[id]) : undefined,
-    fetch: options.fetch,
-    headers: options.headers,
-    logger: options.logger
-  });
+    boundaryHtmls: type === "action" ? boundaryHtmlsFor(container, options.actionBoundaries?.[id]) : undefined
+  };
+  const result = options.batch === false
+    ? await invokeExact({
+      endpoint: requireEndpoint(client.endpoint),
+      ...operation,
+      fetch: options.fetch,
+      headers: options.headers,
+      logger: options.logger
+    })
+    : await enqueueExactOperation(container, {
+      endpoint: requireEndpoint(client.endpoint),
+      operation,
+      fetch: options.fetch,
+      headers: options.headers,
+      logger: options.logger
+    });
   const patchesApplied = result.patches ? applyPatches(container, result.patches, options) : true;
   if (!patchesApplied && type === "refresh" && result.html) {
     applyPatches(container, [{ type: "replace", id, html: result.html }], options);
@@ -171,6 +183,23 @@ export type InvokeExactOptions = {
   headers?: Record<string, string>;
   logger?: Logger;
 };
+
+type PendingExactOperation = {
+  operation: ExactInvocationRequest;
+  resolve(result: ExactInvocationResult): void;
+  reject(error: unknown): void;
+};
+
+type ExactBatchQueue = {
+  endpoint: string;
+  fetch?: FetchLike;
+  headers?: Record<string, string>;
+  logger?: Logger;
+  pending: PendingExactOperation[];
+  scheduled: boolean;
+};
+
+const batchQueues = new WeakMap<Element, ExactBatchQueue>();
 
 export async function invokeExact(options: InvokeExactOptions): Promise<ExactInvocationResult> {
   const fetchImpl = options.fetch ?? globalThis.fetch;
@@ -198,6 +227,130 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
     throw new Error(`eXact ${options.type} invocation failed`);
   }
   return body as ExactInvocationResult;
+}
+
+export type InvokeExactBatchOptions = {
+  endpoint: string;
+  operations: readonly ExactInvocationRequest[];
+  fetch?: FetchLike;
+  headers?: Record<string, string>;
+  logger?: Logger;
+};
+
+export async function invokeExactBatch(options: InvokeExactBatchOptions): Promise<ExactOperationResult[]> {
+  const fetchImpl = options.fetch ?? globalThis.fetch;
+  if (!fetchImpl) throw new Error("eXact endpoint invocation requires fetch");
+
+  const response = await fetchImpl(options.endpoint, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...options.headers
+    },
+    body: JSON.stringify({
+      type: "batch",
+      version: 1,
+      operations: options.operations
+    })
+  });
+
+  const body = await response.json();
+  if (!response.ok) {
+    logFrameworkEvent("warn", "hydrate", "request", `exact batch invocation failed with ${response.status}`, undefined, options.logger);
+    throw new Error("eXact batch invocation failed");
+  }
+  const results = (body as { results?: unknown }).results;
+  if (!Array.isArray(results)) throw new Error("eXact batch invocation returned malformed results");
+  return results as ExactOperationResult[];
+}
+
+function enqueueExactOperation(
+  container: Element,
+  options: {
+    endpoint: string;
+    operation: ExactInvocationRequest;
+    fetch?: FetchLike;
+    headers?: Record<string, string>;
+    logger?: Logger;
+  }
+): Promise<ExactInvocationResult> {
+  let queue = batchQueues.get(container);
+  if (!queue || queue.endpoint !== options.endpoint || queue.fetch !== options.fetch || queue.headers !== options.headers || queue.logger !== options.logger) {
+    queue = {
+      endpoint: options.endpoint,
+      fetch: options.fetch,
+      headers: options.headers,
+      logger: options.logger,
+      pending: [],
+      scheduled: false
+    };
+    batchQueues.set(container, queue);
+  }
+
+  const promise = new Promise<ExactInvocationResult>((resolve, reject) => {
+    queue!.pending.push({
+      operation: options.operation,
+      resolve,
+      reject
+    });
+  });
+
+  if (!queue.scheduled) {
+    queue.scheduled = true;
+    queueMicrotask(() => {
+      void flushExactBatchQueue(queue!);
+    });
+  }
+
+  return promise;
+}
+
+async function flushExactBatchQueue(queue: ExactBatchQueue): Promise<void> {
+  const pending = queue.pending.splice(0);
+  queue.scheduled = false;
+  if (!pending.length) return;
+
+  if (pending.length === 1) {
+    try {
+      const result = await invokeExact({
+        endpoint: queue.endpoint,
+        ...pending[0]!.operation,
+        fetch: queue.fetch,
+        headers: queue.headers,
+        logger: queue.logger
+      });
+      pending[0]!.resolve(result);
+    } catch (error) {
+      pending[0]!.reject(error);
+    }
+    return;
+  }
+
+  try {
+    const results = await invokeExactBatch({
+      endpoint: queue.endpoint,
+      operations: pending.map(item => item.operation),
+      fetch: queue.fetch,
+      headers: queue.headers,
+      logger: queue.logger
+    });
+    pending.forEach((item, index) => {
+      const result = results[index];
+      if (!result) {
+        item.reject(new Error(`eXact ${item.operation.type} invocation failed`));
+        return;
+      }
+      if (!result.ok) {
+        logFrameworkEvent("warn", "hydrate", "request", `exact ${item.operation.type} invocation failed with ${result.status}`, undefined, queue.logger);
+        item.reject(new Error(`eXact ${item.operation.type} invocation failed`));
+        return;
+      }
+      const { ok: _ok, type: _type, id: _id, ...body } = result;
+      item.resolve(body);
+    });
+  } catch (error) {
+    for (const item of pending) item.reject(error);
+  }
 }
 
 export function applyPatches(container: Element, patches: readonly ExactPatch[], options: HydrateOptions = {}): boolean {

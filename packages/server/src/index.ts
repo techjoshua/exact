@@ -85,10 +85,38 @@ export type ExactInvocationRequest = {
   boundaryHtmls?: Record<string, string>;
 };
 
+export type ExactBatchRequest = {
+  type: "batch";
+  version?: 1;
+  operations: ExactInvocationRequest[];
+};
+
 export type ExactInvocationResult = {
   patches?: ExactPatch[];
   state?: unknown;
   html?: string;
+};
+
+export type ExactOperationSuccess = {
+  ok: true;
+  type: ExactInvocationKind;
+  id: string;
+} & ExactInvocationResult;
+
+export type ExactOperationError = {
+  ok: false;
+  type: ExactInvocationKind;
+  id: string;
+  status: number;
+  error: "bad_request" | "not_found" | "forbidden" | "internal_error";
+};
+
+export type ExactOperationResult = ExactOperationSuccess | ExactOperationError;
+
+export type ExactBatchResult = {
+  ok: true;
+  version: 1;
+  results: ExactOperationResult[];
 };
 
 export type ExactPatch =
@@ -103,8 +131,8 @@ export type ExactServerContext = {
   manifest: ExactServerManifest;
   actions?: Record<string, (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> | ExactInvocationResult>;
   refreshBoundaries?: Record<string, (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> | ExactInvocationResult>;
-  authorize?(request: ExactRequestLike, input: ExactInvocationRequest): Promise<boolean> | boolean;
-  validateCsrf?(request: ExactRequestLike, input: ExactInvocationRequest): Promise<boolean> | boolean;
+  authorize?(request: ExactRequestLike, input: ExactInvocationRequest | ExactBatchRequest): Promise<boolean> | boolean;
+  validateCsrf?(request: ExactRequestLike, input: ExactInvocationRequest | ExactBatchRequest): Promise<boolean> | boolean;
   logger?: Logger;
 };
 
@@ -178,33 +206,16 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
     return jsonResponse(404, { error: "not_found" });
   }
 
-  let input: ExactInvocationRequest;
+  let input: ExactInvocationRequest | ExactBatchRequest;
   try {
-    input = parseInvocation(await readBody(request));
+    input = parseExactRequestBody(await readBody(request));
   } catch {
     logReject(context, "rejected malformed exact invocation");
     return jsonResponse(400, { error: "bad_request" });
   }
 
-  if (!isJsonSafe(input.payload) || !isJsonSafe(input.state)) {
+  if (!requestPayloadSafe(input)) {
     logReject(context, "rejected non-serializable exact invocation payload");
-    return jsonResponse(400, { error: "bad_request" });
-  }
-
-  const allowed = isManifestAllowed(input, context.manifest);
-  if (!allowed) {
-    logReject(context, "rejected unknown exact invocation id");
-    return jsonResponse(404, { error: "not_found" });
-  }
-
-  if (!boundaryHintsAllowed(input, context.manifest)) {
-    logReject(context, "rejected exact invocation with unknown boundary hints");
-    return jsonResponse(400, { error: "bad_request" });
-  }
-
-  const action = input.type === "action" ? context.manifest.actions?.[input.id] : undefined;
-  if (action?.stateContract && !stateMatchesContract(input.state, action.stateContract)) {
-    logReject(context, "rejected exact invocation with mismatched state contract");
     return jsonResponse(400, { error: "bad_request" });
   }
 
@@ -218,26 +229,18 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
     return jsonResponse(403, { error: "forbidden" });
   }
 
-  const handler = input.type === "action"
-    ? context.actions?.[input.id]
-    : context.refreshBoundaries?.[input.id];
-
-  if (!handler) {
-    logReject(context, "rejected exact invocation without registered handler");
-    return jsonResponse(404, { error: "not_found" });
-  }
-
-  try {
-    const result = await handler(input, context);
-    if (!isInvocationResultSafe(result)) {
-      logReject(context, "rejected non-serializable exact invocation result");
-      return jsonResponse(500, { error: "internal_error" });
+  if (input.type === "batch") {
+    const results: ExactOperationResult[] = [];
+    for (const operation of input.operations) {
+      results.push(await dispatchExactOperation(request, operation, context));
     }
-    return jsonResponse(200, { ok: true, ...result });
-  } catch (error) {
-    logFrameworkEvent("error", "server", "request", "exact invocation failed", error, context.logger);
-    return jsonResponse(500, { error: "internal_error" });
+    return jsonResponse(200, { ok: true, version: 1, results } satisfies ExactBatchResult);
   }
+
+  const result = await dispatchExactOperation(request, input, context);
+  if (isOperationError(result)) return jsonResponse(result.status, { error: result.error });
+  const { ok: _ok, type: _type, id: _id, ...body } = result;
+  return jsonResponse(200, { ok: true, ...body });
 }
 
 export function createFetchHandler(context: ExactServerContext): (request: Request) => Promise<Response> {
@@ -292,6 +295,61 @@ function isManifestAllowed(input: ExactInvocationRequest, manifest: ExactServerM
   return false;
 }
 
+function isOperationError(result: ExactOperationResult): result is ExactOperationError {
+  return result.ok === false;
+}
+
+async function dispatchExactOperation(
+  request: ExactRequestLike,
+  input: ExactInvocationRequest,
+  context: ExactServerContext
+): Promise<ExactOperationResult> {
+  const reject = (status: number, error: ExactOperationError["error"], message: string): ExactOperationResult => {
+    logReject(context, message);
+    return { ok: false, type: input.type, id: input.id, status, error };
+  };
+
+  if (!isManifestAllowed(input, context.manifest)) {
+    return reject(404, "not_found", "rejected unknown exact invocation id");
+  }
+
+  if (!boundaryHintsAllowed(input, context.manifest)) {
+    return reject(400, "bad_request", "rejected exact invocation with unknown boundary hints");
+  }
+
+  const action = input.type === "action" ? context.manifest.actions?.[input.id] : undefined;
+  if (action?.stateContract && !stateMatchesContract(input.state, action.stateContract)) {
+    return reject(400, "bad_request", "rejected exact invocation with mismatched state contract");
+  }
+
+  if (context.authorize && !await context.authorize(request, input)) {
+    return reject(403, "forbidden", "rejected unauthorized exact invocation");
+  }
+
+  if (context.validateCsrf && !await context.validateCsrf(request, input)) {
+    return reject(403, "forbidden", "rejected exact invocation with invalid csrf");
+  }
+
+  const handler = input.type === "action"
+    ? context.actions?.[input.id]
+    : context.refreshBoundaries?.[input.id];
+
+  if (!handler) {
+    return reject(404, "not_found", "rejected exact invocation without registered handler");
+  }
+
+  try {
+    const result = await handler(input, context);
+    if (!isInvocationResultSafe(result)) {
+      return reject(500, "internal_error", "rejected non-serializable exact invocation result");
+    }
+    return { ok: true, type: input.type, id: input.id, ...result };
+  } catch (error) {
+    logFrameworkEvent("error", "server", "request", "exact invocation failed", error, context.logger);
+    return { ok: false, type: input.type, id: input.id, status: 500, error: "internal_error" };
+  }
+}
+
 function matchesConfiguredEndpoint(request: ExactRequestLike, endpoint: string | undefined): boolean {
   if (!endpoint || !request.url) return true;
   try {
@@ -310,10 +368,29 @@ async function readBody(request: ExactRequestLike): Promise<unknown> {
   return undefined;
 }
 
-function parseInvocation(body: unknown): ExactInvocationRequest {
+function parseExactRequestBody(body: unknown): ExactInvocationRequest | ExactBatchRequest {
   const value = typeof body === "string" ? JSON.parse(body) : body;
   if (!value || typeof value !== "object") throw new Error("invalid invocation");
   const record = value as Record<string, unknown>;
+  if (record.type === "batch") return parseBatch(record);
+  return parseInvocationRecord(record);
+}
+
+function parseBatch(record: Record<string, unknown>): ExactBatchRequest {
+  if (!hasOnlyKeys(record, ["type", "version", "operations"])) throw new Error("unknown batch field");
+  if (record.version !== undefined && record.version !== 1) throw new Error("invalid batch version");
+  if (!Array.isArray(record.operations)) throw new Error("invalid batch operations");
+  return {
+    type: "batch",
+    version: record.version === 1 ? 1 : undefined,
+    operations: record.operations.map(operation => {
+      if (!operation || typeof operation !== "object" || Array.isArray(operation)) throw new Error("invalid batch operation");
+      return parseInvocationRecord(operation as Record<string, unknown>);
+    })
+  };
+}
+
+function parseInvocationRecord(record: Record<string, unknown>): ExactInvocationRequest {
   if (!hasOnlyKeys(record, ["type", "id", "payload", "state", "boundaryHtml", "boundaryHtmls"])) throw new Error("unknown invocation field");
   if (record.type !== "action" && record.type !== "refresh") throw new Error("invalid invocation type");
   if (typeof record.id !== "string" || !record.id) throw new Error("invalid invocation id");
@@ -326,6 +403,13 @@ function parseInvocation(body: unknown): ExactInvocationRequest {
     boundaryHtml: typeof record.boundaryHtml === "string" ? record.boundaryHtml : undefined,
     boundaryHtmls: record.boundaryHtmls
   };
+}
+
+function requestPayloadSafe(input: ExactInvocationRequest | ExactBatchRequest): boolean {
+  if (input.type === "batch") {
+    return input.operations.every(operation => requestPayloadSafe(operation));
+  }
+  return isJsonSafe(input.payload) && isJsonSafe(input.state);
 }
 
 function jsonResponse(status: number, body: unknown): ExactResponseLike {

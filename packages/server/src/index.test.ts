@@ -389,6 +389,86 @@ describe("@exact/server", () => {
     });
   });
 
+  it("dispatches batched operations with independent ordered results", async () => {
+    const result = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "batch",
+        version: 1,
+        operations: [
+          { type: "action", id: "allowed-action", payload: { title: "Ready" } },
+          { type: "refresh", id: "allowed-boundary" },
+          { type: "action", id: "missing-action" }
+        ]
+      }
+    }, context());
+
+    expect(result.status).toBe(200);
+    expect(JSON.parse(result.body)).toEqual({
+      ok: true,
+      version: 1,
+      results: [
+        {
+          ok: true,
+          type: "action",
+          id: "allowed-action",
+          patches: [{ type: "text", id: "title", value: "Ready" }]
+        },
+        {
+          ok: true,
+          type: "refresh",
+          id: "allowed-boundary",
+          patches: [{ type: "replace", id: "allowed-boundary", html: "<section>Updated</section>" }]
+        },
+        {
+          ok: false,
+          type: "action",
+          id: "missing-action",
+          status: 404,
+          error: "not_found"
+        }
+      ]
+    });
+  });
+
+  it("rejects malformed batch envelopes before dispatch", async () => {
+    const action = vi.fn();
+    const result = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "batch",
+        operations: [{ type: "action", id: "allowed-action" }],
+        module: "../server/private"
+      }
+    }, context({
+      actions: {
+        "allowed-action": action
+      }
+    }));
+
+    expect(result.status).toBe(400);
+    expect(action).not.toHaveBeenCalled();
+  });
+
+  it("rejects unauthorized batches before dispatch", async () => {
+    const action = vi.fn();
+    const result = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "batch",
+        operations: [{ type: "action", id: "allowed-action" }]
+      }
+    }, context({
+      actions: {
+        "allowed-action": action
+      },
+      authorize: (_request, input) => input.type !== "batch"
+    }));
+
+    expect(result.status).toBe(403);
+    expect(action).not.toHaveBeenCalled();
+  });
+
   it("passes boundary html snapshots to refresh handlers", async () => {
     const refresh = vi.fn(input => ({
       patches: [{ type: "replace" as const, id: "allowed-boundary", html: String(input.boundaryHtml ?? "") }]

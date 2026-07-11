@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { createVNode, type Component } from "@exact/core";
 import { handleExactRequest } from "@exact/server";
-import { hydrate, applyPatches, createExactClient, hydrateClientIslands, invokeExact, readExactHydrationConfig } from "./index.js";
+import { hydrate, applyPatches, createExactClient, hydrateClientIslands, invokeExact, invokeExactBatch, readExactHydrationConfig } from "./index.js";
 
 const noopLogger = {
   isEnabled: () => false,
@@ -507,6 +507,111 @@ describe("@exact/hydrate", () => {
       state: { saved: false }
     }]);
     expect(container.textContent).toBe("New");
+    expect(client.state).toEqual({ saved: true });
+  });
+
+  it("invokes exact batch endpoints directly", async () => {
+    let requestBody: any;
+    const results = await invokeExactBatch({
+      endpoint: "/__exact",
+      operations: [
+        { type: "action", id: "save", payload: { title: "Ready" } },
+        { type: "refresh", id: "panel", boundaryHtml: "<p>Old</p>" }
+      ],
+      fetch: async (_input, init) => {
+        requestBody = JSON.parse(init.body);
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              ok: true,
+              version: 1,
+              results: [
+                { ok: true, type: "action", id: "save", patches: [{ type: "text", id: "title", value: "Ready" }] },
+                { ok: false, type: "refresh", id: "panel", status: 404, error: "not_found" }
+              ]
+            };
+          }
+        };
+      }
+    });
+
+    expect(requestBody).toEqual({
+      type: "batch",
+      version: 1,
+      operations: [
+        { type: "action", id: "save", payload: { title: "Ready" } },
+        { type: "refresh", id: "panel", boundaryHtml: "<p>Old</p>" }
+      ]
+    });
+    expect(results).toHaveLength(2);
+    expect(results[0]).toMatchObject({ ok: true, id: "save" });
+    expect(results[1]).toMatchObject({ ok: false, id: "panel" });
+  });
+
+  it("coalesces same-tick client operations into a batch request", async () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<!--exact:title-->Old<!--/exact:title--><!--exact:panel--><p>Old</p><!--/exact:panel-->";
+    const requests: unknown[] = [];
+    const fetch = async (_input: string, init: { body: string }) => {
+      requests.push(JSON.parse(init.body));
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            ok: true,
+            version: 1,
+            results: [
+              {
+                ok: true,
+                type: "action",
+                id: "save-title",
+                state: { saved: true },
+                patches: [{ type: "text", id: "title", value: "New" }]
+              },
+              {
+                ok: true,
+                type: "refresh",
+                id: "panel",
+                patches: [{ type: "replace", id: "panel", html: "<section>Panel</section>" }]
+              }
+            ]
+          };
+        }
+      };
+    };
+
+    const client = createExactClient(container, {
+      endpoint: "/__exact",
+      state: { saved: false },
+      fetch
+    });
+    const action = client.invokeAction("save-title", { title: "New" });
+    const refresh = client.refreshBoundary("panel");
+
+    await Promise.all([action, refresh]);
+
+    expect(requests).toEqual([{
+      type: "batch",
+      version: 1,
+      operations: [
+        {
+          type: "action",
+          id: "save-title",
+          payload: { title: "New" },
+          state: { saved: false }
+        },
+        {
+          type: "refresh",
+          id: "panel",
+          state: { saved: false },
+          boundaryHtml: "<p>Old</p>"
+        }
+      ]
+    }]);
+    expect(container.textContent).toBe("NewPanel");
     expect(client.state).toEqual({ saved: true });
   });
 
