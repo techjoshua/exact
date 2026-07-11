@@ -154,6 +154,12 @@ export type ExactArtifactPlanEntry = {
   manifestFile: string;
 };
 
+export type ExactArtifactPlanDiff = {
+  added: ExactArtifactPlanEntry[];
+  removed: ExactArtifactPlanEntry[];
+  retained: ExactArtifactPlanEntry[];
+};
+
 export type PackageExportMapOptions = {
   packageRoot: string;
   sourceRoot?: string;
@@ -429,6 +435,28 @@ export async function createExactArtifactPlan(inputs: readonly string[], options
   };
 }
 
+export function diffExactArtifactPlans(previous: ExactArtifactPlan, next: ExactArtifactPlan): ExactArtifactPlanDiff {
+  const previousByInput = new Map(previous.entries.map(entry => [path.resolve(entry.inputFile), entry]));
+  const nextByInput = new Map(next.entries.map(entry => [path.resolve(entry.inputFile), entry]));
+  const added: ExactArtifactPlanEntry[] = [];
+  const removed: ExactArtifactPlanEntry[] = [];
+  const retained: ExactArtifactPlanEntry[] = [];
+
+  for (const [inputFile, entry] of nextByInput) {
+    if (previousByInput.has(inputFile)) retained.push(entry);
+    else added.push(entry);
+  }
+  for (const [inputFile, entry] of previousByInput) {
+    if (!nextByInput.has(inputFile)) removed.push(entry);
+  }
+
+  return {
+    added: sortPlanEntries(added),
+    removed: sortPlanEntries(removed),
+    retained: sortPlanEntries(retained)
+  };
+}
+
 export function createPackageExportMap(
   results: readonly CompileArtifactsResult[],
   options: PackageExportMapOptions
@@ -524,6 +552,10 @@ function packageExportSpecifier(inputFile: string, sourceRoot: string): string {
 
 function packageExportTarget(file: string, packageRoot: string): string {
   return `./${slashPath(path.relative(packageRoot, file))}`;
+}
+
+function sortPlanEntries(entries: ExactArtifactPlanEntry[]): ExactArtifactPlanEntry[] {
+  return entries.sort((left, right) => left.inputFile.localeCompare(right.inputFile));
 }
 
 function clientRegistryModulePath(file: string, rootDir: string): string {

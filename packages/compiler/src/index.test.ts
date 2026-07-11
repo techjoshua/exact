@@ -11,6 +11,7 @@ import {
   compileFileArtifacts,
   compileProject,
   createPackageExportMap,
+  diffExactArtifactPlans,
   exactExportConditions,
   generatedComponentName,
   preprocessPropPunning,
@@ -495,6 +496,29 @@ describe("@exact/compiler", () => {
     });
   });
 
+  it("diffs exact artifact plans for dev-server orchestration", () => {
+    const previous = {
+      rootDir: "/app/src",
+      entries: [
+        planEntry("/app/src/a.tsx"),
+        planEntry("/app/src/removed.tsx")
+      ]
+    };
+    const next = {
+      rootDir: "/app/src",
+      entries: [
+        planEntry("/app/src/a.tsx"),
+        planEntry("/app/src/added.tsx")
+      ]
+    };
+
+    expect(diffExactArtifactPlans(previous, next)).toEqual({
+      added: [planEntry("/app/src/added.tsx")],
+      removed: [planEntry("/app/src/removed.tsx")],
+      retained: [planEntry("/app/src/a.tsx")]
+    });
+  });
+
   it("creates client island registry entries for generated client artifacts", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "exact-island-registry-"));
     const input = path.join(root, "src", "panel.tsx");
@@ -881,3 +905,13 @@ describe("@exact/compiler", () => {
     expect(results.map(result => path.basename(result.outputFile ?? ""))).toEqual(["one.ts", "two.js"]);
   });
 });
+
+function planEntry(inputFile: string) {
+  const base = inputFile.replace(/\.tsx$/, "");
+  return {
+    inputFile,
+    clientFile: `${base}.exact.client.ts`,
+    serverFile: `${base}.exact.server.ts`,
+    manifestFile: `${base}.exact.manifest.json`
+  };
+}
