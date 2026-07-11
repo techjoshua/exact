@@ -476,12 +476,12 @@ function parseInvocationRecord(record: Record<string, unknown>): ExactInvocation
   return {
     type: record.type,
     id: record.id,
-    opId: typeof record.opId === "string" ? record.opId : undefined,
-    dependsOn: Array.isArray(record.dependsOn) ? record.dependsOn : undefined,
-    payload: record.payload,
-    state: record.state,
-    boundaryHtml: typeof record.boundaryHtml === "string" ? record.boundaryHtml : undefined,
-    boundaryHtmls: record.boundaryHtmls
+    ...(typeof record.opId === "string" ? { opId: record.opId } : {}),
+    ...(Array.isArray(record.dependsOn) ? { dependsOn: record.dependsOn } : {}),
+    ...(record.payload === undefined ? {} : { payload: record.payload }),
+    ...(record.state === undefined ? {} : { state: record.state }),
+    ...(typeof record.boundaryHtml === "string" ? { boundaryHtml: record.boundaryHtml } : {}),
+    ...(record.boundaryHtmls === undefined ? {} : { boundaryHtmls: record.boundaryHtmls })
   };
 }
 

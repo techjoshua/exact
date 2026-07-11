@@ -419,6 +419,32 @@ describe("@exact/server", () => {
     expect(JSON.parse(result.body)).toEqual({ error: "bad_request" });
   });
 
+  it("normalizes undefined optional request fields like JSON transport", async () => {
+    const action = vi.fn((input: { type: string; id: string }) => ({ patches: [] }));
+    const result = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "action",
+        id: "allowed-action",
+        opId: undefined,
+        dependsOn: undefined,
+        payload: undefined,
+        state: undefined,
+        boundaryHtml: undefined,
+        boundaryHtmls: undefined
+      }
+    }, context({
+      actions: { "allowed-action": action }
+    }));
+
+    expect(result.status).toBe(200);
+    expect(action).toHaveBeenCalledOnce();
+    expect(action.mock.calls[0][0]).toEqual({
+      type: "action",
+      id: "allowed-action"
+    });
+  });
+
   it("rejects malformed invocation results before returning them to clients", async () => {
     const result = await handleExactRequest({
       method: "POST",
