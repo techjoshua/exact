@@ -582,6 +582,10 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
 
   const addReference = (node: ts.Identifier): void => {
     if (isIdentifierDeclarationName(node) || isPropertyAccessName(node) || isNonReferenceIdentifier(node)) return;
+    addSemanticReference(node);
+  };
+
+  const addSemanticReference = (node: ts.Identifier): void => {
     const scope = currentScope();
     references.push({
       name: node.text,
@@ -645,6 +649,16 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
   function visit(node: ts.Node): void {
     if (ts.isImportDeclaration(node)) {
       declareImportClause(node);
+      return;
+    }
+
+    if (ts.isExportDeclaration(node)) {
+      if (!node.moduleSpecifier && node.exportClause && ts.isNamedExports(node.exportClause)) {
+        for (const element of node.exportClause.elements) {
+          const localName = element.propertyName ?? element.name;
+          if (ts.isIdentifier(localName)) addSemanticReference(localName);
+        }
+      }
       return;
     }
 

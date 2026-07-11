@@ -97,6 +97,27 @@ describe("@exact/compiler", () => {
     });
   });
 
+  it("resolves local export specifiers as semantic references", () => {
+    const graph = analyzeSemanticGraph(`
+      function ProjectPage() {
+        return () => <p>Ready</p>;
+      }
+
+      export { ProjectPage as Page };
+      export { RemotePage } from "./remote";
+    `, { filename: "ProjectPage.tsx" });
+
+    const declaration = graph.declarations.find(item => item.name === "ProjectPage" && item.kind === "function");
+    const reference = graph.references.find(item => item.name === "ProjectPage");
+    expect(declaration).toBeDefined();
+    expect(reference).toMatchObject({
+      source: "local",
+      declarationId: declaration!.id,
+      declarationKind: "function"
+    });
+    expect(graph.references.some(item => item.name === "RemotePage")).toBe(false);
+  });
+
   it("lowers JSX to eXact compiled vnode helpers", () => {
     const output = transform("const view = <button title={label}>Save</button>;");
 
