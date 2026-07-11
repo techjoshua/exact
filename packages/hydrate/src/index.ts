@@ -226,7 +226,7 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
     logFrameworkEvent("warn", "hydrate", "request", `exact ${options.type} invocation failed with ${response.status}`, undefined, options.logger);
     throw new Error(`eXact ${options.type} invocation failed`);
   }
-  return body as ExactInvocationResult;
+  return parseExactInvocationResponse(body, `eXact ${options.type} invocation returned malformed result`);
 }
 
 export type InvokeExactBatchOptions = {
@@ -261,7 +261,7 @@ export async function invokeExactBatch(options: InvokeExactBatchOptions): Promis
   }
   const results = (body as { results?: unknown }).results;
   if (!Array.isArray(results)) throw new Error("eXact batch invocation returned malformed results");
-  return results as ExactOperationResult[];
+  return results.map(parseExactOperationResult);
 }
 
 function enqueueExactOperation(
@@ -715,6 +715,94 @@ function isNodeInsideRange(node: Node, range: { start: Comment; end: Comment }):
 
 function reportMismatch(options: HydrateOptions, message: string): void {
   logFrameworkEvent("warn", "hydrate", "mismatch", message, undefined, options.logger);
+}
+
+function parseExactInvocationResponse(body: unknown, message: string): ExactInvocationResult {
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(message);
+  const record = body as Record<string, unknown>;
+  if ("ok" in record && record.ok !== true) throw new Error(message);
+  if (!hasOnlyKeys(record, ["ok", "patches", "state", "html"])) throw new Error(message);
+  if (record.patches !== undefined && (!Array.isArray(record.patches) || !record.patches.every(isPatchLike))) throw new Error(message);
+  if (record.html !== undefined && typeof record.html !== "string") throw new Error(message);
+  return {
+    ...(record.patches === undefined ? {} : { patches: record.patches as ExactPatch[] }),
+    ...("state" in record ? { state: record.state } : {}),
+    ...(record.html === undefined ? {} : { html: record.html })
+  };
+}
+
+function parseExactOperationResult(value: unknown): ExactOperationResult {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("eXact batch invocation returned malformed results");
+  const record = value as Record<string, unknown>;
+  if (record.ok === true) {
+    if (!hasOnlyKeys(record, ["ok", "type", "id", "opId", "patches", "state", "html"])) throw new Error("eXact batch invocation returned malformed results");
+    if (record.type !== "action" && record.type !== "refresh") throw new Error("eXact batch invocation returned malformed results");
+    if (typeof record.id !== "string" || !record.id) throw new Error("eXact batch invocation returned malformed results");
+    if (record.opId !== undefined && typeof record.opId !== "string") throw new Error("eXact batch invocation returned malformed results");
+    const result = parseExactInvocationResponse({
+      ok: true,
+      ...(record.patches === undefined ? {} : { patches: record.patches }),
+      ...("state" in record ? { state: record.state } : {}),
+      ...(record.html === undefined ? {} : { html: record.html })
+    }, "eXact batch invocation returned malformed results");
+    return {
+      ok: true,
+      type: record.type,
+      id: record.id,
+      ...(record.opId === undefined ? {} : { opId: record.opId }),
+      ...result
+    };
+  }
+  if (record.ok === false) {
+    if (!hasOnlyKeys(record, ["ok", "type", "id", "opId", "status", "error"])) throw new Error("eXact batch invocation returned malformed results");
+    if (record.type !== "action" && record.type !== "refresh") throw new Error("eXact batch invocation returned malformed results");
+    if (typeof record.id !== "string" || !record.id) throw new Error("eXact batch invocation returned malformed results");
+    if (record.opId !== undefined && typeof record.opId !== "string") throw new Error("eXact batch invocation returned malformed results");
+    if (typeof record.status !== "number" || !Number.isInteger(record.status)) throw new Error("eXact batch invocation returned malformed results");
+    if (record.error !== "bad_request" && record.error !== "not_found" && record.error !== "forbidden" && record.error !== "internal_error" && record.error !== "dependency_failed") {
+      throw new Error("eXact batch invocation returned malformed results");
+    }
+    return {
+      ok: false,
+      type: record.type,
+      id: record.id,
+      ...(record.opId === undefined ? {} : { opId: record.opId }),
+      status: record.status,
+      error: record.error
+    };
+  }
+  throw new Error("eXact batch invocation returned malformed results");
+}
+
+function isPatchLike(value: unknown): value is ExactPatch {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  if (typeof record.type !== "string" || typeof record.id !== "string" || !record.id) return false;
+  switch (record.type) {
+    case "text":
+      return hasOnlyKeys(record, ["type", "id", "value"]) && typeof record.value === "string";
+    case "prop":
+      return hasOnlyKeys(record, ["type", "id", "name", "value"]) && typeof record.name === "string" && "value" in record;
+    case "style":
+      return hasOnlyKeys(record, ["type", "id", "name", "value"]) && typeof record.name === "string" && (typeof record.value === "string" || record.value === null);
+    case "list":
+      return hasOnlyKeys(record, ["type", "id", "op", "key", "before", "html"])
+        && (record.op === "insert" || record.op === "move" || record.op === "remove")
+        && typeof record.key === "string"
+        && (record.before === undefined || typeof record.before === "string")
+        && (record.html === undefined || typeof record.html === "string");
+    case "state":
+      return hasOnlyKeys(record, ["type", "id", "value"]) && "value" in record;
+    case "replace":
+      return hasOnlyKeys(record, ["type", "id", "html"]) && typeof record.html === "string";
+    default:
+      return false;
+  }
+}
+
+function hasOnlyKeys(record: Record<string, unknown>, allowed: readonly string[]): boolean {
+  const allowedSet = new Set(allowed);
+  return Object.keys(record).every(key => allowedSet.has(key));
 }
 
 function cssEscape(value: string): string {

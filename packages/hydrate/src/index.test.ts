@@ -563,6 +563,69 @@ describe("@exact/hydrate", () => {
     expect(results[1]).toMatchObject({ ok: false, id: "panel" });
   });
 
+  it("normalizes successful exact invocation responses", async () => {
+    const result = await invokeExact({
+      endpoint: "/__exact",
+      type: "action",
+      id: "save",
+      fetch: async () => ({
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            ok: true,
+            state: { saved: true },
+            patches: [{ type: "text", id: "title", value: "Saved" }]
+          };
+        }
+      })
+    });
+
+    expect(result).toEqual({
+      state: { saved: true },
+      patches: [{ type: "text", id: "title", value: "Saved" }]
+    });
+    expect("ok" in result).toBe(false);
+  });
+
+  it("rejects malformed successful exact invocation responses", async () => {
+    await expect(invokeExact({
+      endpoint: "/__exact",
+      type: "action",
+      id: "save",
+      fetch: async () => ({
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            ok: true,
+            patches: [{ type: "text", id: 1, value: "Saved" }]
+          };
+        }
+      })
+    })).rejects.toThrow("eXact action invocation returned malformed result");
+  });
+
+  it("rejects malformed exact batch operation responses", async () => {
+    await expect(invokeExactBatch({
+      endpoint: "/__exact",
+      operations: [{ type: "action", id: "save" }],
+      fetch: async () => ({
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            ok: true,
+            version: 1,
+            results: [
+              { ok: true, type: "action", id: "save", patches: [{ type: "replace", id: 1, html: "<p />" }] }
+            ]
+          };
+        }
+      })
+    })).rejects.toThrow("eXact batch invocation returned malformed results");
+  });
+
   it("coalesces same-tick client operations into a batch request", async () => {
     const container = document.createElement("div");
     container.innerHTML = "<!--exact:title-->Old<!--/exact:title--><!--exact:panel--><p>Old</p><!--/exact:panel-->";
