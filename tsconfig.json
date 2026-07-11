@@ -10,6 +10,8 @@
     { "path": "./packages/ssr" },
     { "path": "./packages/hydrate" },
     { "path": "./packages/vite-plugin" },
+    { "path": "./packages/webpack-plugin" },
+    { "path": "./packages/bun-plugin" },
     { "path": "./apps/kanban" },
     { "path": "./apps/workbench" }
   ]

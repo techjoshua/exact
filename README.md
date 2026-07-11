@@ -13,6 +13,8 @@ The repository is an npm workspace monorepo. The current implementation slice co
 - `@exact/hydrate`: client hydration entrypoint and server patch application.
 - `@exact/server`: adapter-neutral secure server-component/action request handling.
 - `@exact/vite-plugin`: Vite integration for the eXact compiler.
+- `@exact/webpack-plugin`: Webpack integration for the eXact compiler.
+- `@exact/bun-plugin`: Bun integration for the eXact compiler.
 
 Each package publishes a single public entrypoint today, except `@exact/compiler`, which also exposes the `exactc` CLI entrypoint. Browser rendering is intentionally exported from `@exact/dom`; platform-neutral component APIs live in `@exact/core`.
 
@@ -66,7 +68,7 @@ The package entrypoints are:
   - Browser app surface: `render(vnode, container, options?)`.
   - CSS helper surface: `px`, `rem`, `em`, `percent`, `vh`, `vw`, `vmin`, `vmax`, `fr`, `ms`, `s`, `deg`, `rad`, `turn`.
 - `@exact/compiler`
-  - Build-tool surface: `transform`, `transformSource`, `compileFile`, `compileProject`, `compileFileArtifacts`, `compileProjectArtifacts`, `createPackageExportMap`, `preprocessPropPunning`.
+  - Build-tool surface: `transform`, `transformSource`, `compileFile`, `compileProject`, `compileFileArtifacts`, `compileProjectArtifacts`, `exactExportConditions`, `resolveExactArtifactImport`, `createExactArtifactGraph`, `createPackageExportMap`, `preprocessPropPunning`.
   - Semantic surface: `analyzeSource` and emitted manifests for component/task placement planning.
   - CLI: `exactc`.
 - `@exact/ssr`
@@ -87,6 +89,12 @@ The package entrypoints are:
 - `@exact/vite-plugin`
   - Vite adapter: `exact({ target?: "default" | "client" | "server" })`.
   - Adds `exact-client` or `exact-server` package export conditions based on the configured target.
+- `@exact/webpack-plugin`
+  - Webpack adapter: `new ExactWebpackPlugin({ target?: "default" | "client" | "server" })`.
+  - Adds target package export conditions, `.exact` facade resolution helpers, and a pre-loader for TSX/JSX transforms.
+- `@exact/bun-plugin`
+  - Bun adapter: `exact({ target?: "default" | "client" | "server" })`.
+  - Adds target package export conditions, `.exact` facade resolution, and TSX/JSX transform hooks.
 
 The next export cleanup should split `@exact/core` into clearer app-facing and framework-internal subpaths before external publication. For now the single entrypoint keeps package integration straightforward while the framework is still being shaped.
 
@@ -131,10 +139,10 @@ That rewrites `.tsx` files to `.ts` and `.jsx` files to `.js` under the output d
 
 Packaged component libraries can publish these generated variants and let app build tooling choose the client or server file based on the render target.
 The generated target files are real ESM modules that preserve named exports, so package authors can expose them through package export conditions and bundlers can tree-shake unused components independently. The `.exact.manifest.json` file records the source file, target artifact paths, exported names, generated symbols, and server-refreshable boundary IDs for resolver/runtime integration.
-`exactExportConditions()`, `resolveExactArtifactImport()`, and `createExactArtifactGraph()` are bundler-neutral primitives that Vite, Webpack, Bun, or another build tool can share. `createPackageExportMap()` can turn `compileProjectArtifacts()` results into package export entries with `exact-client` and `exact-server` conditions, so libraries can generate their multi-target `exports` map instead of hand-maintaining per-component paths. `createClientIslandRegistryEntries()` exposes the generated client-island module/export pairs for hydration/bundler integration without scraping emitted client code.
+`exactExportConditions()`, `resolveExactArtifactImport()`, and `createExactArtifactGraph()` are bundler-neutral primitives shared by the Vite, Webpack, and Bun adapters. `createPackageExportMap()` can turn `compileProjectArtifacts()` results into package export entries with `exact-client` and `exact-server` conditions, so libraries can generate their multi-target `exports` map instead of hand-maintaining per-component paths. `createClientIslandRegistryEntries()` exposes the generated client-island module/export pairs for hydration/bundler integration without scraping emitted client code.
 When the compiler splits one authored component into generated server/client pieces, the authored root keeps its public name and generated pieces use deterministic names derived from it, such as `ProjectCard_ExactClient_1`. Manifest protocol identity should use stable generated IDs, not JavaScript function names, because bundlers and minifiers may rename local symbols.
-The Vite plugin also supports `.exact` facade imports. With `exact({ target: "client" })`, `import { ProjectCard } from "./ProjectCard.exact"` resolves to `ProjectCard.exact.client.ts`; with `target: "server"` it resolves to `ProjectCard.exact.server.ts`.
-For packaged component libraries that publish `exact-client` and `exact-server` export conditions, the same plugin target adds the matching resolver condition during Vite config setup.
+The Vite, Webpack, and Bun adapters also support `.exact` facade imports. With `target: "client"`, `import { ProjectCard } from "./ProjectCard.exact"` resolves to `ProjectCard.exact.client.ts`; with `target: "server"` it resolves to `ProjectCard.exact.server.ts`.
+For packaged component libraries that publish `exact-client` and `exact-server` export conditions, the adapter target adds the matching resolver condition during setup.
 
 In server-target artifacts, pure client components are emitted as server-safe boundary stubs instead of leaking browser-only code into the server bundle. Isomorphic components can still split simple interactive JSX islands such as elements with `onClick` or `ref` into server-rendered client-boundary placeholders. The compiler also splits clear self-closing/no-child client component tags out of server artifacts, replacing them with a boundary named after the client component and pruning imports that become unused after the split. The client artifact preserves the interactive component and exports generated island aliases for element-level splits, which can be registered with the hydration client:
 
@@ -386,7 +394,7 @@ const server = await renderToHydratableStringAsync(<App />, {
 hydrate(<App />, document.getElementById("app")!);
 ```
 
-Server components are not yet a full distributed component protocol. The pieces now in place are the semantic compiler manifest, client/server compiler targets, secure generic endpoint, hydration state exchange, server boundary replacement patches, text/exact-element boundary diffs, compiler-assigned list boundary IDs, key-stable list snapshot patch helpers, inferred list snapshots from submitted boundary HTML, and bundler-neutral artifact graph/client-island registry metadata. The remaining work is broader compiler-owned component splitting and concrete Webpack/Bun adapters on top of the shared artifact primitives.
+Server components are not yet a full distributed component protocol. The pieces now in place are the semantic compiler manifest, client/server compiler targets, secure generic endpoint, hydration state exchange, server boundary replacement patches, text/exact-element boundary diffs, compiler-assigned list boundary IDs, key-stable list snapshot patch helpers, inferred list snapshots from submitted boundary HTML, bundler-neutral artifact graph/client-island registry metadata, and thin Vite/Webpack/Bun adapters. The remaining work is broader compiler-owned component splitting and richer dev-server orchestration for coordinated client/server artifact graphs.
 
 ## Logging
 
