@@ -626,6 +626,21 @@ describe("@exact/ssr", () => {
     ]);
   });
 
+  it("replaces the nearest nested exact element when only that subtree shape changes", () => {
+    expect(diffBoundaryHtml(
+      "profile",
+      "<section data-exact-id=\"root\"><article data-exact-id=\"card\"><p data-exact-id=\"body\">Draft</p></article><aside data-exact-id=\"meta\">Stable</aside></section>",
+      "<section data-exact-id=\"root\"><article data-exact-id=\"card\"><p data-exact-id=\"body\"><strong>Ready</strong></p></article><aside data-exact-id=\"meta\">Stable</aside></section>",
+      "element"
+    )).toEqual([
+      {
+        type: "replace",
+        id: "body",
+        html: "<p data-exact-id=\"body\"><strong>Ready</strong></p>"
+      }
+    ]);
+  });
+
   it("falls back to replacement patches when element strategy shape changes", async () => {
     const response = await handleExactRequest({
       method: "POST",

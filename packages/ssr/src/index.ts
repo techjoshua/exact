@@ -472,7 +472,10 @@ function diffExactElementHtml(previousHtml: string, nextHtml: string): ExactPatc
   const patches: ExactPatch[] = [];
   for (const [id, next] of nextById) {
     const previous = previousById.get(id);
-    if (!previous || previous.tagName !== next.tagName) return undefined;
+    if (!previous) return undefined;
+    if (previous.tagName !== next.tagName) {
+      return nestedExactElementReplace(previousTree, nextTree) ?? rootExactElementReplace(previousTree, nextTree, nextHtml);
+    }
 
     for (const [name, value] of next.attributes) {
       if (name === "data-exact-id") continue;
@@ -502,14 +505,33 @@ function diffExactElementHtml(previousHtml: string, nextHtml: string): ExactPatc
     const previousText = textOnlyContent(previous);
     const nextText = textOnlyContent(next);
     if (previousText !== undefined || nextText !== undefined) {
-      if (previousText === undefined || nextText === undefined) return undefined;
+      if (previousText === undefined || nextText === undefined) {
+        return nestedExactElementReplace(previousTree, nextTree) ?? rootExactElementReplace(previousTree, nextTree, nextHtml);
+      }
       if (previousText !== nextText) patches.push({ type: "text", id, value: nextText });
     }
   }
 
   return normalizedHtmlShape(previousTree) === normalizedHtmlShape(nextTree)
     ? patches
-    : rootExactElementReplace(previousTree, nextTree, nextHtml);
+    : nestedExactElementReplace(previousTree, nextTree) ?? rootExactElementReplace(previousTree, nextTree, nextHtml);
+}
+
+function nestedExactElementReplace(
+  previousTree: readonly ParsedHtmlNode[],
+  nextTree: readonly ParsedHtmlNode[]
+): ExactPatch[] | undefined {
+  const previousById = collectExactElements(previousTree);
+  const nextEntries = collectExactElementEntries(nextTree).sort((left, right) => right.depth - left.depth);
+
+  for (const { id, element: next } of nextEntries) {
+    const previous = previousById.get(id);
+    if (!previous) continue;
+    if (normalizedHtmlShape([previous]) === normalizedHtmlShape([next])) continue;
+    return [{ type: "replace", id, html: serializeParsedHtmlElement(next) }];
+  }
+
+  return undefined;
 }
 
 function rootExactElementReplace(
@@ -621,6 +643,20 @@ function collectExactElements(nodes: readonly ParsedHtmlNode[], output = new Map
   return output;
 }
 
+function collectExactElementEntries(
+  nodes: readonly ParsedHtmlNode[],
+  output: { id: string; element: ParsedHtmlElement; depth: number }[] = [],
+  depth = 0
+): { id: string; element: ParsedHtmlElement; depth: number }[] {
+  for (const node of nodes) {
+    if (node.kind !== "element") continue;
+    const id = node.attributes.get("data-exact-id");
+    if (id) output.push({ id, element: node, depth });
+    collectExactElementEntries(node.children, output, depth + 1);
+  }
+  return output;
+}
+
 function sameKeys<T>(left: Map<string, T>, right: Map<string, T>): boolean {
   if (left.size !== right.size) return false;
   for (const key of left.keys()) {
@@ -686,6 +722,20 @@ function normalizedHtmlShape(nodes: readonly ParsedHtmlNode[]): string {
       : normalizedHtmlShape(node.children);
     return `e:${node.tagName}[${attrs}](${childShape})`;
   }).join("");
+}
+
+function serializeParsedHtmlElement(element: ParsedHtmlElement): string {
+  const attributes = Array.from(element.attributes)
+    .map(([name, value]) => value === "true" ? ` ${name}` : ` ${name}="${escapeAttr(value)}"`)
+    .join("");
+  if (voidElements.has(element.tagName)) return `<${element.tagName}${attributes}>`;
+  return `<${element.tagName}${attributes}>${element.children.map(serializeParsedHtmlNode).join("")}</${element.tagName}>`;
+}
+
+function serializeParsedHtmlNode(node: ParsedHtmlNode): string {
+  return node.kind === "text"
+    ? escapeText(node.value)
+    : serializeParsedHtmlElement(node);
 }
 
 function boundaryPatch(boundaryId: string, html: string, strategy: BoundaryRefreshOptions["patchStrategy"]): ExactPatch {
