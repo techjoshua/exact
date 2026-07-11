@@ -38,11 +38,14 @@ export type ExactTaskIR = {
 };
 
 export type ExactComponentRenderEdgeIR = {
+  id: string;
   tag: string;
   name: string;
   componentId?: string;
   placement: ExactPlacement;
   boundary: ExactPlacement;
+  index: number;
+  path: string;
 };
 
 export type ExactComponentIR = {
@@ -303,6 +306,7 @@ export type ExactArtifactGraph = {
 };
 
 export type ExactArtifactComponentEdge = {
+  id: string;
   sourceFile: string;
   sourceComponentId: string;
   sourceName: string;
@@ -311,6 +315,8 @@ export type ExactArtifactComponentEdge = {
   tag: string;
   placement: ExactPlacement;
   boundary: ExactPlacement;
+  index: number;
+  path: string;
 };
 
 export type ExactArtifactGraphEntry = {
@@ -1187,6 +1193,7 @@ export function createExactArtifactComponentEdges(results: readonly ExactArtifac
     for (const component of result.manifest.components) {
       for (const edge of component.renderEdges) {
         edges.push({
+          id: edge.id,
           sourceFile: result.inputFile,
           sourceComponentId: component.id,
           sourceName: component.name,
@@ -1194,7 +1201,9 @@ export function createExactArtifactComponentEdges(results: readonly ExactArtifac
           targetName: edge.name,
           tag: edge.tag,
           placement: edge.placement,
-          boundary: edge.boundary
+          boundary: edge.boundary,
+          index: edge.index,
+          path: edge.path
         });
       }
     }
@@ -1202,11 +1211,13 @@ export function createExactArtifactComponentEdges(results: readonly ExactArtifac
   return edges.sort((left, right) => [
     left.sourceFile,
     left.sourceName,
+    String(left.index).padStart(6, "0"),
     left.tag,
     left.targetName
   ].join(":").localeCompare([
     right.sourceFile,
     right.sourceName,
+    String(right.index).padStart(6, "0"),
     right.tag,
     right.targetName
   ].join(":")));
@@ -1850,40 +1861,44 @@ function collectComponentRenderEdges(
   semanticReferences: SemanticReferenceIndex
 ): ExactComponentRenderEdgeIR[] {
   const edges: ExactComponentRenderEdgeIR[] = [];
-  const seen = new Set<string>();
 
-  function visit(node: ts.Node): void {
+  function visit(node: ts.Node, path: number[] = []): void {
     if (node !== root && isFunctionLikeNode(node)) return;
 
     if (ts.isJsxElement(node)) {
-      addEdge(node.openingElement.tagName);
+      addEdge(node.openingElement.tagName, path);
     } else if (ts.isJsxSelfClosingElement(node)) {
-      addEdge(node.tagName);
+      addEdge(node.tagName, path);
     }
 
-    ts.forEachChild(node, visit);
+    let childIndex = 0;
+    ts.forEachChild(node, child => {
+      visit(child, [...path, childIndex++]);
+    });
   }
 
-  function addEdge(tagName: ts.JsxTagNameExpression): void {
+  function addEdge(tagName: ts.JsxTagNameExpression, path: readonly number[]): void {
     if (jsxTagIsIntrinsicElement(tagName)) return;
     if (!jsxTagCanReferenceComponent(tagName, semanticReferences, sourceFile)) return;
     const tag = tagName.getText(sourceFile);
     const component = componentInfo.get(tag);
     if (!component) return;
-    const key = component.componentId ?? `${tag}:${component.boundaryName ?? component.name}`;
-    if (seen.has(key)) return;
-    seen.add(key);
+    const index = edges.length + 1;
+    const pathText = path.join(".");
     edges.push({
+      id: stableId(sourceFile.fileName, root.name?.text ?? "Anonymous", "render-edge", String(index), pathText, tag, component.componentId ?? component.name),
       tag,
       name: component.boundaryName ?? component.name,
       componentId: component.componentId,
       placement: component.placement,
-      boundary: component.placement
+      boundary: component.placement,
+      index,
+      path: pathText
     });
   }
 
   visit(root);
-  return edges.sort((left, right) => left.tag.localeCompare(right.tag));
+  return edges;
 }
 
 function isFunctionLikeNode(node: ts.Node): boolean {

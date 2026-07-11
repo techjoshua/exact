@@ -1485,6 +1485,7 @@ describe("@exact/compiler", () => {
     const widget = result.manifest.components.find(component => component.name === "ClientWidget")!;
 
     expect(graph.componentEdges).toEqual([{
+      id: expect.any(String),
       sourceFile: input,
       sourceComponentId: page.id,
       sourceName: "Page",
@@ -1492,7 +1493,9 @@ describe("@exact/compiler", () => {
       targetName: "ClientWidget",
       tag: "ClientWidget",
       placement: "client",
-      boundary: "client"
+      boundary: "client",
+      index: 1,
+      path: expect.any(String)
     }]);
   });
 
@@ -2312,7 +2315,7 @@ describe("@exact/compiler", () => {
       }
 
       export function Page() {
-        return () => <section><ClientWidget /></section>;
+        return () => <section><ClientWidget /><ClientWidget /></section>;
       }
     `, { filename: "/src/Page.tsx" });
 
@@ -2321,13 +2324,30 @@ describe("@exact/compiler", () => {
 
     expect(page.placement).toBe("server");
     expect(page.subgraphPlacement).toBe("isomorphic");
-    expect(page.renderEdges).toEqual([expect.objectContaining({
-      tag: "ClientWidget",
-      name: "ClientWidget",
-      componentId: widget.id,
-      placement: "client",
-      boundary: "client"
-    })]);
+    expect(page.renderEdges).toHaveLength(2);
+    expect(page.renderEdges).toEqual([
+      expect.objectContaining({
+        id: expect.any(String),
+        tag: "ClientWidget",
+        name: "ClientWidget",
+        componentId: widget.id,
+        placement: "client",
+        boundary: "client",
+        index: 1,
+        path: expect.any(String)
+      }),
+      expect.objectContaining({
+        id: expect.any(String),
+        tag: "ClientWidget",
+        name: "ClientWidget",
+        componentId: widget.id,
+        placement: "client",
+        boundary: "client",
+        index: 2,
+        path: expect.any(String)
+      })
+    ]);
+    expect(page.renderEdges[0]!.id).not.toBe(page.renderEdges[1]!.id);
   });
 
   it("records component render subgraphs for imported component boundaries", () => {
