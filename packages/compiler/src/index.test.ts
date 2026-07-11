@@ -622,6 +622,49 @@ describe("@exact/compiler", () => {
     await expect(readFile(path.join(outDir, "retained.exact.client.ts"), "utf8")).rejects.toThrow();
   });
 
+  it("uses retained manifests when compiling selected artifact plan entries", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-artifact-retained-manifests-"));
+    const src = path.join(root, "src");
+    const outDir = path.join(root, ".exact");
+    const widgetInput = path.join(src, "ClientWidget.tsx");
+    const pageInput = path.join(src, "Page.tsx");
+    await mkdir(src, { recursive: true });
+    await writeFile(widgetInput, `
+      export function ClientWidget(this: Component<{ width: number }>) {
+        this.state.width = window.innerWidth;
+        return () => <button onClick={() => this.state.width++} />;
+      }
+    `);
+    await writeFile(pageInput, `
+      import { ClientWidget } from "./ClientWidget";
+
+      export function Page() {
+        return () => <ClientWidget />;
+      }
+    `);
+
+    const initial = await compileProjectArtifacts([src], {
+      outDir,
+      rootDir: src
+    });
+    const retained = await readExactArtifactManifestEntries(initial
+      .filter(result => result.inputFile === widgetInput)
+      .map(result => result.manifestFile));
+    const plan = await createExactArtifactPlan([src], {
+      outDir,
+      rootDir: src
+    });
+    const changedPage = plan.entries.filter(entry => entry.inputFile === pageInput);
+    const updated = await compileArtifactPlanEntries(changedPage, {
+      importedManifests: retained.map(entry => entry.manifest)
+    });
+    const server = await readFile(updated[0]!.serverFile, "utf8");
+
+    expect(server).toContain("__exactBoundary");
+    expect(server).toContain("\"ClientWidget\"");
+    expect(server).not.toContain("from \"./ClientWidget\"");
+  });
+
   it("creates client island registry entries for generated client artifacts", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "exact-island-registry-"));
     const input = path.join(root, "src", "panel.tsx");

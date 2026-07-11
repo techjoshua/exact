@@ -156,6 +156,7 @@ export type ExactArtifactGraphInput = {
 
 export type CompileArtifactPlanEntriesOptions = {
   filename?(entry: ExactArtifactPlanEntry): string;
+  importedManifests?: readonly ExactCompilerManifest[];
 };
 
 export type ExactArtifactPlanOptions = {
@@ -479,7 +480,10 @@ export async function compileArtifactPlanEntries(
     const source = await readFile(entry.inputFile, "utf8");
     manifestBases.set(path.resolve(entry.inputFile), analyzeSource(source, { filename }));
   }
-  const importedManifests = [...manifestBases.values()];
+  const importedManifests = [
+    ...(options.importedManifests ?? []),
+    ...manifestBases.values()
+  ];
 
   for (const entry of entries) {
     const filename = options.filename?.(entry) ?? entry.inputFile;
