@@ -24,6 +24,10 @@ export type ExactHydrationConfig = {
   actionBoundaries?: Record<string, readonly string[]>;
 };
 
+export type ExactHydrationRegistration = ExactHydrationConfig & {
+  islands?: ClientIslandRegistry;
+};
+
 export type ExactEndpointRoutes = {
   actions?: Record<string, string>;
   boundaries?: Record<string, string>;
@@ -50,6 +54,7 @@ export type ExactClient = {
   invokeAction(id: string, payload?: unknown): Promise<ExactInvocationResult>;
   refreshBoundary(id: string, payload?: unknown): Promise<ExactInvocationResult>;
   refreshIsland(id: string, registry: ClientIslandRegistry, payload?: unknown): Promise<ExactInvocationResult>;
+  registerManifest(config: ExactHydrationRegistration): void;
 };
 
 export type HydrationRoot = ExactClient;
@@ -91,28 +96,44 @@ export function hydrate(vnode: VNode, container: Element, options: HydrateOption
 
 export function createExactClient(container: Element, options: HydrateOptions = {}): ExactClient {
   const resolvedOptions = resolveHydrateOptions(container, options);
+  const runtimeOptions: HydrateOptions = {
+    ...resolvedOptions,
+    endpoints: cloneEndpointRoutes(resolvedOptions.endpoints),
+    stateContracts: { ...(resolvedOptions.stateContracts ?? {}) },
+    actionBoundaries: { ...(resolvedOptions.actionBoundaries ?? {}) },
+    islands: { ...(resolvedOptions.islands ?? {}) }
+  };
   const client: ExactClient = {
-    endpoint: resolvedOptions.endpoint,
-    endpoints: resolvedOptions.endpoints,
-    state: resolvedOptions.state,
-    stateContracts: resolvedOptions.stateContracts,
+    get endpoint() {
+      return runtimeOptions.endpoint;
+    },
+    get endpoints() {
+      return runtimeOptions.endpoints;
+    },
+    get state() {
+      return runtimeOptions.state;
+    },
+    set state(value: unknown) {
+      runtimeOptions.state = value;
+    },
+    get stateContracts() {
+      return runtimeOptions.stateContracts;
+    },
     applyPatches(patches) {
-      return applyPatches(container, patches, resolvedOptions);
+      return applyPatches(container, patches, runtimeOptions);
     },
     invokeAction(id, payload) {
-      return invokeAndApply(container, client, "action", id, payload, resolvedOptions);
+      return invokeAndApply(container, client, "action", id, payload, runtimeOptions);
     },
     refreshBoundary(id, payload) {
-      return invokeAndApply(container, client, "refresh", id, payload, resolvedOptions);
+      return invokeAndApply(container, client, "refresh", id, payload, runtimeOptions);
     },
     async refreshIsland(id, registry, payload) {
-      return invokeAndApply(container, client, "refresh", id, payload, {
-        ...resolvedOptions,
-        islands: {
-          ...resolvedOptions.islands,
-          ...registry
-        }
-      });
+      mergeClientIslands(runtimeOptions, registry);
+      return invokeAndApply(container, client, "refresh", id, payload, runtimeOptions);
+    },
+    registerManifest(config) {
+      mergeHydrationRegistration(runtimeOptions, config);
     }
   };
   return client;
@@ -421,6 +442,36 @@ function mergeEndpointRoutes(
       ...(Object.keys(boundaries).length ? { boundaries } : {})
     }
     : undefined;
+}
+
+function cloneEndpointRoutes(routes: ExactEndpointRoutes | undefined): ExactEndpointRoutes | undefined {
+  return mergeEndpointRoutes(undefined, routes);
+}
+
+function mergeHydrationRegistration(options: HydrateOptions, registration: ExactHydrationRegistration): void {
+  if (registration.endpoint !== undefined) options.endpoint = registration.endpoint;
+  options.endpoints = mergeEndpointRoutes(options.endpoints, registration.endpoints);
+  if (registration.state !== undefined) options.state = registration.state;
+  if (registration.stateContracts) {
+    options.stateContracts = {
+      ...(options.stateContracts ?? {}),
+      ...registration.stateContracts
+    };
+  }
+  if (registration.actionBoundaries) {
+    options.actionBoundaries = {
+      ...(options.actionBoundaries ?? {}),
+      ...registration.actionBoundaries
+    };
+  }
+  if (registration.islands) mergeClientIslands(options, registration.islands);
+}
+
+function mergeClientIslands(options: HydrateOptions, islands: ClientIslandRegistry): void {
+  options.islands = {
+    ...(options.islands ?? {}),
+    ...islands
+  };
 }
 
 function hydrationConfigRoot(container: Element): ParentNode {

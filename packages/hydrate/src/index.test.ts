@@ -947,6 +947,106 @@ describe("@exact/hydrate", () => {
     expect(container.textContent).toBe("SavedRemote");
   });
 
+  it("registers remote hydration metadata after client creation", async () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<!--exact:remote-panel--><p>Old remote</p><!--/exact:remote-panel-->";
+    const requests: { input: string; body: unknown }[] = [];
+    const fetch = async (input: string, init: { body: string }) => {
+      requests.push({ input, body: JSON.parse(init.body) });
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            ok: true,
+            patches: [{ type: "replace", id: "remote-panel", html: "<section>Saved remote</section>" }],
+            state: { project: { id: "p1", title: "Saved" } }
+          };
+        }
+      };
+    };
+
+    const client = createExactClient(container, {
+      endpoint: "/__exact",
+      state: { project: { id: "p1", title: "Draft", secret: "local-only" } },
+      fetch
+    });
+    client.registerManifest({
+      endpoints: {
+        actions: {
+          "remote-save": "https://remote.test/__exact"
+        }
+      },
+      stateContracts: {
+        "remote-save": {
+          reads: [{ path: "project.id", kind: "read", confidence: "exact" }]
+        }
+      },
+      actionBoundaries: {
+        "remote-save": ["remote-panel"]
+      }
+    });
+
+    await client.invokeAction("remote-save", { title: "Saved" });
+
+    expect(requests).toEqual([{
+      input: "https://remote.test/__exact",
+      body: {
+        type: "action",
+        id: "remote-save",
+        payload: { title: "Saved" },
+        state: { project: { id: "p1" } },
+        boundaryHtmls: {
+          "remote-panel": "<p>Old remote</p>"
+        }
+      }
+    }]);
+    expect(client.state).toEqual({ project: { id: "p1", title: "Saved" } });
+    expect(container.textContent).toBe("Saved remote");
+  });
+
+  it("hydrates client islands registered by a remote manifest", async () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<!--exact:remote-panel--><p>Loading</p><!--/exact:remote-panel-->";
+    function RemoteIsland(this: Component<{}>, props: { label: string }) {
+      return () => createVNode("button", null, props.label);
+    }
+    const fetch = async () => ({
+      ok: true,
+      status: 200,
+      async json() {
+        return {
+          ok: true,
+          patches: [{
+            type: "replace",
+            id: "remote-panel",
+            html: "<div data-exact-client-boundary=\"remote-island\" data-exact-client-name=\"RemoteIsland\" data-exact-client-props='{\"props\":{\"label\":\"Loaded\"}}'></div>"
+          }]
+        };
+      }
+    });
+
+    const client = createExactClient(container, {
+      endpoint: "/__exact",
+      fetch
+    });
+    client.registerManifest({
+      endpoints: {
+        boundaries: {
+          "remote-panel": "https://remote.test/__exact"
+        }
+      },
+      islands: {
+        RemoteIsland
+      }
+    });
+
+    await client.refreshBoundary("remote-panel");
+
+    expect(container.querySelector("[data-exact-client-boundary=\"remote-island\"]")?.getAttribute("data-exact-client-hydrated")).toBe("true");
+    expect(container.querySelector("button")?.textContent).toBe("Loaded");
+  });
+
   it("applies successful batched client operations when a sibling operation fails", async () => {
     const container = document.createElement("div");
     container.innerHTML = "<!--exact:title-->Old<!--/exact:title-->";
