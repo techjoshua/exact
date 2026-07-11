@@ -305,6 +305,11 @@ type ComponentLocalInfo = {
   functions: Map<string, ts.Statement>;
 };
 
+type ExportBinding = {
+  exportedName: string;
+  localName: string;
+};
+
 type ClientIslandCaptures = {
   values: string[];
   functions: ts.Statement[];
@@ -376,19 +381,20 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
     });
   }
   const componentPlacements = new Map([...componentInfo].map(([name, component]) => [name, component.placement]));
-  const exportedNames = collectExports(sourceFile);
+  const exportBindings = collectExportBindings(sourceFile);
+  const exportedLocals = new Set([...exportBindings.values()].map(binding => binding.localName));
   for (const component of components) {
-    component.exported = exportedNames.has(component.name);
+    component.exported = exportedLocals.has(component.name);
   }
-  for (const name of [...exportedNames].sort()) {
-    const component = componentByName.get(name);
+  for (const binding of [...exportBindings.values()].sort((left, right) => left.exportedName.localeCompare(right.exportedName))) {
+    const component = componentByName.get(binding.localName);
     exports.push({
-      name,
+      name: binding.exportedName,
       kind: component ? "component" : "value",
       placement: component?.placement ?? "unknown"
     });
   }
-  symbols.push(...createRootSymbols(sourceFile, components, exports));
+  symbols.push(...createRootSymbols(sourceFile, components, [...exportBindings.values()]));
   symbols.push(...createServerPartSymbols(sourceFile, components));
   symbols.push(...createClientIslandSymbols(sourceFile, components));
   boundaries.push(...createClientIslandBoundaries(sourceFile, components));
@@ -1325,23 +1331,46 @@ function isComponentLikeFunction(node: ts.FunctionDeclaration): boolean {
 }
 
 function collectExports(sourceFile: ts.SourceFile): Set<string> {
-  const exports = new Set<string>();
+  return new Set([...collectExportBindings(sourceFile).keys()]);
+}
+
+function collectExportBindings(sourceFile: ts.SourceFile): Map<string, ExportBinding> {
+  const exports = new Map<string, ExportBinding>();
 
   for (const statement of sourceFile.statements) {
     if (hasExportModifier(statement)) {
+      const hasDefault = hasDefaultModifier(statement);
       if ((ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement)) && statement.name) {
-        exports.add(statement.name.text);
+        if (hasDefault) {
+          exports.set("default", {
+            exportedName: "default",
+            localName: statement.name.text
+          });
+        } else {
+          exports.set(statement.name.text, {
+            exportedName: statement.name.text,
+            localName: statement.name.text
+          });
+        }
       }
       if (ts.isVariableStatement(statement)) {
         for (const declaration of statement.declarationList.declarations) {
-          if (ts.isIdentifier(declaration.name)) exports.add(declaration.name.text);
+          if (ts.isIdentifier(declaration.name)) {
+            exports.set(declaration.name.text, {
+              exportedName: declaration.name.text,
+              localName: declaration.name.text
+            });
+          }
         }
       }
     }
 
     if (ts.isExportDeclaration(statement) && statement.exportClause && ts.isNamedExports(statement.exportClause)) {
       for (const element of statement.exportClause.elements) {
-        exports.add(element.name.text);
+        exports.set(element.name.text, {
+          exportedName: element.name.text,
+          localName: element.propertyName?.text ?? element.name.text
+        });
       }
     }
   }
@@ -1349,25 +1378,26 @@ function collectExports(sourceFile: ts.SourceFile): Set<string> {
   return exports;
 }
 
-function createRootSymbols(sourceFile: ts.SourceFile, components: ExactComponentIR[], exports: ExactExportIR[]): ExactSymbolIR[] {
-  const exportByName = new Map(exports.map(item => [item.name, item]));
-  return components
-    .filter(component => component.exported)
-    .map(component => {
-      const exported = exportByName.get(component.name);
-      return {
-        id: stableId(sourceFile.fileName, "symbol", component.id, "root"),
-        componentId: component.id,
-        exportName: exported?.name,
-        localName: component.name,
-        generatedName: component.name,
-        debugName: component.name,
-        kind: "component",
-        role: "root",
-        target: component.placement === "client" ? "client" : component.placement === "server" ? "server" : "both",
-        placement: component.placement
-      };
+function createRootSymbols(sourceFile: ts.SourceFile, components: ExactComponentIR[], exports: readonly ExportBinding[]): ExactSymbolIR[] {
+  const componentByName = new Map(components.map(component => [component.name, component]));
+  const symbols: ExactSymbolIR[] = [];
+  for (const binding of exports) {
+    const component = componentByName.get(binding.localName);
+    if (!component) continue;
+    symbols.push({
+      id: stableId(sourceFile.fileName, "symbol", component.id, "root", binding.exportedName),
+      componentId: component.id,
+      exportName: binding.exportedName,
+      localName: component.name,
+      generatedName: component.name,
+      debugName: component.name,
+      kind: "component",
+      role: "root",
+      target: component.placement === "client" ? "client" : component.placement === "server" ? "server" : "both",
+      placement: component.placement
     });
+  }
+  return symbols.sort((left, right) => left.id.localeCompare(right.id));
 }
 
 function createServerPartSymbols(sourceFile: ts.SourceFile, components: ExactComponentIR[]): ExactSymbolIR[] {
@@ -1543,6 +1573,12 @@ function hasExportModifier(node: ts.Node): boolean {
     : false;
 }
 
+function hasDefaultModifier(node: ts.Node): boolean {
+  return ts.canHaveModifiers(node)
+    ? Boolean(ts.getModifiers(node)?.some(modifier => modifier.kind === ts.SyntaxKind.DefaultKeyword))
+    : false;
+}
+
 const browserGlobals = new Set(["window", "document", "localStorage", "sessionStorage", "navigator", "HTMLElement", "Node"]);
 const mutatingStateMethods = new Set(["push", "pop", "shift", "unshift", "splice", "sort", "reverse", "set", "delete", "clear"]);
 
@@ -1565,7 +1601,19 @@ function collectImportedComponents(sourceFile: ts.SourceFile, manifests: readonl
     const manifestsForImport = bySource.get(moduleSpecifierKey(statement.moduleSpecifier.text, sourceDir));
     if (!manifestsForImport?.length) continue;
     const clause = statement.importClause;
-    if (!clause?.namedBindings) continue;
+    if (!clause) continue;
+    if (clause.name) {
+      const resolved = resolveImportedComponent(manifestsForImport, "default");
+      if (resolved) {
+        imported.push({
+          name: clause.name.text,
+          boundaryName: resolved.component?.name ?? clause.name.text,
+          placement: resolved.exported.placement,
+          componentId: resolved.component?.id
+        });
+      }
+    }
+    if (!clause.namedBindings) continue;
     if (ts.isNamedImports(clause.namedBindings)) {
       for (const element of clause.namedBindings.elements) {
         const exportedName = element.propertyName?.text ?? element.name.text;
@@ -1573,7 +1621,7 @@ function collectImportedComponents(sourceFile: ts.SourceFile, manifests: readonl
         if (!resolved) continue;
         imported.push({
           name: element.name.text,
-          boundaryName: exportedName,
+          boundaryName: resolved.component?.name ?? exportedName,
           placement: resolved.exported.placement,
           componentId: resolved.component?.id
         });
@@ -1585,10 +1633,12 @@ function collectImportedComponents(sourceFile: ts.SourceFile, manifests: readonl
       for (const manifest of manifestsForImport) {
         for (const exported of manifest.exports) {
           if (exported.kind !== "component") continue;
-          const component = manifest.components.find(item => item.name === exported.name);
+          const component = resolveImportedComponent([manifest], exported.name)?.component;
+          const propertyName = exported.name;
+          if (!propertyName) continue;
           imported.push({
-            name: `${namespace}.${exported.name}`,
-            boundaryName: exported.name,
+            name: `${namespace}.${propertyName}`,
+            boundaryName: component?.name ?? propertyName,
             placement: exported.placement,
             componentId: component?.id
           });
@@ -1606,6 +1656,13 @@ function resolveImportedComponent(
   for (const manifest of manifests) {
     const exported = manifest.exports.find(item => item.name === exportedName && item.kind === "component");
     if (!exported) continue;
+    if (exportedName === "default") {
+      const defaultSymbol = manifest.symbols.find(symbol => symbol.role === "root" && symbol.exportName === "default" && symbol.componentId);
+      return {
+        exported,
+        component: manifest.components.find(item => item.id === defaultSymbol?.componentId)
+      };
+    }
     return {
       exported,
       component: manifest.components.find(item => item.name === exportedName)

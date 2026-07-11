@@ -784,6 +784,30 @@ describe("@exact/compiler", () => {
     });
   });
 
+  it("creates client registry modules for default-exported client roots", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-default-client-root-registry-"));
+    const input = path.join(root, "src", "ClientWidget.tsx");
+    const outDir = path.join(root, "dist");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, `
+      export default function ClientWidget(this: Component<{ width: number }>) {
+        this.state.width = window.innerWidth;
+        return () => <button onClick={() => this.state.width++} />;
+      }
+    `);
+
+    const result = await compileFileArtifacts(input, {
+      outDir,
+      rootDir: path.join(root, "src")
+    });
+    const module = createClientIslandRegistryModule(createClientIslandRegistryEntries([result], {
+      rootDir: root
+    }));
+
+    expect(module).toContain("import { default as __exactRegistry0 } from \"./dist/ClientWidget.exact.client.ts\";");
+    expect(module).toContain("\"ClientWidget\": __exactRegistry0");
+  });
+
   it("creates server part registry entries for generated server artifacts", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "exact-server-part-registry-"));
     const input = path.join(root, "src", "panel.tsx");
@@ -1399,6 +1423,50 @@ describe("@exact/compiler", () => {
       importedManifests: [manifest]
     });
 
+    expect(server).toContain("__exactBoundary");
+    expect(server).toContain("\"ClientWidget\"");
+    expect(server).not.toContain("\"Widget\"");
+    expect(pageManifest.boundaries).toContainEqual(expect.objectContaining({
+      name: "ClientWidget",
+      componentId: manifest.components[0]!.id,
+      kind: "client-island"
+    }));
+  });
+
+  it("splits default imported client components using author boundary names", () => {
+    const manifest = analyzeSource(`
+      export default function ClientWidget(this: Component<{ width: number }>) {
+        this.state.width = window.innerWidth;
+        return () => <button onClick={() => this.state.width++} />;
+      }
+    `, { filename: "/src/ClientWidget.tsx" });
+    const source = `
+      import Widget from "./ClientWidget";
+
+      export function Page() {
+        return () => <Widget />;
+      }
+    `;
+    const server = transform(source, {
+      filename: "/src/Page.tsx",
+      target: "server",
+      importedManifests: [manifest]
+    });
+    const pageManifest = analyzeSource(source, {
+      filename: "/src/Page.tsx",
+      importedManifests: [manifest]
+    });
+
+    expect(manifest.exports).toContainEqual({
+      name: "default",
+      kind: "component",
+      placement: "client"
+    });
+    expect(manifest.symbols).toContainEqual(expect.objectContaining({
+      exportName: "default",
+      localName: "ClientWidget",
+      generatedName: "ClientWidget"
+    }));
     expect(server).toContain("__exactBoundary");
     expect(server).toContain("\"ClientWidget\"");
     expect(server).not.toContain("\"Widget\"");
