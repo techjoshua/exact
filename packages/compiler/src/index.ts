@@ -662,7 +662,7 @@ export function createClientIslandRegistryEntries(
   for (const result of results) {
     const modulePath = clientRegistryModulePath(result.clientFile, options.rootDir ?? path.dirname(result.manifestFile));
     for (const symbol of result.manifest.symbols) {
-      if (symbol.role !== "client-island" || symbol.target !== "client" || !symbol.exportName) continue;
+      if (!clientRegistrySymbol(symbol)) continue;
       entries.push({
         id: symbol.id,
         name: symbol.generatedName,
@@ -674,6 +674,11 @@ export function createClientIslandRegistryEntries(
   }
 
   return entries.sort((left, right) => left.id.localeCompare(right.id));
+}
+
+function clientRegistrySymbol(symbol: ExactSymbolIR): symbol is ExactSymbolIR & { exportName: string } {
+  if (symbol.target !== "client" || !symbol.exportName) return false;
+  return symbol.role === "client-island" || (symbol.role === "root" && symbol.placement === "client");
 }
 
 export function createServerPartRegistryEntries(

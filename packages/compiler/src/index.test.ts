@@ -688,13 +688,43 @@ describe("@exact/compiler", () => {
 
     expect(createClientIslandRegistryEntries([result], {
       rootDir: root
-    })).toEqual([{
+    })).toEqual([
+      expect.objectContaining({
+        id: expect.any(String),
+        name: "Panel_ExactClient_1",
+        exportName: "Panel_ExactClient_1",
+        module: "./dist/panel.exact.client.ts",
+        componentId: result.manifest.components[0]!.id
+      })
+    ]);
+  });
+
+  it("creates client registry entries for exported pure client components", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-client-root-registry-"));
+    const input = path.join(root, "src", "ClientWidget.tsx");
+    const outDir = path.join(root, "dist");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, `
+      export function ClientWidget(this: Component<{ width: number }>) {
+        this.state.width = window.innerWidth;
+        return () => <button onClick={() => this.state.width++} />;
+      }
+    `);
+
+    const result = await compileFileArtifacts(input, {
+      outDir,
+      rootDir: path.join(root, "src")
+    });
+
+    expect(createClientIslandRegistryEntries([result], {
+      rootDir: root
+    })).toContainEqual({
       id: expect.any(String),
-      name: "Panel_ExactClient_1",
-      exportName: "Panel_ExactClient_1",
-      module: "./dist/panel.exact.client.ts",
+      name: "ClientWidget",
+      exportName: "ClientWidget",
+      module: "./dist/ClientWidget.exact.client.ts",
       componentId: result.manifest.components[0]!.id
-    }]);
+    });
   });
 
   it("creates server part registry entries for generated server artifacts", async () => {
