@@ -75,6 +75,7 @@ export type ExactBoundaryIR = {
 
 export type ExactImportedComponentIR = {
   name: string;
+  boundaryName?: string;
   placement: ExactPlacement;
   componentId?: string;
 };
@@ -333,6 +334,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   for (const component of components) {
     componentInfo.set(component.name, {
       name: component.name,
+      boundaryName: component.name,
       placement: component.placement,
       componentId: component.id
     });
@@ -742,7 +744,8 @@ function exactJsxTransformer(target: TransformTarget, importedManifests: readonl
     const factory = context.factory;
     const helpers = allocateHelperNames(sourceFile);
     const serverOnlyImports = collectServerOnlyImports(sourceFile);
-    const componentPlacements = collectComponentPlacements(sourceFile, serverOnlyImports, importedManifests);
+    const componentInfo = collectComponentInfo(sourceFile, serverOnlyImports, importedManifests);
+    const componentPlacements = componentPlacementsFromInfo(componentInfo);
     let sawJsx = false;
     let sawBoundary = false;
     const componentStack: string[] = [];
@@ -781,7 +784,7 @@ function exactJsxTransformer(target: TransformTarget, importedManifests: readonl
             ? node.children
             : undefined;
           sawBoundary = true;
-          return createComponentIslandBoundaryCall(sourceFile, context, visitor, helpers, node, node.openingElement.tagName, node.openingElement.attributes, childrenProp, serverChildren);
+          return createComponentIslandBoundaryCall(sourceFile, context, visitor, helpers, componentInfo, node, node.openingElement.tagName, node.openingElement.attributes, childrenProp, serverChildren);
         }
         if (target === "server" && jsxElementIsClientIsland(node.openingElement.attributes)) {
           sawBoundary = true;
@@ -811,7 +814,7 @@ function exactJsxTransformer(target: TransformTarget, importedManifests: readonl
         }
         if (target === "server" && jsxTagIsClientComponent(node.tagName, componentPlacements)) {
           sawBoundary = true;
-          return createComponentIslandBoundaryCall(sourceFile, context, visitor, helpers, node, node.tagName, node.attributes);
+          return createComponentIslandBoundaryCall(sourceFile, context, visitor, helpers, componentInfo, node, node.tagName, node.attributes);
         }
         if (target === "server" && jsxElementIsClientIsland(node.attributes)) {
           sawBoundary = true;
@@ -980,26 +983,44 @@ function containsServerOnlyIdentifier(node: ts.Node, serverOnlyImports: Set<stri
   return found;
 }
 
-function collectComponentPlacements(
+function collectComponentInfo(
   sourceFile: ts.SourceFile,
   serverOnlyImports: Set<string>,
   importedManifests: readonly ExactCompilerManifest[] = []
-): Map<string, ExactPlacement> {
-  const placements = new Map<string, ExactPlacement>();
+): Map<string, ExactImportedComponentIR> {
+  const components = new Map<string, ExactImportedComponentIR>();
   for (const component of collectImportedComponents(sourceFile, importedManifests)) {
-    placements.set(component.name, component.placement);
+    components.set(component.name, component);
   }
 
   function visit(node: ts.Node): void {
     if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
-      placements.set(node.name.text, analyzeComponent(node.name.text, node, sourceFile, serverOnlyImports).placement);
+      const component = analyzeComponent(node.name.text, node, sourceFile, serverOnlyImports);
+      components.set(node.name.text, {
+        name: node.name.text,
+        boundaryName: node.name.text,
+        placement: component.placement,
+        componentId: component.id
+      });
       return;
     }
     ts.forEachChild(node, visit);
   }
 
   visit(sourceFile);
-  return placements;
+  return components;
+}
+
+function collectComponentPlacements(
+  sourceFile: ts.SourceFile,
+  serverOnlyImports: Set<string>,
+  importedManifests: readonly ExactCompilerManifest[] = []
+): Map<string, ExactPlacement> {
+  return componentPlacementsFromInfo(collectComponentInfo(sourceFile, serverOnlyImports, importedManifests));
+}
+
+function componentPlacementsFromInfo(componentInfo: Map<string, ExactImportedComponentIR>): Map<string, ExactPlacement> {
+  return new Map([...componentInfo].map(([name, component]) => [name, component.placement]));
 }
 
 function analyzeTask(
@@ -1268,21 +1289,24 @@ function createClientComponentTagBoundaries(
 
   function visit(node: ts.Node): void {
     if (ts.isJsxElement(node) && jsxTagIsClientComponent(node.openingElement.tagName, componentPlacements)) {
-      addBoundary(node.openingElement.tagName.getText(sourceFile), node);
+      addBoundary(node.openingElement.tagName, node);
     } else if (ts.isJsxSelfClosingElement(node) && jsxTagIsClientComponent(node.tagName, componentPlacements)) {
-      addBoundary(node.tagName.getText(sourceFile), node);
+      addBoundary(node.tagName, node);
     }
     ts.forEachChild(node, visit);
   }
 
-  function addBoundary(componentName: string, node: ts.Node): void {
+  function addBoundary(tagName: ts.JsxTagNameExpression, node: ts.Node): void {
+    const tagKey = tagName.getText(sourceFile);
+    const component = componentInfo.get(tagKey);
+    const componentName = component?.boundaryName ?? tagKey;
     const id = clientComponentBoundaryId(sourceFile, componentName, node);
     if (seen.has(id)) return;
     seen.add(id);
     boundaries.push({
       id,
       name: componentName,
-      componentId: componentInfo.get(componentName)?.componentId,
+      componentId: component?.componentId,
       kind: "client-island"
     });
   }
@@ -1301,7 +1325,9 @@ function createServerSlotBoundaries(
 
   function visit(node: ts.Node): void {
     if (ts.isJsxElement(node) && jsxTagIsClientComponent(node.openingElement.tagName, componentPlacements) && clientComponentHasServerSlotChildren(node)) {
-      const componentName = node.openingElement.tagName.getText(sourceFile);
+      const tagKey = node.openingElement.tagName.getText(sourceFile);
+      const component = componentInfo.get(tagKey);
+      const componentName = component?.boundaryName ?? tagKey;
       const islandId = clientComponentBoundaryId(sourceFile, componentName, node);
       const id = serverSlotBoundaryId(islandId);
       if (!seen.has(id)) {
@@ -1309,7 +1335,7 @@ function createServerSlotBoundaries(
         boundaries.push({
           id,
           name: `${componentName}:children`,
-          componentId: componentInfo.get(componentName)?.componentId,
+          componentId: component?.componentId,
           kind: "server-slot"
         });
       }
@@ -1369,23 +1395,53 @@ function collectImportedComponents(sourceFile: ts.SourceFile, manifests: readonl
     const manifestsForImport = bySource.get(moduleSpecifierKey(statement.moduleSpecifier.text, sourceDir));
     if (!manifestsForImport?.length) continue;
     const clause = statement.importClause;
-    if (!clause?.namedBindings || !ts.isNamedImports(clause.namedBindings)) continue;
-    for (const element of clause.namedBindings.elements) {
-      const exportedName = element.propertyName?.text ?? element.name.text;
-      for (const manifest of manifestsForImport) {
-        const exported = manifest.exports.find(item => item.name === exportedName && item.kind === "component");
-        if (!exported) continue;
-        const component = manifest.components.find(item => item.name === exportedName);
+    if (!clause?.namedBindings) continue;
+    if (ts.isNamedImports(clause.namedBindings)) {
+      for (const element of clause.namedBindings.elements) {
+        const exportedName = element.propertyName?.text ?? element.name.text;
+        const resolved = resolveImportedComponent(manifestsForImport, exportedName);
+        if (!resolved) continue;
         imported.push({
           name: element.name.text,
-          placement: exported.placement,
-          componentId: component?.id
+          boundaryName: exportedName,
+          placement: resolved.exported.placement,
+          componentId: resolved.component?.id
         });
-        break;
+      }
+      continue;
+    }
+    if (ts.isNamespaceImport(clause.namedBindings)) {
+      const namespace = clause.namedBindings.name.text;
+      for (const manifest of manifestsForImport) {
+        for (const exported of manifest.exports) {
+          if (exported.kind !== "component") continue;
+          const component = manifest.components.find(item => item.name === exported.name);
+          imported.push({
+            name: `${namespace}.${exported.name}`,
+            boundaryName: exported.name,
+            placement: exported.placement,
+            componentId: component?.id
+          });
+        }
       }
     }
   }
   return imported;
+}
+
+function resolveImportedComponent(
+  manifests: readonly ExactCompilerManifest[],
+  exportedName: string
+): { exported: ExactExportIR; component?: ExactComponentIR } | undefined {
+  for (const manifest of manifests) {
+    const exported = manifest.exports.find(item => item.name === exportedName && item.kind === "component");
+    if (!exported) continue;
+    return {
+      exported,
+      component: manifest.components.find(item => item.name === exportedName)
+    };
+  }
+  return undefined;
 }
 
 function manifestSourceKeys(manifest: ExactCompilerManifest): string[] {
@@ -1878,6 +1934,7 @@ function createComponentIslandBoundaryCall(
   context: ts.TransformationContext,
   visitor: ts.Visitor,
   helpers: HelperNames,
+  componentInfo: Map<string, ExactImportedComponentIR>,
   node: ts.Node,
   tagName: ts.JsxTagNameExpression,
   attributes: ts.JsxAttributes,
@@ -1885,7 +1942,7 @@ function createComponentIslandBoundaryCall(
   serverChildren?: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[]
 ): ts.Expression {
   const factory = context.factory;
-  const componentName = tagName.getText(sourceFile);
+  const componentName = componentBoundaryName(tagName, componentInfo, sourceFile);
   const id = clientComponentBoundaryId(sourceFile, componentName, node);
   const props = islandProps(context, attributes);
   return factory.createCallExpression(factory.createIdentifier(helpers.boundary), undefined, [
@@ -2053,9 +2110,17 @@ function stateAccessExpression(factory: ts.NodeFactory, segments: readonly strin
 }
 
 function jsxTagIsClientComponent(tagName: ts.JsxTagNameExpression, placements: Map<string, ExactPlacement>): boolean {
-  if (!ts.isIdentifier(tagName)) return false;
-  if (/^[a-z]/.test(tagName.text)) return false;
-  return placements.get(tagName.text) === "client";
+  if (ts.isIdentifier(tagName) && /^[a-z]/.test(tagName.text)) return false;
+  return placements.get(tagName.getText()) === "client";
+}
+
+function componentBoundaryName(
+  tagName: ts.JsxTagNameExpression,
+  componentInfo: Map<string, ExactImportedComponentIR>,
+  sourceFile: ts.SourceFile
+): string {
+  const tagKey = tagName.getText(sourceFile);
+  return componentInfo.get(tagKey)?.boundaryName ?? tagKey;
 }
 
 function exactElementId(sourceFile: ts.SourceFile, tagName: ts.JsxTagNameExpression, node: ts.Node): string | undefined {

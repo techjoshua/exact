@@ -1122,6 +1122,80 @@ describe("@exact/compiler", () => {
     }));
   });
 
+  it("uses exported component identity for aliased imported client boundaries", () => {
+    const manifest = analyzeSource(`
+      export function ClientWidget(this: Component<{ width: number }>) {
+        this.state.width = window.innerWidth;
+        return () => <button onClick={() => this.state.width++} />;
+      }
+    `, { filename: "/src/ClientWidget.tsx" });
+    const source = `
+      import { ClientWidget as Widget } from "./ClientWidget";
+
+      export function Page() {
+        return () => <Widget />;
+      }
+    `;
+    const server = transform(source, {
+      filename: "/src/Page.tsx",
+      target: "server",
+      importedManifests: [manifest]
+    });
+    const pageManifest = analyzeSource(source, {
+      filename: "/src/Page.tsx",
+      importedManifests: [manifest]
+    });
+
+    expect(server).toContain("__exactBoundary");
+    expect(server).toContain("\"ClientWidget\"");
+    expect(server).not.toContain("\"Widget\"");
+    expect(pageManifest.boundaries).toContainEqual(expect.objectContaining({
+      name: "ClientWidget",
+      componentId: manifest.components[0]!.id,
+      kind: "client-island"
+    }));
+  });
+
+  it("splits namespace imported client components using exported boundary names", () => {
+    const manifest = analyzeSource(`
+      export function ClientWidget(this: Component<{ width: number }>, props: { children?: unknown }) {
+        this.state.width = window.innerWidth;
+        return () => <button onClick={() => this.state.width++}>{props.children}</button>;
+      }
+    `, { filename: "/src/widgets.tsx" });
+    const source = `
+      import * as Widgets from "./widgets";
+
+      export function Page() {
+        return () => <Widgets.ClientWidget><p>Server child</p></Widgets.ClientWidget>;
+      }
+    `;
+    const server = transform(source, {
+      filename: "/src/Page.tsx",
+      target: "server",
+      importedManifests: [manifest]
+    });
+    const pageManifest = analyzeSource(source, {
+      filename: "/src/Page.tsx",
+      importedManifests: [manifest]
+    });
+
+    expect(server).toContain("__exactBoundary");
+    expect(server).toContain("\"ClientWidget\"");
+    expect(server).not.toContain("\"Widgets.ClientWidget\"");
+    expect(server).toContain("__exactVNode(\"p\"");
+    expect(pageManifest.boundaries).toContainEqual(expect.objectContaining({
+      name: "ClientWidget",
+      componentId: manifest.components[0]!.id,
+      kind: "client-island"
+    }));
+    expect(pageManifest.boundaries).toContainEqual(expect.objectContaining({
+      name: "ClientWidget:children",
+      componentId: manifest.components[0]!.id,
+      kind: "server-slot"
+    }));
+  });
+
   it("generates deterministic split component names from author names", () => {
     expect(generatedComponentName("ProjectCard", "client-island", 1)).toBe("ProjectCard_ExactClient_1");
     expect(generatedComponentName("ProjectCard", "server-part", 2)).toBe("ProjectCard_ExactServer_2");
