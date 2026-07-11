@@ -10,9 +10,11 @@
   },
   "references": [
     { "path": "../../packages/core" },
+    { "path": "../../packages/dom" },
+    { "path": "../../packages/hydrate" },
     { "path": "../../packages/jsx-runtime" },
     { "path": "../../packages/server" },
     { "path": "../../packages/ssr" }
   ],
-  "include": ["src", ".exact/**/*.exact.server.ts", ".exact/**/*.exact.manifest.json"]
+  "include": ["src", ".exact/**/*"]
 }

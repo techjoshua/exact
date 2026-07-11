@@ -417,7 +417,7 @@ function reviveServerSlots(value: unknown): unknown {
 
 function boundaryInnerHtml(container: Element, id: string): string | undefined {
   const range = findExactRange(container, id);
-  if (!range) return findServerSlotElement(container, id)?.innerHTML;
+  if (!range) return findServerSlotElement(container, id)?.innerHTML ?? findClientBoundaryElement(container, id)?.outerHTML;
   const wrapper = document.createElement("div");
   let cursor = range.start.nextSibling;
   while (cursor && cursor !== range.end) {

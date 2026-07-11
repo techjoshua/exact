@@ -4,10 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit"
+    "build": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@exact/core": "file:../../packages/core",
+    "@exact/hydrate": "file:../../packages/hydrate",
     "@exact/jsx": "file:../../packages/jsx-runtime",
     "@exact/server": "file:../../packages/server",
     "@exact/ssr": "file:../../packages/ssr"
