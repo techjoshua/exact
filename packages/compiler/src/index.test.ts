@@ -195,6 +195,53 @@ describe("@exact/compiler", () => {
     expect(Object.keys(manifest.serverActions)).toEqual([component.tasks[0]!.id]);
   });
 
+  it("traces state aliases in task state contracts", () => {
+    const manifest = analyzeSource(`
+      export function ProjectPage(this: Component<{ project: { title: string }; count: number }>) {
+        this.task(() => {
+          const state = this.state;
+          const project = state.project;
+          project.title = project.title.trim();
+          Object.assign(state, { count: 1 });
+        });
+        return () => <p>{this.state.project.title}</p>;
+      }
+    `, { filename: "ProjectPage.tsx" });
+
+    const task = manifest.components[0]!.tasks[0]!;
+    expect(task.writes).toEqual(expect.arrayContaining([
+      { path: "project.title", kind: "write", confidence: "exact" },
+      { path: "*", kind: "write", confidence: "broad" }
+    ]));
+    expect(task.reads).toEqual(expect.arrayContaining([
+      { path: "project", kind: "read", confidence: "exact" },
+      { path: "project.title", kind: "read", confidence: "exact" }
+    ]));
+  });
+
+  it("uses state aliases in server action contracts", () => {
+    const manifest = analyzeSource(`
+      import { readFile } from "node:fs/promises";
+
+      export function ProjectPage(this: Component<{ project: { title?: string } }>) {
+        this.task(async () => {
+          const project = this.state.project;
+          project.title = await readFile("project.txt", "utf8");
+        });
+        return () => <p>{this.state.project.title}</p>;
+      }
+    `, { filename: "ProjectPage.tsx" });
+
+    const task = manifest.components[0]!.tasks[0]!;
+    const action = Object.values(manifest.serverActions)[0]!;
+    expect(task.placement).toBe("server");
+    expect(action.stateContract.writes).toContainEqual({
+      path: "project.title",
+      kind: "write",
+      confidence: "exact"
+    });
+  });
+
   it("uses resolved references when classifying task environments", () => {
     const manifest = analyzeSource(`
       import { readFile } from "node:fs/promises";

@@ -426,13 +426,14 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const serverActions: ExactCompilerManifest["serverActions"] = {};
   const semanticGraph = buildSemanticGraph(sourceFile);
   const semanticReferences = createSemanticReferenceIndex(sourceFile, semanticGraph);
+  const semanticDeclarations = createSemanticDeclarationIndex(sourceFile, semanticGraph);
   const serverOnlyImports = collectServerOnlyImports(sourceFile, semanticGraph);
   const componentNodes = new Map<string, ts.FunctionDeclaration>();
 
   function visit(node: ts.Node): void {
     if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
       componentNodes.set(node.name.text, node);
-      components.push(analyzeComponent(node.name.text, node, sourceFile, serverOnlyImports, semanticReferences));
+      components.push(analyzeComponent(node.name.text, node, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations));
       return;
     }
     ts.forEachChild(node, visit);
@@ -1375,7 +1376,7 @@ function exactJsxTransformer(
         return visited;
       }
       if (ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) && isThisTaskCall(node.expression)) {
-        const task = analyzeTask("target-task", node.expression, sourceFile, serverOnlyImports, semanticReferences);
+        const task = analyzeTask("target-task", node.expression, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations);
         if (shouldOmitPlacement(task.placement, target)) {
           return factory.createEmptyStatement();
         }
@@ -1435,7 +1436,7 @@ function exactJsxTransformer(
       }
       if (ts.isCallExpression(node)) {
         if (isThisTaskCall(node)) {
-          const task = analyzeTask("target-task", node, sourceFile, serverOnlyImports, semanticReferences);
+          const task = analyzeTask("target-task", node, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations);
           if (shouldOmitPlacement(task.placement, target)) {
             return factory.createVoidExpression(factory.createNumericLiteral(0));
           }
@@ -1488,7 +1489,8 @@ function analyzeComponent(
   node: ts.FunctionDeclaration,
   sourceFile: ts.SourceFile,
   serverOnlyImports: Set<string>,
-  semanticReferences: SemanticReferenceIndex
+  semanticReferences: SemanticReferenceIndex,
+  semanticDeclarations: SemanticDeclarationIndex
 ): ExactComponentIR {
   const tasks: ExactTaskIR[] = [];
   const splitBoundaries = new Set<string>();
@@ -1501,7 +1503,7 @@ function analyzeComponent(
 
   function visit(current: ts.Node, islandDepth = 0, taskDepth = 0): void {
     if (ts.isCallExpression(current) && isThisTaskCall(current)) {
-      const task = analyzeTask(`${name}:task:${taskIndex++}`, current, sourceFile, serverOnlyImports, semanticReferences);
+      const task = analyzeTask(`${name}:task:${taskIndex++}`, current, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations);
       tasks.push(task);
       if (task.placement === "client") hasClientEffect = true;
       if (task.placement === "server") hasServerEffect = true;
@@ -1604,7 +1606,9 @@ function collectComponentInfo(
   serverOnlyImports: Set<string>,
   importedManifests: readonly ExactCompilerManifest[] = []
 ): Map<string, ExactImportedComponentIR> {
-  const semanticReferences = createSemanticReferenceIndex(sourceFile, buildSemanticGraph(sourceFile));
+  const semanticGraph = buildSemanticGraph(sourceFile);
+  const semanticReferences = createSemanticReferenceIndex(sourceFile, semanticGraph);
+  const semanticDeclarations = createSemanticDeclarationIndex(sourceFile, semanticGraph);
   const components = new Map<string, ExactImportedComponentIR>();
   for (const component of collectImportedComponents(sourceFile, importedManifests)) {
     components.set(component.name, component);
@@ -1612,7 +1616,7 @@ function collectComponentInfo(
 
   function visit(node: ts.Node): void {
     if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
-      const component = analyzeComponent(node.name.text, node, sourceFile, serverOnlyImports, semanticReferences);
+      const component = analyzeComponent(node.name.text, node, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations);
       components.set(node.name.text, {
         name: node.name.text,
         boundaryName: node.name.text,
@@ -1718,7 +1722,8 @@ function analyzeTask(
   node: ts.CallExpression,
   sourceFile: ts.SourceFile,
   serverOnlyImports: Set<string>,
-  semanticReferences: SemanticReferenceIndex
+  semanticReferences: SemanticReferenceIndex,
+  semanticDeclarations: SemanticDeclarationIndex
 ): ExactTaskIR {
   const work = node.arguments[node.arguments.length - 1];
   const reads: ExactStateEffect[] = [];
@@ -1745,12 +1750,46 @@ function analyzeTask(
   isAsync = ts.canHaveModifiers(work)
     ? Boolean(ts.getModifiers(work)?.some(modifier => modifier.kind === ts.SyntaxKind.AsyncKeyword))
     : false;
+  const stateAliases = collectStateAliases(work, sourceFile, semanticReferences, semanticDeclarations);
 
   function visit(current: ts.Node): void {
     if (ts.isIdentifier(current)) {
       const reference = semanticReferenceForIdentifier(current, semanticReferences, sourceFile);
       if (isBrowserGlobalReference(current, reference)) browserEffects = true;
       if (isServerOnlyReference(current, reference, serverOnlyImports)) serverEffects = true;
+    }
+
+    if (ts.isPropertyAccessExpression(current)) {
+      const path = stateEffectPath(current, sourceFile, semanticReferences, stateAliases);
+      if (path !== undefined && path !== "*") {
+        reads.push({
+          path,
+          kind: "read",
+          confidence: path.includes("*") ? "broad" : "exact"
+        });
+      }
+    }
+
+    if (ts.isElementAccessExpression(current)) {
+      const path = stateEffectPath(current, sourceFile, semanticReferences, stateAliases);
+      if (path !== undefined && path !== "*") {
+        reads.push({
+          path,
+          kind: "read",
+          confidence: path.includes("*") ? "broad" : "exact"
+        });
+      }
+    }
+
+    if (ts.isIdentifier(current)) {
+      const path = stateEffectPath(current, sourceFile, semanticReferences, stateAliases);
+      if (path !== undefined && path !== "*") {
+        reads.push({
+          path,
+          kind: "read",
+          confidence: path.includes("*") ? "broad" : "exact"
+        });
+      }
     }
 
     if (ts.isPropertyAccessExpression(current) && isThisStateAccess(current.expression)) {
@@ -1763,11 +1802,12 @@ function analyzeTask(
 
     if (ts.isBinaryExpression(current) && isAssignmentOperator(current.operatorToken.kind)) {
       const target = current.left;
-      if (isStatePathExpression(target)) {
+      const targetPath = stateEffectPath(target, sourceFile, semanticReferences, stateAliases);
+      if (targetPath !== undefined) {
         writes.push({
-          path: statePath(target),
+          path: targetPath,
           kind: "write",
-          confidence: statePath(target).includes("*") ? "broad" : "exact"
+          confidence: targetPath.includes("*") ? "broad" : "exact"
         });
       }
       visit(current.right);
@@ -1777,11 +1817,12 @@ function analyzeTask(
     if (ts.isCallExpression(current)) {
       const expression = current.expression;
       if (ts.isPropertyAccessExpression(expression)) {
-        if (isThisStateAccess(expression.expression) || isStatePathExpression(expression.expression)) {
+        const receiverPath = stateEffectPath(expression.expression, sourceFile, semanticReferences, stateAliases);
+        if (receiverPath !== undefined) {
           const method = expression.name.text;
           if (mutatingStateMethods.has(method)) {
             writes.push({
-              path: statePath(expression.expression),
+              path: receiverPath,
               kind: "write",
               confidence: "broad"
             });
@@ -1789,9 +1830,10 @@ function analyzeTask(
         }
         if (expression.name.text === "assign" && expression.expression.getText(sourceFile) === "Object") {
           const target = current.arguments[0];
-          if (target && isStatePathExpression(target)) {
+          const targetPath = target ? stateEffectPath(target, sourceFile, semanticReferences, stateAliases) : undefined;
+          if (targetPath !== undefined) {
             writes.push({
-              path: statePath(target),
+              path: targetPath,
               kind: "write",
               confidence: "broad"
             });
@@ -2263,6 +2305,63 @@ function isThisStateAccess(expression: ts.Expression): boolean {
   return ts.isPropertyAccessExpression(expression)
     && expression.name.text === "state"
     && expression.expression.kind === ts.SyntaxKind.ThisKeyword;
+}
+
+function collectStateAliases(
+  node: ts.Node,
+  sourceFile: ts.SourceFile,
+  semanticReferences: SemanticReferenceIndex,
+  semanticDeclarations: SemanticDeclarationIndex
+): Map<string, string> {
+  const aliases = new Map<string, string>();
+
+  function visit(current: ts.Node): void {
+    if (current !== node && isTaskNestedFunction(current)) return;
+    if (ts.isVariableDeclaration(current) && ts.isIdentifier(current.name) && current.initializer) {
+      const path = stateEffectPath(current.initializer, sourceFile, semanticReferences, aliases);
+      if (path !== undefined) {
+        const declaration = semanticDeclarationForIdentifier(current.name, semanticDeclarations, sourceFile);
+        if (declaration) aliases.set(declaration.id, path);
+      }
+    }
+    ts.forEachChild(current, visit);
+  }
+
+  visit(node);
+  return aliases;
+}
+
+function isTaskNestedFunction(node: ts.Node): boolean {
+  return ts.isFunctionDeclaration(node)
+    || ts.isFunctionExpression(node)
+    || ts.isArrowFunction(node)
+    || ts.isMethodDeclaration(node);
+}
+
+function stateEffectPath(
+  expression: ts.Expression,
+  sourceFile: ts.SourceFile,
+  semanticReferences: SemanticReferenceIndex,
+  aliases: Map<string, string>
+): string | undefined {
+  if (isThisStateAccess(expression)) return "*";
+  if (ts.isIdentifier(expression)) {
+    const reference = semanticReferenceForIdentifier(expression, semanticReferences, sourceFile);
+    return reference?.declarationId ? aliases.get(reference.declarationId) : undefined;
+  }
+  if (ts.isPropertyAccessExpression(expression)) {
+    const parent = stateEffectPath(expression.expression, sourceFile, semanticReferences, aliases);
+    if (parent === undefined) return undefined;
+    return parent === "*" ? expression.name.text : `${parent}.${expression.name.text}`;
+  }
+  if (ts.isElementAccessExpression(expression)) {
+    const parent = stateEffectPath(expression.expression, sourceFile, semanticReferences, aliases);
+    if (parent === undefined) return undefined;
+    const argument = expression.argumentExpression;
+    const segment = argument && ts.isStringLiteralLike(argument) ? argument.text : "*";
+    return parent === "*" ? segment : `${parent}.${segment}`;
+  }
+  return undefined;
 }
 
 function isStatePathExpression(expression: ts.Expression): boolean {
