@@ -1517,6 +1517,75 @@ describe("@exact/compiler", () => {
     }));
   });
 
+  it("records component render subgraphs for local client boundaries", () => {
+    const manifest = analyzeSource(`
+      function ClientWidget() {
+        return () => <button onClick={() => save()}>Save</button>;
+      }
+
+      export function Page() {
+        return () => <section><ClientWidget /></section>;
+      }
+    `, { filename: "/src/Page.tsx" });
+
+    const page = manifest.components.find(component => component.name === "Page")!;
+    const widget = manifest.components.find(component => component.name === "ClientWidget")!;
+
+    expect(page.placement).toBe("server");
+    expect(page.subgraphPlacement).toBe("isomorphic");
+    expect(page.renderEdges).toEqual([expect.objectContaining({
+      tag: "ClientWidget",
+      name: "ClientWidget",
+      componentId: widget.id,
+      placement: "client",
+      boundary: "client"
+    })]);
+  });
+
+  it("records component render subgraphs for imported component boundaries", () => {
+    const widgetManifest = analyzeSource(`
+      export default function ClientWidget() {
+        return () => <button onClick={() => save()}>Save</button>;
+      }
+    `, { filename: "/src/ClientWidget.tsx" });
+    const namespaceManifest = analyzeSource(`
+      export function ServerShell() {
+        return () => <section />;
+      }
+    `, { filename: "/src/shells.tsx" });
+    const manifest = analyzeSource(`
+      import Widget from "./ClientWidget";
+      import * as Shells from "./shells";
+
+      export function Page() {
+        return () => <Shells.ServerShell><Widget /></Shells.ServerShell>;
+      }
+    `, {
+      filename: "/src/Page.tsx",
+      importedManifests: [widgetManifest, namespaceManifest]
+    });
+
+    const page = manifest.components[0]!;
+
+    expect(page.subgraphPlacement).toBe("isomorphic");
+    expect(page.renderEdges).toEqual([
+      expect.objectContaining({
+        tag: "Shells.ServerShell",
+        name: "ServerShell",
+        componentId: namespaceManifest.components[0]!.id,
+        placement: "server",
+        boundary: "server"
+      }),
+      expect.objectContaining({
+        tag: "Widget",
+        name: "ClientWidget",
+        componentId: widgetManifest.components[0]!.id,
+        placement: "client",
+        boundary: "client"
+      })
+    ]);
+  });
+
   it("generates deterministic split component names from author names", () => {
     expect(generatedComponentName("ProjectCard", "client-island", 1)).toBe("ProjectCard_ExactClient_1");
     expect(generatedComponentName("ProjectCard", "server-part", 2)).toBe("ProjectCard_ExactServer_2");

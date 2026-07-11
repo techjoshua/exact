@@ -36,11 +36,21 @@ export type ExactTaskIR = {
   diagnostics: string[];
 };
 
+export type ExactComponentRenderEdgeIR = {
+  tag: string;
+  name: string;
+  componentId?: string;
+  placement: ExactPlacement;
+  boundary: ExactPlacement;
+};
+
 export type ExactComponentIR = {
   id: string;
   name: string;
   exported: boolean;
   placement: ExactPlacement;
+  subgraphPlacement: ExactPlacement;
+  renderEdges: ExactComponentRenderEdgeIR[];
   clientIslandCount: number;
   tasks: ExactTaskIR[];
   splitBoundaries: string[];
@@ -357,9 +367,11 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const manifestDiagnostics: string[] = [];
   const serverActions: ExactCompilerManifest["serverActions"] = {};
   const serverOnlyImports = collectServerOnlyImports(sourceFile);
+  const componentNodes = new Map<string, ts.FunctionDeclaration>();
 
   function visit(node: ts.Node): void {
     if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
+      componentNodes.set(node.name.text, node);
       components.push(analyzeComponent(node.name.text, node, sourceFile, serverOnlyImports));
       return;
     }
@@ -381,6 +393,15 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
     });
   }
   const componentPlacements = new Map([...componentInfo].map(([name, component]) => [name, component.placement]));
+  for (const component of components) {
+    const node = componentNodes.get(component.name);
+    if (!node) continue;
+    component.renderEdges = collectComponentRenderEdges(node, sourceFile, componentInfo);
+    component.subgraphPlacement = combinePlacements([
+      component.placement,
+      ...component.renderEdges.map(edge => edge.placement)
+    ]);
+  }
   const exportBindings = collectExportBindings(sourceFile);
   const exportedLocals = new Set([...exportBindings.values()].map(binding => binding.localName));
   for (const component of components) {
@@ -1137,6 +1158,8 @@ function analyzeComponent(
     name,
     exported: false,
     placement,
+    subgraphPlacement: placement,
+    renderEdges: [],
     clientIslandCount,
     tasks,
     splitBoundaries: [...splitBoundaries].sort(),
@@ -1185,6 +1208,77 @@ function collectComponentInfo(
 
   visit(sourceFile);
   return components;
+}
+
+function collectComponentRenderEdges(
+  root: ts.FunctionDeclaration,
+  sourceFile: ts.SourceFile,
+  componentInfo: Map<string, ExactImportedComponentIR>
+): ExactComponentRenderEdgeIR[] {
+  const edges: ExactComponentRenderEdgeIR[] = [];
+  const seen = new Set<string>();
+
+  function visit(node: ts.Node): void {
+    if (node !== root && isFunctionLikeNode(node)) return;
+
+    if (ts.isJsxElement(node)) {
+      addEdge(node.openingElement.tagName);
+    } else if (ts.isJsxSelfClosingElement(node)) {
+      addEdge(node.tagName);
+    }
+
+    ts.forEachChild(node, visit);
+  }
+
+  function addEdge(tagName: ts.JsxTagNameExpression): void {
+    if (jsxTagIsIntrinsicElement(tagName)) return;
+    const tag = tagName.getText(sourceFile);
+    const component = componentInfo.get(tag);
+    if (!component) return;
+    const key = component.componentId ?? `${tag}:${component.boundaryName ?? component.name}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    edges.push({
+      tag,
+      name: component.boundaryName ?? component.name,
+      componentId: component.componentId,
+      placement: component.placement,
+      boundary: component.placement
+    });
+  }
+
+  visit(root);
+  return edges.sort((left, right) => left.tag.localeCompare(right.tag));
+}
+
+function isFunctionLikeNode(node: ts.Node): boolean {
+  return ts.isFunctionDeclaration(node)
+    || ts.isFunctionExpression(node)
+    || ts.isMethodDeclaration(node);
+}
+
+function combinePlacements(placements: readonly ExactPlacement[]): ExactPlacement {
+  let hasClient = false;
+  let hasServer = false;
+  let hasUnknown = false;
+
+  for (const placement of placements) {
+    if (placement === "isomorphic") {
+      hasClient = true;
+      hasServer = true;
+    } else if (placement === "client") {
+      hasClient = true;
+    } else if (placement === "server") {
+      hasServer = true;
+    } else {
+      hasUnknown = true;
+    }
+  }
+
+  if (hasClient && hasServer) return "isomorphic";
+  if (hasClient) return "client";
+  if (hasServer) return "server";
+  return hasUnknown ? "unknown" : "server";
 }
 
 function collectComponentPlacements(
