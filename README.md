@@ -121,6 +121,8 @@ import { transformSource } from "@exact/compiler";
 const result = transformSource(source, { filename: "Component.tsx" });
 ```
 
+Pass `sourceMap: true` to `transformSource()`, `compileFile()`, or artifact compilation APIs when generated output should carry a v3 source map back to the original source.
+
 For projects that want a precompile step before their existing TypeScript build, use `exactc`:
 
 ```sh
@@ -128,10 +130,12 @@ npx exactc --rootDir src --outDir .exact src
 npx exactc --rootDir src --outDir .exact --target server --manifest src
 npx exactc --rootDir src --outDir .exact --artifacts src
 npx exactc --rootDir src --outDir .exact --artifacts --serverComponents src
+npx exactc --rootDir src --outDir .exact --sourceMap src
 ```
 
 That rewrites `.tsx` files to `.ts` and `.jsx` files to `.js` under the output directory, preserving relative paths. Your normal TypeScript/bundler pipeline can then compile the generated sources.
 `--target client|server` emits target-specific artifacts from the compiler's task placement analysis, and `--manifest` writes a sibling `.exact.json` manifest for the secure server runtime.
+`--sourceMap` writes sibling `.map` files and appends `sourceMappingURL` comments to generated files.
 `--artifacts` emits paired files for package/app multi-target builds:
 
 - `Component.exact.client.ts`
@@ -148,6 +152,7 @@ The Vite, Webpack, and Bun adapters also support `.exact` facade imports. With `
 For packaged component libraries that publish `exact-client` and `exact-server` export conditions, the adapter target adds the matching resolver condition during setup.
 Each adapter also accepts `importedManifests`, forwarding the same compiler manifest graph used by `compileProjectArtifacts()` into per-file transforms. That gives Vite, Webpack, and Bun the same imported client-component splitting behavior when a dev server or build pipeline has already collected package/project manifests.
 Each adapter also accepts `manifestFiles`; those JSON files are read at transform time, so watch pipelines that regenerate `.exact.manifest.json` files can keep imported component classification fresh without recreating the plugin instance.
+The Vite, Webpack, and Bun adapters pass source maps through to their host build tool by default; set `sourceMap: false` on the adapter options to disable that pass-through.
 Server component mode is opt-in through `serverComponents: true` on compiler/artifact APIs and the Vite, Webpack, and Bun adapters. In that mode, client-target artifacts omit server-owned authored components while still walking them to emit generated client islands and pure client child components. Client-only builds leave this disabled.
 For precompile workflows, `exactc --artifacts --serverComponents` enables the same split behavior.
 

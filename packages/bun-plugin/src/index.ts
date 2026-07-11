@@ -17,6 +17,7 @@ export type ExactBunPluginOptions = {
   include?: FilterPattern;
   exclude?: FilterPattern;
   serverComponents?: boolean;
+  sourceMap?: boolean;
 };
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
@@ -47,6 +48,7 @@ export type BunLoadArgs = {
 export type BunLoadResult = {
   contents?: string;
   loader?: "js" | "jsx" | "ts" | "tsx";
+  sourcemap?: unknown;
 };
 
 export type BunPluginLike = {
@@ -70,7 +72,8 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
         if (!result) return {};
         return {
           contents: result.code,
-          loader: args.path.endsWith(".tsx") ? "tsx" : "jsx"
+          loader: args.path.endsWith(".tsx") ? "tsx" : "jsx",
+          ...(result.map ? { sourcemap: result.map } : {})
         };
       });
     }
@@ -88,16 +91,18 @@ async function readBunLoadSource(args: BunLoadArgs): Promise<string> {
   return runtime.Bun.file(args.path).text();
 }
 
-export function transformExactBunSource(source: string, filename: string, options: ExactBunPluginOptions = {}): { code: string; map: null } | null {
+export function transformExactBunSource(source: string, filename: string, options: ExactBunPluginOptions = {}): { code: string; map: unknown } | null {
   if (!shouldTransform(filename, source, options)) return null;
+  const result = transformSource(source, {
+    filename,
+    target: options.target,
+    importedManifests: importedManifestsFor(options),
+    serverComponents: options.serverComponents,
+    sourceMap: options.sourceMap ?? true
+  });
   return {
-    code: transformSource(source, {
-      filename,
-      target: options.target,
-      importedManifests: importedManifestsFor(options),
-      serverComponents: options.serverComponents
-    }).code,
-    map: null
+    code: result.code,
+    map: result.map
   };
 }
 

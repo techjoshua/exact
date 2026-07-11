@@ -18,6 +18,11 @@ describe("@exact/webpack-plugin", () => {
     const result = transformExactWebpackSource("const view = <span />;", "/src/view.tsx");
 
     expect(result?.code).toContain("__exactVNode(\"span\"");
+    expect(result?.map).toMatchObject({
+      version: 3,
+      sources: ["/src/view.tsx"],
+      sourcesContent: ["const view = <span />;"]
+    });
   });
 
   it("passes target options through to transforms", () => {

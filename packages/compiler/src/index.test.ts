@@ -817,6 +817,21 @@ describe("@exact/compiler", () => {
     expect(output).toContain("const __exactVNode = 1");
   });
 
+  it("returns source maps from transformSource when requested", () => {
+    const result = transformSource("const view = <span />;", {
+      filename: "view.tsx",
+      sourceMap: true
+    });
+
+    expect(result.map).toMatchObject({
+      version: 3,
+      sources: ["view.tsx"],
+      sourcesContent: ["const view = <span />;"],
+      names: []
+    });
+    expect(result.map?.mappings).toContain("AAAA");
+  });
+
   it("compiles a single TSX file to an output directory", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "exact-compiler-"));
     const input = path.join(root, "src", "view.tsx");
@@ -829,6 +844,28 @@ describe("@exact/compiler", () => {
 
     expect(result.outputFile).toBe(path.join(outDir, "view.ts"));
     expect(output).toContain("__exactVNode(\"span\"");
+  });
+
+  it("writes source maps beside compiled files", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-compiler-map-"));
+    const input = path.join(root, "src", "view.tsx");
+    const outDir = path.join(root, "out");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, "const view = <span />;");
+
+    const result = await compileFile(input, {
+      outDir,
+      rootDir: path.join(root, "src"),
+      sourceMap: true
+    });
+    const output = await readFile(result.outputFile!, "utf8");
+    const map = JSON.parse(await readFile(result.sourceMapFile!, "utf8"));
+
+    expect(result.sourceMapFile).toBe(path.join(outDir, "view.ts.map"));
+    expect(output).toContain("//# sourceMappingURL=view.ts.map");
+    expect(map.file).toBe("view.ts");
+    expect(map.sources).toEqual([input]);
+    expect(map.sourcesContent).toEqual(["const view = <span />;"]);
   });
 
   it("can emit compiler manifests beside compiled files", async () => {
@@ -911,6 +948,33 @@ describe("@exact/compiler", () => {
       })],
       boundaries: []
     });
+  });
+
+  it("writes source maps beside paired artifacts", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-artifacts-map-"));
+    const input = path.join(root, "src", "page.tsx");
+    const outDir = path.join(root, "out");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, "export function Page() { return () => <p />; }");
+
+    const result = await compileFileArtifacts(input, {
+      outDir,
+      rootDir: path.join(root, "src"),
+      sourceMap: true
+    });
+    const client = await readFile(result.clientFile, "utf8");
+    const server = await readFile(result.serverFile, "utf8");
+    const clientMap = JSON.parse(await readFile(result.clientMapFile!, "utf8"));
+    const serverMap = JSON.parse(await readFile(result.serverMapFile!, "utf8"));
+
+    expect(result.clientMapFile).toBe(path.join(outDir, "page.exact.client.ts.map"));
+    expect(result.serverMapFile).toBe(path.join(outDir, "page.exact.server.ts.map"));
+    expect(client).toContain("//# sourceMappingURL=page.exact.client.ts.map");
+    expect(server).toContain("//# sourceMappingURL=page.exact.server.ts.map");
+    expect(clientMap.file).toBe("page.exact.client.ts");
+    expect(serverMap.file).toBe("page.exact.server.ts");
+    expect(clientMap.sources).toEqual([input]);
+    expect(serverMap.sources).toEqual([input]);
   });
 
   it("creates package export maps for generated target artifacts", async () => {

@@ -18,6 +18,7 @@ export type ExactWebpackPluginOptions = {
   include?: FilterPattern;
   exclude?: FilterPattern;
   serverComponents?: boolean;
+  sourceMap?: boolean;
 };
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
@@ -87,16 +88,18 @@ export function createExactWebpackRule(options: ExactWebpackPluginOptions = {}):
   };
 }
 
-export function transformExactWebpackSource(source: string, filename: string, options: ExactWebpackPluginOptions = {}): { code: string; map: null } | null {
+export function transformExactWebpackSource(source: string, filename: string, options: ExactWebpackPluginOptions = {}): { code: string; map: unknown } | null {
   if (!shouldTransform(filename, source, options)) return null;
+  const result = transformSource(source, {
+    filename,
+    target: options.target,
+    importedManifests: importedManifestsFor(options),
+    serverComponents: options.serverComponents,
+    sourceMap: options.sourceMap ?? true
+  });
   return {
-    code: transformSource(source, {
-      filename,
-      target: options.target,
-      importedManifests: importedManifestsFor(options),
-      serverComponents: options.serverComponents
-    }).code,
-    map: null
+    code: result.code,
+    map: result.map
   };
 }
 

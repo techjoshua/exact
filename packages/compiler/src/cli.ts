@@ -10,6 +10,7 @@ type CliOptions = {
   emitManifest?: boolean;
   artifacts?: boolean;
   serverComponents?: boolean;
+  sourceMap?: boolean;
 };
 
 async function main(argv: string[]): Promise<void> {
@@ -25,11 +26,14 @@ async function main(argv: string[]): Promise<void> {
     const results = await compileProjectArtifacts(options.inputs, {
       outDir: options.outDir,
       rootDir: options.rootDir,
-      serverComponents: options.serverComponents
+      serverComponents: options.serverComponents,
+      sourceMap: options.sourceMap
     });
     for (const result of results) {
       console.log(`${result.inputFile} -> ${result.clientFile}`);
+      if (result.clientMapFile) console.log(`${result.inputFile} -> ${result.clientMapFile}`);
       console.log(`${result.inputFile} -> ${result.serverFile}`);
+      if (result.serverMapFile) console.log(`${result.inputFile} -> ${result.serverMapFile}`);
       console.log(`${result.inputFile} -> ${result.manifestFile}`);
     }
     return;
@@ -40,7 +44,8 @@ async function main(argv: string[]): Promise<void> {
     rootDir: options.rootDir,
     target: options.target,
     emitManifest: options.emitManifest,
-    serverComponents: options.serverComponents
+    serverComponents: options.serverComponents,
+    sourceMap: options.sourceMap
   });
 
   if (!options.outDir && results.length > 1) {
@@ -50,6 +55,9 @@ async function main(argv: string[]): Promise<void> {
   for (const result of results) {
     if (result.outputFile) {
       console.log(`${result.inputFile} -> ${result.outputFile}`);
+      if (result.sourceMapFile) {
+        console.log(`${result.inputFile} -> ${result.sourceMapFile}`);
+      }
       if (result.manifestFile) {
         console.log(`${result.inputFile} -> ${result.manifestFile}`);
       }
@@ -67,6 +75,7 @@ function parseArgs(argv: string[]): CliOptions {
   let emitManifest = false;
   let artifacts = false;
   let serverComponents = false;
+  let sourceMap = false;
 
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index]!;
@@ -82,6 +91,8 @@ function parseArgs(argv: string[]): CliOptions {
       artifacts = true;
     } else if (arg === "--serverComponents") {
       serverComponents = true;
+    } else if (arg === "--sourceMap") {
+      sourceMap = true;
     } else if (arg === "--help" || arg === "-h") {
       printUsage();
       process.exit(0);
@@ -90,11 +101,11 @@ function parseArgs(argv: string[]): CliOptions {
     }
   }
 
-  return { inputs, outDir, rootDir, target, emitManifest, artifacts, serverComponents };
+  return { inputs, outDir, rootDir, target, emitManifest, artifacts, serverComponents, sourceMap };
 }
 
 function printUsage(): void {
-  console.log("Usage: exactc [--outDir dir] [--rootDir dir] [--target default|client|server] [--manifest] [--artifacts] [--serverComponents] <file-or-directory...>");
+  console.log("Usage: exactc [--outDir dir] [--rootDir dir] [--target default|client|server] [--manifest] [--artifacts] [--serverComponents] [--sourceMap] <file-or-directory...>");
 }
 
 function parseTarget(value: string | undefined): TransformTarget {

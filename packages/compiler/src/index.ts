@@ -7,15 +7,25 @@ export type TransformOptions = {
   target?: TransformTarget;
   importedManifests?: readonly ExactCompilerManifest[];
   serverComponents?: boolean;
+  sourceMap?: boolean;
 };
 
 export type TransformTarget = "default" | "client" | "server";
 
 export type TransformResult = {
   code: string;
-  map: null;
+  map: ExactSourceMap | null;
   filename: string;
   manifest: ExactCompilerManifest;
+};
+
+export type ExactSourceMap = {
+  version: 3;
+  file?: string;
+  sources: string[];
+  sourcesContent?: string[];
+  names: string[];
+  mappings: string;
 };
 
 export type ExactPlacement = "server" | "client" | "isomorphic" | "unknown";
@@ -197,6 +207,7 @@ export type CompileFileOptions = TransformOptions & {
 export type CompileFileResult = TransformResult & {
   inputFile: string;
   outputFile?: string;
+  sourceMapFile?: string;
   manifestFile?: string;
 };
 
@@ -212,12 +223,15 @@ export type CompileArtifactsOptions = {
   filename?: string;
   importedManifests?: readonly ExactCompilerManifest[];
   serverComponents?: boolean;
+  sourceMap?: boolean;
 };
 
 export type CompileArtifactsResult = {
   inputFile: string;
   clientFile: string;
   serverFile: string;
+  clientMapFile?: string;
+  serverMapFile?: string;
   manifestFile: string;
   client: TransformResult;
   server: TransformResult;
@@ -236,6 +250,7 @@ export type CompileArtifactPlanEntriesOptions = {
   filename?(entry: ExactArtifactPlanEntry): string;
   importedManifests?: readonly ExactCompilerManifest[];
   serverComponents?: boolean;
+  sourceMap?: boolean;
 };
 
 export type ExactArtifactPlanOptions = {
@@ -442,7 +457,7 @@ export function transformSource(source: string, options: TransformOptions = {}):
   result.dispose();
   return {
     code: printed,
-    map: null,
+    map: options.sourceMap ? createLineSourceMap(filename, normalized, printed) : null,
     filename,
     manifest
   };
@@ -910,13 +925,18 @@ function isUnshadowedGlobalIdentifier(
 
 export async function compileFile(inputFile: string, options: CompileFileOptions = {}): Promise<CompileFileResult> {
   const source = await readFile(inputFile, "utf8");
-  const result = transformSource(source, { filename: options.filename ?? inputFile, target: options.target, serverComponents: options.serverComponents });
+  const result = transformSource(source, { filename: options.filename ?? inputFile, target: options.target, serverComponents: options.serverComponents, sourceMap: options.sourceMap });
   const outputFile = options.outDir ? outputPathFor(inputFile, options.outDir, options.rootDir) : undefined;
+  const sourceMapFile = outputFile && result.map ? sourceMapPathFor(outputFile) : undefined;
   const manifestFile = outputFile && options.emitManifest ? manifestPathFor(outputFile) : undefined;
 
   if (outputFile) {
     await mkdir(path.dirname(outputFile), { recursive: true });
-    await writeFile(outputFile, result.code);
+    await writeFile(outputFile, sourceMapFile ? withSourceMappingUrl(result.code, path.basename(sourceMapFile)) : result.code);
+  }
+  if (sourceMapFile && result.map) {
+    await mkdir(path.dirname(sourceMapFile), { recursive: true });
+    await writeFile(sourceMapFile, `${JSON.stringify(withSourceMapFile(result.map, path.basename(outputFile!)), null, 2)}\n`);
   }
   if (manifestFile) {
     await mkdir(path.dirname(manifestFile), { recursive: true });
@@ -927,6 +947,7 @@ export async function compileFile(inputFile: string, options: CompileFileOptions
     ...result,
     inputFile,
     outputFile,
+    sourceMapFile,
     manifestFile
   };
 }
@@ -942,7 +963,8 @@ export async function compileProject(inputs: readonly string[], options: Compile
       rootDir,
       target: options.target,
       emitManifest: options.emitManifest,
-      serverComponents: options.serverComponents
+      serverComponents: options.serverComponents,
+      sourceMap: options.sourceMap
     }));
   }
 
@@ -953,19 +975,25 @@ export async function compileFileArtifacts(inputFile: string, options: CompileAr
   const source = await readFile(inputFile, "utf8");
   const filename = options.filename ?? inputFile;
   const manifestBase = analyzeSource(source, { filename, importedManifests: options.importedManifests });
-  const client = transformSource(source, { filename, target: "client", importedManifests: options.importedManifests, serverComponents: options.serverComponents });
-  const server = transformSource(source, { filename, target: "server", importedManifests: options.importedManifests, serverComponents: options.serverComponents });
+  const client = transformSource(source, { filename, target: "client", importedManifests: options.importedManifests, serverComponents: options.serverComponents, sourceMap: options.sourceMap });
+  const server = transformSource(source, { filename, target: "server", importedManifests: options.importedManifests, serverComponents: options.serverComponents, sourceMap: options.sourceMap });
   const paths = artifactPathsFor(inputFile, options.outDir, options.rootDir);
   const manifest = withArtifactMetadata(manifestBase, inputFile, paths);
+  const clientMapFile = client.map ? sourceMapPathFor(paths.clientFile) : undefined;
+  const serverMapFile = server.map ? sourceMapPathFor(paths.serverFile) : undefined;
 
   await mkdir(path.dirname(paths.clientFile), { recursive: true });
-  await writeFile(paths.clientFile, client.code);
-  await writeFile(paths.serverFile, server.code);
+  await writeFile(paths.clientFile, clientMapFile ? withSourceMappingUrl(client.code, path.basename(clientMapFile)) : client.code);
+  await writeFile(paths.serverFile, serverMapFile ? withSourceMappingUrl(server.code, path.basename(serverMapFile)) : server.code);
+  if (clientMapFile && client.map) await writeFile(clientMapFile, `${JSON.stringify(withSourceMapFile(client.map, path.basename(paths.clientFile)), null, 2)}\n`);
+  if (serverMapFile && server.map) await writeFile(serverMapFile, `${JSON.stringify(withSourceMapFile(server.map, path.basename(paths.serverFile)), null, 2)}\n`);
   await writeFile(paths.manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
 
   return {
     inputFile,
     ...paths,
+    clientMapFile,
+    serverMapFile,
     client,
     server,
     manifest
@@ -977,7 +1005,8 @@ export async function compileProjectArtifacts(inputs: readonly string[], options
   return compileArtifactPlanEntries(plan.entries, {
     filename: entry => options.filename ?? entry.inputFile,
     importedManifests: options.importedManifests,
-    serverComponents: options.serverComponents
+    serverComponents: options.serverComponents,
+    sourceMap: options.sourceMap
   });
 }
 
@@ -1000,7 +1029,7 @@ export async function compileArtifactPlanEntries(
 
   for (const entry of entries) {
     const filename = options.filename?.(entry) ?? entry.inputFile;
-    results.push(await compileArtifactPlanEntry(entry, filename, importedManifests, options.serverComponents ?? false));
+    results.push(await compileArtifactPlanEntry(entry, filename, importedManifests, options.serverComponents ?? false, options.sourceMap ?? false));
   }
 
   return results;
@@ -1010,23 +1039,30 @@ async function compileArtifactPlanEntry(
   entry: ExactArtifactPlanEntry,
   filename: string,
   importedManifests: readonly ExactCompilerManifest[] = [],
-  serverComponents = false
+  serverComponents = false,
+  sourceMap = false
 ): Promise<CompileArtifactsResult> {
   const source = await readFile(entry.inputFile, "utf8");
   const base = analyzeSource(source, { filename, importedManifests });
-  const client = transformSource(source, { filename, target: "client", importedManifests, serverComponents });
-  const server = transformSource(source, { filename, target: "server", importedManifests, serverComponents });
+  const client = transformSource(source, { filename, target: "client", importedManifests, serverComponents, sourceMap });
+  const server = transformSource(source, { filename, target: "server", importedManifests, serverComponents, sourceMap });
   const manifest = withArtifactMetadata(base, entry.inputFile, entry);
+  const clientMapFile = client.map ? sourceMapPathFor(entry.clientFile) : undefined;
+  const serverMapFile = server.map ? sourceMapPathFor(entry.serverFile) : undefined;
 
   await mkdir(path.dirname(entry.clientFile), { recursive: true });
-  await writeFile(entry.clientFile, client.code);
-  await writeFile(entry.serverFile, server.code);
+  await writeFile(entry.clientFile, clientMapFile ? withSourceMappingUrl(client.code, path.basename(clientMapFile)) : client.code);
+  await writeFile(entry.serverFile, serverMapFile ? withSourceMappingUrl(server.code, path.basename(serverMapFile)) : server.code);
+  if (clientMapFile && client.map) await writeFile(clientMapFile, `${JSON.stringify(withSourceMapFile(client.map, path.basename(entry.clientFile)), null, 2)}\n`);
+  if (serverMapFile && server.map) await writeFile(serverMapFile, `${JSON.stringify(withSourceMapFile(server.map, path.basename(entry.serverFile)), null, 2)}\n`);
   await writeFile(entry.manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
 
   return {
     inputFile: entry.inputFile,
     clientFile: entry.clientFile,
     serverFile: entry.serverFile,
+    clientMapFile,
+    serverMapFile,
     manifestFile: entry.manifestFile,
     client,
     server,
@@ -4323,6 +4359,58 @@ function outputPathFor(inputFile: string, outDir: string, rootDir?: string): str
 
 function manifestPathFor(outputFile: string): string {
   return outputFile.replace(/\.[^.\\/]+$/i, ".exact.json");
+}
+
+function sourceMapPathFor(outputFile: string): string {
+  return `${outputFile}.map`;
+}
+
+function withSourceMappingUrl(code: string, mapFileName: string): string {
+  const normalized = code.endsWith("\n") ? code : `${code}\n`;
+  return `${normalized}//# sourceMappingURL=${mapFileName}\n`;
+}
+
+function withSourceMapFile(map: ExactSourceMap, file: string): ExactSourceMap {
+  return { ...map, file };
+}
+
+function createLineSourceMap(filename: string, source: string, generated: string): ExactSourceMap {
+  return {
+    version: 3,
+    sources: [filename],
+    sourcesContent: [source],
+    names: [],
+    mappings: lineMappings(lineCount(generated), lineCount(source))
+  };
+}
+
+function lineMappings(generatedLines: number, sourceLines: number): string {
+  let previousSourceLine = 0;
+  const lines: string[] = [];
+  for (let line = 0; line < generatedLines; line++) {
+    const sourceLine = Math.min(line, Math.max(sourceLines - 1, 0));
+    lines.push(encodeVlq(0) + encodeVlq(0) + encodeVlq(sourceLine - previousSourceLine) + encodeVlq(0));
+    previousSourceLine = sourceLine;
+  }
+  return lines.join(";");
+}
+
+function lineCount(value: string): number {
+  return value.length ? value.split(/\r\n|\r|\n/).length : 1;
+}
+
+const base64Digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+function encodeVlq(value: number): string {
+  let vlq = value < 0 ? ((-value) << 1) + 1 : value << 1;
+  let encoded = "";
+  do {
+    let digit = vlq & 31;
+    vlq >>>= 5;
+    if (vlq > 0) digit |= 32;
+    encoded += base64Digits[digit];
+  } while (vlq > 0);
+  return encoded;
 }
 
 function artifactPathsFor(inputFile: string, outDir: string, rootDir?: string): {

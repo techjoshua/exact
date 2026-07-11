@@ -17,6 +17,7 @@ export type ExactPluginOptions = {
   clientCondition?: string;
   serverCondition?: string;
   serverComponents?: boolean;
+  sourceMap?: boolean;
 };
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
@@ -26,7 +27,7 @@ export type ExactPlugin = {
   enforce: "pre";
   config?(): { resolve: { conditions: string[] } };
   resolveId?(source: string, importer?: string): string | null;
-  transform(code: string, id: string): { code: string; map: null } | null;
+  transform(code: string, id: string): { code: string; map: unknown } | null;
 };
 
 export function exact(options: ExactPluginOptions = {}): ExactPlugin {
@@ -46,14 +47,16 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
     transform(code, id) {
       if (!shouldTransform(id, code, options)) return null;
       try {
+        const result = transformSource(code, {
+          filename: id,
+          target: options.target,
+          importedManifests: importedManifestsFor(options),
+          serverComponents: options.serverComponents,
+          sourceMap: options.sourceMap ?? true
+        });
         return {
-          code: transformSource(code, {
-            filename: id,
-            target: options.target,
-            importedManifests: importedManifestsFor(options),
-            serverComponents: options.serverComponents
-          }).code,
-          map: null
+          code: result.code,
+          map: result.map
         };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

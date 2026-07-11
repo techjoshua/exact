@@ -11,6 +11,11 @@ describe("@exact/vite-plugin", () => {
     const result = plugin.transform("const view = <span />;", "/src/view.tsx");
 
     expect(result?.code).toContain("__exactVNode(\"span\"");
+    expect(result?.map).toMatchObject({
+      version: 3,
+      sources: ["/src/view.tsx"],
+      sourcesContent: ["const view = <span />;"]
+    });
   });
 
   it("passes compiler targets through to transformed files", () => {

@@ -18,6 +18,11 @@ describe("@exact/bun-plugin", () => {
     const result = transformExactBunSource("const view = <span />;", "/src/view.tsx");
 
     expect(result?.code).toContain("__exactVNode(\"span\"");
+    expect(result?.map).toMatchObject({
+      version: 3,
+      sources: ["/src/view.tsx"],
+      sourcesContent: ["const view = <span />;"]
+    });
   });
 
   it("passes imported manifests through to transforms", () => {
@@ -113,7 +118,11 @@ describe("@exact/bun-plugin", () => {
       text: async () => "const view = <span />;"
     })).resolves.toMatchObject({
       contents: expect.stringContaining("__exactVNode(\"span\""),
-      loader: "tsx"
+      loader: "tsx",
+      sourcemap: {
+        version: 3,
+        sources: ["/app/src/view.tsx"]
+      }
     });
   });
 });

@@ -30,6 +30,31 @@ describe("exactc", () => {
     expect(output).toContain("__exactVNode(\"span\"");
   });
 
+  it("emits source maps through the CLI", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-cli-map-"));
+    const input = path.join(root, "src", "view.tsx");
+    const outDir = path.join(root, "out");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, "const view = <span />;");
+
+    await execFileAsync(process.execPath, [
+      cliPath,
+      "--rootDir",
+      path.join(root, "src"),
+      "--outDir",
+      outDir,
+      "--sourceMap",
+      input
+    ]);
+
+    const output = await readFile(path.join(outDir, "view.ts"), "utf8");
+    const map = JSON.parse(await readFile(path.join(outDir, "view.ts.map"), "utf8"));
+
+    expect(output).toContain("//# sourceMappingURL=view.ts.map");
+    expect(map.file).toBe("view.ts");
+    expect(map.sources).toEqual([input]);
+  });
+
   it("emits manifests and honors target flags through the CLI", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "exact-cli-manifest-"));
     const input = path.join(root, "src", "page.tsx");
