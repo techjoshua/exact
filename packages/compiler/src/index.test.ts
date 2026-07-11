@@ -1535,6 +1535,25 @@ describe("@exact/compiler", () => {
     expect(output).not.toContain("onClick");
   });
 
+  it("infers derived state reads for client island snapshots", () => {
+    const output = transform(`
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ project: { title: string; owner: string } }>) {
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        const title = this.state.project.title;
+        const label = \`\${title} by \${this.state.project.owner}\`;
+        return () => <button title={label} onClick={() => this.state.project.title = "Updated"}>{label}</button>;
+      }
+    `, { filename: "Panel.tsx", target: "server" });
+
+    expect(output).toContain("\"__exactState\": { project: { owner: this.state.project.owner, title: this.state.project.title } }");
+    expect(output).toContain("title: label");
+    expect(output).not.toContain("onClick");
+  });
+
   it("emits valid state snapshots for non-identifier path segments", () => {
     const output = transform(`
       import { readFile } from "node:fs/promises";
