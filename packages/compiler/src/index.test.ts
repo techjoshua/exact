@@ -1954,6 +1954,18 @@ describe("@exact/compiler", () => {
     expect(() => transform(source, { filename: "/src/Page.tsx" })).toThrow("JSX tag MissingWidget is not defined");
   });
 
+  it("deduplicates repeated semantic diagnostics per component", () => {
+    const manifest = analyzeSource(`
+      export function Page() {
+        return () => <section><MissingWidget /><MissingWidget /></section>;
+      }
+    `, { filename: "/src/Page.tsx" });
+
+    expect(manifest.components[0]!.diagnostics.filter(
+      diagnostic => diagnostic === "error: JSX tag MissingWidget is not defined as a runtime component"
+    )).toHaveLength(1);
+  });
+
   it("diagnoses JSX tags that resolve to non-component values", () => {
     const source = `
       const Widget = "not a component";

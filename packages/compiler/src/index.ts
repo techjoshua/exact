@@ -1691,7 +1691,7 @@ function analyzeComponent(
     clientIslandCount,
     tasks,
     splitBoundaries: [...splitBoundaries].sort(),
-    diagnostics
+    diagnostics: uniqueDiagnostics(diagnostics)
   };
 }
 
@@ -2589,6 +2589,17 @@ function uniqueEffects(effects: ExactStateEffect[]): ExactStateEffect[] {
     output.push(effect);
   }
   return output.sort((left, right) => `${left.kind}:${left.path}`.localeCompare(`${right.kind}:${right.path}`));
+}
+
+function uniqueDiagnostics(diagnostics: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const output: string[] = [];
+  for (const diagnostic of diagnostics) {
+    if (seen.has(diagnostic)) continue;
+    seen.add(diagnostic);
+    output.push(diagnostic);
+  }
+  return output;
 }
 
 function stableId(...parts: string[]): string {
