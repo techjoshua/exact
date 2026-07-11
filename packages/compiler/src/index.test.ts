@@ -1949,6 +1949,51 @@ describe("@exact/compiler", () => {
     expect(server).toContain("readFile");
   });
 
+  it("keeps imported server child subgraphs server-owned inside generated element islands", () => {
+    const childManifest = analyzeSource(`
+      import { readFile } from "node:fs/promises";
+
+      export function ServerSummary(this: Component<{ title: string }>) {
+        this.task.server(async () => {
+          this.state.title = await readFile("summary.txt", "utf8");
+        });
+        return () => <p>{this.state.title}</p>;
+      }
+    `, { filename: "/pkg/ServerSummary.tsx" });
+    const source = `
+      import { readFile } from "node:fs/promises";
+      import { ServerSummary } from "./ServerSummary";
+
+      export function Panel(this: Component<{ count: number }>) {
+        this.state.count = 0;
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        return () => <section onClick={() => this.state.count++}>
+          <div className="summary"><ServerSummary /></div>
+        </section>;
+      }
+    `;
+    const client = transform(source, {
+      filename: "/pkg/Panel.tsx",
+      target: "client",
+      serverComponents: true,
+      importedManifests: [childManifest]
+    });
+    const server = transform(source, {
+      filename: "/pkg/Panel.tsx",
+      target: "server",
+      serverComponents: true,
+      importedManifests: [childManifest]
+    });
+
+    expect(client).toContain("export function Panel_ExactClient_1(this: any, props: any = {})");
+    expect(client).toContain("props.children");
+    expect(client).not.toContain("ServerSummary");
+    expect(server).toContain("__exactVNode(ServerSummary");
+    expect(server).toContain("from \"./ServerSummary\"");
+  });
+
   it("splits self-closing client components out of server artifacts", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "exact-component-split-"));
     const input = path.join(root, "src", "page.tsx");
