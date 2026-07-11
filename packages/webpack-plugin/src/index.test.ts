@@ -1,5 +1,6 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { analyzeSource } from "@exact/compiler";
 import {
   ExactWebpackPlugin,
   applyExactWebpackResolver,
@@ -29,6 +30,25 @@ describe("@exact/webpack-plugin", () => {
     `, "/src/page.tsx", { target: "client" });
 
     expect(result?.code).not.toContain("node:fs/promises");
+  });
+
+  it("passes imported manifests through to transforms", () => {
+    const manifest = analyzeSource(`
+      export function ClientWidget(this: Component<{ width: number }>) {
+        this.state.width = window.innerWidth;
+        return () => <button onClick={() => this.state.width++} />;
+      }
+    `, { filename: "/src/ClientWidget.tsx" });
+    const result = transformExactWebpackSource(`
+      import { ClientWidget } from "./ClientWidget";
+      export function Page() {
+        return () => <ClientWidget />;
+      }
+    `, "/src/Page.tsx", { target: "server", importedManifests: [manifest] });
+
+    expect(result?.code).toContain("__exactBoundary");
+    expect(result?.code).toContain("\"ClientWidget\"");
+    expect(result?.code).not.toContain("from \"./ClientWidget\"");
   });
 
   it("resolves exact facade imports through shared artifact resolution", () => {

@@ -2,6 +2,7 @@ import {
   exactExportConditions,
   resolveExactArtifactImport,
   transformSource,
+  type ExactCompilerManifest,
   type TransformTarget
 } from "@exact/compiler";
 
@@ -9,6 +10,7 @@ export type ExactPluginOptions = {
   include?: FilterPattern;
   exclude?: FilterPattern;
   target?: TransformTarget;
+  importedManifests?: readonly ExactCompilerManifest[];
   clientCondition?: string;
   serverCondition?: string;
 };
@@ -41,7 +43,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
       if (!shouldTransform(id, code, options)) return null;
       try {
         return {
-          code: transformSource(code, { filename: id, target: options.target }).code,
+          code: transformSource(code, { filename: id, target: options.target, importedManifests: options.importedManifests }).code,
           map: null
         };
       } catch (error) {

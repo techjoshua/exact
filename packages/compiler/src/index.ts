@@ -1400,6 +1400,8 @@ function manifestSourceKeys(manifest: ExactCompilerManifest): string[] {
 function moduleSpecifierKey(specifier: string, baseDir: string): string {
   const resolved = specifier.startsWith(".")
     ? path.resolve(baseDir, specifier)
+    : path.isAbsolute(specifier)
+      ? path.resolve(specifier)
     : specifier;
   return slashPath(resolved)
     .replace(/\.exact\.(client|server)(\.[cm]?[jt]sx?)?$/i, "")
