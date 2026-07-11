@@ -165,6 +165,27 @@ describe("@exact/hydrate", () => {
     expect(container.querySelector("button")?.textContent).toBe("2");
   });
 
+  it("ignores unsafe object keys in server-rendered client island props", () => {
+    const container = document.createElement("main");
+    container.innerHTML = "<div data-exact-client-boundary=\"island-1\" data-exact-client-name=\"Counter_ExactClient_1\" data-exact-client-props='{\"props\":{\"count\":2,\"__proto__\":{\"polluted\":true},\"constructor\":{\"polluted\":true},\"prototype\":{\"polluted\":true}}}'></div>";
+    let receivedProps: any;
+
+    function Counter(this: Component<{ count: number }>, props: { count: number }) {
+      receivedProps = props;
+      this.state.count = props.count;
+      return () => createVNode("button", null, String(this.state.count));
+    }
+
+    const hydrated = hydrateClientIslands(container, {
+      Counter_ExactClient_1: Counter
+    });
+
+    expect(hydrated).toBe(1);
+    expect(receivedProps.count).toBe(2);
+    expect(receivedProps.polluted).toBeUndefined();
+    expect(({} as any).polluted).toBeUndefined();
+  });
+
   it("hydrates client islands without replacing server child slots", () => {
     const container = document.createElement("main");
     container.innerHTML = "<div data-exact-client-boundary=\"island-children\" data-exact-client-name=\"Shell_ExactClient_1\" data-exact-client-props='{\"props\":{\"children\":{\"__exactServerSlot\":\"island-children:children\"}}}'><span data-exact-server-slot=\"island-children:children\" style=\"display: contents;\"><p>Server child</p></span></div>";
@@ -797,6 +818,42 @@ describe("@exact/hydrate", () => {
       id: "save-project",
       state: { project: { id: "p1" } }
     }]);
+  });
+
+  it("ignores unsafe object keys in exact state contract paths", async () => {
+    const container = document.createElement("div");
+    const requests: unknown[] = [];
+    const client = createExactClient(container, {
+      endpoint: "/__exact",
+      state: JSON.parse("{\"project\":{\"id\":\"p1\"},\"__proto__\":{\"polluted\":true}}"),
+      stateContracts: {
+        "save-project": {
+          reads: [
+            { path: "project.id", kind: "read", confidence: "exact" },
+            { path: "__proto__.polluted", kind: "read", confidence: "exact" }
+          ]
+        }
+      },
+      fetch: async (_input, init) => {
+        requests.push(JSON.parse(init.body));
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return { ok: true };
+          }
+        };
+      }
+    });
+
+    await client.invokeAction("save-project");
+
+    expect(requests).toEqual([{
+      type: "action",
+      id: "save-project",
+      state: { project: { id: "p1" } }
+    }]);
+    expect(({} as any).polluted).toBeUndefined();
   });
 
   it("rejects failed endpoint invocations", async () => {

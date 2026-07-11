@@ -410,6 +410,7 @@ function reviveServerSlots(value: unknown): unknown {
   }
   const revived: Record<string, unknown> = {};
   for (const [key, child] of Object.entries(record)) {
+    if (!isSafeObjectKey(key)) continue;
     revived[key] = reviveServerSlots(child);
   }
   return revived;
@@ -453,6 +454,7 @@ function getPath(value: unknown, path: string): unknown {
 function setPath(target: Record<string, unknown>, path: string, value: unknown): void {
   if (path === "*") return;
   const segments = path.split(".");
+  if (!segments.every(isSafeObjectKey)) return;
   let cursor: Record<string, unknown> = target;
   for (const segment of segments.slice(0, -1)) {
     const next = cursor[segment];
@@ -462,6 +464,10 @@ function setPath(target: Record<string, unknown>, path: string, value: unknown):
     cursor = cursor[segment] as Record<string, unknown>;
   }
   cursor[segments[segments.length - 1]!] = value;
+}
+
+function isSafeObjectKey(key: string): boolean {
+  return key !== "__proto__" && key !== "prototype" && key !== "constructor";
 }
 
 function isStateContractMap(value: unknown): value is Record<string, ExactStateContract> {
