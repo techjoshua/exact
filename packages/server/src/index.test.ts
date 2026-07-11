@@ -435,6 +435,48 @@ describe("@exact/server", () => {
     expect(JSON.parse(result.body)).toEqual({ error: "internal_error" });
   });
 
+  it("rejects undefined invocation result fields that would disappear during JSON serialization", async () => {
+    const undefinedState = await handleExactRequest({
+      method: "POST",
+      body: { type: "action", id: "allowed-action" }
+    }, context({
+      actions: {
+        "allowed-action": () => ({ state: undefined })
+      }
+    }));
+
+    expect(undefinedState.status).toBe(500);
+    expect(JSON.parse(undefinedState.body)).toEqual({ error: "internal_error" });
+
+    const undefinedPropPatch = await handleExactRequest({
+      method: "POST",
+      body: { type: "action", id: "allowed-action" }
+    }, context({
+      actions: {
+        "allowed-action": () => ({
+          patches: [{ type: "prop", id: "panel", name: "title", value: undefined } as any]
+        })
+      }
+    }));
+
+    expect(undefinedPropPatch.status).toBe(500);
+    expect(JSON.parse(undefinedPropPatch.body)).toEqual({ error: "internal_error" });
+
+    const undefinedStatePatch = await handleExactRequest({
+      method: "POST",
+      body: { type: "action", id: "allowed-action" }
+    }, context({
+      actions: {
+        "allowed-action": () => ({
+          patches: [{ type: "state", id: "panel", value: undefined } as any]
+        })
+      }
+    }));
+
+    expect(undefinedStatePatch.status).toBe(500);
+    expect(JSON.parse(undefinedStatePatch.body)).toEqual({ error: "internal_error" });
+  });
+
   it("rejects invocation results and patches with unknown protocol fields", async () => {
     const extraResult = await handleExactRequest({
       method: "POST",

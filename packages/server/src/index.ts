@@ -505,6 +505,7 @@ function isInvocationResultSafe(result: unknown): result is ExactInvocationResul
   if (!result || typeof result !== "object" || Array.isArray(result)) return false;
   const record = result as Record<string, unknown>;
   if (!hasOnlyKeys(record, ["patches", "state", "html"])) return false;
+  if ("state" in record && record.state === undefined) return false;
   if (record.patches !== undefined) {
     if (!Array.isArray(record.patches)) return false;
     if (!record.patches.every(isPatchSafe)) return false;
@@ -522,7 +523,10 @@ function isPatchSafe(patch: unknown): patch is ExactPatch {
     case "text":
       return hasOnlyKeys(record, ["type", "id", "value"]) && typeof record.value === "string";
     case "prop":
-      return hasOnlyKeys(record, ["type", "id", "name", "value"]) && typeof record.name === "string" && "value" in record;
+      return hasOnlyKeys(record, ["type", "id", "name", "value"])
+        && typeof record.name === "string"
+        && "value" in record
+        && record.value !== undefined;
     case "style":
       return hasOnlyKeys(record, ["type", "id", "name", "value"]) && typeof record.name === "string" && (typeof record.value === "string" || record.value === null);
     case "list":
@@ -532,7 +536,7 @@ function isPatchSafe(patch: unknown): patch is ExactPatch {
         && (record.before === undefined || typeof record.before === "string")
         && (record.html === undefined || typeof record.html === "string");
     case "state":
-      return hasOnlyKeys(record, ["type", "id", "value"]) && "value" in record;
+      return hasOnlyKeys(record, ["type", "id", "value"]) && "value" in record && record.value !== undefined;
     case "replace":
       return hasOnlyKeys(record, ["type", "id", "html"]) && typeof record.html === "string";
     default:
