@@ -137,6 +137,10 @@ export type CompileArtifactsResult = {
   manifest: ExactCompilerManifest;
 };
 
+export type CompileArtifactPlanEntriesOptions = {
+  filename?(entry: ExactArtifactPlanEntry): string;
+};
+
 export type ExactArtifactPlanOptions = {
   outDir: string;
   rootDir?: string;
@@ -430,17 +434,45 @@ export async function compileFileArtifacts(inputFile: string, options: CompileAr
 
 export async function compileProjectArtifacts(inputs: readonly string[], options: CompileArtifactsOptions): Promise<CompileArtifactsResult[]> {
   const plan = await createExactArtifactPlan(inputs, options);
+  return compileArtifactPlanEntries(plan.entries, {
+    filename: entry => options.filename ?? entry.inputFile
+  });
+}
+
+export async function compileArtifactPlanEntries(
+  entries: readonly ExactArtifactPlanEntry[],
+  options: CompileArtifactPlanEntriesOptions = {}
+): Promise<CompileArtifactsResult[]> {
   const results: CompileArtifactsResult[] = [];
 
-  for (const entry of plan.entries) {
-    results.push(await compileFileArtifacts(entry.inputFile, {
-      outDir: options.outDir,
-      rootDir: plan.rootDir,
-      filename: options.filename
-    }));
+  for (const entry of entries) {
+    results.push(await compileArtifactPlanEntry(entry, options.filename?.(entry) ?? entry.inputFile));
   }
 
   return results;
+}
+
+async function compileArtifactPlanEntry(entry: ExactArtifactPlanEntry, filename: string): Promise<CompileArtifactsResult> {
+  const source = await readFile(entry.inputFile, "utf8");
+  const manifestBase = analyzeSource(source, { filename });
+  const client = transformSource(source, { filename, target: "client" });
+  const server = transformSource(source, { filename, target: "server" });
+  const manifest = withArtifactMetadata(manifestBase, entry.inputFile, entry);
+
+  await mkdir(path.dirname(entry.clientFile), { recursive: true });
+  await writeFile(entry.clientFile, client.code);
+  await writeFile(entry.serverFile, server.code);
+  await writeFile(entry.manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
+
+  return {
+    inputFile: entry.inputFile,
+    clientFile: entry.clientFile,
+    serverFile: entry.serverFile,
+    manifestFile: entry.manifestFile,
+    client,
+    server,
+    manifest
+  };
 }
 
 export async function createExactArtifactPlan(inputs: readonly string[], options: ExactArtifactPlanOptions): Promise<ExactArtifactPlan> {

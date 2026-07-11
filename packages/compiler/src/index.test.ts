@@ -7,6 +7,7 @@ import {
   createClientIslandRegistryEntries,
   createExactArtifactGraph,
   createExactArtifactPlan,
+  compileArtifactPlanEntries,
   compileFile,
   compileFileArtifacts,
   compileProject,
@@ -542,6 +543,35 @@ describe("@exact/compiler", () => {
       changed: [planEntry("/app/src/a.tsx")],
       retained: []
     });
+  });
+
+  it("compiles selected artifact plan entries for incremental builds", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-artifact-entry-"));
+    const src = path.join(root, "src");
+    const outDir = path.join(root, ".exact");
+    const changedInput = path.join(src, "changed.tsx");
+    const retainedInput = path.join(src, "retained.tsx");
+    await mkdir(src, { recursive: true });
+    await writeFile(changedInput, "export function Changed() { return () => <p>Changed</p>; }");
+    await writeFile(retainedInput, "export function Retained() { return () => <p>Retained</p>; }");
+
+    const previous = await createExactArtifactPlan([src], {
+      outDir,
+      rootDir: src
+    });
+    const next = await createExactArtifactPlan([src], {
+      outDir,
+      rootDir: src
+    });
+    const diff = diffExactArtifactPlans(previous, next, {
+      changedInputs: [changedInput]
+    });
+    const results = await compileArtifactPlanEntries(diff.changed);
+
+    expect(results).toHaveLength(1);
+    expect(results[0]!.inputFile).toBe(changedInput);
+    expect(await readFile(results[0]!.clientFile, "utf8")).toContain("Changed");
+    await expect(readFile(path.join(outDir, "retained.exact.client.ts"), "utf8")).rejects.toThrow();
   });
 
   it("creates client island registry entries for generated client artifacts", async () => {
