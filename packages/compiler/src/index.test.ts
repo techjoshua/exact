@@ -9,6 +9,7 @@ import {
   createExactArtifactDevState,
   createExactArtifactGraph,
   createExactArtifactPlan,
+  createExactArtifactRegistryModules,
   createServerPartRegistryModule,
   compileArtifactPlanEntries,
   compileFile,
@@ -853,6 +854,42 @@ describe("@exact/compiler", () => {
         module: "./two.ts"
       }
     ])).toThrow("Duplicate eXact registry entry Panel");
+  });
+
+  it("creates registry modules from artifact graphs", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-artifact-registry-modules-"));
+    const input = path.join(root, "src", "panel.tsx");
+    const outDir = path.join(root, "dist");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, `
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ count: number }>) {
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
+      }
+    `);
+
+    const result = await compileFileArtifacts(input, {
+      outDir,
+      rootDir: path.join(root, "src")
+    });
+    const graph = createExactArtifactGraph([result], {
+      packageRoot: root,
+      sourceRoot: path.join(root, "src"),
+      rootDir: root
+    });
+    const modules = createExactArtifactRegistryModules(graph, {
+      clientExportName: "clientRegistry",
+      serverExportName: "serverRegistry"
+    });
+
+    expect(modules.client).toContain("export const clientRegistry");
+    expect(modules.client).toContain("Panel_ExactClient_1");
+    expect(modules.server).toContain("export const serverRegistry");
+    expect(modules.server).toContain("Panel_ExactServer_1");
   });
 
   it("emits server boundary stubs for pure client components", async () => {

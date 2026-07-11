@@ -273,6 +273,16 @@ export type ExactRegistryModuleOptions = {
   exportName?: string;
 };
 
+export type ExactArtifactRegistryModulesOptions = {
+  clientExportName?: string;
+  serverExportName?: string;
+};
+
+export type ExactArtifactRegistryModules = {
+  client: string;
+  server: string;
+};
+
 const helperModule = "@exact/core";
 const elementHelper = "__exactVNode";
 const fragmentHelper = "__exactFragment";
@@ -697,6 +707,20 @@ export function createExactArtifactGraph(
       manifestFile: result.manifestFile,
       manifest: result.manifest
     }))
+  };
+}
+
+export function createExactArtifactRegistryModules(
+  graph: ExactArtifactGraph,
+  options: ExactArtifactRegistryModulesOptions = {}
+): ExactArtifactRegistryModules {
+  return {
+    client: createClientIslandRegistryModule(graph.clientIslands, {
+      exportName: options.clientExportName
+    }),
+    server: createServerPartRegistryModule(graph.serverParts, {
+      exportName: options.serverExportName
+    })
   };
 }
 
