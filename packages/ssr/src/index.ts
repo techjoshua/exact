@@ -1119,7 +1119,7 @@ function renderServerBoundary(context: SsrContext, vnode: VNode): string {
   const props = clientBoundaryProps(vnode);
   const unsafePath = jsonUnsafePath(props);
   if (unsafePath) {
-    throw new Error(`Client boundary ${name || id} props must be JSON-serializable; non-serializable value at ${unsafePath}`);
+    throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
   }
   const children = renderServerBoundaryChildren(context, vnode, undefined);
   const html = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}">${children}</div>`;
@@ -1137,7 +1137,7 @@ async function renderServerBoundaryAsync(
   const props = clientBoundaryProps(vnode);
   const unsafePath = jsonUnsafePath(props);
   if (unsafePath) {
-    throw new Error(`Client boundary ${name || id} props must be JSON-serializable; non-serializable value at ${unsafePath}`);
+    throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
   }
   const slotId = serverSlotId(id);
   const children = vnode.children.length
@@ -1157,6 +1157,21 @@ function clientBoundaryProps(vnode: VNode): Record<string, unknown> {
     (props as Record<string, unknown>).children = serverSlotPayload(serverSlotId(id));
   }
   return props as Record<string, unknown>;
+}
+
+function clientBoundarySerializationMessage(name: string, id: string, unsafePath: string): string {
+  const label = name || id;
+  const location = name && id ? `${label} (${id})` : label;
+  const generatedBucket = clientBoundaryGeneratedBucket(unsafePath);
+  const generatedHint = generatedBucket
+    ? ` in generated ${generatedBucket} payload`
+    : "";
+  return `Client boundary ${location} props must be JSON-serializable; non-serializable value at ${unsafePath}${generatedHint}`;
+}
+
+function clientBoundaryGeneratedBucket(path: string): string | undefined {
+  const match = /^\$\.(__exact[A-Za-z0-9_$]*)(?:\.|\[|$)/.exec(path);
+  return match?.[1];
 }
 
 function renderServerBoundaryChildren(context: SsrContext, vnode: VNode, parent: ComponentInstance<any> | undefined): string {

@@ -180,11 +180,29 @@ describe("@exact/ssr", () => {
   it("rejects non-serializable client boundary props", () => {
     expect(() => renderToString(createServerBoundary("bad", "Bad_ExactClient_1", {
       onSave() {}
-    }))).toThrow("Client boundary Bad_ExactClient_1 props must be JSON-serializable; non-serializable value at $.onSave");
+    }))).toThrow("Client boundary Bad_ExactClient_1 (bad) props must be JSON-serializable; non-serializable value at $.onSave");
 
     expect(() => renderToString(createServerBoundary("bad", "Bad_ExactClient_1", {
       meta: { values: [1, Number.NaN] }
     }))).toThrow("non-serializable value at $.meta.values[1]");
+  });
+
+  it("identifies generated client boundary payload buckets in serialization errors", () => {
+    expect(() => renderToString(createServerBoundary("island-1", "Panel_ExactClient_1", {
+      __exactState: {
+        project: {
+          save() {}
+        }
+      }
+    }))).toThrow("non-serializable value at $.__exactState.project.save in generated __exactState payload");
+  });
+
+  it("identifies generated client boundary payload buckets in async serialization errors", async () => {
+    await expect(renderToStringAsync(createServerBoundary("island-1", "Panel_ExactClient_1", {
+      __exactCapture: {
+        formatter: new Date()
+      }
+    }))).rejects.toThrow("non-serializable value at $.__exactCapture.formatter in generated __exactCapture payload");
   });
 
   it("can expose rendered html as a readable stream", async () => {

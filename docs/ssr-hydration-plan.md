@@ -81,7 +81,7 @@ The current model is explicit and JSON-safe:
 - Hydration bootstrap state is provided by the app through render options or `createExactHydrationManifestConfig()`.
 - Compiler-derived action state contracts tell the client which exact state reads to include for an action.
 - Client-boundary props, hydration payloads, request payloads, response payloads, and patch payloads must be JSON-safe.
-- Non-serializable client-boundary props fail during SSR with the offending prop path.
+- Non-serializable client-boundary props fail during SSR with the boundary name/id, offending prop path, and generated payload bucket such as `__exactState` or `__exactCapture` when applicable.
 - Functions, DOM nodes, class instances, `Map`, `Set`, `Date`, cycles, and other non-plain objects are not serialized.
 
 ## Request Protocol
@@ -108,5 +108,5 @@ The current foundation is usable for the sample path and core protocol tests, bu
 - Richer server patch generation for complex structural changes beyond the current text, element, list, state, and boundary replacement paths.
 - Stronger generated registry/context glue for larger apps with many manifests.
 - Micro frontend support beyond dynamically loaded remote manifests, per-boundary endpoints, per-endpoint batching, and same-realm global context tokens.
-- Better diagnostics for ambiguous placement inference and serialization failures sourced from generated compiler captures.
+- Better diagnostics for ambiguous placement inference.
 - Production guidance for cache headers, deployment topology, auth/session integration, and package publishing conventions.
