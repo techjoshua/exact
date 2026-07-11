@@ -445,7 +445,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   visit(sourceFile);
 
   const componentByName = new Map(components.map(component => [component.name, component]));
-  const importedComponents = collectImportedComponents(sourceFile, options.importedManifests ?? []);
+  const importedComponents = collectImportedComponents(sourceFile, options.importedManifests ?? [], semanticGraph);
   const componentInfo = new Map<string, ExactImportedComponentIR>();
   for (const component of importedComponents) componentInfo.set(component.name, component);
   for (const component of components) {
@@ -1403,7 +1403,7 @@ function exactJsxTransformer(
     const semanticReferences = createSemanticReferenceIndex(sourceFile, semanticGraph);
     const semanticDeclarations = createSemanticDeclarationIndex(sourceFile, semanticGraph);
     const serverOnlyImports = collectServerOnlyImports(sourceFile, semanticGraph);
-    const componentInfo = collectComponentInfo(sourceFile, serverOnlyImports, importedManifests);
+    const componentInfo = collectComponentInfo(sourceFile, serverOnlyImports, importedManifests, semanticGraph);
     const componentPlacements = componentPlacementsFromInfo(componentInfo);
     let sawJsx = false;
     let sawBoundary = false;
@@ -1664,13 +1664,13 @@ function containsServerOnlyIdentifier(
 function collectComponentInfo(
   sourceFile: ts.SourceFile,
   serverOnlyImports: Set<string>,
-  importedManifests: readonly ExactCompilerManifest[] = []
+  importedManifests: readonly ExactCompilerManifest[] = [],
+  semanticGraph = buildSemanticGraph(sourceFile)
 ): Map<string, ExactImportedComponentIR> {
-  const semanticGraph = buildSemanticGraph(sourceFile);
   const semanticReferences = createSemanticReferenceIndex(sourceFile, semanticGraph);
   const semanticDeclarations = createSemanticDeclarationIndex(sourceFile, semanticGraph);
   const components = new Map<string, ExactImportedComponentIR>();
-  for (const component of collectImportedComponents(sourceFile, importedManifests)) {
+  for (const component of collectImportedComponents(sourceFile, importedManifests, semanticGraph)) {
     components.set(component.name, component);
   }
 
@@ -2224,7 +2224,11 @@ function hasDefaultModifier(node: ts.Node): boolean {
 const browserGlobals = new Set(["window", "document", "localStorage", "sessionStorage", "navigator", "HTMLElement", "Node"]);
 const mutatingStateMethods = new Set(["push", "pop", "shift", "unshift", "splice", "sort", "reverse", "set", "delete", "clear"]);
 
-function collectImportedComponents(sourceFile: ts.SourceFile, manifests: readonly ExactCompilerManifest[]): ExactImportedComponentIR[] {
+function collectImportedComponents(
+  sourceFile: ts.SourceFile,
+  manifests: readonly ExactCompilerManifest[],
+  graph: ExactSemanticGraphIR = buildSemanticGraph(sourceFile)
+): ExactImportedComponentIR[] {
   if (!manifests.length) return [];
   const bySource = new Map<string, ExactCompilerManifest[]>();
   for (const manifest of manifests) {
@@ -2238,40 +2242,12 @@ function collectImportedComponents(sourceFile: ts.SourceFile, manifests: readonl
 
   const imported: ExactImportedComponentIR[] = [];
   const sourceDir = path.dirname(path.resolve(sourceFile.fileName));
-  for (const statement of sourceFile.statements) {
-    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
-    const manifestsForImport = bySource.get(moduleSpecifierKey(statement.moduleSpecifier.text, sourceDir));
+  for (const declaration of graph.declarations) {
+    if (declaration.kind !== "import" || declaration.typeOnly || !declaration.moduleSpecifier || !declaration.importedName) continue;
+    const manifestsForImport = bySource.get(moduleSpecifierKey(declaration.moduleSpecifier, sourceDir));
     if (!manifestsForImport?.length) continue;
-    const clause = statement.importClause;
-    if (!clause) continue;
-    if (clause.name) {
-      const resolved = resolveImportedComponent(manifestsForImport, "default");
-      if (resolved) {
-        imported.push({
-          name: clause.name.text,
-          boundaryName: resolved.component?.name ?? clause.name.text,
-          placement: resolved.exported.placement,
-          componentId: resolved.component?.id
-        });
-      }
-    }
-    if (!clause.namedBindings) continue;
-    if (ts.isNamedImports(clause.namedBindings)) {
-      for (const element of clause.namedBindings.elements) {
-        const exportedName = element.propertyName?.text ?? element.name.text;
-        const resolved = resolveImportedComponent(manifestsForImport, exportedName);
-        if (!resolved) continue;
-        imported.push({
-          name: element.name.text,
-          boundaryName: resolved.component?.name ?? exportedName,
-          placement: resolved.exported.placement,
-          componentId: resolved.component?.id
-        });
-      }
-      continue;
-    }
-    if (ts.isNamespaceImport(clause.namedBindings)) {
-      const namespace = clause.namedBindings.name.text;
+    if (declaration.importedName === "*") {
+      const namespace = declaration.name;
       for (const manifest of manifestsForImport) {
         for (const exported of manifest.exports) {
           if (exported.kind !== "component") continue;
@@ -2286,6 +2262,18 @@ function collectImportedComponents(sourceFile: ts.SourceFile, manifests: readonl
           });
         }
       }
+      continue;
+    }
+
+    const resolved = resolveImportedComponent(manifestsForImport, declaration.importedName);
+    if (resolved) {
+      imported.push({
+        name: declaration.name,
+        boundaryName: resolved.component?.name ?? declaration.importedName,
+        placement: resolved.exported.placement,
+        componentId: resolved.component?.id
+      });
+      continue;
     }
   }
   return imported;

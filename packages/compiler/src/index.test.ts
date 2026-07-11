@@ -1839,6 +1839,35 @@ describe("@exact/compiler", () => {
     expect(manifest.components[0]!.renderEdges).toEqual([]);
   });
 
+  it("does not split type-only imported component names", () => {
+    const widgetManifest = analyzeSource(`
+      export function ClientWidget(this: Component<{ width: number }>) {
+        this.state.width = window.innerWidth;
+        return () => <button onClick={() => this.state.width++} />;
+      }
+    `, { filename: "/src/ClientWidget.tsx" });
+    const source = `
+      import type { ClientWidget } from "./ClientWidget";
+
+      export function Page() {
+        return () => <section><ClientWidget /></section>;
+      }
+    `;
+    const manifest = analyzeSource(source, {
+      filename: "/src/Page.tsx",
+      importedManifests: [widgetManifest]
+    });
+    const server = transform(source, {
+      filename: "/src/Page.tsx",
+      target: "server",
+      importedManifests: [widgetManifest]
+    });
+
+    expect(server).not.toContain("__exactBoundary");
+    expect(manifest.boundaries.filter(boundary => boundary.name === "ClientWidget")).toHaveLength(0);
+    expect(manifest.components[0]!.renderEdges).toEqual([]);
+  });
+
   it("uses exported component identity for aliased imported client boundaries", () => {
     const manifest = analyzeSource(`
       export function ClientWidget(this: Component<{ width: number }>) {
