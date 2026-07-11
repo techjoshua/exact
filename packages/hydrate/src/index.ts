@@ -497,35 +497,92 @@ function cloneEndpointRoutes(routes: ExactEndpointRoutes | undefined): ExactEndp
 }
 
 function mergeHydrationRegistration(options: HydrateOptions, registration: ExactHydrationRegistration): void {
-  if (registration.endpoint !== undefined) options.endpoint = registration.endpoint;
-  options.endpoints = mergeEndpointRoutes(options.endpoints, registration.endpoints);
+  if (registration.endpoint !== undefined) {
+    if (options.endpoint !== undefined && options.endpoint !== registration.endpoint) {
+      throw new Error("Conflicting eXact hydration endpoint registration");
+    }
+    options.endpoint = registration.endpoint;
+  }
+  options.endpoints = mergeHydrationEndpointRoutes(options.endpoints, registration.endpoints);
   if (registration.state !== undefined) options.state = registration.state;
   if (registration.stateContracts) {
-    options.stateContracts = {
-      ...(options.stateContracts ?? {}),
-      ...registration.stateContracts
-    };
+    options.stateContracts = mergeUniqueRecord(
+      options.stateContracts,
+      registration.stateContracts,
+      "state contract",
+      sameJsonValue
+    );
   }
   if (registration.actionBoundaries) {
-    options.actionBoundaries = {
-      ...(options.actionBoundaries ?? {}),
-      ...registration.actionBoundaries
-    };
+    options.actionBoundaries = mergeUniqueRecord(
+      options.actionBoundaries,
+      registration.actionBoundaries,
+      "action boundary",
+      (left, right) => sameStringList(left, right)
+    );
   }
   if (registration.islands) mergeClientIslands(options, registration.islands);
   if (registration.transports) {
-    options.transports = {
-      ...(options.transports ?? {}),
-      ...registration.transports
-    };
+    options.transports = mergeUniqueRecord(
+      options.transports,
+      registration.transports,
+      "endpoint transport",
+      sameEndpointTransport
+    );
   }
 }
 
 function mergeClientIslands(options: HydrateOptions, islands: ClientIslandRegistry): void {
-  options.islands = {
-    ...(options.islands ?? {}),
-    ...islands
-  };
+  options.islands = mergeUniqueRecord(
+    options.islands,
+    islands,
+    "client island",
+    (left, right) => left === right
+  );
+}
+
+function mergeHydrationEndpointRoutes(
+  base: ExactEndpointRoutes | undefined,
+  registration: ExactEndpointRoutes | undefined
+): ExactEndpointRoutes | undefined {
+  if (!registration) return cloneEndpointRoutes(base);
+  return mergeEndpointRoutes(base, {
+    actions: mergeUniqueRecord(base?.actions, registration.actions, "action endpoint route", (left, right) => left === right),
+    boundaries: mergeUniqueRecord(base?.boundaries, registration.boundaries, "boundary endpoint route", (left, right) => left === right)
+  });
+}
+
+function mergeUniqueRecord<T>(
+  base: Record<string, T> | undefined,
+  next: Record<string, T> | undefined,
+  label: string,
+  same: (left: T, right: T) => boolean
+): Record<string, T> | undefined {
+  if (!base && !next) return undefined;
+  const output: Record<string, T> = { ...(base ?? {}) };
+  for (const [key, value] of Object.entries(next ?? {})) {
+    if (Object.prototype.hasOwnProperty.call(output, key) && !same(output[key]!, value)) {
+      throw new Error(`Conflicting eXact hydration ${label} registration: ${key}`);
+    }
+    output[key] = value;
+  }
+  return output;
+}
+
+function sameStringList(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((value, index) => right[index] === value);
+}
+
+function sameEndpointTransport(left: ExactEndpointTransport, right: ExactEndpointTransport): boolean {
+  return left.fetch === right.fetch && sameHeaderMap(left.headers, right.headers);
+}
+
+function sameHeaderMap(left: Record<string, string> | undefined, right: Record<string, string> | undefined): boolean {
+  return headersCacheKey(left) === headersCacheKey(right);
+}
+
+function sameJsonValue(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function headersCacheKey(headers: Record<string, string> | undefined): string {

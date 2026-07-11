@@ -1324,6 +1324,114 @@ describe("@exact/hydrate", () => {
     expect(renders).toBe(1);
   });
 
+  it("rejects conflicting remote manifest registrations", () => {
+    const container = document.createElement("div");
+    function RemoteIsland(this: Component<{}>) {
+      return () => createVNode("button", null, "Remote");
+    }
+    function OtherRemoteIsland(this: Component<{}>) {
+      return () => createVNode("button", null, "Other");
+    }
+
+    const client = createExactClient(container, {
+      endpoint: "/__exact",
+      endpoints: {
+        actions: {
+          save: "/__exact"
+        }
+      },
+      stateContracts: {
+        save: {
+          reads: [{ path: "project.id", kind: "read", confidence: "exact" }]
+        }
+      },
+      actionBoundaries: {
+        save: ["profile"]
+      },
+      islands: {
+        RemoteIsland
+      }
+    });
+
+    expect(() => client.registerManifest({
+      endpoint: "https://remote.test/__exact"
+    })).toThrow("Conflicting eXact hydration endpoint registration");
+    expect(() => client.registerManifest({
+      endpoints: {
+        actions: {
+          save: "https://remote.test/__exact"
+        }
+      }
+    })).toThrow("Conflicting eXact hydration action endpoint route registration: save");
+    expect(() => client.registerManifest({
+      stateContracts: {
+        save: {
+          reads: [{ path: "project.title", kind: "read", confidence: "exact" }]
+        }
+      }
+    })).toThrow("Conflicting eXact hydration state contract registration: save");
+    expect(() => client.registerManifest({
+      actionBoundaries: {
+        save: ["other-profile"]
+      }
+    })).toThrow("Conflicting eXact hydration action boundary registration: save");
+    expect(() => client.registerManifest({
+      islands: {
+        RemoteIsland: OtherRemoteIsland
+      }
+    })).toThrow("Conflicting eXact hydration client island registration: RemoteIsland");
+  });
+
+  it("allows idempotent remote manifest registrations", () => {
+    const container = document.createElement("div");
+    function RemoteIsland(this: Component<{}>) {
+      return () => createVNode("button", null, "Remote");
+    }
+    const remoteFetch = async () => ({
+      ok: true,
+      status: 200,
+      async json() {
+        return { ok: true };
+      }
+    });
+
+    const client = createExactClient(container, {
+      endpoint: "/__exact"
+    });
+    const registration = {
+      endpoints: {
+        boundaries: {
+          "remote-panel": "https://remote.test/__exact"
+        }
+      },
+      stateContracts: {
+        "remote-save": {
+          reads: [{ path: "project.id", kind: "read" as const, confidence: "exact" as const }]
+        }
+      },
+      actionBoundaries: {
+        "remote-save": ["remote-panel"]
+      },
+      islands: {
+        RemoteIsland
+      },
+      transports: {
+        "https://remote.test/__exact": {
+          fetch: remoteFetch,
+          headers: {
+            "x-remote": "1"
+          }
+        }
+      }
+    };
+
+    client.registerManifest(registration);
+    client.registerManifest(registration);
+
+    expect(client.endpoints?.boundaries?.["remote-panel"]).toBe("https://remote.test/__exact");
+    expect(client.stateContracts?.["remote-save"]?.reads?.[0]?.path).toBe("project.id");
+  });
+
   it("uses endpoint-specific transports for registered remote operations", async () => {
     const container = document.createElement("div");
     const remoteRequests: { input: string; headers: Record<string, string>; body: unknown }[] = [];
