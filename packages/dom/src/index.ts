@@ -3,6 +3,7 @@ import {
   Dynamic,
   ErrorContext,
   Fragment,
+  ServerSlot,
   Text,
   createComponentInstance,
   createErrorContext,
@@ -187,6 +188,10 @@ function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>
     return mounted;
   }
 
+  if (vnode.type === ServerSlot) {
+    return mountServerSlot(root, vnode, scope);
+  }
+
   if (typeof vnode.type === "function") {
     const wrapper = document.createComment("exact-component");
     const mounted: Mounted = { vnode, dom: wrapper, scope, children: [] };
@@ -338,6 +343,18 @@ function patch(
     return mounted;
   }
 
+  if (next.type === ServerSlot) {
+    mounted.vnode = next;
+    if (mounted.dom instanceof Element && mounted.dom.getAttribute("data-exact-server-slot") === String(next.props.id ?? "")) {
+      return mounted;
+    }
+    const replacement = mountServerSlot(root, next, mounted.scope);
+    placeMountedBefore(root, parent, replacement, mounted.dom);
+    unmountMounted(mounted);
+    removeMountedNodes(parent, mounted);
+    return replacement;
+  }
+
   if (typeof next.type === "function") {
     mounted.vnode = next;
     mounted.instance?.updateProps(getComponentProps(next));
@@ -367,6 +384,7 @@ function mountChildren(root: Root, parent: Node, children: Child[], parentInstan
     const vnode = childToVNode(child);
     if (!vnode) continue;
     const childMounted = mount(root, vnode, parentInstance, parentScope);
+    if (vnode.type === ServerSlot) adoptServerSlot(parent, childMounted);
     mounted.push(childMounted);
     placeMountedBefore(root, parent, childMounted, null);
   }
@@ -420,6 +438,7 @@ function patchChildrenInner(
     const old = vnode.key ? oldByKey.get(vnode.key) : unkeyed.pop();
     if (old?.vnode.key) oldByKey.delete(old.vnode.key);
     const patched = patch(root, parent, old, vnode, parentInstance, parentScope);
+    if (vnode.type === ServerSlot) adoptServerSlot(parent, patched);
     nextMounted.unshift(patched);
     placeMountedBefore(root, parent, patched, cursor);
     cursor = patched.dom;
@@ -450,6 +469,39 @@ function preserveFocus<T>(root: Root, work: () => T): T {
     active.focus({ preventScroll: true });
   }
   return result;
+}
+
+function mountServerSlot(root: Root, vnode: VNode, scope: EffectScope): Mounted {
+  const id = String(vnode.props.id ?? "");
+  const element = findServerSlotDeep(root.container, id) ?? document.createElement("span");
+  element.setAttribute("data-exact-server-slot", id);
+  if (element instanceof HTMLElement) element.style.display = "contents";
+  return { vnode, dom: element, scope, children: [] };
+}
+
+function adoptServerSlot(parent: Node, mounted: Mounted): void {
+  if (mounted.vnode.type !== ServerSlot) return;
+  const id = String(mounted.vnode.props.id ?? "");
+  const existing = findServerSlot(parent, id);
+  if (!existing || existing === mounted.dom) return;
+  mounted.dom = existing;
+}
+
+function findServerSlot(parent: Node, id: string): Element | undefined {
+  for (const child of Array.from(parent.childNodes)) {
+    if (child instanceof Element && child.getAttribute("data-exact-server-slot") === id) {
+      return child;
+    }
+  }
+  return undefined;
+}
+
+function findServerSlotDeep(parent: ParentNode, id: string): Element | undefined {
+  if (parent instanceof Element && parent.getAttribute("data-exact-server-slot") === id) return parent;
+  for (const element of Array.from(parent.querySelectorAll("[data-exact-server-slot]"))) {
+    if (element.getAttribute("data-exact-server-slot") === id) return element;
+  }
+  return undefined;
 }
 
 function rerenderComponent(root: Root, mounted: Mounted): void {

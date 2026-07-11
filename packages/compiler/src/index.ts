@@ -657,11 +657,11 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
           && jsxTagIsClientComponent(node.openingElement.tagName, componentPlacements)
         ) {
           const childrenProp = clientComponentChildrenProp(context, node);
-          if (!jsxElementHasNoMeaningfulChildren(node) && childrenProp === undefined) {
-            throw new Error(`Cannot split client component ${node.openingElement.tagName.getText(sourceFile)} with children in server target; make the client component self-closing or extract the children into a server-rendered boundary.`);
-          }
+          const serverChildren = !jsxElementHasNoMeaningfulChildren(node) && childrenProp === undefined
+            ? node.children
+            : undefined;
           sawBoundary = true;
-          return createComponentIslandBoundaryCall(sourceFile, context, helpers, node.openingElement.tagName, node.openingElement.attributes, childrenProp);
+          return createComponentIslandBoundaryCall(sourceFile, context, visitor, helpers, node.openingElement.tagName, node.openingElement.attributes, childrenProp, serverChildren);
         }
         if (target === "server" && jsxElementIsClientIsland(node.openingElement.attributes)) {
           sawBoundary = true;
@@ -691,7 +691,7 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
         }
         if (target === "server" && jsxTagIsClientComponent(node.tagName, componentPlacements)) {
           sawBoundary = true;
-          return createComponentIslandBoundaryCall(sourceFile, context, helpers, node.tagName, node.attributes);
+          return createComponentIslandBoundaryCall(sourceFile, context, visitor, helpers, node.tagName, node.attributes);
         }
         if (target === "server" && jsxElementIsClientIsland(node.attributes)) {
           sawBoundary = true;
@@ -1596,10 +1596,12 @@ function emptyClientIslandCaptures(): ClientIslandCaptures {
 function createComponentIslandBoundaryCall(
   sourceFile: ts.SourceFile,
   context: ts.TransformationContext,
+  visitor: ts.Visitor,
   helpers: HelperNames,
   tagName: ts.JsxTagNameExpression,
   attributes: ts.JsxAttributes,
-  children?: ts.Expression
+  children?: ts.Expression,
+  serverChildren?: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[]
 ): ts.Expression {
   const factory = context.factory;
   const componentName = tagName.getText(sourceFile);
@@ -1608,7 +1610,8 @@ function createComponentIslandBoundaryCall(
   return factory.createCallExpression(factory.createIdentifier(helpers.boundary), undefined, [
     factory.createStringLiteral(id),
     factory.createStringLiteral(componentName),
-    children === undefined ? props : appendObjectProperty(context, props, "children", children)
+    children === undefined ? props : appendObjectProperty(context, props, "children", children),
+    ...(serverChildren ? childrenExpressions(context, serverChildren, visitor, helpers) : [])
   ]);
 }
 

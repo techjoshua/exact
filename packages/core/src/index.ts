@@ -20,8 +20,9 @@ export const Text = Symbol.for("exact.text");
 export const Cell = Symbol.for("exact.cell");
 export const Dynamic = Symbol.for("exact.dynamic");
 export const ServerBoundary = Symbol.for("exact.server-boundary");
+export const ServerSlot = Symbol.for("exact.server-slot");
 
-export type VNodeType = string | typeof Fragment | typeof Text | typeof Cell | typeof Dynamic | typeof ServerBoundary | ComponentFunction<any, any>;
+export type VNodeType = string | typeof Fragment | typeof Text | typeof Cell | typeof Dynamic | typeof ServerBoundary | typeof ServerSlot | ComponentFunction<any, any>;
 
 export type VNode<Props = Record<string, unknown>> = {
   type: VNodeType;
@@ -367,11 +368,17 @@ export function createDynamicChild(compute: () => RenderResult): VNode {
   });
 }
 
-export function createServerBoundary(id: string, name: string, props: Record<string, unknown> = {}): VNode {
+export function createServerBoundary(id: string, name: string, props: Record<string, unknown> = {}, ...children: unknown[]): VNode {
   return createVNode(ServerBoundary, {
     id,
     name,
     props
+  }, ...children);
+}
+
+export function createServerSlot(id: string): VNode {
+  return createVNode(ServerSlot, {
+    id
   });
 }
 

@@ -807,8 +807,8 @@ describe("@exact/compiler", () => {
     expect(server).not.toContain("onClick");
   });
 
-  it("fails clearly when a client component with children cannot be split", () => {
-    expect(() => transform(`
+  it("splits client components with JSX children into server boundary children", () => {
+    const server = transform(`
       export function ClientShell(this: Component<{ width: number }>, props: { children?: unknown }) {
         this.state.width = window.innerWidth;
         return () => <section>{props.children}</section>;
@@ -817,7 +817,13 @@ describe("@exact/compiler", () => {
       export function Page() {
         return () => <ClientShell><p>Server child</p></ClientShell>;
       }
-    `, { target: "server" })).toThrow("Cannot split client component ClientShell with children in server target");
+    `, { target: "server" });
+
+    expect(server).toContain("__exactBoundary");
+    expect(server).toContain("\"ClientShell\"");
+    expect(server).toContain("__exactVNode(\"p\"");
+    expect(server).toContain("\"Server child\"");
+    expect(server).not.toContain("window.innerWidth");
   });
 
   it("splits client components with text-only children into serializable island props", () => {

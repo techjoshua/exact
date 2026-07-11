@@ -108,6 +108,20 @@ describe("@exact/ssr", () => {
     expect(result.html).not.toContain("</script>");
   });
 
+  it("renders server children inside client-boundary slots", () => {
+    const result = renderToString(createServerBoundary(
+      "island-children",
+      "Shell_ExactClient_1",
+      {},
+      createVNode("p", null, "Server child")
+    ));
+
+    expect(result.html).toContain("data-exact-client-boundary=\"island-children\"");
+    expect(result.html).toContain("data-exact-server-slot=\"island-children:children\"");
+    expect(result.html).toContain("<p>Server child</p>");
+    expect(result.html).toContain("&quot;__exactServerSlot&quot;:&quot;island-children:children&quot;");
+  });
+
   it("serializes state-derived client boundary props at render time", () => {
     function Host(this: Component<{ title: string }>) {
       this.state.title = "Ready";

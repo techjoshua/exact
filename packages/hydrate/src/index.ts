@@ -1,5 +1,5 @@
 import { render } from "@exact/dom";
-import { createVNode, logFrameworkEvent, type ComponentFunction, type Logger, type VNode } from "@exact/core";
+import { createServerSlot, createVNode, logFrameworkEvent, type ComponentFunction, type Logger, type VNode } from "@exact/core";
 import type { ExactInvocationKind, ExactInvocationResult, ExactPatch, ExactStateContract } from "@exact/server";
 
 export type HydrateOptions = {
@@ -230,11 +230,25 @@ function parseIslandProps(raw: string | null): Record<string, unknown> {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
     const props = (parsed as Record<string, unknown>).props;
     return props && typeof props === "object" && !Array.isArray(props)
-      ? props as Record<string, unknown>
+      ? reviveServerSlots(props) as Record<string, unknown>
       : {};
   } catch {
     return {};
   }
+}
+
+function reviveServerSlots(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(reviveServerSlots);
+  if (!value || typeof value !== "object") return value;
+  const record = value as Record<string, unknown>;
+  if (typeof record.__exactServerSlot === "string") {
+    return createServerSlot(record.__exactServerSlot);
+  }
+  const revived: Record<string, unknown> = {};
+  for (const [key, child] of Object.entries(record)) {
+    revived[key] = reviveServerSlots(child);
+  }
+  return revived;
 }
 
 function boundaryInnerHtml(container: Element, id: string): string | undefined {

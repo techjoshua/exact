@@ -3,6 +3,7 @@ import {
   Dynamic,
   Fragment,
   ServerBoundary,
+  ServerSlot,
   Text,
   createComponentInstance,
   createErrorReport,
@@ -624,6 +625,10 @@ function renderVNode(context: SsrContext, vnode: VNode, parent?: ComponentInstan
     return renderServerBoundary(context, vnode);
   }
 
+  if (vnode.type === ServerSlot) {
+    return "";
+  }
+
   if (typeof vnode.type === "function") {
     return renderComponent(context, vnode, parent);
   }
@@ -692,7 +697,11 @@ async function renderVNodeAsync(
   }
 
   if (vnode.type === ServerBoundary) {
-    return renderServerBoundary(context, vnode);
+    return renderServerBoundaryAsync(context, vnode, parent, options);
+  }
+
+  if (vnode.type === ServerSlot) {
+    return "";
   }
 
   if (typeof vnode.type === "function") {
@@ -767,12 +776,59 @@ function renderElement(context: SsrContext, vnode: VNode, parent?: ComponentInst
 function renderServerBoundary(context: SsrContext, vnode: VNode): string {
   const id = String(unwrap(vnode.props.id) ?? "");
   const name = String(unwrap(vnode.props.name) ?? "");
-  const props = unwrap(vnode.props.props) ?? {};
+  const props = clientBoundaryProps(vnode);
   if (!isJsonSafe(props)) {
     throw new Error(`Client boundary ${name || id} props must be JSON-serializable`);
   }
-  const html = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}"></div>`;
+  const children = renderServerBoundaryChildren(context, vnode, undefined);
+  const html = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}">${children}</div>`;
   return markerPair(context, markerId(context, "client-boundary", name, id), () => html);
+}
+
+async function renderServerBoundaryAsync(
+  context: SsrContext,
+  vnode: VNode,
+  parent: ComponentInstance<any> | undefined,
+  options: RenderToStringOptions
+): Promise<string> {
+  const id = String(unwrap(vnode.props.id) ?? "");
+  const name = String(unwrap(vnode.props.name) ?? "");
+  const props = clientBoundaryProps(vnode);
+  if (!isJsonSafe(props)) {
+    throw new Error(`Client boundary ${name || id} props must be JSON-serializable`);
+  }
+  const slotId = serverSlotId(id);
+  const children = vnode.children.length
+    ? `<span data-exact-server-slot="${escapeAttr(slotId)}" style="display: contents;">${await renderChildrenAsync(context, vnode.children, parent, options)}</span>`
+    : "";
+  const html = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}">${children}</div>`;
+  return markerPair(context, markerId(context, "client-boundary", name, id), () => html);
+}
+
+function clientBoundaryProps(vnode: VNode): Record<string, unknown> {
+  const id = String(unwrap(vnode.props.id) ?? "");
+  const rawProps = unwrap(vnode.props.props) ?? {};
+  const props = rawProps && typeof rawProps === "object" && !Array.isArray(rawProps)
+    ? { ...(rawProps as Record<string, unknown>) }
+    : rawProps;
+  if (vnode.children.length && props && typeof props === "object" && !Array.isArray(props) && !("children" in props)) {
+    (props as Record<string, unknown>).children = serverSlotPayload(serverSlotId(id));
+  }
+  return props as Record<string, unknown>;
+}
+
+function renderServerBoundaryChildren(context: SsrContext, vnode: VNode, parent: ComponentInstance<any> | undefined): string {
+  if (!vnode.children.length) return "";
+  const slotId = serverSlotId(String(unwrap(vnode.props.id) ?? ""));
+  return `<span data-exact-server-slot="${escapeAttr(slotId)}" style="display: contents;">${renderChildren(context, vnode.children, parent)}</span>`;
+}
+
+function serverSlotId(boundaryId: string): string {
+  return `${boundaryId}:children`;
+}
+
+function serverSlotPayload(id: string): Record<string, string> {
+  return { __exactServerSlot: id };
 }
 
 function renderAttrs(props: Record<string, unknown>): string {

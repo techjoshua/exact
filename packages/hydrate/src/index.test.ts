@@ -79,6 +79,24 @@ describe("@exact/hydrate", () => {
     expect(container.querySelector("button")?.textContent).toBe("2");
   });
 
+  it("hydrates client islands without replacing server child slots", () => {
+    const container = document.createElement("main");
+    container.innerHTML = "<div data-exact-client-boundary=\"island-children\" data-exact-client-name=\"Shell_ExactClient_1\" data-exact-client-props='{\"props\":{\"children\":{\"__exactServerSlot\":\"island-children:children\"}}}'><span data-exact-server-slot=\"island-children:children\" style=\"display: contents;\"><p>Server child</p></span></div>";
+
+    function Shell(this: Component<{}>, props: { children?: unknown }) {
+      return () => createVNode("section", null, props.children);
+    }
+
+    const hydrated = hydrateClientIslands(container, {
+      Shell_ExactClient_1: Shell
+    });
+
+    expect(hydrated).toBe(1);
+    const section = container.querySelector("section");
+    expect(section?.querySelector("[data-exact-server-slot=\"island-children:children\"] p")?.textContent).toBe("Server child");
+    expect(container.querySelectorAll("[data-exact-server-slot=\"island-children:children\"]")).toHaveLength(1);
+  });
+
   it("leaves unknown client island placeholders in place", () => {
     const container = document.createElement("main");
     container.innerHTML = "<div data-exact-client-boundary=\"island-1\" data-exact-client-name=\"Missing_ExactClient_1\"></div>";
