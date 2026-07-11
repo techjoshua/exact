@@ -397,6 +397,7 @@ type ClientIslandCaptures = {
 type SemanticReferenceIndex = Map<string, ExactSemanticReferenceIR>;
 type SemanticDeclarationIndex = Map<string, ExactSemanticDeclarationIR>;
 type DerivedReactiveIndex = Map<string, ts.Expression>;
+type ReactiveSourceIndex = Set<string>;
 
 export function transform(source: string, options: TransformOptions = {}): string {
   return transformSource(source, options).code;
@@ -2537,6 +2538,7 @@ function collectDerivedReactiveLocals(
   semanticDeclarations: SemanticDeclarationIndex
 ): DerivedReactiveIndex {
   const derived = new Map<string, ts.Expression>();
+  const reactiveSources = collectComponentReactiveSources(node, sourceFile, semanticDeclarations);
 
   function visit(current: ts.Node): void {
     if (current !== node && (ts.isFunctionLike(current) || ts.isClassLike(current))) return;
@@ -2545,7 +2547,7 @@ function collectDerivedReactiveLocals(
       && current.initializer
       && isConstVariableDeclaration(current)
       && isSafeDerivedReactiveInitializer(current.initializer)
-      && expressionReadsReactiveInput(current.initializer, sourceFile, semanticReferences, derived)) {
+      && expressionReadsReactiveInput(current.initializer, sourceFile, semanticReferences, derived, reactiveSources)) {
       const declaration = semanticDeclarationForIdentifier(current.name, semanticDeclarations, sourceFile);
       if (declaration) derived.set(declaration.id, current.initializer);
     }
@@ -2554,6 +2556,37 @@ function collectDerivedReactiveLocals(
 
   if (node.body) visit(node.body);
   return derived;
+}
+
+function collectComponentReactiveSources(
+  node: ts.FunctionDeclaration,
+  sourceFile: ts.SourceFile,
+  semanticDeclarations: SemanticDeclarationIndex
+): ReactiveSourceIndex {
+  const reactiveSources = new Set<string>();
+  for (const parameter of node.parameters) {
+    collectReactiveBindingSources(parameter.name, sourceFile, semanticDeclarations, reactiveSources);
+  }
+  return reactiveSources;
+}
+
+function collectReactiveBindingSources(
+  name: ts.BindingName,
+  sourceFile: ts.SourceFile,
+  semanticDeclarations: SemanticDeclarationIndex,
+  reactiveSources: ReactiveSourceIndex
+): void {
+  if (ts.isIdentifier(name)) {
+    if (name.text === "this") return;
+    const declaration = semanticDeclarationForIdentifier(name, semanticDeclarations, sourceFile);
+    if (declaration) reactiveSources.add(declaration.id);
+    return;
+  }
+  for (const element of name.elements) {
+    if (ts.isBindingElement(element)) {
+      collectReactiveBindingSources(element.name, sourceFile, semanticDeclarations, reactiveSources);
+    }
+  }
 }
 
 function isConstVariableDeclaration(node: ts.VariableDeclaration): boolean {
@@ -2565,7 +2598,8 @@ function expressionReadsReactiveInput(
   node: ts.Node,
   sourceFile: ts.SourceFile,
   semanticReferences: SemanticReferenceIndex,
-  derivedReactiveLocals: DerivedReactiveIndex
+  derivedReactiveLocals: DerivedReactiveIndex,
+  reactiveSources: ReactiveSourceIndex = new Set()
 ): boolean {
   let found = false;
   function visit(current: ts.Node): void {
@@ -2578,6 +2612,10 @@ function expressionReadsReactiveInput(
     if (ts.isIdentifier(current)) {
       const reference = semanticReferenceForIdentifier(current, semanticReferences, sourceFile);
       if (reference?.declarationId && derivedReactiveLocals.has(reference.declarationId)) {
+        found = true;
+        return;
+      }
+      if (reference?.declarationId && reactiveSources.has(reference.declarationId)) {
         found = true;
         return;
       }

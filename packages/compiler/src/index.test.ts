@@ -617,6 +617,28 @@ describe("@exact/compiler", () => {
     expect(output).toContain("title: __exactExpression(() => (`${(this.state.first)} ${this.state.last}`))");
   });
 
+  it("inlines safe prop-derived consts inside reactive JSX children", () => {
+    const output = transform(`
+      function View(props: { user: { first: string; last: string } }) {
+        const fullName = \`\${props.user.first} \${props.user.last}\`;
+        return () => <p>{fullName}</p>;
+      }
+    `);
+
+    expect(output).toContain("__exactDynamic(() => (`${props.user.first} ${props.user.last}`))");
+  });
+
+  it("inlines safe destructured prop-derived consts inside reactive JSX props", () => {
+    const output = transform(`
+      function View({ user }: { user: { first: string; last: string } }) {
+        const fullName = \`\${user.first} \${user.last}\`;
+        return () => <p title={fullName}>User</p>;
+      }
+    `);
+
+    expect(output).toContain("title: __exactExpression(() => (`${user.first} ${user.last}`))");
+  });
+
   it("does not infer derived consts with call expressions", () => {
     const output = transform(`
       function View(this: Component<{ first: string }>) {
@@ -638,6 +660,17 @@ describe("@exact/compiler", () => {
     `);
 
     expect(output).toContain("this.task(this.reactive(() => (`${this.state.query}!`)), async (value) => { });");
+  });
+
+  it("inlines safe prop-derived consts inside task dependency captures", () => {
+    const output = transform(`
+      function View(props: { query: string }) {
+        const label = \`\${props.query}!\`;
+        this.task(label, async value => {});
+      }
+    `);
+
+    expect(output).toContain("this.task(this.reactive(() => (`${props.query}!`)), async (value) => { });");
   });
 
   it("inlines safe derived consts inside explicit reactive captures", () => {
