@@ -216,6 +216,12 @@ render(<App logger={logger} />, document.getElementById("app")!, { logger });
 
 If no logger is provided, eXact uses its default console logger.
 
+Runtime renderer boundaries use quiet text anchors by default so component/cell/dynamic boundaries do not clutter the browser Elements panel. To inspect those internal boundaries while debugging the renderer, opt into named marker comments:
+
+```ts
+render(<App />, document.getElementById("app")!, { debugMarkers: true });
+```
+
 ## Keyed Lists
 
 Use `this.map()` for lists. The framework owns the JSX `key`; item JSX should not specify it.

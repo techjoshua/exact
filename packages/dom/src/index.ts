@@ -59,6 +59,7 @@ type Root = {
   version: number;
   boundary: ComponentFunction<{}, { version: number }>;
   logger?: Logger;
+  debugMarkers: boolean;
 };
 
 const roots = new WeakMap<Element, Root>();
@@ -68,6 +69,7 @@ const propBindings = new WeakMap<Element, Map<string, StopHandle>>();
 
 export type RenderOptions = {
   logger?: Logger;
+  debugMarkers?: boolean;
 };
 
 export function render(vnode: VNode, container: Element, options: RenderOptions = {}): void {
@@ -79,7 +81,8 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
       errors: createErrorContext(),
       current: vnode,
       version: 0,
-      boundary: undefined as never
+      boundary: undefined as never,
+      debugMarkers: false
     };
     root.boundary = createRootBoundary(root);
     roots.set(container, root);
@@ -87,6 +90,7 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
   root.current = vnode;
   root.version++;
   root.logger = options.logger;
+  root.debugMarkers = options.debugMarkers ?? false;
 
   root.mounted = patch(root, container, root.mounted, createVNode(root.boundary, {
     version: root.version
@@ -126,10 +130,16 @@ function createRootErrorView(errors: ErrorReport[]): VNode {
   );
 }
 
+function createMarker(root: Root, label: "cell" | "component" | "dynamic" | "fragment"): Node {
+  return root.debugMarkers
+    ? document.createComment(`exact-${label}`)
+    : document.createTextNode("");
+}
+
 function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>, parentScope?: EffectScope): Mounted {
   const scope = createEffectScope(parentScope);
   if (isCellVNode(vnode)) {
-    const marker = document.createComment("exact-cell");
+    const marker = createMarker(root, "cell");
     const mounted: Mounted = { vnode, dom: marker, scope, children: [] };
     mounted.children = mountDetachedChildren(root, [getCellVNode(vnode)], parentInstance, mounted.scope);
     return mounted;
@@ -143,7 +153,7 @@ function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>
   }
 
   if (vnode.type === Fragment) {
-    const marker = document.createComment("exact-fragment");
+    const marker = createMarker(root, "fragment");
     const mounted: Mounted = { vnode, dom: marker, scope, children: [] };
     const list = getListBinding(vnode);
     mounted.children = list
@@ -164,7 +174,7 @@ function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>
   }
 
   if (vnode.type === Dynamic) {
-    const marker = document.createComment("exact-dynamic");
+    const marker = createMarker(root, "dynamic");
     const mounted: Mounted = { vnode, dom: marker, scope, children: [] };
     const value = vnode.props.value;
     mounted.children = mountDetachedChildren(root, normalizeRenderResult(unwrap(value) as Child | Child[]), parentInstance, mounted.scope);
@@ -193,7 +203,7 @@ function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>
   }
 
   if (typeof vnode.type === "function") {
-    const wrapper = document.createComment("exact-component");
+    const wrapper = createMarker(root, "component");
     const mounted: Mounted = { vnode, dom: wrapper, scope, children: [] };
     try {
       const instance = withEffectScope(mounted.scope, () => createComponentInstance(

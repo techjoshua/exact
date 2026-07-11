@@ -44,6 +44,41 @@ describe("@exact/dom", () => {
     expect(rendered).toHaveBeenCalledTimes(2);
   });
 
+  it("uses quiet runtime anchors by default", () => {
+    function Child() {
+      return () => jsx("span", { children: "child" });
+    }
+
+    function Parent() {
+      return () => jsx("main", { children: jsx(Child, {}) });
+    }
+
+    const container = document.createElement("div");
+    render(createCompiledVNode(Parent, {}), container);
+
+    expect(commentData(container)).toEqual([]);
+    expect(container.textContent).toBe("child");
+  });
+
+  it("can expose named boundary comments for renderer debugging", () => {
+    function Child() {
+      return () => jsx("span", { children: "child" });
+    }
+
+    function Parent() {
+      return () => jsx("main", { children: jsx(Child, {}) });
+    }
+
+    const container = document.createElement("div");
+    render(createCompiledVNode(Parent, {}), container, { debugMarkers: true });
+
+    expect(commentData(container)).toEqual(expect.arrayContaining([
+      "exact-component",
+      "exact-cell"
+    ]));
+    expect(container.textContent).toBe("child");
+  });
+
   it("uses the root logger for framework diagnostics", () => {
     const events: LogEvent[] = [];
     const logger: Logger = {
@@ -2093,3 +2128,14 @@ describe("@exact/dom", () => {
     expect(container.querySelectorAll("strong")).toHaveLength(1);
   });
 });
+
+function commentData(root: Node): string[] {
+  const comments: string[] = [];
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_COMMENT);
+  let current = walker.nextNode();
+  while (current) {
+    comments.push((current as Comment).data);
+    current = walker.nextNode();
+  }
+  return comments;
+}
