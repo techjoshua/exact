@@ -11,6 +11,7 @@ import {
   createExactArtifactGraph,
   createExactArtifactPlan,
   createExactArtifactRegistryModules,
+  createExactHydrationRegistrationModule,
   createServerPartRegistryModule,
   compileArtifactPlanEntries,
   compileFile,
@@ -1556,6 +1557,55 @@ describe("@exact/compiler", () => {
     expect(modules.client).toContain("Panel_ExactClient_1");
     expect(modules.server).toContain("export const serverRegistry");
     expect(modules.server).toContain("Panel_ExactServer_1");
+  });
+
+  it("creates hydration registration modules from artifact graphs", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-hydration-registration-module-"));
+    const input = path.join(root, "src", "panel.tsx");
+    const outDir = path.join(root, "dist");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, `
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ count: number; title: string }>) {
+        this.task.server(async () => {
+          this.state.title = await readFile("panel.txt", "utf8");
+        });
+        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
+      }
+    `);
+
+    const result = await compileFileArtifacts(input, {
+      outDir,
+      rootDir: path.join(root, "src")
+    });
+    const graph = createExactArtifactGraph([result], {
+      packageRoot: root,
+      sourceRoot: path.join(root, "src"),
+      rootDir: root
+    });
+    const actionId = Object.keys(result.manifest.serverActions)[0]!;
+    const clientBoundaryId = result.manifest.boundaries.find(boundary => boundary.kind === "client-island")!.id;
+    const module = createExactHydrationRegistrationModule(graph, {
+      endpoint: "/__exact",
+      endpoints: {
+        actions: { [actionId]: "/remote-exact" }
+      },
+      islandsExportName: "islands",
+      registrationExportName: "registration"
+    });
+
+    expect(module).toContain("export const islands");
+    expect(module).toContain("Panel_ExactClient_1");
+    expect(module).toContain("export const registration");
+    expect(module).toContain("islands: islands");
+    expect(module).toContain("\"endpoint\": \"/__exact\"");
+    expect(module).toContain("\"/remote-exact\"");
+    expect(module).toContain(JSON.stringify(actionId));
+    expect(module).toContain("\"stateContracts\"");
+    expect(module).toContain("\"title\"");
+    expect(module).toContain("\"actionBoundaries\"");
+    expect(module).toContain(JSON.stringify(clientBoundaryId));
   });
 
   it("includes component render edges in artifact graphs", async () => {

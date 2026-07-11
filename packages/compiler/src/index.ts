@@ -382,6 +382,18 @@ export type ExactRegistryModuleOptions = {
   exportName?: string;
 };
 
+export type ExactHydrationRegistrationModuleOptions = {
+  endpoint?: string;
+  endpoints?: ExactHydrationEndpointRoutes;
+  islandsExportName?: string;
+  registrationExportName?: string;
+};
+
+export type ExactHydrationEndpointRoutes = {
+  actions?: Record<string, string>;
+  boundaries?: Record<string, string>;
+};
+
 export type ExactArtifactRegistryModulesOptions = {
   clientExportName?: string;
   serverExportName?: string;
@@ -1471,6 +1483,28 @@ export function createServerPartRegistryModule(
   return createNamedRegistryModule(entries, options.exportName ?? "exactServerParts");
 }
 
+export function createExactHydrationRegistrationModule(
+  graph: ExactArtifactGraph,
+  options: ExactHydrationRegistrationModuleOptions = {}
+): string {
+  const islandsExportName = options.islandsExportName ?? "exactClientIslands";
+  const registrationExportName = options.registrationExportName ?? "exactHydrationRegistration";
+  const islandsModule = createClientIslandRegistryModule(graph.clientIslands, {
+    exportName: islandsExportName
+  });
+  const registration = omitUndefinedProperties({
+    endpoint: options.endpoint,
+    endpoints: options.endpoints,
+    stateContracts: hydrationStateContractsFromGraph(graph),
+    actionBoundaries: hydrationActionBoundariesFromGraph(graph)
+  });
+  const registrationEntries = [
+    `  islands: ${islandsExportName}`,
+    ...Object.entries(registration).map(([key, value]) => `  ${JSON.stringify(key)}: ${JSON.stringify(value)}`)
+  ];
+  return `${islandsModule}\nexport const ${registrationExportName} = {\n${registrationEntries.join(",\n")}\n};\n`;
+}
+
 function createNamedRegistryModule(
   entries: readonly (ClientIslandRegistryEntry | ServerPartRegistryEntry)[],
   exportName: string
@@ -1489,6 +1523,55 @@ function createNamedRegistryModule(
     properties.push(`  ${JSON.stringify(entry.name)}: ${local}`);
   });
   return `${imports.join("\n")}\n\nexport const ${exportName} = {\n${properties.join(",\n")}\n};\n`;
+}
+
+function hydrationStateContractsFromGraph(graph: ExactArtifactGraph): Record<string, { reads: ExactStateEffect[]; writes: ExactStateEffect[] }> {
+  const entries: [string, { reads: ExactStateEffect[]; writes: ExactStateEffect[] }][] = [];
+  for (const entry of graph.artifacts) {
+    for (const [id, action] of Object.entries(entry.manifest.serverActions)) {
+      entries.push([id, action.stateContract]);
+    }
+  }
+  return Object.fromEntries(entries.sort(([left], [right]) => left.localeCompare(right)));
+}
+
+function hydrationActionBoundariesFromGraph(graph: ExactArtifactGraph): Record<string, string[]> {
+  const boundaries = new Map<string, ExactBoundaryIR>();
+  const componentBoundaries = new Map<string, string>();
+  for (const entry of graph.artifacts) {
+    for (const boundary of entry.manifest.boundaries) {
+      boundaries.set(boundary.id, boundary);
+    }
+    for (const component of entry.manifest.components) {
+      if (component.placement === "client") continue;
+      componentBoundaries.set(component.id, component.id);
+    }
+  }
+
+  const output: Record<string, string[]> = {};
+  const actions = graph.artifacts
+    .flatMap(entry => Object.values(entry.manifest.serverActions))
+    .sort((left, right) => left.id.localeCompare(right.id));
+  for (const action of actions) {
+      const ids = [
+        ...[...boundaries.values()]
+          .filter(boundary => (boundary.ownerComponentId ?? boundary.componentId) === action.componentId)
+          .map(boundary => boundary.id),
+        ...[...componentBoundaries.entries()]
+          .filter(([componentId]) => componentId === action.componentId)
+          .map(([, boundaryId]) => boundaryId)
+      ].sort();
+      if (ids.length) output[action.id] = [...new Set(ids)];
+  }
+  return output;
+}
+
+function omitUndefinedProperties(value: Record<string, unknown>): Record<string, unknown> {
+  const output: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (item !== undefined) output[key] = item;
+  }
+  return output;
 }
 
 function packageExportSpecifier(inputFile: string, sourceRoot: string): string {

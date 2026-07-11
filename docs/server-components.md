@@ -131,6 +131,8 @@ Apps can also provide per-action and per-boundary endpoint routes in the hydrati
 
 Dynamically loaded bundles can register additional hydration metadata against an existing root with `client.registerManifest(...)`. Registration merges endpoint routes, state contracts, action boundary hints, client island components, and optional per-endpoint transport hooks so a remote subtree can route server operations to its own endpoint and hydrate returned client islands without recreating the shell root.
 
+Build tools can generate that client-side registration glue from artifact graphs with `createExactHydrationRegistrationModule()`. The generated module imports the bundle's client islands and exports a `registerManifest`-ready object containing islands, optional endpoint routes, compiler-derived state contracts, and action boundary hints.
+
 ## Protocol
 
 The client endpoint supports:
