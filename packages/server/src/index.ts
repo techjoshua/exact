@@ -8,9 +8,15 @@ export type ExactInvocationKind = "action" | "refresh";
 export type ExactServerManifest = {
   version: 1;
   endpoint?: string;
+  endpoints?: ExactEndpointRoutes;
   actions?: Record<string, ExactManifestAction>;
   boundaries?: Record<string, ExactManifestBoundary>;
   actionBoundaries?: Record<string, string[]>;
+};
+
+export type ExactEndpointRoutes = {
+  actions?: Record<string, string>;
+  boundaries?: Record<string, string>;
 };
 
 export type ExactManifestAction = {
@@ -64,6 +70,7 @@ export type ExactCompilerManifestLike = {
 
 export type CreateExactServerManifestOptions = {
   endpoint?: string;
+  endpoints?: ExactEndpointRoutes;
   actions?: Record<string, ExactManifestAction>;
   boundaries?: Record<string, ExactManifestBoundary>;
 };
@@ -149,6 +156,7 @@ export type ExactServerContext = {
 
 export type ExactHydrationManifestConfig = {
   endpoint?: string;
+  endpoints?: ExactEndpointRoutes;
   state?: unknown;
   stateContracts?: Record<string, ExactStateContract>;
   actionBoundaries?: Record<string, readonly string[]>;
@@ -198,6 +206,7 @@ export function createExactServerManifest(
   return {
     version: exactServerManifestVersion,
     endpoint: options.endpoint,
+    endpoints: normalizeEndpointRoutes(options.endpoints),
     actions,
     boundaries,
     actionBoundaries: inferActionBoundaries(actions, boundaries)
@@ -301,6 +310,7 @@ export function createExactHydrationManifestConfig(
 ): ExactHydrationManifestConfig {
   return omitEmptyHydrationConfig({
     endpoint: manifest.endpoint,
+    endpoints: manifest.endpoints,
     state,
     stateContracts: createExactHydrationStateContracts(manifest),
     actionBoundaries: createExactHydrationActionBoundaries(manifest)
@@ -668,10 +678,31 @@ function stateMatchesContract(state: unknown, contract: ExactStateContract): boo
 function omitEmptyHydrationConfig(config: ExactHydrationManifestConfig): ExactHydrationManifestConfig {
   return {
     ...(config.endpoint === undefined ? {} : { endpoint: config.endpoint }),
+    ...(config.endpoints && (Object.keys(config.endpoints.actions ?? {}).length || Object.keys(config.endpoints.boundaries ?? {}).length) ? { endpoints: config.endpoints } : {}),
     ...(config.state === undefined ? {} : { state: config.state }),
     ...(config.stateContracts && Object.keys(config.stateContracts).length ? { stateContracts: config.stateContracts } : {}),
     ...(config.actionBoundaries && Object.keys(config.actionBoundaries).length ? { actionBoundaries: config.actionBoundaries } : {})
   };
+}
+
+function normalizeEndpointRoutes(routes: ExactEndpointRoutes | undefined): ExactEndpointRoutes | undefined {
+  if (!routes) return undefined;
+  const actions = filterEndpointMap(routes.actions);
+  const boundaries = filterEndpointMap(routes.boundaries);
+  return Object.keys(actions).length || Object.keys(boundaries).length
+    ? {
+      ...(Object.keys(actions).length ? { actions } : {}),
+      ...(Object.keys(boundaries).length ? { boundaries } : {})
+    }
+    : undefined;
+}
+
+function filterEndpointMap(map: Record<string, string> | undefined): Record<string, string> {
+  const output: Record<string, string> = {};
+  for (const [id, endpoint] of Object.entries(map ?? {})) {
+    if (id && endpoint) output[id] = endpoint;
+  }
+  return output;
 }
 
 function hasStatePath(value: unknown, path: string): boolean {

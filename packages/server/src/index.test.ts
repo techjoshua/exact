@@ -105,11 +105,29 @@ describe("@exact/server", () => {
         { id: "client-widget-boundary", name: "Widget", componentId: "Widget", ownerComponentId: "Page", kind: "client-island" },
         { id: "client-widget-boundary:children", name: "Widget:children", componentId: "Widget", ownerComponentId: "Page", kind: "server-slot" }
       ]
-    }, { endpoint: "/__exact" });
+    }, {
+      endpoint: "/__exact",
+      endpoints: {
+        actions: {
+          sharedTask: "https://remote.test/__exact"
+        },
+        boundaries: {
+          "client-widget-boundary": "https://remote.test/__exact"
+        }
+      }
+    });
 
     expect(manifest).toEqual({
       version: 1,
       endpoint: "/__exact",
+      endpoints: {
+        actions: {
+          sharedTask: "https://remote.test/__exact"
+        },
+        boundaries: {
+          "client-widget-boundary": "https://remote.test/__exact"
+        }
+      },
       actions: {
         serverTask: {
           id: "serverTask",
@@ -158,6 +176,14 @@ describe("@exact/server", () => {
     });
     expect(createExactHydrationManifestConfig(manifest, { project: { id: "p1" } })).toEqual({
       endpoint: "/__exact",
+      endpoints: {
+        actions: {
+          sharedTask: "https://remote.test/__exact"
+        },
+        boundaries: {
+          "client-widget-boundary": "https://remote.test/__exact"
+        }
+      },
       state: { project: { id: "p1" } },
       stateContracts: {
         serverTask: {
@@ -169,6 +195,24 @@ describe("@exact/server", () => {
         serverTask: ["Page", "client-widget-boundary", "client-widget-boundary:children"],
         sharedTask: ["Page", "client-widget-boundary", "client-widget-boundary:children"]
       }
+    });
+  });
+
+  it("omits empty endpoint route maps from hydration config", () => {
+    const manifest = createExactServerManifest({
+      version: 1,
+      components: [{ id: "Page", placement: "server" }]
+    }, {
+      endpoint: "/__exact",
+      endpoints: {
+        actions: {},
+        boundaries: {}
+      }
+    });
+
+    expect(manifest.endpoints).toBeUndefined();
+    expect(createExactHydrationManifestConfig(manifest)).toEqual({
+      endpoint: "/__exact"
     });
   });
 

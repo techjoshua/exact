@@ -22,10 +22,18 @@ describe("@exact/hydrate", () => {
 
   it("reads endpoint and state from the hydration bootstrap script", () => {
     const root = document.createElement("main");
-    root.innerHTML = "<script type=\"application/json\" id=\"__exact_hydration\">{\"endpoint\":\"/__exact\",\"state\":{\"ready\":true},\"stateContracts\":{\"save\":{\"reads\":[{\"path\":\"project.id\",\"kind\":\"read\",\"confidence\":\"exact\"}]}},\"actionBoundaries\":{\"save\":[\"profile\",\"slot:children\"]}}</script>";
+    root.innerHTML = "<script type=\"application/json\" id=\"__exact_hydration\">{\"endpoint\":\"/__exact\",\"endpoints\":{\"actions\":{\"save-remote\":\"https://remote.test/__exact\"},\"boundaries\":{\"remote-panel\":\"https://remote.test/__exact\"}},\"state\":{\"ready\":true},\"stateContracts\":{\"save\":{\"reads\":[{\"path\":\"project.id\",\"kind\":\"read\",\"confidence\":\"exact\"}]}},\"actionBoundaries\":{\"save\":[\"profile\",\"slot:children\"]}}</script>";
 
     expect(readExactHydrationConfig(root)).toEqual({
       endpoint: "/__exact",
+      endpoints: {
+        actions: {
+          "save-remote": "https://remote.test/__exact"
+        },
+        boundaries: {
+          "remote-panel": "https://remote.test/__exact"
+        }
+      },
       state: { ready: true },
       stateContracts: {
         save: {
@@ -859,6 +867,84 @@ describe("@exact/hydrate", () => {
     }]);
     expect(container.textContent).toBe("NewPanel");
     expect(client.state).toEqual({ saved: true });
+  });
+
+  it("routes same-tick operations into endpoint-specific batches", async () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<!--exact:title-->Old<!--/exact:title--><!--exact:remote-panel--><p>Remote</p><!--/exact:remote-panel-->";
+    const requests: { input: string; body: unknown }[] = [];
+    const fetch = async (input: string, init: { body: string }) => {
+      const body = JSON.parse(init.body);
+      requests.push({ input, body });
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          const resultFor = (operation: { type: string; id: string }) => ({
+            ok: true,
+            type: operation.type,
+            id: operation.id,
+            patches: operation.id === "save-title"
+              ? [{ type: "text", id: "title", value: "Saved" }]
+              : operation.id === "remote-panel"
+                ? [{ type: "replace", id: "remote-panel", html: "<section>Remote</section>" }]
+                : []
+          });
+          return body.type === "batch"
+            ? {
+              ok: true,
+              version: 1,
+              results: body.operations.map(resultFor)
+            }
+            : {
+              ok: true,
+              patches: resultFor(body).patches
+            };
+        }
+      };
+    };
+
+    const client = createExactClient(container, {
+      endpoint: "/__exact",
+      endpoints: {
+        actions: {
+          "save-remote": "https://remote.test/__exact"
+        },
+        boundaries: {
+          "remote-panel": "https://remote.test/__exact"
+        }
+      },
+      fetch
+    });
+
+    await Promise.all([
+      client.invokeAction("save-title"),
+      client.refreshBoundary("remote-panel"),
+      client.invokeAction("save-remote")
+    ]);
+
+    expect(requests).toHaveLength(2);
+    expect(requests.map(request => request.input).sort()).toEqual(["/__exact", "https://remote.test/__exact"]);
+    expect(requests.find(request => request.input === "/__exact")?.body).toMatchObject({
+      type: "action",
+      id: "save-title"
+    });
+    expect(requests.find(request => request.input === "https://remote.test/__exact")?.body).toMatchObject({
+      type: "batch",
+      version: 1,
+      operations: [
+        {
+          type: "refresh",
+          id: "remote-panel",
+          boundaryHtml: "<p>Remote</p>"
+        },
+        {
+          type: "action",
+          id: "save-remote"
+        }
+      ]
+    });
+    expect(container.textContent).toBe("SavedRemote");
   });
 
   it("applies successful batched client operations when a sibling operation fails", async () => {

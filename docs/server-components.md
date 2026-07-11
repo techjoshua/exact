@@ -125,6 +125,8 @@ hydrate(<ProfilePage />, document.getElementById("app")!, {
 
 Hydration restores serialized state before the initial client render and skips duplicated server-completed work when the manifest confirms the server already provided it.
 
+Apps can also provide per-action and per-boundary endpoint routes in the hydration config. The root `endpoint` remains the default, while routed operations are sent to their configured endpoint and batched separately from same-tick operations targeting other endpoints.
+
 ## Protocol
 
 The client endpoint supports:
@@ -160,8 +162,8 @@ The expected model:
 
 - Only the shell app owns initial document SSR. Remote apps do not participate in that first server render unless the shell explicitly hosts their server artifacts.
 - Remote apps can still own server component subtrees after hydration. The shell renders a placeholder, the client loads the remote bundle, registers its manifest/client islands, and requests the remote server-rendered subtree from that remote app's endpoint.
-- Endpoint routing should be manifest or boundary scoped, not only app-global. A shell action can use `/__exact`, while a billing boundary can use `https://billing.example.com/__exact`.
-- Client batching should group same-tick operations per endpoint. Operations for different remotes should produce separate endpoint batches, while preserving each endpoint's existing `opId` / `dependsOn` dependency behavior.
+- Endpoint routing is manifest/action/boundary scoped. A shell action can use `/__exact`, while a billing boundary can use `https://billing.example.com/__exact`.
+- Client batching groups same-tick operations per endpoint. Operations for different remotes produce separate endpoint batches, while preserving each endpoint's existing `opId` / `dependsOn` dependency behavior.
 - A remote endpoint should only accept IDs from the manifests it owns or that the host explicitly provides. Patches from a remote endpoint should only target boundaries owned by that remote manifest unless the host grants cross-manifest authority.
 - Dynamically loaded remotes likely need a runtime registration API for manifest metadata, endpoint routing, client islands, and optional per-remote transport hooks.
 

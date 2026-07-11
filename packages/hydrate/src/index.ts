@@ -4,6 +4,7 @@ import type { ExactInvocationKind, ExactInvocationRequest, ExactInvocationResult
 
 export type HydrateOptions = {
   endpoint?: string;
+  endpoints?: ExactEndpointRoutes;
   state?: unknown;
   logger?: Logger;
   onMismatch?: "replace" | "throw";
@@ -17,9 +18,15 @@ export type HydrateOptions = {
 
 export type ExactHydrationConfig = {
   endpoint?: string;
+  endpoints?: ExactEndpointRoutes;
   state?: unknown;
   stateContracts?: Record<string, ExactStateContract>;
   actionBoundaries?: Record<string, readonly string[]>;
+};
+
+export type ExactEndpointRoutes = {
+  actions?: Record<string, string>;
+  boundaries?: Record<string, string>;
 };
 
 export type ClientIslandRegistry = Record<string, ComponentFunction<any, any>>;
@@ -36,6 +43,7 @@ export type FetchLike = (input: string, init: {
 
 export type ExactClient = {
   readonly endpoint?: string;
+  readonly endpoints?: ExactEndpointRoutes;
   state?: unknown;
   readonly stateContracts?: Record<string, ExactStateContract>;
   applyPatches(patches: readonly ExactPatch[]): boolean;
@@ -57,6 +65,7 @@ export function readExactHydrationConfig(root: ParentNode = document, scriptId =
     const record = value as Record<string, unknown>;
     return {
       endpoint: typeof record.endpoint === "string" ? record.endpoint : undefined,
+      endpoints: isEndpointRoutes(record.endpoints) ? record.endpoints : undefined,
       state: record.state,
       stateContracts: isStateContractMap(record.stateContracts) ? record.stateContracts : undefined,
       actionBoundaries: isActionBoundaryMap(record.actionBoundaries) ? record.actionBoundaries : undefined
@@ -84,6 +93,7 @@ export function createExactClient(container: Element, options: HydrateOptions = 
   const resolvedOptions = resolveHydrateOptions(container, options);
   const client: ExactClient = {
     endpoint: resolvedOptions.endpoint,
+    endpoints: resolvedOptions.endpoints,
     state: resolvedOptions.state,
     stateContracts: resolvedOptions.stateContracts,
     applyPatches(patches) {
@@ -147,16 +157,17 @@ async function invokeAndApply(
     boundaryHtml: type === "refresh" ? boundaryInnerHtml(container, id) : undefined,
     boundaryHtmls: type === "action" ? boundaryHtmlsFor(container, options.actionBoundaries?.[id]) : undefined
   };
+  const endpoint = requireEndpoint(endpointForOperation(client, type, id));
   const result = options.batch === false
     ? await invokeExact({
-      endpoint: requireEndpoint(client.endpoint),
+      endpoint,
       ...operation,
       fetch: options.fetch,
       headers: options.headers,
       logger: options.logger
     })
     : await enqueueExactOperation(container, {
-      endpoint: requireEndpoint(client.endpoint),
+      endpoint,
       operation,
       fetch: options.fetch,
       headers: options.headers,
@@ -199,7 +210,7 @@ type ExactBatchQueue = {
   scheduled: boolean;
 };
 
-const batchQueues = new WeakMap<Element, ExactBatchQueue>();
+const batchQueues = new WeakMap<Element, ExactBatchQueue[]>();
 
 export async function invokeExact(options: InvokeExactOptions): Promise<ExactInvocationResult> {
   const fetchImpl = options.fetch ?? globalThis.fetch;
@@ -272,8 +283,13 @@ function enqueueExactOperation(
     logger?: Logger;
   }
 ): Promise<ExactInvocationResult> {
-  let queue = batchQueues.get(container);
-  if (!queue || queue.endpoint !== options.endpoint || queue.fetch !== options.fetch || queue.headers !== options.headers || queue.logger !== options.logger) {
+  let queues = batchQueues.get(container);
+  if (!queues) {
+    queues = [];
+    batchQueues.set(container, queues);
+  }
+  let queue = queues.find(item => item.endpoint === options.endpoint && item.fetch === options.fetch && item.headers === options.headers && item.logger === options.logger);
+  if (!queue) {
     queue = {
       endpoint: options.endpoint,
       fetch: options.fetch,
@@ -282,7 +298,7 @@ function enqueueExactOperation(
       pending: [],
       scheduled: false
     };
-    batchQueues.set(container, queue);
+    queues.push(queue);
   }
 
   const promise = new Promise<ExactInvocationResult>((resolve, reject) => {
@@ -370,15 +386,41 @@ function requireEndpoint(endpoint: string | undefined): string {
   return endpoint;
 }
 
+function endpointForOperation(client: ExactClient, type: ExactInvocationKind, id: string): string | undefined {
+  if (type === "action") return client.endpoints?.actions?.[id] ?? client.endpoint;
+  return client.endpoints?.boundaries?.[id] ?? client.endpoint;
+}
+
 function resolveHydrateOptions(container: Element, options: HydrateOptions): HydrateOptions {
   const config = readExactHydrationConfig(hydrationConfigRoot(container));
   return {
     ...options,
     endpoint: options.endpoint ?? config.endpoint,
+    endpoints: mergeEndpointRoutes(config.endpoints, options.endpoints),
     state: options.state === undefined ? config.state : options.state,
     stateContracts: options.stateContracts ?? config.stateContracts,
     actionBoundaries: options.actionBoundaries ?? config.actionBoundaries
   };
+}
+
+function mergeEndpointRoutes(
+  base: ExactEndpointRoutes | undefined,
+  override: ExactEndpointRoutes | undefined
+): ExactEndpointRoutes | undefined {
+  const actions = {
+    ...(base?.actions ?? {}),
+    ...(override?.actions ?? {})
+  };
+  const boundaries = {
+    ...(base?.boundaries ?? {}),
+    ...(override?.boundaries ?? {})
+  };
+  return Object.keys(actions).length || Object.keys(boundaries).length
+    ? {
+      ...(Object.keys(actions).length ? { actions } : {}),
+      ...(Object.keys(boundaries).length ? { boundaries } : {})
+    }
+    : undefined;
 }
 
 function hydrationConfigRoot(container: Element): ParentNode {
@@ -483,6 +525,21 @@ function isActionBoundaryMap(value: unknown): value is Record<string, readonly s
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   return Object.values(value as Record<string, unknown>).every(boundaries => {
     return Array.isArray(boundaries) && boundaries.every(boundary => typeof boundary === "string" && boundary.length > 0);
+  });
+}
+
+function isEndpointRoutes(value: unknown): value is ExactEndpointRoutes {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  if (!hasOnlyKeys(record, ["actions", "boundaries"])) return false;
+  return (record.actions === undefined || isEndpointMap(record.actions))
+    && (record.boundaries === undefined || isEndpointMap(record.boundaries));
+}
+
+function isEndpointMap(value: unknown): value is Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  return Object.entries(value as Record<string, unknown>).every(([id, endpoint]) => {
+    return id.length > 0 && typeof endpoint === "string" && endpoint.length > 0;
   });
 }
 
