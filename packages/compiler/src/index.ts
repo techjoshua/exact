@@ -117,6 +117,7 @@ export type ExactSemanticReferenceIR = {
   nodeStart: number;
   nodeEnd: number;
   declarationId?: string;
+  declarationKind?: ExactSemanticDeclarationIR["kind"];
   moduleSpecifier?: string;
   importedName?: string;
 };
@@ -455,7 +456,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   for (const component of components) {
     const node = componentNodes.get(component.name);
     if (!node) continue;
-    component.renderEdges = collectComponentRenderEdges(node, sourceFile, componentInfo);
+    component.renderEdges = collectComponentRenderEdges(node, sourceFile, componentInfo, semanticReferences);
     component.subgraphPlacement = combinePlacements([
       component.placement,
       ...component.renderEdges.map(edge => edge.placement)
@@ -478,8 +479,8 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   symbols.push(...createServerPartSymbols(sourceFile, components));
   symbols.push(...createClientIslandSymbols(sourceFile, components));
   boundaries.push(...createClientIslandBoundaries(sourceFile, components));
-  boundaries.push(...createClientComponentTagBoundaries(sourceFile, components, componentInfo, componentPlacements));
-  boundaries.push(...createServerSlotBoundaries(sourceFile, components, componentInfo, componentPlacements));
+  boundaries.push(...createClientComponentTagBoundaries(sourceFile, components, componentInfo, componentPlacements, semanticReferences));
+  boundaries.push(...createServerSlotBoundaries(sourceFile, components, componentInfo, componentPlacements, semanticReferences));
 
   for (const component of components) {
     for (const task of component.tasks) {
@@ -596,6 +597,7 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
       ...reference,
       source: declaration?.kind === "import" ? "import" : declaration ? "local" : browserGlobals.has(reference.name) ? "global" : "unresolved",
       ...(declaration ? { declarationId: declaration.id } : {}),
+      ...(declaration ? { declarationKind: declaration.kind } : {}),
       ...(declaration?.moduleSpecifier ? { moduleSpecifier: declaration.moduleSpecifier } : {}),
       ...(declaration?.importedName ? { importedName: declaration.importedName } : {})
     };
@@ -1382,7 +1384,7 @@ function exactJsxTransformer(
         sawJsx = true;
         if (
           target === "server"
-          && jsxTagIsClientComponent(node.openingElement.tagName, componentPlacements)
+          && jsxTagIsClientComponent(node.openingElement.tagName, componentPlacements, sourceFile, semanticReferences)
         ) {
           const childrenProp = clientComponentChildrenProp(context, node);
           const serverChildren = !jsxElementHasNoMeaningfulChildren(node) && childrenProp === undefined
@@ -1417,7 +1419,7 @@ function exactJsxTransformer(
             recordClientIslandDefinition(sourceFile, context, visitor, helpers, owner, islandCounts, node, clientIslandDefinitions, clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1], semanticReferences, sourceFile));
           }
         }
-        if (target === "server" && jsxTagIsClientComponent(node.tagName, componentPlacements)) {
+        if (target === "server" && jsxTagIsClientComponent(node.tagName, componentPlacements, sourceFile, semanticReferences)) {
           sawBoundary = true;
           return createComponentIslandBoundaryCall(sourceFile, context, visitor, helpers, componentInfo, node, node.tagName, node.attributes);
         }
@@ -1629,7 +1631,8 @@ function collectComponentInfo(
 function collectComponentRenderEdges(
   root: ts.FunctionDeclaration,
   sourceFile: ts.SourceFile,
-  componentInfo: Map<string, ExactImportedComponentIR>
+  componentInfo: Map<string, ExactImportedComponentIR>,
+  semanticReferences: SemanticReferenceIndex
 ): ExactComponentRenderEdgeIR[] {
   const edges: ExactComponentRenderEdgeIR[] = [];
   const seen = new Set<string>();
@@ -1648,6 +1651,7 @@ function collectComponentRenderEdges(
 
   function addEdge(tagName: ts.JsxTagNameExpression): void {
     if (jsxTagIsIntrinsicElement(tagName)) return;
+    if (!jsxTagCanReferenceComponent(tagName, semanticReferences, sourceFile)) return;
     const tag = tagName.getText(sourceFile);
     const component = componentInfo.get(tag);
     if (!component) return;
@@ -1997,7 +2001,8 @@ function createClientComponentTagBoundaries(
   sourceFile: ts.SourceFile,
   components: readonly ExactComponentIR[],
   componentInfo: Map<string, ExactImportedComponentIR>,
-  componentPlacements: Map<string, ExactPlacement>
+  componentPlacements: Map<string, ExactPlacement>,
+  semanticReferences: SemanticReferenceIndex
 ): ExactBoundaryIR[] {
   const boundaries: ExactBoundaryIR[] = [];
   const seen = new Set<string>();
@@ -2011,9 +2016,9 @@ function createClientComponentTagBoundaries(
       ownerStack.pop();
       return;
     }
-    if (ts.isJsxElement(node) && jsxTagIsClientComponent(node.openingElement.tagName, componentPlacements)) {
+    if (ts.isJsxElement(node) && jsxTagIsClientComponent(node.openingElement.tagName, componentPlacements, sourceFile, semanticReferences)) {
       addBoundary(node.openingElement.tagName, node);
-    } else if (ts.isJsxSelfClosingElement(node) && jsxTagIsClientComponent(node.tagName, componentPlacements)) {
+    } else if (ts.isJsxSelfClosingElement(node) && jsxTagIsClientComponent(node.tagName, componentPlacements, sourceFile, semanticReferences)) {
       addBoundary(node.tagName, node);
     }
     ts.forEachChild(node, visit);
@@ -2043,7 +2048,8 @@ function createServerSlotBoundaries(
   sourceFile: ts.SourceFile,
   components: readonly ExactComponentIR[],
   componentInfo: Map<string, ExactImportedComponentIR>,
-  componentPlacements: Map<string, ExactPlacement>
+  componentPlacements: Map<string, ExactPlacement>,
+  semanticReferences: SemanticReferenceIndex
 ): ExactBoundaryIR[] {
   const boundaries: ExactBoundaryIR[] = [];
   const seen = new Set<string>();
@@ -2057,7 +2063,7 @@ function createServerSlotBoundaries(
       ownerStack.pop();
       return;
     }
-    if (ts.isJsxElement(node) && jsxTagIsClientComponent(node.openingElement.tagName, componentPlacements) && clientComponentHasServerSlotChildren(node)) {
+    if (ts.isJsxElement(node) && jsxTagIsClientComponent(node.openingElement.tagName, componentPlacements, sourceFile, semanticReferences) && clientComponentHasServerSlotChildren(node)) {
       const tagKey = node.openingElement.tagName.getText(sourceFile);
       const component = componentInfo.get(tagKey);
       const componentName = component?.boundaryName ?? tagKey;
@@ -2903,9 +2909,25 @@ function stateAccessExpression(factory: ts.NodeFactory, segments: readonly strin
   return expression;
 }
 
-function jsxTagIsClientComponent(tagName: ts.JsxTagNameExpression, placements: Map<string, ExactPlacement>): boolean {
+function jsxTagIsClientComponent(
+  tagName: ts.JsxTagNameExpression,
+  placements: Map<string, ExactPlacement>,
+  sourceFile?: ts.SourceFile,
+  semanticReferences?: SemanticReferenceIndex
+): boolean {
   if (ts.isIdentifier(tagName) && /^[a-z]/.test(tagName.text)) return false;
+  if (sourceFile && semanticReferences && !jsxTagCanReferenceComponent(tagName, semanticReferences, sourceFile)) return false;
   return placements.get(tagName.getText()) === "client";
+}
+
+function jsxTagCanReferenceComponent(
+  tagName: ts.JsxTagNameExpression,
+  semanticReferences: SemanticReferenceIndex,
+  sourceFile: ts.SourceFile
+): boolean {
+  if (!ts.isIdentifier(tagName)) return true;
+  const reference = semanticReferenceForIdentifier(tagName, semanticReferences, sourceFile);
+  return reference?.declarationKind === "import" || reference?.declarationKind === "function";
 }
 
 function componentBoundaryName(
