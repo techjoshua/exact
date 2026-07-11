@@ -1,6 +1,6 @@
 import { render } from "@exact/dom";
 import { createServerSlot, createVNode, logFrameworkEvent, type ComponentFunction, type Logger, type VNode } from "@exact/core";
-import type { ExactInvocationKind, ExactInvocationRequest, ExactInvocationResult, ExactOperationResult, ExactPatch, ExactStateContract } from "@exact/server";
+import type { ExactInvocationKind, ExactInvocationRequest, ExactInvocationResult, ExactOperationResult, ExactPatch, ExactStateContract, ExactStreamEvent } from "@exact/server";
 
 export type HydrateOptions = {
   endpoint?: string;
@@ -15,6 +15,7 @@ export type HydrateOptions = {
   actionBoundaries?: Record<string, readonly string[]>;
   islands?: ClientIslandRegistry;
   batch?: boolean;
+  stream?: boolean;
 };
 
 export type ExactHydrationConfig = {
@@ -44,6 +45,7 @@ export type FetchLike = (input: string, init: {
 }) => Promise<{
   ok: boolean;
   status: number;
+  body?: ReadableStream<Uint8Array> | null;
   json(): Promise<unknown>;
 }>;
 
@@ -194,14 +196,16 @@ async function invokeAndApply(
       ...operation,
       fetch: transport.fetch,
       headers: transport.headers,
-      logger: options.logger
+      logger: options.logger,
+      stream: options.stream
     })
     : await enqueueExactOperation(container, {
       endpoint,
       operation,
       fetch: transport.fetch,
       headers: transport.headers,
-      logger: options.logger
+      logger: options.logger,
+      stream: options.stream
     });
   const patchesApplied = result.patches ? applyPatches(container, result.patches, options) : true;
   if (!patchesApplied && type === "refresh" && result.html) {
@@ -223,6 +227,7 @@ export type InvokeExactOptions = {
   fetch?: FetchLike;
   headers?: Record<string, string>;
   logger?: Logger;
+  stream?: boolean;
 };
 
 type PendingExactOperation = {
@@ -237,6 +242,7 @@ type ExactBatchQueue = {
   headers?: Record<string, string>;
   headersKey: string;
   logger?: Logger;
+  stream?: boolean;
   pending: PendingExactOperation[];
   scheduled: boolean;
 };
@@ -251,6 +257,7 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
     method: "POST",
     headers: {
       "content-type": "application/json",
+      ...(options.stream ? { accept: "application/x-ndjson", "x-exact-stream": "1" } : {}),
       ...options.headers
     },
     body: JSON.stringify({
@@ -263,11 +270,18 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
     })
   });
 
-  const body = await response.json();
   if (!response.ok) {
     logFrameworkEvent("warn", "hydrate", "request", `exact ${options.type} invocation failed with ${response.status}`, undefined, options.logger);
     throw new Error(`eXact ${options.type} invocation failed`);
   }
+  if (options.stream) {
+    const results = await readExactStreamResponse(response, 1);
+    const result = results[0];
+    if (!result?.ok) throw new Error(`eXact ${options.type} invocation failed`);
+    const { ok: _ok, type: _type, id: _id, ...body } = result;
+    return body;
+  }
+  const body = await response.json();
   return parseExactInvocationResponse(body, `eXact ${options.type} invocation returned malformed result`);
 }
 
@@ -277,6 +291,7 @@ export type InvokeExactBatchOptions = {
   fetch?: FetchLike;
   headers?: Record<string, string>;
   logger?: Logger;
+  stream?: boolean;
 };
 
 export async function invokeExactBatch(options: InvokeExactBatchOptions): Promise<ExactOperationResult[]> {
@@ -287,6 +302,7 @@ export async function invokeExactBatch(options: InvokeExactBatchOptions): Promis
     method: "POST",
     headers: {
       "content-type": "application/json",
+      ...(options.stream ? { accept: "application/x-ndjson", "x-exact-stream": "1" } : {}),
       ...options.headers
     },
     body: JSON.stringify({
@@ -296,11 +312,12 @@ export async function invokeExactBatch(options: InvokeExactBatchOptions): Promis
     })
   });
 
-  const body = await response.json();
   if (!response.ok) {
     logFrameworkEvent("warn", "hydrate", "request", `exact batch invocation failed with ${response.status}`, undefined, options.logger);
     throw new Error("eXact batch invocation failed");
   }
+  if (options.stream) return readExactStreamResponse(response, options.operations.length);
+  const body = await response.json();
   return parseExactBatchResponse(body);
 }
 
@@ -312,6 +329,7 @@ function enqueueExactOperation(
     fetch?: FetchLike;
     headers?: Record<string, string>;
     logger?: Logger;
+    stream?: boolean;
   }
 ): Promise<ExactInvocationResult> {
   let queues = batchQueues.get(container);
@@ -320,7 +338,7 @@ function enqueueExactOperation(
     batchQueues.set(container, queues);
   }
   const headersKey = headersCacheKey(options.headers);
-  let queue = queues.find(item => item.endpoint === options.endpoint && item.fetch === options.fetch && item.headersKey === headersKey && item.logger === options.logger);
+  let queue = queues.find(item => item.endpoint === options.endpoint && item.fetch === options.fetch && item.headersKey === headersKey && item.logger === options.logger && item.stream === options.stream);
   if (!queue) {
     queue = {
       endpoint: options.endpoint,
@@ -328,6 +346,7 @@ function enqueueExactOperation(
       headers: options.headers,
       headersKey,
       logger: options.logger,
+      stream: options.stream,
       pending: [],
       scheduled: false
     };
@@ -364,7 +383,8 @@ async function flushExactBatchQueue(queue: ExactBatchQueue): Promise<void> {
         ...pending[0]!.operation,
         fetch: queue.fetch,
         headers: queue.headers,
-        logger: queue.logger
+        logger: queue.logger,
+        stream: queue.stream
       });
       pending[0]!.resolve(result);
     } catch (error) {
@@ -379,7 +399,8 @@ async function flushExactBatchQueue(queue: ExactBatchQueue): Promise<void> {
       operations: pending.map(item => item.operation),
       fetch: queue.fetch,
       headers: queue.headers,
-      logger: queue.logger
+      logger: queue.logger,
+      stream: queue.stream
     });
     pending.forEach((item, index) => {
       const result = results[index];
@@ -908,6 +929,81 @@ function parseExactBatchResponse(body: unknown): ExactOperationResult[] {
   if (record.version !== 1) throw new Error(message);
   if (!Array.isArray(record.results)) throw new Error(message);
   return record.results.map(parseExactOperationResult);
+}
+
+async function readExactStreamResponse(
+  response: { body?: ReadableStream<Uint8Array> | null },
+  expectedOperations: number
+): Promise<ExactOperationResult[]> {
+  const message = "eXact stream invocation returned malformed events";
+  if (!response.body) throw new Error(message);
+  const events = await readNdjsonEvents(response.body, message);
+  if (!events.length) throw new Error(message);
+  const start = events[0];
+  const complete = events[events.length - 1];
+  if (!isExactStreamStartEvent(start) || start.operations !== expectedOperations) throw new Error(message);
+  if (!isExactStreamCompleteEvent(complete)) throw new Error(message);
+
+  const results: ExactOperationResult[] = new Array(expectedOperations);
+  for (const event of events.slice(1, -1)) {
+    if (!isExactStreamResultEvent(event)) throw new Error(message);
+    if (!Number.isInteger(event.index) || event.index < 0 || event.index >= expectedOperations) throw new Error(message);
+    if (results[event.index]) throw new Error(message);
+    results[event.index] = parseExactOperationResult(event.result);
+  }
+  for (let index = 0; index < expectedOperations; index++) {
+    if (!results[index]) throw new Error(message);
+  }
+  return results;
+}
+
+async function readNdjsonEvents(stream: ReadableStream<Uint8Array>, message: string): Promise<unknown[]> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  while (true) {
+    const next = await reader.read();
+    if (next.done) break;
+    text += decoder.decode(next.value, { stream: true });
+  }
+  text += decoder.decode();
+  const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
+  return lines.map(line => {
+    try {
+      return JSON.parse(line);
+    } catch {
+      throw new Error(message);
+    }
+  });
+}
+
+function isExactStreamStartEvent(value: unknown): value is Extract<ExactStreamEvent, { event: "start" }> {
+  if (!value || typeof value !== "object" || Array.isArray(value) || !isJsonSafe(value)) return false;
+  const record = value as Record<string, unknown>;
+  return hasOnlyKeys(record, ["event", "version", "operations"])
+    && record.event === "start"
+    && record.version === 1
+    && typeof record.operations === "number"
+    && Number.isInteger(record.operations)
+    && record.operations >= 0;
+}
+
+function isExactStreamResultEvent(value: unknown): value is Extract<ExactStreamEvent, { event: "result" }> {
+  if (!value || typeof value !== "object" || Array.isArray(value) || !isJsonSafe(value)) return false;
+  const record = value as Record<string, unknown>;
+  return hasOnlyKeys(record, ["event", "version", "index", "result"])
+    && record.event === "result"
+    && record.version === 1
+    && typeof record.index === "number"
+    && Number.isInteger(record.index);
+}
+
+function isExactStreamCompleteEvent(value: unknown): value is Extract<ExactStreamEvent, { event: "complete" }> {
+  if (!value || typeof value !== "object" || Array.isArray(value) || !isJsonSafe(value)) return false;
+  const record = value as Record<string, unknown>;
+  return hasOnlyKeys(record, ["event", "version"])
+    && record.event === "complete"
+    && record.version === 1;
 }
 
 function parseExactOperationResult(value: unknown): ExactOperationResult {

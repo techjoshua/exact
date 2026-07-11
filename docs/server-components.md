@@ -139,6 +139,8 @@ The client endpoint supports:
 
 Batches behave like independent GraphQL-style operation groups: each operation has its own result, and optional `opId` / `dependsOn` metadata can express dependency ordering. `opId` values must be unique within a batch. Independent operations run concurrently and preserve request-order results. Dependent operations wait for successful prerequisites and are skipped with `dependency_failed` if a prerequisite does not succeed.
 
+Clients can opt into streamed endpoint responses by sending `Accept: application/x-ndjson` or `x-exact-stream: 1`; `@exact/hydrate` does this when `stream: true` is set. Stream responses are newline-delimited JSON events: `start`, one `result` event per operation with `index` and optional `opId`, then `complete`. Independent batch results may arrive out of order as operations finish; the client restores request-order results before resolving helper promises.
+
 Patch responses can include text updates, prop/style updates, keyed list operations, state updates, and boundary replacement. If a fine-grained patch cannot apply cleanly, the client replaces the nearest server boundary with the authoritative server-rendered HTML.
 
 ## Security

@@ -42,6 +42,29 @@ function context(overrides: Partial<ExactServerContext> = {}): ExactServerContex
   };
 }
 
+async function readStreamEvents(stream: ReadableStream<Uint8Array>): Promise<unknown[]> {
+  const reader = stream.getReader();
+  return readRemainingStreamEvents(reader);
+}
+
+async function readRemainingStreamEvents(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<unknown[]> {
+  const events: unknown[] = [];
+  while (true) {
+    const next = await reader.read();
+    if (next.done) return events;
+    const text = new TextDecoder().decode(next.value);
+    for (const line of text.split(/\r?\n/)) {
+      if (line.trim()) events.push(JSON.parse(line));
+    }
+  }
+}
+
+async function readNextStreamLine(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<string> {
+  const next = await reader.read();
+  if (next.done) throw new Error("stream ended");
+  return new TextDecoder().decode(next.value).trim();
+}
+
 describe("@exact/server", () => {
   it("rejects unsupported compiler manifest versions", () => {
     expect(() => createExactServerManifest({
@@ -732,6 +755,32 @@ describe("@exact/server", () => {
     });
   });
 
+  it("streams single operation results as ndjson events", async () => {
+    const result = await handleExactRequest({
+      method: "POST",
+      headers: { accept: "application/x-ndjson" },
+      body: { type: "refresh", id: "allowed-boundary" }
+    }, context());
+
+    expect(result.status).toBe(200);
+    expect(result.headers["content-type"]).toBe("application/x-ndjson; charset=utf-8");
+    expect(await readStreamEvents(result.stream!)).toEqual([
+      { event: "start", version: 1, operations: 1 },
+      {
+        event: "result",
+        version: 1,
+        index: 0,
+        result: {
+          ok: true,
+          type: "refresh",
+          id: "allowed-boundary",
+          patches: [{ type: "replace", id: "allowed-boundary", html: "<section>Updated</section>" }]
+        }
+      },
+      { event: "complete", version: 1 }
+    ]);
+  });
+
   it("dispatches batched operations with independent ordered results", async () => {
     const result = await handleExactRequest({
       method: "POST",
@@ -819,6 +868,58 @@ describe("@exact/server", () => {
         { ok: true, type: "refresh", id: "allowed-boundary", opId: "fast", state: { fast: true } }
       ]
     });
+  });
+
+  it("streams independent batch results as each operation settles", async () => {
+    let resolveSlow!: () => void;
+    const slow = new Promise<void>(resolve => {
+      resolveSlow = resolve;
+    });
+
+    const result = await handleExactRequest({
+      method: "POST",
+      headers: { "x-exact-stream": "1" },
+      body: {
+        type: "batch",
+        operations: [
+          { type: "action", id: "allowed-action", opId: "slow" },
+          { type: "refresh", id: "allowed-boundary", opId: "fast" }
+        ]
+      }
+    }, context({
+      actions: {
+        "allowed-action": async () => {
+          await slow;
+          return { state: { slow: true } };
+        }
+      },
+      refreshBoundaries: {
+        "allowed-boundary": () => ({ state: { fast: true } })
+      }
+    }));
+
+    const reader = result.stream!.getReader();
+    const first = JSON.parse(await readNextStreamLine(reader));
+    const fast = JSON.parse(await readNextStreamLine(reader));
+    expect(first).toEqual({ event: "start", version: 1, operations: 2 });
+    expect(fast).toMatchObject({
+      event: "result",
+      version: 1,
+      index: 1,
+      result: { ok: true, type: "refresh", id: "allowed-boundary", opId: "fast", state: { fast: true } }
+    });
+
+    resolveSlow();
+    const remaining = await readRemainingStreamEvents(reader);
+    expect(remaining).toEqual([
+      {
+        event: "result",
+        version: 1,
+        index: 0,
+        result: { ok: true, type: "action", id: "allowed-action", opId: "slow", state: { slow: true } }
+      },
+      { event: "complete", version: 1 }
+    ]);
   });
 
   it("skips dependent batch operations when prerequisites fail", async () => {

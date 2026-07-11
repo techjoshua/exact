@@ -102,6 +102,7 @@ export type ExactResponseLike = {
   status: number;
   headers: Record<string, string>;
   body: string;
+  stream?: ReadableStream<Uint8Array>;
 };
 
 export type ExactInvocationRequest = {
@@ -150,6 +151,11 @@ export type ExactBatchResult = {
   version: 1;
   results: ExactOperationResult[];
 };
+
+export type ExactStreamEvent =
+  | { event: "start"; version: 1; operations: number }
+  | { event: "result"; version: 1; index: number; result: ExactOperationResult }
+  | { event: "complete"; version: 1 };
 
 export type ExactPatch =
   | { type: "text"; id: string; value: string }
@@ -384,6 +390,10 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
     return jsonResponse(403, { error: "forbidden" });
   }
 
+  if (wantsStreaming(request)) {
+    return streamExactResponse(request, input, context);
+  }
+
   if (input.type === "batch") {
     const results = await dispatchExactBatch(request, input.operations, context);
     return jsonResponse(200, { ok: true, version: 1, results } satisfies ExactBatchResult);
@@ -393,6 +403,35 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
   if (isOperationError(result)) return jsonResponse(result.status, { error: result.error });
   const { ok: _ok, type: _type, id: _id, ...body } = result;
   return jsonResponse(200, { ok: true, ...body });
+}
+
+function streamExactResponse(
+  request: ExactRequestLike,
+  input: ExactInvocationRequest | ExactBatchRequest,
+  context: ExactServerContext
+): ExactResponseLike {
+  const operations = input.type === "batch" ? input.operations : [input];
+  const stream = createNdjsonStream(async emit => {
+    emit({ event: "start", version: 1, operations: operations.length });
+    if (input.type === "batch") {
+      await dispatchExactBatchStreaming(request, input.operations, context, (index, result) => {
+        emit({ event: "result", version: 1, index, result });
+      });
+    } else {
+      const result = await dispatchExactOperation(request, input, context);
+      emit({ event: "result", version: 1, index: 0, result });
+    }
+    emit({ event: "complete", version: 1 });
+  });
+  return {
+    status: 200,
+    headers: {
+      "content-type": "application/x-ndjson; charset=utf-8",
+      "cache-control": "no-store"
+    },
+    body: "",
+    stream
+  };
 }
 
 async function dispatchExactBatch(
@@ -432,6 +471,38 @@ async function dispatchExactBatch(
   return results;
 }
 
+async function dispatchExactBatchStreaming(
+  request: ExactRequestLike,
+  operations: readonly ExactInvocationRequest[],
+  context: ExactServerContext,
+  emitResult: (index: number, result: ExactOperationResult) => void
+): Promise<void> {
+  const pending = new Set(operations.map((_operation, index) => index));
+  const successful = new Set<string>();
+
+  while (pending.size) {
+    const ready = [...pending].filter(index => {
+      const dependsOn = operations[index]!.dependsOn ?? [];
+      return dependsOn.every(id => successful.has(id));
+    });
+
+    if (!ready.length) {
+      for (const index of pending) {
+        emitResult(index, dependencyFailed(operations[index]!));
+      }
+      break;
+    }
+
+    await Promise.all(ready.map(async index => {
+      const operation = operations[index]!;
+      const result = await dispatchExactOperation(request, operation, context);
+      pending.delete(index);
+      if (result.ok && operation.opId) successful.add(operation.opId);
+      emitResult(index, result);
+    }));
+  }
+}
+
 function dependencyFailed(operation: ExactInvocationRequest): ExactOperationError {
   return {
     ok: false,
@@ -443,6 +514,42 @@ function dependencyFailed(operation: ExactInvocationRequest): ExactOperationErro
   };
 }
 
+function createNdjsonStream(run: (emit: (event: ExactStreamEvent) => void) => Promise<void> | void): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      const emit = (event: ExactStreamEvent): void => {
+        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      };
+      Promise.resolve(run(emit)).then(
+        () => controller.close(),
+        error => {
+          controller.error(error);
+        }
+      );
+    }
+  });
+}
+
+function wantsStreaming(request: ExactRequestLike): boolean {
+  const accept = headerValue(request.headers, "accept");
+  const stream = headerValue(request.headers, "x-exact-stream");
+  return stream === "1" || Boolean(accept?.split(",").some(value => value.trim().toLowerCase().startsWith("application/x-ndjson")));
+}
+
+function headerValue(headers: ExactRequestLike["headers"], name: string): string | undefined {
+  if (!headers) return undefined;
+  if (typeof Headers !== "undefined" && headers instanceof Headers) {
+    return headers.get(name) ?? undefined;
+  }
+  const lower = name.toLowerCase();
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() !== lower) continue;
+    return Array.isArray(value) ? value.join(",") : value;
+  }
+  return undefined;
+}
+
 export function createFetchHandler(context: ExactServerContext): (request: Request) => Promise<Response> {
   return async request => {
     const response = await handleExactRequest({
@@ -452,7 +559,7 @@ export function createFetchHandler(context: ExactServerContext): (request: Reque
       json: () => request.json(),
       text: () => request.text()
     }, context);
-    return new Response(response.body, {
+    return new Response(response.stream ?? response.body ?? "", {
       status: response.status,
       headers: response.headers
     });
@@ -470,7 +577,11 @@ export function createExpressHandler(context: ExactServerContext): (request: any
     }, context).then(result => {
       response.status(result.status);
       for (const [name, value] of Object.entries(result.headers)) response.setHeader(name, value);
-      response.send(result.body);
+      if (result.stream) {
+        void pipeReadableStream(result.stream, chunk => response.write(chunk), () => response.end(), error => response.destroy?.(error));
+      } else {
+        response.send(result.body ?? "");
+      }
     });
   };
 }
@@ -483,10 +594,29 @@ export function createHapiHandler(context: ExactServerContext): (request: any, h
       headers: request.headers,
       body: request.payload
     }, context);
-    const response = h.response(result.body).code(result.status);
+    const response = h.response(result.stream ?? result.body ?? "").code(result.status);
     for (const [name, value] of Object.entries(result.headers)) response.header(name, value);
     return response;
   };
+}
+
+async function pipeReadableStream(
+  stream: ReadableStream<Uint8Array>,
+  write: (chunk: Uint8Array) => void,
+  end: () => void,
+  fail: (error: unknown) => void
+): Promise<void> {
+  const reader = stream.getReader();
+  try {
+    while (true) {
+      const next = await reader.read();
+      if (next.done) break;
+      write(next.value);
+    }
+    end();
+  } catch (error) {
+    fail(error);
+  }
 }
 
 function isManifestAllowed(input: ExactInvocationRequest, manifest: ExactServerManifest): boolean {

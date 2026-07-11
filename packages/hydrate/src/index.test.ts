@@ -11,6 +11,18 @@ const noopLogger = {
   log() {}
 };
 
+function ndjsonResponse(events: readonly unknown[]) {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      const encoder = new TextEncoder();
+      for (const event of events) {
+        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      }
+      controller.close();
+    }
+  });
+}
+
 describe("@exact/hydrate", () => {
   it("hydrates by falling back to normal render when markers are missing", () => {
     const container = document.createElement("div");
@@ -584,6 +596,50 @@ describe("@exact/hydrate", () => {
     expect(client.state).toEqual({ saved: true });
   });
 
+  it("invokes streaming endpoints and applies returned patches", async () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<!--exact:title-->Old<!--/exact:title-->";
+    let requestHeaders: Record<string, string> | undefined;
+
+    const client = createExactClient(container, {
+      endpoint: "/__exact",
+      state: { saved: false },
+      stream: true,
+      fetch: async (_input, init) => {
+        requestHeaders = init.headers;
+        return {
+          ok: true,
+          status: 200,
+          body: ndjsonResponse([
+            { event: "start", version: 1, operations: 1 },
+            {
+              event: "result",
+              version: 1,
+              index: 0,
+              result: {
+                ok: true,
+                type: "action",
+                id: "save-title",
+                state: { saved: true },
+                patches: [{ type: "text", id: "title", value: "Streamed" }]
+              }
+            },
+            { event: "complete", version: 1 }
+          ]),
+          async json() {
+            throw new Error("json should not be read for streaming responses");
+          }
+        };
+      }
+    });
+
+    await client.invokeAction("save-title", { title: "Streamed" });
+
+    expect(requestHeaders?.accept).toBe("application/x-ndjson");
+    expect(container.textContent).toBe("Streamed");
+    expect(client.state).toEqual({ saved: true });
+  });
+
   it("invokes exact batch endpoints directly", async () => {
     let requestBody: any;
     const results = await invokeExactBatch({
@@ -622,6 +678,113 @@ describe("@exact/hydrate", () => {
     expect(results).toHaveLength(2);
     expect(results[0]).toMatchObject({ ok: true, id: "save" });
     expect(results[1]).toMatchObject({ ok: false, id: "panel" });
+  });
+
+  it("invokes streaming exact endpoints directly", async () => {
+    let requestHeaders: Record<string, string> | undefined;
+    const result = await invokeExact({
+      endpoint: "/__exact",
+      type: "refresh",
+      id: "panel",
+      stream: true,
+      fetch: async (_input, init) => {
+        requestHeaders = init.headers;
+        return {
+          ok: true,
+          status: 200,
+          body: ndjsonResponse([
+            { event: "start", version: 1, operations: 1 },
+            {
+              event: "result",
+              version: 1,
+              index: 0,
+              result: {
+                ok: true,
+                type: "refresh",
+                id: "panel",
+                patches: [{ type: "replace", id: "panel", html: "<p>Ready</p>" }]
+              }
+            },
+            { event: "complete", version: 1 }
+          ]),
+          async json() {
+            throw new Error("json should not be read for streaming responses");
+          }
+        };
+      }
+    });
+
+    expect(requestHeaders?.accept).toBe("application/x-ndjson");
+    expect(result).toEqual({
+      patches: [{ type: "replace", id: "panel", html: "<p>Ready</p>" }]
+    });
+  });
+
+  it("parses out-of-order streaming batch results into request order", async () => {
+    const results = await invokeExactBatch({
+      endpoint: "/__exact",
+      stream: true,
+      operations: [
+        { type: "action", id: "save", opId: "slow" },
+        { type: "refresh", id: "panel", opId: "fast" }
+      ],
+      fetch: async () => ({
+        ok: true,
+        status: 200,
+        body: ndjsonResponse([
+          { event: "start", version: 1, operations: 2 },
+          {
+            event: "result",
+            version: 1,
+            index: 1,
+            result: { ok: true, type: "refresh", id: "panel", opId: "fast", state: { fast: true } }
+          },
+          {
+            event: "result",
+            version: 1,
+            index: 0,
+            result: { ok: true, type: "action", id: "save", opId: "slow", state: { slow: true } }
+          },
+          { event: "complete", version: 1 }
+        ]),
+        async json() {
+          throw new Error("json should not be read for streaming responses");
+        }
+      })
+    });
+
+    expect(results).toEqual([
+      { ok: true, type: "action", id: "save", opId: "slow", state: { slow: true } },
+      { ok: true, type: "refresh", id: "panel", opId: "fast", state: { fast: true } }
+    ]);
+  });
+
+  it("rejects malformed streaming response events", async () => {
+    await expect(invokeExactBatch({
+      endpoint: "/__exact",
+      stream: true,
+      operations: [
+        { type: "action", id: "save" },
+        { type: "refresh", id: "panel" }
+      ],
+      fetch: async () => ({
+        ok: true,
+        status: 200,
+        body: ndjsonResponse([
+          { event: "start", version: 1, operations: 2 },
+          {
+            event: "result",
+            version: 1,
+            index: 0,
+            result: { ok: true, type: "action", id: "save", state: { saved: true } }
+          },
+          { event: "complete", version: 1 }
+        ]),
+        async json() {
+          throw new Error("json should not be read for streaming responses");
+        }
+      })
+    })).rejects.toThrow("eXact stream invocation returned malformed events");
   });
 
   it("normalizes successful exact invocation responses", async () => {
