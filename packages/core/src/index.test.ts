@@ -94,6 +94,35 @@ describe("@exact/core", () => {
     expect(child.refs.get(input)).toBeDefined();
   });
 
+  it("keeps context tokens local by default", () => {
+    const first = createContext<{ name: string }>("com.example.user");
+    const second = createContext<{ name: string }>("com.example.user");
+
+    expect(first.id).not.toBe(second.id);
+    expect(first.global).toBe(false);
+    expect(second.global).toBe(false);
+  });
+
+  it("can create global context tokens for cross-bundle identity", () => {
+    const providerToken = createContext<{ name: string }>("com.example.user", true);
+    const consumerToken = createContext<{ name: string }>("com.example.user", true);
+
+    function Parent(this: Component<{}>) {
+      this.setContext(providerToken, { name: "Ada" });
+      return () => null;
+    }
+
+    const parent = createComponentInstance(Parent, {});
+    createComponentInstance(function Child(this: Component<{}>) {
+      expect(unwrap(this.getContext(consumerToken).name)).toBe("Ada");
+      return () => null;
+    }, {}, parent);
+
+    expect(providerToken.id).toBe(consumerToken.id);
+    expect(providerToken.global).toBe(true);
+    expect(consumerToken.global).toBe(true);
+  });
+
   it("creates a keyed list fragment through this.map", () => {
     const instance = createComponentInstance(function List(this: Component<{}>) {
       return () => this.map(

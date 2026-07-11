@@ -169,11 +169,11 @@ The expected model:
 - A remote endpoint should only accept IDs from the manifests it owns or that the host explicitly provides. Patches from a remote endpoint should only target boundaries owned by that remote manifest unless the host grants cross-manifest authority.
 - Dynamically loaded remotes can register manifest metadata, endpoint routing, client islands, and optional per-endpoint transport hooks at runtime.
 
-Context sharing across micro frontend bundles also needs an explicit design:
+Context sharing across micro frontend bundles has an explicit same-realm token option:
 
 - Context tokens currently use unique local symbols, so duplicate copies of a shared context module can create separate token identities.
-- For cross-bundle context, `createContext(description, global)` could allow globally keyed contexts while keeping local contexts as the default.
-- A global context would use a namespaced `Symbol.for()` key, for example `Symbol.for("exact.context:com.company.auth.user")`.
+- For cross-bundle context, `createContext(description, true)` creates a globally keyed context while keeping local contexts as the default.
+- A global context uses a namespaced `Symbol.for()` key, for example `Symbol.for("exact.context:com.company.auth.user")`.
 - Authors should use collision-resistant namespaced descriptions for global contexts, such as `com.company.auth.user`, not generic names like `user`.
 - Built-in framework contexts such as logger and error context may also need global keys so duplicated `@exact/core` copies can share them in one browser realm.
 - `Symbol.for()` only solves identity within the same JavaScript realm. Cross-iframe, worker, or remote server endpoint context still has to be passed explicitly as validated serialized request/session data.

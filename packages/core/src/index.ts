@@ -90,6 +90,7 @@ export type ErrorContextValue = {
 export type ContextToken<T> = {
   readonly id: symbol;
   readonly description: string;
+  readonly global: boolean;
 };
 
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
@@ -434,8 +435,12 @@ export function normalizeChildren(children: unknown[]): Child[] {
   return normalized;
 }
 
-export function createContext<T>(description: string): ContextToken<T> {
-  return { id: Symbol(description), description };
+export function createContext<T>(description: string, global = false): ContextToken<T> {
+  return {
+    id: global ? Symbol.for(`exact.context:${description}`) : Symbol(description),
+    description,
+    global
+  };
 }
 
 export function createRef<T>(description: string): RefKey<T> {
