@@ -396,7 +396,7 @@ const server = await renderToHydratableStringAsync(<App />, {
 hydrate(<App />, document.getElementById("app")!);
 ```
 
-Server components are not yet a full distributed component protocol. The pieces now in place are the semantic compiler manifest, client/server compiler targets, secure generic endpoint, hydration state exchange, server boundary replacement patches, text/exact-element boundary diffs, compiler-assigned list boundary IDs, key-stable list snapshot patch helpers, inferred list snapshots from submitted boundary HTML, bundler-neutral artifact graph/client-island registry metadata, and thin Vite/Webpack/Bun adapters. The remaining work is broader compiler-owned component splitting and richer dev-server orchestration for coordinated client/server artifact graphs.
+Server components are not yet a full distributed component protocol. The pieces now in place are the semantic compiler manifest, client/server compiler targets, secure generic endpoint, hydration state exchange, server boundary replacement patches, text/exact-element boundary diffs, compiler-assigned list boundary IDs, key-stable list snapshot patch helpers, inferred list snapshots from submitted boundary HTML, refreshable server child slots, action-triggered boundary refresh helpers, bundler-neutral artifact graph/client-island registry metadata, and thin Vite/Webpack/Bun adapters. The remaining work is broader compiler-owned component splitting and richer dev-server orchestration for coordinated client/server artifact graphs.
 
 ## Logging
 
