@@ -9,7 +9,8 @@
   ],
   "scripts": {
     "build": "tsc -b",
-    "test": "vitest run --dir packages",
+    "test": "npm run test:packages && npm run test:server-components",
+    "test:packages": "vitest run --dir packages",
     "typecheck": "tsc -b --pretty",
     "dev:kanban": "npm run dev -w @exact/sample-kanban",
     "build:kanban": "npm run build -w @exact/sample-kanban",
