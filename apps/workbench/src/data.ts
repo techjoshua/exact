@@ -16,7 +16,7 @@ export const statuses: Status[] = columns.map(column => column.id);
 export function loadTasks(): Task[] {
   try {
     const saved = localStorage.getItem(storageKey);
-    if (saved) return JSON.parse(saved) as Task[];
+    if (saved) return parseTaskImport(saved);
   } catch {
     // Fall through to seeded data; this sample should remain usable after bad edits.
   }
