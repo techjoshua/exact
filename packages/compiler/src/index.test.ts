@@ -594,6 +594,41 @@ describe("@exact/compiler", () => {
     expect(output).toContain("this.task(this.reactive(() => this.state.query), this.reactive(() => this.state.page), async (query, page) => { });");
   });
 
+  it("inlines safe derived consts inside reactive JSX children", () => {
+    const output = transform(`
+      function View(this: Component<{ first: string; last: string }>) {
+        const fullName = \`\${this.state.first} \${this.state.last}\`;
+        return () => <p>{fullName}</p>;
+      }
+    `);
+
+    expect(output).toContain("__exactDynamic(() => (`${this.state.first} ${this.state.last}`))");
+  });
+
+  it("inlines safe derived const chains inside reactive JSX props", () => {
+    const output = transform(`
+      function View(this: Component<{ first: string; last: string }>) {
+        const first = this.state.first;
+        const fullName = \`\${first} \${this.state.last}\`;
+        return () => <p title={fullName}>User</p>;
+      }
+    `);
+
+    expect(output).toContain("title: __exactExpression(() => (`${(this.state.first)} ${this.state.last}`))");
+  });
+
+  it("does not infer derived consts with call expressions", () => {
+    const output = transform(`
+      function View(this: Component<{ first: string }>) {
+        const label = format(this.state.first);
+        return () => <p>{label}</p>;
+      }
+    `);
+
+    expect(output).toContain("__exactDynamic(() => label)");
+    expect(output).not.toContain("__exactDynamic(() => (format(this.state.first)))");
+  });
+
   it("adds stable compiler ids to this.map list boundaries", () => {
     const output = transform(`
       function View(this: Component<{}>) {
