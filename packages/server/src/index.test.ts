@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createExactHydrationActionBoundaries,
+  createExactHydrationManifestConfig,
   createExactHydrationStateContracts,
   createExactServerManifest,
   createExpressHandler,
@@ -115,6 +116,20 @@ describe("@exact/server", () => {
     expect(createExactHydrationActionBoundaries(manifest)).toEqual({
       serverTask: ["Page"],
       sharedTask: ["Page"]
+    });
+    expect(createExactHydrationManifestConfig(manifest, { project: { id: "p1" } })).toEqual({
+      endpoint: "/__exact",
+      state: { project: { id: "p1" } },
+      stateContracts: {
+        serverTask: {
+          reads: [{ path: "project.id", kind: "read", confidence: "exact" }],
+          writes: [{ path: "project.title", kind: "write", confidence: "exact" }]
+        }
+      },
+      actionBoundaries: {
+        serverTask: ["Page"],
+        sharedTask: ["Page"]
+      }
     });
   });
 

@@ -83,7 +83,7 @@ The package entrypoints are:
 - `@exact/server`
   - Server runtime surface: `handleExactRequest(request, context)`.
   - Manifest bridge: `createExactServerManifest(compilerManifest | compilerManifest[], options?)`.
-  - Hydration bridge: `createExactHydrationStateContracts(serverManifest)`, `createExactHydrationActionBoundaries(serverManifest)`.
+  - Hydration bridge: `createExactHydrationManifestConfig(serverManifest, state?)`, `createExactHydrationStateContracts(serverManifest)`, `createExactHydrationActionBoundaries(serverManifest)`.
   - Adapter helpers: `createFetchHandler`, `createExpressHandler`, `createHapiHandler`.
   - Security model: manifest-allowlisted action and boundary IDs only; no client-provided module or function dispatch.
 - `@exact/vite-plugin`

@@ -141,6 +141,13 @@ export type ExactServerContext = {
   logger?: Logger;
 };
 
+export type ExactHydrationManifestConfig = {
+  endpoint?: string;
+  state?: unknown;
+  stateContracts?: Record<string, ExactStateContract>;
+  actionBoundaries?: Record<string, readonly string[]>;
+};
+
 export function createExactServerManifest(
   compilerManifest: ExactCompilerManifestLike | readonly ExactCompilerManifestLike[],
   options: CreateExactServerManifestOptions = {}
@@ -220,6 +227,18 @@ export function createExactHydrationStateContracts(manifest: ExactServerManifest
 
 export function createExactHydrationActionBoundaries(manifest: ExactServerManifest): Record<string, readonly string[]> {
   return manifest.actionBoundaries ?? inferActionBoundaries(manifest.actions ?? {}, manifest.boundaries ?? {});
+}
+
+export function createExactHydrationManifestConfig(
+  manifest: ExactServerManifest,
+  state?: unknown
+): ExactHydrationManifestConfig {
+  return omitEmptyHydrationConfig({
+    endpoint: manifest.endpoint,
+    state,
+    stateContracts: createExactHydrationStateContracts(manifest),
+    actionBoundaries: createExactHydrationActionBoundaries(manifest)
+  });
 }
 
 export async function handleExactRequest(request: ExactRequestLike, context: ExactServerContext): Promise<ExactResponseLike> {
@@ -541,6 +560,15 @@ function stateMatchesContract(state: unknown, contract: ExactStateContract): boo
     if (!hasStatePath(state, read.path)) return false;
   }
   return true;
+}
+
+function omitEmptyHydrationConfig(config: ExactHydrationManifestConfig): ExactHydrationManifestConfig {
+  return {
+    ...(config.endpoint === undefined ? {} : { endpoint: config.endpoint }),
+    ...(config.state === undefined ? {} : { state: config.state }),
+    ...(config.stateContracts && Object.keys(config.stateContracts).length ? { stateContracts: config.stateContracts } : {}),
+    ...(config.actionBoundaries && Object.keys(config.actionBoundaries).length ? { actionBoundaries: config.actionBoundaries } : {})
+  };
 }
 
 function hasStatePath(value: unknown, path: string): boolean {
