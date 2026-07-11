@@ -1340,6 +1340,24 @@ describe("@exact/compiler", () => {
     expect(output).not.toContain("onClick");
   });
 
+  it("infers aliased state reads for client island snapshots", () => {
+    const output = transform(`
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ project: { title: string } }>) {
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        const project = this.state.project;
+        return () => <button title={project.title} onClick={() => project.title = "Updated"} />;
+      }
+    `, { filename: "Panel.tsx", target: "server" });
+
+    expect(output).toContain("\"__exactState\": { project: { title: this.state.project.title } }");
+    expect(output).toContain("title: project.title");
+    expect(output).not.toContain("onClick");
+  });
+
   it("generates client island components with state bridge initialization", () => {
     const output = transform(`
       import { readFile } from "node:fs/promises";
