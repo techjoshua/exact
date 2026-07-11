@@ -5,10 +5,12 @@ import {
   type ExactCompilerManifest,
   type TransformTarget
 } from "@exact/compiler";
+import { readFileSync } from "node:fs";
 
 export type ExactBunPluginOptions = {
   target?: TransformTarget;
   importedManifests?: readonly ExactCompilerManifest[];
+  manifestFiles?: readonly string[];
   clientCondition?: string;
   serverCondition?: string;
   include?: FilterPattern;
@@ -91,11 +93,18 @@ export function transformExactBunSource(source: string, filename: string, option
     code: transformSource(source, {
       filename,
       target: options.target,
-      importedManifests: options.importedManifests,
+      importedManifests: importedManifestsFor(options),
       serverComponents: options.serverComponents
     }).code,
     map: null
   };
+}
+
+function importedManifestsFor(options: { importedManifests?: readonly ExactCompilerManifest[]; manifestFiles?: readonly string[] }): ExactCompilerManifest[] {
+  return [
+    ...(options.importedManifests ?? []),
+    ...(options.manifestFiles ?? []).map(file => JSON.parse(readFileSync(file, "utf8")) as ExactCompilerManifest)
+  ];
 }
 
 export function resolveExactBunRequest(request: string, importer: string | undefined, options: ExactBunPluginOptions = {}): string | null {

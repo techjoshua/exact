@@ -5,11 +5,13 @@ import {
   type ExactCompilerManifest,
   type TransformTarget
 } from "@exact/compiler";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
 export type ExactWebpackPluginOptions = {
   target?: TransformTarget;
   importedManifests?: readonly ExactCompilerManifest[];
+  manifestFiles?: readonly string[];
   clientCondition?: string;
   serverCondition?: string;
   include?: FilterPattern;
@@ -90,11 +92,18 @@ export function transformExactWebpackSource(source: string, filename: string, op
     code: transformSource(source, {
       filename,
       target: options.target,
-      importedManifests: options.importedManifests,
+      importedManifests: importedManifestsFor(options),
       serverComponents: options.serverComponents
     }).code,
     map: null
   };
+}
+
+function importedManifestsFor(options: { importedManifests?: readonly ExactCompilerManifest[]; manifestFiles?: readonly string[] }): ExactCompilerManifest[] {
+  return [
+    ...(options.importedManifests ?? []),
+    ...(options.manifestFiles ?? []).map(file => JSON.parse(readFileSync(file, "utf8")) as ExactCompilerManifest)
+  ];
 }
 
 export function resolveExactWebpackRequest(request: string, importer: string | undefined, options: ExactWebpackPluginOptions = {}): string | null {

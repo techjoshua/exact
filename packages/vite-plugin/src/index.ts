@@ -5,12 +5,14 @@ import {
   type ExactCompilerManifest,
   type TransformTarget
 } from "@exact/compiler";
+import { readFileSync } from "node:fs";
 
 export type ExactPluginOptions = {
   include?: FilterPattern;
   exclude?: FilterPattern;
   target?: TransformTarget;
   importedManifests?: readonly ExactCompilerManifest[];
+  manifestFiles?: readonly string[];
   clientCondition?: string;
   serverCondition?: string;
   serverComponents?: boolean;
@@ -47,7 +49,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
           code: transformSource(code, {
             filename: id,
             target: options.target,
-            importedManifests: options.importedManifests,
+            importedManifests: importedManifestsFor(options),
             serverComponents: options.serverComponents
           }).code,
           map: null
@@ -58,6 +60,13 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
       }
     }
   };
+}
+
+function importedManifestsFor(options: { importedManifests?: readonly ExactCompilerManifest[]; manifestFiles?: readonly string[] }): ExactCompilerManifest[] {
+  return [
+    ...(options.importedManifests ?? []),
+    ...(options.manifestFiles ?? []).map(file => JSON.parse(readFileSync(file, "utf8")) as ExactCompilerManifest)
+  ];
 }
 
 function shouldTransform(id: string, code: string, options: ExactPluginOptions): boolean {

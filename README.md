@@ -147,6 +147,7 @@ Imported client component aliases, default imports, and namespace imports keep t
 The Vite, Webpack, and Bun adapters also support `.exact` facade imports. With `target: "client"`, `import { ProjectCard } from "./ProjectCard.exact"` resolves to `ProjectCard.exact.client.ts`; with `target: "server"` it resolves to `ProjectCard.exact.server.ts`.
 For packaged component libraries that publish `exact-client` and `exact-server` export conditions, the adapter target adds the matching resolver condition during setup.
 Each adapter also accepts `importedManifests`, forwarding the same compiler manifest graph used by `compileProjectArtifacts()` into per-file transforms. That gives Vite, Webpack, and Bun the same imported client-component splitting behavior when a dev server or build pipeline has already collected package/project manifests.
+Each adapter also accepts `manifestFiles`; those JSON files are read at transform time, so watch pipelines that regenerate `.exact.manifest.json` files can keep imported component classification fresh without recreating the plugin instance.
 Server component mode is opt-in through `serverComponents: true` on compiler/artifact APIs and the Vite, Webpack, and Bun adapters. In that mode, client-target artifacts omit server-owned authored components while still walking them to emit generated client islands and pure client child components. Client-only builds leave this disabled.
 For precompile workflows, `exactc --artifacts --serverComponents` enables the same split behavior.
 

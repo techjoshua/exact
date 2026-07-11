@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { analyzeSource } from "@exact/compiler";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { exact } from "./index.js";
 
 describe("@exact/vite-plugin", () => {
@@ -44,6 +47,35 @@ describe("@exact/vite-plugin", () => {
     expect(result?.code).toContain("__exactBoundary");
     expect(result?.code).toContain("\"ClientWidget\"");
     expect(result?.code).not.toContain("from \"./ClientWidget\"");
+  });
+
+  it("loads fresh manifest files for each transform", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "exact-vite-manifest-files-"));
+    const manifestFile = path.join(root, "ClientWidget.exact.manifest.json");
+    const first = analyzeSource(`
+      export function ClientWidget() {
+        return () => <p>Server</p>;
+      }
+    `, { filename: "/src/ClientWidget.tsx" });
+    const second = analyzeSource(`
+      export function ClientWidget(this: Component<{ width: number }>) {
+        this.state.width = window.innerWidth;
+        return () => <button onClick={() => this.state.width++} />;
+      }
+    `, { filename: "/src/ClientWidget.tsx" });
+    const plugin = exact({ target: "server", manifestFiles: [manifestFile] });
+    const source = `
+      import { ClientWidget } from "./ClientWidget";
+      export function Page() {
+        return () => <ClientWidget />;
+      }
+    `;
+
+    writeFileSync(manifestFile, JSON.stringify(first));
+    expect(plugin.transform(source, "/src/Page.tsx")?.code).not.toContain("__exactBoundary");
+
+    writeFileSync(manifestFile, JSON.stringify(second));
+    expect(plugin.transform(source, "/src/Page.tsx")?.code).toContain("__exactBoundary");
   });
 
   it("passes server component mode through to client transforms", () => {
