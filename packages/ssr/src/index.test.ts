@@ -204,6 +204,14 @@ describe("@exact/ssr", () => {
     expect(() => renderHydrationScript({
       state: { onSave() {} }
     })).toThrow("Hydration payload must be JSON-serializable");
+
+    expect(() => renderHydrationScript({
+      endpoints: {
+        actions: {
+          save: (() => "/__exact") as unknown as string
+        }
+      }
+    })).toThrow("Hydration payload must be JSON-serializable");
   });
 
   it("renders html with hydration bootstrap data", () => {

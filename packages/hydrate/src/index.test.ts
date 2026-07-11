@@ -46,6 +46,16 @@ describe("@exact/hydrate", () => {
     });
   });
 
+  it("ignores malformed endpoint routes in the hydration bootstrap script", () => {
+    const root = document.createElement("main");
+    root.innerHTML = "<script type=\"application/json\" id=\"__exact_hydration\">{\"endpoint\":\"/__exact\",\"endpoints\":{\"actions\":{\"save\":1}},\"state\":{\"ready\":true}}</script>";
+
+    expect(readExactHydrationConfig(root)).toEqual({
+      endpoint: "/__exact",
+      state: { ready: true }
+    });
+  });
+
   it("creates clients from hydration bootstrap data by default", async () => {
     document.body.innerHTML = "<script type=\"application/json\" id=\"__exact_hydration\">{\"endpoint\":\"/__exact\",\"state\":{\"project\":{\"id\":\"p1\",\"secret\":\"hidden\"}},\"stateContracts\":{\"save\":{\"reads\":[{\"path\":\"project.id\",\"kind\":\"read\",\"confidence\":\"exact\"}]}}}</script>";
     const container = document.createElement("main");
