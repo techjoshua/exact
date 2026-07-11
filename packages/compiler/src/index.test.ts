@@ -20,6 +20,7 @@ import {
   createServerPartRegistryEntries,
   diffExactArtifactPlans,
   exactExportConditions,
+  exactCompilerManifestVersion,
   generatedComponentName,
   preprocessPropPunning,
   readExactArtifactManifestEntries,
@@ -539,6 +540,25 @@ describe("@exact/compiler", () => {
       name: "Panel_ExactServer_1",
       module: "./dist/panel.exact.server.ts"
     })]);
+  });
+
+  it("rejects unsupported generated artifact manifest versions", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-artifact-manifest-version-"));
+    const manifestFile = path.join(root, "panel.exact.manifest.json");
+    await writeFile(manifestFile, JSON.stringify({
+      version: exactCompilerManifestVersion + 1,
+      artifacts: {
+        source: "panel.tsx",
+        client: "panel.exact.client.ts",
+        server: "panel.exact.server.ts",
+        manifest: "panel.exact.manifest.json",
+        exports: [],
+        symbols: [],
+        boundaries: []
+      }
+    }));
+
+    await expect(readExactArtifactManifestEntries([manifestFile])).rejects.toThrow("Unsupported eXact artifact manifest version");
   });
 
   it("plans generated artifact paths without compiling", async () => {

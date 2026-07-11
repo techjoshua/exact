@@ -140,7 +140,11 @@ describe("@exact/ssr", () => {
   it("rejects non-serializable client boundary props", () => {
     expect(() => renderToString(createServerBoundary("bad", "Bad_ExactClient_1", {
       onSave() {}
-    }))).toThrow("Client boundary Bad_ExactClient_1 props must be JSON-serializable");
+    }))).toThrow("Client boundary Bad_ExactClient_1 props must be JSON-serializable; non-serializable value at $.onSave");
+
+    expect(() => renderToString(createServerBoundary("bad", "Bad_ExactClient_1", {
+      meta: { values: [1, Number.NaN] }
+    }))).toThrow("non-serializable value at $.meta.values[1]");
   });
 
   it("can expose rendered html as a readable stream", async () => {

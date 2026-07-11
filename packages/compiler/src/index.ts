@@ -316,6 +316,8 @@ const expressionHelper = "__exactExpression";
 const dynamicHelper = "__exactDynamic";
 const boundaryHelper = "__exactBoundary";
 
+export const exactCompilerManifestVersion = 1 as const;
+
 type HelperNames = {
   element: string;
   fragment: string;
@@ -457,7 +459,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   }
 
   return {
-    version: 1,
+    version: exactCompilerManifestVersion,
     filename,
     components,
     exports,
@@ -809,6 +811,9 @@ export async function readExactArtifactManifestEntries(manifestFiles: readonly s
   const entries: ExactArtifactGraphEntry[] = [];
   for (const manifestFile of manifestFiles) {
     const manifest = JSON.parse(await readFile(manifestFile, "utf8")) as ExactCompilerManifest;
+    if (manifest.version !== exactCompilerManifestVersion) {
+      throw new Error(`Unsupported eXact artifact manifest version in ${manifestFile}: ${String((manifest as { version?: unknown }).version)}`);
+    }
     if (!manifest.artifacts) {
       throw new Error(`eXact artifact manifest ${manifestFile} is missing artifact metadata`);
     }

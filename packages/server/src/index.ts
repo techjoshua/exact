@@ -1,5 +1,8 @@
 import { logFrameworkEvent, type Logger } from "@exact/core";
 
+export const exactServerManifestVersion = 1 as const;
+export const exactCompilerManifestVersion = 1 as const;
+
 export type ExactInvocationKind = "action" | "refresh";
 
 export type ExactServerManifest = {
@@ -159,6 +162,9 @@ export function createExactServerManifest(
   const boundaries: Record<string, ExactManifestBoundary> = { ...options.boundaries };
 
   for (const manifest of normalizeCompilerManifests(compilerManifest)) {
+    if (manifest.version !== exactCompilerManifestVersion) {
+      throw new Error(`Unsupported eXact compiler manifest version: ${String((manifest as { version?: unknown }).version)}`);
+    }
     for (const action of Object.values(manifest.serverActions ?? {})) {
       if (action.placement !== "server" && action.placement !== "isomorphic") continue;
       actions[action.id] = {
@@ -189,7 +195,7 @@ export function createExactServerManifest(
   }
 
   return {
-    version: 1,
+    version: exactServerManifestVersion,
     endpoint: options.endpoint,
     actions,
     boundaries,

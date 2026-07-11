@@ -899,8 +899,9 @@ function renderServerBoundary(context: SsrContext, vnode: VNode): string {
   const id = String(unwrap(vnode.props.id) ?? "");
   const name = String(unwrap(vnode.props.name) ?? "");
   const props = clientBoundaryProps(vnode);
-  if (!isJsonSafe(props)) {
-    throw new Error(`Client boundary ${name || id} props must be JSON-serializable`);
+  const unsafePath = jsonUnsafePath(props);
+  if (unsafePath) {
+    throw new Error(`Client boundary ${name || id} props must be JSON-serializable; non-serializable value at ${unsafePath}`);
   }
   const children = renderServerBoundaryChildren(context, vnode, undefined);
   const html = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}">${children}</div>`;
@@ -916,8 +917,9 @@ async function renderServerBoundaryAsync(
   const id = String(unwrap(vnode.props.id) ?? "");
   const name = String(unwrap(vnode.props.name) ?? "");
   const props = clientBoundaryProps(vnode);
-  if (!isJsonSafe(props)) {
-    throw new Error(`Client boundary ${name || id} props must be JSON-serializable`);
+  const unsafePath = jsonUnsafePath(props);
+  if (unsafePath) {
+    throw new Error(`Client boundary ${name || id} props must be JSON-serializable; non-serializable value at ${unsafePath}`);
   }
   const slotId = serverSlotId(id);
   const children = vnode.children.length
@@ -1055,15 +1057,29 @@ function isStrictJsonSafe(value: unknown, seen = new Set<object>()): boolean {
 }
 
 function isJsonSafe(value: unknown, seen = new Set<object>()): boolean {
-  if (value === undefined || value === null) return true;
-  if (typeof value === "string" || typeof value === "boolean") return true;
-  if (typeof value === "number") return Number.isFinite(value);
-  if (typeof value !== "object") return false;
-  if (seen.has(value)) return false;
+  return jsonUnsafePath(value, "$", seen) === undefined;
+}
+
+function jsonUnsafePath(value: unknown, path = "$", seen = new Set<object>()): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === "string" || typeof value === "boolean") return undefined;
+  if (typeof value === "number") return Number.isFinite(value) ? undefined : path;
+  if (typeof value !== "object") return path;
+  if (seen.has(value)) return path;
   seen.add(value);
-  if (Array.isArray(value)) return value.every(item => isJsonSafe(item, seen));
-  if (Object.getPrototypeOf(value) !== Object.prototype) return false;
-  return Object.values(value as Record<string, unknown>).every(item => isJsonSafe(item, seen));
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index++) {
+      const unsafe = jsonUnsafePath(value[index], `${path}[${index}]`, seen);
+      if (unsafe) return unsafe;
+    }
+    return undefined;
+  }
+  if (Object.getPrototypeOf(value) !== Object.prototype) return path;
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    const unsafe = jsonUnsafePath(item, `${path}.${key}`, seen);
+    if (unsafe) return unsafe;
+  }
+  return undefined;
 }
 
 function escapeText(value: string): string {

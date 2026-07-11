@@ -43,6 +43,13 @@ function context(overrides: Partial<ExactServerContext> = {}): ExactServerContex
 }
 
 describe("@exact/server", () => {
+  it("rejects unsupported compiler manifest versions", () => {
+    expect(() => createExactServerManifest({
+      version: 2,
+      components: []
+    } as any)).toThrow("Unsupported eXact compiler manifest version: 2");
+  });
+
   it("creates runtime allowlists from compiler manifests", () => {
     const manifest = createExactServerManifest({
       version: 1,

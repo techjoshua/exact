@@ -369,6 +369,8 @@ JSX elements are internally mounted through cell boundaries. In compiler mode, e
 
 ## SSR And Hydration
 
+For the end-to-end server component build/runtime flow, see [docs/server-components.md](docs/server-components.md).
+
 The current SSR/server-component foundation implements:
 
 - `@exact/ssr` renders VNodes/components to HTML with boundary markers.
