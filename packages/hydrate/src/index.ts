@@ -606,7 +606,18 @@ function isStateContractMap(value: unknown): value is Record<string, ExactStateC
 function isStateContract(value: unknown): value is ExactStateContract {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
-  return (record.reads === undefined || Array.isArray(record.reads)) && (record.writes === undefined || Array.isArray(record.writes));
+  return (record.reads === undefined || isStatePathList(record.reads))
+    && (record.writes === undefined || isStatePathList(record.writes));
+}
+
+function isStatePathList(value: unknown): boolean {
+  return Array.isArray(value) && value.every(item => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return false;
+    const record = item as Record<string, unknown>;
+    return typeof record.path === "string"
+      && (record.kind === "read" || record.kind === "write")
+      && (record.confidence === "exact" || record.confidence === "broad" || record.confidence === "unknown");
+  });
 }
 
 function isActionBoundaryMap(value: unknown): value is Record<string, readonly string[]> {

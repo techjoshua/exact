@@ -56,6 +56,15 @@ describe("@exact/hydrate", () => {
     });
   });
 
+  it("ignores malformed state contracts in the hydration bootstrap script", () => {
+    const root = document.createElement("main");
+    root.innerHTML = "<script type=\"application/json\" id=\"__exact_hydration\">{\"endpoint\":\"/__exact\",\"stateContracts\":{\"save\":{\"reads\":[{\"path\":\"project.id\",\"kind\":\"inspect\",\"confidence\":\"exact\"}]}}}</script>";
+
+    expect(readExactHydrationConfig(root)).toEqual({
+      endpoint: "/__exact"
+    });
+  });
+
   it("creates clients from hydration bootstrap data by default", async () => {
     document.body.innerHTML = "<script type=\"application/json\" id=\"__exact_hydration\">{\"endpoint\":\"/__exact\",\"state\":{\"project\":{\"id\":\"p1\",\"secret\":\"hidden\"}},\"stateContracts\":{\"save\":{\"reads\":[{\"path\":\"project.id\",\"kind\":\"read\",\"confidence\":\"exact\"}]}}}</script>";
     const container = document.createElement("main");
