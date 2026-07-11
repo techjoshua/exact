@@ -17,6 +17,7 @@ describe("@exact/sample-server-components", () => {
     const requests: unknown[] = [];
     container.innerHTML = rendered.htmlWithHydration;
 
+    expect(rendered.html).not.toContain("<!--exact:");
     const config = readExactHydrationConfig(container);
     const islands = { ProfilePage_ExactClient_1 };
     const hydrated = hydrateClientIslands(container, islands);

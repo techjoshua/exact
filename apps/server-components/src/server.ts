@@ -42,6 +42,7 @@ export const exactRuntime = createExactServerRuntime({
 
 export async function renderProfilePage(name: string) {
   return renderToHydratableStringAsync(createVNode(ProfilePage, { name }), {
+    markers: false,
     ...createExactHydrationManifestConfig(exactManifest, { profile: { name } })
   });
 }
