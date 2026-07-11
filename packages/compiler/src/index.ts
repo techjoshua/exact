@@ -187,6 +187,19 @@ export type ExactArtifactPlanDiffOptions = {
   changedInputs?: readonly string[];
 };
 
+export type ExactArtifactDevStateOptions = CompileArtifactsOptions & ExactArtifactGraphOptions;
+
+export type ExactArtifactDevState = {
+  plan: ExactArtifactPlan;
+  entries: ExactArtifactGraphEntry[];
+  graph: ExactArtifactGraph;
+};
+
+export type ExactArtifactDevStateUpdate = ExactArtifactDevState & {
+  diff: ExactArtifactPlanDiff;
+  compiled: CompileArtifactsResult[];
+};
+
 export type PackageExportMapOptions = {
   packageRoot: string;
   sourceRoot?: string;
@@ -536,6 +549,55 @@ export async function createExactArtifactPlan(inputs: readonly string[], options
   };
 }
 
+export async function createExactArtifactDevState(
+  inputs: readonly string[],
+  options: ExactArtifactDevStateOptions
+): Promise<ExactArtifactDevState> {
+  const plan = await createExactArtifactPlan(inputs, options);
+  const compiled = await compileArtifactPlanEntries(plan.entries, {
+    filename: entry => options.filename ?? entry.inputFile,
+    importedManifests: options.importedManifests
+  });
+  const entries = compiled.map(artifactGraphEntryFromCompileResult);
+  return {
+    plan,
+    entries,
+    graph: createExactArtifactGraph(entries, options)
+  };
+}
+
+export async function updateExactArtifactDevState(
+  state: ExactArtifactDevState,
+  inputs: readonly string[],
+  changedInputs: readonly string[],
+  options: ExactArtifactDevStateOptions
+): Promise<ExactArtifactDevStateUpdate> {
+  const nextPlan = await createExactArtifactPlan(inputs, options);
+  const diff = diffExactArtifactPlans(state.plan, nextPlan, { changedInputs });
+  const retainedManifestFiles = diff.retained.map(entry => entry.manifestFile);
+  const retainedEntries = retainedManifestFiles.length
+    ? await readExactArtifactManifestEntries(retainedManifestFiles)
+    : [];
+  const compiled = await compileArtifactPlanEntries([...diff.added, ...diff.changed], {
+    filename: entry => options.filename ?? entry.inputFile,
+    importedManifests: [
+      ...(options.importedManifests ?? []),
+      ...retainedEntries.map(entry => entry.manifest)
+    ]
+  });
+  const entries = [
+    ...retainedEntries,
+    ...compiled.map(artifactGraphEntryFromCompileResult)
+  ].sort((left, right) => left.inputFile.localeCompare(right.inputFile));
+  return {
+    plan: nextPlan,
+    entries,
+    graph: createExactArtifactGraph(entries, options),
+    diff,
+    compiled
+  };
+}
+
 export function diffExactArtifactPlans(
   previous: ExactArtifactPlan,
   next: ExactArtifactPlan,
@@ -655,6 +717,16 @@ export async function readExactArtifactManifestEntries(manifestFiles: readonly s
     });
   }
   return entries.sort((left, right) => left.manifestFile.localeCompare(right.manifestFile));
+}
+
+function artifactGraphEntryFromCompileResult(result: CompileArtifactsResult): ExactArtifactGraphEntry {
+  return {
+    inputFile: result.inputFile,
+    clientFile: result.clientFile,
+    serverFile: result.serverFile,
+    manifestFile: result.manifestFile,
+    manifest: result.manifest
+  };
 }
 
 export function createClientIslandRegistryEntries(

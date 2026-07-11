@@ -6,6 +6,7 @@ import {
   analyzeSource,
   createClientIslandRegistryEntries,
   createClientIslandRegistryModule,
+  createExactArtifactDevState,
   createExactArtifactGraph,
   createExactArtifactPlan,
   createServerPartRegistryModule,
@@ -23,7 +24,8 @@ import {
   readExactArtifactManifestEntries,
   resolveExactArtifactImport,
   transform,
-  transformSource
+  transformSource,
+  updateExactArtifactDevState
 } from "./index.js";
 
 describe("@exact/compiler", () => {
@@ -665,6 +667,58 @@ describe("@exact/compiler", () => {
     expect(server).toContain("__exactBoundary");
     expect(server).toContain("\"ClientWidget\"");
     expect(server).not.toContain("from \"./ClientWidget\"");
+  });
+
+  it("updates dev-server artifact state with retained manifest context", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-artifact-dev-state-"));
+    const src = path.join(root, "src");
+    const outDir = path.join(root, ".exact");
+    const widgetInput = path.join(src, "ClientWidget.tsx");
+    const pageInput = path.join(src, "Page.tsx");
+    await mkdir(src, { recursive: true });
+    await writeFile(widgetInput, `
+      export function ClientWidget(this: Component<{ width: number }>) {
+        this.state.width = window.innerWidth;
+        return () => <button onClick={() => this.state.width++} />;
+      }
+    `);
+    await writeFile(pageInput, `
+      import { ClientWidget } from "./ClientWidget";
+
+      export function Page() {
+        return () => <ClientWidget />;
+      }
+    `);
+
+    const state = await createExactArtifactDevState([src], {
+      outDir,
+      rootDir: src,
+      packageRoot: root,
+      sourceRoot: src
+    });
+    await writeFile(pageInput, `
+      import { ClientWidget } from "./ClientWidget";
+
+      export function Page() {
+        return () => <main><ClientWidget /></main>;
+      }
+    `);
+
+    const updated = await updateExactArtifactDevState(state, [src], [pageInput], {
+      outDir,
+      rootDir: src,
+      packageRoot: root,
+      sourceRoot: src
+    });
+    const pageServer = await readFile(updated.compiled[0]!.serverFile, "utf8");
+
+    expect(updated.diff.changed).toEqual([expect.objectContaining({ inputFile: pageInput })]);
+    expect(updated.compiled.map(result => result.inputFile)).toEqual([pageInput]);
+    expect(updated.entries.map(entry => entry.inputFile).sort()).toEqual([pageInput, widgetInput].sort());
+    expect(updated.graph.artifacts.map(entry => entry.inputFile).sort()).toEqual([pageInput, widgetInput].sort());
+    expect(pageServer).toContain("__exactBoundary");
+    expect(pageServer).toContain("\"ClientWidget\"");
+    expect(pageServer).not.toContain("from \"./ClientWidget\"");
   });
 
   it("creates client island registry entries for generated client artifacts", async () => {
