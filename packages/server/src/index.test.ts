@@ -767,15 +767,16 @@ describe("@exact/server", () => {
     expect(await readStreamEvents(result.stream!)).toEqual([
       { event: "start", version: 1, operations: 1 },
       {
+        event: "patch",
+        version: 1,
+        index: 0,
+        patch: { type: "replace", id: "allowed-boundary", html: "<section>Updated</section>" }
+      },
+      {
         event: "result",
         version: 1,
         index: 0,
-        result: {
-          ok: true,
-          type: "refresh",
-          id: "allowed-boundary",
-          patches: [{ type: "replace", id: "allowed-boundary", html: "<section>Updated</section>" }]
-        }
+        result: { ok: true, type: "refresh", id: "allowed-boundary" }
       },
       { event: "complete", version: 1 }
     ]);
@@ -900,23 +901,38 @@ describe("@exact/server", () => {
 
     const reader = result.stream!.getReader();
     const first = JSON.parse(await readNextStreamLine(reader));
-    const fast = JSON.parse(await readNextStreamLine(reader));
+    const fastState = JSON.parse(await readNextStreamLine(reader));
+    const fastResult = JSON.parse(await readNextStreamLine(reader));
     expect(first).toEqual({ event: "start", version: 1, operations: 2 });
-    expect(fast).toMatchObject({
+    expect(fastState).toMatchObject({
+      event: "state",
+      version: 1,
+      index: 1,
+      opId: "fast",
+      value: { fast: true }
+    });
+    expect(fastResult).toMatchObject({
       event: "result",
       version: 1,
       index: 1,
-      result: { ok: true, type: "refresh", id: "allowed-boundary", opId: "fast", state: { fast: true } }
+      result: { ok: true, type: "refresh", id: "allowed-boundary", opId: "fast" }
     });
 
     resolveSlow();
     const remaining = await readRemainingStreamEvents(reader);
     expect(remaining).toEqual([
       {
+        event: "state",
+        version: 1,
+        index: 0,
+        opId: "slow",
+        value: { slow: true }
+      },
+      {
         event: "result",
         version: 1,
         index: 0,
-        result: { ok: true, type: "action", id: "allowed-action", opId: "slow", state: { slow: true } }
+        result: { ok: true, type: "action", id: "allowed-action", opId: "slow" }
       },
       { event: "complete", version: 1 }
     ]);

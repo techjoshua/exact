@@ -154,6 +154,9 @@ export type ExactBatchResult = {
 
 export type ExactStreamEvent =
   | { event: "start"; version: 1; operations: number }
+  | { event: "patch"; version: 1; index: number; opId?: string; patch: ExactPatch }
+  | { event: "state"; version: 1; index: number; opId?: string; value: unknown }
+  | { event: "html"; version: 1; index: number; opId?: string; html: string }
   | { event: "result"; version: 1; index: number; result: ExactOperationResult }
   | { event: "complete"; version: 1 };
 
@@ -415,11 +418,11 @@ function streamExactResponse(
     emit({ event: "start", version: 1, operations: operations.length });
     if (input.type === "batch") {
       await dispatchExactBatchStreaming(request, input.operations, context, (index, result) => {
-        emit({ event: "result", version: 1, index, result });
+        emitOperationStreamEvents(emit, index, result);
       });
     } else {
       const result = await dispatchExactOperation(request, input, context);
-      emit({ event: "result", version: 1, index: 0, result });
+      emitOperationStreamEvents(emit, 0, result);
     }
     emit({ event: "complete", version: 1 });
   });
@@ -432,6 +435,37 @@ function streamExactResponse(
     body: "",
     stream
   };
+}
+
+function emitOperationStreamEvents(
+  emit: (event: ExactStreamEvent) => void,
+  index: number,
+  result: ExactOperationResult
+): void {
+  if (!result.ok) {
+    emit({ event: "result", version: 1, index, result });
+    return;
+  }
+  for (const patch of result.patches ?? []) {
+    emit({ event: "patch", version: 1, index, ...(result.opId === undefined ? {} : { opId: result.opId }), patch });
+  }
+  if ("state" in result) {
+    emit({ event: "state", version: 1, index, ...(result.opId === undefined ? {} : { opId: result.opId }), value: result.state });
+  }
+  if (result.html !== undefined) {
+    emit({ event: "html", version: 1, index, ...(result.opId === undefined ? {} : { opId: result.opId }), html: result.html });
+  }
+  emit({
+    event: "result",
+    version: 1,
+    index,
+    result: {
+      ok: true,
+      type: result.type,
+      id: result.id,
+      ...(result.opId === undefined ? {} : { opId: result.opId })
+    }
+  });
 }
 
 async function dispatchExactBatch(

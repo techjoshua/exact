@@ -613,16 +613,22 @@ describe("@exact/hydrate", () => {
           body: ndjsonResponse([
             { event: "start", version: 1, operations: 1 },
             {
+              event: "patch",
+              version: 1,
+              index: 0,
+              patch: { type: "text", id: "title", value: "Streamed" }
+            },
+            {
+              event: "state",
+              version: 1,
+              index: 0,
+              value: { saved: true }
+            },
+            {
               event: "result",
               version: 1,
               index: 0,
-              result: {
-                ok: true,
-                type: "action",
-                id: "save-title",
-                state: { saved: true },
-                patches: [{ type: "text", id: "title", value: "Streamed" }]
-              }
+              result: { ok: true, type: "action", id: "save-title" }
             },
             { event: "complete", version: 1 }
           ]),
@@ -734,16 +740,30 @@ describe("@exact/hydrate", () => {
         body: ndjsonResponse([
           { event: "start", version: 1, operations: 2 },
           {
+            event: "state",
+            version: 1,
+            index: 1,
+            opId: "fast",
+            value: { fast: true }
+          },
+          {
             event: "result",
             version: 1,
             index: 1,
-            result: { ok: true, type: "refresh", id: "panel", opId: "fast", state: { fast: true } }
+            result: { ok: true, type: "refresh", id: "panel", opId: "fast" }
+          },
+          {
+            event: "state",
+            version: 1,
+            index: 0,
+            opId: "slow",
+            value: { slow: true }
           },
           {
             event: "result",
             version: 1,
             index: 0,
-            result: { ok: true, type: "action", id: "save", opId: "slow", state: { slow: true } }
+            result: { ok: true, type: "action", id: "save", opId: "slow" }
           },
           { event: "complete", version: 1 }
         ]),

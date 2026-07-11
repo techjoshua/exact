@@ -945,16 +945,41 @@ async function readExactStreamResponse(
   if (!isExactStreamCompleteEvent(complete)) throw new Error(message);
 
   const results: ExactOperationResult[] = new Array(expectedOperations);
+  const chunks: ExactInvocationResult[] = new Array(expectedOperations).fill(undefined).map(() => ({}));
   for (const event of events.slice(1, -1)) {
-    if (!isExactStreamResultEvent(event)) throw new Error(message);
-    if (!Number.isInteger(event.index) || event.index < 0 || event.index >= expectedOperations) throw new Error(message);
-    if (results[event.index]) throw new Error(message);
-    results[event.index] = parseExactOperationResult(event.result);
+    if (isExactStreamPatchEvent(event)) {
+      assertStreamIndex(event.index, expectedOperations, message);
+      const target = chunks[event.index]!;
+      target.patches = [...(target.patches ?? []), event.patch];
+      continue;
+    }
+    if (isExactStreamStateEvent(event)) {
+      assertStreamIndex(event.index, expectedOperations, message);
+      chunks[event.index]!.state = event.value;
+      continue;
+    }
+    if (isExactStreamHtmlEvent(event)) {
+      assertStreamIndex(event.index, expectedOperations, message);
+      chunks[event.index]!.html = event.html;
+      continue;
+    }
+    if (isExactStreamResultEvent(event)) {
+      assertStreamIndex(event.index, expectedOperations, message);
+      if (results[event.index]) throw new Error(message);
+      const result = parseExactOperationResult(event.result);
+      results[event.index] = result.ok ? { ...result, ...chunks[event.index] } : result;
+      continue;
+    }
+    throw new Error(message);
   }
   for (let index = 0; index < expectedOperations; index++) {
     if (!results[index]) throw new Error(message);
   }
   return results;
+}
+
+function assertStreamIndex(index: number, expectedOperations: number, message: string): void {
+  if (!Number.isInteger(index) || index < 0 || index >= expectedOperations) throw new Error(message);
 }
 
 async function readNdjsonEvents(stream: ReadableStream<Uint8Array>, message: string): Promise<unknown[]> {
@@ -996,6 +1021,40 @@ function isExactStreamResultEvent(value: unknown): value is Extract<ExactStreamE
     && record.version === 1
     && typeof record.index === "number"
     && Number.isInteger(record.index);
+}
+
+function isExactStreamPatchEvent(value: unknown): value is Extract<ExactStreamEvent, { event: "patch" }> {
+  if (!value || typeof value !== "object" || Array.isArray(value) || !isJsonSafe(value)) return false;
+  const record = value as Record<string, unknown>;
+  return hasOnlyKeys(record, ["event", "version", "index", "opId", "patch"])
+    && record.event === "patch"
+    && record.version === 1
+    && typeof record.index === "number"
+    && (record.opId === undefined || typeof record.opId === "string")
+    && isPatchLike(record.patch);
+}
+
+function isExactStreamStateEvent(value: unknown): value is Extract<ExactStreamEvent, { event: "state" }> {
+  if (!value || typeof value !== "object" || Array.isArray(value) || !isJsonSafe(value)) return false;
+  const record = value as Record<string, unknown>;
+  return hasOnlyKeys(record, ["event", "version", "index", "opId", "value"])
+    && record.event === "state"
+    && record.version === 1
+    && typeof record.index === "number"
+    && (record.opId === undefined || typeof record.opId === "string")
+    && "value" in record
+    && record.value !== undefined;
+}
+
+function isExactStreamHtmlEvent(value: unknown): value is Extract<ExactStreamEvent, { event: "html" }> {
+  if (!value || typeof value !== "object" || Array.isArray(value) || !isJsonSafe(value)) return false;
+  const record = value as Record<string, unknown>;
+  return hasOnlyKeys(record, ["event", "version", "index", "opId", "html"])
+    && record.event === "html"
+    && record.version === 1
+    && typeof record.index === "number"
+    && (record.opId === undefined || typeof record.opId === "string")
+    && typeof record.html === "string";
 }
 
 function isExactStreamCompleteEvent(value: unknown): value is Extract<ExactStreamEvent, { event: "complete" }> {

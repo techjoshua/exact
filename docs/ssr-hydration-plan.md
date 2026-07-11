@@ -91,7 +91,7 @@ The endpoint accepts:
 
 Batch operations are independent unless `dependsOn` references a previous unique `opId`. This lets the client send GraphQL-style operation groups without forcing unrelated operations to fail together. The server dispatches independent ready operations concurrently while preserving request-order result envelopes.
 
-Endpoint responses can stream as newline-delimited JSON when the client opts in with `Accept: application/x-ndjson` / `x-exact-stream: 1`. Stream events are `start`, per-operation `result`, and `complete`; independent batch results may be emitted as each operation settles.
+Endpoint responses can stream as newline-delimited JSON when the client opts in with `Accept: application/x-ndjson` / `x-exact-stream: 1`. Stream events are `start`, per-operation `patch`/`state`/`html` chunks, terminal `result`, and `complete`; independent batch chunks may be emitted as each operation settles.
 
 ## Remaining Work
 
