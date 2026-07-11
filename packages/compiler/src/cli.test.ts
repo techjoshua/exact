@@ -106,4 +106,40 @@ describe("exactc", () => {
     expect(server).not.toContain("window.innerWidth");
     expect(Object.keys(manifest.serverActions)).toHaveLength(1);
   });
+
+  it("emits server component client artifacts through the CLI", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-cli-server-components-"));
+    const input = path.join(root, "src", "page.tsx");
+    const outDir = path.join(root, "out");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, `
+      import { readFile } from "node:fs/promises";
+      export function Page(this: Component<{ count: number }>) {
+        this.task.server(async () => {
+          await readFile("page.txt", "utf8");
+        });
+        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
+      }
+    `);
+
+    await execFileAsync(process.execPath, [
+      cliPath,
+      "--rootDir",
+      path.join(root, "src"),
+      "--outDir",
+      outDir,
+      "--artifacts",
+      "--serverComponents",
+      input
+    ]);
+
+    const client = await readFile(path.join(outDir, "page.exact.client.ts"), "utf8");
+    const server = await readFile(path.join(outDir, "page.exact.server.ts"), "utf8");
+
+    expect(client).toContain("Page_ExactClient_1");
+    expect(client).not.toContain("export function Page(");
+    expect(client).not.toContain("node:fs/promises");
+    expect(server).toContain("export function Page(");
+    expect(server).toContain("__exactBoundary");
+  });
 });
