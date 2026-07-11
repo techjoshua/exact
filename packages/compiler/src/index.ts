@@ -242,9 +242,21 @@ export type ExactArtifactGraph = {
     server: string[];
   };
   packageExports: Record<string, PackageExportEntry>;
+  componentEdges: ExactArtifactComponentEdge[];
   clientIslands: ClientIslandRegistryEntry[];
   serverParts: ServerPartRegistryEntry[];
   artifacts: ExactArtifactGraphEntry[];
+};
+
+export type ExactArtifactComponentEdge = {
+  sourceFile: string;
+  sourceComponentId: string;
+  sourceName: string;
+  targetComponentId?: string;
+  targetName: string;
+  tag: string;
+  placement: ExactPlacement;
+  boundary: ExactPlacement;
 };
 
 export type ExactArtifactGraphEntry = {
@@ -721,6 +733,7 @@ export function createExactArtifactGraph(
       server: exactExportConditions("server", options)
     },
     packageExports: createPackageExportMap(results, options),
+    componentEdges: createExactArtifactComponentEdges(results),
     clientIslands: createClientIslandRegistryEntries(results, {
       rootDir: options.rootDir ?? options.packageRoot
     }),
@@ -735,6 +748,37 @@ export function createExactArtifactGraph(
       manifest: result.manifest
     }))
   };
+}
+
+export function createExactArtifactComponentEdges(results: readonly ExactArtifactGraphInput[]): ExactArtifactComponentEdge[] {
+  const edges: ExactArtifactComponentEdge[] = [];
+  for (const result of results) {
+    for (const component of result.manifest.components) {
+      for (const edge of component.renderEdges) {
+        edges.push({
+          sourceFile: result.inputFile,
+          sourceComponentId: component.id,
+          sourceName: component.name,
+          targetComponentId: edge.componentId,
+          targetName: edge.name,
+          tag: edge.tag,
+          placement: edge.placement,
+          boundary: edge.boundary
+        });
+      }
+    }
+  }
+  return edges.sort((left, right) => [
+    left.sourceFile,
+    left.sourceName,
+    left.tag,
+    left.targetName
+  ].join(":").localeCompare([
+    right.sourceFile,
+    right.sourceName,
+    right.tag,
+    right.targetName
+  ].join(":")));
 }
 
 export function createExactArtifactRegistryModules(

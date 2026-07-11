@@ -916,6 +916,45 @@ describe("@exact/compiler", () => {
     expect(modules.server).toContain("Panel_ExactServer_1");
   });
 
+  it("includes component render edges in artifact graphs", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-artifact-component-graph-"));
+    const input = path.join(root, "src", "page.tsx");
+    const outDir = path.join(root, "dist");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, `
+      function ClientWidget() {
+        return () => <button onClick={() => save()}>Save</button>;
+      }
+
+      export function Page() {
+        return () => <main><ClientWidget /></main>;
+      }
+    `);
+
+    const result = await compileFileArtifacts(input, {
+      outDir,
+      rootDir: path.join(root, "src")
+    });
+    const graph = createExactArtifactGraph([result], {
+      packageRoot: root,
+      sourceRoot: path.join(root, "src"),
+      rootDir: root
+    });
+    const page = result.manifest.components.find(component => component.name === "Page")!;
+    const widget = result.manifest.components.find(component => component.name === "ClientWidget")!;
+
+    expect(graph.componentEdges).toEqual([{
+      sourceFile: input,
+      sourceComponentId: page.id,
+      sourceName: "Page",
+      targetComponentId: widget.id,
+      targetName: "ClientWidget",
+      tag: "ClientWidget",
+      placement: "client",
+      boundary: "client"
+    }]);
+  });
+
   it("emits server boundary stubs for pure client components", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "exact-split-"));
     const input = path.join(root, "src", "panel.tsx");
