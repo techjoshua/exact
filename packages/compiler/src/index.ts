@@ -468,7 +468,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
       ...component.renderEdges.map(edge => edge.placement)
     ]);
   }
-  const exportBindings = collectExportBindings(sourceFile);
+  const exportBindings = collectExportBindings(sourceFile, semanticGraph);
   const exportedLocals = new Set([...exportBindings.values()].map(binding => binding.localName));
   for (const component of components) {
     component.exported = exportedLocals.has(component.name);
@@ -1988,11 +1988,29 @@ function isComponentLikeFunction(node: ts.FunctionDeclaration): boolean {
 }
 
 function collectExports(sourceFile: ts.SourceFile): Set<string> {
-  return new Set([...collectExportBindings(sourceFile).keys()]);
+  return new Set([...collectExportBindings(sourceFile, buildSemanticGraph(sourceFile)).keys()]);
 }
 
-function collectExportBindings(sourceFile: ts.SourceFile): Map<string, ExportBinding> {
+function collectExportBindings(sourceFile: ts.SourceFile, semanticGraph: ExactSemanticGraphIR): Map<string, ExportBinding> {
   const exports = new Map<string, ExportBinding>();
+
+  for (const declaration of semanticGraph.declarations) {
+    if (!declaration.exportedName) continue;
+    exports.set(declaration.exportedName, {
+      exportedName: declaration.exportedName,
+      localName: declaration.name
+    });
+  }
+
+  for (const reference of semanticGraph.references) {
+    if (!reference.exportedName) continue;
+    exports.set(reference.exportedName, {
+      exportedName: reference.exportedName,
+      localName: reference.name
+    });
+  }
+
+  if (exports.size) return exports;
 
   for (const statement of sourceFile.statements) {
     if (hasExportModifier(statement)) {

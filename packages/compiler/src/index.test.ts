@@ -282,6 +282,28 @@ describe("@exact/compiler", () => {
     expect(Object.keys(manifest.serverActions)).toEqual([component.tasks[0]!.id]);
   });
 
+  it("uses semantic export metadata for aliased component exports", () => {
+    const manifest = analyzeSource(`
+      function ProjectPage() {
+        return () => <p>Ready</p>;
+      }
+
+      export { ProjectPage as Page };
+    `, { filename: "ProjectPage.tsx" });
+
+    expect(manifest.components[0]!.exported).toBe(true);
+    expect(manifest.exports).toContainEqual({
+      name: "Page",
+      kind: "component",
+      placement: "server"
+    });
+    expect(manifest.symbols).toContainEqual(expect.objectContaining({
+      exportName: "Page",
+      localName: "ProjectPage",
+      role: "root"
+    }));
+  });
+
   it("traces state aliases in task state contracts", () => {
     const manifest = analyzeSource(`
       export function ProjectPage(this: Component<{ project: { title: string }; count: number }>) {
