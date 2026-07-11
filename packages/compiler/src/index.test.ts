@@ -388,6 +388,25 @@ describe("@exact/compiler", () => {
     });
   });
 
+  it("preserves type-only server imports in client artifacts", () => {
+    const client = transform(`
+      import type { Stats } from "node:fs";
+      import { readFile } from "node:fs/promises";
+
+      export function ProjectPage(this: Component<{ title?: string }>) {
+        this.task.server(async () => {
+          this.state.title = await readFile("title.txt", "utf8");
+        });
+        const stats: Stats | undefined = undefined;
+        return () => <p>{stats ? this.state.title : "missing"}</p>;
+      }
+    `, { filename: "ProjectPage.tsx", target: "client" });
+
+    expect(client).toContain("import type { Stats } from \"node:fs\";");
+    expect(client).not.toContain("node:fs/promises");
+    expect(client).not.toContain("readFile");
+  });
+
   it("emits target-specific client and server task artifacts", () => {
     const source = `
       import { readFile } from "node:fs/promises";

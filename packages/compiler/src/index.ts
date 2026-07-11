@@ -2336,7 +2336,19 @@ function collectServerOnlyImports(sourceFile: ts.SourceFile, graph: ExactSemanti
 function isServerOnlyImportDeclaration(statement: ts.Statement): boolean {
   return ts.isImportDeclaration(statement)
     && ts.isStringLiteral(statement.moduleSpecifier)
-    && isServerOnlyModule(statement.moduleSpecifier.text);
+    && isServerOnlyModule(statement.moduleSpecifier.text)
+    && importDeclarationHasRuntimeBinding(statement);
+}
+
+function importDeclarationHasRuntimeBinding(statement: ts.ImportDeclaration): boolean {
+  const clause = statement.importClause;
+  if (!clause) return true;
+  if (clause.isTypeOnly) return false;
+  if (clause.name) return true;
+  const bindings = clause.namedBindings;
+  if (!bindings) return false;
+  if (ts.isNamespaceImport(bindings)) return true;
+  return bindings.elements.some(element => !element.isTypeOnly);
 }
 
 function isServerOnlyModule(specifier: string): boolean {
