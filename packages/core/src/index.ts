@@ -164,8 +164,8 @@ export function createConsoleLogger(options: ConsoleLoggerOptions = {}): Logger 
   };
 }
 
-export const LoggerContext = createContext<Logger>("logger");
-export const ErrorContext = createContext<ErrorContextValue>("error");
+export const LoggerContext = createContext<Logger>("exact.logger", true);
+export const ErrorContext = createContext<ErrorContextValue>("exact.error", true);
 
 export type RefKey<T> = {
   readonly id: symbol;

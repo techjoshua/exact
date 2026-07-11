@@ -123,6 +123,13 @@ describe("@exact/core", () => {
     expect(consumerToken.global).toBe(true);
   });
 
+  it("uses global identity for built-in framework contexts", () => {
+    expect(LoggerContext.global).toBe(true);
+    expect(ErrorContext.global).toBe(true);
+    expect(LoggerContext.id).toBe(Symbol.for("exact.context:exact.logger"));
+    expect(ErrorContext.id).toBe(Symbol.for("exact.context:exact.error"));
+  });
+
   it("creates a keyed list fragment through this.map", () => {
     const instance = createComponentInstance(function List(this: Component<{}>) {
       return () => this.map(
