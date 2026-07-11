@@ -1681,6 +1681,14 @@ function addJsxTagSemanticDiagnostics(
   const reference = semanticReferenceForIdentifier(tagName, semanticReferences, sourceFile);
   if (reference?.typeOnly) {
     diagnostics.push(`error: JSX tag ${tagName.text} resolves to a type-only import and cannot be rendered at runtime`);
+    return;
+  }
+  if (reference?.source === "unresolved") {
+    diagnostics.push(`error: JSX tag ${tagName.text} is not defined as a runtime component`);
+    return;
+  }
+  if (reference && reference.declarationKind !== "import" && reference.declarationKind !== "function") {
+    diagnostics.push(`error: JSX tag ${tagName.text} resolves to ${reference.declarationKind ?? reference.source}, not a runtime component`);
   }
 }
 

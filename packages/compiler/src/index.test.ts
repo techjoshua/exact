@@ -1865,15 +1865,15 @@ describe("@exact/compiler", () => {
       filename: "/src/Page.tsx",
       importedManifests: [widgetManifest]
     });
-    const server = transform(source, {
+
+    expect(manifest.boundaries.filter(boundary => boundary.name === "ClientWidget")).toHaveLength(0);
+    expect(manifest.components[0]!.renderEdges).toEqual([]);
+    expect(manifest.components[0]!.diagnostics).toContain("error: JSX tag ClientWidget resolves to variable, not a runtime component");
+    expect(() => transform(source, {
       filename: "/src/Page.tsx",
       target: "server",
       importedManifests: [widgetManifest]
-    });
-
-    expect(server).not.toContain("__exactBoundary");
-    expect(manifest.boundaries.filter(boundary => boundary.name === "ClientWidget")).toHaveLength(0);
-    expect(manifest.components[0]!.renderEdges).toEqual([]);
+    })).toThrow("JSX tag ClientWidget resolves to variable");
   });
 
   it("does not split type-only imported component names", () => {
@@ -1903,6 +1903,32 @@ describe("@exact/compiler", () => {
       target: "server",
       importedManifests: [widgetManifest]
     })).toThrow("JSX tag ClientWidget resolves to a type-only import");
+  });
+
+  it("diagnoses unresolved runtime JSX component tags", () => {
+    const source = `
+      export function Page() {
+        return () => <MissingWidget />;
+      }
+    `;
+    const manifest = analyzeSource(source, { filename: "/src/Page.tsx" });
+
+    expect(manifest.components[0]!.diagnostics).toContain("error: JSX tag MissingWidget is not defined as a runtime component");
+    expect(() => transform(source, { filename: "/src/Page.tsx" })).toThrow("JSX tag MissingWidget is not defined");
+  });
+
+  it("diagnoses JSX tags that resolve to non-component values", () => {
+    const source = `
+      const Widget = "not a component";
+
+      export function Page() {
+        return () => <Widget />;
+      }
+    `;
+    const manifest = analyzeSource(source, { filename: "/src/Page.tsx" });
+
+    expect(manifest.components[0]!.diagnostics).toContain("error: JSX tag Widget resolves to variable, not a runtime component");
+    expect(() => transform(source, { filename: "/src/Page.tsx" })).toThrow("JSX tag Widget resolves to variable");
   });
 
   it("uses exported component identity for aliased imported client boundaries", () => {
