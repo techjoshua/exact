@@ -518,6 +518,92 @@ describe("@exact/server", () => {
     expect(JSON.parse(missingState.body)).toEqual({ error: "bad_request" });
   });
 
+  it("validates serialized context against action context contracts", async () => {
+    const action = vi.fn(input => ({
+      state: { user: (input.context as Record<string, unknown>).AuthContext }
+    }));
+    const exactContext = context({
+      manifest: {
+        version: 1,
+        actions: {
+          "allowed-action": {
+            id: "allowed-action",
+            placement: "server",
+            contextContract: [
+              { token: "AuthContext", kind: "read", confidence: "exact" },
+              { token: "ThemeContext", kind: "write", confidence: "exact" }
+            ]
+          }
+        }
+      },
+      actions: {
+        "allowed-action": action
+      }
+    });
+
+    const accepted = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "action",
+        id: "allowed-action",
+        context: {
+          AuthContext: { id: "u1" },
+          ThemeContext: "dark"
+        }
+      }
+    }, exactContext);
+
+    expect(accepted.status).toBe(200);
+    expect(JSON.parse(accepted.body)).toMatchObject({
+      ok: true,
+      state: { user: { id: "u1" } }
+    });
+    expect(action).toHaveBeenCalledOnce();
+
+    const missing = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "action",
+        id: "allowed-action",
+        context: {
+          ThemeContext: "dark"
+        }
+      }
+    }, exactContext);
+    expect(missing.status).toBe(400);
+    expect(JSON.parse(missing.body)).toEqual({ error: "bad_request" });
+
+    const unknown = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "action",
+        id: "allowed-action",
+        context: {
+          AuthContext: { id: "u1" },
+          SecretContext: "nope"
+        }
+      }
+    }, exactContext);
+    expect(unknown.status).toBe(400);
+    expect(JSON.parse(unknown.body)).toEqual({ error: "bad_request" });
+  });
+
+  it("rejects serialized context when no action context contract allows it", async () => {
+    const result = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "action",
+        id: "allowed-action",
+        context: {
+          AuthContext: { id: "u1" }
+        }
+      }
+    }, context());
+
+    expect(result.status).toBe(400);
+    expect(JSON.parse(result.body)).toEqual({ error: "bad_request" });
+  });
+
   it("does not dispatch allowlisted ids without registered server handlers", async () => {
     const result = await handleExactRequest({
       method: "POST",

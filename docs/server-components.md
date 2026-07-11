@@ -154,6 +154,7 @@ The manifest is the execution boundary:
 - Endpoint path mismatches are rejected when the manifest configures an endpoint.
 - Boundary snapshot IDs must be known to the manifest and, for actions, must match the action's allowed boundary list.
 - Payload, state, result, patch, and hydration data must be JSON-safe.
+- Serialized request context is rejected unless the action manifest has an exact context contract for every submitted token; exact context reads must be present before dispatch.
 - The hydration client validates successful endpoint response shapes before applying patches.
 - App-provided `authorize` and `validateCsrf` hooks run before dispatch.
 - Server-only code is emitted only into server artifacts.
@@ -181,7 +182,7 @@ Context sharing across micro frontend bundles has an explicit same-realm token o
 - Authors should use collision-resistant namespaced descriptions for global contexts, such as `com.company.auth.user`, not generic names like `user`.
 - Built-in framework contexts such as logger and error context use global keys so duplicated `@exact/core` copies can share them in one browser realm.
 - `Symbol.for()` only solves identity within the same JavaScript realm. Cross-iframe, worker, or remote server endpoint context still has to be passed explicitly as validated serialized request/session data.
-- Remote server components should not receive arbitrary client-provided context. Compiler/runtime manifests record action context contracts from `this.getContext(...)` / `this.setContext(...)`; endpoint-side serialized context validation remains future runtime work.
+- Remote server components should not receive arbitrary client-provided context. Compiler/runtime manifests record action context contracts from `this.getContext(...)` / `this.setContext(...)`, and endpoint validation rejects serialized context tokens that are not allowlisted by the action contract. Cross-endpoint context should still be treated as explicit app/session data, not ambient authority.
 
 ## Sample
 

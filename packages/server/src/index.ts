@@ -112,6 +112,7 @@ export type ExactInvocationRequest = {
   dependsOn?: string[];
   payload?: unknown;
   state?: unknown;
+  context?: Record<string, unknown>;
   boundaryHtml?: string;
   boundaryHtmls?: Record<string, string>;
 };
@@ -685,6 +686,9 @@ async function dispatchExactOperation(
   if (action?.stateContract && !stateMatchesContract(input.state, action.stateContract)) {
     return reject(400, "bad_request", "rejected exact invocation with mismatched state contract");
   }
+  if (!contextMatchesContract(input.context, action?.contextContract)) {
+    return reject(400, "bad_request", "rejected exact invocation with mismatched context contract");
+  }
 
   const security = await checkSecurityHooks(request, input, context);
   if (security === "unauthorized") {
@@ -787,11 +791,12 @@ function parseBatch(record: Record<string, unknown>): ExactBatchRequest {
 }
 
 function parseInvocationRecord(record: Record<string, unknown>): ExactInvocationRequest {
-  if (!hasOnlyKeys(record, ["type", "id", "opId", "dependsOn", "payload", "state", "boundaryHtml", "boundaryHtmls"])) throw new Error("unknown invocation field");
+  if (!hasOnlyKeys(record, ["type", "id", "opId", "dependsOn", "payload", "state", "context", "boundaryHtml", "boundaryHtmls"])) throw new Error("unknown invocation field");
   if (record.type !== "action" && record.type !== "refresh") throw new Error("invalid invocation type");
   if (typeof record.id !== "string" || !record.id) throw new Error("invalid invocation id");
   if (record.opId !== undefined && (typeof record.opId !== "string" || !record.opId)) throw new Error("invalid operation id");
   if (record.dependsOn !== undefined && !isStringList(record.dependsOn)) throw new Error("invalid operation dependencies");
+  if (record.context !== undefined && !isContextValueMap(record.context)) throw new Error("invalid context");
   if (record.boundaryHtmls !== undefined && !isBoundaryHtmlMap(record.boundaryHtmls)) throw new Error("invalid boundary htmls");
   return {
     type: record.type,
@@ -800,6 +805,7 @@ function parseInvocationRecord(record: Record<string, unknown>): ExactInvocation
     ...(Array.isArray(record.dependsOn) ? { dependsOn: record.dependsOn } : {}),
     ...(record.payload === undefined ? {} : { payload: record.payload }),
     ...(record.state === undefined ? {} : { state: record.state }),
+    ...(record.context === undefined ? {} : { context: record.context }),
     ...(typeof record.boundaryHtml === "string" ? { boundaryHtml: record.boundaryHtml } : {}),
     ...(record.boundaryHtmls === undefined ? {} : { boundaryHtmls: record.boundaryHtmls })
   };
@@ -809,7 +815,7 @@ function requestPayloadSafe(input: ExactInvocationRequest | ExactBatchRequest): 
   if (input.type === "batch") {
     return input.operations.every(operation => requestPayloadSafe(operation));
   }
-  return isJsonSafe(input.payload) && isJsonSafe(input.state);
+  return isJsonSafe(input.payload) && isJsonSafe(input.state) && isJsonSafe(input.context);
 }
 
 function jsonResponse(status: number, body: unknown): ExactResponseLike {
@@ -876,6 +882,10 @@ function isBoundaryHtmlMap(value: unknown): value is Record<string, string> {
   return Object.entries(value as Record<string, unknown>).every(([id, html]) => !!id && typeof html === "string");
 }
 
+function isContextValueMap(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
 function isStringList(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(item => typeof item === "string" && item.length > 0);
 }
@@ -901,6 +911,26 @@ function stateMatchesContract(state: unknown, contract: ExactStateContract): boo
     if (!hasStatePath(state, read.path)) return false;
   }
   return true;
+}
+
+function contextMatchesContract(context: Record<string, unknown> | undefined, contract: ExactContextEffect[] | undefined): boolean {
+  if (!context) return !requiresExactContext(contract);
+  if (!contract?.length) return false;
+
+  const allowed = new Set(contract
+    .filter(effect => effect.confidence === "exact")
+    .map(effect => effect.token));
+  if (!Object.keys(context).every(token => allowed.has(token))) return false;
+
+  for (const effect of contract) {
+    if (effect.kind !== "read" || effect.confidence !== "exact") continue;
+    if (!Object.prototype.hasOwnProperty.call(context, effect.token)) return false;
+  }
+  return true;
+}
+
+function requiresExactContext(contract: ExactContextEffect[] | undefined): boolean {
+  return Boolean(contract?.some(effect => effect.kind === "read" && effect.confidence === "exact"));
 }
 
 function omitEmptyHydrationConfig(config: ExactHydrationManifestConfig): ExactHydrationManifestConfig {
