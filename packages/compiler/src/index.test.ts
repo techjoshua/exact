@@ -141,6 +141,39 @@ describe("@exact/compiler", () => {
     ]));
   });
 
+  it("resolves local type declarations and type references semantically", () => {
+    const graph = analyzeSemanticGraph(`
+      interface BaseProject {
+        id: string;
+      }
+
+      interface Project extends BaseProject {
+        title: string;
+      }
+
+      type ProjectState = {
+        project: Project;
+      };
+
+      export function ProjectPage(this: Component<ProjectState>) {
+        const state: ProjectState | undefined = undefined;
+        return () => <p>{this.state.project.title}</p>;
+      }
+    `, { filename: "ProjectPage.tsx" });
+
+    const base = graph.declarations.find(item => item.name === "BaseProject" && item.kind === "interface");
+    const project = graph.declarations.find(item => item.name === "Project" && item.kind === "interface");
+    const state = graph.declarations.find(item => item.name === "ProjectState" && item.kind === "type");
+    expect(base).toBeDefined();
+    expect(project).toBeDefined();
+    expect(state).toBeDefined();
+    expect(graph.references).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "BaseProject", source: "local", declarationId: base!.id, typeOnly: true }),
+      expect.objectContaining({ name: "Project", source: "local", declarationId: project!.id, typeOnly: true }),
+      expect.objectContaining({ name: "ProjectState", source: "local", declarationId: state!.id, typeOnly: true })
+    ]));
+  });
+
   it("lowers JSX to eXact compiled vnode helpers", () => {
     const output = transform("const view = <button title={label}>Save</button>;");
 

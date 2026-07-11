@@ -103,7 +103,7 @@ export type ExactSemanticDeclarationIR = {
   id: string;
   name: string;
   scopeId: string;
-  kind: "import" | "function" | "class" | "variable" | "parameter";
+  kind: "import" | "function" | "class" | "variable" | "parameter" | "type" | "interface";
   nodeStart: number;
   nodeEnd: number;
   moduleSpecifier?: string;
@@ -679,6 +679,12 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
       return;
     }
 
+    if (ts.isExpressionWithTypeArguments(node)) {
+      if (ts.isIdentifier(node.expression)) addSemanticReference(node.expression, { typeOnly: true });
+      for (const argument of node.typeArguments ?? []) visit(argument);
+      return;
+    }
+
     if (ts.isFunctionDeclaration(node)) {
       if (node.name) declare(node.name.text, "function", node.name);
       visitFunctionLike(node);
@@ -696,6 +702,19 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
       pushScope("block", node);
       for (const member of node.members) visit(member);
       popScope();
+      return;
+    }
+
+    if (ts.isTypeAliasDeclaration(node)) {
+      declare(node.name.text, "type", node.name);
+      visit(node.type);
+      return;
+    }
+
+    if (ts.isInterfaceDeclaration(node)) {
+      declare(node.name.text, "interface", node.name);
+      for (const heritage of node.heritageClauses ?? []) visit(heritage);
+      for (const member of node.members) visit(member);
       return;
     }
 
@@ -2674,6 +2693,8 @@ function isIdentifierDeclarationName(node: ts.Identifier): boolean {
     (ts.isVariableDeclaration(parent) && parent.name === node)
     || (ts.isParameter(parent) && parent.name === node)
     || (ts.isFunctionDeclaration(parent) && parent.name === node)
+    || (ts.isTypeAliasDeclaration(parent) && parent.name === node)
+    || (ts.isInterfaceDeclaration(parent) && parent.name === node)
     || (ts.isBindingElement(parent) && parent.name === node)
   );
 }
