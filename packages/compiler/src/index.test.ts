@@ -129,6 +129,11 @@ describe("@exact/compiler", () => {
       declarationKind: "function",
       exportedName: "Page"
     });
+    expect(graph.exports).toEqual(expect.arrayContaining([
+      expect.objectContaining({ exportedName: "DirectPage", localName: "DirectPage" }),
+      expect.objectContaining({ exportedName: "Page", localName: "ProjectPage" }),
+      expect.objectContaining({ exportedName: "RemotePage", importedName: "RemotePage", moduleSpecifier: "./remote" })
+    ]));
     expect(graph.references.some(item => item.name === "RemotePage")).toBe(false);
   });
 

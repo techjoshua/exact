@@ -126,10 +126,19 @@ export type ExactSemanticReferenceIR = {
   exportedName?: string;
 };
 
+export type ExactSemanticExportIR = {
+  exportedName: string;
+  localName?: string;
+  importedName?: string;
+  moduleSpecifier?: string;
+  typeOnly?: boolean;
+};
+
 export type ExactSemanticGraphIR = {
   scopes: ExactSemanticScopeIR[];
   declarations: ExactSemanticDeclarationIR[];
   references: ExactSemanticReferenceIR[];
+  exports: ExactSemanticExportIR[];
 };
 
 export type ExactArtifactManifest = {
@@ -530,6 +539,7 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
   const scopes: ExactSemanticScopeIR[] = [];
   const declarations: ExactSemanticDeclarationIR[] = [];
   const references: ExactSemanticReferenceIR[] = [];
+  const exports: ExactSemanticExportIR[] = [];
   const declarationsByScope = new Map<string, Map<string, ExactSemanticDeclarationIR>>();
   const scopeParents = new Map<string, string | undefined>();
   const scopeStack: ExactSemanticScopeIR[] = [];
@@ -572,6 +582,13 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
       ...metadata
     };
     declarations.push(declaration);
+    if (declaration.exportedName) {
+      exports.push({
+        exportedName: declaration.exportedName,
+        localName: declaration.name,
+        ...(declaration.typeOnly ? { typeOnly: true } : {})
+      });
+    }
     declarationsByScope.get(declaration.scopeId)!.set(name, declaration);
     return declaration;
   };
@@ -667,10 +684,28 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
     }
 
     if (ts.isExportDeclaration(node)) {
-      if (!node.moduleSpecifier && node.exportClause && ts.isNamedExports(node.exportClause)) {
+      if (node.exportClause && ts.isNamedExports(node.exportClause)) {
         for (const element of node.exportClause.elements) {
-          const localName = element.propertyName ?? element.name;
-          if (ts.isIdentifier(localName)) addSemanticReference(localName, { exportedName: element.name.text });
+          const exportedName = element.name.text;
+          const importedName = element.propertyName?.text ?? element.name.text;
+          if (node.moduleSpecifier && ts.isStringLiteralLike(node.moduleSpecifier)) {
+            exports.push({
+              exportedName,
+              importedName,
+              moduleSpecifier: node.moduleSpecifier.text,
+              typeOnly: node.isTypeOnly || element.isTypeOnly
+            });
+          } else {
+            const localName = element.propertyName ?? element.name;
+            if (ts.isIdentifier(localName)) {
+              exports.push({
+                exportedName,
+                localName: localName.text,
+                typeOnly: node.isTypeOnly || element.isTypeOnly
+              });
+              addSemanticReference(localName, { exportedName });
+            }
+          }
         }
       }
       return;
@@ -770,7 +805,8 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
   return {
     scopes,
     declarations: declarations.sort((left, right) => left.nodeStart - right.nodeStart || left.name.localeCompare(right.name)),
-    references: references.map(resolveReference).sort((left, right) => left.nodeStart - right.nodeStart || left.name.localeCompare(right.name))
+    references: references.map(resolveReference).sort((left, right) => left.nodeStart - right.nodeStart || left.name.localeCompare(right.name)),
+    exports: exports.sort((left, right) => left.exportedName.localeCompare(right.exportedName))
   };
 }
 
@@ -1994,19 +2030,11 @@ function collectExports(sourceFile: ts.SourceFile): Set<string> {
 function collectExportBindings(sourceFile: ts.SourceFile, semanticGraph: ExactSemanticGraphIR): Map<string, ExportBinding> {
   const exports = new Map<string, ExportBinding>();
 
-  for (const declaration of semanticGraph.declarations) {
-    if (!declaration.exportedName) continue;
-    exports.set(declaration.exportedName, {
-      exportedName: declaration.exportedName,
-      localName: declaration.name
-    });
-  }
-
-  for (const reference of semanticGraph.references) {
-    if (!reference.exportedName) continue;
-    exports.set(reference.exportedName, {
-      exportedName: reference.exportedName,
-      localName: reference.name
+  for (const exported of semanticGraph.exports) {
+    if (!exported.localName || exported.moduleSpecifier) continue;
+    exports.set(exported.exportedName, {
+      exportedName: exported.exportedName,
+      localName: exported.localName
     });
   }
 
