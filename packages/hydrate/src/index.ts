@@ -522,6 +522,11 @@ function applyPatch(container: Element, patch: ExactPatch): boolean {
   if (patch.type === "replace") {
     const range = findExactRange(container, patch.id);
     if (!range) {
+      const clientBoundary = findClientBoundaryElement(container, patch.id);
+      if (clientBoundary) {
+        replaceElement(clientBoundary, patch.html);
+        return true;
+      }
       const slot = findServerSlotElement(container, patch.id);
       if (!slot) return false;
       replaceElementChildren(slot, patch.html);
@@ -594,6 +599,10 @@ function findServerSlotElement(container: Element, id: string): Element | undefi
   return container.querySelector(`[data-exact-server-slot="${cssEscape(id)}"]`) ?? undefined;
 }
 
+function findClientBoundaryElement(container: Element, id: string): Element | undefined {
+  return container.querySelector(`[data-exact-client-boundary="${cssEscape(id)}"]`) ?? undefined;
+}
+
 function findExactElementTarget(container: Element, id: string): Element | undefined {
   const exact = findExactElement(container, id);
   if (exact) return exact;
@@ -663,6 +672,16 @@ function replaceElementChildren(element: Element, html: string): void {
   const template = document.createElement("template");
   template.innerHTML = html;
   element.appendChild(template.content);
+}
+
+function replaceElement(element: Element, html: string): void {
+  if (!html) {
+    element.remove();
+    return;
+  }
+  const template = document.createElement("template");
+  template.innerHTML = html;
+  element.replaceWith(template.content);
 }
 
 function insertHtmlBefore(anchor: Node, html: string): void {
