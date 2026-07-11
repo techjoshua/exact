@@ -38,6 +38,8 @@ exact({
 
 Use `target: "client"` for the browser bundle and `target: "server"` for server rendering. With `serverComponents: true`, client-target artifacts omit server-owned authored components while preserving generated client islands and pure client child components.
 
+Generated element islands can keep server-owned child subgraphs on the server. For example, an interactive shell element with an `onClick` handler can hydrate as a client island while a nested server component, local or imported through manifest metadata, is rendered as a server-owned `props.children` slot instead of being pulled into the browser bundle.
+
 Adapters also understand `.exact` facade imports. A client build resolves `./ProfilePage.exact` to the client artifact; a server build resolves it to the server artifact. Published component libraries can expose `exact-client` and `exact-server` package export conditions so each component remains independently tree-shakable for the selected render target.
 
 `manifestFiles` are read at transform time. Watch pipelines can regenerate `.exact.manifest.json` files and keep imported component classification fresh without recreating plugin instances.
