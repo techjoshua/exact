@@ -259,9 +259,7 @@ export async function invokeExactBatch(options: InvokeExactBatchOptions): Promis
     logFrameworkEvent("warn", "hydrate", "request", `exact batch invocation failed with ${response.status}`, undefined, options.logger);
     throw new Error("eXact batch invocation failed");
   }
-  const results = (body as { results?: unknown }).results;
-  if (!Array.isArray(results)) throw new Error("eXact batch invocation returned malformed results");
-  return results.map(parseExactOperationResult);
+  return parseExactBatchResponse(body);
 }
 
 function enqueueExactOperation(
@@ -726,7 +724,7 @@ function reportMismatch(options: HydrateOptions, message: string): void {
 function parseExactInvocationResponse(body: unknown, message: string): ExactInvocationResult {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(message);
   const record = body as Record<string, unknown>;
-  if ("ok" in record && record.ok !== true) throw new Error(message);
+  if (record.ok !== true) throw new Error(message);
   if (!hasOnlyKeys(record, ["ok", "patches", "state", "html"])) throw new Error(message);
   if ("state" in record && record.state === undefined) throw new Error(message);
   if (record.patches !== undefined && (!Array.isArray(record.patches) || !record.patches.every(isPatchLike))) throw new Error(message);
@@ -736,6 +734,17 @@ function parseExactInvocationResponse(body: unknown, message: string): ExactInvo
     ...("state" in record ? { state: record.state } : {}),
     ...(record.html === undefined ? {} : { html: record.html })
   };
+}
+
+function parseExactBatchResponse(body: unknown): ExactOperationResult[] {
+  const message = "eXact batch invocation returned malformed results";
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(message);
+  const record = body as Record<string, unknown>;
+  if (record.ok !== true) throw new Error(message);
+  if (!hasOnlyKeys(record, ["ok", "version", "results"])) throw new Error(message);
+  if (record.version !== 1) throw new Error(message);
+  if (!Array.isArray(record.results)) throw new Error(message);
+  return record.results.map(parseExactOperationResult);
 }
 
 function parseExactOperationResult(value: unknown): ExactOperationResult {

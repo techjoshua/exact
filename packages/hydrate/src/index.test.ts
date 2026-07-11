@@ -619,6 +619,21 @@ describe("@exact/hydrate", () => {
         status: 200,
         async json() {
           return {
+            patches: [{ type: "text", id: "title", value: "Saved" }]
+          };
+        }
+      })
+    })).rejects.toThrow("eXact action invocation returned malformed result");
+
+    await expect(invokeExact({
+      endpoint: "/__exact",
+      type: "action",
+      id: "save",
+      fetch: async () => ({
+        ok: true,
+        status: 200,
+        async json() {
+          return {
             ok: true,
             patches: [{ type: "text", id: 1, value: "Saved" }]
           };
@@ -657,6 +672,56 @@ describe("@exact/hydrate", () => {
         }
       })
     })).rejects.toThrow("eXact action invocation returned malformed result");
+  });
+
+  it("rejects malformed exact batch response envelopes", async () => {
+    await expect(invokeExactBatch({
+      endpoint: "/__exact",
+      operations: [{ type: "action", id: "save" }],
+      fetch: async () => ({
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            version: 1,
+            results: []
+          };
+        }
+      })
+    })).rejects.toThrow("eXact batch invocation returned malformed results");
+
+    await expect(invokeExactBatch({
+      endpoint: "/__exact",
+      operations: [{ type: "action", id: "save" }],
+      fetch: async () => ({
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            ok: true,
+            version: 2,
+            results: []
+          };
+        }
+      })
+    })).rejects.toThrow("eXact batch invocation returned malformed results");
+
+    await expect(invokeExactBatch({
+      endpoint: "/__exact",
+      operations: [{ type: "action", id: "save" }],
+      fetch: async () => ({
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            ok: true,
+            version: 1,
+            results: [],
+            debug: true
+          };
+        }
+      })
+    })).rejects.toThrow("eXact batch invocation returned malformed results");
   });
 
   it("rejects malformed exact batch operation responses", async () => {
