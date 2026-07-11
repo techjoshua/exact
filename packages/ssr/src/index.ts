@@ -23,7 +23,7 @@ import {
   type VNode
 } from "@exact/core";
 import { unwrap } from "@exact/reactive";
-import type { ExactInvocationRequest, ExactInvocationResult, ExactPatch, ExactServerContext, ExactServerManifest, ExactStateContract } from "@exact/server";
+import type { ExactEndpointRoutes, ExactInvocationRequest, ExactInvocationResult, ExactPatch, ExactServerContext, ExactServerManifest, ExactStateContract } from "@exact/server";
 
 export type RenderToStringOptions = {
   markers?: boolean;
@@ -39,6 +39,7 @@ export type RenderToStringResult = {
 
 export type HydrationScriptOptions = {
   endpoint?: string;
+  endpoints?: ExactEndpointRoutes;
   state?: unknown;
   stateContracts?: Record<string, ExactStateContract>;
   actionBoundaries?: Record<string, readonly string[]>;
@@ -160,6 +161,7 @@ export function renderToHydratableString(vnode: VNode, options: RenderToStringOp
   const result = renderToString(vnode, options);
   const hydrationScript = renderHydrationScript({
     endpoint: options.endpoint,
+    endpoints: options.endpoints,
     state: result.state,
     stateContracts: options.stateContracts,
     actionBoundaries: options.actionBoundaries,
@@ -200,6 +202,7 @@ export async function renderToHydratableStringAsync(vnode: VNode, options: Rende
   const result = await renderToStringAsync(vnode, options);
   const hydrationScript = renderHydrationScript({
     endpoint: options.endpoint,
+    endpoints: options.endpoints,
     state: result.state,
     stateContracts: options.stateContracts,
     actionBoundaries: options.actionBoundaries,
@@ -216,6 +219,7 @@ export async function renderToHydratableStringAsync(vnode: VNode, options: Rende
 export function renderHydrationScript(options: HydrationScriptOptions = {}): string {
   const payloadValue = omitUndefinedProperties({
     endpoint: options.endpoint,
+    endpoints: options.endpoints,
     state: options.state,
     stateContracts: options.stateContracts,
     actionBoundaries: options.actionBoundaries

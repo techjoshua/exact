@@ -80,6 +80,28 @@ describe("@exact/server", () => {
     } as any)).toThrow("Malformed eXact compiler manifest");
   });
 
+  it("rejects malformed endpoint route maps", () => {
+    expect(() => createExactServerManifest({
+      version: 1,
+      components: []
+    }, {
+      endpoints: {
+        actions: {
+          save: 1
+        }
+      } as any
+    })).toThrow("Malformed eXact endpoint routes");
+
+    expect(() => createExactServerManifest({
+      version: 1,
+      components: []
+    }, {
+      endpoints: {
+        boundaries: ["remote"]
+      } as any
+    })).toThrow("Malformed eXact endpoint routes");
+  });
+
   it("creates runtime allowlists from compiler manifests", () => {
     const manifest = createExactServerManifest({
       version: 1,

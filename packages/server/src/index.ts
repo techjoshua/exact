@@ -203,10 +203,11 @@ export function createExactServerManifest(
     }
   }
 
+  const endpoints = normalizeEndpointRoutes(options.endpoints);
   return {
     version: exactServerManifestVersion,
     endpoint: options.endpoint,
-    endpoints: normalizeEndpointRoutes(options.endpoints),
+    endpoints,
     actions,
     boundaries,
     actionBoundaries: inferActionBoundaries(actions, boundaries)
@@ -687,6 +688,9 @@ function omitEmptyHydrationConfig(config: ExactHydrationManifestConfig): ExactHy
 
 function normalizeEndpointRoutes(routes: ExactEndpointRoutes | undefined): ExactEndpointRoutes | undefined {
   if (!routes) return undefined;
+  if (typeof routes !== "object" || Array.isArray(routes)) throw new Error("Malformed eXact endpoint routes");
+  if (routes.actions !== undefined && !isEndpointMap(routes.actions)) throw new Error("Malformed eXact endpoint routes");
+  if (routes.boundaries !== undefined && !isEndpointMap(routes.boundaries)) throw new Error("Malformed eXact endpoint routes");
   const actions = filterEndpointMap(routes.actions);
   const boundaries = filterEndpointMap(routes.boundaries);
   return Object.keys(actions).length || Object.keys(boundaries).length
@@ -695,6 +699,11 @@ function normalizeEndpointRoutes(routes: ExactEndpointRoutes | undefined): Exact
       ...(Object.keys(boundaries).length ? { boundaries } : {})
     }
     : undefined;
+}
+
+function isEndpointMap(value: unknown): value is Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  return Object.entries(value as Record<string, unknown>).every(([id, endpoint]) => id.length > 0 && typeof endpoint === "string" && endpoint.length > 0);
 }
 
 function filterEndpointMap(map: Record<string, string> | undefined): Record<string, string> {

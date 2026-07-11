@@ -166,6 +166,14 @@ describe("@exact/ssr", () => {
   it("serializes hydration endpoint and state as inert escaped json", () => {
     const script = renderHydrationScript({
       endpoint: "/__exact",
+      endpoints: {
+        actions: {
+          "remote-save": "https://remote.example/__exact"
+        },
+        boundaries: {
+          "remote-panel": "https://remote.example/__exact"
+        }
+      },
       state: { title: "</script><img>" },
       stateContracts: {
         save: {
@@ -181,6 +189,9 @@ describe("@exact/ssr", () => {
     expect(script).toContain("type=\"application/json\"");
     expect(script).toContain("id=\"__exact_hydration\"");
     expect(script).toContain("nonce=\"abc&quot;123\"");
+    expect(script).toContain("\"endpoints\"");
+    expect(script).toContain("\"remote-save\"");
+    expect(script).toContain("https://remote.example/__exact");
     expect(script).toContain("\"stateContracts\"");
     expect(script).toContain("\"actionBoundaries\"");
     expect(script).toContain("\"profile:children\"");
@@ -199,6 +210,11 @@ describe("@exact/ssr", () => {
     const result = renderToHydratableString(createVNode("p", null, "ready"), {
       markers: false,
       endpoint: "/__exact",
+      endpoints: {
+        boundaries: {
+          panel: "https://remote.example/__exact"
+        }
+      },
       state: { ready: true },
       stateContracts: {
         save: {
@@ -210,6 +226,8 @@ describe("@exact/ssr", () => {
     expect(result.html).toBe("<p>ready</p>");
     expect(result.htmlWithHydration).toContain("<p>ready</p><script");
     expect(result.htmlWithHydration).toContain("\"endpoint\":\"/__exact\"");
+    expect(result.htmlWithHydration).toContain("\"endpoints\"");
+    expect(result.htmlWithHydration).toContain("\"panel\":\"https://remote.example/__exact\"");
     expect(result.htmlWithHydration).toContain("\"ready\":true");
     expect(result.htmlWithHydration).toContain("\"stateContracts\"");
   });
