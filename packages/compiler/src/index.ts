@@ -817,6 +817,9 @@ export async function readExactArtifactManifestEntries(manifestFiles: readonly s
     if (!manifest.artifacts) {
       throw new Error(`eXact artifact manifest ${manifestFile} is missing artifact metadata`);
     }
+    if (!isExactArtifactManifest(manifest.artifacts)) {
+      throw new Error(`eXact artifact manifest ${manifestFile} has malformed artifact metadata`);
+    }
     const root = path.dirname(manifestFile);
     entries.push({
       inputFile: path.resolve(root, manifest.artifacts.source),
@@ -827,6 +830,18 @@ export async function readExactArtifactManifestEntries(manifestFiles: readonly s
     });
   }
   return entries.sort((left, right) => left.manifestFile.localeCompare(right.manifestFile));
+}
+
+function isExactArtifactManifest(value: unknown): value is ExactArtifactManifest {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return typeof record.source === "string"
+    && typeof record.client === "string"
+    && typeof record.server === "string"
+    && typeof record.manifest === "string"
+    && Array.isArray(record.exports)
+    && Array.isArray(record.symbols)
+    && Array.isArray(record.boundaries);
 }
 
 function artifactGraphEntryFromCompileResult(result: CompileArtifactsResult): ExactArtifactGraphEntry {

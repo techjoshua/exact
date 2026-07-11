@@ -561,6 +561,25 @@ describe("@exact/compiler", () => {
     await expect(readExactArtifactManifestEntries([manifestFile])).rejects.toThrow("Unsupported eXact artifact manifest version");
   });
 
+  it("rejects malformed generated artifact metadata", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-artifact-manifest-malformed-"));
+    const manifestFile = path.join(root, "panel.exact.manifest.json");
+    await writeFile(manifestFile, JSON.stringify({
+      version: exactCompilerManifestVersion,
+      artifacts: {
+        source: 1,
+        client: "panel.exact.client.ts",
+        server: "panel.exact.server.ts",
+        manifest: "panel.exact.manifest.json",
+        exports: [],
+        symbols: [],
+        boundaries: []
+      }
+    }));
+
+    await expect(readExactArtifactManifestEntries([manifestFile])).rejects.toThrow("malformed artifact metadata");
+  });
+
   it("plans generated artifact paths without compiling", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "exact-artifact-plan-"));
     const src = path.join(root, "src");
