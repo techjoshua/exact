@@ -8,7 +8,7 @@ type TaskCardProps = {
 
 export function TaskCard(this: Component<{}>, props: TaskCardProps) {
   const board = this.getContext(BoardContext);
-  const title = this.reactive<string>(() => props.task.title);
+  const title = props.task.title;
   const hasNotes = this.reactive<boolean>(() => props.task.notes.trim().length > 0);
 
   const startPointerDrag = (event: PointerEvent) => {

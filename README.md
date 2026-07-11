@@ -253,7 +253,7 @@ function Counter(this: Component<{ count: number }>) {
 The main instance APIs are:
 
 - `this.state`: reactive instance-owned state.
-- `this.reactive(...)`: derived reactive values for text, props, styles, and task dependencies.
+- `this.reactive(...)`: explicit derived reactive values for runtime-only code and advanced escape hatches.
 - `this.task(...)`: inferred run-once or dependency-driven work with `AbortSignal` cleanup.
 - `this.task.server(...)` / `this.task.client(...)`: explicit compiler placement escape hatches for SSR/server-component builds; explicit server tasks may not reference browser-only globals, and explicit client tasks may not reference server-only imports.
 - `this.map(collection, key, render)`: keyed list rendering with framework-managed keys.
@@ -310,12 +310,12 @@ Task failures are captured for both synchronous throws and rejected promises. Li
 
 ## Reactive Values
 
-Use `this.reactive` for derived values that should work anywhere state works: text, props, style entries, and task dependencies.
+In compiler mode, ordinary JSX expressions and task dependency arguments are reactive expression positions. Safe derived `const` values that read component state or props are inferred by the compiler, so everyday code can stay plain:
 
 ```tsx
 function Profile(this: Component<{ firstName: string; lastName: string; saving: boolean }>) {
-  const fullName = this.reactive`${this.state.firstName} ${this.state.lastName}`;
-  const tone = this.reactive(() => this.state.saving == true ? "gray" : "black");
+  const fullName = `${this.state.firstName} ${this.state.lastName}`;
+  const tone = this.state.saving == true ? "gray" : "black";
 
   this.task(fullName, (name, { signal }) => {
     void signal;
@@ -329,6 +329,8 @@ function Profile(this: Component<{ firstName: string; lastName: string; saving: 
   );
 }
 ```
+
+The compiler currently infers conservative derived consts: identifier declarations whose initializers are side-effect-free expressions over `this.state`, component props, or other inferred derived consts. It does not infer expressions with function calls, `new`, `await`, assignments, increment/decrement, or nested function/class bodies. Use `this.reactive(() => ...)` when you need an explicit runtime reactive value, when the expression is intentionally outside compiler inference, or when runtime-only code needs source identity.
 
 Reactive values are cached after first use and recompute when their tracked dependencies change. Plain object and array replacements use structural equality, so reloading identical data does not cause unnecessary updates.
 

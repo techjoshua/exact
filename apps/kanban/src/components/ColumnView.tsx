@@ -11,7 +11,7 @@ type ColumnViewProps = {
 
 export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
   const board = this.getContext(BoardContext);
-  const countLabel = this.reactive(props.tasks.length === 1 ? "1 task" : `${props.tasks.length} tasks`);
+  const countLabel = props.tasks.length === 1 ? "1 task" : `${props.tasks.length} tasks`;
 
   const dropTask = (event: DragEvent) => {
     event.preventDefault();

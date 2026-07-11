@@ -14,9 +14,9 @@ type TaskDetailsDialogProps = {
 export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: TaskDetailsDialogProps) {
   const board = this.getContext(BoardContext);
   const taskId = props.task?.id ?? "";
-  const title = this.reactive(() => props.task?.title ?? "");
-  const status = this.reactive(() => props.task?.status ?? "todo");
-  const notes = this.reactive(() => props.task?.notes ?? "");
+  const title = props.task?.title ?? "";
+  const status = props.task?.status ?? "todo";
+  const notes = props.task?.notes ?? "";
 
   this.state.taskId = taskId;
   this.onMount(() => this.log.debug("details mount", { taskId }));

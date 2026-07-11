@@ -9,7 +9,7 @@ type BoardHeaderProps = {
 export function BoardHeader(this: Component<{}>, props: BoardHeaderProps) {
   const board = this.getContext(BoardContext);
   const errors = this.getContext(ErrorContext);
-  const summary = this.reactive(() => `${props.total} ${props.total == 1 ? "task" : "tasks"} saved locally`);
+  const summary = `${props.total} ${props.total == 1 ? "task" : "tasks"} saved locally`;
 
   return () => (
     <header className="toolbar">

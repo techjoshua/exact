@@ -20,7 +20,7 @@ export function Board(this: Component<BoardState>, props: BoardProps) {
   this.state.selectedTaskId = undefined;
   this.state.dragPlacement = undefined;
 
-  const taskTotal = this.reactive(() => this.state.tasks.length);
+  const taskTotal = this.state.tasks.length;
   const selectedTask = this.reactive(() => {
     const selectedTaskId = this.state.selectedTaskId;
     return selectedTaskId ? this.state.tasks.find(task => task.id === selectedTaskId) : undefined;
@@ -117,7 +117,7 @@ export function Board(this: Component<BoardState>, props: BoardProps) {
     <main className="shell">
       <BoardHeader
         draft={this.state.draft}
-        total={taskTotal as unknown as number}
+        total={taskTotal}
       />
 
       <section className="board" style={{ gap: px(16) }}>
