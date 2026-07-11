@@ -74,7 +74,7 @@ The package entrypoints are:
 - `@exact/ssr`
   - Server render surface: `renderToString(vnode, options?)`, `renderToStringAsync(vnode, options?)`, `renderToStream(vnode, options?)`.
   - Hydration bootstrap surface: `renderHydrationScript(options?)`, `renderToHydratableString(vnode, options?)`, `renderToHydratableStringAsync(vnode, options?)`.
-  - Server boundary surface: `createBoundaryRefreshHandler(render, options)`.
+  - Server boundary surface: `createBoundaryRefreshHandler(render, options)`, `createActionRefreshHandler(options)`, `createExactServerHandlerRegistry(options)`.
   - Emits deterministic comment markers for component, cell, dynamic, fragment, and keyed-list item boundaries.
 - `@exact/hydrate`
   - Client hydration surface: `hydrate(vnode, container, options?)`.
@@ -127,6 +127,7 @@ For projects that want a precompile step before their existing TypeScript build,
 npx exactc --rootDir src --outDir .exact src
 npx exactc --rootDir src --outDir .exact --target server --manifest src
 npx exactc --rootDir src --outDir .exact --artifacts src
+npx exactc --rootDir src --outDir .exact --artifacts --serverComponents src
 ```
 
 That rewrites `.tsx` files to `.ts` and `.jsx` files to `.js` under the output directory, preserving relative paths. Your normal TypeScript/bundler pipeline can then compile the generated sources.
@@ -147,6 +148,7 @@ The Vite, Webpack, and Bun adapters also support `.exact` facade imports. With `
 For packaged component libraries that publish `exact-client` and `exact-server` export conditions, the adapter target adds the matching resolver condition during setup.
 Each adapter also accepts `importedManifests`, forwarding the same compiler manifest graph used by `compileProjectArtifacts()` into per-file transforms. That gives Vite, Webpack, and Bun the same imported client-component splitting behavior when a dev server or build pipeline has already collected package/project manifests.
 Server component mode is opt-in through `serverComponents: true` on compiler/artifact APIs and the Vite, Webpack, and Bun adapters. In that mode, client-target artifacts omit server-owned authored components while still walking them to emit generated client islands and pure client child components. Client-only builds leave this disabled.
+For precompile workflows, `exactc --artifacts --serverComponents` enables the same split behavior.
 
 In server-target artifacts, pure client components are emitted as server-safe boundary stubs instead of leaking browser-only code into the server bundle. Isomorphic components can still split simple interactive JSX islands such as elements with `onClick` or `ref` into server-rendered client-boundary placeholders. The compiler also splits clear client component tags out of server artifacts, replacing each tag instance with a source-stable boundary named after the client component and pruning imports that become unused after the split. Exported pure-client component stubs keep a component-level boundary ID, while rendered client component tag instances get distinct IDs so repeated tags and their server child slots can refresh independently. The client artifact preserves the interactive component and exports generated island aliases for element-level splits, which can be registered with the hydration client:
 
