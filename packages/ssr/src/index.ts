@@ -52,6 +52,19 @@ export type HydratableStringResult = RenderToStringResult & {
   htmlWithHydration: string;
 };
 
+export type RenderToDocumentStreamOptions = RenderToStringOptions & HydrationScriptOptions & {
+  rootId?: string;
+  hydration?: boolean;
+};
+
+export type ExactDocumentStreamEvent =
+  | { event: "start"; version: 1 }
+  | { event: "shell"; version: 1; html: string }
+  | { event: "replace"; version: 1; id: string; html: string }
+  | { event: "hydration"; version: 1; html: string }
+  | { event: "complete"; version: 1 }
+  | { event: "error"; version: 1; message: string };
+
 export type BoundaryRenderFunction = (
   input: ExactInvocationRequest,
   context: ExactServerContext
@@ -185,6 +198,30 @@ export function renderToStream(vnode: VNode, options: RenderToStringOptions = {}
   });
 }
 
+export function renderToDocumentStream(vnode: VNode, options: RenderToDocumentStreamOptions = {}): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      const emit = (event: ExactDocumentStreamEvent) => {
+        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      };
+      void streamDocumentRender(vnode, options, emit)
+        .then(() => controller.close())
+        .catch(error => {
+          emit({ event: "error", version: 1, message: error instanceof Error ? error.message : String(error) });
+          controller.close();
+        });
+    }
+  });
+}
+
+export function renderToHydratableDocumentStream(vnode: VNode, options: RenderToDocumentStreamOptions = {}): ReadableStream<Uint8Array> {
+  return renderToDocumentStream(vnode, {
+    ...options,
+    hydration: options.hydration ?? true
+  });
+}
+
 export async function renderToStringAsync(vnode: VNode, options: RenderToStringOptions = {}): Promise<RenderToStringResult> {
   const context: SsrContext = {
     markers: options.markers ?? true,
@@ -214,6 +251,52 @@ export async function renderToHydratableStringAsync(vnode: VNode, options: Rende
     hydrationScript,
     htmlWithHydration: `${result.html}${hydrationScript}`
   };
+}
+
+async function streamDocumentRender(
+  vnode: VNode,
+  options: RenderToDocumentStreamOptions,
+  emit: (event: ExactDocumentStreamEvent) => void
+): Promise<void> {
+  const pending = new Set<Promise<unknown>>();
+  const observer: TaskObserver = {
+    register: promise => {
+      let observed: Promise<unknown>;
+      observed = promise.finally(() => pending.delete(observed));
+      pending.add(observed);
+    }
+  };
+
+  emit({ event: "start", version: 1 });
+  const shell = withTaskObserver(observer, () => renderToString(vnode, options));
+  emit({ event: "shell", version: 1, html: shell.html });
+
+  let final = shell;
+  if (pending.size) {
+    await drainTasks(pending, options.maxTaskPasses ?? 10);
+    final = await renderToStringAsync(vnode, options);
+    if (final.html !== shell.html) {
+      emit({ event: "replace", version: 1, id: options.rootId ?? "document", html: final.html });
+    }
+  }
+
+  if (shouldEmitDocumentHydration(options)) {
+    emit({
+      event: "hydration",
+      version: 1,
+      html: renderHydrationScript({
+        endpoint: options.endpoint,
+        endpoints: options.endpoints,
+        state: final.state,
+        stateContracts: options.stateContracts,
+        actionBoundaries: options.actionBoundaries,
+        scriptId: options.scriptId,
+        nonce: options.nonce
+      })
+    });
+  }
+
+  emit({ event: "complete", version: 1 });
 }
 
 export function renderHydrationScript(options: HydrationScriptOptions = {}): string {
@@ -1039,6 +1122,18 @@ function serverSlotId(boundaryId: string): string {
 
 function serverSlotPayload(id: string): Record<string, string> {
   return { __exactServerSlot: id };
+}
+
+function shouldEmitDocumentHydration(options: RenderToDocumentStreamOptions): boolean {
+  if (options.hydration === false) return false;
+  if (options.hydration === true) return true;
+  return options.endpoint !== undefined
+    || options.endpoints !== undefined
+    || options.state !== undefined
+    || options.stateContracts !== undefined
+    || options.actionBoundaries !== undefined
+    || options.scriptId !== undefined
+    || options.nonce !== undefined;
 }
 
 function renderAttrs(props: Record<string, unknown>): string {

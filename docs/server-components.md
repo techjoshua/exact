@@ -143,6 +143,8 @@ Batches behave like independent GraphQL-style operation groups: each operation h
 
 Clients can opt into streamed endpoint responses by sending `Accept: application/x-ndjson` or `x-exact-stream: 1`; `@exact/hydrate` does this when `stream: true` is set. Stream responses are newline-delimited JSON events: `start`, zero or more per-operation `patch`, `state`, and `html` chunk events, one terminal `result` event per operation with `index` and optional `opId`, then `complete`. Independent batch chunks may arrive out of order as operations finish; the client restores request-order results before resolving helper promises.
 
+Initial document rendering can stream through `renderToDocumentStream()` or `renderToHydratableDocumentStream()`. These streams emit newline-delimited JSON document events: `start`, `shell`, optional root `replace` after observed async server tasks settle, optional `hydration`, and `complete`.
+
 Patch responses can include text updates, prop/style updates, keyed list operations, state updates, and boundary replacement. If a fine-grained patch cannot apply cleanly, the client replaces the nearest server boundary with the authoritative server-rendered HTML.
 
 ## Security

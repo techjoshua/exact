@@ -12,11 +12,31 @@ import {
   parseKeyedListSnapshotHtml,
   renderKeyedListSnapshot,
   renderHydrationScript,
+  renderToDocumentStream,
+  renderToHydratableDocumentStream,
   renderToHydratableString,
   renderToStream,
   renderToString,
   renderToStringAsync
 } from "./index.js";
+
+async function readStreamEvent(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<any> {
+  const next = await reader.read();
+  if (next.done) throw new Error("stream ended");
+  return JSON.parse(new TextDecoder().decode(next.value).trim());
+}
+
+async function readRemainingStreamEvents(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<any[]> {
+  const events: any[] = [];
+  while (true) {
+    const next = await reader.read();
+    if (next.done) return events;
+    const text = new TextDecoder().decode(next.value);
+    for (const line of text.split(/\r?\n/)) {
+      if (line.trim()) events.push(JSON.parse(line));
+    }
+  }
+}
 
 describe("@exact/ssr", () => {
   it("renders elements, attributes, text escaping, and styles to html", () => {
@@ -161,6 +181,77 @@ describe("@exact/ssr", () => {
     }
 
     expect(chunks.join("")).toBe("<p>streamed</p>");
+  });
+
+  it("streams document render events", async () => {
+    const stream = renderToDocumentStream(createVNode("p", null, "streamed"), {
+      markers: false,
+      endpoint: "/__exact",
+      state: { ready: true }
+    });
+    const events = await readRemainingStreamEvents(stream.getReader());
+
+    expect(events).toEqual([
+      { event: "start", version: 1 },
+      { event: "shell", version: 1, html: "<p>streamed</p>" },
+      {
+        event: "hydration",
+        version: 1,
+        html: expect.stringContaining("\"endpoint\":\"/__exact\"")
+      },
+      { event: "complete", version: 1 }
+    ]);
+    expect(events[2].html).toContain("\"ready\":true");
+  });
+
+  it("streams hydratable document bootstrap events", async () => {
+    const events = await readRemainingStreamEvents(renderToHydratableDocumentStream(
+      createVNode("p", null, "ready"),
+      { markers: false }
+    ).getReader());
+
+    expect(events).toEqual([
+      { event: "start", version: 1 },
+      { event: "shell", version: 1, html: "<p>ready</p>" },
+      {
+        event: "hydration",
+        version: 1,
+        html: "<script type=\"application/json\" id=\"__exact_hydration\">{}</script>"
+      },
+      { event: "complete", version: 1 }
+    ]);
+  });
+
+  it("streams the initial shell before async tasks settle", async () => {
+    let resolveTask!: () => void;
+    const taskReady = new Promise<void>(resolve => {
+      resolveTask = resolve;
+    });
+    function Profile(this: Component<{ name: string }>) {
+      this.state.name = "Loading";
+      this.task(async () => {
+        await taskReady;
+        this.state.name = "Ada";
+      });
+      return () => createVNode("p", null, this.state.name);
+    }
+
+    const reader = renderToDocumentStream(createVNode(Profile, {}), {
+      markers: false,
+      rootId: "app",
+      hydration: false
+    }).getReader();
+
+    expect(await readStreamEvent(reader)).toEqual({ event: "start", version: 1 });
+    expect(await readStreamEvent(reader)).toEqual({ event: "shell", version: 1, html: "<p>Loading</p>" });
+
+    resolveTask();
+    const rest = await readRemainingStreamEvents(reader);
+
+    expect(rest).toEqual([
+      { event: "replace", version: 1, id: "app", html: "<p>Ada</p>" },
+      { event: "complete", version: 1 }
+    ]);
   });
 
   it("serializes hydration endpoint and state as inert escaped json", () => {

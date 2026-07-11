@@ -17,11 +17,12 @@ This note records the implemented SSR/hydration foundation and the remaining des
 
 `@exact/ssr` owns server rendering:
 
-- Converts core VNodes to HTML strings or streams.
+- Converts core VNodes to HTML strings, raw HTML streams, and document event streams.
 - Executes component constructors and render functions without DOM globals.
 - Emits deterministic comment markers for component, cell, dynamic, fragment, and keyed-list boundaries.
 - Renders client-boundary placeholders and server child slots.
 - Waits for observed `this.task(...)` promises in `renderToStringAsync()` and `renderToHydratableStringAsync()`.
+- Streams initial shell HTML before observed async tasks settle through `renderToDocumentStream()` / `renderToHydratableDocumentStream()`, then emits an authoritative root replacement when settled HTML differs.
 - Serializes hydration bootstrap data through `renderHydrationScript()`.
 - Builds boundary refresh, action refresh, keyed-list refresh, and manifest-scoped server handler registries.
 
@@ -93,14 +94,15 @@ Batch operations are independent unless `dependsOn` references a previous unique
 
 Endpoint responses can stream as newline-delimited JSON when the client opts in with `Accept: application/x-ndjson` / `x-exact-stream: 1`. Stream events are `start`, per-operation `patch`/`state`/`html` chunks, terminal `result`, and `complete`; independent batch chunks may be emitted as each operation settles.
 
+Initial document streams are also newline-delimited JSON. Document stream events are `start`, `shell`, optional root `replace`, optional `hydration`, and `complete`.
+
 ## Remaining Work
 
 The current foundation is usable for the sample path and core protocol tests, but it is not yet a complete production server-component system. The remaining larger pieces are:
 
-- More complete compiler-owned component splitting across nested subgraphs and package boundaries.
+- More complete compiler-owned component splitting beyond the current nested local/imported server-child subgraphs.
 - Richer server patch generation for complex structural changes beyond the current text, element, list, state, and boundary replacement paths.
-- Initial document streaming beyond the existing endpoint result stream.
-- Stronger generated registry/context glue for larger apps with many manifests, including endpoint-side validation for serialized context payloads.
+- Stronger generated registry/context glue for larger apps with many manifests.
 - Micro frontend support beyond dynamically loaded remote manifests, per-boundary endpoints, per-endpoint batching, and same-realm global context tokens.
 - Better diagnostics for ambiguous placement inference and serialization failures sourced from generated compiler captures.
 - Production guidance for cache headers, deployment topology, auth/session integration, and package publishing conventions.
