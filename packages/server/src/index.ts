@@ -22,6 +22,7 @@ export type ExactManifestBoundary = {
   id: string;
   name?: string;
   componentId?: string;
+  ownerComponentId?: string;
   kind?: string;
 };
 
@@ -53,6 +54,7 @@ export type ExactCompilerManifestLike = {
     id: string;
     name?: string;
     componentId?: string;
+    ownerComponentId?: string;
     kind?: string;
   }[];
 };
@@ -172,6 +174,7 @@ export function createExactServerManifest(
         id: boundary.id,
         name: boundary.name,
         componentId: boundary.componentId,
+        ownerComponentId: boundary.ownerComponentId,
         kind: boundary.kind
       };
     }
@@ -209,7 +212,7 @@ function inferActionBoundaries(
   for (const action of Object.values(actions)) {
     if (!action.componentId) continue;
     const ids = Object.values(boundaries)
-      .filter(boundary => boundary.componentId === action.componentId)
+      .filter(boundary => (boundary.ownerComponentId ?? boundary.componentId) === action.componentId)
       .map(boundary => boundary.id)
       .sort();
     if (ids.length) output[action.id] = ids;

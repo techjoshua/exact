@@ -65,8 +65,8 @@ describe("@exact/server", () => {
         { id: "Widget", placement: "client" }
       ],
       boundaries: [
-        { id: "client-widget-boundary", name: "Widget", componentId: "Widget", kind: "client-island" },
-        { id: "client-widget-boundary:children", name: "Widget:children", componentId: "Widget", kind: "server-slot" }
+        { id: "client-widget-boundary", name: "Widget", componentId: "Widget", ownerComponentId: "Page", kind: "client-island" },
+        { id: "client-widget-boundary:children", name: "Widget:children", componentId: "Widget", ownerComponentId: "Page", kind: "server-slot" }
       ]
     }, { endpoint: "/__exact" });
 
@@ -91,19 +91,21 @@ describe("@exact/server", () => {
           id: "client-widget-boundary",
           name: "Widget",
           componentId: "Widget",
+          ownerComponentId: "Page",
           kind: "client-island"
         },
         "client-widget-boundary:children": {
           id: "client-widget-boundary:children",
           name: "Widget:children",
           componentId: "Widget",
+          ownerComponentId: "Page",
           kind: "server-slot"
         },
         Page: { id: "Page", componentId: "Page" }
       },
       actionBoundaries: {
-        serverTask: ["Page"],
-        sharedTask: ["Page"]
+        serverTask: ["Page", "client-widget-boundary", "client-widget-boundary:children"],
+        sharedTask: ["Page", "client-widget-boundary", "client-widget-boundary:children"]
       }
     });
 
@@ -114,8 +116,8 @@ describe("@exact/server", () => {
       }
     });
     expect(createExactHydrationActionBoundaries(manifest)).toEqual({
-      serverTask: ["Page"],
-      sharedTask: ["Page"]
+      serverTask: ["Page", "client-widget-boundary", "client-widget-boundary:children"],
+      sharedTask: ["Page", "client-widget-boundary", "client-widget-boundary:children"]
     });
     expect(createExactHydrationManifestConfig(manifest, { project: { id: "p1" } })).toEqual({
       endpoint: "/__exact",
@@ -127,8 +129,8 @@ describe("@exact/server", () => {
         }
       },
       actionBoundaries: {
-        serverTask: ["Page"],
-        sharedTask: ["Page"]
+        serverTask: ["Page", "client-widget-boundary", "client-widget-boundary:children"],
+        sharedTask: ["Page", "client-widget-boundary", "client-widget-boundary:children"]
       }
     });
   });

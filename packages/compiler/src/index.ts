@@ -81,6 +81,7 @@ export type ExactBoundaryIR = {
   id: string;
   name: string;
   componentId?: string;
+  ownerComponentId?: string;
   kind: "client-island" | "server-slot";
 };
 
@@ -434,8 +435,8 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   symbols.push(...createServerPartSymbols(sourceFile, components));
   symbols.push(...createClientIslandSymbols(sourceFile, components));
   boundaries.push(...createClientIslandBoundaries(sourceFile, components));
-  boundaries.push(...createClientComponentTagBoundaries(sourceFile, componentInfo, componentPlacements));
-  boundaries.push(...createServerSlotBoundaries(sourceFile, componentInfo, componentPlacements));
+  boundaries.push(...createClientComponentTagBoundaries(sourceFile, components, componentInfo, componentPlacements));
+  boundaries.push(...createServerSlotBoundaries(sourceFile, components, componentInfo, componentPlacements));
 
   for (const component of components) {
     for (const task of component.tasks) {
@@ -1620,6 +1621,7 @@ function createClientIslandBoundaries(
         id: stableId(sourceFile.fileName, component.name, "client-island", String(index)),
         name: generatedComponentName(component.name, "client-island", index),
         componentId: component.id,
+        ownerComponentId: component.id,
         kind: "client-island"
       });
     }
@@ -1631,6 +1633,7 @@ function createClientIslandBoundaries(
           id,
           name: component.name,
           componentId: component.id,
+          ownerComponentId: component.id,
           kind: "client-island"
         });
       }
@@ -1641,13 +1644,22 @@ function createClientIslandBoundaries(
 
 function createClientComponentTagBoundaries(
   sourceFile: ts.SourceFile,
+  components: readonly ExactComponentIR[],
   componentInfo: Map<string, ExactImportedComponentIR>,
   componentPlacements: Map<string, ExactPlacement>
 ): ExactBoundaryIR[] {
   const boundaries: ExactBoundaryIR[] = [];
   const seen = new Set<string>();
+  const localComponents = new Map(components.map(component => [component.name, component]));
+  const ownerStack: (ExactComponentIR | undefined)[] = [];
 
   function visit(node: ts.Node): void {
+    if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
+      ownerStack.push(localComponents.get(node.name.text));
+      ts.forEachChild(node, visit);
+      ownerStack.pop();
+      return;
+    }
     if (ts.isJsxElement(node) && jsxTagIsClientComponent(node.openingElement.tagName, componentPlacements)) {
       addBoundary(node.openingElement.tagName, node);
     } else if (ts.isJsxSelfClosingElement(node) && jsxTagIsClientComponent(node.tagName, componentPlacements)) {
@@ -1667,6 +1679,7 @@ function createClientComponentTagBoundaries(
       id,
       name: componentName,
       componentId: component?.componentId,
+      ownerComponentId: ownerStack[ownerStack.length - 1]?.id,
       kind: "client-island"
     });
   }
@@ -1677,13 +1690,22 @@ function createClientComponentTagBoundaries(
 
 function createServerSlotBoundaries(
   sourceFile: ts.SourceFile,
+  components: readonly ExactComponentIR[],
   componentInfo: Map<string, ExactImportedComponentIR>,
   componentPlacements: Map<string, ExactPlacement>
 ): ExactBoundaryIR[] {
   const boundaries: ExactBoundaryIR[] = [];
   const seen = new Set<string>();
+  const localComponents = new Map(components.map(component => [component.name, component]));
+  const ownerStack: (ExactComponentIR | undefined)[] = [];
 
   function visit(node: ts.Node): void {
+    if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
+      ownerStack.push(localComponents.get(node.name.text));
+      ts.forEachChild(node, visit);
+      ownerStack.pop();
+      return;
+    }
     if (ts.isJsxElement(node) && jsxTagIsClientComponent(node.openingElement.tagName, componentPlacements) && clientComponentHasServerSlotChildren(node)) {
       const tagKey = node.openingElement.tagName.getText(sourceFile);
       const component = componentInfo.get(tagKey);
@@ -1696,6 +1718,7 @@ function createServerSlotBoundaries(
           id,
           name: `${componentName}:children`,
           componentId: component?.componentId,
+          ownerComponentId: ownerStack[ownerStack.length - 1]?.id,
           kind: "server-slot"
         });
       }

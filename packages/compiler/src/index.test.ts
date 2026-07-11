@@ -1002,6 +1002,7 @@ describe("@exact/compiler", () => {
       id: expect.any(String),
       name: "Panel",
       componentId: result.manifest.components[0]!.id,
+      ownerComponentId: result.manifest.components[0]!.id,
       kind: "client-island"
     });
     expect(result.manifest.artifacts?.symbols).toEqual(result.manifest.symbols);
@@ -1228,6 +1229,7 @@ describe("@exact/compiler", () => {
       id: expect.any(String),
       name: "ClientWidget",
       componentId: expect.any(String),
+      ownerComponentId: result.manifest.components.find(component => component.name === "Page")!.id,
       kind: "client-island"
     });
     expect(result.manifest.artifacts?.boundaries).toEqual(result.manifest.boundaries);
@@ -1288,6 +1290,7 @@ describe("@exact/compiler", () => {
       id: slotBoundary!.id.slice(0, -":children".length),
       name: "ClientShell",
       componentId: slotBoundary!.componentId,
+      ownerComponentId: slotBoundary!.ownerComponentId,
       kind: "client-island"
     }));
     expect(manifest.boundaries.filter(boundary => boundary.name === "ClientShell:children" && boundary.kind === "server-slot")).toHaveLength(1);
