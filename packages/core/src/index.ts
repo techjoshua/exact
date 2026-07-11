@@ -746,8 +746,8 @@ export function logFrameworkEvent(
     packageName,
     category
   };
-  if (logger.isEnabled && !logger.isEnabled(level, scope)) return;
-  logger.log({
+  if (!isLogEnabled(logger, level, scope)) return;
+  emitLogEvent(logger, {
     level,
     message: evaluateLogValue(message),
     data: data === undefined ? undefined : evaluateLogValue(data),
@@ -867,7 +867,7 @@ function emitComponentLog(
 ): void {
   const scope = componentLogScope(instance);
   const logger = resolveLogger(instance);
-  if (logger.isEnabled && !logger.isEnabled(level, scope)) return;
+  if (!isLogEnabled(logger, level, scope)) return;
 
   const evaluatedMessage = evaluateLogValue(message);
   let evaluatedError: unknown;
@@ -887,13 +887,47 @@ function emitComponentLog(
     evaluatedData = evaluateLogValue(errorOrData);
   }
 
-  logger.log({
+  emitLogEvent(logger, {
     level,
     message: evaluatedMessage,
     error: evaluatedError,
     data: evaluatedData,
     scope
   });
+}
+
+function isLogEnabled(logger: Logger, level: LogLevel, scope: LogScope): boolean {
+  try {
+    return !logger.isEnabled || logger.isEnabled(level, scope);
+  } catch (error) {
+    reportLoggerFailure(error);
+    return false;
+  }
+}
+
+function emitLogEvent(logger: Logger, event: LogEvent): void {
+  try {
+    logger.log(event);
+  } catch (error) {
+    reportLoggerFailure(error);
+  }
+}
+
+function reportLoggerFailure(error: unknown): void {
+  try {
+    defaultConsoleLogger.log({
+      level: "error",
+      message: "logger failed while handling eXact log event",
+      error,
+      scope: {
+        source: "framework",
+        packageName: "core",
+        category: "logger"
+      }
+    });
+  } catch {
+    // Logging failures must not become application failures.
+  }
 }
 
 function resolveLogger(instance: ComponentInstance<any>): Logger {

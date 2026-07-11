@@ -313,6 +313,60 @@ describe("@exact/core", () => {
     }
   });
 
+  it("contains logger failures", () => {
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const logger: Logger = {
+      log() {
+        throw new Error("logger failed");
+      }
+    };
+
+    try {
+      const parent = createComponentInstance(function Parent(this: Component<{}>) {
+        this.setContext(LoggerContext, logger);
+        return () => null;
+      }, {});
+
+      expect(() => createComponentInstance(function Child(this: Component<{}>) {
+        this.log.info("hello");
+        return () => null;
+      }, {}, parent)).not.toThrow();
+
+      expect(() => logFrameworkEvent("warn", "dom", "patch", "placement skipped", undefined, logger)).not.toThrow();
+      expect(errorLog).toHaveBeenCalledWith(
+        "[exact] [framework:core:logger] logger failed while handling eXact log event",
+        expect.any(Error)
+      );
+    } finally {
+      errorLog.mockRestore();
+    }
+  });
+
+  it("does not evaluate lazy log payloads when logger enable checks fail", () => {
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const logger: Logger = {
+      isEnabled() {
+        throw new Error("logger failed");
+      },
+      log() {
+        throw new Error("log should not be called");
+      }
+    };
+
+    try {
+      expect(() => logFrameworkEvent("debug", "dom", "patch", () => {
+        throw new Error("message should not be evaluated");
+      }, undefined, logger)).not.toThrow();
+
+      expect(errorLog).toHaveBeenCalledWith(
+        "[exact] [framework:core:logger] logger failed while handling eXact log event",
+        expect.any(Error)
+      );
+    } finally {
+      errorLog.mockRestore();
+    }
+  });
+
   it("routes render failures to the nearest error context", () => {
     let instance!: Component<{ errors: ErrorReport[] }>;
 
