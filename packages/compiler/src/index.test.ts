@@ -629,6 +629,28 @@ describe("@exact/compiler", () => {
     expect(output).not.toContain("__exactDynamic(() => (format(this.state.first)))");
   });
 
+  it("inlines safe derived consts inside task dependency captures", () => {
+    const output = transform(`
+      function View(this: Component<{ query: string }>) {
+        const label = \`\${this.state.query}!\`;
+        this.task(label, async value => {});
+      }
+    `);
+
+    expect(output).toContain("this.task(this.reactive(() => (`${this.state.query}!`)), async (value) => { });");
+  });
+
+  it("inlines safe derived consts inside explicit reactive captures", () => {
+    const output = transform(`
+      function View(this: Component<{ query: string }>) {
+        const label = \`\${this.state.query}!\`;
+        const reactiveLabel = this.reactive(label);
+      }
+    `);
+
+    expect(output).toContain("this.reactive(() => (`${this.state.query}!`))");
+  });
+
   it("adds stable compiler ids to this.map list boundaries", () => {
     const output = transform(`
       function View(this: Component<{}>) {

@@ -1619,7 +1619,7 @@ function exactJsxTransformer(
             return factory.createVoidExpression(factory.createNumericLiteral(0));
           }
         }
-        return transformCapturedCall(sourceFile, node, context, visitor);
+        return transformCapturedCall(sourceFile, node, context, visitor, semanticReferences, componentDerivedStack[componentDerivedStack.length - 1]);
       }
       if (ts.isTaggedTemplateExpression(node)) {
         return transformReactiveTaggedTemplate(node, context, visitor);
@@ -3738,13 +3738,20 @@ function tagExpression(tagName: ts.JsxTagNameExpression): ts.Expression {
   return ts.factory.createStringLiteral(tagName.getText());
 }
 
-function transformCapturedCall(sourceFile: ts.SourceFile, node: ts.CallExpression, context: ts.TransformationContext, visitor: ts.Visitor): ts.Expression {
+function transformCapturedCall(
+  sourceFile: ts.SourceFile,
+  node: ts.CallExpression,
+  context: ts.TransformationContext,
+  visitor: ts.Visitor,
+  semanticReferences?: SemanticReferenceIndex,
+  derivedReactiveLocals?: DerivedReactiveIndex
+): ts.Expression {
   if (isThisMethodCall(node, "reactive")) {
-    return transformReactiveCall(node, context, visitor);
+    return transformReactiveCall(sourceFile, node, context, visitor, semanticReferences, derivedReactiveLocals);
   }
 
   if (isThisTaskCall(node)) {
-    return transformTaskCall(node, context, visitor);
+    return transformTaskCall(sourceFile, node, context, visitor, semanticReferences, derivedReactiveLocals);
   }
 
   if (isThisMethodCall(node, "map")) {
@@ -3766,7 +3773,14 @@ function transformReactiveTaggedTemplate(node: ts.TaggedTemplateExpression, cont
   );
 }
 
-function transformReactiveCall(node: ts.CallExpression, context: ts.TransformationContext, visitor: ts.Visitor): ts.Expression {
+function transformReactiveCall(
+  sourceFile: ts.SourceFile,
+  node: ts.CallExpression,
+  context: ts.TransformationContext,
+  visitor: ts.Visitor,
+  semanticReferences?: SemanticReferenceIndex,
+  derivedReactiveLocals?: DerivedReactiveIndex
+): ts.Expression {
   if (node.arguments.length !== 1) return ts.visitEachChild(node, visitor, context);
   const [argument] = node.arguments;
   if (!argument || isFunctionLikeExpression(argument)) return ts.visitEachChild(node, visitor, context);
@@ -3775,11 +3789,18 @@ function transformReactiveCall(node: ts.CallExpression, context: ts.Transformati
     node,
     ts.visitNode(node.expression, visitor) as ts.Expression,
     node.typeArguments,
-    [captureArgument(context, argument, visitor)]
+    [captureArgument(context, argument, visitor, sourceFile, semanticReferences, derivedReactiveLocals)]
   );
 }
 
-function transformTaskCall(node: ts.CallExpression, context: ts.TransformationContext, visitor: ts.Visitor): ts.Expression {
+function transformTaskCall(
+  sourceFile: ts.SourceFile,
+  node: ts.CallExpression,
+  context: ts.TransformationContext,
+  visitor: ts.Visitor,
+  semanticReferences?: SemanticReferenceIndex,
+  derivedReactiveLocals?: DerivedReactiveIndex
+): ts.Expression {
   if (node.arguments.length < 2) return ts.visitEachChild(node, visitor, context);
   const work = node.arguments[node.arguments.length - 1]!;
   if (!isFunctionLikeExpression(work)) return ts.visitEachChild(node, visitor, context);
@@ -3791,7 +3812,7 @@ function transformTaskCall(node: ts.CallExpression, context: ts.TransformationCo
     return context.factory.createCallExpression(
       context.factory.createPropertyAccessExpression(context.factory.createThis(), "reactive"),
       undefined,
-      [captureArgument(context, argument, visitor)]
+      [captureArgument(context, argument, visitor, sourceFile, semanticReferences, derivedReactiveLocals)]
     );
   });
 
@@ -3817,14 +3838,21 @@ function transformMapCall(sourceFile: ts.SourceFile, node: ts.CallExpression, co
   );
 }
 
-function captureArgument(context: ts.TransformationContext, expression: ts.Expression, visitor: ts.Visitor): ts.ArrowFunction {
+function captureArgument(
+  context: ts.TransformationContext,
+  expression: ts.Expression,
+  visitor: ts.Visitor,
+  sourceFile?: ts.SourceFile,
+  semanticReferences?: SemanticReferenceIndex,
+  derivedReactiveLocals?: DerivedReactiveIndex
+): ts.ArrowFunction {
   return context.factory.createArrowFunction(
     undefined,
     undefined,
     [],
     undefined,
     context.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-    ts.visitNode(expression, visitor) as ts.Expression
+    visitReactiveSinkExpression(context, expression, visitor, sourceFile, semanticReferences, derivedReactiveLocals)
   );
 }
 
