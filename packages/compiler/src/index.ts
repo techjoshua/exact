@@ -3237,9 +3237,15 @@ function appendObjectProperty(
 function stateAccessExpression(factory: ts.NodeFactory, segments: readonly string[]): ts.Expression {
   let expression: ts.Expression = factory.createPropertyAccessExpression(factory.createThis(), "state");
   for (const segment of segments) {
-    expression = factory.createPropertyAccessExpression(expression, segment);
+    expression = isIdentifierText(segment)
+      ? factory.createPropertyAccessExpression(expression, segment)
+      : factory.createElementAccessExpression(expression, factory.createStringLiteral(segment));
   }
   return expression;
+}
+
+function isIdentifierText(value: string): boolean {
+  return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(value);
 }
 
 function jsxTagIsClientComponent(

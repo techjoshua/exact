@@ -1414,6 +1414,22 @@ describe("@exact/compiler", () => {
     expect(output).not.toContain("onClick");
   });
 
+  it("emits valid state snapshots for non-identifier path segments", () => {
+    const output = transform(`
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ items: Record<string, { title: string }> }>) {
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        return () => <button title={this.state.items["first-item"].title} onClick={() => save()} />;
+      }
+    `, { filename: "Panel.tsx", target: "server" });
+
+    expect(output).toContain("\"first-item\": { title: this.state.items[\"first-item\"].title }");
+    expect(output).not.toContain("this.state.items.first-item");
+  });
+
   it("generates client island components with state bridge initialization", () => {
     const output = transform(`
       import { readFile } from "node:fs/promises";
