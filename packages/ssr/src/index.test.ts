@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createCompiledVNode, createDynamicChild, createServerBoundary, createTextVNode, createVNode, type Component } from "@exact/core";
 import { handleExactRequest } from "@exact/server";
 import {
+  createActionRefreshHandler,
   createBoundaryRefreshHandler,
   createKeyedListRefreshHandler,
   diffBoundaryHtml,
@@ -269,6 +270,50 @@ describe("@exact/ssr", () => {
       ok: true,
       state: { refreshed: true },
       patches: [{ type: "replace", id: "profile", html: "<p>Ada</p>" }]
+    });
+  });
+
+  it("creates action handlers that rerender configured server boundaries", async () => {
+    const response = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "action",
+        id: "save-profile",
+        boundaryHtmls: {
+          profile: "<p class=\"old\">Loading</p>"
+        }
+      }
+    }, {
+      manifest: {
+        version: 1,
+        actions: {
+          "save-profile": { id: "save-profile", placement: "server" }
+        },
+        boundaries: {
+          profile: { id: "profile" }
+        }
+      },
+      actions: {
+        "save-profile": createActionRefreshHandler({
+          action: () => ({ state: { saved: true } }),
+          boundaries: [{
+            boundaryId: "profile",
+            markers: false,
+            patchStrategy: "element",
+            render: () => createVNode("p", { className: "saved" }, "Saved")
+          }]
+        })
+      }
+    });
+
+    expect(response.status).toBe(200);
+    expect(JSON.parse(response.body)).toMatchObject({
+      ok: true,
+      state: { saved: true },
+      patches: [
+        { type: "prop", id: "profile", name: "class", value: "saved" },
+        { type: "text", id: "profile", value: "Saved" }
+      ]
     });
   });
 

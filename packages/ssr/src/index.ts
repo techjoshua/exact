@@ -62,6 +62,15 @@ export type BoundaryRefreshOptions = RenderToStringOptions & {
   previousHtml?(input: ExactInvocationRequest, context: ExactServerContext): string | Promise<string | undefined> | undefined;
 };
 
+export type ActionRefreshBoundaryOptions = BoundaryRefreshOptions & {
+  render: BoundaryRenderFunction;
+};
+
+export type ActionRefreshOptions = {
+  action(input: ExactInvocationRequest, context: ExactServerContext): Promise<ExactInvocationResult | void> | ExactInvocationResult | void;
+  boundaries: readonly ActionRefreshBoundaryOptions[];
+};
+
 export type KeyedListSnapshotItem = {
   key: string;
   html: string;
@@ -212,6 +221,34 @@ export function createBoundaryRefreshHandler(
         ? [boundaryPatch(options.boundaryId, result.html, options.patchStrategy)]
         : diffBoundaryHtml(options.boundaryId, previousHtml, result.html, options.patchStrategy),
       state: result.state
+    };
+  };
+}
+
+export function createActionRefreshHandler(
+  options: ActionRefreshOptions
+): (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> {
+  return async (input, context) => {
+    const actionResult: ExactInvocationResult = await options.action(input, context) ?? {};
+    const patches: ExactPatch[] = [...(actionResult.patches ?? [])];
+    let state = actionResult.state;
+
+    for (const boundary of options.boundaries) {
+      const vnode = await boundary.render(input, context);
+      const result = await renderToStringAsync(vnode, boundary);
+      const previousHtml = await boundary.previousHtml?.(input, context) ?? input.boundaryHtmls?.[boundary.boundaryId];
+      patches.push(...(
+        previousHtml === undefined
+          ? [boundaryPatch(boundary.boundaryId, result.html, boundary.patchStrategy)]
+          : diffBoundaryHtml(boundary.boundaryId, previousHtml, result.html, boundary.patchStrategy)
+      ));
+      if (state === undefined && result.state !== undefined) state = result.state;
+    }
+
+    return {
+      ...actionResult,
+      patches,
+      ...(state === undefined ? {} : { state })
     };
   };
 }
