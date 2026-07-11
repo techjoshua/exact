@@ -7,7 +7,7 @@ import {
   type ExactRequestLike
 } from "@exact/server";
 import {
-  createExactServerHandlerRegistry,
+  createExactServerRuntime,
   renderToHydratableStringAsync
 } from "@exact/ssr";
 import profileCompilerManifest from "../.exact/ProfilePage.exact.manifest.json" with { type: "json" };
@@ -28,7 +28,7 @@ export const exactManifest = createExactServerManifest(generatedProfileManifest,
   }
 });
 
-export const exactHandlers = createExactServerHandlerRegistry({
+export const exactRuntime = createExactServerRuntime({
   manifest: exactManifest,
   markers: false,
   patchStrategy: "element",
@@ -47,8 +47,5 @@ export async function renderProfilePage(name: string) {
 }
 
 export function handleExactServerRequest(request: ExactRequestLike) {
-  return handleExactRequest(request, {
-    manifest: exactManifest,
-    ...exactHandlers
-  });
+  return handleExactRequest(request, exactRuntime);
 }

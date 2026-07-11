@@ -87,6 +87,11 @@ export type ExactServerHandlerRegistry = {
   refreshBoundaries: NonNullable<ExactServerContext["refreshBoundaries"]>;
 };
 
+export type ExactServerRuntimeOptions = ExactServerHandlerRegistryOptions & {
+  authorize?: ExactServerContext["authorize"];
+  validateCsrf?: ExactServerContext["validateCsrf"];
+};
+
 export type KeyedListSnapshotItem = {
   key: string;
   html: string;
@@ -307,6 +312,17 @@ export function createExactServerHandlerRegistry(
   return {
     actions: actionHandlers,
     refreshBoundaries
+  };
+}
+
+export function createExactServerRuntime(options: ExactServerRuntimeOptions): ExactServerContext {
+  const registry = createExactServerHandlerRegistry(options);
+  return {
+    manifest: options.manifest,
+    ...registry,
+    authorize: options.authorize,
+    validateCsrf: options.validateCsrf,
+    logger: options.logger
   };
 }
 

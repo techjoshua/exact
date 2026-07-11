@@ -74,7 +74,7 @@ The package entrypoints are:
 - `@exact/ssr`
   - Server render surface: `renderToString(vnode, options?)`, `renderToStringAsync(vnode, options?)`, `renderToStream(vnode, options?)`.
   - Hydration bootstrap surface: `renderHydrationScript(options?)`, `renderToHydratableString(vnode, options?)`, `renderToHydratableStringAsync(vnode, options?)`.
-  - Server boundary surface: `createBoundaryRefreshHandler(render, options)`, `createActionRefreshHandler(options)`, `createExactServerHandlerRegistry(options)`.
+  - Server boundary surface: `createBoundaryRefreshHandler(render, options)`, `createActionRefreshHandler(options)`, `createExactServerHandlerRegistry(options)`, `createExactServerRuntime(options)`.
   - Emits deterministic comment markers for component, cell, dynamic, fragment, and keyed-list item boundaries.
 - `@exact/hydrate`
   - Client hydration surface: `hydrate(vnode, container, options?)`.

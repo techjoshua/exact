@@ -66,14 +66,14 @@ Only IDs present in the runtime manifest can be invoked. The client never sends 
 
 ## Handler Registry
 
-`@exact/ssr` can build manifest-scoped action and boundary handlers:
+`@exact/ssr` can build a ready runtime context from manifest-scoped action and boundary handlers:
 
 ```ts
-import { createExactServerHandlerRegistry } from "@exact/ssr";
+import { createExactServerRuntime } from "@exact/ssr";
 import { handleExactRequest } from "@exact/server";
 import { renderProfilePage } from "./server-entry";
 
-const registry = createExactServerHandlerRegistry({
+const runtime = createExactServerRuntime({
   manifest,
   actions: {
     "ProfilePage.task.loadProfile": async input => {
@@ -84,19 +84,16 @@ const registry = createExactServerHandlerRegistry({
   boundaries: {
     ProfilePage: () => renderProfilePage()
   },
-  patchStrategy: "element"
-});
-
-const response = await handleExactRequest(request, {
-  manifest,
-  ...registry,
+  patchStrategy: "element",
   authorize: validateSession,
   validateCsrf,
   logger
 });
+
+const response = await handleExactRequest(request, runtime);
 ```
 
-The same `handleExactRequest(request, context)` core works with Fetch-compatible runtimes, Express, Hapi, or custom JavaScript servers. `createFetchHandler`, `createExpressHandler`, and `createHapiHandler` are thin adapters over the same validation and dispatch logic.
+The same `handleExactRequest(request, context)` core works with Fetch-compatible runtimes, Express, Hapi, or custom JavaScript servers. `createFetchHandler`, `createExpressHandler`, and `createHapiHandler` are thin adapters over the same validation and dispatch logic. Apps that need lower-level composition can still use `createExactServerHandlerRegistry()` and merge the returned handlers into their own `ExactServerContext`.
 
 ## Hydration
 

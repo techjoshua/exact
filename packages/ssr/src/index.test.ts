@@ -5,6 +5,7 @@ import {
   createActionRefreshHandler,
   createBoundaryRefreshHandler,
   createExactServerHandlerRegistry,
+  createExactServerRuntime,
   createKeyedListRefreshHandler,
   diffBoundaryHtml,
   diffKeyedListItems,
@@ -371,6 +372,53 @@ describe("@exact/ssr", () => {
       { type: "text", id: "profile", value: "Saved" }
     ]);
     expect(action).toMatchObject({
+      state: { saved: true },
+      patches: [
+        { type: "prop", id: "profile", name: "class", value: "saved" },
+        { type: "text", id: "profile", value: "Saved" }
+      ]
+    });
+  });
+
+  it("creates a ready server runtime context from manifest-scoped handlers", async () => {
+    const runtime = createExactServerRuntime({
+      manifest: {
+        version: 1,
+        actions: {
+          "save-profile": { id: "save-profile", componentId: "Profile", placement: "server" }
+        },
+        boundaries: {
+          profile: { id: "profile", ownerComponentId: "Profile" }
+        },
+        actionBoundaries: {
+          "save-profile": ["profile"]
+        }
+      },
+      markers: false,
+      patchStrategy: "element",
+      authorize: () => true,
+      actions: {
+        "save-profile": () => ({ state: { saved: true } })
+      },
+      boundaries: {
+        profile: () => createVNode("p", { className: "saved" }, "Saved")
+      }
+    });
+
+    const response = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "action",
+        id: "save-profile",
+        boundaryHtmls: {
+          profile: "<p class=\"old\">Loading</p>"
+        }
+      }
+    }, runtime);
+
+    expect(response.status).toBe(200);
+    expect(JSON.parse(response.body)).toMatchObject({
+      ok: true,
       state: { saved: true },
       patches: [
         { type: "prop", id: "profile", name: "class", value: "saved" },

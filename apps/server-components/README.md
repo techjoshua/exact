@@ -12,7 +12,7 @@ npx exactc --rootDir apps/server-components/src --outDir apps/server-components/
 
 - create a secure server manifest from compiler manifest data
 - derive hydration config from that manifest
-- register manifest-scoped action and boundary handlers with `createExactServerHandlerRegistry`
+- create a manifest-scoped runtime context with `createExactServerRuntime`
 - dispatch requests through `handleExactRequest`
 
-The registry accepts app-provided functions, but it only exposes IDs already present in the manifest.
+The runtime accepts app-provided functions, but it only exposes IDs already present in the manifest.
