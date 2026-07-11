@@ -837,6 +837,23 @@ describe("@exact/compiler", () => {
     expect(server).not.toContain("window.innerWidth");
   });
 
+  it("splits client components with expression children into serializable island props", () => {
+    const server = transform(`
+      export function ClientShell(this: Component<{ width: number }>, props: { children?: unknown }) {
+        this.state.width = window.innerWidth;
+        return () => <section>{props.children}</section>;
+      }
+
+      export function Page(this: Component<{ title: string; count: number }>) {
+        return () => <ClientShell>Issue {this.state.title} #{this.state.count}</ClientShell>;
+      }
+    `, { target: "server" });
+
+    expect(server).toContain("__exactBoundary");
+    expect(server).toContain("children: [\"Issue\", this.state.title, \"#\", this.state.count]");
+    expect(server).not.toContain("window.innerWidth");
+  });
+
   it("fails clearly when a generated client island references server-only imports", () => {
     expect(() => transform(`
       import { readFile } from "node:fs/promises";

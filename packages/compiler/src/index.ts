@@ -656,12 +656,12 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
           target === "server"
           && jsxTagIsClientComponent(node.openingElement.tagName, componentPlacements)
         ) {
-          const textChildren = staticTextChildren(node);
-          if (!jsxElementHasNoMeaningfulChildren(node) && textChildren === undefined) {
+          const childrenProp = clientComponentChildrenProp(context, node);
+          if (!jsxElementHasNoMeaningfulChildren(node) && childrenProp === undefined) {
             throw new Error(`Cannot split client component ${node.openingElement.tagName.getText(sourceFile)} with children in server target; make the client component self-closing or extract the children into a server-rendered boundary.`);
           }
           sawBoundary = true;
-          return createComponentIslandBoundaryCall(sourceFile, context, helpers, node.openingElement.tagName, node.openingElement.attributes, textChildren);
+          return createComponentIslandBoundaryCall(sourceFile, context, helpers, node.openingElement.tagName, node.openingElement.attributes, childrenProp);
         }
         if (target === "server" && jsxElementIsClientIsland(node.openingElement.attributes)) {
           sawBoundary = true;
@@ -1599,7 +1599,7 @@ function createComponentIslandBoundaryCall(
   helpers: HelperNames,
   tagName: ts.JsxTagNameExpression,
   attributes: ts.JsxAttributes,
-  children?: string
+  children?: ts.Expression
 ): ts.Expression {
   const factory = context.factory;
   const componentName = tagName.getText(sourceFile);
@@ -1608,7 +1608,7 @@ function createComponentIslandBoundaryCall(
   return factory.createCallExpression(factory.createIdentifier(helpers.boundary), undefined, [
     factory.createStringLiteral(id),
     factory.createStringLiteral(componentName),
-    children === undefined ? props : appendObjectProperty(context, props, "children", factory.createStringLiteral(children))
+    children === undefined ? props : appendObjectProperty(context, props, "children", children)
   ]);
 }
 
@@ -1788,15 +1788,45 @@ function jsxElementHasNoMeaningfulChildren(node: ts.JsxElement): boolean {
   return node.children.every(child => ts.isJsxText(child) && !child.text.trim());
 }
 
-function staticTextChildren(node: ts.JsxElement): string | undefined {
-  if (!node.children.length) return undefined;
+function clientComponentChildrenProp(context: ts.TransformationContext, node: ts.JsxElement): ts.Expression | undefined {
+  const values: ts.Expression[] = [];
   let text = "";
   for (const child of node.children) {
-    if (!ts.isJsxText(child)) return undefined;
-    text += child.text;
+    if (ts.isJsxText(child)) {
+      text += child.text;
+      continue;
+    }
+    const normalized = text.replace(/\s+/g, " ").trim();
+    if (normalized) values.push(context.factory.createStringLiteral(normalized));
+    text = "";
+
+    if (ts.isJsxExpression(child)) {
+      if (!child.expression) continue;
+      if (containsJsx(child.expression)) return undefined;
+      values.push(child.expression);
+      continue;
+    }
+    return undefined;
   }
   const normalized = text.replace(/\s+/g, " ").trim();
-  return normalized ? normalized : undefined;
+  if (normalized) values.push(context.factory.createStringLiteral(normalized));
+  if (!values.length) return undefined;
+  if (values.length === 1) return values[0];
+  return context.factory.createArrayLiteralExpression(values, false);
+}
+
+function containsJsx(node: ts.Node): boolean {
+  let found = false;
+  function visit(current: ts.Node): void {
+    if (found) return;
+    if (ts.isJsxElement(current) || ts.isJsxSelfClosingElement(current) || ts.isJsxFragment(current)) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(current, visit);
+  }
+  visit(node);
+  return found;
 }
 
 function callElement(
