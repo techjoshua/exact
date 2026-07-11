@@ -393,6 +393,39 @@ describe("@exact/compiler", () => {
     });
   });
 
+  it("records component and task context contracts", () => {
+    const manifest = analyzeSource(`
+      import { LocaleContext } from "./contexts";
+
+      export function ProjectPage(this: Component<{ title?: string }>) {
+        const locale = this.getContext(LocaleContext);
+        this.task.server(() => {
+          const logger = this.getContext(Services.Logger);
+          this.setContext(LocaleContext, locale);
+          this.state.title = logger.current;
+        });
+        this.getContext(createDynamicToken());
+        return () => <p>{this.state.title}</p>;
+      }
+    `, { filename: "ProjectPage.tsx" });
+
+    const component = manifest.components[0]!;
+    const task = component.tasks[0]!;
+    const action = Object.values(manifest.serverActions)[0]!;
+
+    expect(component.contexts).toEqual([
+      { token: "LocaleContext", kind: "read", confidence: "exact" },
+      { token: "Services.Logger", kind: "read", confidence: "exact" },
+      { token: "unknown", kind: "read", confidence: "unknown" },
+      { token: "LocaleContext", kind: "write", confidence: "exact" }
+    ]);
+    expect(task.contexts).toEqual([
+      { token: "Services.Logger", kind: "read", confidence: "exact" },
+      { token: "LocaleContext", kind: "write", confidence: "exact" }
+    ]);
+    expect(action.contextContract).toEqual(task.contexts);
+  });
+
   it("uses resolved references when classifying task environments", () => {
     const manifest = analyzeSource(`
       import { readFile } from "node:fs/promises";

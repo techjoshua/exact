@@ -25,6 +25,7 @@ export type ExactManifestAction = {
   taskId?: string;
   placement?: "server" | "isomorphic";
   stateContract?: ExactStateContract;
+  contextContract?: ExactContextEffect[];
 };
 
 export type ExactManifestBoundary = {
@@ -43,6 +44,12 @@ export type ExactStateContract = {
   writes?: ExactStatePath[];
 };
 
+export type ExactContextEffect = {
+  token: string;
+  kind: "read" | "write";
+  confidence: "exact" | "unknown";
+};
+
 export type ExactStatePath = {
   path: string;
   kind: "read" | "write";
@@ -57,6 +64,7 @@ export type ExactCompilerManifestLike = {
     taskId?: string;
     placement?: "server" | "isomorphic" | "client" | "unknown";
     stateContract?: ExactStateContract;
+    contextContract?: ExactContextEffect[];
   }>;
   components?: readonly {
     id: string;
@@ -187,7 +195,8 @@ export function createExactServerManifest(
         componentId: action.componentId,
         taskId: action.taskId,
         placement: action.placement,
-        stateContract: action.stateContract
+        stateContract: action.stateContract,
+        contextContract: action.contextContract
       };
     }
 
@@ -247,6 +256,7 @@ function assertCompilerManifestLike(manifest: unknown): asserts manifest is Exac
     if (action.taskId !== undefined && typeof action.taskId !== "string") throw new Error("Malformed eXact compiler manifest");
     if (action.placement !== undefined && !isCompilerPlacement(action.placement)) throw new Error("Malformed eXact compiler manifest");
     if (action.stateContract !== undefined && !isStateContract(action.stateContract)) throw new Error("Malformed eXact compiler manifest");
+    if (action.contextContract !== undefined && !isContextContract(action.contextContract)) throw new Error("Malformed eXact compiler manifest");
   }
   if (record.components !== undefined && !Array.isArray(record.components)) throw new Error("Malformed eXact compiler manifest");
   for (const component of record.components ?? []) {
@@ -286,6 +296,16 @@ function isStatePathList(value: unknown): value is ExactStatePath[] {
     return typeof path.path === "string"
       && (path.kind === "read" || path.kind === "write")
       && (path.confidence === "exact" || path.confidence === "broad" || path.confidence === "unknown");
+  });
+}
+
+function isContextContract(value: unknown): value is ExactContextEffect[] {
+  return Array.isArray(value) && value.every(item => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return false;
+    const effect = item as Partial<ExactContextEffect>;
+    return typeof effect.token === "string"
+      && (effect.kind === "read" || effect.kind === "write")
+      && (effect.confidence === "exact" || effect.confidence === "unknown");
   });
 }
 

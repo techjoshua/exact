@@ -86,6 +86,17 @@ describe("@exact/server", () => {
         renderEdgeIndex: 0
       }]
     } as any)).toThrow("Malformed eXact compiler manifest");
+
+    expect(() => createExactServerManifest({
+      version: 1,
+      serverActions: {
+        action: {
+          id: "action",
+          placement: "server",
+          contextContract: [{ token: "AuthContext", kind: "inspect", confidence: "exact" }]
+        }
+      }
+    } as any)).toThrow("Malformed eXact compiler manifest");
   });
 
   it("rejects malformed endpoint route maps", () => {
@@ -251,7 +262,13 @@ describe("@exact/server", () => {
       {
         version: 1,
         serverActions: {
-          pageTask: { id: "pageTask", componentId: "Page", taskId: "task-1", placement: "server" }
+          pageTask: {
+            id: "pageTask",
+            componentId: "Page",
+            taskId: "task-1",
+            placement: "server",
+            contextContract: [{ token: "AuthContext", kind: "read", confidence: "exact" }]
+          }
         },
         components: [{ id: "Page", placement: "server" }],
         boundaries: [{ id: "page-widget", name: "Widget", componentId: "Widget", kind: "client-island" }]
@@ -271,7 +288,13 @@ describe("@exact/server", () => {
     });
 
     expect(manifest.actions).toEqual({
-      pageTask: { id: "pageTask", componentId: "Page", taskId: "task-1", placement: "server" },
+      pageTask: {
+        id: "pageTask",
+        componentId: "Page",
+        taskId: "task-1",
+        placement: "server",
+        contextContract: [{ token: "AuthContext", kind: "read", confidence: "exact" }]
+      },
       panelTask: { id: "panelTask", componentId: "Panel", taskId: "task-2", placement: "isomorphic" }
     });
     expect(manifest.boundaries).toEqual({

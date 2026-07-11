@@ -26,6 +26,12 @@ export type ExactStateEffect = {
   confidence: "exact" | "broad" | "unknown";
 };
 
+export type ExactContextEffect = {
+  token: string;
+  kind: "read" | "write";
+  confidence: "exact" | "unknown";
+};
+
 export type ExactTaskIR = {
   id: string;
   placement: ExactPlacement;
@@ -34,6 +40,7 @@ export type ExactTaskIR = {
   browserEffects: boolean;
   reads: ExactStateEffect[];
   writes: ExactStateEffect[];
+  contexts: ExactContextEffect[];
   diagnostics: string[];
 };
 
@@ -57,6 +64,7 @@ export type ExactComponentIR = {
   renderEdges: ExactComponentRenderEdgeIR[];
   clientIslandCount: number;
   tasks: ExactTaskIR[];
+  contexts: ExactContextEffect[];
   splitBoundaries: string[];
   diagnostics: string[];
 };
@@ -175,6 +183,7 @@ export type ExactCompilerManifest = {
       reads: ExactStateEffect[];
       writes: ExactStateEffect[];
     };
+    contextContract: ExactContextEffect[];
   }>;
   diagnostics: string[];
 };
@@ -519,7 +528,8 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
           stateContract: {
             reads: task.reads,
             writes: task.writes
-          }
+          },
+          contextContract: task.contexts
         };
       }
     }
@@ -1692,6 +1702,7 @@ function analyzeComponent(
   semanticDeclarations: SemanticDeclarationIndex
 ): ExactComponentIR {
   const tasks: ExactTaskIR[] = [];
+  const contexts: ExactContextEffect[] = [];
   const splitBoundaries = new Set<string>();
   const diagnostics: string[] = [];
   const browserGlobalsOutsideClientBoundary = new Set<string>();
@@ -1704,6 +1715,7 @@ function analyzeComponent(
     if (ts.isCallExpression(current) && isThisTaskCall(current)) {
       const task = analyzeTask(`${name}:task:${taskIndex++}`, current, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations);
       tasks.push(task);
+      contexts.push(...task.contexts);
       if (task.placement === "client") hasClientEffect = true;
       if (task.placement === "server") hasServerEffect = true;
       if (task.placement === "isomorphic") {
@@ -1714,6 +1726,9 @@ function analyzeComponent(
       ts.forEachChild(current, child => visit(child, islandDepth, taskDepth + 1));
       return;
     }
+
+    const contextEffect = contextEffectForCall(current, sourceFile);
+    if (contextEffect) contexts.push(contextEffect);
 
     const isIslandElement = ts.isJsxElement(current) && jsxElementIsClientIsland(current.openingElement.attributes);
     const isIslandNode = isIslandElement || (ts.isJsxSelfClosingElement(current) && jsxElementIsClientIsland(current.attributes));
@@ -1780,6 +1795,7 @@ function analyzeComponent(
     renderEdges: [],
     clientIslandCount,
     tasks,
+    contexts: uniqueContextEffects(contexts),
     splitBoundaries: [...splitBoundaries].sort(),
     diagnostics: uniqueDiagnostics(diagnostics)
   };
@@ -1957,6 +1973,7 @@ function analyzeTask(
   const work = node.arguments[node.arguments.length - 1];
   const reads: ExactStateEffect[] = [];
   const writes: ExactStateEffect[] = [];
+  const contexts: ExactContextEffect[] = [];
   const diagnostics: string[] = [];
   let browserEffects = false;
   let serverEffects = false;
@@ -1972,6 +1989,7 @@ function analyzeTask(
       browserEffects: false,
       reads,
       writes,
+      contexts,
       diagnostics: ["task work callback could not be analyzed"]
     };
   }
@@ -2044,6 +2062,9 @@ function analyzeTask(
     }
 
     if (ts.isCallExpression(current)) {
+      const contextEffect = contextEffectForCall(current, sourceFile);
+      if (contextEffect) contexts.push(contextEffect);
+
       const expression = current.expression;
       if (ts.isPropertyAccessExpression(expression)) {
         const receiverPath = stateEffectPath(expression.expression, sourceFile, semanticReferences, stateAliases);
@@ -2108,6 +2129,7 @@ function analyzeTask(
     browserEffects,
     reads: uniqueEffects(reads),
     writes: uniqueEffects(writes),
+    contexts: uniqueContextEffects(contexts),
     diagnostics
   };
 }
@@ -2809,6 +2831,25 @@ function stateEffectPath(
   return undefined;
 }
 
+function contextEffectForCall(node: ts.Node, sourceFile: ts.SourceFile): ExactContextEffect | undefined {
+  if (!ts.isCallExpression(node)) return undefined;
+  if (!ts.isPropertyAccessExpression(node.expression)) return undefined;
+  if (node.expression.expression.kind !== ts.SyntaxKind.ThisKeyword) return undefined;
+  const method = node.expression.name.text;
+  if (method !== "getContext" && method !== "setContext") return undefined;
+  const token = node.arguments[0];
+  return {
+    token: token ? contextTokenName(token, sourceFile) : "unknown",
+    kind: method === "getContext" ? "read" : "write",
+    confidence: token && (ts.isIdentifier(token) || ts.isPropertyAccessExpression(token)) ? "exact" : "unknown"
+  };
+}
+
+function contextTokenName(node: ts.Expression, sourceFile: ts.SourceFile): string {
+  if (ts.isIdentifier(node) || ts.isPropertyAccessExpression(node)) return node.getText(sourceFile);
+  return "unknown";
+}
+
 function isStatePathExpression(expression: ts.Expression): boolean {
   if (isThisStateAccess(expression)) return true;
   if (ts.isPropertyAccessExpression(expression)) return isStatePathExpression(expression.expression);
@@ -2841,6 +2882,18 @@ function uniqueEffects(effects: ExactStateEffect[]): ExactStateEffect[] {
     output.push(effect);
   }
   return output.sort((left, right) => `${left.kind}:${left.path}`.localeCompare(`${right.kind}:${right.path}`));
+}
+
+function uniqueContextEffects(effects: ExactContextEffect[]): ExactContextEffect[] {
+  const seen = new Set<string>();
+  const output: ExactContextEffect[] = [];
+  for (const effect of effects) {
+    const key = `${effect.kind}:${effect.token}:${effect.confidence}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    output.push(effect);
+  }
+  return output.sort((left, right) => `${left.kind}:${left.token}`.localeCompare(`${right.kind}:${right.token}`));
 }
 
 function uniqueDiagnostics(diagnostics: readonly string[]): string[] {
