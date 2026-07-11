@@ -14,7 +14,9 @@ import {
   renderHydrationScript,
   renderToDocumentStream,
   renderToHydratableDocumentStream,
+  renderToHydratableProgressiveHtmlStream,
   renderToHydratableString,
+  renderToProgressiveHtmlStream,
   renderToStream,
   renderToString,
   renderToStringAsync
@@ -35,6 +37,21 @@ async function readRemainingStreamEvents(reader: ReadableStreamDefaultReader<Uin
     for (const line of text.split(/\r?\n/)) {
       if (line.trim()) events.push(JSON.parse(line));
     }
+  }
+}
+
+async function readStreamText(stream: ReadableStream<Uint8Array>): Promise<string> {
+  const reader = stream.getReader();
+  return readRemainingText(reader);
+}
+
+async function readRemainingText(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<string> {
+  const decoder = new TextDecoder();
+  let text = "";
+  while (true) {
+    const next = await reader.read();
+    if (next.done) return text;
+    text += decoder.decode(next.value);
   }
 }
 
@@ -252,6 +269,81 @@ describe("@exact/ssr", () => {
       { event: "replace", version: 1, id: "app", html: "<p>Ada</p>" },
       { event: "complete", version: 1 }
     ]);
+  });
+
+  it("streams progressive browser-consumable html", async () => {
+    const html = await readStreamText(renderToHydratableProgressiveHtmlStream(
+      createVNode("p", null, "ready"),
+      {
+        markers: false,
+        rootId: "app",
+        endpoint: "/__exact"
+      }
+    ));
+
+    expect(html).toContain("<div id=\"app\"><p>ready</p></div>");
+    expect(html).toContain("<script type=\"application/json\" id=\"__exact_hydration\">");
+    expect(html).toContain("\"endpoint\":\"/__exact\"");
+  });
+
+  it("streams progressive html shell before async task replacement", async () => {
+    let resolveTask!: () => void;
+    const taskReady = new Promise<void>(resolve => {
+      resolveTask = resolve;
+    });
+    function Profile(this: Component<{ name: string }>) {
+      this.state.name = "Loading";
+      this.task(async () => {
+        await taskReady;
+        this.state.name = "</script><strong>Ada</strong>";
+      });
+      return () => createVNode("p", null, this.state.name);
+    }
+
+    const reader = renderToProgressiveHtmlStream(createVNode(Profile, {}), {
+      markers: false,
+      rootId: "profile",
+      nonce: "abc\"123"
+    }).getReader();
+    const first = await reader.read();
+
+    expect(new TextDecoder().decode(first.value)).toBe("<div id=\"profile\"><p>Loading</p></div>");
+
+    resolveTask();
+    const rest = await readRemainingText(reader);
+
+    expect(rest).toContain("document.getElementById(\"profile\")");
+    expect(rest).toContain("<script nonce=\"abc&quot;123\">");
+    expect(rest).toContain("&lt;/script&gt;");
+    expect(rest).toContain("\\u003Cp>");
+    expect(rest).not.toContain("</script><strong>");
+  });
+
+  it("uses the same default root for progressive shell and replacement", async () => {
+    let resolveTask!: () => void;
+    const taskReady = new Promise<void>(resolve => {
+      resolveTask = resolve;
+    });
+    function Status(this: Component<{ value: string }>) {
+      this.state.value = "Loading";
+      this.task(async () => {
+        await taskReady;
+        this.state.value = "Ready";
+      });
+      return () => createVNode("p", null, this.state.value);
+    }
+
+    const reader = renderToProgressiveHtmlStream(createVNode(Status, {}), {
+      markers: false
+    }).getReader();
+    const first = await reader.read();
+
+    expect(new TextDecoder().decode(first.value)).toBe("<div id=\"exact-root\"><p>Loading</p></div>");
+
+    resolveTask();
+    const rest = await readRemainingText(reader);
+
+    expect(rest).toContain("document.getElementById(\"exact-root\")");
   });
 
   it("serializes hydration endpoint and state as inert escaped json", () => {
