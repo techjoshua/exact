@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  createExactHydrationActionBoundaries,
   createExactHydrationStateContracts,
   createExactServerManifest,
   createExpressHandler,
@@ -98,6 +99,10 @@ describe("@exact/server", () => {
           kind: "server-slot"
         },
         Page: { id: "Page", componentId: "Page" }
+      },
+      actionBoundaries: {
+        serverTask: ["Page"],
+        sharedTask: ["Page"]
       }
     });
 
@@ -106,6 +111,10 @@ describe("@exact/server", () => {
         reads: [{ path: "project.id", kind: "read", confidence: "exact" }],
         writes: [{ path: "project.title", kind: "write", confidence: "exact" }]
       }
+    });
+    expect(createExactHydrationActionBoundaries(manifest)).toEqual({
+      serverTask: ["Page"],
+      sharedTask: ["Page"]
     });
   });
 
@@ -141,6 +150,10 @@ describe("@exact/server", () => {
       "page-widget": { id: "page-widget", name: "AppWidgetOverride" },
       Page: { id: "Page", componentId: "Page" },
       Panel: { id: "Panel", componentId: "Panel" }
+    });
+    expect(manifest.actionBoundaries).toEqual({
+      pageTask: ["Page"],
+      panelTask: ["Panel"]
     });
   });
 
@@ -203,6 +216,36 @@ describe("@exact/server", () => {
 
     expect(denied.status).toBe(400);
     expect(JSON.parse(denied.body)).toEqual({ error: "bad_request" });
+  });
+
+  it("rejects action boundary snapshots outside the action boundary contract", async () => {
+    const result = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "action",
+        id: "allowed-action",
+        boundaryHtmls: {
+          "other-boundary": "<p>Other</p>"
+        }
+      }
+    }, context({
+      manifest: {
+        version: 1,
+        actions: {
+          "allowed-action": { id: "allowed-action", placement: "server" }
+        },
+        boundaries: {
+          "allowed-boundary": { id: "allowed-boundary" },
+          "other-boundary": { id: "other-boundary" }
+        },
+        actionBoundaries: {
+          "allowed-action": ["allowed-boundary"]
+        }
+      }
+    }));
+
+    expect(result.status).toBe(400);
+    expect(JSON.parse(result.body)).toEqual({ error: "bad_request" });
   });
 
   it("rejects action requests missing exact state contract reads", async () => {

@@ -7,6 +7,7 @@ export type ExactServerManifest = {
   endpoint?: string;
   actions?: Record<string, ExactManifestAction>;
   boundaries?: Record<string, ExactManifestBoundary>;
+  actionBoundaries?: Record<string, string[]>;
 };
 
 export type ExactManifestAction = {
@@ -180,7 +181,8 @@ export function createExactServerManifest(
     version: 1,
     endpoint: options.endpoint,
     actions,
-    boundaries
+    boundaries,
+    actionBoundaries: inferActionBoundaries(actions, boundaries)
   };
 }
 
@@ -192,12 +194,32 @@ function isCompilerManifestList(value: ExactCompilerManifestLike | readonly Exac
   return Array.isArray(value);
 }
 
+function inferActionBoundaries(
+  actions: Record<string, ExactManifestAction>,
+  boundaries: Record<string, ExactManifestBoundary>
+): Record<string, string[]> {
+  const output: Record<string, string[]> = {};
+  for (const action of Object.values(actions)) {
+    if (!action.componentId) continue;
+    const ids = Object.values(boundaries)
+      .filter(boundary => boundary.componentId === action.componentId)
+      .map(boundary => boundary.id)
+      .sort();
+    if (ids.length) output[action.id] = ids;
+  }
+  return output;
+}
+
 export function createExactHydrationStateContracts(manifest: ExactServerManifest): Record<string, ExactStateContract> {
   const contracts: Record<string, ExactStateContract> = {};
   for (const [id, action] of Object.entries(manifest.actions ?? {})) {
     if (action.stateContract) contracts[id] = action.stateContract;
   }
   return contracts;
+}
+
+export function createExactHydrationActionBoundaries(manifest: ExactServerManifest): Record<string, readonly string[]> {
+  return manifest.actionBoundaries ?? inferActionBoundaries(manifest.actions ?? {}, manifest.boundaries ?? {});
 }
 
 export async function handleExactRequest(request: ExactRequestLike, context: ExactServerContext): Promise<ExactResponseLike> {
@@ -500,6 +522,13 @@ function isStringList(value: unknown): value is string[] {
 
 function boundaryHintsAllowed(input: ExactInvocationRequest, manifest: ExactServerManifest): boolean {
   if (!input.boundaryHtmls) return true;
+  if (input.type === "action") {
+    const allowed = manifest.actionBoundaries?.[input.id];
+    if (allowed) {
+      const allowedSet = new Set(allowed);
+      return Object.keys(input.boundaryHtmls).every(id => allowedSet.has(id));
+    }
+  }
   for (const id of Object.keys(input.boundaryHtmls)) {
     if (!manifest.boundaries?.[id]) return false;
   }
