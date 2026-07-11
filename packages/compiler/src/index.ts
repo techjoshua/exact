@@ -141,6 +141,7 @@ export type ExactArtifactManifest = {
 export type ExactCompilerManifest = {
   version: 1;
   filename: string;
+  semanticGraph?: ExactSemanticGraphIR;
   components: ExactComponentIR[];
   exports: ExactExportIR[];
   symbols: ExactSymbolIR[];
@@ -504,6 +505,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   return {
     version: exactCompilerManifestVersion,
     filename,
+    semanticGraph,
     components,
     exports,
     symbols,

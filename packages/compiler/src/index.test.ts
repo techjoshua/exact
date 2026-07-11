@@ -118,6 +118,25 @@ describe("@exact/compiler", () => {
     expect(graph.references.some(item => item.name === "RemotePage")).toBe(false);
   });
 
+  it("includes the semantic graph in analyzed manifests", () => {
+    const manifest = analyzeSource(`
+      const label = "Ready";
+
+      export function ProjectPage() {
+        return () => <p>{label}</p>;
+      }
+    `, { filename: "ProjectPage.tsx" });
+
+    expect(manifest.semanticGraph).toBeDefined();
+    expect(manifest.semanticGraph!.declarations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "label", kind: "variable" }),
+      expect.objectContaining({ name: "ProjectPage", kind: "function" })
+    ]));
+    expect(manifest.semanticGraph!.references).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "label", source: "local" })
+    ]));
+  });
+
   it("lowers JSX to eXact compiled vnode helpers", () => {
     const output = transform("const view = <button title={label}>Save</button>;");
 
