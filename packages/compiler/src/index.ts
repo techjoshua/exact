@@ -366,6 +366,7 @@ type ClientIslandElementNode = ts.JsxElement | ts.JsxSelfClosingElement;
 type ComponentLocalInfo = {
   names: Set<string>;
   functions: Map<string, ts.Statement>;
+  declarationIds: Map<string, Set<string>>;
 };
 
 type ExportBinding = {
@@ -379,6 +380,7 @@ type ClientIslandCaptures = {
 };
 
 type SemanticReferenceIndex = Map<string, ExactSemanticReferenceIR>;
+type SemanticDeclarationIndex = Map<string, ExactSemanticDeclarationIR>;
 
 export function transform(source: string, options: TransformOptions = {}): string {
   return transformSource(source, options).code;
@@ -723,12 +725,24 @@ function createSemanticReferenceIndex(sourceFile: ts.SourceFile, graph: ExactSem
   return new Map(graph.references.map(reference => [semanticReferenceKey(sourceFile, reference.name, reference.nodeStart, reference.nodeEnd), reference]));
 }
 
+function createSemanticDeclarationIndex(sourceFile: ts.SourceFile, graph: ExactSemanticGraphIR): SemanticDeclarationIndex {
+  return new Map(graph.declarations.map(declaration => [semanticReferenceKey(sourceFile, declaration.name, declaration.nodeStart, declaration.nodeEnd), declaration]));
+}
+
 function semanticReferenceForIdentifier(
   node: ts.Identifier,
   references: SemanticReferenceIndex,
   sourceFile: ts.SourceFile
 ): ExactSemanticReferenceIR | undefined {
   return references.get(semanticReferenceKey(sourceFile, node.text, node.getStart(sourceFile), node.getEnd()));
+}
+
+function semanticDeclarationForIdentifier(
+  node: ts.Identifier,
+  declarations: SemanticDeclarationIndex,
+  sourceFile: ts.SourceFile
+): ExactSemanticDeclarationIR | undefined {
+  return declarations.get(semanticReferenceKey(sourceFile, node.text, node.getStart(sourceFile), node.getEnd()));
 }
 
 function semanticReferenceKey(_sourceFile: ts.SourceFile, name: string, start: number, end: number): string {
@@ -1317,6 +1331,7 @@ function exactJsxTransformer(
     const helpers = allocateHelperNames(sourceFile);
     const semanticGraph = buildSemanticGraph(sourceFile);
     const semanticReferences = createSemanticReferenceIndex(sourceFile, semanticGraph);
+    const semanticDeclarations = createSemanticDeclarationIndex(sourceFile, semanticGraph);
     const serverOnlyImports = collectServerOnlyImports(sourceFile, semanticGraph);
     const componentInfo = collectComponentInfo(sourceFile, serverOnlyImports, importedManifests);
     const componentPlacements = componentPlacementsFromInfo(componentInfo);
@@ -1337,14 +1352,14 @@ function exactJsxTransformer(
         }
         if (target === "client" && serverComponents && componentPlacement !== "client") {
           componentStack.push(node.name.text);
-          componentLocalStack.push(collectComponentLocalInfo(node));
+          componentLocalStack.push(collectComponentLocalInfo(node, sourceFile, semanticDeclarations));
           ts.visitEachChild(node, visitor, context);
           componentLocalStack.pop();
           componentStack.pop();
           return factory.createEmptyStatement();
         }
         componentStack.push(node.name.text);
-        componentLocalStack.push(collectComponentLocalInfo(node));
+        componentLocalStack.push(collectComponentLocalInfo(node, sourceFile, semanticDeclarations));
         const visited = ts.visitEachChild(node, visitor, context);
         componentLocalStack.pop();
         componentStack.pop();
@@ -1371,13 +1386,13 @@ function exactJsxTransformer(
         }
         if (target === "server" && jsxElementIsClientIsland(node.openingElement.attributes)) {
           sawBoundary = true;
-          return createClientIslandBoundaryCall(sourceFile, context, helpers, componentStack[componentStack.length - 1], islandCounts, node.openingElement.attributes, node.children, clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1]));
+          return createClientIslandBoundaryCall(sourceFile, context, helpers, componentStack[componentStack.length - 1], islandCounts, node.openingElement.attributes, node.children, clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1], semanticReferences, sourceFile));
         }
         if (target === "client" && jsxElementIsClientIsland(node.openingElement.attributes)) {
           const owner = componentStack[componentStack.length - 1];
           if (clientIslandDepth === 0 && (!owner || componentPlacements.get(owner) !== "client")) {
             clientIslandDepth++;
-            recordClientIslandDefinition(sourceFile, context, visitor, helpers, owner, islandCounts, node, clientIslandDefinitions, clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1]));
+            recordClientIslandDefinition(sourceFile, context, visitor, helpers, owner, islandCounts, node, clientIslandDefinitions, clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1], semanticReferences, sourceFile));
             clientIslandDepth--;
           }
           clientIslandDepth++;
@@ -1392,7 +1407,7 @@ function exactJsxTransformer(
         if (target === "client" && jsxElementIsClientIsland(node.attributes)) {
           const owner = componentStack[componentStack.length - 1];
           if (clientIslandDepth === 0 && (!owner || componentPlacements.get(owner) !== "client")) {
-            recordClientIslandDefinition(sourceFile, context, visitor, helpers, owner, islandCounts, node, clientIslandDefinitions, clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1]));
+            recordClientIslandDefinition(sourceFile, context, visitor, helpers, owner, islandCounts, node, clientIslandDefinitions, clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1], semanticReferences, sourceFile));
           }
         }
         if (target === "server" && jsxTagIsClientComponent(node.tagName, componentPlacements)) {
@@ -1401,7 +1416,7 @@ function exactJsxTransformer(
         }
         if (target === "server" && jsxElementIsClientIsland(node.attributes)) {
           sawBoundary = true;
-          return createClientIslandBoundaryCall(sourceFile, context, helpers, componentStack[componentStack.length - 1], islandCounts, node.attributes, undefined, clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1]));
+          return createClientIslandBoundaryCall(sourceFile, context, helpers, componentStack[componentStack.length - 1], islandCounts, node.attributes, undefined, clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1], semanticReferences, sourceFile));
         }
         return transformJsxSelfClosingElement(sourceFile, node, context, visitor, helpers);
       }
@@ -2360,18 +2375,34 @@ function jsxElementIsClientIsland(attributes: ts.JsxAttributes): boolean {
   });
 }
 
-function collectComponentLocalInfo(node: ts.FunctionDeclaration): ComponentLocalInfo {
+function collectComponentLocalInfo(
+  node: ts.FunctionDeclaration,
+  sourceFile: ts.SourceFile,
+  semanticDeclarations: SemanticDeclarationIndex
+): ComponentLocalInfo {
   const names = new Set<string>();
   const functions = new Map<string, ts.Statement>();
+  const declarationIds = new Map<string, Set<string>>();
+  function addLocal(name: ts.Identifier): void {
+    names.add(name.text);
+    const declaration = semanticDeclarationForIdentifier(name, semanticDeclarations, sourceFile);
+    if (!declaration) return;
+    let ids = declarationIds.get(name.text);
+    if (!ids) {
+      ids = new Set<string>();
+      declarationIds.set(name.text, ids);
+    }
+    ids.add(declaration.id);
+  }
   function visit(current: ts.Node): void {
     if (current !== node && ts.isFunctionDeclaration(current) && current.name) {
-      names.add(current.name.text);
+      addLocal(current.name);
       functions.set(current.name.text, current);
       return;
     }
     if (current !== node && (ts.isFunctionLike(current) || ts.isClassLike(current))) return;
     if (ts.isVariableDeclaration(current)) {
-      collectBindingNames(current.name, names);
+      collectBindingIdentifiers(current.name, addLocal);
       if (ts.isIdentifier(current.name) && current.initializer && isFunctionLikeExpression(current.initializer)) {
         functions.set(current.name.text, cloneableFunctionVariable(current.name, current.initializer));
       }
@@ -2379,7 +2410,7 @@ function collectComponentLocalInfo(node: ts.FunctionDeclaration): ComponentLocal
     ts.forEachChild(current, visit);
   }
   if (node.body) visit(node.body);
-  return { names, functions };
+  return { names, functions, declarationIds };
 }
 
 function cloneableFunctionVariable(name: ts.Identifier, initializer: ts.Expression): ts.VariableStatement {
@@ -2401,10 +2432,25 @@ function collectBindingNames(name: ts.BindingName, output: Set<string>): void {
   }
 }
 
-function clientIslandCaptures(node: ClientIslandElementNode, locals: ComponentLocalInfo | undefined): ClientIslandCaptures {
+function collectBindingIdentifiers(name: ts.BindingName, visit: (name: ts.Identifier) => void): void {
+  if (ts.isIdentifier(name)) {
+    visit(name);
+    return;
+  }
+  for (const element of name.elements) {
+    if (ts.isBindingElement(element)) collectBindingIdentifiers(element.name, visit);
+  }
+}
+
+function clientIslandCaptures(
+  node: ClientIslandElementNode,
+  locals: ComponentLocalInfo | undefined,
+  semanticReferences: SemanticReferenceIndex,
+  sourceFile: ts.SourceFile
+): ClientIslandCaptures {
   if (!locals?.names.size) return { values: [], functions: [] };
   const captures = new Set<string>();
-  collectCapturedIdentifiers(node, locals.names, captures);
+  collectCapturedIdentifiers(node, locals, captures, semanticReferences, sourceFile);
   const values: string[] = [];
   const functions: ts.Statement[] = [];
   for (const name of [...captures].sort()) {
@@ -2415,11 +2461,20 @@ function clientIslandCaptures(node: ClientIslandElementNode, locals: ComponentLo
   return { values, functions };
 }
 
-function collectCapturedIdentifiers(node: ts.Node, locals: Set<string>, captures: Set<string>): void {
-  if (ts.isIdentifier(node) && locals.has(node.text) && !isIdentifierDeclarationName(node) && !isPropertyAccessName(node)) {
-    captures.add(node.text);
+function collectCapturedIdentifiers(
+  node: ts.Node,
+  locals: ComponentLocalInfo,
+  captures: Set<string>,
+  semanticReferences: SemanticReferenceIndex,
+  sourceFile: ts.SourceFile
+): void {
+  if (ts.isIdentifier(node) && locals.names.has(node.text) && !isIdentifierDeclarationName(node) && !isPropertyAccessName(node)) {
+    const reference = semanticReferenceForIdentifier(node, semanticReferences, sourceFile);
+    if (reference?.declarationId && locals.declarationIds.get(node.text)?.has(reference.declarationId)) {
+      captures.add(node.text);
+    }
   }
-  ts.forEachChild(node, child => collectCapturedIdentifiers(child, locals, captures));
+  ts.forEachChild(node, child => collectCapturedIdentifiers(child, locals, captures, semanticReferences, sourceFile));
 }
 
 function isIdentifierDeclarationName(node: ts.Identifier): boolean {
