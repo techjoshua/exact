@@ -1908,6 +1908,46 @@ describe("@exact/compiler", () => {
     expect(server).not.toContain("Panel_ExactClient_2");
   });
 
+  it("keeps server-only child subgraphs server-owned inside generated element islands", () => {
+    const source = `
+      import { readFile } from "node:fs/promises";
+
+      function ServerSummary(this: Component<{ title: string }>) {
+        this.task.server(async () => {
+          this.state.title = await readFile("summary.txt", "utf8");
+        });
+        return () => <p>{this.state.title}</p>;
+      }
+
+      export function Panel(this: Component<{ count: number }>) {
+        this.state.count = 0;
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        return () => <section onClick={() => this.state.count++}>
+          <ServerSummary />
+        </section>;
+      }
+    `;
+    const manifest = analyzeSource(source, { filename: "Panel.tsx" });
+    const client = transform(source, { filename: "Panel.tsx", target: "client", serverComponents: true });
+    const server = transform(source, { filename: "Panel.tsx", target: "server", serverComponents: true });
+
+    expect(manifest.components.find(component => component.name === "Panel")!.clientIslandCount).toBe(1);
+    expect(manifest.boundaries).toContainEqual(expect.objectContaining({
+      name: "Panel_ExactClient_1:children",
+      kind: "server-slot"
+    }));
+    expect(client).toContain("export function Panel_ExactClient_1(this: any, props: any = {})");
+    expect(client).toContain("props.children");
+    expect(client).not.toContain("ServerSummary");
+    expect(client).not.toContain("readFile");
+    expect(server).toContain("__exactBoundary");
+    expect(server).toContain("Panel_ExactClient_1");
+    expect(server).toContain("__exactVNode(ServerSummary");
+    expect(server).toContain("readFile");
+  });
+
   it("splits self-closing client components out of server artifacts", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "exact-component-split-"));
     const input = path.join(root, "src", "page.tsx");

@@ -425,6 +425,7 @@ type ExportBinding = {
 type ClientIslandCaptures = {
   values: string[];
   functions: ts.Statement[];
+  serverSlotChildren?: boolean;
 };
 
 type SemanticReferenceIndex = Map<string, ExactSemanticReferenceIR>;
@@ -529,6 +530,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   symbols.push(...createServerPartSymbols(sourceFile, components));
   symbols.push(...createClientIslandSymbols(sourceFile, components));
   boundaries.push(...createClientIslandBoundaries(sourceFile, components));
+  boundaries.push(...createGeneratedClientIslandServerSlotBoundaries(sourceFile, components, serverOnlyImports, semanticReferences, componentPlacements));
   boundaries.push(...createClientComponentTagBoundaries(sourceFile, components, componentInfo, componentPlacements, semanticReferences));
   boundaries.push(...createServerSlotBoundaries(sourceFile, components, componentInfo, componentPlacements, semanticReferences));
 
@@ -1640,14 +1642,24 @@ function exactJsxTransformer(
           return createComponentIslandBoundaryCall(sourceFile, context, visitor, helpers, componentInfo, node, node.openingElement.tagName, node.openingElement.attributes, childrenProp, serverChildren);
         }
         if (target === "server" && jsxElementIsClientIsland(node.openingElement.attributes)) {
+          const serverChildren = clientIslandHasServerSlotChildren(node, serverOnlyImports, semanticReferences, sourceFile, componentPlacements)
+            ? node.children
+            : undefined;
           sawBoundary = true;
-          return createClientIslandBoundaryCall(sourceFile, context, helpers, componentStack[componentStack.length - 1], islandCounts, node.openingElement.attributes, node.children, clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1], semanticReferences, sourceFile), semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1], componentDerivedStack[componentDerivedStack.length - 1]);
+          return createClientIslandBoundaryCall(sourceFile, context, visitor, helpers, componentStack[componentStack.length - 1], islandCounts, node.openingElement.attributes, serverChildren ? undefined : node.children, {
+            ...clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1], semanticReferences, sourceFile),
+            serverSlotChildren: !!serverChildren
+          }, semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1], componentDerivedStack[componentDerivedStack.length - 1], serverChildren);
         }
         if (target === "client" && jsxElementIsClientIsland(node.openingElement.attributes)) {
           const owner = componentStack[componentStack.length - 1];
           if (clientIslandDepth === 0 && (!owner || componentPlacements.get(owner) !== "client")) {
+            const serverSlotChildren = clientIslandHasServerSlotChildren(node, serverOnlyImports, semanticReferences, sourceFile, componentPlacements);
             clientIslandDepth++;
-            recordClientIslandDefinition(sourceFile, context, visitor, helpers, owner, islandCounts, node, clientIslandDefinitions, clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1], semanticReferences, sourceFile));
+            recordClientIslandDefinition(sourceFile, context, visitor, helpers, owner, islandCounts, node, clientIslandDefinitions, {
+              ...clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1], semanticReferences, sourceFile),
+              serverSlotChildren
+            });
             clientIslandDepth--;
           }
           clientIslandDepth++;
@@ -1671,7 +1683,7 @@ function exactJsxTransformer(
         }
         if (target === "server" && jsxElementIsClientIsland(node.attributes)) {
           sawBoundary = true;
-          return createClientIslandBoundaryCall(sourceFile, context, helpers, componentStack[componentStack.length - 1], islandCounts, node.attributes, undefined, clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1], semanticReferences, sourceFile), semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1], componentDerivedStack[componentDerivedStack.length - 1]);
+          return createClientIslandBoundaryCall(sourceFile, context, visitor, helpers, componentStack[componentStack.length - 1], islandCounts, node.attributes, undefined, clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1], semanticReferences, sourceFile), semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1], componentDerivedStack[componentDerivedStack.length - 1]);
         }
         return transformJsxSelfClosingElement(sourceFile, node, context, visitor, helpers, semanticReferences, componentDerivedStack[componentDerivedStack.length - 1]);
       }
@@ -1773,9 +1785,15 @@ function analyzeComponent(
     } else if (ts.isJsxSelfClosingElement(current)) {
       addJsxTagSemanticDiagnostics(current.tagName, diagnostics, semanticReferences, sourceFile);
     }
+    const serverSlotChildren = ts.isJsxElement(current) && isIslandNode
+      ? clientIslandHasServerSlotChildren(current, serverOnlyImports, semanticReferences, sourceFile)
+      : false;
     if (islandDepth === 0 && isIslandNode) {
       clientIslandCount++;
-      if (containsServerOnlyIdentifier(current, serverOnlyImports, semanticReferences, sourceFile)) {
+      const serverOnlyCheckNode = serverSlotChildren && ts.isJsxElement(current)
+        ? current.openingElement
+        : current;
+      if (containsServerOnlyIdentifier(serverOnlyCheckNode, serverOnlyImports, semanticReferences, sourceFile)) {
         diagnostics.push("error: client island cannot reference server-only imports");
       }
     }
@@ -1855,6 +1873,32 @@ function containsServerOnlyIdentifier(
   }
   visit(node);
   return found;
+}
+
+function clientIslandHasServerSlotChildren(
+  node: ts.JsxElement,
+  serverOnlyImports: Set<string>,
+  semanticReferences: SemanticReferenceIndex,
+  sourceFile: ts.SourceFile,
+  componentPlacements: Map<string, ExactPlacement> = new Map()
+): boolean {
+  return node.children.some(child => {
+    if (ts.isJsxText(child)) return false;
+    if (ts.isJsxExpression(child)) {
+      return !!child.expression && containsServerOnlyIdentifier(child.expression, serverOnlyImports, semanticReferences, sourceFile);
+    }
+    if (ts.isJsxElement(child)) {
+      if (jsxTagPlacement(child.openingElement.tagName, componentPlacements) === "server") return true;
+    }
+    if (ts.isJsxSelfClosingElement(child)) {
+      if (jsxTagPlacement(child.tagName, componentPlacements) === "server") return true;
+    }
+    return containsServerOnlyIdentifier(child, serverOnlyImports, semanticReferences, sourceFile);
+  });
+}
+
+function jsxTagPlacement(tagName: ts.JsxTagNameExpression, componentPlacements: Map<string, ExactPlacement>): ExactPlacement | undefined {
+  return ts.isIdentifier(tagName) ? componentPlacements.get(tagName.text) : undefined;
 }
 
 function addJsxTagSemanticDiagnostics(
@@ -2334,6 +2378,53 @@ function createClientIslandBoundaries(
     }
   }
   return boundaries;
+}
+
+function createGeneratedClientIslandServerSlotBoundaries(
+  sourceFile: ts.SourceFile,
+  components: readonly ExactComponentIR[],
+  serverOnlyImports: Set<string>,
+  semanticReferences: SemanticReferenceIndex,
+  componentPlacements: Map<string, ExactPlacement>
+): ExactBoundaryIR[] {
+  const boundaries: ExactBoundaryIR[] = [];
+
+  for (const component of components) {
+    const counts = new Map<string, number>();
+    const node = findComponentDeclaration(sourceFile, component.name);
+    if (!node) continue;
+    visitComponent(node, node, component, counts);
+  }
+
+  function visitComponent(node: ts.Node, root: ts.FunctionDeclaration, owner: ExactComponentIR, counts: Map<string, number>, islandDepth = 0): void {
+    if (node !== root && isFunctionLikeNode(node)) return;
+    const isIslandElement = ts.isJsxElement(node) && jsxElementIsClientIsland(node.openingElement.attributes);
+    const isIslandNode = isIslandElement || (ts.isJsxSelfClosingElement(node) && jsxElementIsClientIsland(node.attributes));
+    if (islandDepth === 0 && ts.isJsxElement(node) && isIslandElement) {
+      const index = (counts.get(owner.name) ?? 0) + 1;
+      counts.set(owner.name, index);
+      if (clientIslandHasServerSlotChildren(node, serverOnlyImports, semanticReferences, sourceFile, componentPlacements)) {
+        const islandId = stableId(sourceFile.fileName, owner.name, "client-island", String(index));
+        boundaries.push({
+          id: serverSlotBoundaryId(islandId),
+          name: `${generatedComponentName(owner.name, "client-island", index)}:children`,
+          componentId: owner.id,
+          ownerComponentId: owner.id,
+          kind: "server-slot"
+        });
+      }
+    } else if (islandDepth === 0 && ts.isJsxSelfClosingElement(node) && isIslandNode) {
+      const index = (counts.get(owner.name) ?? 0) + 1;
+      counts.set(owner.name, index);
+    }
+    ts.forEachChild(node, child => visitComponent(child, root, owner, counts, isIslandNode ? islandDepth + 1 : islandDepth));
+  }
+
+  return boundaries;
+}
+
+function findComponentDeclaration(sourceFile: ts.SourceFile, name: string): ts.FunctionDeclaration | undefined {
+  return sourceFile.statements.find(statement => ts.isFunctionDeclaration(statement) && statement.name?.text === name) as ts.FunctionDeclaration | undefined;
 }
 
 function createClientComponentTagBoundaries(
@@ -3178,6 +3269,7 @@ function isPropertyAccessName(node: ts.Identifier): boolean {
 function createClientIslandBoundaryCall(
   sourceFile: ts.SourceFile,
   context: ts.TransformationContext,
+  visitor: ts.Visitor,
   helpers: HelperNames,
   componentName: string | undefined,
   islandCounts: Map<string, number>,
@@ -3186,7 +3278,8 @@ function createClientIslandBoundaryCall(
   captures: ClientIslandCaptures = emptyClientIslandCaptures(),
   semanticReferences?: SemanticReferenceIndex,
   stateAliases?: Map<string, string>,
-  derivedReactiveLocals?: DerivedReactiveIndex
+  derivedReactiveLocals?: DerivedReactiveIndex,
+  serverChildren?: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[]
 ): ts.Expression {
   const factory = context.factory;
   const owner = componentName ?? "Anonymous";
@@ -3197,7 +3290,8 @@ function createClientIslandBoundaryCall(
   return factory.createCallExpression(factory.createIdentifier(helpers.boundary), undefined, [
     factory.createStringLiteral(id),
     factory.createStringLiteral(generatedName),
-    islandProps(context, attributes, children, captures.values, sourceFile, semanticReferences, stateAliases, derivedReactiveLocals)
+    islandProps(context, attributes, children, captures.values, sourceFile, semanticReferences, stateAliases, derivedReactiveLocals),
+    ...(serverChildren ? childrenExpressions(context, serverChildren, visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals) : [])
   ]);
 }
 
@@ -3233,7 +3327,11 @@ function createClientIslandDefinition(
   const generatedName = generatedComponentName(owner, "client-island", index);
   const tagName = ts.isJsxElement(node) ? node.openingElement.tagName : node.tagName;
   const attributes = ts.isJsxElement(node) ? node.openingElement.attributes : node.attributes;
-  const children = ts.isJsxElement(node) ? node.children : [];
+  const children = captures.serverSlotChildren
+    ? undefined
+    : ts.isJsxElement(node)
+      ? node.children
+      : [];
   return factory.createFunctionDeclaration(
     [factory.createModifier(ts.SyntaxKind.ExportKeyword)],
     undefined,
@@ -3269,7 +3367,7 @@ function createClientIslandDefinition(
         factory.createCallExpression(factory.createIdentifier(helpers.element), undefined, [
           tagExpression(tagName),
           clientIslandElementProps(sourceFile, context, tagName, attributes, node, props, captures.values),
-          ...clientIslandChildrenExpressions(context, children, visitor, helpers, props, captures.values)
+          ...clientIslandChildrenExpressions(context, children, visitor, helpers, props, captures.values, captures.serverSlotChildren)
         ])
       ))
     ], true)
@@ -3359,13 +3457,17 @@ function clientIslandElementProps(
 
 function clientIslandChildrenExpressions(
   context: ts.TransformationContext,
-  children: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[],
+  children: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[] | undefined,
   visitor: ts.Visitor,
   helpers: HelperNames,
   props: ts.Identifier,
-  captures: readonly string[]
+  captures: readonly string[],
+  serverSlotChildren = false
 ): ts.Expression[] {
-  const rewritten = children.map(child => rewriteCapturedNode(context, child, props, captures));
+  if (serverSlotChildren) {
+    return [context.factory.createPropertyAccessExpression(props, "children")];
+  }
+  const rewritten = (children ?? []).map(child => rewriteCapturedNode(context, child, props, captures));
   return childrenExpressions(context, rewritten, visitor, helpers);
 }
 
