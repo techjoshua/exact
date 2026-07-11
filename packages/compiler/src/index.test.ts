@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   analyzeSource,
+  analyzeSemanticGraph,
   createClientIslandRegistryEntries,
   createClientIslandRegistryModule,
   createExactArtifactDevState,
@@ -32,6 +33,50 @@ import {
 } from "./index.js";
 
 describe("@exact/compiler", () => {
+  it("builds a semantic graph for scopes declarations imports and references", () => {
+    const graph = analyzeSemanticGraph(`
+      import fsDefault, { readFile as readProject } from "node:fs/promises";
+      import * as pathTools from "node:path";
+      import { Widget } from "./Widget";
+
+      const suffix = "!";
+
+      export function ProjectPage(this: Component<{ title: string }>, props: { label: string }) {
+        const title = props.label + suffix;
+        this.task(async () => {
+          this.state.title = await readProject("title.txt", "utf8");
+          window.addEventListener("resize", () => pathTools.join("a", "b"));
+        });
+        return () => <section title={title}><Widget label={title} /></section>;
+      }
+    `, { filename: "ProjectPage.tsx" });
+
+    const imports = graph.declarations.filter(declaration => declaration.kind === "import");
+    expect(imports).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "fsDefault", moduleSpecifier: "node:fs/promises", importedName: "default" }),
+      expect.objectContaining({ name: "readProject", moduleSpecifier: "node:fs/promises", importedName: "readFile" }),
+      expect.objectContaining({ name: "pathTools", moduleSpecifier: "node:path", importedName: "*" }),
+      expect.objectContaining({ name: "Widget", moduleSpecifier: "./Widget", importedName: "Widget" })
+    ]));
+
+    const titleDeclaration = graph.declarations.find(declaration => declaration.name === "title" && declaration.kind === "variable");
+    const titleReferences = graph.references.filter(reference => reference.name === "title");
+    expect(titleDeclaration).toBeDefined();
+    expect(titleReferences).toHaveLength(2);
+    expect(titleReferences.every(reference => reference.declarationId === titleDeclaration!.id)).toBe(true);
+
+    expect(graph.references).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "readProject", source: "import", moduleSpecifier: "node:fs/promises", importedName: "readFile" }),
+      expect.objectContaining({ name: "pathTools", source: "import", moduleSpecifier: "node:path", importedName: "*" }),
+      expect.objectContaining({ name: "Widget", source: "import", moduleSpecifier: "./Widget", importedName: "Widget" }),
+      expect.objectContaining({ name: "window", source: "global" }),
+      expect.objectContaining({ name: "props", source: "local" }),
+      expect.objectContaining({ name: "suffix", source: "local" })
+    ]));
+    expect(graph.references.some(reference => reference.name === "section")).toBe(false);
+    expect(graph.references.some(reference => reference.name === "label")).toBe(false);
+  });
+
   it("lowers JSX to eXact compiled vnode helpers", () => {
     const output = transform("const view = <button title={label}>Save</button>;");
 
@@ -128,6 +173,29 @@ describe("@exact/compiler", () => {
     });
     expect(component.tasks[1]!.diagnostics).toContain("task writes component state and references browser-only globals; classify as client and split at this boundary");
     expect(Object.keys(manifest.serverActions)).toEqual([component.tasks[0]!.id]);
+  });
+
+  it("uses resolved references when classifying task environments", () => {
+    const manifest = analyzeSource(`
+      import { readFile } from "node:fs/promises";
+
+      export function ProjectPage(this: Component<{ title?: string; width?: number }>) {
+        this.task(() => {
+          const readFile = () => "local";
+          this.state.title = readFile();
+        });
+        this.task(() => {
+          const window = { innerWidth: 42 };
+          this.state.width = window.innerWidth;
+        });
+        return () => <p>{this.state.title}</p>;
+      }
+    `, { filename: "ProjectPage.tsx" });
+
+    const component = manifest.components[0]!;
+    expect(component.tasks.map(task => task.placement)).toEqual(["isomorphic", "isomorphic"]);
+    expect(component.splitBoundaries).not.toContain("server-import:readFile");
+    expect(component.splitBoundaries).not.toContain("browser:window");
   });
 
   it("emits target-specific client and server task artifacts", () => {

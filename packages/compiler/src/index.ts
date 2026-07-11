@@ -92,6 +92,41 @@ export type ExactImportedComponentIR = {
   componentId?: string;
 };
 
+export type ExactSemanticScopeIR = {
+  id: string;
+  parentId?: string;
+  kind: "module" | "function" | "block";
+  nodeKind: string;
+};
+
+export type ExactSemanticDeclarationIR = {
+  id: string;
+  name: string;
+  scopeId: string;
+  kind: "import" | "function" | "class" | "variable" | "parameter";
+  nodeStart: number;
+  nodeEnd: number;
+  moduleSpecifier?: string;
+  importedName?: string;
+};
+
+export type ExactSemanticReferenceIR = {
+  name: string;
+  scopeId: string;
+  source: "local" | "import" | "global" | "unresolved";
+  nodeStart: number;
+  nodeEnd: number;
+  declarationId?: string;
+  moduleSpecifier?: string;
+  importedName?: string;
+};
+
+export type ExactSemanticGraphIR = {
+  scopes: ExactSemanticScopeIR[];
+  declarations: ExactSemanticDeclarationIR[];
+  references: ExactSemanticReferenceIR[];
+};
+
 export type ExactArtifactManifest = {
   source: string;
   client: string;
@@ -343,6 +378,8 @@ type ClientIslandCaptures = {
   functions: ts.Statement[];
 };
 
+type SemanticReferenceIndex = Map<string, ExactSemanticReferenceIR>;
+
 export function transform(source: string, options: TransformOptions = {}): string {
   return transformSource(source, options).code;
 }
@@ -384,13 +421,15 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const boundaries: ExactBoundaryIR[] = [];
   const manifestDiagnostics: string[] = [];
   const serverActions: ExactCompilerManifest["serverActions"] = {};
-  const serverOnlyImports = collectServerOnlyImports(sourceFile);
+  const semanticGraph = buildSemanticGraph(sourceFile);
+  const semanticReferences = createSemanticReferenceIndex(sourceFile, semanticGraph);
+  const serverOnlyImports = collectServerOnlyImports(sourceFile, semanticGraph);
   const componentNodes = new Map<string, ts.FunctionDeclaration>();
 
   function visit(node: ts.Node): void {
     if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
       componentNodes.set(node.name.text, node);
-      components.push(analyzeComponent(node.name.text, node, sourceFile, serverOnlyImports));
+      components.push(analyzeComponent(node.name.text, node, sourceFile, serverOnlyImports, semanticReferences));
       return;
     }
     ts.forEachChild(node, visit);
@@ -468,6 +507,245 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
     serverActions,
     diagnostics: manifestDiagnostics
   };
+}
+
+export function analyzeSemanticGraph(source: string, options: Pick<TransformOptions, "filename"> = {}): ExactSemanticGraphIR {
+  const normalized = preprocessPropPunning(source);
+  const filename = options.filename ?? "input.tsx";
+  const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
+  return buildSemanticGraph(sourceFile);
+}
+
+function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
+  const scopes: ExactSemanticScopeIR[] = [];
+  const declarations: ExactSemanticDeclarationIR[] = [];
+  const references: ExactSemanticReferenceIR[] = [];
+  const declarationsByScope = new Map<string, Map<string, ExactSemanticDeclarationIR>>();
+  const scopeParents = new Map<string, string | undefined>();
+  const scopeStack: ExactSemanticScopeIR[] = [];
+  let scopeIndex = 0;
+
+  const pushScope = (kind: ExactSemanticScopeIR["kind"], node: ts.Node): ExactSemanticScopeIR => {
+    const parent = scopeStack[scopeStack.length - 1];
+    const scope: ExactSemanticScopeIR = {
+      id: stableId(sourceFile.fileName, "scope", String(scopeIndex++), String(node.getStart(sourceFile)), String(node.getEnd())),
+      ...(parent ? { parentId: parent.id } : {}),
+      kind,
+      nodeKind: ts.SyntaxKind[node.kind]
+    };
+    scopes.push(scope);
+    declarationsByScope.set(scope.id, new Map());
+    scopeParents.set(scope.id, scope.parentId);
+    scopeStack.push(scope);
+    return scope;
+  };
+
+  const popScope = (): void => {
+    scopeStack.pop();
+  };
+
+  const currentScope = (): ExactSemanticScopeIR => scopeStack[scopeStack.length - 1]!;
+
+  const declare = (
+    name: string,
+    kind: ExactSemanticDeclarationIR["kind"],
+    node: ts.Node,
+    metadata: Pick<ExactSemanticDeclarationIR, "moduleSpecifier" | "importedName"> = {}
+  ): ExactSemanticDeclarationIR => {
+    const declaration: ExactSemanticDeclarationIR = {
+      id: stableId(sourceFile.fileName, "decl", kind, name, String(node.getStart(sourceFile)), String(node.getEnd())),
+      name,
+      scopeId: currentScope().id,
+      kind,
+      nodeStart: node.getStart(sourceFile),
+      nodeEnd: node.getEnd(),
+      ...metadata
+    };
+    declarations.push(declaration);
+    declarationsByScope.get(declaration.scopeId)!.set(name, declaration);
+    return declaration;
+  };
+
+  const lookup = (name: string, scopeId: string): ExactSemanticDeclarationIR | undefined => {
+    let cursor: string | undefined = scopeId;
+    while (cursor) {
+      const declaration = declarationsByScope.get(cursor)?.get(name);
+      if (declaration) return declaration;
+      cursor = scopeParents.get(cursor);
+    }
+    return undefined;
+  };
+
+  const addReference = (node: ts.Identifier): void => {
+    if (isIdentifierDeclarationName(node) || isPropertyAccessName(node) || isNonReferenceIdentifier(node)) return;
+    const scope = currentScope();
+    const declaration = lookup(node.text, scope.id);
+    references.push({
+      name: node.text,
+      scopeId: scope.id,
+      source: declaration?.kind === "import" ? "import" : declaration ? "local" : browserGlobals.has(node.text) ? "global" : "unresolved",
+      nodeStart: node.getStart(sourceFile),
+      nodeEnd: node.getEnd(),
+      ...(declaration ? { declarationId: declaration.id } : {}),
+      ...(declaration?.moduleSpecifier ? { moduleSpecifier: declaration.moduleSpecifier } : {}),
+      ...(declaration?.importedName ? { importedName: declaration.importedName } : {})
+    });
+  };
+
+  const declareBinding = (name: ts.BindingName, kind: "variable" | "parameter"): void => {
+    if (ts.isIdentifier(name)) {
+      declare(name.text, kind, name);
+      return;
+    }
+    for (const element of name.elements) {
+      if (ts.isBindingElement(element)) declareBinding(element.name, kind);
+    }
+  };
+
+  const declareImportClause = (statement: ts.ImportDeclaration): void => {
+    if (!ts.isStringLiteral(statement.moduleSpecifier)) return;
+    const moduleSpecifier = statement.moduleSpecifier.text;
+    const clause = statement.importClause;
+    if (!clause) return;
+    if (clause.name) {
+      declare(clause.name.text, "import", clause.name, { moduleSpecifier, importedName: "default" });
+    }
+    if (clause.namedBindings && ts.isNamespaceImport(clause.namedBindings)) {
+      declare(clause.namedBindings.name.text, "import", clause.namedBindings.name, { moduleSpecifier, importedName: "*" });
+    }
+    if (clause.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+      for (const element of clause.namedBindings.elements) {
+        declare(element.name.text, "import", element.name, {
+          moduleSpecifier,
+          importedName: element.propertyName?.text ?? element.name.text
+        });
+      }
+    }
+  };
+
+  const visitFunctionLike = (node: ts.FunctionLikeDeclarationBase): void => {
+    pushScope("function", node);
+    for (const parameter of node.parameters) declareBinding(parameter.name, "parameter");
+    if (node.body) visit(node.body);
+    popScope();
+  };
+
+  function visit(node: ts.Node): void {
+    if (ts.isImportDeclaration(node)) {
+      declareImportClause(node);
+      return;
+    }
+
+    if (ts.isFunctionDeclaration(node)) {
+      if (node.name) declare(node.name.text, "function", node.name);
+      visitFunctionLike(node);
+      return;
+    }
+
+    if (ts.isFunctionExpression(node) || ts.isArrowFunction(node) || ts.isMethodDeclaration(node) || ts.isConstructorDeclaration(node)) {
+      if (ts.isFunctionExpression(node) && node.name) declare(node.name.text, "function", node.name);
+      visitFunctionLike(node);
+      return;
+    }
+
+    if (ts.isClassDeclaration(node)) {
+      if (node.name) declare(node.name.text, "class", node.name);
+      pushScope("block", node);
+      for (const member of node.members) visit(member);
+      popScope();
+      return;
+    }
+
+    if (ts.isBlock(node) || ts.isModuleBlock(node)) {
+      pushScope("block", node);
+      ts.forEachChild(node, visit);
+      popScope();
+      return;
+    }
+
+    if (ts.isVariableDeclaration(node)) {
+      declareBinding(node.name, "variable");
+      if (node.initializer) visit(node.initializer);
+      return;
+    }
+
+    if (ts.isParameter(node)) {
+      declareBinding(node.name, "parameter");
+      if (node.initializer) visit(node.initializer);
+      return;
+    }
+
+    if (ts.isIdentifier(node)) {
+      addReference(node);
+      return;
+    }
+
+    ts.forEachChild(node, visit);
+  }
+
+  pushScope("module", sourceFile);
+  ts.forEachChild(sourceFile, visit);
+  popScope();
+
+  return {
+    scopes,
+    declarations: declarations.sort((left, right) => left.nodeStart - right.nodeStart || left.name.localeCompare(right.name)),
+    references: references.sort((left, right) => left.nodeStart - right.nodeStart || left.name.localeCompare(right.name))
+  };
+}
+
+function isNonReferenceIdentifier(node: ts.Identifier): boolean {
+  const parent = node.parent;
+  if (!parent) return false;
+  if (ts.isImportSpecifier(parent) || ts.isImportClause(parent) || ts.isNamespaceImport(parent)) return true;
+  if (ts.isExportSpecifier(parent)) return true;
+  if (ts.isPropertyAssignment(parent) && parent.name === node) return true;
+  if (ts.isPropertyDeclaration(parent) && parent.name === node) return true;
+  if (ts.isMethodDeclaration(parent) && parent.name === node) return true;
+  if (ts.isPropertySignature(parent) && parent.name === node) return true;
+  if (ts.isMethodSignature(parent) && parent.name === node) return true;
+  if (ts.isJsxAttribute(parent) && parent.name === node) return true;
+  if (isLowercaseJsxTagIdentifier(node)) return true;
+  return false;
+}
+
+function isLowercaseJsxTagIdentifier(node: ts.Identifier): boolean {
+  const parent = node.parent;
+  const isTagName = !!parent && (
+    (ts.isJsxOpeningElement(parent) && parent.tagName === node)
+    || (ts.isJsxClosingElement(parent) && parent.tagName === node)
+    || (ts.isJsxSelfClosingElement(parent) && parent.tagName === node)
+  );
+  return isTagName && node.text[0] === node.text[0]?.toLowerCase();
+}
+
+function createSemanticReferenceIndex(sourceFile: ts.SourceFile, graph: ExactSemanticGraphIR): SemanticReferenceIndex {
+  return new Map(graph.references.map(reference => [semanticReferenceKey(sourceFile, reference.name, reference.nodeStart, reference.nodeEnd), reference]));
+}
+
+function semanticReferenceForIdentifier(
+  node: ts.Identifier,
+  references: SemanticReferenceIndex,
+  sourceFile: ts.SourceFile
+): ExactSemanticReferenceIR | undefined {
+  return references.get(semanticReferenceKey(sourceFile, node.text, node.getStart(sourceFile), node.getEnd()));
+}
+
+function semanticReferenceKey(_sourceFile: ts.SourceFile, name: string, start: number, end: number): string {
+  return `${name}:${start}:${end}`;
+}
+
+function isBrowserGlobalReference(node: ts.Identifier, reference: ExactSemanticReferenceIR | undefined): boolean {
+  return browserGlobals.has(node.text) && reference?.source === "global";
+}
+
+function isServerOnlyReference(
+  node: ts.Identifier,
+  reference: ExactSemanticReferenceIR | undefined,
+  serverOnlyImports: Set<string>
+): boolean {
+  if (!serverOnlyImports.has(node.text)) return false;
+  return reference?.source === "import" && !!reference.moduleSpecifier && isServerOnlyModule(reference.moduleSpecifier);
 }
 
 export async function compileFile(inputFile: string, options: CompileFileOptions = {}): Promise<CompileFileResult> {
@@ -1037,7 +1315,9 @@ function exactJsxTransformer(
   return context => sourceFile => {
     const factory = context.factory;
     const helpers = allocateHelperNames(sourceFile);
-    const serverOnlyImports = collectServerOnlyImports(sourceFile);
+    const semanticGraph = buildSemanticGraph(sourceFile);
+    const semanticReferences = createSemanticReferenceIndex(sourceFile, semanticGraph);
+    const serverOnlyImports = collectServerOnlyImports(sourceFile, semanticGraph);
     const componentInfo = collectComponentInfo(sourceFile, serverOnlyImports, importedManifests);
     const componentPlacements = componentPlacementsFromInfo(componentInfo);
     let sawJsx = false;
@@ -1071,7 +1351,7 @@ function exactJsxTransformer(
         return visited;
       }
       if (ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) && isThisTaskCall(node.expression)) {
-        const task = analyzeTask("target-task", node.expression, sourceFile, serverOnlyImports);
+        const task = analyzeTask("target-task", node.expression, sourceFile, serverOnlyImports, semanticReferences);
         if (shouldOmitPlacement(task.placement, target)) {
           return factory.createEmptyStatement();
         }
@@ -1131,7 +1411,7 @@ function exactJsxTransformer(
       }
       if (ts.isCallExpression(node)) {
         if (isThisTaskCall(node)) {
-          const task = analyzeTask("target-task", node, sourceFile, serverOnlyImports);
+          const task = analyzeTask("target-task", node, sourceFile, serverOnlyImports, semanticReferences);
           if (shouldOmitPlacement(task.placement, target)) {
             return factory.createVoidExpression(factory.createNumericLiteral(0));
           }
@@ -1183,7 +1463,8 @@ function analyzeComponent(
   name: string,
   node: ts.FunctionDeclaration,
   sourceFile: ts.SourceFile,
-  serverOnlyImports: Set<string>
+  serverOnlyImports: Set<string>,
+  semanticReferences: SemanticReferenceIndex
 ): ExactComponentIR {
   const tasks: ExactTaskIR[] = [];
   const splitBoundaries = new Set<string>();
@@ -1196,7 +1477,7 @@ function analyzeComponent(
 
   function visit(current: ts.Node, islandDepth = 0, taskDepth = 0): void {
     if (ts.isCallExpression(current) && isThisTaskCall(current)) {
-      const task = analyzeTask(`${name}:task:${taskIndex++}`, current, sourceFile, serverOnlyImports);
+      const task = analyzeTask(`${name}:task:${taskIndex++}`, current, sourceFile, serverOnlyImports, semanticReferences);
       tasks.push(task);
       if (task.placement === "client") hasClientEffect = true;
       if (task.placement === "server") hasServerEffect = true;
@@ -1213,7 +1494,7 @@ function analyzeComponent(
     const isIslandNode = isIslandElement || (ts.isJsxSelfClosingElement(current) && jsxElementIsClientIsland(current.attributes));
     if (islandDepth === 0 && isIslandNode) {
       clientIslandCount++;
-      if (containsServerOnlyIdentifier(current, serverOnlyImports)) {
+      if (containsServerOnlyIdentifier(current, serverOnlyImports, semanticReferences, sourceFile)) {
         diagnostics.push("error: client island cannot reference server-only imports");
       }
     }
@@ -1227,14 +1508,15 @@ function analyzeComponent(
     }
 
     if (ts.isIdentifier(current)) {
-      if (browserGlobals.has(current.text)) {
+      const reference = semanticReferenceForIdentifier(current, semanticReferences, sourceFile);
+      if (isBrowserGlobalReference(current, reference)) {
         hasClientEffect = true;
         splitBoundaries.add(`browser:${current.text}`);
         if (islandDepth === 0 && taskDepth === 0) {
           browserGlobalsOutsideClientBoundary.add(current.text);
         }
       }
-      if (serverOnlyImports.has(current.text)) {
+      if (isServerOnlyReference(current, reference, serverOnlyImports)) {
         hasServerEffect = true;
         splitBoundaries.add(`server-import:${current.text}`);
       }
@@ -1273,12 +1555,17 @@ function analyzeComponent(
   };
 }
 
-function containsServerOnlyIdentifier(node: ts.Node, serverOnlyImports: Set<string>): boolean {
+function containsServerOnlyIdentifier(
+  node: ts.Node,
+  serverOnlyImports: Set<string>,
+  semanticReferences: SemanticReferenceIndex,
+  sourceFile: ts.SourceFile
+): boolean {
   if (!serverOnlyImports.size) return false;
   let found = false;
   function visit(current: ts.Node): void {
     if (found) return;
-    if (ts.isIdentifier(current) && serverOnlyImports.has(current.text)) {
+    if (ts.isIdentifier(current) && isServerOnlyReference(current, semanticReferenceForIdentifier(current, semanticReferences, sourceFile), serverOnlyImports)) {
       found = true;
       return;
     }
@@ -1293,6 +1580,7 @@ function collectComponentInfo(
   serverOnlyImports: Set<string>,
   importedManifests: readonly ExactCompilerManifest[] = []
 ): Map<string, ExactImportedComponentIR> {
+  const semanticReferences = createSemanticReferenceIndex(sourceFile, buildSemanticGraph(sourceFile));
   const components = new Map<string, ExactImportedComponentIR>();
   for (const component of collectImportedComponents(sourceFile, importedManifests)) {
     components.set(component.name, component);
@@ -1300,7 +1588,7 @@ function collectComponentInfo(
 
   function visit(node: ts.Node): void {
     if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
-      const component = analyzeComponent(node.name.text, node, sourceFile, serverOnlyImports);
+      const component = analyzeComponent(node.name.text, node, sourceFile, serverOnlyImports, semanticReferences);
       components.set(node.name.text, {
         name: node.name.text,
         boundaryName: node.name.text,
@@ -1403,7 +1691,8 @@ function analyzeTask(
   seed: string,
   node: ts.CallExpression,
   sourceFile: ts.SourceFile,
-  serverOnlyImports: Set<string>
+  serverOnlyImports: Set<string>,
+  semanticReferences: SemanticReferenceIndex
 ): ExactTaskIR {
   const work = node.arguments[node.arguments.length - 1];
   const reads: ExactStateEffect[] = [];
@@ -1433,8 +1722,9 @@ function analyzeTask(
 
   function visit(current: ts.Node): void {
     if (ts.isIdentifier(current)) {
-      if (browserGlobals.has(current.text)) browserEffects = true;
-      if (serverOnlyImports.has(current.text)) serverEffects = true;
+      const reference = semanticReferenceForIdentifier(current, semanticReferences, sourceFile);
+      if (isBrowserGlobalReference(current, reference)) browserEffects = true;
+      if (isServerOnlyReference(current, reference, serverOnlyImports)) serverEffects = true;
     }
 
     if (ts.isPropertyAccessExpression(current) && isThisStateAccess(current.expression)) {
@@ -1914,26 +2204,10 @@ function moduleSpecifierKey(specifier: string, baseDir: string): string {
     .replace(/\.[cm]?[jt]sx?$/i, "");
 }
 
-function collectServerOnlyImports(sourceFile: ts.SourceFile): Set<string> {
-  const imports = new Set<string>();
-
-  for (const statement of sourceFile.statements) {
-    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
-    if (!isServerOnlyModule(statement.moduleSpecifier.text)) continue;
-
-    const clause = statement.importClause;
-    if (clause?.name) imports.add(clause.name.text);
-    if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
-      for (const element of clause.namedBindings.elements) {
-        imports.add(element.name.text);
-      }
-    }
-    if (clause?.namedBindings && ts.isNamespaceImport(clause.namedBindings)) {
-      imports.add(clause.namedBindings.name.text);
-    }
-  }
-
-  return imports;
+function collectServerOnlyImports(sourceFile: ts.SourceFile, graph: ExactSemanticGraphIR = buildSemanticGraph(sourceFile)): Set<string> {
+  return new Set(graph.declarations
+    .filter(declaration => declaration.kind === "import" && !!declaration.moduleSpecifier && isServerOnlyModule(declaration.moduleSpecifier))
+    .map(declaration => declaration.name));
 }
 
 function isServerOnlyImportDeclaration(statement: ts.Statement): boolean {
