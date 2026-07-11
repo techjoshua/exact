@@ -6,6 +6,7 @@ import {
   analyzeSource,
   createClientIslandRegistryEntries,
   createExactArtifactGraph,
+  createExactArtifactPlan,
   compileFile,
   compileFileArtifacts,
   compileProject,
@@ -468,6 +469,30 @@ describe("@exact/compiler", () => {
       serverFile: result.serverFile,
       manifestFile: result.manifestFile
     })]);
+  });
+
+  it("plans generated artifact paths without compiling", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-artifact-plan-"));
+    const src = path.join(root, "src");
+    const outDir = path.join(root, ".exact");
+    await mkdir(path.join(src, "components"), { recursive: true });
+    await writeFile(path.join(src, "components", "panel.tsx"), "export function Panel() { return () => <p />; }");
+    await writeFile(path.join(src, "skip.ts"), "export const skip = 1;");
+
+    const plan = await createExactArtifactPlan([src], {
+      outDir,
+      rootDir: src
+    });
+
+    expect(plan).toEqual({
+      rootDir: src,
+      entries: [{
+        inputFile: path.join(src, "components", "panel.tsx"),
+        clientFile: path.join(outDir, "components", "panel.exact.client.ts"),
+        serverFile: path.join(outDir, "components", "panel.exact.server.ts"),
+        manifestFile: path.join(outDir, "components", "panel.exact.manifest.json")
+      }]
+    });
   });
 
   it("creates client island registry entries for generated client artifacts", async () => {

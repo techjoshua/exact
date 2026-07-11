@@ -137,6 +137,23 @@ export type CompileArtifactsResult = {
   manifest: ExactCompilerManifest;
 };
 
+export type ExactArtifactPlanOptions = {
+  outDir: string;
+  rootDir?: string;
+};
+
+export type ExactArtifactPlan = {
+  rootDir: string;
+  entries: ExactArtifactPlanEntry[];
+};
+
+export type ExactArtifactPlanEntry = {
+  inputFile: string;
+  clientFile: string;
+  serverFile: string;
+  manifestFile: string;
+};
+
 export type PackageExportMapOptions = {
   packageRoot: string;
   sourceRoot?: string;
@@ -386,19 +403,30 @@ export async function compileFileArtifacts(inputFile: string, options: CompileAr
 }
 
 export async function compileProjectArtifacts(inputs: readonly string[], options: CompileArtifactsOptions): Promise<CompileArtifactsResult[]> {
-  const files = await collectInputFiles(inputs);
-  const rootDir = options.rootDir ?? commonRoot(files);
+  const plan = await createExactArtifactPlan(inputs, options);
   const results: CompileArtifactsResult[] = [];
 
-  for (const file of files) {
-    results.push(await compileFileArtifacts(file, {
+  for (const entry of plan.entries) {
+    results.push(await compileFileArtifacts(entry.inputFile, {
       outDir: options.outDir,
-      rootDir,
+      rootDir: plan.rootDir,
       filename: options.filename
     }));
   }
 
   return results;
+}
+
+export async function createExactArtifactPlan(inputs: readonly string[], options: ExactArtifactPlanOptions): Promise<ExactArtifactPlan> {
+  const files = await collectInputFiles(inputs);
+  const rootDir = options.rootDir ?? commonRoot(files);
+  return {
+    rootDir,
+    entries: files.map(inputFile => ({
+      inputFile,
+      ...artifactPathsFor(inputFile, options.outDir, rootDir)
+    }))
+  };
 }
 
 export function createPackageExportMap(
