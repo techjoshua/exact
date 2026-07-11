@@ -431,6 +431,82 @@ describe("@exact/server", () => {
     });
   });
 
+  it("skips dependent batch operations when prerequisites fail", async () => {
+    const refresh = vi.fn();
+    const result = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "batch",
+        operations: [
+          { type: "action", id: "missing-action", opId: "save" },
+          { type: "refresh", id: "allowed-boundary", opId: "refresh", dependsOn: ["save"] }
+        ]
+      }
+    }, context({
+      refreshBoundaries: {
+        "allowed-boundary": refresh
+      }
+    }));
+
+    expect(result.status).toBe(200);
+    expect(refresh).not.toHaveBeenCalled();
+    expect(JSON.parse(result.body)).toEqual({
+      ok: true,
+      version: 1,
+      results: [
+        {
+          ok: false,
+          type: "action",
+          id: "missing-action",
+          opId: "save",
+          status: 404,
+          error: "not_found"
+        },
+        {
+          ok: false,
+          type: "refresh",
+          id: "allowed-boundary",
+          opId: "refresh",
+          status: 424,
+          error: "dependency_failed"
+        }
+      ]
+    });
+  });
+
+  it("runs dependent batch operations after successful prerequisites", async () => {
+    const result = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "batch",
+        operations: [
+          { type: "action", id: "allowed-action", opId: "save", payload: { title: "Ready" } },
+          { type: "refresh", id: "allowed-boundary", opId: "refresh", dependsOn: ["save"] }
+        ]
+      }
+    }, context());
+
+    expect(result.status).toBe(200);
+    expect(JSON.parse(result.body)).toMatchObject({
+      ok: true,
+      version: 1,
+      results: [
+        {
+          ok: true,
+          type: "action",
+          id: "allowed-action",
+          opId: "save"
+        },
+        {
+          ok: true,
+          type: "refresh",
+          id: "allowed-boundary",
+          opId: "refresh"
+        }
+      ]
+    });
+  });
+
   it("rejects malformed batch envelopes before dispatch", async () => {
     const action = vi.fn();
     const result = await handleExactRequest({

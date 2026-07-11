@@ -79,6 +79,8 @@ export type ExactResponseLike = {
 export type ExactInvocationRequest = {
   type: ExactInvocationKind;
   id: string;
+  opId?: string;
+  dependsOn?: string[];
   payload?: unknown;
   state?: unknown;
   boundaryHtml?: string;
@@ -101,14 +103,16 @@ export type ExactOperationSuccess = {
   ok: true;
   type: ExactInvocationKind;
   id: string;
+  opId?: string;
 } & ExactInvocationResult;
 
 export type ExactOperationError = {
   ok: false;
   type: ExactInvocationKind;
   id: string;
+  opId?: string;
   status: number;
-  error: "bad_request" | "not_found" | "forbidden" | "internal_error";
+  error: "bad_request" | "not_found" | "forbidden" | "internal_error" | "dependency_failed";
 };
 
 export type ExactOperationResult = ExactOperationSuccess | ExactOperationError;
@@ -231,8 +235,22 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
 
   if (input.type === "batch") {
     const results: ExactOperationResult[] = [];
+    const successful = new Set<string>();
     for (const operation of input.operations) {
-      results.push(await dispatchExactOperation(request, operation, context));
+      if (operation.dependsOn?.some(id => !successful.has(id))) {
+        results.push({
+          ok: false,
+          type: operation.type,
+          id: operation.id,
+          opId: operation.opId,
+          status: 424,
+          error: "dependency_failed"
+        });
+        continue;
+      }
+      const result = await dispatchExactOperation(request, operation, context);
+      results.push(result);
+      if (result.ok && operation.opId) successful.add(operation.opId);
     }
     return jsonResponse(200, { ok: true, version: 1, results } satisfies ExactBatchResult);
   }
@@ -306,7 +324,7 @@ async function dispatchExactOperation(
 ): Promise<ExactOperationResult> {
   const reject = (status: number, error: ExactOperationError["error"], message: string): ExactOperationResult => {
     logReject(context, message);
-    return { ok: false, type: input.type, id: input.id, status, error };
+    return { ok: false, type: input.type, id: input.id, opId: input.opId, status, error };
   };
 
   if (!isManifestAllowed(input, context.manifest)) {
@@ -343,10 +361,10 @@ async function dispatchExactOperation(
     if (!isInvocationResultSafe(result)) {
       return reject(500, "internal_error", "rejected non-serializable exact invocation result");
     }
-    return { ok: true, type: input.type, id: input.id, ...result };
+    return { ok: true, type: input.type, id: input.id, opId: input.opId, ...result };
   } catch (error) {
     logFrameworkEvent("error", "server", "request", "exact invocation failed", error, context.logger);
-    return { ok: false, type: input.type, id: input.id, status: 500, error: "internal_error" };
+    return { ok: false, type: input.type, id: input.id, opId: input.opId, status: 500, error: "internal_error" };
   }
 }
 
@@ -391,13 +409,17 @@ function parseBatch(record: Record<string, unknown>): ExactBatchRequest {
 }
 
 function parseInvocationRecord(record: Record<string, unknown>): ExactInvocationRequest {
-  if (!hasOnlyKeys(record, ["type", "id", "payload", "state", "boundaryHtml", "boundaryHtmls"])) throw new Error("unknown invocation field");
+  if (!hasOnlyKeys(record, ["type", "id", "opId", "dependsOn", "payload", "state", "boundaryHtml", "boundaryHtmls"])) throw new Error("unknown invocation field");
   if (record.type !== "action" && record.type !== "refresh") throw new Error("invalid invocation type");
   if (typeof record.id !== "string" || !record.id) throw new Error("invalid invocation id");
+  if (record.opId !== undefined && (typeof record.opId !== "string" || !record.opId)) throw new Error("invalid operation id");
+  if (record.dependsOn !== undefined && !isStringList(record.dependsOn)) throw new Error("invalid operation dependencies");
   if (record.boundaryHtmls !== undefined && !isBoundaryHtmlMap(record.boundaryHtmls)) throw new Error("invalid boundary htmls");
   return {
     type: record.type,
     id: record.id,
+    opId: typeof record.opId === "string" ? record.opId : undefined,
+    dependsOn: Array.isArray(record.dependsOn) ? record.dependsOn : undefined,
     payload: record.payload,
     state: record.state,
     boundaryHtml: typeof record.boundaryHtml === "string" ? record.boundaryHtml : undefined,
@@ -470,6 +492,10 @@ function isPatchSafe(patch: unknown): patch is ExactPatch {
 function isBoundaryHtmlMap(value: unknown): value is Record<string, string> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   return Object.entries(value as Record<string, unknown>).every(([id, html]) => !!id && typeof html === "string");
+}
+
+function isStringList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(item => typeof item === "string" && item.length > 0);
 }
 
 function boundaryHintsAllowed(input: ExactInvocationRequest, manifest: ExactServerManifest): boolean {
