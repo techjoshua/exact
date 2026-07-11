@@ -1842,13 +1842,13 @@ describe("@exact/compiler", () => {
     expect(server).toContain("title: this.state.title");
     expect(server).not.toContain("window.innerWidth");
     expect(server).not.toContain("onClick");
-    expect(result.manifest.boundaries).toContainEqual({
+    expect(result.manifest.boundaries).toContainEqual(expect.objectContaining({
       id: expect.any(String),
       name: "ClientWidget",
       componentId: expect.any(String),
       ownerComponentId: result.manifest.components.find(component => component.name === "Page")!.id,
       kind: "client-island"
-    });
+    }));
     expect(result.manifest.artifacts?.boundaries).toEqual(result.manifest.boundaries);
   });
 
@@ -1934,10 +1934,15 @@ describe("@exact/compiler", () => {
     const slottedClientBoundaryIds = slotBoundaries.map(boundary => boundary.id.slice(0, -":children".length));
     const slottedClientBoundaries = manifest.boundaries.filter(boundary => slottedClientBoundaryIds.includes(boundary.id));
     const emittedBoundaryIds = Array.from(server.matchAll(/__exactBoundary\("([^"]+)", "ClientShell"/g), match => match[1]);
+    const page = manifest.components.find(component => component.name === "Page")!;
 
     expect(slotBoundaries).toHaveLength(2);
     expect(slottedClientBoundaries).toHaveLength(2);
     expect(new Set(slottedClientBoundaryIds).size).toBe(2);
+    expect(slottedClientBoundaries.map(boundary => boundary.renderEdgeId)).toEqual(page.renderEdges.map(edge => edge.id));
+    expect(slottedClientBoundaries.map(boundary => boundary.renderEdgeIndex)).toEqual([1, 2]);
+    expect(slotBoundaries.map(boundary => boundary.renderEdgeId)).toEqual(slottedClientBoundaries.map(boundary => boundary.renderEdgeId));
+    expect(slotBoundaries.map(boundary => boundary.renderPath)).toEqual(slottedClientBoundaries.map(boundary => boundary.renderPath));
     expect(slotBoundaries.map(boundary => boundary.id).sort()).toEqual(slottedClientBoundaries.map(boundary => `${boundary.id}:children`).sort());
     expect(emittedBoundaryIds.filter(id => slottedClientBoundaryIds.includes(id))).toEqual(slottedClientBoundaries.map(boundary => boundary.id));
   });

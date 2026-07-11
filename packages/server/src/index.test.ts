@@ -78,6 +78,14 @@ describe("@exact/server", () => {
         }
       }
     } as any)).toThrow("Malformed eXact compiler manifest");
+
+    expect(() => createExactServerManifest({
+      version: 1,
+      boundaries: [{
+        id: "panel",
+        renderEdgeIndex: 0
+      }]
+    } as any)).toThrow("Malformed eXact compiler manifest");
   });
 
   it("rejects malformed endpoint route maps", () => {
@@ -295,6 +303,34 @@ describe("@exact/server", () => {
     });
     expect(manifest.actionBoundaries).toEqual({
       "save-profile": ["Profile", "profile-client"]
+    });
+  });
+
+  it("preserves compiler boundary render edge metadata", () => {
+    const manifest = createExactServerManifest({
+      version: 1,
+      components: [{ id: "Page", placement: "server" }],
+      boundaries: [{
+        id: "page-widget",
+        name: "Widget",
+        componentId: "Widget",
+        ownerComponentId: "Page",
+        renderEdgeId: "edge-1",
+        renderEdgeIndex: 1,
+        renderPath: "3.0.1",
+        kind: "client-island"
+      }]
+    });
+
+    expect(manifest.boundaries?.["page-widget"]).toEqual({
+      id: "page-widget",
+      name: "Widget",
+      componentId: "Widget",
+      ownerComponentId: "Page",
+      renderEdgeId: "edge-1",
+      renderEdgeIndex: 1,
+      renderPath: "3.0.1",
+      kind: "client-island"
     });
   });
 

@@ -85,6 +85,9 @@ export type ExactBoundaryIR = {
   name: string;
   componentId?: string;
   ownerComponentId?: string;
+  renderEdgeId?: string;
+  renderEdgeIndex?: number;
+  renderPath?: string;
   kind: "client-island" | "server-slot";
 };
 
@@ -2287,25 +2290,33 @@ function createClientComponentTagBoundaries(
   const localComponents = new Map(components.map(component => [component.name, component]));
   const ownerStack: (ExactComponentIR | undefined)[] = [];
 
-  function visit(node: ts.Node): void {
+  function visit(node: ts.Node, path: number[] = []): void {
     if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
       ownerStack.push(localComponents.get(node.name.text));
-      ts.forEachChild(node, visit);
+      let childIndex = 0;
+      ts.forEachChild(node, child => {
+        visit(child, [childIndex++]);
+      });
       ownerStack.pop();
       return;
     }
     if (ts.isJsxElement(node) && jsxTagIsClientComponent(node.openingElement.tagName, componentPlacements, sourceFile, semanticReferences)) {
-      addBoundary(node.openingElement.tagName, node);
+      addBoundary(node.openingElement.tagName, node, path);
     } else if (ts.isJsxSelfClosingElement(node) && jsxTagIsClientComponent(node.tagName, componentPlacements, sourceFile, semanticReferences)) {
-      addBoundary(node.tagName, node);
+      addBoundary(node.tagName, node, path);
     }
-    ts.forEachChild(node, visit);
+    let childIndex = 0;
+    ts.forEachChild(node, child => {
+      visit(child, [...path, childIndex++]);
+    });
   }
 
-  function addBoundary(tagName: ts.JsxTagNameExpression, node: ts.Node): void {
+  function addBoundary(tagName: ts.JsxTagNameExpression, node: ts.Node, path: readonly number[]): void {
     const tagKey = tagName.getText(sourceFile);
     const component = componentInfo.get(tagKey);
     const componentName = component?.boundaryName ?? tagKey;
+    const owner = ownerStack[ownerStack.length - 1];
+    const renderEdge = findRenderEdge(owner, path);
     const id = clientComponentBoundaryId(sourceFile, componentName, node);
     if (seen.has(id)) return;
     seen.add(id);
@@ -2313,7 +2324,10 @@ function createClientComponentTagBoundaries(
       id,
       name: componentName,
       componentId: component?.componentId,
-      ownerComponentId: ownerStack[ownerStack.length - 1]?.id,
+      ownerComponentId: owner?.id,
+      renderEdgeId: renderEdge?.id,
+      renderEdgeIndex: renderEdge?.index,
+      renderPath: renderEdge?.path,
       kind: "client-island"
     });
   }
@@ -2334,10 +2348,13 @@ function createServerSlotBoundaries(
   const localComponents = new Map(components.map(component => [component.name, component]));
   const ownerStack: (ExactComponentIR | undefined)[] = [];
 
-  function visit(node: ts.Node): void {
+  function visit(node: ts.Node, path: number[] = []): void {
     if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
       ownerStack.push(localComponents.get(node.name.text));
-      ts.forEachChild(node, visit);
+      let childIndex = 0;
+      ts.forEachChild(node, child => {
+        visit(child, [childIndex++]);
+      });
       ownerStack.pop();
       return;
     }
@@ -2345,6 +2362,8 @@ function createServerSlotBoundaries(
       const tagKey = node.openingElement.tagName.getText(sourceFile);
       const component = componentInfo.get(tagKey);
       const componentName = component?.boundaryName ?? tagKey;
+      const owner = ownerStack[ownerStack.length - 1];
+      const renderEdge = findRenderEdge(owner, path);
       const islandId = clientComponentBoundaryId(sourceFile, componentName, node);
       const id = serverSlotBoundaryId(islandId);
       if (!seen.has(id)) {
@@ -2353,16 +2372,28 @@ function createServerSlotBoundaries(
           id,
           name: `${componentName}:children`,
           componentId: component?.componentId,
-          ownerComponentId: ownerStack[ownerStack.length - 1]?.id,
+          ownerComponentId: owner?.id,
+          renderEdgeId: renderEdge?.id,
+          renderEdgeIndex: renderEdge?.index,
+          renderPath: renderEdge?.path,
           kind: "server-slot"
         });
       }
     }
-    ts.forEachChild(node, visit);
+    let childIndex = 0;
+    ts.forEachChild(node, child => {
+      visit(child, [...path, childIndex++]);
+    });
   }
 
   visit(sourceFile);
   return boundaries;
+}
+
+function findRenderEdge(owner: ExactComponentIR | undefined, path: readonly number[]): ExactComponentRenderEdgeIR | undefined {
+  if (!owner) return undefined;
+  const pathText = path.join(".");
+  return owner.renderEdges.find(edge => edge.path === pathText);
 }
 
 function serverSlotBoundaryId(boundaryId: string): string {

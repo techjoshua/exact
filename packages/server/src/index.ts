@@ -32,6 +32,9 @@ export type ExactManifestBoundary = {
   name?: string;
   componentId?: string;
   ownerComponentId?: string;
+  renderEdgeId?: string;
+  renderEdgeIndex?: number;
+  renderPath?: string;
   kind?: string;
 };
 
@@ -64,6 +67,9 @@ export type ExactCompilerManifestLike = {
     name?: string;
     componentId?: string;
     ownerComponentId?: string;
+    renderEdgeId?: string;
+    renderEdgeIndex?: number;
+    renderPath?: string;
     kind?: string;
   }[];
 };
@@ -191,6 +197,9 @@ export function createExactServerManifest(
         name: boundary.name,
         componentId: boundary.componentId,
         ownerComponentId: boundary.ownerComponentId,
+        renderEdgeId: boundary.renderEdgeId,
+        renderEdgeIndex: boundary.renderEdgeIndex,
+        renderPath: boundary.renderPath,
         kind: boundary.kind
       };
     }
@@ -252,6 +261,9 @@ function assertCompilerManifestLike(manifest: unknown): asserts manifest is Exac
     if (boundary.name !== undefined && typeof boundary.name !== "string") throw new Error("Malformed eXact compiler manifest");
     if (boundary.componentId !== undefined && typeof boundary.componentId !== "string") throw new Error("Malformed eXact compiler manifest");
     if (boundary.ownerComponentId !== undefined && typeof boundary.ownerComponentId !== "string") throw new Error("Malformed eXact compiler manifest");
+    if (boundary.renderEdgeId !== undefined && typeof boundary.renderEdgeId !== "string") throw new Error("Malformed eXact compiler manifest");
+    if (boundary.renderEdgeIndex !== undefined && (!Number.isInteger(boundary.renderEdgeIndex) || boundary.renderEdgeIndex < 1)) throw new Error("Malformed eXact compiler manifest");
+    if (boundary.renderPath !== undefined && typeof boundary.renderPath !== "string") throw new Error("Malformed eXact compiler manifest");
     if (boundary.kind !== undefined && typeof boundary.kind !== "string") throw new Error("Malformed eXact compiler manifest");
   }
 }
