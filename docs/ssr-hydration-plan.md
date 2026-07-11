@@ -106,7 +106,7 @@ For direct HTTP document responses, `renderToProgressiveHtmlStream()` and `rende
 The current foundation is usable for the sample path and core protocol tests, but it is not yet a complete production server-component system. The remaining larger pieces are:
 
 - More complete compiler-owned component splitting beyond the current nested local/imported server-child subgraphs.
-- Richer server patch generation for complex structural changes beyond the current text, element, list, state, and boundary replacement paths.
+- Richer server patch generation for complex structural changes beyond the current text, prop/style, element, independent nested structural replacement, list, state, and boundary replacement paths.
 - Stronger production context glue for larger apps with many manifests.
 - Micro frontend support beyond dynamically loaded remote manifests, immediate remote island hydration, per-boundary endpoints, per-endpoint batching, and same-realm global context tokens.
 - Broader production diagnostics surfaced by build tools and dev servers.

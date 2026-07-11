@@ -874,6 +874,42 @@ describe("@exact/ssr", () => {
     ]);
   });
 
+  it("replaces multiple independent nested exact elements when sibling subtree shapes change", () => {
+    expect(diffBoundaryHtml(
+      "profile",
+      "<section data-exact-id=\"root\"><article data-exact-id=\"card-a\"><p data-exact-id=\"body-a\">Draft</p></article><article data-exact-id=\"card-b\"><p data-exact-id=\"body-b\">Queued</p></article></section>",
+      "<section data-exact-id=\"root\"><article data-exact-id=\"card-a\"><p data-exact-id=\"body-a\"><strong>Ready</strong></p></article><article data-exact-id=\"card-b\"><p data-exact-id=\"body-b\"><em>Done</em></p></article></section>",
+      "element"
+    )).toEqual([
+      {
+        type: "replace",
+        id: "body-a",
+        html: "<p data-exact-id=\"body-a\"><strong>Ready</strong></p>"
+      },
+      {
+        type: "replace",
+        id: "body-b",
+        html: "<p data-exact-id=\"body-b\"><em>Done</em></p>"
+      }
+    ]);
+  });
+
+  it("does not replace an ancestor when a descendant exact replacement covers the shape change", () => {
+    expect(diffBoundaryHtml(
+      "profile",
+      "<section data-exact-id=\"root\" class=\"old\"><article data-exact-id=\"card\"><p data-exact-id=\"body\">Draft</p></article></section>",
+      "<section data-exact-id=\"root\" class=\"new\"><article data-exact-id=\"card\"><p data-exact-id=\"body\"><strong>Ready</strong></p></article></section>",
+      "element"
+    )).toEqual([
+      { type: "prop", id: "root", name: "class", value: "new" },
+      {
+        type: "replace",
+        id: "body",
+        html: "<p data-exact-id=\"body\"><strong>Ready</strong></p>"
+      }
+    ]);
+  });
+
   it("falls back to replacement patches when element strategy shape changes", async () => {
     const response = await handleExactRequest({
       method: "POST",

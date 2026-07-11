@@ -149,7 +149,7 @@ Initial document rendering can stream through `renderToDocumentStream()` or `ren
 
 Apps that want to write a browser response directly can use `renderToProgressiveHtmlStream()` or `renderToHydratableProgressiveHtmlStream()`. These streams emit the shell inside a configurable root element immediately, then convert later root replacements into escaped inline scripts. Hydratable progressive streams include the same inert hydration JSON script used by `renderToHydratableStringAsync()`. `renderToProgressiveHtmlResponse()` and `renderToHydratableProgressiveHtmlResponse()` package those streams as `ExactResponseLike` objects so adapters can return the same result shape across Fetch, Express, Hapi, Vite, Webpack, Bun, or custom servers.
 
-Patch responses can include text updates, prop/style updates, keyed list operations, state updates, and boundary replacement. If a fine-grained patch cannot apply cleanly, the client replaces the nearest server boundary with the authoritative server-rendered HTML.
+Patch responses can include text updates, prop/style updates, independent nested structural replacements, keyed list operations, state updates, and boundary replacement. If a fine-grained patch cannot apply cleanly, the client replaces the nearest server boundary with the authoritative server-rendered HTML.
 
 ## Security
 

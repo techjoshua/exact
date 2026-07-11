@@ -606,7 +606,9 @@ function diffExactElementHtml(previousHtml: string, nextHtml: string): ExactPatc
     const previous = previousById.get(id);
     if (!previous) return undefined;
     if (previous.tagName !== next.tagName) {
-      return nestedExactElementReplace(previousTree, nextTree) ?? rootExactElementReplace(previousTree, nextTree, nextHtml);
+      const nestedReplacements = nestedExactElementReplace(previousTree, nextTree);
+      if (nestedReplacements) return [...patches, ...nestedReplacements];
+      return rootExactElementReplace(previousTree, nextTree, nextHtml);
     }
 
     for (const [name, value] of next.attributes) {
@@ -638,15 +640,18 @@ function diffExactElementHtml(previousHtml: string, nextHtml: string): ExactPatc
     const nextText = textOnlyContent(next);
     if (previousText !== undefined || nextText !== undefined) {
       if (previousText === undefined || nextText === undefined) {
-        return nestedExactElementReplace(previousTree, nextTree) ?? rootExactElementReplace(previousTree, nextTree, nextHtml);
+        const nestedReplacements = nestedExactElementReplace(previousTree, nextTree);
+        if (nestedReplacements) return [...patches, ...nestedReplacements];
+        return rootExactElementReplace(previousTree, nextTree, nextHtml);
       }
       if (previousText !== nextText) patches.push({ type: "text", id, value: nextText });
     }
   }
 
-  return normalizedHtmlShape(previousTree) === normalizedHtmlShape(nextTree)
-    ? patches
-    : nestedExactElementReplace(previousTree, nextTree) ?? rootExactElementReplace(previousTree, nextTree, nextHtml);
+  if (normalizedHtmlShape(previousTree) === normalizedHtmlShape(nextTree)) return patches;
+  const nestedReplacements = nestedExactElementReplace(previousTree, nextTree);
+  if (nestedReplacements) return [...patches, ...nestedReplacements];
+  return rootExactElementReplace(previousTree, nextTree, nextHtml);
 }
 
 function nestedExactElementReplace(
@@ -655,15 +660,27 @@ function nestedExactElementReplace(
 ): ExactPatch[] | undefined {
   const previousById = collectExactElements(previousTree);
   const nextEntries = collectExactElementEntries(nextTree).sort((left, right) => right.depth - left.depth);
+  const selectedIds = new Set<string>();
+  const patches: ExactPatch[] = [];
 
   for (const { id, element: next } of nextEntries) {
     const previous = previousById.get(id);
     if (!previous) continue;
+    if ([...selectedIds].some(selectedId => containsExactElement(next, selectedId))) continue;
     if (normalizedHtmlShape([previous]) === normalizedHtmlShape([next])) continue;
-    return [{ type: "replace", id, html: serializeParsedHtmlElement(next) }];
+    selectedIds.add(id);
+    patches.push({ type: "replace", id, html: serializeParsedHtmlElement(next) });
   }
 
-  return undefined;
+  return patches.length ? patches : undefined;
+}
+
+function containsExactElement(element: ParsedHtmlElement, id: string): boolean {
+  for (const child of element.children) {
+    if (child.kind !== "element") continue;
+    if (child.attributes.get("data-exact-id") === id || containsExactElement(child, id)) return true;
+  }
+  return false;
 }
 
 function rootExactElementReplace(
