@@ -774,6 +774,53 @@ describe("@exact/server", () => {
     });
   });
 
+  it("runs independent batch operations concurrently while preserving result order", async () => {
+    const started: string[] = [];
+    let resolveSlow!: () => void;
+    const slow = new Promise<void>(resolve => {
+      resolveSlow = resolve;
+    });
+
+    const pending = handleExactRequest({
+      method: "POST",
+      body: {
+        type: "batch",
+        operations: [
+          { type: "action", id: "allowed-action", opId: "slow" },
+          { type: "refresh", id: "allowed-boundary", opId: "fast" }
+        ]
+      }
+    }, context({
+      actions: {
+        "allowed-action": async () => {
+          started.push("slow");
+          await slow;
+          return { state: { slow: true } };
+        }
+      },
+      refreshBoundaries: {
+        "allowed-boundary": () => {
+          started.push("fast");
+          return { state: { fast: true } };
+        }
+      }
+    }));
+
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(started).toEqual(["slow", "fast"]);
+    resolveSlow();
+
+    const result = await pending;
+    expect(JSON.parse(result.body)).toMatchObject({
+      ok: true,
+      version: 1,
+      results: [
+        { ok: true, type: "action", id: "allowed-action", opId: "slow", state: { slow: true } },
+        { ok: true, type: "refresh", id: "allowed-boundary", opId: "fast", state: { fast: true } }
+      ]
+    });
+  });
+
   it("skips dependent batch operations when prerequisites fail", async () => {
     const refresh = vi.fn();
     const result = await handleExactRequest({

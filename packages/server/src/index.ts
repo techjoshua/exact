@@ -385,24 +385,7 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
   }
 
   if (input.type === "batch") {
-    const results: ExactOperationResult[] = [];
-    const successful = new Set<string>();
-    for (const operation of input.operations) {
-      if (operation.dependsOn?.some(id => !successful.has(id))) {
-        results.push({
-          ok: false,
-          type: operation.type,
-          id: operation.id,
-          opId: operation.opId,
-          status: 424,
-          error: "dependency_failed"
-        });
-        continue;
-      }
-      const result = await dispatchExactOperation(request, operation, context);
-      results.push(result);
-      if (result.ok && operation.opId) successful.add(operation.opId);
-    }
+    const results = await dispatchExactBatch(request, input.operations, context);
     return jsonResponse(200, { ok: true, version: 1, results } satisfies ExactBatchResult);
   }
 
@@ -410,6 +393,54 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
   if (isOperationError(result)) return jsonResponse(result.status, { error: result.error });
   const { ok: _ok, type: _type, id: _id, ...body } = result;
   return jsonResponse(200, { ok: true, ...body });
+}
+
+async function dispatchExactBatch(
+  request: ExactRequestLike,
+  operations: readonly ExactInvocationRequest[],
+  context: ExactServerContext
+): Promise<ExactOperationResult[]> {
+  const results: ExactOperationResult[] = new Array(operations.length);
+  const pending = new Set(operations.map((_operation, index) => index));
+  const successful = new Set<string>();
+
+  while (pending.size) {
+    const ready = [...pending].filter(index => {
+      const dependsOn = operations[index]!.dependsOn ?? [];
+      return dependsOn.every(id => successful.has(id));
+    });
+
+    if (!ready.length) {
+      for (const index of pending) {
+        results[index] = dependencyFailed(operations[index]!);
+      }
+      break;
+    }
+
+    const settled = await Promise.all(ready.map(async index => {
+      const operation = operations[index]!;
+      return { index, operation, result: await dispatchExactOperation(request, operation, context) };
+    }));
+
+    for (const { index, operation, result } of settled) {
+      results[index] = result;
+      pending.delete(index);
+      if (result.ok && operation.opId) successful.add(operation.opId);
+    }
+  }
+
+  return results;
+}
+
+function dependencyFailed(operation: ExactInvocationRequest): ExactOperationError {
+  return {
+    ok: false,
+    type: operation.type,
+    id: operation.id,
+    opId: operation.opId,
+    status: 424,
+    error: "dependency_failed"
+  };
 }
 
 export function createFetchHandler(context: ExactServerContext): (request: Request) => Promise<Response> {
