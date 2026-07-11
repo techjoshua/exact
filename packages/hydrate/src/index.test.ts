@@ -615,6 +615,49 @@ describe("@exact/hydrate", () => {
     expect(client.state).toEqual({ saved: true });
   });
 
+  it("applies successful batched client operations when a sibling operation fails", async () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<!--exact:title-->Old<!--/exact:title-->";
+    const fetch = async () => ({
+      ok: true,
+      status: 200,
+      async json() {
+        return {
+          ok: true,
+          version: 1,
+          results: [
+            {
+              ok: true,
+              type: "action",
+              id: "save-title",
+              patches: [{ type: "text", id: "title", value: "Saved" }]
+            },
+            {
+              ok: false,
+              type: "refresh",
+              id: "missing-panel",
+              status: 404,
+              error: "not_found"
+            }
+          ]
+        };
+      }
+    });
+
+    const client = createExactClient(container, {
+      endpoint: "/__exact",
+      fetch
+    });
+    const action = client.invokeAction("save-title");
+    const refresh = client.refreshBoundary("missing-panel");
+
+    await expect(action).resolves.toMatchObject({
+      patches: [{ type: "text", id: "title", value: "Saved" }]
+    });
+    await expect(refresh).rejects.toThrow("eXact refresh invocation failed");
+    expect(container.textContent).toBe("Saved");
+  });
+
   it("sends current boundary html with refresh requests", async () => {
     const container = document.createElement("div");
     container.innerHTML = "<!--exact:panel--><p class=\"old\">Loading</p><!--/exact:panel-->";
