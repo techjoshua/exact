@@ -13,6 +13,7 @@ export type ExactPluginOptions = {
   importedManifests?: readonly ExactCompilerManifest[];
   clientCondition?: string;
   serverCondition?: string;
+  serverComponents?: boolean;
 };
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
@@ -43,7 +44,12 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
       if (!shouldTransform(id, code, options)) return null;
       try {
         return {
-          code: transformSource(code, { filename: id, target: options.target, importedManifests: options.importedManifests }).code,
+          code: transformSource(code, {
+            filename: id,
+            target: options.target,
+            importedManifests: options.importedManifests,
+            serverComponents: options.serverComponents
+          }).code,
           map: null
         };
       } catch (error) {

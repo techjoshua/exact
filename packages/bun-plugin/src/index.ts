@@ -13,6 +13,7 @@ export type ExactBunPluginOptions = {
   serverCondition?: string;
   include?: FilterPattern;
   exclude?: FilterPattern;
+  serverComponents?: boolean;
 };
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
@@ -87,7 +88,12 @@ async function readBunLoadSource(args: BunLoadArgs): Promise<string> {
 export function transformExactBunSource(source: string, filename: string, options: ExactBunPluginOptions = {}): { code: string; map: null } | null {
   if (!shouldTransform(filename, source, options)) return null;
   return {
-    code: transformSource(source, { filename, target: options.target, importedManifests: options.importedManifests }).code,
+    code: transformSource(source, {
+      filename,
+      target: options.target,
+      importedManifests: options.importedManifests,
+      serverComponents: options.serverComponents
+    }).code,
     map: null
   };
 }

@@ -6,6 +6,7 @@ export type TransformOptions = {
   filename?: string;
   target?: TransformTarget;
   importedManifests?: readonly ExactCompilerManifest[];
+  serverComponents?: boolean;
 };
 
 export type TransformTarget = "default" | "client" | "server";
@@ -144,6 +145,7 @@ export type CompileArtifactsOptions = {
   rootDir?: string;
   filename?: string;
   importedManifests?: readonly ExactCompilerManifest[];
+  serverComponents?: boolean;
 };
 
 export type CompileArtifactsResult = {
@@ -167,6 +169,7 @@ export type ExactArtifactGraphInput = {
 export type CompileArtifactPlanEntriesOptions = {
   filename?(entry: ExactArtifactPlanEntry): string;
   importedManifests?: readonly ExactCompilerManifest[];
+  serverComponents?: boolean;
 };
 
 export type ExactArtifactPlanOptions = {
@@ -355,7 +358,7 @@ export function transformSource(source: string, options: TransformOptions = {}):
     throw new Error(semanticErrors.join("\n"));
   }
   const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
-  const result = ts.transform(sourceFile, [exactJsxTransformer(target, options.importedManifests ?? [])]);
+  const result = ts.transform(sourceFile, [exactJsxTransformer(target, options.importedManifests ?? [], options.serverComponents ?? false)]);
   const transformed = result.transformed[0]!;
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
   const printed = printer.printFile(transformed as ts.SourceFile);
@@ -466,7 +469,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
 
 export async function compileFile(inputFile: string, options: CompileFileOptions = {}): Promise<CompileFileResult> {
   const source = await readFile(inputFile, "utf8");
-  const result = transformSource(source, { filename: options.filename ?? inputFile, target: options.target });
+  const result = transformSource(source, { filename: options.filename ?? inputFile, target: options.target, serverComponents: options.serverComponents });
   const outputFile = options.outDir ? outputPathFor(inputFile, options.outDir, options.rootDir) : undefined;
   const manifestFile = outputFile && options.emitManifest ? manifestPathFor(outputFile) : undefined;
 
@@ -497,7 +500,8 @@ export async function compileProject(inputs: readonly string[], options: Compile
       outDir: options.outDir,
       rootDir,
       target: options.target,
-      emitManifest: options.emitManifest
+      emitManifest: options.emitManifest,
+      serverComponents: options.serverComponents
     }));
   }
 
@@ -508,8 +512,8 @@ export async function compileFileArtifacts(inputFile: string, options: CompileAr
   const source = await readFile(inputFile, "utf8");
   const filename = options.filename ?? inputFile;
   const manifestBase = analyzeSource(source, { filename, importedManifests: options.importedManifests });
-  const client = transformSource(source, { filename, target: "client", importedManifests: options.importedManifests });
-  const server = transformSource(source, { filename, target: "server", importedManifests: options.importedManifests });
+  const client = transformSource(source, { filename, target: "client", importedManifests: options.importedManifests, serverComponents: options.serverComponents });
+  const server = transformSource(source, { filename, target: "server", importedManifests: options.importedManifests, serverComponents: options.serverComponents });
   const paths = artifactPathsFor(inputFile, options.outDir, options.rootDir);
   const manifest = withArtifactMetadata(manifestBase, inputFile, paths);
 
@@ -530,7 +534,9 @@ export async function compileFileArtifacts(inputFile: string, options: CompileAr
 export async function compileProjectArtifacts(inputs: readonly string[], options: CompileArtifactsOptions): Promise<CompileArtifactsResult[]> {
   const plan = await createExactArtifactPlan(inputs, options);
   return compileArtifactPlanEntries(plan.entries, {
-    filename: entry => options.filename ?? entry.inputFile
+    filename: entry => options.filename ?? entry.inputFile,
+    importedManifests: options.importedManifests,
+    serverComponents: options.serverComponents
   });
 }
 
@@ -553,7 +559,7 @@ export async function compileArtifactPlanEntries(
 
   for (const entry of entries) {
     const filename = options.filename?.(entry) ?? entry.inputFile;
-    results.push(await compileArtifactPlanEntry(entry, filename, importedManifests));
+    results.push(await compileArtifactPlanEntry(entry, filename, importedManifests, options.serverComponents ?? false));
   }
 
   return results;
@@ -562,12 +568,13 @@ export async function compileArtifactPlanEntries(
 async function compileArtifactPlanEntry(
   entry: ExactArtifactPlanEntry,
   filename: string,
-  importedManifests: readonly ExactCompilerManifest[] = []
+  importedManifests: readonly ExactCompilerManifest[] = [],
+  serverComponents = false
 ): Promise<CompileArtifactsResult> {
   const source = await readFile(entry.inputFile, "utf8");
   const base = analyzeSource(source, { filename, importedManifests });
-  const client = transformSource(source, { filename, target: "client", importedManifests });
-  const server = transformSource(source, { filename, target: "server", importedManifests });
+  const client = transformSource(source, { filename, target: "client", importedManifests, serverComponents });
+  const server = transformSource(source, { filename, target: "server", importedManifests, serverComponents });
   const manifest = withArtifactMetadata(base, entry.inputFile, entry);
 
   await mkdir(path.dirname(entry.clientFile), { recursive: true });
@@ -605,7 +612,8 @@ export async function createExactArtifactDevState(
   const plan = await createExactArtifactPlan(inputs, options);
   const compiled = await compileArtifactPlanEntries(plan.entries, {
     filename: entry => options.filename ?? entry.inputFile,
-    importedManifests: options.importedManifests
+    importedManifests: options.importedManifests,
+    serverComponents: options.serverComponents
   });
   const entries = compiled.map(artifactGraphEntryFromCompileResult);
   return {
@@ -632,7 +640,8 @@ export async function updateExactArtifactDevState(
     importedManifests: [
       ...(options.importedManifests ?? []),
       ...retainedEntries.map(entry => entry.manifest)
-    ]
+    ],
+    serverComponents: options.serverComponents
   });
   const entries = [
     ...retainedEntries,
@@ -980,7 +989,11 @@ export function preprocessPropPunning(source: string): string {
   return output;
 }
 
-function exactJsxTransformer(target: TransformTarget, importedManifests: readonly ExactCompilerManifest[] = []): ts.TransformerFactory<ts.SourceFile> {
+function exactJsxTransformer(
+  target: TransformTarget,
+  importedManifests: readonly ExactCompilerManifest[] = [],
+  serverComponents = false
+): ts.TransformerFactory<ts.SourceFile> {
   return context => sourceFile => {
     const factory = context.factory;
     const helpers = allocateHelperNames(sourceFile);
@@ -997,9 +1010,18 @@ function exactJsxTransformer(target: TransformTarget, importedManifests: readonl
 
     const visitor: ts.Visitor = node => {
       if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
+        const componentPlacement = componentPlacements.get(node.name.text);
         if (target === "server" && componentPlacements.get(node.name.text) === "client") {
           sawBoundary = true;
           return createClientComponentServerStub(sourceFile, context, helpers, node);
+        }
+        if (target === "client" && serverComponents && componentPlacement !== "client") {
+          componentStack.push(node.name.text);
+          componentLocalStack.push(collectComponentLocalInfo(node));
+          ts.visitEachChild(node, visitor, context);
+          componentLocalStack.pop();
+          componentStack.pop();
+          return factory.createEmptyStatement();
         }
         componentStack.push(node.name.text);
         componentLocalStack.push(collectComponentLocalInfo(node));

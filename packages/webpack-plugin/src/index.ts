@@ -14,6 +14,7 @@ export type ExactWebpackPluginOptions = {
   serverCondition?: string;
   include?: FilterPattern;
   exclude?: FilterPattern;
+  serverComponents?: boolean;
 };
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
@@ -86,7 +87,12 @@ export function createExactWebpackRule(options: ExactWebpackPluginOptions = {}):
 export function transformExactWebpackSource(source: string, filename: string, options: ExactWebpackPluginOptions = {}): { code: string; map: null } | null {
   if (!shouldTransform(filename, source, options)) return null;
   return {
-    code: transformSource(source, { filename, target: options.target, importedManifests: options.importedManifests }).code,
+    code: transformSource(source, {
+      filename,
+      target: options.target,
+      importedManifests: options.importedManifests,
+      serverComponents: options.serverComponents
+    }).code,
     map: null
   };
 }

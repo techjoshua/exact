@@ -46,6 +46,22 @@ describe("@exact/vite-plugin", () => {
     expect(result?.code).not.toContain("from \"./ClientWidget\"");
   });
 
+  it("passes server component mode through to client transforms", () => {
+    const plugin = exact({ target: "client", serverComponents: true });
+    const result = plugin.transform(`
+      import { readFile } from "node:fs/promises";
+      export function Page(this: Component<{ count: number }>) {
+        this.task.server(async () => {
+          await readFile("page.txt", "utf8");
+        });
+        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
+      }
+    `, "/src/Page.tsx");
+
+    expect(result?.code).toContain("Page_ExactClient_1");
+    expect(result?.code).not.toContain("export function Page(");
+  });
+
   it("resolves exact facade imports to target artifacts", () => {
     expect(exact({ target: "client" }).resolveId?.("./Panel.exact", "/app/src/main.ts")).toMatch(/Panel\.exact\.client\.ts$/);
     expect(exact({ target: "server" }).resolveId?.("./Panel.exact", "/app/src/main.ts")).toMatch(/Panel\.exact\.server\.ts$/);

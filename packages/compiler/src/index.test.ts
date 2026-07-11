@@ -1045,6 +1045,41 @@ describe("@exact/compiler", () => {
     expect(output).not.toContain("export const Panel_ExactClient_1 = Panel");
   });
 
+  it("omits server-owned roots from client artifacts in server component mode", () => {
+    const output = transform(`
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ count: number }>) {
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        return () => <button title={this.state.count} onClick={() => this.state.count++} />;
+      }
+    `, { filename: "Panel.tsx", target: "client", serverComponents: true });
+
+    expect(output).toContain("export function Panel_ExactClient_1(props = {})");
+    expect(output).not.toContain("export function Panel(");
+    expect(output).not.toContain("node:fs/promises");
+    expect(output).not.toContain("readFile");
+    expect(output).toContain("onClick: () => this.state.count++");
+  });
+
+  it("keeps pure client components in client artifacts during server component mode", () => {
+    const output = transform(`
+      function ClientWidget() {
+        return () => <button onClick={() => save()}>Save</button>;
+      }
+
+      export function Page() {
+        return () => <main><ClientWidget /></main>;
+      }
+    `, { filename: "Page.tsx", target: "client", serverComponents: true });
+
+    expect(output).toContain("function ClientWidget()");
+    expect(output).not.toContain("export function Page()");
+    expect(output).toContain("onClick: () => save()");
+  });
+
   it("generates child-bearing client island components with state bridge props", () => {
     const source = `
       import { readFile } from "node:fs/promises";
