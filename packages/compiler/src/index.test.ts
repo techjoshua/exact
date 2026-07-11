@@ -36,12 +36,14 @@ describe("@exact/compiler", () => {
   it("builds a semantic graph for scopes declarations imports and references", () => {
     const graph = analyzeSemanticGraph(`
       import fsDefault, { readFile as readProject } from "node:fs/promises";
+      import type { Stats } from "node:fs";
       import * as pathTools from "node:path";
       import { Widget } from "./Widget";
 
       const suffix = "!";
 
       export function ProjectPage(this: Component<{ title: string }>, props: { label: string }) {
+        const fileStats: Stats | undefined = undefined;
         const title = props.label + suffix;
         this.task(async () => {
           this.state.title = await readProject("title.txt", "utf8");
@@ -55,6 +57,7 @@ describe("@exact/compiler", () => {
     expect(imports).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: "fsDefault", moduleSpecifier: "node:fs/promises", importedName: "default" }),
       expect.objectContaining({ name: "readProject", moduleSpecifier: "node:fs/promises", importedName: "readFile" }),
+      expect.objectContaining({ name: "Stats", moduleSpecifier: "node:fs", importedName: "Stats", typeOnly: true }),
       expect.objectContaining({ name: "pathTools", moduleSpecifier: "node:path", importedName: "*" }),
       expect.objectContaining({ name: "Widget", moduleSpecifier: "./Widget", importedName: "Widget" })
     ]));
@@ -67,6 +70,7 @@ describe("@exact/compiler", () => {
 
     expect(graph.references).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: "readProject", source: "import", moduleSpecifier: "node:fs/promises", importedName: "readFile" }),
+      expect.objectContaining({ name: "Stats", source: "import", moduleSpecifier: "node:fs", importedName: "Stats", typeOnly: true }),
       expect.objectContaining({ name: "pathTools", source: "import", moduleSpecifier: "node:path", importedName: "*" }),
       expect.objectContaining({ name: "Widget", source: "import", moduleSpecifier: "./Widget", importedName: "Widget" }),
       expect.objectContaining({ name: "window", source: "global" }),
@@ -326,6 +330,29 @@ describe("@exact/compiler", () => {
     expect(component.tasks.map(task => task.placement)).toEqual(["isomorphic", "isomorphic"]);
     expect(component.splitBoundaries).not.toContain("server-import:readFile");
     expect(component.splitBoundaries).not.toContain("browser:window");
+  });
+
+  it("does not classify type-only server imports as runtime server effects", () => {
+    const manifest = analyzeSource(`
+      import type { Stats } from "node:fs";
+
+      export function ProjectPage(this: Component<{ title?: string }>) {
+        this.task(() => {
+          const stats: Stats | undefined = undefined;
+          this.state.title = stats ? "ready" : "missing";
+        });
+        return () => <p>{this.state.title}</p>;
+      }
+    `, { filename: "ProjectPage.tsx" });
+
+    const component = manifest.components[0]!;
+    expect(component.tasks[0]!.placement).toBe("isomorphic");
+    expect(component.splitBoundaries).not.toContain("server-import:Stats");
+    expect(Object.values(manifest.serverActions)[0]!.stateContract.writes).toContainEqual({
+      path: "title",
+      kind: "write",
+      confidence: "exact"
+    });
   });
 
   it("emits target-specific client and server task artifacts", () => {

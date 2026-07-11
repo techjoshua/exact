@@ -108,6 +108,7 @@ export type ExactSemanticDeclarationIR = {
   nodeEnd: number;
   moduleSpecifier?: string;
   importedName?: string;
+  typeOnly?: boolean;
 };
 
 export type ExactSemanticReferenceIR = {
@@ -120,6 +121,7 @@ export type ExactSemanticReferenceIR = {
   declarationKind?: ExactSemanticDeclarationIR["kind"];
   moduleSpecifier?: string;
   importedName?: string;
+  typeOnly?: boolean;
 };
 
 export type ExactSemanticGraphIR = {
@@ -556,7 +558,7 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
     name: string,
     kind: ExactSemanticDeclarationIR["kind"],
     node: ts.Node,
-    metadata: Pick<ExactSemanticDeclarationIR, "moduleSpecifier" | "importedName"> = {}
+    metadata: Pick<ExactSemanticDeclarationIR, "moduleSpecifier" | "importedName" | "typeOnly"> = {}
   ): ExactSemanticDeclarationIR => {
     const declaration: ExactSemanticDeclarationIR = {
       id: stableId(sourceFile.fileName, "decl", kind, name, String(node.getStart(sourceFile)), String(node.getEnd())),
@@ -587,14 +589,18 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
     addSemanticReference(node);
   };
 
-  const addSemanticReference = (node: ts.Identifier): void => {
+  const addSemanticReference = (
+    node: ts.Identifier,
+    metadata: Pick<ExactSemanticReferenceIR, "typeOnly"> = {}
+  ): void => {
     const scope = currentScope();
     references.push({
       name: node.text,
       scopeId: scope.id,
       source: "unresolved",
       nodeStart: node.getStart(sourceFile),
-      nodeEnd: node.getEnd()
+      nodeEnd: node.getEnd(),
+      ...metadata
     });
   };
 
@@ -606,7 +612,8 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
       ...(declaration ? { declarationId: declaration.id } : {}),
       ...(declaration ? { declarationKind: declaration.kind } : {}),
       ...(declaration?.moduleSpecifier ? { moduleSpecifier: declaration.moduleSpecifier } : {}),
-      ...(declaration?.importedName ? { importedName: declaration.importedName } : {})
+      ...(declaration?.importedName ? { importedName: declaration.importedName } : {}),
+      ...(reference.typeOnly || declaration?.typeOnly ? { typeOnly: true } : {})
     };
   };
 
@@ -626,16 +633,17 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
     const clause = statement.importClause;
     if (!clause) return;
     if (clause.name) {
-      declare(clause.name.text, "import", clause.name, { moduleSpecifier, importedName: "default" });
+      declare(clause.name.text, "import", clause.name, { moduleSpecifier, importedName: "default", typeOnly: clause.isTypeOnly });
     }
     if (clause.namedBindings && ts.isNamespaceImport(clause.namedBindings)) {
-      declare(clause.namedBindings.name.text, "import", clause.namedBindings.name, { moduleSpecifier, importedName: "*" });
+      declare(clause.namedBindings.name.text, "import", clause.namedBindings.name, { moduleSpecifier, importedName: "*", typeOnly: clause.isTypeOnly });
     }
     if (clause.namedBindings && ts.isNamedImports(clause.namedBindings)) {
       for (const element of clause.namedBindings.elements) {
         declare(element.name.text, "import", element.name, {
           moduleSpecifier,
-          importedName: element.propertyName?.text ?? element.name.text
+          importedName: element.propertyName?.text ?? element.name.text,
+          typeOnly: clause.isTypeOnly || element.isTypeOnly
         });
       }
     }
@@ -644,6 +652,7 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
   const visitFunctionLike = (node: ts.FunctionLikeDeclarationBase): void => {
     pushScope("function", node);
     for (const parameter of node.parameters) declareBinding(parameter.name, "parameter");
+    if (node.type) visit(node.type);
     if (node.body) visit(node.body);
     popScope();
   };
@@ -661,6 +670,12 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
           if (ts.isIdentifier(localName)) addSemanticReference(localName);
         }
       }
+      return;
+    }
+
+    if (ts.isTypeReferenceNode(node)) {
+      addTypeReference(node.typeName);
+      for (const argument of node.typeArguments ?? []) visit(argument);
       return;
     }
 
@@ -693,12 +708,14 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
 
     if (ts.isVariableDeclaration(node)) {
       declareBinding(node.name, "variable");
+      if (node.type) visit(node.type);
       if (node.initializer) visit(node.initializer);
       return;
     }
 
     if (ts.isParameter(node)) {
       declareBinding(node.name, "parameter");
+      if (node.type) visit(node.type);
       if (node.initializer) visit(node.initializer);
       return;
     }
@@ -709,6 +726,14 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
     }
 
     ts.forEachChild(node, visit);
+  }
+
+  function addTypeReference(name: ts.EntityName): void {
+    if (ts.isIdentifier(name)) {
+      addSemanticReference(name, { typeOnly: true });
+      return;
+    }
+    addTypeReference(name.left);
   }
 
   pushScope("module", sourceFile);
@@ -785,7 +810,7 @@ function isServerOnlyReference(
   serverOnlyImports: Set<string>
 ): boolean {
   if (!serverOnlyImports.has(node.text)) return false;
-  return reference?.source === "import" && !!reference.moduleSpecifier && isServerOnlyModule(reference.moduleSpecifier);
+  return reference?.source === "import" && !reference.typeOnly && !!reference.moduleSpecifier && isServerOnlyModule(reference.moduleSpecifier);
 }
 
 export async function compileFile(inputFile: string, options: CompileFileOptions = {}): Promise<CompileFileResult> {
@@ -2292,7 +2317,7 @@ function moduleSpecifierKey(specifier: string, baseDir: string): string {
 
 function collectServerOnlyImports(sourceFile: ts.SourceFile, graph: ExactSemanticGraphIR = buildSemanticGraph(sourceFile)): Set<string> {
   return new Set(graph.declarations
-    .filter(declaration => declaration.kind === "import" && !!declaration.moduleSpecifier && isServerOnlyModule(declaration.moduleSpecifier))
+    .filter(declaration => declaration.kind === "import" && !declaration.typeOnly && !!declaration.moduleSpecifier && isServerOnlyModule(declaration.moduleSpecifier))
     .map(declaration => declaration.name));
 }
 
