@@ -77,6 +77,26 @@ describe("@exact/compiler", () => {
     expect(graph.references.some(reference => reference.name === "label")).toBe(false);
   });
 
+  it("resolves semantic references after later declarations are collected", () => {
+    const graph = analyzeSemanticGraph(`
+      export function Panel() {
+        const title = formatTitle("Ready");
+        function formatTitle(value: string) {
+          return value.toUpperCase();
+        }
+        return () => <h1>{title}</h1>;
+      }
+    `, { filename: "Panel.tsx" });
+
+    const declaration = graph.declarations.find(item => item.name === "formatTitle" && item.kind === "function");
+    const reference = graph.references.find(item => item.name === "formatTitle");
+    expect(declaration).toBeDefined();
+    expect(reference).toMatchObject({
+      source: "local",
+      declarationId: declaration!.id
+    });
+  });
+
   it("lowers JSX to eXact compiled vnode helpers", () => {
     const output = transform("const view = <button title={label}>Save</button>;");
 

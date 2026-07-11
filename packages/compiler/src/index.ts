@@ -581,17 +581,24 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
   const addReference = (node: ts.Identifier): void => {
     if (isIdentifierDeclarationName(node) || isPropertyAccessName(node) || isNonReferenceIdentifier(node)) return;
     const scope = currentScope();
-    const declaration = lookup(node.text, scope.id);
     references.push({
       name: node.text,
       scopeId: scope.id,
-      source: declaration?.kind === "import" ? "import" : declaration ? "local" : browserGlobals.has(node.text) ? "global" : "unresolved",
+      source: "unresolved",
       nodeStart: node.getStart(sourceFile),
-      nodeEnd: node.getEnd(),
+      nodeEnd: node.getEnd()
+    });
+  };
+
+  const resolveReference = (reference: ExactSemanticReferenceIR): ExactSemanticReferenceIR => {
+    const declaration = lookup(reference.name, reference.scopeId);
+    return {
+      ...reference,
+      source: declaration?.kind === "import" ? "import" : declaration ? "local" : browserGlobals.has(reference.name) ? "global" : "unresolved",
       ...(declaration ? { declarationId: declaration.id } : {}),
       ...(declaration?.moduleSpecifier ? { moduleSpecifier: declaration.moduleSpecifier } : {}),
       ...(declaration?.importedName ? { importedName: declaration.importedName } : {})
-    });
+    };
   };
 
   const declareBinding = (name: ts.BindingName, kind: "variable" | "parameter"): void => {
@@ -692,7 +699,7 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
   return {
     scopes,
     declarations: declarations.sort((left, right) => left.nodeStart - right.nodeStart || left.name.localeCompare(right.name)),
-    references: references.sort((left, right) => left.nodeStart - right.nodeStart || left.name.localeCompare(right.name))
+    references: references.map(resolveReference).sort((left, right) => left.nodeStart - right.nodeStart || left.name.localeCompare(right.name))
   };
 }
 
