@@ -23,7 +23,7 @@ import {
   type VNode
 } from "@exact/core";
 import { unwrap } from "@exact/reactive";
-import type { ExactEndpointRoutes, ExactInvocationRequest, ExactInvocationResult, ExactPatch, ExactServerContext, ExactServerManifest, ExactStateContract } from "@exact/server";
+import type { ExactEndpointRoutes, ExactInvocationRequest, ExactInvocationResult, ExactPatch, ExactResponseLike, ExactServerContext, ExactServerManifest, ExactStateContract } from "@exact/server";
 
 export type RenderToStringOptions = {
   markers?: boolean;
@@ -59,6 +59,12 @@ export type RenderToDocumentStreamOptions = RenderToStringOptions & HydrationScr
 
 export type RenderToProgressiveHtmlStreamOptions = RenderToDocumentStreamOptions & {
   rootId?: string;
+};
+
+export type RenderToProgressiveHtmlResponseOptions = RenderToProgressiveHtmlStreamOptions & {
+  status?: number;
+  headers?: Record<string, string>;
+  contentType?: string;
 };
 
 export type ExactDocumentStreamEvent =
@@ -255,6 +261,14 @@ export function renderToHydratableProgressiveHtmlStream(vnode: VNode, options: R
     ...options,
     hydration: options.hydration ?? true
   });
+}
+
+export function renderToProgressiveHtmlResponse(vnode: VNode, options: RenderToProgressiveHtmlResponseOptions = {}): ExactResponseLike {
+  return progressiveHtmlResponse(renderToProgressiveHtmlStream(vnode, options), options);
+}
+
+export function renderToHydratableProgressiveHtmlResponse(vnode: VNode, options: RenderToProgressiveHtmlResponseOptions = {}): ExactResponseLike {
+  return progressiveHtmlResponse(renderToHydratableProgressiveHtmlStream(vnode, options), options);
 }
 
 export async function renderToStringAsync(vnode: VNode, options: RenderToStringOptions = {}): Promise<RenderToStringResult> {
@@ -1189,6 +1203,34 @@ function progressiveHtmlChunk(event: ExactDocumentStreamEvent, options: RenderTo
 
 function progressiveRootId(options: RenderToProgressiveHtmlStreamOptions): string {
   return options.rootId ?? "exact-root";
+}
+
+function progressiveHtmlResponse(stream: ReadableStream<Uint8Array>, options: RenderToProgressiveHtmlResponseOptions): ExactResponseLike {
+  const headers = {
+    ...options.headers
+  };
+  if (options.contentType !== undefined || !hasHeader(headers, "content-type")) {
+    setHeader(headers, "content-type", options.contentType ?? "text/html; charset=utf-8");
+  }
+  return {
+    status: options.status ?? 200,
+    headers,
+    body: "",
+    stream
+  };
+}
+
+function hasHeader(headers: Record<string, string>, name: string): boolean {
+  return Object.keys(headers).some(header => header.toLowerCase() === name);
+}
+
+function setHeader(headers: Record<string, string>, name: string, value: string): void {
+  const existing = Object.keys(headers).find(header => header.toLowerCase() === name);
+  if (existing) {
+    headers[existing] = value;
+  } else {
+    headers[name] = value;
+  }
 }
 
 function progressiveErrorScript(error: unknown, options: RenderToProgressiveHtmlStreamOptions): string {

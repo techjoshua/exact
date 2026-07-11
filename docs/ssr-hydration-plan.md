@@ -17,13 +17,14 @@ This note records the implemented SSR/hydration foundation and the remaining des
 
 `@exact/ssr` owns server rendering:
 
-- Converts core VNodes to HTML strings, raw HTML streams, document event streams, and browser-consumable progressive HTML streams.
+- Converts core VNodes to HTML strings, raw HTML streams, document event streams, browser-consumable progressive HTML streams, and neutral progressive HTML response objects.
 - Executes component constructors and render functions without DOM globals.
 - Emits deterministic comment markers for component, cell, dynamic, fragment, and keyed-list boundaries.
 - Renders client-boundary placeholders and server child slots.
 - Waits for observed `this.task(...)` promises in `renderToStringAsync()` and `renderToHydratableStringAsync()`.
 - Streams initial shell HTML before observed async tasks settle through `renderToDocumentStream()` / `renderToHydratableDocumentStream()`, then emits an authoritative root replacement when settled HTML differs.
 - Streams directly consumable progressive HTML through `renderToProgressiveHtmlStream()` / `renderToHydratableProgressiveHtmlStream()`, wrapping the shell in a stable root and applying later root replacements with escaped inline scripts.
+- Packages progressive HTML streams as `ExactResponseLike` through `renderToProgressiveHtmlResponse()` / `renderToHydratableProgressiveHtmlResponse()` for Fetch, Express, Hapi, Vite, Webpack, Bun, or custom server adapters.
 - Serializes hydration bootstrap data through `renderHydrationScript()`.
 - Builds boundary refresh, action refresh, keyed-list refresh, and manifest-scoped server handler registries.
 
@@ -97,7 +98,7 @@ Endpoint responses can stream as newline-delimited JSON when the client opts in 
 
 Initial document event streams are also newline-delimited JSON. Document stream events are `start`, `shell`, optional root `replace`, optional `hydration`, and `complete`.
 
-For direct HTTP document responses, `renderToProgressiveHtmlStream()` and `renderToHydratableProgressiveHtmlStream()` convert those events into browser-consumable HTML chunks. The shell is emitted first inside a configurable root element, async task settlement can emit an escaped inline replacement script for that root, and hydratable streams include the normal inert hydration JSON script.
+For direct HTTP document responses, `renderToProgressiveHtmlStream()` and `renderToHydratableProgressiveHtmlStream()` convert those events into browser-consumable HTML chunks. The shell is emitted first inside a configurable root element, async task settlement can emit an escaped inline replacement script for that root, and hydratable streams include the normal inert hydration JSON script. `renderToProgressiveHtmlResponse()` and `renderToHydratableProgressiveHtmlResponse()` wrap the same streams in the adapter-neutral response shape used by `@exact/server`.
 
 ## Remaining Work
 

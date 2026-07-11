@@ -14,8 +14,10 @@ import {
   renderHydrationScript,
   renderToDocumentStream,
   renderToHydratableDocumentStream,
+  renderToHydratableProgressiveHtmlResponse,
   renderToHydratableProgressiveHtmlStream,
   renderToHydratableString,
+  renderToProgressiveHtmlResponse,
   renderToProgressiveHtmlStream,
   renderToStream,
   renderToString,
@@ -344,6 +346,36 @@ describe("@exact/ssr", () => {
     const rest = await readRemainingText(reader);
 
     expect(rest).toContain("document.getElementById(\"exact-root\")");
+  });
+
+  it("packages progressive html streams as neutral response objects", async () => {
+    const response = renderToHydratableProgressiveHtmlResponse(createVNode("p", null, "ready"), {
+      markers: false,
+      rootId: "app",
+      endpoint: "/__exact",
+      status: 202,
+      headers: { "cache-control": "no-store" }
+    });
+
+    expect(response.status).toBe(202);
+    expect(response.headers).toMatchObject({
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store"
+    });
+    expect(await readStreamText(response.stream!)).toContain("<div id=\"app\"><p>ready</p></div>");
+  });
+
+  it("respects explicit progressive response content type headers", () => {
+    const response = renderToProgressiveHtmlResponse(createVNode("p", null, "ready"), {
+      headers: { "Content-Type": "text/html" }
+    });
+    const overridden = renderToProgressiveHtmlResponse(createVNode("p", null, "ready"), {
+      headers: { "Content-Type": "text/html" },
+      contentType: "application/xhtml+xml"
+    });
+
+    expect(response.headers["Content-Type"]).toBe("text/html");
+    expect(overridden.headers["Content-Type"]).toBe("application/xhtml+xml");
   });
 
   it("serializes hydration endpoint and state as inert escaped json", () => {
