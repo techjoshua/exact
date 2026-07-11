@@ -912,7 +912,7 @@ describe("@exact/compiler", () => {
   });
 
   it("uses distinct boundaries for repeated client component tag instances", () => {
-    const manifest = analyzeSource(`
+    const source = `
       export function ClientShell(this: Component<{ width: number }>, props: { children?: unknown }) {
         this.state.width = window.innerWidth;
         return () => <section>{props.children}</section>;
@@ -924,16 +924,20 @@ describe("@exact/compiler", () => {
           <ClientShell><p>Second</p></ClientShell>
         </>;
       }
-    `, { filename: "Page.tsx" });
+    `;
+    const manifest = analyzeSource(source, { filename: "Page.tsx" });
+    const server = transform(source, { filename: "Page.tsx", target: "server" });
 
     const slotBoundaries = manifest.boundaries.filter(boundary => boundary.name === "ClientShell:children" && boundary.kind === "server-slot");
     const slottedClientBoundaryIds = slotBoundaries.map(boundary => boundary.id.slice(0, -":children".length));
     const slottedClientBoundaries = manifest.boundaries.filter(boundary => slottedClientBoundaryIds.includes(boundary.id));
+    const emittedBoundaryIds = Array.from(server.matchAll(/__exactBoundary\("([^"]+)", "ClientShell"/g), match => match[1]);
 
     expect(slotBoundaries).toHaveLength(2);
     expect(slottedClientBoundaries).toHaveLength(2);
     expect(new Set(slottedClientBoundaryIds).size).toBe(2);
     expect(slotBoundaries.map(boundary => boundary.id).sort()).toEqual(slottedClientBoundaries.map(boundary => `${boundary.id}:children`).sort());
+    expect(emittedBoundaryIds.filter(id => slottedClientBoundaryIds.includes(id))).toEqual(slottedClientBoundaries.map(boundary => boundary.id));
   });
 
   it("splits client components with text-only children into serializable island props", () => {
