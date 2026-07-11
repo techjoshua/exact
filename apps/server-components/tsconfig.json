@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "noEmit": true,
+    "lib": ["ES2022", "DOM"],
+    "jsx": "preserve",
+    "jsxImportSource": "@exact/jsx"
+  },
+  "references": [
+    { "path": "../../packages/core" },
+    { "path": "../../packages/jsx-runtime" },
+    { "path": "../../packages/server" },
+    { "path": "../../packages/ssr" }
+  ],
+  "include": ["src"]
+}

@@ -14,7 +14,8 @@
     "dev:kanban": "npm run dev -w @exact/sample-kanban",
     "build:kanban": "npm run build -w @exact/sample-kanban",
     "dev:workbench": "npm run dev -w @exact/sample-workbench",
-    "build:workbench": "npm run build -w @exact/sample-workbench"
+    "build:workbench": "npm run build -w @exact/sample-workbench",
+    "build:server-components": "npm run build -w @exact/sample-server-components"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

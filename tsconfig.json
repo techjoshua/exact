@@ -13,6 +13,7 @@
     { "path": "./packages/webpack-plugin" },
     { "path": "./packages/bun-plugin" },
     { "path": "./apps/kanban" },
-    { "path": "./apps/workbench" }
+    { "path": "./apps/workbench" },
+    { "path": "./apps/server-components" }
   ]
 }
