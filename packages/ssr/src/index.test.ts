@@ -165,6 +165,9 @@ describe("@exact/ssr", () => {
           reads: [{ path: "project.id", kind: "read", confidence: "exact" }]
         }
       },
+      actionBoundaries: {
+        save: ["profile", "profile:children"]
+      },
       nonce: "abc\"123"
     });
 
@@ -172,6 +175,8 @@ describe("@exact/ssr", () => {
     expect(script).toContain("id=\"__exact_hydration\"");
     expect(script).toContain("nonce=\"abc&quot;123\"");
     expect(script).toContain("\"stateContracts\"");
+    expect(script).toContain("\"actionBoundaries\"");
+    expect(script).toContain("\"profile:children\"");
     expect(script).toContain("\"project.id\"");
     expect(script).toContain("\\u003C/script>");
     expect(script).not.toContain("</script><img>");

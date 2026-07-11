@@ -10,6 +10,7 @@ export type HydrateOptions = {
   fetch?: FetchLike;
   headers?: Record<string, string>;
   stateContracts?: Record<string, ExactStateContract>;
+  actionBoundaries?: Record<string, readonly string[]>;
   islands?: ClientIslandRegistry;
 };
 
@@ -17,6 +18,7 @@ export type ExactHydrationConfig = {
   endpoint?: string;
   state?: unknown;
   stateContracts?: Record<string, ExactStateContract>;
+  actionBoundaries?: Record<string, readonly string[]>;
 };
 
 export type ClientIslandRegistry = Record<string, ComponentFunction<any, any>>;
@@ -55,7 +57,8 @@ export function readExactHydrationConfig(root: ParentNode = document, scriptId =
     return {
       endpoint: typeof record.endpoint === "string" ? record.endpoint : undefined,
       state: record.state,
-      stateContracts: isStateContractMap(record.stateContracts) ? record.stateContracts : undefined
+      stateContracts: isStateContractMap(record.stateContracts) ? record.stateContracts : undefined,
+      actionBoundaries: isActionBoundaryMap(record.actionBoundaries) ? record.actionBoundaries : undefined
     };
   } catch {
     return {};
@@ -142,6 +145,7 @@ async function invokeAndApply(
     payload,
     state: type === "action" ? stateForContract(client.state, client.stateContracts?.[id]) : client.state,
     boundaryHtml: type === "refresh" ? boundaryInnerHtml(container, id) : undefined,
+    boundaryHtmls: type === "action" ? boundaryHtmlsFor(container, options.actionBoundaries?.[id]) : undefined,
     fetch: options.fetch,
     headers: options.headers,
     logger: options.logger
@@ -159,6 +163,7 @@ export type InvokeExactOptions = {
   payload?: unknown;
   state?: unknown;
   boundaryHtml?: string;
+  boundaryHtmls?: Record<string, string>;
   fetch?: FetchLike;
   headers?: Record<string, string>;
   logger?: Logger;
@@ -179,7 +184,8 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
       id: options.id,
       payload: options.payload,
       state: options.state,
-      boundaryHtml: options.boundaryHtml
+      boundaryHtml: options.boundaryHtml,
+      boundaryHtmls: options.boundaryHtmls
     })
   });
 
@@ -215,7 +221,8 @@ function resolveHydrateOptions(container: Element, options: HydrateOptions): Hyd
     ...options,
     endpoint: options.endpoint ?? config.endpoint,
     state: options.state === undefined ? config.state : options.state,
-    stateContracts: options.stateContracts ?? config.stateContracts
+    stateContracts: options.stateContracts ?? config.stateContracts,
+    actionBoundaries: options.actionBoundaries ?? config.actionBoundaries
   };
 }
 
@@ -309,6 +316,23 @@ function isStateContract(value: unknown): value is ExactStateContract {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
   return (record.reads === undefined || Array.isArray(record.reads)) && (record.writes === undefined || Array.isArray(record.writes));
+}
+
+function isActionBoundaryMap(value: unknown): value is Record<string, readonly string[]> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  return Object.values(value as Record<string, unknown>).every(boundaries => {
+    return Array.isArray(boundaries) && boundaries.every(boundary => typeof boundary === "string" && boundary.length > 0);
+  });
+}
+
+function boundaryHtmlsFor(container: Element, ids: readonly string[] | undefined): Record<string, string> | undefined {
+  if (!ids?.length) return undefined;
+  const htmls: Record<string, string> = {};
+  for (const id of ids) {
+    const html = boundaryInnerHtml(container, id);
+    if (html !== undefined) htmls[id] = html;
+  }
+  return Object.keys(htmls).length ? htmls : undefined;
 }
 
 function applyPatch(container: Element, patch: ExactPatch): boolean {

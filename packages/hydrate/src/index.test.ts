@@ -22,7 +22,7 @@ describe("@exact/hydrate", () => {
 
   it("reads endpoint and state from the hydration bootstrap script", () => {
     const root = document.createElement("main");
-    root.innerHTML = "<script type=\"application/json\" id=\"__exact_hydration\">{\"endpoint\":\"/__exact\",\"state\":{\"ready\":true},\"stateContracts\":{\"save\":{\"reads\":[{\"path\":\"project.id\",\"kind\":\"read\",\"confidence\":\"exact\"}]}}}</script>";
+    root.innerHTML = "<script type=\"application/json\" id=\"__exact_hydration\">{\"endpoint\":\"/__exact\",\"state\":{\"ready\":true},\"stateContracts\":{\"save\":{\"reads\":[{\"path\":\"project.id\",\"kind\":\"read\",\"confidence\":\"exact\"}]}},\"actionBoundaries\":{\"save\":[\"profile\",\"slot:children\"]}}</script>";
 
     expect(readExactHydrationConfig(root)).toEqual({
       endpoint: "/__exact",
@@ -31,6 +31,9 @@ describe("@exact/hydrate", () => {
         save: {
           reads: [{ path: "project.id", kind: "read", confidence: "exact" }]
         }
+      },
+      actionBoundaries: {
+        save: ["profile", "slot:children"]
       }
     });
   });
@@ -59,6 +62,35 @@ describe("@exact/hydrate", () => {
     expect(client.state).toEqual({ project: { id: "p1", secret: "hidden" } });
     expect(requestBody.state).toEqual({ project: { id: "p1" } });
     document.body.innerHTML = "";
+  });
+
+  it("sends configured action boundary snapshots with action invocations", async () => {
+    const container = document.createElement("main");
+    container.innerHTML = "<!--exact:profile--><p>Ada</p><!--/exact:profile--><span data-exact-server-slot=\"profile:children\"><em>Child</em></span>";
+    let requestBody: any;
+    const client = createExactClient(container, {
+      endpoint: "/__exact",
+      actionBoundaries: {
+        save: ["profile", "profile:children", "missing"]
+      },
+      fetch: async (_input, init) => {
+        requestBody = JSON.parse(init.body);
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return { ok: true };
+          }
+        };
+      }
+    });
+
+    await client.invokeAction("save");
+
+    expect(requestBody.boundaryHtmls).toEqual({
+      profile: "<p>Ada</p>",
+      "profile:children": "<em>Child</em>"
+    });
   });
 
   it("hydrates server-rendered client island placeholders", () => {

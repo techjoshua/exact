@@ -82,6 +82,7 @@ export type ExactInvocationRequest = {
   payload?: unknown;
   state?: unknown;
   boundaryHtml?: string;
+  boundaryHtmls?: Record<string, string>;
 };
 
 export type ExactInvocationResult = {
@@ -196,6 +197,11 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
     return jsonResponse(404, { error: "not_found" });
   }
 
+  if (!boundaryHintsAllowed(input, context.manifest)) {
+    logReject(context, "rejected exact invocation with unknown boundary hints");
+    return jsonResponse(400, { error: "bad_request" });
+  }
+
   const action = input.type === "action" ? context.manifest.actions?.[input.id] : undefined;
   if (action?.stateContract && !stateMatchesContract(input.state, action.stateContract)) {
     logReject(context, "rejected exact invocation with mismatched state contract");
@@ -308,15 +314,17 @@ function parseInvocation(body: unknown): ExactInvocationRequest {
   const value = typeof body === "string" ? JSON.parse(body) : body;
   if (!value || typeof value !== "object") throw new Error("invalid invocation");
   const record = value as Record<string, unknown>;
-  if (!hasOnlyKeys(record, ["type", "id", "payload", "state", "boundaryHtml"])) throw new Error("unknown invocation field");
+  if (!hasOnlyKeys(record, ["type", "id", "payload", "state", "boundaryHtml", "boundaryHtmls"])) throw new Error("unknown invocation field");
   if (record.type !== "action" && record.type !== "refresh") throw new Error("invalid invocation type");
   if (typeof record.id !== "string" || !record.id) throw new Error("invalid invocation id");
+  if (record.boundaryHtmls !== undefined && !isBoundaryHtmlMap(record.boundaryHtmls)) throw new Error("invalid boundary htmls");
   return {
     type: record.type,
     id: record.id,
     payload: record.payload,
     state: record.state,
-    boundaryHtml: typeof record.boundaryHtml === "string" ? record.boundaryHtml : undefined
+    boundaryHtml: typeof record.boundaryHtml === "string" ? record.boundaryHtml : undefined,
+    boundaryHtmls: record.boundaryHtmls
   };
 }
 
@@ -373,6 +381,19 @@ function isPatchSafe(patch: unknown): patch is ExactPatch {
     default:
       return false;
   }
+}
+
+function isBoundaryHtmlMap(value: unknown): value is Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  return Object.entries(value as Record<string, unknown>).every(([id, html]) => !!id && typeof html === "string");
+}
+
+function boundaryHintsAllowed(input: ExactInvocationRequest, manifest: ExactServerManifest): boolean {
+  if (!input.boundaryHtmls) return true;
+  for (const id of Object.keys(input.boundaryHtmls)) {
+    if (!manifest.boundaries?.[id]) return false;
+  }
+  return true;
 }
 
 function stateMatchesContract(state: unknown, contract: ExactStateContract): boolean {

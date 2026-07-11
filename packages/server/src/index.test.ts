@@ -165,6 +165,46 @@ describe("@exact/server", () => {
     expect(JSON.parse(denied.body)).toEqual({ error: "not_found" });
   });
 
+  it("accepts action boundary snapshots only for manifest-allowlisted boundaries", async () => {
+    let received: unknown;
+    const allowed = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "action",
+        id: "allowed-action",
+        boundaryHtmls: {
+          "allowed-boundary": "<p>Current</p>"
+        }
+      }
+    }, context({
+      actions: {
+        "allowed-action": input => {
+          received = input.boundaryHtmls;
+          return {};
+        }
+      }
+    }));
+
+    expect(allowed.status).toBe(200);
+    expect(received).toEqual({
+      "allowed-boundary": "<p>Current</p>"
+    });
+
+    const denied = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "action",
+        id: "allowed-action",
+        boundaryHtmls: {
+          "../private": "<p>Nope</p>"
+        }
+      }
+    }, context());
+
+    expect(denied.status).toBe(400);
+    expect(JSON.parse(denied.body)).toEqual({ error: "bad_request" });
+  });
+
   it("rejects action requests missing exact state contract reads", async () => {
     const withState = await handleExactRequest({
       method: "POST",

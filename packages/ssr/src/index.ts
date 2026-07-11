@@ -41,6 +41,7 @@ export type HydrationScriptOptions = {
   endpoint?: string;
   state?: unknown;
   stateContracts?: Record<string, ExactStateContract>;
+  actionBoundaries?: Record<string, readonly string[]>;
   scriptId?: string;
   nonce?: string;
 };
@@ -131,6 +132,7 @@ export function renderToHydratableString(vnode: VNode, options: RenderToStringOp
     endpoint: options.endpoint,
     state: result.state,
     stateContracts: options.stateContracts,
+    actionBoundaries: options.actionBoundaries,
     scriptId: options.scriptId,
     nonce: options.nonce
   });
@@ -170,6 +172,7 @@ export async function renderToHydratableStringAsync(vnode: VNode, options: Rende
     endpoint: options.endpoint,
     state: result.state,
     stateContracts: options.stateContracts,
+    actionBoundaries: options.actionBoundaries,
     scriptId: options.scriptId,
     nonce: options.nonce
   });
@@ -184,7 +187,8 @@ export function renderHydrationScript(options: HydrationScriptOptions = {}): str
   const payloadValue = omitUndefinedProperties({
     endpoint: options.endpoint,
     state: options.state,
-    stateContracts: options.stateContracts
+    stateContracts: options.stateContracts,
+    actionBoundaries: options.actionBoundaries
   });
   if (!isStrictJsonSafe(payloadValue)) {
     throw new Error("Hydration payload must be JSON-serializable");
