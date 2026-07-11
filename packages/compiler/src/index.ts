@@ -157,7 +157,12 @@ export type ExactArtifactPlanEntry = {
 export type ExactArtifactPlanDiff = {
   added: ExactArtifactPlanEntry[];
   removed: ExactArtifactPlanEntry[];
+  changed: ExactArtifactPlanEntry[];
   retained: ExactArtifactPlanEntry[];
+};
+
+export type ExactArtifactPlanDiffOptions = {
+  changedInputs?: readonly string[];
 };
 
 export type PackageExportMapOptions = {
@@ -450,16 +455,27 @@ export async function createExactArtifactPlan(inputs: readonly string[], options
   };
 }
 
-export function diffExactArtifactPlans(previous: ExactArtifactPlan, next: ExactArtifactPlan): ExactArtifactPlanDiff {
+export function diffExactArtifactPlans(
+  previous: ExactArtifactPlan,
+  next: ExactArtifactPlan,
+  options: ExactArtifactPlanDiffOptions = {}
+): ExactArtifactPlanDiff {
   const previousByInput = new Map(previous.entries.map(entry => [path.resolve(entry.inputFile), entry]));
   const nextByInput = new Map(next.entries.map(entry => [path.resolve(entry.inputFile), entry]));
+  const changedInputs = new Set((options.changedInputs ?? []).map(file => path.resolve(file)));
   const added: ExactArtifactPlanEntry[] = [];
   const removed: ExactArtifactPlanEntry[] = [];
+  const changed: ExactArtifactPlanEntry[] = [];
   const retained: ExactArtifactPlanEntry[] = [];
 
   for (const [inputFile, entry] of nextByInput) {
-    if (previousByInput.has(inputFile)) retained.push(entry);
-    else added.push(entry);
+    if (!previousByInput.has(inputFile)) {
+      added.push(entry);
+    } else if (changedInputs.has(inputFile)) {
+      changed.push(entry);
+    } else {
+      retained.push(entry);
+    }
   }
   for (const [inputFile, entry] of previousByInput) {
     if (!nextByInput.has(inputFile)) removed.push(entry);
@@ -468,6 +484,7 @@ export function diffExactArtifactPlans(previous: ExactArtifactPlan, next: ExactA
   return {
     added: sortPlanEntries(added),
     removed: sortPlanEntries(removed),
+    changed: sortPlanEntries(changed),
     retained: sortPlanEntries(retained)
   };
 }

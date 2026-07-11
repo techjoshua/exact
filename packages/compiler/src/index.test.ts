@@ -530,7 +530,17 @@ describe("@exact/compiler", () => {
     expect(diffExactArtifactPlans(previous, next)).toEqual({
       added: [planEntry("/app/src/added.tsx")],
       removed: [planEntry("/app/src/removed.tsx")],
+      changed: [],
       retained: [planEntry("/app/src/a.tsx")]
+    });
+
+    expect(diffExactArtifactPlans(previous, next, {
+      changedInputs: ["/app/src/a.tsx"]
+    })).toEqual({
+      added: [planEntry("/app/src/added.tsx")],
+      removed: [planEntry("/app/src/removed.tsx")],
+      changed: [planEntry("/app/src/a.tsx")],
+      retained: []
     });
   });
 
