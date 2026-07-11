@@ -192,6 +192,7 @@ export function createExactServerManifest(
 ): ExactServerManifest {
   const actions: Record<string, ExactManifestAction> = { ...options.actions };
   const boundaries: Record<string, ExactManifestBoundary> = { ...options.boundaries };
+  const boundaryOverrides = new Set(Object.keys(options.boundaries ?? {}));
 
   for (const manifest of normalizeCompilerManifests(compilerManifest)) {
     assertCompilerManifestLike(manifest);
@@ -200,7 +201,7 @@ export function createExactServerManifest(
     }
     for (const action of Object.values(manifest.serverActions ?? {})) {
       if (action.placement !== "server" && action.placement !== "isomorphic") continue;
-      actions[action.id] = {
+      const nextAction = {
         id: action.id,
         componentId: action.componentId,
         taskId: action.taskId,
@@ -208,10 +209,11 @@ export function createExactServerManifest(
         stateContract: action.stateContract,
         contextContract: action.contextContract
       };
+      addManifestAction(actions, nextAction);
     }
 
     for (const boundary of manifest.boundaries ?? []) {
-      boundaries[boundary.id] ??= {
+      addManifestBoundary(boundaries, {
         id: boundary.id,
         name: boundary.name,
         componentId: boundary.componentId,
@@ -220,14 +222,14 @@ export function createExactServerManifest(
         renderEdgeIndex: boundary.renderEdgeIndex,
         renderPath: boundary.renderPath,
         kind: boundary.kind
-      };
+      }, boundaryOverrides);
     }
     for (const component of manifest.components ?? []) {
       if (component.placement === "client") continue;
-      boundaries[component.id] ??= {
+      addManifestBoundary(boundaries, {
         id: component.id,
         componentId: component.id
-      };
+      }, boundaryOverrides);
     }
   }
 
@@ -240,6 +242,49 @@ export function createExactServerManifest(
     boundaries,
     actionBoundaries: inferActionBoundaries(actions, boundaries)
   };
+}
+
+function addManifestAction(actions: Record<string, ExactManifestAction>, action: ExactManifestAction): void {
+  const existing = actions[action.id];
+  if (existing && !sameManifestAction(existing, action)) {
+    throw new Error(`Conflicting eXact action id in compiler manifests: ${action.id}`);
+  }
+  actions[action.id] = action;
+}
+
+function addManifestBoundary(
+  boundaries: Record<string, ExactManifestBoundary>,
+  boundary: ExactManifestBoundary,
+  overrides: ReadonlySet<string>
+): void {
+  const existing = boundaries[boundary.id];
+  if (existing) {
+    if (!overrides.has(boundary.id) && !sameManifestBoundary(existing, boundary)) {
+      throw new Error(`Conflicting eXact boundary id in compiler manifests: ${boundary.id}`);
+    }
+    return;
+  }
+  boundaries[boundary.id] = boundary;
+}
+
+function sameManifestAction(left: ExactManifestAction, right: ExactManifestAction): boolean {
+  return left.id === right.id
+    && left.componentId === right.componentId
+    && left.taskId === right.taskId
+    && left.placement === right.placement
+    && JSON.stringify(left.stateContract) === JSON.stringify(right.stateContract)
+    && JSON.stringify(left.contextContract) === JSON.stringify(right.contextContract);
+}
+
+function sameManifestBoundary(left: ExactManifestBoundary, right: ExactManifestBoundary): boolean {
+  return left.id === right.id
+    && left.name === right.name
+    && left.componentId === right.componentId
+    && left.ownerComponentId === right.ownerComponentId
+    && left.renderEdgeId === right.renderEdgeId
+    && left.renderEdgeIndex === right.renderEdgeIndex
+    && left.renderPath === right.renderPath
+    && left.kind === right.kind;
 }
 
 function normalizeCompilerManifests(manifest: ExactCompilerManifestLike | readonly ExactCompilerManifestLike[]): readonly ExactCompilerManifestLike[] {

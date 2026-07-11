@@ -398,7 +398,7 @@ The current SSR/server-component foundation implements:
 - `createActionRefreshHandler()` runs an allowlisted server action, rerenders configured server boundaries, and returns replacement/text/exact-element patches using the submitted boundary snapshots as diff hints.
 - Hydration bootstrap data may include per-action state contracts; when present, the client sends only the exact state reads required for that action.
 - `@exact/server` owns adapter-neutral request handling and rejects anything not present in the manifest allowlist.
-- `createExactServerManifest()` converts one or more compiler manifests into runtime action/boundary allowlists, including compiler-generated client island boundary IDs.
+- `createExactServerManifest()` converts one or more compiler manifests into runtime action/boundary allowlists, including compiler-generated client island boundary IDs. Conflicting duplicate action or boundary IDs across compiler manifests fail during manifest creation; app-provided boundary overrides remain explicit.
 - `createExactHydrationStateContracts()` extracts the compiler-derived action state contracts for `renderHydrationScript()` / `@exact/hydrate`.
 - If the manifest includes an endpoint path, the shared handler rejects requests for any other path before dispatching.
 - Request, response, and patch protocol objects are strict: unknown fields are rejected instead of being forwarded through the server runtime, and the hydration client validates successful response shapes before applying patches.

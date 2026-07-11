@@ -331,6 +331,58 @@ describe("@exact/server", () => {
     });
   });
 
+  it("rejects conflicting action ids across compiler manifests", () => {
+    expect(() => createExactServerManifest([
+      {
+        version: 1,
+        serverActions: {
+          save: { id: "save", componentId: "Page", taskId: "task-1", placement: "server" }
+        }
+      },
+      {
+        version: 1,
+        serverActions: {
+          save: { id: "save", componentId: "Panel", taskId: "task-2", placement: "server" }
+        }
+      }
+    ])).toThrow("Conflicting eXact action id in compiler manifests: save");
+  });
+
+  it("rejects conflicting boundary ids across compiler manifests", () => {
+    expect(() => createExactServerManifest([
+      {
+        version: 1,
+        boundaries: [{ id: "shared-boundary", componentId: "Page", kind: "client-island" }]
+      },
+      {
+        version: 1,
+        boundaries: [{ id: "shared-boundary", componentId: "Panel", kind: "client-island" }]
+      }
+    ])).toThrow("Conflicting eXact boundary id in compiler manifests: shared-boundary");
+  });
+
+  it("keeps explicit app boundary overrides while rejecting accidental manifest collisions", () => {
+    const manifest = createExactServerManifest([
+      {
+        version: 1,
+        boundaries: [{ id: "remote-widget", componentId: "Widget", kind: "client-island" }]
+      },
+      {
+        version: 1,
+        boundaries: [{ id: "remote-widget", componentId: "OtherWidget", kind: "client-island" }]
+      }
+    ], {
+      boundaries: {
+        "remote-widget": { id: "remote-widget", name: "AppOwnedRemoteWidget" }
+      }
+    });
+
+    expect(manifest.boundaries?.["remote-widget"]).toEqual({
+      id: "remote-widget",
+      name: "AppOwnedRemoteWidget"
+    });
+  });
+
   it("merges app-provided action allowlists with compiler manifests", () => {
     const manifest = createExactServerManifest({
       version: 1,

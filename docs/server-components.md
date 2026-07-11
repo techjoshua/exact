@@ -64,7 +64,7 @@ const manifest = createExactServerManifest(compilerManifest, {
 });
 ```
 
-Only IDs present in the runtime manifest can be invoked. The client never sends module paths, export names, function bodies, or arbitrary component names.
+Only IDs present in the runtime manifest can be invoked. The client never sends module paths, export names, function bodies, or arbitrary component names. When several compiler manifests are combined, conflicting duplicate action or boundary IDs fail during runtime manifest creation instead of silently overwriting each other. App-owned boundary overrides are still explicit through `createExactServerManifest(..., { boundaries })`.
 
 ## Handler Registry
 
