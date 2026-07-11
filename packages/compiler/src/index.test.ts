@@ -651,6 +651,31 @@ describe("@exact/compiler", () => {
     expect(output).not.toContain("__exactDynamic(() => (format(this.state.first)))");
   });
 
+  it("does not infer mutable derived locals", () => {
+    const output = transform(`
+      function View(this: Component<{ first: string }>) {
+        let label = this.state.first;
+        return () => <p>{label}</p>;
+      }
+    `);
+
+    expect(output).toContain("__exactDynamic(() => label)");
+    expect(output).not.toContain("__exactDynamic(() => (this.state.first))");
+  });
+
+  it("does not infer derived consts with assignment initializers", () => {
+    const output = transform(`
+      function View(this: Component<{ first: string }>) {
+        let value = "";
+        const label = value = this.state.first;
+        return () => <p>{label}</p>;
+      }
+    `);
+
+    expect(output).toContain("__exactDynamic(() => label)");
+    expect(output).not.toContain("__exactDynamic(() => (value = this.state.first))");
+  });
+
   it("inlines safe derived consts inside task dependency captures", () => {
     const output = transform(`
       function View(this: Component<{ query: string }>) {
