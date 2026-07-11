@@ -4,6 +4,7 @@ import { handleExactRequest } from "@exact/server";
 import {
   createActionRefreshHandler,
   createBoundaryRefreshHandler,
+  createExactServerHandlerRegistry,
   createKeyedListRefreshHandler,
   diffBoundaryHtml,
   diffKeyedListItems,
@@ -310,6 +311,62 @@ describe("@exact/ssr", () => {
     expect(response.status).toBe(200);
     expect(JSON.parse(response.body)).toMatchObject({
       ok: true,
+      state: { saved: true },
+      patches: [
+        { type: "prop", id: "profile", name: "class", value: "saved" },
+        { type: "text", id: "profile", value: "Saved" }
+      ]
+    });
+  });
+
+  it("creates manifest-scoped server handler registries", async () => {
+    const registry = createExactServerHandlerRegistry({
+      manifest: {
+        version: 1,
+        actions: {
+          "save-profile": { id: "save-profile", componentId: "Profile", placement: "server" }
+        },
+        boundaries: {
+          profile: { id: "profile", ownerComponentId: "Profile" },
+          private: { id: "private", ownerComponentId: "Private" }
+        },
+        actionBoundaries: {
+          "save-profile": ["profile"]
+        }
+      },
+      markers: false,
+      patchStrategy: "element",
+      actions: {
+        "save-profile": () => ({ state: { saved: true } }),
+        "private-action": () => ({ patches: [{ type: "replace", id: "private", html: "<p>nope</p>" }] })
+      },
+      boundaries: {
+        profile: () => createVNode("p", { className: "saved" }, "Saved"),
+        private: () => createVNode("p", null, "Private")
+      }
+    });
+
+    const refresh = await registry.refreshBoundaries.profile({
+      type: "refresh",
+      id: "profile",
+      boundaryHtml: "<p class=\"old\">Loading</p>"
+    }, { manifest: { version: 1 } });
+    const action = await registry.actions["save-profile"]({
+      type: "action",
+      id: "save-profile",
+      boundaryHtmls: {
+        profile: "<p class=\"old\">Loading</p>",
+        private: "<p>Private</p>"
+      }
+    }, { manifest: { version: 1 } });
+
+    expect(Object.keys(registry.actions)).toEqual(["save-profile"]);
+    expect(Object.keys(registry.refreshBoundaries)).toEqual(["private", "profile"]);
+    expect(refresh.patches).toEqual([
+      { type: "prop", id: "profile", name: "class", value: "saved" },
+      { type: "text", id: "profile", value: "Saved" }
+    ]);
+    expect(action).toMatchObject({
       state: { saved: true },
       patches: [
         { type: "prop", id: "profile", name: "class", value: "saved" },

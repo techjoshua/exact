@@ -23,7 +23,7 @@ import {
   type VNode
 } from "@exact/core";
 import { unwrap } from "@exact/reactive";
-import type { ExactInvocationRequest, ExactInvocationResult, ExactPatch, ExactServerContext, ExactStateContract } from "@exact/server";
+import type { ExactInvocationRequest, ExactInvocationResult, ExactPatch, ExactServerContext, ExactServerManifest, ExactStateContract } from "@exact/server";
 
 export type RenderToStringOptions = {
   markers?: boolean;
@@ -69,6 +69,22 @@ export type ActionRefreshBoundaryOptions = BoundaryRefreshOptions & {
 export type ActionRefreshOptions = {
   action(input: ExactInvocationRequest, context: ExactServerContext): Promise<ExactInvocationResult | void> | ExactInvocationResult | void;
   boundaries: readonly ActionRefreshBoundaryOptions[];
+};
+
+export type ExactBoundaryRenderer =
+  | BoundaryRenderFunction
+  | (Partial<BoundaryRefreshOptions> & { render: BoundaryRenderFunction });
+
+export type ExactServerHandlerRegistryOptions = RenderToStringOptions & {
+  manifest: ExactServerManifest;
+  actions?: Record<string, (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult | void> | ExactInvocationResult | void>;
+  boundaries?: Record<string, ExactBoundaryRenderer>;
+  patchStrategy?: BoundaryRefreshOptions["patchStrategy"];
+};
+
+export type ExactServerHandlerRegistry = {
+  actions: NonNullable<ExactServerContext["actions"]>;
+  refreshBoundaries: NonNullable<ExactServerContext["refreshBoundaries"]>;
 };
 
 export type KeyedListSnapshotItem = {
@@ -251,6 +267,70 @@ export function createActionRefreshHandler(
       patches,
       ...(state === undefined ? {} : { state })
     };
+  };
+}
+
+export function createExactServerHandlerRegistry(
+  options: ExactServerHandlerRegistryOptions
+): ExactServerHandlerRegistry {
+  const refreshBoundaries: NonNullable<ExactServerContext["refreshBoundaries"]> = {};
+  const actionHandlers: NonNullable<ExactServerContext["actions"]> = {};
+
+  for (const id of Object.keys(options.manifest.boundaries ?? {}).sort()) {
+    const renderer = options.boundaries?.[id];
+    if (!renderer) continue;
+    refreshBoundaries[id] = createBoundaryRefreshHandler(
+      boundaryRenderFunction(renderer),
+      boundaryRefreshOptions(id, renderer, options)
+    );
+  }
+
+  for (const id of Object.keys(options.manifest.actions ?? {}).sort()) {
+    const action = options.actions?.[id];
+    if (!action) continue;
+    const boundaries = (options.manifest.actionBoundaries?.[id] ?? [])
+      .map(boundaryId => {
+        const renderer = options.boundaries?.[boundaryId];
+        return renderer
+          ? {
+            ...boundaryRefreshOptions(boundaryId, renderer, options),
+            render: boundaryRenderFunction(renderer)
+          }
+          : undefined;
+      })
+      .filter((boundary): boundary is ActionRefreshBoundaryOptions => boundary !== undefined);
+    actionHandlers[id] = boundaries.length
+      ? createActionRefreshHandler({ action, boundaries })
+      : async (input, context) => await action(input, context) ?? {};
+  }
+
+  return {
+    actions: actionHandlers,
+    refreshBoundaries
+  };
+}
+
+function boundaryRenderFunction(renderer: ExactBoundaryRenderer): BoundaryRenderFunction {
+  return typeof renderer === "function" ? renderer : renderer.render;
+}
+
+function boundaryRefreshOptions(
+  boundaryId: string,
+  renderer: ExactBoundaryRenderer,
+  defaults: RenderToStringOptions & { patchStrategy?: BoundaryRefreshOptions["patchStrategy"] }
+): BoundaryRefreshOptions {
+  if (typeof renderer === "function") {
+    return {
+      ...defaults,
+      boundaryId,
+      patchStrategy: defaults.patchStrategy
+    };
+  }
+  return {
+    ...defaults,
+    ...renderer,
+    boundaryId,
+    patchStrategy: renderer.patchStrategy ?? defaults.patchStrategy
   };
 }
 
