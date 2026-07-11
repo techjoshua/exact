@@ -162,6 +162,7 @@ export function createExactServerManifest(
   const boundaries: Record<string, ExactManifestBoundary> = { ...options.boundaries };
 
   for (const manifest of normalizeCompilerManifests(compilerManifest)) {
+    assertCompilerManifestLike(manifest);
     if (manifest.version !== exactCompilerManifestVersion) {
       throw new Error(`Unsupported eXact compiler manifest version: ${String((manifest as { version?: unknown }).version)}`);
     }
@@ -209,6 +210,61 @@ function normalizeCompilerManifests(manifest: ExactCompilerManifestLike | readon
 
 function isCompilerManifestList(value: ExactCompilerManifestLike | readonly ExactCompilerManifestLike[]): value is readonly ExactCompilerManifestLike[] {
   return Array.isArray(value);
+}
+
+function assertCompilerManifestLike(manifest: unknown): asserts manifest is ExactCompilerManifestLike {
+  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
+    throw new Error("Malformed eXact compiler manifest");
+  }
+  const record = manifest as Partial<ExactCompilerManifestLike> & { version?: unknown };
+  if (record.version !== exactCompilerManifestVersion) return;
+  if (record.serverActions !== undefined && (!record.serverActions || typeof record.serverActions !== "object" || Array.isArray(record.serverActions))) {
+    throw new Error("Malformed eXact compiler manifest");
+  }
+  for (const action of Object.values(record.serverActions ?? {})) {
+    if (!action || typeof action !== "object" || Array.isArray(action)) throw new Error("Malformed eXact compiler manifest");
+    if (typeof action.id !== "string" || !action.id) throw new Error("Malformed eXact compiler manifest");
+    if (action.componentId !== undefined && typeof action.componentId !== "string") throw new Error("Malformed eXact compiler manifest");
+    if (action.taskId !== undefined && typeof action.taskId !== "string") throw new Error("Malformed eXact compiler manifest");
+    if (action.placement !== undefined && !isCompilerPlacement(action.placement)) throw new Error("Malformed eXact compiler manifest");
+    if (action.stateContract !== undefined && !isStateContract(action.stateContract)) throw new Error("Malformed eXact compiler manifest");
+  }
+  if (record.components !== undefined && !Array.isArray(record.components)) throw new Error("Malformed eXact compiler manifest");
+  for (const component of record.components ?? []) {
+    if (!component || typeof component !== "object" || Array.isArray(component)) throw new Error("Malformed eXact compiler manifest");
+    if (typeof component.id !== "string" || !component.id) throw new Error("Malformed eXact compiler manifest");
+    if (component.placement !== undefined && !isCompilerPlacement(component.placement)) throw new Error("Malformed eXact compiler manifest");
+  }
+  if (record.boundaries !== undefined && !Array.isArray(record.boundaries)) throw new Error("Malformed eXact compiler manifest");
+  for (const boundary of record.boundaries ?? []) {
+    if (!boundary || typeof boundary !== "object" || Array.isArray(boundary)) throw new Error("Malformed eXact compiler manifest");
+    if (typeof boundary.id !== "string" || !boundary.id) throw new Error("Malformed eXact compiler manifest");
+    if (boundary.name !== undefined && typeof boundary.name !== "string") throw new Error("Malformed eXact compiler manifest");
+    if (boundary.componentId !== undefined && typeof boundary.componentId !== "string") throw new Error("Malformed eXact compiler manifest");
+    if (boundary.ownerComponentId !== undefined && typeof boundary.ownerComponentId !== "string") throw new Error("Malformed eXact compiler manifest");
+    if (boundary.kind !== undefined && typeof boundary.kind !== "string") throw new Error("Malformed eXact compiler manifest");
+  }
+}
+
+function isCompilerPlacement(value: unknown): value is "server" | "isomorphic" | "client" | "unknown" {
+  return value === "server" || value === "isomorphic" || value === "client" || value === "unknown";
+}
+
+function isStateContract(value: unknown): value is ExactStateContract {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Partial<ExactStateContract>;
+  return (record.reads === undefined || isStatePathList(record.reads))
+    && (record.writes === undefined || isStatePathList(record.writes));
+}
+
+function isStatePathList(value: unknown): value is ExactStatePath[] {
+  return Array.isArray(value) && value.every(item => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return false;
+    const path = item as Partial<ExactStatePath>;
+    return typeof path.path === "string"
+      && (path.kind === "read" || path.kind === "write")
+      && (path.confidence === "exact" || path.confidence === "broad" || path.confidence === "unknown");
+  });
 }
 
 function inferActionBoundaries(

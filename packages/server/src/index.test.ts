@@ -50,6 +50,36 @@ describe("@exact/server", () => {
     } as any)).toThrow("Unsupported eXact compiler manifest version: 2");
   });
 
+  it("rejects malformed compiler manifests before creating allowlists", () => {
+    expect(() => createExactServerManifest({
+      version: 1,
+      serverActions: {
+        action: {
+          id: 1,
+          placement: "server"
+        }
+      }
+    } as any)).toThrow("Malformed eXact compiler manifest");
+
+    expect(() => createExactServerManifest({
+      version: 1,
+      components: [{ id: "Panel", placement: "browser" }]
+    } as any)).toThrow("Malformed eXact compiler manifest");
+
+    expect(() => createExactServerManifest({
+      version: 1,
+      serverActions: {
+        action: {
+          id: "action",
+          placement: "server",
+          stateContract: {
+            reads: [{ path: "project.id", kind: "inspect", confidence: "exact" }]
+          }
+        }
+      }
+    } as any)).toThrow("Malformed eXact compiler manifest");
+  });
+
   it("creates runtime allowlists from compiler manifests", () => {
     const manifest = createExactServerManifest({
       version: 1,
