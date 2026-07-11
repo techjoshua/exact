@@ -98,5 +98,6 @@ The current foundation is usable for the sample path and core protocol tests, bu
 - Richer server patch generation for complex structural changes beyond the current text, element, list, state, and boundary replacement paths.
 - Streaming SSR and streamed server component refresh responses.
 - Stronger generated registry/context glue for larger apps with many manifests.
+- Micro frontend support for dynamically loaded remote manifests, per-boundary endpoints, per-endpoint batching, and optional global context tokens for cross-bundle context sharing.
 - Better diagnostics for ambiguous placement inference and serialization failures sourced from generated compiler captures.
 - Production guidance for cache headers, deployment topology, auth/session integration, and package publishing conventions.

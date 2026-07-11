@@ -151,6 +151,29 @@ The manifest is the execution boundary:
 
 Rejected requests are logged through framework logging without leaking server internals to the client.
 
+## Future Work: Micro Frontends
+
+Server component support should eventually handle micro frontend trees where the initial HTML is owned by one shell app, but feature bundles are loaded dynamically from other apps or endpoints.
+
+The expected model:
+
+- Only the shell app owns initial document SSR. Remote apps do not participate in that first server render unless the shell explicitly hosts their server artifacts.
+- Remote apps can still own server component subtrees after hydration. The shell renders a placeholder, the client loads the remote bundle, registers its manifest/client islands, and requests the remote server-rendered subtree from that remote app's endpoint.
+- Endpoint routing should be manifest or boundary scoped, not only app-global. A shell action can use `/__exact`, while a billing boundary can use `https://billing.example.com/__exact`.
+- Client batching should group same-tick operations per endpoint. Operations for different remotes should produce separate endpoint batches, while preserving each endpoint's existing `opId` / `dependsOn` dependency behavior.
+- A remote endpoint should only accept IDs from the manifests it owns or that the host explicitly provides. Patches from a remote endpoint should only target boundaries owned by that remote manifest unless the host grants cross-manifest authority.
+- Dynamically loaded remotes likely need a runtime registration API for manifest metadata, endpoint routing, client islands, and optional per-remote transport hooks.
+
+Context sharing across micro frontend bundles also needs an explicit design:
+
+- Context tokens currently use unique local symbols, so duplicate copies of a shared context module can create separate token identities.
+- For cross-bundle context, `createContext(description, global)` could allow globally keyed contexts while keeping local contexts as the default.
+- A global context would use a namespaced `Symbol.for()` key, for example `Symbol.for("exact.context:com.company.auth.user")`.
+- Authors should use collision-resistant namespaced descriptions for global contexts, such as `com.company.auth.user`, not generic names like `user`.
+- Built-in framework contexts such as logger and error context may also need global keys so duplicated `@exact/core` copies can share them in one browser realm.
+- `Symbol.for()` only solves identity within the same JavaScript realm. Cross-iframe, worker, or remote server endpoint context still has to be passed explicitly as validated serialized request/session data.
+- Remote server components should not receive arbitrary client-provided context. Compiler/runtime manifests should declare which context keys a boundary or action may read, and endpoints should validate those context payloads just like state contracts.
+
 ## Sample
 
 `apps/server-components` is the executable wiring sample. It uses generated artifacts and manifest data, registers server handlers, exercises the secure endpoint, hydrates a generated client island in jsdom, invokes an action, and applies the returned patch.
