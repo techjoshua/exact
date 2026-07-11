@@ -1,116 +1,102 @@
-# SSR And Hydration Plan
+# SSR And Hydration Status
 
-This note captures the current direction for server rendering and hydration. It is a planning document, not an implementation commitment for the current slice.
+This note records the implemented SSR/hydration foundation and the remaining design pressure. For the server component build/runtime wiring guide, see [server-components.md](server-components.md).
 
 ## Goals
 
 - Keep `@exact/core` platform-neutral.
-- Add server rendering without DOM globals, DOM types, or browser-only behavior.
-- Add client hydration without forcing SSR concerns into the normal DOM renderer.
+- Keep browser rendering in `@exact/dom`.
+- Keep server rendering in `@exact/ssr`.
+- Keep hydration and endpoint patch application in `@exact/hydrate`.
+- Keep secure server-component/action dispatch in `@exact/server`.
 - Preserve eXact's core model: component instances, reactive values, context, keyed lists, cells, logging, and error contexts.
-- Make failures observable through `ErrorContext` and framework logging rather than ad hoc console output.
 
-## Package Boundaries
+## Implemented Package Boundaries
 
 ### `@exact/ssr`
 
-Owns server rendering:
+`@exact/ssr` owns server rendering:
 
-- Converts core vnodes to HTML strings or streams.
-- Executes component constructors and render functions in a server render scope.
-- Resolves async server work only if/when an explicit async primitive exists.
-- Emits hydration markers for component, cell, dynamic, fragment, and keyed-list boundaries.
-- Captures initial serializable state only through an explicit API, not by walking arbitrary objects by surprise.
-- Reports render/construction failures to the active `ErrorContext`.
+- Converts core VNodes to HTML strings or streams.
+- Executes component constructors and render functions without DOM globals.
+- Emits deterministic comment markers for component, cell, dynamic, fragment, and keyed-list boundaries.
+- Renders client-boundary placeholders and server child slots.
+- Waits for observed `this.task(...)` promises in `renderToStringAsync()` and `renderToHydratableStringAsync()`.
+- Serializes hydration bootstrap data through `renderHydrationScript()`.
+- Builds boundary refresh, action refresh, keyed-list refresh, and manifest-scoped server handler registries.
 
 ### `@exact/hydrate`
 
-Owns client reattachment:
+`@exact/hydrate` owns client reattachment and server patch application:
 
-- Walks existing server HTML and matches it to core vnode/cell boundaries.
-- Reuses DOM nodes where markers and vnode identity agree.
-- Rebuilds component instances and reactive watchers.
-- Attaches delegated events and refs.
-- Falls back to normal DOM patching when markup cannot be trusted.
-- Reports hydration mismatches through framework logging, with strict-mode failure as an option later.
+- Reads hydration bootstrap data from the rendered script tag.
+- Hydrates generated client islands from `data-exact-client-boundary` placeholders.
+- Creates an endpoint client with same-tick batching.
+- Sends action, refresh, state contract, dependency, and boundary snapshot payloads.
+- Applies text, prop, style, keyed-list, state, and replacement patches.
+- Falls back to authoritative server replacement HTML when a fine-grained patch misses.
 
-### `@exact/dom`
+### `@exact/server`
 
-Remains browser rendering:
+`@exact/server` owns the runtime-neutral secure endpoint:
 
-- Continues to own fresh DOM mounting and patching.
-- Shares placement/prop/style/ref/event behavior with hydration where practical.
-- Does not become responsible for string rendering.
+- Converts compiler manifests into runtime action and boundary allowlists.
+- Rejects unsupported manifest versions, unknown IDs, malformed requests, unknown protocol fields, endpoint mismatches, unauthorized requests, invalid CSRF, mismatched state contracts, and non-JSON-safe payload/results.
+- Dispatches independent batch operations in order and skips explicitly dependent operations when prerequisites fail.
+- Exposes Fetch, Express, and Hapi adapters as thin wrappers around the same core handler.
+
+### `@exact/compiler`
+
+`@exact/compiler` owns semantic analysis and artifact generation:
+
+- Emits compiler manifests for components, tasks, state effects, render edges, symbols, boundaries, and server actions.
+- Infers `this.task(...)` placement and supports `this.task.server(...)` / `this.task.client(...)` escape hatches.
+- Emits paired client/server artifacts and manifest files with `exactc --artifacts --serverComponents`.
+- Splits clear server/client boundaries for pure client components, imported client components, event handlers, refs, generated client islands, server slots, and server parts.
+- Provides bundler-neutral artifact plans, dev-server update state, package export maps, registry modules, and manifest readers.
 
 ## Marker Model
 
-SSR needs enough markers for hydration to know where reactive boundaries begin and end:
+SSR uses compact HTML comments and exact data attributes:
 
-- Component boundary.
-- Cell boundary.
-- Dynamic child boundary.
-- Fragment boundary.
-- Keyed list boundary and item keys.
-- Text/reactive expression boundary when text may update independently.
+- Component boundary markers.
+- Cell markers.
+- Dynamic child markers.
+- Fragment markers.
+- Keyed list and keyed item markers.
+- `data-exact-id` markers for fine-grained element patching.
+- `data-exact-client-boundary` placeholders for generated client islands.
+- `data-exact-server-slot` placeholders for server-owned children inside client islands.
 
-Markers should be compact, deterministic, and ignorable by normal browser rendering. HTML comments are the likely v1 mechanism.
-
-Example shape, not final syntax:
-
-```html
-<!--exact:component:c12:TaskCard-->
-<!--exact:cell:s4-->
-<article data-exact-key="task-1">...</article>
-<!--/exact:cell:s4-->
-<!--/exact:component:c12-->
-```
+Markers are intended to be deterministic enough for hydration and patching, while remaining ignorable by normal browser rendering.
 
 ## State And Serialization
 
-The framework should not serialize every reactive object automatically. That would be surprising and hard to secure.
+The current model is explicit and JSON-safe:
 
-Prefer an explicit state capture model:
+- Hydration bootstrap state is provided by the app through render options or `createExactHydrationManifestConfig()`.
+- Compiler-derived action state contracts tell the client which exact state reads to include for an action.
+- Client-boundary props, hydration payloads, request payloads, response payloads, and patch payloads must be JSON-safe.
+- Non-serializable client-boundary props fail during SSR with the offending prop path.
+- Functions, DOM nodes, class instances, `Map`, `Set`, `Date`, cycles, and other non-plain objects are not serialized.
 
-- Components or app roots opt into serializable state.
-- Captured state is JSON-safe by default.
-- Functions, DOM nodes, class instances, `Map`, `Set`, `Date`, and other non-plain objects are not serialized in v1.
-- Hydration can accept preloaded state and pass it into app code through props or context.
+## Request Protocol
 
-## Error Behavior
+The endpoint accepts:
 
-Server failures should follow the same model as client failures:
+- `action`: invoke one manifest-allowlisted server action.
+- `refresh`: rerender one manifest-allowlisted server boundary.
+- `batch`: send same-tick operations together.
 
-- Construction/render/task-like server failures report to the nearest `ErrorContext`.
-- A boundary can render an error view, render children anyway, or clear/report errors.
-- Root SSR fallback should render a default error document or fragment if no boundary handles the failure.
-- Framework logs should use `LoggerContext`/root logger style configuration where possible.
+Batch operations are independent unless `dependsOn` references a previous `opId`. This lets the client send GraphQL-style operation groups without forcing unrelated operations to fail together.
 
-## Hydration Matching Rules
+## Remaining Work
 
-Hydration should be conservative:
+The current foundation is usable for the sample path and core protocol tests, but it is not yet a complete production server-component system. The remaining larger pieces are:
 
-- Same boundary kind, type, and key: attach and continue.
-- Same DOM element type: attach props/events/refs and hydrate children.
-- Text mismatch: update text and log a debug/trace mismatch event.
-- Structural mismatch: replace the mismatched subtree with normal DOM render output.
-- Missing marker: treat as mismatch unless running an explicitly permissive mode.
-
-## Open Design Questions
-
-- Do component ids need to be stable across server/client, or are marker-local ids enough?
-- How much source/location metadata should the compiler emit for useful hydration diagnostics?
-- Should streaming SSR be v1, or should v1 be synchronous string rendering only?
-- What is the smallest explicit state capture API that feels natural?
-- Should hydration be a separate app entrypoint (`hydrate(vnode, container)`) or a `render(..., { hydrate: true })` option? Current preference is a separate `@exact/hydrate` entrypoint.
-
-## Suggested Implementation Order
-
-1. Add `@exact/ssr` with static string rendering for plain vnodes, text, fragments, cells, and DOM props.
-2. Add SSR component construction/rendering with context, logging, and `ErrorContext`.
-3. Add deterministic boundary markers.
-4. Add `@exact/hydrate` that attaches to static DOM nodes and simple components.
-5. Add keyed list hydration.
-6. Add reactive text/prop/style watcher attachment.
-7. Add mismatch diagnostics and fallback replacement.
-8. Add explicit state capture and preload handoff.
-
+- More complete compiler-owned component splitting across nested subgraphs and package boundaries.
+- Richer server patch generation for complex structural changes beyond the current text, element, list, state, and boundary replacement paths.
+- Streaming SSR and streamed server component refresh responses.
+- Stronger generated registry/context glue for larger apps with many manifests.
+- Better diagnostics for ambiguous placement inference and serialization failures sourced from generated compiler captures.
+- Production guidance for cache headers, deployment topology, auth/session integration, and package publishing conventions.
