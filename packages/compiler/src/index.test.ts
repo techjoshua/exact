@@ -356,6 +356,20 @@ describe("@exact/compiler", () => {
     ]));
   });
 
+  it("does not treat shadowed Object.assign as a built-in state mutator", () => {
+    const manifest = analyzeSource(`
+      export function ProjectPage(this: Component<{ title: string }>) {
+        this.task(() => {
+          const Object = { assign() {} };
+          Object.assign(this.state, { title: "Ready" });
+        });
+        return () => <p>{this.state.title}</p>;
+      }
+    `, { filename: "ProjectPage.tsx" });
+
+    expect(manifest.components[0]!.tasks[0]!.writes).toEqual([]);
+  });
+
   it("uses state aliases in server action contracts", () => {
     const manifest = analyzeSource(`
       import { readFile } from "node:fs/promises";

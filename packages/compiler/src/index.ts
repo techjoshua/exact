@@ -876,6 +876,17 @@ function isServerOnlyReference(
   return reference?.source === "import" && !reference.typeOnly && !!reference.moduleSpecifier && isServerOnlyModule(reference.moduleSpecifier);
 }
 
+function isUnshadowedGlobalIdentifier(
+  node: ts.Expression,
+  name: string,
+  semanticReferences: SemanticReferenceIndex,
+  sourceFile: ts.SourceFile
+): boolean {
+  if (!ts.isIdentifier(node) || node.text !== name) return false;
+  const reference = semanticReferenceForIdentifier(node, semanticReferences, sourceFile);
+  return !reference || reference.source === "unresolved" || reference.source === "global";
+}
+
 export async function compileFile(inputFile: string, options: CompileFileOptions = {}): Promise<CompileFileResult> {
   const source = await readFile(inputFile, "utf8");
   const result = transformSource(source, { filename: options.filename ?? inputFile, target: options.target, serverComponents: options.serverComponents });
@@ -1963,7 +1974,7 @@ function analyzeTask(
             });
           }
         }
-        if (expression.name.text === "assign" && expression.expression.getText(sourceFile) === "Object") {
+        if (expression.name.text === "assign" && isUnshadowedGlobalIdentifier(expression.expression, "Object", semanticReferences, sourceFile)) {
           const target = current.arguments[0];
           const targetPath = target ? stateEffectPath(target, sourceFile, semanticReferences, stateAliases) : undefined;
           if (targetPath !== undefined) {
