@@ -91,6 +91,10 @@ describe("@exact/bun-plugin", () => {
     expect(mergeConditions(["browser", "exact-client"], ["exact-client"])).toEqual(["exact-client", "browser"]);
   });
 
+  it("adds filename context to transform errors", () => {
+    expect(() => transformExactBunSource("const view = <span>;", "/src/broken.tsx")).toThrow(/eXact JSX transform failed for \/src\/broken\.tsx/);
+  });
+
   it("registers and executes Bun resolve and load hooks", async () => {
     let resolveHook!: (args: { path: string; importer?: string }) => { path?: string } | Promise<{ path?: string }>;
     let loadHook!: (args: BunLoadArgs) => BunLoadResult | Promise<BunLoadResult>;

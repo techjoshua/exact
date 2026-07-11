@@ -116,6 +116,10 @@ describe("@exact/webpack-plugin", () => {
     });
   });
 
+  it("adds filename context to transform errors", () => {
+    expect(() => transformExactWebpackSource("const view = <span>;", "/src/broken.tsx")).toThrow(/eXact JSX transform failed for \/src\/broken\.tsx/);
+  });
+
   it("applies conditions and loader rules to a compiler", () => {
     let resolverFactory: ((resolver: any) => any) | undefined;
     const compiler: WebpackCompilerLike = { options: {} };

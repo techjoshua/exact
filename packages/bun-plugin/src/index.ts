@@ -93,17 +93,22 @@ async function readBunLoadSource(args: BunLoadArgs): Promise<string> {
 
 export function transformExactBunSource(source: string, filename: string, options: ExactBunPluginOptions = {}): { code: string; map: unknown } | null {
   if (!shouldTransform(filename, source, options)) return null;
-  const result = transformSource(source, {
-    filename,
-    target: options.target,
-    importedManifests: importedManifestsFor(options),
-    serverComponents: options.serverComponents,
-    sourceMap: options.sourceMap ?? true
-  });
-  return {
-    code: result.code,
-    map: result.map
-  };
+  try {
+    const result = transformSource(source, {
+      filename,
+      target: options.target,
+      importedManifests: importedManifestsFor(options),
+      serverComponents: options.serverComponents,
+      sourceMap: options.sourceMap ?? true
+    });
+    return {
+      code: result.code,
+      map: result.map
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`eXact JSX transform failed for ${filename}\n${message}`);
+  }
 }
 
 function importedManifestsFor(options: { importedManifests?: readonly ExactCompilerManifest[]; manifestFiles?: readonly string[] }): ExactCompilerManifest[] {
