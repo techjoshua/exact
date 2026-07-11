@@ -1894,15 +1894,15 @@ describe("@exact/compiler", () => {
       filename: "/src/Page.tsx",
       importedManifests: [widgetManifest]
     });
-    const server = transform(source, {
+
+    expect(manifest.boundaries.filter(boundary => boundary.name === "ClientWidget")).toHaveLength(0);
+    expect(manifest.components[0]!.renderEdges).toEqual([]);
+    expect(manifest.components[0]!.diagnostics).toContain("error: JSX tag ClientWidget resolves to a type-only import and cannot be rendered at runtime");
+    expect(() => transform(source, {
       filename: "/src/Page.tsx",
       target: "server",
       importedManifests: [widgetManifest]
-    });
-
-    expect(server).not.toContain("__exactBoundary");
-    expect(manifest.boundaries.filter(boundary => boundary.name === "ClientWidget")).toHaveLength(0);
-    expect(manifest.components[0]!.renderEdges).toEqual([]);
+    })).toThrow("JSX tag ClientWidget resolves to a type-only import");
   });
 
   it("uses exported component identity for aliased imported client boundaries", () => {

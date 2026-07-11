@@ -1583,6 +1583,11 @@ function analyzeComponent(
 
     const isIslandElement = ts.isJsxElement(current) && jsxElementIsClientIsland(current.openingElement.attributes);
     const isIslandNode = isIslandElement || (ts.isJsxSelfClosingElement(current) && jsxElementIsClientIsland(current.attributes));
+    if (ts.isJsxElement(current)) {
+      addJsxTagSemanticDiagnostics(current.openingElement.tagName, diagnostics, semanticReferences, sourceFile);
+    } else if (ts.isJsxSelfClosingElement(current)) {
+      addJsxTagSemanticDiagnostics(current.tagName, diagnostics, semanticReferences, sourceFile);
+    }
     if (islandDepth === 0 && isIslandNode) {
       clientIslandCount++;
       if (containsServerOnlyIdentifier(current, serverOnlyImports, semanticReferences, sourceFile)) {
@@ -1664,6 +1669,19 @@ function containsServerOnlyIdentifier(
   }
   visit(node);
   return found;
+}
+
+function addJsxTagSemanticDiagnostics(
+  tagName: ts.JsxTagNameExpression,
+  diagnostics: string[],
+  semanticReferences: SemanticReferenceIndex,
+  sourceFile: ts.SourceFile
+): void {
+  if (!ts.isIdentifier(tagName) || jsxTagIsIntrinsicElement(tagName)) return;
+  const reference = semanticReferenceForIdentifier(tagName, semanticReferences, sourceFile);
+  if (reference?.typeOnly) {
+    diagnostics.push(`error: JSX tag ${tagName.text} resolves to a type-only import and cannot be rendered at runtime`);
+  }
 }
 
 function collectComponentInfo(
