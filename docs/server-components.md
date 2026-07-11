@@ -137,7 +137,7 @@ The client endpoint supports:
 - `refresh`: rerender one manifest-allowlisted server boundary.
 - `batch`: send same-tick operations together.
 
-Batches behave like independent GraphQL-style operation groups: each operation has its own result, and optional `opId` / `dependsOn` metadata can express dependency ordering. `opId` values must be unique within a batch. Independent operations continue even when another operation fails. Dependent operations are skipped with `dependency_failed` if a prerequisite did not succeed.
+Batches behave like independent GraphQL-style operation groups: each operation has its own result, and optional `opId` / `dependsOn` metadata can express dependency ordering. `opId` values must be unique within a batch. Independent operations run concurrently and preserve request-order results. Dependent operations wait for successful prerequisites and are skipped with `dependency_failed` if a prerequisite does not succeed.
 
 Patch responses can include text updates, prop/style updates, keyed list operations, state updates, and boundary replacement. If a fine-grained patch cannot apply cleanly, the client replaces the nearest server boundary with the authoritative server-rendered HTML.
 
@@ -175,9 +175,9 @@ Context sharing across micro frontend bundles has an explicit same-realm token o
 - For cross-bundle context, `createContext(description, true)` creates a globally keyed context while keeping local contexts as the default.
 - A global context uses a namespaced `Symbol.for()` key, for example `Symbol.for("exact.context:com.company.auth.user")`.
 - Authors should use collision-resistant namespaced descriptions for global contexts, such as `com.company.auth.user`, not generic names like `user`.
-- Built-in framework contexts such as logger and error context may also need global keys so duplicated `@exact/core` copies can share them in one browser realm.
+- Built-in framework contexts such as logger and error context use global keys so duplicated `@exact/core` copies can share them in one browser realm.
 - `Symbol.for()` only solves identity within the same JavaScript realm. Cross-iframe, worker, or remote server endpoint context still has to be passed explicitly as validated serialized request/session data.
-- Remote server components should not receive arbitrary client-provided context. Compiler/runtime manifests should declare which context keys a boundary or action may read, and endpoints should validate those context payloads just like state contracts.
+- Remote server components should not receive arbitrary client-provided context. Compiler/runtime manifests record action context contracts from `this.getContext(...)` / `this.setContext(...)`; endpoint-side serialized context validation remains future runtime work.
 
 ## Sample
 

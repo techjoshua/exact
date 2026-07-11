@@ -89,7 +89,7 @@ The endpoint accepts:
 - `refresh`: rerender one manifest-allowlisted server boundary.
 - `batch`: send same-tick operations together.
 
-Batch operations are independent unless `dependsOn` references a previous unique `opId`. This lets the client send GraphQL-style operation groups without forcing unrelated operations to fail together.
+Batch operations are independent unless `dependsOn` references a previous unique `opId`. This lets the client send GraphQL-style operation groups without forcing unrelated operations to fail together. The server dispatches independent ready operations concurrently while preserving request-order result envelopes.
 
 ## Remaining Work
 
@@ -98,7 +98,7 @@ The current foundation is usable for the sample path and core protocol tests, bu
 - More complete compiler-owned component splitting across nested subgraphs and package boundaries.
 - Richer server patch generation for complex structural changes beyond the current text, element, list, state, and boundary replacement paths.
 - Streaming SSR and streamed server component refresh responses.
-- Stronger generated registry/context glue for larger apps with many manifests.
-- Micro frontend support for dynamically loaded remote manifests, per-boundary endpoints, per-endpoint batching, and optional global context tokens for cross-bundle context sharing.
+- Stronger generated registry/context glue for larger apps with many manifests, including endpoint-side validation for serialized context payloads.
+- Micro frontend support beyond dynamically loaded remote manifests, per-boundary endpoints, per-endpoint batching, and same-realm global context tokens.
 - Better diagnostics for ambiguous placement inference and serialization failures sourced from generated compiler captures.
 - Production guidance for cache headers, deployment topology, auth/session integration, and package publishing conventions.
