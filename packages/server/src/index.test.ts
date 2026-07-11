@@ -365,6 +365,38 @@ describe("@exact/server", () => {
     expect(action).not.toHaveBeenCalled();
   });
 
+  it("fails closed when authorization or csrf hooks throw", async () => {
+    const authAction = vi.fn();
+    const authResult = await handleExactRequest({
+      method: "POST",
+      body: { type: "action", id: "allowed-action" }
+    }, context({
+      actions: { "allowed-action": authAction },
+      authorize: () => {
+        throw new Error("auth store unavailable");
+      }
+    }));
+
+    expect(authResult.status).toBe(403);
+    expect(JSON.parse(authResult.body)).toEqual({ error: "forbidden" });
+    expect(authAction).not.toHaveBeenCalled();
+
+    const csrfAction = vi.fn();
+    const csrfResult = await handleExactRequest({
+      method: "POST",
+      body: { type: "action", id: "allowed-action" }
+    }, context({
+      actions: { "allowed-action": csrfAction },
+      validateCsrf: () => {
+        throw new Error("csrf store unavailable");
+      }
+    }));
+
+    expect(csrfResult.status).toBe(403);
+    expect(JSON.parse(csrfResult.body)).toEqual({ error: "forbidden" });
+    expect(csrfAction).not.toHaveBeenCalled();
+  });
+
   it("rejects requests outside the configured endpoint", async () => {
     const action = vi.fn();
     const result = await handleExactRequest({

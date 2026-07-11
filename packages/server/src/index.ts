@@ -274,12 +274,13 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
     return jsonResponse(400, { error: "bad_request" });
   }
 
-  if (context.authorize && !await context.authorize(request, input)) {
+  const security = await checkSecurityHooks(request, input, context);
+  if (security === "unauthorized") {
     logReject(context, "rejected unauthorized exact invocation");
     return jsonResponse(403, { error: "forbidden" });
   }
 
-  if (context.validateCsrf && !await context.validateCsrf(request, input)) {
+  if (security === "csrf") {
     logReject(context, "rejected exact invocation with invalid csrf");
     return jsonResponse(403, { error: "forbidden" });
   }
@@ -391,11 +392,12 @@ async function dispatchExactOperation(
     return reject(400, "bad_request", "rejected exact invocation with mismatched state contract");
   }
 
-  if (context.authorize && !await context.authorize(request, input)) {
+  const security = await checkSecurityHooks(request, input, context);
+  if (security === "unauthorized") {
     return reject(403, "forbidden", "rejected unauthorized exact invocation");
   }
 
-  if (context.validateCsrf && !await context.validateCsrf(request, input)) {
+  if (security === "csrf") {
     return reject(403, "forbidden", "rejected exact invocation with invalid csrf");
   }
 
@@ -428,6 +430,30 @@ function matchesConfiguredEndpoint(request: ExactRequestLike, endpoint: string |
   } catch {
     return false;
   }
+}
+
+async function checkSecurityHooks(
+  request: ExactRequestLike,
+  input: ExactInvocationRequest | ExactBatchRequest,
+  context: ExactServerContext
+): Promise<"allowed" | "unauthorized" | "csrf"> {
+  if (context.authorize) {
+    try {
+      if (!await context.authorize(request, input)) return "unauthorized";
+    } catch (error) {
+      logFrameworkEvent("error", "server", "security", "exact authorization hook failed", error, context.logger);
+      return "unauthorized";
+    }
+  }
+  if (context.validateCsrf) {
+    try {
+      if (!await context.validateCsrf(request, input)) return "csrf";
+    } catch (error) {
+      logFrameworkEvent("error", "server", "security", "exact csrf hook failed", error, context.logger);
+      return "csrf";
+    }
+  }
+  return "allowed";
 }
 
 async function readBody(request: ExactRequestLike): Promise<unknown> {
