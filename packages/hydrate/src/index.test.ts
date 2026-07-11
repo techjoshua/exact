@@ -625,6 +625,38 @@ describe("@exact/hydrate", () => {
         }
       })
     })).rejects.toThrow("eXact action invocation returned malformed result");
+
+    await expect(invokeExact({
+      endpoint: "/__exact",
+      type: "action",
+      id: "save",
+      fetch: async () => ({
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            ok: true,
+            state: undefined
+          };
+        }
+      })
+    })).rejects.toThrow("eXact action invocation returned malformed result");
+
+    await expect(invokeExact({
+      endpoint: "/__exact",
+      type: "action",
+      id: "save",
+      fetch: async () => ({
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            ok: true,
+            patches: [{ type: "state", id: "profile", value: undefined }]
+          };
+        }
+      })
+    })).rejects.toThrow("eXact action invocation returned malformed result");
   });
 
   it("rejects malformed exact batch operation responses", async () => {

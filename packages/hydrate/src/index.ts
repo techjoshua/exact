@@ -728,6 +728,7 @@ function parseExactInvocationResponse(body: unknown, message: string): ExactInvo
   const record = body as Record<string, unknown>;
   if ("ok" in record && record.ok !== true) throw new Error(message);
   if (!hasOnlyKeys(record, ["ok", "patches", "state", "html"])) throw new Error(message);
+  if ("state" in record && record.state === undefined) throw new Error(message);
   if (record.patches !== undefined && (!Array.isArray(record.patches) || !record.patches.every(isPatchLike))) throw new Error(message);
   if (record.html !== undefined && typeof record.html !== "string") throw new Error(message);
   return {
@@ -788,7 +789,10 @@ function isPatchLike(value: unknown): value is ExactPatch {
     case "text":
       return hasOnlyKeys(record, ["type", "id", "value"]) && typeof record.value === "string";
     case "prop":
-      return hasOnlyKeys(record, ["type", "id", "name", "value"]) && typeof record.name === "string" && "value" in record;
+      return hasOnlyKeys(record, ["type", "id", "name", "value"])
+        && typeof record.name === "string"
+        && "value" in record
+        && record.value !== undefined;
     case "style":
       return hasOnlyKeys(record, ["type", "id", "name", "value"]) && typeof record.name === "string" && (typeof record.value === "string" || record.value === null);
     case "list":
@@ -798,7 +802,7 @@ function isPatchLike(value: unknown): value is ExactPatch {
         && (record.before === undefined || typeof record.before === "string")
         && (record.html === undefined || typeof record.html === "string");
     case "state":
-      return hasOnlyKeys(record, ["type", "id", "value"]) && "value" in record;
+      return hasOnlyKeys(record, ["type", "id", "value"]) && "value" in record && record.value !== undefined;
     case "replace":
       return hasOnlyKeys(record, ["type", "id", "html"]) && typeof record.html === "string";
     default:
