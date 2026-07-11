@@ -826,6 +826,32 @@ describe("@exact/compiler", () => {
     expect(server).not.toContain("window.innerWidth");
   });
 
+  it("emits manifest boundaries for refreshable server child slots", () => {
+    const manifest = analyzeSource(`
+      export function ClientShell(this: Component<{ width: number }>, props: { children?: unknown }) {
+        this.state.width = window.innerWidth;
+        return () => <section>{props.children}</section>;
+      }
+
+      export function Page() {
+        return () => <>
+          <ClientShell><p>Server child</p></ClientShell>
+          <ClientShell>Text child</ClientShell>
+        </>;
+      }
+    `, { filename: "Page.tsx" });
+
+    const clientBoundary = manifest.boundaries.find(boundary => boundary.name === "ClientShell" && boundary.kind === "client-island");
+    expect(clientBoundary).toBeDefined();
+    expect(manifest.boundaries).toContainEqual(expect.objectContaining({
+      id: `${clientBoundary!.id}:children`,
+      name: "ClientShell:children",
+      componentId: clientBoundary!.componentId,
+      kind: "server-slot"
+    }));
+    expect(manifest.boundaries.filter(boundary => boundary.kind === "server-slot")).toHaveLength(1);
+  });
+
   it("splits client components with text-only children into serializable island props", () => {
     const server = transform(`
       export function ClientShell(this: Component<{ width: number }>, props: { children?: string }) {

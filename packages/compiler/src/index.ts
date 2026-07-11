@@ -69,7 +69,7 @@ export type ExactBoundaryIR = {
   id: string;
   name: string;
   componentId?: string;
-  kind: "client-island";
+  kind: "client-island" | "server-slot";
 };
 
 export type ExactArtifactManifest = {
@@ -314,6 +314,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   symbols.push(...createRootSymbols(sourceFile, components, exports));
   symbols.push(...createClientIslandSymbols(sourceFile, components));
   boundaries.push(...createClientIslandBoundaries(sourceFile, components, splitComponentTags));
+  boundaries.push(...createServerSlotBoundaries(sourceFile, components, componentPlacements));
 
   for (const component of components) {
     for (const task of component.tasks) {
@@ -1139,6 +1140,41 @@ function createClientIslandBoundaries(
   return boundaries;
 }
 
+function createServerSlotBoundaries(
+  sourceFile: ts.SourceFile,
+  components: ExactComponentIR[],
+  componentPlacements: Map<string, ExactPlacement>
+): ExactBoundaryIR[] {
+  const boundaries: ExactBoundaryIR[] = [];
+  const seen = new Set<string>();
+  const componentByName = new Map(components.map(component => [component.name, component]));
+
+  function visit(node: ts.Node): void {
+    if (ts.isJsxElement(node) && jsxTagIsClientComponent(node.openingElement.tagName, componentPlacements) && clientComponentHasServerSlotChildren(node)) {
+      const componentName = node.openingElement.tagName.getText(sourceFile);
+      const islandId = stableId(sourceFile.fileName, componentName, "component-island");
+      const id = serverSlotBoundaryId(islandId);
+      if (!seen.has(id)) {
+        seen.add(id);
+        boundaries.push({
+          id,
+          name: `${componentName}:children`,
+          componentId: componentByName.get(componentName)?.id,
+          kind: "server-slot"
+        });
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return boundaries;
+}
+
+function serverSlotBoundaryId(boundaryId: string): string {
+  return `${boundaryId}:children`;
+}
+
 export function generatedComponentName(authorName: string, role: "server-part" | "client-island", index: number): string {
   const base = sanitizeIdentifier(authorName || "Component");
   const suffix = role === "server-part" ? "ExactServer" : "ExactClient";
@@ -1816,6 +1852,18 @@ function clientComponentChildrenProp(context: ts.TransformationContext, node: ts
   if (!values.length) return undefined;
   if (values.length === 1) return values[0];
   return context.factory.createArrayLiteralExpression(values, false);
+}
+
+function clientComponentHasServerSlotChildren(node: ts.JsxElement): boolean {
+  for (const child of node.children) {
+    if (ts.isJsxText(child)) continue;
+    if (ts.isJsxExpression(child)) {
+      if (child.expression && containsJsx(child.expression)) return true;
+      continue;
+    }
+    return true;
+  }
+  return false;
 }
 
 function containsJsx(node: ts.Node): boolean {
