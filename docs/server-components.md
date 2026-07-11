@@ -133,7 +133,7 @@ The client endpoint supports:
 - `refresh`: rerender one manifest-allowlisted server boundary.
 - `batch`: send same-tick operations together.
 
-Batches behave like independent GraphQL-style operation groups: each operation has its own result, and optional `opId` / `dependsOn` metadata can express dependency ordering. Independent operations continue even when another operation fails. Dependent operations are skipped with `dependency_failed` if a prerequisite did not succeed.
+Batches behave like independent GraphQL-style operation groups: each operation has its own result, and optional `opId` / `dependsOn` metadata can express dependency ordering. `opId` values must be unique within a batch. Independent operations continue even when another operation fails. Dependent operations are skipped with `dependency_failed` if a prerequisite did not succeed.
 
 Patch responses can include text updates, prop/style updates, keyed list operations, state updates, and boundary replacement. If a fine-grained patch cannot apply cleanly, the client replaces the nearest server boundary with the authoritative server-rendered HTML.
 
@@ -146,6 +146,7 @@ The manifest is the execution boundary:
 - Endpoint path mismatches are rejected when the manifest configures an endpoint.
 - Boundary snapshot IDs must be known to the manifest and, for actions, must match the action's allowed boundary list.
 - Payload, state, result, patch, and hydration data must be JSON-safe.
+- The hydration client validates successful endpoint response shapes before applying patches.
 - App-provided `authorize` and `validateCsrf` hooks run before dispatch.
 - Server-only code is emitted only into server artifacts.
 
