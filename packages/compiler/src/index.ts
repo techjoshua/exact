@@ -656,11 +656,12 @@ function exactJsxTransformer(target: TransformTarget): ts.TransformerFactory<ts.
           target === "server"
           && jsxTagIsClientComponent(node.openingElement.tagName, componentPlacements)
         ) {
-          if (!jsxElementHasNoMeaningfulChildren(node)) {
+          const textChildren = staticTextChildren(node);
+          if (!jsxElementHasNoMeaningfulChildren(node) && textChildren === undefined) {
             throw new Error(`Cannot split client component ${node.openingElement.tagName.getText(sourceFile)} with children in server target; make the client component self-closing or extract the children into a server-rendered boundary.`);
           }
           sawBoundary = true;
-          return createComponentIslandBoundaryCall(sourceFile, context, helpers, node.openingElement.tagName, node.openingElement.attributes);
+          return createComponentIslandBoundaryCall(sourceFile, context, helpers, node.openingElement.tagName, node.openingElement.attributes, textChildren);
         }
         if (target === "server" && jsxElementIsClientIsland(node.openingElement.attributes)) {
           sawBoundary = true;
@@ -1597,15 +1598,17 @@ function createComponentIslandBoundaryCall(
   context: ts.TransformationContext,
   helpers: HelperNames,
   tagName: ts.JsxTagNameExpression,
-  attributes: ts.JsxAttributes
+  attributes: ts.JsxAttributes,
+  children?: string
 ): ts.Expression {
   const factory = context.factory;
   const componentName = tagName.getText(sourceFile);
   const id = stableId(sourceFile.fileName, componentName, "component-island");
+  const props = islandProps(context, attributes);
   return factory.createCallExpression(factory.createIdentifier(helpers.boundary), undefined, [
     factory.createStringLiteral(id),
     factory.createStringLiteral(componentName),
-    islandProps(context, attributes)
+    children === undefined ? props : appendObjectProperty(context, props, "children", factory.createStringLiteral(children))
   ]);
 }
 
@@ -1745,6 +1748,18 @@ function mapToObjectLiteral(factory: ts.NodeFactory, map: StateSnapshotTree): ts
   )), false);
 }
 
+function appendObjectProperty(
+  context: ts.TransformationContext,
+  object: ts.ObjectLiteralExpression,
+  name: string,
+  value: ts.Expression
+): ts.ObjectLiteralExpression {
+  return context.factory.updateObjectLiteralExpression(object, [
+    ...object.properties,
+    context.factory.createPropertyAssignment(propName(name), value)
+  ]);
+}
+
 function stateAccessExpression(factory: ts.NodeFactory, segments: readonly string[]): ts.Expression {
   let expression: ts.Expression = factory.createPropertyAccessExpression(factory.createThis(), "state");
   for (const segment of segments) {
@@ -1771,6 +1786,17 @@ function jsxTagIsIntrinsicElement(tagName: ts.JsxTagNameExpression): boolean {
 
 function jsxElementHasNoMeaningfulChildren(node: ts.JsxElement): boolean {
   return node.children.every(child => ts.isJsxText(child) && !child.text.trim());
+}
+
+function staticTextChildren(node: ts.JsxElement): string | undefined {
+  if (!node.children.length) return undefined;
+  let text = "";
+  for (const child of node.children) {
+    if (!ts.isJsxText(child)) return undefined;
+    text += child.text;
+  }
+  const normalized = text.replace(/\s+/g, " ").trim();
+  return normalized ? normalized : undefined;
 }
 
 function callElement(

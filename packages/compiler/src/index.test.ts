@@ -820,6 +820,23 @@ describe("@exact/compiler", () => {
     `, { target: "server" })).toThrow("Cannot split client component ClientShell with children in server target");
   });
 
+  it("splits client components with text-only children into serializable island props", () => {
+    const server = transform(`
+      export function ClientShell(this: Component<{ width: number }>, props: { children?: string }) {
+        this.state.width = window.innerWidth;
+        return () => <section>{props.children}</section>;
+      }
+
+      export function Page() {
+        return () => <ClientShell>Server child</ClientShell>;
+      }
+    `, { target: "server" });
+
+    expect(server).toContain("__exactBoundary");
+    expect(server).toContain("children: \"Server child\"");
+    expect(server).not.toContain("window.innerWidth");
+  });
+
   it("fails clearly when a generated client island references server-only imports", () => {
     expect(() => transform(`
       import { readFile } from "node:fs/promises";
