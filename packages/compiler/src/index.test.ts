@@ -103,6 +103,10 @@ describe("@exact/compiler", () => {
 
   it("resolves local export specifiers as semantic references", () => {
     const graph = analyzeSemanticGraph(`
+      export function DirectPage() {
+        return () => <p>Direct</p>;
+      }
+
       function ProjectPage() {
         return () => <p>Ready</p>;
       }
@@ -111,13 +115,19 @@ describe("@exact/compiler", () => {
       export { RemotePage } from "./remote";
     `, { filename: "ProjectPage.tsx" });
 
+    expect(graph.declarations).toContainEqual(expect.objectContaining({
+      name: "DirectPage",
+      kind: "function",
+      exportedName: "DirectPage"
+    }));
     const declaration = graph.declarations.find(item => item.name === "ProjectPage" && item.kind === "function");
     const reference = graph.references.find(item => item.name === "ProjectPage");
     expect(declaration).toBeDefined();
     expect(reference).toMatchObject({
       source: "local",
       declarationId: declaration!.id,
-      declarationKind: "function"
+      declarationKind: "function",
+      exportedName: "Page"
     });
     expect(graph.references.some(item => item.name === "RemotePage")).toBe(false);
   });

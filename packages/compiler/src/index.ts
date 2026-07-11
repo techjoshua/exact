@@ -109,6 +109,7 @@ export type ExactSemanticDeclarationIR = {
   moduleSpecifier?: string;
   importedName?: string;
   typeOnly?: boolean;
+  exportedName?: string;
 };
 
 export type ExactSemanticReferenceIR = {
@@ -122,6 +123,7 @@ export type ExactSemanticReferenceIR = {
   moduleSpecifier?: string;
   importedName?: string;
   typeOnly?: boolean;
+  exportedName?: string;
 };
 
 export type ExactSemanticGraphIR = {
@@ -558,7 +560,7 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
     name: string,
     kind: ExactSemanticDeclarationIR["kind"],
     node: ts.Node,
-    metadata: Pick<ExactSemanticDeclarationIR, "moduleSpecifier" | "importedName" | "typeOnly"> = {}
+    metadata: Pick<ExactSemanticDeclarationIR, "moduleSpecifier" | "importedName" | "typeOnly" | "exportedName"> = {}
   ): ExactSemanticDeclarationIR => {
     const declaration: ExactSemanticDeclarationIR = {
       id: stableId(sourceFile.fileName, "decl", kind, name, String(node.getStart(sourceFile)), String(node.getEnd())),
@@ -591,7 +593,7 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
 
   const addSemanticReference = (
     node: ts.Identifier,
-    metadata: Pick<ExactSemanticReferenceIR, "typeOnly"> = {}
+    metadata: Pick<ExactSemanticReferenceIR, "typeOnly" | "exportedName"> = {}
   ): void => {
     const scope = currentScope();
     references.push({
@@ -613,7 +615,8 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
       ...(declaration ? { declarationKind: declaration.kind } : {}),
       ...(declaration?.moduleSpecifier ? { moduleSpecifier: declaration.moduleSpecifier } : {}),
       ...(declaration?.importedName ? { importedName: declaration.importedName } : {}),
-      ...(reference.typeOnly || declaration?.typeOnly ? { typeOnly: true } : {})
+      ...(reference.typeOnly || declaration?.typeOnly ? { typeOnly: true } : {}),
+      ...(reference.exportedName ?? declaration?.exportedName ? { exportedName: reference.exportedName ?? declaration?.exportedName } : {})
     };
   };
 
@@ -667,7 +670,7 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
       if (!node.moduleSpecifier && node.exportClause && ts.isNamedExports(node.exportClause)) {
         for (const element of node.exportClause.elements) {
           const localName = element.propertyName ?? element.name;
-          if (ts.isIdentifier(localName)) addSemanticReference(localName);
+          if (ts.isIdentifier(localName)) addSemanticReference(localName, { exportedName: element.name.text });
         }
       }
       return;
@@ -686,7 +689,7 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
     }
 
     if (ts.isFunctionDeclaration(node)) {
-      if (node.name) declare(node.name.text, "function", node.name);
+      if (node.name) declare(node.name.text, "function", node.name, exportDeclarationMetadata(node));
       visitFunctionLike(node);
       return;
     }
@@ -698,7 +701,7 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
     }
 
     if (ts.isClassDeclaration(node)) {
-      if (node.name) declare(node.name.text, "class", node.name);
+      if (node.name) declare(node.name.text, "class", node.name, exportDeclarationMetadata(node));
       pushScope("block", node);
       for (const member of node.members) visit(member);
       popScope();
@@ -706,13 +709,13 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
     }
 
     if (ts.isTypeAliasDeclaration(node)) {
-      declare(node.name.text, "type", node.name);
+      declare(node.name.text, "type", node.name, exportDeclarationMetadata(node));
       visit(node.type);
       return;
     }
 
     if (ts.isInterfaceDeclaration(node)) {
-      declare(node.name.text, "interface", node.name);
+      declare(node.name.text, "interface", node.name, exportDeclarationMetadata(node));
       for (const heritage of node.heritageClauses ?? []) visit(heritage);
       for (const member of node.members) visit(member);
       return;
@@ -753,6 +756,11 @@ function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
       return;
     }
     addTypeReference(name.left);
+  }
+
+  function exportDeclarationMetadata(node: ts.Node): Pick<ExactSemanticDeclarationIR, "exportedName"> {
+    if (!hasExportModifier(node)) return {};
+    return { exportedName: hasDefaultModifier(node) ? "default" : nodeNameText(node) };
   }
 
   pushScope("module", sourceFile);
@@ -2250,6 +2258,15 @@ function hasDefaultModifier(node: ts.Node): boolean {
   return ts.canHaveModifiers(node)
     ? Boolean(ts.getModifiers(node)?.some(modifier => modifier.kind === ts.SyntaxKind.DefaultKeyword))
     : false;
+}
+
+function nodeNameText(node: ts.Node): string | undefined {
+  return hasIdentifierName(node) ? node.name.text : undefined;
+}
+
+function hasIdentifierName(node: ts.Node): node is ts.Node & { name: ts.Identifier } {
+  const name = (node as { name?: ts.Node }).name;
+  return !!name && ts.isIdentifier(name);
 }
 
 const browserGlobals = new Set(["window", "document", "localStorage", "sessionStorage", "navigator", "HTMLElement", "Node"]);
