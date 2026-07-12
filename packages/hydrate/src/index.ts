@@ -7,13 +7,9 @@ import type {
   FetchLike,
   HydrateOptions,
   HydrationRoot,
-  InvokeExactBatchOptions,
-  InvokeExactOptions,
-  PendingExactOperation,
   ExactInvocationKind,
   ExactInvocationRequest,
   ExactInvocationResult,
-  ExactOperationResult,
   ExactStateContract
 } from "./types.js";
 import {
@@ -24,10 +20,11 @@ import {
   readExactHydrationConfig,
   resolveHydrateOptions
 } from "./config.js";
+import { invokeExact, invokeExactBatch } from "./invocations.js";
 import { applyPatches, boundaryInnerHtml, hasExactMarkers, reportMismatch } from "./patches.js";
-import { parseExactBatchResponse, parseExactInvocationResponse, readExactStreamResponse } from "./responses.js";
 
 export { applyPatches } from "./patches.js";
+export { invokeExact, invokeExactBatch } from "./invocations.js";
 export { readExactHydrationConfig } from "./config.js";
 export type * from "./types.js";
 
@@ -163,70 +160,6 @@ async function invokeAndApply(
 }
 
 const batchQueues = new WeakMap<Element, ExactBatchQueue[]>();
-
-export async function invokeExact(options: InvokeExactOptions): Promise<ExactInvocationResult> {
-  const fetchImpl = options.fetch ?? globalThis.fetch;
-  if (!fetchImpl) throw new Error("eXact endpoint invocation requires fetch");
-
-  const response = await fetchImpl(options.endpoint, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(options.stream ? { accept: "application/x-ndjson", "x-exact-stream": "1" } : {}),
-      ...options.headers
-    },
-    body: JSON.stringify({
-      type: options.type,
-      id: options.id,
-      payload: options.payload,
-      state: options.state,
-      context: options.context,
-      boundaryHtml: options.boundaryHtml,
-      boundaryHtmls: options.boundaryHtmls
-    })
-  });
-
-  if (!response.ok) {
-    logFrameworkEvent("warn", "hydrate", "request", `exact ${options.type} invocation failed with ${response.status}`, undefined, options.logger);
-    throw new Error(`eXact ${options.type} invocation failed`);
-  }
-  if (options.stream) {
-    const results = await readExactStreamResponse(response, 1);
-    const result = results[0];
-    if (!result?.ok) throw new Error(`eXact ${options.type} invocation failed`);
-    const { ok: _ok, type: _type, id: _id, ...body } = result;
-    return body;
-  }
-  const body = await response.json();
-  return parseExactInvocationResponse(body, `eXact ${options.type} invocation returned malformed result`);
-}
-
-export async function invokeExactBatch(options: InvokeExactBatchOptions): Promise<ExactOperationResult[]> {
-  const fetchImpl = options.fetch ?? globalThis.fetch;
-  if (!fetchImpl) throw new Error("eXact endpoint invocation requires fetch");
-
-  const response = await fetchImpl(options.endpoint, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(options.stream ? { accept: "application/x-ndjson", "x-exact-stream": "1" } : {}),
-      ...options.headers
-    },
-    body: JSON.stringify({
-      type: "batch",
-      version: 1,
-      operations: options.operations
-    })
-  });
-
-  if (!response.ok) {
-    logFrameworkEvent("warn", "hydrate", "request", `exact batch invocation failed with ${response.status}`, undefined, options.logger);
-    throw new Error("eXact batch invocation failed");
-  }
-  if (options.stream) return readExactStreamResponse(response, options.operations.length);
-  const body = await response.json();
-  return parseExactBatchResponse(body);
-}
 
 function enqueueExactOperation(
   container: Element,
