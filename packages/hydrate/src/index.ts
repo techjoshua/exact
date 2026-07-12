@@ -1,7 +1,6 @@
 import { render } from "@exact/dom";
-import { logFrameworkEvent, type Logger, type VNode } from "@exact/core";
+import type { VNode } from "@exact/core";
 import type {
-  ExactBatchQueue,
   ExactClient,
   FetchLike,
   HydrateOptions,
@@ -10,16 +9,16 @@ import type {
   ExactInvocationRequest,
   ExactInvocationResult
 } from "./types.js";
+import { enqueueExactOperation } from "./batching.js";
 import {
   cloneEndpointRoutes,
-  headersCacheKey,
   mergeClientIslands,
   mergeHydrationRegistration,
   readExactHydrationConfig,
   resolveHydrateOptions
 } from "./config.js";
 import { hydrateClientIslands } from "./islands.js";
-import { invokeExact, invokeExactBatch } from "./invocations.js";
+import { invokeExact } from "./invocations.js";
 import { applyPatches, boundaryInnerHtml, hasExactMarkers, reportMismatch } from "./patches.js";
 import { stateForContract } from "./state.js";
 
@@ -138,108 +137,6 @@ async function invokeAndApply(
   if (result.patches && options.islands) hydrateClientIslands(container, options.islands, options);
   if ("state" in result) client.state = result.state;
   return result;
-}
-
-const batchQueues = new WeakMap<Element, ExactBatchQueue[]>();
-
-function enqueueExactOperation(
-  container: Element,
-  options: {
-    endpoint: string;
-    operation: ExactInvocationRequest;
-    fetch?: FetchLike;
-    headers?: Record<string, string>;
-    logger?: Logger;
-    stream?: boolean;
-  }
-): Promise<ExactInvocationResult> {
-  let queues = batchQueues.get(container);
-  if (!queues) {
-    queues = [];
-    batchQueues.set(container, queues);
-  }
-  const headersKey = headersCacheKey(options.headers);
-  let queue = queues.find(item => item.endpoint === options.endpoint && item.fetch === options.fetch && item.headersKey === headersKey && item.logger === options.logger && item.stream === options.stream);
-  if (!queue) {
-    queue = {
-      endpoint: options.endpoint,
-      fetch: options.fetch,
-      headers: options.headers,
-      headersKey,
-      logger: options.logger,
-      stream: options.stream,
-      pending: [],
-      scheduled: false
-    };
-    queues.push(queue);
-  }
-
-  const promise = new Promise<ExactInvocationResult>((resolve, reject) => {
-    queue!.pending.push({
-      operation: options.operation,
-      resolve,
-      reject
-    });
-  });
-
-  if (!queue.scheduled) {
-    queue.scheduled = true;
-    queueMicrotask(() => {
-      void flushExactBatchQueue(queue!);
-    });
-  }
-
-  return promise;
-}
-
-async function flushExactBatchQueue(queue: ExactBatchQueue): Promise<void> {
-  const pending = queue.pending.splice(0);
-  queue.scheduled = false;
-  if (!pending.length) return;
-
-  if (pending.length === 1) {
-    try {
-      const result = await invokeExact({
-        endpoint: queue.endpoint,
-        ...pending[0]!.operation,
-        fetch: queue.fetch,
-        headers: queue.headers,
-        logger: queue.logger,
-        stream: queue.stream
-      });
-      pending[0]!.resolve(result);
-    } catch (error) {
-      pending[0]!.reject(error);
-    }
-    return;
-  }
-
-  try {
-    const results = await invokeExactBatch({
-      endpoint: queue.endpoint,
-      operations: pending.map(item => item.operation),
-      fetch: queue.fetch,
-      headers: queue.headers,
-      logger: queue.logger,
-      stream: queue.stream
-    });
-    pending.forEach((item, index) => {
-      const result = results[index];
-      if (!result) {
-        item.reject(new Error(`eXact ${item.operation.type} invocation failed`));
-        return;
-      }
-      if (!result.ok) {
-        logFrameworkEvent("warn", "hydrate", "request", `exact ${item.operation.type} invocation failed with ${result.status}`, undefined, queue.logger);
-        item.reject(new Error(`eXact ${item.operation.type} invocation failed`));
-        return;
-      }
-      const { ok: _ok, type: _type, id: _id, ...body } = result;
-      item.resolve(body);
-    });
-  } catch (error) {
-    for (const item of pending) item.reject(error);
-  }
 }
 
 function requireEndpoint(endpoint: string | undefined): string {
