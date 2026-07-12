@@ -12,6 +12,13 @@ import {
   diffExactArtifactPlans,
   readExactArtifactManifestEntries
 } from "./artifacts.js";
+import {
+  isFunctionLikeExpression,
+  isThisMethodAccess,
+  isThisMethodCall,
+  isThisTaskCall,
+  taskRequestedPlacement
+} from "./calls.js";
 import type {
   ClientIslandCaptures,
   ClientIslandElementNode,
@@ -2308,32 +2315,6 @@ function captureArgument(
     context.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
     visitReactiveSinkExpression(context, expression, visitor, sourceFile, semanticReferences, derivedReactiveLocals)
   );
-}
-
-function isThisMethodCall(node: ts.CallExpression, methodName: string): boolean {
-  return isThisMethodAccess(node.expression, methodName);
-}
-
-function isThisTaskCall(node: ts.CallExpression): boolean {
-  return isThisMethodCall(node, "task") || taskRequestedPlacement(node) !== undefined;
-}
-
-function taskRequestedPlacement(node: ts.CallExpression): "server" | "client" | undefined {
-  const expression = node.expression;
-  if (!ts.isPropertyAccessExpression(expression)) return undefined;
-  const placement = expression.name.text;
-  if (placement !== "server" && placement !== "client") return undefined;
-  return isThisMethodAccess(expression.expression, "task") ? placement : undefined;
-}
-
-function isThisMethodAccess(expression: ts.Expression, methodName: string): boolean {
-  return ts.isPropertyAccessExpression(expression)
-    && expression.name.text === methodName
-    && expression.expression.kind === ts.SyntaxKind.ThisKeyword;
-}
-
-function isFunctionLikeExpression(node: ts.Expression): node is ts.ArrowFunction | ts.FunctionExpression {
-  return ts.isArrowFunction(node) || ts.isFunctionExpression(node);
 }
 
 function templateToExpression(template: ts.TemplateLiteral): ts.Expression {
