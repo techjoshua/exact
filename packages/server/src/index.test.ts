@@ -8,6 +8,9 @@ import {
   createFetchHandler,
   createHapiHandler,
   handleExactRequest,
+  type ExactExpressResponse,
+  type ExactHapiResponse,
+  type ExactHapiToolkit,
   type ExactServerContext
 } from "./index.js";
 
@@ -1333,12 +1336,8 @@ describe("@exact/server", () => {
   it("dispatches through express-style adapters", async () => {
     const sent = new Promise<{ status: number; headers: Record<string, string>; body: string }>(resolve => {
       const headers: Record<string, string> = {};
-      createExpressHandler(context())({
-        method: "POST",
-        url: "/__exact",
-        body: { type: "action", id: "allowed-action", payload: { title: "Express" } },
-        headers: {}
-      }, {
+      type TestExpressResponse = ExactExpressResponse & { statusCode: number };
+      const expressResponse: TestExpressResponse = {
         statusCode: 200,
         status(value: number) {
           this.statusCode = value;
@@ -1347,10 +1346,17 @@ describe("@exact/server", () => {
         setHeader(name: string, value: string) {
           headers[name] = value;
         },
-        send(body: string) {
-          resolve({ status: this.statusCode, headers, body });
+        send(body: unknown) {
+          resolve({ status: this.statusCode, headers, body: String(body) });
         }
-      });
+      };
+
+      createExpressHandler(context())({
+        method: "POST",
+        url: "/__exact",
+        body: { type: "action", id: "allowed-action", payload: { title: "Express" } },
+        headers: {}
+      }, expressResponse);
     });
 
     const response = await sent;
@@ -1362,27 +1368,32 @@ describe("@exact/server", () => {
   });
 
   it("dispatches through hapi-style adapters", async () => {
-    const handler = createHapiHandler(context());
+    type TestHapiResponse = ExactHapiResponse & {
+      body: string;
+      statusCode: number;
+    };
+    const toolkit: ExactHapiToolkit<TestHapiResponse> = {
+      response(body: unknown) {
+        return {
+          code(status: number): TestHapiResponse {
+            return {
+              body: String(body),
+              statusCode: status,
+              header() {
+                return this;
+              }
+            };
+          }
+        };
+      }
+    };
+    const handler = createHapiHandler<TestHapiResponse>(context());
     const response = await handler({
       method: "POST",
       url: { path: "/__exact" },
       headers: {},
       payload: { type: "action", id: "allowed-action", payload: { title: "Hapi" } }
-    }, {
-      response(body: string) {
-        return {
-          body,
-          statusCode: 200,
-          code(value: number) {
-            this.statusCode = value;
-            return this;
-          },
-          header() {
-            return this;
-          }
-        };
-      }
-    });
+    }, toolkit);
 
     expect(response.statusCode).toBe(200);
     expect(JSON.parse(response.body)).toMatchObject({

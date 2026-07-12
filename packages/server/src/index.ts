@@ -31,7 +31,16 @@ export {
   createExactHydrationStateContracts,
   createExactServerManifest
 } from "./manifest.js";
-export { createExpressHandler, createFetchHandler, createHapiHandler } from "./adapters.js";
+export {
+  createExpressHandler,
+  createFetchHandler,
+  createHapiHandler,
+  type ExactExpressRequest,
+  type ExactExpressResponse,
+  type ExactHapiRequest,
+  type ExactHapiResponse,
+  type ExactHapiToolkit
+} from "./adapters.js";
 export type * from "./types.js";
 
 /** Handles an eXact endpoint request using the runtime-neutral server protocol. */

@@ -1,6 +1,41 @@
 import { handleExactRequest } from "./index.js";
 import type { ExactServerContext } from "./types.js";
 
+export type ExactExpressRequest = {
+  method: string;
+  originalUrl?: string;
+  url?: string;
+  headers?: Record<string, string | string[] | undefined>;
+  body?: unknown;
+  text?(): Promise<string>;
+};
+
+export type ExactExpressResponse = {
+  status(code: number): ExactExpressResponse;
+  setHeader(name: string, value: string): void;
+  write?(chunk: Uint8Array): void;
+  end?(): void;
+  send(body: unknown): void;
+  destroy?(error: unknown): void;
+};
+
+export type ExactHapiRequest = {
+  method: string;
+  url?: { href?: string; path?: string };
+  headers?: Record<string, string | string[] | undefined>;
+  payload?: unknown;
+};
+
+export type ExactHapiToolkit<Response extends ExactHapiResponse = ExactHapiResponse> = {
+  response(body: unknown): {
+    code(status: number): Response;
+  };
+};
+
+export type ExactHapiResponse = {
+  header(name: string, value: string): ExactHapiResponse;
+};
+
 /** Creates a Fetch API compatible eXact endpoint handler. */
 export function createFetchHandler(context: ExactServerContext): (request: Request) => Promise<Response> {
   return async request => {
@@ -19,28 +54,33 @@ export function createFetchHandler(context: ExactServerContext): (request: Reque
 }
 
 /** Creates an Express-style eXact endpoint handler. */
-export function createExpressHandler(context: ExactServerContext): (request: any, response: any) => void {
+export function createExpressHandler(context: ExactServerContext): (request: ExactExpressRequest, response: ExactExpressResponse) => void {
   return (request, response) => {
+    const readText = request.text;
     void handleExactRequest({
       method: request.method,
-      url: request.url,
+      url: request.originalUrl ?? request.url,
       headers: request.headers,
       body: request.body,
-      text: typeof request.text === "function" ? () => request.text() : undefined
+      text: readText ? () => readText.call(request) : undefined
     }, context).then(result => {
       response.status(result.status);
       for (const [name, value] of Object.entries(result.headers)) response.setHeader(name, value);
-      if (result.stream) {
-        void pipeReadableStream(result.stream, chunk => response.write(chunk), () => response.end(), error => response.destroy?.(error));
+      if (result.stream && response.write && response.end) {
+        const write = response.write.bind(response);
+        const end = response.end.bind(response);
+        void pipeReadableStream(result.stream, write, end, error => response.destroy?.(error));
       } else {
-        response.send(result.body ?? "");
+        response.send(result.stream ?? result.body ?? "");
       }
     });
   };
 }
 
 /** Creates a Hapi-style eXact endpoint handler. */
-export function createHapiHandler(context: ExactServerContext): (request: any, h: any) => Promise<any> {
+export function createHapiHandler<Response extends ExactHapiResponse = ExactHapiResponse>(
+  context: ExactServerContext
+): (request: ExactHapiRequest, h: ExactHapiToolkit<Response>) => Promise<Response> {
   return async (request, h) => {
     const result = await handleExactRequest({
       method: request.method,

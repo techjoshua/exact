@@ -114,37 +114,41 @@ export function Board(this: Component<BoardState>, props: BoardProps) {
 
   this.setContext(BoardContext, services);
 
-  return () => (
-    <main className="shell">
-      <BoardHeader
-        draft={this.state.draft}
-        total={taskTotal}
-      />
+  return () => {
+    const selectedTaskValue = selectedTask.get();
 
-      <section className="board" style={{ gap: px(16) }}>
-        {this.map(
-          columns,
-          column => column.id,
-          column => (
-            <_ key={column.id}>
-              <ColumnView
-                column={column}
-                tasks={this.state.tasks.filter(task => task.status === column.id)}
-                dragPlacement={this.state.dragPlacement}
-              />
-            </_>
-          )
-        )}
-      </section>
-
-      {this.state.selectedTaskId ? (
-        <TaskDetailsDialog
-          key={this.state.selectedTaskId}
-          task={selectedTask as unknown as Task}
+    return (
+      <main className="shell">
+        <BoardHeader
+          draft={this.state.draft}
+          total={taskTotal}
         />
-      ) : null}
-    </main>
-  );
+
+        <section className="board" style={{ gap: px(16) }}>
+          {this.map(
+            columns,
+            column => column.id,
+            column => (
+              <_ key={column.id}>
+                <ColumnView
+                  column={column}
+                  tasks={this.state.tasks.filter(task => task.status === column.id)}
+                  dragPlacement={this.state.dragPlacement}
+                />
+              </_>
+            )
+          )}
+        </section>
+
+        {selectedTaskValue ? (
+          <TaskDetailsDialog
+            key={selectedTaskValue.id}
+            task={selectedTaskValue}
+          />
+        ) : null}
+      </main>
+    );
+  };
 }
 
 function findAfterLastColumnTask(tasks: Task[], status: Status): number {

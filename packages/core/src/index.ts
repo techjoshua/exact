@@ -197,9 +197,9 @@ export interface Component<State extends object> {
   log: ComponentLog;
   getContext<T>(token: ContextToken<T>): Reactive<T>;
   setContext<T>(token: ContextToken<T>, value: T): void;
-  reactive<T>(value: T): ComponentReactiveValue<T>;
   reactive(strings: TemplateStringsArray, ...values: unknown[]): ComponentReactiveValue<string>;
   reactive<T>(compute: () => T): ComponentReactiveValue<T>;
+  reactive<T>(value: T): ComponentReactiveValue<T>;
   task: ComponentTask;
   ref<T>(key: RefKey<T>): RefBinding<T>;
   refs: RefRegistry;
