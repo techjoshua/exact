@@ -11,16 +11,41 @@ import {
   type ReactiveRef,
   type StopHandle
 } from "@exact/reactive";
+import { Cell, Dynamic, Fragment, ServerBoundary, ServerSlot, Text } from "./symbols.js";
+import {
+  createCellVNode,
+  createCompiledFragment,
+  createCompiledVNode,
+  createDynamicChild,
+  createExpression,
+  createServerBoundary,
+  createServerSlot,
+  createTextVNode,
+  createVNode,
+  getCellVNode,
+  isCellVNode,
+  isVNode,
+  normalizeChildren
+} from "./vnode.js";
 
 export type { Reactive, ReactiveValue, StopHandle } from "@exact/reactive";
 export { computed, unwrap, watch } from "@exact/reactive";
-
-export const Fragment = Symbol.for("exact.fragment");
-export const Text = Symbol.for("exact.text");
-export const Cell = Symbol.for("exact.cell");
-export const Dynamic = Symbol.for("exact.dynamic");
-export const ServerBoundary = Symbol.for("exact.server-boundary");
-export const ServerSlot = Symbol.for("exact.server-slot");
+export { Cell, Dynamic, Fragment, ServerBoundary, ServerSlot, Text } from "./symbols.js";
+export {
+  createCellVNode,
+  createCompiledFragment,
+  createCompiledVNode,
+  createDynamicChild,
+  createExpression,
+  createServerBoundary,
+  createServerSlot,
+  createTextVNode,
+  createVNode,
+  getCellVNode,
+  isCellVNode,
+  isVNode,
+  normalizeChildren
+} from "./vnode.js";
 
 export type VNodeType = string | typeof Fragment | typeof Text | typeof Cell | typeof Dynamic | typeof ServerBoundary | typeof ServerSlot | ComponentFunction<any, any>;
 
@@ -315,74 +340,6 @@ for (const plugin of internalPlugins) {
   }
 }
 
-export function createVNode(type: VNodeType, props: Record<string, unknown> | null, ...children: unknown[]): VNode {
-  const normalizedProps = { ...(props ?? {}) };
-  const rawKey = unwrap(normalizedProps.key);
-  const key = rawKey === null || rawKey === undefined ? undefined : String(rawKey);
-  delete normalizedProps.key;
-
-  return {
-    type,
-    props: normalizedProps,
-    children: normalizeChildren(children),
-    key
-  };
-}
-
-export function createTextVNode(value: unknown): VNode {
-  return {
-    type: Text,
-    props: { value },
-    children: []
-  };
-}
-
-export function createCellVNode(vnode: VNode): VNode<{ cell: VNodeCell }> {
-  return {
-    type: Cell,
-    props: {
-      cell: {
-        id: Symbol("exact.cell"),
-        vnode
-      }
-    },
-    children: [],
-    key: vnode.key
-  };
-}
-
-export function createCompiledVNode(type: VNodeType, props: Record<string, unknown> | null, ...children: unknown[]): VNode {
-  return createCellVNode(createVNode(type, props, ...children));
-}
-
-export function createCompiledFragment(props: Record<string, unknown> | null, ...children: unknown[]): VNode {
-  return createCompiledVNode(Fragment, props, ...children);
-}
-
-export function createExpression<T>(compute: () => T): ReactiveValue<T> {
-  return computed(compute);
-}
-
-export function createDynamicChild(compute: () => RenderResult): VNode {
-  return createVNode(Dynamic, {
-    value: computed(compute)
-  });
-}
-
-export function createServerBoundary(id: string, name: string, props: Record<string, unknown> = {}, ...children: unknown[]): VNode {
-  return createVNode(ServerBoundary, {
-    id,
-    name,
-    props
-  }, ...children);
-}
-
-export function createServerSlot(id: string): VNode {
-  return createVNode(ServerSlot, {
-    id
-  });
-}
-
 export function createErrorContext(errors: ErrorReport[] = []): ErrorContextValue {
   const reactiveErrors = reactive(errors);
 
@@ -421,20 +378,6 @@ function createDefaultErrorView(errors: Iterable<ErrorReport>): VNode {
   );
 }
 
-export function normalizeChildren(children: unknown[]): Child[] {
-  const normalized: Child[] = [];
-
-  for (const child of children) {
-    if (Array.isArray(child)) {
-      normalized.push(...normalizeChildren(child));
-    } else {
-      normalized.push(child as Child);
-    }
-  }
-
-  return normalized;
-}
-
 export function createContext<T>(description: string, global = false): ContextToken<T> {
   return {
     id: global ? Symbol.for(`exact.context:${description}`) : Symbol(description),
@@ -445,18 +388,6 @@ export function createContext<T>(description: string, global = false): ContextTo
 
 export function createRef<T>(description: string): RefKey<T> {
   return { id: Symbol(description), description };
-}
-
-export function isVNode(value: unknown): value is VNode {
-  return !!value && typeof value === "object" && "type" in value && "props" in value && "children" in value;
-}
-
-export function isCellVNode(value: unknown): value is VNode<{ cell: VNodeCell }> {
-  return isVNode(value) && value.type === Cell;
-}
-
-export function getCellVNode(vnode: VNode<{ cell: VNodeCell }>): VNode {
-  return vnode.props.cell.vnode;
 }
 
 export function createComponentInstance<State extends object, Props extends Record<string, unknown>>(
