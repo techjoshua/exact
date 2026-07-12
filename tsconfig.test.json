@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "composite": false,
+    "lib": ["ES2022", "DOM"],
+    "types": ["node", "vitest"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "@exact/jsx"
+  },
+  "include": [
+    "packages/*/src/**/*.ts",
+    "packages/*/src/**/*.tsx",
+    "apps/server-components/src/**/*.ts",
+    "apps/server-components/src/**/*.tsx"
+  ],
+  "exclude": [
+    "packages/*/dist",
+    "apps/*/dist"
+  ]
+}

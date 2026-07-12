@@ -1617,6 +1617,43 @@ describe("@exact/hydrate", () => {
     }]);
   });
 
+  it("sends exact state contract reads through array paths", async () => {
+    const container = document.createElement("div");
+    const requests: unknown[] = [];
+    const client = createExactClient(container, {
+      endpoint: "/__exact",
+      state: {
+        projects: [
+          { id: "p1", secret: "hidden" },
+          { id: "p2", secret: "hidden" }
+        ]
+      },
+      stateContracts: {
+        "save-project": {
+          reads: [{ path: "projects.1.id", kind: "read", confidence: "exact" }]
+        }
+      },
+      fetch: async (_input, init) => {
+        requests.push(JSON.parse(init.body));
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return { ok: true };
+          }
+        };
+      }
+    });
+
+    await client.invokeAction("save-project");
+
+    expect(requests).toEqual([{
+      type: "action",
+      id: "save-project",
+      state: { projects: [null, { id: "p2" }] }
+    }]);
+  });
+
   it("ignores unsafe object keys in exact state contract paths", async () => {
     const container = document.createElement("div");
     const requests: unknown[] = [];

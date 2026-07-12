@@ -153,6 +153,7 @@
     .high { color: var(--high); }
     .medium { color: var(--medium); }
     .low { color: var(--low); }
+    .resolved { color: var(--ok); }
 
     .evidence {
       margin-top: 12px;
@@ -201,6 +202,7 @@
     <span class="pill">Audit date: 2026-07-11</span>
     <span class="pill">Scope: packages, sample apps, docs, build scripts</span>
     <span class="pill">Verification observed: build, tests, package-content check passing before this audit</span>
+    <span class="pill">Resolution pass: F-01, F-02, F-03, F-04, and F-07 resolved</span>
   </div>
 
   <section>
@@ -216,7 +218,7 @@
       </div>
       <div class="score">
         <strong>Highest priority fixes</strong>
-        Stable ID strength, artifact resolver correctness, state contract arrays, test typechecking, source-map fidelity, and public API boundaries.
+        Remaining high-value work is source-map fidelity, public API boundaries, tarball smoke testing, and honest docs around partial compiler/runtime guarantees.
       </div>
       <div class="score">
         <strong>Biggest fallacy</strong>
@@ -228,6 +230,13 @@
       <strong>Bottom line:</strong> eXact is not in a bad state. It is in a dangerous middle state:
       enough works that it feels real, but several core guarantees are still partial. That is exactly when
       a framework needs explicit guardrails, naming honesty, and adversarial tests.
+    </div>
+
+    <div class="callout">
+      <strong>Resolution note:</strong> a follow-up pass resolved the non-speculative implementation issues:
+      generated IDs now use a longer digest with duplicate checks, <code>.exact</code> facade resolution handles
+      JS and TS artifacts, exact state contracts support numeric array paths in hydrate/server validation,
+      tests have a dedicated typecheck in <code>release:check</code>, and single-operation security hooks run once.
     </div>
   </section>
 
@@ -243,13 +252,13 @@
         </tr>
       </thead>
       <tbody>
-        <tr><td>F-01</td><td class="critical">Critical</td><td>Compiler/runtime IDs are 32-bit hashes used as protocol identity.</td><td>Compiler, server manifest</td></tr>
-        <tr><td>F-02</td><td class="high">High</td><td><code>.exact</code> artifact resolution appears hard-coded to <code>.ts</code>, but JSX artifacts can emit <code>.js</code>.</td><td>Compiler, adapters</td></tr>
-        <tr><td>F-03</td><td class="high">High</td><td>State contracts and state slicing reject arrays while compiler analysis can produce numeric paths.</td><td>Compiler, hydrate, server</td></tr>
-        <tr><td>F-04</td><td class="high">High</td><td>Tests are excluded from package TypeScript builds and are not currently typechecked by a dedicated test config.</td><td>Build, tests</td></tr>
+        <tr><td>F-01</td><td class="resolved">Resolved</td><td>Compiler/runtime IDs were 32-bit hashes used as protocol identity.</td><td>Compiler, server manifest</td></tr>
+        <tr><td>F-02</td><td class="resolved">Resolved</td><td><code>.exact</code> artifact resolution was hard-coded to <code>.ts</code>, but JSX artifacts can emit <code>.js</code>.</td><td>Compiler, adapters</td></tr>
+        <tr><td>F-03</td><td class="resolved">Resolved</td><td>State contracts and state slicing rejected arrays while compiler analysis can produce numeric paths.</td><td>Compiler, hydrate, server</td></tr>
+        <tr><td>F-04</td><td class="resolved">Resolved</td><td>Tests were excluded from package TypeScript builds without a dedicated test typecheck.</td><td>Build, tests</td></tr>
         <tr><td>F-05</td><td class="high">High</td><td>The public <code>@exact/core</code> entrypoint exports app APIs and framework internals together.</td><td>Package API</td></tr>
         <tr><td>F-06</td><td class="medium">Medium</td><td>Source maps are line-only approximations, not true transform maps.</td><td>Compiler, debugging</td></tr>
-        <tr><td>F-07</td><td class="medium">Medium</td><td>Security hooks run twice for single-operation dispatch.</td><td>Server runtime</td></tr>
+        <tr><td>F-07</td><td class="resolved">Resolved</td><td>Security hooks ran twice for single-operation dispatch.</td><td>Server runtime</td></tr>
         <tr><td>F-08</td><td class="medium">Medium</td><td>Server state/context validation checks shape narrowly but does not validate value schemas.</td><td>Server runtime</td></tr>
         <tr><td>F-09</td><td class="medium">Medium</td><td>SSR HTML diffing depends on a deliberately small parser and has fallback-heavy semantics.</td><td>SSR, hydrate</td></tr>
         <tr><td>F-10</td><td class="medium">Medium</td><td>"Streaming" currently means shell plus root replacement, not granular server boundary streaming.</td><td>SSR streaming</td></tr>
@@ -282,6 +291,7 @@
           collision can remain invisible. Even non-malicious large projects eventually make 32-bit collisions plausible.
         </p>
         <p><strong>Recommendation:</strong> move to a longer deterministic digest, for example SHA-256 truncated to at least 96 or 128 bits, and add explicit duplicate-ID detection during compiler manifest creation before object insertion. Treat duplicate IDs as compiler errors.</p>
+        <p class="resolved"><strong>Status:</strong> resolved with SHA-256 based IDs and duplicate checks for server actions, components, symbols, and boundaries.</p>
         <p class="evidence">Evidence: <code>packages/compiler/src/ids.ts:1</code>, <code>packages/compiler/src/index.ts</code> serverActions insertion, <code>packages/server/src/manifest.ts</code> conflict handling.</p>
       </div>
     </article>
@@ -300,6 +310,7 @@
           source packages, despite docs presenting facade imports as build-tool agnostic.
         </p>
         <p><strong>Recommendation:</strong> make facade resolution extension-aware. Options: consult the artifact manifest, check for both <code>.ts</code> and <code>.js</code>, or encode the artifact extension in generated package exports instead of deriving blindly.</p>
+        <p class="resolved"><strong>Status:</strong> resolved by checking existing <code>.ts</code>/<code>.js</code> artifacts and preferring the importer-appropriate extension when no file exists yet.</p>
         <p class="evidence">Evidence: <code>packages/compiler/src/paths.ts:25</code>, <code>packages/compiler/src/artifacts.ts:93</code>, Vite/Webpack/Bun adapters call the same resolver.</p>
       </div>
     </article>
@@ -321,6 +332,7 @@
           surprising because lists are a first-class framework story.
         </p>
         <p><strong>Recommendation:</strong> define path semantics explicitly. Either support arrays and numeric segments in both <code>stateForContract()</code> and <code>stateMatchesContract()</code>, or prevent the compiler from emitting exact numeric paths and mark them broad/unsupported instead.</p>
+        <p class="resolved"><strong>Status:</strong> resolved by supporting numeric array segments in hydration state slicing and server state-contract validation, with tests on both sides.</p>
         <p class="evidence">Evidence: <code>packages/compiler/src/state-analysis.ts</code> array binding alias support, <code>packages/hydrate/src/state.ts:16</code>, <code>packages/server/src/validation.ts:104</code>.</p>
       </div>
     </article>
@@ -338,6 +350,7 @@
           replace a TypeScript project typecheck for test-only imports, helper signatures, and expectation setup.
         </p>
         <p><strong>Recommendation:</strong> add a root <code>tsconfig.test.json</code> or package-level test configs with <code>noEmit</code>, then include it in <code>release:check</code>. Keep production builds clean, but typecheck tests separately.</p>
+        <p class="resolved"><strong>Status:</strong> resolved with root <code>tsconfig.test.json</code>, <code>typecheck:tests</code>, and <code>release:check</code>.</p>
         <p class="evidence">Evidence: package <code>tsconfig.json</code> files exclude tests; <code>package.json</code> currently has <code>build</code>, <code>test</code>, and <code>check:publish</code>, but no test typecheck.</p>
       </div>
     </article>
@@ -397,6 +410,7 @@
           rate-limit, or perform expensive I/O.
         </p>
         <p><strong>Recommendation:</strong> make the policy explicit. Either run top-level hooks once and pass a verified context into dispatch, or intentionally support batch-level and operation-level hooks with separate hook names.</p>
+        <p class="resolved"><strong>Status:</strong> resolved for single-operation requests; batches retain one top-level check plus per-operation dispatch checks.</p>
         <p class="evidence">Evidence: <code>packages/server/src/index.ts:60</code>, <code>packages/server/src/index.ts:116</code>, <code>packages/server/src/index.ts:156</code>.</p>
       </div>
     </article>
@@ -525,17 +539,17 @@
       <li><strong>"Source maps exist, so debugging is solved."</strong> Current maps are line-level approximations.</li>
       <li><strong>"Streaming exists, so server components are progressive."</strong> Initial streaming is currently shell plus root replacement.</li>
       <li><strong>"Package contents are clean, so packages are publish-ready."</strong> Metadata, dependency ranges, install-from-tarball tests, and API boundaries still matter.</li>
-      <li><strong>"Generated IDs are stable, so they are safe protocol keys."</strong> Stability and collision resistance are different properties.</li>
+      <li><strong>"Generated IDs are stable, so they are safe protocol keys."</strong> Stability and collision resistance are different properties; the ID implementation has been strengthened, but this distinction remains worth remembering.</li>
     </ul>
   </section>
 
   <section>
     <h2>Recommended Fix Order</h2>
     <ol>
-      <li>Replace <code>stableId()</code> with a longer digest and add compiler duplicate-ID detection.</li>
-      <li>Fix <code>.exact</code> facade resolution for JSX artifacts and add adapter tests for TSX and JSX inputs.</li>
-      <li>Resolve array/numeric path semantics in state contracts and add cross-package tests from compiler contract to hydrate/server validation.</li>
-      <li>Add test typechecking through <code>tsconfig.test.json</code> or equivalent.</li>
+      <li><span class="resolved">Done:</span> replace <code>stableId()</code> with a longer digest and add compiler duplicate-ID detection.</li>
+      <li><span class="resolved">Done:</span> fix <code>.exact</code> facade resolution for JSX artifacts and add coverage for TS/JS artifact choices.</li>
+      <li><span class="resolved">Done:</span> resolve array/numeric path semantics in state contracts and add hydrate/server validation tests.</li>
+      <li><span class="resolved">Done:</span> add test typechecking through <code>tsconfig.test.json</code> or equivalent.</li>
       <li>Split public app APIs from framework internals in <code>@exact/core</code>.</li>
       <li>Add <code>release:check</code> that runs clean, build, test, test typecheck, package-content check, and tarball smoke tests.</li>
       <li>Reword docs where needed so current source maps, streaming, HTML diffing, and compiler inference are described as current capabilities, not completed end-state guarantees.</li>

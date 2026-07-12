@@ -215,6 +215,9 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   for (const component of components) {
     for (const task of component.tasks) {
       if (task.placement === "server" || task.placement === "isomorphic") {
+        if (serverActions[task.id]) {
+          throw new Error(`Duplicate eXact server action id generated: ${task.id}`);
+        }
         serverActions[task.id] = {
           id: task.id,
           componentId: component.id,
@@ -231,6 +234,10 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
     manifestDiagnostics.push(...component.diagnostics);
   }
 
+  assertUniqueIds("component", components.map(component => component.id));
+  assertUniqueIds("symbol", symbols.map(symbol => symbol.id));
+  assertUniqueIds("boundary", boundaries.map(boundary => boundary.id));
+
   return {
     version: exactCompilerManifestVersion,
     filename,
@@ -242,6 +249,14 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
     serverActions,
     diagnostics: manifestDiagnostics
   };
+}
+
+function assertUniqueIds(label: string, ids: readonly string[]): void {
+  const seen = new Set<string>();
+  for (const id of ids) {
+    if (seen.has(id)) throw new Error(`Duplicate eXact ${label} id generated: ${id}`);
+    seen.add(id);
+  }
 }
 
 export function analyzeSemanticGraph(source: string, options: Pick<TransformOptions, "filename"> = {}): ExactSemanticGraphIR {

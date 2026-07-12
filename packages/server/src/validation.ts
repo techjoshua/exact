@@ -105,9 +105,23 @@ function hasStatePath(value: unknown, path: string): boolean {
   if (path === "*") return value !== undefined;
   let cursor = value;
   for (const segment of path.split(".")) {
-    if (!cursor || typeof cursor !== "object" || Array.isArray(cursor)) return false;
+    if (Array.isArray(cursor)) {
+      if (!isArrayIndex(segment) || !Object.prototype.hasOwnProperty.call(cursor, segment)) return false;
+      cursor = cursor[Number(segment)];
+      continue;
+    }
+    if (!cursor || typeof cursor !== "object") return false;
+    if (!isSafeObjectKey(segment)) return false;
     if (!Object.prototype.hasOwnProperty.call(cursor, segment)) return false;
     cursor = (cursor as Record<string, unknown>)[segment];
   }
   return true;
+}
+
+function isArrayIndex(segment: string): boolean {
+  return /^(0|[1-9]\d*)$/.test(segment);
+}
+
+function isSafeObjectKey(key: string): boolean {
+  return key !== "__proto__" && key !== "prototype" && key !== "constructor";
 }

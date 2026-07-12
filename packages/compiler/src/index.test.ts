@@ -212,7 +212,7 @@ describe("@exact/compiler", () => {
   it("emits stable exact ids for compiled dom elements", () => {
     const output = transform("const view = <section><Label /><span>Ready</span></section>;", { filename: "view.tsx" });
 
-    expect(output).toMatch(/"data-exact-id": "x[a-z0-9]+"/);
+    expect(output).toMatch(/"data-exact-id": "x[A-Za-z0-9_-]{22}"/);
     expect(output.match(/"data-exact-id":/g)).toHaveLength(2);
     expect(output).toContain("__exactVNode(Label, {})");
   });
@@ -780,7 +780,7 @@ describe("@exact/compiler", () => {
       }
     `, { filename: "View.tsx" });
 
-    expect(output).toMatch(/this\.map\(items, item => item\.id, item => __exactVNode\("li", \{ "data-exact-id": "x[a-z0-9]+" \}, __exactDynamic\(\(\) => item\.title\)\), "x[a-z0-9]+"\)/);
+    expect(output).toMatch(/this\.map\(items, item => item\.id, item => __exactVNode\("li", \{ "data-exact-id": "x[A-Za-z0-9_-]{22}" \}, __exactDynamic\(\(\) => item\.title\)\), "x[A-Za-z0-9_-]{22}"\)/);
   });
 
   it("does not recapture existing reactive lambdas or run-once tasks", () => {
@@ -1013,7 +1013,24 @@ describe("@exact/compiler", () => {
       id: path.resolve("/app/src/Panel.exact.client.ts"),
       target: "client"
     });
+    expect(resolveExactArtifactImport("./Panel.exact", "/app/src/main.jsx", "server")).toEqual({
+      id: path.resolve("/app/src/Panel.exact.server.js"),
+      target: "server"
+    });
     expect(resolveExactArtifactImport("./Panel", "/app/src/main.ts", "client")).toBeNull();
+  });
+
+  it("prefers existing exact artifact files when resolving facades", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-facade-resolution-"));
+    const importer = path.join(root, "src", "main.ts");
+    const artifact = path.join(root, "src", "Panel.exact.client.js");
+    await mkdir(path.dirname(artifact), { recursive: true });
+    await writeFile(artifact, "export const ready = true;");
+
+    expect(resolveExactArtifactImport("./Panel.exact", importer, "client")).toEqual({
+      id: artifact,
+      target: "client"
+    });
   });
 
   it("creates bundler-neutral exact artifact graphs", async () => {

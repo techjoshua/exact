@@ -570,6 +570,56 @@ describe("@exact/server", () => {
     expect(JSON.parse(missingState.body)).toEqual({ error: "bad_request" });
   });
 
+  it("accepts exact state contract reads through array paths", async () => {
+    const withState = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "action",
+        id: "allowed-action",
+        payload: { title: "Ready" },
+        state: { projects: [{ id: "p1" }] }
+      }
+    }, context({
+      manifest: {
+        version: 1,
+        actions: {
+          "allowed-action": {
+            id: "allowed-action",
+            placement: "server",
+            stateContract: {
+              reads: [{ path: "projects.0.id", kind: "read", confidence: "exact" }]
+            }
+          }
+        }
+      }
+    }));
+    expect(withState.status).toBe(200);
+
+    const missingState = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "action",
+        id: "allowed-action",
+        payload: { title: "Ready" },
+        state: { projects: [] }
+      }
+    }, context({
+      manifest: {
+        version: 1,
+        actions: {
+          "allowed-action": {
+            id: "allowed-action",
+            placement: "server",
+            stateContract: {
+              reads: [{ path: "projects.0.id", kind: "read", confidence: "exact" }]
+            }
+          }
+        }
+      }
+    }));
+    expect(missingState.status).toBe(400);
+  });
+
   it("validates serialized context against action context contracts", async () => {
     const action = vi.fn(input => ({
       state: { user: (input.context as Record<string, unknown>).AuthContext }
@@ -679,6 +729,22 @@ describe("@exact/server", () => {
 
     expect(result.status).toBe(403);
     expect(action).not.toHaveBeenCalled();
+  });
+
+  it("runs security hooks once for single operation requests", async () => {
+    const authorize = vi.fn(() => true);
+    const validateCsrf = vi.fn(() => true);
+    const result = await handleExactRequest({
+      method: "POST",
+      body: { type: "action", id: "allowed-action", payload: { title: "Ready" } }
+    }, context({
+      authorize,
+      validateCsrf
+    }));
+
+    expect(result.status).toBe(200);
+    expect(authorize).toHaveBeenCalledOnce();
+    expect(validateCsrf).toHaveBeenCalledOnce();
   });
 
   it("fails closed when authorization or csrf hooks throw", async () => {

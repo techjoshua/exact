@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { isExactArtifactManifest, parseExactCompilerManifest } from "./manifest-parse.js";
 import {
@@ -111,11 +112,28 @@ export function resolveExactArtifactImport(
   target: ExactArtifactTarget
 ): ExactArtifactImportResolution | null {
   if (!source.endsWith(".exact")) return null;
-  const resolved = `${source}.${target}.ts`;
+  const base = `${source}.${target}`;
+  const resolved = resolveArtifactCandidate(base, importer);
   return {
-    id: !importer || path.isAbsolute(resolved) ? resolved : path.resolve(path.dirname(importer), resolved),
+    id: resolved,
     target
   };
+}
+
+function resolveArtifactCandidate(base: string, importer: string | undefined): string {
+  const candidateBase = !importer || path.isAbsolute(base) ? base : path.resolve(path.dirname(importer), base);
+  for (const extension of artifactExtensionPreference(importer)) {
+    const candidate = `${candidateBase}${extension}`;
+    if (existsSync(candidate)) return candidate;
+  }
+  return `${candidateBase}${artifactExtensionPreference(importer)[0]}`;
+}
+
+function artifactExtensionPreference(importer: string | undefined): [".ts", ".js"] | [".js", ".ts"] {
+  const extension = importer ? path.extname(importer).toLowerCase() : "";
+  return extension === ".js" || extension === ".jsx"
+    ? [".js", ".ts"]
+    : [".ts", ".js"];
 }
 
 export function createExactArtifactGraph(

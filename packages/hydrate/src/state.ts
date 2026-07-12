@@ -1,6 +1,8 @@
 import { isSafeObjectKey } from "./safety.js";
 import type { ExactStateContract } from "./types.js";
 
+type MutableStateContainer = Record<string, unknown> | unknown[];
+
 export function stateForContract(state: unknown, contract: ExactStateContract | undefined): unknown {
   if (!contract) return state;
   const reads = contract.reads?.filter(read => read.kind === "read" && read.confidence === "exact") ?? [];
@@ -17,8 +19,13 @@ function getPath(value: unknown, path: string): unknown {
   if (path === "*") return value;
   let cursor = value;
   for (const segment of path.split(".")) {
-    if (!cursor || typeof cursor !== "object" || Array.isArray(cursor)) return undefined;
-    if (!Object.prototype.hasOwnProperty.call(cursor, segment)) return undefined;
+    if (Array.isArray(cursor)) {
+      if (!isArrayIndex(segment) || !Object.prototype.hasOwnProperty.call(cursor, segment)) return undefined;
+      cursor = cursor[Number(segment)];
+      continue;
+    }
+    if (!cursor || typeof cursor !== "object") return undefined;
+    if (!isSafeObjectKey(segment) || !Object.prototype.hasOwnProperty.call(cursor, segment)) return undefined;
     cursor = (cursor as Record<string, unknown>)[segment];
   }
   return cursor;
@@ -27,14 +34,43 @@ function getPath(value: unknown, path: string): unknown {
 function setPath(target: Record<string, unknown>, path: string, value: unknown): void {
   if (path === "*") return;
   const segments = path.split(".");
-  if (!segments.every(isSafeObjectKey)) return;
-  let cursor: Record<string, unknown> = target;
-  for (const segment of segments.slice(0, -1)) {
-    const next = cursor[segment];
-    if (!next || typeof next !== "object" || Array.isArray(next)) {
-      cursor[segment] = {};
+  if (!segments.every(segment => isSafeObjectKey(segment) || isArrayIndex(segment))) return;
+  let cursor: MutableStateContainer = target;
+  for (let index = 0; index < segments.length - 1; index++) {
+    const segment = segments[index]!;
+    const nextSegment = segments[index + 1]!;
+    if (Array.isArray(cursor) && !isArrayIndex(segment)) return;
+
+    const next = readContainerValue(cursor, segment);
+    if (!isMutableStateContainer(next)) {
+      const nextContainer: MutableStateContainer = isArrayIndex(nextSegment) ? [] : {};
+      writeContainerValue(cursor, segment, nextContainer);
+      cursor = nextContainer;
+    } else {
+      cursor = next;
     }
-    cursor = cursor[segment] as Record<string, unknown>;
   }
-  cursor[segments[segments.length - 1]!] = value;
+  const last = segments[segments.length - 1]!;
+  if (Array.isArray(cursor) && !isArrayIndex(last)) return;
+  writeContainerValue(cursor, last, value);
+}
+
+function readContainerValue(container: MutableStateContainer, segment: string): unknown {
+  return Array.isArray(container) ? container[Number(segment)] : container[segment];
+}
+
+function writeContainerValue(container: MutableStateContainer, segment: string, value: unknown): void {
+  if (Array.isArray(container)) {
+    container[Number(segment)] = value;
+  } else {
+    container[segment] = value;
+  }
+}
+
+function isMutableStateContainer(value: unknown): value is MutableStateContainer {
+  return Boolean(value && typeof value === "object");
+}
+
+function isArrayIndex(segment: string): boolean {
+  return /^(0|[1-9]\d*)$/.test(segment);
 }

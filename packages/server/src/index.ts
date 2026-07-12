@@ -69,7 +69,7 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
   }
 
   if (wantsStreaming(request)) {
-    return streamExactResponse(request, input, context, dispatchExactOperation);
+    return streamExactResponse(request, input, context, input.type === "batch" ? dispatchExactOperation : dispatchSecurityCheckedExactOperation);
   }
 
   if (input.type === "batch") {
@@ -77,7 +77,7 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
     return jsonResponse(200, { ok: true, version: 1, results } satisfies ExactBatchResult);
   }
 
-  const result = await dispatchExactOperation(request, input, context);
+  const result = await dispatchSecurityCheckedExactOperation(request, input, context);
   if (isOperationError(result)) return jsonResponse(result.status, { error: result.error });
   const { ok: _ok, type: _type, id: _id, ...body } = result;
   return jsonResponse(200, { ok: true, ...body });
@@ -91,6 +91,23 @@ async function dispatchExactOperation(
   request: ExactRequestLike,
   input: ExactInvocationRequest,
   context: ExactServerContext
+): Promise<ExactOperationResult> {
+  return dispatchExactOperationAfterSecurity(request, input, context, false);
+}
+
+async function dispatchSecurityCheckedExactOperation(
+  request: ExactRequestLike,
+  input: ExactInvocationRequest,
+  context: ExactServerContext
+): Promise<ExactOperationResult> {
+  return dispatchExactOperationAfterSecurity(request, input, context, true);
+}
+
+async function dispatchExactOperationAfterSecurity(
+  request: ExactRequestLike,
+  input: ExactInvocationRequest,
+  context: ExactServerContext,
+  securityChecked: boolean
 ): Promise<ExactOperationResult> {
   const reject = (status: number, error: ExactOperationError["error"], message: string): ExactOperationResult => {
     logReject(context, message);
@@ -113,13 +130,15 @@ async function dispatchExactOperation(
     return reject(400, "bad_request", "rejected exact invocation with mismatched context contract");
   }
 
-  const security = await checkSecurityHooks(request, input, context);
-  if (security === "unauthorized") {
-    return reject(403, "forbidden", "rejected unauthorized exact invocation");
-  }
+  if (!securityChecked) {
+    const security = await checkSecurityHooks(request, input, context);
+    if (security === "unauthorized") {
+      return reject(403, "forbidden", "rejected unauthorized exact invocation");
+    }
 
-  if (security === "csrf") {
-    return reject(403, "forbidden", "rejected exact invocation with invalid csrf");
+    if (security === "csrf") {
+      return reject(403, "forbidden", "rejected exact invocation with invalid csrf");
+    }
   }
 
   const handler = input.type === "action"
