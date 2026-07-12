@@ -77,6 +77,7 @@ export class ExactWebpackPlugin {
   }
 }
 
+/** Creates the webpack pre-loader rule for eXact JSX transforms. */
 export function createExactWebpackRule(options: ExactWebpackPluginOptions = {}): Record<string, unknown> {
   return {
     test: /\.[jt]sx$/,
@@ -88,6 +89,7 @@ export function createExactWebpackRule(options: ExactWebpackPluginOptions = {}):
   };
 }
 
+/** Transforms one webpack-loaded source file when it matches eXact plugin filters. */
 export function transformExactWebpackSource(source: string, filename: string, options: ExactWebpackPluginOptions = {}): { code: string; map: unknown } | null {
   if (!shouldTransform(filename, source, options)) return null;
   try {
@@ -115,10 +117,12 @@ function importedManifestsFor(options: { importedManifests?: readonly ExactCompi
   ];
 }
 
+/** Resolves a webpack import request for a .exact facade to a target artifact. */
 export function resolveExactWebpackRequest(request: string, importer: string | undefined, options: ExactWebpackPluginOptions = {}): string | null {
   return resolveExactArtifactImport(request, importer, targetFor(options))?.id ?? null;
 }
 
+/** Installs .exact facade resolution into a webpack resolver. */
 export function applyExactWebpackResolver(resolver: WebpackResolverLike, options: ExactWebpackPluginOptions = {}): WebpackResolverLike {
   const resolveHook = resolver.getHook?.("resolve") ?? resolver.hooks?.resolve;
   const targetHook = resolver.ensureHook?.("resolved") ?? resolveHook;
@@ -146,6 +150,7 @@ export function applyExactWebpackResolver(resolver: WebpackResolverLike, options
   return resolver;
 }
 
+/** Prepends eXact export conditions to webpack's conditionNames list. */
 export function addWebpackConditions(compiler: WebpackCompilerLike, conditions: readonly string[]): void {
   compiler.options.resolve ??= {};
   const current = compiler.options.resolve.conditionNames ?? [];

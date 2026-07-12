@@ -1,5 +1,6 @@
 import ts from "typescript";
 
+/** Returns TypeScript parse/transpile diagnostics for source before eXact transforms run. */
 export function validateSource(source: string, filename: string): readonly ts.Diagnostic[] {
   return ts.transpileModule(source, {
     fileName: filename,
@@ -12,6 +13,7 @@ export function validateSource(source: string, filename: string): readonly ts.Di
   }).diagnostics ?? [];
 }
 
+/** Formats TypeScript diagnostics into readable file:line:column messages. */
 export function formatDiagnostics(diagnostics: readonly ts.Diagnostic[]): string {
   return diagnostics.map(diagnostic => {
     const file = diagnostic.file;

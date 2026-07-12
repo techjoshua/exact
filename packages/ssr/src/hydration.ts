@@ -1,6 +1,7 @@
 import { escapeAttr } from "./html.js";
 import type { HydrationScriptOptions } from "./types.js";
 
+/** Renders the JSON script tag consumed by the hydration client. */
 export function renderHydrationScript(options: HydrationScriptOptions = {}): string {
   const payloadValue = omitUndefinedProperties({
     endpoint: options.endpoint,
@@ -18,6 +19,7 @@ export function renderHydrationScript(options: HydrationScriptOptions = {}): str
   return `<script type="application/json" id="${escapeAttr(id)}"${nonce}>${payload}</script>`;
 }
 
+/** Serializes hydration JSON while escaping script-breaking characters. */
 export function serializeHydrationPayload(payload: Record<string, unknown>): string {
   return JSON.stringify(payload)
     .replace(/</g, "\\u003C")
@@ -25,6 +27,7 @@ export function serializeHydrationPayload(payload: Record<string, unknown>): str
     .replace(/\u2029/g, "\\u2029");
 }
 
+/** Returns the first non-JSON-safe path in a value, or undefined when it is safe. */
 export function jsonUnsafePath(value: unknown, path = "$", seen = new Set<object>()): string | undefined {
   if (value === undefined || value === null) return undefined;
   if (typeof value === "string" || typeof value === "boolean") return undefined;
@@ -47,6 +50,7 @@ export function jsonUnsafePath(value: unknown, path = "$", seen = new Set<object
   return undefined;
 }
 
+/** Returns whether a value can be safely serialized into hydration JSON. */
 export function isJsonSafe(value: unknown, seen = new Set<object>()): boolean {
   return jsonUnsafePath(value, "$", seen) === undefined;
 }

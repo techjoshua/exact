@@ -6,6 +6,7 @@ type TaskCardProps = {
   task: Task;
 };
 
+/** Renders one draggable kanban task card. */
 export function TaskCard(this: Component<{}>, props: TaskCardProps) {
   const board = this.getContext(BoardContext);
   const title = props.task.title;

@@ -7,6 +7,7 @@ export type PatchOptions = {
   onMismatch?: "replace" | "throw";
 };
 
+/** Applies server-generated patches to an existing hydrated container. */
 export function applyPatches(container: Element, patches: readonly ExactPatch[], options: PatchOptions = {}): boolean {
   for (const patch of patches) {
     const ok = applyPatch(container, patch);
@@ -21,6 +22,7 @@ export function applyPatches(container: Element, patches: readonly ExactPatch[],
   return true;
 }
 
+/** Returns whether a container contains eXact comment markers for hydration patching. */
 export function hasExactMarkers(container: Element): boolean {
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_COMMENT);
   while (walker.nextNode()) {
@@ -29,6 +31,7 @@ export function hasExactMarkers(container: Element): boolean {
   return false;
 }
 
+/** Returns the current HTML inside an exact boundary or slot. */
 export function boundaryInnerHtml(container: Element, id: string): string | undefined {
   const range = findExactRange(container, id);
   if (!range) return findServerSlotElement(container, id)?.innerHTML ?? findClientBoundaryElement(container, id)?.outerHTML;
@@ -41,6 +44,7 @@ export function boundaryInnerHtml(container: Element, id: string): string | unde
   return wrapper.innerHTML;
 }
 
+/** Reports a patch or hydration mismatch through framework logging. */
 export function reportMismatch(options: PatchOptions, message: string): void {
   logFrameworkEvent("warn", "hydrate", "mismatch", message, undefined, options.logger);
 }
@@ -115,6 +119,8 @@ function applyPatch(container: Element, patch: ExactPatch): boolean {
     if (patch.op === "move") {
       const item = findExactItemRange(container, patch.key, range);
       if (!item) {
+        // A missing moved item can still be recovered if the server included fresh HTML.
+        // This keeps list patching resilient across stale client snapshots.
         if (!patch.html) return false;
         insertHtmlBefore(anchor, patch.html);
         return true;

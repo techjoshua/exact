@@ -12,16 +12,19 @@ import type {
   SemanticReferenceIndex
 } from "./types.js";
 
+/** Returns whether a TypeScript token kind is an assignment operator. */
 export function isAssignmentOperator(kind: ts.SyntaxKind): boolean {
   return kind >= ts.SyntaxKind.FirstAssignment && kind <= ts.SyntaxKind.LastAssignment;
 }
 
+/** Returns whether an expression is direct access to this.state. */
 export function isThisStateAccess(expression: ts.Expression): boolean {
   return ts.isPropertyAccessExpression(expression)
     && expression.name.text === "state"
     && expression.expression.kind === ts.SyntaxKind.ThisKeyword;
 }
 
+/** Narrows nodes that can be analyzed as function bodies for state effects. */
 export function isAnalyzableFunctionLike(node: ts.Node): node is ts.FunctionLikeDeclaration {
   return ts.isFunctionDeclaration(node)
     || ts.isFunctionExpression(node)
@@ -31,6 +34,7 @@ export function isAnalyzableFunctionLike(node: ts.Node): node is ts.FunctionLike
     || ts.isSetAccessorDeclaration(node);
 }
 
+/** Collects local consts that can safely be auto-wrapped as derived reactive values. */
 export function collectDerivedReactiveLocals(
   node: ts.FunctionLikeDeclaration,
   sourceFile: ts.SourceFile,
@@ -49,6 +53,8 @@ export function collectDerivedReactiveLocals(
       && isConstVariableDeclaration(current)
       && isSafeDerivedReactiveInitializer(current.initializer)
       && expressionReadsReactiveInput(current.initializer, sourceFile, semanticReferences, derived, reactiveSources)) {
+      // Only pure-ish const initializers are promoted. Calls, awaits, assignments,
+      // and nested functions stay explicit to avoid changing user-side effects.
       const declaration = semanticDeclarationForIdentifier(current.name, semanticDeclarations, sourceFile);
       if (declaration) derived.set(declaration.id, current.initializer);
     }
@@ -152,6 +158,7 @@ function isSafeDerivedReactiveInitializer(expression: ts.Expression): boolean {
   return safe;
 }
 
+/** Collects local aliases that point at this.state paths. */
 export function collectStateAliases(
   node: ts.Node,
   sourceFile: ts.SourceFile,
@@ -222,6 +229,7 @@ function isTaskNestedFunction(node: ts.Node): boolean {
     || ts.isMethodDeclaration(node);
 }
 
+/** Resolves an expression to a state path when it reads or writes component state. */
 export function stateEffectPath(
   expression: ts.Expression,
   sourceFile: ts.SourceFile,
@@ -248,6 +256,7 @@ export function stateEffectPath(
   return undefined;
 }
 
+/** Returns the context read/write effect represented by a this.get/setContext call. */
 export function contextEffectForCall(node: ts.Node, sourceFile: ts.SourceFile): ExactContextEffect | undefined {
   if (!ts.isCallExpression(node)) return undefined;
   if (!ts.isPropertyAccessExpression(node.expression)) return undefined;
@@ -267,6 +276,7 @@ function contextTokenName(node: ts.Expression, sourceFile: ts.SourceFile): strin
   return "unknown";
 }
 
+/** Returns whether an expression is syntactically a state path expression. */
 export function isStatePathExpression(expression: ts.Expression): boolean {
   if (isThisStateAccess(expression)) return true;
   if (ts.isPropertyAccessExpression(expression)) return isStatePathExpression(expression.expression);
@@ -274,6 +284,7 @@ export function isStatePathExpression(expression: ts.Expression): boolean {
   return false;
 }
 
+/** Converts a state path expression into its dotted contract path. */
 export function statePath(expression: ts.Expression): string {
   if (isThisStateAccess(expression)) return "*";
   if (ts.isPropertyAccessExpression(expression) && isStatePathExpression(expression.expression)) {
@@ -289,6 +300,7 @@ export function statePath(expression: ts.Expression): string {
   return "*";
 }
 
+/** Deduplicates and sorts state effects for deterministic manifests. */
 export function uniqueEffects(effects: ExactStateEffect[]): ExactStateEffect[] {
   const seen = new Set<string>();
   const output: ExactStateEffect[] = [];
@@ -301,6 +313,7 @@ export function uniqueEffects(effects: ExactStateEffect[]): ExactStateEffect[] {
   return output.sort((left, right) => `${left.kind}:${left.path}`.localeCompare(`${right.kind}:${right.path}`));
 }
 
+/** Deduplicates and sorts context effects for deterministic manifests. */
 export function uniqueContextEffects(effects: ExactContextEffect[]): ExactContextEffect[] {
   const seen = new Set<string>();
   const output: ExactContextEffect[] = [];
@@ -313,6 +326,7 @@ export function uniqueContextEffects(effects: ExactContextEffect[]): ExactContex
   return output.sort((left, right) => `${left.kind}:${left.token}`.localeCompare(`${right.kind}:${right.token}`));
 }
 
+/** Deduplicates diagnostics while preserving first-seen order. */
 export function uniqueDiagnostics(diagnostics: readonly string[]): string[] {
   const seen = new Set<string>();
   const output: string[] = [];

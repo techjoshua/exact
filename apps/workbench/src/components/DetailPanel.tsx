@@ -8,6 +8,7 @@ type DetailPanelProps = {
   draftLabel: string;
 };
 
+/** Renders the editable task detail panel for the selected workbench task. */
 export function DetailPanel(this: Component<{}>, props: DetailPanelProps) {
   const workbench = this.getContext(WorkbenchContext);
   const titleRef = createRef<HTMLInputElement>("detail-title");
@@ -113,6 +114,7 @@ export function DetailPanel(this: Component<{}>, props: DetailPanelProps) {
   );
 }
 
+/** Renders the empty task detail panel state when no task is selected. */
 export function EmptyDetailPanel(this: Component<{}>) {
   return () => (
     <section className="detail-panel empty-detail">

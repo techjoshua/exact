@@ -56,6 +56,7 @@ export type BunPluginLike = {
   setup(build: BunBuildLike): void;
 };
 
+/** Creates the Bun plugin that transforms eXact JSX and resolves .exact facade imports. */
 export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
   return {
     name: "exact",
@@ -91,6 +92,7 @@ async function readBunLoadSource(args: BunLoadArgs): Promise<string> {
   return runtime.Bun.file(args.path).text();
 }
 
+/** Transforms one Bun-loaded source file when it matches eXact plugin filters. */
 export function transformExactBunSource(source: string, filename: string, options: ExactBunPluginOptions = {}): { code: string; map: unknown } | null {
   if (!shouldTransform(filename, source, options)) return null;
   try {
@@ -118,10 +120,12 @@ function importedManifestsFor(options: { importedManifests?: readonly ExactCompi
   ];
 }
 
+/** Resolves a Bun import request for a .exact facade to a target artifact. */
 export function resolveExactBunRequest(request: string, importer: string | undefined, options: ExactBunPluginOptions = {}): string | null {
   return resolveExactArtifactImport(request, importer, targetFor(options))?.id ?? null;
 }
 
+/** Prepends eXact export conditions without duplicating existing conditions. */
 export function mergeConditions(current: readonly string[], next: readonly string[]): string[] {
   return [...next, ...current.filter(condition => !next.includes(condition))];
 }

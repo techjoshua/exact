@@ -8,6 +8,7 @@ type CommandPaletteProps = {
   selectedTask?: Task;
 };
 
+/** Renders the workbench command palette for quick actions. */
 export function CommandPalette(this: Component<{}>, props: CommandPaletteProps) {
   const workbench = this.getContext(WorkbenchContext);
   const firstActionRef = createRef<HTMLButtonElement>("first-command");

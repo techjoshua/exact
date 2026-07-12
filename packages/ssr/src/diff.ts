@@ -16,6 +16,7 @@ type ParsedHtmlText = {
   value: string;
 };
 
+/** Diffs two framework-shaped boundary HTML strings into patches or a replacement fallback. */
 export function diffBoundaryHtml(
   boundaryId: string,
   previousHtml: string,
@@ -57,6 +58,8 @@ export function diffBoundaryHtml(
 }
 
 function diffExactElementHtml(previousHtml: string, nextHtml: string): ExactPatch[] | undefined {
+  // This parser intentionally handles eXact-generated HTML, not arbitrary browser HTML.
+  // Returning undefined is the signal to fall back to a boundary replacement.
   const previousTree = parseHtmlNodes(previousHtml);
   const nextTree = parseHtmlNodes(nextHtml);
   if (!previousTree || !nextTree) return undefined;
@@ -162,6 +165,7 @@ function rootExactElementReplace(
   return [{ type: "replace", id, html: nextHtml }];
 }
 
+/** Diffs keyed list snapshots into remove, insert, and move patches. */
 export function diffKeyedListItems(
   listId: string,
   previousItems: readonly KeyedListSnapshotItem[],
@@ -352,6 +356,7 @@ function serializeParsedHtmlNode(node: ParsedHtmlNode): string {
     : serializeParsedHtmlElement(node);
 }
 
+/** Creates the fallback patch for a refreshed boundary according to the selected strategy. */
 export function boundaryPatch(boundaryId: string, html: string, strategy: BoundaryRefreshOptions["patchStrategy"]): ExactPatch {
   if (strategy === "text" && isTextOnlyHtml(html)) {
     return {

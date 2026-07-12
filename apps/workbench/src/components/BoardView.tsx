@@ -7,6 +7,7 @@ type BoardViewProps = {
   tasks: Task[];
 };
 
+/** Renders workbench tasks grouped by status columns. */
 export function BoardView(this: Component<{}>, props: BoardViewProps) {
   return () => (
     <section className="board-view">

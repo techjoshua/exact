@@ -7,6 +7,7 @@ import { eventHandlers, propBindings } from "./state.js";
 import { normalizeClass, toCssProperty } from "./style.js";
 import type { Root } from "./types.js";
 
+/** Applies prop changes to a DOM element, including reactive bindings and delegated events. */
 export function updateProps(root: Root, element: Element, previous: Record<string, unknown>, next: Record<string, unknown>, scope: EffectScope): void {
   preserveFocus(root, () => {
     for (const key of Object.keys(previous)) {
@@ -19,6 +20,7 @@ export function updateProps(root: Root, element: Element, previous: Record<strin
   });
 }
 
+/** Stops reactive prop bindings and removes delegated event handlers for an element. */
 export function clearElementProps(element: Element): void {
   for (const stop of propBindings.get(element)?.values() ?? []) {
     stop();
@@ -118,6 +120,8 @@ function bindStyle(element: HTMLElement, value: unknown, scope: EffectScope): St
     }
 
     previousCssText = undefined;
+    // Track individual property names so removed keys from an object style are
+    // cleaned up without wiping unrelated browser-normalized style state.
     const nextNames = new Set<string>();
     for (const [name, rawValue] of Object.entries(actual)) {
       const styleValue = unwrap(rawValue);

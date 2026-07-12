@@ -13,6 +13,7 @@ type WorkbenchProps = {
   logger?: Logger;
 };
 
+/** Renders the project workbench sample and owns its task state/services. */
 export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps) {
   this.setContext(LoggerContext, props.logger ?? createConsoleLogger({ level: "debug" }));
 

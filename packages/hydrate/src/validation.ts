@@ -1,8 +1,10 @@
+/** Returns whether an object contains only the explicitly allowed own enumerable keys. */
 export function hasOnlyKeys(record: Record<string, unknown>, allowed: readonly string[]): boolean {
   const allowedSet = new Set(allowed);
   return Object.keys(record).every(key => allowedSet.has(key));
 }
 
+/** Returns whether a value can be safely encoded as JSON without prototypes or cycles. */
 export function isJsonSafe(value: unknown, seen = new Set<object>()): boolean {
   if (value === undefined) return false;
   if (value === null) return true;

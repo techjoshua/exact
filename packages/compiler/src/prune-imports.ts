@@ -1,5 +1,6 @@
 import ts from "typescript";
 
+/** Removes import bindings that are no longer referenced after compiler transforms. */
 export function pruneUnusedImports(sourceFile: ts.SourceFile, factory: ts.NodeFactory): ts.SourceFile {
   const used = collectUsedIdentifiers(sourceFile);
   const statements: ts.Statement[] = [];

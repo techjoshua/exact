@@ -13,6 +13,7 @@ export const priorities: Priority[] = ["low", "medium", "high"];
 
 export const statuses: Status[] = columns.map(column => column.id);
 
+/** Loads persisted workbench tasks, falling back to seeded sample data. */
 export function loadTasks(): Task[] {
   try {
     const saved = localStorage.getItem(storageKey);
@@ -24,6 +25,7 @@ export function loadTasks(): Task[] {
   return seedTasks();
 }
 
+/** Creates the default task list used when no saved workbench state exists. */
 export function seedTasks(): Task[] {
   return [
     createTask("Shape the v0 public API contract", "Define what is stable enough for external examples.", "active", "high", "Mara", ["api", "docs"]),
@@ -35,6 +37,7 @@ export function seedTasks(): Task[] {
   ];
 }
 
+/** Parses imported task JSON and normalizes missing optional fields. */
 export function parseTaskImport(source: string): Task[] {
   const parsed = JSON.parse(source) as unknown;
   if (!Array.isArray(parsed)) throw new Error("Import must be a JSON array of tasks.");
@@ -68,6 +71,7 @@ function isPriority(value: unknown): value is Priority {
   return typeof value === "string" && priorities.includes(value as Priority);
 }
 
+/** Creates a new workbench task with generated id and update timestamp. */
 export function createTask(
   title: string,
   notes = "",

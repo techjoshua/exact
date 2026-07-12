@@ -5,6 +5,7 @@ import type {
   ExactResponseLike
 } from "./types.js";
 
+/** Reads a runtime-neutral request body from body/json/text adapters. */
 export async function readBody(request: ExactRequestLike): Promise<unknown> {
   if (request.body !== undefined) return request.body;
   if (request.json) return request.json();
@@ -12,6 +13,7 @@ export async function readBody(request: ExactRequestLike): Promise<unknown> {
   return undefined;
 }
 
+/** Parses and validates the top-level eXact request envelope. */
 export function parseExactRequestBody(body: unknown): ExactInvocationRequest | ExactBatchRequest {
   const value = typeof body === "string" ? JSON.parse(body) : body;
   if (!value || typeof value !== "object") throw new Error("invalid invocation");
@@ -20,6 +22,7 @@ export function parseExactRequestBody(body: unknown): ExactInvocationRequest | E
   return parseInvocationRecord(record);
 }
 
+/** Returns whether a parsed request contains only JSON-safe payload, state, and context values. */
 export function requestPayloadSafe(input: ExactInvocationRequest | ExactBatchRequest): boolean {
   if (input.type === "batch") {
     return input.operations.every(operation => requestPayloadSafe(operation));
@@ -27,6 +30,7 @@ export function requestPayloadSafe(input: ExactInvocationRequest | ExactBatchReq
   return isJsonSafe(input.payload) && isJsonSafe(input.state) && isJsonSafe(input.context);
 }
 
+/** Creates a no-store JSON response for the runtime-neutral handler. */
 export function jsonResponse(status: number, body: unknown): ExactResponseLike {
   return {
     status,
@@ -38,11 +42,13 @@ export function jsonResponse(status: number, body: unknown): ExactResponseLike {
   };
 }
 
+/** Returns whether an object contains only the explicitly allowed own enumerable keys. */
 export function hasOnlyKeys(record: Record<string, unknown>, allowed: readonly string[]): boolean {
   const allowedSet = new Set(allowed);
   return Object.keys(record).every(key => allowedSet.has(key));
 }
 
+/** Returns whether a value can be safely encoded as JSON without prototypes or cycles. */
 export function isJsonSafe(value: unknown, seen = new Set<object>()): boolean {
   if (value === undefined || value === null) return true;
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return Number.isFinite(value as number) || typeof value !== "number";

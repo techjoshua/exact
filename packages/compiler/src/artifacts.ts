@@ -33,6 +33,7 @@ import type {
   PackageExportMapOptions
 } from "./types.js";
 
+/** Converts a compile result into the graph entry shape used by artifact tooling. */
 export function artifactGraphEntryFromCompileResult(result: CompileArtifactsResult): ExactArtifactGraphEntry {
   return {
     inputFile: result.inputFile,
@@ -43,6 +44,7 @@ export function artifactGraphEntryFromCompileResult(result: CompileArtifactsResu
   };
 }
 
+/** Diffs two artifact plans into added, removed, changed, and retained entries. */
 export function diffExactArtifactPlans(
   previous: ExactArtifactPlan,
   next: ExactArtifactPlan,
@@ -77,6 +79,7 @@ export function diffExactArtifactPlans(
   };
 }
 
+/** Creates conditional package exports for generated client/server component artifacts. */
 export function createPackageExportMap(
   results: readonly ExactArtifactGraphInput[],
   options: PackageExportMapOptions
@@ -99,6 +102,7 @@ export function createPackageExportMap(
   return output;
 }
 
+/** Returns the package export conditions used to select a client or server artifact. */
 export function exactExportConditions(
   target: ExactArtifactTarget,
   options: ExactExportConditionOptions = {}
@@ -106,6 +110,7 @@ export function exactExportConditions(
   return [target === "server" ? options.serverCondition ?? "exact-server" : options.clientCondition ?? "exact-client"];
 }
 
+/** Resolves a virtual .exact facade import to the generated client or server artifact path. */
 export function resolveExactArtifactImport(
   source: string,
   importer: string | undefined,
@@ -126,6 +131,8 @@ function resolveArtifactCandidate(base: string, importer: string | undefined): s
     const candidate = `${candidateBase}${extension}`;
     if (existsSync(candidate)) return candidate;
   }
+  // During early resolver passes the artifact may not exist yet; fall back to the
+  // extension that matches the importing source language.
   return `${candidateBase}${artifactExtensionPreference(importer)[0]}`;
 }
 
@@ -136,6 +143,7 @@ function artifactExtensionPreference(importer: string | undefined): [".ts", ".js
     : [".ts", ".js"];
 }
 
+/** Builds the aggregate graph used by package exports and client/server registries. */
 export function createExactArtifactGraph(
   results: readonly ExactArtifactGraphInput[],
   options: ExactArtifactGraphOptions
@@ -163,6 +171,7 @@ export function createExactArtifactGraph(
   };
 }
 
+/** Extracts render edges across compiled artifact manifests. */
 export function createExactArtifactComponentEdges(results: readonly ExactArtifactGraphInput[]): ExactArtifactComponentEdge[] {
   const edges: ExactArtifactComponentEdge[] = [];
   for (const result of results) {
@@ -199,6 +208,7 @@ export function createExactArtifactComponentEdges(results: readonly ExactArtifac
   ].join(":")));
 }
 
+/** Creates generated registry module source for client islands and server parts. */
 export function createExactArtifactRegistryModules(
   graph: ExactArtifactGraph,
   options: ExactArtifactRegistryModulesOptions = {}
@@ -213,6 +223,7 @@ export function createExactArtifactRegistryModules(
   };
 }
 
+/** Reads artifact manifest files back into artifact graph entries. */
 export async function readExactArtifactManifestEntries(manifestFiles: readonly string[]): Promise<ExactArtifactGraphEntry[]> {
   const entries: ExactArtifactGraphEntry[] = [];
   for (const manifestFile of manifestFiles) {

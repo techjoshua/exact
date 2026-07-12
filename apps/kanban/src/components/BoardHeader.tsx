@@ -6,6 +6,7 @@ type BoardHeaderProps = {
   total: number;
 };
 
+/** Renders the kanban sample header and new-task controls. */
 export function BoardHeader(this: Component<{}>, props: BoardHeaderProps) {
   const board = this.getContext(BoardContext);
   const errors = this.getContext(ErrorContext);

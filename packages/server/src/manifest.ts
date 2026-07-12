@@ -15,6 +15,7 @@ import type {
   ExactStatePath
 } from "./types.js";
 
+/** Builds a runtime server manifest from one or more compiler manifests plus app overrides. */
 export function createExactServerManifest(
   compilerManifest: ExactCompilerManifestLike | readonly ExactCompilerManifestLike[],
   options: CreateExactServerManifestOptions = {}
@@ -73,6 +74,7 @@ export function createExactServerManifest(
   };
 }
 
+/** Extracts action state contracts into the serialized hydration config shape. */
 export function createExactHydrationStateContracts(manifest: ExactServerManifest): Record<string, ExactStateContract> {
   const contracts: Record<string, ExactStateContract> = {};
   for (const [id, action] of Object.entries(manifest.actions ?? {})) {
@@ -81,10 +83,12 @@ export function createExactHydrationStateContracts(manifest: ExactServerManifest
   return contracts;
 }
 
+/** Extracts or infers action-to-boundary mappings for client refresh requests. */
 export function createExactHydrationActionBoundaries(manifest: ExactServerManifest): Record<string, readonly string[]> {
   return manifest.actionBoundaries ?? inferActionBoundaries(manifest.actions ?? {}, manifest.boundaries ?? {});
 }
 
+/** Builds the client hydration manifest config derived from a server manifest and optional state. */
 export function createExactHydrationManifestConfig(
   manifest: ExactServerManifest,
   state?: unknown
@@ -113,6 +117,8 @@ function addManifestBoundary(
 ): void {
   const existing = boundaries[boundary.id];
   if (existing) {
+    // App-provided boundary overrides intentionally win; compiler/compiler collisions
+    // still fail closed so opaque IDs stay trustworthy.
     if (!overrides.has(boundary.id) && !sameManifestBoundary(existing, boundary)) {
       throw new Error(`Conflicting eXact boundary id in compiler manifests: ${boundary.id}`);
     }

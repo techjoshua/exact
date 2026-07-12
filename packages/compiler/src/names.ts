@@ -1,6 +1,7 @@
 import ts from "typescript";
 import { stableId } from "./ids.js";
 
+/** Generates a stable readable name for a compiler-created logical component. */
 export function generatedComponentName(authorName: string, role: "server-part" | "client-island", index: number): string {
   const base = sanitizeIdentifier(authorName || "Component");
   const suffix = role === "server-part" ? "ExactServer" : "ExactClient";
@@ -13,10 +14,12 @@ function sanitizeIdentifier(value: string): string {
   return `_${cleaned}`;
 }
 
+/** Returns the synthetic server-slot boundary id for a client boundary's children. */
 export function serverSlotBoundaryId(boundaryId: string): string {
   return `${boundaryId}:children`;
 }
 
+/** Creates a deterministic boundary id for a client component tag in source. */
 export function clientComponentBoundaryId(sourceFile: ts.SourceFile, componentName: string, node: ts.Node): string {
   return stableId(sourceFile.fileName, componentName, "component-island", String(node.getStart(sourceFile)), String(node.getEnd()));
 }

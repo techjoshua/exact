@@ -10,6 +10,7 @@ import type {
 
 const batchQueues = new WeakMap<Element, ExactBatchQueue[]>();
 
+/** Queues an eXact operation for microtask batching by endpoint, transport, and headers. */
 export function enqueueExactOperation(
   container: Element,
   options: {
@@ -52,6 +53,8 @@ export function enqueueExactOperation(
 
   if (!queue.scheduled) {
     queue.scheduled = true;
+    // Microtask batching groups operations triggered by the same user turn without
+    // introducing a visible delay for isolated single operations.
     queueMicrotask(() => {
       void flushExactBatchQueue(queue!);
     });

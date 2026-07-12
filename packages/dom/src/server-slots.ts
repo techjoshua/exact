@@ -2,6 +2,7 @@ import { ServerSlot, type VNode } from "@exact/core";
 import type { EffectScope } from "@exact/reactive";
 import type { Mounted, Root } from "./types.js";
 
+/** Mounts or adopts an existing server-rendered slot element for a client island. */
 export function mountServerSlot(root: Root, vnode: VNode, scope: EffectScope): Mounted {
   const id = String(vnode.props.id ?? "");
   const element = findServerSlotDeep(root.container, id) ?? document.createElement("span");
@@ -10,6 +11,7 @@ export function mountServerSlot(root: Root, vnode: VNode, scope: EffectScope): M
   return { vnode, dom: element, scope, children: [] };
 }
 
+/** Repoints a mounted server slot at an existing matching element under the parent. */
 export function adoptServerSlot(parent: Node, mounted: Mounted): void {
   if (mounted.vnode.type !== ServerSlot) return;
   const id = String(mounted.vnode.props.id ?? "");

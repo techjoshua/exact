@@ -9,6 +9,7 @@ type ColumnViewProps = {
   dragPlacement?: DragPlacement;
 };
 
+/** Renders one kanban status column and its task cards. */
 export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
   const board = this.getContext(BoardContext);
   const countLabel = props.tasks.length === 1 ? "1 task" : `${props.tasks.length} tasks`;

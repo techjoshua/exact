@@ -15,6 +15,7 @@ export type ExactOperationDispatcher = (
   context: ExactServerContext
 ) => Promise<ExactOperationResult>;
 
+/** Creates an NDJSON response for a single or batched eXact operation request. */
 export function streamExactResponse(
   request: ExactRequestLike,
   input: ExactInvocationRequest | ExactBatchRequest,
@@ -45,6 +46,7 @@ export function streamExactResponse(
   };
 }
 
+/** Dispatches a batch and returns operation results in request order. */
 export async function dispatchExactBatch(
   request: ExactRequestLike,
   operations: readonly ExactInvocationRequest[],
@@ -58,6 +60,7 @@ export async function dispatchExactBatch(
   return results;
 }
 
+/** Returns whether a request asks for eXact NDJSON streaming. */
 export function wantsStreaming(request: ExactRequestLike): boolean {
   const accept = headerValue(request.headers, "accept");
   const stream = headerValue(request.headers, "x-exact-stream");
@@ -95,6 +98,8 @@ async function dispatchReadyOperations(
     }
 
     if (!running.size) {
+      // Remaining operations are dependency-blocked. Fail them explicitly instead
+      // of leaving the client waiting for results that can no longer run.
       for (const index of pending) {
         emitResult(index, dependencyFailed(operations[index]!));
       }

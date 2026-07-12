@@ -3,6 +3,7 @@ import type { ExactStateContract } from "./types.js";
 
 type MutableStateContainer = Record<string, unknown> | unknown[];
 
+/** Returns only the client state paths required by an exact server action contract. */
 export function stateForContract(state: unknown, contract: ExactStateContract | undefined): unknown {
   if (!contract) return state;
   const reads = contract.reads?.filter(read => read.kind === "read" && read.confidence === "exact") ?? [];
@@ -43,6 +44,8 @@ function setPath(target: Record<string, unknown>, path: string, value: unknown):
 
     const next = readContainerValue(cursor, segment);
     if (!isMutableStateContainer(next)) {
+      // Numeric path segments create arrays so contracts like projects.1.id preserve
+      // the same shape the server validator expects, even if that means sparse JSON.
       const nextContainer: MutableStateContainer = isArrayIndex(nextSegment) ? [] : {};
       writeContainerValue(cursor, segment, nextContainer);
       cursor = nextContainer;

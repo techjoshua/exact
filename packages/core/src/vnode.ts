@@ -2,6 +2,7 @@ import { computed, unwrap } from "@exact/reactive";
 import { Cell, Dynamic, Fragment, ServerBoundary, ServerSlot, Text } from "./symbols.js";
 import type { Child, RenderResult, VNode, VNodeCell, VNodeType } from "./index.js";
 
+/** Creates a normalized virtual node and extracts the special JSX key prop. */
 export function createVNode(type: VNodeType, props: Record<string, unknown> | null, ...children: unknown[]): VNode {
   const normalizedProps = { ...(props ?? {}) };
   const rawKey = unwrap(normalizedProps.key);
@@ -16,6 +17,7 @@ export function createVNode(type: VNodeType, props: Record<string, unknown> | nu
   };
 }
 
+/** Creates a virtual text node from an arbitrary value. */
 export function createTextVNode(value: unknown): VNode {
   return {
     type: Text,
@@ -24,6 +26,7 @@ export function createTextVNode(value: unknown): VNode {
   };
 }
 
+/** Wraps a vnode in a stable compiled cell used by generated reactive output. */
 export function createCellVNode(vnode: VNode): VNode<{ cell: VNodeCell }> {
   return {
     type: Cell,
@@ -38,22 +41,27 @@ export function createCellVNode(vnode: VNode): VNode<{ cell: VNodeCell }> {
   };
 }
 
+/** Creates a compiled vnode cell from raw vnode arguments. */
 export function createCompiledVNode(type: VNodeType, props: Record<string, unknown> | null, ...children: unknown[]): VNode {
   return createCellVNode(createVNode(type, props, ...children));
 }
 
+/** Creates a compiled fragment vnode cell from raw children. */
 export function createCompiledFragment(props: Record<string, unknown> | null, ...children: unknown[]): VNode {
   return createCompiledVNode(Fragment, props, ...children);
 }
 
+/** Creates a reactive expression wrapper for compiler-generated expression boundaries. */
 export function createExpression<T>(compute: () => T) {
   return computed(compute);
 }
 
+/** Creates a dynamic child vnode whose render result is computed reactively. */
 export function createDynamicChild(compute: () => RenderResult): VNode {
   return createVNode(Dynamic, { value: computed(compute) });
 }
 
+/** Creates a server boundary vnode that can be refreshed or replaced by server runtime responses. */
 export function createServerBoundary(id: string, name: string, props: Record<string, unknown> = {}, ...children: unknown[]): VNode {
   return createVNode(ServerBoundary, {
     id,
@@ -62,10 +70,12 @@ export function createServerBoundary(id: string, name: string, props: Record<str
   }, ...children);
 }
 
+/** Creates a placeholder vnode for server-rendered children passed through a client island. */
 export function createServerSlot(id: string): VNode {
   return createVNode(ServerSlot, { id });
 }
 
+/** Flattens nested JSX child arrays into the child shape consumed by renderers. */
 export function normalizeChildren(children: unknown[]): Child[] {
   const normalized: Child[] = [];
 
@@ -80,14 +90,17 @@ export function normalizeChildren(children: unknown[]): Child[] {
   return normalized;
 }
 
+/** Returns whether a value has the minimal eXact vnode shape. */
 export function isVNode(value: unknown): value is VNode {
   return !!value && typeof value === "object" && "type" in value && "props" in value && "children" in value;
 }
 
+/** Returns whether a vnode is a compiled cell wrapper. */
 export function isCellVNode(value: unknown): value is VNode<{ cell: VNodeCell }> {
   return isVNode(value) && value.type === Cell;
 }
 
+/** Returns the inner vnode stored in a compiled cell wrapper. */
 export function getCellVNode(vnode: VNode<{ cell: VNodeCell }>): VNode {
   return vnode.props.cell.vnode;
 }

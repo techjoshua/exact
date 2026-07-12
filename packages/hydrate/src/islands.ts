@@ -3,6 +3,7 @@ import { render } from "@exact/dom";
 import { isSafeObjectKey } from "./safety.js";
 import type { ClientIslandRegistry, HydrateOptions } from "./types.js";
 
+/** Hydrates all unhydrated client island boundaries found under a container. */
 export function hydrateClientIslands(container: Element | Document, registry: ClientIslandRegistry, options: HydrateOptions = {}): number {
   const boundaries = Array.from(container.querySelectorAll("[data-exact-client-boundary]"));
   let hydrated = 0;

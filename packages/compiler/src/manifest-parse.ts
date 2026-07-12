@@ -9,6 +9,7 @@ import type {
 } from "./types.js";
 import { exactCompilerManifestVersion } from "./versions.js";
 
+/** Parses and validates a compiler manifest loaded from JSON. */
 export function parseExactCompilerManifest(value: unknown, source = "manifest", kind = "compiler"): ExactCompilerManifest {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(`Malformed eXact ${kind} manifest in ${source}`);
@@ -34,6 +35,7 @@ export function parseExactCompilerManifest(value: unknown, source = "manifest", 
   return manifest as ExactCompilerManifest;
 }
 
+/** Returns whether a value has the artifact metadata shape embedded in compiler manifests. */
 export function isExactArtifactManifest(value: unknown): value is ExactArtifactManifest {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;

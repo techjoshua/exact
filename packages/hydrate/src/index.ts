@@ -30,6 +30,7 @@ export type * from "./types.js";
 
 const roots = new WeakMap<Element, HydrationRoot>();
 
+/** Hydrates an SSR container and returns the eXact client attached to that container. */
 export function hydrate(vnode: VNode, container: Element, options: HydrateOptions = {}): HydrationRoot {
   const resolvedOptions = resolveHydrateOptions(container, options);
   if (!hasExactMarkers(container)) {
@@ -44,6 +45,7 @@ export function hydrate(vnode: VNode, container: Element, options: HydrateOption
   return root;
 }
 
+/** Creates a client runtime for invoking eXact server actions and boundary refreshes. */
 export function createExactClient(container: Element, options: HydrateOptions = {}): ExactClient {
   const resolvedOptions = resolveHydrateOptions(container, options);
   const runtimeOptions: HydrateOptions = {
@@ -91,6 +93,7 @@ export function createExactClient(container: Element, options: HydrateOptions = 
   return client;
 }
 
+/** Returns the hydration client previously attached to a container. */
 export function getHydrationRoot(container: Element): HydrationRoot | undefined {
   return roots.get(container);
 }
@@ -113,6 +116,8 @@ async function invokeAndApply(
   };
   const endpoint = requireEndpoint(endpointForOperation(client, type, id));
   const transport = transportForEndpoint(options, endpoint);
+  // Operations can route to per-action or per-boundary endpoints, which keeps
+  // server components usable inside independently deployed micro-frontend bundles.
   const result = options.batch === false
     ? await invokeExact({
       endpoint,

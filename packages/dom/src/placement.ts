@@ -2,6 +2,7 @@ import { Cell, Dynamic, Fragment } from "@exact/core";
 import { describeNode, domDebug } from "./debug.js";
 import type { Mounted, Root } from "./types.js";
 
+/** Places the full DOM range for a mounted subtree before the requested cursor. */
 export function placeMountedBefore(root: Root, parent: Node, mounted: Mounted, before?: Node | null): void {
   const cursor = before?.parentNode === parent ? before : null;
   const nodes = mountedDomNodes(mounted);
@@ -23,6 +24,7 @@ export function placeMountedBefore(root: Root, parent: Node, mounted: Mounted, b
   }
 }
 
+/** Returns every DOM node owned by a mounted subtree in document order. */
 export function mountedDomNodes(mounted: Mounted): Node[] {
   const nodes = [mounted.dom];
   if (mounted.vnode.type === Cell || mounted.vnode.type === Fragment || mounted.vnode.type === Dynamic || typeof mounted.vnode.type === "function") {
@@ -33,11 +35,13 @@ export function mountedDomNodes(mounted: Mounted): Node[] {
   return nodes;
 }
 
+/** Returns the DOM node immediately after the last mounted child, if one exists. */
 export function afterMountedChildren(mounted: Mounted): Node | null {
   const lastChild = mounted.children[mounted.children.length - 1];
   return lastChild ? lastMountedNode(lastChild).nextSibling : mounted.dom.nextSibling;
 }
 
+/** Returns the final DOM node owned by a mounted subtree. */
 export function lastMountedNode(mounted: Mounted): Node {
   const lastChild = mounted.children[mounted.children.length - 1];
   return lastChild ? lastMountedNode(lastChild) : mounted.dom;

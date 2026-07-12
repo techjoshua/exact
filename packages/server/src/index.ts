@@ -34,6 +34,7 @@ export {
 export { createExpressHandler, createFetchHandler, createHapiHandler } from "./adapters.js";
 export type * from "./types.js";
 
+/** Handles an eXact endpoint request using the runtime-neutral server protocol. */
 export async function handleExactRequest(request: ExactRequestLike, context: ExactServerContext): Promise<ExactResponseLike> {
   if (request.method.toUpperCase() !== "POST") {
     return jsonResponse(405, { error: "method_not_allowed" });
@@ -57,6 +58,8 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
     return jsonResponse(400, { error: "bad_request" });
   }
 
+  // Top-level security hooks reject the entire request before any manifest dispatch.
+  // Single operations reuse that result; batches still validate each operation during dispatch.
   const security = await checkSecurityHooks(request, input, context);
   if (security === "unauthorized") {
     logReject(context, "rejected unauthorized exact invocation");
@@ -114,6 +117,8 @@ async function dispatchExactOperationAfterSecurity(
     return { ok: false, type: input.type, id: input.id, opId: input.opId, status, error };
   };
 
+  // The manifest allowlist is the server execution boundary: clients can name only
+  // opaque IDs that the compiler emitted, never module paths or function names.
   if (!isManifestAllowed(input, context.manifest)) {
     return reject(404, "not_found", "rejected unknown exact invocation id");
   }

@@ -11,6 +11,7 @@ type WorkbenchHeaderProps = {
   syncState: SyncState;
 };
 
+/** Renders workbench search, view, action, and new-task controls. */
 export function WorkbenchHeader(this: Component<{}>, props: WorkbenchHeaderProps) {
   const workbench = this.getContext(WorkbenchContext);
 

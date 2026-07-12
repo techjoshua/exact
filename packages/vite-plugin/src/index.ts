@@ -30,6 +30,7 @@ export type ExactPlugin = {
   transform(code: string, id: string): { code: string; map: unknown } | null;
 };
 
+/** Creates the Vite plugin that transforms eXact JSX and resolves .exact facade imports. */
 export function exact(options: ExactPluginOptions = {}): ExactPlugin {
   return {
     name: "exact",

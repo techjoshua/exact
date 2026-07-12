@@ -9,15 +9,18 @@ import type {
   ExportBinding
 } from "./types.js";
 
+/** Returns whether a function name follows the component naming convention. */
 export function isComponentLikeFunction(node: ts.FunctionDeclaration): boolean {
   const first = node.name?.text[0];
   return !!first && first === first.toUpperCase();
 }
 
+/** Collects exported names from a source file. */
 export function collectExports(sourceFile: ts.SourceFile): Set<string> {
   return new Set([...collectExportBindings(sourceFile, buildSemanticGraph(sourceFile)).keys()]);
 }
 
+/** Collects exported-to-local binding names from semantic export declarations. */
 export function collectExportBindings(sourceFile: ts.SourceFile, semanticGraph: ExactSemanticGraphIR): Map<string, ExportBinding> {
   const exports = new Map<string, ExportBinding>();
 
@@ -31,6 +34,8 @@ export function collectExportBindings(sourceFile: ts.SourceFile, semanticGraph: 
 
   if (exports.size) return exports;
 
+  // Keep a syntax fallback for older/simple test cases where semantic export
+  // capture is unavailable or intentionally bypassed.
   for (const statement of sourceFile.statements) {
     if (hasExportModifier(statement)) {
       const hasDefault = hasDefaultModifier(statement);

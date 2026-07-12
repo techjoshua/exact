@@ -9,6 +9,7 @@ type AppBoundaryProps = {
   logger?: Logger;
 };
 
+/** Renders a recoverable error boundary around the kanban app. */
 export function AppBoundary(this: Component<AppBoundaryState>, props: AppBoundaryProps) {
   this.state.errors = [];
   const errors = createErrorContext(this.state.errors);

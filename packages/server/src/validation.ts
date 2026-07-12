@@ -8,12 +8,14 @@ import type {
 } from "./types.js";
 import { hasOnlyKeys, isJsonSafe } from "./protocol.js";
 
+/** Returns whether an invocation references an action or boundary allowed by the manifest. */
 export function isManifestAllowed(input: ExactInvocationRequest, manifest: ExactServerManifest): boolean {
   if (input.type === "action") return Boolean(manifest.actions?.[input.id]);
   if (input.type === "refresh") return Boolean(manifest.boundaries?.[input.id]);
   return false;
 }
 
+/** Returns whether a handler result is JSON-safe and matches the invocation result envelope. */
 export function isInvocationResultSafe(result: unknown): result is ExactInvocationResult {
   if (!isJsonSafe(result)) return false;
   if (!result || typeof result !== "object" || Array.isArray(result)) return false;
@@ -28,6 +30,7 @@ export function isInvocationResultSafe(result: unknown): result is ExactInvocati
   return true;
 }
 
+/** Returns whether submitted boundary snapshots are allowed for the invocation. */
 export function boundaryHintsAllowed(input: ExactInvocationRequest, manifest: ExactServerManifest): boolean {
   if (!input.boundaryHtmls) return true;
   if (input.type === "action") {
@@ -43,6 +46,7 @@ export function boundaryHintsAllowed(input: ExactInvocationRequest, manifest: Ex
   return true;
 }
 
+/** Returns whether submitted state satisfies every exact read required by a contract. */
 export function stateMatchesContract(state: unknown, contract: ExactStateContract): boolean {
   for (const read of contract.reads ?? []) {
     if (read.kind !== "read" || read.confidence !== "exact") continue;
@@ -51,6 +55,7 @@ export function stateMatchesContract(state: unknown, contract: ExactStateContrac
   return true;
 }
 
+/** Returns whether submitted context tokens match the compiler-provided context contract. */
 export function contextMatchesContract(context: Record<string, unknown> | undefined, contract: ExactContextEffect[] | undefined): boolean {
   if (!context) return !requiresExactContext(contract);
   if (!contract?.length) return false;

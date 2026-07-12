@@ -46,6 +46,7 @@ const logLevelOrder: Record<LogLevel, number> = {
   error: 4
 };
 
+/** Creates a logger implementation that writes formatted eXact events to the console. */
 export function createConsoleLogger(options: ConsoleLoggerOptions = {}): Logger {
   const minimumLevel = options.level ?? "info";
 
@@ -69,6 +70,7 @@ export function createConsoleLogger(options: ConsoleLoggerOptions = {}): Logger 
   };
 }
 
+/** Formats a structured log scope into the compact prefix used by framework logs. */
 export function formatLogScope(scope: LogScope): string {
   if (scope.source === "component" && scope.component) {
     return `[exact] [component:${scope.component.name}#${scope.component.id}]`;

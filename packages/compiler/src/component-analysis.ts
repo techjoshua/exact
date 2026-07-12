@@ -54,6 +54,7 @@ import type {
   SemanticReferenceIndex
 } from "./types.js";
 
+/** Analyzes one component function into placement, task, context, and split-boundary IR. */
 export function analyzeComponent(
   name: string,
   node: ts.FunctionDeclaration,
@@ -145,9 +146,11 @@ export function analyzeComponent(
       ? "server"
       : hasClientEffect
         ? "client"
-        : "server";
+      : "server";
 
   if (hasServerEffect) {
+    // Browser globals outside an explicit client boundary would end up in server
+    // artifacts, so report them as compile errors instead of guessing.
     for (const global of [...browserGlobalsOutsideClientBoundary].sort()) {
       diagnostics.push(`error: browser-only global ${global} cannot be used in server-rendered component code; move it into a client island or client task`);
     }
@@ -188,6 +191,7 @@ function containsServerOnlyIdentifier(
   return found;
 }
 
+/** Returns whether a client island contains children that must remain server-rendered. */
 export function clientIslandHasServerSlotChildren(
   node: ts.JsxElement,
   serverOnlyImports: Set<string>,
@@ -246,6 +250,7 @@ function addJsxTagSemanticDiagnostics(
   }
 }
 
+/** Collects local and imported component placement info for a source file. */
 export function collectComponentInfo(
   sourceFile: ts.SourceFile,
   serverOnlyImports: Set<string>,
@@ -277,6 +282,7 @@ export function collectComponentInfo(
   return components;
 }
 
+/** Collects JSX component render edges from one component function. */
 export function collectComponentRenderEdges(
   root: ts.FunctionDeclaration,
   sourceFile: ts.SourceFile,
@@ -330,6 +336,7 @@ function isFunctionLikeNode(node: ts.Node): boolean {
     || ts.isMethodDeclaration(node);
 }
 
+/** Combines child placements into the least-restrictive placement for a component graph. */
 export function combinePlacements(placements: readonly ExactPlacement[]): ExactPlacement {
   let hasClient = false;
   let hasServer = false;
@@ -354,6 +361,7 @@ export function combinePlacements(placements: readonly ExactPlacement[]): ExactP
   return hasUnknown ? "unknown" : "server";
 }
 
+/** Collects a component-name to placement map for a source file. */
 export function collectComponentPlacements(
   sourceFile: ts.SourceFile,
   serverOnlyImports: Set<string>,
@@ -362,10 +370,12 @@ export function collectComponentPlacements(
   return componentPlacementsFromInfo(collectComponentInfo(sourceFile, serverOnlyImports, importedManifests));
 }
 
+/** Converts component info records into a component-name to placement map. */
 export function componentPlacementsFromInfo(componentInfo: Map<string, ExactImportedComponentIR>): Map<string, ExactPlacement> {
   return new Map([...componentInfo].map(([name, component]) => [name, component.placement]));
 }
 
+/** Analyzes a this.task call into placement, state effects, context effects, and diagnostics. */
 export function analyzeTask(
   seed: string,
   node: ts.CallExpression,
@@ -505,6 +515,8 @@ export function analyzeTask(
     diagnostics.push("task writes component state and references browser-only globals; classify as client and split at this boundary");
   }
   if (!requestedPlacement && !browserEffects && !serverEffects && writes.length) {
+    // State-writing environment-neutral tasks can run during SSR to populate state,
+    // then be skipped or reconciled by hydration using serialized state.
     diagnostics.push("task writes component state without environment-specific effects; classify as isomorphic so SSR can run it and hydration can skip duplicate initial work");
   }
   if (!browserEffects && !serverEffects && !writes.length) {
@@ -554,6 +566,7 @@ function isUnshadowedGlobalIdentifier(
 
 const mutatingStateMethods = new Set(["push", "pop", "shift", "unshift", "splice", "sort", "reverse", "set", "delete", "clear"]);
 
+/** Creates server-slot boundaries for generated client islands with server-owned children. */
 export function createGeneratedClientIslandServerSlotBoundaries(
   sourceFile: ts.SourceFile,
   components: readonly ExactComponentIR[],
@@ -601,6 +614,7 @@ function findComponentDeclaration(sourceFile: ts.SourceFile, name: string): ts.F
   return sourceFile.statements.find(statement => ts.isFunctionDeclaration(statement) && statement.name?.text === name) as ts.FunctionDeclaration | undefined;
 }
 
+/** Creates client-island boundaries for JSX tags that reference client components. */
 export function createClientComponentTagBoundaries(
   sourceFile: ts.SourceFile,
   components: readonly ExactComponentIR[],
@@ -659,6 +673,7 @@ export function createClientComponentTagBoundaries(
   return boundaries;
 }
 
+/** Creates server-slot boundaries for server children passed into client component tags. */
 export function createServerSlotBoundaries(
   sourceFile: ts.SourceFile,
   components: readonly ExactComponentIR[],

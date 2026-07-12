@@ -12,6 +12,7 @@ export type ProgressiveDocumentStreamRender = (
   emit: (event: ExactDocumentStreamEvent) => void
 ) => Promise<void> | void;
 
+/** Creates a readable stream containing a single HTML string. */
 export function createHtmlStream(html: string): ReadableStream<Uint8Array> {
   return new ReadableStream<Uint8Array>({
     start(controller) {
@@ -21,6 +22,7 @@ export function createHtmlStream(html: string): ReadableStream<Uint8Array> {
   });
 }
 
+/** Creates an NDJSON stream of document render lifecycle events. */
 export function createDocumentEventStream(render: DocumentStreamRender): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   return new ReadableStream<Uint8Array>({
@@ -38,6 +40,7 @@ export function createDocumentEventStream(render: DocumentStreamRender): Readabl
   });
 }
 
+/** Creates a progressive HTML stream from document render lifecycle events. */
 export function createProgressiveHtmlStream(render: ProgressiveDocumentStreamRender, options: RenderToProgressiveHtmlStreamOptions): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   const streamOptions: RenderToProgressiveHtmlStreamOptions = {
@@ -62,6 +65,7 @@ export function createProgressiveHtmlStream(render: ProgressiveDocumentStreamRen
   });
 }
 
+/** Wraps a progressive HTML stream in a runtime-neutral response object. */
 export function progressiveHtmlResponse(stream: ReadableStream<Uint8Array>, options: RenderToProgressiveHtmlResponseOptions): ExactResponseLike {
   const headers = {
     ...options.headers

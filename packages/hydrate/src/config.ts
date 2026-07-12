@@ -10,6 +10,7 @@ import type {
   ExactStateContract
 } from "./types.js";
 
+/** Reads and validates the serialized hydration configuration embedded in the document. */
 export function readExactHydrationConfig(root: ParentNode = document, scriptId = "__exact_hydration"): ExactHydrationConfig {
   const script = root.querySelector(`#${cssEscape(scriptId)}`);
   if (!script) return {};
@@ -29,6 +30,7 @@ export function readExactHydrationConfig(root: ParentNode = document, scriptId =
   }
 }
 
+/** Combines explicit hydration options with the nearest serialized document config. */
 export function resolveHydrateOptions(container: Element, options: HydrateOptions): HydrateOptions {
   const config = readExactHydrationConfig(hydrationConfigRoot(container));
   return {
@@ -41,6 +43,7 @@ export function resolveHydrateOptions(container: Element, options: HydrateOption
   };
 }
 
+/** Merges a late-loaded hydration registration into an existing client runtime configuration. */
 export function mergeHydrationRegistration(options: HydrateOptions, registration: ExactHydrationRegistration): void {
   if (registration.endpoint !== undefined) {
     if (options.endpoint !== undefined && options.endpoint !== registration.endpoint) {
@@ -77,6 +80,7 @@ export function mergeHydrationRegistration(options: HydrateOptions, registration
   }
 }
 
+/** Merges client island component registrations while rejecting conflicting names. */
 export function mergeClientIslands(options: HydrateOptions, islands: ClientIslandRegistry): void {
   options.islands = mergeUniqueRecord(
     options.islands,
@@ -86,6 +90,7 @@ export function mergeClientIslands(options: HydrateOptions, islands: ClientIslan
   );
 }
 
+/** Creates a stable cache key for a header object independent of property order. */
 export function headersCacheKey(headers: Record<string, string> | undefined): string {
   if (!headers) return "";
   return Object.entries(headers)
@@ -114,6 +119,7 @@ function mergeEndpointRoutes(
     : undefined;
 }
 
+/** Clones endpoint routing maps so runtime mutation does not alter serialized config objects. */
 export function cloneEndpointRoutes(routes: ExactEndpointRoutes | undefined): ExactEndpointRoutes | undefined {
   return mergeEndpointRoutes(undefined, routes);
 }
@@ -138,6 +144,8 @@ function mergeUniqueRecord<T>(
   if (!base && !next) return undefined;
   const output: Record<string, T> = { ...(base ?? {}) };
   for (const [key, value] of Object.entries(next ?? {})) {
+    // Duplicate registrations are accepted only when they are byte-for-byte equivalent;
+    // this lets independently loaded bundles share manifests without masking conflicts.
     if (Object.prototype.hasOwnProperty.call(output, key) && !same(output[key]!, value)) {
       throw new Error(`Conflicting eXact hydration ${label} registration: ${key}`);
     }

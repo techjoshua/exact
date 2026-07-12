@@ -8,6 +8,7 @@ import type {
   ExportBinding
 } from "./types.js";
 
+/** Creates symbol records for exported source components. */
 export function createRootSymbols(sourceFile: ts.SourceFile, components: ExactComponentIR[], exports: readonly ExportBinding[]): ExactSymbolIR[] {
   const componentByName = new Map(components.map(component => [component.name, component]));
   const symbols: ExactSymbolIR[] = [];
@@ -30,6 +31,7 @@ export function createRootSymbols(sourceFile: ts.SourceFile, components: ExactCo
   return symbols.sort((left, right) => left.id.localeCompare(right.id));
 }
 
+/** Creates generated server-part symbol records for exported split components. */
 export function createServerPartSymbols(sourceFile: ts.SourceFile, components: ExactComponentIR[]): ExactSymbolIR[] {
   const symbols: ExactSymbolIR[] = [];
   for (const component of components) {
@@ -53,6 +55,7 @@ export function createServerPartSymbols(sourceFile: ts.SourceFile, components: E
   return symbols;
 }
 
+/** Creates generated client-island symbol records for exported split components. */
 export function createClientIslandSymbols(sourceFile: ts.SourceFile, components: ExactComponentIR[]): ExactSymbolIR[] {
   const symbols: ExactSymbolIR[] = [];
   for (const component of components) {
@@ -76,6 +79,7 @@ export function createClientIslandSymbols(sourceFile: ts.SourceFile, components:
   return symbols;
 }
 
+/** Creates boundary records for generated client islands and client-root components. */
 export function createClientIslandBoundaries(
   sourceFile: ts.SourceFile,
   components: ExactComponentIR[]

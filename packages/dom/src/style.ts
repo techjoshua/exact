@@ -19,10 +19,12 @@ export const deg = unit("deg");
 export const rad = unit("rad");
 export const turn = unit("turn");
 
+/** Creates a reactive CSS unit helper such as px(2) or rem(count). */
 export function unit(suffix: string): (value: CssInput) => ReactiveValue<string> {
   return (value: CssInput) => computed(() => `${unwrap(value) ?? ""}${suffix}`);
 }
 
+/** Normalizes string, array, object, and reactive class values into a class attribute string. */
 export function normalizeClass(value: unknown): string {
   const actual = unwrap(value);
   if (actual === false || actual === null || actual === undefined) return "";
@@ -36,6 +38,7 @@ export function normalizeClass(value: unknown): string {
   return String(actual);
 }
 
+/** Converts a camelCase style property name to its CSS property spelling. */
 export function toCssProperty(name: string): string {
   return name.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`);
 }

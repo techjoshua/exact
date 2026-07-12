@@ -4,6 +4,7 @@ import { findOwnerInstance } from "./ownership.js";
 import { eventHandlers } from "./state.js";
 import type { Root } from "./types.js";
 
+/** Ensures a delegated event listener exists for a root/type pair. */
 export function ensureDelegated(root: Root, type: string): void {
   if (root.delegated.has(type)) return;
 
@@ -34,6 +35,8 @@ export function ensureDelegated(root: Root, type: string): void {
 
 function callDelegatedHandler(handler: EventListener, current: Element, event: Event): void {
   const ownDescriptor = Object.getOwnPropertyDescriptor(event, "currentTarget");
+  // Delegation runs one root listener, so expose the matched element as currentTarget
+  // during the user handler to preserve ordinary DOM event ergonomics.
   Object.defineProperty(event, "currentTarget", {
     configurable: true,
     value: current

@@ -41,6 +41,7 @@ export const exactRuntime = createExactServerRuntime({
   }
 });
 
+/** Renders the profile page sample to hydratable HTML. */
 export async function renderProfilePage(name: string) {
   return renderToHydratableStringAsync(createVNode(ProfilePage, { name }), {
     markers: false,
@@ -48,6 +49,7 @@ export async function renderProfilePage(name: string) {
   });
 }
 
+/** Renders the profile page sample as a progressive hydratable response. */
 export function renderProfilePageResponse(name: string) {
   return renderToHydratableProgressiveHtmlResponse(createVNode(ProfilePage, { name }), {
     markers: false,
@@ -56,6 +58,7 @@ export function renderProfilePageResponse(name: string) {
   });
 }
 
+/** Handles server-component endpoint requests for the profile sample. */
 export function handleExactServerRequest(request: ExactRequestLike) {
   return handleExactRequest(request, exactRuntime);
 }

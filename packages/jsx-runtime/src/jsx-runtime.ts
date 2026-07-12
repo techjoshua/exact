@@ -11,18 +11,21 @@ type Props = Record<string, unknown> & {
 
 type JsxType = string | ComponentFunction<any, any> | typeof Fragment;
 
+/** Creates a vnode for the automatic JSX runtime's single-child entrypoint. */
 export function jsx<P extends Props>(type: ComponentFunction<any, P>, props: P | null, key?: string): VNode<P>;
 export function jsx(type: string | typeof Fragment, props: Props | null, key?: string): VNode;
 export function jsx(type: JsxType, props: Props | null, key?: string): VNode {
   return createJsxVNode(type, props, key);
 }
 
+/** Creates a vnode for the automatic JSX runtime's multi-child entrypoint. */
 export function jsxs<P extends Props>(type: ComponentFunction<any, P>, props: P | null, key?: string): VNode<P>;
 export function jsxs(type: string | typeof Fragment, props: Props | null, key?: string): VNode;
 export function jsxs(type: JsxType, props: Props | null, key?: string): VNode {
   return createJsxVNode(type, props, key);
 }
 
+/** Creates a vnode for development JSX transforms. */
 export function jsxDEV(type: JsxType, props: Props | null, key?: string): VNode {
   return createJsxVNode(type, props, key);
 }

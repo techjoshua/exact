@@ -34,10 +34,12 @@ const objectRefs = new WeakMap<object, ReactiveRef>();
 const rawObjectRefs = new WeakMap<object, ReactiveRef>();
 const mutatingArrayMethods = new Set<PropertyKey>(["copyWithin", "fill", "pop", "push", "reverse", "shift", "sort", "splice", "unshift"]);
 
+/** Creates a reactive proxy that tracks reads and notifies watchers when writable state changes. */
 export function reactive<T extends object>(value: T, options: ReactiveOptions = {}): Reactive<T> {
   return createReactive(value, options) as Reactive<T>;
 }
 
+/** Creates a lazy derived reactive value that recomputes when one of its tracked dependencies changes. */
 export function computed<T>(compute: () => T): ReactiveValue<T> {
   const scope = currentEffectScope();
   const target = {};
@@ -91,6 +93,8 @@ export function computed<T>(compute: () => T): ReactiveValue<T> {
   }
 
   function recomputeAndNotify(): void {
+    // A computed value tears down and rebuilds its watcher on each flush so dependency
+    // sets follow the latest branch of the compute function instead of stale reads.
     queued = false;
     removeQueuedComputation(recomputeAndNotify);
     if (scope && !scope.active) return;
@@ -115,6 +119,7 @@ export function computed<T>(compute: () => T): ReactiveValue<T> {
   } as ReactiveValue<T>;
 }
 
+/** Runs a tracked function immediately and schedules it again whenever its dependencies change. */
 export function watch(fn: () => void, scheduler?: () => void, options: WatchOptions = {}): StopHandle {
   const scope = (options.scope ?? currentEffectScope()) as EffectScopeImpl | undefined;
   const reaction: Reaction = {
@@ -155,6 +160,7 @@ export function watch(fn: () => void, scheduler?: () => void, options: WatchOpti
   return reaction.stop;
 }
 
+/** Subscribes directly to a reactive reference without running a dependency collection pass. */
 export function subscribe<T>(source: ReactiveRef<T>, callback: () => void): StopHandle {
   const dep = getDep(source.target, source.key);
   const reaction: Reaction = {
@@ -173,6 +179,7 @@ export function subscribe<T>(source: ReactiveRef<T>, callback: () => void): Stop
   return reaction.stop;
 }
 
+/** Returns the raw value behind a reactive proxy or reactive value wrapper. */
 export function unwrap<T>(value: T): T {
   if (isReactiveValue(value)) {
     return value.get() as T;
@@ -185,6 +192,7 @@ export function unwrap<T>(value: T): T {
   return value;
 }
 
+/** Returns the reactive reference that drives a reactive value or proxied object, when available. */
 export function ref<T>(value: ReactiveValue<T>): ReactiveRef<T>;
 export function ref<T>(value: T): ReactiveRef<T> | undefined;
 export function ref<T>(value: T): ReactiveRef<T> | undefined {
@@ -200,10 +208,12 @@ export function ref<T>(value: T): ReactiveRef<T> | undefined {
   return undefined;
 }
 
+/** Returns whether a value is an eXact reactive proxy. */
 export function isReactive(value: unknown): boolean {
   return !!value && typeof value === "object" && Boolean((value as { [proxyMarker]?: boolean })[proxyMarker]);
 }
 
+/** Creates a plain recursive snapshot of reactive state for serialization or comparison. */
 export function snapshot<T>(value: T): T {
   const plain = unwrap(value);
 
@@ -223,6 +233,7 @@ export function snapshot<T>(value: T): T {
   return result as T;
 }
 
+/** Mutates an existing reactive object to match a partial next value while preserving nested proxies. */
 export function updateReactive<T extends object>(target: Reactive<T>, next: Partial<T>): void {
   const raw = isReactive(target) ? (target as { [rawTarget]: T })[rawTarget] : target;
   const nextRecord = next as Record<PropertyKey, unknown>;

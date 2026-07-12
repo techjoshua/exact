@@ -11,6 +11,7 @@ type TaskDetailsDialogProps = {
   task?: Task;
 };
 
+/** Renders the kanban task details dialog for the selected task. */
 export function TaskDetailsDialog(this: Component<TaskDetailsState>, props: TaskDetailsDialogProps) {
   const board = this.getContext(BoardContext);
   const taskId = props.task?.id ?? "";

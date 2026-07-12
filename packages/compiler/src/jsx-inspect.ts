@@ -7,6 +7,7 @@ import type {
   SemanticReferenceIndex
 } from "./types.js";
 
+/** Returns whether JSX attributes force an element into a client island. */
 export function jsxElementIsClientIsland(attributes: ts.JsxAttributes): boolean {
   return attributes.properties.some(property => {
     if (ts.isJsxSpreadAttribute(property)) return false;
@@ -15,6 +16,7 @@ export function jsxElementIsClientIsland(attributes: ts.JsxAttributes): boolean 
   });
 }
 
+/** Returns whether a JSX tag references a component classified as client-only. */
 export function jsxTagIsClientComponent(
   tagName: ts.JsxTagNameExpression,
   placements: Map<string, ExactPlacement>,
@@ -26,6 +28,7 @@ export function jsxTagIsClientComponent(
   return placements.get(tagName.getText()) === "client";
 }
 
+/** Returns whether a JSX tag can semantically refer to a component value. */
 export function jsxTagCanReferenceComponent(
   tagName: ts.JsxTagNameExpression,
   semanticReferences: SemanticReferenceIndex,
@@ -36,6 +39,7 @@ export function jsxTagCanReferenceComponent(
   return reference?.declarationKind === "import" || reference?.declarationKind === "function";
 }
 
+/** Returns the boundary name used for a JSX component tag. */
 export function componentBoundaryName(
   tagName: ts.JsxTagNameExpression,
   componentInfo: Map<string, ExactImportedComponentIR>,
@@ -45,20 +49,24 @@ export function componentBoundaryName(
   return componentInfo.get(tagKey)?.boundaryName ?? tagKey;
 }
 
+/** Creates an exact element id for intrinsic JSX elements. */
 export function exactElementId(sourceFile: ts.SourceFile, tagName: ts.JsxTagNameExpression, node: ts.Node): string | undefined {
   if (!jsxTagIsIntrinsicElement(tagName)) return undefined;
   return stableId(sourceFile.fileName, "element", String(node.getStart(sourceFile)), String(node.getEnd()));
 }
 
+/** Returns whether a JSX tag is an intrinsic DOM-like element. */
 export function jsxTagIsIntrinsicElement(tagName: ts.JsxTagNameExpression): boolean {
   if (ts.isIdentifier(tagName)) return /^[a-z]/.test(tagName.text);
   return ts.isJsxNamespacedName(tagName);
 }
 
+/** Returns whether a JSX element has only empty text children. */
 export function jsxElementHasNoMeaningfulChildren(node: ts.JsxElement): boolean {
   return node.children.every(child => ts.isJsxText(child) && !child.text.trim());
 }
 
+/** Converts simple client-component JSX children into a serializable children prop expression. */
 export function clientComponentChildrenProp(context: ts.TransformationContext, node: ts.JsxElement): ts.Expression | undefined {
   const values: ts.Expression[] = [];
   let text = "";
@@ -86,6 +94,7 @@ export function clientComponentChildrenProp(context: ts.TransformationContext, n
   return context.factory.createArrayLiteralExpression(values, false);
 }
 
+/** Returns whether client component children require a server slot boundary. */
 export function clientComponentHasServerSlotChildren(node: ts.JsxElement): boolean {
   for (const child of node.children) {
     if (ts.isJsxText(child)) continue;
@@ -98,6 +107,7 @@ export function clientComponentHasServerSlotChildren(node: ts.JsxElement): boole
   return false;
 }
 
+/** Returns whether a node subtree contains JSX syntax. */
 export function containsJsx(node: ts.Node): boolean {
   let found = false;
   function visit(current: ts.Node): void {

@@ -12,6 +12,7 @@ type BoardProps = {
   logger?: Logger;
 };
 
+/** Renders the kanban sample board and owns task, selection, and drag state. */
 export function Board(this: Component<BoardState>, props: BoardProps) {
   this.setContext(LoggerContext, props.logger ?? createConsoleLogger({ level: "debug" }));
 

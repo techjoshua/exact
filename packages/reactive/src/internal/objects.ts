@@ -1,9 +1,11 @@
+/** Returns whether a value is a plain object that can be structurally traversed. */
 export function isPlainObject(value: unknown): value is Record<PropertyKey, unknown> {
   if (!value || typeof value !== "object") return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
 }
 
+/** Returns whether an array key can affect iteration or length-sensitive dependencies. */
 export function isArrayStructureKey(target: object, key: PropertyKey): boolean {
   return Array.isArray(target) && (key === "length" || isArrayIndex(key));
 }

@@ -61,6 +61,7 @@ export type * from "./types.js";
 export { diffBoundaryHtml, diffKeyedListItems } from "./diff.js";
 export { renderHydrationScript } from "./hydration.js";
 
+/** Renders a vnode tree to an HTML string without waiting for async component tasks. */
 export function renderToString(vnode: VNode, options: RenderToStringOptions = {}): RenderToStringResult {
   const context: SsrContext = {
     markers: options.markers ?? true,
@@ -74,6 +75,7 @@ export function renderToString(vnode: VNode, options: RenderToStringOptions = {}
   };
 }
 
+/** Renders a vnode tree plus the serialized hydration script needed by the client runtime. */
 export function renderToHydratableString(vnode: VNode, options: RenderToStringOptions & HydrationScriptOptions = {}): HydratableStringResult {
   const result = renderToString(vnode, options);
   const hydrationScript = renderHydrationScript({
@@ -92,15 +94,18 @@ export function renderToHydratableString(vnode: VNode, options: RenderToStringOp
   };
 }
 
+/** Renders a vnode tree to a one-shot HTML readable stream. */
 export function renderToStream(vnode: VNode, options: RenderToStringOptions = {}): ReadableStream<Uint8Array> {
   const result = renderToString(vnode, options);
   return createHtmlStream(result.html);
 }
 
+/** Streams document render lifecycle events for shell/final/hydration output. */
 export function renderToDocumentStream(vnode: VNode, options: RenderToDocumentStreamOptions = {}): ReadableStream<Uint8Array> {
   return createDocumentEventStream(emit => streamDocumentRender(vnode, options, emit));
 }
 
+/** Streams document render events and emits hydration config when available. */
 export function renderToHydratableDocumentStream(vnode: VNode, options: RenderToDocumentStreamOptions = {}): ReadableStream<Uint8Array> {
   return renderToDocumentStream(vnode, {
     ...options,
@@ -108,10 +113,12 @@ export function renderToHydratableDocumentStream(vnode: VNode, options: RenderTo
   });
 }
 
+/** Streams progressive HTML assembled from document render lifecycle events. */
 export function renderToProgressiveHtmlStream(vnode: VNode, options: RenderToProgressiveHtmlStreamOptions = {}): ReadableStream<Uint8Array> {
   return createProgressiveHtmlStream((streamOptions, emit) => streamDocumentRender(vnode, streamOptions, emit), options);
 }
 
+/** Streams progressive HTML with hydration config enabled by default. */
 export function renderToHydratableProgressiveHtmlStream(vnode: VNode, options: RenderToProgressiveHtmlStreamOptions = {}): ReadableStream<Uint8Array> {
   return renderToProgressiveHtmlStream(vnode, {
     ...options,
@@ -119,14 +126,17 @@ export function renderToHydratableProgressiveHtmlStream(vnode: VNode, options: R
   });
 }
 
+/** Creates a runtime-neutral progressive HTML response. */
 export function renderToProgressiveHtmlResponse(vnode: VNode, options: RenderToProgressiveHtmlResponseOptions = {}): ExactResponseLike {
   return progressiveHtmlResponse(renderToProgressiveHtmlStream(vnode, options), options);
 }
 
+/** Creates a runtime-neutral progressive HTML response with hydration config enabled by default. */
 export function renderToHydratableProgressiveHtmlResponse(vnode: VNode, options: RenderToProgressiveHtmlResponseOptions = {}): ExactResponseLike {
   return progressiveHtmlResponse(renderToHydratableProgressiveHtmlStream(vnode, options), options);
 }
 
+/** Renders a vnode tree after waiting for observed async component tasks to settle. */
 export async function renderToStringAsync(vnode: VNode, options: RenderToStringOptions = {}): Promise<RenderToStringResult> {
   const context: SsrContext = {
     markers: options.markers ?? true,
@@ -140,6 +150,7 @@ export async function renderToStringAsync(vnode: VNode, options: RenderToStringO
   };
 }
 
+/** Renders async SSR output plus the serialized hydration script needed by the client runtime. */
 export async function renderToHydratableStringAsync(vnode: VNode, options: RenderToStringOptions & HydrationScriptOptions = {}): Promise<HydratableStringResult> {
   const result = await renderToStringAsync(vnode, options);
   const hydrationScript = renderHydrationScript({
@@ -178,6 +189,8 @@ async function streamDocumentRender(
 
   let final = shell;
   if (pending.size) {
+    // Initial streaming sends an early shell, drains observed tasks, then emits a
+    // root replacement only if the settled tree differs from the shell.
     await drainTasks(pending, options.maxTaskPasses ?? 10);
     final = await renderToStringAsync(vnode, options);
     if (final.html !== shell.html) {
@@ -204,6 +217,7 @@ async function streamDocumentRender(
   emit({ event: "complete", version: 1 });
 }
 
+/** Creates a server handler that refreshes one boundary and returns patches plus fallback HTML. */
 export function createBoundaryRefreshHandler(
   render: BoundaryRenderFunction,
   options: BoundaryRefreshOptions
@@ -222,6 +236,7 @@ export function createBoundaryRefreshHandler(
   };
 }
 
+/** Creates a server action handler that runs app work and refreshes affected boundaries. */
 export function createActionRefreshHandler(
   options: ActionRefreshOptions
 ): (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> {
@@ -250,6 +265,7 @@ export function createActionRefreshHandler(
   };
 }
 
+/** Creates action and boundary handler maps from a manifest and app-provided renderers. */
 export function createExactServerHandlerRegistry(
   options: ExactServerHandlerRegistryOptions
 ): ExactServerHandlerRegistry {
@@ -290,6 +306,7 @@ export function createExactServerHandlerRegistry(
   };
 }
 
+/** Creates an eXact server context suitable for the generic endpoint handler. */
 export function createExactServerRuntime(options: ExactServerRuntimeOptions): ExactServerContext {
   const registry = createExactServerHandlerRegistry(options);
   return {
@@ -325,6 +342,7 @@ function boundaryRefreshOptions(
   };
 }
 
+/** Renders a keyed list snapshot that can later be diffed into list patches. */
 export function renderKeyedListSnapshot<T>(options: KeyedListSnapshotOptions<T>): KeyedListSnapshot {
   const context: SsrContext = {
     markers: options.markers ?? true,
@@ -349,6 +367,7 @@ export function renderKeyedListSnapshot<T>(options: KeyedListSnapshotOptions<T>)
   };
 }
 
+/** Creates a boundary refresh handler specialized for keyed list patch generation. */
 export function createKeyedListRefreshHandler<T>(
   options: KeyedListRefreshOptions<T>
 ): (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> {
@@ -368,6 +387,7 @@ export function createKeyedListRefreshHandler<T>(
   };
 }
 
+/** Parses framework-shaped keyed list HTML back into a snapshot for diffing. */
 export function parseKeyedListSnapshotHtml(listId: string, html: string | undefined): KeyedListSnapshot | undefined {
   if (html === undefined) return undefined;
   const items: KeyedListSnapshotItem[] = [];
@@ -595,6 +615,8 @@ function renderServerBoundary(context: SsrContext, vnode: VNode): string {
     throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
   }
   const children = renderServerBoundaryChildren(context, vnode, undefined);
+  // Client boundary props are serialized into an attribute, while children are
+  // represented as server slots so the client bundle does not need server-only code.
   const html = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}">${children}</div>`;
   return markerPair(context, markerId(context, "client-boundary", name, id), () => html);
 }

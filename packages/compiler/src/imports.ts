@@ -11,6 +11,7 @@ import type {
   ExactSemanticReferenceIR
 } from "./types.js";
 
+/** Returns whether an identifier resolves to a runtime server-only import. */
 export function isServerOnlyReference(
   node: ts.Identifier,
   reference: ExactSemanticReferenceIR | undefined,
@@ -20,6 +21,7 @@ export function isServerOnlyReference(
   return reference?.source === "import" && !reference.typeOnly && !!reference.moduleSpecifier && isServerOnlyModule(reference.moduleSpecifier);
 }
 
+/** Resolves imported components from compiler manifests that match local imports. */
 export function collectImportedComponents(
   sourceFile: ts.SourceFile,
   manifests: readonly ExactCompilerManifest[],
@@ -44,6 +46,8 @@ export function collectImportedComponents(
     if (!manifestsForImport?.length) continue;
     if (declaration.importedName === "*") {
       const namespace = declaration.name;
+      // Namespace imports expose components as Namespace.ComponentName, so each
+      // exported component becomes its own imported component candidate.
       for (const manifest of manifestsForImport) {
         for (const exported of manifest.exports) {
           if (exported.kind !== "component") continue;
@@ -118,12 +122,14 @@ function moduleSpecifierKey(specifier: string, baseDir: string): string {
     .replace(/\.[cm]?[jt]sx?$/i, "");
 }
 
+/** Collects runtime import binding names that are known to be server-only modules. */
 export function collectServerOnlyImports(sourceFile: ts.SourceFile, graph: ExactSemanticGraphIR = buildSemanticGraph(sourceFile)): Set<string> {
   return new Set(graph.declarations
     .filter(declaration => declaration.kind === "import" && !declaration.typeOnly && !!declaration.moduleSpecifier && isServerOnlyModule(declaration.moduleSpecifier))
     .map(declaration => declaration.name));
 }
 
+/** Returns whether an import declaration has a runtime binding from a server-only module. */
 export function isServerOnlyImportDeclaration(statement: ts.Statement): boolean {
   return ts.isImportDeclaration(statement)
     && ts.isStringLiteral(statement.moduleSpecifier)
@@ -142,6 +148,7 @@ function importDeclarationHasRuntimeBinding(statement: ts.ImportDeclaration): bo
   return bindings.elements.some(element => !element.isTypeOnly);
 }
 
+/** Returns whether a module specifier is treated as unavailable in browser bundles. */
 export function isServerOnlyModule(specifier: string): boolean {
   if (specifier.startsWith("node:")) return true;
   return ["fs", "path", "crypto", "http", "https", "net", "tls", "child_process"].includes(specifier);

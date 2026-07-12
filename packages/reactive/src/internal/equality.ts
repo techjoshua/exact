@@ -2,10 +2,12 @@ import { isPlainObject } from "./objects.js";
 
 export type UnwrapValue = (value: unknown) => unknown;
 
+/** Returns whether two values differ after reactive wrappers and plain structures are compared. */
 export function hasChanged(previous: unknown, next: unknown, unwrap: UnwrapValue): boolean {
   return !structurallyEqual(previous, next, unwrap);
 }
 
+/** Compares primitives, arrays, and plain objects after unwrapping reactive values. */
 export function structurallyEqual(left: unknown, right: unknown, unwrap: UnwrapValue): boolean {
   if (Object.is(left, right)) return true;
 

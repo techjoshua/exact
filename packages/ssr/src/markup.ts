@@ -2,6 +2,7 @@ import { unwrap } from "@exact/reactive";
 import { escapeAttr, escapeAttrName } from "./html.js";
 import type { SsrContext } from "./types.js";
 
+/** Renders vnode props into escaped HTML attributes, skipping event and framework-only props. */
 export function renderAttrs(props: Record<string, unknown>): string {
   let attrs = "";
   for (const [name, rawValue] of Object.entries(props)) {
@@ -23,10 +24,12 @@ export function renderAttrs(props: Record<string, unknown>): string {
   return attrs;
 }
 
+/** Renders content inside a generated exact marker pair. */
 export function withMarker(context: SsrContext, kind: string, key: string | undefined, render: () => string): string {
   return markerPair(context, markerId(context, kind, undefined, key), render);
 }
 
+/** Renders a stable exact marker pair around sync or async HTML content. */
 export function markerPair(context: SsrContext, id: string, render: () => string): string;
 export function markerPair(context: SsrContext, id: string, render: () => Promise<string>): Promise<string>;
 export function markerPair(context: SsrContext, id: string, render: () => string | Promise<string>): string | Promise<string> {
@@ -38,15 +41,18 @@ export function markerPair(context: SsrContext, id: string, render: () => string
   return `<!--exact:${id}-->${rendered}<!--/exact:${id}-->`;
 }
 
+/** Allocates a marker id from render context, kind, optional name, and optional key. */
 export function markerId(context: SsrContext, kind: string, name?: string, key?: string): string {
   const id = `${kind}:${context.nextId++}${name ? `:${name}` : ""}${key ? `:${key}` : ""}`;
   return id.replace(/--/g, "");
 }
 
+/** Normalizes a compiler-provided exact marker id by removing a leading exact prefix. */
 export function exactMarkerId(id: string): string {
   return id.startsWith("exact:") ? id.slice("exact:".length) : id;
 }
 
+/** Creates the marker id used for one keyed list item. */
 export function keyedItemMarkerId(key: string): string {
   return `item:${key}`.replace(/--/g, "");
 }

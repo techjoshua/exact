@@ -1,6 +1,7 @@
 import type { ExactInvocationResult, ExactOperationResult, ExactPatch, ExactStreamEvent } from "@exact/server";
 import { hasOnlyKeys, isJsonSafe } from "./validation.js";
 
+/** Parses and validates a non-batched eXact endpoint response body. */
 export function parseExactInvocationResponse(body: unknown, message: string): ExactInvocationResult {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(message);
   if (!isJsonSafe(body)) throw new Error(message);
@@ -17,6 +18,7 @@ export function parseExactInvocationResponse(body: unknown, message: string): Ex
   };
 }
 
+/** Parses and validates a batched eXact endpoint response body. */
 export function parseExactBatchResponse(body: unknown): ExactOperationResult[] {
   const message = "eXact batch invocation returned malformed results";
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(message);
@@ -29,6 +31,7 @@ export function parseExactBatchResponse(body: unknown): ExactOperationResult[] {
   return record.results.map(parseExactOperationResult);
 }
 
+/** Reads and validates streamed NDJSON eXact operation events. */
 export async function readExactStreamResponse(
   response: { body?: ReadableStream<Uint8Array> | null },
   expectedOperations: number
@@ -44,6 +47,8 @@ export async function readExactStreamResponse(
 
   const results: ExactOperationResult[] = new Array(expectedOperations);
   const chunks: ExactInvocationResult[] = new Array(expectedOperations).fill(undefined).map(() => ({}));
+  // Streamed patch/state/html events can arrive before the final result event for
+  // the same operation, so collect partial chunks and merge them when the result lands.
   for (const event of events.slice(1, -1)) {
     if (isExactStreamPatchEvent(event)) {
       assertStreamIndex(event.index, expectedOperations, message);

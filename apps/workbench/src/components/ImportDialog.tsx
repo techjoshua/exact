@@ -6,6 +6,7 @@ type ImportDialogProps = {
   error?: string;
 };
 
+/** Renders the workbench JSON import dialog. */
 export function ImportDialog(this: Component<{}>, props: ImportDialogProps) {
   const workbench = this.getContext(WorkbenchContext);
   const importRef = createRef<HTMLTextAreaElement>("import-json");

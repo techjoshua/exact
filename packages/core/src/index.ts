@@ -289,6 +289,7 @@ for (const plugin of internalPlugins) {
   }
 }
 
+/** Creates the default reactive error context used by app and framework error boundaries. */
 export function createErrorContext(errors: ErrorReport[] = []): ErrorContextValue {
   const reactiveErrors = reactive(errors);
 
@@ -327,6 +328,7 @@ function createDefaultErrorView(errors: Iterable<ErrorReport>): VNode {
   );
 }
 
+/** Creates a component instance, binds its component API, and runs the component constructor. */
 export function createComponentInstance<State extends object, Props extends Record<string, unknown>>(
   type: ComponentFunction<State, Props>,
   rawProps: Props,
@@ -370,6 +372,8 @@ export function createComponentInstance<State extends object, Props extends Reco
       }
     },
     getContext<T>(token: ContextToken<T>): Reactive<T> {
+      // Context lookup walks parents first, then falls back to framework defaults.
+      // Values are stored reactive so consumers can keep using normal state reads.
       let cursor = parent;
       while (cursor) {
         if (cursor.contexts.has(token.id)) {
@@ -501,6 +505,7 @@ export function createComponentInstance<State extends object, Props extends Reco
   return instance;
 }
 
+/** Renders a component instance inside a watcher and returns normalized child output. */
 export function renderInstance(instance: ComponentInstance<any>, onInvalidate: () => void): Child[] {
   let output: RenderResult = null;
   const start = performanceNow();
@@ -532,6 +537,7 @@ export function renderInstance(instance: ComponentInstance<any>, onInvalidate: (
   return normalizeRenderResult(output);
 }
 
+/** Runs a function with a task observer that can await async component task work. */
 export function withTaskObserver<T>(observer: TaskObserver | undefined, fn: () => T): T {
   if (!observer) return fn();
   taskObserverStack.push(observer);
@@ -542,6 +548,7 @@ export function withTaskObserver<T>(observer: TaskObserver | undefined, fn: () =
   }
 }
 
+/** Creates a structured error report for component or framework failures. */
 export function createErrorReport(
   error: unknown,
   source: ErrorSource,
@@ -567,6 +574,7 @@ function createErrorReportFromOptions(error: unknown, options: ErrorReportOption
   };
 }
 
+/** Routes a component error to the nearest error context or installs the default fallback view. */
 export function handleComponentError(
   instance: ComponentInstance<any> | undefined,
   event: ErrorReport
@@ -602,10 +610,12 @@ export function handleComponentError(
   return fallback;
 }
 
+/** Normalizes any component render result into a flat child array. */
 export function normalizeRenderResult(result: RenderResult): Child[] {
   return Array.isArray(result) ? normalizeChildren(result) : normalizeChildren([result]);
 }
 
+/** Emits a framework-scoped log event through the supplied or default logger. */
 export function logFrameworkEvent(
   level: LogLevel,
   packageName: string,
@@ -636,6 +646,8 @@ function createTask(instance: ComponentInstance<any>, deps: unknown[], work: (..
     work,
     stops: [],
     run() {
+      // A task rerun invalidates its previous abort signal and cleanup before starting
+      // fresh work, so async callbacks can reliably observe cancellation.
       task.controller?.abort("rerun");
       void task.cleanup?.();
       task.controller = new AbortController();

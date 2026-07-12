@@ -5,6 +5,7 @@ export type ProfileState = {
   status: string;
 };
 
+/** Demonstrates a component with server task state and client-side interaction. */
 export function ProfilePage(this: Component<ProfileState>, props: { name: string }) {
   this.state.saves = 0;
   this.state.status = "Loaded on the server";

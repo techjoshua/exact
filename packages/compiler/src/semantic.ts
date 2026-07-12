@@ -19,6 +19,7 @@ import type {
 
 export const browserGlobals = new Set(["window", "document", "localStorage", "sessionStorage", "navigator", "HTMLElement", "Node"]);
 
+/** Builds a lexical semantic graph of declarations, references, exports, and scopes. */
 export function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGraphIR {
   const scopes: ExactSemanticScopeIR[] = [];
   const declarations: ExactSemanticDeclarationIR[] = [];
@@ -78,6 +79,8 @@ export function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGrap
   };
 
   const lookup = (name: string, scopeId: string): ExactSemanticDeclarationIR | undefined => {
+    // Resolve references by walking lexical parents, not by relying on raw text
+    // matching. This is what lets later passes distinguish shadowed names.
     let cursor: string | undefined = scopeId;
     while (cursor) {
       const declaration = declarationsByScope.get(cursor)?.get(name);
@@ -294,14 +297,17 @@ export function buildSemanticGraph(sourceFile: ts.SourceFile): ExactSemanticGrap
   };
 }
 
+/** Creates a fast lookup index for semantic references keyed by source span. */
 export function createSemanticReferenceIndex(sourceFile: ts.SourceFile, graph: ExactSemanticGraphIR): SemanticReferenceIndex {
   return new Map(graph.references.map(reference => [semanticReferenceKey(sourceFile, reference.name, reference.nodeStart, reference.nodeEnd), reference]));
 }
 
+/** Creates a fast lookup index for semantic declarations keyed by source span. */
 export function createSemanticDeclarationIndex(sourceFile: ts.SourceFile, graph: ExactSemanticGraphIR): SemanticDeclarationIndex {
   return new Map(graph.declarations.map(declaration => [semanticReferenceKey(sourceFile, declaration.name, declaration.nodeStart, declaration.nodeEnd), declaration]));
 }
 
+/** Returns the semantic reference associated with an identifier node. */
 export function semanticReferenceForIdentifier(
   node: ts.Identifier,
   references: SemanticReferenceIndex,
@@ -310,6 +316,7 @@ export function semanticReferenceForIdentifier(
   return references.get(semanticReferenceKey(sourceFile, node.text, node.getStart(sourceFile), node.getEnd()));
 }
 
+/** Returns the semantic declaration associated with an identifier node. */
 export function semanticDeclarationForIdentifier(
   node: ts.Identifier,
   declarations: SemanticDeclarationIndex,
@@ -318,6 +325,7 @@ export function semanticDeclarationForIdentifier(
   return declarations.get(semanticReferenceKey(sourceFile, node.text, node.getStart(sourceFile), node.getEnd()));
 }
 
+/** Returns whether an identifier resolves to a known browser global. */
 export function isBrowserGlobalReference(node: ts.Identifier, reference: ExactSemanticReferenceIR | undefined): boolean {
   return browserGlobals.has(node.text) && reference?.source === "global";
 }

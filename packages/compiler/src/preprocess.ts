@@ -1,3 +1,4 @@
+/** Rewrites JSX prop punning syntax such as <View {value} /> before TypeScript parsing. */
 export function preprocessPropPunning(source: string): string {
   let output = "";
   let index = 0;
@@ -35,6 +36,8 @@ export function preprocessPropPunning(source: string): string {
     }
 
     if (char === "<" && isTagStart(next) && next !== "/") {
+      // This is a narrow pre-parser: scan enough JSX opening-tag structure to
+      // avoid rewriting inside strings, templates, comments, or nested expressions.
       const end = scanOpeningTag(source, index);
       if (end > index) {
         output += rewritePunnedPropsInTag(source.slice(index, end));

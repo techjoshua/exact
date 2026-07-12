@@ -1,6 +1,7 @@
 import { handleExactRequest } from "./index.js";
 import type { ExactServerContext } from "./types.js";
 
+/** Creates a Fetch API compatible eXact endpoint handler. */
 export function createFetchHandler(context: ExactServerContext): (request: Request) => Promise<Response> {
   return async request => {
     const response = await handleExactRequest({
@@ -17,6 +18,7 @@ export function createFetchHandler(context: ExactServerContext): (request: Reque
   };
 }
 
+/** Creates an Express-style eXact endpoint handler. */
 export function createExpressHandler(context: ExactServerContext): (request: any, response: any) => void {
   return (request, response) => {
     void handleExactRequest({
@@ -37,6 +39,7 @@ export function createExpressHandler(context: ExactServerContext): (request: any
   };
 }
 
+/** Creates a Hapi-style eXact endpoint handler. */
 export function createHapiHandler(context: ExactServerContext): (request: any, h: any) => Promise<any> {
   return async (request, h) => {
     const result = await handleExactRequest({

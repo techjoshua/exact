@@ -72,6 +72,7 @@ const fragmentHelper = "__exactFragment";
 const expressionHelper = "__exactExpression";
 const dynamicHelper = "__exactDynamic";
 const boundaryHelper = "__exactBoundary";
+/** Creates the TypeScript transformer that lowers eXact JSX into runtime helper calls. */
 export function exactJsxTransformer(
   target: TransformTarget,
   importedManifests: readonly ExactCompilerManifest[] = [],
@@ -104,6 +105,8 @@ export function exactJsxTransformer(
           return createClientComponentServerStub(sourceFile, context, helpers, node);
         }
         if (target === "client" && serverComponents && componentPlacement !== "client") {
+          // In server-component mode, non-client components are removed from the
+          // client artifact after their nested client islands have been collected.
           componentStack.push(node.name.text);
           componentLocalStack.push(collectComponentLocalInfo(node, sourceFile, semanticDeclarations));
           componentStateAliasStack.push(collectStateAliases(node, sourceFile, semanticReferences, semanticDeclarations, { skipNestedFunctions: false }));

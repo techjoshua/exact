@@ -7,6 +7,7 @@ import type {
   InvokeExactOptions
 } from "./types.js";
 
+/** Invokes a single eXact server action or boundary refresh endpoint operation. */
 export async function invokeExact(options: InvokeExactOptions): Promise<ExactInvocationResult> {
   const fetchImpl = options.fetch ?? globalThis.fetch;
   if (!fetchImpl) throw new Error("eXact endpoint invocation requires fetch");
@@ -44,6 +45,7 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
   return parseExactInvocationResponse(body, `eXact ${options.type} invocation returned malformed result`);
 }
 
+/** Invokes multiple eXact operations as one batch request and returns per-operation results. */
 export async function invokeExactBatch(options: InvokeExactBatchOptions): Promise<ExactOperationResult[]> {
   const fetchImpl = options.fetch ?? globalThis.fetch;
   if (!fetchImpl) throw new Error("eXact endpoint invocation requires fetch");

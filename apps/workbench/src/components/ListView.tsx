@@ -6,6 +6,7 @@ type ListViewProps = {
   tasks: Task[];
 };
 
+/** Renders the workbench list view for visible tasks. */
 export function ListView(this: Component<{}>, props: ListViewProps) {
   return () => (
     <section className="list-view" aria-label="Task list">

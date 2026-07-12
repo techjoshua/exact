@@ -111,10 +111,12 @@ export {
 } from "./registry.js";
 export { exactCompilerManifestVersion } from "./versions.js";
 
+/** Transforms eXact TSX/JSX source and returns only the generated code. */
 export function transform(source: string, options: TransformOptions = {}): string {
   return transformSource(source, options).code;
 }
 
+/** Transforms eXact TSX/JSX source into code, source map metadata, and compiler manifest. */
 export function transformSource(source: string, options: TransformOptions = {}): TransformResult {
   const normalized = preprocessPropPunning(source);
   const filename = options.filename ?? "input.tsx";
@@ -142,6 +144,7 @@ export function transformSource(source: string, options: TransformOptions = {}):
   };
 }
 
+/** Analyzes source into the compiler manifest without emitting transformed code. */
 export function analyzeSource(source: string, options: TransformOptions = {}): ExactCompilerManifest {
   const normalized = preprocessPropPunning(source);
   const filename = options.filename ?? "input.tsx";
@@ -215,6 +218,8 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   for (const component of components) {
     for (const task of component.tasks) {
       if (task.placement === "server" || task.placement === "isomorphic") {
+        // Server action IDs become endpoint-dispatch keys, so duplicate IDs must
+        // fail during compilation instead of letting later entries overwrite earlier ones.
         if (serverActions[task.id]) {
           throw new Error(`Duplicate eXact server action id generated: ${task.id}`);
         }
@@ -259,6 +264,7 @@ function assertUniqueIds(label: string, ids: readonly string[]): void {
   }
 }
 
+/** Builds the semantic graph used for reference/declaration tracing diagnostics and tests. */
 export function analyzeSemanticGraph(source: string, options: Pick<TransformOptions, "filename"> = {}): ExactSemanticGraphIR {
   const normalized = preprocessPropPunning(source);
   const filename = options.filename ?? "input.tsx";
@@ -266,6 +272,7 @@ export function analyzeSemanticGraph(source: string, options: Pick<TransformOpti
   return buildSemanticGraph(sourceFile);
 }
 
+/** Compiles one input file and optionally writes code, source map, and manifest artifacts. */
 export async function compileFile(inputFile: string, options: CompileFileOptions = {}): Promise<CompileFileResult> {
   const source = await readFile(inputFile, "utf8");
   const result = transformSource(source, { filename: options.filename ?? inputFile, target: options.target, serverComponents: options.serverComponents, sourceMap: options.sourceMap });
@@ -295,6 +302,7 @@ export async function compileFile(inputFile: string, options: CompileFileOptions
   };
 }
 
+/** Compiles all transformable files found under the provided input paths. */
 export async function compileProject(inputs: readonly string[], options: CompileProjectOptions = {}): Promise<CompileFileResult[]> {
   const files = await collectInputFiles(inputs);
   const rootDir = options.rootDir ?? commonRoot(files);
@@ -314,6 +322,7 @@ export async function compileProject(inputs: readonly string[], options: Compile
   return results;
 }
 
+/** Compiles one source file into paired client/server artifacts plus an artifact manifest. */
 export async function compileFileArtifacts(inputFile: string, options: CompileArtifactsOptions): Promise<CompileArtifactsResult> {
   const source = await readFile(inputFile, "utf8");
   const filename = options.filename ?? inputFile;
@@ -343,6 +352,7 @@ export async function compileFileArtifacts(inputFile: string, options: CompileAr
   };
 }
 
+/** Compiles all artifact plan entries for the provided source inputs. */
 export async function compileProjectArtifacts(inputs: readonly string[], options: CompileArtifactsOptions): Promise<CompileArtifactsResult[]> {
   const plan = await createExactArtifactPlan(inputs, options);
   return compileArtifactPlanEntries(plan.entries, {
@@ -353,6 +363,7 @@ export async function compileProjectArtifacts(inputs: readonly string[], options
   });
 }
 
+/** Compiles precomputed artifact plan entries, sharing manifests so cross-file analysis can see siblings. */
 export async function compileArtifactPlanEntries(
   entries: readonly ExactArtifactPlanEntry[],
   options: CompileArtifactPlanEntriesOptions = {}
@@ -365,6 +376,8 @@ export async function compileArtifactPlanEntries(
     const source = await readFile(entry.inputFile, "utf8");
     manifestBases.set(path.resolve(entry.inputFile), analyzeSource(source, { filename }));
   }
+  // Analyze all files first, then compile with sibling manifests available. This
+  // lets client/server splitting understand package-local component edges.
   const importedManifests = [
     ...(options.importedManifests ?? []),
     ...manifestBases.values()
@@ -413,6 +426,7 @@ async function compileArtifactPlanEntry(
   };
 }
 
+/** Creates deterministic client/server artifact output paths for a set of inputs. */
 export async function createExactArtifactPlan(inputs: readonly string[], options: ExactArtifactPlanOptions): Promise<ExactArtifactPlan> {
   const files = await collectInputFiles(inputs);
   const rootDir = options.rootDir ?? commonRoot(files);
@@ -425,6 +439,7 @@ export async function createExactArtifactPlan(inputs: readonly string[], options
   };
 }
 
+/** Compiles an artifact graph state useful for watch-mode bundler integrations. */
 export async function createExactArtifactDevState(
   inputs: readonly string[],
   options: ExactArtifactDevStateOptions
@@ -443,6 +458,7 @@ export async function createExactArtifactDevState(
   };
 }
 
+/** Updates a watch-mode artifact graph by recompiling added and changed inputs only. */
 export async function updateExactArtifactDevState(
   state: ExactArtifactDevState,
   inputs: readonly string[],

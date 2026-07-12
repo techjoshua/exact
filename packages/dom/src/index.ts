@@ -67,6 +67,7 @@ export {
 
 export type { RenderOptions } from "./types.js";
 
+/** Renders or patches a vnode tree into a DOM container. */
 export function render(vnode: VNode, container: Element, options: RenderOptions = {}): void {
   let root = roots.get(container);
   if (!root) {
@@ -411,6 +412,8 @@ function patchChildren(
     nextCount: nextChildren.length,
     before: describeNode(before)
   });
+  // DOM writes for form controls can disturb the active element; patch inside the
+  // focus-preservation helper so reorders and reactive updates stay ergonomic.
   return preserveFocus(root, () => patchChildrenInner(root, parent, oldChildren, nextChildren, parentInstance, parentScope, before));
 }
 
@@ -438,6 +441,8 @@ function patchChildrenInner(
   const nextMounted: Mounted[] = [];
   let cursor = before ?? null;
 
+  // Walk from the end so each placed node can use the already-positioned next
+  // sibling as its insertion anchor. This keeps keyed moves deterministic.
   for (let index = nextVNodes.length - 1; index >= 0; index--) {
     const vnode = nextVNodes[index]!;
     const old = vnode.key ? oldByKey.get(vnode.key) : unkeyed.pop();

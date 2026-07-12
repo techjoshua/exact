@@ -8,6 +8,7 @@ type TaskCardProps = {
   compact?: boolean;
 };
 
+/** Renders a workbench task card with status controls and labels. */
 export function TaskCard(this: Component<{}>, props: TaskCardProps) {
   const workbench = this.getContext(WorkbenchContext);
 
