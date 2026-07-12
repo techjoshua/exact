@@ -63,6 +63,11 @@ import {
   isServerOnlyReference
 } from "./imports.js";
 import {
+  clientComponentBoundaryId,
+  generatedComponentName,
+  serverSlotBoundaryId
+} from "./names.js";
+import {
   artifactPathsFor,
   collectInputFiles,
   commonRoot,
@@ -94,6 +99,12 @@ import {
   withSourceMappingUrl
 } from "./source-maps.js";
 import {
+  createClientIslandBoundaries,
+  createClientIslandSymbols,
+  createRootSymbols,
+  createServerPartSymbols
+} from "./symbols.js";
+import {
   collectDerivedReactiveLocals,
   collectStateAliases,
   contextEffectForCall,
@@ -112,6 +123,7 @@ import { exactCompilerManifestVersion } from "./versions.js";
 export type * from "./types.js";
 export { preprocessPropPunning } from "./preprocess.js";
 export { parseExactCompilerManifest } from "./manifest-parse.js";
+export { generatedComponentName } from "./names.js";
 export {
   createExactArtifactComponentEdges,
   createExactArtifactGraph,
@@ -1228,109 +1240,6 @@ function collectExportBindings(sourceFile: ts.SourceFile, semanticGraph: ExactSe
   return exports;
 }
 
-function createRootSymbols(sourceFile: ts.SourceFile, components: ExactComponentIR[], exports: readonly ExportBinding[]): ExactSymbolIR[] {
-  const componentByName = new Map(components.map(component => [component.name, component]));
-  const symbols: ExactSymbolIR[] = [];
-  for (const binding of exports) {
-    const component = componentByName.get(binding.localName);
-    if (!component) continue;
-    symbols.push({
-      id: stableId(sourceFile.fileName, "symbol", component.id, "root", binding.exportedName),
-      componentId: component.id,
-      exportName: binding.exportedName,
-      localName: component.name,
-      generatedName: component.name,
-      debugName: component.name,
-      kind: "component",
-      role: "root",
-      target: component.placement === "client" ? "client" : component.placement === "server" ? "server" : "both",
-      placement: component.placement
-    });
-  }
-  return symbols.sort((left, right) => left.id.localeCompare(right.id));
-}
-
-function createServerPartSymbols(sourceFile: ts.SourceFile, components: ExactComponentIR[]): ExactSymbolIR[] {
-  const symbols: ExactSymbolIR[] = [];
-  for (const component of components) {
-    if (!component.exported) continue;
-    if (component.placement === "client") continue;
-    if (component.clientIslandCount <= 0) continue;
-    const generatedName = generatedComponentName(component.name, "server-part", 1);
-    symbols.push({
-      id: stableId(sourceFile.fileName, component.name, "server-part", "1"),
-      componentId: component.id,
-      exportName: generatedName,
-      localName: component.name,
-      generatedName,
-      debugName: `${component.name}:server-part:1`,
-      kind: "component",
-      role: "server-part",
-      target: "server",
-      placement: component.placement
-    });
-  }
-  return symbols;
-}
-
-function createClientIslandSymbols(sourceFile: ts.SourceFile, components: ExactComponentIR[]): ExactSymbolIR[] {
-  const symbols: ExactSymbolIR[] = [];
-  for (const component of components) {
-    if (!component.exported) continue;
-    for (let index = 1; index <= component.clientIslandCount; index++) {
-      const generatedName = generatedComponentName(component.name, "client-island", index);
-      symbols.push({
-        id: stableId(sourceFile.fileName, component.name, "client-island", String(index)),
-        componentId: component.id,
-        exportName: generatedName,
-        localName: generatedName,
-        generatedName,
-        debugName: `${component.name}:client-island:${index}`,
-        kind: "component",
-        role: "client-island",
-        target: "client",
-        placement: "client"
-      });
-    }
-  }
-  return symbols;
-}
-
-function createClientIslandBoundaries(
-  sourceFile: ts.SourceFile,
-  components: ExactComponentIR[]
-): ExactBoundaryIR[] {
-  const boundaries: ExactBoundaryIR[] = [];
-  const seen = new Set<string>();
-  for (const component of components) {
-    for (let index = 1; index <= component.clientIslandCount; index++) {
-      const id = stableId(sourceFile.fileName, component.name, "client-island", String(index));
-      seen.add(id);
-      boundaries.push({
-        id: stableId(sourceFile.fileName, component.name, "client-island", String(index)),
-        name: generatedComponentName(component.name, "client-island", index),
-        componentId: component.id,
-        ownerComponentId: component.id,
-        kind: "client-island"
-      });
-    }
-    if (component.exported && component.placement === "client") {
-      const id = stableId(sourceFile.fileName, component.name, "component-island");
-      if (!seen.has(id)) {
-        seen.add(id);
-        boundaries.push({
-          id,
-          name: component.name,
-          componentId: component.id,
-          ownerComponentId: component.id,
-          kind: "client-island"
-        });
-      }
-    }
-  }
-  return boundaries;
-}
-
 function createGeneratedClientIslandServerSlotBoundaries(
   sourceFile: ts.SourceFile,
   components: readonly ExactComponentIR[],
@@ -1494,26 +1403,6 @@ function findRenderEdge(owner: ExactComponentIR | undefined, path: readonly numb
   if (!owner) return undefined;
   const pathText = path.join(".");
   return owner.renderEdges.find(edge => edge.path === pathText);
-}
-
-function serverSlotBoundaryId(boundaryId: string): string {
-  return `${boundaryId}:children`;
-}
-
-function clientComponentBoundaryId(sourceFile: ts.SourceFile, componentName: string, node: ts.Node): string {
-  return stableId(sourceFile.fileName, componentName, "component-island", String(node.getStart(sourceFile)), String(node.getEnd()));
-}
-
-export function generatedComponentName(authorName: string, role: "server-part" | "client-island", index: number): string {
-  const base = sanitizeIdentifier(authorName || "Component");
-  const suffix = role === "server-part" ? "ExactServer" : "ExactClient";
-  return `${base}_${suffix}_${index}`;
-}
-
-function sanitizeIdentifier(value: string): string {
-  const cleaned = value.replace(/[^A-Za-z0-9_$]/g, "_");
-  if (/^[A-Za-z_$]/.test(cleaned)) return cleaned;
-  return `_${cleaned}`;
 }
 
 const mutatingStateMethods = new Set(["push", "pop", "shift", "unshift", "splice", "sort", "reverse", "set", "delete", "clear"]);
