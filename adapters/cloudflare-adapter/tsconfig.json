@@ -4,11 +4,10 @@
     "composite": true,
     "rootDir": "src",
     "outDir": "dist",
-    "lib": ["ES2022", "DOM"],
-    "types": ["node"]
+    "lib": ["ES2022", "DOM", "WebWorker"]
   },
   "references": [
-    { "path": "../server" }
+    { "path": "../../packages/server" }
   ],
   "include": ["src"],
   "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]

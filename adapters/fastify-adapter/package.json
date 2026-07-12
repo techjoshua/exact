@@ -1,5 +1,5 @@
 {
-  "name": "@exact/serverless-adapter",
+  "name": "@exact/fastify-adapter",
   "version": "0.0.0",
   "type": "module",
   "files": [
@@ -16,7 +16,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "dependencies": {
-    "@exact/server": "file:../server"
+    "@exact/server": "file:../../packages/server"
   },
   "scripts": {
     "build": "tsc -b",

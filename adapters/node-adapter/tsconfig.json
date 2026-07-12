@@ -8,7 +8,7 @@
     "types": ["node"]
   },
   "references": [
-    { "path": "../server" }
+    { "path": "../../packages/server" }
   ],
   "include": ["src"],
   "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]

@@ -13,11 +13,14 @@
   "include": [
     "packages/*/src/**/*.ts",
     "packages/*/src/**/*.tsx",
+    "adapters/*/src/**/*.ts",
+    "adapters/*/src/**/*.tsx",
     "apps/server-components/src/**/*.ts",
     "apps/server-components/src/**/*.tsx"
   ],
   "exclude": [
     "packages/*/dist",
+    "adapters/*/dist",
     "apps/*/dist"
   ]
 }

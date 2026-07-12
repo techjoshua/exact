@@ -5,6 +5,7 @@
   "packageManager": "npm@11.6.4",
   "workspaces": [
     "packages/*",
+    "adapters/*",
     "apps/*"
   ],
   "scripts": {
@@ -12,7 +13,7 @@
     "test": "npm run test:packages && npm run test:server-components",
     "check:publish": "node scripts/check-package-contents.mjs",
     "release:check": "npm run build && npm test && npm run typecheck:tests && npm run check:publish",
-    "test:packages": "vitest run --dir packages",
+    "test:packages": "vitest run packages adapters",
     "typecheck": "tsc -b --pretty",
     "typecheck:tests": "tsc -p tsconfig.test.json --pretty",
     "dev:kanban": "npm run dev -w @exact/sample-kanban",
