@@ -8,7 +8,6 @@ import {
   createComponentInstance,
   createErrorContext,
   createErrorReport,
-  createTextVNode,
   createVNode,
   getCellVNode,
   handleComponentError,
@@ -21,7 +20,6 @@ import {
   type ComponentFunction,
   type ComponentInstance,
   type ErrorReport,
-  type ListBinding,
   type RefBinding,
   type VNode,
   unwrap,
@@ -33,6 +31,14 @@ import {
   withEffectScope,
   type EffectScope,
 } from "@exact/reactive";
+import {
+  childToVNode,
+  getComponentProps,
+  getListBinding,
+  materializeList,
+  stopRemovedListChildren,
+  stopReplacedChildren
+} from "./children.js";
 import { preserveFocus } from "./focus.js";
 import { describeNode, describeVNodeType, domDebug, formatError } from "./debug.js";
 import { clearElementOwner, setElementOwner } from "./ownership.js";
@@ -486,42 +492,6 @@ function bindText(mounted: Mounted, value: unknown): void {
   }, undefined, { scope: mounted.scope });
 }
 
-function stopReplacedChildren(mounted: Mounted, nextChildren: Child[]): void {
-  const nextVNodes = nextChildren
-    .map(childToVNode)
-    .filter((vnode): vnode is VNode => !!vnode);
-
-  const keyed = new Map<string, VNode>();
-  const unkeyed: VNode[] = [];
-  for (const vnode of nextVNodes) {
-    if (vnode.key) keyed.set(vnode.key, vnode);
-    else unkeyed.push(vnode);
-  }
-
-  for (const child of mounted.children) {
-    const next = child.vnode.key ? keyed.get(child.vnode.key) : unkeyed.shift();
-    if (next && canPatchMounted(child, next)) continue;
-    child.scope.stop();
-  }
-}
-
-function canPatchMounted(mounted: Mounted, next: VNode): boolean {
-  if (mounted.vnode.type !== next.type || mounted.vnode.key !== next.key) return false;
-  if (isCellVNode(next)) {
-    const previousChild = mounted.children[0];
-    return previousChild ? canPatchMounted(previousChild, getCellVNode(next)) : false;
-  }
-  return true;
-}
-
-function stopRemovedListChildren<T>(mounted: Mounted, list: ListBinding<T>): void {
-  const nextKeys = new Set(materializeList(list).map(child => child.key).filter((key): key is string => key !== undefined));
-  for (const child of mounted.children) {
-    if (child.vnode.key && nextKeys.has(child.vnode.key)) continue;
-    child.scope.stop();
-  }
-}
-
 function unmountMounted(mounted: Mounted): void {
   mounted.scope.stop();
   for (const child of mounted.children) unmountMounted(child);
@@ -545,36 +515,4 @@ function removeMountedNodes(parent: Node, mounted: Mounted): void {
   if (mounted.dom.parentNode === parent) {
     parent.removeChild(mounted.dom);
   }
-}
-
-function childToVNode(child: Child): VNode | undefined {
-  if (child === null || child === undefined || child === false || child === true) return undefined;
-  if (isVNode(child)) return child;
-  return createTextVNode(child);
-}
-
-function getComponentProps(vnode: VNode): Record<string, unknown> {
-  const props = { ...vnode.props };
-
-  if (vnode.children.length === 1) {
-    props.children = vnode.children[0];
-  } else if (vnode.children.length > 1) {
-    props.children = vnode.children;
-  }
-
-  return props;
-}
-
-function getListBinding(vnode: VNode): ListBinding | undefined {
-  return vnode.props.list as ListBinding | undefined;
-}
-
-function materializeList<T>(list: ListBinding<T>): VNode[] {
-  const collection = list.source ? list.source.get() : list.collection;
-  const nodes: VNode[] = [];
-  for (const item of collection) {
-    const node = list.render(item);
-    nodes.push({ ...node, key: String(list.key(item)) });
-  }
-  return nodes;
 }
