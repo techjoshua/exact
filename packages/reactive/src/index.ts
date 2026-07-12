@@ -1,108 +1,38 @@
-export type Reactive<T> = T;
+export type {
+  EffectScope,
+  Reactive,
+  ReactiveOptions,
+  ReactiveRef,
+  ReactiveValue,
+  StopHandle,
+  WatchOptions
+} from "./internal/types.js";
 
-export type ReactiveRef<T = unknown> = {
-  readonly target: object;
-  readonly key: PropertyKey;
-  get(): T;
-  set(value: T): void;
-};
+import { cleanupReaction, getDep, peek, runTracked, track, trigger } from "./internal/deps.js";
+import { hasChanged as hasStructurallyChanged, structurallyEqual } from "./internal/equality.js";
+import { isArrayStructureKey, isPlainObject } from "./internal/objects.js";
+import { createEffectScope, currentEffectScope, withEffectScope } from "./internal/scopes.js";
+import { flushSync, queueComputation, queueReaction, removeQueuedComputation } from "./internal/scheduler.js";
+import { iterateKey, proxyMarker, rawTarget, reactiveValueMarker, reactiveValueRef } from "./internal/symbols.js";
+import type {
+  EffectScope,
+  EffectScopeImpl,
+  Reactive,
+  ReactiveOptions,
+  ReactiveRef,
+  ReactiveValue,
+  Reaction,
+  StopHandle,
+  WatchOptions
+} from "./internal/types.js";
 
-export type ReactiveValue<T = unknown> = {
-  get(): T;
-  toJSON(): T;
-  toString(): string;
-  valueOf(): T;
-  [Symbol.toPrimitive](): T;
-};
-
-type Reaction = {
-  active: boolean;
-  scope?: EffectScopeImpl;
-  deps: Set<Dep>;
-  run(): void;
-  schedule(): void;
-  stop(): void;
-};
-
-type Dep = Set<Reaction>;
-
-const proxyMarker = Symbol.for("exact.reactive.proxy");
-const reactiveValueMarker = Symbol.for("exact.reactive.value");
-const rawTarget = Symbol.for("exact.reactive.raw");
-const reactiveValueRef = Symbol.for("exact.reactive.valueRef");
-const iterateKey = Symbol.for("exact.reactive.iterate");
+export { createEffectScope, flushSync, peek, withEffectScope };
 
 const proxyCache = new WeakMap<object, object>();
 const readonlyProxyCache = new WeakMap<object, object>();
 const objectRefs = new WeakMap<object, ReactiveRef>();
 const rawObjectRefs = new WeakMap<object, ReactiveRef>();
-const deps = new WeakMap<object, Map<PropertyKey, Dep>>();
-const reactionStack: Reaction[] = [];
-const queuedReactions = new Set<Reaction>();
-const queuedComputations = new Set<() => void>();
 const mutatingArrayMethods = new Set<PropertyKey>(["copyWithin", "fill", "pop", "push", "reverse", "shift", "sort", "splice", "unshift"]);
-let flushScheduled = false;
-
-export type ReactiveOptions = {
-  readonly?: boolean;
-  passthroughKeys?: readonly PropertyKey[];
-  onReadonlyWrite?(key: PropertyKey): void;
-};
-
-export type StopHandle = () => void;
-
-export type EffectScope = {
-  active: boolean;
-  stop(): void;
-};
-
-type EffectScopeImpl = EffectScope & {
-  parent?: EffectScopeImpl;
-  children: Set<EffectScopeImpl>;
-  reactions: Set<Reaction>;
-};
-
-export type WatchOptions = {
-  scope?: EffectScope;
-  onSchedule?(): void;
-};
-
-const scopeStack: EffectScopeImpl[] = [];
-
-export function createEffectScope(parent: EffectScope | undefined = currentEffectScope()): EffectScope {
-  const scope: EffectScopeImpl = {
-    active: true,
-    parent: parent as EffectScopeImpl | undefined,
-    children: new Set(),
-    reactions: new Set(),
-    stop() {
-      if (!scope.active) return;
-      scope.active = false;
-      for (const child of [...scope.children]) child.stop();
-      for (const reaction of [...scope.reactions]) reaction.stop();
-      scope.children.clear();
-      scope.reactions.clear();
-      scope.parent?.children.delete(scope);
-      scope.parent = undefined;
-    }
-  };
-  scope.parent?.children.add(scope);
-  return scope;
-}
-
-export function withEffectScope<T>(scope: EffectScope | undefined, fn: () => T): T {
-  if (!scope || !scope.active) return fn();
-  scopeStack.push(scope as EffectScopeImpl);
-  try {
-    return fn();
-  } finally {
-    scopeStack.pop();
-  }
-}
-
-function currentEffectScope(): EffectScopeImpl | undefined {
-  return scopeStack[scopeStack.length - 1];
-}
 
 export function reactive<T extends object>(value: T, options: ReactiveOptions = {}): Reactive<T> {
   return createReactive(value, options) as Reactive<T>;
@@ -157,13 +87,12 @@ export function computed<T>(compute: () => T): ReactiveValue<T> {
     if (scope && !scope.active) return;
     if (queued) return;
     queued = true;
-    queuedComputations.add(recomputeAndNotify);
-    scheduleFlush();
+    queueComputation(recomputeAndNotify);
   }
 
   function recomputeAndNotify(): void {
     queued = false;
-    queuedComputations.delete(recomputeAndNotify);
+    removeQueuedComputation(recomputeAndNotify);
     if (scope && !scope.active) return;
     stop?.();
     stop = undefined;
@@ -198,13 +127,7 @@ export function watch(fn: () => void, scheduler?: () => void, options: WatchOpti
         reaction.stop();
         return;
       }
-      cleanupReaction(reaction);
-      reactionStack.push(reaction);
-      try {
-        fn();
-      } finally {
-        reactionStack.pop();
-      }
+      runTracked(reaction, fn);
     },
     schedule() {
       if (!reaction.active) return;
@@ -218,8 +141,7 @@ export function watch(fn: () => void, scheduler?: () => void, options: WatchOpti
         return;
       }
 
-      queuedReactions.add(reaction);
-      scheduleFlush();
+      queueReaction(reaction);
     },
     stop() {
       reaction.active = false;
@@ -249,15 +171,6 @@ export function subscribe<T>(source: ReactiveRef<T>, callback: () => void): Stop
 
   dep.add(reaction);
   return reaction.stop;
-}
-
-export function peek<T>(fn: () => T): T {
-  const previous = reactionStack.pop();
-  try {
-    return fn();
-  } finally {
-    if (previous) reactionStack.push(previous);
-  }
 }
 
 export function unwrap<T>(value: T): T {
@@ -308,28 +221,6 @@ export function snapshot<T>(value: T): T {
   }
 
   return result as T;
-}
-
-export function flushSync(): void {
-  while (queuedComputations.size || queuedReactions.size) {
-    while (queuedComputations.size) {
-      const computations = [...queuedComputations];
-      queuedComputations.clear();
-      for (const computation of computations) {
-        computation();
-      }
-    }
-
-    const reactions = [...queuedReactions];
-    queuedReactions.clear();
-    flushScheduled = false;
-
-    for (const reaction of reactions) {
-      if (reaction.active && (!reaction.scope || reaction.scope.active)) reaction.run();
-    }
-  }
-
-  flushScheduled = false;
 }
 
 export function updateReactive<T extends object>(target: Reactive<T>, next: Partial<T>): void {
@@ -484,116 +375,18 @@ function isReactiveValue(value: unknown): value is ReactiveValue & { [reactiveVa
   return !!value && typeof value === "object" && reactiveValueMarker in value;
 }
 
-function track(target: object, key: PropertyKey): void {
-  const reaction = reactionStack[reactionStack.length - 1];
-  if (!reaction) return;
-
-  const dep = getDep(target, key);
-  dep.add(reaction);
-  reaction.deps.add(dep);
-}
-
-function trigger(target: object, key: PropertyKey): void {
-  const dep = getDep(target, key);
-  for (const reaction of [...dep]) {
-    reaction.schedule();
-  }
-}
-
-function getDep(target: object, key: PropertyKey): Dep {
-  let targetDeps = deps.get(target);
-  if (!targetDeps) {
-    targetDeps = new Map();
-    deps.set(target, targetDeps);
-  }
-
-  let dep = targetDeps.get(key);
-  if (!dep) {
-    dep = new Set();
-    targetDeps.set(key, dep);
-  }
-
-  return dep;
-}
-
-function cleanupReaction(reaction: Reaction): void {
-  for (const dep of reaction.deps) {
-    dep.delete(reaction);
-  }
-  reaction.deps.clear();
-}
-
-function scheduleFlush(): void {
-  if (flushScheduled) return;
-  flushScheduled = true;
-  queueMicrotask(flushSync);
-}
-
 function hasChanged(previous: unknown, next: unknown): boolean {
-  return !structurallyEqual(previous, next);
+  return hasStructurallyChanged(previous, next, unwrap);
 }
 
 function reactiveValueChanged(previous: unknown, next: unknown): boolean {
   return (isReactiveValue(previous) || isReactiveValue(next)) && !Object.is(previous, next);
 }
 
-function structurallyEqual(left: unknown, right: unknown): boolean {
-  if (Object.is(left, right)) return true;
-
-  const unwrappedLeft = unwrap(left);
-  const unwrappedRight = unwrap(right);
-  if (Object.is(unwrappedLeft, unwrappedRight)) return true;
-
-  if (Array.isArray(unwrappedLeft) && Array.isArray(unwrappedRight)) {
-    if (unwrappedLeft.length !== unwrappedRight.length) return false;
-    for (let index = 0; index < unwrappedLeft.length; index++) {
-      if (!structurallyEqual(unwrappedLeft[index], unwrappedRight[index])) return false;
-    }
-    return true;
-  }
-
-  if (isPlainObject(unwrappedLeft) && isPlainObject(unwrappedRight)) {
-    const leftKeys = Reflect.ownKeys(unwrappedLeft);
-    const rightKeys = Reflect.ownKeys(unwrappedRight);
-    if (leftKeys.length !== rightKeys.length) return false;
-
-    for (const key of leftKeys) {
-      if (!Reflect.has(unwrappedRight, key)) return false;
-      if (!structurallyEqual(
-        unwrappedLeft[key],
-        unwrappedRight[key]
-      )) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  return false;
-}
-
-function isPlainObject(value: unknown): value is Record<PropertyKey, unknown> {
-  if (!value || typeof value !== "object") return false;
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
-
-function isArrayStructureKey(target: object, key: PropertyKey): boolean {
-  return Array.isArray(target) && (key === "length" || isArrayIndex(key));
-}
-
-function isArrayIndex(key: PropertyKey): boolean {
-  if (typeof key === "number") return Number.isInteger(key) && key >= 0;
-  if (typeof key !== "string" || key === "") return false;
-  const index = Number(key);
-  return Number.isInteger(index) && index >= 0 && String(index) === key;
-}
-
 function mutateArray(target: unknown[], method: Function, args: unknown[], receiver: unknown): unknown {
   const previous = target.slice();
   const result = method.apply(target, args.map(arg => unwrap(arg)));
-  if (!structurallyEqual(previous, target)) {
+  if (!structurallyEqual(previous, target, unwrap)) {
     const maxLength = Math.max(previous.length, target.length);
     trigger(target, "length");
     trigger(target, iterateKey);
