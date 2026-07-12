@@ -1,0 +1,25 @@
+{
+  "name": "@exact/node-adapter",
+  "version": "0.0.0",
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md",
+    "!dist/**/*.test.*"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "dependencies": {
+    "@exact/server": "file:../server"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  }
+}
