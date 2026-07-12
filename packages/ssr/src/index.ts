@@ -22,6 +22,7 @@ import type { ExactPatch } from "@exact/server";
 import { boundaryPatch, diffBoundaryHtml, diffKeyedListItems } from "./diff.js";
 import { escapeAttr, escapeAttrName, escapeText, voidElements } from "./html.js";
 import { jsonUnsafePath, renderHydrationScript, serializeHydrationPayload } from "./hydration.js";
+import { createDocumentEventStream, createHtmlStream, createProgressiveHtmlStream, progressiveHtmlResponse } from "./streams.js";
 import type {
   ActionRefreshOptions,
   ActionRefreshBoundaryOptions,
@@ -92,29 +93,11 @@ export function renderToHydratableString(vnode: VNode, options: RenderToStringOp
 
 export function renderToStream(vnode: VNode, options: RenderToStringOptions = {}): ReadableStream<Uint8Array> {
   const result = renderToString(vnode, options);
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      controller.enqueue(new TextEncoder().encode(result.html));
-      controller.close();
-    }
-  });
+  return createHtmlStream(result.html);
 }
 
 export function renderToDocumentStream(vnode: VNode, options: RenderToDocumentStreamOptions = {}): ReadableStream<Uint8Array> {
-  const encoder = new TextEncoder();
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      const emit = (event: ExactDocumentStreamEvent) => {
-        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
-      };
-      void streamDocumentRender(vnode, options, emit)
-        .then(() => controller.close())
-        .catch(error => {
-          emit({ event: "error", version: 1, message: error instanceof Error ? error.message : String(error) });
-          controller.close();
-        });
-    }
-  });
+  return createDocumentEventStream(emit => streamDocumentRender(vnode, options, emit));
 }
 
 export function renderToHydratableDocumentStream(vnode: VNode, options: RenderToDocumentStreamOptions = {}): ReadableStream<Uint8Array> {
@@ -125,27 +108,7 @@ export function renderToHydratableDocumentStream(vnode: VNode, options: RenderTo
 }
 
 export function renderToProgressiveHtmlStream(vnode: VNode, options: RenderToProgressiveHtmlStreamOptions = {}): ReadableStream<Uint8Array> {
-  const encoder = new TextEncoder();
-  const streamOptions: RenderToProgressiveHtmlStreamOptions = {
-    ...options,
-    rootId: progressiveRootId(options)
-  };
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      const emit = (chunk: string) => {
-        controller.enqueue(encoder.encode(chunk));
-      };
-      void streamDocumentRender(vnode, streamOptions, event => {
-        const chunk = progressiveHtmlChunk(event, streamOptions);
-        if (chunk) emit(chunk);
-      })
-        .then(() => controller.close())
-        .catch(error => {
-          emit(progressiveErrorScript(error, streamOptions));
-          controller.close();
-        });
-    }
-  });
+  return createProgressiveHtmlStream((streamOptions, emit) => streamDocumentRender(vnode, streamOptions, emit), options);
 }
 
 export function renderToHydratableProgressiveHtmlStream(vnode: VNode, options: RenderToProgressiveHtmlStreamOptions = {}): ReadableStream<Uint8Array> {
@@ -707,68 +670,6 @@ function shouldEmitDocumentHydration(options: RenderToDocumentStreamOptions): bo
     || options.actionBoundaries !== undefined
     || options.scriptId !== undefined
     || options.nonce !== undefined;
-}
-
-function progressiveHtmlChunk(event: ExactDocumentStreamEvent, options: RenderToProgressiveHtmlStreamOptions): string {
-  switch (event.event) {
-    case "start":
-    case "complete":
-      return "";
-    case "shell":
-      return `<div id="${escapeAttr(progressiveRootId(options))}">${event.html}</div>`;
-    case "replace":
-      return inlineScript(`var e=document.getElementById(${inlineJsonString(event.id)});if(e)e.innerHTML=${inlineJsonString(event.html)};`, options);
-    case "hydration":
-      return event.html;
-    case "error":
-      return inlineScript(`console.error(${inlineJsonString(`eXact document stream failed: ${event.message}`)});`, options);
-  }
-}
-
-function progressiveRootId(options: RenderToProgressiveHtmlStreamOptions): string {
-  return options.rootId ?? "exact-root";
-}
-
-function progressiveHtmlResponse(stream: ReadableStream<Uint8Array>, options: RenderToProgressiveHtmlResponseOptions): ExactResponseLike {
-  const headers = {
-    ...options.headers
-  };
-  if (options.contentType !== undefined || !hasHeader(headers, "content-type")) {
-    setHeader(headers, "content-type", options.contentType ?? "text/html; charset=utf-8");
-  }
-  return {
-    status: options.status ?? 200,
-    headers,
-    body: "",
-    stream
-  };
-}
-
-function hasHeader(headers: Record<string, string>, name: string): boolean {
-  return Object.keys(headers).some(header => header.toLowerCase() === name);
-}
-
-function setHeader(headers: Record<string, string>, name: string, value: string): void {
-  const existing = Object.keys(headers).find(header => header.toLowerCase() === name);
-  if (existing) {
-    headers[existing] = value;
-  } else {
-    headers[name] = value;
-  }
-}
-
-function progressiveErrorScript(error: unknown, options: RenderToProgressiveHtmlStreamOptions): string {
-  const message = error instanceof Error ? error.message : String(error);
-  return inlineScript(`console.error(${inlineJsonString(`eXact document stream failed: ${message}`)});`, options);
-}
-
-function inlineScript(body: string, options: RenderToProgressiveHtmlStreamOptions): string {
-  const nonce = options.nonce === undefined ? "" : ` nonce="${escapeAttr(options.nonce)}"`;
-  return `<script${nonce}>${body}</script>`;
-}
-
-function inlineJsonString(value: string): string {
-  return JSON.stringify(value).replace(/</g, "\\u003C").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
 }
 
 function renderAttrs(props: Record<string, unknown>): string {
