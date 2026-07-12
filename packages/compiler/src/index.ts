@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type {
   ClientIslandCaptures,
@@ -49,7 +49,6 @@ import type {
   ExactSemanticGraphIR,
   ExactSemanticReferenceIR,
   ExactSemanticScopeIR,
-  ExactSourceMap,
   ExactStateEffect,
   ExactSymbolIR,
   ExactTaskIR,
@@ -67,6 +66,26 @@ import type {
   TransformResult,
   TransformTarget
 } from "./types.js";
+import { formatDiagnostics, validateSource } from "./diagnostics.js";
+import {
+  artifactPathsFor,
+  clientRegistryModulePath,
+  collectInputFiles,
+  commonRoot,
+  manifestPathFor,
+  outputPathFor,
+  packageExportSpecifier,
+  packageExportTarget,
+  slashPath,
+  sortPlanEntries,
+  withArtifactMetadata
+} from "./paths.js";
+import {
+  createLineSourceMap,
+  sourceMapPathFor,
+  withSourceMapFile,
+  withSourceMappingUrl
+} from "./source-maps.js";
 
 export type * from "./types.js";
 
@@ -1206,25 +1225,6 @@ function omitUndefinedProperties(value: Record<string, unknown>): Record<string,
     if (item !== undefined) output[key] = item;
   }
   return output;
-}
-
-function packageExportSpecifier(inputFile: string, sourceRoot: string): string {
-  const relative = slashPath(path.relative(sourceRoot, inputFile)).replace(/\.[jt]sx$/i, "");
-  return relative ? `./${relative}` : ".";
-}
-
-function packageExportTarget(file: string, packageRoot: string): string {
-  return `./${slashPath(path.relative(packageRoot, file))}`;
-}
-
-function sortPlanEntries(entries: ExactArtifactPlanEntry[]): ExactArtifactPlanEntry[] {
-  return entries.sort((left, right) => left.inputFile.localeCompare(right.inputFile));
-}
-
-function clientRegistryModulePath(file: string, rootDir: string): string {
-  const relative = slashPath(path.relative(rootDir, file));
-  if (relative.startsWith(".")) return relative;
-  return `./${relative}`;
 }
 
 export function preprocessPropPunning(source: string): string {
@@ -4128,172 +4128,4 @@ function insertAfterDirectivePrologue(statements: ts.NodeArray<ts.Statement>, st
 
 function isDirectivePrologueStatement(statement: ts.Statement): boolean {
   return ts.isExpressionStatement(statement) && ts.isStringLiteral(statement.expression);
-}
-
-function validateSource(source: string, filename: string): readonly ts.Diagnostic[] {
-  return ts.transpileModule(source, {
-    fileName: filename,
-    reportDiagnostics: true,
-    compilerOptions: {
-      jsx: ts.JsxEmit.Preserve,
-      module: ts.ModuleKind.ESNext,
-      target: ts.ScriptTarget.ES2022
-    }
-  }).diagnostics ?? [];
-}
-
-function formatDiagnostics(diagnostics: readonly ts.Diagnostic[]): string {
-  return diagnostics.map(diagnostic => {
-    const file = diagnostic.file;
-    const location = file && diagnostic.start !== undefined
-      ? file.getLineAndCharacterOfPosition(diagnostic.start)
-      : undefined;
-    const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
-    return file && location
-      ? `${file.fileName}:${location.line + 1}:${location.character + 1} - ${message}`
-      : message;
-  }).join("\n");
-}
-
-async function collectInputFiles(inputs: readonly string[]): Promise<string[]> {
-  const files: string[] = [];
-  for (const input of inputs) {
-    files.push(...await collectInput(input));
-  }
-  return files.sort();
-}
-
-async function collectInput(input: string): Promise<string[]> {
-  const stat = await import("node:fs/promises").then(fs => fs.stat(input));
-  if (!stat.isDirectory()) return isTransformablePath(input) ? [input] : [];
-
-  const files: string[] = [];
-  for (const entry of await readdir(input, { withFileTypes: true })) {
-    if (entry.name === "node_modules" || entry.name === "dist") continue;
-    const fullPath = path.join(input, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...await collectInput(fullPath));
-    } else if (isTransformablePath(fullPath)) {
-      files.push(fullPath);
-    }
-  }
-  return files;
-}
-
-function isTransformablePath(file: string): boolean {
-  return /\.[jt]sx$/i.test(file);
-}
-
-function outputPathFor(inputFile: string, outDir: string, rootDir?: string): string {
-  const root = rootDir ?? path.dirname(inputFile);
-  const relative = path.relative(root, inputFile);
-  return path.join(outDir, relative).replace(/\.(tsx|jsx)$/i, (_match, ext: string) => ext.toLowerCase() === "tsx" ? ".ts" : ".js");
-}
-
-function manifestPathFor(outputFile: string): string {
-  return outputFile.replace(/\.[^.\\/]+$/i, ".exact.json");
-}
-
-function sourceMapPathFor(outputFile: string): string {
-  return `${outputFile}.map`;
-}
-
-function withSourceMappingUrl(code: string, mapFileName: string): string {
-  const normalized = code.endsWith("\n") ? code : `${code}\n`;
-  return `${normalized}//# sourceMappingURL=${mapFileName}\n`;
-}
-
-function withSourceMapFile(map: ExactSourceMap, file: string): ExactSourceMap {
-  return { ...map, file };
-}
-
-function createLineSourceMap(filename: string, source: string, generated: string): ExactSourceMap {
-  return {
-    version: 3,
-    sources: [filename],
-    sourcesContent: [source],
-    names: [],
-    mappings: lineMappings(lineCount(generated), lineCount(source))
-  };
-}
-
-function lineMappings(generatedLines: number, sourceLines: number): string {
-  let previousSourceLine = 0;
-  const lines: string[] = [];
-  for (let line = 0; line < generatedLines; line++) {
-    const sourceLine = Math.min(line, Math.max(sourceLines - 1, 0));
-    lines.push(encodeVlq(0) + encodeVlq(0) + encodeVlq(sourceLine - previousSourceLine) + encodeVlq(0));
-    previousSourceLine = sourceLine;
-  }
-  return lines.join(";");
-}
-
-function lineCount(value: string): number {
-  return value.length ? value.split(/\r\n|\r|\n/).length : 1;
-}
-
-const base64Digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-function encodeVlq(value: number): string {
-  let vlq = value < 0 ? ((-value) << 1) + 1 : value << 1;
-  let encoded = "";
-  do {
-    let digit = vlq & 31;
-    vlq >>>= 5;
-    if (vlq > 0) digit |= 32;
-    encoded += base64Digits[digit];
-  } while (vlq > 0);
-  return encoded;
-}
-
-function artifactPathsFor(inputFile: string, outDir: string, rootDir?: string): {
-  clientFile: string;
-  serverFile: string;
-  manifestFile: string;
-} {
-  const root = rootDir ?? path.dirname(inputFile);
-  const relative = path.relative(root, inputFile);
-  const parsed = path.parse(relative);
-  const extension = parsed.ext.toLowerCase() === ".tsx" ? ".ts" : ".js";
-  const base = path.join(outDir, parsed.dir, parsed.name);
-  return {
-    clientFile: `${base}.exact.client${extension}`,
-    serverFile: `${base}.exact.server${extension}`,
-    manifestFile: `${base}.exact.manifest.json`
-  };
-}
-
-function withArtifactMetadata(
-  manifest: ExactCompilerManifest,
-  inputFile: string,
-  paths: { clientFile: string; serverFile: string; manifestFile: string }
-): ExactCompilerManifest {
-  const root = path.dirname(paths.manifestFile);
-  return {
-    ...manifest,
-    artifacts: {
-      source: slashPath(path.relative(root, inputFile)),
-      client: slashPath(path.relative(root, paths.clientFile)),
-      server: slashPath(path.relative(root, paths.serverFile)),
-      manifest: slashPath(path.relative(root, paths.manifestFile)),
-      exports: manifest.exports,
-      symbols: manifest.symbols,
-      boundaries: manifest.boundaries
-    }
-  };
-}
-
-function slashPath(value: string): string {
-  return value.split(path.sep).join("/");
-}
-
-function commonRoot(files: readonly string[]): string {
-  if (!files.length) return process.cwd();
-  const split = files.map(file => path.dirname(path.resolve(file)).split(path.sep));
-  const first = split[0]!;
-  let index = 0;
-  while (index < first.length && split.every(parts => parts[index] === first[index])) {
-    index++;
-  }
-  return first.slice(0, index).join(path.sep) || path.parse(first[0] ?? process.cwd()).root;
 }
