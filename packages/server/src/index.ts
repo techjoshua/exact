@@ -15,6 +15,14 @@ import type {
   ExactStateContract,
   ExactStreamEvent
 } from "./types.js";
+import {
+  hasOnlyKeys,
+  isJsonSafe,
+  jsonResponse,
+  parseExactRequestBody,
+  readBody,
+  requestPayloadSafe
+} from "./protocol.js";
 
 export { exactCompilerManifestVersion, exactServerManifestVersion } from "./versions.js";
 export {
@@ -23,6 +31,7 @@ export {
   createExactHydrationStateContracts,
   createExactServerManifest
 } from "./manifest.js";
+export { createExpressHandler, createFetchHandler, createHapiHandler } from "./adapters.js";
 export type * from "./types.js";
 
 export async function handleExactRequest(request: ExactRequestLike, context: ExactServerContext): Promise<ExactResponseLike> {
@@ -250,75 +259,6 @@ function headerValue(headers: ExactRequestLike["headers"], name: string): string
   return undefined;
 }
 
-export function createFetchHandler(context: ExactServerContext): (request: Request) => Promise<Response> {
-  return async request => {
-    const response = await handleExactRequest({
-      method: request.method,
-      url: request.url,
-      headers: request.headers,
-      json: () => request.json(),
-      text: () => request.text()
-    }, context);
-    return new Response(response.stream ?? response.body ?? "", {
-      status: response.status,
-      headers: response.headers
-    });
-  };
-}
-
-export function createExpressHandler(context: ExactServerContext): (request: any, response: any) => void {
-  return (request, response) => {
-    void handleExactRequest({
-      method: request.method,
-      url: request.url,
-      headers: request.headers,
-      body: request.body,
-      text: typeof request.text === "function" ? () => request.text() : undefined
-    }, context).then(result => {
-      response.status(result.status);
-      for (const [name, value] of Object.entries(result.headers)) response.setHeader(name, value);
-      if (result.stream) {
-        void pipeReadableStream(result.stream, chunk => response.write(chunk), () => response.end(), error => response.destroy?.(error));
-      } else {
-        response.send(result.body ?? "");
-      }
-    });
-  };
-}
-
-export function createHapiHandler(context: ExactServerContext): (request: any, h: any) => Promise<any> {
-  return async (request, h) => {
-    const result = await handleExactRequest({
-      method: request.method,
-      url: request.url?.href ?? request.url?.path,
-      headers: request.headers,
-      body: request.payload
-    }, context);
-    const response = h.response(result.stream ?? result.body ?? "").code(result.status);
-    for (const [name, value] of Object.entries(result.headers)) response.header(name, value);
-    return response;
-  };
-}
-
-async function pipeReadableStream(
-  stream: ReadableStream<Uint8Array>,
-  write: (chunk: Uint8Array) => void,
-  end: () => void,
-  fail: (error: unknown) => void
-): Promise<void> {
-  const reader = stream.getReader();
-  try {
-    while (true) {
-      const next = await reader.read();
-      if (next.done) break;
-      write(next.value);
-    }
-    end();
-  } catch (error) {
-    fail(error);
-  }
-}
-
 function isManifestAllowed(input: ExactInvocationRequest, manifest: ExactServerManifest): boolean {
   if (input.type === "action") return Boolean(manifest.actions?.[input.id]);
   if (input.type === "refresh") return Boolean(manifest.boundaries?.[input.id]);
@@ -419,81 +359,6 @@ async function checkSecurityHooks(
   return "allowed";
 }
 
-async function readBody(request: ExactRequestLike): Promise<unknown> {
-  if (request.body !== undefined) return request.body;
-  if (request.json) return request.json();
-  if (request.text) return request.text();
-  return undefined;
-}
-
-function parseExactRequestBody(body: unknown): ExactInvocationRequest | ExactBatchRequest {
-  const value = typeof body === "string" ? JSON.parse(body) : body;
-  if (!value || typeof value !== "object") throw new Error("invalid invocation");
-  const record = value as Record<string, unknown>;
-  if (record.type === "batch") return parseBatch(record);
-  return parseInvocationRecord(record);
-}
-
-function parseBatch(record: Record<string, unknown>): ExactBatchRequest {
-  if (!hasOnlyKeys(record, ["type", "version", "operations"])) throw new Error("unknown batch field");
-  if (record.version !== undefined && record.version !== 1) throw new Error("invalid batch version");
-  if (!Array.isArray(record.operations)) throw new Error("invalid batch operations");
-  const operations = record.operations.map(operation => {
-    if (!operation || typeof operation !== "object" || Array.isArray(operation)) throw new Error("invalid batch operation");
-    return parseInvocationRecord(operation as Record<string, unknown>);
-  });
-  const operationIds = new Set<string>();
-  for (const operation of operations) {
-    if (!operation.opId) continue;
-    if (operationIds.has(operation.opId)) throw new Error("duplicate batch operation id");
-    operationIds.add(operation.opId);
-  }
-  return {
-    type: "batch",
-    version: record.version === 1 ? 1 : undefined,
-    operations
-  };
-}
-
-function parseInvocationRecord(record: Record<string, unknown>): ExactInvocationRequest {
-  if (!hasOnlyKeys(record, ["type", "id", "opId", "dependsOn", "payload", "state", "context", "boundaryHtml", "boundaryHtmls"])) throw new Error("unknown invocation field");
-  if (record.type !== "action" && record.type !== "refresh") throw new Error("invalid invocation type");
-  if (typeof record.id !== "string" || !record.id) throw new Error("invalid invocation id");
-  if (record.opId !== undefined && (typeof record.opId !== "string" || !record.opId)) throw new Error("invalid operation id");
-  if (record.dependsOn !== undefined && !isStringList(record.dependsOn)) throw new Error("invalid operation dependencies");
-  if (record.context !== undefined && !isContextValueMap(record.context)) throw new Error("invalid context");
-  if (record.boundaryHtmls !== undefined && !isBoundaryHtmlMap(record.boundaryHtmls)) throw new Error("invalid boundary htmls");
-  return {
-    type: record.type,
-    id: record.id,
-    ...(typeof record.opId === "string" ? { opId: record.opId } : {}),
-    ...(Array.isArray(record.dependsOn) ? { dependsOn: record.dependsOn } : {}),
-    ...(record.payload === undefined ? {} : { payload: record.payload }),
-    ...(record.state === undefined ? {} : { state: record.state }),
-    ...(record.context === undefined ? {} : { context: record.context }),
-    ...(typeof record.boundaryHtml === "string" ? { boundaryHtml: record.boundaryHtml } : {}),
-    ...(record.boundaryHtmls === undefined ? {} : { boundaryHtmls: record.boundaryHtmls })
-  };
-}
-
-function requestPayloadSafe(input: ExactInvocationRequest | ExactBatchRequest): boolean {
-  if (input.type === "batch") {
-    return input.operations.every(operation => requestPayloadSafe(operation));
-  }
-  return isJsonSafe(input.payload) && isJsonSafe(input.state) && isJsonSafe(input.context);
-}
-
-function jsonResponse(status: number, body: unknown): ExactResponseLike {
-  return {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": "no-store"
-    },
-    body: JSON.stringify(body)
-  };
-}
-
 function logReject(context: ExactServerContext, message: string): void {
   logFrameworkEvent("warn", "server", "security", message, undefined, context.logger);
 }
@@ -540,19 +405,6 @@ function isPatchSafe(patch: unknown): patch is ExactPatch {
     default:
       return false;
   }
-}
-
-function isBoundaryHtmlMap(value: unknown): value is Record<string, string> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  return Object.entries(value as Record<string, unknown>).every(([id, html]) => !!id && typeof html === "string");
-}
-
-function isContextValueMap(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === "object" && !Array.isArray(value);
-}
-
-function isStringList(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every(item => typeof item === "string" && item.length > 0);
 }
 
 function boundaryHintsAllowed(input: ExactInvocationRequest, manifest: ExactServerManifest): boolean {
@@ -607,20 +459,4 @@ function hasStatePath(value: unknown, path: string): boolean {
     cursor = (cursor as Record<string, unknown>)[segment];
   }
   return true;
-}
-
-function isJsonSafe(value: unknown, seen = new Set<object>()): boolean {
-  if (value === undefined || value === null) return true;
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return Number.isFinite(value as number) || typeof value !== "number";
-  if (typeof value !== "object") return false;
-  if (seen.has(value)) return false;
-  seen.add(value);
-  if (Array.isArray(value)) return value.every(item => isJsonSafe(item, seen));
-  if (Object.getPrototypeOf(value) !== Object.prototype) return false;
-  return Object.values(value as Record<string, unknown>).every(item => isJsonSafe(item, seen));
-}
-
-function hasOnlyKeys(record: Record<string, unknown>, allowed: readonly string[]): boolean {
-  const allowedSet = new Set(allowed);
-  return Object.keys(record).every(key => allowedSet.has(key));
 }
