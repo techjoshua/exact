@@ -1,7 +1,6 @@
 import { render } from "@exact/dom";
-import { createServerSlot, createVNode, logFrameworkEvent, type Logger, type VNode } from "@exact/core";
+import { logFrameworkEvent, type Logger, type VNode } from "@exact/core";
 import type {
-  ClientIslandRegistry,
   ExactBatchQueue,
   ExactClient,
   FetchLike,
@@ -9,8 +8,7 @@ import type {
   HydrationRoot,
   ExactInvocationKind,
   ExactInvocationRequest,
-  ExactInvocationResult,
-  ExactStateContract
+  ExactInvocationResult
 } from "./types.js";
 import {
   cloneEndpointRoutes,
@@ -20,10 +18,13 @@ import {
   readExactHydrationConfig,
   resolveHydrateOptions
 } from "./config.js";
+import { hydrateClientIslands } from "./islands.js";
 import { invokeExact, invokeExactBatch } from "./invocations.js";
 import { applyPatches, boundaryInnerHtml, hasExactMarkers, reportMismatch } from "./patches.js";
+import { stateForContract } from "./state.js";
 
 export { applyPatches } from "./patches.js";
+export { hydrateClientIslands } from "./islands.js";
 export { invokeExact, invokeExactBatch } from "./invocations.js";
 export { readExactHydrationConfig } from "./config.js";
 export type * from "./types.js";
@@ -93,26 +94,6 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 
 export function getHydrationRoot(container: Element): HydrationRoot | undefined {
   return roots.get(container);
-}
-
-export function hydrateClientIslands(container: Element | Document, registry: ClientIslandRegistry, options: HydrateOptions = {}): number {
-  const boundaries = Array.from(container.querySelectorAll("[data-exact-client-boundary]"));
-  let hydrated = 0;
-  for (const boundary of boundaries) {
-    if (boundary.getAttribute("data-exact-client-hydrated") === "true") continue;
-    const name = boundary.getAttribute("data-exact-client-name");
-    if (!name) continue;
-    const component = registry[name];
-    if (!component) {
-      logFrameworkEvent("warn", "hydrate", "island", `missing client island ${name}`, undefined, options.logger);
-      continue;
-    }
-    const props = parseIslandProps(boundary.getAttribute("data-exact-client-props"));
-    render(createVNode(component, props), boundary, { logger: options.logger });
-    boundary.setAttribute("data-exact-client-hydrated", "true");
-    hydrated++;
-  }
-  return hydrated;
 }
 
 async function invokeAndApply(
@@ -280,77 +261,6 @@ function transportForEndpoint(options: HydrateOptions, endpoint: string): { fetc
       ...(transport?.headers ?? {})
     }
   };
-}
-
-function parseIslandProps(raw: string | null): Record<string, unknown> {
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-    const props = (parsed as Record<string, unknown>).props;
-    return props && typeof props === "object" && !Array.isArray(props)
-      ? reviveServerSlots(props) as Record<string, unknown>
-      : {};
-  } catch {
-    return {};
-  }
-}
-
-function reviveServerSlots(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(reviveServerSlots);
-  if (!value || typeof value !== "object") return value;
-  const record = value as Record<string, unknown>;
-  if (typeof record.__exactServerSlot === "string") {
-    return createServerSlot(record.__exactServerSlot);
-  }
-  const revived: Record<string, unknown> = {};
-  for (const [key, child] of Object.entries(record)) {
-    if (!isSafeObjectKey(key)) continue;
-    revived[key] = reviveServerSlots(child);
-  }
-  return revived;
-}
-
-function stateForContract(state: unknown, contract: ExactStateContract | undefined): unknown {
-  if (!contract) return state;
-  const reads = contract.reads?.filter(read => read.kind === "read" && read.confidence === "exact") ?? [];
-  if (!reads.length) return {};
-  const output: Record<string, unknown> = {};
-  for (const read of reads) {
-    const value = getPath(state, read.path);
-    if (value !== undefined) setPath(output, read.path, value);
-  }
-  return output;
-}
-
-function getPath(value: unknown, path: string): unknown {
-  if (path === "*") return value;
-  let cursor = value;
-  for (const segment of path.split(".")) {
-    if (!cursor || typeof cursor !== "object" || Array.isArray(cursor)) return undefined;
-    if (!Object.prototype.hasOwnProperty.call(cursor, segment)) return undefined;
-    cursor = (cursor as Record<string, unknown>)[segment];
-  }
-  return cursor;
-}
-
-function setPath(target: Record<string, unknown>, path: string, value: unknown): void {
-  if (path === "*") return;
-  const segments = path.split(".");
-  if (!segments.every(isSafeObjectKey)) return;
-  let cursor: Record<string, unknown> = target;
-  for (const segment of segments.slice(0, -1)) {
-    const next = cursor[segment];
-    if (!next || typeof next !== "object" || Array.isArray(next)) {
-      cursor[segment] = {};
-    }
-    cursor = cursor[segment] as Record<string, unknown>;
-  }
-  cursor[segments[segments.length - 1]!] = value;
-}
-
-function isSafeObjectKey(key: string): boolean {
-  return key !== "__proto__" && key !== "prototype" && key !== "constructor";
 }
 
 function boundaryHtmlsFor(container: Element, ids: readonly string[] | undefined): Record<string, string> | undefined {
