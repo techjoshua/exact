@@ -20,8 +20,9 @@ import {
 import { unwrap } from "@exact/reactive";
 import type { ExactPatch } from "@exact/server";
 import { boundaryPatch, diffBoundaryHtml, diffKeyedListItems } from "./diff.js";
-import { escapeAttr, escapeAttrName, escapeText, voidElements } from "./html.js";
+import { escapeAttr, escapeText, voidElements } from "./html.js";
 import { jsonUnsafePath, renderHydrationScript, serializeHydrationPayload } from "./hydration.js";
+import { exactMarkerId, keyedItemMarkerId, markerId, markerPair, renderAttrs, withMarker } from "./markup.js";
 import { createDocumentEventStream, createHtmlStream, createProgressiveHtmlStream, progressiveHtmlResponse } from "./streams.js";
 import type {
   ActionRefreshOptions,
@@ -672,69 +673,6 @@ function shouldEmitDocumentHydration(options: RenderToDocumentStreamOptions): bo
     || options.nonce !== undefined;
 }
 
-function renderAttrs(props: Record<string, unknown>): string {
-  let attrs = "";
-  for (const [name, rawValue] of Object.entries(props)) {
-    if (name === "children" || name === "key" || name === "ref" || /^on[A-Z]/.test(name)) continue;
-    const value = unwrap(rawValue);
-    if (value === false || value === null || value === undefined) continue;
-    const attrName = name === "className" ? "class" : name;
-    if (attrName === "style") {
-      const style = renderStyle(value);
-      if (style) attrs += ` style="${escapeAttr(style)}"`;
-      continue;
-    }
-    if (value === true) {
-      attrs += ` ${escapeAttrName(attrName)}`;
-      continue;
-    }
-    attrs += ` ${escapeAttrName(attrName)}="${escapeAttr(String(value))}"`;
-  }
-  return attrs;
-}
-
-function renderStyle(value: unknown): string {
-  const actual = unwrap(value);
-  if (!actual || actual === false) return "";
-  if (typeof actual === "string") return actual;
-  if (typeof actual !== "object") return "";
-  const chunks: string[] = [];
-  for (const [name, raw] of Object.entries(actual)) {
-    const styleValue = unwrap(raw);
-    if (styleValue === null || styleValue === undefined || styleValue === false) continue;
-    chunks.push(`${toCssProperty(name)}: ${String(styleValue)};`);
-  }
-  return chunks.join(" ");
-}
-
-function withMarker(context: SsrContext, kind: string, key: string | undefined, render: () => string): string {
-  return markerPair(context, markerId(context, kind, undefined, key), render);
-}
-
-function markerPair(context: SsrContext, id: string, render: () => string): string;
-function markerPair(context: SsrContext, id: string, render: () => Promise<string>): Promise<string>;
-function markerPair(context: SsrContext, id: string, render: () => string | Promise<string>): string | Promise<string> {
-  if (!context.markers) return render();
-  const rendered = render();
-  if (rendered instanceof Promise) {
-    return rendered.then(html => `<!--exact:${id}-->${html}<!--/exact:${id}-->`);
-  }
-  return `<!--exact:${id}-->${rendered}<!--/exact:${id}-->`;
-}
-
-function markerId(context: SsrContext, kind: string, name?: string, key?: string): string {
-  const id = `${kind}:${context.nextId++}${name ? `:${name}` : ""}${key ? `:${key}` : ""}`;
-  return id.replace(/--/g, "");
-}
-
-function exactMarkerId(id: string): string {
-  return id.startsWith("exact:") ? id.slice("exact:".length) : id;
-}
-
-function keyedItemMarkerId(key: string): string {
-  return `item:${key}`.replace(/--/g, "");
-}
-
 function getComponentProps(vnode: VNode): Record<string, unknown> {
   const props = { ...vnode.props };
   if (vnode.children.length === 1) props.children = vnode.children[0];
@@ -744,10 +682,6 @@ function getComponentProps(vnode: VNode): Record<string, unknown> {
 
 function componentName(type: VNode["type"]): string {
   return typeof type === "function" ? type.name || "anonymous" : String(type);
-}
-
-function toCssProperty(name: string): string {
-  return name.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`);
 }
 
 async function drainTasks(pending: Set<Promise<unknown>>, maxPasses: number): Promise<void> {
