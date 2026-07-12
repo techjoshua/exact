@@ -4,6 +4,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createCompiledVNode,
+  createVNode,
   createDynamicChild,
   createExpression,
   ErrorContext,
@@ -17,10 +18,188 @@ import {
   type Logger
 } from "@exact/core";
 import { jsx, jsxs } from "@exact/jsx";
-import { flushSync } from "@exact/reactive";
+import { createEffectScope, flushSync } from "@exact/reactive";
 import { percent, px, rem, render } from "./index.js";
+import { mountedDomNodes, placeMountedBefore } from "./placement.js";
 
 describe("@exact/dom", () => {
+  it("moves an adopted boundary as one start-to-end DOM range", () => {
+    const container = document.createElement("div");
+    const start = document.createComment("exact:component:0");
+    const child = document.createElement("p");
+    const end = document.createComment("/exact:component:0");
+    const anchor = document.createElement("i");
+    container.append(start, child, end, anchor);
+    function Boundary() { return null; }
+    const mounted = {
+      vnode: createVNode(Boundary, null),
+      dom: start,
+      end,
+      scope: createEffectScope(),
+      children: [{ vnode: createVNode("p", null), dom: child, scope: createEffectScope(), children: [] }]
+    };
+    placeMountedBefore({ debugMarkers: false } as any, container, mounted, anchor);
+    expect(mountedDomNodes(mounted)).toEqual([start, child, end]);
+    expect(Array.from(container.childNodes)).toEqual([start, child, end, anchor]);
+  });
+  it("moves only the out-of-order keyed range for a simple rotation", () => {
+    const container = document.createElement("div");
+    let list!: Component<{ items: string[] }>;
+    function List(this: Component<{ items: string[] }>) {
+      list = this;
+      this.state.items = ["a", "b", "c"];
+      return () => jsx("ul", { children: this.map(this.state.items, item => item, item => jsx("li", { children: item })) });
+    }
+    render(jsx(List, {}), container);
+    const original = Node.prototype.insertBefore;
+    let placements = 0;
+    Node.prototype.insertBefore = function<T extends Node>(this: Node, node: T, before: Node | null): T {
+      if (this === container.querySelector("ul")) placements++;
+      return original.call(this, node, before) as T;
+    };
+    try {
+      list.state.items.splice(0, 3, "c", "a", "b");
+      flushSync();
+    } finally {
+      Node.prototype.insertBefore = original;
+    }
+    expect(Array.from(container.querySelectorAll("li"), item => item.textContent)).toEqual(["c", "a", "b"]);
+    // One keyed range moves; compiled cells own an anchor and an element.
+    expect(placements).toBe(2);
+  });
+  it("reuses keyed list render results across unrelated parent rerenders", () => {
+    const container = document.createElement("div");
+    const itemRender = vi.fn((item: { id: string }) => jsx("li", { children: item.id }));
+    function List(this: Component<{ tick: number; items: { id: string }[] }>) {
+      this.state.tick = 0;
+      this.state.items = [{ id: "a" }, { id: "b" }];
+      return () => jsx("button", {
+        onClick: () => this.state.tick++,
+        children: [String(this.state.tick), this.map(this.state.items, item => item.id, itemRender)]
+      });
+    }
+    render(jsx(List, {}), container);
+    expect(itemRender).toHaveBeenCalledTimes(2);
+    container.querySelector("button")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    flushSync();
+    expect(itemRender).toHaveBeenCalledTimes(2);
+  });
+  it("rejects duplicate this.map keys deterministically", () => {
+    const container = document.createElement("div");
+    function List(this: Component<{ items: { id: string }[] }>) {
+      this.state.items = [{ id: "same" }, { id: "same" }];
+      return () => jsx("ul", { children: this.map(this.state.items, item => item.id, item => jsx("li", { children: item.id })) });
+    }
+    render(jsx(List, {}), container);
+    expect(container.textContent).toContain('Duplicate key "same"');
+  });
+  it("normalizes JSX double-click handlers to the browser dblclick event", () => {
+    const container = document.createElement("div");
+    let calls = 0;
+    render(jsx("button", { onDoubleClick: () => calls++, children: "Double" }), container);
+    container.querySelector("button")!.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    expect(calls).toBe(1);
+  });
+
+  it("runs capture handlers without relying on bubbling delegation", () => {
+    const container = document.createElement("div");
+    const calls: string[] = [];
+    render(jsx("section", { onClickCapture: () => calls.push("capture"), children: jsx("button", { children: "Click" }) }), container);
+    container.querySelector("button")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(calls).toEqual(["capture"]);
+  });
+
+  it("uses direct listeners for non-bubbling events and cleans them on unmount", () => {
+    const container = document.createElement("div");
+    let calls = 0;
+    render(jsx("input", { onFocus: () => calls++ }), container);
+    const input = container.querySelector("input")!;
+    input.dispatchEvent(new FocusEvent("focus"));
+    render(jsx("p", { children: "removed" }), container);
+    input.dispatchEvent(new FocusEvent("focus"));
+    expect(calls).toBe(1);
+  });
+  it("keeps pointer lifecycle handlers direct across keyed movement", () => {
+    const container = document.createElement("div");
+    let list!: Component<{ items: string[] }>;
+    const moves = vi.fn();
+    function List(this: Component<{ items: string[] }>) {
+      list = this;
+      this.state.items = ["a", "b"];
+      return () => jsx("section", { children: this.map(this.state.items, item => item, item => jsx("button", { onPointerMove: moves, children: item })) });
+    }
+    render(jsx(List, {}), container);
+    const button = container.querySelectorAll("button")[0]!;
+    list.state.items.splice(0, 2, "b", "a");
+    flushSync();
+    button.dispatchEvent(new Event("pointermove", { bubbles: true }));
+    expect(moves).toHaveBeenCalledTimes(1);
+  });
+  it("normalizes pointer-capture lifecycle events without treating them as capture-phase handlers", () => {
+    const container = document.createElement("div");
+    const lost = vi.fn();
+    render(jsx("button", { onLostPointerCapture: lost, children: "drag" }), container);
+    container.querySelector("button")!.dispatchEvent(new Event("lostpointercapture"));
+    expect(lost).toHaveBeenCalledTimes(1);
+  });
+  it("updates a derived prop collection when a canonical record changes membership", () => {
+    const container = document.createElement("div");
+    let board!: Component<{ tasks: { id: string; status: string }[] }>;
+    function Column(this: Component<{}>, props: { tasks: { id: string; status: string }[]; status: string }) {
+      // This mirrors compiler output for a component-local filtered list.
+      const columnTasks = this.reactive(() => props.tasks.filter(task => task.status === props.status));
+      return () => jsx("ul", { children: this.map(columnTasks, task => task.id, task => jsx("li", { children: task.id })) });
+    }
+    function Board(this: Component<{ tasks: { id: string; status: string }[] }>) {
+      board = this;
+      this.state.tasks = [{ id: "a", status: "todo" }, { id: "b", status: "done" }];
+      return () => jsx("section", { children: [jsx(Column, { tasks: this.state.tasks, status: "todo" }), jsx(Column, { tasks: this.state.tasks, status: "done" })] });
+    }
+    render(jsx(Board, {}), container);
+    board.state.tasks[1]!.status = "todo";
+    flushSync();
+    expect(Array.from(container.querySelectorAll("ul"), list => list.textContent)).toEqual(["ab", ""]);
+  });
+
+  it("does not move keyed cards when an unkeyed marker is inserted beside one", () => {
+    const container = document.createElement("div");
+    let board!: Component<{ marker?: string }>;
+    function Board(this: Component<{ marker?: string }>) {
+      board = this;
+      this.state.marker = undefined;
+      const cards = this.reactive(() => [
+        this.state.marker === "a" ? jsx("i", { children: "marker" }) : null,
+        jsx("button", { "data-card": "a", children: "a" }),
+        jsx("button", { "data-card": "b", children: "b" })
+      ]);
+      return () => jsx("section", { children: createDynamicChild(() => cards.get()) });
+    }
+    render(jsx(Board, {}), container);
+    const firstCard = container.querySelector('[data-card="a"]');
+    board.state.marker = "a";
+    flushSync();
+    expect(Array.from(container.querySelectorAll("i, button"), node => node.textContent)).toEqual(["marker", "a", "b"]);
+    expect(container.querySelector('[data-card="a"]')).toBe(firstCard);
+  });
+
+  it("replaces direct event handlers without retaining the previous callback", () => {
+    const container = document.createElement("div");
+    const first = vi.fn();
+    const second = vi.fn();
+    render(jsx("input", { onFocus: first }), container);
+    render(jsx("input", { onFocus: second }), container);
+    container.querySelector("input")!.dispatchEvent(new FocusEvent("focus"));
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses a direct listener for scroll handlers", () => {
+    const container = document.createElement("div");
+    const scrolled = vi.fn();
+    render(jsx("div", { onScroll: scrolled, children: "Scroll" }), container);
+    container.firstElementChild!.dispatchEvent(new Event("scroll"));
+    expect(scrolled).toHaveBeenCalledTimes(1);
+  });
   it("mounts and updates a component", () => {
     let instance!: Component<{ count: number }>;
     const rendered = vi.fn();
@@ -211,6 +390,22 @@ describe("@exact/dom", () => {
     expect(panel.state.errors[0]!.source).toBe("event");
     expect(container.textContent).toBe("Recovered");
     expect(container.querySelector("button")).toBeNull();
+  });
+
+  it("routes direct event handler failures to the nearest error context", () => {
+    let panel!: Component<{ errors: ErrorReport[] }>;
+    function Panel(this: Component<{ errors: ErrorReport[] }>) {
+      panel = this;
+      this.state.errors = [];
+      this.setContext(ErrorContext, createErrorContext(this.state.errors));
+      return () => this.state.errors.length ? jsx("p", { children: "Recovered" }) : jsx("input", { onFocus: () => { throw new Error("focus failed"); } });
+    }
+    const container = document.createElement("div");
+    render(jsx(Panel, {}), container);
+    container.querySelector("input")!.dispatchEvent(new FocusEvent("focus"));
+    flushSync();
+    expect(panel.state.errors[0]!.source).toBe("event");
+    expect(container.textContent).toBe("Recovered");
   });
 
   it("routes failures to the nearest nested error context only", () => {

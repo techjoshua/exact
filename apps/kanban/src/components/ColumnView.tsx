@@ -12,7 +12,8 @@ type ColumnViewProps = {
 /** Renders one kanban status column and its task cards. */
 export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
   const board = this.getContext(BoardContext);
-  const countLabel = props.tasks.length === 1 ? "1 task" : `${props.tasks.length} tasks`;
+  const columnTasks = props.tasks.filter(task => task.status === props.column.id);
+  const countLabel = columnTasks.length === 1 ? "1 task" : `${columnTasks.length} tasks`;
 
   const dropTask = (event: DragEvent) => {
     event.preventDefault();
@@ -37,7 +38,7 @@ export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
   return () => (
     <article
       id={`column-${props.column.id}`}
-      className={["column", { empty: props.tasks.length === 0 }]}
+      className={["column", { empty: columnTasks.length === 0 }]}
       onDragEnter={event => allowDrop(event as DragEvent)}
       onDragOver={event => allowDrop(event as DragEvent)}
       onDrop={event => dropTask(event as DragEvent)}
@@ -48,7 +49,7 @@ export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
       </header>
 
       <div className="cards">
-        {props.tasks.length === 0 ? (
+        {columnTasks.length === 0 ? (
           props.dragPlacement?.status === props.column.id ? (
             <DropMarker />
           ) : (
@@ -57,7 +58,7 @@ export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
         ) : (
           <>
             {this.map(
-              props.tasks,
+              columnTasks,
               task => task.id,
               task => (
                 <>

@@ -88,11 +88,247 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
   root.logger = options.logger;
   root.debugMarkers = options.debugMarkers ?? false;
 
-  root.mounted = patch(root, container, root.mounted, createVNode(root.boundary, {
-    version: root.version
-  }), undefined, undefined);
+  const next = root.mode === "hydrated"
+    ? vnode
+    : createVNode(root.boundary, { version: root.version });
+  root.mounted = patch(root, container, root.mounted, next, undefined, undefined);
   flushSync();
 }
+
+/**
+ * Attaches the renderer to an already-validated static SSR boundary.  Unlike a
+ * validation-only hydration pass this creates the normal mounted graph, so a
+ * later render patches the adopted nodes instead of appending a second tree.
+ */
+export function adoptStatic(vnode: VNode, container: Element, options: RenderOptions = {}): boolean {
+  if (roots.has(container)) return true;
+  const markers = boundaryMarkers(container);
+  if (!markers) return false;
+
+  const root: Root = {
+    container,
+    delegated: new Map(),
+    errors: createErrorContext(),
+    current: vnode,
+    version: 1,
+    boundary: undefined as never,
+    debugMarkers: false,
+    logger: options.logger
+  };
+  root.boundary = createRootBoundary(root);
+  const scope = createEffectScope();
+  const boundaryVNode = createVNode(root.boundary, { version: root.version });
+  const mounted: Mounted = { vnode: boundaryVNode, dom: markers.start, end: markers.end, scope, children: [] };
+  try {
+    const instance = withEffectScope(scope, () => createComponentInstance(root.boundary, { version: root.version }));
+    mounted.instance = instance;
+    const rendered = withEffectScope(scope, () => renderInstance(instance, () => rerenderComponent(root, mounted)));
+    const nodes = contentNodesBetween(markers.start, markers.end);
+    const children = adoptStaticChildren(root, rendered, nodes, instance, scope);
+    if (!children) {
+      scope.stop();
+      return false;
+    }
+    mounted.children = children;
+    instance.markMounted();
+    root.mounted = mounted;
+    roots.set(container, root);
+    return true;
+  } catch (error) {
+    scope.stop();
+    return false;
+  }
+}
+
+/** Adopts an SSR-root component boundary as the renderer root. */
+export function adoptComponentRoot(vnode: VNode, container: Element, options: RenderOptions = {}): boolean {
+  if (typeof vnode.type !== "function" || roots.has(container)) return false;
+  const markers = boundaryMarkers(container);
+  if (!markers || !markers.start.data.startsWith("exact:component:")) return false;
+  const root: Root = {
+    container, delegated: new Map(), errors: createErrorContext(), current: vnode,
+    version: 1, boundary: undefined as never, debugMarkers: false,
+    logger: options.logger, mode: "hydrated"
+  };
+  root.boundary = createRootBoundary(root);
+  const scope = createEffectScope();
+  const mounted: Mounted = { vnode, dom: markers.start, end: markers.end, scope, children: [] };
+  try {
+    const instance = withEffectScope(scope, () => createComponentInstance(
+      vnode.type as ComponentFunction<any, Record<string, unknown>>, getComponentProps(vnode)
+    ));
+    mounted.instance = instance;
+    const rendered = withEffectScope(scope, () => renderInstance(instance, () => rerenderComponent(root, mounted)));
+    const children = adoptStaticChildren(root, rendered, contentNodesBetween(markers.start, markers.end), instance, scope);
+    if (!children) { scope.stop(); return false; }
+    mounted.children = children;
+    instance.markMounted();
+    root.mounted = mounted;
+    roots.set(container, root);
+    return true;
+  } catch {
+    scope.stop();
+    return false;
+  }
+}
+
+function boundaryMarkers(container: Element): { start: Comment; end: Comment } | undefined {
+  const comments = Array.from(container.childNodes).filter((node): node is Comment => node.nodeType === Node.COMMENT_NODE);
+  const start = comments.find(node => node.data.startsWith("exact:"));
+  if (!start) return undefined;
+  const end = comments.find(node => node.data === `/${start.data}`);
+  return end ? { start, end } : undefined;
+}
+
+function contentNodesBetween(start: Node, end: Node): Node[] {
+  const nodes: Node[] = [];
+  for (let current = start.nextSibling; current && current !== end; current = current.nextSibling) nodes.push(current);
+  return nodes;
+}
+
+function adoptStaticChildren(
+  root: Root,
+  children: Child[],
+  nodes: readonly Node[],
+  parentInstance: ComponentInstance<any>,
+  parentScope: EffectScope
+): Mounted[] | undefined {
+  const vnodes = children.map(childToVNode).filter((child): child is VNode => !!child);
+  const mounts: Mounted[] = [];
+  let cursor = 0;
+  for (const child of vnodes) {
+    const result = adoptStaticMounted(root, child, nodes, cursor, parentInstance, parentScope);
+    if (!result) return undefined;
+    mounts.push(result.mounted);
+    cursor = result.next;
+  }
+  return cursor === nodes.length ? mounts : undefined;
+}
+
+function adoptStaticMounted(
+  root: Root,
+  vnode: VNode,
+  nodes: readonly Node[],
+  cursor: number,
+  parentInstance: ComponentInstance<any>,
+  parentScope: EffectScope
+): { mounted: Mounted; next: number } | undefined {
+  const scope = createEffectScope(parentScope);
+  if (typeof vnode.type === "function") {
+    const start = nodes[cursor];
+    if (!(start instanceof Comment) || !start.data.startsWith("exact:component:")) { scope.stop(); return undefined; }
+    const endIndex = nodes.findIndex((node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`);
+    if (endIndex < 0) { scope.stop(); return undefined; }
+    const mounted: Mounted = { vnode, dom: start, end: nodes[endIndex]!, scope, children: [] };
+    try {
+      const instance = withEffectScope(scope, () => createComponentInstance(
+        vnode.type as ComponentFunction<any, Record<string, unknown>>, getComponentProps(vnode), parentInstance
+      ));
+      mounted.instance = instance;
+      const rendered = withEffectScope(scope, () => renderInstance(instance, () => rerenderComponent(root, mounted)));
+      const children = adoptStaticChildren(root, rendered, nodes.slice(cursor + 1, endIndex), instance, scope);
+      if (!children) { scope.stop(); return undefined; }
+      mounted.children = children;
+      instance.markMounted();
+      return { mounted, next: endIndex + 1 };
+    } catch {
+      scope.stop();
+      return undefined;
+    }
+  }
+  if (isCellVNode(vnode) || vnode.type === Dynamic) {
+    const kind = isCellVNode(vnode) ? "cell" : "dynamic";
+    const start = nodes[cursor];
+    if (!(start instanceof Comment) || !start.data.startsWith(`exact:${kind}:`)) { scope.stop(); return undefined; }
+    const endIndex = nodes.findIndex((node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`);
+    if (endIndex < 0) { scope.stop(); return undefined; }
+    const end = nodes[endIndex] as Comment;
+    const mounted: Mounted = { vnode, dom: start, end, scope, children: [] };
+    const initial = isCellVNode(vnode)
+      ? [getCellVNode(vnode)]
+      : normalizeRenderResult(unwrap(vnode.props.value) as Child | Child[]);
+    const children = adoptStaticChildren(root, initial, nodes.slice(cursor + 1, endIndex), parentInstance, scope);
+    if (!children) { scope.stop(); return undefined; }
+    mounted.children = children;
+    if (isCellVNode(vnode)) {
+      // Cells are patched by their owning component render; their marker range
+      // still provides stable DOM ownership during hydration.
+      return { mounted, next: endIndex + 1 };
+    }
+    const value = vnode.props.value;
+    mounted.stop = watch(() => {
+      const nextChildren = normalizeRenderResult(unwrap(value) as Child | Child[]);
+      const parent = start.parentNode;
+      if (!parent) return;
+      mounted.children = patchChildren(root, parent, mounted.children, nextChildren, parentInstance, scope, afterMountedChildren(mounted));
+    }, undefined, { scope, onSchedule: () => stopReplacedChildren(mounted, normalizeRenderResult(unwrap(value) as Child | Child[])) });
+    return { mounted, next: endIndex + 1 };
+  }
+  if (vnode.type === Fragment) {
+    const start = nodes[cursor];
+    const list = getListBinding(vnode);
+    const isListMarker = list && start instanceof Comment && start.data.startsWith("exact:");
+    if (!(start instanceof Comment) || !start.data.startsWith("exact:fragment:") && !isListMarker) {
+      const children = adoptStaticChildren(root, vnode.children, nodes.slice(cursor), parentInstance, scope);
+      if (!children) { scope.stop(); return undefined; }
+      const marker = document.createTextNode("");
+      const first = nodes[cursor];
+      if (!first?.parentNode) { scope.stop(); return undefined; }
+      first.parentNode.insertBefore(marker, first);
+      return { mounted: { vnode, dom: marker, scope, children }, next: nodes.length };
+    }
+    const endIndex = nodes.findIndex((node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`);
+    if (endIndex < 0) { scope.stop(); return undefined; }
+    const children = list
+      ? adoptKeyedListChildren(root, materializeList(list), nodes.slice(cursor + 1, endIndex), parentInstance, scope)
+      : adoptStaticChildren(root, vnode.children, nodes.slice(cursor + 1, endIndex), parentInstance, scope);
+    if (!children) { scope.stop(); return undefined; }
+    const mounted: Mounted = { vnode, dom: start, end: nodes[endIndex]!, scope, children };
+    if (list) {
+      mounted.stop = watch(() => {
+        const parent = start.parentNode;
+        if (!parent) return;
+        mounted.children = patchChildren(root, parent, mounted.children, materializeList(list), parentInstance, scope, afterMountedChildren(mounted));
+      }, undefined, { scope, onSchedule: () => stopRemovedListChildren(mounted, list) });
+    }
+    return { mounted, next: endIndex + 1 };
+  }
+  const node = nodes[cursor];
+  if (!node) { scope.stop(); return undefined; }
+  if (vnode.type === Text) {
+    if (node.nodeType !== Node.TEXT_NODE || node.textContent !== String(vnode.props.value ?? "")) { scope.stop(); return undefined; }
+    return { mounted: { vnode, dom: node, scope, children: [] }, next: cursor + 1 };
+  }
+  if (typeof vnode.type !== "string" || !(node instanceof Element) || node.tagName.toLowerCase() !== vnode.type.toLowerCase()) {
+    scope.stop();
+    return undefined;
+  }
+  const children = adoptStaticChildren(root, vnode.children, Array.from(node.childNodes), parentInstance, scope);
+  if (!children) { scope.stop(); return undefined; }
+  setElementOwner(node, parentInstance);
+  updateProps(root, node, {}, vnode.props, scope);
+  return { mounted: { vnode, dom: node, scope, children }, next: cursor + 1 };
+}
+
+function adoptKeyedListChildren(
+  root: Root, vnodes: VNode[], nodes: readonly Node[], parentInstance: ComponentInstance<any>, parentScope: EffectScope
+): Mounted[] | undefined {
+  const mounts: Mounted[] = [];
+  let cursor = 0;
+  for (const vnode of vnodes) {
+    const start = nodes[cursor];
+    const key = vnode.key;
+    if (!key || !(start instanceof Comment) || start.data !== `exact:item:${key}`) return undefined;
+    const endIndex = nodes.findIndex((node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`);
+    if (endIndex < 0) return undefined;
+    const adopted = adoptStaticMounted(root, vnode, nodes.slice(cursor + 1, endIndex), 0, parentInstance, parentScope);
+    if (!adopted || adopted.next !== endIndex - cursor - 1) return undefined;
+    mounts.push({ vnode, dom: start, end: nodes[endIndex]!, range: "item", scope: createEffectScope(parentScope), children: [adopted.mounted] });
+    cursor = endIndex + 1;
+  }
+  return cursor === nodes.length ? mounts : undefined;
+}
+
 
 function createRootBoundary(root: Root): ComponentFunction<{}, { version: number }> {
   return function RootBoundary(this: Component<{}>, props: { version: number }) {
@@ -258,6 +494,22 @@ function patch(
     unmountMounted(mounted);
     removeMountedNodes(parent, mounted);
     return replacement;
+  }
+
+  // SSR keyed item markers wrap an otherwise ordinary vnode. Keep the marker
+  // range as the identity/move unit while delegating the actual patch to its
+  // adopted child.
+  if (mounted.range === "item") {
+    mounted.vnode = next;
+    const child = mounted.children[0];
+    if (child) {
+      mounted.children = [patch(root, parent, child, next, parentInstance, mounted.scope)];
+    } else {
+      const created = mount(root, next, parentInstance, mounted.scope);
+      mounted.children = [created];
+      placeMountedBefore(root, parent, created, mounted.end);
+    }
+    return mounted;
   }
 
   if (isCellVNode(next)) {
@@ -427,17 +679,26 @@ function patchChildrenInner(
   before?: Node | null
 ): Mounted[] {
   const oldByKey = new Map<string, Mounted>();
+  const oldKeyIndices = new Map<string, number>();
   const unkeyed = oldChildren.filter(child => !child.vnode.key);
 
-  for (const child of oldChildren) {
+  for (let index = 0; index < oldChildren.length; index++) {
+    const child = oldChildren[index]!;
     if (child.vnode.key) {
       oldByKey.set(child.vnode.key, child);
+      oldKeyIndices.set(child.vnode.key, index);
     }
   }
 
   const nextVNodes = nextChildren
     .map(childToVNode)
     .filter((vnode): vnode is VNode => !!vnode);
+  const keyedOldOrder = nextVNodes.map(vnode => {
+    if (!vnode.key) return -1;
+    const previous = oldByKey.get(vnode.key);
+    return previous && previous.vnode.type === vnode.type ? oldKeyIndices.get(vnode.key)! : -1;
+  });
+  const stableKeyedPositions = longestIncreasingSubsequencePositions(keyedOldOrder);
   const nextMounted: Mounted[] = [];
   let cursor = before ?? null;
 
@@ -450,18 +711,55 @@ function patchChildrenInner(
     const patched = patch(root, parent, old, vnode, parentInstance, parentScope);
     if (vnode.type === ServerSlot) adoptServerSlot(parent, patched);
     nextMounted.unshift(patched);
-    placeMountedBefore(root, parent, patched, cursor);
+    // Unkeyed children are reconciled positionally. A matching unkeyed mount
+    // is already in the correct relative position; moving it merely because a
+    // sibling was inserted can reorder it around fragment anchors. Apart from
+    // producing visibly unstable lists, that detaches pointer-captured nodes
+    // in browsers and ends active drags. Keyed children retain the LIS move
+    // pass, while only genuinely new unkeyed children need placement here.
+    if (vnode.key
+      ? !stableKeyedPositions.has(index) || keyedOldOrder[index] === -1
+      : !old) {
+      placeMountedBefore(root, parent, patched, cursor);
+    }
     cursor = patched.dom;
   }
 
+  const retained = new Set(nextMounted);
   for (const old of oldChildren) {
-    if (!nextMounted.includes(old)) {
+    if (!retained.has(old)) {
       unmountMounted(old);
       removeMountedNodes(parent, old);
     }
   }
 
   return nextMounted;
+}
+
+/** Returns next-child positions that are already in increasing old-child order. */
+function longestIncreasingSubsequencePositions(values: readonly number[]): Set<number> {
+  const tails: number[] = [];
+  const predecessors = new Array<number>(values.length).fill(-1);
+  for (let index = 0; index < values.length; index++) {
+    const value = values[index]!;
+    if (value < 0) continue;
+    let low = 0;
+    let high = tails.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (values[tails[middle]!]! < value) low = middle + 1;
+      else high = middle;
+    }
+    if (low > 0) predecessors[index] = tails[low - 1]!;
+    tails[low] = index;
+  }
+  const positions = new Set<number>();
+  let cursor = tails[tails.length - 1] ?? -1;
+  while (cursor >= 0) {
+    positions.add(cursor);
+    cursor = predecessors[cursor]!;
+  }
+  return positions;
 }
 
 function rerenderComponent(root: Root, mounted: Mounted): void {
@@ -519,5 +817,8 @@ function removeMountedNodes(parent: Node, mounted: Mounted): void {
 
   if (mounted.dom.parentNode === parent) {
     parent.removeChild(mounted.dom);
+  }
+  if (mounted.end?.parentNode === parent) {
+    parent.removeChild(mounted.end);
   }
 }

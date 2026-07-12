@@ -27,22 +27,25 @@ export function placeMountedBefore(root: Root, parent: Node, mounted: Mounted, b
 /** Returns every DOM node owned by a mounted subtree in document order. */
 export function mountedDomNodes(mounted: Mounted): Node[] {
   const nodes = [mounted.dom];
-  if (mounted.vnode.type === Cell || mounted.vnode.type === Fragment || mounted.vnode.type === Dynamic || typeof mounted.vnode.type === "function") {
+  if (mounted.end || mounted.vnode.type === Cell || mounted.vnode.type === Fragment || mounted.vnode.type === Dynamic || typeof mounted.vnode.type === "function") {
     for (const child of mounted.children) {
       nodes.push(...mountedDomNodes(child));
     }
   }
+  if (mounted.end) nodes.push(mounted.end);
   return nodes;
 }
 
 /** Returns the DOM node immediately after the last mounted child, if one exists. */
 export function afterMountedChildren(mounted: Mounted): Node | null {
+  if (mounted.end) return mounted.end.nextSibling;
   const lastChild = mounted.children[mounted.children.length - 1];
   return lastChild ? lastMountedNode(lastChild).nextSibling : mounted.dom.nextSibling;
 }
 
 /** Returns the final DOM node owned by a mounted subtree. */
 export function lastMountedNode(mounted: Mounted): Node {
+  if (mounted.end) return mounted.end;
   const lastChild = mounted.children[mounted.children.length - 1];
   return lastChild ? lastMountedNode(lastChild) : mounted.dom;
 }

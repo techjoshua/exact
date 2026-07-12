@@ -408,6 +408,10 @@ export type HelperNames = {
   expression: string;
   dynamic: string;
   boundary: string;
+  write: string;
+  update: string;
+  remove: string;
+  arrayMutation: string;
 };
 
 export type StateSnapshotTree = Map<string, StateSnapshotTree | ts.Expression>;

@@ -27,6 +27,7 @@ import {
   createSemanticDeclarationIndex,
   createSemanticReferenceIndex,
   isBrowserGlobalReference,
+  semanticDeclarationForIdentifier,
   semanticReferenceForIdentifier
 } from "./semantic.js";
 import {
@@ -72,6 +73,18 @@ export function analyzeComponent(
   let hasServerEffect = false;
   let clientIslandCount = 0;
   let taskIndex = 0;
+  const setupStateAliases = new Set<string>();
+
+  function collectSetupStateAliases(current: ts.Node): void {
+    if (current !== node && (ts.isFunctionExpression(current) || ts.isArrowFunction(current) || ts.isFunctionDeclaration(current))) return;
+    if (ts.isVariableDeclaration(current) && ts.isIdentifier(current.name) && current.initializer
+      && isSetupReactiveSnapshot(current.initializer, node, sourceFile, semanticReferences)) {
+      const declaration = semanticDeclarationForIdentifier(current.name, semanticDeclarations, sourceFile);
+      if (declaration) setupStateAliases.add(declaration.id);
+    }
+    ts.forEachChild(current, collectSetupStateAliases);
+  }
+  collectSetupStateAliases(node);
 
   function visit(current: ts.Node, islandDepth = 0, taskDepth = 0): void {
     if (ts.isCallExpression(current) && isThisTaskCall(current)) {
@@ -87,6 +100,13 @@ export function analyzeComponent(
       diagnostics.push(...task.diagnostics);
       ts.forEachChild(current, child => visit(child, islandDepth, taskDepth + 1));
       return;
+    }
+
+    if (isUnmanagedBrowserListener(current, islandDepth, taskDepth)) {
+      diagnostics.push("error: browser-global addEventListener() must be registered in a client task or client island; use JSX events or an abort-scoped task");
+    }
+    if (isAsyncSnapshotCapture(current, setupStateAliases, semanticReferences, sourceFile)) {
+      diagnostics.push("error: setup-time state snapshot captured by async callback; read state in the callback or wrap the snapshot in peek(() => ...)");
     }
 
     const contextEffect = contextEffectForCall(current, sourceFile);
@@ -169,6 +189,59 @@ export function analyzeComponent(
     splitBoundaries: [...splitBoundaries].sort(),
     diagnostics: uniqueDiagnostics(diagnostics)
   };
+}
+
+function isSetupReactiveSnapshot(
+  expression: ts.Expression,
+  component: ts.FunctionDeclaration,
+  sourceFile: ts.SourceFile,
+  semanticReferences: SemanticReferenceIndex
+): boolean {
+  if (stateEffectPath(expression, sourceFile, semanticReferences, new Map()) !== undefined) return true;
+  if (ts.isCallExpression(expression)
+    && ts.isPropertyAccessExpression(expression.expression)
+    && expression.expression.expression.kind === ts.SyntaxKind.ThisKeyword
+    && expression.expression.name.text === "getContext") return true;
+  if (!ts.isPropertyAccessExpression(expression) || !ts.isIdentifier(expression.expression)) return false;
+  const propsParameter = component.parameters.find(parameter => ts.isIdentifier(parameter.name) && parameter.name.text !== "this");
+  if (!propsParameter || !ts.isIdentifier(propsParameter.name)) return false;
+  const reference = semanticReferenceForIdentifier(expression.expression, semanticReferences, sourceFile);
+  // The component analysis only needs a direct binding match; a parameter
+  // reference is unambiguous even when a nested callback shadows `props`.
+  return expression.expression.text === propsParameter.name.text && reference?.declarationKind === "parameter";
+}
+
+function isUnmanagedBrowserListener(node: ts.Node, islandDepth: number, taskDepth: number): boolean {
+  if (islandDepth > 0 || taskDepth > 0 || !ts.isCallExpression(node)) return false;
+  if (!ts.isPropertyAccessExpression(node.expression) || node.expression.name.text !== "addEventListener") return false;
+  const target = node.expression.expression;
+  return ts.isIdentifier(target) && (target.text === "window" || target.text === "document" || target.text === "globalThis");
+}
+
+function isAsyncSnapshotCapture(
+  node: ts.Node,
+  aliases: ReadonlySet<string>,
+  semanticReferences: SemanticReferenceIndex,
+  sourceFile: ts.SourceFile
+): boolean {
+  const asyncCall = ts.isCallExpression(node) && (
+    ts.isIdentifier(node.expression) && ["setTimeout", "setInterval", "queueMicrotask", "requestAnimationFrame"].includes(node.expression.text)
+    || ts.isPropertyAccessExpression(node.expression) && ["then", "catch", "finally"].includes(node.expression.name.text)
+  ) || ts.isNewExpression(node) && ts.isIdentifier(node.expression) && ["MutationObserver", "ResizeObserver", "IntersectionObserver"].includes(node.expression.text);
+  if (!asyncCall) return false;
+  const callback = node.arguments?.[0];
+  if (!callback || !(ts.isArrowFunction(callback) || ts.isFunctionExpression(callback))) return false;
+  let captured = false;
+  function visit(current: ts.Node): void {
+    if (captured) return;
+    if (ts.isIdentifier(current)) {
+      const declarationId = semanticReferenceForIdentifier(current, semanticReferences, sourceFile)?.declarationId;
+      if (declarationId && aliases.has(declarationId)) captured = true;
+    }
+    ts.forEachChild(current, visit);
+  }
+  visit(callback.body);
+  return captured;
 }
 
 function containsServerOnlyIdentifier(
@@ -412,6 +485,7 @@ export function analyzeTask(
     ? Boolean(ts.getModifiers(work)?.some(modifier => modifier.kind === ts.SyntaxKind.AsyncKeyword))
     : false;
   const stateAliases = collectStateAliases(work, sourceFile, semanticReferences, semanticDeclarations);
+  const taskSignal = taskSignalParameter(work);
 
   function visit(current: ts.Node): void {
     if (ts.isIdentifier(current)) {
@@ -476,6 +550,9 @@ export function analyzeTask(
     }
 
     if (ts.isCallExpression(current)) {
+      if (isBrowserGlobalListenerCall(current) && !listenerUsesTaskSignal(current, taskSignal)) {
+        diagnostics.push("error: browser-global addEventListener() in a task must use the supplied abort signal ({ signal })");
+      }
       const contextEffect = contextEffectForCall(current, sourceFile);
       if (contextEffect) contexts.push(contextEffect);
 
@@ -551,6 +628,36 @@ export function analyzeTask(
     contexts: uniqueContextEffects(contexts),
     diagnostics
   };
+}
+
+function isBrowserGlobalListenerCall(node: ts.CallExpression): boolean {
+  if (!ts.isPropertyAccessExpression(node.expression) || node.expression.name.text !== "addEventListener") return false;
+  const receiver = node.expression.expression;
+  return ts.isIdentifier(receiver) && (receiver.text === "window" || receiver.text === "document" || receiver.text === "globalThis");
+}
+
+function taskSignalParameter(work: ts.FunctionLikeDeclarationBase): string | undefined {
+  const parameter = work.parameters[work.parameters.length - 1];
+  if (!parameter || !ts.isObjectBindingPattern(parameter.name)) return undefined;
+  for (const element of parameter.name.elements) {
+    if (element.propertyName?.getText() === "signal" || !element.propertyName && element.name.getText() === "signal") {
+      return element.name.getText();
+    }
+  }
+  return undefined;
+}
+
+function listenerUsesTaskSignal(node: ts.CallExpression, signal: string | undefined): boolean {
+  if (!signal) return false;
+  const options = node.arguments[2];
+  if (!options || !ts.isObjectLiteralExpression(options)) return false;
+  return options.properties.some(property => {
+    if (!ts.isPropertyAssignment(property) && !ts.isShorthandPropertyAssignment(property)) return false;
+    const name = ts.isPropertyAssignment(property) ? property.name.getText() : property.name.text;
+    if (name !== "signal") return false;
+    const value = ts.isPropertyAssignment(property) ? property.initializer : property.name;
+    return ts.isIdentifier(value) && value.text === signal;
+  });
 }
 
 function isUnshadowedGlobalIdentifier(

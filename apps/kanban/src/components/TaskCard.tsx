@@ -11,6 +11,14 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
   const board = this.getContext(BoardContext);
   const title = props.task.title;
   const hasNotes = this.reactive<boolean>(() => props.task.notes.trim().length > 0);
+  let drag: {
+    card: HTMLElement;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    clone?: HTMLElement;
+    dragging: boolean;
+  } | undefined;
 
   const startPointerDrag = (event: PointerEvent) => {
     if (event.button !== 0 || isInteractiveTarget(event.target)) return;
@@ -18,68 +26,66 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
     const card = (event.target as HTMLElement | null)?.closest(".card") as HTMLElement | null;
     if (!card) return;
 
-    const startX = event.clientX;
-    const startY = event.clientY;
-    let clone: HTMLElement | undefined;
-    let dragging = false;
+    card.setPointerCapture(event.pointerId);
+    drag = { card, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, dragging: false };
+  };
 
-    const move = (moveEvent: PointerEvent) => {
-      const deltaX = moveEvent.clientX - startX;
-      const deltaY = moveEvent.clientY - startY;
-      if (!dragging && Math.hypot(deltaX, deltaY) > 4) {
-        dragging = true;
-        const rect = card.getBoundingClientRect();
-        clone = card.cloneNode(true) as HTMLElement;
-        clone.classList.add("dragging");
-        clone.style.left = `${rect.left}px`;
-        clone.style.top = `${rect.top}px`;
-        clone.style.width = `${rect.width}px`;
-        document.body.appendChild(clone);
-        card.classList.add("drag-source");
-        this.log.debug("pointer dragstart", { taskId: props.task.id });
-      }
+  const movePointerDrag = (event: PointerEvent) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const deltaX = event.clientX - drag.startX;
+    const deltaY = event.clientY - drag.startY;
+    if (!drag.dragging) {
+      // Pointer jitter is normal for a click. Do not mutate board preview
+      // state until this interaction is unambiguously a drag.
+      if (Math.hypot(deltaX, deltaY) <= 4) return;
+      drag.dragging = true;
+      const rect = drag.card.getBoundingClientRect();
+      drag.clone = drag.card.cloneNode(true) as HTMLElement;
+      drag.clone.classList.add("dragging");
+      drag.clone.style.left = `${rect.left}px`;
+      drag.clone.style.top = `${rect.top}px`;
+      drag.clone.style.width = `${rect.width}px`;
+      document.body.appendChild(drag.clone);
+      drag.card.classList.add("drag-source");
+      this.log.debug("pointer dragstart", { taskId: props.task.id });
+    }
+    drag.clone?.style.setProperty("transform", `translate(${deltaX}px, ${deltaY}px)`);
+    const placement = findDropPlacement(props.task.id, event.clientX, event.clientY);
+    if (placement) board.previewTaskDrop(props.task.id, placement.status, placement.beforeTaskId);
+    else board.clearTaskDropPreview();
+  };
 
-      if (dragging) {
-        if (clone) clone.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-      }
-    };
+  const endPointerDrag = (event: PointerEvent) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const current = drag;
+    drag = undefined;
+    current.clone?.remove();
+    current.card.classList.remove("drag-source");
+    if (current.card.hasPointerCapture(current.pointerId)) current.card.releasePointerCapture(current.pointerId);
 
-    const end = (upEvent: PointerEvent) => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointermove", preview);
-      window.removeEventListener("pointerup", end);
-      clone?.remove();
-      card.classList.remove("drag-source");
-
-      const placement = findDropPlacement(props.task.id, upEvent.clientX, upEvent.clientY);
-      this.log.debug("pointer dragend", {
-        taskId: props.task.id,
-        dragging,
+    const placement = findDropPlacement(props.task.id, event.clientX, event.clientY);
+    this.log.debug("pointer dragend", {
+        taskId: props.task.id, dragging: current.dragging,
         status: placement?.status,
         beforeTaskId: placement?.beforeTaskId
-      });
+    });
 
-      if (dragging && placement) {
-        board.commitTaskDrop(props.task.id, placement.status, placement.beforeTaskId);
-      } else {
-        board.clearTaskDropPreview();
-      }
-    };
-
-    const preview = (moveEvent: PointerEvent) => {
-      if (!dragging) return;
-      const placement = findDropPlacement(props.task.id, moveEvent.clientX, moveEvent.clientY);
-      if (placement) {
-        board.previewTaskDrop(props.task.id, placement.status, placement.beforeTaskId);
-      } else {
-        board.clearTaskDropPreview();
-      }
-    };
-
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointermove", preview);
-    window.addEventListener("pointerup", end);
+    if (current.dragging && placement) board.commitTaskDrop(props.task.id, placement.status, placement.beforeTaskId);
+    else board.clearTaskDropPreview();
   };
+
+  const cancelPointerDrag = (reason = "cancel") => {
+    if (!drag) return;
+    const current = drag;
+    drag = undefined;
+    current.clone?.remove();
+    current.card.classList.remove("drag-source");
+    if (current.card.hasPointerCapture(current.pointerId)) current.card.releasePointerCapture(current.pointerId);
+    board.clearTaskDropPreview();
+    this.log.debug("pointer dragcancel", { taskId: props.task.id, reason, dragging: current.dragging });
+  };
+
+  this.onUnmount(() => cancelPointerDrag("unmount"));
 
   return () => (
     <div
@@ -92,6 +98,10 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
         });
       }}
       onPointerDown={event => startPointerDrag(event as PointerEvent)}
+      onPointerMove={event => movePointerDrag(event as PointerEvent)}
+      onPointerUp={event => endPointerDrag(event as PointerEvent)}
+      onPointerCancel={event => endPointerDrag(event as PointerEvent)}
+      onLostPointerCapture={() => cancelPointerDrag("lostpointercapture")}
     >
       <span
         className="drag-handle"

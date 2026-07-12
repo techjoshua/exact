@@ -34,6 +34,63 @@ import {
 } from "./index.js";
 
 describe("@exact/compiler", () => {
+  it("lowers recognized component state writes to conditional runtime helpers", () => {
+    const output = transform(`function Counter(this: Component<{ count: number; items: string[]; label?: string }>) {
+      this.state.count += 2;
+      this.state.count++;
+      delete this.state.label;
+      this.state.items.push("next");
+      return () => <p />;
+    }`, { filename: "Counter.tsx" });
+    expect(output).toContain("updateReactiveValue as __exactUpdate");
+    expect(output).toContain("deleteReactiveValue as __exactDelete");
+    expect(output).toContain("mutateReactiveArray as __exactArrayMutation");
+    expect(output).toContain("__exactUpdate(this.state, [\"count\"]");
+    expect(output).toContain("__exactDelete(this.state, [\"label\"])");
+    expect(output).toContain("__exactArrayMutation(this.state, [\"items\"], \"push\"");
+  });
+  it("rejects unmanaged browser-global listeners in component setup", () => {
+    expect(() => transform(`function Panel(this: Component<{}>) { window.addEventListener("resize", () => {}); return () => <p />; }`, { filename: "Panel.tsx" }))
+      .toThrow("browser-global addEventListener()");
+  });
+  it("allows abort-scoped browser-global listeners inside component tasks", () => {
+    expect(() => transform(`function Panel(this: Component<{}>) { this.task.client(({ signal }) => { window.addEventListener("resize", () => {}, { signal }); }); return () => <p />; }`, { filename: "Panel.tsx" }))
+      .not.toThrow();
+  });
+  it("rejects task listeners that are not abort-scoped", () => {
+    expect(() => transform(`function Panel(this: Component<{}>) { this.task.client(() => { window.addEventListener("resize", () => {}); }); return () => <p />; }`, { filename: "Panel.tsx" }))
+      .toThrow("must use the supplied abort signal");
+  });
+  it("rejects setup-time state snapshots captured by async callbacks", () => {
+    expect(() => transform(`function Panel(this: Component<{ title: string }>) { const title = this.state.title; setTimeout(() => console.log(title)); return () => <p />; }`, { filename: "Panel.tsx" }))
+      .toThrow("setup-time state snapshot");
+  });
+  it("rejects setup-time state snapshots captured by Promise callbacks", () => {
+    expect(() => transform(`function Panel(this: Component<{ title: string }>) { const title = this.state.title; Promise.resolve().then(() => console.log(title)); return () => <p />; }`, { filename: "Panel.tsx" }))
+      .toThrow("setup-time state snapshot");
+  });
+  it("does not confuse a callback-local shadow with a setup state snapshot", () => {
+    expect(() => transform(`function Panel(this: Component<{ title: string }>) { const title = this.state.title; setTimeout(() => { const title = "local"; console.log(title); }); return () => <p />; }`, { filename: "Panel.tsx" }))
+      .not.toThrow();
+  });
+  it("rejects direct reactive prop and context snapshots captured by async callbacks", () => {
+    expect(() => transform(`function Panel(this: Component<{}>, props: { title: string }) { const title = props.title; setTimeout(() => console.log(title)); return () => <p />; }`, { filename: "Panel.tsx" }))
+      .toThrow("setup-time state snapshot");
+    expect(() => transform(`function Panel(this: Component<{}>) { const locale = this.getContext(Locale); queueMicrotask(() => console.log(locale)); return () => <p />; }`, { filename: "Panel.tsx" }))
+      .toThrow("setup-time state snapshot");
+  });
+  it("allows an explicit peek snapshot in an async callback", () => {
+    expect(() => transform(`function Panel(this: Component<{ title: string }>) { const title = peek(() => this.state.title); Promise.resolve().then(() => console.log(title)); return () => <p />; }`, { filename: "Panel.tsx" }))
+      .not.toThrow();
+  });
+  it("rejects setup-time state snapshots captured by animation callbacks", () => {
+    expect(() => transform(`function Panel(this: Component<{ title: string }>) { const title = this.state.title; requestAnimationFrame(() => console.log(title)); return () => <p />; }`, { filename: "Panel.tsx" }))
+      .toThrow("setup-time state snapshot");
+  });
+  it("rejects setup-time state snapshots captured by observer callbacks", () => {
+    expect(() => transform(`function Panel(this: Component<{ title: string }>) { const title = this.state.title; new MutationObserver(() => console.log(title)); return () => <p />; }`, { filename: "Panel.tsx" }))
+      .toThrow("setup-time state snapshot");
+  });
   it("builds a semantic graph for scopes declarations imports and references", () => {
     const graph = analyzeSemanticGraph(`
       import fsDefault, { readFile as readProject } from "node:fs/promises";
@@ -544,7 +601,7 @@ describe("@exact/compiler", () => {
     expect(manifest.components[0]!.tasks.map(task => task.requestedPlacement)).toEqual(["server", "client"]);
     expect(manifest.components[0]!.tasks[0]!.diagnostics).toContain("task placement forced by this.task.server()");
     expect(client).not.toContain("server");
-    expect(client).toContain("width = 1");
+    expect(client).toContain("__exactWrite(this.state, [\"width\"], 1)");
     expect(client).toContain("this.task.client(this.reactive(() => this.state.width)");
     expect(server).toContain("server");
     expect(server).not.toContain("width = 1");
@@ -630,6 +687,45 @@ describe("@exact/compiler", () => {
     const output = transform("function View() { this.task(this.state.query, this.state.page, async (query, page) => {}); }");
 
     expect(output).toContain("this.task(this.reactive(() => this.state.query), this.reactive(() => this.state.page), async (query, page) => { });");
+  });
+  it("promotes safe derived collection locals when they feed this.map", () => {
+    const output = transform(`function Board(this: Component<{ tasks: { id: string; status: string }[] }>) {
+      const todoTasks = this.state.tasks.filter(task => task.status === "todo");
+      return () => this.map(todoTasks, task => task.id, task => <li>{task.id}</li>);
+    }`, { filename: "Board.tsx" });
+    expect(output).toContain("this.map(this.reactive(() => this.state.tasks.filter(task => task.status === \"todo\"))");
+    expect(output).toContain(", this.state.tasks);");
+  });
+  it("keeps expanded derived prop collections live when they feed this.map", () => {
+    const output = transform(`function Column(this: Component<{}>, props: { tasks: { id: string; status: string }[]; column: { id: string } }) {
+      const columnTasks = props.tasks.filter(task => task.status === props.column.id);
+      return () => <section>{this.map(columnTasks, task => task.id, task => <li>{task.id}</li>)}</section>;
+    }`, { filename: "Column.tsx" });
+    expect(output).toContain("this.map(this.reactive(() => (props.tasks.filter(task => task.status === props.column.id)))");
+    expect(output).toContain(", props.tasks)))");
+  });
+  it("allows callback-local mutation but rejects captured writes in derived collections", () => {
+    const local = transform(`function Board(this: Component<{ tasks: { id: string; status: string }[] }>) {
+      const todoTasks = this.state.tasks.filter(task => { let match = false; match = task.status === "todo"; return match; });
+      return () => this.map(todoTasks, task => task.id, task => <li>{task.id}</li>);
+    }`, { filename: "Board.tsx" });
+    expect(local).toContain("this.map(this.reactive(() => this.state.tasks.filter");
+
+    const captured = transform(`function Board(this: Component<{ tasks: { id: string }[] }>) {
+      let seen = 0;
+      const tasks = this.state.tasks.filter(task => { seen++; return !!task.id; });
+      return () => this.map(tasks, task => task.id, task => <li>{task.id}</li>);
+    }`, { filename: "Board.tsx" });
+    expect(captured).toContain("this.map(tasks, task => task.id");
+    expect(captured).not.toContain("this.map(this.reactive(() => this.state.tasks.filter");
+  });
+  it("keeps filter/reduce locals reactive in JSX while allowing accumulator mutation", () => {
+    const output = transform(`function Totals(this: Component<{ items: { index: number; val: number }[] }>) {
+      const count = this.state.items.filter(i => i.index % 2).reduce((agg, i) => { agg += i.val; return agg; }, 0);
+      return () => <p>{count}</p>;
+    }`, { filename: "Totals.tsx" });
+    expect(output).toContain("__exactDynamic(() => (this.state.items.filter");
+    expect(output).toContain("reduce((agg, i) => { agg += i.val; return agg; }, 0))");
   });
 
   it("inlines safe derived consts inside reactive JSX children", () => {

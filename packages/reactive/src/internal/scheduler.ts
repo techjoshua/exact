@@ -3,6 +3,7 @@ import type { Reaction } from "./types.js";
 const queuedReactions = new Set<Reaction>();
 const queuedComputations = new Set<() => void>();
 let flushScheduled = false;
+const maxFlushPasses = 1_000;
 
 /** Queues a reaction to run during the next scheduler flush. */
 export function queueReaction(reaction: Reaction): void {
@@ -24,7 +25,14 @@ export function removeQueuedComputation(computation: () => void): void {
 /** Drains all pending computations and reactions until the scheduler reaches a stable state. */
 export function flushSync(): void {
   // Computations run before reactions so derived values settle before render/watch effects observe them.
+  let passes = 0;
   while (queuedComputations.size || queuedReactions.size) {
+    if (++passes > maxFlushPasses) {
+      queuedComputations.clear();
+      queuedReactions.clear();
+      flushScheduled = false;
+      throw new Error("eXact reactive scheduler exceeded its flush limit; a reaction is repeatedly invalidating itself");
+    }
     while (queuedComputations.size) {
       const computations = [...queuedComputations];
       queuedComputations.clear();

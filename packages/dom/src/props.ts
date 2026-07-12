@@ -1,9 +1,10 @@
-import { type StopHandle, unwrap, watch } from "@exact/core";
+import { createErrorReport, handleComponentError, type StopHandle, unwrap, watch } from "@exact/core";
 import type { EffectScope } from "@exact/reactive";
 import { describeNode, domDebug } from "./debug.js";
 import { ensureDelegated } from "./events.js";
 import { preserveFocus } from "./focus.js";
-import { eventHandlers, propBindings } from "./state.js";
+import { findOwnerInstance } from "./ownership.js";
+import { directEventHandlers, eventHandlers, propBindings } from "./state.js";
 import { normalizeClass, toCssProperty } from "./style.js";
 import type { Root } from "./types.js";
 
@@ -27,6 +28,8 @@ export function clearElementProps(element: Element): void {
   }
   propBindings.delete(element);
   eventHandlers.delete(element);
+  for (const entry of directEventHandlers.get(element)?.values() ?? []) element.removeEventListener(entry.type, entry.listener, entry.capture);
+  directEventHandlers.delete(element);
 }
 
 function setProp(root: Root, element: Element, key: string, value: unknown, previous: unknown, scope: EffectScope): void {
@@ -43,7 +46,26 @@ function setProp(root: Root, element: Element, key: string, value: unknown, prev
   }
 
   if (/^on[A-Z]/.test(key)) {
-    const type = key.slice(2).toLowerCase();
+    const { type, capture } = eventTypeForProp(key);
+    if (capture || isDirectEvent(type)) {
+      const previousDirect = directEventHandlers.get(element)?.get(key);
+      if (previousDirect) element.removeEventListener(previousDirect.type, previousDirect.listener, previousDirect.capture);
+      if (typeof value === "function") {
+        const handler = value as EventListener;
+        const listener: EventListener = event => preserveFocus(root, () => {
+          try {
+            handler.call(element, event);
+          } catch (error) {
+            const owner = findOwnerInstance(element);
+            handleComponentError(owner, createErrorReport(error, "event", owner, type));
+          }
+        });
+        const entry = { type, listener, capture };
+        let direct = directEventHandlers.get(element); if (!direct) { direct = new Map(); directEventHandlers.set(element, direct); }
+        direct.set(key, entry); element.addEventListener(type, entry.listener, capture);
+      }
+      return;
+    }
     let handlers = eventHandlers.get(element);
     if (!handlers) {
       handlers = new Map();
@@ -80,6 +102,32 @@ function setProp(root: Root, element: Element, key: string, value: unknown, prev
     setDomProp(root, element, key, key === "class" || key === "className" ? normalizeClass(actual) : actual);
   }), undefined, { scope });
   setPropBinding(element, key, stop);
+}
+
+/** Converts JSX's DOM-style handler names to their platform event names. */
+function eventTypeForProp(key: string): { type: string; capture: boolean } {
+  // Pointer capture lifecycle events are event names, not capture-phase
+  // variants.  Treating onLostPointerCapture as onLostPointer + Capture
+  // silently registered a nonexistent "lostpointer" listener.
+  const pointerCaptureLifecycle = key === "onLostPointerCapture" || key === "onGotPointerCapture";
+  const capture = key.endsWith("Capture") && !pointerCaptureLifecycle;
+  const name = key.slice(2, capture ? -7 : undefined);
+  const aliases: Record<string, string> = {
+    DoubleClick: "dblclick",
+    FocusIn: "focusin",
+    FocusOut: "focusout"
+  };
+  return { type: aliases[name] ?? name.toLowerCase(), capture };
+}
+
+function isDirectEvent(type: string): boolean {
+  // Pointer capture is bound to a concrete element, not the delegated root.
+  // Keep its entire lifecycle direct so a keyed move/reconciliation pass cannot
+  // strand a capture with a root listener that no longer sees its target.
+  return [
+    "focus", "blur", "mouseenter", "mouseleave", "scroll", "load", "error",
+    "pointerdown", "pointermove", "pointerup", "pointercancel", "lostpointercapture", "gotpointercapture"
+  ].includes(type);
 }
 
 function bindStyle(element: HTMLElement, value: unknown, scope: EffectScope): StopHandle {

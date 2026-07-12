@@ -46,6 +46,7 @@ import {
 import {
   collectDerivedReactiveLocals,
   collectStateAliases,
+  isAssignmentOperator,
   isAnalyzableFunctionLike,
   isStatePathExpression,
   stateEffectPath,
@@ -89,6 +90,7 @@ export function exactJsxTransformer(
     const componentPlacements = componentPlacementsFromInfo(componentInfo);
     let sawJsx = false;
     let sawBoundary = false;
+    let sawStateWrite = false;
     const componentStack: string[] = [];
     const componentLocalStack: ComponentLocalInfo[] = [];
     const componentStateAliasStack: Map<string, string>[] = [];
@@ -134,6 +136,40 @@ export function exactJsxTransformer(
         const visited = ts.visitEachChild(node, visitor, context);
         componentDerivedStack.pop();
         return visited;
+      }
+      if (componentStack.length && ts.isDeleteExpression(node)) {
+        const path = exactStateWritePath(node.expression, sourceFile, semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1]);
+        if (path) {
+          sawStateWrite = true;
+          return context.factory.createCallExpression(context.factory.createIdentifier(helpers.remove), undefined, [
+            stateRoot(context), pathLiteral(context, path)
+          ]);
+        }
+      }
+      if (componentStack.length && ts.isBinaryExpression(node) && isAssignmentOperator(node.operatorToken.kind)) {
+        const path = exactStateWritePath(node.left, sourceFile, semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1]);
+        if (path) {
+          sawStateWrite = true;
+          return transformStateAssignment(context, node, path, visitor, helpers);
+        }
+      }
+      if (componentStack.length && (ts.isPrefixUnaryExpression(node) || ts.isPostfixUnaryExpression(node))) {
+        const path = exactStateWritePath(node.operand, sourceFile, semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1]);
+        if (path && (node.operator === ts.SyntaxKind.PlusPlusToken || node.operator === ts.SyntaxKind.MinusMinusToken)) {
+          sawStateWrite = true;
+          return transformStateUpdate(context, node, path, helpers);
+        }
+      }
+      if (componentStack.length && ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
+        const method = node.expression.name.text;
+        const path = exactStateWritePath(node.expression.expression, sourceFile, semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1]);
+        if (path && isArrayMutator(method)) {
+          sawStateWrite = true;
+          return context.factory.createCallExpression(context.factory.createIdentifier(helpers.arrayMutation), undefined, [
+            stateRoot(context), pathLiteral(context, path), context.factory.createStringLiteral(method),
+            context.factory.createArrayLiteralExpression(node.arguments.map(argument => ts.visitNode(argument, visitor) as ts.Expression))
+          ]);
+        }
       }
       if (ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) && isThisTaskCall(node.expression)) {
         const task = analyzeTask("target-task", node.expression, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations);
@@ -230,7 +266,7 @@ export function exactJsxTransformer(
       ? appendServerPartExportAliases(sourceFile, withIslands, factory, islandCounts, componentPlacements)
       : withIslands;
     const visited = target === "default" ? withServerParts : pruneUnusedImports(withServerParts, factory);
-    if (!sawJsx && !sawBoundary) return visited;
+    if (!sawJsx && !sawBoundary && !sawStateWrite) return visited;
 
     const importDeclaration = factory.createImportDeclaration(
       undefined,
@@ -242,6 +278,14 @@ export function exactJsxTransformer(
           factory.createImportSpecifier(false, factory.createIdentifier("createCompiledFragment"), factory.createIdentifier(helpers.fragment)),
           factory.createImportSpecifier(false, factory.createIdentifier("createExpression"), factory.createIdentifier(helpers.expression)),
           factory.createImportSpecifier(false, factory.createIdentifier("createDynamicChild"), factory.createIdentifier(helpers.dynamic)),
+          ...(sawStateWrite
+            ? [
+              factory.createImportSpecifier(false, factory.createIdentifier("writeReactive"), factory.createIdentifier(helpers.write)),
+              factory.createImportSpecifier(false, factory.createIdentifier("updateReactiveValue"), factory.createIdentifier(helpers.update)),
+              factory.createImportSpecifier(false, factory.createIdentifier("deleteReactiveValue"), factory.createIdentifier(helpers.remove)),
+              factory.createImportSpecifier(false, factory.createIdentifier("mutateReactiveArray"), factory.createIdentifier(helpers.arrayMutation))
+            ]
+            : []),
           ...(sawBoundary
             ? [factory.createImportSpecifier(false, factory.createIdentifier("createServerBoundary"), factory.createIdentifier(helpers.boundary))]
             : [])
@@ -1105,7 +1149,7 @@ function transformCapturedCall(
   }
 
   if (isThisMethodCall(node, "map")) {
-    return transformMapCall(sourceFile, node, context, visitor);
+    return transformMapCall(sourceFile, node, context, visitor, semanticReferences, derivedReactiveLocals);
   }
 
   return ts.visitEachChild(node, visitor, context);
@@ -1174,18 +1218,74 @@ function transformTaskCall(
   );
 }
 
-function transformMapCall(sourceFile: ts.SourceFile, node: ts.CallExpression, context: ts.TransformationContext, visitor: ts.Visitor): ts.Expression {
+function transformMapCall(
+  sourceFile: ts.SourceFile,
+  node: ts.CallExpression,
+  context: ts.TransformationContext,
+  visitor: ts.Visitor,
+  semanticReferences?: SemanticReferenceIndex,
+  derivedReactiveLocals?: DerivedReactiveIndex
+): ts.Expression {
   if (node.arguments.length !== 3) return ts.visitEachChild(node, visitor, context);
   const id = stableId(sourceFile.fileName, "list", String(node.getStart(sourceFile)), String(node.getEnd()));
+  const source = node.arguments[0]!;
+  const declarationId = ts.isIdentifier(source) && semanticReferences
+    ? semanticReferenceForIdentifier(source, semanticReferences, sourceFile)?.declarationId
+    : undefined;
+  // Reactive sinks are rewritten before their nested calls are visited.  A
+  // derived local therefore reaches this transform either as its identifier
+  // (when used directly) or as its already-expanded collection expression.
+  // Handle both forms so `const visible = tasks.filter(...); this.map(visible)`
+  // remains a live list instead of becoming a one-time array snapshot.
+  const initializer = declarationId ? derivedReactiveLocals?.get(declarationId) : undefined;
+  const derivedCollection = initializer ?? (isDerivedCollectionExpression(source) ? source : undefined);
+  const provenance = derivedCollection ? derivedCollectionSource(derivedCollection) : undefined;
+  const collection = derivedCollection
+    ? context.factory.createCallExpression(
+      context.factory.createPropertyAccessExpression(context.factory.createThis(), "reactive"),
+      undefined,
+      [captureArgument(context, derivedCollection, visitor, sourceFile, semanticReferences, derivedReactiveLocals)]
+    )
+    : ts.visitNode(source, visitor) as ts.Expression;
   return context.factory.updateCallExpression(
     node,
     ts.visitNode(node.expression, visitor) as ts.Expression,
     node.typeArguments,
     [
-      ...node.arguments.map(argument => ts.visitNode(argument, visitor) as ts.Expression),
-      context.factory.createStringLiteral(id)
+      collection,
+      ...node.arguments.slice(1).map(argument => ts.visitNode(argument, visitor) as ts.Expression),
+      context.factory.createStringLiteral(id),
+      ...(provenance ? [ts.visitNode(provenance, visitor) as ts.Expression] : [])
     ]
   );
+}
+
+function isDerivedCollectionExpression(expression: ts.Expression): boolean {
+  const current = withoutParentheses(expression);
+  return ts.isCallExpression(current)
+    && ts.isPropertyAccessExpression(current.expression)
+    && ["filter", "map", "flatMap", "slice", "concat", "toSorted", "toReversed", "toSpliced"].includes(current.expression.name.text);
+}
+
+function derivedCollectionSource(expression: ts.Expression): ts.Expression | undefined {
+  let current = withoutParentheses(expression);
+  while (ts.isCallExpression(current) && ts.isPropertyAccessExpression(current.expression)
+    && ["filter", "map", "flatMap", "slice", "concat", "toSorted", "toReversed", "toSpliced"].includes(current.expression.name.text)) {
+    current = withoutParentheses(current.expression.expression);
+  }
+  if (!ts.isPropertyAccessExpression(current)) return undefined;
+  if (ts.isPropertyAccessExpression(current.expression)
+    && current.expression.expression.kind === ts.SyntaxKind.ThisKeyword
+    && current.expression.name.text === "state") return current;
+  // Component props preserve the parent collection identity; registering the
+  // key against this value reaches the same raw reactive array at runtime.
+  return ts.isIdentifier(current.expression) && current.expression.text === "props" ? current : undefined;
+}
+
+function withoutParentheses(expression: ts.Expression): ts.Expression {
+  let current = expression;
+  while (ts.isParenthesizedExpression(current)) current = current.expression;
+  return current;
 }
 
 function captureArgument(
@@ -1232,8 +1332,89 @@ function allocateHelperNames(sourceFile: ts.SourceFile): HelperNames {
     fragment: allocateName(fragmentHelper, used),
     expression: allocateName(expressionHelper, used),
     dynamic: allocateName(dynamicHelper, used),
-    boundary: allocateName(boundaryHelper, used)
+    boundary: allocateName(boundaryHelper, used),
+    write: allocateName("__exactWrite", used),
+    update: allocateName("__exactUpdate", used),
+    remove: allocateName("__exactDelete", used),
+    arrayMutation: allocateName("__exactArrayMutation", used)
   };
+}
+
+function exactStateWritePath(
+  node: ts.Expression,
+  sourceFile: ts.SourceFile,
+  references: SemanticReferenceIndex,
+  aliases: Map<string, string> | undefined
+): string[] | undefined {
+  const path = stateEffectPath(node, sourceFile, references, aliases ?? new Map());
+  if (!path || path === "*" || path.includes("*")) return undefined;
+  return path.split(".");
+}
+
+function stateRoot(context: ts.TransformationContext): ts.Expression {
+  return context.factory.createPropertyAccessExpression(context.factory.createThis(), "state");
+}
+
+function pathLiteral(context: ts.TransformationContext, path: readonly string[]): ts.ArrayLiteralExpression {
+  return context.factory.createArrayLiteralExpression(path.map(segment => context.factory.createStringLiteral(segment)));
+}
+
+function transformStateAssignment(
+  context: ts.TransformationContext,
+  node: ts.BinaryExpression,
+  path: readonly string[],
+  visitor: ts.Visitor,
+  helpers: HelperNames
+): ts.Expression {
+  const value = ts.visitNode(node.right, visitor) as ts.Expression;
+  if (node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+    return context.factory.createCallExpression(context.factory.createIdentifier(helpers.write), undefined, [
+      stateRoot(context), pathLiteral(context, path), value
+    ]);
+  }
+  const operator = compoundOperator(node.operatorToken.kind);
+  if (operator === undefined) return node;
+  const previous = context.factory.createIdentifier("previous");
+  return context.factory.createCallExpression(context.factory.createIdentifier(helpers.update), undefined, [
+    stateRoot(context), pathLiteral(context, path),
+    context.factory.createArrowFunction(undefined, undefined, [context.factory.createParameterDeclaration(undefined, undefined, previous)], undefined,
+      context.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+      context.factory.createBinaryExpression(previous, operator, value))
+  ]);
+}
+
+function transformStateUpdate(
+  context: ts.TransformationContext,
+  node: ts.PrefixUnaryExpression | ts.PostfixUnaryExpression,
+  path: readonly string[],
+  helpers: HelperNames
+): ts.Expression {
+  const previous = context.factory.createIdentifier("previous");
+  const operator = node.operator === ts.SyntaxKind.PlusPlusToken ? ts.SyntaxKind.PlusToken : ts.SyntaxKind.MinusToken;
+  return context.factory.createCallExpression(context.factory.createIdentifier(helpers.update), undefined, [
+    stateRoot(context), pathLiteral(context, path),
+    context.factory.createArrowFunction(undefined, undefined, [context.factory.createParameterDeclaration(undefined, undefined, previous)], undefined,
+      context.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+      context.factory.createBinaryExpression(previous, operator, context.factory.createNumericLiteral(1))),
+    node.kind === ts.SyntaxKind.PostfixUnaryExpression ? context.factory.createTrue() : context.factory.createFalse()
+  ]);
+}
+
+function compoundOperator(kind: ts.SyntaxKind): ts.BinaryOperator | undefined {
+  const operators = new Map<ts.SyntaxKind, ts.BinaryOperator>([
+    [ts.SyntaxKind.PlusEqualsToken, ts.SyntaxKind.PlusToken], [ts.SyntaxKind.MinusEqualsToken, ts.SyntaxKind.MinusToken],
+    [ts.SyntaxKind.AsteriskEqualsToken, ts.SyntaxKind.AsteriskToken], [ts.SyntaxKind.SlashEqualsToken, ts.SyntaxKind.SlashToken],
+    [ts.SyntaxKind.PercentEqualsToken, ts.SyntaxKind.PercentToken], [ts.SyntaxKind.AsteriskAsteriskEqualsToken, ts.SyntaxKind.AsteriskAsteriskToken],
+    [ts.SyntaxKind.LessThanLessThanEqualsToken, ts.SyntaxKind.LessThanLessThanToken], [ts.SyntaxKind.GreaterThanGreaterThanEqualsToken, ts.SyntaxKind.GreaterThanGreaterThanToken],
+    [ts.SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken, ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken],
+    [ts.SyntaxKind.AmpersandEqualsToken, ts.SyntaxKind.AmpersandToken], [ts.SyntaxKind.BarEqualsToken, ts.SyntaxKind.BarToken], [ts.SyntaxKind.CaretEqualsToken, ts.SyntaxKind.CaretToken],
+    [ts.SyntaxKind.AmpersandAmpersandEqualsToken, ts.SyntaxKind.AmpersandAmpersandToken], [ts.SyntaxKind.BarBarEqualsToken, ts.SyntaxKind.BarBarToken], [ts.SyntaxKind.QuestionQuestionEqualsToken, ts.SyntaxKind.QuestionQuestionToken]
+  ]);
+  return operators.get(kind);
+}
+
+function isArrayMutator(name: string): name is "copyWithin" | "fill" | "pop" | "push" | "reverse" | "shift" | "sort" | "splice" | "unshift" {
+  return ["copyWithin", "fill", "pop", "push", "reverse", "shift", "sort", "splice", "unshift"].includes(name);
 }
 
 function allocateName(base: string, used: Set<string>): string {

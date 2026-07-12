@@ -141,7 +141,7 @@ function isSafeDerivedReactiveInitializer(expression: ts.Expression): boolean {
       safe = false;
       return;
     }
-    if (ts.isCallExpression(current)
+    if (ts.isCallExpression(current) && !isSafeDerivedCall(current)
       || ts.isNewExpression(current)
       || ts.isAwaitExpression(current)
       || ts.isYieldExpression(current)
@@ -152,10 +152,49 @@ function isSafeDerivedReactiveInitializer(expression: ts.Expression): boolean {
       safe = false;
       return;
     }
+    if (ts.isCallExpression(current)) {
+      visit(current.expression);
+      for (const argument of current.arguments) if (!ts.isFunctionLike(argument)) visit(argument);
+      return;
+    }
     ts.forEachChild(current, visit);
   }
   visit(expression);
   return safe;
+}
+
+function isSafeDerivedCall(call: ts.CallExpression): boolean {
+  if (!ts.isPropertyAccessExpression(call.expression)) return false;
+  const method = call.expression.name.text;
+  if (!["filter", "map", "flatMap", "slice", "concat", "toSorted", "toReversed", "toSpliced", "reduce"].includes(method)) return false;
+  // Callback bodies may mutate their parameters and locals. They cannot write
+  // to captures; the outer traversal still rejects those writes.
+  return call.arguments.every(argument => !ts.isFunctionLike(argument) || callbackWritesStayLocal(argument));
+}
+
+function callbackWritesStayLocal(callback: ts.FunctionLikeDeclaration): boolean {
+  const local = new Set<string>();
+  for (const parameter of callback.parameters) collectBindingNames(parameter.name, local);
+  function collect(current: ts.Node): void {
+    if (ts.isVariableDeclaration(current)) collectBindingNames(current.name, local);
+    ts.forEachChild(current, collect);
+  }
+  if (callback.body) collect(callback.body);
+  let safe = true;
+  function inspect(current: ts.Node): void {
+    if (!safe || current !== callback && ts.isFunctionLike(current)) return;
+    if (ts.isBinaryExpression(current) && isAssignmentOperator(current.operatorToken.kind) && ts.isIdentifier(current.left) && !local.has(current.left.text)) safe = false;
+    if ((ts.isPrefixUnaryExpression(current) || ts.isPostfixUnaryExpression(current))
+      && ts.isIdentifier(current.operand) && !local.has(current.operand.text)) safe = false;
+    ts.forEachChild(current, inspect);
+  }
+  if (callback.body) inspect(callback.body);
+  return safe;
+}
+
+function collectBindingNames(name: ts.BindingName, names: Set<string>): void {
+  if (ts.isIdentifier(name)) { names.add(name.text); return; }
+  for (const element of name.elements) if (ts.isBindingElement(element)) collectBindingNames(element.name, names);
 }
 
 /** Collects local aliases that point at this.state paths. */

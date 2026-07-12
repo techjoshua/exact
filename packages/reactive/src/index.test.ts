@@ -1,7 +1,109 @@
 import { describe, expect, it, vi } from "vitest";
-import { computed, flushSync, isReactive, peek, reactive, ref, snapshot, subscribe, unwrap, watch } from "./index.js";
+import { computed, flushSync, isReactive, mutateReactiveArray, peek, reactive, ref, registerReactiveListKey, snapshot, subscribe, unwrap, updateReactiveValue, watch, writeReactive } from "./index.js";
 
 describe("@exact/reactive", () => {
+  it("reconciles equal JSON-shaped compiler writes without notifying dependents", () => {
+    const state = reactive({ project: { id: "p1", title: "Initial", tags: ["a"] } });
+    const project = state.project;
+    const seen: string[] = [];
+    watch(() => seen.push(state.project.title));
+
+    writeReactive(state, ["project"], JSON.parse('{"id":"p1","title":"Initial","tags":["a"]}'));
+    flushSync();
+    expect(state.project).toBe(project);
+    expect(seen).toEqual(["Initial"]);
+
+    writeReactive(state, ["project"], JSON.parse('{"id":"p1","title":"Changed","tags":["a"]}'));
+    flushSync();
+    expect(state.project).toBe(project);
+    expect(seen).toEqual(["Initial", "Changed"]);
+  });
+
+  it("does not notify a list observer for an identical large API refresh", () => {
+    const records = Array.from({ length: 10_000 }, (_, id) => ({ id: String(id), title: `Task ${id}` }));
+    const state = reactive({ records });
+    const observer = vi.fn(() => state.records.map(record => record.title).join(","));
+    watch(observer);
+
+    writeReactive(state, ["records"], JSON.parse(JSON.stringify(records)));
+    flushSync();
+
+    expect(observer).toHaveBeenCalledTimes(1);
+  });
+
+  it("retains keyed record identity when an API response reorders records", () => {
+    const state = reactive({ records: [{ id: "a", title: "A" }, { id: "b", title: "B" }] });
+    const a = state.records[0];
+    const b = state.records[1];
+    registerReactiveListKey(state.records, item => (item as { id: string }).id);
+
+    writeReactive(state, ["records"], [{ id: "b", title: "B updated" }, { id: "a", title: "A" }]);
+
+    expect(state.records[0]).toBe(b);
+    expect(state.records[1]).toBe(a);
+    expect(state.records[0].title).toBe("B updated");
+  });
+
+  it("updates only changed keyed records during a partial API refresh", () => {
+    const state = reactive({ records: [{ id: "a", title: "A" }, { id: "b", title: "B" }] });
+    registerReactiveListKey(state.records, item => (item as { id: string }).id);
+    const a = state.records[0];
+    const b = state.records[1];
+    const aObserver = vi.fn(() => a.title);
+    const bObserver = vi.fn(() => b.title);
+    watch(aObserver);
+    watch(bObserver);
+
+    writeReactive(state, ["records"], [{ id: "a", title: "A" }, { id: "b", title: "Changed" }]);
+    flushSync();
+
+    expect(aObserver).toHaveBeenCalledTimes(1);
+    expect(bObserver).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects duplicate keys before a keyed API refresh can mutate state", () => {
+    const state = reactive({ records: [{ id: "a", title: "A" }, { id: "b", title: "B" }] });
+    registerReactiveListKey(state.records, item => (item as { id: string }).id, "Tasks.tsx:10");
+
+    expect(() => writeReactive(state, ["records"], [{ id: "a", title: "New A" }, { id: "a", title: "Duplicate" }]))
+      .toThrow('Duplicate key "a"');
+    expect(state.records.map(record => record.title)).toEqual(["A", "B"]);
+  });
+
+  it("rejects conflicting key extractors registered for one collection", () => {
+    const state = reactive({ records: [{ id: "a", slug: "first" }] });
+    registerReactiveListKey(state.records, item => (item as { id: string }).id, "Tasks.tsx:10");
+
+    expect(() => registerReactiveListKey(state.records, item => (item as { slug: string }).slug, "Sidebar.tsx:20"))
+      .toThrow("Conflicting this.map() key extractors");
+  });
+
+  it("reconciles cyclic structured values without recursing indefinitely", () => {
+    const initial: { name: string; self?: unknown } = { name: "node" };
+    initial.self = initial;
+    const state = reactive({ value: initial });
+    const next: { name: string; self?: unknown } = { name: "node" };
+    next.self = next;
+    expect(() => writeReactive(state, ["value"], next)).not.toThrow();
+    expect(state.value.self).toBe(state.value);
+  });
+
+  it("fails a self-invalidating reaction instead of looping forever", () => {
+    const state = reactive({ count: 0 });
+    watch(() => {
+      if (state.count < 2_000) state.count++;
+    });
+    expect(() => flushSync()).toThrow("exceeded its flush limit");
+  });
+
+  it("preserves postfix-update and array-mutator return semantics", () => {
+    const state = reactive({ count: 1, items: ["a"] });
+    expect(updateReactiveValue(state, ["count"], previous => Number(previous) + 1, true)).toBe(1);
+    expect(state.count).toBe(2);
+    expect(mutateReactiveArray(state, ["items"], "push", ["b"])).toBe(2);
+    expect(mutateReactiveArray(state, ["items"], "pop", [])).toBe("b");
+  });
+
   it("tracks reads and batches write notifications", () => {
     const state = reactive({ count: 0 });
     const render = vi.fn(() => void unwrap(state.count));

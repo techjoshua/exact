@@ -67,9 +67,18 @@ export function getListBinding(vnode: VNode): ListBinding | undefined {
 export function materializeList<T>(list: ListBinding<T>): VNode[] {
   const collection = list.source ? list.source.get() : list.collection;
   const nodes: VNode[] = [];
+  const keys = new Set<string>();
   for (const item of collection) {
-    const node = list.render(item);
-    nodes.push({ ...node, key: String(list.key(item)) });
+    const key = String(list.key(item));
+    if (keys.has(key)) throw new Error(`Duplicate key "${key}" in this.map()`);
+    keys.add(key);
+    const cached = list.cache?.get(key);
+    const node = cached && Object.is(cached.item, item) ? cached.vnode : list.render(item);
+    list.cache?.set(key, { item, vnode: node });
+    nodes.push({ ...node, key });
+  }
+  if (list.cache) {
+    for (const cachedKey of list.cache.keys()) if (!keys.has(cachedKey)) list.cache.delete(cachedKey);
   }
   return nodes;
 }

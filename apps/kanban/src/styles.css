@@ -147,7 +147,10 @@ h1 {
 }
 
 .card.drag-source {
-  display: none;
+  /* Keep the source rendered while it owns pointer capture. Both display:none
+     and visibility:hidden can cause browsers to cancel the active capture. */
+  opacity: 0;
+  pointer-events: none;
 }
 
 .card.dragging {

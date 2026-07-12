@@ -48,24 +48,18 @@ export function Board(this: Component<BoardState>, props: BoardProps) {
   };
 
   const reorderTask = (taskId: string, status: Status, beforeTaskId?: string) => {
-    const task = this.state.tasks.find(item => item.id === taskId);
-    if (!task) return;
-
-    const remaining = this.state.tasks.filter(item => item.id !== taskId);
+    const sourceIndex = this.state.tasks.findIndex(item => item.id === taskId);
+    if (sourceIndex < 0) return;
+    const task = this.state.tasks[sourceIndex]!;
+    // Preserve the canonical task object and collection identity. Replacing
+    // this array after every drag makes filtered column views appear keyed
+    // while the source collection is reconciled positionally.
+    this.state.tasks.splice(sourceIndex, 1);
     task.status = status;
     const insertAt = beforeTaskId
-      ? remaining.findIndex(item => item.id === beforeTaskId)
-      : findAfterLastColumnTask(remaining, status);
-
-    if (insertAt < 0) {
-      this.state.tasks = [...remaining, task];
-    } else {
-      this.state.tasks = [
-        ...remaining.slice(0, insertAt),
-        task,
-        ...remaining.slice(insertAt)
-      ];
-    }
+      ? this.state.tasks.findIndex(item => item.id === beforeTaskId)
+      : findAfterLastColumnTask(this.state.tasks, status);
+    this.state.tasks.splice(insertAt < 0 ? this.state.tasks.length : insertAt, 0, task);
   };
 
   const removeTask = (task: Task) => {
@@ -92,6 +86,8 @@ export function Board(this: Component<BoardState>, props: BoardProps) {
     moveTask,
     moveTaskById,
     previewTaskDrop: (taskId, status, beforeTaskId) => {
+      const current = this.state.dragPlacement;
+      if (current?.taskId === taskId && current.status === status && current.beforeTaskId === beforeTaskId) return;
       this.state.dragPlacement = {
         taskId,
         status,
@@ -103,6 +99,7 @@ export function Board(this: Component<BoardState>, props: BoardProps) {
       this.state.dragPlacement = undefined;
     },
     clearTaskDropPreview: () => {
+      if (!this.state.dragPlacement) return;
       this.state.dragPlacement = undefined;
     },
     removeTask,
@@ -132,7 +129,7 @@ export function Board(this: Component<BoardState>, props: BoardProps) {
               <_ key={column.id}>
                 <ColumnView
                   column={column}
-                  tasks={this.state.tasks.filter(task => task.status === column.id)}
+                  tasks={this.state.tasks}
                   dragPlacement={this.state.dragPlacement}
                 />
               </_>

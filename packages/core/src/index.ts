@@ -2,6 +2,11 @@ import {
   computed,
   reactive,
   ref as reactiveRef,
+  writeReactive,
+  updateReactiveValue,
+  deleteReactiveValue,
+  mutateReactiveArray,
+  registerReactiveListKey,
   subscribe,
   updateReactive,
   unwrap,
@@ -39,7 +44,10 @@ import {
 } from "./vnode.js";
 
 export type { Reactive, ReactiveValue, StopHandle } from "@exact/reactive";
-export { computed, unwrap, watch } from "@exact/reactive";
+export { computed, peek, unwrap, watch } from "@exact/reactive";
+// Compiler-only helpers. They remain available here because generated JSX
+// already imports all framework helpers from @exact/core.
+export { writeReactive, updateReactiveValue, deleteReactiveValue, mutateReactiveArray } from "@exact/reactive";
 export { createContext, createRef } from "./keys.js";
 export {
   createConsoleLogger,
@@ -86,6 +94,7 @@ export type ListBinding<T = unknown> = {
   source?: ReactiveRef<Iterable<T>>;
   key: (item: T) => string;
   render: (item: T) => VNode;
+  cache?: Map<string, { item: T; vnode: VNode }>;
 };
 
 export type Child = VNode | string | number | boolean | null | undefined | object;
@@ -207,7 +216,8 @@ export interface Component<State extends object> {
     collection: Iterable<T>,
     key: (item: T) => string,
     render: (item: T) => VNode,
-    id?: string
+    id?: string,
+    provenance?: Iterable<T>
   ): VNode;
   onMount(handler: LifecycleHandler): void;
   onUnmount(handler: LifecycleHandler): void;
@@ -230,6 +240,7 @@ export type ComponentInstance<State extends object> = Component<State> & {
   renderHandlers: RenderEventHandler[];
   invalidate?: () => void;
   errorFallback?: RenderFunction;
+  beginRender(): void;
   markMounted(): void;
   updateProps(props: Record<string, unknown>): void;
   unmount(reason?: string): void;
@@ -335,6 +346,8 @@ export function createComponentInstance<State extends object, Props extends Reco
   parent?: ComponentInstance<any>
 ): ComponentInstance<State> {
   const refs = new Map<symbol, unknown>();
+  const listCaches = new Map<string, { render: unknown; cache: Map<string, { item: unknown; vnode: VNode }> }>();
+  let mapCallIndex = 0;
   const state = reactive({} as State);
   const props = reactive(rawProps, {
     readonly: true,
@@ -362,6 +375,9 @@ export function createComponentInstance<State extends object, Props extends Reco
     renderHandlers: [],
     get mounted() {
       return mounted;
+    },
+    beginRender(): void {
+      mapCallIndex = 0;
     },
     get renderFunction() {
       return renderFunction;
@@ -440,14 +456,25 @@ export function createComponentInstance<State extends object, Props extends Reco
         }
       };
     },
-    map<T>(collection: Iterable<T>, key: (item: T) => string, render: (item: T) => VNode, id?: string): VNode {
+    map<T>(collection: Iterable<T>, key: (item: T) => string, render: (item: T) => VNode, id?: string, provenance?: Iterable<T>): VNode {
+      registerReactiveListKey(provenance ?? collection, key as (item: unknown) => string);
+      // A render pass gives every map call a stable slot. Reuse only when the
+      // renderer itself is stable; inline render callbacks are recreated on a
+      // parent render and may capture a different parent value.
+      const cacheId = id ?? `map:${mapCallIndex++}`;
+      const previous = listCaches.get(cacheId);
+      const cache = previous?.render === render
+        ? previous.cache
+        : new Map<string, { item: unknown; vnode: VNode }>();
+      if (!previous || previous.render !== render) listCaches.set(cacheId, { render, cache });
       return createVNode(Fragment, {
         key: id,
         list: {
           collection,
           source: reactiveRef(collection) as ReactiveRef<Iterable<T>> | undefined,
           key,
-          render
+          render,
+          cache: cache as Map<string, { item: T; vnode: VNode }>
         } satisfies ListBinding<T>
       });
     },
@@ -515,6 +542,7 @@ export function renderInstance(instance: ComponentInstance<any>, onInvalidate: (
   instance.renderStop = watch(
     () => {
       try {
+        instance.beginRender();
         output = (instance.errorFallback ?? instance.renderFunction)();
       } catch (error) {
         const fallback = handleComponentError(instance, createErrorReport(error, "render", instance));

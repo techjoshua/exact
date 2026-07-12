@@ -11,6 +11,10 @@ import type { EffectScope } from "@exact/reactive";
 export type Mounted = {
   vnode: VNode;
   dom: Node;
+  /** Optional closing boundary marker when this subtree was adopted from SSR. */
+  end?: Node;
+  /** Marker range that wraps an ordinary keyed list item vnode. */
+  range?: "item";
   scope: EffectScope;
   children: Mounted[];
   instance?: ComponentInstance<any>;
@@ -28,6 +32,8 @@ export type Root = {
   boundary: ComponentFunction<{}, { version: number }>;
   logger?: Logger;
   debugMarkers: boolean;
+  /** Hydrated roots are anchored by SSR markers rather than the synthetic client root boundary. */
+  mode?: "client" | "hydrated";
 };
 
 export type RenderOptions = {

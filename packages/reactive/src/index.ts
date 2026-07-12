@@ -28,10 +28,85 @@ import type {
 
 export { createEffectScope, flushSync, peek, withEffectScope };
 
+/**
+ * Compiler runtime hook for a statically-known state assignment.  Unlike a
+ * normal proxy write, plain JSON-shaped replacements are reconciled in place:
+ * unchanged branches retain their identity and do not notify dependents.
+ * This is deliberately exported for compiler output only.
+ */
+export function writeReactive(target: object, path: readonly PropertyKey[], next: unknown): unknown {
+  if (!path.length) throw new TypeError("writeReactive requires a state path");
+  const { parent, key } = resolveReactivePath(target, path);
+  const previous = Reflect.get(parent, key);
+  if (reconcileReactiveValue(previous, next, new WeakMap())) return next;
+  if (!Object.is(unwrap(previous), unwrap(next))) {
+    Reflect.set(parent, key, next);
+  }
+  return next;
+}
+
+/** Compiler runtime hook for compound assignments and update expressions. */
+export function updateReactiveValue(
+  target: object,
+  path: readonly PropertyKey[],
+  operation: (previous: unknown) => unknown,
+  returnPrevious = false
+): unknown {
+  const { parent, key } = resolveReactivePath(target, path);
+  const previous = Reflect.get(parent, key);
+  const next = operation(previous);
+  writeReactive(target, path, next);
+  return returnPrevious ? previous : next;
+}
+
+/** Compiler runtime hook for statically-known deletes. */
+export function deleteReactiveValue(target: object, path: readonly PropertyKey[]): boolean {
+  if (!path.length) return false;
+  const { parent, key } = resolveReactivePath(target, path);
+  return Reflect.deleteProperty(parent, key);
+}
+
+/** Compiler runtime hook for standard array mutators. */
+export function mutateReactiveArray(
+  target: object,
+  path: readonly PropertyKey[],
+  method: "copyWithin" | "fill" | "pop" | "push" | "reverse" | "shift" | "sort" | "splice" | "unshift",
+  args: unknown[]
+): unknown {
+  const { parent, key } = resolveReactivePath(target, path);
+  const value = Reflect.get(parent, key);
+  if (!Array.isArray(value)) throw new TypeError(`Cannot call ${method} on a non-array reactive value`);
+  return (value[method] as (...input: unknown[]) => unknown)(...args);
+}
+
+/** Records the stable identity used by a keyed list for compiler reconciliation. */
+export function registerReactiveListKey(collection: Iterable<unknown>, key: (item: unknown) => string, site = "an unlabelled this.map() call"): void {
+  if (!collection || typeof collection !== "object") return;
+  const raw = unwrap(collection as object) as object;
+  if (!Array.isArray(raw)) return;
+
+  // Render functions are recreated on every component render.  Comparing their
+  // source gives compiled call sites a stable identity without retaining a
+  // component instance, while still detecting genuinely incompatible keys.
+  const signature = Function.prototype.toString.call(key);
+  const previous = listKeyExtractors.get(raw);
+  if (previous && previous.signature !== signature) {
+    throw new Error(`Conflicting this.map() key extractors for the same collection (${previous.site} and ${site})`);
+  }
+  if (!previous) listKeyExtractors.set(raw, { key, signature, site });
+}
+
 const proxyCache = new WeakMap<object, object>();
 const readonlyProxyCache = new WeakMap<object, object>();
 const objectRefs = new WeakMap<object, ReactiveRef>();
 const rawObjectRefs = new WeakMap<object, ReactiveRef>();
+interface ListKeyRegistration {
+  key: (item: unknown) => string;
+  signature: string;
+  site: string;
+}
+
+const listKeyExtractors = new WeakMap<object, ListKeyRegistration>();
 const mutatingArrayMethods = new Set<PropertyKey>(["copyWithin", "fill", "pop", "push", "reverse", "shift", "sort", "splice", "unshift"]);
 
 /** Creates a reactive proxy that tracks reads and notifies watchers when writable state changes. */
@@ -271,6 +346,93 @@ function canUpdateNestedReactive(previous: unknown, next: unknown): boolean {
   return (isReactive(previous) || (!!unwrappedPrevious && typeof unwrappedPrevious === "object" && rawObjectRefs.has(unwrappedPrevious)))
     && isPlainObject(unwrappedPrevious)
     && isPlainObject(unwrappedNext);
+}
+
+function resolveReactivePath(target: object, path: readonly PropertyKey[]): { parent: object; key: PropertyKey } {
+  let parent = target as Record<PropertyKey, unknown>;
+  for (let index = 0; index < path.length - 1; index++) {
+    const next = parent[path[index]!];
+    if (!next || typeof next !== "object") throw new TypeError(`Cannot resolve reactive state path ${path.join(".")}`);
+    parent = next as Record<PropertyKey, unknown>;
+  }
+  return { parent, key: path[path.length - 1]! };
+}
+
+/** Returns true when a compatible structured value was reconciled in place. */
+function reconcileReactiveValue(
+  previous: unknown,
+  next: unknown,
+  seen: WeakMap<object, WeakSet<object>>
+): boolean {
+  const oldValue = unwrap(previous);
+  const nextValue = unwrap(next);
+  if (Object.is(oldValue, nextValue)) return true;
+  if (!oldValue || !nextValue || typeof oldValue !== "object" || typeof nextValue !== "object") return false;
+  const compatible = Array.isArray(oldValue) && Array.isArray(nextValue)
+    || isPlainObject(oldValue) && isPlainObject(nextValue);
+  if (!compatible) return false;
+
+  let paired = seen.get(oldValue);
+  if (paired?.has(nextValue)) return true;
+  if (!paired) {
+    paired = new WeakSet<object>();
+    seen.set(oldValue, paired);
+  }
+  paired.add(nextValue);
+
+  const current = previous as Record<PropertyKey, unknown>;
+  if (Array.isArray(oldValue) && Array.isArray(nextValue)) {
+    const registration = listKeyExtractors.get(oldValue);
+    if (registration) return reconcileKeyedArray(current, oldValue, nextValue, registration.key, seen);
+    const sharedLength = Math.min(oldValue.length, nextValue.length);
+    for (let index = 0; index < sharedLength; index++) {
+      if (!reconcileReactiveValue(current[index], nextValue[index], seen)) current[index] = nextValue[index];
+    }
+    for (let index = oldValue.length - 1; index >= nextValue.length; index--) delete current[index];
+    for (let index = sharedLength; index < nextValue.length; index++) current[index] = nextValue[index];
+    if (oldValue.length !== nextValue.length) current.length = nextValue.length;
+    return true;
+  }
+
+  const nextRecord = nextValue as Record<PropertyKey, unknown>;
+  for (const key of Reflect.ownKeys(oldValue)) {
+    if (!Reflect.has(nextRecord, key)) delete current[key];
+  }
+  for (const key of Reflect.ownKeys(nextRecord)) {
+    if (!Reflect.has(oldValue, key) || !reconcileReactiveValue(current[key], nextRecord[key], seen)) current[key] = nextRecord[key];
+  }
+  return true;
+}
+
+function reconcileKeyedArray(
+  current: Record<PropertyKey, unknown>,
+  oldValue: unknown[],
+  nextValue: unknown[],
+  key: (item: unknown) => string,
+  seen: WeakMap<object, WeakSet<object>>
+): boolean {
+  const existing = new Map<string, unknown>();
+  for (let index = 0; index < oldValue.length; index++) {
+    const id = String(key(oldValue[index]));
+    if (existing.has(id)) throw new Error(`Duplicate key "${id}" in the current keyed reactive array`);
+    existing.set(id, current[index]);
+  }
+  const incomingEntries = nextValue.map(incoming => ({ id: String(key(incoming)), incoming }));
+  const keys = new Set<string>();
+  for (const { id } of incomingEntries) {
+    if (keys.has(id)) throw new Error(`Duplicate key "${id}" in the next keyed reactive array`);
+    keys.add(id);
+  }
+  const nextItems: unknown[] = [];
+  for (const { id, incoming } of incomingEntries) {
+    const previousItem = existing.get(id);
+    if (previousItem !== undefined && reconcileReactiveValue(previousItem, incoming, seen)) nextItems.push(previousItem);
+    else nextItems.push(incoming);
+  }
+  for (let index = 0; index < nextItems.length; index++) if (!Object.is(current[index], nextItems[index])) current[index] = nextItems[index];
+  for (let index = oldValue.length - 1; index >= nextItems.length; index--) delete current[index];
+  if (oldValue.length !== nextItems.length) current.length = nextItems.length;
+  return true;
 }
 
 function createReactive(value: object, options: ReactiveOptions): object {
