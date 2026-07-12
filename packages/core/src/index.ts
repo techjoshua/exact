@@ -11,6 +11,7 @@ import {
   type ReactiveRef,
   type StopHandle
 } from "@exact/reactive";
+import { createContext, createRef } from "./keys.js";
 import { Cell, Dynamic, Fragment, ServerBoundary, ServerSlot, Text } from "./symbols.js";
 import {
   createCellVNode,
@@ -30,6 +31,7 @@ import {
 
 export type { Reactive, ReactiveValue, StopHandle } from "@exact/reactive";
 export { computed, unwrap, watch } from "@exact/reactive";
+export { createContext, createRef } from "./keys.js";
 export { Cell, Dynamic, Fragment, ServerBoundary, ServerSlot, Text } from "./symbols.js";
 export {
   createCellVNode,
@@ -376,18 +378,6 @@ function createDefaultErrorView(errors: Iterable<ErrorReport>): VNode {
       createVNode("pre", null, formatError(error.error))
     ))
   );
-}
-
-export function createContext<T>(description: string, global = false): ContextToken<T> {
-  return {
-    id: global ? Symbol.for(`exact.context:${description}`) : Symbol(description),
-    description,
-    global
-  };
-}
-
-export function createRef<T>(description: string): RefKey<T> {
-  return { id: Symbol(description), description };
 }
 
 export function createComponentInstance<State extends object, Props extends Record<string, unknown>>(
