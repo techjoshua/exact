@@ -14,17 +14,14 @@ import {
   handleComponentError,
   isCellVNode,
   isVNode,
-  logFrameworkEvent,
   normalizeRenderResult,
   renderInstance,
   type Child,
   type Component,
   type ComponentFunction,
   type ComponentInstance,
-  type ErrorContextValue,
   type ErrorReport,
   type ListBinding,
-  type Logger,
   type RefBinding,
   type StopHandle,
   type VNode,
@@ -37,7 +34,11 @@ import {
   withEffectScope,
   type EffectScope,
 } from "@exact/reactive";
+import { describeNode, describeVNodeType, domDebug, formatError } from "./debug.js";
+import { afterMountedChildren, lastMountedNode, placeMountedBefore } from "./placement.js";
+import { elementOwners, eventHandlers, propBindings, roots } from "./state.js";
 import { normalizeClass, toCssProperty } from "./style.js";
+import type { Mounted, RenderOptions, Root } from "./types.js";
 export {
   deg,
   em,
@@ -56,37 +57,7 @@ export {
   type CssValue
 } from "./style.js";
 
-type Mounted = {
-  vnode: VNode;
-  dom: Node;
-  scope: EffectScope;
-  children: Mounted[];
-  instance?: ComponentInstance<any>;
-  delegatedEvents?: Map<string, EventListener>;
-  stop?: StopHandle;
-};
-
-type Root = {
-  container: Element;
-  mounted?: Mounted;
-  delegated: Map<string, EventListener>;
-  errors: ErrorContextValue;
-  current: VNode;
-  version: number;
-  boundary: ComponentFunction<{}, { version: number }>;
-  logger?: Logger;
-  debugMarkers: boolean;
-};
-
-const roots = new WeakMap<Element, Root>();
-const eventHandlers = new WeakMap<Element, Map<string, EventListener>>();
-const elementOwners = new WeakMap<Element, ComponentInstance<any>>();
-const propBindings = new WeakMap<Element, Map<string, StopHandle>>();
-
-export type RenderOptions = {
-  logger?: Logger;
-  debugMarkers?: boolean;
-};
+export type { RenderOptions } from "./types.js";
 
 export function render(vnode: VNode, container: Element, options: RenderOptions = {}): void {
   let root = roots.get(container);
@@ -827,83 +798,6 @@ function eventTargetElement(target: EventTarget | null): Element | null {
   return null;
 }
 
-function placeMountedBefore(root: Root, parent: Node, mounted: Mounted, before?: Node | null): void {
-  const cursor = before?.parentNode === parent ? before : null;
-  const nodes = mountedDomNodes(mounted);
-  const first = nodes[0];
-  const last = nodes[nodes.length - 1];
-
-  if (first.parentNode === parent && last.nextSibling === cursor && areContiguous(nodes)) {
-    domDebug(root, "skip placement", {
-      reason: "mounted-range-already-before-cursor",
-      parent: describeNode(parent),
-      node: describeNode(first),
-      before: describeNode(cursor)
-    });
-    return;
-  }
-
-  for (const node of nodes) {
-    insertBeforeIfNeeded(root, parent, node, cursor);
-  }
-}
-
-function mountedDomNodes(mounted: Mounted): Node[] {
-  const nodes = [mounted.dom];
-  if (mounted.vnode.type === Cell || mounted.vnode.type === Fragment || mounted.vnode.type === Dynamic || typeof mounted.vnode.type === "function") {
-    for (const child of mounted.children) {
-      nodes.push(...mountedDomNodes(child));
-    }
-  }
-  return nodes;
-}
-
-function areContiguous(nodes: Node[]): boolean {
-  for (let index = 0; index < nodes.length - 1; index++) {
-    if (nodes[index]!.nextSibling !== nodes[index + 1]) return false;
-  }
-  return true;
-}
-
-function insertBeforeIfNeeded(root: Root, parent: Node, node: Node, before?: Node | null): void {
-  const cursor = before?.parentNode === parent ? before : null;
-  if (node === cursor) {
-    domDebug(root, "skip placement", {
-      reason: "node-is-cursor",
-      parent: describeNode(parent),
-      node: describeNode(node),
-      before: describeNode(cursor)
-    });
-    return;
-  }
-  if (node.parentNode === parent && node.nextSibling === cursor) {
-    domDebug(root, "skip placement", {
-      reason: "already-before-cursor",
-      parent: describeNode(parent),
-      node: describeNode(node),
-      before: describeNode(cursor)
-    });
-    return;
-  }
-  domDebug(root, "place node", {
-    parent: describeNode(parent),
-    node: describeNode(node),
-    before: describeNode(cursor),
-    active: describeNode(document.activeElement)
-  });
-  parent.insertBefore(node, cursor);
-}
-
-function afterMountedChildren(mounted: Mounted): Node | null {
-  const lastChild = mounted.children[mounted.children.length - 1];
-  return lastChild ? lastMountedNode(lastChild).nextSibling : mounted.dom.nextSibling;
-}
-
-function lastMountedNode(mounted: Mounted): Node {
-  const lastChild = mounted.children[mounted.children.length - 1];
-  return lastChild ? lastMountedNode(lastChild) : mounted.dom;
-}
-
 function stopReplacedChildren(mounted: Mounted, nextChildren: Child[]): void {
   const nextVNodes = nextChildren
     .map(childToVNode)
@@ -1018,10 +912,6 @@ function setPropBinding(element: Element, key: string, stop: StopHandle): void {
   bindings.set(key, stop);
 }
 
-function domDebug(root: Root, message: string, details?: Record<string, unknown>): void {
-  logFrameworkEvent("trace", "dom", "patch", message, details, root.logger);
-}
-
 function findOwnerInstance(element: Element): ComponentInstance<any> | undefined {
   let cursor: Element | null = element;
   while (cursor) {
@@ -1030,27 +920,4 @@ function findOwnerInstance(element: Element): ComponentInstance<any> | undefined
     cursor = cursor.parentElement;
   }
   return undefined;
-}
-
-function describeNode(node: Node | null | undefined): string {
-  if (!node) return "none";
-  if (node instanceof Element) {
-    const id = node.id ? `#${node.id}` : "";
-    const className = typeof node.className === "string" && node.className
-      ? `.${node.className.split(/\s+/).filter(Boolean).join(".")}`
-      : "";
-    return `${node.tagName.toLowerCase()}${id}${className}`;
-  }
-  return node.nodeName;
-}
-
-function describeVNodeType(type: VNode["type"]): string {
-  if (typeof type === "string") return type;
-  if (typeof type === "function") return type.name || "anonymous";
-  return String(type.description ?? type.toString());
-}
-
-function formatError(error: unknown): string {
-  if (error instanceof Error) return error.stack ?? error.message;
-  return String(error);
 }
