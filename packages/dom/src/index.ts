@@ -32,13 +32,29 @@ import {
   watch
 } from "@exact/core";
 import {
-  computed,
   createEffectScope,
   flushSync,
   withEffectScope,
   type EffectScope,
-  type ReactiveValue
 } from "@exact/reactive";
+import { normalizeClass, toCssProperty } from "./style.js";
+export {
+  deg,
+  em,
+  fr,
+  ms,
+  percent,
+  px,
+  rad,
+  rem,
+  s,
+  turn,
+  vh,
+  vmax,
+  vmin,
+  vw,
+  type CssValue
+} from "./style.js";
 
 type Mounted = {
   vnode: VNode;
@@ -679,42 +695,6 @@ function bindStyle(element: HTMLElement, value: unknown, scope: EffectScope): St
   }, undefined, { scope });
 }
 
-export type CssValue = string | number | ReactiveValue<string>;
-
-type CssInput = unknown;
-
-export const px = unit("px");
-export const rem = unit("rem");
-export const em = unit("em");
-export const percent = unit("%");
-export const vh = unit("vh");
-export const vw = unit("vw");
-export const vmin = unit("vmin");
-export const vmax = unit("vmax");
-export const fr = unit("fr");
-export const ms = unit("ms");
-export const s = unit("s");
-export const deg = unit("deg");
-export const rad = unit("rad");
-export const turn = unit("turn");
-
-function unit(suffix: string): (value: CssInput) => ReactiveValue<string> {
-  return (value: CssInput) => computed(() => `${unwrap(value) ?? ""}${suffix}`);
-}
-
-function normalizeClass(value: unknown): string {
-  const actual = unwrap(value);
-  if (actual === false || actual === null || actual === undefined) return "";
-  if (typeof actual === "string") return actual;
-  if (Array.isArray(actual)) {
-    return actual.map(item => normalizeClass(item)).filter(Boolean).join(" ");
-  }
-  if (typeof actual === "object") {
-    return Object.entries(actual).filter(([, enabled]) => Boolean(unwrap(enabled))).map(([name]) => name).join(" ");
-  }
-  return String(actual);
-}
-
 function setDomProp(root: Root, element: Element, key: string, value: unknown): void {
   const property = normalizePropName(key);
 
@@ -794,10 +774,6 @@ function isFocusedTextControl(element: Element): boolean {
       element instanceof HTMLInputElement
       || element instanceof HTMLTextAreaElement
     );
-}
-
-function toCssProperty(name: string): string {
-  return name.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`);
 }
 
 function ensureDelegated(root: Root, type: string): void {
