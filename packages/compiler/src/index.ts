@@ -8,6 +8,12 @@ import {
   isPropertyAccessName,
   nodeNameText
 } from "./ast.js";
+import {
+  artifactGraphEntryFromCompileResult,
+  createExactArtifactGraph,
+  diffExactArtifactPlans,
+  readExactArtifactManifestEntries
+} from "./artifacts.js";
 import type {
   ClientIslandCaptures,
   ClientIslandElementNode,
@@ -19,29 +25,17 @@ import type {
   CompileProjectOptions,
   ComponentLocalInfo,
   DerivedReactiveIndex,
-  ExactArtifactComponentEdge,
   ExactArtifactDevState,
   ExactArtifactDevStateOptions,
   ExactArtifactDevStateUpdate,
-  ExactArtifactGraph,
-  ExactArtifactGraphEntry,
-  ExactArtifactGraphInput,
-  ExactArtifactGraphOptions,
-  ExactArtifactImportResolution,
   ExactArtifactPlan,
-  ExactArtifactPlanDiff,
-  ExactArtifactPlanDiffOptions,
   ExactArtifactPlanEntry,
   ExactArtifactPlanOptions,
-  ExactArtifactRegistryModules,
-  ExactArtifactRegistryModulesOptions,
-  ExactArtifactTarget,
   ExactBoundaryIR,
   ExactCompilerManifest,
   ExactComponentIR,
   ExactComponentRenderEdgeIR,
   ExactContextEffect,
-  ExactExportConditionOptions,
   ExactExportIR,
   ExactHydrationEndpointRoutes,
   ExactImportedComponentIR,
@@ -53,8 +47,6 @@ import type {
   ExactTaskIR,
   ExportBinding,
   HelperNames,
-  PackageExportEntry,
-  PackageExportMapOptions,
   ReactiveSourceIndex,
   SemanticDeclarationIndex,
   SemanticReferenceIndex,
@@ -65,17 +57,13 @@ import type {
 } from "./types.js";
 import { formatDiagnostics, validateSource } from "./diagnostics.js";
 import { stableId } from "./ids.js";
-import { isExactArtifactManifest, parseExactCompilerManifest } from "./manifest-parse.js";
 import {
   artifactPathsFor,
   collectInputFiles,
   commonRoot,
   manifestPathFor,
   outputPathFor,
-  packageExportSpecifier,
-  packageExportTarget,
   slashPath,
-  sortPlanEntries,
   withArtifactMetadata
 } from "./paths.js";
 import { preprocessPropPunning } from "./preprocess.js";
@@ -106,6 +94,16 @@ import { exactCompilerManifestVersion } from "./versions.js";
 export type * from "./types.js";
 export { preprocessPropPunning } from "./preprocess.js";
 export { parseExactCompilerManifest } from "./manifest-parse.js";
+export {
+  createExactArtifactComponentEdges,
+  createExactArtifactGraph,
+  createExactArtifactRegistryModules,
+  createPackageExportMap,
+  diffExactArtifactPlans,
+  exactExportConditions,
+  readExactArtifactManifestEntries,
+  resolveExactArtifactImport
+} from "./artifacts.js";
 export {
   createClientIslandRegistryEntries,
   createClientIslandRegistryModule,
@@ -489,191 +487,6 @@ export async function updateExactArtifactDevState(
     graph: createExactArtifactGraph(entries, options),
     diff,
     compiled
-  };
-}
-
-export function diffExactArtifactPlans(
-  previous: ExactArtifactPlan,
-  next: ExactArtifactPlan,
-  options: ExactArtifactPlanDiffOptions = {}
-): ExactArtifactPlanDiff {
-  const previousByInput = new Map(previous.entries.map(entry => [path.resolve(entry.inputFile), entry]));
-  const nextByInput = new Map(next.entries.map(entry => [path.resolve(entry.inputFile), entry]));
-  const changedInputs = new Set((options.changedInputs ?? []).map(file => path.resolve(file)));
-  const added: ExactArtifactPlanEntry[] = [];
-  const removed: ExactArtifactPlanEntry[] = [];
-  const changed: ExactArtifactPlanEntry[] = [];
-  const retained: ExactArtifactPlanEntry[] = [];
-
-  for (const [inputFile, entry] of nextByInput) {
-    if (!previousByInput.has(inputFile)) {
-      added.push(entry);
-    } else if (changedInputs.has(inputFile)) {
-      changed.push(entry);
-    } else {
-      retained.push(entry);
-    }
-  }
-  for (const [inputFile, entry] of previousByInput) {
-    if (!nextByInput.has(inputFile)) removed.push(entry);
-  }
-
-  return {
-    added: sortPlanEntries(added),
-    removed: sortPlanEntries(removed),
-    changed: sortPlanEntries(changed),
-    retained: sortPlanEntries(retained)
-  };
-}
-
-export function createPackageExportMap(
-  results: readonly ExactArtifactGraphInput[],
-  options: PackageExportMapOptions
-): Record<string, PackageExportEntry> {
-  const clientCondition = options.clientCondition ?? "exact-client";
-  const serverCondition = options.serverCondition ?? "exact-server";
-  const output: Record<string, PackageExportEntry> = {};
-
-  for (const result of results) {
-    const specifier = packageExportSpecifier(result.inputFile, options.sourceRoot ?? options.packageRoot);
-    const client = packageExportTarget(result.clientFile, options.packageRoot);
-    const server = packageExportTarget(result.serverFile, options.packageRoot);
-    output[specifier] = {
-      [clientCondition]: client,
-      [serverCondition]: server,
-      default: options.defaultTarget === "server" ? server : client
-    };
-  }
-
-  return output;
-}
-
-export function exactExportConditions(
-  target: ExactArtifactTarget,
-  options: ExactExportConditionOptions = {}
-): string[] {
-  return [target === "server" ? options.serverCondition ?? "exact-server" : options.clientCondition ?? "exact-client"];
-}
-
-export function resolveExactArtifactImport(
-  source: string,
-  importer: string | undefined,
-  target: ExactArtifactTarget
-): ExactArtifactImportResolution | null {
-  if (!source.endsWith(".exact")) return null;
-  const resolved = `${source}.${target}.ts`;
-  return {
-    id: !importer || path.isAbsolute(resolved) ? resolved : path.resolve(path.dirname(importer), resolved),
-    target
-  };
-}
-
-export function createExactArtifactGraph(
-  results: readonly ExactArtifactGraphInput[],
-  options: ExactArtifactGraphOptions
-): ExactArtifactGraph {
-  return {
-    conditions: {
-      client: exactExportConditions("client", options),
-      server: exactExportConditions("server", options)
-    },
-    packageExports: createPackageExportMap(results, options),
-    componentEdges: createExactArtifactComponentEdges(results),
-    clientIslands: createClientIslandRegistryEntries(results, {
-      rootDir: options.rootDir ?? options.packageRoot
-    }),
-    serverParts: createServerPartRegistryEntries(results, {
-      rootDir: options.rootDir ?? options.packageRoot
-    }),
-    artifacts: results.map(result => ({
-      inputFile: result.inputFile,
-      clientFile: result.clientFile,
-      serverFile: result.serverFile,
-      manifestFile: result.manifestFile,
-      manifest: result.manifest
-    }))
-  };
-}
-
-export function createExactArtifactComponentEdges(results: readonly ExactArtifactGraphInput[]): ExactArtifactComponentEdge[] {
-  const edges: ExactArtifactComponentEdge[] = [];
-  for (const result of results) {
-    for (const component of result.manifest.components) {
-      for (const edge of component.renderEdges) {
-        edges.push({
-          id: edge.id,
-          sourceFile: result.inputFile,
-          sourceComponentId: component.id,
-          sourceName: component.name,
-          targetComponentId: edge.componentId,
-          targetName: edge.name,
-          tag: edge.tag,
-          placement: edge.placement,
-          boundary: edge.boundary,
-          index: edge.index,
-          path: edge.path
-        });
-      }
-    }
-  }
-  return edges.sort((left, right) => [
-    left.sourceFile,
-    left.sourceName,
-    String(left.index).padStart(6, "0"),
-    left.tag,
-    left.targetName
-  ].join(":").localeCompare([
-    right.sourceFile,
-    right.sourceName,
-    String(right.index).padStart(6, "0"),
-    right.tag,
-    right.targetName
-  ].join(":")));
-}
-
-export function createExactArtifactRegistryModules(
-  graph: ExactArtifactGraph,
-  options: ExactArtifactRegistryModulesOptions = {}
-): ExactArtifactRegistryModules {
-  return {
-    client: createClientIslandRegistryModule(graph.clientIslands, {
-      exportName: options.clientExportName
-    }),
-    server: createServerPartRegistryModule(graph.serverParts, {
-      exportName: options.serverExportName
-    })
-  };
-}
-
-export async function readExactArtifactManifestEntries(manifestFiles: readonly string[]): Promise<ExactArtifactGraphEntry[]> {
-  const entries: ExactArtifactGraphEntry[] = [];
-  for (const manifestFile of manifestFiles) {
-    const manifest = parseExactCompilerManifest(JSON.parse(await readFile(manifestFile, "utf8")), manifestFile, "artifact");
-    if (!manifest.artifacts) {
-      throw new Error(`eXact artifact manifest ${manifestFile} is missing artifact metadata`);
-    }
-    if (!isExactArtifactManifest(manifest.artifacts)) {
-      throw new Error(`eXact artifact manifest ${manifestFile} has malformed artifact metadata`);
-    }
-    const root = path.dirname(manifestFile);
-    entries.push({
-      inputFile: path.resolve(root, manifest.artifacts.source),
-      clientFile: path.resolve(root, manifest.artifacts.client),
-      serverFile: path.resolve(root, manifest.artifacts.server),
-      manifestFile,
-      manifest
-    });
-  }
-  return entries.sort((left, right) => left.manifestFile.localeCompare(right.manifestFile));
-}
-
-function artifactGraphEntryFromCompileResult(result: CompileArtifactsResult): ExactArtifactGraphEntry {
-  return {
-    inputFile: result.inputFile,
-    clientFile: result.clientFile,
-    serverFile: result.serverFile,
-    manifestFile: result.manifestFile,
-    manifest: result.manifest
   };
 }
 
