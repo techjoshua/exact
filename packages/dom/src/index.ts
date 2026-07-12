@@ -34,9 +34,12 @@ import {
   withEffectScope,
   type EffectScope,
 } from "@exact/reactive";
+import { ensureDelegated } from "./events.js";
+import { preserveFocus } from "./focus.js";
 import { describeNode, describeVNodeType, domDebug, formatError } from "./debug.js";
+import { clearElementOwner, setElementOwner } from "./ownership.js";
 import { afterMountedChildren, lastMountedNode, placeMountedBefore } from "./placement.js";
-import { elementOwners, eventHandlers, propBindings, roots } from "./state.js";
+import { eventHandlers, propBindings, roots } from "./state.js";
 import { normalizeClass, toCssProperty } from "./style.js";
 import type { Mounted, RenderOptions, Root } from "./types.js";
 export {
@@ -216,7 +219,7 @@ function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>
 
   const element = document.createElement(vnode.type as string);
   const mounted: Mounted = { vnode, dom: element, scope, children: [] };
-  if (parentInstance) elementOwners.set(element, parentInstance);
+  if (parentInstance) setElementOwner(element, parentInstance);
   mounted.children = mountChildren(root, element, vnode.children, parentInstance, mounted.scope);
   updateProps(root, element, {}, vnode.props, mounted.scope);
   return mounted;
@@ -449,23 +452,6 @@ function patchChildrenInner(
   }
 
   return nextMounted;
-}
-
-function preserveFocus<T>(root: Root, work: () => T): T {
-  const active = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
-  const result = work();
-  if (
-    active
-    && active.isConnected
-    && document.activeElement === document.body
-  ) {
-    domDebug(root, "restore focus", {
-      active: describeNode(active),
-      bodyOwnsFocus: document.activeElement === document.body
-    });
-    active.focus({ preventScroll: true });
-  }
-  return result;
 }
 
 function mountServerSlot(root: Root, vnode: VNode, scope: EffectScope): Mounted {
@@ -747,57 +733,6 @@ function isFocusedTextControl(element: Element): boolean {
     );
 }
 
-function ensureDelegated(root: Root, type: string): void {
-  if (root.delegated.has(type)) return;
-
-  const listener = (event: Event) => {
-    let cursor = eventTargetElement(event.target);
-    while (cursor && cursor !== root.container.parentElement) {
-      const handler = eventHandlers.get(cursor)?.get(type);
-      if (handler) {
-        const current = cursor;
-        preserveFocus(root, () => {
-          try {
-            callDelegatedHandler(handler, current, event);
-          } catch (error) {
-            const owner = findOwnerInstance(current);
-            handleComponentError(owner, createErrorReport(error, "event", owner, type));
-          }
-        });
-      }
-      if (event.cancelBubble) break;
-      if (cursor === root.container) break;
-      cursor = cursor.parentElement;
-    }
-  };
-
-  root.container.addEventListener(type, listener);
-  root.delegated.set(type, listener);
-}
-
-function callDelegatedHandler(handler: EventListener, current: Element, event: Event): void {
-  const ownDescriptor = Object.getOwnPropertyDescriptor(event, "currentTarget");
-  Object.defineProperty(event, "currentTarget", {
-    configurable: true,
-    value: current
-  });
-  try {
-    handler.call(current, event);
-  } finally {
-    if (ownDescriptor) {
-      Object.defineProperty(event, "currentTarget", ownDescriptor);
-    } else {
-      delete (event as { currentTarget?: EventTarget | null }).currentTarget;
-    }
-  }
-}
-
-function eventTargetElement(target: EventTarget | null): Element | null {
-  if (target instanceof Element) return target;
-  if (target instanceof Node) return target.parentElement;
-  return null;
-}
-
 function stopReplacedChildren(mounted: Mounted, nextChildren: Child[]): void {
   const nextVNodes = nextChildren
     .map(childToVNode)
@@ -846,7 +781,7 @@ function unmountMounted(mounted: Mounted): void {
     }
     propBindings.delete(mounted.dom);
     eventHandlers.delete(mounted.dom);
-    elementOwners.delete(mounted.dom);
+    clearElementOwner(mounted.dom);
   }
 
   const ref = mounted.vnode.props.ref as RefBinding<unknown> | undefined;
@@ -910,14 +845,4 @@ function setPropBinding(element: Element, key: string, stop: StopHandle): void {
     propBindings.set(element, bindings);
   }
   bindings.set(key, stop);
-}
-
-function findOwnerInstance(element: Element): ComponentInstance<any> | undefined {
-  let cursor: Element | null = element;
-  while (cursor) {
-    const owner = elementOwners.get(cursor);
-    if (owner) return owner;
-    cursor = cursor.parentElement;
-  }
-  return undefined;
 }
