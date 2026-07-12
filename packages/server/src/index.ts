@@ -12,8 +12,7 @@ import type {
   ExactResponseLike,
   ExactServerContext,
   ExactServerManifest,
-  ExactStateContract,
-  ExactStreamEvent
+  ExactStateContract
 } from "./types.js";
 import {
   hasOnlyKeys,
@@ -23,6 +22,7 @@ import {
   readBody,
   requestPayloadSafe
 } from "./protocol.js";
+import { dispatchExactBatch, streamExactResponse, wantsStreaming } from "./streaming.js";
 
 export { exactCompilerManifestVersion, exactServerManifestVersion } from "./versions.js";
 export {
@@ -69,11 +69,11 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
   }
 
   if (wantsStreaming(request)) {
-    return streamExactResponse(request, input, context);
+    return streamExactResponse(request, input, context, dispatchExactOperation);
   }
 
   if (input.type === "batch") {
-    const results = await dispatchExactBatch(request, input.operations, context);
+    const results = await dispatchExactBatch(request, input.operations, context, dispatchExactOperation);
     return jsonResponse(200, { ok: true, version: 1, results } satisfies ExactBatchResult);
   }
 
@@ -81,182 +81,6 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
   if (isOperationError(result)) return jsonResponse(result.status, { error: result.error });
   const { ok: _ok, type: _type, id: _id, ...body } = result;
   return jsonResponse(200, { ok: true, ...body });
-}
-
-function streamExactResponse(
-  request: ExactRequestLike,
-  input: ExactInvocationRequest | ExactBatchRequest,
-  context: ExactServerContext
-): ExactResponseLike {
-  const operations = input.type === "batch" ? input.operations : [input];
-  const stream = createNdjsonStream(async emit => {
-    emit({ event: "start", version: 1, operations: operations.length });
-    if (input.type === "batch") {
-      await dispatchExactBatchStreaming(request, input.operations, context, (index, result) => {
-        emitOperationStreamEvents(emit, index, result);
-      });
-    } else {
-      const result = await dispatchExactOperation(request, input, context);
-      emitOperationStreamEvents(emit, 0, result);
-    }
-    emit({ event: "complete", version: 1 });
-  });
-  return {
-    status: 200,
-    headers: {
-      "content-type": "application/x-ndjson; charset=utf-8",
-      "cache-control": "no-store"
-    },
-    body: "",
-    stream
-  };
-}
-
-function emitOperationStreamEvents(
-  emit: (event: ExactStreamEvent) => void,
-  index: number,
-  result: ExactOperationResult
-): void {
-  if (!result.ok) {
-    emit({ event: "result", version: 1, index, result });
-    return;
-  }
-  for (const patch of result.patches ?? []) {
-    emit({ event: "patch", version: 1, index, ...(result.opId === undefined ? {} : { opId: result.opId }), patch });
-  }
-  if ("state" in result) {
-    emit({ event: "state", version: 1, index, ...(result.opId === undefined ? {} : { opId: result.opId }), value: result.state });
-  }
-  if (result.html !== undefined) {
-    emit({ event: "html", version: 1, index, ...(result.opId === undefined ? {} : { opId: result.opId }), html: result.html });
-  }
-  emit({
-    event: "result",
-    version: 1,
-    index,
-    result: {
-      ok: true,
-      type: result.type,
-      id: result.id,
-      ...(result.opId === undefined ? {} : { opId: result.opId })
-    }
-  });
-}
-
-async function dispatchExactBatch(
-  request: ExactRequestLike,
-  operations: readonly ExactInvocationRequest[],
-  context: ExactServerContext
-): Promise<ExactOperationResult[]> {
-  const results: ExactOperationResult[] = new Array(operations.length);
-  const pending = new Set(operations.map((_operation, index) => index));
-  const successful = new Set<string>();
-
-  while (pending.size) {
-    const ready = [...pending].filter(index => {
-      const dependsOn = operations[index]!.dependsOn ?? [];
-      return dependsOn.every(id => successful.has(id));
-    });
-
-    if (!ready.length) {
-      for (const index of pending) {
-        results[index] = dependencyFailed(operations[index]!);
-      }
-      break;
-    }
-
-    const settled = await Promise.all(ready.map(async index => {
-      const operation = operations[index]!;
-      return { index, operation, result: await dispatchExactOperation(request, operation, context) };
-    }));
-
-    for (const { index, operation, result } of settled) {
-      results[index] = result;
-      pending.delete(index);
-      if (result.ok && operation.opId) successful.add(operation.opId);
-    }
-  }
-
-  return results;
-}
-
-async function dispatchExactBatchStreaming(
-  request: ExactRequestLike,
-  operations: readonly ExactInvocationRequest[],
-  context: ExactServerContext,
-  emitResult: (index: number, result: ExactOperationResult) => void
-): Promise<void> {
-  const pending = new Set(operations.map((_operation, index) => index));
-  const successful = new Set<string>();
-
-  while (pending.size) {
-    const ready = [...pending].filter(index => {
-      const dependsOn = operations[index]!.dependsOn ?? [];
-      return dependsOn.every(id => successful.has(id));
-    });
-
-    if (!ready.length) {
-      for (const index of pending) {
-        emitResult(index, dependencyFailed(operations[index]!));
-      }
-      break;
-    }
-
-    await Promise.all(ready.map(async index => {
-      const operation = operations[index]!;
-      const result = await dispatchExactOperation(request, operation, context);
-      pending.delete(index);
-      if (result.ok && operation.opId) successful.add(operation.opId);
-      emitResult(index, result);
-    }));
-  }
-}
-
-function dependencyFailed(operation: ExactInvocationRequest): ExactOperationError {
-  return {
-    ok: false,
-    type: operation.type,
-    id: operation.id,
-    opId: operation.opId,
-    status: 424,
-    error: "dependency_failed"
-  };
-}
-
-function createNdjsonStream(run: (emit: (event: ExactStreamEvent) => void) => Promise<void> | void): ReadableStream<Uint8Array> {
-  const encoder = new TextEncoder();
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      const emit = (event: ExactStreamEvent): void => {
-        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
-      };
-      Promise.resolve(run(emit)).then(
-        () => controller.close(),
-        error => {
-          controller.error(error);
-        }
-      );
-    }
-  });
-}
-
-function wantsStreaming(request: ExactRequestLike): boolean {
-  const accept = headerValue(request.headers, "accept");
-  const stream = headerValue(request.headers, "x-exact-stream");
-  return stream === "1" || Boolean(accept?.split(",").some(value => value.trim().toLowerCase().startsWith("application/x-ndjson")));
-}
-
-function headerValue(headers: ExactRequestLike["headers"], name: string): string | undefined {
-  if (!headers) return undefined;
-  if (typeof Headers !== "undefined" && headers instanceof Headers) {
-    return headers.get(name) ?? undefined;
-  }
-  const lower = name.toLowerCase();
-  for (const [key, value] of Object.entries(headers)) {
-    if (key.toLowerCase() !== lower) continue;
-    return Array.isArray(value) ? value.join(",") : value;
-  }
-  return undefined;
 }
 
 function isManifestAllowed(input: ExactInvocationRequest, manifest: ExactServerManifest): boolean {
