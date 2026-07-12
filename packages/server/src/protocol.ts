@@ -82,6 +82,7 @@ function parseInvocationRecord(record: Record<string, unknown>): ExactInvocation
   if (record.opId !== undefined && (typeof record.opId !== "string" || !record.opId)) throw new Error("invalid operation id");
   if (record.dependsOn !== undefined && !isStringList(record.dependsOn)) throw new Error("invalid operation dependencies");
   if (record.context !== undefined && !isContextValueMap(record.context)) throw new Error("invalid context");
+  if (record.boundaryHtml !== undefined && typeof record.boundaryHtml !== "string") throw new Error("invalid boundary html");
   if (record.boundaryHtmls !== undefined && !isBoundaryHtmlMap(record.boundaryHtmls)) throw new Error("invalid boundary htmls");
   return {
     type: record.type,

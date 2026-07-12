@@ -767,6 +767,20 @@ describe("@exact/server", () => {
     expect(JSON.parse(result.body)).toEqual({ error: "bad_request" });
   });
 
+  it("rejects malformed single boundary snapshots", async () => {
+    const result = await handleExactRequest({
+      method: "POST",
+      body: {
+        type: "refresh",
+        id: "allowed-boundary",
+        boundaryHtml: { html: "<p>Previous</p>" }
+      }
+    }, context());
+
+    expect(result.status).toBe(400);
+    expect(JSON.parse(result.body)).toEqual({ error: "bad_request" });
+  });
+
   it("normalizes undefined optional request fields like JSON transport", async () => {
     const action = vi.fn((input: { type: string; id: string }) => ({ patches: [] }));
     const result = await handleExactRequest({
