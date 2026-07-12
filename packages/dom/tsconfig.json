@@ -7,7 +7,9 @@
     "lib": ["ES2022", "DOM"]
   },
   "references": [
-    { "path": "../core" }
+    { "path": "../core" },
+    { "path": "../reactive" }
   ],
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

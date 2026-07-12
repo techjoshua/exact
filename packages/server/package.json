@@ -2,6 +2,10 @@
   "name": "@exact/server",
   "version": "0.0.0",
   "type": "module",
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
