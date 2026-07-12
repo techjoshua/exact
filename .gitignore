@@ -4,3 +4,5 @@ packages/*/dist/
 packages/*/*.tsbuildinfo
 apps/*/dist/
 apps/*/*.tsbuildinfo
+adapters/*/dist/
+adapters/*/*.tsbuildinfo
