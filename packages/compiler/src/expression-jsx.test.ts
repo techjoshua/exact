@@ -16,5 +16,14 @@ describe("expression-backed JSX plan", () => {
     expect(article.exactId).toMatch(/^x/);
     expect(title.exactId).toBeUndefined();
     expect(plan.cells.size).toBeGreaterThanOrEqual(2);
+    expect([...plan.cells.values()].every(cell => cell.reactive)).toBe(true);
+  });
+
+  it("indexes nonreactive JSX expressions without classifying them as reactive", () => {
+    clearExpressionProjectCache();
+    const module = expressionModuleFor("StaticJsx.tsx", "const label = 'ready'; const view = <p title={label}>{1 + 2}</p>;");
+    const plan = analyzeExpressionJsx(module, buildExactProvenance(module));
+    expect(plan.cells.size).toBe(2);
+    expect([...plan.cells.values()].every(cell => !cell.reactive)).toBe(true);
   });
 });

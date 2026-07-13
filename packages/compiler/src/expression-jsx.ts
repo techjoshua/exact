@@ -17,6 +17,7 @@ export interface ExpressionJsxCellSite {
   readonly end: number;
   readonly kind: "jsx-child" | "jsx-attribute";
   readonly dependencies: readonly Variable[];
+  readonly reactive: boolean;
 }
 
 export interface ExpressionJsxPlan {
@@ -41,10 +42,19 @@ export function analyzeExpressionJsx(module: BoundModule, provenance: ExactProve
     });
     elements.set(writeSiteKey(site.start, site.end), site);
   }
+  const reactiveCells = new Map(provenance.cells.filter(cell => cell.node.span).map(cell => [writeSiteKey(cell.node.span!.start, cell.node.span!.end), cell]));
   const cells = new Map<string, ExpressionJsxCellSite>();
-  for (const cell of provenance.cells) {
-    if (!cell.node.span) continue;
-    const site = Object.freeze({ start: cell.node.span.start, end: cell.node.span.end, kind: cell.kind, dependencies: cell.dependencies });
+  for (const expression of module.walk().ofKind("JsxExpression")) {
+    if (!expression.node.span) continue;
+    const key = writeSiteKey(expression.node.span.start, expression.node.span.end);
+    const reactive = reactiveCells.get(key);
+    const site = Object.freeze({
+      start: expression.node.span.start,
+      end: expression.node.span.end,
+      kind: expression.parent?.node.kind === "JsxAttribute" ? "jsx-attribute" as const : "jsx-child" as const,
+      dependencies: reactive?.dependencies ?? module.dependenciesOf(expression),
+      reactive: reactive !== undefined
+    });
     cells.set(writeSiteKey(site.start, site.end), site);
   }
   return Object.freeze({ elements, cells });

@@ -260,7 +260,7 @@ export function exactJsxTransformer(
       }
       if (ts.isJsxFragment(node)) {
         sawJsx = true;
-        return transformJsxFragment(node, context, visitor, helpers, sourceFile, semanticReferences, componentDerivedStack[componentDerivedStack.length - 1]);
+        return transformJsxFragment(node, context, visitor, helpers, sourceFile, semanticReferences, componentDerivedStack[componentDerivedStack.length - 1], expressionJsx);
       }
       if (ts.isCallExpression(node)) {
         if (isThisTaskCall(node)) {
@@ -347,7 +347,7 @@ function transformJsxElement(
     return callFragment(context, opening.attributes, node.children, visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals);
   }
 
-  return callElement(context, tagExpression(opening.tagName), opening.attributes, node.children, visitor, helpers, expressionElementId(sourceFile, node, expressionJsx) ?? exactElementId(sourceFile, opening.tagName, node), sourceFile, semanticReferences, derivedReactiveLocals);
+  return callElement(context, tagExpression(opening.tagName), opening.attributes, node.children, visitor, helpers, expressionElementId(sourceFile, node, expressionJsx) ?? exactElementId(sourceFile, opening.tagName, node), sourceFile, semanticReferences, derivedReactiveLocals, expressionJsx);
 }
 
 function transformJsxSelfClosingElement(
@@ -365,7 +365,7 @@ function transformJsxSelfClosingElement(
     return callFragment(context, node.attributes, [], visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals);
   }
 
-  return callElement(context, tagExpression(node.tagName), node.attributes, [], visitor, helpers, expressionElementId(sourceFile, node, expressionJsx) ?? exactElementId(sourceFile, node.tagName, node), sourceFile, semanticReferences, derivedReactiveLocals);
+  return callElement(context, tagExpression(node.tagName), node.attributes, [], visitor, helpers, expressionElementId(sourceFile, node, expressionJsx) ?? exactElementId(sourceFile, node.tagName, node), sourceFile, semanticReferences, derivedReactiveLocals, expressionJsx);
 }
 
 function expressionElementId(sourceFile: ts.SourceFile, node: ts.Node, plan?: ExpressionJsxPlan): string | undefined {
@@ -379,9 +379,10 @@ function transformJsxFragment(
   helpers: HelperNames,
   sourceFile?: ts.SourceFile,
   semanticReferences?: SemanticReferenceIndex,
-  derivedReactiveLocals?: DerivedReactiveIndex
+  derivedReactiveLocals?: DerivedReactiveIndex,
+  expressionJsx?: ExpressionJsxPlan
 ): ts.Expression {
-  return callFragment(context, undefined, node.children, visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals);
+  return callFragment(context, undefined, node.children, visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals, expressionJsx);
 }
 
 function collectComponentLocalInfo(
@@ -959,12 +960,13 @@ function callElement(
   exactId?: string,
   sourceFile?: ts.SourceFile,
   semanticReferences?: SemanticReferenceIndex,
-  derivedReactiveLocals?: DerivedReactiveIndex
+  derivedReactiveLocals?: DerivedReactiveIndex,
+  expressionJsx?: ExpressionJsxPlan
 ): ts.Expression {
   return context.factory.createCallExpression(context.factory.createIdentifier(helpers.element), undefined, [
     tag,
-    propsObject(context, attributes, visitor, helpers, exactId, sourceFile, semanticReferences, derivedReactiveLocals),
-    ...childrenExpressions(context, children, visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals)
+    propsObject(context, attributes, visitor, helpers, exactId, sourceFile, semanticReferences, derivedReactiveLocals, expressionJsx),
+    ...childrenExpressions(context, children, visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals, expressionJsx)
   ]);
 }
 
@@ -976,11 +978,12 @@ function callFragment(
   helpers: HelperNames,
   sourceFile?: ts.SourceFile,
   semanticReferences?: SemanticReferenceIndex,
-  derivedReactiveLocals?: DerivedReactiveIndex
+  derivedReactiveLocals?: DerivedReactiveIndex,
+  expressionJsx?: ExpressionJsxPlan
 ): ts.Expression {
   return context.factory.createCallExpression(context.factory.createIdentifier(helpers.fragment), undefined, [
-    propsObject(context, attributes, visitor, helpers, undefined, sourceFile, semanticReferences, derivedReactiveLocals),
-    ...childrenExpressions(context, children, visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals)
+    propsObject(context, attributes, visitor, helpers, undefined, sourceFile, semanticReferences, derivedReactiveLocals, expressionJsx),
+    ...childrenExpressions(context, children, visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals, expressionJsx)
   ]);
 }
 
@@ -992,7 +995,8 @@ function propsObject(
   exactId?: string,
   sourceFile?: ts.SourceFile,
   semanticReferences?: SemanticReferenceIndex,
-  derivedReactiveLocals?: DerivedReactiveIndex
+  derivedReactiveLocals?: DerivedReactiveIndex,
+  expressionJsx?: ExpressionJsxPlan
 ): ts.Expression {
   const factory = context.factory;
   const properties: ts.ObjectLiteralElementLike[] = [];
@@ -1020,7 +1024,8 @@ function propsObject(
     if (ts.isJsxExpression(property.initializer)) {
       const expression = property.initializer.expression;
       if (!expression) continue;
-      properties.push(factory.createPropertyAssignment(propName(name), shouldWrapAttribute(name, expression) ? wrapExpression(context, expression, visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals) : ts.visitNode(expression, visitor) as ts.Expression));
+      const plannedCell = isPlannedJsxCell(property.initializer, "jsx-attribute", sourceFile, expressionJsx);
+      properties.push(factory.createPropertyAssignment(propName(name), shouldWrapAttribute(name, expression) && plannedCell ? wrapExpression(context, expression, visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals) : ts.visitNode(expression, visitor) as ts.Expression));
     }
   }
 
@@ -1040,7 +1045,8 @@ function childrenExpressions(
   helpers: HelperNames,
   sourceFile?: ts.SourceFile,
   semanticReferences?: SemanticReferenceIndex,
-  derivedReactiveLocals?: DerivedReactiveIndex
+  derivedReactiveLocals?: DerivedReactiveIndex,
+  expressionJsx?: ExpressionJsxPlan
 ): ts.Expression[] {
   const output: ts.Expression[] = [];
 
@@ -1052,7 +1058,9 @@ function childrenExpressions(
     }
 
     if (ts.isJsxExpression(child)) {
-      if (child.expression) output.push(wrapDynamicChild(context, child.expression, visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals));
+      if (child.expression) output.push(isPlannedJsxCell(child, "jsx-child", sourceFile, expressionJsx)
+        ? wrapDynamicChild(context, child.expression, visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals)
+        : ts.visitNode(child.expression, visitor) as ts.Expression);
       continue;
     }
 
@@ -1060,6 +1068,11 @@ function childrenExpressions(
   }
 
   return output;
+}
+
+function isPlannedJsxCell(node: ts.JsxExpression, kind: "jsx-child" | "jsx-attribute", sourceFile?: ts.SourceFile, plan?: ExpressionJsxPlan): boolean {
+  if (!plan || !sourceFile) return true;
+  return plan.cells.get(writeSiteKey(node.getStart(sourceFile), node.end))?.kind === kind;
 }
 
 function shouldWrapAttribute(name: string, expression: ts.Expression): boolean {
