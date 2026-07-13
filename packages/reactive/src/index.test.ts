@@ -197,6 +197,28 @@ describe("@exact/reactive", () => {
     expect(state.map.get("answer")).toBe(42);
   });
 
+  it("replaces immutable records instead of attempting in-place reconciliation", () => {
+    const frozen = Object.freeze({ title: "old" });
+    const state = reactive({ record: frozen });
+    expect(() => writeReactive(state, ["record"], { title: "new" })).not.toThrow();
+    expect(state.record).not.toBe(frozen);
+    expect(state.record.title).toBe("new");
+  });
+
+  it("preserves sparse array holes during compiler writes", () => {
+    const initial = new Array<string>(3);
+    initial[1] = "middle";
+    const state = reactive({ items: initial });
+    const next = new Array<string>(4);
+    next[2] = "next";
+    writeReactive(state, ["items"], next);
+    expect(state.items.length).toBe(4);
+    expect(0 in state.items).toBe(false);
+    expect(1 in state.items).toBe(false);
+    expect(2 in state.items).toBe(true);
+    expect(3 in state.items).toBe(false);
+  });
+
   it("compares and snapshots cyclic graphs safely", () => {
     const value: { label: string; self?: unknown } = { label: "node" };
     value.self = value;

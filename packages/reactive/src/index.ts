@@ -424,7 +424,9 @@ function reconcileReactiveValue(
   if (Object.is(oldValue, nextValue)) return true;
   if (!oldValue || !nextValue || typeof oldValue !== "object" || typeof nextValue !== "object") return false;
   const compatible = Array.isArray(oldValue) && Array.isArray(nextValue)
-    || isPlainObject(oldValue) && isPlainObject(nextValue);
+    ? canReconcileStructure(oldValue) && canReadStructure(nextValue)
+    : isPlainObject(oldValue) && isPlainObject(nextValue)
+      && canReconcileStructure(oldValue) && canReadStructure(nextValue);
   if (!compatible) return false;
 
   let paired = seen.get(oldValue);
@@ -514,6 +516,13 @@ function reconcileArrayItems(current: Record<PropertyKey, unknown>, oldLength: n
   const target = unwrap(current) as unknown as unknown[];
   const changedIndexes = new Set<number>();
   for (let index = 0; index < nextItems.length; index++) {
+    if (!Reflect.has(nextItems, index)) {
+      if (Reflect.has(target, index)) {
+        Reflect.deleteProperty(target, index);
+        changedIndexes.add(index);
+      }
+      continue;
+    }
     const next = unwrap(nextItems[index]);
     if (Object.is(unwrap(target[index]), next)) continue;
     Reflect.set(target, index, next);
@@ -532,6 +541,23 @@ function reconcileArrayItems(current: Record<PropertyKey, unknown>, oldLength: n
   for (const index of changedIndexes) trigger(target, String(index));
   if (oldLength !== nextItems.length) trigger(target, "length");
   if (changedIndexes.size || oldLength !== nextItems.length) trigger(target, iterateKey);
+}
+
+function canReconcileStructure(value: object): boolean {
+  if (!Object.isExtensible(value)) return false;
+  return Reflect.ownKeys(value).every(key => {
+    if (Array.isArray(value) && key === "length") return true;
+    const descriptor = Reflect.getOwnPropertyDescriptor(value, key);
+    return !!descriptor && "value" in descriptor && descriptor.writable !== false && descriptor.configurable !== false;
+  });
+}
+
+function canReadStructure(value: object): boolean {
+  return Reflect.ownKeys(value).every(key => {
+    if (Array.isArray(value) && key === "length") return true;
+    const descriptor = Reflect.getOwnPropertyDescriptor(value, key);
+    return !!descriptor && "value" in descriptor;
+  });
 }
 
 function createReactive(value: object, options: ReactiveOptions): object {
