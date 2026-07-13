@@ -225,7 +225,9 @@ export class ExpressionProject {
     };
 
     const variableFor = (identifier: ts.Identifier): Variable | undefined => {
-      const symbol = checker.getSymbolAtLocation(identifier);
+      const symbol = ts.isShorthandPropertyAssignment(identifier.parent) && identifier.parent.name === identifier
+        ? checker.getShorthandAssignmentValueSymbol(identifier.parent) ?? checker.getSymbolAtLocation(identifier)
+        : checker.getSymbolAtLocation(identifier);
       if (!symbol) return undefined;
       const cached = symbolVariables.get(symbol);
       if (cached) return cached;

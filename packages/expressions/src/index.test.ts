@@ -43,6 +43,17 @@ export function total(items: number[]) {
     expect(module.capturesOf(arrow).map(variable => variable.name).sort()).toEqual(["local", "outer"]);
   });
 
+  it("binds shorthand property values to their lexical variables", () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__shorthand.ts");
+    const module = project.updateModule(filename, "const signal = new AbortController().signal; const options = { signal };");
+    const signalReferences = module.walk().references()
+      .where(reference => reference.name === "signal" && reference.parent?.node.kind !== "PropertyAccessExpression")
+      .toArray();
+    expect(signalReferences.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(signalReferences.map(reference => reference.variable))).toHaveLength(1);
+  });
+
   it("reports subtree dependencies and read/write effects for compound updates", () => {
     const project = createExpressionProject({ tsconfigPath: kanbanConfig });
     const filename = path.join(root, "apps/kanban/src/__effects.ts");

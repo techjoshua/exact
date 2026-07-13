@@ -6,6 +6,7 @@ const asynchronousMethods = new Set(["then", "catch", "finally"]);
 const observers = new Set(["MutationObserver", "ResizeObserver", "IntersectionObserver"]);
 const snapshotDiagnostic = "error: setup-time state snapshot captured by async callback; read state in the callback or wrap the snapshot in peek(() => ...)";
 const listenerDiagnostic = "error: browser-global addEventListener() must be registered in a client task or client island; use JSX events or an abort-scoped task";
+const taskListenerDiagnostic = "error: browser-global addEventListener() in a task must use the supplied abort signal ({ signal })";
 
 /** Finds unsafe captures using canonical variables and generic capture analysis. */
 export function analyzeExpressionSafety(module: BoundModule, provenance: ExactProvenanceGraph): ReadonlyMap<string, readonly string[]> {
@@ -53,11 +54,37 @@ export function analyzeExpressionSafety(module: BoundModule, provenance: ExactPr
     diagnostics.set(owner.node.name!, values);
   }
 
+  for (const task of module.walk().calls().where(isTaskCall)) {
+    const callback = task.arguments.at(-1);
+    if (!callback || !isFunction(callback)) continue;
+    const signal = "parameters" in callback.node
+      ? (callback.node.parameters as readonly Variable[]).find(variable => variable.name === "signal")
+      : undefined;
+    const unsafe = callback.walk().calls().any(call => {
+      if (!call.target?.isMember("addEventListener")) return false;
+      const receiver = call.target.target;
+      const name = receiver?.rootVariable?.name ?? receiver?.name ?? receiver?.node.text;
+      if (!name || !["window", "document", "globalThis"].includes(name)) return false;
+      const options = call.arguments[2];
+      return !signal || !options || !module.dependenciesOf(options).includes(signal);
+    });
+    if (!unsafe) continue;
+    const owner = task.ancestors().functions().first(reference => setupSnapshots.has(reference.node.id));
+    if (!owner) continue;
+    const values = diagnostics.get(owner.node.name!) ?? new Set<string>();
+    values.add(taskListenerDiagnostic);
+    diagnostics.set(owner.node.name!, values);
+  }
+
   return new Map([...diagnostics].map(([name, values]) => [name, Object.freeze([...values])]));
 }
 
 function insideManagedTask(reference: NodeRef): boolean {
-  return reference.ancestors().calls().any(call => /^this\.task(?:\.[A-Za-z_$][\w$]*)?\s*\(/.test(call.node.text ?? ""));
+  return reference.ancestors().calls().any(isTaskCall);
+}
+
+function isTaskCall(call: NodeRef): boolean {
+  return /^this\.task(?:\.[A-Za-z_$][\w$]*)?\s*\(/.test(call.node.text ?? "");
 }
 
 function insideClientJsx(reference: NodeRef): boolean {

@@ -89,7 +89,7 @@ export function analyzeComponent(
 
   function visit(current: ts.Node, islandDepth = 0, taskDepth = 0): void {
     if (ts.isCallExpression(current) && isThisTaskCall(current)) {
-      const task = analyzeTask(`${name}:task:${taskIndex++}`, current, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations);
+      const task = analyzeTask(`${name}:task:${taskIndex++}`, current, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations, expressionDiagnostics !== undefined);
       tasks.push(task);
       contexts.push(...task.contexts);
       if (task.placement === "client") hasClientEffect = true;
@@ -456,7 +456,8 @@ export function analyzeTask(
   sourceFile: ts.SourceFile,
   serverOnlyImports: Set<string>,
   semanticReferences: SemanticReferenceIndex,
-  semanticDeclarations: SemanticDeclarationIndex
+  semanticDeclarations: SemanticDeclarationIndex,
+  expressionSafety = false
 ): ExactTaskIR {
   const work = node.arguments[node.arguments.length - 1];
   const reads: ExactStateEffect[] = [];
@@ -551,7 +552,7 @@ export function analyzeTask(
     }
 
     if (ts.isCallExpression(current)) {
-      if (isBrowserGlobalListenerCall(current) && !listenerUsesTaskSignal(current, taskSignal)) {
+      if (!expressionSafety && isBrowserGlobalListenerCall(current) && !listenerUsesTaskSignal(current, taskSignal)) {
         diagnostics.push("error: browser-global addEventListener() in a task must use the supplied abort signal ({ signal })");
       }
       const contextEffect = contextEffectForCall(current, sourceFile);
