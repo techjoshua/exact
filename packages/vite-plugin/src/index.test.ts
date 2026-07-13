@@ -137,6 +137,6 @@ describe("@exact/vite-plugin", () => {
   it("adds filename context to transform errors", () => {
     const plugin = exact();
 
-    expect(() => plugin.transform("const view = <span>;", "/src/broken.tsx")).toThrow(/eXact JSX transform failed for \/src\/broken\.tsx/);
+    expect(() => plugin.transform("const view = <span>;", "/src/broken.tsx")).toThrow(/broken\.tsx:1:\d+/);
   });
 });

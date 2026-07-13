@@ -34,6 +34,14 @@ import {
 } from "./index.js";
 
 describe("@exact/compiler", () => {
+  it("preserves contextual event parameter types when lowering JSX", () => {
+    const filename = path.resolve(import.meta.dirname, "../../../apps/workbench/src/__contextual_events.tsx");
+    const output = transform(`function Form(this: Component<{}>) {
+      return () => <form onSubmit={event => event.preventDefault()}><input onInput={event => event.preventDefault()} /></form>;
+    }`, { filename });
+    expect(output.match(/\(event: Event\)/g)).toHaveLength(2);
+  });
+
   it("lowers recognized component state writes to conditional runtime helpers", () => {
     const output = transform(`function Counter(this: Component<{ count: number; items: string[]; label?: string }>) {
       this.state.count += 2;

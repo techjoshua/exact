@@ -24,6 +24,8 @@ export interface ExpressionJsxCellSite {
 export interface ExpressionJsxPlan {
   readonly elements: ReadonlyMap<string, ExpressionJsxElementSite>;
   readonly cells: ReadonlyMap<string, ExpressionJsxCellSite>;
+  /** Contextual parameter types that JSX lowering would otherwise erase. */
+  readonly contextualParameters: ReadonlyMap<string, string>;
 }
 
 /** Indexes JSX identities and reactive cells from typed expression relationships. */
@@ -63,5 +65,19 @@ export function analyzeExpressionJsx(module: BoundModule, provenance: ExactProve
     });
     cells.set(writeSiteKey(site.start, site.end), site);
   }
-  return Object.freeze({ elements, cells });
+  const contextualParameters = new Map<string, string>();
+  for (const attribute of module.walk().jsxAttributes()) {
+    for (const fn of attribute.descendants().functions().where(candidate => !candidate.ancestors().functions().any(ancestor =>
+      !!ancestor.node.span && !!attribute.node.span && ancestor.node.span.start >= attribute.node.span.start
+    ))) {
+      const declarations = fn.children().where(child => child.node.kind === "Parameter").toArray();
+      declarations.forEach((parameter, index) => {
+        if (!parameter.node.span || parameter.children().any(child => child.node.category === "type")) return;
+        const type = fn.node.parameters[index]?.type;
+        if (!type || type.kind === "any" || type.kind === "unknown") return;
+        contextualParameters.set(writeSiteKey(parameter.node.span.start, parameter.node.span.end), type.display);
+      });
+    }
+  }
+  return Object.freeze({ elements, cells, contextualParameters });
 }

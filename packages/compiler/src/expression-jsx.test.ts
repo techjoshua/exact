@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import path from "node:path";
 import { analyzeExpressionJsx } from "./expression-jsx.js";
 import { clearExpressionProjectCache, expressionModuleFor } from "./expression-project.js";
 import { buildExactProvenance } from "./provenance.js";
@@ -25,5 +26,13 @@ describe("expression-backed JSX plan", () => {
     const plan = analyzeExpressionJsx(module, buildExactProvenance(module));
     expect(plan.cells.size).toBe(2);
     expect([...plan.cells.values()].every(cell => !cell.reactive)).toBe(true);
+  });
+
+  it("retains contextual JSX callback parameter types for emission", () => {
+    clearExpressionProjectCache();
+    const filename = path.resolve(import.meta.dirname, "../../../apps/workbench/src/__contextual_event.tsx");
+    const module = expressionModuleFor(filename, `const view = <form onSubmit={event => event.preventDefault()} />;`);
+    const plan = analyzeExpressionJsx(module, buildExactProvenance(module));
+    expect([...plan.contextualParameters.values()]).toEqual(["Event"]);
   });
 });

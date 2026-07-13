@@ -22,9 +22,18 @@ export interface ExpressionProjectOptions {
 
 export class ExpressionProjectError extends Error {
   constructor(readonly diagnostics: readonly ExpressionDiagnostic[]) {
-    super(diagnostics.map(diagnostic => diagnostic.message).join("\n"));
+    super(diagnostics.map(formatExpressionDiagnostic).join("\n"));
     this.name = "ExpressionProjectError";
   }
+}
+
+function formatExpressionDiagnostic(diagnostic: ExpressionDiagnostic): string {
+  const location = diagnostic.filename
+    ? `${diagnostic.filename}${diagnostic.span ? `:${diagnostic.span.line}:${diagnostic.span.column}` : ""}`
+    : diagnostic.span
+      ? `${diagnostic.span.line}:${diagnostic.span.column}`
+      : undefined;
+  return `${location ? `${location} - ` : ""}${diagnostic.code}: ${diagnostic.message}`;
 }
 
 class ProjectScope implements ExpressionScope {

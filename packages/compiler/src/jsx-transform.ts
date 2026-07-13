@@ -95,6 +95,20 @@ export function exactJsxTransformer(
     };
 
     const visitor: ts.Visitor = node => {
+      if (ts.isParameter(node) && !node.type) {
+        const contextualType = expressionJsx.contextualParameters.get(writeSiteKey(node.getStart(sourceFile), node.end));
+        if (contextualType) {
+          return factory.updateParameterDeclaration(
+            node,
+            node.modifiers,
+            node.dotDotDotToken,
+            node.name,
+            node.questionToken,
+            parseTypeNode(contextualType),
+            node.initializer
+          );
+        }
+      }
       if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
         const componentPlacement = componentPlacements.get(node.name.text);
         if (target === "server" && componentPlacements.get(node.name.text) === "client") {
@@ -277,6 +291,13 @@ export function exactJsxTransformer(
 
     return factory.updateSourceFile(visited, insertAfterDirectivePrologue(visited.statements, importDeclaration));
   };
+}
+
+function parseTypeNode(source: string): ts.TypeNode {
+  const file = ts.createSourceFile("__exact_contextual_type.ts", `type __ExactContextualType = ${source};`, ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
+  const declaration = file.statements[0];
+  if (!declaration || !ts.isTypeAliasDeclaration(declaration)) return ts.factory.createKeywordTypeNode(ts.SyntaxKind.UnknownKeyword);
+  return declaration.type;
 }
 
 function expressionWritePath(node: ts.Node, sourceFile: ts.SourceFile, plan?: ExpressionWritePlan): readonly string[] | undefined {
