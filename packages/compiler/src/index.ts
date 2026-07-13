@@ -9,7 +9,6 @@ import {
 } from "./artifacts.js";
 import {
   analyzeComponent,
-  collectComponentRenderEdges,
   combinePlacements,
   createGeneratedClientIslandServerSlotBoundaries
 } from "./component-analysis.js";
@@ -205,11 +204,9 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const semanticReferences = createSemanticReferenceIndex(sourceFile, semanticGraph);
   const semanticDeclarations = createSemanticDeclarationIndex(sourceFile, semanticGraph);
   const serverOnlyImports = collectExpressionServerOnlyImports(semanticGraph);
-  const componentNodes = new Map<string, ts.FunctionDeclaration>();
 
   function visit(node: ts.Node): void {
     if (ts.isFunctionDeclaration(node) && node.name && expressionFunctions.get(node.getStart(sourceFile)) === node.name.text) {
-      componentNodes.set(node.name.text, node);
       components.push(analyzeComponent(node.name.text, node, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations, expressionSafety.get(node.name.text) ?? [], expressionTasks, expressionComponents.sites.get(node.name.text)));
       return;
     }
@@ -232,12 +229,8 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   }
   const componentPlacements = new Map([...componentInfo].map(([name, component]) => [name, component.placement]));
   for (const component of components) {
-    const node = componentNodes.get(component.name);
-    if (!node) continue;
     const expressionComponent = expressionComponents.sites.get(component.name);
-    component.renderEdges = expressionComponent
-      ? createExpressionRenderEdges(filename, component.name, expressionComponent.renders, componentInfo)
-      : collectComponentRenderEdges(node, sourceFile, componentInfo, semanticReferences);
+    component.renderEdges = createExpressionRenderEdges(filename, component.name, expressionComponent?.renders ?? [], componentInfo);
     component.subgraphPlacement = combinePlacements([
       component.placement,
       ...component.renderEdges.map(edge => edge.placement)
