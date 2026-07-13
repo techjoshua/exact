@@ -31,32 +31,23 @@ import {
   generatedComponentName
 } from "./names.js";
 import { pruneUnusedImports } from "./prune-imports.js";
-import type { ExactProvenanceGraph } from "./provenance.js";
+import type { ExpressionDerivedPlan } from "./expression-derived.js";
 import { writeSiteKey, type ExpressionWritePlan } from "./expression-writes.js";
 import type { ExpressionTaskPlan } from "./expression-tasks.js";
 import type { ExpressionJsxPlan } from "./expression-jsx.js";
 import type { ExpressionClientIslandSite, ExpressionComponentPlan } from "./expression-components.js";
 import {
-  createSemanticDeclarationIndex,
-  createSemanticReferenceIndex,
-  semanticDeclarationForIdentifier,
-  semanticReferenceForIdentifier
-} from "./semantic.js";
-import {
   isAssignmentOperator,
-  isAnalyzableFunctionLike,
 } from "./state-analysis.js";
 import type {
   ClientIslandCaptures,
   ClientIslandElementNode,
   ComponentLocalInfo,
-  DerivedReactiveIndex,
+  DerivedReactiveEmissionIndex as DerivedReactiveIndex,
   ExactImportedComponentIR,
   ExactPlacement,
   ExactSemanticGraphIR,
   HelperNames,
-  SemanticDeclarationIndex,
-  SemanticReferenceIndex,
   StateSnapshotTree,
   TransformTarget
 } from "./types.js";
@@ -72,7 +63,7 @@ export function exactJsxTransformer(
   target: TransformTarget,
   serverComponents = false,
   providedSemanticGraph: ExactSemanticGraphIR,
-  provenance: ExactProvenanceGraph,
+  expressionDerived: ExpressionDerivedPlan,
   expressionWrites: ExpressionWritePlan,
   expressionTasks: ExpressionTaskPlan,
   expressionJsx: ExpressionJsxPlan,
@@ -83,16 +74,13 @@ export function exactJsxTransformer(
     const factory = context.factory;
     const helpers = allocateHelperNames(sourceFile);
     const semanticGraph = providedSemanticGraph;
-    const semanticReferences = createSemanticReferenceIndex(sourceFile, semanticGraph);
-    const semanticDeclarations = createSemanticDeclarationIndex(sourceFile, semanticGraph);
     const componentPlacements = componentPlacementsFromInfo(componentInfo);
-    const expressionDerived = new Set(provenance.entries.filter(entry => entry.provenance === "derived" && entry.safeToReevaluate).map(entry => entry.variable.id));
+    const derivedReactiveLocals = collectExpressionDerivedLocals(sourceFile, expressionDerived);
     let sawJsx = false;
     let sawBoundary = false;
     let sawStateWrite = false;
     const componentStack: string[] = [];
     const componentLocalStack: ComponentLocalInfo[] = [];
-    const componentDerivedStack: DerivedReactiveIndex[] = [];
     const islandCounts = new Map<string, number>();
     const clientIslandDefinitions: ts.FunctionDeclaration[] = [];
     let clientIslandDepth = 0;
@@ -121,26 +109,16 @@ export function exactJsxTransformer(
           // client artifact after their nested client islands have been collected.
           componentStack.push(node.name.text);
           componentLocalStack.push(collectComponentLocalInfo(node));
-          componentDerivedStack.push(collectExpressionDerivedLocals(node, sourceFile, semanticDeclarations, new Map(), expressionDerived));
           ts.visitEachChild(node, visitor, context);
-          componentDerivedStack.pop();
           componentLocalStack.pop();
           componentStack.pop();
           return factory.createEmptyStatement();
         }
         componentStack.push(node.name.text);
         componentLocalStack.push(collectComponentLocalInfo(node));
-        componentDerivedStack.push(collectExpressionDerivedLocals(node, sourceFile, semanticDeclarations, new Map(), expressionDerived));
         const visited = ts.visitEachChild(node, visitor, context);
-        componentDerivedStack.pop();
         componentLocalStack.pop();
         componentStack.pop();
-        return visited;
-      }
-      if (componentDerivedStack.length && isAnalyzableFunctionLike(node)) {
-        componentDerivedStack.push(collectExpressionDerivedLocals(node, sourceFile, semanticDeclarations, componentDerivedStack[componentDerivedStack.length - 1], expressionDerived));
-        const visited = ts.visitEachChild(node, visitor, context);
-        componentDerivedStack.pop();
         return visited;
       }
       if (componentStack.length && ts.isDeleteExpression(node)) {
@@ -204,7 +182,7 @@ export function exactJsxTransformer(
           return createClientIslandBoundaryCall(sourceFile, context, visitor, helpers, componentStack[componentStack.length - 1], islandCounts, node.openingElement.attributes, serverChildren ? undefined : node.children, {
             ...islandCaptures,
             serverSlotChildren: !!serverChildren
-          }, semanticReferences, componentDerivedStack[componentDerivedStack.length - 1], serverChildren);
+          }, derivedReactiveLocals, serverChildren);
         }
         if (target === "client" && jsxElementIsClientIsland(node.openingElement.attributes)) {
           const owner = componentStack[componentStack.length - 1];
@@ -219,11 +197,11 @@ export function exactJsxTransformer(
             clientIslandDepth--;
           }
           clientIslandDepth++;
-          const transformed = transformJsxElement(sourceFile, node, context, visitor, helpers, semanticReferences, componentDerivedStack[componentDerivedStack.length - 1], expressionJsx);
+          const transformed = transformJsxElement(sourceFile, node, context, visitor, helpers, derivedReactiveLocals, expressionJsx);
           clientIslandDepth--;
           return transformed;
         }
-        return transformJsxElement(sourceFile, node, context, visitor, helpers, semanticReferences, componentDerivedStack[componentDerivedStack.length - 1], expressionJsx);
+        return transformJsxElement(sourceFile, node, context, visitor, helpers, derivedReactiveLocals, expressionJsx);
       }
       if (ts.isJsxSelfClosingElement(node)) {
         sawJsx = true;
@@ -239,13 +217,13 @@ export function exactJsxTransformer(
         }
         if (target === "server" && jsxElementIsClientIsland(node.attributes)) {
           sawBoundary = true;
-          return createClientIslandBoundaryCall(sourceFile, context, visitor, helpers, componentStack[componentStack.length - 1], islandCounts, node.attributes, undefined, clientIslandCaptures(clientIslandSiteFor(node), componentLocalStack[componentLocalStack.length - 1]), semanticReferences, componentDerivedStack[componentDerivedStack.length - 1]);
+          return createClientIslandBoundaryCall(sourceFile, context, visitor, helpers, componentStack[componentStack.length - 1], islandCounts, node.attributes, undefined, clientIslandCaptures(clientIslandSiteFor(node), componentLocalStack[componentLocalStack.length - 1]), derivedReactiveLocals);
         }
-        return transformJsxSelfClosingElement(sourceFile, node, context, visitor, helpers, semanticReferences, componentDerivedStack[componentDerivedStack.length - 1], expressionJsx);
+        return transformJsxSelfClosingElement(sourceFile, node, context, visitor, helpers, derivedReactiveLocals, expressionJsx);
       }
       if (ts.isJsxFragment(node)) {
         sawJsx = true;
-        return transformJsxFragment(node, context, visitor, helpers, sourceFile, semanticReferences, componentDerivedStack[componentDerivedStack.length - 1], expressionJsx);
+        return transformJsxFragment(node, context, visitor, helpers, sourceFile, derivedReactiveLocals, expressionJsx);
       }
       if (ts.isCallExpression(node)) {
         if (isThisTaskCall(node)) {
@@ -253,7 +231,7 @@ export function exactJsxTransformer(
             return factory.createVoidExpression(factory.createNumericLiteral(0));
           }
         }
-        return transformCapturedCall(sourceFile, node, context, visitor, semanticReferences, componentDerivedStack[componentDerivedStack.length - 1]);
+        return transformCapturedCall(sourceFile, node, context, visitor, derivedReactiveLocals);
       }
       if (ts.isTaggedTemplateExpression(node)) {
         return transformReactiveTaggedTemplate(node, context, visitor);
@@ -321,17 +299,16 @@ function transformJsxElement(
   context: ts.TransformationContext,
   visitor: ts.Visitor,
   helpers: HelperNames,
-  semanticReferences?: SemanticReferenceIndex,
   derivedReactiveLocals?: DerivedReactiveIndex,
   expressionJsx?: ExpressionJsxPlan
 ): ts.Expression {
   const opening = node.openingElement;
   const tagName = opening.tagName.getText();
   if (tagName === "_") {
-    return callFragment(context, opening.attributes, node.children, visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals);
+    return callFragment(context, opening.attributes, node.children, visitor, helpers, sourceFile, derivedReactiveLocals);
   }
 
-  return callElement(context, tagExpression(opening.tagName), opening.attributes, node.children, visitor, helpers, expressionElementId(sourceFile, node, expressionJsx) ?? exactElementId(sourceFile, opening.tagName, node), sourceFile, semanticReferences, derivedReactiveLocals, expressionJsx);
+  return callElement(context, tagExpression(opening.tagName), opening.attributes, node.children, visitor, helpers, expressionElementId(sourceFile, node, expressionJsx) ?? exactElementId(sourceFile, opening.tagName, node), sourceFile, derivedReactiveLocals, expressionJsx);
 }
 
 function transformJsxSelfClosingElement(
@@ -340,16 +317,15 @@ function transformJsxSelfClosingElement(
   context: ts.TransformationContext,
   visitor: ts.Visitor,
   helpers: HelperNames,
-  semanticReferences?: SemanticReferenceIndex,
   derivedReactiveLocals?: DerivedReactiveIndex,
   expressionJsx?: ExpressionJsxPlan
 ): ts.Expression {
   const tagName = node.tagName.getText();
   if (tagName === "_") {
-    return callFragment(context, node.attributes, [], visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals);
+    return callFragment(context, node.attributes, [], visitor, helpers, sourceFile, derivedReactiveLocals);
   }
 
-  return callElement(context, tagExpression(node.tagName), node.attributes, [], visitor, helpers, expressionElementId(sourceFile, node, expressionJsx) ?? exactElementId(sourceFile, node.tagName, node), sourceFile, semanticReferences, derivedReactiveLocals, expressionJsx);
+  return callElement(context, tagExpression(node.tagName), node.attributes, [], visitor, helpers, expressionElementId(sourceFile, node, expressionJsx) ?? exactElementId(sourceFile, node.tagName, node), sourceFile, derivedReactiveLocals, expressionJsx);
 }
 
 function expressionElementId(sourceFile: ts.SourceFile, node: ts.Node, plan?: ExpressionJsxPlan): string | undefined {
@@ -362,11 +338,10 @@ function transformJsxFragment(
   visitor: ts.Visitor,
   helpers: HelperNames,
   sourceFile?: ts.SourceFile,
-  semanticReferences?: SemanticReferenceIndex,
   derivedReactiveLocals?: DerivedReactiveIndex,
   expressionJsx?: ExpressionJsxPlan
 ): ts.Expression {
-  return callFragment(context, undefined, node.children, visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals, expressionJsx);
+  return callFragment(context, undefined, node.children, visitor, helpers, sourceFile, derivedReactiveLocals, expressionJsx);
 }
 
 function collectComponentLocalInfo(
@@ -396,22 +371,24 @@ function collectComponentLocalInfo(
  * emission handles; deciding which declarations are derived is expression-owned.
  */
 function collectExpressionDerivedLocals(
-  node: ts.Node,
   sourceFile: ts.SourceFile,
-  semanticDeclarations: SemanticDeclarationIndex,
-  inherited: DerivedReactiveIndex,
-  derivedVariableIds: ReadonlySet<string>
+  plan: ExpressionDerivedPlan
 ): DerivedReactiveIndex {
-  const derived = new Map(inherited);
+  const initializers = new Map<string, ts.Expression>();
+  const requested = new Set([...plan.sites.values()].map(site => writeSiteKey(site.initializerStart, site.initializerEnd)));
   function visit(current: ts.Node): void {
-    if (current !== node && (ts.isFunctionLike(current) || ts.isClassLike(current))) return;
-    if (ts.isVariableDeclaration(current) && ts.isIdentifier(current.name) && current.initializer) {
-      const declaration = semanticDeclarationForIdentifier(current.name, semanticDeclarations, sourceFile);
-      if (declaration && derivedVariableIds.has(declaration.id)) derived.set(declaration.id, current.initializer);
+    if (ts.isVariableDeclaration(current) && current.initializer) {
+      const key = writeSiteKey(current.initializer.getStart(sourceFile), current.initializer.end);
+      if (requested.has(key)) initializers.set(key, current.initializer);
     }
     ts.forEachChild(current, visit);
   }
-  visit(node);
+  visit(sourceFile);
+  const derived: DerivedReactiveIndex = new Map();
+  for (const site of plan.sites.values()) {
+    const initializer = initializers.get(writeSiteKey(site.initializerStart, site.initializerEnd));
+    if (initializer) derived.set(writeSiteKey(site.start, site.end), { variableId: site.variableId, initializer });
+  }
   return derived;
 }
 
@@ -449,7 +426,6 @@ function createClientIslandBoundaryCall(
   attributes: ts.JsxAttributes,
   children?: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[],
   captures: ClientIslandCaptures = emptyClientIslandCaptures(),
-  semanticReferences?: SemanticReferenceIndex,
   derivedReactiveLocals?: DerivedReactiveIndex,
   serverChildren?: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[]
 ): ts.Expression {
@@ -463,7 +439,7 @@ function createClientIslandBoundaryCall(
     factory.createStringLiteral(id),
     factory.createStringLiteral(generatedName),
     islandProps(context, attributes, children, captures.values, captures.stateReads),
-    ...(serverChildren ? childrenExpressions(context, serverChildren, visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals) : [])
+    ...(serverChildren ? childrenExpressions(context, serverChildren, visitor, helpers, sourceFile, derivedReactiveLocals) : [])
   ]);
 }
 
@@ -847,14 +823,13 @@ function callElement(
   helpers: HelperNames,
   exactId?: string,
   sourceFile?: ts.SourceFile,
-  semanticReferences?: SemanticReferenceIndex,
   derivedReactiveLocals?: DerivedReactiveIndex,
   expressionJsx?: ExpressionJsxPlan
 ): ts.Expression {
   return context.factory.createCallExpression(context.factory.createIdentifier(helpers.element), undefined, [
     tag,
-    propsObject(context, attributes, visitor, helpers, exactId, sourceFile, semanticReferences, derivedReactiveLocals, expressionJsx),
-    ...childrenExpressions(context, children, visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals, expressionJsx)
+    propsObject(context, attributes, visitor, helpers, exactId, sourceFile, derivedReactiveLocals, expressionJsx),
+    ...childrenExpressions(context, children, visitor, helpers, sourceFile, derivedReactiveLocals, expressionJsx)
   ]);
 }
 
@@ -865,13 +840,12 @@ function callFragment(
   visitor: ts.Visitor,
   helpers: HelperNames,
   sourceFile?: ts.SourceFile,
-  semanticReferences?: SemanticReferenceIndex,
   derivedReactiveLocals?: DerivedReactiveIndex,
   expressionJsx?: ExpressionJsxPlan
 ): ts.Expression {
   return context.factory.createCallExpression(context.factory.createIdentifier(helpers.fragment), undefined, [
-    propsObject(context, attributes, visitor, helpers, undefined, sourceFile, semanticReferences, derivedReactiveLocals, expressionJsx),
-    ...childrenExpressions(context, children, visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals, expressionJsx)
+    propsObject(context, attributes, visitor, helpers, undefined, sourceFile, derivedReactiveLocals, expressionJsx),
+    ...childrenExpressions(context, children, visitor, helpers, sourceFile, derivedReactiveLocals, expressionJsx)
   ]);
 }
 
@@ -882,7 +856,6 @@ function propsObject(
   helpers: HelperNames,
   exactId?: string,
   sourceFile?: ts.SourceFile,
-  semanticReferences?: SemanticReferenceIndex,
   derivedReactiveLocals?: DerivedReactiveIndex,
   expressionJsx?: ExpressionJsxPlan
 ): ts.Expression {
@@ -913,7 +886,7 @@ function propsObject(
       const expression = property.initializer.expression;
       if (!expression) continue;
       const plannedCell = isPlannedJsxCell(property.initializer, "jsx-attribute", sourceFile, expressionJsx);
-      properties.push(factory.createPropertyAssignment(propName(name), shouldWrapAttribute(name, expression) && plannedCell ? wrapExpression(context, expression, visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals) : ts.visitNode(expression, visitor) as ts.Expression));
+      properties.push(factory.createPropertyAssignment(propName(name), shouldWrapAttribute(name, expression) && plannedCell ? wrapExpression(context, expression, visitor, helpers, sourceFile, derivedReactiveLocals) : ts.visitNode(expression, visitor) as ts.Expression));
     }
   }
 
@@ -932,7 +905,6 @@ function childrenExpressions(
   visitor: ts.Visitor,
   helpers: HelperNames,
   sourceFile?: ts.SourceFile,
-  semanticReferences?: SemanticReferenceIndex,
   derivedReactiveLocals?: DerivedReactiveIndex,
   expressionJsx?: ExpressionJsxPlan
 ): ts.Expression[] {
@@ -947,7 +919,7 @@ function childrenExpressions(
 
     if (ts.isJsxExpression(child)) {
       if (child.expression) output.push(isPlannedJsxCell(child, "jsx-child", sourceFile, expressionJsx)
-        ? wrapDynamicChild(context, child.expression, visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals)
+        ? wrapDynamicChild(context, child.expression, visitor, helpers, sourceFile, derivedReactiveLocals)
         : ts.visitNode(child.expression, visitor) as ts.Expression);
       continue;
     }
@@ -977,7 +949,6 @@ function wrapDynamicChild(
   visitor: ts.Visitor,
   helpers: HelperNames,
   sourceFile?: ts.SourceFile,
-  semanticReferences?: SemanticReferenceIndex,
   derivedReactiveLocals?: DerivedReactiveIndex
 ): ts.Expression {
   const factory = context.factory;
@@ -988,7 +959,7 @@ function wrapDynamicChild(
       [],
       undefined,
       factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-      visitReactiveSinkExpression(context, expression, visitor, sourceFile, semanticReferences, derivedReactiveLocals)
+      visitReactiveSinkExpression(context, expression, visitor, sourceFile, derivedReactiveLocals)
     )
   ]);
 }
@@ -999,7 +970,6 @@ function wrapExpression(
   visitor: ts.Visitor,
   helpers: HelperNames,
   sourceFile?: ts.SourceFile,
-  semanticReferences?: SemanticReferenceIndex,
   derivedReactiveLocals?: DerivedReactiveIndex
 ): ts.Expression {
   const factory = context.factory;
@@ -1010,7 +980,7 @@ function wrapExpression(
       [],
       undefined,
       factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-      visitReactiveSinkExpression(context, expression, visitor, sourceFile, semanticReferences, derivedReactiveLocals)
+      visitReactiveSinkExpression(context, expression, visitor, sourceFile, derivedReactiveLocals)
     )
   ]);
 }
@@ -1020,11 +990,10 @@ function visitReactiveSinkExpression(
   expression: ts.Expression,
   visitor: ts.Visitor,
   sourceFile?: ts.SourceFile,
-  semanticReferences?: SemanticReferenceIndex,
   derivedReactiveLocals?: DerivedReactiveIndex
 ): ts.Expression {
-  const rewritten = sourceFile && semanticReferences && derivedReactiveLocals?.size
-    ? rewriteDerivedReactiveExpression(context, expression, sourceFile, semanticReferences, derivedReactiveLocals)
+  const rewritten = sourceFile && derivedReactiveLocals?.size
+    ? rewriteDerivedReactiveExpression(context, expression, sourceFile, derivedReactiveLocals)
     : expression;
   return ts.visitNode(rewritten, visitor) as ts.Expression;
 }
@@ -1033,19 +1002,16 @@ function rewriteDerivedReactiveExpression(
   context: ts.TransformationContext,
   expression: ts.Expression,
   sourceFile: ts.SourceFile,
-  semanticReferences: SemanticReferenceIndex,
   derivedReactiveLocals: DerivedReactiveIndex,
   active = new Set<string>()
 ): ts.Expression {
   const visitor: ts.Visitor = node => {
     if (ts.isIdentifier(node) && !isIdentifierDeclarationName(node) && !isPropertyAccessName(node)) {
-      const reference = semanticReferenceForIdentifier(node, semanticReferences, sourceFile);
-      const declarationId = reference?.declarationId;
-      const initializer = declarationId ? derivedReactiveLocals.get(declarationId) : undefined;
-      if (initializer && declarationId && !active.has(declarationId)) {
-        active.add(declarationId);
-        const rewritten = rewriteDerivedReactiveExpression(context, initializer, sourceFile, semanticReferences, derivedReactiveLocals, active);
-        active.delete(declarationId);
+      const derived = derivedReactiveLocals.get(writeSiteKey(node.getStart(sourceFile), node.end));
+      if (derived && !active.has(derived.variableId)) {
+        active.add(derived.variableId);
+        const rewritten = rewriteDerivedReactiveExpression(context, derived.initializer, sourceFile, derivedReactiveLocals, active);
+        active.delete(derived.variableId);
         return context.factory.createParenthesizedExpression(rewritten);
       }
     }
@@ -1072,19 +1038,18 @@ function transformCapturedCall(
   node: ts.CallExpression,
   context: ts.TransformationContext,
   visitor: ts.Visitor,
-  semanticReferences?: SemanticReferenceIndex,
   derivedReactiveLocals?: DerivedReactiveIndex
 ): ts.Expression {
   if (isThisMethodCall(node, "reactive")) {
-    return transformReactiveCall(sourceFile, node, context, visitor, semanticReferences, derivedReactiveLocals);
+    return transformReactiveCall(sourceFile, node, context, visitor, derivedReactiveLocals);
   }
 
   if (isThisTaskCall(node)) {
-    return transformTaskCall(sourceFile, node, context, visitor, semanticReferences, derivedReactiveLocals);
+    return transformTaskCall(sourceFile, node, context, visitor, derivedReactiveLocals);
   }
 
   if (isThisMethodCall(node, "map")) {
-    return transformMapCall(sourceFile, node, context, visitor, semanticReferences, derivedReactiveLocals);
+    return transformMapCall(sourceFile, node, context, visitor, derivedReactiveLocals);
   }
 
   return ts.visitEachChild(node, visitor, context);
@@ -1107,7 +1072,6 @@ function transformReactiveCall(
   node: ts.CallExpression,
   context: ts.TransformationContext,
   visitor: ts.Visitor,
-  semanticReferences?: SemanticReferenceIndex,
   derivedReactiveLocals?: DerivedReactiveIndex
 ): ts.Expression {
   if (node.arguments.length !== 1) return ts.visitEachChild(node, visitor, context);
@@ -1118,7 +1082,7 @@ function transformReactiveCall(
     node,
     ts.visitNode(node.expression, visitor) as ts.Expression,
     node.typeArguments,
-    [captureArgument(context, argument, visitor, sourceFile, semanticReferences, derivedReactiveLocals)]
+    [captureArgument(context, argument, visitor, sourceFile, derivedReactiveLocals)]
   );
 }
 
@@ -1127,7 +1091,6 @@ function transformTaskCall(
   node: ts.CallExpression,
   context: ts.TransformationContext,
   visitor: ts.Visitor,
-  semanticReferences?: SemanticReferenceIndex,
   derivedReactiveLocals?: DerivedReactiveIndex
 ): ts.Expression {
   if (node.arguments.length < 2) return ts.visitEachChild(node, visitor, context);
@@ -1141,7 +1104,7 @@ function transformTaskCall(
     return context.factory.createCallExpression(
       context.factory.createPropertyAccessExpression(context.factory.createThis(), "reactive"),
       undefined,
-      [captureArgument(context, argument, visitor, sourceFile, semanticReferences, derivedReactiveLocals)]
+      [captureArgument(context, argument, visitor, sourceFile, derivedReactiveLocals)]
     );
   });
 
@@ -1158,28 +1121,26 @@ function transformMapCall(
   node: ts.CallExpression,
   context: ts.TransformationContext,
   visitor: ts.Visitor,
-  semanticReferences?: SemanticReferenceIndex,
   derivedReactiveLocals?: DerivedReactiveIndex
 ): ts.Expression {
   if (node.arguments.length !== 3) return ts.visitEachChild(node, visitor, context);
   const id = stableId(sourceFile.fileName, "list", String(node.getStart(sourceFile)), String(node.getEnd()));
   const source = node.arguments[0]!;
-  const declarationId = ts.isIdentifier(source) && semanticReferences
-    ? semanticReferenceForIdentifier(source, semanticReferences, sourceFile)?.declarationId
-    : undefined;
   // Reactive sinks are rewritten before their nested calls are visited.  A
   // derived local therefore reaches this transform either as its identifier
   // (when used directly) or as its already-expanded collection expression.
   // Handle both forms so `const visible = tasks.filter(...); this.map(visible)`
   // remains a live list instead of becoming a one-time array snapshot.
-  const initializer = declarationId ? derivedReactiveLocals?.get(declarationId) : undefined;
+  const initializer = ts.isIdentifier(source)
+    ? derivedReactiveLocals?.get(writeSiteKey(source.getStart(sourceFile), source.end))?.initializer
+    : undefined;
   const derivedCollection = initializer ?? (isDerivedCollectionExpression(source) ? source : undefined);
   const provenance = derivedCollection ? derivedCollectionSource(derivedCollection) : undefined;
   const collection = derivedCollection
     ? context.factory.createCallExpression(
       context.factory.createPropertyAccessExpression(context.factory.createThis(), "reactive"),
       undefined,
-      [captureArgument(context, derivedCollection, visitor, sourceFile, semanticReferences, derivedReactiveLocals)]
+      [captureArgument(context, derivedCollection, visitor, sourceFile, derivedReactiveLocals)]
     )
     : ts.visitNode(source, visitor) as ts.Expression;
   return context.factory.updateCallExpression(
@@ -1228,7 +1189,6 @@ function captureArgument(
   expression: ts.Expression,
   visitor: ts.Visitor,
   sourceFile?: ts.SourceFile,
-  semanticReferences?: SemanticReferenceIndex,
   derivedReactiveLocals?: DerivedReactiveIndex
 ): ts.ArrowFunction {
   return context.factory.createArrowFunction(
@@ -1237,7 +1197,7 @@ function captureArgument(
     [],
     undefined,
     context.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-    visitReactiveSinkExpression(context, expression, visitor, sourceFile, semanticReferences, derivedReactiveLocals)
+    visitReactiveSinkExpression(context, expression, visitor, sourceFile, derivedReactiveLocals)
   );
 }
 

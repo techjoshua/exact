@@ -17,8 +17,6 @@ import type {
   CompileFileOptions,
   CompileFileResult,
   CompileProjectOptions,
-  ComponentLocalInfo,
-  DerivedReactiveIndex,
   ExactArtifactDevState,
   ExactArtifactDevStateOptions,
   ExactArtifactDevStateUpdate,
@@ -84,6 +82,7 @@ import { analyzeExpressionSafety } from "./expression-safety.js";
 import { analyzeExpressionTasks } from "./expression-tasks.js";
 import { analyzeExpressionJsx } from "./expression-jsx.js";
 import { analyzeExpressionComponents } from "./expression-components.js";
+import { analyzeExpressionDerived } from "./expression-derived.js";
 import { createExpressionComponents, createExpressionGeneratedServerSlotBoundaries, createExpressionRenderEdges } from "./expression-components.js";
 import { createExpressionComponentBoundaries } from "./expression-components.js";
 
@@ -156,6 +155,7 @@ export function transformSource(source: string, options: TransformOptions = {}):
   }
   const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
   const provenance = buildExactProvenance(expressionModule);
+  const expressionDerived = analyzeExpressionDerived(expressionModule, provenance);
   const expressionWrites = analyzeExpressionWrites(expressionModule);
   const expressionTasks = analyzeExpressionTasks(expressionModule);
   const expressionJsx = analyzeExpressionJsx(expressionModule, provenance, filename);
@@ -168,7 +168,7 @@ export function transformSource(source: string, options: TransformOptions = {}):
     placement: component.placement,
     componentId: component.id
   });
-  const result = ts.transform(sourceFile, [exactJsxTransformer(target, options.serverComponents ?? false, manifest.semanticGraph!, provenance, expressionWrites, expressionTasks, expressionJsx, expressionComponents, emissionComponentInfo)]);
+  const result = ts.transform(sourceFile, [exactJsxTransformer(target, options.serverComponents ?? false, manifest.semanticGraph!, expressionDerived, expressionWrites, expressionTasks, expressionJsx, expressionComponents, emissionComponentInfo)]);
   const transformed = result.transformed[0]!;
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
   const printed = printer.printFile(transformed as ts.SourceFile);

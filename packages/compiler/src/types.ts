@@ -435,4 +435,5 @@ export type ClientIslandCaptures = {
 export type SemanticReferenceIndex = Map<string, ExactSemanticReferenceIR>;
 export type SemanticDeclarationIndex = Map<string, ExactSemanticDeclarationIR>;
 export type DerivedReactiveIndex = Map<string, ts.Expression>;
+export type DerivedReactiveEmissionIndex = Map<string, { variableId: string; initializer: ts.Expression }>;
 export type ReactiveSourceIndex = Set<string>;
