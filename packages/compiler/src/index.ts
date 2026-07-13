@@ -225,10 +225,10 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
       placement: component?.placement ?? "unknown"
     });
   }
-  symbols.push(...createRootSymbols(sourceFile, components, [...exportBindings.values()]));
-  symbols.push(...createServerPartSymbols(sourceFile, components));
-  symbols.push(...createClientIslandSymbols(sourceFile, components));
-  boundaries.push(...createClientIslandBoundaries(sourceFile, components));
+  symbols.push(...createRootSymbols(filename, components, [...exportBindings.values()]));
+  symbols.push(...createServerPartSymbols(filename, components));
+  symbols.push(...createClientIslandSymbols(filename, components));
+  boundaries.push(...createClientIslandBoundaries(filename, components));
   boundaries.push(...createExpressionGeneratedServerSlotBoundaries(filename, components, expressionComponents, componentInfo));
   boundaries.push(...createExpressionComponentBoundaries(filename, components, expressionComponents, componentInfo));
 

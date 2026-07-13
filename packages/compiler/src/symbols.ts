@@ -1,4 +1,3 @@
-import ts from "typescript";
 import { stableId } from "./ids.js";
 import { generatedComponentName } from "./names.js";
 import type {
@@ -8,15 +7,22 @@ import type {
   ExportBinding
 } from "./types.js";
 
+type SourceIdentity = string | Readonly<{ fileName: string }>;
+
+function sourceFilename(source: SourceIdentity): string {
+  return typeof source === "string" ? source : source.fileName;
+}
+
 /** Creates symbol records for exported source components. */
-export function createRootSymbols(sourceFile: ts.SourceFile, components: ExactComponentIR[], exports: readonly ExportBinding[]): ExactSymbolIR[] {
+export function createRootSymbols(source: SourceIdentity, components: ExactComponentIR[], exports: readonly ExportBinding[]): ExactSymbolIR[] {
+  const filename = sourceFilename(source);
   const componentByName = new Map(components.map(component => [component.name, component]));
   const symbols: ExactSymbolIR[] = [];
   for (const binding of exports) {
     const component = componentByName.get(binding.localName);
     if (!component) continue;
     symbols.push({
-      id: stableId(sourceFile.fileName, "symbol", component.id, "root", binding.exportedName),
+      id: stableId(filename, "symbol", component.id, "root", binding.exportedName),
       componentId: component.id,
       exportName: binding.exportedName,
       localName: component.name,
@@ -32,7 +38,8 @@ export function createRootSymbols(sourceFile: ts.SourceFile, components: ExactCo
 }
 
 /** Creates generated server-part symbol records for exported split components. */
-export function createServerPartSymbols(sourceFile: ts.SourceFile, components: ExactComponentIR[]): ExactSymbolIR[] {
+export function createServerPartSymbols(source: SourceIdentity, components: ExactComponentIR[]): ExactSymbolIR[] {
+  const filename = sourceFilename(source);
   const symbols: ExactSymbolIR[] = [];
   for (const component of components) {
     if (!component.exported) continue;
@@ -40,7 +47,7 @@ export function createServerPartSymbols(sourceFile: ts.SourceFile, components: E
     if (component.clientIslandCount <= 0) continue;
     const generatedName = generatedComponentName(component.name, "server-part", 1);
     symbols.push({
-      id: stableId(sourceFile.fileName, component.name, "server-part", "1"),
+      id: stableId(filename, component.name, "server-part", "1"),
       componentId: component.id,
       exportName: generatedName,
       localName: component.name,
@@ -56,14 +63,15 @@ export function createServerPartSymbols(sourceFile: ts.SourceFile, components: E
 }
 
 /** Creates generated client-island symbol records for exported split components. */
-export function createClientIslandSymbols(sourceFile: ts.SourceFile, components: ExactComponentIR[]): ExactSymbolIR[] {
+export function createClientIslandSymbols(source: SourceIdentity, components: ExactComponentIR[]): ExactSymbolIR[] {
+  const filename = sourceFilename(source);
   const symbols: ExactSymbolIR[] = [];
   for (const component of components) {
     if (!component.exported) continue;
     for (let index = 1; index <= component.clientIslandCount; index++) {
       const generatedName = generatedComponentName(component.name, "client-island", index);
       symbols.push({
-        id: stableId(sourceFile.fileName, component.name, "client-island", String(index)),
+        id: stableId(filename, component.name, "client-island", String(index)),
         componentId: component.id,
         exportName: generatedName,
         localName: generatedName,
@@ -81,17 +89,18 @@ export function createClientIslandSymbols(sourceFile: ts.SourceFile, components:
 
 /** Creates boundary records for generated client islands and client-root components. */
 export function createClientIslandBoundaries(
-  sourceFile: ts.SourceFile,
+  source: SourceIdentity,
   components: ExactComponentIR[]
 ): ExactBoundaryIR[] {
+  const filename = sourceFilename(source);
   const boundaries: ExactBoundaryIR[] = [];
   const seen = new Set<string>();
   for (const component of components) {
     for (let index = 1; index <= component.clientIslandCount; index++) {
-      const id = stableId(sourceFile.fileName, component.name, "client-island", String(index));
+      const id = stableId(filename, component.name, "client-island", String(index));
       seen.add(id);
       boundaries.push({
-        id: stableId(sourceFile.fileName, component.name, "client-island", String(index)),
+        id: stableId(filename, component.name, "client-island", String(index)),
         name: generatedComponentName(component.name, "client-island", index),
         componentId: component.id,
         ownerComponentId: component.id,
@@ -99,7 +108,7 @@ export function createClientIslandBoundaries(
       });
     }
     if (component.exported && component.placement === "client") {
-      const id = stableId(sourceFile.fileName, component.name, "component-island");
+      const id = stableId(filename, component.name, "component-island");
       if (!seen.has(id)) {
         seen.add(id);
         boundaries.push({
