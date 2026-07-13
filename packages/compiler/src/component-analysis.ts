@@ -69,11 +69,11 @@ export function analyzeComponent(
   const tasks: ExactTaskIR[] = [];
   const contexts: ExactContextEffect[] = [...(expressionComponent?.contexts ?? [])];
   const splitBoundaries = new Set<string>(expressionComponent?.splitBoundaries ?? []);
-  const diagnostics: string[] = [...(expressionDiagnostics ?? [])];
+  const diagnostics: string[] = [...(expressionDiagnostics ?? []), ...(expressionComponent?.diagnostics ?? [])];
   const browserGlobalsOutsideClientBoundary = new Set<string>(expressionComponent?.browserGlobalsOutsideClientBoundary ?? []);
   let hasClientEffect = expressionComponent?.clientEffects ?? false;
   let hasServerEffect = expressionComponent?.serverEffects ?? false;
-  let clientIslandCount = 0;
+  let clientIslandCount = expressionComponent?.clientIslandCount ?? 0;
   let taskIndex = 0;
   const setupStateAliases = new Set<string>();
 
@@ -117,16 +117,18 @@ export function analyzeComponent(
 
     const isIslandElement = ts.isJsxElement(current) && jsxElementIsClientIsland(current.openingElement.attributes);
     const isIslandNode = isIslandElement || (ts.isJsxSelfClosingElement(current) && jsxElementIsClientIsland(current.attributes));
-    if (ts.isJsxElement(current)) {
+    if (expressionComponent === undefined && ts.isJsxElement(current)) {
       addJsxTagSemanticDiagnostics(current.openingElement.tagName, diagnostics, semanticReferences, sourceFile);
-    } else if (ts.isJsxSelfClosingElement(current)) {
+    } else if (expressionComponent === undefined && ts.isJsxSelfClosingElement(current)) {
       addJsxTagSemanticDiagnostics(current.tagName, diagnostics, semanticReferences, sourceFile);
     }
     const serverSlotChildren = ts.isJsxElement(current) && isIslandNode
       ? clientIslandHasServerSlotChildren(current, serverOnlyImports, semanticReferences, sourceFile)
       : false;
     if (islandDepth === 0 && isIslandNode) {
+      if (expressionComponent === undefined) {
       clientIslandCount++;
+      }
       const serverOnlyCheckNode = serverSlotChildren && ts.isJsxElement(current)
         ? current.openingElement
         : current;

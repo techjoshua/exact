@@ -88,6 +88,8 @@ export interface Variable {
   readonly type?: ExpressionType;
   readonly exported: boolean;
   readonly importedFrom?: string;
+  /** True when this binding exists only in the TypeScript type namespace. */
+  readonly typeOnly: boolean;
   readonly synthetic: boolean;
 }
 

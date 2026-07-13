@@ -20,7 +20,9 @@ export interface ExpressionComponentSite {
   readonly end: number;
   readonly clientEffects: boolean;
   readonly serverEffects: boolean;
+  readonly clientIslandCount: number;
   readonly splitBoundaries: readonly string[];
+  readonly diagnostics: readonly string[];
   readonly browserGlobalsOutsideClientBoundary: readonly string[];
   readonly contexts: readonly ExactContextEffect[];
   readonly renders: readonly ExpressionRenderSite[];
@@ -46,6 +48,8 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
     const outsideGlobals = new Set<string>();
     const contexts: ExactContextEffect[] = [];
     const renders: ExpressionRenderSite[] = [];
+    const diagnostics = new Set<string>();
+    let clientIslandCount = 0;
     let clientEffects = false;
     let serverEffects = false;
 
@@ -56,11 +60,26 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
         clientEffects = true;
         splitBoundaries.add(attribute === "ref" ? "ref" : "event-handler");
       }
+      const isClientIsland = element.attributes.some(isClientIslandAttribute);
+      if (isClientIsland) {
+        const reference = module.walk().jsxElements().first(candidate => candidate.node.span?.start === element.start);
+        const nestedInIsland = reference?.ancestors().jsxElements().any(ancestor =>
+          ancestor.node.attributes.some(attribute => isClientIslandAttribute(attribute.name ?? "")));
+        if (!nestedInIsland) clientIslandCount++;
+      }
       if (!element.intrinsic && element.tagName) {
         const reference = module.walk().jsxElements().first(candidate => candidate.node.span?.start === element.start);
         const tagBinding = reference?.descendants().references().first(candidate =>
           candidate.name === element.tagName?.split(".")[0]
           && candidate.ancestors().any(ancestor => ancestor.node.kind === "JsxOpeningElement" || ancestor.node.kind === "JsxSelfClosingElement"));
+        const rootTag = element.tagName.split(".")[0]!;
+        if (tagBinding?.variable?.typeOnly) {
+          diagnostics.add(`error: JSX tag ${rootTag} resolves to a type-only import and cannot be rendered at runtime`);
+        } else if (!tagBinding?.variable) {
+          diagnostics.add(`error: JSX tag ${rootTag} is not defined as a runtime component`);
+        } else if (!["ImportSpecifier", "ImportClause", "NamespaceImport", "FunctionDeclaration"].includes(tagBinding.variable.declarationKind)) {
+          diagnostics.add(`error: JSX tag ${rootTag} resolves to ${declarationDescription(tagBinding.variable.declarationKind)}, not a runtime component`);
+        }
         const canReferenceComponent = !!tagBinding?.variable && ["ImportSpecifier", "ImportClause", "NamespaceImport", "FunctionDeclaration"].includes(tagBinding.variable.declarationKind);
         if (reference && canReferenceComponent && !reference.ancestors().functions().any(fn => fn.node !== component.node && fn.node.kind !== "ArrowFunction")) {
           renders.push(Object.freeze({ tag: element.tagName, start: element.start, end: element.end, path: nodePath(reference, component), serverSlotChildren: element.serverSlotChildren }));
@@ -108,13 +127,25 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
       end: span.end,
       clientEffects,
       serverEffects,
+      clientIslandCount,
       splitBoundaries: Object.freeze([...splitBoundaries].sort()),
+      diagnostics: Object.freeze([...diagnostics].sort()),
       browserGlobalsOutsideClientBoundary: Object.freeze([...outsideGlobals].sort()),
       contexts: Object.freeze(uniqueContexts(contexts)),
       renders: Object.freeze(renders)
     }));
   }
   return Object.freeze({ sites });
+}
+
+function declarationDescription(kind: string): string {
+  if (["VariableDeclaration", "BindingElement"].includes(kind)) return "variable";
+  if (["ClassDeclaration", "ClassExpression"].includes(kind)) return "class";
+  return kind;
+}
+
+function isClientIslandAttribute(name: string): boolean {
+  return name === "ref" || /^on[A-Z]/.test(name);
 }
 
 /** Resolves expression render sites against local/imported component metadata. */

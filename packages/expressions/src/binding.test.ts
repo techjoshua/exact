@@ -17,14 +17,17 @@ describe("@exact/expressions binding", () => {
     const consumer = path.join(root, "apps/kanban/src/__expressions_consumer.ts");
     const modules = project.updateModules([
       [model, `export interface Box<T> { value: T }\nexport function box<T>(value: T): Box<T> { return { value }; }`],
-      [consumer, `import { box } from "./__expressions_model.js";\nexport const result = box("ready");`]
+      [consumer, `import { box } from "./__expressions_model.js";\nimport type { Box } from "./__expressions_model.js";\nexport const result = box("ready");`]
     ]);
     const module = modules.get(consumer.replace(/\\/g, "/"))!;
     const result = module.walk().references().first(ref => ref.name === "result")!.variable!;
     const box = module.walk().references().first(ref => ref.name === "box")!.variable!;
+    const boxType = module.walk().references().first(ref => ref.name === "Box")!.variable!;
 
     expect(result.type?.display).toContain("Box<string>");
     expect(box.importedFrom).toBe("./__expressions_model.js");
+    expect(box.typeOnly).toBe(false);
+    expect(boxType.typeOnly).toBe(true);
     expect(box.type?.callable).toBe(true);
     expect(box.type?.callSignatures[0]?.typeParameters).toEqual(["T"]);
     expect(box.type?.callSignatures[0]?.parameters[0]?.name).toBe("value");

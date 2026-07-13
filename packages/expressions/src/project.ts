@@ -49,6 +49,7 @@ class ProjectVariable implements Variable {
   type?: ExpressionType;
   exported = false;
   importedFrom?: string;
+  typeOnly = false;
 }
 
 class ProjectType implements ExpressionType {
@@ -293,6 +294,7 @@ export class ExpressionProject {
       variable.type = variableType;
       variable.exported = Boolean(symbol.flags & ts.SymbolFlags.ExportValue);
       variable.importedFrom = importSource(declaration);
+      variable.typeOnly = isTypeOnlyBinding(declaration);
       scope.add(variable);
       Object.freeze(variable);
       return variable;
@@ -323,6 +325,7 @@ export class ExpressionProject {
         !declaration
       );
       try { variable.type = typeFor(checker.getTypeAtLocation(node), node); } catch { /* Invalid implicit this types remain unresolved. */ }
+      variable.typeOnly = false;
       scope.add(variable);
       Object.freeze(variable);
       implicitThisVariables.set(owner, variable);
@@ -536,6 +539,15 @@ function importSource(node: ts.Node): string | undefined {
   let cursor: ts.Node | undefined = node;
   while (cursor && !ts.isImportDeclaration(cursor)) cursor = cursor.parent;
   return cursor && ts.isStringLiteral(cursor.moduleSpecifier) ? cursor.moduleSpecifier.text : undefined;
+}
+
+function isTypeOnlyBinding(node: ts.Node): boolean {
+  let cursor: ts.Node | undefined = node;
+  while (cursor && !ts.isImportDeclaration(cursor)) {
+    if (ts.isImportSpecifier(cursor) && cursor.isTypeOnly) return true;
+    cursor = cursor.parent;
+  }
+  return !!cursor?.importClause?.isTypeOnly;
 }
 
 function typeKind(type: ts.Type): ExpressionTypeKind {

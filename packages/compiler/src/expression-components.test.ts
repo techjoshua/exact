@@ -59,4 +59,25 @@ describe("expression-backed component effects", () => {
     const jsx = analyzeExpressionJsx(module, buildExactProvenance(module), "BrowserEffect.tsx");
     expect(analyzeExpressionComponents(module, jsx, tasks).sites.get("View")?.browserGlobalsOutsideClientBoundary).toEqual(["window"]);
   });
+
+  it("owns client island counts and JSX binding diagnostics", () => {
+    clearExpressionProjectCache();
+    const module = expressionModuleFor("ComponentDiagnostics.tsx", `
+      import type { TypeWidget } from "./TypeWidget.js";
+      const ValueWidget = () => null;
+      function View() { return () => <section onClick={() => {}}>
+        <button onClick={() => {}}>nested</button>
+        <TypeWidget /><ValueWidget /><MissingWidget />
+      </section>; }
+    `);
+    const tasks = analyzeExpressionTasks(module);
+    const jsx = analyzeExpressionJsx(module, buildExactProvenance(module), "ComponentDiagnostics.tsx");
+    const site = analyzeExpressionComponents(module, jsx, tasks).sites.get("View")!;
+    expect(site.clientIslandCount).toBe(1);
+    expect(site.diagnostics).toEqual(expect.arrayContaining([
+      "error: JSX tag TypeWidget resolves to a type-only import and cannot be rendered at runtime",
+      "error: JSX tag ValueWidget resolves to variable, not a runtime component",
+      "error: JSX tag MissingWidget is not defined as a runtime component"
+    ]));
+  });
 });

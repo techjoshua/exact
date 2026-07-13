@@ -34,7 +34,8 @@ class SyntheticVariable implements Variable {
     readonly scope: ExpressionScope,
     readonly type?: ExpressionType,
     readonly exported = false,
-    readonly importedFrom?: string
+    readonly importedFrom?: string,
+    readonly typeOnly = false
   ) { this.symbol = Object.freeze({ id: this.id, name }); }
 }
 

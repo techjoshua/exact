@@ -54,7 +54,7 @@ export function buildExpressionSemanticGraph(module: BoundModule): ExactSemantic
       nodeStart: reference.node.span.start,
       nodeEnd: reference.node.span.end,
       ...(variable.importedFrom ? { moduleSpecifier: variable.importedFrom, importedName: importedName(reference) } : {}),
-      ...(isTypeOnly(reference) ? { typeOnly: true } : {}),
+      ...(variable.typeOnly || isTypeOnly(reference) ? { typeOnly: true } : {}),
       ...(exportedName(reference) ? { exportedName: exportedName(reference) } : {})
     };
     declarations.push(declaration);
@@ -75,7 +75,7 @@ export function buildExpressionSemanticGraph(module: BoundModule): ExactSemantic
       nodeEnd: reference.node.span.end,
       ...(declaration ? { declarationId: declaration.id, declarationKind: declaration.kind } : {}),
       ...(variable?.importedFrom ? { moduleSpecifier: variable.importedFrom, importedName: declaration?.importedName ?? variable.name } : {}),
-      ...(isTypeOnly(reference) || declaration?.typeOnly ? { typeOnly: true } : {}),
+      ...(variable?.typeOnly || isTypeOnly(reference) || declaration?.typeOnly ? { typeOnly: true } : {}),
       ...(exportSpecifierName(reference) ? { exportedName: exportSpecifierName(reference) } : {})
     });
   }
