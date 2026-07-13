@@ -159,7 +159,16 @@ export function transformSource(source: string, options: TransformOptions = {}):
   const expressionWrites = analyzeExpressionWrites(expressionModule);
   const expressionTasks = analyzeExpressionTasks(expressionModule);
   const expressionJsx = analyzeExpressionJsx(expressionModule, provenance, filename);
-  const result = ts.transform(sourceFile, [exactJsxTransformer(target, options.importedManifests ?? [], options.serverComponents ?? false, manifest.semanticGraph, provenance, expressionWrites, expressionTasks, expressionJsx)]);
+  const expressionComponents = analyzeExpressionComponents(expressionModule, expressionJsx, expressionTasks);
+  const emissionComponentInfo = new Map<string, ExactImportedComponentIR>();
+  for (const component of collectExpressionImportedComponents(filename, options.importedManifests ?? [], manifest.semanticGraph!)) emissionComponentInfo.set(component.name, component);
+  for (const component of manifest.components) emissionComponentInfo.set(component.name, {
+    name: component.name,
+    boundaryName: component.name,
+    placement: component.placement,
+    componentId: component.id
+  });
+  const result = ts.transform(sourceFile, [exactJsxTransformer(target, options.serverComponents ?? false, manifest.semanticGraph!, provenance, expressionWrites, expressionTasks, expressionJsx, expressionComponents, emissionComponentInfo)]);
   const transformed = result.transformed[0]!;
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
   const printed = printer.printFile(transformed as ts.SourceFile);

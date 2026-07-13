@@ -11,15 +11,11 @@ import {
   isThisTaskCall
 } from "./calls.js";
 import {
-  analyzeTask,
-  clientIslandHasServerSlotChildren,
-  collectComponentInfo,
   componentPlacementsFromInfo
 } from "./component-analysis.js";
 import { collectExports, isComponentLikeFunction } from "./exports.js";
 import { stableId } from "./ids.js";
 import {
-  collectServerOnlyImports,
   isServerOnlyImportDeclaration,
   isServerOnlyModule
 } from "./imports.js";
@@ -28,8 +24,7 @@ import {
   componentBoundaryName,
   exactElementId,
   jsxElementHasNoMeaningfulChildren,
-  jsxElementIsClientIsland,
-  jsxTagIsClientComponent
+  jsxElementIsClientIsland
 } from "./jsx-inspect.js";
 import {
   clientComponentBoundaryId,
@@ -40,6 +35,7 @@ import type { ExactProvenanceGraph } from "./provenance.js";
 import { writeSiteKey, type ExpressionWritePlan } from "./expression-writes.js";
 import type { ExpressionTaskPlan } from "./expression-tasks.js";
 import type { ExpressionJsxPlan } from "./expression-jsx.js";
+import type { ExpressionComponentPlan } from "./expression-components.js";
 import {
   buildSemanticGraph,
   createSemanticDeclarationIndex,
@@ -81,26 +77,23 @@ const boundaryHelper = "__exactBoundary";
 /** Creates the TypeScript transformer that lowers eXact JSX into runtime helper calls. */
 export function exactJsxTransformer(
   target: TransformTarget,
-  importedManifests: readonly ExactCompilerManifest[] = [],
   serverComponents = false,
-  providedSemanticGraph?: ExactSemanticGraphIR,
-  provenance?: ExactProvenanceGraph,
-  expressionWrites?: ExpressionWritePlan,
-  expressionTasks?: ExpressionTaskPlan,
-  expressionJsx?: ExpressionJsxPlan
+  providedSemanticGraph: ExactSemanticGraphIR,
+  provenance: ExactProvenanceGraph,
+  expressionWrites: ExpressionWritePlan,
+  expressionTasks: ExpressionTaskPlan,
+  expressionJsx: ExpressionJsxPlan,
+  expressionComponents: ExpressionComponentPlan,
+  componentInfo: Map<string, ExactImportedComponentIR>
 ): ts.TransformerFactory<ts.SourceFile> {
   return context => sourceFile => {
     const factory = context.factory;
     const helpers = allocateHelperNames(sourceFile);
-    const semanticGraph = providedSemanticGraph ?? buildSemanticGraph(sourceFile);
+    const semanticGraph = providedSemanticGraph;
     const semanticReferences = createSemanticReferenceIndex(sourceFile, semanticGraph);
     const semanticDeclarations = createSemanticDeclarationIndex(sourceFile, semanticGraph);
-    const serverOnlyImports = collectServerOnlyImports(sourceFile, semanticGraph);
-    const componentInfo = collectComponentInfo(sourceFile, serverOnlyImports, importedManifests, semanticGraph);
     const componentPlacements = componentPlacementsFromInfo(componentInfo);
-    const expressionDerived = provenance
-      ? new Set(provenance.entries.filter(entry => entry.provenance === "derived" && entry.safeToReevaluate).map(entry => entry.variable.id))
-      : undefined;
+    const expressionDerived = new Set(provenance.entries.filter(entry => entry.provenance === "derived" && entry.safeToReevaluate).map(entry => entry.variable.id));
     let sawJsx = false;
     let sawBoundary = false;
     let sawStateWrite = false;
@@ -112,6 +105,13 @@ export function exactJsxTransformer(
     const clientIslandDefinitions: ts.FunctionDeclaration[] = [];
     let clientIslandDepth = 0;
     const expressionTaskFor = (node: ts.Node) => expressionTasks?.sites.get(writeSiteKey(node.getStart(sourceFile), node.end));
+    const taskPlacementFor = (node: ts.Node): ExactPlacement => expressionTaskFor(node)?.placement ?? "unknown";
+    const isClientComponentTag = (tag: ts.JsxTagNameExpression): boolean => componentPlacements.get(tag.getText(sourceFile)) === "client";
+    const islandHasServerChildren = (node: ts.JsxElement): boolean => {
+      const owner = componentStack[componentStack.length - 1];
+      const site = owner ? expressionComponents.sites.get(owner)?.clientIslands.find(island => island.start === node.getStart(sourceFile) && island.end === node.end) : undefined;
+      return !!site && (site.serverOnlyChildren || site.childTags.some(tag => componentPlacements.get(tag) === "server"));
+    };
 
     const visitor: ts.Visitor = node => {
       if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
@@ -194,8 +194,7 @@ export function exactJsxTransformer(
         }
       }
       if (ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) && isThisTaskCall(node.expression)) {
-        const task = analyzeTask("target-task", node.expression, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations, expressionTasks !== undefined, expressionTaskFor(node.expression));
-        if (shouldOmitPlacement(task.placement, target)) {
+        if (shouldOmitPlacement(taskPlacementFor(node.expression), target)) {
           return factory.createEmptyStatement();
         }
       }
@@ -203,7 +202,7 @@ export function exactJsxTransformer(
         sawJsx = true;
         if (
           target === "server"
-          && jsxTagIsClientComponent(node.openingElement.tagName, componentPlacements, sourceFile, semanticReferences)
+          && isClientComponentTag(node.openingElement.tagName)
         ) {
           const childrenProp = clientComponentChildrenProp(context, node);
           const serverChildren = !jsxElementHasNoMeaningfulChildren(node) && childrenProp === undefined
@@ -213,7 +212,7 @@ export function exactJsxTransformer(
           return createComponentIslandBoundaryCall(sourceFile, context, visitor, helpers, componentInfo, node, node.openingElement.tagName, node.openingElement.attributes, childrenProp, serverChildren);
         }
         if (target === "server" && jsxElementIsClientIsland(node.openingElement.attributes)) {
-          const serverChildren = clientIslandHasServerSlotChildren(node, serverOnlyImports, semanticReferences, sourceFile, componentPlacements)
+          const serverChildren = islandHasServerChildren(node)
             ? node.children
             : undefined;
           sawBoundary = true;
@@ -225,7 +224,7 @@ export function exactJsxTransformer(
         if (target === "client" && jsxElementIsClientIsland(node.openingElement.attributes)) {
           const owner = componentStack[componentStack.length - 1];
           if (clientIslandDepth === 0 && (!owner || componentPlacements.get(owner) !== "client")) {
-            const serverSlotChildren = clientIslandHasServerSlotChildren(node, serverOnlyImports, semanticReferences, sourceFile, componentPlacements);
+            const serverSlotChildren = islandHasServerChildren(node);
             clientIslandDepth++;
             recordClientIslandDefinition(sourceFile, context, visitor, helpers, owner, islandCounts, node, clientIslandDefinitions, {
               ...clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1], semanticReferences, sourceFile),
@@ -248,7 +247,7 @@ export function exactJsxTransformer(
             recordClientIslandDefinition(sourceFile, context, visitor, helpers, owner, islandCounts, node, clientIslandDefinitions, clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1], semanticReferences, sourceFile));
           }
         }
-        if (target === "server" && jsxTagIsClientComponent(node.tagName, componentPlacements, sourceFile, semanticReferences)) {
+        if (target === "server" && isClientComponentTag(node.tagName)) {
           sawBoundary = true;
           return createComponentIslandBoundaryCall(sourceFile, context, visitor, helpers, componentInfo, node, node.tagName, node.attributes);
         }
@@ -264,8 +263,7 @@ export function exactJsxTransformer(
       }
       if (ts.isCallExpression(node)) {
         if (isThisTaskCall(node)) {
-          const task = analyzeTask("target-task", node, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations, expressionTasks !== undefined, expressionTaskFor(node));
-          if (shouldOmitPlacement(task.placement, target)) {
+          if (shouldOmitPlacement(taskPlacementFor(node), target)) {
             return factory.createVoidExpression(factory.createNumericLiteral(0));
           }
         }
