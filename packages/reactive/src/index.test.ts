@@ -250,6 +250,16 @@ describe("@exact/reactive", () => {
       .toThrow("Conflicting this.map() key extractors");
   });
 
+  it("uses compiler key metadata instead of recreated function identity", () => {
+    const state = reactive({ records: [{ id: "a" }] });
+    registerReactiveListKey(state.records, item => (item as { id: string }).id, "ListA", "member:id");
+    expect(() => registerReactiveListKey(state.records, function differentSource(item) {
+      return (item as { id: string }).id;
+    }, "ListB", "member:id")).not.toThrow();
+    expect(() => registerReactiveListKey(state.records, item => (item as { id: string }).id, "ListC", "member:slug"))
+      .toThrow("Conflicting this.map() key extractors");
+  });
+
   it("reconciles cyclic structured values without recursing indefinitely", () => {
     const initial: { name: string; self?: unknown } = { name: "node" };
     initial.self = initial;

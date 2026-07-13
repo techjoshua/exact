@@ -108,7 +108,12 @@ export function mutateReactiveArray(
 }
 
 /** Records the stable identity used by a keyed list for compiler reconciliation. */
-export function registerReactiveListKey(collection: Iterable<unknown>, key: (item: unknown) => string, site = "an unlabelled this.map() call"): void {
+export function registerReactiveListKey(
+  collection: Iterable<unknown>,
+  key: (item: unknown) => string,
+  site = "an unlabelled this.map() call",
+  identity?: string
+): void {
   if (!collection || typeof collection !== "object") return;
   const raw = unwrap(collection as object) as object;
   if (!Array.isArray(raw)) return;
@@ -116,7 +121,9 @@ export function registerReactiveListKey(collection: Iterable<unknown>, key: (ite
   // Render functions are recreated on every component render.  Comparing their
   // source gives compiled call sites a stable identity without retaining a
   // component instance, while still detecting genuinely incompatible keys.
-  const signature = Function.prototype.toString.call(key);
+  const signature = identity
+    ? `compiler:${identity}`
+    : `runtime:${Function.prototype.toString.call(key)}`;
   const previous = listKeyExtractors.get(raw);
   if (previous && previous.signature !== signature) {
     throw new Error(`Conflicting this.map() key extractors for the same collection (${previous.site} and ${site})`);

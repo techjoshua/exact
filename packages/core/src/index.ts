@@ -325,14 +325,16 @@ export interface Component<State extends object> {
     key: (item: IterableItem<Collection>) => string,
     render: (item: IterableItem<Collection>) => VNode,
     id?: string,
-    provenance?: Iterable<IterableItem<Collection>>
+    provenance?: Iterable<IterableItem<Collection>>,
+    keyIdentity?: string
   ): VNode;
   map<T>(
     collection: Iterable<T>,
     key: (item: T) => string,
     render: (item: T) => VNode,
     id?: string,
-    provenance?: Iterable<T>
+    provenance?: Iterable<T>,
+    keyIdentity?: string
   ): VNode;
   onMount(handler: LifecycleHandler): void;
   onUnmount(handler: LifecycleHandler): void;
@@ -572,12 +574,12 @@ export function createComponentInstance<State extends object, Props extends Reco
         }
       };
     },
-    map<T>(collection: Iterable<T> | ComponentReactiveValue<Iterable<T>>, key: (item: T) => string, render: (item: T) => VNode, id?: string, provenance?: Iterable<T>): VNode {
+    map<T>(collection: Iterable<T> | ComponentReactiveValue<Iterable<T>>, key: (item: T) => string, render: (item: T) => VNode, id?: string, provenance?: Iterable<T>, keyIdentity?: string): VNode {
       const source = peek(() => reactiveRef(collection)) as ReactiveRef<Iterable<T>> | undefined;
       const current = isReactiveValue(collection) && source
         ? peek(() => source.get())
         : collection as Iterable<T>;
-      registerReactiveListKey(provenance ?? current, key as (item: unknown) => string);
+      registerReactiveListKey(provenance ?? current, key as (item: unknown) => string, id ?? "an unlabelled this.map() call", keyIdentity);
       // A render pass gives every map call a stable slot. Reuse only when the
       // renderer itself is stable; inline render callbacks are recreated on a
       // parent render and may capture a different parent value.

@@ -726,7 +726,7 @@ describe("@exact/compiler", () => {
       return () => this.map(todoTasks, task => task.id, task => <li>{task.id}</li>);
     }`, { filename: "Board.tsx" });
     expect(output).toContain("this.map(this.reactive(() => this.state.tasks.filter(task => task.status === \"todo\"))");
-    expect(output).toContain(", this.state.tasks);");
+    expect(output).toContain(", this.state.tasks, \"member:id\"");
   });
   it("keeps expanded derived prop collections live when they feed this.map", () => {
     const output = transform(`function Column(this: Component<{}>, props: { tasks: { id: string; status: string }[]; column: { id: string } }) {
@@ -734,7 +734,7 @@ describe("@exact/compiler", () => {
       return () => <section>{this.map(columnTasks, task => task.id, task => <li>{task.id}</li>)}</section>;
     }`, { filename: "Column.tsx" });
     expect(output).toContain("this.map(this.reactive(() => (props.tasks.filter(task => task.status === props.column.id)))");
-    expect(output).toContain(", props.tasks)))");
+    expect(output).toContain(", props.tasks, \"member:id\")))");
   });
   it("allows callback-local mutation but rejects captured writes in derived collections", () => {
     const local = transform(`function Board(this: Component<{ tasks: { id: string; status: string }[] }>) {
@@ -908,7 +908,7 @@ describe("@exact/compiler", () => {
       }
     `, { filename: "View.tsx" });
 
-    expect(output).toMatch(/this\.map\(items, item => item\.id, item => __exactVNode\("li", \{ "data-exact-id": "x[A-Za-z0-9_-]{22}" \}, __exactDynamic\(\(\) => item\.title\)\), "x[A-Za-z0-9_-]{22}"\)/);
+    expect(output).toMatch(/this\.map\(items, item => item\.id, item => __exactVNode\("li", \{ "data-exact-id": "x[A-Za-z0-9_-]{22}" \}, __exactDynamic\(\(\) => item\.title\)\), "x[A-Za-z0-9_-]{22}", undefined, "member:id"\)/);
   });
 
   it("does not recapture existing reactive lambdas or run-once tasks", () => {

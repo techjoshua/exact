@@ -1322,6 +1322,7 @@ function transformMapCall(
     : undefined;
   const derivedCollection = initializer ?? (isDerivedCollectionExpression(source) ? source : undefined);
   const provenance = derivedCollection ? derivedCollectionSource(derivedCollection) : undefined;
+  const keyIdentity = keyExtractorIdentity(node.arguments[1]!);
   const collection = derivedCollection
     ? context.factory.createCallExpression(
       context.factory.createPropertyAccessExpression(context.factory.createThis(), "reactive"),
@@ -1337,9 +1338,33 @@ function transformMapCall(
       collection,
       ...node.arguments.slice(1).map(argument => ts.visitNode(argument, visitor) as ts.Expression),
       context.factory.createStringLiteral(id),
-      ...(provenance ? [ts.visitNode(provenance, visitor) as ts.Expression] : [])
+      ...(provenance || keyIdentity ? [provenance ? ts.visitNode(provenance, visitor) as ts.Expression : context.factory.createIdentifier("undefined")] : []),
+      ...(keyIdentity ? [context.factory.createStringLiteral(keyIdentity)] : [])
     ]
   );
+}
+
+function keyExtractorIdentity(expression: ts.Expression): string | undefined {
+  if (!isFunctionLikeExpression(expression) || expression.parameters.length !== 1) return undefined;
+  const parameter = expression.parameters[0]!.name;
+  if (!ts.isIdentifier(parameter)) return undefined;
+  let body: ts.Expression | undefined;
+  if (ts.isBlock(expression.body)) {
+    const returns = expression.body.statements.filter(ts.isReturnStatement);
+    if (returns.length !== 1) return undefined;
+    body = returns[0]!.expression;
+  } else {
+    body = expression.body;
+  }
+  if (!body) return undefined;
+  const segments: string[] = [];
+  let current = withoutParentheses(body);
+  while (ts.isPropertyAccessExpression(current)) {
+    segments.unshift(current.name.text);
+    current = withoutParentheses(current.expression);
+  }
+  if (!ts.isIdentifier(current) || current.text !== parameter.text || !segments.length) return undefined;
+  return `member:${segments.join(".")}`;
 }
 
 function isDerivedCollectionExpression(expression: ts.Expression): boolean {
