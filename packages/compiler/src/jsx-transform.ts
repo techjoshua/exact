@@ -37,7 +37,6 @@ import type { ExpressionTaskPlan } from "./expression-tasks.js";
 import type { ExpressionJsxPlan } from "./expression-jsx.js";
 import type { ExpressionComponentPlan } from "./expression-components.js";
 import {
-  buildSemanticGraph,
   createSemanticDeclarationIndex,
   createSemanticReferenceIndex,
   semanticDeclarationForIdentifier,
@@ -55,7 +54,6 @@ import type {
   ClientIslandElementNode,
   ComponentLocalInfo,
   DerivedReactiveIndex,
-  ExactCompilerManifest,
   ExactImportedComponentIR,
   ExactPlacement,
   ExactSemanticGraphIR,
@@ -151,9 +149,7 @@ export function exactJsxTransformer(
         return visited;
       }
       if (componentStack.length && ts.isDeleteExpression(node)) {
-        const path = expressionWrites
-          ? expressionWritePath(node, sourceFile, expressionWrites)
-          : exactStateWritePath(node.expression, sourceFile, semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1]);
+        const path = expressionWritePath(node, sourceFile, expressionWrites);
         if (path) {
           sawStateWrite = true;
           return context.factory.createCallExpression(context.factory.createIdentifier(helpers.remove), undefined, [
@@ -162,18 +158,14 @@ export function exactJsxTransformer(
         }
       }
       if (componentStack.length && ts.isBinaryExpression(node) && isAssignmentOperator(node.operatorToken.kind)) {
-        const path = expressionWrites
-          ? expressionWritePath(node, sourceFile, expressionWrites)
-          : exactStateWritePath(node.left, sourceFile, semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1]);
+        const path = expressionWritePath(node, sourceFile, expressionWrites);
         if (path) {
           sawStateWrite = true;
           return transformStateAssignment(context, node, path, visitor, helpers);
         }
       }
       if (componentStack.length && (ts.isPrefixUnaryExpression(node) || ts.isPostfixUnaryExpression(node))) {
-        const path = expressionWrites
-          ? expressionWritePath(node, sourceFile, expressionWrites)
-          : exactStateWritePath(node.operand, sourceFile, semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1]);
+        const path = expressionWritePath(node, sourceFile, expressionWrites);
         if (path && (node.operator === ts.SyntaxKind.PlusPlusToken || node.operator === ts.SyntaxKind.MinusMinusToken)) {
           sawStateWrite = true;
           return transformStateUpdate(context, node, path, helpers);
@@ -181,9 +173,7 @@ export function exactJsxTransformer(
       }
       if (componentStack.length && ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
         const method = node.expression.name.text;
-        const path = expressionWrites
-          ? expressionWritePath(node, sourceFile, expressionWrites)
-          : exactStateWritePath(node.expression.expression, sourceFile, semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1]);
+        const path = expressionWritePath(node, sourceFile, expressionWrites);
         if (path && isArrayMutator(method)) {
           sawStateWrite = true;
           return context.factory.createCallExpression(context.factory.createIdentifier(helpers.arrayMutation), undefined, [
@@ -1407,17 +1397,6 @@ function allocateHelperNames(sourceFile: ts.SourceFile): HelperNames {
     remove: allocateName("__exactDelete", used),
     arrayMutation: allocateName("__exactArrayMutation", used)
   };
-}
-
-function exactStateWritePath(
-  node: ts.Expression,
-  sourceFile: ts.SourceFile,
-  references: SemanticReferenceIndex,
-  aliases: Map<string, string> | undefined
-): string[] | undefined {
-  const path = stateEffectPath(node, sourceFile, references, aliases ?? new Map());
-  if (!path || path === "*" || path.includes("*")) return undefined;
-  return path.split(".");
 }
 
 function stateRoot(context: ts.TransformationContext): ts.Expression {
