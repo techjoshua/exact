@@ -263,6 +263,19 @@ export function total(items: number[]) {
     expect(secondVariable.symbol).toBe(firstVariable.symbol);
   });
 
+  it("reuses analyses for structurally shared unchanged subtrees", () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__shared_analysis.ts");
+    const module = project.updateModule(filename, "const outer = 1; function first() { return () => outer; } function second() { return 2; }");
+    const first = module.walk().functions().where(reference => reference.node.name === "first").single();
+    const effects = module.effectsOf(first);
+    const captures = module.capturesOf(first.descendants().functions().single());
+    const rewritten = rewriteModule(module, rewriter => rewriter.replaceTextWhere(reference => reference.node.text === "2", () => "3"));
+    const sharedFirst = rewritten.ref(first.node);
+    expect(rewritten.effectsOf(sharedFirst)).toBe(effects);
+    expect(rewritten.capturesOf(sharedFirst.descendants().functions().single())).toBe(captures);
+  });
+
   it("uses host filesystem casing rules for incremental overlays", () => {
     const project = createExpressionProject({ tsconfigPath: kanbanConfig });
     const lower = path.join(root, "apps/kanban/src/__case_overlay.ts");

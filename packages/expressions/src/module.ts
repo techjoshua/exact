@@ -38,6 +38,8 @@ export interface SourceProvenance {
 let nextVersion = 1;
 const analysisCache = new WeakMap<ExpressionModule, Readonly<{ effects: readonly NodeEffect[]; captures: ReadonlyMap<ExpressionNode, readonly Variable[]> }>>();
 const defaultWalkCache = new WeakMap<ExpressionModule, readonly NodeRef[]>();
+const subtreeEffectsCache = new WeakMap<ExpressionNode, readonly NodeEffect[]>();
+const captureCache = new WeakMap<ExpressionNode, readonly Variable[]>();
 
 /** Immutable, versioned expression module. */
 export class ExpressionModule<S extends ModuleState = ModuleState> {
@@ -87,7 +89,11 @@ export class ExpressionModule<S extends ModuleState = ModuleState> {
   effectsOf(node: ExpressionNode | NodeRef): readonly NodeEffect[] {
     const target = node instanceof NodeRef ? node.node : node;
     if (!this.parents.has(target)) throw new Error("Node does not belong to this expression module version");
-    return Object.freeze(getAnalyses(this).effects.filter(effect => isWithin(effect.node, target)));
+    const cached = subtreeEffectsCache.get(target);
+    if (cached) return cached;
+    const effects = Object.freeze(getAnalyses(this).effects.filter(effect => isWithin(effect.node, target)));
+    subtreeEffectsCache.set(target, effects);
+    return effects;
   }
 
   dependenciesOf(node: ExpressionNode | NodeRef): readonly Variable[] {
@@ -103,7 +109,12 @@ export class ExpressionModule<S extends ModuleState = ModuleState> {
   }
 
   capturesOf(functionNode: ExpressionNode | NodeRef): readonly Variable[] {
-    return getAnalyses(this).captures.get(functionNode instanceof NodeRef ? functionNode.node : functionNode) ?? [];
+    const target = functionNode instanceof NodeRef ? functionNode.node : functionNode;
+    const cached = captureCache.get(target);
+    if (cached) return cached;
+    const captures = getAnalyses(this).captures.get(target) ?? Object.freeze([]);
+    captureCache.set(target, captures);
+    return captures;
   }
 
   controlFlowOf(functionNode: ExpressionNode | NodeRef): ControlFlowGraph {
@@ -171,6 +182,7 @@ function getAnalyses(module: ExpressionModule): Readonly<{ effects: readonly Nod
   visit(module.root);
   const frozenCaptures = new Map<ExpressionNode, readonly Variable[]>();
   for (const [node, values] of captures) frozenCaptures.set(node, Object.freeze([...values]));
+  for (const [node, values] of frozenCaptures) captureCache.set(node, values);
   const result = Object.freeze({ effects: Object.freeze(effects), captures: frozenCaptures as ReadonlyMap<ExpressionNode, readonly Variable[]> });
   analysisCache.set(module, result);
   return result;
