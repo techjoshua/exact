@@ -1,4 +1,5 @@
 import {
+  batch,
   computed,
   reactive,
   ref as reactiveRef,
@@ -48,7 +49,7 @@ import {
 } from "./vnode.js";
 
 export type { Reactive, ReactiveValue, StopHandle } from "@exact/reactive";
-export { computed, peek, unwrap, watch } from "@exact/reactive";
+export { batch, computed, peek, unwrap, watch } from "@exact/reactive";
 // Compiler-only helpers. They remain available here because generated JSX
 // already imports all framework helpers from @exact/core.
 export { writeReactive, writeReactiveLazy, updateReactiveValue, updateReactiveValueWithResult, deleteReactiveValue, mutateReactiveArray } from "@exact/reactive";
@@ -739,7 +740,7 @@ function createTask(instance: ComponentInstance<any>, deps: unknown[], work: (..
       const values = task.deps.map(dep => unwrap(dep));
       let result: TaskResult;
       try {
-        result = task.work(...values, { signal: controller.signal });
+        result = batch(() => task.work(...values, { signal: controller.signal }));
       } catch (error) {
         handleComponentError(instance, createErrorReport(error, "task", instance, "run"));
         return;

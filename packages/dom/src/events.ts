@@ -1,4 +1,4 @@
-import { createErrorReport, handleComponentError } from "@exact/core";
+import { batch, createErrorReport, handleComponentError } from "@exact/core";
 import { preserveFocus } from "./focus.js";
 import { findOwnerInstance } from "./ownership.js";
 import { eventHandlers } from "./state.js";
@@ -16,7 +16,7 @@ export function ensureDelegated(root: Root, type: string): void {
         const current = cursor;
         preserveFocus(root, () => {
           try {
-            callDelegatedHandler(handler, current, event);
+            batch(() => callDelegatedHandler(handler, current, event));
           } catch (error) {
             const owner = findOwnerInstance(current);
             handleComponentError(owner, createErrorReport(error, "event", owner, type));

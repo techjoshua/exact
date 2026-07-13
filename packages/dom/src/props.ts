@@ -1,4 +1,4 @@
-import { createErrorReport, handleComponentError, type StopHandle, unwrap, watch } from "@exact/core";
+import { batch, createErrorReport, handleComponentError, type StopHandle, unwrap, watch } from "@exact/core";
 import type { EffectScope } from "@exact/reactive";
 import { describeNode, domDebug } from "./debug.js";
 import { ensureDelegated } from "./events.js";
@@ -54,7 +54,7 @@ function setProp(root: Root, element: Element, key: string, value: unknown, prev
         const handler = value as EventListener;
         const listener: EventListener = event => preserveFocus(root, () => {
           try {
-            handler.call(element, event);
+            batch(() => handler.call(element, event));
           } catch (error) {
             const owner = findOwnerInstance(element);
             handleComponentError(owner, createErrorReport(error, "event", owner, type));

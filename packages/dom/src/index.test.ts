@@ -18,7 +18,7 @@ import {
   type Logger
 } from "@exact/core";
 import { jsx, jsxs } from "@exact/jsx";
-import { createEffectScope, flushSync } from "@exact/reactive";
+import { createEffectScope, flushSync, watch } from "@exact/reactive";
 import { percent, px, rem, render } from "./index.js";
 import { mountedDomNodes, placeMountedBefore } from "./placement.js";
 
@@ -138,6 +138,26 @@ describe("@exact/dom", () => {
     }), container);
     container.querySelector("button")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(calls).toEqual(["inner", "outer"]);
+  });
+
+  it("publishes all synchronous event writes as one reactive transition", () => {
+    const container = document.createElement("div");
+    const scheduled = vi.fn();
+    function Form(this: Component<{ first: number; second: number }>) {
+      this.state.first = 0;
+      this.state.second = 0;
+      watch(() => void `${this.state.first}:${this.state.second}`, undefined, { onSchedule: scheduled });
+      return () => jsx("button", {
+        onClick: () => {
+          this.state.first = 1;
+          this.state.second = 2;
+        },
+        children: "update"
+      });
+    }
+    render(jsx(Form, {}), container);
+    container.querySelector("button")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(scheduled).toHaveBeenCalledTimes(1);
   });
 
   it("runs capture handlers without relying on bubbling delegation", () => {
