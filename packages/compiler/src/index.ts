@@ -8,7 +8,6 @@ import {
   readExactArtifactManifestEntries
 } from "./artifacts.js";
 import {
-  analyzeComponent,
   combinePlacements,
   createGeneratedClientIslandServerSlotBoundaries
 } from "./component-analysis.js";
@@ -65,7 +64,6 @@ import {
 } from "./registry.js";
 import {
   buildExpressionSemanticGraph,
-  createSemanticDeclarationIndex,
   createSemanticReferenceIndex
 } from "./semantic.js";
 import {
@@ -89,7 +87,7 @@ import { analyzeExpressionSafety } from "./expression-safety.js";
 import { analyzeExpressionTasks } from "./expression-tasks.js";
 import { analyzeExpressionJsx } from "./expression-jsx.js";
 import { analyzeExpressionComponents } from "./expression-components.js";
-import { createExpressionRenderEdges } from "./expression-components.js";
+import { createExpressionComponents, createExpressionRenderEdges } from "./expression-components.js";
 import { createExpressionComponentBoundaries } from "./expression-components.js";
 
 export type * from "./types.js";
@@ -182,14 +180,8 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const normalized = preprocessPropPunning(source);
   const filename = options.filename ?? "input.tsx";
   const expressionModule = expressionModuleFor(filename, normalized);
-  const expressionFunctions = new Map(
-    expressionModule.walk().functions()
-      .where(reference => reference.node.kind === "FunctionDeclaration" && !!reference.node.span && /^[A-Z]/.test(reference.node.name ?? ""))
-      .toArray()
-      .map(reference => [reference.node.span!.start, reference.node.name] as const)
-  );
   const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
-  const components: ExactComponentIR[] = [];
+  let components: ExactComponentIR[] = [];
   const exports: ExactExportIR[] = [];
   const symbols: ExactSymbolIR[] = [];
   const boundaries: ExactBoundaryIR[] = [];
@@ -201,19 +193,9 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const expressionTasks = analyzeExpressionTasks(expressionModule);
   const expressionJsx = analyzeExpressionJsx(expressionModule, provenance, filename);
   const expressionComponents = analyzeExpressionComponents(expressionModule, expressionJsx, expressionTasks);
+  components = createExpressionComponents(filename, expressionComponents, expressionTasks, expressionSafety);
   const semanticReferences = createSemanticReferenceIndex(sourceFile, semanticGraph);
-  const semanticDeclarations = createSemanticDeclarationIndex(sourceFile, semanticGraph);
   const serverOnlyImports = collectExpressionServerOnlyImports(semanticGraph);
-
-  function visit(node: ts.Node): void {
-    if (ts.isFunctionDeclaration(node) && node.name && expressionFunctions.get(node.getStart(sourceFile)) === node.name.text) {
-      components.push(analyzeComponent(node.name.text, node, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations, expressionSafety.get(node.name.text) ?? [], expressionTasks, expressionComponents.sites.get(node.name.text)));
-      return;
-    }
-    ts.forEachChild(node, visit);
-  }
-
-  visit(sourceFile);
 
   const componentByName = new Map(components.map(component => [component.name, component]));
   const importedComponents = collectExpressionImportedComponents(filename, options.importedManifests ?? [], semanticGraph);

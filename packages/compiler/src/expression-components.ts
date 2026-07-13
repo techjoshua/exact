@@ -3,7 +3,7 @@ import type { ExpressionJsxPlan } from "./expression-jsx.js";
 import type { ExpressionTaskPlan } from "./expression-tasks.js";
 import { isServerOnlyModule } from "./imports.js";
 import { stableId } from "./ids.js";
-import type { ExactBoundaryIR, ExactComponentIR, ExactComponentRenderEdgeIR, ExactContextEffect, ExactImportedComponentIR } from "./types.js";
+import type { ExactBoundaryIR, ExactComponentIR, ExactComponentRenderEdgeIR, ExactContextEffect, ExactImportedComponentIR, ExactTaskIR } from "./types.js";
 import { serverSlotBoundaryId } from "./names.js";
 
 export interface ExpressionRenderSite {
@@ -25,11 +25,60 @@ export interface ExpressionComponentSite {
   readonly diagnostics: readonly string[];
   readonly browserGlobalsOutsideClientBoundary: readonly string[];
   readonly contexts: readonly ExactContextEffect[];
+  readonly contextSites: readonly Readonly<{ start: number; effect: ExactContextEffect }>[];
   readonly renders: readonly ExpressionRenderSite[];
 }
 
 export interface ExpressionComponentPlan {
   readonly sites: ReadonlyMap<string, ExpressionComponentSite>;
+}
+
+/** Materializes component and task manifest IR without consulting TypeScript syntax nodes. */
+export function createExpressionComponents(
+  filename: string,
+  plan: ExpressionComponentPlan,
+  tasks: ExpressionTaskPlan,
+  safety: ReadonlyMap<string, readonly string[]>
+): ExactComponentIR[] {
+  return [...plan.sites.values()].sort((left, right) => left.start - right.start).map(site => {
+    const componentTasks = [...tasks.sites.values()]
+      .filter(task => task.component === site.name && task.start >= site.start && task.end <= site.end)
+      .sort((left, right) => left.start - right.start)
+      .map((task, index): ExactTaskIR => ({
+        id: stableId(filename, `${site.name}:task:${index}`),
+        placement: task.placement,
+        requestedPlacement: task.requestedPlacement,
+        async: task.async,
+        browserEffects: task.browserEffects,
+        reads: [...task.reads],
+        writes: [...task.writes],
+        contexts: [...task.contexts],
+        diagnostics: [...task.diagnostics]
+      }));
+    const hasServerEffect = site.serverEffects;
+    const diagnostics = new Set<string>([...(safety.get(site.name) ?? []), ...site.diagnostics]);
+    for (const task of componentTasks) for (const diagnostic of task.diagnostics) diagnostics.add(diagnostic);
+    if (hasServerEffect) for (const global of site.browserGlobalsOutsideClientBoundary) {
+      diagnostics.add(`error: browser-only global ${global} cannot be used in server-rendered component code; move it into a client island or client task`);
+    }
+    const placement = site.clientEffects && site.serverEffects ? "isomorphic" : site.serverEffects ? "server" : site.clientEffects ? "client" : "server";
+    return {
+      id: stableId(filename, site.name),
+      name: site.name,
+      exported: false,
+      placement,
+      subgraphPlacement: placement,
+      renderEdges: [],
+      clientIslandCount: site.clientIslandCount,
+      tasks: componentTasks,
+      contexts: uniqueContexts([
+        ...site.contextSites,
+        ...[...tasks.sites.values()].filter(task => task.component === site.name).flatMap(task => task.contextSites)
+      ].sort((left, right) => left.start - right.start).map(entry => entry.effect)),
+      splitBoundaries: [...site.splitBoundaries],
+      diagnostics: [...diagnostics]
+    };
+  });
 }
 
 const browserGlobals = new Set(["window", "document", "navigator", "location", "history", "localStorage", "sessionStorage", "requestAnimationFrame", "cancelAnimationFrame", "MutationObserver", "ResizeObserver", "IntersectionObserver"]);
@@ -47,6 +96,7 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
     const splitBoundaries = new Set<string>();
     const outsideGlobals = new Set<string>();
     const contexts: ExactContextEffect[] = [];
+    const contextSites: Array<Readonly<{ start: number; effect: ExactContextEffect }>> = [];
     const renders: ExpressionRenderSite[] = [];
     const diagnostics = new Set<string>();
     let clientIslandCount = 0;
@@ -99,6 +149,7 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
       if (variable?.importedFrom && isServerOnlyModule(variable.importedFrom)) {
         serverEffects = true;
         splitBoundaries.add(`server-import:${variable.name}`);
+        if (insideClientIslandOpening(reference)) diagnostics.add("error: client island cannot reference server-only imports");
       }
     }
 
@@ -113,11 +164,13 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
       if (!call.target?.isMember() || !/^this\.(?:getContext|setContext)$/.test(call.target.node.text ?? "")) continue;
       const token = call.arguments[0];
       const exact = token && /^(?:[A-Za-z_$][\w$]*)(?:\.[A-Za-z_$][\w$]*)*$/.test(token.node.text ?? "");
-      contexts.push(Object.freeze({
+      const effect = Object.freeze({
         token: exact ? token!.node.text! : "unknown",
         kind: call.target.name === "getContext" ? "read" : "write",
         confidence: exact ? "exact" : "unknown"
-      }));
+      } satisfies ExactContextEffect);
+      contexts.push(effect);
+      contextSites.push(Object.freeze({ start: call.node.span?.start ?? spanStart(component), effect }));
     }
 
     const span = component.node.span!;
@@ -132,6 +185,7 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
       diagnostics: Object.freeze([...diagnostics].sort()),
       browserGlobalsOutsideClientBoundary: Object.freeze([...outsideGlobals].sort()),
       contexts: Object.freeze(uniqueContexts(contexts)),
+      contextSites: Object.freeze(contextSites),
       renders: Object.freeze(renders)
     }));
   }
@@ -233,7 +287,8 @@ function nodePath(reference: NodeRef, component: NodeRef): string {
 }
 
 function uniqueContexts(values: readonly ExactContextEffect[]): ExactContextEffect[] {
-  return [...new Map(values.map(value => [`${value.kind}:${value.token}:${value.confidence}`, value])).values()];
+  return [...new Map(values.map(value => [`${value.kind}:${value.token}:${value.confidence}`, value])).values()]
+    .sort((left, right) => `${left.kind}:${left.token}`.localeCompare(`${right.kind}:${right.token}`));
 }
 
 function inside(start: number, end: number, component: NodeRef): boolean {
@@ -255,5 +310,14 @@ function insideTask(reference: NodeRef): boolean {
 }
 
 function insideClientIsland(reference: NodeRef): boolean {
-  return reference.ancestors().jsxElements().any(element => element.node.attributes.some(attribute => /^(?:on[A-Z]|ref)$/.test(attribute.name ?? "")));
+  return reference.ancestors().jsxElements().any(element => element.node.attributes.some(attribute => isClientIslandAttribute(attribute.name ?? "")));
+}
+
+function insideClientIslandOpening(reference: NodeRef): boolean {
+  if (!insideClientIsland(reference)) return false;
+  return reference.ancestors().any(ancestor => ancestor.node.kind === "JsxAttribute" || ancestor.node.kind === "JsxOpeningElement" || ancestor.node.kind === "JsxSelfClosingElement");
+}
+
+function spanStart(reference: NodeRef): number {
+  return reference.node.span?.start ?? 0;
 }

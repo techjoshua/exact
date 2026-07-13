@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeExpressionComponents, createExpressionComponentBoundaries, createExpressionRenderEdges } from "./expression-components.js";
+import { analyzeExpressionComponents, createExpressionComponentBoundaries, createExpressionComponents, createExpressionRenderEdges } from "./expression-components.js";
 import { analyzeExpressionJsx } from "./expression-jsx.js";
 import { clearExpressionProjectCache, expressionModuleFor } from "./expression-project.js";
 import { analyzeExpressionTasks } from "./expression-tasks.js";
@@ -18,7 +18,8 @@ describe("expression-backed component effects", () => {
       }`);
     const tasks = analyzeExpressionTasks(module);
     const jsx = analyzeExpressionJsx(module, buildExactProvenance(module), "ComponentEffects.tsx");
-    const site = analyzeExpressionComponents(module, jsx, tasks).sites.get("Mixed")!;
+    const plan = analyzeExpressionComponents(module, jsx, tasks);
+    const site = plan.sites.get("Mixed")!;
     expect(site.clientEffects).toBe(true);
     expect(site.serverEffects).toBe(true);
     expect(site.splitBoundaries).toEqual(expect.arrayContaining(["event-handler", "ref", "browser:window", "server-import:readFile"]));
@@ -27,6 +28,12 @@ describe("expression-backed component effects", () => {
       { token: "Theme", kind: "read", confidence: "exact" },
       { token: "unknown", kind: "write", confidence: "unknown" }
     ]));
+    expect(createExpressionComponents("ComponentEffects.tsx", plan, tasks, new Map())[0]).toMatchObject({
+      name: "Mixed",
+      placement: "isomorphic",
+      clientIslandCount: 1,
+      tasks: [expect.objectContaining({ placement: "client", requestedPlacement: "client" })]
+    });
     const edges = createExpressionRenderEdges("ComponentEffects.tsx", "Mixed", site.renders, new Map([
       ["button", { name: "button", placement: "client" as const }]
     ]));

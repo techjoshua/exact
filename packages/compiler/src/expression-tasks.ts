@@ -15,6 +15,7 @@ export interface ExpressionTaskSite {
   readonly reads: readonly ExactStateEffect[];
   readonly writes: readonly ExactStateEffect[];
   readonly contexts: readonly ExactContextEffect[];
+  readonly contextSites: readonly Readonly<{ start: number; effect: ExactContextEffect }>[];
   readonly diagnostics: readonly string[];
 }
 
@@ -37,6 +38,7 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
     const reads: ExactStateEffect[] = [];
     const taskWrites: ExactStateEffect[] = [];
     const contexts: ExactContextEffect[] = [];
+    const contextSites: Array<Readonly<{ start: number; effect: ExactContextEffect }>> = [];
     let browserEffects = false;
     let serverEffects = false;
 
@@ -58,11 +60,13 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
       if (!call.target?.isMember() || !/^this\.(?:getContext|setContext)$/.test(call.target.node.text ?? "")) continue;
       const token = call.arguments[0];
       const exactToken = token && /^(?:[A-Za-z_$][\w$]*)(?:\.[A-Za-z_$][\w$]*)*$/.test(token.node.text ?? "");
-      contexts.push(Object.freeze({
+      const effect = Object.freeze({
         token: exactToken ? token!.node.text! : "unknown",
         kind: call.target.name === "getContext" ? "read" : "write",
         confidence: exactToken ? "exact" : "unknown"
-      }));
+      } satisfies ExactContextEffect);
+      contexts.push(effect);
+      contextSites.push(Object.freeze({ start: call.node.span?.start ?? task.node.span.start, effect }));
       continue;
     }
     for (const call of work.walk().calls()) {
@@ -95,6 +99,7 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
       reads: Object.freeze(uniqueEffects(reads)),
       writes: Object.freeze(uniqueEffects(taskWrites)),
       contexts: Object.freeze(uniqueContexts(contexts)),
+      contextSites: Object.freeze(contextSites),
       diagnostics: Object.freeze(diagnostics)
     });
     sites.set(writeSiteKey(site.start, site.end), site);
