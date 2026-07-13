@@ -37,8 +37,6 @@ import type { ExpressionClientIslandSite, ExpressionComponentPlan } from "./expr
 import type {
   ClientIslandCaptures,
   ClientIslandElementNode,
-  ComponentLocalInfo,
-  DerivedReactiveEmissionIndex as DerivedReactiveIndex,
   ExactImportedComponentIR,
   ExactPlacement,
   ExactSemanticGraphIR,
@@ -46,6 +44,9 @@ import type {
   StateSnapshotTree,
   TransformTarget
 } from "./types.js";
+
+type ComponentLocalInfo = { functions: Map<string, ts.Statement> };
+type DerivedReactiveIndex = Map<string, { variableId: string; initializer: ts.Expression }>;
 
 const helperModule = "@exact/core";
 const elementHelper = "__exactVNode";

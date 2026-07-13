@@ -416,10 +416,6 @@ export type HelperNames = {
 
 export type StateSnapshotTree = Map<string, StateSnapshotTree | ts.Expression>;
 export type ClientIslandElementNode = ts.JsxElement | ts.JsxSelfClosingElement;
-export type ComponentLocalInfo = {
-  functions: Map<string, ts.Statement>;
-};
-
 export type ExportBinding = {
   exportedName: string;
   localName: string;
@@ -431,9 +427,3 @@ export type ClientIslandCaptures = {
   stateReads?: string[];
   serverSlotChildren?: boolean;
 };
-
-export type SemanticReferenceIndex = Map<string, ExactSemanticReferenceIR>;
-export type SemanticDeclarationIndex = Map<string, ExactSemanticDeclarationIR>;
-export type DerivedReactiveIndex = Map<string, ts.Expression>;
-export type DerivedReactiveEmissionIndex = Map<string, { variableId: string; initializer: ts.Expression }>;
-export type ReactiveSourceIndex = Set<string>;
