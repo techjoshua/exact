@@ -43,6 +43,19 @@ export function total(items: number[]) {
     expect(module.capturesOf(arrow).map(variable => variable.name).sort()).toEqual(["local", "outer"]);
   });
 
+  it("reports subtree dependencies and read/write effects for compound updates", () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__effects.ts");
+    const module = project.updateModule(filename, "let total = 1; const add = (value: number) => total += value;");
+    const assignment = module.walk().assignments().where(reference => reference.node.operator === "+=").single();
+    expect(module.dependenciesOf(assignment).map(variable => variable.name).sort()).toEqual(["total", "value"]);
+    expect(module.writesOf(assignment).map(variable => variable.name)).toEqual(["total"]);
+    const totalEffects = module.effectsOf(assignment)
+      .filter(effect => effect.variable.name === "total" && effect.kind !== "capture")
+      .map(effect => effect.kind);
+    expect(totalEffects).toEqual(["read", "write"]);
+  });
+
   it("constructs, emits, and binds typed modules programmatically", async () => {
     const builder = expressions.module(path.join(root, "apps/kanban/src/__generated_expression.ts"));
     const number = builder.types.number();

@@ -36,8 +36,9 @@ export function buildExactProvenance(module: BoundModule): ExactProvenanceGraph 
     const declared = declaration.descendants().references().first(reference => isDeclarationName(reference, declaration))?.variable;
     if (!declared) continue;
     const values = dependencies.get(declared) ?? new Set<Variable>();
-    for (const reference of declaration.descendants().references()) {
-      if (reference.variable && reference.variable !== declared) values.add(reference.variable);
+    const initializer = declaration.children().toArray().at(-1);
+    for (const variable of initializer ? module.dependenciesOf(initializer) : []) {
+      if (variable !== declared) values.add(variable);
     }
     dependencies.set(declared, values);
     const text = declaration.node.text ?? "";

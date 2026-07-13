@@ -75,6 +75,24 @@ export class ExpressionModule<S extends ModuleState = ModuleState> {
     return getAnalyses(this).effects;
   }
 
+  effectsOf(node: ExpressionNode | NodeRef): readonly NodeEffect[] {
+    const target = node instanceof NodeRef ? node.node : node;
+    if (!this.parents.has(target)) throw new Error("Node does not belong to this expression module version");
+    return Object.freeze(getAnalyses(this).effects.filter(effect => isWithin(effect.node, target)));
+  }
+
+  dependenciesOf(node: ExpressionNode | NodeRef): readonly Variable[] {
+    return Object.freeze([...new Set(this.effectsOf(node)
+      .filter(effect => effect.kind === "read")
+      .map(effect => effect.variable))]);
+  }
+
+  writesOf(node: ExpressionNode | NodeRef): readonly Variable[] {
+    return Object.freeze([...new Set(this.effectsOf(node)
+      .filter(effect => effect.kind === "write")
+      .map(effect => effect.variable))]);
+  }
+
   capturesOf(functionNode: ExpressionNode | NodeRef): readonly Variable[] {
     return getAnalyses(this).captures.get(functionNode instanceof NodeRef ? functionNode.node : functionNode) ?? [];
   }
@@ -123,9 +141,8 @@ function getAnalyses(module: ExpressionModule): Readonly<{ effects: readonly Nod
     const functionLike = isFunctionKind(node.kind);
     if (functionLike) functions.push(node);
     if (!typeMetadata && node.variable && node.kind === "Identifier") {
-      const parent = ref.parent?.node;
-      const write = parent ? isWritePosition(node, parent) : false;
-      effects.push(Object.freeze({ node, variable: node.variable, kind: write ? "write" : "read" }));
+      const kinds = referenceEffectKinds(ref);
+      for (const kind of kinds) effects.push(Object.freeze({ node, variable: node.variable, kind }));
       const owner = functions[functions.length - 1];
       if (owner && !scopeContains(owner.scope, node.variable.scope)) {
         const values = captures.get(owner) ?? [];
@@ -145,11 +162,30 @@ function getAnalyses(module: ExpressionModule): Readonly<{ effects: readonly Nod
   return result;
 }
 
-function isWritePosition(node: ExpressionNode, parent: ExpressionNode): boolean {
-  if (parent.kind === "VariableDeclaration" && parent.children[0] === node) return true;
-  if (parent.kind === "Parameter" || parent.kind === "BindingElement") return true;
-  if (parent.kind === "BinaryExpression" && parent.children[0] === node && /=$/.test(parent.operator ?? "")) return true;
-  return (parent.kind === "PrefixUnaryExpression" || parent.kind === "PostfixUnaryExpression") && /\+\+|--/.test(parent.operator ?? "");
+function referenceEffectKinds(ref: NodeRef): readonly ("read" | "write")[] {
+  let child = ref.node;
+  for (const ancestor of ref.ancestors()) {
+    const node = ancestor.node;
+    if ((node.kind === "VariableDeclaration" || node.kind === "Parameter" || node.kind === "BindingElement") && isWithin(child, node.children[0]!)) {
+      return ["write"];
+    }
+    if (node.kind === "BinaryExpression" && isWithin(child, node.children[0]!) && /=$/.test(node.operator ?? "")) {
+      return node.operator === "=" ? ["write"] : ["read", "write"];
+    }
+    if ((node.kind === "PrefixUnaryExpression" || node.kind === "PostfixUnaryExpression") && /\+\+|--/.test(node.operator ?? "")) {
+      return ["read", "write"];
+    }
+    if (node.kind === "DeleteExpression") return ["write"];
+    if (isFunctionKind(node.kind) || node.kind.endsWith("Statement")) break;
+    child = node;
+  }
+  return ["read"];
+}
+
+function isWithin(node: ExpressionNode, ancestor: ExpressionNode): boolean {
+  if (node === ancestor) return true;
+  if (node.span && ancestor.span) return node.span.start >= ancestor.span.start && node.span.end <= ancestor.span.end;
+  return ancestor.children.some(child => isWithin(node, child));
 }
 
 function isFunctionKind(kind: string): boolean {
