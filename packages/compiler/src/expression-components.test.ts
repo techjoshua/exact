@@ -4,6 +4,7 @@ import { analyzeExpressionJsx } from "./expression-jsx.js";
 import { clearExpressionProjectCache, expressionModuleFor } from "./expression-project.js";
 import { analyzeExpressionTasks } from "./expression-tasks.js";
 import { buildExactProvenance } from "./provenance.js";
+import { analyzeExpressionWrites } from "./expression-writes.js";
 
 describe("expression-backed component effects", () => {
   it("classifies JSX, browser, server import, and task placement effects", () => {
@@ -89,5 +90,30 @@ describe("expression-backed component effects", () => {
       "error: JSX tag ValueWidget resolves to variable, not a runtime component",
       "error: JSX tag MissingWidget is not defined as a runtime component"
     ]));
+  });
+
+  it("plans transitive client-island captures and state snapshots from canonical dependencies", () => {
+    clearExpressionProjectCache();
+    const module = expressionModuleFor("IslandCaptures.tsx", `
+      function View(this: Component<{ title: string }>) {
+        const prefix = "Title";
+        const label = this.state.title;
+        const format = () => prefix + label;
+        const click = () => console.log(format());
+        return () => <button onClick={click}>{label}</button>;
+      }
+    `);
+    const provenance = buildExactProvenance(module);
+    const tasks = analyzeExpressionTasks(module);
+    const jsx = analyzeExpressionJsx(module, provenance, "IslandCaptures.tsx");
+    const site = analyzeExpressionComponents(module, jsx, tasks, provenance, analyzeExpressionWrites(module)).sites.get("View")!;
+
+    expect(site.clientIslands).toEqual([
+      expect.objectContaining({
+        valueCaptures: ["label", "prefix"],
+        functionCaptures: ["click", "format"],
+        stateReads: ["title"]
+      })
+    ]);
   });
 });

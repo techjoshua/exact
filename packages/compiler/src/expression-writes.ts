@@ -127,17 +127,32 @@ function lowerWrite(module: BoundModule, reference: NodeRef, aliases: ReadonlyMa
   return undefined;
 }
 
-function statePath(module: BoundModule, node: NodeRef["node"] | undefined, aliases: ReadonlyMap<string, readonly string[]>): string[] | undefined {
-  const text = node?.text?.trim();
-  if (!node || !text) return undefined;
-  if (/^this\.state(?:\.[A-Za-z_$][\w$]*)*$/.test(text)) return text.split(".").slice(2);
-  if (!/^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/.test(text)) return undefined;
-  const root = module.ref(node).walk().references().first()?.variable;
-  const base = root ? aliases.get(root.id) : undefined;
-  if (!base) return undefined;
-  const segments = text.split(".");
-  return [...base, ...segments.slice(1)];
+/** Resolves a statically addressable state path through canonical aliases. */
+export function expressionStatePath(module: BoundModule, node: NodeRef["node"] | undefined, aliases: ReadonlyMap<string, readonly string[]>): string[] | undefined {
+  if (!node) return undefined;
+  const reference = module.ref(node);
+  if (reference.isMember()) {
+    if (/^this\.state$/.test(node.text?.trim() ?? "")) return [];
+    const base = expressionStatePath(module, reference.target?.node, aliases);
+    const segment = staticMemberSegment(reference);
+    return base && segment !== undefined ? [...base, segment] : undefined;
+  }
+  if (node.kind !== "Identifier") return undefined;
+  const variable = reference.variable ?? reference.walk().references().first()?.variable;
+  const base = variable ? aliases.get(variable.id) : undefined;
+  return base ? [...base] : undefined;
 }
+
+function staticMemberSegment(reference: NodeRef): string | undefined {
+  if (reference.node.kind === "PropertyAccessExpression") return reference.name ?? reference.node.children[1]?.text;
+  const argument = reference.node.children[1]?.text?.trim();
+  if (!argument) return undefined;
+  if (/^["'][\s\S]*["']$/.test(argument)) return argument.slice(1, -1);
+  if (/^(?:0|[1-9]\d*)$/.test(argument)) return argument;
+  return undefined;
+}
+
+const statePath = expressionStatePath;
 
 function collectStateAliases(module: BoundModule): ReadonlyMap<string, readonly string[]> {
   const aliases = new Map<string, readonly string[]>();

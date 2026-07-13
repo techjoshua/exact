@@ -417,9 +417,7 @@ export type HelperNames = {
 export type StateSnapshotTree = Map<string, StateSnapshotTree | ts.Expression>;
 export type ClientIslandElementNode = ts.JsxElement | ts.JsxSelfClosingElement;
 export type ComponentLocalInfo = {
-  names: Set<string>;
   functions: Map<string, ts.Statement>;
-  declarationIds: Map<string, Set<string>>;
 };
 
 export type ExportBinding = {
@@ -430,6 +428,7 @@ export type ExportBinding = {
 export type ClientIslandCaptures = {
   values: string[];
   functions: ts.Statement[];
+  stateReads?: string[];
   serverSlotChildren?: boolean;
 };
 

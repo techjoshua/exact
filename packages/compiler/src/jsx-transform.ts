@@ -35,7 +35,7 @@ import type { ExactProvenanceGraph } from "./provenance.js";
 import { writeSiteKey, type ExpressionWritePlan } from "./expression-writes.js";
 import type { ExpressionTaskPlan } from "./expression-tasks.js";
 import type { ExpressionJsxPlan } from "./expression-jsx.js";
-import type { ExpressionComponentPlan } from "./expression-components.js";
+import type { ExpressionClientIslandSite, ExpressionComponentPlan } from "./expression-components.js";
 import {
   createSemanticDeclarationIndex,
   createSemanticReferenceIndex,
@@ -45,9 +45,6 @@ import {
 import {
   isAssignmentOperator,
   isAnalyzableFunctionLike,
-  isStatePathExpression,
-  stateEffectPath,
-  statePath
 } from "./state-analysis.js";
 import type {
   ClientIslandCaptures,
@@ -90,13 +87,11 @@ export function exactJsxTransformer(
     const semanticDeclarations = createSemanticDeclarationIndex(sourceFile, semanticGraph);
     const componentPlacements = componentPlacementsFromInfo(componentInfo);
     const expressionDerived = new Set(provenance.entries.filter(entry => entry.provenance === "derived" && entry.safeToReevaluate).map(entry => entry.variable.id));
-    const expressionStateAliases = new Map([...expressionWrites.aliases].map(([id, path]) => [id, path.join(".")]));
     let sawJsx = false;
     let sawBoundary = false;
     let sawStateWrite = false;
     const componentStack: string[] = [];
     const componentLocalStack: ComponentLocalInfo[] = [];
-    const componentStateAliasStack: Map<string, string>[] = [];
     const componentDerivedStack: DerivedReactiveIndex[] = [];
     const islandCounts = new Map<string, number>();
     const clientIslandDefinitions: ts.FunctionDeclaration[] = [];
@@ -108,6 +103,10 @@ export function exactJsxTransformer(
       const owner = componentStack[componentStack.length - 1];
       const site = owner ? expressionComponents.sites.get(owner)?.clientIslands.find(island => island.start === node.getStart(sourceFile) && island.end === node.end) : undefined;
       return !!site && (site.serverOnlyChildren || site.childTags.some(tag => componentPlacements.get(tag) === "server"));
+    };
+    const clientIslandSiteFor = (node: ClientIslandElementNode): ExpressionClientIslandSite | undefined => {
+      const owner = componentStack[componentStack.length - 1];
+      return owner ? expressionComponents.sites.get(owner)?.clientIslands.find(island => island.start === node.getStart(sourceFile) && island.end === node.end) : undefined;
     };
 
     const visitor: ts.Visitor = node => {
@@ -121,23 +120,19 @@ export function exactJsxTransformer(
           // In server-component mode, non-client components are removed from the
           // client artifact after their nested client islands have been collected.
           componentStack.push(node.name.text);
-          componentLocalStack.push(collectComponentLocalInfo(node, sourceFile, semanticDeclarations));
-          componentStateAliasStack.push(expressionStateAliases);
+          componentLocalStack.push(collectComponentLocalInfo(node));
           componentDerivedStack.push(collectExpressionDerivedLocals(node, sourceFile, semanticDeclarations, new Map(), expressionDerived));
           ts.visitEachChild(node, visitor, context);
           componentDerivedStack.pop();
-          componentStateAliasStack.pop();
           componentLocalStack.pop();
           componentStack.pop();
           return factory.createEmptyStatement();
         }
         componentStack.push(node.name.text);
-        componentLocalStack.push(collectComponentLocalInfo(node, sourceFile, semanticDeclarations));
-        componentStateAliasStack.push(expressionStateAliases);
+        componentLocalStack.push(collectComponentLocalInfo(node));
         componentDerivedStack.push(collectExpressionDerivedLocals(node, sourceFile, semanticDeclarations, new Map(), expressionDerived));
         const visited = ts.visitEachChild(node, visitor, context);
         componentDerivedStack.pop();
-        componentStateAliasStack.pop();
         componentLocalStack.pop();
         componentStack.pop();
         return visited;
@@ -205,18 +200,20 @@ export function exactJsxTransformer(
             ? node.children
             : undefined;
           sawBoundary = true;
+          const islandCaptures = clientIslandCaptures(clientIslandSiteFor(node), componentLocalStack[componentLocalStack.length - 1]);
           return createClientIslandBoundaryCall(sourceFile, context, visitor, helpers, componentStack[componentStack.length - 1], islandCounts, node.openingElement.attributes, serverChildren ? undefined : node.children, {
-            ...clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1], semanticReferences, sourceFile),
+            ...islandCaptures,
             serverSlotChildren: !!serverChildren
-          }, semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1], componentDerivedStack[componentDerivedStack.length - 1], serverChildren);
+          }, semanticReferences, componentDerivedStack[componentDerivedStack.length - 1], serverChildren);
         }
         if (target === "client" && jsxElementIsClientIsland(node.openingElement.attributes)) {
           const owner = componentStack[componentStack.length - 1];
           if (clientIslandDepth === 0 && (!owner || componentPlacements.get(owner) !== "client")) {
             const serverSlotChildren = islandHasServerChildren(node);
             clientIslandDepth++;
+            const islandCaptures = clientIslandCaptures(clientIslandSiteFor(node), componentLocalStack[componentLocalStack.length - 1]);
             recordClientIslandDefinition(sourceFile, context, visitor, helpers, owner, islandCounts, node, clientIslandDefinitions, {
-              ...clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1], semanticReferences, sourceFile),
+              ...islandCaptures,
               serverSlotChildren
             });
             clientIslandDepth--;
@@ -233,7 +230,7 @@ export function exactJsxTransformer(
         if (target === "client" && jsxElementIsClientIsland(node.attributes)) {
           const owner = componentStack[componentStack.length - 1];
           if (clientIslandDepth === 0 && (!owner || componentPlacements.get(owner) !== "client")) {
-            recordClientIslandDefinition(sourceFile, context, visitor, helpers, owner, islandCounts, node, clientIslandDefinitions, clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1], semanticReferences, sourceFile));
+            recordClientIslandDefinition(sourceFile, context, visitor, helpers, owner, islandCounts, node, clientIslandDefinitions, clientIslandCaptures(clientIslandSiteFor(node), componentLocalStack[componentLocalStack.length - 1]));
           }
         }
         if (target === "server" && isClientComponentTag(node.tagName)) {
@@ -242,7 +239,7 @@ export function exactJsxTransformer(
         }
         if (target === "server" && jsxElementIsClientIsland(node.attributes)) {
           sawBoundary = true;
-          return createClientIslandBoundaryCall(sourceFile, context, visitor, helpers, componentStack[componentStack.length - 1], islandCounts, node.attributes, undefined, clientIslandCaptures(node, componentLocalStack[componentLocalStack.length - 1], semanticReferences, sourceFile), semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1], componentDerivedStack[componentDerivedStack.length - 1]);
+          return createClientIslandBoundaryCall(sourceFile, context, visitor, helpers, componentStack[componentStack.length - 1], islandCounts, node.attributes, undefined, clientIslandCaptures(clientIslandSiteFor(node), componentLocalStack[componentLocalStack.length - 1]), semanticReferences, componentDerivedStack[componentDerivedStack.length - 1]);
         }
         return transformJsxSelfClosingElement(sourceFile, node, context, visitor, helpers, semanticReferences, componentDerivedStack[componentDerivedStack.length - 1], expressionJsx);
       }
@@ -373,33 +370,16 @@ function transformJsxFragment(
 }
 
 function collectComponentLocalInfo(
-  node: ts.FunctionDeclaration,
-  sourceFile: ts.SourceFile,
-  semanticDeclarations: SemanticDeclarationIndex
+  node: ts.FunctionDeclaration
 ): ComponentLocalInfo {
-  const names = new Set<string>();
   const functions = new Map<string, ts.Statement>();
-  const declarationIds = new Map<string, Set<string>>();
-  function addLocal(name: ts.Identifier): void {
-    names.add(name.text);
-    const declaration = semanticDeclarationForIdentifier(name, semanticDeclarations, sourceFile);
-    if (!declaration) return;
-    let ids = declarationIds.get(name.text);
-    if (!ids) {
-      ids = new Set<string>();
-      declarationIds.set(name.text, ids);
-    }
-    ids.add(declaration.id);
-  }
   function visit(current: ts.Node): void {
     if (current !== node && ts.isFunctionDeclaration(current) && current.name) {
-      addLocal(current.name);
       functions.set(current.name.text, current);
       return;
     }
     if (current !== node && (ts.isFunctionLike(current) || ts.isClassLike(current))) return;
     if (ts.isVariableDeclaration(current)) {
-      collectBindingIdentifiers(current.name, addLocal);
       if (ts.isIdentifier(current.name) && current.initializer && isFunctionLikeExpression(current.initializer)) {
         functions.set(current.name.text, cloneableFunctionVariable(current.name, current.initializer));
       }
@@ -407,7 +387,7 @@ function collectComponentLocalInfo(
     ts.forEachChild(current, visit);
   }
   if (node.body) visit(node.body);
-  return { names, functions, declarationIds };
+  return { functions };
 }
 
 /**
@@ -444,59 +424,19 @@ function cloneableFunctionVariable(name: ts.Identifier, initializer: ts.Expressi
   );
 }
 
-function collectBindingNames(name: ts.BindingName, output: Set<string>): void {
-  if (ts.isIdentifier(name)) {
-    output.add(name.text);
-    return;
-  }
-  for (const element of name.elements) {
-    if (ts.isBindingElement(element)) collectBindingNames(element.name, output);
-  }
-}
-
-function collectBindingIdentifiers(name: ts.BindingName, visit: (name: ts.Identifier) => void): void {
-  if (ts.isIdentifier(name)) {
-    visit(name);
-    return;
-  }
-  for (const element of name.elements) {
-    if (ts.isBindingElement(element)) collectBindingIdentifiers(element.name, visit);
-  }
-}
-
 function clientIslandCaptures(
-  node: ClientIslandElementNode,
-  locals: ComponentLocalInfo | undefined,
-  semanticReferences: SemanticReferenceIndex,
-  sourceFile: ts.SourceFile
+  site: ExpressionClientIslandSite | undefined,
+  locals: ComponentLocalInfo | undefined
 ): ClientIslandCaptures {
-  if (!locals?.names.size) return { values: [], functions: [] };
-  const captures = new Set<string>();
-  collectCapturedIdentifiers(node, locals, captures, semanticReferences, sourceFile);
-  const values: string[] = [];
-  const functions: ts.Statement[] = [];
-  for (const name of [...captures].sort()) {
-    const declaration = locals.functions.get(name);
-    if (declaration) functions.push(declaration);
-    else values.push(name);
-  }
-  return { values, functions };
-}
-
-function collectCapturedIdentifiers(
-  node: ts.Node,
-  locals: ComponentLocalInfo,
-  captures: Set<string>,
-  semanticReferences: SemanticReferenceIndex,
-  sourceFile: ts.SourceFile
-): void {
-  if (ts.isIdentifier(node) && locals.names.has(node.text) && !isIdentifierDeclarationName(node) && !isPropertyAccessName(node)) {
-    const reference = semanticReferenceForIdentifier(node, semanticReferences, sourceFile);
-    if (reference?.declarationId && locals.declarationIds.get(node.text)?.has(reference.declarationId)) {
-      captures.add(node.text);
-    }
-  }
-  ts.forEachChild(node, child => collectCapturedIdentifiers(child, locals, captures, semanticReferences, sourceFile));
+  if (!site) return { values: [], functions: [] };
+  return {
+    values: [...site.valueCaptures],
+    functions: site.functionCaptures.flatMap(name => {
+      const declaration = locals?.functions.get(name);
+      return declaration ? [declaration] : [];
+    }),
+    stateReads: [...site.stateReads]
+  };
 }
 
 function createClientIslandBoundaryCall(
@@ -510,7 +450,6 @@ function createClientIslandBoundaryCall(
   children?: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[],
   captures: ClientIslandCaptures = emptyClientIslandCaptures(),
   semanticReferences?: SemanticReferenceIndex,
-  stateAliases?: Map<string, string>,
   derivedReactiveLocals?: DerivedReactiveIndex,
   serverChildren?: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[]
 ): ts.Expression {
@@ -523,7 +462,7 @@ function createClientIslandBoundaryCall(
   return factory.createCallExpression(factory.createIdentifier(helpers.boundary), undefined, [
     factory.createStringLiteral(id),
     factory.createStringLiteral(generatedName),
-    islandProps(context, attributes, children, captures.values, sourceFile, semanticReferences, stateAliases, derivedReactiveLocals),
+    islandProps(context, attributes, children, captures.values, captures.stateReads),
     ...(serverChildren ? childrenExpressions(context, serverChildren, visitor, helpers, sourceFile, semanticReferences, derivedReactiveLocals) : [])
   ]);
 }
@@ -811,18 +750,14 @@ function islandProps(
   attributes: ts.JsxAttributes,
   children?: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[],
   captures: readonly string[] = [],
-  sourceFile?: ts.SourceFile,
-  semanticReferences?: SemanticReferenceIndex,
-  stateAliases?: Map<string, string>,
-  derivedReactiveLocals?: DerivedReactiveIndex
+  plannedStateReads: readonly string[] = []
 ): ts.ObjectLiteralExpression {
   const props: ts.ObjectLiteralElementLike[] = [];
   const factory = context.factory;
-  const stateReads = collectIslandStateReads(attributes, children, sourceFile, semanticReferences, stateAliases, derivedReactiveLocals);
-  if (stateReads.length) {
+  if (plannedStateReads.length) {
     props.push(factory.createPropertyAssignment(
       factory.createStringLiteral("__exactState"),
-      stateSnapshotObject(factory, stateReads)
+      stateSnapshotObject(factory, plannedStateReads)
     ));
   }
   if (captures.length) {
@@ -852,65 +787,6 @@ function islandProps(
     }
   }
   return factory.createObjectLiteralExpression(props, false);
-}
-
-function collectIslandStateReads(
-  attributes: ts.JsxAttributes,
-  children?: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[],
-  sourceFile?: ts.SourceFile,
-  semanticReferences?: SemanticReferenceIndex,
-  stateAliases: Map<string, string> = new Map(),
-  derivedReactiveLocals: DerivedReactiveIndex = new Map()
-): string[] {
-  const paths = new Set<string>();
-  for (const attribute of attributes.properties) {
-    if (ts.isJsxSpreadAttribute(attribute)) {
-      collectStateReads(attribute.expression, paths, sourceFile, semanticReferences, stateAliases, derivedReactiveLocals);
-      continue;
-    }
-    if (attribute.initializer && ts.isJsxExpression(attribute.initializer) && attribute.initializer.expression) {
-      collectStateReads(attribute.initializer.expression, paths, sourceFile, semanticReferences, stateAliases, derivedReactiveLocals);
-    }
-  }
-  for (const child of children ?? []) {
-    collectStateReads(child, paths, sourceFile, semanticReferences, stateAliases, derivedReactiveLocals);
-  }
-  return [...paths].sort();
-}
-
-function collectStateReads(
-  node: ts.Node,
-  paths: Set<string>,
-  sourceFile?: ts.SourceFile,
-  semanticReferences?: SemanticReferenceIndex,
-  stateAliases: Map<string, string> = new Map(),
-  derivedReactiveLocals: DerivedReactiveIndex = new Map(),
-  activeDerived = new Set<string>()
-): void {
-  if (ts.isExpression(node) && sourceFile && semanticReferences) {
-    const path = stateEffectPath(node, sourceFile, semanticReferences, stateAliases);
-    if (path !== undefined && path !== "*" && !isNestedStatePathBase(node)) paths.add(path);
-  } else if (ts.isPropertyAccessExpression(node) && isStatePathExpression(node)) {
-    const path = statePath(node);
-    if (path !== "*") paths.add(path);
-  }
-  if (ts.isIdentifier(node) && sourceFile && semanticReferences && !isNestedStatePathBase(node)) {
-    const reference = semanticReferenceForIdentifier(node, semanticReferences, sourceFile);
-    if (reference?.declarationId && derivedReactiveLocals.has(reference.declarationId) && !activeDerived.has(reference.declarationId)) {
-      activeDerived.add(reference.declarationId);
-      collectStateReads(derivedReactiveLocals.get(reference.declarationId)!, paths, sourceFile, semanticReferences, stateAliases, derivedReactiveLocals, activeDerived);
-      activeDerived.delete(reference.declarationId);
-    }
-  }
-  ts.forEachChild(node, child => collectStateReads(child, paths, sourceFile, semanticReferences, stateAliases, derivedReactiveLocals, activeDerived));
-}
-
-function isNestedStatePathBase(node: ts.Expression): boolean {
-  const parent = node.parent;
-  return !!parent && (
-    (ts.isPropertyAccessExpression(parent) && parent.expression === node)
-    || (ts.isElementAccessExpression(parent) && parent.expression === node)
-  );
 }
 
 function stateSnapshotObject(factory: ts.NodeFactory, paths: readonly string[]): ts.ObjectLiteralExpression {

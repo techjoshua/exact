@@ -159,7 +159,7 @@ export function transformSource(source: string, options: TransformOptions = {}):
   const expressionWrites = analyzeExpressionWrites(expressionModule);
   const expressionTasks = analyzeExpressionTasks(expressionModule);
   const expressionJsx = analyzeExpressionJsx(expressionModule, provenance, filename);
-  const expressionComponents = analyzeExpressionComponents(expressionModule, expressionJsx, expressionTasks);
+  const expressionComponents = analyzeExpressionComponents(expressionModule, expressionJsx, expressionTasks, provenance, expressionWrites);
   const emissionComponentInfo = new Map<string, ExactImportedComponentIR>();
   for (const component of collectExpressionImportedComponents(filename, options.importedManifests ?? [], manifest.semanticGraph!)) emissionComponentInfo.set(component.name, component);
   for (const component of manifest.components) emissionComponentInfo.set(component.name, {
@@ -194,9 +194,10 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const semanticGraph = buildExpressionSemanticGraph(expressionModule);
   const provenance = buildExactProvenance(expressionModule);
   const expressionSafety = analyzeExpressionSafety(expressionModule, provenance);
+  const expressionWrites = analyzeExpressionWrites(expressionModule);
   const expressionTasks = analyzeExpressionTasks(expressionModule);
   const expressionJsx = analyzeExpressionJsx(expressionModule, provenance, filename);
-  const expressionComponents = analyzeExpressionComponents(expressionModule, expressionJsx, expressionTasks);
+  const expressionComponents = analyzeExpressionComponents(expressionModule, expressionJsx, expressionTasks, provenance, expressionWrites);
   const components: ExactComponentIR[] = createExpressionComponents(filename, expressionComponents, expressionTasks, expressionSafety);
 
   const componentByName = new Map(components.map(component => [component.name, component]));

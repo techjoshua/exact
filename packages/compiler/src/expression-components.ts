@@ -1,6 +1,8 @@
 import type { BoundModule, NodeRef, Variable } from "@exact/expressions";
 import type { ExpressionJsxPlan } from "./expression-jsx.js";
 import type { ExpressionTaskPlan } from "./expression-tasks.js";
+import type { ExactProvenanceGraph } from "./provenance.js";
+import { expressionStatePath, type ExpressionWritePlan } from "./expression-writes.js";
 import { isServerOnlyModule } from "./imports.js";
 import { stableId } from "./ids.js";
 import type { ExactBoundaryIR, ExactComponentIR, ExactComponentRenderEdgeIR, ExactContextEffect, ExactImportedComponentIR, ExactTaskIR } from "./types.js";
@@ -20,6 +22,9 @@ export interface ExpressionClientIslandSite {
   readonly end: number;
   readonly serverOnlyChildren: boolean;
   readonly childTags: readonly string[];
+  readonly valueCaptures: readonly string[];
+  readonly functionCaptures: readonly string[];
+  readonly stateReads: readonly string[];
 }
 
 export interface ExpressionComponentSite {
@@ -93,7 +98,7 @@ export function createExpressionComponents(
 const browserGlobals = new Set(["window", "document", "navigator", "location", "history", "localStorage", "sessionStorage", "requestAnimationFrame", "cancelAnimationFrame", "MutationObserver", "ResizeObserver", "IntersectionObserver"]);
 
 /** Classifies component placement effects from canonical bindings and typed JSX. */
-export function analyzeExpressionComponents(module: BoundModule, jsx: ExpressionJsxPlan, tasks: ExpressionTaskPlan): ExpressionComponentPlan {
+export function analyzeExpressionComponents(module: BoundModule, jsx: ExpressionJsxPlan, tasks: ExpressionTaskPlan, provenance?: ExactProvenanceGraph, writes?: ExpressionWritePlan): ExpressionComponentPlan {
   const components = module.walk().functions()
     .where(reference => reference.node.kind === "FunctionDeclaration" && !!reference.node.span && /^[A-Z]/.test(reference.node.name ?? ""))
     .toArray();
@@ -135,12 +140,17 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
           for (const child of childRefs) for (const descendant of child.walk().jsxElements()) {
             if (descendant.node.tagName && !/^[a-z]/.test(descendant.node.tagName)) childTags.add(descendant.node.tagName);
           }
+          const captures = expressionIslandCaptures(module, component, reference);
+          const stateReads = expressionIslandStateReads(module, reference, provenance, writes?.aliases ?? new Map());
           clientIslands.push(Object.freeze({
             index: clientIslandCount,
             start: element.start,
             end: element.end,
             serverOnlyChildren,
-            childTags: Object.freeze([...childTags])
+            childTags: Object.freeze([...childTags]),
+            valueCaptures: Object.freeze(captures.values),
+            functionCaptures: Object.freeze(captures.functions),
+            stateReads: Object.freeze(stateReads)
           }));
         }
       }
@@ -224,6 +234,96 @@ function declarationDescription(kind: string): string {
   if (["VariableDeclaration", "BindingElement"].includes(kind)) return "variable";
   if (["ClassDeclaration", "ClassExpression"].includes(kind)) return "class";
   return kind;
+}
+
+function expressionIslandCaptures(module: BoundModule, component: NodeRef, island: NodeRef | undefined): Readonly<{ values: string[]; functions: string[] }> {
+  if (!island?.node.span) return { values: [], functions: [] };
+  const values = new Set<string>();
+  const functions = new Set<string>();
+  const visited = new Set<string>();
+  const addCapture = (variable: Variable): void => {
+    if (visited.has(variable.id)) return;
+    visited.add(variable.id);
+    if (!["VariableDeclaration", "BindingElement", "FunctionDeclaration"].includes(variable.declarationKind)) return;
+    const declaration = variableDeclaration(module, variable);
+    if (!declaration?.node.span || insideSpan(declaration.node.span.start, declaration.node.span.end, island)) return;
+    if (declarationOwner(declaration)?.node !== component.node) return;
+    if (isCloneableFunctionDeclaration(declaration)) {
+      functions.add(variable.name);
+      for (const dependency of module.dependenciesOf(declaration)) addCapture(dependency);
+    } else values.add(variable.name);
+  };
+  for (const variable of module.dependenciesOf(island)) addCapture(variable);
+  return { values: [...values].sort(), functions: [...functions].sort() };
+}
+
+function expressionIslandStateReads(
+  module: BoundModule,
+  island: NodeRef | undefined,
+  provenance: ExactProvenanceGraph | undefined,
+  aliases: ReadonlyMap<string, readonly string[]>
+): string[] {
+  if (!island) return [];
+  const paths = new Set<string>();
+  const visitedVariables = new Set<string>();
+  const collect = (root: NodeRef): void => {
+    for (const reference of root.walk().references()) {
+      const alias = reference.variable ? aliases.get(reference.variable.id) : undefined;
+      if (!alias?.length) continue;
+      if (reference.parent?.isMember() && reference.parent.target?.node === reference.node) continue;
+      paths.add(alias.join("."));
+    }
+    for (const member of root.walk().memberAccesses()) {
+      if (member.parent?.isMember() && member.parent.target?.node === member.node) continue;
+      const path = expressionStatePath(module, member.node, aliases);
+      if (path?.length) paths.add(path.join("."));
+    }
+    if (!provenance) return;
+    for (const variable of module.dependenciesOf(root)) {
+      const entry = provenance.get(variable);
+      if (visitedVariables.has(variable.id) || entry?.provenance !== "derived" || !entry.safeToReevaluate) continue;
+      if (aliases.has(variable.id)) continue;
+      visitedVariables.add(variable.id);
+      const declaration = variableDeclaration(module, variable);
+      const initializer = declaration?.children().toArray().at(-1);
+      if (initializer && initializer.node !== declaration?.children().first()?.node) collect(initializer);
+    }
+  };
+  collect(island);
+  return [...paths].sort();
+}
+
+function variableDeclaration(module: BoundModule, variable: Variable): NodeRef | undefined {
+  return module.walk().references()
+    .where(reference => reference.variable === variable)
+    .toArray()
+    .sort((left, right) => (left.node.span?.start ?? Number.MAX_SAFE_INTEGER) - (right.node.span?.start ?? Number.MAX_SAFE_INTEGER))
+    .map(reference => {
+      const declaration = reference.ancestors().first(ancestor => ancestor.node.kind === variable.declarationKind);
+      if (!declaration) return undefined;
+      const name = declaration.children().first();
+      if (variable.declarationKind === "BindingElement") {
+        return reference.parent?.node === declaration.node ? declaration : undefined;
+      }
+      return name && insideSpan(reference.node.span?.start ?? -1, reference.node.span?.end ?? -1, name) ? declaration : undefined;
+    })
+    .find((declaration): declaration is NodeRef => !!declaration);
+}
+
+function declarationOwner(declaration: NodeRef): NodeRef | undefined {
+  return declaration.ancestors().functions().first();
+}
+
+function isCloneableFunctionDeclaration(declaration: NodeRef): boolean {
+  if (declaration.node.kind === "FunctionDeclaration") return true;
+  if (declaration.node.kind !== "VariableDeclaration") return false;
+  const initializer = declaration.children().toArray().at(-1)?.node.kind;
+  return initializer === "ArrowFunction" || initializer === "FunctionExpression";
+}
+
+function insideSpan(start: number, end: number, owner: NodeRef): boolean {
+  const span = owner.node.span;
+  return !!span && start >= span.start && end <= span.end;
 }
 
 function isClientIslandAttribute(name: string): boolean {
