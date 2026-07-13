@@ -23,7 +23,9 @@ export function expressionModuleFor(filename: string, source: string): BoundModu
   // the incremental service.
   const configPath = path.resolve(config);
   const key = `${configPath}${virtual ? `::virtual:${absolute}` : ""}`;
-  const cached = modules.get(key);
+  const canonicalFile = process.platform === "win32" ? absolute.toLowerCase() : absolute;
+  const moduleKey = `${key}::file:${canonicalFile}`;
+  const cached = modules.get(moduleKey);
   if (cached?.source === source) return cached.module;
   let project = projects.get(key);
   if (!project) {
@@ -31,7 +33,7 @@ export function expressionModuleFor(filename: string, source: string): BoundModu
     projects.set(key, project);
   }
   const module = project.updateModule(absolute, source);
-  modules.set(key, { source, module });
+  modules.set(moduleKey, { source, module });
   return module;
 }
 
