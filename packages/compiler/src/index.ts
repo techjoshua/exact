@@ -111,6 +111,7 @@ export {
 } from "./registry.js";
 export { exactCompilerManifestVersion } from "./versions.js";
 export { clearExpressionProjectCache } from "./expression-project.js";
+export { lowerExpressionWrites, type ExpressionWriteResult } from "./expression-writes.js";
 export {
   buildExactProvenance,
   type ExactProvenanceEntry,
