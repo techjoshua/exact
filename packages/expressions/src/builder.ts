@@ -46,7 +46,10 @@ function type(kind: ExpressionTypeKind, display: string = kind): ExpressionType 
     nullable: kind === "null" || kind === "undefined" || kind === "unknown" || kind === "any",
     callable: kind === "function",
     properties: Object.freeze([]),
-    unionMembers: Object.freeze([])
+    unionMembers: Object.freeze([]),
+    callSignatures: Object.freeze([]),
+    typeArguments: Object.freeze([]),
+    typeParameters: Object.freeze([])
   });
 }
 
@@ -72,7 +75,16 @@ export class TypeBuilder {
   }
   nullable(value: ExpressionType): ExpressionType { return this.union(value, type("null")); }
   function(parameters: readonly ExpressionType[], returns: ExpressionType): ExpressionType {
-    return type("function", `(${parameters.map((parameter, index) => `arg${index}: ${parameter.display}`).join(", ")}) => ${returns.display}`);
+    const display = `(${parameters.map((parameter, index) => `arg${index}: ${parameter.display}`).join(", ")}) => ${returns.display}`;
+    return Object.freeze({
+      ...type("function", display),
+      callSignatures: Object.freeze([Object.freeze({
+        display,
+        parameters: Object.freeze(parameters.map((parameter, index) => Object.freeze({ name: `arg${index}`, type: parameter, optional: false, rest: false }))),
+        returnType: returns,
+        typeParameters: Object.freeze([])
+      })])
+    });
   }
   union(...members: ExpressionType[]): ExpressionType {
     return Object.freeze({
@@ -82,7 +94,10 @@ export class TypeBuilder {
       nullable: members.some(member => member.nullable),
       callable: members.every(member => member.callable),
       properties: Object.freeze([]),
-      unionMembers: Object.freeze([...members])
+      unionMembers: Object.freeze([...members]),
+      callSignatures: Object.freeze([]),
+      typeArguments: Object.freeze([]),
+      typeParameters: Object.freeze([])
     });
   }
 }

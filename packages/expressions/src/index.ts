@@ -10,6 +10,8 @@ export {
   type EmitOptions,
   type EmitResult,
   type ExpressionDiagnostic,
+  type ExpressionCallParameter,
+  type ExpressionCallSignature,
   type ExpressionNode,
   type ExpressionScope,
   type ExpressionSymbol,

@@ -26,6 +26,10 @@ describe("@exact/expressions binding", () => {
     expect(result.type?.display).toContain("Box<string>");
     expect(box.importedFrom).toBe("./__expressions_model.js");
     expect(box.type?.callable).toBe(true);
+    expect(box.type?.callSignatures[0]?.typeParameters).toEqual(["T"]);
+    expect(box.type?.callSignatures[0]?.parameters[0]?.name).toBe("value");
+    expect(box.type?.callSignatures[0]?.returnType.display).toContain("Box<T>");
+    expect(result.type?.typeArguments[0]?.display).toBe("string");
     expect(module.diagnostics.filter(diagnostic => diagnostic.severity === "error")).toEqual([]);
   });
 

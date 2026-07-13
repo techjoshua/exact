@@ -34,6 +34,20 @@ export type ExpressionTypeKind =
   | "intersection"
   | "type-parameter";
 
+export interface ExpressionCallParameter {
+  readonly name: string;
+  readonly type: ExpressionType;
+  readonly optional: boolean;
+  readonly rest: boolean;
+}
+
+export interface ExpressionCallSignature {
+  readonly display: string;
+  readonly parameters: readonly ExpressionCallParameter[];
+  readonly returnType: ExpressionType;
+  readonly typeParameters: readonly string[];
+}
+
 /** TypeScript type information expressed without leaking compiler objects. */
 export interface ExpressionType {
   readonly id: string;
@@ -43,6 +57,9 @@ export interface ExpressionType {
   readonly callable: boolean;
   readonly properties: readonly string[];
   readonly unionMembers: readonly ExpressionType[];
+  readonly callSignatures: readonly ExpressionCallSignature[];
+  readonly typeArguments: readonly ExpressionType[];
+  readonly typeParameters: readonly string[];
 }
 
 export type ScopeKind = "module" | "function" | "class" | "block" | "catch";

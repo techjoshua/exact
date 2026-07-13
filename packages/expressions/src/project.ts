@@ -2,6 +2,7 @@ import ts from "typescript";
 import path from "node:path";
 import type {
   ExpressionDiagnostic,
+  ExpressionCallSignature,
   ExpressionNode,
   ExpressionScope,
   ExpressionSymbol,
@@ -58,7 +59,10 @@ class ProjectType implements ExpressionType {
     readonly nullable: boolean,
     readonly callable: boolean,
     readonly properties: readonly string[],
-    readonly unionMembers: readonly ExpressionType[]
+    readonly unionMembers: readonly ExpressionType[],
+    readonly callSignatures: readonly ExpressionCallSignature[],
+    readonly typeArguments: readonly ExpressionType[],
+    readonly typeParameters: readonly string[]
   ) { Object.freeze(this); }
 }
 
@@ -227,10 +231,32 @@ export class ExpressionProject {
       const placeholder: ExpressionType = Object.freeze({
         id: `type:${key}`, kind: typeKind(type), display,
         nullable: false, callable: type.getCallSignatures().length > 0,
-        properties: Object.freeze([]), unionMembers: Object.freeze([])
+        properties: Object.freeze([]), unionMembers: Object.freeze([]),
+        callSignatures: Object.freeze([]), typeArguments: Object.freeze([]), typeParameters: Object.freeze([])
       });
       typeCache.set(type, placeholder);
       const members = type.isUnionOrIntersection() ? type.types.map(member => typeFor(member, at)) : [];
+      const signatures = type.getCallSignatures().map(signature => {
+        const declaration = signature.getDeclaration() ?? at;
+        return Object.freeze({
+          display: checker.signatureToString(signature, at, ts.TypeFormatFlags.NoTruncation),
+          parameters: Object.freeze(signature.getParameters().map(parameter => {
+            const parameterDeclaration = parameter.valueDeclaration ?? parameter.declarations?.[0] ?? declaration;
+            return Object.freeze({
+              name: parameter.name,
+              type: typeFor(checker.getTypeOfSymbolAtLocation(parameter, parameterDeclaration), parameterDeclaration),
+              optional: Boolean(parameter.flags & ts.SymbolFlags.Optional),
+              rest: ts.isParameter(parameterDeclaration) && !!parameterDeclaration.dotDotDotToken
+            });
+          })),
+          returnType: typeFor(checker.getReturnTypeOfSignature(signature), declaration),
+          typeParameters: Object.freeze((signature.typeParameters ?? []).map(parameter => checker.typeToString(parameter, declaration)))
+        });
+      });
+      const typeArguments = type.flags & ts.TypeFlags.Object && ((type as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference)
+        ? checker.getTypeArguments(type as ts.TypeReference).map(argument => typeFor(argument, at))
+        : [];
+      const typeParameters = ((type as ts.Type & { typeParameters?: readonly ts.Type[] }).typeParameters ?? []).map(parameter => checker.typeToString(parameter, at));
       const value = new ProjectType(
         `type:${key}`,
         typeKind(type),
@@ -238,7 +264,10 @@ export class ExpressionProject {
         Boolean(type.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined | ts.TypeFlags.Any | ts.TypeFlags.Unknown)) || members.some(member => member.nullable),
         type.getCallSignatures().length > 0,
         Object.freeze(type.getProperties().map(property => property.name)),
-        Object.freeze(members)
+        Object.freeze(members),
+        Object.freeze(signatures),
+        Object.freeze(typeArguments),
+        Object.freeze(typeParameters)
       );
       typeCache.set(type, value);
       return value;
