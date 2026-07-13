@@ -22,20 +22,11 @@ export function collectExports(sourceFile: ts.SourceFile, semanticGraph?: ExactS
 
 /** Collects exported-to-local binding names from semantic export declarations. */
 export function collectExportBindings(sourceFile: ts.SourceFile, semanticGraph: ExactSemanticGraphIR): Map<string, ExportBinding> {
-  const exports = new Map<string, ExportBinding>();
-
-  for (const exported of semanticGraph.exports) {
-    if (!exported.localName || exported.moduleSpecifier) continue;
-    exports.set(exported.exportedName, {
-      exportedName: exported.exportedName,
-      localName: exported.localName
-    });
-  }
-
+  const exports = collectExpressionExportBindings(semanticGraph);
   if (exports.size) return exports;
 
-  // Keep a syntax fallback for older/simple test cases where semantic export
-  // capture is unavailable or intentionally bypassed.
+  // Keep a syntax fallback for callers that intentionally supply an incomplete
+  // semantic graph. The compiler's main path uses the expression-only helper.
   for (const statement of sourceFile.statements) {
     if (hasExportModifier(statement)) {
       const hasDefault = hasDefaultModifier(statement);
@@ -72,6 +63,21 @@ export function collectExportBindings(sourceFile: ts.SourceFile, semanticGraph: 
         });
       }
     }
+  }
+
+  return exports;
+}
+
+/** Collects runtime export bindings without consulting TypeScript syntax nodes. */
+export function collectExpressionExportBindings(semanticGraph: ExactSemanticGraphIR): Map<string, ExportBinding> {
+  const exports = new Map<string, ExportBinding>();
+
+  for (const exported of semanticGraph.exports) {
+    if (!exported.localName || exported.moduleSpecifier || exported.typeOnly) continue;
+    exports.set(exported.exportedName, {
+      exportedName: exported.exportedName,
+      localName: exported.localName
+    });
   }
 
   return exports;

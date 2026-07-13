@@ -43,11 +43,11 @@ import type {
   TransformTarget
 } from "./types.js";
 import {
-  collectExportBindings
+  collectExpressionExportBindings
 } from "./exports.js";
 import {
-  collectImportedComponents,
-  collectServerOnlyImports
+  collectExpressionImportedComponents,
+  collectExpressionServerOnlyImports
 } from "./imports.js";
 import { generatedComponentName } from "./names.js";
 import {
@@ -204,7 +204,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const expressionComponents = analyzeExpressionComponents(expressionModule, expressionJsx, expressionTasks);
   const semanticReferences = createSemanticReferenceIndex(sourceFile, semanticGraph);
   const semanticDeclarations = createSemanticDeclarationIndex(sourceFile, semanticGraph);
-  const serverOnlyImports = collectServerOnlyImports(sourceFile, semanticGraph);
+  const serverOnlyImports = collectExpressionServerOnlyImports(semanticGraph);
   const componentNodes = new Map<string, ts.FunctionDeclaration>();
 
   function visit(node: ts.Node): void {
@@ -219,7 +219,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   visit(sourceFile);
 
   const componentByName = new Map(components.map(component => [component.name, component]));
-  const importedComponents = collectImportedComponents(sourceFile, options.importedManifests ?? [], semanticGraph);
+  const importedComponents = collectExpressionImportedComponents(filename, options.importedManifests ?? [], semanticGraph);
   const componentInfo = new Map<string, ExactImportedComponentIR>();
   for (const component of importedComponents) componentInfo.set(component.name, component);
   for (const component of components) {
@@ -240,7 +240,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
       ...component.renderEdges.map(edge => edge.placement)
     ]);
   }
-  const exportBindings = collectExportBindings(sourceFile, semanticGraph);
+  const exportBindings = collectExpressionExportBindings(semanticGraph);
   const exportedLocals = new Set([...exportBindings.values()].map(binding => binding.localName));
   for (const component of components) {
     component.exported = exportedLocals.has(component.name);

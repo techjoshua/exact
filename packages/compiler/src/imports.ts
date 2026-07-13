@@ -27,6 +27,15 @@ export function collectImportedComponents(
   manifests: readonly ExactCompilerManifest[],
   graph: ExactSemanticGraphIR = buildSemanticGraph(sourceFile)
 ): ExactImportedComponentIR[] {
+  return collectExpressionImportedComponents(sourceFile.fileName, manifests, graph);
+}
+
+/** Resolves imported components from canonical expression import declarations. */
+export function collectExpressionImportedComponents(
+  filename: string,
+  manifests: readonly ExactCompilerManifest[],
+  graph: ExactSemanticGraphIR
+): ExactImportedComponentIR[] {
   if (!manifests.length) return [];
   const bySource = new Map<string, ExactCompilerManifest[]>();
   for (const manifest of manifests) {
@@ -39,7 +48,7 @@ export function collectImportedComponents(
   }
 
   const imported: ExactImportedComponentIR[] = [];
-  const sourceDir = path.dirname(path.resolve(sourceFile.fileName));
+  const sourceDir = path.dirname(path.resolve(filename));
   for (const declaration of graph.declarations) {
     if (declaration.kind !== "import" || declaration.typeOnly || !declaration.moduleSpecifier || !declaration.importedName) continue;
     const manifestsForImport = bySource.get(moduleSpecifierKey(declaration.moduleSpecifier, sourceDir));
@@ -124,6 +133,11 @@ function moduleSpecifierKey(specifier: string, baseDir: string): string {
 
 /** Collects runtime import binding names that are known to be server-only modules. */
 export function collectServerOnlyImports(sourceFile: ts.SourceFile, graph: ExactSemanticGraphIR = buildSemanticGraph(sourceFile)): Set<string> {
+  return collectExpressionServerOnlyImports(graph);
+}
+
+/** Collects server-only runtime imports from canonical expression declarations. */
+export function collectExpressionServerOnlyImports(graph: ExactSemanticGraphIR): Set<string> {
   return new Set(graph.declarations
     .filter(declaration => declaration.kind === "import" && !declaration.typeOnly && !!declaration.moduleSpecifier && isServerOnlyModule(declaration.moduleSpecifier))
     .map(declaration => declaration.name));
