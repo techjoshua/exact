@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeExpressionComponents, createExpressionComponentBoundaries, createExpressionComponents, createExpressionRenderEdges } from "./expression-components.js";
+import { analyzeExpressionComponents, createExpressionComponentBoundaries, createExpressionComponents, createExpressionGeneratedServerSlotBoundaries, createExpressionRenderEdges } from "./expression-components.js";
 import { analyzeExpressionJsx } from "./expression-jsx.js";
 import { clearExpressionProjectCache, expressionModuleFor } from "./expression-project.js";
 import { analyzeExpressionTasks } from "./expression-tasks.js";
@@ -42,7 +42,7 @@ describe("expression-backed component effects", () => {
 
   it("resolves canonical JSX render sites into stable component edges", () => {
     clearExpressionProjectCache();
-    const module = expressionModuleFor("RenderEdges.tsx", "function Parent() { return () => <section><Child /></section>; } function Child() { return () => <p />; }");
+    const module = expressionModuleFor("RenderEdges.tsx", "function Parent() { return () => <section onClick={() => {}}><Child /></section>; } function Child() { return () => <p />; }");
     const tasks = analyzeExpressionTasks(module);
     const jsx = analyzeExpressionJsx(module, buildExactProvenance(module), "RenderEdges.tsx");
     const site = analyzeExpressionComponents(module, jsx, tasks).sites.get("Parent")!;
@@ -57,6 +57,9 @@ describe("expression-backed component effects", () => {
       ["Child", { name: "Child", boundaryName: "Child", placement: "client" as const, componentId: "child-id" }]
     ]));
     expect(boundaries).toEqual([expect.objectContaining({ name: "Child", ownerComponentId: "parent-id", renderEdgeId: edges[0]?.id, kind: "client-island" })]);
+    expect(createExpressionGeneratedServerSlotBoundaries("RenderEdges.tsx", [owner], analyzeExpressionComponents(module, jsx, tasks), new Map([
+      ["Child", { name: "Child", placement: "server" as const }]
+    ]))).toEqual([expect.objectContaining({ name: "Parent_ExactClient_1:children", kind: "server-slot" })]);
   });
 
   it("reports browser globals outside managed client regions", () => {

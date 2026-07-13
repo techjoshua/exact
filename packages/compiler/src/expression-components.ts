@@ -4,7 +4,7 @@ import type { ExpressionTaskPlan } from "./expression-tasks.js";
 import { isServerOnlyModule } from "./imports.js";
 import { stableId } from "./ids.js";
 import type { ExactBoundaryIR, ExactComponentIR, ExactComponentRenderEdgeIR, ExactContextEffect, ExactImportedComponentIR, ExactTaskIR } from "./types.js";
-import { serverSlotBoundaryId } from "./names.js";
+import { generatedComponentName, serverSlotBoundaryId } from "./names.js";
 
 export interface ExpressionRenderSite {
   readonly tag: string;
@@ -12,6 +12,14 @@ export interface ExpressionRenderSite {
   readonly end: number;
   readonly path: string;
   readonly serverSlotChildren: boolean;
+}
+
+export interface ExpressionClientIslandSite {
+  readonly index: number;
+  readonly start: number;
+  readonly end: number;
+  readonly serverOnlyChildren: boolean;
+  readonly childTags: readonly string[];
 }
 
 export interface ExpressionComponentSite {
@@ -27,6 +35,7 @@ export interface ExpressionComponentSite {
   readonly contexts: readonly ExactContextEffect[];
   readonly contextSites: readonly Readonly<{ start: number; effect: ExactContextEffect }>[];
   readonly renders: readonly ExpressionRenderSite[];
+  readonly clientIslands: readonly ExpressionClientIslandSite[];
 }
 
 export interface ExpressionComponentPlan {
@@ -98,6 +107,7 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
     const contexts: ExactContextEffect[] = [];
     const contextSites: Array<Readonly<{ start: number; effect: ExactContextEffect }>> = [];
     const renders: ExpressionRenderSite[] = [];
+    const clientIslands: ExpressionClientIslandSite[] = [];
     const diagnostics = new Set<string>();
     let clientIslandCount = 0;
     let clientEffects = false;
@@ -115,7 +125,24 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
         const reference = module.walk().jsxElements().first(candidate => candidate.node.span?.start === element.start);
         const nestedInIsland = reference?.ancestors().jsxElements().any(ancestor =>
           ancestor.node.attributes.some(attribute => isClientIslandAttribute(attribute.name ?? "")));
-        if (!nestedInIsland) clientIslandCount++;
+        if (!nestedInIsland) {
+          clientIslandCount++;
+          const children = reference?.node.jsxChildren ?? [];
+          const childRefs = children.map(child => module.ref(child));
+          const serverOnlyChildren = childRefs.some(child => child.walk().references().any(candidate =>
+            !!candidate.variable?.importedFrom && isServerOnlyModule(candidate.variable.importedFrom)));
+          const childTags = new Set<string>();
+          for (const child of childRefs) for (const descendant of child.walk().jsxElements()) {
+            if (descendant.node.tagName && !/^[a-z]/.test(descendant.node.tagName)) childTags.add(descendant.node.tagName);
+          }
+          clientIslands.push(Object.freeze({
+            index: clientIslandCount,
+            start: element.start,
+            end: element.end,
+            serverOnlyChildren,
+            childTags: Object.freeze([...childTags])
+          }));
+        }
       }
       if (!element.intrinsic && element.tagName) {
         const reference = module.walk().jsxElements().first(candidate => candidate.node.span?.start === element.start);
@@ -186,7 +213,8 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
       browserGlobalsOutsideClientBoundary: Object.freeze([...outsideGlobals].sort()),
       contexts: Object.freeze(uniqueContexts(contexts)),
       contextSites: Object.freeze(contextSites),
-      renders: Object.freeze(renders)
+      renders: Object.freeze(renders),
+      clientIslands: Object.freeze(clientIslands)
     }));
   }
   return Object.freeze({ sites });
@@ -270,6 +298,33 @@ export function createExpressionComponentBoundaries(
           kind: "server-slot"
         });
       }
+    }
+  }
+  return boundaries;
+}
+
+/** Creates server-slot boundaries for generated intrinsic client islands. */
+export function createExpressionGeneratedServerSlotBoundaries(
+  filename: string,
+  components: readonly ExactComponentIR[],
+  plan: ExpressionComponentPlan,
+  componentInfo: ReadonlyMap<string, ExactImportedComponentIR>
+): ExactBoundaryIR[] {
+  const boundaries: ExactBoundaryIR[] = [];
+  for (const owner of components) {
+    const site = plan.sites.get(owner.name);
+    if (!site) continue;
+    for (const island of site.clientIslands) {
+      const hasServerComponent = island.childTags.some(tag => componentInfo.get(tag)?.placement === "server");
+      if (!island.serverOnlyChildren && !hasServerComponent) continue;
+      const islandId = stableId(filename, owner.name, "client-island", String(island.index));
+      boundaries.push({
+        id: serverSlotBoundaryId(islandId),
+        name: `${generatedComponentName(owner.name, "client-island", island.index)}:children`,
+        componentId: owner.id,
+        ownerComponentId: owner.id,
+        kind: "server-slot"
+      });
     }
   }
   return boundaries;

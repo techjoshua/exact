@@ -8,8 +8,7 @@ import {
   readExactArtifactManifestEntries
 } from "./artifacts.js";
 import {
-  combinePlacements,
-  createGeneratedClientIslandServerSlotBoundaries
+  combinePlacements
 } from "./component-analysis.js";
 import type {
   CompileArtifactPlanEntriesOptions,
@@ -42,8 +41,7 @@ import {
   collectExpressionExportBindings
 } from "./exports.js";
 import {
-  collectExpressionImportedComponents,
-  collectExpressionServerOnlyImports
+  collectExpressionImportedComponents
 } from "./imports.js";
 import { generatedComponentName } from "./names.js";
 import {
@@ -63,8 +61,7 @@ import {
   createServerPartRegistryModule
 } from "./registry.js";
 import {
-  buildExpressionSemanticGraph,
-  createSemanticReferenceIndex
+  buildExpressionSemanticGraph
 } from "./semantic.js";
 import {
   createLineSourceMap,
@@ -87,7 +84,7 @@ import { analyzeExpressionSafety } from "./expression-safety.js";
 import { analyzeExpressionTasks } from "./expression-tasks.js";
 import { analyzeExpressionJsx } from "./expression-jsx.js";
 import { analyzeExpressionComponents } from "./expression-components.js";
-import { createExpressionComponents, createExpressionRenderEdges } from "./expression-components.js";
+import { createExpressionComponents, createExpressionGeneratedServerSlotBoundaries, createExpressionRenderEdges } from "./expression-components.js";
 import { createExpressionComponentBoundaries } from "./expression-components.js";
 
 export type * from "./types.js";
@@ -194,8 +191,6 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const expressionJsx = analyzeExpressionJsx(expressionModule, provenance, filename);
   const expressionComponents = analyzeExpressionComponents(expressionModule, expressionJsx, expressionTasks);
   components = createExpressionComponents(filename, expressionComponents, expressionTasks, expressionSafety);
-  const semanticReferences = createSemanticReferenceIndex(sourceFile, semanticGraph);
-  const serverOnlyImports = collectExpressionServerOnlyImports(semanticGraph);
 
   const componentByName = new Map(components.map(component => [component.name, component]));
   const importedComponents = collectExpressionImportedComponents(filename, options.importedManifests ?? [], semanticGraph);
@@ -209,7 +204,6 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
       componentId: component.id
     });
   }
-  const componentPlacements = new Map([...componentInfo].map(([name, component]) => [name, component.placement]));
   for (const component of components) {
     const expressionComponent = expressionComponents.sites.get(component.name);
     component.renderEdges = createExpressionRenderEdges(filename, component.name, expressionComponent?.renders ?? [], componentInfo);
@@ -235,7 +229,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   symbols.push(...createServerPartSymbols(sourceFile, components));
   symbols.push(...createClientIslandSymbols(sourceFile, components));
   boundaries.push(...createClientIslandBoundaries(sourceFile, components));
-  boundaries.push(...createGeneratedClientIslandServerSlotBoundaries(sourceFile, components, serverOnlyImports, semanticReferences, componentPlacements));
+  boundaries.push(...createExpressionGeneratedServerSlotBoundaries(filename, components, expressionComponents, componentInfo));
   boundaries.push(...createExpressionComponentBoundaries(filename, components, expressionComponents, componentInfo));
 
   for (const component of components) {
