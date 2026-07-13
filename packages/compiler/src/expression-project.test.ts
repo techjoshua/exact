@@ -15,4 +15,19 @@ describe("shared expression projects", () => {
     expect(first).not.toBe(second);
     expect(expressionModuleFor(firstFile, source)).toBe(first);
   });
+
+  it("rebinds unchanged consumers after a dependency revision", () => {
+    clearExpressionProjectCache();
+    const root = path.resolve(import.meta.dirname, "../../..");
+    const model = path.join(root, "apps/kanban/src/__cache_model.ts");
+    const consumer = path.join(root, "apps/kanban/src/__cache_consumer.ts");
+    const consumerSource = 'import { value } from "./__cache_model.js"; export const result = value;';
+    expressionModuleFor(model, "export const value = 1;");
+    const first = expressionModuleFor(consumer, consumerSource);
+    expect(first.walk().references().first(reference => reference.name === "result")?.variable?.type?.kind).toBe("number");
+    expressionModuleFor(model, 'export const value = "changed";');
+    const rebound = expressionModuleFor(consumer, consumerSource);
+    expect(rebound).not.toBe(first);
+    expect(rebound.walk().references().first(reference => reference.name === "result")?.variable?.type?.kind).toBe("string");
+  });
 });
