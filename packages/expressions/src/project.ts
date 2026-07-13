@@ -67,6 +67,7 @@ export class ExpressionProject {
   private readonly parsed: ts.ParsedCommandLine;
   private readonly overlays = new Map<string, string>();
   private readonly overlayVersions = new Map<string, number>();
+  private readonly sourceFiles = new Map<string, Readonly<{ version: string; sourceFile: ts.SourceFile }>>();
   private program?: ts.Program;
 
   constructor(options: ExpressionProjectOptions = {}) {
@@ -140,6 +141,7 @@ export class ExpressionProject {
     const base = ts.createCompilerHost(compilerOptions, true);
     const overlays = this.overlays;
     const overlayVersions = this.overlayVersions;
+    const thisProject = this;
     const host: ts.CompilerHost = {
       ...base,
       fileExists(file) { return overlays.has(normalizeFile(file)) || base.fileExists(file); },
@@ -148,11 +150,19 @@ export class ExpressionProject {
         const normalized = normalizeFile(file);
         const source = overlays.get(normalized);
         if (source !== undefined) {
+          const version = `overlay:${overlayVersions.get(normalized) ?? 0}`;
+          const cached = thisProject.sourceFiles.get(normalized);
+          if (cached?.version === version) return cached.sourceFile;
           const created = ts.createSourceFile(file, source, languageVersion, true, scriptKind(file)) as ts.SourceFile & { version?: string };
-          created.version = String(overlayVersions.get(normalized) ?? 0);
+          created.version = version;
+          thisProject.sourceFiles.set(normalized, { version, sourceFile: created });
           return created;
         }
-        return base.getSourceFile(file, languageVersion, onError, shouldCreateNewSourceFile);
+        const cached = thisProject.sourceFiles.get(normalized);
+        if (cached?.version === "disk") return cached.sourceFile;
+        const created = base.getSourceFile(file, languageVersion, onError, shouldCreateNewSourceFile);
+        if (created) thisProject.sourceFiles.set(normalized, { version: "disk", sourceFile: created });
+        return created;
       }
     };
     this.program = ts.createProgram({ rootNames: [...roots], options: compilerOptions, host, oldProgram: this.program });

@@ -30,6 +30,7 @@ export interface ModuleData {
 
 let nextVersion = 1;
 const analysisCache = new WeakMap<ExpressionModule, Readonly<{ effects: readonly NodeEffect[]; captures: ReadonlyMap<ExpressionNode, readonly Variable[]> }>>();
+const defaultWalkCache = new WeakMap<ExpressionModule, readonly NodeRef[]>();
 
 /** Immutable, versioned expression module. */
 export class ExpressionModule<S extends ModuleState = ModuleState> {
@@ -60,7 +61,9 @@ export class ExpressionModule<S extends ModuleState = ModuleState> {
   }
 
   walk(options?: WalkOptions): NodeQuery {
-    return this.root.walk(options);
+    if (options !== undefined) return this.root.walk(options);
+    const module = this;
+    return new NodeQuery(() => defaultWalk(module));
   }
 
   ref(node: ExpressionNode): NodeRef {
@@ -90,6 +93,14 @@ export class ExpressionModule<S extends ModuleState = ModuleState> {
       ...(options.sourceMap ? { map: identitySourceMap(this.filename, this.source, code) } : {})
     };
   }
+}
+
+function defaultWalk(module: ExpressionModule): readonly NodeRef[] {
+  const cached = defaultWalkCache.get(module);
+  if (cached) return cached;
+  const references = Object.freeze(module.root.walk().toArray());
+  defaultWalkCache.set(module, references);
+  return references;
 }
 
 export type BoundModule = ExpressionModule<"bound">;
