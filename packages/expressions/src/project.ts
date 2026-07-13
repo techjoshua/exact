@@ -252,7 +252,7 @@ export class ExpressionProject {
       ts.forEachChild(node, child => {
         children.push(convert(child));
       });
-      const start = node.getStart(sourceFile, false);
+      const start = ts.isSourceFile(node) ? 0 : node.getStart(sourceFile, false);
       const line = sourceFile.getLineAndCharacterOfPosition(start);
       const span: SourceSpan = Object.freeze({ start, end: node.end, line: line.line + 1, column: line.character + 1 });
       let semanticType: ExpressionType | undefined;
@@ -261,8 +261,8 @@ export class ExpressionProject {
       }
       const variable = ts.isIdentifier(node) ? variableFor(node) : undefined;
       const common: ExpressionNode = {
-        id: `${filename}:node:${start}:${node.end}:${ts.SyntaxKind[node.kind]}:${nodeSequence++}`,
-        kind: ts.SyntaxKind[node.kind],
+        id: `${filename}:node:${start}:${node.end}:${syntaxKindName(node)}:${nodeSequence++}`,
+        kind: syntaxKindName(node),
         category: category(node),
         span,
         children: Object.freeze(children),
@@ -290,6 +290,16 @@ export class ExpressionProject {
     const module = createModule({ filename, source: sourceFile.text, root, state: "bound", diagnostics });
     return module;
   }
+}
+
+function syntaxKindName(node: ts.Node): string {
+  if (ts.isNumericLiteral(node)) return "NumericLiteral";
+  if (ts.isBigIntLiteral(node)) return "BigIntLiteral";
+  if (ts.isStringLiteral(node)) return "StringLiteral";
+  if (ts.isNoSubstitutionTemplateLiteral(node)) return "NoSubstitutionTemplateLiteral";
+  if (ts.isRegularExpressionLiteral(node)) return "RegularExpressionLiteral";
+  if (ts.isJsxText(node)) return "JsxText";
+  return ts.SyntaxKind[node.kind];
 }
 
 function declarationIdentity(filename: string, declaration: ts.Node, name: string): string {

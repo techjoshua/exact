@@ -9,6 +9,14 @@ type RewriteSelector = (ref: NodeRef) => boolean;
 type RewriteFactory = (ref: NodeRef) => Replacement;
 let generatedRewriteId = 1;
 
+export interface TextLoweringContext {
+  readonly reference: NodeRef;
+  readonly text: string;
+  readonly childText: readonly string[];
+}
+
+export type TextLowerer = (context: TextLoweringContext) => string | undefined;
+
 /** Collects immutable tree edits and applies them in one structural-sharing pass. */
 export class ModuleRewriter {
   private readonly replacements: Array<Readonly<{ select: RewriteSelector; replace: RewriteFactory }>> = [];
@@ -129,6 +137,40 @@ export function rewriteModule(module: ExpressionModule, configure: (rewriter: Mo
   const rewriter = new ModuleRewriter();
   configure(rewriter);
   return rewriter.apply(module);
+}
+
+/**
+ * Composes generated regions bottom-up against one immutable source version.
+ * Parent lowerers see child replacements already applied, avoiding unstable
+ * intermediate parse offsets.
+ */
+export function lowerModuleText(module: ExpressionModule, lower: TextLowerer): string {
+  const rendered = new Map<ExpressionNode, string>();
+  const render = (node: ExpressionNode): string => {
+    const childText = node.children.map(render);
+    let text = node.span
+      ? renderSourceRegion(module.source, node, childText)
+      : node.generatedText ?? node.text ?? childText.join("");
+    const replacement = lower(Object.freeze({ reference: module.ref(node), text, childText: Object.freeze(childText) }));
+    if (replacement !== undefined) text = replacement;
+    rendered.set(node, text);
+    return text;
+  };
+  return render(module.rootNode);
+}
+
+function renderSourceRegion(source: string, node: ExpressionNode, childText: readonly string[]): string {
+  const span = node.span!;
+  let cursor = span.start;
+  let output = "";
+  node.children.forEach((child, index) => {
+    if (!child.span || child.span.start < span.start || child.span.end > span.end) return;
+    output += source.slice(cursor, child.span.start);
+    output += childText[index] ?? source.slice(child.span.start, child.span.end);
+    cursor = child.span.end;
+  });
+  output += source.slice(cursor, span.end);
+  return output;
 }
 
 export function cloneWithVariables(

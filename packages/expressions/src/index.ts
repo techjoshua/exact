@@ -49,7 +49,14 @@ export {
   type MethodOptions,
   type PropertyOptions
 } from "./builder.js";
-export { ModuleRewriter, cloneWithVariables, rewriteModule } from "./rewrite.js";
+export {
+  ModuleRewriter,
+  cloneWithVariables,
+  lowerModuleText,
+  rewriteModule,
+  type TextLowerer,
+  type TextLoweringContext
+} from "./rewrite.js";
 export { validateExpressionTree } from "./validation.js";
 
 import { moduleBuilder } from "./builder.js";

@@ -3,6 +3,7 @@ import path from "node:path";
 import {
   createExpressionProject,
   expressions,
+  lowerModuleText,
   rewriteModule
 } from "./index.js";
 
@@ -151,6 +152,18 @@ export function total(items: number[]) {
     const rebound = await project.bind(rewritten);
     expect(rebound.diagnostics.filter(diagnostic => diagnostic.severity === "error")).toEqual([]);
     expect(rebound.emit().code).toContain("(1 + 2) * 3");
+  });
+
+  it("composes nested text lowerings against one stable source tree", () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__composed_lowering.ts");
+    const module = project.updateModule(filename, "// keep\nexport const value = 1 + 2;\n");
+    const output = lowerModuleText(module, ({ reference, text }) => {
+      if (reference.node.kind === "NumericLiteral") return String(Number(text) * 10);
+      if (reference.node.kind === "BinaryExpression") return `(${text})`;
+      return undefined;
+    });
+    expect(output).toBe("// keep\nexport const value = (10 + 20);\n");
   });
 
   it("keeps earlier module versions and analyses immutable", () => {
