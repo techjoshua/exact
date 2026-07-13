@@ -34,9 +34,7 @@ class ProjectScope implements ExpressionScope {
 }
 
 class ProjectVariable implements Variable {
-  readonly synthetic = false;
-
-  constructor(readonly id: string, name: string, kind: string, scope: ExpressionScope) {
+  constructor(readonly id: string, name: string, kind: string, scope: ExpressionScope, readonly synthetic = false) {
     this.name = name;
     this.declarationKind = kind;
     this.scope = scope;
@@ -180,6 +178,7 @@ export class ExpressionProject {
     const checker = program.getTypeChecker();
     const scopes = new Map<ts.Node, ProjectScope>();
     const symbolVariables = new Map<ts.Symbol, ProjectVariable>();
+    const implicitThisVariables = new Map<ts.Node, ProjectVariable>();
     const typeCache = new Map<ts.Type, ExpressionType>();
     const diagnostics = [
       ...program.getSyntacticDiagnostics(sourceFile).map(diagnostic => ({ ...diagnosticFromTs(diagnostic), phase: "syntax" as const })),
@@ -225,6 +224,7 @@ export class ExpressionProject {
     };
 
     const variableFor = (identifier: ts.Identifier): Variable | undefined => {
+      if (identifier.text === "this" && ts.isParameter(identifier.parent)) return variableForThis(identifier);
       const symbol = ts.isShorthandPropertyAssignment(identifier.parent) && identifier.parent.name === identifier
         ? checker.getShorthandAssignmentValueSymbol(identifier.parent) ?? checker.getSymbolAtLocation(identifier)
         : checker.getSymbolAtLocation(identifier);
@@ -248,6 +248,36 @@ export class ExpressionProject {
       return variable;
     };
 
+    const variableForThis = (node: ts.Node): Variable => {
+      let owner: ts.Node = sourceFile;
+      let declaration: ts.Node | undefined;
+      for (let current = node.parent; current; current = current.parent) {
+        if (ts.isArrowFunction(current)) continue;
+        if (ts.isFunctionLike(current) || ts.isClassLike(current) || ts.isSourceFile(current)) {
+          owner = current;
+          if (ts.isFunctionLike(current)) {
+            declaration = current.parameters.find(candidate => candidate.name.getText(sourceFile) === "this");
+          }
+          break;
+        }
+      }
+      const existing = implicitThisVariables.get(owner);
+      if (existing) return existing;
+      const scope = scopeFor(declaration ?? owner);
+      const variable = new ProjectVariable(
+        declarationIdentity(filename, declaration ?? owner, "this"),
+        "this",
+        declaration ? "Parameter" : "ThisKeyword",
+        scope,
+        !declaration
+      );
+      try { variable.type = typeFor(checker.getTypeAtLocation(node), node); } catch { /* Invalid implicit this types remain unresolved. */ }
+      scope.add(variable);
+      Object.freeze(variable);
+      implicitThisVariables.set(owner, variable);
+      return variable;
+    };
+
     let nodeSequence = 0;
     const convert = (node: ts.Node): ExpressionNode => {
       const children: ExpressionNode[] = [];
@@ -261,7 +291,7 @@ export class ExpressionProject {
       if (ts.isExpression(node)) {
         try { semanticType = typeFor(checker.getTypeAtLocation(node), node); } catch { /* Invalid code is represented alongside diagnostics. */ }
       }
-      const variable = ts.isIdentifier(node) ? variableFor(node) : undefined;
+      const variable = ts.isIdentifier(node) ? variableFor(node) : node.kind === ts.SyntaxKind.ThisKeyword ? variableForThis(node) : undefined;
       const common: ExpressionNode = {
         id: `${filename}:node:${start}:${node.end}:${syntaxKindName(node)}:${nodeSequence++}`,
         kind: syntaxKindName(node),
@@ -281,7 +311,9 @@ export class ExpressionProject {
         return Object.freeze({ ...common, target, arguments: Object.freeze(children.slice(1)) });
       }
       if (ts.isFunctionLike(node)) {
-        const parameters = node.parameters.flatMap(parameter => collectBindingIdentifiers(parameter.name).map(variableFor).filter((value): value is Variable => !!value));
+        const parameters = node.parameters.flatMap(parameter => parameter.name.getText(sourceFile) === "this"
+          ? [variableForThis(parameter.name)]
+          : collectBindingIdentifiers(parameter.name).map(variableFor).filter((value): value is Variable => !!value));
         return Object.freeze({ ...common, parameters: Object.freeze(parameters), captures: Object.freeze([]) });
       }
       if (ts.isJsxElement(node)) {

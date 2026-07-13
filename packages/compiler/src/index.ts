@@ -90,6 +90,7 @@ import { buildExactProvenance } from "./provenance.js";
 import { analyzeExpressionWrites } from "./expression-writes.js";
 import { analyzeExpressionSafety } from "./expression-safety.js";
 import { analyzeExpressionTasks } from "./expression-tasks.js";
+import { analyzeExpressionJsx } from "./expression-jsx.js";
 
 export type * from "./types.js";
 export { preprocessPropPunning } from "./preprocess.js";
@@ -162,7 +163,8 @@ export function transformSource(source: string, options: TransformOptions = {}):
   const provenance = buildExactProvenance(expressionModule);
   const expressionWrites = analyzeExpressionWrites(expressionModule);
   const expressionTasks = analyzeExpressionTasks(expressionModule);
-  const result = ts.transform(sourceFile, [exactJsxTransformer(target, options.importedManifests ?? [], options.serverComponents ?? false, manifest.semanticGraph, provenance, expressionWrites, expressionTasks)]);
+  const expressionJsx = analyzeExpressionJsx(expressionModule, provenance, filename);
+  const result = ts.transform(sourceFile, [exactJsxTransformer(target, options.importedManifests ?? [], options.serverComponents ?? false, manifest.semanticGraph, provenance, expressionWrites, expressionTasks, expressionJsx)]);
   const transformed = result.transformed[0]!;
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
   const printed = printer.printFile(transformed as ts.SourceFile);

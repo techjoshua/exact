@@ -146,7 +146,7 @@ function getAnalyses(module: ExpressionModule): Readonly<{ effects: readonly Nod
     const typeMetadata = inType || node.category === "type";
     const functionLike = isFunctionKind(node.kind);
     if (functionLike) functions.push(node);
-    if (!typeMetadata && node.variable && node.kind === "Identifier") {
+    if (!typeMetadata && node.variable && (node.kind === "Identifier" || node.kind === "ThisKeyword")) {
       const kinds = referenceEffectKinds(ref);
       for (const kind of kinds) effects.push(Object.freeze({ node, variable: node.variable, kind }));
       const owner = functions[functions.length - 1];

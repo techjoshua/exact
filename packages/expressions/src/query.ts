@@ -154,7 +154,7 @@ export class NodeQuery<T extends ExpressionNode = ExpressionNode> implements Ite
   }
 
   references(): NodeQuery<T> {
-    return this.where(ref => ref.node.kind === "Identifier" && !!ref.node.variable);
+    return this.where(ref => (ref.node.kind === "Identifier" || ref.node.kind === "ThisKeyword") && !!ref.node.variable);
   }
 
   inScope(scopeId: string): NodeQuery<T> {

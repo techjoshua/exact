@@ -47,6 +47,22 @@ export function total(items: number[]) {
     expect(module.capturesOf(arrow).map(variable => variable.name).sort()).toEqual(["local", "outer"]);
   });
 
+  it("represents lexical this reads with their canonical binding", () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__this_identity.ts");
+    const module = project.updateModule(filename, `function Card(this: { state: { title: string } }) {
+      const read = () => this.state.title;
+      return read();
+    }`);
+    const thisReferences = module.walk().references().where(reference => reference.name === "this").toArray();
+    expect(thisReferences).toHaveLength(1);
+    const fn = module.walk().functions().where(reference => reference.node.kind === "FunctionDeclaration").single();
+    expect(fn.node.parameters[0]).toBe(thisReferences[0]!.variable);
+    const arrow = module.walk().functions().where(reference => reference.node.kind === "ArrowFunction").single();
+    expect(module.dependenciesOf(arrow).map(variable => variable.name)).toContain("this");
+    expect(module.capturesOf(arrow).map(variable => variable.name)).toContain("this");
+  });
+
   it("binds shorthand property values to their lexical variables", () => {
     const project = createExpressionProject({ tsconfigPath: kanbanConfig });
     const filename = path.join(root, "apps/kanban/src/__shorthand.ts");

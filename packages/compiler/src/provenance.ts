@@ -98,7 +98,7 @@ export function buildExactProvenance(module: BoundModule): ExactProvenanceGraph 
   const byVariableId = new Map(entries.map(entry => [entry.variable.id, entry]));
   const cells: ExactReactiveCell[] = [];
   for (const jsx of module.walk().ofKind("JsxExpression")) {
-    const cellDependencies = jsx.descendants().references().toArray().map(reference => reference.variable).filter((value): value is Variable => !!value && isReactive(classify(value)));
+    const cellDependencies = module.dependenciesOf(jsx).filter(variable => isReactive(classify(variable)));
     if (!cellDependencies.length) continue;
     cells.push(Object.freeze({
       node: jsx.node,
@@ -153,5 +153,5 @@ function isReactive(value: ExactReactiveProvenance): boolean {
 }
 
 function isLexicalBinding(variable: Variable): boolean {
-  return ["VariableDeclaration", "Parameter", "BindingElement", "FunctionDeclaration", "ClassDeclaration", "ImportSpecifier", "ImportClause", "NamespaceImport"].includes(variable.declarationKind);
+  return ["VariableDeclaration", "Parameter", "BindingElement", "FunctionDeclaration", "ClassDeclaration", "ImportSpecifier", "ImportClause", "NamespaceImport", "ThisKeyword"].includes(variable.declarationKind);
 }
