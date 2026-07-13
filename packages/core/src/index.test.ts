@@ -10,12 +10,16 @@ import {
   createVNode,
   isVNode,
   logFrameworkEvent,
+  ownTaskResource,
+  registerTaskCleanup,
   renderInstance,
   taskAwait,
+  taskIdleCallback,
   taskObserver,
   taskTimeout,
   withTaskObserver,
   withAbortSignal,
+  withTaskSignal,
   type Component,
   type ComponentInstance,
   type ErrorReport,
@@ -52,6 +56,49 @@ describe("@exact/core", () => {
     expect(managed.signal?.aborted).toBe(false);
     owner.abort("unmount");
     expect(managed.signal?.aborted).toBe(true);
+  });
+  it("owns generic task resources and runs cleanup exactly once", async () => {
+    const controller = new AbortController();
+    const close = vi.fn();
+    const terminate = vi.fn();
+    const unsubscribe = vi.fn();
+    const cleanup = vi.fn();
+    expect(ownTaskResource(controller.signal, { close }, "close")).toEqual({ close });
+    ownTaskResource(controller.signal, { terminate }, "terminate");
+    ownTaskResource(controller.signal, unsubscribe, "call");
+    registerTaskCleanup(controller.signal, cleanup);
+
+    controller.abort("rerun");
+    controller.abort("again");
+    await Promise.resolve();
+
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(terminate).toHaveBeenCalledTimes(1);
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+    expect(cleanup).toHaveBeenCalledTimes(1);
+    expect(cleanup).toHaveBeenCalledWith("rerun");
+  });
+  it("combines task signals with typed API options", () => {
+    const owner = new AbortController();
+    const external = new AbortController();
+    const options = withTaskSignal({ cache: "reload", signal: external.signal }, owner.signal);
+    expect(options.cache).toBe("reload");
+    owner.abort("rerun");
+    expect(options.signal.aborted).toBe(true);
+  });
+  it("cancels compiler-owned idle callbacks", () => {
+    const request = vi.fn(() => 42);
+    const cancel = vi.fn();
+    vi.stubGlobal("requestIdleCallback", request);
+    vi.stubGlobal("cancelIdleCallback", cancel);
+    try {
+      const controller = new AbortController();
+      expect(taskIdleCallback(controller.signal, () => undefined)).toBe(42);
+      controller.abort("unmount");
+      expect(cancel).toHaveBeenCalledWith(42);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
   it("constructs once and renders repeatedly from tracked state", () => {
     const constructed = vi.fn();

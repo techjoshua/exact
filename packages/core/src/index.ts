@@ -183,6 +183,13 @@ type ManagedEventListenerOptions = EventListenerOptions & {
   signal?: AbortSignal;
 };
 
+export type TaskResourceDisposal = "call" | "close" | "terminate" | "unsubscribe" | "dispose" | "cancel";
+export type TaskCleanup = (reason?: unknown) => void | Promise<void>;
+export type TaskIdleDeadline = { readonly didTimeout: boolean; timeRemaining(): number };
+export type TaskIdleOptions = { timeout?: number };
+
+const taskOwners = new WeakMap<AbortSignal, ComponentInstance<any>>();
+
 /** Compiler helper that attaches framework ownership without discarding author event options. */
 export function withAbortSignal(
   options: boolean | ManagedEventListenerOptions | undefined,
@@ -194,6 +201,67 @@ export function withAbortSignal(
   const existing = normalized.signal;
   if (!existing || existing === owner) return { ...normalized, signal: owner };
   return { ...normalized, signal: combineAbortSignals(existing, owner) };
+}
+
+/** Compiler helper that adds task cancellation to an API options object. */
+export function withTaskSignal<T extends object | undefined>(options: T, owner: AbortSignal): T & { signal: AbortSignal } {
+  const normalized = options ? { ...options } : {};
+  const existing = "signal" in normalized && isAbortSignal(normalized.signal) ? normalized.signal : undefined;
+  return { ...normalized, signal: combineTaskSignal(owner, existing) } as T & { signal: AbortSignal };
+}
+
+/** Compiler helper that combines an explicit signal with the owning task generation. */
+export function combineTaskSignal(owner: AbortSignal, existing?: AbortSignal): AbortSignal {
+  if (!existing || existing === owner) return owner;
+  return combineAbortSignals(existing, owner);
+}
+
+/** Registers once-only task cleanup and reports asynchronous disposal failures. */
+export function registerTaskCleanup(signal: AbortSignal, cleanup: TaskCleanup): void {
+  let active = true;
+  const run = (): void => {
+    if (!active) return;
+    active = false;
+    signal.removeEventListener("abort", run);
+    try {
+      void Promise.resolve(cleanup(signal.reason)).catch(error => reportTaskResourceError(signal, error));
+    } catch (error) {
+      reportTaskResourceError(signal, error);
+    }
+  };
+  if (signal.aborted) run();
+  else signal.addEventListener("abort", run, { once: true });
+}
+
+/** Owns a disposable value while preserving the value and expression result. */
+export function ownTaskResource<T>(
+  signal: AbortSignal,
+  resource: T,
+  disposal?: TaskResourceDisposal | ((resource: T, reason?: unknown) => void | Promise<void>)
+): T {
+  registerTaskCleanup(signal, reason => disposeTaskResource(resource, disposal, reason));
+  return resource;
+}
+
+/** Compiler helper for idle callbacks owned by one task generation. */
+export function taskIdleCallback(
+  signal: AbortSignal,
+  callback: (deadline: TaskIdleDeadline) => void,
+  options?: TaskIdleOptions
+): number {
+  const platform = globalThis as typeof globalThis & {
+    requestIdleCallback(callback: (deadline: TaskIdleDeadline) => void, options?: TaskIdleOptions): number;
+    cancelIdleCallback(handle: number): void;
+  };
+  let handle = 0;
+  const cancel = () => platform.cancelIdleCallback(handle);
+  handle = platform.requestIdleCallback(deadline => {
+    signal.removeEventListener("abort", cancel);
+    if (!signal.aborted) callback(deadline);
+  }, options);
+  if (signal.aborted) cancel();
+  else signal.addEventListener("abort", cancel, { once: true });
+  return handle;
 }
 
 function combineAbortSignals(left: AbortSignal, right: AbortSignal): AbortSignal {
@@ -212,6 +280,30 @@ function combineAbortSignals(left: AbortSignal, right: AbortSignal): AbortSignal
     right.addEventListener("abort", abort, { once: true });
   }
   return controller.signal;
+}
+
+function disposeTaskResource<T>(
+  resource: T,
+  disposal: TaskResourceDisposal | ((resource: T, reason?: unknown) => void | Promise<void>) | undefined,
+  reason: unknown
+): void | Promise<void> {
+  if (typeof disposal === "function") return disposal(resource, reason);
+  const value = resource as any;
+  if (disposal === "call") return value(reason);
+  if (disposal) return value?.[disposal]?.(reason);
+  const asyncDispose = (Symbol as any).asyncDispose;
+  if (asyncDispose && typeof value?.[asyncDispose] === "function") return value[asyncDispose]();
+  const dispose = (Symbol as any).dispose;
+  if (dispose && typeof value?.[dispose] === "function") return value[dispose]();
+}
+
+function reportTaskResourceError(signal: AbortSignal, error: unknown): void {
+  const instance = taskOwners.get(signal);
+  if (instance) {
+    handleComponentError(instance, createErrorReport(error, "task", instance, "resource-cleanup"));
+    return;
+  }
+  logFrameworkEvent("error", "core", "task", "task resource cleanup failed", error);
 }
 
 /** Compiler helpers for resources whose lifetime is owned by a task generation. */
@@ -816,6 +908,7 @@ function createTask(instance: ComponentInstance<any>, deps: unknown[], work: (..
       runTaskCleanup(task, instance);
       const controller = new AbortController();
       task.controller = controller;
+      taskOwners.set(controller.signal, instance);
       const values = task.deps.map(dep => unwrap(dep));
       let result: TaskResult;
       try {
