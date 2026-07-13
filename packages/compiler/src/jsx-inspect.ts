@@ -1,10 +1,7 @@
 import ts from "typescript";
 import { stableId } from "./ids.js";
-import { semanticReferenceForIdentifier } from "./semantic.js";
 import type {
-  ExactImportedComponentIR,
-  ExactPlacement,
-  SemanticReferenceIndex
+  ExactImportedComponentIR
 } from "./types.js";
 
 /** Returns whether JSX attributes force an element into a client island. */
@@ -14,29 +11,6 @@ export function jsxElementIsClientIsland(attributes: ts.JsxAttributes): boolean 
     const name = property.name.getText();
     return /^on[A-Z]/.test(name) || name === "ref";
   });
-}
-
-/** Returns whether a JSX tag references a component classified as client-only. */
-export function jsxTagIsClientComponent(
-  tagName: ts.JsxTagNameExpression,
-  placements: Map<string, ExactPlacement>,
-  sourceFile?: ts.SourceFile,
-  semanticReferences?: SemanticReferenceIndex
-): boolean {
-  if (ts.isIdentifier(tagName) && /^[a-z]/.test(tagName.text)) return false;
-  if (sourceFile && semanticReferences && !jsxTagCanReferenceComponent(tagName, semanticReferences, sourceFile)) return false;
-  return placements.get(tagName.getText()) === "client";
-}
-
-/** Returns whether a JSX tag can semantically refer to a component value. */
-export function jsxTagCanReferenceComponent(
-  tagName: ts.JsxTagNameExpression,
-  semanticReferences: SemanticReferenceIndex,
-  sourceFile: ts.SourceFile
-): boolean {
-  if (!ts.isIdentifier(tagName)) return true;
-  const reference = semanticReferenceForIdentifier(tagName, semanticReferences, sourceFile);
-  return reference?.declarationKind === "import" || reference?.declarationKind === "function";
 }
 
 /** Returns the boundary name used for a JSX component tag. */

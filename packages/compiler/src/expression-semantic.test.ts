@@ -1,10 +1,9 @@
-import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { expressionModuleFor, clearExpressionProjectCache } from "./expression-project.js";
-import { buildExpressionSemanticGraph, buildSemanticGraph } from "./semantic.js";
+import { buildExpressionSemanticGraph } from "./semantic.js";
 
 describe("expression-backed semantic graph", () => {
-  it("matches lexical declaration and reference resolution during cutover", () => {
+  it("resolves lexical declarations, imports, references, and exports", () => {
     clearExpressionProjectCache();
     const filename = "expression-semantic.tsx";
     const source = `
@@ -17,16 +16,21 @@ describe("expression-backed semantic graph", () => {
       }
       export { value as answer };
     `;
-    const sourceFile = ts.createSourceFile(filename, source, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
-    const legacy = buildSemanticGraph(sourceFile);
     const expression = buildExpressionSemanticGraph(expressionModuleFor(filename, source));
 
-    const declarationKey = (value: (typeof legacy.declarations)[number]) => [value.name, value.kind, value.moduleSpecifier, value.importedName, value.typeOnly ?? false];
-    const referenceKey = (value: (typeof legacy.references)[number]) => [value.name, value.source, value.moduleSpecifier, value.typeOnly ?? false];
-    const exportKey = (value: (typeof legacy.exports)[number]) => [value.exportedName, value.localName, value.moduleSpecifier, value.typeOnly ?? false];
-    expect(expression.declarations.map(declarationKey)).toEqual(legacy.declarations.map(declarationKey));
-    expect(expression.references.filter(reference => !reference.typeOnly).map(referenceKey)).toEqual(legacy.references.filter(reference => !reference.typeOnly).map(referenceKey));
+    expect(expression.declarations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "Data", kind: "import", importedName: "Model", moduleSpecifier: "./model.js", typeOnly: true }),
+      expect.objectContaining({ name: "run", kind: "import", importedName: "helper", moduleSpecifier: "./helper.js" }),
+      expect.objectContaining({ name: "View", kind: "function", exportedName: "View" })
+    ]));
+    expect(expression.references).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "run", source: "import", moduleSpecifier: "./helper.js" }),
+      expect.objectContaining({ name: "value", source: "local" })
+    ]));
     expect(expression.references.some(reference => reference.name === "Data" && reference.typeOnly)).toBe(true);
-    expect(expression.exports.map(exportKey)).toEqual(legacy.exports.map(exportKey));
+    expect(expression.exports).toEqual(expect.arrayContaining([
+      expect.objectContaining({ exportedName: "View", localName: "View" }),
+      expect.objectContaining({ exportedName: "answer", localName: "value" })
+    ]));
   });
 });

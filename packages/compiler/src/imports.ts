@@ -1,34 +1,13 @@
 import path from "node:path";
 import ts from "typescript";
 import { slashPath } from "./paths.js";
-import { buildSemanticGraph } from "./semantic.js";
 import type {
   ExactCompilerManifest,
   ExactComponentIR,
   ExactExportIR,
   ExactImportedComponentIR,
-  ExactSemanticGraphIR,
-  ExactSemanticReferenceIR
+  ExactSemanticGraphIR
 } from "./types.js";
-
-/** Returns whether an identifier resolves to a runtime server-only import. */
-export function isServerOnlyReference(
-  node: ts.Identifier,
-  reference: ExactSemanticReferenceIR | undefined,
-  serverOnlyImports: Set<string>
-): boolean {
-  if (!serverOnlyImports.has(node.text)) return false;
-  return reference?.source === "import" && !reference.typeOnly && !!reference.moduleSpecifier && isServerOnlyModule(reference.moduleSpecifier);
-}
-
-/** Resolves imported components from compiler manifests that match local imports. */
-export function collectImportedComponents(
-  sourceFile: ts.SourceFile,
-  manifests: readonly ExactCompilerManifest[],
-  graph: ExactSemanticGraphIR = buildSemanticGraph(sourceFile)
-): ExactImportedComponentIR[] {
-  return collectExpressionImportedComponents(sourceFile.fileName, manifests, graph);
-}
 
 /** Resolves imported components from canonical expression import declarations. */
 export function collectExpressionImportedComponents(
@@ -129,11 +108,6 @@ function moduleSpecifierKey(specifier: string, baseDir: string): string {
     .replace(/\.exact\.(client|server)(\.[cm]?[jt]sx?)?$/i, "")
     .replace(/\.exact$/i, "")
     .replace(/\.[cm]?[jt]sx?$/i, "");
-}
-
-/** Collects runtime import binding names that are known to be server-only modules. */
-export function collectServerOnlyImports(sourceFile: ts.SourceFile, graph: ExactSemanticGraphIR = buildSemanticGraph(sourceFile)): Set<string> {
-  return collectExpressionServerOnlyImports(graph);
 }
 
 /** Collects server-only runtime imports from canonical expression declarations. */
