@@ -60,6 +60,7 @@ import type {
   ExactCompilerManifest,
   ExactImportedComponentIR,
   ExactPlacement,
+  ExactSemanticGraphIR,
   HelperNames,
   SemanticDeclarationIndex,
   SemanticReferenceIndex,
@@ -77,12 +78,13 @@ const boundaryHelper = "__exactBoundary";
 export function exactJsxTransformer(
   target: TransformTarget,
   importedManifests: readonly ExactCompilerManifest[] = [],
-  serverComponents = false
+  serverComponents = false,
+  providedSemanticGraph?: ExactSemanticGraphIR
 ): ts.TransformerFactory<ts.SourceFile> {
   return context => sourceFile => {
     const factory = context.factory;
     const helpers = allocateHelperNames(sourceFile);
-    const semanticGraph = buildSemanticGraph(sourceFile);
+    const semanticGraph = providedSemanticGraph ?? buildSemanticGraph(sourceFile);
     const semanticReferences = createSemanticReferenceIndex(sourceFile, semanticGraph);
     const semanticDeclarations = createSemanticDeclarationIndex(sourceFile, semanticGraph);
     const serverOnlyImports = collectServerOnlyImports(sourceFile, semanticGraph);

@@ -10,9 +10,8 @@ const modules = new Map<string, Readonly<{ source: string; module: BoundModule }
  * point and adapter. The TypeScript Program remains private to expressions.
  */
 export function expressionModuleFor(filename: string, source: string): BoundModule {
+  const virtual = !path.isAbsolute(filename);
   const absolute = path.resolve(filename);
-  const cached = modules.get(absolute);
-  if (cached?.source === source) return cached.module;
   const config = ts.findConfigFile(path.dirname(absolute), ts.sys.fileExists, "tsconfig.json")
     ?? ts.findConfigFile(process.cwd(), ts.sys.fileExists, "tsconfig.json");
   if (!config) {
@@ -20,14 +19,21 @@ export function expressionModuleFor(filename: string, source: string): BoundModu
     // diagnostic. Keep the selection policy in one place.
     return createExpressionProject({ cwd: path.dirname(absolute) }).updateModule(absolute, source);
   }
-  const key = path.resolve(config);
+  // Relative filenames are isolated compiler snippets. Keeping each virtual
+  // filename in its own Program prevents unrelated script-mode snippets from
+  // merging global declarations while real absolute project files still share
+  // the incremental service.
+  const configPath = path.resolve(config);
+  const key = `${configPath}${virtual ? `::virtual:${absolute}` : ""}`;
+  const cached = modules.get(key);
+  if (cached?.source === source) return cached.module;
   let project = projects.get(key);
   if (!project) {
-    project = createExpressionProject({ tsconfigPath: key });
+    project = createExpressionProject({ tsconfigPath: configPath });
     projects.set(key, project);
   }
   const module = project.updateModule(absolute, source);
-  modules.set(absolute, { source, module });
+  modules.set(key, { source, module });
   return module;
 }
 

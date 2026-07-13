@@ -69,7 +69,7 @@ import {
   createServerPartRegistryModule
 } from "./registry.js";
 import {
-  buildSemanticGraph,
+  buildExpressionSemanticGraph,
   createSemanticDeclarationIndex,
   createSemanticReferenceIndex
 } from "./semantic.js";
@@ -146,7 +146,7 @@ export function transformSource(source: string, options: TransformOptions = {}):
     throw new Error(semanticErrors.join("\n"));
   }
   const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
-  const result = ts.transform(sourceFile, [exactJsxTransformer(target, options.importedManifests ?? [], options.serverComponents ?? false)]);
+  const result = ts.transform(sourceFile, [exactJsxTransformer(target, options.importedManifests ?? [], options.serverComponents ?? false, manifest.semanticGraph)]);
   const transformed = result.transformed[0]!;
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
   const printed = printer.printFile(transformed as ts.SourceFile);
@@ -177,7 +177,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const boundaries: ExactBoundaryIR[] = [];
   const manifestDiagnostics: string[] = [];
   const serverActions: ExactCompilerManifest["serverActions"] = {};
-  const semanticGraph = buildSemanticGraph(sourceFile);
+  const semanticGraph = buildExpressionSemanticGraph(expressionModule);
   const semanticReferences = createSemanticReferenceIndex(sourceFile, semanticGraph);
   const semanticDeclarations = createSemanticDeclarationIndex(sourceFile, semanticGraph);
   const serverOnlyImports = collectServerOnlyImports(sourceFile, semanticGraph);
@@ -290,8 +290,7 @@ function assertUniqueIds(label: string, ids: readonly string[]): void {
 export function analyzeSemanticGraph(source: string, options: Pick<TransformOptions, "filename"> = {}): ExactSemanticGraphIR {
   const normalized = preprocessPropPunning(source);
   const filename = options.filename ?? "input.tsx";
-  const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
-  return buildSemanticGraph(sourceFile);
+  return buildExpressionSemanticGraph(expressionModuleFor(filename, normalized));
 }
 
 /** Compiles one input file and optionally writes code, source map, and manifest artifacts. */

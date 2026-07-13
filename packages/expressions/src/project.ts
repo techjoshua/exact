@@ -66,6 +66,7 @@ export class ExpressionProject {
   readonly tsconfigPath: string;
   private readonly parsed: ts.ParsedCommandLine;
   private readonly overlays = new Map<string, string>();
+  private readonly overlayVersions = new Map<string, number>();
   private program?: ts.Program;
 
   constructor(options: ExpressionProjectOptions = {}) {
@@ -83,7 +84,7 @@ export class ExpressionProject {
 
   updateModule(filename: string, source: string): BoundModule {
     const normalized = normalizeFile(filename);
-    this.overlays.set(normalized, source);
+    this.setOverlay(normalized, source);
     this.rebuild();
     return this.readBoundModule(normalized);
   }
@@ -93,7 +94,7 @@ export class ExpressionProject {
     for (const [filename, source] of entries) {
       const normalized = normalizeFile(filename);
       filenames.push(normalized);
-      this.overlays.set(normalized, source);
+      this.setOverlay(normalized, source);
     }
     this.rebuild();
     return new Map(filenames.map(filename => [filename, this.readBoundModule(filename)]));
@@ -138,6 +139,7 @@ export class ExpressionProject {
     for (const file of this.overlays.keys()) roots.add(file);
     const base = ts.createCompilerHost(compilerOptions, true);
     const overlays = this.overlays;
+    const overlayVersions = this.overlayVersions;
     const host: ts.CompilerHost = {
       ...base,
       fileExists(file) { return overlays.has(normalizeFile(file)) || base.fileExists(file); },
@@ -145,11 +147,20 @@ export class ExpressionProject {
       getSourceFile(file, languageVersion, onError, shouldCreateNewSourceFile) {
         const normalized = normalizeFile(file);
         const source = overlays.get(normalized);
-        if (source !== undefined) return ts.createSourceFile(file, source, languageVersion, true, scriptKind(file));
+        if (source !== undefined) {
+          const created = ts.createSourceFile(file, source, languageVersion, true, scriptKind(file)) as ts.SourceFile & { version?: string };
+          created.version = String(overlayVersions.get(normalized) ?? 0);
+          return created;
+        }
         return base.getSourceFile(file, languageVersion, onError, shouldCreateNewSourceFile);
       }
     };
     this.program = ts.createProgram({ rootNames: [...roots], options: compilerOptions, host, oldProgram: this.program });
+  }
+
+  private setOverlay(filename: string, source: string): void {
+    if (this.overlays.get(filename) !== source) this.overlayVersions.set(filename, (this.overlayVersions.get(filename) ?? 0) + 1);
+    this.overlays.set(filename, source);
   }
 
   private readBoundModule(filename: string): BoundModule {
@@ -210,9 +221,10 @@ export class ExpressionProject {
       if (cached) return cached;
       const declaration = symbol.valueDeclaration ?? symbol.declarations?.[0] ?? identifier;
       const declarationFile = normalizeFile(declaration.getSourceFile().fileName);
-      const key = declarationIdentity(declarationFile, declaration, symbol.name);
+      const localName = declarationBindingName(declaration) ?? symbol.name;
+      const key = declarationIdentity(declarationFile, declaration, localName);
       const scope = scopeFor(declaration);
-      const variable = new ProjectVariable(key, symbol.name, ts.SyntaxKind[declaration.kind], scope);
+      const variable = new ProjectVariable(key, localName, ts.SyntaxKind[declaration.kind], scope);
       symbolVariables.set(symbol, variable);
       let variableType: ExpressionType | undefined;
       try { variableType = typeFor(checker.getTypeOfSymbolAtLocation(symbol, identifier), identifier); } catch { /* TypeScript can reject incomplete error symbols. */ }
@@ -368,6 +380,12 @@ function nodeOperator(node: ts.Node): string | undefined {
 function collectBindingIdentifiers(name: ts.BindingName): ts.Identifier[] {
   if (ts.isIdentifier(name)) return [name];
   return name.elements.flatMap(element => ts.isOmittedExpression(element) ? [] : collectBindingIdentifiers(element.name));
+}
+
+function declarationBindingName(node: ts.Node): string | undefined {
+  if (ts.isIdentifier(node)) return node.text;
+  if (hasNodeName(node) && node.name && ts.isIdentifier(node.name)) return node.name.text;
+  return undefined;
 }
 
 function importSource(node: ts.Node): string | undefined {
