@@ -1,7 +1,7 @@
 import path from "node:path";
 import { createExpressionProject } from "@exact/expressions";
 import { describe, expect, it } from "vitest";
-import { lowerExpressionWrites } from "./expression-writes.js";
+import { analyzeExpressionWrites, lowerExpressionWrites } from "./expression-writes.js";
 
 const root = path.resolve(import.meta.dirname, "../../..");
 
@@ -51,7 +51,9 @@ describe("expression-backed writes", () => {
       }
     `);
     const result = lowerExpressionWrites(module);
+    const plan = analyzeExpressionWrites(module);
     expect(result.count).toBe(2);
+    expect([...plan.aliases.values()]).toEqual(expect.arrayContaining([["project"], ["items"]]));
     expect(result.module.emit().code).toContain(`__exactWrite(this.state, ["project","count"], 2)`);
     expect(result.module.emit().code).toContain(`__exactArrayMutation(this.state, ["items"], "splice", [0, 1])`);
   });

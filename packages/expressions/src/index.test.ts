@@ -47,6 +47,18 @@ export function total(items: number[]) {
     expect(module.capturesOf(arrow).map(variable => variable.name).sort()).toEqual(["local", "outer"]);
   });
 
+  it("encapsulates binding mutability on canonical variables", () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__expressions_mutability.ts");
+    const module = project.updateModule(filename, `const fixed = 1; let changing = 2; function update(parameter: number) { changing = parameter; return fixed; }`);
+    const variables = new Map(module.walk().references().toArray().flatMap(reference => reference.variable ? [[reference.variable.name, reference.variable] as const] : []));
+
+    expect(variables.get("fixed")?.mutable).toBe(false);
+    expect(variables.get("changing")?.mutable).toBe(true);
+    expect(variables.get("parameter")?.mutable).toBe(true);
+    expect(variables.get("update")?.mutable).toBe(false);
+  });
+
   it("represents lexical this reads with their canonical binding", () => {
     const project = createExpressionProject({ tsconfigPath: kanbanConfig });
     const filename = path.join(root, "apps/kanban/src/__this_identity.ts");

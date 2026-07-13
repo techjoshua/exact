@@ -43,7 +43,7 @@ export function buildExactProvenance(module: BoundModule): ExactProvenanceGraph 
       if (variable !== declared) values.add(variable);
     }
     dependencies.set(declared, values);
-    reevaluationSafety.set(declared, initializer ? isSafeDerivedInitializer(module, initializer) : false);
+    reevaluationSafety.set(declared, !declared.mutable && !!initializer && isSafeDerivedInitializer(module, initializer));
     const text = declaration.node.text ?? "";
     if (/\bpeek\s*\(/.test(text)) hints.set(declared, "snapshot");
     else if (/\bthis\.state\b/.test(text)) hints.set(declared, "derived");

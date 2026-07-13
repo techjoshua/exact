@@ -15,6 +15,7 @@ export interface ExpressionWriteSite {
 
 export interface ExpressionWritePlan {
   readonly sites: ReadonlyMap<string, ExpressionWriteSite>;
+  readonly aliases: ReadonlyMap<string, readonly string[]>;
 }
 
 const assignmentOperators = new Set(["=", "+=", "-=", "*=", "/=", "%=", "**=", "<<=", ">>=", ">>>=", "&=", "|=", "^=", "&&=", "||=", "??="]);
@@ -62,7 +63,7 @@ export function analyzeExpressionWrites(module: BoundModule): ExpressionWritePla
     const site = Object.freeze({ start: reference.node.span.start, end: reference.node.span.end, path: Object.freeze(path), operation: writeOperation(reference) });
     sites.set(writeSiteKey(site.start, site.end), site);
   }
-  return Object.freeze({ sites });
+  return Object.freeze({ sites, aliases });
 }
 
 function writeOperation(reference: NodeRef): ExpressionWriteSite["operation"] {

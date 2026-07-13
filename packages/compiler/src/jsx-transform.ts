@@ -44,8 +44,6 @@ import {
   semanticReferenceForIdentifier
 } from "./semantic.js";
 import {
-  collectDerivedReactiveLocals,
-  collectStateAliases,
   isAssignmentOperator,
   isAnalyzableFunctionLike,
   isStatePathExpression,
@@ -94,6 +92,7 @@ export function exactJsxTransformer(
     const semanticDeclarations = createSemanticDeclarationIndex(sourceFile, semanticGraph);
     const componentPlacements = componentPlacementsFromInfo(componentInfo);
     const expressionDerived = new Set(provenance.entries.filter(entry => entry.provenance === "derived" && entry.safeToReevaluate).map(entry => entry.variable.id));
+    const expressionStateAliases = new Map([...expressionWrites.aliases].map(([id, path]) => [id, path.join(".")]));
     let sawJsx = false;
     let sawBoundary = false;
     let sawStateWrite = false;
@@ -125,8 +124,8 @@ export function exactJsxTransformer(
           // client artifact after their nested client islands have been collected.
           componentStack.push(node.name.text);
           componentLocalStack.push(collectComponentLocalInfo(node, sourceFile, semanticDeclarations));
-          componentStateAliasStack.push(collectStateAliases(node, sourceFile, semanticReferences, semanticDeclarations, { skipNestedFunctions: false }));
-          componentDerivedStack.push(collectDerivedReactiveLocals(node, sourceFile, semanticReferences, semanticDeclarations, new Map(), expressionDerived));
+          componentStateAliasStack.push(expressionStateAliases);
+          componentDerivedStack.push(collectExpressionDerivedLocals(node, sourceFile, semanticDeclarations, new Map(), expressionDerived));
           ts.visitEachChild(node, visitor, context);
           componentDerivedStack.pop();
           componentStateAliasStack.pop();
@@ -136,8 +135,8 @@ export function exactJsxTransformer(
         }
         componentStack.push(node.name.text);
         componentLocalStack.push(collectComponentLocalInfo(node, sourceFile, semanticDeclarations));
-        componentStateAliasStack.push(collectStateAliases(node, sourceFile, semanticReferences, semanticDeclarations, { skipNestedFunctions: false }));
-        componentDerivedStack.push(collectDerivedReactiveLocals(node, sourceFile, semanticReferences, semanticDeclarations, new Map(), expressionDerived));
+        componentStateAliasStack.push(expressionStateAliases);
+        componentDerivedStack.push(collectExpressionDerivedLocals(node, sourceFile, semanticDeclarations, new Map(), expressionDerived));
         const visited = ts.visitEachChild(node, visitor, context);
         componentDerivedStack.pop();
         componentStateAliasStack.pop();
@@ -146,7 +145,7 @@ export function exactJsxTransformer(
         return visited;
       }
       if (componentDerivedStack.length && isAnalyzableFunctionLike(node)) {
-        componentDerivedStack.push(collectDerivedReactiveLocals(node, sourceFile, semanticReferences, semanticDeclarations, componentDerivedStack[componentDerivedStack.length - 1], expressionDerived));
+        componentDerivedStack.push(collectExpressionDerivedLocals(node, sourceFile, semanticDeclarations, componentDerivedStack[componentDerivedStack.length - 1], expressionDerived));
         const visited = ts.visitEachChild(node, visitor, context);
         componentDerivedStack.pop();
         return visited;
@@ -419,6 +418,31 @@ function collectComponentLocalInfo(
   }
   if (node.body) visit(node.body);
   return { names, functions, declarationIds };
+}
+
+/**
+ * Materializes source expressions for variables whose reactive provenance was
+ * established by @exact/expressions. The TypeScript nodes are retained only as
+ * emission handles; deciding which declarations are derived is expression-owned.
+ */
+function collectExpressionDerivedLocals(
+  node: ts.Node,
+  sourceFile: ts.SourceFile,
+  semanticDeclarations: SemanticDeclarationIndex,
+  inherited: DerivedReactiveIndex,
+  derivedVariableIds: ReadonlySet<string>
+): DerivedReactiveIndex {
+  const derived = new Map(inherited);
+  function visit(current: ts.Node): void {
+    if (current !== node && (ts.isFunctionLike(current) || ts.isClassLike(current))) return;
+    if (ts.isVariableDeclaration(current) && ts.isIdentifier(current.name) && current.initializer) {
+      const declaration = semanticDeclarationForIdentifier(current.name, semanticDeclarations, sourceFile);
+      if (declaration && derivedVariableIds.has(declaration.id)) derived.set(declaration.id, current.initializer);
+    }
+    ts.forEachChild(current, visit);
+  }
+  visit(node);
+  return derived;
 }
 
 function cloneableFunctionVariable(name: ts.Identifier, initializer: ts.Expression): ts.VariableStatement {

@@ -37,7 +37,7 @@ class ProjectScope implements ExpressionScope {
 
 class ProjectVariable implements Variable {
   readonly id: string;
-  constructor(readonly symbol: ExpressionSymbol, name: string, kind: string, scope: ExpressionScope, readonly synthetic = false) {
+  constructor(readonly symbol: ExpressionSymbol, name: string, kind: string, scope: ExpressionScope, readonly mutable: boolean, readonly synthetic = false) {
     this.id = symbol.id;
     this.name = name;
     this.declarationKind = kind;
@@ -287,7 +287,7 @@ export class ExpressionProject {
       const localName = declarationBindingName(declaration) ?? symbol.name;
       const key = declarationIdentity(declarationFile, declaration, localName);
       const scope = scopeFor(declaration);
-      const variable = new ProjectVariable(symbolIdentity(key, localName), localName, ts.SyntaxKind[declaration.kind], scope);
+      const variable = new ProjectVariable(symbolIdentity(key, localName), localName, ts.SyntaxKind[declaration.kind], scope, isMutableBinding(declaration));
       symbolVariables.set(symbol, variable);
       let variableType: ExpressionType | undefined;
       try { variableType = typeFor(checker.getTypeOfSymbolAtLocation(symbol, identifier), identifier); } catch { /* TypeScript can reject incomplete error symbols. */ }
@@ -322,6 +322,7 @@ export class ExpressionProject {
         "this",
         declaration ? "Parameter" : "ThisKeyword",
         scope,
+        !!declaration,
         !declaration
       );
       try { variable.type = typeFor(checker.getTypeAtLocation(node), node); } catch { /* Invalid implicit this types remain unresolved. */ }
@@ -533,6 +534,16 @@ function declarationBindingName(node: ts.Node): string | undefined {
   if (ts.isIdentifier(node)) return node.text;
   if (hasNodeName(node) && node.name && ts.isIdentifier(node.name)) return node.name.text;
   return undefined;
+}
+
+function isMutableBinding(node: ts.Node): boolean {
+  if (ts.isParameter(node)) return node.name.getText() !== "this";
+  if (ts.isBindingElement(node)) return isMutableBinding(node.parent.parent);
+  if (ts.isVariableDeclaration(node)) {
+    const declarations = node.parent;
+    return ts.isVariableDeclarationList(declarations) && (declarations.flags & ts.NodeFlags.Const) === 0;
+  }
+  return false;
 }
 
 function importSource(node: ts.Node): string | undefined {

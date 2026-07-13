@@ -84,6 +84,8 @@ export interface Variable {
   readonly symbol: ExpressionSymbol;
   readonly name: string;
   readonly declarationKind: string;
+  /** Whether ordinary source code may assign a new value to this binding. */
+  readonly mutable: boolean;
   readonly scope: ExpressionScope;
   readonly type?: ExpressionType;
   readonly exported: boolean;

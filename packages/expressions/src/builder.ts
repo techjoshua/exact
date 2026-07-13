@@ -28,6 +28,7 @@ class SyntheticVariable implements Variable {
   readonly id = `synthetic-variable:${syntheticId++}`;
   readonly synthetic = true;
   readonly symbol: ExpressionSymbol;
+  readonly mutable: boolean;
   constructor(
     readonly name: string,
     readonly declarationKind: string,
@@ -36,7 +37,10 @@ class SyntheticVariable implements Variable {
     readonly exported = false,
     readonly importedFrom?: string,
     readonly typeOnly = false
-  ) { this.symbol = Object.freeze({ id: this.id, name }); }
+  ) {
+    this.symbol = Object.freeze({ id: this.id, name });
+    this.mutable = declarationKind === "let" || declarationKind === "var" || declarationKind === "parameter" || declarationKind === "property";
+  }
 }
 
 function type(kind: ExpressionTypeKind, display: string = kind): ExpressionType {
