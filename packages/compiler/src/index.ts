@@ -7,9 +7,7 @@ import {
   diffExactArtifactPlans,
   readExactArtifactManifestEntries
 } from "./artifacts.js";
-import {
-  combinePlacements
-} from "./component-analysis.js";
+import { combinePlacements } from "./placement.js";
 import type {
   CompileArtifactPlanEntriesOptions,
   CompileArtifactsOptions,

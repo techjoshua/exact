@@ -198,8 +198,7 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
         this.state.importOpen = false;
       }
     };
-    window.addEventListener("keydown", onKeyDown);
-    signal.addEventListener("abort", () => window.removeEventListener("keydown", onKeyDown), { once: true });
+    window.addEventListener("keydown", onKeyDown, { signal });
   });
 
   return () => {

@@ -10,9 +10,7 @@ import {
   isThisMethodCall,
   isThisTaskCall
 } from "./calls.js";
-import {
-  componentPlacementsFromInfo
-} from "./component-analysis.js";
+import { componentPlacementsFromInfo } from "./placement.js";
 import { collectExports, isComponentLikeFunction } from "./exports.js";
 import { stableId } from "./ids.js";
 import {
@@ -36,9 +34,6 @@ import { writeSiteKey, type ExpressionWritePlan } from "./expression-writes.js";
 import type { ExpressionTaskPlan } from "./expression-tasks.js";
 import type { ExpressionJsxPlan } from "./expression-jsx.js";
 import type { ExpressionClientIslandSite, ExpressionComponentPlan } from "./expression-components.js";
-import {
-  isAssignmentOperator,
-} from "./state-analysis.js";
 import type {
   ClientIslandCaptures,
   ClientIslandElementNode,
@@ -58,6 +53,7 @@ const fragmentHelper = "__exactFragment";
 const expressionHelper = "__exactExpression";
 const dynamicHelper = "__exactDynamic";
 const boundaryHelper = "__exactBoundary";
+const isAssignmentOperator = (kind: ts.SyntaxKind): boolean => kind >= ts.SyntaxKind.FirstAssignment && kind <= ts.SyntaxKind.LastAssignment;
 /** Creates the TypeScript transformer that lowers eXact JSX into runtime helper calls. */
 export function exactJsxTransformer(
   target: TransformTarget,
