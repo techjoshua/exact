@@ -7,6 +7,7 @@ import { validateExpressionTree } from "./validation.js";
 type Replacement = ExpressionNode | null;
 type RewriteSelector = (ref: NodeRef) => boolean;
 type RewriteFactory = (ref: NodeRef) => Replacement;
+let generatedRewriteId = 1;
 
 /** Collects immutable tree edits and applies them in one structural-sharing pass. */
 export class ModuleRewriter {
@@ -17,6 +18,11 @@ export class ModuleRewriter {
   replaceWhere(select: RewriteSelector, replace: RewriteFactory): this {
     this.replacements.push(Object.freeze({ select, replace }));
     return this;
+  }
+
+  /** Replaces a region with generated TypeScript that is rebound before checked emission. */
+  replaceTextWhere(select: RewriteSelector, replace: (ref: NodeRef) => string): this {
+    return this.replaceWhere(select, ref => generatedNode(ref, replace(ref)));
   }
 
   removeWhere(select: RewriteSelector): this {
@@ -33,6 +39,18 @@ export class ModuleRewriter {
     const key = "node" in target ? target.node : target;
     this.after.set(key, [...(this.after.get(key) ?? []), node]);
     return this;
+  }
+
+  insertTextBefore(target: ExpressionNode | NodeRef, text: string): this {
+    const ref = "node" in target ? target : undefined;
+    const node = ref ? generatedNode(ref, text) : generatedNodeFromNode(target as ExpressionNode, text);
+    return this.insertBefore(target, node);
+  }
+
+  insertTextAfter(target: ExpressionNode | NodeRef, text: string): this {
+    const ref = "node" in target ? target : undefined;
+    const node = ref ? generatedNode(ref, text) : generatedNodeFromNode(target as ExpressionNode, text);
+    return this.insertAfter(target, node);
   }
 
   apply(module: ExpressionModule): UnboundModule {
@@ -73,6 +91,22 @@ export class ModuleRewriter {
     const source = applyEdits(module.source, edits);
     return createModule({ filename: module.filename, source, root, state: "unbound", trivia: module.trivia, diagnostics: validateExpressionTree(root, module.filename) });
   }
+}
+
+function generatedNode(reference: NodeRef, text: string): ExpressionNode {
+  return generatedNodeFromNode(reference.node, text);
+}
+
+function generatedNodeFromNode(anchor: ExpressionNode, text: string): ExpressionNode {
+  return Object.freeze({
+    id: `generated-rewrite:${generatedRewriteId++}`,
+    kind: anchor.kind,
+    category: anchor.category,
+    scope: anchor.scope,
+    synthetic: true,
+    children: Object.freeze([]),
+    generatedText: text
+  });
 }
 
 function hostText(value: string, newline: string): string {

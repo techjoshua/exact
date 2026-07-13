@@ -140,6 +140,19 @@ export function total(items: number[]) {
     expect(rewritten.trivia.directives).toEqual(["use strict"]);
   });
 
+  it("supports scope-safe generated text rewrites followed by checked rebinding", async () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__text_rewrite.ts");
+    const module = project.updateModule(filename, "export const value = 1 + 2;\n");
+    const rewritten = rewriteModule(module, rewriter => {
+      rewriter.replaceTextWhere(ref => ref.node.kind === "BinaryExpression", ref => `(${ref.node.text}) * 3`);
+    });
+    expect(rewritten.validate().filter(diagnostic => diagnostic.severity === "error")).toEqual([]);
+    const rebound = await project.bind(rewritten);
+    expect(rebound.diagnostics.filter(diagnostic => diagnostic.severity === "error")).toEqual([]);
+    expect(rebound.emit().code).toContain("(1 + 2) * 3");
+  });
+
   it("keeps earlier module versions and analyses immutable", () => {
     const project = createExpressionProject({ tsconfigPath: kanbanConfig });
     const filename = path.join(root, "apps/kanban/src/__expressions_versions.ts");

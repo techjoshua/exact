@@ -91,14 +91,14 @@ export class ExpressionProject {
   }
 
   updateModules(entries: Iterable<readonly [filename: string, source: string]>): ReadonlyMap<string, BoundModule> {
-    const filenames: string[] = [];
+    const filenames: Array<Readonly<{ display: string; canonical: string }>> = [];
     for (const [filename, source] of entries) {
       const normalized = normalizeFile(filename);
-      filenames.push(normalized);
+      filenames.push({ display: displayFile(filename), canonical: normalized });
       this.setOverlay(normalized, source);
     }
     this.rebuild();
-    return new Map(filenames.map(filename => [filename, this.readBoundModule(filename)]));
+    return new Map(filenames.map(filename => [filename.display, this.readBoundModule(filename.canonical)]));
   }
 
   getModule(filename: string, source?: string): BoundModule {
@@ -324,8 +324,12 @@ export function findExpressionConfig(cwd: string): string | undefined {
 }
 
 function normalizeFile(filename: string): string {
-  const normalized = path.resolve(filename).replace(/\\/g, "/");
+  const normalized = displayFile(filename);
   return ts.sys.useCaseSensitiveFileNames ? normalized : normalized.toLowerCase();
+}
+
+function displayFile(filename: string): string {
+  return path.resolve(filename).replace(/\\/g, "/");
 }
 
 function scriptKind(filename: string): ts.ScriptKind {
