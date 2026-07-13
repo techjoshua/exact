@@ -1,5 +1,5 @@
 import type { ExpressionNode, Variable } from "./model.js";
-import { createModule, type ExpressionModule, type UnboundModule } from "./module.js";
+import { createModule, type BoundModule, type ExpressionModule, type UnboundModule } from "./module.js";
 import type { NodeRef } from "./query.js";
 import { printNode } from "./builder.js";
 import { validateExpressionTree } from "./validation.js";
@@ -61,7 +61,7 @@ export class ModuleRewriter {
     return this.insertAfter(target, node);
   }
 
-  apply(module: ExpressionModule): UnboundModule {
+  apply(module: BoundModule | UnboundModule): BoundModule | UnboundModule {
     const edits: Array<{ start: number; end: number; text: string }> = [];
     const newline = module.trivia.newline === "crlf" ? "\r\n" : "\n";
     const rewrite = (node: ExpressionNode): ExpressionNode | null => {
@@ -96,6 +96,7 @@ export class ModuleRewriter {
     };
     const root = rewrite(module.rootNode);
     if (!root) throw new Error("An expression module root cannot be removed");
+    if (root === module.rootNode && edits.length === 0) return module;
     const applied = applyEdits(module.source, edits);
     const priorOrigins = module.provenance?.lineOrigins;
     const lineOrigins = Object.freeze(applied.lineOrigins.map(line => priorOrigins?.[line] ?? line));
@@ -168,7 +169,7 @@ function applyEdits(source: string, edits: readonly { start: number; end: number
   return Object.freeze({ source: output, lineOrigins: Object.freeze(lineOrigins) });
 }
 
-export function rewriteModule(module: ExpressionModule, configure: (rewriter: ModuleRewriter) => void): UnboundModule {
+export function rewriteModule(module: BoundModule | UnboundModule, configure: (rewriter: ModuleRewriter) => void): BoundModule | UnboundModule {
   const rewriter = new ModuleRewriter();
   configure(rewriter);
   return rewriter.apply(module);

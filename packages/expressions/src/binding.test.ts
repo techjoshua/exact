@@ -47,6 +47,7 @@ describe("@exact/expressions binding", () => {
     });
 
     expect(rewritten.validate().map(diagnostic => diagnostic.code)).toContain("EXPR_FOREIGN_SCOPE");
+    if (rewritten.state !== "unbound") throw new Error("A structural rewrite must require rebinding");
     await expect(project.bind(rewritten)).rejects.toBeInstanceOf(ExpressionProjectError);
   });
 

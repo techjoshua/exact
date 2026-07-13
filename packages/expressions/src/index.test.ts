@@ -224,6 +224,7 @@ export function total(items: number[]) {
       rewriter.replaceTextWhere(ref => ref.node.kind === "BinaryExpression", ref => `(${ref.node.text}) * 3`);
     });
     expect(rewritten.validate().filter(diagnostic => diagnostic.severity === "error")).toEqual([]);
+    if (rewritten.state !== "unbound") throw new Error("A text rewrite must require rebinding");
     const rebound = await project.bind(rewritten);
     expect(rebound.diagnostics.filter(diagnostic => diagnostic.severity === "error")).toEqual([]);
     expect(rebound.emit().code).toContain("(1 + 2) * 3");
@@ -253,6 +254,7 @@ export function total(items: number[]) {
     expect(emitted.code).toBe("const first = 1;\n// generated\nconst second = 2;");
     expect(emitted.map?.sourcesContent).toEqual([source]);
     expect(emitted.map?.mappings).toBe("AAAA;AACA;AAAA");
+    if (rewritten.state !== "unbound") throw new Error("An insertion must require rebinding");
     const rebound = await project.bind(rewritten);
     expect(rebound.emit({ sourceMap: true }).map).toEqual(emitted.map);
   });
@@ -273,6 +275,17 @@ export function total(items: number[]) {
     expect(secondVariable.id).toBe(firstVariable.id);
     expect(secondVariable).not.toBe(firstVariable);
     expect(secondVariable.symbol).toBe(firstVariable.symbol);
+  });
+
+  it("retains bound identity for rewrites that make no changes", () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__noop_rewrite.ts");
+    const module = project.updateModule(filename, "export const value = 1;");
+    const effects = module.effects();
+    const rewritten = rewriteModule(module, () => {});
+    expect(rewritten).toBe(module);
+    expect(rewritten.state).toBe("bound");
+    expect(rewritten.effects()).toBe(effects);
   });
 
   it("reuses analyses for structurally shared unchanged subtrees", () => {
