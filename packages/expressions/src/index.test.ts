@@ -125,6 +125,18 @@ export function total(items: number[]) {
     expect(bound.walk().functions().single().node.name).toBe("double");
   });
 
+  it("constructs type-only aliased imports as canonical variables", () => {
+    const builder = expressions.module("generated-import.ts");
+    const [component] = builder.import(["Component"], "@exact/core", {
+      typeOnly: true,
+      aliases: { Component: "ExactComponent" }
+    });
+    expect(component?.name).toBe("ExactComponent");
+    expect(component?.importedFrom).toBe("@exact/core");
+    expect(component?.typeOnly).toBe(true);
+    expect(builder.build().emit().code).toContain('import type { Component as ExactComponent } from "@exact/core";');
+  });
+
   it("constructs classes, generics, async code, closures, objects, arrays, and JSX", async () => {
     const filename = path.join(root, "apps/kanban/src/__generated_rich_expression.tsx");
     const builder = expressions.module(filename);

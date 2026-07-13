@@ -123,6 +123,11 @@ export interface PropertyOptions {
   readonly access?: "public" | "protected" | "private";
 }
 
+export interface ImportOptions {
+  readonly typeOnly?: boolean;
+  readonly aliases?: Readonly<Record<string, string>>;
+}
+
 function syntheticNode(
   kind: string,
   category: ExpressionNode["category"],
@@ -308,13 +313,15 @@ export class ModuleBuilder {
     return variable;
   }
 
-  import(names: readonly string[], from: string): readonly Variable[] {
-    const variables = names.map(name => {
-      const variable = new SyntheticVariable(name, "import", this.scope, undefined, false, from);
+  import(names: readonly string[], from: string, options: ImportOptions = {}): readonly Variable[] {
+    const variables = names.map(importedName => {
+      const name = options.aliases?.[importedName] ?? importedName;
+      const variable = new SyntheticVariable(name, "import", this.scope, undefined, false, from, options.typeOnly ?? false);
       this.scope.add(variable);
       return variable;
     });
-    this.statements.push(syntheticNode("ImportDeclaration", "declaration", this.scope, `import { ${names.join(", ")} } from ${JSON.stringify(from)};`, [], { name: from }));
+    const bindings = names.map(name => options.aliases?.[name] ? `${name} as ${options.aliases[name]}` : name);
+    this.statements.push(syntheticNode("ImportDeclaration", "declaration", this.scope, `import${options.typeOnly ? " type" : ""} { ${bindings.join(", ")} } from ${JSON.stringify(from)};`, [], { name: from }));
     return variables;
   }
 

@@ -58,6 +58,7 @@ export {
   moduleBuilder,
   printNode,
   type FunctionOptions,
+  type ImportOptions,
   type MethodOptions,
   type PropertyOptions
 } from "./builder.js";
