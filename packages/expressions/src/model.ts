@@ -56,6 +56,7 @@ export interface ExpressionScope {
 
 /** Canonical binding identity shared by declarations and every use. */
 export interface Variable {
+  /** Stable across project rebuilds while this declaration remains equivalent. */
   readonly id: string;
   readonly name: string;
   readonly declarationKind: string;

@@ -18,6 +18,7 @@ describe("@exact/expressions", () => {
     expect(module.emit().code).toContain("export function ColumnView");
     expect(module.walk().functions().any()).toBe(true);
     expect(module.walk().calls().any()).toBe(true);
+    expect(module.walk().calls().where(call => call.target?.isMember("filter") === true).any()).toBe(true);
     expect(module.walk().jsxElements().toArray().length).toBeGreaterThan(5);
     expect(module.root.descendants().first()?.parent).toBeDefined();
   });
@@ -79,11 +80,15 @@ export function total(items: number[]) {
     const filename = path.join(root, "apps/kanban/src/__expressions_versions.ts");
     const first = project.updateModule(filename, "let value = 1; value += 2;");
     const firstEffects = first.effects();
-    const second = project.updateModule(filename, "let value = 1; value += 3;");
+    const second = project.updateModule(filename, "// unrelated insertion\nlet value = 1; value += 3;");
 
     expect(second.version).toBeGreaterThan(first.version);
     expect(first.emit().code).toContain("+= 2");
     expect(second.emit().code).toContain("+= 3");
     expect(first.effects()).toBe(firstEffects);
+    const firstVariable = first.walk().references().first(ref => ref.name === "value")!.variable!;
+    const secondVariable = second.walk().references().first(ref => ref.name === "value")!.variable!;
+    expect(secondVariable.id).toBe(firstVariable.id);
+    expect(secondVariable).not.toBe(firstVariable);
   });
 });

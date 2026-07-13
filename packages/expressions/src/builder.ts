@@ -8,6 +8,7 @@ import type {
   Variable
 } from "./model.js";
 import { createModule, type UnboundModule } from "./module.js";
+import { validateExpressionTree } from "./validation.js";
 
 let syntheticId = 1;
 
@@ -214,6 +215,7 @@ export class ModuleBuilder {
       source: "",
       root,
       state: "unbound",
+      diagnostics: validateExpressionTree(root, this.filename),
       emitGenerated: options => ({
         code: normalizeGenerated(code, options),
         ...(options?.sourceMap ? { map: { version: 3 as const, file: this.filename, sources: [this.filename], sourcesContent: [code], names: [], mappings: code.split("\n").map(() => "AAAA").join(";") } } : {})

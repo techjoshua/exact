@@ -26,60 +26,39 @@ export class ExpressionProjectError extends Error {
 }
 
 class ProjectScope implements ExpressionScope {
-  private owned: Variable[] = [];
+  private owned: readonly Variable[] = [];
   constructor(readonly id: string, readonly kind: ScopeKind, readonly parent?: ExpressionScope) {}
   get variables(): readonly Variable[] { return this.owned; }
-  add(variable: Variable): void { if (!this.owned.includes(variable)) this.owned.push(variable); }
+  add(variable: Variable): void { if (!this.owned.includes(variable)) this.owned = [...this.owned, variable]; }
+  seal(): void { this.owned = Object.freeze([...this.owned]); }
 }
 
 class ProjectVariable implements Variable {
-  private currentScope: ExpressionScope;
-  private currentType?: ExpressionType;
-  private currentName: string;
-  private currentKind: string;
-  private currentExported = false;
-  private currentImport?: string;
   readonly synthetic = false;
 
   constructor(readonly id: string, name: string, kind: string, scope: ExpressionScope) {
-    this.currentName = name;
-    this.currentKind = kind;
-    this.currentScope = scope;
+    this.name = name;
+    this.declarationKind = kind;
+    this.scope = scope;
   }
-
-  get name(): string { return this.currentName; }
-  get declarationKind(): string { return this.currentKind; }
-  get scope(): ExpressionScope { return this.currentScope; }
-  get type(): ExpressionType | undefined { return this.currentType; }
-  get exported(): boolean { return this.currentExported; }
-  get importedFrom(): string | undefined { return this.currentImport; }
-
-  update(data: { name: string; kind: string; scope: ExpressionScope; type?: ExpressionType; exported: boolean; importedFrom?: string }): void {
-    this.currentName = data.name;
-    this.currentKind = data.kind;
-    this.currentScope = data.scope;
-    this.currentType = data.type;
-    this.currentExported = data.exported;
-    this.currentImport = data.importedFrom;
-  }
+  readonly name: string;
+  readonly declarationKind: string;
+  readonly scope: ExpressionScope;
+  type?: ExpressionType;
+  exported = false;
+  importedFrom?: string;
 }
 
 class ProjectType implements ExpressionType {
-  kind: ExpressionTypeKind = "unknown";
-  display = "unknown";
-  nullable = false;
-  callable = false;
-  properties: readonly string[] = Object.freeze([]);
-  unionMembers: readonly ExpressionType[] = Object.freeze([]);
-  constructor(readonly id: string) {}
-  update(data: Omit<ExpressionType, "id">): void {
-    this.kind = data.kind;
-    this.display = data.display;
-    this.nullable = data.nullable;
-    this.callable = data.callable;
-    this.properties = data.properties;
-    this.unionMembers = data.unionMembers;
-  }
+  constructor(
+    readonly id: string,
+    readonly kind: ExpressionTypeKind,
+    readonly display: string,
+    readonly nullable: boolean,
+    readonly callable: boolean,
+    readonly properties: readonly string[],
+    readonly unionMembers: readonly ExpressionType[]
+  ) { Object.freeze(this); }
 }
 
 /** Project-aware TypeScript bridge. No TypeScript compiler objects escape this class. */
@@ -87,8 +66,6 @@ export class ExpressionProject {
   readonly tsconfigPath: string;
   private readonly parsed: ts.ParsedCommandLine;
   private readonly overlays = new Map<string, string>();
-  private readonly variables = new Map<string, ProjectVariable>();
-  private readonly types = new Map<string, ProjectType>();
   private program?: ts.Program;
 
   constructor(options: ExpressionProjectOptions = {}) {
@@ -109,6 +86,17 @@ export class ExpressionProject {
     this.overlays.set(normalized, source);
     this.rebuild();
     return this.readBoundModule(normalized);
+  }
+
+  updateModules(entries: Iterable<readonly [filename: string, source: string]>): ReadonlyMap<string, BoundModule> {
+    const filenames: string[] = [];
+    for (const [filename, source] of entries) {
+      const normalized = normalizeFile(filename);
+      filenames.push(normalized);
+      this.overlays.set(normalized, source);
+    }
+    this.rebuild();
+    return new Map(filenames.map(filename => [filename, this.readBoundModule(filename)]));
   }
 
   getModule(filename: string, source?: string): BoundModule {
@@ -135,9 +123,16 @@ export class ExpressionProject {
   }
 
   private rebuild(): void {
+    const compilerOptions: ts.CompilerOptions = {
+      ...this.parsed.options,
+      // JavaScript modules are part of the supported runtime grammar even when
+      // a project's normal typecheck excludes them.
+      allowJs: true,
+      checkJs: this.parsed.options.checkJs ?? false
+    };
     const roots = new Set(this.parsed.fileNames.map(normalizeFile));
     for (const file of this.overlays.keys()) roots.add(file);
-    const base = ts.createCompilerHost(this.parsed.options, true);
+    const base = ts.createCompilerHost(compilerOptions, true);
     const overlays = this.overlays;
     const host: ts.CompilerHost = {
       ...base,
@@ -150,7 +145,7 @@ export class ExpressionProject {
         return base.getSourceFile(file, languageVersion, onError, shouldCreateNewSourceFile);
       }
     };
-    this.program = ts.createProgram({ rootNames: [...roots], options: this.parsed.options, host, oldProgram: this.program });
+    this.program = ts.createProgram({ rootNames: [...roots], options: compilerOptions, host, oldProgram: this.program });
   }
 
   private readBoundModule(filename: string): BoundModule {
@@ -160,6 +155,7 @@ export class ExpressionProject {
     const checker = program.getTypeChecker();
     const scopes = new Map<ts.Node, ProjectScope>();
     const symbolVariables = new Map<ts.Symbol, ProjectVariable>();
+    const typeCache = new Map<ts.Type, ExpressionType>();
     const diagnostics = [
       ...program.getSyntacticDiagnostics(sourceFile),
       ...program.getSemanticDiagnostics(sourceFile)
@@ -178,19 +174,28 @@ export class ExpressionProject {
     };
 
     const typeFor = (type: ts.Type, at: ts.Node): ExpressionType => {
+      const cached = typeCache.get(type);
+      if (cached) return cached;
       const display = checker.typeToString(type, at, ts.TypeFormatFlags.NoTruncation);
       const key = `${type.flags}:${display}`;
-      const value = this.types.get(key) ?? new ProjectType(`type:${key}`);
-      if (!this.types.has(key)) this.types.set(key, value);
-      const members = type.isUnionOrIntersection() ? type.types.map(member => typeFor(member, at)) : [];
-      value.update({
-        kind: typeKind(type),
-        display,
-        nullable: Boolean(type.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined | ts.TypeFlags.Any | ts.TypeFlags.Unknown)) || members.some(member => member.nullable),
-        callable: type.getCallSignatures().length > 0,
-        properties: Object.freeze(type.getProperties().map(property => property.name)),
-        unionMembers: Object.freeze(members)
+      // Install a cycle breaker before expanding recursive union members.
+      const placeholder: ExpressionType = Object.freeze({
+        id: `type:${key}`, kind: typeKind(type), display,
+        nullable: false, callable: type.getCallSignatures().length > 0,
+        properties: Object.freeze([]), unionMembers: Object.freeze([])
       });
+      typeCache.set(type, placeholder);
+      const members = type.isUnionOrIntersection() ? type.types.map(member => typeFor(member, at)) : [];
+      const value = new ProjectType(
+        `type:${key}`,
+        typeKind(type),
+        display,
+        Boolean(type.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined | ts.TypeFlags.Any | ts.TypeFlags.Unknown)) || members.some(member => member.nullable),
+        type.getCallSignatures().length > 0,
+        Object.freeze(type.getProperties().map(property => property.name)),
+        Object.freeze(members)
+      );
+      typeCache.set(type, value);
       return value;
     };
 
@@ -201,22 +206,17 @@ export class ExpressionProject {
       if (cached) return cached;
       const declaration = symbol.valueDeclaration ?? symbol.declarations?.[0] ?? identifier;
       const declarationFile = normalizeFile(declaration.getSourceFile().fileName);
-      const key = `${declarationFile}:${declaration.getStart()}:${symbol.name}`;
+      const key = declarationIdentity(declarationFile, declaration, symbol.name);
       const scope = scopeFor(declaration);
-      const variable = this.variables.get(key) ?? new ProjectVariable(key, symbol.name, ts.SyntaxKind[declaration.kind], scope);
-      this.variables.set(key, variable);
+      const variable = new ProjectVariable(key, symbol.name, ts.SyntaxKind[declaration.kind], scope);
       symbolVariables.set(symbol, variable);
       let variableType: ExpressionType | undefined;
       try { variableType = typeFor(checker.getTypeOfSymbolAtLocation(symbol, identifier), identifier); } catch { /* TypeScript can reject incomplete error symbols. */ }
-      variable.update({
-        name: symbol.name,
-        kind: ts.SyntaxKind[declaration.kind],
-        scope,
-        type: variableType,
-        exported: Boolean(symbol.flags & ts.SymbolFlags.ExportValue),
-        importedFrom: importSource(declaration)
-      });
+      variable.type = variableType;
+      variable.exported = Boolean(symbol.flags & ts.SymbolFlags.ExportValue);
+      variable.importedFrom = importSource(declaration);
       scope.add(variable);
+      Object.freeze(variable);
       return variable;
     };
 
@@ -260,9 +260,32 @@ export class ExpressionProject {
     };
 
     const root = convert(sourceFile);
+    for (const scope of scopes.values()) scope.seal();
     const module = createModule({ filename, source: sourceFile.text, root, state: "bound", diagnostics });
     return module;
   }
+}
+
+function declarationIdentity(filename: string, declaration: ts.Node, name: string): string {
+  const scopes: string[] = [];
+  let cursor = declaration.parent;
+  while (cursor && !ts.isSourceFile(cursor)) {
+    if (ts.isFunctionLike(cursor) || ts.isClassLike(cursor) || ts.isModuleDeclaration(cursor)) {
+      const named = hasNodeName(cursor) && cursor.name ? cursor.name.getText() : undefined;
+      scopes.push(named ? `${ts.SyntaxKind[cursor.kind]}:${named}` : `${ts.SyntaxKind[cursor.kind]}:${fingerprint(cursor.getText().replace(/\s+/g, " "))}`);
+    }
+    cursor = cursor.parent;
+  }
+  return `${filename}:${scopes.reverse().join("/")}:${ts.SyntaxKind[declaration.kind]}:${name}`;
+}
+
+function fingerprint(value: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index++) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
 }
 
 export function createExpressionProject(options: ExpressionProjectOptions = {}): ExpressionProject {
@@ -276,7 +299,7 @@ function normalizeFile(filename: string): string {
 function scriptKind(filename: string): ts.ScriptKind {
   if (filename.endsWith(".tsx")) return ts.ScriptKind.TSX;
   if (filename.endsWith(".jsx")) return ts.ScriptKind.JSX;
-  if (filename.endsWith(".js")) return ts.ScriptKind.JS;
+  if (/\.[cm]?js$/.test(filename)) return ts.ScriptKind.JS;
   return ts.ScriptKind.TS;
 }
 

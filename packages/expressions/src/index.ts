@@ -38,6 +38,7 @@ export {
 } from "./project.js";
 export { FunctionBuilder, ModuleBuilder, TypeBuilder, moduleBuilder, printNode } from "./builder.js";
 export { ModuleRewriter, cloneWithVariables, rewriteModule } from "./rewrite.js";
+export { validateExpressionTree } from "./validation.js";
 
 import { moduleBuilder } from "./builder.js";
 import { createExpressionProject } from "./project.js";

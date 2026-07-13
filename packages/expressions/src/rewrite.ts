@@ -2,6 +2,7 @@ import type { ExpressionNode, Variable } from "./model.js";
 import { createModule, type ExpressionModule, type UnboundModule } from "./module.js";
 import type { NodeRef } from "./query.js";
 import { printNode } from "./builder.js";
+import { validateExpressionTree } from "./validation.js";
 
 type Replacement = ExpressionNode | null;
 type RewriteSelector = (ref: NodeRef) => boolean;
@@ -69,7 +70,7 @@ export class ModuleRewriter {
     const root = rewrite(module.rootNode);
     if (!root) throw new Error("An expression module root cannot be removed");
     const source = applyEdits(module.source, edits);
-    return createModule({ filename: module.filename, source, root, state: "unbound", trivia: module.trivia });
+    return createModule({ filename: module.filename, source, root, state: "unbound", trivia: module.trivia, diagnostics: validateExpressionTree(root, module.filename) });
   }
 }
 

@@ -20,6 +20,11 @@ export class NodeRef<T extends ExpressionNode = ExpressionNode> {
     readonly parentIndex: ParentIndex
   ) {}
 
+  get kind(): T["kind"] { return this.node.kind; }
+  get name(): string | undefined { return this.node.name; }
+  get variable() { return this.node.variable; }
+  get type() { return this.node.type; }
+
   get parent(): NodeRef | undefined {
     const parent = this.parentIndex.get(this.node);
     return parent ? new NodeRef(parent, this.parentIndex) : undefined;
@@ -50,6 +55,32 @@ export class NodeRef<T extends ExpressionNode = ExpressionNode> {
 
   isKind<K extends string>(kind: K): boolean {
     return this.node.kind === kind;
+  }
+
+  isMember(name?: string): boolean {
+    return (this.node.kind === "PropertyAccessExpression" || this.node.kind === "ElementAccessExpression")
+      && (name === undefined || this.node.name === name || this.node.children[1]?.text === name);
+  }
+
+  get target(): NodeRef | undefined {
+    if (!isCallExpression(this.node) && !this.isMember()) return undefined;
+    const target = isCallExpression(this.node) ? this.node.target : this.node.children[0];
+    return target ? new NodeRef(target, this.parentIndex) : undefined;
+  }
+
+  get arguments(): readonly NodeRef[] {
+    if (!isCallExpression(this.node)) return Object.freeze([]);
+    return Object.freeze(this.node.arguments.map(argument => new NodeRef(argument, this.parentIndex)));
+  }
+
+  get rootVariable() {
+    let cursor: NodeRef | undefined = this;
+    let variable = cursor.variable;
+    while (cursor?.target) {
+      cursor = cursor.target;
+      variable = cursor.variable ?? variable;
+    }
+    return variable;
   }
 }
 
@@ -100,6 +131,30 @@ export class NodeQuery<T extends ExpressionNode = ExpressionNode> implements Ite
 
   jsxElements(): NodeQuery<JsxExpressionNode> {
     return this.ofKind(isJsxExpression);
+  }
+
+  memberAccesses(): NodeQuery<T> {
+    return this.where(ref => ref.isMember());
+  }
+
+  declarations(): NodeQuery<T> {
+    return this.where(ref => ref.node.category === "declaration");
+  }
+
+  references(): NodeQuery<T> {
+    return this.where(ref => ref.node.kind === "Identifier" && !!ref.node.variable);
+  }
+
+  inScope(scopeId: string): NodeQuery<T> {
+    return this.where(ref => {
+      let scope = ref.node.scope;
+      while (scope) {
+        if (scope.id === scopeId) return true;
+        if (!scope.parent) break;
+        scope = scope.parent;
+      }
+      return false;
+    });
   }
 
   first(predicate?: (ref: NodeRef<T>) => boolean): NodeRef<T> | undefined {
