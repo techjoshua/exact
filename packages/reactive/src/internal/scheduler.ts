@@ -26,31 +26,42 @@ export function removeQueuedComputation(computation: () => void): void {
 export function flushSync(): void {
   // Computations run before reactions so derived values settle before render/watch effects observe them.
   let passes = 0;
-  while (queuedComputations.size || queuedReactions.size) {
-    if (++passes > maxFlushPasses) {
-      queuedComputations.clear();
+  let firstError: unknown;
+  try {
+    while (queuedComputations.size || queuedReactions.size) {
+      if (++passes > maxFlushPasses) {
+        queuedComputations.clear();
+        queuedReactions.clear();
+        throw new Error("eXact reactive scheduler exceeded its flush limit; a reaction is repeatedly invalidating itself");
+      }
+      while (queuedComputations.size) {
+        const computations = [...queuedComputations];
+        queuedComputations.clear();
+        for (const computation of computations) {
+          try {
+            computation();
+          } catch (error) {
+            firstError ??= error;
+          }
+        }
+      }
+
+      const reactions = [...queuedReactions];
       queuedReactions.clear();
-      flushScheduled = false;
-      throw new Error("eXact reactive scheduler exceeded its flush limit; a reaction is repeatedly invalidating itself");
-    }
-    while (queuedComputations.size) {
-      const computations = [...queuedComputations];
-      queuedComputations.clear();
-      for (const computation of computations) {
-        computation();
+
+      for (const reaction of reactions) {
+        if (!reaction.active || reaction.scope && !reaction.scope.active) continue;
+        try {
+          reaction.run();
+        } catch (error) {
+          firstError ??= error;
+        }
       }
     }
-
-    const reactions = [...queuedReactions];
-    queuedReactions.clear();
+  } finally {
     flushScheduled = false;
-
-    for (const reaction of reactions) {
-      if (reaction.active && (!reaction.scope || reaction.scope.active)) reaction.run();
-    }
   }
-
-  flushScheduled = false;
+  if (firstError !== undefined) throw firstError;
 }
 
 function scheduleFlush(): void {

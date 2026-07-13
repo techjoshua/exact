@@ -2,6 +2,8 @@ import type { Dep, Reaction } from "./types.js";
 
 const deps = new WeakMap<object, Map<PropertyKey, Dep>>();
 const reactionStack: Reaction[] = [];
+let transactionDepth = 0;
+const pendingTriggers = new Map<object, Set<PropertyKey>>();
 
 /** Records that the active reaction depends on a target/key pair. */
 export function track(target: object, key: PropertyKey): void {
@@ -15,7 +17,39 @@ export function track(target: object, key: PropertyKey): void {
 
 /** Schedules every reaction currently subscribed to a target/key pair. */
 export function trigger(target: object, key: PropertyKey): void {
-  const dep = getDep(target, key);
+  if (transactionDepth) {
+    let keys = pendingTriggers.get(target);
+    if (!keys) {
+      keys = new Set();
+      pendingTriggers.set(target, keys);
+    }
+    keys.add(key);
+    return;
+  }
+  triggerNow(target, key);
+}
+
+/** Runs a group of writes as one observable state transition. */
+export function batch<T>(fn: () => T): T {
+  transactionDepth++;
+  try {
+    return fn();
+  } finally {
+    transactionDepth--;
+    if (!transactionDepth) flushTriggers();
+  }
+}
+
+function flushTriggers(): void {
+  if (!pendingTriggers.size) return;
+  const pending = [...pendingTriggers];
+  pendingTriggers.clear();
+  for (const [target, keys] of pending) for (const key of keys) triggerNow(target, key);
+}
+
+function triggerNow(target: object, key: PropertyKey): void {
+  const dep = deps.get(target)?.get(key);
+  if (!dep) return;
   for (const reaction of [...dep]) {
     reaction.schedule();
   }

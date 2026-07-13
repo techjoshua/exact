@@ -19,6 +19,7 @@ export type Dep = Set<Reaction>;
 
 export type Reaction = {
   active: boolean;
+  scheduled: boolean;
   scope?: EffectScopeImpl;
   deps: Set<Dep>;
   run(): void;

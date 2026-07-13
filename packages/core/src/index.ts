@@ -263,6 +263,7 @@ type TaskRegistration = {
   stops: StopHandle[];
   controller?: AbortController;
   cleanup?: () => void | Promise<void>;
+  generation: number;
   run(): void;
   stop(): void;
 };
@@ -687,16 +688,19 @@ function createTask(instance: ComponentInstance<any>, deps: unknown[], work: (..
     sources,
     work,
     stops: [],
+    generation: 0,
     run() {
       // A task rerun invalidates its previous abort signal and cleanup before starting
       // fresh work, so async callbacks can reliably observe cancellation.
+      const generation = ++task.generation;
       task.controller?.abort("rerun");
-      void task.cleanup?.();
-      task.controller = new AbortController();
+      runTaskCleanup(task, instance);
+      const controller = new AbortController();
+      task.controller = controller;
       const values = task.deps.map(dep => unwrap(dep));
       let result: TaskResult;
       try {
-        result = task.work(...values, { signal: task.controller.signal });
+        result = task.work(...values, { signal: controller.signal });
       } catch (error) {
         handleComponentError(instance, createErrorReport(error, "task", instance, "run"));
         return;
@@ -704,8 +708,16 @@ function createTask(instance: ComponentInstance<any>, deps: unknown[], work: (..
 
       if (result instanceof Promise) {
         const observed = result.then(cleanup => {
-          if (typeof cleanup === "function") task.cleanup = cleanup;
+          if (typeof cleanup !== "function") return;
+          if (task.generation === generation && task.controller === controller && !controller.signal.aborted) {
+            task.cleanup = cleanup;
+          } else {
+            void Promise.resolve(cleanup()).catch(error => {
+              handleComponentError(instance, createErrorReport(error, "task", instance, "stale-cleanup"));
+            });
+          }
         }).catch(error => {
+          if (task.generation !== generation || controller.signal.aborted && isAbortError(error)) return;
           handleComponentError(instance, createErrorReport(error, "task", instance, "promise"));
         });
         taskObserverStack[taskObserverStack.length - 1]?.register(observed, instance);
@@ -718,18 +730,33 @@ function createTask(instance: ComponentInstance<any>, deps: unknown[], work: (..
       }
     },
     stop() {
+      task.generation++;
       task.controller?.abort("unmount");
-      try {
-        void task.cleanup?.();
-      } catch (error) {
-        handleComponentError(instance, createErrorReport(error, "task", instance, "cleanup"));
-      }
+      runTaskCleanup(task, instance);
       for (const stop of task.stops) stop();
       task.stops = [];
     }
   };
 
   return task;
+}
+
+function runTaskCleanup(task: TaskRegistration, instance: ComponentInstance<any>): void {
+  const cleanup = task.cleanup;
+  task.cleanup = undefined;
+  if (!cleanup) return;
+  try {
+    void Promise.resolve(cleanup()).catch(error => {
+      handleComponentError(instance, createErrorReport(error, "task", instance, "cleanup"));
+    });
+  } catch (error) {
+    handleComponentError(instance, createErrorReport(error, "task", instance, "cleanup"));
+  }
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError"
+    || !!error && typeof error === "object" && (error as { name?: unknown }).name === "AbortError";
 }
 
 function createComponentReactiveValue<T>(instance: ComponentInstance<any>, value: ReactiveValue<T>): ComponentReactiveValue<T> {

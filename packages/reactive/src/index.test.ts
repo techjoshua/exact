@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { computed, flushSync, isReactive, mutateReactiveArray, peek, reactive, ref, registerReactiveListKey, snapshot, subscribe, unwrap, updateReactiveValue, watch, writeReactive } from "./index.js";
+import { batch, computed, flushSync, isReactive, mutateReactiveArray, peek, reactive, ref, registerReactiveListKey, snapshot, subscribe, unwrap, updateReactiveValue, watch, writeReactive } from "./index.js";
 
 describe("@exact/reactive", () => {
   it("does not subscribe merely by obtaining a computed reference", () => {
@@ -101,7 +101,7 @@ describe("@exact/reactive", () => {
 
     expect(state.activity.map(item => item.id)).toEqual(["second", "first"]);
     expect(lengths).toEqual([0, 2]);
-    expect(scheduledSnapshots).toEqual([["first"], ["second", "first"]]);
+    expect(scheduledSnapshots).toEqual([["first"]]);
   });
 
   it("keeps keyed task and activity arrays valid across repeated component-style updates", () => {
@@ -130,6 +130,94 @@ describe("@exact/reactive", () => {
 
     expect(state.tasks.map(item => item.id)).toEqual(["task", "other"]);
     expect(state.activity.map(item => item.id)).toEqual(["2", "1"]);
+  });
+
+  it("publishes structured object writes only after the complete object is valid", () => {
+    const state = reactive({ record: { first: "old", second: "old" } });
+    const scheduled: string[] = [];
+    watch(
+      () => `${state.record.first}:${state.record.second}`,
+      undefined,
+      { onSchedule: () => scheduled.push(`${state.record.first}:${state.record.second}`) }
+    );
+
+    writeReactive(state, ["record"], { first: "new", second: "new" });
+    flushSync();
+
+    expect(scheduled).toEqual(["new:new"]);
+  });
+
+  it("deduplicates scheduling across a compiler-owned transaction", () => {
+    const state = reactive({ first: 0, second: 0 });
+    const scheduled = vi.fn();
+    const render = vi.fn(() => void `${state.first}:${state.second}`);
+    watch(render, undefined, { onSchedule: scheduled });
+
+    batch(() => {
+      state.first = 1;
+      state.second = 2;
+    });
+    flushSync();
+
+    expect(scheduled).toHaveBeenCalledTimes(1);
+    expect(render).toHaveBeenCalledTimes(2);
+  });
+
+  it("invalidates array length and removed indexes for direct writes", () => {
+    const state = reactive({ items: ["a", "b", "c"] as Array<string | undefined> });
+    const lengths: number[] = [];
+    const removed: Array<string | undefined> = [];
+    watch(() => lengths.push(state.items.length));
+    watch(() => removed.push(state.items[2]));
+
+    state.items[5] = "f";
+    flushSync();
+    state.items.length = 1;
+    flushSync();
+
+    expect(lengths).toEqual([3, 6, 1]);
+    expect(removed).toEqual(["c", undefined]);
+  });
+
+  it("tracks property-existence reads", () => {
+    const state = reactive({ record: {} as Record<string, number> });
+    const values: boolean[] = [];
+    watch(() => values.push("answer" in state.record));
+    state.record.answer = 42;
+    flushSync();
+    expect(values).toEqual([false, true]);
+  });
+
+  it("leaves non-plain objects intact", () => {
+    const date = new Date(0);
+    const map = new Map([["answer", 42]]);
+    const state = reactive({ date, map });
+    expect(state.date).toBe(date);
+    expect(state.date.getTime()).toBe(0);
+    expect(state.map.get("answer")).toBe(42);
+  });
+
+  it("compares and snapshots cyclic graphs safely", () => {
+    const value: { label: string; self?: unknown } = { label: "node" };
+    value.self = value;
+    const state = reactive({ value });
+    const copy = snapshot(state.value);
+    expect(copy).not.toBe(value);
+    expect(copy.self).toBe(copy);
+    expect(() => { state.value = value; }).not.toThrow();
+  });
+
+  it("notifies mutations performed before a throwing array comparator", () => {
+    const state = reactive({ items: [3, 2, 1] });
+    const seen: string[] = [];
+    watch(() => seen.push(state.items.join(",")));
+    let comparisons = 0;
+    expect(() => state.items.sort((left, right) => {
+      if (++comparisons > 1) throw new Error("stop");
+      return left - right;
+    })).toThrow("stop");
+    flushSync();
+    if (state.items.join(",") !== "3,2,1") expect(seen.at(-1)).toBe(state.items.join(","));
   });
 
   it("rejects conflicting key extractors registered for one collection", () => {

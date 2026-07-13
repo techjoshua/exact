@@ -8,7 +8,7 @@ export type {
   WatchOptions
 } from "./internal/types.js";
 
-import { cleanupReaction, getDep, peek, runTracked, track, trigger } from "./internal/deps.js";
+import { batch, cleanupReaction, getDep, peek, runTracked, track, trigger } from "./internal/deps.js";
 import { hasChanged as hasStructurallyChanged, structurallyEqual } from "./internal/equality.js";
 import { isArrayStructureKey, isPlainObject } from "./internal/objects.js";
 import { createEffectScope, currentEffectScope, withEffectScope } from "./internal/scopes.js";
@@ -26,7 +26,7 @@ import type {
   WatchOptions
 } from "./internal/types.js";
 
-export { createEffectScope, flushSync, peek, withEffectScope };
+export { batch, createEffectScope, flushSync, peek, withEffectScope };
 
 /**
  * Compiler runtime hook for a statically-known state assignment.  Unlike a
@@ -36,12 +36,12 @@ export { createEffectScope, flushSync, peek, withEffectScope };
  */
 export function writeReactive(target: object, path: readonly PropertyKey[], next: unknown): unknown {
   if (!path.length) throw new TypeError("writeReactive requires a state path");
-  const { parent, key } = resolveReactivePath(target, path);
-  const previous = Reflect.get(parent, key);
-  if (reconcileReactiveValue(previous, next, new WeakMap())) return next;
-  if (!Object.is(unwrap(previous), unwrap(next))) {
-    Reflect.set(parent, key, next);
-  }
+  batch(() => {
+    const { parent, key } = resolveReactivePath(target, path);
+    const previous = Reflect.get(parent, key);
+    if (reconcileReactiveValue(previous, next, new WeakMap())) return;
+    if (!Object.is(unwrap(previous), unwrap(next))) Reflect.set(parent, key, next);
+  });
   return next;
 }
 
@@ -199,6 +199,7 @@ export function watch(fn: () => void, scheduler?: () => void, options: WatchOpti
   const scope = (options.scope ?? currentEffectScope()) as EffectScopeImpl | undefined;
   const reaction: Reaction = {
     active: true,
+    scheduled: false,
     scope,
     deps: new Set(),
     run() {
@@ -207,6 +208,7 @@ export function watch(fn: () => void, scheduler?: () => void, options: WatchOpti
         reaction.stop();
         return;
       }
+      reaction.scheduled = false;
       runTracked(reaction, fn);
     },
     schedule() {
@@ -215,6 +217,8 @@ export function watch(fn: () => void, scheduler?: () => void, options: WatchOpti
         reaction.stop();
         return;
       }
+      if (reaction.scheduled) return;
+      reaction.scheduled = true;
       options.onSchedule?.();
       if (scheduler) {
         scheduler();
@@ -225,6 +229,7 @@ export function watch(fn: () => void, scheduler?: () => void, options: WatchOpti
     },
     stop() {
       reaction.active = false;
+      reaction.scheduled = false;
       cleanupReaction(reaction);
       reaction.scope?.reactions.delete(reaction);
     }
@@ -240,11 +245,20 @@ export function subscribe<T>(source: ReactiveRef<T>, callback: () => void): Stop
   const dep = getDep(source.target, source.key);
   const reaction: Reaction = {
     active: true,
+    scheduled: false,
     deps: new Set([dep]),
-    run: callback,
-    schedule: callback,
+    run() {
+      reaction.scheduled = false;
+      callback();
+    },
+    schedule() {
+      if (reaction.scheduled) return;
+      reaction.scheduled = true;
+      queueReaction(reaction);
+    },
     stop() {
       reaction.active = false;
+      reaction.scheduled = false;
       dep.delete(reaction);
       reaction.deps.clear();
     }
@@ -290,19 +304,32 @@ export function isReactive(value: unknown): boolean {
 
 /** Creates a plain recursive snapshot of reactive state for serialization or comparison. */
 export function snapshot<T>(value: T): T {
+  return snapshotValue(value, new WeakMap());
+}
+
+function snapshotValue<T>(value: T, seen: WeakMap<object, unknown>): T {
   const plain = unwrap(value);
 
   if (!plain || typeof plain !== "object") {
     return plain;
   }
 
+  const prior = seen.get(plain as object);
+  if (prior) return prior as T;
+
   if (Array.isArray(plain)) {
-    return plain.map(item => snapshot(item)) as T;
+    const result: unknown[] = [];
+    seen.set(plain, result);
+    for (let index = 0; index < plain.length; index++) {
+      if (Reflect.has(plain, index)) result[index] = snapshotValue(plain[index], seen);
+    }
+    return result as T;
   }
 
   const result: Record<PropertyKey, unknown> = {};
+  seen.set(plain as object, result);
   for (const key of Reflect.ownKeys(plain)) {
-    result[key] = snapshot((plain as Record<PropertyKey, unknown>)[key]);
+    result[key] = snapshotValue((plain as Record<PropertyKey, unknown>)[key], seen);
   }
 
   return result as T;
@@ -510,7 +537,7 @@ function createReactive(value: object, options: ReactiveOptions): object {
           : currentValue;
       }
 
-      if (current && typeof current === "object") {
+      if (current && typeof current === "object" && isReactiveContainer(unwrap(current))) {
         const currentTarget = unwrap(current) as object;
         const proxy = createReactive(currentTarget, options);
         const source = {
@@ -552,6 +579,10 @@ function createReactive(value: object, options: ReactiveOptions): object {
         return false;
       }
 
+      const previousLength = Array.isArray(target) ? target.length : undefined;
+      const removedIndexes = Array.isArray(target) && key === "length" && typeof next === "number" && next < target.length
+        ? Array.from({ length: target.length - next }, (_, offset) => next + offset).filter(index => Reflect.has(target, index))
+        : [];
       const previous = Reflect.get(target, key, receiver);
       const unwrapped = unwrap(next);
       const hadKey = Reflect.has(target, key);
@@ -559,6 +590,8 @@ function createReactive(value: object, options: ReactiveOptions): object {
       const ok = Reflect.set(target, key, unwrapped, receiver);
       if (ok && changed) {
         trigger(target, key);
+        for (const index of removedIndexes) trigger(target, String(index));
+        if (previousLength !== undefined && Array.isArray(target) && target.length !== previousLength && key !== "length") trigger(target, "length");
         if (!hadKey || isArrayStructureKey(target, key)) trigger(target, iterateKey);
       }
       return ok;
@@ -581,6 +614,10 @@ function createReactive(value: object, options: ReactiveOptions): object {
       rawObjectRefs.get(target)?.get();
       track(target, iterateKey);
       return Reflect.ownKeys(target);
+    },
+    has(target, key) {
+      track(target, key);
+      return Reflect.has(target, key);
     }
   });
 
@@ -596,20 +633,33 @@ function hasChanged(previous: unknown, next: unknown): boolean {
   return hasStructurallyChanged(previous, next, unwrap);
 }
 
+function isReactiveContainer(value: unknown): value is object {
+  return Array.isArray(value) || isPlainObject(value);
+}
+
 function reactiveValueChanged(previous: unknown, next: unknown): boolean {
   return (isReactiveValue(previous) || isReactiveValue(next)) && !Object.is(previous, next);
 }
 
 function mutateArray(target: unknown[], method: Function, args: unknown[], receiver: unknown): unknown {
   const previous = target.slice();
-  const result = method.apply(target, args.map(arg => unwrap(arg)));
-  if (!structurallyEqual(previous, target, unwrap)) {
-    const maxLength = Math.max(previous.length, target.length);
-    trigger(target, "length");
-    trigger(target, iterateKey);
-    for (let index = 0; index < maxLength; index++) {
-      trigger(target, String(index));
-    }
+  let result: unknown;
+  try {
+    result = method.apply(target, args.map(arg => unwrap(arg)));
+  } finally {
+    batch(() => {
+      const maxLength = Math.max(previous.length, target.length);
+      let changed = previous.length !== target.length;
+      for (let index = 0; index < maxLength; index++) {
+        const existed = Reflect.has(previous, index);
+        const exists = Reflect.has(target, index);
+        if (existed === exists && Object.is(unwrap(previous[index]), unwrap(target[index]))) continue;
+        changed = true;
+        trigger(target, String(index));
+      }
+      if (previous.length !== target.length) trigger(target, "length");
+      if (changed) trigger(target, iterateKey);
+    });
   }
 
   return result === target ? receiver : result;
