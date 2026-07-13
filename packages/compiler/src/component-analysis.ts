@@ -103,7 +103,7 @@ export function analyzeComponent(
       return;
     }
 
-    if (isUnmanagedBrowserListener(current, islandDepth, taskDepth)) {
+    if (expressionDiagnostics === undefined && isUnmanagedBrowserListener(current, islandDepth, taskDepth)) {
       diagnostics.push("error: browser-global addEventListener() must be registered in a client task or client island; use JSX events or an abort-scoped task");
     }
     if (expressionDiagnostics === undefined && isAsyncSnapshotCapture(current, setupStateAliases, semanticReferences, sourceFile)) {

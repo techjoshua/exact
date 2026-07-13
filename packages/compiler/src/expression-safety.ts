@@ -5,6 +5,7 @@ const asynchronousFunctions = new Set(["setTimeout", "setInterval", "queueMicrot
 const asynchronousMethods = new Set(["then", "catch", "finally"]);
 const observers = new Set(["MutationObserver", "ResizeObserver", "IntersectionObserver"]);
 const snapshotDiagnostic = "error: setup-time state snapshot captured by async callback; read state in the callback or wrap the snapshot in peek(() => ...)";
+const listenerDiagnostic = "error: browser-global addEventListener() must be registered in a client task or client island; use JSX events or an abort-scoped task";
 
 /** Finds unsafe captures using canonical variables and generic capture analysis. */
 export function analyzeExpressionSafety(module: BoundModule, provenance: ExactProvenanceGraph): ReadonlyMap<string, readonly string[]> {
@@ -38,7 +39,29 @@ export function analyzeExpressionSafety(module: BoundModule, provenance: ExactPr
     diagnostics.set(owner.node.name!, values);
   }
 
+  const locallyWritten = new Set(module.writesOf(module.root));
+  for (const call of module.walk().calls()) {
+    if (!call.target?.isMember("addEventListener")) continue;
+    const receiver = call.target.target;
+    const global = receiver?.rootVariable;
+    const globalName = global?.name ?? receiver?.name ?? receiver?.node.text;
+    if (!globalName || !["window", "document", "globalThis"].includes(globalName) || global && locallyWritten.has(global)) continue;
+    const owner = call.ancestors().functions().first(reference => setupSnapshots.has(reference.node.id));
+    if (!owner || insideManagedTask(call) || insideClientJsx(call)) continue;
+    const values = diagnostics.get(owner.node.name!) ?? new Set<string>();
+    values.add(listenerDiagnostic);
+    diagnostics.set(owner.node.name!, values);
+  }
+
   return new Map([...diagnostics].map(([name, values]) => [name, Object.freeze([...values])]));
+}
+
+function insideManagedTask(reference: NodeRef): boolean {
+  return reference.ancestors().calls().any(call => /^this\.task(?:\.[A-Za-z_$][\w$]*)?\s*\(/.test(call.node.text ?? ""));
+}
+
+function insideClientJsx(reference: NodeRef): boolean {
+  return reference.ancestors().ofKind("JsxAttribute").any(attribute => /^(?:on[A-Z]|ref)\b/.test(attribute.node.name ?? attribute.node.text ?? ""));
 }
 
 function isAsyncCall(call: NodeRef): boolean {
