@@ -93,12 +93,51 @@ describe("@exact/dom", () => {
     render(jsx(List, {}), container);
     expect(container.textContent).toContain('Duplicate key "same"');
   });
+  it("treats an empty string as a stable keyed-list identity", () => {
+    const container = document.createElement("div");
+    let list!: Component<{ items: string[] }>;
+    function List(this: Component<{ items: string[] }>) {
+      list = this;
+      this.state.items = ["", "a"];
+      return () => jsx("ul", { children: this.map(this.state.items, item => item, item => jsx("li", { children: item || "empty" })) });
+    }
+    render(jsx(List, {}), container);
+    const empty = container.querySelectorAll("li")[0];
+    list.state.items.reverse();
+    flushSync();
+    expect(container.querySelectorAll("li")[1]).toBe(empty);
+  });
+  it("rejects duplicate ordinary vnode keys", () => {
+    const container = document.createElement("div");
+    function List() {
+      return () => jsx("ul", { children: [jsx("li", { key: "same", children: "a" }), jsx("li", { key: "same", children: "b" })] });
+    }
+    render(jsx(List, {}), container);
+    expect(container.textContent).toContain('Duplicate key "same"');
+  });
   it("normalizes JSX double-click handlers to the browser dblclick event", () => {
     const container = document.createElement("div");
     let calls = 0;
     render(jsx("button", { onDoubleClick: () => calls++, children: "Double" }), container);
     container.querySelector("button")!.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
     expect(calls).toBe(1);
+  });
+
+  it("preserves the delegated event path when an inner handler removes DOM", () => {
+    const container = document.createElement("div");
+    const calls: string[] = [];
+    render(jsx("section", {
+      onClick: () => calls.push("outer"),
+      children: jsx("button", {
+        onClick: () => {
+          calls.push("inner");
+          container.querySelector("section")!.remove();
+        },
+        children: "remove"
+      })
+    }), container);
+    container.querySelector("button")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(calls).toEqual(["inner", "outer"]);
   });
 
   it("runs capture handlers without relying on bubbling delegation", () => {

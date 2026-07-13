@@ -9,8 +9,8 @@ export function ensureDelegated(root: Root, type: string): void {
   if (root.delegated.has(type)) return;
 
   const listener = (event: Event) => {
-    let cursor = eventTargetElement(event.target);
-    while (cursor && cursor !== root.container.parentElement) {
+    const path = eventPath(event, root.container);
+    for (const cursor of path) {
       const handler = eventHandlers.get(cursor)?.get(type);
       if (handler) {
         const current = cursor;
@@ -25,12 +25,33 @@ export function ensureDelegated(root: Root, type: string): void {
       }
       if (event.cancelBubble) break;
       if (cursor === root.container) break;
-      cursor = cursor.parentElement;
     }
   };
 
   root.container.addEventListener(type, listener);
   root.delegated.set(type, listener);
+}
+
+function eventPath(event: Event, container: Element): Element[] {
+  const native = typeof event.composedPath === "function" ? event.composedPath() : [];
+  if (native.length) {
+    const path: Element[] = [];
+    for (const target of native) {
+      if (!(target instanceof Element)) continue;
+      if (target !== container && !container.contains(target)) continue;
+      path.push(target);
+      if (target === container) break;
+    }
+    return path;
+  }
+  const path: Element[] = [];
+  let cursor = eventTargetElement(event.target);
+  while (cursor) {
+    path.push(cursor);
+    if (cursor === container) break;
+    cursor = cursor.parentElement;
+  }
+  return path;
 }
 
 function callDelegatedHandler(handler: EventListener, current: Element, event: Event): void {

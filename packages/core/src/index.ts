@@ -3,7 +3,9 @@ import {
   reactive,
   ref as reactiveRef,
   writeReactive,
+  writeReactiveLazy,
   updateReactiveValue,
+  updateReactiveValueWithResult,
   deleteReactiveValue,
   mutateReactiveArray,
   peek,
@@ -49,7 +51,7 @@ export type { Reactive, ReactiveValue, StopHandle } from "@exact/reactive";
 export { computed, peek, unwrap, watch } from "@exact/reactive";
 // Compiler-only helpers. They remain available here because generated JSX
 // already imports all framework helpers from @exact/core.
-export { writeReactive, updateReactiveValue, deleteReactiveValue, mutateReactiveArray } from "@exact/reactive";
+export { writeReactive, writeReactiveLazy, updateReactiveValue, updateReactiveValueWithResult, deleteReactiveValue, mutateReactiveArray } from "@exact/reactive";
 export { createContext, createRef } from "./keys.js";
 export {
   createConsoleLogger,
@@ -170,6 +172,43 @@ export type RefRegistry = {
 export type TaskContext = {
   signal: AbortSignal;
 };
+
+type ManagedEventListenerOptions = EventListenerOptions & {
+  once?: boolean;
+  passive?: boolean;
+  signal?: AbortSignal;
+};
+
+/** Compiler helper that attaches framework ownership without discarding author event options. */
+export function withAbortSignal(
+  options: boolean | ManagedEventListenerOptions | undefined,
+  owner: AbortSignal
+): ManagedEventListenerOptions {
+  const normalized: ManagedEventListenerOptions = typeof options === "boolean"
+    ? { capture: options }
+    : options ? { ...options } : {};
+  const existing = normalized.signal;
+  if (!existing || existing === owner) return { ...normalized, signal: owner };
+  return { ...normalized, signal: combineAbortSignals(existing, owner) };
+}
+
+function combineAbortSignals(left: AbortSignal, right: AbortSignal): AbortSignal {
+  const nativeAny = (AbortSignal as typeof AbortSignal & { any?(signals: AbortSignal[]): AbortSignal }).any;
+  if (nativeAny) return nativeAny.call(AbortSignal, [left, right]);
+  const controller = new AbortController();
+  const abort = (event: Event) => {
+    left.removeEventListener("abort", abort);
+    right.removeEventListener("abort", abort);
+    controller.abort((event.currentTarget as AbortSignal | null)?.reason);
+  };
+  if (left.aborted) controller.abort(left.reason);
+  else if (right.aborted) controller.abort(right.reason);
+  else {
+    left.addEventListener("abort", abort, { once: true });
+    right.addEventListener("abort", abort, { once: true });
+  }
+  return controller.signal;
+}
 
 export type TaskObserver = {
   register(promise: Promise<unknown>, instance: ComponentInstance<any>): void;

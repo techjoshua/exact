@@ -21,7 +21,7 @@ describe("expression-backed safety analysis", () => {
     expect(analyzeExpressionSafety(shadowed, buildExactProvenance(shadowed)).get("Panel")).toBeUndefined();
   });
 
-  it("requires task listeners to reference the canonical abort signal", () => {
+  it("allows task listeners for compiler-managed abort ownership", () => {
     clearExpressionProjectCache();
     const source = (options: string) => expressionModuleFor(`TaskListener${options.length}.tsx`, `function Panel(this: Component<{}>) {
       this.task.client(({ signal }) => window.addEventListener("resize", () => {}, ${options}));
@@ -29,8 +29,7 @@ describe("expression-backed safety analysis", () => {
     }`);
     const unsafe = source("{}");
     const safe = source("{ signal }");
-    expect(analyzeExpressionSafety(unsafe, buildExactProvenance(unsafe)).get("Panel"))
-      .toContainEqual(expect.stringContaining("supplied abort signal"));
+    expect(analyzeExpressionSafety(unsafe, buildExactProvenance(unsafe)).get("Panel")).toBeUndefined();
     expect(analyzeExpressionSafety(safe, buildExactProvenance(safe)).get("Panel"))
       .toBeUndefined();
   });

@@ -27,6 +27,7 @@ export function lowerExpressionWrites(module: BoundModule): ExpressionWriteResul
   const names = {
     write: allocate("__exactWrite", used),
     update: allocate("__exactUpdate", used),
+    updateResult: allocate("__exactUpdateResult", used),
     remove: allocate("__exactDelete", used),
     array: allocate("__exactArrayMutation", used)
   };
@@ -92,7 +93,7 @@ function writePath(module: BoundModule, reference: NodeRef, aliases: ReadonlyMap
   return undefined;
 }
 
-function lowerWrite(module: BoundModule, reference: NodeRef, aliases: ReadonlyMap<string, readonly string[]>, names: Readonly<{ write: string; update: string; remove: string; array: string }>, imports: Map<string, string>): string | undefined {
+function lowerWrite(module: BoundModule, reference: NodeRef, aliases: ReadonlyMap<string, readonly string[]>, names: Readonly<{ write: string; update: string; updateResult: string; remove: string; array: string }>, imports: Map<string, string>): string | undefined {
   const node = reference.node;
   if (node.kind === "BinaryExpression" && assignmentOperators.has(node.operator ?? "")) {
     const left = node.children[0];
@@ -100,8 +101,8 @@ function lowerWrite(module: BoundModule, reference: NodeRef, aliases: ReadonlyMa
     const path = statePath(module, left, aliases);
     if (!path?.length || !right?.text) return undefined;
     if (node.operator === "=") {
-      imports.set("writeReactive", names.write);
-      return `${names.write}(this.state, ${JSON.stringify(path)}, ${right.text})`;
+      imports.set("writeReactiveLazy", names.write);
+      return `${names.write}(this.state, ${JSON.stringify(path)}, () => (${right.text}))`;
     }
     imports.set("updateReactiveValue", names.update);
     return `${names.update}(this.state, ${JSON.stringify(path)}, previous => previous ${node.operator!.slice(0, -1)} (${right.text}))`;
@@ -109,8 +110,10 @@ function lowerWrite(module: BoundModule, reference: NodeRef, aliases: ReadonlyMa
   if ((node.kind === "PrefixUnaryExpression" || node.kind === "PostfixUnaryExpression") && (node.operator === "++" || node.operator === "--")) {
     const path = statePath(module, node.children[0], aliases);
     if (!path?.length) return undefined;
-    imports.set("updateReactiveValue", names.update);
-    return `${names.update}(this.state, ${JSON.stringify(path)}, previous => previous ${node.operator === "++" ? "+" : "-"} 1, ${node.kind === "PostfixUnaryExpression"})`;
+    imports.set("updateReactiveValueWithResult", names.updateResult);
+    const update = node.operator === "++" ? "++" : "--";
+    const expression = node.kind === "PostfixUnaryExpression" ? `previous${update}` : `${update}previous`;
+    return `${names.updateResult}(this.state, ${JSON.stringify(path)}, previous => { const result = ${expression}; return [previous, result]; })`;
   }
   if (node.kind === "DeleteExpression") {
     const path = statePath(module, node.children[0], aliases);
@@ -122,7 +125,7 @@ function lowerWrite(module: BoundModule, reference: NodeRef, aliases: ReadonlyMa
     const path = statePath(module, reference.target.target?.node, aliases);
     if (!path?.length) return undefined;
     imports.set("mutateReactiveArray", names.array);
-    return `${names.array}(this.state, ${JSON.stringify(path)}, ${JSON.stringify(reference.target.name)}, [${reference.arguments.map(argument => argument.node.text).join(", ")}])`;
+    return `${names.array}(this.state, ${JSON.stringify(path)}, ${JSON.stringify(reference.target.name)}, () => [${reference.arguments.map(argument => argument.node.text).join(", ")}])`;
   }
   return undefined;
 }

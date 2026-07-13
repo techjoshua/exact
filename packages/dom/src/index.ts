@@ -318,7 +318,7 @@ function adoptKeyedListChildren(
   for (const vnode of vnodes) {
     const start = nodes[cursor];
     const key = vnode.key;
-    if (!key || !(start instanceof Comment) || start.data !== `exact:item:${key}`) return undefined;
+    if (key === undefined || !(start instanceof Comment) || start.data !== `exact:item:${key}`) return undefined;
     const endIndex = nodes.findIndex((node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`);
     if (endIndex < 0) return undefined;
     const adopted = adoptStaticMounted(root, vnode, nodes.slice(cursor + 1, endIndex), 0, parentInstance, parentScope);
@@ -627,6 +627,7 @@ function patch(
 }
 
 function mountDetachedChildren(root: Root, children: Child[], parentInstance?: ComponentInstance<any>, parentScope?: EffectScope): Mounted[] {
+  assertUniqueChildKeys(children);
   const mounted: Mounted[] = [];
   for (const child of children) {
     const vnode = childToVNode(child);
@@ -637,6 +638,7 @@ function mountDetachedChildren(root: Root, children: Child[], parentInstance?: C
 }
 
 function mountChildren(root: Root, parent: Node, children: Child[], parentInstance?: ComponentInstance<any>, parentScope?: EffectScope): Mounted[] {
+  assertUniqueChildKeys(children);
   const mounted: Mounted[] = [];
   for (const child of children) {
     const vnode = childToVNode(child);
@@ -647,6 +649,16 @@ function mountChildren(root: Root, parent: Node, children: Child[], parentInstan
     placeMountedBefore(root, parent, childMounted, null);
   }
   return mounted;
+}
+
+function assertUniqueChildKeys(children: Child[]): void {
+  const keys = new Set<string>();
+  for (const child of children) {
+    const vnode = childToVNode(child);
+    if (!vnode || vnode.key === undefined) continue;
+    if (keys.has(vnode.key)) throw new Error(`Duplicate key "${vnode.key}" in rendered children`);
+    keys.add(vnode.key);
+  }
 }
 
 function patchChildren(
@@ -680,11 +692,12 @@ function patchChildrenInner(
 ): Mounted[] {
   const oldByKey = new Map<string, Mounted>();
   const oldKeyIndices = new Map<string, number>();
-  const unkeyed = oldChildren.filter(child => !child.vnode.key);
+  const unkeyed = oldChildren.filter(child => child.vnode.key === undefined);
 
   for (let index = 0; index < oldChildren.length; index++) {
     const child = oldChildren[index]!;
-    if (child.vnode.key) {
+    if (child.vnode.key !== undefined) {
+      if (oldByKey.has(child.vnode.key)) throw new Error(`Duplicate key "${child.vnode.key}" in mounted children`);
       oldByKey.set(child.vnode.key, child);
       oldKeyIndices.set(child.vnode.key, index);
     }
@@ -693,8 +706,14 @@ function patchChildrenInner(
   const nextVNodes = nextChildren
     .map(childToVNode)
     .filter((vnode): vnode is VNode => !!vnode);
+  const nextKeys = new Set<string>();
+  for (const vnode of nextVNodes) {
+    if (vnode.key === undefined) continue;
+    if (nextKeys.has(vnode.key)) throw new Error(`Duplicate key "${vnode.key}" in rendered children`);
+    nextKeys.add(vnode.key);
+  }
   const keyedOldOrder = nextVNodes.map(vnode => {
-    if (!vnode.key) return -1;
+    if (vnode.key === undefined) return -1;
     const previous = oldByKey.get(vnode.key);
     return previous && previous.vnode.type === vnode.type ? oldKeyIndices.get(vnode.key)! : -1;
   });
@@ -706,8 +725,8 @@ function patchChildrenInner(
   // sibling as its insertion anchor. This keeps keyed moves deterministic.
   for (let index = nextVNodes.length - 1; index >= 0; index--) {
     const vnode = nextVNodes[index]!;
-    const old = vnode.key ? oldByKey.get(vnode.key) : unkeyed.pop();
-    if (old?.vnode.key) oldByKey.delete(old.vnode.key);
+    const old = vnode.key !== undefined ? oldByKey.get(vnode.key) : unkeyed.pop();
+    if (old?.vnode.key !== undefined) oldByKey.delete(old.vnode.key);
     const patched = patch(root, parent, old, vnode, parentInstance, parentScope);
     if (vnode.type === ServerSlot) adoptServerSlot(parent, patched);
     nextMounted.unshift(patched);
@@ -717,7 +736,7 @@ function patchChildrenInner(
     // producing visibly unstable lists, that detaches pointer-captured nodes
     // in browsers and ends active drags. Keyed children retain the LIS move
     // pass, while only genuinely new unkeyed children need placement here.
-    if (vnode.key
+    if (vnode.key !== undefined
       ? !stableKeyedPositions.has(index) || keyedOldOrder[index] === -1
       : !old) {
       placeMountedBefore(root, parent, patched, cursor);

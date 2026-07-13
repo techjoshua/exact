@@ -36,13 +36,26 @@ export { batch, createEffectScope, flushSync, peek, withEffectScope };
  */
 export function writeReactive(target: object, path: readonly PropertyKey[], next: unknown): unknown {
   if (!path.length) throw new TypeError("writeReactive requires a state path");
+  const { parent, key } = resolveReactivePath(target, path);
+  commitReactiveWrite(parent, key, next);
+  return next;
+}
+
+/** Compiler hook that resolves the assignment reference before evaluating its RHS. */
+export function writeReactiveLazy(target: object, path: readonly PropertyKey[], evaluate: () => unknown): unknown {
+  if (!path.length) throw new TypeError("writeReactiveLazy requires a state path");
+  const { parent, key } = resolveReactivePath(target, path);
+  const next = evaluate();
+  commitReactiveWrite(parent, key, next);
+  return next;
+}
+
+function commitReactiveWrite(parent: object, key: PropertyKey, next: unknown): void {
   batch(() => {
-    const { parent, key } = resolveReactivePath(target, path);
     const previous = Reflect.get(parent, key);
     if (reconcileReactiveValue(previous, next, new WeakMap())) return;
     if (!Object.is(unwrap(previous), unwrap(next))) Reflect.set(parent, key, next);
   });
-  return next;
 }
 
 /** Compiler runtime hook for compound assignments and update expressions. */
@@ -59,6 +72,19 @@ export function updateReactiveValue(
   return returnPrevious ? previous : next;
 }
 
+/** Compiler hook for updates whose assignment result differs from the stored value. */
+export function updateReactiveValueWithResult(
+  target: object,
+  path: readonly PropertyKey[],
+  operation: (previous: any) => readonly [next: unknown, result: unknown]
+): unknown {
+  const { parent, key } = resolveReactivePath(target, path);
+  const previous = Reflect.get(parent, key);
+  const [next, result] = operation(previous);
+  commitReactiveWrite(parent, key, next);
+  return result;
+}
+
 /** Compiler runtime hook for statically-known deletes. */
 export function deleteReactiveValue(target: object, path: readonly PropertyKey[]): boolean {
   if (!path.length) return false;
@@ -71,12 +97,14 @@ export function mutateReactiveArray(
   target: object,
   path: readonly PropertyKey[],
   method: "copyWithin" | "fill" | "pop" | "push" | "reverse" | "shift" | "sort" | "splice" | "unshift",
-  args: unknown[]
+  args: unknown[] | (() => unknown[])
 ): unknown {
   const { parent, key } = resolveReactivePath(target, path);
   const value = Reflect.get(parent, key);
   if (!Array.isArray(value)) throw new TypeError(`Cannot call ${method} on a non-array reactive value`);
-  return (value[method] as (...input: unknown[]) => unknown)(...args);
+  const mutation = value[method] as (...input: unknown[]) => unknown;
+  const input = typeof args === "function" ? args() : args;
+  return mutation.apply(value, input);
 }
 
 /** Records the stable identity used by a keyed list for compiler reconciliation. */

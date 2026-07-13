@@ -21,11 +21,11 @@ describe("expression-backed writes", () => {
     const source = result.module.emit().code;
     expect(result.count).toBe(5);
     expect(source.indexOf(`"use client"`)).toBeLessThan(source.indexOf("@exact/reactive"));
-    expect(source).toContain(`__exactWrite(this.state, ["count"], next())`);
+    expect(source).toContain(`__exactWrite(this.state, ["count"], () => (next()))`);
     expect(source).toContain(`__exactUpdate(this.state, ["count"], previous => previous + (amount))`);
-    expect(source).toContain(`__exactUpdate(this.state, ["count"], previous => previous + 1, true)`);
+    expect(source).toContain(`__exactUpdateResult(this.state, ["count"], previous => { const result = previous++; return [previous, result]; })`);
     expect(source).toContain(`__exactDelete(this.state, ["stale"])`);
-    expect(source).toContain(`__exactArrayMutation(this.state, ["items"], "push", [value])`);
+    expect(source).toContain(`__exactArrayMutation(this.state, ["items"], "push", () => [value])`);
   });
 
   it("leaves dynamic state paths on the compatibility transform path", () => {
@@ -54,7 +54,7 @@ describe("expression-backed writes", () => {
     const plan = analyzeExpressionWrites(module);
     expect(result.count).toBe(2);
     expect([...plan.aliases.values()]).toEqual(expect.arrayContaining([["project"], ["items"]]));
-    expect(result.module.emit().code).toContain(`__exactWrite(this.state, ["project","count"], 2)`);
-    expect(result.module.emit().code).toContain(`__exactArrayMutation(this.state, ["items"], "splice", [0, 1])`);
+    expect(result.module.emit().code).toContain(`__exactWrite(this.state, ["project","count"], () => (2))`);
+    expect(result.module.emit().code).toContain(`__exactArrayMutation(this.state, ["items"], "splice", () => [0, 1])`);
   });
 });

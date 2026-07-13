@@ -410,6 +410,9 @@ export type HelperNames = {
   boundary: string;
   write: string;
   update: string;
+  updateResult: string;
+  abortOptions: string;
+  taskSignal: string;
   remove: string;
   arrayMutation: string;
 };

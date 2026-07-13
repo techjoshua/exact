@@ -51,9 +51,11 @@ describe("@exact/compiler", () => {
       return () => <p />;
     }`, { filename: "Counter.tsx" });
     expect(output).toContain("updateReactiveValue as __exactUpdate");
+    expect(output).toContain("updateReactiveValueWithResult as __exactUpdateResult");
     expect(output).toContain("deleteReactiveValue as __exactDelete");
     expect(output).toContain("mutateReactiveArray as __exactArrayMutation");
     expect(output).toContain("__exactUpdate(this.state, [\"count\"]");
+    expect(output).toContain("__exactUpdateResult(this.state, [\"count\"]");
     expect(output).toContain("__exactDelete(this.state, [\"label\"])");
     expect(output).toContain("__exactArrayMutation(this.state, [\"items\"], \"push\"");
   });
@@ -65,9 +67,11 @@ describe("@exact/compiler", () => {
     expect(() => transform(`function Panel(this: Component<{}>) { this.task.client(({ signal }) => { window.addEventListener("resize", () => {}, { signal }); }); return () => <p />; }`, { filename: "Panel.tsx" }))
       .not.toThrow();
   });
-  it("rejects task listeners that are not abort-scoped", () => {
-    expect(() => transform(`function Panel(this: Component<{}>) { this.task.client(() => { window.addEventListener("resize", () => {}); }); return () => <p />; }`, { filename: "Panel.tsx" }))
-      .toThrow("must use the supplied abort signal");
+  it("injects task abort ownership into global listeners", () => {
+    const output = transform(`function Panel(this: Component<{}>) { this.task.client(() => { window.addEventListener("resize", () => {}); }); return () => <p />; }`, { filename: "Panel.tsx" });
+    expect(output).toContain("withAbortSignal as __exactAbortOptions");
+    expect(output).toContain("({ signal: __exactSignal })");
+    expect(output).toContain("__exactAbortOptions(undefined, __exactSignal)");
   });
   it("rejects setup-time state snapshots captured by async callbacks", () => {
     expect(() => transform(`function Panel(this: Component<{ title: string }>) { const title = this.state.title; setTimeout(() => console.log(title)); return () => <p />; }`, { filename: "Panel.tsx" }))
@@ -609,7 +613,7 @@ describe("@exact/compiler", () => {
     expect(manifest.components[0]!.tasks.map(task => task.requestedPlacement)).toEqual(["server", "client"]);
     expect(manifest.components[0]!.tasks[0]!.diagnostics).toContain("task placement forced by this.task.server()");
     expect(client).not.toContain("server");
-    expect(client).toContain("__exactWrite(this.state, [\"width\"], 1)");
+    expect(client).toContain("__exactWrite(this.state, [\"width\"], () => 1)");
     expect(client).toContain("this.task.client(this.reactive(() => this.state.width)");
     expect(server).toContain("server");
     expect(server).not.toContain("width = 1");

@@ -18,12 +18,12 @@ export function stopReplacedChildren(mounted: Mounted, nextChildren: Child[]): v
   const keyed = new Map<string, VNode>();
   const unkeyed: VNode[] = [];
   for (const vnode of nextVNodes) {
-    if (vnode.key) keyed.set(vnode.key, vnode);
+    if (vnode.key !== undefined) keyed.set(vnode.key, vnode);
     else unkeyed.push(vnode);
   }
 
   for (const child of mounted.children) {
-    const next = child.vnode.key ? keyed.get(child.vnode.key) : unkeyed.shift();
+    const next = child.vnode.key !== undefined ? keyed.get(child.vnode.key) : unkeyed.shift();
     if (next && canPatchMounted(child, next)) continue;
     child.scope.stop();
   }
@@ -33,7 +33,7 @@ export function stopReplacedChildren(mounted: Mounted, nextChildren: Child[]): v
 export function stopRemovedListChildren<T>(mounted: Mounted, list: ListBinding<T>): void {
   const nextKeys = new Set(materializeList(list).map(child => child.key).filter((key): key is string => key !== undefined));
   for (const child of mounted.children) {
-    if (child.vnode.key && nextKeys.has(child.vnode.key)) continue;
+    if (child.vnode.key !== undefined && nextKeys.has(child.vnode.key)) continue;
     child.scope.stop();
   }
 }

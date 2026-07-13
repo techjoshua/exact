@@ -11,6 +11,7 @@ import {
   logFrameworkEvent,
   renderInstance,
   withTaskObserver,
+  withAbortSignal,
   type Component,
   type ErrorReport,
   type LogEvent,
@@ -20,6 +21,15 @@ import {
 import { flushSync, unwrap, watch } from "@exact/reactive";
 
 describe("@exact/core", () => {
+  it("combines compiler-owned abort signals with listener options", () => {
+    const owner = new AbortController();
+    const external = new AbortController();
+    const managed = withAbortSignal({ capture: true, signal: external.signal }, owner.signal);
+    expect(managed.capture).toBe(true);
+    expect(managed.signal?.aborted).toBe(false);
+    owner.abort("unmount");
+    expect(managed.signal?.aborted).toBe(true);
+  });
   it("constructs once and renders repeatedly from tracked state", () => {
     const constructed = vi.fn();
     const rendered = vi.fn();

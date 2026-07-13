@@ -76,6 +76,7 @@ export function exactJsxTransformer(
     let sawJsx = false;
     let sawBoundary = false;
     let sawStateWrite = false;
+    let sawAbortOptions = false;
     const componentStack: string[] = [];
     const componentLocalStack: ComponentLocalInfo[] = [];
     const islandCounts = new Map<string, number>();
@@ -162,7 +163,8 @@ export function exactJsxTransformer(
           sawStateWrite = true;
           return context.factory.createCallExpression(context.factory.createIdentifier(helpers.arrayMutation), undefined, [
             stateRoot(context), pathLiteral(context, path), context.factory.createStringLiteral(method),
-            context.factory.createArrayLiteralExpression(node.arguments.map(argument => ts.visitNode(argument, visitor) as ts.Expression))
+            context.factory.createArrowFunction(undefined, undefined, [], undefined, context.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+              context.factory.createArrayLiteralExpression(node.arguments.map(argument => ts.visitNode(argument, visitor) as ts.Expression)))
           ]);
         }
       }
@@ -242,7 +244,7 @@ export function exactJsxTransformer(
             return factory.createVoidExpression(factory.createNumericLiteral(0));
           }
         }
-        return transformCapturedCall(sourceFile, node, context, visitor, derivedReactiveLocals);
+        return transformCapturedCall(sourceFile, node, context, visitor, derivedReactiveLocals, helpers, () => { sawAbortOptions = true; });
       }
       if (ts.isTaggedTemplateExpression(node)) {
         return transformReactiveTaggedTemplate(node, context, visitor);
@@ -275,11 +277,15 @@ export function exactJsxTransformer(
           factory.createImportSpecifier(false, factory.createIdentifier("createDynamicChild"), factory.createIdentifier(helpers.dynamic)),
           ...(sawStateWrite
             ? [
-              factory.createImportSpecifier(false, factory.createIdentifier("writeReactive"), factory.createIdentifier(helpers.write)),
+              factory.createImportSpecifier(false, factory.createIdentifier("writeReactiveLazy"), factory.createIdentifier(helpers.write)),
               factory.createImportSpecifier(false, factory.createIdentifier("updateReactiveValue"), factory.createIdentifier(helpers.update)),
+              factory.createImportSpecifier(false, factory.createIdentifier("updateReactiveValueWithResult"), factory.createIdentifier(helpers.updateResult)),
               factory.createImportSpecifier(false, factory.createIdentifier("deleteReactiveValue"), factory.createIdentifier(helpers.remove)),
               factory.createImportSpecifier(false, factory.createIdentifier("mutateReactiveArray"), factory.createIdentifier(helpers.arrayMutation))
             ]
+            : []),
+          ...(sawAbortOptions
+            ? [factory.createImportSpecifier(false, factory.createIdentifier("withAbortSignal"), factory.createIdentifier(helpers.abortOptions))]
             : []),
           ...(sawBoundary
             ? [factory.createImportSpecifier(false, factory.createIdentifier("createServerBoundary"), factory.createIdentifier(helpers.boundary))]
@@ -1056,14 +1062,16 @@ function transformCapturedCall(
   node: ts.CallExpression,
   context: ts.TransformationContext,
   visitor: ts.Visitor,
-  derivedReactiveLocals?: DerivedReactiveIndex
+  derivedReactiveLocals?: DerivedReactiveIndex,
+  helpers?: HelperNames,
+  markAbortOptions?: () => void
 ): ts.Expression {
   if (isThisMethodCall(node, "reactive")) {
     return transformReactiveCall(sourceFile, node, context, visitor, derivedReactiveLocals);
   }
 
   if (isThisTaskCall(node)) {
-    return transformTaskCall(sourceFile, node, context, visitor, derivedReactiveLocals);
+    return transformTaskCall(sourceFile, node, context, visitor, derivedReactiveLocals, helpers, markAbortOptions);
   }
 
   if (isThisMethodCall(node, "map")) {
@@ -1109,14 +1117,21 @@ function transformTaskCall(
   node: ts.CallExpression,
   context: ts.TransformationContext,
   visitor: ts.Visitor,
-  derivedReactiveLocals?: DerivedReactiveIndex
+  derivedReactiveLocals?: DerivedReactiveIndex,
+  helpers?: HelperNames,
+  markAbortOptions?: () => void
 ): ts.Expression {
-  if (node.arguments.length < 2) return ts.visitEachChild(node, visitor, context);
+  if (node.arguments.length < 1) return ts.visitEachChild(node, visitor, context);
   const work = node.arguments[node.arguments.length - 1]!;
   if (!isFunctionLikeExpression(work)) return ts.visitEachChild(node, visitor, context);
+  const visitedWork = ts.visitNode(work, visitor) as ts.ArrowFunction | ts.FunctionExpression;
+  const transformedWork = helpers
+    ? transformTaskWork(visitedWork, node.arguments.length - 1, context, helpers, markAbortOptions ?? (() => {}))
+    : visitedWork;
 
   const nextArguments = node.arguments.map((argument, index) => {
-    if (index === node.arguments.length - 1 || isFunctionLikeExpression(argument)) {
+    if (index === node.arguments.length - 1) return transformedWork;
+    if (isFunctionLikeExpression(argument)) {
       return ts.visitNode(argument, visitor) as ts.Expression;
     }
     return context.factory.createCallExpression(
@@ -1132,6 +1147,89 @@ function transformTaskCall(
     node.typeArguments,
     nextArguments
   );
+}
+
+function transformTaskWork(
+  work: ts.ArrowFunction | ts.FunctionExpression,
+  dependencyCount: number,
+  context: ts.TransformationContext,
+  helpers: HelperNames,
+  markAbortOptions: () => void
+): ts.Expression {
+  if (!containsGlobalAddEventListener(work)) return work;
+  const factory = context.factory;
+  const parameters = [...work.parameters];
+  let signal: ts.Expression;
+  const contextParameter = parameters.length > dependencyCount ? parameters[parameters.length - 1] : undefined;
+  if (contextParameter && ts.isIdentifier(contextParameter.name)) {
+    signal = factory.createPropertyAccessExpression(contextParameter.name, "signal");
+  } else if (contextParameter && ts.isObjectBindingPattern(contextParameter.name)) {
+    const binding = contextParameter.name.elements.find(element => {
+      const property = element.propertyName;
+      return property && ts.isIdentifier(property)
+        ? property.text === "signal"
+        : ts.isIdentifier(element.name) && element.name.text === "signal";
+    });
+    if (binding && ts.isIdentifier(binding.name)) {
+      signal = binding.name;
+    } else {
+      const local = factory.createIdentifier(helpers.taskSignal);
+      const pattern = factory.updateObjectBindingPattern(contextParameter.name, [
+        ...contextParameter.name.elements,
+        factory.createBindingElement(undefined, factory.createIdentifier("signal"), local)
+      ]);
+      parameters[parameters.length - 1] = factory.updateParameterDeclaration(
+        contextParameter, contextParameter.modifiers, contextParameter.dotDotDotToken, pattern,
+        contextParameter.questionToken, contextParameter.type, contextParameter.initializer
+      );
+      signal = local;
+    }
+  } else {
+    const local = factory.createIdentifier(helpers.taskSignal);
+    parameters.push(factory.createParameterDeclaration(undefined, undefined,
+      factory.createObjectBindingPattern([factory.createBindingElement(undefined, factory.createIdentifier("signal"), local)])));
+    signal = local;
+  }
+
+  const taskVisitor: ts.Visitor = current => {
+    if (ts.isCallExpression(current) && isGlobalAddEventListener(current)) {
+      markAbortOptions();
+      const args = current.arguments.map(argument => ts.visitNode(argument, taskVisitor) as ts.Expression);
+      const options = args[2] ?? factory.createIdentifier("undefined");
+      const managed = factory.createCallExpression(factory.createIdentifier(helpers.abortOptions), undefined, [options, signal]);
+      const nextArgs = args.length >= 3 ? [...args.slice(0, 2), managed, ...args.slice(3)] : [...args, managed];
+      return factory.updateCallExpression(current, ts.visitNode(current.expression, taskVisitor) as ts.Expression, current.typeArguments, nextArgs);
+    }
+    return ts.visitEachChild(current, taskVisitor, context);
+  };
+  const body = ts.visitNode(work.body, taskVisitor) as ts.ConciseBody;
+  if (ts.isArrowFunction(work)) {
+    return factory.updateArrowFunction(work, work.modifiers, work.typeParameters, parameters, work.type,
+      work.equalsGreaterThanToken, body);
+  }
+  return factory.updateFunctionExpression(work, work.modifiers, work.asteriskToken, work.name, work.typeParameters,
+    parameters, work.type, body as ts.Block);
+}
+
+function containsGlobalAddEventListener(node: ts.Node): boolean {
+  let found = false;
+  const visit = (current: ts.Node): void => {
+    if (found) return;
+    if (ts.isCallExpression(current) && isGlobalAddEventListener(current)) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(current, visit);
+  };
+  visit(node);
+  return found;
+}
+
+function isGlobalAddEventListener(node: ts.CallExpression): boolean {
+  return ts.isPropertyAccessExpression(node.expression)
+    && node.expression.name.text === "addEventListener"
+    && ts.isIdentifier(node.expression.expression)
+    && ["window", "document", "globalThis"].includes(node.expression.expression.text);
 }
 
 function transformMapCall(
@@ -1248,6 +1346,9 @@ function allocateHelperNames(sourceFile: ts.SourceFile): HelperNames {
     boundary: allocateName(boundaryHelper, used),
     write: allocateName("__exactWrite", used),
     update: allocateName("__exactUpdate", used),
+    updateResult: allocateName("__exactUpdateResult", used),
+    abortOptions: allocateName("__exactAbortOptions", used),
+    taskSignal: allocateName("__exactSignal", used),
     remove: allocateName("__exactDelete", used),
     arrayMutation: allocateName("__exactArrayMutation", used)
   };
@@ -1271,7 +1372,8 @@ function transformStateAssignment(
   const value = ts.visitNode(node.right, visitor) as ts.Expression;
   if (node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
     return context.factory.createCallExpression(context.factory.createIdentifier(helpers.write), undefined, [
-      stateRoot(context), pathLiteral(context, path), value
+      stateRoot(context), pathLiteral(context, path),
+      context.factory.createArrowFunction(undefined, undefined, [], undefined, context.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken), value)
     ]);
   }
   const operator = compoundOperator(node.operatorToken.kind);
@@ -1292,13 +1394,20 @@ function transformStateUpdate(
   helpers: HelperNames
 ): ts.Expression {
   const previous = context.factory.createIdentifier("previous");
-  const operator = node.operator === ts.SyntaxKind.PlusPlusToken ? ts.SyntaxKind.PlusToken : ts.SyntaxKind.MinusToken;
-  return context.factory.createCallExpression(context.factory.createIdentifier(helpers.update), undefined, [
+  const operation = node.kind === ts.SyntaxKind.PostfixUnaryExpression
+    ? context.factory.createPostfixUnaryExpression(previous, node.operator)
+    : context.factory.createPrefixUnaryExpression(node.operator, previous);
+  const result = context.factory.createIdentifier("result");
+  return context.factory.createCallExpression(context.factory.createIdentifier(helpers.updateResult), undefined, [
     stateRoot(context), pathLiteral(context, path),
     context.factory.createArrowFunction(undefined, undefined, [context.factory.createParameterDeclaration(undefined, undefined, previous)], undefined,
       context.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-      context.factory.createBinaryExpression(previous, operator, context.factory.createNumericLiteral(1))),
-    node.kind === ts.SyntaxKind.PostfixUnaryExpression ? context.factory.createTrue() : context.factory.createFalse()
+      context.factory.createBlock([
+        context.factory.createVariableStatement(undefined, context.factory.createVariableDeclarationList([
+          context.factory.createVariableDeclaration(result, undefined, undefined, operation)
+        ], ts.NodeFlags.Const)),
+        context.factory.createReturnStatement(context.factory.createArrayLiteralExpression([previous, result]))
+      ], true))
   ]);
 }
 
