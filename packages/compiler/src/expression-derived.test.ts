@@ -16,5 +16,6 @@ describe("expression-backed derived substitutions", () => {
     const plannedText = [...plan.sites.values()].map(site => module.source.slice(site.start, site.end));
     expect(plannedText).toEqual(["doubled"]);
     expect(module.source.slice([...plan.sites.values()][0]!.initializerStart, [...plan.sites.values()][0]!.initializerEnd)).toBe("this.state.value * 2");
+    expect([...plan.declarations.values()]).toContainEqual(expect.objectContaining({ cached: true }));
   });
 });

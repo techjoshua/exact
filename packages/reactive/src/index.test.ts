@@ -362,6 +362,20 @@ describe("@exact/reactive", () => {
     expect(compute).toHaveBeenCalledTimes(2);
   });
 
+  it("retains a computed collection identity when recomputation is structurally equal", () => {
+    const state = reactive({ revision: 0, items: [{ id: "a", title: "Same" }] });
+    const items = computed(() => {
+      void state.revision;
+      return state.items.map(item => ({ id: item.id, title: item.title }));
+    });
+    const first = items.get();
+
+    state.revision++;
+    flushSync();
+
+    expect(items.get()).toBe(first);
+  });
+
   it("tracks computed values that return reactive object references", () => {
     const state = reactive({ task: { title: "First" } });
     const task = computed(() => state.task);

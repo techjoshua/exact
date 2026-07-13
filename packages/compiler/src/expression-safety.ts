@@ -46,8 +46,10 @@ export function analyzeExpressionSafety(module: BoundModule, provenance: ExactPr
     const global = receiver?.rootVariable;
     const globalName = global?.name ?? receiver?.name ?? receiver?.node.text;
     if (!globalName || !["window", "document", "globalThis"].includes(globalName) || global && locallyWritten.has(global)) continue;
+    const nearestFunction = call.ancestors().functions().first();
     const owner = call.ancestors().functions().first(reference => setupSnapshots.has(reference.node.id));
     if (!owner || insideManagedTask(call) || insideClientJsx(call)) continue;
+    if (nearestFunction?.node === owner.node) continue;
     const values = diagnostics.get(owner.node.name!) ?? new Set<string>();
     values.add(listenerDiagnostic);
     diagnostics.set(owner.node.name!, values);

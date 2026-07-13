@@ -46,7 +46,11 @@ import type {
 } from "./types.js";
 
 type ComponentLocalInfo = { functions: Map<string, ts.Statement> };
-type DerivedReactiveIndex = Map<string, { variableId: string; initializer: ts.Expression }>;
+type DerivedReactiveEntry = { variableId: string; initializer: ts.Expression; cached: boolean };
+type DerivedReactiveIndex = {
+  references: Map<string, DerivedReactiveEntry>;
+  declarations: Map<string, DerivedReactiveEntry>;
+};
 
 const helperModule = "@exact/core";
 const elementHelper = "__exactVNode";
@@ -77,6 +81,7 @@ export function exactJsxTransformer(
     let sawBoundary = false;
     let sawStateWrite = false;
     let sawAbortOptions = false;
+    let sawDerived = false;
     const taskResources = new Set<ExpressionTaskResourceKind>();
     let sawTaskAwait = false;
     const componentStack: string[] = [];
@@ -88,6 +93,9 @@ export function exactJsxTransformer(
     const expressionResourceFor = (node: ts.Node) => node.pos < 0 || node.end < 0
       ? undefined
       : expressionTasks?.resources.get(writeSiteKey(node.getStart(sourceFile), node.end));
+    const expressionListenerFor = (node: ts.Node) => node.pos < 0 || node.end < 0
+      ? undefined
+      : expressionTasks?.lifecycleListeners.get(writeSiteKey(node.getStart(sourceFile), node.end));
     const taskPlacementFor = (node: ts.Node): ExactPlacement => expressionTaskFor(node)?.placement ?? "unknown";
     const isClientComponentTag = (tag: ts.JsxTagNameExpression): boolean => componentPlacements.get(tag.getText(sourceFile)) === "client";
     const islandHasServerChildren = (node: ts.JsxElement): boolean => {
@@ -137,6 +145,23 @@ export function exactJsxTransformer(
         componentLocalStack.pop();
         componentStack.pop();
         return visited;
+      }
+      if (ts.isVariableDeclaration(node) && node.initializer) {
+        const derived = derivedReactiveLocals.declarations.get(writeSiteKey(node.getStart(sourceFile), node.end));
+        if (derived?.cached) {
+          sawDerived = true;
+          return factory.updateVariableDeclaration(
+            node,
+            node.name,
+            node.exclamationToken,
+            node.type,
+            factory.createCallExpression(factory.createIdentifier(helpers.derived), undefined, [
+              factory.createArrowFunction(undefined, undefined, [], undefined,
+                factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+                ts.visitNode(node.initializer, visitor) as ts.Expression)
+            ])
+          );
+        }
       }
       if (componentStack.length && ts.isDeleteExpression(node)) {
         const path = expressionWritePath(node, sourceFile, expressionWrites);
@@ -244,6 +269,11 @@ export function exactJsxTransformer(
         return transformJsxFragment(node, context, visitor, helpers, sourceFile, derivedReactiveLocals, expressionJsx);
       }
       if (ts.isCallExpression(node)) {
+        if (expressionListenerFor(node)) {
+          if (target === "server") return factory.createVoidExpression(factory.createNumericLiteral(0));
+          sawAbortOptions = true;
+          return transformImplicitLifecycleListener(node, context, visitor, helpers);
+        }
         if (isThisTaskCall(node)) {
           if (shouldOmitPlacement(taskPlacementFor(node), target)) {
             return factory.createVoidExpression(factory.createNumericLiteral(0));
@@ -252,6 +282,21 @@ export function exactJsxTransformer(
         return transformCapturedCall(sourceFile, node, context, visitor, derivedReactiveLocals, helpers,
           () => { sawAbortOptions = true; }, expressionResourceFor,
           kind => { taskResources.add(kind); }, () => { sawTaskAwait = true; });
+      }
+      if (node.pos >= 0 && ts.isShorthandPropertyAssignment(node)) {
+        const derived = derivedReactiveLocals.references.get(writeSiteKey(node.name.getStart(sourceFile), node.name.end));
+        if (derived?.cached) {
+          return factory.createPropertyAssignment(
+            factory.createIdentifier(node.name.text),
+            factory.createCallExpression(factory.createPropertyAccessExpression(factory.createIdentifier(node.name.text), "get"), undefined, [])
+          );
+        }
+      }
+      if (node.pos >= 0 && ts.isIdentifier(node) && !isIdentifierDeclarationName(node) && !isPropertyAccessName(node)) {
+        const derived = derivedReactiveLocals.references.get(writeSiteKey(node.getStart(sourceFile), node.end));
+        if (derived?.cached) {
+          return factory.createCallExpression(factory.createPropertyAccessExpression(node, "get"), undefined, []);
+        }
       }
       if (ts.isTaggedTemplateExpression(node)) {
         return transformReactiveTaggedTemplate(node, context, visitor);
@@ -270,7 +315,7 @@ export function exactJsxTransformer(
       ? appendServerPartExportAliases(sourceFile, withIslands, factory, islandCounts, componentPlacements, semanticGraph)
       : withIslands;
     const visited = target === "default" ? withServerParts : pruneUnusedImports(withServerParts, factory);
-    if (!sawJsx && !sawBoundary && !sawStateWrite && !sawAbortOptions && !taskResources.size && !sawTaskAwait) return visited;
+    if (!sawJsx && !sawBoundary && !sawStateWrite && !sawAbortOptions && !sawDerived && !taskResources.size && !sawTaskAwait) return visited;
 
     const importDeclaration = factory.createImportDeclaration(
       undefined,
@@ -282,6 +327,9 @@ export function exactJsxTransformer(
           factory.createImportSpecifier(false, factory.createIdentifier("createCompiledFragment"), factory.createIdentifier(helpers.fragment)),
           factory.createImportSpecifier(false, factory.createIdentifier("createExpression"), factory.createIdentifier(helpers.expression)),
           factory.createImportSpecifier(false, factory.createIdentifier("createDynamicChild"), factory.createIdentifier(helpers.dynamic)),
+          ...(sawDerived
+            ? [factory.createImportSpecifier(false, factory.createIdentifier("createDerived"), factory.createIdentifier(helpers.derived))]
+            : []),
           ...(sawStateWrite
             ? [
               factory.createImportSpecifier(false, factory.createIdentifier("writeReactiveLazy"), factory.createIdentifier(helpers.write)),
@@ -313,6 +361,41 @@ export function exactJsxTransformer(
   };
 }
 
+function transformImplicitLifecycleListener(
+  node: ts.CallExpression,
+  context: ts.TransformationContext,
+  visitor: ts.Visitor,
+  helpers: HelperNames
+): ts.Expression {
+  const factory = context.factory;
+  const signal = factory.createIdentifier(helpers.taskSignal);
+  const args = node.arguments.map(argument => ts.visitNode(argument, visitor) as ts.Expression);
+  const options = args[2] ?? factory.createIdentifier("undefined");
+  const managed = factory.createCallExpression(factory.createIdentifier(helpers.abortOptions), undefined, [options, signal]);
+  const listener = factory.updateCallExpression(
+    node,
+    ts.visitNode(node.expression, visitor) as ts.Expression,
+    node.typeArguments,
+    args.length >= 3 ? [...args.slice(0, 2), managed, ...args.slice(3)] : [...args, managed]
+  );
+  const work = factory.createArrowFunction(
+    undefined,
+    undefined,
+    [factory.createParameterDeclaration(undefined, undefined,
+      factory.createObjectBindingPattern([
+        factory.createBindingElement(undefined, factory.createIdentifier("signal"), signal)
+      ]))],
+    undefined,
+    factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+    listener
+  );
+  return factory.createCallExpression(
+    factory.createPropertyAccessExpression(factory.createPropertyAccessExpression(factory.createThis(), "task"), "client"),
+    undefined,
+    [work]
+  );
+}
+
 function parseTypeNode(source: string): ts.TypeNode {
   const file = ts.createSourceFile("__exact_contextual_type.ts", `type __ExactContextualType = ${source};`, ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
   const declaration = file.statements[0];
@@ -321,7 +404,7 @@ function parseTypeNode(source: string): ts.TypeNode {
 }
 
 function expressionWritePath(node: ts.Node, sourceFile: ts.SourceFile, plan?: ExpressionWritePlan): readonly string[] | undefined {
-  if (!plan) return undefined;
+  if (!plan || node.pos < 0 || node.end < 0) return undefined;
   return plan.sites.get(writeSiteKey(node.getStart(sourceFile), node.end))?.path;
 }
 
@@ -422,12 +505,21 @@ function collectExpressionDerivedLocals(
     ts.forEachChild(current, visit);
   }
   visit(sourceFile);
-  const derived: DerivedReactiveIndex = new Map();
+  const references = new Map<string, DerivedReactiveEntry>();
+  const declarations = new Map<string, DerivedReactiveEntry>();
   for (const site of plan.sites.values()) {
     const initializer = initializers.get(writeSiteKey(site.initializerStart, site.initializerEnd));
-    if (initializer) derived.set(writeSiteKey(site.start, site.end), { variableId: site.variableId, initializer });
+    if (initializer) references.set(writeSiteKey(site.start, site.end), { variableId: site.variableId, initializer, cached: site.cached });
   }
-  return derived;
+  for (const declaration of plan.declarations.values()) {
+    const initializer = initializers.get(writeSiteKey(declaration.initializerStart, declaration.initializerEnd));
+    if (initializer) declarations.set(writeSiteKey(declaration.start, declaration.end), {
+      variableId: declaration.variableId,
+      initializer,
+      cached: declaration.cached
+    });
+  }
+  return { references, declarations };
 }
 
 function cloneableFunctionVariable(name: ts.Identifier, initializer: ts.Expression): ts.VariableStatement {
@@ -1030,7 +1122,7 @@ function visitReactiveSinkExpression(
   sourceFile?: ts.SourceFile,
   derivedReactiveLocals?: DerivedReactiveIndex
 ): ts.Expression {
-  const rewritten = sourceFile && derivedReactiveLocals?.size
+  const rewritten = sourceFile && derivedReactiveLocals?.references.size
     ? rewriteDerivedReactiveExpression(context, expression, sourceFile, derivedReactiveLocals)
     : expression;
   return ts.visitNode(rewritten, visitor) as ts.Expression;
@@ -1044,9 +1136,36 @@ function rewriteDerivedReactiveExpression(
   active = new Set<string>()
 ): ts.Expression {
   const visitor: ts.Visitor = node => {
+    if (ts.isCallExpression(node) && (isThisMethodCall(node, "map") || isThisTaskCall(node))) {
+      const preserved = isThisMethodCall(node, "map") ? new Set([0]) : new Set(node.arguments.map((_, index) => index).slice(0, -1));
+      return context.factory.updateCallExpression(
+        node,
+        ts.visitNode(node.expression, visitor) as ts.Expression,
+        node.typeArguments,
+        node.arguments.map((argument, index) => preserved.has(index)
+          ? argument
+          : ts.visitNode(argument, visitor) as ts.Expression)
+      );
+    }
+    if (ts.isShorthandPropertyAssignment(node)) {
+      const derived = derivedReactiveLocals.references.get(writeSiteKey(node.name.getStart(sourceFile), node.name.end));
+      if (derived?.cached) {
+        return context.factory.createPropertyAssignment(
+          context.factory.createIdentifier(node.name.text),
+          context.factory.createCallExpression(
+            context.factory.createPropertyAccessExpression(context.factory.createIdentifier(node.name.text), "get"), undefined, []
+          )
+        );
+      }
+    }
     if (ts.isIdentifier(node) && !isIdentifierDeclarationName(node) && !isPropertyAccessName(node)) {
-      const derived = derivedReactiveLocals.get(writeSiteKey(node.getStart(sourceFile), node.end));
+      const derived = derivedReactiveLocals.references.get(writeSiteKey(node.getStart(sourceFile), node.end));
       if (derived && !active.has(derived.variableId)) {
+        if (derived.cached) {
+          return context.factory.createCallExpression(
+            context.factory.createPropertyAccessExpression(context.factory.createIdentifier(node.text), "get"), undefined, []
+          );
+        }
         active.add(derived.variableId);
         const rewritten = rewriteDerivedReactiveExpression(context, derived.initializer, sourceFile, derivedReactiveLocals, active);
         active.delete(derived.variableId);
@@ -1155,6 +1274,10 @@ function transformTaskCall(
     if (isFunctionLikeExpression(argument)) {
       return ts.visitNode(argument, visitor) as ts.Expression;
     }
+    const derived = ts.isIdentifier(argument)
+      ? derivedReactiveLocals?.references.get(writeSiteKey(argument.getStart(sourceFile), argument.end))
+      : undefined;
+    if (derived?.cached) return argument;
     return context.factory.createCallExpression(
       context.factory.createPropertyAccessExpression(context.factory.createThis(), "reactive"),
       undefined,
@@ -1317,13 +1440,16 @@ function transformMapCall(
   // (when used directly) or as its already-expanded collection expression.
   // Handle both forms so `const visible = tasks.filter(...); this.map(visible)`
   // remains a live list instead of becoming a one-time array snapshot.
-  const initializer = ts.isIdentifier(source)
-    ? derivedReactiveLocals?.get(writeSiteKey(source.getStart(sourceFile), source.end))?.initializer
+  const sourceDerived = ts.isIdentifier(source)
+    ? derivedReactiveLocals?.references.get(writeSiteKey(source.getStart(sourceFile), source.end))
     : undefined;
+  const initializer = sourceDerived?.initializer;
   const derivedCollection = initializer ?? (isDerivedCollectionExpression(source) ? source : undefined);
   const provenance = derivedCollection ? derivedCollectionSource(derivedCollection) : undefined;
   const keyIdentity = keyExtractorIdentity(node.arguments[1]!);
-  const collection = derivedCollection
+  const collection = sourceDerived?.cached
+    ? source
+    : derivedCollection
     ? context.factory.createCallExpression(
       context.factory.createPropertyAccessExpression(context.factory.createThis(), "reactive"),
       undefined,
@@ -1438,6 +1564,7 @@ function allocateHelperNames(sourceFile: ts.SourceFile): HelperNames {
     fragment: allocateName(fragmentHelper, used),
     expression: allocateName(expressionHelper, used),
     dynamic: allocateName(dynamicHelper, used),
+    derived: allocateName("__exactDerived", used),
     boundary: allocateName(boundaryHelper, used),
     write: allocateName("__exactWrite", used),
     update: allocateName("__exactUpdate", used),

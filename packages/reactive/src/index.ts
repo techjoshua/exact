@@ -188,7 +188,7 @@ export function computed<T>(compute: () => T): ReactiveValue<T> {
           return;
         }
 
-        current = next;
+        if (hasChanged(current, next)) current = next;
       },
       queueRecompute,
       { scope }

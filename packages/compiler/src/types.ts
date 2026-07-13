@@ -407,6 +407,7 @@ export type HelperNames = {
   fragment: string;
   expression: string;
   dynamic: string;
+  derived: string;
   boundary: string;
   write: string;
   update: string;

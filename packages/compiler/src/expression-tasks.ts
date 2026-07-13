@@ -22,6 +22,13 @@ export interface ExpressionTaskSite {
 export interface ExpressionTaskPlan {
   readonly sites: ReadonlyMap<string, ExpressionTaskSite>;
   readonly resources: ReadonlyMap<string, ExpressionTaskResource>;
+  readonly lifecycleListeners: ReadonlyMap<string, ExpressionLifecycleListener>;
+}
+
+export interface ExpressionLifecycleListener {
+  readonly component: string;
+  readonly start: number;
+  readonly end: number;
 }
 
 export type ExpressionTaskResourceKind = "timeout" | "interval" | "animation-frame" | "fetch" | "observer";
@@ -37,6 +44,7 @@ const browserGlobals = new Set(["window", "document", "navigator", "location", "
 export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan {
   const sites = new Map<string, ExpressionTaskSite>();
   const resources = new Map<string, ExpressionTaskResource>();
+  const lifecycleListeners = new Map<string, ExpressionLifecycleListener>();
   const writes = analyzeExpressionWrites(module);
   const localVariables = new Set(module.writesOf(module.root));
   for (const task of module.walk().calls().where(isTaskCall)) {
@@ -118,7 +126,30 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
     });
     sites.set(writeSiteKey(site.start, site.end), site);
   }
-  return Object.freeze({ sites, resources });
+  for (const call of module.walk().calls()) {
+    if (!call.node.span || !isGlobalListener(call, localVariables) || insideTask(call) || insideClientJsx(call)) continue;
+    const owner = call.ancestors().functions().first();
+    if (owner?.node.kind !== "FunctionDeclaration" || !/^[A-Z]/.test(owner.node.name ?? "")) continue;
+    const listener = Object.freeze({ component: owner.node.name!, start: call.node.span.start, end: call.node.span.end });
+    lifecycleListeners.set(writeSiteKey(listener.start, listener.end), listener);
+  }
+  return Object.freeze({ sites, resources, lifecycleListeners });
+}
+
+function isGlobalListener(call: NodeRef, localVariables: ReadonlySet<Variable>): boolean {
+  if (!call.target?.isMember("addEventListener")) return false;
+  const receiver = call.target.target;
+  const root = receiver?.rootVariable;
+  const name = root?.name ?? receiver?.name ?? receiver?.node.text;
+  return !!name && ["window", "document", "globalThis"].includes(name) && (!root || !localVariables.has(root));
+}
+
+function insideTask(reference: NodeRef): boolean {
+  return reference.ancestors().calls().any(isTaskCall);
+}
+
+function insideClientJsx(reference: NodeRef): boolean {
+  return reference.ancestors().ofKind("JsxAttribute").any(attribute => /^(?:on[A-Z]|ref)\b/.test(attribute.node.name ?? attribute.node.text ?? ""));
 }
 
 function taskResourceKind(call: NodeRef, localVariables: ReadonlySet<Variable>): ExpressionTaskResourceKind | undefined {

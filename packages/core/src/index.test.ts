@@ -4,6 +4,7 @@ import {
   LoggerContext,
   createComponentInstance,
   createContext,
+  createDerived,
   createErrorContext,
   createRef,
   createVNode,
@@ -16,6 +17,7 @@ import {
   withTaskObserver,
   withAbortSignal,
   type Component,
+  type ComponentInstance,
   type ErrorReport,
   type LogEvent,
   type Logger,
@@ -243,6 +245,27 @@ describe("@exact/core", () => {
 
     expect(values).toEqual(["Ada Lovelace", "Ada Byron"]);
     expect(aborts).toEqual(["Ada Lovelace"]);
+  });
+
+  it("stops compiler-owned derived subscriptions when a component unmounts", () => {
+    let instance!: ComponentInstance<{ count: number }>;
+    const compute = vi.fn(() => instance.state.count * 2);
+
+    instance = createComponentInstance(function Counter(this: Component<{ count: number }>) {
+      instance = this as ComponentInstance<{ count: number }>;
+      this.state.count = 1;
+      const doubled = createDerived(compute);
+      this.task(doubled, () => undefined);
+      return () => null;
+    }, {});
+    instance.markMounted();
+    expect(compute).toHaveBeenCalledTimes(1);
+
+    instance.unmount();
+    instance.state.count = 2;
+    flushSync();
+
+    expect(compute).toHaveBeenCalledTimes(1);
   });
 
   it("runs fluent tasks on component reactive values", () => {

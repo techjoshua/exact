@@ -13,6 +13,23 @@ describe("expression-backed task effects", () => {
     `);
     expect(analyzeExpressionTasks(module).resources.size).toBe(0);
   });
+  it("plans direct component setup listeners for implicit lifecycle ownership", () => {
+    clearExpressionProjectCache();
+    const module = expressionModuleFor("SetupListener.tsx", `function Panel(this: Component<{}>) {
+      window.addEventListener("resize", () => {});
+      const window = undefined as never;
+      return () => <p />;
+    }`);
+    // The lexical declaration shadows every use in its scope, including the earlier one.
+    expect(analyzeExpressionTasks(module).lifecycleListeners.size).toBe(0);
+
+    const globalModule = expressionModuleFor("GlobalSetupListener.tsx", `function Panel(this: Component<{}>) {
+      window.addEventListener("resize", () => {});
+      return () => <p />;
+    }`);
+    expect([...analyzeExpressionTasks(globalModule).lifecycleListeners.values()])
+      .toContainEqual(expect.objectContaining({ component: "Panel" }));
+  });
   it("classifies state, context, environment, async, and explicit placement effects", () => {
     clearExpressionProjectCache();
     const module = expressionModuleFor("ExpressionTasks.tsx", `

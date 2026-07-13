@@ -1,6 +1,7 @@
 import {
   batch,
   computed,
+  createEffectScope,
   reactive,
   ref as reactiveRef,
   writeReactive,
@@ -16,6 +17,8 @@ import {
   updateReactive,
   unwrap,
   watch,
+  withEffectScope,
+  type EffectScope,
   type Reactive,
   type ReactiveValue,
   type ReactiveRef,
@@ -269,6 +272,11 @@ export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Pr
   });
 }
 
+/** Compiler runtime hook for a shared, lazily evaluated derived component value. */
+export function createDerived<T>(compute: () => T): ReactiveValue<T> {
+  return computed(compute);
+}
+
 function createAbortError(reason: unknown): Error {
   if (reason instanceof Error) return reason;
   const error = new Error(reason === undefined ? "Task aborted" : String(reason));
@@ -321,7 +329,7 @@ export interface Component<State extends object> {
   ref<T>(key: RefKey<T>): RefBinding<T>;
   refs: RefRegistry;
   map<Collection extends Iterable<unknown>>(
-    collection: ComponentReactiveValue<Collection>,
+    collection: ReactiveValue<Collection>,
     key: (item: IterableItem<Collection>) => string,
     render: (item: IterableItem<Collection>) => VNode,
     id?: string,
@@ -348,6 +356,7 @@ export type ComponentInstance<State extends object> = Component<State> & {
   readonly contexts: Map<symbol, unknown>;
   readonly id: string;
   readonly mounted: boolean;
+  readonly scope: EffectScope;
   readonly renderFunction: RenderFunction;
   renderStop?: StopHandle;
   mountController?: AbortController;
@@ -466,6 +475,7 @@ export function createComponentInstance<State extends object, Props extends Reco
   const refs = new Map<symbol, unknown>();
   const listCaches = new Map<string, { render: unknown; cache: Map<string, { item: unknown; vnode: VNode }> }>();
   let mapCallIndex = 0;
+  const scope = createEffectScope();
   const state = reactive({} as State);
   const props = reactive(rawProps, {
     readonly: true,
@@ -483,6 +493,7 @@ export function createComponentInstance<State extends object, Props extends Reco
     type,
     parent,
     id,
+    scope,
     state,
     log: createNoopComponentLog(),
     props,
@@ -574,7 +585,7 @@ export function createComponentInstance<State extends object, Props extends Reco
         }
       };
     },
-    map<T>(collection: Iterable<T> | ComponentReactiveValue<Iterable<T>>, key: (item: T) => string, render: (item: T) => VNode, id?: string, provenance?: Iterable<T>, keyIdentity?: string): VNode {
+    map<T>(collection: Iterable<T> | ReactiveValue<Iterable<T>>, key: (item: T) => string, render: (item: T) => VNode, id?: string, provenance?: Iterable<T>, keyIdentity?: string): VNode {
       const source = peek(() => reactiveRef(collection)) as ReactiveRef<Iterable<T>> | undefined;
       const current = isReactiveValue(collection) && source
         ? peek(() => source.get())
@@ -628,6 +639,7 @@ export function createComponentInstance<State extends object, Props extends Reco
       if (!mounted) return;
       mounted = false;
       instance.renderStop?.();
+      instance.scope.stop();
       instance.mountController?.abort(reason);
       for (const task of instance.tasks) task.stop();
       for (const handler of instance.unmountHandlers) {
@@ -644,7 +656,7 @@ export function createComponentInstance<State extends object, Props extends Reco
 
   let result: RenderFunction | RenderResult;
   try {
-    result = type.call(instance, props as Props);
+    result = withEffectScope(scope, () => type.call(instance, props as Props));
   } catch (error) {
     cleanupFailedConstruction(instance);
     throw error;
@@ -878,6 +890,7 @@ function createComponentReactiveValue<T>(instance: ComponentInstance<any>, value
 
 function cleanupFailedConstruction(instance: ComponentInstance<any>): void {
   instance.renderStop?.();
+  instance.scope.stop();
   instance.mountController?.abort("construct-failed");
   for (const task of instance.tasks) task.stop();
 }

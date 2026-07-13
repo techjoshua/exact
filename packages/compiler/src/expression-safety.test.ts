@@ -4,14 +4,13 @@ import { buildExactProvenance } from "./provenance.js";
 import { analyzeExpressionSafety } from "./expression-safety.js";
 
 describe("expression-backed safety analysis", () => {
-  it("rejects unmanaged global listeners without confusing shadowed bindings", () => {
+  it("allows compiler-owned setup listeners without confusing shadowed bindings", () => {
     clearExpressionProjectCache();
     const unsafe = expressionModuleFor("UnsafeListener.tsx", `function Panel(this: Component<{}>) {
       window.addEventListener("resize", () => {});
       return () => <p />;
     }`);
-    expect(analyzeExpressionSafety(unsafe, buildExactProvenance(unsafe)).get("Panel"))
-      .toContainEqual(expect.stringContaining("browser-global addEventListener()"));
+    expect(analyzeExpressionSafety(unsafe, buildExactProvenance(unsafe)).get("Panel")).toBeUndefined();
 
     const shadowed = expressionModuleFor("ShadowedListener.tsx", `function Panel(this: Component<{}>) {
       const window = { addEventListener() {} };
@@ -19,6 +18,16 @@ describe("expression-backed safety analysis", () => {
       return () => <p />;
     }`);
     expect(analyzeExpressionSafety(shadowed, buildExactProvenance(shadowed)).get("Panel")).toBeUndefined();
+  });
+
+  it("still rejects listeners hidden inside unmanaged nested callbacks", () => {
+    clearExpressionProjectCache();
+    const module = expressionModuleFor("NestedListener.tsx", `function Panel(this: Component<{}>) {
+      Promise.resolve().then(() => window.addEventListener("resize", () => {}));
+      return () => <p />;
+    }`);
+    expect(analyzeExpressionSafety(module, buildExactProvenance(module)).get("Panel"))
+      .toContainEqual(expect.stringContaining("browser-global addEventListener()"));
   });
 
   it("allows task listeners for compiler-managed abort ownership", () => {

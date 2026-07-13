@@ -59,9 +59,12 @@ describe("@exact/compiler", () => {
     expect(output).toContain("__exactDelete(this.state, [\"label\"])");
     expect(output).toContain("__exactArrayMutation(this.state, [\"items\"], \"push\"");
   });
-  it("rejects unmanaged browser-global listeners in component setup", () => {
-    expect(() => transform(`function Panel(this: Component<{}>) { window.addEventListener("resize", () => {}); return () => <p />; }`, { filename: "Panel.tsx" }))
-      .toThrow("browser-global addEventListener()");
+  it("owns browser-global listeners declared in component setup", () => {
+    const output = transform(`function Panel(this: Component<{}>) { window.addEventListener("resize", () => {}); return () => <p />; }`, { filename: "Panel.tsx" });
+    expect(output).toContain("this.task.client(({ signal: __exactSignal }) => window.addEventListener");
+    expect(output).toContain("__exactAbortOptions(undefined, __exactSignal)");
+    const server = transform(`function Panel(this: Component<{}>) { window.addEventListener("resize", () => {}); return () => <p />; }`, { filename: "Panel.tsx", target: "server" });
+    expect(server).not.toContain("addEventListener");
   });
   it("allows abort-scoped browser-global listeners inside component tasks", () => {
     expect(() => transform(`function Panel(this: Component<{}>) { this.task.client(({ signal }) => { window.addEventListener("resize", () => {}, { signal }); }); return () => <p />; }`, { filename: "Panel.tsx" }))
@@ -720,12 +723,13 @@ describe("@exact/compiler", () => {
 
     expect(output).toContain("this.task(this.reactive(() => this.state.query), this.reactive(() => this.state.page), async (query, page) => { });");
   });
-  it("promotes safe derived collection locals when they feed this.map", () => {
+  it("caches safe derived collection locals when they feed this.map", () => {
     const output = transform(`function Board(this: Component<{ tasks: { id: string; status: string }[] }>) {
       const todoTasks = this.state.tasks.filter(task => task.status === "todo");
       return () => this.map(todoTasks, task => task.id, task => <li>{task.id}</li>);
     }`, { filename: "Board.tsx" });
-    expect(output).toContain("this.map(this.reactive(() => this.state.tasks.filter(task => task.status === \"todo\"))");
+    expect(output).toContain("const todoTasks = __exactDerived(() => this.state.tasks.filter(task => task.status === \"todo\"));");
+    expect(output).toContain("this.map(todoTasks, task => task.id");
     expect(output).toContain(", this.state.tasks, \"member:id\"");
   });
   it("keeps expanded derived prop collections live when they feed this.map", () => {
@@ -733,7 +737,8 @@ describe("@exact/compiler", () => {
       const columnTasks = props.tasks.filter(task => task.status === props.column.id);
       return () => <section>{this.map(columnTasks, task => task.id, task => <li>{task.id}</li>)}</section>;
     }`, { filename: "Column.tsx" });
-    expect(output).toContain("this.map(this.reactive(() => (props.tasks.filter(task => task.status === props.column.id)))");
+    expect(output).toContain("const columnTasks = __exactDerived(() => props.tasks.filter(task => task.status === props.column.id));");
+    expect(output).toContain("this.map(columnTasks, task => task.id");
     expect(output).toContain(", props.tasks, \"member:id\")))");
   });
   it("allows callback-local mutation but rejects captured writes in derived collections", () => {
@@ -741,7 +746,8 @@ describe("@exact/compiler", () => {
       const todoTasks = this.state.tasks.filter(task => { let match = false; match = task.status === "todo"; return match; });
       return () => this.map(todoTasks, task => task.id, task => <li>{task.id}</li>);
     }`, { filename: "Board.tsx" });
-    expect(local).toContain("this.map(this.reactive(() => this.state.tasks.filter");
+    expect(local).toContain("const todoTasks = __exactDerived(() => this.state.tasks.filter");
+    expect(local).toContain("this.map(todoTasks, task => task.id");
 
     const captured = transform(`function Board(this: Component<{ tasks: { id: string }[] }>) {
       let seen = 0;
@@ -756,11 +762,12 @@ describe("@exact/compiler", () => {
       const count = this.state.items.filter(i => i.index % 2).reduce((agg, i) => { agg += i.val; return agg; }, 0);
       return () => <p>{count}</p>;
     }`, { filename: "Totals.tsx" });
-    expect(output).toContain("__exactDynamic(() => (this.state.items.filter");
+    expect(output).toContain("const count = __exactDerived(() => this.state.items.filter");
+    expect(output).toContain("__exactDynamic(() => count.get())");
     expect(output).toContain("reduce((agg, i) => { agg += i.val; return agg; }, 0))");
   });
 
-  it("inlines safe derived consts inside reactive JSX children", () => {
+  it("shares cached derived consts across reactive JSX children", () => {
     const output = transform(`
       function View(this: Component<{ first: string; last: string }>) {
         const fullName = \`\${this.state.first} \${this.state.last}\`;
@@ -768,7 +775,8 @@ describe("@exact/compiler", () => {
       }
     `);
 
-    expect(output).toContain("__exactDynamic(() => (`${this.state.first} ${this.state.last}`))");
+    expect(output).toContain("const fullName = __exactDerived(() => `${this.state.first} ${this.state.last}`);");
+    expect(output).toContain("__exactDynamic(() => fullName.get())");
   });
 
   it("inlines safe derived const chains inside reactive JSX props", () => {
@@ -780,7 +788,9 @@ describe("@exact/compiler", () => {
       }
     `);
 
-    expect(output).toContain("title: __exactExpression(() => (`${(this.state.first)} ${this.state.last}`))");
+    expect(output).toContain("const first = __exactDerived(() => this.state.first);");
+    expect(output).toContain("const fullName = __exactDerived(() => `${first.get()} ${this.state.last}`);");
+    expect(output).toContain("title: __exactExpression(() => fullName.get())");
   });
 
   it("inlines safe prop-derived consts inside reactive JSX children", () => {
@@ -791,7 +801,8 @@ describe("@exact/compiler", () => {
       }
     `);
 
-    expect(output).toContain("__exactDynamic(() => (`${props.user.first} ${props.user.last}`))");
+    expect(output).toContain("const fullName = __exactDerived(() => `${props.user.first} ${props.user.last}`);");
+    expect(output).toContain("__exactDynamic(() => fullName.get())");
   });
 
   it("inlines safe destructured prop-derived consts inside reactive JSX props", () => {
@@ -802,7 +813,8 @@ describe("@exact/compiler", () => {
       }
     `);
 
-    expect(output).toContain("title: __exactExpression(() => (`${user.first} ${user.last}`))");
+    expect(output).toContain("const fullName = __exactDerived(() => `${user.first} ${user.last}`);");
+    expect(output).toContain("title: __exactExpression(() => fullName.get())");
   });
 
   it("does not infer derived consts with call expressions", () => {
@@ -850,7 +862,8 @@ describe("@exact/compiler", () => {
       }
     `);
 
-    expect(output).toContain("this.task(this.reactive(() => (`${this.state.query}!`)), async (value) => { });");
+    expect(output).toContain("const label = __exactDerived(() => `${this.state.query}!`);");
+    expect(output).toContain("this.task(label, async (value) => { });");
   });
 
   it("inlines safe prop-derived consts inside task dependency captures", () => {
@@ -861,7 +874,8 @@ describe("@exact/compiler", () => {
       }
     `);
 
-    expect(output).toContain("this.task(this.reactive(() => (`${props.query}!`)), async (value) => { });");
+    expect(output).toContain("const label = __exactDerived(() => `${props.query}!`);");
+    expect(output).toContain("this.task(label, async (value) => { });");
   });
 
   it("inlines safe derived consts declared inside render functions", () => {
@@ -898,7 +912,8 @@ describe("@exact/compiler", () => {
       }
     `);
 
-    expect(output).toContain("this.reactive(() => (`${this.state.query}!`))");
+    expect(output).toContain("const label = __exactDerived(() => `${this.state.query}!`);");
+    expect(output).toContain("this.reactive(() => label.get())");
   });
 
   it("adds stable compiler ids to this.map list boundaries", () => {
