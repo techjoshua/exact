@@ -2,6 +2,18 @@ import { describe, expect, it, vi } from "vitest";
 import { computed, flushSync, isReactive, mutateReactiveArray, peek, reactive, ref, registerReactiveListKey, snapshot, subscribe, unwrap, updateReactiveValue, watch, writeReactive } from "./index.js";
 
 describe("@exact/reactive", () => {
+  it("does not subscribe merely by obtaining a computed reference", () => {
+    const state = reactive({ count: 1 });
+    const value = computed(() => state.count * 2);
+    let runs = 0;
+    watch(() => {
+      runs++;
+      peek(() => ref(value));
+    });
+    state.count++;
+    flushSync();
+    expect(runs).toBe(1);
+  });
   it("reconciles equal JSON-shaped compiler writes without notifying dependents", () => {
     const state = reactive({ project: { id: "p1", title: "Initial", tags: ["a"] } });
     const project = state.project;

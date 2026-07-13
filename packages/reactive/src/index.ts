@@ -544,7 +544,7 @@ function createReactive(value: object, options: ReactiveOptions): object {
   return proxy;
 }
 
-function isReactiveValue(value: unknown): value is ReactiveValue & { [reactiveValueRef]: ReactiveRef } {
+export function isReactiveValue(value: unknown): value is ReactiveValue & { [reactiveValueRef]: ReactiveRef } {
   return !!value && typeof value === "object" && reactiveValueMarker in value;
 }
 

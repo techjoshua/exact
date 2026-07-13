@@ -6,6 +6,8 @@ import {
   updateReactiveValue,
   deleteReactiveValue,
   mutateReactiveArray,
+  peek,
+  isReactiveValue,
   registerReactiveListKey,
   subscribe,
   updateReactive,
@@ -181,6 +183,7 @@ export type Unwrapped<Deps extends readonly unknown[]> = {
 export type ComponentReactiveValue<T> = ReactiveValue<T> & {
   task(work: (value: T, ctx: TaskContext) => TaskResult): void;
 };
+export type IterableItem<T> = T extends Iterable<infer Item> ? Item : never;
 
 export type ComponentTask = {
   (work: (ctx: TaskContext) => TaskResult): void;
@@ -212,6 +215,13 @@ export interface Component<State extends object> {
   task: ComponentTask;
   ref<T>(key: RefKey<T>): RefBinding<T>;
   refs: RefRegistry;
+  map<Collection extends Iterable<unknown>>(
+    collection: ComponentReactiveValue<Collection>,
+    key: (item: IterableItem<Collection>) => string,
+    render: (item: IterableItem<Collection>) => VNode,
+    id?: string,
+    provenance?: Iterable<IterableItem<Collection>>
+  ): VNode;
   map<T>(
     collection: Iterable<T>,
     key: (item: T) => string,
@@ -456,8 +466,12 @@ export function createComponentInstance<State extends object, Props extends Reco
         }
       };
     },
-    map<T>(collection: Iterable<T>, key: (item: T) => string, render: (item: T) => VNode, id?: string, provenance?: Iterable<T>): VNode {
-      registerReactiveListKey(provenance ?? collection, key as (item: unknown) => string);
+    map<T>(collection: Iterable<T> | ComponentReactiveValue<Iterable<T>>, key: (item: T) => string, render: (item: T) => VNode, id?: string, provenance?: Iterable<T>): VNode {
+      const source = peek(() => reactiveRef(collection)) as ReactiveRef<Iterable<T>> | undefined;
+      const current = isReactiveValue(collection) && source
+        ? peek(() => source.get())
+        : collection as Iterable<T>;
+      registerReactiveListKey(provenance ?? current, key as (item: unknown) => string);
       // A render pass gives every map call a stable slot. Reuse only when the
       // renderer itself is stable; inline render callbacks are recreated on a
       // parent render and may capture a different parent value.
@@ -470,8 +484,8 @@ export function createComponentInstance<State extends object, Props extends Reco
       return createVNode(Fragment, {
         key: id,
         list: {
-          collection,
-          source: reactiveRef(collection) as ReactiveRef<Iterable<T>> | undefined,
+          collection: current,
+          source,
           key,
           render,
           cache: cache as Map<string, { item: T; vnode: VNode }>
