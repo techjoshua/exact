@@ -105,6 +105,19 @@ export interface JsxExpressionNode extends ExpressionNode {
   readonly category: "jsx";
 }
 
+export interface JsxElementNode extends JsxExpressionNode {
+  readonly kind: "JsxElement" | "JsxSelfClosingElement" | "JsxFragment";
+  readonly tagName?: string;
+  readonly attributes: readonly JsxAttributeNode[];
+  readonly jsxChildren: readonly ExpressionNode[];
+}
+
+export interface JsxAttributeNode extends JsxExpressionNode {
+  readonly kind: "JsxAttribute" | "JsxSpreadAttribute";
+  readonly name?: string;
+  readonly initializer?: ExpressionNode;
+}
+
 export interface ExpressionDiagnostic {
   readonly code: string;
   readonly message: string;
@@ -164,4 +177,12 @@ export function isAssignmentExpression(node: ExpressionNode): node is Assignment
 
 export function isJsxExpression(node: ExpressionNode): node is JsxExpressionNode {
   return node.category === "jsx";
+}
+
+export function isJsxElement(node: ExpressionNode): node is JsxElementNode {
+  return node.kind === "JsxElement" || node.kind === "JsxSelfClosingElement" || node.kind === "JsxFragment";
+}
+
+export function isJsxAttribute(node: ExpressionNode): node is JsxAttributeNode {
+  return node.kind === "JsxAttribute" || node.kind === "JsxSpreadAttribute";
 }

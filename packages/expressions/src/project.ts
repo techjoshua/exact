@@ -284,6 +284,35 @@ export class ExpressionProject {
         const parameters = node.parameters.flatMap(parameter => collectBindingIdentifiers(parameter.name).map(variableFor).filter((value): value is Variable => !!value));
         return Object.freeze({ ...common, parameters: Object.freeze(parameters), captures: Object.freeze([]) });
       }
+      if (ts.isJsxElement(node)) {
+        const opening = children[0]!;
+        const attributes = opening.children.find(child => child.kind === "JsxAttributes")?.children ?? [];
+        return Object.freeze({
+          ...common,
+          tagName: node.openingElement.tagName.getText(sourceFile),
+          attributes: Object.freeze(attributes),
+          jsxChildren: Object.freeze(children.slice(1, -1))
+        });
+      }
+      if (ts.isJsxSelfClosingElement(node)) {
+        const attributes = children.find(child => child.kind === "JsxAttributes")?.children ?? [];
+        return Object.freeze({
+          ...common,
+          tagName: node.tagName.getText(sourceFile),
+          attributes: Object.freeze(attributes),
+          jsxChildren: Object.freeze([])
+        });
+      }
+      if (ts.isJsxFragment(node)) {
+        return Object.freeze({ ...common, attributes: Object.freeze([]), jsxChildren: Object.freeze(children.slice(1, -1)) });
+      }
+      if (ts.isJsxAttribute(node) || ts.isJsxSpreadAttribute(node)) {
+        return Object.freeze({
+          ...common,
+          name: ts.isJsxAttribute(node) ? node.name.getText(sourceFile) : undefined,
+          initializer: children.at(-1)
+        });
+      }
       return Object.freeze(common);
     };
 

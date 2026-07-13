@@ -20,7 +20,11 @@ describe("@exact/expressions", () => {
     expect(module.walk().functions().any()).toBe(true);
     expect(module.walk().calls().any()).toBe(true);
     expect(module.walk().calls().where(call => call.target?.isMember("filter") === true).any()).toBe(true);
-    expect(module.walk().jsxElements().toArray().length).toBeGreaterThan(5);
+    const elements = module.walk().jsxElements().toArray();
+    expect(elements.length).toBeGreaterThan(5);
+    expect(elements.some(element => element.node.tagName === "TaskCard")).toBe(true);
+    expect(elements.every(element => Array.isArray(element.node.attributes) && Array.isArray(element.node.jsxChildren))).toBe(true);
+    expect(module.walk().jsxAttributes().any(attribute => attribute.node.name === "className")).toBe(true);
     expect(module.root.descendants().first()?.parent).toBeDefined();
   });
 

@@ -2,12 +2,16 @@ import {
   isAssignmentExpression,
   isCallExpression,
   isFunctionExpression,
+  isJsxAttribute,
+  isJsxElement,
   isJsxExpression,
   type AssignmentExpressionNode,
   type CallExpressionNode,
   type ExpressionNode,
   type FunctionExpressionNode,
   type JsxExpressionNode,
+  type JsxAttributeNode,
+  type JsxElementNode,
   type WalkOptions
 } from "./model.js";
 
@@ -129,7 +133,15 @@ export class NodeQuery<T extends ExpressionNode = ExpressionNode> implements Ite
     return this.ofKind(isAssignmentExpression);
   }
 
-  jsxElements(): NodeQuery<JsxExpressionNode> {
+  jsxElements(): NodeQuery<JsxElementNode> {
+    return this.ofKind(isJsxElement);
+  }
+
+  jsxAttributes(): NodeQuery<JsxAttributeNode> {
+    return this.ofKind(isJsxAttribute);
+  }
+
+  jsxSyntax(): NodeQuery<JsxExpressionNode> {
     return this.ofKind(isJsxExpression);
   }
 
