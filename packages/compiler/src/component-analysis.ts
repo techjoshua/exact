@@ -56,6 +56,7 @@ import type {
 } from "./types.js";
 import { writeSiteKey } from "./expression-writes.js";
 import type { ExpressionTaskPlan, ExpressionTaskSite } from "./expression-tasks.js";
+import type { ExpressionComponentSite } from "./expression-components.js";
 
 /** Analyzes one component function into placement, task, context, and split-boundary IR. */
 export function analyzeComponent(
@@ -66,15 +67,16 @@ export function analyzeComponent(
   semanticReferences: SemanticReferenceIndex,
   semanticDeclarations: SemanticDeclarationIndex,
   expressionDiagnostics?: readonly string[],
-  expressionTasks?: ExpressionTaskPlan
+  expressionTasks?: ExpressionTaskPlan,
+  expressionComponent?: ExpressionComponentSite
 ): ExactComponentIR {
   const tasks: ExactTaskIR[] = [];
   const contexts: ExactContextEffect[] = [];
-  const splitBoundaries = new Set<string>();
+  const splitBoundaries = new Set<string>(expressionComponent?.splitBoundaries ?? []);
   const diagnostics: string[] = [...(expressionDiagnostics ?? [])];
-  const browserGlobalsOutsideClientBoundary = new Set<string>();
-  let hasClientEffect = false;
-  let hasServerEffect = false;
+  const browserGlobalsOutsideClientBoundary = new Set<string>(expressionComponent?.browserGlobalsOutsideClientBoundary ?? []);
+  let hasClientEffect = expressionComponent?.clientEffects ?? false;
+  let hasServerEffect = expressionComponent?.serverEffects ?? false;
   let clientIslandCount = 0;
   let taskIndex = 0;
   const setupStateAliases = new Set<string>();
@@ -137,7 +139,7 @@ export function analyzeComponent(
       }
     }
 
-    if (ts.isJsxAttribute(current)) {
+    if (expressionComponent === undefined && ts.isJsxAttribute(current)) {
       const propName = current.name.getText(sourceFile);
       if (/^on[A-Z]/.test(propName) || propName === "ref") {
         hasClientEffect = true;
@@ -145,7 +147,7 @@ export function analyzeComponent(
       }
     }
 
-    if (ts.isIdentifier(current)) {
+    if (expressionComponent === undefined && ts.isIdentifier(current)) {
       const reference = semanticReferenceForIdentifier(current, semanticReferences, sourceFile);
       if (isBrowserGlobalReference(current, reference)) {
         hasClientEffect = true;
