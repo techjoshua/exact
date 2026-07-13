@@ -1,6 +1,5 @@
-import { createExpressionProject, ExpressionProject, type BoundModule } from "@exact/expressions";
+import { createExpressionProject, ExpressionProject, findExpressionConfig, type BoundModule } from "@exact/expressions";
 import path from "node:path";
-import ts from "typescript";
 
 const projects = new Map<string, ExpressionProject>();
 const modules = new Map<string, Readonly<{ source: string; module: BoundModule }>>();
@@ -12,8 +11,7 @@ const modules = new Map<string, Readonly<{ source: string; module: BoundModule }
 export function expressionModuleFor(filename: string, source: string): BoundModule {
   const virtual = !path.isAbsolute(filename);
   const absolute = path.resolve(filename);
-  const config = ts.findConfigFile(path.dirname(absolute), ts.sys.fileExists, "tsconfig.json")
-    ?? ts.findConfigFile(process.cwd(), ts.sys.fileExists, "tsconfig.json");
+  const config = findExpressionConfig(path.dirname(absolute)) ?? findExpressionConfig(process.cwd());
   if (!config) {
     // ExpressionProject turns this into the package's structured configuration
     // diagnostic. Keep the selection policy in one place.

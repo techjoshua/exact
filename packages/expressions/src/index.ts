@@ -34,6 +34,7 @@ export {
   ExpressionProject,
   ExpressionProjectError,
   createExpressionProject,
+  findExpressionConfig,
   type ExpressionProjectOptions
 } from "./project.js";
 export {

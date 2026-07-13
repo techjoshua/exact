@@ -156,4 +156,14 @@ export function total(items: number[]) {
     expect(secondVariable.id).toBe(firstVariable.id);
     expect(secondVariable).not.toBe(firstVariable);
   });
+
+  it("uses host filesystem casing rules for incremental overlays", () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const lower = path.join(root, "apps/kanban/src/__case_overlay.ts");
+    const upper = path.join(root, "apps/kanban/src/__CASE_OVERLAY.ts");
+    project.updateModule(lower, "export const lower = 1;");
+    const latest = project.updateModule(upper, "export const upper = 2;");
+    expect(latest.emit().code).toContain("upper = 2");
+    if (process.platform === "win32") expect(project.getModule(lower).emit().code).toContain("upper = 2");
+  });
 });

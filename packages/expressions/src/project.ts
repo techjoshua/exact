@@ -318,8 +318,14 @@ export function createExpressionProject(options: ExpressionProjectOptions = {}):
   return new ExpressionProject(options);
 }
 
+/** Finds the nearest usable project configuration without exposing TypeScript. */
+export function findExpressionConfig(cwd: string): string | undefined {
+  return ts.findConfigFile(path.resolve(cwd), ts.sys.fileExists, "tsconfig.json");
+}
+
 function normalizeFile(filename: string): string {
-  return path.resolve(filename).replace(/\\/g, "/");
+  const normalized = path.resolve(filename).replace(/\\/g, "/");
+  return ts.sys.useCaseSensitiveFileNames ? normalized : normalized.toLowerCase();
 }
 
 function scriptKind(filename: string): ts.ScriptKind {

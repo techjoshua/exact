@@ -268,7 +268,7 @@ export function exactJsxTransformer(
       ? factory.updateSourceFile(transformed, [...transformed.statements, ...clientIslandDefinitions])
       : transformed;
     const withServerParts = target === "server"
-      ? appendServerPartExportAliases(sourceFile, withIslands, factory, islandCounts, componentPlacements)
+      ? appendServerPartExportAliases(sourceFile, withIslands, factory, islandCounts, componentPlacements, semanticGraph)
       : withIslands;
     const visited = target === "default" ? withServerParts : pruneUnusedImports(withServerParts, factory);
     if (!sawJsx && !sawBoundary && !sawStateWrite) return visited;
@@ -585,9 +585,10 @@ function appendServerPartExportAliases(
   transformed: ts.SourceFile,
   factory: ts.NodeFactory,
   islandCounts: Map<string, number>,
-  componentPlacements: Map<string, ExactPlacement>
+  componentPlacements: Map<string, ExactPlacement>,
+  semanticGraph: ExactSemanticGraphIR
 ): ts.SourceFile {
-  const exportedNames = collectExports(sourceFile);
+  const exportedNames = collectExports(sourceFile, semanticGraph);
   const aliases: ts.ExportDeclaration[] = [];
   for (const [name, count] of [...islandCounts].sort(([left], [right]) => left.localeCompare(right))) {
     if (count <= 0) continue;

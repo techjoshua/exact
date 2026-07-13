@@ -43,8 +43,7 @@ import type {
   TransformTarget
 } from "./types.js";
 import {
-  collectExportBindings,
-  isComponentLikeFunction
+  collectExportBindings
 } from "./exports.js";
 import {
   collectImportedComponents,
@@ -171,7 +170,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const expressionModule = expressionModuleFor(filename, normalized);
   const expressionFunctions = new Map(
     expressionModule.walk().functions()
-      .where(reference => reference.node.kind === "FunctionDeclaration" && !!reference.node.span)
+      .where(reference => reference.node.kind === "FunctionDeclaration" && !!reference.node.span && /^[A-Z]/.test(reference.node.name ?? ""))
       .toArray()
       .map(reference => [reference.node.span!.start, reference.node.name] as const)
   );
@@ -189,7 +188,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const componentNodes = new Map<string, ts.FunctionDeclaration>();
 
   function visit(node: ts.Node): void {
-    if (ts.isFunctionDeclaration(node) && node.name && expressionFunctions.get(node.getStart(sourceFile)) === node.name.text && isComponentLikeFunction(node)) {
+    if (ts.isFunctionDeclaration(node) && node.name && expressionFunctions.get(node.getStart(sourceFile)) === node.name.text) {
       componentNodes.set(node.name.text, node);
       components.push(analyzeComponent(node.name.text, node, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations));
       return;

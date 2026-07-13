@@ -16,8 +16,8 @@ export function isComponentLikeFunction(node: ts.FunctionDeclaration): boolean {
 }
 
 /** Collects exported names from a source file. */
-export function collectExports(sourceFile: ts.SourceFile): Set<string> {
-  return new Set([...collectExportBindings(sourceFile, buildSemanticGraph(sourceFile)).keys()]);
+export function collectExports(sourceFile: ts.SourceFile, semanticGraph?: ExactSemanticGraphIR): Set<string> {
+  return new Set([...collectExportBindings(sourceFile, semanticGraph ?? buildSemanticGraph(sourceFile)).keys()]);
 }
 
 /** Collects exported-to-local binding names from semantic export declarations. */
