@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeExpressionComponents } from "./expression-components.js";
+import { analyzeExpressionComponents, createExpressionRenderEdges } from "./expression-components.js";
 import { analyzeExpressionJsx } from "./expression-jsx.js";
 import { clearExpressionProjectCache, expressionModuleFor } from "./expression-project.js";
 import { analyzeExpressionTasks } from "./expression-tasks.js";
@@ -27,6 +27,24 @@ describe("expression-backed component effects", () => {
       { token: "Theme", kind: "read", confidence: "exact" },
       { token: "unknown", kind: "write", confidence: "unknown" }
     ]));
+    const edges = createExpressionRenderEdges("ComponentEffects.tsx", "Mixed", site.renders, new Map([
+      ["button", { name: "button", placement: "client" as const }]
+    ]));
+    expect(edges).toEqual([]);
+  });
+
+  it("resolves canonical JSX render sites into stable component edges", () => {
+    clearExpressionProjectCache();
+    const module = expressionModuleFor("RenderEdges.tsx", "function Parent() { return () => <section><Child /></section>; } function Child() { return () => <p />; }");
+    const tasks = analyzeExpressionTasks(module);
+    const jsx = analyzeExpressionJsx(module, buildExactProvenance(module), "RenderEdges.tsx");
+    const site = analyzeExpressionComponents(module, jsx, tasks).sites.get("Parent")!;
+    const edges = createExpressionRenderEdges("RenderEdges.tsx", "Parent", site.renders, new Map([
+      ["Child", { name: "Child", boundaryName: "Child", placement: "server" as const, componentId: "child-id" }]
+    ]));
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({ tag: "Child", componentId: "child-id", placement: "server", index: 1 });
+    expect(edges[0]?.path).not.toBe("");
   });
 
   it("reports browser globals outside managed client regions", () => {

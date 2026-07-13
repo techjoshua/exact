@@ -92,6 +92,7 @@ import { analyzeExpressionSafety } from "./expression-safety.js";
 import { analyzeExpressionTasks } from "./expression-tasks.js";
 import { analyzeExpressionJsx } from "./expression-jsx.js";
 import { analyzeExpressionComponents } from "./expression-components.js";
+import { createExpressionRenderEdges } from "./expression-components.js";
 
 export type * from "./types.js";
 export { preprocessPropPunning } from "./preprocess.js";
@@ -234,7 +235,10 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   for (const component of components) {
     const node = componentNodes.get(component.name);
     if (!node) continue;
-    component.renderEdges = collectComponentRenderEdges(node, sourceFile, componentInfo, semanticReferences);
+    const expressionComponent = expressionComponents.sites.get(component.name);
+    component.renderEdges = expressionComponent
+      ? createExpressionRenderEdges(filename, component.name, expressionComponent.renders, componentInfo)
+      : collectComponentRenderEdges(node, sourceFile, componentInfo, semanticReferences);
     component.subgraphPlacement = combinePlacements([
       component.placement,
       ...component.renderEdges.map(edge => edge.placement)

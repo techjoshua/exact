@@ -2,7 +2,15 @@ import type { BoundModule, NodeRef, Variable } from "@exact/expressions";
 import type { ExpressionJsxPlan } from "./expression-jsx.js";
 import type { ExpressionTaskPlan } from "./expression-tasks.js";
 import { isServerOnlyModule } from "./imports.js";
-import type { ExactContextEffect } from "./types.js";
+import { stableId } from "./ids.js";
+import type { ExactComponentRenderEdgeIR, ExactContextEffect, ExactImportedComponentIR } from "./types.js";
+
+export interface ExpressionRenderSite {
+  readonly tag: string;
+  readonly start: number;
+  readonly end: number;
+  readonly path: string;
+}
 
 export interface ExpressionComponentSite {
   readonly name: string;
@@ -13,6 +21,7 @@ export interface ExpressionComponentSite {
   readonly splitBoundaries: readonly string[];
   readonly browserGlobalsOutsideClientBoundary: readonly string[];
   readonly contexts: readonly ExactContextEffect[];
+  readonly renders: readonly ExpressionRenderSite[];
 }
 
 export interface ExpressionComponentPlan {
@@ -34,6 +43,7 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
     const splitBoundaries = new Set<string>();
     const outsideGlobals = new Set<string>();
     const contexts: ExactContextEffect[] = [];
+    const renders: ExpressionRenderSite[] = [];
     let clientEffects = false;
     let serverEffects = false;
 
@@ -43,6 +53,16 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
         if (!/^on[A-Z]/.test(attribute) && attribute !== "ref") continue;
         clientEffects = true;
         splitBoundaries.add(attribute === "ref" ? "ref" : "event-handler");
+      }
+      if (!element.intrinsic && element.tagName) {
+        const reference = module.walk().jsxElements().first(candidate => candidate.node.span?.start === element.start);
+        const tagBinding = reference?.descendants().references().first(candidate =>
+          candidate.name === element.tagName?.split(".")[0]
+          && candidate.ancestors().any(ancestor => ancestor.node.kind === "JsxOpeningElement" || ancestor.node.kind === "JsxSelfClosingElement"));
+        const canReferenceComponent = !!tagBinding?.variable && ["ImportSpecifier", "ImportClause", "NamespaceImport", "FunctionDeclaration"].includes(tagBinding.variable.declarationKind);
+        if (reference && canReferenceComponent && !reference.ancestors().functions().any(fn => fn.node !== component.node && fn.node.kind !== "ArrowFunction")) {
+          renders.push(Object.freeze({ tag: element.tagName, start: element.start, end: element.end, path: nodePath(reference, component) }));
+        }
       }
     }
 
@@ -88,10 +108,48 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
       serverEffects,
       splitBoundaries: Object.freeze([...splitBoundaries].sort()),
       browserGlobalsOutsideClientBoundary: Object.freeze([...outsideGlobals].sort()),
-      contexts: Object.freeze(uniqueContexts(contexts))
+      contexts: Object.freeze(uniqueContexts(contexts)),
+      renders: Object.freeze(renders)
     }));
   }
   return Object.freeze({ sites });
+}
+
+/** Resolves expression render sites against local/imported component metadata. */
+export function createExpressionRenderEdges(
+  filename: string,
+  componentName: string,
+  renders: readonly ExpressionRenderSite[],
+  componentInfo: ReadonlyMap<string, ExactImportedComponentIR>
+): ExactComponentRenderEdgeIR[] {
+  const edges: ExactComponentRenderEdgeIR[] = [];
+  for (const render of renders) {
+    const component = componentInfo.get(render.tag);
+    if (!component) continue;
+    const index = edges.length + 1;
+    edges.push({
+      id: stableId(filename, componentName, "render-edge", String(index), render.path, render.tag, component.componentId ?? component.name),
+      tag: render.tag,
+      name: component.boundaryName ?? component.name,
+      componentId: component.componentId,
+      placement: component.placement,
+      boundary: component.placement,
+      index,
+      path: render.path
+    });
+  }
+  return edges;
+}
+
+function nodePath(reference: NodeRef, component: NodeRef): string {
+  const path: number[] = [];
+  let current = reference;
+  while (current.parent && current.parent.node !== component.node) {
+    path.unshift(current.parent.node.children.indexOf(current.node));
+    current = current.parent;
+  }
+  if (current.parent?.node === component.node) path.unshift(component.node.children.indexOf(current.node));
+  return path.join(".");
 }
 
 function uniqueContexts(values: readonly ExactContextEffect[]): ExactContextEffect[] {
