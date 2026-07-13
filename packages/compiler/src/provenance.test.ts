@@ -18,6 +18,21 @@ describe("expression-backed reactive provenance", () => {
     expect(visible?.provenance).toBe("derived");
     expect(visible?.dependencies.some(variable => variable.name === "state")).toBe(true);
     expect(snapshot?.provenance).toBe("snapshot");
+    expect(visible?.safeToReevaluate).toBe(true);
+  });
+
+  it("allows callback-local mutation but rejects captured writes during derived reevaluation", () => {
+    clearExpressionProjectCache();
+    const graph = analyzeReactiveProvenance(`
+      export function Totals(props: { values: number[] }) {
+        let captured = 0;
+        const safe = props.values.reduce((sum, value) => { sum += value; return sum; }, 0);
+        const unsafe = props.values.map(value => { captured += value; return value; });
+        return <p>{safe}:{unsafe.length}</p>;
+      }
+    `, { filename: "derived-safety.tsx" });
+    expect(graph.entries.find(entry => entry.variable.name === "safe")?.safeToReevaluate).toBe(true);
+    expect(graph.entries.find(entry => entry.variable.name === "unsafe")?.safeToReevaluate).toBe(false);
   });
 
   it("propagates reactivity through collection callbacks and JSX cells", () => {

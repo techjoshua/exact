@@ -41,7 +41,7 @@ export function collectDerivedReactiveLocals(
   semanticReferences: SemanticReferenceIndex,
   semanticDeclarations: SemanticDeclarationIndex,
   baseDerived: DerivedReactiveIndex = new Map(),
-  expressionDerived: ReadonlySet<string> = new Set()
+  expressionDerived?: ReadonlySet<string>
 ): DerivedReactiveIndex {
   const derived = new Map(baseDerived);
   const reactiveSources = collectFunctionReactiveSources(node, sourceFile, semanticDeclarations);
@@ -52,12 +52,13 @@ export function collectDerivedReactiveLocals(
       && ts.isIdentifier(current.name)
       && current.initializer
       && isConstVariableDeclaration(current)
-      && isSafeDerivedReactiveInitializer(current.initializer)) {
-      // Only pure-ish const initializers are promoted. Calls, awaits, assignments,
-      // and nested functions stay explicit to avoid changing user-side effects.
+      && (expressionDerived !== undefined || isSafeDerivedReactiveInitializer(current.initializer))) {
+      // The expression provenance plan owns safety on the main path. The local
+      // syntax check remains only for callers that have not supplied a plan.
       const declaration = semanticDeclarationForIdentifier(current.name, semanticDeclarations, sourceFile);
-      if (declaration && (expressionDerived.has(declaration.id)
-        || expressionReadsReactiveInput(current.initializer, sourceFile, semanticReferences, derived, reactiveSources))) {
+      if (declaration && (expressionDerived !== undefined
+        ? expressionDerived.has(declaration.id)
+        : expressionReadsReactiveInput(current.initializer, sourceFile, semanticReferences, derived, reactiveSources))) {
         derived.set(declaration.id, current.initializer);
       }
     }

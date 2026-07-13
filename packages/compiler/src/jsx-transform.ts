@@ -94,7 +94,9 @@ export function exactJsxTransformer(
     const serverOnlyImports = collectServerOnlyImports(sourceFile, semanticGraph);
     const componentInfo = collectComponentInfo(sourceFile, serverOnlyImports, importedManifests, semanticGraph);
     const componentPlacements = componentPlacementsFromInfo(componentInfo);
-    const expressionDerived = new Set(provenance?.entries.filter(entry => entry.provenance === "derived").map(entry => entry.variable.id));
+    const expressionDerived = provenance
+      ? new Set(provenance.entries.filter(entry => entry.provenance === "derived" && entry.safeToReevaluate).map(entry => entry.variable.id))
+      : undefined;
     let sawJsx = false;
     let sawBoundary = false;
     let sawStateWrite = false;

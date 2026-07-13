@@ -6,6 +6,7 @@ export interface ExactProvenanceEntry {
   readonly variable: Variable;
   readonly provenance: ExactReactiveProvenance;
   readonly dependencies: readonly Variable[];
+  readonly safeToReevaluate: boolean;
 }
 
 export interface ExactProvenanceGraph {
@@ -25,6 +26,7 @@ export interface ExactReactiveCell {
 export function buildExactProvenance(module: BoundModule): ExactProvenanceGraph {
   const dependencies = new Map<Variable, Set<Variable>>();
   const hints = new Map<Variable, ExactReactiveProvenance>();
+  const reevaluationSafety = new Map<Variable, boolean>();
 
   for (const fn of module.walk().functions()) {
     if (fn.node.kind === "FunctionDeclaration" && /^[A-Z]/.test(fn.node.name ?? "")) {
@@ -41,6 +43,7 @@ export function buildExactProvenance(module: BoundModule): ExactProvenanceGraph 
       if (variable !== declared) values.add(variable);
     }
     dependencies.set(declared, values);
+    reevaluationSafety.set(declared, initializer ? isSafeDerivedInitializer(module, initializer) : false);
     const text = declaration.node.text ?? "";
     if (/\bpeek\s*\(/.test(text)) hints.set(declared, "snapshot");
     else if (/\bthis\.state\b/.test(text)) hints.set(declared, "derived");
@@ -50,10 +53,11 @@ export function buildExactProvenance(module: BoundModule): ExactProvenanceGraph 
 
   for (const call of module.walk().calls()) {
     if (!call.target?.isMember() || !["filter", "map", "flatMap", "reduce", "find", "some", "every"].includes(call.target.name ?? "")) continue;
-    const source = call.target.target;
+    const componentMap = call.target.name === "map" && /^this\.map$/.test(call.target.node.text ?? "");
+    const source = componentMap ? call.arguments[0] : call.target.target;
     const sources = source?.walk().references().toArray().map(reference => reference.variable).filter((value): value is Variable => !!value) ?? [];
     const directlyReactive = /\bthis\.(?:state|props|context)\b/.test(source?.node.text ?? "");
-    for (const argument of call.arguments) {
+    for (const argument of componentMap ? call.arguments.slice(1) : call.arguments) {
       if (!argument.node.kind.includes("Function") && argument.node.kind !== "ArrowFunction") continue;
       const parameters = "parameters" in argument.node ? argument.node.parameters as readonly Variable[] : [];
       for (const parameter of parameters) {
@@ -88,7 +92,8 @@ export function buildExactProvenance(module: BoundModule): ExactProvenanceGraph 
   const entries = Object.freeze([...allVariables.values()].map(variable => Object.freeze({
     variable,
     provenance: classify(variable),
-    dependencies: Object.freeze([...(dependencies.get(variable) ?? [])])
+    dependencies: Object.freeze([...(dependencies.get(variable) ?? [])]),
+    safeToReevaluate: reevaluationSafety.get(variable) ?? true
   })));
   const byVariableId = new Map(entries.map(entry => [entry.variable.id, entry]));
   const cells: ExactReactiveCell[] = [];
@@ -102,6 +107,34 @@ export function buildExactProvenance(module: BoundModule): ExactProvenanceGraph 
     }));
   }
   return Object.freeze({ entries, cells: Object.freeze(cells), byVariableId, get: (variable: Variable) => byVariableId.get(variable.id) });
+}
+
+const safeCollectionMethods = new Set(["filter", "map", "flatMap", "slice", "concat", "toSorted", "toReversed", "toSpliced", "reduce", "find", "some", "every"]);
+
+function isSafeDerivedInitializer(module: BoundModule, initializer: NodeRef): boolean {
+  for (const effect of module.effectsOf(initializer)) {
+    if (effect.kind !== "write") continue;
+    const reference = module.ref(effect.node);
+    const callback = reference.ancestors().functions().first(fn => isWithin(fn, initializer));
+    if (!callback || module.capturesOf(callback).includes(effect.variable)) return false;
+  }
+  for (const reference of initializer.walk()) {
+    const kind = reference.node.kind;
+    if (kind === "NewExpression" || kind === "AwaitExpression" || kind === "YieldExpression" || kind === "DeleteExpression") return false;
+    if ((kind === "PrefixUnaryExpression" || kind === "PostfixUnaryExpression") && (reference.node.operator === "++" || reference.node.operator === "--")) {
+      const callback = reference.ancestors().functions().first(fn => isWithin(fn, initializer));
+      if (!callback) return false;
+    }
+    if (kind === "CallExpression") {
+      if (!reference.target?.isMember() || !safeCollectionMethods.has(reference.target.name ?? "")) return false;
+    }
+  }
+  return true;
+}
+
+function isWithin(reference: NodeRef, ancestor: NodeRef): boolean {
+  return reference.node.span !== undefined && ancestor.node.span !== undefined
+    && reference.node.span.start >= ancestor.node.span.start && reference.node.span.end <= ancestor.node.span.end;
 }
 
 function isDeclarationName(reference: NodeRef, declaration: NodeRef): boolean {

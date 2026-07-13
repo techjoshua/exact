@@ -175,7 +175,7 @@ function referenceEffectKinds(ref: NodeRef): readonly ("read" | "write")[] {
     if ((node.kind === "VariableDeclaration" || node.kind === "Parameter" || node.kind === "BindingElement") && isWithin(child, node.children[0]!)) {
       return ["write"];
     }
-    if (node.kind === "BinaryExpression" && isWithin(child, node.children[0]!) && /=$/.test(node.operator ?? "")) {
+    if (node.kind === "BinaryExpression" && isWithin(child, node.children[0]!) && assignmentOperators.has(node.operator ?? "")) {
       return node.operator === "=" ? ["write"] : ["read", "write"];
     }
     if ((node.kind === "PrefixUnaryExpression" || node.kind === "PostfixUnaryExpression") && /\+\+|--/.test(node.operator ?? "")) {
@@ -187,6 +187,8 @@ function referenceEffectKinds(ref: NodeRef): readonly ("read" | "write")[] {
   }
   return ["read"];
 }
+
+const assignmentOperators = new Set(["=", "+=", "-=", "*=", "/=", "%=", "**=", "<<=", ">>=", ">>>=", "&=", "|=", "^=", "&&=", "||=", "??="]);
 
 function isWithin(node: ExpressionNode, ancestor: ExpressionNode): boolean {
   if (node === ancestor) return true;
