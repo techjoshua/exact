@@ -49,7 +49,7 @@ export function writeReactive(target: object, path: readonly PropertyKey[], next
 export function updateReactiveValue(
   target: object,
   path: readonly PropertyKey[],
-  operation: (previous: unknown) => unknown,
+  operation: (previous: any) => unknown,
   returnPrevious = false
 ): unknown {
   const { parent, key } = resolveReactivePath(target, path);

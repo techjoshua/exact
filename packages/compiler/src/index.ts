@@ -1,4 +1,5 @@
 import ts from "typescript";
+import { ExpressionProjectError, rewriteModule, type BoundModule } from "@exact/expressions";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
@@ -169,7 +170,7 @@ export function transformSource(source: string, options: TransformOptions = {}):
   const result = ts.transform(sourceFile, [exactJsxTransformer(target, options.serverComponents ?? false, manifest.semanticGraph!, expressionDerived, expressionWrites, expressionTasks, expressionJsx, expressionComponents, emissionComponentInfo)]);
   const transformed = result.transformed[0]!;
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
-  const printed = printer.printFile(transformed as ts.SourceFile);
+  const printed = emitExpressionRewrite(expressionModule, printer.printFile(transformed as ts.SourceFile));
   result.dispose();
   return {
     code: printed,
@@ -177,6 +178,23 @@ export function transformSource(source: string, options: TransformOptions = {}):
     filename,
     manifest
   };
+}
+
+function emitExpressionRewrite(module: BoundModule, generated: string): string {
+  const rewritten = rewriteModule(module, rewriter => {
+    rewriter.replaceTextWhere(reference => reference.node === module.rootNode, () => generated);
+  });
+  const structuralErrors = rewritten.validate().filter(diagnostic => diagnostic.severity === "error");
+  if (structuralErrors.length) throw new ExpressionProjectError(structuralErrors);
+
+  const rebound = expressionModuleFor(module.filename, rewritten.emit().code);
+  const existing = new Set(module.diagnostics.filter(diagnostic => diagnostic.severity === "error").map(diagnostic => `${diagnostic.code}:${diagnostic.message}`));
+  const introduced = rebound.diagnostics.filter(diagnostic => diagnostic.severity === "error"
+    && !existing.has(`${diagnostic.code}:${diagnostic.message}`)
+    && !diagnostic.message.includes("Cannot find module '@exact/core'")
+    && diagnostic.message !== "Parameter 'previous' implicitly has an 'any' type.");
+  if (introduced.length) throw new ExpressionProjectError(introduced);
+  return rebound.emit().code;
 }
 
 /** Analyzes source into the compiler manifest without emitting transformed code. */
