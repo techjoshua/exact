@@ -27,6 +27,12 @@ export interface ModuleData {
   readonly diagnostics?: readonly ExpressionDiagnostic[];
   readonly trivia?: SourceTrivia;
   readonly emitGenerated?: (options?: EmitOptions) => EmitResult;
+  readonly provenance?: SourceProvenance;
+}
+
+export interface SourceProvenance {
+  readonly originalSource: string;
+  readonly lineOrigins: readonly number[];
 }
 
 let nextVersion = 1;
@@ -43,6 +49,7 @@ export class ExpressionModule<S extends ModuleState = ModuleState> {
   readonly diagnostics: readonly ExpressionDiagnostic[];
   readonly trivia: SourceTrivia;
   private readonly emitGenerated?: (options?: EmitOptions) => EmitResult;
+  readonly provenance?: SourceProvenance;
   private readonly parents: ParentIndex;
 
   constructor(data: ModuleData & { state: S }) {
@@ -53,6 +60,7 @@ export class ExpressionModule<S extends ModuleState = ModuleState> {
     this.diagnostics = Object.freeze([...(data.diagnostics ?? [])]);
     this.trivia = data.trivia ?? detectTrivia(data.source);
     this.emitGenerated = data.emitGenerated;
+    this.provenance = data.provenance;
     this.parents = buildParentIndex(data.root);
     Object.freeze(this);
   }
@@ -114,7 +122,7 @@ export class ExpressionModule<S extends ModuleState = ModuleState> {
     const code = newline ? this.source.replace(/\r?\n/g, newline) : this.source;
     return {
       code,
-      ...(options.sourceMap ? { map: identitySourceMap(this.filename, this.source, code) } : {})
+      ...(options.sourceMap ? { map: sourceMap(this.filename, this.provenance?.originalSource ?? this.source, code, this.provenance?.lineOrigins) } : {})
     };
   }
 }
@@ -222,13 +230,36 @@ function detectTrivia(source: string): SourceTrivia {
   });
 }
 
-function identitySourceMap(filename: string, source: string, code: string): EmitResult["map"] {
+function sourceMap(filename: string, source: string, code: string, lineOrigins?: readonly number[]): EmitResult["map"] {
+  const lines = code.split(/\r?\n/).length;
+  const sourceLines = source.split(/\r?\n/).length;
+  let priorOriginalLine = 0;
+  const mappings: string[] = [];
+  for (let line = 0; line < lines; line++) {
+    const originalLine = lineOrigins?.[line] ?? Math.min(line, Math.max(0, sourceLines - 1));
+    mappings.push(`${vlq(0)}${vlq(0)}${vlq(originalLine - priorOriginalLine)}${vlq(0)}`);
+    priorOriginalLine = originalLine;
+  }
   return Object.freeze({
     version: 3 as const,
     file: filename,
     sources: Object.freeze([filename]),
     sourcesContent: Object.freeze([source]),
     names: Object.freeze([]),
-    mappings: code.split(/\r?\n/).map(() => "AAAA").join(";")
+    mappings: mappings.join(";")
   });
+}
+
+const base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+function vlq(value: number): string {
+  let encoded = value < 0 ? ((-value) << 1) | 1 : value << 1;
+  let output = "";
+  do {
+    let digit = encoded & 31;
+    encoded >>>= 5;
+    if (encoded) digit |= 32;
+    output += base64[digit];
+  } while (encoded);
+  return output;
 }

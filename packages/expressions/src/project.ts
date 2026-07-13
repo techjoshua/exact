@@ -114,7 +114,17 @@ export class ExpressionProject {
     const structuralErrors = module.validate().filter(diagnostic => diagnostic.severity === "error");
     if (structuralErrors.length) throw new ExpressionProjectError(structuralErrors);
     const emitted = module.emit({ format: "generated" }).code;
-    return this.updateModule(module.filename, emitted);
+    const bound = this.updateModule(module.filename, emitted);
+    if (!module.provenance) return bound;
+    return createModule({
+      filename: bound.filename,
+      source: bound.source,
+      root: bound.rootNode,
+      state: "bound",
+      diagnostics: bound.diagnostics,
+      trivia: bound.trivia,
+      provenance: module.provenance
+    });
   }
 
   emit(module: BoundModule, options: Parameters<BoundModule["emit"]>[0] = {}) {

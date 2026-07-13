@@ -229,6 +229,22 @@ export function total(items: number[]) {
     expect(output).toBe("// keep\nexport const value = (10 + 20);\n");
   });
 
+  it("maps parsed, generated, and rebound lines back to immutable original source", async () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__source_map.ts");
+    const source = "const first = 1;\nconst second = 2;";
+    const module = project.updateModule(filename, source);
+    expect(module.emit({ sourceMap: true }).map?.mappings).toBe("AAAA;AACA");
+    const second = module.root.children().toArray()[1]!;
+    const rewritten = rewriteModule(module, rewriter => rewriter.insertTextBefore(second, "// generated"));
+    const emitted = rewritten.emit({ sourceMap: true });
+    expect(emitted.code).toBe("const first = 1;\n// generated\nconst second = 2;");
+    expect(emitted.map?.sourcesContent).toEqual([source]);
+    expect(emitted.map?.mappings).toBe("AAAA;AACA;AAAA");
+    const rebound = await project.bind(rewritten);
+    expect(rebound.emit({ sourceMap: true }).map).toEqual(emitted.map);
+  });
+
   it("keeps earlier module versions and analyses immutable", () => {
     const project = createExpressionProject({ tsconfigPath: kanbanConfig });
     const filename = path.join(root, "apps/kanban/src/__expressions_versions.ts");

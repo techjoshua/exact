@@ -96,8 +96,18 @@ export class ModuleRewriter {
     };
     const root = rewrite(module.rootNode);
     if (!root) throw new Error("An expression module root cannot be removed");
-    const source = applyEdits(module.source, edits);
-    return createModule({ filename: module.filename, source, root, state: "unbound", trivia: module.trivia, diagnostics: validateExpressionTree(root, module.filename) });
+    const applied = applyEdits(module.source, edits);
+    const priorOrigins = module.provenance?.lineOrigins;
+    const lineOrigins = Object.freeze(applied.lineOrigins.map(line => priorOrigins?.[line] ?? line));
+    return createModule({
+      filename: module.filename,
+      source: applied.source,
+      root,
+      state: "unbound",
+      trivia: module.trivia,
+      diagnostics: validateExpressionTree(root, module.filename),
+      provenance: Object.freeze({ originalSource: module.provenance?.originalSource ?? module.source, lineOrigins })
+    });
   }
 }
 
@@ -121,16 +131,41 @@ function hostText(value: string, newline: string): string {
   return value.replace(/\r?\n/g, newline);
 }
 
-function applyEdits(source: string, edits: readonly { start: number; end: number; text: string }[]): string {
-  let output = source;
+function applyEdits(source: string, edits: readonly { start: number; end: number; text: string }[]): Readonly<{ source: string; lineOrigins: readonly number[] }> {
   const ordered = [...edits].sort((left, right) => right.start - left.start || right.end - left.end);
   let boundary = source.length + 1;
+  const accepted: typeof ordered = [];
   for (const edit of ordered) {
     if (edit.end > boundary) continue;
-    output = output.slice(0, edit.start) + edit.text + output.slice(edit.end);
+    accepted.push(edit);
     boundary = edit.start;
   }
-  return output;
+  accepted.reverse();
+  let output = "";
+  let cursor = 0;
+  let lineStart = true;
+  const lineOrigins: number[] = [];
+  const lineAt = (offset: number): number => source.slice(0, offset).split(/\r?\n/).length - 1;
+  const append = (text: string, origin: number, advance: boolean): void => {
+    let line = origin;
+    for (let index = 0; index < text.length; index++) {
+      if (lineStart) { lineOrigins.push(line); lineStart = false; }
+      const character = text[index]!;
+      output += character;
+      if (character === "\n") {
+        lineStart = true;
+        if (advance) line++;
+      }
+    }
+  };
+  for (const edit of accepted) {
+    append(source.slice(cursor, edit.start), lineAt(cursor), true);
+    append(edit.text, lineAt(edit.start), false);
+    cursor = edit.end;
+  }
+  append(source.slice(cursor), lineAt(cursor), true);
+  if (lineStart) lineOrigins.push(lineAt(cursor));
+  return Object.freeze({ source: output, lineOrigins: Object.freeze(lineOrigins) });
 }
 
 export function rewriteModule(module: ExpressionModule, configure: (rewriter: ModuleRewriter) => void): UnboundModule {
