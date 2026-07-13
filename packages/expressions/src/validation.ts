@@ -6,7 +6,7 @@ export function validateExpressionTree(root: ExpressionNode, filename?: string):
   const seen = new Set<ExpressionNode>();
 
   const report = (node: ExpressionNode, code: string, message: string): void => {
-    diagnostics.push(Object.freeze({ code, message, severity: "error" as const, ...(filename ? { filename } : {}), ...(node.span ? { span: node.span } : {}) }));
+    diagnostics.push(Object.freeze({ code, message, severity: "error" as const, phase: "structure" as const, ...(filename ? { filename } : {}), ...(node.span ? { span: node.span } : {}) }));
   };
 
   const visit = (node: ExpressionNode, context: { functions: number; loops: number; switches: number }, parent?: ExpressionNode): void => {

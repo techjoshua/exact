@@ -42,7 +42,6 @@ import type {
   TransformResult,
   TransformTarget
 } from "./types.js";
-import { formatDiagnostics, validateSource } from "./diagnostics.js";
 import {
   collectExportBindings,
   isComponentLikeFunction
@@ -117,6 +116,7 @@ export {
   buildExactProvenance,
   type ExactProvenanceEntry,
   type ExactProvenanceGraph,
+  type ExactReactiveCell,
   type ExactReactiveProvenance
 } from "./provenance.js";
 
@@ -136,9 +136,13 @@ export function transformSource(source: string, options: TransformOptions = {}):
   const normalized = preprocessPropPunning(source);
   const filename = options.filename ?? "input.tsx";
   const target = options.target ?? "default";
-  const diagnostics = validateSource(normalized, filename);
-  if (diagnostics.length) {
-    throw new Error(formatDiagnostics(diagnostics));
+  const expressionModule = expressionModuleFor(filename, normalized);
+  const syntaxDiagnostics = expressionModule.diagnostics.filter(diagnostic => diagnostic.phase === "syntax" && diagnostic.severity === "error");
+  if (syntaxDiagnostics.length) {
+    throw new Error(syntaxDiagnostics.map(diagnostic => {
+      const location = diagnostic.span ? `:${diagnostic.span.line}:${diagnostic.span.column}` : "";
+      return `${diagnostic.filename ?? filename}${location} - ${diagnostic.message}`;
+    }).join("\n"));
   }
   const manifest = analyzeSource(normalized, { filename, importedManifests: options.importedManifests });
   const semanticErrors = manifest.diagnostics.filter(diagnostic => diagnostic.startsWith("error:"));
@@ -146,7 +150,8 @@ export function transformSource(source: string, options: TransformOptions = {}):
     throw new Error(semanticErrors.join("\n"));
   }
   const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
-  const result = ts.transform(sourceFile, [exactJsxTransformer(target, options.importedManifests ?? [], options.serverComponents ?? false, manifest.semanticGraph)]);
+  const provenance = buildExactProvenance(expressionModule);
+  const result = ts.transform(sourceFile, [exactJsxTransformer(target, options.importedManifests ?? [], options.serverComponents ?? false, manifest.semanticGraph, provenance)]);
   const transformed = result.transformed[0]!;
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
   const printed = printer.printFile(transformed as ts.SourceFile);

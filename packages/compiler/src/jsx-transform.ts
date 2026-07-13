@@ -36,6 +36,7 @@ import {
   generatedComponentName
 } from "./names.js";
 import { pruneUnusedImports } from "./prune-imports.js";
+import type { ExactProvenanceGraph } from "./provenance.js";
 import {
   buildSemanticGraph,
   createSemanticDeclarationIndex,
@@ -79,7 +80,8 @@ export function exactJsxTransformer(
   target: TransformTarget,
   importedManifests: readonly ExactCompilerManifest[] = [],
   serverComponents = false,
-  providedSemanticGraph?: ExactSemanticGraphIR
+  providedSemanticGraph?: ExactSemanticGraphIR,
+  provenance?: ExactProvenanceGraph
 ): ts.TransformerFactory<ts.SourceFile> {
   return context => sourceFile => {
     const factory = context.factory;
@@ -90,6 +92,7 @@ export function exactJsxTransformer(
     const serverOnlyImports = collectServerOnlyImports(sourceFile, semanticGraph);
     const componentInfo = collectComponentInfo(sourceFile, serverOnlyImports, importedManifests, semanticGraph);
     const componentPlacements = componentPlacementsFromInfo(componentInfo);
+    const expressionDerived = new Set(provenance?.entries.filter(entry => entry.provenance === "derived").map(entry => entry.variable.id));
     let sawJsx = false;
     let sawBoundary = false;
     let sawStateWrite = false;
@@ -114,7 +117,7 @@ export function exactJsxTransformer(
           componentStack.push(node.name.text);
           componentLocalStack.push(collectComponentLocalInfo(node, sourceFile, semanticDeclarations));
           componentStateAliasStack.push(collectStateAliases(node, sourceFile, semanticReferences, semanticDeclarations, { skipNestedFunctions: false }));
-          componentDerivedStack.push(collectDerivedReactiveLocals(node, sourceFile, semanticReferences, semanticDeclarations));
+          componentDerivedStack.push(collectDerivedReactiveLocals(node, sourceFile, semanticReferences, semanticDeclarations, new Map(), expressionDerived));
           ts.visitEachChild(node, visitor, context);
           componentDerivedStack.pop();
           componentStateAliasStack.pop();
@@ -125,7 +128,7 @@ export function exactJsxTransformer(
         componentStack.push(node.name.text);
         componentLocalStack.push(collectComponentLocalInfo(node, sourceFile, semanticDeclarations));
         componentStateAliasStack.push(collectStateAliases(node, sourceFile, semanticReferences, semanticDeclarations, { skipNestedFunctions: false }));
-        componentDerivedStack.push(collectDerivedReactiveLocals(node, sourceFile, semanticReferences, semanticDeclarations));
+        componentDerivedStack.push(collectDerivedReactiveLocals(node, sourceFile, semanticReferences, semanticDeclarations, new Map(), expressionDerived));
         const visited = ts.visitEachChild(node, visitor, context);
         componentDerivedStack.pop();
         componentStateAliasStack.pop();
@@ -134,7 +137,7 @@ export function exactJsxTransformer(
         return visited;
       }
       if (componentDerivedStack.length && isAnalyzableFunctionLike(node)) {
-        componentDerivedStack.push(collectDerivedReactiveLocals(node, sourceFile, semanticReferences, semanticDeclarations, componentDerivedStack[componentDerivedStack.length - 1]));
+        componentDerivedStack.push(collectDerivedReactiveLocals(node, sourceFile, semanticReferences, semanticDeclarations, componentDerivedStack[componentDerivedStack.length - 1], expressionDerived));
         const visited = ts.visitEachChild(node, visitor, context);
         componentDerivedStack.pop();
         return visited;

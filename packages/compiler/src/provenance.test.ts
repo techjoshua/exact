@@ -19,4 +19,20 @@ describe("expression-backed reactive provenance", () => {
     expect(visible?.dependencies.some(variable => variable.name === "state")).toBe(true);
     expect(snapshot?.provenance).toBe("snapshot");
   });
+
+  it("propagates reactivity through collection callbacks and JSX cells", () => {
+    clearExpressionProjectCache();
+    const graph = analyzeReactiveProvenance(`
+      export function Column(props: { tasks: { status: string }[]; status: string }) {
+        const visible = props.tasks.filter(task => task.status === props.status);
+        return <section>{visible.map(task => task.status)}</section>;
+      }
+    `, { filename: "column-provenance.tsx" });
+
+    expect(graph.entries.find(entry => entry.variable.name === "props")?.provenance).toBe("props");
+    expect(graph.entries.find(entry => entry.variable.name === "visible")?.provenance).toBe("derived");
+    expect(graph.entries.filter(entry => entry.variable.name === "task").every(entry => entry.provenance === "derived")).toBe(true);
+    expect(graph.cells).toHaveLength(1);
+    expect(graph.cells[0]!.kind).toBe("jsx-child");
+  });
 });

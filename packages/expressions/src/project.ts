@@ -74,12 +74,12 @@ export class ExpressionProject {
     const config = options.tsconfigPath
       ? path.resolve(cwd, options.tsconfigPath)
       : ts.findConfigFile(cwd, ts.sys.fileExists, "tsconfig.json");
-    if (!config) throw new ExpressionProjectError([{ code: "EXPR_CONFIG_MISSING", message: `No tsconfig.json found from ${cwd}`, severity: "error" }]);
+    if (!config) throw new ExpressionProjectError([{ code: "EXPR_CONFIG_MISSING", message: `No tsconfig.json found from ${cwd}`, severity: "error", phase: "configuration" }]);
     this.tsconfigPath = config;
     const read = ts.readConfigFile(config, ts.sys.readFile);
-    if (read.error) throw new ExpressionProjectError([diagnosticFromTs(read.error)]);
+    if (read.error) throw new ExpressionProjectError([{ ...diagnosticFromTs(read.error), phase: "configuration" }]);
     this.parsed = ts.parseJsonConfigFileContent(read.config, ts.sys, path.dirname(config), undefined, config);
-    if (this.parsed.errors.length) throw new ExpressionProjectError(this.parsed.errors.map(diagnosticFromTs));
+    if (this.parsed.errors.length) throw new ExpressionProjectError(this.parsed.errors.map(error => ({ ...diagnosticFromTs(error), phase: "configuration" as const })));
   }
 
   updateModule(filename: string, source: string): BoundModule {
@@ -172,9 +172,9 @@ export class ExpressionProject {
     const symbolVariables = new Map<ts.Symbol, ProjectVariable>();
     const typeCache = new Map<ts.Type, ExpressionType>();
     const diagnostics = [
-      ...program.getSyntacticDiagnostics(sourceFile),
-      ...program.getSemanticDiagnostics(sourceFile)
-    ].map(diagnosticFromTs);
+      ...program.getSyntacticDiagnostics(sourceFile).map(diagnostic => ({ ...diagnosticFromTs(diagnostic), phase: "syntax" as const })),
+      ...program.getSemanticDiagnostics(sourceFile).map(diagnostic => ({ ...diagnosticFromTs(diagnostic), phase: "semantic" as const }))
+    ];
 
     const scopeFor = (node: ts.Node): ProjectScope => {
       let owner: ts.Node | undefined = node;

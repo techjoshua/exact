@@ -40,7 +40,8 @@ export function collectDerivedReactiveLocals(
   sourceFile: ts.SourceFile,
   semanticReferences: SemanticReferenceIndex,
   semanticDeclarations: SemanticDeclarationIndex,
-  baseDerived: DerivedReactiveIndex = new Map()
+  baseDerived: DerivedReactiveIndex = new Map(),
+  expressionDerived: ReadonlySet<string> = new Set()
 ): DerivedReactiveIndex {
   const derived = new Map(baseDerived);
   const reactiveSources = collectFunctionReactiveSources(node, sourceFile, semanticDeclarations);
@@ -51,12 +52,14 @@ export function collectDerivedReactiveLocals(
       && ts.isIdentifier(current.name)
       && current.initializer
       && isConstVariableDeclaration(current)
-      && isSafeDerivedReactiveInitializer(current.initializer)
-      && expressionReadsReactiveInput(current.initializer, sourceFile, semanticReferences, derived, reactiveSources)) {
+      && isSafeDerivedReactiveInitializer(current.initializer)) {
       // Only pure-ish const initializers are promoted. Calls, awaits, assignments,
       // and nested functions stay explicit to avoid changing user-side effects.
       const declaration = semanticDeclarationForIdentifier(current.name, semanticDeclarations, sourceFile);
-      if (declaration) derived.set(declaration.id, current.initializer);
+      if (declaration && (expressionDerived.has(declaration.id)
+        || expressionReadsReactiveInput(current.initializer, sourceFile, semanticReferences, derived, reactiveSources))) {
+        derived.set(declaration.id, current.initializer);
+      }
     }
     ts.forEachChild(current, visit);
   }

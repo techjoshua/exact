@@ -109,6 +109,7 @@ export interface ExpressionDiagnostic {
   readonly code: string;
   readonly message: string;
   readonly severity: "error" | "warning";
+  readonly phase?: "configuration" | "syntax" | "semantic" | "structure";
   readonly filename?: string;
   readonly span?: SourceSpan;
 }
