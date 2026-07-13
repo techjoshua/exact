@@ -23,6 +23,11 @@ export {
 } from "./model.js";
 export { NodeQuery, NodeRef } from "./query.js";
 export {
+  buildControlFlowGraph,
+  type ControlFlowGraph,
+  type ControlFlowNode
+} from "./control-flow.js";
+export {
   ExpressionModule,
   createModule,
   type BoundModule,

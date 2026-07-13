@@ -8,6 +8,7 @@ import type {
   WalkOptions
 } from "./model.js";
 import { buildParentIndex, NodeQuery, NodeRef, type ParentIndex } from "./query.js";
+import { buildControlFlowGraph, type ControlFlowGraph } from "./control-flow.js";
 
 export type ModuleState = "bound" | "unbound";
 
@@ -95,6 +96,11 @@ export class ExpressionModule<S extends ModuleState = ModuleState> {
 
   capturesOf(functionNode: ExpressionNode | NodeRef): readonly Variable[] {
     return getAnalyses(this).captures.get(functionNode instanceof NodeRef ? functionNode.node : functionNode) ?? [];
+  }
+
+  controlFlowOf(functionNode: ExpressionNode | NodeRef): ControlFlowGraph {
+    const reference = functionNode instanceof NodeRef ? functionNode : this.ref(functionNode);
+    return buildControlFlowGraph(reference);
   }
 
   validate(): readonly ExpressionDiagnostic[] {

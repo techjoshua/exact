@@ -56,6 +56,25 @@ export function total(items: number[]) {
     expect(totalEffects).toEqual(["read", "write"]);
   });
 
+  it("builds immutable control-flow graphs with branch and terminal edges", () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__control_flow.ts");
+    const module = project.updateModule(filename, `function choose(value: number) {
+      if (value > 0) return 1;
+      value++;
+      return value;
+    }`);
+    const fn = module.walk().functions().single();
+    const graph = module.controlFlowOf(fn);
+    const branch = graph.nodes.find(node => node.expression.kind === "IfStatement")!;
+    const firstReturn = graph.nodes.find(node => node.expression.kind === "ReturnStatement")!;
+    const update = graph.nodes.find(node => node.expression.kind === "ExpressionStatement")!;
+    expect(branch.successors).toEqual(expect.arrayContaining([firstReturn.id, update.id]));
+    expect(firstReturn.successors).toEqual([]);
+    expect(graph.exits.filter(id => graph.byId.get(id)?.terminal)).toHaveLength(2);
+    expect(module.controlFlowOf(fn)).toBe(graph);
+  });
+
   it("constructs, emits, and binds typed modules programmatically", async () => {
     const builder = expressions.module(path.join(root, "apps/kanban/src/__generated_expression.ts"));
     const number = builder.types.number();
