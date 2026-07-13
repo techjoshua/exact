@@ -10,6 +10,7 @@ export interface ExpressionWriteSite {
   readonly start: number;
   readonly end: number;
   readonly path: readonly string[];
+  readonly operation: "assignment" | "update" | "delete" | "array-mutation";
 }
 
 export interface ExpressionWritePlan {
@@ -58,10 +59,17 @@ export function analyzeExpressionWrites(module: BoundModule): ExpressionWritePla
     if (!insideComponent(reference) || !reference.node.span) continue;
     const path = writePath(module, reference, aliases);
     if (!path?.length) continue;
-    const site = Object.freeze({ start: reference.node.span.start, end: reference.node.span.end, path: Object.freeze(path) });
+    const site = Object.freeze({ start: reference.node.span.start, end: reference.node.span.end, path: Object.freeze(path), operation: writeOperation(reference) });
     sites.set(writeSiteKey(site.start, site.end), site);
   }
   return Object.freeze({ sites });
+}
+
+function writeOperation(reference: NodeRef): ExpressionWriteSite["operation"] {
+  if (reference.node.kind === "CallExpression") return "array-mutation";
+  if (reference.node.kind === "DeleteExpression") return "delete";
+  if (reference.node.kind === "PrefixUnaryExpression" || reference.node.kind === "PostfixUnaryExpression" || reference.node.operator !== "=") return "update";
+  return "assignment";
 }
 
 export function writeSiteKey(start: number, end: number): string {

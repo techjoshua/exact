@@ -54,6 +54,8 @@ import type {
   SemanticDeclarationIndex,
   SemanticReferenceIndex
 } from "./types.js";
+import { writeSiteKey } from "./expression-writes.js";
+import type { ExpressionTaskPlan, ExpressionTaskSite } from "./expression-tasks.js";
 
 /** Analyzes one component function into placement, task, context, and split-boundary IR. */
 export function analyzeComponent(
@@ -63,7 +65,8 @@ export function analyzeComponent(
   serverOnlyImports: Set<string>,
   semanticReferences: SemanticReferenceIndex,
   semanticDeclarations: SemanticDeclarationIndex,
-  expressionDiagnostics?: readonly string[]
+  expressionDiagnostics?: readonly string[],
+  expressionTasks?: ExpressionTaskPlan
 ): ExactComponentIR {
   const tasks: ExactTaskIR[] = [];
   const contexts: ExactContextEffect[] = [];
@@ -89,7 +92,8 @@ export function analyzeComponent(
 
   function visit(current: ts.Node, islandDepth = 0, taskDepth = 0): void {
     if (ts.isCallExpression(current) && isThisTaskCall(current)) {
-      const task = analyzeTask(`${name}:task:${taskIndex++}`, current, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations, expressionDiagnostics !== undefined);
+      const expressionTask = expressionTasks?.sites.get(writeSiteKey(current.getStart(sourceFile), current.end));
+      const task = analyzeTask(`${name}:task:${taskIndex++}`, current, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations, expressionDiagnostics !== undefined, expressionTask);
       tasks.push(task);
       contexts.push(...task.contexts);
       if (task.placement === "client") hasClientEffect = true;
@@ -457,7 +461,8 @@ export function analyzeTask(
   serverOnlyImports: Set<string>,
   semanticReferences: SemanticReferenceIndex,
   semanticDeclarations: SemanticDeclarationIndex,
-  expressionSafety = false
+  expressionSafety = false,
+  expressionTask?: ExpressionTaskSite
 ): ExactTaskIR {
   const work = node.arguments[node.arguments.length - 1];
   const reads: ExactStateEffect[] = [];
@@ -467,7 +472,7 @@ export function analyzeTask(
   let browserEffects = false;
   let serverEffects = false;
   let isAsync = false;
-  const requestedPlacement = taskRequestedPlacement(node);
+  const requestedPlacement = expressionTask?.requestedPlacement ?? taskRequestedPlacement(node);
 
   if (!work || !isFunctionLikeExpression(work)) {
     return {
@@ -483,9 +488,9 @@ export function analyzeTask(
     };
   }
 
-  isAsync = ts.canHaveModifiers(work)
+  isAsync = expressionTask?.async ?? (ts.canHaveModifiers(work)
     ? Boolean(ts.getModifiers(work)?.some(modifier => modifier.kind === ts.SyntaxKind.AsyncKeyword))
-    : false;
+    : false);
   const stateAliases = collectStateAliases(work, sourceFile, semanticReferences, semanticDeclarations);
   const taskSignal = taskSignalParameter(work);
 
@@ -588,7 +593,15 @@ export function analyzeTask(
     ts.forEachChild(current, visit);
   }
 
-  visit(work);
+  if (expressionTask) {
+    browserEffects = expressionTask.browserEffects;
+    serverEffects = expressionTask.serverEffects;
+    reads.push(...expressionTask.reads);
+    writes.push(...expressionTask.writes);
+    contexts.push(...expressionTask.contexts);
+  } else {
+    visit(work);
+  }
 
   if (browserEffects && writes.length) {
     diagnostics.push("task writes component state and references browser-only globals; classify as client and split at this boundary");
