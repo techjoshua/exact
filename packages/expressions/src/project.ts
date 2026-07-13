@@ -228,7 +228,7 @@ export class ExpressionProject {
     const convert = (node: ts.Node): ExpressionNode => {
       const children: ExpressionNode[] = [];
       ts.forEachChild(node, child => {
-        if (!ts.isTypeNode(child)) children.push(convert(child));
+        children.push(convert(child));
       });
       const start = node.getStart(sourceFile, false);
       const line = sourceFile.getLineAndCharacterOfPosition(start);
@@ -351,7 +351,8 @@ function isDeclarationNode(node: ts.Node): boolean {
     || ts.isMethodDeclaration(node) || ts.isPropertyDeclaration(node) || ts.isParameter(node)
     || ts.isImportDeclaration(node) || ts.isImportSpecifier(node) || ts.isNamespaceImport(node)
     || ts.isExportDeclaration(node) || ts.isEnumDeclaration(node) || ts.isModuleDeclaration(node)
-    || ts.isGetAccessorDeclaration(node) || ts.isSetAccessorDeclaration(node);
+    || ts.isGetAccessorDeclaration(node) || ts.isSetAccessorDeclaration(node)
+    || ts.isTypeAliasDeclaration(node) || ts.isInterfaceDeclaration(node) || ts.isTypeParameterDeclaration(node);
 }
 
 function hasNodeName(node: ts.Node): node is ts.Node & { name: ts.DeclarationName } {

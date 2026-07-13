@@ -87,6 +87,8 @@ import {
 } from "./symbols.js";
 import { exactJsxTransformer } from "./jsx-transform.js";
 import { exactCompilerManifestVersion } from "./versions.js";
+import { expressionModuleFor } from "./expression-project.js";
+import { buildExactProvenance } from "./provenance.js";
 
 export type * from "./types.js";
 export { preprocessPropPunning } from "./preprocess.js";
@@ -110,6 +112,19 @@ export {
   createServerPartRegistryModule
 } from "./registry.js";
 export { exactCompilerManifestVersion } from "./versions.js";
+export { clearExpressionProjectCache } from "./expression-project.js";
+export {
+  buildExactProvenance,
+  type ExactProvenanceEntry,
+  type ExactProvenanceGraph,
+  type ExactReactiveProvenance
+} from "./provenance.js";
+
+/** Analyzes generic dependencies and overlays eXact reactive provenance. */
+export function analyzeReactiveProvenance(source: string, options: TransformOptions = {}) {
+  const filename = options.filename ?? "input.tsx";
+  return buildExactProvenance(expressionModuleFor(filename, preprocessPropPunning(source)));
+}
 
 /** Transforms eXact TSX/JSX source and returns only the generated code. */
 export function transform(source: string, options: TransformOptions = {}): string {
@@ -148,6 +163,13 @@ export function transformSource(source: string, options: TransformOptions = {}):
 export function analyzeSource(source: string, options: TransformOptions = {}): ExactCompilerManifest {
   const normalized = preprocessPropPunning(source);
   const filename = options.filename ?? "input.tsx";
+  const expressionModule = expressionModuleFor(filename, normalized);
+  const expressionFunctions = new Map(
+    expressionModule.walk().functions()
+      .where(reference => reference.node.kind === "FunctionDeclaration" && !!reference.node.span)
+      .toArray()
+      .map(reference => [reference.node.span!.start, reference.node.name] as const)
+  );
   const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
   const components: ExactComponentIR[] = [];
   const exports: ExactExportIR[] = [];
@@ -162,7 +184,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const componentNodes = new Map<string, ts.FunctionDeclaration>();
 
   function visit(node: ts.Node): void {
-    if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
+    if (ts.isFunctionDeclaration(node) && node.name && expressionFunctions.get(node.getStart(sourceFile)) === node.name.text && isComponentLikeFunction(node)) {
       componentNodes.set(node.name.text, node);
       components.push(analyzeComponent(node.name.text, node, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations));
       return;

@@ -23,6 +23,7 @@
   "types": "./dist/index.d.ts",
   "dependencies": {
     "@exact/core": "file:../core",
+    "@exact/expressions": "file:../expressions",
     "typescript": "^5.7.2"
   },
   "scripts": {

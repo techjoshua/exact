@@ -1,0 +1,77 @@
+import type { BoundModule, NodeRef, Variable } from "@exact/expressions";
+
+export type ExactReactiveProvenance = "state" | "props" | "context" | "derived" | "cell" | "snapshot" | "unknown";
+
+export interface ExactProvenanceEntry {
+  readonly variable: Variable;
+  readonly provenance: ExactReactiveProvenance;
+  readonly dependencies: readonly Variable[];
+}
+
+export interface ExactProvenanceGraph {
+  readonly entries: readonly ExactProvenanceEntry[];
+  readonly byVariableId: ReadonlyMap<string, ExactProvenanceEntry>;
+  get(variable: Variable): ExactProvenanceEntry | undefined;
+}
+
+/** Adds eXact semantics over the package's generic canonical dependency model. */
+export function buildExactProvenance(module: BoundModule): ExactProvenanceGraph {
+  const dependencies = new Map<Variable, Set<Variable>>();
+  const hints = new Map<Variable, ExactReactiveProvenance>();
+
+  for (const declaration of module.walk().ofKind("VariableDeclaration")) {
+    const declared = declaration.descendants().references().first(reference => isDeclarationName(reference, declaration))?.variable;
+    if (!declared) continue;
+    const values = dependencies.get(declared) ?? new Set<Variable>();
+    for (const reference of declaration.descendants().references()) {
+      if (reference.variable && reference.variable !== declared) values.add(reference.variable);
+    }
+    dependencies.set(declared, values);
+    const text = declaration.node.text ?? "";
+    if (/\bpeek\s*\(/.test(text)) hints.set(declared, "snapshot");
+    else if (/\bthis\.state\b/.test(text)) hints.set(declared, "derived");
+    else if (/\bthis\.props\b/.test(text)) hints.set(declared, "derived");
+    else if (/\b(?:useContext|this\.context)\b/.test(text)) hints.set(declared, "derived");
+  }
+
+  const allVariables = new Map<string, Variable>();
+  for (const reference of module.walk().references()) if (reference.variable) allVariables.set(reference.variable.id, reference.variable);
+  const resolving = new Set<Variable>();
+  const resolved = new Map<Variable, ExactReactiveProvenance>();
+  const classify = (variable: Variable): ExactReactiveProvenance => {
+    const prior = resolved.get(variable);
+    if (prior) return prior;
+    const direct = hints.get(variable) ?? classifyName(variable.name);
+    if (direct !== "unknown") { resolved.set(variable, direct); return direct; }
+    if (resolving.has(variable)) return "unknown";
+    resolving.add(variable);
+    const reactive = [...(dependencies.get(variable) ?? [])].some(source => isReactive(classify(source)));
+    resolving.delete(variable);
+    const value = reactive ? "derived" : "unknown";
+    resolved.set(variable, value);
+    return value;
+  };
+
+  const entries = Object.freeze([...allVariables.values()].map(variable => Object.freeze({
+    variable,
+    provenance: classify(variable),
+    dependencies: Object.freeze([...(dependencies.get(variable) ?? [])])
+  })));
+  const byVariableId = new Map(entries.map(entry => [entry.variable.id, entry]));
+  return Object.freeze({ entries, byVariableId, get: (variable: Variable) => byVariableId.get(variable.id) });
+}
+
+function isDeclarationName(reference: NodeRef, declaration: NodeRef): boolean {
+  return reference.parent?.node === declaration.node || reference.ancestors().first()?.node === declaration.node;
+}
+
+function classifyName(name: string): ExactReactiveProvenance {
+  if (name === "state") return "state";
+  if (name === "props") return "props";
+  if (name === "context") return "context";
+  return "unknown";
+}
+
+function isReactive(value: ExactReactiveProvenance): boolean {
+  return value === "state" || value === "props" || value === "context" || value === "derived" || value === "cell";
+}

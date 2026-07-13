@@ -106,11 +106,12 @@ function getAnalyses(module: ExpressionModule): Readonly<{ effects: readonly Nod
   const captures = new Map<ExpressionNode, Variable[]>();
   const functions: ExpressionNode[] = [];
 
-  const visit = (ref: NodeRef): void => {
+  const visit = (ref: NodeRef, inType = false): void => {
     const node = ref.node;
+    const typeMetadata = inType || node.category === "type";
     const functionLike = isFunctionKind(node.kind);
     if (functionLike) functions.push(node);
-    if (node.variable && node.kind === "Identifier") {
+    if (!typeMetadata && node.variable && node.kind === "Identifier") {
       const parent = ref.parent?.node;
       const write = parent ? isWritePosition(node, parent) : false;
       effects.push(Object.freeze({ node, variable: node.variable, kind: write ? "write" : "read" }));
@@ -122,7 +123,7 @@ function getAnalyses(module: ExpressionModule): Readonly<{ effects: readonly Nod
         effects.push(Object.freeze({ node, variable: node.variable, kind: "capture" }));
       }
     }
-    for (const child of ref.children()) visit(child);
+    for (const child of ref.children()) visit(child, typeMetadata);
     if (functionLike) functions.pop();
   };
   visit(module.root);
