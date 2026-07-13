@@ -62,12 +62,13 @@ export function analyzeComponent(
   sourceFile: ts.SourceFile,
   serverOnlyImports: Set<string>,
   semanticReferences: SemanticReferenceIndex,
-  semanticDeclarations: SemanticDeclarationIndex
+  semanticDeclarations: SemanticDeclarationIndex,
+  expressionDiagnostics?: readonly string[]
 ): ExactComponentIR {
   const tasks: ExactTaskIR[] = [];
   const contexts: ExactContextEffect[] = [];
   const splitBoundaries = new Set<string>();
-  const diagnostics: string[] = [];
+  const diagnostics: string[] = [...(expressionDiagnostics ?? [])];
   const browserGlobalsOutsideClientBoundary = new Set<string>();
   let hasClientEffect = false;
   let hasServerEffect = false;
@@ -84,7 +85,7 @@ export function analyzeComponent(
     }
     ts.forEachChild(current, collectSetupStateAliases);
   }
-  collectSetupStateAliases(node);
+  if (expressionDiagnostics === undefined) collectSetupStateAliases(node);
 
   function visit(current: ts.Node, islandDepth = 0, taskDepth = 0): void {
     if (ts.isCallExpression(current) && isThisTaskCall(current)) {
@@ -105,7 +106,7 @@ export function analyzeComponent(
     if (isUnmanagedBrowserListener(current, islandDepth, taskDepth)) {
       diagnostics.push("error: browser-global addEventListener() must be registered in a client task or client island; use JSX events or an abort-scoped task");
     }
-    if (isAsyncSnapshotCapture(current, setupStateAliases, semanticReferences, sourceFile)) {
+    if (expressionDiagnostics === undefined && isAsyncSnapshotCapture(current, setupStateAliases, semanticReferences, sourceFile)) {
       diagnostics.push("error: setup-time state snapshot captured by async callback; read state in the callback or wrap the snapshot in peek(() => ...)");
     }
 

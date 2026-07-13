@@ -45,7 +45,7 @@ export function buildExactProvenance(module: BoundModule): ExactProvenanceGraph 
     if (/\bpeek\s*\(/.test(text)) hints.set(declared, "snapshot");
     else if (/\bthis\.state\b/.test(text)) hints.set(declared, "derived");
     else if (/\bthis\.props\b/.test(text)) hints.set(declared, "derived");
-    else if (/\b(?:useContext|this\.context)\b/.test(text)) hints.set(declared, "derived");
+    else if (/\b(?:useContext|this\.(?:getContext|context))\b/.test(text)) hints.set(declared, "derived");
   }
 
   for (const call of module.walk().calls()) {

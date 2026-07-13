@@ -88,6 +88,7 @@ import { exactCompilerManifestVersion } from "./versions.js";
 import { expressionModuleFor } from "./expression-project.js";
 import { buildExactProvenance } from "./provenance.js";
 import { analyzeExpressionWrites } from "./expression-writes.js";
+import { analyzeExpressionSafety } from "./expression-safety.js";
 
 export type * from "./types.js";
 export { preprocessPropPunning } from "./preprocess.js";
@@ -191,6 +192,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const manifestDiagnostics: string[] = [];
   const serverActions: ExactCompilerManifest["serverActions"] = {};
   const semanticGraph = buildExpressionSemanticGraph(expressionModule);
+  const expressionSafety = analyzeExpressionSafety(expressionModule, buildExactProvenance(expressionModule));
   const semanticReferences = createSemanticReferenceIndex(sourceFile, semanticGraph);
   const semanticDeclarations = createSemanticDeclarationIndex(sourceFile, semanticGraph);
   const serverOnlyImports = collectServerOnlyImports(sourceFile, semanticGraph);
@@ -199,7 +201,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   function visit(node: ts.Node): void {
     if (ts.isFunctionDeclaration(node) && node.name && expressionFunctions.get(node.getStart(sourceFile)) === node.name.text) {
       componentNodes.set(node.name.text, node);
-      components.push(analyzeComponent(node.name.text, node, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations));
+      components.push(analyzeComponent(node.name.text, node, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations, expressionSafety.get(node.name.text) ?? []));
       return;
     }
     ts.forEachChild(node, visit);
