@@ -6,6 +6,16 @@ export interface ExpressionWriteResult {
   readonly count: number;
 }
 
+export interface ExpressionWriteSite {
+  readonly start: number;
+  readonly end: number;
+  readonly path: readonly string[];
+}
+
+export interface ExpressionWritePlan {
+  readonly sites: ReadonlyMap<string, ExpressionWriteSite>;
+}
+
 const assignmentOperators = new Set(["=", "+=", "-=", "*=", "/=", "%=", "**=", "<<=", ">>=", ">>>=", "&=", "|=", "^=", "&&=", "||=", "??="]);
 const arrayMutators = new Set(["copyWithin", "fill", "pop", "push", "reverse", "shift", "sort", "splice", "unshift"]);
 
@@ -38,6 +48,39 @@ export function lowerExpressionWrites(module: BoundModule): ExpressionWriteResul
     else if (statements.length) rewriter.insertTextAfter(statements.at(-1)!, importText);
   });
   return Object.freeze({ module: rewritten, changed: true, count: replacements.size });
+}
+
+/** Identifies compiler-owned state writes without changing source coordinates. */
+export function analyzeExpressionWrites(module: BoundModule): ExpressionWritePlan {
+  const aliases = collectStateAliases(module);
+  const sites = new Map<string, ExpressionWriteSite>();
+  for (const reference of module.walk()) {
+    if (!insideComponent(reference) || !reference.node.span) continue;
+    const path = writePath(module, reference, aliases);
+    if (!path?.length) continue;
+    const site = Object.freeze({ start: reference.node.span.start, end: reference.node.span.end, path: Object.freeze(path) });
+    sites.set(writeSiteKey(site.start, site.end), site);
+  }
+  return Object.freeze({ sites });
+}
+
+export function writeSiteKey(start: number, end: number): string {
+  return `${start}:${end}`;
+}
+
+function writePath(module: BoundModule, reference: NodeRef, aliases: ReadonlyMap<string, readonly string[]>): string[] | undefined {
+  const node = reference.node;
+  if (node.kind === "BinaryExpression" && assignmentOperators.has(node.operator ?? "")) {
+    return statePath(module, node.children[0], aliases);
+  }
+  if ((node.kind === "PrefixUnaryExpression" || node.kind === "PostfixUnaryExpression") && (node.operator === "++" || node.operator === "--")) {
+    return statePath(module, node.children[0], aliases);
+  }
+  if (node.kind === "DeleteExpression") return statePath(module, node.children[0], aliases);
+  if (node.kind === "CallExpression" && reference.target?.isMember() && arrayMutators.has(reference.target.name ?? "")) {
+    return statePath(module, reference.target.target?.node, aliases);
+  }
+  return undefined;
 }
 
 function lowerWrite(module: BoundModule, reference: NodeRef, aliases: ReadonlyMap<string, readonly string[]>, names: Readonly<{ write: string; update: string; remove: string; array: string }>, imports: Map<string, string>): string | undefined {

@@ -37,6 +37,7 @@ import {
 } from "./names.js";
 import { pruneUnusedImports } from "./prune-imports.js";
 import type { ExactProvenanceGraph } from "./provenance.js";
+import { writeSiteKey, type ExpressionWritePlan } from "./expression-writes.js";
 import {
   buildSemanticGraph,
   createSemanticDeclarationIndex,
@@ -81,7 +82,8 @@ export function exactJsxTransformer(
   importedManifests: readonly ExactCompilerManifest[] = [],
   serverComponents = false,
   providedSemanticGraph?: ExactSemanticGraphIR,
-  provenance?: ExactProvenanceGraph
+  provenance?: ExactProvenanceGraph,
+  expressionWrites?: ExpressionWritePlan
 ): ts.TransformerFactory<ts.SourceFile> {
   return context => sourceFile => {
     const factory = context.factory;
@@ -143,7 +145,9 @@ export function exactJsxTransformer(
         return visited;
       }
       if (componentStack.length && ts.isDeleteExpression(node)) {
-        const path = exactStateWritePath(node.expression, sourceFile, semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1]);
+        const path = expressionWrites
+          ? expressionWritePath(node, sourceFile, expressionWrites)
+          : exactStateWritePath(node.expression, sourceFile, semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1]);
         if (path) {
           sawStateWrite = true;
           return context.factory.createCallExpression(context.factory.createIdentifier(helpers.remove), undefined, [
@@ -152,14 +156,18 @@ export function exactJsxTransformer(
         }
       }
       if (componentStack.length && ts.isBinaryExpression(node) && isAssignmentOperator(node.operatorToken.kind)) {
-        const path = exactStateWritePath(node.left, sourceFile, semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1]);
+        const path = expressionWrites
+          ? expressionWritePath(node, sourceFile, expressionWrites)
+          : exactStateWritePath(node.left, sourceFile, semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1]);
         if (path) {
           sawStateWrite = true;
           return transformStateAssignment(context, node, path, visitor, helpers);
         }
       }
       if (componentStack.length && (ts.isPrefixUnaryExpression(node) || ts.isPostfixUnaryExpression(node))) {
-        const path = exactStateWritePath(node.operand, sourceFile, semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1]);
+        const path = expressionWrites
+          ? expressionWritePath(node, sourceFile, expressionWrites)
+          : exactStateWritePath(node.operand, sourceFile, semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1]);
         if (path && (node.operator === ts.SyntaxKind.PlusPlusToken || node.operator === ts.SyntaxKind.MinusMinusToken)) {
           sawStateWrite = true;
           return transformStateUpdate(context, node, path, helpers);
@@ -167,7 +175,9 @@ export function exactJsxTransformer(
       }
       if (componentStack.length && ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
         const method = node.expression.name.text;
-        const path = exactStateWritePath(node.expression.expression, sourceFile, semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1]);
+        const path = expressionWrites
+          ? expressionWritePath(node, sourceFile, expressionWrites)
+          : exactStateWritePath(node.expression.expression, sourceFile, semanticReferences, componentStateAliasStack[componentStateAliasStack.length - 1]);
         if (path && isArrayMutator(method)) {
           sawStateWrite = true;
           return context.factory.createCallExpression(context.factory.createIdentifier(helpers.arrayMutation), undefined, [
@@ -301,6 +311,11 @@ export function exactJsxTransformer(
 
     return factory.updateSourceFile(visited, insertAfterDirectivePrologue(visited.statements, importDeclaration));
   };
+}
+
+function expressionWritePath(node: ts.Node, sourceFile: ts.SourceFile, plan?: ExpressionWritePlan): readonly string[] | undefined {
+  if (!plan) return undefined;
+  return plan.sites.get(writeSiteKey(node.getStart(sourceFile), node.end))?.path;
 }
 
 function shouldOmitPlacement(placement: ExactPlacement, target: TransformTarget): boolean {

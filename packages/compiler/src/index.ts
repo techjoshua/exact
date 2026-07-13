@@ -87,6 +87,7 @@ import { exactJsxTransformer } from "./jsx-transform.js";
 import { exactCompilerManifestVersion } from "./versions.js";
 import { expressionModuleFor } from "./expression-project.js";
 import { buildExactProvenance } from "./provenance.js";
+import { analyzeExpressionWrites } from "./expression-writes.js";
 
 export type * from "./types.js";
 export { preprocessPropPunning } from "./preprocess.js";
@@ -111,7 +112,13 @@ export {
 } from "./registry.js";
 export { exactCompilerManifestVersion } from "./versions.js";
 export { clearExpressionProjectCache } from "./expression-project.js";
-export { lowerExpressionWrites, type ExpressionWriteResult } from "./expression-writes.js";
+export {
+  analyzeExpressionWrites,
+  lowerExpressionWrites,
+  type ExpressionWritePlan,
+  type ExpressionWriteResult,
+  type ExpressionWriteSite
+} from "./expression-writes.js";
 export {
   buildExactProvenance,
   type ExactProvenanceEntry,
@@ -151,7 +158,8 @@ export function transformSource(source: string, options: TransformOptions = {}):
   }
   const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
   const provenance = buildExactProvenance(expressionModule);
-  const result = ts.transform(sourceFile, [exactJsxTransformer(target, options.importedManifests ?? [], options.serverComponents ?? false, manifest.semanticGraph, provenance)]);
+  const expressionWrites = analyzeExpressionWrites(expressionModule);
+  const result = ts.transform(sourceFile, [exactJsxTransformer(target, options.importedManifests ?? [], options.serverComponents ?? false, manifest.semanticGraph, provenance, expressionWrites)]);
   const transformed = result.transformed[0]!;
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
   const printed = printer.printFile(transformed as ts.SourceFile);
