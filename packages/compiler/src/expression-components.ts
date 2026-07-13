@@ -3,13 +3,15 @@ import type { ExpressionJsxPlan } from "./expression-jsx.js";
 import type { ExpressionTaskPlan } from "./expression-tasks.js";
 import { isServerOnlyModule } from "./imports.js";
 import { stableId } from "./ids.js";
-import type { ExactComponentRenderEdgeIR, ExactContextEffect, ExactImportedComponentIR } from "./types.js";
+import type { ExactBoundaryIR, ExactComponentIR, ExactComponentRenderEdgeIR, ExactContextEffect, ExactImportedComponentIR } from "./types.js";
+import { serverSlotBoundaryId } from "./names.js";
 
 export interface ExpressionRenderSite {
   readonly tag: string;
   readonly start: number;
   readonly end: number;
   readonly path: string;
+  readonly serverSlotChildren: boolean;
 }
 
 export interface ExpressionComponentSite {
@@ -61,7 +63,7 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
           && candidate.ancestors().any(ancestor => ancestor.node.kind === "JsxOpeningElement" || ancestor.node.kind === "JsxSelfClosingElement"));
         const canReferenceComponent = !!tagBinding?.variable && ["ImportSpecifier", "ImportClause", "NamespaceImport", "FunctionDeclaration"].includes(tagBinding.variable.declarationKind);
         if (reference && canReferenceComponent && !reference.ancestors().functions().any(fn => fn.node !== component.node && fn.node.kind !== "ArrowFunction")) {
-          renders.push(Object.freeze({ tag: element.tagName, start: element.start, end: element.end, path: nodePath(reference, component) }));
+          renders.push(Object.freeze({ tag: element.tagName, start: element.start, end: element.end, path: nodePath(reference, component), serverSlotChildren: element.serverSlotChildren }));
         }
       }
     }
@@ -139,6 +141,53 @@ export function createExpressionRenderEdges(
     });
   }
   return edges;
+}
+
+/** Creates client-component and server-slot boundaries from expression render sites. */
+export function createExpressionComponentBoundaries(
+  filename: string,
+  components: readonly ExactComponentIR[],
+  plan: ExpressionComponentPlan,
+  componentInfo: ReadonlyMap<string, ExactImportedComponentIR>
+): ExactBoundaryIR[] {
+  const boundaries: ExactBoundaryIR[] = [];
+  const seen = new Set<string>();
+  for (const owner of components) {
+    const site = plan.sites.get(owner.name);
+    if (!site) continue;
+    for (const render of site.renders) {
+      const component = componentInfo.get(render.tag);
+      if (!component || component.placement !== "client") continue;
+      const name = component.boundaryName ?? component.name;
+      const id = stableId(filename, name, "component-island", String(render.start), String(render.end));
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const edge = owner.renderEdges.find(candidate => candidate.path === render.path && candidate.tag === render.tag);
+      boundaries.push({
+        id,
+        name,
+        componentId: component.componentId,
+        ownerComponentId: owner.id,
+        renderEdgeId: edge?.id,
+        renderEdgeIndex: edge?.index,
+        renderPath: edge?.path,
+        kind: "client-island"
+      });
+      if (render.serverSlotChildren) {
+        boundaries.push({
+          id: serverSlotBoundaryId(id),
+          name: `${name}:children`,
+          componentId: component.componentId,
+          ownerComponentId: owner.id,
+          renderEdgeId: edge?.id,
+          renderEdgeIndex: edge?.index,
+          renderPath: edge?.path,
+          kind: "server-slot"
+        });
+      }
+    }
+  }
+  return boundaries;
 }
 
 function nodePath(reference: NodeRef, component: NodeRef): string {

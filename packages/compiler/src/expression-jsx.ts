@@ -10,6 +10,7 @@ export interface ExpressionJsxElementSite {
   readonly intrinsic: boolean;
   readonly exactId?: string;
   readonly attributes: readonly string[];
+  readonly serverSlotChildren: boolean;
 }
 
 export interface ExpressionJsxCellSite {
@@ -39,6 +40,11 @@ export function analyzeExpressionJsx(module: BoundModule, provenance: ExactProve
       intrinsic,
       ...(intrinsic ? { exactId: stableId(identityFilename, "element", String(element.node.span.start), String(element.node.span.end)) } : {}),
       attributes: Object.freeze(element.node.attributes.map(attribute => attribute.name).filter((name): name is string => !!name))
+      ,serverSlotChildren: element.node.jsxChildren.some(child => {
+        if (child.kind === "JsxText") return false;
+        if (child.kind === "JsxExpression") return module.ref(child).descendants().jsxElements().any();
+        return child.kind === "JsxElement" || child.kind === "JsxSelfClosingElement" || child.kind === "JsxFragment";
+      })
     });
     elements.set(writeSiteKey(site.start, site.end), site);
   }

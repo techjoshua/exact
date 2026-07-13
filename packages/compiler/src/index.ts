@@ -11,9 +11,7 @@ import {
   analyzeComponent,
   collectComponentRenderEdges,
   combinePlacements,
-  createClientComponentTagBoundaries,
-  createGeneratedClientIslandServerSlotBoundaries,
-  createServerSlotBoundaries
+  createGeneratedClientIslandServerSlotBoundaries
 } from "./component-analysis.js";
 import type {
   CompileArtifactPlanEntriesOptions,
@@ -93,6 +91,7 @@ import { analyzeExpressionTasks } from "./expression-tasks.js";
 import { analyzeExpressionJsx } from "./expression-jsx.js";
 import { analyzeExpressionComponents } from "./expression-components.js";
 import { createExpressionRenderEdges } from "./expression-components.js";
+import { createExpressionComponentBoundaries } from "./expression-components.js";
 
 export type * from "./types.js";
 export { preprocessPropPunning } from "./preprocess.js";
@@ -262,8 +261,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   symbols.push(...createClientIslandSymbols(sourceFile, components));
   boundaries.push(...createClientIslandBoundaries(sourceFile, components));
   boundaries.push(...createGeneratedClientIslandServerSlotBoundaries(sourceFile, components, serverOnlyImports, semanticReferences, componentPlacements));
-  boundaries.push(...createClientComponentTagBoundaries(sourceFile, components, componentInfo, componentPlacements, semanticReferences));
-  boundaries.push(...createServerSlotBoundaries(sourceFile, components, componentInfo, componentPlacements, semanticReferences));
+  boundaries.push(...createExpressionComponentBoundaries(filename, components, expressionComponents, componentInfo));
 
   for (const component of components) {
     for (const task of component.tasks) {

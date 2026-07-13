@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeExpressionComponents, createExpressionRenderEdges } from "./expression-components.js";
+import { analyzeExpressionComponents, createExpressionComponentBoundaries, createExpressionRenderEdges } from "./expression-components.js";
 import { analyzeExpressionJsx } from "./expression-jsx.js";
 import { clearExpressionProjectCache, expressionModuleFor } from "./expression-project.js";
 import { analyzeExpressionTasks } from "./expression-tasks.js";
@@ -45,6 +45,11 @@ describe("expression-backed component effects", () => {
     expect(edges).toHaveLength(1);
     expect(edges[0]).toMatchObject({ tag: "Child", componentId: "child-id", placement: "server", index: 1 });
     expect(edges[0]?.path).not.toBe("");
+    const owner = { id: "parent-id", name: "Parent", placement: "server" as const, subgraphPlacement: "server" as const, exported: false, renderEdges: edges, clientIslandCount: 0, tasks: [], contexts: [], splitBoundaries: [], diagnostics: [] };
+    const boundaries = createExpressionComponentBoundaries("RenderEdges.tsx", [owner], analyzeExpressionComponents(module, jsx, tasks), new Map([
+      ["Child", { name: "Child", boundaryName: "Child", placement: "client" as const, componentId: "child-id" }]
+    ]));
+    expect(boundaries).toEqual([expect.objectContaining({ name: "Child", ownerComponentId: "parent-id", renderEdgeId: edges[0]?.id, kind: "client-island" })]);
   });
 
   it("reports browser globals outside managed client regions", () => {
