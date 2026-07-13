@@ -1,0 +1,178 @@
+import type {
+  EmitOptions,
+  EmitResult,
+  ExpressionDiagnostic,
+  ExpressionNode,
+  NodeEffect,
+  Variable,
+  WalkOptions
+} from "./model.js";
+import { buildParentIndex, NodeQuery, NodeRef, type ParentIndex } from "./query.js";
+
+export type ModuleState = "bound" | "unbound";
+
+export interface SourceTrivia {
+  readonly newline: "lf" | "crlf";
+  readonly quote: "single" | "double";
+  readonly shebang?: string;
+  readonly directives: readonly string[];
+}
+
+export interface ModuleData {
+  readonly filename: string;
+  readonly source: string;
+  readonly root: ExpressionNode;
+  readonly state: ModuleState;
+  readonly diagnostics?: readonly ExpressionDiagnostic[];
+  readonly trivia?: SourceTrivia;
+  readonly emitGenerated?: (options?: EmitOptions) => EmitResult;
+}
+
+let nextVersion = 1;
+const analysisCache = new WeakMap<ExpressionModule, Readonly<{ effects: readonly NodeEffect[]; captures: ReadonlyMap<ExpressionNode, readonly Variable[]> }>>();
+
+/** Immutable, versioned expression module. */
+export class ExpressionModule<S extends ModuleState = ModuleState> {
+  readonly version = nextVersion++;
+  readonly filename: string;
+  readonly source: string;
+  readonly rootNode: ExpressionNode;
+  readonly state: S;
+  readonly diagnostics: readonly ExpressionDiagnostic[];
+  readonly trivia: SourceTrivia;
+  private readonly emitGenerated?: (options?: EmitOptions) => EmitResult;
+  private readonly parents: ParentIndex;
+
+  constructor(data: ModuleData & { state: S }) {
+    this.filename = data.filename;
+    this.source = data.source;
+    this.rootNode = data.root;
+    this.state = data.state;
+    this.diagnostics = Object.freeze([...(data.diagnostics ?? [])]);
+    this.trivia = data.trivia ?? detectTrivia(data.source);
+    this.emitGenerated = data.emitGenerated;
+    this.parents = buildParentIndex(data.root);
+    Object.freeze(this);
+  }
+
+  get root(): NodeRef {
+    return new NodeRef(this.rootNode, this.parents);
+  }
+
+  walk(options?: WalkOptions): NodeQuery {
+    return this.root.walk(options);
+  }
+
+  ref(node: ExpressionNode): NodeRef {
+    if (!this.parents.has(node)) throw new Error("Node does not belong to this expression module version");
+    return new NodeRef(node, this.parents);
+  }
+
+  effects(): readonly NodeEffect[] {
+    return getAnalyses(this).effects;
+  }
+
+  capturesOf(functionNode: ExpressionNode | NodeRef): readonly Variable[] {
+    return getAnalyses(this).captures.get(functionNode instanceof NodeRef ? functionNode.node : functionNode) ?? [];
+  }
+
+  validate(): readonly ExpressionDiagnostic[] {
+    return this.diagnostics;
+  }
+
+  emit(options: EmitOptions = {}): EmitResult {
+    if (options.format === "generated" && this.emitGenerated) return this.emitGenerated(options);
+    if (this.emitGenerated && !this.source) return this.emitGenerated(options);
+    const newline = options.newline === "crlf" ? "\r\n" : options.newline === "lf" ? "\n" : undefined;
+    const code = newline ? this.source.replace(/\r?\n/g, newline) : this.source;
+    return {
+      code,
+      ...(options.sourceMap ? { map: identitySourceMap(this.filename, this.source, code) } : {})
+    };
+  }
+}
+
+export type BoundModule = ExpressionModule<"bound">;
+export type UnboundModule = ExpressionModule<"unbound">;
+
+export function createModule<S extends ModuleState>(data: ModuleData & { state: S }): ExpressionModule<S> {
+  return new ExpressionModule(data);
+}
+
+function getAnalyses(module: ExpressionModule): Readonly<{ effects: readonly NodeEffect[]; captures: ReadonlyMap<ExpressionNode, readonly Variable[]> }> {
+  const cached = analysisCache.get(module);
+  if (cached) return cached;
+  const effects: NodeEffect[] = [];
+  const captures = new Map<ExpressionNode, Variable[]>();
+  const functions: ExpressionNode[] = [];
+
+  const visit = (ref: NodeRef): void => {
+    const node = ref.node;
+    const functionLike = isFunctionKind(node.kind);
+    if (functionLike) functions.push(node);
+    if (node.variable && node.kind === "Identifier") {
+      const parent = ref.parent?.node;
+      const write = parent ? isWritePosition(node, parent) : false;
+      effects.push(Object.freeze({ node, variable: node.variable, kind: write ? "write" : "read" }));
+      const owner = functions[functions.length - 1];
+      if (owner && !scopeContains(owner.scope, node.variable.scope)) {
+        const values = captures.get(owner) ?? [];
+        if (!values.includes(node.variable)) values.push(node.variable);
+        captures.set(owner, values);
+        effects.push(Object.freeze({ node, variable: node.variable, kind: "capture" }));
+      }
+    }
+    for (const child of ref.children()) visit(child);
+    if (functionLike) functions.pop();
+  };
+  visit(module.root);
+  const frozenCaptures = new Map<ExpressionNode, readonly Variable[]>();
+  for (const [node, values] of captures) frozenCaptures.set(node, Object.freeze([...values]));
+  const result = Object.freeze({ effects: Object.freeze(effects), captures: frozenCaptures as ReadonlyMap<ExpressionNode, readonly Variable[]> });
+  analysisCache.set(module, result);
+  return result;
+}
+
+function isWritePosition(node: ExpressionNode, parent: ExpressionNode): boolean {
+  if (parent.kind === "VariableDeclaration" && parent.children[0] === node) return true;
+  if (parent.kind === "Parameter" || parent.kind === "BindingElement") return true;
+  if (parent.kind === "BinaryExpression" && parent.children[0] === node && /=$/.test(parent.operator ?? "")) return true;
+  return (parent.kind === "PrefixUnaryExpression" || parent.kind === "PostfixUnaryExpression") && /\+\+|--/.test(parent.operator ?? "");
+}
+
+function isFunctionKind(kind: string): boolean {
+  return kind === "FunctionDeclaration" || kind === "FunctionExpression" || kind === "ArrowFunction" || kind === "MethodDeclaration";
+}
+
+function scopeContains(functionScope: ExpressionNode["scope"], variableScope: ExpressionNode["scope"]): boolean {
+  let cursor: ExpressionNode["scope"] | undefined = variableScope;
+  while (cursor) {
+    if (cursor === functionScope) return true;
+    cursor = cursor.parent;
+  }
+  return false;
+}
+
+function detectTrivia(source: string): SourceTrivia {
+  const single = (source.match(/'/g) ?? []).length;
+  const double = (source.match(/"/g) ?? []).length;
+  const shebang = source.startsWith("#!") ? source.slice(0, source.indexOf("\n") < 0 ? source.length : source.indexOf("\n")) : undefined;
+  const directives = [...source.matchAll(/^[ \t]*(["'])([^"'\r\n]+)\1;?/gm)].map(match => match[2]!);
+  return Object.freeze({
+    newline: source.includes("\r\n") ? "crlf" : "lf",
+    quote: single > double ? "single" : "double",
+    ...(shebang ? { shebang } : {}),
+    directives: Object.freeze(directives)
+  });
+}
+
+function identitySourceMap(filename: string, source: string, code: string): EmitResult["map"] {
+  return Object.freeze({
+    version: 3 as const,
+    file: filename,
+    sources: Object.freeze([filename]),
+    sourcesContent: Object.freeze([source]),
+    names: Object.freeze([]),
+    mappings: code.split(/\r?\n/).map(() => "AAAA").join(";")
+  });
+}

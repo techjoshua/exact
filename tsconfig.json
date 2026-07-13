@@ -1,6 +1,7 @@
 {
   "files": [],
   "references": [
+    { "path": "./packages/expressions" },
     { "path": "./packages/reactive" },
     { "path": "./packages/core" },
     { "path": "./packages/jsx-runtime" },
