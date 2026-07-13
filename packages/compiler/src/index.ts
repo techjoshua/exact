@@ -177,8 +177,6 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const normalized = preprocessPropPunning(source);
   const filename = options.filename ?? "input.tsx";
   const expressionModule = expressionModuleFor(filename, normalized);
-  const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
-  let components: ExactComponentIR[] = [];
   const exports: ExactExportIR[] = [];
   const symbols: ExactSymbolIR[] = [];
   const boundaries: ExactBoundaryIR[] = [];
@@ -190,7 +188,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const expressionTasks = analyzeExpressionTasks(expressionModule);
   const expressionJsx = analyzeExpressionJsx(expressionModule, provenance, filename);
   const expressionComponents = analyzeExpressionComponents(expressionModule, expressionJsx, expressionTasks);
-  components = createExpressionComponents(filename, expressionComponents, expressionTasks, expressionSafety);
+  const components: ExactComponentIR[] = createExpressionComponents(filename, expressionComponents, expressionTasks, expressionSafety);
 
   const componentByName = new Map(components.map(component => [component.name, component]));
   const importedComponents = collectExpressionImportedComponents(filename, options.importedManifests ?? [], semanticGraph);
