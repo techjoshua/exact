@@ -107,11 +107,15 @@ export class ExpressionProject {
   }
 
   async bind(module: UnboundModule): Promise<BoundModule> {
+    const structuralErrors = module.validate().filter(diagnostic => diagnostic.severity === "error");
+    if (structuralErrors.length) throw new ExpressionProjectError(structuralErrors);
     const emitted = module.emit({ format: "generated" }).code;
     return this.updateModule(module.filename, emitted);
   }
 
   emit(module: BoundModule, options: Parameters<BoundModule["emit"]>[0] = {}) {
+    const errors = module.diagnostics.filter(diagnostic => diagnostic.severity === "error");
+    if (errors.length) throw new ExpressionProjectError(errors);
     return module.emit(options);
   }
 

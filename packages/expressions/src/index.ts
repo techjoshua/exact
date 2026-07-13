@@ -36,7 +36,18 @@ export {
   createExpressionProject,
   type ExpressionProjectOptions
 } from "./project.js";
-export { FunctionBuilder, ModuleBuilder, TypeBuilder, moduleBuilder, printNode } from "./builder.js";
+export {
+  BlockBuilder,
+  ClassBuilder,
+  FunctionBuilder,
+  ModuleBuilder,
+  TypeBuilder,
+  moduleBuilder,
+  printNode,
+  type FunctionOptions,
+  type MethodOptions,
+  type PropertyOptions
+} from "./builder.js";
 export { ModuleRewriter, cloneWithVariables, rewriteModule } from "./rewrite.js";
 export { validateExpressionTree } from "./validation.js";
 

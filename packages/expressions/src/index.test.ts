@@ -61,6 +61,54 @@ export function total(items: number[]) {
     expect(bound.walk().functions().single().node.name).toBe("double");
   });
 
+  it("constructs classes, generics, async code, closures, objects, arrays, and JSX", async () => {
+    const filename = path.join(root, "apps/kanban/src/__generated_rich_expression.tsx");
+    const builder = expressions.module(filename);
+    const number = builder.types.number();
+    const genericT = builder.types.named("T");
+    const promise = builder.ambient("Promise", builder.types.named("PromiseConstructor"));
+
+    builder.exportClass("Counter", value => {
+      value.property("count", number, builder.literal(0));
+      value.method("increment", method => {
+        method.expression(builder.assignment(builder.member(builder.thisValue(), "count"), builder.literal(1), "+="));
+        method.returns(builder.member(builder.thisValue(), "count"));
+      }, { returnType: number });
+    });
+    builder.function("resolveValue", fn => {
+      const input = fn.parameter("input", genericT);
+      const factor = fn.variable("factor", builder.literal(2), number);
+      const multiply = fn.arrow(inner => {
+        const value = inner.parameter("value", number);
+        return builder.multiply(builder.reference(value), builder.reference(factor));
+      }, { returnType: number });
+      fn.variable("multiply", multiply);
+      fn.expression(builder.object({ values: builder.array(builder.literal(1), builder.literal(2)) }));
+      fn.returns(builder.await(builder.call(builder.member(builder.reference(promise), "resolve"), builder.reference(input))));
+    }, {
+      exported: true,
+      async: true,
+      typeParameters: ["T"],
+      returnType: builder.types.generic("Promise", genericT)
+    });
+    builder.exportFunction("View", fn => {
+      const label = fn.parameter("label", builder.types.string());
+      fn.returns(builder.jsx("section", { class: "counter" }, builder.jsx("span", {}, builder.reference(label))));
+    });
+
+    const unbound = builder.build();
+    expect(unbound.diagnostics.filter(diagnostic => diagnostic.severity === "error")).toEqual([]);
+    expect(unbound.emit().code).toContain("export class Counter");
+    expect(unbound.emit().code).toContain("export async function resolveValue<T>");
+    expect(unbound.emit().code).toContain("<section class=\"counter\">");
+
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const bound = await project.bind(unbound);
+    expect(bound.diagnostics.filter(diagnostic => diagnostic.severity === "error")).toEqual([]);
+    const multiplyArrow = bound.walk().functions().where(ref => ref.node.kind === "ArrowFunction").single();
+    expect(bound.capturesOf(multiplyArrow).map(variable => variable.name)).toContain("factor");
+  });
+
   it("rewrites source losslessly outside the selected node", () => {
     const project = createExpressionProject({ tsconfigPath: kanbanConfig });
     const filename = path.join(root, "apps/kanban/src/__expressions_rewrite.ts");
@@ -73,6 +121,23 @@ export function total(items: number[]) {
 
     expect(rewritten.emit().code).toBe(`// retained comment\nconst value = 2;\nexport { value };\n`);
     expect(rewritten.state).toBe("unbound");
+  });
+
+  it("preserves directives, comments, and newline style around structural edits", () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__expressions_trivia.ts");
+    const source = `"use strict";\r\n// retained for the following region\r\nconst first = 1;\r\nconst second = 2;\r\n`;
+    const module = project.updateModule(filename, source);
+    const generated = expressions.module("generated.ts");
+    generated.exportFunction("inserted", fn => fn.returns(generated.literal(3)));
+    const declaration = generated.build().root.node.children[0]!;
+    const rewritten = rewriteModule(module, rewriter => {
+      const second = module.walk().first(ref => ref.node.text === "const second = 2;")!;
+      rewriter.insertBefore(second, declaration);
+    });
+
+    expect(rewritten.emit().code).toBe(`"use strict";\r\n// retained for the following region\r\nconst first = 1;\r\nexport function inserted() {\r\n  return 3;\r\n}\r\nconst second = 2;\r\n`);
+    expect(rewritten.trivia.directives).toEqual(["use strict"]);
   });
 
   it("keeps earlier module versions and analyses immutable", () => {

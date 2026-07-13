@@ -37,12 +37,13 @@ export class ModuleRewriter {
 
   apply(module: ExpressionModule): UnboundModule {
     const edits: Array<{ start: number; end: number; text: string }> = [];
+    const newline = module.trivia.newline === "crlf" ? "\r\n" : "\n";
     const rewrite = (node: ExpressionNode): ExpressionNode | null => {
       const ref = module.ref(node);
       for (const operation of this.replacements) {
         if (!operation.select(ref)) continue;
         const replacement = operation.replace(ref);
-        if (node.span) edits.push({ start: node.span.start, end: node.span.end, text: replacement ? printNode(replacement) : "" });
+        if (node.span) edits.push({ start: node.span.start, end: node.span.end, text: replacement ? hostText(printNode(replacement), newline) : "" });
         return replacement;
       }
       let changed = false;
@@ -52,7 +53,7 @@ export class ModuleRewriter {
         if (prefix) {
           children.push(...prefix);
           changed = true;
-          if (child.span) edits.push({ start: child.span.start, end: child.span.start, text: prefix.map(printNode).join("\n") });
+          if (child.span) edits.push({ start: child.span.start, end: child.span.start, text: `${prefix.map(node => hostText(printNode(node), newline)).join(newline)}${newline}` });
         }
         const next = rewrite(child);
         if (next) children.push(next);
@@ -61,7 +62,7 @@ export class ModuleRewriter {
         if (suffix) {
           children.push(...suffix);
           changed = true;
-          if (child.span) edits.push({ start: child.span.end, end: child.span.end, text: suffix.map(printNode).join("\n") });
+          if (child.span) edits.push({ start: child.span.end, end: child.span.end, text: `${newline}${suffix.map(node => hostText(printNode(node), newline)).join(newline)}` });
         }
       }
       if (!changed) return node;
@@ -72,6 +73,10 @@ export class ModuleRewriter {
     const source = applyEdits(module.source, edits);
     return createModule({ filename: module.filename, source, root, state: "unbound", trivia: module.trivia, diagnostics: validateExpressionTree(root, module.filename) });
   }
+}
+
+function hostText(value: string, newline: string): string {
+  return value.replace(/\r?\n/g, newline);
 }
 
 function applyEdits(source: string, edits: readonly { start: number; end: number; text: string }[]): string {
