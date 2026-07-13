@@ -21,6 +21,14 @@ export interface ExpressionTaskSite {
 
 export interface ExpressionTaskPlan {
   readonly sites: ReadonlyMap<string, ExpressionTaskSite>;
+  readonly resources: ReadonlyMap<string, ExpressionTaskResource>;
+}
+
+export type ExpressionTaskResourceKind = "timeout" | "interval" | "animation-frame" | "fetch" | "observer";
+export interface ExpressionTaskResource {
+  readonly start: number;
+  readonly end: number;
+  readonly kind: ExpressionTaskResourceKind;
 }
 
 const browserGlobals = new Set(["window", "document", "navigator", "location", "history", "localStorage", "sessionStorage", "requestAnimationFrame", "cancelAnimationFrame", "MutationObserver", "ResizeObserver", "IntersectionObserver"]);
@@ -28,6 +36,7 @@ const browserGlobals = new Set(["window", "document", "navigator", "location", "
 /** Builds task effects from canonical references while retaining source spans for emission. */
 export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan {
   const sites = new Map<string, ExpressionTaskSite>();
+  const resources = new Map<string, ExpressionTaskResource>();
   const writes = analyzeExpressionWrites(module);
   const localVariables = new Set(module.writesOf(module.root));
   for (const task of module.walk().calls().where(isTaskCall)) {
@@ -57,6 +66,11 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
       if (site.start >= work.node.span!.start && site.end <= work.node.span!.end) taskWrites.push(effect(site.path.join("."), "write", site.operation === "array-mutation"));
     }
     for (const call of work.walk().calls()) {
+      const resourceKind = taskResourceKind(call, localVariables);
+      if (resourceKind && call.node.span) {
+        const resource = Object.freeze({ start: call.node.span.start, end: call.node.span.end, kind: resourceKind });
+        resources.set(writeSiteKey(resource.start, resource.end), resource);
+      }
       if (!call.target?.isMember() || !/^this\.(?:getContext|setContext)$/.test(call.target.node.text ?? "")) continue;
       const token = call.arguments[0];
       const exactToken = token && /^(?:[A-Za-z_$][\w$]*)(?:\.[A-Za-z_$][\w$]*)*$/.test(token.node.text ?? "");
@@ -104,7 +118,20 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
     });
     sites.set(writeSiteKey(site.start, site.end), site);
   }
-  return Object.freeze({ sites });
+  return Object.freeze({ sites, resources });
+}
+
+function taskResourceKind(call: NodeRef, localVariables: ReadonlySet<Variable>): ExpressionTaskResourceKind | undefined {
+  const target = call.target;
+  const name = target?.name ?? target?.node.text?.trim();
+  const variable = target?.rootVariable ?? target?.variable;
+  if (variable && localVariables.has(variable)) return undefined;
+  if (call.node.kind === "NewExpression" && ["MutationObserver", "ResizeObserver", "IntersectionObserver"].includes(name ?? "")) return "observer";
+  if (name === "setTimeout") return "timeout";
+  if (name === "setInterval") return "interval";
+  if (name === "requestAnimationFrame") return "animation-frame";
+  if (name === "fetch") return "fetch";
+  return undefined;
 }
 
 function collectStateAliases(module: BoundModule, work: NodeRef): ReadonlyMap<string, readonly string[]> {

@@ -211,6 +211,71 @@ function combineAbortSignals(left: AbortSignal, right: AbortSignal): AbortSignal
   return controller.signal;
 }
 
+/** Compiler helpers for resources whose lifetime is owned by a task generation. */
+export function taskTimeout(signal: AbortSignal, handler: (...args: any[]) => void, delay?: number, ...args: any[]): ReturnType<typeof setTimeout> {
+  let timeout: ReturnType<typeof setTimeout>;
+  const abort = () => clearTimeout(timeout);
+  timeout = setTimeout((...values: any[]) => {
+    signal.removeEventListener("abort", abort);
+    handler(...values);
+  }, delay, ...args);
+  if (signal.aborted) abort();
+  else signal.addEventListener("abort", abort, { once: true });
+  return timeout;
+}
+
+export function taskInterval(signal: AbortSignal, handler: (...args: any[]) => void, delay?: number, ...args: any[]): ReturnType<typeof setInterval> {
+  const interval = setInterval(handler, delay, ...args);
+  if (signal.aborted) clearInterval(interval);
+  else signal.addEventListener("abort", () => clearInterval(interval), { once: true });
+  return interval;
+}
+
+export function taskAnimationFrame(signal: AbortSignal, handler: (time: number) => void): number {
+  const platform = globalThis as typeof globalThis & {
+    requestAnimationFrame(callback: (time: number) => void): number;
+    cancelAnimationFrame(id: number): void;
+  };
+  const frame = platform.requestAnimationFrame(handler);
+  if (signal.aborted) platform.cancelAnimationFrame(frame);
+  else signal.addEventListener("abort", () => platform.cancelAnimationFrame(frame), { once: true });
+  return frame;
+}
+
+export function taskObserver<T extends { disconnect(): void }>(signal: AbortSignal, observer: T): T {
+  if (signal.aborted) observer.disconnect();
+  else signal.addEventListener("abort", () => observer.disconnect(), { once: true });
+  return observer;
+}
+
+export function taskFetch<T>(signal: AbortSignal, fetcher: (...args: any[]) => T, input: unknown, init?: Record<string, unknown>): T {
+  const options = init ? { ...init } : {};
+  const existing = options.signal;
+  options.signal = isAbortSignal(existing) ? combineAbortSignals(existing, signal) : signal;
+  return fetcher(input, options);
+}
+
+function isAbortSignal(value: unknown): value is AbortSignal {
+  return !!value && typeof value === "object"
+    && typeof (value as AbortSignal).addEventListener === "function"
+    && typeof (value as AbortSignal).aborted === "boolean";
+}
+
+export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Promise<T> {
+  if (signal.aborted) return Promise.reject(createAbortError(signal.reason));
+  return Promise.resolve(value).then(result => {
+    if (signal.aborted) throw createAbortError(signal.reason);
+    return result;
+  });
+}
+
+function createAbortError(reason: unknown): Error {
+  if (reason instanceof Error) return reason;
+  const error = new Error(reason === undefined ? "Task aborted" : String(reason));
+  error.name = "AbortError";
+  return error;
+}
+
 export type TaskObserver = {
   register(promise: Promise<unknown>, instance: ComponentInstance<any>): void;
 };

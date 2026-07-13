@@ -413,6 +413,12 @@ export type HelperNames = {
   updateResult: string;
   abortOptions: string;
   taskSignal: string;
+  taskTimeout: string;
+  taskInterval: string;
+  taskAnimationFrame: string;
+  taskObserver: string;
+  taskFetch: string;
+  taskAwait: string;
   remove: string;
   arrayMutation: string;
 };

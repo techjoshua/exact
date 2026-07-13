@@ -3,6 +3,16 @@ import { clearExpressionProjectCache, expressionModuleFor } from "./expression-p
 import { analyzeExpressionTasks } from "./expression-tasks.js";
 
 describe("expression-backed task effects", () => {
+  it("does not classify shadowed async resource functions as globals", () => {
+    clearExpressionProjectCache();
+    const module = expressionModuleFor("ShadowedTaskResources.tsx", `
+      function Panel(this: Component<{}>) {
+        const setTimeout = (callback: () => void) => callback();
+        this.task(() => setTimeout(() => {}));
+      }
+    `);
+    expect(analyzeExpressionTasks(module).resources.size).toBe(0);
+  });
   it("classifies state, context, environment, async, and explicit placement effects", () => {
     clearExpressionProjectCache();
     const module = expressionModuleFor("ExpressionTasks.tsx", `
@@ -13,6 +23,9 @@ describe("expression-backed task effects", () => {
           this.state.count += items.length;
           items.push(await readFile("x", "utf8"));
           this.getContext(Locale);
+          setTimeout(() => {}, 10);
+          fetch("/tasks");
+          new ResizeObserver(() => {});
           window.addEventListener("resize", () => {}, { signal });
         });
         return () => <p />;
@@ -31,6 +44,9 @@ describe("expression-backed task effects", () => {
       expect.objectContaining({ path: "items", confidence: "broad" })
     ]));
     expect(task.contexts).toContainEqual(expect.objectContaining({ token: "Locale", kind: "read" }));
+    expect([...analyzeExpressionTasks(module).resources.values()].map(resource => resource.kind)).toEqual(
+      expect.arrayContaining(["timeout", "fetch", "observer"])
+    );
     expect(task.diagnostics).toEqual(expect.arrayContaining([
       "task writes component state and references browser-only globals; classify as client and split at this boundary",
       "error: this.task.client() cannot reference server-only imports",

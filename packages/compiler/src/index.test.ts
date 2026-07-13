@@ -73,6 +73,26 @@ describe("@exact/compiler", () => {
     expect(output).toContain("({ signal: __exactSignal })");
     expect(output).toContain("__exactAbortOptions(undefined, __exactSignal)");
   });
+  it("owns canonical async resources and guards post-await task continuations", () => {
+    const output = transform(`function Panel(this: Component<{ loaded: boolean }>) {
+      this.task.client(async () => {
+        setTimeout(() => {}, 10);
+        setInterval(() => {}, 20);
+        requestAnimationFrame(() => {});
+        new ResizeObserver(() => {}).observe(document.body);
+        await fetch("/tasks");
+        this.state.loaded = true;
+      });
+      return () => <p />;
+    }`, { filename: "ManagedResources.tsx" });
+    expect(output).toContain("taskTimeout as __exactTaskTimeout");
+    expect(output).toContain("taskInterval as __exactTaskInterval");
+    expect(output).toContain("taskAnimationFrame as __exactTaskAnimationFrame");
+    expect(output).toContain("taskObserver as __exactTaskObserver");
+    expect(output).toContain("taskFetch as __exactTaskFetch");
+    expect(output).toContain("taskAwait as __exactTaskAwait");
+    expect(output).toContain("__exactTaskAwait(__exactSignal, __exactTaskFetch(__exactSignal, fetch, \"/tasks\"))");
+  });
   it("rejects setup-time state snapshots captured by async callbacks", () => {
     expect(() => transform(`function Panel(this: Component<{ title: string }>) { const title = this.state.title; setTimeout(() => console.log(title)); return () => <p />; }`, { filename: "Panel.tsx" }))
       .toThrow("setup-time state snapshot");

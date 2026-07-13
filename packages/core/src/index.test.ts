@@ -10,6 +10,9 @@ import {
   isVNode,
   logFrameworkEvent,
   renderInstance,
+  taskAwait,
+  taskObserver,
+  taskTimeout,
   withTaskObserver,
   withAbortSignal,
   type Component,
@@ -21,6 +24,24 @@ import {
 import { flushSync, unwrap, watch } from "@exact/reactive";
 
 describe("@exact/core", () => {
+  it("cancels compiler-owned resources and stale awaits", async () => {
+    vi.useFakeTimers();
+    try {
+      const controller = new AbortController();
+      const callback = vi.fn();
+      taskTimeout(controller.signal, callback, 10);
+      const observer = { disconnect: vi.fn() };
+      expect(taskObserver(controller.signal, observer)).toBe(observer);
+      const awaited = taskAwait(controller.signal, Promise.resolve("value"));
+      controller.abort("rerun");
+      await expect(awaited).rejects.toMatchObject({ name: "AbortError" });
+      vi.runAllTimers();
+      expect(callback).not.toHaveBeenCalled();
+      expect(observer.disconnect).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it("combines compiler-owned abort signals with listener options", () => {
     const owner = new AbortController();
     const external = new AbortController();
