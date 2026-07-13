@@ -4,6 +4,7 @@ import { isServerOnlyModule } from "./imports.js";
 import type { ExactContextEffect, ExactPlacement, ExactStateEffect } from "./types.js";
 
 export interface ExpressionTaskSite {
+  readonly component?: string;
   readonly start: number;
   readonly end: number;
   readonly requestedPlacement?: "client" | "server";
@@ -14,6 +15,7 @@ export interface ExpressionTaskSite {
   readonly reads: readonly ExactStateEffect[];
   readonly writes: readonly ExactStateEffect[];
   readonly contexts: readonly ExactContextEffect[];
+  readonly diagnostics: readonly string[];
 }
 
 export interface ExpressionTaskPlan {
@@ -73,7 +75,16 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
     }
     const requestedPlacement = task.target?.name === "client" || task.target?.name === "server" ? task.target.name : undefined;
     const placement: ExactPlacement = requestedPlacement ?? (browserEffects ? "client" : serverEffects ? "server" : taskWrites.length ? "isomorphic" : "client");
+    const diagnostics: string[] = [];
+    if (browserEffects && taskWrites.length) diagnostics.push("task writes component state and references browser-only globals; classify as client and split at this boundary");
+    if (!requestedPlacement && !browserEffects && !serverEffects && taskWrites.length) diagnostics.push("task writes component state without environment-specific effects; classify as isomorphic so SSR can run it and hydration can skip duplicate initial work");
+    if (!browserEffects && !serverEffects && !taskWrites.length) diagnostics.push("task has no detected state writes or environment-specific effects; classify as client lifecycle work");
+    if (requestedPlacement === "server" && browserEffects) diagnostics.push("error: this.task.server() cannot reference browser-only globals");
+    if (requestedPlacement === "client" && serverEffects) diagnostics.push("error: this.task.client() cannot reference server-only imports");
+    if (requestedPlacement) diagnostics.push(`task placement forced by this.task.${requestedPlacement}()`);
+    const component = task.ancestors().functions().first(owner => owner.node.kind === "FunctionDeclaration" && /^[A-Z]/.test(owner.node.name ?? ""))?.node.name;
     const site = Object.freeze({
+      ...(component ? { component } : {}),
       start: task.node.span.start,
       end: task.node.span.end,
       ...(requestedPlacement ? { requestedPlacement } : {}),
@@ -83,7 +94,8 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
       serverEffects,
       reads: Object.freeze(uniqueEffects(reads)),
       writes: Object.freeze(uniqueEffects(taskWrites)),
-      contexts: Object.freeze(uniqueContexts(contexts))
+      contexts: Object.freeze(uniqueContexts(contexts)),
+      diagnostics: Object.freeze(diagnostics)
     });
     sites.set(writeSiteKey(site.start, site.end), site);
   }

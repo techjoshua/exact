@@ -19,6 +19,7 @@ describe("expression-backed task effects", () => {
       }
     `);
     const task = [...analyzeExpressionTasks(module).sites.values()][0]!;
+    expect(task.component).toBe("Panel");
     expect(task.requestedPlacement).toBe("client");
     expect(task.placement).toBe("client");
     expect(task.async).toBe(true);
@@ -30,5 +31,10 @@ describe("expression-backed task effects", () => {
       expect.objectContaining({ path: "items", confidence: "broad" })
     ]));
     expect(task.contexts).toContainEqual(expect.objectContaining({ token: "Locale", kind: "read" }));
+    expect(task.diagnostics).toEqual(expect.arrayContaining([
+      "task writes component state and references browser-only globals; classify as client and split at this boundary",
+      "error: this.task.client() cannot reference server-only imports",
+      "task placement forced by this.task.client()"
+    ]));
   });
 });

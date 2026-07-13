@@ -88,9 +88,25 @@ export function analyzeComponent(
   }
   if (expressionDiagnostics === undefined) collectSetupStateAliases(node);
 
+  if (expressionTasks && expressionComponent) {
+    const componentTasks = [...expressionTasks.sites.values()]
+      .filter(task => task.component === name && task.start >= expressionComponent.start && task.end <= expressionComponent.end)
+      .sort((left, right) => left.start - right.start);
+    for (const task of componentTasks) {
+      const exactTask = expressionTaskIr(`${name}:task:${taskIndex++}`, sourceFile.fileName, task);
+      tasks.push(exactTask);
+      contexts.push(...exactTask.contexts);
+      diagnostics.push(...exactTask.diagnostics);
+    }
+  }
+
   function visit(current: ts.Node, islandDepth = 0, taskDepth = 0): void {
     if (ts.isCallExpression(current) && isThisTaskCall(current)) {
       const expressionTask = expressionTasks?.sites.get(writeSiteKey(current.getStart(sourceFile), current.end));
+      if (expressionTasks && expressionComponent) {
+        ts.forEachChild(current, child => visit(child, islandDepth, taskDepth + 1));
+        return;
+      }
       const task = analyzeTask(`${name}:task:${taskIndex++}`, current, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations, expressionDiagnostics !== undefined, expressionTask);
       tasks.push(task);
       contexts.push(...task.contexts);
@@ -193,6 +209,20 @@ export function analyzeComponent(
     contexts: uniqueContextEffects(contexts),
     splitBoundaries: [...splitBoundaries].sort(),
     diagnostics: uniqueDiagnostics(diagnostics)
+  };
+}
+
+function expressionTaskIr(seed: string, filename: string, task: ExpressionTaskSite): ExactTaskIR {
+  return {
+    id: stableId(filename, seed),
+    placement: task.placement,
+    requestedPlacement: task.requestedPlacement,
+    async: task.async,
+    browserEffects: task.browserEffects,
+    reads: [...task.reads],
+    writes: [...task.writes],
+    contexts: [...task.contexts],
+    diagnostics: [...task.diagnostics]
   };
 }
 
