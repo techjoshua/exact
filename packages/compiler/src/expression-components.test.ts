@@ -11,6 +11,8 @@ describe("expression-backed component effects", () => {
     const module = expressionModuleFor("ComponentEffects.tsx", `import { readFile } from "node:fs";
       function Mixed(this: Component<{ value: string }>) {
         this.task.client([], ({ signal }) => window.addEventListener("resize", () => {}, { signal }));
+        this.getContext(Theme);
+        this.setContext(dynamicToken(), "value");
         const server = readFile;
         return () => <button ref={this.ref()} onClick={() => console.log(window.innerWidth)}>{this.state.value}</button>;
       }`);
@@ -21,6 +23,10 @@ describe("expression-backed component effects", () => {
     expect(site.serverEffects).toBe(true);
     expect(site.splitBoundaries).toEqual(expect.arrayContaining(["event-handler", "ref", "browser:window", "server-import:readFile"]));
     expect(site.browserGlobalsOutsideClientBoundary).toEqual([]);
+    expect(site.contexts).toEqual(expect.arrayContaining([
+      { token: "Theme", kind: "read", confidence: "exact" },
+      { token: "unknown", kind: "write", confidence: "unknown" }
+    ]));
   });
 
   it("reports browser globals outside managed client regions", () => {

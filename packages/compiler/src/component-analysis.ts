@@ -71,7 +71,7 @@ export function analyzeComponent(
   expressionComponent?: ExpressionComponentSite
 ): ExactComponentIR {
   const tasks: ExactTaskIR[] = [];
-  const contexts: ExactContextEffect[] = [];
+  const contexts: ExactContextEffect[] = [...(expressionComponent?.contexts ?? [])];
   const splitBoundaries = new Set<string>(expressionComponent?.splitBoundaries ?? []);
   const diagnostics: string[] = [...(expressionDiagnostics ?? [])];
   const browserGlobalsOutsideClientBoundary = new Set<string>(expressionComponent?.browserGlobalsOutsideClientBoundary ?? []);
@@ -116,7 +116,7 @@ export function analyzeComponent(
       diagnostics.push("error: setup-time state snapshot captured by async callback; read state in the callback or wrap the snapshot in peek(() => ...)");
     }
 
-    const contextEffect = contextEffectForCall(current, sourceFile);
+    const contextEffect = expressionComponent === undefined ? contextEffectForCall(current, sourceFile) : undefined;
     if (contextEffect) contexts.push(contextEffect);
 
     const isIslandElement = ts.isJsxElement(current) && jsxElementIsClientIsland(current.openingElement.attributes);

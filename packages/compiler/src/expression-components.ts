@@ -2,6 +2,7 @@ import type { BoundModule, NodeRef, Variable } from "@exact/expressions";
 import type { ExpressionJsxPlan } from "./expression-jsx.js";
 import type { ExpressionTaskPlan } from "./expression-tasks.js";
 import { isServerOnlyModule } from "./imports.js";
+import type { ExactContextEffect } from "./types.js";
 
 export interface ExpressionComponentSite {
   readonly name: string;
@@ -11,6 +12,7 @@ export interface ExpressionComponentSite {
   readonly serverEffects: boolean;
   readonly splitBoundaries: readonly string[];
   readonly browserGlobalsOutsideClientBoundary: readonly string[];
+  readonly contexts: readonly ExactContextEffect[];
 }
 
 export interface ExpressionComponentPlan {
@@ -31,6 +33,7 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
   for (const component of components) {
     const splitBoundaries = new Set<string>();
     const outsideGlobals = new Set<string>();
+    const contexts: ExactContextEffect[] = [];
     let clientEffects = false;
     let serverEffects = false;
 
@@ -64,6 +67,18 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
       if (task.placement === "server" || task.placement === "isomorphic") serverEffects = true;
     }
 
+    for (const call of component.descendants({ types: false }).calls()) {
+      if (nearestComponent(call, componentNodes)?.node !== component.node || insideTask(call)) continue;
+      if (!call.target?.isMember() || !/^this\.(?:getContext|setContext)$/.test(call.target.node.text ?? "")) continue;
+      const token = call.arguments[0];
+      const exact = token && /^(?:[A-Za-z_$][\w$]*)(?:\.[A-Za-z_$][\w$]*)*$/.test(token.node.text ?? "");
+      contexts.push(Object.freeze({
+        token: exact ? token!.node.text! : "unknown",
+        kind: call.target.name === "getContext" ? "read" : "write",
+        confidence: exact ? "exact" : "unknown"
+      }));
+    }
+
     const span = component.node.span!;
     sites.set(component.node.name!, Object.freeze({
       name: component.node.name!,
@@ -72,10 +87,15 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
       clientEffects,
       serverEffects,
       splitBoundaries: Object.freeze([...splitBoundaries].sort()),
-      browserGlobalsOutsideClientBoundary: Object.freeze([...outsideGlobals].sort())
+      browserGlobalsOutsideClientBoundary: Object.freeze([...outsideGlobals].sort()),
+      contexts: Object.freeze(uniqueContexts(contexts))
     }));
   }
   return Object.freeze({ sites });
+}
+
+function uniqueContexts(values: readonly ExactContextEffect[]): ExactContextEffect[] {
+  return [...new Map(values.map(value => [`${value.kind}:${value.token}:${value.confidence}`, value])).values()];
 }
 
 function inside(start: number, end: number, component: NodeRef): boolean {
