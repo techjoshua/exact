@@ -384,13 +384,30 @@ function reconcileReactiveValue(
   if (Array.isArray(oldValue) && Array.isArray(nextValue)) {
     const registration = listKeyExtractors.get(oldValue);
     if (registration) return reconcileKeyedArray(current, oldValue, nextValue, registration.key, seen);
-    const sharedLength = Math.min(oldValue.length, nextValue.length);
-    for (let index = 0; index < sharedLength; index++) {
-      if (!reconcileReactiveValue(current[index], nextValue[index], seen)) current[index] = nextValue[index];
+    const oldLength = oldValue.length;
+    const previousItems = Array.from({ length: oldLength }, (_, index) => current[index]);
+    const existingByIdentity = new WeakMap<object, unknown>();
+    for (const item of previousItems) {
+      const identity = structuredIdentity(item);
+      if (identity) existingByIdentity.set(identity, item);
     }
-    for (let index = oldValue.length - 1; index >= nextValue.length; index--) delete current[index];
-    for (let index = sharedLength; index < nextValue.length; index++) current[index] = nextValue[index];
-    if (oldValue.length !== nextValue.length) current.length = nextValue.length;
+    const retainedIdentities = new WeakSet<object>();
+    for (const incoming of nextValue) {
+      const identity = structuredIdentity(incoming);
+      if (identity && existingByIdentity.has(identity)) retainedIdentities.add(identity);
+    }
+    const nextItems = nextValue.map((incoming, index) => {
+      const incomingIdentity = structuredIdentity(incoming);
+      const retained = incomingIdentity ? existingByIdentity.get(incomingIdentity) : undefined;
+      if (retained !== undefined) return retained;
+      const previousItem = previousItems[index];
+      const previousIdentity = structuredIdentity(previousItem);
+      if (previousIdentity && retainedIdentities.has(previousIdentity)) return incoming;
+      return previousItem !== undefined && reconcileReactiveValue(previousItem, incoming, seen)
+        ? previousItem
+        : incoming;
+    });
+    reconcileArrayItems(current, oldLength, nextItems);
     return true;
   }
 
@@ -429,10 +446,37 @@ function reconcileKeyedArray(
     if (previousItem !== undefined && reconcileReactiveValue(previousItem, incoming, seen)) nextItems.push(previousItem);
     else nextItems.push(incoming);
   }
-  for (let index = 0; index < nextItems.length; index++) if (!Object.is(current[index], nextItems[index])) current[index] = nextItems[index];
-  for (let index = oldValue.length - 1; index >= nextItems.length; index--) delete current[index];
-  if (oldValue.length !== nextItems.length) current.length = nextItems.length;
+  reconcileArrayItems(current, oldValue.length, nextItems);
   return true;
+}
+
+function structuredIdentity(value: unknown): object | undefined {
+  const identity = unwrap(value);
+  return identity && typeof identity === "object" ? identity : undefined;
+}
+
+function reconcileArrayItems(current: Record<PropertyKey, unknown>, oldLength: number, nextItems: readonly unknown[]): void {
+  const target = unwrap(current) as unknown as unknown[];
+  const changedIndexes = new Set<number>();
+  for (let index = 0; index < nextItems.length; index++) {
+    const next = unwrap(nextItems[index]);
+    if (Object.is(unwrap(target[index]), next)) continue;
+    Reflect.set(target, index, next);
+    changedIndexes.add(index);
+  }
+  if (nextItems.length < oldLength) {
+    for (let index = oldLength - 1; index >= nextItems.length; index--) {
+      if (Reflect.has(target, index)) changedIndexes.add(index);
+      Reflect.deleteProperty(target, index);
+    }
+  }
+  if (target.length !== nextItems.length) target.length = nextItems.length;
+
+  // Reconciliation is one observable write. Notify only after the complete
+  // array is valid so synchronous pre-patch hooks never see holes or aliases.
+  for (const index of changedIndexes) trigger(target, String(index));
+  if (oldLength !== nextItems.length) trigger(target, "length");
+  if (changedIndexes.size || oldLength !== nextItems.length) trigger(target, iterateKey);
 }
 
 function createReactive(value: object, options: ReactiveOptions): object {

@@ -82,6 +82,56 @@ describe("@exact/reactive", () => {
     expect(state.records.map(record => record.title)).toEqual(["A", "B"]);
   });
 
+  it("notifies array growth and preserves reused identities during an unregistered prepend", () => {
+    const state = reactive({ activity: [] as Array<{ id: string; message: string }> });
+    const lengths: number[] = [];
+    const scheduledSnapshots: string[][] = [];
+    watch(() => lengths.push(state.activity.length));
+    watch(
+      () => state.activity.map(item => item.id),
+      undefined,
+      { onSchedule: () => scheduledSnapshots.push(state.activity.map(item => item.id)) }
+    );
+    writeReactive(state, ["activity"], [{ id: "first", message: "First" }]);
+    writeReactive(state, ["activity"], [
+      { id: "second", message: "Second" },
+      ...state.activity.slice(0, 9)
+    ]);
+    flushSync();
+
+    expect(state.activity.map(item => item.id)).toEqual(["second", "first"]);
+    expect(lengths).toEqual([0, 2]);
+    expect(scheduledSnapshots).toEqual([["first"], ["second", "first"]]);
+  });
+
+  it("keeps keyed task and activity arrays valid across repeated component-style updates", () => {
+    const state = reactive({
+      tasks: [{ id: "task", status: "backlog", title: "Task" }, { id: "other", status: "active", title: "Other" }],
+      activity: [] as Array<{ id: string; message: string }>
+    });
+    registerReactiveListKey(state.tasks, item => (item as { id: string }).id);
+    watch(() => {
+      if (state.activity.length) registerReactiveListKey(state.activity, item => (item as { id: string }).id);
+    });
+    let activityId = 0;
+    const update = (status: string) => {
+      const task = state.tasks.find(item => item.id === "task")!;
+      const nextTask = { ...task, status };
+      writeReactive(state, ["tasks"], state.tasks.map(item => item.id === task.id ? nextTask : item));
+      writeReactive(state, ["activity"], [
+        { id: String(++activityId), message: `Moved to ${status}` },
+        ...state.activity.slice(0, 9)
+      ]);
+      flushSync();
+    };
+
+    update("active");
+    update("backlog");
+
+    expect(state.tasks.map(item => item.id)).toEqual(["task", "other"]);
+    expect(state.activity.map(item => item.id)).toEqual(["2", "1"]);
+  });
+
   it("rejects conflicting key extractors registered for one collection", () => {
     const state = reactive({ records: [{ id: "a", slug: "first" }] });
     registerReactiveListKey(state.records, item => (item as { id: string }).id, "Tasks.tsx:10");
