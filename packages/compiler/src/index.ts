@@ -188,9 +188,12 @@ function emitExpressionRewrite(module: BoundModule, generated: string): string {
   if (structuralErrors.length) throw new ExpressionProjectError(structuralErrors);
 
   const rebound = expressionModuleFor(module.filename, rewritten.emit().code);
-  const existing = new Set(module.diagnostics.filter(diagnostic => diagnostic.severity === "error").map(diagnostic => `${diagnostic.code}:${diagnostic.message}`));
+  const baselineErrors = module.diagnostics.filter(diagnostic => diagnostic.severity === "error");
+  const existing = new Set(baselineErrors.map(diagnostic => `${diagnostic.code}:${diagnostic.message}`));
+  const baselineHasSemanticErrors = baselineErrors.some(diagnostic => diagnostic.phase === "semantic");
   const introduced = rebound.diagnostics.filter(diagnostic => diagnostic.severity === "error"
     && !existing.has(`${diagnostic.code}:${diagnostic.message}`)
+    && !(baselineHasSemanticErrors && diagnostic.phase === "semantic")
     && !diagnostic.message.includes("Cannot find module '@exact/core'")
     && diagnostic.message !== "Parameter 'previous' implicitly has an 'any' type.");
   if (introduced.length) throw new ExpressionProjectError(introduced);
