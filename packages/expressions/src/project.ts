@@ -4,6 +4,7 @@ import type {
   ExpressionDiagnostic,
   ExpressionNode,
   ExpressionScope,
+  ExpressionSymbol,
   ExpressionType,
   ExpressionTypeKind,
   NodeCategory,
@@ -34,7 +35,9 @@ class ProjectScope implements ExpressionScope {
 }
 
 class ProjectVariable implements Variable {
-  constructor(readonly id: string, name: string, kind: string, scope: ExpressionScope, readonly synthetic = false) {
+  readonly id: string;
+  constructor(readonly symbol: ExpressionSymbol, name: string, kind: string, scope: ExpressionScope, readonly synthetic = false) {
+    this.id = symbol.id;
     this.name = name;
     this.declarationKind = kind;
     this.scope = scope;
@@ -66,6 +69,7 @@ export class ExpressionProject {
   private readonly overlays = new Map<string, string>();
   private readonly overlayVersions = new Map<string, number>();
   private readonly sourceFiles = new Map<string, Readonly<{ version: string; sourceFile: ts.SourceFile }>>();
+  private readonly symbolIdentities = new Map<string, ExpressionSymbol>();
   private program?: ts.Program;
 
   constructor(options: ExpressionProjectOptions = {}) {
@@ -184,6 +188,13 @@ export class ExpressionProject {
       ...program.getSyntacticDiagnostics(sourceFile).map(diagnostic => ({ ...diagnosticFromTs(diagnostic), phase: "syntax" as const })),
       ...program.getSemanticDiagnostics(sourceFile).map(diagnostic => ({ ...diagnosticFromTs(diagnostic), phase: "semantic" as const }))
     ];
+    const symbolIdentity = (id: string, name: string): ExpressionSymbol => {
+      const existing = this.symbolIdentities.get(id);
+      if (existing) return existing;
+      const identity = Object.freeze({ id, name });
+      this.symbolIdentities.set(id, identity);
+      return identity;
+    };
 
     const scopeFor = (node: ts.Node): ProjectScope => {
       let owner: ts.Node | undefined = node;
@@ -236,7 +247,7 @@ export class ExpressionProject {
       const localName = declarationBindingName(declaration) ?? symbol.name;
       const key = declarationIdentity(declarationFile, declaration, localName);
       const scope = scopeFor(declaration);
-      const variable = new ProjectVariable(key, localName, ts.SyntaxKind[declaration.kind], scope);
+      const variable = new ProjectVariable(symbolIdentity(key, localName), localName, ts.SyntaxKind[declaration.kind], scope);
       symbolVariables.set(symbol, variable);
       let variableType: ExpressionType | undefined;
       try { variableType = typeFor(checker.getTypeOfSymbolAtLocation(symbol, identifier), identifier); } catch { /* TypeScript can reject incomplete error symbols. */ }
@@ -264,8 +275,9 @@ export class ExpressionProject {
       const existing = implicitThisVariables.get(owner);
       if (existing) return existing;
       const scope = scopeFor(declaration ?? owner);
+      const key = declarationIdentity(filename, declaration ?? owner, "this");
       const variable = new ProjectVariable(
-        declarationIdentity(filename, declaration ?? owner, "this"),
+        symbolIdentity(key, "this"),
         "this",
         declaration ? "Parameter" : "ThisKeyword",
         scope,

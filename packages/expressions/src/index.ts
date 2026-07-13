@@ -12,6 +12,7 @@ export {
   type ExpressionDiagnostic,
   type ExpressionNode,
   type ExpressionScope,
+  type ExpressionSymbol,
   type ExpressionType,
   type ExpressionTypeKind,
   type FunctionExpressionNode,

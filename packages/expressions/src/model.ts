@@ -54,10 +54,17 @@ export interface ExpressionScope {
   readonly variables: readonly Variable[];
 }
 
+/** Project-owned symbol identity that survives TypeChecker and module rebuilds. */
+export interface ExpressionSymbol {
+  readonly id: string;
+  readonly name: string;
+}
+
 /** Canonical binding identity shared by declarations and every use. */
 export interface Variable {
   /** Stable across project rebuilds while this declaration remains equivalent. */
   readonly id: string;
+  readonly symbol: ExpressionSymbol;
   readonly name: string;
   readonly declarationKind: string;
   readonly scope: ExpressionScope;

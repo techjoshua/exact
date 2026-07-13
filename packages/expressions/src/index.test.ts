@@ -244,6 +244,7 @@ export function total(items: number[]) {
     const secondVariable = second.walk().references().first(ref => ref.name === "value")!.variable!;
     expect(secondVariable.id).toBe(firstVariable.id);
     expect(secondVariable).not.toBe(firstVariable);
+    expect(secondVariable.symbol).toBe(firstVariable.symbol);
   });
 
   it("uses host filesystem casing rules for incremental overlays", () => {

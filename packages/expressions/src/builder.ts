@@ -2,6 +2,7 @@ import type {
   EmitOptions,
   ExpressionNode,
   ExpressionScope,
+  ExpressionSymbol,
   ExpressionType,
   ExpressionTypeKind,
   ScopeKind,
@@ -26,6 +27,7 @@ class SyntheticScope implements ExpressionScope {
 class SyntheticVariable implements Variable {
   readonly id = `synthetic-variable:${syntheticId++}`;
   readonly synthetic = true;
+  readonly symbol: ExpressionSymbol;
   constructor(
     readonly name: string,
     readonly declarationKind: string,
@@ -33,7 +35,7 @@ class SyntheticVariable implements Variable {
     readonly type?: ExpressionType,
     readonly exported = false,
     readonly importedFrom?: string
-  ) {}
+  ) { this.symbol = Object.freeze({ id: this.id, name }); }
 }
 
 function type(kind: ExpressionTypeKind, display: string = kind): ExpressionType {
