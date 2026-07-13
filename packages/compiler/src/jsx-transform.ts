@@ -38,6 +38,7 @@ import {
 import { pruneUnusedImports } from "./prune-imports.js";
 import type { ExactProvenanceGraph } from "./provenance.js";
 import { writeSiteKey, type ExpressionWritePlan } from "./expression-writes.js";
+import type { ExpressionTaskPlan } from "./expression-tasks.js";
 import {
   buildSemanticGraph,
   createSemanticDeclarationIndex,
@@ -83,7 +84,8 @@ export function exactJsxTransformer(
   serverComponents = false,
   providedSemanticGraph?: ExactSemanticGraphIR,
   provenance?: ExactProvenanceGraph,
-  expressionWrites?: ExpressionWritePlan
+  expressionWrites?: ExpressionWritePlan,
+  expressionTasks?: ExpressionTaskPlan
 ): ts.TransformerFactory<ts.SourceFile> {
   return context => sourceFile => {
     const factory = context.factory;
@@ -107,6 +109,7 @@ export function exactJsxTransformer(
     const islandCounts = new Map<string, number>();
     const clientIslandDefinitions: ts.FunctionDeclaration[] = [];
     let clientIslandDepth = 0;
+    const expressionTaskFor = (node: ts.Node) => expressionTasks?.sites.get(writeSiteKey(node.getStart(sourceFile), node.end));
 
     const visitor: ts.Visitor = node => {
       if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
@@ -189,7 +192,7 @@ export function exactJsxTransformer(
         }
       }
       if (ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) && isThisTaskCall(node.expression)) {
-        const task = analyzeTask("target-task", node.expression, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations);
+        const task = analyzeTask("target-task", node.expression, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations, expressionTasks !== undefined, expressionTaskFor(node.expression));
         if (shouldOmitPlacement(task.placement, target)) {
           return factory.createEmptyStatement();
         }
@@ -259,7 +262,7 @@ export function exactJsxTransformer(
       }
       if (ts.isCallExpression(node)) {
         if (isThisTaskCall(node)) {
-          const task = analyzeTask("target-task", node, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations);
+          const task = analyzeTask("target-task", node, sourceFile, serverOnlyImports, semanticReferences, semanticDeclarations, expressionTasks !== undefined, expressionTaskFor(node));
           if (shouldOmitPlacement(task.placement, target)) {
             return factory.createVoidExpression(factory.createNumericLiteral(0));
           }
