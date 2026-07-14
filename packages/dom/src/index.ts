@@ -147,14 +147,16 @@ export function dispose(container: Element, removeDom = false): boolean {
   // Delete first so lifecycle callbacks may safely render a fresh root into the
   // same container without the old root later deleting the replacement.
   roots.delete(container);
-  clearDelegated(root);
+  const failure = teardownFailure();
+  attemptTeardown(failure, () => clearDelegated(root));
 
   const mounted = root.mounted;
   root.mounted = undefined;
   if (mounted) {
-    unmountMounted(mounted);
-    if (removeDom) removeMountedNodes(container, mounted);
+    attemptTeardown(failure, () => unmountMounted(mounted));
+    if (removeDom) attemptTeardown(failure, () => removeMountedNodes(container, mounted));
   }
+  throwTeardownFailure(failure);
   return true;
 }
 
@@ -168,9 +170,12 @@ export function disposeOwnedSubtree(container: Element, includeSelf = true): num
     ? [container, ...Array.from(container.querySelectorAll("*"))]
     : Array.from(container.querySelectorAll("*"));
   let disposed = 0;
+  const failure = teardownFailure();
   for (let index = candidates.length - 1; index >= 0; index--) {
-    if (dispose(candidates[index]!, false)) disposed++;
+    try { if (dispose(candidates[index]!, false)) disposed++; }
+    catch (error) { recordTeardownFailure(failure, error); }
   }
+  throwTeardownFailure(failure);
   return disposed;
 }
 
@@ -304,14 +309,14 @@ function adoptStaticChildrenRange(
   for (const child of vnodes) {
     const result = adoptStaticMounted(root, child, nodes, cursor, parentInstance, parentScope);
     if (!result) {
-      for (const mounted of mounts) unmountMounted(mounted);
+      unmountMany(mounts);
       return undefined;
     }
     mounts.push(result.mounted);
     cursor = result.next;
   }
   if (requireAll && cursor !== nodes.length) {
-    for (const mounted of mounts) unmountMounted(mounted);
+    unmountMany(mounts);
     return undefined;
   }
   return { mounts, next: cursor };
@@ -446,25 +451,24 @@ function adoptKeyedListChildren(
     const start = nodes[cursor];
     const key = vnode.key;
     if (key === undefined || !(start instanceof Comment) || !isItemMarkerForKey(start.data, key)) {
-      for (const mounted of mounts) unmountMounted(mounted);
+      unmountMany(mounts);
       return undefined;
     }
     const endIndex = nodes.findIndex((node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`);
     if (endIndex < 0) {
-      for (const mounted of mounts) unmountMounted(mounted);
+      unmountMany(mounts);
       return undefined;
     }
     const adopted = adoptStaticMounted(root, vnode, nodes.slice(cursor + 1, endIndex), 0, parentInstance, parentScope);
     if (!adopted || adopted.next !== endIndex - cursor - 1) {
-      if (adopted) unmountMounted(adopted.mounted);
-      for (const mounted of mounts) unmountMounted(mounted);
+      unmountMany(adopted ? [adopted.mounted, ...mounts] : mounts);
       return undefined;
     }
     mounts.push({ vnode, dom: start, end: nodes[endIndex]!, range: "item", scope: createEffectScope(parentScope), children: [adopted.mounted] });
     cursor = endIndex + 1;
   }
   if (cursor !== nodes.length) {
-    for (const mounted of mounts) unmountMounted(mounted);
+    unmountMany(mounts);
     return undefined;
   }
   return mounts;
@@ -673,8 +677,7 @@ function patchInner(
   if (!mounted.scope.active) {
     const replacement = mount(root, next, parentInstance, parentScope, parent, false);
     placeMountedBefore(root, parent, replacement, mounted.dom);
-    unmountMounted(mounted);
-    removeMountedNodes(parent, mounted);
+    disposeMounted(parent, mounted);
     return replacement;
   }
 
@@ -688,8 +691,7 @@ function patchInner(
     });
     const replacement = mount(root, next, parentInstance, parentScope, parent, false);
     placeMountedBefore(root, parent, replacement, mounted.dom);
-    unmountMounted(mounted);
-    removeMountedNodes(parent, mounted);
+    disposeMounted(parent, mounted);
     return replacement;
   }
 
@@ -805,8 +807,7 @@ function patchInner(
     }
     const replacement = mountServerSlot(root, next, mounted.scope);
     placeMountedBefore(root, parent, replacement, mounted.dom);
-    unmountMounted(mounted);
-    removeMountedNodes(parent, mounted);
+    disposeMounted(parent, mounted);
     return replacement;
   }
 
@@ -932,12 +933,14 @@ function patchChildrenInner(
   }
 
   const retained = new Set(nextMounted);
+  const teardown = teardownFailure();
   for (const old of oldChildren) {
     if (!retained.has(old)) {
-      unmountMounted(old);
-      removeMountedNodes(parent, old);
+      attemptTeardown(teardown, () => unmountMounted(old));
+      attemptTeardown(teardown, () => removeMountedNodes(parent, old));
     }
   }
+  throwTeardownFailure(teardown);
 
   return nextMounted;
 }
@@ -1001,31 +1004,67 @@ function bindText(mounted: Mounted, value: unknown): void {
   }, undefined, { scope: mounted.scope });
 }
 
+type TeardownFailure = { failed: boolean; error: unknown };
+
+function teardownFailure(): TeardownFailure {
+  return { failed: false, error: undefined };
+}
+
+function recordTeardownFailure(failure: TeardownFailure, error: unknown): void {
+  if (!failure.failed) failure.error = error;
+  failure.failed = true;
+}
+
+function attemptTeardown(failure: TeardownFailure, run: () => void): void {
+  try { run(); }
+  catch (error) { recordTeardownFailure(failure, error); }
+}
+
+function throwTeardownFailure(failure: TeardownFailure): void {
+  if (failure.failed) throw failure.error;
+}
+
+function unmountMany(mounts: readonly Mounted[]): void {
+  const failure = teardownFailure();
+  for (const mounted of mounts) attemptTeardown(failure, () => unmountMounted(mounted));
+  throwTeardownFailure(failure);
+}
+
+function disposeMounted(parent: Node, mounted: Mounted): void {
+  const failure = teardownFailure();
+  attemptTeardown(failure, () => unmountMounted(mounted));
+  attemptTeardown(failure, () => removeMountedNodes(parent, mounted));
+  throwTeardownFailure(failure);
+}
+
 function unmountMounted(mounted: Mounted): void {
   const pending: Array<{ mounted: Mounted; complete: boolean }> = [{ mounted, complete: false }];
+  const failure = teardownFailure();
   while (pending.length) {
     const current = pending.pop()!;
     if (!current.complete) {
-      current.mounted.scope.stop();
+      attemptTeardown(failure, () => current.mounted.scope.stop());
       pending.push({ mounted: current.mounted, complete: true });
       for (let index = current.mounted.children.length - 1; index >= 0; index--) {
         pending.push({ mounted: current.mounted.children[index]!, complete: false });
       }
       continue;
     }
-    current.mounted.instance?.unmount();
-    current.mounted.stop?.();
+    if (current.mounted.instance) attemptTeardown(failure, () => current.mounted.instance!.unmount());
+    if (current.mounted.stop) attemptTeardown(failure, current.mounted.stop);
     if (current.mounted.dom instanceof Element) {
-      clearElementProps(current.mounted.dom);
-      clearElementOwner(current.mounted.dom);
+      attemptTeardown(failure, () => clearElementProps(current.mounted.dom as Element));
+      attemptTeardown(failure, () => clearElementOwner(current.mounted.dom as Element));
     }
     const ref = current.mounted.vnode.props.ref as RefBinding<unknown> | undefined;
-    ref?.fulfill(undefined);
+    if (ref) attemptTeardown(failure, () => ref.fulfill(undefined));
   }
+  throwTeardownFailure(failure);
 }
 
 function removeMountedNodes(parent: Node, mounted: Mounted): void {
   const pending: Array<{ mounted: Mounted; complete: boolean }> = [{ mounted, complete: false }];
+  const failure = teardownFailure();
   while (pending.length) {
     const current = pending.pop()!;
     if (!current.complete) {
@@ -1035,9 +1074,10 @@ function removeMountedNodes(parent: Node, mounted: Mounted): void {
       }
       continue;
     }
-    if (current.mounted.dom.parentNode === parent) parent.removeChild(current.mounted.dom);
-    if (current.mounted.end?.parentNode === parent) parent.removeChild(current.mounted.end);
+    if (current.mounted.dom.parentNode === parent) attemptTeardown(failure, () => parent.removeChild(current.mounted.dom));
+    if (current.mounted.end?.parentNode === parent) attemptTeardown(failure, () => parent.removeChild(current.mounted.end!));
   }
+  throwTeardownFailure(failure);
 }
 
 function normalizeTreeDepth(value: number | undefined): number {

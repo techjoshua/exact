@@ -840,20 +840,30 @@ export function createComponentInstance<State extends object, Props extends Reco
       if (disposed) return;
       disposed = true;
       mounted = false;
-      instance.renderStop?.();
-      instance.scope.stop();
-      for (const registration of listKeyRegistrations.values()) registration.stop();
+      let failed = false;
+      let firstError: unknown;
+      const teardown = (run: () => void) => {
+        try { run(); }
+        catch (error) {
+          if (!failed) firstError = error;
+          failed = true;
+        }
+      };
+      if (instance.renderStop) teardown(instance.renderStop);
+      teardown(() => instance.scope.stop());
+      for (const registration of listKeyRegistrations.values()) teardown(registration.stop);
       listKeyRegistrations.clear();
-      instance.mountController?.abort(reason);
-      for (const task of instance.tasks) task.stop();
+      if (instance.mountController) teardown(() => instance.mountController!.abort(reason));
+      for (const task of instance.tasks) teardown(() => task.stop());
       for (const handler of instance.unmountHandlers) {
         try {
           const result = handler({ signal: AbortSignal.abort(reason), reason });
           if (isPromiseLike(result)) observeLifecyclePromise(instance, Promise.resolve(result), "unmount");
         } catch (error) {
-          handleComponentError(instance, createErrorReport(error, "lifecycle", instance, "unmount"));
+          teardown(() => { handleComponentError(instance, createErrorReport(error, "lifecycle", instance, "unmount")); });
         }
       }
+      if (failed) throw firstError;
     }
   };
 

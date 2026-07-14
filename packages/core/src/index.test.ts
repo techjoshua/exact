@@ -840,6 +840,20 @@ describe("@exact/core", () => {
     expect(cleanup).toHaveBeenCalledTimes(1);
   });
 
+  it("finishes component teardown before rethrowing a synchronous ownership failure", () => {
+    const cleanup = vi.fn();
+    const component = createComponentInstance(function Worker(this: Component<{}>) {
+      this.onUnmount(cleanup);
+      return () => null;
+    }, {}) as any;
+    component.scope.reactions.add({ stop() { throw new Error("reaction stop failed"); } });
+
+    expect(() => component.unmount()).toThrow("reaction stop failed");
+    expect(cleanup).toHaveBeenCalledTimes(1);
+    expect(component.mounted).toBe(false);
+    expect(() => component.unmount()).not.toThrow();
+  });
+
   it("actively aborts taskAwait even when its input never settles", async () => {
     const controller = new AbortController();
     const awaited = taskAwait(controller.signal, new Promise<string>(() => undefined));
