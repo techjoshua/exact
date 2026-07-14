@@ -271,7 +271,6 @@ function mayThrow(node: ExpressionNode): boolean {
 
 function expressionMayThrow(node: ExpressionNode): boolean {
   switch (node.kind) {
-    case "Identifier":
     case "ThisKeyword":
     case "TrueKeyword":
     case "FalseKeyword":

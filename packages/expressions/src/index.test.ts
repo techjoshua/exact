@@ -161,15 +161,18 @@ export function total(items: number[]) {
     const filename = path.join(root, "apps/kanban/src/__expressions_precise_exception_edges.ts");
     const module = project.updateModule(filename, `function bare() { try { return; } catch { recover(); } }
       function evaluated() { try { return work(); } catch { recover(); } }
+      function temporalDeadZone() { try { return value; let value = 1; } catch { recover(); } }
       function thrown() { try { throw new Error(); } catch { recover(); } }`);
     const graphs = module.walk().functions().toArray().map(fn => module.controlFlowOf(fn));
     const bareReturn = graphs[0]!.nodes.find(node => node.expression.kind === "ReturnStatement")!;
     const evaluatedReturn = graphs[1]!.nodes.find(node => node.expression.kind === "ReturnStatement")!;
-    const thrown = graphs[2]!.nodes.find(node => node.expression.kind === "ThrowStatement")!;
+    const temporalDeadZone = graphs[2]!.nodes.find(node => node.expression.kind === "ReturnStatement")!;
+    const thrown = graphs[3]!.nodes.find(node => node.expression.kind === "ThrowStatement")!;
     expect(bareReturn.successorEdges.some(edge => edge.kind === "exception")).toBe(false);
     expect(evaluatedReturn.successorEdges.some(edge => edge.kind === "exception")).toBe(true);
+    expect(temporalDeadZone.successorEdges.some(edge => edge.kind === "exception")).toBe(true);
     expect(thrown.successorEdges.some(edge => edge.kind === "exception")).toBe(true);
-    expect(graphs[2]!.exits).not.toContain(thrown.id);
+    expect(graphs[3]!.exits).not.toContain(thrown.id);
   });
 
   it("routes labeled loop jumps through finally and excludes unreachable exits", () => {
