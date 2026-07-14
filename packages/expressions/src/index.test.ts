@@ -156,6 +156,22 @@ export function total(items: number[]) {
     expect(graph.nodes.some(node => node.successorEdges.some(edge => edge.kind === "finally"))).toBe(true);
   });
 
+  it("does not route guaranteed non-throwing abrupt completion into catch", () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__expressions_precise_exception_edges.ts");
+    const module = project.updateModule(filename, `function bare() { try { return; } catch { recover(); } }
+      function evaluated() { try { return work(); } catch { recover(); } }
+      function thrown() { try { throw new Error(); } catch { recover(); } }`);
+    const graphs = module.walk().functions().toArray().map(fn => module.controlFlowOf(fn));
+    const bareReturn = graphs[0]!.nodes.find(node => node.expression.kind === "ReturnStatement")!;
+    const evaluatedReturn = graphs[1]!.nodes.find(node => node.expression.kind === "ReturnStatement")!;
+    const thrown = graphs[2]!.nodes.find(node => node.expression.kind === "ThrowStatement")!;
+    expect(bareReturn.successorEdges.some(edge => edge.kind === "exception")).toBe(false);
+    expect(evaluatedReturn.successorEdges.some(edge => edge.kind === "exception")).toBe(true);
+    expect(thrown.successorEdges.some(edge => edge.kind === "exception")).toBe(true);
+    expect(graphs[2]!.exits).not.toContain(thrown.id);
+  });
+
   it("routes labeled loop jumps through finally and excludes unreachable exits", () => {
     const project = createExpressionProject({ tsconfigPath: kanbanConfig });
     const filename = path.join(root, "apps/kanban/src/__expressions_labeled_finally.ts");

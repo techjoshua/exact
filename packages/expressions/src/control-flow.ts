@@ -162,20 +162,28 @@ export function buildControlFlowGraph(owner: NodeRef): ControlFlowGraph {
       const attempted = tryBlock ? fragment(tryBlock) : undefined;
       const attemptedNodes = [...nodes.keys()].filter(id => !beforeAttempt.has(id));
       const caught = catchClause ? fragment(catchClause) : undefined;
+      const attemptedTerminals = attempted?.terminals ?? [];
+      const caughtThrowIds = caught?.entry
+        ? new Set(attemptedTerminals.filter(id => nodes.get(id)?.expression.kind === "ThrowStatement"))
+        : new Set<string>();
+      const propagatedAttemptedTerminals = attemptedTerminals.filter(id => !caughtThrowIds.has(id));
       if (attempted?.entry) connect(branch.id, attempted.entry);
       if (caught?.entry) {
-        // Any executable operation in the try may throw. The catch is not a
-        // normal branch from the try statement itself.
-        for (const id of attemptedNodes) connect(id, caught.entry, "exception");
+        // Only operations capable of throwing receive exceptional successors.
+        // Abrupt control flow such as a bare return/break/continue cannot enter catch.
+        for (const id of attemptedNodes) {
+          const node = nodes.get(id);
+          if (node && mayThrow(node.expression)) connect(id, caught.entry, "exception");
+        }
       }
       const incoming = [...(attempted?.exits ?? [branch.id]), ...(caught?.exits ?? []),
-        ...(attempted?.terminals ?? []), ...(caught?.terminals ?? []),
+        ...propagatedAttemptedTerminals, ...(caught?.terminals ?? []),
         ...(attempted?.breaks ?? []).map(jump => jump.id), ...(caught?.breaks ?? []).map(jump => jump.id),
         ...(attempted?.continues ?? []).map(jump => jump.id), ...(caught?.continues ?? []).map(jump => jump.id)];
       if (!finallyBlock) return {
         entry: branch.id,
         exits: [...(attempted?.exits ?? [branch.id]), ...(caught?.exits ?? [])],
-        terminals: [...(attempted?.terminals ?? []), ...(caught?.terminals ?? [])],
+        terminals: [...propagatedAttemptedTerminals, ...(caught?.terminals ?? [])],
         breaks: [...(attempted?.breaks ?? []), ...(caught?.breaks ?? [])],
         continues: [...(attempted?.continues ?? []), ...(caught?.continues ?? [])]
       };
@@ -183,7 +191,7 @@ export function buildControlFlowGraph(owner: NodeRef): ControlFlowGraph {
       if (!finalizer.entry) return {
         entry: branch.id,
         exits: [...(attempted?.exits ?? [branch.id]), ...(caught?.exits ?? [])],
-        terminals: [...(attempted?.terminals ?? []), ...(caught?.terminals ?? [])],
+        terminals: [...propagatedAttemptedTerminals, ...(caught?.terminals ?? [])],
         breaks: [...(attempted?.breaks ?? []), ...(caught?.breaks ?? [])],
         continues: [...(attempted?.continues ?? []), ...(caught?.continues ?? [])]
       };
@@ -191,7 +199,7 @@ export function buildControlFlowGraph(owner: NodeRef): ControlFlowGraph {
       const normalIncoming = (attempted?.exits.length ?? 1) + (caught?.exits.length ?? 0) > 0;
       const finalizerCompletesNormally = finalizer.exits.length > 0;
       const inheritedTerminals = finalizerCompletesNormally
-        ? [...(attempted?.terminals ?? []), ...(caught?.terminals ?? [])]
+        ? [...propagatedAttemptedTerminals, ...(caught?.terminals ?? [])]
         : [];
       const inheritedBreaks = finalizerCompletesNormally
         ? [...(attempted?.breaks ?? []), ...(caught?.breaks ?? [])]
@@ -244,6 +252,44 @@ export function buildControlFlowGraph(owner: NodeRef): ControlFlowGraph {
   });
   cache.set(owner.node, graph);
   return graph;
+}
+
+function mayThrow(node: ExpressionNode): boolean {
+  switch (node.kind) {
+    case "BreakStatement":
+    case "ContinueStatement":
+    case "EmptyStatement":
+    case "DebuggerStatement":
+    case "FunctionDeclaration":
+      return false;
+    case "ReturnStatement":
+      return node.children.some(child => child.category === "expression" && expressionMayThrow(child));
+    default:
+      return true;
+  }
+}
+
+function expressionMayThrow(node: ExpressionNode): boolean {
+  switch (node.kind) {
+    case "Identifier":
+    case "ThisKeyword":
+    case "TrueKeyword":
+    case "FalseKeyword":
+    case "NullKeyword":
+    case "NumericLiteral":
+    case "BigIntLiteral":
+    case "StringLiteral":
+    case "NoSubstitutionTemplateLiteral":
+    case "ArrowFunction":
+    case "FunctionExpression":
+      return false;
+    case "ParenthesizedExpression":
+      return node.children.some(expressionMayThrow);
+    default:
+      // Property reads may invoke accessors, and operators may invoke user
+      // coercion hooks; stay conservative unless non-throwing is guaranteed.
+      return true;
+  }
 }
 
 function jumpLabel(node: ExpressionNode): { label?: string } {
