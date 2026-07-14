@@ -15,6 +15,13 @@ export type HydrateOptions = {
   islands?: ClientIslandRegistry;
   batch?: boolean;
   stream?: boolean;
+  onDiagnostic?: (diagnostic: HydrationDiagnostic) => void;
+};
+
+export type HydrationDiagnostic = {
+  code: "missing-markers" | "adoption-mismatch" | "invalid-patch" | "stale-response";
+  message: string;
+  patch?: { type: string; id: string };
 };
 
 export type ExactHydrationConfig = {
@@ -63,6 +70,8 @@ export type ExactClient = {
   refreshBoundary(id: string, payload?: unknown): Promise<ExactInvocationResult>;
   refreshIsland(id: string, registry: ClientIslandRegistry, payload?: unknown): Promise<ExactInvocationResult>;
   registerManifest(config: ExactHydrationRegistration): void;
+  /** Releases client requests, renderer scopes, listeners, and root ownership. */
+  dispose(): void;
 };
 
 export type HydrationRoot = ExactClient;
@@ -106,6 +115,7 @@ export type ExactBatchQueue = {
   stream?: boolean;
   pending: PendingExactOperation[];
   scheduled: boolean;
+  active?: number;
 };
 
 export type { ExactInvocationKind, ExactInvocationRequest, ExactInvocationResult, ExactOperationResult, ExactPatch, ExactStateContract };

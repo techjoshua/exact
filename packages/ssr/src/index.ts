@@ -22,7 +22,7 @@ import type { ExactPatch } from "@exact/server";
 import { boundaryPatch, diffBoundaryHtml, diffKeyedListItems } from "./diff.js";
 import { escapeAttr, escapeText, voidElements } from "./html.js";
 import { jsonUnsafePath, renderHydrationScript, serializeHydrationPayload } from "./hydration.js";
-import { exactMarkerId, keyedItemMarkerId, markerId, markerPair, renderAttrs, withMarker } from "./markup.js";
+import { decodeMarkerKey, exactMarkerId, keyedItemMarkerId, markerId, markerPair, renderAttrs, withMarker } from "./markup.js";
 import { createDocumentEventStream, createHtmlStream, createProgressiveHtmlStream, progressiveHtmlResponse } from "./streams.js";
 import type {
   ActionRefreshOptions,
@@ -397,7 +397,7 @@ export function parseKeyedListSnapshotHtml(listId: string, html: string | undefi
     const marker = match[1]!;
     if (!marker.startsWith("item:")) continue;
     items.push({
-      key: marker.slice("item:".length),
+      key: decodeMarkerKey(marker.slice("item:".length)),
       html: match[0]
     });
   }

@@ -36,6 +36,7 @@ import {
   getComponentProps,
   getListBinding,
   materializeList,
+  planChildReconciliation,
   stopRemovedListChildren,
   stopReplacedChildren
 } from "./children.js";
@@ -44,7 +45,7 @@ import { describeNode, describeVNodeType, domDebug, formatError } from "./debug.
 import { clearDelegated } from "./events.js";
 import { clearElementOwner, setElementOwner } from "./ownership.js";
 import { afterMountedChildren, lastMountedNode, placeMountedBefore } from "./placement.js";
-import { clearElementProps, updateProps } from "./props.js";
+import { applyDomProp, clearElementProps, updateProps } from "./props.js";
 import { adoptServerSlot, mountServerSlot } from "./server-slots.js";
 import { roots } from "./state.js";
 import type { Mounted, RenderOptions, Root } from "./types.js";
@@ -67,6 +68,7 @@ export {
 } from "./style.js";
 
 export type { RenderOptions } from "./types.js";
+export { applyDomProp };
 
 /** Renders or patches a vnode tree into a DOM container. */
 export function render(vnode: VNode, container: Element, options: RenderOptions = {}): void {
@@ -104,6 +106,11 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
  * the root is removed. Returns false when the container has no active root.
  */
 export function unmount(container: Element): boolean {
+  return dispose(container, true);
+}
+
+/** Releases a renderer root, optionally retaining its current DOM for a server patch. */
+export function dispose(container: Element, removeDom = false): boolean {
   const root = roots.get(container);
   if (!root) return false;
 
@@ -116,7 +123,7 @@ export function unmount(container: Element): boolean {
   root.mounted = undefined;
   if (mounted) {
     unmountMounted(mounted);
-    removeMountedNodes(container, mounted);
+    if (removeDom) removeMountedNodes(container, mounted);
   }
   return true;
 }
@@ -222,6 +229,17 @@ function adoptStaticChildren(
   parentInstance: ComponentInstance<any>,
   parentScope: EffectScope
 ): Mounted[] | undefined {
+  return adoptStaticChildrenRange(root, children, nodes, parentInstance, parentScope, true)?.mounts;
+}
+
+function adoptStaticChildrenRange(
+  root: Root,
+  children: Child[],
+  nodes: readonly Node[],
+  parentInstance: ComponentInstance<any>,
+  parentScope: EffectScope,
+  requireAll: boolean
+): { mounts: Mounted[]; next: number } | undefined {
   const vnodes = children.map(childToVNode).filter((child): child is VNode => !!child);
   const mounts: Mounted[] = [];
   let cursor = 0;
@@ -234,11 +252,11 @@ function adoptStaticChildren(
     mounts.push(result.mounted);
     cursor = result.next;
   }
-  if (cursor !== nodes.length) {
+  if (requireAll && cursor !== nodes.length) {
     for (const mounted of mounts) unmountMounted(mounted);
     return undefined;
   }
-  return mounts;
+  return { mounts, next: cursor };
 }
 
 function adoptStaticMounted(
@@ -305,13 +323,14 @@ function adoptStaticMounted(
     const list = getListBinding(vnode);
     const isListMarker = list && start instanceof Comment && start.data.startsWith("exact:");
     if (!(start instanceof Comment) || !start.data.startsWith("exact:fragment:") && !isListMarker) {
-      const children = adoptStaticChildren(root, vnode.children, nodes.slice(cursor), parentInstance, scope);
-      if (!children) { scope.stop(); return undefined; }
+      const adopted = adoptStaticChildrenRange(root, vnode.children, nodes.slice(cursor), parentInstance, scope, false);
+      if (!adopted) { scope.stop(); return undefined; }
+      const children = adopted.mounts;
       const marker = document.createTextNode("");
       const first = nodes[cursor];
       if (!first?.parentNode) { scope.stop(); return undefined; }
       first.parentNode.insertBefore(marker, first);
-      return { mounted: { vnode, dom: marker, scope, children }, next: nodes.length };
+      return { mounted: { vnode, dom: marker, scope, children }, next: cursor + adopted.next };
     }
     const endIndex = nodes.findIndex((node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`);
     if (endIndex < 0) { scope.stop(); return undefined; }
@@ -354,7 +373,7 @@ function adoptKeyedListChildren(
   for (const vnode of vnodes) {
     const start = nodes[cursor];
     const key = vnode.key;
-    if (key === undefined || !(start instanceof Comment) || start.data !== `exact:item:${key}`) {
+    if (key === undefined || !(start instanceof Comment) || !isItemMarkerForKey(start.data, key)) {
       for (const mounted of mounts) unmountMounted(mounted);
       return undefined;
     }
@@ -377,6 +396,18 @@ function adoptKeyedListChildren(
     return undefined;
   }
   return mounts;
+}
+
+function isItemMarkerForKey(marker: string, key: string): boolean {
+  if (!marker.startsWith("exact:item:")) return false;
+  const encoded = marker.slice("exact:item:".length);
+  const safe = encodeMarkerKey(key);
+  return encoded === key || encoded === safe || encoded.endsWith(`:${key}`) || encoded.endsWith(`:${safe}`);
+}
+
+function encodeMarkerKey(value: string): string {
+  if (/^[A-Za-z0-9._-]+$/.test(value) && !value.includes("--")) return value;
+  return `~${Array.from(new TextEncoder().encode(value), byte => byte.toString(16).padStart(2, "0")).join("")}`;
 }
 
 
@@ -418,12 +449,23 @@ function createMarker(root: Root, label: "cell" | "component" | "dynamic" | "fra
     : document.createTextNode("");
 }
 
-function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>, parentScope?: EffectScope): Mounted {
+const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+const MATHML_NAMESPACE = "http://www.w3.org/1998/Math/MathML";
+
+function createElement(tag: string, parent?: Node): Element {
+  const parentElement = parent instanceof Element ? parent : undefined;
+  const inherited = parentElement?.localName === "foreignObject" ? undefined : parentElement?.namespaceURI;
+  const namespace = tag === "svg" ? SVG_NAMESPACE : tag === "math" ? MATHML_NAMESPACE
+    : inherited === SVG_NAMESPACE || inherited === MATHML_NAMESPACE ? inherited : undefined;
+  return namespace ? document.createElementNS(namespace, tag) : document.createElement(tag);
+}
+
+function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>, parentScope?: EffectScope, parentNode?: Node): Mounted {
   const scope = createEffectScope(parentScope);
   if (isCellVNode(vnode)) {
     const marker = createMarker(root, "cell");
     const mounted: Mounted = { vnode, dom: marker, scope, children: [] };
-    mounted.children = mountDetachedChildren(root, [getCellVNode(vnode)], parentInstance, mounted.scope);
+    mounted.children = mountDetachedChildren(root, [getCellVNode(vnode)], parentInstance, mounted.scope, parentNode);
     return mounted;
   }
 
@@ -439,8 +481,8 @@ function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>
     const mounted: Mounted = { vnode, dom: marker, scope, children: [] };
     const list = getListBinding(vnode);
     mounted.children = list
-      ? mountDetachedChildren(root, materializeList(list), parentInstance, mounted.scope)
-      : mountDetachedChildren(root, vnode.children, parentInstance, mounted.scope);
+      ? mountDetachedChildren(root, materializeList(list), parentInstance, mounted.scope, parentNode)
+      : mountDetachedChildren(root, vnode.children, parentInstance, mounted.scope, parentNode);
     if (list) {
       mounted.stop = watch(() => {
         const nextChildren = materializeList(list);
@@ -459,7 +501,7 @@ function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>
     const marker = createMarker(root, "dynamic");
     const mounted: Mounted = { vnode, dom: marker, scope, children: [] };
     const value = vnode.props.value;
-    mounted.children = mountDetachedChildren(root, normalizeRenderResult(unwrap(value) as Child | Child[]), parentInstance, mounted.scope);
+    mounted.children = mountDetachedChildren(root, normalizeRenderResult(unwrap(value) as Child | Child[]), parentInstance, mounted.scope, parentNode);
     mounted.stop = watch(() => {
       const nextChildren = normalizeRenderResult(unwrap(value) as Child | Child[]);
       const parent = marker.parentNode;
@@ -495,7 +537,7 @@ function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>
         ));
       mounted.instance = instance;
       const rendered = withEffectScope(mounted.scope, () => renderInstance(instance, () => rerenderComponent(root, mounted)));
-      mounted.children = mountDetachedChildren(root, rendered, instance, mounted.scope);
+      mounted.children = mountDetachedChildren(root, rendered, instance, mounted.scope, parentNode);
       instance.markMounted();
     } catch (error) {
       const fallback = handleComponentError(
@@ -503,13 +545,13 @@ function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>
         createErrorReport(error, "construct", parentInstance, describeVNodeType(vnode.type))
       );
       mounted.children = fallback
-        ? mountDetachedChildren(root, normalizeRenderResult(fallback()), parentInstance, mounted.scope)
+        ? mountDetachedChildren(root, normalizeRenderResult(fallback()), parentInstance, mounted.scope, parentNode)
         : [];
     }
     return mounted;
   }
 
-  const element = document.createElement(vnode.type as string);
+  const element = createElement(vnode.type as string, parentNode);
   const mounted: Mounted = { vnode, dom: element, scope, children: [] };
   if (parentInstance) setElementOwner(element, parentInstance);
   mounted.children = mountChildren(root, element, vnode.children, parentInstance, mounted.scope);
@@ -526,7 +568,7 @@ function patch(
   parentScope?: EffectScope
 ): Mounted {
   if (!mounted) {
-    const created = mount(root, next, parentInstance, parentScope);
+    const created = mount(root, next, parentInstance, parentScope, parent);
     placeMountedBefore(root, parent, created, null);
     return created;
   }
@@ -539,7 +581,7 @@ function patch(
       nextKey: next.key ?? "none",
       parent: describeNode(parent)
     });
-    const replacement = mount(root, next, parentInstance, parentScope);
+    const replacement = mount(root, next, parentInstance, parentScope, parent);
     placeMountedBefore(root, parent, replacement, mounted.dom);
     unmountMounted(mounted);
     removeMountedNodes(parent, mounted);
@@ -555,7 +597,7 @@ function patch(
     if (child) {
       mounted.children = [patch(root, parent, child, next, parentInstance, mounted.scope)];
     } else {
-      const created = mount(root, next, parentInstance, mounted.scope);
+      const created = mount(root, next, parentInstance, mounted.scope, parent);
       mounted.children = [created];
       placeMountedBefore(root, parent, created, mounted.end);
     }
@@ -569,7 +611,7 @@ function patch(
     if (previousChild) {
       mounted.children = [patch(root, parent, previousChild, nextChild, parentInstance, mounted.scope)];
     } else {
-      const child = mount(root, nextChild, parentInstance, mounted.scope);
+      const child = mount(root, nextChild, parentInstance, mounted.scope, parent);
       mounted.children = [child];
       placeMountedBefore(root, parent, child, mounted.dom.nextSibling);
     }
@@ -676,13 +718,13 @@ function patch(
   return mounted;
 }
 
-function mountDetachedChildren(root: Root, children: Child[], parentInstance?: ComponentInstance<any>, parentScope?: EffectScope): Mounted[] {
+function mountDetachedChildren(root: Root, children: Child[], parentInstance?: ComponentInstance<any>, parentScope?: EffectScope, parentNode?: Node): Mounted[] {
   assertUniqueChildKeys(children);
   const mounted: Mounted[] = [];
   for (const child of children) {
     const vnode = childToVNode(child);
     if (!vnode) continue;
-    mounted.push(mount(root, vnode, parentInstance, parentScope));
+    mounted.push(mount(root, vnode, parentInstance, parentScope, parentNode));
   }
   return mounted;
 }
@@ -693,7 +735,7 @@ function mountChildren(root: Root, parent: Node, children: Child[], parentInstan
   for (const child of children) {
     const vnode = childToVNode(child);
     if (!vnode) continue;
-    const childMounted = mount(root, vnode, parentInstance, parentScope);
+    const childMounted = mount(root, vnode, parentInstance, parentScope, parent);
     if (vnode.type === ServerSlot) adoptServerSlot(parent, childMounted);
     mounted.push(childMounted);
     placeMountedBefore(root, parent, childMounted, null);
@@ -740,19 +782,6 @@ function patchChildrenInner(
   parentScope?: EffectScope,
   before?: Node | null
 ): Mounted[] {
-  const oldByKey = new Map<string, Mounted>();
-  const oldKeyIndices = new Map<string, number>();
-  const unkeyed = oldChildren.filter(child => child.vnode.key === undefined);
-
-  for (let index = 0; index < oldChildren.length; index++) {
-    const child = oldChildren[index]!;
-    if (child.vnode.key !== undefined) {
-      if (oldByKey.has(child.vnode.key)) throw new Error(`Duplicate key "${child.vnode.key}" in mounted children`);
-      oldByKey.set(child.vnode.key, child);
-      oldKeyIndices.set(child.vnode.key, index);
-    }
-  }
-
   const nextVNodes = nextChildren
     .map(childToVNode)
     .filter((vnode): vnode is VNode => !!vnode);
@@ -762,10 +791,11 @@ function patchChildrenInner(
     if (nextKeys.has(vnode.key)) throw new Error(`Duplicate key "${vnode.key}" in rendered children`);
     nextKeys.add(vnode.key);
   }
-  const keyedOldOrder = nextVNodes.map(vnode => {
+  const plan = planChildReconciliation(oldChildren, nextVNodes);
+  const keyedOldOrder = nextVNodes.map((vnode, index) => {
     if (vnode.key === undefined) return -1;
-    const previous = oldByKey.get(vnode.key);
-    return previous && previous.vnode.type === vnode.type ? oldKeyIndices.get(vnode.key)! : -1;
+    const previous = plan.matches[index];
+    return previous && previous.vnode.type === vnode.type ? plan.oldKeyIndices.get(vnode.key)! : -1;
   });
   const stableKeyedPositions = longestIncreasingSubsequencePositions(keyedOldOrder);
   const nextMounted: Mounted[] = [];
@@ -775,8 +805,7 @@ function patchChildrenInner(
   // sibling as its insertion anchor. This keeps keyed moves deterministic.
   for (let index = nextVNodes.length - 1; index >= 0; index--) {
     const vnode = nextVNodes[index]!;
-    const old = vnode.key !== undefined ? oldByKey.get(vnode.key) : unkeyed.pop();
-    if (old?.vnode.key !== undefined) oldByKey.delete(old.vnode.key);
+    const old = plan.matches[index];
     const patched = patch(root, parent, old, vnode, parentInstance, parentScope);
     if (vnode.type === ServerSlot) adoptServerSlot(parent, patched);
     nextMounted.unshift(patched);

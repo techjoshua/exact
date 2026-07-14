@@ -1,14 +1,32 @@
 import { logFrameworkEvent, type Logger } from "@exact/core";
+import { applyDomProp, dispose as disposeDomRoot } from "@exact/dom";
 import type { ExactPatch } from "@exact/server";
+import type { HydrationDiagnostic } from "./types.js";
 import { cssEscape } from "./dom.js";
 
 export type PatchOptions = {
   logger?: Logger;
   onMismatch?: "replace" | "throw";
+  onDiagnostic?: (diagnostic: HydrationDiagnostic) => void;
 };
 
 /** Applies server-generated patches to an existing hydrated container. */
 export function applyPatches(container: Element, patches: readonly ExactPatch[], options: PatchOptions = {}): boolean {
+  if (!patches.length) return true;
+  const simulation = container.cloneNode(true) as Element;
+  if (!validateMarkerTopology(simulation)
+    || !patches.every(patch => applyPatch(simulation, patch))
+    || !validateMarkerTopology(simulation)) {
+    const failed = patches.find(patch => !canApplyPatch(container, patch));
+    const detail = failed ? `${failed.type}:${failed.id}` : "invalid marker topology";
+    reportMismatch(options, `could not atomically apply exact patches (${detail})`, "invalid-patch", failed);
+    if (options.onMismatch === "throw") throw new Error(`Could not apply exact patch batch (${detail})`);
+    return false;
+  }
+
+  // A server patch invalidates the renderer's mounted graph. Release its
+  // scopes/listeners first while retaining the validated DOM as patch input.
+  disposeDomRoot(container, false);
   for (const patch of patches) {
     const ok = applyPatch(container, patch);
     if (!ok) {
@@ -45,8 +63,19 @@ export function boundaryInnerHtml(container: Element, id: string): string | unde
 }
 
 /** Reports a patch or hydration mismatch through framework logging. */
-export function reportMismatch(options: PatchOptions, message: string): void {
+export function reportMismatch(
+  options: PatchOptions,
+  message: string,
+  code: HydrationDiagnostic["code"] = "adoption-mismatch",
+  patch?: { type: string; id: string }
+): void {
   logFrameworkEvent("warn", "hydrate", "mismatch", message, undefined, options.logger);
+  options.onDiagnostic?.({ code, message, patch });
+}
+
+function canApplyPatch(container: Element, patch: ExactPatch): boolean {
+  const clone = container.cloneNode(true) as Element;
+  return applyPatch(clone, patch);
 }
 
 function applyPatch(container: Element, patch: ExactPatch): boolean {
@@ -60,11 +89,7 @@ function applyPatch(container: Element, patch: ExactPatch): boolean {
   if (patch.type === "prop") {
     const target = findExactElementTarget(container, patch.id);
     if (!target) return false;
-    if (patch.value === false || patch.value === null || patch.value === undefined) {
-      target.removeAttribute(patch.name);
-    } else {
-      target.setAttribute(patch.name, String(patch.value));
-    }
+    applyDomProp(target, patch.name, patch.value);
     return true;
   }
 
@@ -206,7 +231,39 @@ function findExactItemRange(
 }
 
 function isExactItemStart(comment: Comment, key: string): boolean {
-  return comment.data.startsWith("exact:item:") && comment.data.endsWith(`:${key}`);
+  if (!comment.data.startsWith("exact:item:")) return false;
+  const suffix = comment.data.slice(comment.data.lastIndexOf(":") + 1);
+  return suffix === key || suffix === encodeMarkerKey(key) || comment.data.endsWith(`:${key}`);
+}
+
+function encodeMarkerKey(value: string): string {
+  if (/^[A-Za-z0-9._-]+$/.test(value) && !value.includes("--")) return value;
+  return `~${Array.from(new TextEncoder().encode(value), byte => byte.toString(16).padStart(2, "0")).join("")}`;
+}
+
+/** Validates nesting and duplicate sibling item keys before any live mutation. */
+function validateMarkerTopology(container: Element): boolean {
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_COMMENT);
+  const stack: Array<{ data: string; itemKeys: Set<string> }> = [];
+  const ids = new Set<string>();
+  while (walker.nextNode()) {
+    const data = (walker.currentNode as Comment).data;
+    if (data.startsWith("/exact:")) {
+      const open = stack.pop();
+      if (!open || data !== `/${open.data}`) return false;
+      continue;
+    }
+    if (!data.startsWith("exact:")) continue;
+    if (data.startsWith("exact:item:")) {
+      const parent = stack[stack.length - 1];
+      const key = data.slice(data.lastIndexOf(":") + 1);
+      if (parent?.itemKeys.has(key)) return false;
+      parent?.itemKeys.add(key);
+    } else if (ids.has(data)) return false;
+    else ids.add(data);
+    stack.push({ data, itemKeys: new Set() });
+  }
+  return stack.length === 0;
 }
 
 function replaceRange(range: { start: Comment; end: Comment }, html: string): void {
@@ -217,17 +274,14 @@ function replaceRange(range: { start: Comment; end: Comment }, html: string): vo
     cursor = next;
   }
   if (!html) return;
-  const template = document.createElement("template");
-  template.innerHTML = html;
-  range.end.parentNode?.insertBefore(template.content, range.end);
+  const parent = range.end.parentNode;
+  if (parent) parent.insertBefore(parseFragment(parent, html), range.end);
 }
 
 function replaceElementChildren(element: Element, html: string): void {
   element.replaceChildren();
   if (!html) return;
-  const template = document.createElement("template");
-  template.innerHTML = html;
-  element.appendChild(template.content);
+  element.appendChild(parseFragment(element, html));
 }
 
 function replaceElement(element: Element, html: string): void {
@@ -235,15 +289,24 @@ function replaceElement(element: Element, html: string): void {
     element.remove();
     return;
   }
-  const template = document.createElement("template");
-  template.innerHTML = html;
-  element.replaceWith(template.content);
+  const parent = element.parentNode;
+  if (parent) element.replaceWith(parseFragment(parent, html));
 }
 
 function insertHtmlBefore(anchor: Node, html: string): void {
+  const parent = anchor.parentNode;
+  if (parent) parent.insertBefore(parseFragment(parent, html), anchor);
+}
+
+function parseFragment(parent: Node, html: string): DocumentFragment {
+  if (parent instanceof Element) {
+    const range = document.createRange();
+    range.selectNodeContents(parent);
+    return range.createContextualFragment(html);
+  }
   const template = document.createElement("template");
   template.innerHTML = html;
-  anchor.parentNode?.insertBefore(template.content, anchor);
+  return template.content;
 }
 
 function moveRangeBefore(range: { start: Comment; end: Comment }, anchor: Node): void {

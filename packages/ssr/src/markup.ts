@@ -43,8 +43,7 @@ export function markerPair(context: SsrContext, id: string, render: () => string
 
 /** Allocates a marker id from render context, kind, optional name, and optional key. */
 export function markerId(context: SsrContext, kind: string, name?: string, key?: string): string {
-  const id = `${kind}:${context.nextId++}${name ? `:${name}` : ""}${key ? `:${key}` : ""}`;
-  return id.replace(/--/g, "");
+  return `${kind}:${context.nextId++}${name ? `:${encodeMarkerKey(name)}` : ""}${key ? `:${encodeMarkerKey(key)}` : ""}`;
 }
 
 /** Normalizes a compiler-provided exact marker id by removing a leading exact prefix. */
@@ -54,7 +53,22 @@ export function exactMarkerId(id: string): string {
 
 /** Creates the marker id used for one keyed list item. */
 export function keyedItemMarkerId(key: string): string {
-  return `item:${key}`.replace(/--/g, "");
+  return `item:${encodeMarkerKey(key)}`;
+}
+
+/** Encodes arbitrary UTF-8 marker data without lossy HTML-comment sanitizing. */
+export function encodeMarkerKey(value: string): string {
+  if (/^[A-Za-z0-9._-]+$/.test(value) && !value.includes("--")) return value;
+  return `~${Array.from(new TextEncoder().encode(value), byte => byte.toString(16).padStart(2, "0")).join("")}`;
+}
+
+/** Decodes marker data emitted by encodeMarkerKey; legacy safe keys pass through. */
+export function decodeMarkerKey(value: string): string {
+  if (!value.startsWith("~") || !/^(?:[0-9a-f]{2})+$/i.test(value.slice(1))) return value;
+  const hex = value.slice(1);
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let index = 0; index < bytes.length; index++) bytes[index] = Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16);
+  return new TextDecoder().decode(bytes);
 }
 
 function renderStyle(value: unknown): string {

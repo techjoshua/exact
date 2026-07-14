@@ -24,6 +24,15 @@ import { adoptStatic, percent, px, rem, render, unmount } from "./index.js";
 import { mountedDomNodes, placeMountedBefore } from "./placement.js";
 
 describe("@exact/dom", () => {
+  it("creates SVG and MathML descendants in their inherited namespaces", () => {
+    const container = document.createElement("div");
+    render(jsx("div", { children: [
+      jsx("svg", { children: jsx("circle", { cx: 1 }) }),
+      jsx("math", { children: jsx("mi", { children: "x" }) })
+    ] }), container);
+    expect(container.querySelector("circle")?.namespaceURI).toBe("http://www.w3.org/2000/svg");
+    expect(container.querySelector("mi")?.namespaceURI).toBe("http://www.w3.org/1998/Math/MathML");
+  });
   it("moves an adopted boundary as one start-to-end DOM range", () => {
     const container = document.createElement("div");
     const start = document.createComment("exact:component:0");

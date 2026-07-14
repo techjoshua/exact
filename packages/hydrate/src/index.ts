@@ -1,4 +1,4 @@
-import { adoptComponentRoot, adoptStatic, render } from "@exact/dom";
+import { adoptComponentRoot, adoptStatic, render, unmount } from "@exact/dom";
 import { Fragment, Text, isVNode, type Child, type VNode } from "@exact/core";
 import type {
   ExactClient,
@@ -29,12 +29,20 @@ export { readExactHydrationConfig } from "./config.js";
 export type * from "./types.js";
 
 const roots = new WeakMap<Element, HydrationRoot>();
+const requestVersions = new WeakMap<Element, Map<string, number>>();
 
 /** Hydrates an SSR container and returns the eXact client attached to that container. */
 export function hydrate(vnode: VNode, container: Element, options: HydrateOptions = {}): HydrationRoot {
+  const existing = roots.get(container);
+  if (existing) {
+    render(vnode, container, { logger: options.logger });
+    return existing;
+  }
   const resolvedOptions = resolveHydrateOptions(container, options);
+  const formState = captureFormState(container);
   if (!hasExactMarkers(container)) {
-    reportMismatch(resolvedOptions, "missing exact hydration markers");
+    reportMismatch(resolvedOptions, "missing exact hydration markers", "missing-markers");
+    container.replaceChildren();
     render(vnode, container, { logger: resolvedOptions.logger });
   } else {
     if ((typeof vnode.type === "function"
@@ -42,6 +50,7 @@ export function hydrate(vnode: VNode, container: Element, options: HydrateOption
       : adoptStaticTree(vnode, container) && adoptStatic(vnode, container, { logger: resolvedOptions.logger }))) {
       const root = createExactClient(container, resolvedOptions);
       roots.set(container, root);
+      restoreFormState(container, formState);
       return root;
     }
     // The DOM renderer currently mounts a new mounted graph.  Clear the SSR
@@ -50,6 +59,8 @@ export function hydrate(vnode: VNode, container: Element, options: HydrateOption
     container.replaceChildren();
     render(vnode, container, { logger: resolvedOptions.logger });
   }
+
+  restoreFormState(container, formState);
 
   const root = createExactClient(container, resolvedOptions);
   roots.set(container, root);
@@ -75,7 +86,8 @@ function matchesStaticVNode(vnode: VNode, node: Node): boolean {
   const expectedAttributes = new Set<string>();
   for (const [name, value] of Object.entries(vnode.props)) {
     if (name === "key" || name === "children") continue;
-    if (name === "ref" || /^on[A-Z]/.test(name) || value !== null && typeof value === "object" || typeof value === "function") return false;
+    if (name === "ref" || /^on[A-Z]/.test(name)) continue;
+    if (value !== null && typeof value === "object" || typeof value === "function") return false;
     const attribute = name === "className" ? "class" : name;
     if (value === false || value === null || value === undefined) {
       if (node.hasAttribute(attribute)) return false;
@@ -118,7 +130,8 @@ function patchStaticVNode(vnode: VNode, node: Node): boolean {
   const expectedAttributes = new Set<string>();
   for (const [name, value] of Object.entries(vnode.props)) {
     if (name === "key" || name === "children") continue;
-    if (name === "ref" || /^on[A-Z]/.test(name) || value !== null && typeof value === "object" || typeof value === "function") return false;
+    if (name === "ref" || /^on[A-Z]/.test(name)) continue;
+    if (value !== null && typeof value === "object" || typeof value === "function") return false;
     const attribute = name === "className" ? "class" : name;
     if (value === false || value === null || value === undefined) node.removeAttribute(attribute);
     else if (value === true) node.setAttribute(attribute, "");
@@ -163,25 +176,31 @@ function contentNodes(parent: ParentNode): Node[] {
   return Array.from(parent.childNodes).filter(node => node.nodeType !== Node.COMMENT_NODE);
 }
 
-function createStaticNodeFromChild(child: Child): Node | undefined {
-  if (isVNode(child)) return createStaticNode(child);
+function createStaticNodeFromChild(child: Child, parent?: Element): Node | undefined {
+  if (isVNode(child)) return createStaticNode(child, parent);
   if (child === null || child === undefined || child === false || child === true) return undefined;
   return document.createTextNode(String(child));
 }
 
-function createStaticNode(vnode: VNode): Node | undefined {
+function createStaticNode(vnode: VNode, parent?: Element): Node | undefined {
   if (vnode.type === Text) return document.createTextNode(String(vnode.props.value ?? ""));
   if (typeof vnode.type !== "string") return undefined;
-  const element = document.createElement(vnode.type);
+  const namespace = vnode.type === "svg" ? "http://www.w3.org/2000/svg"
+    : vnode.type === "math" ? "http://www.w3.org/1998/Math/MathML"
+      : parent?.localName === "foreignObject" ? undefined : parent?.namespaceURI;
+  const element = namespace && namespace !== "http://www.w3.org/1999/xhtml"
+    ? document.createElementNS(namespace, vnode.type)
+    : document.createElement(vnode.type);
   for (const [name, value] of Object.entries(vnode.props)) {
     if (name === "key" || name === "children") continue;
-    if (name === "ref" || /^on[A-Z]/.test(name) || value !== null && typeof value === "object" || typeof value === "function") return undefined;
+    if (name === "ref" || /^on[A-Z]/.test(name)) continue;
+    if (value !== null && typeof value === "object" || typeof value === "function") return undefined;
     const attribute = name === "className" ? "class" : name;
     if (value === true) element.setAttribute(attribute, "");
     else if (value !== false && value !== null && value !== undefined) element.setAttribute(attribute, String(value));
   }
   for (const child of flattenStaticChildren(vnode.children)) {
-    const node = createStaticNodeFromChild(child);
+    const node = createStaticNodeFromChild(child, element);
     if (!node) return undefined;
     element.appendChild(node);
   }
@@ -217,6 +236,8 @@ export function createExactClient(container: Element, options: HydrateOptions = 
     islands: { ...(resolvedOptions.islands ?? {}) },
     transports: { ...(resolvedOptions.transports ?? {}) }
   };
+  let disposed = false;
+  const assertActive = () => { if (disposed) throw new Error("eXact hydration root has been disposed"); };
   const client: ExactClient = {
     get endpoint() {
       return runtimeOptions.endpoint;
@@ -234,24 +255,106 @@ export function createExactClient(container: Element, options: HydrateOptions = 
       return runtimeOptions.stateContracts;
     },
     applyPatches(patches) {
+      assertActive();
       return applyPatches(container, patches, runtimeOptions);
     },
     invokeAction(id, payload) {
+      assertActive();
       return invokeAndApply(container, client, "action", id, payload, runtimeOptions);
     },
     refreshBoundary(id, payload) {
+      assertActive();
       return invokeAndApply(container, client, "refresh", id, payload, runtimeOptions);
     },
     async refreshIsland(id, registry, payload) {
+      assertActive();
       mergeClientIslands(runtimeOptions, registry);
       return invokeAndApply(container, client, "refresh", id, payload, runtimeOptions);
     },
     registerManifest(config) {
+      assertActive();
       mergeHydrationRegistration(runtimeOptions, config);
       if (config.islands) hydrateClientIslands(container, runtimeOptions.islands ?? {}, runtimeOptions);
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      roots.delete(container);
+      requestVersions.get(container)?.clear();
+      unmount(container);
     }
   };
   return client;
+}
+
+type FormState = {
+  node: Element;
+  path: number[];
+  value?: string;
+  checked?: boolean;
+  selected?: boolean[];
+  selection?: { start: number | null; end: number | null; direction?: "forward" | "backward" | "none" | null };
+  focused: boolean;
+};
+
+function captureFormState(container: Element): FormState[] {
+  const active = document.activeElement;
+  const controls = Array.from(container.querySelectorAll("input, textarea, select, [contenteditable=true]"));
+  return controls.flatMap(control => {
+    const dirty = control instanceof HTMLInputElement
+      ? control.value !== control.defaultValue || control.checked !== control.defaultChecked
+      : control instanceof HTMLTextAreaElement
+        ? control.value !== control.defaultValue
+        : control instanceof HTMLSelectElement
+          ? Array.from(control.options).some(option => option.selected !== option.defaultSelected)
+          : control.textContent !== control.getAttribute("data-exact-ssr-text");
+    if (!dirty && control !== active) return [];
+    const state: FormState = { node: control, path: nodePath(container, control), focused: control === active };
+    if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) {
+      state.value = control.value;
+      if (control instanceof HTMLInputElement) state.checked = control.checked;
+      state.selection = { start: control.selectionStart, end: control.selectionEnd, direction: control.selectionDirection };
+    } else if (control instanceof HTMLSelectElement) {
+      state.selected = Array.from(control.options, option => option.selected);
+    } else state.value = control.textContent ?? "";
+    return [state];
+  });
+}
+
+function restoreFormState(container: Element, states: readonly FormState[]): void {
+  for (const state of states) {
+    const control = container.contains(state.node) ? state.node : nodeAtPath(container, state.path);
+    if (!(control instanceof Element)) continue;
+    if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) {
+      if (state.value !== undefined) control.value = state.value;
+      if (control instanceof HTMLInputElement && state.checked !== undefined) control.checked = state.checked;
+      if (state.focused) control.focus({ preventScroll: true });
+      if (state.selection && state.selection.start !== null && state.selection.end !== null) {
+        control.setSelectionRange(state.selection.start, state.selection.end, state.selection.direction ?? undefined);
+      }
+    } else if (control instanceof HTMLSelectElement && state.selected) {
+      Array.from(control.options).forEach((option, index) => { option.selected = state.selected![index] ?? false; });
+      if (state.focused) control.focus({ preventScroll: true });
+    } else if (state.value !== undefined) {
+      control.textContent = state.value;
+      if (state.focused && control instanceof HTMLElement) control.focus({ preventScroll: true });
+    }
+  }
+}
+
+function nodePath(root: Node, node: Node): number[] {
+  const path: number[] = [];
+  for (let cursor: Node | null = node; cursor && cursor !== root; cursor = cursor.parentNode) {
+    if (!cursor.parentNode) return [];
+    path.unshift(Array.prototype.indexOf.call(cursor.parentNode.childNodes, cursor));
+  }
+  return path;
+}
+
+function nodeAtPath(root: Node, path: readonly number[]): Node | undefined {
+  let cursor: Node | undefined = root;
+  for (const index of path) cursor = cursor?.childNodes[index];
+  return cursor;
 }
 
 /** Returns the hydration client previously attached to a container. */
@@ -267,6 +370,13 @@ async function invokeAndApply(
   payload: unknown,
   options: HydrateOptions
 ): Promise<ExactInvocationResult> {
+  let versions = requestVersions.get(container);
+  if (!versions) { versions = new Map(); requestVersions.set(container, versions); }
+  const requestKeys = type === "refresh"
+    ? [`boundary:${id}`]
+    : options.actionBoundaries?.[id]?.map(boundary => `boundary:${boundary}`) ?? [`action:${id}`];
+  const requestVersion = Math.max(0, ...requestKeys.map(key => versions!.get(key) ?? 0)) + 1;
+  for (const key of requestKeys) versions.set(key, requestVersion);
   const operation: ExactInvocationRequest = {
     type,
     id,
@@ -296,6 +406,14 @@ async function invokeAndApply(
       logger: options.logger,
       stream: options.stream
     });
+  if (requestKeys.some(key => versions!.get(key) !== requestVersion)) {
+    options.onDiagnostic?.({
+      code: "stale-response",
+      message: `ignored stale exact ${type} response for ${id}`,
+      patch: { type, id }
+    });
+    return result;
+  }
   const patchesApplied = result.patches ? applyPatches(container, result.patches, options) : true;
   if (!patchesApplied && type === "refresh" && result.html) {
     applyPatches(container, [{ type: "replace", id, html: result.html }], options);

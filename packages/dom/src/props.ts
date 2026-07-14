@@ -121,12 +121,12 @@ function eventTypeForProp(key: string): { type: string; capture: boolean } {
 }
 
 function isDirectEvent(type: string): boolean {
-  // Pointer capture is bound to a concrete element, not the delegated root.
-  // Keep its entire lifecycle direct so a keyed move/reconciliation pass cannot
-  // strand a capture with a root listener that no longer sees its target.
+  // Pointer events, including capture lifecycle events, bubble after retargeting
+  // and are safe to delegate. Keeping them on the root avoids four-to-six
+  // listeners per draggable list item.
   return [
     "focus", "blur", "mouseenter", "mouseleave", "scroll", "load", "error",
-    "pointerdown", "pointermove", "pointerup", "pointercancel", "lostpointercapture", "gotpointercapture"
+    "lostpointercapture", "gotpointercapture"
   ].includes(type);
 }
 
@@ -199,11 +199,17 @@ function bindStyle(element: HTMLElement, value: unknown, scope: EffectScope): St
   }, undefined, { scope });
 }
 
-function setDomProp(root: Root, element: Element, key: string, value: unknown): void {
+/** Applies one non-reactive property using the same semantics as JSX bindings. */
+export function applyDomProp(element: Element, key: string, value: unknown): void {
+  if (value === false || value === null || value === undefined) clearDomProp(element, key);
+  else setDomProp(undefined, element, key, value);
+}
+
+function setDomProp(root: Root | undefined, element: Element, key: string, value: unknown): void {
   const property = normalizePropName(key);
 
   if (property === "defaultValue" && isFocusedTextControl(element)) {
-    domDebug(root, "skip focused defaultValue", {
+    if (root) domDebug(root, "skip focused defaultValue", {
       element: describeNode(element),
       value
     });
@@ -219,7 +225,7 @@ function setDomProp(root: Root, element: Element, key: string, value: unknown): 
       }
 
       if (property === "value" || property === "defaultValue") {
-        domDebug(root, "set form value prop", {
+        if (root) domDebug(root, "set form value prop", {
           element: describeNode(element),
           property,
           active: describeNode(document.activeElement),

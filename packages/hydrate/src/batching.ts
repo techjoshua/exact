@@ -38,7 +38,8 @@ export function enqueueExactOperation(
       logger: options.logger,
       stream: options.stream,
       pending: [],
-      scheduled: false
+      scheduled: false,
+      active: 0
     };
     queues.push(queue);
   }
@@ -56,7 +57,7 @@ export function enqueueExactOperation(
     // Microtask batching groups operations triggered by the same user turn without
     // introducing a visible delay for isolated single operations.
     queueMicrotask(() => {
-      void flushExactBatchQueue(queue!);
+      void flushExactBatchQueue(queue!).finally(() => reclaimQueue(container, queue!));
     });
   }
 
@@ -67,8 +68,10 @@ async function flushExactBatchQueue(queue: ExactBatchQueue): Promise<void> {
   const pending = queue.pending.splice(0);
   queue.scheduled = false;
   if (!pending.length) return;
+  queue.active = (queue.active ?? 0) + 1;
 
-  if (pending.length === 1) {
+  try {
+    if (pending.length === 1) {
     try {
       const result = await invokeExact({
         endpoint: queue.endpoint,
@@ -83,10 +86,10 @@ async function flushExactBatchQueue(queue: ExactBatchQueue): Promise<void> {
       pending[0]!.reject(error);
     }
     return;
-  }
+    }
 
-  try {
-    const results = await invokeExactBatch({
+    try {
+      const results = await invokeExactBatch({
       endpoint: queue.endpoint,
       operations: pending.map(item => item.operation),
       fetch: queue.fetch,
@@ -108,7 +111,19 @@ async function flushExactBatchQueue(queue: ExactBatchQueue): Promise<void> {
       const { ok: _ok, type: _type, id: _id, ...body } = result;
       item.resolve(body);
     });
-  } catch (error) {
-    for (const item of pending) item.reject(error);
+    } catch (error) {
+      for (const item of pending) item.reject(error);
+    }
+  } finally {
+    queue.active = Math.max(0, (queue.active ?? 1) - 1);
   }
+}
+
+function reclaimQueue(container: Element, queue: ExactBatchQueue): void {
+  if (queue.scheduled || queue.pending.length || queue.active) return;
+  const queues = batchQueues.get(container);
+  if (!queues) return;
+  const index = queues.indexOf(queue);
+  if (index >= 0) queues.splice(index, 1);
+  if (!queues.length) batchQueues.delete(container);
 }

@@ -7,6 +7,7 @@ import {
   type ListBinding,
   type VNode
 } from "@exact/core";
+import { peek } from "@exact/reactive";
 import type { Mounted } from "./types.js";
 
 /** Stops mounted children that cannot be reused by an upcoming replacement patch. */
@@ -15,18 +16,67 @@ export function stopReplacedChildren(mounted: Mounted, nextChildren: Child[]): v
     .map(childToVNode)
     .filter((vnode): vnode is VNode => !!vnode);
 
-  const keyed = new Map<string, VNode>();
-  const unkeyed: VNode[] = [];
-  for (const vnode of nextVNodes) {
-    if (vnode.key !== undefined) keyed.set(vnode.key, vnode);
-    else unkeyed.push(vnode);
-  }
+  const plan = planChildReconciliation(mounted.children, nextVNodes);
+  const retained = plan.reusable;
+  for (const child of mounted.children) if (!retained.has(child)) child.scope.stop();
+}
 
-  for (const child of mounted.children) {
-    const next = child.vnode.key !== undefined ? keyed.get(child.vnode.key) : unkeyed.shift();
-    if (next && canPatchMounted(child, next)) continue;
-    child.scope.stop();
+/**
+ * Creates the single reuse plan used by both pre-stop and DOM patching.
+ *
+ * Keyed nodes match by key. Unkeyed nodes match in forward positional order;
+ * the caller may execute the plan in either direction without changing which
+ * scope owns which vnode.
+ */
+export function planChildReconciliation(oldChildren: readonly Mounted[], nextVNodes: readonly VNode[]): {
+  matches: Array<Mounted | undefined>;
+  oldKeyIndices: Map<string, number>;
+  reusable: Set<Mounted>;
+} {
+  const keyed = new Map<string, Mounted>();
+  const oldKeyIndices = new Map<string, number>();
+  const unkeyed: Mounted[] = [];
+  for (let index = 0; index < oldChildren.length; index++) {
+    const child = oldChildren[index]!;
+    if (child.vnode.key === undefined) unkeyed.push(child);
+    else {
+      if (keyed.has(child.vnode.key)) throw new Error(`Duplicate key "${child.vnode.key}" in mounted children`);
+      keyed.set(child.vnode.key, child);
+      oldKeyIndices.set(child.vnode.key, index);
+    }
   }
+  const reusable = new Set<Mounted>();
+  const matches = new Array<Mounted | undefined>(nextVNodes.length);
+  for (let index = 0; index < nextVNodes.length; index++) {
+    const next = nextVNodes[index]!;
+    if (next.key !== undefined) matches[index] = keyed.get(next.key);
+  }
+  const nextUnkeyed = nextVNodes
+    .map((vnode, index) => ({ vnode, index }))
+    .filter(entry => entry.vnode.key === undefined);
+  let oldStart = 0;
+  let nextStart = 0;
+  while (oldStart < unkeyed.length && nextStart < nextUnkeyed.length
+    && canPatchMounted(unkeyed[oldStart]!, nextUnkeyed[nextStart]!.vnode)) {
+    matches[nextUnkeyed[nextStart]!.index] = unkeyed[oldStart]!;
+    oldStart++; nextStart++;
+  }
+  let oldEnd = unkeyed.length - 1;
+  let nextEnd = nextUnkeyed.length - 1;
+  while (oldEnd >= oldStart && nextEnd >= nextStart
+    && canPatchMounted(unkeyed[oldEnd]!, nextUnkeyed[nextEnd]!.vnode)) {
+    matches[nextUnkeyed[nextEnd]!.index] = unkeyed[oldEnd]!;
+    oldEnd--; nextEnd--;
+  }
+  while (oldStart <= oldEnd && nextStart <= nextEnd) {
+    matches[nextUnkeyed[nextStart]!.index] = unkeyed[oldStart]!;
+    oldStart++; nextStart++;
+  }
+  for (let index = 0; index < nextVNodes.length; index++) {
+    const candidate = matches[index];
+    if (candidate && canPatchMounted(candidate, nextVNodes[index]!)) reusable.add(candidate);
+  }
+  return { matches, oldKeyIndices, reusable };
 }
 
 /** Stops list children whose keys are not present in the next materialized list. */
@@ -87,7 +137,7 @@ function canPatchMounted(mounted: Mounted, next: VNode): boolean {
   if (mounted.vnode.type !== next.type || mounted.vnode.key !== next.key) return false;
   if (isCellVNode(next)) {
     const previousChild = mounted.children[0];
-    return previousChild ? canPatchMounted(previousChild, getCellVNode(next)) : false;
+    return previousChild ? canPatchMounted(previousChild, peek(() => getCellVNode(next))) : false;
   }
   return true;
 }

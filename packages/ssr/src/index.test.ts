@@ -58,6 +58,11 @@ async function readRemainingText(reader: ReadableStreamDefaultReader<Uint8Array>
 }
 
 describe("@exact/ssr", () => {
+  it("encodes unsafe keyed marker values without collisions", () => {
+    const first = renderKeyedListSnapshot({ listId: "list", items: ["ab", "a--b"], key: value => value, render: value => createVNode("p", null, value) });
+    expect(first.items[0]!.html).not.toBe(first.items[1]!.html);
+    expect(parseKeyedListSnapshotHtml("list", first.innerHtml)?.items.map(item => item.key)).toEqual(["ab", "a--b"]);
+  });
   it("renders elements, attributes, text escaping, and styles to html", () => {
     const result = renderToString(createVNode(
       "section",

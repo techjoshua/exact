@@ -27,6 +27,42 @@ function ndjsonResponse(events: readonly unknown[]) {
 }
 
 describe("@exact/hydrate", () => {
+  it("validates an entire patch batch before mutating live DOM", () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<!--exact:title-->Old<!--/exact:title-->";
+    expect(applyPatches(container, [
+      { type: "text", id: "title", value: "Changed" },
+      { type: "text", id: "missing", value: "Invalid" }
+    ], { logger: noopLogger })).toBe(false);
+    expect(container.textContent).toBe("Old");
+  });
+
+  it("parses replacement patches in the target SVG namespace", () => {
+    const container = document.createElement("div");
+    container.innerHTML = '<svg><!--exact:shape--><rect></rect><!--/exact:shape--></svg>';
+    expect(applyPatches(container, [{ type: "replace", id: "shape", html: "<circle></circle>" }])).toBe(true);
+    expect(container.querySelector("circle")?.namespaceURI).toBe("http://www.w3.org/2000/svg");
+  });
+
+  it("preserves dirty form state entered before hydration", () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<!--exact:fragment:0--><input value=server><!--/exact:fragment:0-->";
+    const input = container.querySelector("input")!;
+    input.value = "typed";
+    hydrate(createVNode(Fragment, null, createVNode("input", { value: "server" })), container, { logger: noopLogger });
+    expect(container.querySelector("input")?.value).toBe("typed");
+  });
+
+  it("makes hydration idempotent and exposes idempotent disposal", () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<!--exact:fragment:0--><p>server</p><!--/exact:fragment:0-->";
+    const vnode = createVNode(Fragment, null, createVNode("p", null, "server"));
+    const first = hydrate(vnode, container, { logger: noopLogger });
+    expect(hydrate(vnode, container, { logger: noopLogger })).toBe(first);
+    first.dispose();
+    first.dispose();
+    expect(() => first.applyPatches([])).toThrow("disposed");
+  });
   it("adopts compatible static marker-wrapped SSR nodes", () => {
     const root = document.createElement("div");
     root.innerHTML = "<!--exact:component:0--><p class=\"ready\">server</p><!--/exact:component:0-->";
@@ -704,7 +740,7 @@ describe("@exact/hydrate", () => {
     ]);
 
     const button = container.querySelector("button")!;
-    expect(button.getAttribute("disabled")).toBe("true");
+    expect(button.hasAttribute("disabled")).toBe(true);
     expect(button.getAttribute("style")).toContain("color: red");
   });
 
