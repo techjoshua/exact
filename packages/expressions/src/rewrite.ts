@@ -8,6 +8,7 @@ type Replacement = ExpressionNode | null;
 type RewriteSelector = (ref: NodeRef) => boolean;
 type RewriteFactory = (ref: NodeRef) => Replacement;
 let generatedRewriteId = 1;
+let generatedCloneId = 1;
 
 export interface TextLoweringContext {
   readonly reference: NodeRef;
@@ -62,6 +63,9 @@ export class ModuleRewriter {
   }
 
   apply(module: BoundModule | UnboundModule): BoundModule | UnboundModule {
+    if (module.state === "unbound" && module.provenance) {
+      throw new Error("Rebind an unbound rewritten module before applying another span-based rewrite");
+    }
     const edits: Array<{ start: number; end: number; text: string }> = [];
     const newline = module.trivia.newline === "crlf" ? "\r\n" : "\n";
     const selected = [...module.walk()].flatMap(ref => this.replacements
@@ -227,13 +231,28 @@ export function cloneWithVariables(
   node: ExpressionNode,
   variables: ReadonlyMap<Variable, Variable>
 ): ExpressionNode {
-  const children = node.children.map(child => cloneWithVariables(child, variables));
+  const required = new Set<Variable>();
+  collectVariables(node, required);
+  for (const variable of required) {
+    if (!variables.has(variable)) throw new Error(`cloneWithVariables requires an explicit mapping for ${variable.name}`);
+  }
+  const cloneId = generatedCloneId++;
+  return cloneNodeWithVariables(node, variables, cloneId);
+}
+
+function cloneNodeWithVariables(node: ExpressionNode, variables: ReadonlyMap<Variable, Variable>, cloneId: number): ExpressionNode {
+  const children = node.children.map(child => cloneNodeWithVariables(child, variables, cloneId));
   return Object.freeze({
     ...node,
-    id: `${node.id}:clone`,
+    id: `${node.id}:clone:${cloneId}`,
     children: Object.freeze(children),
     synthetic: true,
     span: undefined,
-    variable: node.variable ? variables.get(node.variable) ?? node.variable : undefined
+    variable: node.variable ? variables.get(node.variable)! : undefined
   });
+}
+
+function collectVariables(node: ExpressionNode, output: Set<Variable>): void {
+  if (node.variable) output.add(node.variable);
+  for (const child of node.children) collectVariables(child, output);
 }

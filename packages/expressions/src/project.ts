@@ -87,6 +87,8 @@ export class ExpressionProject {
   private readonly overlayVersions = new Map<string, number>();
   private readonly sourceFiles = new Map<string, Readonly<{ version: string; sourceFile: ts.SourceFile }>>();
   private readonly symbolIdentities = new Map<string, ExpressionSymbol>();
+  private readonly identityKeysByFile = new Map<string, Set<string>>();
+  private typeHandles = new WeakMap<ExpressionType, ts.Type>();
   private program?: ts.Program;
   private disposed = false;
 
@@ -154,6 +156,11 @@ export class ExpressionProject {
   }
 
   isAssignable(source: ExpressionType, target: ExpressionType): boolean {
+    const sourceHandle = this.typeHandles.get(source);
+    const targetHandle = this.typeHandles.get(target);
+    if (sourceHandle && targetHandle && this.program) {
+      return this.program.getTypeChecker().isTypeAssignableTo(sourceHandle, targetHandle);
+    }
     if (source.id === target.id || target.kind === "any" || target.kind === "unknown" || source.kind === "never") return true;
     if (target.kind === "union") return target.unionMembers.some(member => this.isAssignable(source, member));
     if (source.kind === "union") return source.unionMembers.every(member => this.isAssignable(member, target));
@@ -194,6 +201,7 @@ export class ExpressionProject {
     this.overlayVersions.clear();
     this.sourceFiles.clear();
     this.symbolIdentities.clear();
+    this.identityKeysByFile.clear();
     this.program = undefined;
   }
 
@@ -202,6 +210,9 @@ export class ExpressionProject {
   }
 
   private rebuild(): void {
+    // TypeScript types belong to exactly one Program/TypeChecker generation.
+    // Never retain them as handles for a rebuilt project.
+    this.typeHandles = new WeakMap();
     const compilerOptions: ts.CompilerOptions = {
       ...this.parsed.options,
       // JavaScript modules are part of the supported runtime grammar even when
@@ -260,7 +271,9 @@ export class ExpressionProject {
       ...program.getSyntacticDiagnostics(sourceFile).map(diagnostic => ({ ...diagnosticFromTs(diagnostic), phase: "syntax" as const })),
       ...program.getSemanticDiagnostics(sourceFile).map(diagnostic => ({ ...diagnosticFromTs(diagnostic), phase: "semantic" as const }))
     ];
+    const usedIdentityKeys = new Set<string>();
     const symbolIdentity = (id: string, name: string): ExpressionSymbol => {
+      usedIdentityKeys.add(id);
       const existing = this.symbolIdentities.get(id);
       if (existing) return existing;
       const identity = Object.freeze({ id, name });
@@ -284,14 +297,14 @@ export class ExpressionProject {
       const cached = typeCache.get(type);
       if (cached) return cached;
       const display = checker.typeToString(type, at, ts.TypeFormatFlags.NoTruncation);
-      const key = `${type.flags}:${display}`;
+      const key = `${filename}:${(type as ts.Type & { id?: number }).id ?? "anonymous"}:${type.flags}:${display}`;
       // Install a cycle breaker before expanding recursive union members.
-      const placeholder: ExpressionType = Object.freeze({
+      const placeholder: ExpressionType = {
         id: `type:${key}`, kind: typeKind(type), display,
         nullable: false, callable: type.getCallSignatures().length > 0,
         properties: Object.freeze([]), propertyTypes: Object.freeze([]), unionMembers: Object.freeze([]),
         callSignatures: Object.freeze([]), typeArguments: Object.freeze([]), typeParameters: Object.freeze([])
-      });
+      };
       typeCache.set(type, placeholder);
       const members = type.isUnionOrIntersection() ? type.types.map(member => typeFor(member, at)) : [];
       const signatures = type.getCallSignatures().map(signature => {
@@ -345,8 +358,13 @@ export class ExpressionProject {
         Object.freeze(typeParameters),
         checker.isTupleType(type) ? "tuple" : checker.isArrayType(type) ? "array" : isReadonlyArrayType(checker, type) ? "readonly-array" : undefined
       );
-      typeCache.set(type, value);
-      return value;
+      // Recursive members already reference the placeholder. Populate that
+      // same identity rather than replacing it with a second object whose
+      // recursive edges would remain permanently empty.
+      Object.assign(placeholder, value);
+      Object.freeze(placeholder);
+      this.typeHandles.set(placeholder, type);
+      return placeholder;
     };
 
     const shallowTypeFor = (type: ts.Type, at: ts.Node): ExpressionType => {
@@ -393,11 +411,12 @@ export class ExpressionProject {
       const declarationFile = normalizeFile(declaration.getSourceFile().fileName);
       const localName = declarationBindingName(declaration) ?? symbol.name;
       const key = declarationIdentity(declarationFile, declaration, localName);
+      usedIdentityKeys.add(key);
       const scope = scopeFor(declaration);
-      const variable = new ProjectVariable(symbolIdentity(key, localName), localName, ts.SyntaxKind[declaration.kind], scope, isMutableBinding(declaration));
-      symbolVariables.set(symbol, variable);
       let variableType: ExpressionType | undefined;
       try { variableType = typeFor(checker.getTypeOfSymbolAtLocation(symbol, identifier), identifier); } catch { /* TypeScript can reject incomplete error symbols. */ }
+      const variable = new ProjectVariable(symbolIdentity(key, localName), localName, ts.SyntaxKind[declaration.kind], scope, isMutableBinding(declaration));
+      symbolVariables.set(symbol, variable);
       variable.type = variableType;
       variable.exported = Boolean(symbol.flags & ts.SymbolFlags.ExportValue);
       variable.importedFrom = importSource(declaration);
@@ -481,7 +500,11 @@ export class ExpressionProject {
         const parameters = node.parameters.flatMap(parameter => parameter.name.getText(sourceFile) === "this"
           ? [variableForThis(parameter.name)]
           : collectBindingIdentifiers(parameter.name).map(variableFor).filter((value): value is Variable => !!value));
-        return Object.freeze({ ...common, parameters: Object.freeze(parameters), captures: Object.freeze([]) });
+        return Object.freeze({
+          ...common,
+          parameters: Object.freeze(parameters),
+          captures: Object.freeze(functionCaptures(children, common.scope))
+        });
       }
       if (ts.isJsxElement(node)) {
         const opening = children[0]!;
@@ -518,8 +541,39 @@ export class ExpressionProject {
     const root = convert(sourceFile);
     for (const scope of scopes.values()) scope.seal();
     const module = createModule({ filename, source: sourceFile.text, root, state: "bound", diagnostics });
+    const ownUsedIdentityKeys = new Set([...usedIdentityKeys].filter(key => key.startsWith(`${filename}:`)));
+    const priorKeys = this.identityKeysByFile.get(filename);
+    for (const key of priorKeys ?? []) if (!ownUsedIdentityKeys.has(key)) {
+      this.symbolIdentities.delete(key);
+    }
+    this.identityKeysByFile.set(filename, ownUsedIdentityKeys);
     return module;
   }
+}
+
+function functionCaptures(children: readonly ExpressionNode[], functionScope: ExpressionScope): Variable[] {
+  const captures = new Set<Variable>();
+  const visit = (node: ExpressionNode, parent?: ExpressionNode): void => {
+    if (node.variable && (node.kind === "Identifier" || node.kind === "ThisKeyword")
+      && !scopeDescendsFrom(node.variable.scope, functionScope)
+      && !isBindingPosition(node, parent)) captures.add(node.variable);
+    for (const child of node.children) visit(child, node);
+  };
+  for (const child of children) visit(child);
+  return [...captures];
+}
+
+function scopeDescendsFrom(scope: ExpressionScope, ancestor: ExpressionScope): boolean {
+  for (let cursor: ExpressionScope | undefined = scope; cursor; cursor = cursor.parent) {
+    if (cursor.id === ancestor.id) return true;
+  }
+  return false;
+}
+
+function isBindingPosition(node: ExpressionNode, parent?: ExpressionNode): boolean {
+  if (!parent || parent.children[0] !== node) return false;
+  return parent.category === "declaration" || parent.category === "pattern"
+    || parent.kind === "Parameter" || parent.kind.startsWith("Import");
 }
 
 function syntaxKindName(node: ts.Node): string {
@@ -616,11 +670,14 @@ function signatureFor(
   const declaration = signature.getDeclaration() ?? at;
   return Object.freeze({
     display: checker.signatureToString(signature, at, ts.TypeFormatFlags.NoTruncation),
-    parameters: Object.freeze(signature.getParameters().map(parameter => {
+    parameters: Object.freeze(signature.getParameters().map((parameter, index) => {
       const parameterDeclaration = parameter.valueDeclaration ?? parameter.declarations?.[0] ?? declaration;
+      const contextual = ts.isCallExpression(at) && at.arguments[index]
+        ? checker.getContextualType(at.arguments[index]!)
+        : undefined;
       return Object.freeze({
         name: parameter.name,
-        type: typeFor(checker.getTypeOfSymbolAtLocation(parameter, parameterDeclaration), parameterDeclaration),
+        type: typeFor(contextual ?? checker.getTypeOfSymbolAtLocation(parameter, at), at),
         optional: Boolean(parameter.flags & ts.SymbolFlags.Optional)
           || ts.isParameter(parameterDeclaration) && (!!parameterDeclaration.questionToken || !!parameterDeclaration.initializer),
         rest: ts.isParameter(parameterDeclaration) && !!parameterDeclaration.dotDotDotToken

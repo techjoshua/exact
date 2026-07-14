@@ -38,8 +38,8 @@ export interface SourceProvenance {
 let nextVersion = 1;
 const analysisCache = new WeakMap<ExpressionModule, Readonly<{ effects: readonly NodeEffect[]; captures: ReadonlyMap<ExpressionNode, readonly Variable[]> }>>();
 const defaultWalkCache = new WeakMap<ExpressionModule, readonly NodeRef[]>();
-const subtreeEffectsCache = new WeakMap<ExpressionNode, readonly NodeEffect[]>();
-const captureCache = new WeakMap<ExpressionNode, readonly Variable[]>();
+const subtreeEffectsCache = new WeakMap<ExpressionNode, Map<string, readonly NodeEffect[]>>();
+const captureCache = new WeakMap<ExpressionNode, Map<string, readonly Variable[]>>();
 
 /** Immutable, versioned expression module. */
 export class ExpressionModule<S extends ModuleState = ModuleState> {
@@ -89,10 +89,13 @@ export class ExpressionModule<S extends ModuleState = ModuleState> {
   effectsOf(node: ExpressionNode | NodeRef): readonly NodeEffect[] {
     const target = node instanceof NodeRef ? node.node : node;
     if (!this.parents.has(target)) throw new Error("Node does not belong to this expression module version");
-    const cached = subtreeEffectsCache.get(target);
+    let cache = subtreeEffectsCache.get(target);
+    if (!cache) subtreeEffectsCache.set(target, cache = new Map());
+    const context = analysisContext(this, target);
+    const cached = cache.get(context);
     if (cached) return cached;
     const effects = Object.freeze(getAnalyses(this).effects.filter(effect => isWithin(effect.node, target)));
-    subtreeEffectsCache.set(target, effects);
+    cache.set(context, effects);
     return effects;
   }
 
@@ -110,10 +113,13 @@ export class ExpressionModule<S extends ModuleState = ModuleState> {
 
   capturesOf(functionNode: ExpressionNode | NodeRef): readonly Variable[] {
     const target = functionNode instanceof NodeRef ? functionNode.node : functionNode;
-    const cached = captureCache.get(target);
+    let cache = captureCache.get(target);
+    if (!cache) captureCache.set(target, cache = new Map());
+    const context = analysisContext(this, target);
+    const cached = cache.get(context);
     if (cached) return cached;
     const captures = getAnalyses(this).captures.get(target) ?? Object.freeze([]);
-    captureCache.set(target, captures);
+    cache.set(context, captures);
     return captures;
   }
 
@@ -136,6 +142,21 @@ export class ExpressionModule<S extends ModuleState = ModuleState> {
       ...(options.sourceMap ? { map: sourceMap(this.filename, this.provenance?.originalSource ?? this.source, code, this.provenance?.lineOrigins) } : {})
     };
   }
+}
+
+/**
+ * Analyses may be reused for a structurally shared subtree only while its
+ * semantic position is equivalent.  Object identity alone is unsafe after a
+ * move; module identity alone defeats structural-sharing reuse.
+ */
+function analysisContext(module: ExpressionModule, node: ExpressionNode): string {
+  const parts: string[] = [];
+  let child = module.ref(node);
+  for (const parent of child.ancestors()) {
+    parts.push(`${parent.node.kind}:${parent.node.operator ?? ""}:${parent.node.children.indexOf(child.node)}`);
+    child = parent;
+  }
+  return parts.join("/");
 }
 
 function defaultWalk(module: ExpressionModule): readonly NodeRef[] {
@@ -182,7 +203,6 @@ function getAnalyses(module: ExpressionModule): Readonly<{ effects: readonly Nod
   visit(module.root);
   const frozenCaptures = new Map<ExpressionNode, readonly Variable[]>();
   for (const [node, values] of captures) frozenCaptures.set(node, Object.freeze([...values]));
-  for (const [node, values] of frozenCaptures) captureCache.set(node, values);
   const result = Object.freeze({ effects: Object.freeze(effects), captures: frozenCaptures as ReadonlyMap<ExpressionNode, readonly Variable[]> });
   analysisCache.set(module, result);
   return result;
@@ -190,12 +210,18 @@ function getAnalyses(module: ExpressionModule): Readonly<{ effects: readonly Nod
 
 function referenceEffectKinds(ref: NodeRef): readonly ("read" | "write")[] {
   let child = ref.node;
+  let assignedMemberName = false;
   for (const ancestor of ref.ancestors()) {
     const node = ancestor.node;
+    if ((node.kind === "PropertyAccessExpression" || node.kind === "ElementAccessExpression")
+      && child === node.children.at(-1)) assignedMemberName = true;
     if ((node.kind === "VariableDeclaration" || node.kind === "Parameter" || node.kind === "BindingElement") && isWithin(child, node.children[0]!)) {
       return ["write"];
     }
     if (node.kind === "BinaryExpression" && isWithin(child, node.children[0]!) && assignmentOperators.has(node.operator ?? "")) {
+      // The storage reference of `obj.x = value` reads `obj`; only a direct
+      // identifier assignment writes that identifier binding.
+      if (ref.node !== node.children[0] && !assignedMemberName) return ["read"];
       return node.operator === "=" ? ["write"] : ["read", "write"];
     }
     if ((node.kind === "PrefixUnaryExpression" || node.kind === "PostfixUnaryExpression") && /\+\+|--/.test(node.operator ?? "")) {
@@ -223,7 +249,7 @@ function isFunctionKind(kind: string): boolean {
 function scopeContains(functionScope: ExpressionNode["scope"], variableScope: ExpressionNode["scope"]): boolean {
   let cursor: ExpressionNode["scope"] | undefined = variableScope;
   while (cursor) {
-    if (cursor === functionScope) return true;
+    if (cursor === functionScope || cursor.id === functionScope.id) return true;
     cursor = cursor.parent;
   }
   return false;

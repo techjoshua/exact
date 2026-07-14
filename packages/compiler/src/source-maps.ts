@@ -1,4 +1,5 @@
 import type { ExactSourceMap } from "./types.js";
+import ts from "typescript";
 
 /** Returns the source map file path for an emitted output file. */
 export function sourceMapPathFor(outputFile: string): string {
@@ -16,24 +17,64 @@ export function withSourceMapFile(map: ExactSourceMap, file: string): ExactSourc
   return { ...map, file };
 }
 
-/** Creates a line-level source map that points each generated line at the nearest source line. */
+/** Creates token-level mappings; compiler-generated regions remain intentionally unmapped. */
 export function createLineSourceMap(filename: string, source: string, generated: string): ExactSourceMap {
+  const sourceFile = ts.createSourceFile(filename, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const generatedFile = ts.createSourceFile(`${filename}.generated`, generated, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const originals = scanTokens(source);
+  const generatedTokens = scanTokens(generated);
+  const segments = new Map<number, Array<{ column: number; sourceLine: number; sourceColumn: number }>>();
+  let sourceCursor = 0;
+  for (const token of generatedTokens) {
+    let match = -1;
+    const limit = Math.min(originals.length, sourceCursor + 256);
+    for (let index = sourceCursor; index < limit; index++) {
+      if (originals[index]!.kind === token.kind && originals[index]!.text === token.text) { match = index; break; }
+    }
+    if (match < 0) continue;
+    const original = originals[match]!;
+    sourceCursor = match + 1;
+    const generatedLocation = generatedFile.getLineAndCharacterOfPosition(token.start);
+    const originalLocation = sourceFile.getLineAndCharacterOfPosition(original.start);
+    let line = segments.get(generatedLocation.line);
+    if (!line) segments.set(generatedLocation.line, line = []);
+    line.push({ column: generatedLocation.character, sourceLine: originalLocation.line, sourceColumn: originalLocation.character });
+  }
   return {
     version: 3,
     sources: [filename],
     sourcesContent: [source],
     names: [],
-    mappings: lineMappings(lineCount(generated), lineCount(source))
+    mappings: encodeMappings(lineCount(generated), segments)
   };
 }
 
-function lineMappings(generatedLines: number, sourceLines: number): string {
+function scanTokens(source: string): Array<{ kind: ts.SyntaxKind; text: string; start: number }> {
+  const scanner = ts.createScanner(ts.ScriptTarget.Latest, false, ts.LanguageVariant.JSX, source);
+  const tokens: Array<{ kind: ts.SyntaxKind; text: string; start: number }> = [];
+  for (let kind = scanner.scan(); kind !== ts.SyntaxKind.EndOfFileToken; kind = scanner.scan()) {
+    if (kind === ts.SyntaxKind.WhitespaceTrivia || kind === ts.SyntaxKind.NewLineTrivia
+      || kind === ts.SyntaxKind.SingleLineCommentTrivia || kind === ts.SyntaxKind.MultiLineCommentTrivia) continue;
+    tokens.push({ kind, text: scanner.getTokenText(), start: scanner.getTokenPos() });
+  }
+  return tokens;
+}
+
+function encodeMappings(generatedLines: number, segments: ReadonlyMap<number, readonly { column: number; sourceLine: number; sourceColumn: number }[]>): string {
   let previousSourceLine = 0;
+  let previousSourceColumn = 0;
   const lines: string[] = [];
   for (let line = 0; line < generatedLines; line++) {
-    const sourceLine = Math.min(line, Math.max(sourceLines - 1, 0));
-    lines.push(encodeVlq(0) + encodeVlq(0) + encodeVlq(sourceLine - previousSourceLine) + encodeVlq(0));
-    previousSourceLine = sourceLine;
+    let previousGeneratedColumn = 0;
+    const encoded = (segments.get(line) ?? []).map(segment => {
+      const value = encodeVlq(segment.column - previousGeneratedColumn) + encodeVlq(0)
+        + encodeVlq(segment.sourceLine - previousSourceLine) + encodeVlq(segment.sourceColumn - previousSourceColumn);
+      previousGeneratedColumn = segment.column;
+      previousSourceLine = segment.sourceLine;
+      previousSourceColumn = segment.sourceColumn;
+      return value;
+    }).join(",");
+    lines.push(encoded);
   }
   return lines.join(";");
 }

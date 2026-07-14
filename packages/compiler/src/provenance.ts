@@ -35,20 +35,25 @@ export function buildExactProvenance(module: BoundModule): ExactProvenanceGraph 
   }
 
   for (const declaration of module.walk().ofKind("VariableDeclaration")) {
-    const declared = declaration.descendants().references().first(reference => isDeclarationName(reference, declaration))?.variable;
-    if (!declared) continue;
-    const values = dependencies.get(declared) ?? new Set<Variable>();
+    const binding = declaration.children().first();
     const initializer = declaration.children().toArray().at(-1);
-    for (const variable of initializer ? module.dependenciesOf(initializer) : []) {
-      if (variable !== declared) values.add(variable);
+    const declaredVariables = binding?.walk().references().toArray()
+      .map(reference => reference.variable)
+      .filter((variable): variable is Variable => !!variable && ["VariableDeclaration", "BindingElement"].includes(variable.declarationKind)) ?? [];
+    if (!declaredVariables.length) continue;
+    for (const declared of new Set(declaredVariables)) {
+      const values = dependencies.get(declared) ?? new Set<Variable>();
+      for (const variable of initializer ? module.dependenciesOf(initializer) : []) if (variable !== declared) values.add(variable);
+      dependencies.set(declared, values);
+      reevaluationSafety.set(declared, !declared.mutable && !!initializer && isSafeDerivedInitializer(module, initializer));
     }
-    dependencies.set(declared, values);
-    reevaluationSafety.set(declared, !declared.mutable && !!initializer && isSafeDerivedInitializer(module, initializer));
     const text = declaration.node.text ?? "";
-    if (/\bpeek\s*\(/.test(text)) hints.set(declared, "snapshot");
-    else if (/\bthis\.state\b/.test(text)) hints.set(declared, "derived");
-    else if (/\bthis\.props\b/.test(text)) hints.set(declared, "derived");
-    else if (/\b(?:useContext|this\.(?:getContext|context))\b/.test(text)) hints.set(declared, "derived");
+    for (const declared of new Set(declaredVariables)) {
+      if (/\bpeek\s*\(/.test(text)) hints.set(declared, "snapshot");
+      else if (/\bthis\.state\b/.test(text)) hints.set(declared, "derived");
+      else if (/\bthis\.props\b/.test(text)) hints.set(declared, "derived");
+      else if (/\b(?:useContext|this\.(?:getContext|context))\b/.test(text)) hints.set(declared, "derived");
+    }
   }
 
   for (const call of module.walk().calls()) {
@@ -136,12 +141,14 @@ function isSafeDerivedInitializer(module: BoundModule, initializer: NodeRef): bo
 function isIntrinsicCollectionCall(call: NodeRef): boolean {
   const receiver = call.target?.target;
   const directReactive = /^this\.(?:state|props)(?:\.|\[)/.test(receiver?.node.text?.trim() ?? "");
-  if (directReactive && (!receiver?.type || receiver.type.kind === "any" || receiver.type.kind === "unknown" || isIntrinsicCollection(receiver.type))) return true;
+  // Editor/isolated transforms deliberately continue through pre-existing type
+  // errors.  When the application omitted the Component import, TypeScript can
+  // only report a direct state/props member as `any`; its syntactic provenance
+  // is nevertheless compiler-owned.  Do not extend this fallback to arbitrary
+  // receivers: custom objects named `filter`/`map` remain effectful by default.
+  if (directReactive && (isIntrinsicCollection(receiver?.type) || receiver?.type?.kind === "any")) return true;
   const declaration = call.node.resolvedSignature?.declarationSource?.replace(/\\/g, "/");
   if (declaration) return /\/typescript\/lib\/lib\.[^/]+\.d\.ts$/i.test(declaration);
-  // A missing Component ambient type can leave direct state collections as
-  // `any` in isolated transforms. Preserve the established state-derived path;
-  // known custom signatures above are still rejected deterministically.
   return isIntrinsicCollection(receiver?.type);
 }
 

@@ -7,6 +7,21 @@ import { buildExactProvenance } from "./provenance.js";
 import { analyzeExpressionWrites } from "./expression-writes.js";
 
 describe("expression-backed component effects", () => {
+  it("indexes same-named components in distinct lexical scopes without overwriting either site", () => {
+    clearExpressionProjectCache();
+    const module = expressionModuleFor("ScopedComponents.tsx", `
+      function left() { function Card() { return () => <p>left</p>; } return Card; }
+      function right() { function Card() { return () => <p>right</p>; } return Card; }
+    `);
+    const tasks = analyzeExpressionTasks(module);
+    const jsx = analyzeExpressionJsx(module, buildExactProvenance(module), "ScopedComponents.tsx");
+    const plan = analyzeExpressionComponents(module, jsx, tasks);
+    const cards = [...plan.sites.values()].filter(site => site.name === "Card");
+    expect(cards).toHaveLength(2);
+    expect(new Set(cards.map(site => site.id)).size).toBe(2);
+    expect(plan.sites.get("Card")).toBeUndefined();
+  });
+
   it("classifies JSX, browser, server import, and task placement effects", () => {
     clearExpressionProjectCache();
     const module = expressionModuleFor("ComponentEffects.tsx", `import { readFile } from "node:fs";

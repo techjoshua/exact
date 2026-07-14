@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import path from "node:path";
 import {
+  cloneWithVariables,
   createExpressionProject,
   expressions,
   lowerModuleText,
-  rewriteModule
+  rewriteModule,
+  validateExpressionTree
 } from "./index.js";
 
 const root = path.resolve(import.meta.dirname, "../../..");
@@ -99,6 +101,15 @@ export function total(items: number[]) {
     expect(totalEffects).toEqual(["read", "write"]);
   });
 
+  it("distinguishes member storage reads from property writes", () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__member_effects.ts");
+    const module = project.updateModule(filename, "const model = { value: 1 }; model.value = 2;");
+    const assignment = module.walk().assignments().single();
+    expect(module.dependenciesOf(assignment).map(variable => variable.name)).toEqual(["model"]);
+    expect(module.writesOf(assignment).map(variable => variable.name)).toEqual(["value"]);
+  });
+
   it("builds immutable control-flow graphs with branch and terminal edges", () => {
     const project = createExpressionProject({ tsconfigPath: kanbanConfig });
     const filename = path.join(root, "apps/kanban/src/__control_flow.ts");
@@ -131,6 +142,18 @@ export function total(items: number[]) {
     expect(flow("ContinueStatement")[0]?.successors.length).toBe(1);
     expect(flow("BreakStatement").some(node => node.successors.length === 1)).toBe(true);
     expect(flow("ReturnStatement").some(node => node.successors.some(id => graph.byId.get(id)?.expression.kind === "ExpressionStatement"))).toBe(true);
+  });
+
+  it("models catch paths as exceptions rather than normal branches", () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__expressions_exception_edges.ts");
+    const module = project.updateModule(filename, `function run() { try { work(); } catch { recover(); } finally { cleanup(); } }`);
+    const graph = module.controlFlowOf(module.walk().functions().single());
+    const work = graph.nodes.find(node => node.expression.kind === "ExpressionStatement" && node.expression.text?.includes("work()"))!;
+    const catchEdge = work.successorEdges.find(edge => edge.kind === "exception");
+    expect(catchEdge).toBeDefined();
+    expect(graph.byId.get(catchEdge!.target)?.expression.text).toContain("recover()");
+    expect(graph.nodes.some(node => node.successorEdges.some(edge => edge.kind === "finally"))).toBe(true);
   });
 
   it("constructs, emits, and binds typed modules programmatically", async () => {
@@ -210,6 +233,7 @@ export function total(items: number[]) {
     expect(bound.diagnostics.filter(diagnostic => diagnostic.severity === "error")).toEqual([]);
     const multiplyArrow = bound.walk().functions().where(ref => ref.node.kind === "ArrowFunction").single();
     expect(bound.capturesOf(multiplyArrow).map(variable => variable.name)).toContain("factor");
+    expect(multiplyArrow.node.captures.map(variable => variable.name)).toContain("factor");
   });
 
   it("rewrites source losslessly outside the selected node", () => {
@@ -277,6 +301,34 @@ export function total(items: number[]) {
       rewriter.replaceTextWhere(reference => reference.node.kind === "BinaryExpression", () => "3");
       rewriter.replaceTextWhere(reference => reference.node.text === "1", () => "4");
     })).toThrow(/Overlapping expression rewrites/);
+  });
+
+  it("requires rebinding between independent span-based rewrite passes", () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__sequential_rewrite.ts");
+    const module = project.updateModule(filename, "const value = 1;");
+    const first = rewriteModule(module, rewriter => rewriter.replaceTextWhere(reference => reference.node.text === "1", () => "2"));
+    expect(() => rewriteModule(first, rewriter => rewriter.replaceTextWhere(reference => reference.node.text === "value", () => "other")))
+      .toThrow(/Rebind an unbound rewritten module/);
+  });
+
+  it("requires complete clone remapping and allocates unique clone identities", () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__clone_variables.ts");
+    const module = project.updateModule(filename, "const value = 1; void value;");
+    const reference = module.walk().references().where(candidate => candidate.name === "value").toArray().at(-1)!;
+    expect(() => cloneWithVariables(reference.node, new Map())).toThrow(/explicit mapping for value/);
+    const variables = new Map([[reference.variable!, reference.variable!]]);
+    expect(cloneWithVariables(reference.node, variables).id).not.toBe(cloneWithVariables(reference.node, variables).id);
+  });
+
+  it("resets loop legality when validating a nested function", () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__nested_control_validation.ts");
+    const module = project.updateModule(filename, "while (true) { function nested() { break; continue; } }");
+    expect(validateExpressionTree(module.rootNode, filename).map(diagnostic => diagnostic.code)).toEqual(expect.arrayContaining([
+      "EXPR_BREAK_OUTSIDE_CONTROL", "EXPR_CONTINUE_OUTSIDE_LOOP"
+    ]));
   });
 
   it("maps parsed, generated, and rebound lines back to immutable original source", async () => {

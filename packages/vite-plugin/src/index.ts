@@ -1,5 +1,7 @@
 import {
   exactExportConditions,
+  clearExpressionProjectCache,
+  invalidateExpressionModule,
   parseExactCompilerManifest,
   resolveExactArtifactImport,
   transformSource,
@@ -28,6 +30,7 @@ export type ExactPlugin = {
   config?(): { resolve: { conditions: string[] } };
   resolveId?(source: string, importer?: string): string | null;
   transform(code: string, id: string): { code: string; map: unknown } | null;
+  handleHotUpdate?(context: { file: string }): void;
 };
 
 /** Creates the Vite plugin that transforms eXact JSX and resolves .exact facade imports. */
@@ -44,6 +47,12 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
     },
     resolveId(source, importer) {
       return resolveExactArtifactImport(source, importer, options.target === "server" ? "server" : "client")?.id ?? null;
+    },
+    handleHotUpdate(context) {
+      // Semantic changes can originate in imported .ts/.d.ts files or the
+      // project config even when that file itself contains no JSX.
+      if (/(?:^|[\\/])tsconfig(?:\.[^\\/]+)?\.json$/i.test(context.file)) clearExpressionProjectCache();
+      else invalidateExpressionModule(context.file);
     },
     transform(code, id) {
       if (!shouldTransform(id, code, options)) return null;

@@ -26,6 +26,7 @@ export interface ExpressionTaskPlan {
   readonly setupTasks: ReadonlyMap<string, ExpressionSetupTask>;
   readonly signalCalls: ReadonlyMap<string, ExpressionTaskSignalCall>;
   readonly diagnostics: readonly string[];
+  readonly diagnosticLocations: readonly Readonly<{ message: string; start: number }>[];
 }
 
 export interface ExpressionLifecycleListener {
@@ -68,9 +69,10 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
   const lifecycleListeners = new Map<string, ExpressionLifecycleListener>();
   const setupTasks = new Map<string, ExpressionSetupTask>();
   const signalCalls = new Map<string, ExpressionTaskSignalCall>();
-  const diagnostics: string[] = [];
+  const planDiagnostics: string[] = [];
+  const diagnosticLocations: Array<Readonly<{ message: string; start: number }>> = [];
   const writes = analyzeExpressionWrites(module);
-  const localVariables = new Set(module.writesOf(module.root));
+  const localVariables = moduleLocalVariables(module);
   for (const task of module.walk().calls().where(isTaskCall)) {
     if (!task.node.span) continue;
     const work = task.arguments.at(-1);
@@ -144,6 +146,12 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
     if (requestedPlacement === "client" && serverEffects) diagnostics.push("error: this.task.client() cannot reference server-only imports");
     if (requestedPlacement) diagnostics.push(`task placement forced by this.task.${requestedPlacement}()`);
     diagnostics.push(...resourceDiagnostics);
+    // The plan-level channel is consumed before emission and must include every
+    // fatal site diagnostic. Informational placement notes remain site-local.
+    for (const diagnostic of diagnostics) if (diagnostic.startsWith("error:")) {
+      planDiagnostics.push(diagnostic);
+      diagnosticLocations.push(Object.freeze({ message: diagnostic, start: task.node.span.start }));
+    }
     const component = task.ancestors().functions().first(owner => owner.node.kind === "FunctionDeclaration" && /^[A-Z]/.test(owner.node.name ?? ""))?.node.name;
     const site = Object.freeze({
       ...(component ? { component } : {}),
@@ -177,7 +185,9 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
         const site = Object.freeze({ start: call.node.span.start, end: call.node.span.end, ...resource });
         resources.set(writeSiteKey(site.start, site.end), site);
       } else if (ownership === "escape") {
-        diagnostics.push(`error: setup-created ${resource.description ?? resource.kind} escapes component lifecycle ownership; move its creation into this.task.client() or dispose it explicitly`);
+        const message = `error: setup-created ${resource.description ?? resource.kind} escapes component lifecycle ownership; move its creation into this.task.client() or dispose it explicitly`;
+        planDiagnostics.push(message);
+        diagnosticLocations.push(Object.freeze({ message, start: call.node.span.start }));
       }
     }
     if (signalCall) {
@@ -187,7 +197,9 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
     if (!listenerCall && !ownResource && !signalCall) continue;
     const expression = directSetupExpression(call);
     if (!expression?.node.span) {
-      diagnostics.push(`error: setup-created ${resource?.description ?? resource?.kind ?? "cancellable operation"} cannot be owned without changing its expression result; move it into this.task.client()`);
+      const message = `error: setup-created ${resource?.description ?? resource?.kind ?? "cancellable operation"} cannot be owned without changing its expression result; move it into this.task.client()`;
+      planDiagnostics.push(message);
+      diagnosticLocations.push(Object.freeze({ message, start: call.node.span.start }));
       continue;
     }
     const setup = Object.freeze({ component: owner.node.name!, start: expression.node.span.start, end: expression.node.span.end });
@@ -197,7 +209,23 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
       lifecycleListeners.set(writeSiteKey(listener.start, listener.end), listener);
     }
   }
-  return Object.freeze({ sites, resources, lifecycleListeners, setupTasks, signalCalls, diagnostics: Object.freeze(diagnostics) });
+  return Object.freeze({
+    sites, resources, lifecycleListeners, setupTasks, signalCalls,
+    diagnostics: Object.freeze(planDiagnostics),
+    diagnosticLocations: Object.freeze(diagnosticLocations)
+  });
+}
+
+function moduleLocalVariables(module: BoundModule): Set<Variable> {
+  return new Set(module.walk().references()
+    .toArray()
+    .map(reference => reference.variable)
+    // Scope objects for declarations from lib.d.ts are projected into the
+    // current module's scope graph so that references remain navigable.  The
+    // canonical declaration identity, unlike that projected scope, retains the
+    // declaration's real source file and is therefore the reliable locality
+    // test.
+    .filter((variable): variable is Variable => !!variable && variable.id.startsWith(`${module.filename}:`)));
 }
 
 function isOwnedListener(call: NodeRef, localVariables: ReadonlySet<Variable>): boolean {

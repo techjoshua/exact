@@ -168,6 +168,12 @@ describe("@exact/compiler", () => {
       this.task.client(() => { this.state.socket = new WebSocket("/events"); });
     }`, { filename: "EscapingResource.tsx" })).toThrow("WebSocket escapes its task generation");
   });
+
+  it("reports task ownership failures at their source location", () => {
+    expect(() => transform(`function Panel(this: Component<{ socket?: WebSocket }>) {
+      this.task.client(() => { this.state.socket = new WebSocket("/events"); });
+    }`, { filename: "LocatedResource.tsx" })).toThrow(/LocatedResource\.tsx:2:\d+ - error:/);
+  });
   it("rejects setup-time state snapshots captured by async callbacks", () => {
     expect(() => transform(`function Panel(this: Component<{ title: string }>) { const title = this.state.title; setTimeout(() => console.log(title)); return () => <p />; }`, { filename: "Panel.tsx" }))
       .toThrow("setup-time state snapshot");
@@ -1037,6 +1043,14 @@ describe("@exact/compiler", () => {
     expect(output).toContain("const __exactVNode = 1");
   });
 
+  it("scans complete JSX expressions before recognizing tag boundaries", () => {
+    const source = '<View value={{ compare: 2 > 1, text: `${`inner ${3 > 2}`}`, match: (() => { return /[>]/.test(">") })() }} {selected} />';
+    const output = preprocessPropPunning(source);
+    expect(output).toContain("compare: 2 > 1");
+    expect(output).toContain("/[>]/.test");
+    expect(output).toContain("selected={selected}");
+  });
+
   it("returns source maps from transformSource when requested", () => {
     const result = transformSource("const view = <span />;", {
       filename: "view.tsx",
@@ -1049,7 +1063,10 @@ describe("@exact/compiler", () => {
       sourcesContent: ["const view = <span />;"],
       names: []
     });
-    expect(result.map?.mappings).toContain("AAAA");
+    expect(result.map?.mappings).toBeTruthy();
+    // The generated helper import has no source location; the first retained
+    // token therefore need not map to generated column zero ("AAAA").
+    expect(result.map?.mappings.split(";").some(line => line.length > 0)).toBe(true);
   });
 
   it("compiles a single TSX file to an output directory", async () => {

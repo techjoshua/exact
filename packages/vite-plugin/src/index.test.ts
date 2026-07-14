@@ -139,4 +139,10 @@ describe("@exact/vite-plugin", () => {
 
     expect(() => plugin.transform("const view = <span>;", "/src/broken.tsx")).toThrow(/broken\.tsx:1:\d+/);
   });
+
+  it("invalidates semantic state for source and project configuration updates", () => {
+    const plugin = exact();
+    expect(() => plugin.handleHotUpdate?.({ file: "/src/model.ts" })).not.toThrow();
+    expect(() => plugin.handleHotUpdate?.({ file: "/project/tsconfig.json" })).not.toThrow();
+  });
 });

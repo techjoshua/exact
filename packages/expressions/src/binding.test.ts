@@ -63,4 +63,27 @@ describe("@exact/expressions binding", () => {
     expect(() => project.emit(module)).toThrow(/__expressions_type_error\.ts:1:7 - TS2322:/);
     expect(module.emit().code).toContain('"wrong"');
   });
+
+  it("retains complete recursive package-owned type graphs", () => {
+    const project = createExpressionProject({ tsconfigPath: config });
+    const filename = path.join(root, "apps/kanban/src/__expressions_recursive_type.ts");
+    const module = project.updateModule(filename, `interface Link { value: string; next?: Link } const link: Link = { value: "root" };`);
+    const link = module.walk().references().where(reference => reference.name === "link").first()!.variable!.type!;
+    const next = link.propertyTypes.find(property => property.name === "next")!.type;
+    const recursive = next.unionMembers.find(member => member.display === "Link") ?? next;
+    expect(recursive.properties).toEqual(expect.arrayContaining(["value", "next"]));
+  });
+
+  it("delegates structural assignability to the current TypeChecker generation", () => {
+    const project = createExpressionProject({ tsconfigPath: config });
+    const filename = path.join(root, "apps/kanban/src/__expressions_assignability.ts");
+    const module = project.updateModule(filename, `
+      const source = { value: 1 };
+      let compatible: { value: number };
+      let incompatible: { value: number; required: string };
+    `);
+    const type = (name: string) => module.walk().references().where(reference => reference.name === name).first()!.variable!.type!;
+    expect(project.isAssignable(type("source"), type("compatible"))).toBe(true);
+    expect(project.isAssignable(type("source"), type("incompatible"))).toBe(false);
+  });
 });

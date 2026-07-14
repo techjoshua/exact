@@ -148,17 +148,24 @@ export function transformSource(source: string, options: TransformOptions = {}):
     }).join("\n"));
   }
   const manifest = analyzeSource(normalized, { filename, importedManifests: options.importedManifests });
-  const semanticErrors = manifest.diagnostics.filter(diagnostic => diagnostic.startsWith("error:"));
-  if (semanticErrors.length) {
-    throw new Error(semanticErrors.join("\n"));
-  }
   const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
   const provenance = buildExactProvenance(expressionModule);
   const expressionDerived = analyzeExpressionDerived(expressionModule, provenance);
   const expressionWrites = analyzeExpressionWrites(expressionModule);
   const expressionTasks = analyzeExpressionTasks(expressionModule);
   const taskErrors = expressionTasks.diagnostics.filter(diagnostic => diagnostic.startsWith("error:"));
-  if (taskErrors.length) throw new Error(taskErrors.join("\n"));
+  if (taskErrors.length) {
+    throw new Error(taskErrors.map(message => {
+      const start = expressionTasks.diagnosticLocations.find(candidate => candidate.message === message)?.start;
+      if (start === undefined) return `${filename} - ${message}`;
+      const location = sourceFile.getLineAndCharacterOfPosition(start);
+      return `${filename}:${location.line + 1}:${location.character + 1} - ${message}`;
+    }).join("\n"));
+  }
+  const semanticErrors = manifest.diagnostics.filter(diagnostic => diagnostic.startsWith("error:"));
+  if (semanticErrors.length) {
+    throw new Error(semanticErrors.map(message => `${filename} - ${message}`).join("\n"));
+  }
   const expressionJsx = analyzeExpressionJsx(expressionModule, provenance, filename);
   const expressionComponents = analyzeExpressionComponents(expressionModule, expressionJsx, expressionTasks, provenance, expressionWrites);
   const emissionComponentInfo = new Map<string, ExactImportedComponentIR>();
@@ -193,12 +200,12 @@ function emitExpressionRewrite(module: BoundModule, generated: string): string {
   const baselineErrors = module.diagnostics.filter(diagnostic => diagnostic.severity === "error");
   const existing = new Map<string, number>();
   for (const diagnostic of baselineErrors) {
-    const key = diagnosticIdentity(diagnostic);
+    const key = diagnosticIdentity(diagnostic, module.source);
     existing.set(key, (existing.get(key) ?? 0) + 1);
   }
   const introduced = rebound.diagnostics.filter(diagnostic => {
     if (diagnostic.severity !== "error") return false;
-    const key = diagnosticIdentity(diagnostic);
+    const key = diagnosticIdentity(diagnostic, rebound.source);
     const count = existing.get(key) ?? 0;
     if (count) {
       existing.set(key, count - 1);
@@ -210,8 +217,16 @@ function emitExpressionRewrite(module: BoundModule, generated: string): string {
   return rebound.emit().code;
 }
 
-function diagnosticIdentity(diagnostic: { code: string; message: string; span?: { line: number; column: number } }): string {
-  return `${diagnostic.code}:${diagnostic.message}`;
+function diagnosticIdentity(
+  diagnostic: { code: string; message: string; span?: { start: number; end: number } },
+  source: string
+): string {
+  if (!diagnostic.span) return `${diagnostic.code}:${diagnostic.message}:<global>`;
+  const lineStart = source.lastIndexOf("\n", diagnostic.span.start) + 1;
+  const lineEnd = source.indexOf("\n", diagnostic.span.end);
+  const line = source.slice(lineStart, lineEnd < 0 ? source.length : lineEnd).trim().replace(/\s+/g, " ");
+  const token = source.slice(diagnostic.span.start, diagnostic.span.end);
+  return `${diagnostic.code}:${diagnostic.message}:${token}:${line}`;
 }
 
 function isSyntheticHelperDiagnostic(

@@ -28,6 +28,7 @@ export interface ExpressionClientIslandSite {
 }
 
 export interface ExpressionComponentSite {
+  readonly id: string;
   readonly name: string;
   readonly start: number;
   readonly end: number;
@@ -77,7 +78,7 @@ export function createExpressionComponents(
     }
     const placement = site.clientEffects && site.serverEffects ? "isomorphic" : site.serverEffects ? "server" : site.clientEffects ? "client" : "server";
     return {
-      id: stableId(filename, site.name),
+      id: stableId(filename, site.id),
       name: site.name,
       exported: false,
       placement,
@@ -103,8 +104,10 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
     .where(reference => reference.node.kind === "FunctionDeclaration" && !!reference.node.span && /^[A-Z]/.test(reference.node.name ?? ""))
     .toArray();
   const componentNodes = new Set(components.map(component => component.node));
-  const localVariables = new Set(module.writesOf(module.root));
-  const sites = new Map<string, ExpressionComponentSite>();
+  const localVariables = new Set(module.walk().references().toArray()
+    .map(reference => reference.variable)
+    .filter((variable): variable is Variable => !!variable && variable.id.startsWith(`${module.filename}:`)));
+  const siteEntries: Array<readonly [string, ExpressionComponentSite]> = [];
 
   for (const component of components) {
     const splitBoundaries = new Set<string>();
@@ -211,7 +214,8 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
     }
 
     const span = component.node.span!;
-    sites.set(component.node.name!, Object.freeze({
+    siteEntries.push([component.node.id, Object.freeze({
+      id: component.node.id,
       name: component.node.name!,
       start: span.start,
       end: span.end,
@@ -225,9 +229,25 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
       contextSites: Object.freeze(contextSites),
       renders: Object.freeze(renders),
       clientIslands: Object.freeze(clientIslands)
-    }));
+    })]);
   }
-  return Object.freeze({ sites });
+  return Object.freeze({ sites: componentSiteMap(siteEntries) });
+}
+
+function componentSiteMap(entries: readonly (readonly [string, ExpressionComponentSite])[]): ReadonlyMap<string, ExpressionComponentSite> {
+  const primary = new Map(entries);
+  const names = new Map<string, ExpressionComponentSite | undefined>();
+  for (const [, site] of entries) names.set(site.name, names.has(site.name) ? undefined : site);
+  return Object.freeze({
+    get size() { return primary.size; },
+    get(key: string) { return primary.get(key) ?? names.get(key); },
+    has(key: string) { return primary.has(key) || names.get(key) !== undefined; },
+    entries: () => primary.entries(), keys: () => primary.keys(), values: () => primary.values(),
+    forEach(callback: (value: ExpressionComponentSite, key: string, map: ReadonlyMap<string, ExpressionComponentSite>) => void, thisArg?: unknown) {
+      primary.forEach((value, key) => callback.call(thisArg, value, key, this));
+    },
+    [Symbol.iterator]: () => primary[Symbol.iterator]()
+  });
 }
 
 function declarationDescription(kind: string): string {

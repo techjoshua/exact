@@ -56,7 +56,6 @@ export function preprocessPropPunning(source: string): string {
 function rewritePunnedPropsInTag(tag: string): string {
   let output = "";
   let index = 0;
-  let braceDepth = 0;
   let quote: "\"" | "'" | undefined;
 
   while (index < tag.length) {
@@ -82,7 +81,7 @@ function rewritePunnedPropsInTag(tag: string): string {
     }
 
     if (char === "{") {
-      if (braceDepth === 0 && isWhitespace(tag[index - 1] ?? "") && isIdentifierStart(tag[index + 1] ?? "")) {
+      if (isWhitespace(tag[index - 1] ?? "") && isIdentifierStart(tag[index + 1] ?? "")) {
         const identifierEnd = scanIdentifier(tag, index + 1);
         if (tag[identifierEnd] === "}") {
           const name = tag.slice(index + 1, identifierEnd);
@@ -91,14 +90,10 @@ function rewritePunnedPropsInTag(tag: string): string {
           continue;
         }
       }
-      braceDepth++;
-      output += char;
-      index++;
+      const end = scanJsExpression(tag, index);
+      output += tag.slice(index, end);
+      index = end;
       continue;
-    }
-
-    if (char === "}") {
-      braceDepth = Math.max(0, braceDepth - 1);
     }
 
     output += char;
@@ -110,7 +105,6 @@ function rewritePunnedPropsInTag(tag: string): string {
 
 function scanOpeningTag(source: string, start: number): number {
   let index = start + 1;
-  let braceDepth = 0;
   let quote: "\"" | "'" | undefined;
 
   while (index < source.length) {
@@ -133,22 +127,63 @@ function scanOpeningTag(source: string, start: number): number {
     }
 
     if (char === "{") {
-      braceDepth++;
-      index++;
+      const end = scanJsExpression(source, index);
+      if (end <= index) return -1;
+      index = end;
       continue;
     }
 
-    if (char === "}") {
-      braceDepth = Math.max(0, braceDepth - 1);
-      index++;
-      continue;
-    }
-
-    if (char === ">" && braceDepth === 0) return index + 1;
+    if (char === ">") return index + 1;
     index++;
   }
 
   return -1;
+}
+
+function scanJsExpression(source: string, start: number): number {
+  let depth = 0;
+  let index = start;
+  while (index < source.length) {
+    const char = source[index]!;
+    const next = source[index + 1];
+    if (char === "\"" || char === "'") { index = scanQuoted(source, index, char); continue; }
+    if (char === "`") { index = scanTemplate(source, index); continue; }
+    if (char === "/" && next === "/") { index = scanLineComment(source, index); continue; }
+    if (char === "/" && next === "*") { index = scanBlockComment(source, index); continue; }
+    if (char === "/" && isRegexStart(source, index)) { index = scanRegex(source, index); continue; }
+    if (char === "{") depth++;
+    else if (char === "}" && --depth === 0) return index + 1;
+    index++;
+  }
+  return -1;
+}
+
+function isRegexStart(source: string, slash: number): boolean {
+  let index = slash - 1;
+  while (index >= 0 && /\s/.test(source[index]!)) index--;
+  if (index < 0 || /[([{,:;=!?&|+\-*%^~<>]/.test(source[index]!)) return true;
+  if (!/[\w$]/.test(source[index]!)) return false;
+  let start = index;
+  while (start > 0 && /[\w$]/.test(source[start - 1]!)) start--;
+  return /^(?:return|throw|case|delete|void|typeof|instanceof|in|of|yield|await|new)$/.test(source.slice(start, index + 1));
+}
+
+function scanRegex(source: string, start: number): number {
+  let index = start + 1;
+  let characterClass = false;
+  while (index < source.length) {
+    const char = source[index]!;
+    if (char === "\\") { index += 2; continue; }
+    if (char === "[") characterClass = true;
+    else if (char === "]") characterClass = false;
+    else if (char === "/" && !characterClass) {
+      index++;
+      while (/[A-Za-z]/.test(source[index] ?? "")) index++;
+      return index;
+    }
+    index++;
+  }
+  return source.length;
 }
 
 function scanQuoted(source: string, start: number, quote: string): number {
@@ -174,6 +209,12 @@ function scanTemplate(source: string, start: number): number {
       continue;
     }
     if (char === "`") return index + 1;
+    if (char === "$" && source[index + 1] === "{") {
+      const end = scanJsExpression(source, index + 1);
+      if (end < 0) return source.length;
+      index = end;
+      continue;
+    }
     index++;
   }
   return source.length;

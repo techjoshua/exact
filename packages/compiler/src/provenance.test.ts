@@ -63,4 +63,17 @@ describe("expression-backed reactive provenance", () => {
     `, { filename: "custom-filter.tsx" });
     expect(graph.entries.find(entry => entry.variable.name === "unsafe")?.safeToReevaluate).toBe(false);
   });
+
+  it("propagates initializer dependencies through every destructured binding", () => {
+    clearExpressionProjectCache();
+    const graph = analyzeReactiveProvenance(`
+      export function View(props: { record: { first: string; nested: { second: string } } }) {
+        const { first, nested: { second } } = props.record;
+        return <p>{first}{second}</p>;
+      }
+    `, { filename: "destructured-provenance.tsx" });
+    expect(graph.entries.find(entry => entry.variable.name === "first")?.provenance).toBe("derived");
+    expect(graph.entries.find(entry => entry.variable.name === "second")?.provenance).toBe("derived");
+    expect(graph.cells).toHaveLength(2);
+  });
 });

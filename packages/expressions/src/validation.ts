@@ -23,8 +23,9 @@ export function validateExpressionTree(root: ExpressionNode, filename?: string):
     if (node.kind === "ContinueStatement" && context.loops === 0) report(node, "EXPR_CONTINUE_OUTSIDE_LOOP", "continue is only valid inside a loop");
     if (node.category === "jsx" && (node.kind === "JsxElement" || node.kind === "JsxSelfClosingElement") && !node.name) report(node, "EXPR_JSX_NAME", "JSX elements require a tag name");
 
-    const next = {
-      functions: context.functions + (isFunction(node.kind) ? 1 : 0),
+    const entersFunction = isFunction(node.kind);
+    const next = entersFunction ? { functions: context.functions + 1, loops: 0, switches: 0 } : {
+      functions: context.functions,
       loops: context.loops + (isLoop(node.kind) ? 1 : 0),
       switches: context.switches + (node.kind === "SwitchStatement" ? 1 : 0)
     };
