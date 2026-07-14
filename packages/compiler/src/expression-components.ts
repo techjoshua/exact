@@ -7,6 +7,7 @@ import { isServerOnlyModule } from "./imports.js";
 import { stableId } from "./ids.js";
 import type { ExactBoundaryIR, ExactComponentIR, ExactComponentRenderEdgeIR, ExactContextEffect, ExactImportedComponentIR, ExactTaskIR } from "./types.js";
 import { generatedComponentName, serverSlotBoundaryId } from "./names.js";
+import { expressionComponentIndex } from "./expression-component-index.js";
 
 export interface ExpressionRenderSite {
   readonly tag: string;
@@ -71,7 +72,7 @@ export function createExpressionComponents(
         diagnostics: [...task.diagnostics]
       }));
     const hasServerEffect = site.serverEffects;
-    const diagnostics = new Set<string>([...(safety.get(site.name) ?? []), ...site.diagnostics]);
+    const diagnostics = new Set<string>([...(safety.get(site.id) ?? safety.get(site.name) ?? []), ...site.diagnostics]);
     for (const task of componentTasks) for (const diagnostic of task.diagnostics) diagnostics.add(diagnostic);
     if (hasServerEffect) for (const global of site.browserGlobalsOutsideClientBoundary) {
       diagnostics.add(`error: browser-only global ${global} cannot be used in server-rendered component code; move it into a client island or client task`);
@@ -100,9 +101,8 @@ const browserGlobals = new Set(["window", "document", "navigator", "location", "
 
 /** Classifies component placement effects from canonical bindings and typed JSX. */
 export function analyzeExpressionComponents(module: BoundModule, jsx: ExpressionJsxPlan, tasks: ExpressionTaskPlan, provenance?: ExactProvenanceGraph, writes?: ExpressionWritePlan): ExpressionComponentPlan {
-  const components = module.walk().functions()
-    .where(reference => reference.node.kind === "FunctionDeclaration" && !!reference.node.span && /^[A-Z]/.test(reference.node.name ?? ""))
-    .toArray();
+  const componentIndex = expressionComponentIndex(module);
+  const components = componentIndex.functions;
   const componentNodes = new Set(components.map(component => component.node));
   const localVariables = new Set(module.walk().references().toArray()
     .map(reference => reference.variable)

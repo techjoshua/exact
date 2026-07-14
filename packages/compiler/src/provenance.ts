@@ -1,4 +1,5 @@
 import type { BoundModule, ExpressionNode, NodeRef, Variable } from "@exact/expressions";
+import { expressionComponentIndex } from "./expression-component-index.js";
 
 export type ExactReactiveProvenance = "state" | "props" | "context" | "derived" | "cell" | "snapshot" | "unknown";
 
@@ -28,10 +29,8 @@ export function buildExactProvenance(module: BoundModule): ExactProvenanceGraph 
   const hints = new Map<Variable, ExactReactiveProvenance>();
   const reevaluationSafety = new Map<Variable, boolean>();
 
-  for (const fn of module.walk().functions()) {
-    if (fn.node.kind === "FunctionDeclaration" && /^[A-Z]/.test(fn.node.name ?? "")) {
-      for (const parameter of fn.node.parameters) hints.set(parameter, parameter.name === "this" ? "state" : "props");
-    }
+  for (const fn of expressionComponentIndex(module).functions) {
+    for (const parameter of fn.node.parameters) hints.set(parameter, parameter.name === "this" ? "state" : "props");
   }
 
   for (const declaration of module.walk().ofKind("VariableDeclaration")) {

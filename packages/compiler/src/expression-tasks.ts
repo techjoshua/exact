@@ -2,6 +2,7 @@ import type { BoundModule, NodeRef, Variable } from "@exact/expressions";
 import { analyzeExpressionWrites, writeSiteKey } from "./expression-writes.js";
 import { isServerOnlyModule } from "./imports.js";
 import type { ExactContextEffect, ExactPlacement, ExactStateEffect } from "./types.js";
+import { expressionComponentIndex, isComponentThisVariable, isImplicitComponentThisVariable } from "./expression-component-index.js";
 
 export interface ExpressionTaskSite {
   readonly component?: string;
@@ -64,6 +65,7 @@ const browserGlobals = new Set(["window", "document", "navigator", "location", "
 
 /** Builds task effects from canonical references while retaining source spans for emission. */
 export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan {
+  const components = expressionComponentIndex(module);
   const sites = new Map<string, ExpressionTaskSite>();
   const resources = new Map<string, ExpressionTaskResource>();
   const lifecycleListeners = new Map<string, ExpressionLifecycleListener>();
@@ -140,7 +142,7 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
     const placement: ExactPlacement = requestedPlacement ?? (browserEffects ? "client" : serverEffects ? "server" : taskWrites.length ? "isomorphic" : "client");
     const diagnostics: string[] = [];
     const nearestFunction = task.ancestors().functions().first();
-    const componentOwner = taskComponentOwner(task);
+    const componentOwner = taskComponentOwner(task, components);
     if (componentOwner && nearestFunction?.node !== componentOwner.node) {
       diagnostics.push("error: this.task() must be registered directly during component setup, not inside render functions or callbacks");
     }
@@ -177,7 +179,7 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
   }
   for (const call of module.walk().calls()) {
     if (!call.node.span || insideTask(call) || insideClientJsx(call)) continue;
-    const owner = componentOwner(call);
+    const owner = components.owner(call);
     if (!owner || call.ancestors().functions().first()?.node !== owner.node) continue;
     const listenerCall = isOwnedListener(call, localVariables);
     const resource = taskResource(call, localVariables);
@@ -475,26 +477,15 @@ function uniqueContexts(effects: readonly ExactContextEffect[]): ExactContextEff
 function isTaskCall(call: NodeRef): boolean {
   const target = call.target;
   const taskTarget = target?.isMember("client") || target?.isMember("server") ? target.target : target;
-  return !!taskTarget?.isMember("task") && isComponentThisVariable(taskTarget.rootVariable);
+  return !!taskTarget?.isMember("task")
+    && (isComponentThisVariable(taskTarget.rootVariable) || isImplicitComponentThisVariable(taskTarget.rootVariable));
 }
 
-function taskComponentOwner(task: NodeRef): NodeRef | undefined {
+function taskComponentOwner(task: NodeRef, components: ReturnType<typeof expressionComponentIndex>): NodeRef | undefined {
   const receiver = task.target?.rootVariable;
-  if (!isComponentThisVariable(receiver)) return undefined;
-  return task.ancestors().functions().first(owner => owner.node.parameters.includes(receiver));
-}
-
-function componentOwner(reference: NodeRef): NodeRef | undefined {
-  return reference.ancestors().functions().first(owner => owner.node.kind === "FunctionDeclaration"
-    && owner.node.parameters.some(isComponentThisVariable));
-}
-
-function isComponentThisVariable(variable: Variable | undefined): variable is Variable {
-  if (!variable || variable.name !== "this" || variable.declarationKind !== "Parameter" || !variable.type) return false;
-  const properties = new Set(variable.type.properties);
-  return /(?:^|\W)Component(?:<|$)/.test(variable.type.display)
-    || ["state", "task", "map", "getContext", "setContext", "onMount", "onUnmount"]
-      .every(property => properties.has(property));
+  if (!isComponentThisVariable(receiver) && !isImplicitComponentThisVariable(receiver)) return undefined;
+  return task.ancestors().functions().first(owner => components.isComponent(owner)
+    && (isImplicitComponentThisVariable(receiver) || owner.node.parameters.includes(receiver)));
 }
 
 function isFunction(reference: NodeRef): boolean {

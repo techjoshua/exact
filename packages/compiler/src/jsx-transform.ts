@@ -11,7 +11,7 @@ import {
   isThisTaskCall
 } from "./calls.js";
 import { componentPlacementsFromInfo } from "./placement.js";
-import { collectExports, isComponentLikeFunction } from "./exports.js";
+import { collectExports } from "./exports.js";
 import { stableId } from "./ids.js";
 import {
   isServerOnlyImportDeclaration,
@@ -87,6 +87,9 @@ export function exactJsxTransformer(
     let sawTaskAwait = false;
     let setupTaskDepth = 0;
     const componentStack: string[] = [];
+    const componentSiteStack: string[] = [];
+    const componentSitesBySpan = new Map([...expressionComponents.sites.values()]
+      .map(site => [`${site.start}:${site.end}`, site] as const));
     const componentLocalStack: ComponentLocalInfo[] = [];
     const islandCounts = new Map<string, number>();
     const clientIslandDefinitions: ts.FunctionDeclaration[] = [];
@@ -107,12 +110,12 @@ export function exactJsxTransformer(
     const taskPlacementFor = (node: ts.Node): ExactPlacement => expressionTaskFor(node)?.placement ?? "unknown";
     const isClientComponentTag = (tag: ts.JsxTagNameExpression): boolean => componentPlacements.get(tag.getText(sourceFile)) === "client";
     const islandHasServerChildren = (node: ts.JsxElement): boolean => {
-      const owner = componentStack[componentStack.length - 1];
+      const owner = componentSiteStack[componentSiteStack.length - 1];
       const site = owner ? expressionComponents.sites.get(owner)?.clientIslands.find(island => island.start === node.getStart(sourceFile) && island.end === node.end) : undefined;
       return !!site && (site.serverOnlyChildren || site.childTags.some(tag => componentPlacements.get(tag) === "server"));
     };
     const clientIslandSiteFor = (node: ClientIslandElementNode): ExpressionClientIslandSite | undefined => {
-      const owner = componentStack[componentStack.length - 1];
+      const owner = componentSiteStack[componentSiteStack.length - 1];
       return owner ? expressionComponents.sites.get(owner)?.clientIslands.find(island => island.start === node.getStart(sourceFile) && island.end === node.end) : undefined;
     };
 
@@ -131,7 +134,10 @@ export function exactJsxTransformer(
           );
         }
       }
-      if (ts.isFunctionDeclaration(node) && node.name && isComponentLikeFunction(node)) {
+      const componentSite = ts.isFunctionDeclaration(node)
+        ? componentSitesBySpan.get(`${node.getStart(sourceFile)}:${node.end}`)
+        : undefined;
+      if (ts.isFunctionDeclaration(node) && node.name && componentSite) {
         const componentPlacement = componentPlacements.get(node.name.text);
         if (target === "server" && componentPlacements.get(node.name.text) === "client") {
           sawBoundary = true;
@@ -141,17 +147,21 @@ export function exactJsxTransformer(
           // In server-component mode, non-client components are removed from the
           // client artifact after their nested client islands have been collected.
           componentStack.push(node.name.text);
+          componentSiteStack.push(componentSite.id);
           componentLocalStack.push(collectComponentLocalInfo(node));
           ts.visitEachChild(node, visitor, context);
           componentLocalStack.pop();
           componentStack.pop();
+          componentSiteStack.pop();
           return factory.createEmptyStatement();
         }
         componentStack.push(node.name.text);
+        componentSiteStack.push(componentSite.id);
         componentLocalStack.push(collectComponentLocalInfo(node));
         const visited = ts.visitEachChild(node, visitor, context);
         componentLocalStack.pop();
         componentStack.pop();
+        componentSiteStack.pop();
         return visited;
       }
       if (ts.isVariableDeclaration(node) && node.initializer) {
@@ -236,8 +246,9 @@ export function exactJsxTransformer(
           }, derivedReactiveLocals, serverChildren);
         }
         if (target === "client" && jsxElementIsClientIsland(node.openingElement.attributes)) {
+          const ownerSite = componentSiteStack[componentSiteStack.length - 1];
           const owner = componentStack[componentStack.length - 1];
-          if (clientIslandDepth === 0 && (!owner || componentPlacements.get(owner) !== "client")) {
+          if (clientIslandDepth === 0 && (!ownerSite || componentPlacements.get(expressionComponents.sites.get(ownerSite)?.name ?? "") !== "client")) {
             const serverSlotChildren = islandHasServerChildren(node);
             clientIslandDepth++;
             const islandCaptures = clientIslandCaptures(clientIslandSiteFor(node), componentLocalStack[componentLocalStack.length - 1]);
@@ -257,8 +268,9 @@ export function exactJsxTransformer(
       if (ts.isJsxSelfClosingElement(node)) {
         sawJsx = true;
         if (target === "client" && jsxElementIsClientIsland(node.attributes)) {
+          const ownerSite = componentSiteStack[componentSiteStack.length - 1];
           const owner = componentStack[componentStack.length - 1];
-          if (clientIslandDepth === 0 && (!owner || componentPlacements.get(owner) !== "client")) {
+          if (clientIslandDepth === 0 && (!ownerSite || componentPlacements.get(expressionComponents.sites.get(ownerSite)?.name ?? "") !== "client")) {
             recordClientIslandDefinition(sourceFile, context, visitor, helpers, owner, islandCounts, node, clientIslandDefinitions, clientIslandCaptures(clientIslandSiteFor(node), componentLocalStack[componentLocalStack.length - 1]));
           }
         }

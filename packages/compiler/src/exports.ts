@@ -4,12 +4,6 @@ import type {
   ExportBinding
 } from "./types.js";
 
-/** Returns whether a function name follows the component naming convention. */
-export function isComponentLikeFunction(node: ts.FunctionDeclaration): boolean {
-  const first = node.name?.text[0];
-  return !!first && first === first.toUpperCase();
-}
-
 /** Collects exported names from a source file. */
 export function collectExports(_sourceFile: ts.SourceFile, semanticGraph: ExactSemanticGraphIR): Set<string> {
   return new Set([...collectExpressionExportBindings(semanticGraph).keys()]);

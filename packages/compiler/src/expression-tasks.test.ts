@@ -47,6 +47,17 @@ describe("expression-backed task effects", () => {
     expect([...plan.lifecycleListeners.values()])
       .toContainEqual(expect.objectContaining({ component: "panel" }));
   });
+  it("recognizes aliased Component receiver types structurally", () => {
+    clearExpressionProjectCache();
+    const module = expressionModuleFor("AliasedTaskOwner.tsx", `
+      import type { Component as ExactComponent } from "@exact/core";
+      type Owner<State extends object> = ExactComponent<State>;
+      function worker(this: Owner<{}>) { this.task.client(() => fetch("/ready")); }
+    `);
+
+    expect([...analyzeExpressionTasks(module).sites.values()])
+      .toContainEqual(expect.objectContaining({ component: "worker" }));
+  });
   it("plans direct setup resources and typed cancellable calls as owned client tasks", () => {
     clearExpressionProjectCache();
     const module = expressionModuleFor("SetupResources.tsx", `

@@ -1,5 +1,6 @@
 import type { BoundModule, NodeRef, Variable } from "@exact/expressions";
 import type { ExactProvenanceGraph } from "./provenance.js";
+import { expressionComponentIndex } from "./expression-component-index.js";
 
 const asynchronousFunctions = new Set(["setTimeout", "setInterval", "queueMicrotask", "requestAnimationFrame"]);
 const asynchronousMethods = new Set(["then", "catch", "finally"]);
@@ -9,9 +10,7 @@ const listenerDiagnostic = "error: browser-global addEventListener() must be reg
 
 /** Finds unsafe captures using canonical variables and generic capture analysis. */
 export function analyzeExpressionSafety(module: BoundModule, provenance: ExactProvenanceGraph): ReadonlyMap<string, readonly string[]> {
-  const components = module.walk().functions()
-    .where(reference => reference.node.kind === "FunctionDeclaration" && /^[A-Z]/.test(reference.node.name ?? ""))
-    .toArray();
+  const components = expressionComponentIndex(module).functions;
   const setupSnapshots = new Map<string, Set<Variable>>();
   for (const component of components) setupSnapshots.set(component.node.id, new Set());
 
@@ -34,9 +33,9 @@ export function analyzeExpressionSafety(module: BoundModule, provenance: ExactPr
     if (!owner) continue;
     const snapshots = setupSnapshots.get(owner.node.id)!;
     if (!module.capturesOf(callback).some(variable => snapshots.has(variable))) continue;
-    const values = diagnostics.get(owner.node.name!) ?? new Set<string>();
+    const values = diagnostics.get(owner.node.id) ?? new Set<string>();
     values.add(snapshotDiagnostic);
-    diagnostics.set(owner.node.name!, values);
+    diagnostics.set(owner.node.id, values);
   }
 
   const locallyWritten = new Set(module.writesOf(module.root));
@@ -50,12 +49,22 @@ export function analyzeExpressionSafety(module: BoundModule, provenance: ExactPr
     const owner = call.ancestors().functions().first(reference => setupSnapshots.has(reference.node.id));
     if (!owner || insideManagedTask(call) || insideClientJsx(call)) continue;
     if (nearestFunction?.node === owner.node) continue;
-    const values = diagnostics.get(owner.node.name!) ?? new Set<string>();
+    const values = diagnostics.get(owner.node.id) ?? new Set<string>();
     values.add(listenerDiagnostic);
-    diagnostics.set(owner.node.name!, values);
+    diagnostics.set(owner.node.id, values);
   }
 
-  return new Map([...diagnostics].map(([name, values]) => [name, Object.freeze([...values])]));
+  const output = new Map<string, readonly string[]>();
+  const names = new Map<string, string | undefined>();
+  for (const component of components) names.set(component.node.name!, names.has(component.node.name!) ? undefined : component.node.id);
+  for (const component of components) {
+    const values = diagnostics.get(component.node.id);
+    if (!values) continue;
+    const frozen = Object.freeze([...values]);
+    output.set(component.node.id, frozen);
+    if (names.get(component.node.name!) === component.node.id) output.set(component.node.name!, frozen);
+  }
+  return output;
 }
 
 function insideManagedTask(reference: NodeRef): boolean {

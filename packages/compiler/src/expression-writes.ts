@@ -1,4 +1,5 @@
 import { lowerModuleText, rewriteModule, type BoundModule, type NodeRef, type UnboundModule, type Variable } from "@exact/expressions";
+import { expressionComponentIndex } from "./expression-component-index.js";
 
 export interface ExpressionWriteResult {
   readonly module: BoundModule | UnboundModule;
@@ -41,7 +42,7 @@ export function lowerExpressionWrites(module: BoundModule): ExpressionWriteResul
 
   let count = 0;
   let generated = lowerModuleText(module, context => {
-    if (!insideComponent(context.reference)) return undefined;
+    if (!insideComponent(module, context.reference)) return undefined;
     const replacement = lowerWrite(module, context.reference, aliases, names, imports, aliasInfo.invalidAt, context.childText);
     if (replacement !== undefined) count++;
     return replacement;
@@ -62,7 +63,7 @@ export function analyzeExpressionWrites(module: BoundModule): ExpressionWritePla
   const aliases = aliasInfo.paths;
   const sites = new Map<string, ExpressionWriteSite>();
   for (const reference of module.walk()) {
-    if (!insideComponent(reference) || !reference.node.span) continue;
+    if (!insideComponent(module, reference) || !reference.node.span) continue;
     const path = writePath(module, reference, aliases, aliasInfo.invalidAt);
     if (!path?.length) continue;
     const site = Object.freeze({ start: reference.node.span.start, end: reference.node.span.end, path: Object.freeze(path), operation: writeOperation(reference) });
@@ -145,7 +146,7 @@ export function expressionStatePath(module: BoundModule, node: NodeRef["node"] |
   const reference = module.ref(node);
   if (reference.isMember()) {
     if (/^this\.state$/.test(node.text?.trim() ?? "")) {
-      const owner = componentOwner(reference);
+      const owner = expressionComponentIndex(module).owner(reference);
       const parameters = owner ? (owner.node as { parameters?: readonly Variable[] }).parameters : undefined;
       const componentThis = parameters?.find(parameter => parameter.name === "this");
       return componentThis && reference.rootVariable === componentThis ? [] : undefined;
@@ -204,12 +205,8 @@ function collectStateAliases(module: BoundModule): StateAliases {
   return Object.freeze({ paths: aliases, invalidAt });
 }
 
-function insideComponent(reference: NodeRef): boolean {
-  return componentOwner(reference) !== undefined;
-}
-
-function componentOwner(reference: NodeRef): NodeRef | undefined {
-  return reference.ancestors().functions().first(ancestor => ancestor.node.kind === "FunctionDeclaration" && /^[A-Z]/.test(ancestor.node.name ?? ""));
+function insideComponent(module: BoundModule, reference: NodeRef): boolean {
+  return expressionComponentIndex(module).owner(reference) !== undefined;
 }
 
 function insertAfterDirectives(source: string, importText: string): string {

@@ -1,6 +1,7 @@
 import type { BoundModule, NodeRef, Variable } from "@exact/expressions";
 import type { ExactProvenanceGraph } from "./provenance.js";
 import { writeSiteKey } from "./expression-writes.js";
+import { expressionComponentIndex } from "./expression-component-index.js";
 
 export interface ExpressionDerivedSite {
   readonly start: number;
@@ -27,6 +28,7 @@ export interface ExpressionDerivedPlan {
 
 /** Plans safe derived substitutions using canonical bindings and immutable provenance. */
 export function analyzeExpressionDerived(module: BoundModule, provenance: ExactProvenanceGraph): ExpressionDerivedPlan {
+  const components = expressionComponentIndex(module);
   const sites = new Map<string, ExpressionDerivedSite>();
   const declarations = new Map<string, ExpressionDerivedDeclaration>();
   for (const entry of provenance.entries) {
@@ -35,7 +37,7 @@ export function analyzeExpressionDerived(module: BoundModule, provenance: ExactP
     const initializer = declaration?.children().toArray().at(-1);
     if (!declaration || !initializer?.node.span || initializer.node === declaration.children().first()?.node) continue;
     const owner = declaration.ancestors().functions().first();
-    const cached = owner?.node.kind === "FunctionDeclaration" && /^[A-Z]/.test(owner.node.name ?? "");
+    const cached = components.isComponent(owner);
     if (declaration.node.span) {
       const planned = Object.freeze({
         variableId: entry.variable.id,

@@ -34,6 +34,18 @@ import {
 } from "./index.js";
 
 describe("@exact/compiler", () => {
+  it("uses one semantic component identity across analysis and emission", () => {
+    const result = transformSource(`export function panel(this: Component<{ count: number }>) {
+      this.state.count = 1;
+      window.addEventListener("resize", () => {});
+      return () => <p>{this.state.count}</p>;
+    }`, { filename: "lowercase-component.tsx" });
+
+    expect(result.manifest.components).toContainEqual(expect.objectContaining({ name: "panel" }));
+    expect(result.code).toContain("__exactWrite(this.state");
+    expect(result.code).toContain("__exactAbortOptions");
+    expect(result.code).toContain("__exactVNode(\"p\"");
+  });
   it("rejects task registration inside render functions and callbacks", () => {
     expect(() => transform(`function Panel(this: Component<{}>) {
       return () => { this.task(() => undefined); return <p />; };
