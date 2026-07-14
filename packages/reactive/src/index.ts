@@ -419,36 +419,32 @@ export function isReactive(value: unknown): boolean {
 
 /** Creates a plain recursive snapshot of reactive state for serialization or comparison. */
 export function snapshot<T>(value: T): T {
-  return snapshotValue(value, new WeakMap());
-}
-
-function snapshotValue<T>(value: T, seen: WeakMap<object, unknown>): T {
-  const plain = unwrap(value);
-
-  if (!plain || typeof plain !== "object") {
-    return plain;
-  }
-
-  const prior = seen.get(plain as object);
-  if (prior) return prior as T;
-
-  if (Array.isArray(plain)) {
-    const result: unknown[] = [];
-    seen.set(plain, result);
-    for (let index = 0; index < plain.length; index++) {
-      if (Reflect.has(plain, index)) result[index] = snapshotValue(plain[index], seen);
+  const root = unwrap(value);
+  if (!root || typeof root !== "object" || !Array.isArray(root) && !isPlainObject(root)) return root;
+  const output: any = Array.isArray(root) ? [] : Object.create(Object.getPrototypeOf(root));
+  const seen = new WeakMap<object, unknown>([[root, output]]);
+  const pending: Array<{ source: any; target: any }> = [{ source: root, target: output }];
+  while (pending.length) {
+    const { source, target } = pending.pop()!;
+    if (Array.isArray(source)) target.length = source.length;
+    const keys: PropertyKey[] = Array.isArray(source)
+      ? Array.from({ length: source.length }, (_, index) => index).filter(index => Reflect.has(source, index))
+      : Reflect.ownKeys(source);
+    for (const key of keys) {
+      const child = unwrap(source[key]);
+      if (!child || typeof child !== "object" || !Array.isArray(child) && !isPlainObject(child)) {
+        target[key] = child;
+        continue;
+      }
+      const prior = seen.get(child);
+      if (prior) { target[key] = prior; continue; }
+      const clone: any = Array.isArray(child) ? [] : Object.create(Object.getPrototypeOf(child));
+      seen.set(child, clone);
+      target[key] = clone;
+      pending.push({ source: child, target: clone });
     }
-    return result as T;
   }
-
-  if (!isPlainObject(plain)) return plain;
-  const result: Record<PropertyKey, unknown> = Object.create(Object.getPrototypeOf(plain));
-  seen.set(plain as object, result);
-  for (const key of Reflect.ownKeys(plain)) {
-    result[key] = snapshotValue((plain as Record<PropertyKey, unknown>)[key], seen);
-  }
-
-  return result as T;
+  return output as T;
 }
 
 /** Mutates an existing reactive object to match a partial next value while preserving nested proxies. */
@@ -509,8 +505,12 @@ function resolveReactivePath(target: object, path: readonly PropertyKey[]): { pa
 function reconcileReactiveValue(
   previous: unknown,
   next: unknown,
-  seen: ReconcilePairs
+  seen: ReconcilePairs,
+  depth = 0
 ): boolean {
+  // Deep payloads fall back to replacing the remaining subtree. This keeps
+  // writes stack-safe without discarding reconciliation already completed above it.
+  if (depth > 100) return false;
   const oldValue = unwrap(previous);
   const nextValue = unwrap(next);
   if (Object.is(oldValue, nextValue)) return true;
@@ -532,7 +532,7 @@ function reconcileReactiveValue(
   const current = previous as Record<PropertyKey, unknown>;
   if (Array.isArray(oldValue) && Array.isArray(nextValue)) {
     const registration = listKeyExtractors.get(oldValue);
-    if (registration) return reconcileKeyedArray(current, oldValue, nextValue, registration.key, seen);
+    if (registration) return reconcileKeyedArray(current, oldValue, nextValue, registration.key, seen, depth);
     const oldLength = oldValue.length;
     const previousItems = Array.from({ length: oldLength }, (_, index) =>
       Object.prototype.hasOwnProperty.call(current, index) ? current[index] : arrayHole);
@@ -554,12 +554,12 @@ function reconcileReactiveValue(
       if (previousItem === arrayHole) return incoming;
       const previousIdentity = structuredIdentity(previousItem);
       if (previousIdentity && retainedIdentities.has(previousIdentity)) return incoming;
-      return previousItem !== undefined && reconcileReactiveValue(previousItem, incoming, seen)
+      return previousItem !== undefined && reconcileReactiveValue(previousItem, incoming, seen, depth + 1)
         ? previousItem
         : incoming;
     });
     reconcileArrayItems(current, oldLength, nextItems);
-    reconcileArrayProperties(current, oldValue, nextValue, seen);
+    reconcileArrayProperties(current, oldValue, nextValue, seen, depth);
     return true;
   }
 
@@ -572,7 +572,7 @@ function reconcileReactiveValue(
     const oldDescriptor = Reflect.getOwnPropertyDescriptor(oldValue, key);
     if (!("value" in nextDescriptor)) return false;
     if (!oldDescriptor || !("value" in oldDescriptor)
-      || !reconcileReactiveValue(current[key], nextDescriptor.value, seen)) {
+      || !reconcileReactiveValue(current[key], nextDescriptor.value, seen, depth + 1)) {
       // defineProperty treats __proto__ as an ordinary key and preserves the
       // incoming descriptor shape without prototype mutation.
       Reflect.defineProperty(current, key, { ...nextDescriptor, value: unwrap(nextDescriptor.value) });
@@ -595,7 +595,8 @@ function reconcileArrayProperties(
   current: Record<PropertyKey, unknown>,
   oldValue: unknown[],
   nextValue: unknown[],
-  seen: ReconcilePairs
+  seen: ReconcilePairs,
+  depth: number
 ): void {
   const isExtra = (key: PropertyKey) => key !== "length" && !(typeof key === "string" && /^(0|[1-9]\d*)$/.test(key));
   for (const key of Reflect.ownKeys(oldValue)) {
@@ -607,7 +608,7 @@ function reconcileArrayProperties(
     const oldDescriptor = Reflect.getOwnPropertyDescriptor(oldValue, key);
     if (!("value" in nextDescriptor)) continue;
     if (!oldDescriptor || !("value" in oldDescriptor)
-      || !reconcileReactiveValue(current[key], nextDescriptor.value, seen)) {
+      || !reconcileReactiveValue(current[key], nextDescriptor.value, seen, depth + 1)) {
       Reflect.defineProperty(current, key, { ...nextDescriptor, value: unwrap(nextDescriptor.value) });
     }
   }
@@ -618,7 +619,8 @@ function reconcileKeyedArray(
   oldValue: unknown[],
   nextValue: unknown[],
   key: (item: unknown) => string,
-  seen: ReconcilePairs
+  seen: ReconcilePairs,
+  depth: number
 ): boolean {
   const existing = new Map<string, unknown>();
   for (let index = 0; index < oldValue.length; index++) {
@@ -635,7 +637,7 @@ function reconcileKeyedArray(
   const nextItems: unknown[] = [];
   for (const { id, incoming } of incomingEntries) {
     const previousItem = existing.get(id);
-    if (previousItem !== undefined && reconcileReactiveValue(previousItem, incoming, seen)) nextItems.push(previousItem);
+    if (previousItem !== undefined && reconcileReactiveValue(previousItem, incoming, seen, depth + 1)) nextItems.push(previousItem);
     else nextItems.push(incoming);
   }
   reconcileArrayItems(current, oldValue.length, nextItems);

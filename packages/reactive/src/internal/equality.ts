@@ -9,81 +9,48 @@ export function hasChanged(previous: unknown, next: unknown, unwrap: UnwrapValue
 
 /** Compares primitives, arrays, and plain objects after unwrapping reactive values. */
 export function structurallyEqual(left: unknown, right: unknown, unwrap: UnwrapValue): boolean {
-  return structurallyEqualInner(left, right, unwrap, new WeakMap(), new WeakMap());
-}
-
-function structurallyEqualInner(
-  left: unknown,
-  right: unknown,
-  unwrap: UnwrapValue,
-  leftToRight: WeakMap<object, object>,
-  rightToLeft: WeakMap<object, object>
-): boolean {
-  if (Object.is(left, right)) return true;
-
-  const unwrappedLeft = unwrap(left);
-  const unwrappedRight = unwrap(right);
-  if (Object.is(unwrappedLeft, unwrappedRight)) return true;
-
-  if (unwrappedLeft && unwrappedRight && typeof unwrappedLeft === "object" && typeof unwrappedRight === "object") {
-    const priorRight = leftToRight.get(unwrappedLeft);
-    const priorLeft = rightToLeft.get(unwrappedRight);
-    if (priorRight || priorLeft) return priorRight === unwrappedRight && priorLeft === unwrappedLeft;
-    leftToRight.set(unwrappedLeft, unwrappedRight);
-    rightToLeft.set(unwrappedRight, unwrappedLeft);
-  }
-
-  if (Array.isArray(unwrappedLeft) && Array.isArray(unwrappedRight)) {
-    if (unwrappedLeft.length !== unwrappedRight.length) return false;
-    if (Object.getPrototypeOf(unwrappedLeft) !== Object.getPrototypeOf(unwrappedRight)) return false;
-    const leftKeys = Reflect.ownKeys(unwrappedLeft).filter(key => key !== "length");
-    const rightKeys = Reflect.ownKeys(unwrappedRight).filter(key => key !== "length");
+  const leftToRight = new WeakMap<object, object>();
+  const rightToLeft = new WeakMap<object, object>();
+  const pending: Array<readonly [unknown, unknown]> = [[left, right]];
+  let visited = 0;
+  while (pending.length) {
+    if (++visited > 1_000_000) return false;
+    const [rawLeft, rawRight] = pending.pop()!;
+    if (Object.is(rawLeft, rawRight)) continue;
+    const currentLeft = unwrap(rawLeft);
+    const currentRight = unwrap(rawRight);
+    if (Object.is(currentLeft, currentRight)) continue;
+    if (!currentLeft || !currentRight || typeof currentLeft !== "object" || typeof currentRight !== "object") return false;
+    const priorRight = leftToRight.get(currentLeft);
+    const priorLeft = rightToLeft.get(currentRight);
+    if (priorRight || priorLeft) {
+      if (priorRight !== currentRight || priorLeft !== currentLeft) return false;
+      continue;
+    }
+    leftToRight.set(currentLeft, currentRight);
+    rightToLeft.set(currentRight, currentLeft);
+    const arrays = Array.isArray(currentLeft) && Array.isArray(currentRight);
+    const objects = isPlainObject(currentLeft) && isPlainObject(currentRight);
+    if (!arrays && !objects) return false;
+    if (Object.getPrototypeOf(currentLeft) !== Object.getPrototypeOf(currentRight)) return false;
+    if (arrays && currentLeft.length !== (currentRight as unknown[]).length) return false;
+    const leftKeys = Reflect.ownKeys(currentLeft).filter(key => !arrays || key !== "length");
+    const rightKeys = Reflect.ownKeys(currentRight).filter(key => !arrays || key !== "length");
     if (leftKeys.length !== rightKeys.length) return false;
     for (const key of leftKeys) {
-      if (!Object.prototype.hasOwnProperty.call(unwrappedRight, key)) return false;
-      if (!equalOwnDataProperty(unwrappedLeft, unwrappedRight, key, unwrap, leftToRight, rightToLeft)) return false;
+      if (!Object.prototype.hasOwnProperty.call(currentRight, key)) return false;
+      const leftDescriptor = Reflect.getOwnPropertyDescriptor(currentLeft, key);
+      const rightDescriptor = Reflect.getOwnPropertyDescriptor(currentRight, key);
+      if (!leftDescriptor || !rightDescriptor) return false;
+      if (!("value" in leftDescriptor) || !("value" in rightDescriptor)) {
+        if (leftDescriptor.get !== rightDescriptor.get || leftDescriptor.set !== rightDescriptor.set
+          || leftDescriptor.enumerable !== rightDescriptor.enumerable || leftDescriptor.configurable !== rightDescriptor.configurable) return false;
+        continue;
+      }
+      if (leftDescriptor.enumerable !== rightDescriptor.enumerable || leftDescriptor.configurable !== rightDescriptor.configurable
+        || leftDescriptor.writable !== rightDescriptor.writable) return false;
+      pending.push([leftDescriptor.value, rightDescriptor.value]);
     }
-    return true;
   }
-
-  if (isPlainObject(unwrappedLeft) && isPlainObject(unwrappedRight)) {
-    if (Object.getPrototypeOf(unwrappedLeft) !== Object.getPrototypeOf(unwrappedRight)) return false;
-    const leftKeys = Reflect.ownKeys(unwrappedLeft);
-    const rightKeys = Reflect.ownKeys(unwrappedRight);
-    if (leftKeys.length !== rightKeys.length) return false;
-
-    for (const key of leftKeys) {
-      if (!Object.prototype.hasOwnProperty.call(unwrappedRight, key)) return false;
-      if (!equalOwnDataProperty(unwrappedLeft, unwrappedRight, key, unwrap, leftToRight, rightToLeft)) return false;
-    }
-
-    return true;
-  }
-
-  return false;
-}
-
-function equalOwnDataProperty(
-  left: object,
-  right: object,
-  key: PropertyKey,
-  unwrap: UnwrapValue,
-  leftToRight: WeakMap<object, object>,
-  rightToLeft: WeakMap<object, object>
-): boolean {
-  const leftDescriptor = Reflect.getOwnPropertyDescriptor(left, key);
-  const rightDescriptor = Reflect.getOwnPropertyDescriptor(right, key);
-  if (!leftDescriptor || !rightDescriptor) return false;
-  // Structural comparison is intentionally side-effect free. Accessors are
-  // opaque values: only the exact same accessor descriptor is equal.
-  if (!("value" in leftDescriptor) || !("value" in rightDescriptor)) {
-    return leftDescriptor.get === rightDescriptor.get
-      && leftDescriptor.set === rightDescriptor.set
-      && leftDescriptor.enumerable === rightDescriptor.enumerable
-      && leftDescriptor.configurable === rightDescriptor.configurable;
-  }
-  if (leftDescriptor.enumerable !== rightDescriptor.enumerable
-    || leftDescriptor.configurable !== rightDescriptor.configurable
-    || leftDescriptor.writable !== rightDescriptor.writable) return false;
-  return structurallyEqualInner(leftDescriptor.value, rightDescriptor.value, unwrap, leftToRight, rightToLeft);
+  return true;
 }

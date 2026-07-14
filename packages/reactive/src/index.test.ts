@@ -2,6 +2,21 @@ import { describe, expect, it, vi } from "vitest";
 import { batch, computed, createEffectScope, flushSync, isReactive, mutateReactiveArray, peek, reactive, ref, registerReactiveListKey, snapshot, subscribe, unwrap, updateReactiveValue, watch, withEffectScope, writeReactive } from "./index.js";
 
 describe("@exact/reactive", () => {
+  it("compares, snapshots, and reconciles deeply nested values without overflowing the stack", () => {
+    const makeDeep = () => {
+      const root: Record<string, any> = {};
+      let cursor = root;
+      for (let index = 0; index < 2_000; index++) cursor = cursor.next = { index };
+      return root;
+    };
+    const state = reactive({ value: makeDeep() });
+    expect(() => writeReactive(state, ["value"], makeDeep())).not.toThrow();
+    const copy = snapshot(state.value);
+    let cursor: any = copy;
+    for (let index = 0; index < 2_000; index++) cursor = cursor.next;
+    expect(cursor.index).toBe(1_999);
+  });
+
   it("routes scheduler failures and leaves the watcher retryable", () => {
     const state = reactive({ count: 0 });
     const errors: unknown[] = [];
