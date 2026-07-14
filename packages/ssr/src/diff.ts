@@ -7,7 +7,7 @@ type ParsedHtmlNode = ParsedHtmlElement | ParsedHtmlText;
 type ParsedHtmlElement = {
   kind: "element";
   tagName: string;
-  attributes: Map<string, string>;
+  attributes: Map<string, string | true>;
   children: ParsedHtmlNode[];
 };
 
@@ -34,7 +34,7 @@ export function diffBoundaryHtml(
     const previous = parseSimpleElement(previousHtml);
     const next = parseSimpleElement(nextHtml);
     if (previous && next && previous.tagName === next.tagName) {
-      const targetId = next.attributes.get("data-exact-id") ?? previous.attributes.get("data-exact-id") ?? boundaryId;
+      const targetId = stringAttribute(next, "data-exact-id") ?? stringAttribute(previous, "data-exact-id") ?? boundaryId;
       const patches: ExactPatch[] = [];
       for (const [name, value] of next.attributes) {
         if (name === "data-exact-id") continue;
@@ -83,7 +83,7 @@ function diffExactElementHtml(previousHtml: string, nextHtml: string): ExactPatc
       if (name === "data-exact-id") continue;
       if (previous.attributes.get(name) !== value) {
         if (name === "style") {
-          const stylePatches = diffStyleAttribute(id, previous.attributes.get(name), value);
+          const stylePatches = diffStyleAttribute(id, stringValue(previous.attributes.get(name)), stringValue(value));
           if (!stylePatches) return undefined;
           patches.push(...stylePatches);
         } else {
@@ -95,7 +95,7 @@ function diffExactElementHtml(previousHtml: string, nextHtml: string): ExactPatc
       if (name === "data-exact-id") continue;
       if (!next.attributes.has(name)) {
         if (name === "style") {
-          const stylePatches = diffStyleAttribute(id, previous.attributes.get(name), undefined);
+          const stylePatches = diffStyleAttribute(id, stringValue(previous.attributes.get(name)), undefined);
           if (!stylePatches) return undefined;
           patches.push(...stylePatches);
         } else {
@@ -146,7 +146,7 @@ function nestedExactElementReplace(
 function containsExactElement(element: ParsedHtmlElement, id: string): boolean {
   for (const child of element.children) {
     if (child.kind !== "element") continue;
-    if (child.attributes.get("data-exact-id") === id || containsExactElement(child, id)) return true;
+    if (stringAttribute(child, "data-exact-id") === id || containsExactElement(child, id)) return true;
   }
   return false;
 }
@@ -160,8 +160,8 @@ function rootExactElementReplace(
   const previous = previousTree[0];
   const next = nextTree[0];
   if (previous?.kind !== "element" || next?.kind !== "element") return undefined;
-  const id = previous.attributes.get("data-exact-id");
-  if (!id || next.attributes.get("data-exact-id") !== id || previous.tagName !== next.tagName) return undefined;
+  const id = stringAttribute(previous, "data-exact-id");
+  if (!id || stringAttribute(next, "data-exact-id") !== id || previous.tagName !== next.tagName) return undefined;
   return [{ type: "replace", id, html: nextHtml }];
 }
 
@@ -226,7 +226,7 @@ function parseHtmlNodes(html: string): ParsedHtmlNode[] | undefined {
 
     const parent = stack[stack.length - 1]!;
     if (token.startsWith("</")) {
-      const tagName = token.slice(2, -1).trim().toLowerCase();
+      const tagName = token.slice(2, -1).trim();
       const current = stack.pop();
       if (!current || current === root || current.tagName !== tagName) return undefined;
       continue;
@@ -235,12 +235,12 @@ function parseHtmlNodes(html: string): ParsedHtmlNode[] | undefined {
     if (token.startsWith("<")) {
       const start = /^<([A-Za-z][A-Za-z0-9:-]*)([^<>]*?)(\/?)>$/.exec(token);
       if (!start) return undefined;
-      const tagName = start[1]!.toLowerCase();
+      const tagName = start[1]!;
       const attributes = parseSimpleAttributes(start[2] ?? "");
       if (!attributes) return undefined;
       const element: ParsedHtmlElement = { kind: "element", tagName, attributes, children: [] };
       parent.children.push(element);
-      if (!start[3] && !voidElements.has(tagName)) stack.push(element);
+      if (!start[3] && !voidElements.has(tagName.toLowerCase())) stack.push(element);
       continue;
     }
 
@@ -254,7 +254,7 @@ function parseHtmlNodes(html: string): ParsedHtmlNode[] | undefined {
 function collectExactElements(nodes: readonly ParsedHtmlNode[], output = new Map<string, ParsedHtmlElement>()): Map<string, ParsedHtmlElement> {
   for (const node of nodes) {
     if (node.kind !== "element") continue;
-    const id = node.attributes.get("data-exact-id");
+    const id = stringAttribute(node, "data-exact-id");
     if (id) output.set(id, node);
     collectExactElements(node.children, output);
   }
@@ -268,7 +268,7 @@ function collectExactElementEntries(
 ): { id: string; element: ParsedHtmlElement; depth: number }[] {
   for (const node of nodes) {
     if (node.kind !== "element") continue;
-    const id = node.attributes.get("data-exact-id");
+    const id = stringAttribute(node, "data-exact-id");
     if (id) output.push({ id, element: node, depth });
     collectExactElementEntries(node.children, output, depth + 1);
   }
@@ -330,7 +330,7 @@ function parseStyleAttribute(value: string): Map<string, string> | undefined {
 function normalizedHtmlShape(nodes: readonly ParsedHtmlNode[]): string {
   return nodes.map(node => {
     if (node.kind === "text") return `t:${node.value}`;
-    const id = node.attributes.get("data-exact-id");
+    const id = stringAttribute(node, "data-exact-id");
     const attrs = id ? `#${id}` : Array.from(node.attributes)
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([name, value]) => `${name}=${value}`)
@@ -344,9 +344,9 @@ function normalizedHtmlShape(nodes: readonly ParsedHtmlNode[]): string {
 
 function serializeParsedHtmlElement(element: ParsedHtmlElement): string {
   const attributes = Array.from(element.attributes)
-    .map(([name, value]) => value === "true" ? ` ${name}` : ` ${name}="${escapeAttr(value)}"`)
+    .map(([name, value]) => value === true ? ` ${name}` : ` ${name}="${escapeAttr(value)}"`)
     .join("");
-  if (voidElements.has(element.tagName)) return `<${element.tagName}${attributes}>`;
+  if (voidElements.has(element.tagName.toLowerCase())) return `<${element.tagName}${attributes}>`;
   return `<${element.tagName}${attributes}>${element.children.map(serializeParsedHtmlNode).join("")}</${element.tagName}>`;
 }
 
@@ -378,28 +378,40 @@ function isTextOnlyHtml(html: string): boolean {
 
 function decodeEscapedText(value: string): string {
   return value
+    .replace(/&#(\d+);/g, (_, decimal: string) => String.fromCodePoint(Number(decimal)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(Number.parseInt(hex, 16)))
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&");
 }
 
-function parseSimpleElement(html: string): { tagName: string; attributes: Map<string, string>; text: string } | undefined {
+function parseSimpleElement(html: string): { tagName: string; attributes: Map<string, string | true>; text: string } | undefined {
   const match = /^<([A-Za-z][A-Za-z0-9:-]*)([^>]*)>([^<>]*)<\/\1>$/.exec(html);
   if (!match) return undefined;
   const [, tagName, rawAttributes, text] = match;
   const attributes = parseSimpleAttributes(rawAttributes ?? "");
   if (!attributes) return undefined;
-  return { tagName: tagName!.toLowerCase(), attributes, text: text ?? "" };
+  return { tagName: tagName!, attributes, text: text ?? "" };
 }
 
-function parseSimpleAttributes(raw: string): Map<string, string> | undefined {
-  const attributes = new Map<string, string>();
+function parseSimpleAttributes(raw: string): Map<string, string | true> | undefined {
+  const attributes = new Map<string, string | true>();
   let rest = raw.trim();
   while (rest) {
     const match = /^([A-Za-z_:][A-Za-z0-9_:.-]*)(?:="([^"]*)")?/.exec(rest);
     if (!match) return undefined;
-    attributes.set(match[1]!, decodeEscapedText(match[2] ?? "true"));
+    attributes.set(match[1]!, match[2] === undefined ? true : decodeEscapedText(match[2]));
     rest = rest.slice(match[0].length).trim();
   }
   return attributes;
+}
+
+function stringAttribute(element: { attributes: Map<string, string | true> }, name: string): string | undefined {
+  return stringValue(element.attributes.get(name));
+}
+
+function stringValue(value: string | true | undefined): string | undefined {
+  return typeof value === "string" ? value : undefined;
 }

@@ -1,4 +1,3 @@
-import { cssEscape } from "./dom.js";
 import { hasOnlyKeys } from "./validation.js";
 import type {
   ClientIslandRegistry,
@@ -12,7 +11,7 @@ import type {
 
 /** Reads and validates the serialized hydration configuration embedded in the document. */
 export function readExactHydrationConfig(root: ParentNode = document, scriptId = "__exact_hydration"): ExactHydrationConfig {
-  const script = root.querySelector(`#${cssEscape(scriptId)}`);
+  const script = Array.from(root.querySelectorAll("script")).find(candidate => candidate.id === scriptId);
   if (!script) return {};
   try {
     const value = JSON.parse(script.textContent ?? "{}");
@@ -32,7 +31,7 @@ export function readExactHydrationConfig(root: ParentNode = document, scriptId =
 
 /** Combines explicit hydration options with the nearest serialized document config. */
 export function resolveHydrateOptions(container: Element, options: HydrateOptions): HydrateOptions {
-  const config = readExactHydrationConfig(hydrationConfigRoot(container));
+  const config = readNearestHydrationConfig(container);
   return {
     ...options,
     endpoint: options.endpoint ?? config.endpoint,
@@ -170,8 +169,14 @@ function sameJsonValue(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-function hydrationConfigRoot(container: Element): ParentNode {
-  return container.ownerDocument ?? (typeof document !== "undefined" ? document : container);
+function readNearestHydrationConfig(container: Element): ExactHydrationConfig {
+  for (let cursor: Element | null = container; cursor; cursor = cursor.parentElement) {
+    const config = readExactHydrationConfig(cursor);
+    if (Object.keys(config).length) return config;
+  }
+  const root = container.getRootNode();
+  if (root instanceof ShadowRoot) return readExactHydrationConfig(root);
+  return readExactHydrationConfig(container.ownerDocument ?? document);
 }
 
 function isStateContractMap(value: unknown): value is Record<string, ExactStateContract> {

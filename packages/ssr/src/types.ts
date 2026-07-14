@@ -21,6 +21,7 @@ export type RenderToStringOptions = {
   logger?: Logger;
   state?: unknown;
   maxTaskPasses?: number;
+  signal?: AbortSignal;
 };
 
 export type RenderToStringResult = {

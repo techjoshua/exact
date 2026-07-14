@@ -191,7 +191,7 @@ async function streamDocumentRender(
   if (pending.size) {
     // Initial streaming sends an early shell, drains observed tasks, then emits a
     // root replacement only if the settled tree differs from the shell.
-    await drainTasks(pending, options.maxTaskPasses ?? 10);
+    await drainTasks(pending, options.maxTaskPasses ?? 10, options.signal);
     final = await renderToStringAsync(vnode, options);
     if (final.html !== shell.html) {
       emit({ event: "replace", version: 1, id: options.rootId ?? "document", html: final.html });
@@ -587,7 +587,7 @@ async function renderComponentAsync(
       getComponentProps(vnode),
       parent
     ));
-    await drainTasks(pending, options.maxTaskPasses ?? 10);
+    await drainTasks(pending, options.maxTaskPasses ?? 10, options.signal);
     const children = renderInstance(instance, () => undefined);
     return markerPair(context, componentId, async () => renderChildrenAsync(context, children, instance, options));
   } catch (error) {
@@ -706,11 +706,27 @@ function componentName(type: VNode["type"]): string {
   return typeof type === "function" ? type.name || "anonymous" : String(type);
 }
 
-async function drainTasks(pending: Set<Promise<unknown>>, maxPasses: number): Promise<void> {
+async function drainTasks(pending: Set<Promise<unknown>>, maxPasses: number, signal?: AbortSignal): Promise<void> {
   for (let pass = 0; pending.size && pass < maxPasses; pass++) {
-    await Promise.all([...pending]);
+    if (signal?.aborted) throw signal.reason ?? new DOMException("SSR render aborted", "AbortError");
+    await awaitWithAbort(Promise.all([...pending]), signal);
   }
   if (pending.size) {
     throw new Error(`SSR task drain exceeded ${maxPasses} passes`);
+  }
+}
+
+async function awaitWithAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) throw signal.reason ?? new DOMException("SSR render aborted", "AbortError");
+  let abort!: () => void;
+  const aborted = new Promise<never>((_, reject) => {
+    abort = () => reject(signal.reason ?? new DOMException("SSR render aborted", "AbortError"));
+    signal.addEventListener("abort", abort, { once: true });
+  });
+  try {
+    return await Promise.race([promise, aborted]);
+  } finally {
+    signal.removeEventListener("abort", abort);
   }
 }

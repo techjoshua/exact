@@ -35,6 +35,7 @@ import {
   type LogScope
 } from "./logging.js";
 import { Cell, Dynamic, Fragment, ServerBoundary, ServerSlot, Text } from "./symbols.js";
+export { decodeExactMarkerPart, encodeExactMarkerPart, exactMarkerEnd, exactMarkerStart } from "./protocol.js";
 import {
   createCellVNode,
   createCompiledFragment,

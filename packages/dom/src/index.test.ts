@@ -33,6 +33,20 @@ describe("@exact/dom", () => {
     expect(container.querySelector("circle")?.namespaceURI).toBe("http://www.w3.org/2000/svg");
     expect(container.querySelector("mi")?.namespaceURI).toBe("http://www.w3.org/1998/Math/MathML");
   });
+
+  it("switches namespaces at SVG and MathML HTML integration points", () => {
+    const container = document.createElement("div");
+    render(createVNode("div", null,
+      createVNode("svg", null, createVNode("foreignObject", null, createVNode("div", { id: "svg-html" }))),
+      createVNode("math", null,
+        createVNode("mtext", null, createVNode("span", { id: "math-html" })),
+        createVNode("annotation-xml", { encoding: "text/html" }, createVNode("section", { id: "annotation-html" }))
+      )
+    ), container);
+    expect(container.querySelector("#svg-html")?.namespaceURI).toBe("http://www.w3.org/1999/xhtml");
+    expect(container.querySelector("#math-html")?.namespaceURI).toBe("http://www.w3.org/1999/xhtml");
+    expect(container.querySelector("#annotation-html")?.namespaceURI).toBe("http://www.w3.org/1999/xhtml");
+  });
   it("moves an adopted boundary as one start-to-end DOM range", () => {
     const container = document.createElement("div");
     const start = document.createComment("exact:component:0");

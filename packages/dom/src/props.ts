@@ -49,7 +49,12 @@ function setProp(root: Root, element: Element, key: string, value: unknown, prev
     const { type, capture } = eventTypeForProp(key);
     if (capture || isDirectEvent(type)) {
       const previousDirect = directEventHandlers.get(element)?.get(key);
-      if (previousDirect) element.removeEventListener(previousDirect.type, previousDirect.listener, previousDirect.capture);
+      if (previousDirect) {
+        element.removeEventListener(previousDirect.type, previousDirect.listener, previousDirect.capture);
+        const direct = directEventHandlers.get(element);
+        direct?.delete(key);
+        if (direct && !direct.size) directEventHandlers.delete(element);
+      }
       if (typeof value === "function") {
         const handler = value as EventListener;
         const listener: EventListener = event => preserveFocus(root, () => {

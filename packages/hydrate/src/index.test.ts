@@ -27,6 +27,26 @@ function ndjsonResponse(events: readonly unknown[]) {
 }
 
 describe("@exact/hydrate", () => {
+  it("keeps unrelated client ownership active after a server prop patch", () => {
+    let clicks = 0;
+    function Counter() {
+      return () => createVNode("button", { onClick: () => clicks++ }, "Click");
+    }
+    const container = document.createElement("div");
+    render(createVNode(Counter, null), container);
+    const button = container.querySelector("button")!;
+    button.setAttribute("data-exact-id", "server-label");
+    expect(applyPatches(container, [{ type: "prop", id: "server-label", name: "title", value: "patched" }])).toBe(true);
+    button.click();
+    expect(clicks).toBe(1);
+  });
+
+  it("rejects duplicate element protocol ids before mutating live DOM", () => {
+    const container = document.createElement("div");
+    container.innerHTML = '<p data-exact-id="same">A</p><p data-exact-id="same">B</p>';
+    expect(applyPatches(container, [{ type: "text", id: "same", value: "changed" }], { logger: noopLogger })).toBe(false);
+    expect(container.textContent).toBe("AB");
+  });
   it("validates an entire patch batch before mutating live DOM", () => {
     const container = document.createElement("div");
     container.innerHTML = "<!--exact:title-->Old<!--/exact:title-->";

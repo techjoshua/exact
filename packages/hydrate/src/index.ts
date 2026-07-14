@@ -1,4 +1,4 @@
-import { adoptComponentRoot, adoptStatic, render, unmount } from "@exact/dom";
+import { adoptComponentRoot, adoptStatic, namespaceForTag, render, unmount } from "@exact/dom";
 import { Fragment, Text, isVNode, type Child, type VNode } from "@exact/core";
 import type {
   ExactClient,
@@ -50,6 +50,7 @@ export function hydrate(vnode: VNode, container: Element, options: HydrateOption
       : adoptStaticTree(vnode, container) && adoptStatic(vnode, container, { logger: resolvedOptions.logger }))) {
       const root = createExactClient(container, resolvedOptions);
       roots.set(container, root);
+      container.setAttribute("data-exact-hydrated", "true");
       restoreFormState(container, formState);
       return root;
     }
@@ -64,6 +65,7 @@ export function hydrate(vnode: VNode, container: Element, options: HydrateOption
 
   const root = createExactClient(container, resolvedOptions);
   roots.set(container, root);
+  container.setAttribute("data-exact-hydrated", "true");
   return root;
 }
 
@@ -83,6 +85,8 @@ function matchesStaticVNode(vnode: VNode, node: Node): boolean {
   if (vnode.type === Text) return node.nodeType === Node.TEXT_NODE && node.textContent === String(vnode.props.value ?? "");
   if (typeof vnode.type !== "string" || !(node instanceof Element)) return false;
   if (node.tagName.toLowerCase() !== vnode.type.toLowerCase()) return false;
+  const expectedNamespace = namespaceForTag(vnode.type, node.parentElement ?? undefined) ?? "http://www.w3.org/1999/xhtml";
+  if (node.namespaceURI !== expectedNamespace) return false;
   const expectedAttributes = new Set<string>();
   for (const [name, value] of Object.entries(vnode.props)) {
     if (name === "key" || name === "children") continue;
@@ -127,6 +131,8 @@ function patchStaticVNode(vnode: VNode, node: Node): boolean {
     return true;
   }
   if (typeof vnode.type !== "string" || !(node instanceof Element) || node.tagName.toLowerCase() !== vnode.type.toLowerCase()) return false;
+  const expectedNamespace = namespaceForTag(vnode.type, node.parentElement ?? undefined) ?? "http://www.w3.org/1999/xhtml";
+  if (node.namespaceURI !== expectedNamespace) return false;
   const expectedAttributes = new Set<string>();
   for (const [name, value] of Object.entries(vnode.props)) {
     if (name === "key" || name === "children") continue;
@@ -185,9 +191,7 @@ function createStaticNodeFromChild(child: Child, parent?: Element): Node | undef
 function createStaticNode(vnode: VNode, parent?: Element): Node | undefined {
   if (vnode.type === Text) return document.createTextNode(String(vnode.props.value ?? ""));
   if (typeof vnode.type !== "string") return undefined;
-  const namespace = vnode.type === "svg" ? "http://www.w3.org/2000/svg"
-    : vnode.type === "math" ? "http://www.w3.org/1998/Math/MathML"
-      : parent?.localName === "foreignObject" ? undefined : parent?.namespaceURI;
+  const namespace = namespaceForTag(vnode.type, parent);
   const element = namespace && namespace !== "http://www.w3.org/1999/xhtml"
     ? document.createElementNS(namespace, vnode.type)
     : document.createElement(vnode.type);
@@ -280,6 +284,7 @@ export function createExactClient(container: Element, options: HydrateOptions = 
       if (disposed) return;
       disposed = true;
       roots.delete(container);
+      container.removeAttribute("data-exact-hydrated");
       requestVersions.get(container)?.clear();
       unmount(container);
     }
@@ -290,6 +295,8 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 type FormState = {
   node: Element;
   path: number[];
+  identity?: { attribute: string; value: string };
+  signature: string;
   value?: string;
   checked?: boolean;
   selected?: boolean[];
@@ -309,7 +316,13 @@ function captureFormState(container: Element): FormState[] {
           ? Array.from(control.options).some(option => option.selected !== option.defaultSelected)
           : control.textContent !== control.getAttribute("data-exact-ssr-text");
     if (!dirty && control !== active) return [];
-    const state: FormState = { node: control, path: nodePath(container, control), focused: control === active };
+    const state: FormState = {
+      node: control,
+      path: nodePath(container, control),
+      identity: formControlIdentity(control),
+      signature: formControlSignature(control),
+      focused: control === active
+    };
     if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) {
       state.value = control.value;
       if (control instanceof HTMLInputElement) state.checked = control.checked;
@@ -323,7 +336,14 @@ function captureFormState(container: Element): FormState[] {
 
 function restoreFormState(container: Element, states: readonly FormState[]): void {
   for (const state of states) {
-    const control = container.contains(state.node) ? state.node : nodeAtPath(container, state.path);
+    const identityMatch = state.identity
+      ? findUniqueElementByAttribute(container, state.identity.attribute, state.identity.value)
+      : undefined;
+    const pathMatch = nodeAtPath(container, state.path);
+    const candidate = container.contains(state.node) ? state.node : identityMatch ?? pathMatch;
+    const control = candidate instanceof Element && formControlSignature(candidate) === state.signature
+      ? candidate
+      : undefined;
     if (!(control instanceof Element)) continue;
     if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) {
       if (state.value !== undefined) control.value = state.value;
@@ -340,6 +360,29 @@ function restoreFormState(container: Element, states: readonly FormState[]): voi
       if (state.focused && control instanceof HTMLElement) control.focus({ preventScroll: true });
     }
   }
+}
+
+function formControlIdentity(element: Element): { attribute: string; value: string } | undefined {
+  for (const attribute of ["data-exact-control-id", "data-exact-id", "id"] as const) {
+    const value = element.getAttribute(attribute);
+    if (value) return { attribute, value };
+  }
+  return undefined;
+}
+
+function formControlSignature(element: Element): string {
+  const type = element instanceof HTMLInputElement ? element.type : "";
+  return `${element.namespaceURI ?? ""}|${element.localName}|${type}|${element.getAttribute("name") ?? ""}`;
+}
+
+function findUniqueElementByAttribute(container: Element, attribute: string, value: string): Element | undefined {
+  let match: Element | undefined;
+  for (const element of [container, ...Array.from(container.querySelectorAll(`[${attribute}]`))]) {
+    if (element.getAttribute(attribute) !== value) continue;
+    if (match) return undefined;
+    match = element;
+  }
+  return match;
 }
 
 function nodePath(root: Node, node: Node): number[] {
@@ -372,11 +415,16 @@ async function invokeAndApply(
 ): Promise<ExactInvocationResult> {
   let versions = requestVersions.get(container);
   if (!versions) { versions = new Map(); requestVersions.set(container, versions); }
+  const configuredBoundaries = options.actionBoundaries?.[id];
   const requestKeys = type === "refresh"
     ? [`boundary:${id}`]
-    : options.actionBoundaries?.[id]?.map(boundary => `boundary:${boundary}`) ?? [`action:${id}`];
+    : configuredBoundaries?.length
+      ? configuredBoundaries.map(boundary => `boundary:${boundary}`)
+      : [`action:${id}`];
   const requestVersion = Math.max(0, ...requestKeys.map(key => versions!.get(key) ?? 0)) + 1;
   for (const key of requestKeys) versions.set(key, requestVersion);
+  const requestOrdinal = (versions.get("request") ?? 0) + 1;
+  versions.set("request", requestOrdinal);
   const operation: ExactInvocationRequest = {
     type,
     id,
@@ -414,12 +462,23 @@ async function invokeAndApply(
     });
     return result;
   }
-  const patchesApplied = result.patches ? applyPatches(container, result.patches, options) : true;
+  let patchesApplied = result.patches ? applyPatches(container, result.patches, options) : true;
   if (!patchesApplied && type === "refresh" && result.html) {
-    applyPatches(container, [{ type: "replace", id, html: result.html }], options);
+    patchesApplied = applyPatches(container, [{ type: "replace", id, html: result.html }], options);
+  }
+  if (!patchesApplied) {
+    options.onDiagnostic?.({
+      code: "invalid-patch",
+      message: `rejected exact ${type} response for ${id}; DOM and state were left unchanged`,
+      patch: { type, id }
+    });
+    return result;
   }
   if (result.patches && options.islands) hydrateClientIslands(container, options.islands, options);
-  if ("state" in result) client.state = result.state;
+  if ("state" in result && requestOrdinal >= (versions.get("state-committed") ?? 0)) {
+    versions.set("state-committed", requestOrdinal);
+    client.state = result.state;
+  }
   return result;
 }
 

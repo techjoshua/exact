@@ -58,6 +58,24 @@ async function readRemainingText(reader: ReadableStreamDefaultReader<Uint8Array>
 }
 
 describe("@exact/ssr", () => {
+  it("preserves boolean attributes, quoted entities, and SVG tag casing in element diffs", () => {
+    expect(diffBoundaryHtml(
+      "field",
+      '<input data-exact-id="field" disabled title="&quot;old&quot;">',
+      '<input data-exact-id="field" disabled="true" title="&quot;new&quot;">',
+      "element"
+    )).toEqual(expect.arrayContaining([
+      { type: "prop", id: "field", name: "disabled", value: "true" },
+      { type: "prop", id: "field", name: "title", value: '"new"' }
+    ]));
+    const patches = diffBoundaryHtml(
+      "icon",
+      '<svg data-exact-id="icon"><linearGradient data-exact-id="paint"></linearGradient></svg>',
+      '<svg data-exact-id="icon"><linearGradient data-exact-id="paint"><stop></stop></linearGradient></svg>',
+      "element"
+    );
+    expect(JSON.stringify(patches)).toContain("linearGradient");
+  });
   it("encodes unsafe keyed marker values without collisions", () => {
     const first = renderKeyedListSnapshot({ listId: "list", items: ["ab", "a--b"], key: value => value, render: value => createVNode("p", null, value) });
     expect(first.items[0]!.html).not.toBe(first.items[1]!.html);

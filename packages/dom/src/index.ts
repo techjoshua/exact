@@ -25,6 +25,7 @@ import {
   unwrap,
   watch
 } from "@exact/core";
+import { encodeExactMarkerPart } from "@exact/core";
 import {
   createEffectScope,
   flushSync,
@@ -48,6 +49,7 @@ import { afterMountedChildren, lastMountedNode, placeMountedBefore } from "./pla
 import { applyDomProp, clearElementProps, updateProps } from "./props.js";
 import { adoptServerSlot, mountServerSlot } from "./server-slots.js";
 import { roots } from "./state.js";
+import { namespaceForTag } from "./namespace.js";
 import type { Mounted, RenderOptions, Root } from "./types.js";
 export {
   deg,
@@ -69,6 +71,7 @@ export {
 
 export type { RenderOptions } from "./types.js";
 export { applyDomProp };
+export { HTML_NAMESPACE, MATHML_NAMESPACE, SVG_NAMESPACE, namespaceForTag } from "./namespace.js";
 
 /** Renders or patches a vnode tree into a DOM container. */
 export function render(vnode: VNode, container: Element, options: RenderOptions = {}): void {
@@ -401,15 +404,9 @@ function adoptKeyedListChildren(
 function isItemMarkerForKey(marker: string, key: string): boolean {
   if (!marker.startsWith("exact:item:")) return false;
   const encoded = marker.slice("exact:item:".length);
-  const safe = encodeMarkerKey(key);
+  const safe = encodeExactMarkerPart(key);
   return encoded === key || encoded === safe || encoded.endsWith(`:${key}`) || encoded.endsWith(`:${safe}`);
 }
-
-function encodeMarkerKey(value: string): string {
-  if (/^[A-Za-z0-9._-]+$/.test(value) && !value.includes("--")) return value;
-  return `~${Array.from(new TextEncoder().encode(value), byte => byte.toString(16).padStart(2, "0")).join("")}`;
-}
-
 
 function createRootBoundary(root: Root): ComponentFunction<{}, { version: number }> {
   return function RootBoundary(this: Component<{}>, props: { version: number }) {
@@ -449,15 +446,15 @@ function createMarker(root: Root, label: "cell" | "component" | "dynamic" | "fra
     : document.createTextNode("");
 }
 
-const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
-const MATHML_NAMESPACE = "http://www.w3.org/1998/Math/MathML";
-
-function createElement(tag: string, parent?: Node): Element {
+function createElement(tag: string, parent?: Node, props?: Record<string, unknown>): Element {
   const parentElement = parent instanceof Element ? parent : undefined;
-  const inherited = parentElement?.localName === "foreignObject" ? undefined : parentElement?.namespaceURI;
-  const namespace = tag === "svg" ? SVG_NAMESPACE : tag === "math" ? MATHML_NAMESPACE
-    : inherited === SVG_NAMESPACE || inherited === MATHML_NAMESPACE ? inherited : undefined;
-  return namespace ? document.createElementNS(namespace, tag) : document.createElement(tag);
+  const namespace = namespaceForTag(tag, parentElement);
+  const element = namespace ? document.createElementNS(namespace, tag) : document.createElement(tag);
+  // annotation-xml's encoding determines the namespace of its children, so it
+  // must exist before child elements are constructed.
+  if (namespace === "http://www.w3.org/1998/Math/MathML" && tag === "annotation-xml"
+    && typeof props?.encoding === "string") element.setAttribute("encoding", props.encoding);
+  return element;
 }
 
 function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>, parentScope?: EffectScope, parentNode?: Node): Mounted {
@@ -551,7 +548,7 @@ function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>
     return mounted;
   }
 
-  const element = createElement(vnode.type as string, parentNode);
+  const element = createElement(vnode.type as string, parentNode, vnode.props);
   const mounted: Mounted = { vnode, dom: element, scope, children: [] };
   if (parentInstance) setElementOwner(element, parentInstance);
   mounted.children = mountChildren(root, element, vnode.children, parentInstance, mounted.scope);
@@ -571,6 +568,18 @@ function patch(
     const created = mount(root, next, parentInstance, parentScope, parent);
     placeMountedBefore(root, parent, created, null);
     return created;
+  }
+
+  // Pre-patch ownership hooks may stop a subtree before DOM mutation (for
+  // example to release pointer capture). A stopped wrapper must be replaced as
+  // a unit; recursing through it would attempt to parent new scopes beneath an
+  // inactive scope.
+  if (!mounted.scope.active) {
+    const replacement = mount(root, next, parentInstance, parentScope, parent);
+    placeMountedBefore(root, parent, replacement, mounted.dom);
+    unmountMounted(mounted);
+    removeMountedNodes(parent, mounted);
+    return replacement;
   }
 
   if (mounted.vnode.type !== next.type || mounted.vnode.key !== next.key) {

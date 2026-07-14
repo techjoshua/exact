@@ -1,4 +1,5 @@
 import { escapeAttr } from "./html.js";
+import { logFrameworkEvent } from "@exact/core";
 import type {
   ExactDocumentStreamEvent,
   ExactResponseLike,
@@ -23,19 +24,31 @@ export function createHtmlStream(html: string): ReadableStream<Uint8Array> {
 }
 
 /** Creates an NDJSON stream of document render lifecycle events. */
-export function createDocumentEventStream(render: DocumentStreamRender): ReadableStream<Uint8Array> {
+export function createDocumentEventStream(
+  render: DocumentStreamRender,
+  options: { signal?: AbortSignal; onError?(error: unknown): void } = {}
+): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
+  const ownerController = new AbortController();
+  options.signal?.addEventListener("abort", () => ownerController.abort(options.signal?.reason), { once: true });
+  let closed = false;
   return new ReadableStream<Uint8Array>({
     start(controller) {
       const emit = (event: ExactDocumentStreamEvent): void => {
+        if (closed || ownerController.signal.aborted) return;
         controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
       };
       Promise.resolve(render(emit))
-        .then(() => controller.close())
+        .then(() => { if (!closed) { closed = true; controller.close(); } })
         .catch(error => {
-          emit({ event: "error", version: 1, message: error instanceof Error ? error.message : String(error) });
-          controller.close();
+          options.onError?.(error);
+          emit({ event: "error", version: 1, message: "Document rendering failed" });
+          if (!closed) { closed = true; controller.close(); }
         });
+    },
+    cancel(reason) {
+      closed = true;
+      ownerController.abort(reason);
     }
   });
 }
@@ -47,20 +60,30 @@ export function createProgressiveHtmlStream(render: ProgressiveDocumentStreamRen
     ...options,
     rootId: progressiveRootId(options)
   };
+  const abortController = new AbortController();
+  options.signal?.addEventListener("abort", () => abortController.abort(options.signal?.reason), { once: true });
+  streamOptions.signal = abortController.signal;
+  let closed = false;
   return new ReadableStream<Uint8Array>({
     start(controller) {
       const emit = (chunk: string): void => {
+        if (closed || abortController.signal.aborted) return;
         controller.enqueue(encoder.encode(chunk));
       };
       Promise.resolve(render(streamOptions, event => {
         const chunk = progressiveHtmlChunk(event, streamOptions);
         if (chunk) emit(chunk);
       }))
-        .then(() => controller.close())
+        .then(() => { if (!closed) { closed = true; controller.close(); } })
         .catch(error => {
+          logFrameworkEvent("error", "ssr", "stream", "progressive document render failed", error, options.logger);
           emit(progressiveErrorScript(error, streamOptions));
-          controller.close();
+          if (!closed) { closed = true; controller.close(); }
         });
+    },
+    cancel(reason) {
+      closed = true;
+      abortController.abort(reason);
     }
   });
 }
@@ -89,11 +112,11 @@ function progressiveHtmlChunk(event: ExactDocumentStreamEvent, options: RenderTo
     case "shell":
       return `<div id="${escapeAttr(progressiveRootId(options))}">${event.html}</div>`;
     case "replace":
-      return inlineScript(`var e=document.getElementById(${inlineJsonString(event.id)});if(e)e.innerHTML=${inlineJsonString(event.html)};`, options);
+      return scopedReplacementScript(event.id, event.html, options);
     case "hydration":
       return event.html;
     case "error":
-      return inlineScript(`console.error(${inlineJsonString(`eXact document stream failed: ${event.message}`)});`, options);
+      return inlineScript(`console.error("eXact document stream failed");`, options);
   }
 }
 
@@ -115,8 +138,14 @@ function setHeader(headers: Record<string, string>, name: string, value: string)
 }
 
 function progressiveErrorScript(error: unknown, options: RenderToProgressiveHtmlStreamOptions): string {
-  const message = error instanceof Error ? error.message : String(error);
-  return inlineScript(`console.error(${inlineJsonString(`eXact document stream failed: ${message}`)});`, options);
+  return inlineScript(`console.error("eXact document stream failed");`, options);
+}
+
+function scopedReplacementScript(id: string, html: string, options: RenderToProgressiveHtmlStreamOptions): string {
+  const rootId = inlineJsonString(progressiveRootId(options));
+  const targetId = inlineJsonString(id);
+  const content = inlineJsonString(html);
+  return inlineScript(`var r=document.getElementById(${rootId});if(r&&r.getAttribute("data-exact-hydrated")!=="true"){var e=r.id===${targetId}?r:Array.from(r.querySelectorAll("[id]")).find(function(n){return n.id===${targetId}});if(e){var t=document.createElement("template");t.innerHTML=${content};e.replaceChildren(t.content)}}`, options);
 }
 
 function inlineScript(body: string, options: RenderToProgressiveHtmlStreamOptions): string {
