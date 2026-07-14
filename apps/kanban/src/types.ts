@@ -1,6 +1,7 @@
 export type Status = "todo" | "doing" | "done";
 
 export type Task = {
+  /** @exact key */
   id: string;
   title: string;
   status: Status;
@@ -8,6 +9,7 @@ export type Task = {
 };
 
 export type Column = {
+  /** @exact key */
   id: Status;
   title: string;
 };

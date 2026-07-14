@@ -1,6 +1,7 @@
 import type { BoundModule, NodeRef, Variable } from "@exact/expressions";
 import { stableId } from "./ids.js";
 import type { ExactProvenanceGraph } from "./provenance.js";
+import { exactDirective, exactKeyContract, type ExactKeyContract } from "./annotations.js";
 
 export interface ExpressionJsxElementSite {
   readonly nodeId: string;
@@ -27,6 +28,13 @@ export interface ExpressionJsxPlan {
   readonly cells: ReadonlyMap<string, ExpressionJsxCellSite>;
   /** Contextual parameter types that JSX lowering would otherwise erase. */
   readonly contextualParameters: ReadonlyMap<string, string>;
+  readonly lists: ReadonlyMap<string, ExpressionJsxListSite>;
+  readonly diagnostics: readonly Readonly<{ message: string; start: number }>[];
+}
+
+export interface ExpressionJsxListSite extends ExactKeyContract {
+  readonly nodeId: string;
+  readonly start: number;
 }
 
 /** Indexes JSX identities and reactive cells from typed expression relationships. */
@@ -80,7 +88,55 @@ export function analyzeExpressionJsx(module: BoundModule, provenance: ExactProve
       });
     }
   }
-  return Object.freeze({ elements, cells, contextualParameters });
+  const lists = new Map<string, ExpressionJsxListSite>();
+  const diagnostics: Array<Readonly<{ message: string; start: number }>> = [];
+  for (const call of module.walk().calls()) {
+    if (!call.node.span || !call.target?.isMember("map") || /^this\.map$/.test(call.target.node.text ?? "")) continue;
+    if (!call.ancestors().ofKind("JsxExpression").any() || !isIntrinsicArrayMap(call)) continue;
+    const collection = call.target.target;
+    const element = collectionElementType(collection?.type);
+    const localDirectives = collection?.rootVariable?.directives;
+    const key = exactKeyContract(element, localDirectives);
+    const declaredKey = !!exactDirective(localDirectives, "key") || typeDeclaresKey(element);
+    if (!key) {
+      if (declaredKey) diagnostics.push({ message: "error: @exact key must identify one readable primitive property or zero-argument method", start: call.node.span.start });
+      continue;
+    }
+    const render = call.arguments[0];
+    const parameters = render && "parameters" in render.node ? render.node.parameters as readonly Variable[] : [];
+    if (!render || !["ArrowFunction", "FunctionExpression"].includes(render.node.kind) || call.arguments.length !== 1 || parameters.length > 1) {
+      // Native index/array/thisArg behavior cannot be represented by the keyed
+      // renderer. Preserve the author's Array.map call instead of changing its
+      // semantics or turning an otherwise valid expression into a warning.
+      continue;
+    }
+    lists.set(call.node.id, Object.freeze({ nodeId: call.node.id, start: call.node.span.start, ...key }));
+  }
+  return Object.freeze({ elements, cells, contextualParameters, lists, diagnostics: Object.freeze(diagnostics) });
+}
+
+function collectionElementType(type: NodeRef["type"]): NodeRef["type"] {
+  if (!type) return undefined;
+  if (type.typeArguments[0]) return type.typeArguments[0];
+  if (type.unionMembers.length) {
+    const members = type.unionMembers.map(collectionElementType).filter((member): member is NonNullable<NodeRef["type"]> => !!member);
+    return members.length === 1 ? members[0] : undefined;
+  }
+  return undefined;
+}
+
+function typeDeclaresKey(type: NodeRef["type"]): boolean {
+  if (!type) return false;
+  return !!exactDirective(type.directives, "key")
+    || type.propertyTypes.some(property => !!exactDirective(property.directives, "key"))
+    || type.unionMembers.some(typeDeclaresKey);
+}
+
+function isIntrinsicArrayMap(call: NodeRef): boolean {
+  const receiver = call.target?.target?.type;
+  if (receiver?.collectionKind) return true;
+  const source = call.node.resolvedSignature?.declarationSource?.replace(/\\/g, "/");
+  return !!source && /\/typescript\/lib\/lib\.[^/]+\.d\.ts$/i.test(source);
 }
 
 function hasFunctionAncestorWithin(reference: NodeRef, owner: NodeRef): boolean {

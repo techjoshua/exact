@@ -159,6 +159,7 @@ export type ErrorSource =
   | "dom";
 
 export type ErrorReport = {
+  /** @exact key */
   id: string;
   error: unknown;
   source: ErrorSource;
@@ -217,7 +218,7 @@ type ManagedEventListenerOptions = EventListenerOptions & {
   signal?: AbortSignal;
 };
 
-export type TaskResourceDisposal = "call" | "close" | "terminate" | "unsubscribe" | "dispose" | "cancel";
+export type TaskResourceDisposal = string;
 export type TaskCleanup = (reason?: unknown) => void | Promise<void>;
 export type TaskIdleDeadline = { readonly didTimeout: boolean; timeRemaining(): number };
 export type TaskIdleOptions = { timeout?: number };

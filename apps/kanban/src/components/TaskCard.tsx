@@ -10,7 +10,7 @@ type TaskCardProps = {
 export function TaskCard(this: Component<{}>, props: TaskCardProps) {
   const board = this.getContext(BoardContext);
   const title = props.task.title;
-  const hasNotes = this.reactive<boolean>(() => props.task.notes.trim().length > 0);
+  const hasNotes = props.task.notes.trim().length > 0;
   let drag: {
     card: HTMLElement;
     pointerId: number;
@@ -114,7 +114,7 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
       <p className="card-title">
         {title}
       </p>
-      {hasNotes.get() ? <p className="card-notes">Has notes</p> : null}
+      {hasNotes ? <p className="card-notes">Has notes</p> : null}
       <div className="card-actions">
         <button
           type="button"

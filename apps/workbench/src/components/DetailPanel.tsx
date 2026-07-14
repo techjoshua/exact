@@ -59,11 +59,7 @@ export function DetailPanel(this: Component<{}>, props: DetailPanelProps) {
             value={props.task.status}
             onChange={event => workbench.updateTask(props.task.id, { status: (event.currentTarget as HTMLSelectElement).value as Status })}
           >
-            {this.map(
-              statuses,
-              status => status,
-              status => <option value={status}>{status}</option>
-            )}
+            {statuses.map(status => <option value={status}>{status}</option>)}
           </select>
         </label>
 
@@ -73,11 +69,7 @@ export function DetailPanel(this: Component<{}>, props: DetailPanelProps) {
             value={props.task.priority}
             onChange={event => workbench.updateTask(props.task.id, { priority: (event.currentTarget as HTMLSelectElement).value as Priority })}
           >
-            {this.map(
-              priorities,
-              priority => priority,
-              priority => <option value={priority}>{priority}</option>
-            )}
+            {priorities.map(priority => <option value={priority}>{priority}</option>)}
           </select>
         </label>
       </div>
@@ -99,15 +91,11 @@ export function DetailPanel(this: Component<{}>, props: DetailPanelProps) {
 
       <div className="label-row editable">
         {props.task.labels.length
-          ? this.map(
-            props.task.labels,
-            label => label,
-            label => (
+          ? props.task.labels.map(label => (
               <button type="button" onClick={() => workbench.removeLabel(props.task.id, label)}>
                 {label} x
               </button>
-            )
-          )
+            ))
           : <span>No labels</span>}
       </div>
     </section>

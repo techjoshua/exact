@@ -3,6 +3,7 @@ import path from "node:path";
 import fs from "node:fs";
 import type {
   ExpressionDiagnostic,
+  ExpressionDirective,
   ExpressionCallSignature,
   ExpressionNode,
   ExpressionScope,
@@ -60,6 +61,7 @@ class ProjectVariable implements Variable {
   exported = false;
   importedFrom?: string;
   typeOnly = false;
+  directives?: readonly ExpressionDirective[];
 }
 
 class ProjectType implements ExpressionType {
@@ -75,7 +77,8 @@ class ProjectType implements ExpressionType {
     readonly callSignatures: readonly ExpressionCallSignature[],
     readonly typeArguments: readonly ExpressionType[],
     readonly typeParameters: readonly string[],
-    readonly collectionKind?: "array" | "readonly-array" | "tuple"
+    readonly collectionKind?: "array" | "readonly-array" | "tuple",
+    readonly directives?: readonly ExpressionDirective[]
   ) { Object.freeze(this); }
 }
 
@@ -274,6 +277,25 @@ export class ExpressionProject {
       ...program.getSyntacticDiagnostics(sourceFile).map(diagnostic => ({ ...diagnosticFromTs(diagnostic), phase: "syntax" as const })),
       ...program.getSemanticDiagnostics(sourceFile).map(diagnostic => ({ ...diagnosticFromTs(diagnostic), phase: "semantic" as const }))
     ];
+    const directivesFor = (node: ts.Node | undefined, inline = false): readonly ExpressionDirective[] => {
+      if (!node) return Object.freeze([]);
+      const directiveSource = node.getSourceFile();
+      const fullStart = node.getFullStart();
+      const start = node.getStart(directiveSource, false);
+      const segments = start > fullStart
+        ? [{ text: directiveSource.text.slice(fullStart, start), start: fullStart }]
+        : [];
+      if (inline && ts.isVariableDeclaration(node)) {
+        const start = node.name.end;
+        const end = node.type?.getFullStart() ?? node.initializer?.getFullStart() ?? node.end;
+        if (end > start) segments.push({ text: directiveSource.text.slice(start, end), start });
+      }
+      return Object.freeze(uniqueDirectives(segments.flatMap(segment => parseExpressionDirectives(segment.text, segment.start, directiveSource))));
+    };
+    const typeDirectivesFor = (type: ts.Type): readonly ExpressionDirective[] => {
+      const symbol = type.aliasSymbol ?? type.getSymbol();
+      return Object.freeze(uniqueDirectives((symbol?.declarations ?? []).flatMap(declaration => directivesFor(declaration))));
+    };
     const usedIdentityKeys = new Set<string>();
     const symbolIdentity = (id: string, name: string): ExpressionSymbol => {
       usedIdentityKeys.add(id);
@@ -321,11 +343,15 @@ export class ExpressionProject {
               type: typeFor(checker.getTypeOfSymbolAtLocation(parameter, parameterDeclaration), parameterDeclaration),
               optional: Boolean(parameter.flags & ts.SymbolFlags.Optional)
                 || ts.isParameter(parameterDeclaration) && (!!parameterDeclaration.questionToken || !!parameterDeclaration.initializer),
-              rest: ts.isParameter(parameterDeclaration) && !!parameterDeclaration.dotDotDotToken
+              rest: ts.isParameter(parameterDeclaration) && !!parameterDeclaration.dotDotDotToken,
+              directives: directivesFor(parameterDeclaration)
             });
           })),
           returnType: typeFor(checker.getReturnTypeOfSignature(signature), declaration),
-          typeParameters: Object.freeze((signature.typeParameters ?? []).map(parameter => checker.typeToString(parameter, declaration)))
+          typeParameters: Object.freeze((signature.typeParameters ?? []).map(parameter => checker.typeToString(parameter, declaration))),
+          declarationSource: displayFile(declaration.getSourceFile().fileName),
+          directives: directivesFor(declaration),
+          returnDirectives: directivesFor(signature.getDeclaration()?.type)
         });
       });
       const typeArguments = type.flags & ts.TypeFlags.Object && ((type as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference)
@@ -344,7 +370,8 @@ export class ExpressionProject {
           type: shallowTypeFor(checker.getTypeOfSymbolAtLocation(property, declaration), declaration),
           optional: Boolean(property.flags & ts.SymbolFlags.Optional),
           readonly: property.declarations?.some(candidate => ts.canHaveModifiers(candidate)
-            && ts.getModifiers(candidate)?.some(modifier => modifier.kind === ts.SyntaxKind.ReadonlyKeyword)) ?? false
+            && ts.getModifiers(candidate)?.some(modifier => modifier.kind === ts.SyntaxKind.ReadonlyKeyword)) ?? false,
+          directives: Object.freeze(uniqueDirectives((property.declarations ?? []).flatMap(declaration => directivesFor(declaration))))
         });
       });
       const value = new ProjectType(
@@ -359,7 +386,8 @@ export class ExpressionProject {
         Object.freeze(signatures),
         Object.freeze(typeArguments),
         Object.freeze(typeParameters),
-        checker.isTupleType(type) ? "tuple" : checker.isArrayType(type) ? "array" : isReadonlyArrayType(checker, type) ? "readonly-array" : undefined
+        checker.isTupleType(type) ? "tuple" : checker.isArrayType(type) ? "array" : isReadonlyArrayType(checker, type) ? "readonly-array" : undefined,
+        typeDirectivesFor(type)
       );
       // Recursive members already reference the placeholder. Populate that
       // same identity rather than replacing it with a second object whose
@@ -371,6 +399,16 @@ export class ExpressionProject {
     };
 
     const shallowTypeFor = (type: ts.Type, at: ts.Node): ExpressionType => {
+      const summary = (value: ts.Type, location: ts.Node): ExpressionType => Object.freeze({
+        id: `type-summary:${value.flags}:${checker.typeToString(value, location, ts.TypeFormatFlags.NoTruncation)}`,
+        kind: typeKind(value),
+        display: checker.typeToString(value, location, ts.TypeFormatFlags.NoTruncation),
+        nullable: Boolean(value.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined | ts.TypeFlags.Any | ts.TypeFlags.Unknown)),
+        callable: value.getCallSignatures().length > 0,
+        properties: Object.freeze(value.getProperties().map(property => property.name)),
+        propertyTypes: Object.freeze([]), unionMembers: Object.freeze([]), callSignatures: Object.freeze([]),
+        typeArguments: Object.freeze([]), typeParameters: Object.freeze([])
+      });
       const display = checker.typeToString(type, at, ts.TypeFormatFlags.NoTruncation);
       const members = type.isUnionOrIntersection()
         ? type.types.map(member => Object.freeze({
@@ -396,7 +434,27 @@ export class ExpressionProject {
         properties: Object.freeze(type.getProperties().map(property => property.name)),
         propertyTypes: Object.freeze([]),
         unionMembers: Object.freeze(members),
-        callSignatures: Object.freeze([]),
+        callSignatures: Object.freeze(type.getCallSignatures().map(signature => {
+          const declaration = signature.getDeclaration() ?? at;
+          return Object.freeze({
+            display: checker.signatureToString(signature, at, ts.TypeFormatFlags.NoTruncation),
+            parameters: Object.freeze(signature.getParameters().map(parameter => {
+              const parameterDeclaration = parameter.valueDeclaration ?? parameter.declarations?.[0] ?? declaration;
+              return Object.freeze({
+                name: parameter.name,
+                type: summary(checker.getTypeOfSymbolAtLocation(parameter, parameterDeclaration), parameterDeclaration),
+                optional: Boolean(parameter.flags & ts.SymbolFlags.Optional),
+                rest: ts.isParameter(parameterDeclaration) && !!parameterDeclaration.dotDotDotToken,
+                directives: directivesFor(parameterDeclaration)
+              });
+            })),
+            returnType: summary(checker.getReturnTypeOfSignature(signature), declaration),
+            typeParameters: Object.freeze((signature.typeParameters ?? []).map(parameter => checker.typeToString(parameter, declaration))),
+            declarationSource: displayFile(declaration.getSourceFile().fileName),
+            directives: directivesFor(declaration),
+            returnDirectives: directivesFor(signature.getDeclaration()?.type)
+          });
+        })),
         typeArguments: Object.freeze([]),
         typeParameters: Object.freeze([])
       });
@@ -429,6 +487,7 @@ export class ExpressionProject {
       variable.exported = Boolean(symbol.flags & ts.SymbolFlags.ExportValue);
       variable.importedFrom = importSource(declaration);
       variable.typeOnly = isTypeOnlyBinding(declaration);
+      variable.directives = directivesFor(declaration, true);
       scope.add(variable);
       Object.freeze(variable);
       return variable;
@@ -516,14 +575,15 @@ export class ExpressionProject {
         variable,
         text: sourceFile.text.slice(start, node.end),
         name: nodeName(node),
-        operator: nodeOperator(node)
+        operator: nodeOperator(node),
+        directives: directivesFor(node, ts.isVariableDeclaration(node))
       };
       if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
         const target = children[0]!;
         let resolvedSignature: ExpressionCallSignature | undefined;
         if (ts.isCallExpression(node)) {
           const signature = checker.getResolvedSignature(node);
-          if (signature) resolvedSignature = signatureFor(signature, node, checker, typeFor);
+          if (signature) resolvedSignature = signatureFor(signature, node, checker, typeFor, directivesFor);
         }
         return Object.freeze({ ...common, target, arguments: Object.freeze(children.slice(1)), ...(resolvedSignature ? { resolvedSignature } : {}) });
       }
@@ -872,7 +932,8 @@ function signatureFor(
   signature: ts.Signature,
   at: ts.Node,
   checker: ts.TypeChecker,
-  typeFor: (type: ts.Type, at: ts.Node) => ExpressionType
+  typeFor: (type: ts.Type, at: ts.Node) => ExpressionType,
+  directivesFor: (node: ts.Node | undefined, inline?: boolean) => readonly ExpressionDirective[]
 ): ExpressionCallSignature {
   const declaration = signature.getDeclaration() ?? at;
   return Object.freeze({
@@ -887,13 +948,42 @@ function signatureFor(
         type: typeFor(contextual ?? checker.getTypeOfSymbolAtLocation(parameter, at), at),
         optional: Boolean(parameter.flags & ts.SymbolFlags.Optional)
           || ts.isParameter(parameterDeclaration) && (!!parameterDeclaration.questionToken || !!parameterDeclaration.initializer),
-        rest: ts.isParameter(parameterDeclaration) && !!parameterDeclaration.dotDotDotToken
+        rest: ts.isParameter(parameterDeclaration) && !!parameterDeclaration.dotDotDotToken,
+        directives: directivesFor(parameterDeclaration)
       });
     })),
     returnType: typeFor(checker.getReturnTypeOfSignature(signature), declaration),
     typeParameters: Object.freeze((signature.typeParameters ?? []).map(parameter => checker.typeToString(parameter, declaration))),
-    declarationSource: displayFile(declaration.getSourceFile().fileName)
+    declarationSource: displayFile(declaration.getSourceFile().fileName),
+    directives: directivesFor(declaration),
+    returnDirectives: directivesFor(signature.getDeclaration()?.type)
   });
+}
+
+function parseExpressionDirectives(text: string, offset: number, sourceFile: ts.SourceFile): ExpressionDirective[] {
+  const directives: ExpressionDirective[] = [];
+  const marker = /@([A-Za-z_$][\w$-]*)\b([^\r\n*]*)/g;
+  for (let match = marker.exec(text); match; match = marker.exec(text)) {
+    const namespace = match[1]!;
+    if (namespace !== "exact") continue;
+    const body = match[2] ?? "";
+    const token = /([A-Za-z_$][\w$-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([A-Za-z_$][\w$]*)))?/g;
+    for (let item = token.exec(body); item; item = token.exec(body)) {
+      const start = offset + match.index + match[0].indexOf(body) + item.index;
+      const line = sourceFile.getLineAndCharacterOfPosition(Math.max(0, start));
+      directives.push(Object.freeze({
+        namespace,
+        key: item[1]!,
+        ...(item[2] ?? item[3] ?? item[4] ? { value: item[2] ?? item[3] ?? item[4] } : {}),
+        span: Object.freeze({ start, end: start + item[0].length, line: line.line + 1, column: line.character + 1 })
+      }));
+    }
+  }
+  return directives;
+}
+
+function uniqueDirectives(values: readonly ExpressionDirective[]): ExpressionDirective[] {
+  return [...new Map(values.map(value => [`${value.span?.start ?? -1}:${value.key}:${value.value ?? ""}`, value])).values()];
 }
 
 function fingerprint(value: string): string {

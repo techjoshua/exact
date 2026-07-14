@@ -49,10 +49,7 @@ export function CommandPalette(this: Component<{}>, props: CommandPaletteProps) 
             <div className="command-section">
               <h3>Move selected task</h3>
               <div className="command-grid">
-                {this.map(
-                  columns,
-                  column => column.id,
-                  column => (
+                {columns.map(column => (
                     <button
                       type="button"
                       disabled={props.selectedTask!.status === column.id}
@@ -60,8 +57,7 @@ export function CommandPalette(this: Component<{}>, props: CommandPaletteProps) 
                     >
                       {column.title}
                     </button>
-                  )
-                )}
+                  ))}
               </div>
             </div>
           )

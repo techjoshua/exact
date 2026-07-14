@@ -33,7 +33,7 @@ import type { BoundModule } from "@exact/expressions";
 import type { ExpressionDerivedPlan } from "./expression-derived.js";
 import type { ExpressionWritePlan } from "./expression-writes.js";
 import type { ExpressionTaskPlan, ExpressionTaskResource, ExpressionTaskResourceKind, ExpressionTaskSignalCall } from "./expression-tasks.js";
-import type { ExpressionJsxPlan } from "./expression-jsx.js";
+import type { ExpressionJsxListSite, ExpressionJsxPlan } from "./expression-jsx.js";
 import type { ExpressionClientIslandSite, ExpressionComponentPlan } from "./expression-components.js";
 import type {
   ClientIslandCaptures,
@@ -309,6 +309,10 @@ export function exactJsxTransformer(
           if (shouldOmitPlacement(taskPlacementFor(node), target)) {
             return factory.createVoidExpression(factory.createNumericLiteral(0));
           }
+        }
+        const annotatedList = expressionJsx.lists.get(expressionEmissionId(node) ?? "");
+        if (annotatedList && ts.isPropertyAccessExpression(node.expression)) {
+          return transformAnnotatedMapCall(sourceFile, node, annotatedList, context, visitor, derivedReactiveLocals);
         }
         return transformCapturedCall(sourceFile, node, context, visitor, derivedReactiveLocals, helpers,
           () => { sawAbortOptions = true; }, expressionResourceFor,
@@ -1553,10 +1557,11 @@ function transformMapCall(
   node: ts.CallExpression,
   context: ts.TransformationContext,
   visitor: ts.Visitor,
-  derivedReactiveLocals?: DerivedReactiveIndex
+  derivedReactiveLocals?: DerivedReactiveIndex,
+  identityOverride?: string
 ): ts.Expression {
   if (node.arguments.length !== 3) return ts.visitEachChild(node, visitor, context);
-  const nodeId = expressionEmissionId(node);
+  const nodeId = identityOverride ?? expressionEmissionId(node);
   if (!nodeId) throw new Error(`Missing canonical expression identity for this.map() emission in ${sourceFile.fileName}`);
   const id = stableId(sourceFile.fileName, "list", nodeId);
   const source = node.arguments[0]!;
@@ -1593,6 +1598,34 @@ function transformMapCall(
       ...(keyIdentity ? [context.factory.createStringLiteral(keyIdentity)] : [])
     ]
   );
+}
+
+function transformAnnotatedMapCall(
+  sourceFile: ts.SourceFile,
+  node: ts.CallExpression,
+  list: ExpressionJsxListSite,
+  context: ts.TransformationContext,
+  visitor: ts.Visitor,
+  derivedReactiveLocals?: DerivedReactiveIndex
+): ts.Expression {
+  const factory = context.factory;
+  const item = factory.createUniqueName("__exactItem");
+  const keyBody = list.primitive
+    ? item
+    : list.method
+      ? factory.createCallExpression(factory.createPropertyAccessExpression(item, list.member!), undefined, [])
+      : factory.createPropertyAccessExpression(item, list.member!);
+  const keyed = factory.createCallExpression(
+    factory.createPropertyAccessExpression(factory.createThis(), "map"),
+    undefined,
+    [
+      (node.expression as ts.PropertyAccessExpression).expression,
+      factory.createArrowFunction(undefined, undefined, [factory.createParameterDeclaration(undefined, undefined, item)], undefined,
+        factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken), keyBody),
+      node.arguments[0]!
+    ]
+  );
+  return transformMapCall(sourceFile, keyed, context, visitor, derivedReactiveLocals, list.nodeId);
 }
 
 function keyExtractorIdentity(expression: ts.Expression): string | undefined {
@@ -1834,7 +1867,7 @@ function emissionNodeIds(
   for (const site of derived.declarations.values()) ids.add(site.initializerNodeId);
   addKeys(writes.sites);
   addKeys(tasks.sites); addKeys(tasks.resources); addKeys(tasks.lifecycleListeners); addKeys(tasks.setupTasks); addKeys(tasks.signalCalls);
-  addKeys(jsx.elements); addKeys(jsx.cells); addKeys(jsx.contextualParameters);
+  addKeys(jsx.elements); addKeys(jsx.cells); addKeys(jsx.contextualParameters); addKeys(jsx.lists);
   for (const site of components.sites.values()) {
     ids.add(site.id);
     for (const island of site.clientIslands) ids.add(island.nodeId);

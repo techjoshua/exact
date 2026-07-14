@@ -7,6 +7,7 @@ export type ViewMode = "board" | "list";
 export type SyncState = "idle" | "saving" | "synced" | "failed";
 
 export type Task = {
+  /** @exact key */
   id: string;
   title: string;
   notes: string;
@@ -18,11 +19,13 @@ export type Task = {
 };
 
 export type Column = {
+  /** @exact key */
   id: Status;
   title: string;
 };
 
 export type Activity = {
+  /** @exact key */
   id: string;
   message: string;
   at: string;

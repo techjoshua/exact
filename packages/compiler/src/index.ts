@@ -84,6 +84,7 @@ import { analyzeExpressionComponents } from "./expression-components.js";
 import { analyzeExpressionDerived } from "./expression-derived.js";
 import { createExpressionComponents, createExpressionGeneratedServerSlotBoundaries, createExpressionRenderEdges } from "./expression-components.js";
 import { createExpressionComponentBoundaries } from "./expression-components.js";
+import { analyzeExactAnnotations } from "./annotations.js";
 
 export type * from "./types.js";
 export { preprocessPropPunning } from "./preprocess.js";
@@ -147,8 +148,10 @@ export function transformSource(source: string, options: TransformOptions = {}):
       return `${diagnostic.filename ?? filename}${location} - ${diagnostic.message}`;
     }).join("\n"));
   }
-  const manifest = analyzeSource(normalized, { filename, importedManifests: options.importedManifests });
   const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
+  const annotations = analyzeExactAnnotations(expressionModule);
+  throwLocatedCompilerDiagnostics(filename, sourceFile, annotations.diagnostics);
+  const manifest = analyzeSource(normalized, { filename, importedManifests: options.importedManifests });
   const provenance = buildExactProvenance(expressionModule);
   const expressionDerived = analyzeExpressionDerived(expressionModule, provenance);
   const expressionWrites = analyzeExpressionWrites(expressionModule);
@@ -167,6 +170,7 @@ export function transformSource(source: string, options: TransformOptions = {}):
     throw new Error(semanticErrors.map(message => `${filename} - ${message}`).join("\n"));
   }
   const expressionJsx = analyzeExpressionJsx(expressionModule, provenance, filename);
+  throwLocatedCompilerDiagnostics(filename, sourceFile, expressionJsx.diagnostics);
   const expressionComponents = analyzeExpressionComponents(expressionModule, expressionJsx, expressionTasks, provenance, expressionWrites);
   const emissionComponentInfo = new Map<string, ExactImportedComponentIR>();
   for (const component of collectExpressionImportedComponents(filename, options.importedManifests ?? [], manifest.semanticGraph!)) emissionComponentInfo.set(component.name, component);
@@ -215,6 +219,19 @@ function emitExpressionRewrite(module: BoundModule, generated: string): string {
   });
   if (introduced.length) throw new ExpressionProjectError(introduced);
   return rebound.emit().code;
+}
+
+function throwLocatedCompilerDiagnostics(
+  filename: string,
+  sourceFile: ts.SourceFile,
+  diagnostics: readonly Readonly<{ message: string; start: number }>[]
+): void {
+  const errors = diagnostics.filter(diagnostic => diagnostic.message.startsWith("error:"));
+  if (!errors.length) return;
+  throw new Error(errors.map(diagnostic => {
+    const location = sourceFile.getLineAndCharacterOfPosition(diagnostic.start);
+    return `${filename}:${location.line + 1}:${location.character + 1} - ${diagnostic.message}`;
+  }).join("\n"));
 }
 
 function diagnosticIdentity(
@@ -268,7 +285,9 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const expressionWrites = analyzeExpressionWrites(expressionModule);
   const expressionTasks = analyzeExpressionTasks(expressionModule);
   manifestDiagnostics.push(...expressionTasks.diagnostics);
+  manifestDiagnostics.push(...analyzeExactAnnotations(expressionModule).diagnostics.map(diagnostic => diagnostic.message));
   const expressionJsx = analyzeExpressionJsx(expressionModule, provenance, filename);
+  manifestDiagnostics.push(...expressionJsx.diagnostics.map(diagnostic => diagnostic.message));
   const expressionComponents = analyzeExpressionComponents(expressionModule, expressionJsx, expressionTasks, provenance, expressionWrites);
   const components: ExactComponentIR[] = createExpressionComponents(filename, expressionComponents, expressionTasks, expressionSafety);
 

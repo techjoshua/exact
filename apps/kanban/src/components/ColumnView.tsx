@@ -57,10 +57,7 @@ export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
           )
         ) : (
           <>
-            {this.map(
-              columnTasks,
-              task => task.id,
-              task => (
+            {columnTasks.map(task => (
                 <>
                   {props.dragPlacement?.status === props.column.id && props.dragPlacement.beforeTaskId === task.id ? (
                     <DropMarker />
@@ -69,8 +66,7 @@ export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
                     task={task}
                   />
                 </>
-              )
-            )}
+              ))}
             {props.dragPlacement?.status === props.column.id && props.dragPlacement.beforeTaskId === undefined ? (
               <DropMarker />
             ) : null}

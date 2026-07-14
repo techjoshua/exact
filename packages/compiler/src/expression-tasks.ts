@@ -3,6 +3,7 @@ import { analyzeExpressionWrites } from "./expression-writes.js";
 import { isServerOnlyModule } from "./imports.js";
 import type { ExactContextEffect, ExactPlacement, ExactStateEffect } from "./types.js";
 import { expressionComponentIndex } from "./expression-component-index.js";
+import { exactCleanupForCall, exactOwnsReturn } from "./annotations.js";
 
 export interface ExpressionTaskSite {
   readonly nodeId: string;
@@ -48,7 +49,7 @@ export interface ExpressionSetupTask {
 }
 
 export type ExpressionTaskResourceKind = "timeout" | "interval" | "animation-frame" | "idle-callback" | "fetch" | "observer" | "owned";
-export type ExpressionTaskResourceDisposal = "call" | "close" | "terminate" | "unsubscribe" | "dispose" | "cancel";
+export type ExpressionTaskResourceDisposal = string;
 export interface ExpressionTaskResource {
   readonly nodeId: string;
   readonly start: number;
@@ -293,6 +294,9 @@ function taskResource(
     const disposal = disposalForSubscription(call.type);
     if (disposal) return { kind: "owned", disposal, description: "subscription" };
   }
+  const annotatedCleanup = exactCleanupForCall(call);
+  if (annotatedCleanup) return { kind: "owned", disposal: annotatedCleanup, description: call.type?.display ?? "annotated resource" };
+  if (exactOwnsReturn(call) && call.type?.callable) return { kind: "owned", disposal: "call", description: "owned cleanup function" };
   if (isDisposableType(call.type)) return { kind: "owned", description: call.type?.display ?? "disposable resource" };
   return undefined;
 }

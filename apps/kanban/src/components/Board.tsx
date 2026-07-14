@@ -22,12 +22,11 @@ export function Board(this: Component<BoardState>, props: BoardProps) {
   this.state.dragPlacement = undefined;
 
   const taskTotal = this.state.tasks.length;
-  const selectedTask = this.reactive(() => {
-    const selectedTaskId = this.state.selectedTaskId;
-    return selectedTaskId ? this.state.tasks.find(task => task.id === selectedTaskId) : undefined;
-  });
+  const selectedTask = this.state.selectedTaskId
+    ? this.state.tasks.find(task => task.id === this.state.selectedTaskId)
+    : undefined;
 
-  this.reactive<string>(() => JSON.stringify(this.state.tasks)).task(tasksJson => {
+  this.task(JSON.stringify(this.state.tasks), tasksJson => {
     localStorage.setItem(storageKey, tasksJson);
   });
 
@@ -112,8 +111,6 @@ export function Board(this: Component<BoardState>, props: BoardProps) {
   this.setContext(BoardContext, services);
 
   return () => {
-    const selectedTaskValue = selectedTask.get();
-
     return (
       <main className="shell">
         <BoardHeader
@@ -122,10 +119,7 @@ export function Board(this: Component<BoardState>, props: BoardProps) {
         />
 
         <section className="board" style={{ gap: px(16) }}>
-          {this.map(
-            columns,
-            column => column.id,
-            column => (
+          {columns.map(column => (
               <_ key={column.id}>
                 <ColumnView
                   column={column}
@@ -133,14 +127,13 @@ export function Board(this: Component<BoardState>, props: BoardProps) {
                   dragPlacement={this.state.dragPlacement}
                 />
               </_>
-            )
-          )}
+            ))}
         </section>
 
-        {selectedTaskValue ? (
+        {selectedTask ? (
           <TaskDetailsDialog
-            key={selectedTaskValue.id}
-            task={selectedTaskValue}
+            key={selectedTask.id}
+            task={selectedTask}
           />
         ) : null}
       </main>

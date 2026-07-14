@@ -16,6 +16,14 @@ export type NodeCategory =
   | "type"
   | "token";
 
+/** Source-level compiler metadata projected without exposing TypeScript trivia. */
+export interface ExpressionDirective {
+  readonly namespace: string;
+  readonly key: string;
+  readonly value?: string;
+  readonly span?: SourceSpan;
+}
+
 export type ExpressionTypeKind =
   | "any"
   | "unknown"
@@ -39,6 +47,7 @@ export interface ExpressionCallParameter {
   readonly type: ExpressionType;
   readonly optional: boolean;
   readonly rest: boolean;
+  readonly directives?: readonly ExpressionDirective[];
 }
 
 export interface ExpressionCallSignature {
@@ -48,6 +57,8 @@ export interface ExpressionCallSignature {
   readonly typeParameters: readonly string[];
   /** Package-owned provenance for distinguishing platform intrinsics from lookalikes. */
   readonly declarationSource?: string;
+  readonly directives?: readonly ExpressionDirective[];
+  readonly returnDirectives?: readonly ExpressionDirective[];
 }
 
 export interface ExpressionTypeProperty {
@@ -55,6 +66,7 @@ export interface ExpressionTypeProperty {
   readonly type: ExpressionType;
   readonly optional: boolean;
   readonly readonly: boolean;
+  readonly directives?: readonly ExpressionDirective[];
 }
 
 /** TypeScript type information expressed without leaking compiler objects. */
@@ -72,6 +84,7 @@ export interface ExpressionType {
   readonly typeParameters: readonly string[];
   /** Compiler-owned intrinsic collection classification. */
   readonly collectionKind?: "array" | "readonly-array" | "tuple";
+  readonly directives?: readonly ExpressionDirective[];
 }
 
 export type ScopeKind = "module" | "function" | "class" | "block" | "catch";
@@ -105,6 +118,7 @@ export interface Variable {
   /** True when this binding exists only in the TypeScript type namespace. */
   readonly typeOnly: boolean;
   readonly synthetic: boolean;
+  readonly directives?: readonly ExpressionDirective[];
 }
 
 export interface ExpressionNode {
@@ -124,6 +138,7 @@ export interface ExpressionNode {
   readonly generatedText?: string;
   /** The overload selected by TypeScript for this call expression, when known. */
   readonly resolvedSignature?: ExpressionCallSignature;
+  readonly directives?: readonly ExpressionDirective[];
 }
 
 export interface CallExpressionNode extends ExpressionNode {

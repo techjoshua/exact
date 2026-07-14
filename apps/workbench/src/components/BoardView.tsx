@@ -11,10 +11,7 @@ type BoardViewProps = {
 export function BoardView(this: Component<{}>, props: BoardViewProps) {
   return () => (
     <section className="board-view">
-      {this.map(
-        props.columns,
-        column => column.id,
-        column => {
+      {props.columns.map(column => {
           const tasks = props.tasks.filter(task => task.status === column.id);
           return (
             <section className={["column", !tasks.length && "empty"]}>
@@ -24,17 +21,12 @@ export function BoardView(this: Component<{}>, props: BoardViewProps) {
               </header>
               <div className="task-stack">
                 {tasks.length
-                  ? this.map(
-                    tasks,
-                    task => task.id,
-                    task => <TaskCard task={task} />
-                  )
+                  ? tasks.map(task => <TaskCard task={task} />)
                   : <p className="empty-state">No tasks</p>}
               </div>
             </section>
           );
-        }
-      )}
+        })}
     </section>
   );
 }

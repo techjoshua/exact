@@ -21,10 +21,7 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
       <p className="task-owner">Owner: {props.task.owner}</p>
       <p>{props.task.notes || "No notes yet."}</p>
       <div className="move-row">
-        {this.map(
-          columns,
-          column => column.id,
-          column => (
+        {columns.map(column => (
             <button
               type="button"
               className={props.task.status === column.id ? "active" : ""}
@@ -33,17 +30,12 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
             >
               {column.title}
             </button>
-          )
-        )}
+          ))}
       </div>
       {props.task.labels.length
         ? (
           <div className="label-row">
-            {this.map(
-              props.task.labels,
-              label => label,
-              label => <span>{label}</span>
-            )}
+            {props.task.labels.map(label => <span>{label}</span>)}
           </div>
         )
         : null}

@@ -30,10 +30,7 @@ export function AppBoundary(this: Component<AppBoundaryState>, props: AppBoundar
             </button>
           </header>
           <div className="error-list">
-            {this.map(
-              this.state.errors,
-              error => error.id,
-              error => (
+            {this.state.errors.map(error => (
                 <article className="error-item">
                   <h2>{error.component?.name ?? "Application"}</h2>
                   <p>{error.source}{error.phase ? `:${error.phase}` : ""}</p>
@@ -42,8 +39,7 @@ export function AppBoundary(this: Component<AppBoundaryState>, props: AppBoundar
                     Clear
                   </button>
                 </article>
-              )
-            )}
+              ))}
           </div>
         </section>
       </main>

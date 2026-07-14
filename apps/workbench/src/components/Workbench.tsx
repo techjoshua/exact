@@ -31,23 +31,21 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
   this.state.syncState = "idle";
   const errors = this.getContext(ErrorContext);
 
-  const visibleTasks = this.reactive<Task[]>(() => {
-    const query = this.state.query.trim().toLowerCase();
-    if (!query) return this.state.tasks;
-    return this.state.tasks.filter(task =>
-      task.title.toLowerCase().includes(query) ||
-      task.notes.toLowerCase().includes(query) ||
-      task.owner.toLowerCase().includes(query) ||
-      task.labels.some(label => label.toLowerCase().includes(query))
-    );
-  });
+  const normalizedQuery = this.state.query.trim().toLowerCase();
+  const visibleTasks = normalizedQuery
+    ? this.state.tasks.filter(task =>
+      task.title.toLowerCase().includes(normalizedQuery) ||
+      task.notes.toLowerCase().includes(normalizedQuery) ||
+      task.owner.toLowerCase().includes(normalizedQuery) ||
+      task.labels.some(label => label.toLowerCase().includes(normalizedQuery))
+    )
+    : this.state.tasks;
 
-  const selectedTask = this.reactive<Task | undefined>(() => {
-    const id = this.state.selectedTaskId;
-    return id ? this.state.tasks.find(task => task.id === id) : undefined;
-  });
+  const selectedTask = this.state.selectedTaskId
+    ? this.state.tasks.find(task => task.id === this.state.selectedTaskId)
+    : undefined;
 
-  this.reactive<string>(() => JSON.stringify(this.state.tasks)).task(async (tasksJson, { signal }) => {
+  this.task(JSON.stringify(this.state.tasks), async (tasksJson, { signal }) => {
     this.state.syncState = "saving";
     await delay(160, signal);
     if (signal.aborted) return;
@@ -202,9 +200,6 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
   });
 
   return () => {
-    const visible = visibleTasks.get();
-    const detailTask = selectedTask.get();
-
     return (
       <main className="shell">
         <WorkbenchHeader
@@ -212,36 +207,32 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
           draftTitle={this.state.draftTitle}
           view={this.state.view}
           total={this.state.tasks.length}
-          visible={visible.length}
+          visible={visibleTasks.length}
           syncState={this.state.syncState}
         />
 
         <section className="layout">
           <div className="primary-pane">
             {this.state.view === "board"
-              ? <BoardView columns={columns} tasks={visible} />
-              : <ListView tasks={visible} />}
+              ? <BoardView columns={columns} tasks={visibleTasks} />
+              : <ListView tasks={visibleTasks} />}
           </div>
 
           <aside className="side-pane">
-            {detailTask
-              ? <DetailPanel key={detailTask.id} task={detailTask} draftLabel={this.state.draftLabel} />
+            {selectedTask
+              ? <DetailPanel key={selectedTask.id} task={selectedTask} draftLabel={this.state.draftLabel} />
               : <EmptyDetailPanel />}
             <section className="activity-panel">
               <h2>Activity</h2>
               {this.state.activity.length
                 ? (
                   <ol>
-                    {this.map(
-                      this.state.activity,
-                      item => item.id,
-                      item => (
+                    {this.state.activity.map(item => (
                         <li>
                           <span>{formatTime(item.at)}</span>
                           {item.message}
                         </li>
-                      )
-                    )}
+                      ))}
                   </ol>
                 )
                 : <p>No activity yet.</p>}
@@ -249,7 +240,7 @@ export function Workbench(this: Component<WorkbenchState>, props: WorkbenchProps
           </aside>
         </section>
 
-        {this.state.paletteOpen ? <CommandPalette tasks={visible} selectedTask={detailTask} /> : null}
+        {this.state.paletteOpen ? <CommandPalette tasks={visibleTasks} selectedTask={selectedTask} /> : null}
         {this.state.importOpen ? <ImportDialog value={this.state.importText} error={this.state.importError} /> : null}
       </main>
     );

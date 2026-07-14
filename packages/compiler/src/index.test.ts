@@ -34,6 +34,76 @@ import {
 } from "./index.js";
 
 describe("@exact/compiler", () => {
+  it("lowers annotated object and primitive Array.map JSX to keyed framework lists", () => {
+    const output = transform(`
+      type Task = { /** @exact key */ id: string; title: string };
+      function View(this: Component<{}>, props: { tasks: Task[]; labels: string[] }) {
+        return () => <section>
+          {props.tasks.map(task => <p>{task.title}</p>)}
+          {props.labels.map(label => <i>{label}</i>)}
+        </section>;
+      }
+    `);
+    expect(output).toContain("this.map(props.tasks");
+    expect(output).toMatch(/__exactItem_?\d* => __exactItem_?\d*\.id/);
+    expect(output).toContain("this.map(props.labels");
+  });
+
+  it("lets a local key annotation adapt an external structural type", () => {
+    const output = transform(`
+      type ExternalTask = { externalId: string; title: string };
+      function View(this: Component<{}>, props: { tasks: ExternalTask[] }) {
+        const tasks /** @exact key=externalId */ = props.tasks;
+        return () => <section>{tasks.map(task => <p>{task.title}</p>)}</section>;
+      }
+    `);
+    expect(output).toContain("this.map(tasks");
+    expect(output).toMatch(/__exactItem_?\d* => __exactItem_?\d*\.externalId/);
+  });
+
+  it("preserves native map semantics when a render callback uses the index", () => {
+    const output = transform(`
+      type Task = { /** @exact key */ id: string };
+      function View(this: Component<{}>, props: { tasks: Task[] }) {
+        return () => <section>{props.tasks.map((task, index) => <p>{index}:{task.id}</p>)}</section>;
+      }
+    `);
+    expect(output).toContain("props.tasks.map((task, index)");
+    expect(output).not.toContain("this.map(props.tasks");
+  });
+
+  it("reports malformed compiler annotations at their source line", () => {
+    expect(() => transform(`
+      /** @exact unicornName=Airy */
+      interface Pony {}
+    `, { filename: "invalid-directive.ts" })).toThrow(/invalid-directive\.ts:2:\d+ - error: unknown @exact directive 'unicornName'/);
+  });
+
+  it("owns resources through annotated legacy cleanup contracts", () => {
+    const output = transform(`
+      interface LegacySubscription { /** @exact cleanup */ release(): Promise<void> }
+      declare function subscribe(): /** @exact own */ LegacySubscription;
+      function View(this: Component<{}>) {
+        this.task.client(() => { const subscription = subscribe(); });
+        return () => <p>ready</p>;
+      }
+    `);
+    expect(output).toContain("ownTaskResource as __exactTaskResource");
+    expect(output).toMatch(/__exactTaskResource\(__exact(?:Task)?Signal, subscribe\(\), "release"\)/);
+  });
+
+  it("makes tracked callback calculations eligible for compiler-derived caching", () => {
+    const output = transform(`
+      declare function select<T>(/** @exact track */ calculate: () => T): T;
+      function View(this: Component<{ count: number }>) {
+        const label = select(() => \`count \${this.state.count}\`);
+        return () => <p>{label}</p>;
+      }
+    `);
+    expect(output).toContain("createDerived as __exactDerived");
+    expect(output).toContain("const label = __exactDerived(() => select(() => `count ${this.state.count}`))");
+  });
+
   it("uses one semantic component identity across analysis and emission", () => {
     const result = transformSource(`export function panel(this: Component<{ count: number }>) {
       this.state.count = 1;

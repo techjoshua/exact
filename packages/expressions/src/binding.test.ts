@@ -62,6 +62,25 @@ describe("@exact/expressions binding", () => {
     expect(module.diagnostics.filter(diagnostic => diagnostic.severity === "error")).toEqual([]);
   });
 
+  it("projects directives from cross-file types and callable contracts", () => {
+    const project = createExpressionProject({ tsconfigPath: config });
+    const model = path.join(root, "apps/kanban/src/__expressions_directive_model.ts");
+    const consumer = path.join(root, "apps/kanban/src/__expressions_directive_consumer.ts");
+    const modules = project.updateModules([
+      [model, `export interface Task { /** @exact key */ id: string; title: string }
+        export declare function select<T>(/** @exact track */ calculate: () => T): T;`],
+      [consumer, `import { select, type Task } from "./__expressions_directive_model.js";
+        declare const tasks: Task[]; tasks.map(task => task.title); select(() => tasks.length);`]
+    ]);
+    const module = modules.get(consumer.replace(/\\/g, "/"))!;
+    const map = module.walk().calls().first(call => call.target?.isMember("map") === true)!;
+    const select = module.walk().calls().first(call => call.target?.name === "select")!;
+    expect(map.target?.target?.type?.typeArguments[0]?.propertyTypes.find(property => property.name === "id")?.directives)
+      .toContainEqual(expect.objectContaining({ namespace: "exact", key: "key" }));
+    expect(select.node.resolvedSignature?.parameters[0]?.directives)
+      .toContainEqual(expect.objectContaining({ namespace: "exact", key: "track" }));
+  });
+
   it("rejects structurally invalid rewrites before TypeScript binding", async () => {
     const project = createExpressionProject({ tsconfigPath: config });
     const filename = path.join(root, "apps/kanban/src/__expressions_invalid.ts");

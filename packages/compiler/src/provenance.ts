@@ -1,5 +1,6 @@
 import type { BoundModule, ExpressionNode, NodeRef, Variable } from "@exact/expressions";
 import { expressionComponentIndex } from "./expression-component-index.js";
+import { trackedCallbackArguments } from "./annotations.js";
 
 export type ExactReactiveProvenance = "state" | "props" | "context" | "derived" | "cell" | "snapshot" | "unknown";
 
@@ -114,6 +115,7 @@ export function buildExactProvenance(module: BoundModule): ExactProvenanceGraph 
 }
 
 const safeCollectionMethods = new Set(["filter", "map", "flatMap", "slice", "concat", "toSorted", "toReversed", "toSpliced", "reduce", "find", "some", "every"]);
+const safeStringMethods = new Set(["trim", "trimStart", "trimEnd", "toLowerCase", "toUpperCase", "includes", "startsWith", "endsWith", "slice", "substring", "substr"]);
 
 function isSafeDerivedInitializer(module: BoundModule, initializer: NodeRef): boolean {
   for (const effect of module.effectsOf(initializer)) {
@@ -130,6 +132,12 @@ function isSafeDerivedInitializer(module: BoundModule, initializer: NodeRef): bo
       if (!callback) return false;
     }
     if (kind === "CallExpression") {
+      const tracked = trackedCallbackArguments(reference);
+      if (tracked.length) {
+        if (tracked.some(argument => !["ArrowFunction", "FunctionExpression"].includes(argument.node.kind))) return false;
+        continue;
+      }
+      if (reference.target?.isMember() && safeStringMethods.has(reference.target.name ?? "") && isTypeScriptLibraryCall(reference)) continue;
       if (!reference.target?.isMember() || !safeCollectionMethods.has(reference.target.name ?? "")
         || !isIntrinsicCollectionCall(reference)) return false;
     }
@@ -146,9 +154,13 @@ function isIntrinsicCollectionCall(call: NodeRef): boolean {
   // is nevertheless compiler-owned.  Do not extend this fallback to arbitrary
   // receivers: custom objects named `filter`/`map` remain effectful by default.
   if (directReactive && (isIntrinsicCollection(receiver?.type) || receiver?.type?.kind === "any")) return true;
-  const declaration = call.node.resolvedSignature?.declarationSource?.replace(/\\/g, "/");
-  if (declaration) return /\/typescript\/lib\/lib\.[^/]+\.d\.ts$/i.test(declaration);
+  if (isTypeScriptLibraryCall(call)) return true;
   return isIntrinsicCollection(receiver?.type);
+}
+
+function isTypeScriptLibraryCall(call: NodeRef): boolean {
+  const declaration = call.node.resolvedSignature?.declarationSource?.replace(/\\/g, "/");
+  return !!declaration && /\/typescript\/lib\/lib\.[^/]+\.d\.ts$/i.test(declaration);
 }
 
 function isIntrinsicCollection(type: NodeRef["type"]): boolean {

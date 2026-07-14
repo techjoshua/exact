@@ -16,7 +16,7 @@ npm run build:kanban
 - Compiler-backed JSX through the eXact Vite plugin.
 - Component instances with reactive state.
 - Context services through `BoardContext`.
-- `this.map()` keyed lists for columns and cards.
+- Ordinary `Array.map()` lists lowered through type-level `@exact key` metadata.
 - Reactive text, prop, style, and form bindings.
 - Local storage persistence through reactive tasks.
 - DOM refs/events/lifecycle behavior through card editing and drag-reorder flows.
