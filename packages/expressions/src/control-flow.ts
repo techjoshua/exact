@@ -188,18 +188,25 @@ export function buildControlFlowGraph(owner: NodeRef): ControlFlowGraph {
         continues: [...(attempted?.continues ?? []), ...(caught?.continues ?? [])]
       };
       if (finalizer.entry) for (const from of incoming) connect(from, finalizer.entry, "finally");
-      const finalizerAbrupt = finalizer.terminals.length || finalizer.breaks?.length || finalizer.continues?.length;
-      if (finalizerAbrupt) return { entry: branch.id, exits: finalizer.exits, terminals: finalizer.terminals,
-        breaks: finalizer.breaks, continues: finalizer.continues };
       const normalIncoming = (attempted?.exits.length ?? 1) + (caught?.exits.length ?? 0) > 0;
+      const finalizerCompletesNormally = finalizer.exits.length > 0;
+      const inheritedTerminals = finalizerCompletesNormally
+        ? [...(attempted?.terminals ?? []), ...(caught?.terminals ?? [])]
+        : [];
+      const inheritedBreaks = finalizerCompletesNormally
+        ? [...(attempted?.breaks ?? []), ...(caught?.breaks ?? [])]
+          .flatMap(jump => finalizer.exits.map(id => ({ id, ...(jump.label ? { label: jump.label } : {}) })))
+        : [];
+      const inheritedContinues = finalizerCompletesNormally
+        ? [...(attempted?.continues ?? []), ...(caught?.continues ?? [])]
+          .flatMap(jump => finalizer.exits.map(id => ({ id, ...(jump.label ? { label: jump.label } : {}) })))
+        : [];
       return {
         entry: branch.id,
         exits: normalIncoming ? finalizer.exits : [],
-        terminals: [...(attempted?.terminals ?? []), ...(caught?.terminals ?? [])],
-        breaks: [...(attempted?.breaks ?? []), ...(caught?.breaks ?? [])]
-          .flatMap(jump => finalizer.exits.map(id => ({ id, ...(jump.label ? { label: jump.label } : {}) }))),
-        continues: [...(attempted?.continues ?? []), ...(caught?.continues ?? [])]
-          .flatMap(jump => finalizer.exits.map(id => ({ id, ...(jump.label ? { label: jump.label } : {}) })))
+        terminals: [...finalizer.terminals, ...inheritedTerminals],
+        breaks: [...(finalizer.breaks ?? []), ...inheritedBreaks],
+        continues: [...(finalizer.continues ?? []), ...inheritedContinues]
       };
     }
     if (expression.kind === "CatchClause" || expression.kind === "CaseBlock" || expression.kind === "CaseClause" || expression.kind === "DefaultClause") {

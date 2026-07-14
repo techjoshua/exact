@@ -118,6 +118,27 @@ describe("@exact/hydrate", () => {
     first.dispose();
     expect(() => first.applyPatches([])).toThrow("disposed");
   });
+
+  it("aborts in-flight operations when the hydration client is disposed", async () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<!--exact:title-->Old<!--/exact:title-->";
+    let requestSignal: AbortSignal | undefined;
+    const client = createExactClient(container, {
+      endpoint: "/__exact",
+      batch: false,
+      fetch: async (_input, init) => {
+        requestSignal = init.signal;
+        return await new Promise<never>(() => undefined);
+      }
+    });
+    const operation = client.invokeAction("save");
+    await Promise.resolve();
+    client.dispose();
+
+    expect(requestSignal?.aborted).toBe(true);
+    await expect(operation).rejects.toMatchObject({ name: "AbortError" });
+    expect(container.textContent).toBe("Old");
+  });
   it("adopts compatible static marker-wrapped SSR nodes", () => {
     const root = document.createElement("div");
     root.innerHTML = "<!--exact:component:0--><p class=\"ready\">server</p><!--/exact:component:0-->";
@@ -1863,7 +1884,7 @@ describe("@exact/hydrate", () => {
       batch: false,
       fetch,
       state: { version: 0 },
-      actionBoundaries: { save: ["left", "right"] },
+      actionBoundaries: { save: ["left", "left", "right"] },
       onDiagnostic: diagnostic => diagnostics.push(diagnostic.message)
     });
 

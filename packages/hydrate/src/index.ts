@@ -232,13 +232,18 @@ function replaceNode(previous: Node, next: Node): void {
 /** Creates a client runtime for invoking eXact server actions and boundary refreshes. */
 export function createExactClient(container: Element, options: HydrateOptions = {}): ExactClient {
   const resolvedOptions = resolveHydrateOptions(container, options);
+  const lifetime = new AbortController();
+  const abortLifetime = () => lifetime.abort(resolvedOptions.signal?.reason);
+  if (resolvedOptions.signal?.aborted) abortLifetime();
+  else resolvedOptions.signal?.addEventListener("abort", abortLifetime, { once: true });
   const runtimeOptions: HydrateOptions = {
     ...resolvedOptions,
     endpoints: cloneEndpointRoutes(resolvedOptions.endpoints),
     stateContracts: { ...(resolvedOptions.stateContracts ?? {}) },
     actionBoundaries: { ...(resolvedOptions.actionBoundaries ?? {}) },
     islands: { ...(resolvedOptions.islands ?? {}) },
-    transports: { ...(resolvedOptions.transports ?? {}) }
+    transports: { ...(resolvedOptions.transports ?? {}) },
+    signal: lifetime.signal
   };
   let disposed = false;
   const assertActive = () => { if (disposed) throw new Error("eXact hydration root has been disposed"); };
@@ -283,6 +288,8 @@ export function createExactClient(container: Element, options: HydrateOptions = 
     dispose() {
       if (disposed) return;
       disposed = true;
+      resolvedOptions.signal?.removeEventListener("abort", abortLifetime);
+      lifetime.abort(new DOMException("eXact hydration root disposed", "AbortError"));
       roots.delete(container);
       container.removeAttribute("data-exact-hydrated");
       requestVersions.get(container)?.clear();
@@ -418,11 +425,11 @@ async function invokeAndApply(
   let versions = requestVersions.get(container);
   if (!versions) { versions = new Map(); requestVersions.set(container, versions); }
   const configuredBoundaries = options.actionBoundaries?.[id];
-  const requestKeys = type === "refresh"
+  const requestKeys = [...new Set(type === "refresh"
     ? [`boundary:${id}`]
     : configuredBoundaries?.length
       ? configuredBoundaries.map(boundary => `boundary:${boundary}`)
-      : [`action:${id}`];
+      : [`action:${id}`])];
   const requestVersion = Math.max(0, ...requestKeys.map(key => versions!.get(key) ?? 0)) + 1;
   for (const key of requestKeys) versions.set(key, requestVersion);
   const requestOrdinal = (versions.get("request") ?? 0) + 1;
@@ -446,7 +453,8 @@ async function invokeAndApply(
       fetch: transport.fetch,
       headers: transport.headers,
       logger: options.logger,
-      stream: options.stream
+      stream: options.stream,
+      signal: options.signal
     })
     : await enqueueExactOperation(container, {
       endpoint,
@@ -454,7 +462,8 @@ async function invokeAndApply(
       fetch: transport.fetch,
       headers: transport.headers,
       logger: options.logger,
-      stream: options.stream
+      stream: options.stream,
+      signal: options.signal
     });
   const staleKeys = new Set(requestKeys.filter(key => versions!.get(key) !== requestVersion));
   if (staleKeys.size === requestKeys.length) {

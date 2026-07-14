@@ -12,13 +12,14 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
   const fetchImpl = options.fetch ?? globalThis.fetch;
   if (!fetchImpl) throw new Error("eXact endpoint invocation requires fetch");
 
-  const response = await fetchImpl(options.endpoint, {
+  const response = await withAbort(fetchImpl(options.endpoint, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       ...(options.stream ? { accept: "application/x-ndjson", "x-exact-stream": "1" } : {}),
       ...options.headers
     },
+    signal: options.signal,
     body: JSON.stringify({
       type: options.type,
       id: options.id,
@@ -28,20 +29,20 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
       boundaryHtml: options.boundaryHtml,
       boundaryHtmls: options.boundaryHtmls
     })
-  });
+  }), options.signal);
 
   if (!response.ok) {
     logFrameworkEvent("warn", "hydrate", "request", `exact ${options.type} invocation failed with ${response.status}`, undefined, options.logger);
     throw new Error(`eXact ${options.type} invocation failed`);
   }
   if (options.stream) {
-    const results = await readExactStreamResponse(response, 1);
+    const results = await readExactStreamResponse(response, 1, options.signal);
     const result = results[0];
     if (!result?.ok) throw new Error(`eXact ${options.type} invocation failed`);
     const { ok: _ok, type: _type, id: _id, ...body } = result;
     return body;
   }
-  const body = await response.json();
+  const body = await withAbort(response.json(), options.signal);
   return parseExactInvocationResponse(body, `eXact ${options.type} invocation returned malformed result`);
 }
 
@@ -50,25 +51,36 @@ export async function invokeExactBatch(options: InvokeExactBatchOptions): Promis
   const fetchImpl = options.fetch ?? globalThis.fetch;
   if (!fetchImpl) throw new Error("eXact endpoint invocation requires fetch");
 
-  const response = await fetchImpl(options.endpoint, {
+  const response = await withAbort(fetchImpl(options.endpoint, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       ...(options.stream ? { accept: "application/x-ndjson", "x-exact-stream": "1" } : {}),
       ...options.headers
     },
+    signal: options.signal,
     body: JSON.stringify({
       type: "batch",
       version: 1,
       operations: options.operations
     })
-  });
+  }), options.signal);
 
   if (!response.ok) {
     logFrameworkEvent("warn", "hydrate", "request", `exact batch invocation failed with ${response.status}`, undefined, options.logger);
     throw new Error("eXact batch invocation failed");
   }
-  if (options.stream) return readExactStreamResponse(response, options.operations.length);
-  const body = await response.json();
+  if (options.stream) return readExactStreamResponse(response, options.operations.length, options.signal);
+  const body = await withAbort(response.json(), options.signal);
   return parseExactBatchResponse(body);
+}
+
+function withAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(signal.reason ?? new DOMException("eXact request aborted", "AbortError"));
+  return new Promise<T>((resolve, reject) => {
+    const abort = () => reject(signal.reason ?? new DOMException("eXact request aborted", "AbortError"));
+    signal.addEventListener("abort", abort, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
+  });
 }

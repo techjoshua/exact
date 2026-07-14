@@ -178,6 +178,21 @@ export function total(items: number[]) {
     expect(graph.exits).not.toContain(unreachable.id);
   });
 
+  it("preserves pending completion through normally completing finalizer branches", () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__expressions_conditional_finally.ts");
+    const module = project.updateModule(filename, `function run(override: boolean) {
+      try { return 1; }
+      finally { if (override) return 2; cleanup(); }
+    }`);
+    const graph = module.controlFlowOf(module.walk().functions().single());
+    const returns = graph.nodes.filter(node => node.expression.kind === "ReturnStatement");
+    const cleanup = graph.nodes.find(node => node.expression.kind === "ExpressionStatement" && node.expression.text?.includes("cleanup()"))!;
+    expect(returns).toHaveLength(2);
+    expect(graph.exits).toEqual(expect.arrayContaining(returns.map(node => node.id)));
+    expect(cleanup.predecessors.length).toBeGreaterThan(0);
+  });
+
   it("constructs, emits, and binds typed modules programmatically", async () => {
     const builder = expressions.module(path.join(root, "apps/kanban/src/__generated_expression.ts"));
     const number = builder.types.number();

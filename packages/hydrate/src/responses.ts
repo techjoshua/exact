@@ -34,11 +34,12 @@ export function parseExactBatchResponse(body: unknown): ExactOperationResult[] {
 /** Reads and validates streamed NDJSON eXact operation events. */
 export async function readExactStreamResponse(
   response: { body?: ReadableStream<Uint8Array> | null },
-  expectedOperations: number
+  expectedOperations: number,
+  signal?: AbortSignal
 ): Promise<ExactOperationResult[]> {
   const message = "eXact stream invocation returned malformed events";
   if (!response.body) throw new Error(message);
-  const events = await readNdjsonEvents(response.body, message);
+  const events = await readNdjsonEvents(response.body, message, signal);
   if (!events.length) throw new Error(message);
   const start = events[0];
   const complete = events[events.length - 1];
@@ -85,14 +86,24 @@ function assertStreamIndex(index: number, expectedOperations: number, message: s
   if (!Number.isInteger(index) || index < 0 || index >= expectedOperations) throw new Error(message);
 }
 
-async function readNdjsonEvents(stream: ReadableStream<Uint8Array>, message: string): Promise<unknown[]> {
+async function readNdjsonEvents(stream: ReadableStream<Uint8Array>, message: string, signal?: AbortSignal): Promise<unknown[]> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
   let text = "";
-  while (true) {
-    const next = await reader.read();
-    if (next.done) break;
-    text += decoder.decode(next.value, { stream: true });
+  const abort = () => { void reader.cancel(signal?.reason); };
+  if (signal?.aborted) abort();
+  else signal?.addEventListener("abort", abort, { once: true });
+  try {
+    while (true) {
+      if (signal?.aborted) throw signal.reason ?? new DOMException("eXact request aborted", "AbortError");
+      const next = await reader.read();
+      if (signal?.aborted) throw signal.reason ?? new DOMException("eXact request aborted", "AbortError");
+      if (next.done) break;
+      text += decoder.decode(next.value, { stream: true });
+    }
+  } finally {
+    signal?.removeEventListener("abort", abort);
+    reader.releaseLock();
   }
   text += decoder.decode();
   const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);

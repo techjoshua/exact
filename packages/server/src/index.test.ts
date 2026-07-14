@@ -1394,6 +1394,7 @@ describe("@exact/server", () => {
   });
 
   it("turns express disconnect events into request cancellation", async () => {
+    const upstream = new AbortController();
     let disconnect!: () => void;
     let started!: () => void;
     const didStart = new Promise<void>(resolve => { started = resolve; });
@@ -1414,6 +1415,7 @@ describe("@exact/server", () => {
         url: "/__exact",
         headers: { accept: "application/x-ndjson" },
         body: { type: "action", id: "allowed-action" },
+        signal: upstream.signal,
         once(event, listener) { if (event === "aborted") disconnect = listener; },
         off() {}
       }, {

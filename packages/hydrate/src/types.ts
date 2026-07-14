@@ -15,6 +15,7 @@ export type HydrateOptions = {
   islands?: ClientIslandRegistry;
   batch?: boolean;
   stream?: boolean;
+  signal?: AbortSignal;
   onDiagnostic?: (diagnostic: HydrationDiagnostic) => void;
 };
 
@@ -48,6 +49,7 @@ export type FetchLike = (input: string, init: {
   method: string;
   headers: Record<string, string>;
   body: string;
+  signal?: AbortSignal;
 }) => Promise<{
   ok: boolean;
   status: number;
@@ -89,6 +91,7 @@ export type InvokeExactOptions = {
   headers?: Record<string, string>;
   logger?: Logger;
   stream?: boolean;
+  signal?: AbortSignal;
 };
 
 export type InvokeExactBatchOptions = {
@@ -98,6 +101,7 @@ export type InvokeExactBatchOptions = {
   headers?: Record<string, string>;
   logger?: Logger;
   stream?: boolean;
+  signal?: AbortSignal;
 };
 
 export type PendingExactOperation = {
@@ -113,6 +117,7 @@ export type ExactBatchQueue = {
   headersKey: string;
   logger?: Logger;
   stream?: boolean;
+  signal?: AbortSignal;
   pending: PendingExactOperation[];
   scheduled: boolean;
   active?: number;

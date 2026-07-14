@@ -20,6 +20,7 @@ export function enqueueExactOperation(
     headers?: Record<string, string>;
     logger?: Logger;
     stream?: boolean;
+    signal?: AbortSignal;
   }
 ): Promise<ExactInvocationResult> {
   let queues = batchQueues.get(container);
@@ -28,7 +29,7 @@ export function enqueueExactOperation(
     batchQueues.set(container, queues);
   }
   const headersKey = headersCacheKey(options.headers);
-  let queue = queues.find(item => item.endpoint === options.endpoint && item.fetch === options.fetch && item.headersKey === headersKey && item.logger === options.logger && item.stream === options.stream);
+  let queue = queues.find(item => item.endpoint === options.endpoint && item.fetch === options.fetch && item.headersKey === headersKey && item.logger === options.logger && item.stream === options.stream && item.signal === options.signal);
   if (!queue) {
     queue = {
       endpoint: options.endpoint,
@@ -37,6 +38,7 @@ export function enqueueExactOperation(
       headersKey,
       logger: options.logger,
       stream: options.stream,
+      signal: options.signal,
       pending: [],
       scheduled: false,
       active: 0
@@ -79,7 +81,8 @@ async function flushExactBatchQueue(queue: ExactBatchQueue): Promise<void> {
         fetch: queue.fetch,
         headers: queue.headers,
         logger: queue.logger,
-        stream: queue.stream
+        stream: queue.stream,
+        signal: queue.signal
       });
       pending[0]!.resolve(result);
     } catch (error) {
@@ -95,7 +98,8 @@ async function flushExactBatchQueue(queue: ExactBatchQueue): Promise<void> {
       fetch: queue.fetch,
       headers: queue.headers,
       logger: queue.logger,
-      stream: queue.stream
+      stream: queue.stream,
+      signal: queue.signal
     });
     pending.forEach((item, index) => {
       const result = results[index];
