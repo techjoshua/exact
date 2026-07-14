@@ -300,6 +300,31 @@ describe("@exact/ssr", () => {
       .rejects.toThrow("eXact SSR tree exceeds the configured maximum depth of 8");
   });
 
+  it("bounds broad trees in sync, async, and streaming renders", async () => {
+    const vnode = createVNode("main", null,
+      ...Array.from({ length: 12 }, (_, index) => createVNode("p", null, String(index))));
+
+    expect(() => renderToString(vnode, { markers: false, maxTreeNodes: 5 }))
+      .toThrow("eXact SSR tree exceeds the configured maximum of 5 vnodes");
+    await expect(renderToStringAsync(vnode, { markers: false, maxTreeNodes: 5 }))
+      .rejects.toThrow("eXact SSR tree exceeds the configured maximum of 5 vnodes");
+    const reader = renderToStream(vnode, { markers: false, maxTreeNodes: 5 }).getReader();
+    await expect((async () => {
+      while (!(await reader.read()).done) { /* consume lazily */ }
+    })()).rejects.toThrow("eXact SSR tree exceeds the configured maximum of 5 vnodes");
+  });
+
+  it("bounds encoded string output and does not let component fallbacks swallow the limit", async () => {
+    function Large() {
+      return () => createVNode("p", null, "éé");
+    }
+
+    expect(() => renderToString(createVNode(Large, {}), { markers: false, maxOutputBytes: 9 }))
+      .toThrow("eXact SSR output exceeds the configured maximum of 9 bytes");
+    await expect(renderToStringAsync(createVNode(Large, {}), { markers: false, maxOutputBytes: 9 }))
+      .rejects.toThrow("eXact SSR output exceeds the configured maximum of 9 bytes");
+  });
+
   it("retains component fallback semantics for checked string rendering", () => {
     function Broken() {
       const style: Record<string, unknown> = {};

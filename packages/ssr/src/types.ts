@@ -25,6 +25,10 @@ export type RenderToStringOptions = {
   maxTaskDurationMs?: number;
   /** Maximum nested vnode depth. Defaults to 512 and is capped at 1,024. */
   maxTreeDepth?: number;
+  /** Maximum vnodes visited by one render. Defaults to 100,000. */
+  maxTreeNodes?: number;
+  /** Maximum UTF-8 bytes in a checked string render. Defaults to 16 MiB. */
+  maxOutputBytes?: number;
   /** Maximum bytes emitted by a plain HTML stream. Defaults to 16 MiB. */
   maxStreamBytes?: number;
   /** Maximum chunks emitted by a plain HTML stream. Defaults to 100,000. */
@@ -156,6 +160,9 @@ export type SsrContext = {
   logger?: Logger;
   maxTreeDepth: number;
   traversalDepth: number;
+  maxTreeNodes: number;
+  traversedNodes: number;
+  maxOutputBytes: number;
 };
 
 export type { Child, ComponentFunction, ComponentInstance, Logger, TaskObserver, VNode };

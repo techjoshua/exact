@@ -64,6 +64,8 @@ export { renderHydrationScript } from "./hydration.js";
 
 const DEFAULT_MAX_TREE_DEPTH = 512;
 const HARD_MAX_TREE_DEPTH = 1_024;
+const DEFAULT_MAX_TREE_NODES = 100_000;
+const DEFAULT_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 const DEFAULT_MAX_TASK_DURATION_MS = 30_000;
 
 type SsrRenderOptions = RenderToStringOptions & { taskDeadline?: number };
@@ -82,6 +84,20 @@ class SsrTaskDeadlineError extends Error {
   }
 }
 
+class SsrTreeNodeError extends Error {
+  constructor(limit: number) {
+    super(`eXact SSR tree exceeds the configured maximum of ${limit} vnodes`);
+    this.name = "SsrTreeNodeError";
+  }
+}
+
+class SsrOutputLimitError extends Error {
+  constructor(limit: number) {
+    super(`eXact SSR output exceeds the configured maximum of ${limit} bytes`);
+    this.name = "SsrOutputLimitError";
+  }
+}
+
 /** Renders a vnode tree to an HTML string without waiting for async component tasks. */
 export function renderToString(vnode: VNode, options: RenderToStringOptions = {}): RenderToStringResult {
   const owner = createSsrOwner();
@@ -94,9 +110,10 @@ export function renderToString(vnode: VNode, options: RenderToStringOptions = {}
 
 function renderToStringOwned(vnode: VNode, options: RenderToStringOptions): RenderToStringResult {
   const context = createSsrContext(options);
-
+  const html = renderVNode(context, vnode, undefined);
+  assertOutputWithinLimit(context, html);
   return {
-    html: renderVNode(context, vnode, undefined),
+    html,
     state: options.state
   };
 }
@@ -193,8 +210,10 @@ export async function renderToStringAsync(vnode: VNode, options: RenderToStringO
   const renderOptions = withTaskDeadline(options);
   const context = createSsrContext(renderOptions);
 
+  const html = await renderVNodeAsync(context, vnode, undefined, renderOptions);
+  assertOutputWithinLimit(context, html);
   return {
-    html: await renderVNodeAsync(context, vnode, undefined, renderOptions),
+    html,
     state: options.state
   };
 }
@@ -398,19 +417,23 @@ function boundaryRefreshOptions(
 export function renderKeyedListSnapshot<T>(options: KeyedListSnapshotOptions<T>): KeyedListSnapshot {
   const context = createSsrContext(options);
   const items: KeyedListSnapshotItem[] = [];
-  let html = "";
+  const html: string[] = [];
   for (const item of options.items) {
     const key = String(options.key(item));
     const child = options.render(item);
     const itemHtml = markerPair(context, keyedItemMarkerId(key), () => renderVNode(context, { ...child, key }, undefined));
     items.push({ key, html: itemHtml });
-    html += itemHtml;
+    html.push(itemHtml);
   }
+
+  const innerHtml = boundedJoin(context, html);
+  const snapshotHtml = markerPair(context, exactMarkerId(options.listId), () => innerHtml);
+  assertOutputWithinLimit(context, snapshotHtml);
 
   return {
     listId: options.listId,
-    html: markerPair(context, exactMarkerId(options.listId), () => html),
-    innerHtml: html,
+    html: snapshotHtml,
+    innerHtml,
     items
   };
 }
@@ -465,6 +488,7 @@ function* renderVNodeChunks(
   depth: number
 ): Generator<string> {
   if (depth > context.maxTreeDepth) throw new SsrTreeDepthError(context.maxTreeDepth);
+  countSsrNode(context);
   const marked = function* (id: string, content: () => Generator<string>): Generator<string> {
     if (context.markers) yield `<!--exact:${id}-->`;
     yield* content();
@@ -538,7 +562,7 @@ function* renderVNodeChunks(
       childParent = instance;
       children = renderInstance(instance, () => undefined);
     } catch (error) {
-      if (error instanceof SsrTreeDepthError) throw error;
+      if (isSsrRenderLimitError(error)) throw error;
       const fallback = handleComponentError(parent, createErrorReport(error, "construct", parent, componentName(vnode.type)));
       children = fallback ? normalizeRenderResult(fallback()) : [];
     }
@@ -570,11 +594,11 @@ function* renderChildChunks(
 }
 
 function renderChildren(context: SsrContext, children: readonly Child[], parent?: ComponentInstance<any>): string {
-  let html = "";
+  const html: string[] = [];
   for (const child of children) {
-    html += renderChild(context, child, parent);
+    html.push(renderChild(context, child, parent));
   }
-  return html;
+  return boundedJoin(context, html);
 }
 
 function renderChild(context: SsrContext, child: Child, parent?: ComponentInstance<any>): string {
@@ -584,7 +608,12 @@ function renderChild(context: SsrContext, child: Child, parent?: ComponentInstan
 }
 
 function renderVNode(context: SsrContext, vnode: VNode, parent?: ComponentInstance<any>): string {
-  return withSsrTreeDepth(context, () => renderVNodeInner(context, vnode, parent));
+  return withSsrTreeDepth(context, () => {
+    countSsrNode(context);
+    const html = renderVNodeInner(context, vnode, parent);
+    assertOutputWithinLimit(context, html);
+    return html;
+  });
 }
 
 function renderVNodeInner(context: SsrContext, vnode: VNode, parent?: ComponentInstance<any>): string {
@@ -602,12 +631,12 @@ function renderVNodeInner(context: SsrContext, vnode: VNode, parent?: ComponentI
     return markerPair(context, marker, () => {
       if (!list) return renderChildren(context, vnode.children, parent);
       const collection = list.source ? list.source.get() : list.collection;
-      let html = "";
+      const html: string[] = [];
       for (const item of collection) {
         const child = list.render(item);
-        html += withMarker(context, "item", String(list.key(item)), () => renderVNode(context, { ...child, key: String(list.key(item)) }, parent));
+        html.push(withMarker(context, "item", String(list.key(item)), () => renderVNode(context, { ...child, key: String(list.key(item)) }, parent)));
       }
-      return html;
+      return boundedJoin(context, html);
     });
   }
 
@@ -638,11 +667,11 @@ async function renderChildrenAsync(
   parent: ComponentInstance<any> | undefined,
   options: RenderToStringOptions
 ): Promise<string> {
-  let html = "";
+  const html: string[] = [];
   for (const child of children) {
-    html += await renderChildAsync(context, child, parent, options);
+    html.push(await renderChildAsync(context, child, parent, options));
   }
-  return html;
+  return boundedJoin(context, html);
 }
 
 async function renderChildAsync(
@@ -662,7 +691,12 @@ async function renderVNodeAsync(
   parent: ComponentInstance<any> | undefined,
   options: SsrRenderOptions
 ): Promise<string> {
-  return withSsrTreeDepthAsync(context, () => renderVNodeAsyncInner(context, vnode, parent, options));
+  return withSsrTreeDepthAsync(context, async () => {
+    countSsrNode(context);
+    const html = await renderVNodeAsyncInner(context, vnode, parent, options);
+    assertOutputWithinLimit(context, html);
+    return html;
+  });
 }
 
 async function renderVNodeAsyncInner(
@@ -685,13 +719,13 @@ async function renderVNodeAsyncInner(
     return markerPair(context, marker, async () => {
       if (!list) return renderChildrenAsync(context, vnode.children, parent, options);
       const collection = list.source ? list.source.get() : list.collection;
-      let html = "";
+      const html: string[] = [];
       for (const item of collection) {
         const key = String(list.key(item));
         const child = list.render(item);
-        html += await markerPair(context, markerId(context, "item", undefined, key), async () => renderVNodeAsync(context, { ...child, key }, parent, options));
+        html.push(await markerPair(context, markerId(context, "item", undefined, key), async () => renderVNodeAsync(context, { ...child, key }, parent, options)));
       }
-      return html;
+      return boundedJoin(context, html);
     });
   }
 
@@ -953,8 +987,38 @@ function createSsrContext(options: RenderToStringOptions): SsrContext {
     nextId: 0,
     logger: options.logger,
     maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth),
-    traversalDepth: 0
+    traversalDepth: 0,
+    maxTreeNodes: normalizePositiveLimit(options.maxTreeNodes, DEFAULT_MAX_TREE_NODES),
+    traversedNodes: 0,
+    maxOutputBytes: normalizePositiveLimit(options.maxOutputBytes, DEFAULT_MAX_OUTPUT_BYTES)
   };
+}
+
+function normalizePositiveLimit(value: number | undefined, fallback: number): number {
+  return Number.isSafeInteger(value) && value! > 0 ? value! : fallback;
+}
+
+function countSsrNode(context: SsrContext): void {
+  if (++context.traversedNodes > context.maxTreeNodes) throw new SsrTreeNodeError(context.maxTreeNodes);
+}
+
+function boundedJoin(context: SsrContext, chunks: readonly string[]): string {
+  let characters = 0;
+  for (const chunk of chunks) {
+    characters += chunk.length;
+    if (characters > context.maxOutputBytes) throw new SsrOutputLimitError(context.maxOutputBytes);
+  }
+  const html = chunks.join("");
+  assertOutputWithinLimit(context, html);
+  return html;
+}
+
+function assertOutputWithinLimit(context: SsrContext, html: string): void {
+  if (html.length > context.maxOutputBytes) throw new SsrOutputLimitError(context.maxOutputBytes);
+  // ASCII is the overwhelmingly common SSR path and needs no allocation.
+  if (/[^\x00-\x7f]/.test(html) && new TextEncoder().encode(html).byteLength > context.maxOutputBytes) {
+    throw new SsrOutputLimitError(context.maxOutputBytes);
+  }
 }
 
 function normalizeTreeDepth(value: number | undefined): number {
@@ -992,6 +1056,7 @@ function withTaskDeadline<T extends RenderToStringOptions>(options: T): T & { ta
   return { ...options, taskDeadline: Date.now() + duration };
 }
 
-function isSsrRenderLimitError(error: unknown): error is SsrTreeDepthError | SsrTaskDeadlineError {
-  return error instanceof SsrTreeDepthError || error instanceof SsrTaskDeadlineError;
+function isSsrRenderLimitError(error: unknown): error is SsrTreeDepthError | SsrTreeNodeError | SsrOutputLimitError | SsrTaskDeadlineError {
+  return error instanceof SsrTreeDepthError || error instanceof SsrTreeNodeError
+    || error instanceof SsrOutputLimitError || error instanceof SsrTaskDeadlineError;
 }
