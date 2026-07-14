@@ -21,6 +21,14 @@ export type RenderToStringOptions = {
   logger?: Logger;
   state?: unknown;
   maxTaskPasses?: number;
+  /** Total wall-clock budget for all async component tasks in one render. Defaults to 30 seconds. */
+  maxTaskDurationMs?: number;
+  /** Maximum nested vnode depth. Defaults to 512 and is capped at 1,024. */
+  maxTreeDepth?: number;
+  /** Maximum bytes emitted by a plain HTML stream. Defaults to 16 MiB. */
+  maxStreamBytes?: number;
+  /** Maximum chunks emitted by a plain HTML stream. Defaults to 100,000. */
+  maxStreamChunks?: number;
   signal?: AbortSignal;
 };
 
@@ -54,7 +62,6 @@ export type RenderToDocumentStreamOptions = RenderToStringOptions & HydrationScr
   rootId?: string;
   hydration?: boolean;
   maxStreamEvents?: number;
-  maxStreamBytes?: number;
 };
 
 export type RenderToProgressiveHtmlStreamOptions = RenderToDocumentStreamOptions & {
@@ -147,6 +154,8 @@ export type SsrContext = {
   markers: boolean;
   nextId: number;
   logger?: Logger;
+  maxTreeDepth: number;
+  traversalDepth: number;
 };
 
 export type { Child, ComponentFunction, ComponentInstance, Logger, TaskObserver, VNode };

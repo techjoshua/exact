@@ -257,6 +257,30 @@ describe("@exact/ssr", () => {
     expect(chunks.join("")).toBe("<p>streamed</p>");
   });
 
+  it("does not construct streamed components until the consumer requests bytes", async () => {
+    let constructions = 0;
+    function Lazy() {
+      constructions++;
+      return () => createVNode("section", null, createVNode("p", null, "streamed"));
+    }
+    const reader = renderToStream(createVNode(Lazy, {}), { markers: false }).getReader();
+    expect(constructions).toBe(0);
+
+    expect(new TextDecoder().decode((await reader.read()).value)).toBe("<section>");
+    expect(constructions).toBe(1);
+    await reader.cancel();
+  });
+
+  it("rejects over-deep sync and async vnode trees with a deterministic limit error", async () => {
+    let vnode = createVNode("span", null, "leaf");
+    for (let depth = 0; depth < 20; depth++) vnode = createVNode("div", null, vnode);
+
+    expect(() => renderToString(vnode, { markers: false, maxTreeDepth: 8 }))
+      .toThrow("eXact SSR tree exceeds the configured maximum depth of 8");
+    await expect(renderToStringAsync(vnode, { markers: false, maxTreeDepth: 8 }))
+      .rejects.toThrow("eXact SSR tree exceeds the configured maximum depth of 8");
+  });
+
   it("streams document render events", async () => {
     const stream = renderToDocumentStream(createVNode("p", null, "streamed"), {
       markers: false,
@@ -344,6 +368,16 @@ describe("@exact/ssr", () => {
     abort.abort("disconnected");
     await expect(reader.read()).rejects.toBe("disconnected");
     expect(logs).toEqual([]);
+  });
+
+  it("bounds the wall-clock duration of tasks that never settle", async () => {
+    function Pending(this: Component<{}>) {
+      this.task(() => new Promise<void>(() => undefined));
+      return () => createVNode("p", null, "Loading");
+    }
+
+    await expect(renderToStringAsync(createVNode(Pending, {}), { maxTaskDurationMs: 10 }))
+      .rejects.toThrow("SSR task duration limit exceeded");
   });
 
   it("streams progressive browser-consumable html", async () => {

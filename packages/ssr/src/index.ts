@@ -62,6 +62,26 @@ export type * from "./types.js";
 export { diffBoundaryHtml, diffKeyedListItems } from "./diff.js";
 export { renderHydrationScript } from "./hydration.js";
 
+const DEFAULT_MAX_TREE_DEPTH = 512;
+const HARD_MAX_TREE_DEPTH = 1_024;
+const DEFAULT_MAX_TASK_DURATION_MS = 30_000;
+
+type SsrRenderOptions = RenderToStringOptions & { taskDeadline?: number };
+
+class SsrTreeDepthError extends Error {
+  constructor(limit: number) {
+    super(`eXact SSR tree exceeds the configured maximum depth of ${limit}`);
+    this.name = "SsrTreeDepthError";
+  }
+}
+
+class SsrTaskDeadlineError extends Error {
+  constructor() {
+    super("SSR task duration limit exceeded");
+    this.name = "SsrTaskDeadlineError";
+  }
+}
+
 /** Renders a vnode tree to an HTML string without waiting for async component tasks. */
 export function renderToString(vnode: VNode, options: RenderToStringOptions = {}): RenderToStringResult {
   const owner = createSsrOwner();
@@ -73,14 +93,10 @@ export function renderToString(vnode: VNode, options: RenderToStringOptions = {}
 }
 
 function renderToStringOwned(vnode: VNode, options: RenderToStringOptions): RenderToStringResult {
-  const context: SsrContext = {
-    markers: options.markers ?? true,
-    nextId: 0,
-    logger: options.logger
-  };
+  const context = createSsrContext(options);
 
   return {
-    html: renderVNode(context, vnode, undefined),
+    html: [...renderVNodeChunks(context, vnode, undefined, 1)].join(""),
     state: options.state
   };
 }
@@ -107,10 +123,25 @@ export function renderToHydratableString(vnode: VNode, options: RenderToStringOp
   };
 }
 
-/** Renders a vnode tree to a one-shot HTML readable stream. */
+/** Renders a vnode tree lazily as demand-driven HTML chunks. */
 export function renderToStream(vnode: VNode, options: RenderToStringOptions = {}): ReadableStream<Uint8Array> {
-  const result = renderToString(vnode, options);
-  return createHtmlStream(result.html);
+  const context = createSsrContext(options);
+  const owner = createSsrOwner();
+  const rendered = renderVNodeChunks(context, vnode, undefined, 1);
+  const observed: Iterable<string> = {
+    [Symbol.iterator]() {
+      return {
+        next: () => withTaskObserver(owner.observer, () => rendered.next()),
+        return: () => rendered.return(undefined)
+      };
+    }
+  };
+  return createHtmlStream(observed, {
+    signal: options.signal,
+    maxBytes: options.maxStreamBytes,
+    maxChunks: options.maxStreamChunks,
+    close: () => owner.dispose(options.signal?.reason ?? "ssr stream complete")
+  });
 }
 
 /** Streams document render lifecycle events for shell/final/hydration output. */
@@ -159,14 +190,11 @@ export function renderToHydratableProgressiveHtmlResponse(vnode: VNode, options:
 
 /** Renders a vnode tree after waiting for observed async component tasks to settle. */
 export async function renderToStringAsync(vnode: VNode, options: RenderToStringOptions = {}): Promise<RenderToStringResult> {
-  const context: SsrContext = {
-    markers: options.markers ?? true,
-    nextId: 0,
-    logger: options.logger
-  };
+  const renderOptions = withTaskDeadline(options);
+  const context = createSsrContext(renderOptions);
 
   return {
-    html: await renderVNodeAsync(context, vnode, undefined, options),
+    html: await renderVNodeAsync(context, vnode, undefined, renderOptions),
     state: options.state
   };
 }
@@ -195,9 +223,10 @@ export async function renderToHydratableStringAsync(vnode: VNode, options: Rende
 
 async function streamDocumentRender(
   vnode: VNode,
-  options: RenderToDocumentStreamOptions,
+  options: RenderToDocumentStreamOptions & { taskDeadline?: number },
   emit: (event: ExactDocumentStreamEvent) => Promise<void>
 ): Promise<void> {
+  options = withTaskDeadline(options);
   const owner = createSsrOwner();
   try {
     await emit({ event: "start", version: 1 });
@@ -208,7 +237,7 @@ async function streamDocumentRender(
     if (owner.pending.size) {
       // Initial streaming sends an early shell, drains observed tasks, then emits a
       // root replacement only if the settled tree differs from the shell.
-      await drainTasks(owner.pending, options.maxTaskPasses ?? 10, options.signal);
+      await drainTasks(owner.pending, options.maxTaskPasses ?? 10, options.signal, options.taskDeadline);
       final = await renderToStringAsync(vnode, options);
       if (final.html !== shell.html) {
         await emit({ event: "replace", version: 1, id: options.rootId ?? "document", html: final.html });
@@ -367,11 +396,7 @@ function boundaryRefreshOptions(
 
 /** Renders a keyed list snapshot that can later be diffed into list patches. */
 export function renderKeyedListSnapshot<T>(options: KeyedListSnapshotOptions<T>): KeyedListSnapshot {
-  const context: SsrContext = {
-    markers: options.markers ?? true,
-    nextId: 0,
-    logger: options.logger
-  };
+  const context = createSsrContext(options);
   const items: KeyedListSnapshotItem[] = [];
   let html = "";
   for (const item of options.items) {
@@ -427,10 +452,121 @@ export function parseKeyedListSnapshotHtml(listId: string, html: string | undefi
   if (!items.length) return undefined;
   return {
     listId,
-    html: markerPair({ markers: true, nextId: 0 }, exactMarkerId(listId), () => html),
+    html: markerPair(createSsrContext({ markers: true }), exactMarkerId(listId), () => html),
     innerHtml: html,
     items
   };
+}
+
+function* renderVNodeChunks(
+  context: SsrContext,
+  vnode: VNode,
+  parent: ComponentInstance<any> | undefined,
+  depth: number
+): Generator<string> {
+  if (depth > context.maxTreeDepth) throw new SsrTreeDepthError(context.maxTreeDepth);
+  const marked = function* (id: string, content: () => Generator<string>): Generator<string> {
+    if (context.markers) yield `<!--exact:${id}-->`;
+    yield* content();
+    if (context.markers) yield `<!--/exact:${id}-->`;
+  };
+
+  if (isCellVNode(vnode)) {
+    const id = markerId(context, "cell", undefined, vnode.key);
+    yield* marked(id, () => renderVNodeChunks(context, getCellVNode(vnode), parent, depth + 1));
+    return;
+  }
+  if (vnode.type === Text) {
+    yield escapeText(String(unwrap(vnode.props.value) ?? ""));
+    return;
+  }
+  if (vnode.type === Fragment) {
+    const list = vnode.props.list as { collection: Iterable<unknown>; source?: { get(): Iterable<unknown> }; key(item: unknown): string; render(item: unknown): VNode } | undefined;
+    const id = list && vnode.key ? exactMarkerId(vnode.key) : markerId(context, "fragment", undefined, vnode.key);
+    yield* marked(id, function* () {
+      if (!list) {
+        for (const child of vnode.children) yield* renderChildChunks(context, child, parent, depth + 1);
+        return;
+      }
+      const collection = list.source ? list.source.get() : list.collection;
+      for (const item of collection) {
+        const key = String(list.key(item));
+        const child = list.render(item);
+        yield* marked(markerId(context, "item", undefined, key), () => renderVNodeChunks(context, { ...child, key }, parent, depth + 1));
+      }
+    });
+    return;
+  }
+  if (vnode.type === Dynamic) {
+    const id = markerId(context, "dynamic", undefined, vnode.key);
+    yield* marked(id, function* () {
+      for (const child of normalizeRenderResult(unwrap(vnode.props.value) as Child | Child[])) {
+        yield* renderChildChunks(context, child, parent, depth + 1);
+      }
+    });
+    return;
+  }
+  if (vnode.type === ServerBoundary) {
+    const id = String(unwrap(vnode.props.id) ?? "");
+    const name = String(unwrap(vnode.props.name) ?? "");
+    const props = clientBoundaryProps(vnode);
+    const unsafePath = jsonUnsafePath(props);
+    if (unsafePath) throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
+    const marker = markerId(context, "client-boundary", name, id);
+    yield* marked(marker, function* () {
+      yield `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}">`;
+      if (vnode.children.length) {
+        yield `<span data-exact-server-slot="${escapeAttr(serverSlotId(id))}" style="display: contents;">`;
+        for (const child of vnode.children) yield* renderChildChunks(context, child, parent, depth + 1);
+        yield "</span>";
+      }
+      yield "</div>";
+    });
+    return;
+  }
+  if (vnode.type === ServerSlot) return;
+  if (typeof vnode.type === "function") {
+    const componentId = markerId(context, "component", componentName(vnode.type), vnode.key);
+    let childParent = parent;
+    let children: Child[];
+    try {
+      const instance = createComponentInstance(
+        vnode.type as ComponentFunction<any, Record<string, unknown>>,
+        getComponentProps(vnode),
+        parent
+      );
+      childParent = instance;
+      children = renderInstance(instance, () => undefined);
+    } catch (error) {
+      if (error instanceof SsrTreeDepthError) throw error;
+      const fallback = handleComponentError(parent, createErrorReport(error, "construct", parent, componentName(vnode.type)));
+      children = fallback ? normalizeRenderResult(fallback()) : [];
+    }
+    // Construction is recoverable before bytes are emitted. Once a component
+    // starts streaming, descendant failures fail the stream rather than
+    // appending fallback HTML after an already-emitted partial boundary.
+    yield* marked(componentId, function* () {
+      for (const child of children) yield* renderChildChunks(context, child, childParent, depth + 1);
+    });
+    return;
+  }
+
+  const tag = String(vnode.type);
+  yield `<${tag}${renderAttrs(vnode.props)}>`;
+  if (voidElements.has(tag)) return;
+  for (const child of vnode.children) yield* renderChildChunks(context, child, parent, depth + 1);
+  yield `</${tag}>`;
+}
+
+function* renderChildChunks(
+  context: SsrContext,
+  child: Child,
+  parent: ComponentInstance<any> | undefined,
+  depth: number
+): Generator<string> {
+  if (child === null || child === undefined || child === false || child === true) return;
+  if (isVNode(child)) yield* renderVNodeChunks(context, child, parent, depth);
+  else yield escapeText(String(unwrap(child)));
 }
 
 function renderChildren(context: SsrContext, children: readonly Child[], parent?: ComponentInstance<any>): string {
@@ -448,6 +584,10 @@ function renderChild(context: SsrContext, child: Child, parent?: ComponentInstan
 }
 
 function renderVNode(context: SsrContext, vnode: VNode, parent?: ComponentInstance<any>): string {
+  return withSsrTreeDepth(context, () => renderVNodeInner(context, vnode, parent));
+}
+
+function renderVNodeInner(context: SsrContext, vnode: VNode, parent?: ComponentInstance<any>): string {
   if (isCellVNode(vnode)) {
     return withMarker(context, "cell", vnode.key, () => renderVNode(context, getCellVNode(vnode), parent));
   }
@@ -520,7 +660,16 @@ async function renderVNodeAsync(
   context: SsrContext,
   vnode: VNode,
   parent: ComponentInstance<any> | undefined,
-  options: RenderToStringOptions
+  options: SsrRenderOptions
+): Promise<string> {
+  return withSsrTreeDepthAsync(context, () => renderVNodeAsyncInner(context, vnode, parent, options));
+}
+
+async function renderVNodeAsyncInner(
+  context: SsrContext,
+  vnode: VNode,
+  parent: ComponentInstance<any> | undefined,
+  options: SsrRenderOptions
 ): Promise<string> {
   if (isCellVNode(vnode)) {
     return markerPair(context, markerId(context, "cell", undefined, vnode.key), async () => renderVNodeAsync(context, getCellVNode(vnode), parent, options));
@@ -581,6 +730,7 @@ function renderComponent(context: SsrContext, vnode: VNode, parent?: ComponentIn
     const children = renderInstance(instance, () => undefined);
     return markerPair(context, componentId, () => renderChildren(context, children, instance));
   } catch (error) {
+    if (isSsrRenderLimitError(error)) throw error;
     const fallback = handleComponentError(
       parent,
       createErrorReport(error, "construct", parent, componentName(vnode.type))
@@ -593,7 +743,7 @@ async function renderComponentAsync(
   context: SsrContext,
   vnode: VNode,
   parent: ComponentInstance<any> | undefined,
-  options: RenderToStringOptions
+  options: SsrRenderOptions
 ): Promise<string> {
   const componentId = markerId(context, "component", componentName(vnode.type), vnode.key);
   let instance: ComponentInstance<any> | undefined;
@@ -611,10 +761,11 @@ async function renderComponentAsync(
       getComponentProps(vnode),
       parent
     ));
-    await drainTasks(pending, options.maxTaskPasses ?? 10, options.signal);
+    await drainTasks(pending, options.maxTaskPasses ?? 10, options.signal, options.taskDeadline);
     const children = renderInstance(instance, () => undefined);
     return markerPair(context, componentId, async () => renderChildrenAsync(context, children, instance, options));
   } catch (error) {
+    if (isSsrRenderLimitError(error)) throw error;
     const fallback = handleComponentError(
       parent,
       createErrorReport(error, "construct", parent, componentName(vnode.type))
@@ -760,27 +911,87 @@ function componentName(type: VNode["type"]): string {
   return typeof type === "function" ? type.name || "anonymous" : String(type);
 }
 
-async function drainTasks(pending: Set<Promise<unknown>>, maxPasses: number, signal?: AbortSignal): Promise<void> {
+async function drainTasks(
+  pending: Set<Promise<unknown>>,
+  maxPasses: number,
+  signal?: AbortSignal,
+  deadline?: number
+): Promise<void> {
   for (let pass = 0; pending.size && pass < maxPasses; pass++) {
     if (signal?.aborted) throw signal.reason ?? new DOMException("SSR render aborted", "AbortError");
-    await awaitWithAbort(Promise.all([...pending]), signal);
+    await awaitWithAbort(Promise.all([...pending]), signal, deadline);
   }
   if (pending.size) {
     throw new Error(`SSR task drain exceeded ${maxPasses} passes`);
   }
 }
 
-async function awaitWithAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
-  if (!signal) return promise;
-  if (signal.aborted) throw signal.reason ?? new DOMException("SSR render aborted", "AbortError");
+async function awaitWithAbort<T>(promise: Promise<T>, signal?: AbortSignal, deadline?: number): Promise<T> {
+  if (signal?.aborted) throw signal.reason ?? new DOMException("SSR render aborted", "AbortError");
+  const remaining = deadline === undefined ? undefined : deadline - Date.now();
+  if (remaining !== undefined && remaining <= 0) throw new SsrTaskDeadlineError();
   let abort!: () => void;
-  const aborted = new Promise<never>((_, reject) => {
-    abort = () => reject(signal.reason ?? new DOMException("SSR render aborted", "AbortError"));
-    signal.addEventListener("abort", abort, { once: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const interrupted = new Promise<never>((_, reject) => {
+    if (signal) {
+      abort = () => reject(signal.reason ?? new DOMException("SSR render aborted", "AbortError"));
+      signal.addEventListener("abort", abort, { once: true });
+    }
+    if (remaining !== undefined) timer = setTimeout(() => reject(new SsrTaskDeadlineError()), remaining);
   });
   try {
-    return await Promise.race([promise, aborted]);
+    return await Promise.race([promise, interrupted]);
   } finally {
-    signal.removeEventListener("abort", abort);
+    if (signal && abort) signal.removeEventListener("abort", abort);
+    if (timer) clearTimeout(timer);
   }
+}
+
+function createSsrContext(options: RenderToStringOptions): SsrContext {
+  return {
+    markers: options.markers ?? true,
+    nextId: 0,
+    logger: options.logger,
+    maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth),
+    traversalDepth: 0
+  };
+}
+
+function normalizeTreeDepth(value: number | undefined): number {
+  return Number.isSafeInteger(value) && value! > 0
+    ? Math.min(value!, HARD_MAX_TREE_DEPTH)
+    : DEFAULT_MAX_TREE_DEPTH;
+}
+
+function withSsrTreeDepth<T>(context: SsrContext, run: () => T): T {
+  context.traversalDepth++;
+  if (context.traversalDepth > context.maxTreeDepth) {
+    context.traversalDepth--;
+    throw new SsrTreeDepthError(context.maxTreeDepth);
+  }
+  try { return run(); }
+  finally { context.traversalDepth--; }
+}
+
+async function withSsrTreeDepthAsync<T>(context: SsrContext, run: () => Promise<T>): Promise<T> {
+  context.traversalDepth++;
+  if (context.traversalDepth > context.maxTreeDepth) {
+    context.traversalDepth--;
+    throw new SsrTreeDepthError(context.maxTreeDepth);
+  }
+  try { return await run(); }
+  finally { context.traversalDepth--; }
+}
+
+function withTaskDeadline<T extends RenderToStringOptions>(options: T): T & { taskDeadline: number } {
+  const existing = (options as SsrRenderOptions).taskDeadline;
+  if (typeof existing === "number") return options as T & { taskDeadline: number };
+  const duration = Number.isSafeInteger(options.maxTaskDurationMs) && options.maxTaskDurationMs! > 0
+    ? options.maxTaskDurationMs!
+    : DEFAULT_MAX_TASK_DURATION_MS;
+  return { ...options, taskDeadline: Date.now() + duration };
+}
+
+function isSsrRenderLimitError(error: unknown): error is SsrTreeDepthError | SsrTaskDeadlineError {
+  return error instanceof SsrTreeDepthError || error instanceof SsrTaskDeadlineError;
 }

@@ -16,14 +16,52 @@ export type ProgressiveDocumentStreamRender = (
   emit: (event: ExactDocumentStreamEvent) => Promise<void>
 ) => Promise<void> | void;
 
-/** Creates a readable stream containing a single HTML string. */
-export function createHtmlStream(html: string): ReadableStream<Uint8Array> {
+/** Creates a demand-driven readable stream from lazily rendered HTML chunks. */
+export function createHtmlStream(
+  chunks: Iterable<string>,
+  options: { signal?: AbortSignal; maxBytes?: number; maxChunks?: number; close?(): void } = {}
+): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  const iterator = chunks[Symbol.iterator]();
+  const maxBytes = positiveLimit(options.maxBytes, 16 * 1024 * 1024);
+  const maxChunks = positiveLimit(options.maxChunks, 100_000);
+  let bytes = 0;
+  let chunkCount = 0;
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    iterator.return?.();
+    options.close?.();
+  };
   return new ReadableStream<Uint8Array>({
-    start(controller) {
-      controller.enqueue(new TextEncoder().encode(html));
-      controller.close();
+    pull(controller) {
+      if (options.signal?.aborted) {
+        close();
+        controller.error(options.signal.reason ?? new DOMException("SSR stream aborted", "AbortError"));
+        return;
+      }
+      try {
+        const next = iterator.next();
+        if (next.done) {
+          close();
+          controller.close();
+          return;
+        }
+        const chunk = encoder.encode(next.value);
+        if (++chunkCount > maxChunks) throw new Error("SSR stream chunk limit exceeded");
+        bytes += chunk.byteLength;
+        if (bytes > maxBytes) throw new Error("SSR stream byte limit exceeded");
+        controller.enqueue(chunk);
+      } catch (error) {
+        close();
+        controller.error(error);
+      }
+    },
+    cancel() {
+      close();
     }
-  });
+  }, { highWaterMark: 0 });
 }
 
 /** Creates an NDJSON stream of document render lifecycle events. */
