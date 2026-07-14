@@ -1160,7 +1160,7 @@ describe("@exact/server", () => {
         ownedRequest.signal!.addEventListener("abort", () => {
           siblingAborted = true;
           siblingSettled = true;
-          resolve({ ok: false, type: operation.type, id: operation.id, status: 499, error: "aborted" });
+          resolve({ ok: false, type: operation.type, id: operation.id, status: 499, error: "internal_error" });
         }, { once: true });
       });
     })).rejects.toThrow("dispatch failed");
