@@ -535,6 +535,27 @@ describe("@exact/hydrate", () => {
     expect(({} as any).polluted).toBeUndefined();
   });
 
+  it("rejects over-deep client island props without recursive traversal", () => {
+    const container = document.createElement("main");
+    const boundary = document.createElement("div");
+    boundary.setAttribute("data-exact-client-boundary", "deep");
+    boundary.setAttribute("data-exact-client-name", "Deep");
+    const props: Record<string, unknown> = {};
+    let cursor = props;
+    for (let index = 0; index < 150; index++) {
+      const next: Record<string, unknown> = {};
+      cursor.next = next;
+      cursor = next;
+    }
+    boundary.setAttribute("data-exact-client-props", JSON.stringify({ props }));
+    container.append(boundary);
+    let received: unknown;
+    expect(hydrateClientIslands(container, {
+      Deep(_props) { received = _props; return () => null; }
+    })).toBe(1);
+    expect(received).toEqual({});
+  });
+
   it("hydrates client islands without replacing server child slots", () => {
     const container = document.createElement("main");
     container.innerHTML = "<div data-exact-client-boundary=\"island-children\" data-exact-client-name=\"Shell_ExactClient_1\" data-exact-client-props='{\"props\":{\"children\":{\"__exactServerSlot\":\"island-children:children\"}}}'><span data-exact-server-slot=\"island-children:children\" style=\"display: contents;\"><p>Server child</p></span></div>";
