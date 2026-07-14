@@ -7,6 +7,21 @@ import { buildExactProvenance } from "./provenance.js";
 import { analyzeExpressionWrites } from "./expression-writes.js";
 
 describe("expression-backed component effects", () => {
+  it("does not infer components from ordinary this-owned data or helper members", () => {
+    clearExpressionProjectCache();
+    const module = expressionModuleFor("OrdinaryReceiver.ts", `
+      function update(this: { state: { count: number }; log(value: unknown): void; ref: string }) {
+        this.state.count++;
+        this.log(this.ref);
+      }
+    `);
+    const tasks = analyzeExpressionTasks(module);
+    const jsx = analyzeExpressionJsx(module, buildExactProvenance(module), "OrdinaryReceiver.ts");
+
+    expect(analyzeExpressionComponents(module, jsx, tasks).sites.size).toBe(0);
+    expect(analyzeExpressionWrites(module).sites.size).toBe(0);
+  });
+
   it("indexes same-named components in distinct lexical scopes without overwriting either site", () => {
     clearExpressionProjectCache();
     const module = expressionModuleFor("ScopedComponents.tsx", `

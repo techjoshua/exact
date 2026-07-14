@@ -2,7 +2,7 @@ import type { BoundModule, NodeRef, Variable } from "@exact/expressions";
 import { analyzeExpressionWrites, writeSiteKey } from "./expression-writes.js";
 import { isServerOnlyModule } from "./imports.js";
 import type { ExactContextEffect, ExactPlacement, ExactStateEffect } from "./types.js";
-import { expressionComponentIndex, isComponentThisVariable, isImplicitComponentThisVariable } from "./expression-component-index.js";
+import { expressionComponentIndex } from "./expression-component-index.js";
 
 export interface ExpressionTaskSite {
   readonly component?: string;
@@ -75,7 +75,7 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
   const diagnosticLocations: Array<Readonly<{ message: string; start: number }>> = [];
   const writes = analyzeExpressionWrites(module);
   const localVariables = moduleLocalVariables(module);
-  for (const task of module.walk().calls().where(isTaskCall)) {
+  for (const task of module.walk().calls().where(call => isTaskCall(call, components))) {
     if (!task.node.span) continue;
     const work = task.arguments.at(-1);
     if (!work || !isFunction(work)) continue;
@@ -474,18 +474,18 @@ function uniqueContexts(effects: readonly ExactContextEffect[]): ExactContextEff
   return [...new Map(effects.map(value => [`${value.kind}:${value.token}`, value])).values()];
 }
 
-function isTaskCall(call: NodeRef): boolean {
+function isTaskCall(call: NodeRef, components?: ReturnType<typeof expressionComponentIndex>): boolean {
   const target = call.target;
   const taskTarget = target?.isMember("client") || target?.isMember("server") ? target.target : target;
-  return !!taskTarget?.isMember("task")
-    && (isComponentThisVariable(taskTarget.rootVariable) || isImplicitComponentThisVariable(taskTarget.rootVariable));
+  if (!taskTarget?.isMember("task")) return false;
+  if (!components) return true;
+  return components.ownsReceiver(components.owner(call), taskTarget.rootVariable);
 }
 
 function taskComponentOwner(task: NodeRef, components: ReturnType<typeof expressionComponentIndex>): NodeRef | undefined {
   const receiver = task.target?.rootVariable;
-  if (!isComponentThisVariable(receiver) && !isImplicitComponentThisVariable(receiver)) return undefined;
-  return task.ancestors().functions().first(owner => components.isComponent(owner)
-    && (isImplicitComponentThisVariable(receiver) || owner.node.parameters.includes(receiver)));
+  const owner = components.owner(task);
+  return components.ownsReceiver(owner, receiver) ? owner : undefined;
 }
 
 function isFunction(reference: NodeRef): boolean {
