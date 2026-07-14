@@ -77,7 +77,7 @@ export {
 export type { RenderOptions } from "./types.js";
 export { applyDomProp };
 export { HTML_NAMESPACE, MATHML_NAMESPACE, SVG_NAMESPACE, namespaceForTag } from "./namespace.js";
-export { DEFAULT_DOM_WORK_LIMIT, DomTraversalLimitError, consumeDomWork, createDomWorkBudget, walkDomSubtree, type DomWorkBudget } from "./work.js";
+export { DEFAULT_DOM_WORK_LIMIT, DomTraversalLimitError, consumeDomWork, createDomWorkBudget, reserveDomWork, walkDomSubtree, type DomWorkBudget } from "./work.js";
 
 const DEFAULT_MAX_TREE_DEPTH = 512;
 const HARD_MAX_TREE_DEPTH = 1_024;

@@ -13,6 +13,13 @@ export function consumeDomWork(budget: DomWorkBudget): void {
   if (++budget.used > budget.limit) throw new DomTraversalLimitError(budget.limit);
 }
 
+/** Reserves a known amount of work without allowing a partially consumed reservation. */
+export function reserveDomWork(budget: DomWorkBudget, amount: number): void {
+  if (!Number.isSafeInteger(amount) || amount < 0) throw new RangeError("DOM work reservation must be a non-negative safe integer");
+  if (amount > budget.limit - budget.used) throw new DomTraversalLimitError(budget.limit);
+  budget.used += amount;
+}
+
 export class DomTraversalLimitError extends Error {
   constructor(readonly limit: number) {
     super(`eXact DOM traversal exceeds the configured maximum of ${limit} nodes`);

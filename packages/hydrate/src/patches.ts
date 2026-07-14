@@ -1,5 +1,11 @@
-import { encodeExactMarkerPart, logFrameworkEvent, type Logger } from "@exact/core";
-import { applyDomProp, consumeDomWork, createDomWorkBudget, disposeOwnedSubtree, walkDomSubtree, type DomWorkBudget } from "@exact/dom";
+import {
+  attemptCleanup, createCleanupFailure, encodeExactMarkerPart, logFrameworkEvent, throwCleanupFailure,
+  type CleanupFailure, type Logger
+} from "@exact/core";
+import {
+  applyDomProp, consumeDomWork, createDomWorkBudget, disposeOwnedSubtree, reserveDomWork, walkDomSubtree,
+  type DomWorkBudget
+} from "@exact/dom";
 import type { ExactPatch } from "@exact/server";
 import type { HydrationDiagnostic } from "./types.js";
 
@@ -15,7 +21,7 @@ export type PatchOptions = {
 export function applyPatches(container: Element, patches: readonly ExactPatch[], options: PatchOptions = {}): boolean {
   if (!patches.length) return true;
   const index = createProtocolIndex(container, options.workBudget ?? options.maxTreeNodes);
-  if (!index || !validatePatchSequence(index, patches)) {
+  if (!index || !validatePatchSequence(index, patches) || !validatePatchTopology(index, patches)) {
     const failed = patches.find(patch => !index || !canApplyPatch(index, patch));
     const detail = failed ? `${failed.type}:${failed.id}` : "invalid marker topology";
     reportMismatch(options, `could not atomically apply exact patches (${detail})`, "invalid-patch", failed);
@@ -23,19 +29,26 @@ export function applyPatches(container: Element, patches: readonly ExactPatch[],
     return false;
   }
 
+  const prepared = preparePatchBatch(container, index, patches);
+  if (!prepared.ok) {
+    reportMismatch(options, `could not atomically apply exact patches (${prepared.detail})`, "invalid-patch");
+    if (options.onMismatch === "throw") throw new Error(`Could not apply exact patch batch (${prepared.detail})`);
+    return false;
+  }
+
   // Patches target compiler-owned server boundaries. Disposing the containing
   // renderer root here would tear down unrelated client components even for a
   // text/attribute patch and leave retained DOM inert.
-  for (const patch of patches) {
-    const ok = applyPatch(container, patch, index);
+  const cleanupFailure = createCleanupFailure();
+  const commitBudget = createDomWorkBudget(Number.MAX_SAFE_INTEGER);
+  for (let patchIndex = 0; patchIndex < patches.length; patchIndex++) {
+    const patch = patches[patchIndex]!;
+    const ok = applyPatch(container, patch, index, prepared.patches[patchIndex], commitBudget, cleanupFailure);
     if (!ok) {
-      reportMismatch(options, `could not apply exact patch ${patch.type}:${patch.id}`);
-      if (options.onMismatch === "throw") {
-        throw new Error(`Could not apply exact patch ${patch.type}:${patch.id}`);
-      }
-      return false;
+      throw new Error(`Prepared exact patch invariant failed for ${patch.type}:${patch.id}`);
     }
   }
+  throwCleanupFailure(cleanupFailure);
   return true;
 }
 
@@ -130,6 +143,9 @@ type ProtocolIndex = {
   budget: DomWorkBudget;
 };
 
+type PreparedPatch = { fragment?: DocumentFragment; stateJson?: string };
+type PreparedBatch = { ok: true; patches: PreparedPatch[] } | { ok: false; detail: string };
+
 function protocolTarget(index: ProtocolIndex, id: string): Node | ExactRange | undefined {
   return index.ranges.get(id) ?? index.exactElements.get(id)
     ?? index.serverSlots.get(id) ?? index.clientBoundaries.get(id);
@@ -186,16 +202,108 @@ function validatePatchSequence(index: ProtocolIndex, patches: readonly ExactPatc
       if (!has(list, patch.key)) return false;
       list.delete(patch.key);
       list.delete(encodeExactMarkerPart(patch.key));
-    } else if (!has(list, patch.key) && !patch.html) return false;
+    } else if (!has(list, patch.key)) {
+      if (!patch.html) return false;
+      list.add(patch.key);
+    }
   }
   return true;
 }
 
-function applyPatch(container: Element, patch: ExactPatch, index?: ProtocolIndex): boolean {
+function validatePatchTopology(index: ProtocolIndex, patches: readonly ExactPatch[]): boolean {
+  const targets = patches.map(patch => protocolTarget(index, patch.id));
+  for (let left = 0; left < patches.length; left++) {
+    const leftPatch = patches[left]!;
+    if (!isStructuralPatch(leftPatch) || !targets[left]) continue;
+    for (let right = 0; right < patches.length; right++) {
+      if (left === right || !targets[right]) continue;
+      const rightPatch = patches[right]!;
+      if (leftPatch.type === "list" && rightPatch.type === "list" && leftPatch.id === rightPatch.id) continue;
+      if (leftPatch.type === "text" && leftPatch.id === rightPatch.id) continue;
+      if (protocolTargetContains(targets[left]!, targets[right]!)) return false;
+    }
+  }
+  return true;
+}
+
+function isStructuralPatch(patch: ExactPatch): boolean {
+  return patch.type === "text" || patch.type === "replace" || patch.type === "list";
+}
+
+function preparePatchBatch(container: Element, index: ProtocolIndex, patches: readonly ExactPatch[]): PreparedBatch {
+  const prepared: PreparedPatch[] = [];
+  let commitWork = 0;
+  for (const patch of patches) {
+    const item: PreparedPatch = {};
+    let fragmentNodes = 0;
+    if ((patch.type === "replace" || patch.type === "list") && patch.html) {
+      const parent = fragmentContext(container, index, patch);
+      if (!parent) return { ok: false, detail: `missing fragment context for ${patch.type}:${patch.id}` };
+      const parsed = parseFragment(parent, patch.html, index.budget);
+      if (patch.type === "list" && !isValidListItemFragment(parsed.fragment, patch.key)) {
+        return { ok: false, detail: `list fragment does not declare key ${patch.key}` };
+      }
+      item.fragment = parsed.fragment;
+      fragmentNodes = parsed.nodeCount;
+    }
+    if (patch.type === "prop") {
+      const target = findExactElementTarget(container, patch.id, index);
+      if (!target) return { ok: false, detail: `missing prop target ${patch.id}` };
+      target.ownerDocument.createAttribute(patch.name);
+    }
+    if (patch.type === "state") {
+      const stateJson = JSON.stringify(patch.value);
+      if (stateJson === undefined) return { ok: false, detail: `state ${patch.id} is not JSON serializable` };
+      item.stateJson = stateJson;
+    }
+    const targetNodes = isStructuralPatch(patch) ? countProtocolTargetNodes(index, patch.id) : 0;
+    const patchWork = isStructuralPatch(patch) ? targetNodes * 3 + fragmentNodes : 1;
+    if (!Number.isSafeInteger(patchWork) || commitWork > Number.MAX_SAFE_INTEGER - patchWork) {
+      return { ok: false, detail: "patch work estimate exceeds the safe integer range" };
+    }
+    commitWork += patchWork;
+    prepared.push(item);
+  }
+  reserveDomWork(index.budget, commitWork);
+  return { ok: true, patches: prepared };
+}
+
+function fragmentContext(container: Element, index: ProtocolIndex, patch: ExactPatch): Node | undefined {
+  if (patch.type === "list") return index.ranges.get(patch.id)?.end.parentNode ?? undefined;
+  if (patch.type !== "replace") return undefined;
+  const range = index.ranges.get(patch.id);
+  if (range) return range.end.parentNode ?? undefined;
+  const clientBoundary = findClientBoundaryElement(container, patch.id, index);
+  if (clientBoundary) return clientBoundary.parentNode ?? undefined;
+  const exactElement = findExactElement(container, patch.id, index);
+  if (exactElement) return exactElement.parentNode ?? undefined;
+  return findServerSlotElement(container, patch.id, index);
+}
+
+function countProtocolTargetNodes(index: ProtocolIndex, id: string): number {
+  const target = protocolTarget(index, id);
+  if (!target) return 0;
+  if (target instanceof Node) return walkDomSubtree(target, () => undefined, { budget: index.budget });
+  let count = 0;
+  for (let cursor: Node | null = target.start; cursor; cursor = cursor.nextSibling) {
+    count += walkDomSubtree(cursor, () => undefined, { budget: index.budget });
+    if (cursor === target.end) break;
+  }
+  return count;
+}
+
+function applyPatch(
+  container: Element,
+  patch: ExactPatch,
+  index: ProtocolIndex,
+  prepared: PreparedPatch | undefined,
+  budget: DomWorkBudget,
+  cleanupFailure: CleanupFailure
+): boolean {
   if (patch.type === "text") {
     const target = findExactTarget(container, patch.id, index) ?? findServerSlotElement(container, patch.id, index);
     if (!target) return false;
-    if (target instanceof Element) disposeOwnedSubtree(target, false, index?.budget);
+    if (target instanceof Element) attemptCleanup(cleanupFailure, () => disposeOwnedSubtree(target, false, budget));
     target.textContent = patch.value;
     return true;
   }
@@ -220,27 +328,27 @@ function applyPatch(container: Element, patch: ExactPatch, index?: ProtocolIndex
     if (!range) {
       const clientBoundary = findClientBoundaryElement(container, patch.id, index);
       if (clientBoundary) {
-        replaceElement(clientBoundary, patch.html, index?.budget);
+        replaceElement(clientBoundary, prepared?.fragment, budget, cleanupFailure);
         return true;
       }
       const exactElement = findExactElement(container, patch.id, index);
       if (exactElement) {
-        replaceElement(exactElement, patch.html, index?.budget);
+        replaceElement(exactElement, prepared?.fragment, budget, cleanupFailure);
         return true;
       }
       const slot = findServerSlotElement(container, patch.id, index);
       if (!slot) return false;
-      replaceElementChildren(slot, patch.html, index?.budget);
+      replaceElementChildren(slot, prepared?.fragment, budget, cleanupFailure);
       return true;
     }
-    replaceRange(range, patch.html, index?.budget);
+    replaceRange(range, prepared?.fragment, budget, cleanupFailure);
     return true;
   }
 
   if (patch.type === "state") {
     const target = findExactElement(container, patch.id, index);
     if (!target) return false;
-    target.setAttribute("data-exact-state", JSON.stringify(patch.value));
+    target.setAttribute("data-exact-state", prepared!.stateJson!);
     return true;
   }
 
@@ -250,7 +358,7 @@ function applyPatch(container: Element, patch: ExactPatch, index?: ProtocolIndex
     if (patch.op === "remove") {
       const item = index ? findIndexedItem(index, patch.id, patch.key) : findExactItemRange(container, patch.key, range);
       if (!item) return false;
-      replaceRange(item, "", index?.budget);
+      replaceRange(item, undefined, budget, cleanupFailure);
       if (index) reindexList(index, patch.id);
       return true;
     }
@@ -262,16 +370,16 @@ function applyPatch(container: Element, patch: ExactPatch, index?: ProtocolIndex
         // A missing moved item can still be recovered if the server included fresh HTML.
         // This keeps list patching resilient across stale client snapshots.
         if (!patch.html) return false;
-        insertHtmlBefore(anchor, patch.html, index?.budget);
+        insertFragmentBefore(anchor, prepared?.fragment);
         if (index) reindexList(index, patch.id);
         return true;
       }
-      moveRangeBefore(item, anchor, index?.budget);
+      moveRangeBefore(item, anchor, budget);
       if (index) reindexList(index, patch.id);
       return true;
     }
     if (!patch.html) return false;
-    insertHtmlBefore(anchor, patch.html, index?.budget);
+    insertFragmentBefore(anchor, prepared?.fragment);
     if (index) reindexList(index, patch.id);
     return true;
   }
@@ -447,56 +555,93 @@ function reindexList(index: ProtocolIndex, listId: string): void {
   index.listItems.set(listId, items);
 }
 
-function replaceRange(range: { start: Comment; end: Comment }, html: string, budget?: DomWorkBudget): void {
+function replaceRange(
+  range: { start: Comment; end: Comment },
+  fragment: DocumentFragment | undefined,
+  budget: DomWorkBudget,
+  cleanupFailure: CleanupFailure
+): void {
   const parent = range.end.parentNode;
-  const fragment = html && parent ? parseFragment(parent, html, budget) : undefined;
   let cursor = range.start.nextSibling;
   while (cursor && cursor !== range.end) {
-    if (budget) consumeDomWork(budget);
+    consumeDomWork(budget);
     const next = cursor.nextSibling;
-    if (cursor instanceof Element) disposeOwnedSubtree(cursor, true, budget);
+    if (cursor instanceof Element) {
+      const element = cursor;
+      attemptCleanup(cleanupFailure, () => disposeOwnedSubtree(element, true, budget));
+    }
     cursor.parentNode?.removeChild(cursor);
     cursor = next;
   }
   if (fragment && parent) parent.insertBefore(fragment, range.end);
 }
 
-function replaceElementChildren(element: Element, html: string, budget?: DomWorkBudget): void {
-  const fragment = html ? parseFragment(element, html, budget) : undefined;
-  disposeOwnedSubtree(element, false, budget);
+function replaceElementChildren(
+  element: Element,
+  fragment: DocumentFragment | undefined,
+  budget: DomWorkBudget,
+  cleanupFailure: CleanupFailure
+): void {
+  attemptCleanup(cleanupFailure, () => disposeOwnedSubtree(element, false, budget));
   element.replaceChildren();
   if (fragment) element.appendChild(fragment);
 }
 
-function replaceElement(element: Element, html: string, budget?: DomWorkBudget): void {
-  const parent = element.parentNode;
-  const fragment = html && parent ? parseFragment(parent, html, budget) : undefined;
-  disposeOwnedSubtree(element, true, budget);
-  if (!html) {
+function replaceElement(
+  element: Element,
+  fragment: DocumentFragment | undefined,
+  budget: DomWorkBudget,
+  cleanupFailure: CleanupFailure
+): void {
+  attemptCleanup(cleanupFailure, () => disposeOwnedSubtree(element, true, budget));
+  if (!fragment) {
     element.remove();
     return;
   }
-  if (fragment && parent) element.replaceWith(fragment);
+  element.replaceWith(fragment);
 }
 
-function insertHtmlBefore(anchor: Node, html: string, budget?: DomWorkBudget): void {
+function insertFragmentBefore(anchor: Node, fragment: DocumentFragment | undefined): void {
   const parent = anchor.parentNode;
-  if (parent) parent.insertBefore(parseFragment(parent, html, budget), anchor);
+  if (parent && fragment) parent.insertBefore(fragment, anchor);
 }
 
-function parseFragment(parent: Node, html: string, budget?: DomWorkBudget): DocumentFragment {
+function parseFragment(
+  parent: Node,
+  html: string,
+  budget: DomWorkBudget
+): { fragment: DocumentFragment; nodeCount: number } {
   let fragment: DocumentFragment;
+  const ownerDocument = parent.nodeType === Node.DOCUMENT_NODE ? parent as Document : parent.ownerDocument;
+  if (!ownerDocument) throw new Error("Cannot parse a patch fragment without an owner document");
   if (parent instanceof Element) {
-    const range = document.createRange();
+    const range = ownerDocument.createRange();
     range.selectNodeContents(parent);
     fragment = range.createContextualFragment(html);
   } else {
-    const template = document.createElement("template");
+    const template = ownerDocument.createElement("template");
     template.innerHTML = html;
     fragment = template.content;
   }
-  if (budget) walkDomSubtree(fragment, () => undefined, { budget });
-  return fragment;
+  const nodeCount = walkDomSubtree(fragment, () => undefined, { budget });
+  return { fragment, nodeCount };
+}
+
+function isValidListItemFragment(fragment: DocumentFragment, key: string): boolean {
+  let expectedEnd: string | undefined;
+  let complete = false;
+  for (const node of Array.from(fragment.childNodes)) {
+    if (!(node instanceof Comment) || !node.data.includes("exact:item:")) continue;
+    if (node.data.startsWith("exact:item:")) {
+      if (expectedEnd || complete || !isExactItemStart(node, key)) return false;
+      expectedEnd = `/${node.data}`;
+    } else if (node.data.startsWith("/exact:item:")) {
+      if (!expectedEnd || node.data !== expectedEnd) return false;
+      expectedEnd = undefined;
+      complete = true;
+    }
+  }
+  return complete && expectedEnd === undefined;
 }
 
 function moveRangeBefore(range: { start: Comment; end: Comment }, anchor: Node, budget?: DomWorkBudget): void {

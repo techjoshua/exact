@@ -72,6 +72,51 @@ describe("@exact/hydrate", () => {
     expect(container.textContent).toBe("Old");
   });
 
+  it("reserves traversal work for an entire patch batch before mutating live DOM", () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<!--exact:title-->Old<!--/exact:title--><!--exact:panel--><p>Old panel</p><!--/exact:panel-->";
+    const before = container.innerHTML;
+
+    expect(() => applyPatches(container, [
+      { type: "text", id: "title", value: "Changed" },
+      { type: "replace", id: "panel", html: "<section><span>A</span><span>B</span><span>C</span></section>" }
+    ], { maxTreeNodes: 12 })).toThrow("DOM traversal exceeds");
+    expect(container.innerHTML).toBe(before);
+  });
+
+  it("rejects structurally overlapping patches before mutating live DOM", () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<!--exact:outer--><section><!--exact:inner-->Old<!--/exact:inner--></section><!--/exact:outer-->";
+    const before = container.innerHTML;
+
+    expect(applyPatches(container, [
+      { type: "replace", id: "outer", html: "<p>Replacement</p>" },
+      { type: "text", id: "inner", value: "Too late" }
+    ], { logger: noopLogger })).toBe(false);
+    expect(container.innerHTML).toBe(before);
+  });
+
+  it("finishes a prepared patch batch before reporting ownership cleanup failures", () => {
+    let owner!: Component<{}>;
+    function Owned(this: Component<{}>) {
+      owner = this;
+      return () => createVNode("button", null, "Old island");
+    }
+    const container = document.createElement("div");
+    const island = document.createElement("div");
+    island.setAttribute("data-exact-client-boundary", "island");
+    container.append(island);
+    render(createVNode(Owned, null), island);
+    container.insertAdjacentHTML("beforeend", "<!--exact:title-->Old title<!--/exact:title-->");
+    (owner as any).scope.reactions.add({ stop() { throw new Error("cleanup failed"); } });
+
+    expect(() => applyPatches(container, [
+      { type: "replace", id: "island", html: "<p>New island</p>" },
+      { type: "text", id: "title", value: "New title" }
+    ])).toThrow("cleanup failed");
+    expect(container.textContent).toBe("New islandNew title");
+  });
+
   it("parses replacement patches in the target SVG namespace", () => {
     const container = document.createElement("div");
     container.innerHTML = '<svg><!--exact:shape--><rect></rect><!--/exact:shape--></svg>';
@@ -883,6 +928,44 @@ describe("@exact/hydrate", () => {
     ]);
 
     expect(Array.from(container.querySelectorAll("li")).map(item => item.textContent)).toEqual(["A", "C"]);
+  });
+
+  it("rejects list HTML whose declared marker does not match the patch key", () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<ul><!--exact:list--><!--exact:item:1:a--><li>A</li><!--/exact:item:1:a--><!--/exact:list--></ul>";
+    const before = container.innerHTML;
+
+    expect(applyPatches(container, [{
+      type: "list", id: "list", op: "insert", key: "b",
+      html: "<!--exact:item:2:c--><li>C</li><!--/exact:item:2:c-->"
+    }], { logger: noopLogger })).toBe(false);
+    expect(container.innerHTML).toBe(before);
+  });
+
+  it("rejects nested list-item markers that the direct list index cannot own", () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<ul><!--exact:list--><!--/exact:list--></ul>";
+    const before = container.innerHTML;
+
+    expect(applyPatches(container, [{
+      type: "list", id: "list", op: "insert", key: "a",
+      html: "<div><!--exact:item:1:a--><li>A</li><!--/exact:item:1:a--></div>"
+    }], { logger: noopLogger })).toBe(false);
+    expect(container.innerHTML).toBe(before);
+  });
+
+  it("tracks a recovered missing move through later patches in the same batch", () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<ul><!--exact:list--><!--/exact:list--></ul>";
+
+    expect(applyPatches(container, [
+      {
+        type: "list", id: "list", op: "move", key: "a",
+        html: "<!--exact:item:1:a--><li>A</li><!--/exact:item:1:a-->"
+      },
+      { type: "list", id: "list", op: "remove", key: "a" }
+    ])).toBe(true);
+    expect(container.querySelectorAll("li")).toHaveLength(0);
   });
 
   it("throws on patch mismatch in strict mode", () => {
