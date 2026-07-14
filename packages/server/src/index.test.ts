@@ -1003,6 +1003,32 @@ describe("@exact/server", () => {
     ]);
   });
 
+  it("aborts dispatched work when the response stream reader is cancelled", async () => {
+    let started!: () => void;
+    const didStart = new Promise<void>(resolve => { started = resolve; });
+    let observedAbort = false;
+    const result = await handleExactRequest({
+      method: "POST",
+      headers: { accept: "application/x-ndjson" },
+      body: { type: "action", id: "allowed-action" }
+    }, context({
+      actions: {
+        "allowed-action": (_input, requestContext) => new Promise(resolve => {
+          started();
+          requestContext.signal?.addEventListener("abort", () => {
+            observedAbort = true;
+            resolve({});
+          }, { once: true });
+        })
+      }
+    }));
+    const reader = result.stream!.getReader();
+    expect(JSON.parse(await readNextStreamLine(reader))).toMatchObject({ event: "start" });
+    await didStart;
+    await reader.cancel("client disconnected");
+    expect(observedAbort).toBe(true);
+  });
+
   it("dispatches batched operations with independent ordered results", async () => {
     const result = await handleExactRequest({
       method: "POST",
@@ -1365,6 +1391,47 @@ describe("@exact/server", () => {
       ok: true,
       patches: [{ type: "text", id: "title", value: "Express" }]
     });
+  });
+
+  it("turns express disconnect events into request cancellation", async () => {
+    let disconnect!: () => void;
+    let started!: () => void;
+    const didStart = new Promise<void>(resolve => { started = resolve; });
+    let observedAbort = false;
+    const finished = new Promise<void>(resolve => {
+      createExpressHandler(context({
+        actions: {
+          "allowed-action": (_input, requestContext) => new Promise(actionResolve => {
+            started();
+            requestContext.signal?.addEventListener("abort", () => {
+              observedAbort = true;
+              actionResolve({});
+            }, { once: true });
+          })
+        }
+      }))({
+        method: "POST",
+        url: "/__exact",
+        headers: { accept: "application/x-ndjson" },
+        body: { type: "action", id: "allowed-action" },
+        once(event, listener) { if (event === "aborted") disconnect = listener; },
+        off() {}
+      }, {
+        status() { return this; },
+        setHeader() {},
+        write() {},
+        end() { resolve(); },
+        send() { resolve(); },
+        destroy() { resolve(); },
+        once() {},
+        off() {}
+      });
+    });
+
+    await didStart;
+    disconnect();
+    await finished;
+    expect(observedAbort).toBe(true);
   });
 
   it("dispatches through hapi-style adapters", async () => {

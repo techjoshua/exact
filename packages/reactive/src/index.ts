@@ -240,7 +240,7 @@ export function computed<T>(compute: () => T): ReactiveValue<T> {
     if (scope && !scope.active) return;
     if (queued) return;
     queued = true;
-    queueComputation(recomputeAndNotify);
+    queueComputation(recomputeAndNotify, scope?.onError);
   }
 
   function recomputeAndNotify(): void {

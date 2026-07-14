@@ -156,6 +156,28 @@ export function total(items: number[]) {
     expect(graph.nodes.some(node => node.successorEdges.some(edge => edge.kind === "finally"))).toBe(true);
   });
 
+  it("routes labeled loop jumps through finally and excludes unreachable exits", () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__expressions_labeled_finally.ts");
+    const module = project.updateModule(filename, `function run(values: number[]) {
+      outer: for (const value of values) {
+        try {
+          if (value < 0) continue outer;
+          if (value === 0) break outer;
+        } finally { cleanup(value); }
+      }
+      return 1;
+      cleanup(never);
+    }`);
+    const graph = module.controlFlowOf(module.walk().functions().single());
+    const jumps = graph.nodes.filter(node => node.expression.kind === "BreakStatement" || node.expression.kind === "ContinueStatement");
+    expect(jumps).toHaveLength(2);
+    expect(jumps.every(node => node.successorEdges.some(edge => edge.kind === "finally"))).toBe(true);
+    const unreachable = graph.nodes.find(node => node.expression.text?.includes("cleanup(never)"))!;
+    expect(unreachable.predecessors).toEqual([]);
+    expect(graph.exits).not.toContain(unreachable.id);
+  });
+
   it("constructs, emits, and binds typed modules programmatically", async () => {
     const builder = expressions.module(path.join(root, "apps/kanban/src/__generated_expression.ts"));
     const number = builder.types.number();
@@ -409,5 +431,27 @@ export function total(items: number[]) {
     const firstId = values[0]?.variable?.id;
     const updated = project.updateModule(filename, `function view(flag: boolean) { if (flag) { const value = 100; void value; } else { const value = 2; void value; } }`);
     expect(updated.walk().references().where(reference => reference.name === "value").first()?.variable?.id).toBe(firstId);
+  });
+
+  it("does not transfer identities between ambiguous repeated control scopes", () => {
+    const project = createExpressionProject({ tsconfigPath: path.join(root, "apps/kanban/tsconfig.json") });
+    const filename = path.join(root, "apps/kanban/src/__expressions_ambiguous_block_ids.ts");
+    const first = project.updateModule(filename, `function view(a: boolean, b: boolean) {
+      if (a) { const value = 1; void value; }
+      if (b) { const value = 2; void value; }
+    }`);
+    const oldIds = new Set(first.walk().references().where(reference => reference.name === "value")
+      .toArray().map(reference => reference.variable!.id));
+    expect(oldIds.size).toBe(2);
+
+    const updated = project.updateModule(filename, `function view(a: boolean, b: boolean) {
+      if (a) { const value = 0; void value; }
+      if (a) { const value = 1; void value; }
+      if (b) { const value = 2; void value; }
+    }`);
+    const newIds = new Set(updated.walk().references().where(reference => reference.name === "value")
+      .toArray().map(reference => reference.variable!.id));
+    expect(newIds.size).toBe(3);
+    expect([...newIds].some(id => oldIds.has(id))).toBe(false);
   });
 });

@@ -32,9 +32,11 @@ interface Fragment {
   readonly entry?: string;
   readonly exits: readonly string[];
   readonly terminals: readonly string[];
-  readonly breaks?: readonly string[];
-  readonly continues?: readonly string[];
+  readonly breaks?: readonly Jump[];
+  readonly continues?: readonly Jump[];
 }
+
+interface Jump { readonly id: string; readonly label?: string }
 
 const cache = new WeakMap<ExpressionNode, ControlFlowGraph>();
 
@@ -62,24 +64,27 @@ export function buildControlFlowGraph(owner: NodeRef): ControlFlowGraph {
     let entry: string | undefined;
     let exits: readonly string[] = [];
     const terminals: string[] = [];
-    const breaks: string[] = [];
-    const continues: string[] = [];
+    const breaks: Jump[] = [];
+    const continues: Jump[] = [];
+    let reachable = true;
     for (const value of values) {
       const next = fragment(value);
       if (!next.entry) continue;
+      if (!reachable) continue;
       if (!entry) entry = next.entry;
       for (const exit of exits) connect(exit, next.entry);
       exits = next.exits;
       terminals.push(...next.terminals);
       breaks.push(...(next.breaks ?? []));
       continues.push(...(next.continues ?? []));
-      // Abrupt completion cannot flow into the following statement.
-      if (next.breaks?.length || next.continues?.length) exits = [];
+      // Abrupt completion cannot make a later statement reachable. We still
+      // materialize unreachable nodes above, but never expose them as exits.
+      if (!exits.length && (next.terminals.length || next.breaks?.length || next.continues?.length)) reachable = false;
     }
     return { entry, exits, terminals, breaks, continues };
   };
 
-  const fragment = (expression: ExpressionNode): Fragment => {
+  const fragment = (expression: ExpressionNode, activeLabel?: string): Fragment => {
     if (expression.kind === "Block" || expression.kind === "SourceFile" || expression.kind === "ModuleBlock") {
       return sequence(expression.children.filter(isExecutable));
     }
@@ -104,14 +109,22 @@ export function buildControlFlowGraph(owner: NodeRef): ControlFlowGraph {
       const contents = body ? fragment(body) : undefined;
       if (contents?.entry) connect(loop.id, contents.entry);
       for (const exit of contents?.exits ?? []) connect(exit, loop.id);
-      for (const continuation of contents?.continues ?? []) connect(continuation, loop.id);
-      return { entry: loop.id, exits: [loop.id, ...(contents?.breaks ?? [])], terminals: contents?.terminals ?? [] };
+      const consumedContinues = (contents?.continues ?? []).filter(jump => !jump.label || jump.label === activeLabel);
+      const consumedBreaks = (contents?.breaks ?? []).filter(jump => !jump.label || jump.label === activeLabel);
+      for (const continuation of consumedContinues) connect(continuation.id, loop.id);
+      return {
+        entry: loop.id,
+        exits: [loop.id, ...consumedBreaks.map(jump => jump.id)],
+        terminals: contents?.terminals ?? [],
+        breaks: (contents?.breaks ?? []).filter(jump => jump.label && jump.label !== activeLabel),
+        continues: (contents?.continues ?? []).filter(jump => jump.label && jump.label !== activeLabel)
+      };
     }
     if (expression.kind === "SwitchStatement") {
       const branch = addNode(expression);
       const caseBlock = expression.children.find(child => child.kind === "CaseBlock");
       const clauses = caseBlock?.children.filter(child => child.kind === "CaseClause" || child.kind === "DefaultClause") ?? [];
-      const parts = clauses.map(fragment);
+      const parts = clauses.map(clause => fragment(clause));
       for (let index = 0; index < parts.length; index++) {
         const part = parts[index]!;
         if (part.entry) connect(branch.id, part.entry);
@@ -120,8 +133,23 @@ export function buildControlFlowGraph(owner: NodeRef): ControlFlowGraph {
       }
       return {
         entry: branch.id,
-        exits: [branch.id, ...(parts.at(-1)?.exits ?? []), ...parts.flatMap(part => part.breaks ?? [])],
-        terminals: parts.flatMap(part => part.terminals)
+        exits: [branch.id, ...(parts.at(-1)?.exits ?? []),
+          ...parts.flatMap(part => (part.breaks ?? []).filter(jump => !jump.label).map(jump => jump.id))],
+        terminals: parts.flatMap(part => part.terminals),
+        breaks: parts.flatMap(part => (part.breaks ?? []).filter(jump => !!jump.label)),
+        continues: parts.flatMap(part => part.continues ?? [])
+      };
+    }
+    if (expression.kind === "LabeledStatement") {
+      const label = expression.children.find(child => child.kind === "Identifier")?.name;
+      const body = [...expression.children].reverse().find(isExecutable);
+      if (!body) return { exits: [], terminals: [] };
+      const contents = fragment(body, label);
+      const consumed = (contents.breaks ?? []).filter(jump => jump.label === label);
+      return {
+        ...contents,
+        exits: [...contents.exits, ...consumed.map(jump => jump.id)],
+        breaks: (contents.breaks ?? []).filter(jump => jump.label !== label)
       };
     }
     if (expression.kind === "TryStatement") {
@@ -141,7 +169,9 @@ export function buildControlFlowGraph(owner: NodeRef): ControlFlowGraph {
         for (const id of attemptedNodes) connect(id, caught.entry, "exception");
       }
       const incoming = [...(attempted?.exits ?? [branch.id]), ...(caught?.exits ?? []),
-        ...(attempted?.terminals ?? []), ...(caught?.terminals ?? [])];
+        ...(attempted?.terminals ?? []), ...(caught?.terminals ?? []),
+        ...(attempted?.breaks ?? []).map(jump => jump.id), ...(caught?.breaks ?? []).map(jump => jump.id),
+        ...(attempted?.continues ?? []).map(jump => jump.id), ...(caught?.continues ?? []).map(jump => jump.id)];
       if (!finallyBlock) return {
         entry: branch.id,
         exits: [...(attempted?.exits ?? [branch.id]), ...(caught?.exits ?? [])],
@@ -150,9 +180,27 @@ export function buildControlFlowGraph(owner: NodeRef): ControlFlowGraph {
         continues: [...(attempted?.continues ?? []), ...(caught?.continues ?? [])]
       };
       const finalizer = fragment(finallyBlock);
+      if (!finalizer.entry) return {
+        entry: branch.id,
+        exits: [...(attempted?.exits ?? [branch.id]), ...(caught?.exits ?? [])],
+        terminals: [...(attempted?.terminals ?? []), ...(caught?.terminals ?? [])],
+        breaks: [...(attempted?.breaks ?? []), ...(caught?.breaks ?? [])],
+        continues: [...(attempted?.continues ?? []), ...(caught?.continues ?? [])]
+      };
       if (finalizer.entry) for (const from of incoming) connect(from, finalizer.entry, "finally");
-      return { entry: branch.id, exits: finalizer.exits, terminals: finalizer.terminals,
+      const finalizerAbrupt = finalizer.terminals.length || finalizer.breaks?.length || finalizer.continues?.length;
+      if (finalizerAbrupt) return { entry: branch.id, exits: finalizer.exits, terminals: finalizer.terminals,
         breaks: finalizer.breaks, continues: finalizer.continues };
+      const normalIncoming = (attempted?.exits.length ?? 1) + (caught?.exits.length ?? 0) > 0;
+      return {
+        entry: branch.id,
+        exits: normalIncoming ? finalizer.exits : [],
+        terminals: [...(attempted?.terminals ?? []), ...(caught?.terminals ?? [])],
+        breaks: [...(attempted?.breaks ?? []), ...(caught?.breaks ?? [])]
+          .flatMap(jump => finalizer.exits.map(id => ({ id, ...(jump.label ? { label: jump.label } : {}) }))),
+        continues: [...(attempted?.continues ?? []), ...(caught?.continues ?? [])]
+          .flatMap(jump => finalizer.exits.map(id => ({ id, ...(jump.label ? { label: jump.label } : {}) })))
+      };
     }
     if (expression.kind === "CatchClause" || expression.kind === "CaseBlock" || expression.kind === "CaseClause" || expression.kind === "DefaultClause") {
       return sequence(expression.children.filter(isExecutable));
@@ -160,8 +208,8 @@ export function buildControlFlowGraph(owner: NodeRef): ControlFlowGraph {
     const current = addNode(expression);
     const terminal = expression.kind === "ReturnStatement" || expression.kind === "ThrowStatement";
     current.terminal = terminal;
-    if (expression.kind === "BreakStatement") return { entry: current.id, exits: [], terminals: [], breaks: [current.id] };
-    if (expression.kind === "ContinueStatement") return { entry: current.id, exits: [], terminals: [], continues: [current.id] };
+    if (expression.kind === "BreakStatement") return { entry: current.id, exits: [], terminals: [], breaks: [{ id: current.id, ...jumpLabel(expression) }] };
+    if (expression.kind === "ContinueStatement") return { entry: current.id, exits: [], terminals: [], continues: [{ id: current.id, ...jumpLabel(expression) }] };
     return { entry: current.id, exits: terminal ? [] : [current.id], terminals: terminal ? [current.id] : [] };
   };
 
@@ -189,6 +237,11 @@ export function buildControlFlowGraph(owner: NodeRef): ControlFlowGraph {
   });
   cache.set(owner.node, graph);
   return graph;
+}
+
+function jumpLabel(node: ExpressionNode): { label?: string } {
+  const match = node.text?.match(/^\s*(?:break|continue)\s+([A-Za-z_$][\w$]*)/);
+  return match?.[1] ? { label: match[1] } : {};
 }
 
 function functionBody(owner: ExpressionNode): ExpressionNode | undefined {

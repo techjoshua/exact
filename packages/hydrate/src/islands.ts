@@ -5,10 +5,20 @@ import type { ClientIslandRegistry, HydrateOptions } from "./types.js";
 
 /** Hydrates all unhydrated client island boundaries found under a container. */
 export function hydrateClientIslands(container: Element | Document, registry: ClientIslandRegistry, options: HydrateOptions = {}): number {
-  const boundaries = Array.from(container.querySelectorAll("[data-exact-client-boundary]"));
   let hydrated = 0;
-  for (const boundary of boundaries) {
-    if (boundary.getAttribute("data-exact-client-hydrated") === "true") continue;
+  const attempted = new Set<Element>();
+  // Hydrate outer islands first, then rescan the live DOM. Rendering an outer
+  // island may retain, replace, or create nested island placeholders; iterating
+  // a stale preorder snapshot could otherwise mount a detached nested root.
+  while (true) {
+    const boundaries = Array.from(container.querySelectorAll("[data-exact-client-boundary]"))
+      .filter(boundary => boundary.getAttribute("data-exact-client-hydrated") !== "true" && !attempted.has(boundary));
+    const boundary = boundaries.find(candidate => {
+      const parent = candidate.parentElement?.closest("[data-exact-client-boundary]");
+      return !parent || parent.getAttribute("data-exact-client-hydrated") === "true";
+    });
+    if (!boundary) break;
+    attempted.add(boundary);
     const name = boundary.getAttribute("data-exact-client-name");
     if (!name) continue;
     const component = registry[name];

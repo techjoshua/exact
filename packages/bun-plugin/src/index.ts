@@ -1,5 +1,6 @@
 import {
   exactExportConditions,
+  invalidateExpressionModule,
   parseExactCompilerManifest,
   resolveExactArtifactImport,
   transformSource,
@@ -67,7 +68,11 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
         const resolved = resolveExactArtifactImport(args.path, args.importer, targetFor(options));
         return resolved ? { path: resolved.id } : {};
       });
-      build.onLoad({ filter: /\.[jt]sx$/ }, async args => {
+      // Bun does not expose Vite's changed-file HMR hook. Observe every loaded
+      // TypeScript/JavaScript dependency so non-JSX type and export changes
+      // invalidate their transitive expression consumers before compilation.
+      build.onLoad({ filter: /\.[cm]?[jt]sx?$/ }, async args => {
+        invalidateExpressionModule(args.path);
         const source = await readBunLoadSource(args);
         const result = transformExactBunSource(source, args.path, options);
         if (!result) return {};

@@ -23,18 +23,21 @@ export function streamExactResponse(
   dispatch: ExactOperationDispatcher
 ): ExactResponseLike {
   const operations = input.type === "batch" ? input.operations : [input];
+  const operationAbort = new AbortController();
+  const linked = linkAbortSignals(request.signal, operationAbort.signal);
+  const streamRequest = { ...request, signal: linked.signal };
   const stream = createNdjsonStream(async emit => {
     emit({ event: "start", version: 1, operations: operations.length });
     if (input.type === "batch") {
-      await dispatchExactBatchStreaming(request, input.operations, context, dispatch, (index, result) => {
+      await dispatchExactBatchStreaming(streamRequest, input.operations, context, dispatch, (index, result) => {
         emitOperationStreamEvents(emit, index, result);
       });
     } else {
-      const result = await dispatch(request, input, context);
+      const result = await dispatch(streamRequest, input, context);
       emitOperationStreamEvents(emit, 0, result);
     }
     emit({ event: "complete", version: 1 });
-  });
+  }, linked.signal, reason => operationAbort.abort(reason), linked.dispose);
   return {
     status: 200,
     headers: {
@@ -156,21 +159,74 @@ function dependencyFailed(operation: ExactInvocationRequest): ExactOperationErro
   };
 }
 
-function createNdjsonStream(run: (emit: (event: ExactStreamEvent) => void) => Promise<void> | void): ReadableStream<Uint8Array> {
+function createNdjsonStream(
+  run: (emit: (event: ExactStreamEvent) => void) => Promise<void> | void,
+  signal?: AbortSignal,
+  cancelRun?: (reason: unknown) => void,
+  dispose?: () => void
+): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
+  let active = true;
+  let cleanup = () => { dispose?.(); };
   return new ReadableStream<Uint8Array>({
     start(controller) {
       const emit = (event: ExactStreamEvent): void => {
+        if (!active) return;
         controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
       };
+      const abort = () => {
+        if (!active) return;
+        active = false;
+        cleanup();
+        controller.error(signal?.reason ?? new DOMException("eXact stream aborted", "AbortError"));
+      };
+      cleanup = () => {
+        signal?.removeEventListener("abort", abort);
+        dispose?.();
+      };
+      if (signal?.aborted) { abort(); return; }
+      signal?.addEventListener("abort", abort, { once: true });
       Promise.resolve(run(emit)).then(
-        () => controller.close(),
+        () => {
+          if (!active) return;
+          active = false;
+          cleanup();
+          controller.close();
+        },
         error => {
+          if (!active) return;
+          active = false;
+          cleanup();
           controller.error(error);
         }
       );
+    },
+    cancel(reason) {
+      if (!active) return;
+      active = false;
+      cancelRun?.(reason);
+      cleanup();
     }
   });
+}
+
+function linkAbortSignals(...signals: Array<AbortSignal | undefined>): { signal: AbortSignal; dispose(): void } {
+  const controller = new AbortController();
+  const active = signals.filter((signal): signal is AbortSignal => !!signal);
+  const listeners = new Map<AbortSignal, () => void>();
+  for (const signal of active) {
+    const abort = () => controller.abort(signal.reason);
+    if (signal.aborted) { abort(); break; }
+    listeners.set(signal, abort);
+    signal.addEventListener("abort", abort, { once: true });
+  }
+  return {
+    signal: controller.signal,
+    dispose() {
+      for (const [signal, listener] of listeners) signal.removeEventListener("abort", listener);
+      listeners.clear();
+    }
+  };
 }
 
 function headerValue(headers: ExactRequestLike["headers"], name: string): string | undefined {

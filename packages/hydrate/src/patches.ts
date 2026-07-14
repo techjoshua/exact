@@ -1,5 +1,5 @@
 import { encodeExactMarkerPart, logFrameworkEvent, type Logger } from "@exact/core";
-import { applyDomProp } from "@exact/dom";
+import { applyDomProp, disposeOwnedSubtree } from "@exact/dom";
 import type { ExactPatch } from "@exact/server";
 import type { HydrationDiagnostic } from "./types.js";
 
@@ -59,6 +59,35 @@ export function boundaryInnerHtml(container: Element, id: string): string | unde
   return wrapper.innerHTML;
 }
 
+/**
+ * Resolves a patch target to the innermost declared boundary that contains it.
+ * This is used to discard only the stale portion of an overlapping action
+ * response without allowing patches to escape the action's declared contract.
+ */
+export function createPatchBoundaryResolver(
+  container: Element,
+  boundaryIds: readonly string[]
+): (patchId: string) => string | undefined {
+  const index = createProtocolIndex(container);
+  if (!index) return () => undefined;
+  const boundaries = boundaryIds.flatMap(id => {
+    const target = protocolTarget(index, id);
+    return target ? [{ id, target }] : [];
+  });
+  const ids = new Set(boundaries.map(boundary => boundary.id));
+  return patchId => {
+    if (ids.has(patchId)) return patchId;
+    const target = protocolTarget(index, patchId);
+    if (!target) return undefined;
+    let owner: { id: string; target: Node | ExactRange } | undefined;
+    for (const candidate of boundaries) {
+      if (!protocolTargetContains(candidate.target, target)) continue;
+      if (!owner || protocolTargetContains(owner.target, candidate.target)) owner = candidate;
+    }
+    return owner?.id;
+  };
+}
+
 /** Reports a patch or hydration mismatch through framework logging. */
 export function reportMismatch(
   options: PatchOptions,
@@ -78,6 +107,26 @@ type ProtocolIndex = {
   clientBoundaries: Map<string, Element>;
   listItems: Map<string, Map<string, ExactRange>>;
 };
+
+function protocolTarget(index: ProtocolIndex, id: string): Node | ExactRange | undefined {
+  return index.ranges.get(id) ?? index.exactElements.get(id)
+    ?? index.serverSlots.get(id) ?? index.clientBoundaries.get(id);
+}
+
+function protocolTargetContains(container: Node | ExactRange, target: Node | ExactRange): boolean {
+  const targetNode = target instanceof Node ? target : target.start;
+  if (container instanceof Node) return container === targetNode || container.contains(targetNode);
+  if (targetNode === container.start || targetNode === container.end) return true;
+  const parent = container.start.parentNode;
+  if (!parent || container.end.parentNode !== parent) return false;
+  let direct: Node | null = targetNode;
+  while (direct?.parentNode && direct.parentNode !== parent) direct = direct.parentNode;
+  if (!direct || direct.parentNode !== parent) return false;
+  for (let cursor = container.start.nextSibling; cursor && cursor !== container.end; cursor = cursor.nextSibling) {
+    if (cursor === direct) return true;
+  }
+  return false;
+}
 
 function canApplyPatch(index: ProtocolIndex, patch: ExactPatch): boolean {
   if (patch.type === "text") return index.ranges.has(patch.id) || index.exactElements.has(patch.id) || index.serverSlots.has(patch.id);
@@ -124,6 +173,7 @@ function applyPatch(container: Element, patch: ExactPatch, index?: ProtocolIndex
   if (patch.type === "text") {
     const target = findExactTarget(container, patch.id, index) ?? findServerSlotElement(container, patch.id, index);
     if (!target) return false;
+    if (target instanceof Element) disposeOwnedSubtree(target, false);
     target.textContent = patch.value;
     return true;
   }
@@ -371,6 +421,7 @@ function replaceRange(range: { start: Comment; end: Comment }, html: string): vo
   let cursor = range.start.nextSibling;
   while (cursor && cursor !== range.end) {
     const next = cursor.nextSibling;
+    if (cursor instanceof Element) disposeOwnedSubtree(cursor);
     cursor.parentNode?.removeChild(cursor);
     cursor = next;
   }
@@ -380,12 +431,14 @@ function replaceRange(range: { start: Comment; end: Comment }, html: string): vo
 }
 
 function replaceElementChildren(element: Element, html: string): void {
+  disposeOwnedSubtree(element, false);
   element.replaceChildren();
   if (!html) return;
   element.appendChild(parseFragment(element, html));
 }
 
 function replaceElement(element: Element, html: string): void {
+  disposeOwnedSubtree(element);
   if (!html) {
     element.remove();
     return;

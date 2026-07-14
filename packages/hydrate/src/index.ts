@@ -19,7 +19,7 @@ import {
 } from "./config.js";
 import { hydrateClientIslands } from "./islands.js";
 import { invokeExact } from "./invocations.js";
-import { applyPatches, boundaryInnerHtml, hasExactMarkers, reportMismatch } from "./patches.js";
+import { applyPatches, boundaryInnerHtml, createPatchBoundaryResolver, hasExactMarkers, reportMismatch } from "./patches.js";
 import { stateForContract } from "./state.js";
 
 export { applyPatches } from "./patches.js";
@@ -340,7 +340,9 @@ function restoreFormState(container: Element, states: readonly FormState[]): voi
       ? findUniqueElementByAttribute(container, state.identity.attribute, state.identity.value)
       : undefined;
     const pathMatch = nodeAtPath(container, state.path);
-    const candidate = container.contains(state.node) ? state.node : identityMatch ?? pathMatch;
+    const retainedIdentity = container.contains(state.node)
+      && (!state.identity || state.node.getAttribute(state.identity.attribute) === state.identity.value);
+    const candidate = retainedIdentity ? state.node : identityMatch ?? pathMatch;
     const control = candidate instanceof Element && formControlSignature(candidate) === state.signature
       ? candidate
       : undefined;
@@ -454,7 +456,8 @@ async function invokeAndApply(
       logger: options.logger,
       stream: options.stream
     });
-  if (requestKeys.some(key => versions!.get(key) !== requestVersion)) {
+  const staleKeys = new Set(requestKeys.filter(key => versions!.get(key) !== requestVersion));
+  if (staleKeys.size === requestKeys.length) {
     options.onDiagnostic?.({
       code: "stale-response",
       message: `ignored stale exact ${type} response for ${id}`,
@@ -462,7 +465,25 @@ async function invokeAndApply(
     });
     return result;
   }
-  let patchesApplied = result.patches ? applyPatches(container, result.patches, options) : true;
+  let responsePatches = result.patches;
+  const partiallyStale = staleKeys.size > 0;
+  if (partiallyStale && configuredBoundaries && responsePatches) {
+    const rejected: string[] = [];
+    const boundaryForPatch = createPatchBoundaryResolver(container, configuredBoundaries);
+    responsePatches = responsePatches.filter(patch => {
+      const owner = boundaryForPatch(patch.id);
+      const accepted = owner !== undefined && !staleKeys.has(`boundary:${owner}`);
+      if (!accepted) rejected.push(`${patch.type}:${patch.id}`);
+      return accepted;
+    });
+    options.onDiagnostic?.({
+      code: "stale-response",
+      message: `partially ignored stale exact ${type} response for ${id}`
+        + (rejected.length ? ` (${rejected.join(", ")})` : ""),
+      patch: { type, id }
+    });
+  }
+  let patchesApplied = responsePatches ? applyPatches(container, responsePatches, options) : true;
   if (!patchesApplied && type === "refresh" && result.html) {
     patchesApplied = applyPatches(container, [{ type: "replace", id, html: result.html }], options);
   }
@@ -474,8 +495,8 @@ async function invokeAndApply(
     });
     return result;
   }
-  if (result.patches && options.islands) hydrateClientIslands(container, options.islands, options);
-  if ("state" in result && requestOrdinal >= (versions.get("state-committed") ?? 0)) {
+  if (responsePatches?.length && options.islands) hydrateClientIslands(container, options.islands, options);
+  if (!partiallyStale && "state" in result && requestOrdinal >= (versions.get("state-committed") ?? 0)) {
     versions.set("state-committed", requestOrdinal);
     client.state = result.state;
   }

@@ -41,6 +41,21 @@ describe("@exact/hydrate", () => {
     expect(clicks).toBe(1);
   });
 
+  it("disposes a hydrated island before a server replacement removes it", () => {
+    let clicks = 0;
+    function Counter() { return () => createVNode("button", { onClick: () => clicks++ }, "Old"); }
+    const container = document.createElement("main");
+    const island = document.createElement("div");
+    island.setAttribute("data-exact-client-boundary", "counter");
+    container.appendChild(island);
+    render(createVNode(Counter, null), island);
+    const detachedButton = island.querySelector("button")!;
+    expect(applyPatches(container, [{ type: "replace", id: "counter", html: "<p>New</p>" }])).toBe(true);
+    detachedButton.click();
+    expect(clicks).toBe(0);
+    expect(container.textContent).toBe("New");
+  });
+
   it("rejects duplicate element protocol ids before mutating live DOM", () => {
     const container = document.createElement("div");
     container.innerHTML = '<p data-exact-id="same">A</p><p data-exact-id="same">B</p>';
@@ -71,6 +86,26 @@ describe("@exact/hydrate", () => {
     input.value = "typed";
     hydrate(createVNode(Fragment, null, createVNode("input", { value: "server" })), container, { logger: noopLogger });
     expect(container.querySelector("input")?.value).toBe("typed");
+  });
+
+  it("restores same-signature form controls by compiler identity after repair reorders them", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    container.innerHTML = "<!--exact:fragment:0--><input data-exact-id=a name=title value=A><input data-exact-id=b name=title value=B><!--/exact:fragment:0-->";
+    try {
+      const edited = container.querySelector("[data-exact-id=b]") as HTMLInputElement;
+      edited.value = "typed B";
+      edited.focus();
+      hydrate(createVNode(Fragment, null,
+        createVNode("input", { "data-exact-id": "b", name: "title", value: "B" }),
+        createVNode("input", { "data-exact-id": "a", name: "title", value: "A" })
+      ), container, { logger: noopLogger });
+      const restored = container.querySelector("[data-exact-id=b]") as HTMLInputElement;
+      expect(restored.value).toBe("typed B");
+      expect(document.activeElement).toBe(restored);
+    } finally {
+      container.remove();
+    }
   });
 
   it("makes hydration idempotent and exposes idempotent disposal", () => {
@@ -441,6 +476,21 @@ describe("@exact/hydrate", () => {
     expect(hydrated).toBe(1);
     expect(container.querySelector("[data-exact-client-hydrated=\"true\"]")).not.toBeNull();
     expect(container.querySelector("button")?.textContent).toBe("2");
+  });
+
+  it("hydrates nested islands from the current DOM instead of a stale preorder snapshot", () => {
+    const container = document.createElement("main");
+    container.innerHTML = '<div data-exact-client-boundary="outer" data-exact-client-name="Outer"></div>';
+    function Inner() { return () => createVNode("button", null, "Inner"); }
+    function Outer() {
+      return () => createVNode("section", null, createVNode("div", {
+        "data-exact-client-boundary": "inner",
+        "data-exact-client-name": "Inner"
+      }));
+    }
+    expect(hydrateClientIslands(container, { Outer, Inner })).toBe(2);
+    expect(container.querySelector("button")?.textContent).toBe("Inner");
+    expect(container.querySelectorAll('[data-exact-client-hydrated="true"]')).toHaveLength(2);
   });
 
   it("ignores unsafe object keys in server-rendered client island props", () => {
@@ -1789,6 +1839,72 @@ describe("@exact/hydrate", () => {
     });
     await expect(refresh).rejects.toThrow("eXact refresh invocation failed");
     expect(container.textContent).toBe("Saved");
+  });
+
+  it("applies only current boundaries from a partially stale action response", async () => {
+    const container = document.createElement("div");
+    container.innerHTML = [
+      "<!--exact:left--><span data-exact-id=\"left-value\">Left old</span><!--/exact:left-->",
+      "<!--exact:right--><span data-exact-id=\"right-value\">Right old</span><!--/exact:right-->"
+    ].join("");
+    type Response = { ok: true; status: 200; json(): Promise<unknown> };
+    let resolveAction!: (response: Response) => void;
+    let resolveRefresh!: (response: Response) => void;
+    const fetch = async (_input: string, init: { body: string }) => {
+      const request = JSON.parse(init.body) as { type: string };
+      return await new Promise<Response>(resolve => {
+        if (request.type === "action") resolveAction = resolve;
+        else resolveRefresh = resolve;
+      });
+    };
+    const diagnostics: string[] = [];
+    const client = createExactClient(container, {
+      endpoint: "/__exact",
+      batch: false,
+      fetch,
+      state: { version: 0 },
+      actionBoundaries: { save: ["left", "right"] },
+      onDiagnostic: diagnostic => diagnostics.push(diagnostic.message)
+    });
+
+    const action = client.invokeAction("save");
+    const refresh = client.refreshBoundary("left");
+    await Promise.resolve();
+    resolveRefresh({
+      ok: true,
+      status: 200,
+      async json() {
+        return {
+          ok: true,
+          patches: [{ type: "text", id: "left-value", value: "Left newest" }],
+          state: { version: 2 }
+        };
+      }
+    });
+    await refresh;
+    resolveAction({
+      ok: true,
+      status: 200,
+      async json() {
+        return {
+          ok: true,
+          patches: [
+            { type: "text", id: "left-value", value: "Left stale" },
+            { type: "text", id: "right-value", value: "Right saved" },
+            { type: "text", id: "outside-contract", value: "Unsafe" }
+          ],
+          state: { version: 1 }
+        };
+      }
+    });
+    await action;
+
+    expect(container.querySelector("[data-exact-id=left-value]")?.textContent).toBe("Left newest");
+    expect(container.querySelector("[data-exact-id=right-value]")?.textContent).toBe("Right saved");
+    expect(client.state).toEqual({ version: 2 });
+    expect(diagnostics).toEqual([
+      "partially ignored stale exact action response for save (text:left-value, text:outside-contract)"
+    ]);
   });
 
   it("sends current boundary html with refresh requests", async () => {

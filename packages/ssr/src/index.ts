@@ -12,6 +12,7 @@ import {
   handleComponentError,
   isCellVNode,
   isVNode,
+  logFrameworkEvent,
   normalizeRenderResult,
   renderInstance,
   withTaskObserver,
@@ -102,7 +103,10 @@ export function renderToStream(vnode: VNode, options: RenderToStringOptions = {}
 
 /** Streams document render lifecycle events for shell/final/hydration output. */
 export function renderToDocumentStream(vnode: VNode, options: RenderToDocumentStreamOptions = {}): ReadableStream<Uint8Array> {
-  return createDocumentEventStream(emit => streamDocumentRender(vnode, options, emit));
+  return createDocumentEventStream(
+    (signal, emit) => streamDocumentRender(vnode, { ...options, signal }, emit),
+    { signal: options.signal, onError: error => logFrameworkEvent("error", "ssr", "stream", "document render failed", error, options.logger) }
+  );
 }
 
 /** Streams document render events and emits hydration config when available. */
@@ -224,7 +228,7 @@ export function createBoundaryRefreshHandler(
 ): (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> {
   return async (input, context) => {
     const vnode = await render(input, context);
-    const result = await renderToStringAsync(vnode, options);
+    const result = await renderToStringAsync(vnode, { ...options, signal: options.signal ?? context.signal });
     const previousHtml = await options.previousHtml?.(input, context) ?? input.boundaryHtml;
     return {
       patches: previousHtml === undefined
@@ -247,7 +251,7 @@ export function createActionRefreshHandler(
 
     for (const boundary of options.boundaries) {
       const vnode = await boundary.render(input, context);
-      const result = await renderToStringAsync(vnode, boundary);
+      const result = await renderToStringAsync(vnode, { ...boundary, signal: boundary.signal ?? context.signal });
       const previousHtml = await boundary.previousHtml?.(input, context) ?? input.boundaryHtmls?.[boundary.boundaryId];
       patches.push(...(
         previousHtml === undefined

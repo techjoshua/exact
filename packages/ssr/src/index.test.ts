@@ -58,6 +58,20 @@ async function readRemainingText(reader: ReadableStreamDefaultReader<Uint8Array>
 }
 
 describe("@exact/ssr", () => {
+  it("passes request cancellation into boundary render callbacks", async () => {
+    const abort = new AbortController();
+    let observed: AbortSignal | undefined;
+    const handler = createBoundaryRefreshHandler((_input, context) => {
+      observed = context.signal;
+      return createVNode("p", null, "ready");
+    }, { boundaryId: "panel" });
+    await handler({ type: "refresh", id: "panel" }, {
+      manifest: { version: 1, boundaries: { panel: { id: "panel" } } },
+      signal: abort.signal
+    });
+    expect(observed).toBe(abort.signal);
+  });
+
   it("preserves boolean attributes, quoted entities, and SVG tag casing in element diffs", () => {
     expect(diffBoundaryHtml(
       "field",
@@ -312,6 +326,24 @@ describe("@exact/ssr", () => {
       { event: "replace", version: 1, id: "app", html: "<p>Ada</p>" },
       { event: "complete", version: 1 }
     ]);
+  });
+
+  it("aborts document rendering without reporting cancellation as a render failure", async () => {
+    const abort = new AbortController();
+    const logs: unknown[] = [];
+    function Pending(this: Component<{}>) {
+      this.task(() => new Promise<void>(() => undefined));
+      return () => createVNode("p", null, "Loading");
+    }
+    const reader = renderToDocumentStream(createVNode(Pending, {}), {
+      signal: abort.signal,
+      logger: { isEnabled: () => true, log: entry => logs.push(entry) }
+    }).getReader();
+    expect(await readStreamEvent(reader)).toMatchObject({ event: "start" });
+    expect(await readStreamEvent(reader)).toMatchObject({ event: "shell" });
+    abort.abort("disconnected");
+    await expect(reader.read()).rejects.toBe("disconnected");
+    expect(logs).toEqual([]);
   });
 
   it("streams progressive browser-consumable html", async () => {

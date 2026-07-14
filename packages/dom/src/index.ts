@@ -132,6 +132,22 @@ export function dispose(container: Element, removeDom = false): boolean {
 }
 
 /**
+ * Releases renderer roots contained by a server-owned region before external
+ * DOM replacement. Descendants are disposed deepest-first so nested island
+ * roots cannot retain listeners, scopes, or ownership for detached nodes.
+ */
+export function disposeOwnedSubtree(container: Element, includeSelf = true): number {
+  const candidates = includeSelf
+    ? [container, ...Array.from(container.querySelectorAll("*"))]
+    : Array.from(container.querySelectorAll("*"));
+  let disposed = 0;
+  for (let index = candidates.length - 1; index >= 0; index--) {
+    if (dispose(candidates[index]!, false)) disposed++;
+  }
+  return disposed;
+}
+
+/**
  * Attaches the renderer to an already-validated static SSR boundary.  Unlike a
  * validation-only hydration pass this creates the normal mounted graph, so a
  * later render patches the adopted nodes instead of appending a second tree.

@@ -164,7 +164,10 @@ async function dispatchExactOperationAfterSecurity(
   }
 
   try {
-    const result = await handler(input, context);
+    const requestContext = request.signal && request.signal !== context.signal
+      ? { ...context, signal: request.signal }
+      : context;
+    const result = await handler(input, requestContext);
     if (!isInvocationResultSafe(result)) {
       return reject(500, "internal_error", "rejected non-serializable exact invocation result");
     }

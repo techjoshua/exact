@@ -7,7 +7,10 @@ import type {
   RenderToProgressiveHtmlStreamOptions
 } from "./types.js";
 
-export type DocumentStreamRender = (emit: (event: ExactDocumentStreamEvent) => void) => Promise<void> | void;
+export type DocumentStreamRender = (
+  signal: AbortSignal,
+  emit: (event: ExactDocumentStreamEvent) => void
+) => Promise<void> | void;
 export type ProgressiveDocumentStreamRender = (
   options: RenderToProgressiveHtmlStreamOptions,
   emit: (event: ExactDocumentStreamEvent) => void
@@ -30,7 +33,7 @@ export function createDocumentEventStream(
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   const ownerController = new AbortController();
-  options.signal?.addEventListener("abort", () => ownerController.abort(options.signal?.reason), { once: true });
+  const unlink = forwardAbort(options.signal, ownerController);
   let closed = false;
   return new ReadableStream<Uint8Array>({
     start(controller) {
@@ -38,17 +41,25 @@ export function createDocumentEventStream(
         if (closed || ownerController.signal.aborted) return;
         controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
       };
-      Promise.resolve(render(emit))
-        .then(() => { if (!closed) { closed = true; controller.close(); } })
+      Promise.resolve(render(ownerController.signal, emit))
+        .then(() => { if (!closed) { closed = true; unlink(); controller.close(); } })
         .catch(error => {
+          if (closed) return;
+          if (ownerController.signal.aborted) {
+            closed = true;
+            unlink();
+            controller.error(ownerController.signal.reason ?? new DOMException("SSR stream aborted", "AbortError"));
+            return;
+          }
           options.onError?.(error);
           emit({ event: "error", version: 1, message: "Document rendering failed" });
-          if (!closed) { closed = true; controller.close(); }
+          if (!closed) { closed = true; unlink(); controller.close(); }
         });
     },
     cancel(reason) {
       closed = true;
       ownerController.abort(reason);
+      unlink();
     }
   });
 }
@@ -61,7 +72,7 @@ export function createProgressiveHtmlStream(render: ProgressiveDocumentStreamRen
     rootId: progressiveRootId(options)
   };
   const abortController = new AbortController();
-  options.signal?.addEventListener("abort", () => abortController.abort(options.signal?.reason), { once: true });
+  const unlink = forwardAbort(options.signal, abortController);
   streamOptions.signal = abortController.signal;
   let closed = false;
   return new ReadableStream<Uint8Array>({
@@ -74,18 +85,34 @@ export function createProgressiveHtmlStream(render: ProgressiveDocumentStreamRen
         const chunk = progressiveHtmlChunk(event, streamOptions);
         if (chunk) emit(chunk);
       }))
-        .then(() => { if (!closed) { closed = true; controller.close(); } })
+        .then(() => { if (!closed) { closed = true; unlink(); controller.close(); } })
         .catch(error => {
+          if (closed) return;
+          if (abortController.signal.aborted) {
+            closed = true;
+            unlink();
+            controller.error(abortController.signal.reason ?? new DOMException("SSR stream aborted", "AbortError"));
+            return;
+          }
           logFrameworkEvent("error", "ssr", "stream", "progressive document render failed", error, options.logger);
           emit(progressiveErrorScript(error, streamOptions));
-          if (!closed) { closed = true; controller.close(); }
+          if (!closed) { closed = true; unlink(); controller.close(); }
         });
     },
     cancel(reason) {
       closed = true;
       abortController.abort(reason);
+      unlink();
     }
   });
+}
+
+function forwardAbort(source: AbortSignal | undefined, target: AbortController): () => void {
+  if (!source) return () => undefined;
+  const abort = () => target.abort(source.reason);
+  if (source.aborted) abort();
+  else source.addEventListener("abort", abort, { once: true });
+  return () => source.removeEventListener("abort", abort);
 }
 
 /** Wraps a progressive HTML stream in a runtime-neutral response object. */

@@ -410,7 +410,12 @@ export class ExpressionProject {
       const declaration = symbol.valueDeclaration ?? symbol.declarations?.[0] ?? identifier;
       const declarationFile = normalizeFile(declaration.getSourceFile().fileName);
       const localName = declarationBindingName(declaration) ?? symbol.name;
-      const key = declarationIdentity(declarationFile, declaration, localName);
+      const key = declarationIdentity(
+        declarationFile,
+        declaration,
+        localName,
+        this.overlayVersions.get(declarationFile)?.toString() ?? diskFileVersion(declarationFile)
+      );
       usedIdentityKeys.add(key);
       const scope = scopeFor(declaration);
       let variableType: ExpressionType | undefined;
@@ -442,7 +447,12 @@ export class ExpressionProject {
       const existing = implicitThisVariables.get(owner);
       if (existing) return existing;
       const scope = scopeFor(declaration ?? owner);
-      const key = declarationIdentity(filename, declaration ?? owner, "this");
+      const key = declarationIdentity(
+        filename,
+        declaration ?? owner,
+        "this",
+        this.overlayVersions.get(filename)?.toString() ?? diskFileVersion(filename)
+      );
       const variable = new ProjectVariable(
         symbolIdentity(key, "this"),
         "this",
@@ -586,7 +596,7 @@ function syntaxKindName(node: ts.Node): string {
   return ts.SyntaxKind[node.kind];
 }
 
-function declarationIdentity(filename: string, declaration: ts.Node, name: string): string {
+function declarationIdentity(filename: string, declaration: ts.Node, name: string, revision: string): string {
   const scopes: string[] = [];
   let cursor = declaration.parent;
   while (cursor && !ts.isSourceFile(cursor)) {
@@ -598,21 +608,66 @@ function declarationIdentity(filename: string, declaration: ts.Node, name: strin
         ? `${ts.SyntaxKind[cursor.kind]}:${named}`
         : functionBody
           ? "Block:function-body"
-          : `${ts.SyntaxKind[cursor.kind]}:${scopeShape(cursor)}#${structuralOrdinal(cursor)}`);
+          : `${ts.SyntaxKind[cursor.kind]}:${scopeShape(cursor)}#${structuralOrdinal(cursor)}`
+            + (hasAmbiguousScopePeer(cursor) ? `@${revision}` : ""));
     }
     cursor = cursor.parent;
   }
   return `${filename}:${scopes.reverse().join("/")}:${ts.SyntaxKind[declaration.kind]}#${declarationOrdinal(declaration, name)}:${name}`;
 }
 
+const indexedIdentityOwners = new WeakSet<ts.Node>();
+const structuralOrdinals = new WeakMap<ts.Node, number>();
+const ambiguousIdentityScopes = new WeakSet<ts.Node>();
+
 function structuralOrdinal(node: ts.Node): number {
-  if (!node.parent) return 0;
-  let ordinal = 0;
-  for (const child of node.parent.getChildren()) {
-    if (child === node) return ordinal;
-    if (child.kind === node.kind && scopeShape(child) === scopeShape(node)) ordinal++;
+  const owner = nearestIdentityScope(node.parent);
+  if (!owner) return 0;
+  indexIdentityScopes(owner);
+  return structuralOrdinals.get(node) ?? 0;
+}
+
+function hasAmbiguousScopePeer(node: ts.Node): boolean {
+  const owner = nearestIdentityScope(node.parent);
+  if (!owner) return false;
+  indexIdentityScopes(owner);
+  return ambiguousIdentityScopes.has(node);
+}
+
+function indexIdentityScopes(owner: ts.Node): void {
+  if (indexedIdentityOwners.has(owner)) return;
+  indexedIdentityOwners.add(owner);
+  const groups = new Map<string, ts.Node[]>();
+  walkIdentityScopes(owner, candidate => {
+    const key = `${candidate.kind}:${scopeShape(candidate)}`;
+    let group = groups.get(key);
+    if (!group) groups.set(key, group = []);
+    structuralOrdinals.set(candidate, group.length);
+    group.push(candidate);
+    return true;
+  });
+  for (const group of groups.values()) {
+    if (new Set(group.map(node => node.parent)).size > 1) {
+      for (const node of group) ambiguousIdentityScopes.add(node);
+    }
   }
-  return ordinal;
+}
+
+function walkIdentityScopes(owner: ts.Node, visit: (node: ts.Node) => boolean): void {
+  const walk = (node: ts.Node): boolean => {
+    if (node !== owner && isIdentityScope(node)) {
+      if (!visit(node)) return false;
+      if (ts.isFunctionLike(node) || ts.isClassLike(node) || ts.isModuleDeclaration(node)) return true;
+    }
+    for (const child of node.getChildren()) if (!walk(child)) return false;
+    return true;
+  };
+  walk(owner);
+}
+
+function isIdentityScope(node: ts.Node): boolean {
+  return ts.isFunctionLike(node) || ts.isClassLike(node) || ts.isModuleDeclaration(node)
+    || ts.isBlock(node) || ts.isCaseBlock(node) || ts.isCatchClause(node);
 }
 
 function scopeShape(node: ts.Node): string {

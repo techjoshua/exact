@@ -1,7 +1,7 @@
 import type { Reaction } from "./types.js";
 
 const queuedReactions = new Set<Reaction>();
-const queuedComputations = new Set<() => void>();
+const queuedComputations = new Map<() => void, ((error: unknown) => void) | undefined>();
 let flushScheduled = false;
 const maxFlushPasses = 1_000;
 
@@ -12,8 +12,8 @@ export function queueReaction(reaction: Reaction): void {
 }
 
 /** Queues an arbitrary computation to run before reactions during the next flush. */
-export function queueComputation(computation: () => void): void {
-  queuedComputations.add(computation);
+export function queueComputation(computation: () => void, onError?: (error: unknown) => void): void {
+  queuedComputations.set(computation, onError);
   scheduleFlush();
 }
 
@@ -31,19 +31,17 @@ export function flushSync(): void {
   try {
     while (queuedComputations.size || queuedReactions.size) {
       if (++passes > maxFlushPasses) {
-        for (const reaction of queuedReactions) reaction.scheduled = false;
-        queuedComputations.clear();
-        queuedReactions.clear();
-        throw new Error("eXact reactive scheduler exceeded its flush limit; a reaction is repeatedly invalidating itself");
+        const overflow = new Error("eXact reactive scheduler exceeded its flush limit; a reaction is repeatedly invalidating itself");
+        if (settleOverflow(overflow)) return;
+        throw overflow;
       }
       while (queuedComputations.size) {
         if (++passes > maxFlushPasses) {
-          for (const reaction of queuedReactions) reaction.scheduled = false;
-          queuedComputations.clear();
-          queuedReactions.clear();
-          throw new Error("eXact reactive scheduler exceeded its flush limit; a computation is repeatedly invalidating itself");
+          const overflow = new Error("eXact reactive scheduler exceeded its flush limit; a computation is repeatedly invalidating itself");
+          if (settleOverflow(overflow)) return;
+          throw overflow;
         }
-        const computations = [...queuedComputations];
+        const computations = [...queuedComputations.keys()];
         queuedComputations.clear();
         for (const computation of computations) {
           try {
@@ -76,6 +74,30 @@ export function flushSync(): void {
     if (queuedComputations.size || queuedReactions.size) scheduleFlush();
   }
   if (hasError) throw firstError;
+}
+
+/** Clears a runaway generation and reports it once to each owning scope. */
+function settleOverflow(error: Error): boolean {
+  const handlers = new Set<(error: unknown) => void>();
+  for (const handler of queuedComputations.values()) if (handler) handlers.add(handler);
+  for (const reaction of queuedReactions) {
+    reaction.scheduled = false;
+    if (reaction.scope?.onError) handlers.add(reaction.scope.onError);
+  }
+  queuedComputations.clear();
+  queuedReactions.clear();
+  if (!handlers.size) return false;
+  let firstError: unknown;
+  let failed = false;
+  for (const handler of handlers) {
+    try { handler(error); }
+    catch (handlerError) {
+      if (!failed) firstError = handlerError;
+      failed = true;
+    }
+  }
+  if (failed) throw firstError;
+  return true;
 }
 
 function scheduleFlush(): void {

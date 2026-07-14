@@ -128,5 +128,9 @@ describe("@exact/bun-plugin", () => {
         sources: ["/app/src/view.tsx"]
       }
     });
+    await expect(loadHook({
+      path: "/app/src/model.ts",
+      text: async () => "export type Model = { title: string };"
+    })).resolves.toEqual({});
   });
 });

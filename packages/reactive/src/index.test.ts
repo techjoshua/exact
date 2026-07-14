@@ -768,6 +768,19 @@ describe("@exact/reactive", () => {
     expect(seen).toEqual([0, 1]);
   });
 
+  it("routes scheduler overflow through the owning effect scope", () => {
+    const errors: unknown[] = [];
+    const scope = createEffectScope(undefined, error => errors.push(error));
+    const state = reactive({ count: 0 });
+    withEffectScope(scope, () => watch(() => {
+      state.count++;
+    }));
+    expect(() => flushSync()).not.toThrow();
+    expect(errors).toHaveLength(1);
+    expect(String(errors[0])).toContain("scheduler exceeded its flush limit");
+    scope.stop();
+  });
+
   it("preserves an undefined scheduler failure and resets scheduled state", () => {
     const state = reactive({ failing: false, stable: 0 });
     watch(() => {

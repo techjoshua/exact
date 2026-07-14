@@ -93,6 +93,7 @@ export type ExactRequestLike = {
   body?: unknown;
   text?(): Promise<string>;
   json?(): Promise<unknown>;
+  signal?: AbortSignal;
 };
 
 export type ExactResponseLike = {
@@ -173,6 +174,8 @@ export type ExactServerContext = {
   authorize?(request: ExactRequestLike, input: ExactInvocationRequest | ExactBatchRequest): Promise<boolean> | boolean;
   validateCsrf?(request: ExactRequestLike, input: ExactInvocationRequest | ExactBatchRequest): Promise<boolean> | boolean;
   logger?: Logger;
+  /** Aborts when the current request or response stream is cancelled. */
+  signal?: AbortSignal;
 };
 
 export type ExactHydrationManifestConfig = {
