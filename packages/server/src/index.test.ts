@@ -1462,6 +1462,23 @@ describe("@exact/server", () => {
     });
   });
 
+  it("preserves zero-prefetch demand through fetch stream wrappers", async () => {
+    const action = vi.fn(() => ({}));
+    const handler = createFetchHandler(context({ actions: { "allowed-action": action } }));
+    const response = await handler(new Request("https://app.test/__exact", {
+      method: "POST",
+      body: JSON.stringify({ type: "action", id: "allowed-action" }),
+      headers: { "content-type": "application/json", accept: "application/x-ndjson" }
+    }));
+    await Promise.resolve();
+    expect(action).not.toHaveBeenCalled();
+    const reader = response.body!.getReader();
+    expect(JSON.parse(new TextDecoder().decode((await reader.read()).value))).toMatchObject({ event: "start" });
+    await Promise.resolve();
+    expect(action).toHaveBeenCalledTimes(1);
+    await reader.cancel();
+  });
+
   it("dispatches through express-style adapters", async () => {
     const sent = new Promise<{ status: number; headers: Record<string, string>; body: string }>(resolve => {
       const headers: Record<string, string> = {};

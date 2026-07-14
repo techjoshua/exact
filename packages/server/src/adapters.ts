@@ -221,5 +221,5 @@ function withStreamCleanup(stream: ReadableStream<Uint8Array>, cleanup: () => vo
       try { await reader.cancel(reason); }
       finally { cleanup(); }
     }
-  });
+  }, { highWaterMark: 0 });
 }
