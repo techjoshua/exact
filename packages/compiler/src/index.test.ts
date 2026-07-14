@@ -34,6 +34,12 @@ import {
 } from "./index.js";
 
 describe("@exact/compiler", () => {
+  it("rejects task registration inside render functions and callbacks", () => {
+    expect(() => transform(`function Panel(this: Component<{}>) {
+      return () => { this.task(() => undefined); return <p />; };
+    }`, { filename: "Panel.tsx" })).toThrow("this.task() must be registered directly during component setup");
+  });
+
   it("preserves contextual event parameter types when lowering JSX", () => {
     const filename = path.resolve(import.meta.dirname, "../../../apps/workbench/src/__contextual_events.tsx");
     const output = transform(`function Form(this: Component<{}>) {

@@ -30,6 +30,15 @@ import {
 import { flushSync, unwrap, watch } from "@exact/reactive";
 
 describe("@exact/core", () => {
+  it("rejects task registration after component setup", () => {
+    let registerLate!: () => void;
+    createComponentInstance(function Panel(this: Component<{}>) {
+      registerLate = () => this.task(() => undefined);
+      return () => null;
+    }, {});
+    expect(registerLate).toThrow("this.task() must be registered during component setup");
+  });
+
   it("cancels compiler-owned resources and stale awaits", async () => {
     vi.useFakeTimers();
     try {

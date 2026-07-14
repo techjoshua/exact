@@ -139,6 +139,11 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
     const requestedPlacement = task.target?.name === "client" || task.target?.name === "server" ? task.target.name : undefined;
     const placement: ExactPlacement = requestedPlacement ?? (browserEffects ? "client" : serverEffects ? "server" : taskWrites.length ? "isomorphic" : "client");
     const diagnostics: string[] = [];
+    const nearestFunction = task.ancestors().functions().first();
+    const componentOwner = task.ancestors().functions().first(owner => owner.node.kind === "FunctionDeclaration" && /^[A-Z]/.test(owner.node.name ?? ""));
+    if (componentOwner && nearestFunction?.node !== componentOwner.node) {
+      diagnostics.push("error: this.task() must be registered directly during component setup, not inside render functions or callbacks");
+    }
     if (browserEffects && taskWrites.length) diagnostics.push("task writes component state and references browser-only globals; classify as client and split at this boundary");
     if (!requestedPlacement && !browserEffects && !serverEffects && taskWrites.length) diagnostics.push("task writes component state without environment-specific effects; classify as isomorphic so SSR can run it and hydration can skip duplicate initial work");
     if (!browserEffects && !serverEffects && !taskWrites.length) diagnostics.push("task has no detected state writes or environment-specific effects; classify as client lifecycle work");
@@ -152,7 +157,7 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
       planDiagnostics.push(diagnostic);
       diagnosticLocations.push(Object.freeze({ message: diagnostic, start: task.node.span.start }));
     }
-    const component = task.ancestors().functions().first(owner => owner.node.kind === "FunctionDeclaration" && /^[A-Z]/.test(owner.node.name ?? ""))?.node.name;
+    const component = componentOwner?.node.name;
     const site = Object.freeze({
       ...(component ? { component } : {}),
       start: task.node.span.start,

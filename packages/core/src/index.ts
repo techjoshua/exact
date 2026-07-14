@@ -658,6 +658,7 @@ export function createComponentInstance<State extends object, Props extends Reco
 
   let mounted = false;
   let disposed = false;
+  let acceptingTaskRegistrations = true;
   let renderFunction: RenderFunction = () => null;
   const id = `c${nextComponentId++}`;
 
@@ -736,6 +737,9 @@ export function createComponentInstance<State extends object, Props extends Reco
       }));
     },
     task: Object.assign(function task(...args: unknown[]): void {
+      if (!acceptingTaskRegistrations) {
+        throw new Error("this.task() must be registered during component setup");
+      }
       const work = args[args.length - 1];
       if (typeof work !== "function") {
         throw new TypeError("this.task() requires a work callback");
@@ -862,9 +866,11 @@ export function createComponentInstance<State extends object, Props extends Reco
   try {
     result = withEffectScope(scope, () => type.call(instance, props as Props));
   } catch (error) {
+    acceptingTaskRegistrations = false;
     cleanupFailedConstruction(instance);
     throw error;
   }
+  acceptingTaskRegistrations = false;
   renderFunction = typeof result === "function" ? result as RenderFunction : () => result;
 
   taskObserverStack[taskObserverStack.length - 1]?.retain?.(instance);
