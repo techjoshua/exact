@@ -31,12 +31,14 @@ export function flushSync(): void {
   try {
     while (queuedComputations.size || queuedReactions.size) {
       if (++passes > maxFlushPasses) {
+        for (const reaction of queuedReactions) reaction.scheduled = false;
         queuedComputations.clear();
         queuedReactions.clear();
         throw new Error("eXact reactive scheduler exceeded its flush limit; a reaction is repeatedly invalidating itself");
       }
       while (queuedComputations.size) {
         if (++passes > maxFlushPasses) {
+          for (const reaction of queuedReactions) reaction.scheduled = false;
           queuedComputations.clear();
           queuedReactions.clear();
           throw new Error("eXact reactive scheduler exceeded its flush limit; a computation is repeatedly invalidating itself");

@@ -245,6 +245,21 @@ describe("@exact/reactive", () => {
     expect(state.date).toBe(date);
     expect(state.date.getTime()).toBe(0);
     expect(state.map.get("answer")).toBe(42);
+    expect(reactive(date)).toBe(date);
+    expect(snapshot(date)).toBe(date);
+  });
+
+  it("compares accessors without invoking them", () => {
+    let reads = 0;
+    const getter = () => { reads++; return 1; };
+    const first = {} as { value: number };
+    const second = {} as { value: number };
+    Object.defineProperty(first, "value", { configurable: true, enumerable: true, get: getter });
+    Object.defineProperty(second, "value", { configurable: true, enumerable: true, get: getter });
+    const state = reactive({ record: first });
+    state.record = second;
+    expect(reads).toBe(0);
+    expect(unwrap(state.record)).toBe(first);
   });
 
   it("replaces immutable records instead of attempting in-place reconciliation", () => {
@@ -334,10 +349,34 @@ describe("@exact/reactive", () => {
 
   it("fails a self-invalidating reaction instead of looping forever", () => {
     const state = reactive({ count: 0 });
+    let looping = true;
+    const runs = vi.fn();
     watch(() => {
-      if (state.count < 2_000) state.count++;
+      runs();
+      if (looping && state.count < 2_000) state.count++;
     });
     expect(() => flushSync()).toThrow("exceeded its flush limit");
+    const before = runs.mock.calls.length;
+    looping = false;
+    state.count++;
+    expect(() => flushSync()).not.toThrow();
+    expect(runs.mock.calls.length).toBeGreaterThan(before);
+  });
+
+  it("tracks defineProperty writes, honors readonly mode, and rolls them back", () => {
+    const state = reactive({ value: 1 });
+    const seen: number[] = [];
+    watch(() => seen.push(state.value));
+    Object.defineProperty(state, "value", { configurable: true, enumerable: true, writable: true, value: 2 });
+    flushSync();
+    expect(seen).toEqual([1, 2]);
+    expect(() => batch(() => {
+      Object.defineProperty(state, "value", { configurable: true, enumerable: true, writable: true, value: 3 });
+      throw new Error("rollback");
+    })).toThrow("rollback");
+    expect(state.value).toBe(2);
+    const readonly = reactive({ value: 1 }, { readonly: true });
+    expect(() => Object.defineProperty(readonly, "value", { value: 2 })).toThrow();
   });
 
   it("preserves postfix-update and array-mutator return semantics", () => {
@@ -434,13 +473,13 @@ describe("@exact/reactive", () => {
     expect(observer).toHaveBeenCalledTimes(1);
   });
 
-  it("restores a structurally equal replacement even when it needed no notification", () => {
+  it("preserves identity for structurally equal writes and remains rollback-safe", () => {
     const state = reactive({ record: { title: "Same" } });
     const record = state.record;
 
     expect(() => batch(() => {
       state.record = { title: "Same" };
-      expect(state.record).not.toBe(record);
+      expect(state.record).toBe(record);
       throw new Error("abort");
     })).toThrow("abort");
 
@@ -775,6 +814,22 @@ describe("@exact/reactive", () => {
     expect(right).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps retained shared-child aliases subscribed to their own parent paths", () => {
+    const shared = { value: 1 };
+    const state = reactive({ left: shared, right: shared });
+    const leftAlias = state.left;
+    const rightAlias = state.right;
+    const left = vi.fn(() => leftAlias.value);
+    const right = vi.fn(() => rightAlias.value);
+    watch(left);
+    watch(right);
+
+    state.left = { value: 2 };
+    flushSync();
+    expect(left).toHaveBeenCalledTimes(2);
+    expect(right).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps equivalent default proxy options canonical and incompatible options separate", () => {
     const raw = { value: 1 };
     expect(reactive(raw)).toBe(reactive(raw, {}));
@@ -801,6 +856,18 @@ describe("@exact/reactive", () => {
     const scope = createEffectScope();
     scope.stop();
     expect(() => withEffectScope(scope, () => watch(() => undefined))).toThrow("inactive effect scope");
+    expect(() => createEffectScope(scope)).toThrow("inactive parent scope");
+  });
+
+  it("disposes a watcher whose first run throws before returning a stop handle", () => {
+    const state = reactive({ value: 0 });
+    const scope = createEffectScope();
+    expect(() => withEffectScope(scope, () => watch(() => {
+      void state.value;
+      throw new Error("initial");
+    }))).toThrow("initial");
+    expect(() => { state.value = 1; flushSync(); }).not.toThrow();
+    scope.stop();
   });
 
   it("resolves compound update paths once and performs push/pop without scanning retained items", () => {

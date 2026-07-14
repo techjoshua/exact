@@ -526,6 +526,7 @@ export type ComponentInstance<State extends object> = Component<State> & {
   invalidate?: () => void;
   errorFallback?: RenderFunction;
   beginRender(): void;
+  endRender(): void;
   markMounted(): void;
   updateProps(props: Record<string, unknown>): void;
   unmount(reason?: string): void;
@@ -636,6 +637,8 @@ export function createComponentInstance<State extends object, Props extends Reco
 ): ComponentInstance<State> {
   const refs = new Map<symbol, unknown>();
   const listCaches = new Map<string, { render: unknown; cache: Map<string, { item: unknown; vnode: VNode }> }>();
+  const listKeyRegistrations = new Map<string, { collection: object; identity: string; stop: StopHandle }>();
+  const activeListSlots = new Set<string>();
   let mapCallIndex = 0;
   let instance!: ComponentInstance<State>;
   const scope = createEffectScope(undefined, error => {
@@ -673,6 +676,15 @@ export function createComponentInstance<State extends object, Props extends Reco
     },
     beginRender(): void {
       mapCallIndex = 0;
+      activeListSlots.clear();
+    },
+    endRender(): void {
+      for (const [slot, registration] of listKeyRegistrations) {
+        if (activeListSlots.has(slot)) continue;
+        registration.stop();
+        listKeyRegistrations.delete(slot);
+        listCaches.delete(slot);
+      }
     },
     get renderFunction() {
       return renderFunction;
@@ -756,11 +768,24 @@ export function createComponentInstance<State extends object, Props extends Reco
       const current = isReactiveValue(collection) && source
         ? peek(() => source.get())
         : collection as Iterable<T>;
-      registerReactiveListKey(provenance ?? current, key as (item: unknown) => string, id ?? "an unlabelled this.map() call", keyIdentity);
       // A render pass gives every map call a stable slot. Reuse only when the
       // renderer itself is stable; inline render callbacks are recreated on a
       // parent render and may capture a different parent value.
       const cacheId = id ?? `map:${mapCallIndex++}`;
+      activeListSlots.add(cacheId);
+      const registrationCollection = unwrap(provenance ?? current) as object;
+      const registrationIdentity = keyIdentity ?? Function.prototype.toString.call(key);
+      const registered = listKeyRegistrations.get(cacheId);
+      if (!registered || registered.collection !== registrationCollection || registered.identity !== registrationIdentity) {
+        registered?.stop();
+        const stop = registerReactiveListKey(
+          provenance ?? current,
+          key as (item: unknown) => string,
+          id ?? "an unlabelled this.map() call",
+          keyIdentity
+        );
+        listKeyRegistrations.set(cacheId, { collection: registrationCollection, identity: registrationIdentity, stop });
+      }
       const previous = listCaches.get(cacheId);
       const cache = previous?.render === render
         ? previous.cache
@@ -791,6 +816,7 @@ export function createComponentInstance<State extends object, Props extends Reco
       mounted = true;
       instance.mountController = new AbortController();
       for (const handler of instance.mountHandlers) {
+        if (disposed || !mounted) break;
         try {
           const result = handler({ signal: instance.mountController.signal });
           if (isPromiseLike(result)) observeLifecyclePromise(instance, Promise.resolve(result), "mount");
@@ -808,6 +834,8 @@ export function createComponentInstance<State extends object, Props extends Reco
       mounted = false;
       instance.renderStop?.();
       instance.scope.stop();
+      for (const registration of listKeyRegistrations.values()) registration.stop();
+      listKeyRegistrations.clear();
       instance.mountController?.abort(reason);
       for (const task of instance.tasks) task.stop();
       for (const handler of instance.unmountHandlers) {
@@ -859,6 +887,8 @@ export function renderInstance(instance: ComponentInstance<any>, onInvalidate: (
         }
         instance.errorFallback = fallback;
         output = fallback();
+      } finally {
+        instance.endRender();
       }
     },
     onInvalidate,
@@ -1009,7 +1039,10 @@ function createTask(instance: ComponentInstance<any>, deps: unknown[], work: (..
       // Compiler-rewritten awaits use taskAwait(), which actively rejects on
       // abort, so the prior generation settles even when its input promise does
       // not. Waiting here preserves generation and cleanup serialization.
-      const pending = [task.settlement, cleanupSettlement, resourceSettlement]
+      const priorSettlement = task.settlement && previousSignal
+        ? settleWhenAborted(task.settlement, previousSignal)
+        : task.settlement;
+      const pending = [priorSettlement, cleanupSettlement, resourceSettlement]
         .filter((value): value is Promise<void> => !!value);
       if (pending.length) {
         const barrier = Promise.all(pending).then(() => undefined);
@@ -1042,6 +1075,14 @@ function createTask(instance: ComponentInstance<any>, deps: unknown[], work: (..
   };
 
   return task;
+}
+
+function settleWhenAborted(settlement: Promise<void>, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return Promise.resolve();
+  return Promise.race([
+    settlement,
+    new Promise<void>(resolve => signal.addEventListener("abort", () => resolve(), { once: true }))
+  ]);
 }
 
 function startTaskGeneration(task: TaskRegistration, instance: ComponentInstance<any>, generation: number): void {

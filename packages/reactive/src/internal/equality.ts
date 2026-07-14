@@ -41,7 +41,7 @@ function structurallyEqualInner(
     if (leftKeys.length !== rightKeys.length) return false;
     for (const key of leftKeys) {
       if (!Object.prototype.hasOwnProperty.call(unwrappedRight, key)) return false;
-      if (!structurallyEqualInner(unwrappedLeft[key as keyof typeof unwrappedLeft], unwrappedRight[key as keyof typeof unwrappedRight], unwrap, leftToRight, rightToLeft)) return false;
+      if (!equalOwnDataProperty(unwrappedLeft, unwrappedRight, key, unwrap, leftToRight, rightToLeft)) return false;
     }
     return true;
   }
@@ -54,19 +54,36 @@ function structurallyEqualInner(
 
     for (const key of leftKeys) {
       if (!Object.prototype.hasOwnProperty.call(unwrappedRight, key)) return false;
-      if (!structurallyEqualInner(
-        unwrappedLeft[key],
-        unwrappedRight[key],
-        unwrap,
-        leftToRight,
-        rightToLeft
-      )) {
-        return false;
-      }
+      if (!equalOwnDataProperty(unwrappedLeft, unwrappedRight, key, unwrap, leftToRight, rightToLeft)) return false;
     }
 
     return true;
   }
 
   return false;
+}
+
+function equalOwnDataProperty(
+  left: object,
+  right: object,
+  key: PropertyKey,
+  unwrap: UnwrapValue,
+  leftToRight: WeakMap<object, object>,
+  rightToLeft: WeakMap<object, object>
+): boolean {
+  const leftDescriptor = Reflect.getOwnPropertyDescriptor(left, key);
+  const rightDescriptor = Reflect.getOwnPropertyDescriptor(right, key);
+  if (!leftDescriptor || !rightDescriptor) return false;
+  // Structural comparison is intentionally side-effect free. Accessors are
+  // opaque values: only the exact same accessor descriptor is equal.
+  if (!("value" in leftDescriptor) || !("value" in rightDescriptor)) {
+    return leftDescriptor.get === rightDescriptor.get
+      && leftDescriptor.set === rightDescriptor.set
+      && leftDescriptor.enumerable === rightDescriptor.enumerable
+      && leftDescriptor.configurable === rightDescriptor.configurable;
+  }
+  if (leftDescriptor.enumerable !== rightDescriptor.enumerable
+    || leftDescriptor.configurable !== rightDescriptor.configurable
+    || leftDescriptor.writable !== rightDescriptor.writable) return false;
+  return structurallyEqualInner(leftDescriptor.value, rightDescriptor.value, unwrap, leftToRight, rightToLeft);
 }

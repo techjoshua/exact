@@ -8,6 +8,9 @@ export function createEffectScope(
   onError?: (error: unknown) => void
 ): EffectScope {
   const parentScope = parent as EffectScopeImpl | undefined;
+  if (parentScope && !parentScope.active) {
+    throw new Error("Cannot create an effect scope beneath an inactive parent scope");
+  }
   const scope: EffectScopeImpl = {
     active: true,
     parent: parentScope,
