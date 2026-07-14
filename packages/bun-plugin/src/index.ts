@@ -1,5 +1,6 @@
 import {
   exactExportConditions,
+  clearExpressionProjectCache,
   invalidateExpressionModule,
   parseExactCompilerManifest,
   resolveExactArtifactImport,
@@ -29,6 +30,7 @@ export type BunBuildLike = {
   };
   onResolve(options: { filter: RegExp }, handler: (args: BunResolveArgs) => BunResolveResult | Promise<BunResolveResult>): void;
   onLoad(options: { filter: RegExp }, handler: (args: BunLoadArgs) => BunLoadResult | Promise<BunLoadResult>): void;
+  onStart?(handler: () => void | Promise<void>): void;
 };
 
 export type BunResolveArgs = {
@@ -64,6 +66,9 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
     setup(build) {
       build.config ??= {};
       build.config.conditions = mergeConditions(build.config.conditions ?? [], exactExportConditions(targetFor(options), options));
+      // A new Bun build may have been triggered by tsconfig or another file
+      // outside the module graph. Recreate project configuration before loads.
+      build.onStart?.(() => clearExpressionProjectCache());
       build.onResolve({ filter: /\.exact$/ }, args => {
         const resolved = resolveExactArtifactImport(args.path, args.importer, targetFor(options));
         return resolved ? { path: resolved.id } : {};

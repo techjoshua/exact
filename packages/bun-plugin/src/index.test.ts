@@ -98,6 +98,7 @@ describe("@exact/bun-plugin", () => {
   it("registers and executes Bun resolve and load hooks", async () => {
     let resolveHook!: (args: { path: string; importer?: string }) => { path?: string } | Promise<{ path?: string }>;
     let loadHook!: (args: BunLoadArgs) => BunLoadResult | Promise<BunLoadResult>;
+    let startHook!: () => void | Promise<void>;
     const build: BunBuildLike = {
       config: { conditions: ["browser"] },
       onResolve(_options, handler) {
@@ -105,12 +106,16 @@ describe("@exact/bun-plugin", () => {
       },
       onLoad(_options, handler) {
         loadHook = handler;
+      },
+      onStart(handler) {
+        startHook = handler;
       }
     };
 
     exact({ target: "server" }).setup(build);
 
     expect(build.config?.conditions).toEqual(["exact-server", "browser"]);
+    await expect(Promise.resolve(startHook())).resolves.toBeUndefined();
     await expect(Promise.resolve(resolveHook({
       path: "./Panel.exact",
       importer: "/app/src/main.ts"

@@ -122,8 +122,12 @@ describe("@exact/webpack-plugin", () => {
 
   it("applies conditions and loader rules to a compiler", () => {
     let resolverFactory: ((resolver: any) => any) | undefined;
+    let watchRun!: (compiler: WebpackCompilerLike & { modifiedFiles?: Iterable<string>; removedFiles?: Iterable<string> }) => void;
     const compiler: WebpackCompilerLike = { options: {} };
     compiler.hooks = {
+      watchRun: {
+        tap(_name, handler) { watchRun = handler; }
+      },
       normalModuleFactory: {
         tap(_name, handler) {
           handler({
@@ -144,6 +148,15 @@ describe("@exact/webpack-plugin", () => {
     expect(compiler.options.resolve?.conditionNames).toEqual(["exact-server"]);
     expect(compiler.options.module?.rules).toHaveLength(1);
     expect(resolverFactory).toBeTypeOf("function");
+    expect(() => watchRun({
+      options: compiler.options,
+      modifiedFiles: ["/project/src/model.ts"],
+      removedFiles: ["/project/src/removed.ts"]
+    })).not.toThrow();
+    expect(() => watchRun({
+      options: compiler.options,
+      modifiedFiles: ["/project/tsconfig.json"]
+    })).not.toThrow();
   });
 
   it("rewrites exact facade requests through Webpack resolver hooks", () => {

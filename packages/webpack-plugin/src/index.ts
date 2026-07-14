@@ -1,5 +1,7 @@
 import {
+  clearExpressionProjectCache,
   exactExportConditions,
+  invalidateExpressionModule,
   parseExactCompilerManifest,
   resolveExactArtifactImport,
   transformSource,
@@ -46,6 +48,9 @@ export type WebpackCompilerLike = {
     };
   };
   hooks?: {
+    watchRun?: {
+      tap?(name: string, handler: (compiler: WebpackCompilerLike & { modifiedFiles?: Iterable<string>; removedFiles?: Iterable<string> }) => void): void;
+    };
     normalModuleFactory?: {
       tap?(name: string, handler: (factory: { hooks?: { resolver?: { tap?(name: string, resolver: (resolver: WebpackResolverLike) => WebpackResolverLike): void } } }) => void): void;
     };
@@ -71,6 +76,16 @@ export class ExactWebpackPlugin {
     compiler.options.module ??= {};
     compiler.options.module.rules ??= [];
     compiler.options.module.rules.push(createExactWebpackRule(this.options));
+    compiler.hooks?.watchRun?.tap?.("ExactWebpackPlugin", current => {
+      const modified = [...(current.modifiedFiles ?? [])];
+      const removed = new Set(current.removedFiles ?? []);
+      if (modified.some(file => /(?:^|[\\/])tsconfig(?:\.[^\\/]+)?\.json$/i.test(file))) {
+        clearExpressionProjectCache();
+        return;
+      }
+      for (const file of modified) invalidateExpressionModule(file, removed.has(file));
+      for (const file of removed) if (!modified.includes(file)) invalidateExpressionModule(file, true);
+    });
     compiler.hooks?.normalModuleFactory?.tap?.("ExactWebpackPlugin", factory => {
       factory.hooks?.resolver?.tap?.("ExactWebpackPlugin", resolver => applyExactWebpackResolver(resolver, this.options));
     });
