@@ -3,12 +3,17 @@ import type { EffectScope, EffectScopeImpl } from "./types.js";
 const scopeStack: EffectScopeImpl[] = [];
 
 /** Creates an effect scope that can stop all child scopes and reactions as one unit. */
-export function createEffectScope(parent: EffectScope | undefined = currentEffectScope()): EffectScope {
+export function createEffectScope(
+  parent: EffectScope | undefined = currentEffectScope(),
+  onError?: (error: unknown) => void
+): EffectScope {
+  const parentScope = parent as EffectScopeImpl | undefined;
   const scope: EffectScopeImpl = {
     active: true,
-    parent: parent as EffectScopeImpl | undefined,
+    parent: parentScope,
     children: new Set(),
     reactions: new Set(),
+    onError: onError ?? parentScope?.onError,
     stop() {
       if (!scope.active) return;
       scope.active = false;

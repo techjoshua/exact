@@ -23,10 +23,18 @@ export interface ExpressionTaskPlan {
   readonly sites: ReadonlyMap<string, ExpressionTaskSite>;
   readonly resources: ReadonlyMap<string, ExpressionTaskResource>;
   readonly lifecycleListeners: ReadonlyMap<string, ExpressionLifecycleListener>;
+  readonly setupTasks: ReadonlyMap<string, ExpressionSetupTask>;
   readonly signalCalls: ReadonlyMap<string, ExpressionTaskSignalCall>;
 }
 
 export interface ExpressionLifecycleListener {
+  readonly component: string;
+  readonly start: number;
+  readonly end: number;
+}
+
+/** A direct component-setup expression whose lifetime is compiler-owned. */
+export interface ExpressionSetupTask {
   readonly component: string;
   readonly start: number;
   readonly end: number;
@@ -56,6 +64,7 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
   const sites = new Map<string, ExpressionTaskSite>();
   const resources = new Map<string, ExpressionTaskResource>();
   const lifecycleListeners = new Map<string, ExpressionLifecycleListener>();
+  const setupTasks = new Map<string, ExpressionSetupTask>();
   const signalCalls = new Map<string, ExpressionTaskSignalCall>();
   const writes = analyzeExpressionWrites(module);
   const localVariables = new Set(module.writesOf(module.root));
@@ -151,21 +160,53 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
     sites.set(writeSiteKey(site.start, site.end), site);
   }
   for (const call of module.walk().calls()) {
-    if (!call.node.span || !isGlobalListener(call, localVariables) || insideTask(call) || insideClientJsx(call)) continue;
+    if (!call.node.span || insideTask(call) || insideClientJsx(call)) continue;
     const owner = call.ancestors().functions().first();
     if (owner?.node.kind !== "FunctionDeclaration" || !/^[A-Z]/.test(owner.node.name ?? "")) continue;
-    const listener = Object.freeze({ component: owner.node.name!, start: call.node.span.start, end: call.node.span.end });
-    lifecycleListeners.set(writeSiteKey(listener.start, listener.end), listener);
+    const listenerCall = isOwnedListener(call, localVariables);
+    const resource = taskResource(call, localVariables);
+    const signalCall = taskSignalCall(call, localVariables);
+    if (resource) {
+      const ownership = resource.kind === "owned" ? taskResourceOwnership(module, owner, call, resource) : "owned";
+      if (ownership === "owned") {
+        const site = Object.freeze({ start: call.node.span.start, end: call.node.span.end, ...resource });
+        resources.set(writeSiteKey(site.start, site.end), site);
+      }
+    }
+    if (signalCall) {
+      const site = Object.freeze({ start: call.node.span.start, end: call.node.span.end, ...signalCall });
+      signalCalls.set(writeSiteKey(site.start, site.end), site);
+    }
+    if (!listenerCall && !resource && !signalCall) continue;
+    const expression = directSetupExpression(call);
+    if (!expression?.node.span) continue;
+    const setup = Object.freeze({ component: owner.node.name!, start: expression.node.span.start, end: expression.node.span.end });
+    setupTasks.set(writeSiteKey(setup.start, setup.end), setup);
+    if (listenerCall) {
+      const listener = Object.freeze({ component: owner.node.name!, start: call.node.span.start, end: call.node.span.end });
+      lifecycleListeners.set(writeSiteKey(listener.start, listener.end), listener);
+    }
   }
-  return Object.freeze({ sites, resources, lifecycleListeners, signalCalls });
+  return Object.freeze({ sites, resources, lifecycleListeners, setupTasks, signalCalls });
 }
 
-function isGlobalListener(call: NodeRef, localVariables: ReadonlySet<Variable>): boolean {
+function isOwnedListener(call: NodeRef, localVariables: ReadonlySet<Variable>): boolean {
   if (!call.target?.isMember("addEventListener")) return false;
   const receiver = call.target.target;
   const root = receiver?.rootVariable;
   const name = root?.name ?? receiver?.name ?? receiver?.node.text;
-  return !!name && ["window", "document", "globalThis"].includes(name) && (!root || !localVariables.has(root));
+  if (!!name && ["window", "document", "globalThis"].includes(name) && (!root || !localVariables.has(root))) return true;
+  // EventTarget-compatible APIs expose an options parameter containing signal.
+  return taskSignalCall(call, localVariables)?.mode === "options";
+}
+
+function directSetupExpression(call: NodeRef): NodeRef | undefined {
+  const statement = call.ancestors().ofKind("ExpressionStatement").first();
+  if (!statement) return undefined;
+  // Only own a whole direct setup expression. Calls nested in callbacks have a
+  // nearer function owner and never reach this point; initializers deliberately
+  // remain explicit because replacing their value with a task handle is invalid.
+  return statement.children().first();
 }
 
 function insideTask(reference: NodeRef): boolean {
@@ -207,7 +248,7 @@ function taskSignalCall(
   call: NodeRef,
   localVariables: ReadonlySet<Variable>
 ): Readonly<{ parameter: number; mode: "direct" | "options" }> | undefined {
-  if (isTaskCall(call) || call.target?.isMember("addEventListener")) return undefined;
+  if (isTaskCall(call) || isKnownGlobalListener(call, localVariables)) return undefined;
   const target = call.target;
   const variable = target?.rootVariable ?? target?.variable;
   const name = target?.name ?? target?.node.text?.trim();
@@ -223,6 +264,14 @@ function taskSignalCall(
   // Some lightweight projects omit DOM overloads. Preserve canonical fetch cancellation.
   if (name === "fetch" && (!variable || !localVariables.has(variable))) return { parameter: 1, mode: "options" };
   return undefined;
+}
+
+function isKnownGlobalListener(call: NodeRef, localVariables: ReadonlySet<Variable>): boolean {
+  if (!call.target?.isMember("addEventListener")) return false;
+  const receiver = call.target.target;
+  const root = receiver?.rootVariable;
+  const name = root?.name ?? receiver?.name ?? receiver?.node.text;
+  return !!name && ["window", "document", "globalThis"].includes(name) && (!root || !localVariables.has(root));
 }
 
 function acceptsAbortSignal(type: NonNullable<NodeRef["type"]>): boolean {

@@ -41,6 +41,7 @@ import {
 } from "./children.js";
 import { preserveFocus } from "./focus.js";
 import { describeNode, describeVNodeType, domDebug, formatError } from "./debug.js";
+import { clearDelegated } from "./events.js";
 import { clearElementOwner, setElementOwner } from "./ownership.js";
 import { afterMountedChildren, lastMountedNode, placeMountedBefore } from "./placement.js";
 import { clearElementProps, updateProps } from "./props.js";
@@ -96,6 +97,31 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 }
 
 /**
+ * Disposes the renderer root attached to a container.
+ *
+ * All component scopes, reactive bindings, refs, ownership records, direct
+ * listeners, and delegated root listeners are released before the DOM owned by
+ * the root is removed. Returns false when the container has no active root.
+ */
+export function unmount(container: Element): boolean {
+  const root = roots.get(container);
+  if (!root) return false;
+
+  // Delete first so lifecycle callbacks may safely render a fresh root into the
+  // same container without the old root later deleting the replacement.
+  roots.delete(container);
+  clearDelegated(root);
+
+  const mounted = root.mounted;
+  root.mounted = undefined;
+  if (mounted) {
+    unmountMounted(mounted);
+    removeMountedNodes(container, mounted);
+  }
+  return true;
+}
+
+/**
  * Attaches the renderer to an already-validated static SSR boundary.  Unlike a
  * validation-only hydration pass this creates the normal mounted graph, so a
  * later render patches the adopted nodes instead of appending a second tree.
@@ -126,7 +152,8 @@ export function adoptStatic(vnode: VNode, container: Element, options: RenderOpt
     const nodes = contentNodesBetween(markers.start, markers.end);
     const children = adoptStaticChildren(root, rendered, nodes, instance, scope);
     if (!children) {
-      scope.stop();
+      unmountMounted(mounted);
+      clearDelegated(root);
       return false;
     }
     mounted.children = children;
@@ -135,7 +162,8 @@ export function adoptStatic(vnode: VNode, container: Element, options: RenderOpt
     roots.set(container, root);
     return true;
   } catch (error) {
-    scope.stop();
+    unmountMounted(mounted);
+    clearDelegated(root);
     return false;
   }
 }
@@ -160,14 +188,15 @@ export function adoptComponentRoot(vnode: VNode, container: Element, options: Re
     mounted.instance = instance;
     const rendered = withEffectScope(scope, () => renderInstance(instance, () => rerenderComponent(root, mounted)));
     const children = adoptStaticChildren(root, rendered, contentNodesBetween(markers.start, markers.end), instance, scope);
-    if (!children) { scope.stop(); return false; }
+    if (!children) { unmountMounted(mounted); clearDelegated(root); return false; }
     mounted.children = children;
     instance.markMounted();
     root.mounted = mounted;
     roots.set(container, root);
     return true;
   } catch {
-    scope.stop();
+    unmountMounted(mounted);
+    clearDelegated(root);
     return false;
   }
 }
@@ -198,11 +227,18 @@ function adoptStaticChildren(
   let cursor = 0;
   for (const child of vnodes) {
     const result = adoptStaticMounted(root, child, nodes, cursor, parentInstance, parentScope);
-    if (!result) return undefined;
+    if (!result) {
+      for (const mounted of mounts) unmountMounted(mounted);
+      return undefined;
+    }
     mounts.push(result.mounted);
     cursor = result.next;
   }
-  return cursor === nodes.length ? mounts : undefined;
+  if (cursor !== nodes.length) {
+    for (const mounted of mounts) unmountMounted(mounted);
+    return undefined;
+  }
+  return mounts;
 }
 
 function adoptStaticMounted(
@@ -227,12 +263,12 @@ function adoptStaticMounted(
       mounted.instance = instance;
       const rendered = withEffectScope(scope, () => renderInstance(instance, () => rerenderComponent(root, mounted)));
       const children = adoptStaticChildren(root, rendered, nodes.slice(cursor + 1, endIndex), instance, scope);
-      if (!children) { scope.stop(); return undefined; }
+      if (!children) { unmountMounted(mounted); return undefined; }
       mounted.children = children;
       instance.markMounted();
       return { mounted, next: endIndex + 1 };
     } catch {
-      scope.stop();
+      unmountMounted(mounted);
       return undefined;
     }
   }
@@ -318,15 +354,29 @@ function adoptKeyedListChildren(
   for (const vnode of vnodes) {
     const start = nodes[cursor];
     const key = vnode.key;
-    if (key === undefined || !(start instanceof Comment) || start.data !== `exact:item:${key}`) return undefined;
+    if (key === undefined || !(start instanceof Comment) || start.data !== `exact:item:${key}`) {
+      for (const mounted of mounts) unmountMounted(mounted);
+      return undefined;
+    }
     const endIndex = nodes.findIndex((node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`);
-    if (endIndex < 0) return undefined;
+    if (endIndex < 0) {
+      for (const mounted of mounts) unmountMounted(mounted);
+      return undefined;
+    }
     const adopted = adoptStaticMounted(root, vnode, nodes.slice(cursor + 1, endIndex), 0, parentInstance, parentScope);
-    if (!adopted || adopted.next !== endIndex - cursor - 1) return undefined;
+    if (!adopted || adopted.next !== endIndex - cursor - 1) {
+      if (adopted) unmountMounted(adopted.mounted);
+      for (const mounted of mounts) unmountMounted(mounted);
+      return undefined;
+    }
     mounts.push({ vnode, dom: start, end: nodes[endIndex]!, range: "item", scope: createEffectScope(parentScope), children: [adopted.mounted] });
     cursor = endIndex + 1;
   }
-  return cursor === nodes.length ? mounts : undefined;
+  if (cursor !== nodes.length) {
+    for (const mounted of mounts) unmountMounted(mounted);
+    return undefined;
+  }
+  return mounts;
 }
 
 

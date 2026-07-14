@@ -2,11 +2,21 @@ import type { Dep, Reaction } from "./types.js";
 
 const deps = new WeakMap<object, Map<PropertyKey, Dep>>();
 const reactionStack: Reaction[] = [];
-let transactionDepth = 0;
-const pendingTriggers = new Map<object, Set<PropertyKey>>();
+const trackingPauseFloors: number[] = [];
+
+type Transaction = {
+  readonly undos: Array<() => void>;
+  readonly triggers: Map<object, Set<PropertyKey>>;
+};
+
+const transactions: Transaction[] = [];
 
 /** Records that the active reaction depends on a target/key pair. */
 export function track(target: object, key: PropertyKey): void {
+  const pauseFloor = trackingPauseFloors[trackingPauseFloors.length - 1];
+  // Reactions that existed when peek() began stay hidden, but a reaction
+  // explicitly created inside peek() owns its own dependency collection.
+  if (pauseFloor !== undefined && reactionStack.length <= pauseFloor) return;
   const reaction = reactionStack[reactionStack.length - 1];
   if (!reaction) return;
 
@@ -17,11 +27,12 @@ export function track(target: object, key: PropertyKey): void {
 
 /** Schedules every reaction currently subscribed to a target/key pair. */
 export function trigger(target: object, key: PropertyKey): void {
-  if (transactionDepth) {
-    let keys = pendingTriggers.get(target);
+  const transaction = transactions[transactions.length - 1];
+  if (transaction) {
+    let keys = transaction.triggers.get(target);
     if (!keys) {
       keys = new Set();
-      pendingTriggers.set(target, keys);
+      transaction.triggers.set(target, keys);
     }
     keys.add(key);
     return;
@@ -29,21 +40,53 @@ export function trigger(target: object, key: PropertyKey): void {
   triggerNow(target, key);
 }
 
-/** Runs a group of writes as one observable state transition. */
+/**
+ * Runs a group of writes as one atomic observable state transition.
+ * Reactive mutations are rolled back when the callback throws.
+ */
 export function batch<T>(fn: () => T): T {
-  transactionDepth++;
+  const transaction: Transaction = { undos: [], triggers: new Map() };
+  transactions.push(transaction);
+  let result: T;
   try {
-    return fn();
-  } finally {
-    transactionDepth--;
-    if (!transactionDepth) flushTriggers();
+    result = fn();
+  } catch (error) {
+    transactions.pop();
+    for (let index = transaction.undos.length - 1; index >= 0; index--) transaction.undos[index]!();
+    throw error;
+  }
+  transactions.pop();
+  const parent = transactions[transactions.length - 1];
+  if (parent) mergeTransaction(parent, transaction);
+  else flushTriggers(transaction.triggers);
+  return result;
+}
+
+/** Records an inverse operation for the currently active transaction. */
+export function recordTransactionUndo(undo: () => void): void {
+  transactions[transactions.length - 1]?.undos.push(undo);
+}
+
+/** Returns whether mutations currently need an inverse journal entry. */
+export function hasActiveTransaction(): boolean {
+  return transactions.length > 0;
+}
+
+function mergeTransaction(parent: Transaction, child: Transaction): void {
+  parent.undos.push(...child.undos);
+  for (const [target, keys] of child.triggers) {
+    let pending = parent.triggers.get(target);
+    if (!pending) {
+      pending = new Set();
+      parent.triggers.set(target, pending);
+    }
+    for (const key of keys) pending.add(key);
   }
 }
 
-function flushTriggers(): void {
-  if (!pendingTriggers.size) return;
-  const pending = [...pendingTriggers];
-  pendingTriggers.clear();
+function flushTriggers(triggers: Map<object, Set<PropertyKey>>): void {
+  if (!triggers.size) return;
+  const pending = [...triggers];
   for (const [target, keys] of pending) for (const key of keys) triggerNow(target, key);
 }
 
@@ -93,10 +136,10 @@ export function runTracked(reaction: Reaction, fn: () => void): void {
 
 /** Runs a function without linking its reads to the currently active reaction. */
 export function peek<T>(fn: () => T): T {
-  const previous = reactionStack.pop();
+  trackingPauseFloors.push(reactionStack.length);
   try {
     return fn();
   } finally {
-    if (previous) reactionStack.push(previous);
+    trackingPauseFloors.pop();
   }
 }

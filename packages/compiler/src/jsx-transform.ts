@@ -85,6 +85,7 @@ export function exactJsxTransformer(
     const taskResources = new Set<ExpressionTaskResourceKind>();
     const taskSignalModes = new Set<ExpressionTaskSignalCall["mode"]>();
     let sawTaskAwait = false;
+    let setupTaskDepth = 0;
     const componentStack: string[] = [];
     const componentLocalStack: ComponentLocalInfo[] = [];
     const islandCounts = new Map<string, number>();
@@ -97,6 +98,9 @@ export function exactJsxTransformer(
     const expressionListenerFor = (node: ts.Node) => node.pos < 0 || node.end < 0
       ? undefined
       : expressionTasks?.lifecycleListeners.get(writeSiteKey(node.getStart(sourceFile), node.end));
+    const expressionSetupFor = (node: ts.Node) => node.pos < 0 || node.end < 0
+      ? undefined
+      : expressionTasks?.setupTasks.get(writeSiteKey(node.getStart(sourceFile), node.end));
     const expressionSignalFor = (node: ts.Node) => node.pos < 0 || node.end < 0
       ? undefined
       : expressionTasks?.signalCalls.get(writeSiteKey(node.getStart(sourceFile), node.end));
@@ -272,8 +276,17 @@ export function exactJsxTransformer(
         sawJsx = true;
         return transformJsxFragment(node, context, visitor, helpers, sourceFile, derivedReactiveLocals, expressionJsx);
       }
+      if ((ts.isCallExpression(node) || ts.isNewExpression(node)) && setupTaskDepth === 0 && expressionSetupFor(node)) {
+        if (target === "server") return factory.createVoidExpression(factory.createNumericLiteral(0));
+        return transformImplicitSetupTask(node, context, visitor, helpers,
+          () => { sawAbortOptions = true; }, expressionResourceFor,
+          kind => { taskResources.add(kind); }, () => { sawTaskAwait = true; }, expressionSignalFor,
+          mode => { taskSignalModes.add(mode); },
+          enter => { setupTaskDepth += enter ? 1 : -1; });
+      }
       if (ts.isCallExpression(node)) {
-        if (expressionListenerFor(node)) {
+        // Compatibility for expression plans created before setupTasks existed.
+        if (expressionListenerFor(node) && setupTaskDepth === 0) {
           if (target === "server") return factory.createVoidExpression(factory.createNumericLiteral(0));
           sawAbortOptions = true;
           return transformImplicitLifecycleListener(node, context, visitor, helpers);
@@ -404,6 +417,39 @@ function transformImplicitLifecycleListener(
     factory.createPropertyAccessExpression(factory.createPropertyAccessExpression(factory.createThis(), "task"), "client"),
     undefined,
     [work]
+  );
+}
+
+function transformImplicitSetupTask(
+  node: ts.CallExpression | ts.NewExpression,
+  context: ts.TransformationContext,
+  visitor: ts.Visitor,
+  helpers: HelperNames,
+  markAbortOptions: () => void,
+  resourceFor: (node: ts.Node) => ExpressionTaskResource | undefined,
+  markResource: (kind: ExpressionTaskResourceKind) => void,
+  markAwait: () => void,
+  signalFor: (node: ts.Node) => ExpressionTaskSignalCall | undefined,
+  markSignal: (mode: ExpressionTaskSignalCall["mode"]) => void,
+  setVisiting: (enter: boolean) => void
+): ts.Expression {
+  const factory = context.factory;
+  setVisiting(true);
+  let expression: ts.Expression;
+  try {
+    expression = ts.visitEachChild(node, visitor, context) as ts.Expression;
+  } finally {
+    setVisiting(false);
+  }
+  const work = factory.createArrowFunction(undefined, undefined, [], undefined,
+    factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+    factory.createBlock([factory.createExpressionStatement(expression)], true));
+  const managed = transformTaskWork(work, 0, context, helpers, markAbortOptions, resourceFor,
+    markResource, markAwait, signalFor, markSignal);
+  return factory.createCallExpression(
+    factory.createPropertyAccessExpression(factory.createPropertyAccessExpression(factory.createThis(), "task"), "client"),
+    undefined,
+    [managed]
   );
 }
 

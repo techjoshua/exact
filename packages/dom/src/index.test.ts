@@ -8,6 +8,7 @@ import {
   createDynamicChild,
   createExpression,
   ErrorContext,
+  Fragment,
   createErrorContext,
   createRef,
   type Child,
@@ -19,7 +20,7 @@ import {
 } from "@exact/core";
 import { jsx, jsxs } from "@exact/jsx";
 import { createEffectScope, flushSync, watch } from "@exact/reactive";
-import { percent, px, rem, render } from "./index.js";
+import { adoptStatic, percent, px, rem, render, unmount } from "./index.js";
 import { mountedDomNodes, placeMountedBefore } from "./placement.js";
 
 describe("@exact/dom", () => {
@@ -2348,6 +2349,102 @@ describe("@exact/dom", () => {
     expect(container.querySelector("section")).toBeNull();
     expect(container.querySelector("article")).toBeTruthy();
     expect(unmounted).toHaveBeenCalledTimes(1);
+  });
+
+  it("explicitly disposes a root and all of its renderer-owned resources", () => {
+    const unmounted = vi.fn();
+    const clicked = vi.fn();
+    const ref = createRef<HTMLButtonElement>("root-button");
+    let component!: Component<{ count: number }>;
+
+    function App(this: Component<{ count: number }>) {
+      component = this;
+      this.state.count = 0;
+      this.onUnmount(unmounted);
+      return () => jsx("button", {
+        ref: this.ref(ref),
+        onClick: clicked,
+        children: String(this.state.count)
+      });
+    }
+
+    const container = document.createElement("div");
+    render(jsx(App, {}), container);
+    const button = container.querySelector("button")!;
+    button.click();
+    expect(clicked).toHaveBeenCalledTimes(1);
+    expect(component.refs.get(ref)).toBe(button);
+
+    expect(unmount(container)).toBe(true);
+    expect(container.childNodes).toHaveLength(0);
+    expect(unmounted).toHaveBeenCalledTimes(1);
+    expect(component.refs.get(ref)).toBeUndefined();
+    expect(unmount(container)).toBe(false);
+
+    button.click();
+    expect(clicked).toHaveBeenCalledTimes(1);
+    component.state.count++;
+    flushSync();
+    expect(button.textContent).toBe("0");
+  });
+
+  it("remounts without retaining or duplicating delegated root listeners", () => {
+    const container = document.createElement("div");
+    const add = vi.spyOn(container, "addEventListener");
+    const remove = vi.spyOn(container, "removeEventListener");
+    const first = vi.fn();
+    const second = vi.fn();
+
+    render(jsx("button", { onClick: first, children: "first" }), container);
+    container.querySelector("button")!.click();
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(add.mock.calls.filter(([type]) => type === "click")).toHaveLength(1);
+
+    expect(unmount(container)).toBe(true);
+    expect(remove.mock.calls.filter(([type]) => type === "click")).toHaveLength(1);
+
+    render(jsx("button", { onClick: second, children: "second" }), container);
+    container.querySelector("button")!.click();
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(add.mock.calls.filter(([type]) => type === "click")).toHaveLength(2);
+
+    unmount(container);
+    expect(remove.mock.calls.filter(([type]) => type === "click")).toHaveLength(2);
+  });
+
+  it("disposes an adopted SSR root and its attached bindings", () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<!--exact:component:0--><button>server</button><!--/exact:component:0-->";
+    const serverButton = container.querySelector("button")!;
+    const clicked = vi.fn();
+
+    expect(adoptStatic(createVNode("button", { onClick: clicked }, "server"), container)).toBe(true);
+    serverButton.click();
+    expect(clicked).toHaveBeenCalledTimes(1);
+
+    expect(unmount(container)).toBe(true);
+    expect(container.childNodes).toHaveLength(0);
+    serverButton.click();
+    expect(clicked).toHaveBeenCalledTimes(1);
+  });
+
+  it("rolls back listeners and ownership when SSR adoption fails partway", () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<!--exact:component:0--><button>server</button><span>mismatch</span><!--/exact:component:0-->";
+    const serverButton = container.querySelector("button")!;
+    const remove = vi.spyOn(container, "removeEventListener");
+    const clicked = vi.fn();
+    const vnode = createVNode(Fragment, null,
+      createVNode("button", { onClick: clicked }, "server"),
+      createVNode("p", null, "expected")
+    );
+
+    expect(adoptStatic(vnode, container)).toBe(false);
+    expect(remove.mock.calls.filter(([type]) => type === "click")).toHaveLength(1);
+    serverButton.click();
+    expect(clicked).not.toHaveBeenCalled();
+    expect(unmount(container)).toBe(false);
   });
 
   it("does not leave orphan DOM when nested components are replaced", () => {

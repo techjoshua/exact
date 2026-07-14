@@ -61,10 +61,34 @@ describe("@exact/compiler", () => {
   });
   it("owns browser-global listeners declared in component setup", () => {
     const output = transform(`function Panel(this: Component<{}>) { window.addEventListener("resize", () => {}); return () => <p />; }`, { filename: "Panel.tsx" });
-    expect(output).toContain("this.task.client(({ signal: __exactSignal }) => window.addEventListener");
+    expect(output).toContain("this.task.client(({ signal: __exactSignal }) =>");
+    expect(output).toContain("window.addEventListener");
     expect(output).toContain("__exactAbortOptions(undefined, __exactSignal)");
     const server = transform(`function Panel(this: Component<{}>) { window.addEventListener("resize", () => {}); return () => <p />; }`, { filename: "Panel.tsx", target: "server" });
     expect(server).not.toContain("addEventListener");
+  });
+  it("owns cancellable and disposable resources declared directly in component setup", () => {
+    const output = transform(`
+      declare function load(options?: { signal?: AbortSignal; priority?: number }): Promise<void>;
+      declare function disposableApi(): Disposable;
+      declare const bus: EventTarget;
+      function Panel(this: Component<{}>) {
+        setInterval(() => {}, 10);
+        new ResizeObserver(() => {}).observe(document.body);
+        new WebSocket("/events");
+        disposableApi();
+        load({ priority: 1 });
+        bus.addEventListener("message", () => {});
+        return () => <p />;
+      }
+    `, { filename: "SetupResources.tsx" });
+    expect(output.match(/this\.task\.client/g)).toHaveLength(6);
+    expect(output).toContain("__exactTaskInterval(__exactSignal");
+    expect(output).toContain("__exactTaskObserver(__exactSignal, new ResizeObserver");
+    expect(output).toContain("__exactTaskResource(__exactSignal, new WebSocket(\"/events\"), \"close\")");
+    expect(output).toContain("__exactTaskResource(__exactSignal, disposableApi())");
+    expect(output).toContain("load(__exactTaskOptionsSignal({ priority: 1 }, __exactSignal))");
+    expect(output).toContain("bus.addEventListener(\"message\", () => { }, __exactTaskOptionsSignal(undefined, __exactSignal))");
   });
   it("allows abort-scoped browser-global listeners inside component tasks", () => {
     expect(() => transform(`function Panel(this: Component<{}>) { this.task.client(({ signal }) => { window.addEventListener("resize", () => {}, { signal }); }); return () => <p />; }`, { filename: "Panel.tsx" }))

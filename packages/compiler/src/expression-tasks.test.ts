@@ -30,6 +30,32 @@ describe("expression-backed task effects", () => {
     expect([...analyzeExpressionTasks(globalModule).lifecycleListeners.values()])
       .toContainEqual(expect.objectContaining({ component: "Panel" }));
   });
+  it("plans direct setup resources and typed cancellable calls as owned client tasks", () => {
+    clearExpressionProjectCache();
+    const module = expressionModuleFor("SetupResources.tsx", `
+      declare function load(options?: { signal?: AbortSignal; priority?: number }): Promise<void>;
+      declare function disposableApi(): Disposable;
+      declare const bus: EventTarget;
+      function Panel(this: Component<{}>) {
+        setInterval(() => {}, 10);
+        new ResizeObserver(() => {}).observe(document.body);
+        new WebSocket("/events");
+        disposableApi();
+        load({ priority: 1 });
+        bus.addEventListener("message", () => {});
+        return () => <p />;
+      }
+    `);
+    const plan = analyzeExpressionTasks(module);
+    expect(plan.setupTasks.size).toBe(6);
+    expect([...plan.resources.values()]).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: "interval" }),
+      expect.objectContaining({ kind: "observer" }),
+      expect.objectContaining({ kind: "owned", disposal: "close" }),
+      expect.objectContaining({ kind: "owned", description: expect.stringContaining("Disposable") })
+    ]));
+    expect([...plan.signalCalls.values()]).toContainEqual(expect.objectContaining({ mode: "options" }));
+  });
   it("classifies state, context, environment, async, and explicit placement effects", () => {
     clearExpressionProjectCache();
     const module = expressionModuleFor("ExpressionTasks.tsx", `

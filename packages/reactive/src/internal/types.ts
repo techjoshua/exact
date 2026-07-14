@@ -44,9 +44,11 @@ export type EffectScopeImpl = EffectScope & {
   parent?: EffectScopeImpl;
   children: Set<EffectScopeImpl>;
   reactions: Set<Reaction>;
+  onError?: (error: unknown) => void;
 };
 
 export type WatchOptions = {
   scope?: EffectScope;
   onSchedule?(): void;
+  onError?(error: unknown): void;
 };

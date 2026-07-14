@@ -8,7 +8,7 @@ export type {
   WatchOptions
 } from "./internal/types.js";
 
-import { batch, cleanupReaction, getDep, peek, runTracked, track, trigger } from "./internal/deps.js";
+import { batch, cleanupReaction, getDep, hasActiveTransaction, peek, recordTransactionUndo, runTracked, track, trigger } from "./internal/deps.js";
 import { hasChanged as hasStructurallyChanged, structurallyEqual } from "./internal/equality.js";
 import { isArrayStructureKey, isPlainObject } from "./internal/objects.js";
 import { createEffectScope, currentEffectScope, withEffectScope } from "./internal/scopes.js";
@@ -126,9 +126,23 @@ export function registerReactiveListKey(
     : `runtime:${Function.prototype.toString.call(key)}`;
   const previous = listKeyExtractors.get(raw);
   if (previous && previous.signature !== signature) {
-    throw new Error(`Conflicting this.map() key extractors for the same collection (${previous.site} and ${site})`);
+    throw conflictingListKeyError(previous.site, site);
+  }
+  // Compiler identities are a checked semantic contract and keep registration
+  // constant-time for large lists. Dynamic extractors have only source text as
+  // identity, so verify recreated closures against current records to catch
+  // captured values that changed their meaning.
+  if (previous && !identity) {
+    for (const item of raw) {
+      if (String(previous.key(item)) !== String(key(item))) throw conflictingListKeyError(previous.site, site);
+    }
   }
   if (!previous) listKeyExtractors.set(raw, { key, signature, site });
+}
+
+function conflictingListKeyError(left: string, right: string): Error {
+  const sites = [left, right].sort();
+  return new Error(`Conflicting this.map() key extractors for the same collection (${sites[0]} and ${sites[1]}). A reactive collection must have one stable key contract.`);
 }
 
 const proxyCache = new WeakMap<object, object>();
@@ -158,6 +172,7 @@ export function computed<T>(compute: () => T): ReactiveValue<T> {
   let current: T;
   let stop: StopHandle | undefined;
   let queued = false;
+  let computeFailed = false;
 
   const source: ReactiveRef<T> = {
     target,
@@ -177,6 +192,7 @@ export function computed<T>(compute: () => T): ReactiveValue<T> {
     if (scope && !scope.active) return;
     if (stop) return;
 
+    computeFailed = false;
     stop = watch(
       () => {
         const computedValue = compute();
@@ -191,7 +207,14 @@ export function computed<T>(compute: () => T): ReactiveValue<T> {
         if (hasChanged(current, next)) current = next;
       },
       queueRecompute,
-      { scope }
+      {
+        scope,
+        onError(error) {
+          computeFailed = true;
+          if (scope?.onError) scope.onError(error);
+          else throw error;
+        }
+      }
     );
   }
 
@@ -213,6 +236,7 @@ export function computed<T>(compute: () => T): ReactiveValue<T> {
     const previous = initialized ? current : undefined;
     const hadValue = initialized;
     ensure();
+    if (computeFailed) return;
     if (!hadValue || hasChanged(previous, current)) {
       trigger(target, key);
     }
@@ -232,6 +256,11 @@ export function computed<T>(compute: () => T): ReactiveValue<T> {
 /** Runs a tracked function immediately and schedules it again whenever its dependencies change. */
 export function watch(fn: () => void, scheduler?: () => void, options: WatchOptions = {}): StopHandle {
   const scope = (options.scope ?? currentEffectScope()) as EffectScopeImpl | undefined;
+  const handleError = (error: unknown): void => {
+    const onError = options.onError ?? scope?.onError;
+    if (!onError) throw error;
+    onError(error);
+  };
   const reaction: Reaction = {
     active: true,
     scheduled: false,
@@ -244,7 +273,11 @@ export function watch(fn: () => void, scheduler?: () => void, options: WatchOpti
         return;
       }
       reaction.scheduled = false;
-      runTracked(reaction, fn);
+      try {
+        runTracked(reaction, fn);
+      } catch (error) {
+        handleError(error);
+      }
     },
     schedule() {
       if (!reaction.active) return;
@@ -254,13 +287,19 @@ export function watch(fn: () => void, scheduler?: () => void, options: WatchOpti
       }
       if (reaction.scheduled) return;
       reaction.scheduled = true;
-      options.onSchedule?.();
-      if (scheduler) {
-        scheduler();
-        return;
+      try {
+        options.onSchedule?.();
+        if (scheduler) {
+          scheduler();
+          return;
+        }
+        queueReaction(reaction);
+      } catch (error) {
+        // A failed scheduler did not arrange for run() to clear this bit. Reset it
+        // so a later dependency change can retry rather than wedging the watcher.
+        reaction.scheduled = false;
+        handleError(error);
       }
-
-      queueReaction(reaction);
     },
     stop() {
       reaction.active = false;
@@ -379,6 +418,7 @@ export function updateReactive<T extends object>(target: Reactive<T>, next: Part
     if (!(key in nextRecord)) {
       const hadKey = Reflect.has(raw, key);
       if (hadKey) {
+        recordPropertyUndo(raw, key);
         Reflect.deleteProperty(raw, key);
         trigger(raw, key);
         trigger(raw, iterateKey);
@@ -395,6 +435,7 @@ export function updateReactive<T extends object>(target: Reactive<T>, next: Part
       continue;
     }
     if (!reactiveValueChanged(previous, value) && !hasChanged(previous, value)) continue;
+    recordPropertyUndo(raw, key);
     Reflect.set(raw, key, value);
     trigger(raw, key);
     if (!hadKey || isArrayStructureKey(raw, key)) trigger(raw, iterateKey);
@@ -521,6 +562,7 @@ function structuredIdentity(value: unknown): object | undefined {
 
 function reconcileArrayItems(current: Record<PropertyKey, unknown>, oldLength: number, nextItems: readonly unknown[]): void {
   const target = unwrap(current) as unknown as unknown[];
+  recordArrayUndo(target);
   const changedIndexes = new Set<number>();
   for (let index = 0; index < nextItems.length; index++) {
     if (!Reflect.has(nextItems, index)) {
@@ -621,6 +663,7 @@ function createReactive(value: object, options: ReactiveOptions): object {
             const previous = Reflect.get(target, key);
             const unwrapped = unwrap(value);
             if (!hasChanged(previous, unwrapped)) return;
+            recordPropertyUndo(target, key);
             Reflect.set(target, key, unwrapped);
             trigger(target, key);
             if (isArrayStructureKey(target, key)) trigger(target, iterateKey);
@@ -648,7 +691,9 @@ function createReactive(value: object, options: ReactiveOptions): object {
       const unwrapped = unwrap(next);
       const hadKey = Reflect.has(target, key);
       const changed = hasChanged(previous, unwrapped);
+      const undo = hasActiveTransaction() ? createPropertyUndo(target, key) : undefined;
       const ok = Reflect.set(target, key, unwrapped, receiver);
+      if (ok && undo && (!hadKey || !Object.is(previous, Reflect.get(target, key, receiver)))) recordTransactionUndo(undo);
       if (ok && changed) {
         trigger(target, key);
         for (const index of removedIndexes) trigger(target, String(index));
@@ -664,8 +709,10 @@ function createReactive(value: object, options: ReactiveOptions): object {
       }
 
       const hadKey = Reflect.has(target, key);
+      const descriptor = hadKey && hasActiveTransaction() ? Reflect.getOwnPropertyDescriptor(target, key) : undefined;
       const ok = Reflect.deleteProperty(target, key);
       if (ok && hadKey) {
+        if (descriptor) recordTransactionUndo(() => { Reflect.defineProperty(target, key, descriptor); });
         trigger(target, key);
         trigger(target, iterateKey);
       }
@@ -704,6 +751,7 @@ function reactiveValueChanged(previous: unknown, next: unknown): boolean {
 
 function mutateArray(target: unknown[], method: Function, args: unknown[], receiver: unknown): unknown {
   const previous = target.slice();
+  recordArrayUndo(target);
   let result: unknown;
   try {
     result = method.apply(target, args.map(arg => unwrap(arg)));
@@ -724,4 +772,40 @@ function mutateArray(target: unknown[], method: Function, args: unknown[], recei
   }
 
   return result === target ? receiver : result;
+}
+
+function recordPropertyUndo(target: object, key: PropertyKey): void {
+  if (!hasActiveTransaction()) return;
+  recordTransactionUndo(createPropertyUndo(target, key));
+}
+
+function createPropertyUndo(target: object, key: PropertyKey): () => void {
+  if (Array.isArray(target) && key === "length") return createArrayUndo(target);
+  const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
+  const arrayTarget = Array.isArray(target) ? target : undefined;
+  const oldLength = arrayTarget?.length;
+  return () => {
+    if (descriptor) Reflect.defineProperty(target, key, descriptor);
+    else Reflect.deleteProperty(target, key);
+    if (oldLength !== undefined && arrayTarget && arrayTarget.length !== oldLength) arrayTarget.length = oldLength;
+  };
+}
+
+function recordArrayUndo(target: unknown[]): void {
+  if (!hasActiveTransaction()) return;
+  recordTransactionUndo(createArrayUndo(target));
+}
+
+function createArrayUndo(target: unknown[]): () => void {
+  const descriptors = new Map<PropertyKey, PropertyDescriptor>();
+  for (const key of Reflect.ownKeys(target)) {
+    const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
+    if (descriptor) descriptors.set(key, descriptor);
+  }
+  return () => {
+    for (const key of Reflect.ownKeys(target)) if (key !== "length" && !descriptors.has(key)) Reflect.deleteProperty(target, key);
+    const length = descriptors.get("length")?.value;
+    if (typeof length === "number") target.length = length;
+    for (const [key, descriptor] of descriptors) if (key !== "length") Reflect.defineProperty(target, key, descriptor);
+  };
 }

@@ -189,6 +189,7 @@ export type TaskIdleDeadline = { readonly didTimeout: boolean; timeRemaining(): 
 export type TaskIdleOptions = { timeout?: number };
 
 const taskOwners = new WeakMap<AbortSignal, ComponentInstance<any>>();
+const taskCleanupPromises = new WeakMap<AbortSignal, Set<Promise<void>>>();
 
 /** Compiler helper that attaches framework ownership without discarding author event options. */
 export function withAbortSignal(
@@ -224,13 +225,43 @@ export function registerTaskCleanup(signal: AbortSignal, cleanup: TaskCleanup): 
     active = false;
     signal.removeEventListener("abort", run);
     try {
-      void Promise.resolve(cleanup(signal.reason)).catch(error => reportTaskResourceError(signal, error));
+      const result = cleanup(signal.reason);
+      if (isPromiseLike(result)) {
+        trackTaskCleanupPromise(signal, Promise.resolve(result).catch(error => {
+          reportTaskResourceError(signal, error);
+        }));
+      }
     } catch (error) {
       reportTaskResourceError(signal, error);
     }
   };
   if (signal.aborted) run();
   else signal.addEventListener("abort", run, { once: true });
+}
+
+function trackTaskCleanupPromise(signal: AbortSignal, promise: Promise<void>): void {
+  let pending = taskCleanupPromises.get(signal);
+  if (!pending) {
+    pending = new Set();
+    taskCleanupPromises.set(signal, pending);
+  }
+  pending.add(promise);
+  void promise.finally(() => {
+    pending!.delete(promise);
+    if (!pending!.size) taskCleanupPromises.delete(signal);
+  });
+}
+
+function drainTaskCleanupPromises(signal: AbortSignal | undefined): Promise<void> | undefined {
+  if (!signal) return undefined;
+  const pending = taskCleanupPromises.get(signal);
+  if (!pending?.size) return undefined;
+  return Promise.all([...pending]).then(() => undefined);
+}
+
+function isPromiseLike(value: unknown): value is PromiseLike<void> {
+  return !!value && (typeof value === "object" || typeof value === "function")
+    && typeof (value as PromiseLike<void>).then === "function";
 }
 
 /** Owns a disposable value while preserving the value and expression result. */
@@ -472,6 +503,9 @@ type TaskRegistration = {
   stops: StopHandle[];
   controller?: AbortController;
   cleanup?: () => void | Promise<void>;
+  settlement?: Promise<void>;
+  queuedGeneration?: number;
+  stopped: boolean;
   generation: number;
   run(): void;
   stop(): void;
@@ -568,7 +602,10 @@ export function createComponentInstance<State extends object, Props extends Reco
   const refs = new Map<symbol, unknown>();
   const listCaches = new Map<string, { render: unknown; cache: Map<string, { item: unknown; vnode: VNode }> }>();
   let mapCallIndex = 0;
-  const scope = createEffectScope();
+  let instance!: ComponentInstance<State>;
+  const scope = createEffectScope(undefined, error => {
+    handleComponentError(instance, createErrorReport(error, "reactive", instance, "watch"));
+  });
   const state = reactive({} as State);
   const props = reactive(rawProps, {
     readonly: true,
@@ -582,7 +619,7 @@ export function createComponentInstance<State extends object, Props extends Reco
   let renderFunction: RenderFunction = () => null;
   const id = `c${nextComponentId++}`;
 
-  const instance: ComponentInstance<State> = {
+  instance = {
     type,
     parent,
     id,
@@ -781,7 +818,8 @@ export function renderInstance(instance: ComponentInstance<any>, onInvalidate: (
         output = fallback();
       }
     },
-    onInvalidate
+    onInvalidate,
+    { scope: instance.scope }
   );
 
   const duration = performanceNow() - start;
@@ -901,51 +939,45 @@ function createTask(instance: ComponentInstance<any>, deps: unknown[], work: (..
     work,
     stops: [],
     generation: 0,
+    stopped: false,
     run() {
-      // A task rerun invalidates its previous abort signal and cleanup before starting
-      // fresh work, so async callbacks can reliably observe cancellation.
       const generation = ++task.generation;
+      task.queuedGeneration = generation;
+      task.stopped = false;
+      const previousSignal = task.controller?.signal;
       task.controller?.abort("rerun");
-      runTaskCleanup(task, instance);
-      const controller = new AbortController();
-      task.controller = controller;
-      taskOwners.set(controller.signal, instance);
-      const values = task.deps.map(dep => unwrap(dep));
-      let result: TaskResult;
-      try {
-        result = batch(() => task.work(...values, { signal: controller.signal }));
-      } catch (error) {
-        handleComponentError(instance, createErrorReport(error, "task", instance, "run"));
+      const cleanupSettlement = runTaskCleanup(task, instance);
+      const resourceSettlement = drainTaskCleanupPromises(previousSignal);
+      const pending = [task.settlement, cleanupSettlement, resourceSettlement]
+        .filter((value): value is Promise<void> => !!value);
+      if (pending.length) {
+        const barrier = Promise.all(pending).then(() => undefined);
+        task.settlement = barrier;
+        observeTaskPromise(barrier, instance);
+        void barrier.then(() => {
+          if (task.settlement !== barrier) return;
+          task.settlement = undefined;
+          if (!task.stopped && task.queuedGeneration === generation) startTaskGeneration(task, instance, generation);
+        });
         return;
       }
-
-      if (result instanceof Promise) {
-        const observed = result.then(cleanup => {
-          if (typeof cleanup !== "function") return;
-          if (task.generation === generation && task.controller === controller && !controller.signal.aborted) {
-            task.cleanup = cleanup;
-          } else {
-            void Promise.resolve(cleanup()).catch(error => {
-              handleComponentError(instance, createErrorReport(error, "task", instance, "stale-cleanup"));
-            });
-          }
-        }).catch(error => {
-          if (task.generation !== generation || controller.signal.aborted && isAbortError(error)) return;
-          handleComponentError(instance, createErrorReport(error, "task", instance, "promise"));
-        });
-        taskObserverStack[taskObserverStack.length - 1]?.register(observed, instance);
-      } else if (typeof result === "function") {
-        task.cleanup = result;
-      }
+      startTaskGeneration(task, instance, generation);
 
       if (!task.stops.length) {
         task.stops = task.sources.map(source => subscribe(source, () => task.run()));
       }
     },
     stop() {
+      task.stopped = true;
+      task.queuedGeneration = undefined;
       task.generation++;
+      const signal = task.controller?.signal;
       task.controller?.abort("unmount");
-      runTaskCleanup(task, instance);
+      const cleanupSettlement = runTaskCleanup(task, instance);
+      const resourceSettlement = drainTaskCleanupPromises(signal);
+      for (const promise of [task.settlement, cleanupSettlement, resourceSettlement]) {
+        if (promise) observeTaskPromise(promise, instance);
+      }
       for (const stop of task.stops) stop();
       task.stops = [];
     }
@@ -954,16 +986,63 @@ function createTask(instance: ComponentInstance<any>, deps: unknown[], work: (..
   return task;
 }
 
-function runTaskCleanup(task: TaskRegistration, instance: ComponentInstance<any>): void {
+function startTaskGeneration(task: TaskRegistration, instance: ComponentInstance<any>, generation: number): void {
+  if (task.stopped || task.queuedGeneration !== generation || task.generation !== generation) return;
+  task.queuedGeneration = undefined;
+  const controller = new AbortController();
+  task.controller = controller;
+  taskOwners.set(controller.signal, instance);
+  const values = task.deps.map(dep => unwrap(dep));
+  let result: TaskResult;
+  try {
+    result = batch(() => task.work(...values, { signal: controller.signal }));
+  } catch (error) {
+    handleComponentError(instance, createErrorReport(error, "task", instance, "run"));
+    return;
+  }
+
+  if (result instanceof Promise) {
+    const observed = result.then(cleanup => {
+      if (typeof cleanup !== "function") return;
+      if (task.generation === generation && task.controller === controller && !controller.signal.aborted) {
+        task.cleanup = cleanup;
+      } else {
+        return Promise.resolve(cleanup()).catch(error => {
+          handleComponentError(instance, createErrorReport(error, "task", instance, "stale-cleanup"));
+        });
+      }
+    }).catch(error => {
+      if (task.generation !== generation || controller.signal.aborted && isAbortError(error)) return;
+      handleComponentError(instance, createErrorReport(error, "task", instance, "promise"));
+    });
+    const settlement = observed.then(() => undefined);
+    task.settlement = settlement;
+    observeTaskPromise(settlement, instance);
+    void settlement.then(() => {
+      if (task.settlement === settlement) task.settlement = undefined;
+    });
+  } else if (typeof result === "function") {
+    task.cleanup = result;
+  }
+}
+
+function observeTaskPromise(promise: Promise<unknown>, instance: ComponentInstance<any>): void {
+  taskObserverStack[taskObserverStack.length - 1]?.register(promise, instance);
+}
+
+function runTaskCleanup(task: TaskRegistration, instance: ComponentInstance<any>): Promise<void> | undefined {
   const cleanup = task.cleanup;
   task.cleanup = undefined;
-  if (!cleanup) return;
+  if (!cleanup) return undefined;
   try {
-    void Promise.resolve(cleanup()).catch(error => {
+    const result = cleanup();
+    if (!isPromiseLike(result)) return undefined;
+    return Promise.resolve(result).catch(error => {
       handleComponentError(instance, createErrorReport(error, "task", instance, "cleanup"));
     });
   } catch (error) {
     handleComponentError(instance, createErrorReport(error, "task", instance, "cleanup"));
+    return undefined;
   }
 }
 

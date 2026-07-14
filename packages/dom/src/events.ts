@@ -32,6 +32,14 @@ export function ensureDelegated(root: Root, type: string): void {
   root.delegated.set(type, listener);
 }
 
+/** Removes every event listener delegated through a renderer root. */
+export function clearDelegated(root: Root): void {
+  for (const [type, listener] of root.delegated) {
+    root.container.removeEventListener(type, listener);
+  }
+  root.delegated.clear();
+}
+
 function eventPath(event: Event, container: Element): Element[] {
   const native = typeof event.composedPath === "function" ? event.composedPath() : [];
   if (native.length) {
