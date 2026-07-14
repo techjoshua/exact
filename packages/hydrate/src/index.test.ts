@@ -1911,6 +1911,35 @@ describe("@exact/hydrate", () => {
     expect(client.stateContracts?.["remote-save"]?.reads?.[0]?.path).toBe("project.id");
   });
 
+  it("compares idempotent state contracts independent of object key order", () => {
+    const container = document.createElement("div");
+    const client = createExactClient(container, { endpoint: "/__exact" });
+    client.registerManifest({
+      stateContracts: {
+        save: { reads: [{ path: "project.id", kind: "read", confidence: "exact" }] }
+      }
+    });
+
+    expect(() => client.registerManifest({
+      stateContracts: {
+        save: { reads: [{ confidence: "exact", kind: "read", path: "project.id" }] }
+      }
+    })).not.toThrow();
+  });
+
+  it("rejects cyclic state contract registrations without throwing a serialization error", () => {
+    const container = document.createElement("div");
+    const client = createExactClient(container, { endpoint: "/__exact" });
+    const first: Record<string, unknown> = { reads: [] };
+    const second: Record<string, unknown> = { reads: [] };
+    first.self = first;
+    second.self = second;
+    client.registerManifest({ stateContracts: { save: first as never } });
+
+    expect(() => client.registerManifest({ stateContracts: { save: second as never } }))
+      .toThrow("Conflicting eXact hydration state contract registration: save");
+  });
+
   it("uses endpoint-specific transports for registered remote operations", async () => {
     const container = document.createElement("div");
     const remoteRequests: { input: string; headers: Record<string, string>; body: unknown }[] = [];

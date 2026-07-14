@@ -166,7 +166,69 @@ function sameHeaderMap(left: Record<string, string> | undefined, right: Record<s
 }
 
 function sameJsonValue(left: unknown, right: unknown): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
+  type Comparison = { kind: "compare" | "complete"; left: unknown; right: unknown };
+  const pending: Comparison[] = [{ kind: "compare", left, right }];
+  const activeLeft = new WeakSet<object>();
+  const activeRight = new WeakSet<object>();
+  const completedLeft = new WeakMap<object, object>();
+  const completedRight = new WeakMap<object, object>();
+  let compared = 0;
+
+  while (pending.length) {
+    if (++compared > 100_000) return false;
+    const comparison = pending.pop()!;
+    const currentLeft = comparison.left;
+    const currentRight = comparison.right;
+    if (comparison.kind === "complete") {
+      activeLeft.delete(currentLeft as object);
+      activeRight.delete(currentRight as object);
+      completedLeft.set(currentLeft as object, currentRight as object);
+      completedRight.set(currentRight as object, currentLeft as object);
+      continue;
+    }
+    if (Object.is(currentLeft, currentRight)) continue;
+    if (!currentLeft || !currentRight || typeof currentLeft !== "object" || typeof currentRight !== "object") {
+      return false;
+    }
+    if (Array.isArray(currentLeft) !== Array.isArray(currentRight)) return false;
+    if (!Array.isArray(currentLeft)) {
+      const leftPrototype = Object.getPrototypeOf(currentLeft);
+      const rightPrototype = Object.getPrototypeOf(currentRight);
+      if ((leftPrototype !== Object.prototype && leftPrototype !== null)
+        || (rightPrototype !== Object.prototype && rightPrototype !== null)) return false;
+    }
+
+    // Registration manifests are JSON data. Cycles are invalid, including
+    // isomorphic cycles, and must fail closed instead of throwing while merging.
+    if (completedLeft.get(currentLeft) === currentRight && completedRight.get(currentRight) === currentLeft) continue;
+    if (activeLeft.has(currentLeft) || activeRight.has(currentRight)) return false;
+    activeLeft.add(currentLeft);
+    activeRight.add(currentRight);
+    pending.push({ kind: "complete", left: currentLeft, right: currentRight });
+
+    if (Array.isArray(currentLeft)) {
+      const rightArray = currentRight as unknown[];
+      if (currentLeft.length !== rightArray.length) return false;
+      for (let index = currentLeft.length - 1; index >= 0; index--) {
+        pending.push({ kind: "compare", left: currentLeft[index], right: rightArray[index] });
+      }
+      continue;
+    }
+
+    const leftDescriptors = Object.getOwnPropertyDescriptors(currentLeft);
+    const rightDescriptors = Object.getOwnPropertyDescriptors(currentRight);
+    const leftKeys = Object.keys(leftDescriptors).filter(key => leftDescriptors[key]!.enumerable).sort();
+    const rightKeys = Object.keys(rightDescriptors).filter(key => rightDescriptors[key]!.enumerable).sort();
+    if (leftKeys.length !== rightKeys.length || leftKeys.some((key, index) => key !== rightKeys[index])) return false;
+    for (let index = leftKeys.length - 1; index >= 0; index--) {
+      const key = leftKeys[index]!;
+      const leftDescriptor = leftDescriptors[key]!;
+      const rightDescriptor = rightDescriptors[key]!;
+      if (!("value" in leftDescriptor) || !("value" in rightDescriptor)) return false;
+      pending.push({ kind: "compare", left: leftDescriptor.value, right: rightDescriptor.value });
+    }
+  }
+  return true;
 }
 
 function readNearestHydrationConfig(container: Element): ExactHydrationConfig {
