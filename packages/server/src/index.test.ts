@@ -1151,6 +1151,70 @@ describe("@exact/server", () => {
     expect(peak).toBe(2);
   });
 
+  it("enforces request graph and non-stream response budgets", async () => {
+    const deep: Record<string, any> = {};
+    let cursor = deep;
+    for (let index = 0; index < 150; index++) cursor = cursor.next = {};
+    const rejectedRequest = await handleExactRequest({
+      method: "POST",
+      body: { type: "action", id: "allowed-action", payload: deep }
+    }, context());
+    expect(rejectedRequest.status).toBe(400);
+
+    const rejectedResponse = await handleExactRequest({
+      method: "POST",
+      body: { type: "action", id: "allowed-action" }
+    }, context({
+      limits: { maxResponseBytes: 64 },
+      actions: { "allowed-action": () => ({ html: "x".repeat(1_000) }) }
+    }));
+    expect(rejectedResponse.status).toBe(500);
+    expect(JSON.parse(rejectedResponse.body)).toEqual({ error: "internal_error" });
+  });
+
+  it("does not dispatch streamed work ahead of consumer demand", async () => {
+    const action = vi.fn(() => ({ patches: [
+      { type: "text" as const, id: "a", value: "A" },
+      { type: "text" as const, id: "b", value: "B" }
+    ] }));
+    const response = await handleExactRequest({
+      method: "POST",
+      headers: { accept: "application/x-ndjson" },
+      body: { type: "action", id: "allowed-action" }
+    }, context({ actions: { "allowed-action": action } }));
+    await Promise.resolve();
+    expect(action).not.toHaveBeenCalled();
+    const reader = response.stream!.getReader();
+    expect(JSON.parse(await readNextStreamLine(reader))).toMatchObject({ event: "start" });
+    await Promise.resolve();
+    expect(action).toHaveBeenCalledTimes(1);
+    await reader.cancel();
+  });
+
+  it("enforces stream byte budgets and validates payloads without invoking accessors", async () => {
+    const oversized = await handleExactRequest({
+      method: "POST",
+      headers: { accept: "application/x-ndjson" },
+      body: { type: "action", id: "allowed-action" }
+    }, context({
+      limits: { maxStreamBytes: 80 },
+      actions: { "allowed-action": () => ({ html: "x".repeat(1_000) }) }
+    }));
+    const reader = oversized.stream!.getReader();
+    expect(JSON.parse(await readNextStreamLine(reader))).toMatchObject({ event: "start" });
+    await expect(reader.read()).rejects.toThrow("byte limit");
+
+    let reads = 0;
+    const payload = Object.create(Object.prototype);
+    Object.defineProperty(payload, "danger", { enumerable: true, get() { reads++; return "value"; } });
+    const rejected = await handleExactRequest({
+      method: "POST",
+      body: { type: "action", id: "allowed-action", payload }
+    }, context());
+    expect(rejected.status).toBe(400);
+    expect(reads).toBe(0);
+  });
+
   it("streams independent batch results as each operation settles", async () => {
     let resolveSlow!: () => void;
     const slow = new Promise<void>(resolve => {

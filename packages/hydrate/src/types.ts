@@ -56,6 +56,7 @@ export type FetchLike = (input: string, init: {
   status: number;
   body?: ReadableStream<Uint8Array> | null;
   json(): Promise<unknown>;
+  text?(): Promise<string>;
 }>;
 
 export type ExactEndpointTransport = {
@@ -132,6 +133,14 @@ export type ExactStreamLimits = {
   maxBytes?: number;
   /** Maximum non-empty NDJSON events. Defaults to 100,000. */
   maxEvents?: number;
+  /** Maximum request envelope bytes. Defaults to 4 MiB. */
+  maxRequestBytes?: number;
+  /** Maximum JSON graph depth. Defaults to 100. */
+  maxJsonDepth?: number;
+  /** Maximum JSON values/properties traversed. Defaults to 100,000. */
+  maxJsonNodes?: number;
+  /** Maximum patches accepted in one result. Defaults to 10,000. */
+  maxPatches?: number;
 };
 
 export type { ExactInvocationKind, ExactInvocationRequest, ExactInvocationResult, ExactOperationResult, ExactPatch, ExactStateContract };

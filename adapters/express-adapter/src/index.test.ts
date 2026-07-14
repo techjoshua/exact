@@ -17,7 +17,7 @@ describe("@exact/express-adapter", () => {
 
     await response.done;
     expect(response.statusCode).toBe(200);
-    expect(JSON.parse(String(response.body))).toEqual({ ok: true, state: { runtime: "express" } });
+    expect(JSON.parse(String(response.body))).toEqual({ ok: true, type: "action", id: "save", state: { runtime: "express" } });
   });
 });
 

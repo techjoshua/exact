@@ -8,17 +8,30 @@ import type {
 /** Reads a runtime-neutral request body from body/json/text adapters. */
 export async function readBody(request: ExactRequestLike): Promise<unknown> {
   if (request.body !== undefined) return request.body;
-  if (request.json) return request.json();
   if (request.text) return request.text();
+  if (request.json) return request.json();
   return undefined;
 }
 
 /** Parses and validates the top-level eXact request envelope. */
 export function parseExactRequestBody(
   body: unknown,
-  options: { maxBatchOperations?: number } = {}
+  options: { maxBatchOperations?: number; maxJsonDepth?: number; maxJsonNodes?: number; maxRequestBytes?: number } = {}
 ): ExactInvocationRequest | ExactBatchRequest {
+  if (typeof body === "string" && utf8Length(body) > positiveLimit(options.maxRequestBytes, 4 * 1024 * 1024)) {
+    throw new Error("request byte limit exceeded");
+  }
   const value = typeof body === "string" ? JSON.parse(body) : body;
+  const requestLimit = positiveLimit(options.maxRequestBytes, 4 * 1024 * 1024);
+  if (!isJsonSafe(value, {
+    maxDepth: positiveLimit(options.maxJsonDepth, 100),
+    maxNodes: positiveLimit(options.maxJsonNodes, 100_000),
+    maxBytes: requestLimit
+  })) throw new Error("request graph limit exceeded");
+  if (typeof body !== "string") {
+    const encoded = JSON.stringify(value);
+    if (encoded === undefined || utf8Length(encoded) > requestLimit) throw new Error("request byte limit exceeded");
+  }
   if (!value || typeof value !== "object") throw new Error("invalid invocation");
   const record = value as Record<string, unknown>;
   if (record.type === "batch") return parseBatch(record, positiveLimit(options.maxBatchOperations, 100));
@@ -26,11 +39,15 @@ export function parseExactRequestBody(
 }
 
 /** Returns whether a parsed request contains only JSON-safe payload, state, and context values. */
-export function requestPayloadSafe(input: ExactInvocationRequest | ExactBatchRequest): boolean {
+export function requestPayloadSafe(
+  input: ExactInvocationRequest | ExactBatchRequest,
+  limits: { maxJsonDepth?: number; maxJsonNodes?: number; maxRequestBytes?: number } = {}
+): boolean {
   if (input.type === "batch") {
-    return input.operations.every(operation => requestPayloadSafe(operation));
+    return input.operations.every(operation => requestPayloadSafe(operation, limits));
   }
-  return isJsonSafe(input.payload) && isJsonSafe(input.state) && isJsonSafe(input.context);
+  const options = { maxDepth: limits.maxJsonDepth, maxNodes: limits.maxJsonNodes, maxBytes: limits.maxRequestBytes };
+  return isJsonSafe(input.payload, options) && isJsonSafe(input.state, options) && isJsonSafe(input.context, options);
 }
 
 /** Creates a no-store JSON response for the runtime-neutral handler. */
@@ -52,15 +69,43 @@ export function hasOnlyKeys(record: Record<string, unknown>, allowed: readonly s
 }
 
 /** Returns whether a value can be safely encoded as JSON without prototypes or cycles. */
-export function isJsonSafe(value: unknown, seen = new Set<object>()): boolean {
-  if (value === undefined || value === null) return true;
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return Number.isFinite(value as number) || typeof value !== "number";
-  if (typeof value !== "object") return false;
-  if (seen.has(value)) return false;
-  seen.add(value);
-  if (Array.isArray(value)) return value.every(item => isJsonSafe(item, seen));
-  if (Object.getPrototypeOf(value) !== Object.prototype) return false;
-  return Object.values(value as Record<string, unknown>).every(item => isJsonSafe(item, seen));
+export function isJsonSafe(
+  value: unknown,
+  limits: { maxDepth?: number; maxNodes?: number; maxBytes?: number } = {}
+): boolean {
+  const maxDepth = positiveLimit(limits.maxDepth, 100);
+  const maxNodes = positiveLimit(limits.maxNodes, 100_000);
+  const maxBytes = positiveLimit(limits.maxBytes, 16 * 1024 * 1024);
+  try {
+    const seen = new Set<object>();
+    const pending: Array<{ value: unknown; depth: number }> = [{ value, depth: 0 }];
+    let nodes = 0;
+    let bytes = 0;
+    while (pending.length) {
+      const current = pending.pop()!;
+      if (++nodes > maxNodes || current.depth > maxDepth) return false;
+      const item = current.value;
+      if (item === undefined || item === null) continue;
+      if (typeof item === "string") { bytes += utf8Length(item); if (bytes > maxBytes) return false; continue; }
+      if (typeof item === "boolean") continue;
+      if (typeof item === "number") { if (!Number.isFinite(item)) return false; continue; }
+      if (typeof item !== "object" || seen.has(item)) return false;
+      seen.add(item);
+      if (!Array.isArray(item) && Object.getPrototypeOf(item) !== Object.prototype) return false;
+      const keys = Object.keys(item);
+      if (nodes + pending.length + keys.length > maxNodes) return false;
+      for (const key of keys) {
+        const descriptor = Object.getOwnPropertyDescriptor(item, key);
+        if (!descriptor || !("value" in descriptor)) return false;
+        bytes += utf8Length(key);
+        if (bytes > maxBytes) return false;
+        pending.push({ value: descriptor.value, depth: current.depth + 1 });
+      }
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function parseBatch(record: Record<string, unknown>, maxOperations: number): ExactBatchRequest {
@@ -87,6 +132,10 @@ function parseBatch(record: Record<string, unknown>, maxOperations: number): Exa
 
 function positiveLimit(value: number | undefined, fallback: number): number {
   return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : fallback;
+}
+
+function utf8Length(value: string): number {
+  return new TextEncoder().encode(value).byteLength;
 }
 
 function parseInvocationRecord(record: Record<string, unknown>): ExactInvocationRequest {

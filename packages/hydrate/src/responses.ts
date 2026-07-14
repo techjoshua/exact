@@ -1,15 +1,19 @@
-import type { ExactInvocationResult, ExactOperationResult, ExactPatch, ExactStreamEvent } from "@exact/server";
+import type { ExactInvocationRequest, ExactInvocationResult, ExactOperationResult, ExactPatch, ExactStreamEvent } from "@exact/server";
 import { hasOnlyKeys, isJsonSafe } from "./validation.js";
 
+type ResponseLimits = { maxBytes?: number; maxJsonDepth?: number; maxJsonNodes?: number; maxPatches?: number };
+
 /** Parses and validates a non-batched eXact endpoint response body. */
-export function parseExactInvocationResponse(body: unknown, message: string): ExactInvocationResult {
+export function parseExactInvocationResponse(body: unknown, message: string, expected?: ExactInvocationRequest, limits: ResponseLimits = {}): ExactInvocationResult {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(message);
-  if (!isJsonSafe(body)) throw new Error(message);
+  if (!isJsonSafe(body, { maxDepth: limits.maxJsonDepth, maxNodes: limits.maxJsonNodes, maxBytes: limits.maxBytes })) throw new Error(message);
   const record = body as Record<string, unknown>;
   if (record.ok !== true) throw new Error(message);
-  if (!hasOnlyKeys(record, ["ok", "patches", "state", "html"])) throw new Error(message);
+  if (!hasOnlyKeys(record, ["ok", "type", "id", "opId", "patches", "state", "html"])) throw new Error(message);
+  if (expected && !matchesOperation(record, expected)) throw new Error(message);
   if ("state" in record && record.state === undefined) throw new Error(message);
   if (record.patches !== undefined && (!Array.isArray(record.patches) || !record.patches.every(isPatchLike))) throw new Error(message);
+  if (Array.isArray(record.patches) && record.patches.length > positiveLimit(limits.maxPatches, 10_000)) throw new Error(message);
   if (record.html !== undefined && typeof record.html !== "string") throw new Error(message);
   return {
     ...(record.patches === undefined ? {} : { patches: record.patches as ExactPatch[] }),
@@ -19,32 +23,39 @@ export function parseExactInvocationResponse(body: unknown, message: string): Ex
 }
 
 /** Parses and validates a batched eXact endpoint response body. */
-export function parseExactBatchResponse(body: unknown): ExactOperationResult[] {
+export function parseExactBatchResponse(body: unknown, expected?: readonly ExactInvocationRequest[], limits: ResponseLimits = {}): ExactOperationResult[] {
   const message = "eXact batch invocation returned malformed results";
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(message);
-  if (!isJsonSafe(body)) throw new Error(message);
+  if (!isJsonSafe(body, { maxDepth: limits.maxJsonDepth, maxNodes: limits.maxJsonNodes, maxBytes: limits.maxBytes })) throw new Error(message);
   const record = body as Record<string, unknown>;
   if (record.ok !== true) throw new Error(message);
   if (!hasOnlyKeys(record, ["ok", "version", "results"])) throw new Error(message);
   if (record.version !== 1) throw new Error(message);
   if (!Array.isArray(record.results)) throw new Error(message);
-  return record.results.map(parseExactOperationResult);
+  if (expected && record.results.length !== expected.length) throw new Error(message);
+  return record.results.map((result, index) => parseExactOperationResult(result, expected?.[index], limits));
 }
 
 /** Reads and validates streamed NDJSON eXact operation events. */
 export async function readExactStreamResponse(
   response: { body?: ReadableStream<Uint8Array> | null },
-  expectedOperations: number,
-  options: { signal?: AbortSignal; maxBytes?: number; maxEvents?: number } | AbortSignal = {}
+  expected: number | readonly ExactInvocationRequest[],
+  options: ({ signal?: AbortSignal; maxEvents?: number } & ResponseLimits) | AbortSignal = {}
 ): Promise<ExactOperationResult[]> {
   const message = "eXact stream invocation returned malformed events";
   if (!response.body) throw new Error(message);
+  const expectedOperations = typeof expected === "number" ? expected : expected.length;
+  const expectedList = typeof expected === "number" ? undefined : expected;
   const normalized = isAbortSignal(options) ? { signal: options } : options;
   const results: ExactOperationResult[] = new Array(expectedOperations);
   const chunks: ExactInvocationResult[] = new Array(expectedOperations).fill(undefined).map(() => ({}));
+  const stateReceived = new Array<boolean>(expectedOperations).fill(false);
+  const htmlReceived = new Array<boolean>(expectedOperations).fill(false);
+  const maxPatches = positiveLimit(normalized.maxPatches, 10_000);
   let started = false;
   let completed = false;
   await readNdjsonEvents(response.body, message, event => {
+    if (!isJsonSafe(event, { maxDepth: normalized.maxJsonDepth, maxNodes: normalized.maxJsonNodes, maxBytes: normalized.maxBytes })) throw new Error(message);
     if (completed) throw new Error(message);
     if (!started) {
       if (!isExactStreamStartEvent(event) || event.operations !== expectedOperations) throw new Error(message);
@@ -57,27 +68,35 @@ export async function readExactStreamResponse(
     }
     if (isExactStreamPatchEvent(event)) {
       assertStreamIndex(event.index, expectedOperations, message);
+      assertStreamOperation(event.index, event.opId, expectedList, message);
       if (results[event.index]) throw new Error(message);
       const target = chunks[event.index]!;
+      if ((target.patches?.length ?? 0) >= maxPatches) throw new Error(message);
       target.patches = [...(target.patches ?? []), event.patch];
       return;
     }
     if (isExactStreamStateEvent(event)) {
       assertStreamIndex(event.index, expectedOperations, message);
-      if (results[event.index]) throw new Error(message);
+      assertStreamOperation(event.index, event.opId, expectedList, message);
+      if (results[event.index] || stateReceived[event.index]) throw new Error(message);
+      stateReceived[event.index] = true;
       chunks[event.index]!.state = event.value;
       return;
     }
     if (isExactStreamHtmlEvent(event)) {
       assertStreamIndex(event.index, expectedOperations, message);
-      if (results[event.index]) throw new Error(message);
+      assertStreamOperation(event.index, event.opId, expectedList, message);
+      if (results[event.index] || htmlReceived[event.index]) throw new Error(message);
+      htmlReceived[event.index] = true;
       chunks[event.index]!.html = event.html;
       return;
     }
     if (isExactStreamResultEvent(event)) {
       assertStreamIndex(event.index, expectedOperations, message);
       if (results[event.index]) throw new Error(message);
-      const result = parseExactOperationResult(event.result);
+      const result = parseExactOperationResult(event.result, expectedList?.[event.index], normalized);
+      if (result.ok && (result.patches?.length ?? 0) + (chunks[event.index]!.patches?.length ?? 0) > maxPatches) throw new Error(message);
+      if (result.ok && (("state" in result && stateReceived[event.index]) || (result.html !== undefined && htmlReceived[event.index]))) throw new Error(message);
       results[event.index] = result.ok ? { ...result, ...chunks[event.index] } : result;
       return;
     }
@@ -90,6 +109,19 @@ export async function readExactStreamResponse(
   return results;
 }
 
+function assertStreamOperation(
+  index: number,
+  opId: string | undefined,
+  expected: readonly ExactInvocationRequest[] | undefined,
+  message: string
+): void {
+  if (expected && opId !== expected[index]?.opId) throw new Error(message);
+}
+
+function matchesOperation(record: Record<string, unknown>, expected: ExactInvocationRequest): boolean {
+  return record.type === expected.type && record.id === expected.id && record.opId === expected.opId;
+}
+
 function assertStreamIndex(index: number, expectedOperations: number, message: string): void {
   if (!Number.isInteger(index) || index < 0 || index >= expectedOperations) throw new Error(message);
 }
@@ -98,10 +130,10 @@ async function readNdjsonEvents(
   stream: ReadableStream<Uint8Array>,
   message: string,
   receive: (event: unknown) => void,
-  options: { signal?: AbortSignal; maxBytes?: number; maxEvents?: number }
+  options: { signal?: AbortSignal; maxEvents?: number } & ResponseLimits
 ): Promise<void> {
   const reader = stream.getReader();
-  const decoder = new TextDecoder();
+  const decoder = new TextDecoder("utf-8", { fatal: true });
   const signal = options.signal;
   const maxBytes = positiveLimit(options.maxBytes, 16 * 1024 * 1024);
   const maxEvents = positiveLimit(options.maxEvents, 100_000);
@@ -135,8 +167,9 @@ async function readNdjsonEvents(
       receive(parseNdjsonLine(buffer.replace(/\r$/, ""), message));
     }
   } catch (error) {
-    try { await reader.cancel(error); } catch { /* preserve the primary failure */ }
-    throw error;
+    const failure = error instanceof TypeError ? new Error(message) : error;
+    try { await reader.cancel(failure); } catch { /* preserve the primary failure */ }
+    throw failure;
   } finally {
     signal?.removeEventListener("abort", abort);
     reader.releaseLock();
@@ -219,21 +252,22 @@ function isExactStreamCompleteEvent(value: unknown): value is Extract<ExactStrea
     && record.version === 1;
 }
 
-function parseExactOperationResult(value: unknown): ExactOperationResult {
+function parseExactOperationResult(value: unknown, expected?: ExactInvocationRequest, limits: ResponseLimits = {}): ExactOperationResult {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("eXact batch invocation returned malformed results");
-  if (!isJsonSafe(value)) throw new Error("eXact batch invocation returned malformed results");
+  if (!isJsonSafe(value, { maxDepth: limits.maxJsonDepth, maxNodes: limits.maxJsonNodes, maxBytes: limits.maxBytes })) throw new Error("eXact batch invocation returned malformed results");
   const record = value as Record<string, unknown>;
   if (record.ok === true) {
     if (!hasOnlyKeys(record, ["ok", "type", "id", "opId", "patches", "state", "html"])) throw new Error("eXact batch invocation returned malformed results");
     if (record.type !== "action" && record.type !== "refresh") throw new Error("eXact batch invocation returned malformed results");
     if (typeof record.id !== "string" || !record.id) throw new Error("eXact batch invocation returned malformed results");
     if (record.opId !== undefined && typeof record.opId !== "string") throw new Error("eXact batch invocation returned malformed results");
+    if (expected && !matchesOperation(record, expected)) throw new Error("eXact batch invocation returned malformed results");
     const result = parseExactInvocationResponse({
       ok: true,
       ...(record.patches === undefined ? {} : { patches: record.patches }),
       ...("state" in record ? { state: record.state } : {}),
       ...(record.html === undefined ? {} : { html: record.html })
-    }, "eXact batch invocation returned malformed results");
+    }, "eXact batch invocation returned malformed results", undefined, limits);
     return {
       ok: true,
       type: record.type,
@@ -247,6 +281,7 @@ function parseExactOperationResult(value: unknown): ExactOperationResult {
     if (record.type !== "action" && record.type !== "refresh") throw new Error("eXact batch invocation returned malformed results");
     if (typeof record.id !== "string" || !record.id) throw new Error("eXact batch invocation returned malformed results");
     if (record.opId !== undefined && typeof record.opId !== "string") throw new Error("eXact batch invocation returned malformed results");
+    if (expected && !matchesOperation(record, expected)) throw new Error("eXact batch invocation returned malformed results");
     if (typeof record.status !== "number" || !Number.isInteger(record.status)) throw new Error("eXact batch invocation returned malformed results");
     if (record.error !== "bad_request" && record.error !== "not_found" && record.error !== "forbidden" && record.error !== "internal_error" && record.error !== "dependency_failed") {
       throw new Error("eXact batch invocation returned malformed results");

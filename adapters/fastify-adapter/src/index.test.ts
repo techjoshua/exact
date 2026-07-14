@@ -12,7 +12,7 @@ describe("@exact/fastify-adapter", () => {
     await handler({ method: "POST", url: "/__exact", body: { type: "action", id: "save" } }, reply);
 
     expect(reply.statusCode).toBe(200);
-    expect(JSON.parse(String(reply.body))).toEqual({ ok: true, state: { runtime: "fastify" } });
+    expect(JSON.parse(String(reply.body))).toEqual({ ok: true, type: "action", id: "save", state: { runtime: "fastify" } });
   });
 });
 

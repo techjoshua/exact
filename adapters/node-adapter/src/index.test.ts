@@ -58,6 +58,6 @@ describe("@exact/node-adapter", () => {
 
     await done;
     expect(response.statusCode).toBe(200);
-    expect(JSON.parse(response.body)).toEqual({ ok: true, state: { ok: true } });
+    expect(JSON.parse(response.body)).toEqual({ ok: true, type: "action", id: "save", state: { ok: true } });
   });
 });

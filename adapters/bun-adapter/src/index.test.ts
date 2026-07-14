@@ -14,6 +14,6 @@ describe("@exact/bun-adapter", () => {
     }));
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, state: { runtime: "bun" } });
+    expect(await response.json()).toEqual({ ok: true, type: "action", id: "save", state: { runtime: "bun" } });
   });
 });

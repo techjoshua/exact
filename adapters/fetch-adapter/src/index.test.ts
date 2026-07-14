@@ -14,6 +14,6 @@ describe("@exact/fetch-adapter", () => {
     }));
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, state: { ok: true } });
+    expect(await response.json()).toEqual({ ok: true, type: "action", id: "save", state: { ok: true } });
   });
 });

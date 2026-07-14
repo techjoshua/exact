@@ -180,6 +180,20 @@ export type ExactServerContext = {
     maxBatchOperations?: number;
     /** Maximum operations dispatched concurrently. Defaults to 8. */
     maxBatchConcurrency?: number;
+    /** Maximum JSON graph depth accepted or emitted. Defaults to 100. */
+    maxJsonDepth?: number;
+    /** Maximum values and object properties traversed per JSON graph. Defaults to 100,000. */
+    maxJsonNodes?: number;
+    /** Maximum approximate UTF-8 bytes in one request envelope. Defaults to 4 MiB. */
+    maxRequestBytes?: number;
+    /** Maximum UTF-8 bytes in one non-stream response. Defaults to 16 MiB. */
+    maxResponseBytes?: number;
+    /** Maximum patches returned by one operation. Defaults to 10,000. */
+    maxPatches?: number;
+    /** Maximum events emitted by one stream. Defaults to 100,000. */
+    maxStreamEvents?: number;
+    /** Maximum encoded bytes emitted by one stream. Defaults to 16 MiB. */
+    maxStreamBytes?: number;
   };
   /** Aborts when the current request or response stream is cancelled. */
   signal?: AbortSignal;

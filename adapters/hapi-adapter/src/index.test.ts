@@ -23,7 +23,7 @@ describe("@exact/hapi-adapter", () => {
     }, createHapiToolkit()) as TestHapiResponse;
 
     expect(response.statusCode).toBe(200);
-    expect(JSON.parse(String(response.body))).toEqual({ ok: true, state: { runtime: "hapi" } });
+    expect(JSON.parse(String(response.body))).toEqual({ ok: true, type: "action", id: "save", state: { runtime: "hapi" } });
   });
 });
 

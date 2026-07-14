@@ -12,7 +12,7 @@ describe("@exact/koa-adapter", () => {
     await middleware(ctx);
 
     expect(ctx.status).toBe(200);
-    expect(JSON.parse(String(ctx.body))).toEqual({ ok: true, state: { runtime: "koa" } });
+    expect(JSON.parse(String(ctx.body))).toEqual({ ok: true, type: "action", id: "save", state: { runtime: "koa" } });
   });
 });
 

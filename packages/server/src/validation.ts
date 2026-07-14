@@ -16,18 +16,30 @@ export function isManifestAllowed(input: ExactInvocationRequest, manifest: Exact
 }
 
 /** Returns whether a handler result is JSON-safe and matches the invocation result envelope. */
-export function isInvocationResultSafe(result: unknown): result is ExactInvocationResult {
-  if (!isJsonSafe(result)) return false;
+export function isInvocationResultSafe(
+  result: unknown,
+  limits: { maxJsonDepth?: number; maxJsonNodes?: number; maxResponseBytes?: number; maxPatches?: number } = {}
+): result is ExactInvocationResult {
+  if (!isJsonSafe(result, {
+    maxDepth: limits.maxJsonDepth,
+    maxNodes: limits.maxJsonNodes,
+    maxBytes: limits.maxResponseBytes
+  })) return false;
   if (!result || typeof result !== "object" || Array.isArray(result)) return false;
   const record = result as Record<string, unknown>;
   if (!hasOnlyKeys(record, ["patches", "state", "html"])) return false;
   if ("state" in record && record.state === undefined) return false;
   if (record.patches !== undefined) {
     if (!Array.isArray(record.patches)) return false;
+    if (record.patches.length > positiveLimit(limits.maxPatches, 10_000)) return false;
     if (!record.patches.every(isPatchSafe)) return false;
   }
   if (record.html !== undefined && typeof record.html !== "string") return false;
   return true;
+}
+
+function positiveLimit(value: number | undefined, fallback: number): number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
 
 /** Returns whether submitted boundary snapshots are allowed for the invocation. */

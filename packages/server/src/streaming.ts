@@ -27,17 +27,18 @@ export function streamExactResponse(
   const linked = linkAbortSignals(request.signal, operationAbort.signal);
   const streamRequest = { ...request, signal: linked.signal };
   const stream = createNdjsonStream(async emit => {
-    emit({ event: "start", version: 1, operations: operations.length });
+    await emit({ event: "start", version: 1, operations: operations.length });
     if (input.type === "batch") {
-      await dispatchExactBatchStreaming(streamRequest, input.operations, context, dispatch, (index, result) => {
-        emitOperationStreamEvents(emit, index, result);
-      });
+      await dispatchExactBatchStreaming(streamRequest, input.operations, context, dispatch, (index, result) => emitOperationStreamEvents(emit, index, result));
     } else {
       const result = await dispatch(streamRequest, input, context);
-      emitOperationStreamEvents(emit, 0, result);
+      await emitOperationStreamEvents(emit, 0, result);
     }
-    emit({ event: "complete", version: 1 });
-  }, linked.signal, reason => operationAbort.abort(reason), linked.dispose);
+    await emit({ event: "complete", version: 1 });
+  }, linked.signal, reason => operationAbort.abort(reason), linked.dispose, {
+    maxEvents: context.limits?.maxStreamEvents,
+    maxBytes: context.limits?.maxStreamBytes
+  });
   return {
     status: 200,
     headers: {
@@ -75,7 +76,7 @@ async function dispatchExactBatchStreaming(
   operations: readonly ExactInvocationRequest[],
   context: ExactServerContext,
   dispatch: ExactOperationDispatcher,
-  emitResult: (index: number, result: ExactOperationResult) => void
+  emitResult: (index: number, result: ExactOperationResult) => void | Promise<void>
 ): Promise<void> {
   await dispatchReadyOperations(request, operations, context, dispatch, emitResult);
 }
@@ -85,7 +86,7 @@ async function dispatchReadyOperations(
   operations: readonly ExactInvocationRequest[],
   context: ExactServerContext,
   dispatch: ExactOperationDispatcher,
-  emitResult: (index: number, result: ExactOperationResult) => void
+  emitResult: (index: number, result: ExactOperationResult) => void | Promise<void>
 ): Promise<void> {
   const pending = new Set(operations.map((_operation, index) => index));
   const running = new Map<number, Promise<{ index: number; operation: ExactInvocationRequest; result: ExactOperationResult }>>();
@@ -106,7 +107,7 @@ async function dispatchReadyOperations(
       // Remaining operations are dependency-blocked. Fail them explicitly instead
       // of leaving the client waiting for results that can no longer run.
       for (const index of pending) {
-        emitResult(index, dependencyFailed(operations[index]!));
+        await emitResult(index, dependencyFailed(operations[index]!));
       }
       break;
     }
@@ -115,7 +116,7 @@ async function dispatchReadyOperations(
     running.delete(index);
     pending.delete(index);
     if (result.ok && operation.opId) successful.add(operation.opId);
-    emitResult(index, result);
+    await emitResult(index, result);
   }
 }
 
@@ -123,25 +124,25 @@ function positiveLimit(value: number | undefined, fallback: number): number {
   return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
 
-function emitOperationStreamEvents(
-  emit: (event: ExactStreamEvent) => void,
+async function emitOperationStreamEvents(
+  emit: (event: ExactStreamEvent) => Promise<void>,
   index: number,
   result: ExactOperationResult
-): void {
+): Promise<void> {
   if (!result.ok) {
-    emit({ event: "result", version: 1, index, result });
+    await emit({ event: "result", version: 1, index, result });
     return;
   }
   for (const patch of result.patches ?? []) {
-    emit({ event: "patch", version: 1, index, ...(result.opId === undefined ? {} : { opId: result.opId }), patch });
+    await emit({ event: "patch", version: 1, index, ...(result.opId === undefined ? {} : { opId: result.opId }), patch });
   }
   if ("state" in result) {
-    emit({ event: "state", version: 1, index, ...(result.opId === undefined ? {} : { opId: result.opId }), value: result.state });
+    await emit({ event: "state", version: 1, index, ...(result.opId === undefined ? {} : { opId: result.opId }), value: result.state });
   }
   if (result.html !== undefined) {
-    emit({ event: "html", version: 1, index, ...(result.opId === undefined ? {} : { opId: result.opId }), html: result.html });
+    await emit({ event: "html", version: 1, index, ...(result.opId === undefined ? {} : { opId: result.opId }), html: result.html });
   }
-  emit({
+  await emit({
     event: "result",
     version: 1,
     index,
@@ -166,23 +167,40 @@ function dependencyFailed(operation: ExactInvocationRequest): ExactOperationErro
 }
 
 function createNdjsonStream(
-  run: (emit: (event: ExactStreamEvent) => void) => Promise<void> | void,
+  run: (emit: (event: ExactStreamEvent) => Promise<void>) => Promise<void> | void,
   signal?: AbortSignal,
   cancelRun?: (reason: unknown) => void,
-  dispose?: () => void
+  dispose?: () => void,
+  limits: { maxEvents?: number; maxBytes?: number } = {}
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   let active = true;
   let cleanup = () => { dispose?.(); };
+  let resume: (() => void) | undefined;
+  let demand = 0;
+  const maxEvents = positiveLimit(limits.maxEvents, 100_000);
+  const maxBytes = positiveLimit(limits.maxBytes, 16 * 1024 * 1024);
+  let events = 0;
+  let bytes = 0;
   return new ReadableStream<Uint8Array>({
     start(controller) {
-      const emit = (event: ExactStreamEvent): void => {
-        if (!active) return;
-        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      const emit = async (event: ExactStreamEvent): Promise<void> => {
+        const chunk = encoder.encode(`${JSON.stringify(event)}\n`);
+        if (++events > maxEvents) throw new Error("eXact stream event limit exceeded");
+        bytes += chunk.byteLength;
+        if (bytes > maxBytes) throw new Error("eXact stream byte limit exceeded");
+        while (active && demand <= 0) {
+          await new Promise<void>(resolve => { resume = resolve; });
+        }
+        if (!active) throw signal?.reason ?? new DOMException("eXact stream cancelled", "AbortError");
+        demand--;
+        controller.enqueue(chunk);
       };
       const abort = () => {
         if (!active) return;
         active = false;
+        resume?.();
+        resume = undefined;
         cleanup();
         controller.error(signal?.reason ?? new DOMException("eXact stream aborted", "AbortError"));
       };
@@ -207,13 +225,21 @@ function createNdjsonStream(
         }
       );
     },
+    pull() {
+      demand++;
+      const ready = resume;
+      resume = undefined;
+      ready?.();
+    },
     cancel(reason) {
       if (!active) return;
       active = false;
+      resume?.();
+      resume = undefined;
       cancelRun?.(reason);
       cleanup();
     }
-  });
+  }, { highWaterMark: 0 });
 }
 
 function linkAbortSignals(...signals: Array<AbortSignal | undefined>): { signal: AbortSignal; dispose(): void } {

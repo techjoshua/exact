@@ -57,14 +57,21 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
   let input: ExactInvocationRequest | ExactBatchRequest;
   try {
     input = parseExactRequestBody(await readBody(request), {
-      maxBatchOperations: context.limits?.maxBatchOperations
+      maxBatchOperations: context.limits?.maxBatchOperations,
+      maxJsonDepth: context.limits?.maxJsonDepth,
+      maxJsonNodes: context.limits?.maxJsonNodes,
+      maxRequestBytes: context.limits?.maxRequestBytes
     });
   } catch {
     logReject(context, "rejected malformed exact invocation");
     return jsonResponse(400, { error: "bad_request" });
   }
 
-  if (!requestPayloadSafe(input)) {
+  if (!requestPayloadSafe(input, {
+    maxJsonDepth: context.limits?.maxJsonDepth,
+    maxJsonNodes: context.limits?.maxJsonNodes,
+    maxRequestBytes: context.limits?.maxRequestBytes
+  })) {
     logReject(context, "rejected non-serializable exact invocation payload");
     return jsonResponse(400, { error: "bad_request" });
   }
@@ -88,13 +95,12 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
 
   if (input.type === "batch") {
     const results = await dispatchExactBatch(request, input.operations, context, dispatchExactOperation);
-    return jsonResponse(200, { ok: true, version: 1, results } satisfies ExactBatchResult);
+    return limitedJsonResponse(context, 200, { ok: true, version: 1, results } satisfies ExactBatchResult);
   }
 
   const result = await dispatchSecurityCheckedExactOperation(request, input, context);
   if (isOperationError(result)) return jsonResponse(result.status, { error: result.error });
-  const { ok: _ok, type: _type, id: _id, ...body } = result;
-  return jsonResponse(200, { ok: true, ...body });
+  return limitedJsonResponse(context, 200, result);
 }
 
 function isOperationError(result: ExactOperationResult): result is ExactOperationError {
@@ -170,7 +176,12 @@ async function dispatchExactOperationAfterSecurity(
       ? { ...context, signal: request.signal }
       : context;
     const result = await handler(input, requestContext);
-    if (!isInvocationResultSafe(result)) {
+    if (!isInvocationResultSafe(result, {
+      maxJsonDepth: context.limits?.maxJsonDepth,
+      maxJsonNodes: context.limits?.maxJsonNodes,
+      maxResponseBytes: context.limits?.maxResponseBytes,
+      maxPatches: context.limits?.maxPatches
+    })) {
       return reject(500, "internal_error", "rejected non-serializable exact invocation result");
     }
     return { ok: true, type: input.type, id: input.id, opId: input.opId, ...result };
@@ -178,6 +189,18 @@ async function dispatchExactOperationAfterSecurity(
     logFrameworkEvent("error", "server", "request", "exact invocation failed", error, context.logger);
     return { ok: false, type: input.type, id: input.id, opId: input.opId, status: 500, error: "internal_error" };
   }
+}
+
+function limitedJsonResponse(context: ExactServerContext, status: number, body: unknown): ExactResponseLike {
+  const response = jsonResponse(status, body);
+  const limit = positiveLimit(context.limits?.maxResponseBytes, 16 * 1024 * 1024);
+  if (new TextEncoder().encode(response.body).byteLength <= limit) return response;
+  logReject(context, "rejected oversized exact invocation response");
+  return jsonResponse(500, { error: "internal_error" });
+}
+
+function positiveLimit(value: number | undefined, fallback: number): number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
 
 function matchesConfiguredEndpoint(request: ExactRequestLike, endpoint: string | undefined): boolean {

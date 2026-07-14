@@ -15,6 +15,6 @@ describe("@exact/serverless-adapter", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(JSON.parse(response.body)).toEqual({ ok: true, state: { runtime: "serverless" } });
+    expect(JSON.parse(response.body)).toEqual({ ok: true, type: "action", id: "save", state: { runtime: "serverless" } });
   });
 });

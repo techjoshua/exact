@@ -385,7 +385,7 @@ describe("@exact/hydrate", () => {
           ok: true,
           status: 200,
           async json() {
-            return { ok: true };
+            return { ok: true, type: "action", id: "save" };
           }
         };
       }
@@ -413,7 +413,7 @@ describe("@exact/hydrate", () => {
           ok: true,
           status: 200,
           async json() {
-            return { ok: true };
+            return { ok: true, type: "action", id: "save" };
           }
         };
       }
@@ -882,6 +882,8 @@ describe("@exact/hydrate", () => {
         async json() {
           return {
             ok: true,
+            type: "action",
+            id: "save-title",
             state: { saved: true },
             patches: [{ type: "text", id: "title", value: "New" }]
           };
@@ -1053,6 +1055,8 @@ describe("@exact/hydrate", () => {
           async json() {
             return {
               ok: true,
+              type: "action",
+              id: "save",
               state: { saved: true }
             };
           }
@@ -1192,6 +1196,77 @@ describe("@exact/hydrate", () => {
     })).rejects.toThrow("malformed events");
   });
 
+  it("rejects mismatched operation identities in JSON and streamed responses", async () => {
+    await expect(invokeExact({
+      endpoint: "/__exact", type: "action", id: "save",
+      fetch: async () => ({
+        ok: true, status: 200,
+        async json() { return { ok: true, type: "action", id: "other" }; }
+      })
+    })).rejects.toThrow("malformed result");
+
+    await expect(invokeExactBatch({
+      endpoint: "/__exact", stream: true,
+      operations: [{ type: "action", id: "save", opId: "save-op" }],
+      fetch: async () => ({
+        ok: true, status: 200,
+        body: ndjsonResponse([
+          { event: "start", version: 1, operations: 1 },
+          { event: "result", version: 1, index: 0, result: { ok: true, type: "action", id: "other", opId: "save-op" } },
+          { event: "complete", version: 1 }
+        ]),
+        async json() { throw new Error("json should not be read"); }
+      })
+    })).rejects.toThrow("malformed results");
+  });
+
+  it("rejects malformed UTF-8 and oversized non-stream responses", async () => {
+    await expect(invokeExact({
+      endpoint: "/__exact", type: "action", id: "save", stream: true,
+      fetch: async () => ({
+        ok: true, status: 200,
+        body: new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(new Uint8Array([0xff])); controller.close(); } }),
+        async json() { throw new Error("json should not be read"); }
+      })
+    })).rejects.toThrow("malformed events");
+
+    await expect(invokeExact({
+      endpoint: "/__exact", type: "action", id: "save", streamLimits: { maxBytes: 32 },
+      fetch: async () => ({
+        ok: true, status: 200,
+        async text() { return JSON.stringify({ ok: true, type: "action", id: "save", html: "x".repeat(100) }); },
+        async json() { throw new Error("json should not be read"); }
+      })
+    })).rejects.toThrow("exceeded maxBytes");
+  });
+
+  it("enforces streamed patch limits and rejects duplicate singleton chunks", async () => {
+    const response = (events: unknown[]) => async () => ({
+      ok: true,
+      status: 200,
+      body: ndjsonResponse(events),
+      async json() { throw new Error("json should not be read"); }
+    });
+    await expect(invokeExact({
+      endpoint: "/__exact", type: "action", id: "save", stream: true,
+      streamLimits: { maxPatches: 1 },
+      fetch: response([
+        { event: "start", version: 1, operations: 1 },
+        { event: "patch", version: 1, index: 0, patch: { type: "text", id: "a", value: "A" } },
+        { event: "patch", version: 1, index: 0, patch: { type: "text", id: "b", value: "B" } }
+      ])
+    })).rejects.toThrow("malformed events");
+
+    await expect(invokeExact({
+      endpoint: "/__exact", type: "action", id: "save", stream: true,
+      fetch: response([
+        { event: "start", version: 1, operations: 1 },
+        { event: "state", version: 1, index: 0, value: { count: 1 } },
+        { event: "state", version: 1, index: 0, value: { count: 2 } }
+      ])
+    })).rejects.toThrow("malformed events");
+  });
+
   it("normalizes successful exact invocation responses", async () => {
     const result = await invokeExact({
       endpoint: "/__exact",
@@ -1203,6 +1278,8 @@ describe("@exact/hydrate", () => {
         async json() {
           return {
             ok: true,
+            type: "action",
+            id: "save",
             state: { saved: true },
             patches: [{ type: "text", id: "title", value: "Saved" }]
           };
@@ -1498,6 +1575,8 @@ describe("@exact/hydrate", () => {
             }
             : {
               ok: true,
+              type: body.type,
+              id: body.id,
               patches: resultFor(body).patches
             };
         }
@@ -1559,6 +1638,8 @@ describe("@exact/hydrate", () => {
         async json() {
           return {
             ok: true,
+            type: "action",
+            id: "remote-save",
             patches: [{ type: "replace", id: "remote-panel", html: "<section>Saved remote</section>" }],
             state: { project: { id: "p1", title: "Saved" } }
           };
@@ -1617,6 +1698,8 @@ describe("@exact/hydrate", () => {
       async json() {
         return {
           ok: true,
+          type: "refresh",
+          id: "remote-panel",
           patches: [{
             type: "replace",
             id: "remote-panel",
@@ -1742,7 +1825,7 @@ describe("@exact/hydrate", () => {
       ok: true,
       status: 200,
       async json() {
-        return { ok: true };
+        return { ok: true, type: "action", id: "save" };
       }
     });
 
@@ -1938,6 +2021,8 @@ describe("@exact/hydrate", () => {
       async json() {
         return {
           ok: true,
+          type: "refresh",
+          id: "left",
           patches: [{ type: "text", id: "left-value", value: "Left newest" }],
           state: { version: 2 }
         };
@@ -1950,6 +2035,8 @@ describe("@exact/hydrate", () => {
       async json() {
         return {
           ok: true,
+          type: "action",
+          id: "save",
           patches: [
             { type: "text", id: "left-value", value: "Left stale" },
             { type: "text", id: "right-value", value: "Right saved" },
@@ -1979,7 +2066,7 @@ describe("@exact/hydrate", () => {
         ok: true,
         status: 200,
         async json() {
-          return { ok: true, patches: [] };
+          return { ok: true, type: "refresh", id: "panel", patches: [] };
         }
       };
     };
@@ -2006,7 +2093,7 @@ describe("@exact/hydrate", () => {
         ok: true,
         status: 200,
         async json() {
-          return { ok: true };
+          return { ok: true, type: "action", id: "save-project" };
         }
       };
     };
@@ -2056,7 +2143,7 @@ describe("@exact/hydrate", () => {
           ok: true,
           status: 200,
           async json() {
-            return { ok: true };
+            return { ok: true, type: "action", id: "save-project" };
           }
         };
       }
@@ -2091,7 +2178,7 @@ describe("@exact/hydrate", () => {
           ok: true,
           status: 200,
           async json() {
-            return { ok: true };
+            return { ok: true, type: "action", id: "save-project" };
           }
         };
       }
