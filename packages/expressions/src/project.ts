@@ -86,6 +86,7 @@ export class ExpressionProject {
   private readonly overlays = new Map<string, string>();
   private readonly overlayVersions = new Map<string, number>();
   private readonly sourceFiles = new Map<string, Readonly<{ version: string; sourceFile: ts.SourceFile }>>();
+  private readonly nodeIdentityRoots = new Map<string, ExpressionNode>();
   private readonly symbolIdentities = new Map<string, ExpressionSymbol>();
   private readonly identityKeysByFile = new Map<string, Set<string>>();
   private typeHandles = new WeakMap<ExpressionType, ts.Type>();
@@ -185,6 +186,7 @@ export class ExpressionProject {
     this.overlays.delete(normalized);
     this.overlayVersions.delete(normalized);
     this.sourceFiles.delete(normalized);
+    this.nodeIdentityRoots.delete(normalized);
     this.rebuild();
   }
 
@@ -200,6 +202,7 @@ export class ExpressionProject {
     this.overlays.clear();
     this.overlayVersions.clear();
     this.sourceFiles.clear();
+    this.nodeIdentityRoots.clear();
     this.symbolIdentities.clear();
     this.identityKeysByFile.clear();
     this.program = undefined;
@@ -470,6 +473,24 @@ export class ExpressionProject {
     };
 
     let nodeSequence = 0;
+    const priorRoot = this.nodeIdentityRoots.get(filename);
+    const retainedNodeIds = priorRoot ? alignNodeIdentities(sourceFile, priorRoot) : new Map<ts.Node, string>();
+    const allocatedNodeIds = new Set<string>(priorRoot ? [...walkExpressionNodes(priorRoot)].map(node => node.id) : []);
+    const nodeId = (node: ts.Node, start: number, kind: string): string => {
+      const retained = retainedNodeIds.get(node);
+      if (retained) return retained;
+      const base = `${filename}:node:${start}:${node.end}:${kind}:${nodeSequence++}`;
+      if (!allocatedNodeIds.has(base)) {
+        allocatedNodeIds.add(base);
+        return base;
+      }
+      const revision = this.overlayVersions.get(filename) ?? 0;
+      let suffix = 1;
+      let candidate = `${base}:new:${revision}:${suffix}`;
+      while (allocatedNodeIds.has(candidate)) candidate = `${base}:new:${revision}:${++suffix}`;
+      allocatedNodeIds.add(candidate);
+      return candidate;
+    };
     const convert = (node: ts.Node): ExpressionNode => {
       const children: ExpressionNode[] = [];
       ts.forEachChild(node, child => {
@@ -484,7 +505,7 @@ export class ExpressionProject {
       }
       const variable = ts.isIdentifier(node) ? variableFor(node) : node.kind === ts.SyntaxKind.ThisKeyword ? variableForThis(node) : undefined;
       const common: ExpressionNode = {
-        id: `${filename}:node:${start}:${node.end}:${syntaxKindName(node)}:${nodeSequence++}`,
+        id: nodeId(node, start, syntaxKindName(node)),
         kind: syntaxKindName(node),
         category: category(node),
         span,
@@ -549,6 +570,7 @@ export class ExpressionProject {
     };
 
     const root = convert(sourceFile);
+    this.nodeIdentityRoots.set(filename, root);
     for (const scope of scopes.values()) scope.seal();
     const module = createModule({ filename, source: sourceFile.text, root, state: "bound", diagnostics });
     const ownUsedIdentityKeys = new Set([...usedIdentityKeys].filter(key => key.startsWith(`${filename}:`)));
@@ -594,6 +616,110 @@ function syntaxKindName(node: ts.Node): string {
   if (ts.isRegularExpressionLiteral(node)) return "RegularExpressionLiteral";
   if (ts.isJsxText(node)) return "JsxText";
   return ts.SyntaxKind[node.kind];
+}
+
+/**
+ * Retains package-owned node handles by structural correspondence. Source
+ * offsets remain provenance only: inserting an unrelated sibling must not
+ * re-key the nodes that follow it during watch/HMR rebinding.
+ */
+function alignNodeIdentities(sourceFile: ts.SourceFile, priorRoot: ExpressionNode): Map<ts.Node, string> {
+  const identities = new Map<ts.Node, string>();
+  const syntaxShapeCache = new WeakMap<ts.Node, string>();
+  const expressionShapeCache = new WeakMap<ExpressionNode, string>();
+  const syntaxChildren = (node: ts.Node): ts.Node[] => {
+    const children: ts.Node[] = [];
+    ts.forEachChild(node, child => { children.push(child); });
+    return children;
+  };
+  const syntaxShallow = (node: ts.Node): string => {
+    const children = syntaxChildren(node);
+    const leaf = children.length ? "" : sourceFile.text.slice(node.getStart(sourceFile, false), node.end);
+    return `${syntaxKindName(node)}\0${nodeName(node) ?? ""}\0${nodeOperator(node) ?? ""}\0${leaf}`;
+  };
+  const expressionShallow = (node: ExpressionNode): string => {
+    const leaf = node.children.length ? "" : node.text ?? "";
+    return `${node.kind}\0${node.name ?? ""}\0${node.operator ?? ""}\0${leaf}`;
+  };
+  const syntaxShape = (node: ts.Node): string => {
+    const cached = syntaxShapeCache.get(node);
+    if (cached) return cached;
+    let left = 0x811c9dc5;
+    let right = 0x9e3779b9;
+    const mix = (value: string) => {
+      for (let index = 0; index < value.length; index++) {
+        left = Math.imul(left ^ value.charCodeAt(index), 0x01000193);
+        right = Math.imul(right ^ value.charCodeAt(index), 0x85ebca6b);
+      }
+    };
+    mix(syntaxShallow(node));
+    const children = syntaxChildren(node);
+    for (const child of children) mix(syntaxShape(child));
+    const value = `${syntaxKindName(node)}:${children.length}:${left >>> 0}:${right >>> 0}`;
+    syntaxShapeCache.set(node, value);
+    return value;
+  };
+  const expressionShape = (node: ExpressionNode): string => {
+    const cached = expressionShapeCache.get(node);
+    if (cached) return cached;
+    let left = 0x811c9dc5;
+    let right = 0x9e3779b9;
+    const mix = (value: string) => {
+      for (let index = 0; index < value.length; index++) {
+        left = Math.imul(left ^ value.charCodeAt(index), 0x01000193);
+        right = Math.imul(right ^ value.charCodeAt(index), 0x85ebca6b);
+      }
+    };
+    mix(expressionShallow(node));
+    for (const child of node.children) mix(expressionShape(child));
+    const value = `${node.kind}:${node.children.length}:${left >>> 0}:${right >>> 0}`;
+    expressionShapeCache.set(node, value);
+    return value;
+  };
+  const pairBy = <T, U>(
+    next: readonly T[], previous: readonly U[], pairedNext: Set<number>, pairedPrevious: Set<number>,
+    nextKey: (value: T) => string, previousKey: (value: U) => string
+  ): Array<readonly [number, number]> => {
+    const queues = new Map<string, number[]>();
+    previous.forEach((value, index) => {
+      if (pairedPrevious.has(index)) return;
+      const key = previousKey(value);
+      const queue = queues.get(key) ?? [];
+      queue.push(index);
+      queues.set(key, queue);
+    });
+    const pairs: Array<readonly [number, number]> = [];
+    next.forEach((value, index) => {
+      if (pairedNext.has(index)) return;
+      const queue = queues.get(nextKey(value));
+      const previousIndex = queue?.shift();
+      if (previousIndex === undefined) return;
+      pairedNext.add(index);
+      pairedPrevious.add(previousIndex);
+      pairs.push([index, previousIndex]);
+    });
+    return pairs;
+  };
+  const align = (next: ts.Node, previous: ExpressionNode): void => {
+    if (syntaxKindName(next) !== previous.kind) return;
+    identities.set(next, previous.id);
+    const nextChildren = syntaxChildren(next);
+    const previousChildren = previous.children;
+    const pairedNext = new Set<number>();
+    const pairedPrevious = new Set<number>();
+    const exact = pairBy(nextChildren, previousChildren, pairedNext, pairedPrevious, syntaxShape, expressionShape);
+    const compatible = pairBy(nextChildren, previousChildren, pairedNext, pairedPrevious, syntaxShallow, expressionShallow);
+    for (const [nextIndex, previousIndex] of [...exact, ...compatible]) {
+      align(nextChildren[nextIndex]!, previousChildren[previousIndex]!);
+    }
+  };
+  align(sourceFile, priorRoot);
+  return identities;
+}
+
+function* walkExpressionNodes(root: ExpressionNode): Iterable<ExpressionNode> {
+  yield root;
+  for (const child of root.children) yield* walkExpressionNodes(child);
 }
 
 function declarationIdentity(filename: string, declaration: ts.Node, name: string, revision: string): string {

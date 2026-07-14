@@ -405,6 +405,16 @@ describe("@exact/compiler", () => {
     expect(output).toContain("__exactVNode(Label, {})");
   });
 
+  it("retains emitted element and list ids across unrelated preceding edits", () => {
+    const source = `function View(this: Component<{}>) {
+      return () => <section>{this.map(items, item => item.id, item => <span>{item.id}</span>)}</section>;
+    }`;
+    const first = transform(source, { filename: "stable-hmr.tsx" });
+    const second = transform(`const unrelated = true;\n${source}`, { filename: "stable-hmr.tsx" });
+    const ids = (output: string) => Array.from(output.matchAll(/"(x[A-Za-z0-9_-]{22})"/g), match => match[1]);
+    expect(ids(second)).toEqual(ids(first));
+  });
+
   it("builds semantic task metadata for server component planning", () => {
     const manifest = analyzeSource(`
       import { readFile } from "node:fs/promises";
