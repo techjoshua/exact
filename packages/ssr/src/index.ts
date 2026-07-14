@@ -86,7 +86,7 @@ class SsrTaskDeadlineError extends Error {
 
 class SsrTreeNodeError extends Error {
   constructor(limit: number) {
-    super(`eXact SSR tree exceeds the configured maximum of ${limit} vnodes`);
+    super(`eXact SSR tree exceeds the configured maximum of ${limit} render values`);
     this.name = "SsrTreeNodeError";
   }
 }
@@ -588,9 +588,12 @@ function* renderChildChunks(
   parent: ComponentInstance<any> | undefined,
   depth: number
 ): Generator<string> {
-  if (child === null || child === undefined || child === false || child === true) return;
   if (isVNode(child)) yield* renderVNodeChunks(context, child, parent, depth);
-  else yield escapeText(String(unwrap(child)));
+  else {
+    countSsrNode(context);
+    if (child === null || child === undefined || child === false || child === true) return;
+    yield escapeText(String(unwrap(child)));
+  }
 }
 
 function renderChildren(context: SsrContext, children: readonly Child[], parent?: ComponentInstance<any>): string {
@@ -602,8 +605,9 @@ function renderChildren(context: SsrContext, children: readonly Child[], parent?
 }
 
 function renderChild(context: SsrContext, child: Child, parent?: ComponentInstance<any>): string {
-  if (child === null || child === undefined || child === false || child === true) return "";
   if (isVNode(child)) return renderVNode(context, child, parent);
+  countSsrNode(context);
+  if (child === null || child === undefined || child === false || child === true) return "";
   return escapeText(String(unwrap(child)));
 }
 
@@ -680,8 +684,9 @@ async function renderChildAsync(
   parent: ComponentInstance<any> | undefined,
   options: RenderToStringOptions
 ): Promise<string> {
-  if (child === null || child === undefined || child === false || child === true) return "";
   if (isVNode(child)) return renderVNodeAsync(context, child, parent, options);
+  countSsrNode(context);
+  if (child === null || child === undefined || child === false || child === true) return "";
   return escapeText(String(unwrap(child)));
 }
 

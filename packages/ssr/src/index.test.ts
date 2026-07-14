@@ -305,13 +305,19 @@ describe("@exact/ssr", () => {
       ...Array.from({ length: 12 }, (_, index) => createVNode("p", null, String(index))));
 
     expect(() => renderToString(vnode, { markers: false, maxTreeNodes: 5 }))
-      .toThrow("eXact SSR tree exceeds the configured maximum of 5 vnodes");
+      .toThrow("eXact SSR tree exceeds the configured maximum of 5 render values");
     await expect(renderToStringAsync(vnode, { markers: false, maxTreeNodes: 5 }))
-      .rejects.toThrow("eXact SSR tree exceeds the configured maximum of 5 vnodes");
+      .rejects.toThrow("eXact SSR tree exceeds the configured maximum of 5 render values");
     const reader = renderToStream(vnode, { markers: false, maxTreeNodes: 5 }).getReader();
     await expect((async () => {
       while (!(await reader.read()).done) { /* consume lazily */ }
-    })()).rejects.toThrow("eXact SSR tree exceeds the configured maximum of 5 vnodes");
+    })()).rejects.toThrow("eXact SSR tree exceeds the configured maximum of 5 render values");
+  });
+
+  it("counts empty primitive child slots against the SSR breadth budget", () => {
+    const vnode = createVNode("div", null, ...Array.from({ length: 20 }, () => null));
+    expect(() => renderToString(vnode, { markers: false, maxTreeNodes: 8 }))
+      .toThrow("eXact SSR tree exceeds the configured maximum of 8 render values");
   });
 
   it("bounds encoded string output and does not let component fallbacks swallow the limit", async () => {
