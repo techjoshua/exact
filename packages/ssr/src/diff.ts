@@ -16,6 +16,11 @@ type ParsedHtmlText = {
   value: string;
 };
 
+const MAX_DIFF_HTML_BYTES = 2 * 1024 * 1024;
+const MAX_DIFF_HTML_NODES = 100_000;
+const MAX_DIFF_HTML_DEPTH = 256;
+const MAX_FINE_GRAINED_PATCHES = 10_000;
+
 /** Diffs two framework-shaped boundary HTML strings into patches or a replacement fallback. */
 export function diffBoundaryHtml(
   boundaryId: string,
@@ -90,6 +95,7 @@ function diffExactElementHtml(previousHtml: string, nextHtml: string): ExactPatc
           patches.push({ type: "prop", id, name, value });
         }
       }
+      if (patches.length > MAX_FINE_GRAINED_PATCHES) return undefined;
     }
     for (const name of previous.attributes.keys()) {
       if (name === "data-exact-id") continue;
@@ -102,6 +108,7 @@ function diffExactElementHtml(previousHtml: string, nextHtml: string): ExactPatc
           patches.push({ type: "prop", id, name, value: null });
         }
       }
+      if (patches.length > MAX_FINE_GRAINED_PATCHES) return undefined;
     }
 
     const previousText = textOnlyContent(previous);
@@ -113,6 +120,7 @@ function diffExactElementHtml(previousHtml: string, nextHtml: string): ExactPatc
         return rootExactElementReplace(previousTree, nextTree, nextHtml);
       }
       if (previousText !== nextText) patches.push({ type: "text", id, value: nextText });
+      if (patches.length > MAX_FINE_GRAINED_PATCHES) return undefined;
     }
   }
 
@@ -138,15 +146,19 @@ function nestedExactElementReplace(
     if (normalizedHtmlShape([previous]) === normalizedHtmlShape([next])) continue;
     selectedIds.add(id);
     patches.push({ type: "replace", id, html: serializeParsedHtmlElement(next) });
+    if (patches.length > MAX_FINE_GRAINED_PATCHES) return undefined;
   }
 
   return patches.length ? patches : undefined;
 }
 
 function containsExactElement(element: ParsedHtmlElement, id: string): boolean {
-  for (const child of element.children) {
+  const pending = [...element.children].reverse();
+  while (pending.length) {
+    const child = pending.pop()!;
     if (child.kind !== "element") continue;
-    if (stringAttribute(child, "data-exact-id") === id || containsExactElement(child, id)) return true;
+    if (stringAttribute(child, "data-exact-id") === id) return true;
+    for (let index = child.children.length - 1; index >= 0; index--) pending.push(child.children[index]!);
   }
   return false;
 }
@@ -213,8 +225,11 @@ export function diffKeyedListItems(
 }
 
 function parseHtmlNodes(html: string): ParsedHtmlNode[] | undefined {
+  if (new TextEncoder().encode(html).byteLength > MAX_DIFF_HTML_BYTES) return undefined;
   const root: ParsedHtmlElement = { kind: "element", tagName: "", attributes: new Map(), children: [] };
   const stack: ParsedHtmlElement[] = [root];
+  const exactIds = new Set<string>();
+  let nodeCount = 0;
   const tokenPattern = /<!--[\s\S]*?-->|<\/?[A-Za-z][A-Za-z0-9:-]*(?:\s+[^<>]*)?>|[^<]+/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -239,11 +254,19 @@ function parseHtmlNodes(html: string): ParsedHtmlNode[] | undefined {
       const attributes = parseSimpleAttributes(start[2] ?? "");
       if (!attributes) return undefined;
       const element: ParsedHtmlElement = { kind: "element", tagName, attributes, children: [] };
+      if (++nodeCount > MAX_DIFF_HTML_NODES) return undefined;
+      const exactId = stringAttribute(element, "data-exact-id");
+      if (exactId && exactIds.has(exactId)) return undefined;
+      if (exactId) exactIds.add(exactId);
       parent.children.push(element);
-      if (!start[3] && !voidElements.has(tagName.toLowerCase())) stack.push(element);
+      if (!start[3] && !voidElements.has(tagName.toLowerCase())) {
+        if (stack.length >= MAX_DIFF_HTML_DEPTH) return undefined;
+        stack.push(element);
+      }
       continue;
     }
 
+    if (++nodeCount > MAX_DIFF_HTML_NODES) return undefined;
     parent.children.push({ kind: "text", value: decodeEscapedText(token) });
   }
 
@@ -252,11 +275,13 @@ function parseHtmlNodes(html: string): ParsedHtmlNode[] | undefined {
 }
 
 function collectExactElements(nodes: readonly ParsedHtmlNode[], output = new Map<string, ParsedHtmlElement>()): Map<string, ParsedHtmlElement> {
-  for (const node of nodes) {
+  const pending = [...nodes].reverse();
+  while (pending.length) {
+    const node = pending.pop()!;
     if (node.kind !== "element") continue;
     const id = stringAttribute(node, "data-exact-id");
     if (id) output.set(id, node);
-    collectExactElements(node.children, output);
+    for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]!);
   }
   return output;
 }
@@ -266,11 +291,16 @@ function collectExactElementEntries(
   output: { id: string; element: ParsedHtmlElement; depth: number }[] = [],
   depth = 0
 ): { id: string; element: ParsedHtmlElement; depth: number }[] {
-  for (const node of nodes) {
+  const pending = Array.from(nodes, node => ({ node, depth })).reverse();
+  while (pending.length) {
+    const current = pending.pop()!;
+    const node = current.node;
     if (node.kind !== "element") continue;
     const id = stringAttribute(node, "data-exact-id");
-    if (id) output.push({ id, element: node, depth });
-    collectExactElementEntries(node.children, output, depth + 1);
+    if (id) output.push({ id, element: node, depth: current.depth });
+    for (let index = node.children.length - 1; index >= 0; index--) {
+      pending.push({ node: node.children[index]!, depth: current.depth + 1 });
+    }
   }
   return output;
 }
@@ -328,32 +358,41 @@ function parseStyleAttribute(value: string): Map<string, string> | undefined {
 }
 
 function normalizedHtmlShape(nodes: readonly ParsedHtmlNode[]): string {
-  return nodes.map(node => {
-    if (node.kind === "text") return `t:${node.value}`;
+  const output: string[] = [];
+  const pending: Array<ParsedHtmlNode | string> = [...nodes].reverse();
+  while (pending.length) {
+    const node = pending.pop()!;
+    if (typeof node === "string") { output.push(node); continue; }
+    if (node.kind === "text") { output.push(`t:${node.value}`); continue; }
     const id = stringAttribute(node, "data-exact-id");
     const attrs = id ? `#${id}` : Array.from(node.attributes)
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([name, value]) => `${name}=${value}`)
       .join(",");
-    const childShape = id && textOnlyContent(node) !== undefined
-      ? "text"
-      : normalizedHtmlShape(node.children);
-    return `e:${node.tagName}[${attrs}](${childShape})`;
-  }).join("");
+    output.push(`e:${node.tagName}[${attrs}](`);
+    pending.push(")");
+    if (id && textOnlyContent(node) !== undefined) pending.push("text");
+    else for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]!);
+  }
+  return output.join("");
 }
 
 function serializeParsedHtmlElement(element: ParsedHtmlElement): string {
-  const attributes = Array.from(element.attributes)
-    .map(([name, value]) => value === true ? ` ${name}` : ` ${name}="${escapeAttr(value)}"`)
-    .join("");
-  if (voidElements.has(element.tagName.toLowerCase())) return `<${element.tagName}${attributes}>`;
-  return `<${element.tagName}${attributes}>${element.children.map(serializeParsedHtmlNode).join("")}</${element.tagName}>`;
-}
-
-function serializeParsedHtmlNode(node: ParsedHtmlNode): string {
-  return node.kind === "text"
-    ? escapeText(node.value)
-    : serializeParsedHtmlElement(node);
+  const output: string[] = [];
+  const pending: Array<ParsedHtmlNode | string> = [element];
+  while (pending.length) {
+    const node = pending.pop()!;
+    if (typeof node === "string") { output.push(node); continue; }
+    if (node.kind === "text") { output.push(escapeText(node.value)); continue; }
+    const attributes = Array.from(node.attributes)
+      .map(([name, value]) => value === true ? ` ${name}` : ` ${name}="${escapeAttr(value)}"`)
+      .join("");
+    output.push(`<${node.tagName}${attributes}>`);
+    if (voidElements.has(node.tagName.toLowerCase())) continue;
+    pending.push(`</${node.tagName}>`);
+    for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]!);
+  }
+  return output.join("");
 }
 
 /** Creates the fallback patch for a refreshed boundary according to the selected strategy. */

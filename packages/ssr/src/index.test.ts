@@ -984,6 +984,24 @@ describe("@exact/ssr", () => {
     ]);
   });
 
+  it("falls back safely when boundary HTML exceeds the fine-grained diff depth budget", () => {
+    const open = "<div>".repeat(300);
+    const close = "</div>".repeat(300);
+    const previous = `<section data-exact-id="root">${open}old${close}</section>`;
+    const next = `<section data-exact-id="root">${open}new${close}</section>`;
+
+    expect(diffBoundaryHtml("profile", previous, next, "element"))
+      .toEqual([{ type: "replace", id: "profile", html: next }]);
+  });
+
+  it("falls back safely for duplicate exact ids instead of targeting an ambiguous element", () => {
+    const previous = "<section><p data-exact-id=\"duplicate\">one</p><p data-exact-id=\"duplicate\">two</p></section>";
+    const next = "<section><p data-exact-id=\"duplicate\">changed</p><p data-exact-id=\"duplicate\">two</p></section>";
+
+    expect(diffBoundaryHtml("profile", previous, next, "element"))
+      .toEqual([{ type: "replace", id: "profile", html: next }]);
+  });
+
   it("falls back to replacement patches when element strategy shape changes", async () => {
     const response = await handleExactRequest({
       method: "POST",
