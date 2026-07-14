@@ -289,8 +289,9 @@ function disposeTaskResource<T>(
 ): void | Promise<void> {
   if (typeof disposal === "function") return disposal(resource, reason);
   const value = resource as any;
-  if (disposal === "call") return value(reason);
-  if (disposal) return value?.[disposal]?.(reason);
+  if (disposal === "call") return value();
+  if (disposal === "cancel") return value?.cancel?.(reason);
+  if (disposal) return value?.[disposal]?.();
   const asyncDispose = (Symbol as any).asyncDispose;
   if (asyncDispose && typeof value?.[asyncDispose] === "function") return value[asyncDispose]();
   const dispose = (Symbol as any).dispose;

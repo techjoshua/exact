@@ -23,6 +23,7 @@ export interface ExpressionTaskPlan {
   readonly sites: ReadonlyMap<string, ExpressionTaskSite>;
   readonly resources: ReadonlyMap<string, ExpressionTaskResource>;
   readonly lifecycleListeners: ReadonlyMap<string, ExpressionLifecycleListener>;
+  readonly signalCalls: ReadonlyMap<string, ExpressionTaskSignalCall>;
 }
 
 export interface ExpressionLifecycleListener {
@@ -31,20 +32,31 @@ export interface ExpressionLifecycleListener {
   readonly end: number;
 }
 
-export type ExpressionTaskResourceKind = "timeout" | "interval" | "animation-frame" | "fetch" | "observer";
+export type ExpressionTaskResourceKind = "timeout" | "interval" | "animation-frame" | "idle-callback" | "fetch" | "observer" | "owned";
+export type ExpressionTaskResourceDisposal = "call" | "close" | "terminate" | "unsubscribe" | "dispose" | "cancel";
 export interface ExpressionTaskResource {
   readonly start: number;
   readonly end: number;
   readonly kind: ExpressionTaskResourceKind;
+  readonly disposal?: ExpressionTaskResourceDisposal;
+  readonly description?: string;
 }
 
-const browserGlobals = new Set(["window", "document", "navigator", "location", "history", "localStorage", "sessionStorage", "requestAnimationFrame", "cancelAnimationFrame", "MutationObserver", "ResizeObserver", "IntersectionObserver"]);
+export interface ExpressionTaskSignalCall {
+  readonly start: number;
+  readonly end: number;
+  readonly parameter: number;
+  readonly mode: "direct" | "options";
+}
+
+const browserGlobals = new Set(["window", "document", "navigator", "location", "history", "localStorage", "sessionStorage", "requestAnimationFrame", "cancelAnimationFrame", "requestIdleCallback", "cancelIdleCallback", "MutationObserver", "ResizeObserver", "IntersectionObserver", "WebSocket", "EventSource", "BroadcastChannel", "Worker"]);
 
 /** Builds task effects from canonical references while retaining source spans for emission. */
 export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan {
   const sites = new Map<string, ExpressionTaskSite>();
   const resources = new Map<string, ExpressionTaskResource>();
   const lifecycleListeners = new Map<string, ExpressionLifecycleListener>();
+  const signalCalls = new Map<string, ExpressionTaskSignalCall>();
   const writes = analyzeExpressionWrites(module);
   const localVariables = new Set(module.writesOf(module.root));
   for (const task of module.walk().calls().where(isTaskCall)) {
@@ -56,6 +68,7 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
     const taskWrites: ExactStateEffect[] = [];
     const contexts: ExactContextEffect[] = [];
     const contextSites: Array<Readonly<{ start: number; effect: ExactContextEffect }>> = [];
+    const resourceDiagnostics: string[] = [];
     let browserEffects = false;
     let serverEffects = false;
 
@@ -74,10 +87,20 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
       if (site.start >= work.node.span!.start && site.end <= work.node.span!.end) taskWrites.push(effect(site.path.join("."), "write", site.operation === "array-mutation"));
     }
     for (const call of work.walk().calls()) {
-      const resourceKind = taskResourceKind(call, localVariables);
-      if (resourceKind && call.node.span) {
-        const resource = Object.freeze({ start: call.node.span.start, end: call.node.span.end, kind: resourceKind });
-        resources.set(writeSiteKey(resource.start, resource.end), resource);
+      const resource = taskResource(call, localVariables);
+      if (resource && call.node.span) {
+        const ownership = resource.kind === "owned" ? taskResourceOwnership(module, work, call, resource) : "owned";
+        if (ownership === "owned") {
+          const site = Object.freeze({ start: call.node.span.start, end: call.node.span.end, ...resource });
+          resources.set(writeSiteKey(site.start, site.end), site);
+        } else if (ownership === "escape") {
+          resourceDiagnostics.push(`error: task-owned ${resource.description ?? "resource"} escapes its task generation; return an explicit cleanup or keep the resource local`);
+        }
+      }
+      const signalCall = taskSignalCall(call, localVariables);
+      if (signalCall && call.node.span) {
+        const site = Object.freeze({ start: call.node.span.start, end: call.node.span.end, ...signalCall });
+        signalCalls.set(writeSiteKey(site.start, site.end), site);
       }
       if (!call.target?.isMember() || !/^this\.(?:getContext|setContext)$/.test(call.target.node.text ?? "")) continue;
       const token = call.arguments[0];
@@ -108,6 +131,7 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
     if (requestedPlacement === "server" && browserEffects) diagnostics.push("error: this.task.server() cannot reference browser-only globals");
     if (requestedPlacement === "client" && serverEffects) diagnostics.push("error: this.task.client() cannot reference server-only imports");
     if (requestedPlacement) diagnostics.push(`task placement forced by this.task.${requestedPlacement}()`);
+    diagnostics.push(...resourceDiagnostics);
     const component = task.ancestors().functions().first(owner => owner.node.kind === "FunctionDeclaration" && /^[A-Z]/.test(owner.node.name ?? ""))?.node.name;
     const site = Object.freeze({
       ...(component ? { component } : {}),
@@ -133,7 +157,7 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
     const listener = Object.freeze({ component: owner.node.name!, start: call.node.span.start, end: call.node.span.end });
     lifecycleListeners.set(writeSiteKey(listener.start, listener.end), listener);
   }
-  return Object.freeze({ sites, resources, lifecycleListeners });
+  return Object.freeze({ sites, resources, lifecycleListeners, signalCalls });
 }
 
 function isGlobalListener(call: NodeRef, localVariables: ReadonlySet<Variable>): boolean {
@@ -152,17 +176,130 @@ function insideClientJsx(reference: NodeRef): boolean {
   return reference.ancestors().ofKind("JsxAttribute").any(attribute => /^(?:on[A-Z]|ref)\b/.test(attribute.node.name ?? attribute.node.text ?? ""));
 }
 
-function taskResourceKind(call: NodeRef, localVariables: ReadonlySet<Variable>): ExpressionTaskResourceKind | undefined {
+function taskResource(
+  call: NodeRef,
+  localVariables: ReadonlySet<Variable>
+): Readonly<{ kind: ExpressionTaskResourceKind; disposal?: ExpressionTaskResourceDisposal; description?: string }> | undefined {
   const target = call.target;
   const name = target?.name ?? target?.node.text?.trim();
   const variable = target?.rootVariable ?? target?.variable;
-  if (variable && localVariables.has(variable)) return undefined;
-  if (call.node.kind === "NewExpression" && ["MutationObserver", "ResizeObserver", "IntersectionObserver"].includes(name ?? "")) return "observer";
-  if (name === "setTimeout") return "timeout";
-  if (name === "setInterval") return "interval";
-  if (name === "requestAnimationFrame") return "animation-frame";
-  if (name === "fetch") return "fetch";
+  if (variable && localVariables.has(variable) && [
+    "MutationObserver", "ResizeObserver", "IntersectionObserver", "WebSocket", "EventSource", "BroadcastChannel", "Worker",
+    "setTimeout", "setInterval", "requestAnimationFrame", "requestIdleCallback", "fetch"
+  ].includes(name ?? "")) return undefined;
+  if (call.node.kind === "NewExpression" && ["MutationObserver", "ResizeObserver", "IntersectionObserver"].includes(name ?? "")) return { kind: "observer" };
+  if (call.node.kind === "NewExpression" && ["WebSocket", "EventSource", "BroadcastChannel"].includes(name ?? "")) return { kind: "owned", disposal: "close", description: name };
+  if (call.node.kind === "NewExpression" && name === "Worker") return { kind: "owned", disposal: "terminate", description: name };
+  if (name === "setTimeout") return { kind: "timeout" };
+  if (name === "setInterval") return { kind: "interval" };
+  if (name === "requestAnimationFrame") return { kind: "animation-frame" };
+  if (name === "requestIdleCallback") return { kind: "idle-callback" };
+  if (name === "fetch") return { kind: "fetch" };
+  if (call.target?.isMember("subscribe")) {
+    const disposal = disposalForSubscription(call.type);
+    if (disposal) return { kind: "owned", disposal, description: "subscription" };
+  }
+  if (isDisposableType(call.type)) return { kind: "owned", description: call.type?.display ?? "disposable resource" };
   return undefined;
+}
+
+function taskSignalCall(
+  call: NodeRef,
+  localVariables: ReadonlySet<Variable>
+): Readonly<{ parameter: number; mode: "direct" | "options" }> | undefined {
+  if (isTaskCall(call) || call.target?.isMember("addEventListener")) return undefined;
+  const target = call.target;
+  const variable = target?.rootVariable ?? target?.variable;
+  const name = target?.name ?? target?.node.text?.trim();
+  for (const signature of target?.type?.callSignatures ?? []) {
+    for (let index = 0; index < signature.parameters.length; index++) {
+      const parameter = signature.parameters[index]!;
+      const mode = acceptsAbortSignal(parameter.type) ? "direct" : hasAbortSignalOption(parameter.type) ? "options" : undefined;
+      if (!mode || parameter.rest || index >= call.arguments.length && !parameter.optional) continue;
+      if (signature.parameters.slice(call.arguments.length, index).some(candidate => !candidate.optional)) continue;
+      return { parameter: index, mode };
+    }
+  }
+  // Some lightweight projects omit DOM overloads. Preserve canonical fetch cancellation.
+  if (name === "fetch" && (!variable || !localVariables.has(variable))) return { parameter: 1, mode: "options" };
+  return undefined;
+}
+
+function acceptsAbortSignal(type: NonNullable<NodeRef["type"]>): boolean {
+  if (type.unionMembers.length) return type.unionMembers.some(member => acceptsAbortSignal(member));
+  return /(?:^|\W)AbortSignal(?:$|\W)/.test(type.display) && !type.properties.includes("signal");
+}
+
+function hasAbortSignalOption(type: NonNullable<NodeRef["type"]>): boolean {
+  const signal = type.propertyTypes.find(property => property.name === "signal");
+  if (signal && acceptsAbortSignal(signal.type)) return true;
+  return type.unionMembers.some(member => hasAbortSignalOption(member));
+}
+
+function disposalForSubscription(type: NodeRef["type"]): ExpressionTaskResourceDisposal | undefined {
+  if (!type) return undefined;
+  if (type.callable) return "call";
+  if (type.properties.includes("unsubscribe")) return "unsubscribe";
+  if (type.properties.includes("dispose")) return "dispose";
+  return type.unionMembers.map(disposalForSubscription).find((value): value is ExpressionTaskResourceDisposal => !!value);
+}
+
+function isDisposableType(type: NodeRef["type"]): boolean {
+  if (!type) return false;
+  return /\b(?:Async)?Disposable\b/.test(type.display)
+    || type.properties.some(property => /(?:async)?dispose/i.test(property))
+    || type.unionMembers.some(isDisposableType);
+}
+
+function taskResourceOwnership(
+  module: BoundModule,
+  work: NodeRef,
+  call: NodeRef,
+  resource: Readonly<{ disposal?: ExpressionTaskResourceDisposal }>
+): "owned" | "explicit" | "escape" {
+  const declaration = call.ancestors().ofKind("VariableDeclaration").first();
+  const variable = declaration?.children().first()?.walk().references().first()?.variable;
+  if (!declaration || !variable) return resourceEscapesDirectly(call) ? "escape" : "owned";
+  let explicit = false;
+  for (const reference of work.walk().references().where(candidate => candidate.variable === variable)) {
+    if (reference.node.span && declaration.node.span
+      && reference.node.span.start >= declaration.node.span.start && reference.node.span.end <= declaration.node.span.end) continue;
+    const member = reference.parent?.isMember() ? reference.parent : undefined;
+    if (member?.target?.node === reference.node) {
+      const method = member.name ?? "";
+      if ([resource.disposal, "close", "terminate", "unsubscribe", "dispose", "cancel"].includes(method as ExpressionTaskResourceDisposal)) {
+        if (member.parent?.node.kind === "CallExpression") explicit = true;
+      }
+      continue;
+    }
+    const parent = reference.parent;
+    if (parent?.node.kind === "CallExpression" && parent.target?.node === reference.node && resource.disposal === "call") {
+      explicit = true;
+      continue;
+    }
+    if (ancestorWithin(reference, work, ancestor => ancestor.node.kind === "ReturnStatement")) {
+      if (resource.disposal === "call") { explicit = true; continue; }
+      return "escape";
+    }
+    if (ancestorWithin(reference, work, ancestor => ancestor.node.kind === "CallExpression" || ancestor.node.kind === "NewExpression")
+      || ancestorWithin(reference, work, ancestor => ancestor.node.kind === "BinaryExpression" && ancestor.node.operator === "=")
+      || ancestorWithin(reference, work, ancestor => ancestor.node.kind === "PropertyAssignment" || ancestor.node.kind === "ArrayLiteralExpression")) return "escape";
+  }
+  void module;
+  return explicit ? "explicit" : "owned";
+}
+
+function ancestorWithin(reference: NodeRef, owner: NodeRef, predicate: (ancestor: NodeRef) => boolean): NodeRef | undefined {
+  const span = owner.node.span;
+  return reference.ancestors().first(ancestor => !!span && !!ancestor.node.span
+    && ancestor.node.span.start >= span.start && ancestor.node.span.end <= span.end && predicate(ancestor));
+}
+
+function resourceEscapesDirectly(call: NodeRef): boolean {
+  const parent = call.parent;
+  if (!parent) return true;
+  if (parent.isMember() && parent.target?.node === call.node) return false;
+  return !["ExpressionStatement", "AwaitExpression"].includes(parent.node.kind);
 }
 
 function collectStateAliases(module: BoundModule, work: NodeRef): ReadonlyMap<string, readonly string[]> {

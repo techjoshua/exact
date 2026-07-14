@@ -63,9 +63,13 @@ describe("@exact/core", () => {
     const terminate = vi.fn();
     const unsubscribe = vi.fn();
     const cleanup = vi.fn();
+    const dispose = vi.fn();
+    const asyncDispose = vi.fn(async () => undefined);
     expect(ownTaskResource(controller.signal, { close }, "close")).toEqual({ close });
     ownTaskResource(controller.signal, { terminate }, "terminate");
     ownTaskResource(controller.signal, unsubscribe, "call");
+    if ((Symbol as any).dispose) ownTaskResource(controller.signal, { [(Symbol as any).dispose]: dispose });
+    if ((Symbol as any).asyncDispose) ownTaskResource(controller.signal, { [(Symbol as any).asyncDispose]: asyncDispose });
     registerTaskCleanup(controller.signal, cleanup);
 
     controller.abort("rerun");
@@ -75,8 +79,31 @@ describe("@exact/core", () => {
     expect(close).toHaveBeenCalledTimes(1);
     expect(terminate).toHaveBeenCalledTimes(1);
     expect(unsubscribe).toHaveBeenCalledTimes(1);
+    if ((Symbol as any).dispose) expect(dispose).toHaveBeenCalledTimes(1);
+    if ((Symbol as any).asyncDispose) expect(asyncDispose).toHaveBeenCalledTimes(1);
     expect(cleanup).toHaveBeenCalledTimes(1);
     expect(cleanup).toHaveBeenCalledWith("rerun");
+  });
+
+  it("routes task resource disposal failures through the owning error context", async () => {
+    let instance!: Component<{ errors: ErrorReport[] }>;
+    const component = createComponentInstance(function Worker(this: Component<{ errors: ErrorReport[] }>) {
+      instance = this;
+      this.state.errors = [];
+      this.setContext(ErrorContext, createErrorContext(this.state.errors));
+      this.task(({ signal }) => {
+        ownTaskResource(signal, { close: async () => { throw new Error("close failed"); } }, "close");
+      });
+      return () => null;
+    }, {});
+
+    component.markMounted();
+    component.unmount();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(instance.state.errors).toHaveLength(1);
+    expect(instance.state.errors[0]).toMatchObject({ source: "task", phase: "resource-cleanup" });
   });
   it("combines task signals with typed API options", () => {
     const owner = new AbortController();

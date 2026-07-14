@@ -96,6 +96,47 @@ describe("@exact/compiler", () => {
     expect(output).toContain("taskAwait as __exactTaskAwait");
     expect(output).toContain("__exactTaskAwait(__exactSignal, __exactTaskFetch(__exactSignal, fetch, \"/tasks\"))");
   });
+  it("owns disposable task resources and injects signals from call signatures", () => {
+    const output = transform(`
+      declare function optionsApi(value: string, options?: { signal?: AbortSignal; priority?: number }): void;
+      declare function directApi(value: string, signal?: AbortSignal): void;
+      declare function disposableApi(): Disposable;
+      declare const store: { subscribe(callback: () => void): { unsubscribe(): void } };
+      function Panel(this: Component<{}>) {
+        this.task.client(() => {
+          requestIdleCallback(() => {});
+          const socket = new WebSocket("/events");
+          const events = new EventSource("/events");
+          const channel = new BroadcastChannel("updates");
+          const worker = new Worker("worker.js");
+          const disposable = disposableApi();
+          const subscription = store.subscribe(() => {});
+          optionsApi("ready", { priority: 1 });
+          directApi("ready");
+          void socket.readyState;
+          void events.readyState;
+          void channel.name;
+          worker.postMessage("ready");
+        });
+      }
+    `, { filename: "OwnedResources.tsx" });
+    expect(output).toContain("taskIdleCallback as __exactTaskIdleCallback");
+    expect(output).toContain("ownTaskResource as __exactTaskResource");
+    expect(output).toContain("withTaskSignal as __exactTaskOptionsSignal");
+    expect(output).toContain("combineTaskSignal as __exactTaskCombinedSignal");
+    expect(output).toContain("__exactTaskIdleCallback(__exactSignal, () => { })");
+    expect(output).toContain("__exactTaskResource(__exactSignal, new WebSocket(\"/events\"), \"close\")");
+    expect(output).toContain("__exactTaskResource(__exactSignal, new Worker(\"worker.js\"), \"terminate\")");
+    expect(output).toContain("__exactTaskResource(__exactSignal, disposableApi())");
+    expect(output).toContain("__exactTaskResource(__exactSignal, store.subscribe(() => { }), \"unsubscribe\")");
+    expect(output).toContain("optionsApi(\"ready\", __exactTaskOptionsSignal({ priority: 1 }, __exactSignal))");
+    expect(output).toContain("directApi(\"ready\", __exactTaskCombinedSignal(__exactSignal))");
+  });
+  it("requires explicit ownership when a disposable task resource escapes", () => {
+    expect(() => transform(`function Panel(this: Component<{ socket?: WebSocket }>) {
+      this.task.client(() => { this.state.socket = new WebSocket("/events"); });
+    }`, { filename: "EscapingResource.tsx" })).toThrow("WebSocket escapes its task generation");
+  });
   it("rejects setup-time state snapshots captured by async callbacks", () => {
     expect(() => transform(`function Panel(this: Component<{ title: string }>) { const title = this.state.title; setTimeout(() => console.log(title)); return () => <p />; }`, { filename: "Panel.tsx" }))
       .toThrow("setup-time state snapshot");

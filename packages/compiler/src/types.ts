@@ -417,8 +417,12 @@ export type HelperNames = {
   taskTimeout: string;
   taskInterval: string;
   taskAnimationFrame: string;
+  taskIdleCallback: string;
   taskObserver: string;
   taskFetch: string;
+  taskResource: string;
+  taskOptionsSignal: string;
+  taskCombinedSignal: string;
   taskAwait: string;
   remove: string;
   arrayMutation: string;

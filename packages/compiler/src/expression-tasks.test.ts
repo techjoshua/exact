@@ -70,4 +70,61 @@ describe("expression-backed task effects", () => {
       "task placement forced by this.task.client()"
     ]));
   });
+
+  it("plans closeable, idle, disposable, subscription, and typed-signal resources", () => {
+    clearExpressionProjectCache();
+    const module = expressionModuleFor("OwnedTaskResources.tsx", `
+      declare function optionsApi(value: string, options?: { signal?: AbortSignal; priority?: number }): void;
+      declare function directApi(value: string, signal?: AbortSignal): void;
+      declare function disposableApi(): Disposable;
+      declare const store: { subscribe(callback: () => void): { unsubscribe(): void } };
+      function Panel(this: Component<{}>) {
+        this.task.client(() => {
+          requestIdleCallback(() => {});
+          const socket = new WebSocket("/events");
+          const events = new EventSource("/events");
+          const channel = new BroadcastChannel("updates");
+          const worker = new Worker("worker.js");
+          const disposable = disposableApi();
+          const subscription = store.subscribe(() => {});
+          optionsApi("ready", { priority: 1 });
+          directApi("ready");
+          void socket.readyState;
+          void events.readyState;
+          void channel.name;
+          worker.postMessage("ready");
+        });
+      }
+    `);
+    const plan = analyzeExpressionTasks(module);
+    const resources = [...plan.resources.values()];
+    expect(resources).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: "idle-callback" }),
+      expect.objectContaining({ kind: "owned", disposal: "close", description: "WebSocket" }),
+      expect.objectContaining({ kind: "owned", disposal: "close", description: "EventSource" }),
+      expect.objectContaining({ kind: "owned", disposal: "close", description: "BroadcastChannel" }),
+      expect.objectContaining({ kind: "owned", disposal: "terminate", description: "Worker" }),
+      expect.objectContaining({ kind: "owned", description: expect.stringContaining("Disposable") }),
+      expect.objectContaining({ kind: "owned", disposal: "unsubscribe", description: "subscription" })
+    ]));
+    expect([...plan.signalCalls.values()]).toEqual(expect.arrayContaining([
+      expect.objectContaining({ parameter: 1, mode: "options" }),
+      expect.objectContaining({ parameter: 1, mode: "direct" })
+    ]));
+  });
+
+  it("diagnoses escaping resources and respects explicit task cleanup", () => {
+    clearExpressionProjectCache();
+    const escaping = expressionModuleFor("EscapingTaskResource.tsx", `function Panel(this: Component<{ socket?: WebSocket }>) {
+      this.task.client(() => { this.state.socket = new WebSocket("/events"); });
+    }`);
+    expect([...analyzeExpressionTasks(escaping).sites.values()][0]!.diagnostics)
+      .toContainEqual(expect.stringContaining("WebSocket escapes its task generation"));
+
+    const explicit = expressionModuleFor("ExplicitTaskResource.tsx", `function Panel(this: Component<{}>) {
+      this.task.client(() => { const socket = new WebSocket("/events"); return () => socket.close(); });
+    }`);
+    expect([...analyzeExpressionTasks(explicit).resources.values()])
+      .not.toContainEqual(expect.objectContaining({ description: "WebSocket" }));
+  });
 });

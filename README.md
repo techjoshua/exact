@@ -275,6 +275,23 @@ The main instance APIs are:
 - `this.onMount(...)` / `this.onUnmount(...)` / `this.onRender(...)`: lifecycle hooks.
 - `this.log`: component-scoped logging.
 
+### Compiler-owned task resources
+
+Compiled task bodies automatically tie asynchronous work and disposable browser resources to the current task generation. Authors can use the platform APIs directly: eXact cancels timers, animation and idle callbacks, fetches, and observers; closes `WebSocket`, `EventSource`, and `BroadcastChannel`; terminates `Worker`; and disposes recognized subscriptions and `Disposable`/`AsyncDisposable` values when a task reruns or its component unmounts.
+
+The compiler also inspects callable signatures. When an optional parameter is an `AbortSignal`, or an options object has a typed `signal?: AbortSignal` property, the generated call receives the task signal automatically while preserving an author-supplied signal and options. This includes `fetch()` and project APIs with the same typed contract:
+
+```ts
+this.task(this.state.projectId, async projectId => {
+  const response = await fetch(`/api/projects/${projectId}`);
+  const result = await client.loadProject(projectId, { cache: "reload" });
+  this.state.project = await response.json();
+  this.state.related = result;
+});
+```
+
+Resource values may be used locally for the duration of the task. Returning an explicit cleanup function remains supported and suppresses automatic ownership. Letting an owned resource escape through component state, an outer variable, a returned value, or an unknown call is a compile error because the framework could no longer guarantee its lifetime. Disposal failures are reported through the nearest `ErrorContext` as task failures.
+
 ## Error Boundaries
 
 Errors are delivered through `ErrorContext`. A component becomes an error boundary by providing an error receiver for descendants. Its render function can then decide whether to show errors, hide children, keep rendering, or report the failures elsewhere:

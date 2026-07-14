@@ -31,7 +31,7 @@ import {
 import { pruneUnusedImports } from "./prune-imports.js";
 import type { ExpressionDerivedPlan } from "./expression-derived.js";
 import { writeSiteKey, type ExpressionWritePlan } from "./expression-writes.js";
-import type { ExpressionTaskPlan, ExpressionTaskResource, ExpressionTaskResourceKind } from "./expression-tasks.js";
+import type { ExpressionTaskPlan, ExpressionTaskResource, ExpressionTaskResourceKind, ExpressionTaskSignalCall } from "./expression-tasks.js";
 import type { ExpressionJsxPlan } from "./expression-jsx.js";
 import type { ExpressionClientIslandSite, ExpressionComponentPlan } from "./expression-components.js";
 import type {
@@ -83,6 +83,7 @@ export function exactJsxTransformer(
     let sawAbortOptions = false;
     let sawDerived = false;
     const taskResources = new Set<ExpressionTaskResourceKind>();
+    const taskSignalModes = new Set<ExpressionTaskSignalCall["mode"]>();
     let sawTaskAwait = false;
     const componentStack: string[] = [];
     const componentLocalStack: ComponentLocalInfo[] = [];
@@ -96,6 +97,9 @@ export function exactJsxTransformer(
     const expressionListenerFor = (node: ts.Node) => node.pos < 0 || node.end < 0
       ? undefined
       : expressionTasks?.lifecycleListeners.get(writeSiteKey(node.getStart(sourceFile), node.end));
+    const expressionSignalFor = (node: ts.Node) => node.pos < 0 || node.end < 0
+      ? undefined
+      : expressionTasks?.signalCalls.get(writeSiteKey(node.getStart(sourceFile), node.end));
     const taskPlacementFor = (node: ts.Node): ExactPlacement => expressionTaskFor(node)?.placement ?? "unknown";
     const isClientComponentTag = (tag: ts.JsxTagNameExpression): boolean => componentPlacements.get(tag.getText(sourceFile)) === "client";
     const islandHasServerChildren = (node: ts.JsxElement): boolean => {
@@ -281,7 +285,8 @@ export function exactJsxTransformer(
         }
         return transformCapturedCall(sourceFile, node, context, visitor, derivedReactiveLocals, helpers,
           () => { sawAbortOptions = true; }, expressionResourceFor,
-          kind => { taskResources.add(kind); }, () => { sawTaskAwait = true; });
+          kind => { taskResources.add(kind); }, () => { sawTaskAwait = true; }, expressionSignalFor,
+          mode => { taskSignalModes.add(mode); });
       }
       if (node.pos >= 0 && ts.isShorthandPropertyAssignment(node)) {
         const derived = derivedReactiveLocals.references.get(writeSiteKey(node.name.getStart(sourceFile), node.name.end));
@@ -315,7 +320,7 @@ export function exactJsxTransformer(
       ? appendServerPartExportAliases(sourceFile, withIslands, factory, islandCounts, componentPlacements, semanticGraph)
       : withIslands;
     const visited = target === "default" ? withServerParts : pruneUnusedImports(withServerParts, factory);
-    if (!sawJsx && !sawBoundary && !sawStateWrite && !sawAbortOptions && !sawDerived && !taskResources.size && !sawTaskAwait) return visited;
+    if (!sawJsx && !sawBoundary && !sawStateWrite && !sawAbortOptions && !sawDerived && !taskResources.size && !taskSignalModes.size && !sawTaskAwait) return visited;
 
     const importDeclaration = factory.createImportDeclaration(
       undefined,
@@ -346,6 +351,12 @@ export function exactJsxTransformer(
             const [imported, local] = taskResourceHelper(kind, helpers);
             return factory.createImportSpecifier(false, factory.createIdentifier(imported), factory.createIdentifier(local));
           })),
+          ...(taskSignalModes.has("options")
+            ? [factory.createImportSpecifier(false, factory.createIdentifier("withTaskSignal"), factory.createIdentifier(helpers.taskOptionsSignal))]
+            : []),
+          ...(taskSignalModes.has("direct")
+            ? [factory.createImportSpecifier(false, factory.createIdentifier("combineTaskSignal"), factory.createIdentifier(helpers.taskCombinedSignal))]
+            : []),
           ...(sawTaskAwait
             ? [factory.createImportSpecifier(false, factory.createIdentifier("taskAwait"), factory.createIdentifier(helpers.taskAwait))]
             : []),
@@ -1200,14 +1211,16 @@ function transformCapturedCall(
   markAbortOptions?: () => void,
   resourceFor?: (node: ts.Node) => ExpressionTaskResource | undefined,
   markResource?: (kind: ExpressionTaskResourceKind) => void,
-  markAwait?: () => void
+  markAwait?: () => void,
+  signalFor?: (node: ts.Node) => ExpressionTaskSignalCall | undefined,
+  markSignal?: (mode: ExpressionTaskSignalCall["mode"]) => void
 ): ts.Expression {
   if (isThisMethodCall(node, "reactive")) {
     return transformReactiveCall(sourceFile, node, context, visitor, derivedReactiveLocals);
   }
 
   if (isThisTaskCall(node)) {
-    return transformTaskCall(sourceFile, node, context, visitor, derivedReactiveLocals, helpers, markAbortOptions, resourceFor, markResource, markAwait);
+    return transformTaskCall(sourceFile, node, context, visitor, derivedReactiveLocals, helpers, markAbortOptions, resourceFor, markResource, markAwait, signalFor, markSignal);
   }
 
   if (isThisMethodCall(node, "map")) {
@@ -1258,7 +1271,9 @@ function transformTaskCall(
   markAbortOptions?: () => void,
   resourceFor?: (node: ts.Node) => ExpressionTaskResource | undefined,
   markResource?: (kind: ExpressionTaskResourceKind) => void,
-  markAwait?: () => void
+  markAwait?: () => void,
+  signalFor?: (node: ts.Node) => ExpressionTaskSignalCall | undefined,
+  markSignal?: (mode: ExpressionTaskSignalCall["mode"]) => void
 ): ts.Expression {
   if (node.arguments.length < 1) return ts.visitEachChild(node, visitor, context);
   const work = node.arguments[node.arguments.length - 1]!;
@@ -1266,7 +1281,8 @@ function transformTaskCall(
   const visitedWork = ts.visitNode(work, visitor) as ts.ArrowFunction | ts.FunctionExpression;
   const transformedWork = helpers
     ? transformTaskWork(visitedWork, node.arguments.length - 1, context, helpers,
-      markAbortOptions ?? (() => {}), resourceFor ?? (() => undefined), markResource ?? (() => {}), markAwait ?? (() => {}))
+      markAbortOptions ?? (() => {}), resourceFor ?? (() => undefined), markResource ?? (() => {}), markAwait ?? (() => {}),
+      signalFor ?? (() => undefined), markSignal ?? (() => {}))
     : visitedWork;
 
   const nextArguments = node.arguments.map((argument, index) => {
@@ -1301,9 +1317,11 @@ function transformTaskWork(
   markAbortOptions: () => void,
   resourceFor: (node: ts.Node) => ExpressionTaskResource | undefined,
   markResource: (kind: ExpressionTaskResourceKind) => void,
-  markAwait: () => void
+  markAwait: () => void,
+  signalFor: (node: ts.Node) => ExpressionTaskSignalCall | undefined,
+  markSignal: (mode: ExpressionTaskSignalCall["mode"]) => void
 ): ts.Expression {
-  if (!containsManagedTaskWork(work, resourceFor)) return work;
+  if (!containsManagedTaskWork(work, resourceFor, signalFor)) return work;
   const factory = context.factory;
   const parameters = [...work.parameters];
   let signal: ts.Expression;
@@ -1349,6 +1367,14 @@ function transformTaskWork(
     const resource = resourceFor(current);
     if (resource) {
       markResource(resource.kind);
+      if (resource.kind === "owned" && (ts.isCallExpression(current) || ts.isNewExpression(current))) {
+        const value = ts.visitEachChild(current, taskVisitor, context) as ts.Expression;
+        return factory.createCallExpression(factory.createIdentifier(helpers.taskResource), undefined, [
+          signal,
+          value,
+          ...(resource.disposal ? [factory.createStringLiteral(resource.disposal)] : [])
+        ]);
+      }
       if (resource.kind === "observer" && ts.isNewExpression(current)) {
         const observer = factory.updateNewExpression(current, current.expression, current.typeArguments,
           current.arguments?.map(argument => ts.visitNode(argument, taskVisitor) as ts.Expression));
@@ -1362,6 +1388,27 @@ function transformTaskWork(
           : [signal, ...args];
         return factory.createCallExpression(factory.createIdentifier(helper), current.typeArguments, managedArgs);
       }
+    }
+    const signalCall = signalFor(current);
+    if (signalCall && ts.isCallExpression(current)) {
+      markSignal(signalCall.mode);
+      const args = current.arguments.map(argument => ts.visitNode(argument, taskVisitor) as ts.Expression);
+      while (args.length < signalCall.parameter) args.push(factory.createIdentifier("undefined"));
+      const existing = args[signalCall.parameter];
+      args[signalCall.parameter] = signalCall.mode === "options"
+        ? factory.createCallExpression(factory.createIdentifier(helpers.taskOptionsSignal), undefined, [
+          existing ?? factory.createIdentifier("undefined"), signal
+        ])
+        : factory.createCallExpression(factory.createIdentifier(helpers.taskCombinedSignal), undefined, [
+          signal,
+          ...(existing ? [existing] : [])
+        ]);
+      return factory.updateCallExpression(
+        current,
+        ts.visitNode(current.expression, taskVisitor) as ts.Expression,
+        current.typeArguments,
+        args
+      );
     }
     if (ts.isCallExpression(current) && isGlobalAddEventListener(current)) {
       markAbortOptions();
@@ -1382,11 +1429,15 @@ function transformTaskWork(
     parameters, work.type, body as ts.Block);
 }
 
-function containsManagedTaskWork(node: ts.Node, resourceFor: (node: ts.Node) => ExpressionTaskResource | undefined): boolean {
+function containsManagedTaskWork(
+  node: ts.Node,
+  resourceFor: (node: ts.Node) => ExpressionTaskResource | undefined,
+  signalFor: (node: ts.Node) => ExpressionTaskSignalCall | undefined
+): boolean {
   let found = false;
   const visit = (current: ts.Node): void => {
     if (found) return;
-    if (ts.isAwaitExpression(current) || resourceFor(current) || ts.isCallExpression(current) && isGlobalAddEventListener(current)) {
+    if (ts.isAwaitExpression(current) || resourceFor(current) || signalFor(current) || ts.isCallExpression(current) && isGlobalAddEventListener(current)) {
       found = true;
       return;
     }
@@ -1421,7 +1472,9 @@ function taskResourceHelper(kind: ExpressionTaskResourceKind, helpers: HelperNam
   if (kind === "timeout") return ["taskTimeout", helpers.taskTimeout];
   if (kind === "interval") return ["taskInterval", helpers.taskInterval];
   if (kind === "animation-frame") return ["taskAnimationFrame", helpers.taskAnimationFrame];
+  if (kind === "idle-callback") return ["taskIdleCallback", helpers.taskIdleCallback];
   if (kind === "observer") return ["taskObserver", helpers.taskObserver];
+  if (kind === "owned") return ["ownTaskResource", helpers.taskResource];
   return ["taskFetch", helpers.taskFetch];
 }
 
@@ -1574,8 +1627,12 @@ function allocateHelperNames(sourceFile: ts.SourceFile): HelperNames {
     taskTimeout: allocateName("__exactTaskTimeout", used),
     taskInterval: allocateName("__exactTaskInterval", used),
     taskAnimationFrame: allocateName("__exactTaskAnimationFrame", used),
+    taskIdleCallback: allocateName("__exactTaskIdleCallback", used),
     taskObserver: allocateName("__exactTaskObserver", used),
     taskFetch: allocateName("__exactTaskFetch", used),
+    taskResource: allocateName("__exactTaskResource", used),
+    taskOptionsSignal: allocateName("__exactTaskOptionsSignal", used),
+    taskCombinedSignal: allocateName("__exactTaskCombinedSignal", used),
     taskAwait: allocateName("__exactTaskAwait", used),
     remove: allocateName("__exactDelete", used),
     arrayMutation: allocateName("__exactArrayMutation", used)
