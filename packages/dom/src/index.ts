@@ -75,11 +75,19 @@ export { HTML_NAMESPACE, MATHML_NAMESPACE, SVG_NAMESPACE, namespaceForTag } from
 
 const DEFAULT_MAX_TREE_DEPTH = 512;
 const HARD_MAX_TREE_DEPTH = 1_024;
+const DEFAULT_MAX_TREE_NODES = 100_000;
 
 class DomTreeDepthError extends Error {
   constructor(limit: number) {
     super(`eXact DOM tree exceeds the configured maximum depth of ${limit}`);
     this.name = "DomTreeDepthError";
+  }
+}
+
+class DomTreeWorkError extends Error {
+  constructor(limit: number) {
+    super(`eXact DOM update exceeds the configured maximum of ${limit} render values`);
+    this.name = "DomTreeWorkError";
   }
 }
 
@@ -96,7 +104,10 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
       boundary: undefined as never,
       debugMarkers: false,
       maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth),
-      traversalDepth: 0
+      traversalDepth: 0,
+      maxTreeNodes: normalizeTreeNodes(options.maxTreeNodes),
+      traversedNodes: 0,
+      workDepth: 0
     };
     root.boundary = createRootBoundary(root);
     roots.set(container, root);
@@ -106,12 +117,15 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
   root.logger = options.logger;
   root.debugMarkers = options.debugMarkers ?? false;
   root.maxTreeDepth = normalizeTreeDepth(options.maxTreeDepth);
+  root.maxTreeNodes = normalizeTreeNodes(options.maxTreeNodes);
 
   const next = root.mode === "hydrated"
     ? vnode
     : createVNode(root.boundary, { version: root.version });
-  root.mounted = patch(root, container, root.mounted, next, undefined, undefined);
-  flushSync();
+  withDomWork(root, () => {
+    root.mounted = patch(root, container, root.mounted, next, undefined, undefined);
+    flushSync();
+  });
 }
 
 /**
@@ -179,7 +193,7 @@ export function adoptStatic(vnode: VNode, container: Element, options: RenderOpt
     boundary: undefined as never,
     debugMarkers: false,
     maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth),
-    traversalDepth: 0,
+    traversalDepth: 0, maxTreeNodes: normalizeTreeNodes(options.maxTreeNodes), traversedNodes: 0, workDepth: 0,
     logger: options.logger
   };
   root.boundary = createRootBoundary(root);
@@ -187,24 +201,28 @@ export function adoptStatic(vnode: VNode, container: Element, options: RenderOpt
   const boundaryVNode = createVNode(root.boundary, { version: root.version });
   const mounted: Mounted = { vnode: boundaryVNode, dom: markers.start, end: markers.end, scope, children: [] };
   try {
-    const instance = withEffectScope(scope, () => createComponentInstance(root.boundary, { version: root.version }));
-    mounted.instance = instance;
-    const rendered = withEffectScope(scope, () => renderInstance(instance, () => rerenderComponent(root, mounted)));
-    const nodes = contentNodesBetween(markers.start, markers.end);
-    const children = adoptStaticChildren(root, rendered, nodes, instance, scope);
-    if (!children) {
-      unmountMounted(mounted);
-      clearDelegated(root);
-      return false;
-    }
-    mounted.children = children;
-    instance.markMounted();
-    root.mounted = mounted;
-    roots.set(container, root);
-    return true;
+    return withDomWork(root, () => {
+      countDomWork(root);
+      const instance = withEffectScope(scope, () => createComponentInstance(root.boundary, { version: root.version }));
+      mounted.instance = instance;
+      const rendered = withEffectScope(scope, () => renderInstance(instance, () => rerenderComponent(root, mounted)));
+      const nodes = contentNodesBetween(markers.start, markers.end);
+      const children = adoptStaticChildren(root, rendered, nodes, instance, scope);
+      if (!children) {
+        unmountMounted(mounted);
+        clearDelegated(root);
+        return false;
+      }
+      mounted.children = children;
+      instance.markMounted();
+      root.mounted = mounted;
+      roots.set(container, root);
+      return true;
+    });
   } catch (error) {
     unmountMounted(mounted);
     clearDelegated(root);
+    if (isDomRenderLimitError(error)) throw error;
     return false;
   }
 }
@@ -218,27 +236,32 @@ export function adoptComponentRoot(vnode: VNode, container: Element, options: Re
     container, delegated: new Map(), errors: createErrorContext(), current: vnode,
     version: 1, boundary: undefined as never, debugMarkers: false,
     maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth), traversalDepth: 0,
+    maxTreeNodes: normalizeTreeNodes(options.maxTreeNodes), traversedNodes: 0, workDepth: 0,
     logger: options.logger, mode: "hydrated"
   };
   root.boundary = createRootBoundary(root);
   const scope = createEffectScope();
   const mounted: Mounted = { vnode, dom: markers.start, end: markers.end, scope, children: [] };
   try {
-    const instance = withEffectScope(scope, () => createComponentInstance(
-      vnode.type as ComponentFunction<any, Record<string, unknown>>, getComponentProps(vnode)
-    ));
-    mounted.instance = instance;
-    const rendered = withEffectScope(scope, () => renderInstance(instance, () => rerenderComponent(root, mounted)));
-    const children = adoptStaticChildren(root, rendered, contentNodesBetween(markers.start, markers.end), instance, scope);
-    if (!children) { unmountMounted(mounted); clearDelegated(root); return false; }
-    mounted.children = children;
-    instance.markMounted();
-    root.mounted = mounted;
-    roots.set(container, root);
-    return true;
-  } catch {
+    return withDomWork(root, () => {
+      countDomWork(root);
+      const instance = withEffectScope(scope, () => createComponentInstance(
+        vnode.type as ComponentFunction<any, Record<string, unknown>>, getComponentProps(vnode)
+      ));
+      mounted.instance = instance;
+      const rendered = withEffectScope(scope, () => renderInstance(instance, () => rerenderComponent(root, mounted)));
+      const children = adoptStaticChildren(root, rendered, contentNodesBetween(markers.start, markers.end), instance, scope);
+      if (!children) { unmountMounted(mounted); clearDelegated(root); return false; }
+      mounted.children = children;
+      instance.markMounted();
+      root.mounted = mounted;
+      roots.set(container, root);
+      return true;
+    });
+  } catch (error) {
     unmountMounted(mounted);
     clearDelegated(root);
+    if (isDomRenderLimitError(error)) throw error;
     return false;
   }
 }
@@ -302,7 +325,10 @@ function adoptStaticMounted(
   parentInstance: ComponentInstance<any>,
   parentScope: EffectScope
 ): { mounted: Mounted; next: number } | undefined {
-  return withTreeDepth(root, () => adoptStaticMountedInner(root, vnode, nodes, cursor, parentInstance, parentScope));
+  return withTreeDepth(root, () => {
+    countDomWork(root);
+    return adoptStaticMountedInner(root, vnode, nodes, cursor, parentInstance, parentScope);
+  });
 }
 
 function adoptStaticMountedInner(
@@ -500,8 +526,9 @@ function createElement(tag: string, parent?: Node, props?: Record<string, unknow
   return element;
 }
 
-function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>, parentScope?: EffectScope, parentNode?: Node): Mounted {
+function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>, parentScope?: EffectScope, parentNode?: Node, countWork = true): Mounted {
   return withTreeDepth(root, () => {
+    if (countWork) countDomWork(root);
     const scope = createEffectScope(parentScope);
     try {
       return mountInner(root, vnode, scope, parentInstance, parentNode);
@@ -591,7 +618,7 @@ function mountInner(root: Root, vnode: VNode, scope: EffectScope, parentInstance
       mounted.children = mountDetachedChildren(root, rendered, instance, mounted.scope, parentNode);
       instance.markMounted();
     } catch (error) {
-      if (error instanceof DomTreeDepthError) throw error;
+      if (isDomRenderLimitError(error)) throw error;
       const fallback = handleComponentError(
         parentInstance,
         createErrorReport(error, "construct", parentInstance, describeVNodeType(vnode.type))
@@ -619,7 +646,10 @@ function patch(
   parentInstance?: ComponentInstance<any>,
   parentScope?: EffectScope
 ): Mounted {
-  return withTreeDepth(root, () => patchInner(root, parent, mounted, next, parentInstance, parentScope));
+  return withTreeDepth(root, () => {
+    countDomWork(root);
+    return patchInner(root, parent, mounted, next, parentInstance, parentScope);
+  });
 }
 
 function patchInner(
@@ -631,7 +661,7 @@ function patchInner(
   parentScope?: EffectScope
 ): Mounted {
   if (!mounted) {
-    const created = mount(root, next, parentInstance, parentScope, parent);
+    const created = mount(root, next, parentInstance, parentScope, parent, false);
     placeMountedBefore(root, parent, created, null);
     return created;
   }
@@ -641,7 +671,7 @@ function patchInner(
   // a unit; recursing through it would attempt to parent new scopes beneath an
   // inactive scope.
   if (!mounted.scope.active) {
-    const replacement = mount(root, next, parentInstance, parentScope, parent);
+    const replacement = mount(root, next, parentInstance, parentScope, parent, false);
     placeMountedBefore(root, parent, replacement, mounted.dom);
     unmountMounted(mounted);
     removeMountedNodes(parent, mounted);
@@ -656,7 +686,7 @@ function patchInner(
       nextKey: next.key ?? "none",
       parent: describeNode(parent)
     });
-    const replacement = mount(root, next, parentInstance, parentScope, parent);
+    const replacement = mount(root, next, parentInstance, parentScope, parent, false);
     placeMountedBefore(root, parent, replacement, mounted.dom);
     unmountMounted(mounted);
     removeMountedNodes(parent, mounted);
@@ -672,7 +702,7 @@ function patchInner(
     if (child) {
       mounted.children = [patch(root, parent, child, next, parentInstance, mounted.scope)];
     } else {
-      const created = mount(root, next, parentInstance, mounted.scope, parent);
+      const created = mount(root, next, parentInstance, mounted.scope, parent, false);
       mounted.children = [created];
       placeMountedBefore(root, parent, created, mounted.end);
     }
@@ -686,7 +716,7 @@ function patchInner(
     if (previousChild) {
       mounted.children = [patch(root, parent, previousChild, nextChild, parentInstance, mounted.scope)];
     } else {
-      const child = mount(root, nextChild, parentInstance, mounted.scope, parent);
+      const child = mount(root, nextChild, parentInstance, mounted.scope, parent, false);
       mounted.children = [child];
       placeMountedBefore(root, parent, child, mounted.dom.nextSibling);
     }
@@ -798,7 +828,7 @@ function mountDetachedChildren(root: Root, children: Child[], parentInstance?: C
   const mounted: Mounted[] = [];
   for (const child of children) {
     const vnode = childToVNode(child);
-    if (!vnode) continue;
+    if (!vnode) { countDomWork(root); continue; }
     mounted.push(mount(root, vnode, parentInstance, parentScope, parentNode));
   }
   return mounted;
@@ -809,7 +839,7 @@ function mountChildren(root: Root, parent: Node, children: Child[], parentInstan
   const mounted: Mounted[] = [];
   for (const child of children) {
     const vnode = childToVNode(child);
-    if (!vnode) continue;
+    if (!vnode) { countDomWork(root); continue; }
     const childMounted = mount(root, vnode, parentInstance, parentScope, parent);
     if (vnode.type === ServerSlot) adoptServerSlot(parent, childMounted);
     mounted.push(childMounted);
@@ -845,7 +875,10 @@ function patchChildren(
   });
   // DOM writes for form controls can disturb the active element; patch inside the
   // focus-preservation helper so reorders and reactive updates stay ergonomic.
-  return preserveFocus(root, () => patchChildrenInner(root, parent, oldChildren, nextChildren, parentInstance, parentScope, before));
+  return withDomWork(root, () => preserveFocus(root, () => {
+    for (const child of nextChildren) if (!childToVNode(child)) countDomWork(root);
+    return patchChildrenInner(root, parent, oldChildren, nextChildren, parentInstance, parentScope, before);
+  }));
 }
 
 function patchChildrenInner(
@@ -1011,6 +1044,25 @@ function normalizeTreeDepth(value: number | undefined): number {
   return Number.isSafeInteger(value) && value! > 0
     ? Math.min(value!, HARD_MAX_TREE_DEPTH)
     : DEFAULT_MAX_TREE_DEPTH;
+}
+
+function normalizeTreeNodes(value: number | undefined): number {
+  return Number.isSafeInteger(value) && value! > 0 ? value! : DEFAULT_MAX_TREE_NODES;
+}
+
+function withDomWork<T>(root: Root, run: () => T): T {
+  const outermost = root.workDepth++ === 0;
+  if (outermost) root.traversedNodes = 0;
+  try { return run(); }
+  finally { root.workDepth--; }
+}
+
+function countDomWork(root: Root): void {
+  if (++root.traversedNodes > root.maxTreeNodes) throw new DomTreeWorkError(root.maxTreeNodes);
+}
+
+function isDomRenderLimitError(error: unknown): error is DomTreeDepthError | DomTreeWorkError {
+  return error instanceof DomTreeDepthError || error instanceof DomTreeWorkError;
 }
 
 function withTreeDepth<T>(root: Root, run: () => T): T {
