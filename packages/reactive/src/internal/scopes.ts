@@ -31,7 +31,8 @@ export function createEffectScope(
 
 /** Runs a function with the supplied scope as the current reactive ownership scope. */
 export function withEffectScope<T>(scope: EffectScope | undefined, fn: () => T): T {
-  if (!scope || !scope.active) return fn();
+  if (!scope) return fn();
+  if (!scope.active) throw new Error("Cannot create reactive work inside an inactive effect scope");
   scopeStack.push(scope as EffectScopeImpl);
   try {
     return fn();

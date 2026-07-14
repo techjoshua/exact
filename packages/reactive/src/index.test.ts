@@ -712,4 +712,111 @@ describe("@exact/reactive", () => {
     flushSync();
     expect(seen).toEqual(["Grace"]);
   });
+
+  it("limits self-invalidating computed work and leaves the scheduler reusable", () => {
+    const state = reactive({ count: 0, stable: 0 });
+    const looping = computed(() => {
+      if (state.count < 2_000) state.count++;
+      return state.count;
+    });
+    looping.get();
+    expect(() => flushSync()).toThrow("computation is repeatedly invalidating itself");
+
+    const seen: number[] = [];
+    watch(() => seen.push(state.stable));
+    state.stable = 1;
+    expect(() => flushSync()).not.toThrow();
+    expect(seen).toEqual([0, 1]);
+  });
+
+  it("preserves an undefined scheduler failure and resets scheduled state", () => {
+    const state = reactive({ failing: false, stable: 0 });
+    watch(() => {
+      if (state.failing) throw undefined;
+    }, undefined, { onError(error) { throw error; } });
+    state.failing = true;
+    let caught = false;
+    try { flushSync(); } catch { caught = true; }
+    expect(caught).toBe(true);
+    state.failing = false;
+    expect(() => flushSync()).not.toThrow();
+  });
+
+  it("distinguishes sparse arrays, prototypes, and alias topology", () => {
+    const sparse = new Array(1);
+    const dense = [undefined];
+    const shared = {};
+    const state = reactive({ version: 0 });
+    const value = computed(() => state.version === 0
+      ? { array: sparse, record: {}, pair: [shared, shared] }
+      : { array: dense, record: Object.create(null), pair: [{}, {}] });
+    const notifications = vi.fn();
+    subscribe(ref(value)!, notifications);
+    value.get();
+    state.version = 1;
+    flushSync();
+    expect(notifications).toHaveBeenCalledTimes(1);
+  });
+
+  it("tracks shared raw children through the accessed parent without broad invalidation", () => {
+    const shared = { value: 1 };
+    const state = reactive({ left: shared, right: shared });
+    const left = vi.fn(() => state.left.value);
+    const right = vi.fn(() => state.right.value);
+    watch(left);
+    watch(right);
+
+    state.left = { value: 2 };
+    flushSync();
+    expect(left).toHaveBeenCalledTimes(2);
+    expect(right).toHaveBeenCalledTimes(1);
+    state.right.value = 2;
+    flushSync();
+    expect(right).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps equivalent default proxy options canonical and incompatible options separate", () => {
+    const raw = { value: 1 };
+    expect(reactive(raw)).toBe(reactive(raw, {}));
+    expect(reactive(raw, { readonly: true })).toBe(reactive(raw, { readonly: true }));
+    expect(reactive(raw)).not.toBe(reactive(raw, { readonly: true }));
+  });
+
+  it("owns direct subscriptions in their scope and routes callback errors", () => {
+    const state = reactive({ value: 0 });
+    const source = ref(computed(() => state.value))!;
+    const errors: unknown[] = [];
+    const scope = createEffectScope(undefined, error => errors.push(error));
+    withEffectScope(scope, () => subscribe(source, () => { throw new Error("subscription"); }));
+    state.value = 1;
+    expect(() => flushSync()).not.toThrow();
+    expect(errors).toHaveLength(1);
+    scope.stop();
+    state.value = 2;
+    flushSync();
+    expect(errors).toHaveLength(1);
+  });
+
+  it("rejects new work in a stopped effect scope", () => {
+    const scope = createEffectScope();
+    scope.stop();
+    expect(() => withEffectScope(scope, () => watch(() => undefined))).toThrow("inactive effect scope");
+  });
+
+  it("resolves compound update paths once and performs push/pop without scanning retained items", () => {
+    let pathReads = 0;
+    const nested = reactive({ value: 1 });
+    const target = reactive({ get nested() { pathReads++; return nested; } });
+    expect(updateReactiveValue(target, ["nested", "value"], value => Number(value) + 1)).toBe(2);
+    expect(pathReads).toBe(1);
+
+    let itemReads = 0;
+    const items: unknown[] = [];
+    Object.defineProperty(items, "0", { configurable: true, enumerable: true, get() { itemReads++; return "kept"; } });
+    items.length = 10_000;
+    const list = reactive(items);
+    list.push("new");
+    list.pop();
+    expect(itemReads).toBe(0);
+  });
 });

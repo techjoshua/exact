@@ -27,6 +27,7 @@ export function flushSync(): void {
   // Computations run before reactions so derived values settle before render/watch effects observe them.
   let passes = 0;
   let firstError: unknown;
+  let hasError = false;
   try {
     while (queuedComputations.size || queuedReactions.size) {
       if (++passes > maxFlushPasses) {
@@ -35,13 +36,19 @@ export function flushSync(): void {
         throw new Error("eXact reactive scheduler exceeded its flush limit; a reaction is repeatedly invalidating itself");
       }
       while (queuedComputations.size) {
+        if (++passes > maxFlushPasses) {
+          queuedComputations.clear();
+          queuedReactions.clear();
+          throw new Error("eXact reactive scheduler exceeded its flush limit; a computation is repeatedly invalidating itself");
+        }
         const computations = [...queuedComputations];
         queuedComputations.clear();
         for (const computation of computations) {
           try {
             computation();
           } catch (error) {
-            firstError ??= error;
+            if (!hasError) firstError = error;
+            hasError = true;
           }
         }
       }
@@ -54,14 +61,19 @@ export function flushSync(): void {
         try {
           reaction.run();
         } catch (error) {
-          firstError ??= error;
+          if (!hasError) firstError = error;
+          hasError = true;
         }
       }
     }
   } finally {
     flushScheduled = false;
+    // Errors must not leave work queued without a corresponding microtask.
+    // Overflow deliberately clears both queues above; ordinary failures may
+    // have queued new work while their error was being handled.
+    if (queuedComputations.size || queuedReactions.size) scheduleFlush();
   }
-  if (firstError !== undefined) throw firstError;
+  if (hasError) throw firstError;
 }
 
 function scheduleFlush(): void {

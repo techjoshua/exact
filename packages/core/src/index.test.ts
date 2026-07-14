@@ -830,4 +830,59 @@ describe("@exact/core", () => {
     expect(instance.state.errors[0]!.phase).toBe("unmount");
     expect(cleanup).toHaveBeenCalledTimes(1);
   });
+
+  it("actively aborts taskAwait even when its input never settles", async () => {
+    const controller = new AbortController();
+    const awaited = taskAwait(controller.signal, new Promise<string>(() => undefined));
+    controller.abort("rerun");
+    await expect(awaited).rejects.toMatchObject({ name: "AbortError", message: "rerun" });
+  });
+
+  it("disposes tasks when a component is removed before it mounts", () => {
+    const cleanup = vi.fn();
+    const component = createComponentInstance(function Pending(this: Component<{}>) {
+      this.task(() => cleanup);
+      return () => null;
+    }, {});
+    component.unmount("discarded-before-mount");
+    component.markMounted();
+    expect(cleanup).toHaveBeenCalledTimes(1);
+    expect(component.mounted).toBe(false);
+  });
+
+  it("routes compiler-owned timer and asynchronous render lifecycle errors", async () => {
+    vi.useFakeTimers();
+    try {
+      let instance!: Component<{ errors: ErrorReport[] }>;
+      const component = createComponentInstance(function Worker(this: Component<{ errors: ErrorReport[] }>) {
+        instance = this;
+        this.state.errors = [];
+        this.setContext(ErrorContext, createErrorContext(this.state.errors));
+        this.task(({ signal }) => {
+          taskTimeout(signal, () => { throw new Error("timer failed"); }, 1);
+        });
+        this.onRender(async () => { throw new Error("render hook failed"); });
+        return () => null;
+      }, {});
+      renderInstance(component, () => undefined);
+      vi.runAllTimers();
+      await Promise.resolve();
+      expect(instance.state.errors.map(error => error.phase).sort()).toEqual(["render", "timeout"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("isolates the framework error context between application roots", () => {
+    const failing = () => createComponentInstance(function Root(this: Component<{}>) {
+      return () => { throw new Error("root failure"); };
+    }, {});
+    const first = failing();
+    const second = createComponentInstance(function Root(this: Component<{}>) { return () => null; }, {});
+    const firstChild = createComponentInstance(function Child(this: Component<{}>) { return () => null; }, {}, first);
+    const secondChild = createComponentInstance(function Child(this: Component<{}>) { return () => null; }, {}, second);
+    renderInstance(first, () => undefined);
+    expect(firstChild.getContext(ErrorContext).errors).toHaveLength(1);
+    expect(secondChild.getContext(ErrorContext).errors).toHaveLength(0);
+  });
 });

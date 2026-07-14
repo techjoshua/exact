@@ -1,6 +1,7 @@
 import type { Dep, Reaction } from "./types.js";
 
 const deps = new WeakMap<object, Map<PropertyKey, Dep>>();
+const depOwners = new WeakMap<Dep, { target: object; key: PropertyKey }>();
 const reactionStack: Reaction[] = [];
 const trackingPauseFloors: number[] = [];
 
@@ -43,6 +44,9 @@ export function trigger(target: object, key: PropertyKey): void {
 /**
  * Runs a group of writes as one atomic observable state transition.
  * Reactive mutations are rolled back when the callback throws.
+ * The transaction covers synchronous callback execution only. If the callback
+ * returns a promise, synchronous writes are committed before that promise
+ * settles; use separate batches after awaits.
  */
 export function batch<T>(fn: () => T): T {
   const transaction: Transaction = { undos: [], triggers: new Map() };
@@ -110,6 +114,7 @@ export function getDep(target: object, key: PropertyKey): Dep {
   if (!dep) {
     dep = new Set();
     targetDeps.set(key, dep);
+    depOwners.set(dep, { target, key });
   }
 
   return dep;
@@ -119,6 +124,15 @@ export function getDep(target: object, key: PropertyKey): Dep {
 export function cleanupReaction(reaction: Reaction): void {
   for (const dep of reaction.deps) {
     dep.delete(reaction);
+    if (!dep.size) {
+      const owner = depOwners.get(dep);
+      if (owner) {
+        const targetDeps = deps.get(owner.target);
+        if (targetDeps?.get(owner.key) === dep) targetDeps.delete(owner.key);
+        if (targetDeps && !targetDeps.size) deps.delete(owner.target);
+        depOwners.delete(dep);
+      }
+    }
   }
   reaction.deps.clear();
 }

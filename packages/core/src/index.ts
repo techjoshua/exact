@@ -259,7 +259,7 @@ function drainTaskCleanupPromises(signal: AbortSignal | undefined): Promise<void
   return Promise.all([...pending]).then(() => undefined);
 }
 
-function isPromiseLike(value: unknown): value is PromiseLike<void> {
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
   return !!value && (typeof value === "object" || typeof value === "function")
     && typeof (value as PromiseLike<void>).then === "function";
 }
@@ -288,7 +288,7 @@ export function taskIdleCallback(
   const cancel = () => platform.cancelIdleCallback(handle);
   handle = platform.requestIdleCallback(deadline => {
     signal.removeEventListener("abort", cancel);
-    if (!signal.aborted) callback(deadline);
+    if (!signal.aborted) runTaskCallback(signal, "idle-callback", () => callback(deadline));
   }, options);
   if (signal.aborted) cancel();
   else signal.addEventListener("abort", cancel, { once: true });
@@ -344,7 +344,7 @@ export function taskTimeout(signal: AbortSignal, handler: (...args: any[]) => vo
   const abort = () => clearTimeout(timeout);
   timeout = setTimeout((...values: any[]) => {
     signal.removeEventListener("abort", abort);
-    handler(...values);
+    if (!signal.aborted) runTaskCallback(signal, "timeout", () => handler(...values));
   }, delay, ...args);
   if (signal.aborted) abort();
   else signal.addEventListener("abort", abort, { once: true });
@@ -352,7 +352,9 @@ export function taskTimeout(signal: AbortSignal, handler: (...args: any[]) => vo
 }
 
 export function taskInterval(signal: AbortSignal, handler: (...args: any[]) => void, delay?: number, ...args: any[]): ReturnType<typeof setInterval> {
-  const interval = setInterval(handler, delay, ...args);
+  const interval = setInterval((...values: any[]) => {
+    if (!signal.aborted) runTaskCallback(signal, "interval", () => handler(...values));
+  }, delay, ...args);
   if (signal.aborted) clearInterval(interval);
   else signal.addEventListener("abort", () => clearInterval(interval), { once: true });
   return interval;
@@ -363,16 +365,30 @@ export function taskAnimationFrame(signal: AbortSignal, handler: (time: number) 
     requestAnimationFrame(callback: (time: number) => void): number;
     cancelAnimationFrame(id: number): void;
   };
-  const frame = platform.requestAnimationFrame(handler);
-  if (signal.aborted) platform.cancelAnimationFrame(frame);
-  else signal.addEventListener("abort", () => platform.cancelAnimationFrame(frame), { once: true });
+  let frame = 0;
+  const cancel = () => platform.cancelAnimationFrame(frame);
+  frame = platform.requestAnimationFrame(time => {
+    signal.removeEventListener("abort", cancel);
+    if (!signal.aborted) runTaskCallback(signal, "animation-frame", () => handler(time));
+  });
+  if (signal.aborted) cancel();
+  else signal.addEventListener("abort", cancel, { once: true });
   return frame;
 }
 
 export function taskObserver<T extends { disconnect(): void }>(signal: AbortSignal, observer: T): T {
-  if (signal.aborted) observer.disconnect();
-  else signal.addEventListener("abort", () => observer.disconnect(), { once: true });
+  registerTaskCleanup(signal, () => observer.disconnect());
   return observer;
+}
+
+function runTaskCallback(signal: AbortSignal, phase: string, callback: () => void): void {
+  try {
+    callback();
+  } catch (error) {
+    const instance = taskOwners.get(signal);
+    if (instance) handleComponentError(instance, createErrorReport(error, "task", instance, phase));
+    else reportTaskResourceError(signal, error);
+  }
 }
 
 export function taskFetch<T>(signal: AbortSignal, fetcher: (...args: any[]) => T, input: unknown, init?: Record<string, unknown>): T {
@@ -390,9 +406,25 @@ function isAbortSignal(value: unknown): value is AbortSignal {
 
 export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Promise<T> {
   if (signal.aborted) return Promise.reject(createAbortError(signal.reason));
-  return Promise.resolve(value).then(result => {
-    if (signal.aborted) throw createAbortError(signal.reason);
-    return result;
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const abort = () => {
+      if (settled) return;
+      settled = true;
+      reject(createAbortError(signal.reason));
+    };
+    signal.addEventListener("abort", abort, { once: true });
+    Promise.resolve(value).then(result => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener("abort", abort);
+      resolve(result);
+    }, error => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener("abort", abort);
+      reject(error);
+    });
   });
 }
 
@@ -438,8 +470,11 @@ export type ComponentTaskRegistration = {
   ): void;
 };
 
-export type LifecycleHandler = (ctx: { signal: AbortSignal; reason?: string }) => void;
-export type RenderEventHandler = (event: { duration: number; dependencies?: unknown[] }) => void;
+// Callback return values are intentionally permissive: concise callbacks often
+// return values such as Array#push's number. Promise-like values are observed at
+// runtime, while all other results are ignored.
+export type LifecycleHandler = (ctx: { signal: AbortSignal; reason?: string }) => unknown;
+export type RenderEventHandler = (event: { duration: number; dependencies?: unknown[] }) => unknown;
 
 export interface Component<State extends object> {
   state: Reactive<State>;
@@ -470,7 +505,7 @@ export interface Component<State extends object> {
   ): VNode;
   onMount(handler: LifecycleHandler): void;
   onUnmount(handler: LifecycleHandler): void;
-  onRender?(handler: RenderEventHandler): void;
+  onRender(handler: RenderEventHandler): void;
 }
 
 export type ComponentInstance<State extends object> = Component<State> & {
@@ -616,6 +651,7 @@ export function createComponentInstance<State extends object, Props extends Reco
   }) as Reactive<Record<string, unknown>>;
 
   let mounted = false;
+  let disposed = false;
   let renderFunction: RenderFunction = () => null;
   const id = `c${nextComponentId++}`;
 
@@ -751,12 +787,13 @@ export function createComponentInstance<State extends object, Props extends Reco
       instance.renderHandlers.push(handler);
     },
     markMounted(): void {
-      if (mounted) return;
+      if (mounted || disposed) return;
       mounted = true;
       instance.mountController = new AbortController();
       for (const handler of instance.mountHandlers) {
         try {
-          handler({ signal: instance.mountController.signal });
+          const result = handler({ signal: instance.mountController.signal });
+          if (isPromiseLike(result)) observeLifecyclePromise(instance, Promise.resolve(result), "mount");
         } catch (error) {
           handleComponentError(instance, createErrorReport(error, "lifecycle", instance, "mount"));
         }
@@ -766,7 +803,8 @@ export function createComponentInstance<State extends object, Props extends Reco
       updateReactive(props, nextProps);
     },
     unmount(reason = "unmount"): void {
-      if (!mounted) return;
+      if (disposed) return;
+      disposed = true;
       mounted = false;
       instance.renderStop?.();
       instance.scope.stop();
@@ -774,13 +812,18 @@ export function createComponentInstance<State extends object, Props extends Reco
       for (const task of instance.tasks) task.stop();
       for (const handler of instance.unmountHandlers) {
         try {
-          handler({ signal: AbortSignal.abort(reason), reason });
+          const result = handler({ signal: AbortSignal.abort(reason), reason });
+          if (isPromiseLike(result)) observeLifecyclePromise(instance, Promise.resolve(result), "unmount");
         } catch (error) {
           handleComponentError(instance, createErrorReport(error, "lifecycle", instance, "unmount"));
         }
       }
     }
   };
+
+  // Framework fallback errors belong to one application root. A user-provided
+  // ErrorContext installed during construction replaces this seed for its tree.
+  if (!parent) instance.contexts.set(ErrorContext.id, reactiveValue(createErrorContext()));
 
   applyInternalPlugins(instance);
 
@@ -824,10 +867,22 @@ export function renderInstance(instance: ComponentInstance<any>, onInvalidate: (
 
   const duration = performanceNow() - start;
   for (const handler of instance.renderHandlers) {
-    handler({ duration });
+    try {
+      const result = handler({ duration });
+      if (isPromiseLike(result)) observeLifecyclePromise(instance, Promise.resolve(result), "render");
+    } catch (error) {
+      handleComponentError(instance, createErrorReport(error, "lifecycle", instance, "render"));
+    }
   }
 
   return normalizeRenderResult(output);
+}
+
+function observeLifecyclePromise(instance: ComponentInstance<any>, promise: PromiseLike<unknown>, phase: string): void {
+  const observed = Promise.resolve(promise).catch(error => {
+    handleComponentError(instance, createErrorReport(error, "lifecycle", instance, phase));
+  });
+  observeTaskPromise(observed, instance);
 }
 
 /** Runs a function with a task observer that can await async component task work. */
@@ -948,6 +1003,12 @@ function createTask(instance: ComponentInstance<any>, deps: unknown[], work: (..
       task.controller?.abort("rerun");
       const cleanupSettlement = runTaskCleanup(task, instance);
       const resourceSettlement = drainTaskCleanupPromises(previousSignal);
+      if (!task.stops.length) {
+        task.stops = task.sources.map(source => subscribe(source, () => task.run(), { scope: instance.scope }));
+      }
+      // Compiler-rewritten awaits use taskAwait(), which actively rejects on
+      // abort, so the prior generation settles even when its input promise does
+      // not. Waiting here preserves generation and cleanup serialization.
       const pending = [task.settlement, cleanupSettlement, resourceSettlement]
         .filter((value): value is Promise<void> => !!value);
       if (pending.length) {
@@ -963,9 +1024,6 @@ function createTask(instance: ComponentInstance<any>, deps: unknown[], work: (..
       }
       startTaskGeneration(task, instance, generation);
 
-      if (!task.stops.length) {
-        task.stops = task.sources.map(source => subscribe(source, () => task.run()));
-      }
     },
     stop() {
       task.stopped = true;
@@ -1001,8 +1059,8 @@ function startTaskGeneration(task: TaskRegistration, instance: ComponentInstance
     return;
   }
 
-  if (result instanceof Promise) {
-    const observed = result.then(cleanup => {
+  if (isPromiseLike(result)) {
+    const observed = Promise.resolve(result).then(cleanup => {
       if (typeof cleanup !== "function") return;
       if (task.generation === generation && task.controller === controller && !controller.signal.aborted) {
         task.cleanup = cleanup;

@@ -68,7 +68,7 @@ export function updateReactiveValue(
   const { parent, key } = resolveReactivePath(target, path);
   const previous = Reflect.get(parent, key);
   const next = operation(previous);
-  writeReactive(target, path, next);
+  commitReactiveWrite(parent, key, next);
   return returnPrevious ? previous : next;
 }
 
@@ -145,10 +145,13 @@ function conflictingListKeyError(left: string, right: string): Error {
   return new Error(`Conflicting this.map() key extractors for the same collection (${sites[0]} and ${sites[1]}). A reactive collection must have one stable key contract.`);
 }
 
-const proxyCache = new WeakMap<object, object>();
-const readonlyProxyCache = new WeakMap<object, object>();
-const objectRefs = new WeakMap<object, ReactiveRef>();
-const rawObjectRefs = new WeakMap<object, ReactiveRef>();
+const defaultReactiveOptions: ReactiveOptions = Object.freeze({});
+const readonlyReactiveOptionsKey = Object.freeze({ readonly: true });
+const rootProxyCache = new WeakMap<object, WeakMap<object, object>>();
+const parentSourceCache = new WeakMap<object, Map<PropertyKey, WeakMap<object, ReactiveRef>>>();
+const latestObjectRef = new WeakMap<object, ReactiveRef>();
+const latestRawRef = new WeakMap<object, ReactiveRef>();
+const reactiveRawObjects = new WeakSet<object>();
 interface ListKeyRegistration {
   key: (item: unknown) => string;
   signature: string;
@@ -159,7 +162,7 @@ const listKeyExtractors = new WeakMap<object, ListKeyRegistration>();
 const mutatingArrayMethods = new Set<PropertyKey>(["copyWithin", "fill", "pop", "push", "reverse", "shift", "sort", "splice", "unshift"]);
 
 /** Creates a reactive proxy that tracks reads and notifies watchers when writable state changes. */
-export function reactive<T extends object>(value: T, options: ReactiveOptions = {}): Reactive<T> {
+export function reactive<T extends object>(value: T, options: ReactiveOptions = defaultReactiveOptions): Reactive<T> {
   return createReactive(value, options) as Reactive<T>;
 }
 
@@ -315,7 +318,13 @@ export function watch(fn: () => void, scheduler?: () => void, options: WatchOpti
 }
 
 /** Subscribes directly to a reactive reference without running a dependency collection pass. */
-export function subscribe<T>(source: ReactiveRef<T>, callback: () => void): StopHandle {
+export function subscribe<T>(source: ReactiveRef<T>, callback: () => void, options: WatchOptions = {}): StopHandle {
+  const scope = (options.scope ?? currentEffectScope()) as EffectScopeImpl | undefined;
+  const handleError = (error: unknown): void => {
+    const onError = options.onError ?? scope?.onError;
+    if (!onError) throw error;
+    onError(error);
+  };
   const dep = getDep(source.target, source.key);
   const reaction: Reaction = {
     active: true,
@@ -323,9 +332,17 @@ export function subscribe<T>(source: ReactiveRef<T>, callback: () => void): Stop
     deps: new Set([dep]),
     run() {
       reaction.scheduled = false;
-      callback();
+      if (!reaction.active || scope && !scope.active) {
+        reaction.stop();
+        return;
+      }
+      try { callback(); } catch (error) { handleError(error); }
     },
     schedule() {
+      if (!reaction.active || scope && !scope.active) {
+        reaction.stop();
+        return;
+      }
       if (reaction.scheduled) return;
       reaction.scheduled = true;
       queueReaction(reaction);
@@ -333,12 +350,13 @@ export function subscribe<T>(source: ReactiveRef<T>, callback: () => void): Stop
     stop() {
       reaction.active = false;
       reaction.scheduled = false;
-      dep.delete(reaction);
-      reaction.deps.clear();
+      cleanupReaction(reaction);
+      scope?.reactions.delete(reaction);
     }
   };
 
   dep.add(reaction);
+  scope?.reactions.add(reaction);
   return reaction.stop;
 }
 
@@ -365,7 +383,7 @@ export function ref<T>(value: T): ReactiveRef<T> | undefined {
   }
 
   if (value && typeof value === "object") {
-    return objectRefs.get(value as object) as ReactiveRef<T> | undefined;
+    return latestObjectRef.get(value as object) as ReactiveRef<T> | undefined;
   }
 
   return undefined;
@@ -446,7 +464,7 @@ function canUpdateNestedReactive(previous: unknown, next: unknown): boolean {
   const unwrappedPrevious = unwrap(previous);
   const unwrappedNext = unwrap(next);
   if (Object.is(unwrappedPrevious, unwrappedNext)) return false;
-  return (isReactive(previous) || (!!unwrappedPrevious && typeof unwrappedPrevious === "object" && rawObjectRefs.has(unwrappedPrevious)))
+  return (isReactive(previous) || (!!unwrappedPrevious && typeof unwrappedPrevious === "object" && reactiveRawObjects.has(unwrappedPrevious)))
     && isPlainObject(unwrappedPrevious)
     && isPlainObject(unwrappedNext);
 }
@@ -609,23 +627,29 @@ function canReadStructure(value: object): boolean {
   });
 }
 
-function createReactive(value: object, options: ReactiveOptions): object {
+function createReactive(value: object, options: ReactiveOptions, parentSource?: ReactiveRef): object {
   const reactiveTarget = isReactive(value)
     ? (value as { [rawTarget]: object })[rawTarget]
     : value;
-  const cache = options.readonly ? readonlyProxyCache : proxyCache;
-  const cached = cache.get(reactiveTarget);
-  if (cached) return cached;
+  const cached = getCachedProxy(reactiveTarget, options, parentSource);
+  if (cached) {
+    if (parentSource) {
+      registerProxySource(cached, parentSource);
+      registerRawSource(reactiveTarget, parentSource);
+    }
+    return cached;
+  }
 
   const proxy = new Proxy(reactiveTarget, {
     get(target, key, receiver) {
       if (key === proxyMarker) return true;
       if (key === rawTarget) return target;
 
-      objectRefs.get(receiver as object)?.get();
+      const parentSource = latestObjectRef.get(receiver as object);
+      if (parentSource) track(parentSource.target, parentSource.key);
       const current = Reflect.get(target, key, receiver);
       if (Array.isArray(target) && mutatingArrayMethods.has(key) && typeof current === "function") {
-        return (...args: unknown[]) => mutateArray(target, current, args, receiver);
+        return (...args: unknown[]) => mutateArray(target, String(key), current, args, receiver);
       }
       if (options.passthroughKeys?.includes(key)) {
         track(target, key);
@@ -636,41 +660,16 @@ function createReactive(value: object, options: ReactiveOptions): object {
         track(target, key);
         const currentValue = current.get();
         return currentValue && typeof currentValue === "object"
-          ? createReactive(unwrap(currentValue) as object, options)
+          ? createReactive(unwrap(currentValue) as object, options, createParentSource(target, key, options))
           : currentValue;
       }
 
       if (current && typeof current === "object" && isReactiveContainer(unwrap(current))) {
         const currentTarget = unwrap(current) as object;
-        const proxy = createReactive(currentTarget, options);
-        const source = {
-          target,
-          key,
-          get() {
-            track(target, key);
-            const next = Reflect.get(target, key);
-            if (isReactiveValue(next)) {
-              const nextValue = next.get();
-              return nextValue && typeof nextValue === "object"
-                ? createReactive(unwrap(nextValue) as object, options)
-                : nextValue;
-            }
-            return next && typeof next === "object"
-              ? createReactive(unwrap(next) as object, options)
-              : next;
-          },
-          set(value: unknown) {
-            const previous = Reflect.get(target, key);
-            const unwrapped = unwrap(value);
-            if (!hasChanged(previous, unwrapped)) return;
-            recordPropertyUndo(target, key);
-            Reflect.set(target, key, unwrapped);
-            trigger(target, key);
-            if (isArrayStructureKey(target, key)) trigger(target, iterateKey);
-          }
-        };
-        objectRefs.set(proxy, source);
-        rawObjectRefs.set(currentTarget, source);
+        const source = createParentSource(target, key, options);
+        const proxy = createReactive(currentTarget, options, source);
+        registerRawSource(currentTarget, source);
+        registerProxySource(proxy, source);
         return proxy;
       }
 
@@ -719,7 +718,8 @@ function createReactive(value: object, options: ReactiveOptions): object {
       return ok;
     },
     ownKeys(target) {
-      rawObjectRefs.get(target)?.get();
+      const parentSource = latestRawRef.get(target);
+      if (parentSource) track(parentSource.target, parentSource.key);
       track(target, iterateKey);
       return Reflect.ownKeys(target);
     },
@@ -729,8 +729,75 @@ function createReactive(value: object, options: ReactiveOptions): object {
     }
   });
 
-  cache.set(reactiveTarget, proxy);
+  cacheProxy(reactiveTarget, options, parentSource, proxy);
+  if (parentSource) {
+    registerProxySource(proxy, parentSource);
+    registerRawSource(reactiveTarget, parentSource);
+  }
   return proxy;
+}
+
+function createParentSource(target: object, key: PropertyKey, options: ReactiveOptions): ReactiveRef {
+  const optionKey = reactiveOptionsKey(options);
+  let byKey = parentSourceCache.get(target);
+  if (!byKey) parentSourceCache.set(target, byKey = new Map());
+  let byOptions = byKey.get(key);
+  if (!byOptions) byKey.set(key, byOptions = new WeakMap());
+  const cached = byOptions.get(optionKey);
+  if (cached) return cached;
+  const source: ReactiveRef = {
+          target,
+          key,
+          get() {
+            track(target, key);
+            const next = Reflect.get(target, key);
+            if (isReactiveValue(next)) {
+              const nextValue = next.get();
+              return nextValue && typeof nextValue === "object"
+                ? createReactive(unwrap(nextValue) as object, options, source)
+                : nextValue;
+            }
+            return next && typeof next === "object"
+              ? createReactive(unwrap(next) as object, options, source)
+              : next;
+          },
+          set(value: unknown) {
+            const previous = Reflect.get(target, key);
+            const unwrapped = unwrap(value);
+            if (!hasChanged(previous, unwrapped)) return;
+            recordPropertyUndo(target, key);
+            Reflect.set(target, key, unwrapped);
+            trigger(target, key);
+            if (isArrayStructureKey(target, key)) trigger(target, iterateKey);
+          }
+  };
+  byOptions.set(optionKey, source);
+  return source;
+}
+
+function registerRawSource(raw: object, source: ReactiveRef): void {
+  reactiveRawObjects.add(raw);
+  latestRawRef.set(raw, source);
+}
+
+function registerProxySource(proxy: object, source: ReactiveRef): void {
+  latestObjectRef.set(proxy, source);
+}
+
+function getCachedProxy(raw: object, options: ReactiveOptions, source?: ReactiveRef): object | undefined {
+  return rootProxyCache.get(raw)?.get(reactiveOptionsKey(options));
+}
+
+function cacheProxy(raw: object, options: ReactiveOptions, source: ReactiveRef | undefined, proxy: object): void {
+  let byOptions = rootProxyCache.get(raw);
+  if (!byOptions) rootProxyCache.set(raw, byOptions = new WeakMap());
+  byOptions.set(reactiveOptionsKey(options), proxy);
+}
+
+function reactiveOptionsKey(options: ReactiveOptions): object {
+  if (!options.readonly && !options.onReadonlyWrite && !options.passthroughKeys?.length) return defaultReactiveOptions;
+  if (options.readonly && !options.onReadonlyWrite && !options.passthroughKeys?.length) return readonlyReactiveOptionsKey;
+  return options as object;
 }
 
 export function isReactiveValue(value: unknown): value is ReactiveValue & { [reactiveValueRef]: ReactiveRef } {
@@ -749,7 +816,10 @@ function reactiveValueChanged(previous: unknown, next: unknown): boolean {
   return (isReactiveValue(previous) || isReactiveValue(next)) && !Object.is(previous, next);
 }
 
-function mutateArray(target: unknown[], method: Function, args: unknown[], receiver: unknown): unknown {
+function mutateArray(target: unknown[], methodName: string, method: Function, args: unknown[], receiver: unknown): unknown {
+  if ((methodName === "push" || methodName === "pop") && method === Array.prototype[methodName]) {
+    return mutateArrayEnd(target, methodName, method, args, receiver);
+  }
   const previous = target.slice();
   recordArrayUndo(target);
   let result: unknown;
@@ -771,6 +841,38 @@ function mutateArray(target: unknown[], method: Function, args: unknown[], recei
     });
   }
 
+  return result === target ? receiver : result;
+}
+
+function mutateArrayEnd(target: unknown[], methodName: "push" | "pop", method: Function, args: unknown[], receiver: unknown): unknown {
+  const oldLength = target.length;
+  const removed = methodName === "pop" && oldLength > 0
+    ? Reflect.getOwnPropertyDescriptor(target, String(oldLength - 1))
+    : undefined;
+  if (hasActiveTransaction()) {
+    recordTransactionUndo(() => {
+      if (methodName === "push") {
+        target.length = oldLength;
+      } else if (oldLength > 0) {
+        target.length = oldLength;
+        if (removed) Reflect.defineProperty(target, String(oldLength - 1), removed);
+        else Reflect.deleteProperty(target, String(oldLength - 1));
+      }
+    });
+  }
+  const result = method.apply(target, args.map(arg => unwrap(arg)));
+  const newLength = target.length;
+  if (newLength !== oldLength) {
+    batch(() => {
+      if (methodName === "push") {
+        for (let index = oldLength; index < newLength; index++) trigger(target, String(index));
+      } else {
+        trigger(target, String(oldLength - 1));
+      }
+      trigger(target, "length");
+      trigger(target, iterateKey);
+    });
+  }
   return result === target ? receiver : result;
 }
 
