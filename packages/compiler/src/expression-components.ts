@@ -47,6 +47,14 @@ export interface ExpressionComponentSite {
 
 export interface ExpressionComponentPlan {
   readonly sites: ReadonlyMap<string, ExpressionComponentSite>;
+  /** Source-ordered declaration identities used by syntax emission without span-based semantic joins. */
+  readonly declarations: readonly ExpressionFunctionDeclaration[];
+}
+
+export interface ExpressionFunctionDeclaration {
+  readonly id: string;
+  readonly name?: string;
+  readonly componentId?: string;
 }
 
 /** Materializes component and task manifest IR without consulting TypeScript syntax nodes. */
@@ -231,7 +239,16 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
       clientIslands: Object.freeze(clientIslands)
     })]);
   }
-  return Object.freeze({ sites: componentSiteMap(siteEntries) });
+  const declarations = module.walk().functions()
+    .where(reference => reference.node.kind === "FunctionDeclaration" && !!reference.node.span)
+    .toArray()
+    .sort((left, right) => spanStart(left) - spanStart(right))
+    .map(reference => Object.freeze({
+      id: reference.node.id,
+      ...(reference.node.name === undefined ? {} : { name: reference.node.name }),
+      ...(componentIndex.isComponent(reference) ? { componentId: reference.node.id } : {})
+    }));
+  return Object.freeze({ sites: componentSiteMap(siteEntries), declarations: Object.freeze(declarations) });
 }
 
 function componentSiteMap(entries: readonly (readonly [string, ExpressionComponentSite])[]): ReadonlyMap<string, ExpressionComponentSite> {

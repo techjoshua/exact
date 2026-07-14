@@ -33,7 +33,7 @@ import type { ExpressionDerivedPlan } from "./expression-derived.js";
 import { writeSiteKey, type ExpressionWritePlan } from "./expression-writes.js";
 import type { ExpressionTaskPlan, ExpressionTaskResource, ExpressionTaskResourceKind, ExpressionTaskSignalCall } from "./expression-tasks.js";
 import type { ExpressionJsxPlan } from "./expression-jsx.js";
-import type { ExpressionClientIslandSite, ExpressionComponentPlan } from "./expression-components.js";
+import type { ExpressionClientIslandSite, ExpressionComponentPlan, ExpressionFunctionDeclaration } from "./expression-components.js";
 import type {
   ClientIslandCaptures,
   ClientIslandElementNode,
@@ -88,8 +88,7 @@ export function exactJsxTransformer(
     let setupTaskDepth = 0;
     const componentStack: string[] = [];
     const componentSiteStack: string[] = [];
-    const componentSitesBySpan = new Map([...expressionComponents.sites.values()]
-      .map(site => [`${site.start}:${site.end}`, site] as const));
+    const componentDeclarations = bindFunctionDeclarations(sourceFile, expressionComponents.declarations);
     const componentLocalStack: ComponentLocalInfo[] = [];
     const islandCounts = new Map<string, number>();
     const clientIslandDefinitions: ts.FunctionDeclaration[] = [];
@@ -134,9 +133,8 @@ export function exactJsxTransformer(
           );
         }
       }
-      const componentSite = ts.isFunctionDeclaration(node)
-        ? componentSitesBySpan.get(`${node.getStart(sourceFile)}:${node.end}`)
-        : undefined;
+      const componentId = ts.isFunctionDeclaration(node) ? componentDeclarations.get(node)?.componentId : undefined;
+      const componentSite = componentId ? expressionComponents.sites.get(componentId) : undefined;
       if (ts.isFunctionDeclaration(node) && node.name && componentSite) {
         const componentPlacement = componentPlacements.get(node.name.text);
         if (target === "server" && componentPlacements.get(node.name.text) === "client") {
@@ -1770,6 +1768,39 @@ function compoundOperator(kind: ts.SyntaxKind): ts.BinaryOperator | undefined {
 
 function isArrayMutator(name: string): name is "copyWithin" | "fill" | "pop" | "push" | "reverse" | "shift" | "sort" | "splice" | "unshift" {
   return ["copyWithin", "fill", "pop", "push", "reverse", "shift", "sort", "splice", "unshift"].includes(name);
+}
+
+/**
+ * Establishes the one-way handoff from expression semantics to the TypeScript
+ * emission backend. Source order is used only to pair complete declaration
+ * streams; semantic identity is then carried exclusively by expression IDs.
+ */
+function bindFunctionDeclarations(
+  sourceFile: ts.SourceFile,
+  expressions: readonly ExpressionFunctionDeclaration[]
+): ReadonlyMap<ts.FunctionDeclaration, ExpressionFunctionDeclaration> {
+  const syntax: ts.FunctionDeclaration[] = [];
+  const collect = (node: ts.Node): void => {
+    if (ts.isFunctionDeclaration(node)) syntax.push(node);
+    ts.forEachChild(node, collect);
+  };
+  collect(sourceFile);
+  syntax.sort((left, right) => left.getStart(sourceFile) - right.getStart(sourceFile));
+  if (syntax.length !== expressions.length) {
+    throw new Error(`Expression emission declaration mismatch in ${sourceFile.fileName}: TypeScript found ${syntax.length}, expressions found ${expressions.length}`);
+  }
+  const bindings = new Map<ts.FunctionDeclaration, ExpressionFunctionDeclaration>();
+  for (let index = 0; index < syntax.length; index++) {
+    const declaration = syntax[index]!;
+    const expression = expressions[index]!;
+    const name = declaration.name?.text;
+    if (name !== expression.name) {
+      const location = sourceFile.getLineAndCharacterOfPosition(declaration.getStart(sourceFile));
+      throw new Error(`Expression emission declaration mismatch in ${sourceFile.fileName}:${location.line + 1}:${location.character + 1}: expected ${JSON.stringify(expression.name)}, found ${JSON.stringify(name)}`);
+    }
+    bindings.set(declaration, expression);
+  }
+  return bindings;
 }
 
 function allocateName(base: string, used: Set<string>): string {
