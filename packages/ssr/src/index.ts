@@ -95,7 +95,10 @@ export function renderToHydratableString(vnode: VNode, options: RenderToStringOp
     stateContracts: options.stateContracts,
     actionBoundaries: options.actionBoundaries,
     scriptId: options.scriptId,
-    nonce: options.nonce
+    nonce: options.nonce,
+    maxHydrationDepth: options.maxHydrationDepth,
+    maxHydrationNodes: options.maxHydrationNodes,
+    maxHydrationBytes: options.maxHydrationBytes
   });
   return {
     ...result,
@@ -178,7 +181,10 @@ export async function renderToHydratableStringAsync(vnode: VNode, options: Rende
     stateContracts: options.stateContracts,
     actionBoundaries: options.actionBoundaries,
     scriptId: options.scriptId,
-    nonce: options.nonce
+    nonce: options.nonce,
+    maxHydrationDepth: options.maxHydrationDepth,
+    maxHydrationNodes: options.maxHydrationNodes,
+    maxHydrationBytes: options.maxHydrationBytes
   });
   return {
     ...result,
@@ -220,7 +226,10 @@ async function streamDocumentRender(
           stateContracts: options.stateContracts,
           actionBoundaries: options.actionBoundaries,
           scriptId: options.scriptId,
-          nonce: options.nonce
+          nonce: options.nonce,
+          maxHydrationDepth: options.maxHydrationDepth,
+          maxHydrationNodes: options.maxHydrationNodes,
+          maxHydrationBytes: options.maxHydrationBytes
         })
       });
     }

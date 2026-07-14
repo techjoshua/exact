@@ -502,6 +502,25 @@ describe("@exact/ssr", () => {
     })).toThrow("Hydration payload must be JSON-serializable");
   });
 
+  it("bounds hydration payload traversal and encoded size without invoking accessors", () => {
+    const deep: Record<string, unknown> = {};
+    let cursor = deep;
+    for (let index = 0; index < 2_000; index++) {
+      const next: Record<string, unknown> = {};
+      cursor.next = next;
+      cursor = next;
+    }
+    expect(() => renderHydrationScript({ state: deep })).toThrow("Hydration payload must be JSON-serializable");
+    expect(() => renderHydrationScript({ state: { text: "x".repeat(1_000) }, maxHydrationBytes: 64 }))
+      .toThrow("exceeded maxHydrationBytes");
+
+    let reads = 0;
+    const state = Object.create(Object.prototype);
+    Object.defineProperty(state, "danger", { enumerable: true, get() { reads++; return "value"; } });
+    expect(() => renderHydrationScript({ state })).toThrow("Hydration payload must be JSON-serializable");
+    expect(reads).toBe(0);
+  });
+
   it("renders html with hydration bootstrap data", () => {
     const result = renderToHydratableString(createVNode("p", null, "ready"), {
       markers: false,

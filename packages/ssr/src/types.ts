@@ -37,6 +37,12 @@ export type HydrationScriptOptions = {
   actionBoundaries?: Record<string, readonly string[]>;
   scriptId?: string;
   nonce?: string;
+  /** Maximum hydration JSON graph depth. Defaults to 100. */
+  maxHydrationDepth?: number;
+  /** Maximum hydration JSON values/properties. Defaults to 100,000. */
+  maxHydrationNodes?: number;
+  /** Maximum encoded hydration JSON bytes. Defaults to 16 MiB. */
+  maxHydrationBytes?: number;
 };
 
 export type HydratableStringResult = RenderToStringResult & {

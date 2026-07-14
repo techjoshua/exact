@@ -10,10 +10,16 @@ export function renderHydrationScript(options: HydrationScriptOptions = {}): str
     stateContracts: options.stateContracts,
     actionBoundaries: options.actionBoundaries
   });
-  if (!isStrictJsonSafe(payloadValue)) {
+  if (!isStrictJsonSafe(payloadValue, {
+    maxDepth: options.maxHydrationDepth,
+    maxNodes: options.maxHydrationNodes
+  })) {
     throw new Error("Hydration payload must be JSON-serializable");
   }
   const payload = serializeHydrationPayload(payloadValue);
+  if (new TextEncoder().encode(payload).byteLength > positiveLimit(options.maxHydrationBytes, 16 * 1024 * 1024)) {
+    throw new Error("Hydration payload exceeded maxHydrationBytes");
+  }
   const id = options.scriptId ?? "__exact_hydration";
   const nonce = options.nonce ? ` nonce="${escapeAttr(options.nonce)}"` : "";
   return `<script type="application/json" id="${escapeAttr(id)}"${nonce}>${payload}</script>`;
@@ -29,25 +35,7 @@ export function serializeHydrationPayload(payload: Record<string, unknown>): str
 
 /** Returns the first non-JSON-safe path in a value, or undefined when it is safe. */
 export function jsonUnsafePath(value: unknown, path = "$", seen = new Set<object>()): string | undefined {
-  if (value === undefined || value === null) return undefined;
-  if (typeof value === "string" || typeof value === "boolean") return undefined;
-  if (typeof value === "number") return Number.isFinite(value) ? undefined : path;
-  if (typeof value !== "object") return path;
-  if (seen.has(value)) return path;
-  seen.add(value);
-  if (Array.isArray(value)) {
-    for (let index = 0; index < value.length; index++) {
-      const unsafe = jsonUnsafePath(value[index], `${path}[${index}]`, seen);
-      if (unsafe) return unsafe;
-    }
-    return undefined;
-  }
-  if (Object.getPrototypeOf(value) !== Object.prototype) return path;
-  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-    const unsafe = jsonUnsafePath(item, `${path}.${key}`, seen);
-    if (unsafe) return unsafe;
-  }
-  return undefined;
+  return findJsonUnsafePath(value, path, seen, false, {});
 }
 
 /** Returns whether a value can be safely serialized into hydration JSON. */
@@ -63,14 +51,51 @@ function omitUndefinedProperties(value: Record<string, unknown>): Record<string,
   return output;
 }
 
-function isStrictJsonSafe(value: unknown, seen = new Set<object>()): boolean {
-  if (value === null) return true;
-  if (typeof value === "string" || typeof value === "boolean") return true;
-  if (typeof value === "number") return Number.isFinite(value);
-  if (typeof value !== "object") return false;
-  if (seen.has(value)) return false;
-  seen.add(value);
-  if (Array.isArray(value)) return value.every(item => isStrictJsonSafe(item, seen));
-  if (Object.getPrototypeOf(value) !== Object.prototype) return false;
-  return Object.values(value as Record<string, unknown>).every(item => isStrictJsonSafe(item, seen));
+function isStrictJsonSafe(value: unknown, limits: { maxDepth?: number; maxNodes?: number }): boolean {
+  return findJsonUnsafePath(value, "$", new Set(), true, limits) === undefined;
+}
+
+function findJsonUnsafePath(
+  value: unknown,
+  path: string,
+  seen: Set<object>,
+  strict: boolean,
+  limits: { maxDepth?: number; maxNodes?: number }
+): string | undefined {
+  const maxDepth = positiveLimit(limits.maxDepth, 100);
+  const maxNodes = positiveLimit(limits.maxNodes, 100_000);
+  const pending: Array<{ value: unknown; path: string; depth: number }> = [{ value, path, depth: 0 }];
+  let nodes = 0;
+  try {
+    while (pending.length) {
+      const current = pending.pop()!;
+      if (++nodes > maxNodes || current.depth > maxDepth) return current.path;
+      const item = current.value;
+      if (item === null || (!strict && item === undefined)) continue;
+      if (typeof item === "string" || typeof item === "boolean") continue;
+      if (typeof item === "number") { if (!Number.isFinite(item)) return current.path; continue; }
+      if (typeof item !== "object" || seen.has(item)) return current.path;
+      seen.add(item);
+      if (!Array.isArray(item) && Object.getPrototypeOf(item) !== Object.prototype) return current.path;
+      const keys = Object.keys(item);
+      if (nodes + pending.length + keys.length > maxNodes) return current.path;
+      for (let index = keys.length - 1; index >= 0; index--) {
+        const key = keys[index]!;
+        const descriptor = Object.getOwnPropertyDescriptor(item, key);
+        if (!descriptor || !("value" in descriptor)) return `${current.path}${Array.isArray(item) ? `[${key}]` : `.${key}`}`;
+        pending.push({
+          value: descriptor.value,
+          path: `${current.path}${Array.isArray(item) ? `[${key}]` : `.${key}`}`,
+          depth: current.depth + 1
+        });
+      }
+    }
+    return undefined;
+  } catch {
+    return path;
+  }
+}
+
+function positiveLimit(value: number | undefined, fallback: number): number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
