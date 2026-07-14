@@ -1437,6 +1437,15 @@ function transformTaskWork(
     }
     const signalCall = signalFor(current);
     if (signalCall && ts.isCallExpression(current)) {
+      if (signalCall.eventOptions) {
+        markAbortOptions();
+        const args = current.arguments.map(argument => ts.visitNode(argument, taskVisitor) as ts.Expression);
+        while (args.length < signalCall.parameter) args.push(factory.createIdentifier("undefined"));
+        args[signalCall.parameter] = factory.createCallExpression(factory.createIdentifier(helpers.abortOptions), undefined, [
+          args[signalCall.parameter] ?? factory.createIdentifier("undefined"), signal
+        ]);
+        return factory.updateCallExpression(current, ts.visitNode(current.expression, taskVisitor) as ts.Expression, current.typeArguments, args);
+      }
       markSignal(signalCall.mode);
       const args = current.arguments.map(argument => ts.visitNode(argument, taskVisitor) as ts.Expression);
       while (args.length < signalCall.parameter) args.push(factory.createIdentifier("undefined"));
@@ -1455,14 +1464,6 @@ function transformTaskWork(
         current.typeArguments,
         args
       );
-    }
-    if (ts.isCallExpression(current) && isGlobalAddEventListener(current)) {
-      markAbortOptions();
-      const args = current.arguments.map(argument => ts.visitNode(argument, taskVisitor) as ts.Expression);
-      const options = args[2] ?? factory.createIdentifier("undefined");
-      const managed = factory.createCallExpression(factory.createIdentifier(helpers.abortOptions), undefined, [options, signal]);
-      const nextArgs = args.length >= 3 ? [...args.slice(0, 2), managed, ...args.slice(3)] : [...args, managed];
-      return factory.updateCallExpression(current, ts.visitNode(current.expression, taskVisitor) as ts.Expression, current.typeArguments, nextArgs);
     }
     return ts.visitEachChild(current, taskVisitor, context);
   };
@@ -1483,7 +1484,7 @@ function containsManagedTaskWork(
   let found = false;
   const visit = (current: ts.Node): void => {
     if (found) return;
-    if (ts.isAwaitExpression(current) || resourceFor(current) || signalFor(current) || ts.isCallExpression(current) && isGlobalAddEventListener(current)) {
+    if (ts.isAwaitExpression(current) || resourceFor(current) || signalFor(current)) {
       found = true;
       return;
     }

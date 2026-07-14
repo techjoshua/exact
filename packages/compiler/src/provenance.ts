@@ -126,10 +126,31 @@ function isSafeDerivedInitializer(module: BoundModule, initializer: NodeRef): bo
       if (!callback) return false;
     }
     if (kind === "CallExpression") {
-      if (!reference.target?.isMember() || !safeCollectionMethods.has(reference.target.name ?? "")) return false;
+      if (!reference.target?.isMember() || !safeCollectionMethods.has(reference.target.name ?? "")
+        || !isIntrinsicCollectionCall(reference)) return false;
     }
   }
   return true;
+}
+
+function isIntrinsicCollectionCall(call: NodeRef): boolean {
+  const receiver = call.target?.target;
+  const directReactive = /^this\.(?:state|props)(?:\.|\[)/.test(receiver?.node.text?.trim() ?? "");
+  if (directReactive && (!receiver?.type || receiver.type.kind === "any" || receiver.type.kind === "unknown" || isIntrinsicCollection(receiver.type))) return true;
+  const declaration = call.node.resolvedSignature?.declarationSource?.replace(/\\/g, "/");
+  if (declaration) return /\/typescript\/lib\/lib\.[^/]+\.d\.ts$/i.test(declaration);
+  // A missing Component ambient type can leave direct state collections as
+  // `any` in isolated transforms. Preserve the established state-derived path;
+  // known custom signatures above are still rejected deterministically.
+  return isIntrinsicCollection(receiver?.type);
+}
+
+function isIntrinsicCollection(type: NodeRef["type"]): boolean {
+  if (!type) return false;
+  if (type.collectionKind) return true;
+  return /(?:\[\]|\bArray<|\bReadonlyArray<)/.test(type.display)
+    || ["length", "filter", "map", "slice", "reduce"].every(property => type.properties.includes(property))
+    || type.unionMembers.length > 0 && type.unionMembers.every(isIntrinsicCollection);
 }
 
 function isWithin(reference: NodeRef, ancestor: NodeRef): boolean {

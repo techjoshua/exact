@@ -46,6 +46,8 @@ export interface ExpressionCallSignature {
   readonly parameters: readonly ExpressionCallParameter[];
   readonly returnType: ExpressionType;
   readonly typeParameters: readonly string[];
+  /** Package-owned provenance for distinguishing platform intrinsics from lookalikes. */
+  readonly declarationSource?: string;
 }
 
 export interface ExpressionTypeProperty {
@@ -68,6 +70,8 @@ export interface ExpressionType {
   readonly callSignatures: readonly ExpressionCallSignature[];
   readonly typeArguments: readonly ExpressionType[];
   readonly typeParameters: readonly string[];
+  /** Compiler-owned intrinsic collection classification. */
+  readonly collectionKind?: "array" | "readonly-array" | "tuple";
 }
 
 export type ScopeKind = "module" | "function" | "class" | "block" | "catch";
@@ -118,12 +122,15 @@ export interface ExpressionNode {
   readonly name?: string;
   readonly operator?: string;
   readonly generatedText?: string;
+  /** The overload selected by TypeScript for this call expression, when known. */
+  readonly resolvedSignature?: ExpressionCallSignature;
 }
 
 export interface CallExpressionNode extends ExpressionNode {
   readonly kind: "CallExpression" | "NewExpression";
   readonly target: ExpressionNode;
   readonly arguments: readonly ExpressionNode[];
+  readonly resolvedSignature?: ExpressionCallSignature;
 }
 
 export interface FunctionExpressionNode extends ExpressionNode {

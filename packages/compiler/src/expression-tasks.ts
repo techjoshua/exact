@@ -56,6 +56,7 @@ export interface ExpressionTaskSignalCall {
   readonly end: number;
   readonly parameter: number;
   readonly mode: "direct" | "options";
+  readonly eventOptions?: boolean;
 }
 
 const browserGlobals = new Set(["window", "document", "navigator", "location", "history", "localStorage", "sessionStorage", "requestAnimationFrame", "cancelAnimationFrame", "requestIdleCallback", "cancelIdleCallback", "MutationObserver", "ResizeObserver", "IntersectionObserver", "WebSocket", "EventSource", "BroadcastChannel", "Worker"]);
@@ -256,12 +257,14 @@ function taskResource(
 function taskSignalCall(
   call: NodeRef,
   localVariables: ReadonlySet<Variable>
-): Readonly<{ parameter: number; mode: "direct" | "options" }> | undefined {
-  if (isTaskCall(call) || isKnownGlobalListener(call, localVariables)) return undefined;
+): Readonly<{ parameter: number; mode: "direct" | "options"; eventOptions?: boolean }> | undefined {
+  if (isTaskCall(call)) return undefined;
+  if (isKnownGlobalListener(call, localVariables)) return { parameter: 2, mode: "options", eventOptions: true };
   const target = call.target;
   const variable = target?.rootVariable ?? target?.variable;
   const name = target?.name ?? target?.node.text?.trim();
-  for (const signature of target?.type?.callSignatures ?? []) {
+  const signatures = call.node.resolvedSignature ? [call.node.resolvedSignature] : target?.type?.callSignatures ?? [];
+  for (const signature of signatures) {
     for (let index = 0; index < signature.parameters.length; index++) {
       const parameter = signature.parameters[index]!;
       const mode = acceptsAbortSignal(parameter.type) ? "direct" : hasAbortSignalOption(parameter.type) ? "options" : undefined;
@@ -374,7 +377,7 @@ function collectStateAliases(module: BoundModule, work: NodeRef): ReadonlyMap<st
 
 function bindPattern(pattern: NodeRef, base: readonly string[], aliases: Map<string, readonly string[]>): void {
   if (pattern.node.kind === "Identifier") {
-    if (pattern.variable) aliases.set(pattern.variable.id, base);
+    if (pattern.variable && !pattern.variable.mutable) aliases.set(pattern.variable.id, base);
     return;
   }
   const bindings = pattern.node.kind === "BindingElement" ? [pattern] : pattern.children().where(child => child.node.kind === "BindingElement").toArray();

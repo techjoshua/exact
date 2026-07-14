@@ -25,11 +25,19 @@ function dependencyCandidates(filename: string, specifier: string): readonly str
   return [...new Set([resolved, `${stem}.ts`, `${stem}.tsx`, `${stem}.mts`, `${stem}.cts`].map(canonical))];
 }
 
-function moduleDependencies(filename: string, module: BoundModule): readonly string[] {
+function moduleDependencies(filename: string, module: BoundModule, project: ExpressionProject): readonly string[] {
   const dependencies = new Set<string>();
-  for (const reference of module.walk().references()) {
-    const specifier = reference.variable?.importedFrom;
-    if (specifier) for (const candidate of dependencyCandidates(filename, specifier)) dependencies.add(candidate);
+  // Import declarations include side-effect-only imports, which have no bound
+  // reference to discover. Resolution is delegated to the encapsulated TS project.
+  for (const declaration of module.walk().ofKind("ImportDeclaration")) {
+    const match = /\bfrom\s*(["'])(.*?)\1|^\s*import\s*(["'])(.*?)\3/.exec(declaration.node.text ?? "");
+    const specifier = match?.[2] ?? match?.[4];
+    if (!specifier) continue;
+    const resolved = project.resolveModuleSpecifier(specifier, filename);
+    if (resolved) dependencies.add(canonical(resolved));
+    // Virtual overlays may not yet be visible to every module-resolution mode;
+    // track their TS extension substitutions in addition to the resolved file.
+    for (const candidate of dependencyCandidates(filename, specifier)) dependencies.add(candidate);
   }
   return [...dependencies];
 }
@@ -87,7 +95,7 @@ export function expressionModuleFor(filename: string, source: string): BoundModu
   invalidateDependents(absolute);
   removeCacheEntry(moduleKey);
   const module = project.updateModule(absolute, source);
-  const dependencies = moduleDependencies(absolute, module);
+  const dependencies = moduleDependencies(absolute, module, project);
   modules.set(moduleKey, { filename: absolute, source, module, dependencies });
   for (const dependency of dependencies) {
     let consumers = dependents.get(dependency);
@@ -99,7 +107,21 @@ export function expressionModuleFor(filename: string, source: string): BoundModu
 
 /** Primarily for isolated tests and long-running hosts that dispose a workspace. */
 export function clearExpressionProjectCache(): void {
+  for (const project of projects.values()) project.dispose();
   projects.clear();
   modules.clear();
   dependents.clear();
+}
+
+/** Invalidates an HMR file and every cached consumer resolved through TypeScript. */
+export function invalidateExpressionModule(filename: string, removed = false): void {
+  const absolute = path.resolve(filename);
+  invalidateDependents(absolute);
+  for (const [key, entry] of [...modules]) {
+    if (canonical(entry.filename) === canonical(absolute)) removeCacheEntry(key);
+  }
+  for (const project of projects.values()) {
+    if (removed) project.removeModule(absolute);
+    else project.invalidateFile(absolute);
+  }
 }

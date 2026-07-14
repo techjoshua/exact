@@ -118,6 +118,21 @@ export function total(items: number[]) {
     expect(module.controlFlowOf(fn)).toBe(graph);
   });
 
+  it("models switch fallthrough, loop control, and finally execution", () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__expressions_control_edges.ts");
+    const module = project.updateModule(filename, `function run(value: number) {
+      while (value--) { if (value === 2) continue; if (value === 1) break; }
+      switch (value) { case 0: value++; case 1: value++; break; default: return value; }
+      try { return value; } finally { value++; }
+    }`);
+    const graph = module.controlFlowOf(module.walk().functions().single());
+    const flow = (kind: string) => graph.nodes.filter(node => node.expression.kind === kind);
+    expect(flow("ContinueStatement")[0]?.successors.length).toBe(1);
+    expect(flow("BreakStatement").some(node => node.successors.length === 1)).toBe(true);
+    expect(flow("ReturnStatement").some(node => node.successors.some(id => graph.byId.get(id)?.expression.kind === "ExpressionStatement"))).toBe(true);
+  });
+
   it("constructs, emits, and binds typed modules programmatically", async () => {
     const builder = expressions.module(path.join(root, "apps/kanban/src/__generated_expression.ts"));
     const number = builder.types.number();
@@ -254,6 +269,16 @@ export function total(items: number[]) {
     expect(output).toBe("// keep\nexport const value = (10 + 20);\n");
   });
 
+  it("rejects overlapping structural edits instead of silently dropping one", () => {
+    const project = createExpressionProject({ tsconfigPath: kanbanConfig });
+    const filename = path.join(root, "apps/kanban/src/__overlap_rewrite.ts");
+    const module = project.updateModule(filename, "const value = 1 + 2;");
+    expect(() => rewriteModule(module, rewriter => {
+      rewriter.replaceTextWhere(reference => reference.node.kind === "BinaryExpression", () => "3");
+      rewriter.replaceTextWhere(reference => reference.node.text === "1", () => "4");
+    })).toThrow(/Overlapping expression rewrites/);
+  });
+
   it("maps parsed, generated, and rebound lines back to immutable original source", async () => {
     const project = createExpressionProject({ tsconfigPath: kanbanConfig });
     const filename = path.join(root, "apps/kanban/src/__source_map.ts");
@@ -321,5 +346,16 @@ export function total(items: number[]) {
     const latest = project.updateModule(upper, "export const upper = 2;");
     expect(latest.emit().code).toContain("upper = 2");
     if (process.platform === "win32") expect(project.getModule(lower).emit().code).toContain("upper = 2");
+  });
+
+  it("assigns collision-free identities to same-named sibling block bindings", () => {
+    const project = createExpressionProject({ tsconfigPath: path.join(root, "apps/kanban/tsconfig.json") });
+    const filename = path.join(root, "apps/kanban/src/__expressions_block_ids.ts");
+    const module = project.updateModule(filename, `function view(flag: boolean) { if (flag) { const value = 1; void value; } else { const value = 2; void value; } }`);
+    const values = module.walk().references().where(reference => reference.name === "value").toArray();
+    expect(new Set(values.map(reference => reference.variable?.id)).size).toBe(2);
+    const firstId = values[0]?.variable?.id;
+    const updated = project.updateModule(filename, `function view(flag: boolean) { if (flag) { const value = 100; void value; } else { const value = 2; void value; } }`);
+    expect(updated.walk().references().where(reference => reference.name === "value").first()?.variable?.id).toBe(firstId);
   });
 });

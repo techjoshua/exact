@@ -30,4 +30,16 @@ describe("shared expression projects", () => {
     expect(rebound).not.toBe(first);
     expect(rebound.walk().references().first(reference => reference.name === "result")?.variable?.type?.kind).toBe("string");
   });
+
+  it("invalidates consumers of side-effect-only imports resolved by TypeScript", () => {
+    clearExpressionProjectCache();
+    const root = path.resolve(import.meta.dirname, "../../..");
+    const setup = path.join(root, "apps/kanban/src/__cache_setup.ts");
+    const consumer = path.join(root, "apps/kanban/src/__cache_side_effect.ts");
+    const source = 'import "./__cache_setup.js"; export const ready = true;';
+    expressionModuleFor(setup, "globalThis.name = 'first';");
+    const first = expressionModuleFor(consumer, source);
+    expressionModuleFor(setup, "globalThis.name = 'second';");
+    expect(expressionModuleFor(consumer, source)).not.toBe(first);
+  });
 });

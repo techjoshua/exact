@@ -57,4 +57,38 @@ describe("expression-backed writes", () => {
     expect(result.module.emit().code).toContain(`__exactWrite(this.state, ["project","count"], () => (2))`);
     expect(result.module.emit().code).toContain(`__exactArrayMutation(this.state, ["items"], "splice", () => [0, 1])`);
   });
+
+  it("does not retain mutable aliases after reassignment or confuse a nested function's this", () => {
+    const project = createExpressionProject({ tsconfigPath: path.join(root, "apps/kanban/tsconfig.json") });
+    const module = project.updateModule(path.join(root, "apps/kanban/src/__expression_alias_flow.tsx"), `
+      export function Counter(this: Component<{ a: { count: number }; b: { count: number } }>) {
+        let item = this.state.a;
+        item.count = 0;
+        item = this.state.b;
+        item.count = 1;
+        function nested(this: { state: { count: number } }) { this.state.count = 2; }
+      }
+    `);
+    expect([...analyzeExpressionWrites(module).sites.values()].map(site => site.path)).toEqual([["a", "count"]]);
+  });
+
+  it("decodes statically escaped element-access keys", () => {
+    const project = createExpressionProject({ tsconfigPath: path.join(root, "apps/kanban/tsconfig.json") });
+    const module = project.updateModule(path.join(root, "apps/kanban/src/__expression_escaped_key.tsx"), `
+      export function Counter(this: Component<Record<string, number>>) { this.state["line\\nkey"] = 1; }
+    `);
+    expect([...analyzeExpressionWrites(module).sites.values()][0]?.path).toEqual(["line\nkey"]);
+  });
+
+  it("composes nested state writes in one expression lowering pass", () => {
+    const project = createExpressionProject({ tsconfigPath: path.join(root, "apps/kanban/tsconfig.json") });
+    const module = project.updateModule(path.join(root, "apps/kanban/src/__expression_nested_write.tsx"), `
+      export function Counter(this: Component<{ a: number; b: number }>) {
+        return this.state.a = (this.state.b = 1);
+      }
+    `);
+    const result = lowerExpressionWrites(module);
+    expect(result.count).toBe(2);
+    expect(result.module.emit().code).toContain(`__exactWrite(this.state, ["a"], () => ((__exactWrite(this.state, ["b"], () => (1)))))`);
+  });
 });

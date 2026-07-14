@@ -29,6 +29,8 @@ interface Fragment {
   readonly entry?: string;
   readonly exits: readonly string[];
   readonly terminals: readonly string[];
+  readonly breaks?: readonly string[];
+  readonly continues?: readonly string[];
 }
 
 const cache = new WeakMap<ExpressionNode, ControlFlowGraph>();
@@ -56,6 +58,8 @@ export function buildControlFlowGraph(owner: NodeRef): ControlFlowGraph {
     let entry: string | undefined;
     let exits: readonly string[] = [];
     const terminals: string[] = [];
+    const breaks: string[] = [];
+    const continues: string[] = [];
     for (const value of values) {
       const next = fragment(value);
       if (!next.entry) continue;
@@ -63,8 +67,12 @@ export function buildControlFlowGraph(owner: NodeRef): ControlFlowGraph {
       for (const exit of exits) connect(exit, next.entry);
       exits = next.exits;
       terminals.push(...next.terminals);
+      breaks.push(...(next.breaks ?? []));
+      continues.push(...(next.continues ?? []));
+      // Abrupt completion cannot flow into the following statement.
+      if (next.breaks?.length || next.continues?.length) exits = [];
     }
-    return { entry, exits, terminals };
+    return { entry, exits, terminals, breaks, continues };
   };
 
   const fragment = (expression: ExpressionNode): Fragment => {
@@ -81,7 +89,9 @@ export function buildControlFlowGraph(owner: NodeRef): ControlFlowGraph {
       return {
         entry: decision.id,
         exits: [...(whenTrue?.exits ?? [decision.id]), ...(whenFalse?.exits ?? [decision.id])],
-        terminals: [...(whenTrue?.terminals ?? []), ...(whenFalse?.terminals ?? [])]
+        terminals: [...(whenTrue?.terminals ?? []), ...(whenFalse?.terminals ?? [])],
+        breaks: [...(whenTrue?.breaks ?? []), ...(whenFalse?.breaks ?? [])],
+        continues: [...(whenTrue?.continues ?? []), ...(whenFalse?.continues ?? [])]
       };
     }
     if (isLoop(expression.kind)) {
@@ -90,26 +100,58 @@ export function buildControlFlowGraph(owner: NodeRef): ControlFlowGraph {
       const contents = body ? fragment(body) : undefined;
       if (contents?.entry) connect(loop.id, contents.entry);
       for (const exit of contents?.exits ?? []) connect(exit, loop.id);
-      return { entry: loop.id, exits: [loop.id], terminals: contents?.terminals ?? [] };
+      for (const continuation of contents?.continues ?? []) connect(continuation, loop.id);
+      return { entry: loop.id, exits: [loop.id, ...(contents?.breaks ?? [])], terminals: contents?.terminals ?? [] };
     }
-    if (expression.kind === "TryStatement" || expression.kind === "SwitchStatement") {
+    if (expression.kind === "SwitchStatement") {
       const branch = addNode(expression);
-      const bodies = expression.children.filter(child => child.kind === "Block" || child.kind === "CaseBlock" || child.kind === "CatchClause");
-      const parts = bodies.map(fragment);
-      for (const part of parts) if (part.entry) connect(branch.id, part.entry);
+      const caseBlock = expression.children.find(child => child.kind === "CaseBlock");
+      const clauses = caseBlock?.children.filter(child => child.kind === "CaseClause" || child.kind === "DefaultClause") ?? [];
+      const parts = clauses.map(fragment);
+      for (let index = 0; index < parts.length; index++) {
+        const part = parts[index]!;
+        if (part.entry) connect(branch.id, part.entry);
+        const next = parts[index + 1]?.entry;
+        if (next) for (const exit of part.exits) connect(exit, next);
+      }
       return {
         entry: branch.id,
-        exits: parts.length ? parts.flatMap(part => part.exits) : [branch.id],
+        exits: [branch.id, ...(parts.at(-1)?.exits ?? []), ...parts.flatMap(part => part.breaks ?? [])],
         terminals: parts.flatMap(part => part.terminals)
       };
+    }
+    if (expression.kind === "TryStatement") {
+      const branch = addNode(expression);
+      const tryBlock = expression.children.find(child => child.kind === "Block");
+      const catchClause = expression.children.find(child => child.kind === "CatchClause");
+      const blocks = expression.children.filter(child => child.kind === "Block");
+      const finallyBlock = blocks.length > 1 ? blocks.at(-1) : undefined;
+      const attempted = tryBlock ? fragment(tryBlock) : undefined;
+      const caught = catchClause ? fragment(catchClause) : undefined;
+      if (attempted?.entry) connect(branch.id, attempted.entry);
+      if (caught?.entry) connect(branch.id, caught.entry);
+      const incoming = [...(attempted?.exits ?? [branch.id]), ...(caught?.exits ?? []),
+        ...(attempted?.terminals ?? []), ...(caught?.terminals ?? [])];
+      if (!finallyBlock) return {
+        entry: branch.id,
+        exits: [...(attempted?.exits ?? [branch.id]), ...(caught?.exits ?? [])],
+        terminals: [...(attempted?.terminals ?? []), ...(caught?.terminals ?? [])],
+        breaks: [...(attempted?.breaks ?? []), ...(caught?.breaks ?? [])],
+        continues: [...(attempted?.continues ?? []), ...(caught?.continues ?? [])]
+      };
+      const finalizer = fragment(finallyBlock);
+      if (finalizer.entry) for (const from of incoming) connect(from, finalizer.entry);
+      return { entry: branch.id, exits: finalizer.exits, terminals: finalizer.terminals,
+        breaks: finalizer.breaks, continues: finalizer.continues };
     }
     if (expression.kind === "CatchClause" || expression.kind === "CaseBlock" || expression.kind === "CaseClause" || expression.kind === "DefaultClause") {
       return sequence(expression.children.filter(isExecutable));
     }
     const current = addNode(expression);
-    const terminal = expression.kind === "ReturnStatement" || expression.kind === "ThrowStatement"
-      || expression.kind === "BreakStatement" || expression.kind === "ContinueStatement";
+    const terminal = expression.kind === "ReturnStatement" || expression.kind === "ThrowStatement";
     current.terminal = terminal;
+    if (expression.kind === "BreakStatement") return { entry: current.id, exits: [], terminals: [], breaks: [current.id] };
+    if (expression.kind === "ContinueStatement") return { entry: current.id, exits: [], terminals: [], continues: [current.id] };
     return { entry: current.id, exits: terminal ? [] : [current.id], terminals: terminal ? [current.id] : [] };
   };
 

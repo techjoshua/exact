@@ -1,4 +1,4 @@
-import { rewriteModule, type BoundModule, type NodeRef, type UnboundModule } from "@exact/expressions";
+import { lowerModuleText, rewriteModule, type BoundModule, type NodeRef, type UnboundModule, type Variable } from "@exact/expressions";
 
 export interface ExpressionWriteResult {
   readonly module: BoundModule | UnboundModule;
@@ -17,6 +17,10 @@ export interface ExpressionWritePlan {
   readonly sites: ReadonlyMap<string, ExpressionWriteSite>;
   readonly aliases: ReadonlyMap<string, readonly string[]>;
 }
+interface StateAliases {
+  readonly paths: ReadonlyMap<string, readonly string[]>;
+  readonly invalidAt: ReadonlyMap<string, number>;
+}
 
 const assignmentOperators = new Set(["=", "+=", "-=", "*=", "/=", "%=", "**=", "<<=", ">>=", ">>>=", "&=", "|=", "^=", "&&=", "||=", "??="]);
 const arrayMutators = new Set(["copyWithin", "fill", "pop", "push", "reverse", "shift", "sort", "splice", "unshift"]);
@@ -31,35 +35,35 @@ export function lowerExpressionWrites(module: BoundModule): ExpressionWriteResul
     remove: allocate("__exactDelete", used),
     array: allocate("__exactArrayMutation", used)
   };
-  const replacements = new Map<string, string>();
   const imports = new Map<string, string>();
-  const aliases = collectStateAliases(module);
+  const aliasInfo = collectStateAliases(module);
+  const aliases = aliasInfo.paths;
 
-  for (const reference of module.walk()) {
-    if (!insideComponent(reference)) continue;
-    const replacement = lowerWrite(module, reference, aliases, names, imports);
-    if (replacement !== undefined) replacements.set(reference.node.id, replacement);
-  }
-  if (!replacements.size) return Object.freeze({ module, changed: false, count: 0 });
+  let count = 0;
+  let generated = lowerModuleText(module, context => {
+    if (!insideComponent(context.reference)) return undefined;
+    const replacement = lowerWrite(module, context.reference, aliases, names, imports, aliasInfo.invalidAt, context.childText);
+    if (replacement !== undefined) count++;
+    return replacement;
+  });
+  if (!count) return Object.freeze({ module, changed: false, count: 0 });
 
   const importText = `import { ${[...imports].map(([imported, local]) => `${imported} as ${local}`).join(", ")} } from "@exact/reactive";`;
+  generated = insertAfterDirectives(generated, importText);
   const rewritten = rewriteModule(module, rewriter => {
-    rewriter.replaceTextWhere(reference => replacements.has(reference.node.id), reference => replacements.get(reference.node.id)!);
-    const statements = module.root.children().toArray();
-    const firstNonDirective = statements.find(statement => !isDirective(statement));
-    if (firstNonDirective) rewriter.insertTextBefore(firstNonDirective, importText);
-    else if (statements.length) rewriter.insertTextAfter(statements.at(-1)!, importText);
+    rewriter.replaceTextWhere(reference => reference.node === module.rootNode, () => generated);
   });
-  return Object.freeze({ module: rewritten, changed: true, count: replacements.size });
+  return Object.freeze({ module: rewritten, changed: true, count });
 }
 
 /** Identifies compiler-owned state writes without changing source coordinates. */
 export function analyzeExpressionWrites(module: BoundModule): ExpressionWritePlan {
-  const aliases = collectStateAliases(module);
+  const aliasInfo = collectStateAliases(module);
+  const aliases = aliasInfo.paths;
   const sites = new Map<string, ExpressionWriteSite>();
   for (const reference of module.walk()) {
     if (!insideComponent(reference) || !reference.node.span) continue;
-    const path = writePath(module, reference, aliases);
+    const path = writePath(module, reference, aliases, aliasInfo.invalidAt);
     if (!path?.length) continue;
     const site = Object.freeze({ start: reference.node.span.start, end: reference.node.span.end, path: Object.freeze(path), operation: writeOperation(reference) });
     sites.set(writeSiteKey(site.start, site.end), site);
@@ -78,37 +82,38 @@ export function writeSiteKey(start: number, end: number): string {
   return `${start}:${end}`;
 }
 
-function writePath(module: BoundModule, reference: NodeRef, aliases: ReadonlyMap<string, readonly string[]>): string[] | undefined {
+function writePath(module: BoundModule, reference: NodeRef, aliases: ReadonlyMap<string, readonly string[]>, invalidAt?: ReadonlyMap<string, number>): string[] | undefined {
   const node = reference.node;
   if (node.kind === "BinaryExpression" && assignmentOperators.has(node.operator ?? "")) {
-    return statePath(module, node.children[0], aliases);
+    return statePath(module, node.children[0], aliases, invalidAt);
   }
   if ((node.kind === "PrefixUnaryExpression" || node.kind === "PostfixUnaryExpression") && (node.operator === "++" || node.operator === "--")) {
-    return statePath(module, node.children[0], aliases);
+    return statePath(module, node.children[0], aliases, invalidAt);
   }
-  if (node.kind === "DeleteExpression") return statePath(module, node.children[0], aliases);
+  if (node.kind === "DeleteExpression") return statePath(module, node.children[0], aliases, invalidAt);
   if (node.kind === "CallExpression" && reference.target?.isMember() && arrayMutators.has(reference.target.name ?? "")) {
-    return statePath(module, reference.target.target?.node, aliases);
+    return statePath(module, reference.target.target?.node, aliases, invalidAt);
   }
   return undefined;
 }
 
-function lowerWrite(module: BoundModule, reference: NodeRef, aliases: ReadonlyMap<string, readonly string[]>, names: Readonly<{ write: string; update: string; updateResult: string; remove: string; array: string }>, imports: Map<string, string>): string | undefined {
+function lowerWrite(module: BoundModule, reference: NodeRef, aliases: ReadonlyMap<string, readonly string[]>, names: Readonly<{ write: string; update: string; updateResult: string; remove: string; array: string }>, imports: Map<string, string>, invalidAt?: ReadonlyMap<string, number>, childText?: readonly string[]): string | undefined {
   const node = reference.node;
   if (node.kind === "BinaryExpression" && assignmentOperators.has(node.operator ?? "")) {
     const left = node.children[0];
     const right = node.children.at(-1);
-    const path = statePath(module, left, aliases);
-    if (!path?.length || !right?.text) return undefined;
+    const path = statePath(module, left, aliases, invalidAt);
+    const rightText = childText?.at(-1) ?? right?.text;
+    if (!path?.length || !rightText) return undefined;
     if (node.operator === "=") {
       imports.set("writeReactiveLazy", names.write);
-      return `${names.write}(this.state, ${JSON.stringify(path)}, () => (${right.text}))`;
+      return `${names.write}(this.state, ${JSON.stringify(path)}, () => (${rightText}))`;
     }
     imports.set("updateReactiveValue", names.update);
-    return `${names.update}(this.state, ${JSON.stringify(path)}, previous => previous ${node.operator!.slice(0, -1)} (${right.text}))`;
+    return `${names.update}(this.state, ${JSON.stringify(path)}, previous => previous ${node.operator!.slice(0, -1)} (${rightText}))`;
   }
   if ((node.kind === "PrefixUnaryExpression" || node.kind === "PostfixUnaryExpression") && (node.operator === "++" || node.operator === "--")) {
-    const path = statePath(module, node.children[0], aliases);
+    const path = statePath(module, node.children[0], aliases, invalidAt);
     if (!path?.length) return undefined;
     imports.set("updateReactiveValueWithResult", names.updateResult);
     const update = node.operator === "++" ? "++" : "--";
@@ -116,38 +121,49 @@ function lowerWrite(module: BoundModule, reference: NodeRef, aliases: ReadonlyMa
     return `${names.updateResult}(this.state, ${JSON.stringify(path)}, previous => { const result = ${expression}; return [previous, result]; })`;
   }
   if (node.kind === "DeleteExpression") {
-    const path = statePath(module, node.children[0], aliases);
+    const path = statePath(module, node.children[0], aliases, invalidAt);
     if (!path?.length) return undefined;
     imports.set("deleteReactiveValue", names.remove);
     return `${names.remove}(this.state, ${JSON.stringify(path)})`;
   }
   if (node.kind === "CallExpression" && reference.target?.isMember() && arrayMutators.has(reference.target.name ?? "")) {
-    const path = statePath(module, reference.target.target?.node, aliases);
+    const path = statePath(module, reference.target.target?.node, aliases, invalidAt);
     if (!path?.length) return undefined;
     imports.set("mutateReactiveArray", names.array);
-    return `${names.array}(this.state, ${JSON.stringify(path)}, ${JSON.stringify(reference.target.name)}, () => [${reference.arguments.map(argument => argument.node.text).join(", ")}])`;
+    const argumentsText = reference.arguments.map(argument => {
+      const index = node.children.indexOf(argument.node);
+      return index >= 0 ? childText?.[index] ?? argument.node.text : argument.node.text;
+    });
+    return `${names.array}(this.state, ${JSON.stringify(path)}, ${JSON.stringify(reference.target.name)}, () => [${argumentsText.join(", ")}])`;
   }
   return undefined;
 }
 
 /** Resolves a statically addressable state path through canonical aliases. */
-export function expressionStatePath(module: BoundModule, node: NodeRef["node"] | undefined, aliases: ReadonlyMap<string, readonly string[]>): string[] | undefined {
+export function expressionStatePath(module: BoundModule, node: NodeRef["node"] | undefined, aliases: ReadonlyMap<string, readonly string[]>, invalidAt?: ReadonlyMap<string, number>): string[] | undefined {
   if (!node) return undefined;
   const reference = module.ref(node);
   if (reference.isMember()) {
-    if (/^this\.state$/.test(node.text?.trim() ?? "")) return [];
-    const base = expressionStatePath(module, reference.target?.node, aliases);
+    if (/^this\.state$/.test(node.text?.trim() ?? "")) {
+      const owner = componentOwner(reference);
+      const parameters = owner ? (owner.node as { parameters?: readonly Variable[] }).parameters : undefined;
+      const componentThis = parameters?.find(parameter => parameter.name === "this");
+      return componentThis && reference.rootVariable === componentThis ? [] : undefined;
+    }
+    const base = expressionStatePath(module, reference.target?.node, aliases, invalidAt);
     const segment = staticMemberSegment(reference);
     return base && segment !== undefined ? [...base, segment] : undefined;
   }
   if (node.kind !== "Identifier") return undefined;
   const variable = reference.variable ?? reference.walk().references().first()?.variable;
+  if (variable && invalidAt?.has(variable.id) && (node.span?.start ?? Number.MAX_SAFE_INTEGER) >= invalidAt.get(variable.id)!) return undefined;
   const base = variable ? aliases.get(variable.id) : undefined;
   return base ? [...base] : undefined;
 }
 
 function staticMemberSegment(reference: NodeRef): string | undefined {
   if (reference.node.kind === "PropertyAccessExpression") return reference.name ?? reference.node.children[1]?.text;
+  if (reference.name !== undefined) return reference.name;
   const argument = reference.node.children[1]?.text?.trim();
   if (!argument) return undefined;
   if (/^["'][\s\S]*["']$/.test(argument)) return argument.slice(1, -1);
@@ -157,7 +173,7 @@ function staticMemberSegment(reference: NodeRef): string | undefined {
 
 const statePath = expressionStatePath;
 
-function collectStateAliases(module: BoundModule): ReadonlyMap<string, readonly string[]> {
+function collectStateAliases(module: BoundModule): StateAliases {
   const aliases = new Map<string, readonly string[]>();
   for (const declaration of module.walk().ofKind("VariableDeclaration")) {
     const children = declaration.children().toArray();
@@ -177,15 +193,28 @@ function collectStateAliases(module: BoundModule): ReadonlyMap<string, readonly 
       if (segment) aliases.set(variable.id, [...base, segment]);
     }
   }
-  return aliases;
+  const invalidAt = new Map<string, number>();
+  for (const assignment of module.walk().assignments().where(reference => reference.node.kind === "BinaryExpression" && reference.node.operator === "=")) {
+    const left = assignment.children().first();
+    if (left?.node.kind !== "Identifier") continue;
+    const root = left?.walk().references().first()?.variable;
+    if (!root?.mutable || !aliases.has(root.id) || !assignment.node.span) continue;
+    invalidAt.set(root.id, Math.min(invalidAt.get(root.id) ?? Number.MAX_SAFE_INTEGER, assignment.node.span.start));
+  }
+  return Object.freeze({ paths: aliases, invalidAt });
 }
 
 function insideComponent(reference: NodeRef): boolean {
-  return reference.ancestors().functions().any(ancestor => ancestor.node.kind === "FunctionDeclaration" && /^[A-Z]/.test(ancestor.node.name ?? ""));
+  return componentOwner(reference) !== undefined;
 }
 
-function isDirective(reference: NodeRef): boolean {
-  return reference.node.kind === "ExpressionStatement" && /^\s*["'][^"']+["'];?\s*$/.test(reference.node.text ?? "");
+function componentOwner(reference: NodeRef): NodeRef | undefined {
+  return reference.ancestors().functions().first(ancestor => ancestor.node.kind === "FunctionDeclaration" && /^[A-Z]/.test(ancestor.node.name ?? ""));
+}
+
+function insertAfterDirectives(source: string, importText: string): string {
+  const directive = /^(?:\s*["'][^"'\r\n]+["'];?\s*(?:\r?\n|$))*/.exec(source)?.[0] ?? "";
+  return `${directive}${importText}${directive.endsWith("\n") || !directive ? "\n" : "\n"}${source.slice(directive.length)}`;
 }
 
 function allocate(base: string, used: Set<string>): string {

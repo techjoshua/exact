@@ -50,4 +50,17 @@ describe("expression-backed reactive provenance", () => {
     expect(graph.cells).toHaveLength(1);
     expect(graph.cells[0]!.kind).toBe("jsx-child");
   });
+
+  it("does not trust collection-like method names on custom objects", () => {
+    clearExpressionProjectCache();
+    const graph = analyzeReactiveProvenance(`
+      class SideEffects { filter(callback: (value: number) => boolean) { external(); return [1]; } }
+      declare function external(): void;
+      export function View(props: { values: SideEffects }) {
+        const unsafe = props.values.filter(value => value > 0);
+        return <p>{unsafe.length}</p>;
+      }
+    `, { filename: "custom-filter.tsx" });
+    expect(graph.entries.find(entry => entry.variable.name === "unsafe")?.safeToReevaluate).toBe(false);
+  });
 });

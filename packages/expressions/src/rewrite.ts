@@ -64,6 +64,18 @@ export class ModuleRewriter {
   apply(module: BoundModule | UnboundModule): BoundModule | UnboundModule {
     const edits: Array<{ start: number; end: number; text: string }> = [];
     const newline = module.trivia.newline === "crlf" ? "\r\n" : "\n";
+    const selected = [...module.walk()].flatMap(ref => this.replacements
+      .filter(operation => operation.select(ref))
+      .map(() => ref.node.span)
+      .filter((span): span is NonNullable<typeof span> => !!span))
+      .sort((left, right) => left.start - right.start || right.end - left.end);
+    for (let index = 1; index < selected.length; index++) {
+      const prior = selected[index - 1]!;
+      const current = selected[index]!;
+      if (current.start < prior.end) {
+        throw new Error(`Overlapping expression rewrites at ${current.start}:${current.end}; compose nested rewrites with lowerModuleText()`);
+      }
+    }
     const rewrite = (node: ExpressionNode): ExpressionNode | null => {
       const ref = module.ref(node);
       for (const operation of this.replacements) {
@@ -137,7 +149,9 @@ function applyEdits(source: string, edits: readonly { start: number; end: number
   let boundary = source.length + 1;
   const accepted: typeof ordered = [];
   for (const edit of ordered) {
-    if (edit.end > boundary) continue;
+    if (edit.end > boundary) {
+      throw new Error(`Overlapping expression rewrites at ${edit.start}:${edit.end}; compose nested rewrites with lowerModuleText()`);
+    }
     accepted.push(edit);
     boundary = edit.start;
   }

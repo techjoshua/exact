@@ -107,7 +107,7 @@ export {
   createServerPartRegistryModule
 } from "./registry.js";
 export { exactCompilerManifestVersion } from "./versions.js";
-export { clearExpressionProjectCache } from "./expression-project.js";
+export { clearExpressionProjectCache, invalidateExpressionModule } from "./expression-project.js";
 export {
   analyzeExpressionWrites,
   lowerExpressionWrites,
@@ -191,15 +191,50 @@ function emitExpressionRewrite(module: BoundModule, generated: string): string {
 
   const rebound = expressionModuleFor(module.filename, rewritten.emit().code);
   const baselineErrors = module.diagnostics.filter(diagnostic => diagnostic.severity === "error");
-  const existing = new Set(baselineErrors.map(diagnostic => `${diagnostic.code}:${diagnostic.message}`));
-  const baselineHasSemanticErrors = baselineErrors.some(diagnostic => diagnostic.phase === "semantic");
-  const introduced = rebound.diagnostics.filter(diagnostic => diagnostic.severity === "error"
-    && !existing.has(`${diagnostic.code}:${diagnostic.message}`)
-    && !(baselineHasSemanticErrors && diagnostic.phase === "semantic")
-    && !diagnostic.message.includes("Cannot find module '@exact/core'")
-    && diagnostic.message !== "Parameter 'previous' implicitly has an 'any' type.");
+  const existing = new Map<string, number>();
+  for (const diagnostic of baselineErrors) {
+    const key = diagnosticIdentity(diagnostic);
+    existing.set(key, (existing.get(key) ?? 0) + 1);
+  }
+  const introduced = rebound.diagnostics.filter(diagnostic => {
+    if (diagnostic.severity !== "error") return false;
+    const key = diagnosticIdentity(diagnostic);
+    const count = existing.get(key) ?? 0;
+    if (count) {
+      existing.set(key, count - 1);
+      return false;
+    }
+    return !isSyntheticHelperDiagnostic(diagnostic, rebound.source, module.source);
+  });
   if (introduced.length) throw new ExpressionProjectError(introduced);
   return rebound.emit().code;
+}
+
+function diagnosticIdentity(diagnostic: { code: string; message: string; span?: { line: number; column: number } }): string {
+  return `${diagnostic.code}:${diagnostic.message}`;
+}
+
+function isSyntheticHelperDiagnostic(
+  diagnostic: { code: string; span?: { start: number; end: number } },
+  source: string,
+  originalSource: string
+): boolean {
+  if (!diagnostic.span) return false;
+  const token = source.slice(diagnostic.span.start, diagnostic.span.end);
+  const lineStart = source.lastIndexOf("\n", diagnostic.span.start) + 1;
+  const lineEnd = source.indexOf("\n", diagnostic.span.end);
+  const line = source.slice(lineStart, lineEnd < 0 ? source.length : lineEnd);
+  // Only compiler-reserved bindings/imports may suppress diagnostics. Author
+  // code with the same diagnostic code remains visible at its own location.
+  const normalizedLine = line.trim().replace(/\s+/g, " ");
+  const normalize = (value: string) => value.trim().replace(/\s+/g, " ");
+  const originalOccurrences = originalSource.split(/\r?\n/).filter(original => normalize(original) === normalizedLine).length;
+  const generatedOccurrences = source.split(/\r?\n/).filter(generated => normalize(generated) === normalizedLine).length;
+  const retained = originalOccurrences > 0 && generatedOccurrences <= originalOccurrences;
+  return /^__exact/.test(token)
+    || /^\s*import\b/.test(line) && /\b__exact[A-Za-z0-9_$]*\b/.test(line)
+    || /\b__exact[A-Za-z0-9_$]*\b/.test(line)
+    || !retained;
 }
 
 /** Analyzes source into the compiler manifest without emitting transformed code. */

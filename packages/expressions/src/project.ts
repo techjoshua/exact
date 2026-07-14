@@ -1,5 +1,6 @@
 import ts from "typescript";
 import path from "node:path";
+import fs from "node:fs";
 import type {
   ExpressionDiagnostic,
   ExpressionCallSignature,
@@ -73,7 +74,8 @@ class ProjectType implements ExpressionType {
     readonly unionMembers: readonly ExpressionType[],
     readonly callSignatures: readonly ExpressionCallSignature[],
     readonly typeArguments: readonly ExpressionType[],
-    readonly typeParameters: readonly string[]
+    readonly typeParameters: readonly string[],
+    readonly collectionKind?: "array" | "readonly-array" | "tuple"
   ) { Object.freeze(this); }
 }
 
@@ -86,6 +88,7 @@ export class ExpressionProject {
   private readonly sourceFiles = new Map<string, Readonly<{ version: string; sourceFile: ts.SourceFile }>>();
   private readonly symbolIdentities = new Map<string, ExpressionSymbol>();
   private program?: ts.Program;
+  private disposed = false;
 
   constructor(options: ExpressionProjectOptions = {}) {
     const cwd = path.resolve(options.cwd ?? process.cwd());
@@ -101,6 +104,7 @@ export class ExpressionProject {
   }
 
   updateModule(filename: string, source: string): BoundModule {
+    this.assertActive();
     const normalized = normalizeFile(filename);
     this.setOverlay(normalized, source);
     this.rebuild();
@@ -119,6 +123,7 @@ export class ExpressionProject {
   }
 
   getModule(filename: string, source?: string): BoundModule {
+    this.assertActive();
     const normalized = normalizeFile(filename);
     if (source !== undefined) return this.updateModule(normalized, source);
     if (!this.program) this.rebuild();
@@ -155,6 +160,47 @@ export class ExpressionProject {
     return source.display === target.display;
   }
 
+  /** Resolves a runtime import using this project's exact TypeScript configuration. */
+  resolveModuleSpecifier(specifier: string, containingFile: string): string | undefined {
+    this.assertActive();
+    const resolved = ts.resolveModuleName(specifier, containingFile, this.parsed.options, {
+      ...ts.sys,
+      fileExists: file => this.overlays.has(normalizeFile(file)) || ts.sys.fileExists(file),
+      readFile: file => this.overlays.get(normalizeFile(file)) ?? ts.sys.readFile(file)
+    }).resolvedModule;
+    return resolved ? displayFile(resolved.resolvedFileName) : undefined;
+  }
+
+  /** Removes an in-memory source and invalidates any cached disk syntax for it. */
+  removeModule(filename: string): void {
+    this.assertActive();
+    const normalized = normalizeFile(filename);
+    this.overlays.delete(normalized);
+    this.overlayVersions.delete(normalized);
+    this.sourceFiles.delete(normalized);
+    this.rebuild();
+  }
+
+  /** Invalidates a disk-backed source before the next incremental rebuild. */
+  invalidateFile(filename: string): void {
+    this.assertActive();
+    this.sourceFiles.delete(normalizeFile(filename));
+    this.rebuild();
+  }
+
+  dispose(): void {
+    this.disposed = true;
+    this.overlays.clear();
+    this.overlayVersions.clear();
+    this.sourceFiles.clear();
+    this.symbolIdentities.clear();
+    this.program = undefined;
+  }
+
+  private assertActive(): void {
+    if (this.disposed) throw new ExpressionProjectError([{ code: "EXPR_PROJECT_DISPOSED", message: "This expression project has been disposed", severity: "error", phase: "configuration" }]);
+  }
+
   private rebuild(): void {
     const compilerOptions: ts.CompilerOptions = {
       ...this.parsed.options,
@@ -185,10 +231,11 @@ export class ExpressionProject {
           thisProject.sourceFiles.set(normalized, { version, sourceFile: created });
           return created;
         }
+        const diskVersion = diskFileVersion(normalized);
         const cached = thisProject.sourceFiles.get(normalized);
-        if (cached?.version === "disk") return cached.sourceFile;
+        if (cached?.version === diskVersion) return cached.sourceFile;
         const created = base.getSourceFile(file, languageVersion, onError, shouldCreateNewSourceFile);
-        if (created) thisProject.sourceFiles.set(normalized, { version: "disk", sourceFile: created });
+        if (created) thisProject.sourceFiles.set(normalized, { version: diskVersion, sourceFile: created });
         return created;
       }
     };
@@ -295,7 +342,8 @@ export class ExpressionProject {
         Object.freeze(members),
         Object.freeze(signatures),
         Object.freeze(typeArguments),
-        Object.freeze(typeParameters)
+        Object.freeze(typeParameters),
+        checker.isTupleType(type) ? "tuple" : checker.isArrayType(type) ? "array" : isReadonlyArrayType(checker, type) ? "readonly-array" : undefined
       );
       typeCache.set(type, value);
       return value;
@@ -422,7 +470,12 @@ export class ExpressionProject {
       };
       if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
         const target = children[0]!;
-        return Object.freeze({ ...common, target, arguments: Object.freeze(children.slice(1)) });
+        let resolvedSignature: ExpressionCallSignature | undefined;
+        if (ts.isCallExpression(node)) {
+          const signature = checker.getResolvedSignature(node);
+          if (signature) resolvedSignature = signatureFor(signature, node, checker, typeFor);
+        }
+        return Object.freeze({ ...common, target, arguments: Object.freeze(children.slice(1)), ...(resolvedSignature ? { resolvedSignature } : {}) });
       }
       if (ts.isFunctionLike(node)) {
         const parameters = node.parameters.flatMap(parameter => parameter.name.getText(sourceFile) === "this"
@@ -483,13 +536,100 @@ function declarationIdentity(filename: string, declaration: ts.Node, name: strin
   const scopes: string[] = [];
   let cursor = declaration.parent;
   while (cursor && !ts.isSourceFile(cursor)) {
-    if (ts.isFunctionLike(cursor) || ts.isClassLike(cursor) || ts.isModuleDeclaration(cursor)) {
+    if (ts.isFunctionLike(cursor) || ts.isClassLike(cursor) || ts.isModuleDeclaration(cursor) || ts.isBlock(cursor) || ts.isCaseBlock(cursor) || ts.isCatchClause(cursor)) {
       const named = hasNodeName(cursor) && cursor.name ? cursor.name.getText() : undefined;
-      scopes.push(named ? `${ts.SyntaxKind[cursor.kind]}:${named}` : `${ts.SyntaxKind[cursor.kind]}:${fingerprint(cursor.getText().replace(/\s+/g, " "))}`);
+      const functionBody = ts.isBlock(cursor) && ts.isFunctionLike(cursor.parent)
+        && "body" in cursor.parent && cursor.parent.body === cursor;
+      scopes.push(named
+        ? `${ts.SyntaxKind[cursor.kind]}:${named}`
+        : functionBody
+          ? "Block:function-body"
+          : `${ts.SyntaxKind[cursor.kind]}:${scopeShape(cursor)}#${structuralOrdinal(cursor)}`);
     }
     cursor = cursor.parent;
   }
-  return `${filename}:${scopes.reverse().join("/")}:${ts.SyntaxKind[declaration.kind]}:${name}`;
+  return `${filename}:${scopes.reverse().join("/")}:${ts.SyntaxKind[declaration.kind]}#${declarationOrdinal(declaration, name)}:${name}`;
+}
+
+function structuralOrdinal(node: ts.Node): number {
+  if (!node.parent) return 0;
+  let ordinal = 0;
+  for (const child of node.parent.getChildren()) {
+    if (child === node) return ordinal;
+    if (child.kind === node.kind && scopeShape(child) === scopeShape(node)) ordinal++;
+  }
+  return ordinal;
+}
+
+function scopeShape(node: ts.Node): string {
+  const bindings: string[] = [];
+  node.forEachChild(child => {
+    if (ts.isVariableStatement(child)) {
+      for (const declaration of child.declarationList.declarations) {
+        bindings.push(`${ts.SyntaxKind[declaration.kind]}:${declaration.name.getText()}`);
+      }
+    } else if ((ts.isFunctionDeclaration(child) || ts.isClassDeclaration(child)) && child.name) {
+      bindings.push(`${ts.SyntaxKind[child.kind]}:${child.name.text}`);
+    }
+  });
+  return `${ts.SyntaxKind[node.parent?.kind ?? ts.SyntaxKind.Unknown]}:${fingerprint(bindings.join("|"))}`;
+}
+
+function declarationOrdinal(declaration: ts.Node, name: string): number {
+  const owner = nearestIdentityScope(declaration.parent);
+  if (!owner) return 0;
+  let ordinal = 0;
+  const visit = (node: ts.Node): boolean => {
+    if (node === declaration) return true;
+    if (node !== owner && (ts.isFunctionLike(node) || ts.isClassLike(node))) return false;
+    if (node.kind === declaration.kind && declarationBindingName(node) === name
+      && fingerprint(node.getText().replace(/\s+/g, " ")) === fingerprint(declaration.getText().replace(/\s+/g, " "))) ordinal++;
+    return node.getChildren().some(visit);
+  };
+  visit(owner);
+  return ordinal;
+}
+
+function nearestIdentityScope(node: ts.Node | undefined): ts.Node | undefined {
+  for (let cursor = node; cursor; cursor = cursor.parent) {
+    if (ts.isSourceFile(cursor) || ts.isFunctionLike(cursor) || ts.isClassLike(cursor) || ts.isBlock(cursor)
+      || ts.isCaseBlock(cursor) || ts.isCatchClause(cursor) || ts.isModuleBlock(cursor)) return cursor;
+  }
+  return undefined;
+}
+
+function diskFileVersion(filename: string): string {
+  try {
+    const stat = fs.statSync(filename, { bigint: true });
+    return `disk:${stat.mtimeNs}:${stat.ctimeNs}:${stat.size}`;
+  } catch {
+    return "disk:missing";
+  }
+}
+
+function signatureFor(
+  signature: ts.Signature,
+  at: ts.Node,
+  checker: ts.TypeChecker,
+  typeFor: (type: ts.Type, at: ts.Node) => ExpressionType
+): ExpressionCallSignature {
+  const declaration = signature.getDeclaration() ?? at;
+  return Object.freeze({
+    display: checker.signatureToString(signature, at, ts.TypeFormatFlags.NoTruncation),
+    parameters: Object.freeze(signature.getParameters().map(parameter => {
+      const parameterDeclaration = parameter.valueDeclaration ?? parameter.declarations?.[0] ?? declaration;
+      return Object.freeze({
+        name: parameter.name,
+        type: typeFor(checker.getTypeOfSymbolAtLocation(parameter, parameterDeclaration), parameterDeclaration),
+        optional: Boolean(parameter.flags & ts.SymbolFlags.Optional)
+          || ts.isParameter(parameterDeclaration) && (!!parameterDeclaration.questionToken || !!parameterDeclaration.initializer),
+        rest: ts.isParameter(parameterDeclaration) && !!parameterDeclaration.dotDotDotToken
+      });
+    })),
+    returnType: typeFor(checker.getReturnTypeOfSignature(signature), declaration),
+    typeParameters: Object.freeze((signature.typeParameters ?? []).map(parameter => checker.typeToString(parameter, declaration))),
+    declarationSource: displayFile(declaration.getSourceFile().fileName)
+  });
 }
 
 function fingerprint(value: string): string {
@@ -499,6 +639,12 @@ function fingerprint(value: string): string {
     hash = Math.imul(hash, 16777619);
   }
   return (hash >>> 0).toString(36);
+}
+
+function isReadonlyArrayType(checker: ts.TypeChecker, type: ts.Type): boolean {
+  const symbol = type.aliasSymbol ?? type.getSymbol();
+  if (symbol?.name === "ReadonlyArray") return true;
+  return checker.typeToString(type).startsWith("readonly ") && Boolean(type.flags & ts.TypeFlags.Object);
 }
 
 export function createExpressionProject(options: ExpressionProjectOptions = {}): ExpressionProject {
@@ -560,6 +706,7 @@ function isJsxNode(node: ts.Node): boolean {
 function nodeName(node: ts.Node): string | undefined {
   if (ts.isIdentifier(node) || ts.isPrivateIdentifier(node) || ts.isJsxText(node)) return node.text;
   if (ts.isPropertyAccessExpression(node) || ts.isPropertyAssignment(node) || ts.isMethodDeclaration(node) || ts.isPropertyDeclaration(node)) return node.name.getText();
+  if (ts.isElementAccessExpression(node) && (ts.isStringLiteralLike(node.argumentExpression) || ts.isNumericLiteral(node.argumentExpression))) return node.argumentExpression.text;
   if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node) || ts.isJsxClosingElement(node)) return node.tagName.getText();
   if (hasNodeName(node) && node.name) return node.name.getText();
   return undefined;

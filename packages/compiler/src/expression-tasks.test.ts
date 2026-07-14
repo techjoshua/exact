@@ -148,6 +148,16 @@ describe("expression-backed task effects", () => {
     ]));
   });
 
+  it("uses the selected overload when inferring cancellation", () => {
+    clearExpressionProjectCache();
+    const module = expressionModuleFor("SelectedOverload.tsx", `
+      declare function load(value: number): void;
+      declare function load(value: string, options?: { signal?: AbortSignal }): void;
+      function Panel(this: Component<{}>) { this.task.client(() => load(1)); }
+    `);
+    expect(analyzeExpressionTasks(module).signalCalls.size).toBe(0);
+  });
+
   it("diagnoses escaping resources and respects explicit task cleanup", () => {
     clearExpressionProjectCache();
     const escaping = expressionModuleFor("EscapingTaskResource.tsx", `function Panel(this: Component<{ socket?: WebSocket }>) {
