@@ -2,6 +2,7 @@ import {
   exactCompilerManifestVersion,
   exactServerManifestVersion
 } from "./versions.js";
+import { sameJsonData } from "@exact/core";
 import type {
   CreateExactServerManifestOptions,
   ExactCompilerManifestLike,
@@ -132,8 +133,8 @@ function sameManifestAction(left: ExactManifestAction, right: ExactManifestActio
     && left.componentId === right.componentId
     && left.taskId === right.taskId
     && left.placement === right.placement
-    && JSON.stringify(left.stateContract) === JSON.stringify(right.stateContract)
-    && JSON.stringify(left.contextContract) === JSON.stringify(right.contextContract);
+    && sameJsonData(left.stateContract ?? null, right.stateContract ?? null)
+    && sameJsonData(left.contextContract ?? null, right.contextContract ?? null);
 }
 
 function sameManifestBoundary(left: ExactManifestBoundary, right: ExactManifestBoundary): boolean {

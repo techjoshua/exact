@@ -351,6 +351,31 @@ describe("@exact/server", () => {
     ])).toThrow("Conflicting eXact action id in compiler manifests: save");
   });
 
+  it("accepts equivalent action contracts independent of object key order", () => {
+    const base = {
+      id: "save",
+      componentId: "Page",
+      taskId: "task-1",
+      placement: "server" as const,
+      stateContract: { reads: [{ path: "project.id", kind: "read" as const, confidence: "exact" as const }] }
+    };
+    expect(() => createExactServerManifest([
+      { version: 1, serverActions: { save: base } },
+      {
+        version: 1,
+        serverActions: {
+          save: {
+            placement: "server",
+            taskId: "task-1",
+            componentId: "Page",
+            id: "save",
+            stateContract: { reads: [{ confidence: "exact", kind: "read", path: "project.id" }] }
+          }
+        }
+      }
+    ])).not.toThrow();
+  });
+
   it("rejects conflicting boundary ids across compiler manifests", () => {
     expect(() => createExactServerManifest([
       {

@@ -36,6 +36,7 @@ import {
 } from "./logging.js";
 import { Cell, Dynamic, Fragment, ServerBoundary, ServerSlot, Text } from "./symbols.js";
 export { decodeExactMarkerPart, encodeExactMarkerPart, exactMarkerEnd, exactMarkerStart } from "./protocol.js";
+export { sameJsonData, type JsonComparisonOptions } from "./json.js";
 import {
   createCellVNode,
   createCompiledFragment,
