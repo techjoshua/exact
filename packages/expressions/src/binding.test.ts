@@ -14,17 +14,20 @@ describe("@exact/expressions binding", () => {
   it("retains node handles when unrelated siblings are inserted before them", () => {
     const project = createExpressionProject({ tsconfigPath: config });
     const filename = path.join(root, "apps/kanban/src/__expressions_node_identity.tsx");
-    const source = `export const values = [1, 2];\nexport const view = <section>{values.map(value => <span>{value}</span>)}</section>;`;
+    const source = `export const values = [1, 2];\nexport const view = <section><i /><i />{values.map(value => <span>{value}</span>)}</section>;`;
     const first = project.updateModule(filename, source);
     const firstSection = first.walk().jsxElements().first(node => node.node.tagName === "section")!;
     const firstMap = first.walk().calls().first(call => !!call.target?.isMember("map"))!;
+    const firstIdentical = first.walk().jsxElements().where(node => node.node.tagName === "i").toArray().map(node => node.node.id);
 
     const second = project.updateModule(filename, `export const unrelated = true;\n${source}`);
     const secondSection = second.walk().jsxElements().first(node => node.node.tagName === "section")!;
     const secondMap = second.walk().calls().first(call => !!call.target?.isMember("map"))!;
+    const secondIdentical = second.walk().jsxElements().where(node => node.node.tagName === "i").toArray().map(node => node.node.id);
 
     expect(secondSection.node.id).toBe(firstSection.node.id);
     expect(secondMap.node.id).toBe(firstMap.node.id);
+    expect(secondIdentical).toEqual(firstIdentical);
     expect(secondSection.node.span!.start).toBeGreaterThan(firstSection.node.span!.start);
     const ids = second.walk().toArray().map(reference => reference.node.id);
     expect(new Set(ids).size).toBe(ids.length);

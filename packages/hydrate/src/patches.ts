@@ -628,20 +628,27 @@ function parseFragment(
 }
 
 function isValidListItemFragment(fragment: DocumentFragment, key: string): boolean {
-  let expectedEnd: string | undefined;
+  const stack: string[] = [];
+  let started = false;
   let complete = false;
   for (const node of Array.from(fragment.childNodes)) {
-    if (!(node instanceof Comment) || !node.data.includes("exact:item:")) continue;
-    if (node.data.startsWith("exact:item:")) {
-      if (expectedEnd || complete || !isExactItemStart(node, key)) return false;
-      expectedEnd = `/${node.data}`;
-    } else if (node.data.startsWith("/exact:item:")) {
-      if (!expectedEnd || node.data !== expectedEnd) return false;
-      expectedEnd = undefined;
-      complete = true;
+    if (node instanceof Comment && node.data.startsWith("exact:")) {
+      if (!stack.length) {
+        if (started || complete || !isExactItemStart(node, key)) return false;
+        started = true;
+      }
+      stack.push(node.data);
+      continue;
     }
+    if (node instanceof Comment && node.data.startsWith("/exact:")) {
+      const start = stack.pop();
+      if (!start || node.data !== `/${start}`) return false;
+      if (!stack.length) complete = true;
+      continue;
+    }
+    if (!stack.length && (!(node instanceof Text) || node.data.trim())) return false;
   }
-  return complete && expectedEnd === undefined;
+  return started && complete && stack.length === 0;
 }
 
 function moveRangeBefore(range: { start: Comment; end: Comment }, anchor: Node, budget?: DomWorkBudget): void {

@@ -407,7 +407,7 @@ describe("@exact/compiler", () => {
 
   it("retains emitted element and list ids across unrelated preceding edits", () => {
     const source = `function View(this: Component<{}>) {
-      return () => <section>{this.map(items, item => item.id, item => <span>{item.id}</span>)}</section>;
+      return () => <section><i /><i />{this.map(items, item => item.id, item => <span>{item.id}</span>)}</section>;
     }`;
     const first = transform(source, { filename: "stable-hmr.tsx" });
     const second = transform(`const unrelated = true;\n${source}`, { filename: "stable-hmr.tsx" });

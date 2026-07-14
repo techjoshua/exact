@@ -625,6 +625,15 @@ function syntaxKindName(node: ts.Node): string {
  */
 function alignNodeIdentities(sourceFile: ts.SourceFile, priorRoot: ExpressionNode): Map<ts.Node, string> {
   const identities = new Map<ts.Node, string>();
+  const previousSource = priorRoot.text ?? "";
+  const nextSource = sourceFile.text;
+  let commonPrefix = 0;
+  while (commonPrefix < previousSource.length && commonPrefix < nextSource.length
+    && previousSource.charCodeAt(commonPrefix) === nextSource.charCodeAt(commonPrefix)) commonPrefix++;
+  let commonSuffix = 0;
+  while (commonSuffix < previousSource.length - commonPrefix && commonSuffix < nextSource.length - commonPrefix
+    && previousSource.charCodeAt(previousSource.length - commonSuffix - 1) === nextSource.charCodeAt(nextSource.length - commonSuffix - 1)) commonSuffix++;
+  const offsetDelta = nextSource.length - previousSource.length;
   const syntaxShapeCache = new WeakMap<ts.Node, string>();
   const expressionShapeCache = new WeakMap<ExpressionNode, string>();
   const syntaxChildren = (node: ts.Node): ts.Node[] => {
@@ -640,6 +649,19 @@ function alignNodeIdentities(sourceFile: ts.SourceFile, priorRoot: ExpressionNod
   const expressionShallow = (node: ExpressionNode): string => {
     const leaf = node.children.length ? "" : node.text ?? "";
     return `${node.kind}\0${node.name ?? ""}\0${node.operator ?? ""}\0${leaf}`;
+  };
+  const syntaxAnchor = (node: ts.Node): string => {
+    const start = node.getStart(sourceFile, false);
+    if (node.end <= commonPrefix) return `before:${start}:${node.end}:${syntaxKindName(node)}`;
+    if (start >= nextSource.length - commonSuffix) return `after:${start - offsetDelta}:${node.end - offsetDelta}:${syntaxKindName(node)}`;
+    return "";
+  };
+  const expressionAnchor = (node: ExpressionNode): string => {
+    const span = node.span;
+    if (!span) return "";
+    if (span.end <= commonPrefix) return `before:${span.start}:${span.end}:${node.kind}`;
+    if (span.start >= previousSource.length - commonSuffix) return `after:${span.start}:${span.end}:${node.kind}`;
+    return "";
   };
   const syntaxShape = (node: ts.Node): string => {
     const cached = syntaxShapeCache.get(node);
@@ -684,6 +706,7 @@ function alignNodeIdentities(sourceFile: ts.SourceFile, priorRoot: ExpressionNod
     previous.forEach((value, index) => {
       if (pairedPrevious.has(index)) return;
       const key = previousKey(value);
+      if (!key) return;
       const queue = queues.get(key) ?? [];
       queue.push(index);
       queues.set(key, queue);
@@ -691,7 +714,9 @@ function alignNodeIdentities(sourceFile: ts.SourceFile, priorRoot: ExpressionNod
     const pairs: Array<readonly [number, number]> = [];
     next.forEach((value, index) => {
       if (pairedNext.has(index)) return;
-      const queue = queues.get(nextKey(value));
+      const key = nextKey(value);
+      if (!key) return;
+      const queue = queues.get(key);
       const previousIndex = queue?.shift();
       if (previousIndex === undefined) return;
       pairedNext.add(index);
@@ -707,9 +732,10 @@ function alignNodeIdentities(sourceFile: ts.SourceFile, priorRoot: ExpressionNod
     const previousChildren = previous.children;
     const pairedNext = new Set<number>();
     const pairedPrevious = new Set<number>();
+    const anchored = pairBy(nextChildren, previousChildren, pairedNext, pairedPrevious, syntaxAnchor, expressionAnchor);
     const exact = pairBy(nextChildren, previousChildren, pairedNext, pairedPrevious, syntaxShape, expressionShape);
     const compatible = pairBy(nextChildren, previousChildren, pairedNext, pairedPrevious, syntaxShallow, expressionShallow);
-    for (const [nextIndex, previousIndex] of [...exact, ...compatible]) {
+    for (const [nextIndex, previousIndex] of [...anchored, ...exact, ...compatible]) {
       align(nextChildren[nextIndex]!, previousChildren[previousIndex]!);
     }
   };

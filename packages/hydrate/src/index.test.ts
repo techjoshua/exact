@@ -954,6 +954,24 @@ describe("@exact/hydrate", () => {
     expect(container.innerHTML).toBe(before);
   });
 
+  it("rejects DOM outside the keyed range while allowing nested protocol boundaries", () => {
+    const invalid = document.createElement("div");
+    invalid.innerHTML = "<ul><!--exact:list--><!--/exact:list--></ul>";
+    expect(applyPatches(invalid, [{
+      type: "list", id: "list", op: "insert", key: "a",
+      html: "stray<!--exact:item:1:a--><li>A</li><!--/exact:item:1:a-->"
+    }], { logger: noopLogger })).toBe(false);
+    expect(invalid.textContent).toBe("");
+
+    const nested = document.createElement("div");
+    nested.innerHTML = "<ul><!--exact:list--><!--/exact:list--></ul>";
+    expect(applyPatches(nested, [{
+      type: "list", id: "list", op: "insert", key: "a",
+      html: " <!--exact:item:1:a--><!--exact:detail--><li>A</li><!--/exact:detail--><!--/exact:item:1:a--> "
+    }])).toBe(true);
+    expect(nested.querySelector("li")?.textContent).toBe("A");
+  });
+
   it("tracks a recovered missing move through later patches in the same batch", () => {
     const container = document.createElement("div");
     container.innerHTML = "<ul><!--exact:list--><!--/exact:list--></ul>";
