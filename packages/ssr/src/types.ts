@@ -146,6 +146,15 @@ export type KeyedListSnapshotOptions<T> = RenderToStringOptions & {
   render(item: T): VNode;
 };
 
+export type KeyedListSnapshotParseOptions = {
+  /** Maximum encoded snapshot bytes. Defaults to 16 MiB. */
+  maxBytes?: number;
+  /** Maximum top-level keyed items. Defaults to 100,000. */
+  maxItems?: number;
+  /** Maximum exact markers inspected. Defaults to 200,000. */
+  maxMarkers?: number;
+};
+
 export type KeyedListRefreshOptions<T> = RenderToStringOptions & {
   listId: string;
   key(item: T): string;

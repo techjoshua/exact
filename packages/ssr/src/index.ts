@@ -48,6 +48,7 @@ import type {
   KeyedListSnapshot,
   KeyedListSnapshotItem,
   KeyedListSnapshotOptions,
+  KeyedListSnapshotParseOptions,
   Logger,
   RenderToDocumentStreamOptions,
   RenderToProgressiveHtmlResponseOptions,
@@ -415,11 +416,23 @@ function boundaryRefreshOptions(
 
 /** Renders a keyed list snapshot that can later be diffed into list patches. */
 export function renderKeyedListSnapshot<T>(options: KeyedListSnapshotOptions<T>): KeyedListSnapshot {
+  const owner = createSsrOwner();
+  try {
+    return withTaskObserver(owner.observer, () => renderKeyedListSnapshotOwned(options));
+  } finally {
+    owner.dispose("keyed snapshot render complete");
+  }
+}
+
+function renderKeyedListSnapshotOwned<T>(options: KeyedListSnapshotOptions<T>): KeyedListSnapshot {
   const context = createSsrContext(options);
   const items: KeyedListSnapshotItem[] = [];
   const html: string[] = [];
+  const keys = new Set<string>();
   for (const item of options.items) {
     const key = String(options.key(item));
+    if (keys.has(key)) throw new Error(`Duplicate key ${JSON.stringify(key)} in keyed-list snapshot`);
+    keys.add(key);
     const child = options.render(item);
     const itemHtml = markerPair(context, keyedItemMarkerId(key), () => renderVNode(context, { ...child, key }, undefined));
     items.push({ key, html: itemHtml });
@@ -449,7 +462,10 @@ export function createKeyedListRefreshHandler<T>(
       items: nextItems
     });
     const previous = await options.previousItems?.(input, context)
-      ?? parseKeyedListSnapshotHtml(options.listId, input.boundaryHtml)?.items;
+      ?? parseKeyedListSnapshotHtml(options.listId, input.boundaryHtml, {
+        maxBytes: options.maxOutputBytes,
+        maxItems: options.maxTreeNodes
+      })?.items;
     return {
       patches: previous
         ? diffKeyedListItems(options.listId, previous, next.items)
@@ -459,20 +475,47 @@ export function createKeyedListRefreshHandler<T>(
 }
 
 /** Parses framework-shaped keyed list HTML back into a snapshot for diffing. */
-export function parseKeyedListSnapshotHtml(listId: string, html: string | undefined): KeyedListSnapshot | undefined {
+export function parseKeyedListSnapshotHtml(
+  listId: string,
+  html: string | undefined,
+  options: KeyedListSnapshotParseOptions = {}
+): KeyedListSnapshot | undefined {
   if (html === undefined) return undefined;
+  const maxBytes = normalizePositiveLimit(options.maxBytes, DEFAULT_MAX_OUTPUT_BYTES);
+  const maxItems = normalizePositiveLimit(options.maxItems, DEFAULT_MAX_TREE_NODES);
+  const maxMarkers = normalizePositiveLimit(options.maxMarkers, DEFAULT_MAX_TREE_NODES * 2);
+  if (html.length > maxBytes || new TextEncoder().encode(html).byteLength > maxBytes) return undefined;
   const items: KeyedListSnapshotItem[] = [];
-  const pattern = /<!--exact:(item:[^>]*)-->([\s\S]*?)<!--\/exact:\1-->/g;
-  let match: RegExpExecArray | null;
-  while ((match = pattern.exec(html))) {
-    const marker = match[1]!;
-    if (!marker.startsWith("item:")) continue;
-    items.push({
-      key: decodeMarkerKey(marker.slice("item:".length)),
-      html: match[0]
-    });
+  const keys = new Set<string>();
+  const stack: Array<{ id: string; start: number; key?: string }> = [];
+  let cursor = 0;
+  let markers = 0;
+  while (cursor < html.length) {
+    const start = html.indexOf("<!--", cursor);
+    if (start < 0) break;
+    const end = html.indexOf("-->", start + 4);
+    if (end < 0) return undefined;
+    cursor = end + 3;
+    const comment = html.slice(start + 4, end);
+    if (!comment.startsWith("exact:") && !comment.startsWith("/exact:")) continue;
+    if (++markers > maxMarkers) return undefined;
+    if (comment.startsWith("exact:")) {
+      const id = comment.slice("exact:".length);
+      if (!id) return undefined;
+      const topLevelItem = id.startsWith("item:") && !stack.some(frame => frame.id.startsWith("item:"));
+      const key = topLevelItem ? decodeMarkerKey(id.slice("item:".length)) : undefined;
+      stack.push({ id, start, ...(key === undefined ? {} : { key }) });
+      continue;
+    }
+    const id = comment.slice("/exact:".length);
+    const frame = stack.pop();
+    if (!frame || frame.id !== id) return undefined;
+    if (frame.key === undefined) continue;
+    if (keys.has(frame.key) || items.length >= maxItems) return undefined;
+    keys.add(frame.key);
+    items.push({ key: frame.key, html: html.slice(frame.start, end + 3) });
   }
-  if (!items.length) return undefined;
+  if (stack.length || !items.length) return undefined;
   return {
     listId,
     html: markerPair(createSsrContext({ markers: true }), exactMarkerId(listId), () => html),

@@ -1187,6 +1187,15 @@ describe("@exact/ssr", () => {
     expect(snapshot.innerHtml).toBe(snapshot.items.map(item => item.html).join(""));
   });
 
+  it("rejects duplicate keys while rendering keyed snapshots", () => {
+    expect(() => renderKeyedListSnapshot({
+      listId: "tasks",
+      items: [{ id: "a" }, { id: "a" }],
+      key: item => item.id,
+      render: item => createVNode("li", null, item.id)
+    })).toThrow('Duplicate key "a" in keyed-list snapshot');
+  });
+
   it("parses keyed list snapshots from submitted boundary html", () => {
     expect(parseKeyedListSnapshotHtml("tasks", [
       "<!--exact:item:a--><li>A</li><!--/exact:item:a-->",
@@ -1199,6 +1208,13 @@ describe("@exact/ssr", () => {
         { key: "b", html: "<!--exact:item:b--><li>B</li><!--/exact:item:b-->" }
       ]
     });
+  });
+
+  it("fails closed for duplicate, malformed, or oversized keyed snapshot markup", () => {
+    const item = '<!--exact:item:a--><li>A</li><!--/exact:item:a-->';
+    expect(parseKeyedListSnapshotHtml("tasks", `${item}${item}`)).toBeUndefined();
+    expect(parseKeyedListSnapshotHtml("tasks", '<!--exact:item:a--><li>A</li><!--/exact:item:b-->')).toBeUndefined();
+    expect(parseKeyedListSnapshotHtml("tasks", item, { maxBytes: 16 })).toBeUndefined();
   });
 
   it("creates keyed list refresh handlers that infer previous snapshots from boundary html", async () => {
