@@ -64,6 +64,15 @@ export { renderHydrationScript } from "./hydration.js";
 
 /** Renders a vnode tree to an HTML string without waiting for async component tasks. */
 export function renderToString(vnode: VNode, options: RenderToStringOptions = {}): RenderToStringResult {
+  const owner = createSsrOwner();
+  try {
+    return withTaskObserver(owner.observer, () => renderToStringOwned(vnode, options));
+  } finally {
+    owner.dispose("ssr render complete");
+  }
+}
+
+function renderToStringOwned(vnode: VNode, options: RenderToStringOptions): RenderToStringResult {
   const context: SsrContext = {
     markers: options.markers ?? true,
     nextId: 0,
@@ -178,47 +187,43 @@ async function streamDocumentRender(
   options: RenderToDocumentStreamOptions,
   emit: (event: ExactDocumentStreamEvent) => void
 ): Promise<void> {
-  const pending = new Set<Promise<unknown>>();
-  const observer: TaskObserver = {
-    register: promise => {
-      let observed: Promise<unknown>;
-      observed = promise.finally(() => pending.delete(observed));
-      pending.add(observed);
+  const owner = createSsrOwner();
+  try {
+    emit({ event: "start", version: 1 });
+    const shell = withTaskObserver(owner.observer, () => renderToStringOwned(vnode, options));
+    emit({ event: "shell", version: 1, html: shell.html });
+
+    let final = shell;
+    if (owner.pending.size) {
+      // Initial streaming sends an early shell, drains observed tasks, then emits a
+      // root replacement only if the settled tree differs from the shell.
+      await drainTasks(owner.pending, options.maxTaskPasses ?? 10, options.signal);
+      final = await renderToStringAsync(vnode, options);
+      if (final.html !== shell.html) {
+        emit({ event: "replace", version: 1, id: options.rootId ?? "document", html: final.html });
+      }
     }
-  };
 
-  emit({ event: "start", version: 1 });
-  const shell = withTaskObserver(observer, () => renderToString(vnode, options));
-  emit({ event: "shell", version: 1, html: shell.html });
-
-  let final = shell;
-  if (pending.size) {
-    // Initial streaming sends an early shell, drains observed tasks, then emits a
-    // root replacement only if the settled tree differs from the shell.
-    await drainTasks(pending, options.maxTaskPasses ?? 10, options.signal);
-    final = await renderToStringAsync(vnode, options);
-    if (final.html !== shell.html) {
-      emit({ event: "replace", version: 1, id: options.rootId ?? "document", html: final.html });
+    if (shouldEmitDocumentHydration(options)) {
+      emit({
+        event: "hydration",
+        version: 1,
+        html: renderHydrationScript({
+          endpoint: options.endpoint,
+          endpoints: options.endpoints,
+          state: final.state,
+          stateContracts: options.stateContracts,
+          actionBoundaries: options.actionBoundaries,
+          scriptId: options.scriptId,
+          nonce: options.nonce
+        })
+      });
     }
-  }
 
-  if (shouldEmitDocumentHydration(options)) {
-    emit({
-      event: "hydration",
-      version: 1,
-      html: renderHydrationScript({
-        endpoint: options.endpoint,
-        endpoints: options.endpoints,
-        state: final.state,
-        stateContracts: options.stateContracts,
-        actionBoundaries: options.actionBoundaries,
-        scriptId: options.scriptId,
-        nonce: options.nonce
-      })
-    });
+    emit({ event: "complete", version: 1 });
+  } finally {
+    owner.dispose(options.signal?.reason ?? "ssr stream complete");
   }
-
-  emit({ event: "complete", version: 1 });
 }
 
 /** Creates a server handler that refreshes one boundary and returns patches plus fallback HTML. */
@@ -577,6 +582,7 @@ async function renderComponentAsync(
   options: RenderToStringOptions
 ): Promise<string> {
   const componentId = markerId(context, "component", componentName(vnode.type), vnode.key);
+  let instance: ComponentInstance<any> | undefined;
   try {
     const pending = new Set<Promise<unknown>>();
     const observer: TaskObserver = {
@@ -586,7 +592,7 @@ async function renderComponentAsync(
         pending.add(observed);
       }
     };
-    const instance = withTaskObserver(observer, () => createComponentInstance(
+    instance = withTaskObserver(observer, () => createComponentInstance(
       vnode.type as ComponentFunction<any, Record<string, unknown>>,
       getComponentProps(vnode),
       parent
@@ -600,7 +606,37 @@ async function renderComponentAsync(
       createErrorReport(error, "construct", parent, componentName(vnode.type))
     );
     return markerPair(context, componentId, async () => fallback ? renderChildrenAsync(context, normalizeRenderResult(fallback()), parent, options) : "");
+  } finally {
+    instance?.unmount(String(options.signal?.reason ?? "ssr render complete"));
   }
+}
+
+function createSsrOwner(): {
+  observer: TaskObserver;
+  pending: Set<Promise<unknown>>;
+  dispose(reason?: unknown): void;
+} {
+  const pending = new Set<Promise<unknown>>();
+  const instances = new Set<ComponentInstance<any>>();
+  return {
+    pending,
+    observer: {
+      register(promise) {
+        let observed: Promise<unknown>;
+        observed = promise.finally(() => pending.delete(observed));
+        pending.add(observed);
+      },
+      retain(instance) {
+        instances.add(instance);
+      }
+    },
+    dispose(reason = "ssr render complete") {
+      // Children are constructed after parents; dispose in reverse order so a
+      // parent context stays valid throughout child teardown.
+      for (const instance of [...instances].reverse()) instance.unmount(String(reason));
+      instances.clear();
+    }
+  };
 }
 
 function renderElement(context: SsrContext, vnode: VNode, parent?: ComponentInstance<any>): string {

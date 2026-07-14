@@ -1076,4 +1076,39 @@ describe("@exact/ssr", () => {
       ]
     });
   });
+
+  it("disposes component tasks and lifecycle ownership after synchronous SSR", () => {
+    let taskSignal: AbortSignal | undefined;
+    let unmounted = 0;
+    function Owned(this: Component<{}>) {
+      this.task(({ signal }) => { taskSignal = signal; });
+      this.onUnmount(() => { unmounted++; });
+      return () => createVNode("p", null, "owned");
+    }
+
+    expect(renderToString(createVNode(Owned, {}), { markers: false }).html).toBe("<p>owned</p>");
+    expect(taskSignal?.aborted).toBe(true);
+    expect(unmounted).toBe(1);
+  });
+
+  it("keeps async SSR ownership alive until tasks settle and then disposes it", async () => {
+    let resolve!: () => void;
+    let cleaned = 0;
+    function Owned(this: Component<{ ready: boolean }>) {
+      this.state.ready = false;
+      this.task(async () => {
+        await new Promise<void>(done => { resolve = done; });
+        this.state.ready = true;
+        return () => { cleaned++; };
+      });
+      return () => createVNode("p", null, this.state.ready ? "ready" : "waiting");
+    }
+
+    const rendering = renderToStringAsync(createVNode(Owned, {}), { markers: false });
+    await Promise.resolve();
+    expect(cleaned).toBe(0);
+    resolve();
+    await expect(rendering).resolves.toMatchObject({ html: "<p>ready</p>" });
+    expect(cleaned).toBe(1);
+  });
 });

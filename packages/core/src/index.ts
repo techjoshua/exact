@@ -443,6 +443,8 @@ function createAbortError(reason: unknown): Error {
 
 export type TaskObserver = {
   register(promise: Promise<unknown>, instance: ComponentInstance<any>): void;
+  /** Retains a constructed component for the lifetime of an owning renderer. */
+  retain?(instance: ComponentInstance<any>): void;
 };
 
 export type Cleanup = void | (() => void | Promise<void>);
@@ -864,6 +866,8 @@ export function createComponentInstance<State extends object, Props extends Reco
     throw error;
   }
   renderFunction = typeof result === "function" ? result as RenderFunction : () => result;
+
+  taskObserverStack[taskObserverStack.length - 1]?.retain?.(instance);
 
   return instance;
 }
