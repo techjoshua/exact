@@ -487,9 +487,10 @@ export function parseKeyedListSnapshotHtml(
   if (html.length > maxBytes || new TextEncoder().encode(html).byteLength > maxBytes) return undefined;
   const items: KeyedListSnapshotItem[] = [];
   const keys = new Set<string>();
-  const stack: Array<{ id: string; start: number; key?: string }> = [];
+  const stack: Array<{ id: string; start: number; item: boolean; key?: string }> = [];
   let cursor = 0;
   let markers = 0;
+  let activeItemMarkers = 0;
   while (cursor < html.length) {
     const start = html.indexOf("<!--", cursor);
     if (start < 0) break;
@@ -502,23 +503,28 @@ export function parseKeyedListSnapshotHtml(
     if (comment.startsWith("exact:")) {
       const id = comment.slice("exact:".length);
       if (!id) return undefined;
-      const topLevelItem = id.startsWith("item:") && !stack.some(frame => frame.id.startsWith("item:"));
+      const item = id.startsWith("item:");
+      const topLevelItem = item && activeItemMarkers === 0;
       const key = topLevelItem ? decodeMarkerKey(id.slice("item:".length)) : undefined;
-      stack.push({ id, start, ...(key === undefined ? {} : { key }) });
+      if (item) activeItemMarkers++;
+      stack.push({ id, start, item, ...(key === undefined ? {} : { key }) });
       continue;
     }
     const id = comment.slice("/exact:".length);
     const frame = stack.pop();
     if (!frame || frame.id !== id) return undefined;
+    if (frame.item) activeItemMarkers--;
     if (frame.key === undefined) continue;
     if (keys.has(frame.key) || items.length >= maxItems) return undefined;
     keys.add(frame.key);
     items.push({ key: frame.key, html: html.slice(frame.start, end + 3) });
   }
   if (stack.length || !items.length) return undefined;
+  const snapshotHtml = markerPair(createSsrContext({ markers: true }), exactMarkerId(listId), () => html);
+  if (snapshotHtml.length > maxBytes || new TextEncoder().encode(snapshotHtml).byteLength > maxBytes) return undefined;
   return {
     listId,
-    html: markerPair(createSsrContext({ markers: true }), exactMarkerId(listId), () => html),
+    html: snapshotHtml,
     innerHtml: html,
     items
   };

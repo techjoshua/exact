@@ -1215,6 +1215,18 @@ describe("@exact/ssr", () => {
     expect(parseKeyedListSnapshotHtml("tasks", `${item}${item}`)).toBeUndefined();
     expect(parseKeyedListSnapshotHtml("tasks", '<!--exact:item:a--><li>A</li><!--/exact:item:b-->')).toBeUndefined();
     expect(parseKeyedListSnapshotHtml("tasks", item, { maxBytes: 16 })).toBeUndefined();
+    expect(parseKeyedListSnapshotHtml("tasks", item, { maxBytes: item.length })).toBeUndefined();
+    expect(parseKeyedListSnapshotHtml("tasks", item, { maxMarkers: 1 })).toBeUndefined();
+  });
+
+  it("parses nested item markers in linear stack time without treating them as sibling keys", () => {
+    const depth = 2_000;
+    const html = `${Array.from({ length: depth }, (_, index) => `<!--exact:item:${index}-->`).join("")}`
+      + `${Array.from({ length: depth }, (_, index) => `<!--/exact:item:${depth - index - 1}-->`).join("")}`;
+    const snapshot = parseKeyedListSnapshotHtml("tasks", html, { maxMarkers: depth * 2 + 1 });
+
+    expect(snapshot?.items).toHaveLength(1);
+    expect(snapshot?.items[0]?.key).toBe("0");
   });
 
   it("creates keyed list refresh handlers that infer previous snapshots from boundary html", async () => {
