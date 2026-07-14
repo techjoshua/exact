@@ -887,6 +887,32 @@ describe("@exact/reactive", () => {
     expect(() => createEffectScope(scope)).toThrow("inactive parent scope");
   });
 
+  it("stops deeply nested effect scopes without using the JavaScript call stack", () => {
+    const root = createEffectScope();
+    let cursor = root;
+    for (let depth = 0; depth < 20_000; depth++) cursor = createEffectScope(cursor);
+
+    expect(() => root.stop()).not.toThrow();
+    expect(root.active).toBe(false);
+    expect(cursor.active).toBe(false);
+  });
+
+  it("finishes scope teardown before rethrowing the first reaction stop failure", () => {
+    const root = createEffectScope() as any;
+    const child = createEffectScope(root) as any;
+    const stopped: string[] = [];
+    child.reactions.add({ stop() { stopped.push("child-failure"); throw new Error("stop failed"); } });
+    child.reactions.add({ stop() { stopped.push("child-later"); } });
+    root.reactions.add({ stop() { stopped.push("parent"); } });
+
+    expect(() => root.stop()).toThrow("stop failed");
+    expect(stopped).toEqual(["child-failure", "child-later", "parent"]);
+    expect(root.active).toBe(false);
+    expect(child.active).toBe(false);
+    expect(root.children.size).toBe(0);
+    expect(child.parent).toBeUndefined();
+  });
+
   it("disposes a watcher whose first run throws before returning a stop handle", () => {
     const state = reactive({ value: 0 });
     const scope = createEffectScope();
