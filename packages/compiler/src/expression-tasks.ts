@@ -25,6 +25,7 @@ export interface ExpressionTaskPlan {
   readonly lifecycleListeners: ReadonlyMap<string, ExpressionLifecycleListener>;
   readonly setupTasks: ReadonlyMap<string, ExpressionSetupTask>;
   readonly signalCalls: ReadonlyMap<string, ExpressionTaskSignalCall>;
+  readonly diagnostics: readonly string[];
 }
 
 export interface ExpressionLifecycleListener {
@@ -66,6 +67,7 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
   const lifecycleListeners = new Map<string, ExpressionLifecycleListener>();
   const setupTasks = new Map<string, ExpressionSetupTask>();
   const signalCalls = new Map<string, ExpressionTaskSignalCall>();
+  const diagnostics: string[] = [];
   const writes = analyzeExpressionWrites(module);
   const localVariables = new Set(module.writesOf(module.root));
   for (const task of module.walk().calls().where(isTaskCall)) {
@@ -166,20 +168,27 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
     const listenerCall = isOwnedListener(call, localVariables);
     const resource = taskResource(call, localVariables);
     const signalCall = taskSignalCall(call, localVariables);
+    let ownResource = false;
     if (resource) {
       const ownership = resource.kind === "owned" ? taskResourceOwnership(module, owner, call, resource) : "owned";
       if (ownership === "owned") {
+        ownResource = true;
         const site = Object.freeze({ start: call.node.span.start, end: call.node.span.end, ...resource });
         resources.set(writeSiteKey(site.start, site.end), site);
+      } else if (ownership === "escape") {
+        diagnostics.push(`error: setup-created ${resource.description ?? resource.kind} escapes component lifecycle ownership; move its creation into this.task.client() or dispose it explicitly`);
       }
     }
     if (signalCall) {
       const site = Object.freeze({ start: call.node.span.start, end: call.node.span.end, ...signalCall });
       signalCalls.set(writeSiteKey(site.start, site.end), site);
     }
-    if (!listenerCall && !resource && !signalCall) continue;
+    if (!listenerCall && !ownResource && !signalCall) continue;
     const expression = directSetupExpression(call);
-    if (!expression?.node.span) continue;
+    if (!expression?.node.span) {
+      diagnostics.push(`error: setup-created ${resource?.description ?? resource?.kind ?? "cancellable operation"} cannot be owned without changing its expression result; move it into this.task.client()`);
+      continue;
+    }
     const setup = Object.freeze({ component: owner.node.name!, start: expression.node.span.start, end: expression.node.span.end });
     setupTasks.set(writeSiteKey(setup.start, setup.end), setup);
     if (listenerCall) {
@@ -187,7 +196,7 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
       lifecycleListeners.set(writeSiteKey(listener.start, listener.end), listener);
     }
   }
-  return Object.freeze({ sites, resources, lifecycleListeners, setupTasks, signalCalls });
+  return Object.freeze({ sites, resources, lifecycleListeners, setupTasks, signalCalls, diagnostics: Object.freeze(diagnostics) });
 }
 
 function isOwnedListener(call: NodeRef, localVariables: ReadonlySet<Variable>): boolean {

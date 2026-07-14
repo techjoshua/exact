@@ -56,6 +56,15 @@ describe("expression-backed task effects", () => {
     ]));
     expect([...plan.signalCalls.values()]).toContainEqual(expect.objectContaining({ mode: "options" }));
   });
+  it("diagnoses setup resources whose values escape automatic lifecycle ownership", () => {
+    clearExpressionProjectCache();
+    const module = expressionModuleFor("EscapingSetupResource.tsx", `function Panel(this: Component<{}>) {
+      const socket = new WebSocket("/events");
+      return () => <p>{socket.readyState}</p>;
+    }`);
+    expect(analyzeExpressionTasks(module).diagnostics)
+      .toContainEqual(expect.stringContaining("setup-created WebSocket cannot be owned without changing its expression result"));
+  });
   it("classifies state, context, environment, async, and explicit placement effects", () => {
     clearExpressionProjectCache();
     const module = expressionModuleFor("ExpressionTasks.tsx", `

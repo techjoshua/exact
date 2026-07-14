@@ -90,6 +90,13 @@ describe("@exact/compiler", () => {
     expect(output).toContain("load(__exactTaskOptionsSignal({ priority: 1 }, __exactSignal))");
     expect(output).toContain("bus.addEventListener(\"message\", () => { }, __exactTaskOptionsSignal(undefined, __exactSignal))");
   });
+  it("requires explicit task ownership when a setup resource value escapes", () => {
+    expect(() => transform(`function Panel(this: Component<{}>) {
+      const socket = new WebSocket("/events");
+      return () => <p>{socket.readyState}</p>;
+    }`, { filename: "EscapingSetupResource.tsx" }))
+      .toThrow("setup-created WebSocket cannot be owned without changing its expression result");
+  });
   it("allows abort-scoped browser-global listeners inside component tasks", () => {
     expect(() => transform(`function Panel(this: Component<{}>) { this.task.client(({ signal }) => { window.addEventListener("resize", () => {}, { signal }); }); return () => <p />; }`, { filename: "Panel.tsx" }))
       .not.toThrow();

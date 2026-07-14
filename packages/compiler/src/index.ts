@@ -157,6 +157,8 @@ export function transformSource(source: string, options: TransformOptions = {}):
   const expressionDerived = analyzeExpressionDerived(expressionModule, provenance);
   const expressionWrites = analyzeExpressionWrites(expressionModule);
   const expressionTasks = analyzeExpressionTasks(expressionModule);
+  const taskErrors = expressionTasks.diagnostics.filter(diagnostic => diagnostic.startsWith("error:"));
+  if (taskErrors.length) throw new Error(taskErrors.join("\n"));
   const expressionJsx = analyzeExpressionJsx(expressionModule, provenance, filename);
   const expressionComponents = analyzeExpressionComponents(expressionModule, expressionJsx, expressionTasks, provenance, expressionWrites);
   const emissionComponentInfo = new Map<string, ExactImportedComponentIR>();
@@ -215,6 +217,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const expressionSafety = analyzeExpressionSafety(expressionModule, provenance);
   const expressionWrites = analyzeExpressionWrites(expressionModule);
   const expressionTasks = analyzeExpressionTasks(expressionModule);
+  manifestDiagnostics.push(...expressionTasks.diagnostics);
   const expressionJsx = analyzeExpressionJsx(expressionModule, provenance, filename);
   const expressionComponents = analyzeExpressionComponents(expressionModule, expressionJsx, expressionTasks, provenance, expressionWrites);
   const components: ExactComponentIR[] = createExpressionComponents(filename, expressionComponents, expressionTasks, expressionSafety);
