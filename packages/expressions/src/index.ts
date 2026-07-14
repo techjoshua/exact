@@ -16,6 +16,7 @@ export {
   type ExpressionScope,
   type ExpressionSymbol,
   type ExpressionType,
+  type ExpressionTypeProperty,
   type ExpressionTypeKind,
   type FunctionExpressionNode,
   type JsxExpressionNode,

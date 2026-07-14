@@ -48,6 +48,13 @@ export interface ExpressionCallSignature {
   readonly typeParameters: readonly string[];
 }
 
+export interface ExpressionTypeProperty {
+  readonly name: string;
+  readonly type: ExpressionType;
+  readonly optional: boolean;
+  readonly readonly: boolean;
+}
+
 /** TypeScript type information expressed without leaking compiler objects. */
 export interface ExpressionType {
   readonly id: string;
@@ -56,6 +63,7 @@ export interface ExpressionType {
   readonly nullable: boolean;
   readonly callable: boolean;
   readonly properties: readonly string[];
+  readonly propertyTypes: readonly ExpressionTypeProperty[];
   readonly unionMembers: readonly ExpressionType[];
   readonly callSignatures: readonly ExpressionCallSignature[];
   readonly typeArguments: readonly ExpressionType[];

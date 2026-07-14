@@ -69,6 +69,7 @@ class ProjectType implements ExpressionType {
     readonly nullable: boolean,
     readonly callable: boolean,
     readonly properties: readonly string[],
+    readonly propertyTypes: ExpressionType["propertyTypes"],
     readonly unionMembers: readonly ExpressionType[],
     readonly callSignatures: readonly ExpressionCallSignature[],
     readonly typeArguments: readonly ExpressionType[],
@@ -241,7 +242,7 @@ export class ExpressionProject {
       const placeholder: ExpressionType = Object.freeze({
         id: `type:${key}`, kind: typeKind(type), display,
         nullable: false, callable: type.getCallSignatures().length > 0,
-        properties: Object.freeze([]), unionMembers: Object.freeze([]),
+        properties: Object.freeze([]), propertyTypes: Object.freeze([]), unionMembers: Object.freeze([]),
         callSignatures: Object.freeze([]), typeArguments: Object.freeze([]), typeParameters: Object.freeze([])
       });
       typeCache.set(type, placeholder);
@@ -255,7 +256,8 @@ export class ExpressionProject {
             return Object.freeze({
               name: parameter.name,
               type: typeFor(checker.getTypeOfSymbolAtLocation(parameter, parameterDeclaration), parameterDeclaration),
-              optional: Boolean(parameter.flags & ts.SymbolFlags.Optional),
+              optional: Boolean(parameter.flags & ts.SymbolFlags.Optional)
+                || ts.isParameter(parameterDeclaration) && (!!parameterDeclaration.questionToken || !!parameterDeclaration.initializer),
               rest: ts.isParameter(parameterDeclaration) && !!parameterDeclaration.dotDotDotToken
             });
           })),
@@ -267,13 +269,29 @@ export class ExpressionProject {
         ? checker.getTypeArguments(type as ts.TypeReference).map(argument => typeFor(argument, at))
         : [];
       const typeParameters = ((type as ts.Type & { typeParameters?: readonly ts.Type[] }).typeParameters ?? []).map(parameter => checker.typeToString(parameter, at));
+      // Optional parameters are commonly represented as `Options | undefined`.
+      // Surface the non-nullish object's properties on that union so callers do
+      // not need to understand TypeScript's internal union representation.
+      const propertyOwner = type.getNonNullableType();
+      const properties = propertyOwner.getProperties();
+      const propertyTypes = properties.map(property => {
+        const declaration = property.valueDeclaration ?? property.declarations?.[0] ?? at;
+        return Object.freeze({
+          name: property.name,
+          type: shallowTypeFor(checker.getTypeOfSymbolAtLocation(property, declaration), declaration),
+          optional: Boolean(property.flags & ts.SymbolFlags.Optional),
+          readonly: property.declarations?.some(candidate => ts.canHaveModifiers(candidate)
+            && ts.getModifiers(candidate)?.some(modifier => modifier.kind === ts.SyntaxKind.ReadonlyKeyword)) ?? false
+        });
+      });
       const value = new ProjectType(
         `type:${key}`,
         typeKind(type),
         display,
         Boolean(type.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined | ts.TypeFlags.Any | ts.TypeFlags.Unknown)) || members.some(member => member.nullable),
         type.getCallSignatures().length > 0,
-        Object.freeze(type.getProperties().map(property => property.name)),
+        Object.freeze(properties.map(property => property.name)),
+        Object.freeze(propertyTypes),
         Object.freeze(members),
         Object.freeze(signatures),
         Object.freeze(typeArguments),
@@ -281,6 +299,38 @@ export class ExpressionProject {
       );
       typeCache.set(type, value);
       return value;
+    };
+
+    const shallowTypeFor = (type: ts.Type, at: ts.Node): ExpressionType => {
+      const display = checker.typeToString(type, at, ts.TypeFormatFlags.NoTruncation);
+      const members = type.isUnionOrIntersection()
+        ? type.types.map(member => Object.freeze({
+          id: `type-summary:${member.flags}:${checker.typeToString(member, at, ts.TypeFormatFlags.NoTruncation)}`,
+          kind: typeKind(member),
+          display: checker.typeToString(member, at, ts.TypeFormatFlags.NoTruncation),
+          nullable: Boolean(member.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined | ts.TypeFlags.Any | ts.TypeFlags.Unknown)),
+          callable: member.getCallSignatures().length > 0,
+          properties: Object.freeze(member.getProperties().map(property => property.name)),
+          propertyTypes: Object.freeze([]),
+          unionMembers: Object.freeze([]),
+          callSignatures: Object.freeze([]),
+          typeArguments: Object.freeze([]),
+          typeParameters: Object.freeze([])
+        } satisfies ExpressionType))
+        : [];
+      return Object.freeze({
+        id: `type-summary:${type.flags}:${display}`,
+        kind: typeKind(type),
+        display,
+        nullable: Boolean(type.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined | ts.TypeFlags.Any | ts.TypeFlags.Unknown)) || members.some(member => member.nullable),
+        callable: type.getCallSignatures().length > 0,
+        properties: Object.freeze(type.getProperties().map(property => property.name)),
+        propertyTypes: Object.freeze([]),
+        unionMembers: Object.freeze(members),
+        callSignatures: Object.freeze([]),
+        typeArguments: Object.freeze([]),
+        typeParameters: Object.freeze([])
+      });
     };
 
     const variableFor = (identifier: ts.Identifier): Variable | undefined => {

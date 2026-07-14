@@ -16,13 +16,14 @@ describe("@exact/expressions binding", () => {
     const model = path.join(root, "apps/kanban/src/__expressions_model.ts");
     const consumer = path.join(root, "apps/kanban/src/__expressions_consumer.ts");
     const modules = project.updateModules([
-      [model, `export interface Box<T> { value: T }\nexport function box<T>(value: T): Box<T> { return { value }; }`],
-      [consumer, `import { box } from "./__expressions_model.js";\nimport type { Box } from "./__expressions_model.js";\nexport const result = box("ready");`]
+      [model, `export interface Box<T> { value: T }\nexport interface RequestOptions { signal?: AbortSignal; label: string }\nexport function box<T>(value: T): Box<T> { return { value }; }\nexport function request(options?: RequestOptions): void { void options; }`],
+      [consumer, `import { box, request } from "./__expressions_model.js";\nimport type { Box } from "./__expressions_model.js";\nexport const result = box("ready");\nrequest({ label: "typed" });`]
     ]);
     const module = modules.get(consumer.replace(/\\/g, "/"))!;
     const result = module.walk().references().first(ref => ref.name === "result")!.variable!;
     const box = module.walk().references().first(ref => ref.name === "box")!.variable!;
     const boxType = module.walk().references().first(ref => ref.name === "Box")!.variable!;
+    const request = module.walk().references().first(ref => ref.name === "request")!.variable!;
 
     expect(result.type?.display).toContain("Box<string>");
     expect(box.importedFrom).toBe("./__expressions_model.js");
@@ -33,6 +34,9 @@ describe("@exact/expressions binding", () => {
     expect(box.type?.callSignatures[0]?.parameters[0]?.name).toBe("value");
     expect(box.type?.callSignatures[0]?.returnType.display).toContain("Box<T>");
     expect(result.type?.typeArguments[0]?.display).toBe("string");
+    const requestOptions = request.type?.callSignatures[0]?.parameters[0]?.type;
+    expect(requestOptions?.propertyTypes.find(property => property.name === "signal")?.type.display).toContain("AbortSignal");
+    expect(requestOptions?.propertyTypes.find(property => property.name === "label")?.type.display).toBe("string");
     expect(module.diagnostics.filter(diagnostic => diagnostic.severity === "error")).toEqual([]);
   });
 
