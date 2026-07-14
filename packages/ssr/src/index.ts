@@ -611,7 +611,7 @@ function renderVNode(context: SsrContext, vnode: VNode, parent?: ComponentInstan
   return withSsrTreeDepth(context, () => {
     countSsrNode(context);
     const html = renderVNodeInner(context, vnode, parent);
-    assertOutputWithinLimit(context, html);
+    assertOutputCharacterBound(context, html);
     return html;
   });
 }
@@ -694,7 +694,7 @@ async function renderVNodeAsync(
   return withSsrTreeDepthAsync(context, async () => {
     countSsrNode(context);
     const html = await renderVNodeAsyncInner(context, vnode, parent, options);
-    assertOutputWithinLimit(context, html);
+    assertOutputCharacterBound(context, html);
     return html;
   });
 }
@@ -1009,12 +1009,19 @@ function boundedJoin(context: SsrContext, chunks: readonly string[]): string {
     if (characters > context.maxOutputBytes) throw new SsrOutputLimitError(context.maxOutputBytes);
   }
   const html = chunks.join("");
-  assertOutputWithinLimit(context, html);
+  assertOutputCharacterBound(context, html);
   return html;
 }
 
-function assertOutputWithinLimit(context: SsrContext, html: string): void {
+function assertOutputCharacterBound(context: SsrContext, html: string): void {
+  // UTF-8 is never shorter than the UTF-16 code-unit count. This constant-time
+  // subtree check prevents oversized allocation without rescanning the same
+  // descendant output at every ancestor; roots receive the exact byte check.
   if (html.length > context.maxOutputBytes) throw new SsrOutputLimitError(context.maxOutputBytes);
+}
+
+function assertOutputWithinLimit(context: SsrContext, html: string): void {
+  assertOutputCharacterBound(context, html);
   // ASCII is the overwhelmingly common SSR path and needs no allocation.
   if (/[^\x00-\x7f]/.test(html) && new TextEncoder().encode(html).byteLength > context.maxOutputBytes) {
     throw new SsrOutputLimitError(context.maxOutputBytes);
