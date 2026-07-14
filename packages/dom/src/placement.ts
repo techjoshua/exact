@@ -26,13 +26,22 @@ export function placeMountedBefore(root: Root, parent: Node, mounted: Mounted, b
 
 /** Returns every DOM node owned by a mounted subtree in document order. */
 export function mountedDomNodes(mounted: Mounted): Node[] {
-  const nodes = [mounted.dom];
-  if (mounted.end || mounted.vnode.type === Cell || mounted.vnode.type === Fragment || mounted.vnode.type === Dynamic || typeof mounted.vnode.type === "function") {
-    for (const child of mounted.children) {
-      nodes.push(...mountedDomNodes(child));
+  const nodes: Node[] = [];
+  const pending: Array<{ mounted: Mounted; end: boolean }> = [{ mounted, end: false }];
+  while (pending.length) {
+    const current = pending.pop()!;
+    if (current.end) {
+      if (current.mounted.end) nodes.push(current.mounted.end);
+      continue;
+    }
+    nodes.push(current.mounted.dom);
+    if (current.mounted.end) pending.push({ mounted: current.mounted, end: true });
+    if (ownsChildDom(current.mounted)) {
+      for (let index = current.mounted.children.length - 1; index >= 0; index--) {
+        pending.push({ mounted: current.mounted.children[index]!, end: false });
+      }
     }
   }
-  if (mounted.end) nodes.push(mounted.end);
   return nodes;
 }
 
@@ -45,9 +54,14 @@ export function afterMountedChildren(mounted: Mounted): Node | null {
 
 /** Returns the final DOM node owned by a mounted subtree. */
 export function lastMountedNode(mounted: Mounted): Node {
-  if (mounted.end) return mounted.end;
-  const lastChild = mounted.children[mounted.children.length - 1];
-  return lastChild ? lastMountedNode(lastChild) : mounted.dom;
+  let current = mounted;
+  while (!current.end && current.children.length) current = current.children[current.children.length - 1]!;
+  return current.end ?? current.dom;
+}
+
+function ownsChildDom(mounted: Mounted): boolean {
+  return !!mounted.end || mounted.vnode.type === Cell || mounted.vnode.type === Fragment
+    || mounted.vnode.type === Dynamic || typeof mounted.vnode.type === "function";
 }
 
 function areContiguous(nodes: Node[]): boolean {

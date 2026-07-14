@@ -32,6 +32,8 @@ export type Root = {
   boundary: ComponentFunction<{}, { version: number }>;
   logger?: Logger;
   debugMarkers: boolean;
+  maxTreeDepth: number;
+  traversalDepth: number;
   /** Hydrated roots are anchored by SSR markers rather than the synthetic client root boundary. */
   mode?: "client" | "hydrated";
 };
@@ -39,4 +41,6 @@ export type Root = {
 export type RenderOptions = {
   logger?: Logger;
   debugMarkers?: boolean;
+  /** Maximum nested vnode depth accepted by mounting, patching, or hydration. */
+  maxTreeDepth?: number;
 };

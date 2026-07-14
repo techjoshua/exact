@@ -73,6 +73,16 @@ export type { RenderOptions } from "./types.js";
 export { applyDomProp };
 export { HTML_NAMESPACE, MATHML_NAMESPACE, SVG_NAMESPACE, namespaceForTag } from "./namespace.js";
 
+const DEFAULT_MAX_TREE_DEPTH = 512;
+const HARD_MAX_TREE_DEPTH = 1_024;
+
+class DomTreeDepthError extends Error {
+  constructor(limit: number) {
+    super(`eXact DOM tree exceeds the configured maximum depth of ${limit}`);
+    this.name = "DomTreeDepthError";
+  }
+}
+
 /** Renders or patches a vnode tree into a DOM container. */
 export function render(vnode: VNode, container: Element, options: RenderOptions = {}): void {
   let root = roots.get(container);
@@ -84,7 +94,9 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
       current: vnode,
       version: 0,
       boundary: undefined as never,
-      debugMarkers: false
+      debugMarkers: false,
+      maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth),
+      traversalDepth: 0
     };
     root.boundary = createRootBoundary(root);
     roots.set(container, root);
@@ -93,6 +105,7 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
   root.version++;
   root.logger = options.logger;
   root.debugMarkers = options.debugMarkers ?? false;
+  root.maxTreeDepth = normalizeTreeDepth(options.maxTreeDepth);
 
   const next = root.mode === "hydrated"
     ? vnode
@@ -165,6 +178,8 @@ export function adoptStatic(vnode: VNode, container: Element, options: RenderOpt
     version: 1,
     boundary: undefined as never,
     debugMarkers: false,
+    maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth),
+    traversalDepth: 0,
     logger: options.logger
   };
   root.boundary = createRootBoundary(root);
@@ -202,6 +217,7 @@ export function adoptComponentRoot(vnode: VNode, container: Element, options: Re
   const root: Root = {
     container, delegated: new Map(), errors: createErrorContext(), current: vnode,
     version: 1, boundary: undefined as never, debugMarkers: false,
+    maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth), traversalDepth: 0,
     logger: options.logger, mode: "hydrated"
   };
   root.boundary = createRootBoundary(root);
@@ -279,6 +295,17 @@ function adoptStaticChildrenRange(
 }
 
 function adoptStaticMounted(
+  root: Root,
+  vnode: VNode,
+  nodes: readonly Node[],
+  cursor: number,
+  parentInstance: ComponentInstance<any>,
+  parentScope: EffectScope
+): { mounted: Mounted; next: number } | undefined {
+  return withTreeDepth(root, () => adoptStaticMountedInner(root, vnode, nodes, cursor, parentInstance, parentScope));
+}
+
+function adoptStaticMountedInner(
   root: Root,
   vnode: VNode,
   nodes: readonly Node[],
@@ -474,7 +501,18 @@ function createElement(tag: string, parent?: Node, props?: Record<string, unknow
 }
 
 function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>, parentScope?: EffectScope, parentNode?: Node): Mounted {
-  const scope = createEffectScope(parentScope);
+  return withTreeDepth(root, () => {
+    const scope = createEffectScope(parentScope);
+    try {
+      return mountInner(root, vnode, scope, parentInstance, parentNode);
+    } catch (error) {
+      scope.stop();
+      throw error;
+    }
+  });
+}
+
+function mountInner(root: Root, vnode: VNode, scope: EffectScope, parentInstance?: ComponentInstance<any>, parentNode?: Node): Mounted {
   if (isCellVNode(vnode)) {
     const marker = createMarker(root, "cell");
     const mounted: Mounted = { vnode, dom: marker, scope, children: [] };
@@ -553,6 +591,7 @@ function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>
       mounted.children = mountDetachedChildren(root, rendered, instance, mounted.scope, parentNode);
       instance.markMounted();
     } catch (error) {
+      if (error instanceof DomTreeDepthError) throw error;
       const fallback = handleComponentError(
         parentInstance,
         createErrorReport(error, "construct", parentInstance, describeVNodeType(vnode.type))
@@ -573,6 +612,17 @@ function mount(root: Root, vnode: VNode, parentInstance?: ComponentInstance<any>
 }
 
 function patch(
+  root: Root,
+  parent: Node,
+  mounted: Mounted | undefined,
+  next: VNode,
+  parentInstance?: ComponentInstance<any>,
+  parentScope?: EffectScope
+): Mounted {
+  return withTreeDepth(root, () => patchInner(root, parent, mounted, next, parentInstance, parentScope));
+}
+
+function patchInner(
   root: Root,
   parent: Node,
   mounted: Mounted | undefined,
@@ -919,29 +969,59 @@ function bindText(mounted: Mounted, value: unknown): void {
 }
 
 function unmountMounted(mounted: Mounted): void {
-  mounted.scope.stop();
-  for (const child of mounted.children) unmountMounted(child);
-  if (mounted.instance) mounted.instance.unmount();
-  mounted.stop?.();
-
-  if (mounted.dom instanceof Element) {
-    clearElementProps(mounted.dom);
-    clearElementOwner(mounted.dom);
+  const pending: Array<{ mounted: Mounted; complete: boolean }> = [{ mounted, complete: false }];
+  while (pending.length) {
+    const current = pending.pop()!;
+    if (!current.complete) {
+      current.mounted.scope.stop();
+      pending.push({ mounted: current.mounted, complete: true });
+      for (let index = current.mounted.children.length - 1; index >= 0; index--) {
+        pending.push({ mounted: current.mounted.children[index]!, complete: false });
+      }
+      continue;
+    }
+    current.mounted.instance?.unmount();
+    current.mounted.stop?.();
+    if (current.mounted.dom instanceof Element) {
+      clearElementProps(current.mounted.dom);
+      clearElementOwner(current.mounted.dom);
+    }
+    const ref = current.mounted.vnode.props.ref as RefBinding<unknown> | undefined;
+    ref?.fulfill(undefined);
   }
-
-  const ref = mounted.vnode.props.ref as RefBinding<unknown> | undefined;
-  ref?.fulfill(undefined);
 }
 
 function removeMountedNodes(parent: Node, mounted: Mounted): void {
-  for (const child of mounted.children) {
-    removeMountedNodes(parent, child);
+  const pending: Array<{ mounted: Mounted; complete: boolean }> = [{ mounted, complete: false }];
+  while (pending.length) {
+    const current = pending.pop()!;
+    if (!current.complete) {
+      pending.push({ mounted: current.mounted, complete: true });
+      for (let index = current.mounted.children.length - 1; index >= 0; index--) {
+        pending.push({ mounted: current.mounted.children[index]!, complete: false });
+      }
+      continue;
+    }
+    if (current.mounted.dom.parentNode === parent) parent.removeChild(current.mounted.dom);
+    if (current.mounted.end?.parentNode === parent) parent.removeChild(current.mounted.end);
   }
+}
 
-  if (mounted.dom.parentNode === parent) {
-    parent.removeChild(mounted.dom);
+function normalizeTreeDepth(value: number | undefined): number {
+  return Number.isSafeInteger(value) && value! > 0
+    ? Math.min(value!, HARD_MAX_TREE_DEPTH)
+    : DEFAULT_MAX_TREE_DEPTH;
+}
+
+function withTreeDepth<T>(root: Root, run: () => T): T {
+  root.traversalDepth++;
+  if (root.traversalDepth > root.maxTreeDepth) {
+    root.traversalDepth--;
+    throw new DomTreeDepthError(root.maxTreeDepth);
   }
-  if (mounted.end?.parentNode === parent) {
-    parent.removeChild(mounted.end);
+  try {
+    return run();
+  } finally {
+    root.traversalDepth--;
   }
 }

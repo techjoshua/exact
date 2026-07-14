@@ -2501,6 +2501,17 @@ describe("@exact/dom", () => {
     expect(container.querySelector("span")).toBeNull();
     expect(container.querySelectorAll("strong")).toHaveLength(1);
   });
+
+  it("rejects over-deep vnode trees without mounting a partial root", () => {
+    let vnode = createVNode("span", null, "leaf");
+    for (let depth = 0; depth < 20; depth++) vnode = createVNode("div", null, vnode);
+    const container = document.createElement("div");
+
+    expect(() => render(vnode, container, { maxTreeDepth: 8 }))
+      .toThrow("eXact DOM tree exceeds the configured maximum depth of 8");
+    expect(container.childNodes).toHaveLength(0);
+    expect(unmount(container)).toBe(true);
+  });
 });
 
 function commentData(root: Node): string[] {
