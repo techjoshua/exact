@@ -48,10 +48,15 @@ export function sameJsonData(left: unknown, right: unknown, options: JsonCompari
     if (Array.isArray(currentLeft)) {
       const rightArray = currentRight as unknown[];
       if (currentLeft.length !== rightArray.length) return false;
+      if (Object.getOwnPropertySymbols(currentLeft).some(symbol => Object.prototype.propertyIsEnumerable.call(currentLeft, symbol))
+        || Object.getOwnPropertySymbols(rightArray).some(symbol => Object.prototype.propertyIsEnumerable.call(rightArray, symbol))) return false;
+      if (Object.keys(currentLeft).some(key => !isArrayIndexKey(key, currentLeft.length))
+        || Object.keys(rightArray).some(key => !isArrayIndexKey(key, rightArray.length))) return false;
       for (let index = currentLeft.length - 1; index >= 0; index--) {
-        if (!Object.prototype.hasOwnProperty.call(currentLeft, index)
-          || !Object.prototype.hasOwnProperty.call(rightArray, index)) return false;
-        pending.push({ kind: "compare", left: currentLeft[index], right: rightArray[index] });
+        const leftDescriptor = Object.getOwnPropertyDescriptor(currentLeft, index);
+        const rightDescriptor = Object.getOwnPropertyDescriptor(rightArray, index);
+        if (!leftDescriptor || !rightDescriptor || !("value" in leftDescriptor) || !("value" in rightDescriptor)) return false;
+        pending.push({ kind: "compare", left: leftDescriptor.value, right: rightDescriptor.value });
       }
       continue;
     }
@@ -87,4 +92,9 @@ function isJsonScalar(value: unknown): value is null | boolean | number | string
 function isPlainJsonObject(value: object): boolean {
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
+}
+
+function isArrayIndexKey(key: string, length: number): boolean {
+  const index = Number(key);
+  return Number.isInteger(index) && index >= 0 && index < length && String(index) === key;
 }

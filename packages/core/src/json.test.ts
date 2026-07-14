@@ -15,6 +15,7 @@ describe("bounded JSON equality", () => {
     expect(sameJsonData(left, right)).toBe(false);
     expect(sameJsonData(left, left)).toBe(false);
     expect(sameJsonData(Object.defineProperty({}, "value", { enumerable: true, get: () => 1 }), { value: 1 })).toBe(false);
+    expect(sameJsonData(Object.defineProperty([], "0", { enumerable: true, get: () => 1 }), [1])).toBe(false);
     expect(sameJsonData(Array(1), Array(1))).toBe(false);
     expect(sameJsonData(undefined, undefined)).toBe(false);
     expect(sameJsonData(Number.NaN, Number.NaN)).toBe(false);
