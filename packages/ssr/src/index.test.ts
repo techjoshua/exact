@@ -1111,4 +1111,42 @@ describe("@exact/ssr", () => {
     await expect(rendering).resolves.toMatchObject({ html: "<p>ready</p>" });
     expect(cleaned).toBe(1);
   });
+
+  it("does not construct streamed components ahead of reader demand", async () => {
+    let constructed = 0;
+    function Lazy(this: Component<{}>) {
+      constructed++;
+      return () => createVNode("p", null, "lazy");
+    }
+    const reader = renderToDocumentStream(createVNode(Lazy, {}), { markers: false }).getReader();
+    await Promise.resolve();
+    expect(constructed).toBe(0);
+    expect(await readStreamEvent(reader)).toMatchObject({ event: "start" });
+    await Promise.resolve();
+    expect(constructed).toBe(1);
+    await reader.cancel();
+  });
+
+  it("does not construct progressive components ahead of reader demand", async () => {
+    let constructed = 0;
+    function Lazy(this: Component<{}>) {
+      constructed++;
+      return () => createVNode("p", null, "lazy");
+    }
+    const reader = renderToProgressiveHtmlStream(createVNode(Lazy, {}), { markers: false }).getReader();
+    await Promise.resolve();
+    expect(constructed).toBe(0);
+    expect(new TextDecoder().decode((await reader.read()).value)).toContain("lazy");
+    expect(constructed).toBe(1);
+    await reader.cancel();
+  });
+
+  it("enforces SSR stream byte budgets", async () => {
+    const reader = renderToDocumentStream(createVNode("p", null, "x".repeat(100)), {
+      markers: false,
+      maxStreamBytes: 32
+    }).getReader();
+    expect(await readStreamEvent(reader)).toMatchObject({ event: "start" });
+    await expect(reader.read()).rejects.toThrow("byte limit");
+  });
 });

@@ -9,11 +9,11 @@ import type {
 
 export type DocumentStreamRender = (
   signal: AbortSignal,
-  emit: (event: ExactDocumentStreamEvent) => void
+  emit: (event: ExactDocumentStreamEvent) => Promise<void>
 ) => Promise<void> | void;
 export type ProgressiveDocumentStreamRender = (
   options: RenderToProgressiveHtmlStreamOptions,
-  emit: (event: ExactDocumentStreamEvent) => void
+  emit: (event: ExactDocumentStreamEvent) => Promise<void>
 ) => Promise<void> | void;
 
 /** Creates a readable stream containing a single HTML string. */
@@ -29,39 +29,62 @@ export function createHtmlStream(html: string): ReadableStream<Uint8Array> {
 /** Creates an NDJSON stream of document render lifecycle events. */
 export function createDocumentEventStream(
   render: DocumentStreamRender,
-  options: { signal?: AbortSignal; onError?(error: unknown): void } = {}
+  options: { signal?: AbortSignal; maxEvents?: number; maxBytes?: number; onError?(error: unknown): void } = {}
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   const ownerController = new AbortController();
   const unlink = forwardAbort(options.signal, ownerController);
   let closed = false;
+  let resume: (() => void) | undefined;
+  let demand = 0;
+  const maxEvents = positiveLimit(options.maxEvents, 100_000);
+  const maxBytes = positiveLimit(options.maxBytes, 16 * 1024 * 1024);
+  let events = 0;
+  let bytes = 0;
+  const wake = () => { const ready = resume; resume = undefined; ready?.(); };
+  ownerController.signal.addEventListener("abort", wake, { once: true });
+  const cleanup = () => { ownerController.signal.removeEventListener("abort", wake); unlink(); };
   return new ReadableStream<Uint8Array>({
     start(controller) {
-      const emit = (event: ExactDocumentStreamEvent): void => {
-        if (closed || ownerController.signal.aborted) return;
-        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      const emit = async (event: ExactDocumentStreamEvent): Promise<void> => {
+        const chunk = encoder.encode(`${JSON.stringify(event)}\n`);
+        if (++events > maxEvents) throw new Error("SSR stream event limit exceeded");
+        bytes += chunk.byteLength;
+        if (bytes > maxBytes) throw new Error("SSR stream byte limit exceeded");
+        while (!closed && !ownerController.signal.aborted && demand <= 0) {
+          await new Promise<void>(resolve => { resume = resolve; });
+        }
+        if (closed || ownerController.signal.aborted) throw ownerController.signal.reason ?? new DOMException("SSR stream aborted", "AbortError");
+        demand--;
+        controller.enqueue(chunk);
       };
       Promise.resolve(render(ownerController.signal, emit))
-        .then(() => { if (!closed) { closed = true; unlink(); controller.close(); } })
+        .then(() => { if (!closed) { closed = true; cleanup(); controller.close(); } })
         .catch(error => {
           if (closed) return;
           if (ownerController.signal.aborted) {
             closed = true;
-            unlink();
+            cleanup();
             controller.error(ownerController.signal.reason ?? new DOMException("SSR stream aborted", "AbortError"));
             return;
           }
           options.onError?.(error);
-          emit({ event: "error", version: 1, message: "Document rendering failed" });
-          if (!closed) { closed = true; unlink(); controller.close(); }
+          void emit({ event: "error", version: 1, message: "Document rendering failed" }).then(() => {
+            if (!closed) { closed = true; cleanup(); controller.close(); }
+          }, emitError => {
+            if (!closed) { closed = true; cleanup(); controller.error(emitError); }
+          });
         });
     },
+    pull() { demand++; const ready = resume; resume = undefined; ready?.(); },
     cancel(reason) {
       closed = true;
+      resume?.();
+      resume = undefined;
       ownerController.abort(reason);
-      unlink();
+      cleanup();
     }
-  });
+  }, { highWaterMark: 0 });
 }
 
 /** Creates a progressive HTML stream from document render lifecycle events. */
@@ -75,36 +98,67 @@ export function createProgressiveHtmlStream(render: ProgressiveDocumentStreamRen
   const unlink = forwardAbort(options.signal, abortController);
   streamOptions.signal = abortController.signal;
   let closed = false;
+  let resume: (() => void) | undefined;
+  let demand = 0;
+  const maxEvents = positiveLimit(options.maxStreamEvents, 100_000);
+  const maxBytes = positiveLimit(options.maxStreamBytes, 16 * 1024 * 1024);
+  let events = 0;
+  let bytes = 0;
+  const wake = () => { const ready = resume; resume = undefined; ready?.(); };
+  abortController.signal.addEventListener("abort", wake, { once: true });
+  const cleanup = () => { abortController.signal.removeEventListener("abort", wake); unlink(); };
   return new ReadableStream<Uint8Array>({
     start(controller) {
-      const emit = (chunk: string): void => {
-        if (closed || abortController.signal.aborted) return;
-        controller.enqueue(encoder.encode(chunk));
+      const waitForDemand = async (): Promise<void> => {
+        while (!closed && !abortController.signal.aborted && demand <= 0) {
+          await new Promise<void>(resolve => { resume = resolve; });
+        }
+        if (closed || abortController.signal.aborted) throw abortController.signal.reason ?? new DOMException("SSR stream aborted", "AbortError");
       };
-      Promise.resolve(render(streamOptions, event => {
+      const emit = async (chunk: string): Promise<void> => {
+        const encoded = encoder.encode(chunk);
+        if (++events > maxEvents) throw new Error("SSR stream event limit exceeded");
+        bytes += encoded.byteLength;
+        if (bytes > maxBytes) throw new Error("SSR stream byte limit exceeded");
+        await waitForDemand();
+        demand--;
+        controller.enqueue(encoded);
+      };
+      Promise.resolve(render(streamOptions, async event => {
         const chunk = progressiveHtmlChunk(event, streamOptions);
-        if (chunk) emit(chunk);
+        if (chunk) await emit(chunk);
+        else await waitForDemand();
       }))
-        .then(() => { if (!closed) { closed = true; unlink(); controller.close(); } })
+        .then(() => { if (!closed) { closed = true; cleanup(); controller.close(); } })
         .catch(error => {
           if (closed) return;
           if (abortController.signal.aborted) {
             closed = true;
-            unlink();
+            cleanup();
             controller.error(abortController.signal.reason ?? new DOMException("SSR stream aborted", "AbortError"));
             return;
           }
           logFrameworkEvent("error", "ssr", "stream", "progressive document render failed", error, options.logger);
-          emit(progressiveErrorScript(error, streamOptions));
-          if (!closed) { closed = true; unlink(); controller.close(); }
+          void emit(progressiveErrorScript(error, streamOptions)).then(() => {
+            if (!closed) { closed = true; cleanup(); controller.close(); }
+          }, emitError => {
+            if (!closed) { closed = true; cleanup(); controller.error(emitError); }
+          });
         });
     },
+    pull() { demand++; const ready = resume; resume = undefined; ready?.(); },
     cancel(reason) {
       closed = true;
+      resume?.();
+      resume = undefined;
       abortController.abort(reason);
-      unlink();
+      cleanup();
     }
-  });
+  }, { highWaterMark: 0 });
+}
+
+function positiveLimit(value: number | undefined, fallback: number): number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
 
 function forwardAbort(source: AbortSignal | undefined, target: AbortController): () => void {

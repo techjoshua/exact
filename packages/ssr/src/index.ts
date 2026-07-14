@@ -114,7 +114,12 @@ export function renderToStream(vnode: VNode, options: RenderToStringOptions = {}
 export function renderToDocumentStream(vnode: VNode, options: RenderToDocumentStreamOptions = {}): ReadableStream<Uint8Array> {
   return createDocumentEventStream(
     (signal, emit) => streamDocumentRender(vnode, { ...options, signal }, emit),
-    { signal: options.signal, onError: error => logFrameworkEvent("error", "ssr", "stream", "document render failed", error, options.logger) }
+    {
+      signal: options.signal,
+      maxEvents: options.maxStreamEvents,
+      maxBytes: options.maxStreamBytes,
+      onError: error => logFrameworkEvent("error", "ssr", "stream", "document render failed", error, options.logger)
+    }
   );
 }
 
@@ -185,13 +190,13 @@ export async function renderToHydratableStringAsync(vnode: VNode, options: Rende
 async function streamDocumentRender(
   vnode: VNode,
   options: RenderToDocumentStreamOptions,
-  emit: (event: ExactDocumentStreamEvent) => void
+  emit: (event: ExactDocumentStreamEvent) => Promise<void>
 ): Promise<void> {
   const owner = createSsrOwner();
   try {
-    emit({ event: "start", version: 1 });
+    await emit({ event: "start", version: 1 });
     const shell = withTaskObserver(owner.observer, () => renderToStringOwned(vnode, options));
-    emit({ event: "shell", version: 1, html: shell.html });
+    await emit({ event: "shell", version: 1, html: shell.html });
 
     let final = shell;
     if (owner.pending.size) {
@@ -200,12 +205,12 @@ async function streamDocumentRender(
       await drainTasks(owner.pending, options.maxTaskPasses ?? 10, options.signal);
       final = await renderToStringAsync(vnode, options);
       if (final.html !== shell.html) {
-        emit({ event: "replace", version: 1, id: options.rootId ?? "document", html: final.html });
+        await emit({ event: "replace", version: 1, id: options.rootId ?? "document", html: final.html });
       }
     }
 
     if (shouldEmitDocumentHydration(options)) {
-      emit({
+      await emit({
         event: "hydration",
         version: 1,
         html: renderHydrationScript({
@@ -220,7 +225,7 @@ async function streamDocumentRender(
       });
     }
 
-    emit({ event: "complete", version: 1 });
+    await emit({ event: "complete", version: 1 });
   } finally {
     owner.dispose(options.signal?.reason ?? "ssr stream complete");
   }

@@ -47,6 +47,8 @@ export type HydratableStringResult = RenderToStringResult & {
 export type RenderToDocumentStreamOptions = RenderToStringOptions & HydrationScriptOptions & {
   rootId?: string;
   hydration?: boolean;
+  maxStreamEvents?: number;
+  maxStreamBytes?: number;
 };
 
 export type RenderToProgressiveHtmlStreamOptions = RenderToDocumentStreamOptions & {
