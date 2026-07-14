@@ -1118,6 +1118,39 @@ describe("@exact/server", () => {
     });
   });
 
+  it("rejects oversized batches and bounds dispatch concurrency", async () => {
+    const rejected = await handleExactRequest({
+      method: "POST",
+      body: { type: "batch", operations: [{ type: "action", id: "allowed-action" }, { type: "action", id: "allowed-action" }] }
+    }, context({ limits: { maxBatchOperations: 1 } }));
+    expect(rejected.status).toBe(400);
+
+    let active = 0;
+    let peak = 0;
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const pending = handleExactRequest({
+      method: "POST",
+      body: { type: "batch", operations: Array.from({ length: 6 }, (_, index) => ({ type: "action", id: "allowed-action", opId: `op-${index}` })) }
+    }, context({
+      limits: { maxBatchConcurrency: 2 },
+      actions: {
+        "allowed-action": async () => {
+          active++;
+          peak = Math.max(peak, active);
+          await gate;
+          active--;
+          return {};
+        }
+      }
+    }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(active).toBe(2);
+    release();
+    expect((await pending).status).toBe(200);
+    expect(peak).toBe(2);
+  });
+
   it("streams independent batch results as each operation settles", async () => {
     let resolveSlow!: () => void;
     const slow = new Promise<void>(resolve => {
@@ -1434,6 +1467,36 @@ describe("@exact/server", () => {
     disconnect();
     await finished;
     expect(observedAbort).toBe(true);
+  });
+
+  it("waits for Express drain before reading more streamed output", async () => {
+    const listeners = new Map<string, () => void>();
+    const writes: Uint8Array[] = [];
+    let ended!: () => void;
+    const complete = new Promise<void>(resolve => { ended = resolve; });
+    createExpressHandler(context())({
+      method: "POST",
+      url: "/__exact",
+      headers: { accept: "application/x-ndjson" },
+      body: { type: "action", id: "allowed-action" }
+    }, {
+      status() { return this; },
+      setHeader() {},
+      write(chunk) {
+        writes.push(chunk);
+        return writes.length !== 1;
+      },
+      end() { ended(); },
+      send() { ended(); },
+      destroy(error) { throw error; },
+      once(event, listener) { listeners.set(event, listener); },
+      off(event) { listeners.delete(event); }
+    });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(writes).toHaveLength(1);
+    listeners.get("drain")?.();
+    await complete;
+    expect(writes.length).toBeGreaterThan(1);
   });
 
   it("dispatches through hapi-style adapters", async () => {

@@ -174,6 +174,13 @@ export type ExactServerContext = {
   authorize?(request: ExactRequestLike, input: ExactInvocationRequest | ExactBatchRequest): Promise<boolean> | boolean;
   validateCsrf?(request: ExactRequestLike, input: ExactInvocationRequest | ExactBatchRequest): Promise<boolean> | boolean;
   logger?: Logger;
+  /** Resource ceilings applied before and during batch dispatch. */
+  limits?: {
+    /** Maximum operations accepted in one batch. Defaults to 100. */
+    maxBatchOperations?: number;
+    /** Maximum operations dispatched concurrently. Defaults to 8. */
+    maxBatchConcurrency?: number;
+  };
   /** Aborts when the current request or response stream is cancelled. */
   signal?: AbortSignal;
 };

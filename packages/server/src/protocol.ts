@@ -14,11 +14,14 @@ export async function readBody(request: ExactRequestLike): Promise<unknown> {
 }
 
 /** Parses and validates the top-level eXact request envelope. */
-export function parseExactRequestBody(body: unknown): ExactInvocationRequest | ExactBatchRequest {
+export function parseExactRequestBody(
+  body: unknown,
+  options: { maxBatchOperations?: number } = {}
+): ExactInvocationRequest | ExactBatchRequest {
   const value = typeof body === "string" ? JSON.parse(body) : body;
   if (!value || typeof value !== "object") throw new Error("invalid invocation");
   const record = value as Record<string, unknown>;
-  if (record.type === "batch") return parseBatch(record);
+  if (record.type === "batch") return parseBatch(record, positiveLimit(options.maxBatchOperations, 100));
   return parseInvocationRecord(record);
 }
 
@@ -60,10 +63,11 @@ export function isJsonSafe(value: unknown, seen = new Set<object>()): boolean {
   return Object.values(value as Record<string, unknown>).every(item => isJsonSafe(item, seen));
 }
 
-function parseBatch(record: Record<string, unknown>): ExactBatchRequest {
+function parseBatch(record: Record<string, unknown>, maxOperations: number): ExactBatchRequest {
   if (!hasOnlyKeys(record, ["type", "version", "operations"])) throw new Error("unknown batch field");
   if (record.version !== undefined && record.version !== 1) throw new Error("invalid batch version");
   if (!Array.isArray(record.operations)) throw new Error("invalid batch operations");
+  if (record.operations.length > maxOperations) throw new Error("batch operation limit exceeded");
   const operations = record.operations.map(operation => {
     if (!operation || typeof operation !== "object" || Array.isArray(operation)) throw new Error("invalid batch operation");
     return parseInvocationRecord(operation as Record<string, unknown>);
@@ -79,6 +83,10 @@ function parseBatch(record: Record<string, unknown>): ExactBatchRequest {
     version: record.version === 1 ? 1 : undefined,
     operations
   };
+}
+
+function positiveLimit(value: number | undefined, fallback: number): number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
 
 function parseInvocationRecord(record: Record<string, unknown>): ExactInvocationRequest {

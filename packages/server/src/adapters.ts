@@ -17,13 +17,13 @@ export type ExactExpressRequest = {
 export type ExactExpressResponse = {
   status(code: number): ExactExpressResponse;
   setHeader(name: string, value: string): void;
-  write?(chunk: Uint8Array): void;
+  write?(chunk: Uint8Array): boolean | void;
   end?(): void;
   send(body: unknown): void;
   destroy?(error: unknown): void;
-  once?(event: "close", listener: () => void): unknown;
-  off?(event: "close", listener: () => void): unknown;
-  removeListener?(event: "close", listener: () => void): unknown;
+  once?(event: "close" | "drain", listener: () => void): unknown;
+  off?(event: "close" | "drain", listener: () => void): unknown;
+  removeListener?(event: "close" | "drain", listener: () => void): unknown;
 };
 
 export type ExactHapiRequest = {
@@ -86,9 +86,7 @@ export function createExpressHandler(context: ExactServerContext): (request: Exa
       response.status(result.status);
       for (const [name, value] of Object.entries(result.headers)) response.setHeader(name, value);
       if (result.stream && response.write && response.end) {
-        const write = response.write.bind(response);
-        const end = response.end.bind(response);
-        void pipeReadableStream(result.stream, write, end, error => response.destroy?.(error)).finally(disconnect.cleanup);
+        void pipeReadableStream(result.stream, response, disconnect.signal).finally(disconnect.cleanup);
       } else {
         response.send(result.stream ?? result.body ?? "");
         disconnect.cleanup();
@@ -129,21 +127,53 @@ export function createHapiHandler<Response extends ExactHapiResponse = ExactHapi
 
 async function pipeReadableStream(
   stream: ReadableStream<Uint8Array>,
-  write: (chunk: Uint8Array) => void,
-  end: () => void,
-  fail: (error: unknown) => void
+  response: ExactExpressResponse,
+  signal?: AbortSignal
 ): Promise<void> {
   const reader = stream.getReader();
   try {
     while (true) {
+      throwIfAborted(signal);
       const next = await reader.read();
       if (next.done) break;
-      write(next.value);
+      throwIfAborted(signal);
+      if (response.write!(next.value) === false) await waitForDrain(response, signal);
     }
-    end();
+    throwIfAborted(signal);
+    response.end!();
   } catch (error) {
-    fail(error);
+    try { await reader.cancel(error); } catch { /* preserve the transport error */ }
+    response.destroy?.(error);
+  } finally {
+    reader.releaseLock();
   }
+}
+
+function waitForDrain(response: ExactExpressResponse, signal?: AbortSignal): Promise<void> {
+  if (!response.once) return Promise.reject(new Error("Express response returned backpressure without drain event support"));
+  return new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      if (response.off) response.off("drain", drain);
+      else response.removeListener?.("drain", drain);
+      signal?.removeEventListener("abort", abort);
+    };
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback();
+    };
+    const drain = () => finish(resolve);
+    const abort = () => finish(() => reject(signal?.reason ?? new DOMException("Client disconnected", "AbortError")));
+    if (signal?.aborted) { abort(); return; }
+    response.once!("drain", drain);
+    signal?.addEventListener("abort", abort, { once: true });
+  });
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw signal.reason ?? new DOMException("Client disconnected", "AbortError");
 }
 
 type DisconnectSource = {

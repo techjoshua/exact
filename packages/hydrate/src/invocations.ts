@@ -36,7 +36,7 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
     throw new Error(`eXact ${options.type} invocation failed`);
   }
   if (options.stream) {
-    const results = await readExactStreamResponse(response, 1, options.signal);
+    const results = await readExactStreamResponse(response, 1, { signal: options.signal, ...options.streamLimits });
     const result = results[0];
     if (!result?.ok) throw new Error(`eXact ${options.type} invocation failed`);
     const { ok: _ok, type: _type, id: _id, ...body } = result;
@@ -70,7 +70,7 @@ export async function invokeExactBatch(options: InvokeExactBatchOptions): Promis
     logFrameworkEvent("warn", "hydrate", "request", `exact batch invocation failed with ${response.status}`, undefined, options.logger);
     throw new Error("eXact batch invocation failed");
   }
-  if (options.stream) return readExactStreamResponse(response, options.operations.length, options.signal);
+  if (options.stream) return readExactStreamResponse(response, options.operations.length, { signal: options.signal, ...options.streamLimits });
   const body = await withAbort(response.json(), options.signal);
   return parseExactBatchResponse(body);
 }

@@ -56,7 +56,9 @@ export async function handleExactRequest(request: ExactRequestLike, context: Exa
 
   let input: ExactInvocationRequest | ExactBatchRequest;
   try {
-    input = parseExactRequestBody(await readBody(request));
+    input = parseExactRequestBody(await readBody(request), {
+      maxBatchOperations: context.limits?.maxBatchOperations
+    });
   } catch {
     logReject(context, "rejected malformed exact invocation");
     return jsonResponse(400, { error: "bad_request" });

@@ -15,6 +15,7 @@ export type HydrateOptions = {
   islands?: ClientIslandRegistry;
   batch?: boolean;
   stream?: boolean;
+  streamLimits?: ExactStreamLimits;
   signal?: AbortSignal;
   onDiagnostic?: (diagnostic: HydrationDiagnostic) => void;
 };
@@ -91,6 +92,7 @@ export type InvokeExactOptions = {
   headers?: Record<string, string>;
   logger?: Logger;
   stream?: boolean;
+  streamLimits?: ExactStreamLimits;
   signal?: AbortSignal;
 };
 
@@ -101,6 +103,7 @@ export type InvokeExactBatchOptions = {
   headers?: Record<string, string>;
   logger?: Logger;
   stream?: boolean;
+  streamLimits?: ExactStreamLimits;
   signal?: AbortSignal;
 };
 
@@ -117,10 +120,18 @@ export type ExactBatchQueue = {
   headersKey: string;
   logger?: Logger;
   stream?: boolean;
+  streamLimits?: ExactStreamLimits;
   signal?: AbortSignal;
   pending: PendingExactOperation[];
   scheduled: boolean;
   active?: number;
+};
+
+export type ExactStreamLimits = {
+  /** Maximum encoded response bytes. Defaults to 16 MiB. */
+  maxBytes?: number;
+  /** Maximum non-empty NDJSON events. Defaults to 100,000. */
+  maxEvents?: number;
 };
 
 export type { ExactInvocationKind, ExactInvocationRequest, ExactInvocationResult, ExactOperationResult, ExactPatch, ExactStateContract };

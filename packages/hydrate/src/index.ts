@@ -454,6 +454,7 @@ async function invokeAndApply(
       headers: transport.headers,
       logger: options.logger,
       stream: options.stream,
+      streamLimits: options.streamLimits,
       signal: options.signal
     })
     : await enqueueExactOperation(container, {
@@ -463,6 +464,7 @@ async function invokeAndApply(
       headers: transport.headers,
       logger: options.logger,
       stream: options.stream,
+      streamLimits: options.streamLimits,
       signal: options.signal
     });
   const staleKeys = new Set(requestKeys.filter(key => versions!.get(key) !== requestVersion));

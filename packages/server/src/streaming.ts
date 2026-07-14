@@ -90,9 +90,11 @@ async function dispatchReadyOperations(
   const pending = new Set(operations.map((_operation, index) => index));
   const running = new Map<number, Promise<{ index: number; operation: ExactInvocationRequest; result: ExactOperationResult }>>();
   const successful = new Set<string>();
+  const concurrency = positiveLimit(context.limits?.maxBatchConcurrency, 8);
 
   while (pending.size) {
     for (const index of pending) {
+      if (running.size >= concurrency || request.signal?.aborted) break;
       if (running.has(index)) continue;
       const dependsOn = operations[index]!.dependsOn ?? [];
       if (!dependsOn.every(id => successful.has(id))) continue;
@@ -115,6 +117,10 @@ async function dispatchReadyOperations(
     if (result.ok && operation.opId) successful.add(operation.opId);
     emitResult(index, result);
   }
+}
+
+function positiveLimit(value: number | undefined, fallback: number): number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
 
 function emitOperationStreamEvents(

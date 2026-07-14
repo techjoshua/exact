@@ -35,47 +35,55 @@ export function parseExactBatchResponse(body: unknown): ExactOperationResult[] {
 export async function readExactStreamResponse(
   response: { body?: ReadableStream<Uint8Array> | null },
   expectedOperations: number,
-  signal?: AbortSignal
+  options: { signal?: AbortSignal; maxBytes?: number; maxEvents?: number } | AbortSignal = {}
 ): Promise<ExactOperationResult[]> {
   const message = "eXact stream invocation returned malformed events";
   if (!response.body) throw new Error(message);
-  const events = await readNdjsonEvents(response.body, message, signal);
-  if (!events.length) throw new Error(message);
-  const start = events[0];
-  const complete = events[events.length - 1];
-  if (!isExactStreamStartEvent(start) || start.operations !== expectedOperations) throw new Error(message);
-  if (!isExactStreamCompleteEvent(complete)) throw new Error(message);
-
+  const normalized = isAbortSignal(options) ? { signal: options } : options;
   const results: ExactOperationResult[] = new Array(expectedOperations);
   const chunks: ExactInvocationResult[] = new Array(expectedOperations).fill(undefined).map(() => ({}));
-  // Streamed patch/state/html events can arrive before the final result event for
-  // the same operation, so collect partial chunks and merge them when the result lands.
-  for (const event of events.slice(1, -1)) {
+  let started = false;
+  let completed = false;
+  await readNdjsonEvents(response.body, message, event => {
+    if (completed) throw new Error(message);
+    if (!started) {
+      if (!isExactStreamStartEvent(event) || event.operations !== expectedOperations) throw new Error(message);
+      started = true;
+      return;
+    }
+    if (isExactStreamCompleteEvent(event)) {
+      completed = true;
+      return;
+    }
     if (isExactStreamPatchEvent(event)) {
       assertStreamIndex(event.index, expectedOperations, message);
+      if (results[event.index]) throw new Error(message);
       const target = chunks[event.index]!;
       target.patches = [...(target.patches ?? []), event.patch];
-      continue;
+      return;
     }
     if (isExactStreamStateEvent(event)) {
       assertStreamIndex(event.index, expectedOperations, message);
+      if (results[event.index]) throw new Error(message);
       chunks[event.index]!.state = event.value;
-      continue;
+      return;
     }
     if (isExactStreamHtmlEvent(event)) {
       assertStreamIndex(event.index, expectedOperations, message);
+      if (results[event.index]) throw new Error(message);
       chunks[event.index]!.html = event.html;
-      continue;
+      return;
     }
     if (isExactStreamResultEvent(event)) {
       assertStreamIndex(event.index, expectedOperations, message);
       if (results[event.index]) throw new Error(message);
       const result = parseExactOperationResult(event.result);
       results[event.index] = result.ok ? { ...result, ...chunks[event.index] } : result;
-      continue;
+      return;
     }
     throw new Error(message);
-  }
+  }, normalized);
+  if (!started || !completed) throw new Error(message);
   for (let index = 0; index < expectedOperations; index++) {
     if (!results[index]) throw new Error(message);
   }
@@ -86,10 +94,20 @@ function assertStreamIndex(index: number, expectedOperations: number, message: s
   if (!Number.isInteger(index) || index < 0 || index >= expectedOperations) throw new Error(message);
 }
 
-async function readNdjsonEvents(stream: ReadableStream<Uint8Array>, message: string, signal?: AbortSignal): Promise<unknown[]> {
+async function readNdjsonEvents(
+  stream: ReadableStream<Uint8Array>,
+  message: string,
+  receive: (event: unknown) => void,
+  options: { signal?: AbortSignal; maxBytes?: number; maxEvents?: number }
+): Promise<void> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
-  let text = "";
+  const signal = options.signal;
+  const maxBytes = positiveLimit(options.maxBytes, 16 * 1024 * 1024);
+  const maxEvents = positiveLimit(options.maxEvents, 100_000);
+  let buffer = "";
+  let bytes = 0;
+  let events = 0;
   const abort = () => { void reader.cancel(signal?.reason); };
   if (signal?.aborted) abort();
   else signal?.addEventListener("abort", abort, { once: true });
@@ -99,21 +117,43 @@ async function readNdjsonEvents(stream: ReadableStream<Uint8Array>, message: str
       const next = await reader.read();
       if (signal?.aborted) throw signal.reason ?? new DOMException("eXact request aborted", "AbortError");
       if (next.done) break;
-      text += decoder.decode(next.value, { stream: true });
+      bytes += next.value.byteLength;
+      if (bytes > maxBytes) throw new Error("eXact stream response exceeded maxBytes");
+      buffer += decoder.decode(next.value, { stream: true });
+      let newline: number;
+      while ((newline = buffer.indexOf("\n")) >= 0) {
+        const line = buffer.slice(0, newline).replace(/\r$/, "");
+        buffer = buffer.slice(newline + 1);
+        if (!line.trim()) continue;
+        if (++events > maxEvents) throw new Error("eXact stream response exceeded maxEvents");
+        receive(parseNdjsonLine(line, message));
+      }
     }
+    buffer += decoder.decode();
+    if (buffer.trim()) {
+      if (++events > maxEvents) throw new Error("eXact stream response exceeded maxEvents");
+      receive(parseNdjsonLine(buffer.replace(/\r$/, ""), message));
+    }
+  } catch (error) {
+    try { await reader.cancel(error); } catch { /* preserve the primary failure */ }
+    throw error;
   } finally {
     signal?.removeEventListener("abort", abort);
     reader.releaseLock();
   }
-  text += decoder.decode();
-  const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
-  return lines.map(line => {
-    try {
-      return JSON.parse(line);
-    } catch {
-      throw new Error(message);
-    }
-  });
+}
+
+function parseNdjsonLine(line: string, message: string): unknown {
+  try { return JSON.parse(line); }
+  catch { throw new Error(message); }
+}
+
+function positiveLimit(value: number | undefined, fallback: number): number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : fallback;
+}
+
+function isAbortSignal(value: unknown): value is AbortSignal {
+  return !!value && typeof value === "object" && "aborted" in value && typeof (value as AbortSignal).addEventListener === "function";
 }
 
 function isExactStreamStartEvent(value: unknown): value is Extract<ExactStreamEvent, { event: "start" }> {

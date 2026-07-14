@@ -1151,6 +1151,47 @@ describe("@exact/hydrate", () => {
     })).rejects.toThrow("eXact stream invocation returned malformed events");
   });
 
+  it("enforces streamed response byte and event ceilings incrementally", async () => {
+    const fetch = async () => ({
+      ok: true,
+      status: 200,
+      body: ndjsonResponse([
+        { event: "start", version: 1, operations: 1 },
+        { event: "result", version: 1, index: 0, result: { ok: true, type: "action", id: "save" } },
+        { event: "complete", version: 1 }
+      ]),
+      async json() { throw new Error("json should not be read"); }
+    });
+    await expect(invokeExact({
+      endpoint: "/__exact", type: "action", id: "save", stream: true,
+      streamLimits: { maxBytes: 16 }, fetch
+    })).rejects.toThrow("exceeded maxBytes");
+    await expect(invokeExact({
+      endpoint: "/__exact", type: "action", id: "save", stream: true,
+      streamLimits: { maxEvents: 2 }, fetch
+    })).rejects.toThrow("exceeded maxEvents");
+  });
+
+  it("rejects stream chunks emitted after an operation result", async () => {
+    await expect(invokeExact({
+      endpoint: "/__exact",
+      type: "action",
+      id: "save",
+      stream: true,
+      fetch: async () => ({
+        ok: true,
+        status: 200,
+        body: ndjsonResponse([
+          { event: "start", version: 1, operations: 1 },
+          { event: "result", version: 1, index: 0, result: { ok: true, type: "action", id: "save" } },
+          { event: "state", version: 1, index: 0, value: { late: true } },
+          { event: "complete", version: 1 }
+        ]),
+        async json() { throw new Error("json should not be read"); }
+      })
+    })).rejects.toThrow("malformed events");
+  });
+
   it("normalizes successful exact invocation responses", async () => {
     const result = await invokeExact({
       endpoint: "/__exact",
