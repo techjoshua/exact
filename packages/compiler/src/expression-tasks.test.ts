@@ -30,6 +30,23 @@ describe("expression-backed task effects", () => {
     expect([...analyzeExpressionTasks(globalModule).lifecycleListeners.values()])
       .toContainEqual(expect.objectContaining({ component: "Panel" }));
   });
+  it("uses canonical Component this bindings instead of function-name capitalization", () => {
+    clearExpressionProjectCache();
+    const module = expressionModuleFor("CanonicalTaskOwner.tsx", `function panel(this: Component<{}>) {
+      this.task.client(() => fetch("/ready"));
+      window.addEventListener("resize", () => {});
+      return () => <p />;
+    }
+    function Impostor(this: { task(work: () => void): void }) {
+      this.task(() => {});
+    }`);
+    const plan = analyzeExpressionTasks(module);
+
+    expect([...plan.sites.values()]).toHaveLength(1);
+    expect([...plan.sites.values()][0]?.component).toBe("panel");
+    expect([...plan.lifecycleListeners.values()])
+      .toContainEqual(expect.objectContaining({ component: "panel" }));
+  });
   it("plans direct setup resources and typed cancellable calls as owned client tasks", () => {
     clearExpressionProjectCache();
     const module = expressionModuleFor("SetupResources.tsx", `

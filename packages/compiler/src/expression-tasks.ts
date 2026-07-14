@@ -140,7 +140,7 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
     const placement: ExactPlacement = requestedPlacement ?? (browserEffects ? "client" : serverEffects ? "server" : taskWrites.length ? "isomorphic" : "client");
     const diagnostics: string[] = [];
     const nearestFunction = task.ancestors().functions().first();
-    const componentOwner = task.ancestors().functions().first(owner => owner.node.kind === "FunctionDeclaration" && /^[A-Z]/.test(owner.node.name ?? ""));
+    const componentOwner = taskComponentOwner(task);
     if (componentOwner && nearestFunction?.node !== componentOwner.node) {
       diagnostics.push("error: this.task() must be registered directly during component setup, not inside render functions or callbacks");
     }
@@ -177,8 +177,8 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
   }
   for (const call of module.walk().calls()) {
     if (!call.node.span || insideTask(call) || insideClientJsx(call)) continue;
-    const owner = call.ancestors().functions().first();
-    if (owner?.node.kind !== "FunctionDeclaration" || !/^[A-Z]/.test(owner.node.name ?? "")) continue;
+    const owner = componentOwner(call);
+    if (!owner || call.ancestors().functions().first()?.node !== owner.node) continue;
     const listenerCall = isOwnedListener(call, localVariables);
     const resource = taskResource(call, localVariables);
     const signalCall = taskSignalCall(call, localVariables);
@@ -473,7 +473,28 @@ function uniqueContexts(effects: readonly ExactContextEffect[]): ExactContextEff
 }
 
 function isTaskCall(call: NodeRef): boolean {
-  return /^this\.task(?:\.(?:client|server))?\s*\(/.test(call.node.text ?? "");
+  const target = call.target;
+  const taskTarget = target?.isMember("client") || target?.isMember("server") ? target.target : target;
+  return !!taskTarget?.isMember("task") && isComponentThisVariable(taskTarget.rootVariable);
+}
+
+function taskComponentOwner(task: NodeRef): NodeRef | undefined {
+  const receiver = task.target?.rootVariable;
+  if (!isComponentThisVariable(receiver)) return undefined;
+  return task.ancestors().functions().first(owner => owner.node.parameters.includes(receiver));
+}
+
+function componentOwner(reference: NodeRef): NodeRef | undefined {
+  return reference.ancestors().functions().first(owner => owner.node.kind === "FunctionDeclaration"
+    && owner.node.parameters.some(isComponentThisVariable));
+}
+
+function isComponentThisVariable(variable: Variable | undefined): variable is Variable {
+  if (!variable || variable.name !== "this" || variable.declarationKind !== "Parameter" || !variable.type) return false;
+  const properties = new Set(variable.type.properties);
+  return /(?:^|\W)Component(?:<|$)/.test(variable.type.display)
+    || ["state", "task", "map", "getContext", "setContext", "onMount", "onUnmount"]
+      .every(property => properties.has(property));
 }
 
 function isFunction(reference: NodeRef): boolean {
