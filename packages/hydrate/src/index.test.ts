@@ -928,12 +928,16 @@ describe("@exact/hydrate", () => {
               event: "patch",
               version: 1,
               index: 0,
+              type: "action",
+              id: "save-title",
               patch: { type: "text", id: "title", value: "Streamed" }
             },
             {
               event: "state",
               version: 1,
               index: 0,
+              type: "action",
+              id: "save-title",
               value: { saved: true }
             },
             {
@@ -1091,6 +1095,8 @@ describe("@exact/hydrate", () => {
             event: "state",
             version: 1,
             index: 1,
+            type: "refresh",
+            id: "panel",
             opId: "fast",
             value: { fast: true }
           },
@@ -1104,6 +1110,8 @@ describe("@exact/hydrate", () => {
             event: "state",
             version: 1,
             index: 0,
+            type: "action",
+            id: "save",
             opId: "slow",
             value: { slow: true }
           },
@@ -1188,7 +1196,7 @@ describe("@exact/hydrate", () => {
         body: ndjsonResponse([
           { event: "start", version: 1, operations: 1 },
           { event: "result", version: 1, index: 0, result: { ok: true, type: "action", id: "save" } },
-          { event: "state", version: 1, index: 0, value: { late: true } },
+          { event: "state", version: 1, index: 0, type: "action", id: "save", value: { late: true } },
           { event: "complete", version: 1 }
         ]),
         async json() { throw new Error("json should not be read"); }
@@ -1218,6 +1226,22 @@ describe("@exact/hydrate", () => {
         async json() { throw new Error("json should not be read"); }
       })
     })).rejects.toThrow("malformed results");
+
+    await expect(invokeExactBatch({
+      endpoint: "/__exact", stream: true,
+      operations: [
+        { type: "action", id: "save" },
+        { type: "refresh", id: "panel" }
+      ],
+      fetch: async () => ({
+        ok: true, status: 200,
+        body: ndjsonResponse([
+          { event: "start", version: 1, operations: 2 },
+          { event: "state", version: 1, index: 0, type: "refresh", id: "panel", value: { swapped: true } }
+        ]),
+        async json() { throw new Error("json should not be read"); }
+      })
+    })).rejects.toThrow("malformed events");
   });
 
   it("rejects malformed UTF-8 and oversized non-stream responses", async () => {
@@ -1252,8 +1276,8 @@ describe("@exact/hydrate", () => {
       streamLimits: { maxPatches: 1 },
       fetch: response([
         { event: "start", version: 1, operations: 1 },
-        { event: "patch", version: 1, index: 0, patch: { type: "text", id: "a", value: "A" } },
-        { event: "patch", version: 1, index: 0, patch: { type: "text", id: "b", value: "B" } }
+        { event: "patch", version: 1, index: 0, type: "action", id: "save", patch: { type: "text", id: "a", value: "A" } },
+        { event: "patch", version: 1, index: 0, type: "action", id: "save", patch: { type: "text", id: "b", value: "B" } }
       ])
     })).rejects.toThrow("malformed events");
 
@@ -1261,8 +1285,8 @@ describe("@exact/hydrate", () => {
       endpoint: "/__exact", type: "action", id: "save", stream: true,
       fetch: response([
         { event: "start", version: 1, operations: 1 },
-        { event: "state", version: 1, index: 0, value: { count: 1 } },
-        { event: "state", version: 1, index: 0, value: { count: 2 } }
+        { event: "state", version: 1, index: 0, type: "action", id: "save", value: { count: 1 } },
+        { event: "state", version: 1, index: 0, type: "action", id: "save", value: { count: 2 } }
       ])
     })).rejects.toThrow("malformed events");
   });

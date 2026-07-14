@@ -68,7 +68,7 @@ export async function readExactStreamResponse(
     }
     if (isExactStreamPatchEvent(event)) {
       assertStreamIndex(event.index, expectedOperations, message);
-      assertStreamOperation(event.index, event.opId, expectedList, message);
+      assertStreamOperation(event.index, event, expectedList, message);
       if (results[event.index]) throw new Error(message);
       const target = chunks[event.index]!;
       if ((target.patches?.length ?? 0) >= maxPatches) throw new Error(message);
@@ -77,7 +77,7 @@ export async function readExactStreamResponse(
     }
     if (isExactStreamStateEvent(event)) {
       assertStreamIndex(event.index, expectedOperations, message);
-      assertStreamOperation(event.index, event.opId, expectedList, message);
+      assertStreamOperation(event.index, event, expectedList, message);
       if (results[event.index] || stateReceived[event.index]) throw new Error(message);
       stateReceived[event.index] = true;
       chunks[event.index]!.state = event.value;
@@ -85,7 +85,7 @@ export async function readExactStreamResponse(
     }
     if (isExactStreamHtmlEvent(event)) {
       assertStreamIndex(event.index, expectedOperations, message);
-      assertStreamOperation(event.index, event.opId, expectedList, message);
+      assertStreamOperation(event.index, event, expectedList, message);
       if (results[event.index] || htmlReceived[event.index]) throw new Error(message);
       htmlReceived[event.index] = true;
       chunks[event.index]!.html = event.html;
@@ -111,11 +111,11 @@ export async function readExactStreamResponse(
 
 function assertStreamOperation(
   index: number,
-  opId: string | undefined,
+  actual: { type: unknown; id: unknown; opId?: string },
   expected: readonly ExactInvocationRequest[] | undefined,
   message: string
 ): void {
-  if (expected && opId !== expected[index]?.opId) throw new Error(message);
+  if (expected && !matchesOperation(actual as Record<string, unknown>, expected[index]!)) throw new Error(message);
 }
 
 function matchesOperation(record: Record<string, unknown>, expected: ExactInvocationRequest): boolean {
@@ -213,10 +213,12 @@ function isExactStreamResultEvent(value: unknown): value is Extract<ExactStreamE
 function isExactStreamPatchEvent(value: unknown): value is Extract<ExactStreamEvent, { event: "patch" }> {
   if (!value || typeof value !== "object" || Array.isArray(value) || !isJsonSafe(value)) return false;
   const record = value as Record<string, unknown>;
-  return hasOnlyKeys(record, ["event", "version", "index", "opId", "patch"])
+  return hasOnlyKeys(record, ["event", "version", "index", "type", "id", "opId", "patch"])
     && record.event === "patch"
     && record.version === 1
     && typeof record.index === "number"
+    && (record.type === "action" || record.type === "refresh")
+    && typeof record.id === "string" && !!record.id
     && (record.opId === undefined || typeof record.opId === "string")
     && isPatchLike(record.patch);
 }
@@ -224,10 +226,12 @@ function isExactStreamPatchEvent(value: unknown): value is Extract<ExactStreamEv
 function isExactStreamStateEvent(value: unknown): value is Extract<ExactStreamEvent, { event: "state" }> {
   if (!value || typeof value !== "object" || Array.isArray(value) || !isJsonSafe(value)) return false;
   const record = value as Record<string, unknown>;
-  return hasOnlyKeys(record, ["event", "version", "index", "opId", "value"])
+  return hasOnlyKeys(record, ["event", "version", "index", "type", "id", "opId", "value"])
     && record.event === "state"
     && record.version === 1
     && typeof record.index === "number"
+    && (record.type === "action" || record.type === "refresh")
+    && typeof record.id === "string" && !!record.id
     && (record.opId === undefined || typeof record.opId === "string")
     && "value" in record
     && record.value !== undefined;
@@ -236,10 +240,12 @@ function isExactStreamStateEvent(value: unknown): value is Extract<ExactStreamEv
 function isExactStreamHtmlEvent(value: unknown): value is Extract<ExactStreamEvent, { event: "html" }> {
   if (!value || typeof value !== "object" || Array.isArray(value) || !isJsonSafe(value)) return false;
   const record = value as Record<string, unknown>;
-  return hasOnlyKeys(record, ["event", "version", "index", "opId", "html"])
+  return hasOnlyKeys(record, ["event", "version", "index", "type", "id", "opId", "html"])
     && record.event === "html"
     && record.version === 1
     && typeof record.index === "number"
+    && (record.type === "action" || record.type === "refresh")
+    && typeof record.id === "string" && !!record.id
     && (record.opId === undefined || typeof record.opId === "string")
     && typeof record.html === "string";
 }

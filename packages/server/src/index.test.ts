@@ -991,6 +991,8 @@ describe("@exact/server", () => {
         event: "patch",
         version: 1,
         index: 0,
+        type: "refresh",
+        id: "allowed-boundary",
         patch: { type: "replace", id: "allowed-boundary", html: "<section>Updated</section>" }
       },
       {
@@ -1252,6 +1254,8 @@ describe("@exact/server", () => {
       event: "state",
       version: 1,
       index: 1,
+      type: "refresh",
+      id: "allowed-boundary",
       opId: "fast",
       value: { fast: true }
     });
@@ -1269,6 +1273,8 @@ describe("@exact/server", () => {
         event: "state",
         version: 1,
         index: 0,
+        type: "action",
+        id: "allowed-action",
         opId: "slow",
         value: { slow: true }
       },

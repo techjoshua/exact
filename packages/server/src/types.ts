@@ -153,9 +153,9 @@ export type ExactBatchResult = {
 
 export type ExactStreamEvent =
   | { event: "start"; version: 1; operations: number }
-  | { event: "patch"; version: 1; index: number; opId?: string; patch: ExactPatch }
-  | { event: "state"; version: 1; index: number; opId?: string; value: unknown }
-  | { event: "html"; version: 1; index: number; opId?: string; html: string }
+  | { event: "patch"; version: 1; index: number; type: ExactInvocationKind; id: string; opId?: string; patch: ExactPatch }
+  | { event: "state"; version: 1; index: number; type: ExactInvocationKind; id: string; opId?: string; value: unknown }
+  | { event: "html"; version: 1; index: number; type: ExactInvocationKind; id: string; opId?: string; html: string }
   | { event: "result"; version: 1; index: number; result: ExactOperationResult }
   | { event: "complete"; version: 1 };
 

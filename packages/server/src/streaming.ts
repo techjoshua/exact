@@ -134,13 +134,13 @@ async function emitOperationStreamEvents(
     return;
   }
   for (const patch of result.patches ?? []) {
-    await emit({ event: "patch", version: 1, index, ...(result.opId === undefined ? {} : { opId: result.opId }), patch });
+    await emit({ event: "patch", version: 1, index, type: result.type, id: result.id, ...(result.opId === undefined ? {} : { opId: result.opId }), patch });
   }
   if ("state" in result) {
-    await emit({ event: "state", version: 1, index, ...(result.opId === undefined ? {} : { opId: result.opId }), value: result.state });
+    await emit({ event: "state", version: 1, index, type: result.type, id: result.id, ...(result.opId === undefined ? {} : { opId: result.opId }), value: result.state });
   }
   if (result.html !== undefined) {
-    await emit({ event: "html", version: 1, index, ...(result.opId === undefined ? {} : { opId: result.opId }), html: result.html });
+    await emit({ event: "html", version: 1, index, type: result.type, id: result.id, ...(result.opId === undefined ? {} : { opId: result.opId }), html: result.html });
   }
   await emit({
     event: "result",
