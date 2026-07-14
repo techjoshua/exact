@@ -321,7 +321,7 @@ function scopedReplacementScript(id: string, html: string, options: RenderToProg
   const rootId = inlineJsonString(progressiveRootId(options));
   const targetId = inlineJsonString(id);
   const content = inlineJsonString(html);
-  return inlineScript(`var r=document.getElementById(${rootId});if(r&&r.getAttribute("data-exact-hydrated")!=="true"){var e=r.id===${targetId}?r:Array.from(r.querySelectorAll("[id]")).find(function(n){return n.id===${targetId}});if(e){var t=document.createElement("template");t.innerHTML=${content};e.replaceChildren(t.content)}}`, options);
+  return inlineScript(`var r=document.getElementById(${rootId});if(r&&r.getAttribute("data-exact-hydrated")!=="true"){var e=document.getElementById(${targetId});if(e&&(e===r||r.contains(e))){var t=document.createElement("template");t.innerHTML=${content};e.replaceChildren(t.content)}}`, options);
 }
 
 function inlineScript(body: string, options: RenderToProgressiveHtmlStreamOptions): string {

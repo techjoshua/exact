@@ -87,7 +87,9 @@ export function createExpressHandler(context: ExactServerContext): (request: Exa
       response.status(result.status);
       for (const [name, value] of Object.entries(result.headers)) response.setHeader(name, value);
       if (result.stream && response.write && response.end) {
-        void pipeReadableStream(result.stream, response, disconnect.signal).finally(disconnect.cleanup);
+        void pipeReadableStream(result.stream, response, disconnect.signal)
+          .finally(disconnect.cleanup)
+          .catch(error => response.destroy?.(error));
       } else {
         response.send(result.stream ?? result.body ?? "");
         try { disconnect.cleanup(); }

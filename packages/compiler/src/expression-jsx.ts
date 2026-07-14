@@ -1,4 +1,4 @@
-import type { BoundModule, Variable } from "@exact/expressions";
+import type { BoundModule, NodeRef, Variable } from "@exact/expressions";
 import { stableId } from "./ids.js";
 import type { ExactProvenanceGraph } from "./provenance.js";
 
@@ -70,9 +70,7 @@ export function analyzeExpressionJsx(module: BoundModule, provenance: ExactProve
   }
   const contextualParameters = new Map<string, string>();
   for (const attribute of module.walk().jsxAttributes()) {
-    for (const fn of attribute.descendants().functions().where(candidate => !candidate.ancestors().functions().any(ancestor =>
-      !!ancestor.node.span && !!attribute.node.span && ancestor.node.span.start >= attribute.node.span.start
-    ))) {
+    for (const fn of attribute.descendants().functions().where(candidate => !hasFunctionAncestorWithin(candidate, attribute))) {
       const declarations = fn.children().where(child => child.node.kind === "Parameter").toArray();
       declarations.forEach((parameter, index) => {
         if (!parameter.node.span || parameter.children().any(child => child.node.category === "type")) return;
@@ -83,4 +81,13 @@ export function analyzeExpressionJsx(module: BoundModule, provenance: ExactProve
     }
   }
   return Object.freeze({ elements, cells, contextualParameters });
+}
+
+function hasFunctionAncestorWithin(reference: NodeRef, owner: NodeRef): boolean {
+  for (const ancestor of reference.ancestors()) {
+    if (ancestor.node === owner.node) return false;
+    if (ancestor.node.category === "module") return false;
+    if (["FunctionDeclaration", "FunctionExpression", "ArrowFunction", "MethodDeclaration"].includes(ancestor.node.kind)) return true;
+  }
+  return false;
 }
