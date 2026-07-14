@@ -281,6 +281,20 @@ describe("@exact/ssr", () => {
       .rejects.toThrow("eXact SSR tree exceeds the configured maximum depth of 8");
   });
 
+  it("retains component fallback semantics for checked string rendering", () => {
+    function Broken() {
+      const style: Record<string, unknown> = {};
+      Object.defineProperty(style, "color", {
+        enumerable: true,
+        get() { throw new Error("attribute failed"); }
+      });
+      return () => createVNode("p", { style }, "broken");
+    }
+
+    expect(renderToString(createVNode(Broken, {}), { markers: false }).html)
+      .toContain("exact-error");
+  });
+
   it("streams document render events", async () => {
     const stream = renderToDocumentStream(createVNode("p", null, "streamed"), {
       markers: false,

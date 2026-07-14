@@ -96,7 +96,7 @@ function renderToStringOwned(vnode: VNode, options: RenderToStringOptions): Rend
   const context = createSsrContext(options);
 
   return {
-    html: [...renderVNodeChunks(context, vnode, undefined, 1)].join(""),
+    html: renderVNode(context, vnode, undefined),
     state: options.state
   };
 }
