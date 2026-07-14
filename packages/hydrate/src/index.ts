@@ -35,7 +35,7 @@ const requestVersions = new WeakMap<Element, Map<string, number>>();
 export function hydrate(vnode: VNode, container: Element, options: HydrateOptions = {}): HydrationRoot {
   const existing = roots.get(container);
   if (existing) {
-    render(vnode, container, { logger: options.logger });
+    render(vnode, container, { logger: options.logger, maxTreeDepth: options.maxTreeDepth, maxTreeNodes: options.maxTreeNodes });
     return existing;
   }
   const resolvedOptions = resolveHydrateOptions(container, options);
@@ -43,11 +43,15 @@ export function hydrate(vnode: VNode, container: Element, options: HydrateOption
   if (!hasExactMarkers(container)) {
     reportMismatch(resolvedOptions, "missing exact hydration markers", "missing-markers");
     container.replaceChildren();
-    render(vnode, container, { logger: resolvedOptions.logger });
+    render(vnode, container, { logger: resolvedOptions.logger, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: resolvedOptions.maxTreeNodes });
   } else {
     if ((typeof vnode.type === "function"
-      ? adoptComponentRoot(vnode, container, { logger: resolvedOptions.logger })
-      : adoptStaticTree(vnode, container) && adoptStatic(vnode, container, { logger: resolvedOptions.logger }))) {
+      ? adoptComponentRoot(vnode, container, { logger: resolvedOptions.logger, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: resolvedOptions.maxTreeNodes })
+      : adoptStaticTree(vnode, container, createStaticBudget(resolvedOptions)) && adoptStatic(vnode, container, {
+        logger: resolvedOptions.logger,
+        maxTreeDepth: resolvedOptions.maxTreeDepth,
+        maxTreeNodes: resolvedOptions.maxTreeNodes
+      }))) {
       const root = createExactClient(container, resolvedOptions);
       roots.set(container, root);
       container.setAttribute("data-exact-hydrated", "true");
@@ -58,7 +62,7 @@ export function hydrate(vnode: VNode, container: Element, options: HydrateOption
     // range first so a hydration attempt cannot leave duplicate interactive
     // markup behind while marker adoption is unavailable for a boundary.
     container.replaceChildren();
-    render(vnode, container, { logger: resolvedOptions.logger });
+    render(vnode, container, { logger: resolvedOptions.logger, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: resolvedOptions.maxTreeNodes });
   }
 
   restoreFormState(container, formState);
@@ -70,18 +74,34 @@ export function hydrate(vnode: VNode, container: Element, options: HydrateOption
 }
 
 /** Adopts marker-wrapped static SSR output without replacing the server nodes. */
-function adoptStaticTree(vnode: VNode, container: Element): boolean {
+type StaticBudget = { remaining: number; maxDepth: number };
+
+function createStaticBudget(options: HydrateOptions): StaticBudget {
+  return {
+    remaining: Number.isSafeInteger(options.maxTreeNodes) && options.maxTreeNodes! > 0 ? options.maxTreeNodes! : 100_000,
+    maxDepth: Number.isSafeInteger(options.maxTreeDepth) && options.maxTreeDepth! > 0 ? Math.min(options.maxTreeDepth!, 1_024) : 512
+  };
+}
+
+function visitStatic(budget: StaticBudget, depth: number): void {
+  if (--budget.remaining < 0) throw new Error("eXact hydration tree exceeds its configured render-value budget");
+  if (depth > budget.maxDepth) throw new Error(`eXact hydration tree exceeds the configured maximum depth of ${budget.maxDepth}`);
+}
+
+function adoptStaticTree(vnode: VNode, container: Element, budget: StaticBudget): boolean {
+  visitStatic(budget, 0);
   const nodes = contentNodes(container);
-  if (vnode.type === Fragment) return repairStaticChildren(vnode.children, nodes);
+  if (vnode.type === Fragment) return repairStaticChildren(vnode.children, nodes, budget, 1);
   if (nodes.length !== 1) return false;
-  if (matchesStaticVNode(vnode, nodes[0]!)) return true;
-  const replacement = createStaticNode(vnode);
+  if (matchesStaticVNode(vnode, nodes[0]!, budget, 0)) return true;
+  const replacement = createStaticNode(vnode, undefined, budget, 0);
   if (!replacement) return false;
   replaceNode(nodes[0]!, replacement);
   return true;
 }
 
-function matchesStaticVNode(vnode: VNode, node: Node): boolean {
+function matchesStaticVNode(vnode: VNode, node: Node, budget: StaticBudget, depth: number): boolean {
+  if (depth > budget.maxDepth) throw new Error(`eXact hydration tree exceeds the configured maximum depth of ${budget.maxDepth}`);
   if (vnode.type === Text) return node.nodeType === Node.TEXT_NODE && node.textContent === String(vnode.props.value ?? "");
   if (typeof vnode.type !== "string" || !(node instanceof Element)) return false;
   if (node.tagName.toLowerCase() !== vnode.type.toLowerCase()) return false;
@@ -101,30 +121,31 @@ function matchesStaticVNode(vnode: VNode, node: Node): boolean {
     if (value !== false && value !== null && value !== undefined) expectedAttributes.add(attribute);
   }
   for (const attribute of Array.from(node.attributes)) if (!expectedAttributes.has(attribute.name)) return false;
-  return matchesStaticChildren(vnode.children, contentNodes(node));
+  return matchesStaticChildren(vnode.children, contentNodes(node), budget, depth + 1);
 }
 
-function matchesStaticChildren(children: readonly Child[], nodes: readonly Node[]): boolean {
-  const expected = flattenStaticChildren(children);
-  return expected.length === nodes.length && expected.every((child, index) => matchesStaticChild(child, nodes[index]!));
+function matchesStaticChildren(children: readonly Child[], nodes: readonly Node[], budget: StaticBudget, depth: number): boolean {
+  const expected = flattenStaticChildren(children, budget, depth);
+  return expected.length === nodes.length && expected.every((child, index) => matchesStaticChild(child, nodes[index]!, budget, depth));
 }
 
-function repairStaticChildren(children: readonly Child[], nodes: readonly Node[]): boolean {
-  const expected = flattenStaticChildren(children);
+function repairStaticChildren(children: readonly Child[], nodes: readonly Node[], budget: StaticBudget, depth: number): boolean {
+  const expected = flattenStaticChildren(children, budget, depth);
   if (expected.length !== nodes.length) return false;
   for (let index = 0; index < expected.length; index++) {
     const child = expected[index]!;
     const node = nodes[index]!;
-    if (matchesStaticChild(child, node)) continue;
-    if (isVNode(child) && patchStaticVNode(child, node)) continue;
-    const replacement = createStaticNodeFromChild(child);
+    if (matchesStaticChild(child, node, budget, depth)) continue;
+    if (isVNode(child) && patchStaticVNode(child, node, budget, depth)) continue;
+    const replacement = createStaticNodeFromChild(child, undefined, budget, depth);
     if (!replacement) return false;
     replaceNode(node, replacement);
   }
   return true;
 }
 
-function patchStaticVNode(vnode: VNode, node: Node): boolean {
+function patchStaticVNode(vnode: VNode, node: Node, budget: StaticBudget, depth: number): boolean {
+  if (depth > budget.maxDepth) throw new Error(`eXact hydration tree exceeds the configured maximum depth of ${budget.maxDepth}`);
   if (vnode.type === Text) {
     if (node.nodeType !== Node.TEXT_NODE) return false;
     node.textContent = String(vnode.props.value ?? "");
@@ -145,30 +166,31 @@ function patchStaticVNode(vnode: VNode, node: Node): boolean {
     if (value !== false && value !== null && value !== undefined) expectedAttributes.add(attribute);
   }
   for (const attribute of Array.from(node.attributes)) if (!expectedAttributes.has(attribute.name)) node.removeAttribute(attribute.name);
-  const expected = flattenStaticChildren(vnode.children);
+  const expected = flattenStaticChildren(vnode.children, budget, depth + 1);
   const actual = contentNodes(node);
   if (expected.length !== actual.length) return false;
   for (let index = 0; index < expected.length; index++) {
     const child = expected[index]!;
-    if (matchesStaticChild(child, actual[index]!)) continue;
-    if (isVNode(child) && patchStaticVNode(child, actual[index]!)) continue;
-    const replacement = createStaticNodeFromChild(child);
+    if (matchesStaticChild(child, actual[index]!, budget, depth + 1)) continue;
+    if (isVNode(child) && patchStaticVNode(child, actual[index]!, budget, depth + 1)) continue;
+    const replacement = createStaticNodeFromChild(child, undefined, budget, depth + 1);
     if (!replacement) return false;
     replaceNode(actual[index]!, replacement);
   }
   return true;
 }
 
-function matchesStaticChild(child: Child, node: Node): boolean {
-  if (isVNode(child)) return matchesStaticVNode(child, node);
+function matchesStaticChild(child: Child, node: Node, budget: StaticBudget, depth: number): boolean {
+  if (isVNode(child)) return matchesStaticVNode(child, node, budget, depth);
   return node.nodeType === Node.TEXT_NODE && node.textContent === String(child ?? "");
 }
 
-function flattenStaticChildren(children: readonly Child[]): Child[] {
+function flattenStaticChildren(children: readonly Child[], budget: StaticBudget, depth: number): Child[] {
   const flattened: Child[] = [];
   for (const child of children) {
+    visitStatic(budget, depth);
     if (!isRenderableStaticChild(child)) continue;
-    if (isVNode(child) && child.type === Fragment) flattened.push(...flattenStaticChildren(child.children));
+    if (isVNode(child) && child.type === Fragment) flattened.push(...flattenStaticChildren(child.children, budget, depth + 1));
     else flattened.push(child);
   }
   return flattened;
@@ -182,13 +204,14 @@ function contentNodes(parent: ParentNode): Node[] {
   return Array.from(parent.childNodes).filter(node => node.nodeType !== Node.COMMENT_NODE);
 }
 
-function createStaticNodeFromChild(child: Child, parent?: Element): Node | undefined {
-  if (isVNode(child)) return createStaticNode(child, parent);
+function createStaticNodeFromChild(child: Child, parent: Element | undefined, budget: StaticBudget, depth: number): Node | undefined {
+  if (isVNode(child)) return createStaticNode(child, parent, budget, depth);
   if (child === null || child === undefined || child === false || child === true) return undefined;
   return document.createTextNode(String(child));
 }
 
-function createStaticNode(vnode: VNode, parent?: Element): Node | undefined {
+function createStaticNode(vnode: VNode, parent: Element | undefined, budget: StaticBudget, depth: number): Node | undefined {
+  if (depth > budget.maxDepth) throw new Error(`eXact hydration tree exceeds the configured maximum depth of ${budget.maxDepth}`);
   if (vnode.type === Text) return document.createTextNode(String(vnode.props.value ?? ""));
   if (typeof vnode.type !== "string") return undefined;
   const namespace = namespaceForTag(vnode.type, parent);
@@ -203,8 +226,8 @@ function createStaticNode(vnode: VNode, parent?: Element): Node | undefined {
     if (value === true) element.setAttribute(attribute, "");
     else if (value !== false && value !== null && value !== undefined) element.setAttribute(attribute, String(value));
   }
-  for (const child of flattenStaticChildren(vnode.children)) {
-    const node = createStaticNodeFromChild(child, element);
+  for (const child of flattenStaticChildren(vnode.children, budget, depth + 1)) {
+    const node = createStaticNodeFromChild(child, element, budget, depth + 1);
     if (!node) return undefined;
     element.appendChild(node);
   }

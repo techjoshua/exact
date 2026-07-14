@@ -1,4 +1,4 @@
-import { hasOnlyKeys } from "./validation.js";
+import { hasOnlyKeys, isJsonSafe } from "./validation.js";
 import { sameJsonData } from "@exact/core";
 import type {
   ClientIslandRegistry,
@@ -9,19 +9,29 @@ import type {
   HydrateOptions,
   ExactStateContract
 } from "./types.js";
+import type { ExactHydrationConfigLimits } from "./types.js";
 
 /** Reads and validates the serialized hydration configuration embedded in the document. */
-export function readExactHydrationConfig(root: ParentNode = document, scriptId = "__exact_hydration"): ExactHydrationConfig {
+export function readExactHydrationConfig(
+  root: ParentNode = document,
+  scriptId = "__exact_hydration",
+  limits: ExactHydrationConfigLimits = {}
+): ExactHydrationConfig {
   const script = Array.from(root.querySelectorAll("script")).find(candidate => candidate.id === scriptId);
   if (!script) return {};
   try {
-    const value = JSON.parse(script.textContent ?? "{}");
+    const source = script.textContent ?? "{}";
+    const maxBytes = positiveLimit(limits.maxBytes, 16 * 1024 * 1024);
+    if (source.length > maxBytes || new TextEncoder().encode(source).byteLength > maxBytes) return {};
+    const value = JSON.parse(source);
     if (!value || typeof value !== "object" || Array.isArray(value)) return {};
     const record = value as Record<string, unknown>;
+    if (!isJsonSafe(record, { maxDepth: limits.maxDepth, maxNodes: limits.maxNodes, maxBytes })
+      || !hasOnlyKeys(record, ["endpoint", "endpoints", "state", "stateContracts", "actionBoundaries"])) return {};
     return {
       endpoint: typeof record.endpoint === "string" ? record.endpoint : undefined,
       endpoints: isEndpointRoutes(record.endpoints) ? record.endpoints : undefined,
-      state: record.state,
+      ...("state" in record ? { state: record.state } : {}),
       stateContracts: isStateContractMap(record.stateContracts) ? record.stateContracts : undefined,
       actionBoundaries: isActionBoundaryMap(record.actionBoundaries) ? record.actionBoundaries : undefined
     };
@@ -32,7 +42,7 @@ export function readExactHydrationConfig(root: ParentNode = document, scriptId =
 
 /** Combines explicit hydration options with the nearest serialized document config. */
 export function resolveHydrateOptions(container: Element, options: HydrateOptions): HydrateOptions {
-  const config = readNearestHydrationConfig(container);
+  const config = readNearestHydrationConfig(container, options.configLimits);
   return {
     ...options,
     endpoint: options.endpoint ?? config.endpoint,
@@ -166,14 +176,14 @@ function sameHeaderMap(left: Record<string, string> | undefined, right: Record<s
   return headersCacheKey(left) === headersCacheKey(right);
 }
 
-function readNearestHydrationConfig(container: Element): ExactHydrationConfig {
+function readNearestHydrationConfig(container: Element, limits: ExactHydrationConfigLimits = {}): ExactHydrationConfig {
   for (let cursor: Element | null = container; cursor; cursor = cursor.parentElement) {
-    const config = readExactHydrationConfig(cursor);
+    const config = readExactHydrationConfig(cursor, "__exact_hydration", limits);
     if (Object.keys(config).length) return config;
   }
   const root = container.getRootNode();
-  if (root instanceof ShadowRoot) return readExactHydrationConfig(root);
-  return readExactHydrationConfig(container.ownerDocument ?? document);
+  if (root instanceof ShadowRoot) return readExactHydrationConfig(root, "__exact_hydration", limits);
+  return readExactHydrationConfig(container.ownerDocument ?? document, "__exact_hydration", limits);
 }
 
 function isStateContractMap(value: unknown): value is Record<string, ExactStateContract> {
@@ -184,7 +194,8 @@ function isStateContractMap(value: unknown): value is Record<string, ExactStateC
 function isStateContract(value: unknown): value is ExactStateContract {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
-  return (record.reads === undefined || isStatePathList(record.reads))
+  return hasOnlyKeys(record, ["reads", "writes"])
+    && (record.reads === undefined || isStatePathList(record.reads))
     && (record.writes === undefined || isStatePathList(record.writes));
 }
 
@@ -192,10 +203,15 @@ function isStatePathList(value: unknown): boolean {
   return Array.isArray(value) && value.every(item => {
     if (!item || typeof item !== "object" || Array.isArray(item)) return false;
     const record = item as Record<string, unknown>;
-    return typeof record.path === "string"
+    return hasOnlyKeys(record, ["path", "kind", "confidence"])
+      && typeof record.path === "string"
       && (record.kind === "read" || record.kind === "write")
       && (record.confidence === "exact" || record.confidence === "broad" || record.confidence === "unknown");
   });
+}
+
+function positiveLimit(value: number | undefined, fallback: number): number {
+  return Number.isSafeInteger(value) && value! > 0 ? value! : fallback;
 }
 
 function isActionBoundaryMap(value: unknown): value is Record<string, readonly string[]> {

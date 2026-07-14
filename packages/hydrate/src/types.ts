@@ -18,6 +18,21 @@ export type HydrateOptions = {
   streamLimits?: ExactStreamLimits;
   signal?: AbortSignal;
   onDiagnostic?: (diagnostic: HydrationDiagnostic) => void;
+  /** Maximum DOM render values processed by one hydration/adoption update. */
+  maxTreeNodes?: number;
+  /** Maximum DOM vnode depth processed by hydration/adoption. */
+  maxTreeDepth?: number;
+  /** Limits applied before accepting serialized hydration bootstrap data. */
+  configLimits?: ExactHydrationConfigLimits;
+};
+
+export type ExactHydrationConfigLimits = {
+  /** Maximum encoded bootstrap bytes. Defaults to 16 MiB. */
+  maxBytes?: number;
+  /** Maximum bootstrap JSON graph depth. Defaults to 100. */
+  maxDepth?: number;
+  /** Maximum bootstrap JSON values/properties. Defaults to 100,000. */
+  maxNodes?: number;
 };
 
 export type HydrationDiagnostic = {
