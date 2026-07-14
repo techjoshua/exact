@@ -271,6 +271,25 @@ describe("@exact/ssr", () => {
     await reader.cancel();
   });
 
+  it("disposes a plain HTML stream immediately when its request signal aborts", async () => {
+    const abort = new AbortController();
+    let taskSignal: AbortSignal | undefined;
+    function Pending(this: Component<{}>) {
+      this.task(({ signal }) => { taskSignal = signal; });
+      return () => createVNode("p", null, "pending");
+    }
+    const reader = renderToStream(createVNode(Pending, {}), {
+      markers: false,
+      signal: abort.signal
+    }).getReader();
+    await reader.read();
+    expect(taskSignal?.aborted).toBe(false);
+
+    abort.abort("disconnected");
+    expect(taskSignal?.aborted).toBe(true);
+    await expect(reader.read()).rejects.toBe("disconnected");
+  });
+
   it("rejects over-deep sync and async vnode trees with a deterministic limit error", async () => {
     let vnode = createVNode("span", null, "leaf");
     for (let depth = 0; depth < 20; depth++) vnode = createVNode("div", null, vnode);

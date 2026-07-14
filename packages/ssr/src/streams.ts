@@ -28,34 +28,47 @@ export function createHtmlStream(
   let bytes = 0;
   let chunkCount = 0;
   let closed = false;
+  let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
+  const abort = () => {
+    if (closed) return;
+    close();
+    controller?.error(options.signal?.reason ?? new DOMException("SSR stream aborted", "AbortError"));
+  };
   const close = () => {
     if (closed) return;
     closed = true;
+    options.signal?.removeEventListener("abort", abort);
     iterator.return?.();
     options.close?.();
   };
   return new ReadableStream<Uint8Array>({
-    pull(controller) {
+    start(streamController) {
+      controller = streamController;
+      if (options.signal?.aborted) abort();
+      else options.signal?.addEventListener("abort", abort, { once: true });
+    },
+    pull(streamController) {
       if (options.signal?.aborted) {
         close();
-        controller.error(options.signal.reason ?? new DOMException("SSR stream aborted", "AbortError"));
+        streamController.error(options.signal.reason ?? new DOMException("SSR stream aborted", "AbortError"));
         return;
       }
       try {
         const next = iterator.next();
         if (next.done) {
           close();
-          controller.close();
+          streamController.close();
           return;
         }
+        if (next.value.length > maxBytes - bytes) throw new Error("SSR stream byte limit exceeded");
         const chunk = encoder.encode(next.value);
         if (++chunkCount > maxChunks) throw new Error("SSR stream chunk limit exceeded");
         bytes += chunk.byteLength;
         if (bytes > maxBytes) throw new Error("SSR stream byte limit exceeded");
-        controller.enqueue(chunk);
+        streamController.enqueue(chunk);
       } catch (error) {
         close();
-        controller.error(error);
+        streamController.error(error);
       }
     },
     cancel() {
