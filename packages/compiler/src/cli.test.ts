@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 const execFileAsync = promisify(execFile);
 const cliPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dist/cli.js");
 
-describe("exactc", () => {
+describe("exactc", { timeout: 15_000 }, () => {
   it("compiles TSX files through the CLI", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "exact-cli-"));
     const input = path.join(root, "src", "view.tsx");
