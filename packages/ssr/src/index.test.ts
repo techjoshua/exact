@@ -1132,11 +1132,35 @@ describe("@exact/ssr", () => {
       { key: "a", html: "<li>A*</li>" },
       { key: "d", html: "<li>D</li>" }
     ])).toEqual([
-      { type: "list", id: "tasks", op: "remove", key: "b" },
-      { type: "list", id: "tasks", op: "move", key: "c", before: "a" },
       { type: "list", id: "tasks", op: "remove", key: "a" },
-      { type: "list", id: "tasks", op: "insert", key: "a", before: "d", html: "<li>A*</li>" },
-      { type: "list", id: "tasks", op: "insert", key: "d", html: "<li>D</li>" }
+      { type: "list", id: "tasks", op: "remove", key: "b" },
+      { type: "list", id: "tasks", op: "insert", key: "d", html: "<li>D</li>" },
+      { type: "list", id: "tasks", op: "insert", key: "a", before: "d", html: "<li>A*</li>" }
+    ]);
+  });
+
+  it("uses an LIS so a keyed rotation emits only one move", () => {
+    const previous = ["a", "b", "c", "d"].map(key => ({ key, html: `<li>${key}</li>` }));
+    const next = [previous[3]!, ...previous.slice(0, 3)];
+    expect(diffKeyedListItems("tasks", previous, next)).toEqual([
+      { type: "list", id: "tasks", op: "move", key: "d", before: "a" }
+    ]);
+  });
+
+  it("rejects duplicate keyed snapshots deterministically", () => {
+    expect(() => diffKeyedListItems("tasks", [
+      { key: "a", html: "A" }, { key: "a", html: "A again" }
+    ], [])).toThrow('Duplicate key "a" in previous keyed-list snapshot');
+    expect(() => diffKeyedListItems("tasks", [], [
+      { key: "a", html: "A" }, { key: "a", html: "A again" }
+    ])).toThrow('Duplicate key "a" in next keyed-list snapshot');
+  });
+
+  it("diffs ten thousand keyed records without quadratic scans", () => {
+    const previous = Array.from({ length: 10_000 }, (_, index) => ({ key: String(index), html: `<li>${index}</li>` }));
+    const next = [previous.at(-1)!, ...previous.slice(0, -1)];
+    expect(diffKeyedListItems("tasks", previous, next)).toEqual([
+      { type: "list", id: "tasks", op: "move", key: "9999", before: "0" }
     ]);
   });
 

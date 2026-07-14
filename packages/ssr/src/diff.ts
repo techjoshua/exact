@@ -124,7 +124,7 @@ function diffExactElementHtml(previousHtml: string, nextHtml: string): ExactPatc
     }
   }
 
-  if (normalizedHtmlShape(previousTree) === normalizedHtmlShape(nextTree)) return patches;
+  if (sameNormalizedHtmlShape(previousTree, nextTree)) return patches;
   const nestedReplacements = nestedExactElementReplace(previousTree, nextTree);
   if (nestedReplacements) return [...patches, ...nestedReplacements];
   return rootExactElementReplace(previousTree, nextTree, nextHtml);
@@ -135,32 +135,24 @@ function nestedExactElementReplace(
   nextTree: readonly ParsedHtmlNode[]
 ): ExactPatch[] | undefined {
   const previousById = collectExactElements(previousTree);
+  const shapeInterner = new Map<string, number>();
+  const previousShapes = collectNormalizedShapeIds(previousTree, shapeInterner);
+  const nextShapes = collectNormalizedShapeIds(nextTree, shapeInterner);
   const nextEntries = collectExactElementEntries(nextTree).sort((left, right) => right.depth - left.depth);
-  const selectedIds = new Set<string>();
+  const coveredAncestors = new Set<string>();
   const patches: ExactPatch[] = [];
 
-  for (const { id, element: next } of nextEntries) {
+  for (const { id, element: next, exactParent } of nextEntries) {
     const previous = previousById.get(id);
     if (!previous) continue;
-    if ([...selectedIds].some(selectedId => containsExactElement(next, selectedId))) continue;
-    if (normalizedHtmlShape([previous]) === normalizedHtmlShape([next])) continue;
-    selectedIds.add(id);
+    if (coveredAncestors.has(id)) continue;
+    if (previousShapes.get(previous) === nextShapes.get(next)) continue;
+    for (let ancestor = exactParent; ancestor; ancestor = ancestor.parent) coveredAncestors.add(ancestor.id);
     patches.push({ type: "replace", id, html: serializeParsedHtmlElement(next) });
     if (patches.length > MAX_FINE_GRAINED_PATCHES) return undefined;
   }
 
   return patches.length ? patches : undefined;
-}
-
-function containsExactElement(element: ParsedHtmlElement, id: string): boolean {
-  const pending = [...element.children].reverse();
-  while (pending.length) {
-    const child = pending.pop()!;
-    if (child.kind !== "element") continue;
-    if (stringAttribute(child, "data-exact-id") === id) return true;
-    for (let index = child.children.length - 1; index >= 0; index--) pending.push(child.children[index]!);
-  }
-  return false;
 }
 
 function rootExactElementReplace(
@@ -186,42 +178,74 @@ export function diffKeyedListItems(
   const patches: ExactPatch[] = [];
   const previousKeys = previousItems.map(item => item.key);
   const nextKeys = nextItems.map(item => item.key);
+  assertUniqueListKeys(previousKeys, "previous");
+  assertUniqueListKeys(nextKeys, "next");
   const previousByKey = new Map(previousItems.map(item => [item.key, item]));
   const nextByKey = new Map(nextItems.map(item => [item.key, item]));
+  const changedKeys = new Set(nextItems
+    .filter(item => previousByKey.has(item.key) && previousByKey.get(item.key)!.html !== item.html)
+    .map(item => item.key));
 
   for (const key of previousKeys) {
-    if (!nextByKey.has(key)) {
+    if (!nextByKey.has(key) || changedKeys.has(key)) {
       patches.push({ type: "list", id: listId, op: "remove", key });
     }
   }
 
-  const working = previousKeys.filter(key => nextByKey.has(key));
-  for (let index = 0; index < nextKeys.length; index++) {
+  const oldIndexes = new Map(previousKeys.map((key, index) => [key, index]));
+  const retainedKeys = nextKeys.filter(key => previousByKey.has(key) && !changedKeys.has(key));
+  const retainedIndexes = retainedKeys.map(key => oldIndexes.get(key)!);
+  const stableKeys = new Set(longestIncreasingSubsequencePositions(retainedIndexes).map(index => retainedKeys[index]!));
+
+  // Work backwards so every `before` anchor is already present when patches
+  // are applied sequentially, including runs containing new records.
+  for (let index = nextKeys.length - 1; index >= 0; index--) {
     const key = nextKeys[index]!;
     const before = nextKeys[index + 1];
     const previous = previousByKey.get(key);
     const next = nextByKey.get(key)!;
-    const currentIndex = working.indexOf(key);
-    if (!previous) {
-      patches.push({ type: "list", id: listId, op: "insert", key, before, html: next.html });
-      working.splice(index, 0, key);
+    if (!previous || changedKeys.has(key)) {
+      patches.push({ type: "list", id: listId, op: "insert", key, ...(before === undefined ? {} : { before }), html: next.html });
       continue;
     }
-    if (previous.html !== next.html) {
-      patches.push({ type: "list", id: listId, op: "remove", key });
-      patches.push({ type: "list", id: listId, op: "insert", key, before, html: next.html });
-      if (currentIndex >= 0) working.splice(currentIndex, 1);
-      working.splice(index, 0, key);
-      continue;
-    }
-    if (currentIndex !== index) {
-      patches.push({ type: "list", id: listId, op: "move", key, before });
-      if (currentIndex >= 0) working.splice(currentIndex, 1);
-      working.splice(index, 0, key);
+    if (!stableKeys.has(key)) {
+      patches.push({ type: "list", id: listId, op: "move", key, ...(before === undefined ? {} : { before }) });
     }
   }
 
   return patches;
+}
+
+function assertUniqueListKeys(keys: readonly string[], label: string): void {
+  const seen = new Set<string>();
+  for (const key of keys) {
+    if (seen.has(key)) throw new Error(`Duplicate key ${JSON.stringify(key)} in ${label} keyed-list snapshot`);
+    seen.add(key);
+  }
+}
+
+function longestIncreasingSubsequencePositions(values: readonly number[]): number[] {
+  const predecessors = new Int32Array(values.length);
+  predecessors.fill(-1);
+  const tails: number[] = [];
+  for (let index = 0; index < values.length; index++) {
+    let low = 0;
+    let high = tails.length;
+    while (low < high) {
+      const middle = (low + high) >>> 1;
+      if (values[tails[middle]!]! < values[index]!) low = middle + 1;
+      else high = middle;
+    }
+    if (low > 0) predecessors[index] = tails[low - 1]!;
+    tails[low] = index;
+  }
+  const positions = new Array<number>(tails.length);
+  let cursor = tails.at(-1) ?? -1;
+  for (let index = positions.length - 1; index >= 0; index--) {
+    positions[index] = cursor;
+    cursor = predecessors[cursor]!;
+  }
+  return positions;
 }
 
 function parseHtmlNodes(html: string): ParsedHtmlNode[] | undefined {
@@ -288,21 +312,62 @@ function collectExactElements(nodes: readonly ParsedHtmlNode[], output = new Map
 
 function collectExactElementEntries(
   nodes: readonly ParsedHtmlNode[],
-  output: { id: string; element: ParsedHtmlElement; depth: number }[] = [],
+  output: ExactElementEntry[] = [],
   depth = 0
-): { id: string; element: ParsedHtmlElement; depth: number }[] {
-  const pending = Array.from(nodes, node => ({ node, depth })).reverse();
+): ExactElementEntry[] {
+  const pending = Array.from(nodes, node => ({ node, depth, exactParent: undefined as ExactAncestor | undefined })).reverse();
   while (pending.length) {
     const current = pending.pop()!;
     const node = current.node;
     if (node.kind !== "element") continue;
     const id = stringAttribute(node, "data-exact-id");
-    if (id) output.push({ id, element: node, depth: current.depth });
+    if (id) output.push({ id, element: node, depth: current.depth, exactParent: current.exactParent });
+    const childParent = id ? { id, parent: current.exactParent } : current.exactParent;
     for (let index = node.children.length - 1; index >= 0; index--) {
-      pending.push({ node: node.children[index]!, depth: current.depth + 1 });
+      pending.push({ node: node.children[index]!, depth: current.depth + 1, exactParent: childParent });
     }
   }
   return output;
+}
+
+type ExactAncestor = { readonly id: string; readonly parent?: ExactAncestor };
+type ExactElementEntry = { readonly id: string; readonly element: ParsedHtmlElement; readonly depth: number; readonly exactParent?: ExactAncestor };
+
+function collectNormalizedShapeIds(
+  nodes: readonly ParsedHtmlNode[],
+  interner: Map<string, number>
+): WeakMap<ParsedHtmlNode, number> {
+  const ids = new WeakMap<ParsedHtmlNode, number>();
+  const pending: Array<{ node: ParsedHtmlNode; visited: boolean }> = Array.from(nodes, node => ({ node, visited: false })).reverse();
+  while (pending.length) {
+    const current = pending.pop()!;
+    if (!current.visited && current.node.kind === "element") {
+      pending.push({ node: current.node, visited: true });
+      for (let index = current.node.children.length - 1; index >= 0; index--) {
+        pending.push({ node: current.node.children[index]!, visited: false });
+      }
+      continue;
+    }
+    const signature = current.node.kind === "text"
+      ? JSON.stringify(["text", current.node.value])
+      : normalizedElementSignature(current.node, ids);
+    let id = interner.get(signature);
+    if (id === undefined) {
+      id = interner.size + 1;
+      interner.set(signature, id);
+    }
+    ids.set(current.node, id);
+  }
+  return ids;
+}
+
+function normalizedElementSignature(element: ParsedHtmlElement, ids: WeakMap<ParsedHtmlNode, number>): string {
+  const exactId = stringAttribute(element, "data-exact-id");
+  const attributes: unknown = exactId ? ["exact", exactId] : Array.from(element.attributes).sort(([left], [right]) => left.localeCompare(right));
+  const children: unknown = exactId && textOnlyContent(element) !== undefined
+    ? ["text"]
+    : element.children.map(child => ids.get(child));
+  return JSON.stringify(["element", element.tagName, attributes, children]);
 }
 
 function sameKeys<T>(left: Map<string, T>, right: Map<string, T>): boolean {
@@ -357,24 +422,12 @@ function parseStyleAttribute(value: string): Map<string, string> | undefined {
   return styles;
 }
 
-function normalizedHtmlShape(nodes: readonly ParsedHtmlNode[]): string {
-  const output: string[] = [];
-  const pending: Array<ParsedHtmlNode | string> = [...nodes].reverse();
-  while (pending.length) {
-    const node = pending.pop()!;
-    if (typeof node === "string") { output.push(node); continue; }
-    if (node.kind === "text") { output.push(`t:${node.value}`); continue; }
-    const id = stringAttribute(node, "data-exact-id");
-    const attrs = id ? `#${id}` : Array.from(node.attributes)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([name, value]) => `${name}=${value}`)
-      .join(",");
-    output.push(`e:${node.tagName}[${attrs}](`);
-    pending.push(")");
-    if (id && textOnlyContent(node) !== undefined) pending.push("text");
-    else for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]!);
-  }
-  return output.join("");
+function sameNormalizedHtmlShape(left: readonly ParsedHtmlNode[], right: readonly ParsedHtmlNode[]): boolean {
+  if (left.length !== right.length) return false;
+  const interner = new Map<string, number>();
+  const leftIds = collectNormalizedShapeIds(left, interner);
+  const rightIds = collectNormalizedShapeIds(right, interner);
+  return left.every((node, index) => leftIds.get(node) === rightIds.get(right[index]!));
 }
 
 function serializeParsedHtmlElement(element: ParsedHtmlElement): string {
