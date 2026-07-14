@@ -5,6 +5,9 @@ import {
   ServerBoundary,
   ServerSlot,
   Text,
+  attachSuppressedCleanupFailure,
+  attemptCleanup,
+  createCleanupFailure,
   createComponentInstance,
   createErrorReport,
   createTextVNode,
@@ -15,6 +18,7 @@ import {
   logFrameworkEvent,
   normalizeRenderResult,
   renderInstance,
+  throwCleanupFailure,
   withTaskObserver,
   type VNode
 } from "@exact/core";
@@ -102,10 +106,14 @@ class SsrOutputLimitError extends Error {
 /** Renders a vnode tree to an HTML string without waiting for async component tasks. */
 export function renderToString(vnode: VNode, options: RenderToStringOptions = {}): RenderToStringResult {
   const owner = createSsrOwner();
+  let primary: unknown = noPrimaryFailure;
   try {
     return withTaskObserver(owner.observer, () => renderToStringOwned(vnode, options));
+  } catch (error) {
+    primary = error;
+    throw error;
   } finally {
-    owner.dispose("ssr render complete");
+    disposePreservingPrimary(() => owner.dispose("ssr render complete"), primary);
   }
 }
 
@@ -248,6 +256,7 @@ async function streamDocumentRender(
 ): Promise<void> {
   options = withTaskDeadline(options);
   const owner = createSsrOwner();
+  let primary: unknown = noPrimaryFailure;
   try {
     await emit({ event: "start", version: 1 });
     const shell = withTaskObserver(owner.observer, () => renderToStringOwned(vnode, options));
@@ -284,8 +293,11 @@ async function streamDocumentRender(
     }
 
     await emit({ event: "complete", version: 1 });
+  } catch (error) {
+    primary = error;
+    throw error;
   } finally {
-    owner.dispose(options.signal?.reason ?? "ssr stream complete");
+    disposePreservingPrimary(() => owner.dispose(options.signal?.reason ?? "ssr stream complete"), primary);
   }
 }
 
@@ -417,10 +429,14 @@ function boundaryRefreshOptions(
 /** Renders a keyed list snapshot that can later be diffed into list patches. */
 export function renderKeyedListSnapshot<T>(options: KeyedListSnapshotOptions<T>): KeyedListSnapshot {
   const owner = createSsrOwner();
+  let primary: unknown = noPrimaryFailure;
   try {
     return withTaskObserver(owner.observer, () => renderKeyedListSnapshotOwned(options));
+  } catch (error) {
+    primary = error;
+    throw error;
   } finally {
-    owner.dispose("keyed snapshot render complete");
+    disposePreservingPrimary(() => owner.dispose("keyed snapshot render complete"), primary);
   }
 }
 
@@ -835,32 +851,38 @@ async function renderComponentAsync(
 ): Promise<string> {
   const componentId = markerId(context, "component", componentName(vnode.type), vnode.key);
   let instance: ComponentInstance<any> | undefined;
+  let primary: unknown = noPrimaryFailure;
   try {
-    const pending = new Set<Promise<unknown>>();
-    const observer: TaskObserver = {
-      register: promise => {
-        let observed: Promise<unknown>;
-        observed = promise.finally(() => pending.delete(observed));
-        pending.add(observed);
-      }
-    };
-    instance = withTaskObserver(observer, () => createComponentInstance(
-      vnode.type as ComponentFunction<any, Record<string, unknown>>,
-      getComponentProps(vnode),
-      parent
-    ));
-    await drainTasks(pending, options.maxTaskPasses ?? 10, options.signal, options.taskDeadline);
-    const children = renderInstance(instance, () => undefined);
-    return markerPair(context, componentId, async () => renderChildrenAsync(context, children, instance, options));
+    try {
+      const pending = new Set<Promise<unknown>>();
+      const observer: TaskObserver = {
+        register: promise => {
+          let observed: Promise<unknown>;
+          observed = promise.finally(() => pending.delete(observed));
+          pending.add(observed);
+        }
+      };
+      instance = withTaskObserver(observer, () => createComponentInstance(
+        vnode.type as ComponentFunction<any, Record<string, unknown>>,
+        getComponentProps(vnode),
+        parent
+      ));
+      await drainTasks(pending, options.maxTaskPasses ?? 10, options.signal, options.taskDeadline);
+      const children = renderInstance(instance, () => undefined);
+      return await markerPair(context, componentId, async () => renderChildrenAsync(context, children, instance, options));
+    } catch (error) {
+      if (isSsrRenderLimitError(error)) throw error;
+      const fallback = handleComponentError(
+        parent,
+        createErrorReport(error, "construct", parent, componentName(vnode.type))
+      );
+      return await markerPair(context, componentId, async () => fallback ? renderChildrenAsync(context, normalizeRenderResult(fallback()), parent, options) : "");
+    }
   } catch (error) {
-    if (isSsrRenderLimitError(error)) throw error;
-    const fallback = handleComponentError(
-      parent,
-      createErrorReport(error, "construct", parent, componentName(vnode.type))
-    );
-    return markerPair(context, componentId, async () => fallback ? renderChildrenAsync(context, normalizeRenderResult(fallback()), parent, options) : "");
+    primary = error;
+    throw error;
   } finally {
-    instance?.unmount(String(options.signal?.reason ?? "ssr render complete"));
+    if (instance) disposePreservingPrimary(() => instance!.unmount(String(options.signal?.reason ?? "ssr render complete")), primary);
   }
 }
 
@@ -886,10 +908,22 @@ function createSsrOwner(): {
     dispose(reason = "ssr render complete") {
       // Children are constructed after parents; dispose in reverse order so a
       // parent context stays valid throughout child teardown.
-      for (const instance of [...instances].reverse()) instance.unmount(String(reason));
+      const failure = createCleanupFailure();
+      for (const instance of [...instances].reverse()) attemptCleanup(failure, () => instance.unmount(String(reason)));
       instances.clear();
+      throwCleanupFailure(failure);
     }
   };
+}
+
+const noPrimaryFailure = Symbol("no primary SSR failure");
+
+function disposePreservingPrimary(dispose: () => void, primary: unknown): void {
+  try { dispose(); }
+  catch (cleanup) {
+    if (primary === noPrimaryFailure) throw cleanup;
+    attachSuppressedCleanupFailure(primary, cleanup);
+  }
 }
 
 function renderElement(context: SsrContext, vnode: VNode, parent?: ComponentInstance<any>): string {

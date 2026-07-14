@@ -1,4 +1,5 @@
 import { handleExactRequest } from "./index.js";
+import { attachSuppressedCleanupFailure, attemptCleanup, createCleanupFailure, throwCleanupFailure } from "@exact/core";
 import type { ExactServerContext } from "./types.js";
 
 export type ExactExpressRequest = {
@@ -89,10 +90,11 @@ export function createExpressHandler(context: ExactServerContext): (request: Exa
         void pipeReadableStream(result.stream, response, disconnect.signal).finally(disconnect.cleanup);
       } else {
         response.send(result.stream ?? result.body ?? "");
-        disconnect.cleanup();
+        try { disconnect.cleanup(); }
+        catch (cleanupError) { response.destroy?.(cleanupError); }
       }
     }, error => {
-      disconnect.cleanup();
+      cleanupPreservingPrimary(disconnect.cleanup, error);
       response.destroy?.(error);
     });
   };
@@ -114,7 +116,7 @@ export function createHapiHandler<Response extends ExactHapiResponse = ExactHapi
         signal: disconnect.signal
       }, context);
     } catch (error) {
-      disconnect.cleanup();
+      cleanupPreservingPrimary(disconnect.cleanup, error);
       throw error;
     }
     const body = result.stream ? withStreamCleanup(result.stream, disconnect.cleanup) : result.body ?? "";
@@ -145,7 +147,8 @@ async function pipeReadableStream(
     try { await reader.cancel(error); } catch { /* preserve the transport error */ }
     response.destroy?.(error);
   } finally {
-    reader.releaseLock();
+    try { reader.releaseLock(); }
+    catch { /* reader cleanup must not replace a transport failure */ }
   }
 }
 
@@ -195,31 +198,46 @@ function abortOnEvents(
   return {
     signal: controller.signal,
     cleanup() {
+      const failure = createCleanupFailure();
       for (const [source, event] of sources) {
-        if (source.off) source.off(event, abort);
-        else source.removeListener?.(event, abort);
+        attemptCleanup(failure, () => {
+          if (source.off) source.off(event, abort);
+          else source.removeListener?.(event, abort);
+        });
       }
-      upstream?.removeEventListener("abort", abortUpstream);
+      attemptCleanup(failure, () => upstream?.removeEventListener("abort", abortUpstream));
+      throwCleanupFailure(failure);
     }
   };
 }
 
 function withStreamCleanup(stream: ReadableStream<Uint8Array>, cleanup: () => void): ReadableStream<Uint8Array> {
   const reader = stream.getReader();
+  let cleaned = false;
+  const cleanOnce = () => {
+    if (cleaned) return;
+    cleaned = true;
+    cleanup();
+  };
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
       try {
         const next = await reader.read();
-        if (next.done) { cleanup(); controller.close(); }
+        if (next.done) { cleanOnce(); controller.close(); }
         else controller.enqueue(next.value);
       } catch (error) {
-        cleanup();
+        try { cleanOnce(); } catch (cleanupError) { attachSuppressedCleanupFailure(error, cleanupError); }
         controller.error(error);
       }
     },
     async cancel(reason) {
       try { await reader.cancel(reason); }
-      finally { cleanup(); }
+      finally { cleanOnce(); }
     }
   }, { highWaterMark: 0 });
+}
+
+function cleanupPreservingPrimary(cleanup: () => void, primary: unknown): void {
+  try { cleanup(); }
+  catch (cleanupError) { attachSuppressedCleanupFailure(primary, cleanupError); }
 }

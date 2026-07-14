@@ -13,6 +13,7 @@ import {
   type ExactHapiToolkit,
   type ExactServerContext
 } from "./index.js";
+import { dispatchExactBatch } from "./streaming.js";
 
 const noopLogger = {
   isEnabled: () => false,
@@ -1143,6 +1144,28 @@ describe("@exact/server", () => {
         { ok: true, type: "refresh", id: "allowed-boundary", opId: "fast", state: { fast: true } }
       ]
     });
+  });
+
+  it("aborts and drains sibling batch work when dispatch rejects", async () => {
+    let siblingAborted = false;
+    let siblingSettled = false;
+    const request = { method: "POST" };
+    const operations = [
+      { type: "action" as const, id: "fail", opId: "fail" },
+      { type: "action" as const, id: "sibling", opId: "sibling" }
+    ];
+    await expect(dispatchExactBatch(request, operations, context(), async (ownedRequest, operation) => {
+      if (operation.id === "fail") throw new Error("dispatch failed");
+      return await new Promise(resolve => {
+        ownedRequest.signal!.addEventListener("abort", () => {
+          siblingAborted = true;
+          siblingSettled = true;
+          resolve({ ok: false, type: operation.type, id: operation.id, status: 499, error: "aborted" });
+        }, { once: true });
+      });
+    })).rejects.toThrow("dispatch failed");
+    expect(siblingAborted).toBe(true);
+    expect(siblingSettled).toBe(true);
   });
 
   it("rejects oversized batches and bounds dispatch concurrency", async () => {

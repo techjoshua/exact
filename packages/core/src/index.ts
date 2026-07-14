@@ -24,6 +24,38 @@ import {
   type ReactiveRef,
   type StopHandle
 } from "@exact/reactive";
+
+/** Mutable collector used to make multi-resource cleanup failure-complete. */
+export type CleanupFailure = { failed: boolean; error: unknown };
+
+export function createCleanupFailure(): CleanupFailure {
+  return { failed: false, error: undefined };
+}
+
+export function recordCleanupFailure(failure: CleanupFailure, error: unknown): void {
+  if (!failure.failed) failure.error = error;
+  failure.failed = true;
+}
+
+export function attemptCleanup(failure: CleanupFailure, cleanup: () => void): void {
+  try { cleanup(); }
+  catch (error) { recordCleanupFailure(failure, error); }
+}
+
+export function throwCleanupFailure(failure: CleanupFailure): void {
+  if (failure.failed) throw failure.error;
+}
+
+/** Preserves an active primary failure while retaining cleanup diagnostics. */
+export function attachSuppressedCleanupFailure(primary: unknown, cleanup: unknown): void {
+  if (!primary || (typeof primary !== "object" && typeof primary !== "function")) return;
+  try {
+    const target = primary as { suppressed?: unknown[] };
+    const suppressed = Array.isArray(target.suppressed) ? target.suppressed : [];
+    suppressed.push(cleanup);
+    if (target.suppressed !== suppressed) Object.defineProperty(target, "suppressed", { configurable: true, value: suppressed });
+  } catch { /* preserving the primary failure takes precedence */ }
+}
 import { createContext, createRef } from "./keys.js";
 import {
   createConsoleLogger,

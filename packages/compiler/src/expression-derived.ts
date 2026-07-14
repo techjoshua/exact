@@ -1,23 +1,26 @@
 import type { BoundModule, NodeRef, Variable } from "@exact/expressions";
 import type { ExactProvenanceGraph } from "./provenance.js";
-import { writeSiteKey } from "./expression-writes.js";
 import { expressionComponentIndex } from "./expression-component-index.js";
 
 export interface ExpressionDerivedSite {
+  readonly nodeId: string;
   readonly start: number;
   readonly end: number;
   readonly variableId: string;
   readonly initializerStart: number;
   readonly initializerEnd: number;
+  readonly initializerNodeId: string;
   readonly cached: boolean;
 }
 
 export interface ExpressionDerivedDeclaration {
+  readonly nodeId: string;
   readonly variableId: string;
   readonly start: number;
   readonly end: number;
   readonly initializerStart: number;
   readonly initializerEnd: number;
+  readonly initializerNodeId: string;
   readonly cached: boolean;
 }
 
@@ -40,27 +43,31 @@ export function analyzeExpressionDerived(module: BoundModule, provenance: ExactP
     const cached = components.isComponent(owner);
     if (declaration.node.span) {
       const planned = Object.freeze({
+        nodeId: declaration.node.id,
         variableId: entry.variable.id,
         start: declaration.node.span.start,
         end: declaration.node.span.end,
         initializerStart: initializer.node.span.start,
         initializerEnd: initializer.node.span.end,
+        initializerNodeId: initializer.node.id,
         cached
       });
-      declarations.set(writeSiteKey(planned.start, planned.end), planned);
+      declarations.set(planned.nodeId, planned);
     }
     const name = declaration.children().first();
     for (const reference of module.walk().references().where(candidate => candidate.variable === entry.variable)) {
       if (!reference.node.span || (name && within(reference, name))) continue;
       const site = Object.freeze({
+        nodeId: reference.node.id,
         start: reference.node.span.start,
         end: reference.node.span.end,
         variableId: entry.variable.id,
         initializerStart: initializer.node.span.start,
         initializerEnd: initializer.node.span.end,
+        initializerNodeId: initializer.node.id,
         cached
       });
-      sites.set(writeSiteKey(site.start, site.end), site);
+      sites.set(site.nodeId, site);
     }
   }
   return Object.freeze({ sites, declarations });
@@ -75,7 +82,5 @@ function variableDeclaration(module: BoundModule, variable: Variable): NodeRef |
 }
 
 function within(reference: NodeRef, owner: NodeRef): boolean {
-  return !!reference.node.span && !!owner.node.span
-    && reference.node.span.start >= owner.node.span.start
-    && reference.node.span.end <= owner.node.span.end;
+  return reference.node === owner.node || reference.ancestors().any(ancestor => ancestor.node === owner.node);
 }

@@ -1,11 +1,12 @@
 import { ServerSlot, type VNode } from "@exact/core";
 import type { EffectScope } from "@exact/reactive";
 import type { Mounted, Root } from "./types.js";
+import { walkDomSubtree } from "./work.js";
 
 /** Mounts or adopts an existing server-rendered slot element for a client island. */
 export function mountServerSlot(root: Root, vnode: VNode, scope: EffectScope): Mounted {
   const id = String(vnode.props.id ?? "");
-  const element = findServerSlotDeep(root.container, id) ?? document.createElement("span");
+  const element = findServerSlotDeep(root.container, id, root.maxTreeNodes) ?? document.createElement("span");
   element.setAttribute("data-exact-server-slot", id);
   if (element instanceof HTMLElement) element.style.display = "contents";
   return { vnode, dom: element, scope, children: [] };
@@ -29,10 +30,10 @@ function findServerSlot(parent: Node, id: string): Element | undefined {
   return undefined;
 }
 
-function findServerSlotDeep(parent: ParentNode, id: string): Element | undefined {
-  if (parent instanceof Element && parent.getAttribute("data-exact-server-slot") === id) return parent;
-  for (const element of Array.from(parent.querySelectorAll("[data-exact-server-slot]"))) {
-    if (element.getAttribute("data-exact-server-slot") === id) return element;
-  }
-  return undefined;
+function findServerSlotDeep(parent: Node, id: string, maxNodes: number): Element | undefined {
+  let match: Element | undefined;
+  walkDomSubtree(parent, node => {
+    if (!match && node instanceof Element && node.getAttribute("data-exact-server-slot") === id) match = node;
+  }, { maxNodes });
+  return match;
 }

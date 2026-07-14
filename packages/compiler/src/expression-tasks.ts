@@ -1,11 +1,13 @@
 import type { BoundModule, NodeRef, Variable } from "@exact/expressions";
-import { analyzeExpressionWrites, writeSiteKey } from "./expression-writes.js";
+import { analyzeExpressionWrites } from "./expression-writes.js";
 import { isServerOnlyModule } from "./imports.js";
 import type { ExactContextEffect, ExactPlacement, ExactStateEffect } from "./types.js";
 import { expressionComponentIndex } from "./expression-component-index.js";
 
 export interface ExpressionTaskSite {
+  readonly nodeId: string;
   readonly component?: string;
+  readonly componentId?: string;
   readonly start: number;
   readonly end: number;
   readonly requestedPlacement?: "client" | "server";
@@ -31,6 +33,7 @@ export interface ExpressionTaskPlan {
 }
 
 export interface ExpressionLifecycleListener {
+  readonly nodeId: string;
   readonly component: string;
   readonly start: number;
   readonly end: number;
@@ -38,6 +41,7 @@ export interface ExpressionLifecycleListener {
 
 /** A direct component-setup expression whose lifetime is compiler-owned. */
 export interface ExpressionSetupTask {
+  readonly nodeId: string;
   readonly component: string;
   readonly start: number;
   readonly end: number;
@@ -46,6 +50,7 @@ export interface ExpressionSetupTask {
 export type ExpressionTaskResourceKind = "timeout" | "interval" | "animation-frame" | "idle-callback" | "fetch" | "observer" | "owned";
 export type ExpressionTaskResourceDisposal = "call" | "close" | "terminate" | "unsubscribe" | "dispose" | "cancel";
 export interface ExpressionTaskResource {
+  readonly nodeId: string;
   readonly start: number;
   readonly end: number;
   readonly kind: ExpressionTaskResourceKind;
@@ -54,6 +59,7 @@ export interface ExpressionTaskResource {
 }
 
 export interface ExpressionTaskSignalCall {
+  readonly nodeId: string;
   readonly start: number;
   readonly end: number;
   readonly parameter: number;
@@ -107,16 +113,16 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
       if (resource && call.node.span) {
         const ownership = resource.kind === "owned" ? taskResourceOwnership(module, work, call, resource) : "owned";
         if (ownership === "owned") {
-          const site = Object.freeze({ start: call.node.span.start, end: call.node.span.end, ...resource });
-          resources.set(writeSiteKey(site.start, site.end), site);
+          const site = Object.freeze({ nodeId: call.node.id, start: call.node.span.start, end: call.node.span.end, ...resource });
+          resources.set(site.nodeId, site);
         } else if (ownership === "escape") {
           resourceDiagnostics.push(`error: task-owned ${resource.description ?? "resource"} escapes its task generation; return an explicit cleanup or keep the resource local`);
         }
       }
       const signalCall = taskSignalCall(call, localVariables);
       if (signalCall && call.node.span) {
-        const site = Object.freeze({ start: call.node.span.start, end: call.node.span.end, ...signalCall });
-        signalCalls.set(writeSiteKey(site.start, site.end), site);
+        const site = Object.freeze({ nodeId: call.node.id, start: call.node.span.start, end: call.node.span.end, ...signalCall });
+        signalCalls.set(site.nodeId, site);
       }
       if (!call.target?.isMember() || !/^this\.(?:getContext|setContext)$/.test(call.target.node.text ?? "")) continue;
       const token = call.arguments[0];
@@ -161,7 +167,9 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
     }
     const component = componentOwner?.node.name;
     const site = Object.freeze({
+      nodeId: task.node.id,
       ...(component ? { component } : {}),
+      ...(componentOwner ? { componentId: componentOwner.node.id } : {}),
       start: task.node.span.start,
       end: task.node.span.end,
       ...(requestedPlacement ? { requestedPlacement } : {}),
@@ -175,7 +183,7 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
       contextSites: Object.freeze(contextSites),
       diagnostics: Object.freeze(diagnostics)
     });
-    sites.set(writeSiteKey(site.start, site.end), site);
+    sites.set(site.nodeId, site);
   }
   for (const call of module.walk().calls()) {
     if (!call.node.span || insideTask(call) || insideClientJsx(call)) continue;
@@ -189,8 +197,8 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
       const ownership = resource.kind === "owned" ? taskResourceOwnership(module, owner, call, resource) : "owned";
       if (ownership === "owned") {
         ownResource = true;
-        const site = Object.freeze({ start: call.node.span.start, end: call.node.span.end, ...resource });
-        resources.set(writeSiteKey(site.start, site.end), site);
+        const site = Object.freeze({ nodeId: call.node.id, start: call.node.span.start, end: call.node.span.end, ...resource });
+        resources.set(site.nodeId, site);
       } else if (ownership === "escape") {
         const message = `error: setup-created ${resource.description ?? resource.kind} escapes component lifecycle ownership; move its creation into this.task.client() or dispose it explicitly`;
         planDiagnostics.push(message);
@@ -198,8 +206,8 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
       }
     }
     if (signalCall) {
-      const site = Object.freeze({ start: call.node.span.start, end: call.node.span.end, ...signalCall });
-      signalCalls.set(writeSiteKey(site.start, site.end), site);
+      const site = Object.freeze({ nodeId: call.node.id, start: call.node.span.start, end: call.node.span.end, ...signalCall });
+      signalCalls.set(site.nodeId, site);
     }
     if (!listenerCall && !ownResource && !signalCall) continue;
     const expression = directSetupExpression(call);
@@ -209,11 +217,11 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
       diagnosticLocations.push(Object.freeze({ message, start: call.node.span.start }));
       continue;
     }
-    const setup = Object.freeze({ component: owner.node.name!, start: expression.node.span.start, end: expression.node.span.end });
-    setupTasks.set(writeSiteKey(setup.start, setup.end), setup);
+    const setup = Object.freeze({ nodeId: expression.node.id, component: owner.node.name!, start: expression.node.span.start, end: expression.node.span.end });
+    setupTasks.set(setup.nodeId, setup);
     if (listenerCall) {
-      const listener = Object.freeze({ component: owner.node.name!, start: call.node.span.start, end: call.node.span.end });
-      lifecycleListeners.set(writeSiteKey(listener.start, listener.end), listener);
+      const listener = Object.freeze({ nodeId: call.node.id, component: owner.node.name!, start: call.node.span.start, end: call.node.span.end });
+      lifecycleListeners.set(listener.nodeId, listener);
     }
   }
   return Object.freeze({
@@ -358,8 +366,7 @@ function taskResourceOwnership(
   if (!declaration || !variable) return resourceEscapesDirectly(call) ? "escape" : "owned";
   let explicit = false;
   for (const reference of work.walk().references().where(candidate => candidate.variable === variable)) {
-    if (reference.node.span && declaration.node.span
-      && reference.node.span.start >= declaration.node.span.start && reference.node.span.end <= declaration.node.span.end) continue;
+    if (isWithin(reference, declaration)) continue;
     const member = reference.parent?.isMember() ? reference.parent : undefined;
     if (member?.target?.node === reference.node) {
       const method = member.name ?? "";
@@ -386,9 +393,11 @@ function taskResourceOwnership(
 }
 
 function ancestorWithin(reference: NodeRef, owner: NodeRef, predicate: (ancestor: NodeRef) => boolean): NodeRef | undefined {
-  const span = owner.node.span;
-  return reference.ancestors().first(ancestor => !!span && !!ancestor.node.span
-    && ancestor.node.span.start >= span.start && ancestor.node.span.end <= span.end && predicate(ancestor));
+  for (const ancestor of reference.ancestors()) {
+    if (ancestor.node === owner.node) break;
+    if (predicate(ancestor)) return ancestor;
+  }
+  return undefined;
 }
 
 function resourceEscapesDirectly(call: NodeRef): boolean {
@@ -455,11 +464,14 @@ function parsePath(text: string, root: string): readonly string[] | undefined {
 
 function insideAssignmentTarget(reference: NodeRef): boolean {
   for (const assignment of reference.ancestors().assignments()) {
-    const left = assignment.node.children[0]?.span;
-    const span = reference.node.span;
-    if (left && span && span.start >= left.start && span.end <= left.end) return true;
+    const left = assignment.children().first();
+    if (left && isWithin(reference, left)) return true;
   }
   return false;
+}
+
+function isWithin(reference: NodeRef, owner: NodeRef): boolean {
+  return reference.node === owner.node || reference.ancestors().any(ancestor => ancestor.node === owner.node);
 }
 
 function effect(path: string, kind: "read" | "write", broad = false): ExactStateEffect {

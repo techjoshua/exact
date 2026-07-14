@@ -1,5 +1,4 @@
 import ts from "typescript";
-import { stableId } from "./ids.js";
 import type {
   ExactImportedComponentIR
 } from "./types.js";
@@ -21,12 +20,6 @@ export function componentBoundaryName(
 ): string {
   const tagKey = tagName.getText(sourceFile);
   return componentInfo.get(tagKey)?.boundaryName ?? tagKey;
-}
-
-/** Creates an exact element id for intrinsic JSX elements. */
-export function exactElementId(sourceFile: ts.SourceFile, tagName: ts.JsxTagNameExpression, node: ts.Node): string | undefined {
-  if (!jsxTagIsIntrinsicElement(tagName)) return undefined;
-  return stableId(sourceFile.fileName, "element", String(node.getStart(sourceFile)), String(node.getEnd()));
 }
 
 /** Returns whether a JSX tag is an intrinsic DOM-like element. */

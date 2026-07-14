@@ -1,4 +1,4 @@
-import { adoptComponentRoot, adoptStatic, namespaceForTag, render, unmount } from "@exact/dom";
+import { adoptComponentRoot, adoptStatic, consumeDomWork, createDomWorkBudget, namespaceForTag, render, unmount, walkDomSubtree, type DomWorkBudget } from "@exact/dom";
 import { Fragment, Text, isVNode, type Child, type VNode } from "@exact/core";
 import type {
   ExactClient,
@@ -19,7 +19,7 @@ import {
 } from "./config.js";
 import { hydrateClientIslands } from "./islands.js";
 import { invokeExact } from "./invocations.js";
-import { applyPatches, boundaryInnerHtml, createPatchBoundaryResolver, hasExactMarkers, reportMismatch } from "./patches.js";
+import { applyPatches, boundaryInnerHtml, boundaryInnerHtmls, createPatchBoundaryResolver, reportMismatch } from "./patches.js";
 import { stateForContract } from "./state.js";
 
 export { applyPatches } from "./patches.js";
@@ -39,33 +39,36 @@ export function hydrate(vnode: VNode, container: Element, options: HydrateOption
     return existing;
   }
   const resolvedOptions = resolveHydrateOptions(container, options);
-  const formState = captureFormState(container);
-  if (!hasExactMarkers(container)) {
+  const work = createDomWorkBudget(resolvedOptions.maxTreeNodes);
+  const captured = captureHydrationDom(container, work);
+  const formState = captured.formState;
+  if (!captured.hasMarkers) {
     reportMismatch(resolvedOptions, "missing exact hydration markers", "missing-markers");
     container.replaceChildren();
-    render(vnode, container, { logger: resolvedOptions.logger, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: resolvedOptions.maxTreeNodes });
+    render(vnode, container, { logger: resolvedOptions.logger, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work });
   } else {
     if ((typeof vnode.type === "function"
-      ? adoptComponentRoot(vnode, container, { logger: resolvedOptions.logger, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: resolvedOptions.maxTreeNodes })
-      : adoptStaticTree(vnode, container, createStaticBudget(resolvedOptions)) && adoptStatic(vnode, container, {
+      ? adoptComponentRoot(vnode, container, { logger: resolvedOptions.logger, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work })
+      : adoptStaticTree(vnode, container, createStaticBudget(resolvedOptions, work)) && adoptStatic(vnode, container, {
         logger: resolvedOptions.logger,
         maxTreeDepth: resolvedOptions.maxTreeDepth,
-        maxTreeNodes: resolvedOptions.maxTreeNodes
+        maxTreeNodes: remainingDomWork(work),
+        workBudget: work
       }))) {
       const root = createExactClient(container, resolvedOptions);
       roots.set(container, root);
       container.setAttribute("data-exact-hydrated", "true");
-      restoreFormState(container, formState);
+      restoreFormState(container, formState, work);
       return root;
     }
     // The DOM renderer currently mounts a new mounted graph.  Clear the SSR
     // range first so a hydration attempt cannot leave duplicate interactive
     // markup behind while marker adoption is unavailable for a boundary.
     container.replaceChildren();
-    render(vnode, container, { logger: resolvedOptions.logger, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: resolvedOptions.maxTreeNodes });
+    render(vnode, container, { logger: resolvedOptions.logger, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work });
   }
 
-  restoreFormState(container, formState);
+  restoreFormState(container, formState, work);
 
   const root = createExactClient(container, resolvedOptions);
   roots.set(container, root);
@@ -74,17 +77,17 @@ export function hydrate(vnode: VNode, container: Element, options: HydrateOption
 }
 
 /** Adopts marker-wrapped static SSR output without replacing the server nodes. */
-type StaticBudget = { remaining: number; maxDepth: number };
+type StaticBudget = { work: DomWorkBudget; maxDepth: number };
 
-function createStaticBudget(options: HydrateOptions): StaticBudget {
+function createStaticBudget(options: HydrateOptions, work = createDomWorkBudget(options.maxTreeNodes)): StaticBudget {
   return {
-    remaining: Number.isSafeInteger(options.maxTreeNodes) && options.maxTreeNodes! > 0 ? options.maxTreeNodes! : 100_000,
+    work,
     maxDepth: Number.isSafeInteger(options.maxTreeDepth) && options.maxTreeDepth! > 0 ? Math.min(options.maxTreeDepth!, 1_024) : 512
   };
 }
 
 function visitStatic(budget: StaticBudget, depth: number): void {
-  if (--budget.remaining < 0) throw new Error("eXact hydration tree exceeds its configured render-value budget");
+  consumeDomWork(budget.work);
   if (depth > budget.maxDepth) throw new Error(`eXact hydration tree exceeds the configured maximum depth of ${budget.maxDepth}`);
 }
 
@@ -334,10 +337,16 @@ type FormState = {
   focused: boolean;
 };
 
-function captureFormState(container: Element): FormState[] {
+function captureHydrationDom(container: Element, work: DomWorkBudget): { formState: FormState[]; hasMarkers: boolean } {
   const active = document.activeElement;
-  const controls = Array.from(container.querySelectorAll("input, textarea, select, [contenteditable=true]"));
-  return controls.flatMap(control => {
+  const controls: Element[] = [];
+  let hasMarkers = false;
+  walkDomSubtree(container, node => {
+    if (node instanceof Comment && node.data.startsWith("exact:")) hasMarkers = true;
+    if (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement || node instanceof HTMLSelectElement
+      || node instanceof Element && node.getAttribute("contenteditable") === "true") controls.push(node);
+  }, { budget: work });
+  const formState = controls.flatMap(control => {
     const dirty = control instanceof HTMLInputElement
       ? control.value !== control.defaultValue || control.checked !== control.defaultChecked
       : control instanceof HTMLTextAreaElement
@@ -348,7 +357,7 @@ function captureFormState(container: Element): FormState[] {
     if (!dirty && control !== active) return [];
     const state: FormState = {
       node: control,
-      path: nodePath(container, control),
+      path: nodePath(container, control, work),
       identity: formControlIdentity(control),
       signature: formControlSignature(control),
       focused: control === active
@@ -362,14 +371,17 @@ function captureFormState(container: Element): FormState[] {
     } else state.value = control.textContent ?? "";
     return [state];
   });
+  return { formState, hasMarkers };
 }
 
-function restoreFormState(container: Element, states: readonly FormState[]): void {
+function restoreFormState(container: Element, states: readonly FormState[], work: DomWorkBudget): void {
+  if (!states.length) return;
+  const identities = indexFormControlIdentities(container, work);
   for (const state of states) {
     const identityMatch = state.identity
-      ? findUniqueElementByAttribute(container, state.identity.attribute, state.identity.value)
+      ? identities.get(`${state.identity.attribute}\0${state.identity.value}`)
       : undefined;
-    const pathMatch = nodeAtPath(container, state.path);
+    const pathMatch = nodeAtPath(container, state.path, work);
     const retainedIdentity = container.contains(state.node)
       && (!state.identity || state.node.getAttribute(state.identity.attribute) === state.identity.value);
     const candidate = retainedIdentity ? state.node : identityMatch ?? pathMatch;
@@ -407,29 +419,40 @@ function formControlSignature(element: Element): string {
   return `${element.namespaceURI ?? ""}|${element.localName}|${type}|${element.getAttribute("name") ?? ""}`;
 }
 
-function findUniqueElementByAttribute(container: Element, attribute: string, value: string): Element | undefined {
-  let match: Element | undefined;
-  for (const element of [container, ...Array.from(container.querySelectorAll(`[${attribute}]`))]) {
-    if (element.getAttribute(attribute) !== value) continue;
-    if (match) return undefined;
-    match = element;
-  }
-  return match;
+function indexFormControlIdentities(container: Element, work: DomWorkBudget): Map<string, Element | undefined> {
+  const identities = new Map<string, Element | undefined>();
+  walkDomSubtree(container, node => {
+    if (!(node instanceof Element)) return;
+    for (const attribute of ["data-exact-control-id", "data-exact-id", "id"] as const) {
+      const value = node.getAttribute(attribute);
+      if (!value) continue;
+      const key = `${attribute}\0${value}`;
+      identities.set(key, identities.has(key) ? undefined : node);
+    }
+  }, { budget: work });
+  return identities;
 }
 
-function nodePath(root: Node, node: Node): number[] {
+function nodePath(root: Node, node: Node, work: DomWorkBudget): number[] {
   const path: number[] = [];
   for (let cursor: Node | null = node; cursor && cursor !== root; cursor = cursor.parentNode) {
+    consumeDomWork(work);
     if (!cursor.parentNode) return [];
     path.unshift(Array.prototype.indexOf.call(cursor.parentNode.childNodes, cursor));
   }
   return path;
 }
 
-function nodeAtPath(root: Node, path: readonly number[]): Node | undefined {
+function nodeAtPath(root: Node, path: readonly number[], work: DomWorkBudget): Node | undefined {
   let cursor: Node | undefined = root;
-  for (const index of path) cursor = cursor?.childNodes[index];
+  for (const index of path) { consumeDomWork(work); cursor = cursor?.childNodes[index]; }
   return cursor;
+}
+
+function remainingDomWork(work: DomWorkBudget): number {
+  const remaining = work.limit - work.used;
+  if (remaining <= 0) consumeDomWork(work);
+  return remaining;
 }
 
 /** Returns the hydration client previously attached to a container. */
@@ -445,6 +468,7 @@ async function invokeAndApply(
   payload: unknown,
   options: HydrateOptions
 ): Promise<ExactInvocationResult> {
+  const work = createDomWorkBudget(options.maxTreeNodes);
   let versions = requestVersions.get(container);
   if (!versions) { versions = new Map(); requestVersions.set(container, versions); }
   const configuredBoundaries = options.actionBoundaries?.[id];
@@ -462,8 +486,8 @@ async function invokeAndApply(
     id,
     payload,
     state: type === "action" ? stateForContract(client.state, client.stateContracts?.[id]) : client.state,
-    boundaryHtml: type === "refresh" ? boundaryInnerHtml(container, id) : undefined,
-    boundaryHtmls: type === "action" ? boundaryHtmlsFor(container, options.actionBoundaries?.[id]) : undefined
+    boundaryHtml: type === "refresh" ? boundaryInnerHtml(container, id, work) : undefined,
+    boundaryHtmls: type === "action" ? boundaryHtmlsFor(container, options.actionBoundaries?.[id], work) : undefined
   };
   const endpoint = requireEndpoint(endpointForOperation(client, type, id));
   const transport = transportForEndpoint(options, endpoint);
@@ -503,7 +527,7 @@ async function invokeAndApply(
   const partiallyStale = staleKeys.size > 0;
   if (partiallyStale && configuredBoundaries && responsePatches) {
     const rejected: string[] = [];
-    const boundaryForPatch = createPatchBoundaryResolver(container, configuredBoundaries);
+    const boundaryForPatch = createPatchBoundaryResolver(container, configuredBoundaries, work);
     responsePatches = responsePatches.filter(patch => {
       const owner = boundaryForPatch(patch.id);
       const accepted = owner !== undefined && !staleKeys.has(`boundary:${owner}`);
@@ -517,9 +541,10 @@ async function invokeAndApply(
       patch: { type, id }
     });
   }
-  let patchesApplied = responsePatches ? applyPatches(container, responsePatches, options) : true;
+  const patchOptions = { ...options, workBudget: work };
+  let patchesApplied = responsePatches ? applyPatches(container, responsePatches, patchOptions) : true;
   if (!patchesApplied && type === "refresh" && result.html) {
-    patchesApplied = applyPatches(container, [{ type: "replace", id, html: result.html }], options);
+    patchesApplied = applyPatches(container, [{ type: "replace", id, html: result.html }], patchOptions);
   }
   if (!patchesApplied) {
     options.onDiagnostic?.({
@@ -558,12 +583,8 @@ function transportForEndpoint(options: HydrateOptions, endpoint: string): { fetc
   };
 }
 
-function boundaryHtmlsFor(container: Element, ids: readonly string[] | undefined): Record<string, string> | undefined {
+function boundaryHtmlsFor(container: Element, ids: readonly string[] | undefined, work: DomWorkBudget): Record<string, string> | undefined {
   if (!ids?.length) return undefined;
-  const htmls: Record<string, string> = {};
-  for (const id of ids) {
-    const html = boundaryInnerHtml(container, id);
-    if (html !== undefined) htmls[id] = html;
-  }
+  const htmls = boundaryInnerHtmls(container, ids, work);
   return Object.keys(htmls).length ? htmls : undefined;
 }

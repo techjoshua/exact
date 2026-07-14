@@ -1,5 +1,5 @@
 import { escapeAttr } from "./html.js";
-import { logFrameworkEvent } from "@exact/core";
+import { attachSuppressedCleanupFailure, attemptCleanup, createCleanupFailure, logFrameworkEvent, throwCleanupFailure } from "@exact/core";
 import type {
   ExactDocumentStreamEvent,
   ExactResponseLike,
@@ -31,15 +31,18 @@ export function createHtmlStream(
   let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
   const abort = () => {
     if (closed) return;
-    close();
-    controller?.error(options.signal?.reason ?? new DOMException("SSR stream aborted", "AbortError"));
+    const reason = options.signal?.reason ?? new DOMException("SSR stream aborted", "AbortError");
+    try { close(); } catch (cleanup) { attachSuppressedCleanupFailure(reason, cleanup); }
+    controller?.error(reason);
   };
   const close = () => {
     if (closed) return;
     closed = true;
-    options.signal?.removeEventListener("abort", abort);
-    iterator.return?.();
-    options.close?.();
+    cleanupAll(
+      () => options.signal?.removeEventListener("abort", abort),
+      () => { iterator.return?.(); },
+      () => options.close?.()
+    );
   };
   return new ReadableStream<Uint8Array>({
     start(streamController) {
@@ -49,8 +52,9 @@ export function createHtmlStream(
     },
     pull(streamController) {
       if (options.signal?.aborted) {
-        close();
-        streamController.error(options.signal.reason ?? new DOMException("SSR stream aborted", "AbortError"));
+        const reason = options.signal.reason ?? new DOMException("SSR stream aborted", "AbortError");
+        try { close(); } catch (cleanup) { attachSuppressedCleanupFailure(reason, cleanup); }
+        streamController.error(reason);
         return;
       }
       try {
@@ -67,7 +71,7 @@ export function createHtmlStream(
         if (bytes > maxBytes) throw new Error("SSR stream byte limit exceeded");
         streamController.enqueue(chunk);
       } catch (error) {
-        close();
+        try { close(); } catch (cleanup) { attachSuppressedCleanupFailure(error, cleanup); }
         streamController.error(error);
       }
     },
@@ -94,7 +98,10 @@ export function createDocumentEventStream(
   let bytes = 0;
   const wake = () => { const ready = resume; resume = undefined; ready?.(); };
   ownerController.signal.addEventListener("abort", wake, { once: true });
-  const cleanup = () => { ownerController.signal.removeEventListener("abort", wake); unlink(); };
+  const cleanup = () => cleanupAll(
+    () => ownerController.signal.removeEventListener("abort", wake),
+    unlink
+  );
   return new ReadableStream<Uint8Array>({
     start(controller) {
       const emit = async (event: ExactDocumentStreamEvent): Promise<void> => {
@@ -110,20 +117,34 @@ export function createDocumentEventStream(
         controller.enqueue(chunk);
       };
       Promise.resolve(render(ownerController.signal, emit))
-        .then(() => { if (!closed) { closed = true; cleanup(); controller.close(); } })
+        .then(() => {
+          if (closed) return;
+          closed = true;
+          try { cleanup(); controller.close(); }
+          catch (cleanupError) { controller.error(cleanupError); }
+        })
         .catch(error => {
           if (closed) return;
           if (ownerController.signal.aborted) {
             closed = true;
-            cleanup();
-            controller.error(ownerController.signal.reason ?? new DOMException("SSR stream aborted", "AbortError"));
+            const reason = ownerController.signal.reason ?? new DOMException("SSR stream aborted", "AbortError");
+            try { cleanup(); } catch (cleanupError) { attachSuppressedCleanupFailure(reason, cleanupError); }
+            controller.error(reason);
             return;
           }
           options.onError?.(error);
           void emit({ event: "error", version: 1, message: "Document rendering failed" }).then(() => {
-            if (!closed) { closed = true; cleanup(); controller.close(); }
+            if (!closed) {
+              closed = true;
+              try { cleanup(); controller.close(); }
+              catch (cleanupError) { controller.error(cleanupError); }
+            }
           }, emitError => {
-            if (!closed) { closed = true; cleanup(); controller.error(emitError); }
+            if (!closed) {
+              closed = true;
+              try { cleanup(); } catch (cleanupError) { attachSuppressedCleanupFailure(emitError, cleanupError); }
+              controller.error(emitError);
+            }
           });
         });
     },
@@ -157,7 +178,10 @@ export function createProgressiveHtmlStream(render: ProgressiveDocumentStreamRen
   let bytes = 0;
   const wake = () => { const ready = resume; resume = undefined; ready?.(); };
   abortController.signal.addEventListener("abort", wake, { once: true });
-  const cleanup = () => { abortController.signal.removeEventListener("abort", wake); unlink(); };
+  const cleanup = () => cleanupAll(
+    () => abortController.signal.removeEventListener("abort", wake),
+    unlink
+  );
   return new ReadableStream<Uint8Array>({
     start(controller) {
       const waitForDemand = async (): Promise<void> => {
@@ -180,20 +204,34 @@ export function createProgressiveHtmlStream(render: ProgressiveDocumentStreamRen
         if (chunk) await emit(chunk);
         else await waitForDemand();
       }))
-        .then(() => { if (!closed) { closed = true; cleanup(); controller.close(); } })
+        .then(() => {
+          if (closed) return;
+          closed = true;
+          try { cleanup(); controller.close(); }
+          catch (cleanupError) { controller.error(cleanupError); }
+        })
         .catch(error => {
           if (closed) return;
           if (abortController.signal.aborted) {
             closed = true;
-            cleanup();
-            controller.error(abortController.signal.reason ?? new DOMException("SSR stream aborted", "AbortError"));
+            const reason = abortController.signal.reason ?? new DOMException("SSR stream aborted", "AbortError");
+            try { cleanup(); } catch (cleanupError) { attachSuppressedCleanupFailure(reason, cleanupError); }
+            controller.error(reason);
             return;
           }
           logFrameworkEvent("error", "ssr", "stream", "progressive document render failed", error, options.logger);
           void emit(progressiveErrorScript(error, streamOptions)).then(() => {
-            if (!closed) { closed = true; cleanup(); controller.close(); }
+            if (!closed) {
+              closed = true;
+              try { cleanup(); controller.close(); }
+              catch (cleanupError) { controller.error(cleanupError); }
+            }
           }, emitError => {
-            if (!closed) { closed = true; cleanup(); controller.error(emitError); }
+            if (!closed) {
+              closed = true;
+              try { cleanup(); } catch (cleanupError) { attachSuppressedCleanupFailure(emitError, cleanupError); }
+              controller.error(emitError);
+            }
           });
         });
     },
@@ -210,6 +248,12 @@ export function createProgressiveHtmlStream(render: ProgressiveDocumentStreamRen
 
 function positiveLimit(value: number | undefined, fallback: number): number {
   return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : fallback;
+}
+
+function cleanupAll(...actions: Array<() => void>): void {
+  const failure = createCleanupFailure();
+  for (const action of actions) attemptCleanup(failure, action);
+  throwCleanupFailure(failure);
 }
 
 function forwardAbort(source: AbortSignal | undefined, target: AbortController): () => void {

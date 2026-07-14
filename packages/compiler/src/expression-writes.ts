@@ -8,6 +8,7 @@ export interface ExpressionWriteResult {
 }
 
 export interface ExpressionWriteSite {
+  readonly nodeId: string;
   readonly start: number;
   readonly end: number;
   readonly path: readonly string[];
@@ -66,8 +67,8 @@ export function analyzeExpressionWrites(module: BoundModule): ExpressionWritePla
     if (!insideComponent(module, reference) || !reference.node.span) continue;
     const path = writePath(module, reference, aliases, aliasInfo.invalidAt);
     if (!path?.length) continue;
-    const site = Object.freeze({ start: reference.node.span.start, end: reference.node.span.end, path: Object.freeze(path), operation: writeOperation(reference) });
-    sites.set(writeSiteKey(site.start, site.end), site);
+    const site = Object.freeze({ nodeId: reference.node.id, start: reference.node.span.start, end: reference.node.span.end, path: Object.freeze(path), operation: writeOperation(reference) });
+    sites.set(site.nodeId, site);
   }
   return Object.freeze({ sites, aliases });
 }
@@ -77,10 +78,6 @@ function writeOperation(reference: NodeRef): ExpressionWriteSite["operation"] {
   if (reference.node.kind === "DeleteExpression") return "delete";
   if (reference.node.kind === "PrefixUnaryExpression" || reference.node.kind === "PostfixUnaryExpression" || reference.node.operator !== "=") return "update";
   return "assignment";
-}
-
-export function writeSiteKey(start: number, end: number): string {
-  return `${start}:${end}`;
 }
 
 function writePath(module: BoundModule, reference: NodeRef, aliases: ReadonlyMap<string, readonly string[]>, invalidAt?: ReadonlyMap<string, number>): string[] | undefined {

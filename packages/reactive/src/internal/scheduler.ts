@@ -41,14 +41,22 @@ export function flushSync(): void {
           if (settleOverflow(overflow)) return;
           throw overflow;
         }
-        const computations = [...queuedComputations.keys()];
+        const computations = [...queuedComputations.entries()];
         queuedComputations.clear();
-        for (const computation of computations) {
+        for (const [computation, onError] of computations) {
           try {
             computation();
           } catch (error) {
-            if (!hasError) firstError = error;
-            hasError = true;
+            if (onError) {
+              try { onError(error); }
+              catch (handlerError) {
+                if (!hasError) firstError = handlerError;
+                hasError = true;
+              }
+            } else {
+              if (!hasError) firstError = error;
+              hasError = true;
+            }
           }
         }
       }

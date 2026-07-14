@@ -27,7 +27,7 @@ describe("bounded hydration bootstrap and adoption", () => {
     const vnode = createVNode("main", null,
       ...Array.from({ length: 20 }, (_, index) => createVNode("span", null, String(index))));
     expect(() => hydrate(vnode, container, { maxTreeNodes: 8 }))
-      .toThrow("eXact DOM update exceeds the configured maximum of 8 render values");
+      .toThrow("eXact DOM traversal exceeds the configured maximum of 8 nodes");
     expect(container.childNodes).toHaveLength(0);
   });
 });

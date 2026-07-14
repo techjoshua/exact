@@ -8,6 +8,7 @@ import type {
   ExactServerContext,
   ExactStreamEvent
 } from "./types.js";
+import { attachSuppressedCleanupFailure, attemptCleanup, createCleanupFailure, throwCleanupFailure } from "@exact/core";
 
 export type ExactOperationDispatcher = (
   request: ExactRequestLike,
@@ -92,31 +93,49 @@ async function dispatchReadyOperations(
   const running = new Map<number, Promise<{ index: number; operation: ExactInvocationRequest; result: ExactOperationResult }>>();
   const successful = new Set<string>();
   const concurrency = positiveLimit(context.limits?.maxBatchConcurrency, 8);
+  const batchAbort = new AbortController();
+  const linked = linkAbortSignals(request.signal, batchAbort.signal);
+  const ownedRequest = { ...request, signal: linked.signal };
 
-  while (pending.size) {
-    for (const index of pending) {
-      if (running.size >= concurrency || request.signal?.aborted) break;
-      if (running.has(index)) continue;
-      const dependsOn = operations[index]!.dependsOn ?? [];
-      if (!dependsOn.every(id => successful.has(id))) continue;
-      const operation = operations[index]!;
-      running.set(index, dispatch(request, operation, context).then(result => ({ index, operation, result })));
-    }
-
-    if (!running.size) {
-      // Remaining operations are dependency-blocked. Fail them explicitly instead
-      // of leaving the client waiting for results that can no longer run.
+  try {
+    while (pending.size) {
       for (const index of pending) {
-        await emitResult(index, dependencyFailed(operations[index]!));
+        if (running.size >= concurrency || linked.signal.aborted) break;
+        if (running.has(index)) continue;
+        const dependsOn = operations[index]!.dependsOn ?? [];
+        if (!dependsOn.every(id => successful.has(id))) continue;
+        const operation = operations[index]!;
+        running.set(index, dispatch(ownedRequest, operation, context).then(result => ({ index, operation, result })));
       }
-      break;
-    }
 
-    const { index, operation, result } = await Promise.race(running.values());
-    running.delete(index);
-    pending.delete(index);
-    if (result.ok && operation.opId) successful.add(operation.opId);
-    await emitResult(index, result);
+      if (!running.size) {
+        if (linked.signal.aborted) throw linked.signal.reason ?? new DOMException("eXact batch aborted", "AbortError");
+        // Remaining operations are dependency-blocked. Fail them explicitly instead
+        // of leaving the client waiting for results that can no longer run.
+        for (const index of pending) {
+          await emitResult(index, dependencyFailed(operations[index]!));
+        }
+        break;
+      }
+
+      let settled: { index: number; operation: ExactInvocationRequest; result: ExactOperationResult };
+      try {
+        settled = await Promise.race(running.values());
+      } catch (error) {
+        batchAbort.abort(error);
+        await Promise.allSettled(running.values());
+        throw error;
+      }
+      const { index, operation, result } = settled;
+      running.delete(index);
+      pending.delete(index);
+      if (result.ok && operation.opId) successful.add(operation.opId);
+      await emitResult(index, result);
+    }
+  } finally {
+    batchAbort.abort(new DOMException("eXact batch complete", "AbortError"));
+    await Promise.allSettled(running.values());
+    linked.dispose();
   }
 }
 
@@ -201,8 +220,9 @@ function createNdjsonStream(
         active = false;
         resume?.();
         resume = undefined;
-        cleanup();
-        controller.error(signal?.reason ?? new DOMException("eXact stream aborted", "AbortError"));
+        const reason = signal?.reason ?? new DOMException("eXact stream aborted", "AbortError");
+        cleanupWithPrimary(cleanup, reason);
+        controller.error(reason);
       };
       cleanup = () => {
         signal?.removeEventListener("abort", abort);
@@ -214,13 +234,13 @@ function createNdjsonStream(
         () => {
           if (!active) return;
           active = false;
-          cleanup();
-          controller.close();
+          try { cleanup(); controller.close(); }
+          catch (cleanupError) { controller.error(cleanupError); }
         },
         error => {
           if (!active) return;
           active = false;
-          cleanup();
+          cleanupWithPrimary(cleanup, error);
           controller.error(error);
         }
       );
@@ -236,10 +256,17 @@ function createNdjsonStream(
       active = false;
       resume?.();
       resume = undefined;
-      cancelRun?.(reason);
-      cleanup();
+      const failure = createCleanupFailure();
+      attemptCleanup(failure, () => cancelRun?.(reason));
+      attemptCleanup(failure, cleanup);
+      throwCleanupFailure(failure);
     }
   }, { highWaterMark: 0 });
+}
+
+function cleanupWithPrimary(cleanup: () => void, primary: unknown): void {
+  try { cleanup(); }
+  catch (cleanupError) { attachSuppressedCleanupFailure(primary, cleanupError); }
 }
 
 function linkAbortSignals(...signals: Array<AbortSignal | undefined>): { signal: AbortSignal; dispose(): void } {

@@ -6,10 +6,11 @@ import { expressionStatePath, type ExpressionWritePlan } from "./expression-writ
 import { isServerOnlyModule } from "./imports.js";
 import { stableId } from "./ids.js";
 import type { ExactBoundaryIR, ExactComponentIR, ExactComponentRenderEdgeIR, ExactContextEffect, ExactImportedComponentIR, ExactTaskIR } from "./types.js";
-import { generatedComponentName, serverSlotBoundaryId } from "./names.js";
+import { clientComponentBoundaryId, generatedComponentName, serverSlotBoundaryId } from "./names.js";
 import { expressionComponentIndex } from "./expression-component-index.js";
 
 export interface ExpressionRenderSite {
+  readonly nodeId: string;
   readonly tag: string;
   readonly start: number;
   readonly end: number;
@@ -18,6 +19,7 @@ export interface ExpressionRenderSite {
 }
 
 export interface ExpressionClientIslandSite {
+  readonly nodeId: string;
   readonly index: number;
   readonly start: number;
   readonly end: number;
@@ -112,6 +114,7 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
   const componentIndex = expressionComponentIndex(module);
   const components = componentIndex.functions;
   const componentNodes = new Set(components.map(component => component.node));
+  const jsxReferences = new Map(module.walk().jsxElements().toArray().map(reference => [reference.node.id, reference]));
   const localVariables = new Set(module.walk().references().toArray()
     .map(reference => reference.variable)
     .filter((variable): variable is Variable => !!variable && variable.id.startsWith(`${module.filename}:`)));
@@ -130,7 +133,8 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
     let serverEffects = false;
 
     for (const element of jsx.elements.values()) {
-      if (!inside(element.start, element.end, component) || !ownedByComponent(module, element.start, component, componentNodes)) continue;
+      const reference = jsxReferences.get(element.nodeId);
+      if (!reference || nearestComponent(reference, componentNodes)?.node !== component.node) continue;
       for (const attribute of element.attributes) {
         if (!/^on[A-Z]/.test(attribute) && attribute !== "ref") continue;
         clientEffects = true;
@@ -138,7 +142,6 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
       }
       const isClientIsland = element.attributes.some(isClientIslandAttribute);
       if (isClientIsland) {
-        const reference = module.walk().jsxElements().first(candidate => candidate.node.span?.start === element.start);
         const nestedInIsland = reference?.ancestors().jsxElements().any(ancestor =>
           ancestor.node.attributes.some(attribute => isClientIslandAttribute(attribute.name ?? "")));
         if (!nestedInIsland) {
@@ -154,6 +157,7 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
           const captures = expressionIslandCaptures(module, component, reference);
           const stateReads = expressionIslandStateReads(module, reference, provenance, writes?.aliases ?? new Map());
           clientIslands.push(Object.freeze({
+            nodeId: reference?.node.id ?? element.nodeId,
             index: clientIslandCount,
             start: element.start,
             end: element.end,
@@ -166,7 +170,6 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
         }
       }
       if (!element.intrinsic && element.tagName) {
-        const reference = module.walk().jsxElements().first(candidate => candidate.node.span?.start === element.start);
         const tagBinding = reference?.descendants().references().first(candidate =>
           candidate.name === element.tagName?.split(".")[0]
           && candidate.ancestors().any(ancestor => ancestor.node.kind === "JsxOpeningElement" || ancestor.node.kind === "JsxSelfClosingElement"));
@@ -180,7 +183,7 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
         }
         const canReferenceComponent = !!tagBinding?.variable && ["ImportSpecifier", "ImportClause", "NamespaceImport", "FunctionDeclaration"].includes(tagBinding.variable.declarationKind);
         if (reference && canReferenceComponent && !reference.ancestors().functions().any(fn => fn.node !== component.node && fn.node.kind !== "ArrowFunction")) {
-          renders.push(Object.freeze({ tag: element.tagName, start: element.start, end: element.end, path: nodePath(reference, component), serverSlotChildren: element.serverSlotChildren }));
+          renders.push(Object.freeze({ nodeId: reference.node.id, tag: element.tagName, start: element.start, end: element.end, path: nodePath(reference, component), serverSlotChildren: element.serverSlotChildren }));
         }
       }
     }
@@ -202,7 +205,7 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
     }
 
     for (const task of tasks.sites.values()) {
-      if (!inside(task.start, task.end, component)) continue;
+      if (task.componentId !== component.node.id) continue;
       if (task.placement === "client" || task.placement === "isomorphic") clientEffects = true;
       if (task.placement === "server" || task.placement === "isomorphic") serverEffects = true;
     }
@@ -274,7 +277,7 @@ function declarationDescription(kind: string): string {
 }
 
 function expressionIslandCaptures(module: BoundModule, component: NodeRef, island: NodeRef | undefined): Readonly<{ values: string[]; functions: string[] }> {
-  if (!island?.node.span) return { values: [], functions: [] };
+  if (!island) return { values: [], functions: [] };
   const values = new Set<string>();
   const functions = new Set<string>();
   const visited = new Set<string>();
@@ -283,7 +286,7 @@ function expressionIslandCaptures(module: BoundModule, component: NodeRef, islan
     visited.add(variable.id);
     if (!["VariableDeclaration", "BindingElement", "FunctionDeclaration"].includes(variable.declarationKind)) return;
     const declaration = variableDeclaration(module, variable);
-    if (!declaration?.node.span || insideSpan(declaration.node.span.start, declaration.node.span.end, island)) return;
+    if (!declaration || isWithin(declaration, island)) return;
     if (declarationOwner(declaration)?.node !== component.node) return;
     if (isCloneableFunctionDeclaration(declaration)) {
       functions.add(variable.name);
@@ -342,7 +345,7 @@ function variableDeclaration(module: BoundModule, variable: Variable): NodeRef |
       if (variable.declarationKind === "BindingElement") {
         return reference.parent?.node === declaration.node ? declaration : undefined;
       }
-      return name && insideSpan(reference.node.span?.start ?? -1, reference.node.span?.end ?? -1, name) ? declaration : undefined;
+      return name && isWithin(reference, name) ? declaration : undefined;
     })
     .find((declaration): declaration is NodeRef => !!declaration);
 }
@@ -358,9 +361,8 @@ function isCloneableFunctionDeclaration(declaration: NodeRef): boolean {
   return initializer === "ArrowFunction" || initializer === "FunctionExpression";
 }
 
-function insideSpan(start: number, end: number, owner: NodeRef): boolean {
-  const span = owner.node.span;
-  return !!span && start >= span.start && end <= span.end;
+function isWithin(reference: NodeRef, owner: NodeRef): boolean {
+  return reference.node === owner.node || reference.ancestors().any(ancestor => ancestor.node === owner.node);
 }
 
 function isClientIslandAttribute(name: string): boolean {
@@ -380,7 +382,7 @@ export function createExpressionRenderEdges(
     if (!component) continue;
     const index = edges.length + 1;
     edges.push({
-      id: stableId(filename, componentName, "render-edge", String(index), render.path, render.tag, component.componentId ?? component.name),
+      id: stableId(filename, componentName, "render-edge", render.nodeId, render.tag, component.componentId ?? component.name),
       tag: render.tag,
       name: component.boundaryName ?? component.name,
       componentId: component.componentId,
@@ -409,7 +411,7 @@ export function createExpressionComponentBoundaries(
       const component = componentInfo.get(render.tag);
       if (!component || component.placement !== "client") continue;
       const name = component.boundaryName ?? component.name;
-      const id = stableId(filename, name, "component-island", String(render.start), String(render.end));
+      const id = clientComponentBoundaryId(filename, name, render.nodeId);
       if (seen.has(id)) continue;
       seen.add(id);
       const edge = owner.renderEdges.find(candidate => candidate.path === render.path && candidate.tag === render.tag);
@@ -483,18 +485,8 @@ function uniqueContexts(values: readonly ExactContextEffect[]): ExactContextEffe
     .sort((left, right) => `${left.kind}:${left.token}`.localeCompare(`${right.kind}:${right.token}`));
 }
 
-function inside(start: number, end: number, component: NodeRef): boolean {
-  const span = component.node.span!;
-  return start >= span.start && end <= span.end;
-}
-
 function nearestComponent(reference: NodeRef, components: ReadonlySet<NodeRef["node"]>): NodeRef | undefined {
   return reference.ancestors().functions().first(candidate => components.has(candidate.node));
-}
-
-function ownedByComponent(module: BoundModule, start: number, component: NodeRef, components: ReadonlySet<NodeRef["node"]>): boolean {
-  const element = module.walk().jsxElements().first(reference => reference.node.span?.start === start);
-  return !element || nearestComponent(element, components)?.node === component.node;
 }
 
 function insideTask(reference: NodeRef): boolean {

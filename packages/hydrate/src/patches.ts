@@ -1,5 +1,5 @@
 import { encodeExactMarkerPart, logFrameworkEvent, type Logger } from "@exact/core";
-import { applyDomProp, disposeOwnedSubtree } from "@exact/dom";
+import { applyDomProp, consumeDomWork, createDomWorkBudget, disposeOwnedSubtree, walkDomSubtree, type DomWorkBudget } from "@exact/dom";
 import type { ExactPatch } from "@exact/server";
 import type { HydrationDiagnostic } from "./types.js";
 
@@ -7,12 +7,14 @@ export type PatchOptions = {
   logger?: Logger;
   onMismatch?: "replace" | "throw";
   onDiagnostic?: (diagnostic: HydrationDiagnostic) => void;
+  maxTreeNodes?: number;
+  workBudget?: DomWorkBudget;
 };
 
 /** Applies server-generated patches to an existing hydrated container. */
 export function applyPatches(container: Element, patches: readonly ExactPatch[], options: PatchOptions = {}): boolean {
   if (!patches.length) return true;
-  const index = createProtocolIndex(container);
+  const index = createProtocolIndex(container, options.workBudget ?? options.maxTreeNodes);
   if (!index || !validatePatchSequence(index, patches)) {
     const failed = patches.find(patch => !index || !canApplyPatch(index, patch));
     const detail = failed ? `${failed.type}:${failed.id}` : "invalid marker topology";
@@ -38,18 +40,36 @@ export function applyPatches(container: Element, patches: readonly ExactPatch[],
 }
 
 /** Returns whether a container contains eXact comment markers for hydration patching. */
-export function hasExactMarkers(container: Element): boolean {
-  const walker = document.createTreeWalker(container, NodeFilter.SHOW_COMMENT);
-  while (walker.nextNode()) {
-    if ((walker.currentNode as Comment).data.startsWith("exact:")) return true;
-  }
-  return false;
+export function hasExactMarkers(container: Element, work?: number | DomWorkBudget): boolean {
+  let found = false;
+  walkDomSubtree(container, node => {
+    if (node instanceof Comment && node.data.startsWith("exact:")) found = true;
+  }, typeof work === "number" ? { maxNodes: work } : { budget: work });
+  return found;
 }
 
 /** Returns the current HTML inside an exact boundary or slot. */
-export function boundaryInnerHtml(container: Element, id: string): string | undefined {
-  const range = findExactRange(container, id);
-  if (!range) return findServerSlotElement(container, id)?.innerHTML ?? findClientBoundaryElement(container, id)?.outerHTML;
+export function boundaryInnerHtml(container: Element, id: string, work?: number | DomWorkBudget): string | undefined {
+  const index = createProtocolIndex(container, work);
+  if (!index) return undefined;
+  return indexedBoundaryHtml(container, index, id);
+}
+
+/** Reads several boundary snapshots through one bounded protocol index pass. */
+export function boundaryInnerHtmls(container: Element, ids: readonly string[], work?: number | DomWorkBudget): Record<string, string> {
+  const index = createProtocolIndex(container, work);
+  if (!index) return {};
+  const htmls: Record<string, string> = {};
+  for (const id of ids) {
+    const html = indexedBoundaryHtml(container, index, id);
+    if (html !== undefined) htmls[id] = html;
+  }
+  return htmls;
+}
+
+function indexedBoundaryHtml(container: Element, index: ProtocolIndex, id: string): string | undefined {
+  const range = index.ranges.get(id);
+  if (!range) return findServerSlotElement(container, id, index)?.innerHTML ?? findClientBoundaryElement(container, id, index)?.outerHTML;
   const wrapper = document.createElement("div");
   let cursor = range.start.nextSibling;
   while (cursor && cursor !== range.end) {
@@ -66,9 +86,10 @@ export function boundaryInnerHtml(container: Element, id: string): string | unde
  */
 export function createPatchBoundaryResolver(
   container: Element,
-  boundaryIds: readonly string[]
+  boundaryIds: readonly string[],
+  work?: number | DomWorkBudget
 ): (patchId: string) => string | undefined {
-  const index = createProtocolIndex(container);
+  const index = createProtocolIndex(container, work);
   if (!index) return () => undefined;
   const boundaries = boundaryIds.flatMap(id => {
     const target = protocolTarget(index, id);
@@ -106,6 +127,7 @@ type ProtocolIndex = {
   serverSlots: Map<string, Element>;
   clientBoundaries: Map<string, Element>;
   listItems: Map<string, Map<string, ExactRange>>;
+  budget: DomWorkBudget;
 };
 
 function protocolTarget(index: ProtocolIndex, id: string): Node | ExactRange | undefined {
@@ -173,7 +195,7 @@ function applyPatch(container: Element, patch: ExactPatch, index?: ProtocolIndex
   if (patch.type === "text") {
     const target = findExactTarget(container, patch.id, index) ?? findServerSlotElement(container, patch.id, index);
     if (!target) return false;
-    if (target instanceof Element) disposeOwnedSubtree(target, false);
+    if (target instanceof Element) disposeOwnedSubtree(target, false, index?.budget);
     target.textContent = patch.value;
     return true;
   }
@@ -198,20 +220,20 @@ function applyPatch(container: Element, patch: ExactPatch, index?: ProtocolIndex
     if (!range) {
       const clientBoundary = findClientBoundaryElement(container, patch.id, index);
       if (clientBoundary) {
-        replaceElement(clientBoundary, patch.html);
+        replaceElement(clientBoundary, patch.html, index?.budget);
         return true;
       }
       const exactElement = findExactElement(container, patch.id, index);
       if (exactElement) {
-        replaceElement(exactElement, patch.html);
+        replaceElement(exactElement, patch.html, index?.budget);
         return true;
       }
       const slot = findServerSlotElement(container, patch.id, index);
       if (!slot) return false;
-      replaceElementChildren(slot, patch.html);
+      replaceElementChildren(slot, patch.html, index?.budget);
       return true;
     }
-    replaceRange(range, patch.html);
+    replaceRange(range, patch.html, index?.budget);
     return true;
   }
 
@@ -228,7 +250,7 @@ function applyPatch(container: Element, patch: ExactPatch, index?: ProtocolIndex
     if (patch.op === "remove") {
       const item = index ? findIndexedItem(index, patch.id, patch.key) : findExactItemRange(container, patch.key, range);
       if (!item) return false;
-      replaceRange(item, "");
+      replaceRange(item, "", index?.budget);
       if (index) reindexList(index, patch.id);
       return true;
     }
@@ -240,16 +262,16 @@ function applyPatch(container: Element, patch: ExactPatch, index?: ProtocolIndex
         // A missing moved item can still be recovered if the server included fresh HTML.
         // This keeps list patching resilient across stale client snapshots.
         if (!patch.html) return false;
-        insertHtmlBefore(anchor, patch.html);
+        insertHtmlBefore(anchor, patch.html, index?.budget);
         if (index) reindexList(index, patch.id);
         return true;
       }
-      moveRangeBefore(item, anchor);
+      moveRangeBefore(item, anchor, index?.budget);
       if (index) reindexList(index, patch.id);
       return true;
     }
     if (!patch.html) return false;
-    insertHtmlBefore(anchor, patch.html);
+    insertHtmlBefore(anchor, patch.html, index?.budget);
     if (index) reindexList(index, patch.id);
     return true;
   }
@@ -284,11 +306,11 @@ function findClientBoundaryElement(container: Element, id: string, index?: Proto
 }
 
 function findElementByExactAttribute(container: Element, attribute: string, id: string): Element | undefined {
-  if (container.getAttribute(attribute) === id) return container;
-  for (const element of Array.from(container.querySelectorAll(`[${attribute}]`))) {
-    if (element.getAttribute(attribute) === id) return element;
-  }
-  return undefined;
+  let match: Element | undefined;
+  walkDomSubtree(container, node => {
+    if (!match && node instanceof Element && node.getAttribute(attribute) === id) match = node;
+  });
+  return match;
 }
 
 function findExactElementTarget(container: Element, id: string, index?: ProtocolIndex): Element | undefined {
@@ -306,14 +328,15 @@ function findExactElementTarget(container: Element, id: string, index?: Protocol
 
 function findExactRange(container: Element, id: string, index?: ProtocolIndex): ExactRange | undefined {
   if (index) return index.ranges.get(id);
-  const walker = document.createTreeWalker(container, NodeFilter.SHOW_COMMENT);
   let start: Comment | undefined;
-  while (walker.nextNode()) {
-    const comment = walker.currentNode as Comment;
+  let result: ExactRange | undefined;
+  walkDomSubtree(container, node => {
+    if (result || !(node instanceof Comment)) return;
+    const comment = node;
     if (comment.data === `exact:${id}`) start = comment;
-    if (start && comment.data === `/exact:${id}`) return { start, end: comment };
-  }
-  return undefined;
+    if (start && comment.data === `/exact:${id}`) result = { start, end: comment };
+  });
+  return result;
 }
 
 function findExactItemRange(
@@ -321,21 +344,22 @@ function findExactItemRange(
   key: string,
   within?: { start: Comment; end: Comment }
 ): { start: Comment; end: Comment } | undefined {
-  const walker = document.createTreeWalker(container, NodeFilter.SHOW_COMMENT);
   let inRange = !within;
   let start: Comment | undefined;
-  while (walker.nextNode()) {
-    const comment = walker.currentNode as Comment;
+  let result: ExactRange | undefined;
+  walkDomSubtree(container, node => {
+    if (result || !(node instanceof Comment)) return;
+    const comment = node;
     if (within && comment === within.start) {
       inRange = true;
-      continue;
+      return;
     }
-    if (within && comment === within.end) return undefined;
-    if (!inRange) continue;
+    if (within && comment === within.end) { inRange = false; return; }
+    if (!inRange) return;
     if (isExactItemStart(comment, key)) start = comment;
-    if (start && comment.data === `/${start.data}`) return { start, end: comment };
-  }
-  return undefined;
+    if (start && comment.data === `/${start.data}`) result = { start, end: comment };
+  });
+  return result;
 }
 
 function isExactItemStart(comment: Comment, key: string): boolean {
@@ -350,52 +374,57 @@ function findIndexedItem(index: ProtocolIndex, listId: string, key: string): Exa
   return items.get(key) ?? items.get(encodeExactMarkerPart(key));
 }
 
-function createProtocolIndex(container: Element): ProtocolIndex | undefined {
+function createProtocolIndex(container: Element, work?: number | DomWorkBudget): ProtocolIndex | undefined {
+  const budget = typeof work === "number" || work === undefined ? createDomWorkBudget(work) : work;
   const index: ProtocolIndex = {
     ranges: new Map(), exactElements: new Map(), serverSlots: new Map(),
-    clientBoundaries: new Map(), listItems: new Map()
+    clientBoundaries: new Map(), listItems: new Map(), budget
   };
   const attributes: Array<[string, Map<string, Element>]> = [
     ["data-exact-id", index.exactElements],
     ["data-exact-server-slot", index.serverSlots],
     ["data-exact-client-boundary", index.clientBoundaries]
   ];
-  for (const [attribute, output] of attributes) {
-    for (const element of [container, ...Array.from(container.querySelectorAll(`[${attribute}]`))]) {
-      const value = element.getAttribute(attribute);
-      if (value === null) continue;
-      if (output.has(value)) return undefined;
-      output.set(value, element);
+  const stack: Array<{ data: string; id: string; start: Comment; nearestBoundaryId?: string; listId?: string; itemKey?: string }> = [];
+  let valid = true;
+  walkDomSubtree(container, node => {
+    if (!valid) return;
+    if (node instanceof Element) {
+      for (const [attribute, output] of attributes) {
+        const value = node.getAttribute(attribute);
+        if (value === null) continue;
+        if (output.has(value)) { valid = false; return; }
+        output.set(value, node);
+      }
+      return;
     }
-  }
-  const stack: Array<{ data: string; id: string; start: Comment; listId?: string; itemKey?: string }> = [];
-  const walker = document.createTreeWalker(container, NodeFilter.SHOW_COMMENT);
-  while (walker.nextNode()) {
-    const comment = walker.currentNode as Comment;
+    if (!(node instanceof Comment)) return;
+    const comment = node;
     const data = comment.data;
     if (data.startsWith("/exact:")) {
       const open = stack.pop();
-      if (!open || data !== `/${open.data}`) return undefined;
+      if (!open || data !== `/${open.data}`) { valid = false; return; }
       const range = { start: open.start, end: comment };
       if (open.itemKey !== undefined && open.listId) {
         let items = index.listItems.get(open.listId);
         if (!items) index.listItems.set(open.listId, items = new Map());
-        if (items.has(open.itemKey)) return undefined;
+        if (items.has(open.itemKey)) { valid = false; return; }
         items.set(open.itemKey, range);
       } else {
-        if (index.ranges.has(open.id)) return undefined;
+        if (index.ranges.has(open.id)) { valid = false; return; }
         index.ranges.set(open.id, range);
       }
-      continue;
+      return;
     }
-    if (!data.startsWith("exact:")) continue;
+    if (!data.startsWith("exact:")) return;
     const id = data.slice("exact:".length);
     const itemKey = id.startsWith("item:") ? id.slice(id.lastIndexOf(":") + 1) : undefined;
-    const listId = itemKey === undefined ? undefined
-      : [...stack].reverse().find(entry => entry.itemKey === undefined)?.id;
-    stack.push({ data, id, start: comment, listId, itemKey });
-  }
-  return stack.length ? undefined : index;
+    const parentBoundary = stack.at(-1)?.nearestBoundaryId;
+    const listId = itemKey === undefined ? undefined : parentBoundary;
+    const nearestBoundaryId = itemKey === undefined ? id : parentBoundary;
+    stack.push({ data, id, start: comment, nearestBoundaryId, listId, itemKey });
+  }, { budget });
+  return !valid || stack.length ? undefined : index;
 }
 
 function reindexList(index: ProtocolIndex, listId: string): void {
@@ -405,6 +434,7 @@ function reindexList(index: ProtocolIndex, listId: string): void {
   let cursor: Node | null = list.start.nextSibling;
   const starts = new Map<string, Comment>();
   while (cursor && cursor !== list.end) {
+    consumeDomWork(index.budget);
     if (cursor instanceof Comment && cursor.data.startsWith("exact:item:")) {
       starts.set(cursor.data, cursor);
     } else if (cursor instanceof Comment && cursor.data.startsWith("/exact:item:")) {
@@ -417,57 +447,64 @@ function reindexList(index: ProtocolIndex, listId: string): void {
   index.listItems.set(listId, items);
 }
 
-function replaceRange(range: { start: Comment; end: Comment }, html: string): void {
+function replaceRange(range: { start: Comment; end: Comment }, html: string, budget?: DomWorkBudget): void {
+  const parent = range.end.parentNode;
+  const fragment = html && parent ? parseFragment(parent, html, budget) : undefined;
   let cursor = range.start.nextSibling;
   while (cursor && cursor !== range.end) {
+    if (budget) consumeDomWork(budget);
     const next = cursor.nextSibling;
-    if (cursor instanceof Element) disposeOwnedSubtree(cursor);
+    if (cursor instanceof Element) disposeOwnedSubtree(cursor, true, budget);
     cursor.parentNode?.removeChild(cursor);
     cursor = next;
   }
-  if (!html) return;
-  const parent = range.end.parentNode;
-  if (parent) parent.insertBefore(parseFragment(parent, html), range.end);
+  if (fragment && parent) parent.insertBefore(fragment, range.end);
 }
 
-function replaceElementChildren(element: Element, html: string): void {
-  disposeOwnedSubtree(element, false);
+function replaceElementChildren(element: Element, html: string, budget?: DomWorkBudget): void {
+  const fragment = html ? parseFragment(element, html, budget) : undefined;
+  disposeOwnedSubtree(element, false, budget);
   element.replaceChildren();
-  if (!html) return;
-  element.appendChild(parseFragment(element, html));
+  if (fragment) element.appendChild(fragment);
 }
 
-function replaceElement(element: Element, html: string): void {
-  disposeOwnedSubtree(element);
+function replaceElement(element: Element, html: string, budget?: DomWorkBudget): void {
+  const parent = element.parentNode;
+  const fragment = html && parent ? parseFragment(parent, html, budget) : undefined;
+  disposeOwnedSubtree(element, true, budget);
   if (!html) {
     element.remove();
     return;
   }
-  const parent = element.parentNode;
-  if (parent) element.replaceWith(parseFragment(parent, html));
+  if (fragment && parent) element.replaceWith(fragment);
 }
 
-function insertHtmlBefore(anchor: Node, html: string): void {
+function insertHtmlBefore(anchor: Node, html: string, budget?: DomWorkBudget): void {
   const parent = anchor.parentNode;
-  if (parent) parent.insertBefore(parseFragment(parent, html), anchor);
+  if (parent) parent.insertBefore(parseFragment(parent, html, budget), anchor);
 }
 
-function parseFragment(parent: Node, html: string): DocumentFragment {
+function parseFragment(parent: Node, html: string, budget?: DomWorkBudget): DocumentFragment {
+  let fragment: DocumentFragment;
   if (parent instanceof Element) {
     const range = document.createRange();
     range.selectNodeContents(parent);
-    return range.createContextualFragment(html);
+    fragment = range.createContextualFragment(html);
+  } else {
+    const template = document.createElement("template");
+    template.innerHTML = html;
+    fragment = template.content;
   }
-  const template = document.createElement("template");
-  template.innerHTML = html;
-  return template.content;
+  if (budget) walkDomSubtree(fragment, () => undefined, { budget });
+  return fragment;
 }
 
-function moveRangeBefore(range: { start: Comment; end: Comment }, anchor: Node): void {
+function moveRangeBefore(range: { start: Comment; end: Comment }, anchor: Node, budget?: DomWorkBudget): void {
   if (isNodeInsideRange(anchor, range)) return;
   const fragment = document.createDocumentFragment();
   let cursor: Node | null = range.start;
   while (cursor) {
+    if (budget) consumeDomWork(budget);
     const next: Node | null = cursor.nextSibling;
     fragment.appendChild(cursor);
     if (cursor === range.end) break;

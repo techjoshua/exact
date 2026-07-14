@@ -1278,6 +1278,24 @@ describe("@exact/ssr", () => {
     expect(unmounted).toBe(1);
   });
 
+  it("finishes every SSR teardown while preserving the primary render failure", () => {
+    let unmounted = 0;
+    function BrokenCleanup(this: Component<{}>) {
+      this.onUnmount(() => { unmounted++; throw new Error(`cleanup ${unmounted}`); });
+      return () => createVNode("p", null, "owned");
+    }
+    let failure: unknown;
+    try {
+      renderToString(createVNode("section", null,
+        createVNode(BrokenCleanup, { key: "a" }),
+        createVNode(BrokenCleanup, { key: "b" })
+      ), { markers: false, maxOutputBytes: 30 });
+    } catch (error) { failure = error; }
+
+    expect(String(failure)).toContain("output exceeds");
+    expect(unmounted).toBe(2);
+  });
+
   it("keeps async SSR ownership alive until tasks settle and then disposes it", async () => {
     let resolve!: () => void;
     let cleaned = 0;

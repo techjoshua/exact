@@ -7,6 +7,7 @@ import type {
   VNode
 } from "@exact/core";
 import type { EffectScope } from "@exact/reactive";
+import type { DomWorkBudget } from "./work.js";
 
 export type Mounted = {
   vnode: VNode;
@@ -37,6 +38,7 @@ export type Root = {
   maxTreeNodes: number;
   traversedNodes: number;
   workDepth: number;
+  workBudget?: DomWorkBudget;
   /** Hydrated roots are anchored by SSR markers rather than the synthetic client root boundary. */
   mode?: "client" | "hydrated";
 };
@@ -48,4 +50,6 @@ export type RenderOptions = {
   maxTreeDepth?: number;
   /** Maximum vnode and placeholder child values processed by one DOM update. */
   maxTreeNodes?: number;
+  /** Internal shared budget used when hydration combines DOM scans and renderer work. */
+  workBudget?: DomWorkBudget;
 };

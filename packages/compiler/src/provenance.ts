@@ -160,8 +160,7 @@ function isIntrinsicCollection(type: NodeRef["type"]): boolean {
 }
 
 function isWithin(reference: NodeRef, ancestor: NodeRef): boolean {
-  return reference.node.span !== undefined && ancestor.node.span !== undefined
-    && reference.node.span.start >= ancestor.node.span.start && reference.node.span.end <= ancestor.node.span.end;
+  return reference.node === ancestor.node || reference.ancestors().any(candidate => candidate.node === ancestor.node);
 }
 
 function isDeclarationName(reference: NodeRef, declaration: NodeRef): boolean {

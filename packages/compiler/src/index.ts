@@ -176,7 +176,7 @@ export function transformSource(source: string, options: TransformOptions = {}):
     placement: component.placement,
     componentId: component.id
   });
-  const result = ts.transform(sourceFile, [exactJsxTransformer(target, options.serverComponents ?? false, manifest.semanticGraph!, expressionDerived, expressionWrites, expressionTasks, expressionJsx, expressionComponents, emissionComponentInfo)]);
+  const result = ts.transform(sourceFile, [exactJsxTransformer(expressionModule, target, options.serverComponents ?? false, manifest.semanticGraph!, expressionDerived, expressionWrites, expressionTasks, expressionJsx, expressionComponents, emissionComponentInfo)]);
   const transformed = result.transformed[0]!;
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
   const printed = emitExpressionRewrite(expressionModule, printer.printFile(transformed as ts.SourceFile));

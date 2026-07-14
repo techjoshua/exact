@@ -1283,6 +1283,14 @@ describe("@exact/hydrate", () => {
         async json() { throw new Error("json should not be read"); }
       })
     })).rejects.toThrow("exceeded maxBytes");
+
+    await expect(invokeExact({
+      endpoint: "/__exact", type: "action", id: "save", streamLimits: { maxBytes: 32 },
+      fetch: async () => ({
+        ok: true, status: 200,
+        async json() { return { ok: true, type: "action", id: "save", html: "x".repeat(100) }; }
+      })
+    })).rejects.toThrow("exceeded maxBytes");
   });
 
   it("enforces streamed patch limits and rejects duplicate singleton chunks", async () => {

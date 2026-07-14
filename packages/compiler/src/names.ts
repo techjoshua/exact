@@ -1,4 +1,3 @@
-import ts from "typescript";
 import { stableId } from "./ids.js";
 
 /** Generates a stable readable name for a compiler-created logical component. */
@@ -20,6 +19,6 @@ export function serverSlotBoundaryId(boundaryId: string): string {
 }
 
 /** Creates a deterministic boundary id for a client component tag in source. */
-export function clientComponentBoundaryId(sourceFile: ts.SourceFile, componentName: string, node: ts.Node): string {
-  return stableId(sourceFile.fileName, componentName, "component-island", String(node.getStart(sourceFile)), String(node.getEnd()));
+export function clientComponentBoundaryId(filename: string, componentName: string, nodeId: string): string {
+  return stableId(filename, componentName, "component-island", nodeId);
 }

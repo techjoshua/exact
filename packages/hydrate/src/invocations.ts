@@ -90,12 +90,23 @@ async function readJsonResponse(
 ): Promise<unknown> {
   if (response.text) {
     const text = await withAbort(response.text(), signal);
-    if (new TextEncoder().encode(text).byteLength > positiveLimit(limits?.maxBytes, 16 * 1024 * 1024)) {
-      throw new Error("eXact response exceeded maxBytes");
-    }
+    assertResponseBytes(text, limits?.maxBytes);
     return JSON.parse(text);
   }
-  return withAbort(response.json(), signal);
+  // Runtime-neutral/custom fetch implementations may expose only json(). The
+  // decoded value must still obey the same serialized byte contract; otherwise
+  // adapter shape would silently disable maxBytes.
+  const value = await withAbort(response.json(), signal);
+  let encoded: string | undefined;
+  try { encoded = JSON.stringify(value); } catch { /* parsed validators report malformed graphs */ }
+  if (encoded !== undefined) assertResponseBytes(encoded, limits?.maxBytes);
+  return value;
+}
+
+function assertResponseBytes(value: string, configured?: number): void {
+  if (new TextEncoder().encode(value).byteLength > positiveLimit(configured, 16 * 1024 * 1024)) {
+    throw new Error("eXact response exceeded maxBytes");
+  }
 }
 
 function positiveLimit(value: number | undefined, fallback: number): number {

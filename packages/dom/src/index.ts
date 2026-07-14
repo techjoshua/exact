@@ -5,6 +5,8 @@ import {
   Fragment,
   ServerSlot,
   Text,
+  attemptCleanup,
+  createCleanupFailure,
   createComponentInstance,
   createErrorContext,
   createErrorReport,
@@ -15,6 +17,8 @@ import {
   isVNode,
   normalizeRenderResult,
   renderInstance,
+  recordCleanupFailure,
+  throwCleanupFailure,
   type Child,
   type Component,
   type ComponentFunction,
@@ -50,6 +54,7 @@ import { applyDomProp, clearElementProps, updateProps } from "./props.js";
 import { adoptServerSlot, mountServerSlot } from "./server-slots.js";
 import { roots } from "./state.js";
 import { namespaceForTag } from "./namespace.js";
+import { consumeDomWork, walkDomSubtree, type DomWorkBudget } from "./work.js";
 import type { Mounted, RenderOptions, Root } from "./types.js";
 export {
   deg,
@@ -72,6 +77,7 @@ export {
 export type { RenderOptions } from "./types.js";
 export { applyDomProp };
 export { HTML_NAMESPACE, MATHML_NAMESPACE, SVG_NAMESPACE, namespaceForTag } from "./namespace.js";
+export { DEFAULT_DOM_WORK_LIMIT, DomTraversalLimitError, consumeDomWork, createDomWorkBudget, walkDomSubtree, type DomWorkBudget } from "./work.js";
 
 const DEFAULT_MAX_TREE_DEPTH = 512;
 const HARD_MAX_TREE_DEPTH = 1_024;
@@ -107,7 +113,8 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
       traversalDepth: 0,
       maxTreeNodes: normalizeTreeNodes(options.maxTreeNodes),
       traversedNodes: 0,
-      workDepth: 0
+      workDepth: 0,
+      workBudget: options.workBudget
     };
     root.boundary = createRootBoundary(root);
     roots.set(container, root);
@@ -118,14 +125,19 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
   root.debugMarkers = options.debugMarkers ?? false;
   root.maxTreeDepth = normalizeTreeDepth(options.maxTreeDepth);
   root.maxTreeNodes = normalizeTreeNodes(options.maxTreeNodes);
+  root.workBudget = options.workBudget;
 
   const next = root.mode === "hydrated"
     ? vnode
     : createVNode(root.boundary, { version: root.version });
-  withDomWork(root, () => {
-    root.mounted = patch(root, container, root.mounted, next, undefined, undefined);
-    flushSync();
-  });
+  try {
+    withDomWork(root, () => {
+      root.mounted = patch(root, container, root.mounted, next, undefined, undefined);
+      flushSync();
+    });
+  } finally {
+    root.workBudget = undefined;
+  }
 }
 
 /**
@@ -165,10 +177,11 @@ export function dispose(container: Element, removeDom = false): boolean {
  * DOM replacement. Descendants are disposed deepest-first so nested island
  * roots cannot retain listeners, scopes, or ownership for detached nodes.
  */
-export function disposeOwnedSubtree(container: Element, includeSelf = true): number {
-  const candidates = includeSelf
-    ? [container, ...Array.from(container.querySelectorAll("*"))]
-    : Array.from(container.querySelectorAll("*"));
+export function disposeOwnedSubtree(container: Element, includeSelf = true, work?: number | DomWorkBudget): number {
+  const candidates: Element[] = [];
+  walkDomSubtree(container, node => {
+    if (node instanceof Element && (includeSelf || node !== container)) candidates.push(node);
+  }, typeof work === "number" ? { maxNodes: work } : { budget: work });
   let disposed = 0;
   const failure = teardownFailure();
   for (let index = candidates.length - 1; index >= 0; index--) {
@@ -199,6 +212,7 @@ export function adoptStatic(vnode: VNode, container: Element, options: RenderOpt
     debugMarkers: false,
     maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth),
     traversalDepth: 0, maxTreeNodes: normalizeTreeNodes(options.maxTreeNodes), traversedNodes: 0, workDepth: 0,
+    workBudget: options.workBudget,
     logger: options.logger
   };
   root.boundary = createRootBoundary(root);
@@ -229,6 +243,8 @@ export function adoptStatic(vnode: VNode, container: Element, options: RenderOpt
     clearDelegated(root);
     if (isDomRenderLimitError(error)) throw error;
     return false;
+  } finally {
+    root.workBudget = undefined;
   }
 }
 
@@ -242,6 +258,7 @@ export function adoptComponentRoot(vnode: VNode, container: Element, options: Re
     version: 1, boundary: undefined as never, debugMarkers: false,
     maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth), traversalDepth: 0,
     maxTreeNodes: normalizeTreeNodes(options.maxTreeNodes), traversedNodes: 0, workDepth: 0,
+    workBudget: options.workBudget,
     logger: options.logger, mode: "hydrated"
   };
   root.boundary = createRootBoundary(root);
@@ -268,6 +285,8 @@ export function adoptComponentRoot(vnode: VNode, container: Element, options: Re
     clearDelegated(root);
     if (isDomRenderLimitError(error)) throw error;
     return false;
+  } finally {
+    root.workBudget = undefined;
   }
 }
 
@@ -1004,25 +1023,10 @@ function bindText(mounted: Mounted, value: unknown): void {
   }, undefined, { scope: mounted.scope });
 }
 
-type TeardownFailure = { failed: boolean; error: unknown };
-
-function teardownFailure(): TeardownFailure {
-  return { failed: false, error: undefined };
-}
-
-function recordTeardownFailure(failure: TeardownFailure, error: unknown): void {
-  if (!failure.failed) failure.error = error;
-  failure.failed = true;
-}
-
-function attemptTeardown(failure: TeardownFailure, run: () => void): void {
-  try { run(); }
-  catch (error) { recordTeardownFailure(failure, error); }
-}
-
-function throwTeardownFailure(failure: TeardownFailure): void {
-  if (failure.failed) throw failure.error;
-}
+const teardownFailure = createCleanupFailure;
+const recordTeardownFailure = recordCleanupFailure;
+const attemptTeardown = attemptCleanup;
+const throwTeardownFailure = throwCleanupFailure;
 
 function unmountMany(mounts: readonly Mounted[]): void {
   const failure = teardownFailure();
@@ -1098,6 +1102,7 @@ function withDomWork<T>(root: Root, run: () => T): T {
 }
 
 function countDomWork(root: Root): void {
+  if (root.workBudget) consumeDomWork(root.workBudget);
   if (++root.traversedNodes > root.maxTreeNodes) throw new DomTreeWorkError(root.maxTreeNodes);
 }
 

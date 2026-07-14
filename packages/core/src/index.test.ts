@@ -3,6 +3,9 @@ import {
   ErrorContext,
   LoggerContext,
   createComponentInstance,
+  attachSuppressedCleanupFailure,
+  attemptCleanup,
+  createCleanupFailure,
   createContext,
   createDerived,
   createErrorContext,
@@ -20,6 +23,7 @@ import {
   withTaskObserver,
   withAbortSignal,
   withTaskSignal,
+  throwCleanupFailure,
   type Component,
   type ComponentInstance,
   type ErrorReport,
@@ -30,6 +34,19 @@ import {
 import { flushSync, unwrap, watch } from "@exact/reactive";
 
 describe("@exact/core", () => {
+  it("runs every cleanup and can retain cleanup failure on a primary error", () => {
+    const calls: number[] = [];
+    const failure = createCleanupFailure();
+    attemptCleanup(failure, () => { calls.push(1); throw new Error("cleanup"); });
+    attemptCleanup(failure, () => { calls.push(2); });
+    expect(calls).toEqual([1, 2]);
+    expect(() => throwCleanupFailure(failure)).toThrow("cleanup");
+
+    const primary = new Error("primary");
+    attachSuppressedCleanupFailure(primary, failure.error);
+    expect((primary as Error & { suppressed?: unknown[] }).suppressed).toEqual([failure.error]);
+  });
+
   it("rejects task registration after component setup", () => {
     let registerLate!: () => void;
     createComponentInstance(function Panel(this: Component<{}>) {

@@ -20,20 +20,21 @@ import {
 import {
   clientComponentChildrenProp,
   componentBoundaryName,
-  exactElementId,
   jsxElementHasNoMeaningfulChildren,
-  jsxElementIsClientIsland
+  jsxElementIsClientIsland,
+  jsxTagIsIntrinsicElement
 } from "./jsx-inspect.js";
 import {
   clientComponentBoundaryId,
   generatedComponentName
 } from "./names.js";
 import { pruneUnusedImports } from "./prune-imports.js";
+import type { BoundModule } from "@exact/expressions";
 import type { ExpressionDerivedPlan } from "./expression-derived.js";
-import { writeSiteKey, type ExpressionWritePlan } from "./expression-writes.js";
+import type { ExpressionWritePlan } from "./expression-writes.js";
 import type { ExpressionTaskPlan, ExpressionTaskResource, ExpressionTaskResourceKind, ExpressionTaskSignalCall } from "./expression-tasks.js";
 import type { ExpressionJsxPlan } from "./expression-jsx.js";
-import type { ExpressionClientIslandSite, ExpressionComponentPlan, ExpressionFunctionDeclaration } from "./expression-components.js";
+import type { ExpressionClientIslandSite, ExpressionComponentPlan } from "./expression-components.js";
 import type {
   ClientIslandCaptures,
   ClientIslandElementNode,
@@ -61,6 +62,7 @@ const boundaryHelper = "__exactBoundary";
 const isAssignmentOperator = (kind: ts.SyntaxKind): boolean => kind >= ts.SyntaxKind.FirstAssignment && kind <= ts.SyntaxKind.LastAssignment;
 /** Creates the TypeScript transformer that lowers eXact JSX into runtime helper calls. */
 export function exactJsxTransformer(
+  expressionModule: BoundModule,
   target: TransformTarget,
   serverComponents = false,
   providedSemanticGraph: ExactSemanticGraphIR,
@@ -72,6 +74,9 @@ export function exactJsxTransformer(
   componentInfo: Map<string, ExactImportedComponentIR>
 ): ts.TransformerFactory<ts.SourceFile> {
   return context => sourceFile => {
+    bindExpressionEmissionNodes(sourceFile, expressionModule, emissionNodeIds(
+      expressionModule, expressionDerived, expressionWrites, expressionTasks, expressionJsx, expressionComponents
+    ));
     const factory = context.factory;
     const helpers = allocateHelperNames(sourceFile);
     const semanticGraph = providedSemanticGraph;
@@ -88,39 +93,38 @@ export function exactJsxTransformer(
     let setupTaskDepth = 0;
     const componentStack: string[] = [];
     const componentSiteStack: string[] = [];
-    const componentDeclarations = bindFunctionDeclarations(sourceFile, expressionComponents.declarations);
     const componentLocalStack: ComponentLocalInfo[] = [];
     const islandCounts = new Map<string, number>();
     const clientIslandDefinitions: ts.FunctionDeclaration[] = [];
     let clientIslandDepth = 0;
-    const expressionTaskFor = (node: ts.Node) => expressionTasks?.sites.get(writeSiteKey(node.getStart(sourceFile), node.end));
+    const expressionTaskFor = (node: ts.Node) => expressionTasks?.sites.get(expressionEmissionId(node) ?? "");
     const expressionResourceFor = (node: ts.Node) => node.pos < 0 || node.end < 0
       ? undefined
-      : expressionTasks?.resources.get(writeSiteKey(node.getStart(sourceFile), node.end));
+      : expressionTasks?.resources.get(expressionEmissionId(node) ?? "");
     const expressionListenerFor = (node: ts.Node) => node.pos < 0 || node.end < 0
       ? undefined
-      : expressionTasks?.lifecycleListeners.get(writeSiteKey(node.getStart(sourceFile), node.end));
+      : expressionTasks?.lifecycleListeners.get(expressionEmissionId(node) ?? "");
     const expressionSetupFor = (node: ts.Node) => node.pos < 0 || node.end < 0
       ? undefined
-      : expressionTasks?.setupTasks.get(writeSiteKey(node.getStart(sourceFile), node.end));
+      : expressionTasks?.setupTasks.get(expressionEmissionId(node) ?? "");
     const expressionSignalFor = (node: ts.Node) => node.pos < 0 || node.end < 0
       ? undefined
-      : expressionTasks?.signalCalls.get(writeSiteKey(node.getStart(sourceFile), node.end));
+      : expressionTasks?.signalCalls.get(expressionEmissionId(node) ?? "");
     const taskPlacementFor = (node: ts.Node): ExactPlacement => expressionTaskFor(node)?.placement ?? "unknown";
     const isClientComponentTag = (tag: ts.JsxTagNameExpression): boolean => componentPlacements.get(tag.getText(sourceFile)) === "client";
     const islandHasServerChildren = (node: ts.JsxElement): boolean => {
       const owner = componentSiteStack[componentSiteStack.length - 1];
-      const site = owner ? expressionComponents.sites.get(owner)?.clientIslands.find(island => island.start === node.getStart(sourceFile) && island.end === node.end) : undefined;
+      const site = owner ? expressionComponents.sites.get(owner)?.clientIslands.find(island => island.nodeId === expressionEmissionId(node)) : undefined;
       return !!site && (site.serverOnlyChildren || site.childTags.some(tag => componentPlacements.get(tag) === "server"));
     };
     const clientIslandSiteFor = (node: ClientIslandElementNode): ExpressionClientIslandSite | undefined => {
       const owner = componentSiteStack[componentSiteStack.length - 1];
-      return owner ? expressionComponents.sites.get(owner)?.clientIslands.find(island => island.start === node.getStart(sourceFile) && island.end === node.end) : undefined;
+      return owner ? expressionComponents.sites.get(owner)?.clientIslands.find(island => island.nodeId === expressionEmissionId(node)) : undefined;
     };
 
     const visitor: ts.Visitor = node => {
       if (ts.isParameter(node) && !node.type) {
-        const contextualType = expressionJsx.contextualParameters.get(writeSiteKey(node.getStart(sourceFile), node.end));
+        const contextualType = expressionJsx.contextualParameters.get(expressionEmissionId(node) ?? "");
         if (contextualType) {
           return factory.updateParameterDeclaration(
             node,
@@ -133,7 +137,7 @@ export function exactJsxTransformer(
           );
         }
       }
-      const componentId = ts.isFunctionDeclaration(node) ? componentDeclarations.get(node)?.componentId : undefined;
+      const componentId = ts.isFunctionDeclaration(node) ? expressionEmissionId(node) : undefined;
       const componentSite = componentId ? expressionComponents.sites.get(componentId) : undefined;
       if (ts.isFunctionDeclaration(node) && node.name && componentSite) {
         const componentPlacement = componentPlacements.get(node.name.text);
@@ -163,7 +167,7 @@ export function exactJsxTransformer(
         return visited;
       }
       if (ts.isVariableDeclaration(node) && node.initializer) {
-        const derived = derivedReactiveLocals.declarations.get(writeSiteKey(node.getStart(sourceFile), node.end));
+        const derived = derivedReactiveLocals.declarations.get(expressionEmissionId(node) ?? "");
         if (derived?.cached) {
           sawDerived = true;
           return factory.updateVariableDeclaration(
@@ -312,7 +316,7 @@ export function exactJsxTransformer(
           mode => { taskSignalModes.add(mode); });
       }
       if (node.pos >= 0 && ts.isShorthandPropertyAssignment(node)) {
-        const derived = derivedReactiveLocals.references.get(writeSiteKey(node.name.getStart(sourceFile), node.name.end));
+        const derived = derivedReactiveLocals.references.get(expressionEmissionId(node.name) ?? "");
         if (derived?.cached) {
           return factory.createPropertyAssignment(
             factory.createIdentifier(node.name.text),
@@ -321,7 +325,7 @@ export function exactJsxTransformer(
         }
       }
       if (node.pos >= 0 && ts.isIdentifier(node) && !isIdentifierDeclarationName(node) && !isPropertyAccessName(node)) {
-        const derived = derivedReactiveLocals.references.get(writeSiteKey(node.getStart(sourceFile), node.end));
+        const derived = derivedReactiveLocals.references.get(expressionEmissionId(node) ?? "");
         if (derived?.cached) {
           return factory.createCallExpression(factory.createPropertyAccessExpression(node, "get"), undefined, []);
         }
@@ -472,7 +476,7 @@ function parseTypeNode(source: string): ts.TypeNode {
 
 function expressionWritePath(node: ts.Node, sourceFile: ts.SourceFile, plan?: ExpressionWritePlan): readonly string[] | undefined {
   if (!plan || node.pos < 0 || node.end < 0) return undefined;
-  return plan.sites.get(writeSiteKey(node.getStart(sourceFile), node.end))?.path;
+  return plan.sites.get(expressionEmissionId(node) ?? "")?.path;
 }
 
 function shouldOmitPlacement(placement: ExactPlacement, target: TransformTarget): boolean {
@@ -496,7 +500,7 @@ function transformJsxElement(
     return callFragment(context, opening.attributes, node.children, visitor, helpers, sourceFile, derivedReactiveLocals);
   }
 
-  return callElement(context, tagExpression(opening.tagName), opening.attributes, node.children, visitor, helpers, expressionElementId(sourceFile, node, expressionJsx) ?? exactElementId(sourceFile, opening.tagName, node), sourceFile, derivedReactiveLocals, expressionJsx);
+  return callElement(context, tagExpression(opening.tagName), opening.attributes, node.children, visitor, helpers, canonicalElementId(sourceFile, node, expressionJsx), sourceFile, derivedReactiveLocals, expressionJsx);
 }
 
 function transformJsxSelfClosingElement(
@@ -513,11 +517,18 @@ function transformJsxSelfClosingElement(
     return callFragment(context, node.attributes, [], visitor, helpers, sourceFile, derivedReactiveLocals);
   }
 
-  return callElement(context, tagExpression(node.tagName), node.attributes, [], visitor, helpers, expressionElementId(sourceFile, node, expressionJsx) ?? exactElementId(sourceFile, node.tagName, node), sourceFile, derivedReactiveLocals, expressionJsx);
+  return callElement(context, tagExpression(node.tagName), node.attributes, [], visitor, helpers, canonicalElementId(sourceFile, node, expressionJsx), sourceFile, derivedReactiveLocals, expressionJsx);
 }
 
 function expressionElementId(sourceFile: ts.SourceFile, node: ts.Node, plan?: ExpressionJsxPlan): string | undefined {
-  return plan?.elements.get(writeSiteKey(node.getStart(sourceFile), node.end))?.exactId;
+  return plan?.elements.get(expressionEmissionId(node) ?? "")?.exactId;
+}
+
+function canonicalElementId(sourceFile: ts.SourceFile, node: ts.Node, plan?: ExpressionJsxPlan): string | undefined {
+  const nodeId = expressionEmissionId(node);
+  if (!nodeId) throw new Error(`Missing canonical expression identity for JSX emission in ${sourceFile.fileName}`);
+  if (plan) return plan.elements.get(nodeId)?.exactId;
+  return stableId(sourceFile.fileName, "element", nodeId);
 }
 
 function transformJsxFragment(
@@ -563,11 +574,11 @@ function collectExpressionDerivedLocals(
   plan: ExpressionDerivedPlan
 ): DerivedReactiveIndex {
   const initializers = new Map<string, ts.Expression>();
-  const requested = new Set([...plan.sites.values()].map(site => writeSiteKey(site.initializerStart, site.initializerEnd)));
+  const requested = new Set([...plan.sites.values()].map(site => site.initializerNodeId));
   function visit(current: ts.Node): void {
     if (ts.isVariableDeclaration(current) && current.initializer) {
-      const key = writeSiteKey(current.initializer.getStart(sourceFile), current.initializer.end);
-      if (requested.has(key)) initializers.set(key, current.initializer);
+      const key = expressionEmissionId(current.initializer);
+      if (key && requested.has(key)) initializers.set(key, current.initializer);
     }
     ts.forEachChild(current, visit);
   }
@@ -575,12 +586,12 @@ function collectExpressionDerivedLocals(
   const references = new Map<string, DerivedReactiveEntry>();
   const declarations = new Map<string, DerivedReactiveEntry>();
   for (const site of plan.sites.values()) {
-    const initializer = initializers.get(writeSiteKey(site.initializerStart, site.initializerEnd));
-    if (initializer) references.set(writeSiteKey(site.start, site.end), { variableId: site.variableId, initializer, cached: site.cached });
+    const initializer = initializers.get(site.initializerNodeId);
+    if (initializer) references.set(site.nodeId, { variableId: site.variableId, initializer, cached: site.cached });
   }
   for (const declaration of plan.declarations.values()) {
-    const initializer = initializers.get(writeSiteKey(declaration.initializerStart, declaration.initializerEnd));
-    if (initializer) declarations.set(writeSiteKey(declaration.start, declaration.end), {
+    const initializer = initializers.get(declaration.initializerNodeId);
+    if (initializer) declarations.set(declaration.nodeId, {
       variableId: declaration.variableId,
       initializer,
       cached: declaration.cached
@@ -776,7 +787,7 @@ function clientIslandElementProps(
 ): ts.ObjectLiteralExpression {
   const factory = context.factory;
   const properties: ts.ObjectLiteralElementLike[] = [];
-  const exactId = exactElementId(sourceFile, tagName, node);
+  const exactId = jsxTagIsIntrinsicElement(tagName) ? canonicalElementId(sourceFile, node) : undefined;
   if (exactId) {
     properties.push(factory.createPropertyAssignment(factory.createStringLiteral("data-exact-id"), factory.createStringLiteral(exactId)));
   }
@@ -864,7 +875,9 @@ function createComponentIslandBoundaryCall(
 ): ts.Expression {
   const factory = context.factory;
   const componentName = componentBoundaryName(tagName, componentInfo, sourceFile);
-  const id = clientComponentBoundaryId(sourceFile, componentName, node);
+  const nodeId = expressionEmissionId(node);
+  if (!nodeId) throw new Error(`Missing canonical expression identity for component boundary emission in ${sourceFile.fileName}`);
+  const id = clientComponentBoundaryId(sourceFile.fileName, componentName, nodeId);
   const props = islandProps(context, attributes);
   return factory.createCallExpression(factory.createIdentifier(helpers.boundary), undefined, [
     factory.createStringLiteral(id),
@@ -1129,7 +1142,7 @@ function childrenExpressions(
 
 function isPlannedJsxCell(node: ts.JsxExpression, kind: "jsx-child" | "jsx-attribute", sourceFile?: ts.SourceFile, plan?: ExpressionJsxPlan): boolean {
   if (!plan || !sourceFile) return true;
-  return plan.cells.get(writeSiteKey(node.getStart(sourceFile), node.end))?.kind === kind;
+  return plan.cells.get(expressionEmissionId(node) ?? "")?.kind === kind;
 }
 
 function shouldWrapAttribute(name: string, expression: ts.Expression): boolean {
@@ -1215,7 +1228,7 @@ function rewriteDerivedReactiveExpression(
       );
     }
     if (ts.isShorthandPropertyAssignment(node)) {
-      const derived = derivedReactiveLocals.references.get(writeSiteKey(node.name.getStart(sourceFile), node.name.end));
+      const derived = derivedReactiveLocals.references.get(expressionEmissionId(node.name) ?? "");
       if (derived?.cached) {
         return context.factory.createPropertyAssignment(
           context.factory.createIdentifier(node.name.text),
@@ -1226,7 +1239,7 @@ function rewriteDerivedReactiveExpression(
       }
     }
     if (ts.isIdentifier(node) && !isIdentifierDeclarationName(node) && !isPropertyAccessName(node)) {
-      const derived = derivedReactiveLocals.references.get(writeSiteKey(node.getStart(sourceFile), node.end));
+      const derived = derivedReactiveLocals.references.get(expressionEmissionId(node) ?? "");
       if (derived && !active.has(derived.variableId)) {
         if (derived.cached) {
           return context.factory.createCallExpression(
@@ -1347,7 +1360,7 @@ function transformTaskCall(
       return ts.visitNode(argument, visitor) as ts.Expression;
     }
     const derived = ts.isIdentifier(argument)
-      ? derivedReactiveLocals?.references.get(writeSiteKey(argument.getStart(sourceFile), argument.end))
+      ? derivedReactiveLocals?.references.get(expressionEmissionId(argument) ?? "")
       : undefined;
     if (derived?.cached) return argument;
     return context.factory.createCallExpression(
@@ -1543,7 +1556,9 @@ function transformMapCall(
   derivedReactiveLocals?: DerivedReactiveIndex
 ): ts.Expression {
   if (node.arguments.length !== 3) return ts.visitEachChild(node, visitor, context);
-  const id = stableId(sourceFile.fileName, "list", String(node.getStart(sourceFile)), String(node.getEnd()));
+  const nodeId = expressionEmissionId(node);
+  if (!nodeId) throw new Error(`Missing canonical expression identity for this.map() emission in ${sourceFile.fileName}`);
+  const id = stableId(sourceFile.fileName, "list", nodeId);
   const source = node.arguments[0]!;
   // Reactive sinks are rewritten before their nested calls are visited.  A
   // derived local therefore reaches this transform either as its identifier
@@ -1551,7 +1566,7 @@ function transformMapCall(
   // Handle both forms so `const visible = tasks.filter(...); this.map(visible)`
   // remains a live list instead of becoming a one-time array snapshot.
   const sourceDerived = ts.isIdentifier(source)
-    ? derivedReactiveLocals?.references.get(writeSiteKey(source.getStart(sourceFile), source.end))
+    ? derivedReactiveLocals?.references.get(expressionEmissionId(source) ?? "")
     : undefined;
   const initializer = sourceDerived?.initializer;
   const derivedCollection = initializer ?? (isDerivedCollectionExpression(source) ? source : undefined);
@@ -1770,37 +1785,63 @@ function isArrayMutator(name: string): name is "copyWithin" | "fill" | "pop" | "
   return ["copyWithin", "fill", "pop", "push", "reverse", "shift", "sort", "splice", "unshift"].includes(name);
 }
 
-/**
- * Establishes the one-way handoff from expression semantics to the TypeScript
- * emission backend. Source order is used only to pair complete declaration
- * streams; semantic identity is then carried exclusively by expression IDs.
- */
-function bindFunctionDeclarations(
-  sourceFile: ts.SourceFile,
-  expressions: readonly ExpressionFunctionDeclaration[]
-): ReadonlyMap<ts.FunctionDeclaration, ExpressionFunctionDeclaration> {
-  const syntax: ts.FunctionDeclaration[] = [];
-  const collect = (node: ts.Node): void => {
-    if (ts.isFunctionDeclaration(node)) syntax.push(node);
-    ts.forEachChild(node, collect);
-  };
-  collect(sourceFile);
-  syntax.sort((left, right) => left.getStart(sourceFile) - right.getStart(sourceFile));
-  if (syntax.length !== expressions.length) {
-    throw new Error(`Expression emission declaration mismatch in ${sourceFile.fileName}: TypeScript found ${syntax.length}, expressions found ${expressions.length}`);
-  }
-  const bindings = new Map<ts.FunctionDeclaration, ExpressionFunctionDeclaration>();
-  for (let index = 0; index < syntax.length; index++) {
-    const declaration = syntax[index]!;
-    const expression = expressions[index]!;
-    const name = declaration.name?.text;
-    if (name !== expression.name) {
-      const location = sourceFile.getLineAndCharacterOfPosition(declaration.getStart(sourceFile));
-      throw new Error(`Expression emission declaration mismatch in ${sourceFile.fileName}:${location.line + 1}:${location.character + 1}: expected ${JSON.stringify(expression.name)}, found ${JSON.stringify(name)}`);
+const expressionEmissionIds = new WeakMap<ts.Node, string>();
+
+function expressionEmissionId(node: ts.Node): string | undefined {
+  return expressionEmissionIds.get(node) ?? expressionEmissionIds.get(ts.getOriginalNode(node));
+}
+
+/** Pairs emission handles by the canonical expression tree's structural child path. */
+function bindExpressionEmissionNodes(sourceFile: ts.SourceFile, module: BoundModule, required: ReadonlySet<string>): void {
+  const bind = (syntax: ts.Node, expression: BoundModule["rootNode"]): void => {
+    const syntaxKind = emissionSyntaxKindName(syntax);
+    if (syntaxKind !== expression.kind) {
+      throw new Error(`Expression emission tree diverged at ${expression.id}: expected ${expression.kind}, received ${syntaxKind} in ${sourceFile.fileName}`);
     }
-    bindings.set(declaration, expression);
+    if (required.has(expression.id)) expressionEmissionIds.set(syntax, expression.id);
+    const syntaxChildren: ts.Node[] = [];
+    ts.forEachChild(syntax, child => { syntaxChildren.push(child); });
+    if (syntaxChildren.length !== expression.children.length) {
+      throw new Error(`Expression emission child count diverged at ${expression.id} in ${sourceFile.fileName}`);
+    }
+    for (let index = 0; index < syntaxChildren.length; index++) bind(syntaxChildren[index]!, expression.children[index]!);
+  };
+  bind(sourceFile, module.rootNode);
+}
+
+function emissionSyntaxKindName(node: ts.Node): string {
+  if (ts.isNumericLiteral(node)) return "NumericLiteral";
+  if (ts.isBigIntLiteral(node)) return "BigIntLiteral";
+  if (ts.isStringLiteral(node)) return "StringLiteral";
+  if (ts.isNoSubstitutionTemplateLiteral(node)) return "NoSubstitutionTemplateLiteral";
+  if (ts.isRegularExpressionLiteral(node)) return "RegularExpressionLiteral";
+  if (ts.isJsxText(node)) return "JsxText";
+  return ts.SyntaxKind[node.kind];
+}
+
+function emissionNodeIds(
+  module: BoundModule,
+  derived: ExpressionDerivedPlan,
+  writes: ExpressionWritePlan,
+  tasks: ExpressionTaskPlan,
+  jsx: ExpressionJsxPlan,
+  components: ExpressionComponentPlan
+): ReadonlySet<string> {
+  const ids = new Set<string>();
+  const addKeys = (map: ReadonlyMap<string, unknown>) => { for (const key of map.keys()) ids.add(key); };
+  addKeys(derived.sites); addKeys(derived.declarations);
+  for (const site of derived.sites.values()) ids.add(site.initializerNodeId);
+  for (const site of derived.declarations.values()) ids.add(site.initializerNodeId);
+  addKeys(writes.sites);
+  addKeys(tasks.sites); addKeys(tasks.resources); addKeys(tasks.lifecycleListeners); addKeys(tasks.setupTasks); addKeys(tasks.signalCalls);
+  addKeys(jsx.elements); addKeys(jsx.cells); addKeys(jsx.contextualParameters);
+  for (const site of components.sites.values()) {
+    ids.add(site.id);
+    for (const island of site.clientIslands) ids.add(island.nodeId);
+    for (const render of site.renders) ids.add(render.nodeId);
   }
-  return bindings;
+  for (const call of module.walk().calls()) if (call.target?.isMember("map")) ids.add(call.node.id);
+  return ids;
 }
 
 function allocateName(base: string, used: Set<string>): string {

@@ -1,5 +1,5 @@
 import { createServerSlot, createVNode, logFrameworkEvent } from "@exact/core";
-import { render } from "@exact/dom";
+import { consumeDomWork, createDomWorkBudget, render, walkDomSubtree } from "@exact/dom";
 import { isSafeObjectKey } from "./safety.js";
 import { isJsonSafe } from "./validation.js";
 import type { ClientIslandRegistry, HydrateOptions } from "./types.js";
@@ -8,17 +8,17 @@ import type { ClientIslandRegistry, HydrateOptions } from "./types.js";
 export function hydrateClientIslands(container: Element | Document, registry: ClientIslandRegistry, options: HydrateOptions = {}): number {
   let hydrated = 0;
   const attempted = new Set<Element>();
-  // Hydrate outer islands first, then rescan the live DOM. Rendering an outer
-  // island may retain, replace, or create nested island placeholders; iterating
-  // a stale preorder snapshot could otherwise mount a detached nested root.
-  while (true) {
-    const boundaries = Array.from(container.querySelectorAll("[data-exact-client-boundary]"))
-      .filter(boundary => boundary.getAttribute("data-exact-client-hydrated") !== "true" && !attempted.has(boundary));
-    const boundary = boundaries.find(candidate => {
-      const parent = candidate.parentElement?.closest("[data-exact-client-boundary]");
-      return !parent || parent.getAttribute("data-exact-client-hydrated") === "true";
-    });
-    if (!boundary) break;
+  const work = createDomWorkBudget(options.maxTreeNodes);
+  const boundaries: Element[] = [];
+  const enqueue = (root: Node) => walkDomSubtree(root, node => {
+    if (node instanceof Element && node.hasAttribute("data-exact-client-boundary") && !attempted.has(node)) boundaries.push(node);
+  }, { budget: work });
+  enqueue(container);
+  for (let index = 0; index < boundaries.length; index++) {
+    const boundary = boundaries[index]!;
+    if (!container.contains(boundary) || boundary.getAttribute("data-exact-client-hydrated") === "true" || attempted.has(boundary)) continue;
+    const parent = boundary.parentElement?.closest("[data-exact-client-boundary]");
+    if (parent && parent.getAttribute("data-exact-client-hydrated") !== "true") continue;
     attempted.add(boundary);
     const name = boundary.getAttribute("data-exact-client-name");
     if (!name) continue;
@@ -27,21 +27,29 @@ export function hydrateClientIslands(container: Element | Document, registry: Cl
       logFrameworkEvent("warn", "hydrate", "island", `missing client island ${name}`, undefined, options.logger);
       continue;
     }
-    const props = parseIslandProps(boundary.getAttribute("data-exact-client-props"));
-    render(createVNode(component, props), boundary, { logger: options.logger });
+    const props = parseIslandProps(boundary.getAttribute("data-exact-client-props"), options);
+    const remaining = work.limit - work.used;
+    if (remaining <= 0) consumeDomWork(work);
+    render(createVNode(component, props), boundary, { logger: options.logger, maxTreeDepth: options.maxTreeDepth, maxTreeNodes: remaining, workBudget: work });
     boundary.setAttribute("data-exact-client-hydrated", "true");
     hydrated++;
+    enqueue(boundary);
   }
   return hydrated;
 }
 
-function parseIslandProps(raw: string | null): Record<string, unknown> {
+function parseIslandProps(raw: string | null, options: HydrateOptions): Record<string, unknown> {
   if (!raw) return {};
   try {
-    if (new TextEncoder().encode(raw).byteLength > 16 * 1024 * 1024) return {};
+    const maxBytes = positiveLimit(options.configLimits?.maxBytes, 16 * 1024 * 1024);
+    if (new TextEncoder().encode(raw).byteLength > maxBytes) return {};
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)
-      || !isJsonSafe(parsed, { maxDepth: 100, maxNodes: 100_000, maxBytes: 16 * 1024 * 1024 })) return {};
+      || !isJsonSafe(parsed, {
+        maxDepth: positiveLimit(options.configLimits?.maxDepth, 100),
+        maxNodes: positiveLimit(options.configLimits?.maxNodes, 100_000),
+        maxBytes
+      })) return {};
     const props = (parsed as Record<string, unknown>).props;
     return props && typeof props === "object" && !Array.isArray(props)
       ? reviveServerSlots(props) as Record<string, unknown>
@@ -49,6 +57,10 @@ function parseIslandProps(raw: string | null): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+function positiveLimit(value: number | undefined, fallback: number): number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
 
 function reviveServerSlots(value: unknown): unknown {

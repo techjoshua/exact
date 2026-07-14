@@ -1,9 +1,9 @@
 import type { BoundModule, Variable } from "@exact/expressions";
 import { stableId } from "./ids.js";
 import type { ExactProvenanceGraph } from "./provenance.js";
-import { writeSiteKey } from "./expression-writes.js";
 
 export interface ExpressionJsxElementSite {
+  readonly nodeId: string;
   readonly start: number;
   readonly end: number;
   readonly tagName?: string;
@@ -14,6 +14,7 @@ export interface ExpressionJsxElementSite {
 }
 
 export interface ExpressionJsxCellSite {
+  readonly nodeId: string;
   readonly start: number;
   readonly end: number;
   readonly kind: "jsx-child" | "jsx-attribute";
@@ -36,11 +37,12 @@ export function analyzeExpressionJsx(module: BoundModule, provenance: ExactProve
     const tagName = element.node.tagName;
     const intrinsic = !!tagName && (/^[a-z]/.test(tagName) || tagName.includes(":"));
     const site = Object.freeze({
+      nodeId: element.node.id,
       start: element.node.span.start,
       end: element.node.span.end,
       ...(tagName ? { tagName } : {}),
       intrinsic,
-      ...(intrinsic ? { exactId: stableId(identityFilename, "element", String(element.node.span.start), String(element.node.span.end)) } : {}),
+      ...(intrinsic ? { exactId: stableId(identityFilename, "element", element.node.id) } : {}),
       attributes: Object.freeze(element.node.attributes.map(attribute => attribute.name).filter((name): name is string => !!name))
       ,serverSlotChildren: element.node.jsxChildren.some(child => {
         if (child.kind === "JsxText") return false;
@@ -48,22 +50,23 @@ export function analyzeExpressionJsx(module: BoundModule, provenance: ExactProve
         return child.kind === "JsxElement" || child.kind === "JsxSelfClosingElement" || child.kind === "JsxFragment";
       })
     });
-    elements.set(writeSiteKey(site.start, site.end), site);
+    elements.set(site.nodeId, site);
   }
-  const reactiveCells = new Map(provenance.cells.filter(cell => cell.node.span).map(cell => [writeSiteKey(cell.node.span!.start, cell.node.span!.end), cell]));
+  const reactiveCells = new Map(provenance.cells.map(cell => [cell.node.id, cell]));
   const cells = new Map<string, ExpressionJsxCellSite>();
   for (const expression of module.walk().ofKind("JsxExpression")) {
     if (!expression.node.span) continue;
-    const key = writeSiteKey(expression.node.span.start, expression.node.span.end);
+    const key = expression.node.id;
     const reactive = reactiveCells.get(key);
     const site = Object.freeze({
+      nodeId: expression.node.id,
       start: expression.node.span.start,
       end: expression.node.span.end,
       kind: expression.parent?.node.kind === "JsxAttribute" ? "jsx-attribute" as const : "jsx-child" as const,
       dependencies: reactive?.dependencies ?? module.dependenciesOf(expression),
       reactive: reactive !== undefined
     });
-    cells.set(writeSiteKey(site.start, site.end), site);
+    cells.set(site.nodeId, site);
   }
   const contextualParameters = new Map<string, string>();
   for (const attribute of module.walk().jsxAttributes()) {
@@ -75,7 +78,7 @@ export function analyzeExpressionJsx(module: BoundModule, provenance: ExactProve
         if (!parameter.node.span || parameter.children().any(child => child.node.category === "type")) return;
         const type = fn.node.parameters[index]?.type;
         if (!type || type.kind === "any" || type.kind === "unknown") return;
-        contextualParameters.set(writeSiteKey(parameter.node.span.start, parameter.node.span.end), type.display);
+        contextualParameters.set(parameter.node.id, type.display);
       });
     }
   }

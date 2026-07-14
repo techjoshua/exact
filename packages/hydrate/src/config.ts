@@ -1,5 +1,6 @@
 import { hasOnlyKeys, isJsonSafe } from "./validation.js";
 import { sameJsonData } from "@exact/core";
+import { createDomWorkBudget, walkDomSubtree, type DomWorkBudget } from "@exact/dom";
 import type {
   ClientIslandRegistry,
   ExactEndpointRoutes,
@@ -15,10 +16,17 @@ import type { ExactHydrationConfigLimits } from "./types.js";
 export function readExactHydrationConfig(
   root: ParentNode = document,
   scriptId = "__exact_hydration",
-  limits: ExactHydrationConfigLimits = {}
+  limits: ExactHydrationConfigLimits = {},
+  work: DomWorkBudget = createDomWorkBudget(limits.maxNodes)
 ): ExactHydrationConfig {
-  const script = Array.from(root.querySelectorAll("script")).find(candidate => candidate.id === scriptId);
-  if (!script) return {};
+  let script: HTMLScriptElement | undefined;
+  walkDomSubtree(root as Node, node => {
+    if (!script && node instanceof HTMLScriptElement && node.id === scriptId) script = node;
+  }, { budget: work });
+  return script ? parseHydrationConfig(script, limits) : {};
+}
+
+function parseHydrationConfig(script: HTMLScriptElement, limits: ExactHydrationConfigLimits): ExactHydrationConfig {
   try {
     const source = script.textContent ?? "{}";
     const maxBytes = positiveLimit(limits.maxBytes, 16 * 1024 * 1024);
@@ -42,7 +50,7 @@ export function readExactHydrationConfig(
 
 /** Combines explicit hydration options with the nearest serialized document config. */
 export function resolveHydrateOptions(container: Element, options: HydrateOptions): HydrateOptions {
-  const config = readNearestHydrationConfig(container, options.configLimits);
+  const config = readNearestHydrationConfig(container, options.configLimits, options.maxTreeNodes);
   return {
     ...options,
     endpoint: options.endpoint ?? config.endpoint,
@@ -176,14 +184,18 @@ function sameHeaderMap(left: Record<string, string> | undefined, right: Record<s
   return headersCacheKey(left) === headersCacheKey(right);
 }
 
-function readNearestHydrationConfig(container: Element, limits: ExactHydrationConfigLimits = {}): ExactHydrationConfig {
+function readNearestHydrationConfig(container: Element, limits: ExactHydrationConfigLimits = {}, maxDomNodes?: number): ExactHydrationConfig {
+  const work = createDomWorkBudget(maxDomNodes);
+  const root = container.getRootNode() as Node;
+  const scripts: HTMLScriptElement[] = [];
+  walkDomSubtree(root, node => {
+    if (node instanceof HTMLScriptElement && node.id === "__exact_hydration") scripts.push(node);
+  }, { budget: work });
   for (let cursor: Element | null = container; cursor; cursor = cursor.parentElement) {
-    const config = readExactHydrationConfig(cursor, "__exact_hydration", limits);
-    if (Object.keys(config).length) return config;
+    const script = scripts.find(candidate => cursor!.contains(candidate));
+    if (script) return parseHydrationConfig(script, limits);
   }
-  const root = container.getRootNode();
-  if (root instanceof ShadowRoot) return readExactHydrationConfig(root, "__exact_hydration", limits);
-  return readExactHydrationConfig(container.ownerDocument ?? document, "__exact_hydration", limits);
+  return scripts[0] ? parseHydrationConfig(scripts[0], limits) : {};
 }
 
 function isStateContractMap(value: unknown): value is Record<string, ExactStateContract> {
