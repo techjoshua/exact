@@ -54,7 +54,7 @@ export type ExactStatePath = {
 };
 
 export type ExactCompilerManifestLike = {
-  version: 1;
+  version: 2;
   serverActions?: Record<string, {
     id: string;
     componentId?: string;

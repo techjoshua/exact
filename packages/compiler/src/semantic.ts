@@ -6,8 +6,9 @@ import type {
   ExactSemanticReferenceIR,
   ExactSemanticScopeIR
 } from "./types.js";
+import { browserPlatformGlobals } from "./platform-effects.js";
 
-export const browserGlobals = new Set(["window", "document", "localStorage", "sessionStorage", "navigator", "HTMLElement", "Node"]);
+export const browserGlobals = browserPlatformGlobals;
 
 /** Builds compiler semantic IR solely from canonical expression bindings. */
 export function buildExpressionSemanticGraph(module: BoundModule): ExactSemanticGraphIR {
@@ -165,7 +166,9 @@ function importedName(reference: NodeRef): string {
 }
 
 function exportedName(reference: NodeRef): string | undefined {
-  const declaration = reference.parent;
+  const declaration = reference.parent?.node.kind === "VariableDeclaration"
+    ? reference.ancestors().first(ancestor => ancestor.node.kind === "VariableStatement" || ancestor.node.kind === "FirstStatement")
+    : reference.parent;
   if (!declaration || !/^export\b/.test(declaration.node.text?.trimStart() ?? "")) return undefined;
   return /\bdefault\b/.test(declaration.node.text ?? "") ? "default" : reference.name;
 }

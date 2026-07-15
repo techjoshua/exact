@@ -28,10 +28,49 @@ export type ExactSourceMap = {
 
 export type ExactPlacement = "server" | "client" | "isomorphic" | "unknown";
 
+export type ExactEnvironmentEffect = "neutral" | "browser" | "server" | "mixed" | "unknown";
+
+export type ExactEnvironmentEffectSourceIR = {
+  environment: "browser" | "server" | "unknown";
+  description: string;
+  path: string[];
+};
+
+export type ExactCallEdgeIR = {
+  id: string;
+  name: string;
+  targetId?: string;
+  moduleSpecifier?: string;
+  exportName?: string;
+  resolved: boolean;
+  receiverBindings?: Array<{
+    parameterIndex: number;
+    source: "component" | "parameter" | "unknown";
+    sourceParameterIndex?: number;
+  }>;
+};
+
+export type ExactCallableSummaryIR = {
+  id: string;
+  name: string;
+  kind: "function" | "method" | "component" | "task" | "initializer" | "module-initializer";
+  exportNames: string[];
+  directEffect: ExactEnvironmentEffect;
+  effect: ExactEnvironmentEffect;
+  directEffectSources: ExactEnvironmentEffectSourceIR[];
+  effectSources: ExactEnvironmentEffectSourceIR[];
+  calls: ExactCallEdgeIR[];
+  artifactTargets: ExactArtifactTarget[];
+  stateReads: ExactStateEffect[];
+  stateWrites: ExactStateEffect[];
+  contexts: ExactContextEffect[];
+};
+
 export type ExactStateEffect = {
   path: string;
   kind: "read" | "write";
   confidence: "exact" | "broad" | "unknown";
+  receiver?: { kind: "component" } | { kind: "parameter"; index: number } | { kind: "unknown" };
 };
 
 export type ExactContextEffect = {
@@ -50,6 +89,8 @@ export type ExactTaskIR = {
   writes: ExactStateEffect[];
   contexts: ExactContextEffect[];
   diagnostics: string[];
+  environmentEffect?: ExactEnvironmentEffect;
+  effectSources?: ExactEnvironmentEffectSourceIR[];
 };
 
 export type ExactComponentRenderEdgeIR = {
@@ -75,6 +116,8 @@ export type ExactComponentIR = {
   contexts: ExactContextEffect[];
   splitBoundaries: string[];
   diagnostics: string[];
+  environmentEffect?: ExactEnvironmentEffect;
+  artifactTargets?: ExactArtifactTarget[];
 };
 
 export type ExactExportIR = {
@@ -174,13 +217,15 @@ export type ExactArtifactManifest = {
 };
 
 export type ExactCompilerManifest = {
-  version: 1;
+  version: 2;
   filename: string;
+  dependencies: string[];
   semanticGraph?: ExactSemanticGraphIR;
   components: ExactComponentIR[];
   exports: ExactExportIR[];
   symbols: ExactSymbolIR[];
   boundaries: ExactBoundaryIR[];
+  callables: ExactCallableSummaryIR[];
   artifacts?: ExactArtifactManifest;
   serverActions: Record<string, {
     id: string;

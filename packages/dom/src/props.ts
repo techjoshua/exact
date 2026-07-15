@@ -1,4 +1,4 @@
-import { batch, createErrorReport, handleComponentError, type StopHandle, unwrap, watch } from "@exact/core";
+import { batch, createErrorReport, handleComponentError, observeComponentAsync, type StopHandle, unwrap, watch } from "@exact/core";
 import type { EffectScope } from "@exact/reactive";
 import { describeNode, domDebug } from "./debug.js";
 import { ensureDelegated } from "./events.js";
@@ -59,7 +59,9 @@ function setProp(root: Root, element: Element, key: string, value: unknown, prev
         const handler = value as EventListener;
         const listener: EventListener = event => preserveFocus(root, () => {
           try {
-            batch(() => handler.call(element, event));
+            const owner = findOwnerInstance(element);
+            const result = batch(() => (handler as (this: Element, event: Event) => unknown).call(element, event));
+            observeComponentAsync(owner, result, "event", type);
           } catch (error) {
             const owner = findOwnerInstance(element);
             handleComponentError(owner, createErrorReport(error, "event", owner, type));
@@ -79,7 +81,7 @@ function setProp(root: Root, element: Element, key: string, value: unknown, prev
 
     if (typeof value === "function") {
       handlers.set(type, value as EventListener);
-      ensureDelegated(root, type);
+      ensureDelegated(root, type, eventContainerFor(root, element));
     } else {
       handlers.delete(type);
     }
@@ -107,6 +109,13 @@ function setProp(root: Root, element: Element, key: string, value: unknown, prev
     setDomProp(root, element, key, key === "class" || key === "className" ? normalizeClass(actual) : actual);
   }), undefined, { scope });
   setPropBinding(element, key, stop);
+}
+
+function eventContainerFor(root: Root, element: Element): Node {
+  if (root.eventContainer) return root.eventContainer;
+  if (root.container.contains(element)) return root.container;
+  for (const target of root.portalTargets) if (target.contains(element)) return target;
+  return root.container;
 }
 
 /** Converts JSX's DOM-style handler names to their platform event names. */

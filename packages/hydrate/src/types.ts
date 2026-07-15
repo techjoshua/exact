@@ -1,4 +1,4 @@
-import type { ComponentFunction, Logger } from "@exact/core";
+import type { ComponentFunction, ErrorReport, Logger } from "@exact/core";
 import type { ExactInvocationKind, ExactInvocationRequest, ExactInvocationResult, ExactOperationResult, ExactPatch, ExactStateContract } from "@exact/server";
 
 export type HydrateOptions = {
@@ -18,6 +18,10 @@ export type HydrateOptions = {
   streamLimits?: ExactStreamLimits;
   signal?: AbortSignal;
   onDiagnostic?: (diagnostic: HydrationDiagnostic) => void;
+  /** Observes component failures that reach the hydrated renderer root. */
+  onErrorReport?: (report: ErrorReport) => void;
+  /** Allows a component root to adopt compatible markup without eXact markers. */
+  allowMarkerless?: boolean;
   /** Maximum DOM render values processed by one hydration/adoption update. */
   maxTreeNodes?: number;
   /** Maximum DOM vnode depth processed by hydration/adoption. */

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "statuses": ["compatible", "certified-renderer", "certified-ecosystem"],
+  "generic": [
+    { "react": "18.3.1", "reactReconciler": "0.29.2", "scheduler": "0.23.2", "status": "compatible", "suite": "custom-mutation-renderer" },
+    { "react": "19.2.0", "reactReconciler": "0.33.0", "scheduler": "0.27.0", "status": "compatible", "suite": "custom-mutation-renderer" }
+  ],
+  "renderers": [
+    { "package": "@react-three/fiber", "version": "9.6.1", "react": "19.2.0", "scheduler": "0.27.0", "status": "compatible", "coverage": ["standalone-root", "exact-hosted-canvas", "hooks", "context-bridge", "updates", "continuous-loop", "manual-loop", "pointer-raycasting", "context-loss-restoration", "five-independent-cycle-cleanup", "memory-budget-chromium", "mock-webgl", "real-webgl", "chromium", "firefox", "webkit"] },
+    { "package": "@react-three/fiber", "version": "8.18.0", "react": "18.3.1", "scheduler": "0.21.0", "status": "compatible", "coverage": ["standalone-root", "hooks", "updates", "frame", "cleanup", "mock-webgl"] },
+    { "package": "ink", "version": "7.1.0", "react": "19.2.0", "scheduler": "0.27.0", "status": "compatible", "coverage": ["terminal-host", "hooks", "updates", "effects", "unmount"] },
+    { "package": "@react-pdf/renderer", "version": "4.5.1", "react": "19.2.0", "status": "compatible", "coverage": ["document-host", "hooks", "pdf-buffer"] },
+    { "package": "@react-three/drei", "version": "10.7.7", "react": "19.2.0", "renderer": "@react-three/fiber@9.6.1", "status": "compatible", "coverage": ["texture-helper", "gltf-helper", "orbit-controls", "environment-map", "html-overlay", "suspense", "cleanup", "chromium", "firefox", "webkit"] }
+  ],
+  "certificationGatesRemaining": [
+    "pointer-capture",
+    "r3f-portals",
+    "simultaneous-multiple-roots",
+    "demand-render-loop",
+    "loader-cancellation-and-error-boundaries",
+    "runtime-resize-and-dpr-changes",
+    "explicit-three-resource-disposal"
+  ]
+}

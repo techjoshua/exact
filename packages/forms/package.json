@@ -1,0 +1,12 @@
+{
+  "name": "@exact/forms",
+  "version": "0.0.0",
+  "type": "module",
+  "files": ["dist", "!dist/**/*.test.*"],
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "dependencies": { "@exact/core": "file:../core" },
+  "devDependencies": { "@exact/jsx": "file:../jsx-runtime", "@exact/dom": "file:../dom", "@exact/testing": "file:../testing" },
+  "scripts": { "build": "tsc -b", "test": "vitest run" }
+}

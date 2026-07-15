@@ -63,6 +63,14 @@ The package entrypoints are:
 - `@exact/core`
   - App surface: `Component`, `Child`, `ContextToken`, `createContext`, `createRef`, `LoggerContext`, `createConsoleLogger`, `ErrorContext`, `createErrorContext`, logging and error types.
   - Framework/lower-level surface used by eXact packages and tests: vnode creation, component instance creation/rendering, compiled JSX helpers, and framework logging/error routing hooks.
+- `@exact/request`
+  - Ambient request URL and redirect context for SSR, with pluggable storage and a Node `AsyncLocalStorage` adapter.
+- `@exact/router`
+  - Nested history/hash routing through `Router`, `Route`, `Outlet`, `Link`, `NavLink`, `Navigate`, and `RouteContext`.
+- `@exact/forms`
+  - Accessible field composition and native/callback validation through `FormContext` and `FieldContext`.
+- `@exact/testing`
+  - Fluent component instances, state/context inspection, accessible DOM queries, user events, task settling, and Vitest/Jest matchers.
 - `@exact/jsx`
   - Root exports: `jsx`, `jsxs`, `Fragment`, `_`.
   - Automatic JSX subpaths: `@exact/jsx/jsx-runtime` and `@exact/jsx/jsx-dev-runtime`.
@@ -116,6 +124,17 @@ Configure TypeScript with `jsxImportSource` set to `@exact/jsx`:
   }
 }
 ```
+
+When React 18 or 19 is installed, the Vite, Webpack, and Bun adapters automatically enable the matching React compatibility runtime. TSX/JSX that references runtime values imported from `react` or `react-dom` is compiled as React JSX and directly imports the target-specific eXact compatibility modules, while type-only and unused React imports do not change JSX ownership. Explicit JSX directives take precedence:
+
+```tsx
+/** @jsxImportSource react */
+export function ReactView() {
+  return <button>React-compatible</button>;
+}
+```
+
+Use `@jsxImportSource @exact/jsx` to force eXact ownership in a mixed file, `reactCompatibility.source` for import-free React component directories, an explicit `reactCompatibility.target` to override version detection, or `reactCompatibility: false` to disable automatic compatibility. Resolver aliases continue to cover precompiled React packages in `node_modules`; those packages do not need to be recompiled.
 
 Compiler mode is build-tool agnostic through `@exact/compiler`:
 
@@ -495,6 +514,93 @@ function App(this: Component<{}>) {
 
 Framework diagnostics use the root logger passed to `render()`. The default console logger prints `info` and above; `trace` and `debug` are opt-in.
 
+## Web essentials
+
+`@exact/router` supplies component-reference routes with nested outlets. `Router` uses an explicit `LocationSource` when supplied, otherwise it reads the ambient server request or the browser History API:
+
+```tsx
+import { Link, Outlet, Route, Router } from "@exact/router";
+
+function Layout() {
+  return () => <main><nav><Link to="/users">Users</Link></nav><Outlet /></main>;
+}
+
+render(
+  <Router basename="/app">
+    <Route component={Layout}>
+      <Route index component={Home} />
+      <Route path="users/:id" component={User} />
+      <Route path="*" component={NotFound} />
+    </Route>
+  </Router>,
+  document.getElementById("app")!
+);
+```
+
+For Node SSR, install concurrency-safe storage once and wrap each render. Other runtimes can implement the small `RequestContextStorage` contract:
+
+```ts
+import { installNodeRequestContext } from "@exact/request/node";
+import { runWithRequestContext } from "@exact/request";
+
+installNodeRequestContext();
+const result = await runWithRequestContext(
+  { url: new URL(request.url), redirect: (location, status) => recordRedirect(location, status) },
+  () => renderToStringAsync(<App />)
+);
+```
+
+The built-in portable storage is intentionally synchronous and throws if a callback returns a promise, preventing silent request-context leakage. Use `@exact/request/node` (or provide an async-safe storage implementation) before wrapping asynchronous SSR work. `createRequestScope()` creates an independent synchronous scope when no storage is supplied.
+
+History mode supports SSR directly. Hash fragments are not sent in HTTP requests, so hash-mode SSR needs an explicit fragment-bearing `LocationSource` when server and client matching must agree.
+
+`@exact/forms` composes accessible fields without taking ownership of application values:
+
+```tsx
+<Form onValidSubmit={(_event, data) => save(data)}>
+  <Field name="email" required validate={value => String(value).includes("@") || "Enter an email"}>
+    <Label>Email</Label>
+    <Input type="email" />
+    <FieldHelp>We will only use this for account messages.</FieldHelp>
+    <FieldError />
+  </Field>
+  <button type="submit">Save</button>
+</Form>
+```
+
+Fields validate on first blur and submit, then revalidate invalid values on input. Callback validators may be asynchronous; stale results are ignored. Repeated field names must supply distinct `id` values.
+
+## Component testing
+
+`@exact/testing` mounts real DOM-rendered components and exposes their framework instances through a runner-neutral fluent API:
+
+```tsx
+const view = await testComponent(Counter)
+  .props({ initial: 1 })
+  .context(AuthContext, auth)
+  .mount();
+
+await view.root.setState({ count: 2 });
+await view.root.getByRole("button", { name: "Increment" }).click();
+
+expect(view.root.state().count).toBe(3);
+expect(view.root.find(Status).context(AuthContext)).toBe(auth);
+view.unmount();
+```
+
+Queries are available by selector, role/name, label, visible text, and `data-testid`. Singular queries reject missing or ambiguous matches. State and event actions flush reactive rendering and await observed component tasks; use `{ settleTasks: false }` for intentionally long-lived work, `view.flush()` for synchronous rendering only, or `view.settle()` explicitly.
+
+Matchers are opt-in and do not couple the base package to a runner:
+
+```ts
+import { expect } from "vitest";
+import { installVitestMatchers } from "@exact/testing/vitest";
+
+installVitestMatchers(expect);
+```
+
+The Jest adapter exports the equivalent `installJestMatchers(expect)` function. DOM tests require a browser-like environment such as jsdom or happy-dom.
+
 ## Compiled JSX Conveniences
 
 Compiler mode supports normal fragment shorthand for unkeyed fragments:
@@ -538,3 +644,7 @@ import { percent, px, rem } from "@exact/dom";
 ```
 
 The v1 unit helpers are `px`, `rem`, `em`, `percent`, `vh`, `vw`, `vmin`, `vmax`, `fr`, `ms`, `s`, `deg`, `rad`, and `turn`.
+
+## Parcel Lab demo
+
+`apps/shipping-calculator` is a progressive-SSR, server-components shipping calculator with reactive streamed rate updates, a credential-free DOOP provider, optional live-carrier adapters, and one responsive modern-CSS component tree. Run it with `npm run dev:shipping`; see the app README for provider configuration and data-handling notes.

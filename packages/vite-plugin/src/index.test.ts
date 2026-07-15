@@ -86,7 +86,7 @@ describe("@exact/vite-plugin", () => {
   it("rejects malformed manifest files", () => {
     const root = mkdtempSync(path.join(tmpdir(), "exact-vite-bad-manifest-"));
     const manifestFile = path.join(root, "bad.exact.manifest.json");
-    writeFileSync(manifestFile, JSON.stringify({ version: 1, filename: "bad.tsx" }));
+    writeFileSync(manifestFile, JSON.stringify({ version: 2, filename: "bad.tsx" }));
     const plugin = exact({ manifestFiles: [manifestFile] });
 
     expect(() => plugin.transform("const view = <span />;", "/src/view.tsx")).toThrow("Malformed eXact compiler manifest");
@@ -115,12 +115,45 @@ describe("@exact/vite-plugin", () => {
   });
 
   it("adds target export conditions for packaged exact artifacts", () => {
-    expect(exact({ target: "client" }).config?.()).toEqual({
+    expect(exact({ target: "client", reactCompatibility: false }).config?.()).toEqual({
       resolve: { conditions: ["exact-client"] }
     });
-    expect(exact({ target: "server" }).config?.()).toEqual({
+    expect(exact({ target: "server", reactCompatibility: false }).config?.()).toEqual({
       resolve: { conditions: ["exact-server"] }
     });
+  });
+
+  it("automatically aliases installed React and compiles React-owned JSX to the compatibility runtime", () => {
+    const plugin = exact({ reactCompatibility: { target: 18, source: "/react/" } });
+    const config = plugin.config?.();
+    expect(config?.resolve.alias).toEqual(expect.arrayContaining([
+      expect.objectContaining({ replacement: "@exact/react-compat/react18" }),
+      expect.objectContaining({ replacement: "@exact/react-dom-compat/client18" })
+    ]));
+    expect(plugin.transform("/** @jsxImportSource react */\nconst view = <span />;", "/src/react-view.tsx")?.code)
+      .toContain("@exact/react-compat/jsx-runtime18");
+    expect(plugin.transform("const view = <span />;", "/src/react/widget.tsx")?.code)
+      .toContain("@exact/react-compat/jsx-runtime18");
+    expect(exact().config?.().resolve.alias).toEqual(expect.arrayContaining([
+      expect.objectContaining({ replacement: "@exact/react-compat/react18" })
+    ]));
+    expect(exact().transform('import { useState } from "react"; const view = <span>{useState(0)[0]}</span>;', "/src/inferred.tsx")?.code)
+      .toContain("@exact/react-compat/jsx-runtime18");
+    expect(plugin.transform("const view = <span />;", "/src/exact-view.tsx")).not.toBeNull();
+  });
+
+  it("honors explicit eXact ownership and the automatic React opt-out", () => {
+    const exactOwned = '/** @jsxImportSource @exact/jsx */\nimport { useState } from "react"; const view = <span>{useState}</span>;';
+    expect(exact().transform(exactOwned, "/src/exact.tsx")?.code).toContain("__exactVNode");
+    expect(exact({ reactCompatibility: false }).transform(
+      '/** @jsxImportSource react */\nconst view = <span />;', "/src/react.tsx"
+    )).toBeNull();
+  });
+
+  it("rejects mixed JSX ownership in strict React compatibility mode", () => {
+    const plugin = exact({ reactCompatibility: { target: 19 } });
+    expect(() => plugin.transform("/** @jsxImportSource react */\n/** @jsxImportSource @exact/jsx */\nconst view = <span />;", "/src/mixed.tsx"))
+      .toThrow(/Mixed React and eXact JSX/);
   });
 
   it("honors include and exclude filters", () => {

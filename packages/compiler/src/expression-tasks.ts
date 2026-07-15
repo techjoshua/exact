@@ -4,6 +4,8 @@ import { isServerOnlyModule } from "./imports.js";
 import type { ExactContextEffect, ExactPlacement, ExactStateEffect } from "./types.js";
 import { expressionComponentIndex } from "./expression-component-index.js";
 import { exactCleanupForCall, exactOwnsReturn } from "./annotations.js";
+import type { CallableEffectPlan } from "./callable-effects.js";
+import type { ExactEnvironmentEffect, ExactEnvironmentEffectSourceIR } from "./types.js";
 
 export interface ExpressionTaskSite {
   readonly nodeId: string;
@@ -21,6 +23,8 @@ export interface ExpressionTaskSite {
   readonly contexts: readonly ExactContextEffect[];
   readonly contextSites: readonly Readonly<{ start: number; effect: ExactContextEffect }>[];
   readonly diagnostics: readonly string[];
+  readonly environmentEffect: ExactEnvironmentEffect;
+  readonly effectSources: readonly ExactEnvironmentEffectSourceIR[];
 }
 
 export interface ExpressionTaskPlan {
@@ -71,7 +75,7 @@ export interface ExpressionTaskSignalCall {
 const browserGlobals = new Set(["window", "document", "navigator", "location", "history", "localStorage", "sessionStorage", "requestAnimationFrame", "cancelAnimationFrame", "requestIdleCallback", "cancelIdleCallback", "MutationObserver", "ResizeObserver", "IntersectionObserver", "WebSocket", "EventSource", "BroadcastChannel", "Worker"]);
 
 /** Builds task effects from canonical references while retaining source spans for emission. */
-export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan {
+export function analyzeExpressionTasks(module: BoundModule, callableEffects?: CallableEffectPlan): ExpressionTaskPlan {
   const components = expressionComponentIndex(module);
   const sites = new Map<string, ExpressionTaskSite>();
   const resources = new Map<string, ExpressionTaskResource>();
@@ -146,7 +150,22 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
       if (path) taskWrites.push(effect(path.length ? path.join(".") : "*", "write", true));
     }
     const requestedPlacement = task.target?.name === "client" || task.target?.name === "server" ? task.target.name : undefined;
-    const placement: ExactPlacement = requestedPlacement ?? (browserEffects ? "client" : serverEffects ? "server" : taskWrites.length ? "isomorphic" : "client");
+    const callableEffect = callableEffects?.byNodeId.get(work.node.id);
+    if (callableEffect) {
+      taskWrites.push(...callableEffect.stateWrites);
+      reads.push(...callableEffect.stateReads);
+      contexts.push(...callableEffect.contexts);
+    }
+    const environmentEffect = callableEffect?.effect ?? (browserEffects && serverEffects ? "mixed" : browserEffects ? "browser" : serverEffects ? "server" : "neutral");
+    const effectSources = callableEffect?.effectSources ?? [];
+    browserEffects ||= effectSources.some(source => source.environment === "browser");
+    serverEffects ||= effectSources.some(source => source.environment === "server");
+    const placement: ExactPlacement = requestedPlacement
+      ?? (environmentEffect === "browser" ? "client"
+        : environmentEffect === "server" ? "server"
+          : environmentEffect === "unknown" ? (browserEffects && !serverEffects ? "client" : serverEffects && !browserEffects ? "server" : "unknown")
+            : environmentEffect === "mixed" ? "unknown"
+            : taskWrites.length ? "isomorphic" : "client");
     const diagnostics: string[] = [];
     const nearestFunction = task.ancestors().functions().first();
     const componentOwner = taskComponentOwner(task, components);
@@ -158,6 +177,8 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
     if (!browserEffects && !serverEffects && !taskWrites.length) diagnostics.push("task has no detected state writes or environment-specific effects; classify as client lifecycle work");
     if (requestedPlacement === "server" && browserEffects) diagnostics.push("error: this.task.server() cannot reference browser-only globals");
     if (requestedPlacement === "client" && serverEffects) diagnostics.push("error: this.task.client() cannot reference server-only imports");
+    if (environmentEffect === "mixed" || browserEffects && serverEffects) diagnostics.push(`error: task has indivisible browser and server effects${effectPathSuffix(effectSources)}`);
+    if (!requestedPlacement && environmentEffect === "unknown" && !browserEffects && !serverEffects) diagnostics.push(`error: task placement depends on an opaque call; use this.task.client() or this.task.server()${effectPathSuffix(effectSources)}`);
     if (requestedPlacement) diagnostics.push(`task placement forced by this.task.${requestedPlacement}()`);
     diagnostics.push(...resourceDiagnostics);
     // The plan-level channel is consumed before emission and must include every
@@ -182,7 +203,9 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
       writes: Object.freeze(uniqueEffects(taskWrites)),
       contexts: Object.freeze(uniqueContexts(contexts)),
       contextSites: Object.freeze(contextSites),
-      diagnostics: Object.freeze(diagnostics)
+      diagnostics: Object.freeze(diagnostics),
+      environmentEffect,
+      effectSources: Object.freeze([...effectSources])
     });
     sites.set(site.nodeId, site);
   }
@@ -230,6 +253,11 @@ export function analyzeExpressionTasks(module: BoundModule): ExpressionTaskPlan 
     diagnostics: Object.freeze(planDiagnostics),
     diagnosticLocations: Object.freeze(diagnosticLocations)
   });
+}
+
+function effectPathSuffix(sources: readonly ExactEnvironmentEffectSourceIR[]): string {
+  const candidate = sources.find(source => source.environment === "unknown") ?? sources[0];
+  return candidate?.path.length ? ` (${candidate.path.join(" → ")})` : "";
 }
 
 function moduleLocalVariables(module: BoundModule): Set<Variable> {

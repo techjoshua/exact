@@ -22,7 +22,7 @@ import {
   withTaskObserver,
   type VNode
 } from "@exact/core";
-import { unwrap } from "@exact/reactive";
+import { flushSync, unwrap } from "@exact/reactive";
 import type { ExactPatch } from "@exact/server";
 import { boundaryPatch, diffBoundaryHtml, diffKeyedListItems } from "./diff.js";
 import { escapeAttr, escapeText, voidElements } from "./html.js";
@@ -119,7 +119,8 @@ export function renderToString(vnode: VNode, options: RenderToStringOptions = {}
 
 function renderToStringOwned(vnode: VNode, options: RenderToStringOptions): RenderToStringResult {
   const context = createSsrContext(options);
-  const html = renderVNode(context, vnode, undefined);
+  const body = renderVNode(context, vnode, undefined);
+  const html = boundedJoin(context, [...context.reactResourceHints, body]);
   assertOutputWithinLimit(context, html);
   return {
     html,
@@ -219,7 +220,8 @@ export async function renderToStringAsync(vnode: VNode, options: RenderToStringO
   const renderOptions = withTaskDeadline(options);
   const context = createSsrContext(renderOptions);
 
-  const html = await renderVNodeAsync(context, vnode, undefined, renderOptions);
+  const body = await renderVNodeAsync(context, vnode, undefined, renderOptions);
+  const html = boundedJoin(context, [...context.reactResourceHints, body]);
   assertOutputWithinLimit(context, html);
   return {
     html,
@@ -641,9 +643,18 @@ function* renderVNodeChunks(
   }
 
   const tag = String(vnode.type);
-  yield `<${tag}${renderAttrs(vnode.props)}>`;
+  const hostProps = reactHostProps(context, vnode);
+  registerReactImagePreload(context, tag, hostProps);
+  yield `<${tag}${renderAttrs(hostProps, context.reactMarkup, tag)}${context.reactMarkup && voidElements.has(tag) ? "/" : ""}>`;
   if (voidElements.has(tag)) return;
-  for (const child of vnode.children) yield* renderChildChunks(context, child, parent, depth + 1);
+  const raw = reactHostContent(context, vnode);
+  if (raw !== undefined) yield raw;
+  else {
+    const previousSelect = context.reactSelectValue;
+    if (context.reactMarkup && tag === "select") context.reactSelectValue = unwrap(vnode.props.value ?? vnode.props.defaultValue);
+    try { for (const child of vnode.children) yield* renderChildChunks(context, child, parent, depth + 1); }
+    finally { context.reactSelectValue = previousSelect; }
+  }
   yield `</${tag}>`;
 }
 
@@ -663,8 +674,14 @@ function* renderChildChunks(
 
 function renderChildren(context: SsrContext, children: readonly Child[], parent?: ComponentInstance<any>): string {
   const html: string[] = [];
+  let previousWasText = false;
   for (const child of children) {
-    html.push(renderChild(context, child, parent));
+    const rendered = renderChild(context, child, parent);
+    const isText = !isVNode(child) && rendered !== "";
+    if (context.textSeparators && isText && previousWasText) html.push("<!-- -->");
+    if (rendered !== "") html.push(rendered);
+    if (isVNode(child)) previousWasText = false;
+    else if (isText) previousWasText = true;
   }
   return boundedJoin(context, html);
 }
@@ -737,8 +754,14 @@ async function renderChildrenAsync(
   options: RenderToStringOptions
 ): Promise<string> {
   const html: string[] = [];
+  let previousWasText = false;
   for (const child of children) {
-    html.push(await renderChildAsync(context, child, parent, options));
+    const rendered = await renderChildAsync(context, child, parent, options);
+    const isText = !isVNode(child) && rendered !== "";
+    if (context.textSeparators && isText && previousWasText) html.push("<!-- -->");
+    if (rendered !== "") html.push(rendered);
+    if (isVNode(child)) previousWasText = false;
+    else if (isText) previousWasText = true;
   }
   return boundedJoin(context, html);
 }
@@ -818,9 +841,20 @@ async function renderVNodeAsyncInner(
   }
 
   const tag = String(vnode.type);
-  const attrs = renderAttrs(vnode.props);
-  if (voidElements.has(tag)) return `<${tag}${attrs}>`;
-  return `<${tag}${attrs}>${await renderChildrenAsync(context, vnode.children, parent, options)}</${tag}>`;
+  const hostProps = reactHostProps(context, vnode);
+  registerReactImagePreload(context, tag, hostProps);
+  const attrs = renderAttrs(hostProps, context.reactMarkup, tag);
+  if (voidElements.has(tag)) return `<${tag}${attrs}${context.reactMarkup ? "/" : ""}>`;
+  const raw = reactHostContent(context, vnode);
+  let content: string;
+  if (raw !== undefined) content = raw;
+  else {
+    const previousSelect = context.reactSelectValue;
+    if (context.reactMarkup && tag === "select") context.reactSelectValue = unwrap(vnode.props.value ?? vnode.props.defaultValue);
+    try { content = await renderChildrenAsync(context, vnode.children, parent, options); }
+    finally { context.reactSelectValue = previousSelect; }
+  }
+  return `<${tag}${attrs}>${content}</${tag}>`;
 }
 
 function renderComponent(context: SsrContext, vnode: VNode, parent?: ComponentInstance<any>): string {
@@ -831,8 +865,17 @@ function renderComponent(context: SsrContext, vnode: VNode, parent?: ComponentIn
       getComponentProps(vnode),
       parent
     );
-    const children = renderInstance(instance, () => undefined);
-    return markerPair(context, componentId, () => renderChildren(context, children, instance));
+    return markerPair(context, componentId, () => {
+      let invalidated = false;
+      for (let pass = 0; pass < 25; pass++) {
+        invalidated = false;
+        const children = renderInstance(instance, () => { invalidated = true; });
+        const html = renderChildren(context, children, instance);
+        flushSync();
+        if (!invalidated) return html;
+      }
+      throw new Error("eXact SSR component did not stabilize after 25 render passes");
+    });
   } catch (error) {
     if (isSsrRenderLimitError(error)) throw error;
     const fallback = handleComponentError(
@@ -860,7 +903,8 @@ async function renderComponentAsync(
           let observed: Promise<unknown>;
           observed = promise.finally(() => pending.delete(observed));
           pending.add(observed);
-        }
+        },
+        retain() {}
       };
       instance = withTaskObserver(observer, () => createComponentInstance(
         vnode.type as ComponentFunction<any, Record<string, unknown>>,
@@ -868,10 +912,21 @@ async function renderComponentAsync(
         parent
       ));
       await drainTasks(pending, options.maxTaskPasses ?? 10, options.signal, options.taskDeadline);
-      const children = renderInstance(instance, () => undefined);
-      return await markerPair(context, componentId, async () => renderChildrenAsync(context, children, instance, options));
+      return await markerPair(context, componentId, async () => {
+        let invalidated = false;
+        const maxPasses = options.maxTaskPasses ?? 10;
+        for (let pass = 0; pass < maxPasses; pass++) {
+          invalidated = false;
+          const children = renderInstance(instance!, () => { invalidated = true; });
+          const html = await renderChildrenAsync(context, children, instance, options);
+          await drainTasks(pending, maxPasses, options.signal, options.taskDeadline);
+          flushSync();
+          if (!invalidated) return html;
+        }
+        throw new Error(`eXact async SSR component did not stabilize after ${maxPasses} render passes`);
+      });
     } catch (error) {
-      if (isSsrRenderLimitError(error)) throw error;
+      if (isSsrRenderInterruption(error, options.signal)) throw error;
       const fallback = handleComponentError(
         parent,
         createErrorReport(error, "construct", parent, componentName(vnode.type))
@@ -928,9 +983,67 @@ function disposePreservingPrimary(dispose: () => void, primary: unknown): void {
 
 function renderElement(context: SsrContext, vnode: VNode, parent?: ComponentInstance<any>): string {
   const tag = String(vnode.type);
-  const attrs = renderAttrs(vnode.props);
-  if (voidElements.has(tag)) return `<${tag}${attrs}>`;
-  return `<${tag}${attrs}>${renderChildren(context, vnode.children, parent)}</${tag}>`;
+  const hostProps = reactHostProps(context, vnode);
+  registerReactImagePreload(context, tag, hostProps);
+  const attrs = renderAttrs(hostProps, context.reactMarkup, tag);
+  if (voidElements.has(tag)) return `<${tag}${attrs}${context.reactMarkup ? "/" : ""}>`;
+  const raw = reactHostContent(context, vnode);
+  let content: string;
+  if (raw !== undefined) content = raw;
+  else {
+    const previousSelect = context.reactSelectValue;
+    if (context.reactMarkup && tag === "select") context.reactSelectValue = unwrap(vnode.props.value ?? vnode.props.defaultValue);
+    try { content = renderChildren(context, vnode.children, parent); }
+    finally { context.reactSelectValue = previousSelect; }
+  }
+  return `<${tag}${attrs}>${content}</${tag}>`;
+}
+
+function reactHostContent(context: SsrContext, vnode: VNode): string | undefined {
+  if (!context.reactMarkup) return undefined;
+  const value = vnode.props.dangerouslySetInnerHTML;
+  if (value && typeof value === "object" && "__html" in value) {
+    if (vnode.children.length) throw new Error("Can only set one of `children` or `props.dangerouslySetInnerHTML`.");
+    return String((value as { __html?: unknown }).__html ?? "");
+  }
+  const tag = String(vnode.type);
+  if (tag === "textarea") {
+    const content = unwrap(vnode.props.value ?? vnode.props.defaultValue) ?? primitiveText(vnode.children);
+    return escapeText(String(content ?? ""));
+  }
+  if (tag === "style" || tag === "script" && context.reactMarkup === 19) return primitiveText(vnode.children);
+  return undefined;
+}
+
+function primitiveText(children: readonly Child[]): string {
+  let text = "";
+  for (const child of children) {
+    if (child === null || child === undefined || child === false || child === true) continue;
+    if (isVNode(child)) throw new Error("React text-only host elements cannot contain an element child");
+    text += String(unwrap(child));
+  }
+  return text;
+}
+
+function reactHostProps(context: SsrContext, vnode: VNode): Record<string, unknown> {
+  if (!context.reactMarkup || vnode.type !== "option" || context.reactSelectValue === undefined) return vnode.props;
+  const value = String(unwrap(vnode.props.value) ?? primitiveText(vnode.children));
+  const selected = Array.isArray(context.reactSelectValue)
+    ? context.reactSelectValue.some(item => String(unwrap(item)) === value)
+    : String(unwrap(context.reactSelectValue)) === value;
+  return { ...vnode.props, selected };
+}
+
+function registerReactImagePreload(context: SsrContext, tag: string, props: Record<string, unknown>): void {
+  if (context.reactMarkup !== 19 || tag !== "img") return;
+  const src = unwrap(props.src);
+  if (typeof src !== "string" || !src || unwrap(props.loading) === "lazy" || unwrap(props.fetchPriority) === "low") return;
+  const key = `image:${src}`;
+  if (context.reactResourceKeys.has(key)) return;
+  context.reactResourceKeys.add(key);
+  const crossOrigin = unwrap(props.crossOrigin);
+  const suffix = crossOrigin === undefined ? "" : ` crossorigin="${escapeAttr(String(crossOrigin))}"`;
+  context.reactResourceHints.push(`<link rel="preload" as="image" href="${escapeAttr(src)}"${suffix}/>`);
 }
 
 function renderServerBoundary(context: SsrContext, vnode: VNode): string {
@@ -1072,13 +1185,17 @@ async function awaitWithAbort<T>(promise: Promise<T>, signal?: AbortSignal, dead
 function createSsrContext(options: RenderToStringOptions): SsrContext {
   return {
     markers: options.markers ?? true,
+    textSeparators: options.textSeparators ?? false,
+    reactMarkup: options.reactMarkup ?? false,
     nextId: 0,
     logger: options.logger,
     maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth),
     traversalDepth: 0,
     maxTreeNodes: normalizePositiveLimit(options.maxTreeNodes, DEFAULT_MAX_TREE_NODES),
     traversedNodes: 0,
-    maxOutputBytes: normalizePositiveLimit(options.maxOutputBytes, DEFAULT_MAX_OUTPUT_BYTES)
+    maxOutputBytes: normalizePositiveLimit(options.maxOutputBytes, DEFAULT_MAX_OUTPUT_BYTES),
+    reactResourceHints: [],
+    reactResourceKeys: new Set()
   };
 }
 
@@ -1154,4 +1271,8 @@ function withTaskDeadline<T extends RenderToStringOptions>(options: T): T & { ta
 function isSsrRenderLimitError(error: unknown): error is SsrTreeDepthError | SsrTreeNodeError | SsrOutputLimitError | SsrTaskDeadlineError {
   return error instanceof SsrTreeDepthError || error instanceof SsrTreeNodeError
     || error instanceof SsrOutputLimitError || error instanceof SsrTaskDeadlineError;
+}
+
+function isSsrRenderInterruption(error: unknown, signal?: AbortSignal): boolean {
+  return isSsrRenderLimitError(error) || signal?.aborted === true;
 }

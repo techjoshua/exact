@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-07-14",
+  "commands": [
+    { "command": "npm run build", "status": "passed" },
+    { "command": "npm run test:packages", "status": "passed", "files": 46, "tests": 750 },
+    { "command": "npm run test:server-components", "status": "passed", "files": 1, "tests": 2 },
+    {
+      "command": "npm run test:shipping",
+      "status": "sandbox-failed",
+      "note": "The sandbox denied esbuild access while loading apps/shipping-calculator/vitest.config.ts; the same test passed outside the filesystem sandbox with 15 tests."
+    },
+    {
+      "command": "npm run typecheck:tests",
+      "status": "pre-existing-failure",
+      "note": "adapters/node-adapter/src/index.test.ts passes a stream response without the body required by ExactResponseLike."
+    }
+  ]
+}

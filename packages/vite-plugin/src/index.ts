@@ -4,11 +4,21 @@ import {
   invalidateExpressionModule,
   parseExactCompilerManifest,
   resolveExactArtifactImport,
+  transformReactJsx,
   transformSource,
+  usesReactRuntimeImports,
   type ExactCompilerManifest,
   type TransformTarget
 } from "@exact/compiler";
 import { readFileSync } from "node:fs";
+import path from "node:path";
+import {
+  jsxSourceOwnership,
+  resolveReactCompatibility,
+  validateInstalledReactReconciler,
+  type ReactCompatibilityOptions,
+  type ResolvedReactCompatibility
+} from "@exact/react-compat/plugin";
 
 export type ExactPluginOptions = {
   include?: FilterPattern;
@@ -20,6 +30,7 @@ export type ExactPluginOptions = {
   serverCondition?: string;
   serverComponents?: boolean;
   sourceMap?: boolean;
+  reactCompatibility?: boolean | ReactCompatibilityOptions;
 };
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
@@ -27,7 +38,7 @@ type FilterPattern = string | RegExp | readonly (string | RegExp)[];
 export type ExactPlugin = {
   name: string;
   enforce: "pre";
-  config?(): { resolve: { conditions: string[] } };
+  config?(): { resolve: { conditions: string[]; alias?: Array<{ find: RegExp; replacement: string }> } };
   resolveId?(source: string, importer?: string): string | null;
   transform(code: string, id: string): { code: string; map: unknown } | null;
   handleHotUpdate?(context: { file: string }): void;
@@ -35,17 +46,22 @@ export type ExactPlugin = {
 
 /** Creates the Vite plugin that transforms eXact JSX and resolves .exact facade imports. */
 export function exact(options: ExactPluginOptions = {}): ExactPlugin {
+  const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
   return {
     name: "exact",
     enforce: "pre",
     config() {
       return {
         resolve: {
-          conditions: exactExportConditions(options.target === "server" ? "server" : "client", options)
+          conditions: exactExportConditions(options.target === "server" ? "server" : "client", options),
+          ...(reactCompatibility ? { alias: viteReactAliases(reactCompatibility) } : {})
         }
       };
     },
     resolveId(source, importer) {
+      if (source === "react-reconciler" && reactCompatibility) {
+        validateInstalledReactReconciler(reactCompatibility.target, importer ? path.dirname(importer) : process.cwd());
+      }
       return resolveExactArtifactImport(source, importer, options.target === "server" ? "server" : "client")?.id ?? null;
     },
     handleHotUpdate(context) {
@@ -57,6 +73,16 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
     transform(code, id) {
       if (!shouldTransform(id, code, options)) return null;
       try {
+        const ownership = jsxSourceOwnership(id, code, reactCompatibility);
+        const reactOwned = ownership === "react" || ownership === "unknown" && usesReactRuntimeImports(code, id);
+        if (reactOwned) {
+          if (!reactCompatibility) return null;
+          return transformReactJsx(code, {
+            filename: id,
+            target: reactCompatibility.target,
+            sourceMap: options.sourceMap ?? true
+          });
+        }
         const result = transformSource(code, {
           filename: id,
           target: options.target,
@@ -90,6 +116,13 @@ function shouldTransform(id: string, code: string, options: ExactPluginOptions):
   if (options.include && !matchesFilter(id, options.include)) return false;
   if (options.exclude && matchesFilter(id, options.exclude)) return false;
   return true;
+}
+
+function viteReactAliases(resolved: ResolvedReactCompatibility): Array<{ find: RegExp; replacement: string }> {
+  return Object.entries(resolved.aliases).map(([find, replacement]) => ({
+    find: new RegExp(`^${find.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`),
+    replacement
+  }));
 }
 
 function matchesFilter(id: string, pattern: FilterPattern): boolean {

@@ -1,4 +1,5 @@
 import path from "node:path";
+import { builtinModules } from "node:module";
 import ts from "typescript";
 import { slashPath } from "./paths.js";
 import type {
@@ -138,6 +139,8 @@ function importDeclarationHasRuntimeBinding(statement: ts.ImportDeclaration): bo
 
 /** Returns whether a module specifier is treated as unavailable in browser bundles. */
 export function isServerOnlyModule(specifier: string): boolean {
-  if (specifier.startsWith("node:")) return true;
-  return ["fs", "path", "crypto", "http", "https", "net", "tls", "child_process"].includes(specifier);
+  const normalized = specifier.replace(/^node:/, "").replace(/\/.*$/, "");
+  return specifier.startsWith("node:") || nodeBuiltins.has(normalized);
 }
+
+const nodeBuiltins = new Set(builtinModules.map(module => module.replace(/^node:/, "").replace(/\/.*$/, "")));

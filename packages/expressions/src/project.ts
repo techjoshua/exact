@@ -462,9 +462,13 @@ export class ExpressionProject {
 
     const variableFor = (identifier: ts.Identifier): Variable | undefined => {
       if (identifier.text === "this" && ts.isParameter(identifier.parent)) return variableForThis(identifier);
-      const symbol = ts.isShorthandPropertyAssignment(identifier.parent) && identifier.parent.name === identifier
+      const locatedSymbol = ts.isShorthandPropertyAssignment(identifier.parent) && identifier.parent.name === identifier
         ? checker.getShorthandAssignmentValueSymbol(identifier.parent) ?? checker.getSymbolAtLocation(identifier)
         : checker.getSymbolAtLocation(identifier);
+      const symbol = ts.isExportSpecifier(identifier.parent)
+        && !identifier.parent.parent.parent.moduleSpecifier
+        ? checker.getExportSpecifierLocalTargetSymbol(identifier.parent) ?? locatedSymbol
+        : locatedSymbol;
       if (!symbol) return undefined;
       const cached = symbolVariables.get(symbol);
       if (cached) return cached;

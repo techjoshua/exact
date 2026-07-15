@@ -1,0 +1,20 @@
+{
+  "name": "@exact/testing",
+  "version": "0.0.0",
+  "type": "module",
+  "files": ["dist", "!dist/**/*.test.*"],
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./vitest": { "types": "./dist/vitest.d.ts", "default": "./dist/vitest.js" },
+    "./jest": { "types": "./dist/jest.d.ts", "default": "./dist/jest.js" }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "dependencies": {
+    "@exact/core": "file:../core",
+    "@exact/dom": "file:../dom",
+    "@exact/reactive": "file:../reactive"
+  },
+  "devDependencies": { "vitest": "^2.1.8" },
+  "scripts": { "build": "tsc -b", "test": "vitest run" }
+}

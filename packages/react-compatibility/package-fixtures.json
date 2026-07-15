@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "fixtures": [
+    { "package": "lucide-react", "version": "0.468.0", "phase": 1, "coverage": ["published-package", "function-components", "forward-ref"] },
+    { "package": "lucide-react", "version": "1.24.0", "phase": 2, "coverage": ["published-package", "context", "memo", "forward-ref", "phase6-ssr-certification"] },
+    { "package": "react-hook-form", "version": "7.81.0", "phase": 2, "coverage": ["published-package", "hooks", "forms", "refs", "effects"] },
+    { "package": "zustand", "version": "5.0.14", "phase": 2, "coverage": ["published-package", "use-sync-external-store", "subscriptions"] },
+    { "package": "@radix-ui/react-dialog", "version": "1.1.19", "phase": 3, "coverage": ["portals", "context", "refs", "events"] },
+    { "package": "@emotion/react", "version": "11.14.0", "phase": 3, "coverage": ["insertion-effects", "context", "phase5-server-rendering", "phase6-composed-ssr"] },
+    { "package": "@tanstack/react-query", "version": "5.101.2", "phase": 3, "coverage": ["external-store", "suspense", "async", "phase5-seeded-ssr", "phase6-composed-ssr"] },
+    { "package": "react-error-boundary", "version": "6.1.2", "phase": 4, "coverage": ["classes", "error-boundaries", "recovery", "phase6-composed-ssr"] }
+  ]
+}

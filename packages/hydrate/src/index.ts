@@ -1,4 +1,4 @@
-import { adoptComponentRoot, adoptStatic, consumeDomWork, createDomWorkBudget, namespaceForTag, render, unmount, walkDomSubtree, type DomWorkBudget } from "@exact/dom";
+import { adoptComponentRoot, adoptMarkerlessComponentRoot, adoptStatic, consumeDomWork, createDomWorkBudget, namespaceForTag, render, unmount, walkDomSubtree, type DomWorkBudget } from "@exact/dom";
 import { Fragment, Text, isVNode, type Child, type VNode } from "@exact/core";
 import type {
   ExactClient,
@@ -35,7 +35,7 @@ const requestVersions = new WeakMap<Element, Map<string, number>>();
 export function hydrate(vnode: VNode, container: Element, options: HydrateOptions = {}): HydrationRoot {
   const existing = roots.get(container);
   if (existing) {
-    render(vnode, container, { logger: options.logger, maxTreeDepth: options.maxTreeDepth, maxTreeNodes: options.maxTreeNodes });
+    render(vnode, container, { logger: options.logger, onErrorReport: options.onErrorReport, maxTreeDepth: options.maxTreeDepth, maxTreeNodes: options.maxTreeNodes });
     return existing;
   }
   const resolvedOptions = resolveHydrateOptions(container, options);
@@ -43,14 +43,25 @@ export function hydrate(vnode: VNode, container: Element, options: HydrateOption
   const captured = captureHydrationDom(container, work);
   const formState = captured.formState;
   if (!captured.hasMarkers) {
-    reportMismatch(resolvedOptions, "missing exact hydration markers", "missing-markers");
+    const adopted = resolvedOptions.allowMarkerless && typeof vnode.type === "function"
+      ? adoptMarkerlessComponentRoot(vnode, container, { logger: resolvedOptions.logger, onErrorReport: resolvedOptions.onErrorReport, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work })
+      : false;
+    if (adopted) {
+      const root = createExactClient(container, resolvedOptions);
+      roots.set(container, root);
+      container.setAttribute("data-exact-hydrated", "true");
+      restoreFormState(container, formState, work);
+      return root;
+    }
+    reportMismatch(resolvedOptions, resolvedOptions.allowMarkerless ? "server markup did not match the client tree" : "missing exact hydration markers", resolvedOptions.allowMarkerless ? "adoption-mismatch" : "missing-markers");
     container.replaceChildren();
-    render(vnode, container, { logger: resolvedOptions.logger, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work });
+    render(vnode, container, { logger: resolvedOptions.logger, onErrorReport: resolvedOptions.onErrorReport, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work });
   } else {
     if ((typeof vnode.type === "function"
-      ? adoptComponentRoot(vnode, container, { logger: resolvedOptions.logger, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work })
+      ? adoptComponentRoot(vnode, container, { logger: resolvedOptions.logger, onErrorReport: resolvedOptions.onErrorReport, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work })
       : adoptStaticTree(vnode, container, createStaticBudget(resolvedOptions, work)) && adoptStatic(vnode, container, {
         logger: resolvedOptions.logger,
+        onErrorReport: resolvedOptions.onErrorReport,
         maxTreeDepth: resolvedOptions.maxTreeDepth,
         maxTreeNodes: remainingDomWork(work),
         workBudget: work
@@ -65,7 +76,7 @@ export function hydrate(vnode: VNode, container: Element, options: HydrateOption
     // range first so a hydration attempt cannot leave duplicate interactive
     // markup behind while marker adoption is unavailable for a boundary.
     container.replaceChildren();
-    render(vnode, container, { logger: resolvedOptions.logger, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work });
+    render(vnode, container, { logger: resolvedOptions.logger, onErrorReport: resolvedOptions.onErrorReport, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work });
   }
 
   restoreFormState(container, formState, work);
@@ -407,7 +418,7 @@ function restoreFormState(container: Element, states: readonly FormState[], work
 }
 
 function formControlIdentity(element: Element): { attribute: string; value: string } | undefined {
-  for (const attribute of ["data-exact-control-id", "data-exact-id", "id"] as const) {
+  for (const attribute of ["data-exact-control-id", "data-exact-id", "id", "name"] as const) {
     const value = element.getAttribute(attribute);
     if (value) return { attribute, value };
   }
@@ -423,7 +434,7 @@ function indexFormControlIdentities(container: Element, work: DomWorkBudget): Ma
   const identities = new Map<string, Element | undefined>();
   walkDomSubtree(container, node => {
     if (!(node instanceof Element)) return;
-    for (const attribute of ["data-exact-control-id", "data-exact-id", "id"] as const) {
+    for (const attribute of ["data-exact-control-id", "data-exact-id", "id", "name"] as const) {
       const value = node.getAttribute(attribute);
       if (!value) continue;
       const key = `${attribute}\0${value}`;

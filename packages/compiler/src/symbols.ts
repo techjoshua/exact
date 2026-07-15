@@ -2,6 +2,7 @@ import { stableId } from "./ids.js";
 import { generatedComponentName } from "./names.js";
 import type {
   ExactBoundaryIR,
+  ExactCallableSummaryIR,
   ExactComponentIR,
   ExactSymbolIR,
   ExportBinding
@@ -11,6 +12,31 @@ type SourceIdentity = string | Readonly<{ fileName: string }>;
 
 function sourceFilename(source: SourceIdentity): string {
   return typeof source === "string" ? source : source.fileName;
+}
+
+/** Creates symbol records for exported non-component declarations with proven artifact targets. */
+export function createValueRootSymbols(source: SourceIdentity, callables: readonly ExactCallableSummaryIR[]): ExactSymbolIR[] {
+  const filename = sourceFilename(source);
+  const symbols: ExactSymbolIR[] = [];
+  for (const callable of callables) for (const exportName of callable.exportNames) {
+    if (!callable.artifactTargets.length) continue;
+    const placement = callable.effect === "browser" || callable.artifactTargets.length === 1 && callable.artifactTargets[0] === "client" ? "client"
+      : callable.effect === "server" || callable.artifactTargets.length === 1 && callable.artifactTargets[0] === "server" ? "server"
+        : callable.effect === "neutral" ? "isomorphic" : "unknown";
+    const localName = callable.kind === "initializer" ? callable.name.replace(/\.initializer$/, "") : callable.name;
+    symbols.push({
+      id: stableId(filename, "symbol", callable.id, "root", exportName),
+      exportName,
+      localName,
+      generatedName: localName,
+      debugName: localName,
+      kind: "value",
+      role: "root",
+      target: callable.artifactTargets.length === 1 ? callable.artifactTargets[0]! : "both",
+      placement
+    });
+  }
+  return symbols.sort((left, right) => left.id.localeCompare(right.id));
 }
 
 /** Creates symbol records for exported source components. */
@@ -30,7 +56,7 @@ export function createRootSymbols(source: SourceIdentity, components: ExactCompo
       debugName: component.name,
       kind: "component",
       role: "root",
-      target: component.placement === "client" ? "client" : component.placement === "server" ? "server" : "both",
+      target: component.artifactTargets?.length === 1 ? component.artifactTargets[0]! : "both",
       placement: component.placement
     });
   }

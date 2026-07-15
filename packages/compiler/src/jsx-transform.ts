@@ -29,6 +29,7 @@ import {
   generatedComponentName
 } from "./names.js";
 import { pruneUnusedImports } from "./prune-imports.js";
+import type { CallableEffectPlan } from "./callable-effects.js";
 import type { BoundModule } from "@exact/expressions";
 import type { ExpressionDerivedPlan } from "./expression-derived.js";
 import type { ExpressionWritePlan } from "./expression-writes.js";
@@ -59,10 +60,13 @@ const fragmentHelper = "__exactFragment";
 const expressionHelper = "__exactExpression";
 const dynamicHelper = "__exactDynamic";
 const boundaryHelper = "__exactBoundary";
+const sourceIdentityFilenames = new WeakMap<ts.SourceFile, string>();
+const identityFilenameFor = (sourceFile: ts.SourceFile): string => sourceIdentityFilenames.get(sourceFile) ?? sourceFile.fileName;
 const isAssignmentOperator = (kind: ts.SyntaxKind): boolean => kind >= ts.SyntaxKind.FirstAssignment && kind <= ts.SyntaxKind.LastAssignment;
 /** Creates the TypeScript transformer that lowers eXact JSX into runtime helper calls. */
 export function exactJsxTransformer(
   expressionModule: BoundModule,
+  identityFilename: string,
   target: TransformTarget,
   serverComponents = false,
   providedSemanticGraph: ExactSemanticGraphIR,
@@ -71,11 +75,13 @@ export function exactJsxTransformer(
   expressionTasks: ExpressionTaskPlan,
   expressionJsx: ExpressionJsxPlan,
   expressionComponents: ExpressionComponentPlan,
-  componentInfo: Map<string, ExactImportedComponentIR>
+  componentInfo: Map<string, ExactImportedComponentIR>,
+  callableEffects: CallableEffectPlan
 ): ts.TransformerFactory<ts.SourceFile> {
   return context => sourceFile => {
+    sourceIdentityFilenames.set(sourceFile, identityFilename);
     bindExpressionEmissionNodes(sourceFile, expressionModule, emissionNodeIds(
-      expressionModule, expressionDerived, expressionWrites, expressionTasks, expressionJsx, expressionComponents
+      expressionModule, expressionDerived, expressionWrites, expressionTasks, expressionJsx, expressionComponents, callableEffects
     ));
     const factory = context.factory;
     const helpers = allocateHelperNames(sourceFile);
@@ -123,6 +129,39 @@ export function exactJsxTransformer(
     };
 
     const visitor: ts.Visitor = node => {
+      if (ts.isExpressionStatement(node) || ts.isImportDeclaration(node) && !node.importClause) {
+        const summary = callableEffects.byNodeId.get(expressionEmissionId(node) ?? "");
+        if (summary && incompatibleSummary(summary, target)) return factory.createEmptyStatement();
+      }
+      if (ts.isExportDeclaration(node) && node.exportClause && ts.isNamedExports(node.exportClause)) {
+        const elements = node.exportClause.elements.filter(element => {
+          const summary = callableEffects.callables.find(candidate => candidate.exportNames.includes(element.name.text));
+          return !summary || !incompatibleSummary(summary, target);
+        });
+        if (!elements.length) return factory.createEmptyStatement();
+        if (elements.length !== node.exportClause.elements.length) {
+          return factory.updateExportDeclaration(node, node.modifiers, node.isTypeOnly,
+            factory.updateNamedExports(node.exportClause, elements), node.moduleSpecifier, node.attributes);
+        }
+      }
+      if (ts.isFunctionDeclaration(node) && node.name) {
+        const nodeId = expressionEmissionId(node) ?? "";
+        const summary = callableEffects.byNodeId.get(nodeId);
+        if (!expressionComponents.sites.get(nodeId) && summary && incompatibleSummary(summary, target)) return factory.createEmptyStatement();
+      }
+      if (ts.isVariableStatement(node)) {
+        const declarations = node.declarationList.declarations.filter(declaration => {
+          const initializer = declaration.initializer;
+          if (!initializer) return true;
+          const summary = callableEffects.byNodeId.get(expressionEmissionId(initializer) ?? "");
+          return !summary || !incompatibleSummary(summary, target);
+        });
+        if (!declarations.length) return factory.createEmptyStatement();
+        if (declarations.length !== node.declarationList.declarations.length) {
+          return ts.visitEachChild(factory.updateVariableStatement(node, node.modifiers,
+            factory.updateVariableDeclarationList(node.declarationList, declarations)), visitor, context);
+        }
+      }
       if (ts.isParameter(node) && !node.type) {
         const contextualType = expressionJsx.contextualParameters.get(expressionEmissionId(node) ?? "");
         if (contextualType) {
@@ -145,7 +184,7 @@ export function exactJsxTransformer(
           sawBoundary = true;
           return createClientComponentServerStub(sourceFile, context, helpers, node);
         }
-        if (target === "client" && serverComponents && componentPlacement !== "client") {
+        if (target === "client" && serverComponents && componentSite.serverEffects) {
           // In server-component mode, non-client components are removed from the
           // client artifact after their nested client islands have been collected.
           componentStack.push(node.name.text);
@@ -489,6 +528,15 @@ function shouldOmitPlacement(placement: ExactPlacement, target: TransformTarget)
   return placement === "client";
 }
 
+function incompatibleEffect(effect: import("./types.js").ExactEnvironmentEffect, target: TransformTarget): boolean {
+  return target === "client" ? effect === "server" : target === "server" ? effect === "browser" : false;
+}
+
+function incompatibleSummary(summary: import("./types.js").ExactCallableSummaryIR, target: TransformTarget): boolean {
+  if (target === "default") return false;
+  return summary.artifactTargets.length > 0 ? !summary.artifactTargets.includes(target) : incompatibleEffect(summary.effect, target);
+}
+
 function transformJsxElement(
   sourceFile: ts.SourceFile,
   node: ts.JsxElement,
@@ -532,7 +580,7 @@ function canonicalElementId(sourceFile: ts.SourceFile, node: ts.Node, plan?: Exp
   const nodeId = expressionEmissionId(node);
   if (!nodeId) throw new Error(`Missing canonical expression identity for JSX emission in ${sourceFile.fileName}`);
   if (plan) return plan.elements.get(nodeId)?.exactId;
-  return stableId(sourceFile.fileName, "element", nodeId);
+  return stableId(identityFilenameFor(sourceFile), "element", nodeId);
 }
 
 function transformJsxFragment(
@@ -646,7 +694,7 @@ function createClientIslandBoundaryCall(
   const next = (islandCounts.get(owner) ?? 0) + 1;
   islandCounts.set(owner, next);
   const generatedName = generatedComponentName(owner, "client-island", next);
-  const id = stableId(sourceFile.fileName, owner, "client-island", String(next));
+  const id = stableId(identityFilenameFor(sourceFile), owner, "client-island", String(next));
   return factory.createCallExpression(factory.createIdentifier(helpers.boundary), undefined, [
     factory.createStringLiteral(id),
     factory.createStringLiteral(generatedName),
@@ -900,7 +948,7 @@ function createClientComponentServerStub(
   const factory = context.factory;
   const componentName = node.name!.text;
   const props = factory.createIdentifier("props");
-  const id = stableId(sourceFile.fileName, componentName, "component-island");
+  const id = stableId(identityFilenameFor(sourceFile), componentName, "component-island");
   return factory.updateFunctionDeclaration(
     node,
     node.modifiers,
@@ -1563,7 +1611,7 @@ function transformMapCall(
   if (node.arguments.length !== 3) return ts.visitEachChild(node, visitor, context);
   const nodeId = identityOverride ?? expressionEmissionId(node);
   if (!nodeId) throw new Error(`Missing canonical expression identity for this.map() emission in ${sourceFile.fileName}`);
-  const id = stableId(sourceFile.fileName, "list", nodeId);
+  const id = stableId(identityFilenameFor(sourceFile), "list", nodeId);
   const source = node.arguments[0]!;
   // Reactive sinks are rewritten before their nested calls are visited.  A
   // derived local therefore reaches this transform either as its identifier
@@ -1858,7 +1906,8 @@ function emissionNodeIds(
   writes: ExpressionWritePlan,
   tasks: ExpressionTaskPlan,
   jsx: ExpressionJsxPlan,
-  components: ExpressionComponentPlan
+  components: ExpressionComponentPlan,
+  callableEffects: CallableEffectPlan
 ): ReadonlySet<string> {
   const ids = new Set<string>();
   const addKeys = (map: ReadonlyMap<string, unknown>) => { for (const key of map.keys()) ids.add(key); };
@@ -1874,6 +1923,7 @@ function emissionNodeIds(
     for (const render of site.renders) ids.add(render.nodeId);
   }
   for (const call of module.walk().calls()) if (call.target?.isMember("map")) ids.add(call.node.id);
+  addKeys(callableEffects.byNodeId);
   return ids;
 }
 

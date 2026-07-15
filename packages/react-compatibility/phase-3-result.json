@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "completedAt": "2026-07-15",
+  "phase": 3,
+  "compatibility": {
+    "supported": [
+      "renderer-owned portals with logical context, refs, events, and cleanup",
+      "React.lazy and React 19 use promise retry semantics",
+      "React Compiler memo-cache runtime",
+      "requestFormReset",
+      "@radix-ui/react-dialog 1.1.19",
+      "@emotion/react 11.14.0",
+      "@tanstack/react-query 5.101.2"
+    ],
+    "approximate": [
+      "Suspense fallback and retry without concurrent reveal ordering, streaming, or hydration",
+      "transitions and deferred values without Fiber priority lanes",
+      "action and optimistic state without native form-transition coordination",
+      "Activity hidden mode without preserved hidden-subtree lifecycle",
+      "process-local cache and a non-aborting cache signal",
+      "client-only ReactDOM resource hints and non-pending form status"
+    ],
+    "deferred": [
+      "class components, PureComponent, Profiler, and error boundaries",
+      "hydration and React server rendering",
+      "concurrent scheduling and request-scoped server cache semantics"
+    ]
+  },
+  "commands": [
+    { "command": "npm run build", "status": "passed" },
+    { "command": "npm run test:packages", "status": "passed", "files": 53, "tests": 785 },
+    { "command": "npm run test:server-components", "status": "passed", "files": 1, "tests": 2 },
+    { "command": "npm run test:shipping", "status": "passed-outside-sandbox", "files": 4, "tests": 15 },
+    { "command": "npm run check:react-compat", "status": "passed", "baselines": ["18.3.1", "19.2.0"], "phases": [1, 2, 3] },
+    { "command": "npm run check:publish", "status": "passed" },
+    { "command": "npm run check:expressions", "status": "passed-with-8gb-heap", "files": 275, "projects": 34 },
+    {
+      "command": "npm run typecheck:tests",
+      "status": "pre-existing-failure",
+      "note": "adapters/node-adapter/src/index.test.ts:88 passes a stream response without the body required by ExactResponseLike; no Phase 3 type errors remain."
+    }
+  ]
+}

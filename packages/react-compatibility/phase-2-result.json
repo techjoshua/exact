@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "completedAt": "2026-07-15",
+  "phase": 2,
+  "compatibility": {
+    "supported": [
+      "reactive context Provider, Consumer, and useContext",
+      "createRef, callback refs, DOM refs, forwardRef, and useImperativeHandle",
+      "memo with default or custom comparison and context/state invalidation",
+      "useEffectEvent",
+      "ReactDOM flushSync and unstable_batchedUpdates",
+      "lucide-react 1.24.0",
+      "react-hook-form 7.81.0",
+      "zustand 5.0.14"
+    ],
+    "approximate": [
+      "StrictMode without development double invocation",
+      "effect commit timing through mount ownership and post-DOM microtasks",
+      "stable unique useId values without React identifier encoding",
+      "useSyncExternalStore without concurrent tearing checks"
+    ],
+    "deferred": [
+      "portals, Suspense, lazy loading, and transitions",
+      "class components and error boundaries",
+      "hydration and server rendering"
+    ]
+  },
+  "commands": [
+    { "command": "npm run build", "status": "passed" },
+    { "command": "npm run test:packages", "status": "passed", "files": 51, "tests": 776 },
+    { "command": "npm run test:server-components", "status": "passed", "files": 1, "tests": 2 },
+    { "command": "npm run test:shipping", "status": "passed-outside-sandbox", "files": 4, "tests": 15 },
+    { "command": "npm run check:react-compat", "status": "passed", "baselines": ["18.3.1", "19.2.0"], "phases": [1, 2] },
+    { "command": "npm run check:publish", "status": "passed" },
+    { "command": "npm run check:expressions", "status": "passed-with-8gb-heap", "files": 269, "projects": 34 },
+    {
+      "command": "npm run typecheck:tests",
+      "status": "pre-existing-failure",
+      "note": "adapters/node-adapter/src/index.test.ts:88 passes a stream response without the body required by ExactResponseLike; no Phase 2 type errors remain."
+    }
+  ]
+}

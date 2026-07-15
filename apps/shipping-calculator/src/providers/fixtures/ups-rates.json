@@ -1,0 +1,1 @@
+{"RateResponse":{"RatedShipment":[{"Service":{"Code":"03","Description":"UPS Ground"},"TotalCharges":{"MonetaryValue":"15.42"},"GuaranteedDelivery":{"BusinessDaysInTransit":"4"},"ItemizedCharges":[{"code":"RES","description":"Residential surcharge","monetaryValue":"2.00"}]}]}}

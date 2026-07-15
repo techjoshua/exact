@@ -4,12 +4,21 @@ import {
   invalidateExpressionModule,
   parseExactCompilerManifest,
   resolveExactArtifactImport,
+  transformReactJsx,
   transformSource,
+  usesReactRuntimeImports,
   type ExactCompilerManifest,
   type TransformTarget
 } from "@exact/compiler";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import {
+  jsxSourceOwnership,
+  resolveReactCompatibility,
+  validateInstalledReactReconciler,
+  type ReactCompatibilityOptions,
+  type ResolvedReactCompatibility
+} from "@exact/react-compat/plugin";
 
 export type ExactWebpackPluginOptions = {
   target?: TransformTarget;
@@ -21,6 +30,7 @@ export type ExactWebpackPluginOptions = {
   exclude?: FilterPattern;
   serverComponents?: boolean;
   sourceMap?: boolean;
+  reactCompatibility?: boolean | ReactCompatibilityOptions;
 };
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
@@ -42,6 +52,7 @@ export type WebpackCompilerLike = {
   options: {
     resolve?: {
       conditionNames?: string[];
+      alias?: Record<string, string>;
     };
     module?: {
       rules?: unknown[];
@@ -73,6 +84,8 @@ export class ExactWebpackPlugin {
 
   apply(compiler: WebpackCompilerLike): void {
     addWebpackConditions(compiler, exactExportConditions(targetFor(this.options), this.options));
+    const reactCompatibility = resolveReactCompatibility(this.options.reactCompatibility);
+    if (reactCompatibility) addWebpackReactAliases(compiler, reactCompatibility);
     compiler.options.module ??= {};
     compiler.options.module.rules ??= [];
     compiler.options.module.rules.push(createExactWebpackRule(this.options));
@@ -108,6 +121,17 @@ export function createExactWebpackRule(options: ExactWebpackPluginOptions = {}):
 export function transformExactWebpackSource(source: string, filename: string, options: ExactWebpackPluginOptions = {}): { code: string; map: unknown } | null {
   if (!shouldTransform(filename, source, options)) return null;
   try {
+    const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
+    const ownership = jsxSourceOwnership(filename, source, reactCompatibility);
+    const reactOwned = ownership === "react" || ownership === "unknown" && usesReactRuntimeImports(source, filename);
+    if (reactOwned) {
+      if (!reactCompatibility) return null;
+      return transformReactJsx(source, {
+        filename,
+        target: reactCompatibility.target,
+        sourceMap: options.sourceMap ?? true
+      });
+    }
     const result = transformSource(source, {
       filename,
       target: options.target,
@@ -147,6 +171,17 @@ export function applyExactWebpackResolver(resolver: WebpackResolverLike, options
       return;
     }
     const importer = request.path ? path.join(request.path, "__exact_importer.ts") : undefined;
+    if (request.request === "react-reconciler") {
+      const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
+      if (reactCompatibility) {
+        try {
+          validateInstalledReactReconciler(reactCompatibility.target, request.path ?? process.cwd());
+        } catch (error) {
+          callback(error instanceof Error ? error : new Error(String(error)));
+          return;
+        }
+      }
+    }
     const resolved = resolveExactWebpackRequest(request.request, importer, options);
     if (!resolved) {
       callback();
@@ -170,6 +205,15 @@ export function addWebpackConditions(compiler: WebpackCompilerLike, conditions: 
   compiler.options.resolve ??= {};
   const current = compiler.options.resolve.conditionNames ?? [];
   compiler.options.resolve.conditionNames = [...conditions, ...current.filter(condition => !conditions.includes(condition))];
+}
+
+export function addWebpackReactAliases(compiler: WebpackCompilerLike, resolved: ResolvedReactCompatibility): void {
+  compiler.options.resolve ??= {};
+  const current = compiler.options.resolve.alias ?? {};
+  compiler.options.resolve.alias = {
+    ...Object.fromEntries(Object.entries(resolved.aliases).map(([request, replacement]) => [`${request}$`, replacement])),
+    ...current
+  };
 }
 
 function targetFor(options: ExactWebpackPluginOptions): "client" | "server" {

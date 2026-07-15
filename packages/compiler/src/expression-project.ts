@@ -105,6 +105,14 @@ export function expressionModuleFor(filename: string, source: string): BoundModu
   return module;
 }
 
+/** Returns the canonical source dependencies resolved by the shared TypeScript project. */
+export function expressionDependencyFiles(filename: string, source: string): readonly string[] {
+  expressionModuleFor(filename, source);
+  const target = canonical(filename);
+  const entry = [...modules.values()].find(candidate => canonical(candidate.filename) === target && candidate.source === source);
+  return entry?.dependencies ?? [];
+}
+
 /** Primarily for isolated tests and long-running hosts that dispose a workspace. */
 export function clearExpressionProjectCache(): void {
   for (const project of projects.values()) project.dispose();

@@ -4,6 +4,13 @@
     { "path": "./packages/expressions" },
     { "path": "./packages/reactive" },
     { "path": "./packages/core" },
+    { "path": "./packages/request" },
+    { "path": "./packages/testing" },
+    { "path": "./packages/react-compatibility" },
+    { "path": "./packages/react-compat" },
+    { "path": "./packages/react-dom-compat" },
+    { "path": "./packages/router" },
+    { "path": "./packages/forms" },
     { "path": "./packages/jsx-runtime" },
     { "path": "./packages/dom" },
     { "path": "./packages/compiler" },
@@ -25,6 +32,7 @@
     { "path": "./packages/bun-plugin" },
     { "path": "./apps/kanban" },
     { "path": "./apps/workbench" },
-    { "path": "./apps/server-components" }
+    { "path": "./apps/server-components" },
+    { "path": "./apps/shipping-calculator" }
   ]
 }

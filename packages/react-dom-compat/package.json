@@ -1,0 +1,88 @@
+{
+  "name": "@exact/react-dom-compat",
+  "version": "0.0.0",
+  "type": "module",
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "default": "./dist/client.js"
+    },
+    "./client18": {
+      "types": "./dist/client18.d.ts",
+      "default": "./dist/client18.js"
+    },
+    "./client19": {
+      "types": "./dist/client19.d.ts",
+      "default": "./dist/client19.js"
+    },
+    "./server": {
+      "types": "./dist/server19.d.ts",
+      "default": "./dist/server19.js"
+    },
+    "./server18": {
+      "types": "./dist/server18.d.ts",
+      "default": "./dist/server18.js"
+    },
+    "./server19": {
+      "types": "./dist/server19.d.ts",
+      "default": "./dist/server19.js"
+    },
+    "./server-browser18": {
+      "types": "./dist/server-browser18.d.ts",
+      "default": "./dist/server-browser18.js"
+    },
+    "./server-browser19": {
+      "types": "./dist/server-browser19.d.ts",
+      "default": "./dist/server-browser19.js"
+    },
+    "./static19": {
+      "types": "./dist/static19.d.ts",
+      "default": "./dist/static19.js"
+    },
+    "./static-browser19": {
+      "types": "./dist/static-browser19.d.ts",
+      "default": "./dist/static-browser19.js"
+    },
+    "./react18": {
+      "types": "./dist/react18.d.ts",
+      "default": "./dist/react18.js"
+    },
+    "./react19": {
+      "types": "./dist/react19.d.ts",
+      "default": "./dist/react19.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "dependencies": {
+    "@exact/core": "file:../core",
+    "@exact/dom": "file:../dom",
+    "@exact/hydrate": "file:../hydrate",
+    "@exact/react-compat": "file:../react-compat",
+    "@exact/reactive": "file:../reactive",
+    "@exact/ssr": "file:../ssr"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@emotion/react": "^11.14.0",
+    "@radix-ui/react-dialog": "^1.1.19",
+    "@tanstack/react-query": "^5.101.2",
+    "esbuild": "0.21.5",
+    "lucide-react": "1.24.0",
+    "lucide-react-phase1": "npm:lucide-react@0.468.0",
+    "react-error-boundary": "^6.1.2",
+    "react-hook-form": "7.81.0",
+    "zustand": "5.0.14"
+  }
+}

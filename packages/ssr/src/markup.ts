@@ -4,20 +4,26 @@ import { escapeAttr, escapeAttrName } from "./html.js";
 import type { SsrContext } from "./types.js";
 
 /** Renders vnode props into escaped HTML attributes, skipping event and framework-only props. */
-export function renderAttrs(props: Record<string, unknown>): string {
+export function renderAttrs(props: Record<string, unknown>, reactMarkup: boolean | 18 | 19 = false, tag?: string): string {
   let attrs = "";
-  for (const [name, rawValue] of Object.entries(props)) {
-    if (name === "children" || name === "key" || name === "ref" || /^on[A-Z]/.test(name)) continue;
+  const customElement = !!reactMarkup && !!tag?.includes("-");
+  for (const [name, rawValue] of reactMarkup ? reactOrderedProps(props, tag, reactMarkup) : Object.entries(props)) {
+    if (name === "children" || name === "key" || name === "ref" || name === "dangerouslySetInnerHTML" || /^on[A-Z]/.test(name)) continue;
+    if (reactMarkup && (tag === "textarea" || tag === "select") && (name === "value" || name === "defaultValue")) continue;
+    if (reactMarkup && tag === "option" && name === "children") continue;
     const value = unwrap(rawValue);
-    if (value === false || value === null || value === undefined) continue;
-    const attrName = name === "className" ? "class" : name;
+    const attrName = reactMarkup ? reactAttributeName(name, reactMarkup, customElement) : name === "className" ? "class" : name;
+    if (value === null || value === undefined) continue;
+    if (value === false && (!reactMarkup || reactBooleanAttributes.has(attrName.toLowerCase()))) continue;
     if (attrName === "style") {
-      const style = renderStyle(value);
+      const style = renderStyle(value, !!reactMarkup);
       if (style) attrs += ` style="${escapeAttr(style)}"`;
       continue;
     }
     if (value === true) {
-      attrs += ` ${escapeAttrName(attrName)}`;
+      attrs += reactMarkup
+        ? reactBooleanAttributes.has(attrName.toLowerCase()) || reactMarkup === 19 && customElement ? ` ${escapeAttrName(attrName)}=""` : ` ${escapeAttrName(attrName)}="true"`
+        : ` ${escapeAttrName(attrName)}`;
       continue;
     }
     attrs += ` ${escapeAttrName(attrName)}="${escapeAttr(String(value))}"`;
@@ -67,7 +73,7 @@ export function decodeMarkerKey(value: string): string {
   return decodeExactMarkerPart(value);
 }
 
-function renderStyle(value: unknown): string {
+function renderStyle(value: unknown, reactMarkup: boolean): string {
   const actual = unwrap(value);
   if (!actual || actual === false) return "";
   if (typeof actual === "string") return actual;
@@ -76,11 +82,82 @@ function renderStyle(value: unknown): string {
   for (const [name, raw] of Object.entries(actual)) {
     const styleValue = unwrap(raw);
     if (styleValue === null || styleValue === undefined || styleValue === false) continue;
-    chunks.push(`${toCssProperty(name)}: ${String(styleValue)};`);
+    const serialized = reactMarkup && typeof styleValue === "number" && styleValue !== 0 && !reactUnitlessStyles.has(name)
+      ? `${styleValue}px`
+      : String(styleValue);
+    chunks.push(reactMarkup ? `${toCssProperty(name)}:${serialized}` : `${toCssProperty(name)}: ${serialized};`);
   }
-  return chunks.join(" ");
+  return reactMarkup ? chunks.join(";") : chunks.join(" ");
 }
 
 function toCssProperty(name: string): string {
-  return name.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`);
+  if (name.startsWith("--")) return name;
+  const converted = name.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`);
+  return name.startsWith("ms") ? `-${converted}` : converted;
+}
+
+const reactAttributeNames: Record<string, string> = {
+  acceptCharset: "accept-charset", autoCapitalize: "autoCapitalize", autoComplete: "autoComplete",
+  className: "class", htmlFor: "for", httpEquiv: "http-equiv",
+  charSet: "charset", crossOrigin: "crossorigin", defaultChecked: "checked", defaultValue: "value",
+  fetchPriority: "fetchpriority", formAction: "formaction", formEncType: "formenctype", formMethod: "formmethod",
+  formNoValidate: "formnovalidate", formTarget: "formtarget", referrerPolicy: "referrerpolicy",
+  srcSet: "srcset", useMap: "usemap", viewBox: "viewBox", preserveAspectRatio: "preserveAspectRatio",
+  xlinkHref: "xlink:href", xmlLang: "xml:lang", strokeWidth: "stroke-width", strokeLinecap: "stroke-linecap",
+  strokeLinejoin: "stroke-linejoin", strokeMiterlimit: "stroke-miterlimit", strokeDasharray: "stroke-dasharray",
+  strokeDashoffset: "stroke-dashoffset", fillRule: "fill-rule", clipPath: "clip-path", clipRule: "clip-rule"
+};
+
+const reactBooleanAttributes = new Set([
+  "allowfullscreen", "async", "autofocus", "autoplay", "checked", "controls", "default", "defer", "disabled",
+  "download", "formnovalidate", "hidden", "inert", "ismap", "itemscope", "loop", "multiple", "muted",
+  "nomodule", "novalidate", "open", "playsinline", "readonly", "required", "reversed", "scoped", "seamless", "selected"
+]);
+
+function reactAttributeName(name: string, version: boolean | 18 | 19, customElement: boolean): string {
+  if (name.startsWith("data-") || name.startsWith("aria-") || name.startsWith("--")) return name;
+  if (customElement) return version === 19 && name === "className" ? "class" : name;
+  if (version === 19 && (name === "spellCheck" || name === "contentEditable")) return name;
+  if (version === 19 && name === "readOnly") return name;
+  return reactAttributeNames[name] ?? name.toLowerCase();
+}
+
+const reactUnitlessStyles = new Set([
+  "animationIterationCount", "aspectRatio", "borderImageOutset", "borderImageSlice", "borderImageWidth",
+  "boxFlex", "boxFlexGroup", "boxOrdinalGroup", "columnCount", "columns", "flex", "flexGrow", "flexPositive",
+  "flexShrink", "flexNegative", "flexOrder", "gridArea", "gridColumn", "gridColumnEnd", "gridColumnSpan",
+  "gridColumnStart", "gridRow", "gridRowEnd", "gridRowSpan", "gridRowStart", "fontWeight", "lineClamp",
+  "lineHeight", "opacity", "order", "orphans", "scale", "tabSize", "widows", "zIndex", "zoom",
+  "fillOpacity", "floodOpacity", "stopOpacity", "strokeDasharray", "strokeDashoffset", "strokeMiterlimit",
+  "strokeOpacity", "strokeWidth"
+]);
+
+for (const prefix of ["Webkit", "Moz", "ms", "O"]) {
+  for (const name of [...reactUnitlessStyles]) reactUnitlessStyles.add(`${prefix}${name[0]!.toUpperCase()}${name.slice(1)}`);
+}
+
+function reactOrderedProps(props: Record<string, unknown>, tag: string | undefined, version: boolean | 18 | 19): Array<[string, unknown]> {
+  const entries = Object.entries(props);
+  if (tag === "input") {
+    const ordered = deferProps(entries, ["checked", "defaultChecked", "value", "defaultValue"]);
+    return version === 19 ? prioritizeProps(ordered, ["type", "disabled", "name"]) : ordered;
+  }
+  if (tag === "option") return deferProps(entries, ["value", "selected"]);
+  return entries;
+}
+
+function prioritizeProps(entries: Array<[string, unknown]>, names: readonly string[]): Array<[string, unknown]> {
+  const prioritized = new Set(names);
+  return [
+    ...names.flatMap(name => entries.filter(([entry]) => entry === name)),
+    ...entries.filter(([name]) => !prioritized.has(name))
+  ];
+}
+
+function deferProps(entries: Array<[string, unknown]>, names: readonly string[]): Array<[string, unknown]> {
+  const deferred = new Set(names);
+  return [
+    ...entries.filter(([name]) => !deferred.has(name)),
+    ...names.flatMap(name => entries.filter(([entry]) => entry === name))
+  ];
 }

@@ -16,12 +16,14 @@ export function placeMountedBefore(root: Root, parent: Node, mounted: Mounted, b
       node: describeNode(first),
       before: describeNode(cursor)
     });
+    runAfterPlacement(mounted);
     return;
   }
 
   for (const node of nodes) {
     insertBeforeIfNeeded(root, parent, node, cursor);
   }
+  runAfterPlacement(mounted);
 }
 
 /** Returns every DOM node owned by a mounted subtree in document order. */
@@ -55,13 +57,24 @@ export function afterMountedChildren(mounted: Mounted): Node | null {
 /** Returns the final DOM node owned by a mounted subtree. */
 export function lastMountedNode(mounted: Mounted): Node {
   let current = mounted;
-  while (!current.end && current.children.length) current = current.children[current.children.length - 1]!;
+  while (!current.end && ownsChildDom(current) && current.children.length) current = current.children[current.children.length - 1]!;
   return current.end ?? current.dom;
 }
 
 function ownsChildDom(mounted: Mounted): boolean {
   return !!mounted.end || mounted.vnode.type === Cell || mounted.vnode.type === Fragment
     || mounted.vnode.type === Dynamic || typeof mounted.vnode.type === "function";
+}
+
+function runAfterPlacement(mounted: Mounted): void {
+  const pending = [mounted];
+  while (pending.length) {
+    const current = pending.pop()!;
+    for (let index = current.children.length - 1; index >= 0; index--) pending.push(current.children[index]!);
+    const callback = current.afterPlacement;
+    current.afterPlacement = undefined;
+    callback?.();
+  }
 }
 
 function areContiguous(nodes: Node[]): boolean {

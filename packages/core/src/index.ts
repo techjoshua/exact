@@ -66,7 +66,7 @@ import {
   type LogLevel,
   type LogScope
 } from "./logging.js";
-import { Cell, Dynamic, Fragment, ServerBoundary, ServerSlot, Text } from "./symbols.js";
+import { Cell, Dynamic, Fragment, Portal, ServerBoundary, ServerSlot, Text } from "./symbols.js";
 export { decodeExactMarkerPart, encodeExactMarkerPart, exactMarkerEnd, exactMarkerStart } from "./protocol.js";
 export { sameJsonData, type JsonComparisonOptions } from "./json.js";
 import {
@@ -75,6 +75,7 @@ import {
   createCompiledVNode,
   createDynamicChild,
   createExpression,
+  createPortal,
   createServerBoundary,
   createServerSlot,
   createTextVNode,
@@ -100,13 +101,14 @@ export {
   type LogLevel,
   type LogScope
 } from "./logging.js";
-export { Cell, Dynamic, Fragment, ServerBoundary, ServerSlot, Text } from "./symbols.js";
+export { Cell, Dynamic, Fragment, Portal, ServerBoundary, ServerSlot, Text } from "./symbols.js";
 export {
   createCellVNode,
   createCompiledFragment,
   createCompiledVNode,
   createDynamicChild,
   createExpression,
+  createPortal,
   createServerBoundary,
   createServerSlot,
   createTextVNode,
@@ -117,7 +119,7 @@ export {
   normalizeChildren
 } from "./vnode.js";
 
-export type VNodeType = string | typeof Fragment | typeof Text | typeof Cell | typeof Dynamic | typeof ServerBoundary | typeof ServerSlot | ComponentFunction<any, any>;
+export type VNodeType = string | typeof Fragment | typeof Text | typeof Cell | typeof Dynamic | typeof Portal | typeof ServerBoundary | typeof ServerSlot | ComponentFunction<any, any>;
 
 export type VNode<Props = Record<string, unknown>> = {
   type: VNodeType;
@@ -179,9 +181,15 @@ export type ErrorReportOptions = {
 
 export type ErrorContextValue = {
   errors: ErrorReport[];
+  /** Optional owning boundary; errors thrown by that boundary itself skip this context. */
+  boundary?: ComponentInstance<any>;
   report(error: unknown, options?: ErrorReportOptions): ErrorReport;
   clear(error: ErrorReport | string): void;
   clearAll(): void;
+};
+
+export type SuspensionContextValue = {
+  suspend(promise: PromiseLike<unknown>): void;
 };
 
 export type ContextToken<T> = {
@@ -192,6 +200,7 @@ export type ContextToken<T> = {
 
 export const LoggerContext = createContext<Logger>("exact.logger", true);
 export const ErrorContext = createContext<ErrorContextValue>("exact.error", true);
+export const SuspensionContext = createContext<SuspensionContextValue>("exact.suspension");
 
 export type RefKey<T> = {
   readonly id: symbol;
@@ -620,6 +629,7 @@ const internalPlugins: InternalPlugin[] = [
 let nextComponentId = 1;
 let nextErrorId = 1;
 const taskObserverStack: TaskObserver[] = [];
+const retainedTaskObservers = new WeakMap<ComponentInstance<any>, TaskObserver>();
 
 for (const plugin of internalPlugins) {
   for (const provider of plugin.defaultContexts ?? []) {
@@ -896,6 +906,7 @@ export function createComponentInstance<State extends object, Props extends Reco
           teardown(() => { handleComponentError(instance, createErrorReport(error, "lifecycle", instance, "unmount")); });
         }
       }
+      retainedTaskObservers.delete(instance);
       if (failed) throw firstError;
     }
   };
@@ -917,7 +928,9 @@ export function createComponentInstance<State extends object, Props extends Reco
   acceptingTaskRegistrations = false;
   renderFunction = typeof result === "function" ? result as RenderFunction : () => result;
 
-  taskObserverStack[taskObserverStack.length - 1]?.retain?.(instance);
+  const taskObserver = taskObserverStack[taskObserverStack.length - 1];
+  taskObserver?.retain?.(instance);
+  if (taskObserver?.retain) retainedTaskObservers.set(instance, taskObserver);
 
   return instance;
 }
@@ -935,6 +948,10 @@ export function renderInstance(instance: ComponentInstance<any>, onInvalidate: (
         instance.beginRender();
         output = (instance.errorFallback ?? instance.renderFunction)();
       } catch (error) {
+        if (isPromiseLike(error) && handleComponentSuspension(instance, error)) {
+          output = null;
+          return;
+        }
         const fallback = handleComponentError(instance, createErrorReport(error, "render", instance));
         if (!fallback) {
           output = null;
@@ -968,6 +985,27 @@ function observeLifecyclePromise(instance: ComponentInstance<any>, promise: Prom
     handleComponentError(instance, createErrorReport(error, "lifecycle", instance, phase));
   });
   observeTaskPromise(observed, instance);
+}
+
+/** Observes asynchronous component work so renderers and test harnesses can await it and route failures. */
+export function observeComponentAsync(
+  instance: ComponentInstance<any> | undefined,
+  value: unknown,
+  source: ErrorSource,
+  phase: string
+): void {
+  if (!isPromiseLike(value)) return;
+  const observed = Promise.resolve(value).catch(error => {
+    handleComponentError(instance, createErrorReport(error, source, instance, phase));
+  });
+  if (instance) observeTaskPromise(observed, instance);
+  else void observed;
+}
+
+/** Tracks promise settlement as renderer-owned work without converting rejection into a component error. */
+export function trackComponentAsync(instance: ComponentInstance<any>, value: PromiseLike<unknown>): void {
+  const settlement = Promise.resolve(value).then(() => undefined, () => undefined);
+  observeTaskPromise(settlement, instance);
 }
 
 /** Runs a function with a task observer that can await async component task work. */
@@ -1016,6 +1054,10 @@ export function handleComponentError(
   while (cursor) {
     if (cursor.contexts.has(ErrorContext.id)) {
       const context = unwrap(cursor.contexts.get(ErrorContext.id)) as ErrorContextValue;
+      if (context.boundary === instance) {
+        cursor = cursor.parent;
+        continue;
+      }
       context.report(event);
       cursor.invalidate?.();
       return undefined;
@@ -1041,6 +1083,23 @@ export function handleComponentError(
     });
   }
   return fallback;
+}
+
+/** Routes a thrown promise to the nearest async rendering boundary. */
+export function handleComponentSuspension(
+  instance: ComponentInstance<any> | undefined,
+  promise: PromiseLike<unknown>
+): boolean {
+  let cursor = instance;
+  while (cursor) {
+    if (cursor.contexts.has(SuspensionContext.id)) {
+      const context = unwrap(cursor.contexts.get(SuspensionContext.id)) as SuspensionContextValue;
+      context.suspend(promise);
+      return true;
+    }
+    cursor = cursor.parent;
+  }
+  return false;
 }
 
 /** Normalizes any component render result into a flat child array. */
@@ -1181,7 +1240,7 @@ function startTaskGeneration(task: TaskRegistration, instance: ComponentInstance
 }
 
 function observeTaskPromise(promise: Promise<unknown>, instance: ComponentInstance<any>): void {
-  taskObserverStack[taskObserverStack.length - 1]?.register(promise, instance);
+  (taskObserverStack[taskObserverStack.length - 1] ?? retainedTaskObservers.get(instance))?.register(promise, instance);
 }
 
 function runTaskCleanup(task: TaskRegistration, instance: ComponentInstance<any>): Promise<void> | undefined {

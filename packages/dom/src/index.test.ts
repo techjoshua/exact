@@ -4,6 +4,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createCompiledVNode,
+  createContext,
+  createPortal,
   createVNode,
   createDynamicChild,
   createExpression,
@@ -24,6 +26,35 @@ import { adoptStatic, percent, px, rem, render, unmount } from "./index.js";
 import { mountedDomNodes, placeMountedBefore } from "./placement.js";
 
 describe("@exact/dom", () => {
+  it("renders portals in another container while preserving logical context and cleanup", () => {
+    const container = document.createElement("div");
+    const target = document.createElement("aside");
+    const Message = createContext("default");
+    let unmounted = false;
+    let clicks = 0;
+
+    function PortalChild(this: Component<Record<string, never>>) {
+      const message = this.getContext(Message);
+      this.onUnmount(() => { unmounted = true; });
+      return () => jsx("button", { onClick: () => { clicks++; }, children: message as Child });
+    }
+
+    function App(this: Component<Record<string, never>>) {
+      this.setContext(Message, "through-portal");
+      return () => createPortal(target, jsx(PortalChild, {}));
+    }
+
+    render(jsx(App, {}), container);
+    expect(container.textContent).toBe("");
+    expect(target.innerHTML).toBe("<button>through-portal</button>");
+    target.querySelector("button")!.click();
+    expect(clicks).toBe(1);
+
+    unmount(container);
+    expect(target.textContent).toBe("");
+    expect(unmounted).toBe(true);
+  });
+
   it("creates SVG and MathML descendants in their inherited namespaces", () => {
     const container = document.createElement("div");
     render(jsx("div", { children: [

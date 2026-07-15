@@ -4,11 +4,20 @@ import {
   invalidateExpressionModule,
   parseExactCompilerManifest,
   resolveExactArtifactImport,
+  transformReactJsx,
   transformSource,
+  usesReactRuntimeImports,
   type ExactCompilerManifest,
   type TransformTarget
 } from "@exact/compiler";
 import { readFileSync } from "node:fs";
+import path from "node:path";
+import {
+  jsxSourceOwnership,
+  resolveReactCompatibility,
+  validateInstalledReactReconciler,
+  type ReactCompatibilityOptions
+} from "@exact/react-compat/plugin";
 
 export type ExactBunPluginOptions = {
   target?: TransformTarget;
@@ -20,6 +29,7 @@ export type ExactBunPluginOptions = {
   exclude?: FilterPattern;
   serverComponents?: boolean;
   sourceMap?: boolean;
+  reactCompatibility?: boolean | ReactCompatibilityOptions;
 };
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
@@ -64,6 +74,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
   return {
     name: "exact",
     setup(build) {
+      const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
       build.config ??= {};
       build.config.conditions = mergeConditions(build.config.conditions ?? [], exactExportConditions(targetFor(options), options));
       // A new Bun build may have been triggered by tsconfig or another file
@@ -73,6 +84,19 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
         const resolved = resolveExactArtifactImport(args.path, args.importer, targetFor(options));
         return resolved ? { path: resolved.id } : {};
       });
+      if (reactCompatibility) {
+        build.onResolve({ filter: /^react-reconciler$/ }, args => {
+          validateInstalledReactReconciler(
+            reactCompatibility.target,
+            args.importer ? path.dirname(args.importer) : process.cwd()
+          );
+          return {};
+        });
+        build.onResolve({ filter: /^(?:react(?:\/(?:jsx-runtime|jsx-dev-runtime|compiler-runtime))?|react-dom(?:\/(?:client|server(?:\.(?:browser|node))?|static(?:\.(?:browser|node))?))?)$/ }, args => {
+          const replacement = reactCompatibility.aliases[args.path];
+          return replacement ? { path: replacement } : {};
+        });
+      }
       // Bun does not expose Vite's changed-file HMR hook. Observe every loaded
       // TypeScript/JavaScript dependency so non-JSX type and export changes
       // invalidate their transitive expression consumers before compilation.
@@ -106,6 +130,17 @@ async function readBunLoadSource(args: BunLoadArgs): Promise<string> {
 export function transformExactBunSource(source: string, filename: string, options: ExactBunPluginOptions = {}): { code: string; map: unknown } | null {
   if (!shouldTransform(filename, source, options)) return null;
   try {
+    const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
+    const ownership = jsxSourceOwnership(filename, source, reactCompatibility);
+    const reactOwned = ownership === "react" || ownership === "unknown" && usesReactRuntimeImports(source, filename);
+    if (reactOwned) {
+      if (!reactCompatibility) return null;
+      return transformReactJsx(source, {
+        filename,
+        target: reactCompatibility.target,
+        sourceMap: options.sourceMap ?? true
+      });
+    }
     const result = transformSource(source, {
       filename,
       target: options.target,

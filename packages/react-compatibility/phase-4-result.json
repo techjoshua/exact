@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "completedAt": "2026-07-15",
+  "phase": 4,
+  "compatibility": {
+    "supported": [
+      "persistent React class instances with object and functional setState",
+      "forceUpdate, class refs, contextType, defaultProps, and derived state",
+      "PureComponent and shouldComponentUpdate",
+      "modern and legacy class lifecycle methods",
+      "getDerivedStateFromError and componentDidCatch error boundaries",
+      "React 18 legacy render and unmount entrypoints",
+      "react-error-boundary 6.1.2"
+    ],
+    "approximate": [
+      "class commit lifecycles and update callbacks at eXact's post-DOM microtask boundary",
+      "Profiler phases and adapter duration without Fiber subtree/base timing",
+      "act without React's private internal test queue",
+      "legacy hydrate as compatibility rendering without DOM adoption",
+      "component stacks using available eXact owner names rather than Fiber source stacks"
+    ],
+    "deferred": [
+      "hydrateRoot and actual DOM adoption",
+      "React server rendering and streaming",
+      "request-scoped cache and streaming Suspense coordination"
+    ]
+  },
+  "commands": [
+    { "command": "npm run build", "status": "passed" },
+    { "command": "npm run test:packages", "status": "passed", "files": 55, "tests": 791 },
+    { "command": "npm run test:server-components", "status": "passed", "files": 1, "tests": 2 },
+    { "command": "npm run test:shipping", "status": "passed-outside-sandbox", "files": 4, "tests": 15 },
+    { "command": "npm run check:react-compat", "status": "passed", "baselines": ["18.3.1", "19.2.0"], "phases": [1, 2, 3, 4] },
+    { "command": "npm run check:publish", "status": "passed" },
+    { "command": "npm run check:expressions", "status": "passed-with-8gb-heap", "files": 282, "projects": 34 },
+    {
+      "command": "npm run typecheck:tests",
+      "status": "pre-existing-failure",
+      "note": "adapters/node-adapter/src/index.test.ts:88 passes a stream response without the body required by ExactResponseLike; no Phase 4 type errors remain."
+    }
+  ]
+}

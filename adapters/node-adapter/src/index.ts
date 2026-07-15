@@ -4,14 +4,23 @@ import { handleExactRequest, type ExactResponseLike, type ExactServerContext } f
 /** Creates a Node http.createServer-compatible eXact endpoint handler. */
 export function createExactNodeHandler(context: ExactServerContext): (request: IncomingMessage, response: ServerResponse) => void {
   return (request, response) => {
+    const disconnect = new AbortController();
+    const abort = () => disconnect.abort(new DOMException("Client disconnected", "AbortError"));
+    request.once("aborted", abort);
+    response.once("close", abort);
+    const cleanup = () => {
+      request.off("aborted", abort);
+      response.off("close", abort);
+    };
     void handleExactRequest({
       method: request.method ?? "GET",
       url: request.url,
       headers: request.headers,
-      text: () => readNodeRequestBody(request)
+      text: () => readNodeRequestBody(request),
+      signal: disconnect.signal
     }, context).then(
-      result => writeNodeResponse(response, result),
-      error => writeNodeError(response, error)
+      result => writeNodeResponse(response, result, disconnect.signal).finally(cleanup),
+      error => { cleanup(); writeNodeError(response, error); }
     );
   };
 }
@@ -27,11 +36,11 @@ export function readNodeRequestBody(request: IncomingMessage): Promise<string> {
 }
 
 /** Writes an eXact response object to a Node ServerResponse. */
-export function writeNodeResponse(response: ServerResponse, result: ExactResponseLike): void {
+export async function writeNodeResponse(response: ServerResponse, result: ExactResponseLike, signal?: AbortSignal): Promise<void> {
   response.statusCode = result.status;
   for (const [name, value] of Object.entries(result.headers)) response.setHeader(name, value);
   if (result.stream) {
-    void pipeReadableStream(result.stream, chunk => response.write(chunk), () => response.end(), error => response.destroy(error as Error));
+    await pipeReadableStream(result.stream, response, signal);
   } else {
     response.end(result.body ?? "");
   }
@@ -46,21 +55,51 @@ function writeNodeError(response: ServerResponse, error: unknown): void {
 
 async function pipeReadableStream(
   stream: ReadableStream<Uint8Array>,
-  write: (chunk: Uint8Array) => void,
-  end: () => void,
-  fail: (error: unknown) => void
+  response: ServerResponse,
+  signal?: AbortSignal
 ): Promise<void> {
   const reader = stream.getReader();
   try {
     while (true) {
+      throwIfAborted(signal);
       const next = await reader.read();
       if (next.done) break;
-      write(next.value);
+      throwIfAborted(signal);
+      if (!response.write(next.value)) await waitForDrain(response, signal);
     }
-    end();
+    throwIfAborted(signal);
+    response.end();
   } catch (error) {
-    fail(error);
+    try { await reader.cancel(error); } catch { /* preserve the transport failure */ }
+    if (!response.destroyed) response.destroy(error as Error);
+  } finally {
+    try { reader.releaseLock(); } catch { /* reader cleanup is best-effort */ }
   }
+}
+
+function waitForDrain(response: ServerResponse, signal?: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      response.off("drain", drain);
+      signal?.removeEventListener("abort", abort);
+    };
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback();
+    };
+    const drain = () => finish(resolve);
+    const abort = () => finish(() => reject(signal?.reason ?? new DOMException("Client disconnected", "AbortError")));
+    if (signal?.aborted) { abort(); return; }
+    response.once("drain", drain);
+    signal?.addEventListener("abort", abort, { once: true });
+  });
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw signal.reason ?? new DOMException("Client disconnected", "AbortError");
 }
 
 export { createExactNodeHandler as createNodeHandler };

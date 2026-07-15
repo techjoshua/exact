@@ -1,22 +1,29 @@
-import { batch, createErrorReport, handleComponentError } from "@exact/core";
+import { batch, createErrorReport, handleComponentError, observeComponentAsync } from "@exact/core";
 import { preserveFocus } from "./focus.js";
 import { findOwnerInstance } from "./ownership.js";
 import { eventHandlers } from "./state.js";
 import type { Root } from "./types.js";
 
 /** Ensures a delegated event listener exists for a root/type pair. */
-export function ensureDelegated(root: Root, type: string): void {
-  if (root.delegated.has(type)) return;
+export function ensureDelegated(root: Root, type: string, container: Node = root.container): void {
+  let listeners = root.delegated.get(container);
+  if (!listeners) {
+    listeners = new Map();
+    root.delegated.set(container, listeners);
+  }
+  if (listeners.has(type)) return;
 
   const listener = (event: Event) => {
-    const path = eventPath(event, root.container);
+    const path = eventPath(event, container);
     for (const cursor of path) {
       const handler = eventHandlers.get(cursor)?.get(type);
       if (handler) {
         const current = cursor;
         preserveFocus(root, () => {
           try {
-            batch(() => callDelegatedHandler(handler, current, event));
+            const owner = findOwnerInstance(current);
+            const result = batch(() => callDelegatedHandler(handler, current, event));
+            observeComponentAsync(owner, result, "event", type);
           } catch (error) {
             const owner = findOwnerInstance(current);
             handleComponentError(owner, createErrorReport(error, "event", owner, type));
@@ -24,23 +31,24 @@ export function ensureDelegated(root: Root, type: string): void {
         });
       }
       if (event.cancelBubble) break;
-      if (cursor === root.container) break;
+      if (cursor === container) break;
     }
   };
 
-  root.container.addEventListener(type, listener);
-  root.delegated.set(type, listener);
+  container.addEventListener(type, listener);
+  listeners.set(type, listener);
 }
 
 /** Removes every event listener delegated through a renderer root. */
 export function clearDelegated(root: Root): void {
-  for (const [type, listener] of root.delegated) {
-    root.container.removeEventListener(type, listener);
+  for (const [container, listeners] of root.delegated) {
+    for (const [type, listener] of listeners) container.removeEventListener(type, listener);
   }
   root.delegated.clear();
+  root.portalTargets.clear();
 }
 
-function eventPath(event: Event, container: Element): Element[] {
+function eventPath(event: Event, container: Node): Element[] {
   const native = typeof event.composedPath === "function" ? event.composedPath() : [];
   if (native.length) {
     const path: Element[] = [];
@@ -62,7 +70,7 @@ function eventPath(event: Event, container: Element): Element[] {
   return path;
 }
 
-function callDelegatedHandler(handler: EventListener, current: Element, event: Event): void {
+function callDelegatedHandler(handler: EventListener, current: Element, event: Event): unknown {
   const ownDescriptor = Object.getOwnPropertyDescriptor(event, "currentTarget");
   // Delegation runs one root listener, so expose the matched element as currentTarget
   // during the user handler to preserve ordinary DOM event ergonomics.
@@ -71,7 +79,7 @@ function callDelegatedHandler(handler: EventListener, current: Element, event: E
     value: current
   });
   try {
-    handler.call(current, event);
+    return (handler as (this: Element, event: Event) => unknown).call(current, event);
   } finally {
     if (ownDescriptor) {
       Object.defineProperty(event, "currentTarget", ownDescriptor);

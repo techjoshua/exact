@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "completedAt": "2026-07-14",
+  "phase": 1,
+  "compatibility": {
+    "supported": [
+      "React 18.3 and 19.2 element records",
+      "function components and fragments",
+      "automatic and development JSX runtimes",
+      "Children, createElement, cloneElement, and isValidElement",
+      "useState, useReducer, useRef, useMemo, useCallback, and useDebugValue",
+      "shallow custom hooks composed from supported hooks",
+      "react-dom/client createRoot and unmount",
+      "opt-in Vite, Webpack, and Bun aliases",
+      "lucide-react 0.468.0 presentational components"
+    ],
+    "deferred": [
+      "effects and context",
+      "DOM refs and imperative handles",
+      "portals, Suspense, and transitions",
+      "class components and error boundaries",
+      "hydration and server rendering"
+    ]
+  },
+  "commands": [
+    { "command": "npm run build", "status": "passed" },
+    { "command": "npm run test:packages", "status": "passed", "files": 49, "tests": 766 },
+    { "command": "npm run test:server-components", "status": "passed", "files": 1, "tests": 2 },
+    { "command": "npm run test:shipping", "status": "passed-outside-sandbox", "files": 4, "tests": 15 },
+    { "command": "npm run check:react-compat", "status": "passed", "baselines": ["18.3.1", "19.2.0"] },
+    { "command": "npm run check:publish", "status": "passed" },
+    { "command": "npm run check:expressions", "status": "passed-with-8gb-heap", "files": 258, "projects": 34 },
+    {
+      "command": "npm run typecheck:tests",
+      "status": "pre-existing-failure",
+      "note": "adapters/node-adapter/src/index.test.ts:88 passes a stream response without the body required by ExactResponseLike."
+    }
+  ]
+}

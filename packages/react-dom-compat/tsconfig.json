@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "lib": ["ES2022", "DOM"]
+  },
+  "references": [
+    { "path": "../core" },
+    { "path": "../reactive" },
+    { "path": "../dom" },
+    { "path": "../hydrate" },
+    { "path": "../ssr" },
+    { "path": "../react-compat" }
+  ],
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+}

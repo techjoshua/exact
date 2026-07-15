@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "completedAt": "2026-07-15",
+  "phase": 5,
+  "compatibility": {
+    "supported": [
+      "markerless matching-DOM adoption with identity, events, updates, and cleanup",
+      "recoverable mismatch replacement and form-state restoration",
+      "React 18 and React 19 server, browser-server, and React 19 static entrypoint aliases",
+      "request-scoped React 19 cache entries and aborting cache signals",
+      "@emotion/react 11.14.0 and @tanstack/react-query 5.101.2 server fixtures"
+    ],
+    "approximate": [
+      "hydrateRoot without selective hydration, event replay, identifierPrefix encoding, or Fiber component stacks",
+      "common React HTML serialization without every specialized host-element rule",
+      "all-ready Node and Web streams without incremental Suspense boundary reveal ordering",
+      "prerender and resume shapes without serialized postponed Fiber state",
+      "cache calls outside compatibility server components use the process fallback"
+    ],
+    "deferred": [
+      "incremental Suspense streaming and selective hydration coordination",
+      "genuine postponed-state serialization and resume",
+      "complete React host-element and server resource/form normalization",
+      "Fiber scheduler lanes, owner stacks, and server component protocols"
+    ]
+  },
+  "commands": [
+    { "command": "npm run build", "status": "passed" },
+    { "command": "npm run test:packages", "status": "passed", "files": 57, "tests": 799 },
+    { "command": "npm run test:server-components", "status": "passed", "files": 1, "tests": 2 },
+    { "command": "npm run test:shipping", "status": "passed-outside-sandbox", "files": 4, "tests": 15 },
+    { "command": "npm run check:react-compat", "status": "passed", "baselines": ["18.3.1", "19.2.0"], "phases": [1, 2, 3, 4, 5] },
+    { "command": "npm run check:publish", "status": "passed" },
+    { "command": "npm run check:expressions", "status": "passed-with-8gb-heap", "files": 296, "projects": 34 },
+    {
+      "command": "npm run typecheck:tests",
+      "status": "pre-existing-failure",
+      "note": "adapters/node-adapter/src/index.test.ts:88 passes a stream response without the body required by ExactResponseLike; no Phase 5 type errors remain."
+    }
+  ]
+}

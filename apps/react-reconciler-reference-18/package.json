@@ -1,0 +1,14 @@
+{
+  "name": "@exact/react-reconciler-reference-18",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@react-three/fiber": "8.18.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-reconciler": "0.29.2",
+    "scheduler": "0.23.2",
+    "three": "0.185.1"
+  }
+}

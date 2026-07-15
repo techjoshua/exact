@@ -53,8 +53,8 @@ This note records the implemented SSR/hydration foundation and the remaining des
 
 `@exact/compiler` owns semantic analysis and artifact generation:
 
-- Emits compiler manifests for components, tasks, state effects, render edges, symbols, boundaries, and server actions.
-- Infers `this.task(...)` placement and supports `this.task.server(...)` / `this.task.client(...)` escape hatches.
+- Emits strictly validated compiler manifest v2 metadata for callable and initializer effects, call edges, state/context flow, artifact targets, components, tasks, render edges, symbols, boundaries, and server actions. Runtime transport protocols remain v1.
+- Infers `this.task(...)` placement transitively across project sources and v2 manifests, and supports validated `this.task.server(...)` / `this.task.client(...)` escape hatches.
 - Emits task diagnostics for inferred placement decisions, including state-writing tasks promoted to isomorphic SSR/hydration work and lifecycle tasks kept client-side.
 - Emits paired client/server artifacts and manifest files with `exactc --artifacts --serverComponents`.
 - Splits clear server/client boundaries for pure client components, imported client components, event handlers, refs, generated client islands, server slots, and server parts.

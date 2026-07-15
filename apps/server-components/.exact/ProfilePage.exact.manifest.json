@@ -1,9 +1,152 @@
 {
-  "version": 1,
+  "version": 2,
   "filename": "apps\\server-components\\src\\ProfilePage.tsx",
+  "dependencies": [],
+  "semanticGraph": {
+    "scopes": [
+      {
+        "id": "apps/server-components/src/profilepage.tsx:scope:0:667:SourceFile",
+        "kind": "module",
+        "nodeKind": "SourceFile"
+      },
+      {
+        "id": "apps/server-components/src/profilepage.tsx:scope:113:666:FunctionDeclaration",
+        "parentId": "apps/server-components/src/profilepage.tsx:scope:0:667:SourceFile",
+        "kind": "function",
+        "nodeKind": "FunctionDeclaration"
+      },
+      {
+        "id": "apps/server-components/src/profilepage.tsx:scope:282:666:Block",
+        "parentId": "apps/server-components/src/profilepage.tsx:scope:113:666:FunctionDeclaration",
+        "kind": "block",
+        "nodeKind": "Block"
+      },
+      {
+        "id": "apps/server-components/src/profilepage.tsx:scope:375:472:ArrowFunction",
+        "parentId": "apps/server-components/src/profilepage.tsx:scope:282:666:Block",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
+      },
+      {
+        "id": "apps/server-components/src/profilepage.tsx:scope:386:472:Block",
+        "parentId": "apps/server-components/src/profilepage.tsx:scope:375:472:ArrowFunction",
+        "kind": "block",
+        "nodeKind": "Block"
+      },
+      {
+        "id": "apps/server-components/src/profilepage.tsx:scope:484:663:ArrowFunction",
+        "parentId": "apps/server-components/src/profilepage.tsx:scope:282:666:Block",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
+      },
+      {
+        "id": "apps/server-components/src/profilepage.tsx:scope:563:587:ArrowFunction",
+        "parentId": "apps/server-components/src/profilepage.tsx:scope:484:663:ArrowFunction",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
+      }
+    ],
+    "declarations": [
+      {
+        "id": "apps/server-components/src/profilepage.tsx::ImportSpecifier#0:Component",
+        "name": "Component",
+        "scopeId": "apps/server-components/src/profilepage.tsx:scope:0:667:SourceFile",
+        "kind": "import",
+        "nodeStart": 14,
+        "nodeEnd": 23,
+        "moduleSpecifier": "@exact/core",
+        "importedName": "Component",
+        "typeOnly": true
+      },
+      {
+        "id": "apps/server-components/src/profilepage.tsx::TypeAliasDeclaration#0:ProfileState",
+        "name": "ProfileState",
+        "scopeId": "apps/server-components/src/profilepage.tsx:scope:0:667:SourceFile",
+        "kind": "type",
+        "nodeStart": 59,
+        "nodeEnd": 71,
+        "exportedName": "ProfileState"
+      },
+      {
+        "id": "apps/server-components/src/profilepage.tsx::FunctionDeclaration#0:ProfilePage",
+        "name": "ProfilePage",
+        "scopeId": "apps/server-components/src/profilepage.tsx:scope:113:666:FunctionDeclaration",
+        "kind": "function",
+        "nodeStart": 215,
+        "nodeEnd": 226,
+        "exportedName": "ProfilePage"
+      },
+      {
+        "id": "apps/server-components/src/profilepage.tsx:FunctionDeclaration:ProfilePage:Parameter#0:this",
+        "name": "this",
+        "scopeId": "apps/server-components/src/profilepage.tsx:scope:113:666:FunctionDeclaration",
+        "kind": "parameter",
+        "nodeStart": 227,
+        "nodeEnd": 231
+      },
+      {
+        "id": "apps/server-components/src/profilepage.tsx:FunctionDeclaration:ProfilePage:Parameter#0:props",
+        "name": "props",
+        "scopeId": "apps/server-components/src/profilepage.tsx:scope:113:666:FunctionDeclaration",
+        "kind": "parameter",
+        "nodeStart": 258,
+        "nodeEnd": 263
+      }
+    ],
+    "references": [
+      {
+        "name": "Component",
+        "scopeId": "apps/server-components/src/profilepage.tsx:scope:113:666:FunctionDeclaration",
+        "source": "import",
+        "nodeStart": 233,
+        "nodeEnd": 242,
+        "declarationId": "apps/server-components/src/profilepage.tsx::ImportSpecifier#0:Component",
+        "declarationKind": "import",
+        "moduleSpecifier": "@exact/core",
+        "importedName": "Component",
+        "typeOnly": true
+      },
+      {
+        "name": "ProfileState",
+        "scopeId": "apps/server-components/src/profilepage.tsx:scope:113:666:FunctionDeclaration",
+        "source": "local",
+        "nodeStart": 243,
+        "nodeEnd": 255,
+        "declarationId": "apps/server-components/src/profilepage.tsx::TypeAliasDeclaration#0:ProfileState",
+        "declarationKind": "type",
+        "typeOnly": true
+      },
+      {
+        "name": "Promise",
+        "scopeId": "apps/server-components/src/profilepage.tsx:scope:386:472:Block",
+        "source": "unresolved",
+        "nodeStart": 399,
+        "nodeEnd": 406
+      },
+      {
+        "name": "props",
+        "scopeId": "apps/server-components/src/profilepage.tsx:scope:386:472:Block",
+        "source": "local",
+        "nodeStart": 455,
+        "nodeEnd": 460,
+        "declarationId": "apps/server-components/src/profilepage.tsx:FunctionDeclaration:ProfilePage:Parameter#0:props",
+        "declarationKind": "parameter"
+      }
+    ],
+    "exports": [
+      {
+        "exportedName": "ProfilePage",
+        "localName": "ProfilePage"
+      },
+      {
+        "exportedName": "ProfileState",
+        "localName": "ProfileState"
+      }
+    ]
+  },
   "components": [
     {
-      "id": "xqvx4d9",
+      "id": "x2EC0RcwGu0f7qEmyI8OmrU",
       "name": "ProfilePage",
       "exported": true,
       "placement": "isomorphic",
@@ -12,7 +155,7 @@
       "clientIslandCount": 1,
       "tasks": [
         {
-          "id": "xxhbu5y",
+          "id": "x3JLureiZflgJmddVWOBoBF",
           "placement": "server",
           "requestedPlacement": "server",
           "async": true,
@@ -25,16 +168,24 @@
               "confidence": "exact"
             }
           ],
+          "contexts": [],
           "diagnostics": [
             "task placement forced by this.task.server()"
-          ]
+          ],
+          "environmentEffect": "neutral",
+          "effectSources": []
         }
       ],
+      "contexts": [],
       "splitBoundaries": [
         "event-handler"
       ],
       "diagnostics": [
         "task placement forced by this.task.server()"
+      ],
+      "environmentEffect": "server",
+      "artifactTargets": [
+        "server"
       ]
     }
   ],
@@ -43,24 +194,29 @@
       "name": "ProfilePage",
       "kind": "component",
       "placement": "isomorphic"
+    },
+    {
+      "name": "ProfileState",
+      "kind": "value",
+      "placement": "unknown"
     }
   ],
   "symbols": [
     {
-      "id": "xjajidn",
-      "componentId": "xqvx4d9",
+      "id": "xFN_VnZfzqKaEc3fQ0-WspR",
+      "componentId": "x2EC0RcwGu0f7qEmyI8OmrU",
       "exportName": "ProfilePage",
       "localName": "ProfilePage",
       "generatedName": "ProfilePage",
       "debugName": "ProfilePage",
       "kind": "component",
       "role": "root",
-      "target": "both",
+      "target": "server",
       "placement": "isomorphic"
     },
     {
-      "id": "x4gpi7t",
-      "componentId": "xqvx4d9",
+      "id": "xn4HBfS6VSk_X0fHSn2U6sr",
+      "componentId": "x2EC0RcwGu0f7qEmyI8OmrU",
       "exportName": "ProfilePage_ExactServer_1",
       "localName": "ProfilePage",
       "generatedName": "ProfilePage_ExactServer_1",
@@ -71,8 +227,8 @@
       "placement": "isomorphic"
     },
     {
-      "id": "x1wcbdtx",
-      "componentId": "xqvx4d9",
+      "id": "xjbD874UpZxqjxcAu1_iYpK",
+      "componentId": "x2EC0RcwGu0f7qEmyI8OmrU",
       "exportName": "ProfilePage_ExactClient_1",
       "localName": "ProfilePage_ExactClient_1",
       "generatedName": "ProfilePage_ExactClient_1",
@@ -85,18 +241,162 @@
   ],
   "boundaries": [
     {
-      "id": "x1wcbdtx",
+      "id": "xjbD874UpZxqjxcAu1_iYpK",
       "name": "ProfilePage_ExactClient_1",
-      "componentId": "xqvx4d9",
-      "ownerComponentId": "xqvx4d9",
+      "componentId": "x2EC0RcwGu0f7qEmyI8OmrU",
+      "ownerComponentId": "x2EC0RcwGu0f7qEmyI8OmrU",
       "kind": "client-island"
     }
   ],
+  "callables": [
+    {
+      "id": "x0HVwbFZhYtdsTWPLjMCIIh",
+      "name": "ProfilePage",
+      "kind": "component",
+      "exportNames": [
+        "ProfilePage"
+      ],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "x_jwhVTd3rhE9izYj3wWRvG",
+          "name": "this.task.server",
+          "resolved": false
+        },
+        {
+          "id": "xEsyJyGG2NlGK2BSSkmXy9C",
+          "name": "<function@485>:returned",
+          "targetId": "xsJ6XFGdZ6qtOWX2lx8G-Y8",
+          "resolved": true
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [
+        {
+          "path": "saves",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "path": "status",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "stateWrites": [
+        {
+          "path": "saves",
+          "kind": "write",
+          "confidence": "exact"
+        },
+        {
+          "path": "status",
+          "kind": "write",
+          "confidence": "exact"
+        }
+      ],
+      "contexts": []
+    },
+    {
+      "id": "xF9LOjECjec3FmySSS9Fppv",
+      "name": "<function@563>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [],
+      "artifactTargets": [
+        "client"
+      ],
+      "stateReads": [
+        {
+          "path": "saves",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "stateWrites": [
+        {
+          "path": "saves",
+          "kind": "write",
+          "confidence": "exact"
+        }
+      ],
+      "contexts": []
+    },
+    {
+      "id": "xsJ6XFGdZ6qtOWX2lx8G-Y8",
+      "name": "<function@485>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [
+        {
+          "path": "saves",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "path": "status",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "xt8QU2YJ3AzGxGQjcZcS7rz",
+      "name": "ProfilePage.task@375",
+      "kind": "task",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "xvRg16sezb82AHv0w9gXY9H",
+          "name": "Promise.resolve",
+          "resolved": false
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [
+        {
+          "path": "status",
+          "kind": "write",
+          "confidence": "exact"
+        }
+      ],
+      "contexts": []
+    }
+  ],
   "serverActions": {
-    "xxhbu5y": {
-      "id": "xxhbu5y",
-      "componentId": "xqvx4d9",
-      "taskId": "xxhbu5y",
+    "x3JLureiZflgJmddVWOBoBF": {
+      "id": "x3JLureiZflgJmddVWOBoBF",
+      "componentId": "x2EC0RcwGu0f7qEmyI8OmrU",
+      "taskId": "x3JLureiZflgJmddVWOBoBF",
       "placement": "server",
       "stateContract": {
         "reads": [],
@@ -107,7 +407,8 @@
             "confidence": "exact"
           }
         ]
-      }
+      },
+      "contextContract": []
     }
   },
   "diagnostics": [
@@ -123,24 +424,29 @@
         "name": "ProfilePage",
         "kind": "component",
         "placement": "isomorphic"
+      },
+      {
+        "name": "ProfileState",
+        "kind": "value",
+        "placement": "unknown"
       }
     ],
     "symbols": [
       {
-        "id": "xjajidn",
-        "componentId": "xqvx4d9",
+        "id": "xFN_VnZfzqKaEc3fQ0-WspR",
+        "componentId": "x2EC0RcwGu0f7qEmyI8OmrU",
         "exportName": "ProfilePage",
         "localName": "ProfilePage",
         "generatedName": "ProfilePage",
         "debugName": "ProfilePage",
         "kind": "component",
         "role": "root",
-        "target": "both",
+        "target": "server",
         "placement": "isomorphic"
       },
       {
-        "id": "x4gpi7t",
-        "componentId": "xqvx4d9",
+        "id": "xn4HBfS6VSk_X0fHSn2U6sr",
+        "componentId": "x2EC0RcwGu0f7qEmyI8OmrU",
         "exportName": "ProfilePage_ExactServer_1",
         "localName": "ProfilePage",
         "generatedName": "ProfilePage_ExactServer_1",
@@ -151,8 +457,8 @@
         "placement": "isomorphic"
       },
       {
-        "id": "x1wcbdtx",
-        "componentId": "xqvx4d9",
+        "id": "xjbD874UpZxqjxcAu1_iYpK",
+        "componentId": "x2EC0RcwGu0f7qEmyI8OmrU",
         "exportName": "ProfilePage_ExactClient_1",
         "localName": "ProfilePage_ExactClient_1",
         "generatedName": "ProfilePage_ExactClient_1",
@@ -165,10 +471,10 @@
     ],
     "boundaries": [
       {
-        "id": "x1wcbdtx",
+        "id": "xjbD874UpZxqjxcAu1_iYpK",
         "name": "ProfilePage_ExactClient_1",
-        "componentId": "xqvx4d9",
-        "ownerComponentId": "xqvx4d9",
+        "componentId": "x2EC0RcwGu0f7qEmyI8OmrU",
+        "ownerComponentId": "x2EC0RcwGu0f7qEmyI8OmrU",
         "kind": "client-island"
       }
     ]

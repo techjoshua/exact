@@ -8,6 +8,21 @@ eXact supports three rendering modes from the same component model:
 
 Server component mode is opt-in. The authoring goal is still simple: write ordinary eXact components, use `this.task(...)`, and let the compiler infer what can stay on the server. Explicit `this.task.server(...)` and `this.task.client(...)` are escape hatches when the compiler needs a hard boundary.
 
+## Symbol-level placement inference
+
+Placement is inferred per declaration; there is deliberately no module-wide `server-only` or `client-only` marker. One source file can contain server, client, and isomorphic declarations that are emitted into different artifacts.
+
+Compiler manifest v2 records canonical callable, initializer, effect-source, call-edge, state/context, dependency, and artifact-target summaries. Local and v2-manifested calls are resolved by TypeScript binding identity through aliases, methods, namespace imports, and re-exports. Recursive groups use deterministic strongly connected component fixed points. Opaque calls remain `unknown` and require an explicit task boundary when placement affects execution.
+
+Effects and artifact reachability remain separate:
+
+- Browser-only reachability or browser API effects imply client placement.
+- Server-only reachability or server API effects imply server placement.
+- Reachability from both artifacts implies split/isomorphic emission where the effects permit it.
+- Pure effect-free components should begin isomorphic and be emitted into whichever artifact subgraphs consume them.
+
+`this.task.server(...)` and `this.task.client(...)` remain escape hatches for opaque dependencies or intentional lifecycle boundaries. Explicit placement is validated and cannot contradict known transitive effects. Compiler manifest v2 is an artifact-analysis format change only; HTTP actions, streaming, and hydration remain protocol v1.
+
 ## Build Artifacts
 
 Use `exactc --artifacts --serverComponents` to emit split artifacts:

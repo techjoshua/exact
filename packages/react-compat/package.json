@@ -1,0 +1,70 @@
+{
+  "name": "@exact/react-compat",
+  "version": "0.0.0",
+  "type": "module",
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./react18": {
+      "types": "./dist/react18.d.ts",
+      "default": "./dist/react18.js"
+    },
+    "./react19": {
+      "types": "./dist/react19.d.ts",
+      "default": "./dist/react19.js"
+    },
+    "./jsx-runtime": {
+      "types": "./dist/jsx-runtime.d.ts",
+      "default": "./dist/jsx-runtime.js"
+    },
+    "./jsx-runtime18": {
+      "types": "./dist/jsx-runtime18.d.ts",
+      "default": "./dist/jsx-runtime18.js"
+    },
+    "./jsx-runtime19": {
+      "types": "./dist/jsx-runtime19.d.ts",
+      "default": "./dist/jsx-runtime19.js"
+    },
+    "./jsx-dev-runtime": {
+      "types": "./dist/jsx-dev-runtime.d.ts",
+      "default": "./dist/jsx-dev-runtime.js"
+    },
+    "./jsx-dev-runtime18": {
+      "types": "./dist/jsx-dev-runtime18.d.ts",
+      "default": "./dist/jsx-dev-runtime18.js"
+    },
+    "./jsx-dev-runtime19": {
+      "types": "./dist/jsx-dev-runtime19.d.ts",
+      "default": "./dist/jsx-dev-runtime19.js"
+    },
+    "./exact": {
+      "types": "./dist/exact.d.ts",
+      "default": "./dist/exact.js"
+    },
+    "./plugin": {
+      "types": "./dist/plugin.d.ts",
+      "default": "./dist/plugin.js"
+    },
+    "./compiler-runtime": {
+      "types": "./dist/compiler-runtime.d.ts",
+      "default": "./dist/compiler-runtime.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "dependencies": {
+    "@exact/core": "file:../core",
+    "@exact/reactive": "file:../reactive",
+    "semver": "^7.8.5"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  }
+}

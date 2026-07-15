@@ -1,0 +1,472 @@
+import {
+  REACT_CONTEXT_TYPE,
+  REACT_ACTIVITY_TYPE,
+  REACT_FORWARD_REF_TYPE,
+  REACT_FRAGMENT_TYPE,
+  REACT_LAZY_TYPE,
+  REACT_MEMO_TYPE,
+  REACT_PROFILER_TYPE,
+  REACT_PROVIDER_TYPE,
+  REACT_STRICT_MODE_TYPE,
+  REACT_SUSPENSE_TYPE,
+  REACT_CLASS_UPDATER,
+  activeReactCacheScope,
+  assignReactRef,
+  createReactContext,
+  currentReactOwnerFrame,
+  isReactElement,
+  reactCompatibilityTarget,
+  reactElementSymbol,
+  ReactSharedInternals18,
+  ReactSharedInternals19,
+  resolveDispatcher
+} from "./internals.js";
+import type {
+  DependencyList,
+  Dispatch,
+  Key,
+  MutableRefObject,
+  ReactComponentType,
+  ReactElement,
+  ReactNode,
+  ReactContext,
+  ReactRef,
+  Reducer,
+  SetStateAction
+} from "./types.js";
+import { flushSync } from "@exact/reactive";
+
+export type * from "./types.js";
+
+export const Fragment = REACT_FRAGMENT_TYPE;
+export const StrictMode = REACT_STRICT_MODE_TYPE;
+export const Profiler = REACT_PROFILER_TYPE;
+export const Suspense = REACT_SUSPENSE_TYPE;
+export const Activity = REACT_ACTIVITY_TYPE;
+export const ViewTransition = Symbol.for("react.view_transition");
+export const version = "19.2.0-exact";
+export const __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactSharedInternals18;
+export const __CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = ReactSharedInternals19;
+// React's server condition exposes a smaller view (H, A, stack bookkeeping).
+// Keeping it on the same target singleton is intentional: a package graph must
+// never acquire a second dispatcher merely because it crossed an export condition.
+export const __SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = ReactSharedInternals19;
+
+export function createElement<P extends Record<string, unknown>>(type: string | symbol | ReactComponentType<P>, config?: (P & { key?: Key; ref?: unknown }) | null, ...children: ReactNode[]): ReactElement<P> {
+  const source = config ?? {} as P;
+  const props: Record<string, unknown> = {};
+  let key: string | null = null;
+  let ref: unknown = null;
+  for (const [name, value] of Object.entries(source)) {
+    if (name === "key") key = value === undefined ? null : String(value);
+    else if (name === "ref") ref = value;
+    else props[name] = value;
+  }
+  if (children.length === 1) props.children = children[0];
+  else if (children.length > 1) props.children = children;
+  // React 19's reconciler reads refs from props. Retain the top-level field as
+  // well because the eXact adapter and React 18 target consume that shape.
+  if (reactCompatibilityTarget() === 19 && ref !== null) props.ref = ref;
+  applyDefaultProps(type, props);
+  return {
+    $$typeof: reactElementSymbol(), type, key, ref,
+    props: props as P & { children?: ReactNode },
+    _owner: currentReactOwnerFrame(),
+    _store: { validated: 0 }
+  };
+}
+
+export function cloneElement<P extends Record<string, unknown>>(element: ReactElement<P>, config?: Partial<P> & { key?: Key; ref?: unknown }, ...children: ReactNode[]): ReactElement<P> {
+  if (!isValidElement(element)) throw new TypeError("cloneElement requires a valid React element");
+  const props = { ...element.props, ...(config ?? {}) } as Record<string, unknown> & P & { key?: Key; ref?: unknown; children?: ReactNode };
+  const key = config && "key" in config ? config.key : element.key;
+  const ref = config && "ref" in config ? config.ref : element.ref;
+  delete props.key;
+  delete props.ref;
+  if (children.length === 1) props.children = children[0];
+  else if (children.length > 1) props.children = children;
+  return createElement(element.type, { ...props, key: key ?? undefined, ref }, ...(children.length ? children : childrenFrom(props.children))) as ReactElement<P>;
+}
+
+export function isValidElement(value: unknown): value is ReactElement { return isReactElement(value); }
+
+export const Children = Object.freeze({
+  map<T>(children: ReactNode, callback: (child: ReactNode, index: number) => T): T[] | null {
+    if (children === null || children === undefined) return null;
+    return flattenChildren(children).map(callback);
+  },
+  forEach(children: ReactNode, callback: (child: ReactNode, index: number) => void): void {
+    flattenChildren(children).forEach(callback);
+  },
+  count(children: ReactNode): number { return flattenChildren(children, false).length; },
+  only(children: ReactNode): ReactElement {
+    if (!isValidElement(children)) throw new Error("React.Children.only expected to receive a single React element child.");
+    return children;
+  },
+  toArray(children: ReactNode): ReactNode[] { return flattenChildren(children); }
+});
+
+export function useState<S>(initial: S | (() => S)): readonly [S, Dispatch<SetStateAction<S>>] {
+  return resolveDispatcher().useState(initial) as readonly [S, Dispatch<SetStateAction<S>>];
+}
+
+export function useReducer<S, A>(reducer: Reducer<S, A>, initialArg: S): readonly [S, Dispatch<A>];
+export function useReducer<S, I, A>(reducer: Reducer<S, A>, initialArg: I, initializer: (value: I) => S): readonly [S, Dispatch<A>];
+export function useReducer<S, I, A>(reducer: Reducer<S, A>, initialArg: I, initializer?: (value: I) => S): readonly [S, Dispatch<A>] {
+  return resolveDispatcher().useReducer(reducer as (state: unknown, action: unknown) => unknown, initialArg, initializer as ((value: unknown) => unknown) | undefined) as readonly [S, Dispatch<A>];
+}
+
+export function useRef<T>(initial: T): MutableRefObject<T> { return resolveDispatcher().useRef(initial) as MutableRefObject<T>; }
+export function useMemo<T>(factory: () => T, deps?: DependencyList): T { return resolveDispatcher().useMemo(factory, deps) as T; }
+export function useCallback<T extends (...args: any[]) => any>(callback: T, deps?: DependencyList): T { return resolveDispatcher().useCallback(callback, deps); }
+export function useDebugValue<T>(value: T, format?: (value: T) => unknown): void { resolveDispatcher().useDebugValue(value, format as ((value: unknown) => unknown) | undefined); }
+
+export function forwardRef<P>(render: (props: P, ref: unknown) => ReactNode): ReactComponentType<P> {
+  return { $$typeof: REACT_FORWARD_REF_TYPE, render };
+}
+
+export function memo<P>(type: ReactComponentType<P>, compare?: (previous: P, next: P) => boolean): ReactComponentType<P> {
+  return { $$typeof: REACT_MEMO_TYPE, type, compare: compare ?? null };
+}
+
+export function lazy<P extends Record<string, unknown> = Record<string, unknown>>(loader: () => Promise<{ default: ReactComponentType<P> }>): ReactComponentType<P> {
+  const payload: LazyPayload<P> = { status: "uninitialized", loader };
+  return { $$typeof: REACT_LAZY_TYPE, _payload: payload, _init: initializeLazy };
+}
+
+export function createContext<T>(defaultValue: T): ReactContext<T> { return createReactContext(defaultValue); }
+
+export function createRef<T>(): MutableRefObject<T | null> { return { current: null }; }
+
+export class Component<P = Record<string, unknown>, S = Record<string, unknown>> {
+  declare readonly isReactComponent: object;
+  props: P;
+  state!: S;
+  context: unknown;
+  refs: Record<string, unknown> = {};
+  constructor(props: P, context?: unknown) { this.props = props; this.context = context; }
+  setState(
+    state: Partial<S> | null | ((previous: Readonly<S>, props: Readonly<P>) => Partial<S> | null),
+    callback?: () => void
+  ): void {
+    classUpdater(this).setState(state as never, callback);
+  }
+  forceUpdate(callback?: () => void): void { classUpdater(this).forceUpdate(callback); }
+  render(): ReactNode { return null; }
+}
+Object.defineProperty(Component.prototype, "isReactComponent", { value: {} });
+export class PureComponent<P = Record<string, unknown>, S = Record<string, unknown>> extends Component<P, S> {
+  readonly isPureReactComponent = true;
+}
+
+export function useContext<T>(context: ReactContext<T>): T { return resolveDispatcher().useContext(context); }
+export function useEffect(create: () => void | (() => void), deps?: DependencyList): void { resolveDispatcher().useEffect(create, deps); }
+export function useLayoutEffect(create: () => void | (() => void), deps?: DependencyList): void { resolveDispatcher().useLayoutEffect(create, deps); }
+export function useInsertionEffect(create: () => void | (() => void), deps?: DependencyList): void { resolveDispatcher().useInsertionEffect(create, deps); }
+export function useImperativeHandle<T>(ref: ReactRef<T> | undefined, create: () => T, deps?: DependencyList): void {
+  resolveDispatcher().useImperativeHandle(ref as ReactRef<unknown> | undefined, create, deps);
+}
+export function useId(): string { return resolveDispatcher().useId(); }
+export function useSyncExternalStore<T>(subscribe: (onStoreChange: () => void) => () => void, getSnapshot: () => T, _getServerSnapshot?: () => T): T {
+  return resolveDispatcher().useSyncExternalStore(subscribe, getSnapshot, _getServerSnapshot) as T;
+}
+export function startTransition(scope: () => void): void {
+  const previous18 = ReactSharedInternals18.ReactCurrentBatchConfig.transition;
+  const previous19 = ReactSharedInternals19.T;
+  const transition = {};
+  ReactSharedInternals18.ReactCurrentBatchConfig.transition = transition;
+  ReactSharedInternals19.T = transition;
+  try {
+    const result = scope();
+    ReactSharedInternals19.S?.(transition, result);
+  } finally {
+    ReactSharedInternals18.ReactCurrentBatchConfig.transition = previous18;
+    ReactSharedInternals19.T = previous19;
+  }
+}
+export function useTransition(): readonly [boolean, (scope: () => void | Promise<void>) => void] {
+  return resolveDispatcher().useTransition();
+}
+export function useDeferredValue<T>(value: T, initialValue?: T): T {
+  return resolveDispatcher().useDeferredValue(value, initialValue) as T;
+}
+export function use<T>(usable: PromiseLike<T> | ReactContext<T>): T {
+  return resolveDispatcher().use(usable as PromiseLike<unknown> | ReactContext<unknown>) as T;
+}
+export function useActionState<State, Payload>(
+  action: (previousState: State, payload: Payload) => State | Promise<State>,
+  initialState: State,
+  _permalink?: string
+): readonly [State, (payload: Payload) => void, boolean] {
+  return resolveDispatcher().useActionState(action as (previous: unknown, payload: unknown) => unknown, initialState, _permalink) as readonly [State, (payload: Payload) => void, boolean];
+}
+export function useOptimistic<State, Action = State>(
+  passthrough: State,
+  reducer?: (currentState: State, action: Action) => State
+): readonly [State, (action: Action) => void] {
+  return resolveDispatcher().useOptimistic(
+    passthrough,
+    reducer as ((state: unknown, action: unknown) => unknown) | undefined
+  ) as readonly [State, (action: Action) => void];
+}
+export function useEffectEvent<T extends (...args: any[]) => unknown>(implementation: T): T { return resolveDispatcher().useEffectEvent(implementation); }
+export function cache<Args extends readonly unknown[], Result>(fn: (...args: Args) => Result): (...args: Args) => Result {
+  const identity = {};
+  const fallbackRoot = new Map<unknown, unknown>();
+  const createExternalRoot = () => new Map<unknown, unknown>();
+  return (...args: Args): Result => {
+    const externalRoot = ReactSharedInternals19.A?.getCacheForType?.(createExternalRoot);
+    const scope = externalRoot ? undefined : activeReactCacheScope();
+    let root = externalRoot ?? scope?.roots.get(identity);
+    if (!root) {
+      root = scope ? new Map<unknown, unknown>() : fallbackRoot;
+      scope?.roots.set(identity, root);
+    }
+    let node = root;
+    for (const argument of args) {
+      let next = node.get(argument);
+      if (!(next instanceof Map)) {
+        next = new Map<unknown, unknown>();
+        node.set(argument, next);
+      }
+      node = next as Map<unknown, unknown>;
+    }
+    const entry = node.get(cacheResultKey) as CacheEntry<Result> | undefined;
+    if (entry) {
+      if (entry.status === "rejected") throw entry.value;
+      return entry.value as Result;
+    }
+    try {
+      const value = fn(...args);
+      node.set(cacheResultKey, { status: "fulfilled", value } satisfies CacheEntry<Result>);
+      return value;
+    } catch (error) {
+      node.set(cacheResultKey, { status: "rejected", value: error } satisfies CacheEntry<Result>);
+      throw error;
+    }
+  };
+}
+const compatibilityCacheController = new AbortController();
+export function cacheSignal(): AbortSignal {
+  return ReactSharedInternals19.A?.cacheSignal?.()
+    ?? activeReactCacheScope()?.controller.signal
+    ?? compatibilityCacheController.signal;
+}
+export function captureOwnerStack(): string | null {
+  let frame = currentReactOwnerFrame() as { type?: unknown; return?: unknown } | null;
+  if (!frame) return null;
+  const lines: string[] = [];
+  while (frame) {
+    const type = frame.type as { displayName?: string; name?: string } | string | symbol;
+    const name = typeof type === "string" ? type
+      : typeof type === "symbol" ? type.description ?? "Anonymous"
+      : type?.displayName ?? type?.name ?? "Anonymous";
+    lines.push(`\n    at ${name}`);
+    frame = frame.return as typeof frame;
+  }
+  return lines.join("");
+}
+export function addTransitionType(): never { throw new Error("React API addTransitionType is not supported by eXact compatibility"); }
+export function unstable_useCacheRefresh(): never { throw new Error("React API unstable_useCacheRefresh is not supported by eXact compatibility"); }
+export function createFactory(): never { throw new Error("React API createFactory is not supported by eXact compatibility"); }
+export async function act<T>(callback: () => T | Promise<T>): Promise<T> {
+  type ActCallback = (didTimeout: boolean) => ActCallback | null;
+  const target = reactCompatibilityTarget();
+  const previous18 = ReactSharedInternals18.ReactCurrentActQueue.current as ActCallback[] | null;
+  const previous19 = ReactSharedInternals19.actQueue as ActCallback[] | null;
+  const previousBatching18 = ReactSharedInternals18.ReactCurrentActQueue.isBatchingLegacy;
+  const previousBatching19 = ReactSharedInternals19.isBatchingLegacy;
+  const existing = target === 18 ? previous18 : previous19;
+  const queue = existing ?? [];
+  const outermost = existing === null;
+  if (target === 18) ReactSharedInternals18.ReactCurrentActQueue.current = queue;
+  else ReactSharedInternals19.actQueue = queue;
+  ReactSharedInternals18.ReactCurrentActQueue.isBatchingLegacy = true;
+  ReactSharedInternals19.isBatchingLegacy = true;
+  try {
+    const result = await callback();
+    if (outermost) {
+      let stablePasses = 0;
+      for (let pass = 0; pass < 100 && stablePasses < 2; pass++) {
+        // Give concurrent work one cooperative pass, then force expired work
+        // through on later passes so a scheduler deadline cannot starve act().
+        flushCompatibilityActQueue(queue, pass > 0);
+        flushSync();
+        await Promise.resolve();
+        stablePasses = queue.length === 0 ? stablePasses + 1 : 0;
+      }
+      if (queue.length) throw new Error("React compatibility act() did not settle after 100 flush passes");
+    }
+    return result;
+  } finally {
+    ReactSharedInternals18.ReactCurrentActQueue.current = previous18;
+    ReactSharedInternals19.actQueue = previous19;
+    ReactSharedInternals18.ReactCurrentActQueue.isBatchingLegacy = previousBatching18;
+    ReactSharedInternals19.isBatchingLegacy = previousBatching19;
+  }
+}
+export const unstable_act = act;
+
+function flushCompatibilityActQueue(
+  queue: Array<(didTimeout: boolean) => ((didTimeout: boolean) => unknown) | null>,
+  didTimeout: boolean
+): void {
+  let index = 0;
+  try {
+    while (index < queue.length) {
+      const callback = queue[index]!;
+      const continuation = callback(didTimeout);
+      if (typeof continuation === "function") {
+        queue[index] = continuation as (didTimeout: boolean) => ((didTimeout: boolean) => unknown) | null;
+        if (index > 0) queue.splice(0, index);
+        return;
+      }
+      index++;
+    }
+    queue.length = 0;
+  } catch (error) {
+    queue.splice(0, index + 1);
+    throw error;
+  }
+}
+
+export function compatibilityVersion(): 18 | 19 { return reactCompatibilityTarget(); }
+
+function applyDefaultProps(type: unknown, props: Record<string, unknown>): void {
+  if ((typeof type !== "function" && typeof type !== "object") || type === null) return;
+  const defaults = (type as { defaultProps?: Record<string, unknown> }).defaultProps;
+  if (!defaults) return;
+  for (const [name, value] of Object.entries(defaults)) if (props[name] === undefined) props[name] = value;
+}
+
+function childrenFrom(children: ReactNode | undefined): ReactNode[] { return children === undefined ? [] : Array.isArray(children) ? children : [children]; }
+
+function flattenChildren(children: ReactNode, omitEmpty = true): ReactNode[] {
+  const output: ReactNode[] = [];
+  const visit = (value: ReactNode): void => {
+    if (Array.isArray(value)) { for (const child of value) visit(child); return; }
+    if (omitEmpty && (value === null || value === undefined || typeof value === "boolean")) return;
+    output.push(value);
+  };
+  visit(children);
+  return output;
+}
+
+function phaseError(api: string, phase: number): Error { return new Error(`React API ${api} requires eXact compatibility Phase ${phase}`); }
+
+function classUpdater(instance: object): {
+  setState(state: object | null | ((previous: unknown, props: unknown) => object | null), callback?: () => void): void;
+  forceUpdate(callback?: () => void): void;
+} {
+  const updater = (instance as Record<PropertyKey, unknown>)[REACT_CLASS_UPDATER];
+  if (!updater) throw new Error("Cannot update a React class component before it is mounted by eXact");
+  return updater as ReturnType<typeof classUpdater>;
+}
+
+type LazyPayload<P> = {
+  status: "uninitialized" | "pending" | "fulfilled" | "rejected";
+  loader: () => Promise<{ default: ReactComponentType<P> }>;
+  promise?: Promise<void>;
+  value?: ReactComponentType<P>;
+  error?: unknown;
+};
+
+function initializeLazy<P>(rawPayload: unknown): ReactComponentType<P> {
+  const payload = rawPayload as LazyPayload<P>;
+  if (payload.status === "fulfilled") return payload.value!;
+  if (payload.status === "rejected") throw payload.error;
+  if (payload.status === "uninitialized") {
+    payload.status = "pending";
+    payload.promise = Promise.resolve().then(payload.loader).then(
+      module => { payload.status = "fulfilled"; payload.value = module.default; },
+      error => { payload.status = "rejected"; payload.error = error; }
+    );
+  }
+  throw payload.promise;
+}
+
+type ThenableRecord<T> = { status: "pending" | "fulfilled" | "rejected"; value?: T; error?: unknown };
+const thenableRecords = new WeakMap<object, ThenableRecord<unknown>>();
+function readThenable<T>(thenable: PromiseLike<T>): T {
+  const instrumented = thenable as PromiseLike<T> & { status?: string; value?: T; reason?: unknown };
+  if (instrumented.status === "fulfilled") return instrumented.value as T;
+  if (instrumented.status === "rejected") throw instrumented.reason;
+  let record = thenableRecords.get(thenable as object) as ThenableRecord<T> | undefined;
+  if (!record) {
+    record = { status: "pending" };
+    thenableRecords.set(thenable as object, record as ThenableRecord<unknown>);
+    Promise.resolve(thenable).then(
+      value => { record!.status = "fulfilled"; record!.value = value; },
+      error => { record!.status = "rejected"; record!.error = error; }
+    );
+  }
+  if (record.status === "fulfilled") return record.value as T;
+  if (record.status === "rejected") throw record.error;
+  throw thenable;
+}
+
+function isThenable(value: unknown): value is PromiseLike<any> {
+  return !!value && (typeof value === "object" || typeof value === "function")
+    && typeof (value as { then?: unknown }).then === "function";
+}
+
+function isReactContext<T>(value: unknown): value is ReactContext<T> {
+  return !!value && typeof value === "object" && "_exactToken" in value;
+}
+
+const cacheResultKey = Symbol("react.cache.result");
+type CacheEntry<T> = { status: "fulfilled" | "rejected"; value: T | unknown };
+
+const React = {
+  __CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
+  __SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
+  __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED,
+  Activity,
+  Children,
+  Component,
+  Fragment,
+  Profiler,
+  PureComponent,
+  StrictMode,
+  Suspense,
+  ViewTransition,
+  act,
+  addTransitionType,
+  cache,
+  cacheSignal,
+  captureOwnerStack,
+  cloneElement,
+  createContext,
+  createElement,
+  createFactory,
+  createRef,
+  forwardRef,
+  isValidElement,
+  lazy,
+  memo,
+  startTransition,
+  use,
+  useActionState,
+  useCallback,
+  useContext,
+  useDebugValue,
+  useDeferredValue,
+  useEffect,
+  useEffectEvent,
+  useId,
+  useImperativeHandle,
+  useInsertionEffect,
+  useLayoutEffect,
+  useMemo,
+  useOptimistic,
+  useReducer,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+  unstable_act,
+  unstable_useCacheRefresh,
+  version
+};
+
+export default React;

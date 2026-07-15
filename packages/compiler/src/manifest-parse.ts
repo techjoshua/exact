@@ -1,5 +1,6 @@
 import type {
   ExactArtifactManifest,
+  ExactCallableSummaryIR,
   ExactCompilerManifest,
   ExactSemanticDeclarationIR,
   ExactSemanticExportIR,
@@ -19,10 +20,12 @@ export function parseExactCompilerManifest(value: unknown, source = "manifest", 
     throw new Error(`Unsupported eXact ${kind} manifest version in ${source}: ${String(manifest.version)}`);
   }
   if (typeof manifest.filename !== "string"
+    || !Array.isArray(manifest.dependencies) || !manifest.dependencies.every(dependency => typeof dependency === "string")
     || !Array.isArray(manifest.components)
     || !Array.isArray(manifest.exports)
     || !Array.isArray(manifest.symbols)
     || !Array.isArray(manifest.boundaries)
+    || !Array.isArray(manifest.callables)
     || !manifest.serverActions
     || typeof manifest.serverActions !== "object"
     || Array.isArray(manifest.serverActions)
@@ -32,7 +35,79 @@ export function parseExactCompilerManifest(value: unknown, source = "manifest", 
   if (manifest.semanticGraph !== undefined && !isExactSemanticGraph(manifest.semanticGraph)) {
     throw new Error(`Malformed eXact ${kind} semantic graph in ${source}`);
   }
+  if (!manifest.callables!.every(isExactCallableSummary)) {
+    throw new Error(`Malformed eXact ${kind} callable summaries in ${source}`);
+  }
+  if (new Set(manifest.dependencies).size !== manifest.dependencies.length
+    || manifest.dependencies.some(dependency => dependency.length === 0 || /^(?:[A-Za-z]:[\\/]|[\\/]{1,2})/.test(dependency))) {
+    throw new Error(`Malformed eXact ${kind} dependencies in ${source}`);
+  }
+  const callableIds = new Set(manifest.callables!.map(callable => callable.id));
+  if (callableIds.size !== manifest.callables!.length
+    || manifest.callables!.some(callable => new Set(callable.calls.map(edge => edge.id)).size !== callable.calls.length)
+    || manifest.callables!.some(callable => callable.calls.some(edge => edge.targetId !== undefined && !callableIds.has(edge.targetId)))) {
+    throw new Error(`Malformed eXact ${kind} callable graph in ${source}`);
+  }
   return manifest as ExactCompilerManifest;
+}
+
+function isExactCallableSummary(value: unknown): value is ExactCallableSummaryIR {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const summary = value as Partial<ExactCallableSummaryIR>;
+  const effects = new Set(["neutral", "browser", "server", "mixed", "unknown"]);
+  return typeof summary.id === "string"
+    && typeof summary.name === "string"
+    && ["function", "method", "component", "task", "initializer", "module-initializer"].includes(summary.kind ?? "")
+    && Array.isArray(summary.exportNames) && summary.exportNames.every(name => typeof name === "string")
+    && effects.has(summary.directEffect ?? "")
+    && effects.has(summary.effect ?? "")
+    && Array.isArray(summary.directEffectSources) && summary.directEffectSources.every(isExactEffectSource)
+    && Array.isArray(summary.effectSources) && summary.effectSources.every(isExactEffectSource)
+    && Array.isArray(summary.calls) && summary.calls.every(isExactCallEdge)
+    && Array.isArray(summary.artifactTargets) && summary.artifactTargets.every(target => target === "client" || target === "server")
+    && new Set(summary.artifactTargets).size === summary.artifactTargets.length
+    && Array.isArray(summary.stateReads) && summary.stateReads.every(isExactStateEffect)
+    && Array.isArray(summary.stateWrites) && summary.stateWrites.every(isExactStateEffect)
+    && Array.isArray(summary.contexts) && summary.contexts.every(isExactContextEffect);
+}
+
+function isExactStateEffect(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const effect = value as Record<string, unknown>;
+  const receiver = effect.receiver as Record<string, unknown> | undefined;
+  return typeof effect.path === "string" && (effect.kind === "read" || effect.kind === "write") && ["exact", "broad", "unknown"].includes(String(effect.confidence))
+    && (receiver === undefined || receiver.kind === "component" || receiver.kind === "unknown" || receiver.kind === "parameter" && Number.isInteger(receiver.index) && (receiver.index as number) >= 0);
+}
+
+function isExactContextEffect(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const effect = value as Record<string, unknown>;
+  return typeof effect.token === "string" && (effect.kind === "read" || effect.kind === "write") && (effect.confidence === "exact" || effect.confidence === "unknown");
+}
+
+function isExactEffectSource(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const source = value as Record<string, unknown>;
+  return (source.environment === "browser" || source.environment === "server" || source.environment === "unknown")
+    && typeof source.description === "string"
+    && Array.isArray(source.path) && source.path.every(part => typeof part === "string");
+}
+
+function isExactCallEdge(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const edge = value as Record<string, unknown>;
+  return typeof edge.id === "string"
+    && typeof edge.name === "string"
+    && typeof edge.resolved === "boolean"
+    && (edge.targetId === undefined || typeof edge.targetId === "string")
+    && (edge.moduleSpecifier === undefined || typeof edge.moduleSpecifier === "string")
+    && (edge.exportName === undefined || typeof edge.exportName === "string")
+    && (edge.receiverBindings === undefined || Array.isArray(edge.receiverBindings) && edge.receiverBindings.every(binding => {
+      if (!binding || typeof binding !== "object" || Array.isArray(binding)) return false;
+      const record = binding as Record<string, unknown>;
+      return Number.isInteger(record.parameterIndex) && (record.parameterIndex as number) >= 0
+        && (record.source === "component" || record.source === "unknown" || record.source === "parameter" && Number.isInteger(record.sourceParameterIndex) && (record.sourceParameterIndex as number) >= 0);
+    }));
 }
 
 /** Returns whether a value has the artifact metadata shape embedded in compiler manifests. */

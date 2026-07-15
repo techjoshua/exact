@@ -5,9 +5,11 @@ import type { ExactProvenanceGraph } from "./provenance.js";
 import { expressionStatePath, type ExpressionWritePlan } from "./expression-writes.js";
 import { isServerOnlyModule } from "./imports.js";
 import { stableId } from "./ids.js";
-import type { ExactBoundaryIR, ExactComponentIR, ExactComponentRenderEdgeIR, ExactContextEffect, ExactImportedComponentIR, ExactTaskIR } from "./types.js";
+import type { ExactBoundaryIR, ExactComponentIR, ExactComponentRenderEdgeIR, ExactContextEffect, ExactEnvironmentEffect, ExactImportedComponentIR, ExactTaskIR } from "./types.js";
 import { clientComponentBoundaryId, generatedComponentName, serverSlotBoundaryId } from "./names.js";
 import { expressionComponentIndex } from "./expression-component-index.js";
+import type { CallableEffectPlan } from "./callable-effects.js";
+import { browserPlatformGlobals } from "./platform-effects.js";
 
 export interface ExpressionRenderSite {
   readonly nodeId: string;
@@ -37,6 +39,7 @@ export interface ExpressionComponentSite {
   readonly end: number;
   readonly clientEffects: boolean;
   readonly serverEffects: boolean;
+  readonly environmentEffect: ExactEnvironmentEffect;
   readonly clientIslandCount: number;
   readonly splitBoundaries: readonly string[];
   readonly diagnostics: readonly string[];
@@ -79,7 +82,9 @@ export function createExpressionComponents(
         reads: [...task.reads],
         writes: [...task.writes],
         contexts: [...task.contexts],
-        diagnostics: [...task.diagnostics]
+        diagnostics: [...task.diagnostics],
+        environmentEffect: task.environmentEffect,
+        effectSources: [...task.effectSources]
       }));
     const hasServerEffect = site.serverEffects;
     const diagnostics = new Set<string>([...(safety.get(site.id) ?? safety.get(site.name) ?? []), ...site.diagnostics]);
@@ -87,7 +92,9 @@ export function createExpressionComponents(
     if (hasServerEffect) for (const global of site.browserGlobalsOutsideClientBoundary) {
       diagnostics.add(`error: browser-only global ${global} cannot be used in server-rendered component code; move it into a client island or client task`);
     }
-    const placement = site.clientEffects && site.serverEffects ? "isomorphic" : site.serverEffects ? "server" : site.clientEffects ? "client" : "server";
+    const placement = site.environmentEffect === "mixed" || site.environmentEffect === "unknown"
+      ? "unknown"
+      : site.clientEffects && site.serverEffects ? "isomorphic" : site.serverEffects ? "server" : site.clientEffects ? "client" : "isomorphic";
     return {
       id: stableId(filename, site.id),
       name: site.name,
@@ -102,15 +109,15 @@ export function createExpressionComponents(
         ...[...tasks.sites.values()].filter(task => task.component === site.name).flatMap(task => task.contextSites)
       ].sort((left, right) => left.start - right.start).map(entry => entry.effect)),
       splitBoundaries: [...site.splitBoundaries],
-      diagnostics: [...diagnostics]
+      diagnostics: [...diagnostics],
+      environmentEffect: site.environmentEffect,
+      artifactTargets: placement === "unknown" ? [] : site.serverEffects ? ["server"] : site.clientEffects ? ["client"] : ["client", "server"]
     };
   });
 }
 
-const browserGlobals = new Set(["window", "document", "navigator", "location", "history", "localStorage", "sessionStorage", "requestAnimationFrame", "cancelAnimationFrame", "MutationObserver", "ResizeObserver", "IntersectionObserver"]);
-
 /** Classifies component placement effects from canonical bindings and typed JSX. */
-export function analyzeExpressionComponents(module: BoundModule, jsx: ExpressionJsxPlan, tasks: ExpressionTaskPlan, provenance?: ExactProvenanceGraph, writes?: ExpressionWritePlan): ExpressionComponentPlan {
+export function analyzeExpressionComponents(module: BoundModule, jsx: ExpressionJsxPlan, tasks: ExpressionTaskPlan, provenance?: ExactProvenanceGraph, writes?: ExpressionWritePlan, callableEffects?: CallableEffectPlan): ExpressionComponentPlan {
   const componentIndex = expressionComponentIndex(module);
   const components = componentIndex.functions;
   const componentNodes = new Set(components.map(component => component.node));
@@ -131,6 +138,27 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
     let clientIslandCount = 0;
     let clientEffects = false;
     let serverEffects = false;
+    let indivisibleEffect: ExactEnvironmentEffect | undefined;
+    const setupEffect = callableEffects?.byNodeId.get(component.node.id);
+    if (setupEffect?.effect === "browser") clientEffects = true;
+    else if (setupEffect?.effect === "server") serverEffects = true;
+    else if (setupEffect?.effect === "mixed") {
+      indivisibleEffect = "mixed";
+      diagnostics.add(`error: component setup has indivisible browser and server effects (${setupEffect.effectSources[0]?.path.join(" → ") ?? "mixed setup"})`);
+    } else if (setupEffect?.effect === "unknown") {
+      const knownBrowser = setupEffect.effectSources.some(source => source.environment === "browser");
+      const knownServer = setupEffect.effectSources.some(source => source.environment === "server");
+      if (knownBrowser && knownServer) {
+        indivisibleEffect = "mixed";
+        diagnostics.add(`error: component setup has indivisible browser and server effects (${setupEffect.effectSources[0]?.path.join(" → ") ?? "mixed setup"})`);
+      }
+      else if (knownBrowser) clientEffects = true;
+      else if (knownServer) serverEffects = true;
+      else {
+        indivisibleEffect = "unknown";
+        diagnostics.add(`error: component placement depends on an opaque call (${setupEffect.effectSources[0]?.path.join(" → ") ?? "unknown setup"}); move it into an explicitly placed task or a split boundary`);
+      }
+    }
 
     for (const element of jsx.elements.values()) {
       const reference = jsxReferences.get(element.nodeId);
@@ -192,7 +220,7 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
       if (nearestComponent(reference, componentNodes)?.node !== component.node) continue;
       const variable = reference.variable;
       const name = variable?.name ?? reference.name;
-      if (name && browserGlobals.has(name) && (!variable || !localVariables.has(variable))) {
+      if (name && browserPlatformGlobals.has(name) && (!variable || !localVariables.has(variable))) {
         clientEffects = true;
         splitBoundaries.add(`browser:${name}`);
         if (!insideTask(reference) && !insideClientIsland(reference)) outsideGlobals.add(name);
@@ -212,6 +240,32 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
 
     for (const call of component.descendants({ types: false }).calls()) {
       if (nearestComponent(call, componentNodes)?.node !== component.node || insideTask(call)) continue;
+      if (!insideClientIsland(call)) {
+        const transitive = callableEffects?.callEffects.get(call.node.id);
+        if (transitive?.effect === "browser") {
+          clientEffects = true;
+          splitBoundaries.add(`browser-call:${call.target?.node.text ?? "call"}`);
+        } else if (transitive?.effect === "server") {
+          serverEffects = true;
+          splitBoundaries.add(`server-call:${call.target?.node.text ?? "call"}`);
+        } else if (transitive?.effect === "mixed") {
+          indivisibleEffect = "mixed";
+          diagnostics.add(`error: component call has indivisible browser and server effects (${transitive.sources[0]?.path.join(" → ") ?? "mixed call"})`);
+        } else if (transitive?.effect === "unknown") {
+          const knownBrowser = transitive.sources.some(source => source.environment === "browser");
+          const knownServer = transitive.sources.some(source => source.environment === "server");
+          if (knownBrowser && knownServer) {
+            indivisibleEffect = "mixed";
+            diagnostics.add(`error: component call has indivisible browser and server effects (${transitive.sources[0]?.path.join(" → ") ?? "mixed call"})`);
+          }
+          else if (knownBrowser) clientEffects = true;
+          else if (knownServer) serverEffects = true;
+          else {
+            indivisibleEffect = indivisibleEffect === "mixed" ? "mixed" : "unknown";
+            diagnostics.add(`error: component placement depends on an opaque call (${transitive.sources[0]?.path.join(" → ") ?? "unknown call"}); move it into an explicitly placed task or a split boundary`);
+          }
+        }
+      }
       if (!call.target?.isMember() || !/^this\.(?:getContext|setContext)$/.test(call.target.node.text ?? "")) continue;
       const token = call.arguments[0];
       const exact = token && /^(?:[A-Za-z_$][\w$]*)(?:\.[A-Za-z_$][\w$]*)*$/.test(token.node.text ?? "");
@@ -232,6 +286,7 @@ export function analyzeExpressionComponents(module: BoundModule, jsx: Expression
       end: span.end,
       clientEffects,
       serverEffects,
+      environmentEffect: indivisibleEffect ?? (serverEffects ? "server" : clientEffects ? "browser" : "neutral"),
       clientIslandCount,
       splitBoundaries: Object.freeze([...splitBoundaries].sort()),
       diagnostics: Object.freeze([...diagnostics].sort()),

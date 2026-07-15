@@ -1,0 +1,21 @@
+{
+  "name": "@exact/react-reference-18",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "jsdom": "^25.0.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "scripts": {
+    "trace": "node src/trace.mjs",
+    "phase1": "node src/trace.mjs --phase1",
+    "phase2": "node src/trace.mjs --phase2",
+    "phase3": "node src/trace.mjs --phase3",
+    "phase4": "node src/trace.mjs --phase4",
+    "phase5": "node src/trace.mjs --phase5",
+    "phase6": "node src/trace.mjs --phase6",
+    "benchmark": "node src/trace.mjs --benchmark"
+  }
+}

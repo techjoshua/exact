@@ -521,7 +521,7 @@ describe("@exact/compiler", () => {
       debugName: "ProjectPage",
       kind: "component",
       role: "root",
-      target: "both",
+      target: "server",
       placement: "isomorphic"
     }), expect.objectContaining({
       componentId: component.id,
@@ -569,7 +569,7 @@ describe("@exact/compiler", () => {
     expect(manifest.exports).toContainEqual({
       name: "Page",
       kind: "component",
-      placement: "server"
+      placement: "isomorphic"
     });
     expect(manifest.symbols).toContainEqual(expect.objectContaining({
       exportName: "Page",
@@ -993,16 +993,13 @@ describe("@exact/compiler", () => {
     expect(output).toContain("title: __exactExpression(() => fullName.get())");
   });
 
-  it("does not infer derived consts with call expressions", () => {
-    const output = transform(`
+  it("does not assume an unresolved call in a derived const is environment-neutral", () => {
+    expect(() => transform(`
       function View(this: Component<{ first: string }>) {
         const label = format(this.state.first);
         return () => <p>{label}</p>;
       }
-    `);
-
-    expect(output).toContain("__exactDynamic(() => label)");
-    expect(output).not.toContain("__exactDynamic(() => (format(this.state.first)))");
+    `)).toThrow(/opaque call \(View → format\)/);
   });
 
   it("does not infer mutable derived locals", () => {
@@ -1278,8 +1275,8 @@ describe("@exact/compiler", () => {
         exportName: "Page",
         localName: "Page",
         generatedName: "Page",
-        role: "root",
-        target: "both"
+          role: "root",
+          target: "server"
       })],
       boundaries: []
     });
@@ -1488,6 +1485,34 @@ describe("@exact/compiler", () => {
     }, "Panel.exact.manifest.json")).toThrow("Malformed eXact compiler manifest");
   });
 
+  it("rejects compiler manifest v1 and malformed v2 callable graphs", () => {
+    const manifest = analyzeSource(`export function value() { return 1; }`, { filename: "value.ts" });
+    expect(() => parseExactCompilerManifest({ ...manifest, version: 1 } as never, "legacy.json"))
+      .toThrow("Unsupported eXact compiler manifest version in legacy.json: 1");
+    expect(() => parseExactCompilerManifest({ ...manifest, dependencies: ["C:\\private\\value.ts"] }, "absolute.json"))
+      .toThrow("Malformed eXact compiler dependencies");
+    expect(() => parseExactCompilerManifest({
+      ...manifest,
+      callables: manifest.callables.map((callable, index) => index ? callable : {
+        ...callable,
+        calls: [{ id: "dangling", name: "missing", targetId: "missing", resolved: true }]
+      })
+    }, "dangling.json")).toThrow("Malformed eXact compiler callable graph");
+    expect(() => parseExactCompilerManifest({
+      ...manifest,
+      callables: manifest.callables.map((callable, index) => index ? callable : { ...callable, stateWrites: [{ path: "x", kind: "write", confidence: "exact", receiver: { kind: "parameter" } }] })
+    } as never, "nested.json")).toThrow("Malformed eXact compiler callable summaries");
+  });
+
+  it("projects binder identities onto the declared portable manifest filename", () => {
+    const manifest = analyzeSource("export function View() { return () => <p />; }", {
+      filename: "src/View.tsx"
+    });
+    const serialized = JSON.stringify(manifest.semanticGraph);
+    expect(serialized).toContain("src/view.tsx:");
+    expect(serialized).not.toMatch(/[a-z]:\/(?:users|home)\//i);
+  });
+
   it("validates semantic graph metadata in parsed compiler manifests", () => {
     const manifest = analyzeSource(`
       export function Panel() {
@@ -1511,10 +1536,12 @@ describe("@exact/compiler", () => {
     await writeFile(manifestFile, JSON.stringify({
       version: exactCompilerManifestVersion,
       filename: "panel.tsx",
+      dependencies: [],
       components: [],
       exports: [],
       symbols: [],
       boundaries: [],
+      callables: [],
       artifacts: {
         source: 1,
         client: "panel.exact.client.ts",
@@ -2172,7 +2199,7 @@ describe("@exact/compiler", () => {
     `, { filename: "Page.tsx", target: "client", serverComponents: true });
 
     expect(output).toContain("function ClientWidget()");
-    expect(output).not.toContain("export function Page()");
+    expect(output).toContain("export function Page()");
     expect(output).toContain("onClick: () => save()");
   });
 
@@ -2911,7 +2938,7 @@ describe("@exact/compiler", () => {
     const page = manifest.components.find(component => component.name === "Page")!;
     const widget = manifest.components.find(component => component.name === "ClientWidget")!;
 
-    expect(page.placement).toBe("server");
+    expect(page.placement).toBe("isomorphic");
     expect(page.subgraphPlacement).toBe("isomorphic");
     expect(page.renderEdges).toHaveLength(2);
     expect(page.renderEdges).toEqual([
@@ -2970,8 +2997,8 @@ describe("@exact/compiler", () => {
         tag: "Shells.ServerShell",
         name: "ServerShell",
         componentId: namespaceManifest.components[0]!.id,
-        placement: "server",
-        boundary: "server"
+        placement: "isomorphic",
+        boundary: "isomorphic"
       }),
       expect.objectContaining({
         tag: "Widget",

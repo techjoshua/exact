@@ -75,7 +75,7 @@ describe("@exact/bun-plugin", () => {
   it("rejects malformed manifest files", () => {
     const root = mkdtempSync(path.join(tmpdir(), "exact-bun-bad-manifest-"));
     const manifestFile = path.join(root, "bad.exact.manifest.json");
-    writeFileSync(manifestFile, JSON.stringify({ version: 1, filename: "bad.tsx" }));
+    writeFileSync(manifestFile, JSON.stringify({ version: 2, filename: "bad.tsx" }));
 
     expect(() => transformExactBunSource("const view = <span />;", "/src/view.tsx", {
       manifestFiles: [manifestFile]
@@ -96,13 +96,13 @@ describe("@exact/bun-plugin", () => {
   });
 
   it("registers and executes Bun resolve and load hooks", async () => {
-    let resolveHook!: (args: { path: string; importer?: string }) => { path?: string } | Promise<{ path?: string }>;
+    const resolveHooks: Array<{ filter: RegExp; handler: (args: { path: string; importer?: string }) => { path?: string } | Promise<{ path?: string }> }> = [];
     let loadHook!: (args: BunLoadArgs) => BunLoadResult | Promise<BunLoadResult>;
     let startHook!: () => void | Promise<void>;
     const build: BunBuildLike = {
       config: { conditions: ["browser"] },
-      onResolve(_options, handler) {
-        resolveHook = handler;
+      onResolve(options, handler) {
+        resolveHooks.push({ filter: options.filter, handler });
       },
       onLoad(_options, handler) {
         loadHook = handler;
@@ -116,7 +116,8 @@ describe("@exact/bun-plugin", () => {
 
     expect(build.config?.conditions).toEqual(["exact-server", "browser"]);
     await expect(Promise.resolve(startHook())).resolves.toBeUndefined();
-    await expect(Promise.resolve(resolveHook({
+    const exactResolver = resolveHooks.find(entry => entry.filter.test("./Panel.exact"))!;
+    await expect(Promise.resolve(exactResolver.handler({
       path: "./Panel.exact",
       importer: "/app/src/main.ts"
     }))).resolves.toEqual({
@@ -137,5 +138,41 @@ describe("@exact/bun-plugin", () => {
       path: "/app/src/model.ts",
       text: async () => "export type Model = { title: string };"
     })).resolves.toEqual({});
+  });
+
+  it("registers React aliases and compiles React JSX to the compatibility runtime", async () => {
+    const resolvers: Array<{ filter: RegExp; handler: (args: { path: string; importer?: string }) => { path?: string } | Promise<{ path?: string }> }> = [];
+    const build: BunBuildLike = {
+      onResolve(options, handler) { resolvers.push({ filter: options.filter, handler }); },
+      onLoad() {}
+    };
+    exact({ reactCompatibility: { target: 18 } }).setup(build);
+    const reactResolver = resolvers.find(entry => entry.filter.test("react"))!;
+    await expect(Promise.resolve(reactResolver.handler({ path: "react" }))).resolves.toEqual({
+      path: "@exact/react-compat/react18"
+    });
+    expect(transformExactBunSource(
+      "/** @jsxImportSource react */\nconst view = <span />;",
+      "/src/view.tsx",
+      { reactCompatibility: { target: 18 } }
+    )?.code).toContain("@exact/react-compat/jsx-runtime18");
+    expect(transformExactBunSource(
+      'import { useMemo } from "react"; const view = <span>{useMemo(() => 1, [])}</span>;',
+      "/src/inferred.tsx",
+      { reactCompatibility: { target: 18 } }
+    )?.code).toContain("@exact/react-compat/jsx-runtime18");
+  });
+
+  it("rejects a mismatched reconciler relative to the importer", async () => {
+    const resolvers: Array<{ filter: RegExp; handler: (args: { path: string; importer?: string }) => { path?: string } | Promise<{ path?: string }> }> = [];
+    exact({ reactCompatibility: { target: 19 } }).setup({
+      onResolve(options, handler) { resolvers.push({ filter: options.filter, handler }); },
+      onLoad() {}
+    });
+    const reconcilerResolver = resolvers.find(entry => entry.filter.test("react-reconciler"))!;
+    await expect(Promise.resolve().then(() => reconcilerResolver.handler({
+      path: "react-reconciler",
+      importer: path.resolve(import.meta.dirname, "../../../apps/react-reconciler-reference-18/src/scenario.mjs")
+    }))).rejects.toThrow(/target 19.*react-reconciler 0\.29\.2/);
   });
 });

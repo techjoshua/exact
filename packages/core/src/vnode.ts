@@ -1,5 +1,5 @@
 import { computed, unwrap } from "@exact/reactive";
-import { Cell, Dynamic, Fragment, ServerBoundary, ServerSlot, Text } from "./symbols.js";
+import { Cell, Dynamic, Fragment, Portal, ServerBoundary, ServerSlot, Text } from "./symbols.js";
 import type { Child, RenderResult, VNode, VNodeCell, VNodeType } from "./index.js";
 
 /** Creates a normalized virtual node and extracts the special JSX key prop. */
@@ -59,6 +59,11 @@ export function createExpression<T>(compute: () => T) {
 /** Creates a dynamic child vnode whose render result is computed reactively. */
 export function createDynamicChild(compute: () => RenderResult): VNode {
   return createVNode(Dynamic, { value: computed(compute) });
+}
+
+/** Creates a logical child subtree whose nodes are placed in another renderer container. */
+export function createPortal(target: unknown, ...children: unknown[]): VNode {
+  return createVNode(Portal, { target }, ...children);
 }
 
 /** Creates a server boundary vnode that can be refreshed or replaced by server runtime responses. */

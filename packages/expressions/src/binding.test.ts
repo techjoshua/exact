@@ -11,6 +11,15 @@ const root = path.resolve(import.meta.dirname, "../../..");
 const config = path.join(root, "apps/kanban/tsconfig.json");
 
 describe("@exact/expressions binding", () => {
+  it("binds local export specifiers to their declaration identity", () => {
+    const project = createExpressionProject({ tsconfigPath: config });
+    const filename = path.join(root, "apps/kanban/src/__expressions_export_identity.ts");
+    const module = project.updateModule(filename, `const value = 1; export { value as answer };`);
+    const references = module.walk().references().where(reference => reference.name === "value").toArray();
+    expect(references).toHaveLength(2);
+    expect(references[0]!.variable?.id).toBe(references[1]!.variable?.id);
+  });
+
   it("retains node handles when unrelated siblings are inserted before them", () => {
     const project = createExpressionProject({ tsconfigPath: config });
     const filename = path.join(root, "apps/kanban/src/__expressions_node_identity.tsx");

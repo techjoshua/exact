@@ -1,6 +1,6 @@
 import ts from "typescript";
 import { ExpressionProjectError, rewriteModule, type BoundModule } from "@exact/expressions";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   artifactGraphEntryFromCompileResult,
@@ -9,6 +9,8 @@ import {
   readExactArtifactManifestEntries
 } from "./artifacts.js";
 import { combinePlacements } from "./placement.js";
+import { analyzeCallableEffects } from "./callable-effects.js";
+import { expressionDependencyFiles, invalidateExpressionModule } from "./expression-project.js";
 import type {
   CompileArtifactPlanEntriesOptions,
   CompileArtifactsOptions,
@@ -41,6 +43,7 @@ import {
   collectExpressionImportedComponents
 } from "./imports.js";
 import { generatedComponentName } from "./names.js";
+import { parseExactCompilerManifest } from "./manifest-parse.js";
 import {
   artifactPathsFor,
   collectInputFiles,
@@ -70,7 +73,8 @@ import {
   createClientIslandBoundaries,
   createClientIslandSymbols,
   createRootSymbols,
-  createServerPartSymbols
+  createServerPartSymbols,
+  createValueRootSymbols
 } from "./symbols.js";
 import { exactJsxTransformer } from "./jsx-transform.js";
 import { exactCompilerManifestVersion } from "./versions.js";
@@ -110,6 +114,12 @@ export {
 export { exactCompilerManifestVersion } from "./versions.js";
 export { clearExpressionProjectCache, invalidateExpressionModule } from "./expression-project.js";
 export {
+  transformReactJsx,
+  usesReactRuntimeImports,
+  type ReactJsxTransformOptions,
+  type ReactJsxTransformResult
+} from "./react-jsx.js";
+export {
   analyzeExpressionWrites,
   lowerExpressionWrites,
   type ExpressionWritePlan,
@@ -139,6 +149,7 @@ export function transform(source: string, options: TransformOptions = {}): strin
 export function transformSource(source: string, options: TransformOptions = {}): TransformResult {
   const normalized = preprocessPropPunning(source);
   const filename = options.filename ?? "input.tsx";
+  const importedManifests = validatedImportedManifests(options.importedManifests);
   const target = options.target ?? "default";
   const expressionModule = expressionModuleFor(filename, normalized);
   const syntaxDiagnostics = expressionModule.diagnostics.filter(diagnostic => diagnostic.phase === "syntax" && diagnostic.severity === "error");
@@ -151,11 +162,13 @@ export function transformSource(source: string, options: TransformOptions = {}):
   const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
   const annotations = analyzeExactAnnotations(expressionModule);
   throwLocatedCompilerDiagnostics(filename, sourceFile, annotations.diagnostics);
-  const manifest = analyzeSource(normalized, { filename, importedManifests: options.importedManifests });
+  const manifest = analyzeSource(normalized, { filename, importedManifests });
+  const semanticGraph = buildExpressionSemanticGraph(expressionModule);
   const provenance = buildExactProvenance(expressionModule);
   const expressionDerived = analyzeExpressionDerived(expressionModule, provenance);
   const expressionWrites = analyzeExpressionWrites(expressionModule);
-  const expressionTasks = analyzeExpressionTasks(expressionModule);
+  const callableEffects = analyzeCallableEffects(expressionModule, semanticGraph, importedManifests, expressionWrites);
+  const expressionTasks = analyzeExpressionTasks(expressionModule, callableEffects);
   const taskErrors = expressionTasks.diagnostics.filter(diagnostic => diagnostic.startsWith("error:"));
   if (taskErrors.length) {
     throw new Error(taskErrors.map(message => {
@@ -171,26 +184,50 @@ export function transformSource(source: string, options: TransformOptions = {}):
   }
   const expressionJsx = analyzeExpressionJsx(expressionModule, provenance, filename);
   throwLocatedCompilerDiagnostics(filename, sourceFile, expressionJsx.diagnostics);
-  const expressionComponents = analyzeExpressionComponents(expressionModule, expressionJsx, expressionTasks, provenance, expressionWrites);
+  const expressionComponents = analyzeExpressionComponents(expressionModule, expressionJsx, expressionTasks, provenance, expressionWrites, callableEffects);
   const emissionComponentInfo = new Map<string, ExactImportedComponentIR>();
-  for (const component of collectExpressionImportedComponents(filename, options.importedManifests ?? [], manifest.semanticGraph!)) emissionComponentInfo.set(component.name, component);
+  for (const component of collectExpressionImportedComponents(filename, importedManifests, semanticGraph)) emissionComponentInfo.set(component.name, component);
   for (const component of manifest.components) emissionComponentInfo.set(component.name, {
     name: component.name,
     boundaryName: component.name,
     placement: component.placement,
     componentId: component.id
   });
-  const result = ts.transform(sourceFile, [exactJsxTransformer(expressionModule, target, options.serverComponents ?? false, manifest.semanticGraph!, expressionDerived, expressionWrites, expressionTasks, expressionJsx, expressionComponents, emissionComponentInfo)]);
+  const result = ts.transform(sourceFile, [exactJsxTransformer(expressionModule, filename, target, options.serverComponents ?? false, semanticGraph, expressionDerived, expressionWrites, expressionTasks, expressionJsx, expressionComponents, emissionComponentInfo, callableEffects)]);
   const transformed = result.transformed[0]!;
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
   const printed = emitExpressionRewrite(expressionModule, printer.printFile(transformed as ts.SourceFile));
   result.dispose();
+  validateTargetAnalysis(callableEffects, target, filename);
   return {
     code: printed,
     map: options.sourceMap ? createLineSourceMap(filename, normalized, printed) : null,
     filename,
     manifest
   };
+}
+
+function validateTargetAnalysis(
+  effects: ReturnType<typeof analyzeCallableEffects>,
+  target: TransformTarget,
+  filename: string
+): void {
+  if (target === "default") return;
+  const forbidden = target === "client" ? "server" : "browser";
+  const violation = effects.callables
+    .filter(callable => callable.artifactTargets.includes(target))
+    .flatMap(callable => callable.effectSources.map(source => ({ callable, source })))
+    .find(candidate => candidate.source.environment === forbidden);
+  if (violation) {
+    throw new Error(`${filename} - error: ${target} artifact retained ${forbidden}-only dependency (${violation.source.path.join(" → ")})`);
+  }
+  const byId = new Map(effects.callables.map(callable => [callable.id, callable]));
+  for (const caller of effects.callables.filter(callable => callable.artifactTargets.includes(target))) for (const edge of caller.calls) {
+    const callee = edge.targetId ? byId.get(edge.targetId) : undefined;
+    if (callee && !callee.artifactTargets.includes(target)) {
+      throw new Error(`${filename} - error: ${target} artifact graph retains ${caller.name} → ${callee.name}, but ${callee.name} is omitted`);
+    }
+  }
 }
 
 function emitExpressionRewrite(module: BoundModule, generated: string): string {
@@ -200,7 +237,7 @@ function emitExpressionRewrite(module: BoundModule, generated: string): string {
   const structuralErrors = rewritten.validate().filter(diagnostic => diagnostic.severity === "error");
   if (structuralErrors.length) throw new ExpressionProjectError(structuralErrors);
 
-  const rebound = expressionModuleFor(module.filename, rewritten.emit().code);
+  const rebound = expressionModuleFor(`${module.filename}.exact.generated.tsx`, rewritten.emit().code);
   const baselineErrors = module.diagnostics.filter(diagnostic => diagnostic.severity === "error");
   const existing = new Map<string, number>();
   for (const diagnostic of baselineErrors) {
@@ -273,6 +310,7 @@ function isSyntheticHelperDiagnostic(
 export function analyzeSource(source: string, options: TransformOptions = {}): ExactCompilerManifest {
   const normalized = preprocessPropPunning(source);
   const filename = options.filename ?? "input.tsx";
+  const importedManifests = validatedImportedManifests(options.importedManifests);
   const expressionModule = expressionModuleFor(filename, normalized);
   const exports: ExactExportIR[] = [];
   const symbols: ExactSymbolIR[] = [];
@@ -283,16 +321,21 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const provenance = buildExactProvenance(expressionModule);
   const expressionSafety = analyzeExpressionSafety(expressionModule, provenance);
   const expressionWrites = analyzeExpressionWrites(expressionModule);
-  const expressionTasks = analyzeExpressionTasks(expressionModule);
+  const callableEffects = analyzeCallableEffects(expressionModule, semanticGraph, importedManifests, expressionWrites);
+  for (const initializer of callableEffects.callables.filter(callable => callable.kind === "module-initializer")) {
+    if (initializer.effect === "mixed") manifestDiagnostics.push(`error: executable module initializer has indivisible browser and server effects (${initializer.effectSources[0]?.path.join(" → ") ?? initializer.name})`);
+    if (initializer.effect === "unknown") manifestDiagnostics.push(`error: executable module initializer depends on an opaque call or side-effect import (${initializer.effectSources[0]?.path.join(" → ") ?? initializer.name})`);
+  }
+  const expressionTasks = analyzeExpressionTasks(expressionModule, callableEffects);
   manifestDiagnostics.push(...expressionTasks.diagnostics);
   manifestDiagnostics.push(...analyzeExactAnnotations(expressionModule).diagnostics.map(diagnostic => diagnostic.message));
   const expressionJsx = analyzeExpressionJsx(expressionModule, provenance, filename);
   manifestDiagnostics.push(...expressionJsx.diagnostics.map(diagnostic => diagnostic.message));
-  const expressionComponents = analyzeExpressionComponents(expressionModule, expressionJsx, expressionTasks, provenance, expressionWrites);
+  const expressionComponents = analyzeExpressionComponents(expressionModule, expressionJsx, expressionTasks, provenance, expressionWrites, callableEffects);
   const components: ExactComponentIR[] = createExpressionComponents(filename, expressionComponents, expressionTasks, expressionSafety);
 
   const componentByName = new Map(components.map(component => [component.name, component]));
-  const importedComponents = collectExpressionImportedComponents(filename, options.importedManifests ?? [], semanticGraph);
+  const importedComponents = collectExpressionImportedComponents(filename, importedManifests, semanticGraph);
   const componentInfo = new Map<string, ExactImportedComponentIR>();
   for (const component of importedComponents) componentInfo.set(component.name, component);
   for (const component of components) {
@@ -318,13 +361,19 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   }
   for (const binding of [...exportBindings.values()].sort((left, right) => left.exportedName.localeCompare(right.exportedName))) {
     const component = componentByName.get(binding.localName);
+    const callable = callableEffects.callables.find(candidate => candidate.exportNames.includes(binding.exportedName));
     exports.push({
       name: binding.exportedName,
       kind: component ? "component" : "value",
-      placement: component?.placement ?? "unknown"
+      placement: component?.placement ?? (callable?.effect === "browser" || callable?.artifactTargets.length === 1 && callable.artifactTargets[0] === "client" ? "client" : callable?.effect === "server" || callable?.artifactTargets.length === 1 && callable.artifactTargets[0] === "server" ? "server" : callable?.effect === "neutral" ? "isomorphic" : "unknown")
     });
   }
   symbols.push(...createRootSymbols(filename, components, [...exportBindings.values()]));
+  const componentExportNames = new Set(exports.filter(exported => exported.kind === "component").map(exported => exported.name));
+  symbols.push(...createValueRootSymbols(filename, callableEffects.callables.map(callable => ({
+    ...callable,
+    exportNames: callable.exportNames.filter(name => !componentExportNames.has(name))
+  }))));
   symbols.push(...createServerPartSymbols(filename, components));
   symbols.push(...createClientIslandSymbols(filename, components));
   boundaries.push(...createClientIslandBoundaries(filename, components));
@@ -358,18 +407,25 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   assertUniqueIds("component", components.map(component => component.id));
   assertUniqueIds("symbol", symbols.map(symbol => symbol.id));
   assertUniqueIds("boundary", boundaries.map(boundary => boundary.id));
+  assertUniqueIds("callable", callableEffects.callables.map(callable => callable.id));
 
   return {
     version: exactCompilerManifestVersion,
     filename,
-    semanticGraph,
+    dependencies: [],
+    semanticGraph: portableSemanticGraph(semanticGraph, expressionModule.filename, filename),
     components,
     exports,
     symbols,
     boundaries,
+    callables: [...callableEffects.callables],
     serverActions,
     diagnostics: manifestDiagnostics
   };
+}
+
+function validatedImportedManifests(manifests: readonly ExactCompilerManifest[] | undefined): ExactCompilerManifest[] {
+  return (manifests ?? []).map((manifest, index) => parseExactCompilerManifest(manifest, `imported compiler manifest ${index + 1}`));
 }
 
 function assertUniqueIds(label: string, ids: readonly string[]): void {
@@ -378,6 +434,26 @@ function assertUniqueIds(label: string, ids: readonly string[]): void {
     if (seen.has(id)) throw new Error(`Duplicate eXact ${label} id generated: ${id}`);
     seen.add(id);
   }
+}
+
+function portableSemanticGraph(
+  graph: ExactSemanticGraphIR,
+  boundFilename: string,
+  declaredFilename: string
+): ExactSemanticGraphIR {
+  const bound = boundFilename.replace(/\\/g, "/").toLowerCase();
+  const declared = declaredFilename.replace(/\\/g, "/").toLowerCase();
+  const rewrite = (id: string | undefined): string | undefined => id?.startsWith(bound) ? `${declared}${id.slice(bound.length)}` : id;
+  return {
+    scopes: graph.scopes.map(scope => ({ ...scope, id: rewrite(scope.id)!, ...(scope.parentId ? { parentId: rewrite(scope.parentId)! } : {}) })),
+    declarations: graph.declarations.map(declaration => ({ ...declaration, id: rewrite(declaration.id)!, scopeId: rewrite(declaration.scopeId)! })),
+    references: graph.references.map(reference => ({
+      ...reference,
+      scopeId: rewrite(reference.scopeId)!,
+      ...(reference.declarationId ? { declarationId: rewrite(reference.declarationId)! } : {})
+    })),
+    exports: graph.exports.map(exported => ({ ...exported }))
+  };
 }
 
 /** Builds the semantic graph used for reference/declaration tracing diagnostics and tests. */
@@ -485,25 +561,85 @@ export async function compileArtifactPlanEntries(
 ): Promise<CompileArtifactsResult[]> {
   const results: CompileArtifactsResult[] = [];
   const manifestBases = new Map<string, ExactCompilerManifest>();
+  const sources = new Map<string, string>();
 
   for (const entry of entries) {
     const filename = options.filename?.(entry) ?? entry.inputFile;
     const source = await readFile(entry.inputFile, "utf8");
-    manifestBases.set(path.resolve(entry.inputFile), analyzeSource(source, { filename }));
+    sources.set(path.resolve(entry.inputFile), source);
   }
-  // Analyze all files first, then compile with sibling manifests available. This
-  // lets client/server splitting understand package-local component edges.
-  const importedManifests = [
-    ...(options.importedManifests ?? []),
-    ...manifestBases.values()
-  ];
+  const dependencyGraph = await collectPlacementAnalysisDependencies(sources);
+  for (const [inputFile, source] of sources) manifestBases.set(inputFile, analyzeSource(source, { filename: inputFile }));
+  // Resolve cross-file callable summaries to a fixed point. Each pass consumes
+  // the previous immutable manifest generation, so results do not depend on
+  // source ordering and recursive import groups converge monotonically.
+  const maxPasses = Math.max(2, sources.size + 2);
+  for (let pass = 0; pass < maxPasses; pass++) {
+    const imported = [...(options.importedManifests ?? []), ...manifestBases.values()];
+    const next = new Map<string, ExactCompilerManifest>();
+    let changed = false;
+    for (const [key, source] of sources) {
+      const entry = entries.find(candidate => path.resolve(candidate.inputFile) === key);
+      const filename = entry ? options.filename?.(entry) ?? entry.inputFile : key;
+      const manifest = analyzeSource(source, { filename, importedManifests: imported });
+      next.set(key, manifest);
+      if (callableEffectSignature(manifest) !== callableEffectSignature(manifestBases.get(key)!)) changed = true;
+    }
+    manifestBases.clear();
+    for (const [key, manifest] of next) manifestBases.set(key, manifest);
+    if (!changed) break;
+    if (pass === maxPasses - 1) throw new Error("eXact placement inference did not converge");
+  }
+  const importedManifests = [...(options.importedManifests ?? []), ...manifestBases.values()];
 
   for (const entry of entries) {
     const filename = options.filename?.(entry) ?? entry.inputFile;
-    results.push(await compileArtifactPlanEntry(entry, filename, importedManifests, options.serverComponents ?? false, options.sourceMap ?? false));
+    results.push(await compileArtifactPlanEntry(entry, filename, importedManifests, options.serverComponents ?? false, options.sourceMap ?? false, transitiveDependencies(path.resolve(entry.inputFile), dependencyGraph)));
   }
 
   return results;
+}
+
+async function collectPlacementAnalysisDependencies(sources: Map<string, string>): Promise<Map<string, string[]>> {
+  const graph = new Map<string, string[]>();
+  const pending = [...sources.keys()];
+  while (pending.length) {
+    const filename = pending.shift()!;
+    const source = sources.get(filename)!;
+    const resolvedDependencies: string[] = [];
+    for (const dependency of expressionDependencyFiles(filename, source)) {
+      const resolved = path.resolve(dependency);
+      if (/(?:^|[\\/])node_modules(?:[\\/]|$)/.test(resolved) || /\.d\.[cm]?ts$/i.test(resolved) || !/\.[cm]?[jt]sx?$/i.test(resolved)) continue;
+      try {
+        await access(resolved);
+        resolvedDependencies.push(resolved);
+        if (!sources.has(resolved)) {
+          sources.set(resolved, await readFile(resolved, "utf8"));
+          pending.push(resolved);
+        }
+      } catch {
+        // Resolution candidates include extension substitutions that may not exist.
+      }
+    }
+    graph.set(filename, [...new Set(resolvedDependencies)].sort());
+  }
+  return graph;
+}
+
+function transitiveDependencies(entry: string, graph: ReadonlyMap<string, readonly string[]>): string[] {
+  const result = new Set<string>();
+  const pending = [...(graph.get(entry) ?? [])];
+  while (pending.length) {
+    const dependency = pending.shift()!;
+    if (result.has(dependency)) continue;
+    result.add(dependency);
+    pending.push(...(graph.get(dependency) ?? []));
+  }
+  return [...result];
+}
+
+function callableEffectSignature(manifest: ExactCompilerManifest): string {
+  return manifest.callables.map(callable => `${callable.id}:${callable.effect}:${callable.effectSources.map(source => `${source.environment}:${source.description}`).join(",")}:${JSON.stringify(callable.stateReads)}:${JSON.stringify(callable.stateWrites)}:${JSON.stringify(callable.contexts)}`).join("|");
 }
 
 async function compileArtifactPlanEntry(
@@ -511,10 +647,14 @@ async function compileArtifactPlanEntry(
   filename: string,
   importedManifests: readonly ExactCompilerManifest[] = [],
   serverComponents = false,
-  sourceMap = false
+  sourceMap = false,
+  dependencies: readonly string[] = []
 ): Promise<CompileArtifactsResult> {
   const source = await readFile(entry.inputFile, "utf8");
   const base = analyzeSource(source, { filename, importedManifests });
+  base.dependencies = dependencies
+    .map(dependency => path.relative(path.dirname(path.resolve(filename)), dependency).replaceAll(path.sep, "/"))
+    .sort();
   const client = transformSource(source, { filename, target: "client", importedManifests, serverComponents, sourceMap });
   const server = transformSource(source, { filename, target: "server", importedManifests, serverComponents, sourceMap });
   const manifest = withArtifactMetadata(base, entry.inputFile, entry);
@@ -580,8 +720,18 @@ export async function updateExactArtifactDevState(
   changedInputs: readonly string[],
   options: ExactArtifactDevStateOptions
 ): Promise<ExactArtifactDevStateUpdate> {
+  for (const changed of changedInputs) {
+    let removed = false;
+    try { await access(changed); } catch { removed = true; }
+    invalidateExpressionModule(changed, removed);
+  }
   const nextPlan = await createExactArtifactPlan(inputs, options);
-  const diff = diffExactArtifactPlans(state.plan, nextPlan, { changedInputs });
+  const changed = new Set(changedInputs.map(input => path.resolve(input)));
+  const effectiveChanges = new Set(changed);
+  for (const entry of state.entries) {
+    if (entry.manifest.dependencies.some(dependency => changed.has(path.resolve(path.dirname(entry.manifest.filename), dependency)))) effectiveChanges.add(path.resolve(entry.inputFile));
+  }
+  const diff = diffExactArtifactPlans(state.plan, nextPlan, { changedInputs: [...effectiveChanges] });
   const retainedManifestFiles = diff.retained.map(entry => entry.manifestFile);
   const retainedEntries = retainedManifestFiles.length
     ? await readExactArtifactManifestEntries(retainedManifestFiles)

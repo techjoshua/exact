@@ -1,0 +1,1 @@
+{"output":{"rateReplyDetails":[{"serviceType":"FEDEX_GROUND","serviceName":"FedEx Ground","commit":{"transitDays":{"minimumTransitTime":"3"}},"ratedShipmentDetails":[{"totalNetCharge":18.22,"surcharges":[{"type":"RESIDENTIAL_DELIVERY","description":"Residential delivery","amount":2.25}]}]}]}}

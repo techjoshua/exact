@@ -18,6 +18,10 @@ import type {
 
 export type RenderToStringOptions = {
   markers?: boolean;
+  /** Inserts React-compatible separators between adjacent primitive text children. */
+  textSeparators?: boolean;
+  /** Uses React-compatible DOM attribute and style serialization. */
+  reactMarkup?: boolean | 18 | 19;
   logger?: Logger;
   state?: unknown;
   maxTaskPasses?: number;
@@ -165,6 +169,8 @@ export type KeyedListRefreshOptions<T> = RenderToStringOptions & {
 
 export type SsrContext = {
   markers: boolean;
+  textSeparators: boolean;
+  reactMarkup: boolean | 18 | 19;
   nextId: number;
   logger?: Logger;
   maxTreeDepth: number;
@@ -172,6 +178,9 @@ export type SsrContext = {
   maxTreeNodes: number;
   traversedNodes: number;
   maxOutputBytes: number;
+  reactResourceHints: string[];
+  reactResourceKeys: Set<string>;
+  reactSelectValue?: unknown;
 };
 
 export type { Child, ComponentFunction, ComponentInstance, Logger, TaskObserver, VNode };

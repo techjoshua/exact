@@ -89,7 +89,7 @@ describe("@exact/webpack-plugin", () => {
   it("rejects malformed manifest files", () => {
     const root = mkdtempSync(path.join(tmpdir(), "exact-webpack-bad-manifest-"));
     const manifestFile = path.join(root, "bad.exact.manifest.json");
-    writeFileSync(manifestFile, JSON.stringify({ version: 1, filename: "bad.tsx" }));
+    writeFileSync(manifestFile, JSON.stringify({ version: 2, filename: "bad.tsx" }));
 
     expect(() => transformExactWebpackSource("const view = <span />;", "/src/view.tsx", {
       manifestFiles: [manifestFile]
@@ -159,6 +159,26 @@ describe("@exact/webpack-plugin", () => {
     })).not.toThrow();
   });
 
+  it("installs React aliases and compiles inferred React JSX to the compatibility runtime", () => {
+    const compiler: WebpackCompilerLike = { options: {} };
+    new ExactWebpackPlugin({ reactCompatibility: { target: 19 } }).apply(compiler);
+    expect(compiler.options.resolve?.alias).toMatchObject({
+      "react$": "@exact/react-compat/react19",
+      "react/jsx-runtime$": "@exact/react-compat/jsx-runtime19",
+      "react-dom/client$": "@exact/react-dom-compat/client19"
+    });
+    expect(transformExactWebpackSource(
+      "/** @jsxImportSource react */\nconst view = <span />;",
+      "/src/view.tsx",
+      { reactCompatibility: { target: 19 } }
+    )?.code).toContain("@exact/react-compat/jsx-runtime19");
+    expect(transformExactWebpackSource(
+      'import * as React from "react"; const view = <span>{React.version}</span>;',
+      "/src/inferred.tsx",
+      { reactCompatibility: { target: 19 } }
+    )?.code).toContain("@exact/react-compat/jsx-runtime19");
+  });
+
   it("rewrites exact facade requests through Webpack resolver hooks", () => {
     let handler!: (request: { request?: string; path?: string }, context: unknown, callback: (error?: Error | null, result?: unknown) => void) => void;
     const resolver = applyExactWebpackResolver({
@@ -181,5 +201,18 @@ describe("@exact/webpack-plugin", () => {
     expect(result).toMatchObject({
       request: path.resolve("/app/src/Panel.exact.server.ts")
     });
+  });
+
+  it("rejects a mismatched reconciler relative to the importing project", () => {
+    let handler!: (request: { request?: string; path?: string }, context: unknown, callback: (error?: Error | null) => void) => void;
+    applyExactWebpackResolver({
+      hooks: { resolve: { tapAsync(_name, next) { handler = next; } } }
+    }, { reactCompatibility: { target: 19 } });
+    let error: Error | null | undefined;
+    handler({
+      request: "react-reconciler",
+      path: path.resolve(import.meta.dirname, "../../../apps/react-reconciler-reference-18")
+    }, {}, nextError => { error = nextError; });
+    expect(error?.message).toMatch(/target 19.*react-reconciler 0\.29\.2/);
   });
 });

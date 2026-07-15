@@ -2,6 +2,7 @@ import type {
   ComponentFunction,
   ComponentInstance,
   ErrorContextValue,
+  ErrorReport,
   Logger,
   StopHandle,
   VNode
@@ -18,6 +19,12 @@ export type Mounted = {
   range?: "item";
   scope: EffectScope;
   children: Mounted[];
+  /** Physical parent for children whose logical parent remains elsewhere. */
+  portalTarget?: Node;
+  /** Runs once the subtree's source range has a physical parent. */
+  afterPlacement?: () => void;
+  rendering?: boolean;
+  rerenderPending?: boolean;
   instance?: ComponentInstance<any>;
   delegatedEvents?: Map<string, EventListener>;
   stop?: StopHandle;
@@ -26,7 +33,9 @@ export type Mounted = {
 export type Root = {
   container: Element;
   mounted?: Mounted;
-  delegated: Map<string, EventListener>;
+  delegated: Map<Node, Map<string, EventListener>>;
+  portalTargets: Set<Node>;
+  eventContainer?: Node;
   errors: ErrorContextValue;
   current: VNode;
   version: number;
@@ -41,11 +50,15 @@ export type Root = {
   workBudget?: DomWorkBudget;
   /** Hydrated roots are anchored by SSR markers rather than the synthetic client root boundary. */
   mode?: "client" | "hydrated";
+  /** Component ranges are inferred when the public server format omits eXact markers. */
+  markerlessHydration?: boolean;
 };
 
 export type RenderOptions = {
   logger?: Logger;
   debugMarkers?: boolean;
+  /** Observes errors that reach the renderer root without a component boundary. */
+  onErrorReport?: (report: ErrorReport) => void;
   /** Maximum nested vnode depth accepted by mounting, patching, or hydration. */
   maxTreeDepth?: number;
   /** Maximum vnode and placeholder child values processed by one DOM update. */

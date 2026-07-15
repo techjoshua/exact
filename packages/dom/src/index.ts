@@ -3,6 +3,7 @@ import {
   Dynamic,
   ErrorContext,
   Fragment,
+  Portal,
   ServerSlot,
   Text,
   attemptCleanup,
@@ -23,6 +24,7 @@ import {
   type Component,
   type ComponentFunction,
   type ComponentInstance,
+  type ErrorContextValue,
   type ErrorReport,
   type RefBinding,
   type VNode,
@@ -52,7 +54,7 @@ import { clearElementOwner, setElementOwner } from "./ownership.js";
 import { afterMountedChildren, lastMountedNode, placeMountedBefore } from "./placement.js";
 import { applyDomProp, clearElementProps, updateProps } from "./props.js";
 import { adoptServerSlot, mountServerSlot } from "./server-slots.js";
-import { roots } from "./state.js";
+import { componentMounts, roots } from "./state.js";
 import { namespaceForTag } from "./namespace.js";
 import { consumeDomWork, walkDomSubtree, type DomWorkBudget } from "./work.js";
 import type { Mounted, RenderOptions, Root } from "./types.js";
@@ -79,6 +81,27 @@ export { applyDomProp };
 export { HTML_NAMESPACE, MATHML_NAMESPACE, SVG_NAMESPACE, namespaceForTag } from "./namespace.js";
 export { DEFAULT_DOM_WORK_LIMIT, DomTraversalLimitError, consumeDomWork, createDomWorkBudget, reserveDomWork, walkDomSubtree, type DomWorkBudget } from "./work.js";
 
+/** Returns the first host DOM node currently owned by an eXact component. */
+export function findComponentDomNode(instance: ComponentInstance<any>): Node | null {
+  const mounted = componentMounts.get(instance);
+  return mounted ? firstHostNode(mounted) : null;
+}
+
+function firstHostNode(mounted: Mounted): Node | null {
+  if (typeof mounted.vnode.type === "string" && mounted.dom instanceof Element) return mounted.dom;
+  if (mounted.vnode.type === Text && mounted.dom.nodeType === Node.TEXT_NODE && mounted.dom.textContent !== "") return mounted.dom;
+  for (const child of mounted.children) {
+    const node = firstHostNode(child);
+    if (node) return node;
+  }
+  return null;
+}
+
+function ownMountedInstance(mounted: Mounted, instance: ComponentInstance<any>): void {
+  mounted.instance = instance;
+  componentMounts.set(instance, mounted);
+}
+
 const DEFAULT_MAX_TREE_DEPTH = 512;
 const HARD_MAX_TREE_DEPTH = 1_024;
 const DEFAULT_MAX_TREE_NODES = 100_000;
@@ -104,7 +127,7 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
     root = {
       container,
       delegated: new Map(),
-      errors: createErrorContext(),
+      errors: createDomErrorContext(options), portalTargets: new Set(),
       current: vnode,
       version: 0,
       boundary: undefined as never,
@@ -205,7 +228,7 @@ export function adoptStatic(vnode: VNode, container: Element, options: RenderOpt
   const root: Root = {
     container,
     delegated: new Map(),
-    errors: createErrorContext(),
+    errors: createDomErrorContext(options), portalTargets: new Set(),
     current: vnode,
     version: 1,
     boundary: undefined as never,
@@ -223,7 +246,7 @@ export function adoptStatic(vnode: VNode, container: Element, options: RenderOpt
     return withDomWork(root, () => {
       countDomWork(root);
       const instance = withEffectScope(scope, () => createComponentInstance(root.boundary, { version: root.version }));
-      mounted.instance = instance;
+      ownMountedInstance(mounted, instance);
       const rendered = withEffectScope(scope, () => renderInstance(instance, () => rerenderComponent(root, mounted)));
       const nodes = contentNodesBetween(markers.start, markers.end);
       const children = adoptStaticChildren(root, rendered, nodes, instance, scope);
@@ -254,7 +277,7 @@ export function adoptComponentRoot(vnode: VNode, container: Element, options: Re
   const markers = boundaryMarkers(container);
   if (!markers || !markers.start.data.startsWith("exact:component:")) return false;
   const root: Root = {
-    container, delegated: new Map(), errors: createErrorContext(), current: vnode,
+    container, delegated: new Map(), errors: createDomErrorContext(options), portalTargets: new Set(), current: vnode,
     version: 1, boundary: undefined as never, debugMarkers: false,
     maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth), traversalDepth: 0,
     maxTreeNodes: normalizeTreeNodes(options.maxTreeNodes), traversedNodes: 0, workDepth: 0,
@@ -270,7 +293,7 @@ export function adoptComponentRoot(vnode: VNode, container: Element, options: Re
       const instance = withEffectScope(scope, () => createComponentInstance(
         vnode.type as ComponentFunction<any, Record<string, unknown>>, getComponentProps(vnode)
       ));
-      mounted.instance = instance;
+      ownMountedInstance(mounted, instance);
       const rendered = withEffectScope(scope, () => renderInstance(instance, () => rerenderComponent(root, mounted)));
       const children = adoptStaticChildren(root, rendered, contentNodesBetween(markers.start, markers.end), instance, scope);
       if (!children) { unmountMounted(mounted); clearDelegated(root); return false; }
@@ -287,6 +310,63 @@ export function adoptComponentRoot(vnode: VNode, container: Element, options: Re
     return false;
   } finally {
     root.workBudget = undefined;
+  }
+}
+
+/** Adopts a component root whose server markup intentionally omits eXact markers.
+ *
+ * Invisible text anchors establish the range required by the mounted renderer
+ * without changing serialized HTML. This is primarily used by compatibility
+ * layers whose public server output cannot expose eXact's marker protocol.
+ */
+export function adoptMarkerlessComponentRoot(vnode: VNode, container: Element, options: RenderOptions = {}): boolean {
+  if (typeof vnode.type !== "function" || roots.has(container)) return false;
+  const start = document.createTextNode("");
+  const end = document.createTextNode("");
+  container.insertBefore(start, container.firstChild);
+  container.appendChild(end);
+  const root: Root = {
+    container, delegated: new Map(), errors: createDomErrorContext(options), portalTargets: new Set(), current: vnode,
+    version: 1, boundary: undefined as never, debugMarkers: false,
+    maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth), traversalDepth: 0,
+    maxTreeNodes: normalizeTreeNodes(options.maxTreeNodes), traversedNodes: 0, workDepth: 0,
+    workBudget: options.workBudget,
+    logger: options.logger, mode: "hydrated", markerlessHydration: true
+  };
+  root.boundary = createRootBoundary(root);
+  const scope = createEffectScope();
+  const mounted: Mounted = { vnode, dom: start, end, scope, children: [] };
+  try {
+    return withDomWork(root, () => {
+      countDomWork(root);
+      const instance = withEffectScope(scope, () => createComponentInstance(
+        vnode.type as ComponentFunction<any, Record<string, unknown>>, getComponentProps(vnode)
+      ));
+      ownMountedInstance(mounted, instance);
+      const rendered = withEffectScope(scope, () => renderInstance(instance, () => rerenderComponent(root, mounted)));
+      const children = adoptStaticChildren(root, rendered, contentNodesBetween(start, end), instance, scope);
+      if (!children) {
+        unmountMounted(mounted);
+        clearDelegated(root);
+        throw new Error("markerless root children did not adopt");
+      }
+      mounted.children = children;
+      instance.markMounted();
+      root.mounted = mounted;
+      roots.set(container, root);
+      return true;
+    });
+  } catch (error) {
+    unmountMounted(mounted);
+    clearDelegated(root);
+    if (isDomRenderLimitError(error)) throw error;
+    return false;
+  } finally {
+    root.workBudget = undefined;
+    if (!roots.has(container)) {
+      start.remove();
+      end.remove();
+    }
   }
 }
 
@@ -365,6 +445,35 @@ function adoptStaticMountedInner(
 ): { mounted: Mounted; next: number } | undefined {
   const scope = createEffectScope(parentScope);
   if (typeof vnode.type === "function") {
+    if (root.markerlessHydration) {
+      const mounted: Mounted = { vnode, dom: undefined as never, scope, children: [] };
+      try {
+        const instance = withEffectScope(scope, () => createComponentInstance(
+          vnode.type as ComponentFunction<any, Record<string, unknown>>, getComponentProps(vnode), parentInstance
+        ));
+        ownMountedInstance(mounted, instance);
+        const rendered = withEffectScope(scope, () => renderInstance(instance, () => rerenderComponent(root, mounted)));
+        const adopted = adoptStaticChildrenRange(root, rendered, nodes.slice(cursor), instance, scope, false);
+        if (!adopted || !adopted.mounts.length) { unmountMounted(mounted); throw new Error(`markerless component ${describeVNodeType(vnode.type)} children did not adopt`); }
+        const first = adopted.mounts[0]!.dom;
+        const lastMount = adopted.mounts[adopted.mounts.length - 1]!;
+        const last = lastMount.end ?? lastMount.dom;
+        const parent = first.parentNode;
+        if (!parent || last.parentNode !== parent) { unmountMany(adopted.mounts); unmountMounted(mounted); throw new Error(`markerless component ${describeVNodeType(vnode.type)} range is disconnected`); }
+        const start = document.createTextNode("");
+        const end = document.createTextNode("");
+        parent.insertBefore(start, first);
+        parent.insertBefore(end, last.nextSibling);
+        mounted.dom = start;
+        mounted.end = end;
+        mounted.children = adopted.mounts;
+        instance.markMounted();
+        return { mounted, next: cursor + adopted.next };
+      } catch (error) {
+        unmountMounted(mounted);
+        throw error;
+      }
+    }
     const start = nodes[cursor];
     if (!(start instanceof Comment) || !start.data.startsWith("exact:component:")) { scope.stop(); return undefined; }
     const endIndex = nodes.findIndex((node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`);
@@ -374,7 +483,7 @@ function adoptStaticMountedInner(
       const instance = withEffectScope(scope, () => createComponentInstance(
         vnode.type as ComponentFunction<any, Record<string, unknown>>, getComponentProps(vnode), parentInstance
       ));
-      mounted.instance = instance;
+      ownMountedInstance(mounted, instance);
       const rendered = withEffectScope(scope, () => renderInstance(instance, () => rerenderComponent(root, mounted)));
       const children = adoptStaticChildren(root, rendered, nodes.slice(cursor + 1, endIndex), instance, scope);
       if (!children) { unmountMounted(mounted); return undefined; }
@@ -448,7 +557,10 @@ function adoptStaticMountedInner(
   if (!node) { scope.stop(); return undefined; }
   if (vnode.type === Text) {
     if (node.nodeType !== Node.TEXT_NODE || node.textContent !== String(vnode.props.value ?? "")) { scope.stop(); return undefined; }
-    return { mounted: { vnode, dom: node, scope, children: [] }, next: cursor + 1 };
+    const separator = root.markerlessHydration && nodes[cursor + 1] instanceof Comment && (nodes[cursor + 1] as Comment).data === " "
+      ? nodes[cursor + 1]
+      : undefined;
+    return { mounted: { vnode, dom: node, ...(separator ? { end: separator } : {}), scope, children: [] }, next: cursor + (separator ? 2 : 1) };
   }
   if (typeof vnode.type !== "string" || !(node instanceof Element) || node.tagName.toLowerCase() !== vnode.type.toLowerCase()) {
     scope.stop();
@@ -513,6 +625,19 @@ function createRootBoundary(root: Root): ComponentFunction<{}, { version: number
   };
 }
 
+function createDomErrorContext(options: RenderOptions): ErrorContextValue {
+  const base = createErrorContext();
+  if (!options.onErrorReport) return base;
+  return {
+    ...base,
+    report(error, reportOptions) {
+      const report = base.report(error, reportOptions);
+      options.onErrorReport?.(report);
+      return report;
+    }
+  };
+}
+
 function createRootErrorView(errors: ErrorReport[]): VNode {
   const reports: ErrorReport[] = [];
   for (let index = 0; index < errors.length; index++) {
@@ -532,7 +657,7 @@ function createRootErrorView(errors: ErrorReport[]): VNode {
   );
 }
 
-function createMarker(root: Root, label: "cell" | "component" | "dynamic" | "fragment"): Node {
+function createMarker(root: Root, label: "cell" | "component" | "dynamic" | "fragment" | "portal"): Node {
   return root.debugMarkers
     ? document.createComment(`exact-${label}`)
     : document.createTextNode("");
@@ -623,6 +748,16 @@ function mountInner(root: Root, vnode: VNode, scope: EffectScope, parentInstance
     return mounted;
   }
 
+  if (vnode.type === Portal) {
+    const marker = createMarker(root, "portal");
+    const target = portalTarget(vnode);
+    const mounted: Mounted = { vnode, dom: marker, scope, children: [], portalTarget: target };
+    const eventContainer = portalEventContainer(root, target);
+    if (eventContainer === target) root.portalTargets.add(target);
+    mounted.children = withEventContainer(root, eventContainer, () => mountChildren(root, target, vnode.children, parentInstance, mounted.scope));
+    return mounted;
+  }
+
   if (vnode.type === ServerSlot) {
     return mountServerSlot(root, vnode, scope);
   }
@@ -630,14 +765,23 @@ function mountInner(root: Root, vnode: VNode, scope: EffectScope, parentInstance
   if (typeof vnode.type === "function") {
     const wrapper = createMarker(root, "component");
     const mounted: Mounted = { vnode, dom: wrapper, scope, children: [] };
+    let constructing = true;
+    let invalidatedDuringConstruction = false;
+    const invalidate = () => {
+      if (constructing) {
+        invalidatedDuringConstruction = true;
+        return;
+      }
+      rerenderComponent(root, mounted);
+    };
     try {
       const instance = withEffectScope(mounted.scope, () => createComponentInstance(
           vnode.type as ComponentFunction<any, Record<string, unknown>>,
           getComponentProps(vnode),
           parentInstance
         ));
-      mounted.instance = instance;
-      const rendered = withEffectScope(mounted.scope, () => renderInstance(instance, () => rerenderComponent(root, mounted)));
+      ownMountedInstance(mounted, instance);
+      const rendered = withEffectScope(mounted.scope, () => renderInstance(instance, invalidate));
       mounted.children = mountDetachedChildren(root, rendered, instance, mounted.scope, parentNode);
       instance.markMounted();
     } catch (error) {
@@ -650,6 +794,10 @@ function mountInner(root: Root, vnode: VNode, scope: EffectScope, parentInstance
         ? mountDetachedChildren(root, normalizeRenderResult(fallback()), parentInstance, mounted.scope, parentNode)
         : [];
     }
+    constructing = false;
+    if (invalidatedDuringConstruction) mounted.afterPlacement = () => {
+      if (mounted.scope.active) rerenderComponent(root, mounted);
+    };
     return mounted;
   }
 
@@ -819,6 +967,22 @@ function patchInner(
     return mounted;
   }
 
+  if (next.type === Portal) {
+    const previousTarget = mounted.portalTarget ?? portalTarget(mounted.vnode);
+    const nextTarget = portalTarget(next);
+    mounted.vnode = next;
+    if (previousTarget !== nextTarget) {
+      mounted.children = patchChildren(root, previousTarget, mounted.children, [], parentInstance, mounted.scope);
+      mounted.portalTarget = nextTarget;
+      const eventContainer = portalEventContainer(root, nextTarget);
+      if (eventContainer === nextTarget) root.portalTargets.add(nextTarget);
+      mounted.children = withEventContainer(root, eventContainer, () => mountChildren(root, nextTarget, next.children, parentInstance, mounted.scope));
+    } else {
+      mounted.children = withEventContainer(root, portalEventContainer(root, nextTarget), () => patchChildren(root, nextTarget, mounted.children, next.children, parentInstance, mounted.scope));
+    }
+    return mounted;
+  }
+
   if (next.type === ServerSlot) {
     mounted.vnode = next;
     if (mounted.dom instanceof Element && mounted.dom.getAttribute("data-exact-server-slot") === String(next.props.id ?? "")) {
@@ -852,6 +1016,23 @@ function mountDetachedChildren(root: Root, children: Child[], parentInstance?: C
     mounted.push(mount(root, vnode, parentInstance, parentScope, parentNode));
   }
   return mounted;
+}
+
+function portalTarget(vnode: VNode): Node {
+  const target = vnode.props.target;
+  if (!(target instanceof Node)) throw new TypeError("An eXact portal target must be a DOM Node");
+  return target;
+}
+
+function withEventContainer<T>(root: Root, container: Node, run: () => T): T {
+  const previous = root.eventContainer;
+  root.eventContainer = container;
+  try { return run(); }
+  finally { root.eventContainer = previous; }
+}
+
+function portalEventContainer(root: Root, target: Node): Node {
+  return root.container === target || root.container.contains(target) ? root.container : target;
 }
 
 function mountChildren(root: Root, parent: Node, children: Child[], parentInstance?: ComponentInstance<any>, parentScope?: EffectScope): Mounted[] {
@@ -993,23 +1174,35 @@ function longestIncreasingSubsequencePositions(values: readonly number[]): Set<n
 function rerenderComponent(root: Root, mounted: Mounted): void {
   if (!mounted.instance) return;
   if (!mounted.scope.active) return;
-  domDebug(root, "rerender component", {
-    type: describeVNodeType(mounted.vnode.type),
-    key: mounted.vnode.key ?? "none"
-  });
-  const nextChildren = withEffectScope(
-    mounted.scope,
-    () => normalizeRenderResult(renderInstance(mounted.instance!, () => rerenderComponent(root, mounted)))
-  );
-  mounted.children = patchChildren(
-    root,
-    mounted.dom.parentNode ?? root.container,
-    mounted.children,
-    nextChildren,
-    mounted.instance,
-    mounted.scope,
-    afterMountedChildren(mounted)
-  );
+  if (mounted.rendering) {
+    mounted.rerenderPending = true;
+    return;
+  }
+  mounted.rendering = true;
+  try {
+    do {
+      mounted.rerenderPending = false;
+      domDebug(root, "rerender component", {
+        type: describeVNodeType(mounted.vnode.type),
+        key: mounted.vnode.key ?? "none"
+      });
+      const nextChildren = withEffectScope(
+        mounted.scope,
+        () => normalizeRenderResult(renderInstance(mounted.instance!, () => rerenderComponent(root, mounted)))
+      );
+      mounted.children = patchChildren(
+        root,
+        mounted.dom.parentNode ?? root.container,
+        mounted.children,
+        nextChildren,
+        mounted.instance,
+        mounted.scope,
+        afterMountedChildren(mounted)
+      );
+    } while (mounted.rerenderPending && mounted.scope.active);
+  } finally {
+    mounted.rendering = false;
+  }
 }
 
 function bindText(mounted: Mounted, value: unknown): void {
@@ -1054,7 +1247,10 @@ function unmountMounted(mounted: Mounted): void {
       }
       continue;
     }
-    if (current.mounted.instance) attemptTeardown(failure, () => current.mounted.instance!.unmount());
+    if (current.mounted.instance) {
+      componentMounts.delete(current.mounted.instance);
+      attemptTeardown(failure, () => current.mounted.instance!.unmount());
+    }
     if (current.mounted.stop) attemptTeardown(failure, current.mounted.stop);
     if (current.mounted.dom instanceof Element) {
       attemptTeardown(failure, () => clearElementProps(current.mounted.dom as Element));
@@ -1067,19 +1263,20 @@ function unmountMounted(mounted: Mounted): void {
 }
 
 function removeMountedNodes(parent: Node, mounted: Mounted): void {
-  const pending: Array<{ mounted: Mounted; complete: boolean }> = [{ mounted, complete: false }];
+  const pending: Array<{ mounted: Mounted; parent: Node; complete: boolean }> = [{ mounted, parent, complete: false }];
   const failure = teardownFailure();
   while (pending.length) {
     const current = pending.pop()!;
     if (!current.complete) {
-      pending.push({ mounted: current.mounted, complete: true });
+      pending.push({ ...current, complete: true });
+      const childParent = current.mounted.portalTarget ?? current.parent;
       for (let index = current.mounted.children.length - 1; index >= 0; index--) {
-        pending.push({ mounted: current.mounted.children[index]!, complete: false });
+        pending.push({ mounted: current.mounted.children[index]!, parent: childParent, complete: false });
       }
       continue;
     }
-    if (current.mounted.dom.parentNode === parent) attemptTeardown(failure, () => parent.removeChild(current.mounted.dom));
-    if (current.mounted.end?.parentNode === parent) attemptTeardown(failure, () => parent.removeChild(current.mounted.end!));
+    if (current.mounted.dom.parentNode === current.parent) attemptTeardown(failure, () => current.parent.removeChild(current.mounted.dom));
+    if (current.mounted.end?.parentNode === current.parent) attemptTeardown(failure, () => current.parent.removeChild(current.mounted.end!));
   }
   throwTeardownFailure(failure);
 }
