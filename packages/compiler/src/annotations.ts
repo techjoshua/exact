@@ -43,6 +43,9 @@ export function analyzeExactAnnotations(module: BoundModule): ExactAnnotationPla
       if (seen.has(identity)) continue;
       seen.add(identity);
       const start = directive.span?.start ?? reference.node.span?.start ?? 0;
+      // Namespaced directives are owned and validated by prepared compiler
+      // plugins. Core keeps its own directive language closed.
+      if (directive.key.includes(".")) continue;
       if (!supported.has(directive.key as ExactAnnotationKey)) {
         diagnostics.push({ message: `error: unknown @exact directive '${directive.key}'; supported directives are key, cleanup, own, and track`, start });
         continue;

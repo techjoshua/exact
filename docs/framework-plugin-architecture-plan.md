@@ -352,7 +352,7 @@ export interface ExactPluginConfigController<T> {
   validate(
     config: T,
     context: ExactPluginConfigContext
-  ): void | Promise<void>;
+  ): undefined | Promise<undefined>;
   compilerConfig?(
     config: T,
     context: ExactPluginConfigContext

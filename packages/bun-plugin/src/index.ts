@@ -17,6 +17,8 @@ import {
   validateInstalledReactReconciler,
   type ReactCompatibilityOptions
 } from "@exact/react-compat/plugin";
+import type { ExactPreparedCompilerRegistry } from "@exact/plugin-api";
+import { prepareExactPluginRegistry } from "@exact/plugin-host";
 
 export type ExactBunPluginOptions = {
   target?: TransformTarget;
@@ -29,6 +31,9 @@ export type ExactBunPluginOptions = {
   serverComponents?: boolean;
   sourceMap?: boolean;
   reactCompatibility?: boolean | ReactCompatibilityOptions;
+  applicationRoot?: string;
+  configPath?: string;
+  pluginRegistry?: ExactPreparedCompilerRegistry;
 };
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
@@ -74,11 +79,21 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
     name: "exact",
     setup(build) {
       const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
+      let pluginRegistry = options.pluginRegistry;
       build.config ??= {};
       build.config.conditions = mergeConditions(build.config.conditions ?? [], exactExportConditions(targetFor(options), options));
       // A new Bun build may have been triggered by tsconfig or another file
       // outside the module graph. Recreate project configuration before loads.
-      build.onStart?.(() => clearExpressionProjectCache());
+      build.onStart?.(async () => {
+        clearExpressionProjectCache();
+        if (!pluginRegistry) {
+          pluginRegistry = (await prepareExactPluginRegistry({
+            applicationRoot: options.applicationRoot,
+            configPath: options.configPath,
+            hostMode: "compiler"
+          })).compiler;
+        }
+      });
       build.onResolve({ filter: /\.exact$/ }, args => {
         const resolved = resolveExactArtifactImport(args.path, args.importer, targetFor(options));
         return resolved ? { path: resolved.id } : {};
@@ -102,7 +117,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
       build.onLoad({ filter: /\.[cm]?[jt]sx?$/ }, async args => {
         invalidateExpressionModule(args.path);
         const source = await readBunLoadSource(args);
-        const result = transformExactBunSource(source, args.path, options);
+        const result = transformExactBunSource(source, args.path, { ...options, pluginRegistry });
         if (!result) return {};
         return {
           contents: result.code,
@@ -145,7 +160,8 @@ export function transformExactBunSource(source: string, filename: string, option
       target: options.target,
       importedManifests: importedManifestsFor(options),
       serverComponents: options.serverComponents,
-      sourceMap: options.sourceMap ?? true
+      sourceMap: options.sourceMap ?? true,
+      pluginRegistry: options.pluginRegistry
     });
     return {
       code: result.code,
@@ -179,12 +195,18 @@ function targetFor(options: ExactBunPluginOptions): "client" | "server" {
 }
 
 function shouldTransform(id: string, code: string, options: ExactBunPluginOptions): boolean {
-  if (!/\.[jt]sx(?:$|\?)/.test(id)) return false;
-  if (!code.includes("<")) return false;
+  if (!/\.[cm]?[jt]sx?(?:$|\?)/.test(id)) return false;
   if (!options.include && /(?:^|[\\/])node_modules(?:[\\/]|$)/.test(id)) return false;
   if (options.include && !matchesFilter(id, options.include)) return false;
   if (options.exclude && matchesFilter(id, options.exclude)) return false;
-  return true;
+  return code.includes("<")
+    || /@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(code)
+    || Object.values(options.pluginRegistry?.plugins ?? {}).some(plugin => {
+      const include = plugin.extension?.include;
+      if (!include) return false;
+      include.lastIndex = 0;
+      return include.test(id);
+    });
 }
 
 function matchesFilter(id: string, pattern: FilterPattern): boolean {

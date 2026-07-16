@@ -15,7 +15,9 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "dependencies": {
-    "@exact/core": "file:../core"
+    "@exact/core": "file:../core",
+    "@exact/plugin-api": "file:../plugin-api",
+    "@exact/plugin-host": "file:../plugin-host"
   },
   "scripts": {
     "build": "tsc -b",

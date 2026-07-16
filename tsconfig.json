@@ -1,6 +1,10 @@
 {
   "files": [],
   "references": [
+    { "path": "./packages/plugin-api" },
+    { "path": "./packages/config" },
+    { "path": "./packages/plugin-host" },
+    { "path": "./packages/secrets" },
     { "path": "./packages/expressions" },
     { "path": "./packages/reactive" },
     { "path": "./packages/core" },

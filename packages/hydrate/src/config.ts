@@ -35,8 +35,9 @@ function parseHydrationConfig(script: HTMLScriptElement, limits: ExactHydrationC
     if (!value || typeof value !== "object" || Array.isArray(value)) return {};
     const record = value as Record<string, unknown>;
     if (!isJsonSafe(record, { maxDepth: limits.maxDepth, maxNodes: limits.maxNodes, maxBytes })
-      || !hasOnlyKeys(record, ["endpoint", "endpoints", "state", "stateContracts", "actionBoundaries"])) return {};
+      || !hasOnlyKeys(record, ["pluginRegistryFingerprint", "endpoint", "endpoints", "state", "stateContracts", "actionBoundaries"])) return {};
     return {
+      pluginRegistryFingerprint: typeof record.pluginRegistryFingerprint === "string" ? record.pluginRegistryFingerprint : undefined,
       endpoint: typeof record.endpoint === "string" ? record.endpoint : undefined,
       endpoints: isEndpointRoutes(record.endpoints) ? record.endpoints : undefined,
       ...("state" in record ? { state: record.state } : {}),
@@ -51,6 +52,10 @@ function parseHydrationConfig(script: HTMLScriptElement, limits: ExactHydrationC
 /** Combines explicit hydration options with the nearest serialized document config. */
 export function resolveHydrateOptions(container: Element, options: HydrateOptions): HydrateOptions {
   const config = readNearestHydrationConfig(container, options.configLimits, options.maxTreeNodes);
+  if (config.pluginRegistryFingerprint && options.clientPluginRegistryFingerprint
+    && config.pluginRegistryFingerprint !== options.clientPluginRegistryFingerprint) {
+    throw new Error("Client and server eXact plugin registry fingerprints do not match");
+  }
   return {
     ...options,
     endpoint: options.endpoint ?? config.endpoint,

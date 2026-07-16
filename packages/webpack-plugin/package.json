@@ -20,6 +20,8 @@
   "types": "./dist/index.d.ts",
   "dependencies": {
     "@exact/compiler": "file:../compiler",
+    "@exact/plugin-api": "file:../plugin-api",
+    "@exact/plugin-host": "file:../plugin-host",
     "@exact/react-compat": "file:../react-compat",
     "@exact/react-dom-compat": "file:../react-dom-compat"
   },

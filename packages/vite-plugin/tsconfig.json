@@ -7,6 +7,9 @@
     "lib": ["ES2022"]
   },
   "references": [
+    { "path": "../plugin-api" },
+    { "path": "../config" },
+    { "path": "../plugin-host" },
     { "path": "../compiler" },
     { "path": "../react-compat" }
   ],

@@ -24,11 +24,18 @@ export function createExactServerManifest(
   const actions: Record<string, ExactManifestAction> = { ...options.actions };
   const boundaries: Record<string, ExactManifestBoundary> = { ...options.boundaries };
   const boundaryOverrides = new Set(Object.keys(options.boundaries ?? {}));
+  let pluginRegistryFingerprint: string | undefined;
 
   for (const manifest of normalizeCompilerManifests(compilerManifest)) {
     assertCompilerManifestLike(manifest);
-    if (manifest.version !== exactCompilerManifestVersion) {
+    if (manifest.version !== 2 && manifest.version !== exactCompilerManifestVersion) {
       throw new Error(`Unsupported eXact compiler manifest version: ${String((manifest as { version?: unknown }).version)}`);
+    }
+    if (manifest.pluginRegistry?.fingerprint) {
+      if (pluginRegistryFingerprint && pluginRegistryFingerprint !== manifest.pluginRegistry.fingerprint) {
+        throw new Error("Compiler manifests use incompatible eXact plugin registry fingerprints");
+      }
+      pluginRegistryFingerprint = manifest.pluginRegistry.fingerprint;
     }
     for (const action of Object.values(manifest.serverActions ?? {})) {
       if (action.placement !== "server" && action.placement !== "isomorphic") continue;
@@ -67,6 +74,7 @@ export function createExactServerManifest(
   const endpoints = normalizeEndpointRoutes(options.endpoints);
   return {
     version: exactServerManifestVersion,
+    pluginRegistryFingerprint,
     endpoint: options.endpoint,
     endpoints,
     actions,
@@ -95,6 +103,7 @@ export function createExactHydrationManifestConfig(
   state?: unknown
 ): ExactHydrationManifestConfig {
   return omitEmptyHydrationConfig({
+    pluginRegistryFingerprint: manifest.pluginRegistryFingerprint,
     endpoint: manifest.endpoint,
     endpoints: manifest.endpoints,
     state,
@@ -161,7 +170,7 @@ function assertCompilerManifestLike(manifest: unknown): asserts manifest is Exac
     throw new Error("Malformed eXact compiler manifest");
   }
   const record = manifest as Partial<ExactCompilerManifestLike> & { version?: unknown };
-  if (record.version !== exactCompilerManifestVersion) return;
+  if (record.version !== 2 && record.version !== exactCompilerManifestVersion) return;
   if (record.serverActions !== undefined && (!record.serverActions || typeof record.serverActions !== "object" || Array.isArray(record.serverActions))) {
     throw new Error("Malformed eXact compiler manifest");
   }

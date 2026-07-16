@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { compileProject, compileProjectArtifacts } from "./index.js";
 import type { TransformTarget } from "./index.js";
+import { prepareExactPluginRegistry } from "@exact/plugin-host";
+import path from "node:path";
 
 type CliOptions = {
   inputs: string[];
@@ -20,6 +22,7 @@ async function main(argv: string[]): Promise<void> {
     process.exitCode = 1;
     return;
   }
+  const pluginRegistry = await prepareCliRegistry(options);
 
   if (options.artifacts) {
     if (!options.outDir) throw new Error("exactc --artifacts requires --outDir");
@@ -28,6 +31,7 @@ async function main(argv: string[]): Promise<void> {
       rootDir: options.rootDir,
       serverComponents: options.serverComponents,
       sourceMap: options.sourceMap,
+      pluginRegistry,
     });
     for (const result of results) {
       console.log(`${result.inputFile} -> ${result.clientFile}`);
@@ -46,6 +50,7 @@ async function main(argv: string[]): Promise<void> {
     emitManifest: options.emitManifest,
     serverComponents: options.serverComponents,
     sourceMap: options.sourceMap,
+    pluginRegistry,
   });
 
   if (!options.outDir && results.length > 1) {
@@ -64,6 +69,18 @@ async function main(argv: string[]): Promise<void> {
     } else {
       process.stdout.write(result.code);
     }
+  }
+}
+
+async function prepareCliRegistry(options: CliOptions) {
+  try {
+    return (await prepareExactPluginRegistry({
+      applicationRoot: options.rootDir ?? path.dirname(path.resolve(options.inputs[0]!)),
+      hostMode: "compiler"
+    })).compiler;
+  } catch (error) {
+    if (error instanceof Error && /package\.json was not found above/.test(error.message)) return undefined;
+    throw error;
   }
 }
 

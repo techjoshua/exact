@@ -8,6 +8,8 @@
     "types": ["node"]
   },
   "references": [
+    { "path": "../plugin-api" },
+    { "path": "../plugin-host" },
     { "path": "../core" }
   ],
   "include": ["src"],

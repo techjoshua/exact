@@ -15,6 +15,7 @@ import type {
   ExactServerManifest,
   ExactStateContract
 } from "@exact/server";
+import type { ExactOutputExtension } from "@exact/plugin-api";
 
 export type RenderToStringOptions = {
   markers?: boolean;
@@ -38,6 +39,8 @@ export type RenderToStringOptions = {
   /** Maximum chunks emitted by a plain HTML stream. Defaults to 100,000. */
   maxStreamChunks?: number;
   signal?: AbortSignal;
+  /** Prepared render output policies. Transformations run before all final validators. */
+  outputExtensions?: readonly ExactOutputExtension[];
 };
 
 export type RenderToStringResult = {
@@ -46,6 +49,7 @@ export type RenderToStringResult = {
 };
 
 export type HydrationScriptOptions = {
+  pluginRegistryFingerprint?: string;
   endpoint?: string;
   endpoints?: ExactEndpointRoutes;
   state?: unknown;
@@ -59,6 +63,7 @@ export type HydrationScriptOptions = {
   maxHydrationNodes?: number;
   /** Maximum encoded hydration JSON bytes. Defaults to 16 MiB. */
   maxHydrationBytes?: number;
+  outputExtensions?: readonly ExactOutputExtension[];
 };
 
 export type HydratableStringResult = RenderToStringResult & {

@@ -18,6 +18,8 @@ import {
   type ReactCompatibilityOptions,
   type ResolvedReactCompatibility
 } from "@exact/react-compat/plugin";
+import type { ExactPreparedCompilerRegistry } from "@exact/plugin-api";
+import { prepareExactPluginRegistry } from "@exact/plugin-host";
 
 export type ExactWebpackPluginOptions = {
   target?: TransformTarget;
@@ -30,6 +32,9 @@ export type ExactWebpackPluginOptions = {
   serverComponents?: boolean;
   sourceMap?: boolean;
   reactCompatibility?: boolean | ReactCompatibilityOptions;
+  applicationRoot?: string;
+  configPath?: string;
+  pluginRegistry?: ExactPreparedCompilerRegistry;
 };
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
@@ -107,7 +112,7 @@ export class ExactWebpackPlugin {
 /** Creates the webpack pre-loader rule for eXact JSX transforms. */
 export function createExactWebpackRule(options: ExactWebpackPluginOptions = {}): Record<string, unknown> {
   return {
-    test: /\.[jt]sx$/,
+    test: /\.[cm]?[jt]sx?$/,
     enforce: "pre",
     use: [{
       loader: "@exact/webpack-plugin/loader",
@@ -136,7 +141,8 @@ export function transformExactWebpackSource(source: string, filename: string, op
       target: options.target,
       importedManifests: importedManifestsFor(options),
       serverComponents: options.serverComponents,
-      sourceMap: options.sourceMap ?? true
+      sourceMap: options.sourceMap ?? true,
+      pluginRegistry: options.pluginRegistry
     });
     return {
       code: result.code,
@@ -146,6 +152,24 @@ export function transformExactWebpackSource(source: string, filename: string, op
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`eXact JSX transform failed for ${filename}\n${message}`);
   }
+}
+
+/** Prepares the application registry before invoking the synchronous webpack transform. */
+export async function transformExactWebpackSourceAsync(
+  source: string,
+  filename: string,
+  options: ExactWebpackPluginOptions = {}
+): Promise<{ code: string; map: unknown } | null> {
+  if (options.pluginRegistry) return transformExactWebpackSource(source, filename, options);
+  const registry = await prepareExactPluginRegistry({
+    applicationRoot: options.applicationRoot ?? path.dirname(filename),
+    configPath: options.configPath,
+    hostMode: "compiler"
+  });
+  return transformExactWebpackSource(source, filename, {
+    ...options,
+    pluginRegistry: registry.compiler
+  });
 }
 
 function importedManifestsFor(options: { importedManifests?: readonly ExactCompilerManifest[]; manifestFiles?: readonly string[] }): ExactCompilerManifest[] {
@@ -220,12 +244,18 @@ function targetFor(options: ExactWebpackPluginOptions): "client" | "server" {
 }
 
 function shouldTransform(id: string, code: string, options: ExactWebpackPluginOptions): boolean {
-  if (!/\.[jt]sx(?:$|\?)/.test(id)) return false;
-  if (!code.includes("<")) return false;
+  if (!/\.[cm]?[jt]sx?(?:$|\?)/.test(id)) return false;
   if (!options.include && /(?:^|[\\/])node_modules(?:[\\/]|$)/.test(id)) return false;
   if (options.include && !matchesFilter(id, options.include)) return false;
   if (options.exclude && matchesFilter(id, options.exclude)) return false;
-  return true;
+  return code.includes("<")
+    || /@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(code)
+    || Object.values(options.pluginRegistry?.plugins ?? {}).some(plugin => {
+      const include = plugin.extension?.include;
+      if (!include) return false;
+      include.lastIndex = 0;
+      return include.test(id);
+    });
 }
 
 function matchesFilter(id: string, pattern: FilterPattern): boolean {

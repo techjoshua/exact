@@ -1000,7 +1000,7 @@ function parseExpressionDirectives(text: string, offset: number, sourceFile: ts.
     const namespace = match[1]!;
     if (namespace !== "exact") continue;
     const body = match[2] ?? "";
-    const token = /([A-Za-z_$][\w$-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([A-Za-z_$][\w$]*)))?/g;
+    const token = /([A-Za-z_$][\w$-]*(?:\.[A-Za-z_$][\w$-]*)?)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([A-Za-z_$][\w$]*)))?/g;
     for (let item = token.exec(body); item; item = token.exec(body)) {
       const start = offset + match.index + match[0].indexOf(body) + item.index;
       const line = sourceFile.getLineAndCharacterOfPosition(Math.max(0, start));

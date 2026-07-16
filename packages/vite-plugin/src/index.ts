@@ -19,6 +19,12 @@ import {
   type ResolvedReactCompatibility
 } from "@exact/react-compat/plugin";
 import { createReactCompatibilityBuildEngine, type ReactCompatibilityBuildEngine } from "@exact/react-compat/build";
+import type { ExactPreparedCompilerRegistry } from "@exact/plugin-api";
+import {
+  invalidateExactPluginRegistry,
+  prepareExactPluginRegistry,
+  type ExactPreparedPluginRegistry
+} from "@exact/plugin-host";
 
 export type ExactPluginOptions = {
   include?: FilterPattern;
@@ -31,6 +37,9 @@ export type ExactPluginOptions = {
   serverComponents?: boolean;
   sourceMap?: boolean;
   reactCompatibility?: boolean | ReactCompatibilityOptions;
+  applicationRoot?: string;
+  configPath?: string;
+  pluginRegistry?: ExactPreparedCompilerRegistry;
 };
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
@@ -40,7 +49,7 @@ export type ExactPlugin = {
   enforce: "pre";
   warn?(message: string): void;
   config?(): { resolve: { conditions: string[]; alias?: Array<{ find: RegExp; replacement: string }> } };
-  buildStart?(this: { addWatchFile(file: string): void }): void;
+  buildStart?(this: { addWatchFile(file: string): void; warn?(message: string): void }): void | Promise<void>;
   configureServer?(server: {
     httpServer?: { once(event: "close", listener: () => void): unknown };
     watcher?: { once(event: "close", listener: () => void): unknown };
@@ -62,6 +71,16 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
       ? options.reactCompatibility
       : { cwd: compatibilityCwd, target: reactCompatibility.target })
     : undefined;
+  let preparedRegistry: ExactPreparedPluginRegistry | undefined;
+  const prepareRegistry = async (): Promise<ExactPreparedPluginRegistry> => {
+    if (preparedRegistry) return preparedRegistry;
+    preparedRegistry = await prepareExactPluginRegistry({
+      applicationRoot: options.applicationRoot,
+      configPath: options.configPath,
+      hostMode: "compiler"
+    });
+    return preparedRegistry;
+  };
   return {
     name: "exact",
     enforce: "pre",
@@ -73,8 +92,11 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
         }
       };
     },
-    buildStart() {
+    async buildStart() {
       for (const file of compatibilityEngine?.watchFiles ?? []) this.addWatchFile(file);
+      const registry = await prepareRegistry();
+      for (const file of registry.watchFiles) this.addWatchFile(file);
+      for (const warning of registry.warnings) this.warn?.(warning);
     },
     configureServer(server) {
       server.httpServer?.once("close", () => compilerSession.dispose());
@@ -88,6 +110,10 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
     },
     handleHotUpdate(context) {
       compatibilityEngine?.invalidate(context.file);
+      if (preparedRegistry?.watchFiles.includes(path.resolve(context.file))) {
+        invalidateExactPluginRegistry(preparedRegistry.applicationRoot);
+        preparedRegistry = undefined;
+      }
       // Semantic changes can originate in imported .ts/.d.ts files or the
       // project config even when that file itself contains no JSX.
       if (/(?:^|[\\/])tsconfig(?:\.[^\\/]+)?\.json$/i.test(context.file)) compilerSession.clear();
@@ -95,6 +121,10 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
     },
     watchChange(id, change) {
       compatibilityEngine?.invalidate(id);
+      if (preparedRegistry?.watchFiles.includes(path.resolve(id))) {
+        invalidateExactPluginRegistry(preparedRegistry.applicationRoot);
+        preparedRegistry = undefined;
+      }
       if (/(?:^|[\\/])tsconfig(?:\.[^\\/]+)?\.json$/i.test(id)) compilerSession.clear();
       else compilerSession.invalidate(id, change.event === "delete");
     },
@@ -115,14 +145,15 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
           });
           return rewriteWithCompatibility(compatibilityEngine!, lowered.code, id, options, code);
         }
-        if (shouldCompileExactJsx(id, code, options)) {
+        if (shouldCompileExactModule(id, code, options, options.pluginRegistry ?? preparedRegistry?.compiler)) {
           const result = transformSource(code, {
             filename: id,
             session: compilerSession,
             target: options.target,
             importedManifests: importedManifestsFor(options),
             serverComponents: options.serverComponents,
-            sourceMap: false
+            sourceMap: false,
+            pluginRegistry: options.pluginRegistry ?? preparedRegistry?.compiler
           });
           const rewritten = compatibilityEngine
             ? compatibilityEngine.transformModule({ id, source: result.code, format: "module", target: options.target === "server" ? "server" : "client", sourceMap: false })
@@ -157,12 +188,23 @@ function importedManifestsFor(options: { importedManifests?: readonly ExactCompi
   ];
 }
 
-function shouldCompileExactJsx(id: string, code: string, options: ExactPluginOptions): boolean {
-  if (!containsJsx(id, code)) return false;
+function shouldCompileExactModule(
+  id: string,
+  code: string,
+  options: ExactPluginOptions,
+  registry: ExactPreparedCompilerRegistry | undefined
+): boolean {
   if (!options.include && /(?:^|[\\/])node_modules(?:[\\/]|$)/.test(id)) return false;
   if (options.include && !matchesFilter(id, options.include)) return false;
   if (options.exclude && matchesFilter(id, options.exclude)) return false;
-  return true;
+  return containsJsx(id, code)
+    || /@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(code)
+    || Object.values(registry?.plugins ?? {}).some(plugin => {
+      const include = plugin.extension?.include;
+      if (!include) return false;
+      include.lastIndex = 0;
+      return include.test(id);
+    });
 }
 
 function isTransformableModule(id: string): boolean { return /\.[cm]?[jt]sx?(?:$|\?)/i.test(id); }

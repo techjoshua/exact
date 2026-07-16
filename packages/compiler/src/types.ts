@@ -1,5 +1,6 @@
 import type ts from "typescript";
 import type { ExactCompilerSession } from "./expression-project.js";
+import type { ExactJsonValue, ExactPreparedCompilerRegistry } from "@exact/plugin-api";
 
 export type TransformOptions = {
   filename?: string;
@@ -13,6 +14,8 @@ export type TransformOptions = {
   sourceMap?: boolean;
   moduleRewrite?: ModuleRewriteOptions;
   moduleTransform?: ModuleTransform;
+  /** Prepared, compiler-safe plugin projection. Raw plugin configuration is never accepted here. */
+  pluginRegistry?: ExactPreparedCompilerRegistry;
 };
 
 /** Host-neutral final module pass applied after eXact lowering and before maps. */
@@ -231,7 +234,7 @@ export type ExactArtifactManifest = {
 };
 
 export type ExactCompilerManifest = {
-  version: 2;
+  version: 3;
   filename: string;
   dependencies: string[];
   semanticGraph?: ExactSemanticGraphIR;
@@ -252,6 +255,16 @@ export type ExactCompilerManifest = {
     };
     contextContract: ExactContextEffect[];
   }>;
+  pluginRegistry?: {
+    fingerprint: string;
+    plugins: Record<string, {
+      version: string;
+      protocolVersion: string;
+      required: boolean;
+      compilerConfigKey: ExactJsonValue;
+    }>;
+  };
+  pluginData?: Record<string, ExactJsonValue>;
   diagnostics: string[];
 };
 
@@ -284,6 +297,7 @@ export type CompileArtifactsOptions = {
   moduleRewrite?: ModuleRewriteOptions;
   moduleTransform?: ModuleTransform;
   session?: ExactCompilerSession;
+  pluginRegistry?: ExactPreparedCompilerRegistry;
 };
 
 export type CompileArtifactsResult = {
@@ -314,6 +328,7 @@ export type CompileArtifactPlanEntriesOptions = {
   moduleRewrite?: ModuleRewriteOptions;
   moduleTransform?: ModuleTransform;
   session?: ExactCompilerSession;
+  pluginRegistry?: ExactPreparedCompilerRegistry;
 };
 
 export type ExactArtifactPlanOptions = {

@@ -1,9 +1,11 @@
 import type { Logger } from "@exact/core";
+import type { ExactOutputExtension } from "@exact/plugin-api";
 
 export type ExactInvocationKind = "action" | "refresh";
 
 export type ExactServerManifest = {
   version: 1;
+  pluginRegistryFingerprint?: string;
   endpoint?: string;
   endpoints?: ExactEndpointRoutes;
   actions?: Record<string, ExactManifestAction>;
@@ -54,7 +56,10 @@ export type ExactStatePath = {
 };
 
 export type ExactCompilerManifestLike = {
-  version: 2;
+  version: 2 | 3;
+  pluginRegistry?: {
+    fingerprint: string;
+  };
   serverActions?: Record<string, {
     id: string;
     componentId?: string;
@@ -174,6 +179,7 @@ export type ExactServerContext = {
   authorize?(request: ExactRequestLike, input: ExactInvocationRequest | ExactBatchRequest): Promise<boolean> | boolean;
   validateCsrf?(request: ExactRequestLike, input: ExactInvocationRequest | ExactBatchRequest): Promise<boolean> | boolean;
   logger?: Logger;
+  outputExtensions?: readonly ExactOutputExtension[];
   /** Resource ceilings applied before and during batch dispatch. */
   limits?: {
     /** Maximum operations accepted in one batch. Defaults to 100. */
@@ -200,6 +206,7 @@ export type ExactServerContext = {
 };
 
 export type ExactHydrationManifestConfig = {
+  pluginRegistryFingerprint?: string;
   endpoint?: string;
   endpoints?: ExactEndpointRoutes;
   state?: unknown;

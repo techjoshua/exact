@@ -24,6 +24,8 @@
   "dependencies": {
     "@exact/core": "file:../core",
     "@exact/expressions": "file:../expressions",
+    "@exact/plugin-api": "file:../plugin-api",
+    "@exact/plugin-host": "file:../plugin-host",
     "typescript": "^5.7.2"
   },
   "scripts": {

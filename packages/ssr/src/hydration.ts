@@ -1,15 +1,18 @@
 import { escapeAttr } from "./html.js";
 import type { HydrationScriptOptions } from "./types.js";
+import { processExactOutputSync } from "@exact/plugin-host";
+import type { ExactOutputExtension } from "@exact/plugin-api";
 
 /** Renders the JSON script tag consumed by the hydration client. */
 export function renderHydrationScript(options: HydrationScriptOptions = {}): string {
-  const payloadValue = omitUndefinedProperties({
+  const payloadValue = processExactOutputSync<Record<string, unknown>>(omitUndefinedProperties({
+    pluginRegistryFingerprint: options.pluginRegistryFingerprint,
     endpoint: options.endpoint,
     endpoints: options.endpoints,
     state: options.state,
     stateContracts: options.stateContracts,
     actionBoundaries: options.actionBoundaries
-  });
+  }), { kind: "hydration" }, (options.outputExtensions ?? []) as readonly ExactOutputExtension<Record<string, unknown>>[]);
   if (!isStrictJsonSafe(payloadValue, {
     maxDepth: options.maxHydrationDepth,
     maxNodes: options.maxHydrationNodes

@@ -23,6 +23,12 @@ import {
   isManifestAllowed,
   stateMatchesContract
 } from "./validation.js";
+import {
+  prepareExactPluginRegistry,
+  processExactOutputSync,
+  type ExactPreparedPluginRegistry,
+  type PrepareExactPluginRegistryOptions
+} from "@exact/plugin-host";
 
 export { exactCompilerManifestVersion, exactServerManifestVersion } from "./versions.js";
 export {
@@ -42,6 +48,13 @@ export {
   type ExactHapiToolkit
 } from "./adapters.js";
 export type * from "./types.js";
+
+/** Prepares and validates server plugins before accepting requests. */
+export function prepareExactServerPlugins(
+  options: Omit<PrepareExactPluginRegistryOptions, "hostMode"> = {}
+): Promise<ExactPreparedPluginRegistry> {
+  return prepareExactPluginRegistry({ ...options, hostMode: "server" });
+}
 
 /** Handles an eXact endpoint request using the runtime-neutral server protocol. */
 export async function handleExactRequest(request: ExactRequestLike, context: ExactServerContext): Promise<ExactResponseLike> {
@@ -192,7 +205,8 @@ async function dispatchExactOperationAfterSecurity(
 }
 
 function limitedJsonResponse(context: ExactServerContext, status: number, body: unknown): ExactResponseLike {
-  const response = jsonResponse(status, body);
+  const validated = processExactOutputSync(body, { kind: "action-response", signal: context.signal }, context.outputExtensions ?? []);
+  const response = jsonResponse(status, validated);
   const limit = positiveLimit(context.limits?.maxResponseBytes, 16 * 1024 * 1024);
   if (new TextEncoder().encode(response.body).byteLength <= limit) return response;
   logReject(context, "rejected oversized exact invocation response");

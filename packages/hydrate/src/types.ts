@@ -2,6 +2,8 @@ import type { ComponentFunction, ErrorReport, Logger } from "@exact/core";
 import type { ExactInvocationKind, ExactInvocationRequest, ExactInvocationResult, ExactOperationResult, ExactPatch, ExactStateContract } from "@exact/server";
 
 export type HydrateOptions = {
+  /** Compiler registry fingerprint for the client artifact. */
+  clientPluginRegistryFingerprint?: string;
   endpoint?: string;
   endpoints?: ExactEndpointRoutes;
   state?: unknown;
@@ -46,6 +48,7 @@ export type HydrationDiagnostic = {
 };
 
 export type ExactHydrationConfig = {
+  pluginRegistryFingerprint?: string;
   endpoint?: string;
   endpoints?: ExactEndpointRoutes;
   state?: unknown;

@@ -19,6 +19,34 @@ describe("@exact/vite-plugin", () => {
     });
   });
 
+  it("runs prepared compiler policies for plain TypeScript modules", () => {
+    const plugin = exact({
+      reactCompatibility: false,
+      pluginRegistry: {
+        fingerprint: "test",
+        plugins: {
+          "@exact/policy": {
+            packageName: "@exact/policy",
+            version: "1.0.0",
+            protocolVersion: "1.0.0",
+            required: true,
+            cacheKey: 1,
+            extension: {
+              namespace: "policy",
+              directives: ["source"],
+              include: /\.ts$/,
+              analyzeModule: () => ({
+                diagnostics: [{ severity: "error", code: "blocked", message: "plain TS was analyzed" }]
+              })
+            }
+          }
+        }
+      }
+    });
+    expect(() => plugin.transform("/** @exact policy.source */\nexport const value = 1;", "/src/value.ts"))
+      .toThrow("plain TS was analyzed");
+  });
+
   it("passes compiler targets through to transformed files", () => {
     const plugin = exact({ target: "client", reactCompatibility: false });
     const result = plugin.transform(`

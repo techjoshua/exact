@@ -27,6 +27,13 @@ import type { ExactPatch } from "@exact/server";
 import { boundaryPatch, diffBoundaryHtml, diffKeyedListItems } from "./diff.js";
 import { escapeAttr, escapeText, voidElements } from "./html.js";
 import { jsonUnsafePath, renderHydrationScript, serializeHydrationPayload } from "./hydration.js";
+import {
+  prepareExactPluginRegistry,
+  processExactOutput,
+  processExactOutputSync,
+  type ExactPreparedPluginRegistry,
+  type PrepareExactPluginRegistryOptions
+} from "@exact/plugin-host";
 import { decodeMarkerKey, exactMarkerId, keyedItemMarkerId, markerId, markerPair, renderAttrs, withMarker } from "./markup.js";
 import { createDocumentEventStream, createHtmlStream, createProgressiveHtmlStream, progressiveHtmlResponse } from "./streams.js";
 import type {
@@ -66,6 +73,13 @@ import type {
 export type * from "./types.js";
 export { diffBoundaryHtml, diffKeyedListItems } from "./diff.js";
 export { renderHydrationScript } from "./hydration.js";
+
+/** Prepares render policies and projections for an SSR host. */
+export function prepareExactRenderPlugins(
+  options: Omit<PrepareExactPluginRegistryOptions, "hostMode"> = {}
+): Promise<ExactPreparedPluginRegistry> {
+  return prepareExactPluginRegistry({ ...options, hostMode: "render" });
+}
 
 const DEFAULT_MAX_TREE_DEPTH = 512;
 const HARD_MAX_TREE_DEPTH = 1_024;
@@ -119,8 +133,13 @@ export function renderToString(vnode: VNode, options: RenderToStringOptions = {}
 
 function renderToStringOwned(vnode: VNode, options: RenderToStringOptions): RenderToStringResult {
   const context = createSsrContext(options);
-  const body = renderVNode(context, vnode, undefined);
-  const html = boundedJoin(context, [...context.reactResourceHints, body]);
+  const validatedVNode = processExactOutputSync(vnode, { kind: "vnode", signal: options.signal }, options.outputExtensions ?? []) as VNode;
+  const body = renderVNode(context, validatedVNode, undefined);
+  const html = processExactOutputSync(
+    boundedJoin(context, [...context.reactResourceHints, body]),
+    { kind: "html", signal: options.signal },
+    options.outputExtensions ?? []
+  ) as string;
   assertOutputWithinLimit(context, html);
   return {
     html,
@@ -132,6 +151,7 @@ function renderToStringOwned(vnode: VNode, options: RenderToStringOptions): Rend
 export function renderToHydratableString(vnode: VNode, options: RenderToStringOptions & HydrationScriptOptions = {}): HydratableStringResult {
   const result = renderToString(vnode, options);
   const hydrationScript = renderHydrationScript({
+    pluginRegistryFingerprint: options.pluginRegistryFingerprint,
     endpoint: options.endpoint,
     endpoints: options.endpoints,
     state: result.state,
@@ -141,7 +161,8 @@ export function renderToHydratableString(vnode: VNode, options: RenderToStringOp
     nonce: options.nonce,
     maxHydrationDepth: options.maxHydrationDepth,
     maxHydrationNodes: options.maxHydrationNodes,
-    maxHydrationBytes: options.maxHydrationBytes
+    maxHydrationBytes: options.maxHydrationBytes,
+    outputExtensions: options.outputExtensions
   });
   return {
     ...result,
@@ -154,11 +175,22 @@ export function renderToHydratableString(vnode: VNode, options: RenderToStringOp
 export function renderToStream(vnode: VNode, options: RenderToStringOptions = {}): ReadableStream<Uint8Array> {
   const context = createSsrContext(options);
   const owner = createSsrOwner();
-  const rendered = renderVNodeChunks(context, vnode, undefined, 1);
+  const validatedVNode = processExactOutputSync(vnode, { kind: "vnode", signal: options.signal }, options.outputExtensions ?? []) as VNode;
+  const rendered = renderVNodeChunks(context, validatedVNode, undefined, 1);
   const observed: Iterable<string> = {
     [Symbol.iterator]() {
       return {
-        next: () => withTaskObserver(owner.observer, () => rendered.next()),
+        next: () => {
+          const next = withTaskObserver(owner.observer, () => rendered.next());
+          return next.done ? next : {
+            done: false,
+            value: processExactOutputSync(
+              next.value,
+              { kind: "stream", signal: options.signal },
+              options.outputExtensions ?? []
+            ) as string
+          };
+        },
         return: () => rendered.return(undefined)
       };
     }
@@ -220,8 +252,13 @@ export async function renderToStringAsync(vnode: VNode, options: RenderToStringO
   const renderOptions = withTaskDeadline(options);
   const context = createSsrContext(renderOptions);
 
-  const body = await renderVNodeAsync(context, vnode, undefined, renderOptions);
-  const html = boundedJoin(context, [...context.reactResourceHints, body]);
+  const validatedVNode = await processExactOutput(vnode, { kind: "vnode", signal: options.signal }, options.outputExtensions ?? []) as VNode;
+  const body = await renderVNodeAsync(context, validatedVNode, undefined, renderOptions);
+  const html = await processExactOutput(
+    boundedJoin(context, [...context.reactResourceHints, body]),
+    { kind: "html", signal: options.signal },
+    options.outputExtensions ?? []
+  ) as string;
   assertOutputWithinLimit(context, html);
   return {
     html,
@@ -233,6 +270,7 @@ export async function renderToStringAsync(vnode: VNode, options: RenderToStringO
 export async function renderToHydratableStringAsync(vnode: VNode, options: RenderToStringOptions & HydrationScriptOptions = {}): Promise<HydratableStringResult> {
   const result = await renderToStringAsync(vnode, options);
   const hydrationScript = renderHydrationScript({
+    pluginRegistryFingerprint: options.pluginRegistryFingerprint,
     endpoint: options.endpoint,
     endpoints: options.endpoints,
     state: result.state,
@@ -242,7 +280,8 @@ export async function renderToHydratableStringAsync(vnode: VNode, options: Rende
     nonce: options.nonce,
     maxHydrationDepth: options.maxHydrationDepth,
     maxHydrationNodes: options.maxHydrationNodes,
-    maxHydrationBytes: options.maxHydrationBytes
+    maxHydrationBytes: options.maxHydrationBytes,
+    outputExtensions: options.outputExtensions
   });
   return {
     ...result,
@@ -280,6 +319,7 @@ async function streamDocumentRender(
         event: "hydration",
         version: 1,
         html: renderHydrationScript({
+          pluginRegistryFingerprint: options.pluginRegistryFingerprint,
           endpoint: options.endpoint,
           endpoints: options.endpoints,
           state: final.state,
@@ -289,7 +329,8 @@ async function streamDocumentRender(
           nonce: options.nonce,
           maxHydrationDepth: options.maxHydrationDepth,
           maxHydrationNodes: options.maxHydrationNodes,
-          maxHydrationBytes: options.maxHydrationBytes
+          maxHydrationBytes: options.maxHydrationBytes,
+          outputExtensions: options.outputExtensions
         })
       });
     }
