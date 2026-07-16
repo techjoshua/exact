@@ -44,6 +44,7 @@ export type EffectScopeImpl = EffectScope & {
   parent?: EffectScopeImpl;
   children: Set<EffectScopeImpl>;
   reactions: Set<Reaction>;
+  cleanups: Set<StopHandle>;
   onError?: (error: unknown) => void;
 };
 

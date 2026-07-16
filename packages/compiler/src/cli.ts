@@ -27,7 +27,7 @@ async function main(argv: string[]): Promise<void> {
       outDir: options.outDir,
       rootDir: options.rootDir,
       serverComponents: options.serverComponents,
-      sourceMap: options.sourceMap
+      sourceMap: options.sourceMap,
     });
     for (const result of results) {
       console.log(`${result.inputFile} -> ${result.clientFile}`);
@@ -45,7 +45,7 @@ async function main(argv: string[]): Promise<void> {
     target: options.target,
     emitManifest: options.emitManifest,
     serverComponents: options.serverComponents,
-    sourceMap: options.sourceMap
+    sourceMap: options.sourceMap,
   });
 
   if (!options.outDir && results.length > 1) {

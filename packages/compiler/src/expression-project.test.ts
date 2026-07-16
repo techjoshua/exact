@@ -42,4 +42,22 @@ describe("shared expression projects", () => {
     expressionModuleFor(setup, "globalThis.name = 'second';");
     expect(expressionModuleFor(consumer, source)).not.toBe(first);
   });
+
+  it("shares relative filenames through the inferred package workspace", () => {
+    clearExpressionProjectCache();
+    expressionModuleFor("apps/kanban/src/__relative_cache_model.ts", "export const value = 1;");
+    const consumer = expressionModuleFor(
+      "apps/kanban/src/__relative_cache_consumer.ts",
+      'import { value } from "./__relative_cache_model.js"; export const result = value;'
+    );
+    expect(consumer.walk().references().first(reference => reference.name === "result")?.variable?.type?.kind).toBe("number");
+  });
+
+  it("keeps script-mode relative snippets isolated inside the shared workspace", () => {
+    clearExpressionProjectCache();
+    const first = expressionModuleFor("__relative_first.ts", "const sharedName = 1;");
+    const second = expressionModuleFor("__relative_second.ts", "const sharedName = 2;");
+    expect(first.diagnostics.filter(diagnostic => diagnostic.severity === "error")).toEqual([]);
+    expect(second.diagnostics.filter(diagnostic => diagnostic.severity === "error")).toEqual([]);
+  });
 });

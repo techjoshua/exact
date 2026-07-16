@@ -78,6 +78,7 @@ export interface ReactContext<T> {
   _currentRenderer?: object | null;
   _currentRenderer2?: object | null;
   readonly _exactToken: unknown;
+  readonly _exactContextMode?: "cell" | "value";
 }
 
 export type ExternalStoreSubscribe = (onStoreChange: () => void) => () => void;

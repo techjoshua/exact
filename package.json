@@ -24,6 +24,7 @@
     "check:r3f-browser": "npm run build && node scripts/check-r3f-browser.mjs",
     "check:react-auto-bundle": "npm run build && node scripts/check-react-auto-bundle.mjs",
     "benchmark:react-compat": "node scripts/benchmark-react-compat.mjs",
+    "benchmark:react-adapters": "npm run build -w @exact/react-compat && node scripts/benchmark-react-compat-adapters.mjs",
     "dev:kanban": "npm run dev -w @exact/sample-kanban",
     "build:kanban": "npm run build -w @exact/sample-kanban",
     "dev:workbench": "npm run dev -w @exact/sample-workbench",

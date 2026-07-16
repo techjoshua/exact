@@ -4,12 +4,11 @@ import {
   invalidateExpressionModule,
   parseExactCompilerManifest,
   resolveExactArtifactImport,
-  transformReactJsx,
   transformSource,
-  usesReactRuntimeImports,
   type ExactCompilerManifest,
   type TransformTarget
 } from "@exact/compiler";
+import { transformReactJsx, usesReactRuntimeImports } from "@exact/react-compat/transform";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import {

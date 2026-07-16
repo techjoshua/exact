@@ -17,6 +17,7 @@ export const REACT_SUSPENSE_TYPE = Symbol.for("react.suspense");
 export const REACT_PORTAL_TYPE = Symbol.for("react.portal");
 export const REACT_ACTIVITY_TYPE = Symbol.for("react.activity");
 export const REACT_CLASS_UPDATER = Symbol.for("exact.react.class-updater");
+export const EXACT_COMPONENT_TYPE = Symbol.for("exact.react.native-component");
 
 const REACT_REF_PROP = "__exactReactCompatibilityRef";
 
@@ -34,6 +35,14 @@ export function isReactElement(value: unknown): value is ReactElement {
 
 export function createReactContext<T>(defaultValue: T): ReactContext<T> {
   const token = createExactContext<ContextCell>(`react.compat.${nextHookHostId}`);
+  return createReactContextObject(defaultValue, token, "cell");
+}
+
+export function createReactContextForExactToken<T>(defaultValue: T, token: ContextToken<T>): ReactContext<T> {
+  return createReactContextObject(defaultValue, token, "value");
+}
+
+function createReactContextObject<T>(defaultValue: T, token: ContextToken<unknown>, mode: "cell" | "value"): ReactContext<T> {
   const context: Record<string, unknown> = {
     $$typeof: REACT_CONTEXT_TYPE,
     _currentValue: defaultValue,
@@ -42,7 +51,8 @@ export function createReactContext<T>(defaultValue: T): ReactContext<T> {
     _currentRenderer: null,
     _currentRenderer2: null,
     _defaultValue: defaultValue,
-    _exactToken: token
+    _exactToken: token,
+    _exactContextMode: mode
   };
   context.Provider = target === 19 ? context : { $$typeof: REACT_PROVIDER_TYPE, _context: context };
   context.Consumer = { $$typeof: REACT_CONSUMER_TYPE, _context: context };
@@ -404,6 +414,10 @@ export class HookHost {
   }
 
   provide<T>(context: ReactContext<T>, value: T): void {
+    if (context._exactContextMode === "value") {
+      this.component.setContext(contextToken(context), value);
+      return;
+    }
     let cell = this.providedContexts.get(context as ReactContext<unknown>);
     if (!cell) {
       cell = reactive<ContextCell>({ current: value });
@@ -581,7 +595,7 @@ export class HookHost {
 
   private readContext(context: ReactContext<unknown>): unknown {
     try {
-      return this.component.getContext(contextToken(context)).current;
+      return readComponentReactContext(this.component, context);
     } catch {
       return context._defaultValue;
     }
@@ -1076,6 +1090,15 @@ export function toExactNode(node: ReactNode): Child | Child[] {
 function reactElementToVNode(element: ReactElement): VNode {
   const elementProps = element.props as Record<string, unknown> & { children?: ReactNode };
   const keyedProps: Record<string, unknown> = { ...elementProps, ...(element.key === null ? {} : { key: element.key }) };
+  const exactBoundary = exactComponentType(element.type);
+  if (exactBoundary) {
+    if (element.ref !== null && element.ref !== undefined && exactBoundary.refProp !== undefined) {
+      Reflect.set(keyedProps, exactBoundary.refProp, element.ref);
+    }
+    if ("children" in keyedProps) keyedProps.children = toExactNode(elementProps.children as ReactNode);
+    delete keyedProps.ref;
+    return createVNode(exactBoundary.component, keyedProps);
+  }
   if (typeof element.type === "string") {
     normalizeReactHostProps(element.type, keyedProps);
     if (element.ref !== null && element.ref !== undefined) keyedProps.ref = reactRefBinding(element.ref as ReactRef<Element>);
@@ -1107,6 +1130,14 @@ function reactElementToVNode(element: ReactElement): VNode {
   // RefBinding. Component refs travel through the adapter-owned channel.
   delete keyedProps.ref;
   return createVNode(adaptReactType(element.type), keyedProps);
+}
+
+function exactComponentType(type: unknown): { component: ComponentFunction<any, any>; refProp?: PropertyKey } | undefined {
+  if ((typeof type !== "function" && typeof type !== "object") || type === null) return undefined;
+  const candidate = type as { $$typeof?: unknown; exactComponent?: unknown; exactRefProp?: unknown };
+  return candidate.$$typeof === EXACT_COMPONENT_TYPE && typeof candidate.exactComponent === "function"
+    ? { component: candidate.exactComponent as ComponentFunction<any, any>, ...(typeof candidate.exactRefProp === "string" || typeof candidate.exactRefProp === "symbol" ? { refProp: candidate.exactRefProp } : {}) }
+    : undefined;
 }
 
 function invokeReactType(type: ReactComponentType<any> | Function, props: Record<string, unknown>, ref?: unknown): ReactNode {
@@ -1208,7 +1239,7 @@ function readClassContext(
     const inherited = readLegacyContext(component) ?? {};
     return Object.fromEntries(Object.keys(legacyTypes).map(key => [key, inherited[key]]));
   }
-  try { return component.getContext(contextToken(context)).current; }
+  try { return readComponentReactContext(component, context); }
   catch { return context._defaultValue; }
 }
 
@@ -1336,8 +1367,13 @@ function runCleanup(slot: EffectSlot): void {
   cleanup?.();
 }
 
-function contextToken(context: ReactContext<unknown>): ContextToken<ContextCell> {
-  return context._exactToken as ContextToken<ContextCell>;
+function readComponentReactContext(component: Component<Record<string, unknown>>, context: ReactContext<unknown>): unknown {
+  const value = component.getContext(contextToken(context));
+  return context._exactContextMode === "value" ? value : (value as Reactive<ContextCell>).current;
+}
+
+function contextToken(context: ReactContext<any>): ContextToken<any> {
+  return context._exactToken as ContextToken<any>;
 }
 
 function contextForSpecial(special: ReactSpecialType): ReactContext<unknown> {

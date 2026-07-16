@@ -1,12 +1,26 @@
 import type ts from "typescript";
+import type { ExactCompilerSession } from "./expression-project.js";
 
 export type TransformOptions = {
   filename?: string;
+  /** Root used to resolve relative filenames; defaults to the nearest package.json from cwd. */
+  root?: string;
+  /** Owned incremental compiler state; direct callers use the process-default session when omitted. */
+  session?: ExactCompilerSession;
   target?: TransformTarget;
   importedManifests?: readonly ExactCompilerManifest[];
   serverComponents?: boolean;
   sourceMap?: boolean;
+  moduleRewrite?: ModuleRewriteOptions;
+  moduleTransform?: ModuleTransform;
 };
+
+/** Host-neutral final module pass applied after eXact lowering and before maps. */
+export type ModuleTransform = (input: Readonly<{
+  id: string;
+  source: string;
+  target: TransformTarget;
+}>) => Readonly<{ code: string }>;
 
 export type TransformTarget = "default" | "client" | "server";
 
@@ -267,6 +281,9 @@ export type CompileArtifactsOptions = {
   importedManifests?: readonly ExactCompilerManifest[];
   serverComponents?: boolean;
   sourceMap?: boolean;
+  moduleRewrite?: ModuleRewriteOptions;
+  moduleTransform?: ModuleTransform;
+  session?: ExactCompilerSession;
 };
 
 export type CompileArtifactsResult = {
@@ -294,6 +311,9 @@ export type CompileArtifactPlanEntriesOptions = {
   importedManifests?: readonly ExactCompilerManifest[];
   serverComponents?: boolean;
   sourceMap?: boolean;
+  moduleRewrite?: ModuleRewriteOptions;
+  moduleTransform?: ModuleTransform;
+  session?: ExactCompilerSession;
 };
 
 export type ExactArtifactPlanOptions = {
@@ -486,3 +506,4 @@ export type ClientIslandCaptures = {
   stateReads?: string[];
   serverSlotChildren?: boolean;
 };
+import type { ModuleRewriteOptions } from "@exact/expressions";

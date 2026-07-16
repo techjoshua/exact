@@ -1,0 +1,9 @@
+{
+  "name": "@exact/vite-adapter-fixture",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "@exact/tanstack-query": "0.0.0",
+    "@tanstack/react-query": "^5.101.2"
+  }
+}

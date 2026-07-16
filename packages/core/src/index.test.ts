@@ -332,6 +332,25 @@ describe("@exact/core", () => {
     expect(second.global).toBe(false);
   });
 
+  it("preserves opaque service identity for non-reactive contexts", () => {
+    class Service {
+      #value = 7;
+      read() { return this.#value; }
+    }
+    const token = createContext<Service>("service", { reactive: false });
+    const service = new Service();
+    const parent = createComponentInstance(function Parent(this: Component<{}>) {
+      this.setContext(token, service);
+      return () => null;
+    }, {});
+    createComponentInstance(function Child(this: Component<{}>) {
+      const received = this.getContext(token);
+      expect(received).toBe(service);
+      expect(received.read()).toBe(7);
+      return () => null;
+    }, {}, parent);
+  });
+
   it("can create global context tokens for cross-bundle identity", () => {
     const providerToken = createContext<{ name: string }>("com.example.user", true);
     const consumerToken = createContext<{ name: string }>("com.example.user", true);

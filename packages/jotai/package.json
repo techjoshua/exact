@@ -1,0 +1,45 @@
+{
+  "name": "@exact/jotai",
+  "version": "0.0.0",
+  "type": "module",
+  "files": ["dist", "!dist/**/*.test.*"],
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./react": { "types": "./dist/react.d.ts", "default": "./dist/react.js" }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "dependencies": {
+    "@exact/core": "file:../core",
+    "@exact/react-compat-adapter-api": "file:../react-compat-adapter-api",
+    "@exact/reactive": "file:../reactive"
+  },
+  "peerDependencies": {
+    "@exact/react-compat": "0.0.0",
+    "jotai": ">=2 <3"
+  },
+  "peerDependenciesMeta": { "@exact/react-compat": { "optional": true } },
+  "devDependencies": { "jotai": "^2.16.1" },
+  "exact": {
+    "reactCompatibility": {
+      "schemaVersion": 1,
+      "substitutions": {
+        "jotai": {
+          "version": ">=2 <3",
+          "exports": {
+            "atom": { "subpath": ".", "export": "atom" },
+            "createStore": { "subpath": ".", "export": "createStore" },
+            "getDefaultStore": { "subpath": ".", "export": "getDefaultStore" },
+            "Provider": { "subpath": "./react", "export": "Provider" },
+            "useStore": { "subpath": "./react", "export": "useStore" },
+            "useAtom": { "subpath": "./react", "export": "useAtom" },
+            "useAtomValue": { "subpath": "./react", "export": "useAtomValue" },
+            "useSetAtom": { "subpath": "./react", "export": "useSetAtom" }
+          }
+        }
+      }
+    }
+  },
+  "scripts": { "build": "tsc -b", "test": "vitest run" }
+}

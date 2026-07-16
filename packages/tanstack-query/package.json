@@ -1,0 +1,56 @@
+{
+  "name": "@exact/tanstack-query",
+  "version": "0.0.0",
+  "type": "module",
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/provider.d.ts",
+      "default": "./dist/provider.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "dependencies": {
+    "@exact/core": "file:../core",
+    "@exact/react-compat-adapter-api": "file:../react-compat-adapter-api",
+    "@exact/reactive": "file:../reactive",
+    "@tanstack/query-core": "^5.101.2"
+  },
+  "peerDependencies": {
+    "@exact/react-compat": "0.0.0",
+    "@tanstack/react-query": ">=5 <6"
+  },
+  "peerDependenciesMeta": {
+    "@exact/react-compat": { "optional": true },
+    "@tanstack/react-query": { "optional": true }
+  },
+  "exact": {
+    "reactCompatibility": {
+      "schemaVersion": 1,
+      "substitutions": {
+        "@tanstack/react-query": {
+          "version": ">=5 <6",
+          "exports": {
+            "QueryClientProvider": {
+              "subpath": "./react",
+              "export": "QueryClientProvider"
+            }
+          }
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  }
+}

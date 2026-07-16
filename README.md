@@ -80,7 +80,7 @@ The package entrypoints are:
   - Browser app surface: `render(vnode, container, options?)`.
   - CSS helper surface: `px`, `rem`, `em`, `percent`, `vh`, `vw`, `vmin`, `vmax`, `fr`, `ms`, `s`, `deg`, `rad`, `turn`.
 - `@exact/compiler`
-  - Build-tool surface: `transform`, `transformSource`, `compileFile`, `compileProject`, `compileFileArtifacts`, `compileProjectArtifacts`, `createExactArtifactPlan`, `diffExactArtifactPlans`, `createExactArtifactDevState`, `updateExactArtifactDevState`, `readExactArtifactManifestEntries`, `exactExportConditions`, `resolveExactArtifactImport`, `createExactArtifactGraph`, `createPackageExportMap`, `createClientIslandRegistryModule`, `createServerPartRegistryModule`, `createExactArtifactRegistryModules`, `createExactHydrationRegistrationModule`, `preprocessPropPunning`.
+  - Build-tool surface: `createCompilerSession`, `transform`, `transformSource`, `compileFile`, `compileProject`, `compileFileArtifacts`, `compileProjectArtifacts`, `createExactArtifactPlan`, `diffExactArtifactPlans`, `createExactArtifactDevState`, `updateExactArtifactDevState`, `readExactArtifactManifestEntries`, `exactExportConditions`, `resolveExactArtifactImport`, `createExactArtifactGraph`, `createPackageExportMap`, `createClientIslandRegistryModule`, `createServerPartRegistryModule`, `createExactArtifactRegistryModules`, `createExactHydrationRegistrationModule`, `preprocessPropPunning`.
   - Semantic surface: `analyzeSource` and emitted manifests for component/task placement planning.
   - CLI: `exactc`.
 - `@exact/ssr`
@@ -143,6 +143,23 @@ import { transformSource } from "@exact/compiler";
 
 const result = transformSource(source, { filename: "Component.tsx" });
 ```
+
+Long-running build tools should own their incremental compiler state and dispose it with the host lifecycle:
+
+```ts
+import { createCompilerSession, transformSource } from "@exact/compiler";
+
+const session = createCompilerSession();
+const result = transformSource(source, {
+  filename: "/workspace/src/Component.tsx",
+  session
+});
+
+session.invalidate("/workspace/src/Component.tsx"); // HMR update
+session.dispose(); // watcher or development server shutdown
+```
+
+Sessions scope invalidation to affected TypeScript workspaces and remove virtual source, generated-source, and stable-identity state when a file is deleted.
 
 Pass `sourceMap: true` to `transformSource()`, `compileFile()`, or artifact compilation APIs when generated output should carry a v3 source map back to the original source.
 

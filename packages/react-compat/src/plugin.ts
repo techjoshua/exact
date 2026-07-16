@@ -2,6 +2,19 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { intersects, validRange } from "semver";
 
+export {
+  createNpmReactCompatPackageGraph,
+  createInstalledReactCompatPackageGraph,
+  createReactCompatPackageGraph,
+  discoverReactCompatAdapters,
+  validateReactCompatAdapterPackage,
+  replacementKey,
+  type ReactCompatPackageGraph,
+  type ReactCompatPackageNode,
+  type ResolvedReactCompatAdapters,
+  type ResolvedReactCompatReplacement
+} from "./adapters.js";
+
 export type ReactFilterPattern = string | RegExp | readonly (string | RegExp)[];
 export type ReactCompatibilityTarget = "auto" | 18 | 19 | "18" | "19";
 
@@ -9,6 +22,8 @@ export interface ReactCompatibilityOptions {
   target?: ReactCompatibilityTarget;
   source?: ReactFilterPattern;
   strict?: boolean;
+  /** Application package root; defaults to process.cwd(). */
+  cwd?: string;
 }
 
 export interface ResolvedReactCompatibility {

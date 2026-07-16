@@ -28,6 +28,81 @@ import type {
 
 export { batch, createEffectScope, flushSync, peek, withEffectScope };
 
+export interface ExternalSourceOptions<T> {
+  readonly getSnapshot: () => T;
+  readonly subscribe: (notify: () => void) => StopHandle;
+  readonly getServerSnapshot?: () => T;
+  readonly isEqual?: (left: T, right: T) => boolean;
+  readonly connect?: boolean;
+}
+
+export interface ExternalSource<T> {
+  readonly value: ReactiveValue<T>;
+  readonly connected: boolean;
+  readonly disposed: boolean;
+  snapshot(): T;
+  refresh(): T;
+  connect(): StopHandle;
+  dispose(): void;
+}
+
+/** Bridges a subscribe/getSnapshot contract into eXact's reactive graph. */
+export function createExternalSource<T>(options: ExternalSourceOptions<T>): ExternalSource<T> {
+  const serverSnapshot = !("window" in globalThis) && options.getServerSnapshot !== undefined;
+  let current = serverSnapshot
+    ? options.getServerSnapshot()
+    : options.getSnapshot();
+  const state = reactive({ revision: 0 });
+  let stop: StopHandle | undefined;
+  let disposed = false;
+  const ownerScope = currentEffectScope();
+  const refresh = (): T => {
+    if (disposed) return current;
+    const next = options.getSnapshot();
+    if (!(options.isEqual ?? Object.is)(current, next)) {
+      current = next;
+      batch(() => { state.revision++; });
+    }
+    return current;
+  };
+  const source: ExternalSource<T> = {
+    value: computed(() => {
+      void state.revision;
+      return current;
+    }),
+    get connected() { return stop !== undefined; },
+    get disposed() { return disposed; },
+    snapshot: () => current,
+    refresh,
+    connect() {
+      if (disposed) throw new Error("Cannot reconnect a disposed external source");
+      if (stop) return source.dispose;
+      refresh();
+      const unsubscribe = options.subscribe(refresh);
+      if (typeof unsubscribe !== "function") throw new TypeError("External source subscribe must return an unsubscribe function");
+      let active = true;
+      stop = () => {
+        if (!active) return;
+        active = false;
+        unsubscribe();
+      };
+      refresh();
+      return source.dispose;
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      ownerScope?.cleanups.delete(source.dispose);
+      const unsubscribe = stop;
+      stop = undefined;
+      unsubscribe?.();
+    }
+  };
+  ownerScope?.cleanups.add(source.dispose);
+  if (options.connect ?? !serverSnapshot) source.connect();
+  return Object.freeze(source);
+}
+
 /**
  * Compiler runtime hook for a statically-known state assignment.  Unlike a
  * normal proxy write, plain JSON-shaped replacements are reconciled in place:

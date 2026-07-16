@@ -16,6 +16,7 @@ export function createEffectScope(
     parent: parentScope,
     children: new Set(),
     reactions: new Set(),
+    cleanups: new Set(),
     onError: onError ?? parentScope?.onError,
     stop() {
       stopEffectScope(scope);
@@ -55,8 +56,16 @@ function stopEffectScope(root: EffectScopeImpl): void {
         failed = true;
       }
     }
+    for (const cleanup of [...scope.cleanups]) {
+      try { cleanup(); }
+      catch (error) {
+        if (!failed) firstError = error;
+        failed = true;
+      }
+    }
     scope.children.clear();
     scope.reactions.clear();
+    scope.cleanups.clear();
     scope.parent?.children.delete(scope);
     scope.parent = undefined;
   }

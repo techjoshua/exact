@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "composite": true, "rootDir": "src", "outDir": "dist", "lib": ["ES2022", "DOM"] },
-  "references": [{ "path": "../core" }, { "path": "../reactive" }],
+  "references": [{ "path": "../core" }, { "path": "../reactive" }, { "path": "../react-compat-adapter-api" }, { "path": "../expressions" }],
   "include": ["src"],
   "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

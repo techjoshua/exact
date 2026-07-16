@@ -91,7 +91,7 @@ export { batch, computed, peek, unwrap, watch } from "@exact/reactive";
 // Compiler-only helpers. They remain available here because generated JSX
 // already imports all framework helpers from @exact/core.
 export { writeReactive, writeReactiveLazy, updateReactiveValue, updateReactiveValueWithResult, deleteReactiveValue, mutateReactiveArray } from "@exact/reactive";
-export { createContext, createRef } from "./keys.js";
+export { createContext, createRef, type ContextOptions } from "./keys.js";
 export {
   createConsoleLogger,
   type ComponentLog,
@@ -196,6 +196,7 @@ export type ContextToken<T> = {
   readonly id: symbol;
   readonly description: string;
   readonly global: boolean;
+  readonly reactive: boolean;
 };
 
 export const LoggerContext = createContext<Logger>("exact.logger", true);
@@ -754,13 +755,14 @@ export function createComponentInstance<State extends object, Props extends Reco
       }
 
       if (defaultContexts.has(token.id)) {
-        return reactiveValue(defaultContexts.get(token.id) as T);
+        const value = defaultContexts.get(token.id) as T;
+        return (token.reactive ? reactiveValue(value) : value) as Reactive<T>;
       }
 
       throw new Error(`Context "${token.description}" was not provided`);
     },
     setContext<T>(token: ContextToken<T>, value: T): void {
-      instance.contexts.set(token.id, reactiveValue(value));
+      instance.contexts.set(token.id, token.reactive ? reactiveValue(value) : value as Reactive<T>);
     },
     reactive<T>(input: TemplateStringsArray | (() => T) | T, ...values: unknown[]): ComponentReactiveValue<string> | ComponentReactiveValue<T> {
       if (typeof input === "function") {

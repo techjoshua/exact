@@ -20,7 +20,17 @@ import { createModule, type BoundModule, type UnboundModule } from "./module.js"
 export interface ExpressionProjectOptions {
   readonly tsconfigPath?: string;
   readonly cwd?: string;
+  /** Keeps independently supplied virtual sources out of TypeScript's shared script global scope. */
+  readonly forceModuleDetection?: boolean;
 }
+
+export type ExpressionProjectStats = Readonly<{
+  rebuilds: number;
+  overlays: number;
+  sourceFiles: number;
+  nodeIdentityRoots: number;
+  symbolIdentities: number;
+}>;
 
 export class ExpressionProjectError extends Error {
   constructor(readonly diagnostics: readonly ExpressionDiagnostic[]) {
@@ -86,6 +96,7 @@ class ProjectType implements ExpressionType {
 export class ExpressionProject {
   readonly tsconfigPath: string;
   private readonly parsed: ts.ParsedCommandLine;
+  private readonly forceModuleDetection: boolean;
   private readonly overlays = new Map<string, string>();
   private readonly overlayVersions = new Map<string, number>();
   private readonly sourceFiles = new Map<string, Readonly<{ version: string; sourceFile: ts.SourceFile }>>();
@@ -94,6 +105,7 @@ export class ExpressionProject {
   private readonly identityKeysByFile = new Map<string, Set<string>>();
   private typeHandles = new WeakMap<ExpressionType, ts.Type>();
   private program?: ts.Program;
+  private rebuildCount = 0;
   private disposed = false;
 
   constructor(options: ExpressionProjectOptions = {}) {
@@ -103,6 +115,7 @@ export class ExpressionProject {
       : ts.findConfigFile(cwd, ts.sys.fileExists, "tsconfig.json");
     if (!config) throw new ExpressionProjectError([{ code: "EXPR_CONFIG_MISSING", message: `No tsconfig.json found from ${cwd}`, severity: "error", phase: "configuration" }]);
     this.tsconfigPath = config;
+    this.forceModuleDetection = options.forceModuleDetection ?? false;
     const read = ts.readConfigFile(config, ts.sys.readFile);
     if (read.error) throw new ExpressionProjectError([{ ...diagnosticFromTs(read.error), phase: "configuration" }]);
     this.parsed = ts.parseJsonConfigFileContent(read.config, ts.sys, path.dirname(config), undefined, config);
@@ -190,6 +203,9 @@ export class ExpressionProject {
     this.overlayVersions.delete(normalized);
     this.sourceFiles.delete(normalized);
     this.nodeIdentityRoots.delete(normalized);
+    const identityKeys = this.identityKeysByFile.get(normalized);
+    for (const key of identityKeys ?? []) this.symbolIdentities.delete(key);
+    this.identityKeysByFile.delete(normalized);
     this.rebuild();
   }
 
@@ -211,11 +227,23 @@ export class ExpressionProject {
     this.program = undefined;
   }
 
+  /** Lightweight retained-state counters for hosts and memory regression tests. */
+  stats(): ExpressionProjectStats {
+    return Object.freeze({
+      rebuilds: this.rebuildCount,
+      overlays: this.overlays.size,
+      sourceFiles: this.sourceFiles.size,
+      nodeIdentityRoots: this.nodeIdentityRoots.size,
+      symbolIdentities: this.symbolIdentities.size
+    });
+  }
+
   private assertActive(): void {
     if (this.disposed) throw new ExpressionProjectError([{ code: "EXPR_PROJECT_DISPOSED", message: "This expression project has been disposed", severity: "error", phase: "configuration" }]);
   }
 
   private rebuild(): void {
+    this.rebuildCount++;
     // TypeScript types belong to exactly one Program/TypeChecker generation.
     // Never retain them as handles for a rebuilt project.
     this.typeHandles = new WeakMap();
@@ -224,7 +252,8 @@ export class ExpressionProject {
       // JavaScript modules are part of the supported runtime grammar even when
       // a project's normal typecheck excludes them.
       allowJs: true,
-      checkJs: this.parsed.options.checkJs ?? false
+      checkJs: this.parsed.options.checkJs ?? false,
+      moduleDetection: this.forceModuleDetection ? ts.ModuleDetectionKind.Force : this.parsed.options.moduleDetection
     };
     const roots = new Set(this.parsed.fileNames.map(normalizeFile));
     for (const file of this.overlays.keys()) roots.add(file);

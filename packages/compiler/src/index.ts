@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { ExpressionProjectError, rewriteModule, type BoundModule } from "@exact/expressions";
+import { ExpressionProjectError, rewriteModule, rewriteModuleReferences, type BoundModule, type ModuleRewriteOptions } from "@exact/expressions";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
@@ -10,7 +10,7 @@ import {
 } from "./artifacts.js";
 import { combinePlacements } from "./placement.js";
 import { analyzeCallableEffects } from "./callable-effects.js";
-import { expressionDependencyFiles, invalidateExpressionModule } from "./expression-project.js";
+import { expressionDependencyFiles, invalidateExpressionModule, type ExactCompilerSession } from "./expression-project.js";
 import type {
   CompileArtifactPlanEntriesOptions,
   CompileArtifactsOptions,
@@ -112,13 +112,20 @@ export {
   createServerPartRegistryModule
 } from "./registry.js";
 export { exactCompilerManifestVersion } from "./versions.js";
-export { clearExpressionProjectCache, invalidateExpressionModule } from "./expression-project.js";
+export { createLineSourceMap } from "./source-maps.js";
 export {
-  transformReactJsx,
-  usesReactRuntimeImports,
-  type ReactJsxTransformOptions,
-  type ReactJsxTransformResult
-} from "./react-jsx.js";
+  rewriteModuleReferences,
+  type ModuleExportReplacement,
+  type ModuleRewriteOptions,
+  type ModuleRewriteResult
+} from "./module-rewrite.js";
+export {
+  ExactCompilerSession,
+  createCompilerSession,
+  clearExpressionProjectCache,
+  invalidateExpressionModule,
+  type ExactCompilerSessionStats
+} from "./expression-project.js";
 export {
   analyzeExpressionWrites,
   lowerExpressionWrites,
@@ -137,7 +144,7 @@ export {
 /** Analyzes generic dependencies and overlays eXact reactive provenance. */
 export function analyzeReactiveProvenance(source: string, options: TransformOptions = {}) {
   const filename = options.filename ?? "input.tsx";
-  return buildExactProvenance(expressionModuleFor(filename, preprocessPropPunning(source)));
+  return buildExactProvenance(sessionExpressionModule(options.session, filename, preprocessPropPunning(source), { root: options.root }));
 }
 
 /** Transforms eXact TSX/JSX source and returns only the generated code. */
@@ -149,9 +156,10 @@ export function transform(source: string, options: TransformOptions = {}): strin
 export function transformSource(source: string, options: TransformOptions = {}): TransformResult {
   const normalized = preprocessPropPunning(source);
   const filename = options.filename ?? "input.tsx";
+  const virtual = !path.isAbsolute(filename);
   const importedManifests = validatedImportedManifests(options.importedManifests);
   const target = options.target ?? "default";
-  const expressionModule = expressionModuleFor(filename, normalized);
+  const expressionModule = sessionExpressionModule(options.session, filename, normalized, { root: options.root, virtual });
   const syntaxDiagnostics = expressionModule.diagnostics.filter(diagnostic => diagnostic.phase === "syntax" && diagnostic.severity === "error");
   if (syntaxDiagnostics.length) {
     throw new Error(syntaxDiagnostics.map(diagnostic => {
@@ -162,7 +170,7 @@ export function transformSource(source: string, options: TransformOptions = {}):
   const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
   const annotations = analyzeExactAnnotations(expressionModule);
   throwLocatedCompilerDiagnostics(filename, sourceFile, annotations.diagnostics);
-  const manifest = analyzeSource(normalized, { filename, importedManifests });
+  const manifest = analyzeSource(normalized, { filename, root: options.root, session: options.session, importedManifests });
   const semanticGraph = buildExpressionSemanticGraph(expressionModule);
   const provenance = buildExactProvenance(expressionModule);
   const expressionDerived = analyzeExpressionDerived(expressionModule, provenance);
@@ -196,12 +204,17 @@ export function transformSource(source: string, options: TransformOptions = {}):
   const result = ts.transform(sourceFile, [exactJsxTransformer(expressionModule, filename, target, options.serverComponents ?? false, semanticGraph, expressionDerived, expressionWrites, expressionTasks, expressionJsx, expressionComponents, emissionComponentInfo, callableEffects)]);
   const transformed = result.transformed[0]!;
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
-  const printed = emitExpressionRewrite(expressionModule, printer.printFile(transformed as ts.SourceFile));
+  const printed = emitExpressionRewrite(expressionModule, printer.printFile(transformed as ts.SourceFile), options.root, virtual, options.session);
   result.dispose();
   validateTargetAnalysis(callableEffects, target, filename);
+  const output = options.moduleTransform
+    ? options.moduleTransform({ id: filename, source: printed, target }).code
+    : options.moduleRewrite
+      ? rewriteModuleReferences(printed, { ...options.moduleRewrite, filename, sourceMap: false }).code
+      : printed;
   return {
-    code: printed,
-    map: options.sourceMap ? createLineSourceMap(filename, normalized, printed) : null,
+    code: output,
+    map: options.sourceMap ? createLineSourceMap(filename, normalized, output) : null,
     filename,
     manifest
   };
@@ -230,14 +243,20 @@ function validateTargetAnalysis(
   }
 }
 
-function emitExpressionRewrite(module: BoundModule, generated: string): string {
+function emitExpressionRewrite(
+  module: BoundModule,
+  generated: string,
+  root: string | undefined,
+  virtual: boolean,
+  session?: ExactCompilerSession
+): string {
   const rewritten = rewriteModule(module, rewriter => {
     rewriter.replaceTextWhere(reference => reference.node === module.rootNode, () => generated);
   });
   const structuralErrors = rewritten.validate().filter(diagnostic => diagnostic.severity === "error");
   if (structuralErrors.length) throw new ExpressionProjectError(structuralErrors);
 
-  const rebound = expressionModuleFor(`${module.filename}.exact.generated.tsx`, rewritten.emit().code);
+  const rebound = sessionExpressionModule(session, `${module.filename}.exact.generated.tsx`, rewritten.emit().code, { root, virtual });
   const baselineErrors = module.diagnostics.filter(diagnostic => diagnostic.severity === "error");
   const existing = new Map<string, number>();
   for (const diagnostic of baselineErrors) {
@@ -311,7 +330,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const normalized = preprocessPropPunning(source);
   const filename = options.filename ?? "input.tsx";
   const importedManifests = validatedImportedManifests(options.importedManifests);
-  const expressionModule = expressionModuleFor(filename, normalized);
+  const expressionModule = sessionExpressionModule(options.session, filename, normalized, { root: options.root });
   const exports: ExactExportIR[] = [];
   const symbols: ExactSymbolIR[] = [];
   const boundaries: ExactBoundaryIR[] = [];
@@ -457,16 +476,27 @@ function portableSemanticGraph(
 }
 
 /** Builds the semantic graph used for reference/declaration tracing diagnostics and tests. */
-export function analyzeSemanticGraph(source: string, options: Pick<TransformOptions, "filename"> = {}): ExactSemanticGraphIR {
+export function analyzeSemanticGraph(source: string, options: Pick<TransformOptions, "filename" | "root" | "session"> = {}): ExactSemanticGraphIR {
   const normalized = preprocessPropPunning(source);
   const filename = options.filename ?? "input.tsx";
-  return buildExpressionSemanticGraph(expressionModuleFor(filename, normalized));
+  return buildExpressionSemanticGraph(sessionExpressionModule(options.session, filename, normalized, { root: options.root }));
+}
+
+function sessionExpressionModule(
+  session: ExactCompilerSession | undefined,
+  filename: string,
+  source: string,
+  options: Parameters<typeof expressionModuleFor>[2]
+): BoundModule {
+  return session
+    ? session.expressionModuleFor(filename, source, options)
+    : expressionModuleFor(filename, source, options);
 }
 
 /** Compiles one input file and optionally writes code, source map, and manifest artifacts. */
 export async function compileFile(inputFile: string, options: CompileFileOptions = {}): Promise<CompileFileResult> {
   const source = await readFile(inputFile, "utf8");
-  const result = transformSource(source, { filename: options.filename ?? inputFile, target: options.target, serverComponents: options.serverComponents, sourceMap: options.sourceMap });
+  const result = transformSource(source, { filename: options.filename ?? inputFile, session: options.session, target: options.target, serverComponents: options.serverComponents, sourceMap: options.sourceMap, moduleRewrite: options.moduleRewrite, moduleTransform: options.moduleTransform });
   const outputFile = options.outDir ? outputPathFor(inputFile, options.outDir, options.rootDir) : undefined;
   const sourceMapFile = outputFile && result.map ? sourceMapPathFor(outputFile) : undefined;
   const manifestFile = outputFile && options.emitManifest ? manifestPathFor(outputFile) : undefined;
@@ -506,7 +536,10 @@ export async function compileProject(inputs: readonly string[], options: Compile
       target: options.target,
       emitManifest: options.emitManifest,
       serverComponents: options.serverComponents,
-      sourceMap: options.sourceMap
+      sourceMap: options.sourceMap,
+      session: options.session,
+      moduleRewrite: options.moduleRewrite,
+      moduleTransform: options.moduleTransform
     }));
   }
 
@@ -517,9 +550,9 @@ export async function compileProject(inputs: readonly string[], options: Compile
 export async function compileFileArtifacts(inputFile: string, options: CompileArtifactsOptions): Promise<CompileArtifactsResult> {
   const source = await readFile(inputFile, "utf8");
   const filename = options.filename ?? inputFile;
-  const manifestBase = analyzeSource(source, { filename, importedManifests: options.importedManifests });
-  const client = transformSource(source, { filename, target: "client", importedManifests: options.importedManifests, serverComponents: options.serverComponents, sourceMap: options.sourceMap });
-  const server = transformSource(source, { filename, target: "server", importedManifests: options.importedManifests, serverComponents: options.serverComponents, sourceMap: options.sourceMap });
+  const manifestBase = analyzeSource(source, { filename, session: options.session, importedManifests: options.importedManifests });
+  const client = transformSource(source, { filename, session: options.session, target: "client", importedManifests: options.importedManifests, serverComponents: options.serverComponents, sourceMap: options.sourceMap, moduleRewrite: options.moduleRewrite, moduleTransform: options.moduleTransform });
+  const server = transformSource(source, { filename, session: options.session, target: "server", importedManifests: options.importedManifests, serverComponents: options.serverComponents, sourceMap: options.sourceMap, moduleRewrite: options.moduleRewrite, moduleTransform: options.moduleTransform });
   const paths = artifactPathsFor(inputFile, options.outDir, options.rootDir);
   const manifest = withArtifactMetadata(manifestBase, inputFile, paths);
   const clientMapFile = client.map ? sourceMapPathFor(paths.clientFile) : undefined;
@@ -550,7 +583,10 @@ export async function compileProjectArtifacts(inputs: readonly string[], options
     filename: entry => options.filename ?? entry.inputFile,
     importedManifests: options.importedManifests,
     serverComponents: options.serverComponents,
-    sourceMap: options.sourceMap
+    sourceMap: options.sourceMap,
+    session: options.session,
+    moduleRewrite: options.moduleRewrite,
+    moduleTransform: options.moduleTransform
   });
 }
 
@@ -568,8 +604,8 @@ export async function compileArtifactPlanEntries(
     const source = await readFile(entry.inputFile, "utf8");
     sources.set(path.resolve(entry.inputFile), source);
   }
-  const dependencyGraph = await collectPlacementAnalysisDependencies(sources);
-  for (const [inputFile, source] of sources) manifestBases.set(inputFile, analyzeSource(source, { filename: inputFile }));
+  const dependencyGraph = await collectPlacementAnalysisDependencies(sources, options.session);
+  for (const [inputFile, source] of sources) manifestBases.set(inputFile, analyzeSource(source, { filename: inputFile, session: options.session }));
   // Resolve cross-file callable summaries to a fixed point. Each pass consumes
   // the previous immutable manifest generation, so results do not depend on
   // source ordering and recursive import groups converge monotonically.
@@ -581,7 +617,7 @@ export async function compileArtifactPlanEntries(
     for (const [key, source] of sources) {
       const entry = entries.find(candidate => path.resolve(candidate.inputFile) === key);
       const filename = entry ? options.filename?.(entry) ?? entry.inputFile : key;
-      const manifest = analyzeSource(source, { filename, importedManifests: imported });
+      const manifest = analyzeSource(source, { filename, session: options.session, importedManifests: imported });
       next.set(key, manifest);
       if (callableEffectSignature(manifest) !== callableEffectSignature(manifestBases.get(key)!)) changed = true;
     }
@@ -594,20 +630,25 @@ export async function compileArtifactPlanEntries(
 
   for (const entry of entries) {
     const filename = options.filename?.(entry) ?? entry.inputFile;
-    results.push(await compileArtifactPlanEntry(entry, filename, importedManifests, options.serverComponents ?? false, options.sourceMap ?? false, transitiveDependencies(path.resolve(entry.inputFile), dependencyGraph)));
+    results.push(await compileArtifactPlanEntry(entry, filename, importedManifests, options.serverComponents ?? false, options.sourceMap ?? false, transitiveDependencies(path.resolve(entry.inputFile), dependencyGraph), options.moduleRewrite, options.moduleTransform, options.session));
   }
 
   return results;
 }
 
-async function collectPlacementAnalysisDependencies(sources: Map<string, string>): Promise<Map<string, string[]>> {
+async function collectPlacementAnalysisDependencies(
+  sources: Map<string, string>,
+  session?: ExactCompilerSession
+): Promise<Map<string, string[]>> {
   const graph = new Map<string, string[]>();
   const pending = [...sources.keys()];
   while (pending.length) {
     const filename = pending.shift()!;
     const source = sources.get(filename)!;
     const resolvedDependencies: string[] = [];
-    for (const dependency of expressionDependencyFiles(filename, source)) {
+    for (const dependency of session
+      ? session.expressionDependencyFiles(filename, source)
+      : expressionDependencyFiles(filename, source)) {
       const resolved = path.resolve(dependency);
       if (/(?:^|[\\/])node_modules(?:[\\/]|$)/.test(resolved) || /\.d\.[cm]?ts$/i.test(resolved) || !/\.[cm]?[jt]sx?$/i.test(resolved)) continue;
       try {
@@ -648,15 +689,18 @@ async function compileArtifactPlanEntry(
   importedManifests: readonly ExactCompilerManifest[] = [],
   serverComponents = false,
   sourceMap = false,
-  dependencies: readonly string[] = []
+  dependencies: readonly string[] = [],
+  moduleRewrite?: ModuleRewriteOptions,
+  moduleTransform?: import("./types.js").ModuleTransform,
+  session?: ExactCompilerSession
 ): Promise<CompileArtifactsResult> {
   const source = await readFile(entry.inputFile, "utf8");
-  const base = analyzeSource(source, { filename, importedManifests });
+  const base = analyzeSource(source, { filename, session, importedManifests });
   base.dependencies = dependencies
     .map(dependency => path.relative(path.dirname(path.resolve(filename)), dependency).replaceAll(path.sep, "/"))
     .sort();
-  const client = transformSource(source, { filename, target: "client", importedManifests, serverComponents, sourceMap });
-  const server = transformSource(source, { filename, target: "server", importedManifests, serverComponents, sourceMap });
+  const client = transformSource(source, { filename, session, target: "client", importedManifests, serverComponents, sourceMap, moduleRewrite, moduleTransform });
+  const server = transformSource(source, { filename, session, target: "server", importedManifests, serverComponents, sourceMap, moduleRewrite, moduleTransform });
   const manifest = withArtifactMetadata(base, entry.inputFile, entry);
   const clientMapFile = client.map ? sourceMapPathFor(entry.clientFile) : undefined;
   const serverMapFile = server.map ? sourceMapPathFor(entry.serverFile) : undefined;
@@ -703,7 +747,8 @@ export async function createExactArtifactDevState(
   const compiled = await compileArtifactPlanEntries(plan.entries, {
     filename: entry => options.filename ?? entry.inputFile,
     importedManifests: options.importedManifests,
-    serverComponents: options.serverComponents
+    serverComponents: options.serverComponents,
+    session: options.session
   });
   const entries = compiled.map(artifactGraphEntryFromCompileResult);
   return {
@@ -723,7 +768,8 @@ export async function updateExactArtifactDevState(
   for (const changed of changedInputs) {
     let removed = false;
     try { await access(changed); } catch { removed = true; }
-    invalidateExpressionModule(changed, removed);
+    if (options.session) options.session.invalidate(changed, removed);
+    else invalidateExpressionModule(changed, removed);
   }
   const nextPlan = await createExactArtifactPlan(inputs, options);
   const changed = new Set(changedInputs.map(input => path.resolve(input)));
@@ -742,7 +788,8 @@ export async function updateExactArtifactDevState(
       ...(options.importedManifests ?? []),
       ...retainedEntries.map(entry => entry.manifest)
     ],
-    serverComponents: options.serverComponents
+    serverComponents: options.serverComponents,
+    session: options.session
   });
   const entries = [
     ...retainedEntries,

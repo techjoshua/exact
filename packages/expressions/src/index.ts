@@ -49,7 +49,8 @@ export {
   ExpressionProjectError,
   createExpressionProject,
   findExpressionConfig,
-  type ExpressionProjectOptions
+  type ExpressionProjectOptions,
+  type ExpressionProjectStats
 } from "./project.js";
 export {
   BlockBuilder,
@@ -73,6 +74,13 @@ export {
   type TextLoweringContext
 } from "./rewrite.js";
 export { validateExpressionTree } from "./validation.js";
+export {
+  rewriteModuleReferences,
+  type ModuleExportReplacement,
+  type ModuleRewriteOptions,
+  type ModuleRewriteResult
+} from "./module-rewrite.js";
+export { createLineSourceMap, type GeneratedSourceMap } from "./source-map.js";
 
 import { moduleBuilder } from "./builder.js";
 import { createExpressionProject } from "./project.js";

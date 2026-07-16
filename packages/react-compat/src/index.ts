@@ -52,7 +52,7 @@ export const __CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = R
 // never acquire a second dispatcher merely because it crossed an export condition.
 export const __SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = ReactSharedInternals19;
 
-export function createElement<P extends Record<string, unknown>>(type: string | symbol | ReactComponentType<P>, config?: (P & { key?: Key; ref?: unknown }) | null, ...children: ReactNode[]): ReactElement<P> {
+export function createElement<P extends object>(type: string | symbol | ReactComponentType<P>, config?: (P & { key?: Key; ref?: unknown }) | null, ...children: ReactNode[]): ReactElement<P> {
   const source = config ?? {} as P;
   const props: Record<string, unknown> = {};
   let key: string | null = null;
@@ -76,7 +76,7 @@ export function createElement<P extends Record<string, unknown>>(type: string | 
   };
 }
 
-export function cloneElement<P extends Record<string, unknown>>(element: ReactElement<P>, config?: Partial<P> & { key?: Key; ref?: unknown }, ...children: ReactNode[]): ReactElement<P> {
+export function cloneElement<P extends object>(element: ReactElement<P>, config?: Partial<P> & { key?: Key; ref?: unknown }, ...children: ReactNode[]): ReactElement<P> {
   if (!isValidElement(element)) throw new TypeError("cloneElement requires a valid React element");
   const props = { ...element.props, ...(config ?? {}) } as Record<string, unknown> & P & { key?: Key; ref?: unknown; children?: ReactNode };
   const key = config && "key" in config ? config.key : element.key;

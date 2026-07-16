@@ -1,0 +1,41 @@
+{
+  "name": "@exact/convex",
+  "version": "0.0.0",
+  "type": "module",
+  "files": ["dist", "!dist/**/*.test.*"],
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./react": { "types": "./dist/react.d.ts", "default": "./dist/react.js" }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "dependencies": {
+    "@exact/core": "file:../core",
+    "@exact/react-compat-adapter-api": "file:../react-compat-adapter-api",
+    "@exact/reactive": "file:../reactive"
+  },
+  "peerDependencies": {
+    "@exact/react-compat": "0.0.0",
+    "convex": ">=1 <2"
+  },
+  "peerDependenciesMeta": {
+    "@exact/react-compat": { "optional": true },
+    "convex": { "optional": true }
+  },
+  "exact": {
+    "reactCompatibility": {
+      "schemaVersion": 1,
+      "substitutions": {
+        "convex/react": {
+          "version": ">=1 <2",
+          "exports": {
+            "ConvexProvider": { "subpath": "./react", "export": "ConvexProvider" },
+            "useConvex": { "subpath": "./react", "export": "useConvex" }
+          }
+        }
+      }
+    }
+  },
+  "scripts": { "build": "tsc -b", "test": "vitest run" }
+}
