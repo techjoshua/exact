@@ -686,7 +686,6 @@ export class ExpressionProject {
         scope: scopeFor(node),
         type: semanticType,
         variable,
-        text: sourceFile.text.slice(start, node.end),
         name: nodeName(node),
         operator: nodeOperator(node),
         directives: directivesFor(node, ts.isVariableDeclaration(node))
@@ -698,48 +697,48 @@ export class ExpressionProject {
           const signature = checker.getResolvedSignature(node);
           if (signature) resolvedSignature = signatureFor(signature, node, checker, typeFor, directivesFor);
         }
-        return Object.freeze({ ...common, target, arguments: Object.freeze(children.slice(1)), ...(resolvedSignature ? { resolvedSignature } : {}) });
+        return freezeSourceNode({ ...common, target, arguments: Object.freeze(children.slice(1)), ...(resolvedSignature ? { resolvedSignature } : {}) }, sourceFile.text);
       }
       if (ts.isFunctionLike(node)) {
         const parameters = node.parameters.flatMap(parameter => parameter.name.getText(sourceFile) === "this"
           ? [variableForThis(parameter.name)]
           : collectBindingIdentifiers(parameter.name).map(variableFor).filter((value): value is Variable => !!value));
-        return Object.freeze({
+        return freezeSourceNode({
           ...common,
           parameters: Object.freeze(parameters),
           captures: Object.freeze(functionCaptures(children, common.scope))
-        });
+        }, sourceFile.text);
       }
       if (ts.isJsxElement(node)) {
         const opening = children[0]!;
         const attributes = opening.children.find(child => child.kind === "JsxAttributes")?.children ?? [];
-        return Object.freeze({
+        return freezeSourceNode({
           ...common,
           tagName: node.openingElement.tagName.getText(sourceFile),
           attributes: Object.freeze(attributes),
           jsxChildren: Object.freeze(children.slice(1, -1))
-        });
+        }, sourceFile.text);
       }
       if (ts.isJsxSelfClosingElement(node)) {
         const attributes = children.find(child => child.kind === "JsxAttributes")?.children ?? [];
-        return Object.freeze({
+        return freezeSourceNode({
           ...common,
           tagName: node.tagName.getText(sourceFile),
           attributes: Object.freeze(attributes),
           jsxChildren: Object.freeze([])
-        });
+        }, sourceFile.text);
       }
       if (ts.isJsxFragment(node)) {
-        return Object.freeze({ ...common, attributes: Object.freeze([]), jsxChildren: Object.freeze(children.slice(1, -1)) });
+        return freezeSourceNode({ ...common, attributes: Object.freeze([]), jsxChildren: Object.freeze(children.slice(1, -1)) }, sourceFile.text);
       }
       if (ts.isJsxAttribute(node) || ts.isJsxSpreadAttribute(node)) {
-        return Object.freeze({
+        return freezeSourceNode({
           ...common,
           name: ts.isJsxAttribute(node) ? node.name.getText(sourceFile) : undefined,
           initializer: children.at(-1)
-        });
+        }, sourceFile.text);
       }
-      return Object.freeze(common);
+      return freezeSourceNode(common, sourceFile.text);
     };
 
     const root = convert(sourceFile);
@@ -774,6 +773,24 @@ export class ExpressionProject {
     this.diskVersions.set(filename, version);
     return version;
   }
+}
+
+const sourceTextByNode = new WeakMap<ExpressionNode, string>();
+
+function sourceNodeText(this: ExpressionNode): string | undefined {
+  const source = sourceTextByNode.get(this);
+  const span = this.span;
+  return source !== undefined && span ? source.slice(span.start, span.end) : undefined;
+}
+
+function freezeSourceNode<T extends ExpressionNode>(node: T, source: string): T {
+  sourceTextByNode.set(node, source);
+  Object.defineProperty(node, "text", {
+    configurable: false,
+    enumerable: true,
+    get: sourceNodeText
+  });
+  return Object.freeze(node);
 }
 
 function functionCaptures(children: readonly ExpressionNode[], functionScope: ExpressionScope): Variable[] {

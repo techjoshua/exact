@@ -26,6 +26,11 @@ describe("@exact/expressions", () => {
     expect(elements.length).toBeGreaterThan(5);
     expect(elements.some(element => element.node.tagName === "TaskCard")).toBe(true);
     expect(elements.every(element => Array.isArray(element.node.attributes) && Array.isArray(element.node.jsxChildren))).toBe(true);
+    const lazyElement = elements[0]!.node;
+    const textDescriptor = Object.getOwnPropertyDescriptor(lazyElement, "text");
+    expect(textDescriptor?.get).toBeTypeOf("function");
+    expect(textDescriptor?.value).toBeUndefined();
+    expect(lazyElement.text).toBe(module.source.slice(lazyElement.span!.start, lazyElement.span!.end));
     expect(module.walk().jsxAttributes().any(attribute => attribute.node.name === "className")).toBe(true);
     expect(module.root.descendants().first()?.parent).toBeDefined();
   });
