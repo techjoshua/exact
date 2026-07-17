@@ -1,7 +1,7 @@
 import path from "node:path";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { analyzeSource } from "@exact/compiler";
 import {
   exact,
@@ -138,6 +138,33 @@ describe("@exact/bun-plugin", () => {
       path: "/app/src/model.ts",
       text: async () => "export type Model = { title: string };"
     })).resolves.toEqual({});
+  });
+
+  it("surfaces and deduplicates diagnostics by default in watch mode", async () => {
+    const root = path.resolve(import.meta.dirname, "../../..");
+    const model = path.join(root, "apps/kanban/src/__bun_diagnostic_model.ts");
+    const consumer = path.join(root, "apps/kanban/src/__bun_diagnostic_consumer.ts");
+    let loadHook!: (args: BunLoadArgs) => BunLoadResult | Promise<BunLoadResult>;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      writeFileSync(model, "export interface Model { value: number }\nexport const model: Model = { value: 1 };");
+      writeFileSync(consumer, 'import { model } from "./__bun_diagnostic_model.js"; export const value: number = model.value;');
+      exact().setup({
+        config: { watch: true },
+        onResolve() {},
+        onLoad(_options, handler) { loadHook = handler; }
+      });
+      await loadHook({ path: model, text: async () => "export interface Model { value: number }\nexport const model: Model = { value: 1 };" });
+      const changed = 'export interface Model { value: string }\nexport const model: Model = { value: "changed" };';
+      writeFileSync(model, changed);
+      await loadHook({ path: model, text: async () => changed });
+      await loadHook({ path: model, text: async () => changed });
+      expect(warn.mock.calls.filter(call => String(call[0]).includes("TS2322"))).toHaveLength(1);
+    } finally {
+      warn.mockRestore();
+      rmSync(model, { force: true });
+      rmSync(consumer, { force: true });
+    }
   });
 
   it("registers React aliases and compiles React JSX to the compatibility runtime", async () => {

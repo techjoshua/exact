@@ -22,7 +22,7 @@
     "typecheck": "tsc -b --pretty",
     "typecheck:tests": "tsc -p tsconfig.test.json --pretty",
     "benchmark:reactive": "node scripts/benchmark-reactive.mjs && node scripts/benchmark-dom-list.mjs",
-    "benchmark:expressions": "node scripts/benchmark-expressions.mjs",
+    "benchmark:expressions": "node scripts/benchmark-expressions.mjs && node scripts/benchmark-compiler-workflow.mjs && node scripts/benchmark-language-service.mjs",
     "check:expressions": "node scripts/check-expressions-roundtrip.mjs",
     "check:react-compat": "npm run build -w @exact/react-compatibility && node scripts/check-react-package-corpus.mjs && node scripts/check-react-conformance.mjs && node scripts/check-react-reconciler-compat.mjs",
     "check:react-reconciler": "npm run build && node scripts/check-react-reconciler-compat.mjs",

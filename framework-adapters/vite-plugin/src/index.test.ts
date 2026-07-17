@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { analyzeSource } from "@exact/compiler";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { exact } from "./index.js";
@@ -237,6 +237,29 @@ describe("@exact/vite-plugin", () => {
     expect(() => plugin.handleHotUpdate?.({ file: "/project/tsconfig.json" })).not.toThrow();
     expect(() => plugin.watchChange?.("/src/removed.tsx", { event: "delete" })).not.toThrow();
     plugin.closeBundle?.();
+  });
+
+  it("enables and deduplicates diagnostics by default during development", () => {
+    const root = path.resolve(import.meta.dirname, "../../..");
+    const model = path.join(root, "apps/kanban/src/__vite_diagnostic_model.ts");
+    const consumer = path.join(root, "apps/kanban/src/__vite_diagnostic_consumer.ts");
+    const plugin = exact({ reactCompatibility: false });
+    const warnings: string[] = [];
+    const context = { warn: (message: string) => warnings.push(message) };
+    try {
+      plugin.configResolved?.({ command: "serve" });
+      writeFileSync(model, "export interface Model { value: number }\nexport const model: Model = { value: 1 };");
+      writeFileSync(consumer, 'import { model } from "./__vite_diagnostic_model.js"; export const value: number = model.value;');
+      plugin.handleHotUpdate?.call(context, { file: model });
+      writeFileSync(model, 'export interface Model { value: string }\nexport const model: Model = { value: "changed" };');
+      plugin.handleHotUpdate?.call(context, { file: model });
+      plugin.handleHotUpdate?.call(context, { file: model });
+      expect(warnings.filter(message => message.includes("TS2322"))).toHaveLength(1);
+    } finally {
+      plugin.closeBundle?.();
+      rmSync(model, { force: true });
+      rmSync(consumer, { force: true });
+    }
   });
 
   it("disposes its compiler session when the dev server closes", () => {

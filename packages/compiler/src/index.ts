@@ -126,6 +126,8 @@ export {
   createCompilerSession,
   clearExpressionProjectCache,
   invalidateExpressionModule,
+  type ExactCompilerInvalidation,
+  type ExactCompilerSessionOptions,
   type ExactCompilerSessionStats
 } from "./expression-project.js";
 export {
@@ -161,7 +163,11 @@ export function transformSource(source: string, options: TransformOptions = {}):
   const virtual = !path.isAbsolute(filename);
   const importedManifests = validatedImportedManifests(options.importedManifests, options.pluginRegistry);
   const target = options.target ?? "default";
-  const expressionModule = sessionExpressionModule(options.session, filename, normalized, { root: options.root, virtual });
+  const expressionModule = sessionExpressionModule(options.session, filename, normalized, {
+    root: options.root,
+    virtual,
+    diagnostics: options.generatedValidation === "semantic" ? "full" : "syntax"
+  });
   const syntaxDiagnostics = expressionModule.diagnostics.filter(diagnostic => diagnostic.phase === "syntax" && diagnostic.severity === "error");
   if (syntaxDiagnostics.length) {
     throw new Error(syntaxDiagnostics.map(diagnostic => {
@@ -179,7 +185,8 @@ export function transformSource(source: string, options: TransformOptions = {}):
     importedManifests,
     target,
     assetRules: options.assetRules,
-    pluginRegistry: options.pluginRegistry
+    pluginRegistry: options.pluginRegistry,
+    generatedValidation: options.generatedValidation
   });
   const pluginErrors = manifest.diagnostics.filter(diagnostic => /^error: \[@/.test(diagnostic));
   if (pluginErrors.length) throw new Error(pluginErrors.join("\n"));
@@ -232,7 +239,14 @@ export function transformSource(source: string, options: TransformOptions = {}):
   )]);
   const transformed = result.transformed[0]!;
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
-  const printed = emitExpressionRewrite(expressionModule, printer.printFile(transformed as ts.SourceFile), options.root, virtual, options.session);
+  const printed = emitExpressionRewrite(
+    expressionModule,
+    printer.printFile(transformed as ts.SourceFile),
+    options.root,
+    virtual,
+    options.session,
+    options.generatedValidation ?? "syntax"
+  );
   result.dispose();
   validateTargetAnalysis(callableEffects, target, filename);
   const output = options.moduleTransform
@@ -276,7 +290,8 @@ function emitExpressionRewrite(
   generated: string,
   root: string | undefined,
   virtual: boolean,
-  session?: ExactCompilerSession
+  session: ExactCompilerSession | undefined,
+  validation: "syntax" | "semantic"
 ): string {
   const rewritten = rewriteModule(module, rewriter => {
     rewriter.replaceTextWhere(reference => reference.node === module.rootNode, () => generated);
@@ -284,7 +299,30 @@ function emitExpressionRewrite(
   const structuralErrors = rewritten.validate().filter(diagnostic => diagnostic.severity === "error");
   if (structuralErrors.length) throw new ExpressionProjectError(structuralErrors);
 
-  const rebound = sessionExpressionModule(session, `${module.filename}.exact.generated.tsx`, rewritten.emit().code, { root, virtual });
+  const emitted = rewritten.emit().code;
+  if (validation === "syntax") {
+    const sourceFile = ts.createSourceFile(
+      `${module.filename}.exact.generated.tsx`,
+      emitted,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TSX
+    );
+    const diagnostics = (sourceFile as ts.SourceFile & { parseDiagnostics?: readonly ts.Diagnostic[] }).parseDiagnostics ?? [];
+    if (diagnostics.length) {
+      throw new ExpressionProjectError(diagnostics.map(diagnostic => ({
+        ...diagnosticFromTypeScript(diagnostic),
+        phase: "syntax" as const
+      })));
+    }
+    return emitted;
+  }
+
+  const rebound = sessionExpressionModule(session, `${module.filename}.exact.generated.tsx`, emitted, {
+    root,
+    virtual,
+    diagnostics: "full"
+  });
   const baselineErrors = module.diagnostics.filter(diagnostic => diagnostic.severity === "error");
   const existing = new Map<string, number>();
   for (const diagnostic of baselineErrors) {
@@ -303,6 +341,30 @@ function emitExpressionRewrite(
   });
   if (introduced.length) throw new ExpressionProjectError(introduced);
   return rebound.emit().code;
+}
+
+function diagnosticFromTypeScript(diagnostic: ts.Diagnostic): {
+  code: string;
+  message: string;
+  severity: "error" | "warning";
+  filename?: string;
+  span?: { start: number; end: number; line: number; column: number };
+} {
+  const source = diagnostic.file;
+  const start = diagnostic.start;
+  const location = source && start !== undefined ? source.getLineAndCharacterOfPosition(start) : undefined;
+  return {
+    code: `TS${diagnostic.code}`,
+    message: ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"),
+    severity: diagnostic.category === ts.DiagnosticCategory.Error ? "error" : "warning",
+    filename: source?.fileName,
+    span: start === undefined || !location ? undefined : {
+      start,
+      end: start + (diagnostic.length ?? 0),
+      line: location.line + 1,
+      column: location.character + 1
+    }
+  };
 }
 
 function throwLocatedCompilerDiagnostics(
@@ -358,7 +420,10 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const normalized = preprocessPropPunning(source);
   const filename = options.filename ?? "input.tsx";
   const importedManifests = validatedImportedManifests(options.importedManifests, options.pluginRegistry);
-  const expressionModule = sessionExpressionModule(options.session, filename, normalized, { root: options.root });
+  const expressionModule = sessionExpressionModule(options.session, filename, normalized, {
+    root: options.root,
+    diagnostics: options.generatedValidation === "semantic" ? "full" : "syntax"
+  });
   const exports: ExactExportIR[] = [];
   const symbols: ExactSymbolIR[] = [];
   const boundaries: ExactBoundaryIR[] = [];
@@ -556,7 +621,7 @@ function sessionExpressionModule(
 /** Compiles one input file and optionally writes code, source map, and manifest artifacts. */
 export async function compileFile(inputFile: string, options: CompileFileOptions = {}): Promise<CompileFileResult> {
   const source = await readFile(inputFile, "utf8");
-  const result = transformSource(source, { filename: options.filename ?? inputFile, session: options.session, target: options.target, serverComponents: options.serverComponents, sourceMap: options.sourceMap, moduleRewrite: options.moduleRewrite, moduleTransform: options.moduleTransform, assetRules: options.assetRules, preserveClientAssetImports: options.preserveClientAssetImports, pluginRegistry: options.pluginRegistry });
+  const result = transformSource(source, { filename: options.filename ?? inputFile, session: options.session, target: options.target, serverComponents: options.serverComponents, sourceMap: options.sourceMap, moduleRewrite: options.moduleRewrite, moduleTransform: options.moduleTransform, assetRules: options.assetRules, preserveClientAssetImports: options.preserveClientAssetImports, pluginRegistry: options.pluginRegistry, generatedValidation: options.generatedValidation });
   const outputFile = options.outDir ? outputPathFor(inputFile, options.outDir, options.rootDir) : undefined;
   const sourceMapFile = outputFile && result.map ? sourceMapPathFor(outputFile) : undefined;
   const manifestFile = outputFile && options.emitManifest ? manifestPathFor(outputFile) : undefined;
@@ -613,9 +678,9 @@ export async function compileProject(inputs: readonly string[], options: Compile
 export async function compileFileArtifacts(inputFile: string, options: CompileArtifactsOptions): Promise<CompileArtifactsResult> {
   const source = await readFile(inputFile, "utf8");
   const filename = options.filename ?? inputFile;
-  const manifestBase = analyzeSource(source, { filename, session: options.session, importedManifests: options.importedManifests, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry });
-  const client = transformSource(source, { filename, session: options.session, target: "client", importedManifests: options.importedManifests, serverComponents: options.serverComponents, sourceMap: options.sourceMap, moduleRewrite: options.moduleRewrite, moduleTransform: options.moduleTransform, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry });
-  const server = transformSource(source, { filename, session: options.session, target: "server", importedManifests: options.importedManifests, serverComponents: options.serverComponents, sourceMap: options.sourceMap, moduleRewrite: options.moduleRewrite, moduleTransform: options.moduleTransform, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry });
+  const manifestBase = analyzeSource(source, { filename, session: options.session, importedManifests: options.importedManifests, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry, generatedValidation: options.generatedValidation });
+  const client = transformSource(source, { filename, session: options.session, target: "client", importedManifests: options.importedManifests, serverComponents: options.serverComponents, sourceMap: options.sourceMap, moduleRewrite: options.moduleRewrite, moduleTransform: options.moduleTransform, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry, generatedValidation: options.generatedValidation });
+  const server = transformSource(source, { filename, session: options.session, target: "server", importedManifests: options.importedManifests, serverComponents: options.serverComponents, sourceMap: options.sourceMap, moduleRewrite: options.moduleRewrite, moduleTransform: options.moduleTransform, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry, generatedValidation: options.generatedValidation });
   const paths = artifactPathsFor(inputFile, options.outDir, options.rootDir);
   const manifest = withArtifactMetadata(manifestBase, inputFile, paths);
   const clientMapFile = client.map ? sourceMapPathFor(paths.clientFile) : undefined;
@@ -670,7 +735,7 @@ export async function compileArtifactPlanEntries(
     sources.set(path.resolve(entry.inputFile), source);
   }
   const dependencyGraph = await collectPlacementAnalysisDependencies(sources, options.session);
-  for (const [inputFile, source] of sources) manifestBases.set(inputFile, analyzeSource(source, { filename: inputFile, session: options.session, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry }));
+  for (const [inputFile, source] of sources) manifestBases.set(inputFile, analyzeSource(source, { filename: inputFile, session: options.session, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry, generatedValidation: options.generatedValidation }));
   // Resolve cross-file callable summaries to a fixed point. Each pass consumes
   // the previous immutable manifest generation, so results do not depend on
   // source ordering and recursive import groups converge monotonically.
@@ -682,7 +747,7 @@ export async function compileArtifactPlanEntries(
     for (const [key, source] of sources) {
       const entry = entries.find(candidate => path.resolve(candidate.inputFile) === key);
       const filename = entry ? options.filename?.(entry) ?? entry.inputFile : key;
-      const manifest = analyzeSource(source, { filename, session: options.session, importedManifests: imported, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry });
+      const manifest = analyzeSource(source, { filename, session: options.session, importedManifests: imported, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry, generatedValidation: options.generatedValidation });
       next.set(key, manifest);
       if (callableEffectSignature(manifest) !== callableEffectSignature(manifestBases.get(key)!)) changed = true;
     }
@@ -695,7 +760,7 @@ export async function compileArtifactPlanEntries(
 
   for (const entry of entries) {
     const filename = options.filename?.(entry) ?? entry.inputFile;
-    results.push(await compileArtifactPlanEntry(entry, filename, importedManifests, options.serverComponents ?? false, options.sourceMap ?? false, transitiveDependencies(path.resolve(entry.inputFile), dependencyGraph), options.moduleRewrite, options.moduleTransform, options.session, options.assetRules, options.pluginRegistry));
+    results.push(await compileArtifactPlanEntry(entry, filename, importedManifests, options.serverComponents ?? false, options.sourceMap ?? false, transitiveDependencies(path.resolve(entry.inputFile), dependencyGraph), options.moduleRewrite, options.moduleTransform, options.session, options.assetRules, options.pluginRegistry, options.generatedValidation));
   }
 
   return results;
@@ -759,15 +824,16 @@ async function compileArtifactPlanEntry(
   moduleTransform?: import("./types.js").ModuleTransform,
   session?: ExactCompilerSession,
   assetRules?: TransformOptions["assetRules"],
-  pluginRegistry?: TransformOptions["pluginRegistry"]
+  pluginRegistry?: TransformOptions["pluginRegistry"],
+  generatedValidation?: TransformOptions["generatedValidation"]
 ): Promise<CompileArtifactsResult> {
   const source = await readFile(entry.inputFile, "utf8");
-  const base = analyzeSource(source, { filename, session, importedManifests, assetRules, pluginRegistry });
+  const base = analyzeSource(source, { filename, session, importedManifests, assetRules, pluginRegistry, generatedValidation });
   base.dependencies = dependencies
     .map(dependency => path.relative(path.dirname(path.resolve(filename)), dependency).replaceAll(path.sep, "/"))
     .sort();
-  const client = transformSource(source, { filename, session, target: "client", importedManifests, serverComponents, sourceMap, moduleRewrite, moduleTransform, assetRules, pluginRegistry });
-  const server = transformSource(source, { filename, session, target: "server", importedManifests, serverComponents, sourceMap, moduleRewrite, moduleTransform, assetRules, pluginRegistry });
+  const client = transformSource(source, { filename, session, target: "client", importedManifests, serverComponents, sourceMap, moduleRewrite, moduleTransform, assetRules, pluginRegistry, generatedValidation });
+  const server = transformSource(source, { filename, session, target: "server", importedManifests, serverComponents, sourceMap, moduleRewrite, moduleTransform, assetRules, pluginRegistry, generatedValidation });
   const manifest = withArtifactMetadata(base, entry.inputFile, entry);
   const clientMapFile = client.map ? sourceMapPathFor(entry.clientFile) : undefined;
   const serverMapFile = server.map ? sourceMapPathFor(entry.serverFile) : undefined;

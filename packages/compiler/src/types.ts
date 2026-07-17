@@ -20,6 +20,11 @@ export type TransformOptions = {
   preserveClientAssetImports?: boolean;
   /** Prepared, compiler-safe plugin projection. Raw plugin configuration is never accepted here. */
   pluginRegistry?: ExactPreparedCompilerRegistry;
+  /**
+   * Generated output is syntax-checked in the transform hot path by default.
+   * Release checks can request a second full semantic binding.
+   */
+  generatedValidation?: "syntax" | "semantic";
 };
 
 /** Host-neutral final module pass applied after eXact lowering and before maps. */
@@ -325,6 +330,7 @@ export type CompileArtifactsOptions = {
   assetRules?: readonly ExactAssetRule[];
   session?: ExactCompilerSession;
   pluginRegistry?: ExactPreparedCompilerRegistry;
+  generatedValidation?: "syntax" | "semantic";
 };
 
 export type CompileArtifactsResult = {
@@ -357,6 +363,7 @@ export type CompileArtifactPlanEntriesOptions = {
   assetRules?: readonly ExactAssetRule[];
   session?: ExactCompilerSession;
   pluginRegistry?: ExactPreparedCompilerRegistry;
+  generatedValidation?: "syntax" | "semantic";
 };
 
 export type ExactArtifactPlanOptions = {

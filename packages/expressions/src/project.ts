@@ -22,10 +22,13 @@ export interface ExpressionProjectOptions {
   readonly cwd?: string;
   /** Keeps independently supplied virtual sources out of TypeScript's shared script global scope. */
   readonly forceModuleDetection?: boolean;
+  /** Controls diagnostic collection without disabling TypeChecker-backed binding. */
+  readonly diagnostics?: "syntax" | "full";
 }
 
 export type ExpressionProjectStats = Readonly<{
   rebuilds: number;
+  semanticDiagnostics: number;
   overlays: number;
   sourceFiles: number;
   nodeIdentityRoots: number;
@@ -102,6 +105,7 @@ export class ExpressionProject {
   readonly tsconfigPath: string;
   private readonly parsed: ts.ParsedCommandLine;
   private readonly forceModuleDetection: boolean;
+  private readonly diagnosticMode: "syntax" | "full";
   private readonly compilerOptions: ts.CompilerOptions;
   private readonly compilerHost: ts.CompilerHost;
   private readonly moduleResolutionCache: ts.ModuleResolutionCache;
@@ -117,7 +121,9 @@ export class ExpressionProject {
   private readonly identityKeysByFile = new Map<string, Set<string>>();
   private typeHandles = new WeakMap<ExpressionType, ts.Type>();
   private program?: ts.Program;
+  private dirty = false;
   private rebuildCount = 0;
+  private semanticDiagnosticCount = 0;
   private disposed = false;
 
   constructor(options: ExpressionProjectOptions = {}) {
@@ -128,6 +134,7 @@ export class ExpressionProject {
     if (!config) throw new ExpressionProjectError([{ code: "EXPR_CONFIG_MISSING", message: `No tsconfig.json found from ${cwd}`, severity: "error", phase: "configuration" }]);
     this.tsconfigPath = config;
     this.forceModuleDetection = options.forceModuleDetection ?? false;
+    this.diagnosticMode = options.diagnostics ?? "full";
     const read = ts.readConfigFile(config, ts.sys.readFile);
     if (read.error) throw new ExpressionProjectError([{ ...diagnosticFromTs(read.error), phase: "configuration" }]);
     this.parsed = ts.parseJsonConfigFileContent(read.config, ts.sys, path.dirname(config), undefined, config);
@@ -198,7 +205,7 @@ export class ExpressionProject {
     const normalized = normalizeFile(filename);
     const changed = this.setOverlay(normalized, source);
     const cached = this.boundModules.get(normalized);
-    if (!changed && this.program && cached?.program === this.program) return cached.module;
+    if (!changed && !this.dirty && this.program && cached?.program === this.program) return cached.module;
     this.rebuild();
     return this.readBoundModule(normalized);
   }
@@ -211,7 +218,7 @@ export class ExpressionProject {
       filenames.push({ display: displayFile(filename), canonical: normalized });
       changed = this.setOverlay(normalized, source) || changed;
     }
-    if (!changed && this.program) {
+    if (!changed && !this.dirty && this.program) {
       const cached = filenames.map(filename => [filename, this.boundModules.get(filename.canonical)] as const);
       if (cached.every(([, entry]) => entry?.program === this.program)) {
         return new Map(cached.map(([filename, entry]) => [filename.display, entry!.module]));
@@ -225,7 +232,7 @@ export class ExpressionProject {
     this.assertActive();
     const normalized = normalizeFile(filename);
     if (source !== undefined) return this.updateModule(normalized, source);
-    if (!this.program) this.rebuild();
+    if (!this.program || this.dirty) this.rebuild();
     return this.readBoundModule(normalized);
   }
 
@@ -271,39 +278,54 @@ export class ExpressionProject {
       ...ts.sys,
       fileExists: file => this.overlays.has(normalizeFile(file)) || ts.sys.fileExists(file),
       readFile: file => this.overlays.get(normalizeFile(file)) ?? ts.sys.readFile(file)
-    }).resolvedModule;
+    }, this.moduleResolutionCache).resolvedModule;
     return resolved ? displayFile(resolved.resolvedFileName) : undefined;
   }
 
   /** Removes an in-memory source and invalidates any cached disk syntax for it. */
   removeModule(filename: string): void {
+    this.removeModules([filename]);
+  }
+
+  /** Removes in-memory sources as one project update. */
+  removeModules(filenames: Iterable<string>): void {
     this.assertActive();
-    const normalized = normalizeFile(filename);
-    this.overlays.delete(normalized);
-    this.overlayVersions.delete(normalized);
-    this.sourceFiles.delete(normalized);
-    this.diskVersions.delete(normalized);
-    this.diskFileExistence.delete(normalized);
-    this.diskFileContents.delete(normalized);
-    this.boundModules.delete(normalized);
-    this.nodeIdentityRoots.delete(normalized);
-    const identityKeys = this.identityKeysByFile.get(normalized);
-    for (const key of identityKeys ?? []) this.symbolIdentities.delete(key);
-    this.identityKeysByFile.delete(normalized);
-    this.rebuild();
+    for (const filename of filenames) {
+      const normalized = normalizeFile(filename);
+      this.overlays.delete(normalized);
+      this.overlayVersions.delete(normalized);
+      this.sourceFiles.delete(normalized);
+      this.diskVersions.delete(normalized);
+      this.diskFileExistence.delete(normalized);
+      this.diskFileContents.delete(normalized);
+      this.boundModules.delete(normalized);
+      this.nodeIdentityRoots.delete(normalized);
+      const identityKeys = this.identityKeysByFile.get(normalized);
+      for (const key of identityKeys ?? []) this.symbolIdentities.delete(key);
+      this.identityKeysByFile.delete(normalized);
+    }
+    // Additions and removals can change resolution for otherwise unchanged imports.
+    this.moduleResolutionCache.clear();
+    this.dirty = true;
   }
 
   /** Invalidates a disk-backed source before the next incremental rebuild. */
   invalidateFile(filename: string): void {
+    this.invalidateFiles([filename]);
+  }
+
+  /** Invalidates disk-backed sources as one lazy project update. */
+  invalidateFiles(filenames: Iterable<string>): void {
     this.assertActive();
-    const normalized = normalizeFile(filename);
-    this.sourceFiles.delete(normalized);
-    this.diskVersions.delete(normalized);
-    this.diskFileExistence.delete(normalized);
-    this.diskFileContents.delete(normalized);
-    this.boundModules.clear();
-    this.moduleResolutionCache.clear();
-    this.rebuild();
+    for (const filename of filenames) {
+      const normalized = normalizeFile(filename);
+      this.sourceFiles.delete(normalized);
+      this.diskVersions.delete(normalized);
+      this.diskFileExistence.delete(normalized);
+      this.diskFileContents.delete(normalized);
+      this.boundModules.delete(normalized);
+    }
+    this.dirty = true;
   }
 
   dispose(): void {
@@ -318,13 +340,16 @@ export class ExpressionProject {
     this.nodeIdentityRoots.clear();
     this.symbolIdentities.clear();
     this.identityKeysByFile.clear();
+    this.typeHandles = new WeakMap();
     this.program = undefined;
+    this.dirty = false;
   }
 
   /** Lightweight retained-state counters for hosts and memory regression tests. */
   stats(): ExpressionProjectStats {
     return Object.freeze({
       rebuilds: this.rebuildCount,
+      semanticDiagnostics: this.semanticDiagnosticCount,
       overlays: this.overlays.size,
       sourceFiles: this.sourceFiles.size,
       nodeIdentityRoots: this.nodeIdentityRoots.size,
@@ -337,9 +362,10 @@ export class ExpressionProject {
   }
 
   private rebuild(): void {
+    if (!this.dirty && this.program) return;
     this.rebuildCount++;
     // TypeScript types belong to exactly one Program/TypeChecker generation.
-    // Never retain them as handles for a rebuilt project.
+    // Clearing these weak handles avoids retaining superseded Programs.
     this.typeHandles = new WeakMap();
     const roots = new Set(this.parsed.fileNames.map(normalizeFile));
     for (const file of this.overlays.keys()) roots.add(file);
@@ -349,6 +375,7 @@ export class ExpressionProject {
       host: this.compilerHost,
       oldProgram: this.program
     });
+    this.dirty = false;
   }
 
   private setOverlay(filename: string, source: string): boolean {
@@ -356,6 +383,7 @@ export class ExpressionProject {
     this.overlayVersions.set(filename, (this.overlayVersions.get(filename) ?? 0) + 1);
     this.overlays.set(filename, source);
     this.boundModules.delete(filename);
+    this.dirty = true;
     return true;
   }
 
@@ -375,7 +403,12 @@ export class ExpressionProject {
     // asking the checker afterwards can reinterpret lazily populated JSX
     // children as ordinary identifiers. Projection into the public diagnostic
     // model remains lazy and no Program is retained by the module.
-    const semanticDiagnostics = program.getSemanticDiagnostics(sourceFile);
+    const semanticDiagnostics = this.diagnosticMode === "full"
+      ? (
+          this.semanticDiagnosticCount++,
+          program.getSemanticDiagnostics(sourceFile)
+        )
+      : [];
     const directivesFor = (node: ts.Node | undefined, inline = false): readonly ExpressionDirective[] => {
       if (!node) return Object.freeze([]);
       const directiveSource = node.getSourceFile();

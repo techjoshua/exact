@@ -53,6 +53,14 @@ export {
   type ExpressionProjectStats
 } from "./project.js";
 export {
+  ExpressionLanguageService,
+  createExpressionLanguageService,
+  type ExpressionLanguageServiceChange,
+  type ExpressionLanguageServiceOptions,
+  type ExpressionLanguageServiceStats,
+  type ExpressionLanguageServiceUpdate
+} from "./language-service.js";
+export {
   BlockBuilder,
   ClassBuilder,
   FunctionBuilder,

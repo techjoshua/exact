@@ -1,5 +1,5 @@
 import path from "node:path";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import { analyzeSource } from "@exact/compiler";
@@ -12,6 +12,7 @@ import {
   transformExactWebpackSource,
   type WebpackCompilerLike
 } from "./index.js";
+import { webpackCompilerSessionCount } from "./sessions.js";
 
 describe("@exact/webpack-plugin", () => {
   it("transforms matching TSX sources through the shared compiler", () => {
@@ -157,6 +158,41 @@ describe("@exact/webpack-plugin", () => {
       options: compiler.options,
       modifiedFiles: ["/project/tsconfig.json"]
     })).not.toThrow();
+  });
+
+  it("owns, deduplicates, and releases diagnostics by default in watch mode", () => {
+    const root = path.resolve(import.meta.dirname, "../../..");
+    const model = path.join(root, "apps/kanban/src/__webpack_diagnostic_model.ts");
+    const consumer = path.join(root, "apps/kanban/src/__webpack_diagnostic_consumer.ts");
+    const warnings: string[] = [];
+    let watchRun!: (compiler: WebpackCompilerLike & { modifiedFiles?: Iterable<string> }) => void;
+    let shutdown!: () => void;
+    const compiler: WebpackCompilerLike = {
+      options: {},
+      hooks: {
+        watchRun: { tap(_name, handler) { watchRun = handler; } },
+        shutdown: { tap(_name, handler) { shutdown = handler; } }
+      },
+      getInfrastructureLogger: () => ({ warn: message => warnings.push(message) })
+    };
+    const before = webpackCompilerSessionCount();
+    try {
+      writeFileSync(model, "export interface Model { value: number }\nexport const model: Model = { value: 1 };");
+      writeFileSync(consumer, 'import { model } from "./__webpack_diagnostic_model.js"; export const value: number = model.value;');
+      new ExactWebpackPlugin().apply(compiler);
+      expect(webpackCompilerSessionCount()).toBe(before + 1);
+      watchRun({ options: compiler.options, modifiedFiles: [model] });
+      writeFileSync(model, 'export interface Model { value: string }\nexport const model: Model = { value: "changed" };');
+      watchRun({ options: compiler.options, modifiedFiles: [model] });
+      watchRun({ options: compiler.options, modifiedFiles: [model] });
+      expect(warnings.filter(message => message.includes("TS2322"))).toHaveLength(1);
+      shutdown();
+      expect(webpackCompilerSessionCount()).toBe(before);
+    } finally {
+      if (webpackCompilerSessionCount() > before) shutdown?.();
+      rmSync(model, { force: true });
+      rmSync(consumer, { force: true });
+    }
   });
 
   it("installs React aliases and compiles inferred React JSX to the compatibility runtime", () => {

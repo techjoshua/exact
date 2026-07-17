@@ -1,12 +1,11 @@
 import {
-  clearExpressionProjectCache,
   exactExportConditions,
-  invalidateExpressionModule,
   parseExactCompilerManifest,
   resolveExactArtifactImport,
   transformSource,
   type ExactCompilerManifest,
   type ExactAssetRule,
+  type ExactCompilerSession,
   type TransformTarget
 } from "@exact/compiler";
 import { transformReactJsx, usesReactRuntimeImports } from "@exact/react-compat/transform";
@@ -21,6 +20,12 @@ import {
 } from "@exact/react-compat/plugin";
 import type { ExactPreparedCompilerRegistry } from "@exact/plugin-api";
 import { prepareExactPluginRegistry } from "@exact/plugin-host/node";
+import {
+  createWebpackCompilerSession,
+  disposeWebpackCompilerSession,
+  replaceWebpackCompilerSession,
+  webpackCompilerSession
+} from "./sessions.js";
 
 export type ExactWebpackPluginOptions = {
   target?: TransformTarget;
@@ -37,6 +42,7 @@ export type ExactWebpackPluginOptions = {
   configPath?: string;
   pluginRegistry?: ExactPreparedCompilerRegistry;
   assetRules?: readonly ExactAssetRule[];
+  diagnostics?: boolean;
 };
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
@@ -56,6 +62,7 @@ export type WebpackResolverLike = {
 
 export type WebpackCompilerLike = {
   options: {
+    watch?: boolean;
     resolve?: {
       conditionNames?: string[];
       alias?: Record<string, string>;
@@ -64,6 +71,7 @@ export type WebpackCompilerLike = {
       rules?: unknown[];
     };
   };
+  watchMode?: boolean;
   hooks?: {
     watchRun?: {
       tap?(name: string, handler: (compiler: WebpackCompilerLike & { modifiedFiles?: Iterable<string>; removedFiles?: Iterable<string> }) => void): void;
@@ -71,7 +79,10 @@ export type WebpackCompilerLike = {
     normalModuleFactory?: {
       tap?(name: string, handler: (factory: { hooks?: { resolver?: { tap?(name: string, resolver: (resolver: WebpackResolverLike) => WebpackResolverLike): void } } }) => void): void;
     };
+    watchClose?: { tap?(name: string, handler: () => void): void };
+    shutdown?: { tap?(name: string, handler: () => void): void };
   };
+  getInfrastructureLogger?(name: string): { warn(message: string): void };
 };
 
 export type WebpackResolveRequest = {
@@ -89,42 +100,63 @@ export class ExactWebpackPlugin {
   }
 
   apply(compiler: WebpackCompilerLike): void {
+    let diagnosticsEnabled = this.options.diagnostics
+      ?? Boolean(compiler.watchMode || compiler.options.watch);
+    const owned = createWebpackCompilerSession(diagnosticsEnabled);
+    let compilerSession = owned.session;
+    const configureDiagnostics = (enabled: boolean): void => {
+      if (enabled === diagnosticsEnabled) return;
+      diagnosticsEnabled = enabled;
+      compilerSession = replaceWebpackCompilerSession(owned.id, enabled);
+    };
+    const reporter = createDiagnosticReporter();
+    const warn = (message: string): void =>
+      compiler.getInfrastructureLogger?.("ExactWebpackPlugin").warn(message);
     addWebpackConditions(compiler, exactExportConditions(targetFor(this.options), this.options));
     const reactCompatibility = resolveReactCompatibility(this.options.reactCompatibility);
     if (reactCompatibility) addWebpackReactAliases(compiler, reactCompatibility);
     compiler.options.module ??= {};
     compiler.options.module.rules ??= [];
-    compiler.options.module.rules.push(createExactWebpackRule(this.options));
+    compiler.options.module.rules.push(createExactWebpackRule(this.options, owned.id));
     compiler.hooks?.watchRun?.tap?.("ExactWebpackPlugin", current => {
+      if (this.options.diagnostics === undefined) configureDiagnostics(true);
       const modified = [...(current.modifiedFiles ?? [])];
       const removed = new Set(current.removedFiles ?? []);
       if (modified.some(file => /(?:^|[\\/])tsconfig(?:\.[^\\/]+)?\.json$/i.test(file))) {
-        clearExpressionProjectCache();
+        compilerSession.clear();
         return;
       }
-      for (const file of modified) invalidateExpressionModule(file, removed.has(file));
-      for (const file of removed) if (!modified.includes(file)) invalidateExpressionModule(file, true);
+      for (const file of modified) reporter(compilerSession.invalidate(file, removed.has(file)), warn);
+      for (const file of removed) if (!modified.includes(file)) reporter(compilerSession.invalidate(file, true), warn);
     });
     compiler.hooks?.normalModuleFactory?.tap?.("ExactWebpackPlugin", factory => {
       factory.hooks?.resolver?.tap?.("ExactWebpackPlugin", resolver => applyExactWebpackResolver(resolver, this.options));
     });
+    const dispose = (): void => disposeWebpackCompilerSession(owned.id);
+    compiler.hooks?.watchClose?.tap?.("ExactWebpackPlugin", dispose);
+    compiler.hooks?.shutdown?.tap?.("ExactWebpackPlugin", dispose);
   }
 }
 
 /** Creates the webpack pre-loader rule for eXact JSX transforms. */
-export function createExactWebpackRule(options: ExactWebpackPluginOptions = {}): Record<string, unknown> {
+export function createExactWebpackRule(options: ExactWebpackPluginOptions = {}, sessionId?: string): Record<string, unknown> {
   return {
     test: /\.[cm]?[jt]sx?$/,
     enforce: "pre",
     use: [{
       loader: "@exact/webpack-plugin/loader",
-      options
+      options: { ...options, ...(sessionId ? { __exactSessionId: sessionId } : {}) }
     }]
   };
 }
 
 /** Transforms one webpack-loaded source file when it matches eXact plugin filters. */
-export function transformExactWebpackSource(source: string, filename: string, options: ExactWebpackPluginOptions = {}): { code: string; map: unknown } | null {
+export function transformExactWebpackSource(
+  source: string,
+  filename: string,
+  options: ExactWebpackPluginOptions = {},
+  session?: ExactCompilerSession
+): { code: string; map: unknown } | null {
   if (!shouldTransform(filename, source, options)) return null;
   try {
     const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
@@ -140,6 +172,7 @@ export function transformExactWebpackSource(source: string, filename: string, op
     }
     const result = transformSource(source, {
       filename,
+      session,
       target: targetFor(options),
       importedManifests: importedManifestsFor(options),
       serverComponents: options.serverComponents,
@@ -162,9 +195,10 @@ export function transformExactWebpackSource(source: string, filename: string, op
 export async function transformExactWebpackSourceAsync(
   source: string,
   filename: string,
-  options: ExactWebpackPluginOptions = {}
+  options: ExactWebpackPluginOptions = {},
+  session?: ExactCompilerSession
 ): Promise<{ code: string; map: unknown } | null> {
-  if (options.pluginRegistry) return transformExactWebpackSource(source, filename, options);
+  if (options.pluginRegistry) return transformExactWebpackSource(source, filename, options, session);
   const registry = await prepareExactPluginRegistry({
     applicationRoot: options.applicationRoot ?? path.dirname(filename),
     configPath: options.configPath,
@@ -173,7 +207,38 @@ export async function transformExactWebpackSourceAsync(
   return transformExactWebpackSource(source, filename, {
     ...options,
     pluginRegistry: registry.compiler
-  });
+  }, session);
+}
+
+export function compilerSessionForWebpackLoader(sessionId: string | undefined): ExactCompilerSession | undefined {
+  return webpackCompilerSession(sessionId);
+}
+
+type DiagnosticLike = Readonly<{ code: string; message: string; filename?: string; span?: Readonly<{ line: number; column: number }> }>;
+
+function createDiagnosticReporter(): (
+  update: Readonly<{ affectedFiles: readonly string[]; diagnostics: readonly DiagnosticLike[] }>,
+  warn: (message: string) => void
+) => void {
+  const previous = new Map<string, Set<string>>();
+  return (update, warn) => {
+    const next = new Map<string, Set<string>>();
+    for (const diagnostic of update.diagnostics) {
+      const file = diagnostic.filename ?? "<project>";
+      let keys = next.get(file);
+      if (!keys) next.set(file, keys = new Set());
+      const key = `${diagnostic.code}:${diagnostic.span?.line}:${diagnostic.span?.column}:${diagnostic.message}`;
+      keys.add(key);
+      if (!previous.get(file)?.has(key)) {
+        const location = diagnostic.filename
+          ? `${diagnostic.filename}${diagnostic.span ? `:${diagnostic.span.line}:${diagnostic.span.column}` : ""}`
+          : "TypeScript";
+        warn(`${location} - ${diagnostic.code}: ${diagnostic.message}`);
+      }
+    }
+    for (const file of update.affectedFiles) previous.delete(file.replaceAll("\\", "/"));
+    for (const [file, keys] of next) previous.set(file, keys);
+  };
 }
 
 function importedManifestsFor(options: { importedManifests?: readonly ExactCompilerManifest[]; manifestFiles?: readonly string[] }): ExactCompilerManifest[] {

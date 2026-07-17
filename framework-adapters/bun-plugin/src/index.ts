@@ -1,12 +1,12 @@
 import {
   exactExportConditions,
-  clearExpressionProjectCache,
-  invalidateExpressionModule,
+  createCompilerSession,
   parseExactCompilerManifest,
   resolveExactArtifactImport,
   transformSource,
   type ExactCompilerManifest,
   type ExactAssetRule,
+  type ExactCompilerSession,
   type TransformTarget
 } from "@exact/compiler";
 import { transformReactJsx, usesReactRuntimeImports } from "@exact/react-compat/transform";
@@ -36,6 +36,7 @@ export type ExactBunPluginOptions = {
   configPath?: string;
   pluginRegistry?: ExactPreparedCompilerRegistry;
   assetRules?: readonly ExactAssetRule[];
+  diagnostics?: boolean;
 };
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
@@ -43,6 +44,7 @@ type FilterPattern = string | RegExp | readonly (string | RegExp)[];
 export type BunBuildLike = {
   config?: {
     conditions?: string[];
+    watch?: boolean;
   };
   onResolve(options: { filter: RegExp }, handler: (args: BunResolveArgs) => BunResolveResult | Promise<BunResolveResult>): void;
   onLoad(options: { filter: RegExp }, handler: (args: BunLoadArgs) => BunLoadResult | Promise<BunLoadResult>): void;
@@ -77,17 +79,29 @@ export type BunPluginLike = {
 
 /** Creates the Bun plugin that transforms eXact JSX and resolves .exact facade imports. */
 export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
+  let diagnosticsEnabled = options.diagnostics ?? false;
+  let compilerSession = createCompilerSession({ languageService: diagnosticsEnabled });
+  const reportDiagnostics = createDiagnosticReporter();
   return {
     name: "exact",
     setup(build) {
+      const automaticDevelopment = Boolean(
+        build.config?.watch
+        || process.argv.includes("--watch")
+        || process.argv.includes("--hot")
+        || process.env.NODE_ENV === "development"
+      );
+      const nextDiagnostics = options.diagnostics ?? automaticDevelopment;
+      if (nextDiagnostics !== diagnosticsEnabled) {
+        compilerSession.dispose();
+        diagnosticsEnabled = nextDiagnostics;
+        compilerSession = createCompilerSession({ languageService: nextDiagnostics });
+      }
       const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
       let pluginRegistry = options.pluginRegistry;
       build.config ??= {};
       build.config.conditions = mergeConditions(build.config.conditions ?? [], exactExportConditions(targetFor(options), options));
-      // A new Bun build may have been triggered by tsconfig or another file
-      // outside the module graph. Recreate project configuration before loads.
       build.onStart?.(async () => {
-        clearExpressionProjectCache();
         if (!pluginRegistry) {
           pluginRegistry = (await prepareExactPluginRegistry({
             applicationRoot: options.applicationRoot,
@@ -117,9 +131,14 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
       // TypeScript/JavaScript dependency so non-JSX type and export changes
       // invalidate their transitive expression consumers before compilation.
       build.onLoad({ filter: /\.[cm]?[jt]sx?$/ }, async args => {
-        invalidateExpressionModule(args.path);
         const source = await readBunLoadSource(args);
-        const result = transformExactBunSource(source, args.path, { ...options, pluginRegistry });
+        reportDiagnostics(compilerSession.invalidate(args.path), console.warn);
+        const result = transformExactBunSource(
+          source,
+          args.path,
+          { ...options, pluginRegistry },
+          compilerSession
+        );
         if (!result) return {};
         return {
           contents: result.code,
@@ -143,7 +162,12 @@ async function readBunLoadSource(args: BunLoadArgs): Promise<string> {
 }
 
 /** Transforms one Bun-loaded source file when it matches eXact plugin filters. */
-export function transformExactBunSource(source: string, filename: string, options: ExactBunPluginOptions = {}): { code: string; map: unknown } | null {
+export function transformExactBunSource(
+  source: string,
+  filename: string,
+  options: ExactBunPluginOptions = {},
+  session?: ExactCompilerSession
+): { code: string; map: unknown } | null {
   if (!shouldTransform(filename, source, options)) return null;
   try {
     const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
@@ -159,6 +183,7 @@ export function transformExactBunSource(source: string, filename: string, option
     }
     const result = transformSource(source, {
       filename,
+      session,
       target: targetFor(options),
       importedManifests: importedManifestsFor(options),
       serverComponents: options.serverComponents,
@@ -175,6 +200,33 @@ export function transformExactBunSource(source: string, filename: string, option
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`eXact JSX transform failed for ${filename}\n${message}`);
   }
+}
+
+type DiagnosticLike = Readonly<{ code: string; message: string; filename?: string; span?: Readonly<{ line: number; column: number }> }>;
+
+function createDiagnosticReporter(): (
+  update: Readonly<{ affectedFiles: readonly string[]; diagnostics: readonly DiagnosticLike[] }>,
+  warn: (message: string) => void
+) => void {
+  const previous = new Map<string, Set<string>>();
+  return (update, warn) => {
+    const next = new Map<string, Set<string>>();
+    for (const diagnostic of update.diagnostics) {
+      const file = diagnostic.filename ?? "<project>";
+      let keys = next.get(file);
+      if (!keys) next.set(file, keys = new Set());
+      const key = `${diagnostic.code}:${diagnostic.span?.line}:${diagnostic.span?.column}:${diagnostic.message}`;
+      keys.add(key);
+      if (!previous.get(file)?.has(key)) {
+        const location = diagnostic.filename
+          ? `${diagnostic.filename}${diagnostic.span ? `:${diagnostic.span.line}:${diagnostic.span.column}` : ""}`
+          : "TypeScript";
+        warn(`${location} - ${diagnostic.code}: ${diagnostic.message}`);
+      }
+    }
+    for (const file of update.affectedFiles) previous.delete(file.replaceAll("\\", "/"));
+    for (const [file, keys] of next) previous.set(file, keys);
+  };
 }
 
 function importedManifestsFor(options: { importedManifests?: readonly ExactCompilerManifest[]; manifestFiles?: readonly string[] }): ExactCompilerManifest[] {

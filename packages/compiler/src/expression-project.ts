@@ -1,6 +1,16 @@
-import { createExpressionProject, ExpressionProject, findExpressionConfig, type BoundModule } from "@exact/expressions";
+import {
+  createExpressionLanguageService,
+  createExpressionProject,
+  ExpressionProject,
+  findExpressionConfig,
+  type BoundModule,
+  type ExpressionDiagnostic,
+  type ExpressionLanguageService,
+  type ExpressionLanguageServiceUpdate
+} from "@exact/expressions";
 import fs from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 
 type ModuleCacheEntry = Readonly<{
   projectKey: string;
@@ -13,17 +23,31 @@ type ModuleCacheEntry = Readonly<{
 export type ExpressionModuleOptions = Readonly<{
   root?: string;
   virtual?: boolean;
+  diagnostics?: "syntax" | "full";
 }>;
 
 export type ExactCompilerSessionStats = Readonly<{
   workspaces: number;
   rebuilds: number;
+  semanticDiagnostics: number;
   modules: number;
   dependencyEntries: number;
   overlays: number;
   sourceFiles: number;
   nodeIdentityRoots: number;
   symbolIdentities: number;
+  languageServices: number;
+  languageServiceAffectedFiles: number;
+  languageServiceSynchronizationMs: number;
+}>;
+
+export type ExactCompilerSessionOptions = Readonly<{
+  languageService?: boolean;
+}>;
+
+export type ExactCompilerInvalidation = Readonly<{
+  affectedFiles: readonly string[];
+  diagnostics: readonly ExpressionDiagnostic[];
 }>;
 
 function canonical(filename: string): string {
@@ -41,10 +65,9 @@ function dependencyCandidates(filename: string, specifier: string): readonly str
 
 function moduleDependencies(filename: string, module: BoundModule, project: ExpressionProject): readonly string[] {
   const dependencies = new Set<string>();
-  for (const declaration of module.walk().ofKind("ImportDeclaration")) {
-    const match = /\bfrom\s*(["'])(.*?)\1|^\s*import\s*(["'])(.*?)\3/.exec(declaration.node.text ?? "");
-    const specifier = match?.[2] ?? match?.[4];
-    if (!specifier) continue;
+  const imports = ts.preProcessFile(module.source, true, true).importedFiles;
+  for (const imported of imports) {
+    const specifier = imported.fileName;
     const resolved = project.resolveModuleSpecifier(specifier, filename);
     if (resolved) dependencies.add(canonical(resolved));
     for (const candidate of dependencyCandidates(filename, specifier)) dependencies.add(candidate);
@@ -58,7 +81,13 @@ export class ExactCompilerSession {
   private readonly modules = new Map<string, ModuleCacheEntry>();
   private readonly dependents = new Map<string, Set<string>>();
   private readonly inferredRoots = new Map<string, string>();
+  private readonly languageServices = new Map<string, ExpressionLanguageService>();
+  private readonly languageServiceEnabled: boolean;
   private disposed = false;
+
+  constructor(options: ExactCompilerSessionOptions = {}) {
+    this.languageServiceEnabled = options.languageService ?? false;
+  }
 
   expressionModuleFor(filename: string, source: string, options: ExpressionModuleOptions = {}): BoundModule {
     this.assertActive();
@@ -75,13 +104,27 @@ export class ExactCompilerSession {
     }
     const configPath = path.resolve(config);
     const canonicalConfig = canonical(configPath);
-    const projectKey = virtual ? `${canonicalConfig}::virtual-root:${canonical(root!)}` : canonicalConfig;
+    if (this.languageServiceEnabled && !absolute.includes(".exact.generated.")) {
+      const update = this.languageServiceFor(configPath).synchronize([{
+        filename: absolute,
+        kind: "upsert",
+        source
+      }]);
+      this.invalidateLanguageServiceAffected(update, absolute);
+    }
+    const diagnosticMode = options.diagnostics ?? "syntax";
+    const configuredKey = `${canonicalConfig}::diagnostics:${diagnosticMode}`;
+    const projectKey = virtual ? `${configuredKey}::virtual-root:${canonical(root!)}` : configuredKey;
     const moduleKey = this.moduleKey(projectKey, absolute);
     const cached = this.modules.get(moduleKey);
     if (cached?.source === source) return cached.module;
     let project = this.projects.get(projectKey);
     if (!project) {
-      project = createExpressionProject({ tsconfigPath: configPath, forceModuleDetection: virtual });
+      project = createExpressionProject({
+        tsconfigPath: configPath,
+        forceModuleDetection: virtual,
+        diagnostics: diagnosticMode
+      });
       this.projects.set(projectKey, project);
     }
     this.invalidateDependents(absolute);
@@ -107,9 +150,23 @@ export class ExactCompilerSession {
   }
 
   /** Invalidates only workspaces that contain the file or a tracked consumer. */
-  invalidate(filename: string, removed = false): void {
+  invalidate(filename: string, removed = false): ExactCompilerInvalidation {
     this.assertActive();
     const absolute = path.resolve(filename);
+    const update = this.synchronizeLanguageServiceFile(absolute, removed);
+    this.invalidateTracked(absolute, removed);
+    for (const affected of update.affectedFiles) {
+      if (canonical(affected) !== canonical(absolute)) this.invalidateTracked(affected, false);
+    }
+    return Object.freeze({
+      affectedFiles: Object.freeze([
+        ...new Set([absolute, ...update.affectedFiles].map((filename) => path.resolve(filename))),
+      ]),
+      diagnostics: update.diagnostics
+    });
+  }
+
+  private invalidateTracked(absolute: string, removed: boolean): void {
     const target = canonical(absolute);
     const affectedProjects = new Set<string>();
     const affectedModuleKeys = new Set<string>();
@@ -141,7 +198,7 @@ export class ExactCompilerSession {
       if (removed) {
         const files = removedFilesByProject.get(projectKey) ?? new Set([absolute]);
         files.add(absolute);
-        for (const file of files) project.removeModule(file);
+        project.removeModules(files);
       } else {
         project.invalidateFile(absolute);
       }
@@ -154,6 +211,8 @@ export class ExactCompilerSession {
     this.modules.clear();
     this.dependents.clear();
     this.inferredRoots.clear();
+    for (const service of this.languageServices.values()) service.dispose();
+    this.languageServices.clear();
   }
 
   dispose(): void {
@@ -164,32 +223,73 @@ export class ExactCompilerSession {
 
   stats(): ExactCompilerSessionStats {
     let rebuilds = 0;
+    let semanticDiagnostics = 0;
     let overlays = 0;
     let sourceFiles = 0;
     let nodeIdentityRoots = 0;
     let symbolIdentities = 0;
+    let languageServiceAffectedFiles = 0;
+    let languageServiceSynchronizationMs = 0;
     for (const project of this.projects.values()) {
       const stats = project.stats();
       rebuilds += stats.rebuilds;
+      semanticDiagnostics += stats.semanticDiagnostics;
       overlays += stats.overlays;
       sourceFiles += stats.sourceFiles;
       nodeIdentityRoots += stats.nodeIdentityRoots;
       symbolIdentities += stats.symbolIdentities;
     }
+    for (const service of this.languageServices.values()) {
+      const stats = service.stats();
+      languageServiceAffectedFiles += stats.affectedFiles;
+      languageServiceSynchronizationMs += stats.synchronizationMs;
+    }
     return Object.freeze({
       workspaces: this.projects.size,
       rebuilds,
+      semanticDiagnostics,
       modules: this.modules.size,
       dependencyEntries: this.dependents.size,
       overlays,
       sourceFiles,
       nodeIdentityRoots,
-      symbolIdentities
+      symbolIdentities,
+      languageServices: this.languageServices.size,
+      languageServiceAffectedFiles,
+      languageServiceSynchronizationMs
     });
   }
 
   private assertActive(): void {
     if (this.disposed) throw new Error("This eXact compiler session has been disposed");
+  }
+
+  private languageServiceFor(configPath: string): ExpressionLanguageService {
+    const key = canonical(configPath);
+    let service = this.languageServices.get(key);
+    if (!service) {
+      service = createExpressionLanguageService({ tsconfigPath: configPath });
+      this.languageServices.set(key, service);
+    }
+    return service;
+  }
+
+  private synchronizeLanguageServiceFile(filename: string, removed: boolean): ExpressionLanguageServiceUpdate {
+    if (!this.languageServiceEnabled || filename.includes(".exact.generated.")) {
+      return { generation: 0, changedFiles: [], affectedFiles: [], diagnostics: [] };
+    }
+    const config = findExpressionConfig(path.dirname(filename));
+    if (!config) return { generation: 0, changedFiles: [], affectedFiles: [], diagnostics: [] };
+    return this.languageServiceFor(config).synchronize([{
+      filename,
+      kind: removed ? "delete" : "upsert"
+    }]);
+  }
+
+  private invalidateLanguageServiceAffected(update: ExpressionLanguageServiceUpdate, changed: string): void {
+    for (const affected of update.affectedFiles) {
+      if (canonical(affected) !== canonical(changed)) this.invalidateTracked(affected, false);
+    }
   }
 
   private nearestPackageRoot(start: string): string {
@@ -262,8 +362,8 @@ export class ExactCompilerSession {
 
 const defaultSession = new ExactCompilerSession();
 
-export function createCompilerSession(): ExactCompilerSession {
-  return new ExactCompilerSession();
+export function createCompilerSession(options: ExactCompilerSessionOptions = {}): ExactCompilerSession {
+  return new ExactCompilerSession(options);
 }
 
 export function expressionModuleFor(filename: string, source: string, options: ExpressionModuleOptions = {}): BoundModule {

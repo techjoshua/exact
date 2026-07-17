@@ -1,6 +1,11 @@
+import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { clearExpressionProjectCache, expressionModuleFor } from "./expression-project.js";
+import {
+  clearExpressionProjectCache,
+  createCompilerSession,
+  expressionModuleFor
+} from "./expression-project.js";
 
 describe("shared expression projects", () => {
   it("caches modules by canonical filename within one project", () => {
@@ -61,5 +66,34 @@ describe("shared expression projects", () => {
     const second = expressionModuleFor("__relative_second.ts", "const sharedName = 2;");
     expect(first.diagnostics.filter(diagnostic => diagnostic.severity === "error")).toEqual([]);
     expect(second.diagnostics.filter(diagnostic => diagnostic.severity === "error")).toEqual([]);
+  });
+
+  it("uses language-service affected files to invalidate transitive consumers", () => {
+    const root = path.resolve(import.meta.dirname, "../../..");
+    const model = path.join(root, "apps/kanban/src/__session_language_model.ts");
+    const consumer = path.join(root, "apps/kanban/src/__session_language_consumer.ts");
+    const modelSource = "export interface Model { value: number }\nexport const model: Model = { value: 1 };";
+    const consumerSource = 'import { model } from "./__session_language_model.js";\nexport const value: number = model.value;';
+    const session = createCompilerSession({ languageService: true });
+    try {
+      fs.writeFileSync(model, modelSource);
+      fs.writeFileSync(consumer, consumerSource);
+      session.expressionModuleFor(model, modelSource);
+      const firstConsumer = session.expressionModuleFor(consumer, consumerSource);
+
+      fs.writeFileSync(model, 'export interface Model { value: string }\nexport const model: Model = { value: "changed" };');
+      const update = session.invalidate(model);
+      expect(update.affectedFiles).toEqual(expect.arrayContaining([model, consumer]));
+      expect(update.diagnostics).toContainEqual(expect.objectContaining({
+        code: "TS2322",
+        filename: consumer.replaceAll("\\", "/")
+      }));
+      expect(session.expressionModuleFor(consumer, consumerSource)).not.toBe(firstConsumer);
+      expect(session.stats().languageServices).toBe(1);
+    } finally {
+      session.dispose();
+      fs.rmSync(model, { force: true });
+      fs.rmSync(consumer, { force: true });
+    }
   });
 });

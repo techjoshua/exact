@@ -230,6 +230,40 @@ function injectedAdapterImport(
 
 function bindSourceFile(filename: string, source: string): { sourceFile: ts.SourceFile; checker: ts.TypeChecker } {
   const normalized = pathKey(filename);
+  let entry = rewritePrograms.get(normalized);
+  if (!entry) {
+    entry = createRewriteProgram(filename, normalized);
+    rewritePrograms.set(normalized, entry);
+    if (rewritePrograms.size > 64) rewritePrograms.delete(rewritePrograms.keys().next().value!);
+  }
+  if (entry.source === source && entry.program && entry.sourceFile) {
+    return { sourceFile: entry.sourceFile, checker: entry.program.getTypeChecker() };
+  }
+  entry.source = source;
+  entry.sourceFile = undefined;
+  entry.program = ts.createProgram({
+    rootNames: [filename],
+    options: entry.compilerOptions,
+    host: entry.host,
+    oldProgram: entry.program
+  });
+  const sourceFile = entry.program.getSourceFile(filename);
+  if (!sourceFile) throw new Error(`Unable to parse ${filename}`);
+  entry.sourceFile = sourceFile;
+  return { sourceFile, checker: entry.program.getTypeChecker() };
+}
+
+type RewriteProgramEntry = {
+  source?: string;
+  sourceFile?: ts.SourceFile;
+  program?: ts.Program;
+  compilerOptions: ts.CompilerOptions;
+  host: ts.CompilerHost;
+};
+
+const rewritePrograms = new Map<string, RewriteProgramEntry>();
+
+function createRewriteProgram(filename: string, normalized: string): RewriteProgramEntry {
   const compilerOptions: ts.CompilerOptions = {
     target: ts.ScriptTarget.Latest,
     module: ts.ModuleKind.ESNext,
@@ -237,17 +271,16 @@ function bindSourceFile(filename: string, source: string): { sourceFile: ts.Sour
     noResolve: true,
     allowJs: true
   };
+  const entry = { compilerOptions } as RewriteProgramEntry;
   const host = ts.createCompilerHost(compilerOptions, true);
   host.fileExists = file => pathKey(file) === normalized;
-  host.readFile = file => pathKey(file) === normalized ? source : undefined;
+  host.readFile = file => pathKey(file) === normalized ? entry.source : undefined;
   host.getSourceFile = (file, languageVersion) => pathKey(file) === normalized
-    ? ts.createSourceFile(filename, source, languageVersion, true, scriptKind(filename))
+    ? ts.createSourceFile(filename, entry.source ?? "", languageVersion, true, scriptKind(filename))
     : undefined;
   host.writeFile = () => {};
-  const program = ts.createProgram([filename], compilerOptions, host);
-  const sourceFile = program.getSourceFile(filename);
-  if (!sourceFile) throw new Error(`Unable to parse ${filename}`);
-  return { sourceFile, checker: program.getTypeChecker() };
+  entry.host = host;
+  return entry;
 }
 
 function pathKey(value: string): string { return value.replaceAll("\\", "/").toLowerCase(); }

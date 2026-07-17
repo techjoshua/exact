@@ -61,7 +61,9 @@ describe("compiler HMR session retention", () => {
     session.invalidate(kanban);
     const after = session.stats();
     expect(before.workspaces).toBe(2);
-    expect(after.rebuilds - before.rebuilds).toBe(1);
+    expect(after.rebuilds - before.rebuilds).toBe(0);
+    session.expressionModuleFor(kanban, "export const kanbanValue = 1;");
+    expect(session.stats().rebuilds - before.rebuilds).toBe(1);
     session.dispose();
   });
 
@@ -79,6 +81,23 @@ describe("compiler HMR session retention", () => {
       nodeIdentityRoots: 0,
       symbolIdentities: 0
     });
+    session.dispose();
+  });
+
+  it("keeps semantic generated validation available outside the transform hot path", () => {
+    const session = createCompilerSession();
+    const root = path.resolve(import.meta.dirname, "../../..");
+    const syntaxFile = path.join(root, "apps/kanban/src/__syntax_validation.tsx");
+    const semanticFile = path.join(root, "apps/kanban/src/__semantic_validation.tsx");
+    const source = "export const view = <span>ready</span>;";
+
+    transformSource(source, { filename: syntaxFile, session });
+    const afterSyntax = session.stats();
+    transformSource(source, { filename: semanticFile, session, generatedValidation: "semantic" });
+    const afterSemantic = session.stats();
+
+    expect(afterSyntax.semanticDiagnostics).toBe(0);
+    expect(afterSemantic.semanticDiagnostics).toBeGreaterThanOrEqual(2);
     session.dispose();
   });
 });

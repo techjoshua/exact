@@ -42,6 +42,7 @@ export type ExactPluginOptions = {
   configPath?: string;
   pluginRegistry?: ExactPreparedCompilerRegistry;
   assetRules?: readonly ExactAssetRule[];
+  diagnostics?: boolean;
 };
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
@@ -51,6 +52,7 @@ export type ExactPlugin = {
   enforce: "pre";
   warn?(message: string): void;
   config?(): { resolve: { conditions: string[]; alias?: Array<{ find: RegExp; replacement: string }> } };
+  configResolved?(config: { command: "build" | "serve" }): void;
   buildStart?(this: { addWatchFile(file: string): void; warn?(message: string): void }): void | Promise<void>;
   configureServer?(server: {
     httpServer?: { once(event: "close", listener: () => void): unknown };
@@ -58,14 +60,22 @@ export type ExactPlugin = {
   }): void;
   resolveId?(source: string, importer?: string): string | null;
   transform(this: { warn?(message: string): void }, code: string, id: string): { code: string; map: unknown } | null;
-  handleHotUpdate?(context: { file: string }): void;
-  watchChange?(id: string, change: { event: "create" | "update" | "delete" }): void;
+  handleHotUpdate?(this: { warn?(message: string): void }, context: { file: string }): void;
+  watchChange?(this: { warn?(message: string): void }, id: string, change: { event: "create" | "update" | "delete" }): void;
   closeBundle?(): void;
 };
 
 /** Creates the Vite plugin that transforms eXact JSX and resolves .exact facade imports. */
 export function exact(options: ExactPluginOptions = {}): ExactPlugin {
-  const compilerSession = createCompilerSession();
+  let diagnosticsEnabled = options.diagnostics ?? false;
+  let compilerSession = createCompilerSession({ languageService: diagnosticsEnabled });
+  const diagnosticReporter = createDiagnosticReporter();
+  const configureDiagnostics = (enabled: boolean): void => {
+    if (enabled === diagnosticsEnabled) return;
+    compilerSession.dispose();
+    diagnosticsEnabled = enabled;
+    compilerSession = createCompilerSession({ languageService: enabled });
+  };
   const compatibilityCwd = typeof options.reactCompatibility === "object" ? options.reactCompatibility.cwd : undefined;
   const reactCompatibility = resolveReactCompatibility(options.reactCompatibility, compatibilityCwd);
   const compatibilityEngine = reactCompatibility
@@ -94,6 +104,9 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
         }
       };
     },
+    configResolved(config) {
+      configureDiagnostics(options.diagnostics ?? config.command === "serve");
+    },
     async buildStart() {
       for (const file of compatibilityEngine?.watchFiles ?? []) this.addWatchFile(file);
       const registry = await prepareRegistry();
@@ -111,6 +124,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
       return resolveExactArtifactImport(source, importer, options.target === "server" ? "server" : "client")?.id ?? null;
     },
     handleHotUpdate(context) {
+      if (options.diagnostics === undefined) configureDiagnostics(true);
       compatibilityEngine?.invalidate(context.file);
       if (preparedRegistry?.watchFiles.includes(path.resolve(context.file))) {
         invalidateExactPluginRegistry(preparedRegistry.applicationRoot);
@@ -119,16 +133,17 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
       // Semantic changes can originate in imported .ts/.d.ts files or the
       // project config even when that file itself contains no JSX.
       if (/(?:^|[\\/])tsconfig(?:\.[^\\/]+)?\.json$/i.test(context.file)) compilerSession.clear();
-      else compilerSession.invalidate(context.file);
+      else diagnosticReporter(compilerSession.invalidate(context.file), message => this.warn?.(message));
     },
     watchChange(id, change) {
+      if (options.diagnostics === undefined) configureDiagnostics(true);
       compatibilityEngine?.invalidate(id);
       if (preparedRegistry?.watchFiles.includes(path.resolve(id))) {
         invalidateExactPluginRegistry(preparedRegistry.applicationRoot);
         preparedRegistry = undefined;
       }
       if (/(?:^|[\\/])tsconfig(?:\.[^\\/]+)?\.json$/i.test(id)) compilerSession.clear();
-      else compilerSession.invalidate(id, change.event === "delete");
+      else diagnosticReporter(compilerSession.invalidate(id, change.event === "delete"), message => this.warn?.(message));
     },
     closeBundle() {
       compilerSession.dispose();
@@ -183,6 +198,44 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
       }
     }
   };
+}
+
+function createDiagnosticReporter(): (
+  update: Readonly<{ affectedFiles: readonly string[]; diagnostics: readonly DiagnosticLike[] }>,
+  warn: (message: string) => void
+) => void {
+  const previous = new Map<string, Set<string>>();
+  return (update, warn) => {
+    const next = new Map<string, Set<string>>();
+    for (const diagnostic of update.diagnostics) {
+      const file = diagnostic.filename ?? "<project>";
+      let keys = next.get(file);
+      if (!keys) next.set(file, keys = new Set());
+      const key = diagnosticKey(diagnostic);
+      keys.add(key);
+      if (!previous.get(file)?.has(key)) warn(formatDiagnostic(diagnostic));
+    }
+    for (const file of update.affectedFiles) previous.delete(file.replaceAll("\\", "/"));
+    for (const [file, keys] of next) previous.set(file, keys);
+  };
+}
+
+type DiagnosticLike = Readonly<{
+  code: string;
+  message: string;
+  filename?: string;
+  span?: Readonly<{ line: number; column: number }>;
+}>;
+
+function diagnosticKey(diagnostic: DiagnosticLike): string {
+  return `${diagnostic.code}:${diagnostic.span?.line}:${diagnostic.span?.column}:${diagnostic.message}`;
+}
+
+function formatDiagnostic(diagnostic: DiagnosticLike): string {
+  const location = diagnostic.filename
+    ? `${diagnostic.filename}${diagnostic.span ? `:${diagnostic.span.line}:${diagnostic.span.column}` : ""}`
+    : "TypeScript";
+  return `${location} - ${diagnostic.code}: ${diagnostic.message}`;
 }
 
 function targetFor(options: ExactPluginOptions): "client" | "server" {
