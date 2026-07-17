@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
@@ -7,9 +8,14 @@ import { createAffectedReleasePlan } from "./release-affected.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const profile = argument("profile") ?? "check";
-const npmCommand = process.env.npm_execpath
-  ? { command: process.execPath, prefix: [process.env.npm_execpath] }
-  : { command: process.platform === "win32" ? "npm.cmd" : "npm", prefix: [] };
+const npmCli = process.env.npm_execpath ?? (
+  process.platform === "win32"
+    ? path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")
+    : undefined
+);
+const npmCommand = npmCli && existsSync(npmCli)
+  ? { command: process.execPath, prefix: [npmCli] }
+  : { command: "npm", prefix: [] };
 const timings = [];
 const started = performance.now();
 const sharedEnvironment = {
