@@ -13,9 +13,10 @@ import type {
   ExactEnvironmentEffectSourceIR,
   ExactSemanticGraphIR
 } from "./types.js";
-import { trackedCallbackArguments } from "./annotations.js";
+import { hasExactDirective, trackedCallbackArguments } from "./annotations.js";
 import { expressionStatePath, type ExpressionWritePlan } from "./expression-writes.js";
 import type { ExactContextEffect, ExactStateEffect } from "./types.js";
+import type { ExactModuleImportPlan } from "./assets.js";
 
 export interface CallableEffectPlan {
   readonly callables: readonly ExactCallableSummaryIR[];
@@ -48,7 +49,8 @@ export function analyzeCallableEffects(
   module: BoundModule,
   graph: ExactSemanticGraphIR,
   importedManifests: readonly ExactCompilerManifest[] = [],
-  writePlan?: ExpressionWritePlan
+  writePlan?: ExpressionWritePlan,
+  moduleImports?: ExactModuleImportPlan
 ): CallableEffectPlan {
   const componentIndex = expressionComponentIndex(module);
   const stateAliases = writePlan?.aliases ?? new Map<string, readonly string[]>();
@@ -71,14 +73,19 @@ export function analyzeCallableEffects(
     const component = componentIndex.isComponent(fn);
     const variable = declarationVariable(fn);
     const name = task ? `${componentIndex.owner(fn)?.node.name ?? "component"}.task@${fn.node.span!.start}` : callableName(fn, variable);
+    const declaredEnvironment = hasExactDirective(fn.node.directives, "client")
+      ? "browser" as const
+      : hasExactDirective(fn.node.directives, "server")
+        ? "server" as const
+        : undefined;
     const summary: MutableCallable = {
       id: stableId(module.filename, "callable", fn.node.id),
       nodeId: fn.node.id,
       name,
       kind: task ? "task" : component ? "component" : fn.node.kind === "MethodDeclaration" ? "method" : "function",
       exportNames: variable ? [...(exportedNames.get(variable.id) ?? [])] : [],
-      directSources: [],
-      sources: [],
+      directSources: declaredEnvironment ? [source(declaredEnvironment, `exact ${declaredEnvironment === "browser" ? "client" : "server"} callable`, name)] : [],
+      sources: declaredEnvironment ? [source(declaredEnvironment, `exact ${declaredEnvironment === "browser" ? "client" : "server"} callable`, name)] : [],
       calls: []
       ,directWrites: []
       ,writes: []
@@ -215,6 +222,8 @@ export function analyzeCallableEffects(
       const name = variable?.name ?? reference.name;
       const platform = isUnshadowedPlatformGlobal(name, variable, localVariables);
       if (platform) summary.directSources.push(source(platform, name!, summary.name));
+      const explicitImportPlacement = variable?.importedFrom ? moduleImports?.placementBySpecifier.get(variable.importedFrom) : undefined;
+      if (explicitImportPlacement) summary.directSources.push(source(explicitImportPlacement === "client" ? "browser" : "server", `exact ${explicitImportPlacement} import ${variable!.importedFrom}`, summary.name));
       if (variable?.importedFrom && isServerOnlyModule(variable.importedFrom)) {
         summary.directSources.push(source("server", `${variable.importedFrom}:${variable.name}`, summary.name));
       }
@@ -248,12 +257,13 @@ export function analyzeCallableEffects(
         summary.directReads.push(...mapStateEffects(resolvedExternal.stateReads, edge));
         summary.directWrites.push(...mapStateEffects(resolvedExternal.stateWrites, edge));
         summary.directContexts.push(...resolvedExternal.contexts);
-      } else if (variable?.importedFrom && !isServerOnlyModule(variable.importedFrom)) {
-        summary.directSources.push(source("unknown", `${variable.importedFrom}:${importedName ?? variable.name}`, summary.name));
       } else if (!local) {
-        const unresolved = isCompilerOwnedCollectionCall(module, call, stateAliases)
-          ? undefined
-          : unresolvedCallEffect(call, localVariables);
+        const placed = variable?.importedFrom ? moduleImports?.placementBySpecifier.get(variable.importedFrom) : undefined;
+        const unresolved = placed
+          ? placed === "client" ? "browser" : "server"
+          : isCompilerOwnedCollectionCall(module, call, stateAliases)
+            ? undefined
+            : unresolvedCallEffect(call, localVariables);
         if (unresolved) summary.directSources.push(source(unresolved, call.target?.node.text?.trim() ?? "dynamic call", summary.name));
       }
       const callbacks = new Set<NodeRef>(trackedCallbackArguments(call));
@@ -303,19 +313,24 @@ export function analyzeCallableEffects(
     const summary = mutable.find(candidate => candidate.id === summaryId)!;
     if (summary.kind === "module-initializer" && initializer.node.kind === "ImportDeclaration") {
       const moduleSpecifier = initializer.node.text?.match(/^\s*import\s*["']([^"']+)["']/)?.[1];
-      const importedInitializers = moduleSpecifier ? externalModuleInitializers(module.filename, moduleSpecifier, importedManifests) : [];
-      if (!importedInitializers.length) summary.directSources.push(source("unknown", `side-effect import ${moduleSpecifier ?? "<unknown>"}`, summary.name));
-      for (const imported of importedInitializers) {
-        summary.directSources.push(...imported.effectSources.map(effectSource => prepend(effectSource, summary.name)));
-        summary.directReads.push(...imported.stateReads);
-        summary.directWrites.push(...imported.stateWrites);
-        summary.directContexts.push(...imported.contexts);
-        summary.calls.push({
-          id: stableId(module.filename, summary.id, "side-effect-import", moduleSpecifier!, imported.id),
-          name: moduleSpecifier!,
-          moduleSpecifier,
-          resolved: true
-        });
+      const explicitPlacement = moduleSpecifier ? moduleImports?.placementBySpecifier.get(moduleSpecifier) : undefined;
+      if (explicitPlacement) {
+        summary.directSources.push(source(explicitPlacement === "client" ? "browser" : "server", `exact ${explicitPlacement} import ${moduleSpecifier}`, summary.name));
+      } else {
+        const importedInitializers = moduleSpecifier ? externalModuleInitializers(module.filename, moduleSpecifier, importedManifests) : [];
+        if (!importedInitializers.length) summary.directSources.push(source("unknown", `side-effect import ${moduleSpecifier ?? "<unknown>"}`, summary.name));
+        for (const imported of importedInitializers) {
+          summary.directSources.push(...imported.effectSources.map(effectSource => prepend(effectSource, summary.name)));
+          summary.directReads.push(...imported.stateReads);
+          summary.directWrites.push(...imported.stateWrites);
+          summary.directContexts.push(...imported.contexts);
+          summary.calls.push({
+            id: stableId(module.filename, summary.id, "side-effect-import", moduleSpecifier!, imported.id),
+            name: moduleSpecifier!,
+            moduleSpecifier,
+            resolved: true
+          });
+        }
       }
     }
     for (const reference of initializer.walk({ types: false }).where(candidate => candidate.node.kind === "Identifier" || candidate.node.kind === "ThisKeyword")) {
@@ -324,8 +339,9 @@ export function analyzeCallableEffects(
       const name = variable?.name ?? reference.name;
       const platform = isUnshadowedPlatformGlobal(name, variable, localVariables);
       if (platform) summary.directSources.push(source(platform, name!, summary.name));
+      const explicitImportPlacement = variable?.importedFrom ? moduleImports?.placementBySpecifier.get(variable.importedFrom) : undefined;
+      if (explicitImportPlacement) summary.directSources.push(source(explicitImportPlacement === "client" ? "browser" : "server", `exact ${explicitImportPlacement} import ${variable!.importedFrom}`, summary.name));
       if (variable?.importedFrom && isServerOnlyModule(variable.importedFrom)) summary.directSources.push(source("server", `${variable.importedFrom}:${variable.name}`, summary.name));
-      else if (variable?.importedFrom && !isNeutralDataModule(variable.importedFrom)) summary.directSources.push(source("unknown", `${variable.importedFrom}:${importedNames.get(variable.id) ?? variable.name}`, summary.name));
       const dependency = variable ? initializerByVariable.get(variable.id) : undefined;
       if (dependency && dependency !== summary) summary.calls.push({
         id: stableId(module.filename, summary.id, "dependency", reference.node.id),
@@ -364,9 +380,12 @@ export function analyzeCallableEffects(
         summary.directWrites.push(...mapStateEffects(resolvedExternal.stateWrites, edge));
         summary.directContexts.push(...resolvedExternal.contexts);
       } else if (!local) {
-        const unresolved = isCompilerOwnedCollectionCall(module, call, stateAliases)
-          ? undefined
-          : unresolvedCallEffect(call, localVariables);
+        const placed = variable?.importedFrom ? moduleImports?.placementBySpecifier.get(variable.importedFrom) : undefined;
+        const unresolved = placed
+          ? placed === "client" ? "browser" : "server"
+          : isCompilerOwnedCollectionCall(module, call, stateAliases)
+            ? undefined
+            : unresolvedCallEffect(call, localVariables);
         if (unresolved) summary.directSources.push(source(unresolved, call.target?.node.text?.trim() ?? "dynamic call", summary.name));
       }
     }
@@ -592,6 +611,17 @@ function targetsForCallable(callable: MutableCallable): ExactArtifactTarget[] {
   return browser === server ? [] : browser ? ["client"] : ["server"];
 }
 
+function allowedTargetsForCallable(callable: MutableCallable): ExactArtifactTarget[] {
+  const effect = effectFor(callable.sources);
+  if (effect !== "unknown") return targetsFor(effect);
+  const browser = callable.sources.some(source => source.environment === "browser");
+  const server = callable.sources.some(source => source.environment === "server");
+  if (browser && server) return [];
+  if (browser) return ["client"];
+  if (server) return ["server"];
+  return ["client", "server"];
+}
+
 function callableSccOrder(callables: readonly MutableCallable[]): MutableCallable[][] {
   const byId = new Map(callables.map(callable => [callable.id, callable]));
   const indices = new Map<string, number>();
@@ -669,7 +699,7 @@ function callableArtifactTargets(callables: readonly MutableCallable[]): Map<str
       if (!edge.targetId) continue;
       const callee = callables.find(candidate => candidate.id === edge.targetId);
       if (!callee) continue;
-      const allowed = new Set(targetsForCallable(callee));
+      const allowed = new Set(allowedTargetsForCallable(callee));
       const targets = result.get(edge.targetId)!;
       for (const target of result.get(caller.id) ?? []) if (allowed.has(target) && !targets.has(target)) {
         targets.add(target);
@@ -740,6 +770,9 @@ function unresolvedCallEffect(
   call: NodeRef,
   localVariables: ReadonlySet<Variable>
 ): "browser" | "server" | "unknown" | undefined {
+  const directives = call.node.resolvedSignature?.directives;
+  if (hasExactDirective(directives, "client")) return "browser";
+  if (hasExactDirective(directives, "server")) return "server";
   const targetText = call.target?.node.text?.trim() ?? "";
   if (/^this\.(?:task(?:\.(?:client|server))?|map|getContext|setContext|prop|ref|reactive)$/.test(targetText)) return undefined;
   const receiver = call.target?.isMember() ? call.target.target : call.target;
@@ -755,7 +788,8 @@ function unresolvedCallEffect(
   if (/\/typescript\/lib\/lib\.[^/]+\.d\.ts$/i.test(declaration)) return undefined;
   if (/(?:^|\/)@types\/node\//.test(declaration) || /\/node_modules\/(?:node:)?(?:fs|path|crypto|http|https|net|tls|child_process)\//.test(declaration)) return "server";
   if (/(?:^|\/)(?:@exact|packages)\/hydrate\//.test(declaration)) return "browser";
-  if (/(?:^|\/)@exact\/(?:core|reactive|request)(?:\/|$)/.test(declaration)) return undefined;
+  if (/(?:^|\/)(?:@exact|packages)\/dom\//.test(declaration) && /^(?:render|unmount|dispose|adoptStatic|adoptComponentRoot|adoptMarkerlessComponentRoot|findComponentDomNode|disposeOwnedSubtree)$/.test(call.target?.name ?? "")) return "browser";
+  if (/(?:^|\/)(?:@exact|packages)\/(?:core|dom|reactive|request)(?:\/|$)/.test(declaration)) return undefined;
   return "unknown";
 }
 
@@ -830,8 +864,4 @@ function relativeSpecifier(from: string, target: string): string {
 
 function externalKey(specifier: string, exportName: string): string {
   return `${specifier.replace(/\\/g, "/").replace(/\.[cm]?[jt]sx?$/i, "")}:${exportName}`;
-}
-
-function isNeutralDataModule(specifier: string): boolean {
-  return /\.json(?:$|[?#])/.test(specifier);
 }

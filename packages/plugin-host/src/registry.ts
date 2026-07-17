@@ -220,7 +220,7 @@ async function loadExactConfig(configPath: string | undefined): Promise<ExactCon
       compilerOptions: {
         target: ts.ScriptTarget.ES2022,
         module: ts.ModuleKind.ESNext,
-        moduleResolution: ts.ModuleResolutionKind.NodeNext,
+        moduleResolution: ts.ModuleResolutionKind.Bundler,
         verbatimModuleSyntax: true
       },
       fileName: configPath,
@@ -233,18 +233,26 @@ async function loadExactConfig(configPath: string | undefined): Promise<ExactCon
     const temporary = path.join(path.dirname(configPath), `.exact-config-${process.pid}-${Date.now()}.mjs`);
     try {
       await writeFile(temporary, output.outputText, { flag: "wx" });
-      imported = await import(`${pathToFileURL(temporary).href}?t=${Date.now()}`) as Record<string, unknown>;
+      imported = await nativeImport(`${pathToFileURL(temporary).href}?t=${Date.now()}`);
     } finally {
       await rm(temporary, { force: true });
     }
   } else {
-    imported = await import(`${pathToFileURL(configPath).href}?t=${statSync(configPath).mtimeMs}`) as Record<string, unknown>;
+    imported = await nativeImport(`${pathToFileURL(configPath).href}?t=${statSync(configPath).mtimeMs}`);
   }
   const config = imported.default;
   if (!config || typeof config !== "object" || Array.isArray(config)) {
     throw new Error(`${configPath} must default-export an eXact configuration object`);
   }
   return config as ExactConfig;
+}
+
+async function nativeImport(specifier: string): Promise<Record<string, unknown>> {
+  return import(
+    /* @vite-ignore */
+    /* webpackIgnore: true */
+    specifier
+  ) as Promise<Record<string, unknown>>;
 }
 
 async function writePluginTypes(applicationRoot: string, discovery: ExactPluginDiscoveryResult): Promise<string> {

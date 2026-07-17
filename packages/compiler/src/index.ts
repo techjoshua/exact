@@ -90,6 +90,7 @@ import { createExpressionComponents, createExpressionGeneratedServerSlotBoundari
 import { createExpressionComponentBoundaries } from "./expression-components.js";
 import { analyzeExactAnnotations } from "./annotations.js";
 import { applyCompilerPlugins, validateImportedPluginRegistries } from "./plugins.js";
+import { analyzeModuleImports } from "./assets.js";
 
 export type * from "./types.js";
 export { preprocessPropPunning } from "./preprocess.js";
@@ -177,6 +178,7 @@ export function transformSource(source: string, options: TransformOptions = {}):
     session: options.session,
     importedManifests,
     target,
+    assetRules: options.assetRules,
     pluginRegistry: options.pluginRegistry
   });
   const pluginErrors = manifest.diagnostics.filter(diagnostic => /^error: \[@/.test(diagnostic));
@@ -185,7 +187,8 @@ export function transformSource(source: string, options: TransformOptions = {}):
   const provenance = buildExactProvenance(expressionModule);
   const expressionDerived = analyzeExpressionDerived(expressionModule, provenance);
   const expressionWrites = analyzeExpressionWrites(expressionModule);
-  const callableEffects = analyzeCallableEffects(expressionModule, semanticGraph, importedManifests, expressionWrites);
+  const moduleImports = analyzeModuleImports(normalized, filename, options.assetRules);
+  const callableEffects = analyzeCallableEffects(expressionModule, semanticGraph, importedManifests, expressionWrites, moduleImports);
   const expressionTasks = analyzeExpressionTasks(expressionModule, callableEffects);
   const taskErrors = expressionTasks.diagnostics.filter(diagnostic => diagnostic.startsWith("error:"));
   if (taskErrors.length) {
@@ -211,7 +214,22 @@ export function transformSource(source: string, options: TransformOptions = {}):
     placement: component.placement,
     componentId: component.id
   });
-  const result = ts.transform(sourceFile, [exactJsxTransformer(expressionModule, filename, target, options.serverComponents ?? false, semanticGraph, expressionDerived, expressionWrites, expressionTasks, expressionJsx, expressionComponents, emissionComponentInfo, callableEffects)]);
+  const result = ts.transform(sourceFile, [exactJsxTransformer(
+    expressionModule,
+    filename,
+    target,
+    options.serverComponents ?? false,
+    semanticGraph,
+    expressionDerived,
+    expressionWrites,
+    expressionTasks,
+    expressionJsx,
+    expressionComponents,
+    emissionComponentInfo,
+    callableEffects,
+    moduleImports,
+    options.preserveClientAssetImports ?? false
+  )]);
   const transformed = result.transformed[0]!;
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
   const printed = emitExpressionRewrite(expressionModule, printer.printFile(transformed as ts.SourceFile), options.root, virtual, options.session);
@@ -350,10 +368,12 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const provenance = buildExactProvenance(expressionModule);
   const expressionSafety = analyzeExpressionSafety(expressionModule, provenance);
   const expressionWrites = analyzeExpressionWrites(expressionModule);
-  const callableEffects = analyzeCallableEffects(expressionModule, semanticGraph, importedManifests, expressionWrites);
+  const moduleImports = analyzeModuleImports(normalized, filename, options.assetRules);
+  const callableEffects = analyzeCallableEffects(expressionModule, semanticGraph, importedManifests, expressionWrites, moduleImports);
+  manifestDiagnostics.push(...moduleImports.diagnostics);
   for (const initializer of callableEffects.callables.filter(callable => callable.kind === "module-initializer")) {
-    if (initializer.effect === "mixed") manifestDiagnostics.push(`error: executable module initializer has indivisible browser and server effects (${initializer.effectSources[0]?.path.join(" → ") ?? initializer.name})`);
-    if (initializer.effect === "unknown") manifestDiagnostics.push(`error: executable module initializer depends on an opaque call or side-effect import (${initializer.effectSources[0]?.path.join(" → ") ?? initializer.name})`);
+    if (initializer.effect === "mixed") manifestDiagnostics.push(`error: executable module initializer has indivisible browser and server effects (${effectDiagnosticPath(initializer, "mixed")})`);
+    if (initializer.effect === "unknown") manifestDiagnostics.push(`error: executable module initializer depends on an opaque call or side-effect import (${effectDiagnosticPath(initializer, "unknown")})`);
   }
   const expressionTasks = analyzeExpressionTasks(expressionModule, callableEffects);
   manifestDiagnostics.push(...expressionTasks.diagnostics);
@@ -448,6 +468,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
     version: exactCompilerManifestVersion,
     filename,
     dependencies: [],
+    assets: [...moduleImports.assets],
     semanticGraph: portableSemanticGraph(semanticGraph, expressionModule.filename, filename),
     components,
     exports,
@@ -461,6 +482,18 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
       : {}),
     diagnostics: [...manifestDiagnostics, ...pluginContributions.diagnostics]
   };
+}
+
+function effectDiagnosticPath(
+  initializer: ExactCompilerManifest["callables"][number],
+  effect: "mixed" | "unknown"
+): string {
+  if (effect === "unknown") {
+    return initializer.effectSources.find(source => source.environment === "unknown")?.path.join(" → ") ?? initializer.name;
+  }
+  const browser = initializer.effectSources.find(source => source.environment === "browser")?.path.join(" → ");
+  const server = initializer.effectSources.find(source => source.environment === "server")?.path.join(" → ");
+  return browser && server ? `${browser} ↔ ${server}` : browser ?? server ?? initializer.name;
 }
 
 function validatedImportedManifests(
@@ -523,7 +556,7 @@ function sessionExpressionModule(
 /** Compiles one input file and optionally writes code, source map, and manifest artifacts. */
 export async function compileFile(inputFile: string, options: CompileFileOptions = {}): Promise<CompileFileResult> {
   const source = await readFile(inputFile, "utf8");
-  const result = transformSource(source, { filename: options.filename ?? inputFile, session: options.session, target: options.target, serverComponents: options.serverComponents, sourceMap: options.sourceMap, moduleRewrite: options.moduleRewrite, moduleTransform: options.moduleTransform, pluginRegistry: options.pluginRegistry });
+  const result = transformSource(source, { filename: options.filename ?? inputFile, session: options.session, target: options.target, serverComponents: options.serverComponents, sourceMap: options.sourceMap, moduleRewrite: options.moduleRewrite, moduleTransform: options.moduleTransform, assetRules: options.assetRules, preserveClientAssetImports: options.preserveClientAssetImports, pluginRegistry: options.pluginRegistry });
   const outputFile = options.outDir ? outputPathFor(inputFile, options.outDir, options.rootDir) : undefined;
   const sourceMapFile = outputFile && result.map ? sourceMapPathFor(outputFile) : undefined;
   const manifestFile = outputFile && options.emitManifest ? manifestPathFor(outputFile) : undefined;
@@ -567,6 +600,8 @@ export async function compileProject(inputs: readonly string[], options: Compile
       session: options.session,
       moduleRewrite: options.moduleRewrite,
       moduleTransform: options.moduleTransform,
+      assetRules: options.assetRules,
+      preserveClientAssetImports: options.preserveClientAssetImports,
       pluginRegistry: options.pluginRegistry
     }));
   }
@@ -578,9 +613,9 @@ export async function compileProject(inputs: readonly string[], options: Compile
 export async function compileFileArtifacts(inputFile: string, options: CompileArtifactsOptions): Promise<CompileArtifactsResult> {
   const source = await readFile(inputFile, "utf8");
   const filename = options.filename ?? inputFile;
-  const manifestBase = analyzeSource(source, { filename, session: options.session, importedManifests: options.importedManifests, pluginRegistry: options.pluginRegistry });
-  const client = transformSource(source, { filename, session: options.session, target: "client", importedManifests: options.importedManifests, serverComponents: options.serverComponents, sourceMap: options.sourceMap, moduleRewrite: options.moduleRewrite, moduleTransform: options.moduleTransform, pluginRegistry: options.pluginRegistry });
-  const server = transformSource(source, { filename, session: options.session, target: "server", importedManifests: options.importedManifests, serverComponents: options.serverComponents, sourceMap: options.sourceMap, moduleRewrite: options.moduleRewrite, moduleTransform: options.moduleTransform, pluginRegistry: options.pluginRegistry });
+  const manifestBase = analyzeSource(source, { filename, session: options.session, importedManifests: options.importedManifests, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry });
+  const client = transformSource(source, { filename, session: options.session, target: "client", importedManifests: options.importedManifests, serverComponents: options.serverComponents, sourceMap: options.sourceMap, moduleRewrite: options.moduleRewrite, moduleTransform: options.moduleTransform, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry });
+  const server = transformSource(source, { filename, session: options.session, target: "server", importedManifests: options.importedManifests, serverComponents: options.serverComponents, sourceMap: options.sourceMap, moduleRewrite: options.moduleRewrite, moduleTransform: options.moduleTransform, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry });
   const paths = artifactPathsFor(inputFile, options.outDir, options.rootDir);
   const manifest = withArtifactMetadata(manifestBase, inputFile, paths);
   const clientMapFile = client.map ? sourceMapPathFor(paths.clientFile) : undefined;
@@ -615,6 +650,7 @@ export async function compileProjectArtifacts(inputs: readonly string[], options
     session: options.session,
     moduleRewrite: options.moduleRewrite,
     moduleTransform: options.moduleTransform,
+    assetRules: options.assetRules,
     pluginRegistry: options.pluginRegistry
   });
 }
@@ -634,7 +670,7 @@ export async function compileArtifactPlanEntries(
     sources.set(path.resolve(entry.inputFile), source);
   }
   const dependencyGraph = await collectPlacementAnalysisDependencies(sources, options.session);
-  for (const [inputFile, source] of sources) manifestBases.set(inputFile, analyzeSource(source, { filename: inputFile, session: options.session, pluginRegistry: options.pluginRegistry }));
+  for (const [inputFile, source] of sources) manifestBases.set(inputFile, analyzeSource(source, { filename: inputFile, session: options.session, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry }));
   // Resolve cross-file callable summaries to a fixed point. Each pass consumes
   // the previous immutable manifest generation, so results do not depend on
   // source ordering and recursive import groups converge monotonically.
@@ -646,7 +682,7 @@ export async function compileArtifactPlanEntries(
     for (const [key, source] of sources) {
       const entry = entries.find(candidate => path.resolve(candidate.inputFile) === key);
       const filename = entry ? options.filename?.(entry) ?? entry.inputFile : key;
-      const manifest = analyzeSource(source, { filename, session: options.session, importedManifests: imported, pluginRegistry: options.pluginRegistry });
+      const manifest = analyzeSource(source, { filename, session: options.session, importedManifests: imported, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry });
       next.set(key, manifest);
       if (callableEffectSignature(manifest) !== callableEffectSignature(manifestBases.get(key)!)) changed = true;
     }
@@ -659,7 +695,7 @@ export async function compileArtifactPlanEntries(
 
   for (const entry of entries) {
     const filename = options.filename?.(entry) ?? entry.inputFile;
-    results.push(await compileArtifactPlanEntry(entry, filename, importedManifests, options.serverComponents ?? false, options.sourceMap ?? false, transitiveDependencies(path.resolve(entry.inputFile), dependencyGraph), options.moduleRewrite, options.moduleTransform, options.session, options.pluginRegistry));
+    results.push(await compileArtifactPlanEntry(entry, filename, importedManifests, options.serverComponents ?? false, options.sourceMap ?? false, transitiveDependencies(path.resolve(entry.inputFile), dependencyGraph), options.moduleRewrite, options.moduleTransform, options.session, options.assetRules, options.pluginRegistry));
   }
 
   return results;
@@ -722,15 +758,16 @@ async function compileArtifactPlanEntry(
   moduleRewrite?: ModuleRewriteOptions,
   moduleTransform?: import("./types.js").ModuleTransform,
   session?: ExactCompilerSession,
+  assetRules?: TransformOptions["assetRules"],
   pluginRegistry?: TransformOptions["pluginRegistry"]
 ): Promise<CompileArtifactsResult> {
   const source = await readFile(entry.inputFile, "utf8");
-  const base = analyzeSource(source, { filename, session, importedManifests, pluginRegistry });
+  const base = analyzeSource(source, { filename, session, importedManifests, assetRules, pluginRegistry });
   base.dependencies = dependencies
     .map(dependency => path.relative(path.dirname(path.resolve(filename)), dependency).replaceAll(path.sep, "/"))
     .sort();
-  const client = transformSource(source, { filename, session, target: "client", importedManifests, serverComponents, sourceMap, moduleRewrite, moduleTransform, pluginRegistry });
-  const server = transformSource(source, { filename, session, target: "server", importedManifests, serverComponents, sourceMap, moduleRewrite, moduleTransform, pluginRegistry });
+  const client = transformSource(source, { filename, session, target: "client", importedManifests, serverComponents, sourceMap, moduleRewrite, moduleTransform, assetRules, pluginRegistry });
+  const server = transformSource(source, { filename, session, target: "server", importedManifests, serverComponents, sourceMap, moduleRewrite, moduleTransform, assetRules, pluginRegistry });
   const manifest = withArtifactMetadata(base, entry.inputFile, entry);
   const clientMapFile = client.map ? sourceMapPathFor(entry.clientFile) : undefined;
   const serverMapFile = server.map ? sourceMapPathFor(entry.serverFile) : undefined;

@@ -14,6 +14,10 @@ export type TransformOptions = {
   sourceMap?: boolean;
   moduleRewrite?: ModuleRewriteOptions;
   moduleTransform?: ModuleTransform;
+  /** Serializable rules for imports handled as build assets. */
+  assetRules?: readonly ExactAssetRule[];
+  /** Keeps client asset edges for a host bundler to consume during server builds. */
+  preserveClientAssetImports?: boolean;
   /** Prepared, compiler-safe plugin projection. Raw plugin configuration is never accepted here. */
   pluginRegistry?: ExactPreparedCompilerRegistry;
 };
@@ -26,6 +30,27 @@ export type ModuleTransform = (input: Readonly<{
 }>) => Readonly<{ code: string }>;
 
 export type TransformTarget = "default" | "client" | "server";
+
+export type ExactAssetKind = "style" | "image" | "video" | "audio" | "font" | "document" | "data" | "worker" | "other";
+export type ExactAssetImportMode = "side-effect" | "url" | "raw" | "inline" | "module" | "worker";
+export type ExactAssetTarget = "client" | "server" | "both" | "embedded";
+
+export type ExactAssetRule = {
+  extensions?: readonly string[];
+  queries?: readonly string[];
+  kind: ExactAssetKind;
+  importMode?: ExactAssetImportMode;
+  evaluationTarget?: Exclude<ExactAssetTarget, "embedded">;
+  deliveryTarget?: ExactAssetTarget;
+};
+
+export type ExactAssetDependencyIR = {
+  specifier: string;
+  kind: ExactAssetKind;
+  importMode: ExactAssetImportMode;
+  evaluationTarget: Exclude<ExactAssetTarget, "embedded">;
+  deliveryTarget: ExactAssetTarget;
+};
 
 export type TransformResult = {
   code: string;
@@ -234,9 +259,10 @@ export type ExactArtifactManifest = {
 };
 
 export type ExactCompilerManifest = {
-  version: 3;
+  version: 4;
   filename: string;
   dependencies: string[];
+  assets: ExactAssetDependencyIR[];
   semanticGraph?: ExactSemanticGraphIR;
   components: ExactComponentIR[];
   exports: ExactExportIR[];
@@ -296,6 +322,7 @@ export type CompileArtifactsOptions = {
   sourceMap?: boolean;
   moduleRewrite?: ModuleRewriteOptions;
   moduleTransform?: ModuleTransform;
+  assetRules?: readonly ExactAssetRule[];
   session?: ExactCompilerSession;
   pluginRegistry?: ExactPreparedCompilerRegistry;
 };
@@ -327,6 +354,7 @@ export type CompileArtifactPlanEntriesOptions = {
   sourceMap?: boolean;
   moduleRewrite?: ModuleRewriteOptions;
   moduleTransform?: ModuleTransform;
+  assetRules?: readonly ExactAssetRule[];
   session?: ExactCompilerSession;
   pluginRegistry?: ExactPreparedCompilerRegistry;
 };

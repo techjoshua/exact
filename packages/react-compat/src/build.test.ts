@@ -2,7 +2,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { createReactCompatibilityBuildEngine } from "./build.js";
 
-const fixtureRoot = path.resolve(import.meta.dirname, "../../vite-plugin/test-fixtures/adapter-app");
+const fixtureRoot = path.resolve(import.meta.dirname, "../../../framework-adapters/vite-plugin/test-fixtures/adapter-app");
 
 describe("React compatibility build engine", () => {
   it("reports a frozen registry and fast-paths irrelevant modules", () => {

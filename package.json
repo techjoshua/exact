@@ -5,15 +5,20 @@
   "packageManager": "npm@11.6.4",
   "workspaces": [
     "packages/*",
-    "adapters/*",
+    "framework-adapters/*",
+    "react-adapters/*",
+    "plugins/*",
+    "component-libraries/*",
     "apps/*"
   ],
   "scripts": {
     "build": "tsc -b",
     "test": "npm run test:packages && npm run test:server-components && npm run test:shipping",
     "check:publish": "node scripts/check-package-contents.mjs",
-    "release:check": "npm run build && npm test && npm run typecheck:tests && npm run check:expressions && npm run check:react-compat && npm run check:r3f-browser && npm run benchmark:reactive && npm run benchmark:expressions && npm run benchmark:react-compat && npm run check:publish",
-    "test:packages": "vitest run packages adapters --testTimeout=15000",
+    "release:check": "npm run build && npm run check:platform-boundaries && npm run check:sample-builds && npm test && npm run typecheck:tests && npm run check:expressions && npm run check:react-compat && npm run check:r3f-browser && npm run benchmark:reactive && npm run benchmark:expressions && npm run benchmark:react-compat && npm run check:publish",
+    "check:platform-boundaries": "node scripts/check-platform-boundaries.mjs",
+    "check:sample-builds": "npm run build:kanban && npm run build:workbench",
+    "test:packages": "vitest run packages framework-adapters react-adapters plugins component-libraries --testTimeout=15000",
     "typecheck": "tsc -b --pretty",
     "typecheck:tests": "tsc -p tsconfig.test.json --pretty",
     "benchmark:reactive": "node scripts/benchmark-reactive.mjs && node scripts/benchmark-dom-list.mjs",
@@ -39,6 +44,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "esbuild": "^0.21.5",
     "jsdom": "^25.0.1",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"

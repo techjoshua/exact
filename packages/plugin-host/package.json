@@ -11,6 +11,15 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./runtime": {
+      "types": "./dist/runtime.d.ts",
+      "default": "./dist/runtime.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "node": "./dist/node.js",
+      "default": "./dist/node.js"
+    },
     "./cli": {
       "types": "./dist/cli.d.ts",
       "default": "./dist/cli.js"

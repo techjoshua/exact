@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -7,9 +7,39 @@ import {
   prepareExactPluginRegistry,
   type ExactPackageGraph,
   type ExactPackageNode
-} from "./index.js";
+} from "./node.js";
 
 describe("prepared plugin registry", () => {
+  it("loads TypeScript configuration through the native Node loader and removes its temporary module", async () => {
+    const root = mkdtempSync(path.join(tmpdir(), "exact-plugin-config-success-"));
+    const configPath = path.join(root, "exact.config.ts");
+    writeFileSync(configPath, "export default { pluginDiscovery: { mode: 'root' } };\n");
+
+    const registry = await prepareExactPluginRegistry({
+      applicationRoot: root,
+      configPath,
+      graph: emptyFixtureGraph(root),
+      syncTypes: false
+    });
+
+    expect(registry.configPath).toBe(configPath);
+    expect(readdirSync(root).filter(file => file.startsWith(".exact-config-"))).toEqual([]);
+  });
+
+  it("removes a temporary TypeScript configuration module when validation fails", async () => {
+    const root = mkdtempSync(path.join(tmpdir(), "exact-plugin-config-failure-"));
+    const configPath = path.join(root, "exact.config.ts");
+    writeFileSync(configPath, "export default null;\n");
+
+    await expect(prepareExactPluginRegistry({
+      applicationRoot: root,
+      configPath,
+      graph: emptyFixtureGraph(root),
+      syncTypes: false
+    })).rejects.toThrow("must default-export an eXact configuration object");
+    expect(readdirSync(root).filter(file => file.startsWith(".exact-config-"))).toEqual([]);
+  });
+
   it("runs defaults, deepest contributors, and root mutation with undefined retention", async () => {
     const root = mkdtempSync(path.join(tmpdir(), "exact-plugin-registry-"));
     const plugin = createPackage(root, "@exact/example", {
@@ -89,6 +119,17 @@ describe("prepared plugin registry", () => {
     expect(JSON.stringify(registry)).not.toContain("providers");
   });
 });
+
+function emptyFixtureGraph(root: string): ExactPackageGraph {
+  const node: ExactPackageNode = {
+    id: "root",
+    location: root,
+    realPath: root.replaceAll("\\", "/"),
+    manifest: { name: "@app/root", version: "1.0.0" },
+    dependencies: new Map()
+  };
+  return { rootId: node.id, nodes: new Map([[node.id, node]]) };
+}
 
 function createPackage(
   root: string,

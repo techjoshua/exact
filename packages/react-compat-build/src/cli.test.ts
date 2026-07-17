@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 
 const execFileAsync = promisify(execFile);
 const cli = path.resolve(import.meta.dirname, "../dist/cli.js");
-const fixtureRoot = path.resolve(import.meta.dirname, "../../vite-plugin/test-fixtures/adapter-app");
+const fixtureRoot = path.resolve(import.meta.dirname, "../../../framework-adapters/vite-plugin/test-fixtures/adapter-app");
 
 describe("exact-reactc", { timeout: 15_000 }, () => {
   it("uses the shared registry for ahead-of-time compilation", async () => {

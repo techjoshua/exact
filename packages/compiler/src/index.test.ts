@@ -1537,6 +1537,7 @@ describe("@exact/compiler", () => {
       version: exactCompilerManifestVersion,
       filename: "panel.tsx",
       dependencies: [],
+      assets: [],
       components: [],
       exports: [],
       symbols: [],

@@ -3,7 +3,7 @@ import {
   discoverExactPlugins,
   type ExactPackageGraph,
   type ExactPackageNode
-} from "./index.js";
+} from "./node.js";
 
 describe("plugin discovery", () => {
   it("prevents a trusted parent from laundering an untrusted forwarded child", () => {

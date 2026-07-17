@@ -5,6 +5,41 @@ import { describe, expect, it } from "vitest";
 import { analyzeSource, compileProjectArtifacts, createExactArtifactDevState, transform, updateExactArtifactDevState } from "./index.js";
 
 describe("symbol-level placement inference", () => {
+  it("uses callable client and server directives at invocation sites", () => {
+    const manifest = analyzeSource(`
+      /** @exact client */
+      declare function render(): void;
+      /** @exact server */
+      declare function load(): string;
+      export function ClientPage() { render(); return () => <p />; }
+      export function ServerPage() { const value = load(); return () => <p>{value}</p>; }
+    `, { filename: "C:/src/directives.tsx" });
+
+    expect(manifest.components.find(component => component.name === "ClientPage")?.placement).toBe("client");
+    expect(manifest.components.find(component => component.name === "ServerPage")?.placement).toBe("server");
+  });
+
+  it("keeps imported references neutral until they are invoked", () => {
+    const manifest = analyzeSource(`
+      import { createThing } from "opaque-package";
+      export const factory = createThing;
+    `, { filename: "C:/src/reference.ts" });
+
+    expect(manifest.exports.find(value => value.name === "factory")?.placement).toBe("isomorphic");
+  });
+
+  it("constrains opaque helpers through a client event invocation", () => {
+    const manifest = analyzeSource(`
+      declare const service: { run(): void };
+      function invoke(action: () => void) { action(); service.run(); }
+      export function Panel() { return () => <button onClick={() => invoke(() => service.run())} />; }
+    `, { filename: "C:/src/client-invocation.tsx" });
+
+    const invoke = manifest.callables.find(callable => callable.name === "invoke");
+    expect(invoke?.effect).toBe("unknown");
+    expect(invoke?.artifactTargets).toEqual(["client"]);
+  });
+
   it("propagates server effects through local helper chains", () => {
     const manifest = analyzeSource(`
       import { readFile } from "node:fs/promises";

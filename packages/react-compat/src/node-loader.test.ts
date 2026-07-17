@@ -5,7 +5,7 @@ import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
 import { createExactReactNodeLoader } from "./node-loader.js";
 
-const fixtureRoot = path.resolve(import.meta.dirname, "../../vite-plugin/test-fixtures/adapter-app");
+const fixtureRoot = path.resolve(import.meta.dirname, "../../../framework-adapters/vite-plugin/test-fixtures/adapter-app");
 const execFileAsync = promisify(execFile);
 
 describe("Node React compatibility loader", () => {

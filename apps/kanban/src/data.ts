@@ -29,7 +29,10 @@ const seedTasks: Task[] = [
   }
 ];
 
-/** Creates a new todo task for the kanban sample. */
+/**
+ * Creates a new todo task for the kanban sample.
+ * @exact client
+ */
 export function createTask(title: string): Task {
   return {
     id: crypto.randomUUID(),
@@ -39,7 +42,10 @@ export function createTask(title: string): Task {
   };
 }
 
-/** Loads saved kanban tasks from localStorage, falling back to seeded sample tasks. */
+/**
+ * Loads saved kanban tasks from localStorage, falling back to seeded sample tasks.
+ * @exact client
+ */
 export function loadTasks(): Task[] {
   const saved = localStorage.getItem(storageKey);
   if (!saved) return seedTasks;

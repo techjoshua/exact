@@ -81,7 +81,10 @@ export { applyDomProp };
 export { HTML_NAMESPACE, MATHML_NAMESPACE, SVG_NAMESPACE, namespaceForTag } from "./namespace.js";
 export { DEFAULT_DOM_WORK_LIMIT, DomTraversalLimitError, consumeDomWork, createDomWorkBudget, reserveDomWork, walkDomSubtree, type DomWorkBudget } from "./work.js";
 
-/** Returns the first host DOM node currently owned by an eXact component. */
+/**
+ * Returns the first host DOM node currently owned by an eXact component.
+ * @exact client
+ */
 export function findComponentDomNode(instance: ComponentInstance<any>): Node | null {
   const mounted = componentMounts.get(instance);
   return mounted ? firstHostNode(mounted) : null;
@@ -120,7 +123,10 @@ class DomTreeWorkError extends Error {
   }
 }
 
-/** Renders or patches a vnode tree into a DOM container. */
+/**
+ * Renders or patches a vnode tree into a DOM container.
+ * @exact client
+ */
 export function render(vnode: VNode, container: Element, options: RenderOptions = {}): void {
   let root = roots.get(container);
   if (!root) {
@@ -169,12 +175,16 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
  * All component scopes, reactive bindings, refs, ownership records, direct
  * listeners, and delegated root listeners are released before the DOM owned by
  * the root is removed. Returns false when the container has no active root.
+ * @exact client
  */
 export function unmount(container: Element): boolean {
   return dispose(container, true);
 }
 
-/** Releases a renderer root, optionally retaining its current DOM for a server patch. */
+/**
+ * Releases a renderer root, optionally retaining its current DOM for a server patch.
+ * @exact client
+ */
 export function dispose(container: Element, removeDom = false): boolean {
   const root = roots.get(container);
   if (!root) return false;
@@ -199,6 +209,7 @@ export function dispose(container: Element, removeDom = false): boolean {
  * Releases renderer roots contained by a server-owned region before external
  * DOM replacement. Descendants are disposed deepest-first so nested island
  * roots cannot retain listeners, scopes, or ownership for detached nodes.
+ * @exact client
  */
 export function disposeOwnedSubtree(container: Element, includeSelf = true, work?: number | DomWorkBudget): number {
   const candidates: Element[] = [];
@@ -219,6 +230,7 @@ export function disposeOwnedSubtree(container: Element, includeSelf = true, work
  * Attaches the renderer to an already-validated static SSR boundary.  Unlike a
  * validation-only hydration pass this creates the normal mounted graph, so a
  * later render patches the adopted nodes instead of appending a second tree.
+ * @exact client
  */
 export function adoptStatic(vnode: VNode, container: Element, options: RenderOptions = {}): boolean {
   if (roots.has(container)) return true;
@@ -271,7 +283,10 @@ export function adoptStatic(vnode: VNode, container: Element, options: RenderOpt
   }
 }
 
-/** Adopts an SSR-root component boundary as the renderer root. */
+/**
+ * Adopts an SSR-root component boundary as the renderer root.
+ * @exact client
+ */
 export function adoptComponentRoot(vnode: VNode, container: Element, options: RenderOptions = {}): boolean {
   if (typeof vnode.type !== "function" || roots.has(container)) return false;
   const markers = boundaryMarkers(container);
@@ -318,6 +333,7 @@ export function adoptComponentRoot(vnode: VNode, container: Element, options: Re
  * Invisible text anchors establish the range required by the mounted renderer
  * without changing serialized HTML. This is primarily used by compatibility
  * layers whose public server output cannot expose eXact's marker protocol.
+ * @exact client
  */
 export function adoptMarkerlessComponentRoot(vnode: VNode, container: Element, options: RenderOptions = {}): boolean {
   if (typeof vnode.type !== "function" || roots.has(container)) return false;

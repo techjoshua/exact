@@ -17,6 +17,7 @@ import {
   isServerOnlyImportDeclaration,
   isServerOnlyModule
 } from "./imports.js";
+import { stripExactImportAttribute, type ExactModuleImportPlan } from "./assets.js";
 import {
   clientComponentChildrenProp,
   componentBoundaryName,
@@ -76,7 +77,9 @@ export function exactJsxTransformer(
   expressionJsx: ExpressionJsxPlan,
   expressionComponents: ExpressionComponentPlan,
   componentInfo: Map<string, ExactImportedComponentIR>,
-  callableEffects: CallableEffectPlan
+  callableEffects: CallableEffectPlan,
+  moduleImports: ExactModuleImportPlan,
+  preserveClientAssetImports: boolean
 ): ts.TransformerFactory<ts.SourceFile> {
   return context => sourceFile => {
     sourceIdentityFilenames.set(sourceFile, identityFilename);
@@ -131,7 +134,20 @@ export function exactJsxTransformer(
     const visitor: ts.Visitor = node => {
       if (ts.isExpressionStatement(node) || ts.isImportDeclaration(node) && !node.importClause) {
         const summary = callableEffects.byNodeId.get(expressionEmissionId(node) ?? "");
-        if (summary && incompatibleSummary(summary, target)) return factory.createEmptyStatement();
+        const preserveAsset = ts.isImportDeclaration(node)
+          && preserveClientAssetImports
+          && target === "server"
+          && moduleImports.clientAssetSideEffectStarts.has(node.getStart(sourceFile));
+        if (!preserveAsset && summary && incompatibleSummary(summary, target)) return factory.createEmptyStatement();
+      }
+      if (ts.isImportDeclaration(node)) {
+        const specifier = ts.isStringLiteral(node.moduleSpecifier) ? node.moduleSpecifier.text : undefined;
+        const placement = specifier ? moduleImports.placementBySpecifier.get(specifier) : undefined;
+        const preserveAsset = preserveClientAssetImports
+          && target === "server"
+          && moduleImports.clientAssetSideEffectStarts.has(node.getStart(sourceFile));
+        if (!preserveAsset && target !== "default" && placement && placement !== target) return factory.createEmptyStatement();
+        node = stripExactImportAttribute(node, factory);
       }
       if (ts.isExportDeclaration(node) && node.exportClause && ts.isNamedExports(node.exportClause)) {
         const elements = node.exportClause.elements.filter(element => {

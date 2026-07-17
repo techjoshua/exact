@@ -2,7 +2,13 @@ node_modules/
 .tmp/
 packages/*/dist/
 packages/*/*.tsbuildinfo
+framework-adapters/*/dist/
+framework-adapters/*/*.tsbuildinfo
+react-adapters/*/dist/
+react-adapters/*/*.tsbuildinfo
+plugins/*/dist/
+plugins/*/*.tsbuildinfo
+component-libraries/*/dist/
+component-libraries/*/*.tsbuildinfo
 apps/*/dist/
 apps/*/*.tsbuildinfo
-adapters/*/dist/
-adapters/*/*.tsbuildinfo

@@ -28,7 +28,7 @@ export function createExactServerManifest(
 
   for (const manifest of normalizeCompilerManifests(compilerManifest)) {
     assertCompilerManifestLike(manifest);
-    if (manifest.version !== 2 && manifest.version !== exactCompilerManifestVersion) {
+    if (manifest.version !== 2 && manifest.version !== 3 && manifest.version !== exactCompilerManifestVersion) {
       throw new Error(`Unsupported eXact compiler manifest version: ${String((manifest as { version?: unknown }).version)}`);
     }
     if (manifest.pluginRegistry?.fingerprint) {

@@ -12,7 +12,7 @@
     "@exact/core": "file:../../packages/core",
     "@exact/dom": "file:../../packages/dom",
     "@exact/jsx": "file:../../packages/jsx-runtime",
-    "@exact/vite-plugin": "file:../../packages/vite-plugin"
+    "@exact/vite-plugin": "file:../../framework-adapters/vite-plugin"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

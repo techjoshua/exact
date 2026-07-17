@@ -1,6 +1,6 @@
 import { escapeAttr } from "./html.js";
 import type { HydrationScriptOptions } from "./types.js";
-import { processExactOutputSync } from "@exact/plugin-host";
+import { processExactOutputSync } from "@exact/plugin-host/runtime";
 import type { ExactOutputExtension } from "@exact/plugin-api";
 
 /** Renders the JSON script tag consumed by the hydration client. */

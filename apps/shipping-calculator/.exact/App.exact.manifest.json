@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "filename": "src/App.tsx",
   "dependencies": [
     "client-runtime.ts",
@@ -11,6 +11,7 @@
     "providers/live.ts",
     "types.ts"
   ],
+  "assets": [],
   "semanticGraph": {
     "scopes": [
       {

@@ -19,7 +19,7 @@
     "@exact/core": "file:../../packages/core",
     "@exact/hydrate": "file:../../packages/hydrate",
     "@exact/jsx": "file:../../packages/jsx-runtime",
-    "@exact/node-adapter": "file:../../adapters/node-adapter",
+    "@exact/node-adapter": "file:../../framework-adapters/node-adapter",
     "@exact/request": "file:../../packages/request",
     "@exact/server": "file:../../packages/server",
     "@exact/ssr": "file:../../packages/ssr"

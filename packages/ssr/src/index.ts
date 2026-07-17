@@ -28,12 +28,9 @@ import { boundaryPatch, diffBoundaryHtml, diffKeyedListItems } from "./diff.js";
 import { escapeAttr, escapeText, voidElements } from "./html.js";
 import { jsonUnsafePath, renderHydrationScript, serializeHydrationPayload } from "./hydration.js";
 import {
-  prepareExactPluginRegistry,
   processExactOutput,
-  processExactOutputSync,
-  type ExactPreparedPluginRegistry,
-  type PrepareExactPluginRegistryOptions
-} from "@exact/plugin-host";
+  processExactOutputSync
+} from "@exact/plugin-host/runtime";
 import { decodeMarkerKey, exactMarkerId, keyedItemMarkerId, markerId, markerPair, renderAttrs, withMarker } from "./markup.js";
 import { createDocumentEventStream, createHtmlStream, createProgressiveHtmlStream, progressiveHtmlResponse } from "./streams.js";
 import type {
@@ -73,13 +70,6 @@ import type {
 export type * from "./types.js";
 export { diffBoundaryHtml, diffKeyedListItems } from "./diff.js";
 export { renderHydrationScript } from "./hydration.js";
-
-/** Prepares render policies and projections for an SSR host. */
-export function prepareExactRenderPlugins(
-  options: Omit<PrepareExactPluginRegistryOptions, "hostMode"> = {}
-): Promise<ExactPreparedPluginRegistry> {
-  return prepareExactPluginRegistry({ ...options, hostMode: "render" });
-}
 
 const DEFAULT_MAX_TREE_DEPTH = 512;
 const HARD_MAX_TREE_DEPTH = 1_024;

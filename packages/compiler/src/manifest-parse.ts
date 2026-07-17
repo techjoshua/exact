@@ -21,6 +21,7 @@ export function parseExactCompilerManifest(value: unknown, source = "manifest", 
   }
   if (typeof manifest.filename !== "string"
     || !Array.isArray(manifest.dependencies) || !manifest.dependencies.every(dependency => typeof dependency === "string")
+    || !Array.isArray(manifest.assets) || !manifest.assets.every(isExactAssetDependency)
     || !Array.isArray(manifest.components)
     || !Array.isArray(manifest.exports)
     || !Array.isArray(manifest.symbols)
@@ -53,6 +54,16 @@ export function parseExactCompilerManifest(value: unknown, source = "manifest", 
   }
   validatePluginEnvelope(manifest, source, kind);
   return manifest as ExactCompilerManifest;
+}
+
+function isExactAssetDependency(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const asset = value as Record<string, unknown>;
+  return typeof asset.specifier === "string" && asset.specifier.length > 0
+    && ["style", "image", "video", "audio", "font", "document", "data", "worker", "other"].includes(String(asset.kind))
+    && ["side-effect", "url", "raw", "inline", "module", "worker"].includes(String(asset.importMode))
+    && ["client", "server", "both"].includes(String(asset.evaluationTarget))
+    && ["client", "server", "both", "embedded"].includes(String(asset.deliveryTarget));
 }
 
 function validatePluginEnvelope(

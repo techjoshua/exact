@@ -13,7 +13,7 @@
     {
       "command": "npm run typecheck:tests",
       "status": "pre-existing-failure",
-      "note": "adapters/node-adapter/src/index.test.ts passes a stream response without the body required by ExactResponseLike."
+      "note": "framework-adapters/node-adapter/src/index.test.ts passes a stream response without the body required by ExactResponseLike."
     }
   ]
 }

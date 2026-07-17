@@ -10,6 +10,11 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./plugins": {
+      "types": "./dist/plugins.d.ts",
+      "node": "./dist/plugins.js",
+      "default": "./dist/plugins.js"
     }
   },
   "main": "./dist/index.js",

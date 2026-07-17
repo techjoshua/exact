@@ -43,12 +43,14 @@ describe("shared expression projects", () => {
     expect(expressionModuleFor(consumer, source)).not.toBe(first);
   });
 
-  it("shares relative filenames through the inferred package workspace", () => {
+  it("shares relative filenames through a configured package workspace", () => {
     clearExpressionProjectCache();
-    expressionModuleFor("apps/kanban/src/__relative_cache_model.ts", "export const value = 1;");
+    const root = path.resolve(import.meta.dirname, "../../..");
+    expressionModuleFor("apps/kanban/src/__relative_cache_model.ts", "export const value = 1;", { root });
     const consumer = expressionModuleFor(
       "apps/kanban/src/__relative_cache_consumer.ts",
-      'import { value } from "./__relative_cache_model.js"; export const result = value;'
+      'import { value } from "./__relative_cache_model.js"; export const result = value;',
+      { root }
     );
     expect(consumer.walk().references().first(reference => reference.name === "result")?.variable?.type?.kind).toBe("number");
   });

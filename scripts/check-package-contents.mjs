@@ -4,7 +4,8 @@ import path from "node:path";
 import process from "node:process";
 
 const root = process.cwd();
-const packageRoots = ["packages", "adapters"].map(directory => path.join(root, directory));
+const packageRoots = ["packages", "framework-adapters", "react-adapters", "plugins", "component-libraries"]
+  .map(directory => path.join(root, directory));
 const npmCommand = process.env.npm_execpath
   ? { file: process.execPath, args: [process.env.npm_execpath] }
   : { file: process.platform === "win32" ? "npm.cmd" : "npm", args: [] };

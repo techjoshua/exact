@@ -7,7 +7,7 @@ import type {
   NodeRef
 } from "@exact/expressions";
 
-export type ExactAnnotationKey = "key" | "cleanup" | "own" | "track";
+export type ExactAnnotationKey = "key" | "cleanup" | "own" | "track" | "client" | "server";
 
 export interface ExactAnnotationDiagnostic {
   readonly message: string;
@@ -30,7 +30,7 @@ export interface ExactKeyContract {
   readonly primitive: boolean;
 }
 
-const supported = new Set<ExactAnnotationKey>(["key", "cleanup", "own", "track"]);
+const supported = new Set<ExactAnnotationKey>(["key", "cleanup", "own", "track", "client", "server"]);
 const identifier = /^[A-Za-z_$][\w$]*$/;
 
 /** Validates the closed directive language and indexes call-site callback contracts. */
@@ -47,10 +47,10 @@ export function analyzeExactAnnotations(module: BoundModule): ExactAnnotationPla
       // plugins. Core keeps its own directive language closed.
       if (directive.key.includes(".")) continue;
       if (!supported.has(directive.key as ExactAnnotationKey)) {
-        diagnostics.push({ message: `error: unknown @exact directive '${directive.key}'; supported directives are key, cleanup, own, and track`, start });
+        diagnostics.push({ message: `error: unknown @exact directive '${directive.key}'; supported directives are key, cleanup, own, track, client, and server`, start });
         continue;
       }
-      if ((directive.key === "own" || directive.key === "track") && directive.value !== undefined) {
+      if ((directive.key === "own" || directive.key === "track" || directive.key === "client" || directive.key === "server") && directive.value !== undefined) {
         diagnostics.push({ message: `error: @exact ${directive.key} does not accept a value`, start });
       } else if (directive.value !== undefined && !identifier.test(directive.value)) {
         diagnostics.push({ message: `error: @exact ${directive.key} value must be a member identifier, not executable source`, start });
@@ -60,6 +60,12 @@ export function analyzeExactAnnotations(module: BoundModule): ExactAnnotationPla
         && (directive.key === "key" || directive.key === "cleanup") && !directive.value) {
         diagnostics.push({ message: `error: type-level @exact ${directive.key} requires a member name`, start });
       }
+    }
+  }
+
+  for (const reference of module.walk()) {
+    if (hasExactDirective(reference.node.directives, "client") && hasExactDirective(reference.node.directives, "server")) {
+      diagnostics.push({ message: "error: a declaration cannot be both @exact client and @exact server", start: reference.node.span?.start ?? 0 });
     }
   }
 
@@ -246,6 +252,7 @@ function isStandardDisposable(type: ExpressionType | undefined): boolean {
 }
 
 function validDirectiveLocation(key: ExactAnnotationKey, kind: string): boolean {
+  if (key === "client" || key === "server") return ["FunctionDeclaration", "MethodDeclaration", "MethodSignature", "FunctionType"].includes(kind);
   if (key === "key") return ["PropertySignature", "PropertyDeclaration", "MethodSignature", "MethodDeclaration", "InterfaceDeclaration", "ClassDeclaration", "TypeAliasDeclaration", "TypeLiteral", "VariableDeclaration"].includes(kind);
   if (key === "cleanup") return ["PropertySignature", "PropertyDeclaration", "MethodSignature", "MethodDeclaration", "InterfaceDeclaration", "ClassDeclaration", "TypeAliasDeclaration", "TypeLiteral", "VariableDeclaration", "FunctionType", "ParenthesizedType", "TypeReference"].includes(kind);
   if (key === "own") return ["VariableDeclaration", "TypeReference", "FunctionType", "ParenthesizedType", "TypeLiteral"].includes(kind);

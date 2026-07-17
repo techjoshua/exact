@@ -83,11 +83,16 @@ The package entrypoints are:
   - Build-tool surface: `createCompilerSession`, `transform`, `transformSource`, `compileFile`, `compileProject`, `compileFileArtifacts`, `compileProjectArtifacts`, `createExactArtifactPlan`, `diffExactArtifactPlans`, `createExactArtifactDevState`, `updateExactArtifactDevState`, `readExactArtifactManifestEntries`, `exactExportConditions`, `resolveExactArtifactImport`, `createExactArtifactGraph`, `createPackageExportMap`, `createClientIslandRegistryModule`, `createServerPartRegistryModule`, `createExactArtifactRegistryModules`, `createExactHydrationRegistrationModule`, `preprocessPropPunning`.
   - Semantic surface: `analyzeSource` and emitted manifests for component/task placement planning.
   - CLI: `exactc`.
+- `@exact/plugin-host`
+  - Runtime-safe surface: output transforms/validation and plugin resource lifecycle helpers. `@exact/plugin-host/runtime` is the explicit alias for this same platform-neutral surface.
+  - Node preparation surface: `@exact/plugin-host/node` owns package discovery, configuration loading, registry preparation/invalidation, and generated plugin types.
+  - Treat `@exact/plugin-host/node` as external when bundling build tooling; it intentionally loads application configuration and plugin entrypoints through the native Node module loader.
 - `@exact/ssr`
   - Server render surface: `renderToString(vnode, options?)`, `renderToStringAsync(vnode, options?)`, `renderToStream(vnode, options?)`, `renderToDocumentStream(vnode, options?)`, `renderToHydratableDocumentStream(vnode, options?)`, `renderToProgressiveHtmlStream(vnode, options?)`, `renderToHydratableProgressiveHtmlStream(vnode, options?)`, `renderToProgressiveHtmlResponse(vnode, options?)`, `renderToHydratableProgressiveHtmlResponse(vnode, options?)`.
   - Hydration bootstrap surface: `renderHydrationScript(options?)`, `renderToHydratableString(vnode, options?)`, `renderToHydratableStringAsync(vnode, options?)`.
   - Server boundary surface: `createBoundaryRefreshHandler(render, options)`, `createActionRefreshHandler(options)`, `createExactServerHandlerRegistry(options)`, `createExactServerRuntime(options)`.
   - Emits deterministic comment markers for component, cell, dynamic, fragment, and keyed-list item boundaries.
+  - Node plugin preparation: `prepareExactRenderPlugins` from `@exact/ssr/plugins`.
 - `@exact/hydrate`
   - Client hydration surface: `hydrate(vnode, container, options?)`.
   - Client endpoint surface: `createExactClient(container, options?)`, `invokeExact(options)`, `readExactHydrationConfig(root?, scriptId?)`.
@@ -98,6 +103,7 @@ The package entrypoints are:
   - Hydration bridge: `createExactHydrationManifestConfig(serverManifest, state?)`, `createExactHydrationStateContracts(serverManifest)`, `createExactHydrationActionBoundaries(serverManifest)`.
   - Adapter helpers: `createFetchHandler`, `createExpressHandler`, `createHapiHandler`.
   - Security model: manifest-allowlisted action and boundary IDs only; no client-provided module or function dispatch.
+  - Node plugin preparation: `prepareExactServerPlugins` from `@exact/server/plugins`.
 - `@exact/vite-plugin`
   - Vite adapter: `exact({ target?: "default" | "client" | "server" })`.
   - Adds `exact-client` or `exact-server` package export conditions based on the configured target.
@@ -162,6 +168,31 @@ session.dispose(); // watcher or development server shutdown
 Sessions scope invalidation to affected TypeScript workspaces and remove virtual source, generated-source, and stable-identity state when a file is deleted.
 
 Pass `sourceMap: true` to `transformSource()`, `compileFile()`, or artifact compilation APIs when generated output should carry a v3 source map back to the original source.
+
+### Import placement and client assets
+
+eXact uses import attributes when a module needs an explicit evaluation boundary. The compiler consumes the `exact` attribute, uses it for placement analysis, and removes it before the host bundler sees the module:
+
+```ts
+import "./browser-registration.js" with { exact: "client" };
+import { readPrivateConfig } from "./private-config.js" with { exact: "server" };
+```
+
+Side-effect imports of `.css`, `.less`, and `.scss` default to client evaluation and client delivery. A value-bearing style import, such as a CSS module, remains available to both server and client evaluation while still being delivered as a client asset. The Vite, Webpack, and Bun adapters retain client asset edges during server compilation so their asset pipelines can extract and emit them.
+
+Adapters can describe additional asset kinds with `assetRules`. Rules classify extensions or query forms as styles, images, video, audio, fonts, documents, data, workers, or other assets and record their import mode, evaluation target, and delivery target in manifest version 4. This keeps asset discovery generic; an adapter remains responsible for loading or emitting the actual file.
+
+Callable APIs can declare where invocation is valid without making a mere reference to that value environment-specific:
+
+```ts
+/** @exact client */
+declare function mountBrowserUI(): void;
+
+/** @exact server */
+declare function readPrivateConfig(): string;
+```
+
+An opaque helper invoked from an already-known client event callback or server task inherits that invocation boundary. Opaque exported components and unbounded module initializers remain placement errors rather than being guessed.
 
 For projects that want a precompile step before their existing TypeScript build, use `exactc`:
 

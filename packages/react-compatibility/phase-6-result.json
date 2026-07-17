@@ -36,7 +36,7 @@
     {
       "command": "npm run typecheck:tests",
       "status": "pre-existing-failure",
-      "note": "adapters/node-adapter/src/index.test.ts:88 passes a stream response without the body required by ExactResponseLike; no Phase 6 type errors remain."
+      "note": "framework-adapters/node-adapter/src/index.test.ts:88 passes a stream response without the body required by ExactResponseLike; no Phase 6 type errors remain."
     }
   ]
 }

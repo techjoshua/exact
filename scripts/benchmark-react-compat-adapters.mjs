@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createReactCompatibilityBuildEngine } from "../packages/react-compat/dist/build.js";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../packages/vite-plugin/test-fixtures/adapter-app");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../framework-adapters/vite-plugin/test-fixtures/adapter-app");
 const start = performance.now();
 const engine = createReactCompatibilityBuildEngine({ cwd: root, target: 18 });
 const report = engine.report();
