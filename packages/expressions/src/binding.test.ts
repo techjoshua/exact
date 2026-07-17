@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import path from "node:path";
+import { rmSync, writeFileSync } from "node:fs";
 import {
   ExpressionProjectError,
   createExpressionProject,
@@ -11,6 +12,33 @@ const root = path.resolve(import.meta.dirname, "../../..");
 const config = path.join(root, "apps/kanban/tsconfig.json");
 
 describe("@exact/expressions binding", () => {
+  it("reuses an unchanged bound overlay without rebuilding", () => {
+    const project = createExpressionProject({ tsconfigPath: config });
+    const filename = path.join(root, "apps/kanban/src/__expressions_unchanged.ts");
+    const source = "export const value = 1;";
+    const first = project.updateModule(filename, source);
+    const rebuilds = project.stats().rebuilds;
+    const second = project.updateModule(filename, source);
+
+    expect(second).toBe(first);
+    expect(project.stats().rebuilds).toBe(rebuilds);
+  });
+
+  it("refreshes cached disk sources through explicit invalidation", () => {
+    const filename = path.join(root, "apps/kanban/src/__expressions_disk_invalidation.ts");
+    writeFileSync(filename, "export const value = 1;");
+    const project = createExpressionProject({ tsconfigPath: config });
+    try {
+      expect(project.getModule(filename).emit().code).toContain("value = 1");
+      writeFileSync(filename, "export const value = 2;");
+      project.invalidateFile(filename);
+      expect(project.getModule(filename).emit().code).toContain("value = 2");
+    } finally {
+      project.dispose();
+      rmSync(filename, { force: true });
+    }
+  });
+
   it("binds local export specifiers to their declaration identity", () => {
     const project = createExpressionProject({ tsconfigPath: config });
     const filename = path.join(root, "apps/kanban/src/__expressions_export_identity.ts");

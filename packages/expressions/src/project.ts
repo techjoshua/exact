@@ -97,9 +97,16 @@ export class ExpressionProject {
   readonly tsconfigPath: string;
   private readonly parsed: ts.ParsedCommandLine;
   private readonly forceModuleDetection: boolean;
+  private readonly compilerOptions: ts.CompilerOptions;
+  private readonly compilerHost: ts.CompilerHost;
+  private readonly moduleResolutionCache: ts.ModuleResolutionCache;
   private readonly overlays = new Map<string, string>();
   private readonly overlayVersions = new Map<string, number>();
+  private readonly diskVersions = new Map<string, string>();
+  private readonly diskFileExistence = new Map<string, boolean>();
+  private readonly diskFileContents = new Map<string, string | undefined>();
   private readonly sourceFiles = new Map<string, Readonly<{ version: string; sourceFile: ts.SourceFile }>>();
+  private readonly boundModules = new Map<string, Readonly<{ program: ts.Program; module: BoundModule }>>();
   private readonly nodeIdentityRoots = new Map<string, ExpressionNode>();
   private readonly symbolIdentities = new Map<string, ExpressionSymbol>();
   private readonly identityKeysByFile = new Map<string, Set<string>>();
@@ -120,22 +127,90 @@ export class ExpressionProject {
     if (read.error) throw new ExpressionProjectError([{ ...diagnosticFromTs(read.error), phase: "configuration" }]);
     this.parsed = ts.parseJsonConfigFileContent(read.config, ts.sys, path.dirname(config), undefined, config);
     if (this.parsed.errors.length) throw new ExpressionProjectError(this.parsed.errors.map(error => ({ ...diagnosticFromTs(error), phase: "configuration" as const })));
+    this.compilerOptions = {
+      ...this.parsed.options,
+      // JavaScript modules are part of the supported runtime grammar even when
+      // a project's normal typecheck excludes them.
+      allowJs: true,
+      checkJs: this.parsed.options.checkJs ?? false,
+      moduleDetection: this.forceModuleDetection ? ts.ModuleDetectionKind.Force : this.parsed.options.moduleDetection
+    };
+    this.moduleResolutionCache = ts.createModuleResolutionCache(
+      path.dirname(config),
+      ts.sys.useCaseSensitiveFileNames ? value => value : value => value.toLowerCase(),
+      this.compilerOptions
+    );
+    const base = ts.createCompilerHost(this.compilerOptions, true);
+    this.compilerHost = {
+      ...base,
+      fileExists: file => {
+        const normalized = normalizeFile(file);
+        if (this.overlays.has(normalized)) return true;
+        const cached = this.diskFileExistence.get(normalized);
+        if (cached !== undefined) return cached;
+        const exists = base.fileExists(file);
+        this.diskFileExistence.set(normalized, exists);
+        return exists;
+      },
+      readFile: file => {
+        const normalized = normalizeFile(file);
+        const overlay = this.overlays.get(normalized);
+        if (overlay !== undefined) return overlay;
+        if (this.diskFileContents.has(normalized)) return this.diskFileContents.get(normalized);
+        const contents = base.readFile(file);
+        this.diskFileContents.set(normalized, contents);
+        return contents;
+      },
+      getModuleResolutionCache: () => this.moduleResolutionCache,
+      getSourceFile: (file, languageVersion, onError, shouldCreateNewSourceFile) => {
+        const normalized = normalizeFile(file);
+        const source = this.overlays.get(normalized);
+        if (source !== undefined) {
+          const version = `overlay:${this.overlayVersions.get(normalized) ?? 0}`;
+          const cached = this.sourceFiles.get(normalized);
+          if (cached?.version === version) return cached.sourceFile;
+          const created = ts.createSourceFile(file, source, languageVersion, true, scriptKind(file)) as ts.SourceFile & { version?: string };
+          created.version = version;
+          this.sourceFiles.set(normalized, { version, sourceFile: created });
+          return created;
+        }
+        const version = this.diskVersions.get(normalized) ?? diskFileVersion(normalized);
+        this.diskVersions.set(normalized, version);
+        const cached = this.sourceFiles.get(normalized);
+        if (cached?.version === version) return cached.sourceFile;
+        const created = base.getSourceFile(file, languageVersion, onError, shouldCreateNewSourceFile);
+        if (created) {
+          (created as ts.SourceFile & { version?: string }).version = version;
+          this.sourceFiles.set(normalized, { version, sourceFile: created });
+        }
+        return created;
+      }
+    };
   }
 
   updateModule(filename: string, source: string): BoundModule {
     this.assertActive();
     const normalized = normalizeFile(filename);
-    this.setOverlay(normalized, source);
+    const changed = this.setOverlay(normalized, source);
+    const cached = this.boundModules.get(normalized);
+    if (!changed && this.program && cached?.program === this.program) return cached.module;
     this.rebuild();
     return this.readBoundModule(normalized);
   }
 
   updateModules(entries: Iterable<readonly [filename: string, source: string]>): ReadonlyMap<string, BoundModule> {
     const filenames: Array<Readonly<{ display: string; canonical: string }>> = [];
+    let changed = false;
     for (const [filename, source] of entries) {
       const normalized = normalizeFile(filename);
       filenames.push({ display: displayFile(filename), canonical: normalized });
-      this.setOverlay(normalized, source);
+      changed = this.setOverlay(normalized, source) || changed;
+    }
+    if (!changed && this.program) {
+      const cached = filenames.map(filename => [filename, this.boundModules.get(filename.canonical)] as const);
+      if (cached.every(([, entry]) => entry?.program === this.program)) {
+        return new Map(cached.map(([filename, entry]) => [filename.display, entry!.module]));
+      }
     }
     this.rebuild();
     return new Map(filenames.map(filename => [filename.display, this.readBoundModule(filename.canonical)]));
@@ -202,6 +277,10 @@ export class ExpressionProject {
     this.overlays.delete(normalized);
     this.overlayVersions.delete(normalized);
     this.sourceFiles.delete(normalized);
+    this.diskVersions.delete(normalized);
+    this.diskFileExistence.delete(normalized);
+    this.diskFileContents.delete(normalized);
+    this.boundModules.delete(normalized);
     this.nodeIdentityRoots.delete(normalized);
     const identityKeys = this.identityKeysByFile.get(normalized);
     for (const key of identityKeys ?? []) this.symbolIdentities.delete(key);
@@ -212,7 +291,13 @@ export class ExpressionProject {
   /** Invalidates a disk-backed source before the next incremental rebuild. */
   invalidateFile(filename: string): void {
     this.assertActive();
-    this.sourceFiles.delete(normalizeFile(filename));
+    const normalized = normalizeFile(filename);
+    this.sourceFiles.delete(normalized);
+    this.diskVersions.delete(normalized);
+    this.diskFileExistence.delete(normalized);
+    this.diskFileContents.delete(normalized);
+    this.boundModules.clear();
+    this.moduleResolutionCache.clear();
     this.rebuild();
   }
 
@@ -221,6 +306,10 @@ export class ExpressionProject {
     this.overlays.clear();
     this.overlayVersions.clear();
     this.sourceFiles.clear();
+    this.diskVersions.clear();
+    this.diskFileExistence.clear();
+    this.diskFileContents.clear();
+    this.boundModules.clear();
     this.nodeIdentityRoots.clear();
     this.symbolIdentities.clear();
     this.identityKeysByFile.clear();
@@ -247,50 +336,22 @@ export class ExpressionProject {
     // TypeScript types belong to exactly one Program/TypeChecker generation.
     // Never retain them as handles for a rebuilt project.
     this.typeHandles = new WeakMap();
-    const compilerOptions: ts.CompilerOptions = {
-      ...this.parsed.options,
-      // JavaScript modules are part of the supported runtime grammar even when
-      // a project's normal typecheck excludes them.
-      allowJs: true,
-      checkJs: this.parsed.options.checkJs ?? false,
-      moduleDetection: this.forceModuleDetection ? ts.ModuleDetectionKind.Force : this.parsed.options.moduleDetection
-    };
     const roots = new Set(this.parsed.fileNames.map(normalizeFile));
     for (const file of this.overlays.keys()) roots.add(file);
-    const base = ts.createCompilerHost(compilerOptions, true);
-    const overlays = this.overlays;
-    const overlayVersions = this.overlayVersions;
-    const thisProject = this;
-    const host: ts.CompilerHost = {
-      ...base,
-      fileExists(file) { return overlays.has(normalizeFile(file)) || base.fileExists(file); },
-      readFile(file) { return overlays.get(normalizeFile(file)) ?? base.readFile(file); },
-      getSourceFile(file, languageVersion, onError, shouldCreateNewSourceFile) {
-        const normalized = normalizeFile(file);
-        const source = overlays.get(normalized);
-        if (source !== undefined) {
-          const version = `overlay:${overlayVersions.get(normalized) ?? 0}`;
-          const cached = thisProject.sourceFiles.get(normalized);
-          if (cached?.version === version) return cached.sourceFile;
-          const created = ts.createSourceFile(file, source, languageVersion, true, scriptKind(file)) as ts.SourceFile & { version?: string };
-          created.version = version;
-          thisProject.sourceFiles.set(normalized, { version, sourceFile: created });
-          return created;
-        }
-        const diskVersion = diskFileVersion(normalized);
-        const cached = thisProject.sourceFiles.get(normalized);
-        if (cached?.version === diskVersion) return cached.sourceFile;
-        const created = base.getSourceFile(file, languageVersion, onError, shouldCreateNewSourceFile);
-        if (created) thisProject.sourceFiles.set(normalized, { version: diskVersion, sourceFile: created });
-        return created;
-      }
-    };
-    this.program = ts.createProgram({ rootNames: [...roots], options: compilerOptions, host, oldProgram: this.program });
+    this.program = ts.createProgram({
+      rootNames: [...roots],
+      options: this.compilerOptions,
+      host: this.compilerHost,
+      oldProgram: this.program
+    });
   }
 
-  private setOverlay(filename: string, source: string): void {
-    if (this.overlays.get(filename) !== source) this.overlayVersions.set(filename, (this.overlayVersions.get(filename) ?? 0) + 1);
+  private setOverlay(filename: string, source: string): boolean {
+    if (this.overlays.get(filename) === source) return false;
+    this.overlayVersions.set(filename, (this.overlayVersions.get(filename) ?? 0) + 1);
     this.overlays.set(filename, source);
+    this.boundModules.delete(filename);
+    return true;
   }
 
   private readBoundModule(filename: string): BoundModule {
@@ -672,6 +733,7 @@ export class ExpressionProject {
       this.symbolIdentities.delete(key);
     }
     this.identityKeysByFile.set(filename, ownUsedIdentityKeys);
+    this.boundModules.set(filename, { program, module });
     return module;
   }
 }
