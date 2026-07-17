@@ -1,4 +1,5 @@
 import { escapeAttr } from "./html.js";
+import { encodeReactiveProtocolValue } from "@exact/core";
 import type { HydrationScriptOptions } from "./types.js";
 import { processExactOutputSync } from "@exact/plugin-host/runtime";
 import type { ExactOutputExtension } from "@exact/plugin-api";
@@ -30,7 +31,7 @@ export function renderHydrationScript(options: HydrationScriptOptions = {}): str
 
 /** Serializes hydration JSON while escaping script-breaking characters. */
 export function serializeHydrationPayload(payload: Record<string, unknown>): string {
-  return JSON.stringify(payload)
+  return JSON.stringify(encodeReactiveProtocolValue(payload))
     .replace(/</g, "\\u003C")
     .replace(/\u2028/g, "\\u2028")
     .replace(/\u2029/g, "\\u2029");

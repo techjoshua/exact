@@ -1,5 +1,5 @@
 import { hasOnlyKeys, isJsonSafe } from "./validation.js";
-import { sameJsonData } from "@exact/core";
+import { decodeReactiveProtocolValue, sameJsonData } from "@exact/core";
 import { createDomWorkBudget, walkDomSubtree, type DomWorkBudget } from "@exact/dom";
 import type {
   ClientIslandRegistry,
@@ -31,7 +31,7 @@ function parseHydrationConfig(script: HTMLScriptElement, limits: ExactHydrationC
     const source = script.textContent ?? "{}";
     const maxBytes = positiveLimit(limits.maxBytes, 16 * 1024 * 1024);
     if (source.length > maxBytes || new TextEncoder().encode(source).byteLength > maxBytes) return {};
-    const value = JSON.parse(source);
+    const value = decodeReactiveProtocolValue(JSON.parse(source));
     if (!value || typeof value !== "object" || Array.isArray(value)) return {};
     const record = value as Record<string, unknown>;
     if (!isJsonSafe(record, { maxDepth: limits.maxDepth, maxNodes: limits.maxNodes, maxBytes })

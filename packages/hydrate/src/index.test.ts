@@ -3,16 +3,27 @@
  */
 import { describe, expect, it } from "vitest";
 import { Fragment, createCompiledVNode, createDynamicChild, createRef, createVNode, type Component } from "@exact/core";
-import { flushSync } from "@exact/reactive";
+import { flushSync, registerReactiveListKey } from "@exact/reactive";
 import { render } from "@exact/dom";
 import { handleExactRequest } from "@exact/server";
-import { renderToString } from "@exact/ssr";
+import { renderHydrationScript, renderToString } from "@exact/ssr";
 import { hydrate, applyPatches, createExactClient, hydrateClientIslands, invokeExact, invokeExactBatch, readExactHydrationConfig } from "./index.js";
 
 const noopLogger = {
   isEnabled: () => false,
   log() {}
 };
+
+it("decodes keyed hydration collection envelopes into ordinary arrays", () => {
+  const records = [{ id: "a", title: "A" }, { id: "b", title: "B" }];
+  registerReactiveListKey(records, item => (item as { id: string }).id, "hydrate config test", "member:id");
+  const root = document.createElement("div");
+  root.innerHTML = renderHydrationScript({ state: { records } });
+  const config = readExactHydrationConfig(root);
+  expect((config.state as any).records).toEqual(records);
+  expect(Array.isArray((config.state as any).records)).toBe(true);
+  expect(Object.keys((config.state as any).records)).toEqual(["0", "1"]);
+});
 
 function ndjsonResponse(events: readonly unknown[]) {
   return new ReadableStream<Uint8Array>({

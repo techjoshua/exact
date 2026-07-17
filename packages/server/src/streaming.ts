@@ -8,7 +8,7 @@ import type {
   ExactServerContext,
   ExactStreamEvent
 } from "./types.js";
-import { attachSuppressedCleanupFailure, attemptCleanup, createCleanupFailure, throwCleanupFailure } from "@exact/core";
+import { attachSuppressedCleanupFailure, attemptCleanup, createCleanupFailure, encodeReactiveProtocolValue, throwCleanupFailure } from "@exact/core";
 
 export type ExactOperationDispatcher = (
   request: ExactRequestLike,
@@ -204,7 +204,7 @@ function createNdjsonStream(
   return new ReadableStream<Uint8Array>({
     start(controller) {
       const emit = async (event: ExactStreamEvent): Promise<void> => {
-        const chunk = encoder.encode(`${JSON.stringify(event)}\n`);
+        const chunk = encoder.encode(`${JSON.stringify(encodeReactiveProtocolValue(event))}\n`);
         if (++events > maxEvents) throw new Error("eXact stream event limit exceeded");
         bytes += chunk.byteLength;
         if (bytes > maxBytes) throw new Error("eXact stream byte limit exceeded");

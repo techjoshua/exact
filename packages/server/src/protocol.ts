@@ -4,6 +4,7 @@ import type {
   ExactRequestLike,
   ExactResponseLike
 } from "./types.js";
+import { encodeReactiveProtocolValue } from "@exact/core";
 
 /** Reads a runtime-neutral request body from body/json/text adapters. */
 export async function readBody(request: ExactRequestLike): Promise<unknown> {
@@ -58,7 +59,7 @@ export function jsonResponse(status: number, body: unknown): ExactResponseLike {
       "content-type": "application/json; charset=utf-8",
       "cache-control": "no-store"
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify(encodeReactiveProtocolValue(body))
   };
 }
 

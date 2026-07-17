@@ -1,10 +1,12 @@
 import type { ExactInvocationRequest, ExactInvocationResult, ExactOperationResult, ExactPatch, ExactStreamEvent } from "@exact/server";
+import { decodeReactiveProtocolValue } from "@exact/core";
 import { hasOnlyKeys, isJsonSafe } from "./validation.js";
 
 type ResponseLimits = { maxBytes?: number; maxJsonDepth?: number; maxJsonNodes?: number; maxPatches?: number };
 
 /** Parses and validates a non-batched eXact endpoint response body. */
 export function parseExactInvocationResponse(body: unknown, message: string, expected?: ExactInvocationRequest, limits: ResponseLimits = {}): ExactInvocationResult {
+  try { body = decodeReactiveProtocolValue(body); } catch { throw new Error(message); }
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(message);
   if (!isJsonSafe(body, { maxDepth: limits.maxJsonDepth, maxNodes: limits.maxJsonNodes, maxBytes: limits.maxBytes })) throw new Error(message);
   const record = body as Record<string, unknown>;
@@ -25,6 +27,7 @@ export function parseExactInvocationResponse(body: unknown, message: string, exp
 /** Parses and validates a batched eXact endpoint response body. */
 export function parseExactBatchResponse(body: unknown, expected?: readonly ExactInvocationRequest[], limits: ResponseLimits = {}): ExactOperationResult[] {
   const message = "eXact batch invocation returned malformed results";
+  try { body = decodeReactiveProtocolValue(body); } catch { throw new Error(message); }
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(message);
   if (!isJsonSafe(body, { maxDepth: limits.maxJsonDepth, maxNodes: limits.maxJsonNodes, maxBytes: limits.maxBytes })) throw new Error(message);
   const record = body as Record<string, unknown>;
@@ -177,7 +180,7 @@ async function readNdjsonEvents(
 }
 
 function parseNdjsonLine(line: string, message: string): unknown {
-  try { return JSON.parse(line); }
+  try { return decodeReactiveProtocolValue(JSON.parse(line)); }
   catch { throw new Error(message); }
 }
 

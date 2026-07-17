@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createCompiledVNode, createDynamicChild, createServerBoundary, createTextVNode, createVNode, type Component } from "@exact/core";
 import { handleExactRequest } from "@exact/server";
+import { registerReactiveListKey } from "@exact/reactive";
 import {
   createActionRefreshHandler,
   createBoundaryRefreshHandler,
@@ -58,6 +59,18 @@ async function readRemainingText(reader: ReadableStreamDefaultReader<Uint8Array>
 }
 
 describe("@exact/ssr", () => {
+  it("encodes registered keyed hydration collections with hash metadata", () => {
+    const records = [{ id: "a", title: "A" }, { id: "b", title: "B" }];
+    registerReactiveListKey(records, item => (item as { id: string }).id, "hydration test", "member:id");
+    const html = renderHydrationScript({ state: { records } });
+    const payload = JSON.parse(html.match(/>(.*)<\/script>/s)![1]) as any;
+    expect(payload.state.records).toMatchObject({
+      $exact: "keyed-collection",
+      version: 1,
+      keys: ["a", "b"]
+    });
+    expect(payload.state.records.itemHashes).toHaveLength(2);
+  });
   it("passes request cancellation into boundary render callbacks", async () => {
     const abort = new AbortController();
     let observed: AbortSignal | undefined;

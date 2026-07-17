@@ -1,4 +1,4 @@
-import { createServerSlot, createVNode, logFrameworkEvent } from "@exact/core";
+import { createServerSlot, createVNode, decodeReactiveProtocolValue, logFrameworkEvent } from "@exact/core";
 import { consumeDomWork, createDomWorkBudget, render, walkDomSubtree } from "@exact/dom";
 import { isSafeObjectKey } from "./safety.js";
 import { isJsonSafe } from "./validation.js";
@@ -43,7 +43,7 @@ function parseIslandProps(raw: string | null, options: HydrateOptions): Record<s
   try {
     const maxBytes = positiveLimit(options.configLimits?.maxBytes, 16 * 1024 * 1024);
     if (new TextEncoder().encode(raw).byteLength > maxBytes) return {};
-    const parsed = JSON.parse(raw);
+    const parsed = decodeReactiveProtocolValue(JSON.parse(raw));
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)
       || !isJsonSafe(parsed, {
         maxDepth: positiveLimit(options.configLimits?.maxDepth, 100),

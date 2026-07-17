@@ -14,6 +14,7 @@ import {
   type ExactServerContext
 } from "./index.js";
 import { dispatchExactBatch } from "./streaming.js";
+import { registerReactiveListKey } from "@exact/reactive";
 
 const noopLogger = {
   isEnabled: () => false,
@@ -70,6 +71,41 @@ async function readNextStreamLine(reader: ReadableStreamDefaultReader<Uint8Array
 }
 
 describe("@exact/server", () => {
+  it("encodes registered keyed collections in response state", async () => {
+    const records = [{ id: "a", title: "A" }, { id: "b", title: "B" }];
+    registerReactiveListKey(records, item => (item as { id: string }).id, "server response test", "member:id");
+    const response = await handleExactRequest({
+      method: "POST",
+      body: { type: "action", id: "allowed-action" }
+    }, context({
+      actions: {
+        "allowed-action": () => ({ state: { records } })
+      }
+    }));
+    const body = JSON.parse(response.body);
+    expect(body.state.records).toMatchObject({
+      $exact: "keyed-collection",
+      version: 1,
+      keys: ["a", "b"]
+    });
+
+    const streamed = await handleExactRequest({
+      method: "POST",
+      headers: { accept: "application/x-ndjson" },
+      body: { type: "action", id: "allowed-action" }
+    }, context({
+      actions: {
+        "allowed-action": () => ({ state: { records } })
+      }
+    }));
+    const events = await readStreamEvents(streamed.stream!);
+    const stateEvent = events.find((event: any) => event.event === "state") as any;
+    expect(stateEvent?.value.records).toMatchObject({
+      $exact: "keyed-collection",
+      version: 1,
+      keys: ["a", "b"]
+    });
+  });
   it("rejects unsupported compiler manifest versions", () => {
     expect(() => createExactServerManifest({
       version: 1,
