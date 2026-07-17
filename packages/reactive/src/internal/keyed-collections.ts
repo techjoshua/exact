@@ -64,7 +64,8 @@ export function markReactiveHashDirty(target: object): void {
 
 export function installKeyedCollectionMetadata(
   collection: unknown[],
-  source: Pick<KeyedCollectionMetadata, "keys" | "keyHash" | "itemHashes" | "itemsHash">
+  source: Pick<KeyedCollectionMetadata, "keys" | "keyHash" | "itemHashes" | "itemsHash">,
+  bindMutationOwners = true
 ): void {
   clearMetadata(collection);
   const metadata: KeyedCollectionMetadata = {
@@ -77,7 +78,7 @@ export function installKeyedCollectionMetadata(
     owners: []
   };
   metadataByCollection.set(collection, metadata);
-  bindOwners(metadata, collection);
+  if (bindMutationOwners) bindOwners(metadata, collection);
 }
 
 export function adoptKeyedCollectionMetadata(
@@ -285,7 +286,9 @@ function decodeValue(value: unknown, active: WeakSet<object>, depth: number): un
     if ((value as Record<string, unknown>).$exact === "keyed-collection") {
       const envelope = validateEnvelope(value as Record<string, unknown>);
       const items = envelope.items.map(item => decodeValue(item, active, depth + 1));
-      installKeyedCollectionMetadata(items, envelope);
+      // Incoming snapshots are immutable comparison candidates. Ownership links
+      // are attached only if the collection is adopted or registered as live state.
+      installKeyedCollectionMetadata(items, envelope, false);
       return items;
     }
     const output: Record<string, unknown> = {};
