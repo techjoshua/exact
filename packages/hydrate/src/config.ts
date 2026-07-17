@@ -31,7 +31,9 @@ function parseHydrationConfig(script: HTMLScriptElement, limits: ExactHydrationC
     const source = script.textContent ?? "{}";
     const maxBytes = positiveLimit(limits.maxBytes, 16 * 1024 * 1024);
     if (source.length > maxBytes || new TextEncoder().encode(source).byteLength > maxBytes) return {};
-    const value = decodeReactiveProtocolValue(JSON.parse(source));
+    const encoded = JSON.parse(source);
+    if (!isJsonSafe(encoded, { maxDepth: limits.maxDepth, maxNodes: limits.maxNodes, maxBytes })) return {};
+    const value = decodeReactiveProtocolValue(encoded);
     if (!value || typeof value !== "object" || Array.isArray(value)) return {};
     const record = value as Record<string, unknown>;
     if (!isJsonSafe(record, { maxDepth: limits.maxDepth, maxNodes: limits.maxNodes, maxBytes })

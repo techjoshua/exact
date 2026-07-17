@@ -6,6 +6,7 @@ type ResponseLimits = { maxBytes?: number; maxJsonDepth?: number; maxJsonNodes?:
 
 /** Parses and validates a non-batched eXact endpoint response body. */
 export function parseExactInvocationResponse(body: unknown, message: string, expected?: ExactInvocationRequest, limits: ResponseLimits = {}): ExactInvocationResult {
+  if (!isJsonSafe(body, { maxDepth: limits.maxJsonDepth, maxNodes: limits.maxJsonNodes, maxBytes: limits.maxBytes })) throw new Error(message);
   try { body = decodeReactiveProtocolValue(body); } catch { throw new Error(message); }
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(message);
   if (!isJsonSafe(body, { maxDepth: limits.maxJsonDepth, maxNodes: limits.maxJsonNodes, maxBytes: limits.maxBytes })) throw new Error(message);
@@ -27,6 +28,7 @@ export function parseExactInvocationResponse(body: unknown, message: string, exp
 /** Parses and validates a batched eXact endpoint response body. */
 export function parseExactBatchResponse(body: unknown, expected?: readonly ExactInvocationRequest[], limits: ResponseLimits = {}): ExactOperationResult[] {
   const message = "eXact batch invocation returned malformed results";
+  if (!isJsonSafe(body, { maxDepth: limits.maxJsonDepth, maxNodes: limits.maxJsonNodes, maxBytes: limits.maxBytes })) throw new Error(message);
   try { body = decodeReactiveProtocolValue(body); } catch { throw new Error(message); }
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error(message);
   if (!isJsonSafe(body, { maxDepth: limits.maxJsonDepth, maxNodes: limits.maxJsonNodes, maxBytes: limits.maxBytes })) throw new Error(message);
@@ -57,7 +59,10 @@ export async function readExactStreamResponse(
   const maxPatches = positiveLimit(normalized.maxPatches, 10_000);
   let started = false;
   let completed = false;
-  await readNdjsonEvents(response.body, message, event => {
+  await readNdjsonEvents(response.body, message, rawEvent => {
+    if (!isJsonSafe(rawEvent, { maxDepth: normalized.maxJsonDepth, maxNodes: normalized.maxJsonNodes, maxBytes: normalized.maxBytes })) throw new Error(message);
+    let event: unknown;
+    try { event = decodeReactiveProtocolValue(rawEvent); } catch { throw new Error(message); }
     if (!isJsonSafe(event, { maxDepth: normalized.maxJsonDepth, maxNodes: normalized.maxJsonNodes, maxBytes: normalized.maxBytes })) throw new Error(message);
     if (completed) throw new Error(message);
     if (!started) {
@@ -180,7 +185,7 @@ async function readNdjsonEvents(
 }
 
 function parseNdjsonLine(line: string, message: string): unknown {
-  try { return decodeReactiveProtocolValue(JSON.parse(line)); }
+  try { return JSON.parse(line); }
   catch { throw new Error(message); }
 }
 

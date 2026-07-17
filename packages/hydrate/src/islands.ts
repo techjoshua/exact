@@ -43,7 +43,13 @@ function parseIslandProps(raw: string | null, options: HydrateOptions): Record<s
   try {
     const maxBytes = positiveLimit(options.configLimits?.maxBytes, 16 * 1024 * 1024);
     if (new TextEncoder().encode(raw).byteLength > maxBytes) return {};
-    const parsed = decodeReactiveProtocolValue(JSON.parse(raw));
+    const encoded = JSON.parse(raw);
+    if (!isJsonSafe(encoded, {
+      maxDepth: positiveLimit(options.configLimits?.maxDepth, 100),
+      maxNodes: positiveLimit(options.configLimits?.maxNodes, 100_000),
+      maxBytes
+    })) return {};
+    const parsed = decodeReactiveProtocolValue(encoded);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)
       || !isJsonSafe(parsed, {
         maxDepth: positiveLimit(options.configLimits?.maxDepth, 100),
