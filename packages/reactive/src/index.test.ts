@@ -1,7 +1,68 @@
 import { describe, expect, it, vi } from "vitest";
-import { batch, computed, createEffectScope, flushSync, isReactive, mutateReactiveArray, peek, reactive, ref, registerReactiveListKey, snapshot, subscribe, unwrap, updateReactiveValue, watch, withEffectScope, writeReactive } from "./index.js";
+import { batch, computed, createEffectScope, decodeReactiveProtocolValue, encodeReactiveProtocolValue, flushSync, isReactive, mutateReactiveArray, peek, reactive, ref, registerReactiveListKey, snapshot, subscribe, unwrap, updateReactiveValue, watch, withEffectScope, writeReactive } from "./index.js";
 
 describe("@exact/reactive", () => {
+  it("round-trips keyed collections through a transparent protocol envelope", () => {
+    const records = [{ id: "a", title: "A" }, { id: "b", title: "B" }];
+    registerReactiveListKey(records, item => (item as { id: string }).id, "test", "member:id");
+    const encoded = encodeReactiveProtocolValue({ records }) as { records: Record<string, unknown> };
+    expect(encoded.records).toMatchObject({
+      $exact: "keyed-collection",
+      version: 1,
+      keys: ["a", "b"]
+    });
+    expect((encoded.records.itemHashes as string[])).toHaveLength(2);
+    const decoded = decodeReactiveProtocolValue(JSON.parse(JSON.stringify(encoded))) as { records: typeof records };
+    expect(Array.isArray(decoded.records)).toBe(true);
+    expect(decoded.records).toEqual(records);
+    expect(Object.keys(decoded.records)).toEqual(["0", "1"]);
+  });
+
+  it("retains a locally mutated keyed item when a later server snapshot has the same hashes", () => {
+    const state = reactive({ records: [{ id: "a", title: "A", detail: { done: false } }, { id: "b", title: "B", detail: { done: false } }] });
+    registerReactiveListKey(state.records, item => (item as { id: string }).id, "client", "member:id");
+    const retained = state.records[0];
+    state.records[0].detail.done = true;
+
+    const serverRecords = [{ id: "a", title: "A", detail: { done: true } }, { id: "b", title: "B", detail: { done: false } }];
+    registerReactiveListKey(serverRecords, item => (item as { id: string }).id, "server", "member:id");
+    const incoming = decodeReactiveProtocolValue(JSON.parse(JSON.stringify(encodeReactiveProtocolValue(serverRecords)))) as typeof serverRecords;
+    let runs = 0;
+    watch(() => { runs++; return state.records[0].detail.done; });
+    writeReactive(state, ["records"], incoming);
+    flushSync();
+
+    expect(runs).toBe(1);
+    expect(state.records[0]).toBe(retained);
+  });
+
+  it("uses keyed item hashes across moves and only reconciles changed items", () => {
+    const state = reactive({ records: [{ id: "a", title: "A" }, { id: "b", title: "B" }] });
+    registerReactiveListKey(state.records, item => (item as { id: string }).id, "client", "member:id");
+    const a = state.records[0];
+    const b = state.records[1];
+    const serverRecords = [{ id: "b", title: "Changed" }, { id: "a", title: "A" }];
+    registerReactiveListKey(serverRecords, item => (item as { id: string }).id, "server", "member:id");
+    const incoming = decodeReactiveProtocolValue(JSON.parse(JSON.stringify(encodeReactiveProtocolValue(serverRecords)))) as typeof serverRecords;
+
+    writeReactive(state, ["records"], incoming);
+
+    expect(state.records[0]).toBe(b);
+    expect(state.records[0].title).toBe("Changed");
+    expect(state.records[1]).toBe(a);
+  });
+
+  it("rejects malformed keyed collection envelopes", () => {
+    expect(() => decodeReactiveProtocolValue({
+      $exact: "keyed-collection",
+      version: 1,
+      keys: ["a"],
+      keyHash: "0".repeat(32),
+      itemHashes: [],
+      itemsHash: "0".repeat(32),
+      items: [{ id: "a" }]
+    })).toThrow("Malformed eXact keyed-collection envelope");
+  });
   it("compares, snapshots, and reconciles deeply nested values without overflowing the stack", () => {
     const makeDeep = () => {
       const root: Record<string, any> = {};

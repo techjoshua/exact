@@ -11,6 +11,15 @@ export type {
 import { batch, cleanupReaction, getDep, hasActiveTransaction, peek, recordTransactionUndo, runTracked, track, trigger } from "./internal/deps.js";
 import { hasChanged as hasStructurallyChanged, structurallyEqual } from "./internal/equality.js";
 import { isArrayStructureKey, isPlainObject } from "./internal/objects.js";
+import {
+  adoptKeyedCollectionMetadata,
+  decodeReactiveProtocolValueInternal,
+  encodeReactiveProtocolValueInternal,
+  installKeyedCollectionMetadata,
+  keyedCollectionMetadata,
+  markReactiveHashDirty,
+  seedKeyedCollectionMetadata
+} from "./internal/keyed-collections.js";
 import { createEffectScope, currentEffectScope, withEffectScope } from "./internal/scopes.js";
 import { flushSync, queueComputation, queueReaction, removeQueuedComputation } from "./internal/scheduler.js";
 import { iterateKey, proxyMarker, rawTarget, reactiveValueMarker, reactiveValueRef } from "./internal/symbols.js";
@@ -27,6 +36,16 @@ import type {
 } from "./internal/types.js";
 
 export { batch, createEffectScope, flushSync, peek, withEffectScope };
+
+/** Encodes registered keyed arrays into the eXact server-to-client JSON protocol shape. */
+export function encodeReactiveProtocolValue(value: unknown): unknown {
+  return encodeReactiveProtocolValueInternal(unwrap(value), collection => listKeyExtractors.get(collection)?.key);
+}
+
+/** Decodes eXact keyed-collection envelopes into ordinary arrays with hash sidecars. */
+export function decodeReactiveProtocolValue(value: unknown): unknown {
+  return decodeReactiveProtocolValueInternal(value);
+}
 
 export interface ExternalSourceOptions<T> {
   readonly getSnapshot: () => T;
@@ -217,6 +236,7 @@ export function registerReactiveListKey(
   } else {
     listKeyExtractors.set(raw, { key, signature, site, references: 1 });
   }
+  seedKeyedCollectionMetadata(raw, key);
   let active = true;
   return () => {
     if (!active) return;
@@ -534,6 +554,7 @@ export function updateReactive<T extends object>(target: Reactive<T>, next: Part
       if (hadKey) {
         recordPropertyUndo(raw, key);
         Reflect.deleteProperty(raw, key);
+        markReactiveHashDirty(raw);
         trigger(raw, key);
         trigger(raw, iterateKey);
       }
@@ -551,6 +572,7 @@ export function updateReactive<T extends object>(target: Reactive<T>, next: Part
     if (!reactiveValueChanged(previous, value) && !hasChanged(previous, value)) continue;
     recordPropertyUndo(raw, key);
     Reflect.set(raw, key, value);
+    markReactiveHashDirty(raw);
     trigger(raw, key);
     if (!hadKey || isArrayStructureKey(raw, key)) trigger(raw, iterateKey);
   }
@@ -697,11 +719,27 @@ function reconcileKeyedArray(
   seen: ReconcilePairs,
   depth: number
 ): boolean {
-  const existing = new Map<string, unknown>();
+  const previousMetadata = keyedCollectionMetadata(oldValue, key);
+  const incomingMetadata = keyedCollectionMetadata(nextValue);
+  if (previousMetadata && incomingMetadata && previousMetadata.itemsHash === incomingMetadata.itemsHash) return true;
+
+  if (previousMetadata && incomingMetadata && previousMetadata.keyHash === incomingMetadata.keyHash) {
+    const changedKeys = new Set<string>();
+    for (let index = 0; index < nextValue.length; index++) {
+      if (previousMetadata.itemHashes[index] === incomingMetadata.itemHashes[index]) continue;
+      const id = incomingMetadata.keys[index]!;
+      changedKeys.add(id);
+      if (!reconcileReactiveValue(current[index], nextValue[index], seen, depth + 1)) current[index] = nextValue[index];
+    }
+    adoptKeyedCollectionMetadata(oldValue, incomingMetadata, changedKeys);
+    return true;
+  }
+
+  const existing = new Map<string, { item: unknown; index: number }>();
   for (let index = 0; index < oldValue.length; index++) {
     const id = String(key(oldValue[index]));
     if (existing.has(id)) throw new Error(`Duplicate key "${id}" in the current keyed reactive array`);
-    existing.set(id, current[index]);
+    existing.set(id, { item: current[index], index });
   }
   const incomingEntries = nextValue.map(incoming => ({ id: String(key(incoming)), incoming }));
   const keys = new Set<string>();
@@ -710,12 +748,18 @@ function reconcileKeyedArray(
     keys.add(id);
   }
   const nextItems: unknown[] = [];
-  for (const { id, incoming } of incomingEntries) {
-    const previousItem = existing.get(id);
-    if (previousItem !== undefined && reconcileReactiveValue(previousItem, incoming, seen, depth + 1)) nextItems.push(previousItem);
+  for (let index = 0; index < incomingEntries.length; index++) {
+    const { id, incoming } = incomingEntries[index]!;
+    const previousEntry = existing.get(id);
+    const hashesMatch = previousEntry !== undefined && previousMetadata !== undefined && incomingMetadata !== undefined
+      && previousMetadata.itemHashes[previousEntry.index] === incomingMetadata.itemHashes[index];
+    if (hashesMatch) nextItems.push(previousEntry!.item);
+    else if (previousEntry !== undefined && reconcileReactiveValue(previousEntry.item, incoming, seen, depth + 1)) nextItems.push(previousEntry.item);
     else nextItems.push(incoming);
   }
   reconcileArrayItems(current, oldValue.length, nextItems);
+  if (incomingMetadata) installKeyedCollectionMetadata(oldValue, incomingMetadata);
+  else seedKeyedCollectionMetadata(oldValue, key);
   return true;
 }
 
@@ -851,6 +895,7 @@ function createReactive(value: object, options: ReactiveOptions, parentSource?: 
       }
       if (ok && undo && (!hadKey || !Object.is(previous, Reflect.get(target, key, receiver)))) recordTransactionUndo(undo);
       if (ok && changed) {
+        markReactiveHashDirty(target);
         trigger(target, key);
         for (const index of removedIndexes) trigger(target, String(index));
         if (previousLength !== undefined && Array.isArray(target) && target.length !== previousLength && key !== "length") trigger(target, "length");
@@ -871,6 +916,7 @@ function createReactive(value: object, options: ReactiveOptions, parentSource?: 
       const ok = Reflect.defineProperty(target, key, normalizeDescriptor(descriptor));
       if (!ok) return false;
       if (undo) recordTransactionUndo(undo);
+      markReactiveHashDirty(target);
       trigger(target, key);
       if (!previous || isArrayStructureKey(target, key)) trigger(target, iterateKey);
       if (oldLength !== undefined && (target as unknown[]).length !== oldLength && key !== "length") trigger(target, "length");
@@ -887,6 +933,7 @@ function createReactive(value: object, options: ReactiveOptions, parentSource?: 
       const ok = Reflect.deleteProperty(target, key);
       if (ok && hadKey) {
         if (descriptor) recordTransactionUndo(() => { Reflect.defineProperty(target, key, descriptor); });
+        markReactiveHashDirty(target);
         trigger(target, key);
         trigger(target, iterateKey);
       }
@@ -941,6 +988,7 @@ function createParentSource(target: object, key: PropertyKey, options: ReactiveO
             if (!hasChanged(previous, unwrapped)) return;
             recordPropertyUndo(target, key);
             Reflect.set(target, key, unwrapped);
+            markReactiveHashDirty(target);
             trigger(target, key);
             if (isArrayStructureKey(target, key)) trigger(target, iterateKey);
           }
@@ -1055,7 +1103,10 @@ function mutateArray(target: unknown[], methodName: string, method: Function, ar
         trigger(target, String(index));
       }
       if (previous.length !== target.length) trigger(target, "length");
-      if (changed) trigger(target, iterateKey);
+      if (changed) {
+        markReactiveHashDirty(target);
+        trigger(target, iterateKey);
+      }
     });
   }
 
@@ -1082,6 +1133,7 @@ function mutateArrayEnd(target: unknown[], methodName: "push" | "pop", method: F
   const newLength = target.length;
   if (newLength !== oldLength) {
     batch(() => {
+      markReactiveHashDirty(target);
       if (methodName === "push") {
         for (let index = oldLength; index < newLength; index++) trigger(target, String(index));
       } else {
