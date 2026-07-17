@@ -48,6 +48,12 @@ function keyedState() {
   return state;
 }
 
+function serverSnapshot(value) {
+  const snapshot = clone(value);
+  registerReactiveListKey(snapshot, item => item.id, "reactive benchmark server snapshot", "member:id");
+  return decodeProtocol(JSON.parse(JSON.stringify(encodeProtocol(snapshot))));
+}
+
 function timeReconcile(prepare, expectedRenders) {
   const { state, next, assert } = prepare();
   const observation = observe(state);
@@ -86,7 +92,7 @@ const scenarios = [
       const retained = state.records[Math.floor(size / 2)];
       return {
         state,
-        next: clone(state.records),
+        next: serverSnapshot(state.records),
         assert: current => {
           if (current.records[Math.floor(size / 2)] !== retained) throw new Error("Keyed identical refresh lost item identity");
         }
@@ -103,7 +109,7 @@ const scenarios = [
       next[changedIndex].title = "Changed";
       return {
         state,
-        next,
+        next: serverSnapshot(next),
         assert: current => {
           if (current.records[changedIndex].title !== "Changed") throw new Error("One-item change was not applied");
           if (current.records[changedIndex - 1] !== retained) throw new Error("One-item change lost adjacent identity");
@@ -119,7 +125,7 @@ const scenarios = [
       for (let index = 0; index < size; index += 100) next[index].detail.done = true;
       return {
         state,
-        next,
+        next: serverSnapshot(next),
         assert: current => {
           if (!current.records[0].detail.done || current.records[1].detail.done) throw new Error("One-percent change was not applied precisely");
         }
@@ -135,7 +141,7 @@ const scenarios = [
       next.unshift(next.pop());
       return {
         state,
-        next,
+        next: serverSnapshot(next),
         assert: current => {
           if (current.records[1] !== first || current.records[0].id !== String(size - 1)) throw new Error("Rotation lost keyed identity or order");
         }
@@ -153,7 +159,7 @@ const scenarios = [
       }
       return {
         state,
-        next,
+        next: serverSnapshot(next),
         assert: current => {
           if (current.records.length !== size || current.records[0] !== retained || current.records.at(-1).id !== "new-99") {
             throw new Error("Add-delete reconciliation produced the wrong collection");
@@ -171,10 +177,11 @@ const scenarios = [
       const retained = state.records[index];
       const next = clone(state.records);
       next[index].detail.done = true;
+      const incoming = serverSnapshot(next);
       const start = performance.now();
       state.records[index].detail.done = true;
       flushSync();
-      writeReactive(state, ["records"], next);
+      writeReactive(state, ["records"], incoming);
       flushSync();
       const elapsed = performance.now() - start;
       if (observation.renders !== 2 || state.records[index] !== retained) {
@@ -192,12 +199,13 @@ const scenarios = [
       const retained = state.records[1];
       const next = clone(state.records);
       for (let index = 0; index < size; index += 100) next[index].detail.done = true;
+      const incoming = serverSnapshot(next);
       const start = performance.now();
       batch(() => {
         for (let index = 0; index < size; index += 100) state.records[index].detail.done = true;
       });
       flushSync();
-      writeReactive(state, ["records"], next);
+      writeReactive(state, ["records"], incoming);
       flushSync();
       const elapsed = performance.now() - start;
       if (observation.renders !== 2 || state.records[1] !== retained) {
