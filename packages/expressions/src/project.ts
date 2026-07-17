@@ -49,11 +49,16 @@ function formatExpressionDiagnostic(diagnostic: ExpressionDiagnostic): string {
 }
 
 class ProjectScope implements ExpressionScope {
-  private owned: readonly Variable[] = [];
+  private owned: Variable[] = [];
+  private readonly members = new Set<Variable>();
   constructor(readonly id: string, readonly kind: ScopeKind, readonly parent?: ExpressionScope) {}
   get variables(): readonly Variable[] { return this.owned; }
-  add(variable: Variable): void { if (!this.owned.includes(variable)) this.owned = [...this.owned, variable]; }
-  seal(): void { this.owned = Object.freeze([...this.owned]); }
+  add(variable: Variable): void {
+    if (this.members.has(variable)) return;
+    this.members.add(variable);
+    this.owned.push(variable);
+  }
+  seal(): void { Object.freeze(this.owned); }
 }
 
 class ProjectVariable implements Variable {
@@ -363,10 +368,14 @@ export class ExpressionProject {
     const symbolVariables = new Map<ts.Symbol, ProjectVariable>();
     const implicitThisVariables = new Map<ts.Node, ProjectVariable>();
     const typeCache = new Map<ts.Type, ExpressionType>();
-    const diagnostics = [
-      ...program.getSyntacticDiagnostics(sourceFile).map(diagnostic => ({ ...diagnosticFromTs(diagnostic), phase: "syntax" as const })),
-      ...program.getSemanticDiagnostics(sourceFile).map(diagnostic => ({ ...diagnosticFromTs(diagnostic), phase: "semantic" as const }))
-    ];
+    const shallowTypeCache = new Map<ts.Type, Map<string, ExpressionType>>();
+    const syntacticDiagnostics = program.getSyntacticDiagnostics(sourceFile)
+      .map(diagnostic => ({ ...diagnosticFromTs(diagnostic), phase: "syntax" as const }));
+    // TypeScript diagnostics must be captured before expression conversion:
+    // asking the checker afterwards can reinterpret lazily populated JSX
+    // children as ordinary identifiers. Projection into the public diagnostic
+    // model remains lazy and no Program is retained by the module.
+    const semanticDiagnostics = program.getSemanticDiagnostics(sourceFile);
     const directivesFor = (node: ts.Node | undefined, inline = false): readonly ExpressionDirective[] => {
       if (!node) return Object.freeze([]);
       const directiveSource = node.getSourceFile();
@@ -489,17 +498,23 @@ export class ExpressionProject {
     };
 
     const shallowTypeFor = (type: ts.Type, at: ts.Node): ExpressionType => {
-      const summary = (value: ts.Type, location: ts.Node): ExpressionType => Object.freeze({
-        id: `type-summary:${value.flags}:${checker.typeToString(value, location, ts.TypeFormatFlags.NoTruncation)}`,
+      const summary = (value: ts.Type, location: ts.Node): ExpressionType => {
+        const display = checker.typeToString(value, location, ts.TypeFormatFlags.NoTruncation);
+        return Object.freeze({
+        id: `type-summary:${value.flags}:${display}`,
         kind: typeKind(value),
-        display: checker.typeToString(value, location, ts.TypeFormatFlags.NoTruncation),
+        display,
         nullable: Boolean(value.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined | ts.TypeFlags.Any | ts.TypeFlags.Unknown)),
         callable: value.getCallSignatures().length > 0,
         properties: Object.freeze(value.getProperties().map(property => property.name)),
         propertyTypes: Object.freeze([]), unionMembers: Object.freeze([]), callSignatures: Object.freeze([]),
         typeArguments: Object.freeze([]), typeParameters: Object.freeze([])
-      });
+        });
+      };
       const display = checker.typeToString(type, at, ts.TypeFormatFlags.NoTruncation);
+      const variants = shallowTypeCache.get(type);
+      const cached = variants?.get(display);
+      if (cached) return cached;
       const members = type.isUnionOrIntersection()
         ? type.types.map(member => Object.freeze({
           id: `type-summary:${member.flags}:${checker.typeToString(member, at, ts.TypeFormatFlags.NoTruncation)}`,
@@ -515,7 +530,7 @@ export class ExpressionProject {
           typeParameters: Object.freeze([])
         } satisfies ExpressionType))
         : [];
-      return Object.freeze({
+      const value = Object.freeze({
         id: `type-summary:${type.flags}:${display}`,
         kind: typeKind(type),
         display,
@@ -548,6 +563,10 @@ export class ExpressionProject {
         typeArguments: Object.freeze([]),
         typeParameters: Object.freeze([])
       });
+      const target = variants ?? new Map<string, ExpressionType>();
+      target.set(display, value);
+      if (!variants) shallowTypeCache.set(type, target);
+      return value;
     };
 
     const variableFor = (identifier: ts.Identifier): Variable | undefined => {
@@ -569,7 +588,7 @@ export class ExpressionProject {
         declarationFile,
         declaration,
         localName,
-        this.overlayVersions.get(declarationFile)?.toString() ?? diskFileVersion(declarationFile)
+        this.fileVersion(declarationFile)
       );
       usedIdentityKeys.add(key);
       const scope = scopeFor(declaration);
@@ -607,7 +626,7 @@ export class ExpressionProject {
         filename,
         declaration ?? owner,
         "this",
-        this.overlayVersions.get(filename)?.toString() ?? diskFileVersion(filename)
+        this.fileVersion(filename)
       );
       const variable = new ProjectVariable(
         symbolIdentity(key, "this"),
@@ -726,7 +745,16 @@ export class ExpressionProject {
     const root = convert(sourceFile);
     this.nodeIdentityRoots.set(filename, root);
     for (const scope of scopes.values()) scope.seal();
-    const module = createModule({ filename, source: sourceFile.text, root, state: "bound", diagnostics });
+    const module = createModule({
+      filename,
+      source: sourceFile.text,
+      root,
+      state: "bound",
+      diagnostics: () => [
+        ...syntacticDiagnostics,
+        ...semanticDiagnostics.map(diagnostic => ({ ...diagnosticFromTs(diagnostic), phase: "semantic" as const }))
+      ]
+    });
     const ownUsedIdentityKeys = new Set([...usedIdentityKeys].filter(key => key.startsWith(`${filename}:`)));
     const priorKeys = this.identityKeysByFile.get(filename);
     for (const key of priorKeys ?? []) if (!ownUsedIdentityKeys.has(key)) {
@@ -735,6 +763,16 @@ export class ExpressionProject {
     this.identityKeysByFile.set(filename, ownUsedIdentityKeys);
     this.boundModules.set(filename, { program, module });
     return module;
+  }
+
+  private fileVersion(filename: string): string {
+    const overlay = this.overlayVersions.get(filename);
+    if (overlay !== undefined) return overlay.toString();
+    const cached = this.diskVersions.get(filename);
+    if (cached) return cached;
+    const version = diskFileVersion(filename);
+    this.diskVersions.set(filename, version);
+    return version;
   }
 }
 
@@ -991,19 +1029,32 @@ function scopeShape(node: ts.Node): string {
   return `${ts.SyntaxKind[node.parent?.kind ?? ts.SyntaxKind.Unknown]}:${fingerprint(bindings.join("|"))}`;
 }
 
-function declarationOrdinal(declaration: ts.Node, name: string): number {
+function declarationOrdinal(declaration: ts.Node, _name: string): number {
   const owner = nearestIdentityScope(declaration.parent);
   if (!owner) return 0;
-  let ordinal = 0;
-  const visit = (node: ts.Node): boolean => {
-    if (node === declaration) return true;
-    if (node !== owner && (ts.isFunctionLike(node) || ts.isClassLike(node))) return false;
-    if (node.kind === declaration.kind && declarationBindingName(node) === name
-      && fingerprint(node.getText().replace(/\s+/g, " ")) === fingerprint(declaration.getText().replace(/\s+/g, " "))) ordinal++;
-    return node.getChildren().some(visit);
+  indexDeclarationOrdinals(owner);
+  return declarationOrdinals.get(declaration) ?? 0;
+}
+
+const indexedDeclarationOwners = new WeakSet<ts.Node>();
+const declarationOrdinals = new WeakMap<ts.Node, number>();
+
+function indexDeclarationOrdinals(owner: ts.Node): void {
+  if (indexedDeclarationOwners.has(owner)) return;
+  indexedDeclarationOwners.add(owner);
+  const counts = new Map<string, number>();
+  const visit = (node: ts.Node): void => {
+    if (node !== owner && (ts.isFunctionLike(node) || ts.isClassLike(node))) return;
+    const name = declarationBindingName(node);
+    if (name !== undefined) {
+      const key = `${node.kind}\0${name}\0${fingerprint(node.getText().replace(/\s+/g, " "))}`;
+      const ordinal = counts.get(key) ?? 0;
+      declarationOrdinals.set(node, ordinal);
+      counts.set(key, ordinal + 1);
+    }
+    ts.forEachChild(node, visit);
   };
   visit(owner);
-  return ordinal;
 }
 
 function nearestIdentityScope(node: ts.Node | undefined): ts.Node | undefined {

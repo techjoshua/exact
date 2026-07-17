@@ -24,7 +24,7 @@ export interface ModuleData {
   readonly source: string;
   readonly root: ExpressionNode;
   readonly state: ModuleState;
-  readonly diagnostics?: readonly ExpressionDiagnostic[];
+  readonly diagnostics?: readonly ExpressionDiagnostic[] | (() => readonly ExpressionDiagnostic[]);
   readonly trivia?: SourceTrivia;
   readonly emitGenerated?: (options?: EmitOptions) => EmitResult;
   readonly provenance?: SourceProvenance;
@@ -40,6 +40,8 @@ const analysisCache = new WeakMap<ExpressionModule, Readonly<{ effects: readonly
 const defaultWalkCache = new WeakMap<ExpressionModule, readonly NodeRef[]>();
 const subtreeEffectsCache = new WeakMap<ExpressionNode, Map<string, readonly NodeEffect[]>>();
 const captureCache = new WeakMap<ExpressionNode, Map<string, readonly Variable[]>>();
+const diagnosticCache = new WeakMap<ExpressionModule, readonly ExpressionDiagnostic[]>();
+const diagnosticLoaders = new WeakMap<ExpressionModule, () => readonly ExpressionDiagnostic[]>();
 
 /** Immutable, versioned expression module. */
 export class ExpressionModule<S extends ModuleState = ModuleState> {
@@ -48,7 +50,6 @@ export class ExpressionModule<S extends ModuleState = ModuleState> {
   readonly source: string;
   readonly rootNode: ExpressionNode;
   readonly state: S;
-  readonly diagnostics: readonly ExpressionDiagnostic[];
   readonly trivia: SourceTrivia;
   private readonly emitGenerated?: (options?: EmitOptions) => EmitResult;
   readonly provenance?: SourceProvenance;
@@ -59,12 +60,22 @@ export class ExpressionModule<S extends ModuleState = ModuleState> {
     this.source = data.source;
     this.rootNode = data.root;
     this.state = data.state;
-    this.diagnostics = Object.freeze([...(data.diagnostics ?? [])]);
+    if (typeof data.diagnostics === "function") diagnosticLoaders.set(this, data.diagnostics);
+    else diagnosticCache.set(this, Object.freeze([...(data.diagnostics ?? [])]));
     this.trivia = data.trivia ?? detectTrivia(data.source);
     this.emitGenerated = data.emitGenerated;
     this.provenance = data.provenance;
     this.parents = buildParentIndex(data.root);
     Object.freeze(this);
+  }
+
+  get diagnostics(): readonly ExpressionDiagnostic[] {
+    const cached = diagnosticCache.get(this);
+    if (cached) return cached;
+    const diagnostics = Object.freeze([...(diagnosticLoaders.get(this)?.() ?? [])]);
+    diagnosticLoaders.delete(this);
+    diagnosticCache.set(this, diagnostics);
+    return diagnostics;
   }
 
   get root(): NodeRef {

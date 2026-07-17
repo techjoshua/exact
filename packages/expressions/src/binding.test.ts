@@ -137,6 +137,7 @@ describe("@exact/expressions binding", () => {
     const project = createExpressionProject({ tsconfigPath: config });
     const filename = path.join(root, "apps/kanban/src/__expressions_type_error.ts");
     const module = project.updateModule(filename, `const value: number = "wrong";`);
+    expect(module.diagnostics).toBe(module.diagnostics);
     expect(() => project.emit(module)).toThrow(ExpressionProjectError);
     expect(() => project.emit(module)).toThrow(/__expressions_type_error\.ts:1:7 - TS2322:/);
     expect(module.emit().code).toContain('"wrong"');
