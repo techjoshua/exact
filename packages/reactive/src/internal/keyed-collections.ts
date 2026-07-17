@@ -86,18 +86,36 @@ export function adoptKeyedCollectionMetadata(
   changedKeys: ReadonlySet<string>
 ): void {
   const metadata = metadataByCollection.get(collection);
-  if (!metadata || metadata.keys.length !== source.keys.length
-    || metadata.keys.some((key, index) => key !== source.keys[index])) {
+  if (!metadata) {
     installKeyedCollectionMetadata(collection, source);
     return;
   }
+  const previousOwners = new Map<string, OwnerRecord>();
+  for (let index = 0; index < metadata.keys.length; index++) {
+    const owner = metadata.owners[index];
+    if (owner) previousOwners.set(metadata.keys[index]!, owner);
+  }
+  const retainedOwners = new Set<OwnerRecord>();
+  const nextOwners: OwnerRecord[] = [];
+  for (let index = 0; index < source.keys.length; index++) {
+    const key = source.keys[index]!;
+    const previous = previousOwners.get(key);
+    if (previous && !changedKeys.has(key)) {
+      retainedOwners.add(previous);
+      nextOwners.push(previous);
+      continue;
+    }
+    if (previous) clearOwner(previous);
+    nextOwners.push(createOwner(collection, key, collection[index]));
+  }
+  for (const owner of metadata.owners) if (!retainedOwners.has(owner) && !changedKeys.has(owner.key)) clearOwner(owner);
+  metadata.owners = nextOwners;
   metadata.keys = [...source.keys];
   metadata.keyHash = source.keyHash;
   metadata.itemHashes = [...source.itemHashes];
   metadata.itemsHash = source.itemsHash;
   metadata.structureDirty = false;
   metadata.dirtyKeys.clear();
-  rebindOwners(metadata, collection, changedKeys);
 }
 
 export function encodeReactiveProtocolValueInternal(
@@ -155,15 +173,8 @@ function hashItem(key: string, value: unknown): string {
 function bindOwners(metadata: KeyedCollectionMetadata, collection: unknown[]): void {
   clearOwners(metadata);
   for (let index = 0; index < collection.length; index++) {
-    const nodes: object[] = [];
-    collectJsonObjects(collection[index], nodes, new WeakSet(), 0);
-    const owner: OwnerRecord = { collection, key: metadata.keys[index]!, nodes };
+    const owner = createOwner(collection, metadata.keys[index]!, collection[index]);
     metadata.owners.push(owner);
-    for (const node of nodes) {
-      let owners = ownersByObject.get(node);
-      if (!owners) ownersByObject.set(node, owners = new Set());
-      owners.add(owner);
-    }
   }
 }
 
@@ -172,16 +183,21 @@ function rebindOwners(metadata: KeyedCollectionMetadata, collection: unknown[], 
     if (!keys.has(metadata.keys[index]!)) continue;
     const previous = metadata.owners[index];
     if (previous) clearOwner(previous);
-    const nodes: object[] = [];
-    collectJsonObjects(collection[index], nodes, new WeakSet(), 0);
-    const owner: OwnerRecord = { collection, key: metadata.keys[index]!, nodes };
+    const owner = createOwner(collection, metadata.keys[index]!, collection[index]);
     metadata.owners[index] = owner;
-    for (const node of nodes) {
-      let owners = ownersByObject.get(node);
-      if (!owners) ownersByObject.set(node, owners = new Set());
-      owners.add(owner);
-    }
   }
+}
+
+function createOwner(collection: unknown[], key: string, value: unknown): OwnerRecord {
+  const nodes: object[] = [];
+  collectJsonObjects(value, nodes, new WeakSet(), 0);
+  const owner: OwnerRecord = { collection, key, nodes };
+  for (const node of nodes) {
+    let owners = ownersByObject.get(node);
+    if (!owners) ownersByObject.set(node, owners = new Set());
+    owners.add(owner);
+  }
+  return owner;
 }
 
 function collectJsonObjects(value: unknown, output: object[], seen: WeakSet<object>, depth: number): void {

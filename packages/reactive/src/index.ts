@@ -748,17 +748,24 @@ function reconcileKeyedArray(
     keys.add(id);
   }
   const nextItems: unknown[] = [];
+  const changedKeys = new Set<string>();
   for (let index = 0; index < incomingEntries.length; index++) {
     const { id, incoming } = incomingEntries[index]!;
     const previousEntry = existing.get(id);
     const hashesMatch = previousEntry !== undefined && previousMetadata !== undefined && incomingMetadata !== undefined
       && previousMetadata.itemHashes[previousEntry.index] === incomingMetadata.itemHashes[index];
     if (hashesMatch) nextItems.push(previousEntry!.item);
-    else if (previousEntry !== undefined && reconcileReactiveValue(previousEntry.item, incoming, seen, depth + 1)) nextItems.push(previousEntry.item);
-    else nextItems.push(incoming);
+    else if (previousEntry !== undefined && reconcileReactiveValue(previousEntry.item, incoming, seen, depth + 1)) {
+      changedKeys.add(id);
+      nextItems.push(previousEntry.item);
+    }
+    else {
+      if (previousEntry !== undefined) changedKeys.add(id);
+      nextItems.push(incoming);
+    }
   }
   reconcileArrayItems(current, oldValue.length, nextItems);
-  if (incomingMetadata) installKeyedCollectionMetadata(oldValue, incomingMetadata);
+  if (incomingMetadata) adoptKeyedCollectionMetadata(oldValue, incomingMetadata, changedKeys);
   else seedKeyedCollectionMetadata(oldValue, key);
   return true;
 }
