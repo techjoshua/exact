@@ -1,6 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { spawn } from "node:child_process";
+import os from "node:os";
 import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -19,13 +20,21 @@ if (process.argv[2] === "--group") {
     groups.set(config, group);
   }
 
-  let checked = 0;
-  for (const [config, filenames] of groups) {
-    await runAdaptiveGroup(config, filenames);
-    checked += filenames.length;
-  }
+  const entries = [...groups].sort((left, right) => right[1].length - left[1].length);
+  const concurrency = Math.max(1, Number.parseInt(
+    process.env.EXACT_EXPRESSION_WORKERS ?? String(Math.min(4, Math.max(2, os.availableParallelism() - 1))),
+    10
+  ));
+  let cursor = 0;
+  await Promise.all(Array.from({ length: Math.min(concurrency, entries.length) }, async () => {
+    while (cursor < entries.length) {
+      const [config, filenames] = entries[cursor++];
+      await runAdaptiveGroup(config, filenames);
+    }
+  }));
+  const checked = entries.reduce((count, [, filenames]) => count + filenames.length, 0);
 
-  console.log(`@exact/expressions losslessly round-tripped ${checked} source files across ${groups.size} projects`);
+  console.log(`@exact/expressions losslessly round-tripped ${checked} source files across ${groups.size} projects with ${concurrency} workers`);
 }
 
 async function checkGroup(config, filenames) {
