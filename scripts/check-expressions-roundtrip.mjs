@@ -4,7 +4,6 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "..");
-const workerBatchSize = 8;
 if (process.argv[2] === "--group") {
   const input = await readStandardInput();
   const { config, filenames } = JSON.parse(input);
@@ -22,11 +21,8 @@ if (process.argv[2] === "--group") {
 
   let checked = 0;
   for (const [config, filenames] of groups) {
-    for (let offset = 0; offset < filenames.length; offset += workerBatchSize) {
-      const batch = filenames.slice(offset, offset + workerBatchSize);
-      await runGroup(config, batch);
-      checked += batch.length;
-    }
+    await runAdaptiveGroup(config, filenames);
+    checked += filenames.length;
   }
 
   console.log(`@exact/expressions losslessly round-tripped ${checked} source files across ${groups.size} projects`);
@@ -52,14 +48,30 @@ function runGroup(config, filenames) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [import.meta.filename, "--group"], {
       cwd: root,
-      stdio: ["pipe", "inherit", "inherit"]
+      stdio: ["pipe", "ignore", "pipe"]
     });
+    let stderr = "";
+    child.stderr.on("data", chunk => { stderr += chunk; });
     child.once("error", reject);
     child.once("exit", code => code === 0
       ? resolve()
-      : reject(new Error(`Expression round-trip worker exited ${code} for ${config}`)));
+      : reject(Object.assign(
+        new Error(`Expression round-trip worker exited ${code} for ${config}${stderr ? `\n${stderr}` : ""}`),
+        { exitCode: code }
+      )));
     child.stdin.end(JSON.stringify({ config, filenames }));
   });
+}
+
+async function runAdaptiveGroup(config, filenames) {
+  try {
+    await runGroup(config, filenames);
+  } catch (error) {
+    if (filenames.length === 1) throw error;
+    const middle = Math.ceil(filenames.length / 2);
+    await runAdaptiveGroup(config, filenames.slice(0, middle));
+    await runAdaptiveGroup(config, filenames.slice(middle));
+  }
 }
 
 async function readStandardInput() {
