@@ -1,4 +1,5 @@
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -6,11 +7,14 @@ import { pathToFileURL } from "node:url";
 import { capabilityFor, compareConformanceTraces } from "../packages/react-compatibility/dist/index.js";
 
 const root = process.cwd();
+const execFileAsync = promisify(execFile);
 const outputDirectory = path.join(root, ".tmp", "react-conformance");
 mkdirSync(outputDirectory, { recursive: true });
 
-const reference18 = runReference("@exact/react-reference-18");
-const reference19 = runReference("@exact/react-reference-19");
+const [reference18, reference19] = await Promise.all([
+  runReference("@exact/react-reference-18"),
+  runReference("@exact/react-reference-19")
+]);
 validateVersion(reference18, "18.3");
 validateVersion(reference19, "19.2");
 validateInventory(reference18);
@@ -23,12 +27,14 @@ validatePhase3Result();
 validatePhase4Result();
 validatePhase5Result();
 validatePhase6Result();
-validatePhase1Compatibility();
-validatePhase2Compatibility();
-validatePhase3Compatibility();
-validatePhase4Compatibility();
-validatePhase5Compatibility();
-validatePhase6Compatibility();
+for (const validate of [
+  validatePhase1Compatibility,
+  validatePhase2Compatibility,
+  validatePhase3Compatibility,
+  validatePhase4Compatibility,
+  validatePhase5Compatibility,
+  validatePhase6Compatibility
+]) await validate();
 await validateImplementedExports(reference18, 18);
 await validateImplementedExports(reference19, 19);
 
@@ -42,28 +48,43 @@ writeFileSync(path.join(outputDirectory, "reference-19.json"), `${JSON.stringify
 console.log(`React ${reference18.version} and ${reference19.version} reference traces agree`);
 console.log(`Capability inventory covers ${inventorySize(reference18)} React 18 exports and ${inventorySize(reference19)} React 19 exports`);
 
-function runReference(workspace) {
+async function runReference(workspace) {
   const npm = npmCommand();
-  const output = execFileSync(npm.file, [...npm.args, "run", "trace", "-w", workspace, "--silent"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
-  return JSON.parse(output.trim());
+  const { stdout } = await execFileAsync(npm.file, [...npm.args, "run", "trace", "-w", workspace, "--silent"], {
+    cwd: root,
+    encoding: "utf8",
+    windowsHide: true
+  });
+  return JSON.parse(stdout.trim());
 }
 
-function runWorkspaceScript(workspace, script) {
+async function runWorkspaceScript(workspace, script) {
   const npm = npmCommand();
-  const output = execFileSync(npm.file, [...npm.args, "run", script, "-w", workspace, "--silent"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
-  return JSON.parse(output.trim());
+  const { stdout } = await execFileAsync(npm.file, [...npm.args, "run", script, "-w", workspace, "--silent"], {
+    cwd: root,
+    encoding: "utf8",
+    windowsHide: true
+  });
+  return JSON.parse(stdout.trim());
 }
 
-function runExactPhase1(target) {
-  const output = execFileSync(process.execPath, ["scripts/run-exact-react-phase1.mjs", String(target)], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
-  return JSON.parse(output.trim());
+async function runExactPhase1(target) {
+  const { stdout } = await execFileAsync(process.execPath, ["scripts/run-exact-react-phase1.mjs", String(target)], {
+    cwd: root,
+    encoding: "utf8",
+    windowsHide: true
+  });
+  return JSON.parse(stdout.trim());
 }
 
-function validatePhase1Compatibility() {
-  const cases = [
-    [runWorkspaceScript("@exact/react-reference-18", "phase1"), runExactPhase1(18)],
-    [runWorkspaceScript("@exact/react-reference-19", "phase1"), runExactPhase1(19)]
-  ];
+async function validatePhase1Compatibility() {
+  const [reference18, exact18, reference19, exact19] = await Promise.all([
+    runWorkspaceScript("@exact/react-reference-18", "phase1"),
+    runExactPhase1(18),
+    runWorkspaceScript("@exact/react-reference-19", "phase1"),
+    runExactPhase1(19)
+  ]);
+  const cases = [[reference18, exact18], [reference19, exact19]];
   for (const [reference, exact] of cases) {
     const expected = { ...reference, baseline: undefined };
     const actual = { ...exact, baseline: undefined };
@@ -74,55 +95,70 @@ function validatePhase1Compatibility() {
   console.log("React Phase 1 element and shallow-hook traces agree with React 18 and React 19");
 }
 
-function validatePhase2Compatibility() {
-  const cases = [
-    [runWorkspaceScript("@exact/react-reference-18", "phase2"), runExactPhase2(18)],
-    [runWorkspaceScript("@exact/react-reference-19", "phase2"), runExactPhase2(19)]
-  ];
+async function validatePhase2Compatibility() {
+  const [reference18, exact18, reference19, exact19] = await Promise.all([
+    runWorkspaceScript("@exact/react-reference-18", "phase2"),
+    runExactPhase2(18),
+    runWorkspaceScript("@exact/react-reference-19", "phase2"),
+    runExactPhase2(19)
+  ]);
+  const cases = [[reference18, exact18], [reference19, exact19]];
   for (const [reference, exact] of cases) assertPhaseTrace("Phase 2", reference, exact);
   writeFileSync(path.join(outputDirectory, "phase-2-exact-18.json"), `${JSON.stringify(cases[0][1], null, 2)}\n`);
   writeFileSync(path.join(outputDirectory, "phase-2-exact-19.json"), `${JSON.stringify(cases[1][1], null, 2)}\n`);
   console.log("React Phase 2 context, effect, ref, memo, and external-store traces agree with React 18 and React 19");
 }
 
-function validatePhase3Compatibility() {
-  const cases = [
-    [runWorkspaceScript("@exact/react-reference-18", "phase3"), runExactPhase3(18)],
-    [runWorkspaceScript("@exact/react-reference-19", "phase3"), runExactPhase3(19)]
-  ];
+async function validatePhase3Compatibility() {
+  const [reference18, exact18, reference19, exact19] = await Promise.all([
+    runWorkspaceScript("@exact/react-reference-18", "phase3"),
+    runExactPhase3(18),
+    runWorkspaceScript("@exact/react-reference-19", "phase3"),
+    runExactPhase3(19)
+  ]);
+  const cases = [[reference18, exact18], [reference19, exact19]];
   for (const [reference, exact] of cases) assertPhaseTrace("Phase 3", reference, exact);
   writeFileSync(path.join(outputDirectory, "phase-3-exact-18.json"), `${JSON.stringify(cases[0][1], null, 2)}\n`);
   writeFileSync(path.join(outputDirectory, "phase-3-exact-19.json"), `${JSON.stringify(cases[1][1], null, 2)}\n`);
   console.log("React Phase 3 portal, Suspense, lazy, deferred-value, and transition traces agree with React 18 and React 19");
 }
 
-function validatePhase4Compatibility() {
-  const cases = [
-    [runWorkspaceScript("@exact/react-reference-18", "phase4"), runExactPhase4(18)],
-    [runWorkspaceScript("@exact/react-reference-19", "phase4"), runExactPhase4(19)]
-  ];
+async function validatePhase4Compatibility() {
+  const [reference18, exact18, reference19, exact19] = await Promise.all([
+    runWorkspaceScript("@exact/react-reference-18", "phase4"),
+    runExactPhase4(18),
+    runWorkspaceScript("@exact/react-reference-19", "phase4"),
+    runExactPhase4(19)
+  ]);
+  const cases = [[reference18, exact18], [reference19, exact19]];
   for (const [reference, exact] of cases) assertPhaseTrace("Phase 4", reference, exact);
   writeFileSync(path.join(outputDirectory, "phase-4-exact-18.json"), `${JSON.stringify(cases[0][1], null, 2)}\n`);
   writeFileSync(path.join(outputDirectory, "phase-4-exact-19.json"), `${JSON.stringify(cases[1][1], null, 2)}\n`);
   console.log("React Phase 4 class, boundary, PureComponent, lifecycle, and Profiler traces agree with React 18 and React 19");
 }
 
-function validatePhase5Compatibility() {
-  const cases = [
-    [runWorkspaceScript("@exact/react-reference-18", "phase5"), runExactPhase5(18)],
-    [runWorkspaceScript("@exact/react-reference-19", "phase5"), runExactPhase5(19)]
-  ];
+async function validatePhase5Compatibility() {
+  const [reference18, exact18, reference19, exact19] = await Promise.all([
+    runWorkspaceScript("@exact/react-reference-18", "phase5"),
+    runExactPhase5(18),
+    runWorkspaceScript("@exact/react-reference-19", "phase5"),
+    runExactPhase5(19)
+  ]);
+  const cases = [[reference18, exact18], [reference19, exact19]];
   for (const [reference, exact] of cases) assertPhaseTrace("Phase 5", reference, exact);
   writeFileSync(path.join(outputDirectory, "phase-5-exact-18.json"), `${JSON.stringify(cases[0][1], null, 2)}\n`);
   writeFileSync(path.join(outputDirectory, "phase-5-exact-19.json"), `${JSON.stringify(cases[1][1], null, 2)}\n`);
   console.log("React Phase 5 server markup, pipeable stream, and hydration traces agree with React 18 and React 19");
 }
 
-function validatePhase6Compatibility() {
-  const cases = [
-    [runWorkspaceScript("@exact/react-reference-18", "phase6"), runExactPhase6(18)],
-    [runWorkspaceScript("@exact/react-reference-19", "phase6"), runExactPhase6(19)]
-  ];
+async function validatePhase6Compatibility() {
+  const [reference18, exact18, reference19, exact19] = await Promise.all([
+    runWorkspaceScript("@exact/react-reference-18", "phase6"),
+    runExactPhase6(18),
+    runWorkspaceScript("@exact/react-reference-19", "phase6"),
+    runExactPhase6(19)
+  ]);
+  const cases = [[reference18, exact18], [reference19, exact19]];
   for (const [reference, exact] of cases) assertPhaseTrace("Phase 6", reference, exact);
   writeFileSync(path.join(outputDirectory, "phase-6-exact-18.json"), `${JSON.stringify(cases[0][1], null, 2)}\n`);
   writeFileSync(path.join(outputDirectory, "phase-6-exact-19.json"), `${JSON.stringify(cases[1][1], null, 2)}\n`);
@@ -152,29 +188,29 @@ async function validateImplementedExports(reference, target) {
   if (missing.length) throw new Error(`Implemented React ${reference.baseline} capabilities are missing runtime exports:\n  ${missing.join("\n  ")}`);
 }
 
-function runExactPhase2(target) {
-  const output = execFileSync(process.execPath, ["scripts/run-exact-react-phase2.mjs", String(target)], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
-  return JSON.parse(output.trim());
+async function runExactPhase2(target) {
+  const { stdout } = await execFileAsync(process.execPath, ["scripts/run-exact-react-phase2.mjs", String(target)], { cwd: root, encoding: "utf8", windowsHide: true });
+  return JSON.parse(stdout.trim());
 }
 
-function runExactPhase3(target) {
-  const output = execFileSync(process.execPath, ["scripts/run-exact-react-phase3.mjs", String(target)], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
-  return JSON.parse(output.trim());
+async function runExactPhase3(target) {
+  const { stdout } = await execFileAsync(process.execPath, ["scripts/run-exact-react-phase3.mjs", String(target)], { cwd: root, encoding: "utf8", windowsHide: true });
+  return JSON.parse(stdout.trim());
 }
 
-function runExactPhase4(target) {
-  const output = execFileSync(process.execPath, ["scripts/run-exact-react-phase4.mjs", String(target)], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
-  return JSON.parse(output.trim());
+async function runExactPhase4(target) {
+  const { stdout } = await execFileAsync(process.execPath, ["scripts/run-exact-react-phase4.mjs", String(target)], { cwd: root, encoding: "utf8", windowsHide: true });
+  return JSON.parse(stdout.trim());
 }
 
-function runExactPhase5(target) {
-  const output = execFileSync(process.execPath, ["scripts/run-exact-react-phase5.mjs", String(target)], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
-  return JSON.parse(output.trim());
+async function runExactPhase5(target) {
+  const { stdout } = await execFileAsync(process.execPath, ["scripts/run-exact-react-phase5.mjs", String(target)], { cwd: root, encoding: "utf8", windowsHide: true });
+  return JSON.parse(stdout.trim());
 }
 
-function runExactPhase6(target) {
-  const output = execFileSync(process.execPath, ["scripts/run-exact-react-phase6.mjs", String(target)], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
-  return JSON.parse(output.trim());
+async function runExactPhase6(target) {
+  const { stdout } = await execFileAsync(process.execPath, ["scripts/run-exact-react-phase6.mjs", String(target)], { cwd: root, encoding: "utf8", windowsHide: true });
+  return JSON.parse(stdout.trim());
 }
 
 function assertPhaseTrace(label, reference, exact) {
