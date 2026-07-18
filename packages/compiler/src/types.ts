@@ -11,6 +11,11 @@ export type TransformOptions = {
   target?: TransformTarget;
   importedManifests?: readonly ExactCompilerManifest[];
   serverComponents?: boolean;
+  /**
+   * Preserves function-declaration hoisting while attaching component descriptors.
+   * Project artifact compilation enables this automatically for import cycles.
+   */
+  preserveComponentHoisting?: boolean;
   sourceMap?: boolean;
   moduleRewrite?: ModuleRewriteOptions;
   moduleTransform?: ModuleTransform;
@@ -230,6 +235,10 @@ export type ExactExportIR = {
   placement: ExactPlacement;
 };
 
+export type ExactArtifactExportIR = ExactExportIR & {
+  artifactClass: "shared" | "dual" | "client" | "server";
+};
+
 export type ExactSymbolIR = {
   id: string;
   componentId?: string;
@@ -314,8 +323,14 @@ export type ExactArtifactManifest = {
   source: string;
   client: string;
   server: string;
+  shared?: string;
   manifest: string;
-  exports: ExactExportIR[];
+  targets: {
+    client: "client";
+    server: "server";
+    shared?: "shared";
+  };
+  exports: ExactArtifactExportIR[];
   symbols: ExactSymbolIR[];
   boundaries: ExactBoundaryIR[];
 };
@@ -396,17 +411,21 @@ export type CompileArtifactsOptions = {
   packageType?: TransformOptions["packageType"];
   packageName?: string;
   capabilityPolicy?: TransformOptions["capabilityPolicy"];
+  /** Discovers manifests advertised by installed packages. Defaults to true. */
+  discoverPackageManifests?: boolean;
 };
 
 export type CompileArtifactsResult = {
   inputFile: string;
   clientFile: string;
   serverFile: string;
+  sharedFile?: string;
   clientMapFile?: string;
   serverMapFile?: string;
   manifestFile: string;
   client: TransformResult;
   server: TransformResult;
+  shared?: TransformResult;
   manifest: ExactCompilerManifest;
 };
 
@@ -414,6 +433,7 @@ export type ExactArtifactGraphInput = {
   inputFile: string;
   clientFile: string;
   serverFile: string;
+  sharedFile?: string;
   manifestFile: string;
   manifest: ExactCompilerManifest;
 };
@@ -432,6 +452,15 @@ export type CompileArtifactPlanEntriesOptions = {
   packageType?: TransformOptions["packageType"];
   packageName?: string;
   capabilityPolicy?: TransformOptions["capabilityPolicy"];
+  /** Discovers manifests advertised by installed packages. Defaults to true. */
+  discoverPackageManifests?: boolean;
+};
+
+export type ExactDiscoveredPackageManifest = {
+  packageName: string;
+  packageRoot: string;
+  manifestFile: string;
+  manifest: ExactCompilerManifest;
 };
 
 export type ExactArtifactPlanOptions = {
@@ -448,6 +477,7 @@ export type ExactArtifactPlanEntry = {
   inputFile: string;
   clientFile: string;
   serverFile: string;
+  sharedFile: string;
   manifestFile: string;
 };
 
@@ -481,6 +511,7 @@ export type PackageExportMapOptions = {
   clientCondition?: string;
   serverCondition?: string;
   defaultTarget?: "client" | "server";
+  typesRoot?: string;
 };
 
 export type PackageExportEntry = {
@@ -531,6 +562,7 @@ export type ExactArtifactGraphEntry = {
   inputFile: string;
   clientFile: string;
   serverFile: string;
+  sharedFile?: string;
   manifestFile: string;
   manifest: ExactCompilerManifest;
 };

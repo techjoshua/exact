@@ -32,6 +32,7 @@ export function manifestPathFor(outputFile: string): string {
 export function artifactPathsFor(inputFile: string, outDir: string, rootDir?: string): {
   clientFile: string;
   serverFile: string;
+  sharedFile: string;
   manifestFile: string;
 } {
   const root = rootDir ?? path.dirname(inputFile);
@@ -42,6 +43,7 @@ export function artifactPathsFor(inputFile: string, outDir: string, rootDir?: st
   return {
     clientFile: `${base}.exact.client${extension}`,
     serverFile: `${base}.exact.server${extension}`,
+    sharedFile: `${base}.exact.shared${extension}`,
     manifestFile: `${base}.exact.manifest.json`
   };
 }
@@ -50,7 +52,7 @@ export function artifactPathsFor(inputFile: string, outDir: string, rootDir?: st
 export function withArtifactMetadata(
   manifest: ExactCompilerManifest,
   inputFile: string,
-  paths: { clientFile: string; serverFile: string; manifestFile: string }
+  paths: { clientFile: string; serverFile: string; sharedFile?: string; manifestFile: string }
 ): ExactCompilerManifest {
   const root = path.dirname(paths.manifestFile);
   return {
@@ -59,8 +61,21 @@ export function withArtifactMetadata(
       source: slashPath(path.relative(root, inputFile)),
       client: slashPath(path.relative(root, paths.clientFile)),
       server: slashPath(path.relative(root, paths.serverFile)),
+      ...(paths.sharedFile ? { shared: slashPath(path.relative(root, paths.sharedFile)) } : {}),
       manifest: slashPath(path.relative(root, paths.manifestFile)),
-      exports: manifest.exports,
+      targets: {
+        client: "client",
+        server: "server",
+        ...(paths.sharedFile ? { shared: "shared" as const } : {})
+      },
+      exports: manifest.exports.map(exported => ({
+        ...exported,
+        artifactClass: paths.sharedFile
+          ? "shared" as const
+          : exported.placement === "client" || exported.placement === "server"
+            ? exported.placement
+            : "dual" as const
+      })),
       symbols: manifest.symbols,
       boundaries: manifest.boundaries
     }

@@ -2216,66 +2216,82 @@
     "client": "IdentityProvider.exact.client.ts",
     "server": "IdentityProvider.exact.server.ts",
     "manifest": "IdentityProvider.exact.manifest.json",
+    "targets": {
+      "client": "client",
+      "server": "server"
+    },
     "exports": [
       {
         "name": "Authorization",
         "kind": "value",
-        "placement": "unknown"
+        "placement": "unknown",
+        "artifactClass": "dual"
       },
       {
         "name": "AuthorizationContext",
         "kind": "value",
-        "placement": "isomorphic"
+        "placement": "isomorphic",
+        "artifactClass": "dual"
       },
       {
         "name": "Brand",
         "kind": "value",
-        "placement": "unknown"
+        "placement": "unknown",
+        "artifactClass": "dual"
       },
       {
         "name": "BrandContext",
         "kind": "value",
-        "placement": "isomorphic"
+        "placement": "isomorphic",
+        "artifactClass": "dual"
       },
       {
         "name": "IdentityProvider",
         "kind": "component",
-        "placement": "isomorphic"
+        "placement": "isomorphic",
+        "artifactClass": "dual"
       },
       {
         "name": "IdentitySummary",
         "kind": "component",
-        "placement": "isomorphic"
+        "placement": "isomorphic",
+        "artifactClass": "dual"
       },
       {
         "name": "PublicIdentity",
         "kind": "value",
-        "placement": "unknown"
+        "placement": "unknown",
+        "artifactClass": "dual"
       },
       {
         "name": "ServerAuthorization",
         "kind": "value",
-        "placement": "unknown"
+        "placement": "unknown",
+        "artifactClass": "dual"
       },
       {
         "name": "ServerAuthorizationContext",
         "kind": "value",
-        "placement": "server"
+        "placement": "server",
+        "artifactClass": "server"
       },
       {
         "name": "ServerBrand",
         "kind": "value",
-        "placement": "unknown"
+        "placement": "unknown",
+        "artifactClass": "dual"
       },
       {
         "name": "ServerBrandContext",
         "kind": "value",
-        "placement": "server"
+        "placement": "server",
+        "artifactClass": "server"
       },
       {
         "name": "ServerIdentityProjection",
         "kind": "component",
-        "placement": "server"
+        "placement": "server",
+        "artifactClass": "server"
       }
     ],
     "symbols": [

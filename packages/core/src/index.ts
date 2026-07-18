@@ -70,6 +70,14 @@ import { Cell, Dynamic, Fragment, Portal, ServerBoundary, ServerSlot, Text, Unsa
 export { decodeExactMarkerPart, encodeExactMarkerPart, exactMarkerEnd, exactMarkerStart } from "./protocol.js";
 export { sameJsonData, type JsonComparisonOptions } from "./json.js";
 export { BLOCKED_JAVASCRIPT_URL, isUrlAttribute, sanitizeUrlAttribute } from "./url.js";
+export {
+  composeExactComponentDescriptors,
+  exactClientComponentDescriptor,
+  exactServerComponentDescriptor,
+  readExactComponentDescriptor,
+  type ExactComponentDescriptor,
+  type ExactComponentDescriptorEntry
+} from "./descriptors.js";
 import {
   createCellVNode,
   createCompiledFragment,

@@ -164,7 +164,7 @@ describe("exactc", { timeout: 15_000 }, () => {
     expect(client).toContain("Page_ExactClient_1");
     expect(client).not.toContain("export function Page(");
     expect(client).not.toContain("node:fs/promises");
-    expect(server).toContain("export function Page(");
+    expect(server).toMatch(/export const Page: typeof __exactImplementation_Page_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
     expect(server).toContain("__exactBoundary");
   });
 });

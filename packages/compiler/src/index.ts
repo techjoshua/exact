@@ -1,15 +1,17 @@
 import ts from "typescript";
 import { ExpressionProjectError, rewriteModule, rewriteModuleReferences, type BoundModule, type ModuleRewriteOptions } from "@exact/expressions";
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   artifactGraphEntryFromCompileResult,
   createExactArtifactGraph,
+  discoverExactPackageManifests,
   diffExactArtifactPlans,
   readExactArtifactManifestEntries
 } from "./artifacts.js";
 import { combinePlacements } from "./placement.js";
 import { analyzeCallableEffects } from "./callable-effects.js";
+import { exactComponentDescriptorTransformer } from "./descriptor-transform.js";
 import { expressionDependencyFiles, invalidateExpressionModule, type ExactCompilerSession } from "./expression-project.js";
 import type {
   CompileArtifactPlanEntriesOptions,
@@ -105,11 +107,13 @@ export { preprocessPropPunning } from "./preprocess.js";
 export { parseExactCompilerManifest } from "./manifest-parse.js";
 export { generatedComponentName } from "./names.js";
 export {
+  assertExactArtifactTarget,
   createExactArtifactComponentEdges,
   createExactArtifactGraph,
   createExactArtifactRegistryModules,
   createPackageExportMap,
   diffExactArtifactPlans,
+  discoverExactPackageManifests,
   exactExportConditions,
   readExactArtifactManifestEntries,
   resolveExactArtifactImport
@@ -274,6 +278,10 @@ export function transformSource(source: string, options: TransformOptions = {}):
     callableEffects,
     moduleImports,
     options.preserveClientAssetImports ?? false
+  ), exactComponentDescriptorTransformer(
+    manifest,
+    target,
+    options.preserveComponentHoisting ?? false
   )]);
   const transformed = result.transformed[0]!;
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
@@ -783,28 +791,46 @@ export async function compileFileArtifacts(inputFile: string, options: CompileAr
   const source = await readFile(inputFile, "utf8");
   const filename = options.filename ?? inputFile;
   const capabilityOptions = capabilityCompilationOptions(options);
-  const manifestBase = analyzeSource(source, { filename, session: options.session, importedManifests: options.importedManifests, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry, generatedValidation: options.generatedValidation, ...capabilityOptions });
-  const client = transformSource(source, { filename, session: options.session, target: "client", importedManifests: options.importedManifests, serverComponents: options.serverComponents, sourceMap: options.sourceMap, moduleRewrite: options.moduleRewrite, moduleTransform: options.moduleTransform, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry, generatedValidation: options.generatedValidation, ...capabilityOptions });
-  const server = transformSource(source, { filename, session: options.session, target: "server", importedManifests: options.importedManifests, serverComponents: options.serverComponents, sourceMap: options.sourceMap, moduleRewrite: options.moduleRewrite, moduleTransform: options.moduleTransform, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry, generatedValidation: options.generatedValidation, ...capabilityOptions });
+  const discoveredManifests = options.discoverPackageManifests === false
+    ? []
+    : (await discoverExactPackageManifests(path.dirname(inputFile))).map(entry => entry.manifest);
+  const importedManifests = [...(options.importedManifests ?? []), ...discoveredManifests];
+  const manifestBase = analyzeSource(source, { filename, session: options.session, importedManifests, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry, generatedValidation: options.generatedValidation, ...capabilityOptions });
+  const client = transformSource(source, { filename, session: options.session, target: "client", importedManifests, serverComponents: options.serverComponents, sourceMap: options.sourceMap, moduleRewrite: options.moduleRewrite, moduleTransform: options.moduleTransform, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry, generatedValidation: options.generatedValidation, ...capabilityOptions });
+  const server = transformSource(source, { filename, session: options.session, target: "server", importedManifests, serverComponents: options.serverComponents, sourceMap: options.sourceMap, moduleRewrite: options.moduleRewrite, moduleTransform: options.moduleTransform, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry, generatedValidation: options.generatedValidation, ...capabilityOptions });
   const paths = artifactPathsFor(inputFile, options.outDir, options.rootDir);
-  const manifest = withArtifactMetadata(manifestBase, inputFile, paths);
+  const shared = !options.sourceMap && sharedArtifactResult(manifestBase, client, server);
+  const manifest = withArtifactMetadata(manifestBase, inputFile, {
+    ...paths,
+    ...(!shared ? { sharedFile: undefined } : {})
+  });
   const clientMapFile = client.map ? sourceMapPathFor(paths.clientFile) : undefined;
   const serverMapFile = server.map ? sourceMapPathFor(paths.serverFile) : undefined;
 
   await mkdir(path.dirname(paths.clientFile), { recursive: true });
-  await writeFile(paths.clientFile, clientMapFile ? withSourceMappingUrl(client.code, path.basename(clientMapFile)) : client.code);
-  await writeFile(paths.serverFile, serverMapFile ? withSourceMappingUrl(server.code, path.basename(serverMapFile)) : server.code);
+  await writeFile(paths.clientFile, shared
+    ? sharedArtifactFacade(manifestBase, paths.sharedFile, paths.clientFile)
+    : clientMapFile ? withSourceMappingUrl(client.code, path.basename(clientMapFile)) : client.code);
+  await writeFile(paths.serverFile, shared
+    ? sharedArtifactFacade(manifestBase, paths.sharedFile, paths.serverFile)
+    : serverMapFile ? withSourceMappingUrl(server.code, path.basename(serverMapFile)) : server.code);
+  if (shared) await writeFile(paths.sharedFile, shared.code);
+  else await removeGeneratedArtifact(paths.sharedFile);
   if (clientMapFile && client.map) await writeFile(clientMapFile, `${JSON.stringify(withSourceMapFile(client.map, path.basename(paths.clientFile)), null, 2)}\n`);
   if (serverMapFile && server.map) await writeFile(serverMapFile, `${JSON.stringify(withSourceMapFile(server.map, path.basename(paths.serverFile)), null, 2)}\n`);
   await writeFile(paths.manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
 
   return {
     inputFile,
-    ...paths,
+    clientFile: paths.clientFile,
+    serverFile: paths.serverFile,
+    ...(shared ? { sharedFile: paths.sharedFile } : {}),
+    manifestFile: paths.manifestFile,
     clientMapFile,
     serverMapFile,
     client,
     server,
+    ...(shared ? { shared } : {}),
     manifest
   };
 }
@@ -822,6 +848,7 @@ export async function compileProjectArtifacts(inputs: readonly string[], options
     moduleTransform: options.moduleTransform,
     assetRules: options.assetRules,
     pluginRegistry: options.pluginRegistry,
+    discoverPackageManifests: options.discoverPackageManifests,
     ...capabilityCompilationOptions(options)
   });
 }
@@ -841,14 +868,18 @@ export async function compileArtifactPlanEntries(
     sources.set(path.resolve(entry.inputFile), source);
   }
   const dependencyGraph = await collectPlacementAnalysisDependencies(sources, options.session);
+  const packageManifests = options.discoverPackageManifests === false || !entries.length
+    ? []
+    : (await discoverExactPackageManifests(path.dirname(entries[0]!.inputFile))).map(entry => entry.manifest);
+  const externalManifests = [...(options.importedManifests ?? []), ...packageManifests];
   const capabilityOptions = capabilityCompilationOptions(options);
-  for (const [inputFile, source] of sources) manifestBases.set(inputFile, analyzeSource(source, { filename: inputFile, session: options.session, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry, generatedValidation: options.generatedValidation, ...capabilityOptions }));
+  for (const [inputFile, source] of sources) manifestBases.set(inputFile, analyzeSource(source, { filename: inputFile, session: options.session, importedManifests: externalManifests, assetRules: options.assetRules, pluginRegistry: options.pluginRegistry, generatedValidation: options.generatedValidation, ...capabilityOptions }));
   // Resolve cross-file callable summaries to a fixed point. Each pass consumes
   // the previous immutable manifest generation, so results do not depend on
   // source ordering and recursive import groups converge monotonically.
   const maxPasses = Math.max(2, sources.size + 2);
   for (let pass = 0; pass < maxPasses; pass++) {
-    const imported = [...(options.importedManifests ?? []), ...manifestBases.values()];
+    const imported = [...externalManifests, ...manifestBases.values()];
     const next = new Map<string, ExactCompilerManifest>();
     let changed = false;
     for (const [key, source] of sources) {
@@ -863,11 +894,13 @@ export async function compileArtifactPlanEntries(
     if (!changed) break;
     if (pass === maxPasses - 1) throw new Error("eXact placement inference did not converge");
   }
-  const importedManifests = [...(options.importedManifests ?? []), ...manifestBases.values()];
+  const importedManifests = [...externalManifests, ...manifestBases.values()];
 
   for (const entry of entries) {
     const filename = options.filename?.(entry) ?? entry.inputFile;
-    results.push(await compileArtifactPlanEntry(entry, filename, importedManifests, options.serverComponents ?? false, options.sourceMap ?? false, transitiveDependencies(path.resolve(entry.inputFile), dependencyGraph), options.moduleRewrite, options.moduleTransform, options.session, options.assetRules, options.pluginRegistry, options.generatedValidation, capabilityOptions));
+    const inputFile = path.resolve(entry.inputFile);
+    const dependencies = transitiveDependencies(inputFile, dependencyGraph);
+    results.push(await compileArtifactPlanEntry(entry, filename, importedManifests, options.serverComponents ?? false, options.sourceMap ?? false, dependencies, dependencies.includes(inputFile), options.moduleRewrite, options.moduleTransform, options.session, options.assetRules, options.pluginRegistry, options.generatedValidation, capabilityOptions));
   }
 
   return results;
@@ -883,9 +916,11 @@ async function collectPlacementAnalysisDependencies(
     const filename = pending.shift()!;
     const source = sources.get(filename)!;
     const resolvedDependencies: string[] = [];
-    for (const dependency of session
+    const semanticDependencies = session
       ? session.expressionDependencyFiles(filename, source)
-      : expressionDependencyFiles(filename, source)) {
+      : expressionDependencyFiles(filename, source);
+    const syntacticDependencies = await localModuleDependencyFiles(filename, source);
+    for (const dependency of [...semanticDependencies, ...syntacticDependencies]) {
       const resolved = path.resolve(dependency);
       if (/(?:^|[\\/])node_modules(?:[\\/]|$)/.test(resolved) || /\.d\.[cm]?ts$/i.test(resolved) || !/\.[cm]?[jt]sx?$/i.test(resolved)) continue;
       try {
@@ -902,6 +937,47 @@ async function collectPlacementAnalysisDependencies(
     graph.set(filename, [...new Set(resolvedDependencies)].sort());
   }
   return graph;
+}
+
+async function localModuleDependencyFiles(filename: string, source: string): Promise<string[]> {
+  const sourceFile = ts.createSourceFile(filename, source, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
+  const specifiers = sourceFile.statements.flatMap(statement => {
+    if ((ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement))
+      && statement.moduleSpecifier
+      && ts.isStringLiteral(statement.moduleSpecifier)
+      && statement.moduleSpecifier.text.startsWith(".")) {
+      return [statement.moduleSpecifier.text];
+    }
+    return [];
+  });
+  const dependencies: string[] = [];
+  for (const specifier of specifiers) {
+    const absolute = path.resolve(path.dirname(filename), specifier);
+    const extension = path.extname(absolute);
+    const stem = /\.[cm]?[jt]sx?$/i.test(extension) ? absolute.slice(0, -extension.length) : absolute;
+    const candidates = [
+      absolute,
+      `${stem}.ts`,
+      `${stem}.tsx`,
+      `${stem}.mts`,
+      `${stem}.cts`,
+      `${stem}.js`,
+      `${stem}.jsx`,
+      path.join(absolute, "index.ts"),
+      path.join(absolute, "index.tsx"),
+      path.join(absolute, "index.js")
+    ];
+    for (const candidate of candidates) {
+      try {
+        await access(candidate);
+        dependencies.push(path.resolve(candidate));
+        break;
+      } catch {
+        // Try the next TypeScript/JavaScript resolution candidate.
+      }
+    }
+  }
+  return [...new Set(dependencies)];
 }
 
 function transitiveDependencies(entry: string, graph: ReadonlyMap<string, readonly string[]>): string[] {
@@ -927,6 +1003,7 @@ async function compileArtifactPlanEntry(
   serverComponents = false,
   sourceMap = false,
   dependencies: readonly string[] = [],
+  preserveComponentHoisting = false,
   moduleRewrite?: ModuleRewriteOptions,
   moduleTransform?: import("./types.js").ModuleTransform,
   session?: ExactCompilerSession,
@@ -937,18 +1014,28 @@ async function compileArtifactPlanEntry(
 ): Promise<CompileArtifactsResult> {
   const source = await readFile(entry.inputFile, "utf8");
   const base = analyzeSource(source, { filename, session, importedManifests, assetRules, pluginRegistry, generatedValidation, ...capabilityOptions });
-  base.dependencies = dependencies
-    .map(dependency => path.relative(path.dirname(path.resolve(filename)), dependency).replaceAll(path.sep, "/"))
+  base.dependencies = [...new Set(dependencies
+    .map(dependency => path.relative(path.dirname(path.resolve(filename)), dependency).replaceAll(path.sep, "/")))]
     .sort();
-  const client = transformSource(source, { filename, session, target: "client", importedManifests, serverComponents, sourceMap, moduleRewrite, moduleTransform, assetRules, pluginRegistry, generatedValidation, ...capabilityOptions });
-  const server = transformSource(source, { filename, session, target: "server", importedManifests, serverComponents, sourceMap, moduleRewrite, moduleTransform, assetRules, pluginRegistry, generatedValidation, ...capabilityOptions });
-  const manifest = withArtifactMetadata(base, entry.inputFile, entry);
+  const client = transformSource(source, { filename, session, target: "client", importedManifests, serverComponents, sourceMap, preserveComponentHoisting, moduleRewrite, moduleTransform, assetRules, pluginRegistry, generatedValidation, ...capabilityOptions });
+  const server = transformSource(source, { filename, session, target: "server", importedManifests, serverComponents, sourceMap, preserveComponentHoisting, moduleRewrite, moduleTransform, assetRules, pluginRegistry, generatedValidation, ...capabilityOptions });
+  const shared = !sourceMap && sharedArtifactResult(base, client, server);
+  const manifest = withArtifactMetadata(base, entry.inputFile, {
+    ...entry,
+    ...(!shared ? { sharedFile: undefined } : {})
+  });
   const clientMapFile = client.map ? sourceMapPathFor(entry.clientFile) : undefined;
   const serverMapFile = server.map ? sourceMapPathFor(entry.serverFile) : undefined;
 
   await mkdir(path.dirname(entry.clientFile), { recursive: true });
-  await writeFile(entry.clientFile, clientMapFile ? withSourceMappingUrl(client.code, path.basename(clientMapFile)) : client.code);
-  await writeFile(entry.serverFile, serverMapFile ? withSourceMappingUrl(server.code, path.basename(serverMapFile)) : server.code);
+  await writeFile(entry.clientFile, shared
+    ? sharedArtifactFacade(base, entry.sharedFile, entry.clientFile)
+    : clientMapFile ? withSourceMappingUrl(client.code, path.basename(clientMapFile)) : client.code);
+  await writeFile(entry.serverFile, shared
+    ? sharedArtifactFacade(base, entry.sharedFile, entry.serverFile)
+    : serverMapFile ? withSourceMappingUrl(server.code, path.basename(serverMapFile)) : server.code);
+  if (shared) await writeFile(entry.sharedFile, shared.code);
+  else await removeGeneratedArtifact(entry.sharedFile);
   if (clientMapFile && client.map) await writeFile(clientMapFile, `${JSON.stringify(withSourceMapFile(client.map, path.basename(entry.clientFile)), null, 2)}\n`);
   if (serverMapFile && server.map) await writeFile(serverMapFile, `${JSON.stringify(withSourceMapFile(server.map, path.basename(entry.serverFile)), null, 2)}\n`);
   await writeFile(entry.manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
@@ -957,13 +1044,59 @@ async function compileArtifactPlanEntry(
     inputFile: entry.inputFile,
     clientFile: entry.clientFile,
     serverFile: entry.serverFile,
+    ...(shared ? { sharedFile: entry.sharedFile } : {}),
     clientMapFile,
     serverMapFile,
     manifestFile: entry.manifestFile,
     client,
     server,
+    ...(shared ? { shared } : {}),
     manifest
   };
+}
+
+function sharedArtifactResult(
+  manifest: ExactCompilerManifest,
+  client: TransformResult,
+  server: TransformResult
+): TransformResult | undefined {
+  if (client.code !== server.code
+    || manifest.assets.length
+    || manifest.boundaries.length
+    || Object.keys(manifest.serverActions).length
+    || manifest.components.some(component =>
+      component.tasks.length || component.contexts.length || component.clientIslandCount
+    )
+    || manifest.callables.some(callable => callable.effect !== "neutral")
+    || manifest.policy.subjects.some(subject =>
+      subject.policy.secret || subject.policy.residency !== "isomorphic"
+    )
+    || manifest.semanticGraph?.declarations.some(declaration =>
+      declaration.kind === "import" && !declaration.typeOnly
+    )) return undefined;
+  return client;
+}
+
+async function removeGeneratedArtifact(filename: string): Promise<void> {
+  try {
+    await unlink(filename);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+}
+
+function sharedArtifactFacade(
+  manifest: ExactCompilerManifest,
+  sharedFile: string,
+  targetFile: string
+): string {
+  let specifier = path.relative(path.dirname(targetFile), sharedFile).replaceAll(path.sep, "/");
+  if (!specifier.startsWith(".")) specifier = `./${specifier}`;
+  const lines = [`export * from ${JSON.stringify(specifier)};`];
+  if (manifest.exports.some(exported => exported.name === "default")) {
+    lines.push(`export { default } from ${JSON.stringify(specifier)};`);
+  }
+  return `${lines.join("\n")}\n`;
 }
 
 /** Creates deterministic client/server artifact output paths for a set of inputs. */

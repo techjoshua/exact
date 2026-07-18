@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { isExactArtifactManifest, parseExactCompilerManifest } from "./manifest-parse.js";
@@ -28,10 +28,18 @@ import type {
   ExactArtifactRegistryModules,
   ExactArtifactRegistryModulesOptions,
   ExactArtifactTarget,
+  ExactDiscoveredPackageManifest,
   ExactExportConditionOptions,
   PackageExportEntry,
   PackageExportMapOptions
 } from "./types.js";
+
+type ExactPackageJson = {
+  name?: string;
+  exact?: {
+    manifests?: unknown;
+  };
+};
 
 /** Converts a compile result into the graph entry shape used by artifact tooling. */
 export function artifactGraphEntryFromCompileResult(result: CompileArtifactsResult): ExactArtifactGraphEntry {
@@ -39,9 +47,74 @@ export function artifactGraphEntryFromCompileResult(result: CompileArtifactsResu
     inputFile: result.inputFile,
     clientFile: result.clientFile,
     serverFile: result.serverFile,
+    ...(result.sharedFile ? { sharedFile: result.sharedFile } : {}),
     manifestFile: result.manifestFile,
     manifest: result.manifest
   };
+}
+
+/** Discovers portable eXact manifests explicitly advertised by installed packages. */
+export async function discoverExactPackageManifests(
+  startDirectory: string
+): Promise<ExactDiscoveredPackageManifest[]> {
+  const nodeModules = await nearestNodeModules(startDirectory);
+  if (!nodeModules) return [];
+  const packageRoots: string[] = [];
+  for (const entry of await readdir(nodeModules, { withFileTypes: true })) {
+    if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+    const root = path.join(nodeModules, entry.name);
+    if (!entry.name.startsWith("@")) {
+      packageRoots.push(root);
+      continue;
+    }
+    for (const scoped of await readdir(root, { withFileTypes: true })) {
+      if (scoped.isDirectory()) packageRoots.push(path.join(root, scoped.name));
+    }
+  }
+  const discovered: ExactDiscoveredPackageManifest[] = [];
+  for (const packageRoot of packageRoots.sort()) {
+    let packageJson: ExactPackageJson;
+    try {
+      packageJson = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8")) as ExactPackageJson;
+    } catch {
+      continue;
+    }
+    const manifests = packageJson.exact?.manifests;
+    if (!Array.isArray(manifests) || !manifests.every(value => typeof value === "string")) continue;
+    for (const relative of manifests) {
+      const manifestFile = path.resolve(packageRoot, relative);
+      const relativeToPackage = path.relative(packageRoot, manifestFile);
+      if (relativeToPackage.startsWith("..") || path.isAbsolute(relativeToPackage)) {
+        throw new Error(`${packageJson.name ?? packageRoot}: eXact manifest escapes its package root`);
+      }
+      const manifest = parseExactCompilerManifest(
+        JSON.parse(await readFile(manifestFile, "utf8")),
+        manifestFile
+      );
+      discovered.push({
+        packageName: packageJson.name ?? path.basename(packageRoot),
+        packageRoot,
+        manifestFile,
+        manifest
+      });
+    }
+  }
+  return discovered;
+}
+
+async function nearestNodeModules(startDirectory: string): Promise<string | undefined> {
+  let current = path.resolve(startDirectory);
+  while (true) {
+    const candidate = path.join(current, "node_modules");
+    try {
+      if ((await readdir(candidate, { withFileTypes: true })).length >= 0) return candidate;
+    } catch {
+      // Continue toward the filesystem root.
+    }
+    const parent = path.dirname(current);
+    if (parent === current) return undefined;
+    current = parent;
+  }
 }
 
 /** Diffs two artifact plans into added, removed, changed, and retained entries. */
@@ -93,6 +166,16 @@ export function createPackageExportMap(
     const client = packageExportTarget(result.clientFile, options.packageRoot);
     const server = packageExportTarget(result.serverFile, options.packageRoot);
     output[specifier] = {
+      ...(options.typesRoot ? {
+        types: packageExportTarget(
+          path.join(
+            options.typesRoot,
+            path.relative(options.sourceRoot ?? options.packageRoot, result.inputFile)
+              .replace(/\.[cm]?[jt]sx?$/i, ".d.ts")
+          ),
+          options.packageRoot
+        )
+      } : {}),
       [clientCondition]: client,
       [serverCondition]: server,
       default: options.defaultTarget === "server" ? server : client
@@ -100,6 +183,21 @@ export function createPackageExportMap(
   }
 
   return output;
+}
+
+/** Fails when a resolved conditional export does not match the consuming target. */
+export function assertExactArtifactTarget(
+  entry: ExactArtifactGraphInput,
+  resolvedFile: string,
+  target: ExactArtifactTarget
+): void {
+  const expected = path.resolve(target === "client" ? entry.clientFile : entry.serverFile);
+  const resolved = path.resolve(resolvedFile);
+  if (resolved !== expected) {
+    throw new Error(
+      `eXact ${target} build resolved ${resolvedFile}, expected ${target === "client" ? entry.clientFile : entry.serverFile}`
+    );
+  }
 }
 
 /** Returns the package export conditions used to select a client or server artifact. */
@@ -165,6 +263,7 @@ export function createExactArtifactGraph(
       inputFile: result.inputFile,
       clientFile: result.clientFile,
       serverFile: result.serverFile,
+      ...(result.sharedFile ? { sharedFile: result.sharedFile } : {}),
       manifestFile: result.manifestFile,
       manifest: result.manifest
     }))
@@ -239,6 +338,9 @@ export async function readExactArtifactManifestEntries(manifestFiles: readonly s
       inputFile: path.resolve(root, manifest.artifacts.source),
       clientFile: path.resolve(root, manifest.artifacts.client),
       serverFile: path.resolve(root, manifest.artifacts.server),
+      ...(manifest.artifacts.shared ? {
+        sharedFile: path.resolve(root, manifest.artifacts.shared)
+      } : {}),
       manifestFile,
       manifest
     });

@@ -9712,31 +9712,40 @@
     "client": "App.exact.client.ts",
     "server": "App.exact.server.ts",
     "manifest": "App.exact.manifest.json",
+    "targets": {
+      "client": "client",
+      "server": "server"
+    },
     "exports": [
       {
         "name": "CalculatorWorkspace",
         "kind": "component",
-        "placement": "client"
+        "placement": "client",
+        "artifactClass": "client"
       },
       {
         "name": "Feature",
         "kind": "component",
-        "placement": "isomorphic"
+        "placement": "isomorphic",
+        "artifactClass": "dual"
       },
       {
         "name": "RateCard",
         "kind": "component",
-        "placement": "isomorphic"
+        "placement": "isomorphic",
+        "artifactClass": "dual"
       },
       {
         "name": "RouteMap",
         "kind": "component",
-        "placement": "isomorphic"
+        "placement": "isomorphic",
+        "artifactClass": "dual"
       },
       {
         "name": "ShippingCalculatorPage",
         "kind": "component",
-        "placement": "server"
+        "placement": "server",
+        "artifactClass": "server"
       }
     ],
     "symbols": [

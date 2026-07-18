@@ -1,10 +1,12 @@
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
+import { build as esbuild } from "esbuild";
 import {
   analyzeSource,
   analyzeSemanticGraph,
+  assertExactArtifactTarget,
   createClientIslandRegistryEntries,
   createClientIslandRegistryModule,
   createExactArtifactDevState,
@@ -1270,7 +1272,16 @@ describe("@exact/compiler", () => {
       client: "page.exact.client.ts",
       server: "page.exact.server.ts",
       manifest: "page.exact.manifest.json",
-      exports: [{ name: "Page", kind: "component", placement: "isomorphic" }],
+      targets: {
+        client: "client",
+        server: "server"
+      },
+      exports: [{
+        name: "Page",
+        kind: "component",
+        placement: "isomorphic",
+        artifactClass: "dual"
+      }],
       symbols: [expect.objectContaining({
         exportName: "Page",
         localName: "Page",
@@ -1323,14 +1334,241 @@ describe("@exact/compiler", () => {
 
     expect(createPackageExportMap([result], {
       packageRoot: root,
-      sourceRoot: path.join(root, "src")
+      sourceRoot: path.join(root, "src"),
+      typesRoot: path.join(root, "dist")
     })).toEqual({
       "./components/page": {
+        types: "./dist/components/page.d.ts",
         "exact-client": "./dist/components/page.exact.client.ts",
         "exact-server": "./dist/components/page.exact.server.ts",
         default: "./dist/components/page.exact.client.ts"
       }
     });
+    expect(() => assertExactArtifactTarget(result, result.clientFile, "server"))
+      .toThrow("eXact server build resolved");
+    expect(() => assertExactArtifactTarget(result, result.serverFile, "server"))
+      .not.toThrow();
+  });
+
+  it("extracts a closed target-neutral module into one shared artifact", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-shared-"));
+    const input = path.join(root, "src", "format.tsx");
+    const outDir = path.join(root, "dist");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, `
+      export function formatCurrency(value: number): string {
+        return \`$\${value.toFixed(2)}\`;
+      }
+    `);
+
+    const result = await compileFileArtifacts(input, {
+      outDir,
+      rootDir: path.join(root, "src")
+    });
+
+    expect(result.sharedFile).toBe(path.join(outDir, "format.exact.shared.ts"));
+    expect(await readFile(result.sharedFile!, "utf8")).toContain("function formatCurrency");
+    expect(await readFile(result.clientFile, "utf8")).toBe(
+      'export * from "./format.exact.shared.ts";\n'
+    );
+    expect(await readFile(result.serverFile, "utf8")).toBe(
+      'export * from "./format.exact.shared.ts";\n'
+    );
+    expect(result.manifest.artifacts).toMatchObject({
+      shared: "format.exact.shared.ts",
+      targets: { client: "client", server: "server", shared: "shared" },
+      exports: [expect.objectContaining({ artifactClass: "shared" })]
+    });
+  });
+
+  it("attaches positional target descriptors to the public component function", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-descriptor-"));
+    const input = path.join(root, "src", "panel.tsx");
+    const outDir = path.join(root, "dist");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, `
+      export function Panel(this: Component<{ count: number }>) {
+        this.task.server(() => { this.state.count = 1; });
+        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
+      }
+    `);
+
+    const result = await compileFileArtifacts(input, {
+      outDir,
+      rootDir: path.join(root, "src")
+    });
+    const client = await readFile(result.clientFile, "utf8");
+    const server = await readFile(result.serverFile, "utf8");
+    const clientSymbol = result.manifest.symbols.find(symbol => symbol.role === "client-island")!;
+    const serverSymbol = result.manifest.symbols.find(symbol => symbol.role === "server-part")!;
+
+    expect(client).toContain('Symbol.for("@exact/client-component-descriptor")');
+    expect(client).toContain(`["${clientSymbol.id}", ${clientSymbol.exportName}]`);
+    expect(client).toMatch(/export const Panel: typeof __exactImplementation_Panel_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
+    expect(server).toContain('Symbol.for("@exact/server-component-descriptor")');
+    expect(server).toMatch(new RegExp(
+      `\\["${serverSymbol.id}", (?:${serverSymbol.localName}|__exactImplementation_Panel_\\d+)\\]`
+    ));
+    expect(server).toMatch(/export const Panel: typeof __exactImplementation_Panel_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
+    expect(client).not.toContain("parts:");
+    expect(server).not.toContain("parts:");
+    expect(result.manifest.artifacts?.exports).toContainEqual(expect.objectContaining({
+      name: "Panel",
+      artifactClass: "dual"
+    }));
+  });
+
+  it("preserves hoisted component exports when project imports form a cycle", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-descriptor-cycle-"));
+    const srcDir = path.join(root, "src");
+    const outDir = path.join(root, "dist");
+    await mkdir(srcDir, { recursive: true });
+    await writeFile(path.join(srcDir, "a.tsx"), `
+      import { observedName } from "./b";
+      export function A(this: Component<{ count: number }>) {
+        return () => <button onClick={() => this.state.count++}>{observedName}</button>;
+      }
+    `);
+    await writeFile(path.join(srcDir, "b.ts"), `
+      import { A } from "./a";
+      export const observedName = A.name;
+    `);
+
+    const results = await compileProjectArtifacts([srcDir], { outDir, rootDir: srcDir });
+    const a = results.find(result => path.basename(result.inputFile) === "a.tsx")!;
+    const client = await readFile(a.clientFile, "utf8");
+    const server = await readFile(a.serverFile, "utf8");
+
+    expect(client).toContain("export function A(");
+    expect(client).toContain("Object.assign(A, {");
+    expect(server).toContain("export function A(");
+    expect(client).not.toContain("const __exactImplementation_A");
+  });
+
+  it("removes a stale shared artifact when a module becomes target-specific", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-shared-stale-"));
+    const input = path.join(root, "src", "value.tsx");
+    const outDir = path.join(root, "dist");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, `export function value() { return 1; }`);
+    const initial = await compileFileArtifacts(input, {
+      outDir,
+      rootDir: path.join(root, "src")
+    });
+    expect(initial.sharedFile).toBeDefined();
+    expect(await readFile(initial.sharedFile!, "utf8")).toContain("function value");
+
+    await writeFile(input, `
+      export function Value(this: Component<{ count: number }>) {
+        return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
+      }
+    `);
+    const updated = await compileFileArtifacts(input, {
+      outDir,
+      rootDir: path.join(root, "src")
+    });
+
+    expect(updated.sharedFile).toBeUndefined();
+    await expect(readFile(initial.sharedFile!, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("keeps descriptor ids stable through minification and shakes unused components", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-descriptor-bundle-"));
+    onTestFinished(() => rm(root, { recursive: true, force: true }));
+    const srcDir = path.join(root, "src");
+    const outDir = path.join(root, "dist");
+    const input = path.join(srcDir, "components.tsx");
+    await mkdir(srcDir, { recursive: true });
+    await writeFile(input, `
+      export function Used(this: Component<{ count: number }>) {
+        this.state.count = window.innerWidth;
+        return () => <button onClick={() => this.state.count++}>used</button>;
+      }
+      export function Unused(this: Component<{ count: number }>) {
+        this.state.count = window.innerHeight;
+        return () => <button onClick={() => this.state.count++}>unused</button>;
+      }
+    `);
+    const result = await compileFileArtifacts(input, { outDir, rootDir: srcDir });
+    const usedId = result.manifest.symbols.find(symbol =>
+      symbol.target === "client"
+      && symbol.role === "root"
+      && symbol.debugName === "Used"
+    )!.id;
+    const unusedId = result.manifest.symbols.find(symbol =>
+      symbol.target === "client"
+      && symbol.role === "root"
+      && symbol.debugName === "Unused"
+    )!.id;
+    const artifactCode = await readFile(result.clientFile, "utf8");
+
+    const bundled = await esbuild({
+      stdin: {
+        contents: `import { Used } from "exact-components"; console.log(Used);`,
+        loader: "ts",
+        sourcefile: "entry.ts"
+      },
+      bundle: true,
+      write: false,
+      format: "esm",
+      platform: "browser",
+      minify: true,
+      plugins: [{
+        name: "exact-descriptor-fixture",
+        setup(build) {
+          build.onResolve({ filter: /^exact-components$/ }, () => ({
+            path: "components",
+            namespace: "exact-fixture"
+          }));
+          build.onLoad({ filter: /.*/, namespace: "exact-fixture" }, () => ({
+            contents: artifactCode,
+            loader: "ts"
+          }));
+          build.onResolve({ filter: /.*/ }, args => ({ path: args.path, external: true }));
+        }
+      }]
+    });
+    const code = bundled.outputFiles[0]!.text;
+
+    expect(code).toContain("@exact/client-component-descriptor");
+    expect(code).toContain(usedId);
+    expect(code).not.toContain(unusedId);
+    expect(code).not.toContain("innerHeight");
+  });
+
+  it("preserves default and aliased component exports with attached descriptors", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "exact-descriptor-exports-"));
+    const input = path.join(root, "src", "components.tsx");
+    await mkdir(path.dirname(input), { recursive: true });
+    await writeFile(input, `
+      export default function DefaultWidget(this: Component<{}>) {
+        window.location.href;
+        return () => null;
+      }
+      function AliasedWidget(this: Component<{}>) {
+        window.location.hash;
+        return () => null;
+      }
+      export { AliasedWidget as RenamedWidget };
+    `);
+    const result = await compileFileArtifacts(input, {
+      outDir: path.join(root, "dist"),
+      rootDir: path.join(root, "src")
+    });
+    const client = await readFile(result.clientFile, "utf8");
+
+    expect(client).toContain("export default DefaultWidget;");
+    expect(client).toContain("export { AliasedWidget as RenamedWidget };");
+    expect(client.match(/@exact\/client-component-descriptor/g)).toHaveLength(1);
+    expect(client.match(/Object\.assign/g)).toHaveLength(2);
+    expect(result.manifest.exports).toContainEqual(expect.objectContaining({
+      name: "default",
+      kind: "component"
+    }));
+    expect(result.manifest.exports).toContainEqual(expect.objectContaining({
+      name: "RenamedWidget",
+      kind: "component"
+    }));
   });
 
   it("resolves exact artifact facade imports without bundler-specific code", () => {
@@ -1579,6 +1817,7 @@ describe("@exact/compiler", () => {
         inputFile: path.join(src, "components", "panel.tsx"),
         clientFile: path.join(outDir, "components", "panel.exact.client.ts"),
         serverFile: path.join(outDir, "components", "panel.exact.server.ts"),
+        sharedFile: path.join(outDir, "components", "panel.exact.shared.ts"),
         manifestFile: path.join(outDir, "components", "panel.exact.manifest.json")
       }]
     });
@@ -1642,7 +1881,8 @@ describe("@exact/compiler", () => {
 
     expect(results).toHaveLength(1);
     expect(results[0]!.inputFile).toBe(changedInput);
-    expect(await readFile(results[0]!.clientFile, "utf8")).toContain("Changed");
+    expect(await readFile(results[0]!.clientFile, "utf8")).toContain("changed.exact.shared.ts");
+    expect(await readFile(results[0]!.sharedFile!, "utf8")).toContain("Changed");
     await expect(readFile(path.join(outDir, "retained.exact.client.ts"), "utf8")).rejects.toThrow();
   });
 
@@ -2058,7 +2298,7 @@ describe("@exact/compiler", () => {
       target: "client",
       placement: "client"
     });
-    expect(client).toContain("export function Panel");
+    expect(client).toMatch(/export const Panel: typeof __exactImplementation_Panel_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
     expect(client).not.toContain("export function Panel_ExactClient_1");
     expect(client).not.toContain("export function Panel_ExactClient_2");
     expect(server).toContain("createServerBoundary as");
@@ -2448,7 +2688,8 @@ describe("@exact/compiler", () => {
     const client = await readFile(result.clientFile, "utf8");
     const server = await readFile(result.serverFile, "utf8");
 
-    expect(client).toContain("export function ClientWidget");
+    expect(client).toMatch(/export const ClientWidget: typeof __exactImplementation_ClientWidget_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
+    expect(client).toMatch(/\["[^"]+", __exactImplementation_ClientWidget_\d+\]/);
     expect(client).toContain("window.innerWidth");
     expect(server).toContain("__exactBoundary");
     expect(server).toContain("\"ClientWidget\"");
@@ -3036,6 +3277,7 @@ function planEntry(inputFile: string) {
     inputFile,
     clientFile: `${base}.exact.client.ts`,
     serverFile: `${base}.exact.server.ts`,
+    sharedFile: `${base}.exact.shared.ts`,
     manifestFile: `${base}.exact.manifest.json`
   };
 }

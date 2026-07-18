@@ -573,16 +573,22 @@
     "client": "ProfilePage.exact.client.ts",
     "server": "ProfilePage.exact.server.ts",
     "manifest": "ProfilePage.exact.manifest.json",
+    "targets": {
+      "client": "client",
+      "server": "server"
+    },
     "exports": [
       {
         "name": "ProfilePage",
         "kind": "component",
-        "placement": "isomorphic"
+        "placement": "isomorphic",
+        "artifactClass": "dual"
       },
       {
         "name": "ProfileState",
         "kind": "value",
-        "placement": "unknown"
+        "placement": "unknown",
+        "artifactClass": "dual"
       }
     ],
     "symbols": [

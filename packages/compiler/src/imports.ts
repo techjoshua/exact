@@ -92,6 +92,7 @@ function resolveImportedComponent(
 
 function manifestSourceKeys(manifest: ExactCompilerManifest): string[] {
   const keys = new Set<string>();
+  if (manifest.packageName) keys.add(moduleSpecifierKey(manifest.packageName, process.cwd()));
   keys.add(moduleSpecifierKey(manifest.filename, process.cwd()));
   if (manifest.artifacts?.source) {
     keys.add(moduleSpecifierKey(manifest.artifacts.source, process.cwd()));

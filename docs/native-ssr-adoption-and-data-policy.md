@@ -134,23 +134,23 @@ globals or a client task retaining a server-only import.
 
 ### Paired artifacts
 
-Artifact compilation already emits:
+Artifact compilation emits:
 
 ```text
+Component.exact.shared.ts
 Component.exact.client.ts
 Component.exact.server.ts
 Component.exact.manifest.json
 ```
 
-It also provides helpers for `exact-client` and `exact-server` package export
-conditions, client-island lookup modules, server-part lookup modules, component
-edges, and hydration registration modules. The current standalone lookup-module
-shape is an implementation to refine, not a component-library publication
-requirement.
-
-The missing piece is a documented component-library standard and representative
-installed-package validation, not a new artifact model or a published package
-assembly tool.
+Closed target-neutral modules are emitted once as shared source with client and
+server re-export facades. Other exports are classified as client, server, or
+dual in artifact metadata. The compiler provides conditional-export helpers,
+target assertions, component edges, descriptor composition, portable package
+manifest discovery, and compatibility lookup-module helpers. Component
+libraries use attached descriptors rather than publishing standalone
+registries. An installed `npm pack` fixture validates one tarball in
+client-only, SSR, and server-component resolution modes.
 
 ### Existing secret prototype
 
@@ -697,14 +697,26 @@ Each export selects a target-specific artifact:
 
 ```json
 {
-  "./components/page": {
-    "types": "./dist/components/page.d.ts",
-    "exact-client": "./dist/components/page.exact.client.js",
-    "exact-server": "./dist/components/page.exact.server.js",
-    "default": "./dist/components/page.exact.client.js"
+  "exact": {
+    "manifests": [
+      "./dist/components/page.exact.manifest.json"
+    ]
+  },
+  "exports": {
+    "./components/page": {
+      "types": "./dist/components/page.d.ts",
+      "exact-client": "./dist/components/page.exact.client.js",
+      "exact-server": "./dist/components/page.exact.server.js",
+      "default": "./dist/components/page.exact.client.js"
+    }
   }
 }
 ```
+
+The `exact.manifests` package metadata contains package-relative portable
+manifest paths. Application artifact compilation discovers these declarations
+from the nearest installed dependency tree by default; callers may disable
+discovery for isolated tooling operations.
 
 Server-only and browser-only dependencies are removed or replaced with
 compiler-owned stubs or boundaries as appropriate. Code available in both
@@ -848,7 +860,7 @@ The client artifact can attach its local island descriptor:
 
 ```ts
 const exactClientDescriptor: unique symbol =
-  /*#__PURE__*/ Symbol.for("@exact/client-component-descriptor");
+  /* @__PURE__ */ Symbol.for("@exact/client-component-descriptor");
 
 function ProjectCardImplementation() {
   // Client implementation.
@@ -859,17 +871,14 @@ function ProjectCard_ExactClient_1() {
 }
 
 export const ProjectCard: typeof ProjectCardImplementation =
-/*#__PURE__*/ Object.assign(
-  ProjectCardImplementation,
-  {
+/* @__PURE__ */ (() => Object.assign(
+  ProjectCardImplementation, {
     [exactClientDescriptor]: [
       1,
-      [
-        ["stable-boundary-id", ProjectCard_ExactClient_1]
-      ]
+      [["stable-boundary-id", ProjectCard_ExactClient_1]]
     ]
   }
-);
+))();
 ```
 
 The matching server artifact exports the same public name with its server
@@ -877,7 +886,7 @@ descriptor:
 
 ```ts
 const exactServerDescriptor: unique symbol =
-  /*#__PURE__*/ Symbol.for("@exact/server-component-descriptor");
+  /* @__PURE__ */ Symbol.for("@exact/server-component-descriptor");
 
 function ProjectCardImplementation() {
   // Server implementation.
@@ -888,18 +897,27 @@ function ProjectCard_ExactServer_1() {
 }
 
 export const ProjectCard: typeof ProjectCardImplementation =
-/*#__PURE__*/ Object.assign(
-  ProjectCardImplementation,
-  {
+/* @__PURE__ */ (() => Object.assign(
+  ProjectCardImplementation, {
     [exactServerDescriptor]: [
       1,
-      [
-        ["stable-server-part-id", ProjectCard_ExactServer_1]
-      ]
+      [["stable-server-part-id", ProjectCard_ExactServer_1]]
     ]
   }
-);
+))();
 ```
+
+The zero-argument pure initializer prevents argument evaluation from retaining
+an otherwise unused component in bundlers that correctly preserve the
+`@__PURE__` convention. The generated symbol binding is shared by descriptors
+within the artifact, so `Symbol.for()` is not repeated per component.
+
+For an import strongly connected component, rewriting an exported function
+declaration to a lexical binding would change ESM instantiation semantics. The
+project compiler detects that case, retains the function declaration and its
+live binding, and performs descriptor attachment in place. This cycle-safe
+fallback is intentionally not marked pure because the attachment is observable;
+acyclic component modules use the fully tree-shakeable initializer above.
 
 The symbol binding is local generated implementation detail and does not create
 an import from the component package to an eXact protocol module. Global symbol
@@ -1677,6 +1695,22 @@ SSR/hydration/action integration tests, and 16 shipping sample tests.
 
 ### Phase 4: Package-aware placement and component-library standard
 
+Status: complete.
+
+The implemented standard emits logical shared/client/server source artifacts,
+classifies artifact exports, attaches positional descriptors, preserves
+defaults and aliases, uses a cycle-safe hoisting fallback, validates target
+resolution, discovers installed package manifests, and verifies a clean packed
+package across client-only, SSR, and server-component conditions. Shared
+extraction is initially conservative and operates on a complete source module
+only when its full analyzed graph is target-neutral; finer declaration-level
+partitioning is an optimization rather than a correctness requirement.
+
+Phase verification includes 1,016 package tests, production and test
+type-checking, four native server-component integration tests, 16 shipping
+sample tests, generated-artifact type-checking, and the clean installed-tarball
+fixture.
+
 - Complete cross-package placement, alias, re-export, cycle, target-dependency,
   and manifest-conflict analysis.
 - Specify shared, client, server, and manifest source artifacts, transpiled
@@ -1919,6 +1953,12 @@ Exit criteria:
 - Policy manifest version 1 represents residency/secrecy subjects and
   propagation, receipt, projection, and transfer flows. Conflicting imported
   global context policies fail compilation.
+- Initial shared extraction is a complete-source-module decision. Per-
+  declaration and strongly connected partition extraction may be added later
+  without changing the package contract.
+- Installed component packages advertise portable manifests through
+  `package.json` `exact.manifests`; artifact compilation discovers them by
+  default.
 
 ## Open Design Questions
 
@@ -1930,8 +1970,6 @@ Exit criteria:
 - Aggregate application report schema for package grants and secret usage.
 - How application entrypoints compose descriptors for remote and dynamically
   loaded packages.
-- Whether shared extraction occurs per declaration, per strongly connected
-  module partition, or per complete source module.
 - Final `unsafeHtml` overloads for plain strings and platform `TrustedHTML`.
 - Whether a later explicit document-metadata feature should support nested head
   contributions, resource deduplication, preinitialization, and navigation
