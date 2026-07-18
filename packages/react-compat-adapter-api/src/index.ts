@@ -11,6 +11,8 @@ export interface ReactCompatReplacementDeclaration {
 }
 
 export interface ReactCompatSourceDeclaration {
+  /** Whether runtime exports not listed by the selected variant may remain on the source module. */
+  readonly fallback: "retain" | "error";
   /** Ordered, non-overlapping implementations selected from the resolved source instance. */
   readonly variants: readonly ReactCompatSourceVariantDeclaration[];
 }
@@ -63,7 +65,11 @@ export function readReactCompatAdapterDeclaration(
   for (const [sourceModule, rawSource] of Object.entries(substitutions)) {
     assertSourceModule(sourceModule, label);
     const source = requiredRecord(rawSource, `${label} substitution ${sourceModule}`);
-    assertOnlyKeys(source, ["variants"], `${label} substitution ${sourceModule}`);
+    assertOnlyKeys(source, ["fallback", "variants"], `${label} substitution ${sourceModule}`);
+    const fallback = source.fallback === undefined ? "retain" : requiredString(source.fallback, `${label} substitution ${sourceModule}.fallback`);
+    if (fallback !== "retain" && fallback !== "error") {
+      throw new Error(`${label} substitution ${sourceModule}.fallback must be "retain" or "error"`);
+    }
     if (!Array.isArray(source.variants) || !source.variants.length) {
       throw new Error(`${label} substitution ${sourceModule}.variants must be a non-empty array`);
     }
@@ -87,7 +93,7 @@ export function readReactCompatAdapterDeclaration(
       }
       return Object.freeze({ version, exports: Object.freeze(parsedExports) });
     });
-    parsed[sourceModule] = Object.freeze({ variants: Object.freeze(variants) });
+    parsed[sourceModule] = Object.freeze({ fallback, variants: Object.freeze(variants) });
   }
   return Object.freeze({ schemaVersion: reactCompatAdapterSchemaVersion, substitutions: Object.freeze(parsed) });
 }

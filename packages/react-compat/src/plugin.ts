@@ -13,6 +13,7 @@ export {
   type ReactCompatPackageNode,
   type ResolvedReactCompatAdapters,
   type ResolvedReactCompatReplacement,
+  type ResolvedReactCompatSourcePolicy,
   type UnsupportedReactCompatSource
 } from "./adapters.js";
 

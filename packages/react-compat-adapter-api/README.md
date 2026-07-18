@@ -12,6 +12,7 @@ only target its own public exports.
       "schemaVersion": 1,
       "substitutions": {
         "some-react-binding": {
+          "fallback": "retain",
           "variants": [{
             "version": ">=1 <2",
             "exports": {
@@ -32,6 +33,10 @@ and target export is explicit. The target subpath must appear in the declaring
 adapter's `exports` map. Native root modules should depend only on the
 framework-neutral source core. Put compatibility-facing wrappers in isolated
 leaf exports and mark the package `sideEffects: false`.
+
+`fallback` defaults to `"retain"` for provider-style adapters that intentionally
+leave unrelated exports on the source package. Use `"error"` when any unmapped
+runtime export would create a second authority, as with routing.
 
 Run `exact-react-compat validate .` after building an adapter. Applications can
 disable a transitive adapter using

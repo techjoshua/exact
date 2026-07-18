@@ -89,6 +89,12 @@ describe("router compatibility integration", () => {
       expect.objectContaining({ sourceVersion: ">=5 <6", targetModule: "@exact/router/v5" })
     ]));
     expect(() => engine.transformModule({
+      id: path.join(root, "src/unsupported-export.ts"),
+      source: 'import { unstable_HistoryRouter } from "react-router-dom"; export { unstable_HistoryRouter };',
+      format: "module",
+      target: "client"
+    })).toThrow(/Unsupported runtime react-router-dom unstable_HistoryRouter.*mix compatibility authorities/);
+    expect(() => engine.transformModule({
       id: path.join(root, "node_modules/unsupported/src/view.ts"),
       source: 'import { RouterProvider } from "react-router-dom"; export { RouterProvider };',
       format: "module",

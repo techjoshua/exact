@@ -39,6 +39,7 @@
       "schemaVersion": 1,
       "substitutions": {
         "react-router": {
+          "fallback": "error",
           "variants": [
             {
               "version": ">=5 <6",
@@ -129,6 +130,7 @@
           ]
         },
         "react-router-dom": {
+          "fallback": "error",
           "variants": [
             {
               "version": ">=5 <6",
@@ -237,6 +239,7 @@
           ]
         },
         "react-router-dom/server": {
+          "fallback": "error",
           "variants": [
             {
               "version": ">=6 <6.4",

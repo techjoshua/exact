@@ -1,11 +1,13 @@
 import { createHash } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 import { rewriteModuleReferences, type ModuleExportReplacement, type ModuleRewriteOptions } from "@exact/expressions";
 import {
   createReactCompatPackageGraph,
   discoverReactCompatAdapters,
   replacementsForImporter,
+  sourcePoliciesForImporter,
   unsupportedSourcesForImporter,
   type ReactCompatPackageGraph,
   type ResolvedReactCompatAdapters
@@ -22,7 +24,7 @@ export interface ReactCompatibilityBuildInput {
 
 export interface ReactCompatibilityDiagnostic {
   readonly severity: "info" | "warning" | "error";
-  readonly code: "dynamic-export-escape" | "unsupported-commonjs" | "compatibility-retained" | "unsupported-version";
+  readonly code: "dynamic-export-escape" | "unsupported-commonjs" | "compatibility-retained" | "unsupported-version" | "unsupported-export";
   readonly message: string;
   readonly moduleId: string;
   readonly sourceModule: string;
@@ -122,6 +124,34 @@ export function createReactCompatibilityBuildEngine(options: ReactCompatibilityO
       const current = state();
       const resolvedReplacements = replacementsForImporter(current.graph, current.registry, input.id);
       const replacements = moduleReplacements(resolvedReplacements);
+      const exclusiveDiagnostics: ReactCompatibilityDiagnostic[] = [];
+      for (const policy of sourcePoliciesForImporter(current.graph, current.registry, input.id)) {
+        if (policy.fallback !== "error" || !containsModule(input.source, policy.sourceModule)) continue;
+        const allowed = new Set(resolvedReplacements
+          .filter(replacement => replacement.sourceModule === policy.sourceModule)
+          .map(replacement => replacement.sourceExport));
+        const unsupportedExports = runtimeSourceExports(input.source, input.id, policy.sourceModule)
+          .filter(sourceExport => !allowed.has(sourceExport));
+        if (!unsupportedExports.length) continue;
+        const message =
+          `Unsupported runtime ${policy.sourceModule} ${unsupportedExports.join(", ")} ` +
+          `from ${policy.sourceLocation}@${policy.installedVersion} in ${input.id}; ` +
+          `retaining it would mix compatibility authorities`;
+        if (resolved.strict) throw new Error(message);
+        exclusiveDiagnostics.push(...unsupportedExports.map(sourceExport => ({
+          severity: "error" as const,
+          code: "unsupported-export" as const,
+          message,
+          moduleId: input.id,
+          sourceModule: policy.sourceModule,
+          sourceExport,
+          sourceVersion: policy.installedVersion,
+          adapterPackage: policy.adapterPackage,
+          adapterVersion: policy.adapterVersion,
+          replacementExport: "*",
+          buildRoot
+        })));
+      }
       const unsupported = unsupportedSourcesForImporter(current.graph, current.registry, input.id)
         .filter(source => containsModule(input.source, source.sourceModule));
       if (unsupported.length && resolved.strict) {
@@ -132,9 +162,9 @@ export function createReactCompatibilityBuildEngine(options: ReactCompatibilityO
           `${source.adapterPackage}@${source.adapterVersion} supports ${source.supportedRanges.join(", ")}`
         );
       }
-      const unsupportedDiagnostics: ReactCompatibilityDiagnostic[] = unsupported.map(source => ({
-        severity: "error",
-        code: "unsupported-version",
+      const unsupportedDiagnostics: ReactCompatibilityDiagnostic[] = [...exclusiveDiagnostics, ...unsupported.map(source => ({
+        severity: "error" as const,
+        code: "unsupported-version" as const,
         message: `${source.sourceModule}@${source.installedVersion} is outside supported ranges ${source.supportedRanges.join(", ")}`,
         moduleId: input.id,
         sourceModule: source.sourceModule,
@@ -144,7 +174,7 @@ export function createReactCompatibilityBuildEngine(options: ReactCompatibilityO
         adapterVersion: source.adapterVersion,
         replacementExport: "*",
         buildRoot
-      }));
+      }))];
       if (!containsCandidate(input.source, resolved.aliases, replacements)) {
         return Object.freeze({
           code: input.source,
@@ -220,6 +250,74 @@ export function createReactCompatibilityBuildEngine(options: ReactCompatibilityO
     }
   };
   return Object.freeze(engine);
+}
+
+function runtimeSourceExports(source: string, filename: string, sourceModule: string): string[] {
+  const sourceFile = ts.createSourceFile(filename, source, ts.ScriptTarget.Latest, true, scriptKind(filename));
+  const exports = new Set<string>();
+  const namespaces = new Set<string>();
+  for (const statement of sourceFile.statements) {
+    if (ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier)
+      && statement.moduleSpecifier.text === sourceModule && !statement.importClause?.isTypeOnly) {
+      const clause = statement.importClause;
+      if (!clause) { exports.add("*"); continue; }
+      if (clause.name) exports.add("default");
+      if (clause.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+        for (const element of clause.namedBindings.elements) {
+          if (!element.isTypeOnly) exports.add(element.propertyName?.text ?? element.name.text);
+        }
+      } else if (clause.namedBindings) namespaces.add(clause.namedBindings.name.text);
+    }
+    if (ts.isExportDeclaration(statement) && statement.moduleSpecifier && ts.isStringLiteral(statement.moduleSpecifier)
+      && statement.moduleSpecifier.text === sourceModule && !statement.isTypeOnly) {
+      if (!statement.exportClause) exports.add("*");
+      else if (ts.isNamedExports(statement.exportClause)) {
+        for (const element of statement.exportClause.elements) {
+          if (!element.isTypeOnly) exports.add(element.propertyName?.text ?? element.name.text);
+        }
+      } else exports.add("*");
+    }
+  }
+  const visit = (node: ts.Node): void => {
+    if (ts.isIdentifier(node) && namespaces.has(node.text)
+      && !ts.isNamespaceImport(node.parent)
+      && !(ts.isPropertyAccessExpression(node.parent) && node.parent.expression === node)
+      && !(ts.isElementAccessExpression(node.parent) && node.parent.expression === node)) {
+      exports.add("*");
+    }
+    if (ts.isCallExpression(node) && node.arguments.length && ts.isStringLiteral(node.arguments[0])
+      && node.arguments[0].text === sourceModule
+      && (node.expression.kind === ts.SyntaxKind.ImportKeyword || ts.isIdentifier(node.expression) && node.expression.text === "require")) {
+      const parent = node.parent;
+      if (ts.isPropertyAccessExpression(parent)) exports.add(parent.name.text);
+      else if (ts.isElementAccessExpression(parent) && parent.argumentExpression && ts.isStringLiteral(parent.argumentExpression)) {
+        exports.add(parent.argumentExpression.text);
+      } else if (ts.isVariableDeclaration(parent) && ts.isObjectBindingPattern(parent.name)) {
+        for (const element of parent.name.elements) {
+          if (element.dotDotDotToken) exports.add("*");
+          else if (element.propertyName && (ts.isIdentifier(element.propertyName) || ts.isStringLiteral(element.propertyName))) exports.add(element.propertyName.text);
+          else if (ts.isIdentifier(element.name)) exports.add(element.name.text);
+        }
+      } else exports.add("*");
+    }
+    if ((ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) && ts.isIdentifier(node.expression)
+      && namespaces.has(node.expression.text)) {
+      if (ts.isPropertyAccessExpression(node)) exports.add(node.name.text);
+      else if (node.argumentExpression && ts.isStringLiteral(node.argumentExpression)) exports.add(node.argumentExpression.text);
+      else exports.add("*");
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return [...exports];
+}
+
+function scriptKind(filename: string): ts.ScriptKind {
+  const clean = filename.split("?", 1)[0]!;
+  if (/\.tsx$/i.test(clean)) return ts.ScriptKind.TSX;
+  if (/\.jsx$/i.test(clean)) return ts.ScriptKind.JSX;
+  if (/\.[cm]?js$/i.test(clean)) return ts.ScriptKind.JS;
+  return ts.ScriptKind.TS;
 }
 
 function moduleReplacements(
