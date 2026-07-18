@@ -502,9 +502,9 @@ Plugin directives are namespaced:
 Unknown namespaced directives fail compilation even when no matching plugin is installed.
 
 Secret residency and consumption use core directives (`keep=secret` and
-variable-level `consume=secret`), not namespaced plugin directives. The secrets
-package therefore does not install a compiler extension or define source/sink
-annotations.
+caller-side `consume=secret` on an argument expression or variable
+declaration), not namespaced plugin directives. The secrets package therefore
+does not install a compiler extension or define source/sink annotations.
 
 Security plugins must be able to request analysis of plain `.ts`, `.js`, and declaration files, not only JSX files. Official bundler hosts use registered candidate filters and the shared expression project so plugin analysis cannot be bypassed by moving a declaration out of a JSX-containing module.
 

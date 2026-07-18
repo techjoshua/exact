@@ -5,9 +5,10 @@ Date: 2026-07-18
 > Historical note: the package-provenance, selector-grant, forwarding-analysis,
 > scoped-resolver, and runtime-audit findings below describe the discarded
 > Phase 6 implementation. The current design is intentionally smaller:
-> variable-level `consume=secret`, application ownership, a package-name
-> allowlist, and enforcement at client artifact and server-to-client transfer
-> boundaries. Those permissions are guardrails, not dependency sandboxing.
+> caller-side `consume=secret` at either a call argument or variable
+> declaration, application ownership, a package-name allowlist, and enforcement
+> at client artifact and server-to-client transfer boundaries. Those
+> permissions are guardrails, not dependency sandboxing.
 
 ## Scope
 
@@ -185,9 +186,10 @@ These are not silent correctness promises:
   authoritative adapter is implemented.
 - Direct DOM, network, `eval`, and other platform APIs remain outside renderer
   URL/raw-HTML policy.
-- Secret declassification is not supported. Ordinary authenticated service
-  results must be produced by code whose return is independently safe; a secret
-  wrapper cannot be projected into isomorphic state.
+- Caller-side consumption releases a raw secret to trusted server code, but
+  does not authorize client or framework-output transfer. Ordinary
+  authenticated service results must be independently safe; a secret wrapper
+  cannot be projected into isomorphic state.
 - Shared artifact extraction is intentionally whole-module in the initial
   implementation. Per-declaration partitioning is an optimization.
 - Nested document metadata collection and generalized URL policy plugins remain

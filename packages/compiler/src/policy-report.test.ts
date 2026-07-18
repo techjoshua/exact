@@ -10,9 +10,9 @@ describe("policy audit reports", () => {
     const dependency = analyzeSource(`
       import { connect } from "@acme/database";
       declare const secrets: { require(name: string): string };
-      /** @exact keep=secret @exact consume=secret */
+      /** @exact keep=secret */
       const url = secrets.require("DATABASE_URL");
-      export const database = connect(url);
+      export const database = connect(/** @exact consume=secret */ url);
     `, {
       filename: "packages/runtime.ts",
       packageType: "library",
@@ -40,9 +40,9 @@ describe("policy audit reports", () => {
   it("reports unresolved library requirements", () => {
     const manifest = analyzeSource(`
       import { connect } from "@acme/database";
-      /** @exact keep=secret @exact consume=secret */
+      /** @exact keep=secret */
       declare const url: string;
-      connect(url);
+      connect(/** @exact consume=secret */ url);
     `, {
       filename: "runtime.ts",
       packageType: "library",

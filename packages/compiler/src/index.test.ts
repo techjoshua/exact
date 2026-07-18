@@ -1814,10 +1814,10 @@ describe("@exact/compiler", () => {
     }, "Panel.exact.manifest.json")).toThrow("Malformed eXact compiler manifest");
   });
 
-  it("rejects compiler manifest v1 and malformed v2 callable graphs", () => {
+  it("rejects unsupported versions and malformed v1 callable graphs", () => {
     const manifest = analyzeSource(`export function value() { return 1; }`, { filename: "value.ts" });
-    expect(() => parseExactCompilerManifest({ ...manifest, version: 1 } as never, "legacy.json"))
-      .toThrow("Unsupported eXact compiler manifest version in legacy.json: 1");
+    expect(() => parseExactCompilerManifest({ ...manifest, version: -1 } as never, "unsupported.json"))
+      .toThrow("Unsupported eXact compiler manifest version in unsupported.json: -1");
     expect(() => parseExactCompilerManifest({ ...manifest, dependencies: ["C:\\private\\value.ts"] }, "absolute.json"))
       .toThrow("Malformed eXact compiler dependencies");
     expect(() => parseExactCompilerManifest({

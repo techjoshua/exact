@@ -110,17 +110,25 @@ describe("@exact compiler annotations", () => {
     );
   });
 
-  it("recognizes secret consumption on the caller-owned variable", () => {
+  it("recognizes declaration-scoped and call-argument-scoped secret consumption", () => {
     clearExpressionProjectCache();
     const module = expressionModuleFor("consume-secret.ts", `
       declare function connect(value: string): void;
-      /** @exact consume=secret */
+      /** @exact keep=secret */
       declare const credential: string;
-      connect(credential);
+      connect(/** @exact consume=secret */ credential);
+
+      /** @exact keep=secret */
+      declare const reusableCredential: string;
+      /** @exact consume=secret */
+      const consumedCredential = reusableCredential;
+      connect(consumedCredential);
     `);
-    const call = module.walk().calls().first()!;
-    expect(exactConsumesSecret(call.arguments[0]?.rootVariable?.directives)).toBe(true);
-    expect(call.node.resolvedSignature?.parameters[0]?.directives).toEqual([]);
+    const calls = module.walk().calls().toArray();
+    expect(exactConsumesSecret(calls[0]?.arguments[0]?.node.directives)).toBe(true);
+    expect(exactConsumesSecret(calls[0]?.arguments[0]?.rootVariable?.directives)).toBe(false);
+    expect(exactConsumesSecret(calls[1]?.arguments[0]?.rootVariable?.directives)).toBe(true);
+    expect(calls[0]?.node.resolvedSignature?.parameters[0]?.directives).toEqual([]);
     expect(analyzeExactAnnotations(module).diagnostics).toEqual([]);
   });
 
@@ -132,13 +140,15 @@ describe("@exact compiler annotations", () => {
       /** @exact keep=server @exact keep=client */ let conflict: string;
       declare function connect(value: string): void;
       /** @exact consume=server */ const consumed = unknown;
+      function invalidReceiver(/** @exact consume=secret */ value: string): void {}
       connect(consumed);
     `);
     expect(analyzeExactAnnotations(module).diagnostics.map(diagnostic => diagnostic.message)).toEqual(expect.arrayContaining([
       "error: @exact keep requires one of server, client, or secret",
       "error: unknown @exact keep policy 'public'; expected server, client, or secret",
       "error: a declaration cannot have contradictory @exact keep policies",
-      "error: @exact consume requires the value secret"
+      "error: @exact consume requires the value secret",
+      "error: @exact consume is not valid on Parameter"
     ]));
   });
 });

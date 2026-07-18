@@ -267,6 +267,16 @@ export function analyzeExactPolicyMetadata(
       diagnostics.add(`error: @exact consume=secret variable ${variable.name} does not receive a secret-qualified value`);
     }
   }
+  for (const call of module.walk().calls()) {
+    for (const argument of call.arguments) {
+      if (!exactConsumesSecret(argument.node.directives)) continue;
+      const secret = policyInputs(argument, declarationPolicies, namedDeclarationPolicies)
+        .some(input => input.record.policy.secret);
+      if (!secret) diagnostics.add(
+        "error: @exact consume=secret call argument does not receive a secret-qualified value"
+      );
+    }
+  }
   return Object.freeze({
     subjects: Object.freeze(sortSubjects(subjects)),
     declarationPolicies,
@@ -314,7 +324,8 @@ function propagateSecretCallParameters(
         if (!selectors) selectorsByVariable.set(parameter.id, selectors = new Set());
         for (const input of inputs) selectors.add(input.record.selector ?? "<dynamic>");
         const selector = selectors.size === 1 && !selectors.has("<dynamic>") ? [...selectors][0] : undefined;
-        const consumed = inputs.every(input => input.record.consumed === true);
+        const consumed = exactConsumesSecret(argument.node.directives)
+          || inputs.every(input => input.record.consumed === true);
         const existing = policies.get(parameter.id);
         if (existing?.policy.secret
           && existing.selector === selector
@@ -352,7 +363,7 @@ function propagateSecretCallParameters(
           boundary: "call",
           authorized: consumed,
           ...(!consumed
-            ? { reason: "secret argument comes from a variable missing @exact consume=secret" }
+            ? { reason: "secret argument is missing caller-side @exact consume=secret" }
             : {})
         }));
         changed = true;
@@ -731,14 +742,15 @@ function collectSecretConsumptions(
       materializePolicyInputSubjects(inputs, subjects);
       const selectors = new Set(inputs.map(input => input.record.selector).filter((value): value is string => !!value));
       const selector = selectors.size === 1 ? [...selectors][0] : undefined;
-      const marked = inputs.every(input => input.record.consumed === true);
+      const marked = exactConsumesSecret(argument.node.directives)
+        || inputs.every(input => input.record.consumed === true);
       const location = argument.node.span ?? call.node.span ?? { line: 0, column: 0 };
       const local = !moduleSpecifier;
       let authorization: ExactSecretConsumptionIR["authorization"];
       let reason: string | undefined;
       if (!marked) {
         authorization = "denied";
-        reason = "secret argument comes from a variable missing @exact consume=secret";
+        reason = "secret argument is missing caller-side @exact consume=secret";
       } else if (target === "client") {
         authorization = "denied";
         reason = "secret consumption cannot be retained in a client artifact";

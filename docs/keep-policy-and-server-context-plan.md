@@ -130,7 +130,8 @@ A secret value:
 - Must never reach a VNode child, VNode prop, HTML attribute, text node, style, key, boundary identity, serialized payload, patch, action response, log field, error message, or other externally observable output.
 - Must not influence control flow that changes externally observable output.
 - Propagates through ordinary expressions, assignments, destructuring, object construction, interpolation, calls, closures, reactive derivatives, and control dependencies.
-- Cannot be declassified by ordinary conversion, projection, copying, serialization, or assignment into an unannotated field.
+- Cannot be made transferable by ordinary conversion, projection, copying,
+  serialization, or assignment into an unannotated field.
 
 All of the following remain secret-derived:
 
@@ -355,7 +356,10 @@ The context should expose a restricted interface rather than an implementation t
 
 ## Secret Sources
 
-`keep=secret` remains necessary, but application code should normally identify a secret only once.
+Secret qualification remains necessary, but application code should normally
+identify a secret only once. Values returned by the standard secrets API are
+already secret-qualified and do not need an additional `keep=secret`
+annotation.
 
 The server runtime should provide a typed secrets API:
 
@@ -395,18 +399,34 @@ declare function fetchWeather(
   authorization: string
 ): Promise<Weather>;
 
-/** @exact consume=secret */
 const weatherApiKey = apiKey;
-const weather = await fetchWeather("Seattle", weatherApiKey);
+const weather = await fetchWeather(
+  "Seattle",
+  /** @exact consume=secret */ weatherApiKey
+);
 ```
 
-The caller marks the variable that intentionally receives the secret with
-`consume=secret`; individual calls using that variable do not repeat it.
-Application-owned callees are implicitly permitted. A dependency callee
-additionally requires its package name in `secrets.allowPackages`. Receiving
-functions do not annotate secret parameters and cannot authorize their own
-package. The marker neither clears secret qualification nor authorizes client
-transfer.
+Argument placement consumes the secret for that call edge only. The caller's
+binding remains secret-qualified; the callee receives the raw value through an
+ordinary parameter and may use it throughout that function. A different call
+using the caller's binding requires its own marker.
+
+For broader local use, the caller may consume at the declaration:
+
+```ts
+/** @exact consume=secret */
+const weatherApiKey = secrets.require("WEATHER_API_KEY");
+
+const weather = await fetchWeather("Seattle", weatherApiKey);
+const forecast = await fetchForecast("Seattle", weatherApiKey);
+```
+
+That resulting binding is consumed throughout its lexical scope, so individual
+calls do not repeat the directive. Application-owned callees are implicitly
+permitted. A dependency callee additionally requires its package name in
+`secrets.allowPackages`. Receiving functions do not annotate secret parameters
+and cannot authorize their own package. Neither form authorizes client transfer
+by Exact.
 
 This is a direct receipt guard and audit record. It does not claim to verify the
 transitive behavior of opaque in-process JavaScript.
@@ -630,7 +650,8 @@ Expected behavior:
 - The client and its methods remain server-resident.
 - The API key cannot enter state, VNodes, logs, or payloads.
 - `Weather` is ordinary data and can be server-rendered or transferred to a client island when required.
-- No per-call declassification or `toClient()` operation is required.
+- Consuming the API key for client construction does not authorize it for
+  client transfer or require a `toClient()` operation.
 
 ### Client-native state
 
@@ -701,7 +722,8 @@ Exit criteria:
 
 ### Phase 4: Caller-side package permission
 
-- Parse and enforce `consume=secret` on caller-owned variables.
+- Parse and enforce `consume=secret` on caller argument expressions and
+  caller-owned variable declarations.
 - Permit application-owned receipt without a self-permission.
 - Require directly receiving dependency names in `secrets.allowPackages`.
 - Record direct receiving packages, symbols, parameters, and source locations
@@ -744,8 +766,8 @@ Exit criteria:
 
 ### Phase 7: Tooling, documentation, and migration
 
-- Add manifest audit reporting for policies, secret recipients, package grants,
-  and any separately designed declassification boundaries.
+- Add manifest audit reporting for policies, secret recipients, package
+  permissions, and any separately designed client/output transfer boundaries.
 - Surface diagnostics through CLI, Vite, Webpack, and Bun integrations.
 - Document common API client, database, session, and upload patterns.
 - Add migration guidance for service objects currently stored in component state.
@@ -787,7 +809,9 @@ At minimum, cover:
 
 The completed design must maintain these invariants:
 
-1. A secret value or secret-derived value cannot reach any framework-owned external output without an explicit reviewed declassification design.
+1. Caller-side consumption may release a raw secret to trusted server code, but
+   a secret value or secret-derived value cannot reach framework-owned external
+   output without a separate explicitly reviewed transfer design.
 2. A server-kept value cannot be emitted as client data.
 3. A client-kept value cannot be required by server execution.
 4. A server capability may contain secret fields without making unrelated method results secret.
@@ -796,8 +820,8 @@ The completed design must maintain these invariants:
 7. Unknown or broad data flow fails closed when it may include a protected value.
 8. Runtime guards supplement but do not replace compiler enforcement.
 9. Errors and diagnostics identify policy paths without including protected contents.
-10. Dependency package grants are explicit, non-transitive, manifest-visible,
-    and auditable; caller-side consumption is explicit and receiving functions
+10. Direct dependency package permissions are explicit, manifest-visible, and
+    auditable; caller-side consumption is explicit and receiving functions
     cannot self-authorize.
 
 ## Resolved Design Questions
@@ -812,8 +836,9 @@ The completed design must maintain these invariants:
 - Generic policy manifest version 1 records residency/secrecy subjects and
   propagation, receipt, projection, and transfer flows. Conflicting imported
   policies for the same global context token are build errors.
-- Secret declassification is not supported. Projection cannot remove a secret
-  qualification or make a secret-qualified value transferable.
+- Caller-side consumption releases the raw value to trusted server code.
+  Projection cannot make a secret-qualified value transferable to client or
+  framework-owned output.
 
 ## Open Design Questions
 

@@ -54,9 +54,9 @@ export function analyzeExactAnnotations(module: BoundModule): ExactAnnotationPla
       const key = supported.has(directive.key as ExactAnnotationKey)
         ? directive.key as ExactAnnotationKey
         : undefined;
-      const candidateValid = key ? validDirectiveLocation(key, reference.node.kind) : false;
+      const candidateValid = key ? validDirectiveLocation(key, reference) : false;
       const existingValid = key && existing
-        ? validDirectiveLocation(key, existing.reference.node.kind)
+        ? validDirectiveLocation(key, existing.reference)
         : false;
       if (!existing
         || candidateValid && !existingValid
@@ -97,15 +97,15 @@ export function analyzeExactAnnotations(module: BoundModule): ExactAnnotationPla
         diagnostics.push({ message: `error: @exact ${directive.key} does not accept a value`, start });
       } else if (directive.value !== undefined && !identifier.test(directive.value)) {
         diagnostics.push({ message: `error: @exact ${directive.key} value must be a member identifier, not executable source`, start });
-      } else if (!validDirectiveLocation(directive.key as ExactAnnotationKey, reference.node.kind)) {
-        diagnostics.push({ message: `error: @exact ${directive.key} is not valid on ${reference.node.kind}`, start });
+      } else if (!validDirectiveLocation(directive.key as ExactAnnotationKey, reference)) {
+        diagnostics.push({ message: `error: @exact ${directive.key} is not valid on ${directiveLocationKind(reference)}`, start });
       } else if ((reference.node.kind === "InterfaceDeclaration" || reference.node.kind === "ClassDeclaration" || reference.node.kind === "TypeAliasDeclaration")
         && (directive.key === "key" || directive.key === "cleanup") && !directive.value) {
         diagnostics.push({ message: `error: type-level @exact ${directive.key} requires a member name`, start });
       }
       if ((directive.key === "keep" || directive.key === "consume")
-        && !validDirectiveLocation(directive.key, reference.node.kind)) {
-        diagnostics.push({ message: `error: @exact ${directive.key} is not valid on ${reference.node.kind}`, start });
+        && !validDirectiveLocation(directive.key, reference)) {
+        diagnostics.push({ message: `error: @exact ${directive.key} is not valid on ${directiveLocationKind(reference)}`, start });
       }
   }
 
@@ -326,7 +326,8 @@ function isStandardDisposable(type: ExpressionType | undefined): boolean {
     || type.unionMembers.some(isStandardDisposable);
 }
 
-function validDirectiveLocation(key: ExactAnnotationKey, kind: string): boolean {
+function validDirectiveLocation(key: ExactAnnotationKey, reference: NodeRef): boolean {
+  const kind = reference.node.kind;
   if (key === "client" || key === "server") return ["FunctionDeclaration", "MethodDeclaration", "MethodSignature", "FunctionType"].includes(kind);
   if (key === "keep") return [
     "VariableDeclaration", "Parameter", "PropertySignature", "PropertyDeclaration",
@@ -334,9 +335,21 @@ function validDirectiveLocation(key: ExactAnnotationKey, kind: string): boolean 
     "TypeReference", "ParenthesizedType", "TypeLiteral", "InterfaceDeclaration",
     "ClassDeclaration", "TypeAliasDeclaration"
   ].includes(kind);
-  if (key === "consume") return kind === "VariableDeclaration";
+  if (key === "consume") return kind === "VariableDeclaration" || isDirectCallArgument(reference);
   if (key === "key") return ["PropertySignature", "PropertyDeclaration", "MethodSignature", "MethodDeclaration", "InterfaceDeclaration", "ClassDeclaration", "TypeAliasDeclaration", "TypeLiteral", "VariableDeclaration"].includes(kind);
   if (key === "cleanup") return ["PropertySignature", "PropertyDeclaration", "MethodSignature", "MethodDeclaration", "InterfaceDeclaration", "ClassDeclaration", "TypeAliasDeclaration", "TypeLiteral", "VariableDeclaration", "FunctionType", "ParenthesizedType", "TypeReference"].includes(kind);
   if (key === "own") return ["VariableDeclaration", "TypeReference", "FunctionType", "ParenthesizedType", "TypeLiteral"].includes(kind);
   return ["Parameter", "PropertySignature", "PropertyDeclaration"].includes(kind);
+}
+
+function isDirectCallArgument(reference: NodeRef): boolean {
+  const call = reference.parent;
+  return !!call && (call.node.kind === "CallExpression" || call.node.kind === "NewExpression")
+    && call.arguments.some(argument => argument.node === reference.node);
+}
+
+function directiveLocationKind(reference: NodeRef): string {
+  return reference.node.kind === "Identifier" && reference.parent?.node.kind === "Parameter"
+    ? "Parameter"
+    : reference.node.kind;
 }

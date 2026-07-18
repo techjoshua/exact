@@ -195,6 +195,67 @@ describe("generic data policy IR", () => {
     )).toBe(true);
   });
 
+  it("authorizes only the call argument carrying consume=secret", () => {
+    const manifest = analyzeSource(`
+      /** @exact keep=secret */ const apiKey = "configured";
+      function createStripeClient(value: string) {}
+      function createSomeOtherClient(value: string) {}
+      createStripeClient(/** @exact consume=secret */ apiKey);
+      createSomeOtherClient(apiKey);
+      export {};
+    `, {
+      filename: fixture("call-site-consumption"),
+      packageType: "application",
+      target: "server"
+    });
+
+    expect(manifest.policy.secretConsumers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        authorization: "implicit-application-owner",
+        consumer: expect.objectContaining({ symbol: "createStripeClient" })
+      }),
+      expect.objectContaining({
+        authorization: "denied",
+        consumer: expect.objectContaining({ symbol: "createSomeOtherClient" }),
+        reason: "secret argument is missing caller-side @exact consume=secret"
+      })
+    ]));
+  });
+
+  it("allows a declaration-consumed secret binding at multiple call sites", () => {
+    const manifest = analyzeSource(`
+      /** @exact keep=secret */ const configuredApiKey = "configured";
+      /** @exact consume=secret */ const apiKey = configuredApiKey;
+      function createStripeClient(value: string) {}
+      function createSomeOtherClient(value: string) {}
+      createStripeClient(apiKey);
+      createSomeOtherClient(apiKey);
+      export {};
+    `, {
+      filename: fixture("declaration-consumption"),
+      packageType: "application",
+      target: "server"
+    });
+
+    expect(manifest.policy.secretConsumers).toHaveLength(2);
+    expect(manifest.policy.secretConsumers.every(
+      consumer => consumer.authorization === "implicit-application-owner"
+    )).toBe(true);
+  });
+
+  it("rejects consume=secret on a non-secret call argument", () => {
+    const manifest = analyzeSource(`
+      const publicValue = "public";
+      function connect(value: string) {}
+      connect(/** @exact consume=secret */ publicValue);
+      export {};
+    `, { filename: fixture("invalid-call-site-consumption") });
+
+    expect(manifest.diagnostics).toContain(
+      "error: @exact consume=secret call argument does not receive a secret-qualified value"
+    );
+  });
+
   it("omits server-kept exported declarations from client artifacts", () => {
     const source = `
       /** @exact keep=server */ export const internalConfiguration = { region: "west" };
