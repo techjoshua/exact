@@ -110,15 +110,16 @@ describe("@exact compiler annotations", () => {
     );
   });
 
-  it("recognizes caller-side secret consumption without annotating the receiver", () => {
+  it("recognizes secret consumption on the caller-owned variable", () => {
     clearExpressionProjectCache();
     const module = expressionModuleFor("consume-secret.ts", `
       declare function connect(value: string): void;
+      /** @exact consume=secret */
       declare const credential: string;
-      connect(/** @exact consume=secret */ credential);
+      connect(credential);
     `);
     const call = module.walk().calls().first()!;
-    expect(exactConsumesSecret(call.arguments[0]?.node.directives)).toBe(true);
+    expect(exactConsumesSecret(call.arguments[0]?.rootVariable?.directives)).toBe(true);
     expect(call.node.resolvedSignature?.parameters[0]?.directives).toEqual([]);
     expect(analyzeExactAnnotations(module).diagnostics).toEqual([]);
   });
@@ -130,7 +131,8 @@ describe("@exact compiler annotations", () => {
       /** @exact keep=public */ let unknown: string;
       /** @exact keep=server @exact keep=client */ let conflict: string;
       declare function connect(value: string): void;
-      connect(/** @exact consume=server */ unknown);
+      /** @exact consume=server */ const consumed = unknown;
+      connect(consumed);
     `);
     expect(analyzeExactAnnotations(module).diagnostics.map(diagnostic => diagnostic.message)).toEqual(expect.arrayContaining([
       "error: @exact keep requires one of server, client, or secret",

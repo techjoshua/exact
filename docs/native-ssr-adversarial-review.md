@@ -2,6 +2,13 @@
 
 Date: 2026-07-18
 
+> Historical note: the package-provenance, selector-grant, forwarding-analysis,
+> scoped-resolver, and runtime-audit findings below describe the discarded
+> Phase 6 implementation. The current design is intentionally smaller:
+> variable-level `consume=secret`, application ownership, a package-name
+> allowlist, and enforcement at client artifact and server-to-client transfer
+> boundaries. Those permissions are guardrails, not dependency sandboxing.
+
 ## Scope
 
 This review challenged the completed six-phase native SSR and server-component
@@ -193,7 +200,7 @@ These are not silent correctness promises:
 
 ## Conclusion
 
-No unresolved correctness, packaging, or production-lifecycle blocker was found
-within the stated adoption scope after the fixes above. Remaining limitations
-are explicit capability boundaries, fail-closed ecosystem gaps, optimizations,
-or previously documented non-goals.
+The renderer, context, component-package, and response-lifecycle findings remain
+useful. The secret-package hardening findings are historical and no longer
+describe the implementation; the simplified model deliberately removes their
+provenance, selector, integrity, transitive-flow, and scoped-resolver claims.

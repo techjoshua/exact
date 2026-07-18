@@ -1,4 +1,4 @@
-import { lstat, readdir, readFile, realpath, stat } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { isExactArtifactManifest, parseExactCompilerManifest } from "./manifest-parse.js";
@@ -36,17 +36,9 @@ import type {
 
 type ExactPackageJson = {
   name?: string;
-  version?: string;
   exact?: {
     manifests?: unknown;
   };
-};
-
-type ExactPackageLock = {
-  packages?: Record<string, {
-    version?: unknown;
-    integrity?: unknown;
-  }>;
 };
 
 /** Converts a compile result into the graph entry shape used by artifact tooling. */
@@ -67,7 +59,6 @@ export async function discoverExactPackageManifests(
 ): Promise<ExactDiscoveredPackageManifest[]> {
   const nodeModules = await nearestNodeModules(startDirectory);
   if (!nodeModules) return [];
-  const lock = await readPackageLock(path.dirname(nodeModules));
   const packageRoots: string[] = [];
   for (const entry of await readdir(nodeModules, { withFileTypes: true })) {
     if (entry.name.startsWith(".")) continue;
@@ -94,20 +85,7 @@ export async function discoverExactPackageManifests(
     }
     const manifests = packageJson.exact?.manifests;
     if (!Array.isArray(manifests) || !manifests.every(value => typeof value === "string")) continue;
-    const linked = (await lstat(packageRoot)).isSymbolicLink()
-      || path.resolve(await realpath(packageRoot)) !== path.resolve(packageRoot);
     const packageName = packageJson.name ?? path.basename(packageRoot);
-    const lockKey = path.relative(path.dirname(nodeModules), packageRoot).replaceAll("\\", "/");
-    const locked = lock?.packages?.[lockKey];
-    const lockedVersion = typeof locked?.version === "string" && locked.version ? locked.version : undefined;
-    const integrity = typeof locked?.integrity === "string" && locked.integrity ? locked.integrity : undefined;
-    const version = lockedVersion ?? packageJson.version;
-    const provenance = {
-      name: packageName,
-      ...(version ? { version } : {}),
-      ...(integrity ? { integrity } : {}),
-      source: linked ? "symlink" as const : "installed" as const
-    };
     for (const relative of manifests) {
       const manifestFile = path.resolve(packageRoot, relative);
       const relativeToPackage = path.relative(packageRoot, manifestFile);
@@ -120,30 +98,17 @@ export async function discoverExactPackageManifests(
       );
       const manifest = {
         ...parsed,
-        packageName,
-        packageProvenance: provenance
+        packageName
       };
       discovered.push({
         packageName,
         packageRoot,
         manifestFile,
-        provenance,
         manifest
       });
     }
   }
   return discovered;
-}
-
-async function readPackageLock(packageRoot: string): Promise<ExactPackageLock | undefined> {
-  try {
-    const value = JSON.parse(await readFile(path.join(packageRoot, "package-lock.json"), "utf8")) as ExactPackageLock;
-    return value && typeof value === "object" && value.packages && typeof value.packages === "object"
-      ? value
-      : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 async function isDirectory(candidate: string): Promise<boolean> {

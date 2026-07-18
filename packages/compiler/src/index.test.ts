@@ -1605,14 +1605,19 @@ describe("@exact/compiler", () => {
         rollupOptions: { input: entry }
       }
     });
-    const outputs = (Array.isArray(built) ? built : [built]).flatMap(result => result.output);
+    const outputs = (Array.isArray(built) ? built : [built]).flatMap(result =>
+      "output" in result ? result.output : []
+    );
     const javascript = outputs
       .filter(output => output.type === "chunk")
       .map(output => output.code)
       .join("\n");
     const css = outputs
-      .filter(output => output.type === "asset" && output.fileName.endsWith(".css"))
-      .map(output => String(output.source))
+      .flatMap(output =>
+        output.type === "asset" && output.fileName.endsWith(".css")
+          ? [String(output.source)]
+          : []
+      )
       .join("\n");
 
     expect(javascript).toContain("function Used");

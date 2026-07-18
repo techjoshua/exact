@@ -67,10 +67,6 @@ export function secretPath(value: unknown, path = "$", seen = new Set<object>())
 }
 
 export type {
-  ScopedSecretResolver,
-  SecretAccessGrant,
-  SecretAuditEvent,
-  SecretConsumerIdentity,
   SecretsPluginConfig,
   SecretProvider,
   SecretResolver

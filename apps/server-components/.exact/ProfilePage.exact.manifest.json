@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "filename": "apps\\server-components\\src\\ProfilePage.tsx",
   "dependencies": [],
   "assets": [],
@@ -294,13 +294,7 @@
         {
           "id": "xMCXb-KqVZOt6tNU56Vn5p1",
           "name": "this.task.server",
-          "resolved": false,
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
-          ]
+          "resolved": false
         },
         {
           "id": "xZf7v4p8gCUEtnMZ4Wdq9ps",
@@ -434,10 +428,6 @@
     "secretConsumers": []
   },
   "packageName": "@exact/sample-server-components",
-  "packageProvenance": {
-    "name": "@exact/sample-server-components",
-    "source": "application"
-  },
   "serverActions": {
     "x3JLureiZflgJmddVWOBoBF": {
       "id": "x3JLureiZflgJmddVWOBoBF",

@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "filename": "apps\\server-components\\src\\IdentityProvider.tsx",
   "dependencies": [],
   "assets": [],
@@ -1392,13 +1392,7 @@
         {
           "id": "xlPGka3NXUg0G4qXhbEcibi",
           "name": "this.state.roleNames.split(\",\").includes",
-          "resolved": false,
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
-          ]
+          "resolved": false
         },
         {
           "id": "xX0eQe8Oskv_phA85o3bJyW",
@@ -2056,10 +2050,6 @@
     "secretConsumers": []
   },
   "packageName": "@exact/sample-server-components",
-  "packageProvenance": {
-    "name": "@exact/sample-server-components",
-    "source": "application"
-  },
   "serverActions": {
     "xBSFY15Nxenh4yiPSTnHZOB": {
       "id": "xBSFY15Nxenh4yiPSTnHZOB",

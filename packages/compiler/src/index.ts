@@ -164,17 +164,36 @@ export {
 
 type CapabilityCompilationOptions = Pick<
   TransformOptions,
-  "packageType" | "packageName" | "packageVersion" | "packageIntegrity" | "capabilityPolicy"
+  "packageType" | "packageName" | "capabilityPolicy"
 >;
 
-function capabilityCompilationOptions(options: CapabilityCompilationOptions): CapabilityCompilationOptions {
+function capabilityCompilationOptions(
+  options: CapabilityCompilationOptions & Pick<TransformOptions, "pluginRegistry">
+): CapabilityCompilationOptions {
+  const configuredPackages = secretPackagesFromPluginRegistry(options.pluginRegistry);
+  const capabilityPolicy = configuredPackages && !options.capabilityPolicy?.secrets
+    ? {
+        ...options.capabilityPolicy,
+        secrets: { allowPackages: configuredPackages }
+      }
+    : options.capabilityPolicy;
   return {
     packageType: options.packageType,
     packageName: options.packageName,
-    packageVersion: options.packageVersion,
-    packageIntegrity: options.packageIntegrity,
-    capabilityPolicy: options.capabilityPolicy
+    capabilityPolicy
   };
+}
+
+function secretPackagesFromPluginRegistry(
+  registry: TransformOptions["pluginRegistry"]
+): readonly string[] | undefined {
+  const cacheKey = registry?.plugins["@exact/secrets"]?.cacheKey;
+  if (!cacheKey || typeof cacheKey !== "object" || Array.isArray(cacheKey)) return undefined;
+  const allowPackages = (cacheKey as Record<string, unknown>).allowPackages;
+  return Array.isArray(allowPackages)
+    && allowPackages.every(packageName => typeof packageName === "string" && packageName.length)
+    ? allowPackages
+    : undefined;
 }
 
 /** Analyzes generic dependencies and overlays eXact reactive provenance. */
@@ -221,8 +240,6 @@ export function transformSource(source: string, options: TransformOptions = {}):
     generatedValidation: options.generatedValidation,
     packageType: options.packageType,
     packageName: options.packageName,
-    packageVersion: options.packageVersion,
-    packageIntegrity: options.packageIntegrity,
     capabilityPolicy: options.capabilityPolicy
   });
   const pluginErrors = manifest.diagnostics.filter(diagnostic => /^error: \[@/.test(diagnostic));
@@ -473,6 +490,7 @@ function isSyntheticHelperDiagnostic(
 /** Analyzes source into the compiler manifest without emitting transformed code. */
 export function analyzeSource(source: string, options: TransformOptions = {}): ExactCompilerManifest {
   const normalized = preprocessPropPunning(source);
+  const policyOptions = { ...options, ...capabilityCompilationOptions(options) };
   const filename = options.filename ?? "input.tsx";
   const sourceFile = ts.createSourceFile(filename, normalized, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX);
   const importedManifests = validatedImportedManifests(options.importedManifests, options.pluginRegistry);
@@ -501,7 +519,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   );
   const rawHtmlRequirements = collectRawHtmlCapabilities(sourceFile, filename, options.target ?? "default");
   manifestDiagnostics.push(...moduleImports.diagnostics);
-  manifestDiagnostics.push(...rawHtmlCapabilityDiagnostics(rawHtmlRequirements, importedManifests, options));
+  manifestDiagnostics.push(...rawHtmlCapabilityDiagnostics(rawHtmlRequirements, importedManifests, policyOptions));
   for (const initializer of rawCallableEffects.callables.filter(callable => callable.kind === "module-initializer")) {
     if (initializer.effect === "mixed") manifestDiagnostics.push(`error: executable module initializer has indivisible browser and server effects (${effectDiagnosticPath(initializer, "mixed")})`);
     if (initializer.effect === "unknown") manifestDiagnostics.push(`error: executable module initializer depends on an opaque call or side-effect import (${effectDiagnosticPath(initializer, "unknown")})`);
@@ -602,11 +620,10 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
     expressionComponents,
     expressionTasks,
     expressionModule,
-    importedManifests,
-    options
+    policyOptions
   );
   manifestDiagnostics.push(...policyResult.diagnostics);
-  manifestDiagnostics.push(...importedSecretRequirementDiagnostics(importedManifests, options));
+  manifestDiagnostics.push(...importedSecretRequirementDiagnostics(importedManifests, policyOptions));
 
   assertUniqueIds("component", components.map(component => component.id));
   assertUniqueIds("symbol", symbols.map(symbol => symbol.id));
@@ -632,14 +649,6 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
     callables: [...callableEffects.callables],
     policy: policyResult.policy,
     ...(options.packageName ? { packageName: options.packageName } : {}),
-    ...(options.packageName ? {
-      packageProvenance: {
-        name: options.packageName,
-        ...(options.packageVersion ? { version: options.packageVersion } : {}),
-        ...(options.packageIntegrity ? { integrity: options.packageIntegrity } : {}),
-        source: options.packageType === "library" ? "library" : "application"
-      }
-    } : {}),
     ...(rawHtmlRequirements.length ? { requiredCapabilities: { rawHtml: rawHtmlRequirements } } : {}),
     serverActions,
     ...(pluginContributions.pluginRegistry ? { pluginRegistry: pluginContributions.pluginRegistry } : {}),
@@ -655,7 +664,7 @@ function importedSecretRequirementDiagnostics(
   options: TransformOptions
 ): string[] {
   if (options.packageType === "library") return [];
-  const grants = options.capabilityPolicy?.secrets?.grants ?? [];
+  const allowPackages = options.capabilityPolicy?.secrets?.allowPackages ?? [];
   const diagnostics = new Set<string>();
   for (const manifest of imported) {
     for (const use of manifest.policy.secretConsumers) {
@@ -668,26 +677,12 @@ function importedSecretRequirementDiagnostics(
         diagnostics.add(`error: dependency secret use at ${use.source}:${use.line}:${use.column} is retained in a client artifact`);
         continue;
       }
-      const provenance = use.consumer.provenance;
-      const grant = grants.find(candidate =>
-        candidate.package === use.consumer.package
-        && secretSelectorAllowed(use.selector, candidate.secrets)
-        && (!candidate.version || candidate.version === provenance?.version)
-        && (!candidate.integrity || candidate.integrity === provenance?.integrity)
-      );
-      if (!grant) diagnostics.add(
-        `error: dependency ${use.consumer.package} consumes ${use.selector ?? "a dynamic secret selector"} at ${use.source}:${use.line}:${use.column} without a matching application grant`
+      if (!allowPackages.includes(use.consumer.package)) diagnostics.add(
+        `error: dependency ${use.consumer.package} receives a secret at ${use.source}:${use.line}:${use.column} but is not in secrets.allowPackages`
       );
     }
   }
   return [...diagnostics].sort();
-}
-
-function secretSelectorAllowed(selector: string | undefined, selectors: readonly string[]): boolean {
-  if (!selector) return selectors.includes("*");
-  return selectors.some(pattern => pattern === selector
-    || pattern === "*"
-    || pattern.endsWith("*") && selector.startsWith(pattern.slice(0, -1)));
 }
 
 function rawHtmlCapabilityDiagnostics(

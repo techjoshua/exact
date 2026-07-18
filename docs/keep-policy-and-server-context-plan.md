@@ -395,26 +395,21 @@ declare function fetchWeather(
   authorization: string
 ): Promise<Weather>;
 
-const weather = await fetchWeather(
-  "Seattle",
-  /** @exact consume=secret */
-  apiKey
-);
+/** @exact consume=secret */
+const weatherApiKey = apiKey;
+const weather = await fetchWeather("Seattle", weatherApiKey);
 ```
 
-At the call site, the compiler knows the secret selector and resolved callee
-package. The caller must mark the secret argument with `consume=secret`.
+The caller marks the variable that intentionally receives the secret with
+`consume=secret`; individual calls using that variable do not repeat it.
 Application-owned callees are implicitly permitted. A dependency callee
-additionally requires an explicit package-and-selector grant. Receiving
+additionally requires its package name in `secrets.allowPackages`. Receiving
 functions do not annotate secret parameters and cannot authorize their own
-package. The marker records intentional use but neither grants package trust nor
-declassifies the value.
+package. The marker neither clears secret qualification nor authorizes client
+transfer.
 
-Available source and compiled package flow summaries describe whether ordinary
-parameters influence returns or observable output. The application compiler
-applies the actual argument policy to those summaries. Opaque code without a
-reliable declaration or flow summary fails closed. A package grant authorizes
-receipt, not disclosure or declassification.
+This is a direct receipt guard and audit record. It does not claim to verify the
+transitive behavior of opaque in-process JavaScript.
 
 ## Opaque And Third-Party Libraries
 
@@ -436,9 +431,9 @@ export function createWeatherClient(
 ```
 
 The wrapper and its returned client remain server-only. If the wrapper belongs
-to a dependency package, passing the secret also requires a package-and-selector
-grant. The manifest records the actual consumer symbol, parameter, package
-provenance, and source-to-consumer path.
+to a dependency package, its package name must be in `secrets.allowPackages`.
+The manifest records the directly receiving package, symbol, parameter, and
+source location.
 
 ## VNode And Observable-Output Enforcement
 
@@ -704,14 +699,13 @@ Exit criteria:
 - Direct, indirect, spread, capture, reactive, and conditional disclosures fail.
 - Safe sibling fields of objects containing secrets remain usable.
 
-### Phase 4: Caller-side package trust
+### Phase 4: Caller-side package permission
 
-- Parse and enforce `consume=secret` on caller argument expressions.
-- Apply secret argument policies to analyzed callables and imported flow
-  summaries.
-- Enforce package-and-selector grants when secrets cross dependency boundaries.
-- Record receiving symbols, parameters, package provenance, and call paths in
-  manifests and audit output.
+- Parse and enforce `consume=secret` on caller-owned variables.
+- Permit application-owned receipt without a self-permission.
+- Require directly receiving dependency names in `secrets.allowPackages`.
+- Record direct receiving packages, symbols, parameters, and source locations
+  in manifests and audit output.
 - Add server-only wrappers for initial platform integrations.
 
 Exit criteria:

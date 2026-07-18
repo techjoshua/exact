@@ -1,13 +1,10 @@
-import { createHash } from "node:crypto";
 import type {
   ExactCompilerManifest,
-  ExactPolicyAuditReport,
-  ExactSecretGrant
+  ExactPolicyAuditReport
 } from "./types.js";
 
 export type ExactPolicyAuditReportOptions = {
-  grants?: readonly ExactSecretGrant[];
-  redactSecretIdentifiers?: boolean;
+  allowPackages?: readonly string[];
   generatedAt?: Date;
 };
 
@@ -16,31 +13,18 @@ export function createExactPolicyAuditReport(
   manifests: readonly ExactCompilerManifest[],
   options: ExactPolicyAuditReportOptions = {}
 ): ExactPolicyAuditReport {
-  const grants = options.grants ?? [];
-  const usedSelectors = new Map<ExactSecretGrant, Set<string>>();
+  const allowPackages = options.allowPackages ?? [];
+  const usedPackages = new Set<string>();
   const secretUsage = manifests.flatMap(manifest => manifest.policy.secretConsumers.map(use => {
-    const grant = grants.find(candidate =>
-      candidate.package === use.consumer.package
-      && selectorAllowed(use.selector, candidate.secrets)
-      && (!candidate.version || candidate.version === use.consumer.provenance?.version)
-      && (!candidate.integrity || candidate.integrity === use.consumer.provenance?.integrity)
-    );
-    if (grant) {
-      const matched = usedSelectors.get(grant) ?? new Set<string>();
-      for (const selector of grant.secrets) {
-        if (selectorMatches(use.selector, selector)) matched.add(selector);
-      }
-      usedSelectors.set(grant, matched);
-    }
+    if (allowPackages.includes(use.consumer.package)) usedPackages.add(use.consumer.package);
     const status = use.authorization === "implicit-application-owner"
       ? "implicit" as const
       : use.authorization === "denied" ? "denied" as const
-        : grant ? "granted" as const
-          : use.authorization === "explicit-grant" ? "granted" as const
-            : "required" as const;
+        : allowPackages.includes(use.consumer.package) ? "granted" as const
+          : "required" as const;
     return {
-      selector: displaySelector(use.selector, options.redactSecretIdentifiers === true),
-      consumer: packageCoordinate(use.consumer.package, use.consumer.provenance?.version),
+      selector: use.selector ?? "<dynamic>",
+      consumer: use.consumer.package,
       symbol: use.consumer.symbol,
       parameter: use.consumer.parameter,
       status,
@@ -51,21 +35,13 @@ export function createExactPolicyAuditReport(
     || left.consumer.localeCompare(right.consumer)
     || left.source.localeCompare(right.source)
   );
-  const warnings = grants.flatMap(grant => {
-    const used = usedSelectors.get(grant);
-    if (!used) return [`Unused secret grant for ${grant.package}: ${grant.secrets.join(", ")}`];
-    return grant.secrets.flatMap(selector => {
-      if (!used.has(selector)) {
-        return [`Unused secret selector grant for ${grant.package}: ${selector}`];
-      }
-      return selector.includes("*")
-        ? [`Overly broad secret grant for ${grant.package}: ${selector}`]
-        : [];
-    });
-  }).sort();
+  const warnings = allowPackages
+    .filter(packageName => !usedPackages.has(packageName))
+    .map(packageName => `Unused secret package permission: ${packageName}`)
+    .sort();
   const errors = secretUsage
     .filter(use => use.status === "denied" || use.status === "required")
-    .map(use => `${use.consumer}#${use.symbol} requires ${use.selector} without a resolved grant`)
+    .map(use => `${use.consumer}#${use.symbol} receives ${use.selector} without package permission`)
     .sort();
   return {
     version: 1,
@@ -87,24 +63,4 @@ export function formatExactPolicyAuditReport(report: ExactPolicyAuditReport): st
   if (report.warnings.length) rows.push("", "Warnings", ...report.warnings);
   if (report.errors.length) rows.push("", "Errors", ...report.errors);
   return `${rows.join("\n")}\n`;
-}
-
-function selectorAllowed(selector: string | undefined, selectors: readonly string[]): boolean {
-  return selectors.some(pattern => selectorMatches(selector, pattern));
-}
-
-function selectorMatches(selector: string | undefined, pattern: string): boolean {
-  if (!selector) return pattern === "*";
-  return pattern === selector
-    || pattern === "*"
-    || pattern.endsWith("*") && selector.startsWith(pattern.slice(0, -1));
-}
-
-function displaySelector(selector: string | undefined, redact: boolean): string {
-  if (!selector) return "<dynamic>";
-  return redact ? `sha256:${createHash("sha256").update(selector).digest("hex")}` : selector;
-}
-
-function packageCoordinate(name: string, version: string | undefined): string {
-  return version ? `${name}@${version}` : name;
 }

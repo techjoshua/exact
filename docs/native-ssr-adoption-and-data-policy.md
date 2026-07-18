@@ -156,15 +156,16 @@ client-only, SSR, and server-component resolution modes.
 
 Generic secret flow now belongs to the semantic compiler policy graph.
 `@exact secrets.source`, `@exact secrets.sink`, and the plugin-local compiler
-extension have been removed. The core compiler records caller-side
-`consume=secret` receipt flows, applies the application-owner exception,
-enforces package-and-selector grants, retains package provenance, and produces
-aggregate machine-readable and text audit reports.
+extension have been removed. The core compiler prevents secret-qualified values
+from entering client artifacts or framework-controlled server-to-client
+transfer paths. A caller marks the variable that intentionally receives a
+secret with `consume=secret`. Application code may use its own secrets;
+dependencies must appear in the application's simple package allowlist.
 
 `@exact/secrets` provides runtime branding, providers, resolver lifecycle,
-output validation, and package-scoped `require()`/`optional()` access. It does
-not grant compiler authority. Runtime audit events can hash selectors and never
-contain secret values.
+direct application-owned `require()`/`optional()` access, and output
+validation. The package allowlist is a framework policy guard against
+accidental delivery, not a sandbox for arbitrary in-process JavaScript.
 
 ## Adoption Standard For Native SSR And Server Components
 
@@ -624,34 +625,25 @@ declare function requestWeather(
   apiKey: string
 ): Promise<Weather>;
 
+/** @exact keep=secret @exact consume=secret */
 const apiKey = secrets.require("WEATHER_API_KEY");
-const weather = await requestWeather(
-  "Seattle",
-  /** @exact consume=secret */
-  apiKey
-);
+const weather = await requestWeather("Seattle", apiKey);
 ```
 
-At the call site, the compiler knows the secret selector and the resolved
-callee package. `consume=secret` is an explicit caller-side acknowledgement on
-the argument expression; it is not part of the receiving function's
-declaration. Passing the marked value to application-owned code is implicitly
-permitted. Passing it across a dependency package boundary additionally
-requires a package-and-selector grant. The receiving package cannot authorize
-itself through an annotation.
+`consume=secret` is an explicit caller-side acknowledgement on the variable,
+not on each call expression and not on the receiving function's declaration.
+Passing that value to application-owned code is implicitly permitted. Passing
+it across a dependency boundary additionally requires the receiving package
+name in `secrets.allowPackages`. The receiving package cannot authorize itself
+through an annotation.
 
-The compiler rejects a secret argument without the call-site marker. The marker
-does not grant package trust, clear secret qualification, or authorize
-serialization, logging, client transfer, return-value disclosure, or transitive
-forwarding.
+The compiler rejects a secret argument sourced from a variable without the
+marker. The marker does not clear secret qualification or authorize
+serialization, logging, or client transfer.
 
-Argument policy does not blindly qualify every useful return value. For
-available source, the compiler analyzes whether a parameter actually flows to a
-return or observable output. Compiled package manifests carry parametric
-callable flow summaries that the application compiler applies to the actual
-arguments. For opaque code without a reliable declaration or flow summary,
-analysis fails closed. A package grant authorizes receipt of the secret; it
-does not itself declassify a returned or otherwise disclosed value.
+The package permission describes only the package directly receiving the
+value. Exact does not claim that this statically proves the behavior of opaque
+or arbitrary in-process JavaScript.
 
 ### Projection
 
@@ -1395,80 +1387,50 @@ async function createStripeClient(
 ) {}
 ```
 
-The consuming application grants the receiving package access to specific
-secret selectors:
+The consuming application permits packages by name:
 
 ```ts
 defineExactConfig({
   secrets: {
-    grants: [
-      {
-        package: "@acme/payments",
-        secrets: ["STRIPE_SECRET_KEY"]
-      }
-    ]
+    allowPackages: ["@acme/payments"]
   }
 });
 
+/** @exact keep=secret @exact consume=secret */
 const apiKey = secrets.require("STRIPE_SECRET_KEY");
-const stripe = createStripeClient(
-  /** @exact consume=secret */
-  apiKey
-);
+const stripe = createStripeClient(apiKey);
 ```
 
-The compiler derives the receiving symbol, parameter position, and call path;
-developers annotate the caller's argument rather than the receiving parameter,
-and do not assign a separate sink name. A package grant permits the selected
-secrets to cross callable boundaries into that resolved package. It does not
-authorize serialization, logging, client transfer, forwarding to another
-package, or declassification through a return value.
+The compiler derives the directly receiving package, symbol, and parameter
+position. Developers annotate the caller-owned variable rather than the
+receiving parameter or every use of the variable. Package permission does not
+authorize serialization, logging, or client transfer.
 
-Sensitive deployments may additionally pin package version and integrity.
+### Package permission boundary
 
-### No transitive trust
-
-Trust is not transitive. A trusted package cannot pass a secret to an ungranted
-package. Root application code cannot launder authority by wrapping an
-ungranted dependency call.
+Permission is checked where application or analyzed library code directly
+passes a secret-qualified variable to an imported package. It is deliberately
+not presented as transitive dependency security or opaque-code verification.
 
 The compiler should reject:
 
-- Passing a secret argument without an explicit caller-side
-  `consume=secret` marker.
-- Passing a secret to an ungranted dependency package.
-- Secret selectors outside a grant.
-- Dynamic secret names without an explicit allowed pattern.
-- Forwarding to an ungranted package.
+- Passing a secret argument from a variable without `consume=secret`.
+- Passing a secret to a dependency absent from `secrets.allowPackages`.
 - Secret sources or consumers retained in a client artifact.
-- Opaque flows that cannot be proven safe.
-- Package provenance or integrity that does not match the grant.
 
 ### Application ownership
 
-Application code means source owned by the package containing the active eXact
-configuration/application root. Ownership should use resolved real paths and
-nearest package boundaries.
+Application code is compilation with `packageType: "application"` and without
+an imported package boundary at the call. Imported dependencies, including
+workspace and linked packages, are permitted by their package name when they
+directly receive a secret.
 
-It does not automatically include:
+### Runtime access
 
-- `node_modules`.
-- Symlinked dependencies.
-- Other workspace packages.
-- Re-exported dependency code.
-- Generated code without retained source provenance.
-
-Organizations may explicitly trust first-party workspace packages, but reusable
-packages should preferably retain package-and-selector-specific grants.
-
-### Runtime capability scope
-
-Dependencies should not receive an unrestricted global secret resolver. The
-runtime should issue access scoped to the resolved package and allowed secret
-selectors.
-
-This provides least privilege for the eXact secrets system, while acknowledging
-that arbitrary in-process server JavaScript is not sandboxed.
+The runtime resolver belongs to application code and directly exposes
+`require()` and `optional()`. Dependencies receive only values the application
+chooses to pass. Exact does not claim to sandbox dependencies that can execute
+arbitrary server-side JavaScript.
 
 ## Policy And Secret Audit Output
 
@@ -1490,26 +1452,23 @@ policy-sensitive capabilities without granting them:
 }
 ```
 
-Normal compiler manifests also carry parametric callable flow summaries. They
-do not label parameters as secret: the application compiler applies the actual
-argument policies and records any secret flow discovered at its call sites.
+Normal compiler manifests record direct secret receipt sites. Receiving
+function parameters remain ordinary declarations.
 
 ### Compiler manifest
 
 Compiler output should record, without values:
 
-- Raw-HTML capability use, source location, package provenance, targets, and
+- Raw-HTML capability use, source location, package, targets, and
   resolved application grant.
 - Secret and protected data sources.
 - Context and state policies.
-- Consuming package name, version, and provenance.
+- Directly consuming package name.
 - Consuming symbol and parameter position.
 - Projection IDs.
 - Source locations.
-- Source-to-consumer call paths.
 - Execution target.
-- Required and resolved grants.
-- Dynamic or unresolved flow.
+- Required and resolved package permission.
 - Serialization and VNode enforcement.
 - Trusted extensions involved in output.
 
@@ -1530,18 +1489,9 @@ Illustrative shape:
       {
         "name": "STRIPE_SECRET_KEY",
         "package": "@acme/payments",
-        "packageVersion": "3.2.1",
         "symbol": "createStripeClient",
         "parameter": 0,
-        "authorization": "explicit-grant"
-      }
-    ],
-    "flows": [
-      {
-        "name": "STRIPE_SECRET_KEY",
-        "source": "src/server.ts:18",
-        "consumer": "@acme/payments#createStripeClient",
-        "path": ["createPaymentRuntime", "createStripeClient"]
+        "authorization": "explicit-package-allow"
       }
     ]
   }
@@ -1550,8 +1500,7 @@ Illustrative shape:
 
 Application-owned use records `authorization: "implicit-application-owner"`.
 
-No manifest or diagnostic may contain a secret value. Secret identifiers may be
-optionally redacted or hashed for artifacts that leave the build environment.
+No manifest or diagnostic may contain a secret value.
 
 ### Aggregated application report
 
@@ -1560,8 +1509,8 @@ The final build should produce a human-readable and machine-readable report:
 ```text
 Secret               Consumer                                      Status
 STRIPE_SECRET_KEY     application#createPaymentRuntime              implicit
-DATABASE_URL          @acme/database@2.4.0#createDatabaseClient     granted
-JWT_PRIVATE_KEY       @unknown/plugin@1.0.0#createSigner            denied
+DATABASE_URL          @acme/database#createDatabaseClient           granted
+JWT_PRIVATE_KEY       @unknown/plugin#createSigner                  denied
 ```
 
 It should also report non-secret audited capabilities separately:
@@ -1572,14 +1521,7 @@ raw-html      application#ArticlePreview       server/client  enabled
 raw-html      @acme/article-components@2.1.0   server/client  granted
 ```
 
-Denied use fails the build. Unused or overly broad grants produce warnings.
-
-### Runtime audit
-
-Optional runtime events may record secret identifier, package, consuming
-symbol, request ID, and operation without recording values. Runtime auditing
-must be configurable because of volume and because secret identifiers may
-themselves be sensitive operational metadata.
+Denied use fails the build. An unused package permission may produce a warning.
 
 ## Implementation Program
 
@@ -1686,7 +1628,7 @@ Exit criteria:
 
 Implementation status: complete (2026-07-18).
 
-Compiler manifest version 6 carries a generic policy graph with residency
+Compiler manifest version 7 carries a generic policy graph with residency
 and independent secrecy qualifications, declaration/state/context/return
 subjects, and distinct propagation, projection, transfer, and receipt flow
 kinds. The compiler rejects `keep=isomorphic`, infers safe isomorphic values,
@@ -1795,36 +1737,27 @@ Exit criteria:
 Status: complete.
 
 - Move secret flow from the prototype extension into the generic policy engine.
-- Add package/selector grants and the root application-owner exception.
-- Add source provenance, integrity pinning, non-transitive permission
-  enforcement, and scoped runtime resolver access.
-- Emit package requirements, compiler flow manifests, aggregate reports, and
-  optional redacted runtime events.
+- Put `consume=secret` on the caller-owned variable that intentionally receives
+  a secret.
+- Add a package-name allowlist and the root application-owner exception.
+- Prevent secret-qualified values from entering client artifacts or
+  framework-controlled server-to-client output.
+- Emit direct package receipt information and a small aggregate report without
+  secret values.
 
 Exit criteria:
 
 - Application secret use is ergonomic and audited.
-- Dependency use is least-privilege, explicit, non-transitive, and enforced at
-  build and runtime framework boundaries.
+- Direct dependency receipt is explicit and denied unless the package is
+  allowed.
+- The feature is documented as a transfer guard and audit aid, not dependency
+  sandboxing.
 
-The shipped manifest schema uses `packageProvenance` with package name,
-optional version, optional integrity, and a source classification. Installed
-package discovery overwrites self-declared identity with the package boundary
-it actually resolved. Installed-package integrity comes from the consuming
-application's package lock, never from a string declared by the dependency
-itself. Version and integrity are optional generally and become mandatory
-matches when a grant pins them; a pinned grant therefore fails closed when no
-authoritative lock entry is available. Symlinked packages retain a
-`symlink` provenance classification and do not inherit application ownership.
-
-Compiler manifests retain selector names because the application build needs
-them to resolve least-privilege grants. Reports may replace selector names with
-deterministic SHA-256 identifiers, and runtime audit events offer the same
-redaction. `createExactPolicyAuditReport()` is the versioned machine-readable
-report schema; `formatExactPolicyAuditReport()` is its deterministic text view.
-The report distinguishes wholly unused grants, unused selectors inside a used
-grant, and used wildcard selectors that authorize more than the observed
-requirements.
+Compiler manifest version 7 records the directly receiving package, symbol,
+parameter, source location, optional secret identifier, and whether receipt was
+application-owned, package-allowed, required by a library, or denied.
+`createExactPolicyAuditReport()` exposes the same small model and warns only
+about unused package permissions.
 
 ## Required Test Matrix
 
@@ -1868,12 +1801,9 @@ requirements.
 ### Package permissions
 
 - Root application implicit consumption.
-- Granted and denied dependency consumers.
-- Package version and integrity mismatch.
-- Workspace and symlink provenance.
-- Re-export and wrapper laundering attempts.
-- Dynamic secret selectors.
-- Unused and overly broad grants.
+- Allowed and denied direct dependency consumers.
+- Variable-level `consume=secret` placement.
+- Unused package permissions.
 - Package manifest aggregation.
 - Root application raw-HTML opt-in and dependency raw-HTML grants.
 - Raw-HTML requirements discovered from installed package manifests without
@@ -1950,12 +1880,13 @@ requirements.
   targets; `keep=isomorphic` is not a supported policy.
 - Secret consumption and server-to-isomorphic projection are different flow
   operations.
-- `consume=secret` belongs to the caller's argument expression; it records
-  intentional use but does not grant the receiving dependency package.
+- `consume=secret` belongs to the caller-owned variable that intentionally
+  receives the secret; calls using that variable do not repeat the annotation.
 - Generic projection cannot declassify secrets.
 - The root application may consume secrets without self-grants, but remains
   audited and subject to all disclosure checks.
-- Dependency secret access requires explicit, non-transitive grants.
+- Direct dependency receipt requires the package name in
+  `secrets.allowPackages`.
 - Generic policy belongs in the core compiler/runtime architecture.
 - `@exact/secrets` remains the optional provider, resolver, branding, and
   runtime integration package.
@@ -2010,25 +1941,16 @@ requirements.
 - Installed component packages advertise portable manifests through
   `package.json` `exact.manifests`; artifact compilation discovers them by
   default.
-- Secret package grants match a package plus exact or trailing-wildcard
-  selectors. Optional version and integrity fields pin the resolved package
-  provenance. Grants are evaluated independently at each receipt boundary and
-  never transitively.
-- Callable manifests retain parameter-to-argument forwarding summaries.
-  Application compilation follows those summaries through local helper chains
-  and requires a separate grant for every downstream package, preventing
-  aliases, re-exports, and wrappers from laundering a grant.
-- Distributable compiler manifests retain secret selector identifiers for grant
-  resolution. Aggregate reports and runtime audit events can deterministically
-  hash those identifiers with SHA-256.
-- Aggregate reports warn about unused grants, unused selectors within a used
-  grant, and wildcard selectors whose authorization is necessarily broader
-  than the observed calls.
+- Secret package permissions are package names only. They do not include
+  selector patterns, versions, integrity pins, or transitive dependency claims.
+- Callable manifests do not retain parameter-forwarding summaries for secret
+  authorization.
+- Aggregate reports list direct observed receipts and unused allowed packages.
 - Secret declassification is not supported. Secret-qualified values cannot be
   projected into isomorphic state; service results must be independently safe.
 - The aggregate policy report schema is `ExactPolicyAuditReport` version 1,
-  with normalized secret usage, warnings for unused grants, and errors for
-  unresolved requirements or denied use.
+  with direct secret usage, warnings for unused package permissions, and errors
+  for unresolved requirements or denied use.
 
 ## Open Design Questions
 

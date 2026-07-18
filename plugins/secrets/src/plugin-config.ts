@@ -8,7 +8,7 @@ const controller: ExactPluginConfigController<SecretsPluginConfig> = {
     return {
       providers: [environmentSecrets()],
       required: [],
-      grants: []
+      allowPackages: []
     };
   },
   structuralValidate: validateShape,
@@ -17,18 +17,15 @@ const controller: ExactPluginConfigController<SecretsPluginConfig> = {
     if (!config.providers.length) throw new Error("@exact/secrets requires at least one secret provider");
     const duplicate = config.required.find((value, index) => config.required.indexOf(value) !== index);
     if (duplicate) throw new Error(`@exact/secrets required secret ${duplicate} is listed more than once`);
+    const duplicatePackage = config.allowPackages.find((value, index) => config.allowPackages.indexOf(value) !== index);
+    if (duplicatePackage) throw new Error(`@exact/secrets package ${duplicatePackage} is allowed more than once`);
     return undefined;
   },
   compilerConfig(config) {
     return {
       cacheKey: {
-        policyVersion: 2,
-        grants: config.grants.map(grant => ({
-          package: grant.package,
-          secrets: [...grant.secrets],
-          ...(grant.version ? { version: grant.version } : {}),
-          ...(grant.integrity ? { integrity: grant.integrity } : {})
-        }))
+        policyVersion: 3,
+        allowPackages: [...config.allowPackages].sort()
       }
     };
   },
@@ -49,13 +46,8 @@ export default controller;
 function validateShape(value: SecretsPluginConfig): undefined {
   if (!value || typeof value !== "object" || !Array.isArray(value.providers) || !Array.isArray(value.required)
     || !value.required.every(name => typeof name === "string" && name.length)
-    || !Array.isArray(value.grants)
-    || !value.grants.every(grant => grant && typeof grant === "object"
-      && typeof grant.package === "string" && grant.package.length
-      && Array.isArray(grant.secrets) && grant.secrets.length > 0
-      && grant.secrets.every(name => typeof name === "string" && name.length)
-      && (grant.version === undefined || typeof grant.version === "string" && grant.version.length > 0)
-      && (grant.integrity === undefined || typeof grant.integrity === "string" && grant.integrity.length > 0))) {
+    || !Array.isArray(value.allowPackages)
+    || !value.allowPackages.every(packageName => typeof packageName === "string" && packageName.length)) {
     throw new Error("Invalid @exact/secrets configuration");
   }
   return undefined;

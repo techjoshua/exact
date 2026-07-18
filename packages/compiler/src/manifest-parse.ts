@@ -45,7 +45,6 @@ export function parseExactCompilerManifest(value: unknown, source = "manifest", 
     throw new Error(`Malformed eXact ${kind} callable summaries in ${source}`);
   }
   if ((manifest.packageName !== undefined && (typeof manifest.packageName !== "string" || !manifest.packageName))
-    || (manifest.packageProvenance !== undefined && !isExactPackageProvenance(manifest.packageProvenance))
     || (manifest.requiredCapabilities !== undefined && !isExactCapabilityRequirements(manifest.requiredCapabilities))) {
     throw new Error(`Malformed eXact ${kind} capability requirements in ${source}`);
   }
@@ -76,15 +75,6 @@ export function parseExactCompilerManifest(value: unknown, source = "manifest", 
   }
   validatePluginEnvelope(manifest, source, kind);
   return manifest as ExactCompilerManifest;
-}
-
-function isExactPackageProvenance(value: unknown): boolean {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const record = value as Record<string, unknown>;
-  return typeof record.name === "string" && record.name.length > 0
-    && (record.version === undefined || typeof record.version === "string")
-    && (record.integrity === undefined || typeof record.integrity === "string")
-    && ["application", "library", "installed", "workspace", "symlink"].includes(String(record.source));
 }
 
 function isExactPolicyManifest(value: unknown): value is ExactPolicyManifestIR {
@@ -133,21 +123,9 @@ function isExactSecretConsumption(value: unknown): boolean {
     && typeof record.caller === "string"
     && !!consumer && typeof consumer.package === "string" && typeof consumer.symbol === "string"
     && Number.isInteger(consumer.parameter) && (consumer.parameter as number) >= 0
-    && (consumer.provenance === undefined || isExactPackageProvenance(consumer.provenance))
     && ["client", "server"].includes(String(record.target))
-    && ["implicit-application-owner", "explicit-grant", "library-requirement", "denied"].includes(String(record.authorization))
-    && (record.grant === undefined || isExactSecretGrant(record.grant))
+    && ["implicit-application-owner", "explicit-package-allow", "library-requirement", "denied"].includes(String(record.authorization))
     && (record.reason === undefined || typeof record.reason === "string");
-}
-
-function isExactSecretGrant(value: unknown): boolean {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const record = value as Record<string, unknown>;
-  return typeof record.package === "string" && record.package.length > 0
-    && Array.isArray(record.secrets) && record.secrets.length > 0
-    && record.secrets.every(selector => typeof selector === "string" && selector.length > 0)
-    && (record.version === undefined || typeof record.version === "string" && record.version.length > 0)
-    && (record.integrity === undefined || typeof record.integrity === "string" && record.integrity.length > 0);
 }
 
 function isExactDataPolicy(value: unknown): boolean {
@@ -295,12 +273,6 @@ function isExactCallEdge(value: unknown): boolean {
       const record = binding as Record<string, unknown>;
       return Number.isInteger(record.parameterIndex) && (record.parameterIndex as number) >= 0
         && (record.source === "component" || record.source === "unknown" || record.source === "parameter" && Number.isInteger(record.sourceParameterIndex) && (record.sourceParameterIndex as number) >= 0);
-    }))
-    && (edge.argumentBindings === undefined || Array.isArray(edge.argumentBindings) && edge.argumentBindings.every(binding => {
-      if (!binding || typeof binding !== "object" || Array.isArray(binding)) return false;
-      const record = binding as Record<string, unknown>;
-      return Number.isInteger(record.parameterIndex) && (record.parameterIndex as number) >= 0
-        && Number.isInteger(record.sourceParameterIndex) && (record.sourceParameterIndex as number) >= 0;
     }));
 }
 

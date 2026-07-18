@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "filename": "src/App.tsx",
   "dependencies": [
     "client-runtime.ts",
@@ -5849,26 +5849,14 @@
         {
           "id": "xAXgKqri-UP2iTbyjUnY3wK",
           "name": "URL",
-          "resolved": false,
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
-          ]
+          "resolved": false
         },
         {
           "id": "xb_ysq779XHv4EGukidy6G1",
           "name": "draftFromUrl",
           "moduleSpecifier": "./model.js",
           "exportName": "draftFromUrl",
-          "resolved": true,
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
-          ]
+          "resolved": true
         },
         {
           "id": "xoH4cEVblkZ4DXKsGWmjuX-",
@@ -6110,12 +6098,6 @@
             {
               "parameterIndex": 1,
               "source": "unknown"
-            }
-          ],
-          "argumentBindings": [
-            {
-              "parameterIndex": 1,
-              "sourceParameterIndex": 0
             }
           ]
         }
@@ -6412,12 +6394,6 @@
               "parameterIndex": 1,
               "source": "unknown"
             }
-          ],
-          "argumentBindings": [
-            {
-              "parameterIndex": 1,
-              "sourceParameterIndex": 0
-            }
           ]
         }
       ],
@@ -6519,13 +6495,7 @@
           "name": "quoteProvider",
           "moduleSpecifier": "./providers/index.js",
           "exportName": "quoteProvider",
-          "resolved": true,
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
-          ]
+          "resolved": true
         }
       ],
       "artifactTargets": [
@@ -6556,24 +6526,12 @@
               "source": "parameter",
               "sourceParameterIndex": 0
             }
-          ],
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
           ]
         },
         {
           "id": "xvpmxRlltzOMqn0uVez060y",
           "name": "this.state.enabledFilters.includes",
-          "resolved": false,
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
-          ]
+          "resolved": false
         }
       ],
       "artifactTargets": [
@@ -6779,17 +6737,7 @@
         {
           "id": "xdDbaswkgtiR6A0MxGDlK6o",
           "name": "Promise",
-          "resolved": false,
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            },
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 1
-            }
-          ]
+          "resolved": false
         }
       ],
       "artifactTargets": [
@@ -6818,12 +6766,6 @@
             {
               "parameterIndex": 0,
               "source": "parameter",
-              "sourceParameterIndex": 0
-            }
-          ],
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
               "sourceParameterIndex": 0
             }
           ]
@@ -6876,13 +6818,7 @@
         {
           "id": "x2TcYb1YbV9vQDy5MGkqJBV",
           "name": "new Intl.NumberFormat(\"en-US\", { style: \"currency\", currency: \"USD\" }).format",
-          "resolved": false,
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
-          ]
+          "resolved": false
         },
         {
           "id": "xsMAAUOyqHHP0SoRF5ob_wJ",
@@ -6947,13 +6883,7 @@
         {
           "id": "x0uYRoXc5gfPrU-LUJKJYVC",
           "name": "this.state.loading.includes",
-          "resolved": false,
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
-          ]
+          "resolved": false
         }
       ],
       "artifactTargets": [
@@ -7551,12 +7481,6 @@
               "parameterIndex": 1,
               "source": "unknown"
             }
-          ],
-          "argumentBindings": [
-            {
-              "parameterIndex": 1,
-              "sourceParameterIndex": 0
-            }
           ]
         }
       ],
@@ -7621,13 +7545,7 @@
         {
           "id": "xNvAKz8TPTAIQGe1jXwPzd-",
           "name": "this.state.enabledFilters.includes",
-          "resolved": false,
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
-          ]
+          "resolved": false
         }
       ],
       "artifactTargets": [
@@ -7798,24 +7716,12 @@
         {
           "id": "xfNiClPYm4MDQApj3p1lwyQ",
           "name": "Promise.all",
-          "resolved": false,
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
-          ]
+          "resolved": false
         },
         {
           "id": "xtAylJTjNPippDTV3dDT7sh",
           "name": "this.state.model.configuredProviders.map",
-          "resolved": false,
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
-          ]
+          "resolved": false
         },
         {
           "id": "xUi_ZYv2FUwNmFMEJg3FtOt",
@@ -7960,24 +7866,12 @@
         {
           "id": "xLfaaJ7rXm8nyRiMzdO5n0g",
           "name": "Set",
-          "resolved": false,
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
-          ]
+          "resolved": false
         },
         {
           "id": "xvD-n9NytK6aFczTaEf5uGT",
           "name": "this.state.enabledFilters.filter",
-          "resolved": false,
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
-          ]
+          "resolved": false
         }
       ],
       "artifactTargets": [],
@@ -8189,35 +8083,17 @@
               "source": "parameter",
               "sourceParameterIndex": 0
             }
-          ],
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
           ]
         },
         {
           "id": "x7iv6DX8peEbkdB7l8-oOwJ",
           "name": "this.task",
-          "resolved": false,
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
-          ]
+          "resolved": false
         },
         {
           "id": "xkDfR8pwepDVa0Pg9pq60g7",
           "name": "this.task",
-          "resolved": false,
-          "argumentBindings": [
-            {
-              "parameterIndex": 1,
-              "sourceParameterIndex": 0
-            }
-          ]
+          "resolved": false
         },
         {
           "id": "xX2cHEVWvbB6ey2yhsJXQJB",
@@ -8472,24 +8348,12 @@
         {
           "id": "x56UqS18VBDWiOg2d1rA8RI",
           "name": "client.invokeAction(`quote.${id}`, request).then",
-          "resolved": false,
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
-          ]
+          "resolved": false
         },
         {
           "id": "xTBTcid2gICbjW-iCU76dSX",
           "name": "client.invokeAction",
-          "resolved": false,
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
-          ]
+          "resolved": false
         },
         {
           "id": "xWlNruToewqEkqHtfGiLa21",
@@ -8524,12 +8388,6 @@
             {
               "parameterIndex": 0,
               "source": "parameter",
-              "sourceParameterIndex": 0
-            }
-          ],
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
               "sourceParameterIndex": 0
             }
           ]
@@ -8735,12 +8593,6 @@
               "source": "parameter",
               "sourceParameterIndex": 1
             }
-          ],
-          "argumentBindings": [
-            {
-              "parameterIndex": 1,
-              "sourceParameterIndex": 1
-            }
           ]
         },
         {
@@ -8875,12 +8727,6 @@
               "parameterIndex": 0,
               "source": "unknown"
             }
-          ],
-          "argumentBindings": [
-            {
-              "parameterIndex": 1,
-              "sourceParameterIndex": 0
-            }
           ]
         }
       ],
@@ -8954,13 +8800,7 @@
         {
           "id": "x3tXsPmcELfzV7QnSubWm3l",
           "name": "setTimeout",
-          "resolved": false,
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
-          ]
+          "resolved": false
         },
         {
           "id": "xPojcSEg2qUCmhN8KU6xasN",
@@ -9122,24 +8962,12 @@
         {
           "id": "x0Qj6427KdwWDglb2eNQXv1",
           "name": "this.state.providers.filter",
-          "resolved": false,
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
-          ]
+          "resolved": false
         },
         {
           "id": "xjAWq5HJpAsAO8FlSjUU3HV",
           "name": "this.state.loading.filter",
-          "resolved": false,
-          "argumentBindings": [
-            {
-              "parameterIndex": 0,
-              "sourceParameterIndex": 0
-            }
-          ]
+          "resolved": false
         },
         {
           "id": "xJJazOK12qg2phnEa9IfmB1",

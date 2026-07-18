@@ -1,1 +1,1 @@
-export const exactCompilerManifestVersion = 6 as const;
+export const exactCompilerManifestVersion = 7 as const;

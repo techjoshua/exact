@@ -22,13 +22,13 @@ describe("@exact/secrets", () => {
     expect(deriveSecret("AUTH", key, value => `Bearer ${value}`).name).toBe("AUTH");
   });
 
-  it("records and implicitly authorizes application-owned secret consumption", () => {
+  it("records variable-level application-owned secret consumption", () => {
     const manifest = analyzeSource(`
       declare const secrets: { require(name: string): string };
-      /** @exact keep=secret */
+      /** @exact keep=secret @exact consume=secret */
       const apiKey = secrets.require("STRIPE_SECRET_KEY");
       function createClient(value: string) { return { ok: true }; }
-      export const client = createClient(/** @exact consume=secret */ apiKey);
+      export const client = createClient(apiKey);
     `, {
       filename: "app.ts",
       packageType: "application",
@@ -44,13 +44,13 @@ describe("@exact/secrets", () => {
     ]);
   });
 
-  it("requires a caller marker and an exact non-transitive dependency grant", () => {
+  it("requires a consumed variable and a package permission for dependencies", () => {
     const source = `
       import { createClient } from "@acme/payments";
       declare const secrets: { require(name: string): string };
-      /** @exact keep=secret */
+      /** @exact keep=secret @exact consume=secret */
       const apiKey = secrets.require("STRIPE_SECRET_KEY");
-      export const client = createClient(/** @exact consume=secret */ apiKey);
+      export const client = createClient(apiKey);
     `;
     const manifest = analyzeSource(`
       ${source}
@@ -61,57 +61,75 @@ describe("@exact/secrets", () => {
       target: "server",
       capabilityPolicy: {
         secrets: {
-          grants: [{ package: "@acme/payments", secrets: ["STRIPE_SECRET_KEY"] }]
+          allowPackages: ["@acme/payments"]
         }
       }
     });
-    expect(manifest.policy.secretConsumers[0]?.authorization).toBe("explicit-grant");
-    expect(manifest.diagnostics.some(value => value.includes("without a secret grant"))).toBe(false);
+    expect(manifest.policy.secretConsumers[0]?.authorization).toBe("explicit-package-allow");
+    expect(manifest.diagnostics.some(value => value.includes("allowPackages"))).toBe(false);
 
-    const denied = analyzeSource(source.replace("/** @exact consume=secret */", ""), {
+    const denied = analyzeSource(source.replace(" @exact consume=secret", ""), {
       filename: "app.ts",
       packageType: "application",
       packageName: "@acme/app",
       target: "server"
     });
-    expect(denied.diagnostics.some(value => value.includes("missing the caller-side"))).toBe(true);
+    expect(denied.diagnostics.some(value => value.includes("variable missing"))).toBe(true);
   });
 
-  it("enforces pinned dependency provenance at the compiler boundary", () => {
-    const dependency = analyzeSource("export function createClient(value: string) { return value; }", {
-      filename: "payments.ts",
-      packageType: "library",
-      packageName: "@acme/payments",
-      packageVersion: "3.2.1",
-      packageIntegrity: "sha512-correct"
-    });
+  it("uses the package allowlist from prepared secrets plugin configuration", () => {
     const manifest = analyzeSource(`
-      import { createClient as buildClient } from "@acme/payments";
-      /** @exact keep=secret */
+      import { createClient } from "@acme/payments";
+      /** @exact keep=secret @exact consume=secret */
       declare const apiKey: string;
-      export const client = buildClient(/** @exact consume=secret */ apiKey);
+      export const client = createClient(apiKey);
     `, {
       filename: "app.ts",
       packageType: "application",
       packageName: "@acme/app",
       target: "server",
-      importedManifests: [dependency],
-      capabilityPolicy: {
-        secrets: {
-          grants: [{
-            package: "@acme/payments",
-            secrets: ["*"],
-            version: "3.2.1",
-            integrity: "sha512-wrong"
-          }]
+      pluginRegistry: {
+        fingerprint: "secrets-config",
+        plugins: {
+          "@exact/secrets": {
+            packageName: "@exact/secrets",
+            version: "1.0.0",
+            protocolVersion: "1.0.0",
+            required: true,
+            cacheKey: {
+              policyVersion: 3,
+              allowPackages: ["@acme/payments"]
+            }
+          }
         }
       }
     });
-    expect(manifest.policy.secretConsumers[0]?.authorization).toBe("denied");
-    expect(manifest.diagnostics.some(value => value.includes("integrity"))).toBe(true);
+
+    expect(manifest.policy.secretConsumers[0]?.authorization).toBe("explicit-package-allow");
   });
 
-  it("rejects dependency wrapper laundering through parametric callable summaries", () => {
+  it("does not treat package permission as selector or provenance policy", () => {
+    const manifest = analyzeSource(`
+      import { createClient as buildClient } from "@acme/payments";
+      /** @exact keep=secret @exact consume=secret */
+      declare const apiKey: string;
+      export const client = buildClient(apiKey);
+    `, {
+      filename: "app.ts",
+      packageType: "application",
+      packageName: "@acme/app",
+      target: "server",
+      capabilityPolicy: {
+        secrets: {
+          allowPackages: ["@acme/payments"]
+        }
+      }
+    });
+    expect(manifest.policy.secretConsumers[0]?.authorization).toBe("explicit-package-allow");
+    expect(manifest.policy.secretConsumers[0]?.selector).toBeUndefined();
+  });
+
+  it("checks the package directly receiving the secret without claiming transitive analysis", () => {
     const dependency = analyzeSource(`
       import { charge } from "@untrusted/gateway";
       export function createClient(value: string) {
@@ -125,9 +143,9 @@ describe("@exact/secrets", () => {
     });
     const manifest = analyzeSource(`
       import { createClient as buildClient } from "@acme/payments";
-      /** @exact keep=secret */
+      /** @exact keep=secret @exact consume=secret */
       declare const apiKey: string;
-      export const client = buildClient(/** @exact consume=secret */ apiKey);
+      export const client = buildClient(apiKey);
     `, {
       filename: "app.ts",
       packageType: "application",
@@ -136,30 +154,29 @@ describe("@exact/secrets", () => {
       importedManifests: [dependency],
       capabilityPolicy: {
         secrets: {
-          grants: [{ package: "@acme/payments", secrets: ["*"] }]
+          allowPackages: ["@acme/payments"]
         }
       }
     });
-    expect(manifest.policy.secretConsumers).toEqual(expect.arrayContaining([
+    expect(manifest.policy.secretConsumers).toEqual([
       expect.objectContaining({
-        authorization: "denied",
-        consumer: expect.objectContaining({ package: "@untrusted/gateway", symbol: "charge" })
+        authorization: "explicit-package-allow",
+        consumer: expect.objectContaining({ package: "@acme/payments", symbol: "createClient" })
       })
-    ]));
-    expect(manifest.diagnostics.some(value => value.includes("forwards a secret"))).toBe(true);
+    ]);
   });
 
   it("tracks local secret forwarding by binding identity instead of shadowed names", () => {
     const manifest = analyzeSource(`
       import { send } from "@untrusted/gateway";
-      /** @exact keep=secret */
+      /** @exact keep=secret @exact consume=secret */
       declare const apiKey: string;
 
       function useLocally() {
         function forward(value: string) {
           return value;
         }
-        return forward(/** @exact consume=secret */ apiKey);
+        return forward(apiKey);
       }
 
       function forward(value: string) {
@@ -189,13 +206,51 @@ describe("@exact/secrets", () => {
     )).toBe(false);
   });
 
+  it("carries caller-owned consumption through ordinary application helper parameters", () => {
+    const manifest = analyzeSource(`
+      import { send } from "@acme/gateway";
+      /** @exact keep=secret @exact consume=secret */
+      declare const apiKey: string;
+
+      function createClient(value: string) {
+        return send(value);
+      }
+
+      export const client = createClient(apiKey);
+    `, {
+      filename: "app.ts",
+      packageType: "application",
+      packageName: "@acme/app",
+      target: "server",
+      capabilityPolicy: {
+        secrets: {
+          allowPackages: ["@acme/gateway"]
+        }
+      }
+    });
+
+    expect(manifest.policy.secretConsumers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        authorization: "implicit-application-owner",
+        consumer: expect.objectContaining({ package: "@acme/app", symbol: "createClient" })
+      }),
+      expect.objectContaining({
+        authorization: "explicit-package-allow",
+        consumer: expect.objectContaining({ package: "@acme/gateway", symbol: "send" })
+      })
+    ]));
+    expect(manifest.diagnostics).not.toEqual(expect.arrayContaining([
+      expect.stringContaining("variable missing")
+    ]));
+  });
+
   it("rejects secret consumers retained in client compilation", () => {
     const manifest = analyzeSource(`
       declare const secrets: { require(name: string): string };
-      /** @exact keep=secret */
+      /** @exact keep=secret @exact consume=secret */
       const apiKey = secrets.require("API_KEY");
       function connect(value: string) {}
-      connect(/** @exact consume=secret */ apiKey);
+      connect(apiKey);
     `, {
       filename: "client.ts",
       packageType: "application",
@@ -232,7 +287,7 @@ describe("@exact/secrets", () => {
         async load() { return {}; }
       }],
       required: ["DATABASE_URL"],
-      grants: []
+      allowPackages: []
     }, {
       applicationRoot: "/app",
       environment: "test",
@@ -242,29 +297,21 @@ describe("@exact/secrets", () => {
       .rejects.toThrow("Required secret DATABASE_URL is not configured");
   });
 
-  it("scopes runtime access and emits redacted audit events", async () => {
-    const events: Array<{ selector: string; authorization: string }> = [];
+  it("provides application code with a direct secret resolver", async () => {
     const resolver = createSecretResolver({
       providers: [{
         name: "fixture",
         async load() { return { API_KEY: secret("API_KEY", "credential") }; }
       }],
       required: [],
-      grants: [{ package: "@acme/payments", secrets: ["API_*"], version: "1.0.0" }],
-      audit: {
-        redactIdentifiers: true,
-        onEvent(event) { events.push(event); }
-      }
+      allowPackages: ["@acme/payments"]
     }, {
       applicationRoot: "/app",
       environment: "test",
       signal: new AbortController().signal
     });
     await resolver.initialize();
-    expect(resolver.scope({ package: "@acme/payments", version: "1.0.0" }).require("API_KEY").name).toBe("API_KEY");
-    expect(() => resolver.scope({ package: "@other/package" }).require("API_KEY")).toThrow("not permitted");
-    expect(events).toHaveLength(2);
-    expect(events[0]!.selector).not.toContain("API_KEY");
-    expect(events.map(event => event.authorization)).toEqual(["explicit-grant", "denied"]);
+    expect(resolver.require("API_KEY").name).toBe("API_KEY");
+    expect(resolver.optional("MISSING")).toBeUndefined();
   });
 });

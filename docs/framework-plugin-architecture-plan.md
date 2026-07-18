@@ -502,7 +502,7 @@ Plugin directives are namespaced:
 Unknown namespaced directives fail compilation even when no matching plugin is installed.
 
 Secret residency and consumption use core directives (`keep=secret` and
-caller-side `consume=secret`), not namespaced plugin directives. The secrets
+variable-level `consume=secret`), not namespaced plugin directives. The secrets
 package therefore does not install a compiler extension or define source/sink
 annotations.
 

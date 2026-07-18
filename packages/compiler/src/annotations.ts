@@ -334,12 +334,7 @@ function validDirectiveLocation(key: ExactAnnotationKey, kind: string): boolean 
     "TypeReference", "ParenthesizedType", "TypeLiteral", "InterfaceDeclaration",
     "ClassDeclaration", "TypeAliasDeclaration"
   ].includes(kind);
-  if (key === "consume") return ![
-    "SourceFile", "VariableDeclaration", "Parameter", "PropertySignature",
-    "PropertyDeclaration", "MethodSignature", "MethodDeclaration",
-    "FunctionDeclaration", "ClassDeclaration", "InterfaceDeclaration",
-    "TypeAliasDeclaration", "ImportDeclaration", "ExportDeclaration"
-  ].includes(kind);
+  if (key === "consume") return kind === "VariableDeclaration";
   if (key === "key") return ["PropertySignature", "PropertyDeclaration", "MethodSignature", "MethodDeclaration", "InterfaceDeclaration", "ClassDeclaration", "TypeAliasDeclaration", "TypeLiteral", "VariableDeclaration"].includes(kind);
   if (key === "cleanup") return ["PropertySignature", "PropertyDeclaration", "MethodSignature", "MethodDeclaration", "InterfaceDeclaration", "ClassDeclaration", "TypeAliasDeclaration", "TypeLiteral", "VariableDeclaration", "FunctionType", "ParenthesizedType", "TypeReference"].includes(kind);
   if (key === "own") return ["VariableDeclaration", "TypeReference", "FunctionType", "ParenthesizedType", "TypeLiteral"].includes(kind);

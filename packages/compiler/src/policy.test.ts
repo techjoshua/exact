@@ -18,7 +18,7 @@ describe("generic data policy IR", () => {
       }
     `, { filename: fixture("manifest") });
 
-    expect(manifest.version).toBe(6);
+    expect(manifest.version).toBe(7);
     expect(manifest.policy.subjects).toEqual(expect.arrayContaining([
       expect.objectContaining({
         kind: "state",

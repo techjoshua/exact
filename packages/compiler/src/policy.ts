@@ -38,6 +38,7 @@ type PolicyRecord = Readonly<{
   policy: ExactDataPolicyIR;
   subjectId: string;
   selector?: string;
+  consumed?: boolean;
 }>;
 
 type StatePolicyRecord = PolicyRecord & Readonly<{
@@ -111,7 +112,12 @@ export function analyzeExactPolicyMetadata(
       } : {})
     });
     subjects.push(subject);
-    const record = { policy: subject.policy, subjectId: subject.id, ...(selector ? { selector } : {}) };
+    const record = {
+      policy: subject.policy,
+      subjectId: subject.id,
+      ...(selector ? { selector } : {}),
+      ...(exactConsumesSecret(variable.directives) ? { consumed: true } : {})
+    };
     declarationPolicies.set(variable.id, record);
     namedDeclarationPolicies.set(variable.name, record);
     const declaration = module.walk().ofKind("VariableDeclaration").first(reference =>
@@ -256,6 +262,11 @@ export function analyzeExactPolicyMetadata(
     const variable = localVariables.find(candidate => candidate.id === id);
     if (variable) namedDeclarationPolicies.set(variable.name, record);
   }
+  for (const variable of localVariables) {
+    if (exactConsumesSecret(variable.directives) && !declarationPolicies.get(variable.id)?.policy.secret) {
+      diagnostics.add(`error: @exact consume=secret variable ${variable.name} does not receive a secret-qualified value`);
+    }
+  }
   return Object.freeze({
     subjects: Object.freeze(sortSubjects(subjects)),
     declarationPolicies,
@@ -303,8 +314,11 @@ function propagateSecretCallParameters(
         if (!selectors) selectorsByVariable.set(parameter.id, selectors = new Set());
         for (const input of inputs) selectors.add(input.record.selector ?? "<dynamic>");
         const selector = selectors.size === 1 && !selectors.has("<dynamic>") ? [...selectors][0] : undefined;
+        const consumed = inputs.every(input => input.record.consumed === true);
         const existing = policies.get(parameter.id);
-        if (existing?.policy.secret && existing.selector === selector) return;
+        if (existing?.policy.secret
+          && existing.selector === selector
+          && (existing.consumed === true) === consumed) return;
         let subject = subjectByVariable.get(parameter.id);
         if (!subject) {
           subject = policySubject(module.filename, {
@@ -326,7 +340,8 @@ function propagateSecretCallParameters(
         const record = {
           policy: subject.policy,
           subjectId: subject.id,
-          ...(selector ? { selector } : {})
+          ...(selector ? { selector } : {}),
+          ...(consumed ? { consumed: true } : {})
         };
         policies.set(parameter.id, record);
         flows.push(policyFlow(module.filename, {
@@ -335,9 +350,9 @@ function propagateSecretCallParameters(
           to: subject.id,
           policy: subject.policy,
           boundary: "call",
-          authorized: exactConsumesSecret(argument.node.directives),
-          ...(!exactConsumesSecret(argument.node.directives)
-            ? { reason: "secret argument is missing the caller-side @exact consume=secret marker" }
+          authorized: consumed,
+          ...(!consumed
+            ? { reason: "secret argument comes from a variable missing @exact consume=secret" }
             : {})
         }));
         changed = true;
@@ -504,8 +519,7 @@ export function createExactPolicyManifest(
   componentPlan: ExpressionComponentPlan,
   tasks: ExpressionTaskPlan,
   module: BoundModule,
-  importedManifests: readonly ExactCompilerManifest[],
-  options: Pick<TransformOptions, "target" | "packageType" | "packageName" | "packageVersion" | "packageIntegrity" | "capabilityPolicy">
+  options: Pick<TransformOptions, "target" | "packageType" | "packageName" | "capabilityPolicy">
 ): ExactPolicyManifestResult {
   const componentIds = new Map(components.map(component => [component.name, component.id]));
   const stateComponentBySubject = new Map(metadata.statePolicies.map(record => [record.subjectId, record.component]));
@@ -518,7 +532,7 @@ export function createExactPolicyManifest(
   const diagnostics = new Set<string>(metadata.diagnostics);
   const componentsByName = new Map(components.map(component => [component.name, component]));
   const subjectByState = new Map<string, ExactPolicySubjectIR>();
-  const secretCalls = collectSecretConsumptions(module, metadata, subjects, importedManifests, options);
+  const secretCalls = collectSecretConsumptions(module, metadata, subjects, options);
   flows.push(...secretCalls.flows);
   for (const diagnostic of secretCalls.diagnostics) diagnostics.add(diagnostic);
 
@@ -664,7 +678,12 @@ function propagateDeclarationPolicies(
       subjects.push(subject);
       const selectors = new Set(inputs.map(input => input.record.selector).filter((value): value is string => !!value));
       const selector = selectors.size === 1 ? [...selectors][0] : undefined;
-      const record = { policy: subject.policy, subjectId: subject.id, ...(selector ? { selector } : {}) };
+      const record = {
+        policy: subject.policy,
+        subjectId: subject.id,
+        ...(selector ? { selector } : {}),
+        ...(exactConsumesSecret(variable.directives) ? { consumed: true } : {})
+      };
       if (selector) subject.selector = selector;
       policies.set(variable.id, record);
       namedPolicies.set(variable.name, record);
@@ -684,8 +703,7 @@ function collectSecretConsumptions(
   module: BoundModule,
   metadata: ExactPolicyMetadata,
   subjects: ExactPolicySubjectIR[],
-  importedManifests: readonly ExactCompilerManifest[],
-  options: Pick<TransformOptions, "target" | "packageType" | "packageName" | "packageVersion" | "packageIntegrity" | "capabilityPolicy">
+  options: Pick<TransformOptions, "target" | "packageType" | "packageName" | "capabilityPolicy">
 ): {
   consumers: ExactSecretConsumptionIR[];
   flows: ExactPolicyFlowIR[];
@@ -694,7 +712,7 @@ function collectSecretConsumptions(
   const consumers: ExactSecretConsumptionIR[] = [];
   const flows: ExactPolicyFlowIR[] = [];
   const diagnostics = new Set<string>();
-  const grants = options.capabilityPolicy?.secrets?.grants ?? [];
+  const allowPackages = options.capabilityPolicy?.secrets?.allowPackages ?? [];
   const target = options.target === "client" ? "client" : "server";
 
   for (const call of module.walk().calls()) {
@@ -706,15 +724,6 @@ function collectSecretConsumptions(
       : call.target?.isMember()
         ? call.target.node.name ?? call.target.node.text ?? "<call>"
         : targetVariable?.name ?? call.target?.node.text ?? "<call>";
-    const provenance = moduleSpecifier
-      ? importedManifests.find(manifest => manifest.packageName === packageName)?.packageProvenance
-      : options.packageName ? {
-          name: options.packageName,
-          ...(options.packageVersion ? { version: options.packageVersion } : {}),
-          ...(options.packageIntegrity ? { integrity: options.packageIntegrity } : {}),
-          source: options.packageType === "library" ? "library" as const : "application" as const
-        } : undefined;
-
     call.arguments.forEach((argument, parameter) => {
       const inputs = policyInputs(argument, metadata.declarationPolicies, metadata.namedDeclarationPolicies)
         .filter(input => input.record.policy.secret);
@@ -722,20 +731,14 @@ function collectSecretConsumptions(
       materializePolicyInputSubjects(inputs, subjects);
       const selectors = new Set(inputs.map(input => input.record.selector).filter((value): value is string => !!value));
       const selector = selectors.size === 1 ? [...selectors][0] : undefined;
-      const marked = exactConsumesSecret(argument.node.directives);
+      const marked = inputs.every(input => input.record.consumed === true);
       const location = argument.node.span ?? call.node.span ?? { line: 0, column: 0 };
       const local = !moduleSpecifier;
-      const matchingGrant = local ? undefined : grants.find(grant =>
-        grant.package === packageName
-        && selectorAllowed(selector, grant.secrets)
-        && (!grant.version || grant.version === provenance?.version)
-        && (!grant.integrity || grant.integrity === provenance?.integrity)
-      );
       let authorization: ExactSecretConsumptionIR["authorization"];
       let reason: string | undefined;
       if (!marked) {
         authorization = "denied";
-        reason = "secret argument is missing the caller-side @exact consume=secret marker";
+        reason = "secret argument comes from a variable missing @exact consume=secret";
       } else if (target === "client") {
         authorization = "denied";
         reason = "secret consumption cannot be retained in a client artifact";
@@ -743,18 +746,11 @@ function collectSecretConsumptions(
         authorization = "library-requirement";
       } else if (local) {
         authorization = "implicit-application-owner";
-      } else if (matchingGrant) {
-        authorization = "explicit-grant";
+      } else if (allowPackages.includes(packageName)) {
+        authorization = "explicit-package-allow";
       } else {
         authorization = "denied";
-        const candidate = grants.find(grant => grant.package === packageName);
-        reason = !candidate
-          ? `dependency ${packageName} has no secret grant`
-          : !selectorAllowed(selector, candidate.secrets)
-            ? selector ? `secret selector ${selector} is outside the grant for ${packageName}` : `dynamic secret selector is outside the grant for ${packageName}`
-            : candidate.version && candidate.version !== provenance?.version
-              ? `package version for ${packageName} does not match its secret grant`
-              : `package integrity for ${packageName} does not match its secret grant`;
+        reason = `dependency ${packageName} is not in secrets.allowPackages`;
       }
       const id = stableId(module.filename, "secret-consumer", call.node.id, String(parameter));
       const consumer: ExactSecretConsumptionIR = {
@@ -768,12 +764,10 @@ function collectSecretConsumptions(
         consumer: {
           package: packageName,
           symbol,
-          parameter,
-          ...(provenance ? { provenance } : {})
+          parameter
         },
         target,
         authorization,
-        ...(matchingGrant ? { grant: { ...matchingGrant, secrets: [...matchingGrant.secrets] } } : {}),
         ...(reason ? { reason } : {})
       };
       consumers.push(consumer);
@@ -787,57 +781,6 @@ function collectSecretConsumptions(
         ...(reason ? { reason } : {})
       }));
       if (reason) diagnostics.add(`error: ${reason} at ${module.filename}:${location.line}:${location.column}`);
-
-      if (moduleSpecifier) {
-        const manifest = importedManifests.find(candidate => candidate.packageName === packageName);
-        for (const forwarded of forwardedSecretRecipients(manifest, symbol, parameter)) {
-          const forwardedPackage = packageNameFromSpecifier(forwarded.moduleSpecifier);
-          const forwardedProvenance = importedManifests
-            .find(candidate => candidate.packageName === forwardedPackage)?.packageProvenance;
-          const forwardedGrant = grants.find(grant =>
-            grant.package === forwardedPackage
-            && selectorAllowed(selector, grant.secrets)
-            && (!grant.version || grant.version === forwardedProvenance?.version)
-            && (!grant.integrity || grant.integrity === forwardedProvenance?.integrity)
-          );
-          const forwardedAuthorization = options.packageType === "library"
-            ? "library-requirement" as const
-            : forwardedGrant ? "explicit-grant" as const : "denied" as const;
-          const forwardedReason = forwardedAuthorization === "denied"
-            ? `dependency ${packageName} forwards a secret to ungranted package ${forwardedPackage}`
-            : undefined;
-          const forwardedId = stableId(id, "forwarded-secret", forwardedPackage, forwarded.symbol, String(forwarded.parameter));
-          consumers.push({
-            id: forwardedId,
-            ...(selector ? { selector } : {}),
-            dynamic: !selector,
-            source: module.filename,
-            line: location.line,
-            column: location.column,
-            caller: nearestCallableName(argument),
-            consumer: {
-              package: forwardedPackage,
-              symbol: forwarded.symbol,
-              parameter: forwarded.parameter,
-              ...(forwardedProvenance ? { provenance: forwardedProvenance } : {})
-            },
-            target,
-            authorization: forwardedAuthorization,
-            ...(forwardedGrant ? { grant: { ...forwardedGrant, secrets: [...forwardedGrant.secrets] } } : {}),
-            ...(forwardedReason ? { reason: forwardedReason } : {})
-          });
-          flows.push(policyFlow(module.filename, {
-            kind: "receipt",
-            from: [id],
-            to: forwardedId,
-            policy: dataPolicy("secret"),
-            boundary: "call",
-            authorized: forwardedAuthorization !== "denied",
-            ...(forwardedReason ? { reason: forwardedReason } : {})
-          }));
-          if (forwardedReason) diagnostics.add(`error: ${forwardedReason} at ${module.filename}:${location.line}:${location.column}`);
-        }
-      }
     });
   }
 
@@ -865,46 +808,6 @@ function importedCallSymbol(module: BoundModule, call: NodeRef, variable: Variab
   return variable.name;
 }
 
-function forwardedSecretRecipients(
-  manifest: ExactCompilerManifest | undefined,
-  exportName: string,
-  parameter: number
-): Array<{ moduleSpecifier: string; symbol: string; parameter: number }> {
-  if (!manifest) return [];
-  const entries = manifest.callables.filter(callable => callable.exportNames.includes(exportName));
-  const callableById = new Map(manifest.callables.map(callable => [callable.id, callable]));
-  const pending = entries.map(callable => ({ callable, parameter }));
-  const seen = new Set<string>();
-  const recipients = new Map<string, { moduleSpecifier: string; symbol: string; parameter: number }>();
-  while (pending.length) {
-    const current = pending.pop()!;
-    const key = `${current.callable.id}:${current.parameter}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    for (const edge of current.callable.calls) {
-      for (const binding of edge.argumentBindings ?? []) {
-        if (binding.sourceParameterIndex !== current.parameter) continue;
-        if (edge.moduleSpecifier) {
-          const recipient = {
-            moduleSpecifier: edge.moduleSpecifier,
-            symbol: edge.exportName ?? edge.name,
-            parameter: binding.parameterIndex
-          };
-          recipients.set(`${recipient.moduleSpecifier}:${recipient.symbol}:${recipient.parameter}`, recipient);
-        } else if (edge.targetId) {
-          const target = callableById.get(edge.targetId);
-          if (target) pending.push({ callable: target, parameter: binding.parameterIndex });
-        }
-      }
-    }
-  }
-  return [...recipients.values()].sort((left, right) =>
-    left.moduleSpecifier.localeCompare(right.moduleSpecifier)
-    || left.symbol.localeCompare(right.symbol)
-    || left.parameter - right.parameter
-  );
-}
-
 function secretSelectorForDeclaration(module: BoundModule, variable: Variable): string | undefined {
   const declaration = module.walk().ofKind("VariableDeclaration").first(reference =>
     reference.children().first()?.variable?.id === variable.id
@@ -918,13 +821,6 @@ function secretSelectorForDeclaration(module: BoundModule, variable: Variable): 
 function packageNameFromSpecifier(specifier: string): string {
   if (specifier.startsWith("@")) return specifier.split("/").slice(0, 2).join("/");
   return specifier.split("/")[0]!;
-}
-
-function selectorAllowed(selector: string | undefined, selectors: readonly string[]): boolean {
-  if (!selector) return selectors.includes("*");
-  return selectors.some(pattern => pattern === selector
-    || pattern === "*"
-    || pattern.endsWith("*") && selector.startsWith(pattern.slice(0, -1)));
 }
 
 function nearestCallableName(reference: NodeRef): string {

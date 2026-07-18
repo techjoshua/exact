@@ -115,7 +115,7 @@ describe("@exact/server", () => {
 
   it("rejects malformed compiler manifests before creating allowlists", () => {
     expect(() => createExactServerManifest({
-      version: 6,
+      version: 7,
       serverActions: {
         action: {
           id: 1,
@@ -125,12 +125,12 @@ describe("@exact/server", () => {
     } as any)).toThrow("Malformed eXact compiler manifest");
 
     expect(() => createExactServerManifest({
-      version: 6,
+      version: 7,
       components: [{ id: "Panel", placement: "browser" }]
     } as any)).toThrow("Malformed eXact compiler manifest");
 
     expect(() => createExactServerManifest({
-      version: 6,
+      version: 7,
       serverActions: {
         action: {
           id: "action",
@@ -143,7 +143,7 @@ describe("@exact/server", () => {
     } as any)).toThrow("Malformed eXact compiler manifest");
 
     expect(() => createExactServerManifest({
-      version: 6,
+      version: 7,
       boundaries: [{
         id: "panel",
         renderEdgeIndex: 0
@@ -151,7 +151,7 @@ describe("@exact/server", () => {
     } as any)).toThrow("Malformed eXact compiler manifest");
 
     expect(() => createExactServerManifest({
-      version: 6,
+      version: 7,
       serverActions: {
         action: {
           id: "action",
@@ -164,7 +164,7 @@ describe("@exact/server", () => {
 
   it("rejects malformed endpoint route maps", () => {
     expect(() => createExactServerManifest({
-      version: 6,
+      version: 7,
       components: []
     }, {
       endpoints: {
@@ -175,7 +175,7 @@ describe("@exact/server", () => {
     })).toThrow("Malformed eXact endpoint routes");
 
     expect(() => createExactServerManifest({
-      version: 6,
+      version: 7,
       components: []
     }, {
       endpoints: {
@@ -186,7 +186,7 @@ describe("@exact/server", () => {
 
   it("creates runtime allowlists from compiler manifests", () => {
     const manifest = createExactServerManifest({
-      version: 6,
+      version: 7,
       serverActions: {
         serverTask: {
           id: "serverTask",
@@ -304,7 +304,7 @@ describe("@exact/server", () => {
 
   it("omits empty endpoint route maps from hydration config", () => {
     const manifest = createExactServerManifest({
-      version: 6,
+      version: 7,
       components: [{ id: "Page", placement: "server" }]
     }, {
       endpoint: "/__exact",
@@ -323,7 +323,7 @@ describe("@exact/server", () => {
   it("merges runtime allowlists from multiple compiler manifests", () => {
     const manifest = createExactServerManifest([
       {
-        version: 6,
+        version: 7,
         serverActions: {
           pageTask: {
             id: "pageTask",
@@ -337,7 +337,7 @@ describe("@exact/server", () => {
         boundaries: [{ id: "page-widget", name: "Widget", componentId: "Widget", kind: "client-island" }]
       },
       {
-        version: 6,
+        version: 7,
         serverActions: {
           panelTask: { id: "panelTask", componentId: "Panel", taskId: "task-2", placement: "isomorphic" },
           clientOnly: { id: "clientOnly", componentId: "ClientOnly", taskId: "task-3", placement: "client" }
@@ -374,13 +374,13 @@ describe("@exact/server", () => {
   it("rejects conflicting action ids across compiler manifests", () => {
     expect(() => createExactServerManifest([
       {
-        version: 6,
+        version: 7,
         serverActions: {
           save: { id: "save", componentId: "Page", taskId: "task-1", placement: "server" }
         }
       },
       {
-        version: 6,
+        version: 7,
         serverActions: {
           save: { id: "save", componentId: "Panel", taskId: "task-2", placement: "server" }
         }
@@ -397,9 +397,9 @@ describe("@exact/server", () => {
       stateContract: { reads: [{ path: "project.id", kind: "read" as const, confidence: "exact" as const }] }
     };
     expect(() => createExactServerManifest([
-      { version: 6, serverActions: { save: base } },
+      { version: 7, serverActions: { save: base } },
       {
-        version: 6,
+        version: 7,
         serverActions: {
           save: {
             placement: "server",
@@ -416,11 +416,11 @@ describe("@exact/server", () => {
   it("rejects conflicting boundary ids across compiler manifests", () => {
     expect(() => createExactServerManifest([
       {
-        version: 6,
+        version: 7,
         boundaries: [{ id: "shared-boundary", componentId: "Page", kind: "client-island" }]
       },
       {
-        version: 6,
+        version: 7,
         boundaries: [{ id: "shared-boundary", componentId: "Panel", kind: "client-island" }]
       }
     ])).toThrow("Conflicting eXact boundary id in compiler manifests: shared-boundary");
@@ -429,11 +429,11 @@ describe("@exact/server", () => {
   it("keeps explicit app boundary overrides while rejecting accidental manifest collisions", () => {
     const manifest = createExactServerManifest([
       {
-        version: 6,
+        version: 7,
         boundaries: [{ id: "remote-widget", componentId: "Widget", kind: "client-island" }]
       },
       {
-        version: 6,
+        version: 7,
         boundaries: [{ id: "remote-widget", componentId: "OtherWidget", kind: "client-island" }]
       }
     ], {
@@ -450,7 +450,7 @@ describe("@exact/server", () => {
 
   it("merges app-provided action allowlists with compiler manifests", () => {
     const manifest = createExactServerManifest({
-      version: 6,
+      version: 7,
       components: [{ id: "Profile", placement: "isomorphic" }],
       boundaries: [
         { id: "profile-client", componentId: "ClientWidget", ownerComponentId: "Profile", kind: "client-island" }
@@ -471,7 +471,7 @@ describe("@exact/server", () => {
 
   it("preserves compiler boundary render edge metadata", () => {
     const manifest = createExactServerManifest({
-      version: 6,
+      version: 7,
       components: [{ id: "Page", placement: "server" }],
       boundaries: [{
         id: "page-widget",

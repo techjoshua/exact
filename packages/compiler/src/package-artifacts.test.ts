@@ -148,13 +148,6 @@ describe("installed eXact component package artifacts", () => {
     expect(discovered).toHaveLength(1);
     expect(discovered[0]!.packageName).toBe("@fixture/exact-components");
     expect(discovered[0]!.manifest.packageName).toBe("@fixture/exact-components");
-    expect(discovered[0]!.provenance).toEqual(expect.objectContaining({
-      name: "@fixture/exact-components",
-      version: "1.0.0",
-      integrity: "sha512-fixture-lock-integrity",
-      source: "installed"
-    }));
-    expect(discovered[0]!.manifest.packageProvenance).toEqual(discovered[0]!.provenance);
     const consumerSource = path.join(consumer, "app.tsx");
     await writeFile(consumerSource, `
       import { Widget } from "@fixture/exact-components";
@@ -182,7 +175,7 @@ describe("installed eXact component package artifacts", () => {
     expect(serverComponent).toEqual(ssr);
   }, 30_000);
 
-  it("preserves symlink provenance without granting application ownership", async () => {
+  it("discovers linked component packages by package name", async () => {
     const root = await mkdtemp(path.join(process.cwd(), ".exact-linked-package-"));
     onTestFinished(() => rm(root, { recursive: true, force: true }));
     const packageRoot = path.join(root, "workspace", "components");
@@ -215,12 +208,8 @@ describe("installed eXact component package artifacts", () => {
 
     const discovered = await discoverExactPackageManifests(consumer);
     expect(discovered).toHaveLength(1);
-    expect(discovered[0]!.provenance).toEqual({
-      name: "@fixture/linked-components",
-      version: "2.0.0",
-      source: "symlink"
-    });
-    expect(discovered[0]!.manifest.packageProvenance).toEqual(discovered[0]!.provenance);
+    expect(discovered[0]!.packageName).toBe("@fixture/linked-components");
+    expect(discovered[0]!.manifest.packageName).toBe("@fixture/linked-components");
   });
 });
 
