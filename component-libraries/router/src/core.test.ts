@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createMemoryLocationSource } from "./index.js";
-import { createExactRouter, generatePath, matchPath, matchRoutes, type ExactRouteDefinition } from "./core.js";
+import { createExactRouter, generatePath, matchPath, matchRoutes, redirect, type ExactRouteDefinition } from "./core.js";
 
 describe("renderer-neutral router core", () => {
   const routes = [
@@ -60,5 +60,106 @@ describe("renderer-neutral router core", () => {
     expect(router.getSnapshot().location.pathname).toBe("/users/1");
     router.dispose();
     expect(() => router.subscribe(() => {})).toThrow(/disposed/);
+  });
+
+  it("initializes loaders, adopts hydration data, and cancels superseded navigation", async () => {
+    let resolveSlow!: (value: unknown) => void;
+    const slow = new Promise(resolve => { resolveSlow = resolve; });
+    const dataRoutes = [{
+      id: "root",
+      children: [
+        { id: "home", index: true, loader: () => "home" },
+        { id: "slow", path: "slow", loader: async ({ signal }) => {
+          const value = await slow;
+          if (signal.aborted) throw signal.reason;
+          return value;
+        } },
+        { id: "fast", path: "fast", loader: () => "fast" }
+      ]
+    }] satisfies readonly ExactRouteDefinition[];
+    const router = createExactRouter({
+      source: createMemoryLocationSource("https://example.test/"),
+      routes: dataRoutes,
+      context: { tenant: "exact" }
+    });
+    expect(router.getSnapshot().initialized).toBe(false);
+    await router.initialize();
+    expect(router.getSnapshot()).toMatchObject({ initialized: true, loaderData: { home: "home" } });
+    const pending = router.navigate("/slow");
+    const winning = router.navigate("/fast");
+    resolveSlow("stale");
+    await Promise.all([pending, winning]);
+    expect(router.getSnapshot()).toMatchObject({
+      location: { pathname: "/fast" },
+      loaderData: { fast: "fast" }
+    });
+
+    const hydrated = createExactRouter({
+      source: createMemoryLocationSource("https://example.test/"),
+      routes: dataRoutes,
+      hydrationData: { loaderData: { home: "server" } }
+    });
+    await hydrated.initialize();
+    expect(hydrated.getSnapshot().loaderData).toEqual({ home: "server" });
+  });
+
+  it("runs actions, revalidates loaders, manages fetchers, and follows redirects", async () => {
+    let count = 0;
+    const dataRoutes = [{
+      id: "root",
+      children: [
+        {
+          id: "item",
+          path: "items/:id",
+          loader: ({ params }) => ({ id: params.id, count }),
+          action: async ({ request }) => {
+            count += Number(await request.text() || "1");
+            return { count };
+          }
+        },
+        { id: "old", path: "old", loader: () => redirect("/items/2", 301) }
+      ]
+    }] satisfies readonly ExactRouteDefinition[];
+    const router = createExactRouter({
+      source: createMemoryLocationSource("https://example.test/items/1"),
+      routes: dataRoutes
+    });
+    await router.initialize();
+    await router.submit("/items/1", { method: "POST", body: "2" });
+    expect(router.getSnapshot()).toMatchObject({
+      actionData: { item: { count: 2 } },
+      loaderData: { item: { id: "1", count: 2 } },
+      revalidation: "idle"
+    });
+    await router.fetch("item-2", "item", "/items/2");
+    expect(router.getSnapshot().fetchers.get("item-2")).toEqual({
+      state: "idle",
+      data: { id: "2", count: 2 }
+    });
+    await router.navigate("/old");
+    expect(router.getSnapshot()).toMatchObject({
+      historyAction: "REPLACE",
+      location: { pathname: "/items/2" }
+    });
+  });
+
+  it("associates loader errors with route ids and materializes lazy routes", async () => {
+    const failure = new Error("loader failed");
+    const dataRoutes = [{
+      id: "root",
+      children: [
+        { id: "bad", path: "bad", loader: () => { throw failure; } },
+        { id: "lazy", path: "lazy", lazy: async () => ({ loader: () => "lazy data", handle: "ready" }) }
+      ]
+    }] satisfies readonly ExactRouteDefinition[];
+    const router = createExactRouter({
+      source: createMemoryLocationSource("https://example.test/bad"),
+      routes: dataRoutes
+    });
+    await router.initialize();
+    expect(router.getSnapshot().errors).toEqual({ bad: failure });
+    await router.navigate("/lazy");
+    expect(router.getSnapshot().loaderData).toEqual({ lazy: "lazy data" });
+    expect((dataRoutes[0].children[1] as ExactRouteDefinition).handle).toBe("ready");
   });
 });

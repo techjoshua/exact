@@ -26,7 +26,42 @@ export type ExactRouteDefinition = {
   index?: boolean;
   caseSensitive?: boolean;
   children?: readonly ExactRouteDefinition[];
+  loader?: ExactRouteLoader;
+  action?: ExactRouteAction;
+  shouldRevalidate?: ExactShouldRevalidate;
+  lazy?: ExactLazyRoute;
+  handle?: unknown;
 };
+export type ExactDataFunctionArgs = Readonly<{
+  request: Request;
+  params: Readonly<Record<string, string>>;
+  context: unknown;
+  signal: AbortSignal;
+}>;
+export type ExactRouteLoader = (args: ExactDataFunctionArgs) => unknown | Promise<unknown>;
+export type ExactRouteAction = (args: ExactDataFunctionArgs) => unknown | Promise<unknown>;
+export type ExactShouldRevalidate = (args: Readonly<{
+  currentUrl: URL;
+  nextUrl: URL;
+  currentParams: Readonly<Record<string, string>>;
+  nextParams: Readonly<Record<string, string>>;
+  actionResult?: unknown;
+  defaultShouldRevalidate: boolean;
+}>) => boolean;
+export type ExactLazyRoute = () => Promise<Partial<Pick<
+  ExactRouteDefinition,
+  "loader" | "action" | "shouldRevalidate" | "handle"
+>>>;
+export type ExactHydrationData = Readonly<{
+  loaderData?: Readonly<Record<string, unknown>>;
+  actionData?: Readonly<Record<string, unknown>>;
+  errors?: Readonly<Record<string, unknown>>;
+}>;
+export type FetcherSnapshot = Readonly<{
+  state: "idle" | "loading" | "submitting";
+  data?: unknown;
+  error?: unknown;
+}>;
 export type NavigationBlocker = (transition: Readonly<{
   currentLocation: RouteLocation;
   nextLocation: RouteLocation;
@@ -51,10 +86,15 @@ export type ExactRouterSnapshot<Route extends ExactRouteDefinition = ExactRouteD
   params: Readonly<Record<string, string>>;
   initialized: boolean;
   navigation: Readonly<{
-    state: "idle" | "loading";
+    state: "idle" | "loading" | "submitting";
     location?: RouteLocation;
     transitionId: number;
   }>;
+  loaderData: Readonly<Record<string, unknown>>;
+  actionData: Readonly<Record<string, unknown>>;
+  errors: Readonly<Record<string, unknown>>;
+  revalidation: "idle" | "loading";
+  fetchers: ReadonlyMap<string, FetcherSnapshot>;
 }>;
 
 export interface ExactRouter<Route extends ExactRouteDefinition = ExactRouteDefinition> {
@@ -65,6 +105,10 @@ export interface ExactRouter<Route extends ExactRouteDefinition = ExactRouteDefi
   setRoutes(routes: readonly Route[]): void;
   createHref(to: string | URL): string;
   navigate(to: string | URL | number, options?: NavigationOptions): Promise<void>;
+  initialize(): Promise<void>;
+  submit(target: string | URL, init?: RequestInit): Promise<void>;
+  fetch(key: string, routeId: string, target: string | URL, init?: RequestInit): Promise<void>;
+  revalidate(): Promise<void>;
   block(blocker: NavigationBlocker): () => void;
   dispose(): void;
 }
@@ -74,6 +118,8 @@ export type CreateExactRouterOptions<Route extends ExactRouteDefinition> = {
   routes?: readonly Route[];
   basename?: string;
   mode?: RouterMode;
+  context?: unknown;
+  hydrationData?: ExactHydrationData;
 };
 
 export function createExactRouter<Route extends ExactRouteDefinition>(
@@ -87,8 +133,15 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
   let disposed = false;
   let sourceRevision = 0;
   let activeAbort: AbortController | undefined;
+  let loaderData: Record<string, unknown> = { ...(options.hydrationData?.loaderData ?? {}) };
+  let actionData: Record<string, unknown> = { ...(options.hydrationData?.actionData ?? {}) };
+  let errors: Record<string, unknown> = { ...(options.hydrationData?.errors ?? {}) };
+  let revalidation: "idle" | "loading" = "idle";
+  const fetchers = new Map<string, FetcherSnapshot>();
+  const hasInitialData = options.hydrationData !== undefined || !routes.some(hasDataWork);
   const listeners = new Set<() => void>();
   const blockers = new Set<NavigationBlocker>();
+  let initialized = hasInitialData;
   let snapshot = buildSnapshot("POP");
 
   const notify = () => listeners.forEach(listener => listener());
@@ -111,8 +164,13 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
       historyAction: action,
       matches,
       params: Object.freeze({ ...(matches.at(-1)?.params ?? {}) }),
-      initialized: true,
-      navigation: Object.freeze(navigation)
+      initialized,
+      navigation: Object.freeze(navigation),
+      loaderData: Object.freeze({ ...loaderData }),
+      actionData: Object.freeze({ ...actionData }),
+      errors: Object.freeze({ ...errors }),
+      revalidation,
+      fetchers: new Map(fetchers)
     });
   }
 
@@ -148,6 +206,18 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
     });
     notify();
     const revision = sourceRevision;
+    const nextMatches = matchRoutes(routes, nextLocation.pathname);
+    const result = nextMatches.some(match => hasOwnDataWork(match.route))
+      ? await runLoaders(target, nextMatches, activeAbort.signal)
+      : { data: {}, errors: {} };
+    if (result.redirect) {
+      if (currentTransition !== transitionId) return;
+      await navigate(result.redirect, { replace: true, status: result.status });
+      return;
+    }
+    if (currentTransition !== transitionId || activeAbort.signal.aborted) return;
+    loaderData = result.data;
+    errors = result.errors;
     if (options.replace) source.replace(target, options.state, options.status);
     else source.push(target, options.state, options.status);
     if (currentTransition !== transitionId || activeAbort.signal.aborted) return;
@@ -159,6 +229,151 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
         : Object.freeze({ ...snapshot, navigation: Object.freeze({ state: "idle", transitionId: currentTransition }) });
       notify();
     }
+  }
+
+  async function initialize(): Promise<void> {
+    assertActive();
+    if (initialized) return;
+    activeAbort?.abort();
+    activeAbort = new AbortController();
+    const result = await runLoaders(source.location(), snapshot.matches, activeAbort.signal);
+    if (result.redirect) {
+      await navigate(result.redirect, { replace: true, status: result.status });
+      initialized = true;
+      return;
+    }
+    loaderData = result.data;
+    errors = result.errors;
+    initialized = true;
+    snapshot = buildSnapshot(snapshot.historyAction);
+    notify();
+  }
+
+  async function submit(target: string | URL, init: RequestInit = {}): Promise<void> {
+    assertActive();
+    const url = resolveTarget(target, source.location(), basename, mode);
+    const matches = matchRoutes(routes, stripBasename(normalizePath(url.pathname), basename));
+    const actionMatch = [...matches].reverse().find(match => match.route.action || match.route.lazy);
+    if (!actionMatch) throw new Error(`No route action matches ${url.pathname}`);
+    activeAbort?.abort();
+    activeAbort = new AbortController();
+    const currentTransition = ++transitionId;
+    snapshot = Object.freeze({
+      ...snapshot,
+      navigation: Object.freeze({ state: "submitting", location: locationForUrl(url, init), transitionId: currentTransition })
+    });
+    notify();
+    try {
+      await materializeLazy(actionMatch.route);
+      const result = await actionMatch.route.action!({
+        request: new Request(url, init),
+        params: actionMatch.params,
+        context: options.context,
+        signal: activeAbort.signal
+      });
+      const redirect = redirectResult(result);
+      if (redirect) {
+        await navigate(redirect.location, { replace: true, status: redirect.status });
+        return;
+      }
+      actionData = { [actionMatch.id]: result };
+      await revalidate(result);
+    } catch (error) {
+      errors = { ...errors, [actionMatch.id]: error };
+      snapshot = buildSnapshot(snapshot.historyAction);
+      notify();
+    }
+  }
+
+  async function revalidate(actionResult?: unknown): Promise<void> {
+    assertActive();
+    revalidation = "loading";
+    snapshot = buildSnapshot(snapshot.historyAction);
+    notify();
+    activeAbort?.abort();
+    activeAbort = new AbortController();
+    const currentUrl = source.location();
+    const selected = snapshot.matches.filter(match => match.route.shouldRevalidate?.({
+      currentUrl,
+      nextUrl: currentUrl,
+      currentParams: match.params,
+      nextParams: match.params,
+      actionResult,
+      defaultShouldRevalidate: true
+    }) ?? true);
+    const result = await runLoaders(currentUrl, selected, activeAbort.signal, loaderData);
+    loaderData = result.data;
+    errors = result.errors;
+    revalidation = "idle";
+    snapshot = buildSnapshot(snapshot.historyAction);
+    notify();
+  }
+
+  async function fetch(key: string, routeId: string, target: string | URL, init: RequestInit = {}): Promise<void> {
+    assertActive();
+    const url = resolveTarget(target, source.location(), basename, mode);
+    const matches = matchRoutes(routes, stripBasename(normalizePath(url.pathname), basename));
+    const match = matches.find(candidate => candidate.id === routeId);
+    if (!match) throw new Error(`Fetcher route ${routeId} does not match ${url.pathname}`);
+    const mutation = !!init.method && !/^(?:GET|HEAD)$/i.test(init.method);
+    fetchers.set(key, Object.freeze({ state: mutation ? "submitting" : "loading" }));
+    snapshot = buildSnapshot(snapshot.historyAction);
+    notify();
+    const abort = new AbortController();
+    try {
+      await materializeLazy(match.route);
+      const handler = mutation ? match.route.action : match.route.loader;
+      if (!handler) throw new Error(`Route ${routeId} does not define a ${mutation ? "action" : "loader"}`);
+      const data = await handler({
+        request: new Request(url, init),
+        params: match.params,
+        context: options.context,
+        signal: abort.signal
+      });
+      fetchers.set(key, Object.freeze({ state: "idle", data }));
+      if (mutation) await revalidate(data);
+    } catch (error) {
+      fetchers.set(key, Object.freeze({ state: "idle", error }));
+    }
+    snapshot = buildSnapshot(snapshot.historyAction);
+    notify();
+  }
+
+  async function runLoaders(
+    url: URL,
+    matches: readonly RouteMatch<Route>[],
+    signal: AbortSignal,
+    initial: Readonly<Record<string, unknown>> = {}
+  ): Promise<{ data: Record<string, unknown>; errors: Record<string, unknown>; redirect?: string; status?: number }> {
+    const data = { ...initial };
+    const nextErrors: Record<string, unknown> = {};
+    let redirect: { location: string; status: number } | undefined;
+    await Promise.all(matches.map(async match => {
+      try {
+        await materializeLazy(match.route);
+        if (!match.route.loader) return;
+        const value = await match.route.loader({
+          request: new Request(url),
+          params: match.params,
+          context: options.context,
+          signal
+        });
+        const nextRedirect = redirectResult(value);
+        if (nextRedirect) redirect = nextRedirect;
+        else data[match.id] = value;
+      } catch (error) {
+        const nextRedirect = redirectResult(error);
+        if (nextRedirect) redirect = nextRedirect;
+        else nextErrors[match.id] = error;
+      }
+    }));
+    return { data, errors: nextErrors, ...(redirect ? { redirect: redirect.location, status: redirect.status } : {}) };
+  }
+
+  async function materializeLazy(route: Route): Promise<void> {
+    if (!route.lazy) return;
+    const values = await route.lazy();
+    Object.assign(route, values, { lazy: undefined });
   }
 
   function assertActive(): void {
@@ -181,6 +396,10 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
     },
     createHref: (to: string | URL) => hrefFor(to, source.location(), basename, mode),
     navigate,
+    initialize,
+    submit,
+    fetch,
+    revalidate: () => revalidate(),
     block(blocker: NavigationBlocker) {
       assertActive();
       blockers.add(blocker);
@@ -195,6 +414,34 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
       blockers.clear();
     }
   });
+}
+
+function hasDataWork(route: ExactRouteDefinition): boolean {
+  return !!(route.loader || route.lazy || route.children?.some(hasDataWork));
+}
+
+function hasOwnDataWork(route: ExactRouteDefinition): boolean {
+  return !!(route.loader || route.lazy);
+}
+
+function redirectResult(value: unknown): { location: string; status: number } | undefined {
+  if (!(value instanceof Response) || value.status < 300 || value.status >= 400) return undefined;
+  const location = value.headers.get("Location");
+  return location ? { location, status: value.status } : undefined;
+}
+
+function locationForUrl(url: URL, init: RequestInit): RouteLocation {
+  return Object.freeze({
+    pathname: normalizePath(url.pathname),
+    search: url.search,
+    hash: url.hash,
+    state: undefined,
+    key: `${String(init.method ?? "GET").toLowerCase()}-${createKey()}`
+  });
+}
+
+export function redirect(location: string, status = 302): Response {
+  return new Response(null, { status, headers: { Location: location } });
 }
 
 export function matchRoutes<Route extends ExactRouteDefinition>(
