@@ -3,7 +3,8 @@ export const exactServerComponentDescriptor = Symbol.for("@exact/server-componen
 
 export type ExactComponentDescriptorEntry = readonly [
   id: string,
-  implementation: (...args: any[]) => unknown
+  runtimeName: string,
+  implementation: (...args: any[]) => any
 ];
 
 export type ExactComponentDescriptor = readonly [
@@ -11,7 +12,7 @@ export type ExactComponentDescriptor = readonly [
   entries: readonly ExactComponentDescriptorEntry[]
 ];
 
-type DescribedComponent = ((...args: any[]) => unknown) & {
+type DescribedComponent = ((...args: any[]) => any) & {
   [exactClientComponentDescriptor]?: ExactComponentDescriptor;
   [exactServerComponentDescriptor]?: ExactComponentDescriptor;
 };
@@ -34,19 +35,19 @@ export function readExactComponentDescriptor(
 
 /** Composes descriptors imported by an application entrypoint into a runtime lookup. */
 export function composeExactComponentDescriptors(
-  components: readonly ((...args: any[]) => unknown)[],
+  components: readonly ((...args: any[]) => any)[],
   target: "client" | "server"
-): Record<string, (...args: any[]) => unknown> {
-  const output: Record<string, (...args: any[]) => unknown> = {};
+): Record<string, (...args: any[]) => any> {
+  const output: Record<string, (...args: any[]) => any> = {};
   for (const component of components) {
     const descriptor = readExactComponentDescriptor(component, target);
     if (!descriptor) continue;
-    for (const [id, implementation] of descriptor[1]) {
-      const previous = output[id];
+    for (const [, runtimeName, implementation] of descriptor[1]) {
+      const previous = output[runtimeName];
       if (previous && previous !== implementation) {
-        throw new Error(`Conflicting eXact component descriptor ${id}`);
+        throw new Error(`Conflicting eXact component descriptor ${runtimeName}`);
       }
-      output[id] = implementation;
+      output[runtimeName] = implementation;
     }
   }
   return output;

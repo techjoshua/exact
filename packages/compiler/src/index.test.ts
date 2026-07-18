@@ -1403,11 +1403,11 @@ describe("@exact/compiler", () => {
     const serverSymbol = result.manifest.symbols.find(symbol => symbol.role === "server-part")!;
 
     expect(client).toContain('Symbol.for("@exact/client-component-descriptor")');
-    expect(client).toContain(`["${clientSymbol.id}", ${clientSymbol.exportName}]`);
+    expect(client).toContain(`["${clientSymbol.id}", "${clientSymbol.generatedName}", ${clientSymbol.exportName}]`);
     expect(client).toMatch(/export const Panel: typeof __exactImplementation_Panel_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
     expect(server).toContain('Symbol.for("@exact/server-component-descriptor")');
     expect(server).toMatch(new RegExp(
-      `\\["${serverSymbol.id}", (?:${serverSymbol.localName}|__exactImplementation_Panel_\\d+)\\]`
+      `\\["${serverSymbol.id}", "${serverSymbol.generatedName}", (?:${serverSymbol.localName}|__exactImplementation_Panel_\\d+)\\]`
     ));
     expect(server).toMatch(/export const Panel: typeof __exactImplementation_Panel_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
     expect(client).not.toContain("parts:");
@@ -2303,7 +2303,8 @@ describe("@exact/compiler", () => {
     });
 
     expect(module).toContain("export const islands");
-    expect(module).toContain("Panel_ExactClient_1");
+    expect(module).toContain("composeExactComponentDescriptors as __exactComposeDescriptors");
+    expect(module).toContain("import { Panel as __exactComponent0 }");
     expect(module).toContain("export const registration");
     expect(module).toContain("islands: islands");
     expect(module).toContain("\"endpoint\": \"/__exact\"");
@@ -2780,7 +2781,7 @@ describe("@exact/compiler", () => {
     const server = await readFile(result.serverFile, "utf8");
 
     expect(client).toMatch(/export const ClientWidget: typeof __exactImplementation_ClientWidget_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
-    expect(client).toMatch(/\["[^"]+", __exactImplementation_ClientWidget_\d+\]/);
+    expect(client).toMatch(/\["[^"]+", "ClientWidget", __exactImplementation_ClientWidget_\d+\]/);
     expect(client).toContain("window.innerWidth");
     expect(server).toContain("__exactBoundary");
     expect(server).toContain("\"ClientWidget\"");

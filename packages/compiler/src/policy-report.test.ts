@@ -6,7 +6,7 @@ import {
 } from "./index.js";
 
 describe("policy audit reports", () => {
-  it("reports which packages receive which secret-qualified variables", () => {
+  it("reports which packages deliberately consume secret-qualified variables", () => {
     const dependency = analyzeSource(`
       import { consume } from "@exact/secrets";
       import { connect } from "@acme/database";
@@ -21,14 +21,14 @@ describe("policy audit reports", () => {
       target: "server"
     });
     const report = createExactPolicyAuditReport([dependency], {
-      allowPackages: ["@acme/database", "@unused/package"],
+      allowPackages: ["@acme/runtime", "@unused/package"],
       generatedAt: new Date("2026-01-01T00:00:00.000Z")
     });
 
     expect(report.generatedAt).toBe("2026-01-01T00:00:00.000Z");
     expect(report.secretUsage[0]).toEqual(expect.objectContaining({
       selector: "DATABASE_URL",
-      consumer: "@acme/database",
+      consumer: "@acme/runtime",
       status: "granted"
     }));
     expect(report.warnings).toEqual([

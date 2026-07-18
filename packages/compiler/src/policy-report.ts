@@ -41,7 +41,7 @@ export function createExactPolicyAuditReport(
     .sort();
   const errors = secretUsage
     .filter(use => use.status === "denied" || use.status === "required")
-    .map(use => `${use.consumer}#${use.symbol} receives ${use.selector} without package permission`)
+    .map(use => `${use.consumer}#${use.symbol} consumes ${use.selector} without package permission`)
     .sort();
   return {
     version: 1,

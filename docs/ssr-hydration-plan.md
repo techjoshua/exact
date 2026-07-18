@@ -62,7 +62,7 @@ server/request context model, native rendering safety, and data policy, see
 - Emits task diagnostics for inferred placement decisions, including state-writing tasks promoted to isomorphic SSR/hydration work and lifecycle tasks kept client-side.
 - Emits paired client/server artifacts and manifest files with `exactc --artifacts --serverComponents`.
 - Splits clear server/client boundaries for pure client components, imported client components, event handlers, refs, generated client islands, server slots, and server parts.
-- Provides bundler-neutral artifact plans, dev-server update state, package export maps, registry modules, generated hydration registration modules, and manifest readers.
+- Provides bundler-neutral artifact plans, dev-server update state, package export maps, component-attached descriptor composition, generated hydration registration modules, compatibility registry modules, and manifest readers.
 
 ## Marker Model
 

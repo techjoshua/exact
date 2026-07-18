@@ -20,7 +20,7 @@ export const ProfilePage: typeof __exactImplementation_ProfilePage_1 = /* @__PUR
     [__exactServerComponentDescriptor_1]: [
         1,
         [
-            ["xn4HBfS6VSk_X0fHSn2U6sr", __exactImplementation_ProfilePage_1]
+            ["xn4HBfS6VSk_X0fHSn2U6sr", "ProfilePage_ExactServer_1", __exactImplementation_ProfilePage_1]
         ]
     ]
 }))();

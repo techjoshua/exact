@@ -6,9 +6,10 @@ Date: 2026-07-18
 > scoped-resolver, and runtime-audit findings below describe the discarded
 > Phase 6 implementation. The current design is intentionally smaller:
 > transparent compiler-qualified values, derived-value propagation, explicit
-> `consume()` boundaries, application ownership, a package-name allowlist, and
-> enforcement at client artifact and server-to-client transfer boundaries. Those
-> permissions are guardrails, not dependency sandboxing.
+> `Secret<T>` call contracts, compiler-emitted type preservation, explicit
+> `consume()` boundaries, application ownership, a consuming-package allowlist,
+> and enforcement at client artifact and server-to-client transfer boundaries.
+> Those permissions are guardrails, not dependency sandboxing.
 
 ## Scope
 
@@ -119,9 +120,9 @@ Historical resolution:
 - The discarded implementation introduced scoped resolvers, selector grants,
   runtime audit events, and opaque non-serializable wrappers.
 - Those mechanisms are not part of the current design. The application owns
-  its resolver, dependencies receive only explicitly consumed ordinary values,
-  and the compiler tracks transparent secret-qualified values until
-  `consume()`.
+  its resolver, dependencies accept still-qualified values only through
+  explicit `Secret<T>` parameters, and the compiler tracks transparent
+  secret-qualified values until code in the trusted package calls `consume()`.
 
 ## Rechecked Boundaries
 
@@ -159,11 +160,12 @@ evidence:
 | 3. Generic policy/context transfer | Annotation and policy suites cover the closed `keep` vocabulary, inferred isomorphic transfer, server/secret rejection from client artifacts, alias/return/state/context propagation, and imported-manifest validation. The native server-component application verifies reconstructed brand/authorization methods and independent server-action authorization. |
 | 4. Component packages | Compiler artifact suites cover shared/dual emission, internal exports, conditional-target assertions, descriptors, aliases/defaults/cycles, minification, tree shaking, lazy chunks, and CSS Modules through a root barrel. The packed-package fixture installs one tarball and loads client, SSR, and server-component conditions with automatic manifest discovery. |
 | 5. Production certification | Request, server, SSR, hydration, and adapter suites cover commitment, redirects, headers, streaming failure, cancellation, budgets, authorization, CSRF, and cleanup. The shipping application builds production client and SSR bundles, while the production guide records deployment, cache, CSP, observability, and publication requirements. |
-| 6. Secret permissions/audit | Secret and policy-report suites cover transparent runtime values, compiler-derived propagation, explicit `consume()` boundaries, application ownership, direct package permissions, shadowed bindings, unused-permission warnings, and client-artifact rejection. |
+| 6. Secret permissions/audit | Secret and policy-report suites cover transparent runtime values, compiler-derived propagation and emitted `Secret<T>` qualification, explicit parameter contracts and `consume()` boundaries, application ownership, consuming-package permissions, shadowed bindings, unused-permission warnings, client-artifact rejection, VNode/error sinks, and bounded secret-controlled branch propagation. |
 
 Final repository gates on this reviewed state:
 
-- `npm.cmd test`: 1,027 package tests, 4 native server-component tests, and
+- `npm.cmd run test:packages`: 1,035 package tests, 4 native
+  server-component tests, and
   16 shipping tests passed.
 - `npm.cmd run typecheck`: the project-reference type check passed.
 - `npm.cmd run build:shipping`: the Vite client build transformed 48 modules
@@ -189,6 +191,8 @@ These are not silent correctness promises:
   for the ordinary value to trusted server code. Before that boundary, a
   secret-qualified value cannot be projected into isomorphic state or
   framework-owned output.
+- Passing an unconsumed secret through an explicit `Secret<T>` parameter
+  preserves qualification and is not itself a consumption or permission event.
 - Shared artifact extraction is intentionally whole-module in the initial
   implementation. Per-declaration partitioning is an optimization.
 - Nested document metadata collection and generalized URL policy plugins remain

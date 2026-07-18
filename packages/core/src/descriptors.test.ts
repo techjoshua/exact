@@ -6,25 +6,25 @@ import {
 } from "./descriptors.js";
 
 describe("component artifact descriptors", () => {
-  it("reads and composes positional descriptors by stable id", () => {
+  it("reads positional descriptors and composes their runtime lookup names", () => {
     const island = () => undefined;
     const component = Object.assign(() => undefined, {
-      [exactClientComponentDescriptor]: [1, [["island-id", island]]] as const
+      [exactClientComponentDescriptor]: [1, [["island-id", "Panel_ExactClient_1", island]]] as const
     });
 
     expect(readExactComponentDescriptor(component, "client")).toEqual([
       1,
-      [["island-id", island]]
+      [["island-id", "Panel_ExactClient_1", island]]
     ]);
     expect(composeExactComponentDescriptors([component], "client")).toEqual({
-      "island-id": island
+      "Panel_ExactClient_1": island
     });
     expect(composeExactComponentDescriptors([component], "server")).toEqual({});
   });
 
-  it("rejects conflicting implementations for one stable id", () => {
+  it("rejects conflicting implementations for one runtime lookup name", () => {
     const component = (implementation: () => void) => Object.assign(() => undefined, {
-      [exactClientComponentDescriptor]: [1, [["duplicate", implementation]]] as const
+      [exactClientComponentDescriptor]: [1, [["component-id", "duplicate", implementation]]] as const
     });
     expect(() => composeExactComponentDescriptors([
       component(() => undefined),

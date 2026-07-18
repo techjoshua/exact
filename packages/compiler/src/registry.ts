@@ -85,9 +85,7 @@ export function createExactHydrationRegistrationModule(
 ): string {
   const islandsExportName = options.islandsExportName ?? "exactClientIslands";
   const registrationExportName = options.registrationExportName ?? "exactHydrationRegistration";
-  const islandsModule = createClientIslandRegistryModule(graph.clientIslands, {
-    exportName: islandsExportName
-  });
+  const islandsModule = createClientDescriptorCompositionModule(graph, islandsExportName);
   const registration = omitUndefinedProperties({
     endpoint: options.endpoint,
     endpoints: options.endpoints,
@@ -99,6 +97,55 @@ export function createExactHydrationRegistrationModule(
     ...Object.entries(registration).map(([key, value]) => `  ${JSON.stringify(key)}: ${JSON.stringify(value)}`)
   ];
   return `${islandsModule}\nexport const ${registrationExportName} = {\n${registrationEntries.join(",\n")}\n};\n`;
+}
+
+function createClientDescriptorCompositionModule(
+  graph: ExactArtifactGraph,
+  exportName: string
+): string {
+  const moduleByComponent = new Map(
+    graph.clientIslands.map(entry => [entry.componentId, entry.module])
+  );
+  const components: Array<{ exportName: string; module: string }> = [];
+  for (const artifact of graph.artifacts) {
+    const rootSymbols = artifact.manifest.symbols
+      .filter(symbol =>
+        symbol.role === "root"
+        && symbol.kind === "component"
+        && symbol.componentId
+        && symbol.exportName
+        && moduleByComponent.has(symbol.componentId)
+      )
+      .sort((left, right) =>
+        Number(left.exportName === "default") - Number(right.exportName === "default")
+        || left.exportName!.localeCompare(right.exportName!)
+      );
+    const seen = new Set<string>();
+    for (const symbol of rootSymbols) {
+      if (seen.has(symbol.componentId!)) continue;
+      seen.add(symbol.componentId!);
+      components.push({
+        exportName: symbol.exportName!,
+        module: moduleByComponent.get(symbol.componentId!)!
+      });
+    }
+  }
+  const sorted = components.sort((left, right) =>
+    left.module.localeCompare(right.module) || left.exportName.localeCompare(right.exportName)
+  );
+  const imports = sorted.map((entry, index) =>
+    `import { ${entry.exportName} as __exactComponent${index} } from ${JSON.stringify(entry.module)};`
+  );
+  const values = sorted.map((_, index) => `  __exactComponent${index}`);
+  return [
+    'import { composeExactComponentDescriptors as __exactComposeDescriptors } from "@exact/core";',
+    ...imports,
+    "",
+    `export const ${exportName} = __exactComposeDescriptors([`,
+    ...values.map((value, index) => `${value}${index + 1 < values.length ? "," : ""}`),
+    '], "client");',
+    ""
+  ].join("\n");
 }
 
 function clientRegistrySymbol(symbol: ExactSymbolIR): symbol is ExactSymbolIR & { exportName: string } {

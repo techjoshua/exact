@@ -129,7 +129,7 @@ export const CalculatorWorkspace: typeof __exactImplementation_CalculatorWorkspa
     [__exactClientComponentDescriptor_1]: [
         1,
         [
-            ["xtl2nmuJwfYh3hb7t5AHrIT", __exactImplementation_CalculatorWorkspace_1]
+            ["xtl2nmuJwfYh3hb7t5AHrIT", "CalculatorWorkspace", __exactImplementation_CalculatorWorkspace_1]
         ]
     ]
 }))();

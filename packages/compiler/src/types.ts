@@ -132,14 +132,13 @@ export type ExactPolicyFlowIR = {
   from: string[];
   to: string;
   policy: ExactDataPolicyIR;
-  boundary?: "client-island" | "hydration" | "context" | "call" | "state";
+  boundary?: "client-island" | "hydration" | "context" | "call" | "state" | "vnode" | "error" | "log";
   authorized: boolean;
   reason?: string;
 };
 
 export type ExactSecretConsumptionAuthorization =
   | "implicit-application-owner"
-  | "explicit-package-allow"
   | "library-requirement"
   | "denied";
 

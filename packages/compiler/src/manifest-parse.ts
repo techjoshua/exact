@@ -103,7 +103,7 @@ function isExactPolicyManifest(value: unknown): value is ExactPolicyManifestIR {
         && Array.isArray(record.from) && record.from.every(source => typeof source === "string")
         && typeof record.to === "string" && record.to.length > 0
         && isExactDataPolicy(record.policy)
-        && (record.boundary === undefined || ["client-island", "hydration", "context", "call", "state"].includes(String(record.boundary)))
+        && (record.boundary === undefined || ["client-island", "hydration", "context", "call", "state", "vnode", "error", "log"].includes(String(record.boundary)))
         && typeof record.authorized === "boolean"
         && (record.reason === undefined || typeof record.reason === "string");
     })
@@ -124,7 +124,7 @@ function isExactSecretConsumption(value: unknown): boolean {
     && !!consumer && typeof consumer.package === "string" && typeof consumer.symbol === "string"
     && Number.isInteger(consumer.parameter) && (consumer.parameter as number) >= 0
     && ["client", "server"].includes(String(record.target))
-    && ["implicit-application-owner", "explicit-package-allow", "library-requirement", "denied"].includes(String(record.authorization))
+    && ["implicit-application-owner", "library-requirement", "denied"].includes(String(record.authorization))
     && (record.reason === undefined || typeof record.reason === "string");
 }
 

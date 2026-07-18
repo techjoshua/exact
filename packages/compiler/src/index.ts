@@ -99,8 +99,10 @@ import {
   analyzeExactPolicyMetadata,
   applyExactPolicyToCallables,
   applyExactPolicyToTasks,
+  createExactSecretQualificationPlan,
   createExactPolicyManifest
 } from "./policy.js";
+import { exactSecretQualificationTransformer } from "./secret-transform.js";
 
 export type * from "./types.js";
 export { preprocessPropPunning } from "./preprocess.js";
@@ -250,6 +252,7 @@ export function transformSource(source: string, options: TransformOptions = {}):
   const expressionWrites = analyzeExpressionWrites(expressionModule);
   const moduleImports = analyzeModuleImports(normalized, filename, options.assetRules);
   const policyMetadata = analyzeExactPolicyMetadata(expressionModule, importedManifests);
+  const secretQualifications = createExactSecretQualificationPlan(expressionModule, policyMetadata);
   const callableEffects = applyExactPolicyToCallables(
     policyMetadata,
     analyzeCallableEffects(
@@ -308,7 +311,7 @@ export function transformSource(source: string, options: TransformOptions = {}):
     manifest,
     target,
     options.preserveComponentHoisting ?? false
-  )]);
+  ), exactSecretQualificationTransformer(secretQualifications)]);
   const transformed = result.transformed[0]!;
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
   const printed = emitExpressionRewrite(
@@ -678,7 +681,7 @@ function importedSecretRequirementDiagnostics(
         continue;
       }
       if (!allowPackages.includes(use.consumer.package)) diagnostics.add(
-        `error: dependency ${use.consumer.package} receives a secret at ${use.source}:${use.line}:${use.column} but is not in secrets.allowPackages`
+        `error: dependency ${use.consumer.package} consumes a secret at ${use.source}:${use.line}:${use.column} but is not in secrets.allowPackages`
       );
     }
   }

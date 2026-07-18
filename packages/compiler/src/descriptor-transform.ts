@@ -175,6 +175,7 @@ function descriptorAttachment(
 ): ts.Expression {
   const entries = group.entries.map(entry => factory.createArrayLiteralExpression([
     factory.createStringLiteral(entry.symbol.id),
+    factory.createStringLiteral(entry.symbol.generatedName),
     entry.componentImplementation
       ? component
       : factory.createIdentifier(entry.symbol.localName)

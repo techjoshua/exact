@@ -390,8 +390,8 @@ Developers should not have to repeat it on every local derivative.
 Authenticated operations need a controlled way to consume credentials without
 automatically classifying their useful response data as secret.
 
-The caller owns the decision to pass a secret. The receiving function uses an
-ordinary signature:
+An unconsumed secret crosses a function boundary only through an explicitly
+`Secret<T>` parameter. Ordinary parameters require caller-side consumption:
 
 ```ts
 declare function fetchWeather(
@@ -407,9 +407,9 @@ const weather = await fetchWeather(
 ```
 
 The original binding remains secret-qualified. `consume()` returns an ordinary
-value and stops compiler tracking for that returned expression. Direct argument
-consumption lets the compiler associate the boundary with the receiving symbol
-and package.
+value and stops compiler tracking for that returned expression. The compiler
+associates consumption with the package and source location containing
+`consume()`.
 
 For broader local use, the caller may retain the ordinary result:
 
@@ -422,12 +422,13 @@ const forecast = await fetchForecast("Seattle", rawWeatherApiKey);
 
 That resulting binding is ordinary and no longer tracked. Exact audits the
 standalone boundary, but subsequent handling belongs to trusted application
-code. Prefer direct argument consumption for dependencies so the compiler can
-require the receiving package name in `secrets.allowPackages`. Receiving
-functions do not annotate secret parameters and cannot authorize themselves.
+code. A later dependency receiving the ordinary result does not require
+separate permission. A dependency that accepts and preserves a still-qualified
+value declares a `Secret<T>` parameter; if it calls `consume()`, its own package
+must be listed in `secrets.allowPackages`.
 
-This is a direct receipt guard and audit record. It does not claim to verify the
-transitive behavior of opaque in-process JavaScript.
+This is a consumption guard and audit record. It does not claim to verify the
+behavior of the ordinary value after tracking ends.
 
 Normal operations derive new secret-qualified values without helper APIs:
 
@@ -439,6 +440,11 @@ const authorization = `JWT-Bearer - ${key}:${clientSecret}`;
 
 `combo`, `key`, `clientSecret`, and `authorization` are all compiler-qualified
 secrets while remaining ordinary strings at runtime.
+
+Generated TypeScript preserves inferred qualification with compiler-owned
+assertions such as `authorization as Secret<string>`. The compiler emits such
+an assertion only after proving the expression secret-derived, allowing normal
+declaration generation to retain `Secret<T>` without runtime wrapping.
 
 ## Opaque And Third-Party Libraries
 
@@ -453,16 +459,17 @@ Example wrapper:
 ```ts
 /** @exact server */
 export function createWeatherClient(
-  apiKey: string
+  apiKey: Secret<string>
 ): WeatherClient {
-  return new ThirdPartyWeatherClient({ apiKey });
+  return new ThirdPartyWeatherClient({ apiKey: consume(apiKey) });
 }
 ```
 
 The wrapper and its returned client remain server-only. If the wrapper belongs
-to a dependency package, its package name must be in `secrets.allowPackages`.
-The manifest records the directly receiving package, symbol, parameter, and
-source location.
+to a dependency package, its package name must be in `secrets.allowPackages`
+because its code contains `consume()`. The manifest records that consuming
+package and source location; it does not authorize the later third-party
+receiver.
 
 ## VNode And Observable-Output Enforcement
 
@@ -503,6 +510,13 @@ The following emitters must reject secret-qualified values and server/client pol
 - Action and refresh responses.
 - State, text, prop, style, list, and replacement patches.
 - Error and logging serialization owned by eXact.
+
+Initial compiler enforcement is sink-directed rather than whole-program
+side-channel analysis. JSX children, attributes, spreads, and directly thrown
+values reject secret-qualified inputs. Variables written under a
+secret-controlled `if` or `switch` become secret-qualified, and branches that
+directly control JSX, thrown behavior, or console output fail compilation.
+Opaque I/O and values below `consume()` remain trusted-code responsibility.
 
 Compilation must fail loudly with a policy path and payload location. It must
 not silently omit a field.
@@ -732,16 +746,17 @@ Exit criteria:
 - Direct, indirect, spread, capture, reactive, and conditional disclosures fail.
 - Safe sibling fields of objects containing secrets remain usable.
 
-### Phase 4: Caller-side package permission
+### Phase 4: Consuming-code package permission
 
 - Recognize imported `consume()` calls as explicit boundaries that stop tracking
   their returned expression.
 - Propagate qualification through ordinary operations, method calls,
   destructuring, aliases, and templates.
-- Permit application-owned receipt without a self-permission.
-- Require directly receiving dependency names in `secrets.allowPackages`.
-- Record direct receiving packages, symbols, parameters, and source locations
-  in manifests and audit output.
+- Permit application-owned consumption without a self-permission.
+- Require dependency packages containing `consume()` in
+  `secrets.allowPackages`.
+- Record consuming packages and `consume()` source locations in manifests and
+  audit output.
 - Add server-only wrappers for initial platform integrations.
 
 Exit criteria:
@@ -834,9 +849,9 @@ The completed design must maintain these invariants:
 7. Unknown or broad data flow fails closed when it may include a protected value.
 8. Runtime guards supplement but do not replace compiler enforcement.
 9. Errors and diagnostics identify policy paths without including protected contents.
-10. Direct dependency package permissions are explicit, manifest-visible, and
-    auditable; caller-side consumption is explicit and receiving functions
-    cannot self-authorize.
+10. Dependency permission applies to packages containing `consume()`, is
+    manifest-visible and auditable, and does not separately authorize later
+    receivers of the ordinary value.
 
 ## Resolved Design Questions
 
@@ -855,6 +870,11 @@ The completed design must maintain these invariants:
   original binding or other derived values.
 - `Secret<T>` is a transparent compile-time qualification over the ordinary
   runtime `T`, not an opaque runtime wrapper.
+- An unconsumed secret may cross a call boundary only through an explicit
+  `Secret<T>` parameter. Compiler-generated `Secret<T>` assertions preserve
+  proven derived qualification in emitted TypeScript.
+- Initial implicit-flow analysis is bounded to secret-controlled branch writes
+  and branches directly governing JSX, thrown errors, or console output.
 
 ## Open Design Questions
 
@@ -864,7 +884,6 @@ The absence of `keep=isomorphic` and the rule that components cannot establish
 application/request lifetimes are resolved constraints, not open policy
 details.
 
-- How much implicit-flow analysis is required outside VNode and serialization control flow.
 - How generic return policies are expressed when a method can return either ordinary or secret-qualified data.
 - Whether server-kept VNode dependencies always create refreshable server boundaries or may remain static SSR-only output.
 

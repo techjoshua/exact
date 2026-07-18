@@ -79,6 +79,16 @@ export interface ExactPolicyManifestResult {
   readonly diagnostics: readonly string[];
 }
 
+export interface ExactSecretQualificationSite {
+  readonly start: number;
+  readonly end: number;
+  readonly underlyingType: string;
+}
+
+export interface ExactSecretQualificationPlan {
+  readonly sites: readonly ExactSecretQualificationSite[];
+}
+
 /** Collects explicit residency metadata before placement and transfer analysis. */
 export function analyzeExactPolicyMetadata(
   module: BoundModule,
@@ -265,6 +275,16 @@ export function analyzeExactPolicyMetadata(
     secretConsumeCallIds
   );
   propagateDeclarationPolicies(module, declarationPolicies, namedDeclarationPolicies, subjects, flows, diagnostics, secretConsumeCallIds);
+  propagateSecretControlWrites(
+    module,
+    declarationPolicies,
+    namedDeclarationPolicies,
+    subjects,
+    flows,
+    diagnostics,
+    secretConsumeCallIds
+  );
+  propagateDeclarationPolicies(module, declarationPolicies, namedDeclarationPolicies, subjects, flows, diagnostics, secretConsumeCallIds);
   for (const [id, record] of declarationPolicies) {
     const variable = localVariables.find(candidate => candidate.id === id);
     if (variable) namedDeclarationPolicies.set(variable.name, record);
@@ -292,6 +312,72 @@ export function analyzeExactPolicyMetadata(
     flows: Object.freeze([...flows].sort((left, right) => left.id.localeCompare(right.id))),
     diagnostics: Object.freeze([...diagnostics].sort())
   });
+}
+
+/**
+ * Identifies expressions whose compiler-inferred secret qualification would
+ * otherwise be erased by TypeScript's ordinary primitive/object result type.
+ * The emitted assertions are type-only; policy analysis remains authoritative.
+ */
+export function createExactSecretQualificationPlan(
+  module: BoundModule,
+  metadata: ExactPolicyMetadata
+): ExactSecretQualificationPlan {
+  const sites = new Map<string, ExactSecretQualificationSite>();
+  const qualify = (expression: NodeRef | undefined): void => {
+    const span = expression?.node.span;
+    if (!expression || !span || policyFromType(expression.type)?.secret) return;
+    const inputs = policyInputs(
+      expression,
+      metadata.declarationPolicies,
+      metadata.namedDeclarationPolicies,
+      metadata.secretConsumeCallIds
+    ).filter(input => input.record.policy.secret);
+    if (!inputs.length) return;
+    sites.set(`${span.start}:${span.end}`, {
+      start: span.start,
+      end: span.end,
+      underlyingType: expression.type?.display ?? "unknown"
+    });
+  };
+
+  const qualifiedBindings = new Set<string>();
+  for (const declaration of module.walk().ofKind("VariableDeclaration")) {
+    const binding = declaration.children().first();
+    const variable = binding?.variable;
+    const initializer = declaration.children().toArray().at(-1);
+    if (!variable || !initializer || binding?.node === initializer.node) continue;
+    if (!metadata.declarationPolicies.get(variable.id)?.policy.secret) continue;
+    if (binding.node.kind !== "Identifier") continue;
+    qualify(initializer);
+    if (initializer.node.span && sites.has(`${initializer.node.span.start}:${initializer.node.span.end}`)) {
+      qualifiedBindings.add(variable.id);
+    }
+  }
+
+  for (const fn of module.walk().functions()) {
+    if (!metadata.callablePolicies.get(fn.node.id)?.policy.secret) continue;
+    for (const statement of fn.descendants({ nestedFunctions: false }).ofKind("ReturnStatement")) {
+      const value = statement.children().toArray().at(-1);
+      if (value?.variable && qualifiedBindings.has(value.variable.id)) continue;
+      qualify(value);
+    }
+  }
+
+  for (const call of module.walk().calls()) {
+    if (metadata.secretConsumeCallIds.has(call.node.id)) continue;
+    call.arguments.forEach((argument, index) => {
+      if (!policyFromType(call.node.resolvedSignature?.parameters[index]?.type)?.secret) return;
+      if (argument.variable && qualifiedBindings.has(argument.variable.id)) return;
+      qualify(argument);
+    });
+  }
+
+  return {
+    sites: Object.freeze([...sites.values()].sort((left, right) =>
+      left.start - right.start || left.end - right.end
+    ))
+  };
 }
 
 function propagateSecretCallParameters(
@@ -326,6 +412,7 @@ function propagateSecretCallParameters(
           .filter(input => input.record.policy.secret);
         if (!inputs.length) return;
         materializePolicyInputSubjects(inputs, subjects);
+        if (policyFromType(parameter.type)?.secret) return;
         let selectors = selectorsByVariable.get(parameter.id);
         if (!selectors) selectorsByVariable.set(parameter.id, selectors = new Set());
         for (const input of inputs) selectors.add(input.record.selector ?? "<dynamic>");
@@ -364,7 +451,7 @@ function propagateSecretCallParameters(
           policy: subject.policy,
           boundary: "call",
           authorized: false,
-          reason: "secret argument must be passed through consume()"
+          reason: "secret argument requires an explicit Secret<T> parameter or consume()"
         }));
         changed = true;
       });
@@ -554,6 +641,9 @@ export function createExactPolicyManifest(
   const secretCalls = collectSecretConsumptions(module, metadata, subjects, options);
   flows.push(...secretCalls.flows);
   for (const diagnostic of secretCalls.diagnostics) diagnostics.add(diagnostic);
+  const outputSinks = collectSecretOutputSinks(filename, module, metadata, subjects);
+  flows.push(...outputSinks.flows);
+  for (const diagnostic of outputSinks.diagnostics) diagnostics.add(diagnostic);
 
   for (const record of metadata.statePolicies) {
     const component = componentsByName.get(record.component);
@@ -726,6 +816,164 @@ function propagateDeclarationPolicies(
   }
 }
 
+/**
+ * Applies bounded implicit-flow tracking. A branch controlled by a secret
+ * qualifies bindings written by that branch, allowing ordinary downstream
+ * sink analysis to reject their use in framework output.
+ */
+function propagateSecretControlWrites(
+  module: BoundModule,
+  policies: Map<string, PolicyRecord>,
+  namedPolicies: Map<string, PolicyRecord>,
+  subjects: ExactPolicySubjectIR[],
+  flows: ExactPolicyFlowIR[],
+  diagnostics: Set<string>,
+  secretConsumeCallIds: ReadonlySet<string>
+): void {
+  const branches = module.walk().where(reference =>
+    reference.node.kind === "IfStatement" || reference.node.kind === "SwitchStatement"
+  ).toArray();
+  let changed = true;
+  for (let pass = 0; changed && pass <= branches.length; pass++) {
+    changed = false;
+    for (const branch of branches) {
+      const condition = branch.children().first(child => child.node.category === "expression");
+      if (!condition) continue;
+      const inputs = policyInputs(condition, policies, namedPolicies, secretConsumeCallIds)
+        .filter(input => input.record.policy.secret);
+      if (!inputs.length) continue;
+      materializePolicyInputSubjects(inputs, subjects);
+      const selectors = new Set(inputs.map(input => input.record.selector).filter((value): value is string => !!value));
+      const selector = selectors.size === 1 ? [...selectors][0] : undefined;
+      const controlled = branch.children().where(child => child.node !== condition.node).toArray();
+      const writes = new Set(controlled.flatMap(child => module.writesOf(child)));
+      for (const variable of writes) {
+        const existing = policies.get(variable.id);
+        if (existing?.policy.secret) continue;
+        if (existing?.policy.residency === "client") {
+          diagnostics.add(`error: secret-controlled branch writes client-kept variable ${variable.name}`);
+          continue;
+        }
+        const subject = policySubject(module.filename, {
+          kind: variable.declarationKind === "Parameter" ? "parameter" : "declaration",
+          name: variable.name,
+          policy: dataPolicy("secret"),
+          source: "inference",
+          ...(selector ? { selector } : {}),
+          ...(variable.declarationKind === "Parameter" ? {
+            parameterIndex: parameterIndex(module, variable)
+          } : {})
+        });
+        subjects.push(subject);
+        const record = {
+          policy: subject.policy,
+          subjectId: subject.id,
+          ...(selector ? { selector } : {})
+        };
+        policies.set(variable.id, record);
+        namedPolicies.set(variable.name, record);
+        flows.push(policyFlow(module.filename, {
+          kind: "propagation",
+          from: inputs.map(input => input.record.subjectId).sort(),
+          to: subject.id,
+          policy: subject.policy,
+          authorized: true
+        }));
+        changed = true;
+      }
+    }
+  }
+}
+
+function collectSecretOutputSinks(
+  filename: string,
+  module: BoundModule,
+  metadata: ExactPolicyMetadata,
+  subjects: ExactPolicySubjectIR[]
+): {
+  flows: ExactPolicyFlowIR[];
+  diagnostics: string[];
+} {
+  const flows: ExactPolicyFlowIR[] = [];
+  const diagnostics = new Set<string>();
+  const seen = new Set<string>();
+  const inspect = (
+    expression: NodeRef,
+    boundary: NonNullable<ExactPolicyFlowIR["boundary"]>,
+    description: string,
+    site: NodeRef = expression
+  ): void => {
+    const inputs = policyInputs(
+      expression,
+      metadata.declarationPolicies,
+      metadata.namedDeclarationPolicies,
+      metadata.secretConsumeCallIds
+    ).filter(input => input.record.policy.secret);
+    if (!inputs.length) return;
+    materializePolicyInputSubjects(inputs, subjects);
+    const key = `${boundary}:${site.node.id}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const location = site.node.span ?? expression.node.span ?? { line: 0, column: 0 };
+    const target = stableId(filename, "policy:sink", boundary, site.node.id);
+    const reason = `secret-qualified value cannot influence ${description}`;
+    flows.push(policyFlow(filename, {
+      kind: "transfer",
+      from: inputs.map(input => input.record.subjectId).sort(),
+      to: target,
+      policy: dataPolicy("secret"),
+      boundary,
+      authorized: false,
+      reason
+    }));
+    diagnostics.add(`error: ${reason} at ${filename}:${location.line}:${location.column}`);
+  };
+
+  for (const expression of module.walk().ofKind("JsxExpression")) {
+    inspect(
+      expression,
+      "vnode",
+      expression.parent?.node.kind === "JsxAttribute" ? "a VNode attribute" : "VNode output"
+    );
+  }
+  for (const attribute of module.walk().ofKind("JsxSpreadAttribute")) {
+    inspect(attribute, "vnode", "a VNode spread attribute");
+  }
+  for (const statement of module.walk().ofKind("ThrowStatement")) {
+    const value = statement.children().toArray().at(-1);
+    if (value) inspect(value, "error", "a thrown error", statement);
+  }
+
+  for (const branch of module.walk().where(reference =>
+    reference.node.kind === "IfStatement" || reference.node.kind === "SwitchStatement"
+  )) {
+    const condition = branch.children().first(child => child.node.category === "expression");
+    if (!condition) continue;
+    const controlled = branch.children().where(child => child.node !== condition.node);
+    if (controlled.toArray().some(child => child.descendants({ nestedFunctions: false }).jsxSyntax().any())) {
+      inspect(condition, "vnode", "secret-controlled VNode output", branch);
+    }
+    if (controlled.toArray().some(child => child.descendants({ nestedFunctions: false }).ofKind("ThrowStatement").any())) {
+      inspect(condition, "error", "secret-controlled error behavior", branch);
+    }
+    if (controlled.toArray().some(child => child.descendants({ nestedFunctions: false }).calls().any(isConsoleOutputCall))) {
+      inspect(condition, "log", "secret-controlled console output", branch);
+    }
+  }
+
+  return {
+    flows: flows.sort((left, right) => left.id.localeCompare(right.id)),
+    diagnostics: [...diagnostics].sort()
+  };
+}
+
+function isConsoleOutputCall(call: NodeRef): boolean {
+  if (!call.target?.isMember() || !["log", "info", "warn", "error", "debug", "trace"].includes(call.target.name ?? "")) {
+    return false;
+  }
+  return call.target.target?.rootVariable?.name === "console";
+}
+
 function collectSecretConsumptions(
   module: BoundModule,
   metadata: ExactPolicyMetadata,
@@ -739,96 +987,45 @@ function collectSecretConsumptions(
   const consumers: ExactSecretConsumptionIR[] = [];
   const flows: ExactPolicyFlowIR[] = [];
   const diagnostics = new Set<string>();
-  const allowPackages = options.capabilityPolicy?.secrets?.allowPackages ?? [];
   const target = options.target === "client" ? "client" : "server";
 
+  // A still-qualified value may cross a call boundary only through an
+  // explicitly Secret<T>-typed parameter. This preserves qualification; it
+  // does not authorize or audit a consumption.
   for (const call of module.walk().calls()) {
     if (metadata.secretConsumeCallIds.has(call.node.id)) continue;
-    const targetVariable = call.target?.rootVariable;
-    const moduleSpecifier = targetVariable?.importedFrom;
-    const packageName = moduleSpecifier ? packageNameFromSpecifier(moduleSpecifier) : options.packageName ?? "<application>";
-    const symbol = targetVariable?.importedFrom
-      ? importedCallSymbol(module, call, targetVariable)
-      : call.target?.isMember()
-        ? call.target.node.name ?? call.target.node.text ?? "<call>"
-        : targetVariable?.name ?? call.target?.node.text ?? "<call>";
     call.arguments.forEach((argument, parameter) => {
-      const unconsumedInputs = policyInputs(
+      const inputs = policyInputs(
         argument,
         metadata.declarationPolicies,
         metadata.namedDeclarationPolicies,
         metadata.secretConsumeCallIds
       ).filter(input => input.record.policy.secret);
-      const consumedInputs = secretConsumeCallsWithin(argument, metadata.secretConsumeCallIds)
-        .flatMap(consumeCall => {
-          const consumed = consumeCall.arguments[0];
-          return consumed
-            ? policyInputs(consumed, metadata.declarationPolicies, metadata.namedDeclarationPolicies)
-            : [];
-        })
-        .filter(input => input.record.policy.secret);
-      const inputs = uniquePolicyInputs([...unconsumedInputs, ...consumedInputs]);
       if (!inputs.length) return;
       materializePolicyInputSubjects(inputs, subjects);
-      const selectors = new Set(inputs.map(input => input.record.selector).filter((value): value is string => !!value));
-      const selector = selectors.size === 1 ? [...selectors][0] : undefined;
-      const marked = consumedInputs.length > 0 && unconsumedInputs.length === 0;
+      const acceptsSecret = policyFromType(call.node.resolvedSignature?.parameters[parameter]?.type)?.secret === true;
       const location = argument.node.span ?? call.node.span ?? { line: 0, column: 0 };
-      const local = !moduleSpecifier;
-      let authorization: ExactSecretConsumptionIR["authorization"];
-      let reason: string | undefined;
-      if (!marked) {
-        authorization = "denied";
-        reason = "secret argument must be passed through consume()";
-      } else if (target === "client") {
-        authorization = "denied";
-        reason = "secret consumption cannot be retained in a client artifact";
-      } else if (options.packageType === "library") {
-        authorization = "library-requirement";
-      } else if (local) {
-        authorization = "implicit-application-owner";
-      } else if (allowPackages.includes(packageName)) {
-        authorization = "explicit-package-allow";
-      } else {
-        authorization = "denied";
-        reason = `dependency ${packageName} is not in secrets.allowPackages`;
-      }
-      const id = stableId(module.filename, "secret-consumer", call.node.id, String(parameter));
-      const consumer: ExactSecretConsumptionIR = {
-        id,
-        ...(selector ? { selector } : {}),
-        dynamic: !selector,
-        source: module.filename,
-        line: location.line,
-        column: location.column,
-        caller: nearestCallableName(argument),
-        consumer: {
-          package: packageName,
-          symbol,
-          parameter
-        },
-        target,
-        authorization,
-        ...(reason ? { reason } : {})
-      };
-      consumers.push(consumer);
+      const reason = acceptsSecret
+        ? undefined
+        : "secret argument requires an explicit Secret<T> parameter or consume()";
+      const id = stableId(module.filename, "policy:secret-call", call.node.id, String(parameter));
       flows.push(policyFlow(module.filename, {
         kind: "receipt",
         from: inputs.map(input => input.record.subjectId).sort(),
         to: id,
         policy: dataPolicy("secret"),
         boundary: "call",
-        authorized: authorization !== "denied",
+        authorized: acceptsSecret,
         ...(reason ? { reason } : {})
       }));
       if (reason) diagnostics.add(`error: ${reason} at ${module.filename}:${location.line}:${location.column}`);
     });
   }
 
+  // The trust decision belongs to the package containing consume(), not to any
+  // function that subsequently receives the returned ordinary value.
   for (const call of module.walk().calls()) {
-    if (!metadata.secretConsumeCallIds.has(call.node.id) || consumeHasReceivingCall(call, metadata.secretConsumeCallIds)) {
-      continue;
-    }
+    if (!metadata.secretConsumeCallIds.has(call.node.id)) continue;
     const argument = call.arguments[0];
     if (!argument) continue;
     const inputs = policyInputs(argument, metadata.declarationPolicies, metadata.namedDeclarationPolicies)
@@ -881,29 +1078,6 @@ function collectSecretConsumptions(
     flows: flows.sort((left, right) => left.id.localeCompare(right.id)),
     diagnostics: [...diagnostics].sort()
   };
-}
-
-function secretConsumeCallsWithin(
-  expression: NodeRef,
-  secretConsumeCallIds: ReadonlySet<string>
-): NodeRef[] {
-  return expression.walk().calls().toArray()
-    .filter(call => secretConsumeCallIds.has(call.node.id));
-}
-
-function consumeHasReceivingCall(
-  consumeCall: NodeRef,
-  secretConsumeCallIds: ReadonlySet<string>
-): boolean {
-  const parentCall = consumeCall.ancestors().calls()
-    .first(call => !secretConsumeCallIds.has(call.node.id));
-  return !!parentCall && parentCall.arguments.some(argument =>
-    argument.walk().any(reference => reference.node.id === consumeCall.node.id)
-  );
-}
-
-function uniquePolicyInputs(inputs: readonly PolicyInput[]): PolicyInput[] {
-  return [...new Map(inputs.map(input => [input.record.subjectId, input])).values()];
 }
 
 function importedCallSymbol(module: BoundModule, call: NodeRef, variable: Variable): string {

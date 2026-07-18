@@ -161,8 +161,9 @@ from entering client artifacts or framework-controlled server-to-client
 transfer paths. Normal operations propagate secret qualification through
 derived values. An explicit `consume(value)` call ends tracking for its returned
 expression and releases the ordinary runtime value to trusted server code.
-Application code may consume its own secrets; directly receiving dependencies
-must appear in the application's simple package allowlist.
+Application code may consume its own secrets. A dependency that contains a
+`consume()` call must appear in the application's simple package allowlist;
+the permission belongs to the consuming code, not a later receiver.
 
 `@exact/secrets` provides transparent `Secret<T>` declarations, providers,
 resolver lifecycle, direct application-owned `require()`/`optional()` access,
@@ -629,10 +630,23 @@ const authorization = `JWT-Bearer - ${key}:${clientSecret}`;
 All four bindings are secret-qualified. The runtime values are ordinary strings;
 no derivation helper or explicit annotation is required.
 
+When TypeScript would erase that qualification, the compiler emits a type-only
+assertion in generated source:
+
+```ts
+const authorization =
+  `JWT-Bearer - ${key}:${clientSecret}` as Secret<string>;
+```
+
+The assertion is emitted only for an expression already proven
+secret-qualified. It preserves `Secret<T>` through ordinary TypeScript
+declaration generation without adding a runtime wrapper or a general imported
+parameter/return manifest summary.
+
 ### Secret arguments and callable results
 
-The caller owns the decision to pass a secret. A receiving function uses an
-ordinary signature and does not need to declare that a parameter is secret:
+An unconsumed secret crosses a call boundary only through an explicitly
+`Secret<T>` parameter. An ordinary parameter requires caller-side consumption:
 
 ```ts
 /** @exact server */
@@ -656,8 +670,8 @@ the source policy.
 `consume()` is an explicit caller-side compiler boundary. The original binding
 remains secret-qualified, while the returned expression is an ordinary value
 and is no longer tracked. When consumption appears inside a call argument, the
-compiler can associate the boundary with that directly receiving function and
-package:
+compiler associates the boundary with the package and source location that
+contain the `consume()` call:
 
 ```ts
 const weather = await requestWeather("Seattle", consume(apiKey));
@@ -673,17 +687,18 @@ const forecast = await requestForecast("Seattle", rawApiKey);
 ```
 
 Exact records that standalone boundary, but tracking has deliberately stopped,
-so subsequent handling is trusted application responsibility. Prefer direct
-argument consumption when delivering a secret to a dependency: the directly
-receiving package must then appear in `secrets.allowPackages`.
+so subsequent handling is trusted application responsibility. A later
+dependency receiving the ordinary value does not require separate permission.
 
-The compiler rejects an unconsumed secret argument. Consumption does not alter
-the original binding or other derived values, and `consume()` itself is denied
-in a client artifact.
+The compiler rejects an unconsumed secret argument unless the resolved
+parameter explicitly accepts `Secret<T>`. Such a call preserves qualification
+inside the callee; it is not consumption. Consumption does not alter the
+original binding or other derived values, and `consume()` itself is denied in a
+client artifact.
 
-The package permission describes only the package directly receiving the
-value. Exact does not claim that this statically proves the behavior of opaque
-or arbitrary in-process JavaScript.
+The package permission describes code that deliberately calls `consume()`.
+Exact does not claim that this statically proves the behavior of the ordinary
+value after tracking ends.
 
 ### Projection
 
@@ -730,6 +745,21 @@ The compiler must understand these observable sinks:
 - Logs, error metadata, and diagnostics.
 - Cross-package secret argument boundaries.
 - Explicit projection boundaries.
+
+The implemented initial sink analysis rejects secret-qualified dependencies in
+JSX children, attributes, and spread attributes, as well as directly thrown
+values. It also performs bounded implicit-flow analysis:
+
+- Variables written by a secret-controlled `if` or `switch` branch become
+  secret-qualified.
+- A secret-controlled branch that directly governs JSX, thrown behavior, or
+  console output is rejected.
+- Conditional expressions embedded in output inherit secret qualification
+  through ordinary expression propagation.
+
+This is intentionally not a claim to model every timing, termination, or
+side-channel property of arbitrary JavaScript. Opaque I/O and values below an
+explicit `consume()` boundary remain trusted server-code responsibility.
 
 ## Component Package Contract
 
@@ -921,7 +951,7 @@ export const ProjectCard: typeof ProjectCardImplementation =
   ProjectCardImplementation, {
     [exactClientDescriptor]: [
       1,
-      [["stable-boundary-id", ProjectCard_ExactClient_1]]
+      [["stable-boundary-id", "ProjectCard_ExactClient_1", ProjectCard_ExactClient_1]]
     ]
   }
 ))();
@@ -947,7 +977,7 @@ export const ProjectCard: typeof ProjectCardImplementation =
   ProjectCardImplementation, {
     [exactServerDescriptor]: [
       1,
-      [["stable-server-part-id", ProjectCard_ExactServer_1]]
+      [["stable-server-part-id", "ProjectCard_ExactServer_1", ProjectCard_ExactServer_1]]
     ]
   }
 ))();
@@ -1000,14 +1030,17 @@ imports the components it uses and composes their attached descriptors into the
 runtime lookup required for hydration, refresh, actions, and patches. A lazy
 chunk carries the descriptors attached to the components in that chunk.
 
-Descriptors use a positional, versioned tuple. Stable manifest IDs are string
-values paired with implementation functions, not object keys or JavaScript
-function names. Property mangling therefore cannot alter `parts`, `islands`, or
-an ID because those protocol properties do not exist. Ordinary string
-compression may deduplicate or encode an ID but must preserve its runtime value.
-The package manifest maps public component exports to their target and stable
-entries so the application compiler can discover them through root or subpath
-re-exports.
+Descriptors use a positional, versioned tuple. Each entry contains its stable
+manifest ID, stable runtime lookup name, and implementation function. Neither
+identity is an object key or inferred from the JavaScript function name.
+Property mangling therefore cannot alter `parts`, `islands`, an ID, or a lookup
+name because those protocol properties do not exist. Ordinary string
+compression may deduplicate or encode either string but must preserve its
+runtime value. Descriptor composition indexes the resulting runtime lookup by
+the explicit lookup name already emitted in SSR hydration markers; the manifest
+ID remains available for graph correlation and diagnostics. The package
+manifest maps public component exports to their target and stable entries so
+the application compiler can discover them through root or subpath re-exports.
 
 The attachment must be emitted as a recognized pure call. This allows an unused
 component and its descriptor to be removed even when a source module contains
@@ -1417,17 +1450,19 @@ Application secret usage must still be audited.
 
 ### Dependency default
 
-Dependency packages are denied secret values unless explicitly granted. The
-receiving function does not declare or grant this authority:
+A dependency may preserve a still-qualified value only through an explicit
+`Secret<T>` parameter:
 
 ```ts
 /** @exact server */
 async function createStripeClient(
-  apiKey: string
-) {}
+  apiKey: Secret<string>
+) {
+  return new StripeClient(consume(apiKey));
+}
 ```
 
-The consuming application permits packages by name:
+The consuming application permits packages containing `consume()` by name:
 
 ```ts
 defineExactConfig({
@@ -1437,34 +1472,31 @@ defineExactConfig({
 });
 
 const apiKey = secrets.require("STRIPE_SECRET_KEY");
-const stripe = createStripeClient(
-  consume(apiKey)
-);
+const stripe = createStripeClient(apiKey);
 ```
 
-The compiler derives the directly receiving package, symbol, and parameter
-position from a direct argument consumption. Developers call `consume()` at the
-caller; they do not annotate the receiving parameter. A standalone `consume()`
-ends tracking without claiming knowledge of later recipients.
+The dependency manifest records that `@acme/payments` contains a `consume()`
+site. Permission applies to that consuming code. If application code instead
+calls `consume(apiKey)` before invoking an ordinary dependency API, the
+application owns that decision and the later receiver needs no separate grant.
 
 ### Package permission boundary
 
-Permission is checked where application or analyzed library code directly
-passes a secret-qualified variable to an imported package. It is deliberately
-not presented as transitive dependency security or opaque-code verification.
+Permission is checked for the package that contains `consume()`. It is
+deliberately not presented as transitive dependency security or opaque-code
+verification after the raw value is released.
 
 The compiler should reject:
 
-- Passing a secret argument without `consume()`.
-- Passing a secret to a dependency absent from `secrets.allowPackages`.
+- Passing an unconsumed secret to a parameter not typed `Secret<T>`.
+- A dependency containing `consume()` absent from `secrets.allowPackages`.
 - Secret sources or `consume()` calls retained in a client artifact.
 
 ### Application ownership
 
-Application code is compilation with `packageType: "application"` and without
-an imported package boundary at the call. Imported dependencies, including
-workspace and linked packages, are permitted by their package name when they
-directly receive a secret.
+Application code is compilation with `packageType: "application"`. Imported
+dependencies, including workspace and linked packages, are permitted by their
+package name when their own compiled source contains `consume()`.
 
 ### Runtime access
 
@@ -1493,8 +1525,8 @@ policy-sensitive capabilities without granting them:
 }
 ```
 
-Normal compiler manifests record direct secret receipt sites. Receiving
-function parameters remain ordinary declarations.
+Normal compiler manifests record deliberate secret consumption sites.
+Secret-preserving function parameters use ordinary `Secret<T>` declarations.
 
 ### Compiler manifest
 
@@ -1504,8 +1536,8 @@ Compiler output should record, without values:
   resolved application grant.
 - Secret and protected data sources.
 - Context and state policies.
-- Directly consuming package name.
-- Consuming symbol and parameter position.
+- Consuming package name.
+- `consume()` source location.
 - Projection IDs.
 - Source locations.
 - Execution target.
@@ -1530,9 +1562,9 @@ Illustrative shape:
       {
         "name": "STRIPE_SECRET_KEY",
         "package": "@acme/payments",
-        "symbol": "createStripeClient",
+        "symbol": "consume",
         "parameter": 0,
-        "authorization": "explicit-package-allow"
+        "authorization": "library-requirement"
       }
     ]
   }
@@ -1785,20 +1817,20 @@ Status: complete.
 - Add a package-name allowlist and the root application-owner exception.
 - Prevent secret-qualified values from entering client artifacts or
   framework-controlled server-to-client output.
-- Emit direct package receipt information and a small aggregate report without
-  secret values.
+- Emit consuming-package and `consume()` source information plus a small
+  aggregate report without secret values.
 
 Exit criteria:
 
 - Application secret use is ergonomic and audited.
-- Direct dependency receipt is explicit and denied unless the package is
-  allowed.
+- Dependency consumption is explicit and denied unless the consuming package
+  is allowed.
 - The feature is documented as a transfer guard and audit aid, not dependency
   sandboxing.
 
-Compiler manifest version 1 records the directly receiving package, symbol,
-parameter, source location, optional secret identifier, and whether receipt was
-application-owned, package-allowed, required by a library, or denied.
+Compiler manifest version 1 records the package containing `consume()`, source
+location, optional secret identifier, and whether consumption is
+application-owned, required by a library, or denied.
 `createExactPolicyAuditReport()` exposes the same small model and warns only
 about unused package permissions.
 
@@ -1927,11 +1959,14 @@ about unused package permissions.
 - `consume()` belongs to the caller. Its returned expression is ordinary and no
   longer tracked; the original secret and other derived values remain
   secret-qualified.
+- An unconsumed secret may cross a call boundary only through an explicit
+  `Secret<T>` parameter. Generated source preserves compiler-proven derived
+  qualification with type-only `Secret<T>` assertions.
 - Generic projection cannot make secrets transferable.
 - The root application may consume secrets without self-grants, but remains
   audited and subject to all disclosure checks.
-- Direct dependency receipt requires the package name in
-  `secrets.allowPackages`.
+- A dependency containing `consume()` requires its package name in
+  `secrets.allowPackages`; later receivers of the ordinary value do not.
 - Generic policy belongs in the core compiler/runtime architecture.
 - `@exact/secrets` remains the optional provider, resolver, transparent secret
   declaration, consumption-boundary, and runtime integration package.
@@ -1994,6 +2029,9 @@ about unused package permissions.
 - Caller-side `consume()` ends tracking and releases an ordinary value to
   trusted server code. Before consumption, secret-qualified values cannot be
   projected into isomorphic state or framework-owned output.
+- Initial implicit-flow enforcement is sink-directed: secret-controlled branch
+  writes propagate qualification, and branches directly controlling JSX,
+  thrown errors, or console output fail compilation.
 - The aggregate policy report schema is `ExactPolicyAuditReport` version 1,
   with direct secret usage, warnings for unused package permissions, and errors
   for unresolved requirements or denied use.

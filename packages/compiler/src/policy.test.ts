@@ -195,7 +195,7 @@ describe("generic data policy IR", () => {
     )).toBe(true);
   });
 
-  it("authorizes only the call argument passed through consume()", () => {
+  it("audits consume() itself and rejects a secret passed to an ordinary parameter", () => {
     const manifest = analyzeSource(`
       import { consume } from "@exact/secrets";
       /** @exact keep=secret */ const apiKey = "configured";
@@ -210,16 +210,14 @@ describe("generic data policy IR", () => {
       target: "server"
     });
 
-    expect(manifest.policy.secretConsumers).toEqual(expect.arrayContaining([
+    expect(manifest.policy.secretConsumers).toEqual([
       expect.objectContaining({
         authorization: "implicit-application-owner",
-        consumer: expect.objectContaining({ symbol: "createStripeClient" })
-      }),
-      expect.objectContaining({
-        authorization: "denied",
-        consumer: expect.objectContaining({ symbol: "createSomeOtherClient" }),
-        reason: "secret argument must be passed through consume()"
+        consumer: expect.objectContaining({ symbol: "consume" })
       })
+    ]);
+    expect(manifest.diagnostics).toEqual(expect.arrayContaining([
+      expect.stringContaining("secret argument requires an explicit Secret<T> parameter or consume()")
     ]));
   });
 
@@ -283,6 +281,161 @@ describe("generic data policy IR", () => {
       expect.objectContaining({ name: "authorization", policy: { residency: "server", secret: true } })
     ]));
     expect(manifest.policy.subjects.some(subject => subject.name === "rawAuthorization")).toBe(false);
+  });
+
+  it("preserves compiler-derived qualification in emitted TypeScript", () => {
+    const output = transform(`
+      import { secret, type Secret } from "@exact/secrets";
+      const apiKey = secret("API_KEY", "configured");
+      const header = \`Bearer \${apiKey}\`;
+      function forward(value: Secret<string>): Secret<string> {
+        return value;
+      }
+      export function derive(value: Secret<string>) {
+        return \`Derived \${value}\`;
+      }
+      export const result = forward(header);
+      export const direct = forward(\`Direct \${apiKey}\`);
+    `, {
+      filename: fixture("secret-type-preservation"),
+      packageType: "application",
+      target: "server",
+      generatedValidation: "semantic"
+    });
+
+    expect(output).toContain('import type { Secret as __ExactSecret } from "@exact/secrets";');
+    expect(output).toMatch(/const header = `Bearer \$\{apiKey\}` as __ExactSecret<string>;/);
+    expect(output).toMatch(/return `Derived \$\{value\}` as __ExactSecret<string>;/);
+    expect(output).toMatch(/forward\(`Direct \$\{apiKey\}` as __ExactSecret<string>\)/);
+  });
+
+  it("allows an unconsumed secret only through an explicit Secret<T> parameter", () => {
+    const manifest = analyzeSource(`
+      import { secret, type Secret } from "@exact/secrets";
+      const apiKey = secret("API_KEY", "configured");
+      function preserve(value: Secret<string>) { return value; }
+      function ordinary(value: string) { return value; }
+      preserve(apiKey);
+      ordinary(apiKey);
+      export {};
+    `, {
+      filename: fixture("explicit-secret-parameter"),
+      packageType: "application",
+      target: "server"
+    });
+
+    expect(manifest.policy.flows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ boundary: "call", authorized: true }),
+      expect.objectContaining({
+        boundary: "call",
+        authorized: false,
+        reason: "secret argument requires an explicit Secret<T> parameter or consume()"
+      })
+    ]));
+    expect(manifest.policy.secretConsumers).toEqual([]);
+  });
+
+  it("rejects unconsumed secrets in VNode children, attributes, and spreads", () => {
+    const manifest = analyzeSource(`
+      import type { Component } from "@exact/core";
+      /** @exact keep=secret */ const credential = "configured";
+      export function Panel(this: Component<{}>) {
+        const attributes = { title: credential };
+        return () => <div {...attributes} data-secret={credential}>{credential}</div>;
+      }
+    `, {
+      filename: fixture("secret-vnode-sinks"),
+      packageType: "application",
+      target: "server"
+    });
+
+    expect(manifest.diagnostics).toEqual(expect.arrayContaining([
+      expect.stringContaining("secret-qualified value cannot influence VNode output"),
+      expect.stringContaining("secret-qualified value cannot influence a VNode attribute"),
+      expect.stringContaining("secret-qualified value cannot influence a VNode spread attribute")
+    ]));
+    expect(manifest.policy.flows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ boundary: "vnode", authorized: false })
+    ]));
+  });
+
+  it("allows consume() to end tracking before deliberate server VNode output", () => {
+    const manifest = analyzeSource(`
+      import { consume } from "@exact/secrets";
+      import type { Component } from "@exact/core";
+      /** @exact keep=secret */ const credential = "configured";
+      export function Panel(this: Component<{}>) {
+        return () => <div>{consume(credential)}</div>;
+      }
+    `, {
+      filename: fixture("consumed-vnode-sink"),
+      packageType: "application",
+      target: "server"
+    });
+
+    expect(manifest.diagnostics.some(diagnostic => diagnostic.includes("VNode"))).toBe(false);
+    expect(manifest.policy.secretConsumers).toEqual([
+      expect.objectContaining({
+        authorization: "implicit-application-owner",
+        consumer: expect.objectContaining({ symbol: "consume" })
+      })
+    ]);
+  });
+
+  it("rejects direct and implicit secret influence on errors and console output", () => {
+    const manifest = analyzeSource(`
+      /** @exact keep=secret */ const credential = "configured";
+      export function validate(candidate: string) {
+        if (credential === candidate) {
+          console.info("matched");
+          throw new Error("matched");
+        }
+        throw credential;
+      }
+    `, {
+      filename: fixture("secret-error-log-sinks"),
+      packageType: "application",
+      target: "server"
+    });
+
+    expect(manifest.diagnostics).toEqual(expect.arrayContaining([
+      expect.stringContaining("secret-qualified value cannot influence secret-controlled console output"),
+      expect.stringContaining("secret-qualified value cannot influence secret-controlled error behavior"),
+      expect.stringContaining("secret-qualified value cannot influence a thrown error")
+    ]));
+    expect(manifest.policy.flows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ boundary: "log", authorized: false }),
+      expect.objectContaining({ boundary: "error", authorized: false })
+    ]));
+  });
+
+  it("propagates secret control dependencies through branch writes into VNode sinks", () => {
+    const manifest = analyzeSource(`
+      import type { Component } from "@exact/core";
+      /** @exact keep=secret */ const credential = "configured";
+      export function Panel(this: Component<{}>) {
+        let label = "not matched";
+        if (credential === "expected") {
+          label = "matched";
+        }
+        return () => <div>{label}</div>;
+      }
+    `, {
+      filename: fixture("secret-control-write"),
+      packageType: "application",
+      target: "server"
+    });
+
+    expect(manifest.policy.subjects).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: "label",
+        policy: { residency: "server", secret: true },
+        source: "inference"
+      })
+    ]));
+    expect(manifest.diagnostics).toEqual(expect.arrayContaining([
+      expect.stringContaining("secret-qualified value cannot influence VNode output")
+    ]));
   });
 
   it("omits server-kept exported declarations from client artifacts", () => {
