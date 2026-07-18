@@ -60,14 +60,14 @@ describe("router", () => {
   });
 
   it("reads SSR request URLs and records redirects", () => {
-    const first: RequestResponseState = { headers: new Headers() };
+    const first: RequestResponseState = { headers: new Headers(), committed: false };
     runWithRequestContext(
       createRequestContextValue({ url: "https://example.test/old" }, first),
       () => renderToString(<Router><Route path="old" component={Navigate} componentProps={{ to: "/new", status: 301 }} /></Router>)
     );
     expect(first.redirect).toEqual({ location: new URL("https://example.test/new"), status: 301 });
 
-    const second: RequestResponseState = { headers: new Headers() };
+    const second: RequestResponseState = { headers: new Headers(), committed: false };
     runWithRequestContext(
       createRequestContextValue({ url: "https://example.test/old" }, second),
       () => renderToString(<Router><Route path="old" component={Navigate} componentProps={{ to: "/pushed", replace: false, status: 307 }} /></Router>)
@@ -76,7 +76,7 @@ describe("router", () => {
   });
 
   it("prefers explicitly propagated server request context over ambient storage", () => {
-    const response: RequestResponseState = { headers: new Headers() };
+    const response: RequestResponseState = { headers: new Headers(), committed: false };
     const request = createRequestContextValue({
       url: "https://example.test/explicit"
     }, response);

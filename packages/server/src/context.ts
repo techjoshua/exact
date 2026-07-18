@@ -5,6 +5,7 @@ import {
 } from "@exact/core";
 import {
   RequestContext,
+  commitRequestResponseState,
   createRequestContextValue,
   type RequestContextValue,
   type RequestResponseState
@@ -223,7 +224,7 @@ class ContextRuntime implements ExactContextRuntime {
     if (this.disposed) throw new Error("Cannot open a request on a disposed eXact context runtime");
     const application = await this.applicationScope();
     const lifetime = createRequestLifetime(request.signal, this.applicationAbort.signal);
-    const response: RequestResponseState = { headers: new Headers() };
+    const response: RequestResponseState = { headers: new Headers(), committed: false };
     const requestValue = createRequestContextValue({
       url: request.url,
       method: request.method,
@@ -405,7 +406,7 @@ export async function openExactRequestScope(
   if (server.requestContext && server.contexts) {
     return {
       context: server,
-      response: server.responseState ?? { headers: new Headers() },
+      response: server.responseState ?? { headers: new Headers(), committed: false },
       async dispose() {}
     };
   }
@@ -475,8 +476,9 @@ export function applyResponseState(
   response: ExactResponseLike,
   state: RequestResponseState
 ): void {
-  if (state.status !== undefined) response.status = state.status;
-  state.headers.forEach((value, name) => {
+  const committed = commitRequestResponseState(state);
+  if (committed.status !== undefined) response.status = committed.status;
+  committed.headers.forEach((value, name) => {
     response.headers[name] = value;
   });
 }

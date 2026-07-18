@@ -25,7 +25,15 @@ export type RequestResponseState = {
   status?: number;
   redirect?: { location: URL; status: number };
   headers: Headers;
+  committed: boolean;
 };
+
+export class RequestResponseCommittedError extends Error {
+  constructor() {
+    super("Cannot mutate an eXact response after its status and headers are committed");
+    this.name = "RequestResponseCommittedError";
+  }
+}
 
 export interface RequestContextStorage {
   run<T>(value: RequestContextValue, callback: () => T): T;
@@ -46,7 +54,7 @@ export const RequestContext = createContext<RequestContextValue>("exact.request"
 /** Normalizes adapter-specific request data into eXact's portable contract. */
 export function createRequestContextValue(
   input: RequestContextInput,
-  response: RequestResponseState = { headers: new Headers() }
+  response: RequestResponseState = { headers: new Headers(), committed: false }
 ): RequestContextValue {
   const signal = input.signal ?? new AbortController().signal;
   const headers = normalizeHeaders(input.headers);
@@ -55,6 +63,7 @@ export function createRequestContextValue(
     ? new URL(input.url)
     : new URL(input.url ?? "/", baseUrl);
   const setStatus = (status: number) => {
+    assertResponseMutable(response);
     if (!Number.isInteger(status) || status < 100 || status > 999) {
       throw new RangeError(`Invalid HTTP status ${status}`);
     }
@@ -68,6 +77,9 @@ export function createRequestContextValue(
     ...(input.locale === undefined ? {} : { locale: input.locale }),
     ...(input.traceId === undefined ? {} : { traceId: input.traceId }),
     redirect(location, status = 302) {
+      if (!Number.isInteger(status) || status < 300 || status > 399) {
+        throw new RangeError(`Invalid HTTP redirect status ${status}`);
+      }
       setStatus(status);
       const target = location instanceof URL ? new URL(location) : new URL(location, url);
       response.redirect = { location: target, status };
@@ -75,9 +87,35 @@ export function createRequestContextValue(
     },
     setStatus,
     setHeader(name, value) {
+      assertResponseMutable(response);
       response.headers.set(name, value);
     }
   };
+}
+
+/** Freezes request-owned response controls at the transport commit boundary. */
+export function commitRequestResponseState(
+  response: RequestResponseState
+): Readonly<{
+  status?: number;
+  redirect?: { location: URL; status: number };
+  headers: Headers;
+}> {
+  response.committed = true;
+  return {
+    ...(response.status === undefined ? {} : { status: response.status }),
+    ...(response.redirect === undefined ? {} : {
+      redirect: {
+        location: new URL(response.redirect.location),
+        status: response.redirect.status
+      }
+    }),
+    headers: new Headers(response.headers)
+  };
+}
+
+function assertResponseMutable(response: RequestResponseState): void {
+  if (response.committed) throw new RequestResponseCommittedError();
 }
 
 class StackStorage implements RequestContextStorage {

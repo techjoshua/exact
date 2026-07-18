@@ -116,5 +116,11 @@ The current foundation is usable for the sample path and core protocol tests, bu
 - Stronger production context glue for larger apps with many manifests.
 - Micro frontend support beyond dynamically loaded remote manifests, immediate remote island hydration, per-boundary endpoints, per-endpoint batching, and same-realm global context tokens.
 - Broader production diagnostics surfaced by build tools and dev servers.
-- Production guidance for cache headers, deployment topology, auth/session integration, and package publishing conventions.
-- Root-document normalization and deterministic framework augmentation of authored `html`, `head`, and `body` children.
+- Further micro-frontend deployment certification beyond the documented
+  same-release manifest and artifact contract.
+
+Production cache, deployment, authentication/session, observability, limit,
+CSP, and package-publication requirements are documented in
+[native-ssr-production-guide.md](native-ssr-production-guide.md). Root-document
+normalization and deterministic framework augmentation are implemented in the
+native renderer.

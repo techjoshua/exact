@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createNodeRequestScope } from "./node.js";
 import { createComponentInstance, type Component } from "@exact/core";
 import {
+  commitRequestResponseState,
   createRequestContextValue,
   createRequestScope,
   getRequestContext,
@@ -66,7 +67,10 @@ describe("request context", () => {
   });
 
   it("normalizes request data and records response controls", () => {
-    const response: import("./index.js").RequestResponseState = { headers: new Headers() };
+    const response: import("./index.js").RequestResponseState = {
+      headers: new Headers(),
+      committed: false
+    };
     const value = createRequestContextValue({
       url: "/orders?open=1",
       method: "post",
@@ -87,6 +91,25 @@ describe("request context", () => {
     expect(response.status).toBe(303);
     expect(response.redirect?.location.href).toBe("http://exact.local/complete");
     expect(response.headers.get("x-result")).toBe("created");
+  });
+
+  it("freezes response controls at commit and validates redirects", () => {
+    const response: import("./index.js").RequestResponseState = {
+      headers: new Headers(),
+      committed: false
+    };
+    const value = createRequestContextValue({
+      url: "https://example.test/account"
+    }, response);
+
+    expect(() => value.redirect("/login", 200)).toThrow("Invalid HTTP redirect status");
+    value.redirect("/login", 307);
+    const committed = commitRequestResponseState(response);
+
+    expect(committed.status).toBe(307);
+    expect(committed.headers.get("location")).toBe("https://example.test/login");
+    expect(() => value.setStatus(204)).toThrow("after its status and headers are committed");
+    expect(() => value.setHeader("x-late", "no")).toThrow("after its status and headers are committed");
   });
 
   it("uses host and forwarded protocol headers to normalize relative adapter URLs", () => {

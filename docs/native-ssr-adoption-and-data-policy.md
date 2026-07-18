@@ -253,6 +253,14 @@ complete:
   deployment topology.
 - Surface source component, boundary, package, and policy paths in diagnostics.
 
+The implemented response state has an explicit commit boundary. Status, header,
+and redirect changes are accepted while authoritative rendering settles and
+are frozen when the response is returned to an adapter. Later mutations fail;
+post-commit stream failures terminate the body transport without pretending the
+status can still change. Deployment, caching, authentication, observability,
+limits, CSP, and package-release requirements are specified in
+[native-ssr-production-guide.md](native-ssr-production-guide.md).
+
 ## Context Model
 
 ### Providers remain components
@@ -1743,6 +1751,19 @@ Exit criteria:
   cyclic exports preserve the authored public module contract.
 
 ### Phase 5: Production adoption certification
+
+Status: complete.
+
+The production contract now covers pre-commit response controls, 3xx redirect
+validation, immutable post-commit state, cancellation and disposal through
+streams, adapter failure behavior, cache and `Vary` policy, authentication and
+sessions, deployment topology, observability, CSP, resource ceilings, and
+package publication. Certification uses the native server-component and
+shipping applications plus the installed-package fixture.
+
+Phase verification includes 1,018 package tests, production and test
+type-checking, four native server-component integration tests, 16 shipping
+sample tests, and client/server production bundle builds.
 
 - Define cancellation, status, headers, redirects, cache policy, errors before
   and after commit, streaming failure, and resource cleanup.

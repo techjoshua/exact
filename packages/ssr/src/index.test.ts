@@ -128,6 +128,30 @@ describe("request-aware SSR", () => {
     await runtime.dispose?.();
   });
 
+  it("commits redirects and rejects response mutations after SSR returns", async () => {
+    const runtime = createExactServerRuntime({ manifest: { version: 1 } });
+    let activeRequest: import("@exact/request").RequestContextValue | undefined;
+    function RedirectPage(this: Component<{}>) {
+      activeRequest = this.getContext(RequestContext);
+      activeRequest.redirect("/sign-in", 307);
+      return () => createVNode("p", null, "Redirecting");
+    }
+
+    const response = await renderExactRequestToHtmlResponse({
+      method: "GET",
+      url: "https://example.test/private"
+    }, runtime, () => createVNode(RedirectPage, {}), {
+      hydration: false,
+      markers: false
+    });
+
+    expect(response.status).toBe(307);
+    expect(response.headers.location).toBe("https://example.test/sign-in");
+    expect(() => activeRequest!.setHeader("x-too-late", "yes"))
+      .toThrow("after its status and headers are committed");
+    await runtime.dispose?.();
+  });
+
   it("passes the active request scope through boundary refresh rendering", async () => {
     const runtime = createExactServerRuntime({
       manifest: {
