@@ -477,10 +477,10 @@ The compiler policy vocabulary should include:
 ```
 
 Isomorphic availability is the ordinary inferred case, not a `keep` annotation.
-An unrestricted, transferable state or context value used by both targets is
+`keep=isomorphic` is not part of the supported policy vocabulary. An
+unrestricted, transferable state or context value used by both targets is
 classified as isomorphic when the compiler selects it for hydration or another
-validated transfer boundary. Developers should not need to mark ordinary public
-state with `keep=isomorphic`.
+validated transfer boundary.
 
 Structured context options should carry the same metadata and should be
 authoritative when available:
@@ -1592,7 +1592,8 @@ Exit criteria:
 - Transfer only required safe state paths and reconstruct context methods through
   ordinary client component setup.
 - Infer isomorphic classification for unrestricted state and context paths
-  selected for validated transfer; do not require `keep=isomorphic`.
+  selected for validated transfer; do not define or accept a
+  `keep=isomorphic` policy.
 - Preserve server-only context and state paths outside hydration.
 - Add authorization and branding reference applications.
 
@@ -1791,7 +1792,7 @@ Exit criteria:
 - `@exact server` and `@exact client` remain execution annotations.
 - `keep` becomes generic compiler policy rather than secret-plugin-only logic.
 - Isomorphic transfer is inferred for ordinary safe values selected by both
-  targets; `keep=isomorphic` is not required.
+  targets; `keep=isomorphic` is not a supported policy.
 - Secret consumption and server-to-isomorphic projection are different flow
   operations.
 - `consume=secret` belongs to the caller's argument expression; it records
@@ -1833,9 +1834,9 @@ Exit criteria:
 
 ## Resolved Design Questions
 
-- Ordinary transferable values do not require `keep=isomorphic`; isomorphic
-  classification is inferred from safe use in both targets and validated
-  transfer requirements.
+- `keep=isomorphic` is not part of the policy vocabulary. Isomorphic
+  classification is inferred for ordinary transferable values from safe use in
+  both targets and validated transfer requirements.
 - `shared` and `dual` are compiler emission classifications. Cross-artifact
   declarations are exported from generated internal modules for client/server
   imports, but are not implicitly re-exported from the package root barrel.

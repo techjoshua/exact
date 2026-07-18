@@ -81,9 +81,9 @@ Internally, these values are not three equivalent taints:
 - `keep=secret` implies server residency and adds a strict non-disclosure qualification.
 
 Unannotated values remain placement-inferred and transferable when required by generated client behavior, subject to JSON-safety and secret-flow rules.
-There is no required `keep=isomorphic` annotation. An ordinary unrestricted
-value is classified as isomorphic when safe client and server use requires a
-validated transfer.
+`keep=isomorphic` is not part of the supported policy vocabulary. An ordinary
+unrestricted value is classified as isomorphic when safe client and server use
+requires a validated transfer.
 
 ## Policy Semantics
 
@@ -803,8 +803,8 @@ The completed design must maintain these invariants:
 
 ## Resolved Design Questions
 
-- Ordinary safe transferable values infer isomorphic classification and do not
-  require `keep=isomorphic`.
+- `keep=isomorphic` is not part of the policy vocabulary. Ordinary safe
+  transferable values infer isomorphic classification.
 - Component providers may derive their values from visible application/request
   contexts, but contexts published by components always retain component
   lifetime. Only the server runtime establishes application/request scope.

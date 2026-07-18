@@ -23,8 +23,14 @@ Effects and artifact reachability remain separate:
 
 - Browser-only reachability or browser API effects imply client placement.
 - Server-only reachability or server API effects imply server placement.
-- Reachability from both artifacts implies split/isomorphic emission where the effects permit it.
+- Reachability from both artifacts implies shared or dual-target emission where
+  the effects permit it.
 - Pure effect-free components should begin isomorphic and be emitted into whichever artifact subgraphs consume them.
+
+Isomorphic is the user-facing availability model, not an authored
+`keep=isomorphic` policy. The compiler determines whether an isomorphic
+declaration can live in one target-neutral `shared` artifact or requires
+target-specialized `dual` output in both the client and server artifacts.
 
 `this.task.server(...)` and `this.task.client(...)` remain escape hatches for opaque dependencies or intentional lifecycle boundaries. Explicit placement is validated and cannot contradict known transitive effects. Compiler manifest v2 is an artifact-analysis format change only; HTTP actions, streaming, and hydration remain protocol v1.
 
@@ -38,9 +44,17 @@ npx exactc --rootDir src --outDir .exact --artifacts --serverComponents src
 
 For each source component file the compiler can emit:
 
+- `Component.exact.shared.ts`: target-neutral declarations whose complete
+  dependency closure is also target-neutral.
 - `Component.exact.client.ts`: browser-safe exports, client islands, event handlers, refs, and client tasks.
 - `Component.exact.server.ts`: server-renderable exports, server parts, server stubs for client boundaries, and server-safe tasks.
 - `Component.exact.manifest.json`: stable IDs, generated symbol names, action contracts, boundary metadata, and component edges.
+
+Generated shared and target-specific dual declarations are exported from the
+matching generated artifact when another generated client or server module must
+import them. That internal export does not add the declaration to the package's
+public root barrel. The target entry re-exports it publicly only when the
+authored package already exposes it through that public entrypoint.
 
 Generated symbols are deterministic and derived from the authored export name, for example `ProfilePage_ExactClient_1` or `ProfilePage_ExactServer_1`. Runtime protocol identity should use manifest IDs rather than JavaScript function names because bundlers and minifiers may rename symbols.
 
@@ -62,7 +76,23 @@ Generated element islands can keep server-owned child subgraphs on the server. F
 
 Adapters also understand `.exact` facade imports. A client build resolves `./ProfilePage.exact` to the client artifact; a server build resolves it to the server artifact. Published component libraries can expose `exact-client` and `exact-server` package export conditions so each component remains independently tree-shakable for the selected render target.
 
+The public target artifacts may import their implementation dependencies from
+generated shared and matching target-specific artifacts. Package export
+conditions select the public client or server entry; they do not require every
+internal generated artifact to be exposed as public package API.
+
 `manifestFiles` are read at transform time. Watch pipelines can regenerate `.exact.manifest.json` files and keep imported component classification fresh without recreating plugin instances.
+
+## Context Lifetimes
+
+Application- and request-scoped contexts are established by the server runtime
+before root component setup. Component providers may read visible values from
+either scope and derive component-tree context values from them.
+
+`this.setContext()` always publishes into the component subtree. The resulting
+context cannot become application- or request-scoped, even when its value was
+derived from one of those longer-lived scopes or carries the same token shape.
+Only the server runtime creates application and request lifetimes.
 
 ## Server Manifest
 
