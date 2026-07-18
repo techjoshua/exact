@@ -1,5 +1,5 @@
 import { unwrap } from "@exact/reactive";
-import { decodeExactMarkerPart, encodeExactMarkerPart } from "@exact/core";
+import { decodeExactMarkerPart, encodeExactMarkerPart, sanitizeUrlAttribute } from "@exact/core";
 import { escapeAttr, escapeAttrName } from "./html.js";
 import type { SsrContext } from "./types.js";
 
@@ -8,10 +8,13 @@ export function renderAttrs(props: Record<string, unknown>, reactMarkup: boolean
   let attrs = "";
   const customElement = !!reactMarkup && !!tag?.includes("-");
   for (const [name, rawValue] of reactMarkup ? reactOrderedProps(props, tag, reactMarkup) : Object.entries(props)) {
+    if (!reactMarkup && name === "dangerouslySetInnerHTML") {
+      throw new Error("Native eXact does not support dangerouslySetInnerHTML; use unsafeHtml() with explicit root opt-in.");
+    }
     if (name === "children" || name === "key" || name === "ref" || name === "dangerouslySetInnerHTML" || /^on[A-Z]/.test(name)) continue;
     if (reactMarkup && (tag === "textarea" || tag === "select") && (name === "value" || name === "defaultValue")) continue;
     if (reactMarkup && tag === "option" && name === "children") continue;
-    const value = unwrap(rawValue);
+    const value = sanitizeUrlAttribute(name, unwrap(rawValue));
     const attrName = reactMarkup ? reactAttributeName(name, reactMarkup, customElement) : name === "className" ? "class" : name;
     if (value === null || value === undefined) continue;
     if (value === false && (!reactMarkup || reactBooleanAttributes.has(attrName.toLowerCase()))) continue;

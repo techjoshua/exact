@@ -5,6 +5,7 @@ import {
   ServerBoundary,
   ServerSlot,
   Text,
+  UnsafeHtml,
   attachSuppressedCleanupFailure,
   attemptCleanup,
   createCleanupFailure,
@@ -602,6 +603,11 @@ function* renderVNodeChunks(
     yield escapeText(String(unwrap(vnode.props.value) ?? ""));
     return;
   }
+  if (vnode.type === UnsafeHtml) {
+    const id = markerId(context, "unsafe-html", undefined, vnode.key);
+    yield* marked(id, function* () { yield renderUnsafeHtml(context, vnode); });
+    return;
+  }
   if (vnode.type === Fragment) {
     const list = vnode.props.list as { collection: Iterable<unknown>; source?: { get(): Iterable<unknown> }; key(item: unknown): string; render(item: unknown): VNode } | undefined;
     const id = list && vnode.key ? exactMarkerId(vnode.key) : markerId(context, "fragment", undefined, vnode.key);
@@ -742,6 +748,10 @@ function renderVNodeInner(context: SsrContext, vnode: VNode, parent?: ComponentI
     return escapeText(String(unwrap(vnode.props.value) ?? ""));
   }
 
+  if (vnode.type === UnsafeHtml) {
+    return markerPair(context, markerId(context, "unsafe-html", undefined, vnode.key), () => renderUnsafeHtml(context, vnode));
+  }
+
   if (vnode.type === Fragment) {
     const list = vnode.props.list as { collection: Iterable<unknown>; source?: { get(): Iterable<unknown> }; key(item: unknown): string; render(item: unknown): VNode } | undefined;
     const marker = list && vnode.key ? exactMarkerId(vnode.key) : markerId(context, "fragment", undefined, vnode.key);
@@ -835,6 +845,10 @@ async function renderVNodeAsyncInner(
 
   if (vnode.type === Text) {
     return escapeText(String(unwrap(vnode.props.value) ?? ""));
+  }
+
+  if (vnode.type === UnsafeHtml) {
+    return markerPair(context, markerId(context, "unsafe-html", undefined, vnode.key), () => renderUnsafeHtml(context, vnode));
   }
 
   if (vnode.type === Fragment) {
@@ -1046,6 +1060,15 @@ function reactHostContent(context: SsrContext, vnode: VNode): string | undefined
   return undefined;
 }
 
+function renderUnsafeHtml(context: SsrContext, vnode: VNode): string {
+  if (!context.allowUnsafeHtml) {
+    throw new Error("unsafeHtml() requires allowUnsafeHtml: true on the native eXact SSR root.");
+  }
+  const html = String(unwrap(vnode.props.value) ?? "");
+  context.onUnsafeHtml?.({ characters: html.length });
+  return html;
+}
+
 function primitiveText(children: readonly Child[]): string {
   let text = "";
   for (const child of children) {
@@ -1226,7 +1249,9 @@ function createSsrContext(options: RenderToStringOptions): SsrContext {
     traversedNodes: 0,
     maxOutputBytes: normalizePositiveLimit(options.maxOutputBytes, DEFAULT_MAX_OUTPUT_BYTES),
     reactResourceHints: [],
-    reactResourceKeys: new Set()
+    reactResourceKeys: new Set(),
+    allowUnsafeHtml: options.allowUnsafeHtml ?? false,
+    onUnsafeHtml: options.onUnsafeHtml
   };
 }
 

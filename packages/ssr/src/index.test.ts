@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createCompiledVNode, createDynamicChild, createServerBoundary, createTextVNode, createVNode, type Component } from "@exact/core";
+import { BLOCKED_JAVASCRIPT_URL, createCompiledVNode, createDynamicChild, createServerBoundary, createTextVNode, createVNode, unsafeHtml, type Component } from "@exact/core";
 import { handleExactRequest } from "@exact/server";
 import { registerReactiveListKey } from "@exact/reactive";
 import {
@@ -24,6 +24,34 @@ import {
   renderToString,
   renderToStringAsync
 } from "./index.js";
+
+describe("native rendering safety", () => {
+  it("rejects dangerouslySetInnerHTML outside React compatibility markup", () => {
+    expect(() => renderToString(createVNode("div", {
+      dangerouslySetInnerHTML: { __html: "<b>no</b>" }
+    }), { markers: false })).toThrow(/unsafeHtml/);
+  });
+
+  it("requires explicit unsafe HTML opt-in and emits audit metadata", () => {
+    const raw = "<script>globalThis.compromised=true</script><b>raw</b>";
+    const vnode = createVNode("div", null, unsafeHtml(raw));
+    expect(() => renderToString(vnode, { markers: false })).toThrow(/allowUnsafeHtml/);
+
+    const observed: Array<{ characters: number }> = [];
+    const result = renderToString(vnode, {
+      markers: false,
+      allowUnsafeHtml: true,
+      onUnsafeHtml: event => observed.push(event)
+    });
+    expect(result.html).toBe("<div><script>globalThis.compromised=true</script><b>raw</b></div>");
+    expect(observed).toEqual([{ characters: raw.length }]);
+  });
+
+  it("applies the javascript URL guard to SSR attributes", () => {
+    const result = renderToString(createVNode("a", { href: "java\nscript:alert(1)" }, "blocked"), { markers: false });
+    expect(result.html).toContain(`href="${BLOCKED_JAVASCRIPT_URL}"`);
+  });
+});
 
 async function readStreamEvent(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<any> {
   const next = await reader.read();

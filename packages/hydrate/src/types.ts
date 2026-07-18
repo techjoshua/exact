@@ -1,4 +1,4 @@
-import type { ComponentFunction, ErrorReport, Logger } from "@exact/core";
+import type { ComponentFunction, ErrorReport, Logger, UnsafeHtmlAuditEvent } from "@exact/core";
 import type { ExactInvocationKind, ExactInvocationRequest, ExactInvocationResult, ExactOperationResult, ExactPatch, ExactStateContract } from "@exact/server";
 
 export type HydrateOptions = {
@@ -28,6 +28,10 @@ export type HydrateOptions = {
   maxTreeNodes?: number;
   /** Maximum DOM vnode depth processed by hydration/adoption. */
   maxTreeDepth?: number;
+  /** Allows unsafeHtml() ranges and accepts responsibility for their contents. */
+  allowUnsafeHtml?: boolean;
+  /** Receives an audit notification whenever an unsafe HTML range is adopted or mounted. */
+  onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
   /** Limits applied before accepting serialized hydration bootstrap data. */
   configLimits?: ExactHydrationConfigLimits;
 };

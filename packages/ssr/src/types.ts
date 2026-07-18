@@ -4,6 +4,7 @@ import type {
   ComponentInstance,
   Logger,
   TaskObserver,
+  UnsafeHtmlAuditEvent,
   VNode
 } from "@exact/core";
 import type {
@@ -41,6 +42,10 @@ export type RenderToStringOptions = {
   signal?: AbortSignal;
   /** Prepared render output policies. Transformations run before all final validators. */
   outputExtensions?: readonly ExactOutputExtension[];
+  /** Allows unsafeHtml() ranges. The application accepts responsibility for their contents. */
+  allowUnsafeHtml?: boolean;
+  /** Receives an audit notification whenever an unsafe HTML range is rendered. */
+  onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
 };
 
 export type RenderToStringResult = {
@@ -186,6 +191,8 @@ export type SsrContext = {
   reactResourceHints: string[];
   reactResourceKeys: Set<string>;
   reactSelectValue?: unknown;
+  allowUnsafeHtml: boolean;
+  onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
 };
 
 export type { Child, ComponentFunction, ComponentInstance, Logger, TaskObserver, VNode };

@@ -5,6 +5,7 @@ import type {
   ErrorReport,
   Logger,
   StopHandle,
+  UnsafeHtmlAuditEvent,
   VNode
 } from "@exact/core";
 import type { EffectScope } from "@exact/reactive";
@@ -28,6 +29,8 @@ export type Mounted = {
   instance?: ComponentInstance<any>;
   delegatedEvents?: Map<string, EventListener>;
   stop?: StopHandle;
+  /** Unmanaged nodes between an opaque raw-HTML range's boundary markers. */
+  rawNodes?: Node[];
 };
 
 export type Root = {
@@ -48,6 +51,8 @@ export type Root = {
   traversedNodes: number;
   workDepth: number;
   workBudget?: DomWorkBudget;
+  allowUnsafeHtml: boolean;
+  onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
   /** Hydrated roots are anchored by SSR markers rather than the synthetic client root boundary. */
   mode?: "client" | "hydrated";
   /** Component ranges are inferred when the public server format omits eXact markers. */
@@ -63,6 +68,10 @@ export type RenderOptions = {
   maxTreeDepth?: number;
   /** Maximum vnode and placeholder child values processed by one DOM update. */
   maxTreeNodes?: number;
+  /** Allows unsafeHtml() ranges. The application accepts responsibility for their contents. */
+  allowUnsafeHtml?: boolean;
+  /** Receives an audit notification whenever an unsafe HTML range is mounted or changed. */
+  onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
   /** Internal shared budget used when hydration combines DOM scans and renderer work. */
   workBudget?: DomWorkBudget;
 };

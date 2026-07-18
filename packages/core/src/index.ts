@@ -66,9 +66,10 @@ import {
   type LogLevel,
   type LogScope
 } from "./logging.js";
-import { Cell, Dynamic, Fragment, Portal, ServerBoundary, ServerSlot, Text } from "./symbols.js";
+import { Cell, Dynamic, Fragment, Portal, ServerBoundary, ServerSlot, Text, UnsafeHtml } from "./symbols.js";
 export { decodeExactMarkerPart, encodeExactMarkerPart, exactMarkerEnd, exactMarkerStart } from "./protocol.js";
 export { sameJsonData, type JsonComparisonOptions } from "./json.js";
+export { BLOCKED_JAVASCRIPT_URL, isUrlAttribute, sanitizeUrlAttribute } from "./url.js";
 import {
   createCellVNode,
   createCompiledFragment,
@@ -83,7 +84,8 @@ import {
   getCellVNode,
   isCellVNode,
   isVNode,
-  normalizeChildren
+  normalizeChildren,
+  unsafeHtml
 } from "./vnode.js";
 
 export type { Reactive, ReactiveValue, StopHandle } from "@exact/reactive";
@@ -102,7 +104,7 @@ export {
   type LogLevel,
   type LogScope
 } from "./logging.js";
-export { Cell, Dynamic, Fragment, Portal, ServerBoundary, ServerSlot, Text } from "./symbols.js";
+export { Cell, Dynamic, Fragment, Portal, ServerBoundary, ServerSlot, Text, UnsafeHtml } from "./symbols.js";
 export {
   createCellVNode,
   createCompiledFragment,
@@ -117,10 +119,11 @@ export {
   getCellVNode,
   isCellVNode,
   isVNode,
-  normalizeChildren
+  normalizeChildren,
+  unsafeHtml
 } from "./vnode.js";
 
-export type VNodeType = string | typeof Fragment | typeof Text | typeof Cell | typeof Dynamic | typeof Portal | typeof ServerBoundary | typeof ServerSlot | ComponentFunction<any, any>;
+export type VNodeType = string | typeof Fragment | typeof Text | typeof Cell | typeof Dynamic | typeof Portal | typeof ServerBoundary | typeof ServerSlot | typeof UnsafeHtml | ComponentFunction<any, any>;
 
 export type VNode<Props = Record<string, unknown>> = {
   type: VNodeType;
@@ -146,6 +149,10 @@ export type Child = VNode | string | number | boolean | null | undefined | objec
 
 export type RenderResult = Child | Child[];
 export type RenderFunction = () => RenderResult;
+export type UnsafeHtmlAuditEvent = {
+  /** UTF-16 code units accepted by the raw range; the content is never included. */
+  characters: number;
+};
 export type ComponentFunction<State extends object = Record<string, unknown>, Props = any> = (
   this: Component<State>,
   props: Props

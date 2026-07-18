@@ -1,5 +1,5 @@
 import { computed, unwrap } from "@exact/reactive";
-import { Cell, Dynamic, Fragment, Portal, ServerBoundary, ServerSlot, Text } from "./symbols.js";
+import { Cell, Dynamic, Fragment, Portal, ServerBoundary, ServerSlot, Text, UnsafeHtml } from "./symbols.js";
 import type { Child, RenderResult, VNode, VNodeCell, VNodeType } from "./index.js";
 
 /** Creates a normalized virtual node and extracts the special JSX key prop. */
@@ -78,6 +78,14 @@ export function createServerBoundary(id: string, name: string, props: Record<str
 /** Creates a placeholder vnode for server-rendered children passed through a client island. */
 export function createServerSlot(id: string): VNode {
   return createVNode(ServerSlot, { id });
+}
+
+/**
+ * Creates an opaque raw-HTML range. Native render roots reject the range
+ * unless the application explicitly opts in to unsafe HTML.
+ */
+export function unsafeHtml(value: unknown): VNode<{ value: unknown }> {
+  return createVNode(UnsafeHtml, { value }) as VNode<{ value: unknown }>;
 }
 
 /** Flattens nested JSX child arrays into the child shape consumed by renderers. */

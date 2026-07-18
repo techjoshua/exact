@@ -1,4 +1,4 @@
-import { Cell, Dynamic, Fragment } from "@exact/core";
+import { Cell, Dynamic, Fragment, UnsafeHtml } from "@exact/core";
 import { describeNode, domDebug } from "./debug.js";
 import type { Mounted, Root } from "./types.js";
 
@@ -38,6 +38,7 @@ export function mountedDomNodes(mounted: Mounted): Node[] {
     }
     nodes.push(current.mounted.dom);
     if (current.mounted.end) pending.push({ mounted: current.mounted, end: true });
+    if (current.mounted.rawNodes) nodes.push(...current.mounted.rawNodes);
     if (ownsChildDom(current.mounted)) {
       for (let index = current.mounted.children.length - 1; index >= 0; index--) {
         pending.push({ mounted: current.mounted.children[index]!, end: false });
@@ -63,7 +64,8 @@ export function lastMountedNode(mounted: Mounted): Node {
 
 function ownsChildDom(mounted: Mounted): boolean {
   return !!mounted.end || mounted.vnode.type === Cell || mounted.vnode.type === Fragment
-    || mounted.vnode.type === Dynamic || typeof mounted.vnode.type === "function";
+    || mounted.vnode.type === Dynamic || mounted.vnode.type === UnsafeHtml
+    || typeof mounted.vnode.type === "function";
 }
 
 function runAfterPlacement(mounted: Mounted): void {

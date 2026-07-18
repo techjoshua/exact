@@ -1,4 +1,4 @@
-import { batch, createErrorReport, handleComponentError, observeComponentAsync, type StopHandle, unwrap, watch } from "@exact/core";
+import { batch, createErrorReport, handleComponentError, observeComponentAsync, sanitizeUrlAttribute, type StopHandle, unwrap, watch } from "@exact/core";
 import type { EffectScope } from "@exact/reactive";
 import { describeNode, domDebug } from "./debug.js";
 import { ensureDelegated } from "./events.js";
@@ -34,6 +34,9 @@ export function clearElementProps(element: Element): void {
 
 function setProp(root: Root, element: Element, key: string, value: unknown, previous: unknown, scope: EffectScope): void {
   if (key === "children") return;
+  if (key === "dangerouslySetInnerHTML") {
+    throw new Error("Native eXact does not support dangerouslySetInnerHTML; use unsafeHtml() with explicit root opt-in.");
+  }
 
   clearPropBinding(element, key);
 
@@ -106,7 +109,8 @@ function setProp(root: Root, element: Element, key: string, value: unknown, prev
       return;
     }
 
-    setDomProp(root, element, key, key === "class" || key === "className" ? normalizeClass(actual) : actual);
+    const normalized = key === "class" || key === "className" ? normalizeClass(actual) : actual;
+    setDomProp(root, element, key, sanitizeUrlAttribute(key, normalized));
   }), undefined, { scope });
   setPropBinding(element, key, stop);
 }
@@ -215,8 +219,11 @@ function bindStyle(element: HTMLElement, value: unknown, scope: EffectScope): St
 
 /** Applies one non-reactive property using the same semantics as JSX bindings. */
 export function applyDomProp(element: Element, key: string, value: unknown): void {
+  if (key === "dangerouslySetInnerHTML") {
+    throw new Error("Native eXact does not support dangerouslySetInnerHTML; use unsafeHtml() with explicit root opt-in.");
+  }
   if (value === false || value === null || value === undefined) clearDomProp(element, key);
-  else setDomProp(undefined, element, key, value);
+  else setDomProp(undefined, element, key, sanitizeUrlAttribute(key, value));
 }
 
 function setDomProp(root: Root | undefined, element: Element, key: string, value: unknown): void {

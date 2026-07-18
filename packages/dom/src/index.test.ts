@@ -13,6 +13,8 @@ import {
   Fragment,
   createErrorContext,
   createRef,
+  unsafeHtml,
+  BLOCKED_JAVASCRIPT_URL,
   type Child,
   type Component,
   type ErrorContextValue,
@@ -26,6 +28,31 @@ import { adoptStatic, percent, px, rem, render, unmount } from "./index.js";
 import { mountedDomNodes, placeMountedBefore } from "./placement.js";
 
 describe("@exact/dom", () => {
+  it("mounts and replaces opted-in opaque unsafe HTML ranges", () => {
+    const container = document.createElement("div");
+    const audit = vi.fn();
+
+    render(createVNode("section", null, unsafeHtml("<strong>first</strong>")), container, {
+      allowUnsafeHtml: true,
+      onUnsafeHtml: audit
+    });
+    expect(container.innerHTML).toContain("<strong>first</strong>");
+
+    render(createVNode("section", null, unsafeHtml("<em>second</em><span>tail</span>")), container);
+    expect(container.querySelector("section")?.innerHTML).toContain("<em>second</em><span>tail</span>");
+    expect(container.querySelector("strong")).toBeNull();
+    expect(audit).toHaveBeenCalledTimes(2);
+  });
+
+  it("applies the native javascript URL guard on mount and updates", () => {
+    const container = document.createElement("div");
+    render(createVNode("a", { href: "java\nscript:alert(1)" }, "blocked"), container);
+    expect(container.querySelector("a")?.getAttribute("href")).toBe(BLOCKED_JAVASCRIPT_URL);
+
+    render(createVNode("a", { href: "/safe" }, "safe"), container);
+    expect(container.querySelector("a")?.getAttribute("href")).toBe("/safe");
+  });
+
   it("renders portals in another container while preserving logical context and cleanup", () => {
     const container = document.createElement("div");
     const target = document.createElement("aside");

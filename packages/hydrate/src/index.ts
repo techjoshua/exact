@@ -1,5 +1,5 @@
 import { adoptComponentRoot, adoptMarkerlessComponentRoot, adoptStatic, consumeDomWork, createDomWorkBudget, namespaceForTag, render, unmount, walkDomSubtree, type DomWorkBudget } from "@exact/dom";
-import { Fragment, Text, isVNode, type Child, type VNode } from "@exact/core";
+import { Fragment, Text, isVNode, sanitizeUrlAttribute, type Child, type VNode } from "@exact/core";
 import type {
   ExactClient,
   FetchLike,
@@ -35,7 +35,7 @@ const requestVersions = new WeakMap<Element, Map<string, number>>();
 export function hydrate(vnode: VNode, container: Element, options: HydrateOptions = {}): HydrationRoot {
   const existing = roots.get(container);
   if (existing) {
-    render(vnode, container, { logger: options.logger, onErrorReport: options.onErrorReport, maxTreeDepth: options.maxTreeDepth, maxTreeNodes: options.maxTreeNodes });
+    render(vnode, container, { logger: options.logger, onErrorReport: options.onErrorReport, maxTreeDepth: options.maxTreeDepth, maxTreeNodes: options.maxTreeNodes, allowUnsafeHtml: options.allowUnsafeHtml, onUnsafeHtml: options.onUnsafeHtml });
     return existing;
   }
   const resolvedOptions = resolveHydrateOptions(container, options);
@@ -44,7 +44,7 @@ export function hydrate(vnode: VNode, container: Element, options: HydrateOption
   const formState = captured.formState;
   if (!captured.hasMarkers) {
     const adopted = resolvedOptions.allowMarkerless && typeof vnode.type === "function"
-      ? adoptMarkerlessComponentRoot(vnode, container, { logger: resolvedOptions.logger, onErrorReport: resolvedOptions.onErrorReport, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work })
+      ? adoptMarkerlessComponentRoot(vnode, container, { logger: resolvedOptions.logger, onErrorReport: resolvedOptions.onErrorReport, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work, allowUnsafeHtml: resolvedOptions.allowUnsafeHtml, onUnsafeHtml: resolvedOptions.onUnsafeHtml })
       : false;
     if (adopted) {
       const root = createExactClient(container, resolvedOptions);
@@ -55,16 +55,18 @@ export function hydrate(vnode: VNode, container: Element, options: HydrateOption
     }
     reportMismatch(resolvedOptions, resolvedOptions.allowMarkerless ? "server markup did not match the client tree" : "missing exact hydration markers", resolvedOptions.allowMarkerless ? "adoption-mismatch" : "missing-markers");
     container.replaceChildren();
-    render(vnode, container, { logger: resolvedOptions.logger, onErrorReport: resolvedOptions.onErrorReport, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work });
+    render(vnode, container, { logger: resolvedOptions.logger, onErrorReport: resolvedOptions.onErrorReport, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work, allowUnsafeHtml: resolvedOptions.allowUnsafeHtml, onUnsafeHtml: resolvedOptions.onUnsafeHtml });
   } else {
     if ((typeof vnode.type === "function"
-      ? adoptComponentRoot(vnode, container, { logger: resolvedOptions.logger, onErrorReport: resolvedOptions.onErrorReport, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work })
+      ? adoptComponentRoot(vnode, container, { logger: resolvedOptions.logger, onErrorReport: resolvedOptions.onErrorReport, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work, allowUnsafeHtml: resolvedOptions.allowUnsafeHtml, onUnsafeHtml: resolvedOptions.onUnsafeHtml })
       : adoptStaticTree(vnode, container, createStaticBudget(resolvedOptions, work)) && adoptStatic(vnode, container, {
         logger: resolvedOptions.logger,
         onErrorReport: resolvedOptions.onErrorReport,
         maxTreeDepth: resolvedOptions.maxTreeDepth,
         maxTreeNodes: remainingDomWork(work),
-        workBudget: work
+        workBudget: work,
+        allowUnsafeHtml: resolvedOptions.allowUnsafeHtml,
+        onUnsafeHtml: resolvedOptions.onUnsafeHtml
       }))) {
       const root = createExactClient(container, resolvedOptions);
       roots.set(container, root);
@@ -76,7 +78,7 @@ export function hydrate(vnode: VNode, container: Element, options: HydrateOption
     // range first so a hydration attempt cannot leave duplicate interactive
     // markup behind while marker adoption is unavailable for a boundary.
     container.replaceChildren();
-    render(vnode, container, { logger: resolvedOptions.logger, onErrorReport: resolvedOptions.onErrorReport, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work });
+    render(vnode, container, { logger: resolvedOptions.logger, onErrorReport: resolvedOptions.onErrorReport, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work, allowUnsafeHtml: resolvedOptions.allowUnsafeHtml, onUnsafeHtml: resolvedOptions.onUnsafeHtml });
   }
 
   restoreFormState(container, formState, work);
@@ -131,7 +133,7 @@ function matchesStaticVNode(vnode: VNode, node: Node, budget: StaticBudget, dept
       if (node.hasAttribute(attribute)) return false;
     } else if (value === true) {
       if (!node.hasAttribute(attribute)) return false;
-    } else if (node.getAttribute(attribute) !== String(value)) return false;
+    } else if (node.getAttribute(attribute) !== String(sanitizeUrlAttribute(name, value))) return false;
     if (value !== false && value !== null && value !== undefined) expectedAttributes.add(attribute);
   }
   for (const attribute of Array.from(node.attributes)) if (!expectedAttributes.has(attribute.name)) return false;
@@ -176,7 +178,7 @@ function patchStaticVNode(vnode: VNode, node: Node, budget: StaticBudget, depth:
     const attribute = name === "className" ? "class" : name;
     if (value === false || value === null || value === undefined) node.removeAttribute(attribute);
     else if (value === true) node.setAttribute(attribute, "");
-    else node.setAttribute(attribute, String(value));
+    else node.setAttribute(attribute, String(sanitizeUrlAttribute(name, value)));
     if (value !== false && value !== null && value !== undefined) expectedAttributes.add(attribute);
   }
   for (const attribute of Array.from(node.attributes)) if (!expectedAttributes.has(attribute.name)) node.removeAttribute(attribute.name);
@@ -238,7 +240,7 @@ function createStaticNode(vnode: VNode, parent: Element | undefined, budget: Sta
     if (value !== null && typeof value === "object" || typeof value === "function") return undefined;
     const attribute = name === "className" ? "class" : name;
     if (value === true) element.setAttribute(attribute, "");
-    else if (value !== false && value !== null && value !== undefined) element.setAttribute(attribute, String(value));
+    else if (value !== false && value !== null && value !== undefined) element.setAttribute(attribute, String(sanitizeUrlAttribute(name, value)));
   }
   for (const child of flattenStaticChildren(vnode.children, budget, depth + 1)) {
     const node = createStaticNodeFromChild(child, element, budget, depth + 1);

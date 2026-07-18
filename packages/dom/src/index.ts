@@ -6,6 +6,7 @@ import {
   Portal,
   ServerSlot,
   Text,
+  UnsafeHtml,
   attemptCleanup,
   createCleanupFailure,
   createComponentInstance,
@@ -143,7 +144,9 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
       maxTreeNodes: normalizeTreeNodes(options.maxTreeNodes),
       traversedNodes: 0,
       workDepth: 0,
-      workBudget: options.workBudget
+      workBudget: options.workBudget,
+      allowUnsafeHtml: options.allowUnsafeHtml ?? false,
+      onUnsafeHtml: options.onUnsafeHtml
     };
     root.boundary = createRootBoundary(root);
     roots.set(container, root);
@@ -155,6 +158,8 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
   root.maxTreeDepth = normalizeTreeDepth(options.maxTreeDepth);
   root.maxTreeNodes = normalizeTreeNodes(options.maxTreeNodes);
   root.workBudget = options.workBudget;
+  root.allowUnsafeHtml = options.allowUnsafeHtml ?? root.allowUnsafeHtml;
+  root.onUnsafeHtml = options.onUnsafeHtml ?? root.onUnsafeHtml;
 
   const next = root.mode === "hydrated"
     ? vnode
@@ -248,6 +253,8 @@ export function adoptStatic(vnode: VNode, container: Element, options: RenderOpt
     maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth),
     traversalDepth: 0, maxTreeNodes: normalizeTreeNodes(options.maxTreeNodes), traversedNodes: 0, workDepth: 0,
     workBudget: options.workBudget,
+    allowUnsafeHtml: options.allowUnsafeHtml ?? false,
+    onUnsafeHtml: options.onUnsafeHtml,
     logger: options.logger
   };
   root.boundary = createRootBoundary(root);
@@ -297,6 +304,8 @@ export function adoptComponentRoot(vnode: VNode, container: Element, options: Re
     maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth), traversalDepth: 0,
     maxTreeNodes: normalizeTreeNodes(options.maxTreeNodes), traversedNodes: 0, workDepth: 0,
     workBudget: options.workBudget,
+    allowUnsafeHtml: options.allowUnsafeHtml ?? false,
+    onUnsafeHtml: options.onUnsafeHtml,
     logger: options.logger, mode: "hydrated"
   };
   root.boundary = createRootBoundary(root);
@@ -347,6 +356,8 @@ export function adoptMarkerlessComponentRoot(vnode: VNode, container: Element, o
     maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth), traversalDepth: 0,
     maxTreeNodes: normalizeTreeNodes(options.maxTreeNodes), traversedNodes: 0, workDepth: 0,
     workBudget: options.workBudget,
+    allowUnsafeHtml: options.allowUnsafeHtml ?? false,
+    onUnsafeHtml: options.onUnsafeHtml,
     logger: options.logger, mode: "hydrated", markerlessHydration: true
   };
   root.boundary = createRootBoundary(root);
@@ -539,6 +550,29 @@ function adoptStaticMountedInner(
     }, undefined, { scope, onSchedule: () => stopReplacedChildren(mounted, normalizeRenderResult(unwrap(value) as Child | Child[])) });
     return { mounted, next: endIndex + 1 };
   }
+  if (vnode.type === UnsafeHtml) {
+    assertUnsafeHtmlAllowed(root);
+    const start = nodes[cursor];
+    if (!(start instanceof Comment) || !start.data.startsWith("exact:unsafe-html:")) {
+      scope.stop();
+      return undefined;
+    }
+    const endIndex = nodes.findIndex((node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`);
+    if (endIndex < 0) {
+      scope.stop();
+      return undefined;
+    }
+    const mounted: Mounted = {
+      vnode,
+      dom: start,
+      end: nodes[endIndex]!,
+      scope,
+      children: [],
+      rawNodes: nodes.slice(cursor + 1, endIndex)
+    };
+    bindUnsafeHtml(root, mounted, vnode.props.value, true);
+    return { mounted, next: endIndex + 1 };
+  }
   if (vnode.type === Fragment) {
     const start = nodes[cursor];
     const list = getListBinding(vnode);
@@ -715,6 +749,16 @@ function mountInner(root: Root, vnode: VNode, scope: EffectScope, parentInstance
     const node = document.createTextNode("");
     const mounted: Mounted = { vnode, dom: node, scope, children: [] };
     bindText(mounted, vnode.props.value);
+    return mounted;
+  }
+
+  if (vnode.type === UnsafeHtml) {
+    assertUnsafeHtmlAllowed(root);
+    const id = `exact:unsafe-html:client`;
+    const start = document.createComment(id);
+    const end = document.createComment(`/${id}`);
+    const mounted: Mounted = { vnode, dom: start, end, scope, children: [], rawNodes: [] };
+    bindUnsafeHtml(root, mounted, vnode.props.value);
     return mounted;
   }
 
@@ -911,6 +955,13 @@ function patchInner(
   if (next.type === Text) {
     mounted.vnode = next;
     bindText(mounted, next.props.value);
+    return mounted;
+  }
+
+  if (next.type === UnsafeHtml) {
+    mounted.vnode = next;
+    assertUnsafeHtmlAllowed(root);
+    bindUnsafeHtml(root, mounted, next.props.value);
     return mounted;
   }
 
@@ -1232,6 +1283,49 @@ function bindText(mounted: Mounted, value: unknown): void {
   }, undefined, { scope: mounted.scope });
 }
 
+function assertUnsafeHtmlAllowed(root: Root): void {
+  if (!root.allowUnsafeHtml) {
+    throw new Error("unsafeHtml() requires allowUnsafeHtml: true on the native eXact render or hydration root.");
+  }
+}
+
+function bindUnsafeHtml(root: Root, mounted: Mounted, value: unknown, adopted = false): void {
+  mounted.stop?.();
+  let first = adopted;
+  let previous = adopted ? rawHtmlForNodes(mounted.rawNodes ?? []) : undefined;
+  mounted.stop = watch(() => {
+    const html = String(unwrap(value) ?? "");
+    if (first && previous === html) {
+      first = false;
+      return;
+    }
+    first = false;
+    previous = html;
+    root.onUnsafeHtml?.({ characters: html.length });
+    replaceUnsafeHtmlRange(mounted, html);
+  }, undefined, { scope: mounted.scope });
+}
+
+function replaceUnsafeHtmlRange(mounted: Mounted, html: string): void {
+  const template = document.createElement("template");
+  template.innerHTML = html;
+  const next = Array.from(template.content.childNodes);
+  const parent = mounted.dom.parentNode;
+  if (parent && mounted.end?.parentNode === parent) {
+    for (const node of mounted.rawNodes ?? []) {
+      if (node.parentNode === parent) parent.removeChild(node);
+    }
+    for (const node of next) parent.insertBefore(node, mounted.end);
+  }
+  mounted.rawNodes = next;
+}
+
+function rawHtmlForNodes(nodes: readonly Node[]): string {
+  const template = document.createElement("template");
+  for (const node of nodes) template.content.appendChild(node.cloneNode(true));
+  return template.innerHTML;
+}
+
 const teardownFailure = createCleanupFailure;
 const recordTeardownFailure = recordCleanupFailure;
 const attemptTeardown = attemptCleanup;
@@ -1292,6 +1386,9 @@ function removeMountedNodes(parent: Node, mounted: Mounted): void {
       continue;
     }
     if (current.mounted.dom.parentNode === current.parent) attemptTeardown(failure, () => current.parent.removeChild(current.mounted.dom));
+    for (const node of current.mounted.rawNodes ?? []) {
+      if (node.parentNode === current.parent) attemptTeardown(failure, () => current.parent.removeChild(node));
+    }
     if (current.mounted.end?.parentNode === current.parent) attemptTeardown(failure, () => current.parent.removeChild(current.mounted.end!));
   }
   throwTeardownFailure(failure);
