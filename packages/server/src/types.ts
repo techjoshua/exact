@@ -1,4 +1,8 @@
-import type { Logger } from "@exact/core";
+import type { ComponentContextValues, ContextToken, Logger } from "@exact/core";
+import type {
+  RequestContextValue,
+  RequestResponseState
+} from "@exact/request";
 import type { ExactOutputExtension } from "@exact/plugin-api";
 
 export type ExactInvocationKind = "action" | "refresh";
@@ -93,12 +97,75 @@ export type CreateExactServerManifestOptions = {
 
 export type ExactRequestLike = {
   method: string;
-  url?: string;
+  url?: string | URL;
   headers?: Headers | Record<string, string | string[] | undefined>;
   body?: unknown;
   text?(): Promise<string>;
   json?(): Promise<unknown>;
   signal?: AbortSignal;
+  /** Adapter-owned original request object; never read from the invocation body. */
+  platformRequest?: unknown;
+};
+
+export type ExactContextFactoryContext = {
+  scope: "application" | "request";
+  signal: AbortSignal;
+  request?: RequestContextValue;
+  platformRequest?: unknown;
+  get<T>(token: ContextToken<T>): Promise<T>;
+};
+
+export type ExactContextFactory<T> = {
+  create(context: ExactContextFactoryContext): T | Promise<T>;
+  dispose?(value: T, reason?: unknown): void | Promise<void>;
+};
+
+export type ExactContextValue<T> = {
+  value: T;
+};
+
+export type ExactContextRegistration<T = unknown> = readonly [
+  token: ContextToken<T>,
+  source: ExactContextValue<T> | ExactContextFactory<T>
+];
+
+export type ExactRequestContextRegistrationSource =
+  | readonly ExactContextRegistration<any>[]
+  | ((
+    context: ExactContextFactoryContext
+  ) => readonly ExactContextRegistration<any>[] | Promise<readonly ExactContextRegistration<any>[]>);
+
+export type ExactContextOverrides = {
+  /** Trusted application-supplied test values; never populated from request data. */
+  application?: readonly (readonly [ContextToken<any>, unknown])[];
+  /** Trusted application-supplied test values; never populated from request data. */
+  request?: readonly (readonly [ContextToken<any>, unknown])[];
+};
+
+export type ExactServerContextConfiguration = {
+  applicationContexts?: readonly ExactContextRegistration<any>[];
+  requestContexts?: ExactRequestContextRegistrationSource;
+  contextOverrides?: ExactContextOverrides;
+};
+
+export type ExactContextScope = {
+  readonly kind: "application" | "request";
+  readonly componentValues: ComponentContextValues;
+  get<T>(token: ContextToken<T>): Promise<T>;
+  getSync<T>(token: ContextToken<T>): T;
+};
+
+export type ExactContextRuntime = {
+  open(
+    request: ExactRequestLike,
+    platformRequest?: unknown
+  ): Promise<{
+    context: ExactContextScope;
+    request: RequestContextValue;
+    response: RequestResponseState;
+    dispose(reason?: unknown): Promise<void>;
+  }>;
+  dispose(reason?: unknown): Promise<void>;
 };
 
 export type ExactResponseLike = {
@@ -172,12 +239,20 @@ export type ExactPatch =
   | { type: "state"; id: string; value: unknown }
   | { type: "replace"; id: string; html: string };
 
-export type ExactServerContext = {
+export type ExactServerContext = ExactServerContextConfiguration & {
   manifest: ExactServerManifest;
   actions?: Record<string, (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> | ExactInvocationResult>;
   refreshBoundaries?: Record<string, (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> | ExactInvocationResult>;
-  authorize?(request: ExactRequestLike, input: ExactInvocationRequest | ExactBatchRequest): Promise<boolean> | boolean;
-  validateCsrf?(request: ExactRequestLike, input: ExactInvocationRequest | ExactBatchRequest): Promise<boolean> | boolean;
+  authorize?(
+    request: ExactRequestLike,
+    input: ExactInvocationRequest | ExactBatchRequest,
+    context: ExactServerContext
+  ): Promise<boolean> | boolean;
+  validateCsrf?(
+    request: ExactRequestLike,
+    input: ExactInvocationRequest | ExactBatchRequest,
+    context: ExactServerContext
+  ): Promise<boolean> | boolean;
   logger?: Logger;
   outputExtensions?: readonly ExactOutputExtension[];
   /** Resource ceilings applied before and during batch dispatch. */
@@ -203,6 +278,18 @@ export type ExactServerContext = {
   };
   /** Aborts when the current request or response stream is cancelled. */
   signal?: AbortSignal;
+  /** Shared application/request context runtime. */
+  contextRuntime?: ExactContextRuntime;
+  /** Present only while trusted request-scoped work is executing. */
+  contexts?: ExactContextScope;
+  /** Portable request data for the active trusted scope. */
+  requestContext?: RequestContextValue;
+  /** Adapter-owned original request, never client-provided invocation context. */
+  platformRequest?: unknown;
+  /** Request-owned response mutations recorded before response commit. */
+  responseState?: RequestResponseState;
+  /** Disposes application-scoped resources owned by this server runtime. */
+  dispose?(): Promise<void>;
 };
 
 export type ExactHydrationManifestConfig = {

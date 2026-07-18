@@ -48,7 +48,7 @@ export function Router(this: Component<RouterState>, props: RouterProps) {
   this.state.version = 0;
   const mode = props.mode ?? "history";
   const basename = normalizeBasename(props.basename);
-  const request = getRequestContext();
+  const request = componentRequestContext(this) ?? getRequestContext();
   if (request) this.setContext(RequestContext, request);
   const source = props.source ?? requestSource(request) ?? browserSource(mode);
   if (!source) throw new Error("Router requires a location source outside a browser or ambient request context");
@@ -66,7 +66,9 @@ export function Router(this: Component<RouterState>, props: RouterProps) {
     const target = resolveTarget(to, source.location(), basename, mode);
     if (options.replace) source.replace(target, options.state, options.status);
     else source.push(target, options.state, options.status);
-    refresh();
+    // Server redirects record response controls; the current server render
+    // cannot navigate to the target and must not invalidate itself forever.
+    if (!request) refresh();
   };
 
   routeContext = {
@@ -256,6 +258,14 @@ function requestSource(request: RequestContextValue | undefined): LocationSource
     push: (url, _state, status) => request.redirect?.(url, status ?? 302),
     replace: (url, _state, status) => request.redirect?.(url, status ?? 302)
   };
+}
+
+function componentRequestContext(component: Component<any>): RequestContextValue | undefined {
+  try {
+    return component.getContext(RequestContext);
+  } catch {
+    return undefined;
+  }
 }
 
 function browserSource(mode: RouterMode): LocationSource | undefined {

@@ -10,7 +10,8 @@
   "references": [
     { "path": "../plugin-api" },
     { "path": "../plugin-host" },
-    { "path": "../core" }
+    { "path": "../core" },
+    { "path": "../request" }
   ],
   "include": ["src"],
   "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]

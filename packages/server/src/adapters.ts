@@ -59,7 +59,8 @@ export function createFetchHandler(context: ExactServerContext): (request: Reque
       headers: request.headers,
       json: () => request.json(),
       text: () => request.text(),
-      signal: request.signal
+      signal: request.signal,
+      platformRequest: request
     }, context);
     return new Response(response.stream ?? response.body ?? "", {
       status: response.status,
@@ -82,7 +83,8 @@ export function createExpressHandler(context: ExactServerContext): (request: Exa
       headers: request.headers,
       body: request.body,
       text: readText ? () => readText.call(request) : undefined,
-      signal: disconnect.signal
+      signal: disconnect.signal,
+      platformRequest: request
     }, context).then(result => {
       response.status(result.status);
       for (const [name, value] of Object.entries(result.headers)) response.setHeader(name, value);
@@ -113,9 +115,10 @@ export function createHapiHandler<Response extends ExactHapiResponse = ExactHapi
       result = await handleExactRequest({
         method: request.method,
         url: request.url?.href ?? request.url?.path,
-        headers: request.headers,
-        body: request.payload,
-        signal: disconnect.signal
+      headers: request.headers,
+      body: request.payload,
+      signal: disconnect.signal,
+      platformRequest: request
       }, context);
     } catch (error) {
       cleanupPreservingPrimary(disconnect.cleanup, error);

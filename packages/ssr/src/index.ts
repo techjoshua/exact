@@ -26,7 +26,11 @@ import {
   type VNode
 } from "@exact/core";
 import { flushSync, unwrap } from "@exact/reactive";
-import type { ExactPatch } from "@exact/server";
+import {
+  createExactContextRuntime,
+  runWithExactRequestScope,
+  type ExactPatch
+} from "@exact/server";
 import { boundaryPatch, diffBoundaryHtml, diffKeyedListItems } from "./diff.js";
 import { augmentDocumentBody } from "./document.js";
 import { escapeAttr, escapeText, voidElements } from "./html.js";
@@ -50,6 +54,8 @@ import type {
   ExactInvocationRequest,
   ExactInvocationResult,
   ExactResponseLike,
+  ExactRequestLike,
+  ExactRequestRenderFunction,
   ExactServerContext,
   ExactServerHandlerRegistry,
   ExactServerHandlerRegistryOptions,
@@ -63,6 +69,7 @@ import type {
   KeyedListSnapshotParseOptions,
   Logger,
   RenderToDocumentStreamOptions,
+  RenderExactRequestToHtmlResponseOptions,
   RenderToProgressiveHtmlResponseOptions,
   RenderToProgressiveHtmlStreamOptions,
   RenderToStringOptions,
@@ -241,6 +248,105 @@ export function renderToHydratableProgressiveHtmlResponse(vnode: VNode, options:
   return progressiveHtmlResponse(renderToHydratableProgressiveHtmlStream(vnode, options), options);
 }
 
+/**
+ * Produces an authoritative HTML response after all request providers and
+ * component tasks that affect the rendered tree have settled.
+ */
+export async function renderExactRequestToHtmlResponse(
+  request: ExactRequestLike,
+  server: ExactServerContext,
+  render: ExactRequestRenderFunction,
+  options: RenderExactRequestToHtmlResponseOptions = {}
+): Promise<ExactResponseLike> {
+  return runWithExactRequestScope(request, server, async context => {
+    const vnode = await render(context);
+    const renderOptions = {
+      ...options,
+      contexts: context.contexts?.componentValues,
+      signal: options.signal ?? context.signal
+    };
+    const body = options.hydration === false
+      ? (await renderToStringAsync(vnode, renderOptions)).html
+      : (await renderToHydratableStringAsync(vnode, renderOptions)).htmlWithHydration;
+    return {
+      status: options.status ?? 200,
+      headers: {
+        "content-type": options.contentType ?? "text/html; charset=utf-8",
+        ...(options.headers ?? {})
+      },
+      body
+    };
+  }, request.platformRequest ?? request);
+}
+
+/**
+ * Produces a progressive response in the trusted request scope and retains all
+ * request resources until the stream closes or is cancelled.
+ */
+export async function renderExactRequestToProgressiveHtmlResponse(
+  request: ExactRequestLike,
+  server: ExactServerContext,
+  render: ExactRequestRenderFunction,
+  options: RenderToProgressiveHtmlResponseOptions = {}
+): Promise<ExactResponseLike> {
+  return runWithExactRequestScope(request, server, async context => {
+    const vnode = await render(context);
+    const renderOptions = {
+      ...options,
+      contexts: context.contexts?.componentValues,
+      signal: options.signal ?? context.signal
+    };
+    // A response's status, headers, and authored head are committed before its
+    // body is consumed. Conservatively settle the root before returning the
+    // response; lower-level progressive APIs remain available when an
+    // application can prove its provisional shell has no pre-commit effects.
+    let body: string;
+    if (options.hydration === false) {
+      const rendered = await renderToStringAsync(vnode, renderOptions);
+      body = progressiveRoot(rendered.html, options.rootId);
+    } else {
+      const rendered = await renderToHydratableStringAsync(vnode, renderOptions);
+      body = isRenderedDocument(rendered.html)
+        ? rendered.htmlWithHydration
+        : `${progressiveRoot(rendered.html, options.rootId)}${rendered.hydrationScript}`;
+    }
+    return {
+      status: options.status ?? 200,
+      headers: {
+        "content-type": options.contentType ?? "text/html; charset=utf-8",
+        ...(options.headers ?? {})
+      },
+      body: "",
+      stream: stringStream(body)
+    };
+  }, request.platformRequest ?? request);
+}
+
+function progressiveRoot(html: string, rootId = "exact-root"): string {
+  return isRenderedDocument(html)
+    ? html
+    : `<div id="${escapeAttr(rootId)}">${html}</div>`;
+}
+
+function isRenderedDocument(html: string): boolean {
+  return /^\s*(?:<!doctype\s+html>\s*)?<html(?:\s|>)/i.test(html);
+}
+
+function stringStream(value: string): ReadableStream<Uint8Array> {
+  const encoded = new TextEncoder().encode(value);
+  let emitted = false;
+  return new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (emitted) {
+        controller.close();
+        return;
+      }
+      emitted = true;
+      controller.enqueue(encoded);
+    }
+  }, { highWaterMark: 0 });
+}
+
 /** Renders a vnode tree after waiting for observed async component tasks to settle. */
 export async function renderToStringAsync(vnode: VNode, options: RenderToStringOptions = {}): Promise<RenderToStringResult> {
   const renderOptions = withTaskDeadline(options);
@@ -345,7 +451,11 @@ export function createBoundaryRefreshHandler(
 ): (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> {
   return async (input, context) => {
     const vnode = await render(input, context);
-    const result = await renderToStringAsync(vnode, { ...options, signal: options.signal ?? context.signal });
+    const result = await renderToStringAsync(vnode, {
+      ...options,
+      contexts: context.contexts?.componentValues ?? options.contexts,
+      signal: options.signal ?? context.signal
+    });
     const previousHtml = await options.previousHtml?.(input, context) ?? input.boundaryHtml;
     return {
       patches: previousHtml === undefined
@@ -368,7 +478,11 @@ export function createActionRefreshHandler(
 
     for (const boundary of options.boundaries) {
       const vnode = await boundary.render(input, context);
-      const result = await renderToStringAsync(vnode, { ...boundary, signal: boundary.signal ?? context.signal });
+      const result = await renderToStringAsync(vnode, {
+        ...boundary,
+        contexts: context.contexts?.componentValues ?? boundary.contexts,
+        signal: boundary.signal ?? context.signal
+      });
       const previousHtml = await boundary.previousHtml?.(input, context) ?? input.boundaryHtmls?.[boundary.boundaryId];
       patches.push(...(
         previousHtml === undefined
@@ -430,12 +544,23 @@ export function createExactServerHandlerRegistry(
 /** Creates an eXact server context suitable for the generic endpoint handler. */
 export function createExactServerRuntime(options: ExactServerRuntimeOptions): ExactServerContext {
   const registry = createExactServerHandlerRegistry(options);
+  const contextRuntime = createExactContextRuntime({
+    applicationContexts: options.applicationContexts,
+    requestContexts: options.requestContexts,
+    contextOverrides: options.contextOverrides
+  });
   return {
     manifest: options.manifest,
     ...registry,
     authorize: options.authorize,
     validateCsrf: options.validateCsrf,
-    logger: options.logger
+    logger: options.logger,
+    outputExtensions: options.outputExtensions,
+    applicationContexts: options.applicationContexts,
+    requestContexts: options.requestContexts,
+    contextOverrides: options.contextOverrides,
+    contextRuntime,
+    dispose: () => contextRuntime.dispose()
   };
 }
 
@@ -664,7 +789,8 @@ function* renderVNodeChunks(
       const instance = createComponentInstance(
         vnode.type as ComponentFunction<any, Record<string, unknown>>,
         getComponentProps(vnode),
-        parent
+        parent,
+        context.componentContexts
       );
       childParent = instance;
       children = renderInstance(instance, () => undefined);
@@ -945,7 +1071,8 @@ function renderComponent(context: SsrContext, vnode: VNode, parent?: ComponentIn
     const instance = createComponentInstance(
       vnode.type as ComponentFunction<any, Record<string, unknown>>,
       getComponentProps(vnode),
-      parent
+      parent,
+      context.componentContexts
     );
     let invalidated = false;
     for (let pass = 0; pass < 25; pass++) {
@@ -994,7 +1121,8 @@ async function renderComponentAsync(
       instance = withTaskObserver(observer, () => createComponentInstance(
         vnode.type as ComponentFunction<any, Record<string, unknown>>,
         getComponentProps(vnode),
-        parent
+        parent,
+        context.componentContexts
       ));
       await drainTasks(pending, options.maxTaskPasses ?? 10, options.signal, options.taskDeadline);
       let invalidated = false;
@@ -1362,7 +1490,8 @@ function createSsrContext(options: RenderToStringOptions): SsrContext {
     documentRootSeen: false,
     documentHeadSeen: false,
     documentBodySeen: false,
-    hostStack: []
+    hostStack: [],
+    componentContexts: options.contexts
   };
 }
 

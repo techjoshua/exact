@@ -23,7 +23,8 @@ export function createExactKoaMiddleware(context: ExactServerContext): (ctx: Exa
       url: ctx.url,
       headers: ctx.headers,
       body: ctx.request.body,
-      text: ctx.request.rawBody === undefined ? undefined : async () => ctx.request.rawBody!
+      text: ctx.request.rawBody === undefined ? undefined : async () => ctx.request.rawBody!,
+      platformRequest: ctx
     }, context);
     if (result.status === 404 && next) {
       await next();

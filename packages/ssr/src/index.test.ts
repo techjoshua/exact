@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { BLOCKED_JAVASCRIPT_URL, createCompiledVNode, createDynamicChild, createServerBoundary, createTextVNode, createVNode, unsafeHtml, type Component } from "@exact/core";
+import { BLOCKED_JAVASCRIPT_URL, createCompiledVNode, createContext, createDynamicChild, createServerBoundary, createTextVNode, createVNode, unsafeHtml, type Component } from "@exact/core";
 import { handleExactRequest } from "@exact/server";
+import { RequestContext } from "@exact/request";
 import { registerReactiveListKey } from "@exact/reactive";
 import {
   createActionRefreshHandler,
@@ -11,6 +12,8 @@ import {
   diffBoundaryHtml,
   diffKeyedListItems,
   parseKeyedListSnapshotHtml,
+  renderExactRequestToHtmlResponse,
+  renderExactRequestToProgressiveHtmlResponse,
   renderKeyedListSnapshot,
   renderHydrationScript,
   renderToDocumentStream,
@@ -24,6 +27,157 @@ import {
   renderToString,
   renderToStringAsync
 } from "./index.js";
+
+describe("request-aware SSR", () => {
+  const ApplicationName = createContext<string>("ssr.application", {
+    reactive: false,
+    scope: "application"
+  });
+  const RequestName = createContext<string>("ssr.request", {
+    reactive: false,
+    scope: "request"
+  });
+
+  it("constructs the root only after contexts initialize and stabilizes task-written output", async () => {
+    const runtime = createExactServerRuntime({
+      manifest: { version: 1 },
+      applicationContexts: [[ApplicationName, { value: "app" }]],
+      requestContexts: [[RequestName, {
+        async create(scope) {
+          const application = await scope.get(ApplicationName);
+          return `${application}:${scope.request!.url.pathname}`;
+        }
+      }]]
+    });
+
+    function Page(this: Component<{ ready: string }>) {
+      const request = this.getContext(RequestContext);
+      const name = this.getContext(RequestName);
+      this.state.ready = "loading";
+      this.task.server(async () => {
+        await Promise.resolve();
+        this.state.ready = `${name}:${request.method}`;
+        request.setStatus(201);
+        request.setHeader("x-rendered", "yes");
+      });
+      return () => createVNode("p", null, this.state.ready);
+    }
+
+    const response = await renderExactRequestToHtmlResponse({
+      method: "GET",
+      url: "https://example.test/account"
+    }, runtime, () => createVNode(Page, {}), {
+      hydration: false,
+      markers: false
+    });
+
+    expect(response.status).toBe(201);
+    expect(response.headers["x-rendered"]).toBe("yes");
+    expect(response.body).toBe("<p>app:/account:GET</p>");
+    await runtime.dispose?.();
+  });
+
+  it("settles request providers before exposing a progressive response", async () => {
+    let release!: () => void;
+    const ready = new Promise<void>(resolve => { release = resolve; });
+    const disposed: string[] = [];
+    let rendered = false;
+    const runtime = createExactServerRuntime({
+      manifest: { version: 1 },
+      requestContexts: [[RequestName, {
+        async create() {
+          await ready;
+          return "ready";
+        },
+        dispose: value => { disposed.push(value); }
+      }]]
+    });
+
+    const pending = renderExactRequestToProgressiveHtmlResponse({
+      method: "GET",
+      url: "https://example.test/progressive"
+    }, runtime, context => {
+      rendered = true;
+      expect(context.contexts?.getSync(RequestName)).toBe("ready");
+      function Settled(this: Component<{ value: string }>) {
+        const request = this.getContext(RequestContext);
+        this.state.value = "pending";
+        this.task.server(async () => {
+          await Promise.resolve();
+          this.state.value = "settled";
+          request.setStatus(206);
+          request.setHeader("x-precommit", "settled");
+        });
+        return () => createVNode("p", null, this.state.value);
+      }
+      return createVNode(Settled, {});
+    }, { markers: false, hydration: false });
+
+    await Promise.resolve();
+    expect(rendered).toBe(false);
+    release();
+    const response = await pending;
+    expect(rendered).toBe(true);
+    expect(response.status).toBe(206);
+    expect(response.headers["x-precommit"]).toBe("settled");
+    expect(disposed).toEqual([]);
+    expect(await readStreamText(response.stream!)).toBe(
+      '<div id="exact-root"><p>settled</p></div>'
+    );
+    expect(disposed).toEqual(["ready"]);
+    await runtime.dispose?.();
+  });
+
+  it("passes the active request scope through boundary refresh rendering", async () => {
+    const runtime = createExactServerRuntime({
+      manifest: {
+        version: 1,
+        boundaries: { profile: { id: "profile" } }
+      },
+      requestContexts: [[RequestName, {
+        create: scope => scope.request!.url.pathname
+      }]],
+      boundaries: {
+        profile: () => {
+          function Profile(this: Component<{}>) {
+            const requestName = this.getContext(RequestName);
+            const request = this.getContext(RequestContext);
+            return () => createVNode("p", null, `${requestName}:${request.method}`);
+          }
+          return createVNode(Profile, {});
+        }
+      },
+      markers: false
+    });
+
+    const response = await handleExactRequest({
+      method: "POST",
+      url: "https://example.test/__exact",
+      body: { type: "refresh", id: "profile" }
+    }, runtime);
+    expect(JSON.parse(response.body).html).toBe("<p>/__exact:POST</p>");
+    await runtime.dispose?.();
+  });
+
+  it("preserves authored documents instead of adding a progressive root wrapper", async () => {
+    const runtime = createExactServerRuntime({ manifest: { version: 1 } });
+    const response = await renderExactRequestToProgressiveHtmlResponse({
+      method: "GET",
+      url: "https://example.test/"
+    }, runtime, () => createVNode("html", null,
+      createVNode("head", null, createVNode("title", null, "Document")),
+      createVNode("body", null, createVNode("main", null, "Ready"))
+    ), {
+      hydration: false,
+      markers: false,
+      rootId: "ignored"
+    });
+    expect(await readStreamText(response.stream!)).toBe(
+      "<!doctype html><html><head><title>Document</title></head><body><main>Ready</main></body></html>"
+    );
+    await runtime.dispose?.();
+  });
+});
 
 describe("native rendering safety", () => {
   it("rejects dangerouslySetInnerHTML outside React compatibility markup", () => {

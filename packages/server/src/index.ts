@@ -26,6 +26,7 @@ import {
 import {
   processExactOutputSync
 } from "@exact/plugin-host/runtime";
+import { runWithExactRequestScope } from "./context.js";
 
 export { exactCompilerManifestVersion, exactServerManifestVersion } from "./versions.js";
 export {
@@ -44,10 +45,24 @@ export {
   type ExactHapiResponse,
   type ExactHapiToolkit
 } from "./adapters.js";
+export {
+  applyResponseState,
+  createExactContextRuntime,
+  openExactRequestScope,
+  runWithExactRequestScope
+} from "./context.js";
 export type * from "./types.js";
 
 /** Handles an eXact endpoint request using the runtime-neutral server protocol. */
 export async function handleExactRequest(request: ExactRequestLike, context: ExactServerContext): Promise<ExactResponseLike> {
+  if (!context.requestContext) {
+    return runWithExactRequestScope(
+      request,
+      context,
+      scoped => handleExactRequest(request, scoped),
+      request.platformRequest ?? request
+    );
+  }
   if (request.method.toUpperCase() !== "POST") {
     return jsonResponse(405, { error: "method_not_allowed" });
   }
@@ -225,7 +240,7 @@ async function checkSecurityHooks(
 ): Promise<"allowed" | "unauthorized" | "csrf"> {
   if (context.authorize) {
     try {
-      if (!await context.authorize(request, input)) return "unauthorized";
+      if (!await context.authorize(request, input, context)) return "unauthorized";
     } catch (error) {
       logFrameworkEvent("error", "server", "security", "exact authorization hook failed", error, context.logger);
       return "unauthorized";
@@ -233,7 +248,7 @@ async function checkSecurityHooks(
   }
   if (context.validateCsrf) {
     try {
-      if (!await context.validateCsrf(request, input)) return "csrf";
+      if (!await context.validateCsrf(request, input, context)) return "csrf";
     } catch (error) {
       logFrameworkEvent("error", "server", "security", "exact csrf hook failed", error, context.logger);
       return "csrf";

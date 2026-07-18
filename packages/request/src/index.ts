@@ -2,7 +2,29 @@ import { createContext, type Child, type Component } from "@exact/core";
 
 export type RequestContextValue = {
   url: URL;
-  redirect?(location: string | URL, status?: number): void;
+  method: string;
+  headers: Headers;
+  signal: AbortSignal;
+  locale?: string;
+  traceId?: string;
+  redirect(location: string | URL, status?: number): void;
+  setStatus(status: number): void;
+  setHeader(name: string, value: string): void;
+};
+
+export type RequestContextInput = {
+  url?: string | URL;
+  method?: string;
+  headers?: Headers | Record<string, string | readonly string[] | undefined>;
+  signal?: AbortSignal;
+  locale?: string;
+  traceId?: string;
+};
+
+export type RequestResponseState = {
+  status?: number;
+  redirect?: { location: URL; status: number };
+  headers: Headers;
 };
 
 export interface RequestContextStorage {
@@ -15,7 +37,48 @@ export interface RequestScope {
   current(): RequestContextValue | undefined;
 }
 
-export const RequestContext = createContext<RequestContextValue>("exact.request", true);
+export const RequestContext = createContext<RequestContextValue>("exact.request", {
+  global: true,
+  reactive: false,
+  scope: "request"
+});
+
+/** Normalizes adapter-specific request data into eXact's portable contract. */
+export function createRequestContextValue(
+  input: RequestContextInput,
+  response: RequestResponseState = { headers: new Headers() }
+): RequestContextValue {
+  const signal = input.signal ?? new AbortController().signal;
+  const headers = normalizeHeaders(input.headers);
+  const baseUrl = `${headers.get("x-forwarded-proto") ?? "http"}://${headers.get("host") ?? "exact.local"}`;
+  const url = input.url instanceof URL
+    ? new URL(input.url)
+    : new URL(input.url ?? "/", baseUrl);
+  const setStatus = (status: number) => {
+    if (!Number.isInteger(status) || status < 100 || status > 999) {
+      throw new RangeError(`Invalid HTTP status ${status}`);
+    }
+    response.status = status;
+  };
+  return {
+    url,
+    method: (input.method ?? "GET").toUpperCase(),
+    headers,
+    signal,
+    ...(input.locale === undefined ? {} : { locale: input.locale }),
+    ...(input.traceId === undefined ? {} : { traceId: input.traceId }),
+    redirect(location, status = 302) {
+      setStatus(status);
+      const target = location instanceof URL ? new URL(location) : new URL(location, url);
+      response.redirect = { location: target, status };
+      response.headers.set("location", target.href);
+    },
+    setStatus,
+    setHeader(name, value) {
+      response.headers.set(name, value);
+    }
+  };
+}
 
 class StackStorage implements RequestContextStorage {
   private readonly stack: RequestContextValue[] = [];
@@ -75,4 +138,20 @@ export function RequestProvider(this: Component<{}>, props: RequestProviderProps
 
 function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
   return !!value && (typeof value === "object" || typeof value === "function") && typeof (value as PromiseLike<unknown>).then === "function";
+}
+
+function normalizeHeaders(
+  input: RequestContextInput["headers"]
+): Headers {
+  if (input instanceof Headers) return new Headers(input);
+  const headers = new Headers();
+  for (const [name, value] of Object.entries(input ?? {})) {
+    if (value === undefined) continue;
+    if (Array.isArray(value)) {
+      for (const item of value) headers.append(name, item);
+    } else {
+      headers.set(name, value as string);
+    }
+  }
+  return headers;
 }

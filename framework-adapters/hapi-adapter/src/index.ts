@@ -24,7 +24,8 @@ export function createExactHapiHandler(context: ExactServerContext): (request: E
       method: request.method,
       url: request.url?.href ?? request.url?.path,
       headers: request.headers,
-      body: request.payload
+      body: request.payload,
+      platformRequest: request
     }, context);
     const response = h.response(result.stream ?? result.body ?? "").code(result.status);
     for (const [name, value] of Object.entries(result.headers)) response.header(name, value);

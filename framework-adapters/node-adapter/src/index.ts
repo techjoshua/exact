@@ -12,12 +12,16 @@ export function createExactNodeHandler(context: ExactServerContext): (request: I
       request.off("aborted", abort);
       response.off("close", abort);
     };
+    // Begin consuming the evented request body before asynchronous context
+    // factories run so early data/end events cannot be missed.
+    const body = readNodeRequestBody(request);
     void handleExactRequest({
       method: request.method ?? "GET",
       url: request.url,
       headers: request.headers,
-      text: () => readNodeRequestBody(request),
-      signal: disconnect.signal
+      text: () => body,
+      signal: disconnect.signal,
+      platformRequest: request
     }, context).then(
       result => writeNodeResponse(response, result, disconnect.signal).finally(cleanup),
       error => { cleanup(); writeNodeError(response, error); }

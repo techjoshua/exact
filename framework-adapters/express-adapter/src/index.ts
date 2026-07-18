@@ -28,7 +28,8 @@ export function createExactExpressMiddleware(context: ExactServerContext): (requ
       url: request.originalUrl ?? request.url,
       headers: request.headers,
       body: request.body,
-      text: typeof request.text === "function" ? () => request.text!() : undefined
+      text: typeof request.text === "function" ? () => request.text!() : undefined,
+      platformRequest: request
     }, context).then(result => {
       response.status(result.status);
       for (const [name, value] of Object.entries(result.headers)) response.setHeader(name, value);

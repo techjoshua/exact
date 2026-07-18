@@ -1,13 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { createNodeRequestScope } from "./node.js";
 import { createComponentInstance, type Component } from "@exact/core";
-import { createRequestScope, getRequestContext, RequestContext, RequestProvider, runWithRequestContext } from "./index.js";
+import {
+  createRequestContextValue,
+  createRequestScope,
+  getRequestContext,
+  RequestContext,
+  RequestProvider,
+  runWithRequestContext
+} from "./index.js";
+
+const request = (path: string) => createRequestContextValue({
+  url: `https://example.test/${path}`
+});
 
 describe("request context", () => {
   it("restores nested values", () => {
     const scope = createNodeRequestScope();
-    const outer = { url: new URL("https://example.test/outer") };
-    const inner = { url: new URL("https://example.test/inner") };
+    const outer = request("outer");
+    const inner = request("inner");
     scope.run(outer, () => {
       expect(getRequestContext(scope)?.url.pathname).toBe("/outer");
       scope.run(inner, () => expect(getRequestContext(scope)?.url.pathname).toBe("/inner"));
@@ -18,7 +29,7 @@ describe("request context", () => {
 
   it("keeps concurrent Node scopes isolated", async () => {
     const scope = createNodeRequestScope();
-    const read = (path: string) => scope.run({ url: new URL(`https://example.test/${path}`) }, async () => {
+    const read = (path: string) => scope.run(request(path), async () => {
       await Promise.resolve();
       return getRequestContext(scope)?.url.pathname;
     });
@@ -26,13 +37,13 @@ describe("request context", () => {
   });
 
   it("supports the default synchronous scope", () => {
-    runWithRequestContext({ url: new URL("https://example.test/default") }, () => {
+    runWithRequestContext(request("default"), () => {
       expect(getRequestContext()?.url.pathname).toBe("/default");
     });
   });
 
   it("rejects unsafe asynchronous use of the synchronous default", () => {
-    expect(() => runWithRequestContext({ url: new URL("https://example.test/async") }, async () => {
+    expect(() => runWithRequestContext(request("async"), async () => {
       await Promise.resolve();
     })).toThrow("configure async-safe storage");
   });
@@ -40,17 +51,67 @@ describe("request context", () => {
   it("creates isolated portable scopes without requiring storage plumbing", () => {
     const first = createRequestScope();
     const second = createRequestScope();
-    first.run({ url: new URL("https://example.test/first") }, () => {
+    first.run(request("first"), () => {
       expect(first.current()?.url.pathname).toBe("/first");
       expect(second.current()).toBeUndefined();
     });
   });
 
   it("publishes explicit request values through the component context", () => {
-    const value = { url: new URL("https://example.test/component") };
+    const value = request("component");
     const provider = createComponentInstance(RequestProvider, { value });
     function Consumer(this: Component<{}>) { return () => null; }
     const consumer = createComponentInstance(Consumer, {}, provider);
     expect(consumer.getContext(RequestContext).url.pathname).toBe("/component");
+  });
+
+  it("normalizes request data and records response controls", () => {
+    const response: import("./index.js").RequestResponseState = { headers: new Headers() };
+    const value = createRequestContextValue({
+      url: "/orders?open=1",
+      method: "post",
+      headers: { "x-trace-id": "trace-1" },
+      locale: "en-US",
+      traceId: "trace-1"
+    }, response);
+
+    value.setStatus(201);
+    value.setHeader("x-result", "created");
+    value.redirect("../complete", 303);
+
+    expect(value.url.href).toBe("http://exact.local/orders?open=1");
+    expect(value.method).toBe("POST");
+    expect(value.headers.get("x-trace-id")).toBe("trace-1");
+    expect(value.locale).toBe("en-US");
+    expect(value.traceId).toBe("trace-1");
+    expect(response.status).toBe(303);
+    expect(response.redirect?.location.href).toBe("http://exact.local/complete");
+    expect(response.headers.get("x-result")).toBe("created");
+  });
+
+  it("uses host and forwarded protocol headers to normalize relative adapter URLs", () => {
+    const value = createRequestContextValue({
+      url: "/orders",
+      headers: {
+        host: "shop.example.test",
+        "x-forwarded-proto": "https"
+      }
+    });
+    expect(value.url.href).toBe("https://shop.example.test/orders");
+  });
+
+  it("makes server-owned root contexts visible without changing component lifetime", () => {
+    const value = request("ambient");
+    function Consumer(this: Component<{}>) {
+      expect(this.getContext(RequestContext)).toBe(value);
+      return () => null;
+    }
+    const consumer = createComponentInstance(
+      Consumer,
+      {},
+      undefined,
+      new Map([[RequestContext.id, value]])
+    );
+    expect(consumer.contexts.has(RequestContext.id)).toBe(false);
   });
 });

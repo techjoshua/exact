@@ -13,17 +13,35 @@ describe("@exact/hapi-adapter", () => {
   it("returns a Hapi response object", async () => {
     const handler = createExactHapiHandler({
       manifest: { version: 1, endpoint: "/__exact", actions: { save: { id: "save", placement: "server" } } },
-      actions: { save: () => ({ state: { runtime: "hapi" } }) }
+      actions: {
+        save: (_input, context) => ({
+          state: {
+            runtime: "hapi",
+            url: context.requestContext?.url.href,
+            platformPath: (context.platformRequest as { url?: { path?: string } }).url?.path
+          }
+        })
+      }
     });
 
     const response = await handler({
       method: "POST",
       url: { path: "/__exact" },
+      headers: { host: "hapi.example.test" },
       payload: { type: "action", id: "save" }
     }, createHapiToolkit()) as TestHapiResponse;
 
     expect(response.statusCode).toBe(200);
-    expect(JSON.parse(String(response.body))).toEqual({ ok: true, type: "action", id: "save", state: { runtime: "hapi" } });
+    expect(JSON.parse(String(response.body))).toEqual({
+      ok: true,
+      type: "action",
+      id: "save",
+      state: {
+        runtime: "hapi",
+        url: "http://hapi.example.test/__exact",
+        platformPath: "/__exact"
+      }
+    });
   });
 });
 

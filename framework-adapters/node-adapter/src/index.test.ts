@@ -12,14 +12,20 @@ describe("@exact/node-adapter", () => {
         actions: { save: { id: "save", placement: "server" } }
       },
       actions: {
-        save: () => ({ state: { ok: true } })
+        save: (_input, context) => ({
+          state: {
+            method: context.requestContext?.method,
+            url: context.requestContext?.url.href,
+            platformUrl: (context.platformRequest as IncomingMessage).url
+          }
+        })
       }
     });
 
     const request = new EventEmitter() as IncomingMessage;
     request.method = "POST";
     request.url = "/__exact";
-    request.headers = {};
+    request.headers = { host: "node.example.test" };
 
     let resolveDone!: () => void;
     const done = new Promise<void>(resolve => {
@@ -58,7 +64,16 @@ describe("@exact/node-adapter", () => {
 
     await done;
     expect(response.statusCode).toBe(200);
-    expect(JSON.parse(response.body)).toEqual({ ok: true, type: "action", id: "save", state: { ok: true } });
+    expect(JSON.parse(response.body)).toEqual({
+      ok: true,
+      type: "action",
+      id: "save",
+      state: {
+        method: "POST",
+        url: "http://node.example.test/__exact",
+        platformUrl: "/__exact"
+      }
+    });
   });
 
   it("waits for writable backpressure before reading the next stream chunk", async () => {

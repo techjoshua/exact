@@ -231,7 +231,9 @@ export const WeatherClientContext = createContext<WeatherClient>(
 );
 ```
 
-The exact overload may change during API review, but the token must carry portable metadata that the compiler and server runtime can validate.
+The implemented `createContext()` options overload carries lifetime metadata
+that the server runtime validates. Phase 3 extends the same metadata path with
+compiler residency policy.
 
 ### Application scope
 
@@ -245,11 +247,13 @@ Application-scoped providers:
 - Must not capture request-scoped values.
 
 ```ts
-const server = createExactServer({
-  contexts: [
-    provide(WeatherClientContext, ({ secrets }) =>
-      new WeatherClient(secrets.require("WEATHER_API_KEY"))
-    )
+const server = createExactServerRuntime({
+  applicationContexts: [
+    [WeatherClientContext, {
+      create: ({ signal }) =>
+        new WeatherClient(secrets.require("WEATHER_API_KEY"), { signal }),
+      dispose: client => client.close()
+    }]
   ]
 });
 ```
@@ -803,6 +807,8 @@ The completed design must maintain these invariants:
 
 ## Resolved Design Questions
 
+- Context lifetime metadata uses `createContext()` options; there is no separate
+  `createServerContext()` API.
 - `keep=isomorphic` is not part of the policy vocabulary. Ordinary safe
   transferable values infer isomorphic classification.
 - Component providers may derive their values from visible application/request
@@ -811,9 +817,8 @@ The completed design must maintain these invariants:
 
 ## Open Design Questions
 
-The following details should be resolved before implementation:
+The following policy details remain open:
 
-- Whether `createContext` uses an options overload or a separate `createServerContext` API.
 - The exact user-facing representation of `Secret<T>` in declaration files.
 - Whether explicit declassification is supported initially. If added, it must be louder and more restricted than ordinary server-to-client transfer.
 - How much implicit-flow analysis is required outside VNode and serialization control flow.

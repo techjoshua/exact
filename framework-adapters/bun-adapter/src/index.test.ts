@@ -5,7 +5,15 @@ describe("@exact/bun-adapter", () => {
   it("handles Bun Fetch-compatible requests", async () => {
     const handler = createExactBunHandler({
       manifest: { version: 1, endpoint: "/__exact", actions: { save: { id: "save", placement: "server" } } },
-      actions: { save: () => ({ state: { runtime: "bun" } }) }
+      actions: {
+        save: (_input, context) => ({
+          state: {
+            runtime: "bun",
+            url: context.requestContext?.url.href,
+            platform: context.platformRequest instanceof Request
+          }
+        })
+      }
     });
 
     const response = await handler(new Request("https://example.com/__exact", {
@@ -14,6 +22,11 @@ describe("@exact/bun-adapter", () => {
     }));
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, type: "action", id: "save", state: { runtime: "bun" } });
+    expect(await response.json()).toEqual({
+      ok: true,
+      type: "action",
+      id: "save",
+      state: { runtime: "bun", url: "https://example.com/__exact", platform: true }
+    });
   });
 });

@@ -4,6 +4,11 @@ export interface ContextOptions {
   readonly global?: boolean;
   /** False preserves opaque service/class identity instead of proxying it. */
   readonly reactive?: boolean;
+  /**
+   * Declares where the server runtime may provision this token. Values
+   * published with Component.setContext() always retain component lifetime.
+   */
+  readonly scope?: "component" | "application" | "request";
 }
 
 /** Creates a context token; global tokens use Symbol.for so separate bundles can share identity. */
@@ -14,7 +19,8 @@ export function createContext<T>(description: string, options: boolean | Context
     id: global ? Symbol.for(`exact.context:${description}`) : Symbol(description),
     description,
     global,
-    reactive
+    reactive,
+    scope: typeof options === "boolean" ? "component" : options.scope ?? "component"
   };
 }
 

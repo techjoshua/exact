@@ -4,12 +4,14 @@ export type ExactCloudflareHandler<Env = unknown, CfContext = unknown> = (reques
 
 /** Creates a Cloudflare Workers fetch handler for an eXact endpoint. */
 export function createExactCloudflareHandler<Env = unknown, CfContext = unknown>(context: ExactServerContext): ExactCloudflareHandler<Env, CfContext> {
-  return async request => {
+  return async (request, env, ctx) => {
     const result = await handleExactRequest({
       method: request.method,
       url: request.url,
       headers: request.headers,
-      text: () => request.text()
+      text: () => request.text(),
+      signal: request.signal,
+      platformRequest: { request, env, context: ctx }
     }, context);
     return new Response(result.stream ?? result.body ?? "", {
       status: result.status,

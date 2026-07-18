@@ -7,7 +7,9 @@ export function createExactFetchHandler(context: ExactServerContext): (request: 
       method: request.method,
       url: request.url,
       headers: request.headers,
-      text: () => request.text()
+      text: () => request.text(),
+      signal: request.signal,
+      platformRequest: request
     }, context);
     return new Response(result.stream ?? result.body ?? "", {
       status: result.status,

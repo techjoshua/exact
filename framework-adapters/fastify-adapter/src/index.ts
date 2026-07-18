@@ -20,7 +20,8 @@ export function createExactFastifyHandler(context: ExactServerContext): (request
       method: request.method,
       url: request.url,
       headers: request.headers,
-      body: request.body
+      body: request.body,
+      platformRequest: request
     }, context);
     reply.code(result.status);
     for (const [name, value] of Object.entries(result.headers)) reply.header(name, value);

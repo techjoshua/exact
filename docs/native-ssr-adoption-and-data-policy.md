@@ -81,18 +81,24 @@ direction.
 
 ### Request context
 
-`@exact/request` already provides:
+`@exact/request` provides:
 
 - `RequestContext`.
+- A normalized URL, method, headers, abort signal, locale/trace hints, and
+  response controls.
 - `runWithRequestContext()`.
 - Pluggable request storage.
 - A Node `AsyncLocalStorage` implementation.
 - `RequestProvider`, which is an ordinary component.
-- Router integration that publishes the ambient request value to descendants.
+- Router integration that prefers explicitly propagated server context and
+  retains ambient storage as a convenience.
 
-The current request value primarily standardizes URL and redirects. It is not
-yet a unified request scope shared automatically by every SSR, action, refresh,
-and stream entrypoint.
+`@exact/server` now owns the runtime-neutral application/request scope. It
+normalizes every adapter request, initializes configured contexts before root
+setup or endpoint security, propagates one scope through actions, refreshes, and
+streams, and disposes request resources on completion, cancellation, or runtime
+shutdown. `@exact/ssr` exposes request-aware authoritative and streaming
+response entrypoints that seed the same scope into component roots.
 
 ### Placement controls
 
@@ -382,7 +388,7 @@ HTTP request
 `AsyncLocalStorage` remains a Node convenience. Explicit scope propagation is
 the runtime-neutral source of truth.
 
-eXact should provide the standardized `RequestContext`.
+eXact provides the standardized `RequestContext`.
 Each server adapter maps its host request type, such as Fetch `Request`, Node
 HTTP, Express, or Fastify, into the same portable request information and
 response controls before root component setup:
@@ -409,18 +415,29 @@ Brand, authorization, current-session, tenant, and application configuration
 contexts are examples an application may provide; none is required by the
 framework.
 
-The server API must also accept developer-defined application- and
-request-scoped context values or factories before root component setup. The
-final API naming remains open, but its effective shape is:
+The server API accepts developer-defined application- and request-scoped
+context values or factories before root component setup. A value registration
+uses `{ value }`; an owned factory registration uses `{ create, dispose? }`, so
+callable context values are never confused with factories:
 
 ```ts
-createExactServer({
+createExactServerRuntime({
   applicationContexts: [
-    [ApplicationConfigContext, applicationConfig]
+    [ApplicationConfigContext, { value: applicationConfig }],
+    [DatabaseContext, {
+      create: ({ signal }) => connectDatabase({ signal }),
+      dispose: database => database.close()
+    }]
   ],
-  requestContexts: async ({ request, platformRequest }) => [
-    [RouteContext, await matchRoute(request.url)],
-    [PlatformRequestContext, platformRequest]
+  requestContexts: async ({ request, platformRequest, get }) => [
+    [RouteContext, { value: await matchRoute(request!.url) }],
+    [AuthorizationContext, {
+      create: async () => authorize(
+        request!,
+        await get(ApplicationConfigContext)
+      )
+    }],
+    [PlatformRequestContext, { value: platformRequest }]
   ]
 });
 ```
@@ -432,6 +449,13 @@ context factories must settle before root component setup begins. The adapter's
 original request object may be exposed through an explicit developer- or
 adapter-defined server-kept context; it is not part of the portable
 `RequestInfo` contract.
+
+Factories resolve dependencies with asynchronous `get(token)`. The runtime
+rejects lifetime violations, duplicate registrations, and dependency cycles;
+initializes shared application values once per runtime; isolates concurrent
+requests; disposes owned values in reverse dependency order; and supports
+trusted application/request overrides for tests. Overrides are server
+configuration and are never read from invocation payloads.
 
 Trusted server context must never be populated from
 `ExactInvocationRequest.context`. That field is client-provided transfer data
@@ -1560,6 +1584,14 @@ Exit criteria:
 - Raw HTML, scripts, URLs, CSP, and patch behavior are deterministic across all
   supported rendering paths.
 
+Implementation status: complete (2026-07-18).
+
+The native renderer now has one URL guard across mount, updates, hydration, and
+SSR; explicit audited raw HTML; React-aligned intrinsic scripts; authored
+document normalization and hydration ownership; inert progressive payloads;
+and authoritative boundary replacement. Phase 1 behavior is covered by the
+full package suite and the document/hydration-specific tests.
+
 ### Phase 2: Unified request scope and server-task stabilization
 
 - Expand the portable `RequestContext` contract and normalize it in each server
@@ -1579,6 +1611,22 @@ Exit criteria:
 - `RequestContext` and every configured developer context observe the same
   trusted scope across all applicable server entrypoints.
 - Output depending on unresolved provider state cannot become authoritative.
+
+Implementation status: complete (2026-07-18).
+
+The implemented runtime provides normalized portable request data, adapter
+platform forwarding, application/request registrations, asynchronous
+dependency resolution, cycle and lifetime errors, trusted test overrides,
+concurrent isolation, reverse-dependency disposal, late-factory cleanup, and
+runtime/request cancellation. Security hooks, actions, refreshes, request-aware
+SSR, and response streams share the request-owned scope. Request-aware SSR
+settles providers and component tasks before committing response controls;
+lower-level provisional streams retain deterministic replacement behavior.
+
+Verification includes 992 package tests, 2 server-component sample tests, 16
+shipping sample tests, static production/test type checks, all supported HTTP
+adapter tests, platform-boundary checks, publish-content checks, and
+whitespace/error-marker validation.
 
 ### Phase 3: Generic policy IR and state-backed isomorphic context
 
@@ -1834,6 +1882,8 @@ Exit criteria:
 
 ## Resolved Design Questions
 
+- Context lifetime metadata uses the `createContext()` options overload.
+  A separate `createServerContext()` API is not required.
 - `keep=isomorphic` is not part of the policy vocabulary. Isomorphic
   classification is inferred for ordinary transferable values from safe use in
   both targets and validated transfer requirements.
@@ -1848,8 +1898,6 @@ Exit criteria:
 ## Open Design Questions
 
 - Final annotation spelling for projection contracts.
-- Whether context metadata uses `createContext()` options exclusively or also a
-  `createServerContext()` convenience.
 - How return-value policy is represented in TypeScript declarations.
 - Whether any secret declassification mechanism is supported initially.
 - Package provenance format and integrity pinning defaults.

@@ -1,5 +1,6 @@
 import type {
   Child,
+  ComponentContextValues,
   ComponentFunction,
   ComponentInstance,
   Logger,
@@ -11,8 +12,10 @@ import type {
   ExactEndpointRoutes,
   ExactInvocationRequest,
   ExactInvocationResult,
+  ExactRequestLike,
   ExactResponseLike,
   ExactServerContext,
+  ExactServerContextConfiguration,
   ExactServerManifest,
   ExactStateContract
 } from "@exact/server";
@@ -46,6 +49,8 @@ export type RenderToStringOptions = {
   allowUnsafeHtml?: boolean;
   /** Receives an audit notification whenever an unsafe HTML range is rendered. */
   onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
+  /** Trusted application/request values inherited by the component root. */
+  contexts?: ComponentContextValues;
 };
 
 export type RenderToStringResult = {
@@ -97,6 +102,20 @@ export type RenderToProgressiveHtmlResponseOptions = RenderToProgressiveHtmlStre
   contentType?: string;
 };
 
+export type ExactRequestRenderFunction = (
+  context: ExactServerContext
+) => VNode | Promise<VNode>;
+
+export type RenderExactRequestToHtmlResponseOptions =
+  RenderToStringOptions
+  & HydrationScriptOptions
+  & {
+    hydration?: boolean;
+    status?: number;
+    headers?: Record<string, string>;
+    contentType?: string;
+  };
+
 export type ExactDocumentStreamEvent =
   | { event: "start"; version: 1 }
   | { event: "shell"; version: 1; html: string }
@@ -141,7 +160,9 @@ export type ExactServerHandlerRegistry = {
   refreshBoundaries: NonNullable<ExactServerContext["refreshBoundaries"]>;
 };
 
-export type ExactServerRuntimeOptions = ExactServerHandlerRegistryOptions & {
+export type ExactServerRuntimeOptions = ExactServerHandlerRegistryOptions
+  & ExactServerContextConfiguration
+  & {
   authorize?: ExactServerContext["authorize"];
   validateCsrf?: ExactServerContext["validateCsrf"];
 };
@@ -204,7 +225,14 @@ export type SsrContext = {
   documentHeadSeen: boolean;
   documentBodySeen: boolean;
   hostStack: string[];
+  componentContexts?: ComponentContextValues;
 };
 
 export type { Child, ComponentFunction, ComponentInstance, Logger, TaskObserver, VNode };
-export type { ExactInvocationRequest, ExactInvocationResult, ExactResponseLike, ExactServerContext };
+export type {
+  ExactInvocationRequest,
+  ExactInvocationResult,
+  ExactRequestLike,
+  ExactResponseLike,
+  ExactServerContext
+};

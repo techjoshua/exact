@@ -207,7 +207,10 @@ export type ContextToken<T> = {
   readonly description: string;
   readonly global: boolean;
   readonly reactive: boolean;
+  readonly scope: "component" | "application" | "request";
 };
+
+export type ComponentContextValues = ReadonlyMap<symbol, unknown>;
 
 export const LoggerContext = createContext<Logger>("exact.logger", true);
 export const ErrorContext = createContext<ErrorContextValue>("exact.error", true);
@@ -570,6 +573,8 @@ export type ComponentInstance<State extends object> = Component<State> & {
   readonly parent?: ComponentInstance<any>;
   readonly props: Reactive<Record<string, unknown>>;
   readonly contexts: Map<symbol, unknown>;
+  /** Server-owned values inherited by the whole component root. */
+  readonly ambientContexts?: ComponentContextValues;
   readonly id: string;
   readonly mounted: boolean;
   readonly scope: EffectScope;
@@ -691,7 +696,8 @@ function createDefaultErrorView(errors: Iterable<ErrorReport>): VNode {
 export function createComponentInstance<State extends object, Props extends Record<string, unknown>>(
   type: ComponentFunction<State, Props>,
   rawProps: Props,
-  parent?: ComponentInstance<any>
+  parent?: ComponentInstance<any>,
+  ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts
 ): ComponentInstance<State> {
   const refs = new Map<symbol, unknown>();
   const listCaches = new Map<string, { render: unknown; cache: Map<string, { item: unknown; vnode: VNode }> }>();
@@ -726,6 +732,7 @@ export function createComponentInstance<State extends object, Props extends Reco
     log: createNoopComponentLog(),
     props,
     contexts: new Map(),
+    ambientContexts,
     tasks: [],
     mountHandlers: [],
     unmountHandlers: [],
@@ -762,6 +769,11 @@ export function createComponentInstance<State extends object, Props extends Reco
           return cursor.contexts.get(token.id) as Reactive<T>;
         }
         cursor = cursor.parent;
+      }
+
+      if (ambientContexts?.has(token.id)) {
+        const value = ambientContexts.get(token.id) as T;
+        return (token.reactive ? reactiveValue(value) : value) as Reactive<T>;
       }
 
       if (defaultContexts.has(token.id)) {

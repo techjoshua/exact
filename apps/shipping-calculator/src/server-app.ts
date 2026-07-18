@@ -1,9 +1,7 @@
 import { createVNode } from "@exact/core";
 import { createExactNodeHandler } from "@exact/node-adapter";
-import { installNodeRequestContext } from "@exact/request/node";
-import { runWithRequestContext } from "@exact/request";
 import { createExactHydrationManifestConfig, createExactServerManifest, type ExactCompilerManifestLike } from "@exact/server";
-import { createExactServerRuntime, renderToHydratableProgressiveHtmlResponse } from "@exact/ssr";
+import { createExactServerRuntime, renderExactRequestToProgressiveHtmlResponse } from "@exact/ssr";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import appManifestJson from "../.exact/App.exact.manifest.json" with { type: "json" };
 import { ShippingCalculatorPage } from "../.exact/App.exact.server.js";
@@ -11,8 +9,6 @@ import { configuredProviderIds, quoteProvider } from "./providers/index.js";
 import { resolveRoute } from "./geography.js";
 import { parseRateRequest } from "./model.js";
 import type { ProviderId } from "./types.js";
-
-installNodeRequestContext();
 
 const actionIds = ["route.resolve", "quote.doop", "quote.usps", "quote.ups", "quote.fedex", "quote.dhl"] as const;
 const appManifest = appManifestJson as ExactCompilerManifestLike;
@@ -49,27 +45,34 @@ export async function handleParcelLabRequest(request: IncomingMessage, response:
   request.once("aborted", () => abort.abort(new DOMException("Request aborted", "AbortError")));
   response.once("close", () => { if (!response.writableEnded) abort.abort(new DOMException("Response closed", "AbortError")); });
 
-  await runWithRequestContext({ url }, async () => {
-    const configured = configuredProviderIds();
-    const hydration = createExactHydrationManifestConfig(exactManifest, { configuredProviders: configured });
-    const rendered = renderToHydratableProgressiveHtmlResponse(createVNode(ShippingCalculatorPage, { url: url.toString() }), {
-      rootId: "app",
-      signal: abort.signal,
-      maxTaskDurationMs: 1_200,
-      ...hydration
-    });
-    const template = documentTemplate(options);
-    const html = options.transformHtml ? await options.transformHtml(template) : template;
-    const [before, after] = html.split("<!--exact-app-->");
-    response.statusCode = 200;
-    response.setHeader("content-type", "text/html; charset=utf-8");
-    response.setHeader("cache-control", "no-store");
-    if (request.method === "HEAD") { response.end(); return; }
-    response.write(before);
-    if (rendered.stream) await pipeStream(rendered.stream, response, abort.signal);
-    else response.write(rendered.body);
-    response.end(after);
+  const configured = configuredProviderIds();
+  const hydration = createExactHydrationManifestConfig(exactManifest, { configuredProviders: configured });
+  const rendered = await renderExactRequestToProgressiveHtmlResponse({
+    url,
+    method: request.method ?? "GET",
+    headers: request.headers,
+    signal: abort.signal,
+    platformRequest: request
+  }, exactRuntime, () => createVNode(ShippingCalculatorPage, { url: url.toString() }), {
+    rootId: "app",
+    maxTaskDurationMs: 1_200,
+    ...hydration
   });
+  const template = documentTemplate(options);
+  const html = options.transformHtml ? await options.transformHtml(template) : template;
+  const [before, after] = html.split("<!--exact-app-->");
+  response.statusCode = rendered.status;
+  for (const [name, value] of Object.entries(rendered.headers)) response.setHeader(name, value);
+  response.setHeader("cache-control", "no-store");
+  if (request.method === "HEAD") {
+    await rendered.stream?.cancel("HEAD response");
+    response.end();
+    return;
+  }
+  response.write(before);
+  if (rendered.stream) await pipeStream(rendered.stream, response, abort.signal);
+  else response.write(rendered.body);
+  response.end(after);
 }
 
 function documentTemplate(options: ParcelLabServerOptions): string {

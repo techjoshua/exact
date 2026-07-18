@@ -94,6 +94,19 @@ context cannot become application- or request-scoped, even when its value was
 derived from one of those longer-lived scopes or carries the same token shape.
 Only the server runtime creates application and request lifetimes.
 
+`createExactServerRuntime()` accepts `applicationContexts` and
+`requestContexts`. Registrations use `[Token, { value }]` for externally owned
+values or `[Token, { create, dispose? }]` for runtime-owned values. Factories
+receive the active abort signal, portable request data when request-scoped, the
+adapter's original `platformRequest`, and asynchronous `get(token)` dependency
+resolution.
+
+Initial SSR should use `renderExactRequestToHtmlResponse()` or
+`renderExactRequestToProgressiveHtmlResponse()`. These entrypoints establish
+the same trusted scope used by action and refresh dispatch, seed it into the
+root component, settle pre-commit component work, apply request status/header
+controls, and retain request resources through stream completion.
+
 ## Server Manifest
 
 Server apps convert compiler manifests into a runtime allowlist:

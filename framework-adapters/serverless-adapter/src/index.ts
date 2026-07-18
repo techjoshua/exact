@@ -25,7 +25,8 @@ export function createExactServerlessHandler(context: ExactServerContext): (even
       method: event.httpMethod ?? event.method ?? "GET",
       url: eventUrl(event),
       headers: event.headers,
-      text: async () => eventBody(event)
+      text: async () => eventBody(event),
+      platformRequest: event
     }, context);
     return responseToServerlessResult(result);
   };

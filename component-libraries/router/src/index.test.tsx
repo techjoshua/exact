@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { createErrorContext, createVNode, ErrorContext, type Component } from "@exact/core";
 import { render } from "@exact/dom";
 import { renderToString } from "@exact/ssr";
-import { runWithRequestContext } from "@exact/request";
+import { createRequestContextValue, RequestContext, runWithRequestContext, type RequestResponseState } from "@exact/request";
 import { createMemoryLocationSource, Link, Navigate, NavLink, Outlet, Route, RouteContext, Router } from "./index.js";
 
 describe("router", () => {
@@ -60,18 +60,35 @@ describe("router", () => {
   });
 
   it("reads SSR request URLs and records redirects", () => {
-    let redirect: { location: string; status?: number } | undefined;
-    runWithRequestContext({
-      url: new URL("https://example.test/old"),
-      redirect(location, status) { redirect = { location: String(location), status }; }
-    }, () => renderToString(<Router><Route path="old" component={Navigate} componentProps={{ to: "/new", status: 301 }} /></Router>));
-    expect(redirect).toEqual({ location: "https://example.test/new", status: 301 });
+    const first: RequestResponseState = { headers: new Headers() };
+    runWithRequestContext(
+      createRequestContextValue({ url: "https://example.test/old" }, first),
+      () => renderToString(<Router><Route path="old" component={Navigate} componentProps={{ to: "/new", status: 301 }} /></Router>)
+    );
+    expect(first.redirect).toEqual({ location: new URL("https://example.test/new"), status: 301 });
 
-    runWithRequestContext({
-      url: new URL("https://example.test/old"),
-      redirect(location, status) { redirect = { location: String(location), status }; }
-    }, () => renderToString(<Router><Route path="old" component={Navigate} componentProps={{ to: "/pushed", replace: false, status: 307 }} /></Router>));
-    expect(redirect).toEqual({ location: "https://example.test/pushed", status: 307 });
+    const second: RequestResponseState = { headers: new Headers() };
+    runWithRequestContext(
+      createRequestContextValue({ url: "https://example.test/old" }, second),
+      () => renderToString(<Router><Route path="old" component={Navigate} componentProps={{ to: "/pushed", replace: false, status: 307 }} /></Router>)
+    );
+    expect(second.redirect).toEqual({ location: new URL("https://example.test/pushed"), status: 307 });
+  });
+
+  it("prefers explicitly propagated server request context over ambient storage", () => {
+    const response: RequestResponseState = { headers: new Headers() };
+    const request = createRequestContextValue({
+      url: "https://example.test/explicit"
+    }, response);
+    const rendered = renderToString(
+      <Router><Route path="explicit" component={Navigate} componentProps={{ to: "/next", status: 308 }} /></Router>,
+      { contexts: new Map([[RequestContext.id, request]]) }
+    );
+    expect(rendered.html).toContain("exact:component");
+    expect(response.redirect).toEqual({
+      location: new URL("https://example.test/next"),
+      status: 308
+    });
   });
 
   it("observes rejected consumer link callbacks", async () => {
