@@ -21,7 +21,7 @@ export type RouteMatch<Route = ExactRouteDefinition> = {
   params: Readonly<Record<string, string>>;
 };
 export type ExactRouteDefinition = {
-  id: string;
+  id?: string;
   path?: string;
   index?: boolean;
   caseSensitive?: boolean;
@@ -128,7 +128,7 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
   const source = options.source;
   const basename = normalizeBasename(options.basename);
   const mode = options.mode ?? "history";
-  let routes = options.routes ?? [];
+  let routes = normalizeRouteIds(options.routes ?? []);
   let transitionId = 0;
   let disposed = false;
   let sourceRevision = 0;
@@ -391,7 +391,7 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
     },
     setRoutes(nextRoutes: readonly Route[]) {
       assertActive();
-      routes = nextRoutes;
+      routes = normalizeRouteIds(nextRoutes);
       refresh(snapshot.historyAction);
     },
     createHref: (to: string | URL) => hrefFor(to, source.location(), basename, mode),
@@ -418,6 +418,18 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 
 function hasDataWork(route: ExactRouteDefinition): boolean {
   return !!(route.loader || route.lazy || route.children?.some(hasDataWork));
+}
+
+function normalizeRouteIds<Route extends ExactRouteDefinition>(
+  values: readonly Route[],
+  parent = "route"
+): readonly Route[] {
+  values.forEach((route, index) => {
+    const id = route.id ?? `${parent}-${index}`;
+    if (!route.id) Object.assign(route, { id });
+    if (route.children) normalizeRouteIds(route.children as readonly Route[], id);
+  });
+  return values;
 }
 
 function hasOwnDataWork(route: ExactRouteDefinition): boolean {
@@ -466,7 +478,7 @@ export function matchPath(
   const matched = matchRoute(route, segments(pathname), 0, {}, config.end ?? true);
   if (!matched) return null;
   return {
-    id: route.id,
+    id: route.id ?? "__match_path__",
     route,
     path: route.path,
     pathname: matched.pathname,
@@ -521,7 +533,7 @@ function matchBranch<Route extends ExactRouteDefinition>(
     cursor = matched.cursor;
     params = matched.params;
     matches.push({
-      id: route.id,
+      id: route.id ?? `route-${matches.length}`,
       route,
       path: route.path,
       pathname: matched.pathname,

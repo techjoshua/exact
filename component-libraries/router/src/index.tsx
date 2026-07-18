@@ -30,6 +30,7 @@ import {
   type RouteMatch,
   type RouterMode
 } from "./core.js";
+import { RouterControllerContext } from "./context.js";
 
 export {
   createExactRouter,
@@ -45,6 +46,7 @@ export {
   stripBasename,
   toUrl
 } from "./core.js";
+export { RouterControllerContext } from "./context.js";
 export type {
   CreateExactRouterOptions,
   ExactRouteDefinition,
@@ -93,7 +95,7 @@ export function Router(this: Component<RouterState>, props: RouterProps) {
   const basename = normalizeBasename(props.basename);
   const request = componentRequestContext(this) ?? getRequestContext();
   if (request) this.setContext(RequestContext, request);
-  const source = props.source ?? requestSource(request) ?? browserSource(mode);
+  const source = props.source ?? requestSource(request) ?? createBrowserLocationSource(mode);
   if (!source) throw new Error("Router requires a location source outside a browser or ambient request context");
   const routes = routeChildren(props.children);
   const controller = createExactRouter({ source, routes, basename, mode });
@@ -116,6 +118,7 @@ export function Router(this: Component<RouterState>, props: RouterProps) {
     searchParams: () => new URLSearchParams(routeContext.location.search)
   };
   this.setContext(RouteContext, routeContext);
+  this.setContext(RouterControllerContext, controller);
 
   return () => {
     void this.state.version;
@@ -284,7 +287,7 @@ function componentRequestContext(component: Component<any>): RequestContextValue
   }
 }
 
-function browserSource(mode: RouterMode): LocationSource | undefined {
+export function createBrowserLocationSource(mode: RouterMode = "history"): LocationSource | undefined {
   if (typeof window === "undefined") return undefined;
   const read = () => mode === "hash" ? new URL(window.location.hash.slice(1) || "/", window.location.origin) : new URL(window.location.href);
   return {
