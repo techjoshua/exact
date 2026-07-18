@@ -17,7 +17,7 @@ export function createExactPolicyAuditReport(
   options: ExactPolicyAuditReportOptions = {}
 ): ExactPolicyAuditReport {
   const grants = options.grants ?? [];
-  const usedGrants = new Set<ExactSecretGrant>();
+  const usedSelectors = new Map<ExactSecretGrant, Set<string>>();
   const secretUsage = manifests.flatMap(manifest => manifest.policy.secretConsumers.map(use => {
     const grant = grants.find(candidate =>
       candidate.package === use.consumer.package
@@ -25,7 +25,13 @@ export function createExactPolicyAuditReport(
       && (!candidate.version || candidate.version === use.consumer.provenance?.version)
       && (!candidate.integrity || candidate.integrity === use.consumer.provenance?.integrity)
     );
-    if (grant) usedGrants.add(grant);
+    if (grant) {
+      const matched = usedSelectors.get(grant) ?? new Set<string>();
+      for (const selector of grant.secrets) {
+        if (selectorMatches(use.selector, selector)) matched.add(selector);
+      }
+      usedSelectors.set(grant, matched);
+    }
     const status = use.authorization === "implicit-application-owner"
       ? "implicit" as const
       : use.authorization === "denied" ? "denied" as const
@@ -45,10 +51,18 @@ export function createExactPolicyAuditReport(
     || left.consumer.localeCompare(right.consumer)
     || left.source.localeCompare(right.source)
   );
-  const warnings = grants
-    .filter(grant => !usedGrants.has(grant))
-    .map(grant => `Unused secret grant for ${grant.package}: ${grant.secrets.join(", ")}`)
-    .sort();
+  const warnings = grants.flatMap(grant => {
+    const used = usedSelectors.get(grant);
+    if (!used) return [`Unused secret grant for ${grant.package}: ${grant.secrets.join(", ")}`];
+    return grant.secrets.flatMap(selector => {
+      if (!used.has(selector)) {
+        return [`Unused secret selector grant for ${grant.package}: ${selector}`];
+      }
+      return selector.includes("*")
+        ? [`Overly broad secret grant for ${grant.package}: ${selector}`]
+        : [];
+    });
+  }).sort();
   const errors = secretUsage
     .filter(use => use.status === "denied" || use.status === "required")
     .map(use => `${use.consumer}#${use.symbol} requires ${use.selector} without a resolved grant`)
@@ -76,10 +90,14 @@ export function formatExactPolicyAuditReport(report: ExactPolicyAuditReport): st
 }
 
 function selectorAllowed(selector: string | undefined, selectors: readonly string[]): boolean {
-  if (!selector) return selectors.includes("*");
-  return selectors.some(pattern => pattern === selector
+  return selectors.some(pattern => selectorMatches(selector, pattern));
+}
+
+function selectorMatches(selector: string | undefined, pattern: string): boolean {
+  if (!selector) return pattern === "*";
+  return pattern === selector
     || pattern === "*"
-    || pattern.endsWith("*") && selector.startsWith(pattern.slice(0, -1)));
+    || pattern.endsWith("*") && selector.startsWith(pattern.slice(0, -1));
 }
 
 function displaySelector(selector: string | undefined, redact: boolean): string {

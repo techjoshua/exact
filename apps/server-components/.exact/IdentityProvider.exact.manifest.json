@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "filename": "apps\\server-components\\src\\IdentityProvider.tsx",
   "dependencies": [],
   "assets": [],
@@ -824,17 +824,17 @@
   },
   "components": [
     {
-      "id": "xkL8tFnykaQGcjx2ACUrmXi",
+      "id": "xdbLxzUuXKK-fMNMwUlwE14",
       "name": "ServerIdentityProjection",
       "exported": true,
       "placement": "server",
       "subgraphPlacement": "isomorphic",
       "renderEdges": [
         {
-          "id": "xy6OL44lV79lqevmT9tGn4W",
+          "id": "xnWe5SxHFE0IVXXDWR5pzX0",
           "tag": "IdentityProvider",
           "name": "IdentityProvider",
-          "componentId": "xbZ5SbRfxHA8hIdlv1VRseD",
+          "componentId": "x6kz-349sUNjveQxneaFcTV",
           "placement": "isomorphic",
           "boundary": "isomorphic",
           "index": 1,
@@ -925,17 +925,17 @@
       ]
     },
     {
-      "id": "xbZ5SbRfxHA8hIdlv1VRseD",
+      "id": "x6kz-349sUNjveQxneaFcTV",
       "name": "IdentityProvider",
       "exported": true,
       "placement": "isomorphic",
       "subgraphPlacement": "isomorphic",
       "renderEdges": [
         {
-          "id": "xhSdWEhAR5SUE7DpX3oNaQk",
+          "id": "xcphjzOU6HwZckEEVMfIUw4",
           "tag": "IdentitySummary",
           "name": "IdentitySummary",
-          "componentId": "x3NCH2eci780u9Kab88vla7",
+          "componentId": "xp8SIxq6Ki6dT4jX8Dyy8RX",
           "placement": "isomorphic",
           "boundary": "isomorphic",
           "index": 1,
@@ -965,7 +965,7 @@
       ]
     },
     {
-      "id": "x3NCH2eci780u9Kab88vla7",
+      "id": "xp8SIxq6Ki6dT4jX8Dyy8RX",
       "name": "IdentitySummary",
       "exported": true,
       "placement": "isomorphic",
@@ -1058,20 +1058,8 @@
   ],
   "symbols": [
     {
-      "id": "x2oy7uaz3pEhAbZ7RAHRFr8",
-      "componentId": "xbZ5SbRfxHA8hIdlv1VRseD",
-      "exportName": "IdentityProvider",
-      "localName": "IdentityProvider",
-      "generatedName": "IdentityProvider",
-      "debugName": "IdentityProvider",
-      "kind": "component",
-      "role": "root",
-      "target": "both",
-      "placement": "isomorphic"
-    },
-    {
-      "id": "x5embXrgxYZVEzS-E6qIpGM",
-      "componentId": "x3NCH2eci780u9Kab88vla7",
+      "id": "x8kbjM1dCliadbHiALci2yK",
+      "componentId": "xp8SIxq6Ki6dT4jX8Dyy8RX",
       "exportName": "IdentitySummary",
       "localName": "IdentitySummary",
       "generatedName": "IdentitySummary",
@@ -1082,8 +1070,8 @@
       "placement": "isomorphic"
     },
     {
-      "id": "xfa0UqTE5i606lf-5xQuimr",
-      "componentId": "xkL8tFnykaQGcjx2ACUrmXi",
+      "id": "xrE5RPbRtFHXmmjqMSZoVB4",
+      "componentId": "xdbLxzUuXKK-fMNMwUlwE14",
       "exportName": "ServerIdentityProjection",
       "localName": "ServerIdentityProjection",
       "generatedName": "ServerIdentityProjection",
@@ -1094,29 +1082,19 @@
       "placement": "server"
     },
     {
-      "id": "x5gCjUR8qt9dxkMehHiRHMk",
-      "exportName": "ServerAuthorizationContext",
-      "localName": "ServerAuthorizationContext",
-      "generatedName": "ServerAuthorizationContext",
-      "debugName": "ServerAuthorizationContext",
-      "kind": "value",
+      "id": "xvms6kiSsvQYr7y2W5ICJwN",
+      "componentId": "x6kz-349sUNjveQxneaFcTV",
+      "exportName": "IdentityProvider",
+      "localName": "IdentityProvider",
+      "generatedName": "IdentityProvider",
+      "debugName": "IdentityProvider",
+      "kind": "component",
       "role": "root",
-      "target": "server",
-      "placement": "server"
+      "target": "both",
+      "placement": "isomorphic"
     },
     {
-      "id": "xIZ09Ytb5DpPt_P-0tf2kxW",
-      "exportName": "ServerBrandContext",
-      "localName": "ServerBrandContext",
-      "generatedName": "ServerBrandContext",
-      "debugName": "ServerBrandContext",
-      "kind": "value",
-      "role": "root",
-      "target": "server",
-      "placement": "server"
-    },
-    {
-      "id": "xkS9xdYrAwRpKkIXaSuIvfP",
+      "id": "x7o83JREpQO6ahZNHM0bkC1",
       "exportName": "BrandContext",
       "localName": "BrandContext",
       "generatedName": "BrandContext",
@@ -1127,7 +1105,7 @@
       "placement": "isomorphic"
     },
     {
-      "id": "xTaaDm1fptf-CCTzSe_ip82",
+      "id": "xvmjrNpZtquRp9Rh56qLlDY",
       "exportName": "AuthorizationContext",
       "localName": "AuthorizationContext",
       "generatedName": "AuthorizationContext",
@@ -1136,12 +1114,213 @@
       "role": "root",
       "target": "both",
       "placement": "isomorphic"
+    },
+    {
+      "id": "xX8hI2jOVKlpsEdm6ZheP9E",
+      "exportName": "ServerAuthorizationContext",
+      "localName": "ServerAuthorizationContext",
+      "generatedName": "ServerAuthorizationContext",
+      "debugName": "ServerAuthorizationContext",
+      "kind": "value",
+      "role": "root",
+      "target": "server",
+      "placement": "server"
+    },
+    {
+      "id": "xYLo_DXzDHhtuQxvhsQJlPd",
+      "exportName": "ServerBrandContext",
+      "localName": "ServerBrandContext",
+      "generatedName": "ServerBrandContext",
+      "debugName": "ServerBrandContext",
+      "kind": "value",
+      "role": "root",
+      "target": "server",
+      "placement": "server"
     }
   ],
   "boundaries": [],
   "callables": [
     {
-      "id": "x7CQFLUGBB5kJoqOloMd2k5",
+      "id": "x_0ocreYZyKHDYR26xxCyNg",
+      "name": "<function@3156>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "xafwtvmuAwWygpQIq-Tg0gt",
+          "name": "brand.name",
+          "resolved": true
+        },
+        {
+          "id": "xhMGPrZqByOkt_t4jaH6fBW",
+          "name": "authorization.hasRole",
+          "resolved": true
+        },
+        {
+          "id": "xiCet3f0FjGvTA2oTZDMibe",
+          "name": "brand.name",
+          "resolved": true
+        },
+        {
+          "id": "xjtIGo2nj1E51yfR-RD4TNu",
+          "name": "authorization.hasRole",
+          "resolved": true
+        },
+        {
+          "id": "xny15Alb3_oi0uOLvzVw6ks",
+          "name": "brand.accent",
+          "resolved": true
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "x4z0KtCbU8vZiwTduALlmRW",
+      "name": "ServerIdentityProjection",
+      "kind": "component",
+      "exportNames": [
+        "ServerIdentityProjection"
+      ],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "xkb9p1M_UAAECUOO5I9gdX5",
+          "name": "this.task.server",
+          "resolved": false
+        },
+        {
+          "id": "xw0rL8t0I9VejM4nh2UPRm3",
+          "name": "<function@1848>:returned",
+          "targetId": "xmEZYu2PMAsjRJfQulkWq_1",
+          "resolved": true
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [
+        {
+          "path": "brandAccent",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "path": "brandName",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "path": "roleNames",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "path": "roleNames.split",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "stateWrites": [
+        {
+          "path": "brandAccent",
+          "kind": "write",
+          "confidence": "exact"
+        },
+        {
+          "path": "brandName",
+          "kind": "write",
+          "confidence": "exact"
+        },
+        {
+          "path": "roleNames",
+          "kind": "write",
+          "confidence": "exact"
+        }
+      ],
+      "contexts": []
+    },
+    {
+      "id": "x6ce8GubXvGJs-3HOoh_YUp",
+      "name": "ServerBrandContext.initializer",
+      "kind": "initializer",
+      "exportNames": [
+        "ServerBrandContext"
+      ],
+      "directEffect": "server",
+      "effect": "server",
+      "directEffectSources": [
+        {
+          "environment": "server",
+          "description": "server-kept data policy",
+          "path": [
+            "ServerBrandContext.initializer",
+            "server-kept data policy"
+          ]
+        }
+      ],
+      "effectSources": [
+        {
+          "environment": "server",
+          "description": "server-kept data policy",
+          "path": [
+            "ServerBrandContext.initializer",
+            "server-kept data policy"
+          ]
+        }
+      ],
+      "calls": [
+        {
+          "id": "x8p7al_5bo4JmoJTswqaFx7",
+          "name": "createContext",
+          "moduleSpecifier": "@exact/core",
+          "exportName": "createContext",
+          "resolved": false
+        }
+      ],
+      "artifactTargets": [
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "x8jNFbguBQE1J5BVYBH1Vu9",
+      "name": "brand",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [],
+      "artifactTargets": [],
+      "stateReads": [
+        {
+          "path": "brandAccent",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "xA4J5j0Mkq-dCJ3Lz5ycSby",
       "name": "IdentitySummary",
       "kind": "component",
       "exportNames": [
@@ -1153,31 +1332,31 @@
       "effectSources": [],
       "calls": [
         {
-          "id": "x1DVuVg2IxnRZZLsbuiRxKX",
+          "id": "x6x3B_Zm1RnNoG0i67sWlnv",
           "name": "this.getContext",
           "resolved": false
         },
         {
-          "id": "x8fJn3i-4AlFBSrKD9iYJv1",
+          "id": "xAfPlukBX12PVpQR_nyzaHD",
           "name": "AuthorizationContext",
-          "targetId": "xAkHij3Q4V3CQsm4-16Ts9n",
+          "targetId": "xJZMJeXuZEN0TW1GtodWRV9",
           "resolved": true
         },
         {
-          "id": "xaiHDE-HbWaSb67OwypBB38",
+          "id": "xAuWvWPnlIBSfHYjco_hO4B",
           "name": "this.getContext",
           "resolved": false
         },
         {
-          "id": "xeBwLHNZc6xa-uMmuNU8uDj",
+          "id": "xE6Ea8eMIxpLWSy8DQIMSxt",
           "name": "BrandContext",
-          "targetId": "xoMe7kyx_Q6pHtnhldfBjWa",
+          "targetId": "xKIyRqJYertzxZRf1bX-kfS",
           "resolved": true
         },
         {
-          "id": "xoXGhavESvkT7U08_zOQxLh",
+          "id": "xMMxfTol1MyM2exhSuAupi3",
           "name": "<function@3156>:returned",
-          "targetId": "xoW-Z7nyPvIy-B0AgyfJ2kV",
+          "targetId": "x_0ocreYZyKHDYR26xxCyNg",
           "resolved": true
         }
       ],
@@ -1201,7 +1380,68 @@
       ]
     },
     {
-      "id": "x7k1D3kzNC6tSp_p-XDHzgC",
+      "id": "xAU-CbW59lfEruiQVO1A00c",
+      "name": "authorization",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "xlPGka3NXUg0G4qXhbEcibi",
+          "name": "this.state.roleNames.split(\",\").includes",
+          "resolved": false,
+          "argumentBindings": [
+            {
+              "parameterIndex": 0,
+              "sourceParameterIndex": 0
+            }
+          ]
+        },
+        {
+          "id": "xX0eQe8Oskv_phA85o3bJyW",
+          "name": "this.state.roleNames.split",
+          "resolved": false
+        }
+      ],
+      "artifactTargets": [],
+      "stateReads": [
+        {
+          "path": "roleNames",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "path": "roleNames.split",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "xB7QJGt-2BrugEL6YboCr-p",
+      "name": "<function@2914>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "xgZouwdZqfjuxv3HFGsT1_B",
       "name": "ServerIdentityProjection.task@1464",
       "kind": "task",
       "exportNames": [],
@@ -1245,46 +1485,46 @@
       ],
       "calls": [
         {
-          "id": "x4EN5zqMYyvl6lyTqO5Yfsu",
-          "name": "brand.publicBrand",
-          "resolved": true
-        },
-        {
-          "id": "x58TwPSioJ3S4ZYeG35Zna9",
+          "id": "x0EOM3CGjmdtPwTcTlCGaBV",
           "name": "ServerBrandContext",
-          "targetId": "xZogeIUhktrEzhZsZxTGWQT",
+          "targetId": "x6ce8GubXvGJs-3HOoh_YUp",
           "resolved": true
         },
         {
-          "id": "x7sJZuyJS6WT4v_CStl4NcH",
+          "id": "xBSZDeE_SWPrUW9Wz5KnHZH",
+          "name": "this.getContext",
+          "resolved": false
+        },
+        {
+          "id": "xCQ3eitqIj1d3NYaF9mgLBs",
+          "name": "authorization.roles().join",
+          "resolved": true
+        },
+        {
+          "id": "xh_gjGuzmTav8V_35tcuaZB",
           "name": "Promise.resolve",
           "resolved": false
         },
         {
-          "id": "xaDHNKcQwVOzGIRzoWAUPeq",
-          "name": "ServerAuthorizationContext",
-          "targetId": "xVcOFjFfTCnUh7VUfT0JUSA",
+          "id": "xlg8Q-m-en-3lerjOC74T6E",
+          "name": "brand.publicBrand",
           "resolved": true
         },
         {
-          "id": "xKpTloWU6IytigmvZuENNPz",
+          "id": "xQkBtuV9dBUYeo5Vp8sIV7e",
           "name": "authorization.roles",
           "resolved": true
         },
         {
-          "id": "xp9WA1L-0Ch3cB4-1ugCkJa",
-          "name": "this.getContext",
-          "resolved": false
-        },
-        {
-          "id": "xPj7m3buiJcYfBcYN-f9UTh",
-          "name": "this.getContext",
-          "resolved": false
-        },
-        {
-          "id": "xreABdC1sz4ZV4U1i_BEEw4",
-          "name": "authorization.roles().join",
+          "id": "xvc9yb1fXnTNcOrY9tPCH-C",
+          "name": "ServerAuthorizationContext",
+          "targetId": "xVGKfYjec8-9s79TiQRZ2dO",
           "resolved": true
+        },
+        {
+          "id": "xyTOqpdcBBrLaTwlqtZGf-o",
+          "name": "this.getContext",
+          "resolved": false
         }
       ],
       "artifactTargets": [
@@ -1322,7 +1562,7 @@
       ]
     },
     {
-      "id": "xAkHij3Q4V3CQsm4-16Ts9n",
+      "id": "xJZMJeXuZEN0TW1GtodWRV9",
       "name": "AuthorizationContext.initializer",
       "kind": "initializer",
       "exportNames": [
@@ -1334,7 +1574,7 @@
       "effectSources": [],
       "calls": [
         {
-          "id": "x5Keyc68x5XRxX6-4hVgz78",
+          "id": "x3BnlNJFktWHnuKbi4T2d7M",
           "name": "createContext",
           "moduleSpecifier": "@exact/core",
           "exportName": "createContext",
@@ -1350,44 +1590,7 @@
       "contexts": []
     },
     {
-      "id": "xlq2sa4To7BDTo-HbXUa96j",
-      "name": "authorization",
-      "kind": "function",
-      "exportNames": [],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [
-        {
-          "id": "x-T2BV-ADXhOlpWKE94xbVw",
-          "name": "this.state.roleNames.split",
-          "resolved": false
-        },
-        {
-          "id": "xuGkzq2CjS3CnugYzjrNtk8",
-          "name": "this.state.roleNames.split(\",\").includes",
-          "resolved": false
-        }
-      ],
-      "artifactTargets": [],
-      "stateReads": [
-        {
-          "path": "roleNames",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "path": "roleNames.split",
-          "kind": "read",
-          "confidence": "exact"
-        }
-      ],
-      "stateWrites": [],
-      "contexts": []
-    },
-    {
-      "id": "xmtrcMRvnXHMvwhFqDUwJU7",
+      "id": "xk5rIQzG2Q0fYUcqomlciZs",
       "name": "IdentityProvider",
       "kind": "component",
       "exportNames": [
@@ -1399,37 +1602,37 @@
       "effectSources": [],
       "calls": [
         {
-          "id": "x8nqvl8QPMthEgDmotYA3hk",
-          "name": "BrandContext",
-          "targetId": "xoMe7kyx_Q6pHtnhldfBjWa",
+          "id": "xIxf6zcEmjVsk5VjPOJeKYp",
+          "name": "<function@2914>:returned",
+          "targetId": "xB7QJGt-2BrugEL6YboCr-p",
           "resolved": true
         },
         {
-          "id": "xADpn-Oa2_vxCSFem3i0xcd",
+          "id": "xKX0aZ9UOlP__TWC2p5cSEC",
           "name": "AuthorizationContext",
-          "targetId": "xAkHij3Q4V3CQsm4-16Ts9n",
+          "targetId": "xJZMJeXuZEN0TW1GtodWRV9",
           "resolved": true
         },
         {
-          "id": "xoEmH1m4thJtFhh3GoLDrJQ",
+          "id": "xlhTy4iAw_erwFicmQCgNq4",
+          "name": "BrandContext",
+          "targetId": "xKIyRqJYertzxZRf1bX-kfS",
+          "resolved": true
+        },
+        {
+          "id": "xNwYw2qUT900V3q5F6ishM3",
           "name": "(props.initial?.roles ?? []).join",
           "resolved": false
         },
         {
-          "id": "xP_w3M2C_bK_pvSZrs9MN4G",
+          "id": "xqXIvObH-CVD7YoRfhkALdy",
           "name": "this.setContext",
           "resolved": false
         },
         {
-          "id": "xrLWI9JWDE3kRtCjdP_HOTc",
+          "id": "xWC_zXQaRTHwQr9vXFwTN9k",
           "name": "this.setContext",
           "resolved": false
-        },
-        {
-          "id": "xVs1bv7tBHCSuErGVi-zc2-",
-          "name": "<function@2914>:returned",
-          "targetId": "xtkn7B7PVmBSEzqG_xY7i64",
-          "resolved": true
         }
       ],
       "artifactTargets": [
@@ -1484,7 +1687,7 @@
       ]
     },
     {
-      "id": "xoMe7kyx_Q6pHtnhldfBjWa",
+      "id": "xKIyRqJYertzxZRf1bX-kfS",
       "name": "BrandContext.initializer",
       "kind": "initializer",
       "exportNames": [
@@ -1496,7 +1699,7 @@
       "effectSources": [],
       "calls": [
         {
-          "id": "xE2LkEzBzg7l3O0e7WPDhd1",
+          "id": "x0BH2XcFkO2NfK7dmRQgFN6",
           "name": "createContext",
           "moduleSpecifier": "@exact/core",
           "exportName": "createContext",
@@ -1512,204 +1715,7 @@
       "contexts": []
     },
     {
-      "id": "xoW-Z7nyPvIy-B0AgyfJ2kV",
-      "name": "<function@3156>",
-      "kind": "function",
-      "exportNames": [],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [
-        {
-          "id": "x47cF8hqXq48h59P_vJbPPI",
-          "name": "brand.accent",
-          "resolved": true
-        },
-        {
-          "id": "xDRkXZH1eLgUYn67ckMb6My",
-          "name": "authorization.hasRole",
-          "resolved": true
-        },
-        {
-          "id": "xEWQ-PRS2la1VPdarAF3ecz",
-          "name": "authorization.hasRole",
-          "resolved": true
-        },
-        {
-          "id": "xGVgwPnzBoo7M5kKCho4QWd",
-          "name": "brand.name",
-          "resolved": true
-        },
-        {
-          "id": "xJT-L2l1SsBvVOcpD8ebhGv",
-          "name": "brand.name",
-          "resolved": true
-        }
-      ],
-      "artifactTargets": [
-        "client",
-        "server"
-      ],
-      "stateReads": [],
-      "stateWrites": [],
-      "contexts": []
-    },
-    {
-      "id": "xroxOhaE5NkYEbo2uEVRTrW",
-      "name": "brand",
-      "kind": "function",
-      "exportNames": [],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [],
-      "artifactTargets": [],
-      "stateReads": [
-        {
-          "path": "brandAccent",
-          "kind": "read",
-          "confidence": "exact"
-        }
-      ],
-      "stateWrites": [],
-      "contexts": []
-    },
-    {
-      "id": "xtkn7B7PVmBSEzqG_xY7i64",
-      "name": "<function@2914>",
-      "kind": "function",
-      "exportNames": [],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [],
-      "artifactTargets": [
-        "client",
-        "server"
-      ],
-      "stateReads": [],
-      "stateWrites": [],
-      "contexts": []
-    },
-    {
-      "id": "xVcOFjFfTCnUh7VUfT0JUSA",
-      "name": "ServerAuthorizationContext.initializer",
-      "kind": "initializer",
-      "exportNames": [
-        "ServerAuthorizationContext"
-      ],
-      "directEffect": "server",
-      "effect": "server",
-      "directEffectSources": [
-        {
-          "environment": "server",
-          "description": "server-kept data policy",
-          "path": [
-            "ServerAuthorizationContext.initializer",
-            "server-kept data policy"
-          ]
-        }
-      ],
-      "effectSources": [
-        {
-          "environment": "server",
-          "description": "server-kept data policy",
-          "path": [
-            "ServerAuthorizationContext.initializer",
-            "server-kept data policy"
-          ]
-        }
-      ],
-      "calls": [
-        {
-          "id": "xPon1pYUfOL08ECYB1w2oTD",
-          "name": "createContext",
-          "moduleSpecifier": "@exact/core",
-          "exportName": "createContext",
-          "resolved": false
-        }
-      ],
-      "artifactTargets": [
-        "server"
-      ],
-      "stateReads": [],
-      "stateWrites": [],
-      "contexts": []
-    },
-    {
-      "id": "xXgjq9GPSFoy54a2wPcBsve",
-      "name": "ServerIdentityProjection",
-      "kind": "component",
-      "exportNames": [
-        "ServerIdentityProjection"
-      ],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [
-        {
-          "id": "xNh-AlkWg31noCGlofRvMYm",
-          "name": "this.task.server",
-          "resolved": false
-        },
-        {
-          "id": "xPlbqyz9vJ14uQJP4cSW1C8",
-          "name": "<function@1848>:returned",
-          "targetId": "xxiUtV40lVVPUz9NFtJARQv",
-          "resolved": true
-        }
-      ],
-      "artifactTargets": [
-        "client",
-        "server"
-      ],
-      "stateReads": [
-        {
-          "path": "brandAccent",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "path": "brandName",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "path": "roleNames",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "path": "roleNames.split",
-          "kind": "read",
-          "confidence": "exact"
-        }
-      ],
-      "stateWrites": [
-        {
-          "path": "brandAccent",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "brandName",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "roleNames",
-          "kind": "write",
-          "confidence": "exact"
-        }
-      ],
-      "contexts": []
-    },
-    {
-      "id": "xxiUtV40lVVPUz9NFtJARQv",
+      "id": "xmEZYu2PMAsjRJfQulkWq_1",
       "name": "<function@1848>",
       "kind": "function",
       "exportNames": [],
@@ -1719,12 +1725,12 @@
       "effectSources": [],
       "calls": [
         {
-          "id": "x38f4YDMla1NcMtecyWnAxb",
+          "id": "xegwTOz6B9rXMfkiG7Froo0",
           "name": "this.state.roleNames.split(\",\").filter",
           "resolved": false
         },
         {
-          "id": "xOUGVR3V2_oUC_yaTpuFk_9",
+          "id": "xOqRe7WcJvh8c0HgbmuwynC",
           "name": "this.state.roleNames.split",
           "resolved": false
         }
@@ -1759,7 +1765,7 @@
       "contexts": []
     },
     {
-      "id": "xXT62WPo3OITeP9oyf-jHiK",
+      "id": "xq8uNJ3b0GaTcxfy-qjdbqF",
       "name": "brand",
       "kind": "function",
       "exportNames": [],
@@ -1780,11 +1786,11 @@
       "contexts": []
     },
     {
-      "id": "xZogeIUhktrEzhZsZxTGWQT",
-      "name": "ServerBrandContext.initializer",
+      "id": "xVGKfYjec8-9s79TiQRZ2dO",
+      "name": "ServerAuthorizationContext.initializer",
       "kind": "initializer",
       "exportNames": [
-        "ServerBrandContext"
+        "ServerAuthorizationContext"
       ],
       "directEffect": "server",
       "effect": "server",
@@ -1793,7 +1799,7 @@
           "environment": "server",
           "description": "server-kept data policy",
           "path": [
-            "ServerBrandContext.initializer",
+            "ServerAuthorizationContext.initializer",
             "server-kept data policy"
           ]
         }
@@ -1803,14 +1809,14 @@
           "environment": "server",
           "description": "server-kept data policy",
           "path": [
-            "ServerBrandContext.initializer",
+            "ServerAuthorizationContext.initializer",
             "server-kept data policy"
           ]
         }
       ],
       "calls": [
         {
-          "id": "x7FXB8-CKsFpMwCeTN8-e7Y",
+          "id": "xPc0pCNNP7iuMyqKEfF_Uqi",
           "name": "createContext",
           "moduleSpecifier": "@exact/core",
           "exportName": "createContext",
@@ -1829,37 +1835,7 @@
     "version": 1,
     "subjects": [
       {
-        "id": "x0N1py0ku8YeQYBwCBiIt87",
-        "kind": "context",
-        "name": "ServerAuthorizationContext",
-        "policy": {
-          "residency": "server",
-          "secret": false
-        },
-        "source": "import"
-      },
-      {
-        "id": "x3ZJDCQ3gYA9MGIrJjDZ0Oe",
-        "kind": "context",
-        "name": "BrandContext",
-        "policy": {
-          "residency": "isomorphic",
-          "secret": false
-        },
-        "source": "inference"
-      },
-      {
-        "id": "x4ogSVO0M1IxUBtFmrzaGq4",
-        "kind": "context",
-        "name": "ServerBrandContext",
-        "policy": {
-          "residency": "server",
-          "secret": false
-        },
-        "source": "import"
-      },
-      {
-        "id": "xaESsv4CBRRMXRRBhEPd2Zh",
+        "id": "x5vDXXMij62iSwiX8hIJ-2h",
         "kind": "context",
         "name": "AuthorizationContext",
         "policy": {
@@ -1869,17 +1845,17 @@
         "source": "inference"
       },
       {
-        "id": "xbS2460Xa_BvkMC7apCUgg7",
-        "kind": "declaration",
-        "name": "publicBrand",
+        "id": "xe6WZgcC5lyDdwCu-q89Gs6",
+        "kind": "context",
+        "name": "ServerBrandContext",
         "policy": {
           "residency": "server",
           "secret": false
         },
-        "source": "inference"
+        "source": "context-option"
       },
       {
-        "id": "xEFSNyBbZOW8M3ali1GJ8-h",
+        "id": "xMlzPkugk5OYSE_o9fby40m",
         "kind": "context",
         "name": "ServerAuthorizationContext",
         "policy": {
@@ -1889,10 +1865,10 @@
         "source": "context-option"
       },
       {
-        "id": "xFMi1QIagYHjsWLTGgV1eFy",
+        "id": "xoMjC5OFkrwOujHYizzL18M",
         "kind": "return",
         "name": "IdentitySummary",
-        "callableId": "x7CQFLUGBB5kJoqOloMd2k5",
+        "callableId": "xA4J5j0Mkq-dCJ3Lz5ycSby",
         "policy": {
           "residency": "isomorphic",
           "secret": false
@@ -1900,77 +1876,17 @@
         "source": "inference"
       },
       {
-        "id": "xgQ5ilMz1IJkATyBUDXhBO8",
-        "kind": "context",
-        "name": "ServerBrandContext",
-        "policy": {
-          "residency": "server",
-          "secret": false
-        },
-        "source": "import"
-      },
-      {
-        "id": "xHeFDoxiR1GphLpsVrWSkNd",
-        "kind": "context",
-        "name": "ServerAuthorizationContext",
-        "policy": {
-          "residency": "server",
-          "secret": false
-        },
-        "source": "import"
-      },
-      {
-        "id": "xHLIaFLDxMuWSMW3oIYuXla",
-        "kind": "context",
-        "name": "AuthorizationContext",
-        "policy": {
-          "residency": "isomorphic",
-          "secret": false
-        },
-        "source": "import"
-      },
-      {
-        "id": "xiIm6XeQl7nB7Q9JTgLeUCS",
-        "kind": "declaration",
-        "name": "authorization",
-        "policy": {
-          "residency": "isomorphic",
-          "secret": false
-        },
-        "source": "inference"
-      },
-      {
-        "id": "xl7zAngoOwI2fP0aIi2Hbz9",
-        "kind": "context",
-        "name": "AuthorizationContext",
-        "policy": {
-          "residency": "isomorphic",
-          "secret": false
-        },
-        "source": "import"
-      },
-      {
-        "id": "xol8AFuHuXD5oqwcin6tAty",
-        "kind": "context",
-        "name": "ServerBrandContext",
-        "policy": {
-          "residency": "server",
-          "secret": false
-        },
-        "source": "context-option"
-      },
-      {
-        "id": "xoPAE8NxdFiyRQ2TLOJc6Sk",
+        "id": "xPSCmtJOHmQPI1fyPzJczuj",
         "kind": "context",
         "name": "BrandContext",
         "policy": {
           "residency": "isomorphic",
           "secret": false
         },
-        "source": "import"
+        "source": "inference"
       },
       {
-        "id": "xP5kYhkpnTPh4PhpqsCkqO_",
+        "id": "xshktuvGHQtbuZXs-yKIMQh",
         "kind": "declaration",
         "name": "brand",
         "policy": {
@@ -1980,78 +1896,34 @@
         "source": "inference"
       },
       {
-        "id": "xRDfTx5Zu0eVLuh2EzIr3n3",
-        "kind": "context",
-        "name": "AuthorizationContext",
+        "id": "xwj-Bk1SUp_3LSbdtUXEAVr",
+        "kind": "declaration",
+        "name": "authorization",
         "policy": {
           "residency": "isomorphic",
           "secret": false
         },
-        "source": "import"
+        "source": "inference"
       },
       {
-        "id": "xrqAQHB3qJ5cCuA2cdc5naf",
-        "kind": "context",
-        "name": "ServerBrandContext",
+        "id": "xxXoOSNlSdXL5-YGhujVzVq",
+        "kind": "declaration",
+        "name": "publicBrand",
         "policy": {
           "residency": "server",
           "secret": false
         },
-        "source": "import"
-      },
-      {
-        "id": "xtT_ZnowRtK0GnUky2DHeiw",
-        "kind": "context",
-        "name": "BrandContext",
-        "policy": {
-          "residency": "isomorphic",
-          "secret": false
-        },
-        "source": "import"
-      },
-      {
-        "id": "xyb35gPYsSs6M0exVzXsNS0",
-        "kind": "context",
-        "name": "ServerAuthorizationContext",
-        "policy": {
-          "residency": "server",
-          "secret": false
-        },
-        "source": "import"
-      },
-      {
-        "id": "xyxaxHmlS3d6lduiaQwaPzL",
-        "kind": "context",
-        "name": "BrandContext",
-        "policy": {
-          "residency": "isomorphic",
-          "secret": false
-        },
-        "source": "import"
+        "source": "inference"
       }
     ],
     "flows": [
       {
-        "id": "x9RaTevItZbxAWv6ng1qBO-",
+        "id": "x2DazBYcLhXp7Y-z_IPhd88",
         "kind": "propagation",
         "from": [
-          "xP5kYhkpnTPh4PhpqsCkqO_",
-          "xiIm6XeQl7nB7Q9JTgLeUCS"
+          "xe6WZgcC5lyDdwCu-q89Gs6"
         ],
-        "to": "xFMi1QIagYHjsWLTGgV1eFy",
-        "policy": {
-          "residency": "isomorphic",
-          "secret": false
-        },
-        "authorized": true
-      },
-      {
-        "id": "xAC-q7cMP3kETpWpc_LjSvh",
-        "kind": "propagation",
-        "from": [
-          "xEFSNyBbZOW8M3ali1GJ8-h"
-        ],
-        "to": "xiIm6XeQl7nB7Q9JTgLeUCS",
+        "to": "xshktuvGHQtbuZXs-yKIMQh",
         "policy": {
           "residency": "server",
           "secret": false
@@ -2059,78 +1931,12 @@
         "authorized": true
       },
       {
-        "id": "xEv9KhFfiSJUw5auO_2kaOl",
-        "kind": "propagation",
-        "from": [
-          "x3ZJDCQ3gYA9MGIrJjDZ0Oe"
-        ],
-        "to": "xP5kYhkpnTPh4PhpqsCkqO_",
-        "policy": {
-          "residency": "isomorphic",
-          "secret": false
-        },
-        "authorized": true
-      },
-      {
-        "id": "xG-5VgdO7S5gu3HfCeLPXTS",
+        "id": "xNvpThWKVygSV765gNTZBu3",
         "kind": "transfer",
         "from": [
-          "xgQ5ilMz1IJkATyBUDXhBO8"
+          "xPSCmtJOHmQPI1fyPzJczuj"
         ],
-        "to": "xkL8tFnykaQGcjx2ACUrmXi",
-        "policy": {
-          "residency": "server",
-          "secret": false
-        },
-        "boundary": "context",
-        "authorized": true
-      },
-      {
-        "id": "xi3amslAqrHmD8LZG1RF4Ki",
-        "kind": "propagation",
-        "from": [
-          "xP5kYhkpnTPh4PhpqsCkqO_"
-        ],
-        "to": "xbS2460Xa_BvkMC7apCUgg7",
-        "policy": {
-          "residency": "server",
-          "secret": false
-        },
-        "authorized": true
-      },
-      {
-        "id": "xLzfAcikysPkmE3yF9zvejb",
-        "kind": "propagation",
-        "from": [
-          "xol8AFuHuXD5oqwcin6tAty"
-        ],
-        "to": "xP5kYhkpnTPh4PhpqsCkqO_",
-        "policy": {
-          "residency": "server",
-          "secret": false
-        },
-        "authorized": true
-      },
-      {
-        "id": "xmOwX2TZ7O0ChKB4cuhdeR_",
-        "kind": "propagation",
-        "from": [
-          "xaESsv4CBRRMXRRBhEPd2Zh"
-        ],
-        "to": "xiIm6XeQl7nB7Q9JTgLeUCS",
-        "policy": {
-          "residency": "isomorphic",
-          "secret": false
-        },
-        "authorized": true
-      },
-      {
-        "id": "xmWmHjDmUxKY9TLGRr6M2eE",
-        "kind": "transfer",
-        "from": [
-          "xtT_ZnowRtK0GnUky2DHeiw"
-        ],
-        "to": "x3NCH2eci780u9Kab88vla7",
+        "to": "xp8SIxq6Ki6dT4jX8Dyy8RX",
         "policy": {
           "residency": "isomorphic",
           "secret": false
@@ -2139,12 +1945,26 @@
         "authorized": true
       },
       {
-        "id": "xqKAhHnYbHg1gFWGaW60SAp",
+        "id": "xQLxqRSke76ZNFhyhnBAvQm",
+        "kind": "propagation",
+        "from": [
+          "xshktuvGHQtbuZXs-yKIMQh",
+          "xwj-Bk1SUp_3LSbdtUXEAVr"
+        ],
+        "to": "xoMjC5OFkrwOujHYizzL18M",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "authorized": true
+      },
+      {
+        "id": "xqqK-C9hQlvpMjg2SFgFhCw",
         "kind": "transfer",
         "from": [
-          "xl7zAngoOwI2fP0aIi2Hbz9"
+          "x5vDXXMij62iSwiX8hIJ-2h"
         ],
-        "to": "x3NCH2eci780u9Kab88vla7",
+        "to": "xp8SIxq6Ki6dT4jX8Dyy8RX",
         "policy": {
           "residency": "isomorphic",
           "secret": false
@@ -2153,25 +1973,97 @@
         "authorized": true
       },
       {
-        "id": "xu-qnuEmFFKlMJ6xpmI7tpW",
+        "id": "xQt7_5BqZ576ZMz-bZhZZQJ",
         "kind": "transfer",
         "from": [
-          "x0N1py0ku8YeQYBwCBiIt87"
+          "xMlzPkugk5OYSE_o9fby40m"
         ],
-        "to": "xkL8tFnykaQGcjx2ACUrmXi",
+        "to": "xdbLxzUuXKK-fMNMwUlwE14",
         "policy": {
           "residency": "server",
           "secret": false
         },
         "boundary": "context",
+        "authorized": true
+      },
+      {
+        "id": "xRcoJlCBeUiHFv5WZphAWdK",
+        "kind": "propagation",
+        "from": [
+          "x5vDXXMij62iSwiX8hIJ-2h"
+        ],
+        "to": "xwj-Bk1SUp_3LSbdtUXEAVr",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "authorized": true
+      },
+      {
+        "id": "xRn_laaG79Nm8qDjk6tN3WR",
+        "kind": "propagation",
+        "from": [
+          "xMlzPkugk5OYSE_o9fby40m"
+        ],
+        "to": "xwj-Bk1SUp_3LSbdtUXEAVr",
+        "policy": {
+          "residency": "server",
+          "secret": false
+        },
+        "authorized": true
+      },
+      {
+        "id": "xU5HpODtjdVxoaEDk2XN93Q",
+        "kind": "transfer",
+        "from": [
+          "xe6WZgcC5lyDdwCu-q89Gs6"
+        ],
+        "to": "xdbLxzUuXKK-fMNMwUlwE14",
+        "policy": {
+          "residency": "server",
+          "secret": false
+        },
+        "boundary": "context",
+        "authorized": true
+      },
+      {
+        "id": "xx2sVnPDUoUbNAAzp7kwlzF",
+        "kind": "propagation",
+        "from": [
+          "xPSCmtJOHmQPI1fyPzJczuj"
+        ],
+        "to": "xshktuvGHQtbuZXs-yKIMQh",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "authorized": true
+      },
+      {
+        "id": "xZfFcS2WCSOH7n9_kkqQDyI",
+        "kind": "propagation",
+        "from": [
+          "xshktuvGHQtbuZXs-yKIMQh"
+        ],
+        "to": "xxXoOSNlSdXL5-YGhujVzVq",
+        "policy": {
+          "residency": "server",
+          "secret": false
+        },
         "authorized": true
       }
-    ]
+    ],
+    "secretConsumers": []
+  },
+  "packageName": "@exact/sample-server-components",
+  "packageProvenance": {
+    "name": "@exact/sample-server-components",
+    "source": "application"
   },
   "serverActions": {
     "xBSFY15Nxenh4yiPSTnHZOB": {
       "id": "xBSFY15Nxenh4yiPSTnHZOB",
-      "componentId": "xkL8tFnykaQGcjx2ACUrmXi",
+      "componentId": "xdbLxzUuXKK-fMNMwUlwE14",
       "taskId": "xBSFY15Nxenh4yiPSTnHZOB",
       "placement": "server",
       "stateContract": {
@@ -2296,20 +2188,8 @@
     ],
     "symbols": [
       {
-        "id": "x2oy7uaz3pEhAbZ7RAHRFr8",
-        "componentId": "xbZ5SbRfxHA8hIdlv1VRseD",
-        "exportName": "IdentityProvider",
-        "localName": "IdentityProvider",
-        "generatedName": "IdentityProvider",
-        "debugName": "IdentityProvider",
-        "kind": "component",
-        "role": "root",
-        "target": "both",
-        "placement": "isomorphic"
-      },
-      {
-        "id": "x5embXrgxYZVEzS-E6qIpGM",
-        "componentId": "x3NCH2eci780u9Kab88vla7",
+        "id": "x8kbjM1dCliadbHiALci2yK",
+        "componentId": "xp8SIxq6Ki6dT4jX8Dyy8RX",
         "exportName": "IdentitySummary",
         "localName": "IdentitySummary",
         "generatedName": "IdentitySummary",
@@ -2320,8 +2200,8 @@
         "placement": "isomorphic"
       },
       {
-        "id": "xfa0UqTE5i606lf-5xQuimr",
-        "componentId": "xkL8tFnykaQGcjx2ACUrmXi",
+        "id": "xrE5RPbRtFHXmmjqMSZoVB4",
+        "componentId": "xdbLxzUuXKK-fMNMwUlwE14",
         "exportName": "ServerIdentityProjection",
         "localName": "ServerIdentityProjection",
         "generatedName": "ServerIdentityProjection",
@@ -2332,29 +2212,19 @@
         "placement": "server"
       },
       {
-        "id": "x5gCjUR8qt9dxkMehHiRHMk",
-        "exportName": "ServerAuthorizationContext",
-        "localName": "ServerAuthorizationContext",
-        "generatedName": "ServerAuthorizationContext",
-        "debugName": "ServerAuthorizationContext",
-        "kind": "value",
+        "id": "xvms6kiSsvQYr7y2W5ICJwN",
+        "componentId": "x6kz-349sUNjveQxneaFcTV",
+        "exportName": "IdentityProvider",
+        "localName": "IdentityProvider",
+        "generatedName": "IdentityProvider",
+        "debugName": "IdentityProvider",
+        "kind": "component",
         "role": "root",
-        "target": "server",
-        "placement": "server"
+        "target": "both",
+        "placement": "isomorphic"
       },
       {
-        "id": "xIZ09Ytb5DpPt_P-0tf2kxW",
-        "exportName": "ServerBrandContext",
-        "localName": "ServerBrandContext",
-        "generatedName": "ServerBrandContext",
-        "debugName": "ServerBrandContext",
-        "kind": "value",
-        "role": "root",
-        "target": "server",
-        "placement": "server"
-      },
-      {
-        "id": "xkS9xdYrAwRpKkIXaSuIvfP",
+        "id": "x7o83JREpQO6ahZNHM0bkC1",
         "exportName": "BrandContext",
         "localName": "BrandContext",
         "generatedName": "BrandContext",
@@ -2365,7 +2235,7 @@
         "placement": "isomorphic"
       },
       {
-        "id": "xTaaDm1fptf-CCTzSe_ip82",
+        "id": "xvmjrNpZtquRp9Rh56qLlDY",
         "exportName": "AuthorizationContext",
         "localName": "AuthorizationContext",
         "generatedName": "AuthorizationContext",
@@ -2374,6 +2244,28 @@
         "role": "root",
         "target": "both",
         "placement": "isomorphic"
+      },
+      {
+        "id": "xX8hI2jOVKlpsEdm6ZheP9E",
+        "exportName": "ServerAuthorizationContext",
+        "localName": "ServerAuthorizationContext",
+        "generatedName": "ServerAuthorizationContext",
+        "debugName": "ServerAuthorizationContext",
+        "kind": "value",
+        "role": "root",
+        "target": "server",
+        "placement": "server"
+      },
+      {
+        "id": "xYLo_DXzDHhtuQxvhsQJlPd",
+        "exportName": "ServerBrandContext",
+        "localName": "ServerBrandContext",
+        "generatedName": "ServerBrandContext",
+        "debugName": "ServerBrandContext",
+        "kind": "value",
+        "role": "root",
+        "target": "server",
+        "placement": "server"
       }
     ],
     "boundaries": []

@@ -155,6 +155,10 @@ declarations, portable manifests, ordered conditional exports, and
 assembly. Validate the packed tarball rather than the source tree, and verify
 client, SSR, and server-component conditions in clean consumers.
 
+Generated shared and target-specific dual modules export the declarations
+needed by generated client/server imports. Those internal exports need not be
+re-exported by the package root barrel unless they are authored public API.
+
 ## Release certification
 
 Before production release:

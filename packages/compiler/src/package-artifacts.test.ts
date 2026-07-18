@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { transform as transpile } from "esbuild";
@@ -132,6 +132,17 @@ describe("installed eXact component package artifacts", () => {
     await writeFile(path.join(exactCore, "index.js"), `
       export function createServerBoundary() { return null; }
     `);
+    await writeFile(path.join(consumer, "package-lock.json"), `${JSON.stringify({
+      name: "exact-package-consumer",
+      lockfileVersion: 3,
+      packages: {
+        "": { name: "exact-package-consumer" },
+        "node_modules/@fixture/exact-components": {
+          version: "1.0.0",
+          integrity: "sha512-fixture-lock-integrity"
+        }
+      }
+    }, null, 2)}\n`);
 
     const discovered = await discoverExactPackageManifests(consumer);
     expect(discovered).toHaveLength(1);
@@ -139,6 +150,8 @@ describe("installed eXact component package artifacts", () => {
     expect(discovered[0]!.manifest.packageName).toBe("@fixture/exact-components");
     expect(discovered[0]!.provenance).toEqual(expect.objectContaining({
       name: "@fixture/exact-components",
+      version: "1.0.0",
+      integrity: "sha512-fixture-lock-integrity",
       source: "installed"
     }));
     expect(discovered[0]!.manifest.packageProvenance).toEqual(discovered[0]!.provenance);
@@ -168,6 +181,47 @@ describe("installed eXact component package artifacts", () => {
     expect(ssr.source).not.toContain("window.location.href");
     expect(serverComponent).toEqual(ssr);
   }, 30_000);
+
+  it("preserves symlink provenance without granting application ownership", async () => {
+    const root = await mkdtemp(path.join(process.cwd(), ".exact-linked-package-"));
+    onTestFinished(() => rm(root, { recursive: true, force: true }));
+    const packageRoot = path.join(root, "workspace", "components");
+    const sourceRoot = path.join(packageRoot, "src");
+    const generatedRoot = path.join(packageRoot, "generated");
+    const source = path.join(sourceRoot, "widget.tsx");
+    await mkdir(sourceRoot, { recursive: true });
+    await writeFile(source, `export function Widget() { return () => null; }`);
+    const compiled = await compileFileArtifacts(source, {
+      outDir: generatedRoot,
+      rootDir: sourceRoot,
+      packageType: "library",
+      packageName: "@fixture/linked-components",
+      discoverPackageManifests: false
+    });
+    await writeFile(path.join(packageRoot, "package.json"), `${JSON.stringify({
+      name: "@fixture/linked-components",
+      version: "2.0.0",
+      type: "module",
+      exact: {
+        manifests: [`./${path.relative(packageRoot, compiled.manifestFile).replaceAll("\\", "/")}`]
+      }
+    }, null, 2)}\n`);
+
+    const consumer = path.join(root, "consumer");
+    const scope = path.join(consumer, "node_modules", "@fixture");
+    const linkedRoot = path.join(scope, "linked-components");
+    await mkdir(scope, { recursive: true });
+    await symlink(packageRoot, linkedRoot, process.platform === "win32" ? "junction" : "dir");
+
+    const discovered = await discoverExactPackageManifests(consumer);
+    expect(discovered).toHaveLength(1);
+    expect(discovered[0]!.provenance).toEqual({
+      name: "@fixture/linked-components",
+      version: "2.0.0",
+      source: "symlink"
+    });
+    expect(discovered[0]!.manifest.packageProvenance).toEqual(discovered[0]!.provenance);
+  });
 });
 
 async function loadConsumer(

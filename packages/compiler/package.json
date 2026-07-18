@@ -28,6 +28,9 @@
     "@exact/plugin-host": "file:../plugin-host",
     "typescript": "^5.7.2"
   },
+  "devDependencies": {
+    "vite": "^5.4.21"
+  },
   "scripts": {
     "build": "tsc -b",
     "test": "vitest run"

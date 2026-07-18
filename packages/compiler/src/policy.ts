@@ -277,9 +277,10 @@ function propagateSecretCallParameters(
   flows: ExactPolicyFlowIR[],
   diagnostics: Set<string>
 ): void {
-  const functions = new Map(module.walk().functions().toArray()
-    .filter(fn => !!fn.node.name)
-    .map(fn => [fn.node.name!, fn]));
+  const functions = new Map(module.walk().functions().toArray().flatMap(fn => {
+    const binding = functionBinding(fn);
+    return binding ? [[binding.id, fn] as const] : [];
+  }));
   const subjectByVariable = new Map<string, ExactPolicySubjectIR>();
   const selectorsByVariable = new Map<string, Set<string>>();
   let changed = true;
@@ -289,7 +290,7 @@ function propagateSecretCallParameters(
     for (const call of module.walk().calls()) {
       const variable = call.target?.rootVariable;
       if (!variable || variable.importedFrom) continue;
-      const fn = functions.get(variable.name);
+      const fn = functions.get(variable.id);
       if (!fn) continue;
       call.arguments.forEach((argument, index) => {
         const parameter = fn.node.parameters[index];
@@ -344,6 +345,16 @@ function propagateSecretCallParameters(
     }
     if (changed) propagateDeclarationPolicies(module, policies, namedPolicies, subjects, flows, diagnostics);
   }
+}
+
+function functionBinding(fn: NodeRef): Variable | undefined {
+  const declared = fn.children().where(child =>
+    child.node.kind === "Identifier"
+    && child.variable?.declarationKind === "FunctionDeclaration"
+  ).first()?.variable;
+  if (declared) return declared;
+  const declaration = fn.ancestors().ofKind("VariableDeclaration").first();
+  return declaration?.children().first()?.variable;
 }
 
 /** Applies declaration/result residency to callable artifact reachability. */

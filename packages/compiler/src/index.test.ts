@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it, onTestFinished } from "vitest";
-import { build as esbuild } from "esbuild";
+import { build as esbuild, type Plugin } from "esbuild";
 import {
   analyzeSource,
   analyzeSemanticGraph,
@@ -1501,6 +1501,20 @@ describe("@exact/compiler", () => {
       && symbol.debugName === "Unused"
     )!.id;
     const artifactCode = await readFile(result.clientFile, "utf8");
+    const descriptorPlugin: Plugin = {
+      name: "exact-descriptor-fixture",
+      setup(build) {
+        build.onResolve({ filter: /^exact-components$/ }, () => ({
+          path: "components",
+          namespace: "exact-fixture"
+        }));
+        build.onLoad({ filter: /.*/, namespace: "exact-fixture" }, () => ({
+          contents: artifactCode,
+          loader: "ts"
+        }));
+        build.onResolve({ filter: /.*/ }, args => ({ path: args.path, external: true }));
+      }
+    };
 
     const bundled = await esbuild({
       stdin: {
@@ -1513,20 +1527,7 @@ describe("@exact/compiler", () => {
       format: "esm",
       platform: "browser",
       minify: true,
-      plugins: [{
-        name: "exact-descriptor-fixture",
-        setup(build) {
-          build.onResolve({ filter: /^exact-components$/ }, () => ({
-            path: "components",
-            namespace: "exact-fixture"
-          }));
-          build.onLoad({ filter: /.*/, namespace: "exact-fixture" }, () => ({
-            contents: artifactCode,
-            loader: "ts"
-          }));
-          build.onResolve({ filter: /.*/ }, args => ({ path: args.path, external: true }));
-        }
-      }]
+      plugins: [descriptorPlugin]
     });
     const code = bundled.outputFiles[0]!.text;
 
@@ -1534,6 +1535,91 @@ describe("@exact/compiler", () => {
     expect(code).toContain(usedId);
     expect(code).not.toContain(unusedId);
     expect(code).not.toContain("innerHeight");
+
+    const lazy = await esbuild({
+      stdin: {
+        contents: `export async function load() { return (await import("exact-components")).Used; }`,
+        loader: "ts",
+        sourcefile: "entry.ts"
+      },
+      bundle: true,
+      write: false,
+      outdir: "out",
+      splitting: true,
+      format: "esm",
+      platform: "browser",
+      minify: true,
+      plugins: [descriptorPlugin]
+    });
+    const lazyDescriptorChunk = lazy.outputFiles.find(file =>
+      file.text.includes("@exact/client-component-descriptor")
+      && file.text.includes(usedId)
+    );
+
+    expect(lazyDescriptorChunk).toBeDefined();
+    expect(lazy.outputFiles.length).toBeGreaterThan(1);
+    expect(lazy.outputFiles
+      .filter(file => file !== lazyDescriptorChunk)
+      .every(file => !file.text.includes(usedId))).toBe(true);
+  });
+
+  it("keeps used CSS Modules and removes unused component styles from a side-effect-free package", async () => {
+    const root = await mkdtemp(path.join(process.cwd(), ".exact-css-module-bundle-"));
+    onTestFinished(() => rm(root, { recursive: true, force: true }));
+    const packageRoot = path.join(root, "node_modules", "exact-components");
+    await mkdir(packageRoot, { recursive: true });
+    await writeFile(path.join(packageRoot, "package.json"), JSON.stringify({
+      name: "exact-components",
+      type: "module",
+      sideEffects: false,
+      exports: "./index.ts"
+    }));
+    await writeFile(path.join(packageRoot, "index.ts"), `
+      export { Used } from "./used.ts";
+      export { Unused } from "./unused.ts";
+    `);
+    await writeFile(path.join(packageRoot, "used.ts"), transform(`
+      import styles from "./used.module.css";
+      export function Used() {
+        return styles.root;
+      }
+    `, { filename: "used.ts", target: "client" }));
+    await writeFile(path.join(packageRoot, "unused.ts"), transform(`
+      import styles from "./unused.module.css";
+      export function Unused() {
+        return styles.root;
+      }
+    `, { filename: "unused.ts", target: "client" }));
+    await writeFile(path.join(packageRoot, "used.module.css"), ".root { color: green; }\n");
+    await writeFile(path.join(packageRoot, "unused.module.css"), ".root { color: red; }\n");
+
+    const entry = path.join(root, "entry.ts");
+    await writeFile(entry, `import { Used } from "exact-components"; console.log(Used());`);
+    const { build: viteBuild } = await import("vite");
+    const built = await viteBuild({
+      root,
+      logLevel: "silent",
+      build: {
+        write: false,
+        minify: false,
+        rollupOptions: { input: entry }
+      }
+    });
+    const outputs = (Array.isArray(built) ? built : [built]).flatMap(result => result.output);
+    const javascript = outputs
+      .filter(output => output.type === "chunk")
+      .map(output => output.code)
+      .join("\n");
+    const css = outputs
+      .filter(output => output.type === "asset" && output.fileName.endsWith(".css"))
+      .map(output => String(output.source))
+      .join("\n");
+
+    expect(javascript).toContain("function Used");
+    expect(javascript).not.toContain("function Unused");
+    expect(css).not.toBe("");
+    expect(css).toContain("green");
+    expect(css).not.toContain("red");
   });
 
   it("preserves default and aliased component exports with attached descriptors", async () => {

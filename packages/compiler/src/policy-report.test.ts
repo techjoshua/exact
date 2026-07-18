@@ -22,7 +22,7 @@ describe("policy audit reports", () => {
     });
     const grant = {
       package: "@acme/database",
-      secrets: ["DATABASE_URL"],
+      secrets: ["DATABASE_URL", "UNUSED_DATABASE_KEY", "*"],
       version: "3.1.0",
       integrity: "sha512-fixture"
     };
@@ -44,9 +44,41 @@ describe("policy audit reports", () => {
       status: "granted"
     }));
     expect(report.secretUsage[0]!.selector).toMatch(/^sha256:/);
-    expect(report.warnings).toEqual(["Unused secret grant for @unused/package: OTHER"]);
+    expect(report.warnings).toEqual([
+      "Overly broad secret grant for @acme/database: *",
+      "Unused secret grant for @unused/package: OTHER",
+      "Unused secret selector grant for @acme/database: UNUSED_DATABASE_KEY"
+    ]);
     expect(report.errors).toEqual([]);
     expect(formatExactPolicyAuditReport(report)).not.toContain("DATABASE_URL");
+  });
+
+  it("requires a wildcard grant for dynamic selectors and reports its breadth", () => {
+    const manifest = analyzeSource(`
+      import { connect } from "@acme/database";
+      declare const secrets: { require(name: string): string };
+      declare const selectedName: string;
+      /** @exact keep=secret */
+      const value = secrets.require(selectedName);
+      connect(/** @exact consume=secret */ value);
+    `, {
+      filename: "runtime.ts",
+      packageType: "library",
+      packageName: "@acme/runtime",
+      target: "server"
+    });
+    const report = createExactPolicyAuditReport([manifest], {
+      grants: [{ package: "@acme/database", secrets: ["*"] }],
+      generatedAt: new Date("2026-01-01T00:00:00.000Z")
+    });
+
+    expect(report.secretUsage[0]).toMatchObject({
+      selector: "<dynamic>",
+      status: "granted"
+    });
+    expect(report.warnings).toEqual([
+      "Overly broad secret grant for @acme/database: *"
+    ]);
   });
 
   it("reports unresolved library requirements as build-review errors", () => {

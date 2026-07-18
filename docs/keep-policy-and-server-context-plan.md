@@ -81,9 +81,10 @@ Internally, these values are not three equivalent taints:
 - `keep=secret` implies server residency and adds a strict non-disclosure qualification.
 
 Unannotated values remain placement-inferred and transferable when required by generated client behavior, subject to JSON-safety and secret-flow rules.
-`keep=isomorphic` is not part of the supported policy vocabulary. An ordinary
-unrestricted value is classified as isomorphic when safe client and server use
-requires a validated transfer.
+There is no `keep=isomorphic` policy and none is needed. `keep` expresses a
+residency restriction; the compiler infers isomorphic availability for an
+ordinary unrestricted value when safe client and server use requires a
+validated transfer.
 
 ## Policy Semantics
 
@@ -817,13 +818,18 @@ The completed design must maintain these invariants:
 - Generic policy manifest version 1 records residency/secrecy subjects and
   propagation, receipt, projection, and transfer flows. Conflicting imported
   policies for the same global context token are build errors.
+- Secret declassification is not supported. Projection cannot remove a secret
+  qualification or make a secret-qualified value transferable.
 
 ## Open Design Questions
 
 The following policy details remain open:
 
+The absence of `keep=isomorphic` and the rule that components cannot establish
+application/request lifetimes are resolved constraints, not open policy
+details.
+
 - The exact user-facing representation of `Secret<T>` in declaration files.
-- Whether explicit declassification is supported initially. If added, it must be louder and more restricted than ordinary server-to-client transfer.
 - How much implicit-flow analysis is required outside VNode and serialization control flow.
 - How generic return policies are expressed when a method can return either ordinary or secret-qualified data.
 - Whether server-kept VNode dependencies always create refreshable server boundaries or may remain static SSR-only output.

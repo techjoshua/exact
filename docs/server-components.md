@@ -27,10 +27,11 @@ Effects and artifact reachability remain separate:
   the effects permit it.
 - Pure effect-free components should begin isomorphic and be emitted into whichever artifact subgraphs consume them.
 
-Isomorphic is the user-facing availability model, not an authored
-`keep=isomorphic` policy. The compiler determines whether an isomorphic
-declaration can live in one target-neutral `shared` artifact or requires
-target-specialized `dual` output in both the client and server artifacts.
+Isomorphic is the user-facing availability model, not an authored residency
+policy. There is no `keep=isomorphic` annotation and none is needed. The
+compiler determines whether an isomorphic declaration can live in one
+target-neutral `shared` artifact or requires target-specialized `dual` output
+in both the client and server artifacts.
 
 `this.task.server(...)` and `this.task.client(...)` remain escape hatches for opaque dependencies or intentional lifecycle boundaries. Explicit placement is validated and cannot contradict known transitive effects. Compiler manifest v2 is an artifact-analysis format change only; HTTP actions, streaming, and hydration remain protocol v1.
 
@@ -51,9 +52,9 @@ For each source component file the compiler can emit:
 - `Component.exact.manifest.json`: stable IDs, generated symbol names, action contracts, boundary metadata, and component edges.
 
 Generated shared and target-specific dual declarations are exported from the
-matching generated artifact when another generated client or server module must
-import them. That internal export does not add the declaration to the package's
-public root barrel. The target entry re-exports it publicly only when the
+matching generated module whenever another generated client or server module
+must import them. This internal export is required independently of the public
+barrel. The target entry re-exports the declaration publicly only when the
 authored package already exposes it through that public entrypoint.
 
 Generated symbols are deterministic and derived from the authored export name, for example `ProfilePage_ExactClient_1` or `ProfilePage_ExactServer_1`. Runtime protocol identity should use manifest IDs rather than JavaScript function names because bundlers and minifiers may rename symbols.
@@ -92,7 +93,8 @@ either scope and derive component-tree context values from them.
 `this.setContext()` always publishes into the component subtree. The resulting
 context cannot become application- or request-scoped, even when its value was
 derived from one of those longer-lived scopes or carries the same token shape.
-Only the server runtime creates application and request lifetimes.
+Derivation changes the value, not its lifetime. Only the server runtime creates
+application and request lifetimes.
 
 `createExactServerRuntime()` accepts `applicationContexts` and
 `requestContexts`. Registrations use `[Token, { value }]` for externally owned

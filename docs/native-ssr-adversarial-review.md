@@ -1,0 +1,199 @@
+# Native SSR And Server Components Adversarial Review
+
+Date: 2026-07-18
+
+## Scope
+
+This review challenged the completed six-phase native SSR and server-component
+program at its trust boundaries rather than treating passing happy-path tests
+as sufficient. It covered renderer replacement, document augmentation,
+request/application lifetime, component context lifetime, artifact selection,
+descriptor minification and tree shaking, response commitment, secret flow,
+package provenance, runtime resolver access, generated samples, and schema
+consumers.
+
+## Findings Resolved
+
+### Dependency-declared integrity was not authoritative
+
+The initial Phase 6 implementation could read an integrity label associated
+with an installed package. A package can modify its own metadata, so accepting
+that label as proof would have been security theater.
+
+Resolution:
+
+- Installed-package discovery now obtains integrity from the consuming
+  application's npm package lock.
+- Discovery overlays identity and provenance from the package boundary and
+  lock rather than trusting the distributable compiler manifest.
+- A grant that pins integrity fails closed when no authoritative lock entry is
+  available or when the digest differs.
+- The installed tarball fixture verifies the lock-derived version and integrity
+  in both discovery output and the compiler manifest.
+
+### A granted wrapper could have hidden a downstream recipient
+
+Checking only the package directly called by application code would make grants
+transitive in practice. A dependency could forward a secret argument to another
+package while the application audit showed only the wrapper.
+
+Resolution:
+
+- Callable summaries now retain direct parameter-to-argument bindings.
+- Application compilation follows those bindings through local helper chains,
+  aliases, and exported wrapper symbols.
+- Every downstream package is emitted as a separate receipt and requires its
+  own package-and-selector grant.
+- A regression test grants `@acme/payments` while confirming that forwarding to
+  `@untrusted/gateway` remains denied.
+
+### Local secret propagation used a name-based callable lookup
+
+A name-indexed lookup is unsafe in the presence of shadowed functions and
+assigned arrow functions because it can associate a call with the wrong
+parameter set.
+
+Resolution:
+
+- Local call propagation now keys functions by canonical binding identity.
+- Function declarations and variable-bound functions use their actual semantic
+  variable, so lexical shadowing cannot redirect policy propagation.
+- A regression test passes a secret to a shadowed local helper and verifies
+  that an unrelated same-named gateway wrapper is not treated as a recipient.
+
+### Aggregate reports understated grant breadth
+
+A grant was considered used when any selector matched, which hid unused
+selectors inside that grant and gave wildcard authorization no explicit review
+signal.
+
+Resolution:
+
+- Reports now track selector use within each grant.
+- Unused grants, unused selectors within used grants, and used wildcard
+  selectors receive distinct deterministic warnings.
+- Dynamic selectors require `*` and the resulting report explicitly calls out
+  that breadth.
+
+### Symlink provenance existed behind unreachable discovery logic
+
+Package discovery could classify a resolved package as `symlink`, but its
+directory walk discarded symlink entries before reading their package metadata.
+That left the workspace/symlink branch untested and ineffective.
+
+Resolution:
+
+- Discovery now admits symlinks only when their resolved target is a directory.
+- Linked packages retain `symlink` provenance, package identity, and version.
+- They remain dependencies for permission purposes and never inherit the root
+  application's implicit-owner exception.
+- A Windows-junction/portable-directory-symlink fixture verifies the path.
+
+### Compiler and server manifest versions could drift
+
+The compiler emitted schema version 6 while the server package and ignored
+sample artifacts still expected version 5. This appeared only when the
+shipping/server-component integration paths loaded generated JSON.
+
+Resolution:
+
+- Compiler and server consumers now share the version 6 contract and reject
+  older versions rather than carrying compatibility branches.
+- The server-component sample regenerates its two artifact sets before every
+  test instead of relying on stale ignored output.
+- Shipping generation, development SSR loading, server-component tests, and
+  production client/server builds exercise the current schema.
+
+### Secret resolver access was broader than the intended capability
+
+An unrestricted `get(name)` API would let any recipient of the resolver request
+every configured secret.
+
+Resolution:
+
+- The unrestricted API was removed.
+- The host issues a resolver scoped to one package identity and its selectors.
+- Application-owner access is an explicit host-issued scope; dependencies
+  receive only their scoped object.
+- Optional runtime audit events record authorization and can hash selectors.
+- Values remain non-serializable and output validation still rejects nested
+  secret wrappers.
+
+## Rechecked Boundaries
+
+- Unsafe HTML remains opaque and whole-range, requires application opt-in, and
+  imported package use requires a non-transitive grant.
+- Native `dangerouslySetInnerHTML` is rejected.
+- URL checks cover SSR, DOM creation, hydration comparison, patch application,
+  and reactive updates using the same React-compatible baseline.
+- Root document augmentation preserves authored `html`, `head`, and `body`
+  structure while reserving framework-owned insertions.
+- Request and application scopes are host-created; component providers remain
+  component-scoped even when their values derive from request/application data.
+- Isomorphic availability is inferred; it is not a `keep` residency mode.
+- Shared and dual declarations are exported for generated cross-artifact
+  imports without being implicitly promoted into the public package barrel.
+- Response state is snapshotted at commitment and cannot be mutated afterward.
+- Component descriptors use global symbols and positional tuples, survive
+  minification, preserve aliases/default exports, and tree-shake when unused.
+- Lazy component chunks carry their descriptor with the exported function.
+- A side-effect-free component package retains the used component's CSS Module
+  while Vite removes the unused component and its stylesheet through a root
+  barrel.
+- Installed package manifests are discovered from advertised package metadata
+  and their embedded package identity is overwritten by resolved provenance.
+
+## Completion Evidence
+
+The completion audit mapped each phase to current implementation and executable
+evidence:
+
+| Phase | Authoritative evidence |
+| --- | --- |
+| 1. Renderer/document safety | Native DOM, SSR, and hydration suites cover authoritative replacement, opaque raw HTML, intrinsic scripts, centralized URL blocking, authored document roots, CSP nonces, and inert progressive payloads. Compiler capability tests cover application opt-in and non-transitive dependency grants. |
+| 2. Request/application scope | Request and server-context suites cover normalized requests, pre-root providers, lifetime validation, cycles, concurrent isolation, cancellation, reverse-order disposal, warm-runtime reuse, test overrides, stream ownership, and the shared SSR/action/refresh scope. Adapter suites exercise their platform request mappings. |
+| 3. Generic policy/context transfer | Annotation and policy suites cover the closed `keep` vocabulary, inferred isomorphic transfer, server/secret rejection from client artifacts, alias/return/state/context propagation, and imported-manifest validation. The native server-component application verifies reconstructed brand/authorization methods and independent server-action authorization. |
+| 4. Component packages | Compiler artifact suites cover shared/dual emission, internal exports, conditional-target assertions, descriptors, aliases/defaults/cycles, minification, tree shaking, lazy chunks, and CSS Modules through a root barrel. The packed-package fixture installs one tarball and loads client, SSR, and server-component conditions with automatic manifest discovery. |
+| 5. Production certification | Request, server, SSR, hydration, and adapter suites cover commitment, redirects, headers, streaming failure, cancellation, budgets, authorization, CSRF, and cleanup. The shipping application builds production client and SSR bundles, while the production guide records deployment, cache, CSP, observability, and publication requirements. |
+| 6. Secret permissions/audit | Secret and policy-report suites cover application ownership, caller-side markers, package/selector grants, version/integrity mismatch, wrapper laundering, shadowed bindings, dynamic selectors, grant-breadth warnings, scoped resolvers, redacted events, and output rejection. Installed and linked package fixtures verify lock-derived integrity and non-application symlink provenance. |
+
+Final repository gates on this reviewed state:
+
+- `npm.cmd test`: 1,027 package tests, 4 native server-component tests, and
+  16 shipping tests passed.
+- `npm.cmd run typecheck`: the project-reference type check passed.
+- `npm.cmd run build:shipping`: the Vite client build transformed 48 modules
+  and the SSR build transformed 47 modules.
+- Regenerating the native server-component artifacts twice from identical
+  inputs produced byte-identical outputs.
+- `git diff --check` passed before commit.
+
+## Residual Limits And Non-Goals
+
+These are not silent correctness promises:
+
+- eXact does not sandbox arbitrary in-process server JavaScript. A dependency
+  may use Node or platform capabilities outside the secret resolver and
+  renderer. Resolver least privilege is capability-by-possession: the host must
+  pass dependencies only their scoped resolver, never the resolver factory.
+- Lock-derived integrity currently recognizes npm `package-lock.json`.
+  Integrity-pinned grants under other package managers fail closed until an
+  authoritative adapter is implemented.
+- Direct DOM, network, `eval`, and other platform APIs remain outside renderer
+  URL/raw-HTML policy.
+- Secret declassification is not supported. Ordinary authenticated service
+  results must be produced by code whose return is independently safe; a secret
+  wrapper cannot be projected into isomorphic state.
+- Shared artifact extraction is intentionally whole-module in the initial
+  implementation. Per-declaration partitioning is an optimization.
+- Nested document metadata collection and generalized URL policy plugins remain
+  explicitly deferred features. Strict no-inline rendering already emits inert
+  progressive payloads; only a standardized external consumer protocol remains
+  deferred.
+
+## Conclusion
+
+No unresolved correctness, packaging, or production-lifecycle blocker was found
+within the stated adoption scope after the fixes above. Remaining limitations
+are explicit capability boundaries, fail-closed ecosystem gaps, optimizations,
+or previously documented non-goals.

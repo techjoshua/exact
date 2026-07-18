@@ -513,10 +513,11 @@ The compiler policy vocabulary should include:
 ```
 
 Isomorphic availability is the ordinary inferred case, not a `keep` annotation.
-`keep=isomorphic` is not part of the supported policy vocabulary. An
-unrestricted, transferable state or context value used by both targets is
-classified as isomorphic when the compiler selects it for hydration or another
-validated transfer boundary.
+There is no `keep=isomorphic` policy and none is needed: `keep` restricts where
+data may reside, while isomorphic availability is inferred from safe client and
+server reachability. An unrestricted, transferable state or context value used
+by both targets is classified as isomorphic when the compiler selects it for
+hydration or another validated transfer boundary.
 
 Structured context options should carry the same metadata and should be
 authoritative when available:
@@ -769,11 +770,11 @@ The compiler should distinguish:
 
 `shared` and `dual` are compiler emission classifications, not requirements to
 add declarations to a package's public root barrel. A declaration referenced
-across generated module boundaries must still be exported from its generated
-shared or target-specific dual artifact so the generated client and server
-artifacts can import it. These internal artifact exports do not become public
-package API unless the authored package already exports them through a public
-entrypoint.
+across generated module boundaries must be exported from its generated shared
+or target-specific dual module so generated client and server modules can
+import it directly. This internal module export is required even when the
+declaration is absent from the public barrel. It becomes public package API
+only when the authored package exports it through a public entrypoint.
 
 For example, a pure formatter may be genuinely shared:
 
@@ -1685,7 +1686,7 @@ Exit criteria:
 
 Implementation status: complete (2026-07-18).
 
-Compiler manifest version 5 now carries a generic policy graph with residency
+Compiler manifest version 6 carries a generic policy graph with residency
 and independent secrecy qualifications, declaration/state/context/return
 subjects, and distinct propagation, projection, transfer, and receipt flow
 kinds. The compiler rejects `keep=isomorphic`, infers safe isomorphic values,
@@ -1722,6 +1723,10 @@ Phase verification includes 1,016 package tests, production and test
 type-checking, four native server-component integration tests, 16 shipping
 sample tests, generated-artifact type-checking, and the clean installed-tarball
 fixture.
+
+Final certification additionally covers descriptor availability from lazy
+chunks and Vite removal of an unused component's CSS Module through a
+side-effect-free root barrel while retaining the used component's styles.
 
 - Complete cross-package placement, alias, re-export, cycle, target-dependency,
   and manifest-conflict analysis.
@@ -1805,8 +1810,11 @@ Exit criteria:
 The shipped manifest schema uses `packageProvenance` with package name,
 optional version, optional integrity, and a source classification. Installed
 package discovery overwrites self-declared identity with the package boundary
-it actually resolved. Version and integrity are optional generally and become
-mandatory matches when a grant pins them. Symlinked packages retain a
+it actually resolved. Installed-package integrity comes from the consuming
+application's package lock, never from a string declared by the dependency
+itself. Version and integrity are optional generally and become mandatory
+matches when a grant pins them; a pinned grant therefore fails closed when no
+authoritative lock entry is available. Symlinked packages retain a
 `symlink` provenance classification and do not inherit application ownership.
 
 Compiler manifests retain selector names because the application build needs
@@ -1814,6 +1822,9 @@ them to resolve least-privilege grants. Reports may replace selector names with
 deterministic SHA-256 identifiers, and runtime audit events offer the same
 redaction. `createExactPolicyAuditReport()` is the versioned machine-readable
 report schema; `formatExactPolicyAuditReport()` is its deterministic text view.
+The report distinguishes wholly unused grants, unused selectors inside a used
+grant, and used wildcard selectors that authorize more than the observed
+requirements.
 
 ## Required Test Matrix
 
@@ -2010,15 +2021,24 @@ report schema; `formatExactPolicyAuditReport()` is its deterministic text view.
 - Distributable compiler manifests retain secret selector identifiers for grant
   resolution. Aggregate reports and runtime audit events can deterministically
   hash those identifiers with SHA-256.
+- Aggregate reports warn about unused grants, unused selectors within a used
+  grant, and wildcard selectors whose authorization is necessarily broader
+  than the observed calls.
+- Secret declassification is not supported. Secret-qualified values cannot be
+  projected into isomorphic state; service results must be independently safe.
 - The aggregate policy report schema is `ExactPolicyAuditReport` version 1,
   with normalized secret usage, warnings for unused grants, and errors for
   unresolved requirements or denied use.
 
 ## Open Design Questions
 
+The resolved placement, artifact-export, and context-lifetime decisions above
+are intentionally excluded from this list. In particular, this plan will not
+reconsider `keep=isomorphic`, implicit root-barrel exports for `shared`/`dual`
+declarations, or component-created application/request scopes.
+
 - Final annotation spelling for projection contracts.
 - How return-value policy is represented in TypeScript declarations.
-- Whether any secret declassification mechanism is supported initially.
 - How application entrypoints compose descriptors for remote and dynamically
   loaded packages.
 - Final `unsafeHtml` overloads for plain strings and platform `TrustedHTML`.

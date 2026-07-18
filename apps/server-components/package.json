@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "generate": "node scripts/generate-artifacts.mjs",
     "build": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "npm run generate && vitest run"
   },
   "dependencies": {
     "@exact/core": "file:../../packages/core",

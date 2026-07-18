@@ -149,6 +149,46 @@ describe("@exact/secrets", () => {
     expect(manifest.diagnostics.some(value => value.includes("forwards a secret"))).toBe(true);
   });
 
+  it("tracks local secret forwarding by binding identity instead of shadowed names", () => {
+    const manifest = analyzeSource(`
+      import { send } from "@untrusted/gateway";
+      /** @exact keep=secret */
+      declare const apiKey: string;
+
+      function useLocally() {
+        function forward(value: string) {
+          return value;
+        }
+        return forward(/** @exact consume=secret */ apiKey);
+      }
+
+      function forward(value: string) {
+        return send(value);
+      }
+
+      export const result = useLocally();
+    `, {
+      filename: "app.ts",
+      packageType: "application",
+      packageName: "@acme/app",
+      target: "server"
+    });
+
+    expect(manifest.policy.secretConsumers).toEqual([
+      expect.objectContaining({
+        authorization: "implicit-application-owner",
+        consumer: expect.objectContaining({
+          package: "@acme/app",
+          symbol: "forward",
+          parameter: 0
+        })
+      })
+    ]);
+    expect(manifest.policy.secretConsumers.some(
+      consumer => consumer.consumer.package === "@untrusted/gateway"
+    )).toBe(false);
+  });
+
   it("rejects secret consumers retained in client compilation", () => {
     const manifest = analyzeSource(`
       declare const secrets: { require(name: string): string };
