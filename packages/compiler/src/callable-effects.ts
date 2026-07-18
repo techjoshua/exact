@@ -250,7 +250,8 @@ export function analyzeCallableEffects(
         ...(local ? { targetId: local.id } : {}),
         ...(variable?.importedFrom ? { moduleSpecifier: variable.importedFrom, exportName: importedName } : {}),
         resolved: !!local || !!resolvedExternal || !!knownCallEffect,
-        ...receiverBindingField(call, summary, local, resolvedExternal)
+        ...receiverBindingField(call, summary, local, resolvedExternal),
+        ...argumentBindingField(call, summary)
       };
       summary.calls.push(edge);
       callNodeIds.set(edge.id, call.node.id);
@@ -381,7 +382,8 @@ export function analyzeCallableEffects(
         ...(local ? { targetId: local.id } : {}),
         ...(variable?.importedFrom ? { moduleSpecifier: variable.importedFrom, exportName: importedName } : {}),
         resolved: !!local || !!resolvedExternal || !!knownCallEffect,
-        ...receiverBindingField(call, summary, local, resolvedExternal)
+        ...receiverBindingField(call, summary, local, resolvedExternal),
+        ...argumentBindingField(call, summary)
       };
       summary.calls.push(edge);
       callNodeIds.set(edge.id, call.node.id);
@@ -522,6 +524,25 @@ function receiverBindingField(
         : { parameterIndex, source: "unknown" as const };
     })
   };
+}
+
+function argumentBindingField(
+  call: NodeRef,
+  caller: MutableCallable
+): Pick<ExactCallEdgeIR, "argumentBindings"> | Record<string, never> {
+  const bindings = call.arguments.flatMap((argument, parameterIndex) => {
+    const variables = new Map<string, Variable>();
+    const root = argument.variable ?? argument.rootVariable;
+    if (root) variables.set(root.id, root);
+    for (const reference of argument.walk({ types: false }).references()) {
+      if (reference.variable) variables.set(reference.variable.id, reference.variable);
+    }
+    return [...variables.values()].flatMap(variable => {
+      const sourceParameterIndex = caller.parameters.findIndex(parameter => parameter.id === variable.id);
+      return sourceParameterIndex >= 0 ? [{ parameterIndex, sourceParameterIndex }] : [];
+    });
+  });
+  return bindings.length ? { argumentBindings: bindings } : {};
 }
 
 function mapStateEffects(effects: readonly ExactStateEffect[], edge: ExactCallEdgeIR): ExactStateEffect[] {

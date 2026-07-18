@@ -34,13 +34,33 @@ export type TransformOptions = {
   packageType?: "application" | "library";
   /** Stable package identity used for capability requirements and grants. */
   packageName?: string;
+  /** Optional immutable package coordinates used when resolving pinned dependency grants. */
+  packageVersion?: string;
+  packageIntegrity?: string;
   /** Application-owner capability policy. Libraries emit requirements without applying grants. */
   capabilityPolicy?: {
     unsafeHtml?: {
       enabled: boolean;
       grants?: readonly string[];
     };
+    secrets?: {
+      grants?: readonly ExactSecretGrant[];
+    };
   };
+};
+
+export type ExactSecretGrant = {
+  package: string;
+  secrets: readonly string[];
+  version?: string;
+  integrity?: string;
+};
+
+export type ExactPackageProvenanceIR = {
+  name: string;
+  version?: string;
+  integrity?: string;
+  source: "application" | "library" | "installed" | "workspace" | "symlink";
 };
 
 /** Host-neutral final module pass applied after eXact lowering and before maps. */
@@ -114,6 +134,8 @@ export type ExactPolicySubjectIR = {
   componentId?: string;
   callableId?: string;
   parameterIndex?: number;
+  /** Provider selector when statically known. Never contains a secret value. */
+  selector?: string;
   policy: ExactDataPolicyIR;
   source: "annotation" | "context-option" | "inference" | "import";
 };
@@ -131,10 +153,52 @@ export type ExactPolicyFlowIR = {
   reason?: string;
 };
 
+export type ExactSecretConsumptionAuthorization =
+  | "implicit-application-owner"
+  | "explicit-grant"
+  | "library-requirement"
+  | "denied";
+
+export type ExactSecretConsumptionIR = {
+  id: string;
+  selector?: string;
+  dynamic: boolean;
+  source: string;
+  line: number;
+  column: number;
+  caller: string;
+  consumer: {
+    package: string;
+    symbol: string;
+    parameter: number;
+    provenance?: ExactPackageProvenanceIR;
+  };
+  target: ExactArtifactTarget;
+  authorization: ExactSecretConsumptionAuthorization;
+  grant?: ExactSecretGrant;
+  reason?: string;
+};
+
+export type ExactPolicyAuditReport = {
+  version: 1;
+  generatedAt: string;
+  secretUsage: Array<{
+    selector: string;
+    consumer: string;
+    symbol: string;
+    parameter: number;
+    status: "implicit" | "granted" | "denied" | "required";
+    source: string;
+  }>;
+  warnings: string[];
+  errors: string[];
+};
+
 export type ExactPolicyManifestIR = {
   version: 1;
   subjects: ExactPolicySubjectIR[];
   flows: ExactPolicyFlowIR[];
+  secretConsumers: ExactSecretConsumptionIR[];
 };
 
 export type ExactEnvironmentEffect = "neutral" | "browser" | "server" | "mixed" | "unknown";
@@ -156,6 +220,11 @@ export type ExactCallEdgeIR = {
     parameterIndex: number;
     source: "component" | "parameter" | "unknown";
     sourceParameterIndex?: number;
+  }>;
+  /** Direct argument forwarding used by parametric cross-package policy analysis. */
+  argumentBindings?: Array<{
+    parameterIndex: number;
+    sourceParameterIndex: number;
   }>;
 };
 
@@ -336,7 +405,7 @@ export type ExactArtifactManifest = {
 };
 
 export type ExactCompilerManifest = {
-  version: 5;
+  version: 6;
   filename: string;
   dependencies: string[];
   assets: ExactAssetDependencyIR[];
@@ -348,6 +417,7 @@ export type ExactCompilerManifest = {
   callables: ExactCallableSummaryIR[];
   policy: ExactPolicyManifestIR;
   packageName?: string;
+  packageProvenance?: ExactPackageProvenanceIR;
   requiredCapabilities?: {
     rawHtml: ExactRawHtmlCapabilityIR[];
   };
@@ -410,6 +480,8 @@ export type CompileArtifactsOptions = {
   generatedValidation?: "syntax" | "semantic";
   packageType?: TransformOptions["packageType"];
   packageName?: string;
+  packageVersion?: string;
+  packageIntegrity?: string;
   capabilityPolicy?: TransformOptions["capabilityPolicy"];
   /** Discovers manifests advertised by installed packages. Defaults to true. */
   discoverPackageManifests?: boolean;
@@ -451,6 +523,8 @@ export type CompileArtifactPlanEntriesOptions = {
   generatedValidation?: "syntax" | "semantic";
   packageType?: TransformOptions["packageType"];
   packageName?: string;
+  packageVersion?: string;
+  packageIntegrity?: string;
   capabilityPolicy?: TransformOptions["capabilityPolicy"];
   /** Discovers manifests advertised by installed packages. Defaults to true. */
   discoverPackageManifests?: boolean;
@@ -460,6 +534,7 @@ export type ExactDiscoveredPackageManifest = {
   packageName: string;
   packageRoot: string;
   manifestFile: string;
+  provenance: ExactPackageProvenanceIR;
   manifest: ExactCompilerManifest;
 };
 

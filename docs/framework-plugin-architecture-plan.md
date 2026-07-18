@@ -2,7 +2,12 @@
 
 ## Status
 
-This document is the decision-complete plan for a general eXact framework plugin system. `@exact/secrets` is intended to be its first full consumer, but the protocol must support future compiler, server, rendering, client, and testing plugins without adding plugin-specific hooks to each host.
+This document is the decision-complete plan for a general eXact framework
+plugin system. `@exact/secrets` is its runtime/provider conformance consumer,
+while generic residency, secret flow, package grants, and policy auditing live
+in the core compiler. The protocol must support future compiler, server,
+rendering, client, and testing plugins without adding plugin-specific hooks to
+each host.
 
 The design treats activated plugin packages and configuration contributors as trusted in-process code. Trust and ignore policy decide whether a package participates. Once accepted, a package may use the complete public plugin API and may contribute configuration to any active plugin.
 
@@ -490,11 +495,16 @@ Registry preparation may be asynchronous, but per-module compiler hooks are sync
 Plugin directives are namespaced:
 
 ```ts
-/** @exact secrets.source */
-/** @exact secrets.sink */
+/** @exact localization.message */
+/** @exact telemetry.span */
 ```
 
 Unknown namespaced directives fail compilation even when no matching plugin is installed.
+
+Secret residency and consumption use core directives (`keep=secret` and
+caller-side `consume=secret`), not namespaced plugin directives. The secrets
+package therefore does not install a compiler extension or define source/sink
+annotations.
 
 Security plugins must be able to request analysis of plain `.ts`, `.js`, and declaration files, not only JSX files. Official bundler hosts use registered candidate filters and the shared expression project so plugin analysis cannot be bypassed by moving a declaration out of a JSX-containing module.
 
@@ -658,8 +668,12 @@ Never cache a partially resolved or failed registry.
 
 ### Phase 7: `@exact/secrets`
 
-- Implement secrets as the conformance plugin.
-- Use it to validate compiler flow hooks, server provider configuration, rendering/serialization guards, manifest enforcement, client exclusion, and failure-closed behavior.
+- Implement secrets as the runtime/provider conformance plugin.
+- Use it to validate server provider configuration,
+  rendering/serialization guards, scoped runtime resolution, audit events,
+  client exclusion, and failure-closed behavior.
+- Validate generic secret flow, manifests, grants, and aggregate reports in the
+  core compiler suite rather than through a plugin-local analyzer.
 
 ## Test Plan
 

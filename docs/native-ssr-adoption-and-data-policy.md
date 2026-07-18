@@ -152,15 +152,19 @@ libraries use attached descriptors rather than publishing standalone
 registries. An installed `npm pack` fixture validates one tarball in
 client-only, SSR, and server-component resolution modes.
 
-### Existing secret prototype
+### Implemented secret policy foundation
 
-`@exact/secrets` currently provides runtime secret branding, secret providers,
-resolver lifecycle, output validation, and a prototype compiler extension with
-`@exact secrets.source` and `@exact secrets.sink`.
+Generic secret flow now belongs to the semantic compiler policy graph.
+`@exact secrets.source`, `@exact secrets.sink`, and the plugin-local compiler
+extension have been removed. The core compiler records caller-side
+`consume=secret` receipt flows, applies the application-owner exception,
+enforces package-and-selector grants, retains package provenance, and produces
+aggregate machine-readable and text audit reports.
 
-That extension proves the integration path, but its local identifier tracking
-and broad sink suppression should not become the final policy engine. Generic
-policy analysis belongs in the semantic compiler graph.
+`@exact/secrets` provides runtime branding, providers, resolver lifecycle,
+output validation, and package-scoped `require()`/`optional()` access. It does
+not grant compiler authority. Runtime audit events can hash selectors and never
+contain secret values.
 
 ## Adoption Standard For Native SSR And Server Components
 
@@ -1783,6 +1787,8 @@ Exit criteria:
 
 ### Phase 6: Secret permissions and audit
 
+Status: complete.
+
 - Move secret flow from the prototype extension into the generic policy engine.
 - Add package/selector grants and the root application-owner exception.
 - Add source provenance, integrity pinning, non-transitive permission
@@ -1795,6 +1801,19 @@ Exit criteria:
 - Application secret use is ergonomic and audited.
 - Dependency use is least-privilege, explicit, non-transitive, and enforced at
   build and runtime framework boundaries.
+
+The shipped manifest schema uses `packageProvenance` with package name,
+optional version, optional integrity, and a source classification. Installed
+package discovery overwrites self-declared identity with the package boundary
+it actually resolved. Version and integrity are optional generally and become
+mandatory matches when a grant pins them. Symlinked packages retain a
+`symlink` provenance classification and do not inherit application ownership.
+
+Compiler manifests retain selector names because the application build needs
+them to resolve least-privilege grants. Reports may replace selector names with
+deterministic SHA-256 identifiers, and runtime audit events offer the same
+redaction. `createExactPolicyAuditReport()` is the versioned machine-readable
+report schema; `formatExactPolicyAuditReport()` is its deterministic text view.
 
 ## Required Test Matrix
 
@@ -1980,15 +1999,26 @@ Exit criteria:
 - Installed component packages advertise portable manifests through
   `package.json` `exact.manifests`; artifact compilation discovers them by
   default.
+- Secret package grants match a package plus exact or trailing-wildcard
+  selectors. Optional version and integrity fields pin the resolved package
+  provenance. Grants are evaluated independently at each receipt boundary and
+  never transitively.
+- Callable manifests retain parameter-to-argument forwarding summaries.
+  Application compilation follows those summaries through local helper chains
+  and requires a separate grant for every downstream package, preventing
+  aliases, re-exports, and wrappers from laundering a grant.
+- Distributable compiler manifests retain secret selector identifiers for grant
+  resolution. Aggregate reports and runtime audit events can deterministically
+  hash those identifiers with SHA-256.
+- The aggregate policy report schema is `ExactPolicyAuditReport` version 1,
+  with normalized secret usage, warnings for unused grants, and errors for
+  unresolved requirements or denied use.
 
 ## Open Design Questions
 
 - Final annotation spelling for projection contracts.
 - How return-value policy is represented in TypeScript declarations.
 - Whether any secret declassification mechanism is supported initially.
-- Package provenance format and integrity pinning defaults.
-- How secret identifier redaction works in distributable manifests.
-- Aggregate application report schema for package grants and secret usage.
 - How application entrypoints compose descriptors for remote and dynamically
   loaded packages.
 - Final `unsafeHtml` overloads for plain strings and platform `TrustedHTML`.

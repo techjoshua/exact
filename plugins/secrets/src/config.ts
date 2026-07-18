@@ -14,14 +14,47 @@ export interface SecretProvider {
 
 export interface SecretResolver {
   initialize(): Promise<void>;
-  get(name: string): Secret<string>;
-  has(name: string): boolean;
+  scope(consumer: SecretConsumerIdentity): ScopedSecretResolver;
   dispose(): void | Promise<void>;
+}
+
+export interface SecretConsumerIdentity {
+  package: string;
+  version?: string;
+  integrity?: string;
+  applicationOwner?: boolean;
+}
+
+export interface SecretAccessGrant {
+  package: string;
+  secrets: readonly string[];
+  version?: string;
+  integrity?: string;
+}
+
+export interface SecretAuditEvent {
+  operation: "require" | "optional";
+  selector: string;
+  selectorRedacted: boolean;
+  consumer: Omit<SecretConsumerIdentity, "applicationOwner">;
+  authorization: "implicit-application-owner" | "explicit-grant" | "denied";
+  requestId?: string;
+}
+
+export interface ScopedSecretResolver {
+  require(name: string): Secret<string>;
+  optional(name: string): Secret<string> | undefined;
 }
 
 export interface SecretsPluginConfig {
   providers: SecretProvider[];
   required: string[];
+  grants: SecretAccessGrant[];
+  audit?: {
+    redactIdentifiers?: boolean;
+    requestId?: () => string | undefined;
+    onEvent(event: SecretAuditEvent): void;
+  };
 }
 
 declare module "@exact/config" {

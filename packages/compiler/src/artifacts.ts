@@ -1,4 +1,4 @@
-import { readdir, readFile } from "node:fs/promises";
+import { lstat, readdir, readFile, realpath } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { isExactArtifactManifest, parseExactCompilerManifest } from "./manifest-parse.js";
@@ -36,8 +36,12 @@ import type {
 
 type ExactPackageJson = {
   name?: string;
+  version?: string;
   exact?: {
     manifests?: unknown;
+    provenance?: {
+      integrity?: unknown;
+    };
   };
 };
 
@@ -81,20 +85,39 @@ export async function discoverExactPackageManifests(
     }
     const manifests = packageJson.exact?.manifests;
     if (!Array.isArray(manifests) || !manifests.every(value => typeof value === "string")) continue;
+    const linked = (await lstat(packageRoot)).isSymbolicLink()
+      || path.resolve(await realpath(packageRoot)) !== path.resolve(packageRoot);
+    const packageName = packageJson.name ?? path.basename(packageRoot);
+    const integrity = packageJson.exact?.provenance?.integrity;
+    if (integrity !== undefined && (typeof integrity !== "string" || !integrity)) {
+      throw new Error(`${packageName}: exact.provenance.integrity must be a non-empty string`);
+    }
+    const provenance = {
+      name: packageName,
+      ...(packageJson.version ? { version: packageJson.version } : {}),
+      ...(typeof integrity === "string" ? { integrity } : {}),
+      source: linked ? "symlink" as const : "installed" as const
+    };
     for (const relative of manifests) {
       const manifestFile = path.resolve(packageRoot, relative);
       const relativeToPackage = path.relative(packageRoot, manifestFile);
       if (relativeToPackage.startsWith("..") || path.isAbsolute(relativeToPackage)) {
         throw new Error(`${packageJson.name ?? packageRoot}: eXact manifest escapes its package root`);
       }
-      const manifest = parseExactCompilerManifest(
+      const parsed = parseExactCompilerManifest(
         JSON.parse(await readFile(manifestFile, "utf8")),
         manifestFile
       );
+      const manifest = {
+        ...parsed,
+        packageName,
+        packageProvenance: provenance
+      };
       discovered.push({
-        packageName: packageJson.name ?? path.basename(packageRoot),
+        packageName,
         packageRoot,
         manifestFile,
+        provenance,
         manifest
       });
     }

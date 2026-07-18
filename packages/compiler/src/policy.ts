@@ -5,7 +5,7 @@ import type {
   NodeRef,
   Variable
 } from "@exact/expressions";
-import { exactKeepPolicy, type ExactKeepPolicy } from "./annotations.js";
+import { exactConsumesSecret, exactKeepPolicy, type ExactKeepPolicy } from "./annotations.js";
 import { expressionComponentIndex } from "./expression-component-index.js";
 import type {
   CallableEffectPlan,
@@ -29,12 +29,15 @@ import type {
   ExactPolicyFlowIR,
   ExactPolicyManifestIR,
   ExactPolicySubjectIR,
-  ExactStateEffect
+  ExactSecretConsumptionIR,
+  ExactStateEffect,
+  TransformOptions
 } from "./types.js";
 
 type PolicyRecord = Readonly<{
   policy: ExactDataPolicyIR;
   subjectId: string;
+  selector?: string;
 }>;
 
 type StatePolicyRecord = PolicyRecord & Readonly<{
@@ -96,17 +99,19 @@ export function analyzeExactPolicyMetadata(
     if (!["VariableDeclaration", "BindingElement", "Parameter"].includes(variable.declarationKind)) continue;
     const keep = exactKeepPolicy(variable.directives) ?? keepFromType(variable.type);
     if (!keep) continue;
+    const selector = keep === "secret" ? secretSelectorForDeclaration(module, variable) : undefined;
     const subject = policySubject(module.filename, {
       kind: variable.declarationKind === "Parameter" ? "parameter" : "declaration",
       name: variable.name,
       policy: dataPolicy(keep),
       source: "annotation",
+      ...(selector ? { selector } : {}),
       ...(variable.declarationKind === "Parameter" ? {
         parameterIndex: parameterIndex(module, variable)
       } : {})
     });
     subjects.push(subject);
-    const record = { policy: subject.policy, subjectId: subject.id };
+    const record = { policy: subject.policy, subjectId: subject.id, ...(selector ? { selector } : {}) };
     declarationPolicies.set(variable.id, record);
     namedDeclarationPolicies.set(variable.name, record);
     const declaration = module.walk().ofKind("VariableDeclaration").first(reference =>
@@ -238,6 +243,15 @@ export function analyzeExactPolicyMetadata(
     true
   );
   propagateDeclarationPolicies(module, declarationPolicies, namedDeclarationPolicies, subjects, flows, diagnostics);
+  propagateSecretCallParameters(
+    module,
+    declarationPolicies,
+    namedDeclarationPolicies,
+    subjects,
+    flows,
+    diagnostics
+  );
+  propagateDeclarationPolicies(module, declarationPolicies, namedDeclarationPolicies, subjects, flows, diagnostics);
   for (const [id, record] of declarationPolicies) {
     const variable = localVariables.find(candidate => candidate.id === id);
     if (variable) namedDeclarationPolicies.set(variable.name, record);
@@ -253,6 +267,83 @@ export function analyzeExactPolicyMetadata(
     flows: Object.freeze([...flows].sort((left, right) => left.id.localeCompare(right.id))),
     diagnostics: Object.freeze([...diagnostics].sort())
   });
+}
+
+function propagateSecretCallParameters(
+  module: BoundModule,
+  policies: Map<string, PolicyRecord>,
+  namedPolicies: Map<string, PolicyRecord>,
+  subjects: ExactPolicySubjectIR[],
+  flows: ExactPolicyFlowIR[],
+  diagnostics: Set<string>
+): void {
+  const functions = new Map(module.walk().functions().toArray()
+    .filter(fn => !!fn.node.name)
+    .map(fn => [fn.node.name!, fn]));
+  const subjectByVariable = new Map<string, ExactPolicySubjectIR>();
+  const selectorsByVariable = new Map<string, Set<string>>();
+  let changed = true;
+  const maxPasses = Math.max(2, functions.size + 1);
+  for (let pass = 0; changed && pass < maxPasses; pass++) {
+    changed = false;
+    for (const call of module.walk().calls()) {
+      const variable = call.target?.rootVariable;
+      if (!variable || variable.importedFrom) continue;
+      const fn = functions.get(variable.name);
+      if (!fn) continue;
+      call.arguments.forEach((argument, index) => {
+        const parameter = fn.node.parameters[index];
+        if (!parameter) return;
+        const inputs = policyInputs(argument, policies, namedPolicies)
+          .filter(input => input.record.policy.secret);
+        if (!inputs.length) return;
+        materializePolicyInputSubjects(inputs, subjects);
+        let selectors = selectorsByVariable.get(parameter.id);
+        if (!selectors) selectorsByVariable.set(parameter.id, selectors = new Set());
+        for (const input of inputs) selectors.add(input.record.selector ?? "<dynamic>");
+        const selector = selectors.size === 1 && !selectors.has("<dynamic>") ? [...selectors][0] : undefined;
+        const existing = policies.get(parameter.id);
+        if (existing?.policy.secret && existing.selector === selector) return;
+        let subject = subjectByVariable.get(parameter.id);
+        if (!subject) {
+          subject = policySubject(module.filename, {
+            kind: "parameter",
+            name: parameter.name,
+            callableId: stableId(module.filename, "callable", fn.node.id),
+            parameterIndex: index,
+            policy: dataPolicy("secret"),
+            source: "inference",
+            ...(selector ? { selector } : {})
+          });
+          subjects.push(subject);
+          subjectByVariable.set(parameter.id, subject);
+        } else if (selector) {
+          subject.selector = selector;
+        } else {
+          delete subject.selector;
+        }
+        const record = {
+          policy: subject.policy,
+          subjectId: subject.id,
+          ...(selector ? { selector } : {})
+        };
+        policies.set(parameter.id, record);
+        flows.push(policyFlow(module.filename, {
+          kind: "receipt",
+          from: inputs.map(input => input.record.subjectId).sort(),
+          to: subject.id,
+          policy: subject.policy,
+          boundary: "call",
+          authorized: exactConsumesSecret(argument.node.directives),
+          ...(!exactConsumesSecret(argument.node.directives)
+            ? { reason: "secret argument is missing the caller-side @exact consume=secret marker" }
+            : {})
+        }));
+        changed = true;
+      });
+    }
+    if (changed) propagateDeclarationPolicies(module, policies, namedPolicies, subjects, flows, diagnostics);
+  }
 }
 
 /** Applies declaration/result residency to callable artifact reachability. */
@@ -400,7 +491,10 @@ export function createExactPolicyManifest(
   metadata: ExactPolicyMetadata,
   components: readonly ExactComponentIR[],
   componentPlan: ExpressionComponentPlan,
-  tasks: ExpressionTaskPlan
+  tasks: ExpressionTaskPlan,
+  module: BoundModule,
+  importedManifests: readonly ExactCompilerManifest[],
+  options: Pick<TransformOptions, "target" | "packageType" | "packageName" | "packageVersion" | "packageIntegrity" | "capabilityPolicy">
 ): ExactPolicyManifestResult {
   const componentIds = new Map(components.map(component => [component.name, component.id]));
   const stateComponentBySubject = new Map(metadata.statePolicies.map(record => [record.subjectId, record.component]));
@@ -413,6 +507,9 @@ export function createExactPolicyManifest(
   const diagnostics = new Set<string>(metadata.diagnostics);
   const componentsByName = new Map(components.map(component => [component.name, component]));
   const subjectByState = new Map<string, ExactPolicySubjectIR>();
+  const secretCalls = collectSecretConsumptions(module, metadata, subjects, importedManifests, options);
+  flows.push(...secretCalls.flows);
+  for (const diagnostic of secretCalls.diagnostics) diagnostics.add(diagnostic);
 
   for (const record of metadata.statePolicies) {
     const component = componentsByName.get(record.component);
@@ -516,7 +613,8 @@ export function createExactPolicyManifest(
     policy: Object.freeze({
       version: 1,
       subjects: sortSubjects(subjects),
-      flows: flows.sort((left, right) => left.id.localeCompare(right.id))
+      flows: flows.sort((left, right) => left.id.localeCompare(right.id)),
+      secretConsumers: secretCalls.consumers
     }),
     diagnostics: Object.freeze([...diagnostics].sort())
   });
@@ -553,7 +651,10 @@ function propagateDeclarationPolicies(
         source: "inference"
       });
       subjects.push(subject);
-      const record = { policy: subject.policy, subjectId: subject.id };
+      const selectors = new Set(inputs.map(input => input.record.selector).filter((value): value is string => !!value));
+      const selector = selectors.size === 1 ? [...selectors][0] : undefined;
+      const record = { policy: subject.policy, subjectId: subject.id, ...(selector ? { selector } : {}) };
+      if (selector) subject.selector = selector;
       policies.set(variable.id, record);
       namedPolicies.set(variable.name, record);
       flows.push(policyFlow(module.filename, {
@@ -566,6 +667,258 @@ function propagateDeclarationPolicies(
       changed = true;
     }
   }
+}
+
+function collectSecretConsumptions(
+  module: BoundModule,
+  metadata: ExactPolicyMetadata,
+  subjects: ExactPolicySubjectIR[],
+  importedManifests: readonly ExactCompilerManifest[],
+  options: Pick<TransformOptions, "target" | "packageType" | "packageName" | "packageVersion" | "packageIntegrity" | "capabilityPolicy">
+): {
+  consumers: ExactSecretConsumptionIR[];
+  flows: ExactPolicyFlowIR[];
+  diagnostics: string[];
+} {
+  const consumers: ExactSecretConsumptionIR[] = [];
+  const flows: ExactPolicyFlowIR[] = [];
+  const diagnostics = new Set<string>();
+  const grants = options.capabilityPolicy?.secrets?.grants ?? [];
+  const target = options.target === "client" ? "client" : "server";
+
+  for (const call of module.walk().calls()) {
+    const targetVariable = call.target?.rootVariable;
+    const moduleSpecifier = targetVariable?.importedFrom;
+    const packageName = moduleSpecifier ? packageNameFromSpecifier(moduleSpecifier) : options.packageName ?? "<application>";
+    const symbol = targetVariable?.importedFrom
+      ? importedCallSymbol(module, call, targetVariable)
+      : call.target?.isMember()
+        ? call.target.node.name ?? call.target.node.text ?? "<call>"
+        : targetVariable?.name ?? call.target?.node.text ?? "<call>";
+    const provenance = moduleSpecifier
+      ? importedManifests.find(manifest => manifest.packageName === packageName)?.packageProvenance
+      : options.packageName ? {
+          name: options.packageName,
+          ...(options.packageVersion ? { version: options.packageVersion } : {}),
+          ...(options.packageIntegrity ? { integrity: options.packageIntegrity } : {}),
+          source: options.packageType === "library" ? "library" as const : "application" as const
+        } : undefined;
+
+    call.arguments.forEach((argument, parameter) => {
+      const inputs = policyInputs(argument, metadata.declarationPolicies, metadata.namedDeclarationPolicies)
+        .filter(input => input.record.policy.secret);
+      if (!inputs.length) return;
+      materializePolicyInputSubjects(inputs, subjects);
+      const selectors = new Set(inputs.map(input => input.record.selector).filter((value): value is string => !!value));
+      const selector = selectors.size === 1 ? [...selectors][0] : undefined;
+      const marked = exactConsumesSecret(argument.node.directives);
+      const location = argument.node.span ?? call.node.span ?? { line: 0, column: 0 };
+      const local = !moduleSpecifier;
+      const matchingGrant = local ? undefined : grants.find(grant =>
+        grant.package === packageName
+        && selectorAllowed(selector, grant.secrets)
+        && (!grant.version || grant.version === provenance?.version)
+        && (!grant.integrity || grant.integrity === provenance?.integrity)
+      );
+      let authorization: ExactSecretConsumptionIR["authorization"];
+      let reason: string | undefined;
+      if (!marked) {
+        authorization = "denied";
+        reason = "secret argument is missing the caller-side @exact consume=secret marker";
+      } else if (target === "client") {
+        authorization = "denied";
+        reason = "secret consumption cannot be retained in a client artifact";
+      } else if (options.packageType === "library") {
+        authorization = "library-requirement";
+      } else if (local) {
+        authorization = "implicit-application-owner";
+      } else if (matchingGrant) {
+        authorization = "explicit-grant";
+      } else {
+        authorization = "denied";
+        const candidate = grants.find(grant => grant.package === packageName);
+        reason = !candidate
+          ? `dependency ${packageName} has no secret grant`
+          : !selectorAllowed(selector, candidate.secrets)
+            ? selector ? `secret selector ${selector} is outside the grant for ${packageName}` : `dynamic secret selector is outside the grant for ${packageName}`
+            : candidate.version && candidate.version !== provenance?.version
+              ? `package version for ${packageName} does not match its secret grant`
+              : `package integrity for ${packageName} does not match its secret grant`;
+      }
+      const id = stableId(module.filename, "secret-consumer", call.node.id, String(parameter));
+      const consumer: ExactSecretConsumptionIR = {
+        id,
+        ...(selector ? { selector } : {}),
+        dynamic: !selector,
+        source: module.filename,
+        line: location.line,
+        column: location.column,
+        caller: nearestCallableName(argument),
+        consumer: {
+          package: packageName,
+          symbol,
+          parameter,
+          ...(provenance ? { provenance } : {})
+        },
+        target,
+        authorization,
+        ...(matchingGrant ? { grant: { ...matchingGrant, secrets: [...matchingGrant.secrets] } } : {}),
+        ...(reason ? { reason } : {})
+      };
+      consumers.push(consumer);
+      flows.push(policyFlow(module.filename, {
+        kind: "receipt",
+        from: inputs.map(input => input.record.subjectId).sort(),
+        to: id,
+        policy: dataPolicy("secret"),
+        boundary: "call",
+        authorized: authorization !== "denied",
+        ...(reason ? { reason } : {})
+      }));
+      if (reason) diagnostics.add(`error: ${reason} at ${module.filename}:${location.line}:${location.column}`);
+
+      if (moduleSpecifier) {
+        const manifest = importedManifests.find(candidate => candidate.packageName === packageName);
+        for (const forwarded of forwardedSecretRecipients(manifest, symbol, parameter)) {
+          const forwardedPackage = packageNameFromSpecifier(forwarded.moduleSpecifier);
+          const forwardedProvenance = importedManifests
+            .find(candidate => candidate.packageName === forwardedPackage)?.packageProvenance;
+          const forwardedGrant = grants.find(grant =>
+            grant.package === forwardedPackage
+            && selectorAllowed(selector, grant.secrets)
+            && (!grant.version || grant.version === forwardedProvenance?.version)
+            && (!grant.integrity || grant.integrity === forwardedProvenance?.integrity)
+          );
+          const forwardedAuthorization = options.packageType === "library"
+            ? "library-requirement" as const
+            : forwardedGrant ? "explicit-grant" as const : "denied" as const;
+          const forwardedReason = forwardedAuthorization === "denied"
+            ? `dependency ${packageName} forwards a secret to ungranted package ${forwardedPackage}`
+            : undefined;
+          const forwardedId = stableId(id, "forwarded-secret", forwardedPackage, forwarded.symbol, String(forwarded.parameter));
+          consumers.push({
+            id: forwardedId,
+            ...(selector ? { selector } : {}),
+            dynamic: !selector,
+            source: module.filename,
+            line: location.line,
+            column: location.column,
+            caller: nearestCallableName(argument),
+            consumer: {
+              package: forwardedPackage,
+              symbol: forwarded.symbol,
+              parameter: forwarded.parameter,
+              ...(forwardedProvenance ? { provenance: forwardedProvenance } : {})
+            },
+            target,
+            authorization: forwardedAuthorization,
+            ...(forwardedGrant ? { grant: { ...forwardedGrant, secrets: [...forwardedGrant.secrets] } } : {}),
+            ...(forwardedReason ? { reason: forwardedReason } : {})
+          });
+          flows.push(policyFlow(module.filename, {
+            kind: "receipt",
+            from: [id],
+            to: forwardedId,
+            policy: dataPolicy("secret"),
+            boundary: "call",
+            authorized: forwardedAuthorization !== "denied",
+            ...(forwardedReason ? { reason: forwardedReason } : {})
+          }));
+          if (forwardedReason) diagnostics.add(`error: ${forwardedReason} at ${module.filename}:${location.line}:${location.column}`);
+        }
+      }
+    });
+  }
+
+  return {
+    consumers: consumers.sort((left, right) => left.id.localeCompare(right.id)),
+    flows: flows.sort((left, right) => left.id.localeCompare(right.id)),
+    diagnostics: [...diagnostics].sort()
+  };
+}
+
+function importedCallSymbol(module: BoundModule, call: NodeRef, variable: Variable): string {
+  if (call.target?.isMember()) return call.target.node.name ?? call.target.node.text ?? variable.name;
+  const importReference = module.walk().where(reference =>
+    reference.node.kind === "Identifier"
+    && reference.variable?.id === variable.id
+    && reference.ancestors().any(ancestor => ancestor.node.kind === "ImportDeclaration")
+  ).first();
+  if (importReference?.parent?.node.kind === "ImportClause") return "default";
+  if (importReference?.parent?.node.kind === "ImportSpecifier") {
+    const identifiers = importReference.parent.children()
+      .where(child => child.node.kind === "Identifier")
+      .toArray();
+    return identifiers.length > 1 ? identifiers[0]!.name! : variable.name;
+  }
+  return variable.name;
+}
+
+function forwardedSecretRecipients(
+  manifest: ExactCompilerManifest | undefined,
+  exportName: string,
+  parameter: number
+): Array<{ moduleSpecifier: string; symbol: string; parameter: number }> {
+  if (!manifest) return [];
+  const entries = manifest.callables.filter(callable => callable.exportNames.includes(exportName));
+  const callableById = new Map(manifest.callables.map(callable => [callable.id, callable]));
+  const pending = entries.map(callable => ({ callable, parameter }));
+  const seen = new Set<string>();
+  const recipients = new Map<string, { moduleSpecifier: string; symbol: string; parameter: number }>();
+  while (pending.length) {
+    const current = pending.pop()!;
+    const key = `${current.callable.id}:${current.parameter}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    for (const edge of current.callable.calls) {
+      for (const binding of edge.argumentBindings ?? []) {
+        if (binding.sourceParameterIndex !== current.parameter) continue;
+        if (edge.moduleSpecifier) {
+          const recipient = {
+            moduleSpecifier: edge.moduleSpecifier,
+            symbol: edge.exportName ?? edge.name,
+            parameter: binding.parameterIndex
+          };
+          recipients.set(`${recipient.moduleSpecifier}:${recipient.symbol}:${recipient.parameter}`, recipient);
+        } else if (edge.targetId) {
+          const target = callableById.get(edge.targetId);
+          if (target) pending.push({ callable: target, parameter: binding.parameterIndex });
+        }
+      }
+    }
+  }
+  return [...recipients.values()].sort((left, right) =>
+    left.moduleSpecifier.localeCompare(right.moduleSpecifier)
+    || left.symbol.localeCompare(right.symbol)
+    || left.parameter - right.parameter
+  );
+}
+
+function secretSelectorForDeclaration(module: BoundModule, variable: Variable): string | undefined {
+  const declaration = module.walk().ofKind("VariableDeclaration").first(reference =>
+    reference.children().first()?.variable?.id === variable.id
+  );
+  const initializer = declaration?.children().toArray().at(-1);
+  if (!initializer) return undefined;
+  const match = /\.(?:require|optional)\(\s*(["'])([^"']+)\1/.exec(initializer.node.text ?? "");
+  return match?.[2];
+}
+
+function packageNameFromSpecifier(specifier: string): string {
+  if (specifier.startsWith("@")) return specifier.split("/").slice(0, 2).join("/");
+  return specifier.split("/")[0]!;
+}
+
+function selectorAllowed(selector: string | undefined, selectors: readonly string[]): boolean {
+  if (!selector) return selectors.includes("*");
+  return selectors.some(pattern => pattern === selector
+    || pattern === "*"
+    || pattern.endsWith("*") && selector.startsWith(pattern.slice(0, -1)));
+}
+
+function nearestCallableName(reference: NodeRef): string {
+  const owner = reference.ancestors().functions().first();
+  return owner?.node.name ?? "<module>";
 }
 
 function collectCallableReturnPolicies(

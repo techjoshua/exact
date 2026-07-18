@@ -90,7 +90,7 @@ describe("@exact/webpack-plugin", () => {
   it("rejects malformed manifest files", () => {
     const root = mkdtempSync(path.join(tmpdir(), "exact-webpack-bad-manifest-"));
     const manifestFile = path.join(root, "bad.exact.manifest.json");
-    writeFileSync(manifestFile, JSON.stringify({ version: 2, filename: "bad.tsx" }));
+    writeFileSync(manifestFile, JSON.stringify({ version: 6, filename: "bad.tsx" }));
 
     expect(() => transformExactWebpackSource("const view = <span />;", "/src/view.tsx", {
       manifestFiles: [manifestFile]

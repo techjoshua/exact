@@ -43,10 +43,10 @@ export function isSecret(value: unknown): value is Secret<unknown> {
   return !!value && typeof value === "object" && (value as Partial<Secret<unknown>>)[secretBrand] === true;
 }
 
-/** Executes a server-side sink without tainting the sink's ordinary result. */
-export function withSecret<T, R>(value: Secret<T>, sink: (revealed: T) => R): R {
+/** Reveals a value after the caller has intentionally obtained and delivered it. */
+export function withSecret<T, R>(value: Secret<T>, consumer: (revealed: T) => R): R {
   if (!(value instanceof ExactSecret)) throw new Error("Secret value was not created by @exact/secrets");
-  return sink(value.reveal());
+  return consumer(value.reveal());
 }
 
 export function deriveSecret<T, R>(name: string, value: Secret<T>, derive: (revealed: T) => R): Secret<R> {
@@ -66,4 +66,12 @@ export function secretPath(value: unknown, path = "$", seen = new Set<object>())
   return undefined;
 }
 
-export type { SecretsPluginConfig, SecretProvider, SecretResolver } from "./config.js";
+export type {
+  ScopedSecretResolver,
+  SecretAccessGrant,
+  SecretAuditEvent,
+  SecretConsumerIdentity,
+  SecretsPluginConfig,
+  SecretProvider,
+  SecretResolver
+} from "./config.js";

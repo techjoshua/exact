@@ -137,6 +137,11 @@ describe("installed eXact component package artifacts", () => {
     expect(discovered).toHaveLength(1);
     expect(discovered[0]!.packageName).toBe("@fixture/exact-components");
     expect(discovered[0]!.manifest.packageName).toBe("@fixture/exact-components");
+    expect(discovered[0]!.provenance).toEqual(expect.objectContaining({
+      name: "@fixture/exact-components",
+      source: "installed"
+    }));
+    expect(discovered[0]!.manifest.packageProvenance).toEqual(discovered[0]!.provenance);
     const consumerSource = path.join(consumer, "app.tsx");
     await writeFile(consumerSource, `
       import { Widget } from "@fixture/exact-components";
