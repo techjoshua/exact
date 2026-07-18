@@ -42,6 +42,10 @@ export function parseExactCompilerManifest(value: unknown, source = "manifest", 
   if (!manifest.callables!.every(isExactCallableSummary)) {
     throw new Error(`Malformed eXact ${kind} callable summaries in ${source}`);
   }
+  if ((manifest.packageName !== undefined && (typeof manifest.packageName !== "string" || !manifest.packageName))
+    || (manifest.requiredCapabilities !== undefined && !isExactCapabilityRequirements(manifest.requiredCapabilities))) {
+    throw new Error(`Malformed eXact ${kind} capability requirements in ${source}`);
+  }
   if (new Set(manifest.dependencies).size !== manifest.dependencies.length
     || manifest.dependencies.some(dependency => dependency.length === 0 || /^(?:[A-Za-z]:[\\/]|[\\/]{1,2})/.test(dependency))) {
     throw new Error(`Malformed eXact ${kind} dependencies in ${source}`);
@@ -54,6 +58,24 @@ export function parseExactCompilerManifest(value: unknown, source = "manifest", 
   }
   validatePluginEnvelope(manifest, source, kind);
   return manifest as ExactCompilerManifest;
+}
+
+function isExactCapabilityRequirements(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  if (!Array.isArray(record.rawHtml)) return false;
+  return record.rawHtml.every(raw => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
+    const requirement = raw as Record<string, unknown>;
+    return typeof requirement.source === "string"
+      && Number.isInteger(requirement.line) && (requirement.line as number) > 0
+      && Number.isInteger(requirement.column) && (requirement.column as number) > 0
+      && typeof requirement.symbol === "string" && requirement.symbol.length > 0
+      && Array.isArray(requirement.targets)
+      && requirement.targets.length > 0
+      && requirement.targets.every(target => target === "client" || target === "server")
+      && new Set(requirement.targets).size === requirement.targets.length;
+  });
 }
 
 function isExactAssetDependency(value: unknown): boolean {

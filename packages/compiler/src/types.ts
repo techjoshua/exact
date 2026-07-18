@@ -25,6 +25,17 @@ export type TransformOptions = {
    * Release checks can request a second full semantic binding.
    */
   generatedValidation?: "syntax" | "semantic";
+  /** Identifies whether this compilation is a deployable application or a publishable library. */
+  packageType?: "application" | "library";
+  /** Stable package identity used for capability requirements and grants. */
+  packageName?: string;
+  /** Application-owner capability policy. Libraries emit requirements without applying grants. */
+  capabilityPolicy?: {
+    unsafeHtml?: {
+      enabled: boolean;
+      grants?: readonly string[];
+    };
+  };
 };
 
 /** Host-neutral final module pass applied after eXact lowering and before maps. */
@@ -55,6 +66,14 @@ export type ExactAssetDependencyIR = {
   importMode: ExactAssetImportMode;
   evaluationTarget: Exclude<ExactAssetTarget, "embedded">;
   deliveryTarget: ExactAssetTarget;
+};
+
+export type ExactRawHtmlCapabilityIR = {
+  source: string;
+  line: number;
+  column: number;
+  symbol: string;
+  targets: ExactArtifactTarget[];
 };
 
 export type TransformResult = {
@@ -274,6 +293,10 @@ export type ExactCompilerManifest = {
   symbols: ExactSymbolIR[];
   boundaries: ExactBoundaryIR[];
   callables: ExactCallableSummaryIR[];
+  packageName?: string;
+  requiredCapabilities?: {
+    rawHtml: ExactRawHtmlCapabilityIR[];
+  };
   artifacts?: ExactArtifactManifest;
   serverActions: Record<string, {
     id: string;
@@ -331,6 +354,9 @@ export type CompileArtifactsOptions = {
   session?: ExactCompilerSession;
   pluginRegistry?: ExactPreparedCompilerRegistry;
   generatedValidation?: "syntax" | "semantic";
+  packageType?: TransformOptions["packageType"];
+  packageName?: string;
+  capabilityPolicy?: TransformOptions["capabilityPolicy"];
 };
 
 export type CompileArtifactsResult = {
@@ -364,6 +390,9 @@ export type CompileArtifactPlanEntriesOptions = {
   session?: ExactCompilerSession;
   pluginRegistry?: ExactPreparedCompilerRegistry;
   generatedValidation?: "syntax" | "semantic";
+  packageType?: TransformOptions["packageType"];
+  packageName?: string;
+  capabilityPolicy?: TransformOptions["capabilityPolicy"];
 };
 
 export type ExactArtifactPlanOptions = {
