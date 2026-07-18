@@ -570,6 +570,10 @@ Framework diagnostics use the root logger passed to `render()`. The default cons
 
 `@exact/router` supplies component-reference routes with nested outlets. `Router` uses an explicit `LocationSource` when supplied, otherwise it reads the ambient server request or the browser History API:
 
+The planned renderer-neutral data-router core and versioned React Router v5
+and v6/v7 compatibility facades are specified in the
+[React Router compatibility plan](docs/react-router-compatibility-plan.md).
+
 ```tsx
 import { Link, Outlet, Route, Router } from "@exact/router";
 

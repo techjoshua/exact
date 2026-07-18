@@ -6,6 +6,13 @@ eXact can run many existing React libraries through `@exact/react-compat`, but d
 
 The system must work for application source processed by the eXact compiler and for already-published JavaScript packages whose JSX has been lowered to `react/jsx-runtime` or `React.createElement`. The initial implementation targets the repository's current Node and Vite stack. Webpack, Bun, and other hosts follow after the common discovery and transformation engine has been proven through Node and Vite without requiring host-specific semantic implementations.
 
+React Router requires version-conditioned component, hook, helper, and factory
+substitutions selected from the actual resolved source package instance. Its
+detailed core, compatibility, SSR, and conformance program is specified in
+[react-router-compatibility-plan.md](react-router-compatibility-plan.md). That
+plan extends the generic protocol defined here; it does not introduce a
+router-specific registry.
+
 ## Goals
 
 - Let an installed eXact adapter replace selected React package component exports with native eXact components.
@@ -88,6 +95,14 @@ The adapter package's `package.json` is the only substitution metadata source. T
 
 Replacement modules are expressed as package-relative public subpaths. The normalized target for the first mapping above is `@exact/tanstack-query/provider#QueryClientProvider`. The schema deliberately has no arbitrary target package field.
 
+The single `version` plus `exports` form above is the one-variant shorthand.
+Adapters that support incompatible source-package API families may instead
+declare non-overlapping `variants`, each with its own version range and export
+map. Discovery normalizes both forms into variants and selects one from the
+actual source package instance resolved from the importer. The
+[React Router compatibility plan](react-router-compatibility-plan.md) defines
+the motivating duplicate-major behavior.
+
 ### Application policy
 
 The build root can suppress discovered adapters in its own `package.json`:
@@ -113,11 +128,16 @@ Only the build root's ignore policy applies. A dependency cannot suppress anothe
 2. Replacement subpaths must exist in the adapter package's `exports` map and resolve for the active client or server conditions.
 3. Source modules must be bare package specifiers. Relative paths, absolute paths, URLs, and Node built-ins are invalid.
 4. Every substituted source export must be named explicitly. Wildcard export substitutions are not supported initially.
-5. Every source package mapping must declare a supported semantic version range.
+5. Every source package mapping or normalized source variant must declare a
+   supported semantic version range; variant ranges for one source module
+   cannot overlap.
 6. The adapter must directly depend on `@exact/react-compat-adapter-api` using a compatible protocol range.
 7. Third-party adapters cannot replace `@exact/*`, `react`, `react-dom`, or their public subpaths. Core React runtime rewriting remains owned by eXact.
 8. Substitution is one-pass. A replacement output is never fed back through the substitution table.
-9. Two active adapters cannot claim the same source module/export pair. Conflicts fail before source transformation; ordering and last-wins behavior are forbidden.
+9. Two active adapters cannot claim the same resolved source package instance,
+   subpath, and export. Conflicts fail before source transformation; ordering
+   and last-wins behavior are forbidden. Distinct installed source instances
+   may select different non-overlapping version variants.
 10. Multiple incompatible installed versions of one adapter package fail the build unless the resolver can prove that they belong to isolated build roots.
 11. Metadata is inert JSON. Discovery never executes dependency package code.
 12. Application ignore policy is applied before conflict and source-version validation.
@@ -155,8 +175,9 @@ Physical hoisting must not determine authority. Discovery follows logical depend
 4. Read and validate each candidate's `exact.reactCompatibility` metadata.
 5. Apply the build root's `ignoreAdapters` policy.
 6. Resolve adapter replacement subpaths from the declaring package instance.
-7. Validate protocol versions, source package versions, public exports, and conflicts.
-8. Freeze a normalized substitution table for the build.
+7. Validate protocol versions, source package variants, public exports, and
+   conflicts against resolved source package instances.
+8. Freeze a normalized resolved-instance substitution table for the build.
 
 Cache discovery by build root, package-manager identity, root manifest signature, lockfile signature, and protocol major. Watch the root manifest, lockfile, and active adapter manifests in development.
 
@@ -350,6 +371,14 @@ The root and provider entrypoints may depend on the framework-neutral library co
    - Prove complex provider subscription semantics, server state, selector equality, dispatch, nested providers, and optional React Redux custom-context bridging.
 6. **Jotai and other stores**
    - Reuse the external-source primitive where their framework-neutral APIs provide stable snapshot/subscription contracts.
+7. **React Router**
+   - Expand `@exact/router` into the single renderer-neutral routing authority.
+   - Add resolved-package-instance adapter variants before supporting multiple
+     installed React Router majors.
+   - Provide separate v5 and v6/v7 semantic facades, with v6 before 6.4
+     distinguished from data-router-capable releases.
+   - Follow the dedicated
+     [React Router compatibility plan](react-router-compatibility-plan.md).
 
 ## Implementation phases
 
