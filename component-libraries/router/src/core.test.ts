@@ -220,4 +220,87 @@ describe("renderer-neutral router core", () => {
     await Promise.all([stale, current]);
     expect(router.getSnapshot().fetchers.get("same")).toEqual({ state: "idle", data: "2" });
   });
+
+  it("rejects stale initialization, action, and revalidation commits even when handlers ignore abort", async () => {
+    let resolveInitial!: (value: unknown) => void;
+    let resolveAction!: (value: unknown) => void;
+    let resolveRevalidation!: (value: unknown) => void;
+    const initial = new Promise(resolve => { resolveInitial = resolve; });
+    const action = new Promise(resolve => { resolveAction = resolve; });
+    const revalidation = new Promise(resolve => { resolveRevalidation = resolve; });
+    let homeLoads = 0;
+    const router = createExactRouter({
+      source: createMemoryLocationSource("/home"),
+      routes: [
+        {
+          id: "home",
+          path: "home",
+          loader: () => ++homeLoads === 1 ? initial : homeLoads === 4 ? revalidation : "home",
+          action: () => action
+        },
+        { id: "next", path: "next", loader: () => "next" }
+      ]
+    });
+
+    const staleInitialization = router.initialize();
+    await router.navigate("/next");
+    resolveInitial("stale initial");
+    await staleInitialization;
+    expect(router.getSnapshot()).toMatchObject({
+      location: { pathname: "/next" },
+      loaderData: { next: "next" },
+      initialized: true
+    });
+
+    await router.navigate("/home");
+    const staleAction = router.submit("/home", { method: "POST" });
+    await router.navigate("/next");
+    resolveAction({ stale: true });
+    await staleAction;
+    expect(router.getSnapshot()).toMatchObject({
+      location: { pathname: "/next" },
+      loaderData: { next: "next" },
+      actionData: {}
+    });
+
+    await router.navigate("/home");
+    const staleRevalidation = router.revalidate();
+    await Promise.resolve();
+    await router.navigate("/next");
+    resolveRevalidation("stale revalidation");
+    await staleRevalidation;
+    expect(router.getSnapshot()).toMatchObject({
+      location: { pathname: "/next" },
+      loaderData: { next: "next" }
+    });
+  });
+
+  it("lets fetchers finish without allowing their revalidation to overwrite navigation", async () => {
+    let resolveRevalidation!: (value: unknown) => void;
+    const revalidation = new Promise(resolve => { resolveRevalidation = resolve; });
+    let loads = 0;
+    const router = createExactRouter({
+      source: createMemoryLocationSource("/item"),
+      routes: [
+        {
+          id: "item",
+          path: "item",
+          loader: () => ++loads === 1 ? "initial" : revalidation,
+          action: () => "saved"
+        },
+        { id: "next", path: "next", loader: () => "next" }
+      ]
+    });
+    await router.initialize();
+    const fetcher = router.fetch("save", "item", "/item", { method: "POST" });
+    await Promise.resolve();
+    await router.navigate("/next");
+    resolveRevalidation("stale");
+    await fetcher;
+    expect(router.getSnapshot()).toMatchObject({
+      location: { pathname: "/next" },
+      loaderData: { next: "next" }
+    });
+    expect(router.getSnapshot().fetchers.get("save")).toEqual({ state: "idle", data: "saved" });
+  });
 });

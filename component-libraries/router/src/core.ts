@@ -133,6 +133,8 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
   let disposed = false;
   let sourceRevision = 0;
   let activeAbort: AbortController | undefined;
+  let revalidationAbort: AbortController | undefined;
+  let revalidationId = 0;
   let loaderData: Record<string, unknown> = { ...(options.hydrationData?.loaderData ?? {}) };
   let actionData: Record<string, unknown> = { ...(options.hydrationData?.actionData ?? {}) };
   let errors: Record<string, unknown> = { ...(options.hydrationData?.errors ?? {}) };
@@ -200,9 +202,8 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
     });
     for (const blocker of blockers) if (blocker(transition)) return;
 
-    activeAbort?.abort();
-    activeAbort = new AbortController();
-    const currentTransition = ++transitionId;
+    const operation = beginAuthoritativeOperation();
+    const currentTransition = operation.id;
     snapshot = Object.freeze({
       ...snapshot,
       navigation: Object.freeze({ state: "loading", location: nextLocation, transitionId: currentTransition })
@@ -211,19 +212,20 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
     const revision = sourceRevision;
     const nextMatches = matchRoutes(routes, nextLocation.pathname);
     const result = nextMatches.some(match => hasOwnDataWork(match.route))
-      ? await runLoaders(target, nextMatches, activeAbort.signal)
+      ? await runLoaders(target, nextMatches, operation.abort.signal)
       : { data: {}, errors: {} };
     if (result.redirect) {
       if (currentTransition !== transitionId) return;
       await navigate(result.redirect, { replace: true, status: result.status }, redirectDepth + 1);
       return;
     }
-    if (currentTransition !== transitionId || activeAbort.signal.aborted) return;
+    if (!ownsAuthoritativeOperation(operation)) return;
+    initialized = true;
     loaderData = result.data;
     errors = result.errors;
     if (options.replace) source.replace(target, options.state, options.status);
     else source.push(target, options.state, options.status);
-    if (currentTransition !== transitionId || activeAbort.signal.aborted) return;
+    if (!ownsAuthoritativeOperation(operation)) return;
     // Sources with subscriptions refresh themselves. Request-backed sources do
     // not navigate locally, so retain their location and only settle state.
     if (sourceRevision === revision) {
@@ -237,12 +239,14 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
   async function initialize(): Promise<void> {
     assertActive();
     if (initialized) return;
-    activeAbort?.abort();
-    activeAbort = new AbortController();
-    const result = await runLoaders(source.location(), snapshot.matches, activeAbort.signal);
+    const operation = beginAuthoritativeOperation();
+    const result = await runLoaders(source.location(), snapshot.matches, operation.abort.signal);
+    if (!ownsAuthoritativeOperation(operation)) return;
     if (result.redirect) {
       await navigate(result.redirect, { replace: true, status: result.status });
       initialized = true;
+      snapshot = buildSnapshot(snapshot.historyAction);
+      notify();
       return;
     }
     loaderData = result.data;
@@ -258,9 +262,8 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
     const matches = matchRoutes(routes, stripBasename(normalizePath(url.pathname), basename));
     const actionMatch = [...matches].reverse().find(match => match.route.action || match.route.lazy);
     if (!actionMatch) throw new Error(`No route action matches ${url.pathname}`);
-    activeAbort?.abort();
-    activeAbort = new AbortController();
-    const currentTransition = ++transitionId;
+    const operation = beginAuthoritativeOperation();
+    const currentTransition = operation.id;
     snapshot = Object.freeze({
       ...snapshot,
       navigation: Object.freeze({ state: "submitting", location: locationForUrl(url, init), transitionId: currentTransition })
@@ -272,30 +275,43 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
         request: new Request(url, init),
         params: actionMatch.params,
         context: options.context,
-        signal: activeAbort.signal
+        signal: operation.abort.signal
       });
+      if (!ownsAuthoritativeOperation(operation)) return;
       const redirect = redirectResult(result);
       if (redirect) {
         await navigate(redirect.location, { replace: true, status: redirect.status });
         return;
       }
       const data = await unwrapDataResult(result);
+      if (!ownsAuthoritativeOperation(operation)) return;
       actionData = { [actionMatch.id]: data };
-      await revalidate(data);
+      await revalidate(data, operation);
     } catch (error) {
+      if (!ownsAuthoritativeOperation(operation)) return;
+      const redirect = redirectResult(error);
+      if (redirect) {
+        await navigate(redirect.location, { replace: true, status: redirect.status });
+        return;
+      }
       errors = { ...errors, [actionMatch.id]: error };
       snapshot = buildSnapshot(snapshot.historyAction);
       notify();
     }
   }
 
-  async function revalidate(actionResult?: unknown): Promise<void> {
+  async function revalidate(
+    actionResult?: unknown,
+    owner?: Readonly<{ id: number; abort: AbortController }>
+  ): Promise<void> {
     assertActive();
+    const operation = owner ?? beginIndependentRevalidation();
+    const independentId = owner ? undefined : revalidationId;
+    const startingTransition = transitionId;
+    const startingRevision = sourceRevision;
     revalidation = "loading";
     snapshot = buildSnapshot(snapshot.historyAction);
     notify();
-    activeAbort?.abort();
-    activeAbort = new AbortController();
     const currentUrl = source.location();
     const selected = snapshot.matches.filter(match => match.route.shouldRevalidate?.({
       currentUrl,
@@ -305,7 +321,19 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
       actionResult,
       defaultShouldRevalidate: true
     }) ?? true);
-    const result = await runLoaders(currentUrl, selected, activeAbort.signal, loaderData);
+    const result = await runLoaders(currentUrl, selected, operation.abort.signal, loaderData);
+    const current = owner
+      ? ownsAuthoritativeOperation(owner)
+      : independentId === revalidationId
+        && transitionId === startingTransition
+        && sourceRevision === startingRevision
+        && !operation.abort.signal.aborted;
+    if (!current) return;
+    if (result.redirect) {
+      revalidation = "idle";
+      await navigate(result.redirect, { replace: true, status: result.status });
+      return;
+    }
     loaderData = result.data;
     errors = result.errors;
     revalidation = "idle";
@@ -348,6 +376,12 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
       if (mutation) await revalidate(data);
     } catch (error) {
       if (fetcherAborts.get(key) !== abort || abort.signal.aborted) return;
+      const redirect = redirectResult(error);
+      if (redirect) {
+        fetchers.set(key, Object.freeze({ state: "idle" }));
+        await navigate(redirect.location, { replace: true, status: redirect.status });
+        return;
+      }
       fetchers.set(key, Object.freeze({ state: "idle", error }));
     }
     snapshot = buildSnapshot(snapshot.historyAction);
@@ -400,6 +434,32 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
     if (disposed) throw new Error("Cannot use a disposed router");
   }
 
+  function beginAuthoritativeOperation(): Readonly<{ id: number; abort: AbortController }> {
+    activeAbort?.abort();
+    cancelIndependentRevalidation();
+    const abort = new AbortController();
+    activeAbort = abort;
+    return { id: ++transitionId, abort };
+  }
+
+  function ownsAuthoritativeOperation(operation: Readonly<{ id: number; abort: AbortController }>): boolean {
+    return operation.id === transitionId && activeAbort === operation.abort && !operation.abort.signal.aborted;
+  }
+
+  function beginIndependentRevalidation(): Readonly<{ id: number; abort: AbortController }> {
+    revalidationAbort?.abort();
+    const abort = new AbortController();
+    revalidationAbort = abort;
+    return { id: ++revalidationId, abort };
+  }
+
+  function cancelIndependentRevalidation(): void {
+    revalidationAbort?.abort();
+    revalidationAbort = undefined;
+    revalidationId++;
+    revalidation = "idle";
+  }
+
   return Object.freeze({
     basename,
     mode,
@@ -429,6 +489,7 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
       if (disposed) return;
       disposed = true;
       activeAbort?.abort();
+      revalidationAbort?.abort();
       for (const abort of fetcherAborts.values()) abort.abort();
       fetcherAborts.clear();
       unsubscribe?.();
