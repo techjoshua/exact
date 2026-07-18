@@ -13,6 +13,7 @@ import {
   createExactRouter,
   createKey,
   hrefFor,
+  hydrationDataFromSnapshot,
   matchRoutes,
   normalizeBasename,
   normalizePath,

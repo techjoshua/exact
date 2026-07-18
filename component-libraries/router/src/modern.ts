@@ -464,12 +464,17 @@ export function createStaticHandler(routes: readonly RouteObject[], options: { b
   return {
     dataRoutes: routes,
     async query(request, init = {}) {
-      const source = createMemoryLocationSource(request.url);
-      const router = createExactRouter({ source, routes, basename: options.basename, context: init.requestContext });
+      const statics = createStaticLocationSource(request.url);
+      const router = createExactRouter({ source: statics.source, routes, basename: options.basename, context: init.requestContext });
       if (!/^(?:GET|HEAD)$/i.test(request.method)) {
-        await router.submit(request.url, { method: request.method, headers: request.headers, body: request.body });
+        await router.submit(request.url, await requestInit(request));
       } else {
         await router.initialize();
+      }
+      const redirected = statics.redirect();
+      if (redirected) {
+        router.dispose();
+        return new Response(null, { status: redirected.status, headers: { Location: redirected.location.href } });
       }
       const snapshot = router.getSnapshot();
       const context: StaticHandlerContext = {
@@ -478,7 +483,7 @@ export function createStaticHandler(routes: readonly RouteObject[], options: { b
         loaderData: snapshot.loaderData,
         actionData: snapshot.actionData,
         errors: snapshot.errors,
-        statusCode: Object.keys(snapshot.errors).length ? 500 : 200,
+        statusCode: routeErrorStatus(snapshot.errors),
         loaderHeaders: {},
         actionHeaders: {}
       };
@@ -486,10 +491,15 @@ export function createStaticHandler(routes: readonly RouteObject[], options: { b
       return context;
     },
     async queryRoute(request, queryOptions = {}) {
-      const source = createMemoryLocationSource(request.url);
-      const router = createExactRouter({ source, routes, basename: options.basename, context: queryOptions.requestContext });
+      const statics = createStaticLocationSource(request.url);
+      const router = createExactRouter({ source: statics.source, routes, basename: options.basename, context: queryOptions.requestContext });
       if (/^(?:GET|HEAD)$/i.test(request.method)) await router.initialize();
-      else await router.submit(request.url, { method: request.method, headers: request.headers, body: request.body });
+      else await router.submit(request.url, await requestInit(request));
+      const redirected = statics.redirect();
+      if (redirected) {
+        router.dispose();
+        return new Response(null, { status: redirected.status, headers: { Location: redirected.location.href } });
+      }
       const snapshot = router.getSnapshot();
       const routeId = queryOptions.routeId ?? snapshot.matches.at(-1)?.id ?? "";
       const value = /^(?:GET|HEAD)$/i.test(request.method) ? snapshot.loaderData[routeId] : snapshot.actionData[routeId];
@@ -586,6 +596,40 @@ function formDataSearchParams(formData: FormData): URLSearchParams {
   const params = new URLSearchParams();
   formData.forEach((value, name) => params.append(name, String(value)));
   return params;
+}
+function createStaticLocationSource(initial: string | URL): {
+  source: LocationSource;
+  redirect(): { location: URL; status: number } | undefined;
+} {
+  let location = new URL(initial);
+  let redirected: { location: URL; status: number } | undefined;
+  const listeners = new Set<(action?: "POP" | "PUSH" | "REPLACE") => void>();
+  const update = (next: URL, status: number | undefined, action: "PUSH" | "REPLACE") => {
+    location = next;
+    redirected = { location: next, status: status ?? 302 };
+    listeners.forEach(listener => listener(action));
+  };
+  return {
+    source: {
+      location: () => location,
+      push: (url, _state, status) => update(url, status, "PUSH"),
+      replace: (url, _state, status) => update(url, status, "REPLACE"),
+      subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); }
+    },
+    redirect: () => redirected
+  };
+}
+async function requestInit(request: Request): Promise<RequestInit> {
+  const body = await request.clone().arrayBuffer();
+  return {
+    method: request.method,
+    headers: request.headers,
+    ...(body.byteLength ? { body } : {})
+  };
+}
+function routeErrorStatus(errors: Readonly<Record<string, unknown>>): number {
+  const responses = Object.values(errors).filter((error): error is Response => error instanceof Response);
+  return responses.find(response => response.status >= 400)?.status ?? (Object.keys(errors).length ? 500 : 200);
 }
 function browserWindowSource(target: Window, mode: RouterMode): LocationSource {
   const read = () => mode === "hash"

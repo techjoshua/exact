@@ -52,6 +52,12 @@
     "@types/node": "^22.10.2",
     "esbuild": "^0.21.5",
     "jsdom": "^25.0.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-router-dom-v5": "npm:react-router-dom@5.3.4",
+    "react-router-dom-v6": "npm:react-router-dom@6.30.4",
+    "react-router-dom-v63": "npm:react-router-dom@6.3.0",
+    "react-router-dom-v7": "npm:react-router-dom@7.18.1",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }

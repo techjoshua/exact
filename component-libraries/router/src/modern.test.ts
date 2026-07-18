@@ -13,6 +13,7 @@ import {
   RouterProvider,
   Routes,
   createMemoryRouter,
+  createStaticHandler,
   useLoaderData,
   useLocation,
   useParams
@@ -83,5 +84,23 @@ describe("React Router modern facade", () => {
     container.querySelector("a")!.click();
     await settle();
     expect(container.textContent).toContain("/shared");
+  });
+
+  it("runs static loaders with request context and returns redirect responses", async () => {
+    const requestContext = { tenant: "exact" };
+    const handler = createStaticHandler([
+      {
+        id: "home",
+        path: "home",
+        loader: ({ context }) => ({ tenant: (context as typeof requestContext).tenant })
+      },
+      { id: "old", path: "old", loader: () => new Response(null, { status: 307, headers: { Location: "/home" } }) }
+    ]);
+    const context = await handler.query(new Request("https://example.test/home"), { requestContext });
+    expect(context).toMatchObject({ loaderData: { home: { tenant: "exact" } }, statusCode: 200 });
+    const response = await handler.query(new Request("https://example.test/old"));
+    expect(response).toBeInstanceOf(Response);
+    expect((response as Response).status).toBe(307);
+    expect((response as Response).headers.get("Location")).toBe("https://example.test/home");
   });
 });

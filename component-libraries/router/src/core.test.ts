@@ -1,6 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { createMemoryLocationSource } from "./index.js";
-import { createExactRouter, generatePath, matchPath, matchRoutes, redirect, type ExactRouteDefinition } from "./core.js";
+import {
+  createExactRouter,
+  generatePath,
+  hydrationDataFromSnapshot,
+  matchPath,
+  matchRoutes,
+  redirect,
+  type ExactRouteDefinition
+} from "./core.js";
 
 describe("renderer-neutral router core", () => {
   const routes = [
@@ -161,5 +169,25 @@ describe("renderer-neutral router core", () => {
     await router.navigate("/lazy");
     expect(router.getSnapshot().loaderData).toEqual({ lazy: "lazy data" });
     expect((dataRoutes[0].children[1] as ExactRouteDefinition).handle).toBe("ready");
+  });
+
+  it("validates bounded JSON-safe route hydration data", async () => {
+    const safe = createExactRouter({
+      source: createMemoryLocationSource("/"),
+      routes: [{ id: "root", index: true }],
+      hydrationData: { loaderData: { root: { value: 1 } } }
+    });
+    expect(hydrationDataFromSnapshot(safe.getSnapshot())).toEqual({
+      loaderData: { root: { value: 1 } },
+      actionData: {},
+      errors: {}
+    });
+    const unsafe = createExactRouter({
+      source: createMemoryLocationSource("/"),
+      routes: [{ id: "root", index: true }],
+      hydrationData: { loaderData: { root: new Date() } }
+    });
+    expect(() => hydrationDataFromSnapshot(unsafe.getSnapshot())).toThrow(/not JSON-safe/);
+    expect(() => hydrationDataFromSnapshot(safe.getSnapshot(), { maxBytes: 1 })).toThrow(/byte limits/);
   });
 });

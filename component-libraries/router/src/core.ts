@@ -276,8 +276,9 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
         await navigate(redirect.location, { replace: true, status: redirect.status });
         return;
       }
-      actionData = { [actionMatch.id]: result };
-      await revalidate(result);
+      const data = await unwrapDataResult(result);
+      actionData = { [actionMatch.id]: data };
+      await revalidate(data);
     } catch (error) {
       errors = { ...errors, [actionMatch.id]: error };
       snapshot = buildSnapshot(snapshot.historyAction);
@@ -324,12 +325,19 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
       await materializeLazy(match.route);
       const handler = mutation ? match.route.action : match.route.loader;
       if (!handler) throw new Error(`Route ${routeId} does not define a ${mutation ? "action" : "loader"}`);
-      const data = await handler({
+      const result = await handler({
         request: new Request(url, init),
         params: match.params,
         context: options.context,
         signal: abort.signal
       });
+      const redirect = redirectResult(result);
+      if (redirect) {
+        fetchers.set(key, Object.freeze({ state: "idle" }));
+        await navigate(redirect.location, { replace: true, status: redirect.status });
+        return;
+      }
+      const data = await unwrapDataResult(result);
       fetchers.set(key, Object.freeze({ state: "idle", data }));
       if (mutation) await revalidate(data);
     } catch (error) {
@@ -360,7 +368,7 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
         });
         const nextRedirect = redirectResult(value);
         if (nextRedirect) redirect = nextRedirect;
-        else data[match.id] = value;
+        else data[match.id] = await unwrapDataResult(value);
       } catch (error) {
         const nextRedirect = redirectResult(error);
         if (nextRedirect) redirect = nextRedirect;
@@ -454,6 +462,64 @@ function locationForUrl(url: URL, init: RequestInit): RouteLocation {
 
 export function redirect(location: string, status = 302): Response {
   return new Response(null, { status, headers: { Location: location } });
+}
+
+export function hydrationDataFromSnapshot(
+  snapshot: ExactRouterSnapshot,
+  limits: { maxDepth?: number; maxNodes?: number; maxBytes?: number } = {}
+): ExactHydrationData {
+  const data = {
+    loaderData: snapshot.loaderData,
+    actionData: snapshot.actionData,
+    errors: snapshot.errors
+  };
+  assertJsonTransferSafe(data, limits);
+  return data;
+}
+
+function assertJsonTransferSafe(
+  value: unknown,
+  limits: { maxDepth?: number; maxNodes?: number; maxBytes?: number }
+): void {
+  const maxDepth = positiveLimit(limits.maxDepth, 100);
+  const maxNodes = positiveLimit(limits.maxNodes, 100_000);
+  const maxBytes = positiveLimit(limits.maxBytes, 16 * 1024 * 1024);
+  const pending: Array<{ value: unknown; path: string; depth: number }> = [{ value, path: "$", depth: 0 }];
+  const seen = new Set<object>();
+  let nodes = 0;
+  while (pending.length) {
+    const current = pending.pop()!;
+    if (++nodes > maxNodes || current.depth > maxDepth) throw new Error(`Route hydration data exceeded graph limits at ${current.path}`);
+    const item = current.value;
+    if (item === null || typeof item === "string" || typeof item === "boolean") continue;
+    if (typeof item === "number") {
+      if (Number.isFinite(item)) continue;
+      throw new Error(`Route hydration data is not JSON-safe at ${current.path}`);
+    }
+    if (typeof item !== "object" || seen.has(item)) throw new Error(`Route hydration data is not JSON-safe at ${current.path}`);
+    seen.add(item);
+    if (!Array.isArray(item) && Object.getPrototypeOf(item) !== Object.prototype) {
+      throw new Error(`Route hydration data is not JSON-safe at ${current.path}`);
+    }
+    for (const [key, child] of Object.entries(item)) {
+      pending.push({ value: child, path: `${current.path}.${key}`, depth: current.depth + 1 });
+    }
+  }
+  const serialized = JSON.stringify(value);
+  if (new TextEncoder().encode(serialized).byteLength > maxBytes) {
+    throw new Error("Route hydration data exceeded byte limits");
+  }
+}
+
+function positiveLimit(value: number | undefined, fallback: number): number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : fallback;
+}
+
+async function unwrapDataResult(value: unknown): Promise<unknown> {
+  if (!(value instanceof Response)) return value;
+  if (value.status === 204 || value.status === 205) return null;
+  const contentType = value.headers.get("Content-Type") ?? "";
+  return contentType.includes("application/json") ? value.json() : value.text();
 }
 
 export function matchRoutes<Route extends ExactRouteDefinition>(
