@@ -402,34 +402,43 @@ declare function fetchWeather(
 const weatherApiKey = apiKey;
 const weather = await fetchWeather(
   "Seattle",
-  /** @exact consume=secret */ weatherApiKey
+  consume(weatherApiKey)
 );
 ```
 
-Argument placement consumes the secret for that call edge only. The caller's
-binding remains secret-qualified; the callee receives the raw value through an
-ordinary parameter and may use it throughout that function. A different call
-using the caller's binding requires its own marker.
+The original binding remains secret-qualified. `consume()` returns an ordinary
+value and stops compiler tracking for that returned expression. Direct argument
+consumption lets the compiler associate the boundary with the receiving symbol
+and package.
 
-For broader local use, the caller may consume at the declaration:
+For broader local use, the caller may retain the ordinary result:
 
 ```ts
-/** @exact consume=secret */
-const weatherApiKey = secrets.require("WEATHER_API_KEY");
+const rawWeatherApiKey = consume(weatherApiKey);
 
-const weather = await fetchWeather("Seattle", weatherApiKey);
-const forecast = await fetchForecast("Seattle", weatherApiKey);
+const weather = await fetchWeather("Seattle", rawWeatherApiKey);
+const forecast = await fetchForecast("Seattle", rawWeatherApiKey);
 ```
 
-That resulting binding is consumed throughout its lexical scope, so individual
-calls do not repeat the directive. Application-owned callees are implicitly
-permitted. A dependency callee additionally requires its package name in
-`secrets.allowPackages`. Receiving functions do not annotate secret parameters
-and cannot authorize their own package. Neither form authorizes client transfer
-by Exact.
+That resulting binding is ordinary and no longer tracked. Exact audits the
+standalone boundary, but subsequent handling belongs to trusted application
+code. Prefer direct argument consumption for dependencies so the compiler can
+require the receiving package name in `secrets.allowPackages`. Receiving
+functions do not annotate secret parameters and cannot authorize themselves.
 
 This is a direct receipt guard and audit record. It does not claim to verify the
 transitive behavior of opaque in-process JavaScript.
+
+Normal operations derive new secret-qualified values without helper APIs:
+
+```ts
+const combo = secrets.require("ClientKeyAndSecret");
+const [key, clientSecret] = combo.split(":");
+const authorization = `JWT-Bearer - ${key}:${clientSecret}`;
+```
+
+`combo`, `key`, `clientSecret`, and `authorization` are all compiler-qualified
+secrets while remaining ordinary strings at runtime.
 
 ## Opaque And Third-Party Libraries
 
@@ -480,7 +489,9 @@ Server-kept but non-secret values may influence server VNodes. They must remain 
 
 ## Serialization And Protocol Enforcement
 
-Compile-time enforcement is primary, but every serialization boundary needs defense in depth.
+Compile-time enforcement is primary. Transparent primitive values cannot carry
+reliable runtime branding, so the compiler must cover every framework-owned
+serialization boundary.
 
 The following emitters must reject secret-qualified values and server/client policy violations:
 
@@ -493,9 +504,8 @@ The following emitters must reject secret-qualified values and server/client pol
 - State, text, prop, style, list, and replacement patches.
 - Error and logging serialization owned by eXact.
 
-The runtime should use branded metadata where values originate from eXact secret APIs. This catches manually assembled hydration or endpoint payloads that bypass generated compiler paths. Runtime branding is a defense, not the full guarantee: primitives can be copied or transformed, so compile-time flow analysis remains necessary.
-
-Serialization must fail loudly with a policy path and payload location. It must not silently omit a field.
+Compilation must fail loudly with a policy path and payload location. It must
+not silently omit a field.
 
 ## Compiler And Type Model
 
@@ -534,7 +544,9 @@ type ExactValuePolicy = {
 
 `secret: true` requires `residency: "server"`.
 
-This should be compiler metadata rather than a user-visible TypeScript wrapper everywhere. A public `Secret<T>` type may still be exported for runtime APIs and declaration authors.
+This is compiler metadata rather than an opaque runtime wrapper. The exported
+`Secret<T>` declaration is assignable to and behaves as `T`; it exposes the
+qualification to the compiler and declaration authors.
 
 ### Flow graph
 
@@ -722,8 +734,10 @@ Exit criteria:
 
 ### Phase 4: Caller-side package permission
 
-- Parse and enforce `consume=secret` on caller argument expressions and
-  caller-owned variable declarations.
+- Recognize imported `consume()` calls as explicit boundaries that stop tracking
+  their returned expression.
+- Propagate qualification through ordinary operations, method calls,
+  destructuring, aliases, and templates.
 - Permit application-owned receipt without a self-permission.
 - Require directly receiving dependency names in `secrets.allowPackages`.
 - Record direct receiving packages, symbols, parameters, and source locations
@@ -751,17 +765,17 @@ Exit criteria:
 - Lifetime dependency violations fail early.
 - Server contexts never enter hydration payloads.
 
-### Phase 6: Runtime defense in depth
+### Phase 6: Framework boundary enforcement
 
-- Add branded values returned by the secrets API.
-- Guard every framework-owned serialization boundary.
+- Guard every compiler-known framework serialization boundary.
+- Verify that transparent secret-qualified primitives cannot enter generated
+  hydration, action, patch, or client payloads before consumption.
 - Add policy-aware logging/error redaction.
-- Test manually assembled payloads that bypass compiler-generated code.
 - Add production-safe error messages that identify paths without printing secret values.
 
 Exit criteria:
 
-- Framework serializers reject branded secrets.
+- Compilation rejects secret-qualified framework payloads.
 - Diagnostics never include secret contents.
 
 ### Phase 7: Tooling, documentation, and migration
@@ -809,9 +823,9 @@ At minimum, cover:
 
 The completed design must maintain these invariants:
 
-1. Caller-side consumption may release a raw secret to trusted server code, but
-   a secret value or secret-derived value cannot reach framework-owned external
-   output without a separate explicitly reviewed transfer design.
+1. Before `consume()`, a secret-qualified value cannot reach framework-owned
+   external output. `consume()` explicitly ends tracking and transfers
+   responsibility to trusted server code.
 2. A server-kept value cannot be emitted as client data.
 3. A client-kept value cannot be required by server execution.
 4. A server capability may contain secret fields without making unrelated method results secret.
@@ -836,9 +850,11 @@ The completed design must maintain these invariants:
 - Generic policy manifest version 1 records residency/secrecy subjects and
   propagation, receipt, projection, and transfer flows. Conflicting imported
   policies for the same global context token are build errors.
-- Caller-side consumption releases the raw value to trusted server code.
-  Projection cannot make a secret-qualified value transferable to client or
-  framework-owned output.
+- Caller-side `consume()` ends tracking for its returned expression and
+  transfers responsibility to trusted server code. It does not alter the
+  original binding or other derived values.
+- `Secret<T>` is a transparent compile-time qualification over the ordinary
+  runtime `T`, not an opaque runtime wrapper.
 
 ## Open Design Questions
 
@@ -848,7 +864,6 @@ The absence of `keep=isomorphic` and the rule that components cannot establish
 application/request lifetimes are resolved constraints, not open policy
 details.
 
-- The exact user-facing representation of `Secret<T>` in declaration files.
 - How much implicit-flow analysis is required outside VNode and serialization control flow.
 - How generic return policies are expressed when a method can return either ordinary or secret-qualified data.
 - Whether server-kept VNode dependencies always create refreshable server boundaries or may remain static SSR-only output.

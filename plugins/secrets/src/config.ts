@@ -22,7 +22,7 @@ export interface SecretResolver {
 export interface SecretsPluginConfig {
   providers: SecretProvider[];
   required: string[];
-  /** Dependency packages that application code may pass revealed secret values to. */
+  /** Dependency packages that application code may directly consume secret values into. */
   allowPackages: string[];
 }
 

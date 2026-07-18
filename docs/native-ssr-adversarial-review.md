@@ -5,9 +5,9 @@ Date: 2026-07-18
 > Historical note: the package-provenance, selector-grant, forwarding-analysis,
 > scoped-resolver, and runtime-audit findings below describe the discarded
 > Phase 6 implementation. The current design is intentionally smaller:
-> caller-side `consume=secret` at either a call argument or variable
-> declaration, application ownership, a package-name allowlist, and enforcement
-> at client artifact and server-to-client transfer boundaries. Those
+> transparent compiler-qualified values, derived-value propagation, explicit
+> `consume()` boundaries, application ownership, a package-name allowlist, and
+> enforcement at client artifact and server-to-client transfer boundaries. Those
 > permissions are guardrails, not dependency sandboxing.
 
 ## Scope
@@ -114,15 +114,14 @@ relying on stale ignored output.
 An unrestricted `get(name)` API would let any recipient of the resolver request
 every configured secret.
 
-Resolution:
+Historical resolution:
 
-- The unrestricted API was removed.
-- The host issues a resolver scoped to one package identity and its selectors.
-- Application-owner access is an explicit host-issued scope; dependencies
-  receive only their scoped object.
-- Optional runtime audit events record authorization and can hash selectors.
-- Values remain non-serializable and output validation still rejects nested
-  secret wrappers.
+- The discarded implementation introduced scoped resolvers, selector grants,
+  runtime audit events, and opaque non-serializable wrappers.
+- Those mechanisms are not part of the current design. The application owns
+  its resolver, dependencies receive only explicitly consumed ordinary values,
+  and the compiler tracks transparent secret-qualified values until
+  `consume()`.
 
 ## Rechecked Boundaries
 
@@ -160,7 +159,7 @@ evidence:
 | 3. Generic policy/context transfer | Annotation and policy suites cover the closed `keep` vocabulary, inferred isomorphic transfer, server/secret rejection from client artifacts, alias/return/state/context propagation, and imported-manifest validation. The native server-component application verifies reconstructed brand/authorization methods and independent server-action authorization. |
 | 4. Component packages | Compiler artifact suites cover shared/dual emission, internal exports, conditional-target assertions, descriptors, aliases/defaults/cycles, minification, tree shaking, lazy chunks, and CSS Modules through a root barrel. The packed-package fixture installs one tarball and loads client, SSR, and server-component conditions with automatic manifest discovery. |
 | 5. Production certification | Request, server, SSR, hydration, and adapter suites cover commitment, redirects, headers, streaming failure, cancellation, budgets, authorization, CSRF, and cleanup. The shipping application builds production client and SSR bundles, while the production guide records deployment, cache, CSP, observability, and publication requirements. |
-| 6. Secret permissions/audit | Secret and policy-report suites cover application ownership, caller-side markers, package/selector grants, version/integrity mismatch, wrapper laundering, shadowed bindings, dynamic selectors, grant-breadth warnings, scoped resolvers, redacted events, and output rejection. Installed and linked package fixtures verify lock-derived integrity and non-application symlink provenance. |
+| 6. Secret permissions/audit | Secret and policy-report suites cover transparent runtime values, compiler-derived propagation, explicit `consume()` boundaries, application ownership, direct package permissions, shadowed bindings, unused-permission warnings, and client-artifact rejection. |
 
 Final repository gates on this reviewed state:
 
@@ -186,10 +185,10 @@ These are not silent correctness promises:
   authoritative adapter is implemented.
 - Direct DOM, network, `eval`, and other platform APIs remain outside renderer
   URL/raw-HTML policy.
-- Caller-side consumption releases a raw secret to trusted server code, but
-  does not authorize client or framework-output transfer. Ordinary
-  authenticated service results must be independently safe; a secret wrapper
-  cannot be projected into isomorphic state.
+- Caller-side `consume()` ends compiler tracking and transfers responsibility
+  for the ordinary value to trusted server code. Before that boundary, a
+  secret-qualified value cannot be projected into isomorphic state or
+  framework-owned output.
 - Shared artifact extraction is intentionally whole-module in the initial
   implementation. Per-declaration partitioning is an optimization.
 - Nested document metadata collection and generalized URL policy plugins remain

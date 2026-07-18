@@ -1,34 +1,25 @@
 import { describe, expect, it } from "vitest";
 import { analyzeSource } from "@exact/compiler";
-import { createVNode } from "@exact/core";
-import { renderHydrationScript, renderToString } from "@exact/ssr";
-import { deriveSecret, secret, secretPath, withSecret } from "./index.js";
+import { consume, secret } from "./index.js";
 import { parseEnvironmentFile } from "./providers.js";
-import createSecretsRenderExtension from "./render.js";
 import createSecretsServerExtension, { createSecretResolver } from "./server.js";
 
 describe("@exact/secrets", () => {
-  it("keeps secret wrappers out of JSON and ordinary primitive conversion", () => {
-    const value = secret("API_KEY", "credential");
-    expect(() => JSON.stringify({ value })).toThrow("cannot be serialized");
-    expect(() => `${value}`).toThrow("cannot be converted");
-    expect(secretPath({ nested: [value] })).toBe("$.nested[0]");
-  });
-
-  it("reveals intentionally delivered secrets without tainting ordinary results", () => {
-    const key = secret("API_KEY", "credential");
-    const client = withSecret(key, apiKey => ({ apiKey, get: () => ({ ok: true }) }));
-    expect(client.get()).toEqual({ ok: true });
-    expect(deriveSecret("AUTH", key, value => `Bearer ${value}`).name).toBe("AUTH");
+  it("uses transparent runtime values and an identity consume boundary", () => {
+    const combo = secret("CLIENT_KEY_AND_SECRET", "client:credential");
+    const [key, clientSecret] = combo.split(":");
+    const authorization = `JWT-Bearer - ${key}:${clientSecret}`;
+    expect(authorization).toBe("JWT-Bearer - client:credential");
+    expect(consume(authorization)).toBe(authorization);
   });
 
   it("records call-argument application-owned secret consumption", () => {
     const manifest = analyzeSource(`
-      declare const secrets: { require(name: string): string };
-      /** @exact keep=secret */
+      import { consume, type Secret } from "@exact/secrets";
+      declare const secrets: { require(name: string): Secret<string> };
       const apiKey = secrets.require("STRIPE_SECRET_KEY");
       function createClient(value: string) { return { ok: true }; }
-      export const client = createClient(/** @exact consume=secret */ apiKey);
+      export const client = createClient(consume(apiKey));
     `, {
       filename: "app.ts",
       packageType: "application",
@@ -46,11 +37,11 @@ describe("@exact/secrets", () => {
 
   it("requires caller-side consumption and a package permission for dependencies", () => {
     const source = `
+      import { consume, type Secret } from "@exact/secrets";
       import { createClient } from "@acme/payments";
-      declare const secrets: { require(name: string): string };
-      /** @exact keep=secret */
+      declare const secrets: { require(name: string): Secret<string> };
       const apiKey = secrets.require("STRIPE_SECRET_KEY");
-      export const client = createClient(/** @exact consume=secret */ apiKey);
+      export const client = createClient(consume(apiKey));
     `;
     const manifest = analyzeSource(`
       ${source}
@@ -68,21 +59,22 @@ describe("@exact/secrets", () => {
     expect(manifest.policy.secretConsumers[0]?.authorization).toBe("explicit-package-allow");
     expect(manifest.diagnostics.some(value => value.includes("allowPackages"))).toBe(false);
 
-    const denied = analyzeSource(source.replace("/** @exact consume=secret */ ", ""), {
+    const denied = analyzeSource(source.replace("consume(apiKey)", "apiKey"), {
       filename: "app.ts",
       packageType: "application",
       packageName: "@acme/app",
       target: "server"
     });
-    expect(denied.diagnostics.some(value => value.includes("missing caller-side"))).toBe(true);
+    expect(denied.diagnostics.some(value => value.includes("passed through consume()"))).toBe(true);
   });
 
   it("uses the package allowlist from prepared secrets plugin configuration", () => {
     const manifest = analyzeSource(`
+      import { consume } from "@exact/secrets";
       import { createClient } from "@acme/payments";
       /** @exact keep=secret */
       declare const apiKey: string;
-      export const client = createClient(/** @exact consume=secret */ apiKey);
+      export const client = createClient(consume(apiKey));
     `, {
       filename: "app.ts",
       packageType: "application",
@@ -110,10 +102,11 @@ describe("@exact/secrets", () => {
 
   it("does not treat package permission as selector or provenance policy", () => {
     const manifest = analyzeSource(`
+      import { consume } from "@exact/secrets";
       import { createClient as buildClient } from "@acme/payments";
       /** @exact keep=secret */
       declare const apiKey: string;
-      export const client = buildClient(/** @exact consume=secret */ apiKey);
+      export const client = buildClient(consume(apiKey));
     `, {
       filename: "app.ts",
       packageType: "application",
@@ -142,10 +135,11 @@ describe("@exact/secrets", () => {
       target: "server"
     });
     const manifest = analyzeSource(`
+      import { consume } from "@exact/secrets";
       import { createClient as buildClient } from "@acme/payments";
       /** @exact keep=secret */
       declare const apiKey: string;
-      export const client = buildClient(/** @exact consume=secret */ apiKey);
+      export const client = buildClient(consume(apiKey));
     `, {
       filename: "app.ts",
       packageType: "application",
@@ -168,6 +162,7 @@ describe("@exact/secrets", () => {
 
   it("tracks local secret forwarding by binding identity instead of shadowed names", () => {
     const manifest = analyzeSource(`
+      import { consume } from "@exact/secrets";
       import { send } from "@untrusted/gateway";
       /** @exact keep=secret */
       declare const apiKey: string;
@@ -176,7 +171,7 @@ describe("@exact/secrets", () => {
         function forward(value: string) {
           return value;
         }
-        return forward(/** @exact consume=secret */ apiKey);
+        return forward(consume(apiKey));
       }
 
       function forward(value: string) {
@@ -206,8 +201,9 @@ describe("@exact/secrets", () => {
     )).toBe(false);
   });
 
-  it("carries caller-owned consumption through ordinary application helper parameters", () => {
+  it("stops tracking after consumption inside an application helper call", () => {
     const manifest = analyzeSource(`
+      import { consume } from "@exact/secrets";
       import { send } from "@acme/gateway";
       /** @exact keep=secret */
       declare const apiKey: string;
@@ -216,7 +212,7 @@ describe("@exact/secrets", () => {
         return send(value);
       }
 
-      export const client = createClient(/** @exact consume=secret */ apiKey);
+      export const client = createClient(consume(apiKey));
     `, {
       filename: "app.ts",
       packageType: "application",
@@ -229,28 +225,27 @@ describe("@exact/secrets", () => {
       }
     });
 
-    expect(manifest.policy.secretConsumers).toEqual(expect.arrayContaining([
+    expect(manifest.policy.secretConsumers).toEqual([
       expect.objectContaining({
         authorization: "implicit-application-owner",
         consumer: expect.objectContaining({ package: "@acme/app", symbol: "createClient" })
-      }),
-      expect.objectContaining({
-        authorization: "explicit-package-allow",
-        consumer: expect.objectContaining({ package: "@acme/gateway", symbol: "send" })
       })
-    ]));
+    ]);
+    expect(manifest.policy.secretConsumers.some(
+      consumer => consumer.consumer.package === "@acme/gateway"
+    )).toBe(false);
     expect(manifest.diagnostics).not.toEqual(expect.arrayContaining([
-      expect.stringContaining("missing caller-side")
+      expect.stringContaining("passed through consume()")
     ]));
   });
 
   it("rejects secret consumers retained in client compilation", () => {
     const manifest = analyzeSource(`
-      declare const secrets: { require(name: string): string };
-      /** @exact keep=secret */
+      import { consume, type Secret } from "@exact/secrets";
+      declare const secrets: { require(name: string): Secret<string> };
       const apiKey = secrets.require("API_KEY");
       function connect(value: string) {}
-      connect(/** @exact consume=secret */ apiKey);
+      connect(consume(apiKey));
     `, {
       filename: "client.ts",
       packageType: "application",
@@ -266,18 +261,6 @@ describe("@exact/secrets", () => {
       ["QUOTED", "value here"]
     ]));
     expect(() => parseEnvironmentFile("not valid")).toThrow("Malformed environment secret declaration");
-  });
-
-  it("blocks secret values from VNodes, HTML rendering, and hydration state", () => {
-    const output = createSecretsRenderExtension().output!;
-    const key = secret("API_KEY", "credential");
-    expect(() => renderToString(createVNode("div", { title: key }), {
-      outputExtensions: [output]
-    })).toThrow("output validation failed");
-    expect(() => renderHydrationScript({
-      state: { key },
-      outputExtensions: [output]
-    })).toThrow("output validation failed");
   });
 
   it("fails server startup when a required secret is unavailable", async () => {
@@ -311,7 +294,10 @@ describe("@exact/secrets", () => {
       signal: new AbortController().signal
     });
     await resolver.initialize();
-    expect(resolver.require("API_KEY").name).toBe("API_KEY");
+    expect(resolver.require("API_KEY")).toBe("credential");
+    expect(resolver.require("API_KEY").split("e")).toEqual(["cr", "d", "ntial"]);
+    const rawApiKey: string = consume(resolver.require("API_KEY"));
+    expect(rawApiKey).toBe("credential");
     expect(resolver.optional("MISSING")).toBeUndefined();
   });
 });

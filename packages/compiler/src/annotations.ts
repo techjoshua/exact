@@ -14,8 +14,7 @@ export type ExactAnnotationKey =
   | "track"
   | "client"
   | "server"
-  | "keep"
-  | "consume";
+  | "keep";
 
 export type ExactKeepPolicy = "server" | "client" | "secret";
 
@@ -40,7 +39,7 @@ export interface ExactKeyContract {
   readonly primitive: boolean;
 }
 
-const supported = new Set<ExactAnnotationKey>(["key", "cleanup", "own", "track", "client", "server", "keep", "consume"]);
+const supported = new Set<ExactAnnotationKey>(["key", "cleanup", "own", "track", "client", "server", "keep"]);
 const identifier = /^[A-Za-z_$][\w$]*$/;
 
 /** Validates the closed directive language and indexes call-site callback contracts. */
@@ -71,7 +70,7 @@ export function analyzeExactAnnotations(module: BoundModule): ExactAnnotationPla
       // plugins. Core keeps its own directive language closed.
       if (directive.key.includes(".")) continue;
       if (!supported.has(directive.key as ExactAnnotationKey)) {
-        diagnostics.push({ message: `error: unknown @exact directive '${directive.key}'; supported directives are key, cleanup, own, track, client, server, keep, and consume`, start });
+        diagnostics.push({ message: `error: unknown @exact directive '${directive.key}'; supported directives are key, cleanup, own, track, client, server, and keep`, start });
         continue;
       }
       if (directive.key === "keep") {
@@ -88,11 +87,6 @@ export function analyzeExactAnnotations(module: BoundModule): ExactAnnotationPla
           });
           continue;
         }
-      } else if (directive.key === "consume") {
-        if (directive.value !== "secret") {
-          diagnostics.push({ message: "error: @exact consume requires the value secret", start });
-          continue;
-        }
       } else if ((directive.key === "own" || directive.key === "track" || directive.key === "client" || directive.key === "server") && directive.value !== undefined) {
         diagnostics.push({ message: `error: @exact ${directive.key} does not accept a value`, start });
       } else if (directive.value !== undefined && !identifier.test(directive.value)) {
@@ -103,8 +97,7 @@ export function analyzeExactAnnotations(module: BoundModule): ExactAnnotationPla
         && (directive.key === "key" || directive.key === "cleanup") && !directive.value) {
         diagnostics.push({ message: `error: type-level @exact ${directive.key} requires a member name`, start });
       }
-      if ((directive.key === "keep" || directive.key === "consume")
-        && !validDirectiveLocation(directive.key, reference)) {
+      if (directive.key === "keep" && !validDirectiveLocation(directive.key, reference)) {
         diagnostics.push({ message: `error: @exact ${directive.key} is not valid on ${directiveLocationKind(reference)}`, start });
       }
   }
@@ -256,10 +249,6 @@ export function exactKeepPolicy(values: readonly ExpressionDirective[] | undefin
   return policies.size === 1 ? [...policies][0] : undefined;
 }
 
-export function exactConsumesSecret(values: readonly ExpressionDirective[] | undefined): boolean {
-  return values?.some(value => value.namespace === "exact" && value.key === "consume" && value.value === "secret") ?? false;
-}
-
 function isExactKeepPolicy(value: string | undefined): value is ExactKeepPolicy {
   return value === "server" || value === "client" || value === "secret";
 }
@@ -335,17 +324,10 @@ function validDirectiveLocation(key: ExactAnnotationKey, reference: NodeRef): bo
     "TypeReference", "ParenthesizedType", "TypeLiteral", "InterfaceDeclaration",
     "ClassDeclaration", "TypeAliasDeclaration"
   ].includes(kind);
-  if (key === "consume") return kind === "VariableDeclaration" || isDirectCallArgument(reference);
   if (key === "key") return ["PropertySignature", "PropertyDeclaration", "MethodSignature", "MethodDeclaration", "InterfaceDeclaration", "ClassDeclaration", "TypeAliasDeclaration", "TypeLiteral", "VariableDeclaration"].includes(kind);
   if (key === "cleanup") return ["PropertySignature", "PropertyDeclaration", "MethodSignature", "MethodDeclaration", "InterfaceDeclaration", "ClassDeclaration", "TypeAliasDeclaration", "TypeLiteral", "VariableDeclaration", "FunctionType", "ParenthesizedType", "TypeReference"].includes(kind);
   if (key === "own") return ["VariableDeclaration", "TypeReference", "FunctionType", "ParenthesizedType", "TypeLiteral"].includes(kind);
   return ["Parameter", "PropertySignature", "PropertyDeclaration"].includes(kind);
-}
-
-function isDirectCallArgument(reference: NodeRef): boolean {
-  const call = reference.parent;
-  return !!call && (call.node.kind === "CallExpression" || call.node.kind === "NewExpression")
-    && call.arguments.some(argument => argument.node === reference.node);
 }
 
 function directiveLocationKind(reference: NodeRef): string {

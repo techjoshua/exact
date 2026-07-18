@@ -171,7 +171,7 @@ describe("generic data policy IR", () => {
     ]));
   });
 
-  it("recognizes branded secret API values through their type policy", () => {
+  it("recognizes transparent secret API values through their type policy", () => {
     const manifest = analyzeSource(`
       import { secret } from "@exact/secrets";
       const apiKey = secret("API_KEY", "configured");
@@ -195,12 +195,13 @@ describe("generic data policy IR", () => {
     )).toBe(true);
   });
 
-  it("authorizes only the call argument carrying consume=secret", () => {
+  it("authorizes only the call argument passed through consume()", () => {
     const manifest = analyzeSource(`
+      import { consume } from "@exact/secrets";
       /** @exact keep=secret */ const apiKey = "configured";
       function createStripeClient(value: string) {}
       function createSomeOtherClient(value: string) {}
-      createStripeClient(/** @exact consume=secret */ apiKey);
+      createStripeClient(consume(apiKey));
       createSomeOtherClient(apiKey);
       export {};
     `, {
@@ -217,15 +218,16 @@ describe("generic data policy IR", () => {
       expect.objectContaining({
         authorization: "denied",
         consumer: expect.objectContaining({ symbol: "createSomeOtherClient" }),
-        reason: "secret argument is missing caller-side @exact consume=secret"
+        reason: "secret argument must be passed through consume()"
       })
     ]));
   });
 
-  it("allows a declaration-consumed secret binding at multiple call sites", () => {
+  it("stops tracking the result of a standalone consume() call", () => {
     const manifest = analyzeSource(`
+      import { consume } from "@exact/secrets";
       /** @exact keep=secret */ const configuredApiKey = "configured";
-      /** @exact consume=secret */ const apiKey = configuredApiKey;
+      const apiKey = consume(configuredApiKey);
       function createStripeClient(value: string) {}
       function createSomeOtherClient(value: string) {}
       createStripeClient(apiKey);
@@ -237,23 +239,50 @@ describe("generic data policy IR", () => {
       target: "server"
     });
 
-    expect(manifest.policy.secretConsumers).toHaveLength(2);
-    expect(manifest.policy.secretConsumers.every(
-      consumer => consumer.authorization === "implicit-application-owner"
-    )).toBe(true);
+    expect(manifest.policy.secretConsumers).toEqual([
+      expect.objectContaining({
+        authorization: "implicit-application-owner",
+        consumer: expect.objectContaining({ symbol: "consume" })
+      })
+    ]);
+    expect(manifest.policy.subjects.some(subject => subject.name === "apiKey")).toBe(false);
   });
 
-  it("rejects consume=secret on a non-secret call argument", () => {
+  it("rejects consume() on a non-secret argument", () => {
     const manifest = analyzeSource(`
+      import { consume } from "@exact/secrets";
       const publicValue = "public";
-      function connect(value: string) {}
-      connect(/** @exact consume=secret */ publicValue);
+      consume(publicValue);
       export {};
     `, { filename: fixture("invalid-call-site-consumption") });
 
     expect(manifest.diagnostics).toContain(
-      "error: @exact consume=secret call argument does not receive a secret-qualified value"
+      "error: consume() argument is not secret-qualified"
     );
+  });
+
+  it("propagates secret qualification through method calls and destructuring until consume()", () => {
+    const manifest = analyzeSource(`
+      import { consume, type Secret } from "@exact/secrets";
+      declare const secrets: { require(name: string): Secret<string> };
+      const combo = secrets.require("ClientKeyAndSecret");
+      const [key, clientSecret] = combo.split(":");
+      const authorization = \`JWT-Bearer - \${key}:\${clientSecret}\`;
+      const rawAuthorization = consume(authorization);
+      export { key, clientSecret, authorization, rawAuthorization };
+    `, {
+      filename: fixture("derived-secret"),
+      packageType: "application",
+      target: "server"
+    });
+
+    expect(manifest.policy.subjects).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "combo", policy: { residency: "server", secret: true } }),
+      expect.objectContaining({ name: "key", policy: { residency: "server", secret: true } }),
+      expect.objectContaining({ name: "clientSecret", policy: { residency: "server", secret: true } }),
+      expect.objectContaining({ name: "authorization", policy: { residency: "server", secret: true } })
+    ]));
+    expect(manifest.policy.subjects.some(subject => subject.name === "rawAuthorization")).toBe(false);
   });
 
   it("omits server-kept exported declarations from client artifacts", () => {

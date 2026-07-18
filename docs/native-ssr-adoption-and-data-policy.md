@@ -158,15 +158,18 @@ Generic secret flow now belongs to the semantic compiler policy graph.
 `@exact secrets.source`, `@exact secrets.sink`, and the plugin-local compiler
 extension have been removed. The core compiler prevents secret-qualified values
 from entering client artifacts or framework-controlled server-to-client
-transfer paths. A caller uses `consume=secret` either on an argument for one
-call edge or on a variable declaration for broader lexical consumption.
-Application code may use its own secrets; dependencies must appear in the
-application's simple package allowlist.
+transfer paths. Normal operations propagate secret qualification through
+derived values. An explicit `consume(value)` call ends tracking for its returned
+expression and releases the ordinary runtime value to trusted server code.
+Application code may consume its own secrets; directly receiving dependencies
+must appear in the application's simple package allowlist.
 
-`@exact/secrets` provides runtime branding, providers, resolver lifecycle,
-direct application-owned `require()`/`optional()` access, and output
-validation. The package allowlist is a framework policy guard against
-accidental delivery, not a sandbox for arbitrary in-process JavaScript.
+`@exact/secrets` provides transparent `Secret<T>` declarations, providers,
+resolver lifecycle, direct application-owned `require()`/`optional()` access,
+and the `consume()` compiler boundary. Secret values are ordinary JavaScript
+values at runtime; compiler policy, rather than an opaque wrapper, provides the
+framework transfer guard. The package allowlist is a guard against accidental
+direct delivery, not a sandbox for arbitrary in-process JavaScript.
 
 ## Adoption Standard For Native SSR And Server Components
 
@@ -614,6 +617,18 @@ Secret is not merely another residency. It adds non-disclosure constraints.
 Propagation is the default. Derived output inherits the relevant policy of its
 inputs unless a more specific declaration contract applies.
 
+`Secret<T>` remains usable as `T` in authored code. The compiler carries the
+qualification through normal JavaScript rather than requiring wrapper APIs:
+
+```ts
+const clientKeySecretCombo = secrets.require("ClientKeyAndSecret");
+const [key, clientSecret] = clientKeySecretCombo.split(":");
+const authorization = `JWT-Bearer - ${key}:${clientSecret}`;
+```
+
+All four bindings are secret-qualified. The runtime values are ordinary strings;
+no derivation helper or explicit annotation is required.
+
 ### Secret arguments and callable results
 
 The caller owns the decision to pass a secret. A receiving function uses an
@@ -629,7 +644,7 @@ declare function requestWeather(
 const apiKey = secrets.require("WEATHER_API_KEY");
 const weather = await requestWeather(
   "Seattle",
-  /** @exact consume=secret */ apiKey
+  consume(apiKey)
 );
 ```
 
@@ -638,33 +653,33 @@ an additional `keep=secret` annotation is redundant. Custom loaders and
 declaration contracts still use `keep=secret` when the compiler cannot infer
 the source policy.
 
-`consume=secret` is an explicit caller-side acknowledgement. On an argument
-expression it applies only to that call edge: the caller's binding remains
-secret-qualified, while the callee receives the raw value through its ordinary
-parameter and may use it within that function. It is not placed on the
-receiving function's parameter declaration.
-
-The directive may instead be placed on a variable declaration to consume the
-secret for that resulting local binding. That broader binding may then be used
-throughout its lexical scope without repeating the directive:
+`consume()` is an explicit caller-side compiler boundary. The original binding
+remains secret-qualified, while the returned expression is an ordinary value
+and is no longer tracked. When consumption appears inside a call argument, the
+compiler can associate the boundary with that directly receiving function and
+package:
 
 ```ts
-/** @exact consume=secret */
-const apiKey = secrets.require("WEATHER_API_KEY");
-
-const weather = await requestWeather("Seattle", apiKey);
-const forecast = await requestForecast("Seattle", apiKey);
+const weather = await requestWeather("Seattle", consume(apiKey));
 ```
 
-Passing a consumed value to application-owned code is implicitly permitted.
-Passing it across a dependency boundary additionally requires the directly
-receiving package name in `secrets.allowPackages`; the receiving package cannot
-authorize itself through an annotation.
+A standalone consumption creates a broader application-owned escape:
 
-The compiler rejects an unconsumed secret argument. Call-argument consumption
-does not authorize another use of the caller's binding, nor does either form
-authorize Exact to retain a secret source or consumption site in a client
-artifact or framework-controlled server-to-client transfer.
+```ts
+const rawApiKey = consume(apiKey);
+
+const weather = await requestWeather("Seattle", rawApiKey);
+const forecast = await requestForecast("Seattle", rawApiKey);
+```
+
+Exact records that standalone boundary, but tracking has deliberately stopped,
+so subsequent handling is trusted application responsibility. Prefer direct
+argument consumption when delivering a secret to a dependency: the directly
+receiving package must then appear in `secrets.allowPackages`.
+
+The compiler rejects an unconsumed secret argument. Consumption does not alter
+the original binding or other derived values, and `consume()` itself is denied
+in a client artifact.
 
 The package permission describes only the package directly receiving the
 value. Exact does not claim that this statically proves the behavior of opaque
@@ -694,18 +709,17 @@ projection must never make a secret transferable.
 
 ### Secret transfer to framework output
 
-Caller-side `consume=secret` is the explicit release of a raw secret to trusted
-server code. It does not authorize release to framework-owned output or client
-data. Such output transfer is distinct from ordinary server projection and is
-unsupported initially; any future mechanism would require a separately named,
-narrowly granted, manifest-visible trusted boundary.
+Caller-side `consume()` is the explicit end of compiler tracking and release of
+an ordinary value to trusted server code. Before that boundary, secret-qualified
+values cannot enter framework-owned output or client data. After it, Exact does
+not claim to police what trusted JavaScript does with the ordinary value.
 
 An ordinary sink, projection, state assignment, or unannotated result must not
 make a secret transferable.
 
 ### Framework-owned sinks
 
-The compiler and runtime must understand these observable sinks:
+The compiler must understand these observable sinks:
 
 - VNode text, props, styles, children, list keys, and control flow.
 - Client island captures and props.
@@ -1374,14 +1388,13 @@ These capabilities must work even when no secret provider plugin is installed.
 
 ### `@exact/secrets` responsibilities
 
-- `Secret<T>` runtime branding.
+- Transparent compiler-qualified `Secret<T>` declarations.
 - `secrets.require()` and `secrets.optional()`.
+- The compiler-recognized, runtime-identity `consume()` operation.
 - Environment, file, vault, and cloud secret providers.
 - Secret resolver initialization and disposal.
-- Runtime access enforcement.
-- Secret-specific redaction and output guards.
 - Secret provider configuration.
-- Integration with generic policy manifests and audit events.
+- Integration with generic policy manifests and audit reports.
 
 The browser-safe core must not depend on server secret providers. If useful, a
 small platform-neutral policy runtime package can carry shared types and guards.
@@ -1425,15 +1438,14 @@ defineExactConfig({
 
 const apiKey = secrets.require("STRIPE_SECRET_KEY");
 const stripe = createStripeClient(
-  /** @exact consume=secret */ apiKey
+  consume(apiKey)
 );
 ```
 
 The compiler derives the directly receiving package, symbol, and parameter
-position. Developers annotate either the caller's argument expression for one
-call or a caller-owned variable declaration for broader lexical consumption;
-they do not annotate the receiving parameter. Package permission does not
-authorize client transfer.
+position from a direct argument consumption. Developers call `consume()` at the
+caller; they do not annotate the receiving parameter. A standalone `consume()`
+ends tracking without claiming knowledge of later recipients.
 
 ### Package permission boundary
 
@@ -1443,10 +1455,9 @@ not presented as transitive dependency security or opaque-code verification.
 
 The compiler should reject:
 
-- Passing a secret argument without call-specific or declaration-scoped
-  `consume=secret`.
+- Passing a secret argument without `consume()`.
 - Passing a secret to a dependency absent from `secrets.allowPackages`.
-- Secret sources or consumers retained in a client artifact.
+- Secret sources or `consume()` calls retained in a client artifact.
 
 ### Application ownership
 
@@ -1767,8 +1778,10 @@ Exit criteria:
 Status: complete.
 
 - Move secret flow from the prototype extension into the generic policy engine.
-- Support `consume=secret` on a caller argument for one call edge and on a
-  caller-owned variable declaration for broader lexical consumption.
+- Support compiler-recognized `consume()` calls that stop tracking for their
+  returned expression.
+- Propagate secret qualification through ordinary derived expressions,
+  including method calls, templates, aliases, and destructuring.
 - Add a package-name allowlist and the root application-owner exception.
 - Prevent secret-qualified values from entering client artifacts or
   framework-controlled server-to-client output.
@@ -1832,7 +1845,8 @@ about unused package permissions.
 
 - Root application implicit consumption.
 - Allowed and denied direct dependency consumers.
-- Call-argument and variable-declaration `consume=secret` placement.
+- Direct-argument and standalone `consume()` boundaries.
+- Derived secret propagation through ordinary value operations.
 - Unused package permissions.
 - Package manifest aggregation.
 - Root application raw-HTML opt-in and dependency raw-HTML grants.
@@ -1910,17 +1924,17 @@ about unused package permissions.
   targets; `keep=isomorphic` is not a supported policy.
 - Secret consumption and server-to-isomorphic projection are different flow
   operations.
-- `consume=secret` belongs to the caller: argument placement authorizes one
-  call edge, while declaration placement authorizes the resulting binding
-  throughout its lexical scope. It never belongs on the receiving parameter.
+- `consume()` belongs to the caller. Its returned expression is ordinary and no
+  longer tracked; the original secret and other derived values remain
+  secret-qualified.
 - Generic projection cannot make secrets transferable.
 - The root application may consume secrets without self-grants, but remains
   audited and subject to all disclosure checks.
 - Direct dependency receipt requires the package name in
   `secrets.allowPackages`.
 - Generic policy belongs in the core compiler/runtime architecture.
-- `@exact/secrets` remains the optional provider, resolver, branding, and
-  runtime integration package.
+- `@exact/secrets` remains the optional provider, resolver, transparent secret
+  declaration, consumption-boundary, and runtime integration package.
 - One component package contains shared, client, server, and manifest artifacts
   as required by its declaration graph.
 - `shared` and `dual` remain compiler emission classifications. Their generated
@@ -1977,9 +1991,9 @@ about unused package permissions.
 - Callable manifests do not retain parameter-forwarding summaries for secret
   authorization.
 - Aggregate reports list direct observed receipts and unused allowed packages.
-- Caller-side consumption releases a raw secret to trusted server code, but
-  secret-qualified values cannot be projected into isomorphic state or
-  framework-owned output; service results must be independently safe.
+- Caller-side `consume()` ends tracking and releases an ordinary value to
+  trusted server code. Before consumption, secret-qualified values cannot be
+  projected into isomorphic state or framework-owned output.
 - The aggregate policy report schema is `ExactPolicyAuditReport` version 1,
   with direct secret usage, warnings for unused package permissions, and errors
   for unresolved requirements or denied use.

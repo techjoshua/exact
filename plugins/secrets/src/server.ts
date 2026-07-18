@@ -1,5 +1,4 @@
 import type { ExactRuntimePluginExtension } from "@exact/plugin-api";
-import { secretPath } from "./index.js";
 import type {
   SecretProviderContext,
   SecretResolver,
@@ -53,13 +52,6 @@ export default function createSecretsServerExtension(resolver: SecretResolver): 
     async initializeApplication() {
       await resolver.initialize();
       return { dispose: () => resolver.dispose() };
-    },
-    output: {
-      validate(value: unknown) {
-        const path = secretPath(value);
-        if (path) throw new Error(`Secret value cannot enter server output at ${path}`);
-        return undefined;
-      }
     }
   });
 }

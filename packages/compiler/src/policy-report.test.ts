@@ -8,11 +8,12 @@ import {
 describe("policy audit reports", () => {
   it("reports which packages receive which secret-qualified variables", () => {
     const dependency = analyzeSource(`
+      import { consume } from "@exact/secrets";
       import { connect } from "@acme/database";
       declare const secrets: { require(name: string): string };
       /** @exact keep=secret */
       const url = secrets.require("DATABASE_URL");
-      export const database = connect(/** @exact consume=secret */ url);
+      export const database = connect(consume(url));
     `, {
       filename: "packages/runtime.ts",
       packageType: "library",
@@ -39,10 +40,11 @@ describe("policy audit reports", () => {
 
   it("reports unresolved library requirements", () => {
     const manifest = analyzeSource(`
+      import { consume } from "@exact/secrets";
       import { connect } from "@acme/database";
       /** @exact keep=secret */
       declare const url: string;
-      connect(/** @exact consume=secret */ url);
+      connect(consume(url));
     `, {
       filename: "runtime.ts",
       packageType: "library",
