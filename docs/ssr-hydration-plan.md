@@ -1,6 +1,10 @@
 # SSR And Hydration Status
 
-This note records the implemented SSR/hydration foundation and the remaining design pressure. For the server component build/runtime wiring guide, see [server-components.md](server-components.md).
+This note records the implemented SSR/hydration foundation and the remaining
+design pressure. For the server component build/runtime wiring guide, see
+[server-components.md](server-components.md). For the adoption hardening plan,
+server/request context model, native rendering safety, and data policy, see
+[native-ssr-adoption-and-data-policy.md](native-ssr-adoption-and-data-policy.md).
 
 ## Goals
 
@@ -101,6 +105,8 @@ Initial document event streams are also newline-delimited JSON. Document stream 
 
 For direct HTTP document responses, `renderToProgressiveHtmlStream()` and `renderToHydratableProgressiveHtmlStream()` convert those events into browser-consumable HTML chunks. The shell is emitted first inside a configurable root element, async task settlement can emit an escaped inline replacement script for that root, and hydratable streams include the normal inert hydration JSON script. `renderToProgressiveHtmlResponse()` and `renderToHydratableProgressiveHtmlResponse()` wrap the same streams in the adapter-neutral response shape used by `@exact/server`.
 
+The native SSR adoption target adds a root-document mode in which the application renders `html`, `head`, and `body` explicitly. Those tags are normalized only at the document root, and eXact augments their children with reserved framework-owned hydration, manifest, bootstrap, and progressive-stream nodes as required. Authored document children retain their order; hydration treats injected nodes separately so the client root does not reproduce them. This is a target design rather than a description of the current configurable-root stream implementation.
+
 ## Remaining Work
 
 The current foundation is usable for the sample path and core protocol tests, but it is not yet a complete production server-component system. The remaining larger pieces are:
@@ -111,3 +117,4 @@ The current foundation is usable for the sample path and core protocol tests, bu
 - Micro frontend support beyond dynamically loaded remote manifests, immediate remote island hydration, per-boundary endpoints, per-endpoint batching, and same-realm global context tokens.
 - Broader production diagnostics surfaced by build tools and dev servers.
 - Production guidance for cache headers, deployment topology, auth/session integration, and package publishing conventions.
+- Root-document normalization and deterministic framework augmentation of authored `html`, `head`, and `body` children.

@@ -10,6 +10,14 @@ This document is a design and implementation plan. It records the intended direc
 - Providing reusable application-scoped and request-scoped server capabilities.
 - Keeping authenticated service calls ergonomic without treating every result as secret.
 
+The newer consolidated direction is recorded in
+[native-ssr-adoption-and-data-policy.md](native-ssr-adoption-and-data-policy.md).
+That document confirms that generic residency, consumption, projection, package
+permission, and audit behavior belongs in the main semantic compiler/runtime
+architecture. `@exact/secrets` remains an optional provider, resolver, runtime
+brand, and integration package rather than owning an independent policy engine.
+Where the documents differ, the consolidated document takes precedence.
+
 The proposal builds on the existing compiler placement analysis, state/context effect tracking, generated client islands, server slots, hydration state contracts, and secure server endpoint.
 
 `@exact/secrets` is intended to be an opt-in framework plugin. Its discovery,
@@ -73,6 +81,9 @@ Internally, these values are not three equivalent taints:
 - `keep=secret` implies server residency and adds a strict non-disclosure qualification.
 
 Unannotated values remain placement-inferred and transferable when required by generated client behavior, subject to JSON-safety and secret-flow rules.
+There is no required `keep=isomorphic` annotation. An ordinary unrestricted
+value is classified as isomorphic when safe client and server use requires a
+validated transfer.
 
 ## Policy Semantics
 
@@ -205,7 +216,7 @@ Examples include:
 - Server caches.
 - Application configuration.
 - Cryptographic services.
-- Request sessions, authorization, tracing, and request metadata.
+- Current-request session data, authorization, tracing, and request metadata.
 
 The context API should support policy and lifetime metadata:
 
@@ -251,12 +262,13 @@ Request-scoped providers:
 
 - Are instantiated at most once per incoming request.
 - May depend on application-scoped providers.
-- May contain session, authorization, tracing, locale, and request-specific clients.
+- May contain current-request session data, authorization, tracing, locale, and
+  request-specific clients.
 - Must never leak into a later request.
 - Are disposed at the end of the request.
 
 ```ts
-export const SessionContext = createContext<Session>(
+export const CurrentSessionContext = createContext<Session>(
   "request.session",
   {
     global: true,
@@ -266,11 +278,24 @@ export const SessionContext = createContext<Session>(
 );
 ```
 
+There is no separate session lifetime. A session-store client may be
+application-scoped, but a session record or session API is loaded into request
+scope for the current request. The application owns cross-request identity,
+persistence, invalidation, concurrency, and distribution, and explicitly
+commits changes to its store or response cookie.
+
 The existing `@exact/request` ambient storage is the starting point for request lifetime integration. Async-safe storage remains an adapter/runtime responsibility.
 
 ### Component scope
 
-The existing component-tree context behavior remains the component scope. It may continue to support ordinary isomorphic contexts. A component provider must not override a server-only application or request capability from client code.
+The existing component-tree context behavior remains the component scope. It
+may continue to support ordinary inferred-isomorphic contexts. A component
+provider may read visible application- and request-scoped values, subject to
+placement and residency rules, and derive the value it publishes with
+`this.setContext()`. That published value still follows the component subtree;
+the component cannot create or promote an application- or request-scoped
+context. A component provider must not override a server-only application or
+request capability from client code.
 
 ### Lifetime dependency rules
 
@@ -353,67 +378,62 @@ Developers should not have to repeat it on every local derivative.
 
 ## Trusted Secret Consumption
 
-Authenticated operations need a controlled way to consume credentials without automatically classifying their useful response data as secret.
+Authenticated operations need a controlled way to consume credentials without
+automatically classifying their useful response data as secret.
 
-The plan introduces a trusted secret sink contract. Conceptually:
+The caller owns the decision to pass a secret. The receiving function uses an
+ordinary signature:
 
 ```ts
-declare function fetchWeather(input: {
-  city: string;
+declare function fetchWeather(
+  city: string,
+  authorization: string
+): Promise<Weather>;
 
-  /** @exact secret-sink */
-  authorization: string;
-}): Promise<Weather>;
+const weather = await fetchWeather(
+  "Seattle",
+  /** @exact consume=secret */
+  apiKey
+);
 ```
 
-A secret sink:
+At the call site, the compiler knows the secret selector and resolved callee
+package. The caller must mark the secret argument with `consume=secret`.
+Application-owned callees are implicitly permitted. A dependency callee
+additionally requires an explicit package-and-selector grant. Receiving
+functions do not annotate secret parameters and cannot authorize their own
+package. The marker records intentional use but neither grants package trust nor
+declassifies the value.
 
-- May receive secret-qualified data.
-- Must execute on the server.
-- Does not automatically propagate the argument's secrecy to its ordinary return value.
-- Must not disclose the secret through return values, errors, logs, callbacks, or external observable channels other than its declared protected operation.
-- Is a security-sensitive contract and must be auditable in source and manifests.
-
-This contract is necessary because strict dependency taint would otherwise classify every authenticated response as secret merely because authority was supplied to perform the request.
-
-The initial implementation should keep the trusted set narrow:
-
-- eXact-owned secret/configuration APIs.
-- Explicitly declared sink parameters in first-party source.
-- Reviewed external declaration files.
-- Small server-only wrappers around opaque third-party clients.
-
-Do not implicitly treat every `fetch` header or arbitrary function argument as a secret sink. That would make accidental disclosure too easy.
+Available source and compiled package flow summaries describe whether ordinary
+parameters influence returns or observable output. The application compiler
+applies the actual argument policy to those summaries. Opaque code without a
+reliable declaration or flow summary fails closed. A package grant authorizes
+receipt, not disclosure or declassification.
 
 ## Opaque And Third-Party Libraries
 
 The compiler cannot prove the behavior of an implementation it cannot inspect. Supported options are:
 
 1. Analyze first-party or available source.
-2. Consume declaration metadata that includes `keep` and secret-sink contracts.
+2. Consume declaration metadata and parametric callable flow summaries.
 3. Wrap the library in a small audited server-only adapter.
 
 Example wrapper:
 
 ```ts
-/** @exact trusted-secret-boundary */
+/** @exact server */
 export function createWeatherClient(
-  /** @exact keep=secret */
   apiKey: string
 ): WeatherClient {
   return new ThirdPartyWeatherClient({ apiKey });
 }
 ```
 
-A trusted secret boundary is stronger and riskier than a normal server placement annotation. It must:
-
-- Be legal only in server-owned source.
-- Be explicit in compiler manifests.
-- Trigger an audit-oriented diagnostic or build report.
-- Have a narrow signature.
-- Prevent client artifact emission.
-
-The final syntax for `secret-sink` and `trusted-secret-boundary` should be reviewed alongside the existing closed `@exact` directive language. They are related security contracts but are not additional `keep` values.
+The wrapper and its returned client remain server-only. If the wrapper belongs
+to a dependency package, passing the secret also requires a package-and-selector
+grant. The manifest records the actual consumer symbol, parameter, package
+provenance, and source-to-consumer path.
 
 ## VNode And Observable-Output Enforcement
 
@@ -467,7 +487,7 @@ Extend `@exact/compiler` annotation validation:
 - Accept only `server`, `client`, or `secret`.
 - Define valid locations: state/interface properties, class properties, parameters, return types, variables, and supported type declarations.
 - Diagnose contradictory policies and invalid inheritance/override behavior.
-- Add separate reviewed contracts for secret sinks and trusted boundaries.
+- Emit parametric callable flow summaries for cross-package analysis.
 
 ### Expression type qualifications
 
@@ -509,7 +529,7 @@ Add policy edges to the existing semantic/callable/state/context analysis:
 - Conditional and loop control dependencies.
 - JSX/VNode observable sinks.
 - Serialization sinks.
-- Trusted secret sinks.
+- Cross-package secret argument boundaries.
 
 The analysis must be field-sensitive where exact paths are known and conservative where they are not.
 
@@ -531,8 +551,7 @@ Extend compiler manifest metadata with:
 - State path policies.
 - Context token policy and scope.
 - Callable parameter and return policies.
-- Secret sink parameter positions/properties.
-- Trusted boundary records.
+- Callable parameter-flow summaries and resolved package provenance.
 - Policy-flow diagnostics.
 - Client snapshot paths and server-owned render dependencies for audit tooling.
 
@@ -680,12 +699,14 @@ Exit criteria:
 - Direct, indirect, spread, capture, reactive, and conditional disclosures fail.
 - Safe sibling fields of objects containing secrets remain usable.
 
-### Phase 4: Trusted sinks and capability contracts
+### Phase 4: Caller-side package trust
 
-- Specify `secret-sink` and trusted-boundary declaration syntax.
-- Add sink-aware call analysis.
-- Verify first-party sink implementations where source is available.
-- Record trusted contracts in manifests and audit output.
+- Parse and enforce `consume=secret` on caller argument expressions.
+- Apply secret argument policies to analyzed callables and imported flow
+  summaries.
+- Enforce package-and-selector grants when secrets cross dependency boundaries.
+- Record receiving symbols, parameters, package provenance, and call paths in
+  manifests and audit output.
 - Add server-only wrappers for initial platform integrations.
 
 Exit criteria:
@@ -724,7 +745,8 @@ Exit criteria:
 
 ### Phase 7: Tooling, documentation, and migration
 
-- Add manifest audit reporting for policies, trusted sinks, and boundaries.
+- Add manifest audit reporting for policies, secret recipients, package grants,
+  and any separately designed declassification boundaries.
 - Surface diagnostics through CLI, Vite, Webpack, and Bun integrations.
 - Document common API client, database, session, and upload patterns.
 - Add migration guidance for service objects currently stored in component state.
@@ -753,6 +775,8 @@ At minimum, cover:
 - Hydration bootstrap and action state filtering.
 - Server action and patch responses.
 - Secret values in errors and log metadata.
+- Marked and unmarked secret arguments for application-owned, granted
+  dependency, and ungranted dependency calls.
 - Application provider reuse and disposal.
 - Request provider isolation and disposal.
 - Invalid application-to-request lifetime dependencies.
@@ -773,16 +797,24 @@ The completed design must maintain these invariants:
 7. Unknown or broad data flow fails closed when it may include a protected value.
 8. Runtime guards supplement but do not replace compiler enforcement.
 9. Errors and diagnostics identify policy paths without including protected contents.
-10. Trusted sinks and boundaries are explicit, narrow, manifest-visible, and auditable.
+10. Dependency package grants are explicit, non-transitive, manifest-visible,
+    and auditable; caller-side consumption is explicit and receiving functions
+    cannot self-authorize.
+
+## Resolved Design Questions
+
+- Ordinary safe transferable values infer isomorphic classification and do not
+  require `keep=isomorphic`.
+- Component providers may derive their values from visible application/request
+  contexts, but contexts published by components always retain component
+  lifetime. Only the server runtime establishes application/request scope.
 
 ## Open Design Questions
 
 The following details should be resolved before implementation:
 
 - Whether `createContext` uses an options overload or a separate `createServerContext` API.
-- Whether component-tree contexts may declare application/request scope or only server-runtime providers may do so.
 - The exact user-facing representation of `Secret<T>` in declaration files.
-- The syntax and allowed locations for `secret-sink` and `trusted-secret-boundary`.
 - Whether explicit declassification is supported initially. If added, it must be louder and more restricted than ordinary server-to-client transfer.
 - How much implicit-flow analysis is required outside VNode and serialization control flow.
 - How generic return policies are expressed when a method can return either ordinary or secret-qualified data.
@@ -799,6 +831,7 @@ The first shippable slice should avoid trusted opaque boundaries and focus on en
 4. Reject direct secret flow into VNodes and serializers.
 5. Add application/request server context lifetimes.
 6. Provide `secrets.require()` and `secrets.optional()` as built-in secret sources.
-7. Demonstrate a first-party authenticated client whose credential is consumed by an eXact-owned reviewed secret sink.
+7. Demonstrate a first-party authenticated client whose credential crosses no
+   untrusted package boundary.
 
 After this slice establishes the invariants, expand field-sensitive and control-flow coverage and then introduce audited contracts for third-party libraries.

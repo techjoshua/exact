@@ -1,5 +1,10 @@
 # Server Components
 
+For the native adoption target, server/request context direction, paired
+component-package contract, data residency policy, rendering safety, and
+implementation program, see
+[native-ssr-adoption-and-data-policy.md](native-ssr-adoption-and-data-policy.md).
+
 eXact supports three rendering modes from the same component model:
 
 - Client-only apps compile and run entirely in the browser.
@@ -163,6 +168,8 @@ Clients can opt into streamed endpoint responses by sending `Accept: application
 Initial document rendering can stream through `renderToDocumentStream()` or `renderToHydratableDocumentStream()`. These streams emit newline-delimited JSON document events: `start`, `shell`, optional root `replace` after observed async server tasks settle, optional `hydration`, and `complete`.
 
 Apps that want to write a browser response directly can use `renderToProgressiveHtmlStream()` or `renderToHydratableProgressiveHtmlStream()`. These streams emit the shell inside a configurable root element immediately, then convert later root replacements into escaped inline scripts. Hydratable progressive streams include the same inert hydration JSON script used by `renderToHydratableStringAsync()`. `renderToProgressiveHtmlResponse()` and `renderToHydratableProgressiveHtmlResponse()` package those streams as `ExactResponseLike` objects so adapters can return the same result shape across Fetch, Express, Hapi, Vite, Webpack, Bun, or custom servers.
+
+The planned root-document mode lets an application render `html`, `head`, and `body` directly. eXact then augments reserved positions within those authored elements with the hydration data, client bootstrap, manifests, and progressive-stream payloads required by the selected render mode. The application owns the document shell and normal head contents; injected nodes remain framework-owned and are not repeated by the client render. See the native SSR adoption design for the normalization and CSP requirements.
 
 Patch responses can include text updates, prop/style updates, independent nested structural replacements, keyed list operations, state updates, and boundary replacement. If a fine-grained patch cannot apply cleanly, the client replaces the nearest server boundary with the authoritative server-rendered HTML.
 

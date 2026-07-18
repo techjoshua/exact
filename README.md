@@ -474,7 +474,11 @@ JSX elements are internally mounted through cell boundaries. In compiler mode, e
 
 ## SSR And Hydration
 
-For the end-to-end server component build/runtime flow, see [docs/server-components.md](docs/server-components.md).
+For the end-to-end server component build/runtime flow, see
+[docs/server-components.md](docs/server-components.md). The native adoption
+roadmap, server/request context direction, component-package contract, rendering
+safety policy, and generalized data/secret policy are consolidated in
+[docs/native-ssr-adoption-and-data-policy.md](docs/native-ssr-adoption-and-data-policy.md).
 
 The current SSR/server-component foundation implements:
 
