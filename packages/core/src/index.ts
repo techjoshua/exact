@@ -207,6 +207,7 @@ export type ContextToken<T> = {
   readonly description: string;
   readonly global: boolean;
   readonly reactive: boolean;
+  readonly keep?: "server" | "client" | "secret";
   readonly scope: "component" | "application" | "request";
 };
 

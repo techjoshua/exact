@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { clearExpressionProjectCache, expressionModuleFor } from "./expression-project.js";
-import { analyzeExactAnnotations, exactCleanupForCall, exactKeyContract, exactOwnsReturn } from "./annotations.js";
+import {
+  analyzeExactAnnotations,
+  exactCleanupForCall,
+  exactConsumesSecret,
+  exactKeepPolicy,
+  exactKeyContract,
+  exactOwnsReturn
+} from "./annotations.js";
 
 describe("@exact compiler annotations", () => {
   it("projects key metadata from type members and merged declarations", () => {
@@ -80,5 +87,56 @@ describe("@exact compiler annotations", () => {
     `);
     const call = module.walk().calls().first()!;
     expect(analyzeExactAnnotations(module).trackedCallbacks.get(call.node.id)).toEqual([{ parameter: 0, property: "calculate" }]);
+  });
+
+  it("accepts the closed keep vocabulary and rejects keep=isomorphic", () => {
+    clearExpressionProjectCache();
+    const module = expressionModuleFor("keep-policy.ts", `
+      interface Account {
+        /** @exact keep=secret */ token: string;
+        /** @exact keep=server */ internal: object;
+      }
+      /** @exact keep=client */ let element: HTMLElement;
+      /** @exact keep=isomorphic */ let publicName: string;
+    `);
+    const token = module.walk().ofKind("PropertySignature").first(reference => reference.node.name === "token")!;
+    const internal = module.walk().ofKind("PropertySignature").first(reference => reference.node.name === "internal")!;
+    const element = module.walk().ofKind("VariableDeclaration").first(reference => reference.node.name === "element")!;
+    expect(exactKeepPolicy(token.node.directives)).toBe("secret");
+    expect(exactKeepPolicy(internal.node.directives)).toBe("server");
+    expect(exactKeepPolicy(element.children().first()?.variable?.directives)).toBe("client");
+    expect(analyzeExactAnnotations(module).diagnostics.map(diagnostic => diagnostic.message)).toContain(
+      "error: @exact keep=isomorphic is not supported; safe isomorphic residency is inferred"
+    );
+  });
+
+  it("recognizes caller-side secret consumption without annotating the receiver", () => {
+    clearExpressionProjectCache();
+    const module = expressionModuleFor("consume-secret.ts", `
+      declare function connect(value: string): void;
+      declare const credential: string;
+      connect(/** @exact consume=secret */ credential);
+    `);
+    const call = module.walk().calls().first()!;
+    expect(exactConsumesSecret(call.arguments[0]?.node.directives)).toBe(true);
+    expect(call.node.resolvedSignature?.parameters[0]?.directives).toEqual([]);
+    expect(analyzeExactAnnotations(module).diagnostics).toEqual([]);
+  });
+
+  it("rejects missing, unknown, and contradictory policy values", () => {
+    clearExpressionProjectCache();
+    const module = expressionModuleFor("invalid-policy.ts", `
+      /** @exact keep */ let missing: string;
+      /** @exact keep=public */ let unknown: string;
+      /** @exact keep=server @exact keep=client */ let conflict: string;
+      declare function connect(value: string): void;
+      connect(/** @exact consume=server */ unknown);
+    `);
+    expect(analyzeExactAnnotations(module).diagnostics.map(diagnostic => diagnostic.message)).toEqual(expect.arrayContaining([
+      "error: @exact keep requires one of server, client, or secret",
+      "error: unknown @exact keep policy 'public'; expected server, client, or secret",
+      "error: a declaration cannot have contradictory @exact keep policies",
+      "error: @exact consume requires the value secret"
+    ]));
   });
 });

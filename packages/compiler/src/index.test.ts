@@ -1543,6 +1543,7 @@ describe("@exact/compiler", () => {
       symbols: [],
       boundaries: [],
       callables: [],
+      policy: { version: 1, subjects: [], flows: [] },
       artifacts: {
         source: 1,
         client: "panel.exact.client.ts",

@@ -424,6 +424,16 @@ export class ExpressionProject {
       }
       return Object.freeze(uniqueDirectives(segments.flatMap(segment => parseExpressionDirectives(segment.text, segment.start, directiveSource))));
     };
+    const bindingDirectivesFor = (node: ts.Node | undefined): readonly ExpressionDirective[] => {
+      if (!node) return Object.freeze([]);
+      const values = [...directivesFor(node, ts.isVariableDeclaration(node))];
+      if (ts.isVariableDeclaration(node)
+        && ts.isVariableDeclarationList(node.parent)
+        && ts.isVariableStatement(node.parent.parent)) {
+        values.unshift(...directivesFor(node.parent.parent));
+      }
+      return Object.freeze(uniqueDirectives(values));
+    };
     const typeDirectivesFor = (type: ts.Type): readonly ExpressionDirective[] => {
       const symbol = type.aliasSymbol ?? type.getSymbol();
       return Object.freeze(uniqueDirectives((symbol?.declarations ?? []).flatMap(declaration => directivesFor(declaration))));
@@ -633,7 +643,7 @@ export class ExpressionProject {
       variable.exported = Boolean(symbol.flags & ts.SymbolFlags.ExportValue);
       variable.importedFrom = importSource(declaration);
       variable.typeOnly = isTypeOnlyBinding(declaration);
-      variable.directives = directivesFor(declaration, true);
+      variable.directives = bindingDirectivesFor(declaration);
       scope.add(variable);
       Object.freeze(variable);
       return variable;
@@ -721,16 +731,22 @@ export class ExpressionProject {
         variable,
         name: nodeName(node),
         operator: nodeOperator(node),
-        directives: directivesFor(node, ts.isVariableDeclaration(node))
+        directives: bindingDirectivesFor(node)
       };
       if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
         const target = children[0]!;
+        const argumentOffset = 1 + (node.typeArguments?.length ?? 0);
         let resolvedSignature: ExpressionCallSignature | undefined;
         if (ts.isCallExpression(node)) {
           const signature = checker.getResolvedSignature(node);
           if (signature) resolvedSignature = signatureFor(signature, node, checker, typeFor, directivesFor);
         }
-        return freezeSourceNode({ ...common, target, arguments: Object.freeze(children.slice(1)), ...(resolvedSignature ? { resolvedSignature } : {}) }, sourceFile.text);
+        return freezeSourceNode({
+          ...common,
+          target,
+          arguments: Object.freeze(children.slice(argumentOffset)),
+          ...(resolvedSignature ? { resolvedSignature } : {})
+        }, sourceFile.text);
       }
       if (ts.isFunctionLike(node)) {
         const parameters = node.parameters.flatMap(parameter => parameter.name.getText(sourceFile) === "this"

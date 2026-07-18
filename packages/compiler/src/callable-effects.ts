@@ -50,7 +50,8 @@ export function analyzeCallableEffects(
   graph: ExactSemanticGraphIR,
   importedManifests: readonly ExactCompilerManifest[] = [],
   writePlan?: ExpressionWritePlan,
-  moduleImports?: ExactModuleImportPlan
+  moduleImports?: ExactModuleImportPlan,
+  knownCallEffects: ReadonlyMap<string, "server" | "client" | "isomorphic"> = new Map()
 ): CallableEffectPlan {
   const componentIndex = expressionComponentIndex(module);
   const stateAliases = writePlan?.aliases ?? new Map<string, readonly string[]>();
@@ -239,6 +240,7 @@ export function analyzeCallableEffects(
       if (nearestFunction(call)?.node !== fn.node) continue;
       const variable = callVariable(call);
       const local = localCallTarget(call, callableByVariable, initializerByVariable, callableByNode);
+      const knownCallEffect = knownCallEffects.get(call.node.id);
       const boundImportedName = variable ? importedNames.get(variable.id) ?? variable.name : undefined;
       const importedName = boundImportedName === "*" && call.target?.isMember() ? call.target.name : boundImportedName;
       const resolvedExternal = variable?.importedFrom ? external.get(externalKey(variable.importedFrom, importedName ?? variable.name)) : undefined;
@@ -247,7 +249,7 @@ export function analyzeCallableEffects(
         name: call.target?.node.text?.trim() ?? call.node.text?.trim() ?? "call",
         ...(local ? { targetId: local.id } : {}),
         ...(variable?.importedFrom ? { moduleSpecifier: variable.importedFrom, exportName: importedName } : {}),
-        resolved: !!local || !!resolvedExternal,
+        resolved: !!local || !!resolvedExternal || !!knownCallEffect,
         ...receiverBindingField(call, summary, local, resolvedExternal)
       };
       summary.calls.push(edge);
@@ -257,6 +259,14 @@ export function analyzeCallableEffects(
         summary.directReads.push(...mapStateEffects(resolvedExternal.stateReads, edge));
         summary.directWrites.push(...mapStateEffects(resolvedExternal.stateWrites, edge));
         summary.directContexts.push(...resolvedExternal.contexts);
+      } else if (!local && knownCallEffect) {
+        if (knownCallEffect !== "isomorphic") {
+          summary.directSources.push(source(
+            knownCallEffect === "client" ? "browser" : "server",
+            `${knownCallEffect} context call`,
+            summary.name
+          ));
+        }
       } else if (!local) {
         const placed = variable?.importedFrom ? moduleImports?.placementBySpecifier.get(variable.importedFrom) : undefined;
         const unresolved = placed
@@ -361,6 +371,7 @@ export function analyzeCallableEffects(
       if (nearestFunction(call)) continue;
       const variable = callVariable(call);
       const local = localCallTarget(call, callableByVariable, initializerByVariable, callableByNode);
+      const knownCallEffect = knownCallEffects.get(call.node.id);
       const boundImportedName = variable ? importedNames.get(variable.id) ?? variable.name : undefined;
       const importedName = boundImportedName === "*" && call.target?.isMember() ? call.target.name : boundImportedName;
       const resolvedExternal = variable?.importedFrom ? external.get(externalKey(variable.importedFrom, importedName ?? variable.name)) : undefined;
@@ -369,7 +380,7 @@ export function analyzeCallableEffects(
         name: call.target?.node.text?.trim() ?? call.node.text?.trim() ?? "call",
         ...(local ? { targetId: local.id } : {}),
         ...(variable?.importedFrom ? { moduleSpecifier: variable.importedFrom, exportName: importedName } : {}),
-        resolved: !!local || !!resolvedExternal,
+        resolved: !!local || !!resolvedExternal || !!knownCallEffect,
         ...receiverBindingField(call, summary, local, resolvedExternal)
       };
       summary.calls.push(edge);
@@ -379,6 +390,14 @@ export function analyzeCallableEffects(
         summary.directReads.push(...mapStateEffects(resolvedExternal.stateReads, edge));
         summary.directWrites.push(...mapStateEffects(resolvedExternal.stateWrites, edge));
         summary.directContexts.push(...resolvedExternal.contexts);
+      } else if (!local && knownCallEffect) {
+        if (knownCallEffect !== "isomorphic") {
+          summary.directSources.push(source(
+            knownCallEffect === "client" ? "browser" : "server",
+            `${knownCallEffect} context call`,
+            summary.name
+          ));
+        }
       } else if (!local) {
         const placed = variable?.importedFrom ? moduleImports?.placementBySpecifier.get(variable.importedFrom) : undefined;
         const unresolved = placed

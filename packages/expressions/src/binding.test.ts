@@ -153,6 +153,20 @@ describe("@exact/expressions binding", () => {
     expect(recursive.properties).toEqual(expect.arrayContaining(["value", "next"]));
   });
 
+  it("keeps generic type arguments out of runtime call arguments", () => {
+    const project = createExpressionProject({ tsconfigPath: config });
+    const filename = path.join(root, "apps/kanban/src/__expressions_generic_call.ts");
+    const module = project.updateModule(filename, `
+      declare function create<T>(name: string, options: { enabled: boolean }): T;
+      create<{ value: string }>("entry", { enabled: true });
+    `);
+    const call = module.walk().calls().first()!;
+    expect(call.arguments.map(argument => argument.node.kind)).toEqual([
+      "StringLiteral",
+      "ObjectLiteralExpression"
+    ]);
+  });
+
   it("delegates structural assignability to the current TypeChecker generation", () => {
     const project = createExpressionProject({ tsconfigPath: config });
     const filename = path.join(root, "apps/kanban/src/__expressions_assignability.ts");

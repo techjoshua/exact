@@ -5,6 +5,7 @@ import type {
   ExactSemanticDeclarationIR,
   ExactSemanticExportIR,
   ExactSemanticGraphIR,
+  ExactPolicyManifestIR,
   ExactSemanticReferenceIR,
   ExactSemanticScopeIR
 } from "./types.js";
@@ -27,6 +28,7 @@ export function parseExactCompilerManifest(value: unknown, source = "manifest", 
     || !Array.isArray(manifest.symbols)
     || !Array.isArray(manifest.boundaries)
     || !Array.isArray(manifest.callables)
+    || !isExactPolicyManifest(manifest.policy)
     || !manifest.serverActions
     || typeof manifest.serverActions !== "object"
     || Array.isArray(manifest.serverActions)
@@ -56,8 +58,59 @@ export function parseExactCompilerManifest(value: unknown, source = "manifest", 
     || manifest.callables!.some(callable => callable.calls.some(edge => edge.targetId !== undefined && !callableIds.has(edge.targetId)))) {
     throw new Error(`Malformed eXact ${kind} callable graph in ${source}`);
   }
+  const policySubjectIds = new Set(manifest.policy!.subjects.map(subject => subject.id));
+  const policySourceIds = new Set([
+    ...policySubjectIds,
+    ...callableIds,
+    ...manifest.components.map(component => component.id),
+    ...manifest.components.flatMap(component => component.tasks.map(task => task.id))
+  ]);
+  if (policySubjectIds.size !== manifest.policy!.subjects.length
+    || new Set(manifest.policy!.flows.map(flow => flow.id)).size !== manifest.policy!.flows.length
+    || manifest.policy!.flows.some(flow => flow.from.some(id => !policySourceIds.has(id)))) {
+    throw new Error(`Malformed eXact ${kind} policy graph in ${source}`);
+  }
   validatePluginEnvelope(manifest, source, kind);
   return manifest as ExactCompilerManifest;
+}
+
+function isExactPolicyManifest(value: unknown): value is ExactPolicyManifestIR {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const policy = value as Partial<ExactPolicyManifestIR>;
+  return policy.version === 1
+    && Array.isArray(policy.subjects) && policy.subjects.every(subject => {
+      if (!subject || typeof subject !== "object" || Array.isArray(subject)) return false;
+      const record = subject as Record<string, unknown>;
+      return typeof record.id === "string" && record.id.length > 0
+        && ["declaration", "field", "parameter", "return", "state", "context"].includes(String(record.kind))
+        && typeof record.name === "string" && record.name.length > 0
+        && (record.path === undefined || typeof record.path === "string")
+        && (record.componentId === undefined || typeof record.componentId === "string")
+        && (record.callableId === undefined || typeof record.callableId === "string")
+        && (record.parameterIndex === undefined || Number.isInteger(record.parameterIndex) && (record.parameterIndex as number) >= 0)
+        && isExactDataPolicy(record.policy)
+        && ["annotation", "context-option", "inference", "import"].includes(String(record.source));
+    })
+    && Array.isArray(policy.flows) && policy.flows.every(flow => {
+      if (!flow || typeof flow !== "object" || Array.isArray(flow)) return false;
+      const record = flow as Record<string, unknown>;
+      return typeof record.id === "string" && record.id.length > 0
+        && ["propagation", "receipt", "projection", "transfer"].includes(String(record.kind))
+        && Array.isArray(record.from) && record.from.every(source => typeof source === "string")
+        && typeof record.to === "string" && record.to.length > 0
+        && isExactDataPolicy(record.policy)
+        && (record.boundary === undefined || ["client-island", "hydration", "context", "call", "state"].includes(String(record.boundary)))
+        && typeof record.authorized === "boolean"
+        && (record.reason === undefined || typeof record.reason === "string");
+    });
+}
+
+function isExactDataPolicy(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const policy = value as Record<string, unknown>;
+  return ["server", "client", "isomorphic"].includes(String(policy.residency))
+    && typeof policy.secret === "boolean"
+    && (!policy.secret || policy.residency === "server");
 }
 
 function isExactCapabilityRequirements(value: unknown): boolean {

@@ -5,6 +5,11 @@ export interface ContextOptions {
   /** False preserves opaque service/class identity instead of proxying it. */
   readonly reactive?: boolean;
   /**
+   * Declares where values carried by this token may reside. Unannotated
+   * component values remain compiler-inferred and transferable when needed.
+   */
+  readonly keep?: "server" | "client" | "secret";
+  /**
    * Declares where the server runtime may provision this token. Values
    * published with Component.setContext() always retain component lifetime.
    */
@@ -20,6 +25,7 @@ export function createContext<T>(description: string, options: boolean | Context
     description,
     global,
     reactive,
+    keep: typeof options === "boolean" ? undefined : options.keep,
     scope: typeof options === "boolean" ? "component" : options.scope ?? "component"
   };
 }

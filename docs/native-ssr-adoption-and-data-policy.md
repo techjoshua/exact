@@ -1653,6 +1653,28 @@ Exit criteria:
   and hydrated client execution.
 - Server actions independently enforce trusted authorization.
 
+Implementation status: complete (2026-07-18).
+
+Compiler manifest version 5 now carries a generic policy graph with residency
+and independent secrecy qualifications, declaration/state/context/return
+subjects, and distinct propagation, projection, transfer, and receipt flow
+kinds. The compiler rejects `keep=isomorphic`, infers safe isomorphic values,
+propagates policy through aliases, typed returns, local calls, component state,
+contexts, tasks, and imported context manifests, and removes protected exports
+and state from client artifacts before emission. Policy graph sources are
+referentially validated when manifests are loaded.
+
+The server-component reference application separates protected
+request/application context access into a server projection component and
+passes only plain public identity state to an isomorphic component provider.
+That provider reconstructs `hasRole()`, brand name, and brand accent methods in
+ordinary setup during SSR and hydration. Its server action independently
+rechecks the trusted authorization context.
+
+Verification includes 1,007 package tests, static production and test type
+checking, generated artifact type checking, four server-component
+SSR/hydration/action integration tests, and 16 shipping sample tests.
+
 ### Phase 4: Package-aware placement and component-library standard
 
 - Complete cross-package placement, alias, re-export, cycle, target-dependency,
@@ -1894,6 +1916,9 @@ Exit criteria:
   request-scoped contexts, but `this.setContext()` publishes only a
   component-scoped value. Components cannot create or promote values into
   application or request lifetime.
+- Policy manifest version 1 represents residency/secrecy subjects and
+  propagation, receipt, projection, and transfer flows. Conflicting imported
+  global context policies fail compilation.
 
 ## Open Design Questions
 
@@ -1902,7 +1927,7 @@ Exit criteria:
 - Whether any secret declassification mechanism is supported initially.
 - Package provenance format and integrity pinning defaults.
 - How secret identifier redaction works in distributable manifests.
-- Exact policy manifest and aggregate report schema.
+- Aggregate application report schema for package grants and secret usage.
 - How application entrypoints compose descriptors for remote and dynamically
   loaded packages.
 - Whether shared extraction occurs per declaration, per strongly connected

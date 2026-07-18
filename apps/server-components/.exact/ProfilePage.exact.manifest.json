@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "filename": "apps\\server-components\\src\\ProfilePage.tsx",
   "dependencies": [],
   "assets": [],
@@ -393,6 +393,159 @@
       "contexts": []
     }
   ],
+  "policy": {
+    "version": 1,
+    "subjects": [
+      {
+        "id": "x-nghLRprYehL8I0lfxCQgj",
+        "kind": "context",
+        "name": "BrandContext",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "import"
+      },
+      {
+        "id": "x2jl-3g11W-RNdOtiuR9SHe",
+        "kind": "context",
+        "name": "ServerAuthorizationContext",
+        "policy": {
+          "residency": "server",
+          "secret": false
+        },
+        "source": "import"
+      },
+      {
+        "id": "x3YqyJ2Mn84oku-Vw1qTN3O",
+        "kind": "context",
+        "name": "AuthorizationContext",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "import"
+      },
+      {
+        "id": "x4f-6cI4mM7ZSzlaMElS-Ih",
+        "kind": "context",
+        "name": "BrandContext",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "import"
+      },
+      {
+        "id": "x79mzSvMSd0FSzI6wYJLXfJ",
+        "kind": "context",
+        "name": "ServerBrandContext",
+        "policy": {
+          "residency": "server",
+          "secret": false
+        },
+        "source": "import"
+      },
+      {
+        "id": "x8qWJRYj0WzqKLmdnYkwGAE",
+        "kind": "context",
+        "name": "ServerAuthorizationContext",
+        "policy": {
+          "residency": "server",
+          "secret": false
+        },
+        "source": "import"
+      },
+      {
+        "id": "xa_vbfXvjnuvZ2DsaSl_Fyt",
+        "kind": "context",
+        "name": "ServerAuthorizationContext",
+        "policy": {
+          "residency": "server",
+          "secret": false
+        },
+        "source": "import"
+      },
+      {
+        "id": "xIBnUrGImRuA6HXGz5V2aDS",
+        "kind": "context",
+        "name": "AuthorizationContext",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "import"
+      },
+      {
+        "id": "xKSVFQ_CzGGpo33LUkzVAXM",
+        "kind": "context",
+        "name": "ServerBrandContext",
+        "policy": {
+          "residency": "server",
+          "secret": false
+        },
+        "source": "import"
+      },
+      {
+        "id": "xnGbWMuON7dlcck_4zQz6UK",
+        "kind": "context",
+        "name": "AuthorizationContext",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "import"
+      },
+      {
+        "id": "xsdYyb-9Yx2sTZCcr8Ct0Sa",
+        "kind": "context",
+        "name": "BrandContext",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "import"
+      },
+      {
+        "id": "xvAkGEKMpK-zlRk45M_TYEf",
+        "kind": "state",
+        "name": "ProfilePage.state.saves",
+        "path": "saves",
+        "componentId": "x2EC0RcwGu0f7qEmyI8OmrU",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "xzvPaEowvX8qh4Idbok4j74",
+        "kind": "context",
+        "name": "ServerBrandContext",
+        "policy": {
+          "residency": "server",
+          "secret": false
+        },
+        "source": "import"
+      }
+    ],
+    "flows": [
+      {
+        "id": "xhKLJvdxpd4iqfoHxmOom-6",
+        "kind": "transfer",
+        "from": [
+          "xvAkGEKMpK-zlRk45M_TYEf"
+        ],
+        "to": "x2EC0RcwGu0f7qEmyI8OmrU:client-island:1:saves",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      }
+    ]
+  },
   "serverActions": {
     "x3JLureiZflgJmddVWOBoBF": {
       "id": "x3JLureiZflgJmddVWOBoBF",

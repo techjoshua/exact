@@ -7,7 +7,17 @@ import type {
   NodeRef
 } from "@exact/expressions";
 
-export type ExactAnnotationKey = "key" | "cleanup" | "own" | "track" | "client" | "server";
+export type ExactAnnotationKey =
+  | "key"
+  | "cleanup"
+  | "own"
+  | "track"
+  | "client"
+  | "server"
+  | "keep"
+  | "consume";
+
+export type ExactKeepPolicy = "server" | "client" | "secret";
 
 export interface ExactAnnotationDiagnostic {
   readonly message: string;
@@ -30,27 +40,60 @@ export interface ExactKeyContract {
   readonly primitive: boolean;
 }
 
-const supported = new Set<ExactAnnotationKey>(["key", "cleanup", "own", "track", "client", "server"]);
+const supported = new Set<ExactAnnotationKey>(["key", "cleanup", "own", "track", "client", "server", "keep", "consume"]);
 const identifier = /^[A-Za-z_$][\w$]*$/;
 
 /** Validates the closed directive language and indexes call-site callback contracts. */
 export function analyzeExactAnnotations(module: BoundModule): ExactAnnotationPlan {
   const diagnostics: ExactAnnotationDiagnostic[] = [];
-  const seen = new Set<string>();
+  const directiveSites = new Map<string, { reference: NodeRef; directive: ExpressionDirective }>();
   for (const reference of module.walk()) {
     for (const directive of reference.node.directives ?? []) {
       const identity = `${directive.span?.start ?? reference.node.span?.start ?? -1}:${directive.key}:${directive.value ?? ""}`;
-      if (seen.has(identity)) continue;
-      seen.add(identity);
-      const start = directive.span?.start ?? reference.node.span?.start ?? 0;
+      const existing = directiveSites.get(identity);
+      const key = supported.has(directive.key as ExactAnnotationKey)
+        ? directive.key as ExactAnnotationKey
+        : undefined;
+      const candidateValid = key ? validDirectiveLocation(key, reference.node.kind) : false;
+      const existingValid = key && existing
+        ? validDirectiveLocation(key, existing.reference.node.kind)
+        : false;
+      if (!existing
+        || candidateValid && !existingValid
+        || candidateValid === existingValid && nodeWidth(reference) < nodeWidth(existing.reference)) {
+        directiveSites.set(identity, { reference, directive });
+      }
+    }
+  }
+  for (const { reference, directive } of directiveSites.values()) {
+    const start = directive.span?.start ?? reference.node.span?.start ?? 0;
       // Namespaced directives are owned and validated by prepared compiler
       // plugins. Core keeps its own directive language closed.
       if (directive.key.includes(".")) continue;
       if (!supported.has(directive.key as ExactAnnotationKey)) {
-        diagnostics.push({ message: `error: unknown @exact directive '${directive.key}'; supported directives are key, cleanup, own, track, client, and server`, start });
+        diagnostics.push({ message: `error: unknown @exact directive '${directive.key}'; supported directives are key, cleanup, own, track, client, server, keep, and consume`, start });
         continue;
       }
-      if ((directive.key === "own" || directive.key === "track" || directive.key === "client" || directive.key === "server") && directive.value !== undefined) {
+      if (directive.key === "keep") {
+        if (!directive.value) {
+          diagnostics.push({ message: "error: @exact keep requires one of server, client, or secret", start });
+          continue;
+        }
+        if (!isExactKeepPolicy(directive.value)) {
+          diagnostics.push({
+            message: directive.value === "isomorphic"
+              ? "error: @exact keep=isomorphic is not supported; safe isomorphic residency is inferred"
+              : `error: unknown @exact keep policy '${directive.value}'; expected server, client, or secret`,
+            start
+          });
+          continue;
+        }
+      } else if (directive.key === "consume") {
+        if (directive.value !== "secret") {
+          diagnostics.push({ message: "error: @exact consume requires the value secret", start });
+          continue;
+        }
+      } else if ((directive.key === "own" || directive.key === "track" || directive.key === "client" || directive.key === "server") && directive.value !== undefined) {
         diagnostics.push({ message: `error: @exact ${directive.key} does not accept a value`, start });
       } else if (directive.value !== undefined && !identifier.test(directive.value)) {
         diagnostics.push({ message: `error: @exact ${directive.key} value must be a member identifier, not executable source`, start });
@@ -60,13 +103,22 @@ export function analyzeExactAnnotations(module: BoundModule): ExactAnnotationPla
         && (directive.key === "key" || directive.key === "cleanup") && !directive.value) {
         diagnostics.push({ message: `error: type-level @exact ${directive.key} requires a member name`, start });
       }
-    }
+      if ((directive.key === "keep" || directive.key === "consume")
+        && !validDirectiveLocation(directive.key, reference.node.kind)) {
+        diagnostics.push({ message: `error: @exact ${directive.key} is not valid on ${reference.node.kind}`, start });
+      }
   }
 
   for (const reference of module.walk()) {
     if (hasExactDirective(reference.node.directives, "client") && hasExactDirective(reference.node.directives, "server")) {
       diagnostics.push({ message: "error: a declaration cannot be both @exact client and @exact server", start: reference.node.span?.start ?? 0 });
     }
+    const keep = reference.node.directives?.filter(value => value.namespace === "exact" && value.key === "keep") ?? [];
+    const policies = new Set(keep.map(value => value.value).filter(isExactKeepPolicy));
+    if (policies.size > 1) diagnostics.push({
+      message: "error: a declaration cannot have contradictory @exact keep policies",
+      start: keep[0]?.span?.start ?? reference.node.span?.start ?? 0
+    });
   }
 
   const trackedCallbacks = new Map<string, readonly ExactTrackedCallback[]>();
@@ -106,7 +158,16 @@ export function analyzeExactAnnotations(module: BoundModule): ExactAnnotationPla
     });
   }
 
-  return Object.freeze({ diagnostics: Object.freeze(diagnostics), trackedCallbacks });
+  const uniqueDiagnostics = [...new Map(diagnostics.map(diagnostic => [
+    `${diagnostic.start}:${diagnostic.message}`,
+    diagnostic
+  ])).values()];
+  return Object.freeze({ diagnostics: Object.freeze(uniqueDiagnostics), trackedCallbacks });
+}
+
+function nodeWidth(reference: NodeRef): number {
+  const span = reference.node.span;
+  return span ? span.end - span.start : Number.MAX_SAFE_INTEGER;
 }
 
 export function exactKeyContract(type: ExpressionType | undefined, local?: readonly ExpressionDirective[]): ExactKeyContract | undefined {
@@ -189,6 +250,20 @@ export function hasExactDirective(values: readonly ExpressionDirective[] | undef
   return exactDirective(values, key) !== undefined;
 }
 
+export function exactKeepPolicy(values: readonly ExpressionDirective[] | undefined): ExactKeepPolicy | undefined {
+  const matches = values?.filter(value => value.namespace === "exact" && value.key === "keep") ?? [];
+  const policies = new Set(matches.map(value => value.value).filter(isExactKeepPolicy));
+  return policies.size === 1 ? [...policies][0] : undefined;
+}
+
+export function exactConsumesSecret(values: readonly ExpressionDirective[] | undefined): boolean {
+  return values?.some(value => value.namespace === "exact" && value.key === "consume" && value.value === "secret") ?? false;
+}
+
+function isExactKeepPolicy(value: string | undefined): value is ExactKeepPolicy {
+  return value === "server" || value === "client" || value === "secret";
+}
+
 function consistentExactDirective(values: readonly ExpressionDirective[] | undefined, key: ExactAnnotationKey): ExpressionDirective | null | undefined {
   const matches = values?.filter(value => value.namespace === "exact" && value.key === key) ?? [];
   if (!matches.length) return undefined;
@@ -253,6 +328,18 @@ function isStandardDisposable(type: ExpressionType | undefined): boolean {
 
 function validDirectiveLocation(key: ExactAnnotationKey, kind: string): boolean {
   if (key === "client" || key === "server") return ["FunctionDeclaration", "MethodDeclaration", "MethodSignature", "FunctionType"].includes(kind);
+  if (key === "keep") return [
+    "VariableDeclaration", "Parameter", "PropertySignature", "PropertyDeclaration",
+    "MethodSignature", "MethodDeclaration", "FunctionDeclaration", "FunctionType",
+    "TypeReference", "ParenthesizedType", "TypeLiteral", "InterfaceDeclaration",
+    "ClassDeclaration", "TypeAliasDeclaration"
+  ].includes(kind);
+  if (key === "consume") return ![
+    "SourceFile", "VariableDeclaration", "Parameter", "PropertySignature",
+    "PropertyDeclaration", "MethodSignature", "MethodDeclaration",
+    "FunctionDeclaration", "ClassDeclaration", "InterfaceDeclaration",
+    "TypeAliasDeclaration", "ImportDeclaration", "ExportDeclaration"
+  ].includes(kind);
   if (key === "key") return ["PropertySignature", "PropertyDeclaration", "MethodSignature", "MethodDeclaration", "InterfaceDeclaration", "ClassDeclaration", "TypeAliasDeclaration", "TypeLiteral", "VariableDeclaration"].includes(kind);
   if (key === "cleanup") return ["PropertySignature", "PropertyDeclaration", "MethodSignature", "MethodDeclaration", "InterfaceDeclaration", "ClassDeclaration", "TypeAliasDeclaration", "TypeLiteral", "VariableDeclaration", "FunctionType", "ParenthesizedType", "TypeReference"].includes(kind);
   if (key === "own") return ["VariableDeclaration", "TypeReference", "FunctionType", "ParenthesizedType", "TypeLiteral"].includes(kind);

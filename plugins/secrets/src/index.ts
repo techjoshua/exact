@@ -1,5 +1,6 @@
 const secretBrand = Symbol.for("@exact/secrets/value");
 
+/** @exact keep=secret */
 export interface Secret<T> {
   readonly [secretBrand]: true;
   readonly name: string;

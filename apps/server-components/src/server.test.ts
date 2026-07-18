@@ -7,8 +7,24 @@ import {
   hydrateClientIslands,
   readExactHydrationConfig
 } from "@exact/hydrate";
+import { createVNode } from "@exact/core";
+import { handleExactRequest } from "@exact/server";
+import {
+  createExactServerRuntime,
+  renderExactRequestToHtmlResponse
+} from "@exact/ssr";
 import { ProfilePage_ExactClient_1 } from "../.exact/ProfilePage.exact.client.js";
+import {
+  IdentityProvider
+} from "../.exact/IdentityProvider.exact.client.js";
+import {
+  ServerIdentityProjection,
+  ServerAuthorizationContext,
+  ServerBrandContext
+} from "../.exact/IdentityProvider.exact.server.js";
+import type { PublicIdentity } from "./IdentityProvider.js";
 import { handleExactServerRequest, renderProfilePage, renderProfilePageResponse } from "./server.js";
+import { exactManifest } from "./server.js";
 
 async function readStreamText(stream: ReadableStream<Uint8Array>): Promise<string> {
   const reader = stream.getReader();
@@ -79,4 +95,94 @@ describe("@exact/sample-server-components", () => {
     });
     expect(container.querySelector("section.saved")?.textContent).toBe("Saved on the server");
   });
+
+  it("projects server identity into SSR and reconstructs context methods during hydration", async () => {
+    const identity: PublicIdentity = {
+      roles: ["viewer", "editor"],
+      brand: { name: "Northwind", accent: "#2255aa" }
+    };
+    const runtime = identityRuntime(identity);
+    try {
+      const response = await renderExactRequestToHtmlResponse({
+        method: "GET",
+        url: "https://example.test/profile",
+        headers: {}
+      }, runtime, () => createVNode(ServerIdentityProjection, {}), {
+        hydration: false,
+        markers: false
+      });
+
+      expect(response.body).toContain("Northwind:editor");
+      expect(response.body).toContain("data-editor=\"true\"");
+
+      const container = document.createElement("div");
+      const props = JSON.stringify({ props: { initial: identity } })
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;");
+      container.innerHTML = `<div data-exact-client-boundary="identity" data-exact-client-name="IdentityProvider" data-exact-client-props="${props}">${response.body}</div>`;
+
+      expect(hydrateClientIslands(container, {
+        IdentityProvider
+      })).toBe(1);
+      const button = container.querySelector("button");
+      expect(button?.textContent).toBe("Northwind:editor");
+      expect(button?.getAttribute("data-brand")).toBe("Northwind");
+      expect(button?.getAttribute("data-accent")).toBe("#2255aa");
+      expect(button?.getAttribute("data-editor")).toBe("true");
+    } finally {
+      await runtime.dispose?.();
+    }
+  });
+
+  it("enforces authorization again inside trusted server action dispatch", async () => {
+    const runtime = identityRuntime({
+      roles: [],
+      brand: { name: "Northwind", accent: "#2255aa" }
+    });
+    try {
+      const invoke = (roles: string) => handleExactRequest({
+        method: "POST",
+        url: "https://example.test/__exact",
+        headers: {
+          "content-type": "application/json",
+          "x-roles": roles
+        },
+        body: JSON.stringify({ type: "action", id: "save-profile" })
+      }, runtime);
+
+      expect((await invoke("viewer")).status).toBe(403);
+      expect((await invoke("viewer,editor")).status).toBe(200);
+    } finally {
+      await runtime.dispose?.();
+    }
+  });
 });
+
+function identityRuntime(identity: PublicIdentity) {
+  return createExactServerRuntime({
+    manifest: exactManifest,
+    actions: {
+      "save-profile": () => ({ state: { saved: true } })
+    },
+    applicationContexts: [[ServerBrandContext, {
+      value: {
+        publicBrand: () => identity.brand
+      }
+    }]],
+    requestContexts: ({ request }) => {
+      const configured = request?.headers.get("x-roles");
+      const roles = configured === null || configured === undefined
+        ? identity.roles
+        : configured.split(",").map(role => role.trim()).filter(Boolean);
+      return [[ServerAuthorizationContext, {
+        value: {
+          roles: () => roles
+        }
+      }]];
+    },
+    authorize: async (_request, _input, context) => {
+      const authorization = await context.contexts!.get(ServerAuthorizationContext);
+      return authorization.roles().includes("editor");
+    }
+  });
+}

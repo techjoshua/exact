@@ -814,6 +814,9 @@ The completed design must maintain these invariants:
 - Component providers may derive their values from visible application/request
   contexts, but contexts published by components always retain component
   lifetime. Only the server runtime establishes application/request scope.
+- Generic policy manifest version 1 records residency/secrecy subjects and
+  propagation, receipt, projection, and transfer flows. Conflicting imported
+  policies for the same global context token are build errors.
 
 ## Open Design Questions
 
@@ -824,7 +827,6 @@ The following policy details remain open:
 - How much implicit-flow analysis is required outside VNode and serialization control flow.
 - How generic return policies are expressed when a method can return either ordinary or secret-qualified data.
 - Whether server-kept VNode dependencies always create refreshable server boundaries or may remain static SSR-only output.
-- How policy metadata composes when multiple imported manifests describe the same global context token.
 
 ## Recommended Initial Slice
 

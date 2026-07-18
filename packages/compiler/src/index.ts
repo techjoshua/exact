@@ -93,6 +93,12 @@ import { analyzeExactAnnotations } from "./annotations.js";
 import { applyCompilerPlugins, validateImportedPluginRegistries } from "./plugins.js";
 import { analyzeModuleImports } from "./assets.js";
 import { collectRawHtmlCapabilities } from "./capabilities.js";
+import {
+  analyzeExactPolicyMetadata,
+  applyExactPolicyToCallables,
+  applyExactPolicyToTasks,
+  createExactPolicyManifest
+} from "./policy.js";
 
 export type * from "./types.js";
 export { preprocessPropPunning } from "./preprocess.js";
@@ -213,8 +219,22 @@ export function transformSource(source: string, options: TransformOptions = {}):
   const expressionDerived = analyzeExpressionDerived(expressionModule, provenance);
   const expressionWrites = analyzeExpressionWrites(expressionModule);
   const moduleImports = analyzeModuleImports(normalized, filename, options.assetRules);
-  const callableEffects = analyzeCallableEffects(expressionModule, semanticGraph, importedManifests, expressionWrites, moduleImports);
-  const expressionTasks = analyzeExpressionTasks(expressionModule, callableEffects);
+  const policyMetadata = analyzeExactPolicyMetadata(expressionModule, importedManifests);
+  const callableEffects = applyExactPolicyToCallables(
+    policyMetadata,
+    analyzeCallableEffects(
+      expressionModule,
+      semanticGraph,
+      importedManifests,
+      expressionWrites,
+      moduleImports,
+      policyMetadata.contextCallEffects
+    )
+  ).callables;
+  const expressionTasks = applyExactPolicyToTasks(
+    policyMetadata,
+    analyzeExpressionTasks(expressionModule, callableEffects)
+  ).tasks;
   const taskErrors = expressionTasks.diagnostics.filter(diagnostic => diagnostic.startsWith("error:"));
   if (taskErrors.length) {
     throw new Error(taskErrors.map(message => {
@@ -453,15 +473,29 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   const expressionSafety = analyzeExpressionSafety(expressionModule, provenance);
   const expressionWrites = analyzeExpressionWrites(expressionModule);
   const moduleImports = analyzeModuleImports(normalized, filename, options.assetRules);
-  const callableEffects = analyzeCallableEffects(expressionModule, semanticGraph, importedManifests, expressionWrites, moduleImports);
+  const policyMetadata = analyzeExactPolicyMetadata(expressionModule, importedManifests);
+  const rawCallableEffects = analyzeCallableEffects(
+    expressionModule,
+    semanticGraph,
+    importedManifests,
+    expressionWrites,
+    moduleImports,
+    policyMetadata.contextCallEffects
+  );
   const rawHtmlRequirements = collectRawHtmlCapabilities(sourceFile, filename, options.target ?? "default");
   manifestDiagnostics.push(...moduleImports.diagnostics);
   manifestDiagnostics.push(...rawHtmlCapabilityDiagnostics(rawHtmlRequirements, importedManifests, options));
-  for (const initializer of callableEffects.callables.filter(callable => callable.kind === "module-initializer")) {
+  for (const initializer of rawCallableEffects.callables.filter(callable => callable.kind === "module-initializer")) {
     if (initializer.effect === "mixed") manifestDiagnostics.push(`error: executable module initializer has indivisible browser and server effects (${effectDiagnosticPath(initializer, "mixed")})`);
     if (initializer.effect === "unknown") manifestDiagnostics.push(`error: executable module initializer depends on an opaque call or side-effect import (${effectDiagnosticPath(initializer, "unknown")})`);
   }
-  const expressionTasks = analyzeExpressionTasks(expressionModule, callableEffects);
+  const callablePolicyResult = applyExactPolicyToCallables(policyMetadata, rawCallableEffects);
+  const callableEffects = callablePolicyResult.callables;
+  manifestDiagnostics.push(...callablePolicyResult.diagnostics);
+  const expressionTasks = applyExactPolicyToTasks(
+    policyMetadata,
+    analyzeExpressionTasks(expressionModule, callableEffects)
+  ).tasks;
   manifestDiagnostics.push(...expressionTasks.diagnostics);
   manifestDiagnostics.push(...analyzeExactAnnotations(expressionModule).diagnostics.map(diagnostic => diagnostic.message));
   const expressionJsx = analyzeExpressionJsx(expressionModule, provenance, filename);
@@ -497,10 +531,16 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
   for (const binding of [...exportBindings.values()].sort((left, right) => left.exportedName.localeCompare(right.exportedName))) {
     const component = componentByName.get(binding.localName);
     const callable = callableEffects.callables.find(candidate => candidate.exportNames.includes(binding.exportedName));
+    const dataPolicy = policyMetadata.namedDeclarationPolicies.get(binding.localName)?.policy;
     exports.push({
       name: binding.exportedName,
       kind: component ? "component" : "value",
-      placement: component?.placement ?? (callable?.effect === "browser" || callable?.artifactTargets.length === 1 && callable.artifactTargets[0] === "client" ? "client" : callable?.effect === "server" || callable?.artifactTargets.length === 1 && callable.artifactTargets[0] === "server" ? "server" : callable?.effect === "neutral" ? "isomorphic" : "unknown")
+      placement: component?.placement
+        ?? (dataPolicy?.residency === "client" ? "client"
+          : dataPolicy?.residency === "server" ? "server"
+            : callable?.effect === "browser" || callable?.artifactTargets.length === 1 && callable.artifactTargets[0] === "client" ? "client"
+              : callable?.effect === "server" || callable?.artifactTargets.length === 1 && callable.artifactTargets[0] === "server" ? "server"
+                : callable?.effect === "neutral" ? "isomorphic" : "unknown")
     });
   }
   symbols.push(...createRootSymbols(filename, components, [...exportBindings.values()]));
@@ -538,6 +578,14 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
     }
     manifestDiagnostics.push(...component.diagnostics);
   }
+  const policyResult = createExactPolicyManifest(
+    filename,
+    policyMetadata,
+    components,
+    expressionComponents,
+    expressionTasks
+  );
+  manifestDiagnostics.push(...policyResult.diagnostics);
 
   assertUniqueIds("component", components.map(component => component.id));
   assertUniqueIds("symbol", symbols.map(symbol => symbol.id));
@@ -561,6 +609,7 @@ export function analyzeSource(source: string, options: TransformOptions = {}): E
     symbols,
     boundaries,
     callables: [...callableEffects.callables],
+    policy: policyResult.policy,
     ...(options.packageName ? { packageName: options.packageName } : {}),
     ...(rawHtmlRequirements.length ? { requiredCapabilities: { rawHtml: rawHtmlRequirements } } : {}),
     serverActions,

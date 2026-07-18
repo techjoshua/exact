@@ -94,6 +94,44 @@ export type ExactSourceMap = {
 
 export type ExactPlacement = "server" | "client" | "isomorphic" | "unknown";
 
+export type ExactPolicyResidency = "server" | "client" | "isomorphic";
+
+export type ExactDataPolicyIR = {
+  residency: ExactPolicyResidency;
+  secret: boolean;
+};
+
+export type ExactPolicySubjectIR = {
+  id: string;
+  kind: "declaration" | "field" | "parameter" | "return" | "state" | "context";
+  name: string;
+  path?: string;
+  componentId?: string;
+  callableId?: string;
+  parameterIndex?: number;
+  policy: ExactDataPolicyIR;
+  source: "annotation" | "context-option" | "inference" | "import";
+};
+
+export type ExactPolicyFlowKind = "propagation" | "receipt" | "projection" | "transfer";
+
+export type ExactPolicyFlowIR = {
+  id: string;
+  kind: ExactPolicyFlowKind;
+  from: string[];
+  to: string;
+  policy: ExactDataPolicyIR;
+  boundary?: "client-island" | "hydration" | "context" | "call" | "state";
+  authorized: boolean;
+  reason?: string;
+};
+
+export type ExactPolicyManifestIR = {
+  version: 1;
+  subjects: ExactPolicySubjectIR[];
+  flows: ExactPolicyFlowIR[];
+};
+
 export type ExactEnvironmentEffect = "neutral" | "browser" | "server" | "mixed" | "unknown";
 
 export type ExactEnvironmentEffectSourceIR = {
@@ -283,7 +321,7 @@ export type ExactArtifactManifest = {
 };
 
 export type ExactCompilerManifest = {
-  version: 4;
+  version: 5;
   filename: string;
   dependencies: string[];
   assets: ExactAssetDependencyIR[];
@@ -293,6 +331,7 @@ export type ExactCompilerManifest = {
   symbols: ExactSymbolIR[];
   boundaries: ExactBoundaryIR[];
   callables: ExactCallableSummaryIR[];
+  policy: ExactPolicyManifestIR;
   packageName?: string;
   requiredCapabilities?: {
     rawHtml: ExactRawHtmlCapabilityIR[];

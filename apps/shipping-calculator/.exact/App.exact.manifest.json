@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "filename": "src/App.tsx",
   "dependencies": [
     "client-runtime.ts",
@@ -9116,6 +9116,559 @@
       "contexts": []
     }
   ],
+  "policy": {
+    "version": 1,
+    "subjects": [
+      {
+        "id": "x-UCcMZ1txUptrH5uPFv8Gm",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.draft.preset",
+        "path": "draft.preset",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "x7YnSQZ9Uu8UFvZ0AXl-e95",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.draft.originZip",
+        "path": "draft.originZip",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "x8Q0TQnJDIadzvDguKAqoa-",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.draft.destinationZip",
+        "path": "draft.destinationZip",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "xA0LR5ipMTe3wPiV3hBVoo7",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.restored",
+        "path": "restored",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "xa3ZOEehLCQ1Zj48Rcr5B1z",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.draft.length",
+        "path": "draft.length",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "xAa3FqPkWjjyKpCOKVU9pMZ",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.draft.declaredValue",
+        "path": "draft.declaredValue",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "xecdpKAsEGwGYfepueTM3_E",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.draft.shipDate",
+        "path": "draft.shipDate",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "xEeYGRxS_mmfoAC-L8DHVB5",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.revision",
+        "path": "revision",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "xhiDeJkKp4QZ6PrJ88OycIW",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.error",
+        "path": "error",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "xhLGwIAcCRfcP89xPf3QmFz",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.draft.kind",
+        "path": "draft.kind",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "xjzzyQVLNdmCYA_aEFnQ7-A",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.draft.ounces",
+        "path": "draft.ounces",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "xKH0uNOvxarBSVbiio9AYFy",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.sort",
+        "path": "sort",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "xkNYrYBQ8gG0BcOGHClGKjj",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.draft.machinable",
+        "path": "draft.machinable",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "xOADqbTFHJZUZ7vDu2NwnPc",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.draft.height",
+        "path": "draft.height",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "xonXdACyqzXGrg-muZqasgN",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.draft.tracking",
+        "path": "draft.tracking",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "xRhfbKthTxst5vy1nKUeSdq",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.draft.width",
+        "path": "draft.width",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "xsigpgk7TVWQsA7e0XxRCPR",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.draft.insurance",
+        "path": "draft.insurance",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "xUH_Lu_3BDrz-eTGTgad6yi",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.draft.signature",
+        "path": "draft.signature",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "xUO0AwsQu8gQ8QaKH1241DG",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.draft.pounds",
+        "path": "draft.pounds",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "xwlbk99wYfgQ6uP42P73kHw",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.enabledFilters.includes",
+        "path": "enabledFilters.includes",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "xz6uEyiKTqrNaS9cc6Z0Itg",
+        "kind": "state",
+        "name": "CalculatorWorkspace.state.draft.residential",
+        "path": "draft.residential",
+        "componentId": "xbIHHZYsHdQaMqZO96Vu5es",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "source": "inference"
+      }
+    ],
+    "flows": [
+      {
+        "id": "x1yAC2Uk_FfCx90MBUHoir7",
+        "kind": "transfer",
+        "from": [
+          "xRhfbKthTxst5vy1nKUeSdq"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:1:draft.width",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "x6X4ru9H9X47TERLxKa1XVt",
+        "kind": "transfer",
+        "from": [
+          "xa3ZOEehLCQ1Zj48Rcr5B1z"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:1:draft.length",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "x8fnwN33VII-RW0Moj1vBNO",
+        "kind": "transfer",
+        "from": [
+          "xsigpgk7TVWQsA7e0XxRCPR"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:1:draft.insurance",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "x8ZHcrdCM0x7U_QwsT-Cdga",
+        "kind": "transfer",
+        "from": [
+          "xhLGwIAcCRfcP89xPf3QmFz"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:1:draft.kind",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "xASZ6CeR4Blo-lNfE3Tip6c",
+        "kind": "transfer",
+        "from": [
+          "x7YnSQZ9Uu8UFvZ0AXl-e95"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:1:draft.originZip",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "xDCHrp0nwd6NKQ1EHQzwS0J",
+        "kind": "transfer",
+        "from": [
+          "xKH0uNOvxarBSVbiio9AYFy"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:2:sort",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "xgRVf73JxBuRHeXRYK3iXWS",
+        "kind": "transfer",
+        "from": [
+          "xUO0AwsQu8gQ8QaKH1241DG"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:1:draft.pounds",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "xiqGSW-g36p5UshZ42ZV-9T",
+        "kind": "transfer",
+        "from": [
+          "xOADqbTFHJZUZ7vDu2NwnPc"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:1:draft.height",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "xjZqDo_lDZSmIXYNETDVGVg",
+        "kind": "transfer",
+        "from": [
+          "xhiDeJkKp4QZ6PrJ88OycIW"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:1:error",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "xkEjpXG3Dgw8JXS9kcpvGMz",
+        "kind": "transfer",
+        "from": [
+          "xwlbk99wYfgQ6uP42P73kHw"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:3:enabledFilters.includes",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "xld-hSAi6RxFOL8wfRucg-K",
+        "kind": "transfer",
+        "from": [
+          "xecdpKAsEGwGYfepueTM3_E"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:1:draft.shipDate",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "xmG_u-qVIsgKntl1Z7ycGQn",
+        "kind": "transfer",
+        "from": [
+          "xkNYrYBQ8gG0BcOGHClGKjj"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:1:draft.machinable",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "xP_kMnv9vcl8ORD2IjXGYC6",
+        "kind": "transfer",
+        "from": [
+          "xonXdACyqzXGrg-muZqasgN"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:1:draft.tracking",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "xqrpTKOXC2YxjEuRVqDSmxM",
+        "kind": "transfer",
+        "from": [
+          "xUH_Lu_3BDrz-eTGTgad6yi"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:1:draft.signature",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "xRGSp_0gqV06TiAqFQL5PMc",
+        "kind": "transfer",
+        "from": [
+          "x8Q0TQnJDIadzvDguKAqoa-"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:1:draft.destinationZip",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "xufWKVN8y3kDjKfgavwehjy",
+        "kind": "transfer",
+        "from": [
+          "xjzzyQVLNdmCYA_aEFnQ7-A"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:1:draft.ounces",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "xUkqYVntQ0HPxnsM_ownND-",
+        "kind": "transfer",
+        "from": [
+          "xz6uEyiKTqrNaS9cc6Z0Itg"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:1:draft.residential",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "xV6ZQe4X9sZBAs6I215_vSM",
+        "kind": "transfer",
+        "from": [
+          "x-UCcMZ1txUptrH5uPFv8Gm"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:1:draft.preset",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "xWIHxU2TTTeH6DbffOCR298",
+        "kind": "transfer",
+        "from": [
+          "xEeYGRxS_mmfoAC-L8DHVB5"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:1:revision",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "xY9CHUoq84Bh2DPVre2tKGP",
+        "kind": "transfer",
+        "from": [
+          "xAa3FqPkWjjyKpCOKVU9pMZ"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:1:draft.declaredValue",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "xZIZ3HbyLLK9c7dHtvWXjEE",
+        "kind": "transfer",
+        "from": [
+          "xA0LR5ipMTe3wPiV3hBVoo7"
+        ],
+        "to": "xbIHHZYsHdQaMqZO96Vu5es:client-island:1:restored",
+        "policy": {
+          "residency": "isomorphic",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      }
+    ]
+  },
   "serverActions": {
     "x7n-qfD5frolUHoQ4NHgbx3": {
       "id": "x7n-qfD5frolUHoQ4NHgbx3",
