@@ -12,6 +12,7 @@ import {
   createComponentInstance,
   createErrorReport,
   createTextVNode,
+  createVNode,
   getCellVNode,
   handleComponentError,
   isCellVNode,
@@ -26,6 +27,7 @@ import {
 import { flushSync, unwrap } from "@exact/reactive";
 import type { ExactPatch } from "@exact/server";
 import { boundaryPatch, diffBoundaryHtml, diffKeyedListItems } from "./diff.js";
+import { augmentDocumentBody } from "./document.js";
 import { escapeAttr, escapeText, voidElements } from "./html.js";
 import { jsonUnsafePath, renderHydrationScript, serializeHydrationPayload } from "./hydration.js";
 import {
@@ -158,7 +160,7 @@ export function renderToHydratableString(vnode: VNode, options: RenderToStringOp
   return {
     ...result,
     hydrationScript,
-    htmlWithHydration: `${result.html}${hydrationScript}`
+    htmlWithHydration: augmentDocumentBody(result.html, hydrationScript)
   };
 }
 
@@ -277,7 +279,7 @@ export async function renderToHydratableStringAsync(vnode: VNode, options: Rende
   return {
     ...result,
     hydrationScript,
-    htmlWithHydration: `${result.html}${hydrationScript}`
+    htmlWithHydration: augmentDocumentBody(result.html, hydrationScript)
   };
 }
 
@@ -673,26 +675,50 @@ function* renderVNodeChunks(
     // Construction is recoverable before bytes are emitted. Once a component
     // starts streaming, descendant failures fail the stream rather than
     // appending fallback HTML after an already-emitted partial boundary.
-    yield* marked(componentId, function* () {
+    const rendered = function* () {
       for (const child of children) yield* renderChildChunks(context, child, childParent, depth + 1);
-    });
+    };
+    if (context.documentProbe && context.hostStack.length === 0) {
+      yield* renderRootComponentChunks(context, componentId, rendered());
+    } else {
+      yield* marked(componentId, rendered);
+    }
     return;
   }
 
-  const tag = String(vnode.type);
-  const hostProps = reactHostProps(context, vnode);
-  registerReactImagePreload(context, tag, hostProps);
-  yield `<${tag}${renderAttrs(hostProps, context.reactMarkup, tag)}${context.reactMarkup && voidElements.has(tag) ? "/" : ""}>`;
-  if (voidElements.has(tag)) return;
-  const raw = reactHostContent(context, vnode);
-  if (raw !== undefined) yield raw;
-  else {
-    const previousSelect = context.reactSelectValue;
-    if (context.reactMarkup && tag === "select") context.reactSelectValue = unwrap(vnode.props.value ?? vnode.props.defaultValue);
-    try { for (const child of vnode.children) yield* renderChildChunks(context, child, parent, depth + 1); }
-    finally { context.reactSelectValue = previousSelect; }
+  const host = enterHost(context, vnode);
+  const hostVNode = host.vnode;
+  const tag = host.tag;
+  try {
+    const hostProps = reactHostProps(context, hostVNode);
+    registerReactImagePreload(context, tag, hostProps);
+    yield `${host.prefix}<${tag}${renderAttrs(hostProps, context.reactMarkup, tag)}${context.reactMarkup && voidElements.has(tag) ? "/" : ""}>`;
+    if (voidElements.has(tag)) return;
+    const raw = reactHostContent(context, hostVNode);
+    if (raw !== undefined) yield raw;
+    else {
+      const previousSelect = context.reactSelectValue;
+      if (context.reactMarkup && tag === "select") context.reactSelectValue = unwrap(hostVNode.props.value ?? hostVNode.props.defaultValue);
+      try { for (const child of hostVNode.children) yield* renderChildChunks(context, child, parent, depth + 1); }
+      finally { context.reactSelectValue = previousSelect; }
+    }
+    yield `</${tag}>`;
+  } finally {
+    leaveHost(context, tag);
   }
-  yield `</${tag}>`;
+}
+
+function* renderRootComponentChunks(
+  context: SsrContext,
+  componentId: string,
+  rendered: Generator<string>
+): Generator<string> {
+  const first = rendered.next();
+  const document = context.documentRootSeen;
+  if (!document && context.markers) yield `<!--exact:${componentId}-->`;
+  if (!first.done) yield first.value;
+  yield* rendered;
+  if (!document && context.markers) yield `<!--/exact:${componentId}-->`;
 }
 
 function* renderChildChunks(
@@ -705,6 +731,7 @@ function* renderChildChunks(
   else {
     countSsrNode(context);
     if (child === null || child === undefined || child === false || child === true) return;
+    claimRootText(context);
     yield escapeText(String(unwrap(child)));
   }
 }
@@ -727,6 +754,7 @@ function renderChild(context: SsrContext, child: Child, parent?: ComponentInstan
   if (isVNode(child)) return renderVNode(context, child, parent);
   countSsrNode(context);
   if (child === null || child === undefined || child === false || child === true) return "";
+  claimRootText(context);
   return escapeText(String(unwrap(child)));
 }
 
@@ -816,6 +844,7 @@ async function renderChildAsync(
   if (isVNode(child)) return renderVNodeAsync(context, child, parent, options);
   countSsrNode(context);
   if (child === null || child === undefined || child === false || child === true) return "";
+  claimRootText(context);
   return escapeText(String(unwrap(child)));
 }
 
@@ -885,49 +914,58 @@ async function renderVNodeAsyncInner(
     return renderComponentAsync(context, vnode, parent, options);
   }
 
-  const tag = String(vnode.type);
-  const hostProps = reactHostProps(context, vnode);
-  registerReactImagePreload(context, tag, hostProps);
-  const attrs = renderAttrs(hostProps, context.reactMarkup, tag);
-  if (voidElements.has(tag)) return `<${tag}${attrs}${context.reactMarkup ? "/" : ""}>`;
-  const raw = reactHostContent(context, vnode);
-  let content: string;
-  if (raw !== undefined) content = raw;
-  else {
-    const previousSelect = context.reactSelectValue;
-    if (context.reactMarkup && tag === "select") context.reactSelectValue = unwrap(vnode.props.value ?? vnode.props.defaultValue);
-    try { content = await renderChildrenAsync(context, vnode.children, parent, options); }
-    finally { context.reactSelectValue = previousSelect; }
+  const host = enterHost(context, vnode);
+  const hostVNode = host.vnode;
+  const tag = host.tag;
+  try {
+    const hostProps = reactHostProps(context, hostVNode);
+    registerReactImagePreload(context, tag, hostProps);
+    const attrs = renderAttrs(hostProps, context.reactMarkup, tag);
+    if (voidElements.has(tag)) return `${host.prefix}<${tag}${attrs}${context.reactMarkup ? "/" : ""}>`;
+    const raw = reactHostContent(context, hostVNode);
+    let content: string;
+    if (raw !== undefined) content = raw;
+    else {
+      const previousSelect = context.reactSelectValue;
+      if (context.reactMarkup && tag === "select") context.reactSelectValue = unwrap(hostVNode.props.value ?? hostVNode.props.defaultValue);
+      try { content = await renderChildrenAsync(context, hostVNode.children, parent, options); }
+      finally { context.reactSelectValue = previousSelect; }
+    }
+    return `${host.prefix}<${tag}${attrs}>${content}</${tag}>`;
+  } finally {
+    leaveHost(context, tag);
   }
-  return `<${tag}${attrs}>${content}</${tag}>`;
 }
 
 function renderComponent(context: SsrContext, vnode: VNode, parent?: ComponentInstance<any>): string {
   const componentId = markerId(context, "component", componentName(vnode.type), vnode.key);
+  const documentProbe = context.documentProbe && context.hostStack.length === 0;
   try {
     const instance = createComponentInstance(
       vnode.type as ComponentFunction<any, Record<string, unknown>>,
       getComponentProps(vnode),
       parent
     );
-    return markerPair(context, componentId, () => {
-      let invalidated = false;
-      for (let pass = 0; pass < 25; pass++) {
-        invalidated = false;
-        const children = renderInstance(instance, () => { invalidated = true; });
-        const html = renderChildren(context, children, instance);
-        flushSync();
-        if (!invalidated) return html;
-      }
-      throw new Error("eXact SSR component did not stabilize after 25 render passes");
-    });
+    let invalidated = false;
+    for (let pass = 0; pass < 25; pass++) {
+      if (documentProbe) resetDocumentProbe(context);
+      invalidated = false;
+      const children = renderInstance(instance, () => { invalidated = true; });
+      const html = renderChildren(context, children, instance);
+      flushSync();
+      if (!invalidated) return documentProbe && context.documentRootSeen
+        ? html
+        : markerPair(context, componentId, () => html);
+    }
+    throw new Error("eXact SSR component did not stabilize after 25 render passes");
   } catch (error) {
     if (isSsrRenderLimitError(error)) throw error;
     const fallback = handleComponentError(
       parent,
       createErrorReport(error, "construct", parent, componentName(vnode.type))
     );
-    return markerPair(context, componentId, () => fallback ? renderChildren(context, normalizeRenderResult(fallback()), parent) : "");
+    const html = fallback ? renderChildren(context, normalizeRenderResult(fallback()), parent) : "";
+    return documentProbe && context.documentRootSeen ? html : markerPair(context, componentId, () => html);
   }
 }
 
@@ -938,6 +976,7 @@ async function renderComponentAsync(
   options: SsrRenderOptions
 ): Promise<string> {
   const componentId = markerId(context, "component", componentName(vnode.type), vnode.key);
+  const documentProbe = context.documentProbe && context.hostStack.length === 0;
   let instance: ComponentInstance<any> | undefined;
   let primary: unknown = noPrimaryFailure;
   try {
@@ -957,26 +996,28 @@ async function renderComponentAsync(
         parent
       ));
       await drainTasks(pending, options.maxTaskPasses ?? 10, options.signal, options.taskDeadline);
-      return await markerPair(context, componentId, async () => {
-        let invalidated = false;
-        const maxPasses = options.maxTaskPasses ?? 10;
-        for (let pass = 0; pass < maxPasses; pass++) {
-          invalidated = false;
-          const children = renderInstance(instance!, () => { invalidated = true; });
-          const html = await renderChildrenAsync(context, children, instance, options);
-          await drainTasks(pending, maxPasses, options.signal, options.taskDeadline);
-          flushSync();
-          if (!invalidated) return html;
-        }
-        throw new Error(`eXact async SSR component did not stabilize after ${maxPasses} render passes`);
-      });
+      let invalidated = false;
+      const maxPasses = options.maxTaskPasses ?? 10;
+      for (let pass = 0; pass < maxPasses; pass++) {
+        if (documentProbe) resetDocumentProbe(context);
+        invalidated = false;
+        const children = renderInstance(instance!, () => { invalidated = true; });
+        const html = await renderChildrenAsync(context, children, instance, options);
+        await drainTasks(pending, maxPasses, options.signal, options.taskDeadline);
+        flushSync();
+        if (!invalidated) return documentProbe && context.documentRootSeen
+          ? html
+          : markerPair(context, componentId, () => html);
+      }
+      throw new Error(`eXact async SSR component did not stabilize after ${maxPasses} render passes`);
     } catch (error) {
       if (isSsrRenderInterruption(error, options.signal)) throw error;
       const fallback = handleComponentError(
         parent,
         createErrorReport(error, "construct", parent, componentName(vnode.type))
       );
-      return await markerPair(context, componentId, async () => fallback ? renderChildrenAsync(context, normalizeRenderResult(fallback()), parent, options) : "");
+      const html = fallback ? await renderChildrenAsync(context, normalizeRenderResult(fallback()), parent, options) : "";
+      return documentProbe && context.documentRootSeen ? html : markerPair(context, componentId, () => html);
     }
   } catch (error) {
     primary = error;
@@ -1027,21 +1068,135 @@ function disposePreservingPrimary(dispose: () => void, primary: unknown): void {
 }
 
 function renderElement(context: SsrContext, vnode: VNode, parent?: ComponentInstance<any>): string {
-  const tag = String(vnode.type);
-  const hostProps = reactHostProps(context, vnode);
-  registerReactImagePreload(context, tag, hostProps);
-  const attrs = renderAttrs(hostProps, context.reactMarkup, tag);
-  if (voidElements.has(tag)) return `<${tag}${attrs}${context.reactMarkup ? "/" : ""}>`;
-  const raw = reactHostContent(context, vnode);
-  let content: string;
-  if (raw !== undefined) content = raw;
-  else {
-    const previousSelect = context.reactSelectValue;
-    if (context.reactMarkup && tag === "select") context.reactSelectValue = unwrap(vnode.props.value ?? vnode.props.defaultValue);
-    try { content = renderChildren(context, vnode.children, parent); }
-    finally { context.reactSelectValue = previousSelect; }
+  const host = enterHost(context, vnode);
+  const hostVNode = host.vnode;
+  const tag = host.tag;
+  try {
+    const hostProps = reactHostProps(context, hostVNode);
+    registerReactImagePreload(context, tag, hostProps);
+    const attrs = renderAttrs(hostProps, context.reactMarkup, tag);
+    if (voidElements.has(tag)) return `${host.prefix}<${tag}${attrs}${context.reactMarkup ? "/" : ""}>`;
+    const raw = reactHostContent(context, hostVNode);
+    let content: string;
+    if (raw !== undefined) content = raw;
+    else {
+      const previousSelect = context.reactSelectValue;
+      if (context.reactMarkup && tag === "select") context.reactSelectValue = unwrap(hostVNode.props.value ?? hostVNode.props.defaultValue);
+      try { content = renderChildren(context, hostVNode.children, parent); }
+      finally { context.reactSelectValue = previousSelect; }
+    }
+    return `${host.prefix}<${tag}${attrs}>${content}</${tag}>`;
+  } finally {
+    leaveHost(context, tag);
   }
-  return `<${tag}${attrs}>${content}</${tag}>`;
+}
+
+function enterHost(context: SsrContext, input: VNode): { vnode: VNode; tag: string; prefix: string } {
+  let vnode = input;
+  const tag = String(vnode.type).toLowerCase();
+  const parentTag = context.hostStack[context.hostStack.length - 1];
+
+  if (tag === "html") {
+    if (!context.documentProbe || context.hostStack.length || context.documentRootSeen) {
+      throw new Error("A root document may contain exactly one top-level <html> element; nested or duplicate <html> elements are not allowed.");
+    }
+    vnode = normalizeDocumentHtmlVNode(vnode);
+    context.documentProbe = false;
+    context.documentRootSeen = true;
+  } else if (!context.hostStack.length) {
+    if (context.documentRootSeen) {
+      throw new Error("A root document cannot render host content outside its <html> element.");
+    }
+    context.documentProbe = false;
+  }
+
+  if (context.documentRootSeen && (tag === "head" || tag === "body")) {
+    if (parentTag !== "html") {
+      throw new Error(`<${tag}> is only valid as a direct child of the root <html> element.`);
+    }
+    if (tag === "head") {
+      if (context.documentHeadSeen) throw new Error("A root document may contain at most one <head> element.");
+      context.documentHeadSeen = true;
+    } else {
+      if (context.documentBodySeen) throw new Error("A root document may contain at most one <body> element.");
+      context.documentBodySeen = true;
+    }
+  }
+
+  context.hostStack.push(tag);
+  return { vnode, tag, prefix: tag === "html" && context.documentRootSeen ? "<!doctype html>" : "" };
+}
+
+function leaveHost(context: SsrContext, tag: string): void {
+  const current = context.hostStack.pop();
+  if (current !== tag) throw new Error("eXact SSR host traversal became unbalanced.");
+}
+
+function claimRootText(context: SsrContext): void {
+  if (context.hostStack.length) return;
+  if (context.documentRootSeen) throw new Error("A root document cannot render text outside its <html> element.");
+  context.documentProbe = false;
+}
+
+function resetDocumentProbe(context: SsrContext): void {
+  context.documentProbe = true;
+  context.documentRootSeen = false;
+  context.documentHeadSeen = false;
+  context.documentBodySeen = false;
+  context.hostStack.length = 0;
+}
+
+function normalizeDocumentHtmlVNode(vnode: VNode): VNode {
+  const children = vnode.children.filter(child => child !== null && child !== undefined && child !== false && child !== true);
+  const heads: VNode[] = [];
+  const bodies: VNode[] = [];
+  const loose: Child[] = [];
+
+  for (const child of children) {
+    if (isVNode(child) && typeof child.type === "string") {
+      const tag = child.type.toLowerCase();
+      if (tag === "html") throw new Error("A root document cannot contain a nested <html> element.");
+      if (tag === "head") {
+        heads.push(child);
+        continue;
+      }
+      if (tag === "body") {
+        bodies.push(child);
+        continue;
+      }
+    }
+    loose.push(child);
+  }
+
+  if (heads.length > 1) throw new Error("A root document may contain at most one direct <head> element.");
+  if (bodies.length > 1) throw new Error("A root document may contain at most one direct <body> element.");
+  if (bodies.length && loose.length) {
+    throw new Error("Root <html> children outside an authored <head> or <body> are ambiguous; move them into <body>.");
+  }
+
+  const head = heads[0] ?? createVNode("head", null);
+  const body = bodies[0] ?? createVNode("body", null, ...loose);
+  const normalized: Child[] = [];
+  let insertedHead = false;
+  let insertedBody = false;
+
+  for (const child of children) {
+    if (isVNode(child) && child === heads[0]) {
+      normalized.push(head);
+      insertedHead = true;
+    } else if (isVNode(child) && child === bodies[0]) {
+      normalized.push(body);
+      insertedBody = true;
+    } else if (!bodies.length && loose.includes(child)) {
+      if (!insertedBody) {
+        normalized.push(body);
+        insertedBody = true;
+      }
+    }
+  }
+  if (!insertedHead) normalized.unshift(head);
+  if (!insertedBody) normalized.push(body);
+  return { ...vnode, children: normalized };
 }
 
 function reactHostContent(context: SsrContext, vnode: VNode): string | undefined {
@@ -1254,7 +1409,12 @@ function createSsrContext(options: RenderToStringOptions): SsrContext {
     reactResourceHints: [],
     reactResourceKeys: new Set(),
     allowUnsafeHtml: options.allowUnsafeHtml ?? false,
-    onUnsafeHtml: options.onUnsafeHtml
+    onUnsafeHtml: options.onUnsafeHtml,
+    documentProbe: true,
+    documentRootSeen: false,
+    documentHeadSeen: false,
+    documentBodySeen: false,
+    hostStack: []
   };
 }
 

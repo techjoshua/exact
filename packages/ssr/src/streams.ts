@@ -1,4 +1,5 @@
 import { escapeAttr } from "./html.js";
+import { augmentDocumentBody, isExactDocumentHtml } from "./document.js";
 import { attachSuppressedCleanupFailure, attemptCleanup, createCleanupFailure, logFrameworkEvent, throwCleanupFailure } from "@exact/core";
 import type {
   ExactDocumentStreamEvent,
@@ -176,6 +177,7 @@ export function createProgressiveHtmlStream(render: ProgressiveDocumentStreamRen
   const maxBytes = positiveLimit(options.maxStreamBytes, 16 * 1024 * 1024);
   let events = 0;
   let bytes = 0;
+  const documentState: ProgressiveDocumentState = {};
   const wake = () => { const ready = resume; resume = undefined; ready?.(); };
   abortController.signal.addEventListener("abort", wake, { once: true });
   const cleanup = () => cleanupAll(
@@ -200,7 +202,7 @@ export function createProgressiveHtmlStream(render: ProgressiveDocumentStreamRen
         controller.enqueue(encoded);
       };
       Promise.resolve(render(streamOptions, async event => {
-        const chunk = progressiveHtmlChunk(event, streamOptions);
+        const chunk = progressiveHtmlChunk(event, streamOptions, documentState);
         if (chunk) await emit(chunk);
         else await waitForDemand();
       }))
@@ -280,17 +282,46 @@ export function progressiveHtmlResponse(stream: ReadableStream<Uint8Array>, opti
   };
 }
 
-function progressiveHtmlChunk(event: ExactDocumentStreamEvent, options: RenderToProgressiveHtmlStreamOptions): string {
+type ProgressiveDocumentState = {
+  html?: string;
+  hydration?: string;
+};
+
+function progressiveHtmlChunk(
+  event: ExactDocumentStreamEvent,
+  options: RenderToProgressiveHtmlStreamOptions,
+  document: ProgressiveDocumentState
+): string {
   switch (event.event) {
     case "start":
-    case "complete":
       return "";
-    case "shell":
+    case "shell": {
+      if (isExactDocumentHtml(event.html)) {
+        document.html = event.html;
+        return "";
+      }
       return `<div id="${escapeAttr(progressiveRootId(options))}">${event.html}</div>`;
+    }
     case "replace":
+      if (document.html !== undefined) {
+        document.html = event.html;
+        return "";
+      }
       return scopedReplacementScript(event.id, event.html, options);
     case "hydration":
+      if (document.html !== undefined) {
+        document.hydration = event.html;
+        return "";
+      }
       return event.html;
+    case "complete":
+      if (document.html !== undefined) {
+        const html = augmentDocumentBody(document.html, document.hydration ?? "");
+        document.html = undefined;
+        document.hydration = undefined;
+        return html;
+      }
+      return "";
     case "error":
       return inlineScript(`console.error("eXact document stream failed");`, options);
   }

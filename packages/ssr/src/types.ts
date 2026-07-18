@@ -193,6 +193,12 @@ export type SsrContext = {
   reactSelectValue?: unknown;
   allowUnsafeHtml: boolean;
   onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
+  /** True until the first root host/text output determines document mode. */
+  documentProbe: boolean;
+  documentRootSeen: boolean;
+  documentHeadSeen: boolean;
+  documentBodySeen: boolean;
+  hostStack: string[];
 };
 
 export type { Child, ComponentFunction, ComponentInstance, Logger, TaskObserver, VNode };

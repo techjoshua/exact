@@ -66,6 +66,76 @@ describe("native rendering safety", () => {
       "referrerpolicy=\"no-referrer\" fetchpriority=\"low\">globalThis.tracked = '</not-a-tag>';</script>"
     );
   });
+
+  it("normalizes a document returned through a root component", () => {
+    function Document(this: Component<Record<string, never>>) {
+      return () => createVNode("html", { lang: "en" },
+        createVNode("head", null, createVNode("title", null, "Exact")),
+        createVNode("body", null, createVNode("main", null, "ready"))
+      );
+    }
+
+    const result = renderToString(createVNode(Document, null));
+    expect(result.html).toBe(
+      "<!doctype html><html lang=\"en\"><head><title>Exact</title></head>" +
+      "<body><main>ready</main></body></html>"
+    );
+  });
+
+  it("synthesizes unambiguous missing document regions", () => {
+    expect(renderToString(createVNode("html", null, createVNode("main", null, "ready")), { markers: false }).html)
+      .toBe("<!doctype html><html><head></head><body><main>ready</main></body></html>");
+    expect(renderToString(createVNode("html", null, createVNode("head", null)), { markers: false }).html)
+      .toBe("<!doctype html><html><head></head><body></body></html>");
+  });
+
+  it("rejects duplicate, nested, and ambiguous document structure", () => {
+    expect(() => renderToString(createVNode("html", null,
+      createVNode("head", null),
+      createVNode("head", null)
+    ))).toThrow(/at most one direct <head>/);
+    expect(() => renderToString(createVNode("div", null, createVNode("html", null))))
+      .toThrow(/nested or duplicate <html>/);
+    expect(() => renderToString(createVNode("html", null,
+      createVNode("body", null),
+      createVNode("main", null)
+    ))).toThrow(/ambiguous/);
+  });
+
+  it("places framework hydration data inside the normalized body region", () => {
+    const result = renderToHydratableString(createVNode("html", null,
+      createVNode("head", null),
+      createVNode("body", null, createVNode("main", null, "ready"))
+    ));
+    expect(result.htmlWithHydration).toContain(
+      "<main>ready</main><!--exact:framework-body:start--><script type=\"application/json\""
+    );
+    expect(result.htmlWithHydration).toMatch(
+      /<!--exact:framework-body:end--><\/body><\/html>$/
+    );
+  });
+
+  it("keeps the doctype first when a document streams through component layers", async () => {
+    function Inner(this: Component<Record<string, never>>) {
+      return () => createVNode("html", null, createVNode("body", null, "streamed"));
+    }
+    function Outer(this: Component<Record<string, never>>) {
+      return () => createVNode(Inner, null);
+    }
+
+    const html = await readStreamText(renderToStream(createVNode(Outer, null)));
+    expect(html).toBe("<!doctype html><html><head></head><body>streamed</body></html>");
+  });
+
+  it("keeps progressive document output structurally valid through hydration augmentation", async () => {
+    const html = await readStreamText(renderToHydratableProgressiveHtmlStream(
+      createVNode("html", null, createVNode("body", null, "progressive"))
+    ));
+    expect(html.startsWith("<!doctype html><html>")).toBe(true);
+    expect(html).toContain("<body>progressive<!--exact:framework-body:start-->");
+    expect(html.endsWith("<!--exact:framework-body:end--></body></html>")).toBe(true);
+    expect(html).not.toContain("<div id=\"exact-root\"><!doctype");
+  });
 });
 
 async function readStreamEvent(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<any> {
