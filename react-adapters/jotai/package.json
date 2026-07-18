@@ -26,8 +26,9 @@
       "schemaVersion": 1,
       "substitutions": {
         "jotai": {
-          "version": ">=2 <3",
-          "exports": {
+          "variants": [{
+            "version": ">=2 <3",
+            "exports": {
             "atom": { "subpath": ".", "export": "atom" },
             "createStore": { "subpath": ".", "export": "createStore" },
             "getDefaultStore": { "subpath": ".", "export": "getDefaultStore" },
@@ -36,7 +37,8 @@
             "useAtom": { "subpath": "./react", "export": "useAtom" },
             "useAtomValue": { "subpath": "./react", "export": "useAtomValue" },
             "useSetAtom": { "subpath": "./react", "export": "useSetAtom" }
-          }
+            }
+          }]
         }
       }
     }

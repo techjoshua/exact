@@ -12,10 +12,12 @@ only target its own public exports.
       "schemaVersion": 1,
       "substitutions": {
         "some-react-binding": {
-          "version": ">=1 <2",
-          "exports": {
-            "Provider": { "subpath": "./react", "export": "Provider" }
-          }
+          "variants": [{
+            "version": ">=1 <2",
+            "exports": {
+              "Provider": { "subpath": "./react", "export": "Provider" }
+            }
+          }]
         }
       }
     }
@@ -23,7 +25,9 @@ only target its own public exports.
 }
 ```
 
-The source must be a bare, non-framework package specifier; every source export
+The source must be a bare, non-framework package specifier. Variants are
+ordered, must have non-overlapping semantic-version ranges, and are selected
+from the actual source package instance resolved from the importer. Every source export
 and target export is explicit. The target subpath must appear in the declaring
 adapter's `exports` map. Native root modules should depend only on the
 framework-neutral source core. Put compatibility-facing wrappers in isolated

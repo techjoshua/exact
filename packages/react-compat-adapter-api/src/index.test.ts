@@ -13,10 +13,12 @@ const validManifest = {
       schemaVersion: 1,
       substitutions: {
         "@tanstack/react-query": {
-          version: ">=5 <6",
-          exports: {
-            QueryClientProvider: { subpath: "./provider", export: "QueryClientProvider" }
-          }
+          variants: [{
+            version: ">=5 <6",
+            exports: {
+              QueryClientProvider: { subpath: "./provider", export: "QueryClientProvider" }
+            }
+          }]
         }
       }
     }
@@ -25,7 +27,7 @@ const validManifest = {
 
 describe("React compatibility adapter protocol", () => {
   it("parses inert owned-export metadata", () => {
-    expect(readReactCompatAdapterDeclaration(validManifest)?.substitutions["@tanstack/react-query"]?.exports.QueryClientProvider)
+    expect(readReactCompatAdapterDeclaration(validManifest)?.substitutions["@tanstack/react-query"]?.variants[0]?.exports.QueryClientProvider)
       .toEqual({ subpath: "./provider", export: "QueryClientProvider" });
     expect(packageDirectlyDependsOnAdapterMarker(validManifest)).toBe(true);
   });
@@ -37,7 +39,7 @@ describe("React compatibility adapter protocol", () => {
     delete reserved.exact.reactCompatibility.substitutions["@tanstack/react-query"];
     expect(() => readReactCompatAdapterDeclaration(reserved)).toThrow(/reserved framework package react/);
     const target = mutate();
-    target.exact.reactCompatibility.substitutions["@tanstack/react-query"].exports.QueryClientProvider.package = "elsewhere";
+    target.exact.reactCompatibility.substitutions["@tanstack/react-query"].variants[0].exports.QueryClientProvider.package = "elsewhere";
     expect(() => readReactCompatAdapterDeclaration(target)).toThrow(/unsupported field/);
     const ignored = mutate();
     ignored.exact.reactCompatibility.ignoreAdapters = ["@example/other"];

@@ -11,7 +11,12 @@ export interface ReactCompatReplacementDeclaration {
 }
 
 export interface ReactCompatSourceDeclaration {
-  /** Supported versions of the source React package. */
+  /** Ordered, non-overlapping implementations selected from the resolved source instance. */
+  readonly variants: readonly ReactCompatSourceVariantDeclaration[];
+}
+
+export interface ReactCompatSourceVariantDeclaration {
+  /** Supported versions of the resolved source package instance. */
   readonly version: string;
   /** Explicit source export names and their native eXact replacements. */
   readonly exports: Readonly<Record<string, ReactCompatReplacementDeclaration>>;
@@ -58,22 +63,31 @@ export function readReactCompatAdapterDeclaration(
   for (const [sourceModule, rawSource] of Object.entries(substitutions)) {
     assertSourceModule(sourceModule, label);
     const source = requiredRecord(rawSource, `${label} substitution ${sourceModule}`);
-    assertOnlyKeys(source, ["version", "exports"], `${label} substitution ${sourceModule}`);
-    const version = requiredString(source.version, `${label} substitution ${sourceModule}.version`);
-    const exports = requiredRecord(source.exports, `${label} substitution ${sourceModule}.exports`);
-    if (!Object.keys(exports).length) throw new Error(`${label} substitution ${sourceModule} must declare at least one export`);
-    const parsedExports: Record<string, ReactCompatReplacementDeclaration> = {};
-    for (const [sourceExport, rawReplacement] of Object.entries(exports)) {
-      assertExportName(sourceExport, `${label} source export`);
-      const replacement = requiredRecord(rawReplacement, `${label} replacement for ${sourceModule}.${sourceExport}`);
-      assertOnlyKeys(replacement, ["subpath", "export"], `${label} replacement for ${sourceModule}.${sourceExport}`);
-      const subpath = requiredString(replacement.subpath, `${label} replacement subpath`);
-      assertPublicSubpath(subpath, label);
-      const exportName = requiredString(replacement.export, `${label} replacement export`);
-      assertExportName(exportName, `${label} replacement export`);
-      parsedExports[sourceExport] = Object.freeze({ subpath: subpath as ReactCompatReplacementDeclaration["subpath"], export: exportName });
+    assertOnlyKeys(source, ["variants"], `${label} substitution ${sourceModule}`);
+    if (!Array.isArray(source.variants) || !source.variants.length) {
+      throw new Error(`${label} substitution ${sourceModule}.variants must be a non-empty array`);
     }
-    parsed[sourceModule] = Object.freeze({ version, exports: Object.freeze(parsedExports) });
+    const variants = source.variants.map((rawVariant, variantIndex) => {
+      const variantLabel = `${label} substitution ${sourceModule}.variants[${variantIndex}]`;
+      const variant = requiredRecord(rawVariant, variantLabel);
+      assertOnlyKeys(variant, ["version", "exports"], variantLabel);
+      const version = requiredString(variant.version, `${variantLabel}.version`);
+      const exports = requiredRecord(variant.exports, `${variantLabel}.exports`);
+      if (!Object.keys(exports).length) throw new Error(`${variantLabel} must declare at least one export`);
+      const parsedExports: Record<string, ReactCompatReplacementDeclaration> = {};
+      for (const [sourceExport, rawReplacement] of Object.entries(exports)) {
+        assertExportName(sourceExport, `${label} source export`);
+        const replacement = requiredRecord(rawReplacement, `${variantLabel} replacement for ${sourceModule}.${sourceExport}`);
+        assertOnlyKeys(replacement, ["subpath", "export"], `${variantLabel} replacement for ${sourceModule}.${sourceExport}`);
+        const subpath = requiredString(replacement.subpath, `${variantLabel} replacement subpath`);
+        assertPublicSubpath(subpath, label);
+        const exportName = requiredString(replacement.export, `${variantLabel} replacement export`);
+        assertExportName(exportName, `${variantLabel} replacement export`);
+        parsedExports[sourceExport] = Object.freeze({ subpath: subpath as ReactCompatReplacementDeclaration["subpath"], export: exportName });
+      }
+      return Object.freeze({ version, exports: Object.freeze(parsedExports) });
+    });
+    parsed[sourceModule] = Object.freeze({ variants: Object.freeze(variants) });
   }
   return Object.freeze({ schemaVersion: reactCompatAdapterSchemaVersion, substitutions: Object.freeze(parsed) });
 }

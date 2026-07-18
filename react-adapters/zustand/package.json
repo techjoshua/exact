@@ -26,11 +26,13 @@
       "schemaVersion": 1,
       "substitutions": {
         "zustand": {
-          "version": ">=5 <6",
-          "exports": {
-            "createStore": { "subpath": ".", "export": "createStore" },
-            "useStore": { "subpath": "./react", "export": "useStore" }
-          }
+          "variants": [{
+            "version": ">=5 <6",
+            "exports": {
+              "createStore": { "subpath": ".", "export": "createStore" },
+              "useStore": { "subpath": "./react", "export": "useStore" }
+            }
+          }]
         }
       }
     }

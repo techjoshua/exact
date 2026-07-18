@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { satisfies, validRange } from "semver";
+import { intersects, satisfies, validRange } from "semver";
 import {
   packageDirectlyDependsOnAdapterMarker,
   dependencyRange,
@@ -27,6 +27,8 @@ export interface ReactCompatPackageGraph {
 }
 
 export interface ResolvedReactCompatReplacement extends ReactCompatReplacementDeclaration {
+  readonly sourceInstance: string;
+  readonly sourceLocation: string;
   readonly sourceModule: string;
   readonly sourcePackage: string;
   readonly sourceExport: string;
@@ -42,13 +44,30 @@ export interface ResolvedReactCompatAdapters {
   readonly ignoredAdapters: readonly string[];
 }
 
+/** Selects replacements using the package instance that the importer resolves. */
+export function replacementsForImporter(
+  graph: ReactCompatPackageGraph,
+  registry: ResolvedReactCompatAdapters,
+  importer: string
+): readonly ResolvedReactCompatReplacement[] {
+  const modules = new Set([...registry.replacements.values()].map(value => value.sourceModule));
+  const selected: ResolvedReactCompatReplacement[] = [];
+  for (const sourceModule of modules) {
+    const instance = resolveSourceInstance(graph, importer, packageNameFromBareSpecifier(sourceModule));
+    if (!instance) continue;
+    for (const replacement of registry.replacements.values()) {
+      if (replacement.sourceInstance === instance.id && replacement.sourceModule === sourceModule) selected.push(replacement);
+    }
+  }
+  return Object.freeze(selected);
+}
+
 /** Discovers reachable adapters and resolves their declarations into a conflict-free registry. */
 export function discoverReactCompatAdapters(graph: ReactCompatPackageGraph): ResolvedReactCompatAdapters {
   const root = graph.nodes.get(graph.rootId);
   if (!root) throw new Error(`React compatibility package graph root ${JSON.stringify(graph.rootId)} does not exist`);
   const ignored = new Set(readReactCompatApplicationPolicy(root.manifest, `${root.location}/package.json`).ignoreAdapters ?? []);
   const reachable = reachableNodes(graph);
-  const sourceVersions = collectSourceVersions(reachable);
   const replacements = new Map<string, ResolvedReactCompatReplacement>();
   const adapters: string[] = [];
   const candidates = [...reachable]
@@ -80,34 +99,43 @@ export function discoverReactCompatAdapters(graph: ReactCompatPackageGraph): Res
     adapters.push(name);
     for (const [sourceModule, source] of Object.entries(declaration.substitutions)) {
       const sourcePackage = packageNameFromBareSpecifier(sourceModule);
-      if (!validRange(source.version)) throw new Error(`React compatibility adapter ${name} declares invalid source range ${JSON.stringify(source.version)} for ${sourcePackage}`);
-      for (const installedVersion of sourceVersions.get(sourcePackage) ?? []) {
-        if (!satisfies(installedVersion, source.version, { includePrerelease: true })) {
-          throw new Error(`React compatibility adapter ${name}@${packageVersion(node)} supports ${sourcePackage} ${source.version}, but build root ${root.location} reaches ${sourcePackage}@${installedVersion}`);
+      for (const [index, variant] of source.variants.entries()) {
+        if (!validRange(variant.version)) throw new Error(`React compatibility adapter ${name} declares invalid source range ${JSON.stringify(variant.version)} for ${sourcePackage}`);
+        for (const previous of source.variants.slice(0, index)) {
+          if (intersects(previous.version, variant.version, { includePrerelease: true })) {
+            throw new Error(`React compatibility adapter ${name} declares overlapping source ranges ${JSON.stringify(previous.version)} and ${JSON.stringify(variant.version)} for ${sourceModule}`);
+          }
         }
       }
-      for (const [sourceExport, replacement] of Object.entries(source.exports)) {
-        const key = replacementKey(sourceModule, sourceExport);
-        const resolved: ResolvedReactCompatReplacement = Object.freeze({
-          ...replacement,
-          sourceModule,
-          sourcePackage,
-          sourceExport,
-          sourceVersion: source.version,
-          adapterPackage: name,
-          adapterVersion: packageVersion(node),
-          specifier: replacement.subpath === "." ? name : `${name}${replacement.subpath.slice(1)}`
-        });
-        const previous = replacements.get(key);
-        if (previous) {
-          throw new Error(
-            `React compatibility replacement conflict at build root ${root.location} for ` +
-            `${sourceModule}@${source.version}.${sourceExport}: ` +
-            `${previous.adapterPackage}@${previous.adapterVersion} -> ${previous.specifier}#${previous.export} and ` +
-            `${name}@${packageVersion(node)} -> ${resolved.specifier}#${resolved.export}`
-          );
+      for (const sourceNode of reachable.filter(candidate => candidate.manifest.name === sourcePackage)) {
+        const installedVersion = packageVersion(sourceNode);
+        const variant = source.variants.find(candidate => satisfies(installedVersion, candidate.version, { includePrerelease: true }));
+        if (!variant) continue;
+        for (const [sourceExport, replacement] of Object.entries(variant.exports)) {
+          const key = replacementKey(sourceNode.id, sourceModule, sourceExport);
+          const resolved: ResolvedReactCompatReplacement = Object.freeze({
+            ...replacement,
+            sourceInstance: sourceNode.id,
+            sourceLocation: sourceNode.location,
+            sourceModule,
+            sourcePackage,
+            sourceExport,
+            sourceVersion: variant.version,
+            adapterPackage: name,
+            adapterVersion: packageVersion(node),
+            specifier: replacement.subpath === "." ? name : `${name}${replacement.subpath.slice(1)}`
+          });
+          const previous = replacements.get(key);
+          if (previous) {
+            throw new Error(
+              `React compatibility replacement conflict at build root ${root.location} for ` +
+              `${sourceModule} from ${sourceNode.location}@${installedVersion}.${sourceExport}: ` +
+              `${previous.adapterPackage}@${previous.adapterVersion} -> ${previous.specifier}#${previous.export} and ` +
+              `${name}@${packageVersion(node)} -> ${resolved.specifier}#${resolved.export}`
+            );
+          }
+          replacements.set(key, resolved);
         }
-        replacements.set(key, resolved);
       }
     }
   }
@@ -144,7 +172,8 @@ export function createNpmReactCompatPackageGraph(cwd = process.cwd()): ReactComp
     }
     const dependencyNames = [...new Set([
       ...objectKeys(manifest.dependencies),
-      ...objectKeys(manifest.optionalDependencies)
+      ...objectKeys(manifest.optionalDependencies),
+      ...objectKeys(manifest.peerDependencies)
     ])].sort();
     rawNodes.set(id, { location, manifest, dependencyNames });
   }
@@ -207,8 +236,8 @@ export function createInstalledReactCompatPackageGraph(cwd = process.cwd()): Rea
   return Object.freeze({ rootId, nodes });
 }
 
-export function replacementKey(sourcePackage: string, sourceExport: string): string {
-  return `${sourcePackage}\0${sourceExport}`;
+export function replacementKey(sourceInstance: string, sourceModule: string, sourceExport: string): string {
+  return `${sourceInstance}\0${sourceModule}\0${sourceExport}`;
 }
 
 /** Validates one adapter package and its installed peers without executing it. */
@@ -232,7 +261,7 @@ export function validateReactCompatAdapterPackage(cwd = process.cwd()): Resolved
 }
 
 function validateReplacementTypeDeclarations(node: ReactCompatPackageNode, declaration: ReactCompatAdapterDeclaration): void {
-  for (const source of Object.values(declaration.substitutions)) for (const replacement of Object.values(source.exports)) {
+  for (const source of Object.values(declaration.substitutions)) for (const variant of source.variants) for (const replacement of Object.values(variant.exports)) {
     const target = exportTarget(node.manifest.exports, replacement.subpath);
     if (!target) continue;
     const typesTarget = conditionalTarget(target, "types") ?? conditionalTarget(target, "default") ?? (typeof target === "string" ? target : undefined);
@@ -289,25 +318,38 @@ function reachableNodes(graph: ReactCompatPackageGraph): ReactCompatPackageNode[
   return result;
 }
 
-function collectSourceVersions(nodes: readonly ReactCompatPackageNode[]): Map<string, Set<string>> {
-  const versions = new Map<string, Set<string>>();
-  for (const node of nodes) {
-    if (typeof node.manifest.name !== "string" || !node.manifest.name
-      || typeof node.manifest.version !== "string" || !node.manifest.version) continue;
-    const name = node.manifest.name;
-    const version = node.manifest.version;
-    if (!versions.has(name)) versions.set(name, new Set());
-    versions.get(name)!.add(version);
-  }
-  return versions;
-}
-
 function validateAdapterExports(node: ReactCompatPackageNode, declaration: ReactCompatAdapterDeclaration): void {
-  for (const source of Object.values(declaration.substitutions)) for (const replacement of Object.values(source.exports)) {
+  for (const source of Object.values(declaration.substitutions)) for (const variant of source.variants) for (const replacement of Object.values(variant.exports)) {
     if (!manifestExportsSubpath(node.manifest.exports, replacement.subpath)) {
       throw new Error(`React compatibility adapter ${packageName(node)} replacement subpath ${replacement.subpath} is not a public package export`);
     }
   }
+}
+
+function resolveSourceInstance(
+  graph: ReactCompatPackageGraph,
+  importer: string,
+  sourcePackage: string
+): ReactCompatPackageNode | undefined {
+  const normalizedImporter = path.resolve(importer).toLowerCase();
+  const owners = [...graph.nodes.values()]
+    .filter(node => {
+      const location = path.resolve(node.location).toLowerCase();
+      return normalizedImporter === location || normalizedImporter.startsWith(`${location}${path.sep}`);
+    })
+    .sort((left, right) => right.location.length - left.location.length);
+  if (!owners.length) {
+    const root = graph.nodes.get(graph.rootId);
+    if (root) owners.push(root);
+  }
+  for (const owner of owners) {
+    if (owner.manifest.name === sourcePackage) return owner;
+    for (const dependencyId of owner.dependencies) {
+      const dependency = graph.nodes.get(dependencyId);
+      if (dependency?.manifest.name === sourcePackage) return dependency;
+    }
+  }
+  return undefined;
 }
 
 function validateProtocolRange(node: ReactCompatPackageNode): void {

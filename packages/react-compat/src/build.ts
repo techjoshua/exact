@@ -2,7 +2,13 @@ import { createHash } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { rewriteModuleReferences, type ModuleExportReplacement, type ModuleRewriteOptions } from "@exact/expressions";
-import { createReactCompatPackageGraph, discoverReactCompatAdapters, type ResolvedReactCompatAdapters } from "./adapters.js";
+import {
+  createReactCompatPackageGraph,
+  discoverReactCompatAdapters,
+  replacementsForImporter,
+  type ReactCompatPackageGraph,
+  type ResolvedReactCompatAdapters
+} from "./adapters.js";
 import { resolveReactCompatibility, type ReactCompatibilityOptions, type ResolvedReactCompatibility } from "./plugin.js";
 
 export interface ReactCompatibilityBuildInput {
@@ -69,6 +75,8 @@ export interface ReactCompatibilityBuildEngine {
 type CachedDiscovery = {
   signature: string;
   registry: ResolvedReactCompatAdapters;
+  graph: ReactCompatPackageGraph;
+  /** Context-free replacements retained for hosts that only consume rewrite options. */
   replacements: readonly ModuleExportReplacement[];
   watchFiles: readonly string[];
   hash: string;
@@ -89,15 +97,10 @@ export function createReactCompatibilityBuildEngine(options: ReactCompatibilityO
     invalidated = false;
     const graph = createReactCompatPackageGraph(buildRoot);
     const registry = discoverReactCompatAdapters(graph);
-    const replacements = [...registry.replacements.values()].map(replacement => ({
-      sourceModule: replacement.sourceModule,
-      sourceExport: replacement.sourceExport,
-      targetModule: replacement.specifier,
-      targetExport: replacement.export
-    }));
+    const replacements = moduleReplacements([...registry.replacements.values()]);
     const watchFiles = discoverWatchFiles(buildRoot, graph, registry.adapters);
     const hash = createHash("sha256").update(JSON.stringify(replacements)).digest("hex").slice(0, 16);
-    const next = { signature: fileSignature(watchFiles), registry, replacements, watchFiles, hash };
+    const next = { signature: fileSignature(watchFiles), registry, graph, replacements, watchFiles, hash };
     discoveryCache.set(buildRoot, next);
     return next;
   };
@@ -108,17 +111,19 @@ export function createReactCompatibilityBuildEngine(options: ReactCompatibilityO
     get registryHash() { return state().hash; },
     transformModule(input) {
       const current = state();
-      if (!containsCandidate(input.source, resolved.aliases, current.replacements)) {
+      const resolvedReplacements = replacementsForImporter(current.graph, current.registry, input.id);
+      const replacements = moduleReplacements(resolvedReplacements);
+      if (!containsCandidate(input.source, resolved.aliases, replacements)) {
         return Object.freeze({ code: input.source, map: null, changed: false, watchFiles: current.watchFiles, dependencyIds: [], diagnostics: [], registryHash: current.hash });
       }
-      const diagnostics = fallbackDiagnostics(input.id, input.source, [...current.registry.replacements.values()], buildRoot);
+      const diagnostics = fallbackDiagnostics(input.id, input.source, resolvedReplacements, buildRoot);
       const transformed = rewriteModuleReferences(input.source, {
         filename: input.id,
         moduleAliases: resolved.aliases,
-        replacements: current.replacements,
+        replacements,
         sourceMap: input.sourceMap ?? true
       });
-      const dependencyIds = current.replacements
+      const dependencyIds = replacements
         .map(replacement => replacement.targetModule)
         .filter((value, index, values) => values.indexOf(value) === index && containsModule(transformed.code, value));
       for (const dependency of dependencyIds) {
@@ -167,6 +172,17 @@ export function createReactCompatibilityBuildEngine(options: ReactCompatibilityO
     }
   };
   return Object.freeze(engine);
+}
+
+function moduleReplacements(
+  values: readonly import("./adapters.js").ResolvedReactCompatReplacement[]
+): readonly ModuleExportReplacement[] {
+  return values.map(replacement => ({
+    sourceModule: replacement.sourceModule,
+    sourceExport: replacement.sourceExport,
+    targetModule: replacement.specifier,
+    targetExport: replacement.export
+  }));
 }
 
 function discoverWatchFiles(

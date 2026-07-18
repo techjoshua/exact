@@ -38,13 +38,15 @@
       "schemaVersion": 1,
       "substitutions": {
         "@tanstack/react-query": {
-          "version": ">=5 <6",
-          "exports": {
-            "QueryClientProvider": {
-              "subpath": "./react",
-              "export": "QueryClientProvider"
+          "variants": [{
+            "version": ">=5 <6",
+            "exports": {
+              "QueryClientProvider": {
+                "subpath": "./react",
+                "export": "QueryClientProvider"
+              }
             }
-          }
+          }]
         }
       }
     }

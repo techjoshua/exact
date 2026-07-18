@@ -28,13 +28,15 @@
       "schemaVersion": 1,
       "substitutions": {
         "react-redux": {
-          "version": ">=8 <10",
-          "exports": {
-            "Provider": { "subpath": "./react", "export": "Provider" },
-            "useStore": { "subpath": "./react", "export": "useStore" },
-            "useDispatch": { "subpath": "./react", "export": "useDispatch" },
-            "useSelector": { "subpath": "./react", "export": "useSelector" }
-          }
+          "variants": [{
+            "version": ">=8 <10",
+            "exports": {
+              "Provider": { "subpath": "./react", "export": "Provider" },
+              "useStore": { "subpath": "./react", "export": "useStore" },
+              "useDispatch": { "subpath": "./react", "export": "useDispatch" },
+              "useSelector": { "subpath": "./react", "export": "useSelector" }
+            }
+          }]
         }
       }
     }
