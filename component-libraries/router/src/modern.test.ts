@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "@exact/react-compat";
 import { exposeExactComponent } from "@exact/react-compat/interop";
 import { createRoot } from "@exact/react-dom-compat/client19";
+import { renderToString } from "@exact/react-dom-compat/server19";
 import type { Component } from "@exact/core";
 import { RouterControllerContext } from "./context.js";
 import {
@@ -11,8 +12,11 @@ import {
   Outlet,
   Route,
   RouterProvider,
+  StaticRouterProvider,
   Routes,
+  createBrowserRouter,
   createMemoryRouter,
+  createStaticRouter,
   createStaticHandler,
   useLoaderData,
   useHref,
@@ -144,5 +148,42 @@ describe("React Router modern facade", () => {
     container.querySelector("button")!.click();
     await settle();
     expect(router.getSnapshot().location.pathname).toBe("/next");
+  });
+
+  it("emits escaped hydration data from StaticRouterProvider", async () => {
+    const routes = [
+      { id: "home", path: "home", loader: () => ({ markup: "</script><script>alert(1)</script>" }) }
+    ];
+    const handler = createStaticHandler(routes);
+    const context = await handler.query(new Request("https://example.test/home"));
+    expect(context).not.toBeInstanceOf(Response);
+    const router = createStaticRouter(routes, context as Exclude<typeof context, Response>);
+    const html = renderToString(createElement(StaticRouterProvider, {
+      router,
+      context: context as Exclude<typeof context, Response>,
+      nonce: "router-nonce"
+    }));
+    expect(html).toContain('id="__exact_router_hydration"');
+    expect(html).toContain('nonce="router-nonce"');
+    expect(html).toContain("\\u003C/script>");
+    expect(html).not.toContain("</script><script>alert(1)</script>");
+  });
+
+  it("adopts server hydration data without rerunning the initial loader", async () => {
+    window.history.replaceState(null, "", "/home");
+    const hydration = document.createElement("script");
+    hydration.id = "__exact_router_hydration";
+    hydration.type = "application/json";
+    hydration.textContent = JSON.stringify({ loaderData: { home: { source: "server" } } });
+    document.body.appendChild(hydration);
+    let loaderCalls = 0;
+    const router = createBrowserRouter([
+      { id: "home", path: "home", loader: () => { loaderCalls++; return { source: "client" }; } }
+    ]);
+    await settle();
+    expect(router.getSnapshot().loaderData).toEqual({ home: { source: "server" } });
+    expect(loaderCalls).toBe(0);
+    expect(document.getElementById("__exact_router_hydration")).toBeNull();
+    router.dispose();
   });
 });

@@ -33,6 +33,7 @@ import {
   type RouteLocation,
   type RouterMode
 } from "./index.js";
+import { hydrationDataFromSnapshot } from "./core.js";
 
 export type To = string | Partial<Pick<RouteLocation, "pathname" | "search" | "hash">>;
 export type NavigateOptions = NavigationOptions & { relative?: "route" | "path"; preventScrollReset?: boolean };
@@ -221,7 +222,12 @@ export function createBrowserRouter(
 ): ExactRouter<RouteObject> {
   const source = options.window ? browserWindowSource(options.window, "history") : createBrowserLocationSource("history");
   if (!source) throw new Error("createBrowserRouter requires a browser");
-  return createExactRouter({ source, routes, basename: options.basename, hydrationData: options.hydrationData });
+  return createExactRouter({
+    source,
+    routes,
+    basename: options.basename,
+    hydrationData: options.hydrationData ?? readRouterHydrationData()
+  });
 }
 
 export function createHashRouter(
@@ -230,7 +236,13 @@ export function createHashRouter(
 ): ExactRouter<RouteObject> {
   const source = options.window ? browserWindowSource(options.window, "hash") : createBrowserLocationSource("hash");
   if (!source) throw new Error("createHashRouter requires a browser");
-  return createExactRouter({ source, routes, basename: options.basename, mode: "hash", hydrationData: options.hydrationData });
+  return createExactRouter({
+    source,
+    routes,
+    basename: options.basename,
+    mode: "hash",
+    hydrationData: options.hydrationData ?? readRouterHydrationData()
+  });
 }
 
 export function createMemoryRouter(
@@ -633,7 +645,22 @@ export function StaticRouterProvider(props: {
   hydrate?: boolean;
   nonce?: string;
 }): ReactNode {
-  return createElement(RouterProvider, { router: props.router });
+  const provider = createElement(RouterProvider, { router: props.router });
+  if (props.hydrate === false) return provider;
+  const hydration = hydrationDataFromSnapshot(props.router.getSnapshot());
+  const source = JSON.stringify(hydration)
+    .replace(/</g, "\\u003C")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+  return [
+    provider,
+    createElement("script", {
+      id: "__exact_router_hydration",
+      type: "application/json",
+      nonce: props.nonce,
+      dangerouslySetInnerHTML: { __html: source }
+    })
+  ];
 }
 
 const AsyncValueContext = createContext<unknown>(undefined);
@@ -863,4 +890,12 @@ function browserWindowSource(target: Window, mode: RouterMode): LocationSource {
       return () => target.removeEventListener(event, handle);
     }
   };
+}
+function readRouterHydrationData(): ExactHydrationData | undefined {
+  if (typeof document === "undefined") return undefined;
+  const element = document.getElementById("__exact_router_hydration");
+  if (!element?.textContent) return undefined;
+  const value = JSON.parse(element.textContent) as ExactHydrationData;
+  element.remove();
+  return value;
 }
