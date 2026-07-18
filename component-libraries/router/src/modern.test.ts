@@ -15,6 +15,7 @@ import {
   createMemoryRouter,
   createStaticHandler,
   useLoaderData,
+  useHref,
   useLocation,
   useParams
 } from "./modern.js";
@@ -102,5 +103,20 @@ describe("React Router modern facade", () => {
     expect(response).toBeInstanceOf(Response);
     expect((response as Response).status).toBe(307);
     expect((response as Response).headers.get("Location")).toBe("https://example.test/home");
+  });
+
+  it("resolves parent navigation by route hierarchy", async () => {
+    function Detail() {
+      return createElement("a", { href: useHref("..") }, "Parent");
+    }
+    const router = createMemoryRouter([{
+      id: "users",
+      path: "users",
+      children: [{ id: "detail", path: ":id", Component: Detail }]
+    }], { initialEntries: ["/users/42"] });
+    const container = document.createElement("div");
+    createRoot(container).render(createElement(RouterProvider, { router }));
+    await settle();
+    expect(container.querySelector("a")?.getAttribute("href")).toBe("/users");
   });
 });

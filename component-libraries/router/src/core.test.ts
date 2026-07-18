@@ -32,6 +32,15 @@ describe("renderer-neutral router core", () => {
     });
   });
 
+  it("matches absolute child paths from the route root", () => {
+    const absolute = [{
+      id: "app",
+      path: "/app",
+      children: [{ id: "settings", path: "/app/settings" }]
+    }] satisfies readonly ExactRouteDefinition[];
+    expect(matchRoutes(absolute, "/app/settings").map(match => match.id)).toEqual(["app", "settings"]);
+  });
+
   it("provides standalone matching and path generation", () => {
     expect(matchPath({ path: "/teams/:teamId", end: false }, "/teams/exact/members")?.params)
       .toEqual({ teamId: "exact" });
@@ -189,5 +198,26 @@ describe("renderer-neutral router core", () => {
     });
     expect(() => hydrationDataFromSnapshot(unsafe.getSnapshot())).toThrow(/not JSON-safe/);
     expect(() => hydrationDataFromSnapshot(safe.getSnapshot(), { maxBytes: 1 })).toThrow(/byte limits/);
+  });
+
+  it("bounds redirect chains and supersedes fetchers by key", async () => {
+    let firstResolve!: (value: unknown) => void;
+    const first = new Promise(resolve => { firstResolve = resolve; });
+    const router = createExactRouter({
+      source: createMemoryLocationSource("/"),
+      routes: [{
+        id: "root",
+        children: [
+          { id: "loop", path: "loop", loader: () => redirect("/loop") },
+          { id: "item", path: "items/:id", loader: ({ params }: any) => params.id === "1" ? first : params.id }
+        ]
+      }]
+    });
+    await expect(router.navigate("/loop")).rejects.toThrow(/maximum redirect depth/);
+    const stale = router.fetch("same", "item", "/items/1");
+    const current = router.fetch("same", "item", "/items/2");
+    firstResolve("1");
+    await Promise.all([stale, current]);
+    expect(router.getSnapshot().fetchers.get("same")).toEqual({ state: "idle", data: "2" });
   });
 });

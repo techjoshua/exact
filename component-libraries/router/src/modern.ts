@@ -33,7 +33,7 @@ import {
 
 export type To = string | Partial<Pick<RouteLocation, "pathname" | "search" | "hash">>;
 export type NavigateOptions = NavigationOptions & { relative?: "route" | "path"; preventScrollReset?: boolean };
-export type RouteObject = ExactRouteDefinition & {
+export type RouteObject = Omit<ExactRouteDefinition, "children"> & {
   element?: ReactNode;
   Component?: ReactComponentType<any>;
   errorElement?: ReactNode;
@@ -261,9 +261,17 @@ export function useParams<T extends Record<string, string | undefined> = Record<
 }
 export function useNavigate(): (to: To | number, options?: NavigateOptions) => void | Promise<void> {
   const router = useRouter();
-  return (to, options) => router.navigate(typeof to === "number" ? to : toValue(to), options);
+  const routeId = useContext(RouteIdContext);
+  return (to, options) => router.navigate(
+    typeof to === "number" ? to : resolveFacadeTo(to, router.getSnapshot(), routeId, options?.relative),
+    options
+  );
 }
-export function useHref(to: To): string { return useRouter().createHref(toValue(to)); }
+export function useHref(to: To, options?: { relative?: "route" | "path" }): string {
+  const router = useRouter();
+  const routeId = useContext(RouteIdContext);
+  return router.createHref(resolveFacadeTo(to, router.getSnapshot(), routeId, options?.relative));
+}
 export function useResolvedPath(to: To): Pick<RouteLocation, "pathname" | "search" | "hash"> {
   const href = useHref(to);
   const url = new URL(href, "http://exact.local");
@@ -583,6 +591,25 @@ function routeProvider(id: string, children: ReactNode): ReactNode {
 
 function toValue(to: To): string {
   return typeof to === "string" ? to : locationToString(to);
+}
+function resolveFacadeTo(
+  to: To,
+  snapshot: ExactRouterSnapshot<RouteObject>,
+  routeId: string | undefined,
+  relative: "route" | "path" | undefined
+): string {
+  const value = toValue(to);
+  if (relative === "path" || value.startsWith("/") || /^[a-z][a-z\d+.-]*:/i.test(value) || !routeId) return value;
+  const parts = value.split("/");
+  let parents = 0;
+  while (parts[0] === "..") { parents++; parts.shift(); }
+  if (!parents && parts[0] !== ".") return value;
+  if (parts[0] === ".") parts.shift();
+  const currentIndex = snapshot.matches.findIndex(match => match.id === routeId);
+  const targetIndex = Math.max(0, currentIndex - parents);
+  const base = snapshot.matches[targetIndex]?.pathnameBase ?? "/";
+  if (!parts.length) return base || "/";
+  return `${base.replace(/\/$/, "")}/${parts.join("/")}`.replace(/\/{2,}/g, "/") || "/";
 }
 function locationToString(location: Partial<Pick<RouteLocation, "pathname" | "search" | "hash">>): string {
   return `${location.pathname ?? ""}${location.search ?? ""}${location.hash ?? ""}` || "/";

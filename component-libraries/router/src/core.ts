@@ -138,6 +138,8 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
   let errors: Record<string, unknown> = { ...(options.hydrationData?.errors ?? {}) };
   let revalidation: "idle" | "loading" = "idle";
   const fetchers = new Map<string, FetcherSnapshot>();
+  const fetcherAborts = new Map<string, AbortController>();
+  const lazyPromises = new WeakMap<object, Promise<void>>();
   const hasInitialData = options.hydrationData !== undefined || !routes.some(hasDataWork);
   const listeners = new Set<() => void>();
   const blockers = new Set<NavigationBlocker>();
@@ -174,8 +176,9 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
     });
   }
 
-  async function navigate(to: string | URL | number, options: NavigationOptions = {}): Promise<void> {
+  async function navigate(to: string | URL | number, options: NavigationOptions = {}, redirectDepth = 0): Promise<void> {
     assertActive();
+    if (redirectDepth > 20) throw new Error("Router exceeded the maximum redirect depth of 20");
     if (typeof to === "number") {
       if (!source.go) throw new Error("This router location source does not support delta navigation");
       source.go(to);
@@ -212,7 +215,7 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
       : { data: {}, errors: {} };
     if (result.redirect) {
       if (currentTransition !== transitionId) return;
-      await navigate(result.redirect, { replace: true, status: result.status });
+      await navigate(result.redirect, { replace: true, status: result.status }, redirectDepth + 1);
       return;
     }
     if (currentTransition !== transitionId || activeAbort.signal.aborted) return;
@@ -320,7 +323,9 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
     fetchers.set(key, Object.freeze({ state: mutation ? "submitting" : "loading" }));
     snapshot = buildSnapshot(snapshot.historyAction);
     notify();
+    fetcherAborts.get(key)?.abort();
     const abort = new AbortController();
+    fetcherAborts.set(key, abort);
     try {
       await materializeLazy(match.route);
       const handler = mutation ? match.route.action : match.route.loader;
@@ -331,6 +336,7 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
         context: options.context,
         signal: abort.signal
       });
+      if (fetcherAborts.get(key) !== abort || abort.signal.aborted) return;
       const redirect = redirectResult(result);
       if (redirect) {
         fetchers.set(key, Object.freeze({ state: "idle" }));
@@ -341,10 +347,12 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
       fetchers.set(key, Object.freeze({ state: "idle", data }));
       if (mutation) await revalidate(data);
     } catch (error) {
+      if (fetcherAborts.get(key) !== abort || abort.signal.aborted) return;
       fetchers.set(key, Object.freeze({ state: "idle", error }));
     }
     snapshot = buildSnapshot(snapshot.historyAction);
     notify();
+    if (fetcherAborts.get(key) === abort) fetcherAborts.delete(key);
   }
 
   async function runLoaders(
@@ -380,8 +388,12 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 
   async function materializeLazy(route: Route): Promise<void> {
     if (!route.lazy) return;
-    const values = await route.lazy();
-    Object.assign(route, values, { lazy: undefined });
+    let pending = lazyPromises.get(route);
+    if (!pending) {
+      pending = route.lazy().then(values => { Object.assign(route, values, { lazy: undefined }); });
+      lazyPromises.set(route, pending);
+    }
+    await pending;
   }
 
   function assertActive(): void {
@@ -417,6 +429,8 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
       if (disposed) return;
       disposed = true;
       activeAbort?.abort();
+      for (const abort of fetcherAborts.values()) abort.abort();
+      fetcherAborts.clear();
       unsubscribe?.();
       listeners.clear();
       blockers.clear();
@@ -618,7 +632,7 @@ function matchRoute(
   inherited: Readonly<Record<string, string>>,
   end: boolean
 ): { cursor: number; params: Record<string, string>; pathname: string; pathnameBase: string } | undefined {
-  let cursor = start;
+  let cursor = route.path?.startsWith("/") ? 0 : start;
   const params = { ...inherited };
   if (route.index && cursor !== pathSegments.length) return undefined;
   for (const segment of route.index ? [] : segments(route.path ?? "")) {
