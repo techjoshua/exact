@@ -60,7 +60,7 @@ export type ExactStatePath = {
 };
 
 export type ExactCompilerManifestLike = {
-  version: 7;
+  version: 1;
   pluginRegistry?: {
     fingerprint: string;
   };

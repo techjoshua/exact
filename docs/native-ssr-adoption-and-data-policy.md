@@ -1628,7 +1628,7 @@ Exit criteria:
 
 Implementation status: complete (2026-07-18).
 
-Compiler manifest version 7 carries a generic policy graph with residency
+Compiler manifest version 1 carries a generic policy graph with residency
 and independent secrecy qualifications, declaration/state/context/return
 subjects, and distinct propagation, projection, transfer, and receipt flow
 kinds. The compiler rejects `keep=isomorphic`, infers safe isomorphic values,
@@ -1753,7 +1753,7 @@ Exit criteria:
 - The feature is documented as a transfer guard and audit aid, not dependency
   sandboxing.
 
-Compiler manifest version 7 records the directly receiving package, symbol,
+Compiler manifest version 1 records the directly receiving package, symbol,
 parameter, source location, optional secret identifier, and whether receipt was
 application-owned, package-allowed, required by a library, or denied.
 `createExactPolicyAuditReport()` exposes the same small model and warns only

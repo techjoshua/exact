@@ -98,18 +98,15 @@ Resolution:
 
 ### Compiler and server manifest versions could drift
 
-The compiler emitted schema version 6 while the server package and ignored
-sample artifacts still expected version 5. This appeared only when the
-shipping/server-component integration paths loaded generated JSON.
+The compiler and server briefly carried different prepublish schema numbers,
+which appeared when integration paths loaded stale generated JSON. Because no
+manifest format has been published or consumed outside this repository, the
+current compiler/server contract is reset to version 1 rather than preserving
+internal development increments.
 
-Resolution:
-
-- Compiler and server consumers now share the version 6 contract and reject
-  older versions rather than carrying compatibility branches.
-- The server-component sample regenerates its two artifact sets before every
-  test instead of relying on stale ignored output.
-- Shipping generation, development SSR loading, server-component tests, and
-  production client/server builds exercise the current schema.
+The server-component and shipping samples regenerate their artifacts before
+tests, so repository-owned manifests exercise the current schema instead of
+relying on stale ignored output.
 
 ### Secret resolver access was broader than the intended capability
 

@@ -382,7 +382,7 @@ export type ExactArtifactManifest = {
 };
 
 export type ExactCompilerManifest = {
-  version: 7;
+  version: 1;
   filename: string;
   dependencies: string[];
   assets: ExactAssetDependencyIR[];

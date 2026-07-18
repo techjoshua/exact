@@ -115,7 +115,7 @@ describe("@exact/vite-plugin", () => {
   it("rejects malformed manifest files", () => {
     const root = mkdtempSync(path.join(tmpdir(), "exact-vite-bad-manifest-"));
     const manifestFile = path.join(root, "bad.exact.manifest.json");
-    writeFileSync(manifestFile, JSON.stringify({ version: 7, filename: "bad.tsx" }));
+    writeFileSync(manifestFile, JSON.stringify({ version: 1, filename: "bad.tsx" }));
     const plugin = exact({ manifestFiles: [manifestFile], reactCompatibility: false });
 
     expect(() => plugin.transform("const view = <span />;", "/src/view.tsx")).toThrow("Malformed eXact compiler manifest");

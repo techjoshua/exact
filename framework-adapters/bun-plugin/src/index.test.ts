@@ -75,7 +75,7 @@ describe("@exact/bun-plugin", () => {
   it("rejects malformed manifest files", () => {
     const root = mkdtempSync(path.join(tmpdir(), "exact-bun-bad-manifest-"));
     const manifestFile = path.join(root, "bad.exact.manifest.json");
-    writeFileSync(manifestFile, JSON.stringify({ version: 7, filename: "bad.tsx" }));
+    writeFileSync(manifestFile, JSON.stringify({ version: 1, filename: "bad.tsx" }));
 
     expect(() => transformExactBunSource("const view = <span />;", "/src/view.tsx", {
       manifestFiles: [manifestFile]
