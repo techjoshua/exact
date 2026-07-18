@@ -1,14 +1,19 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { createElement } from "@exact/react-compat";
+import { act, createElement } from "@exact/react-compat";
 import { createRoot } from "@exact/react-dom-compat/client19";
+import { renderToString } from "@exact/react-dom-compat/server19";
 import {
   Link,
   MemoryRouter,
   Prompt,
+  Redirect,
   Route,
+  Router,
+  StaticRouter,
   Switch,
   useHistory,
+  useLocation,
   useParams,
   withRouter
 } from "./v5.js";
@@ -58,8 +63,7 @@ describe("React Router v5 facade", () => {
     ));
     await settle();
     expect(container.textContent).toContain("/items/1:1");
-    container.querySelector("button")!.click();
-    await settle();
+    await act(() => container.querySelector("button")!.click());
     expect(observed).toBe("/items/2:/items/2:2");
   });
 
@@ -79,5 +83,42 @@ describe("React Router v5 facade", () => {
     expect(container.textContent).toContain("Home");
     expect(container.textContent).not.toContain("Blocked");
     confirm.mockRestore();
+  });
+
+  it("observes location changes from an external history", async () => {
+    let location = { pathname: "/one", search: "", hash: "", key: "one" };
+    let action = "POP";
+    const listeners = new Set<() => void>();
+    const history = {
+      get location() { return location; },
+      get action() { return action; },
+      push(to: string) {
+        action = "PUSH";
+        location = { pathname: to, search: "", hash: "", key: "two" };
+        listeners.forEach(listener => listener());
+      },
+      replace() {},
+      go() {},
+      createHref: (to: string) => to,
+      listen(listener: () => void) { listeners.add(listener); return () => listeners.delete(listener); }
+    };
+    function Current() {
+      const history = useHistory();
+      return createElement("button", { onClick: () => history.push("/two") }, useLocation().pathname);
+    }
+    const container = document.createElement("div");
+    createRoot(container).render(createElement(Router, { history }, createElement(Current, {})));
+    await settle();
+    expect(container.textContent).toBe("/one");
+    await act(() => container.querySelector("button")!.click());
+    expect(container.textContent).toBe("/two");
+  });
+
+  it("records Redirect during v5 static rendering", () => {
+    const context: Record<string, unknown> = {};
+    renderToString(createElement(StaticRouter, { location: "/old", context },
+      createElement(Redirect, { to: "/new" })
+    ));
+    expect(context).toMatchObject({ action: "REPLACE", url: "/new" });
   });
 });

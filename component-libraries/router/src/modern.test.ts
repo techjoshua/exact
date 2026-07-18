@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { createElement } from "@exact/react-compat";
+import { act, createElement } from "@exact/react-compat";
 import { exposeExactComponent } from "@exact/react-compat/interop";
 import { createRoot } from "@exact/react-dom-compat/client19";
 import { renderToString } from "@exact/react-dom-compat/server19";
@@ -11,6 +11,7 @@ import {
   MemoryRouter,
   Outlet,
   Route,
+  Router,
   RouterProvider,
   StaticRouterProvider,
   Routes,
@@ -185,5 +186,42 @@ describe("React Router modern facade", () => {
     expect(loaderCalls).toBe(0);
     expect(document.getElementById("__exact_router_hydration")).toBeNull();
     router.dispose();
+  });
+
+  it("updates controlled router locations and navigation types", async () => {
+    function Location() {
+      const location = useLocation();
+      return createElement("p", null, location.pathname);
+    }
+    const navigator = {
+      push() {},
+      replace() {},
+      go() {}
+    };
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    await act(() => root.render(createElement(Router, {
+      location: "/one",
+      navigationType: "PUSH",
+      navigator
+    }, createElement(Location, {}))));
+    expect(container.textContent).toBe("/one");
+    await act(() => root.render(createElement(Router, {
+      location: "/two",
+      navigationType: "REPLACE",
+      navigator
+    }, createElement(Location, {}))));
+    expect(container.textContent).toBe("/two");
+  });
+
+  it("leaves cross-origin links to normal browser navigation", async () => {
+    const container = document.createElement("div");
+    createRoot(container).render(createElement(MemoryRouter, null,
+      createElement(Link, { to: "https://docs.example.test/guide" }, "Docs")
+    ));
+    await settle();
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 });
+    container.querySelector("a")!.onclick?.call(container.querySelector("a")!, event);
+    expect(event.defaultPrevented).toBe(false);
   });
 });

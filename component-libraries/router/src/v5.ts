@@ -7,6 +7,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useSyncExternalStore,
   type ReactComponentType,
   type ReactElement,
   type ReactNode
@@ -68,19 +69,25 @@ export type RouteProps = {
 };
 
 const MatchContext = createContext<Readonly<{ match: V5Match | null; location: RouteLocation }> | null>(null);
+const StaticContext = createContext<Record<string, unknown> | null>(null);
 
 export function Router(props: { history: any; children?: ReactNode }): ReactNode {
-  const location = historyLocation(props.history.location);
+  const location = useSyncExternalStore(
+    (notify) => props.history.listen(notify),
+    () => historyLocation(props.history.location),
+    () => historyLocation(props.history.location)
+  );
+  const navigator = useMemo(() => ({
+    push: (to: To, state?: unknown) => props.history.push(to, state),
+    replace: (to: To, state?: unknown) => props.history.replace(to, state),
+    go: (delta: number) => props.history.go(delta),
+    listen: (listener: () => void) => props.history.listen(listener),
+    createHref: (to: To) => props.history.createHref(to)
+  }), [props.history]);
   return createElement(ModernRouter, {
     location,
     navigationType: normalizeAction(props.history.action),
-    navigator: {
-      push: (to: To, state?: unknown) => props.history.push(to, state),
-      replace: (to: To, state?: unknown) => props.history.replace(to, state),
-      go: (delta: number) => props.history.go(delta),
-      listen: (listener: () => void) => props.history.listen(listener),
-      createHref: (to: To) => props.history.createHref(to)
-    },
+    navigator,
     children: props.children
   });
 }
@@ -102,7 +109,7 @@ export function StaticRouter(props: {
       go() {},
       createHref: toString
     },
-    children: props.children
+    children: createElement(StaticContext.Provider, { value: context, children: props.children })
   });
 }
 
@@ -148,12 +155,17 @@ export function Redirect(props: {
 }): null {
   const location = useLocation();
   const navigate = useNavigate();
+  const staticContext = useContext(StaticContext);
   const match = props.from ? matchPath(location.pathname, { path: props.from, ...props }) : rootMatch(location.pathname);
+  if (match && staticContext) {
+    const target = typeof props.to === "function" ? props.to(location) : props.to;
+    recordStaticNavigation(staticContext, target, props.push ? "PUSH" : "REPLACE");
+  }
   useEffect(() => {
-    if (!match) return;
+    if (!match || staticContext) return;
     const target = typeof props.to === "function" ? props.to(location) : props.to;
     void navigate(target, { replace: !props.push });
-  }, [match?.url]);
+  }, [match?.url, staticContext]);
   return null;
 }
 

@@ -140,16 +140,24 @@ export function Router(props: {
   };
 }): ReactNode {
   const location = typeof props.location === "string" ? props.location : locationToString(props.location);
+  const current = useRef({ location, navigationType: props.navigationType, navigator: props.navigator });
+  current.current = { location, navigationType: props.navigationType, navigator: props.navigator };
   const router = useMemo(() => createExactRouter<RouteObject>({
     basename: props.basename,
     source: {
-      location: () => new URL(location, "http://exact.local"),
-      push: (url, state) => props.navigator.push(url.pathname + url.search + url.hash, state),
-      replace: (url, state) => props.navigator.replace(url.pathname + url.search + url.hash, state),
-      go: delta => props.navigator.go(delta),
-      subscribe: props.navigator.listen
+      location: () => new URL(current.current.location, "http://exact.local"),
+      push: (url, state) => current.current.navigator.push(url.pathname + url.search + url.hash, state),
+      replace: (url, state) => current.current.navigator.replace(url.pathname + url.search + url.hash, state),
+      go: delta => current.current.navigator.go(delta),
+      subscribe: listener => current.current.navigator.listen?.(listener) ?? (() => {}),
+      action: () => current.current.navigationType ?? "POP"
     }
-  }), [props.navigator]);
+  }), [props.basename]);
+  const synchronized = useRef({ location, navigationType: props.navigationType });
+  if (synchronized.current.location !== location || synchronized.current.navigationType !== props.navigationType) {
+    synchronized.current = { location, navigationType: props.navigationType };
+    router.sync(props.navigationType);
+  }
   useEffect(() => () => router.dispose(), [router]);
   return createElement(ControllerProvider, { router, children: props.children });
 }
@@ -352,7 +360,7 @@ export function Link(props: Record<string, unknown> & {
     href,
     onClick: (event: MouseEvent) => {
       onClick?.(event);
-      if (reloadDocument || !shouldHandleClick(event)) return;
+      if (reloadDocument || !shouldHandleClick(event, href)) return;
       event.preventDefault();
       void navigate(to, { replace, state });
     }
@@ -467,8 +475,9 @@ export function useLinkClickHandler<T extends Element = HTMLAnchorElement>(
   options: NavigateOptions & { target?: string } = {}
 ): (event: MouseEvent & { currentTarget: T }) => void {
   const navigate = useNavigate();
+  const href = useHref(to, { relative: options.relative });
   return event => {
-    if (options.target && options.target !== "_self" || !shouldHandleClick(event)) return;
+    if (options.target && options.target !== "_self" || !shouldHandleClick(event, href)) return;
     event.preventDefault();
     void navigate(to, options);
   };
@@ -828,10 +837,20 @@ function resolveFacadeTo(
 function locationToString(location: Partial<Pick<RouteLocation, "pathname" | "search" | "hash">>): string {
   return `${location.pathname ?? ""}${location.search ?? ""}${location.hash ?? ""}` || "/";
 }
-function shouldHandleClick(event: MouseEvent): boolean {
+function shouldHandleClick(event: MouseEvent, href?: string): boolean {
   const anchor = (event.currentTarget ?? event.target) as HTMLAnchorElement | null;
   return !event.defaultPrevented && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
-    && (!anchor?.target || anchor.target === "_self") && !anchor?.hasAttribute("download");
+    && (!anchor?.target || anchor.target === "_self") && !anchor?.hasAttribute("download")
+    && !isExternalHref(href ?? anchor?.href);
+}
+function isExternalHref(href: string | undefined): boolean {
+  if (!href || typeof window === "undefined") return false;
+  try {
+    const url = new URL(href, window.location.href);
+    return !/^https?:$/.test(url.protocol) || url.origin !== window.location.origin;
+  } catch {
+    return true;
+  }
 }
 function formDataSearchParams(formData: FormData): URLSearchParams {
   const params = new URLSearchParams();

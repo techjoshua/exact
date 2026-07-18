@@ -102,6 +102,7 @@ export interface ExactRouter<Route extends ExactRouteDefinition = ExactRouteDefi
   readonly mode: RouterMode;
   getSnapshot(): ExactRouterSnapshot<Route>;
   subscribe(listener: () => void): () => void;
+  sync(action?: HistoryAction, publish?: boolean): void;
   setRoutes(routes: readonly Route[]): void;
   createHref(to: string | URL): string;
   navigate(to: string | URL | number, options?: NavigationOptions): Promise<void>;
@@ -146,14 +147,14 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
   const listeners = new Set<() => void>();
   const blockers = new Set<NavigationBlocker>();
   let initialized = hasInitialData;
-  let snapshot = buildSnapshot("POP");
+  let snapshot = buildSnapshot(source.action?.() ?? "POP");
 
   const notify = () => listeners.forEach(listener => listener());
-  const refresh = (action = source.action?.() ?? "POP") => {
+  const refresh = (action = source.action?.() ?? "POP", publish = true) => {
     if (disposed) return;
     sourceRevision++;
     snapshot = buildSnapshot(action);
-    notify();
+    if (publish) notify();
   };
   const unsubscribe = source.subscribe?.(refresh);
 
@@ -468,6 +469,10 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
       assertActive();
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    sync(action = source.action?.() ?? "POP", publish = true) {
+      assertActive();
+      refresh(action, publish);
     },
     setRoutes(nextRoutes: readonly Route[]) {
       assertActive();
