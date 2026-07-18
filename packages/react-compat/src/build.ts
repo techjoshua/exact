@@ -6,6 +6,7 @@ import {
   createReactCompatPackageGraph,
   discoverReactCompatAdapters,
   replacementsForImporter,
+  unsupportedSourcesForImporter,
   type ReactCompatPackageGraph,
   type ResolvedReactCompatAdapters
 } from "./adapters.js";
@@ -21,7 +22,7 @@ export interface ReactCompatibilityBuildInput {
 
 export interface ReactCompatibilityDiagnostic {
   readonly severity: "info" | "warning" | "error";
-  readonly code: "dynamic-export-escape" | "unsupported-commonjs" | "compatibility-retained";
+  readonly code: "dynamic-export-escape" | "unsupported-commonjs" | "compatibility-retained" | "unsupported-version";
   readonly message: string;
   readonly moduleId: string;
   readonly sourceModule: string;
@@ -58,6 +59,14 @@ export interface ReactCompatibilityReport {
     adapterVersion: string;
     targetModule: string;
     targetExport: string;
+  }>[];
+  readonly unsupportedVersions: readonly Readonly<{
+    sourceModule: string;
+    sourceLocation: string;
+    installedVersion: string;
+    supportedRanges: readonly string[];
+    adapterPackage: string;
+    adapterVersion: string;
   }>[];
   readonly watchFiles: readonly string[];
 }
@@ -113,10 +122,41 @@ export function createReactCompatibilityBuildEngine(options: ReactCompatibilityO
       const current = state();
       const resolvedReplacements = replacementsForImporter(current.graph, current.registry, input.id);
       const replacements = moduleReplacements(resolvedReplacements);
-      if (!containsCandidate(input.source, resolved.aliases, replacements)) {
-        return Object.freeze({ code: input.source, map: null, changed: false, watchFiles: current.watchFiles, dependencyIds: [], diagnostics: [], registryHash: current.hash });
+      const unsupported = unsupportedSourcesForImporter(current.graph, current.registry, input.id)
+        .filter(source => containsModule(input.source, source.sourceModule));
+      if (unsupported.length && resolved.strict) {
+        const source = unsupported[0]!;
+        throw new Error(
+          `Unsupported React compatibility source ${source.sourceModule}@${source.installedVersion} ` +
+          `resolved from ${source.sourceLocation} for importer ${input.id}; ` +
+          `${source.adapterPackage}@${source.adapterVersion} supports ${source.supportedRanges.join(", ")}`
+        );
       }
-      const diagnostics = fallbackDiagnostics(input.id, input.source, resolvedReplacements, buildRoot);
+      const unsupportedDiagnostics: ReactCompatibilityDiagnostic[] = unsupported.map(source => ({
+        severity: "error",
+        code: "unsupported-version",
+        message: `${source.sourceModule}@${source.installedVersion} is outside supported ranges ${source.supportedRanges.join(", ")}`,
+        moduleId: input.id,
+        sourceModule: source.sourceModule,
+        sourceExport: "*",
+        sourceVersion: source.installedVersion,
+        adapterPackage: source.adapterPackage,
+        adapterVersion: source.adapterVersion,
+        replacementExport: "*",
+        buildRoot
+      }));
+      if (!containsCandidate(input.source, resolved.aliases, replacements)) {
+        return Object.freeze({
+          code: input.source,
+          map: null,
+          changed: false,
+          watchFiles: current.watchFiles,
+          dependencyIds: [],
+          diagnostics: Object.freeze(unsupportedDiagnostics),
+          registryHash: current.hash
+        });
+      }
+      const diagnostics = [...unsupportedDiagnostics, ...fallbackDiagnostics(input.id, input.source, resolvedReplacements, buildRoot)];
       const transformed = rewriteModuleReferences(input.source, {
         filename: input.id,
         moduleAliases: resolved.aliases,
@@ -166,6 +206,14 @@ export function createReactCompatibilityBuildEngine(options: ReactCompatibilityO
           adapterVersion: replacement.adapterVersion,
           targetModule: replacement.specifier,
           targetExport: replacement.export
+        }))),
+        unsupportedVersions: Object.freeze(current.registry.unsupportedSources.map(source => Object.freeze({
+          sourceModule: source.sourceModule,
+          sourceLocation: source.sourceLocation,
+          installedVersion: source.installedVersion,
+          supportedRanges: source.supportedRanges,
+          adapterPackage: source.adapterPackage,
+          adapterVersion: source.adapterVersion
         }))),
         watchFiles: current.watchFiles
       });

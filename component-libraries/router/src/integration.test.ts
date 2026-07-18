@@ -20,7 +20,8 @@ describe("router compatibility integration", () => {
       dependencies: {
         "@exact/router": "0.0.0",
         "react-router-dom": "7.9.0",
-        nested: "1.0.0"
+        nested: "1.0.0",
+        unsupported: "1.0.0"
       }
     }));
     writeFileSync(path.join(root, "package-lock.json"), JSON.stringify({
@@ -34,7 +35,8 @@ describe("router compatibility integration", () => {
           dependencies: {
             "@exact/router": "0.0.0",
             "react-router-dom": "7.9.0",
-            nested: "1.0.0"
+            nested: "1.0.0",
+            unsupported: "1.0.0"
           }
         },
         "node_modules/@exact/router": routerManifest,
@@ -54,6 +56,15 @@ describe("router compatibility integration", () => {
         "node_modules/nested/node_modules/react-router-dom": {
           name: "react-router-dom",
           version: "5.3.4"
+        },
+        "node_modules/unsupported": {
+          name: "unsupported",
+          version: "1.0.0",
+          dependencies: { "react-router-dom": "8.0.0" }
+        },
+        "node_modules/unsupported/node_modules/react-router-dom": {
+          name: "react-router-dom",
+          version: "8.0.0"
         }
       }
     }));
@@ -77,6 +88,12 @@ describe("router compatibility integration", () => {
       expect.objectContaining({ sourceVersion: ">=6.4 <8", targetModule: "@exact/router/data" }),
       expect.objectContaining({ sourceVersion: ">=5 <6", targetModule: "@exact/router/v5" })
     ]));
+    expect(() => engine.transformModule({
+      id: path.join(root, "node_modules/unsupported/src/view.ts"),
+      source: 'import { RouterProvider } from "react-router-dom"; export { RouterProvider };',
+      format: "module",
+      target: "client"
+    })).toThrow(/react-router-dom@8\.0\.0.*supports >=5 <6, >=6 <6\.4, >=6\.4 <8/);
   });
 
   it("keeps facade entrypoints side-effect free and out of the native import graph", () => {

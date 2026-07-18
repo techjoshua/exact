@@ -12,7 +12,8 @@ export {
   type ReactCompatPackageGraph,
   type ReactCompatPackageNode,
   type ResolvedReactCompatAdapters,
-  type ResolvedReactCompatReplacement
+  type ResolvedReactCompatReplacement,
+  type UnsupportedReactCompatSource
 } from "./adapters.js";
 
 export type ReactFilterPattern = string | RegExp | readonly (string | RegExp)[];

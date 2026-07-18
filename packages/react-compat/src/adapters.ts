@@ -40,8 +40,20 @@ export interface ResolvedReactCompatReplacement extends ReactCompatReplacementDe
 
 export interface ResolvedReactCompatAdapters {
   readonly replacements: ReadonlyMap<string, ResolvedReactCompatReplacement>;
+  readonly unsupportedSources: readonly UnsupportedReactCompatSource[];
   readonly adapters: readonly string[];
   readonly ignoredAdapters: readonly string[];
+}
+
+export interface UnsupportedReactCompatSource {
+  readonly sourceInstance: string;
+  readonly sourceLocation: string;
+  readonly sourceModule: string;
+  readonly sourcePackage: string;
+  readonly installedVersion: string;
+  readonly supportedRanges: readonly string[];
+  readonly adapterPackage: string;
+  readonly adapterVersion: string;
 }
 
 /** Selects replacements using the package instance that the importer resolves. */
@@ -62,6 +74,16 @@ export function replacementsForImporter(
   return Object.freeze(selected);
 }
 
+export function unsupportedSourcesForImporter(
+  graph: ReactCompatPackageGraph,
+  registry: ResolvedReactCompatAdapters,
+  importer: string
+): readonly UnsupportedReactCompatSource[] {
+  return Object.freeze(registry.unsupportedSources.filter(source =>
+    resolveSourceInstance(graph, importer, source.sourcePackage)?.id === source.sourceInstance
+  ));
+}
+
 /** Discovers reachable adapters and resolves their declarations into a conflict-free registry. */
 export function discoverReactCompatAdapters(graph: ReactCompatPackageGraph): ResolvedReactCompatAdapters {
   const root = graph.nodes.get(graph.rootId);
@@ -69,6 +91,7 @@ export function discoverReactCompatAdapters(graph: ReactCompatPackageGraph): Res
   const ignored = new Set(readReactCompatApplicationPolicy(root.manifest, `${root.location}/package.json`).ignoreAdapters ?? []);
   const reachable = reachableNodes(graph);
   const replacements = new Map<string, ResolvedReactCompatReplacement>();
+  const unsupportedSources: UnsupportedReactCompatSource[] = [];
   const adapters: string[] = [];
   const candidates = [...reachable]
     .filter(node => node.id !== graph.rootId)
@@ -110,7 +133,19 @@ export function discoverReactCompatAdapters(graph: ReactCompatPackageGraph): Res
       for (const sourceNode of reachable.filter(candidate => candidate.manifest.name === sourcePackage)) {
         const installedVersion = packageVersion(sourceNode);
         const variant = source.variants.find(candidate => satisfies(installedVersion, candidate.version, { includePrerelease: true }));
-        if (!variant) continue;
+        if (!variant) {
+          unsupportedSources.push(Object.freeze({
+            sourceInstance: sourceNode.id,
+            sourceLocation: sourceNode.location,
+            sourceModule,
+            sourcePackage,
+            installedVersion,
+            supportedRanges: Object.freeze(source.variants.map(candidate => candidate.version)),
+            adapterPackage: name,
+            adapterVersion: packageVersion(node)
+          }));
+          continue;
+        }
         for (const [sourceExport, replacement] of Object.entries(variant.exports)) {
           const key = replacementKey(sourceNode.id, sourceModule, sourceExport);
           const resolved: ResolvedReactCompatReplacement = Object.freeze({
@@ -141,6 +176,7 @@ export function discoverReactCompatAdapters(graph: ReactCompatPackageGraph): Res
   }
   return Object.freeze({
     replacements,
+    unsupportedSources: Object.freeze(unsupportedSources),
     adapters: Object.freeze(adapters),
     ignoredAdapters: Object.freeze([...ignored].sort())
   });
