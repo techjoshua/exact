@@ -7,6 +7,7 @@ import {
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
   type ReactComponentType,
@@ -20,6 +21,8 @@ import {
   createBrowserLocationSource,
   generatePath,
   matchPath,
+  matchRoutes as exactMatchRoutes,
+  redirect as exactRedirect,
   RouterControllerContext,
   type ExactHydrationData,
   type ExactRouteDefinition,
@@ -48,6 +51,7 @@ export type RouterProviderProps = {
   router: ExactRouter<RouteObject>;
   fallbackElement?: ReactNode;
 };
+export const NavigationType = Object.freeze({ Pop: "POP", Push: "PUSH", Replace: "REPLACE" } as const);
 export type StaticHandlerContext = Readonly<{
   location: RouteLocation;
   matches: ExactRouterSnapshot<RouteObject>["matches"];
@@ -73,6 +77,7 @@ function useRouter(): ExactRouter<RouteObject> {
   if (!router) throw new Error("React Router compatibility APIs must be rendered inside a router");
   return router as ExactRouter<RouteObject>;
 }
+export function useInRouterContext(): boolean { return !!useContext(ReactRouterContext); }
 
 /** Renderer bridge used by versioned facades in this package, not a React Router public export. */
 export function UNSAFE_useExactRouter(): ExactRouter<RouteObject> { return useRouter(); }
@@ -198,7 +203,7 @@ export function useRoutes(routes: readonly RouteObject[], _location?: string | P
     configuredRoutes.set(router, routes);
     router.setRoutes(routes);
   }
-  return renderMatches(useSnapshot(router), routes);
+  return renderRouteMatches(useSnapshot(router));
 }
 
 export function RouterProvider(props: RouterProviderProps): ReactNode {
@@ -206,7 +211,7 @@ export function RouterProvider(props: RouterProviderProps): ReactNode {
   useEffect(() => { void props.router.initialize(); return () => props.router.dispose(); }, [props.router]);
   return createElement(ControllerProvider, {
     router: props.router,
-    children: snapshot.initialized ? renderMatches(snapshot, []) : props.fallbackElement ?? null
+    children: snapshot.initialized ? renderRouteMatches(snapshot) : props.fallbackElement ?? null
   });
 }
 
@@ -253,6 +258,10 @@ export function Outlet(props: { context?: unknown }): ReactNode {
   return createElement(OutletValueContext.Provider, { value: props.context, children: outlet });
 }
 
+export function useOutlet(context?: unknown): ReactNode {
+  const outlet = useContext(OutletContext);
+  return context === undefined ? outlet : createElement(OutletValueContext.Provider, { value: context, children: outlet });
+}
 export function useOutletContext<T = unknown>(): T { return useContext(OutletValueContext) as T; }
 export function useLocation(): RouteLocation { return useSnapshot().location; }
 export function useNavigationType(): "POP" | "PUSH" | "REPLACE" { return useSnapshot().historyAction; }
@@ -380,6 +389,92 @@ export function useRevalidator(): { revalidate(): Promise<void>; state: "idle" |
   const snapshot = useSnapshot(router);
   return { revalidate: () => router.revalidate(), state: snapshot.revalidation };
 }
+
+export function useBlocker(
+  shouldBlock: boolean | ((args: {
+    currentLocation: RouteLocation;
+    nextLocation: RouteLocation;
+    historyAction: "POP" | "PUSH" | "REPLACE";
+  }) => boolean)
+): {
+  state: "unblocked" | "blocked" | "proceeding";
+  location?: RouteLocation;
+  proceed?(): void;
+  reset?(): void;
+} {
+  const router = useRouter();
+  const bypass = useRef(false);
+  const [blocked, setBlocked] = useState<{
+    state: "unblocked" | "blocked" | "proceeding";
+    location?: RouteLocation;
+    proceed?(): void;
+    reset?(): void;
+  }>({ state: "unblocked" });
+  useEffect(() => router.block(transition => {
+    if (bypass.current) { bypass.current = false; return false; }
+    const active = typeof shouldBlock === "function" ? shouldBlock(transition) : shouldBlock;
+    if (!active) return false;
+    const reset = () => setBlocked({ state: "unblocked" });
+    const proceed = () => {
+      setBlocked({ state: "proceeding", location: transition.nextLocation });
+      bypass.current = true;
+      void router.navigate(locationToString(transition.nextLocation), {
+        replace: transition.historyAction === "REPLACE",
+        state: transition.nextLocation.state
+      }).finally(reset);
+    };
+    setBlocked({ state: "blocked", location: transition.nextLocation, proceed, reset });
+    return true;
+  }), [router, shouldBlock]);
+  return blocked;
+}
+
+export function unstable_usePrompt(options: { when: boolean | Parameters<typeof useBlocker>[0]; message: string }): void {
+  const blocker = useBlocker(options.when);
+  useEffect(() => {
+    if (blocker.state !== "blocked") return;
+    if (typeof window !== "undefined" && window.confirm(options.message)) blocker.proceed?.();
+    else blocker.reset?.();
+  }, [blocker.state, options.message]);
+}
+
+export function useBeforeUnload(callback: (event: BeforeUnloadEvent) => unknown, options?: AddEventListenerOptions): void {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.addEventListener("beforeunload", callback, options);
+    return () => window.removeEventListener("beforeunload", callback, options);
+  }, [callback, options]);
+}
+
+export function useFormAction(action = ".", _options?: { relative?: "route" | "path" }): string {
+  return useHref(action);
+}
+
+export function useLinkClickHandler<T extends Element = HTMLAnchorElement>(
+  to: To,
+  options: NavigateOptions & { target?: string } = {}
+): (event: MouseEvent & { currentTarget: T }) => void {
+  const navigate = useNavigate();
+  return event => {
+    if (options.target && options.target !== "_self" || !shouldHandleClick(event)) return;
+    event.preventDefault();
+    void navigate(to, options);
+  };
+}
+
+export function ScrollRestoration(props: { getKey?: (location: RouteLocation, matches: ReturnType<typeof useMatches>) => string }): null {
+  const location = useLocation();
+  const matches = useMatches();
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const key = props.getKey?.(location, matches) ?? location.key;
+    const saved = scrollPositions.get(key);
+    if (saved) window.scrollTo(saved[0], saved[1]);
+    return () => { scrollPositions.set(key, [window.scrollX, window.scrollY]); };
+  }, [location.key]);
+  return null;
+}
+const scrollPositions = new Map<string, readonly [number, number]>();
 
 export function useSubmit(): (
   target: HTMLFormElement | FormData | URLSearchParams | Record<string, string>,
@@ -558,11 +653,103 @@ export function defer<T extends Record<string, unknown>>(data: T): T { return da
 export function json<T>(data: T, init?: number | ResponseInit): Response {
   return Response.json(data, typeof init === "number" ? { status: init } : init);
 }
+export function redirect(location: string, init: number | ResponseInit = 302): Response {
+  const response = typeof init === "number" ? exactRedirect(location, init) : exactRedirect(location, init.status ?? 302);
+  if (typeof init !== "number") new Headers(init.headers).forEach((value, name) => response.headers.set(name, value));
+  return response;
+}
+export function redirectDocument(location: string, init: number | ResponseInit = 302): Response {
+  const response = redirect(location, init);
+  response.headers.set("X-Remix-Reload-Document", "true");
+  return response;
+}
+export function replace(location: string, init: number | ResponseInit = 302): Response {
+  const response = redirect(location, init);
+  response.headers.set("X-Remix-Replace", "true");
+  return response;
+}
+export function isRouteErrorResponse(value: unknown): value is Response | { status: number; statusText: string; data: unknown } {
+  return value instanceof Response || !!value && typeof value === "object"
+    && typeof (value as any).status === "number" && "data" in value;
+}
+export function useViewTransitionState(_to: To, _options?: { relative?: "route" | "path" }): boolean { return false; }
+export function createSearchParams(
+  init: string | URLSearchParams | readonly (readonly [string, string])[] | Record<string, string | readonly string[]> = ""
+): URLSearchParams {
+  if (typeof init === "string" || init instanceof URLSearchParams || Array.isArray(init)) return new URLSearchParams(init as any);
+  const params = new URLSearchParams();
+  for (const [name, value] of Object.entries(init)) {
+    if (Array.isArray(value)) value.forEach(item => params.append(name, item));
+    else params.set(name, value as string);
+  }
+  return params;
+}
+export function createPath(value: Partial<Pick<RouteLocation, "pathname" | "search" | "hash">>): string {
+  const pathname = value.pathname || "/";
+  const search = value.search && value.search !== "?" ? value.search.startsWith("?") ? value.search : `?${value.search}` : "";
+  const hash = value.hash && value.hash !== "#" ? value.hash.startsWith("#") ? value.hash : `#${value.hash}` : "";
+  return `${pathname}${search}${hash}`;
+}
+export function parsePath(value: string): Partial<Pick<RouteLocation, "pathname" | "search" | "hash">> {
+  const parsed: Partial<Pick<RouteLocation, "pathname" | "search" | "hash">> = {};
+  const hashIndex = value.indexOf("#");
+  if (hashIndex >= 0) { parsed.hash = value.slice(hashIndex); value = value.slice(0, hashIndex); }
+  const searchIndex = value.indexOf("?");
+  if (searchIndex >= 0) { parsed.search = value.slice(searchIndex); value = value.slice(0, searchIndex); }
+  if (value) parsed.pathname = value;
+  return parsed;
+}
+export function resolvePath(to: To, fromPathname = "/"): Pick<RouteLocation, "pathname" | "search" | "hash"> {
+  const value = typeof to === "string" ? parsePath(to) : to;
+  const pathname = value.pathname
+    ? value.pathname.startsWith("/") ? value.pathname : new URL(value.pathname, `http://exact.local${fromPathname.endsWith("/") ? fromPathname : `${fromPathname}/`}`).pathname
+    : fromPathname;
+  return { pathname, search: value.search ?? "", hash: value.hash ?? "" };
+}
+export function matchRoutes(
+  routes: readonly RouteObject[],
+  location: string | Partial<RouteLocation>,
+  basename = "/"
+): readonly { params: Readonly<Record<string, string>>; pathname: string; pathnameBase: string; route: RouteObject }[] | null {
+  const pathname = typeof location === "string" ? parsePath(location).pathname ?? "/" : location.pathname ?? "/";
+  const publicPath = basename === "/" ? pathname : pathname.toLowerCase().startsWith(basename.toLowerCase())
+    ? pathname.slice(basename.length) || "/"
+    : pathname;
+  const matches = exactMatchRoutes(routes, publicPath);
+  return matches.length ? matches.map(match => ({
+    params: match.params,
+    pathname: match.pathname,
+    pathnameBase: match.pathnameBase,
+    route: match.route
+  })) : null;
+}
+export function renderMatches(
+  matches: readonly { params: Readonly<Record<string, string>>; pathname: string; pathnameBase: string; route: RouteObject }[] | null
+): ReactNode {
+  if (!matches?.length) return null;
+  let outlet: ReactNode = null;
+  for (let index = matches.length - 1; index >= 0; index--) {
+    const match = matches[index]!;
+    const element: ReactNode = match.route.Component ? createElement(match.route.Component, {}) : match.route.element ?? outlet;
+    outlet = createElement(OutletContext.Provider, { value: outlet, children: element });
+  }
+  return outlet;
+}
+export function unstable_HistoryRouter(props: { basename?: string; children?: ReactNode; history: any }): ReactNode {
+  return createElement(Router, {
+    basename: props.basename,
+    location: props.history.location,
+    navigationType: props.history.action,
+    navigator: props.history,
+    children: props.children
+  });
+}
+export const HistoryRouter = unstable_HistoryRouter;
 
 export { generatePath, matchPath };
 export type { ExactHydrationData };
 
-function renderMatches(snapshot: ExactRouterSnapshot<RouteObject>, _routes: readonly RouteObject[]): ReactNode {
+function renderRouteMatches(snapshot: ExactRouterSnapshot<RouteObject>): ReactNode {
   if (!snapshot.matches.length) return null;
   const errorMatch = [...snapshot.matches].reverse().find(match => snapshot.errors[match.id] !== undefined);
   if (errorMatch) {

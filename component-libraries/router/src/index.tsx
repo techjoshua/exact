@@ -42,6 +42,7 @@ export {
   matchRoutes,
   normalizeBasename,
   normalizePath,
+  redirect,
   resolveTarget,
   routeUrl,
   stripBasename,

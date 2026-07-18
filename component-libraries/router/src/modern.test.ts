@@ -16,6 +16,7 @@ import {
   createStaticHandler,
   useLoaderData,
   useHref,
+  useBlocker,
   useLocation,
   useParams
 } from "./modern.js";
@@ -118,5 +119,30 @@ describe("React Router modern facade", () => {
     createRoot(container).render(createElement(RouterProvider, { router }));
     await settle();
     expect(container.querySelector("a")?.getAttribute("href")).toBe("/users");
+  });
+
+  it("blocks and explicitly proceeds with modern navigation", async () => {
+    function Page() {
+      const blocker = useBlocker(true);
+      return createElement("section", null,
+        createElement(Link, { to: "/next" }, "Move"),
+        blocker.state === "blocked"
+          ? createElement("button", { onClick: () => blocker.proceed?.() }, "Proceed")
+          : null
+      );
+    }
+    const router = createMemoryRouter([
+      { id: "home", index: true, Component: Page },
+      { id: "next", path: "next", element: "Next" }
+    ], { initialEntries: ["/"] });
+    const container = document.createElement("div");
+    createRoot(container).render(createElement(RouterProvider, { router }));
+    await settle();
+    container.querySelector("a")!.click();
+    await settle();
+    expect(router.getSnapshot().location.pathname).toBe("/");
+    container.querySelector("button")!.click();
+    await settle();
+    expect(router.getSnapshot().location.pathname).toBe("/next");
   });
 });

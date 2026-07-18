@@ -73,6 +73,26 @@ describe("pinned React Router differential conformance", () => {
     actualRouter.dispose();
     exactRouter.dispose();
   });
+
+  it.each([
+    ["pre-data v6", "react-router-dom-v63"],
+    ["final v6", "react-router-dom-v6"],
+    ["v7", "react-router-dom-v7"]
+  ])("matches %s public path utility observations", async (_label, packageName) => {
+    const actual: any = await import(packageName);
+    const exact: any = await import("./modern.js");
+    const paths = [
+      { pathname: "/users/42", search: "?tab=profile", hash: "#bio" },
+      { pathname: "/", search: "", hash: "" }
+    ];
+    for (const value of paths) {
+      expect(exact.createPath(value)).toBe(actual.createPath(value));
+      expect(exact.parsePath(exact.createPath(value))).toEqual(actual.parsePath(actual.createPath(value)));
+    }
+    expect(exact.resolvePath("../settings", "/users/42")).toEqual(actual.resolvePath("../settings", "/users/42"));
+    expect(exact.createSearchParams({ tag: ["one", "two"] }).toString())
+      .toBe(actual.createSearchParams({ tag: ["one", "two"] }).toString());
+  });
 });
 
 function normalizeV5(value: any): unknown {

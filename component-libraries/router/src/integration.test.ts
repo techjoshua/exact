@@ -90,10 +90,10 @@ describe("router compatibility integration", () => {
     ]));
     expect(() => engine.transformModule({
       id: path.join(root, "src/unsupported-export.ts"),
-      source: 'import { unstable_HistoryRouter } from "react-router-dom"; export { unstable_HistoryRouter };',
+      source: 'import { HydratedRouter } from "react-router-dom"; export { HydratedRouter };',
       format: "module",
       target: "client"
-    })).toThrow(/Unsupported runtime react-router-dom unstable_HistoryRouter.*mix compatibility authorities/);
+    })).toThrow(/Unsupported runtime react-router-dom HydratedRouter.*mix compatibility authorities/);
     expect(() => engine.transformModule({
       id: path.join(root, "node_modules/unsupported/src/view.ts"),
       source: 'import { RouterProvider } from "react-router-dom"; export { RouterProvider };',
