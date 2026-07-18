@@ -1,6 +1,7 @@
 # React Router Compatibility Plan
 
-Status: proposed; no implementation in this document.
+Status: implemented through the initial v5/v6/v7 library and data-router
+compatibility scope. Framework mode and v8 remain intentionally unsupported.
 
 ## Purpose
 
@@ -89,9 +90,9 @@ by executable conformance fixtures.
   and export identity no longer exists.
 - Treating client route context as trusted server authorization.
 
-## Current Repository Baseline
+## Implemented Repository State
 
-`@exact/router` currently provides:
+`@exact/router` now provides:
 
 - History, hash, memory, and request-backed location sources.
 - Nested component-reference routes and outlets.
@@ -100,49 +101,52 @@ by executable conformance fixtures.
 - `Router`, `Route`, `Outlet`, `Link`, `NavLink`, and `Navigate`.
 - Location, params, matches, search parameters, and navigation context.
 - Request-context SSR lookup and response redirect recording.
+- A renderer-neutral controller with immutable snapshots, transition identity,
+  abort ownership, loaders, actions, lazy routes, fetchers, revalidation,
+  blockers, errors, and bounded hydration data.
+- React Router-compatible v5, modern declarative, and modern data-router
+  projections over that controller.
+- Explicit `./v5`, `./modern`, and `./data` subpaths so ordinary package tree
+  shaking can exclude unused compatibility families.
 
-The implementation currently keeps route collection, branch matching,
-navigation, subscription, and route rendering inside the native `Router`
-component. That coupling must be removed before a React facade can share the
-same authority cleanly.
-
-The React adapter system currently:
+The React adapter system now:
 
 - Discovers inert package metadata through
   `@exact/react-compat-adapter-api`.
-- Uses one source version range and replacement map per module.
+- Selects non-overlapping source-version variants per resolved package
+  instance.
 - Normalizes replacements by source module and export name.
 - Replaces provider components through explicit React-to-eXact boundaries.
 - Shares intentional context identity between React compatibility and eXact.
-
-It does not yet select different replacements for distinct installed instances
-of the same source package. Router work must not weaken that limitation with a
-router-specific runtime workaround.
+- Fails closed when a router export is outside the selected facade instead of
+  retaining a second routing authority.
+- Supports root and nested installations using different React Router majors
+  in the same application graph.
 
 ## Settled Architecture
 
 ### Package boundaries
 
-Use two packages:
+Keep the implementation in one package with environment- and feature-specific
+subpath entrypoints:
 
 ```text
 @exact/router
 |- renderer-neutral controller, route model, matching, history, and data APIs
 |- native eXact components and context
-`- no React or React Router dependency
-
-@exact/react-router
-|- v5 React compatibility facade
-|- v6 declarative facade
-|- v6.4+ data-router facade
-|- v7 library/data-router facade
+|- ./v5: v5 React compatibility facade
+|- ./modern: v6/v7 declarative facade
+|- ./data: v6.4+/v7 data-router facade
 `- inert version-conditioned substitution metadata
 ```
 
-The adapter may have optional peer dependencies on the supported React Router
-packages for type compatibility and conformance tests. Runtime adapter modules
-must implement behavior through `@exact/router`; they must not delegate
-authority to a second React Router.
+The package has optional peer declarations for React compatibility and the
+supported React Router ranges. Native consumers use the root entrypoint, whose
+static dependency graph contains no React or React Router runtime. Compatibility
+entrypoints implement behavior through the same local controller; they do not
+delegate authority to a second React Router. The package is side-effect free,
+and a production bundle gate verifies that native, v5, and data entrypoints do
+not pull one another in.
 
 ### One controller
 
@@ -609,7 +613,7 @@ requested export, supported ranges, and adapter package/version.
 
 ## Implementation Phases
 
-### Phase 1: Resolved-instance adapter variants
+### Phase 1: Resolved-instance adapter variants — complete
 
 - Extend adapter schema version 1 with non-overlapping source variants.
 - Resolve source package instances per importer.
@@ -625,7 +629,7 @@ Exit criteria:
 - Existing adapters retain their behavior after metadata migration.
 - No transform selects a variant from an unrelated hoisted package instance.
 
-### Phase 2: Extract and stabilize the router core
+### Phase 2: Extract and stabilize the router core — complete
 
 - Extract location, matching, navigation, and subscription logic from the native
   `Router`.
@@ -641,9 +645,9 @@ Exit criteria:
 - Controller tests run without DOM, React, or native component rendering.
 - Browser, hash, memory, and request-backed behavior remains certified.
 
-### Phase 3: Modern declarative compatibility
+### Phase 3: Modern declarative compatibility — complete
 
-- Add `@exact/react-router` modern entrypoints and metadata.
+- Add `@exact/router/modern` and version-conditioned metadata.
 - Implement v6/v7 declarative components, hooks, helpers, and route objects.
 - Bridge router context across alternating eXact and React ownership.
 - Support v6 pre-6.4 separately from data-router-capable versions.
@@ -655,7 +659,8 @@ Exit criteria:
 - Native navigation updates React hooks and React navigation updates native
   context.
 
-### Phase 4: Native data router and modern data compatibility
+### Phase 4: Native data router and modern data compatibility — complete for
+the initial supported surface
 
 - Add loaders, actions, fetchers, revalidation, errors, lazy routes, blockers,
   and navigation state to the core.
@@ -672,7 +677,8 @@ Exit criteria:
   React packages.
 - SSR and hydration do not duplicate loader execution or leak server-only data.
 
-### Phase 5: React Router v5 compatibility
+### Phase 5: React Router v5 compatibility — complete for the initial
+supported surface
 
 - Implement v5 routers, `Switch`, route rendering forms, redirects, history,
   hooks, HOC, helpers, and prompts.
@@ -687,15 +693,17 @@ Exit criteria:
   replacement conflicts.
 - V5 support adds no data-router claims or modern semantics not present in v5.
 
-### Phase 6: Hardening and adoption certification
+### Phase 6: Hardening and adoption certification — partially complete
 
 - Add differential conformance fixtures against the corresponding real React
   Router versions.
-- Cover Vite, Node, ahead-of-time, Webpack, and Bun hosts through the common
-  engine.
+- Exercise the common build engine and resolved-package substitution logic.
+  Host-specific Vite, Webpack, and Bun certification remains future work; those
+  hosts do not receive router-specific selection logic.
 - Certify package contents, conditional exports, tree shaking, lazy routes,
   source maps, watch invalidation, and production bundles.
-- Publish a compatibility matrix and structured report examples.
+- Maintain the compatibility matrix below. Structured report presentation
+  remains future work.
 - Evaluate v8 and add a variant only after conformance evidence.
 
 Exit criteria:
@@ -711,10 +719,10 @@ Exit criteria:
 
 ### Pinned source versions
 
-- React Router DOM 5.3.x and its documented history integration.
-- React Router DOM 6.0-6.3 declarative mode.
-- Final React Router DOM v6 declarative and data-router modes.
-- Current supported React Router v7 library/data-router mode.
+- React Router DOM 5.3.4 and its documented history integration.
+- React Router DOM 6.3.0 declarative mode.
+- React Router DOM 6.30.4 declarative and data-router modes.
+- React Router DOM 7.18.1 library/data-router mode.
 - Root modern plus nested v5 duplicate-major graph.
 - Unsupported v8 fixture that fails closed until explicitly enabled.
 
@@ -771,11 +779,30 @@ targets.
 - Loader/fetcher concurrency and resource limits remain bounded.
 - Large route graphs have explicit matching and initialization budgets.
 
+The executable production bundle gate currently verifies:
+
+- The native root excludes React compatibility, v5, and data-facade code.
+- The data entrypoint excludes v5-only code.
+- The v5 entrypoint excludes modern data/static-router code.
+
+### Intentional compatibility boundaries
+
+- React Router v7 framework-mode route generation, middleware, development
+  server, and deployment adapters are rejected rather than partially emulated.
+- React Router v8 matches no supported variant and fails closed.
+- Source exports absent from the selected version map fail closed; transformed
+  and original router authorities are never mixed.
+- Deferred data supports the controller's documented promise/suspense behavior,
+  not React Router framework-mode streaming protocols.
+- The facades use local public-shape TypeScript declarations. They do not
+  import private React Router types or runtime internals.
+
 ## Adoption Guidance
 
 Applications may migrate incrementally:
 
-1. Install the React Router adapter without changing React Router imports.
+1. Install the eXact router/React compatibility packages without changing
+   React Router imports.
 2. Confirm the compatibility report selects the expected resolved version.
 3. Introduce native eXact descendants beneath the existing router.
 4. Move shared consumers from React hooks to native `RouteContext` or native
@@ -806,15 +833,6 @@ definitions immediately.
 
 ## Open Design Questions
 
-- Final native names and signatures for route loaders, actions, fetchers, and
-  static SSR helpers.
-- Whether the adapter exposes React Router-compatible TypeScript types by
-  depending on the installed peer declarations or maintains versioned local
-  declarations.
-- Exact supported behavior for deferred data across the selected v6/v7
-  versions.
-- Whether v5 `Prompt` uses only synchronous browser confirmation initially or
-  exposes the full shared blocker continuation contract.
 - How compatibility reporting presents one importer graph that reaches several
   source package instances of the same version.
 - Which v7 framework-mode APIs, if any, are sufficiently independent of its
@@ -831,6 +849,13 @@ definitions immediately.
 - Multiple installed majors are supported rather than rejected globally.
 - Runtime version or prop guessing is not the selection mechanism.
 - Native `@exact/router` does not depend on React Router.
+- Compatibility facades are subpaths of `@exact/router`, not a second adapter
+  package.
+- Public-shape facade types are maintained locally.
+- V5 `Prompt` and modern blocker hooks use the shared controller blocker and
+  continuation contract.
+- Initial deferred support is limited to the controller's documented
+  promise/suspense behavior.
 - Client route context is not server authorization.
 - V7 framework-mode build and deployment tooling is outside the initial scope.
 - V8 support follows evidence rather than an optimistic semver range.
