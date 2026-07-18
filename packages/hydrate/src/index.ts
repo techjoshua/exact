@@ -1,4 +1,4 @@
-import { adoptComponentRoot, adoptMarkerlessComponentRoot, adoptStatic, consumeDomWork, createDomWorkBudget, namespaceForTag, render, unmount, walkDomSubtree, type DomWorkBudget } from "@exact/dom";
+import { adoptComponentRoot, adoptDocumentRoot, adoptMarkerlessComponentRoot, adoptStatic, consumeDomWork, createDomWorkBudget, namespaceForTag, render, unmount, walkDomSubtree, type DomWorkBudget } from "@exact/dom";
 import { Fragment, Text, isVNode, sanitizeUrlAttribute, type Child, type VNode } from "@exact/core";
 import type {
   ExactClient,
@@ -32,34 +32,56 @@ const roots = new WeakMap<Element, HydrationRoot>();
 const requestVersions = new WeakMap<Element, Map<string, number>>();
 
 /** Hydrates an SSR container and returns the eXact client attached to that container. */
-export function hydrate(vnode: VNode, container: Element, options: HydrateOptions = {}): HydrationRoot {
-  const existing = roots.get(container);
+export function hydrate(vnode: VNode, container: Element | Document, options: HydrateOptions = {}): HydrationRoot {
+  const documentNode = container instanceof Document ? container : undefined;
+  const rootContainer = documentNode?.documentElement ?? container as Element;
+  const existing = roots.get(rootContainer);
   if (existing) {
-    render(vnode, container, { logger: options.logger, onErrorReport: options.onErrorReport, maxTreeDepth: options.maxTreeDepth, maxTreeNodes: options.maxTreeNodes, allowUnsafeHtml: options.allowUnsafeHtml, onUnsafeHtml: options.onUnsafeHtml });
+    render(vnode, rootContainer, { logger: options.logger, onErrorReport: options.onErrorReport, maxTreeDepth: options.maxTreeDepth, maxTreeNodes: options.maxTreeNodes, allowUnsafeHtml: options.allowUnsafeHtml, onUnsafeHtml: options.onUnsafeHtml });
     return existing;
   }
-  const resolvedOptions = resolveHydrateOptions(container, options);
+  const resolvedOptions = resolveHydrateOptions(rootContainer, options);
   const work = createDomWorkBudget(resolvedOptions.maxTreeNodes);
-  const captured = captureHydrationDom(container, work);
+  const captured = captureHydrationDom(rootContainer, work);
   const formState = captured.formState;
+  if (documentNode) {
+    const adopted = adoptDocumentRoot(vnode, documentNode, {
+      logger: resolvedOptions.logger,
+      onErrorReport: resolvedOptions.onErrorReport,
+      maxTreeDepth: resolvedOptions.maxTreeDepth,
+      maxTreeNodes: remainingDomWork(work),
+      workBudget: work,
+      allowUnsafeHtml: resolvedOptions.allowUnsafeHtml,
+      onUnsafeHtml: resolvedOptions.onUnsafeHtml
+    });
+    if (!adopted) {
+      reportMismatch(resolvedOptions, "server document did not match the authored client document", "adoption-mismatch");
+      throw new Error("eXact cannot safely replace a mismatched Document root; reload the document or correct the authored root.");
+    }
+    const root = createExactClient(rootContainer, resolvedOptions);
+    roots.set(rootContainer, root);
+    rootContainer.setAttribute("data-exact-hydrated", "true");
+    restoreFormState(rootContainer, formState, work);
+    return root;
+  }
   if (!captured.hasMarkers) {
     const adopted = resolvedOptions.allowMarkerless && typeof vnode.type === "function"
-      ? adoptMarkerlessComponentRoot(vnode, container, { logger: resolvedOptions.logger, onErrorReport: resolvedOptions.onErrorReport, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work, allowUnsafeHtml: resolvedOptions.allowUnsafeHtml, onUnsafeHtml: resolvedOptions.onUnsafeHtml })
+      ? adoptMarkerlessComponentRoot(vnode, rootContainer, { logger: resolvedOptions.logger, onErrorReport: resolvedOptions.onErrorReport, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work, allowUnsafeHtml: resolvedOptions.allowUnsafeHtml, onUnsafeHtml: resolvedOptions.onUnsafeHtml })
       : false;
     if (adopted) {
-      const root = createExactClient(container, resolvedOptions);
-      roots.set(container, root);
-      container.setAttribute("data-exact-hydrated", "true");
-      restoreFormState(container, formState, work);
+      const root = createExactClient(rootContainer, resolvedOptions);
+      roots.set(rootContainer, root);
+      rootContainer.setAttribute("data-exact-hydrated", "true");
+      restoreFormState(rootContainer, formState, work);
       return root;
     }
     reportMismatch(resolvedOptions, resolvedOptions.allowMarkerless ? "server markup did not match the client tree" : "missing exact hydration markers", resolvedOptions.allowMarkerless ? "adoption-mismatch" : "missing-markers");
-    container.replaceChildren();
-    render(vnode, container, { logger: resolvedOptions.logger, onErrorReport: resolvedOptions.onErrorReport, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work, allowUnsafeHtml: resolvedOptions.allowUnsafeHtml, onUnsafeHtml: resolvedOptions.onUnsafeHtml });
+    rootContainer.replaceChildren();
+    render(vnode, rootContainer, { logger: resolvedOptions.logger, onErrorReport: resolvedOptions.onErrorReport, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work, allowUnsafeHtml: resolvedOptions.allowUnsafeHtml, onUnsafeHtml: resolvedOptions.onUnsafeHtml });
   } else {
     if ((typeof vnode.type === "function"
-      ? adoptComponentRoot(vnode, container, { logger: resolvedOptions.logger, onErrorReport: resolvedOptions.onErrorReport, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work, allowUnsafeHtml: resolvedOptions.allowUnsafeHtml, onUnsafeHtml: resolvedOptions.onUnsafeHtml })
-      : adoptStaticTree(vnode, container, createStaticBudget(resolvedOptions, work)) && adoptStatic(vnode, container, {
+      ? adoptComponentRoot(vnode, rootContainer, { logger: resolvedOptions.logger, onErrorReport: resolvedOptions.onErrorReport, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work, allowUnsafeHtml: resolvedOptions.allowUnsafeHtml, onUnsafeHtml: resolvedOptions.onUnsafeHtml })
+      : adoptStaticTree(vnode, rootContainer, createStaticBudget(resolvedOptions, work)) && adoptStatic(vnode, rootContainer, {
         logger: resolvedOptions.logger,
         onErrorReport: resolvedOptions.onErrorReport,
         maxTreeDepth: resolvedOptions.maxTreeDepth,
@@ -68,24 +90,24 @@ export function hydrate(vnode: VNode, container: Element, options: HydrateOption
         allowUnsafeHtml: resolvedOptions.allowUnsafeHtml,
         onUnsafeHtml: resolvedOptions.onUnsafeHtml
       }))) {
-      const root = createExactClient(container, resolvedOptions);
-      roots.set(container, root);
-      container.setAttribute("data-exact-hydrated", "true");
-      restoreFormState(container, formState, work);
+      const root = createExactClient(rootContainer, resolvedOptions);
+      roots.set(rootContainer, root);
+      rootContainer.setAttribute("data-exact-hydrated", "true");
+      restoreFormState(rootContainer, formState, work);
       return root;
     }
     // The DOM renderer currently mounts a new mounted graph.  Clear the SSR
     // range first so a hydration attempt cannot leave duplicate interactive
     // markup behind while marker adoption is unavailable for a boundary.
-    container.replaceChildren();
-    render(vnode, container, { logger: resolvedOptions.logger, onErrorReport: resolvedOptions.onErrorReport, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work, allowUnsafeHtml: resolvedOptions.allowUnsafeHtml, onUnsafeHtml: resolvedOptions.onUnsafeHtml });
+    rootContainer.replaceChildren();
+    render(vnode, rootContainer, { logger: resolvedOptions.logger, onErrorReport: resolvedOptions.onErrorReport, maxTreeDepth: resolvedOptions.maxTreeDepth, maxTreeNodes: remainingDomWork(work), workBudget: work, allowUnsafeHtml: resolvedOptions.allowUnsafeHtml, onUnsafeHtml: resolvedOptions.onUnsafeHtml });
   }
 
-  restoreFormState(container, formState, work);
+  restoreFormState(rootContainer, formState, work);
 
-  const root = createExactClient(container, resolvedOptions);
-  roots.set(container, root);
-  container.setAttribute("data-exact-hydrated", "true");
+  const root = createExactClient(rootContainer, resolvedOptions);
+  roots.set(rootContainer, root);
+  rootContainer.setAttribute("data-exact-hydrated", "true");
   return root;
 }
 

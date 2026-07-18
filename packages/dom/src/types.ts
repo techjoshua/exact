@@ -31,6 +31,8 @@ export type Mounted = {
   stop?: StopHandle;
   /** Unmanaged nodes between an opaque raw-HTML range's boundary markers. */
   rawNodes?: Node[];
+  /** Reserved framework-owned insertion point after authored host children. */
+  childEnd?: Node;
 };
 
 export type Root = {
@@ -54,7 +56,7 @@ export type Root = {
   allowUnsafeHtml: boolean;
   onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
   /** Hydrated roots are anchored by SSR markers rather than the synthetic client root boundary. */
-  mode?: "client" | "hydrated";
+  mode?: "client" | "hydrated" | "document";
   /** Component ranges are inferred when the public server format omits eXact markers. */
   markerlessHydration?: boolean;
 };

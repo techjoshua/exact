@@ -85,6 +85,7 @@ import {
   isCellVNode,
   isVNode,
   normalizeChildren,
+  normalizeDocumentVNode,
   unsafeHtml
 } from "./vnode.js";
 
@@ -120,6 +121,7 @@ export {
   isCellVNode,
   isVNode,
   normalizeChildren,
+  normalizeDocumentVNode,
   unsafeHtml
 } from "./vnode.js";
 

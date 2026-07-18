@@ -88,6 +88,65 @@ export function unsafeHtml(value: unknown): VNode<{ value: unknown }> {
   return createVNode(UnsafeHtml, { value }) as VNode<{ value: unknown }>;
 }
 
+/**
+ * Normalizes the direct children of an authored document root without mutating
+ * the source vnode.
+ */
+export function normalizeDocumentVNode(vnode: VNode): VNode {
+  if (typeof vnode.type !== "string" || vnode.type.toLowerCase() !== "html") {
+    throw new TypeError("normalizeDocumentVNode() requires an <html> vnode");
+  }
+  const children = vnode.children.filter(child =>
+    child !== null && child !== undefined && child !== false && child !== true
+  );
+  const heads: VNode[] = [];
+  const bodies: VNode[] = [];
+  const loose: Child[] = [];
+
+  for (const child of children) {
+    if (isVNode(child) && typeof child.type === "string") {
+      const tag = child.type.toLowerCase();
+      if (tag === "html") throw new Error("A root document cannot contain a nested <html> element.");
+      if (tag === "head") {
+        heads.push(child);
+        continue;
+      }
+      if (tag === "body") {
+        bodies.push(child);
+        continue;
+      }
+    }
+    loose.push(child);
+  }
+
+  if (heads.length > 1) throw new Error("A root document may contain at most one direct <head> element.");
+  if (bodies.length > 1) throw new Error("A root document may contain at most one direct <body> element.");
+  if (bodies.length && loose.length) {
+    throw new Error("Root <html> children outside an authored <head> or <body> are ambiguous; move them into <body>.");
+  }
+
+  const head = heads[0] ?? createVNode("head", null);
+  const body = bodies[0] ?? createVNode("body", null, ...loose);
+  const normalized: Child[] = [];
+  let insertedHead = false;
+  let insertedBody = false;
+  for (const child of children) {
+    if (isVNode(child) && child === heads[0]) {
+      normalized.push(head);
+      insertedHead = true;
+    } else if (isVNode(child) && child === bodies[0]) {
+      normalized.push(body);
+      insertedBody = true;
+    } else if (!bodies.length && loose.includes(child) && !insertedBody) {
+      normalized.push(body);
+      insertedBody = true;
+    }
+  }
+  if (!insertedHead) normalized.unshift(head);
+  if (!insertedBody) normalized.push(body);
+  return { ...vnode, children: normalized };
+}
+
 /** Flattens nested JSX child arrays into the child shape consumed by renderers. */
 export function normalizeChildren(children: unknown[]): Child[] {
   const normalized: Child[] = [];

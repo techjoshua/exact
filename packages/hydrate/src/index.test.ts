@@ -6,13 +6,50 @@ import { Fragment, createCompiledVNode, createDynamicChild, createRef, createVNo
 import { flushSync, registerReactiveListKey } from "@exact/reactive";
 import { render } from "@exact/dom";
 import { handleExactRequest } from "@exact/server";
-import { renderHydrationScript, renderToString } from "@exact/ssr";
+import { renderHydrationScript, renderToHydratableString, renderToString } from "@exact/ssr";
 import { hydrate, applyPatches, createExactClient, hydrateClientIslands, invokeExact, invokeExactBatch, readExactHydrationConfig } from "./index.js";
 
 const noopLogger = {
   isEnabled: () => false,
   log() {}
 };
+
+it("adopts a complete authored document while retaining framework-owned body augmentation", () => {
+  function DocumentApp(this: Component<{ count: number }>) {
+    this.state.count = 1;
+    return () => createVNode("html", { lang: "en" },
+      createVNode("head", null, createVNode("title", null, `Count ${this.state.count}`)),
+      createVNode("body", null,
+        createVNode("button", { onClick: () => { this.state.count++; } }, `Count ${this.state.count}`)
+      )
+    );
+  }
+
+  const rendered = renderToHydratableString(createVNode(DocumentApp, null), {
+    endpoint: "/__exact"
+  });
+  document.open();
+  document.write(rendered.htmlWithHydration);
+  document.close();
+  const originalHtml = document.documentElement;
+  const frameworkScript = document.getElementById("__exact_hydration");
+
+  const client = hydrate(createVNode(DocumentApp, null), document, { onMismatch: "throw" });
+
+  expect(document.documentElement).toBe(originalHtml);
+  expect(document.getElementById("__exact_hydration")).toBe(frameworkScript);
+  const button = document.querySelector("button")!;
+  button.click();
+  flushSync();
+  expect(button.textContent).toBe("Count 2");
+  expect(document.title).toBe("Count 2");
+  expect(frameworkScript?.previousSibling).toBeInstanceOf(Comment);
+  expect((frameworkScript?.previousSibling as Comment).data).toBe("exact:framework-body:start");
+  client.dispose();
+  document.open();
+  document.write("<!doctype html><html><head></head><body></body></html>");
+  document.close();
+});
 
 it("decodes keyed hydration collection envelopes into ordinary arrays", () => {
   const records = [{ id: "a", title: "A" }, { id: "b", title: "B" }];

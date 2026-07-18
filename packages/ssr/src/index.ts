@@ -19,6 +19,7 @@ import {
   isVNode,
   logFrameworkEvent,
   normalizeRenderResult,
+  normalizeDocumentVNode,
   renderInstance,
   throwCleanupFailure,
   withTaskObserver,
@@ -1100,7 +1101,7 @@ function enterHost(context: SsrContext, input: VNode): { vnode: VNode; tag: stri
     if (!context.documentProbe || context.hostStack.length || context.documentRootSeen) {
       throw new Error("A root document may contain exactly one top-level <html> element; nested or duplicate <html> elements are not allowed.");
     }
-    vnode = normalizeDocumentHtmlVNode(vnode);
+    vnode = normalizeDocumentVNode(vnode);
     context.documentProbe = false;
     context.documentRootSeen = true;
   } else if (!context.hostStack.length) {
@@ -1144,59 +1145,6 @@ function resetDocumentProbe(context: SsrContext): void {
   context.documentHeadSeen = false;
   context.documentBodySeen = false;
   context.hostStack.length = 0;
-}
-
-function normalizeDocumentHtmlVNode(vnode: VNode): VNode {
-  const children = vnode.children.filter(child => child !== null && child !== undefined && child !== false && child !== true);
-  const heads: VNode[] = [];
-  const bodies: VNode[] = [];
-  const loose: Child[] = [];
-
-  for (const child of children) {
-    if (isVNode(child) && typeof child.type === "string") {
-      const tag = child.type.toLowerCase();
-      if (tag === "html") throw new Error("A root document cannot contain a nested <html> element.");
-      if (tag === "head") {
-        heads.push(child);
-        continue;
-      }
-      if (tag === "body") {
-        bodies.push(child);
-        continue;
-      }
-    }
-    loose.push(child);
-  }
-
-  if (heads.length > 1) throw new Error("A root document may contain at most one direct <head> element.");
-  if (bodies.length > 1) throw new Error("A root document may contain at most one direct <body> element.");
-  if (bodies.length && loose.length) {
-    throw new Error("Root <html> children outside an authored <head> or <body> are ambiguous; move them into <body>.");
-  }
-
-  const head = heads[0] ?? createVNode("head", null);
-  const body = bodies[0] ?? createVNode("body", null, ...loose);
-  const normalized: Child[] = [];
-  let insertedHead = false;
-  let insertedBody = false;
-
-  for (const child of children) {
-    if (isVNode(child) && child === heads[0]) {
-      normalized.push(head);
-      insertedHead = true;
-    } else if (isVNode(child) && child === bodies[0]) {
-      normalized.push(body);
-      insertedBody = true;
-    } else if (!bodies.length && loose.includes(child)) {
-      if (!insertedBody) {
-        normalized.push(body);
-        insertedBody = true;
-      }
-    }
-  }
-  if (!insertedHead) normalized.unshift(head);
-  if (!insertedBody) normalized.push(body);
-  return { ...vnode, children: normalized };
 }
 
 function reactHostContent(context: SsrContext, vnode: VNode): string | undefined {

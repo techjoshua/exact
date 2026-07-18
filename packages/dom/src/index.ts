@@ -18,6 +18,7 @@ import {
   isCellVNode,
   isVNode,
   normalizeRenderResult,
+  normalizeDocumentVNode,
   renderInstance,
   recordCleanupFailure,
   throwCleanupFailure,
@@ -397,6 +398,75 @@ export function adoptMarkerlessComponentRoot(vnode: VNode, container: Element, o
   }
 }
 
+/**
+ * Adopts an authored full-document tree while retaining framework augmentation
+ * nodes outside component ownership.
+ * @exact client
+ */
+export function adoptDocumentRoot(vnode: VNode, documentNode: Document, options: RenderOptions = {}): boolean {
+  const container = documentNode.documentElement;
+  if (!container || roots.has(container)) return false;
+  const start = documentNode.createComment("exact:document-root");
+  const end = documentNode.createComment("/exact:document-root");
+  documentNode.insertBefore(start, container);
+  documentNode.insertBefore(end, container.nextSibling);
+  const root: Root = {
+    container,
+    delegated: new Map(),
+    errors: createDomErrorContext(options),
+    portalTargets: new Set(),
+    current: vnode,
+    version: 1,
+    boundary: undefined as never,
+    debugMarkers: false,
+    maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth),
+    traversalDepth: 0,
+    maxTreeNodes: normalizeTreeNodes(options.maxTreeNodes),
+    traversedNodes: 0,
+    workDepth: 0,
+    workBudget: options.workBudget,
+    allowUnsafeHtml: options.allowUnsafeHtml ?? false,
+    onUnsafeHtml: options.onUnsafeHtml,
+    logger: options.logger,
+    mode: "document",
+    markerlessHydration: true
+  };
+  root.boundary = createRootBoundary(root);
+  const scope = createEffectScope();
+  const boundaryVNode = createVNode(root.boundary, { version: root.version });
+  const mounted: Mounted = { vnode: boundaryVNode, dom: start, end, scope, children: [] };
+  try {
+    return withDomWork(root, () => {
+      countDomWork(root);
+      const instance = withEffectScope(scope, () => createComponentInstance(root.boundary, { version: root.version }));
+      ownMountedInstance(mounted, instance);
+      const rendered = withEffectScope(scope, () => renderInstance(instance, () => rerenderComponent(root, mounted)));
+      const children = adoptStaticChildren(root, rendered, [container], instance, scope);
+      if (!children) {
+        unmountMounted(mounted);
+        clearDelegated(root);
+        return false;
+      }
+      mounted.children = children;
+      instance.markMounted();
+      root.mounted = mounted;
+      roots.set(container, root);
+      return true;
+    });
+  } catch (error) {
+    unmountMounted(mounted);
+    clearDelegated(root);
+    if (isDomRenderLimitError(error)) throw error;
+    return false;
+  } finally {
+    root.workBudget = undefined;
+    if (!roots.has(container)) {
+      start.remove();
+      end.remove();
+    }
+  }
+}
+
 function boundaryMarkers(container: Element): { start: Comment; end: Comment } | undefined {
   const comments = Array.from(container.childNodes).filter((node): node is Comment => node.nodeType === Node.COMMENT_NODE);
   const start = comments.find(node => node.data.startsWith("exact:"));
@@ -408,6 +478,48 @@ function boundaryMarkers(container: Element): { start: Comment; end: Comment } |
 function contentNodesBetween(start: Node, end: Node): Node[] {
   const nodes: Node[] = [];
   for (let current = start.nextSibling; current && current !== end; current = current.nextSibling) nodes.push(current);
+  return nodes;
+}
+
+function createRangeAnchor(parent: Node): Node {
+  return parent.nodeType === Node.DOCUMENT_NODE
+    ? document.createComment("exact:component-range")
+    : document.createTextNode("");
+}
+
+type FrameworkChildRange = { start: Comment; end: Comment };
+
+function frameworkChildRange(parent: Element): FrameworkChildRange | undefined {
+  const children = Array.from(parent.childNodes);
+  const startIndex = children.findIndex(node =>
+    node instanceof Comment && node.data === "exact:framework-body:start"
+  );
+  if (startIndex < 0) return undefined;
+  const endIndex = children.findIndex((node, index) =>
+    index > startIndex && node instanceof Comment && node.data === "exact:framework-body:end"
+  );
+  if (endIndex < 0) return undefined;
+  return {
+    start: children[startIndex] as Comment,
+    end: children[endIndex] as Comment
+  };
+}
+
+function authoredChildNodes(parent: Element, framework: FrameworkChildRange | undefined): Node[] {
+  if (!framework) return Array.from(parent.childNodes);
+  const nodes: Node[] = [];
+  let frameworkOwned = false;
+  for (const node of Array.from(parent.childNodes)) {
+    if (node === framework.start) {
+      frameworkOwned = true;
+      continue;
+    }
+    if (node === framework.end) {
+      frameworkOwned = false;
+      continue;
+    }
+    if (!frameworkOwned) nodes.push(node);
+  }
   return nodes;
 }
 
@@ -470,6 +582,9 @@ function adoptStaticMountedInner(
   parentInstance: ComponentInstance<any>,
   parentScope: EffectScope
 ): { mounted: Mounted; next: number } | undefined {
+  if (root.mode === "document" && typeof vnode.type === "string" && vnode.type.toLowerCase() === "html") {
+    vnode = normalizeDocumentVNode(vnode);
+  }
   const scope = createEffectScope(parentScope);
   if (typeof vnode.type === "function") {
     if (root.markerlessHydration) {
@@ -487,8 +602,8 @@ function adoptStaticMountedInner(
         const last = lastMount.end ?? lastMount.dom;
         const parent = first.parentNode;
         if (!parent || last.parentNode !== parent) { unmountMany(adopted.mounts); unmountMounted(mounted); throw new Error(`markerless component ${describeVNodeType(vnode.type)} range is disconnected`); }
-        const start = document.createTextNode("");
-        const end = document.createTextNode("");
+        const start = createRangeAnchor(parent);
+        const end = createRangeAnchor(parent);
         parent.insertBefore(start, first);
         parent.insertBefore(end, last.nextSibling);
         mounted.dom = start;
@@ -616,11 +731,12 @@ function adoptStaticMountedInner(
     scope.stop();
     return undefined;
   }
-  const children = adoptStaticChildren(root, vnode.children, Array.from(node.childNodes), parentInstance, scope);
+  const framework = frameworkChildRange(node);
+  const children = adoptStaticChildren(root, vnode.children, authoredChildNodes(node, framework), parentInstance, scope);
   if (!children) { scope.stop(); return undefined; }
   setElementOwner(node, parentInstance);
   updateProps(root, node, {}, vnode.props, scope);
-  return { mounted: { vnode, dom: node, scope, children }, next: cursor + 1 };
+  return { mounted: { vnode, dom: node, scope, children, ...(framework ? { childEnd: framework.start } : {}) }, next: cursor + 1 };
 }
 
 function adoptKeyedListChildren(
@@ -891,6 +1007,9 @@ function patchInner(
   parentInstance?: ComponentInstance<any>,
   parentScope?: EffectScope
 ): Mounted {
+  if (root.mode === "document" && typeof next.type === "string" && next.type.toLowerCase() === "html") {
+    next = normalizeDocumentVNode(next);
+  }
   if (!mounted) {
     const created = mount(root, next, parentInstance, parentScope, parent, false);
     placeMountedBefore(root, parent, created, null);
@@ -1069,7 +1188,7 @@ function patchInner(
 
   const previousProps = mounted.vnode.props;
   mounted.vnode = next;
-  mounted.children = patchChildren(root, mounted.dom, mounted.children, next.children, parentInstance, mounted.scope);
+  mounted.children = patchChildren(root, mounted.dom, mounted.children, next.children, parentInstance, mounted.scope, mounted.childEnd);
   updateProps(root, mounted.dom as Element, previousProps, next.props, mounted.scope);
   return mounted;
 }
