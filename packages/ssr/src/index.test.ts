@@ -136,6 +136,31 @@ describe("native rendering safety", () => {
     expect(html.endsWith("<!--exact:framework-body:end--></body></html>")).toBe(true);
     expect(html).not.toContain("<div id=\"exact-root\"><!doctype");
   });
+
+  it("supports inert progressive replacement payloads without inline execution", async () => {
+    let resolveTask!: () => void;
+    const taskReady = new Promise<void>(resolve => { resolveTask = resolve; });
+    function Deferred(this: Component<{ value: string }>) {
+      this.state.value = "shell";
+      this.task(async () => {
+        await taskReady;
+        this.state.value = "settled";
+      });
+      return () => createVNode("p", null, this.state.value);
+    }
+
+    const reader = renderToProgressiveHtmlStream(createVNode(Deferred, null), {
+      progressiveMode: "inert",
+      rootId: "app"
+    }).getReader();
+    expect(new TextDecoder().decode((await reader.read()).value))
+      .toContain("<p>shell</p>");
+    resolveTask();
+    const remaining = await readRemainingStreamText(reader);
+    expect(remaining).toContain("data-exact-progressive-payload=");
+    expect(remaining).toContain("&quot;operation&quot;:&quot;replace&quot;");
+    expect(remaining).not.toContain("<script");
+  });
 });
 
 async function readStreamEvent(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<any> {
@@ -159,6 +184,16 @@ async function readRemainingStreamEvents(reader: ReadableStreamDefaultReader<Uin
 async function readStreamText(stream: ReadableStream<Uint8Array>): Promise<string> {
   const reader = stream.getReader();
   return readRemainingText(reader);
+}
+
+async function readRemainingStreamText(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<string> {
+  const decoder = new TextDecoder();
+  let text = "";
+  while (true) {
+    const next = await reader.read();
+    if (next.done) return text;
+    text += decoder.decode(next.value, { stream: true });
+  }
 }
 
 async function readRemainingText(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<string> {

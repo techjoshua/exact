@@ -345,10 +345,17 @@ function setHeader(headers: Record<string, string>, name: string, value: string)
 }
 
 function progressiveErrorScript(error: unknown, options: RenderToProgressiveHtmlStreamOptions): string {
+  if (options.progressiveMode === "inert") {
+    return `<template data-exact-progressive-error="true"></template>`;
+  }
   return inlineScript(`console.error("eXact document stream failed");`, options);
 }
 
 function scopedReplacementScript(id: string, html: string, options: RenderToProgressiveHtmlStreamOptions): string {
+  if (options.progressiveMode === "inert") {
+    const payload = JSON.stringify({ version: 1, operation: "replace", id, html });
+    return `<template data-exact-progressive-payload="${escapeAttr(payload)}"></template>`;
+  }
   const rootId = inlineJsonString(progressiveRootId(options));
   const targetId = inlineJsonString(id);
   const content = inlineJsonString(html);

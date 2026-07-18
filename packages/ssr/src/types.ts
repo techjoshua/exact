@@ -84,6 +84,11 @@ export type RenderToDocumentStreamOptions = RenderToStringOptions & HydrationScr
 
 export type RenderToProgressiveHtmlStreamOptions = RenderToDocumentStreamOptions & {
   rootId?: string;
+  /**
+   * `inline` emits executable replacement scripts (optionally nonce-bearing).
+   * `inert` emits escaped template payloads for an approved external runtime.
+   */
+  progressiveMode?: "inline" | "inert";
 };
 
 export type RenderToProgressiveHtmlResponseOptions = RenderToProgressiveHtmlStreamOptions & {
