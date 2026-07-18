@@ -53,6 +53,19 @@ describe("@exact/dom", () => {
     expect(container.querySelector("a")?.getAttribute("href")).toBe("/safe");
   });
 
+  it("creates intrinsic scripts inertly during client mounting", () => {
+    const container = document.createElement("div");
+    delete (globalThis as { __exactScriptRan?: boolean }).__exactScriptRan;
+    render(createVNode("script", {
+      nonce: "request-nonce",
+      noModule: true
+    }, "globalThis.__exactScriptRan = true;"), container);
+    const script = container.querySelector("script");
+    expect(script?.textContent).toBe("globalThis.__exactScriptRan = true;");
+    expect(script?.nonce).toBe("request-nonce");
+    expect((globalThis as { __exactScriptRan?: boolean }).__exactScriptRan).toBeUndefined();
+  });
+
   it("renders portals in another container while preserving logical context and cleanup", () => {
     const container = document.createElement("div");
     const target = document.createElement("aside");

@@ -51,6 +51,21 @@ describe("native rendering safety", () => {
     const result = renderToString(createVNode("a", { href: "java\nscript:alert(1)" }, "blocked"), { markers: false });
     expect(result.html).toContain(`href="${BLOCKED_JAVASCRIPT_URL}"`);
   });
+
+  it("renders intrinsic scripts in place with executable text and standard attributes", () => {
+    const result = renderToString(createVNode("script", {
+      type: "module",
+      noModule: true,
+      nonce: "request-nonce",
+      crossOrigin: "anonymous",
+      referrerPolicy: "no-referrer",
+      fetchPriority: "low"
+    }, "globalThis.tracked = '</not-a-tag>';"), { markers: false });
+    expect(result.html).toBe(
+      "<script type=\"module\" nomodule nonce=\"request-nonce\" crossorigin=\"anonymous\" " +
+      "referrerpolicy=\"no-referrer\" fetchpriority=\"low\">globalThis.tracked = '</not-a-tag>';</script>"
+    );
+  });
 });
 
 async function readStreamEvent(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<any> {

@@ -15,7 +15,9 @@ export function renderAttrs(props: Record<string, unknown>, reactMarkup: boolean
     if (reactMarkup && (tag === "textarea" || tag === "select") && (name === "value" || name === "defaultValue")) continue;
     if (reactMarkup && tag === "option" && name === "children") continue;
     const value = sanitizeUrlAttribute(name, unwrap(rawValue));
-    const attrName = reactMarkup ? reactAttributeName(name, reactMarkup, customElement) : name === "className" ? "class" : name;
+    const attrName = reactMarkup
+      ? reactAttributeName(name, reactMarkup, customElement)
+      : nativeAttributeName(name, tag);
     if (value === null || value === undefined) continue;
     if (value === false && (!reactMarkup || reactBooleanAttributes.has(attrName.toLowerCase()))) continue;
     if (attrName === "style") {
@@ -32,6 +34,18 @@ export function renderAttrs(props: Record<string, unknown>, reactMarkup: boolean
     attrs += ` ${escapeAttrName(attrName)}="${escapeAttr(String(value))}"`;
   }
   return attrs;
+}
+
+function nativeAttributeName(name: string, tag: string | undefined): string {
+  if (name === "className") return "class";
+  if (tag !== "script") return name;
+  switch (name) {
+    case "crossOrigin": return "crossorigin";
+    case "fetchPriority": return "fetchpriority";
+    case "noModule": return "nomodule";
+    case "referrerPolicy": return "referrerpolicy";
+    default: return name;
+  }
 }
 
 /** Renders content inside a generated exact marker pair. */

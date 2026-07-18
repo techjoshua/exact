@@ -1045,13 +1045,16 @@ function renderElement(context: SsrContext, vnode: VNode, parent?: ComponentInst
 }
 
 function reactHostContent(context: SsrContext, vnode: VNode): string | undefined {
-  if (!context.reactMarkup) return undefined;
+  const tag = String(vnode.type);
+  if (!context.reactMarkup) {
+    if (tag === "script" || tag === "style") return primitiveText(vnode.children);
+    return undefined;
+  }
   const value = vnode.props.dangerouslySetInnerHTML;
   if (value && typeof value === "object" && "__html" in value) {
     if (vnode.children.length) throw new Error("Can only set one of `children` or `props.dangerouslySetInnerHTML`.");
     return String((value as { __html?: unknown }).__html ?? "");
   }
-  const tag = String(vnode.type);
   if (tag === "textarea") {
     const content = unwrap(vnode.props.value ?? vnode.props.defaultValue) ?? primitiveText(vnode.children);
     return escapeText(String(content ?? ""));
