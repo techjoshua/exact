@@ -1,8 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it, vi } from 'vitest';
 import { createVNode } from '@exact/core';
+import { describe, expect, it, vi } from 'vitest';
 import { render, unmount } from './index.js';
 
 describe('failure-complete DOM teardown', () => {

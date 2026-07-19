@@ -1,0 +1,301 @@
+import {
+	Dynamic,
+	Fragment,
+	getCellVNode,
+	isCellVNode,
+	normalizeDocumentVNode,
+	normalizeRenderResult,
+	Portal,
+	ServerSlot,
+	Text,
+	UnsafeHtml,
+	unwrap,
+	watch,
+	type Child,
+	type ComponentInstance,
+	type VNode
+} from '@exact/core';
+import { type EffectScope } from '@exact/reactive';
+import {
+	getComponentProps,
+	getListBinding,
+	materializeList,
+	stopRemovedListChildren,
+	stopReplacedChildren
+} from '../../children.js';
+import { describeNode, describeVNodeType, domDebug } from '../../debug.js';
+import { afterMountedChildren, placeMountedBefore } from '../../placement.js';
+import { updateProps } from '../../props.js';
+import { mountServerSlot } from '../../server-slots.js';
+import type { Mounted, Root } from '../../types.js';
+import { countDomWork, withTreeDepth } from '../limits.js';
+import {
+	mountChildren,
+	portalEventContainer,
+	portalTarget,
+	withEventContainer
+} from '../mounting/children.js';
+import { mount } from '../mounting/root.js';
+import { disposeMounted } from '../teardown.js';
+import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
+import { bindText, patchChildren } from './children.js';
+
+export function patch(
+	root: Root,
+	parent: Node,
+	mounted: Mounted | undefined,
+	next: VNode,
+	parentInstance?: ComponentInstance<any>,
+	parentScope?: EffectScope
+): Mounted {
+	return withTreeDepth(root, () => {
+		countDomWork(root);
+		return patchInner(root, parent, mounted, next, parentInstance, parentScope);
+	});
+}
+
+export function patchInner(
+	root: Root,
+	parent: Node,
+	mounted: Mounted | undefined,
+	next: VNode,
+	parentInstance?: ComponentInstance<any>,
+	parentScope?: EffectScope
+): Mounted {
+	if (
+		root.mode === 'document' &&
+		typeof next.type === 'string' &&
+		next.type.toLowerCase() === 'html'
+	) {
+		next = normalizeDocumentVNode(next);
+	}
+	if (!mounted) {
+		const created = mount(root, next, parentInstance, parentScope, parent, false);
+		placeMountedBefore(root, parent, created, null);
+		return created;
+	}
+
+	// Pre-patch ownership hooks may stop a subtree before DOM mutation (for
+	// example to release pointer capture). A stopped wrapper must be replaced as
+	// a unit; recursing through it would attempt to parent new scopes beneath an
+	// inactive scope.
+	if (!mounted.scope.active) {
+		const replacement = mount(root, next, parentInstance, parentScope, parent, false);
+		placeMountedBefore(root, parent, replacement, mounted.dom);
+		disposeMounted(parent, mounted);
+		return replacement;
+	}
+
+	if (mounted.vnode.type !== next.type || mounted.vnode.key !== next.key) {
+		domDebug(root, 'replace node', {
+			previousType: describeVNodeType(mounted.vnode.type),
+			previousKey: mounted.vnode.key ?? 'none',
+			nextType: describeVNodeType(next.type),
+			nextKey: next.key ?? 'none',
+			parent: describeNode(parent)
+		});
+		const replacement = mount(root, next, parentInstance, parentScope, parent, false);
+		placeMountedBefore(root, parent, replacement, mounted.dom);
+		disposeMounted(parent, mounted);
+		return replacement;
+	}
+
+	// SSR keyed item markers wrap an otherwise ordinary vnode. Keep the marker
+	// range as the identity/move unit while delegating the actual patch to its
+	// adopted child.
+	if (mounted.range === 'item') {
+		mounted.vnode = next;
+		const child = mounted.children[0];
+		if (child) {
+			mounted.children = [patch(root, parent, child, next, parentInstance, mounted.scope)];
+		} else {
+			const created = mount(root, next, parentInstance, mounted.scope, parent, false);
+			mounted.children = [created];
+			placeMountedBefore(root, parent, created, mounted.end);
+		}
+		return mounted;
+	}
+
+	if (isCellVNode(next)) {
+		mounted.vnode = next;
+		const nextChild = getCellVNode(next);
+		const previousChild = mounted.children[0];
+		if (previousChild) {
+			mounted.children = [
+				patch(root, parent, previousChild, nextChild, parentInstance, mounted.scope)
+			];
+		} else {
+			const child = mount(root, nextChild, parentInstance, mounted.scope, parent, false);
+			mounted.children = [child];
+			placeMountedBefore(root, parent, child, mounted.dom.nextSibling);
+		}
+		return mounted;
+	}
+
+	if (next.type === Text) {
+		mounted.vnode = next;
+		bindText(mounted, next.props.value);
+		return mounted;
+	}
+
+	if (next.type === UnsafeHtml) {
+		mounted.vnode = next;
+		assertUnsafeHtmlAllowed(root);
+		bindUnsafeHtml(root, mounted, next.props.value);
+		return mounted;
+	}
+
+	if (next.type === Fragment) {
+		const previousList = getListBinding(mounted.vnode);
+		const nextList = getListBinding(next);
+		mounted.vnode = next;
+		if (previousList !== nextList) {
+			mounted.stop?.();
+			mounted.stop = undefined;
+			mounted.children = patchChildren(
+				root,
+				parent,
+				mounted.children,
+				nextList ? materializeList(nextList) : next.children,
+				parentInstance,
+				mounted.scope,
+				afterMountedChildren(mounted)
+			);
+			if (nextList) {
+				mounted.stop = watch(
+					() => {
+						mounted.children = patchChildren(
+							root,
+							mounted.dom.parentNode ?? parent,
+							mounted.children,
+							materializeList(nextList),
+							parentInstance,
+							mounted.scope,
+							afterMountedChildren(mounted)
+						);
+					},
+					undefined,
+					{
+						scope: mounted.scope,
+						onSchedule: () => stopRemovedListChildren(mounted, nextList)
+					}
+				);
+			}
+		} else if (!nextList) {
+			mounted.children = patchChildren(
+				root,
+				parent,
+				mounted.children,
+				next.children,
+				parentInstance,
+				mounted.scope,
+				afterMountedChildren(mounted)
+			);
+		}
+		return mounted;
+	}
+
+	if (next.type === Dynamic) {
+		mounted.vnode = next;
+		const value = next.props.value;
+		mounted.stop?.();
+		mounted.children = patchChildren(
+			root,
+			parent,
+			mounted.children,
+			normalizeRenderResult(unwrap(value) as Child | Child[]),
+			parentInstance,
+			mounted.scope,
+			afterMountedChildren(mounted)
+		);
+		mounted.stop = watch(
+			() => {
+				const nextChildren = normalizeRenderResult(unwrap(value) as Child | Child[]);
+				mounted.children = patchChildren(
+					root,
+					mounted.dom.parentNode ?? parent,
+					mounted.children,
+					nextChildren,
+					parentInstance,
+					mounted.scope,
+					afterMountedChildren(mounted)
+				);
+			},
+			undefined,
+			{
+				scope: mounted.scope,
+				onSchedule: () =>
+					stopReplacedChildren(mounted, normalizeRenderResult(unwrap(value) as Child | Child[]))
+			}
+		);
+		return mounted;
+	}
+
+	if (next.type === Portal) {
+		const previousTarget = mounted.portalTarget ?? portalTarget(mounted.vnode);
+		const nextTarget = portalTarget(next);
+		mounted.vnode = next;
+		if (previousTarget !== nextTarget) {
+			mounted.children = patchChildren(
+				root,
+				previousTarget,
+				mounted.children,
+				[],
+				parentInstance,
+				mounted.scope
+			);
+			mounted.portalTarget = nextTarget;
+			const eventContainer = portalEventContainer(root, nextTarget);
+			if (eventContainer === nextTarget) root.portalTargets.add(nextTarget);
+			mounted.children = withEventContainer(root, eventContainer, () =>
+				mountChildren(root, nextTarget, next.children, parentInstance, mounted.scope)
+			);
+		} else {
+			mounted.children = withEventContainer(root, portalEventContainer(root, nextTarget), () =>
+				patchChildren(
+					root,
+					nextTarget,
+					mounted.children,
+					next.children,
+					parentInstance,
+					mounted.scope
+				)
+			);
+		}
+		return mounted;
+	}
+
+	if (next.type === ServerSlot) {
+		mounted.vnode = next;
+		if (
+			mounted.dom instanceof Element &&
+			mounted.dom.getAttribute('data-exact-server-slot') === String(next.props.id ?? '')
+		) {
+			return mounted;
+		}
+		const replacement = mountServerSlot(root, next, mounted.scope);
+		placeMountedBefore(root, parent, replacement, mounted.dom);
+		disposeMounted(parent, mounted);
+		return replacement;
+	}
+
+	if (typeof next.type === 'function') {
+		mounted.vnode = next;
+		mounted.instance?.updateProps(getComponentProps(next));
+		return mounted;
+	}
+
+	const previousProps = mounted.vnode.props;
+	mounted.vnode = next;
+	mounted.children = patchChildren(
+		root,
+		mounted.dom,
+		mounted.children,
+		next.children,
+		parentInstance,
+		mounted.scope,
+		mounted.childEnd
+	);
+	updateProps(root, mounted.dom as Element, previousProps, next.props, mounted.scope);
+	return mounted;
+}

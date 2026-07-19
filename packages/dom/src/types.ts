@@ -8,8 +8,8 @@ import type {
 	UnsafeHtmlAuditEvent,
 	VNode
 } from '@exact/core';
-import type { EffectScope } from '@exact/reactive';
 import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation';
+import type { EffectScope } from '@exact/reactive';
 import type { DomWorkBudget } from './work.js';
 
 export type Mounted = {

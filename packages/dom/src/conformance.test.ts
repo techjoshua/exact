@@ -1,7 +1,6 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it, vi } from 'vitest';
 import {
 	ErrorContext,
 	LoggerContext,
@@ -14,8 +13,9 @@ import {
 	type LogEvent,
 	type Logger
 } from '@exact/core';
-import { flushSync } from '@exact/reactive';
 import { jsx } from '@exact/jsx';
+import { flushSync } from '@exact/reactive';
+import { describe, expect, it, vi } from 'vitest';
 import { render } from './index.js';
 
 describe('eXact conformance', () => {
