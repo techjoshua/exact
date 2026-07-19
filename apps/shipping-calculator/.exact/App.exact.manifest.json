@@ -135,7 +135,7 @@
           "path": [
             "ShippingCalculatorPage",
             "configuredProviderIds",
-            "<function@1203>",
+            "<function@1301>",
             "provider.configured"
           ]
         }
@@ -156,7 +156,7 @@
           "path": [
             "ShippingCalculatorPage",
             "configuredProviderIds",
-            "<function@1203>",
+            "<function@1301>",
             "provider.configured"
           ]
         }
@@ -237,7 +237,7 @@
           "description": "checked",
           "path": [
             "CalculatorWorkspace",
-            "<function@3134>",
+            "<function@3193>",
             "renderWorkspace",
             "checked"
           ]
@@ -247,7 +247,7 @@
           "description": "select",
           "path": [
             "CalculatorWorkspace",
-            "<function@3134>",
+            "<function@3193>",
             "renderWorkspace",
             "select"
           ]
@@ -257,7 +257,7 @@
           "description": "text",
           "path": [
             "CalculatorWorkspace",
-            "<function@3134>",
+            "<function@3193>",
             "renderWorkspace",
             "text"
           ]
@@ -269,7 +269,7 @@
           "description": "checked",
           "path": [
             "CalculatorWorkspace",
-            "<function@3134>",
+            "<function@3193>",
             "renderWorkspace",
             "checked"
           ]
@@ -279,7 +279,7 @@
           "description": "select",
           "path": [
             "CalculatorWorkspace",
-            "<function@3134>",
+            "<function@3193>",
             "renderWorkspace",
             "select"
           ]
@@ -289,7 +289,7 @@
           "description": "text",
           "path": [
             "CalculatorWorkspace",
-            "<function@3134>",
+            "<function@3193>",
             "renderWorkspace",
             "text"
           ]
