@@ -4,92 +4,23 @@ import {
 	ExpressionProject,
 	findExpressionConfig,
 	type BoundModule,
-	type ExpressionDiagnostic,
 	type ExpressionLanguageService,
 	type ExpressionLanguageServiceUpdate,
 	type ExpressionProjectProfileEvent
 } from '@exact/expressions';
-import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation';
+import type { ExactProfileSink } from '@exact/instrumentation';
 import fs from 'node:fs';
 import path from 'node:path';
-import ts from 'typescript';
 import { performance } from 'node:perf_hooks';
-
-type ModuleCacheEntry = Readonly<{
-	projectKey: string;
-	filename: string;
-	source: string;
-	module: BoundModule;
-	dependencies: readonly string[];
-}>;
-
-export type ExpressionModuleOptions = Readonly<{
-	root?: string;
-	virtual?: boolean;
-	diagnostics?: 'syntax' | 'full';
-}>;
-
-export type ExactCompilerSessionStats = Readonly<{
-	workspaces: number;
-	rebuilds: number;
-	semanticDiagnostics: number;
-	modules: number;
-	dependencyEntries: number;
-	overlays: number;
-	sourceFiles: number;
-	nodeIdentityRoots: number;
-	symbolIdentities: number;
-	languageServices: number;
-	languageServiceAffectedFiles: number;
-	languageServiceSynchronizationMs: number;
-}>;
-
-export type ExactCompilerSessionOptions = Readonly<{
-	languageService?: boolean;
-	/** Receives compiler and nested expression profiling observations. */
-	onProfile?: ExactProfileSink<ExactCompilerProfileEvent | ExpressionProjectProfileEvent>;
-}>;
-
-export type ExactCompilerProfileEvent = ExactProfileEvent<
-	'compiler',
-	'expression-module' | 'invalidate' | 'clear'
->;
-
-export type ExactCompilerInvalidation = Readonly<{
-	affectedFiles: readonly string[];
-	diagnostics: readonly ExpressionDiagnostic[];
-}>;
-
-function canonical(filename: string): string {
-	const absolute = path.resolve(filename);
-	return process.platform === 'win32' ? absolute.toLowerCase() : absolute;
-}
-
-function dependencyCandidates(filename: string, specifier: string): readonly string[] {
-	if (!specifier.startsWith('.')) return [];
-	const resolved = path.resolve(path.dirname(filename), specifier);
-	const extension = path.extname(resolved);
-	const stem = extension ? resolved.slice(0, -extension.length) : resolved;
-	return [
-		...new Set([resolved, `${stem}.ts`, `${stem}.tsx`, `${stem}.mts`, `${stem}.cts`].map(canonical))
-	];
-}
-
-function moduleDependencies(
-	filename: string,
-	module: BoundModule,
-	project: ExpressionProject
-): readonly string[] {
-	const dependencies = new Set<string>();
-	const imports = ts.preProcessFile(module.source, true, true).importedFiles;
-	for (const imported of imports) {
-		const specifier = imported.fileName;
-		const resolved = project.resolveModuleSpecifier(specifier, filename);
-		if (resolved) dependencies.add(canonical(resolved));
-		for (const candidate of dependencyCandidates(filename, specifier)) dependencies.add(candidate);
-	}
-	return [...dependencies];
-}
+import { canonical, moduleDependencies } from './project-dependencies.js';
+import type {
+	ExactCompilerInvalidation,
+	ExactCompilerProfileEvent,
+	ExactCompilerSessionOptions,
+	ExactCompilerSessionStats,
+	ExpressionModuleOptions,
+	ModuleCacheEntry
+} from './session-contracts.js';
 
 /** Owns incremental TypeScript state for one compiler or bundler lifecycle. */
 export class ExactCompilerSession {
@@ -443,32 +374,4 @@ export class ExactCompilerSession {
 			if (entry) this.invalidateDependents(entry.filename, seen);
 		}
 	}
-}
-
-const defaultSession = new ExactCompilerSession();
-
-export function createCompilerSession(
-	options: ExactCompilerSessionOptions = {}
-): ExactCompilerSession {
-	return new ExactCompilerSession(options);
-}
-
-export function expressionModuleFor(
-	filename: string,
-	source: string,
-	options: ExpressionModuleOptions = {}
-): BoundModule {
-	return defaultSession.expressionModuleFor(filename, source, options);
-}
-
-export function expressionDependencyFiles(filename: string, source: string): readonly string[] {
-	return defaultSession.expressionDependencyFiles(filename, source);
-}
-
-export function clearExpressionProjectCache(): void {
-	defaultSession.clear();
-}
-
-export function invalidateExpressionModule(filename: string, removed = false): void {
-	defaultSession.invalidate(filename, removed);
 }

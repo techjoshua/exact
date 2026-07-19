@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeExpressionDerived } from './derived.js';
-import { clearExpressionProjectCache, expressionModuleFor } from './project.js';
+import { clearExpressionProjectCache, expressionModuleFor } from './session.js';
 import { buildExactProvenance } from '../provenance.js';
 
 describe('expression-backed derived substitutions', () => {

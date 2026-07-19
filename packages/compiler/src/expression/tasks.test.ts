@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { clearExpressionProjectCache, expressionModuleFor } from './project.js';
-import { analyzeExpressionTasks } from './tasks.js';
+import { clearExpressionProjectCache, expressionModuleFor } from './session.js';
+import { analyzeExpressionTasks } from './task-analysis.js';
 
 describe('expression-backed task effects', () => {
 	it('does not classify shadowed async resource functions as globals', () => {

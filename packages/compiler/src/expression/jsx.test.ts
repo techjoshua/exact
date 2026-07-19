@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import path from 'node:path';
 import { analyzeExpressionJsx } from './jsx.js';
-import { clearExpressionProjectCache, expressionModuleFor } from './project.js';
+import { clearExpressionProjectCache, expressionModuleFor } from './session.js';
 import { buildExactProvenance } from '../provenance.js';
 
 describe('expression-backed JSX plan', () => {

@@ -37,12 +37,12 @@ import type {
 	ExpressionTaskResource,
 	ExpressionTaskResourceKind,
 	ExpressionTaskSignalCall
-} from './expression/tasks.js';
+} from './expression/task-contracts.js';
 import type { ExpressionJsxListSite, ExpressionJsxPlan } from './expression/jsx.js';
 import type {
 	ExpressionClientIslandSite,
 	ExpressionComponentPlan
-} from './expression/components.js';
+} from './expression/contracts.js';
 import type {
 	ClientIslandCaptures,
 	ClientIslandElementNode,

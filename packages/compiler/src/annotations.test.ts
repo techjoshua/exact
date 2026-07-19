@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clearExpressionProjectCache, expressionModuleFor } from './expression/project.js';
+import { clearExpressionProjectCache, expressionModuleFor } from './expression/session.js';
 import {
 	analyzeExactAnnotations,
 	exactCleanupForCall,

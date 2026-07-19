@@ -18,11 +18,8 @@ import {
 import { combinePlacements } from './placement.js';
 import { analyzeCallableEffects } from './callable-effects.js';
 import { exactComponentDescriptorTransformer } from './descriptor-transform.js';
-import {
-	expressionDependencyFiles,
-	invalidateExpressionModule,
-	type ExactCompilerSession
-} from './expression/project.js';
+import type { ExactCompilerSession } from './expression/project.js';
+import { expressionDependencyFiles, invalidateExpressionModule } from './expression/session.js';
 import type {
 	CompileArtifactPlanEntriesOptions,
 	CompileArtifactsOptions,
@@ -85,20 +82,20 @@ import {
 } from './symbols.js';
 import { exactJsxTransformer } from './jsx-transform.js';
 import { exactCompilerManifestVersion } from './versions.js';
-import { expressionModuleFor } from './expression/project.js';
+import { expressionModuleFor } from './expression/session.js';
 import { buildExactProvenance } from './provenance.js';
 import { analyzeExpressionWrites } from './expression/writes.js';
 import { analyzeExpressionSafety } from './expression/safety.js';
-import { analyzeExpressionTasks } from './expression/tasks.js';
+import { analyzeExpressionTasks } from './expression/task-analysis.js';
 import { analyzeExpressionJsx } from './expression/jsx.js';
-import { analyzeExpressionComponents } from './expression/components.js';
+import { analyzeExpressionComponents } from './expression/analysis.js';
 import { analyzeExpressionDerived } from './expression/derived.js';
+import { createExpressionComponents } from './expression/manifest.js';
 import {
-	createExpressionComponents,
+	createExpressionComponentBoundaries,
 	createExpressionGeneratedServerSlotBoundaries,
 	createExpressionRenderEdges
-} from './expression/components.js';
-import { createExpressionComponentBoundaries } from './expression/components.js';
+} from './expression/boundaries.js';
 import { analyzeExactAnnotations } from './annotations.js';
 import { applyCompilerPlugins, validateImportedPluginRegistries } from './plugins.js';
 import { analyzeModuleImports } from './assets.js';
@@ -149,15 +146,17 @@ export {
 	type ModuleRewriteResult
 } from './module-rewrite.js';
 export {
-	ExactCompilerSession,
 	createCompilerSession,
 	clearExpressionProjectCache,
-	invalidateExpressionModule,
-	type ExactCompilerProfileEvent,
-	type ExactCompilerInvalidation,
-	type ExactCompilerSessionOptions,
-	type ExactCompilerSessionStats
-} from './expression/project.js';
+	invalidateExpressionModule
+} from './expression/session.js';
+export { ExactCompilerSession } from './expression/project.js';
+export type {
+	ExactCompilerProfileEvent,
+	ExactCompilerInvalidation,
+	ExactCompilerSessionOptions,
+	ExactCompilerSessionStats
+} from './expression/session-contracts.js';
 export {
 	analyzeExpressionWrites,
 	lowerExpressionWrites,

@@ -5,7 +5,7 @@ import {
 	clearExpressionProjectCache,
 	createCompilerSession,
 	expressionModuleFor
-} from './project.js';
+} from './session.js';
 
 describe('shared expression projects', () => {
 	it('emits compiler and nested expression profile events when enabled', () => {

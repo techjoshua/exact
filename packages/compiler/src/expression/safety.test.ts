@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clearExpressionProjectCache, expressionModuleFor } from './project.js';
+import { clearExpressionProjectCache, expressionModuleFor } from './session.js';
 import { buildExactProvenance } from '../provenance.js';
 import { analyzeExpressionSafety } from './safety.js';
 

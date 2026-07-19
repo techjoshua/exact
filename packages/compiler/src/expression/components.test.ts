@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
-	analyzeExpressionComponents,
 	createExpressionComponentBoundaries,
-	createExpressionComponents,
 	createExpressionGeneratedServerSlotBoundaries,
 	createExpressionRenderEdges
-} from './components.js';
+} from './boundaries.js';
+import { analyzeExpressionComponents } from './analysis.js';
+import { createExpressionComponents } from './manifest.js';
 import { analyzeExpressionJsx } from './jsx.js';
-import { clearExpressionProjectCache, expressionModuleFor } from './project.js';
-import { analyzeExpressionTasks } from './tasks.js';
+import { clearExpressionProjectCache, expressionModuleFor } from './session.js';
+import { analyzeExpressionTasks } from './task-analysis.js';
 import { buildExactProvenance } from '../provenance.js';
 import { analyzeExpressionWrites } from './writes.js';
 

@@ -2,8 +2,8 @@ import type { BoundModule, ExpressionType, NodeRef, Variable } from '@exact/expr
 import { exactKeepPolicy, type ExactKeepPolicy } from './annotations.js';
 import { expressionComponentIndex } from './expression/component-index.js';
 import type { CallableEffectPlan } from './callable-effects.js';
-import type { ExpressionComponentPlan, ExpressionComponentSite } from './expression/components.js';
-import type { ExpressionTaskPlan, ExpressionTaskSite } from './expression/tasks.js';
+import type { ExpressionComponentPlan, ExpressionComponentSite } from './expression/contracts.js';
+import type { ExpressionTaskPlan, ExpressionTaskSite } from './expression/task-contracts.js';
 import { stableId } from './ids.js';
 import type {
 	ExactCompilerManifest,
