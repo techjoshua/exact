@@ -1,0 +1,11 @@
+export * from './api/act.js';
+export * from './api/cache.js';
+export * from './api/classes.js';
+export * from './api/components.js';
+export * from './api/constants.js';
+export * from './api/elements.js';
+export * from './api/hooks.js';
+export * from './api/unsupported.js';
+export { withReactProfile } from './internals.js';
+export type { ReactCompatibilityProfileEvent } from './internals.js';
+export type * from './types.js';

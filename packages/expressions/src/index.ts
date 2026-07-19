@@ -90,12 +90,4 @@ export {
 } from './rewrite.js';
 export { createLineSourceMap, type GeneratedSourceMap } from './source-map.js';
 export { validateExpressionTree } from './validation.js';
-
-import { moduleBuilder } from './builder.js';
-import { createExpressionProject } from './project.js';
-
-/** Concise namespace-style entry point for programmatic construction. */
-export const expressions = Object.freeze({
-	module: moduleBuilder,
-	project: createExpressionProject
-});
+export { expressions } from './namespace.js';

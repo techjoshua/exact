@@ -13,12 +13,12 @@
     "geography.ts",
     "model.ts",
     "providers/doop.ts",
-    "providers/index.ts",
     "providers/live.ts",
     "providers/live/carriers.ts",
     "providers/live/contracts.ts",
     "providers/live/http.ts",
     "providers/live/normalization.ts",
+    "providers/registry.ts",
     "types.ts"
   ],
   "assets": [],

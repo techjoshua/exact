@@ -6,7 +6,7 @@ import {
 	JotaiStoreContext,
 	type ExactJotaiProviderProps,
 	type Store
-} from './index.js';
+} from './adapter.js';
 
 export const Provider: ReactComponentType<ExactJotaiProviderProps> = exposeExactComponent(
 	ExactJotaiProvider,

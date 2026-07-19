@@ -1,4 +1,5 @@
-import { createElement, Fragment } from './index.js';
+import { Fragment } from './api/constants.js';
+import { createElement } from './api/elements.js';
 import type { Key, ReactElement } from './types.js';
 
 export { Fragment };

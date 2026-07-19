@@ -3,7 +3,7 @@ import ts from 'typescript';
 import type { CallableEffectPlan } from '../../analysis/callable-effects.js';
 import { stripExactImportAttribute, type ExactModuleImportPlan } from '../../assets.js';
 import { isThisTaskCall } from '../../calls.js';
-import { allocateHelperNames } from '../../emission/helpers.js';
+import { allocateHelperNames } from '../../emission/operations.js';
 import {
 	componentStateRoot,
 	isArrayMutator,

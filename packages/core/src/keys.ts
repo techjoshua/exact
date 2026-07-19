@@ -1,4 +1,4 @@
-import type { ContextToken, RefKey } from './index.js';
+import type { ContextToken, RefKey } from './component/contracts.js';
 
 export interface ContextOptions {
 	readonly global?: boolean;

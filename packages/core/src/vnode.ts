@@ -1,5 +1,5 @@
 import { computed, unwrap } from '@exact/reactive';
-import type { Child, RenderResult, VNode, VNodeCell, VNodeType } from './index.js';
+import type { Child, RenderResult, VNode, VNodeCell, VNodeType } from './component/contracts.js';
 import {
 	Cell,
 	Dynamic,

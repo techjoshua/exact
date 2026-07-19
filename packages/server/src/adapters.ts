@@ -4,7 +4,7 @@ import {
 	createCleanupFailure,
 	throwCleanupFailure
 } from '@exact/core';
-import { handleExactRequest } from './index.js';
+import { handleExactRequest } from './runtime/request-handler.js';
 import type { ExactServerContext } from './types.js';
 
 export type ExactExpressRequest = {

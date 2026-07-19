@@ -1,5 +1,5 @@
 import type ts from 'typescript';
-import { insertAfterDirectivePrologue } from '../../emission/helpers.js';
+import { insertAfterDirectivePrologue } from '../../emission/operations.js';
 import { pruneUnusedImports } from '../../prune-imports.js';
 import type {
 	ExactPlacement,

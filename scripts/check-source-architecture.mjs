@@ -1,40 +1,36 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
+import ts from 'typescript';
 
 const root = process.cwd();
-const sourceRoots = [
+const maintainedRoots = [
 	'packages',
 	'framework-adapters',
 	'react-adapters',
 	'plugins',
-	'component-libraries'
+	'component-libraries',
+	'apps'
 ];
+const ignoredDirectories = new Set([
+	'.exact',
+	'.tmp',
+	'build',
+	'coverage',
+	'dist',
+	'fixtures',
+	'generated',
+	'node_modules',
+	'reference'
+]);
 const violations = [];
 
-for (const sourceRoot of sourceRoots) {
-	for (const file of await sourceFiles(path.join(root, sourceRoot))) {
-		const relative = path.relative(root, file).replaceAll('\\', '/');
-		const source = await readFile(file, 'utf8');
-
-		// Importing a package façade from one of its implementation modules creates
-		// a hidden cycle and makes later extraction substantially harder.
-		const sourcePath = relative.split('/src/')[1] ?? '';
-		if (
-			sourcePath.includes('/') &&
-			!relative.endsWith('/index.ts') &&
-			!relative.endsWith('/index.tsx')
-		) {
-			for (const match of source.matchAll(/from\s+["']\.\/index\.js["']/g)) {
-				violations.push(`${relative}:${lineAt(source, match.index)} imports its package façade`);
-			}
-		}
-
-		if (/(?:^|\/)src\/utils?\.(?:ts|tsx)$/.test(relative)) {
-			violations.push(
-				`${relative}: generic utility modules must be replaced by a domain-owned module`
-			);
-		}
-	}
+for (const maintainedRoot of maintainedRoots) {
+	for (const file of await sourceFiles(path.join(root, maintainedRoot))) inspectSource(file);
+	for (const sourceRoot of await packageSourceRoots(path.join(root, maintainedRoot)))
+		await inspectFlatClusters(sourceRoot);
+}
+for (const file of await scriptFiles(path.join(root, 'scripts'))) {
+	inspectSize(file, await readFile(file, 'utf8'), /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file));
 }
 
 if (violations.length) {
@@ -43,18 +39,181 @@ if (violations.length) {
 
 console.log('source architecture ok');
 
+async function inspectSource(file) {
+	const relative = repositoryPath(file);
+	const source = await readFile(file, 'utf8');
+	const isTest =
+		/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(relative) || relative.includes('/test-support/');
+	inspectSize(file, source, isTest);
+	if (isTest) return;
+
+	const sourceFile = ts.createSourceFile(
+		file,
+		source,
+		ts.ScriptTarget.Latest,
+		true,
+		file.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+	);
+	if (/\/src\/index\.tsx?$/.test(relative)) inspectFacade(relative, sourceFile);
+	inspectImports(relative, sourceFile);
+	inspectOwnershipName(relative);
+}
+
+function inspectFacade(relative, sourceFile) {
+	for (const statement of sourceFile.statements) {
+		if (isFacadeStatement(statement)) continue;
+		report(relative, sourceFile, statement, 'public entrypoint contains implementation');
+	}
+}
+
+function isFacadeStatement(statement) {
+	if (
+		ts.isImportDeclaration(statement) ||
+		ts.isExportDeclaration(statement) ||
+		ts.isExportAssignment(statement) ||
+		ts.isInterfaceDeclaration(statement) ||
+		ts.isTypeAliasDeclaration(statement) ||
+		ts.isEnumDeclaration(statement) ||
+		ts.isModuleDeclaration(statement) ||
+		ts.isEmptyStatement(statement)
+	) {
+		return true;
+	}
+	if (ts.isVariableStatement(statement)) {
+		return statement.declarationList.declarations.every((declaration) =>
+			isContractInitializer(declaration.initializer)
+		);
+	}
+	if (ts.isFunctionDeclaration(statement)) {
+		return !statement.body || statement.body.statements.length <= 3;
+	}
+	return false;
+}
+
+function isContractInitializer(initializer) {
+	if (!initializer) return true;
+	return (
+		ts.isStringLiteralLike(initializer) ||
+		ts.isNumericLiteral(initializer) ||
+		initializer.kind === ts.SyntaxKind.TrueKeyword ||
+		initializer.kind === ts.SyntaxKind.FalseKeyword ||
+		ts.isAsExpression(initializer) ||
+		ts.isTypeAssertionExpression(initializer)
+	);
+}
+
+function inspectImports(relative, sourceFile) {
+	for (const statement of sourceFile.statements) {
+		if (!ts.isImportDeclaration(statement) && !ts.isExportDeclaration(statement)) continue;
+		const specifier = statement.moduleSpecifier;
+		if (!specifier || !ts.isStringLiteralLike(specifier)) continue;
+		const request = specifier.text;
+		if (/(?:^|\/)(?:\.\.\/|\.\/)*index\.js$/.test(request)) {
+			report(relative, sourceFile, statement, `imports public facade ${request}`);
+		}
+		if (request.includes('test-support')) {
+			report(relative, sourceFile, statement, 'production module imports test-support code');
+		}
+	}
+}
+
+function inspectOwnershipName(relative) {
+	const name = path.basename(relative).replace(/\.[^.]+$/, '');
+	if (/^(?:common|helpers?|utils?)$/i.test(name)) {
+		violations.push(`${relative}: generic module name must be replaced by a domain owner`);
+	}
+}
+
+function inspectSize(file, source, isTest = false) {
+	const relative = repositoryPath(file);
+	const text = source ?? '';
+	const logicalLines = text
+		.split(/\r?\n/)
+		.filter((line) => line.trim() && !line.trim().startsWith('//')).length;
+	const limit = isTest ? 600 : 400;
+	if (logicalLines > limit) {
+		violations.push(`${relative}: ${logicalLines} logical lines exceeds the ${limit}-line limit`);
+	}
+}
+
+async function inspectFlatClusters(sourceRoot) {
+	const entries = await readdir(sourceRoot, { withFileTypes: true });
+	const publicSubpaths = await declaredPublicSubpaths(path.dirname(sourceRoot));
+	const groups = new Map();
+	for (const entry of entries) {
+		if (!entry.isFile() || !/\.[cm]?[jt]sx?$/.test(entry.name) || /\.test\./.test(entry.name))
+			continue;
+		const stem = entry.name.replace(/\.[^.]+$/, '');
+		const separator = stem.indexOf('-');
+		if (separator < 1 || publicSubpaths.has(stem)) continue;
+		const prefix = stem.slice(0, separator);
+		const names = groups.get(prefix) ?? [];
+		names.push(entry.name);
+		groups.set(prefix, names);
+	}
+	for (const [prefix, names] of groups) {
+		if (names.length < 3) continue;
+		violations.push(
+			`${repositoryPath(sourceRoot)}: flat "${prefix}-*" cluster (${names.join(', ')}) needs a domain folder`
+		);
+	}
+}
+
+async function declaredPublicSubpaths(packageRoot) {
+	try {
+		const manifest = JSON.parse(await readFile(path.join(packageRoot, 'package.json'), 'utf8'));
+		const result = new Set();
+		for (const key of Object.keys(manifest.exports ?? {})) {
+			if (!key.startsWith('./')) continue;
+			result.add(key.slice(2));
+		}
+		return result;
+	} catch {
+		return new Set();
+	}
+}
+
+async function packageSourceRoots(directory) {
+	const roots = [];
+	for (const entry of await readdir(directory, { withFileTypes: true })) {
+		if (!entry.isDirectory() || ignoredDirectories.has(entry.name)) continue;
+		const child = path.join(directory, entry.name);
+		try {
+			const entries = await readdir(child);
+			if (entries.includes('package.json') && entries.includes('src')) {
+				roots.push(path.join(child, 'src'));
+			} else {
+				roots.push(...(await packageSourceRoots(child)));
+			}
+		} catch {
+			// A concurrently removed directory is irrelevant to the static inventory.
+		}
+	}
+	return roots;
+}
+
 async function sourceFiles(directory) {
 	const files = [];
 	for (const entry of await readdir(directory, { withFileTypes: true })) {
-		if (entry.name === 'dist' || entry.name === 'node_modules') continue;
+		if (entry.isDirectory() && ignoredDirectories.has(entry.name)) continue;
 		const filename = path.join(directory, entry.name);
 		if (entry.isDirectory()) files.push(...(await sourceFiles(filename)));
-		else if (/\.(?:ts|tsx)$/.test(entry.name) && !/\.test\.(?:ts|tsx)$/.test(entry.name))
-			files.push(filename);
+		else if (/\.[cm]?[jt]sx?$/.test(entry.name)) files.push(filename);
 	}
 	return files;
 }
 
-function lineAt(source, offset) {
-	return source.slice(0, offset).split('\n').length;
+async function scriptFiles(directory) {
+	return (await sourceFiles(directory)).filter(
+		(file) => !repositoryPath(file).includes('/fixtures/')
+	);
+}
+
+function report(relative, sourceFile, node, message) {
+	const position = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+	violations.push(`${relative}:${position.line + 1} ${message}`);
+}
+
+function repositoryPath(file) {
+	return path.relative(root, file).replaceAll('\\', '/');
 }

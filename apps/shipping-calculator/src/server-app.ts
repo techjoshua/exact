@@ -11,7 +11,7 @@ import appManifestJson from '../.exact/App.exact.manifest.json' with { type: 'js
 import { ShippingCalculatorPage } from '../.exact/App.exact.server.js';
 import { resolveRoute } from './geography.js';
 import { parseRateRequest } from './model.js';
-import { configuredProviderIds, quoteProvider } from './providers/index.js';
+import { configuredProviderIds, quoteProvider } from './providers/registry.js';
 import type { ProviderId } from './types.js';
 
 const actionIds = [
