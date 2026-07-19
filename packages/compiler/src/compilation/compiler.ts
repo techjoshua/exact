@@ -105,11 +105,10 @@ export {
 	analyzeReactiveProvenance,
 	analyzeSemanticGraph,
 	analyzeSource,
-	compileFile,
-	compileProject,
 	transform,
 	transformSource
 } from './source-analysis.js';
+export { compileFile, compileProject } from './file-compilation.js';
 
 /** Compiles one source file into paired client/server artifacts plus an artifact manifest. */
 export async function compileFileArtifacts(

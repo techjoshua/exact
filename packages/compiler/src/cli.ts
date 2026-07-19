@@ -2,7 +2,7 @@
 import { prepareExactPluginRegistry } from '@exact/plugin-host/node';
 import path from 'node:path';
 import { compileProjectArtifacts } from './compilation/compiler.js';
-import { compileProject } from './compilation/source-analysis.js';
+import { compileProject } from './compilation/file-compilation.js';
 import type { TransformTarget } from './types.js';
 
 type CliOptions = {
