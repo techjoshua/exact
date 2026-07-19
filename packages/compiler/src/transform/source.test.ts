@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { analyzeSemanticGraph, analyzeSource, transform, transformSource } from './index.js';
+import { analyzeSemanticGraph, analyzeSource, transform, transformSource } from '../index.js';
 
 describe('@exact/compiler: transform', () => {
 	it('lowers annotated object and primitive Array.map JSX to keyed framework lists', () => {
@@ -112,7 +112,7 @@ describe('@exact/compiler: transform', () => {
 	it('preserves contextual event parameter types when lowering JSX', () => {
 		const filename = path.resolve(
 			import.meta.dirname,
-			'../../../apps/workbench/src/__contextual_events.tsx'
+			'../../../../apps/workbench/src/__contextual_events.tsx'
 		);
 		const output = transform(
 			`function Form(this: Component<{}>) {

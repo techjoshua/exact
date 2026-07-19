@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { preprocessPropPunning, transform, transformSource } from './index.js';
+import { preprocessPropPunning, transform, transformSource } from '../index.js';
 
 describe('@exact/compiler: derived values', () => {
 	it('shares cached derived consts across reactive JSX children', () => {

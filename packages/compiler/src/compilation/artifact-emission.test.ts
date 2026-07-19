@@ -21,8 +21,8 @@ import {
 	resolveExactArtifactImport,
 	transform,
 	updateExactArtifactDevState
-} from './index.js';
-import { createTestWorkspace } from './test-support/workspace.js';
+} from '../index.js';
+import { createTestWorkspace } from '../test-support/workspace.js';
 
 describe('@exact/compiler: artifacts', () => {
 	it('compiles a single TSX file to an output directory', async () => {

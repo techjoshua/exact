@@ -11,8 +11,8 @@ import {
 	createServerPartRegistryEntries,
 	createServerPartRegistryModule,
 	transform
-} from './index.js';
-import { createTestWorkspace } from './test-support/workspace.js';
+} from '../index.js';
+import { createTestWorkspace } from '../test-support/workspace.js';
 
 describe('@exact/compiler: registries', () => {
 	it('creates client island registry entries for generated client artifacts', async () => {

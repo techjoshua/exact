@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeSource, transform, transformSource } from './index.js';
+import { analyzeSource, transform, transformSource } from '../index.js';
 
 describe('@exact/compiler: reactivity', () => {
 	it('lowers JSX to eXact compiled vnode helpers', () => {

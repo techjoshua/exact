@@ -6,8 +6,8 @@ import {
 	compileFileArtifacts,
 	compileProjectArtifacts,
 	transform
-} from './index.js';
-import { createTestWorkspace } from './test-support/workspace.js';
+} from '../../index.js';
+import { createTestWorkspace } from '../../test-support/workspace.js';
 
 describe('@exact/compiler: islands', () => {
 	it('generates child-bearing client island components with state bridge props', () => {
