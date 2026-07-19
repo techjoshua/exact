@@ -23,7 +23,8 @@ import {
   useHref,
   useBlocker,
   useLocation,
-  useParams
+  useParams,
+  useRouteError
 } from "./modern.js";
 
 const settle = () => new Promise(resolve => setTimeout(resolve, 0));
@@ -109,6 +110,29 @@ describe("React Router modern facade", () => {
     expect(response).toBeInstanceOf(Response);
     expect((response as Response).status).toBe(307);
     expect((response as Response).headers.get("Location")).toBe("https://example.test/home");
+  });
+
+  it("preserves static loader response status and headers and follows thrown action redirects", async () => {
+    const handler = createStaticHandler([
+      {
+        id: "report",
+        path: "report",
+        loader: () => new Response("ready", {
+          status: 202,
+          headers: { "Content-Type": "text/plain", "X-Route": "report" }
+        }),
+        action: () => { throw new Response(null, { status: 303, headers: { Location: "/done" } }); }
+      },
+      { id: "done", path: "done" }
+    ]);
+    const context = await handler.query(new Request("https://example.test/report"));
+    expect(context).not.toBeInstanceOf(Response);
+    expect(context).toMatchObject({ statusCode: 202, loaderData: { report: "ready" } });
+    expect((context as Exclude<typeof context, Response>).loaderHeaders.report?.get("X-Route")).toBe("report");
+    const redirect = await handler.query(new Request("https://example.test/report", { method: "POST" }));
+    expect(redirect).toBeInstanceOf(Response);
+    expect((redirect as Response).status).toBe(303);
+    expect((redirect as Response).headers.get("Location")).toBe("https://example.test/done");
   });
 
   it("resolves parent navigation by route hierarchy", async () => {
@@ -223,5 +247,52 @@ describe("React Router modern facade", () => {
     const event = new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 });
     container.querySelector("a")!.onclick?.call(container.querySelector("a")!, event);
     expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("preserves ancestor layouts and exposes descendant loader errors to the selected boundary", async () => {
+    function Layout() { return createElement("main", null, "Layout:", createElement(Outlet, {})); }
+    function Boundary() {
+      const error = useRouteError() as Error;
+      return createElement("p", null, `Caught ${error.message}`);
+    }
+    const router = createMemoryRouter([{
+      id: "root",
+      Component: Layout,
+      children: [{
+        id: "section",
+        ErrorBoundary: Boundary,
+        children: [{
+          id: "broken",
+          path: "broken",
+          loader: () => { throw new Error("loader failed"); }
+        }]
+      }]
+    }], { initialEntries: ["/broken"] });
+    const container = document.createElement("div");
+    createRoot(container).render(createElement(RouterProvider, { router }));
+    await settle();
+    await settle();
+    expect(container.textContent).toBe("Layout:Caught loader failed");
+  });
+
+  it("exposes component rendering failures through route error boundaries", async () => {
+    function Broken(): never { throw new Error("render failed"); }
+    function Boundary() {
+      const error = useRouteError() as Error;
+      return createElement("p", null, `Caught ${error.message}`);
+    }
+    const router = createMemoryRouter([{
+      id: "broken",
+      path: "broken",
+      Component: Broken,
+      ErrorBoundary: Boundary
+    }], {
+      initialEntries: ["/broken"],
+      hydrationData: {}
+    });
+    const container = document.createElement("div");
+    createRoot(container).render(createElement(RouterProvider, { router }));
+    await settle();
+    expect(container.textContent).toBe("Caught render failed");
   });
 });

@@ -93,6 +93,9 @@ export type ExactRouterSnapshot<Route extends ExactRouteDefinition = ExactRouteD
   loaderData: Readonly<Record<string, unknown>>;
   actionData: Readonly<Record<string, unknown>>;
   errors: Readonly<Record<string, unknown>>;
+  statusCode: number;
+  loaderHeaders: Readonly<Record<string, Headers>>;
+  actionHeaders: Readonly<Record<string, Headers>>;
   revalidation: "idle" | "loading";
   fetchers: ReadonlyMap<string, FetcherSnapshot>;
 }>;
@@ -139,6 +142,9 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
   let loaderData: Record<string, unknown> = { ...(options.hydrationData?.loaderData ?? {}) };
   let actionData: Record<string, unknown> = { ...(options.hydrationData?.actionData ?? {}) };
   let errors: Record<string, unknown> = { ...(options.hydrationData?.errors ?? {}) };
+  let statusCode = 200;
+  let loaderHeaders: Record<string, Headers> = {};
+  let actionHeaders: Record<string, Headers> = {};
   let revalidation: "idle" | "loading" = "idle";
   const fetchers = new Map<string, FetcherSnapshot>();
   const fetcherAborts = new Map<string, AbortController>();
@@ -174,6 +180,9 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
       loaderData: Object.freeze({ ...loaderData }),
       actionData: Object.freeze({ ...actionData }),
       errors: Object.freeze({ ...errors }),
+      statusCode,
+      loaderHeaders: Object.freeze({ ...loaderHeaders }),
+      actionHeaders: Object.freeze({ ...actionHeaders }),
       revalidation,
       fetchers: new Map(fetchers)
     });
@@ -214,7 +223,7 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
     const nextMatches = matchRoutes(routes, nextLocation.pathname);
     const result = nextMatches.some(match => hasOwnDataWork(match.route))
       ? await runLoaders(target, nextMatches, operation.abort.signal)
-      : { data: {}, errors: {} };
+      : { data: {}, errors: {}, headers: {}, statusCode: 200 };
     if (result.redirect) {
       if (currentTransition !== transitionId) return;
       await navigate(result.redirect, { replace: true, status: result.status }, redirectDepth + 1);
@@ -224,6 +233,8 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
     initialized = true;
     loaderData = result.data;
     errors = result.errors;
+    loaderHeaders = result.headers;
+    statusCode = result.statusCode;
     if (options.replace) source.replace(target, options.state, options.status);
     else source.push(target, options.state, options.status);
     if (!ownsAuthoritativeOperation(operation)) return;
@@ -252,6 +263,8 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
     }
     loaderData = result.data;
     errors = result.errors;
+    loaderHeaders = result.headers;
+    statusCode = result.statusCode;
     initialized = true;
     snapshot = buildSnapshot(snapshot.historyAction);
     notify();
@@ -284,6 +297,10 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
         await navigate(redirect.location, { replace: true, status: redirect.status });
         return;
       }
+      if (result instanceof Response) {
+        actionHeaders = { [actionMatch.id]: new Headers(result.headers) };
+        statusCode = result.status;
+      }
       const data = await unwrapDataResult(result);
       if (!ownsAuthoritativeOperation(operation)) return;
       actionData = { [actionMatch.id]: data };
@@ -294,6 +311,12 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
       if (redirect) {
         await navigate(redirect.location, { replace: true, status: redirect.status });
         return;
+      }
+      if (error instanceof Response) {
+        actionHeaders = { [actionMatch.id]: new Headers(error.headers) };
+        statusCode = error.status;
+      } else {
+        statusCode = 500;
       }
       errors = { ...errors, [actionMatch.id]: error };
       snapshot = buildSnapshot(snapshot.historyAction);
@@ -337,6 +360,8 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
     }
     loaderData = result.data;
     errors = result.errors;
+    loaderHeaders = result.headers;
+    statusCode = result.statusCode !== 200 || !owner ? result.statusCode : statusCode;
     revalidation = "idle";
     snapshot = buildSnapshot(snapshot.historyAction);
     notify();
@@ -395,14 +420,21 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
     matches: readonly RouteMatch<Route>[],
     signal: AbortSignal,
     initial: Readonly<Record<string, unknown>> = {}
-  ): Promise<{ data: Record<string, unknown>; errors: Record<string, unknown>; redirect?: string; status?: number }> {
+  ): Promise<{
+    data: Record<string, unknown>;
+    errors: Record<string, unknown>;
+    headers: Record<string, Headers>;
+    statusCode: number;
+    redirect?: string;
+    status?: number;
+  }> {
     const data = { ...initial };
     const nextErrors: Record<string, unknown> = {};
-    let redirect: { location: string; status: number } | undefined;
-    await Promise.all(matches.map(async match => {
+    const headers: Record<string, Headers> = {};
+    const results = await Promise.all(matches.map(async match => {
       try {
         await materializeLazy(match.route);
-        if (!match.route.loader) return;
+        if (!match.route.loader) return { match };
         const value = await match.route.loader({
           request: new Request(url),
           params: match.params,
@@ -410,15 +442,45 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
           signal
         });
         const nextRedirect = redirectResult(value);
-        if (nextRedirect) redirect = nextRedirect;
-        else data[match.id] = await unwrapDataResult(value);
+        if (nextRedirect) return { match, redirect: nextRedirect };
+        return { match, value, data: await unwrapDataResult(value) };
       } catch (error) {
         const nextRedirect = redirectResult(error);
-        if (nextRedirect) redirect = nextRedirect;
-        else nextErrors[match.id] = error;
+        if (nextRedirect) return { match, redirect: nextRedirect };
+        return { match, error };
       }
     }));
-    return { data, errors: nextErrors, ...(redirect ? { redirect: redirect.location, status: redirect.status } : {}) };
+    let redirect: { location: string; status: number } | undefined;
+    let nextStatus = 200;
+    for (const result of results) {
+      if (result.redirect) {
+        redirect = result.redirect;
+        continue;
+      }
+      if ("error" in result) {
+        nextErrors[result.match.id] = result.error;
+        if (result.error instanceof Response) {
+          headers[result.match.id] = new Headers(result.error.headers);
+          nextStatus = result.error.status;
+        } else {
+          nextStatus = 500;
+        }
+        continue;
+      }
+      if (!("value" in result)) continue;
+      data[result.match.id] = result.data;
+      if (result.value instanceof Response) {
+        headers[result.match.id] = new Headers(result.value.headers);
+        nextStatus = result.value.status;
+      }
+    }
+    return {
+      data,
+      errors: nextErrors,
+      headers,
+      statusCode: nextStatus,
+      ...(redirect ? { redirect: redirect.location, status: redirect.status } : {})
+    };
   }
 
   async function materializeLazy(route: Route): Promise<void> {

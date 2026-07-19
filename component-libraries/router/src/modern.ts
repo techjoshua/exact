@@ -1,5 +1,6 @@
 import {
   Children,
+  Component as ReactComponent,
   createContext,
   createElement,
   isValidElement,
@@ -71,6 +72,7 @@ const ReactRouterContext = bridgeReactContext(
 const OutletContext = createContext<ReactNode>(null);
 const OutletValueContext = createContext<unknown>(undefined);
 const RouteIdContext = createContext<string | undefined>(undefined);
+const RouteErrorContext = createContext<Readonly<{ active: boolean; error?: unknown }>>({ active: false });
 const configuredRoutes = new WeakMap<ExactRouter<any>, unknown>();
 
 function useRouter(): ExactRouter<RouteObject> {
@@ -398,6 +400,8 @@ export function useActionData<T = unknown>(): T | undefined {
   return useSnapshot().actionData[id ?? ""] as T | undefined;
 }
 export function useRouteError(): unknown {
+  const routeError = useContext(RouteErrorContext);
+  if (routeError.active) return routeError.error;
   const id = useContext(RouteIdContext);
   return useSnapshot().errors[id ?? ""];
 }
@@ -607,9 +611,9 @@ export function createStaticHandler(routes: readonly RouteObject[], options: { b
         loaderData: snapshot.loaderData,
         actionData: snapshot.actionData,
         errors: snapshot.errors,
-        statusCode: routeErrorStatus(snapshot.errors),
-        loaderHeaders: {},
-        actionHeaders: {}
+        statusCode: snapshot.statusCode,
+        loaderHeaders: snapshot.loaderHeaders,
+        actionHeaders: snapshot.actionHeaders
       };
       router.dispose();
       return context;
@@ -789,23 +793,72 @@ function renderRouteMatches(snapshot: ExactRouterSnapshot<RouteObject>): ReactNo
   if (!snapshot.matches.length) return null;
   const errorMatch = [...snapshot.matches].reverse().find(match => snapshot.errors[match.id] !== undefined);
   if (errorMatch) {
-    const boundary = [...snapshot.matches.slice(0, snapshot.matches.indexOf(errorMatch) + 1)]
-      .reverse()
-      .find(match => match.route.errorElement !== undefined || match.route.ErrorBoundary);
-    if (boundary) return routeProvider(boundary.id, boundary.route.ErrorBoundary
-      ? createElement(boundary.route.ErrorBoundary, {})
-      : boundary.route.errorElement);
+    const errorIndex = snapshot.matches.indexOf(errorMatch);
+    let boundaryIndex = -1;
+    for (let index = errorIndex; index >= 0; index--) {
+      const route = snapshot.matches[index]!.route;
+      if (route.errorElement !== undefined || route.ErrorBoundary) {
+        boundaryIndex = index;
+        break;
+      }
+    }
+    if (boundaryIndex >= 0) {
+      const boundary = snapshot.matches[boundaryIndex]!;
+      let outlet = routeProvider(boundary.id, createElement(RouteErrorContext.Provider, {
+        value: { active: true, error: snapshot.errors[errorMatch.id] },
+        children: boundary.route.ErrorBoundary
+          ? createElement(boundary.route.ErrorBoundary, {})
+          : boundary.route.errorElement
+      }));
+      for (let index = boundaryIndex - 1; index >= 0; index--) {
+        outlet = renderMatchedRoute(snapshot.matches[index]!, outlet, snapshot.location.key);
+      }
+      return outlet;
+    }
   }
   let outlet: ReactNode = null;
   for (let index = snapshot.matches.length - 1; index >= 0; index--) {
-    const match = snapshot.matches[index]!;
-    const element: ReactNode = match.route.Component ? createElement(match.route.Component, {}) : match.route.element ?? outlet;
-    outlet = createElement(OutletContext.Provider, {
-      value: outlet,
-      children: routeProvider(match.id, element)
-    });
+    outlet = renderMatchedRoute(snapshot.matches[index]!, outlet, snapshot.location.key);
   }
   return outlet;
+}
+
+function renderMatchedRoute(
+  match: ExactRouterSnapshot<RouteObject>["matches"][number],
+  outlet: ReactNode,
+  locationKey: string
+): ReactNode {
+  const element: ReactNode = match.route.Component ? createElement(match.route.Component, {}) : match.route.element ?? outlet;
+  const rendered = match.route.ErrorBoundary || match.route.errorElement !== undefined
+    ? createElement(RouteRenderBoundary, {
+        key: `${locationKey}:${match.id}`,
+        ErrorBoundary: match.route.ErrorBoundary,
+        errorElement: match.route.errorElement,
+        children: element
+      })
+    : element;
+  return createElement(OutletContext.Provider, {
+    value: outlet,
+    children: routeProvider(match.id, rendered)
+  });
+}
+
+class RouteRenderBoundary extends ReactComponent<{
+  ErrorBoundary?: ReactComponentType<any>;
+  errorElement?: ReactNode;
+  children?: ReactNode;
+}, { error?: unknown }> {
+  state: { error?: unknown } = {};
+  static getDerivedStateFromError(error: unknown): { error: unknown } { return { error }; }
+  render(): ReactNode {
+    if (!("error" in this.state)) return this.props.children;
+    return createElement(RouteErrorContext.Provider, {
+      value: { active: true, error: this.state.error },
+      children: this.props.ErrorBoundary
+        ? createElement(this.props.ErrorBoundary, {})
+        : this.props.errorElement
+    });
+  }
 }
 
 function routeProvider(id: string, children: ReactNode): ReactNode {
@@ -886,10 +939,6 @@ async function requestInit(request: Request): Promise<RequestInit> {
     headers: request.headers,
     ...(body.byteLength ? { body } : {})
   };
-}
-function routeErrorStatus(errors: Readonly<Record<string, unknown>>): number {
-  const responses = Object.values(errors).filter((error): error is Response => error instanceof Response);
-  return responses.find(response => response.status >= 400)?.status ?? (Object.keys(errors).length ? 500 : 200);
 }
 function browserWindowSource(target: Window, mode: RouterMode): LocationSource {
   const read = () => mode === "hash"
