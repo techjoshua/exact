@@ -7,6 +7,8 @@ import { expressionStatePath, type ExpressionWritePlan } from '../expression/wri
 import { stableId } from '../ids.js';
 import { isServerOnlyModule } from '../imports.js';
 import { isUnshadowedPlatformGlobal } from '../platform-effects.js';
+import { effectFor, targetsFor } from './effect-lattice.js';
+import { orderStronglyConnectedComponents } from './strongly-connected-components.js';
 import type {
 	ExactArtifactTarget,
 	ExactCallableSummaryIR,
@@ -943,23 +945,7 @@ function isFunctionNode(reference: NodeRef): boolean {
 	);
 }
 
-export function effectFor(
-	sources: readonly ExactEnvironmentEffectSourceIR[]
-): ExactEnvironmentEffect {
-	const environments = new Set(sources.map((candidate) => candidate.environment));
-	if (environments.has('browser') && environments.has('server')) return 'mixed';
-	if (environments.has('unknown')) return 'unknown';
-	if (environments.has('browser')) return 'browser';
-	if (environments.has('server')) return 'server';
-	return 'neutral';
-}
-
-function targetsFor(effect: ExactEnvironmentEffect): ExactArtifactTarget[] {
-	if (effect === 'browser') return ['client'];
-	if (effect === 'server') return ['server'];
-	if (effect === 'neutral') return ['client', 'server'];
-	return [];
-}
+export { effectFor } from './effect-lattice.js';
 
 function targetsForCallable(callable: MutableCallable): ExactArtifactTarget[] {
 	const effect = effectFor(callable.sources);
@@ -981,67 +967,11 @@ function allowedTargetsForCallable(callable: MutableCallable): ExactArtifactTarg
 }
 
 function callableSccOrder(callables: readonly MutableCallable[]): MutableCallable[][] {
-	const byId = new Map(callables.map((callable) => [callable.id, callable]));
-	const indices = new Map<string, number>();
-	const lowLinks = new Map<string, number>();
-	const stack: MutableCallable[] = [];
-	const onStack = new Set<string>();
-	const components: MutableCallable[][] = [];
-	let nextIndex = 0;
-	const visit = (callable: MutableCallable) => {
-		indices.set(callable.id, nextIndex);
-		lowLinks.set(callable.id, nextIndex++);
-		stack.push(callable);
-		onStack.add(callable.id);
-		const targets = [
-			...new Set(
-				callable.calls.flatMap((edge) =>
-					edge.targetId && byId.has(edge.targetId) ? [edge.targetId] : []
-				)
-			)
-		].sort();
-		for (const targetId of targets) {
-			const target = byId.get(targetId)!;
-			if (!indices.has(targetId)) {
-				visit(target);
-				lowLinks.set(callable.id, Math.min(lowLinks.get(callable.id)!, lowLinks.get(targetId)!));
-			} else if (onStack.has(targetId))
-				lowLinks.set(callable.id, Math.min(lowLinks.get(callable.id)!, indices.get(targetId)!));
-		}
-		if (lowLinks.get(callable.id) !== indices.get(callable.id)) return;
-		const component: MutableCallable[] = [];
-		let member: MutableCallable;
-		do {
-			member = stack.pop()!;
-			onStack.delete(member.id);
-			component.push(member);
-		} while (member !== callable);
-		components.push(component.sort((left, right) => left.id.localeCompare(right.id)));
-	};
-	for (const callable of [...callables].sort((left, right) => left.id.localeCompare(right.id)))
-		if (!indices.has(callable.id)) visit(callable);
-
-	const componentByCallable = new Map<string, number>();
-	components.forEach((component, index) =>
-		component.forEach((callable) => componentByCallable.set(callable.id, index))
+	return orderStronglyConnectedComponents(
+		callables,
+		(callable) => callable.id,
+		(callable) => callable.calls.flatMap((edge) => (edge.targetId ? [edge.targetId] : []))
 	);
-	const ordered: MutableCallable[][] = [];
-	const visited = new Set<number>();
-	const order = (index: number) => {
-		if (visited.has(index)) return;
-		visited.add(index);
-		const dependencies = new Set<number>();
-		for (const callable of components[index]!)
-			for (const edge of callable.calls) {
-				const dependency = edge.targetId ? componentByCallable.get(edge.targetId) : undefined;
-				if (dependency !== undefined && dependency !== index) dependencies.add(dependency);
-			}
-		for (const dependency of [...dependencies].sort((left, right) => left - right))
-			order(dependency);
-		ordered.push(components[index]!);
-	};
-	for (const index of components.keys()) order(index);
-	return ordered;
 }
 
 function callableArtifactTargets(
