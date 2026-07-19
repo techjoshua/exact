@@ -1,9 +1,9 @@
 import path from 'node:path';
 import { createExpressionProject } from '@exact/expressions';
 import { describe, expect, it } from 'vitest';
-import { analyzeExpressionWrites, lowerExpressionWrites } from './expression-writes.js';
+import { analyzeExpressionWrites, lowerExpressionWrites } from './writes.js';
 
-const root = path.resolve(import.meta.dirname, '../../..');
+const root = path.resolve(import.meta.dirname, '../../../..');
 
 describe('expression-backed writes', () => {
 	it('lowers assignments, updates, deletes, and array mutations without disturbing directives', () => {

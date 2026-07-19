@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { clearExpressionProjectCache, expressionModuleFor } from './expression-project.js';
-import { buildExactProvenance } from './provenance.js';
-import { analyzeExpressionSafety } from './expression-safety.js';
+import { clearExpressionProjectCache, expressionModuleFor } from './project.js';
+import { buildExactProvenance } from '../provenance.js';
+import { analyzeExpressionSafety } from './safety.js';
 
 describe('expression-backed safety analysis', () => {
 	it('allows compiler-owned setup listeners without confusing shadowed bindings', () => {

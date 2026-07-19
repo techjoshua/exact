@@ -6,7 +6,7 @@ import {
 	type UnboundModule,
 	type Variable
 } from '@exact/expressions';
-import { expressionComponentIndex } from './expression-component-index.js';
+import { expressionComponentIndex } from './component-index.js';
 
 export interface ExpressionWriteResult {
 	readonly module: BoundModule | UnboundModule;

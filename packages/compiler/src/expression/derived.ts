@@ -1,6 +1,6 @@
 import type { BoundModule, NodeRef, Variable } from '@exact/expressions';
-import type { ExactProvenanceGraph } from './provenance.js';
-import { expressionComponentIndex } from './expression-component-index.js';
+import type { ExactProvenanceGraph } from '../provenance.js';
+import { expressionComponentIndex } from './component-index.js';
 
 export interface ExpressionDerivedSite {
 	readonly nodeId: string;

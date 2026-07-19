@@ -5,7 +5,7 @@ import {
 	clearExpressionProjectCache,
 	createCompilerSession,
 	expressionModuleFor
-} from './expression-project.js';
+} from './project.js';
 
 describe('shared expression projects', () => {
 	it('emits compiler and nested expression profile events when enabled', () => {
@@ -28,7 +28,7 @@ describe('shared expression projects', () => {
 
 	it('caches modules by canonical filename within one project', () => {
 		clearExpressionProjectCache();
-		const root = path.resolve(import.meta.dirname, '../../..');
+		const root = path.resolve(import.meta.dirname, '../../../..');
 		const firstFile = path.join(root, 'apps/kanban/src/__cache_first.ts');
 		const secondFile = path.join(root, 'apps/kanban/src/__cache_second.ts');
 		const source = 'export const same = 1;';
@@ -41,7 +41,7 @@ describe('shared expression projects', () => {
 
 	it('rebinds unchanged consumers after a dependency revision', () => {
 		clearExpressionProjectCache();
-		const root = path.resolve(import.meta.dirname, '../../..');
+		const root = path.resolve(import.meta.dirname, '../../../..');
 		const model = path.join(root, 'apps/kanban/src/__cache_model.ts');
 		const consumer = path.join(root, 'apps/kanban/src/__cache_consumer.ts');
 		const consumerSource =
@@ -67,7 +67,7 @@ describe('shared expression projects', () => {
 
 	it('invalidates consumers of side-effect-only imports resolved by TypeScript', () => {
 		clearExpressionProjectCache();
-		const root = path.resolve(import.meta.dirname, '../../..');
+		const root = path.resolve(import.meta.dirname, '../../../..');
 		const setup = path.join(root, 'apps/kanban/src/__cache_setup.ts');
 		const consumer = path.join(root, 'apps/kanban/src/__cache_side_effect.ts');
 		const source = 'import "./__cache_setup.js"; export const ready = true;';
@@ -79,7 +79,7 @@ describe('shared expression projects', () => {
 
 	it('shares relative filenames through a configured package workspace', () => {
 		clearExpressionProjectCache();
-		const root = path.resolve(import.meta.dirname, '../../..');
+		const root = path.resolve(import.meta.dirname, '../../../..');
 		expressionModuleFor('apps/kanban/src/__relative_cache_model.ts', 'export const value = 1;', {
 			root
 		});
@@ -105,7 +105,7 @@ describe('shared expression projects', () => {
 	});
 
 	it('uses language-service affected files to invalidate transitive consumers', () => {
-		const root = path.resolve(import.meta.dirname, '../../..');
+		const root = path.resolve(import.meta.dirname, '../../../..');
 		const model = path.join(root, 'apps/kanban/src/__session_language_model.ts');
 		const consumer = path.join(root, 'apps/kanban/src/__session_language_consumer.ts');
 		const modelSource =

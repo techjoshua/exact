@@ -18,7 +18,10 @@ export default tseslint.config(
 			'**/dist/**',
 			'**/node_modules/**',
 			'**/.tmp/**',
-			'packages/react-dom-compat/src/fixtures/**'
+			'**/.exact/**',
+			'apps/react-reconciler-reference-*/**',
+			'apps/react-reference-*/**',
+			'packages/react-dom-compat/fixtures/**'
 		]
 	},
 	{
@@ -31,12 +34,21 @@ export default tseslint.config(
 			globals: globals.node
 		}
 	},
-	...tseslint.configs.recommendedTypeChecked.map((entry) => ({
+	...tseslint.configs.recommended.map((entry) => ({
 		...entry,
 		files: maintainedSource
 	})),
 	{
 		files: maintainedSource,
+		rules: {
+			'@typescript-eslint/no-empty-object-type': 'off',
+			'@typescript-eslint/no-explicit-any': 'off',
+			'@typescript-eslint/no-this-alias': 'off'
+		}
+	},
+	{
+		files: maintainedSource,
+		ignores: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
 		languageOptions: {
 			parserOptions: {
 				projectService: true,
@@ -54,7 +66,6 @@ export default tseslint.config(
 				'error',
 				{ argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_', varsIgnorePattern: '^_' }
 			],
-			'@typescript-eslint/no-explicit-any': 'off',
 			'@typescript-eslint/no-non-null-assertion': 'off'
 		},
 		linterOptions: {

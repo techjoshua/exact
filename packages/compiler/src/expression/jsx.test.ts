@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import path from 'node:path';
-import { analyzeExpressionJsx } from './expression-jsx.js';
-import { clearExpressionProjectCache, expressionModuleFor } from './expression-project.js';
-import { buildExactProvenance } from './provenance.js';
+import { analyzeExpressionJsx } from './jsx.js';
+import { clearExpressionProjectCache, expressionModuleFor } from './project.js';
+import { buildExactProvenance } from '../provenance.js';
 
 describe('expression-backed JSX plan', () => {
 	it('indexes typed attributes, stable intrinsic ids, and reactive cells', () => {
@@ -38,7 +38,7 @@ describe('expression-backed JSX plan', () => {
 		clearExpressionProjectCache();
 		const filename = path.resolve(
 			import.meta.dirname,
-			'../../../apps/workbench/src/__contextual_event.tsx'
+			'../../../../apps/workbench/src/__contextual_event.tsx'
 		);
 		const module = expressionModuleFor(
 			filename,

@@ -1,5 +1,5 @@
 import type ts from 'typescript';
-import type { ExactCompilerSession } from './expression-project.js';
+import type { ExactCompilerSession } from './expression/project.js';
 import type { ExactJsonValue, ExactPreparedCompilerRegistry } from '@exact/plugin-api';
 
 export type TransformOptions = {

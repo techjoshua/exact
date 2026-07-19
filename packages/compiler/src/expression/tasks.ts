@@ -1,11 +1,11 @@
 import type { BoundModule, NodeRef, Variable } from '@exact/expressions';
-import { analyzeExpressionWrites } from './expression-writes.js';
-import { isServerOnlyModule } from './imports.js';
-import type { ExactContextEffect, ExactPlacement, ExactStateEffect } from './types.js';
-import { expressionComponentIndex } from './expression-component-index.js';
-import { exactCleanupForCall, exactOwnsReturn } from './annotations.js';
-import type { CallableEffectPlan } from './callable-effects.js';
-import type { ExactEnvironmentEffect, ExactEnvironmentEffectSourceIR } from './types.js';
+import { analyzeExpressionWrites } from './writes.js';
+import { isServerOnlyModule } from '../imports.js';
+import type { ExactContextEffect, ExactPlacement, ExactStateEffect } from '../types.js';
+import { expressionComponentIndex } from './component-index.js';
+import { exactCleanupForCall, exactOwnsReturn } from '../annotations.js';
+import type { CallableEffectPlan } from '../callable-effects.js';
+import type { ExactEnvironmentEffect, ExactEnvironmentEffectSourceIR } from '../types.js';
 
 export interface ExpressionTaskSite {
 	readonly nodeId: string;

@@ -5,12 +5,12 @@ import {
 	createExpressionComponents,
 	createExpressionGeneratedServerSlotBoundaries,
 	createExpressionRenderEdges
-} from './expression-components.js';
-import { analyzeExpressionJsx } from './expression-jsx.js';
-import { clearExpressionProjectCache, expressionModuleFor } from './expression-project.js';
-import { analyzeExpressionTasks } from './expression-tasks.js';
-import { buildExactProvenance } from './provenance.js';
-import { analyzeExpressionWrites } from './expression-writes.js';
+} from './components.js';
+import { analyzeExpressionJsx } from './jsx.js';
+import { clearExpressionProjectCache, expressionModuleFor } from './project.js';
+import { analyzeExpressionTasks } from './tasks.js';
+import { buildExactProvenance } from '../provenance.js';
+import { analyzeExpressionWrites } from './writes.js';
 
 describe('expression-backed component effects', () => {
 	it('does not infer components from ordinary this-owned data or helper members', () => {

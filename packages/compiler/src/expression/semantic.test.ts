@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { expressionModuleFor, clearExpressionProjectCache } from './expression-project.js';
-import { buildExpressionSemanticGraph } from './semantic.js';
+import { expressionModuleFor, clearExpressionProjectCache } from './project.js';
+import { buildExpressionSemanticGraph } from '../semantic.js';
 
 describe('expression-backed semantic graph', () => {
 	it('resolves lexical declarations, imports, references, and exports', () => {

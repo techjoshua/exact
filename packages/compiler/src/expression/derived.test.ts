@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeExpressionDerived } from './expression-derived.js';
-import { clearExpressionProjectCache, expressionModuleFor } from './expression-project.js';
-import { buildExactProvenance } from './provenance.js';
+import { analyzeExpressionDerived } from './derived.js';
+import { clearExpressionProjectCache, expressionModuleFor } from './project.js';
+import { buildExactProvenance } from '../provenance.js';
 
 describe('expression-backed derived substitutions', () => {
 	it('plans safe immutable reads by canonical variable identity', () => {

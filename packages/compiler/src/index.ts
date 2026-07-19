@@ -22,7 +22,7 @@ import {
 	expressionDependencyFiles,
 	invalidateExpressionModule,
 	type ExactCompilerSession
-} from './expression-project.js';
+} from './expression/project.js';
 import type {
 	CompileArtifactPlanEntriesOptions,
 	CompileArtifactsOptions,
@@ -85,20 +85,20 @@ import {
 } from './symbols.js';
 import { exactJsxTransformer } from './jsx-transform.js';
 import { exactCompilerManifestVersion } from './versions.js';
-import { expressionModuleFor } from './expression-project.js';
+import { expressionModuleFor } from './expression/project.js';
 import { buildExactProvenance } from './provenance.js';
-import { analyzeExpressionWrites } from './expression-writes.js';
-import { analyzeExpressionSafety } from './expression-safety.js';
-import { analyzeExpressionTasks } from './expression-tasks.js';
-import { analyzeExpressionJsx } from './expression-jsx.js';
-import { analyzeExpressionComponents } from './expression-components.js';
-import { analyzeExpressionDerived } from './expression-derived.js';
+import { analyzeExpressionWrites } from './expression/writes.js';
+import { analyzeExpressionSafety } from './expression/safety.js';
+import { analyzeExpressionTasks } from './expression/tasks.js';
+import { analyzeExpressionJsx } from './expression/jsx.js';
+import { analyzeExpressionComponents } from './expression/components.js';
+import { analyzeExpressionDerived } from './expression/derived.js';
 import {
 	createExpressionComponents,
 	createExpressionGeneratedServerSlotBoundaries,
 	createExpressionRenderEdges
-} from './expression-components.js';
-import { createExpressionComponentBoundaries } from './expression-components.js';
+} from './expression/components.js';
+import { createExpressionComponentBoundaries } from './expression/components.js';
 import { analyzeExactAnnotations } from './annotations.js';
 import { applyCompilerPlugins, validateImportedPluginRegistries } from './plugins.js';
 import { analyzeModuleImports } from './assets.js';
@@ -157,14 +157,14 @@ export {
 	type ExactCompilerInvalidation,
 	type ExactCompilerSessionOptions,
 	type ExactCompilerSessionStats
-} from './expression-project.js';
+} from './expression/project.js';
 export {
 	analyzeExpressionWrites,
 	lowerExpressionWrites,
 	type ExpressionWritePlan,
 	type ExpressionWriteResult,
 	type ExpressionWriteSite
-} from './expression-writes.js';
+} from './expression/writes.js';
 export {
 	buildExactProvenance,
 	type ExactProvenanceEntry,

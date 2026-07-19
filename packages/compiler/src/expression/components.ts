@@ -1,10 +1,10 @@
 import type { BoundModule, NodeRef, Variable } from '@exact/expressions';
-import type { ExpressionJsxPlan } from './expression-jsx.js';
-import type { ExpressionTaskPlan } from './expression-tasks.js';
-import type { ExactProvenanceGraph } from './provenance.js';
-import { expressionStatePath, type ExpressionWritePlan } from './expression-writes.js';
-import { isServerOnlyModule } from './imports.js';
-import { stableId } from './ids.js';
+import type { ExpressionJsxPlan } from './jsx.js';
+import type { ExpressionTaskPlan } from './tasks.js';
+import type { ExactProvenanceGraph } from '../provenance.js';
+import { expressionStatePath, type ExpressionWritePlan } from './writes.js';
+import { isServerOnlyModule } from '../imports.js';
+import { stableId } from '../ids.js';
 import type {
 	ExactBoundaryIR,
 	ExactComponentIR,
@@ -13,15 +13,15 @@ import type {
 	ExactEnvironmentEffect,
 	ExactImportedComponentIR,
 	ExactTaskIR
-} from './types.js';
+} from '../types.js';
 import {
 	clientComponentBoundaryId,
 	generatedComponentName,
 	serverSlotBoundaryId
-} from './names.js';
-import { expressionComponentIndex } from './expression-component-index.js';
-import type { CallableEffectPlan } from './callable-effects.js';
-import { browserPlatformGlobals } from './platform-effects.js';
+} from '../names.js';
+import { expressionComponentIndex } from './component-index.js';
+import type { CallableEffectPlan } from '../callable-effects.js';
+import { browserPlatformGlobals } from '../platform-effects.js';
 
 export interface ExpressionRenderSite {
 	readonly nodeId: string;

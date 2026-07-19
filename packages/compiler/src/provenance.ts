@@ -1,5 +1,5 @@
 import type { BoundModule, ExpressionNode, NodeRef, Variable } from '@exact/expressions';
-import { expressionComponentIndex } from './expression-component-index.js';
+import { expressionComponentIndex } from './expression/component-index.js';
 import { trackedCallbackArguments } from './annotations.js';
 
 export type ExactReactiveProvenance =

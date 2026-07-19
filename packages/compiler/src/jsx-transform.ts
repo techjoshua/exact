@@ -30,19 +30,19 @@ import {
 } from './emission/state-writes.js';
 import type { CallableEffectPlan } from './callable-effects.js';
 import type { BoundModule } from '@exact/expressions';
-import type { ExpressionDerivedPlan } from './expression-derived.js';
-import type { ExpressionWritePlan } from './expression-writes.js';
+import type { ExpressionDerivedPlan } from './expression/derived.js';
+import type { ExpressionWritePlan } from './expression/writes.js';
 import type {
 	ExpressionTaskPlan,
 	ExpressionTaskResource,
 	ExpressionTaskResourceKind,
 	ExpressionTaskSignalCall
-} from './expression-tasks.js';
-import type { ExpressionJsxListSite, ExpressionJsxPlan } from './expression-jsx.js';
+} from './expression/tasks.js';
+import type { ExpressionJsxListSite, ExpressionJsxPlan } from './expression/jsx.js';
 import type {
 	ExpressionClientIslandSite,
 	ExpressionComponentPlan
-} from './expression-components.js';
+} from './expression/components.js';
 import type {
 	ClientIslandCaptures,
 	ClientIslandElementNode,
