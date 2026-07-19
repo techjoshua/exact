@@ -1,0 +1,243 @@
+import type { BoundModule, NodeRef, Variable } from '@exact/expressions';
+import { expressionStatePath } from '../expression/writes.js';
+import type {
+	ExactCallableSummaryIR,
+	ExactCallEdgeIR,
+	ExactContextEffect,
+	ExactStateEffect
+} from '../types.js';
+
+import type { MutableCallable } from './callable-state.js';
+export function uniqueStateEffects(values: readonly ExactStateEffect[]): ExactStateEffect[] {
+	return [
+		...new Map(
+			values.map((value) => [
+				`${value.kind}:${value.path}:${value.confidence}:${stateReceiverKey(value)}`,
+				value
+			])
+		).values()
+	].sort((left, right) => `${left.kind}:${left.path}`.localeCompare(`${right.kind}:${right.path}`));
+}
+
+export function stateReceiverKey(value: ExactStateEffect): string {
+	return value.receiver?.kind === 'parameter'
+		? `parameter:${value.receiver.index}`
+		: (value.receiver?.kind ?? 'component');
+}
+
+export function receiverBindingField(
+	call: NodeRef,
+	caller: MutableCallable,
+	local: MutableCallable | undefined,
+	external: ExactCallableSummaryIR | undefined
+): Pick<ExactCallEdgeIR, 'receiverBindings'> | Record<string, never> {
+	const indices = local
+		? local.parameters.map((_, index) => index)
+		: [
+				...new Set(
+					[...(external?.stateReads ?? []), ...(external?.stateWrites ?? [])].flatMap((effect) =>
+						effect.receiver?.kind === 'parameter' ? [effect.receiver.index] : []
+					)
+				)
+			];
+	if (!indices.length) return {};
+	return {
+		receiverBindings: indices.map((parameterIndex) => {
+			const argument = call.arguments[parameterIndex];
+			if (argument?.node.kind === 'ThisKeyword')
+				return { parameterIndex, source: 'component' as const };
+			const argumentVariable = argument?.variable ?? argument?.rootVariable;
+			const sourceParameterIndex = argumentVariable
+				? caller.parameters.findIndex((parameter) => parameter.id === argumentVariable.id)
+				: -1;
+			return sourceParameterIndex >= 0
+				? { parameterIndex, source: 'parameter' as const, sourceParameterIndex }
+				: { parameterIndex, source: 'unknown' as const };
+		})
+	};
+}
+
+export function mapStateEffects(
+	effects: readonly ExactStateEffect[],
+	edge: ExactCallEdgeIR
+): ExactStateEffect[] {
+	return effects.map((effect) => {
+		if (effect.receiver?.kind !== 'parameter') return effect;
+		const parameterIndex = effect.receiver.index;
+		const binding = edge.receiverBindings?.find(
+			(candidate) => candidate.parameterIndex === parameterIndex
+		);
+		if (binding?.source === 'component') return { ...effect, receiver: { kind: 'component' } };
+		if (binding?.source === 'parameter')
+			return { ...effect, receiver: { kind: 'parameter', index: binding.sourceParameterIndex! } };
+		return {
+			...effect,
+			path: effect.path || '*',
+			confidence: 'unknown',
+			receiver: { kind: 'unknown' }
+		};
+	});
+}
+
+export function parameterStateEffect(
+	member: NodeRef,
+	parameters: readonly Variable[]
+): Omit<ExactStateEffect, 'kind'> | undefined {
+	if (!member.isMember()) return undefined;
+	if (member.parent?.isMember() && member.parent.target?.node === member.node) return undefined;
+	const parameterIndex = member.rootVariable
+		? parameters.findIndex((parameter) => parameter.id === member.rootVariable!.id)
+		: -1;
+	if (parameterIndex < 0) return undefined;
+	const segments: string[] = [];
+	let current: NodeRef | undefined = member;
+	while (current?.isMember()) {
+		if (!current.name)
+			return {
+				path: '*',
+				confidence: 'unknown',
+				receiver: { kind: 'parameter', index: parameterIndex }
+			};
+		segments.unshift(current.name);
+		current = current.target;
+	}
+	if (segments[0] !== 'state') return undefined;
+	segments.shift();
+	if (
+		member.parent?.node.kind === 'CallExpression' &&
+		member.parent.target?.node === member.node &&
+		arrayStateMutators.has(segments.at(-1) ?? '')
+	)
+		segments.pop();
+	return {
+		path: segments.join('.') || '*',
+		confidence: segments.length ? 'exact' : 'broad',
+		receiver: { kind: 'parameter', index: parameterIndex }
+	};
+}
+
+const arrayStateMutators = new Set([
+	'push',
+	'pop',
+	'shift',
+	'unshift',
+	'splice',
+	'sort',
+	'reverse',
+	'copyWithin',
+	'fill'
+]);
+const intrinsicCollectionMethods = new Set([
+	...arrayStateMutators,
+	'concat',
+	'every',
+	'filter',
+	'find',
+	'findIndex',
+	'flat',
+	'flatMap',
+	'forEach',
+	'includes',
+	'indexOf',
+	'join',
+	'lastIndexOf',
+	'map',
+	'reduce',
+	'reduceRight',
+	'slice',
+	'some',
+	'toReversed',
+	'toSorted',
+	'toSpliced'
+]);
+
+export function isCompilerOwnedCollectionCall(
+	module: BoundModule,
+	call: NodeRef,
+	aliases: ReadonlyMap<string, readonly string[]>
+): boolean {
+	if (!call.target?.isMember() || !intrinsicCollectionMethods.has(call.target.name ?? ''))
+		return false;
+	return isCompilerOwnedCollectionReceiver(module, call.target.target, aliases);
+}
+
+export function isCompilerOwnedCollectionReceiver(
+	module: BoundModule,
+	receiver: NodeRef | undefined,
+	aliases: ReadonlyMap<string, readonly string[]>
+): boolean {
+	if (!receiver) return false;
+	if (expressionStatePath(module, receiver.node, aliases) !== undefined) return true;
+	if (
+		receiver.node.kind !== 'CallExpression' ||
+		!receiver.target?.isMember() ||
+		!intrinsicCollectionMethods.has(receiver.target.name ?? '')
+	)
+		return false;
+	return isCompilerOwnedCollectionReceiver(module, receiver.target.target, aliases);
+}
+
+export function isStateWrite(member: NodeRef): boolean {
+	const parent = member.parent;
+	if (!parent) return false;
+	if (
+		parent.node.kind === 'BinaryExpression' &&
+		parent.node.children[0] === member.node &&
+		/^(?:=|\+=|-=|\*=|\/=|%=|&&=|\|\|=|\?\?=)$/.test(parent.node.operator ?? '')
+	)
+		return true;
+	if (
+		['PrefixUnaryExpression', 'PostfixUnaryExpression', 'DeleteExpression'].includes(
+			parent.node.kind
+		)
+	)
+		return true;
+	return (
+		parent.node.kind === 'CallExpression' &&
+		parent.target?.node === member.node &&
+		arrayStateMutators.has(member.name ?? '')
+	);
+}
+
+export function uniqueContextEffects(values: readonly ExactContextEffect[]): ExactContextEffect[] {
+	return [
+		...new Map(
+			values.map((value) => [`${value.kind}:${value.token}:${value.confidence}`, value])
+		).values()
+	].sort((left, right) =>
+		`${left.kind}:${left.token}`.localeCompare(`${right.kind}:${right.token}`)
+	);
+}
+
+export function knownHigherOrderCall(call: NodeRef): boolean {
+	const name = call.target?.name;
+	return (
+		!!name &&
+		new Set([
+			'map',
+			'flatMap',
+			'filter',
+			'forEach',
+			'some',
+			'every',
+			'find',
+			'findIndex',
+			'reduce',
+			'reduceRight',
+			'sort',
+			'then',
+			'catch',
+			'finally'
+		]).has(name)
+	);
+}
+
+export function isFunctionNode(reference: NodeRef): boolean {
+	return (
+		reference.node.kind === 'ArrowFunction' ||
+		reference.node.kind === 'FunctionExpression' ||
+		reference.node.kind === 'FunctionDeclaration'
+	);
+}
+
+export { effectFor } from './effect-lattice.js';
