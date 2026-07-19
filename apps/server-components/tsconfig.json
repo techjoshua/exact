@@ -1,20 +1,20 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "composite": true,
-    "noEmit": true,
-    "lib": ["ES2022", "DOM"],
-    "jsx": "preserve",
-    "jsxImportSource": "@exact/jsx",
-    "resolveJsonModule": true
-  },
-  "references": [
-    { "path": "../../packages/core" },
-    { "path": "../../packages/dom" },
-    { "path": "../../packages/hydrate" },
-    { "path": "../../packages/jsx-runtime" },
-    { "path": "../../packages/server" },
-    { "path": "../../packages/ssr" }
-  ],
-  "include": ["src", ".exact/**/*"]
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"composite": true,
+		"noEmit": true,
+		"lib": ["ES2022", "DOM"],
+		"jsx": "preserve",
+		"jsxImportSource": "@exact/jsx",
+		"resolveJsonModule": true
+	},
+	"references": [
+		{ "path": "../../packages/core" },
+		{ "path": "../../packages/dom" },
+		{ "path": "../../packages/hydrate" },
+		{ "path": "../../packages/jsx-runtime" },
+		{ "path": "../../packages/server" },
+		{ "path": "../../packages/ssr" }
+	],
+	"include": ["src", ".exact/**/*"]
 }

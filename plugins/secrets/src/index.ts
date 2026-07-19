@@ -7,13 +7,13 @@ declare const secretQualification: unique symbol;
  * @exact keep=secret
  */
 export type Secret<T> = T & {
-  readonly [secretQualification]: true;
+	readonly [secretQualification]: true;
 };
 
 /** Introduces a compiler-visible secret source without wrapping the runtime value. */
 export function secret<T>(name: string, value: T): Secret<T> {
-  if (!name) throw new Error("Secret name must be non-empty");
-  return value as Secret<T>;
+	if (!name) throw new Error('Secret name must be non-empty');
+	return value as Secret<T>;
 }
 
 /**
@@ -23,11 +23,7 @@ export function secret<T>(name: string, value: T): Secret<T> {
 export function consume<T>(value: Secret<T>): T;
 export function consume<T>(value: T): T;
 export function consume<T>(value: T): T {
-  return value;
+	return value;
 }
 
-export type {
-  SecretsPluginConfig,
-  SecretProvider,
-  SecretResolver
-} from "./config.js";
+export type { SecretsPluginConfig, SecretProvider, SecretResolver } from './config.js';

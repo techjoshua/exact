@@ -1,41 +1,68 @@
 {
-  "name": "@exact/zustand",
-  "version": "0.0.0",
-  "type": "module",
-  "files": ["dist", "!dist/**/*.test.*"],
-  "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-    "./react": { "types": "./dist/react.d.ts", "default": "./dist/react.js" }
-  },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "sideEffects": false,
-  "dependencies": {
-    "@exact/core": "file:../../packages/core",
-    "@exact/react-compat-adapter-api": "file:../../packages/react-compat-adapter-api",
-    "@exact/reactive": "file:../../packages/reactive"
-  },
-  "peerDependencies": {
-    "@exact/react-compat": "0.0.0",
-    "zustand": ">=5 <6"
-  },
-  "peerDependenciesMeta": { "@exact/react-compat": { "optional": true } },
-  "devDependencies": { "zustand": "^5.0.14" },
-  "exact": {
-    "reactCompatibility": {
-      "schemaVersion": 1,
-      "substitutions": {
-        "zustand": {
-          "variants": [{
-            "version": ">=5 <6",
-            "exports": {
-              "createStore": { "subpath": ".", "export": "createStore" },
-              "useStore": { "subpath": "./react", "export": "useStore" }
-            }
-          }]
-        }
-      }
-    }
-  },
-  "scripts": { "build": "tsc -b", "test": "vitest run", "test:coverage": "node ../../scripts/run-package-coverage.mjs" }
+	"name": "@exact/zustand",
+	"version": "0.0.0",
+	"type": "module",
+	"files": [
+		"dist",
+		"!dist/**/*.test.*"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./react": {
+			"types": "./dist/react.d.ts",
+			"default": "./dist/react.js"
+		}
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"sideEffects": false,
+	"dependencies": {
+		"@exact/core": "file:../../packages/core",
+		"@exact/react-compat-adapter-api": "file:../../packages/react-compat-adapter-api",
+		"@exact/reactive": "file:../../packages/reactive"
+	},
+	"peerDependencies": {
+		"@exact/react-compat": "0.0.0",
+		"zustand": ">=5 <6"
+	},
+	"peerDependenciesMeta": {
+		"@exact/react-compat": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"zustand": "^5.0.14"
+	},
+	"exact": {
+		"reactCompatibility": {
+			"schemaVersion": 1,
+			"substitutions": {
+				"zustand": {
+					"variants": [
+						{
+							"version": ">=5 <6",
+							"exports": {
+								"createStore": {
+									"subpath": ".",
+									"export": "createStore"
+								},
+								"useStore": {
+									"subpath": "./react",
+									"export": "useStore"
+								}
+							}
+						}
+					]
+				}
+			}
+		}
+	},
+	"scripts": {
+		"build": "tsc -b",
+		"test": "vitest run",
+		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	}
 }

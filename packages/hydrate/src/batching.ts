@@ -1,137 +1,153 @@
-import { logFrameworkEvent, type Logger } from "@exact/core";
-import { headersCacheKey } from "./config.js";
-import { invokeExact, invokeExactBatch } from "./invocations.js";
+import { logFrameworkEvent, type Logger } from '@exact/core';
+import { headersCacheKey } from './config.js';
+import { invokeExact, invokeExactBatch } from './invocations.js';
 import type {
-  ExactBatchQueue,
-  ExactInvocationRequest,
-  ExactInvocationResult,
-  FetchLike
-} from "./types.js";
+	ExactBatchQueue,
+	ExactInvocationRequest,
+	ExactInvocationResult,
+	FetchLike
+} from './types.js';
 
 const batchQueues = new WeakMap<Element, ExactBatchQueue[]>();
 
 /** Queues an eXact operation for microtask batching by endpoint, transport, and headers. */
 export function enqueueExactOperation(
-  container: Element,
-  options: {
-    endpoint: string;
-    operation: ExactInvocationRequest;
-    fetch?: FetchLike;
-    headers?: Record<string, string>;
-    logger?: Logger;
-    stream?: boolean;
-    streamLimits?: import("./types.js").ExactStreamLimits;
-    signal?: AbortSignal;
-  }
+	container: Element,
+	options: {
+		endpoint: string;
+		operation: ExactInvocationRequest;
+		fetch?: FetchLike;
+		headers?: Record<string, string>;
+		logger?: Logger;
+		stream?: boolean;
+		streamLimits?: import('./types.js').ExactStreamLimits;
+		signal?: AbortSignal;
+	}
 ): Promise<ExactInvocationResult> {
-  let queues = batchQueues.get(container);
-  if (!queues) {
-    queues = [];
-    batchQueues.set(container, queues);
-  }
-  const headersKey = headersCacheKey(options.headers);
-  let queue = queues.find(item => item.endpoint === options.endpoint && item.fetch === options.fetch && item.headersKey === headersKey && item.logger === options.logger && item.stream === options.stream && item.streamLimits === options.streamLimits && item.signal === options.signal);
-  if (!queue) {
-    queue = {
-      endpoint: options.endpoint,
-      fetch: options.fetch,
-      headers: options.headers,
-      headersKey,
-      logger: options.logger,
-      stream: options.stream,
-      streamLimits: options.streamLimits,
-      signal: options.signal,
-      pending: [],
-      scheduled: false,
-      active: 0
-    };
-    queues.push(queue);
-  }
+	let queues = batchQueues.get(container);
+	if (!queues) {
+		queues = [];
+		batchQueues.set(container, queues);
+	}
+	const headersKey = headersCacheKey(options.headers);
+	let queue = queues.find(
+		(item) =>
+			item.endpoint === options.endpoint &&
+			item.fetch === options.fetch &&
+			item.headersKey === headersKey &&
+			item.logger === options.logger &&
+			item.stream === options.stream &&
+			item.streamLimits === options.streamLimits &&
+			item.signal === options.signal
+	);
+	if (!queue) {
+		queue = {
+			endpoint: options.endpoint,
+			fetch: options.fetch,
+			headers: options.headers,
+			headersKey,
+			logger: options.logger,
+			stream: options.stream,
+			streamLimits: options.streamLimits,
+			signal: options.signal,
+			pending: [],
+			scheduled: false,
+			active: 0
+		};
+		queues.push(queue);
+	}
 
-  const promise = new Promise<ExactInvocationResult>((resolve, reject) => {
-    queue!.pending.push({
-      operation: options.operation,
-      resolve,
-      reject
-    });
-  });
+	const promise = new Promise<ExactInvocationResult>((resolve, reject) => {
+		queue!.pending.push({
+			operation: options.operation,
+			resolve,
+			reject
+		});
+	});
 
-  if (!queue.scheduled) {
-    queue.scheduled = true;
-    // Microtask batching groups operations triggered by the same user turn without
-    // introducing a visible delay for isolated single operations.
-    queueMicrotask(() => {
-      void flushExactBatchQueue(queue!).finally(() => reclaimQueue(container, queue!));
-    });
-  }
+	if (!queue.scheduled) {
+		queue.scheduled = true;
+		// Microtask batching groups operations triggered by the same user turn without
+		// introducing a visible delay for isolated single operations.
+		queueMicrotask(() => {
+			void flushExactBatchQueue(queue!).finally(() => reclaimQueue(container, queue!));
+		});
+	}
 
-  return promise;
+	return promise;
 }
 
 async function flushExactBatchQueue(queue: ExactBatchQueue): Promise<void> {
-  const pending = queue.pending.splice(0);
-  queue.scheduled = false;
-  if (!pending.length) return;
-  queue.active = (queue.active ?? 0) + 1;
+	const pending = queue.pending.splice(0);
+	queue.scheduled = false;
+	if (!pending.length) return;
+	queue.active = (queue.active ?? 0) + 1;
 
-  try {
-    if (pending.length === 1) {
-    try {
-      const result = await invokeExact({
-        endpoint: queue.endpoint,
-        ...pending[0]!.operation,
-        fetch: queue.fetch,
-        headers: queue.headers,
-        logger: queue.logger,
-        stream: queue.stream,
-        streamLimits: queue.streamLimits,
-        signal: queue.signal
-      });
-      pending[0]!.resolve(result);
-    } catch (error) {
-      pending[0]!.reject(error);
-    }
-    return;
-    }
+	try {
+		if (pending.length === 1) {
+			try {
+				const result = await invokeExact({
+					endpoint: queue.endpoint,
+					...pending[0]!.operation,
+					fetch: queue.fetch,
+					headers: queue.headers,
+					logger: queue.logger,
+					stream: queue.stream,
+					streamLimits: queue.streamLimits,
+					signal: queue.signal
+				});
+				pending[0]!.resolve(result);
+			} catch (error) {
+				pending[0]!.reject(error);
+			}
+			return;
+		}
 
-    try {
-      const results = await invokeExactBatch({
-      endpoint: queue.endpoint,
-      operations: pending.map(item => item.operation),
-      fetch: queue.fetch,
-      headers: queue.headers,
-      logger: queue.logger,
-      stream: queue.stream,
-      streamLimits: queue.streamLimits,
-      signal: queue.signal
-    });
-    pending.forEach((item, index) => {
-      const result = results[index];
-      if (!result) {
-        item.reject(new Error(`eXact ${item.operation.type} invocation failed`));
-        return;
-      }
-      if (!result.ok) {
-        logFrameworkEvent("warn", "hydrate", "request", `exact ${item.operation.type} invocation failed with ${result.status}`, undefined, queue.logger);
-        item.reject(new Error(`eXact ${item.operation.type} invocation failed`));
-        return;
-      }
-      const { ok: _ok, type: _type, id: _id, ...body } = result;
-      item.resolve(body);
-    });
-    } catch (error) {
-      for (const item of pending) item.reject(error);
-    }
-  } finally {
-    queue.active = Math.max(0, (queue.active ?? 1) - 1);
-  }
+		try {
+			const results = await invokeExactBatch({
+				endpoint: queue.endpoint,
+				operations: pending.map((item) => item.operation),
+				fetch: queue.fetch,
+				headers: queue.headers,
+				logger: queue.logger,
+				stream: queue.stream,
+				streamLimits: queue.streamLimits,
+				signal: queue.signal
+			});
+			pending.forEach((item, index) => {
+				const result = results[index];
+				if (!result) {
+					item.reject(new Error(`eXact ${item.operation.type} invocation failed`));
+					return;
+				}
+				if (!result.ok) {
+					logFrameworkEvent(
+						'warn',
+						'hydrate',
+						'request',
+						`exact ${item.operation.type} invocation failed with ${result.status}`,
+						undefined,
+						queue.logger
+					);
+					item.reject(new Error(`eXact ${item.operation.type} invocation failed`));
+					return;
+				}
+				const { ok: _ok, type: _type, id: _id, ...body } = result;
+				item.resolve(body);
+			});
+		} catch (error) {
+			for (const item of pending) item.reject(error);
+		}
+	} finally {
+		queue.active = Math.max(0, (queue.active ?? 1) - 1);
+	}
 }
 
 function reclaimQueue(container: Element, queue: ExactBatchQueue): void {
-  if (queue.scheduled || queue.pending.length || queue.active) return;
-  const queues = batchQueues.get(container);
-  if (!queues) return;
-  const index = queues.indexOf(queue);
-  if (index >= 0) queues.splice(index, 1);
-  if (!queues.length) batchQueues.delete(container);
+	if (queue.scheduled || queue.pending.length || queue.active) return;
+	const queues = batchQueues.get(container);
+	if (!queues) return;
+	const index = queues.indexOf(queue);
+	if (index >= 0) queues.splice(index, 1);
+	if (!queues.length) batchQueues.delete(container);
 }

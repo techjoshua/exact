@@ -1,35 +1,35 @@
 {
-  "name": "@exact/ssr",
-  "version": "0.0.0",
-  "type": "module",
-  "files": [
-    "dist",
-    "!dist/**/*.test.*"
-  ],
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    },
-    "./plugins": {
-      "types": "./dist/plugins.d.ts",
-      "node": "./dist/plugins.js",
-      "default": "./dist/plugins.js"
-    }
-  },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "dependencies": {
-    "@exact/core": "file:../core",
-    "@exact/instrumentation": "file:../instrumentation",
-    "@exact/plugin-api": "file:../plugin-api",
-    "@exact/plugin-host": "file:../plugin-host",
-    "@exact/reactive": "file:../reactive",
-    "@exact/server": "file:../server"
-  },
-  "scripts": {
-    "build": "tsc -b",
-    "test": "vitest run",
-    "test:coverage": "node ../../scripts/run-package-coverage.mjs"
-  }
+	"name": "@exact/ssr",
+	"version": "0.0.0",
+	"type": "module",
+	"files": [
+		"dist",
+		"!dist/**/*.test.*"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./plugins": {
+			"types": "./dist/plugins.d.ts",
+			"node": "./dist/plugins.js",
+			"default": "./dist/plugins.js"
+		}
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"dependencies": {
+		"@exact/core": "file:../core",
+		"@exact/instrumentation": "file:../instrumentation",
+		"@exact/plugin-api": "file:../plugin-api",
+		"@exact/plugin-host": "file:../plugin-host",
+		"@exact/reactive": "file:../reactive",
+		"@exact/server": "file:../server"
+	},
+	"scripts": {
+		"build": "tsc -b",
+		"test": "vitest run",
+		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	}
 }

@@ -9,11 +9,11 @@ adapters that translate the runtime-neutral request and response shapes.
 Every request has one cancellation signal, one request context scope, and one
 response-control state.
 
-| Stage | Allowed behavior |
-| --- | --- |
-| Before commit | Components and request providers may set status and headers or issue a redirect through `RequestContext`. Relevant asynchronous tasks settle before the response is exposed. |
-| Commit | eXact snapshots status and headers when the response object is returned to the adapter. A progressive response commits before its first body byte. |
-| After commit | Status, header, and redirect mutation throws `RequestResponseCommittedError`. A body-stream failure terminates or errors the transport; it cannot replace the committed status or headers. |
+| Stage         | Allowed behavior                                                                                                                                                                           |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Before commit | Components and request providers may set status and headers or issue a redirect through `RequestContext`. Relevant asynchronous tasks settle before the response is exposed.               |
+| Commit        | eXact snapshots status and headers when the response object is returned to the adapter. A progressive response commits before its first body byte.                                         |
+| After commit  | Status, header, and redirect mutation throws `RequestResponseCommittedError`. A body-stream failure terminates or errors the transport; it cannot replace the committed status or headers. |
 
 An ordinary HTML render rejects before a response exists if rendering,
 serialization, task stabilization, or provider initialization fails. The host
@@ -105,17 +105,17 @@ action or refresh IDs.
 Production configurations should set explicit ceilings. Current server defaults
 are:
 
-| Resource | Default |
-| --- | ---: |
-| Batch operations | 100 |
-| Concurrent batch operations | 8 |
-| JSON graph depth | 100 |
+| Resource                     | Default |
+| ---------------------------- | ------: |
+| Batch operations             |     100 |
+| Concurrent batch operations  |       8 |
+| JSON graph depth             |     100 |
 | JSON graph values/properties | 100,000 |
-| Request bytes | 4 MiB |
-| Non-stream response bytes | 16 MiB |
-| Patches per operation | 10,000 |
-| Stream events | 100,000 |
-| Stream bytes | 16 MiB |
+| Request bytes                |   4 MiB |
+| Non-stream response bytes    |  16 MiB |
+| Patches per operation        |  10,000 |
+| Stream events                | 100,000 |
+| Stream bytes                 |  16 MiB |
 
 SSR additionally bounds task passes and duration, tree depth and node count,
 output bytes, stream chunks and bytes, and hydration graph depth, nodes, and

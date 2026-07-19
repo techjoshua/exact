@@ -45,10 +45,10 @@ the consumer's `TS2322`. An implementation-only leaf returns only that leaf.
 The replacement benchmark uses 30 warm samples and retains the minimal public
 TypeScript builder host as a correctness reference:
 
-| Scenario | Median | p95 | Result |
-| --- | ---: | ---: | --- |
-| Trivia-only implementation edit | 0.54 ms | 1.53 ms | One affected leaf |
-| Public-shape change | 72.48 ms | — | Model + consumer, `TS2322` |
+| Scenario                        |   Median |     p95 | Result                     |
+| ------------------------------- | -------: | ------: | -------------------------- |
+| Trivia-only implementation edit |  0.54 ms | 1.53 ms | One affected leaf          |
+| Public-shape change             | 72.48 ms |       — | Model + consumer, `TS2322` |
 
 Trivia-only edits are recognized from a TypeScript token fingerprint, so they
 reuse semantic state without hiding syntax errors. Token-changing edits still
@@ -66,10 +66,10 @@ The compiler workflow benchmark uses two warmups and ten measured incremental
 transforms. It compares the former full semantic rebind of generated code with
 the new default syntax validation.
 
-| Generated validation | Median | p95 | Program rebuilds | Semantic diagnostic passes |
-| --- | ---: | ---: | ---: | ---: |
-| Semantic | 142.0 ms | 165.9 ms | 24 | 24 |
-| Syntax | 42.9 ms | 47.8 ms | 12 | 0 |
+| Generated validation |   Median |      p95 | Program rebuilds | Semantic diagnostic passes |
+| -------------------- | -------: | -------: | ---------------: | -------------------------: |
+| Semantic             | 142.0 ms | 165.9 ms |               24 |                         24 |
+| Syntax               |  42.9 ms |  47.8 ms |               12 |                          0 |
 
 The default transform path is 0.30x the former median time, or approximately
 3.31x faster in this scenario. Full baseline/generated semantic comparison

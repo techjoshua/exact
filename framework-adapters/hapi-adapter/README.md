@@ -3,12 +3,12 @@
 Hapi route handler for eXact server endpoints.
 
 ```ts
-import { createExactHapiHandler } from "@exact/hapi-adapter";
+import { createExactHapiHandler } from '@exact/hapi-adapter';
 
 server.route({
-  method: "POST",
-  path: "/__exact",
-  handler: createExactHapiHandler(exactRuntime)
+	method: 'POST',
+	path: '/__exact',
+	handler: createExactHapiHandler(exactRuntime)
 });
 ```
 

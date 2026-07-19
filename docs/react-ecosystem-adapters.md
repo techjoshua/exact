@@ -19,11 +19,11 @@ Only the build-root package can suppress a transitive adapter:
 
 ```json
 {
-  "exact": {
-    "reactCompatibility": {
-      "ignoreAdapters": ["@exact/redux"]
-    }
-  }
+	"exact": {
+		"reactCompatibility": {
+			"ignoreAdapters": ["@exact/redux"]
+		}
+	}
 }
 ```
 

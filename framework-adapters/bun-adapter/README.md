@@ -3,15 +3,15 @@
 Bun runtime adapter for eXact server endpoints.
 
 ```ts
-import { createExactBunHandler } from "@exact/bun-adapter";
+import { createExactBunHandler } from '@exact/bun-adapter';
 
 const exact = createExactBunHandler(exactRuntime);
 
 Bun.serve({
-  port: 3000,
-  fetch(request) {
-    return exact(request);
-  }
+	port: 3000,
+	fetch(request) {
+		return exact(request);
+	}
 });
 ```
 

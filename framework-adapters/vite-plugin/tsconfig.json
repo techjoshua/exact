@@ -1,19 +1,19 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "composite": true,
-    "rootDir": "src",
-    "outDir": "dist",
-    "lib": ["ES2022"]
-  },
-  "references": [
-    { "path": "../../packages/instrumentation" },
-    { "path": "../../packages/plugin-api" },
-    { "path": "../../packages/config" },
-    { "path": "../../packages/plugin-host" },
-    { "path": "../../packages/compiler" },
-    { "path": "../../packages/react-compat" }
-  ],
-  "include": ["src"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"composite": true,
+		"rootDir": "src",
+		"outDir": "dist",
+		"lib": ["ES2022"]
+	},
+	"references": [
+		{ "path": "../../packages/instrumentation" },
+		{ "path": "../../packages/plugin-api" },
+		{ "path": "../../packages/config" },
+		{ "path": "../../packages/plugin-host" },
+		{ "path": "../../packages/compiler" },
+		{ "path": "../../packages/react-compat" }
+	],
+	"include": ["src"],
+	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

@@ -1,323 +1,1017 @@
 {
-  "name": "@exact/router",
-  "version": "0.0.0",
-  "type": "module",
-  "files": ["dist", "!dist/**/*.test.*"],
-  "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-    "./modern": { "types": "./dist/modern.d.ts", "default": "./dist/modern.js" },
-    "./data": { "types": "./dist/data.d.ts", "default": "./dist/data.js" },
-    "./v5": { "types": "./dist/v5.d.ts", "default": "./dist/v5.js" }
-  },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "sideEffects": false,
-  "dependencies": {
-    "@exact/core": "file:../../packages/core",
-    "@exact/request": "file:../../packages/request",
-    "@exact/react-compat-adapter-api": "file:../../packages/react-compat-adapter-api"
-  },
-  "peerDependencies": {
-    "@exact/react-compat": "0.0.0",
-    "react-router": ">=5 <8",
-    "react-router-dom": ">=5 <8"
-  },
-  "peerDependenciesMeta": {
-    "@exact/react-compat": { "optional": true },
-    "react-router": { "optional": true },
-    "react-router-dom": { "optional": true }
-  },
-  "devDependencies": {
-    "@exact/jsx": "file:../../packages/jsx-runtime",
-    "@exact/dom": "file:../../packages/dom",
-    "@exact/ssr": "file:../../packages/ssr",
-    "@exact/react-compat": "file:../../packages/react-compat",
-    "@exact/react-dom-compat": "file:../../packages/react-dom-compat"
-  },
-  "exact": {
-    "reactCompatibility": {
-      "schemaVersion": 1,
-      "substitutions": {
-        "react-router": {
-          "fallback": "error",
-          "variants": [
-            {
-              "version": ">=5 <6",
-              "exports": {
-                "MemoryRouter": { "subpath": "./v5", "export": "MemoryRouter" },
-                "Prompt": { "subpath": "./v5", "export": "Prompt" },
-                "Redirect": { "subpath": "./v5", "export": "Redirect" },
-                "Route": { "subpath": "./v5", "export": "Route" },
-                "Router": { "subpath": "./v5", "export": "Router" },
-                "Switch": { "subpath": "./v5", "export": "Switch" },
-                "generatePath": { "subpath": "./v5", "export": "generatePath" },
-                "matchPath": { "subpath": "./v5", "export": "matchPath" },
-                "useHistory": { "subpath": "./v5", "export": "useHistory" },
-                "useLocation": { "subpath": "./v5", "export": "useLocation" },
-                "useParams": { "subpath": "./v5", "export": "useParams" },
-                "useRouteMatch": { "subpath": "./v5", "export": "useRouteMatch" },
-                "withRouter": { "subpath": "./v5", "export": "withRouter" }
-              }
-            },
-            {
-              "version": ">=6 <6.4",
-              "exports": {
-                "MemoryRouter": { "subpath": "./modern", "export": "MemoryRouter" },
-                "Navigate": { "subpath": "./modern", "export": "Navigate" },
-                "NavigationType": { "subpath": "./modern", "export": "NavigationType" },
-                "Outlet": { "subpath": "./modern", "export": "Outlet" },
-                "Route": { "subpath": "./modern", "export": "Route" },
-                "Router": { "subpath": "./modern", "export": "Router" },
-                "Routes": { "subpath": "./modern", "export": "Routes" },
-                "createPath": { "subpath": "./modern", "export": "createPath" },
-                "createRoutesFromChildren": { "subpath": "./modern", "export": "createRoutesFromChildren" },
-                "createRoutesFromElements": { "subpath": "./modern", "export": "createRoutesFromElements" },
-                "createSearchParams": { "subpath": "./modern", "export": "createSearchParams" },
-                "generatePath": { "subpath": "./modern", "export": "generatePath" },
-                "matchPath": { "subpath": "./modern", "export": "matchPath" },
-                "matchRoutes": { "subpath": "./modern", "export": "matchRoutes" },
-                "parsePath": { "subpath": "./modern", "export": "parsePath" },
-                "renderMatches": { "subpath": "./modern", "export": "renderMatches" },
-                "resolvePath": { "subpath": "./modern", "export": "resolvePath" },
-                "unstable_HistoryRouter": { "subpath": "./modern", "export": "unstable_HistoryRouter" },
-                "useHref": { "subpath": "./modern", "export": "useHref" },
-                "useInRouterContext": { "subpath": "./modern", "export": "useInRouterContext" },
-                "useLinkClickHandler": { "subpath": "./modern", "export": "useLinkClickHandler" },
-                "useLocation": { "subpath": "./modern", "export": "useLocation" },
-                "useMatch": { "subpath": "./modern", "export": "useMatch" },
-                "useNavigate": { "subpath": "./modern", "export": "useNavigate" },
-                "useNavigationType": { "subpath": "./modern", "export": "useNavigationType" },
-                "useOutlet": { "subpath": "./modern", "export": "useOutlet" },
-                "useOutletContext": { "subpath": "./modern", "export": "useOutletContext" },
-                "useParams": { "subpath": "./modern", "export": "useParams" },
-                "useResolvedPath": { "subpath": "./modern", "export": "useResolvedPath" },
-                "useRoutes": { "subpath": "./modern", "export": "useRoutes" }
-              }
-            },
-            {
-              "version": ">=6.4 <8",
-              "exports": {
-                "Await": { "subpath": "./data", "export": "Await" },
-                "MemoryRouter": { "subpath": "./data", "export": "MemoryRouter" },
-                "Navigate": { "subpath": "./data", "export": "Navigate" },
-                "NavigationType": { "subpath": "./data", "export": "NavigationType" },
-                "Outlet": { "subpath": "./data", "export": "Outlet" },
-                "Route": { "subpath": "./data", "export": "Route" },
-                "Router": { "subpath": "./data", "export": "Router" },
-                "RouterProvider": { "subpath": "./data", "export": "RouterProvider" },
-                "Routes": { "subpath": "./data", "export": "Routes" },
-                "createPath": { "subpath": "./data", "export": "createPath" },
-                "createMemoryRouter": { "subpath": "./data", "export": "createMemoryRouter" },
-                "createStaticHandler": { "subpath": "./data", "export": "createStaticHandler" },
-                "createStaticRouter": { "subpath": "./data", "export": "createStaticRouter" },
-                "createRoutesFromChildren": { "subpath": "./data", "export": "createRoutesFromChildren" },
-                "createRoutesFromElements": { "subpath": "./data", "export": "createRoutesFromElements" },
-                "createSearchParams": { "subpath": "./data", "export": "createSearchParams" },
-                "generatePath": { "subpath": "./data", "export": "generatePath" },
-                "json": { "subpath": "./data", "export": "json" },
-                "isRouteErrorResponse": { "subpath": "./data", "export": "isRouteErrorResponse" },
-                "matchPath": { "subpath": "./data", "export": "matchPath" },
-                "matchRoutes": { "subpath": "./data", "export": "matchRoutes" },
-                "parsePath": { "subpath": "./data", "export": "parsePath" },
-                "redirect": { "subpath": "./data", "export": "redirect" },
-                "redirectDocument": { "subpath": "./data", "export": "redirectDocument" },
-                "renderMatches": { "subpath": "./data", "export": "renderMatches" },
-                "replace": { "subpath": "./data", "export": "replace" },
-                "resolvePath": { "subpath": "./data", "export": "resolvePath" },
-                "StaticRouterProvider": { "subpath": "./data", "export": "StaticRouterProvider" },
-                "unstable_HistoryRouter": { "subpath": "./data", "export": "unstable_HistoryRouter" },
-                "unstable_usePrompt": { "subpath": "./data", "export": "unstable_usePrompt" },
-                "useActionData": { "subpath": "./data", "export": "useActionData" },
-                "useAsyncError": { "subpath": "./data", "export": "useAsyncError" },
-                "useAsyncValue": { "subpath": "./data", "export": "useAsyncValue" },
-                "useBlocker": { "subpath": "./data", "export": "useBlocker" },
-                "useFetcher": { "subpath": "./data", "export": "useFetcher" },
-                "useFetchers": { "subpath": "./data", "export": "useFetchers" },
-                "useFormAction": { "subpath": "./data", "export": "useFormAction" },
-                "useHref": { "subpath": "./data", "export": "useHref" },
-                "useInRouterContext": { "subpath": "./data", "export": "useInRouterContext" },
-                "useLinkClickHandler": { "subpath": "./data", "export": "useLinkClickHandler" },
-                "useLoaderData": { "subpath": "./data", "export": "useLoaderData" },
-                "useLocation": { "subpath": "./data", "export": "useLocation" },
-                "useMatch": { "subpath": "./data", "export": "useMatch" },
-                "useMatches": { "subpath": "./data", "export": "useMatches" },
-                "useNavigate": { "subpath": "./data", "export": "useNavigate" },
-                "useNavigation": { "subpath": "./data", "export": "useNavigation" },
-                "useNavigationType": { "subpath": "./data", "export": "useNavigationType" },
-                "useOutlet": { "subpath": "./data", "export": "useOutlet" },
-                "useOutletContext": { "subpath": "./data", "export": "useOutletContext" },
-                "useParams": { "subpath": "./data", "export": "useParams" },
-                "useResolvedPath": { "subpath": "./data", "export": "useResolvedPath" },
-                "useRevalidator": { "subpath": "./data", "export": "useRevalidator" },
-                "useRouteError": { "subpath": "./data", "export": "useRouteError" },
-                "useRouteLoaderData": { "subpath": "./data", "export": "useRouteLoaderData" },
-                "useRoutes": { "subpath": "./data", "export": "useRoutes" },
-                "useSubmit": { "subpath": "./data", "export": "useSubmit" }
-              }
-            }
-          ]
-        },
-        "react-router-dom": {
-          "fallback": "error",
-          "variants": [
-            {
-              "version": ">=5 <6",
-              "exports": {
-                "BrowserRouter": { "subpath": "./v5", "export": "BrowserRouter" },
-                "HashRouter": { "subpath": "./v5", "export": "HashRouter" },
-                "Link": { "subpath": "./v5", "export": "Link" },
-                "MemoryRouter": { "subpath": "./v5", "export": "MemoryRouter" },
-                "NavLink": { "subpath": "./v5", "export": "NavLink" },
-                "Prompt": { "subpath": "./v5", "export": "Prompt" },
-                "Redirect": { "subpath": "./v5", "export": "Redirect" },
-                "Route": { "subpath": "./v5", "export": "Route" },
-                "Router": { "subpath": "./v5", "export": "Router" },
-                "StaticRouter": { "subpath": "./v5", "export": "StaticRouter" },
-                "Switch": { "subpath": "./v5", "export": "Switch" },
-                "generatePath": { "subpath": "./v5", "export": "generatePath" },
-                "matchPath": { "subpath": "./v5", "export": "matchPath" },
-                "useHistory": { "subpath": "./v5", "export": "useHistory" },
-                "useLocation": { "subpath": "./v5", "export": "useLocation" },
-                "useParams": { "subpath": "./v5", "export": "useParams" },
-                "useRouteMatch": { "subpath": "./v5", "export": "useRouteMatch" },
-                "withRouter": { "subpath": "./v5", "export": "withRouter" }
-              }
-            },
-            {
-              "version": ">=6 <6.4",
-              "exports": {
-                "BrowserRouter": { "subpath": "./modern", "export": "BrowserRouter" },
-                "HashRouter": { "subpath": "./modern", "export": "HashRouter" },
-                "Link": { "subpath": "./modern", "export": "Link" },
-                "MemoryRouter": { "subpath": "./modern", "export": "MemoryRouter" },
-                "NavLink": { "subpath": "./modern", "export": "NavLink" },
-                "Navigate": { "subpath": "./modern", "export": "Navigate" },
-                "NavigationType": { "subpath": "./modern", "export": "NavigationType" },
-                "Outlet": { "subpath": "./modern", "export": "Outlet" },
-                "Route": { "subpath": "./modern", "export": "Route" },
-                "Router": { "subpath": "./modern", "export": "Router" },
-                "Routes": { "subpath": "./modern", "export": "Routes" },
-                "createPath": { "subpath": "./modern", "export": "createPath" },
-                "createRoutesFromChildren": { "subpath": "./modern", "export": "createRoutesFromChildren" },
-                "createRoutesFromElements": { "subpath": "./modern", "export": "createRoutesFromElements" },
-                "createSearchParams": { "subpath": "./modern", "export": "createSearchParams" },
-                "generatePath": { "subpath": "./modern", "export": "generatePath" },
-                "matchPath": { "subpath": "./modern", "export": "matchPath" },
-                "matchRoutes": { "subpath": "./modern", "export": "matchRoutes" },
-                "parsePath": { "subpath": "./modern", "export": "parsePath" },
-                "renderMatches": { "subpath": "./modern", "export": "renderMatches" },
-                "resolvePath": { "subpath": "./modern", "export": "resolvePath" },
-                "unstable_HistoryRouter": { "subpath": "./modern", "export": "unstable_HistoryRouter" },
-                "useHref": { "subpath": "./modern", "export": "useHref" },
-                "useInRouterContext": { "subpath": "./modern", "export": "useInRouterContext" },
-                "useLinkClickHandler": { "subpath": "./modern", "export": "useLinkClickHandler" },
-                "useLocation": { "subpath": "./modern", "export": "useLocation" },
-                "useMatch": { "subpath": "./modern", "export": "useMatch" },
-                "useNavigate": { "subpath": "./modern", "export": "useNavigate" },
-                "useNavigationType": { "subpath": "./modern", "export": "useNavigationType" },
-                "useOutlet": { "subpath": "./modern", "export": "useOutlet" },
-                "useOutletContext": { "subpath": "./modern", "export": "useOutletContext" },
-                "useParams": { "subpath": "./modern", "export": "useParams" },
-                "useResolvedPath": { "subpath": "./modern", "export": "useResolvedPath" },
-                "useRoutes": { "subpath": "./modern", "export": "useRoutes" },
-                "useSearchParams": { "subpath": "./modern", "export": "useSearchParams" }
-              }
-            },
-            {
-              "version": ">=6.4 <8",
-              "exports": {
-                "Await": { "subpath": "./data", "export": "Await" },
-                "BrowserRouter": { "subpath": "./data", "export": "BrowserRouter" },
-                "Form": { "subpath": "./data", "export": "Form" },
-                "HashRouter": { "subpath": "./data", "export": "HashRouter" },
-                "Link": { "subpath": "./data", "export": "Link" },
-                "MemoryRouter": { "subpath": "./data", "export": "MemoryRouter" },
-                "NavLink": { "subpath": "./data", "export": "NavLink" },
-                "Navigate": { "subpath": "./data", "export": "Navigate" },
-                "NavigationType": { "subpath": "./data", "export": "NavigationType" },
-                "Outlet": { "subpath": "./data", "export": "Outlet" },
-                "Route": { "subpath": "./data", "export": "Route" },
-                "Router": { "subpath": "./data", "export": "Router" },
-                "RouterProvider": { "subpath": "./data", "export": "RouterProvider" },
-                "Routes": { "subpath": "./data", "export": "Routes" },
-                "ScrollRestoration": { "subpath": "./data", "export": "ScrollRestoration" },
-                "createBrowserRouter": { "subpath": "./data", "export": "createBrowserRouter" },
-                "createHashRouter": { "subpath": "./data", "export": "createHashRouter" },
-                "createMemoryRouter": { "subpath": "./data", "export": "createMemoryRouter" },
-                "createPath": { "subpath": "./data", "export": "createPath" },
-                "createRoutesFromChildren": { "subpath": "./data", "export": "createRoutesFromChildren" },
-                "createRoutesFromElements": { "subpath": "./data", "export": "createRoutesFromElements" },
-                "createSearchParams": { "subpath": "./data", "export": "createSearchParams" },
-                "createStaticHandler": { "subpath": "./data", "export": "createStaticHandler" },
-                "createStaticRouter": { "subpath": "./data", "export": "createStaticRouter" },
-                "generatePath": { "subpath": "./data", "export": "generatePath" },
-                "json": { "subpath": "./data", "export": "json" },
-                "isRouteErrorResponse": { "subpath": "./data", "export": "isRouteErrorResponse" },
-                "matchPath": { "subpath": "./data", "export": "matchPath" },
-                "matchRoutes": { "subpath": "./data", "export": "matchRoutes" },
-                "parsePath": { "subpath": "./data", "export": "parsePath" },
-                "redirect": { "subpath": "./data", "export": "redirect" },
-                "redirectDocument": { "subpath": "./data", "export": "redirectDocument" },
-                "renderMatches": { "subpath": "./data", "export": "renderMatches" },
-                "replace": { "subpath": "./data", "export": "replace" },
-                "resolvePath": { "subpath": "./data", "export": "resolvePath" },
-                "StaticRouterProvider": { "subpath": "./data", "export": "StaticRouterProvider" },
-                "unstable_HistoryRouter": { "subpath": "./data", "export": "unstable_HistoryRouter" },
-                "unstable_usePrompt": { "subpath": "./data", "export": "unstable_usePrompt" },
-                "useActionData": { "subpath": "./data", "export": "useActionData" },
-                "useAsyncError": { "subpath": "./data", "export": "useAsyncError" },
-                "useAsyncValue": { "subpath": "./data", "export": "useAsyncValue" },
-                "useBeforeUnload": { "subpath": "./data", "export": "useBeforeUnload" },
-                "useBlocker": { "subpath": "./data", "export": "useBlocker" },
-                "useFetcher": { "subpath": "./data", "export": "useFetcher" },
-                "useFetchers": { "subpath": "./data", "export": "useFetchers" },
-                "useFormAction": { "subpath": "./data", "export": "useFormAction" },
-                "useHref": { "subpath": "./data", "export": "useHref" },
-                "useInRouterContext": { "subpath": "./data", "export": "useInRouterContext" },
-                "useLinkClickHandler": { "subpath": "./data", "export": "useLinkClickHandler" },
-                "useLoaderData": { "subpath": "./data", "export": "useLoaderData" },
-                "useLocation": { "subpath": "./data", "export": "useLocation" },
-                "useMatch": { "subpath": "./data", "export": "useMatch" },
-                "useMatches": { "subpath": "./data", "export": "useMatches" },
-                "useNavigate": { "subpath": "./data", "export": "useNavigate" },
-                "useNavigation": { "subpath": "./data", "export": "useNavigation" },
-                "useNavigationType": { "subpath": "./data", "export": "useNavigationType" },
-                "useOutlet": { "subpath": "./data", "export": "useOutlet" },
-                "useOutletContext": { "subpath": "./data", "export": "useOutletContext" },
-                "useParams": { "subpath": "./data", "export": "useParams" },
-                "useResolvedPath": { "subpath": "./data", "export": "useResolvedPath" },
-                "useRevalidator": { "subpath": "./data", "export": "useRevalidator" },
-                "useRouteError": { "subpath": "./data", "export": "useRouteError" },
-                "useRouteLoaderData": { "subpath": "./data", "export": "useRouteLoaderData" },
-                "useRoutes": { "subpath": "./data", "export": "useRoutes" },
-                "useSearchParams": { "subpath": "./data", "export": "useSearchParams" },
-                "useSubmit": { "subpath": "./data", "export": "useSubmit" }
-              }
-            }
-          ]
-        },
-        "react-router-dom/server": {
-          "fallback": "error",
-          "variants": [
-            {
-              "version": ">=6 <6.4",
-              "exports": {
-                "StaticRouter": { "subpath": "./modern", "export": "StaticRouter" }
-              }
-            },
-            {
-              "version": ">=6.4 <8",
-              "exports": {
-                "createStaticHandler": { "subpath": "./data", "export": "createStaticHandler" },
-                "createStaticRouter": { "subpath": "./data", "export": "createStaticRouter" },
-                "StaticRouter": { "subpath": "./data", "export": "StaticRouter" },
-                "StaticRouterProvider": { "subpath": "./data", "export": "StaticRouterProvider" }
-              }
-            }
-          ]
-        }
-      }
-    }
-  },
-  "scripts": { "build": "tsc -b", "test": "vitest run", "test:coverage": "node ../../scripts/run-package-coverage.mjs" }
+	"name": "@exact/router",
+	"version": "0.0.0",
+	"type": "module",
+	"files": [
+		"dist",
+		"!dist/**/*.test.*"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./modern": {
+			"types": "./dist/modern.d.ts",
+			"default": "./dist/modern.js"
+		},
+		"./data": {
+			"types": "./dist/data.d.ts",
+			"default": "./dist/data.js"
+		},
+		"./v5": {
+			"types": "./dist/v5.d.ts",
+			"default": "./dist/v5.js"
+		}
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"sideEffects": false,
+	"dependencies": {
+		"@exact/core": "file:../../packages/core",
+		"@exact/request": "file:../../packages/request",
+		"@exact/react-compat-adapter-api": "file:../../packages/react-compat-adapter-api"
+	},
+	"peerDependencies": {
+		"@exact/react-compat": "0.0.0",
+		"react-router": ">=5 <8",
+		"react-router-dom": ">=5 <8"
+	},
+	"peerDependenciesMeta": {
+		"@exact/react-compat": {
+			"optional": true
+		},
+		"react-router": {
+			"optional": true
+		},
+		"react-router-dom": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"@exact/jsx": "file:../../packages/jsx-runtime",
+		"@exact/dom": "file:../../packages/dom",
+		"@exact/ssr": "file:../../packages/ssr",
+		"@exact/react-compat": "file:../../packages/react-compat",
+		"@exact/react-dom-compat": "file:../../packages/react-dom-compat"
+	},
+	"exact": {
+		"reactCompatibility": {
+			"schemaVersion": 1,
+			"substitutions": {
+				"react-router": {
+					"fallback": "error",
+					"variants": [
+						{
+							"version": ">=5 <6",
+							"exports": {
+								"MemoryRouter": {
+									"subpath": "./v5",
+									"export": "MemoryRouter"
+								},
+								"Prompt": {
+									"subpath": "./v5",
+									"export": "Prompt"
+								},
+								"Redirect": {
+									"subpath": "./v5",
+									"export": "Redirect"
+								},
+								"Route": {
+									"subpath": "./v5",
+									"export": "Route"
+								},
+								"Router": {
+									"subpath": "./v5",
+									"export": "Router"
+								},
+								"Switch": {
+									"subpath": "./v5",
+									"export": "Switch"
+								},
+								"generatePath": {
+									"subpath": "./v5",
+									"export": "generatePath"
+								},
+								"matchPath": {
+									"subpath": "./v5",
+									"export": "matchPath"
+								},
+								"useHistory": {
+									"subpath": "./v5",
+									"export": "useHistory"
+								},
+								"useLocation": {
+									"subpath": "./v5",
+									"export": "useLocation"
+								},
+								"useParams": {
+									"subpath": "./v5",
+									"export": "useParams"
+								},
+								"useRouteMatch": {
+									"subpath": "./v5",
+									"export": "useRouteMatch"
+								},
+								"withRouter": {
+									"subpath": "./v5",
+									"export": "withRouter"
+								}
+							}
+						},
+						{
+							"version": ">=6 <6.4",
+							"exports": {
+								"MemoryRouter": {
+									"subpath": "./modern",
+									"export": "MemoryRouter"
+								},
+								"Navigate": {
+									"subpath": "./modern",
+									"export": "Navigate"
+								},
+								"NavigationType": {
+									"subpath": "./modern",
+									"export": "NavigationType"
+								},
+								"Outlet": {
+									"subpath": "./modern",
+									"export": "Outlet"
+								},
+								"Route": {
+									"subpath": "./modern",
+									"export": "Route"
+								},
+								"Router": {
+									"subpath": "./modern",
+									"export": "Router"
+								},
+								"Routes": {
+									"subpath": "./modern",
+									"export": "Routes"
+								},
+								"createPath": {
+									"subpath": "./modern",
+									"export": "createPath"
+								},
+								"createRoutesFromChildren": {
+									"subpath": "./modern",
+									"export": "createRoutesFromChildren"
+								},
+								"createRoutesFromElements": {
+									"subpath": "./modern",
+									"export": "createRoutesFromElements"
+								},
+								"createSearchParams": {
+									"subpath": "./modern",
+									"export": "createSearchParams"
+								},
+								"generatePath": {
+									"subpath": "./modern",
+									"export": "generatePath"
+								},
+								"matchPath": {
+									"subpath": "./modern",
+									"export": "matchPath"
+								},
+								"matchRoutes": {
+									"subpath": "./modern",
+									"export": "matchRoutes"
+								},
+								"parsePath": {
+									"subpath": "./modern",
+									"export": "parsePath"
+								},
+								"renderMatches": {
+									"subpath": "./modern",
+									"export": "renderMatches"
+								},
+								"resolvePath": {
+									"subpath": "./modern",
+									"export": "resolvePath"
+								},
+								"unstable_HistoryRouter": {
+									"subpath": "./modern",
+									"export": "unstable_HistoryRouter"
+								},
+								"useHref": {
+									"subpath": "./modern",
+									"export": "useHref"
+								},
+								"useInRouterContext": {
+									"subpath": "./modern",
+									"export": "useInRouterContext"
+								},
+								"useLinkClickHandler": {
+									"subpath": "./modern",
+									"export": "useLinkClickHandler"
+								},
+								"useLocation": {
+									"subpath": "./modern",
+									"export": "useLocation"
+								},
+								"useMatch": {
+									"subpath": "./modern",
+									"export": "useMatch"
+								},
+								"useNavigate": {
+									"subpath": "./modern",
+									"export": "useNavigate"
+								},
+								"useNavigationType": {
+									"subpath": "./modern",
+									"export": "useNavigationType"
+								},
+								"useOutlet": {
+									"subpath": "./modern",
+									"export": "useOutlet"
+								},
+								"useOutletContext": {
+									"subpath": "./modern",
+									"export": "useOutletContext"
+								},
+								"useParams": {
+									"subpath": "./modern",
+									"export": "useParams"
+								},
+								"useResolvedPath": {
+									"subpath": "./modern",
+									"export": "useResolvedPath"
+								},
+								"useRoutes": {
+									"subpath": "./modern",
+									"export": "useRoutes"
+								}
+							}
+						},
+						{
+							"version": ">=6.4 <8",
+							"exports": {
+								"Await": {
+									"subpath": "./data",
+									"export": "Await"
+								},
+								"MemoryRouter": {
+									"subpath": "./data",
+									"export": "MemoryRouter"
+								},
+								"Navigate": {
+									"subpath": "./data",
+									"export": "Navigate"
+								},
+								"NavigationType": {
+									"subpath": "./data",
+									"export": "NavigationType"
+								},
+								"Outlet": {
+									"subpath": "./data",
+									"export": "Outlet"
+								},
+								"Route": {
+									"subpath": "./data",
+									"export": "Route"
+								},
+								"Router": {
+									"subpath": "./data",
+									"export": "Router"
+								},
+								"RouterProvider": {
+									"subpath": "./data",
+									"export": "RouterProvider"
+								},
+								"Routes": {
+									"subpath": "./data",
+									"export": "Routes"
+								},
+								"createPath": {
+									"subpath": "./data",
+									"export": "createPath"
+								},
+								"createMemoryRouter": {
+									"subpath": "./data",
+									"export": "createMemoryRouter"
+								},
+								"createStaticHandler": {
+									"subpath": "./data",
+									"export": "createStaticHandler"
+								},
+								"createStaticRouter": {
+									"subpath": "./data",
+									"export": "createStaticRouter"
+								},
+								"createRoutesFromChildren": {
+									"subpath": "./data",
+									"export": "createRoutesFromChildren"
+								},
+								"createRoutesFromElements": {
+									"subpath": "./data",
+									"export": "createRoutesFromElements"
+								},
+								"createSearchParams": {
+									"subpath": "./data",
+									"export": "createSearchParams"
+								},
+								"generatePath": {
+									"subpath": "./data",
+									"export": "generatePath"
+								},
+								"json": {
+									"subpath": "./data",
+									"export": "json"
+								},
+								"isRouteErrorResponse": {
+									"subpath": "./data",
+									"export": "isRouteErrorResponse"
+								},
+								"matchPath": {
+									"subpath": "./data",
+									"export": "matchPath"
+								},
+								"matchRoutes": {
+									"subpath": "./data",
+									"export": "matchRoutes"
+								},
+								"parsePath": {
+									"subpath": "./data",
+									"export": "parsePath"
+								},
+								"redirect": {
+									"subpath": "./data",
+									"export": "redirect"
+								},
+								"redirectDocument": {
+									"subpath": "./data",
+									"export": "redirectDocument"
+								},
+								"renderMatches": {
+									"subpath": "./data",
+									"export": "renderMatches"
+								},
+								"replace": {
+									"subpath": "./data",
+									"export": "replace"
+								},
+								"resolvePath": {
+									"subpath": "./data",
+									"export": "resolvePath"
+								},
+								"StaticRouterProvider": {
+									"subpath": "./data",
+									"export": "StaticRouterProvider"
+								},
+								"unstable_HistoryRouter": {
+									"subpath": "./data",
+									"export": "unstable_HistoryRouter"
+								},
+								"unstable_usePrompt": {
+									"subpath": "./data",
+									"export": "unstable_usePrompt"
+								},
+								"useActionData": {
+									"subpath": "./data",
+									"export": "useActionData"
+								},
+								"useAsyncError": {
+									"subpath": "./data",
+									"export": "useAsyncError"
+								},
+								"useAsyncValue": {
+									"subpath": "./data",
+									"export": "useAsyncValue"
+								},
+								"useBlocker": {
+									"subpath": "./data",
+									"export": "useBlocker"
+								},
+								"useFetcher": {
+									"subpath": "./data",
+									"export": "useFetcher"
+								},
+								"useFetchers": {
+									"subpath": "./data",
+									"export": "useFetchers"
+								},
+								"useFormAction": {
+									"subpath": "./data",
+									"export": "useFormAction"
+								},
+								"useHref": {
+									"subpath": "./data",
+									"export": "useHref"
+								},
+								"useInRouterContext": {
+									"subpath": "./data",
+									"export": "useInRouterContext"
+								},
+								"useLinkClickHandler": {
+									"subpath": "./data",
+									"export": "useLinkClickHandler"
+								},
+								"useLoaderData": {
+									"subpath": "./data",
+									"export": "useLoaderData"
+								},
+								"useLocation": {
+									"subpath": "./data",
+									"export": "useLocation"
+								},
+								"useMatch": {
+									"subpath": "./data",
+									"export": "useMatch"
+								},
+								"useMatches": {
+									"subpath": "./data",
+									"export": "useMatches"
+								},
+								"useNavigate": {
+									"subpath": "./data",
+									"export": "useNavigate"
+								},
+								"useNavigation": {
+									"subpath": "./data",
+									"export": "useNavigation"
+								},
+								"useNavigationType": {
+									"subpath": "./data",
+									"export": "useNavigationType"
+								},
+								"useOutlet": {
+									"subpath": "./data",
+									"export": "useOutlet"
+								},
+								"useOutletContext": {
+									"subpath": "./data",
+									"export": "useOutletContext"
+								},
+								"useParams": {
+									"subpath": "./data",
+									"export": "useParams"
+								},
+								"useResolvedPath": {
+									"subpath": "./data",
+									"export": "useResolvedPath"
+								},
+								"useRevalidator": {
+									"subpath": "./data",
+									"export": "useRevalidator"
+								},
+								"useRouteError": {
+									"subpath": "./data",
+									"export": "useRouteError"
+								},
+								"useRouteLoaderData": {
+									"subpath": "./data",
+									"export": "useRouteLoaderData"
+								},
+								"useRoutes": {
+									"subpath": "./data",
+									"export": "useRoutes"
+								},
+								"useSubmit": {
+									"subpath": "./data",
+									"export": "useSubmit"
+								}
+							}
+						}
+					]
+				},
+				"react-router-dom": {
+					"fallback": "error",
+					"variants": [
+						{
+							"version": ">=5 <6",
+							"exports": {
+								"BrowserRouter": {
+									"subpath": "./v5",
+									"export": "BrowserRouter"
+								},
+								"HashRouter": {
+									"subpath": "./v5",
+									"export": "HashRouter"
+								},
+								"Link": {
+									"subpath": "./v5",
+									"export": "Link"
+								},
+								"MemoryRouter": {
+									"subpath": "./v5",
+									"export": "MemoryRouter"
+								},
+								"NavLink": {
+									"subpath": "./v5",
+									"export": "NavLink"
+								},
+								"Prompt": {
+									"subpath": "./v5",
+									"export": "Prompt"
+								},
+								"Redirect": {
+									"subpath": "./v5",
+									"export": "Redirect"
+								},
+								"Route": {
+									"subpath": "./v5",
+									"export": "Route"
+								},
+								"Router": {
+									"subpath": "./v5",
+									"export": "Router"
+								},
+								"StaticRouter": {
+									"subpath": "./v5",
+									"export": "StaticRouter"
+								},
+								"Switch": {
+									"subpath": "./v5",
+									"export": "Switch"
+								},
+								"generatePath": {
+									"subpath": "./v5",
+									"export": "generatePath"
+								},
+								"matchPath": {
+									"subpath": "./v5",
+									"export": "matchPath"
+								},
+								"useHistory": {
+									"subpath": "./v5",
+									"export": "useHistory"
+								},
+								"useLocation": {
+									"subpath": "./v5",
+									"export": "useLocation"
+								},
+								"useParams": {
+									"subpath": "./v5",
+									"export": "useParams"
+								},
+								"useRouteMatch": {
+									"subpath": "./v5",
+									"export": "useRouteMatch"
+								},
+								"withRouter": {
+									"subpath": "./v5",
+									"export": "withRouter"
+								}
+							}
+						},
+						{
+							"version": ">=6 <6.4",
+							"exports": {
+								"BrowserRouter": {
+									"subpath": "./modern",
+									"export": "BrowserRouter"
+								},
+								"HashRouter": {
+									"subpath": "./modern",
+									"export": "HashRouter"
+								},
+								"Link": {
+									"subpath": "./modern",
+									"export": "Link"
+								},
+								"MemoryRouter": {
+									"subpath": "./modern",
+									"export": "MemoryRouter"
+								},
+								"NavLink": {
+									"subpath": "./modern",
+									"export": "NavLink"
+								},
+								"Navigate": {
+									"subpath": "./modern",
+									"export": "Navigate"
+								},
+								"NavigationType": {
+									"subpath": "./modern",
+									"export": "NavigationType"
+								},
+								"Outlet": {
+									"subpath": "./modern",
+									"export": "Outlet"
+								},
+								"Route": {
+									"subpath": "./modern",
+									"export": "Route"
+								},
+								"Router": {
+									"subpath": "./modern",
+									"export": "Router"
+								},
+								"Routes": {
+									"subpath": "./modern",
+									"export": "Routes"
+								},
+								"createPath": {
+									"subpath": "./modern",
+									"export": "createPath"
+								},
+								"createRoutesFromChildren": {
+									"subpath": "./modern",
+									"export": "createRoutesFromChildren"
+								},
+								"createRoutesFromElements": {
+									"subpath": "./modern",
+									"export": "createRoutesFromElements"
+								},
+								"createSearchParams": {
+									"subpath": "./modern",
+									"export": "createSearchParams"
+								},
+								"generatePath": {
+									"subpath": "./modern",
+									"export": "generatePath"
+								},
+								"matchPath": {
+									"subpath": "./modern",
+									"export": "matchPath"
+								},
+								"matchRoutes": {
+									"subpath": "./modern",
+									"export": "matchRoutes"
+								},
+								"parsePath": {
+									"subpath": "./modern",
+									"export": "parsePath"
+								},
+								"renderMatches": {
+									"subpath": "./modern",
+									"export": "renderMatches"
+								},
+								"resolvePath": {
+									"subpath": "./modern",
+									"export": "resolvePath"
+								},
+								"unstable_HistoryRouter": {
+									"subpath": "./modern",
+									"export": "unstable_HistoryRouter"
+								},
+								"useHref": {
+									"subpath": "./modern",
+									"export": "useHref"
+								},
+								"useInRouterContext": {
+									"subpath": "./modern",
+									"export": "useInRouterContext"
+								},
+								"useLinkClickHandler": {
+									"subpath": "./modern",
+									"export": "useLinkClickHandler"
+								},
+								"useLocation": {
+									"subpath": "./modern",
+									"export": "useLocation"
+								},
+								"useMatch": {
+									"subpath": "./modern",
+									"export": "useMatch"
+								},
+								"useNavigate": {
+									"subpath": "./modern",
+									"export": "useNavigate"
+								},
+								"useNavigationType": {
+									"subpath": "./modern",
+									"export": "useNavigationType"
+								},
+								"useOutlet": {
+									"subpath": "./modern",
+									"export": "useOutlet"
+								},
+								"useOutletContext": {
+									"subpath": "./modern",
+									"export": "useOutletContext"
+								},
+								"useParams": {
+									"subpath": "./modern",
+									"export": "useParams"
+								},
+								"useResolvedPath": {
+									"subpath": "./modern",
+									"export": "useResolvedPath"
+								},
+								"useRoutes": {
+									"subpath": "./modern",
+									"export": "useRoutes"
+								},
+								"useSearchParams": {
+									"subpath": "./modern",
+									"export": "useSearchParams"
+								}
+							}
+						},
+						{
+							"version": ">=6.4 <8",
+							"exports": {
+								"Await": {
+									"subpath": "./data",
+									"export": "Await"
+								},
+								"BrowserRouter": {
+									"subpath": "./data",
+									"export": "BrowserRouter"
+								},
+								"Form": {
+									"subpath": "./data",
+									"export": "Form"
+								},
+								"HashRouter": {
+									"subpath": "./data",
+									"export": "HashRouter"
+								},
+								"Link": {
+									"subpath": "./data",
+									"export": "Link"
+								},
+								"MemoryRouter": {
+									"subpath": "./data",
+									"export": "MemoryRouter"
+								},
+								"NavLink": {
+									"subpath": "./data",
+									"export": "NavLink"
+								},
+								"Navigate": {
+									"subpath": "./data",
+									"export": "Navigate"
+								},
+								"NavigationType": {
+									"subpath": "./data",
+									"export": "NavigationType"
+								},
+								"Outlet": {
+									"subpath": "./data",
+									"export": "Outlet"
+								},
+								"Route": {
+									"subpath": "./data",
+									"export": "Route"
+								},
+								"Router": {
+									"subpath": "./data",
+									"export": "Router"
+								},
+								"RouterProvider": {
+									"subpath": "./data",
+									"export": "RouterProvider"
+								},
+								"Routes": {
+									"subpath": "./data",
+									"export": "Routes"
+								},
+								"ScrollRestoration": {
+									"subpath": "./data",
+									"export": "ScrollRestoration"
+								},
+								"createBrowserRouter": {
+									"subpath": "./data",
+									"export": "createBrowserRouter"
+								},
+								"createHashRouter": {
+									"subpath": "./data",
+									"export": "createHashRouter"
+								},
+								"createMemoryRouter": {
+									"subpath": "./data",
+									"export": "createMemoryRouter"
+								},
+								"createPath": {
+									"subpath": "./data",
+									"export": "createPath"
+								},
+								"createRoutesFromChildren": {
+									"subpath": "./data",
+									"export": "createRoutesFromChildren"
+								},
+								"createRoutesFromElements": {
+									"subpath": "./data",
+									"export": "createRoutesFromElements"
+								},
+								"createSearchParams": {
+									"subpath": "./data",
+									"export": "createSearchParams"
+								},
+								"createStaticHandler": {
+									"subpath": "./data",
+									"export": "createStaticHandler"
+								},
+								"createStaticRouter": {
+									"subpath": "./data",
+									"export": "createStaticRouter"
+								},
+								"generatePath": {
+									"subpath": "./data",
+									"export": "generatePath"
+								},
+								"json": {
+									"subpath": "./data",
+									"export": "json"
+								},
+								"isRouteErrorResponse": {
+									"subpath": "./data",
+									"export": "isRouteErrorResponse"
+								},
+								"matchPath": {
+									"subpath": "./data",
+									"export": "matchPath"
+								},
+								"matchRoutes": {
+									"subpath": "./data",
+									"export": "matchRoutes"
+								},
+								"parsePath": {
+									"subpath": "./data",
+									"export": "parsePath"
+								},
+								"redirect": {
+									"subpath": "./data",
+									"export": "redirect"
+								},
+								"redirectDocument": {
+									"subpath": "./data",
+									"export": "redirectDocument"
+								},
+								"renderMatches": {
+									"subpath": "./data",
+									"export": "renderMatches"
+								},
+								"replace": {
+									"subpath": "./data",
+									"export": "replace"
+								},
+								"resolvePath": {
+									"subpath": "./data",
+									"export": "resolvePath"
+								},
+								"StaticRouterProvider": {
+									"subpath": "./data",
+									"export": "StaticRouterProvider"
+								},
+								"unstable_HistoryRouter": {
+									"subpath": "./data",
+									"export": "unstable_HistoryRouter"
+								},
+								"unstable_usePrompt": {
+									"subpath": "./data",
+									"export": "unstable_usePrompt"
+								},
+								"useActionData": {
+									"subpath": "./data",
+									"export": "useActionData"
+								},
+								"useAsyncError": {
+									"subpath": "./data",
+									"export": "useAsyncError"
+								},
+								"useAsyncValue": {
+									"subpath": "./data",
+									"export": "useAsyncValue"
+								},
+								"useBeforeUnload": {
+									"subpath": "./data",
+									"export": "useBeforeUnload"
+								},
+								"useBlocker": {
+									"subpath": "./data",
+									"export": "useBlocker"
+								},
+								"useFetcher": {
+									"subpath": "./data",
+									"export": "useFetcher"
+								},
+								"useFetchers": {
+									"subpath": "./data",
+									"export": "useFetchers"
+								},
+								"useFormAction": {
+									"subpath": "./data",
+									"export": "useFormAction"
+								},
+								"useHref": {
+									"subpath": "./data",
+									"export": "useHref"
+								},
+								"useInRouterContext": {
+									"subpath": "./data",
+									"export": "useInRouterContext"
+								},
+								"useLinkClickHandler": {
+									"subpath": "./data",
+									"export": "useLinkClickHandler"
+								},
+								"useLoaderData": {
+									"subpath": "./data",
+									"export": "useLoaderData"
+								},
+								"useLocation": {
+									"subpath": "./data",
+									"export": "useLocation"
+								},
+								"useMatch": {
+									"subpath": "./data",
+									"export": "useMatch"
+								},
+								"useMatches": {
+									"subpath": "./data",
+									"export": "useMatches"
+								},
+								"useNavigate": {
+									"subpath": "./data",
+									"export": "useNavigate"
+								},
+								"useNavigation": {
+									"subpath": "./data",
+									"export": "useNavigation"
+								},
+								"useNavigationType": {
+									"subpath": "./data",
+									"export": "useNavigationType"
+								},
+								"useOutlet": {
+									"subpath": "./data",
+									"export": "useOutlet"
+								},
+								"useOutletContext": {
+									"subpath": "./data",
+									"export": "useOutletContext"
+								},
+								"useParams": {
+									"subpath": "./data",
+									"export": "useParams"
+								},
+								"useResolvedPath": {
+									"subpath": "./data",
+									"export": "useResolvedPath"
+								},
+								"useRevalidator": {
+									"subpath": "./data",
+									"export": "useRevalidator"
+								},
+								"useRouteError": {
+									"subpath": "./data",
+									"export": "useRouteError"
+								},
+								"useRouteLoaderData": {
+									"subpath": "./data",
+									"export": "useRouteLoaderData"
+								},
+								"useRoutes": {
+									"subpath": "./data",
+									"export": "useRoutes"
+								},
+								"useSearchParams": {
+									"subpath": "./data",
+									"export": "useSearchParams"
+								},
+								"useSubmit": {
+									"subpath": "./data",
+									"export": "useSubmit"
+								}
+							}
+						}
+					]
+				},
+				"react-router-dom/server": {
+					"fallback": "error",
+					"variants": [
+						{
+							"version": ">=6 <6.4",
+							"exports": {
+								"StaticRouter": {
+									"subpath": "./modern",
+									"export": "StaticRouter"
+								}
+							}
+						},
+						{
+							"version": ">=6.4 <8",
+							"exports": {
+								"createStaticHandler": {
+									"subpath": "./data",
+									"export": "createStaticHandler"
+								},
+								"createStaticRouter": {
+									"subpath": "./data",
+									"export": "createStaticRouter"
+								},
+								"StaticRouter": {
+									"subpath": "./data",
+									"export": "StaticRouter"
+								},
+								"StaticRouterProvider": {
+									"subpath": "./data",
+									"export": "StaticRouterProvider"
+								}
+							}
+						}
+					]
+				}
+			}
+		}
+	},
+	"scripts": {
+		"build": "tsc -b",
+		"test": "vitest run",
+		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	}
 }

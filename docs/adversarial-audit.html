@@ -1,560 +1,858 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>eXact Adversarial Codebase Audit</title>
-  <style>
-    :root {
-      color-scheme: light;
-      --ink: #182230;
-      --muted: #5d6b7c;
-      --line: #d8e0ea;
-      --panel: #f7f9fc;
-      --critical: #9f1d1d;
-      --high: #a65300;
-      --medium: #735c0f;
-      --low: #34548a;
-      --ok: #1f6f43;
-    }
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>eXact Adversarial Codebase Audit</title>
+		<style>
+			:root {
+				color-scheme: light;
+				--ink: #182230;
+				--muted: #5d6b7c;
+				--line: #d8e0ea;
+				--panel: #f7f9fc;
+				--critical: #9f1d1d;
+				--high: #a65300;
+				--medium: #735c0f;
+				--low: #34548a;
+				--ok: #1f6f43;
+			}
 
-    body {
-      margin: 0;
-      font: 16px/1.55 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: var(--ink);
-      background: white;
-    }
+			body {
+				margin: 0;
+				font:
+					16px/1.55 system-ui,
+					-apple-system,
+					BlinkMacSystemFont,
+					'Segoe UI',
+					sans-serif;
+				color: var(--ink);
+				background: white;
+			}
 
-    main {
-      max-width: 1160px;
-      margin: 0 auto;
-      padding: 40px 28px 72px;
-    }
+			main {
+				max-width: 1160px;
+				margin: 0 auto;
+				padding: 40px 28px 72px;
+			}
 
-    h1, h2, h3 {
-      line-height: 1.16;
-      margin: 0;
-    }
+			h1,
+			h2,
+			h3 {
+				line-height: 1.16;
+				margin: 0;
+			}
 
-    h1 {
-      font-size: 40px;
-      letter-spacing: 0;
-    }
+			h1 {
+				font-size: 40px;
+				letter-spacing: 0;
+			}
 
-    h2 {
-      margin-top: 42px;
-      padding-top: 26px;
-      border-top: 1px solid var(--line);
-      font-size: 26px;
-    }
+			h2 {
+				margin-top: 42px;
+				padding-top: 26px;
+				border-top: 1px solid var(--line);
+				font-size: 26px;
+			}
 
-    h3 {
-      margin-top: 28px;
-      font-size: 20px;
-    }
+			h3 {
+				margin-top: 28px;
+				font-size: 20px;
+			}
 
-    p {
-      margin: 10px 0 0;
-    }
+			p {
+				margin: 10px 0 0;
+			}
 
-    code {
-      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-      font-size: 0.92em;
-      background: #eef3f8;
-      padding: 1px 5px;
-      border-radius: 4px;
-    }
+			code {
+				font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+				font-size: 0.92em;
+				background: #eef3f8;
+				padding: 1px 5px;
+				border-radius: 4px;
+			}
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 18px;
-      font-size: 14px;
-    }
+			table {
+				width: 100%;
+				border-collapse: collapse;
+				margin-top: 18px;
+				font-size: 14px;
+			}
 
-    th, td {
-      border: 1px solid var(--line);
-      padding: 10px 12px;
-      vertical-align: top;
-      text-align: left;
-    }
+			th,
+			td {
+				border: 1px solid var(--line);
+				padding: 10px 12px;
+				vertical-align: top;
+				text-align: left;
+			}
 
-    th {
-      background: #eef3f8;
-      font-weight: 700;
-    }
+			th {
+				background: #eef3f8;
+				font-weight: 700;
+			}
 
-    .lede {
-      max-width: 880px;
-      margin-top: 16px;
-      color: var(--muted);
-      font-size: 18px;
-    }
+			.lede {
+				max-width: 880px;
+				margin-top: 16px;
+				color: var(--muted);
+				font-size: 18px;
+			}
 
-    .meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 20px;
-    }
+			.meta {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 10px;
+				margin-top: 20px;
+			}
 
-    .pill {
-      border: 1px solid var(--line);
-      background: var(--panel);
-      border-radius: 999px;
-      padding: 6px 10px;
-      color: var(--muted);
-      font-size: 13px;
-    }
+			.pill {
+				border: 1px solid var(--line);
+				background: var(--panel);
+				border-radius: 999px;
+				padding: 6px 10px;
+				color: var(--muted);
+				font-size: 13px;
+			}
 
-    .callout {
-      margin-top: 22px;
-      padding: 16px 18px;
-      border: 1px solid var(--line);
-      background: var(--panel);
-      border-radius: 8px;
-    }
+			.callout {
+				margin-top: 22px;
+				padding: 16px 18px;
+				border: 1px solid var(--line);
+				background: var(--panel);
+				border-radius: 8px;
+			}
 
-    .finding {
-      margin-top: 22px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      overflow: hidden;
-    }
+			.finding {
+				margin-top: 22px;
+				border: 1px solid var(--line);
+				border-radius: 8px;
+				overflow: hidden;
+			}
 
-    .finding header {
-      padding: 14px 16px;
-      background: var(--panel);
-      border-bottom: 1px solid var(--line);
-      display: flex;
-      gap: 10px;
-      align-items: baseline;
-      justify-content: space-between;
-    }
+			.finding header {
+				padding: 14px 16px;
+				background: var(--panel);
+				border-bottom: 1px solid var(--line);
+				display: flex;
+				gap: 10px;
+				align-items: baseline;
+				justify-content: space-between;
+			}
 
-    .finding h3 {
-      margin: 0;
-      font-size: 18px;
-    }
+			.finding h3 {
+				margin: 0;
+				font-size: 18px;
+			}
 
-    .finding-body {
-      padding: 14px 16px 18px;
-    }
+			.finding-body {
+				padding: 14px 16px 18px;
+			}
 
-    .severity {
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      white-space: nowrap;
-    }
+			.severity {
+				font-size: 12px;
+				font-weight: 700;
+				text-transform: uppercase;
+				letter-spacing: 0.04em;
+				white-space: nowrap;
+			}
 
-    .critical { color: var(--critical); }
-    .high { color: var(--high); }
-    .medium { color: var(--medium); }
-    .low { color: var(--low); }
-    .resolved { color: var(--ok); }
+			.critical {
+				color: var(--critical);
+			}
+			.high {
+				color: var(--high);
+			}
+			.medium {
+				color: var(--medium);
+			}
+			.low {
+				color: var(--low);
+			}
+			.resolved {
+				color: var(--ok);
+			}
 
-    .evidence {
-      margin-top: 12px;
-      color: var(--muted);
-      font-size: 14px;
-    }
+			.evidence {
+				margin-top: 12px;
+				color: var(--muted);
+				font-size: 14px;
+			}
 
-    ul {
-      margin: 10px 0 0 22px;
-      padding: 0;
-    }
+			ul {
+				margin: 10px 0 0 22px;
+				padding: 0;
+			}
 
-    li + li {
-      margin-top: 6px;
-    }
+			li + li {
+				margin-top: 6px;
+			}
 
-    .scorecard {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 12px;
-      margin-top: 18px;
-    }
+			.scorecard {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+				gap: 12px;
+				margin-top: 18px;
+			}
 
-    .score {
-      border: 1px solid var(--line);
-      background: var(--panel);
-      border-radius: 8px;
-      padding: 14px;
-    }
+			.score {
+				border: 1px solid var(--line);
+				background: var(--panel);
+				border-radius: 8px;
+				padding: 14px;
+			}
 
-    .score strong {
-      display: block;
-      margin-bottom: 4px;
-    }
-  </style>
-</head>
-<body>
-<main>
-  <h1>eXact Adversarial Codebase Audit</h1>
-  <p class="lede">
-    This document is intentionally skeptical. It focuses on release blockers, unstated assumptions,
-    semantic mismatches, and places where the current implementation may let us believe the framework
-    is more complete, secure, portable, or debuggable than it really is.
-  </p>
-  <div class="meta">
-    <span class="pill">Audit date: 2026-07-11</span>
-    <span class="pill">Scope: packages, sample apps, docs, build scripts</span>
-    <span class="pill">Verification observed: build, tests, package-content check passing before this audit</span>
-    <span class="pill">Resolution pass: F-01, F-02, F-03, F-04, and F-07 resolved</span>
-  </div>
+			.score strong {
+				display: block;
+				margin-bottom: 4px;
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<h1>eXact Adversarial Codebase Audit</h1>
+			<p class="lede">
+				This document is intentionally skeptical. It focuses on release blockers, unstated
+				assumptions, semantic mismatches, and places where the current implementation may let us
+				believe the framework is more complete, secure, portable, or debuggable than it really is.
+			</p>
+			<div class="meta">
+				<span class="pill">Audit date: 2026-07-11</span>
+				<span class="pill">Scope: packages, sample apps, docs, build scripts</span>
+				<span class="pill"
+					>Verification observed: build, tests, package-content check passing before this
+					audit</span
+				>
+				<span class="pill">Resolution pass: F-01, F-02, F-03, F-04, and F-07 resolved</span>
+			</div>
 
-  <section>
-    <h2>Executive Summary</h2>
-    <div class="scorecard">
-      <div class="score">
-        <strong>Strong foundation</strong>
-        The repo now has meaningful package boundaries, a real compiler IR direction, server runtime validation, hydration tests, and clean package-content checks.
-      </div>
-      <div class="score">
-        <strong>Main release risk</strong>
-        Several features are correctly framed as "foundation", but the implementation can still be mistaken for a production distributed component protocol.
-      </div>
-      <div class="score">
-        <strong>Highest priority fixes</strong>
-        Remaining high-value work is source-map fidelity, public API boundaries, tarball smoke testing, and honest docs around partial compiler/runtime guarantees.
-      </div>
-      <div class="score">
-        <strong>Biggest fallacy</strong>
-        Passing runtime tests and package-content checks does not prove the compiler/server-component model is semantically complete.
-      </div>
-    </div>
+			<section>
+				<h2>Executive Summary</h2>
+				<div class="scorecard">
+					<div class="score">
+						<strong>Strong foundation</strong>
+						The repo now has meaningful package boundaries, a real compiler IR direction, server
+						runtime validation, hydration tests, and clean package-content checks.
+					</div>
+					<div class="score">
+						<strong>Main release risk</strong>
+						Several features are correctly framed as "foundation", but the implementation can still
+						be mistaken for a production distributed component protocol.
+					</div>
+					<div class="score">
+						<strong>Highest priority fixes</strong>
+						Remaining high-value work is source-map fidelity, public API boundaries, tarball smoke
+						testing, and honest docs around partial compiler/runtime guarantees.
+					</div>
+					<div class="score">
+						<strong>Biggest fallacy</strong>
+						Passing runtime tests and package-content checks does not prove the
+						compiler/server-component model is semantically complete.
+					</div>
+				</div>
 
-    <div class="callout">
-      <strong>Bottom line:</strong> eXact is not in a bad state. It is in a dangerous middle state:
-      enough works that it feels real, but several core guarantees are still partial. That is exactly when
-      a framework needs explicit guardrails, naming honesty, and adversarial tests.
-    </div>
+				<div class="callout">
+					<strong>Bottom line:</strong> eXact is not in a bad state. It is in a dangerous middle
+					state: enough works that it feels real, but several core guarantees are still partial.
+					That is exactly when a framework needs explicit guardrails, naming honesty, and
+					adversarial tests.
+				</div>
 
-    <div class="callout">
-      <strong>Resolution note:</strong> a follow-up pass resolved the non-speculative implementation issues:
-      generated IDs now use a longer digest with duplicate checks, <code>.exact</code> facade resolution handles
-      JS and TS artifacts, exact state contracts support numeric array paths in hydrate/server validation,
-      tests have a dedicated typecheck in <code>release:check</code>, and single-operation security hooks run once.
-    </div>
-  </section>
+				<div class="callout">
+					<strong>Resolution note:</strong> a follow-up pass resolved the non-speculative
+					implementation issues: generated IDs now use a longer digest with duplicate checks,
+					<code>.exact</code> facade resolution handles JS and TS artifacts, exact state contracts
+					support numeric array paths in hydrate/server validation, tests have a dedicated typecheck
+					in <code>release:check</code>, and single-operation security hooks run once.
+				</div>
+			</section>
 
-  <section>
-    <h2>Findings Overview</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Severity</th>
-          <th>Finding</th>
-          <th>Primary Area</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr><td>F-01</td><td class="resolved">Resolved</td><td>Compiler/runtime IDs were 32-bit hashes used as protocol identity.</td><td>Compiler, server manifest</td></tr>
-        <tr><td>F-02</td><td class="resolved">Resolved</td><td><code>.exact</code> artifact resolution was hard-coded to <code>.ts</code>, but JSX artifacts can emit <code>.js</code>.</td><td>Compiler, adapters</td></tr>
-        <tr><td>F-03</td><td class="resolved">Resolved</td><td>State contracts and state slicing rejected arrays while compiler analysis can produce numeric paths.</td><td>Compiler, hydrate, server</td></tr>
-        <tr><td>F-04</td><td class="resolved">Resolved</td><td>Tests were excluded from package TypeScript builds without a dedicated test typecheck.</td><td>Build, tests</td></tr>
-        <tr><td>F-05</td><td class="high">High</td><td>The public <code>@exact/core</code> entrypoint exports app APIs and framework internals together.</td><td>Package API</td></tr>
-        <tr><td>F-06</td><td class="medium">Medium</td><td>Source maps are line-only approximations, not true transform maps.</td><td>Compiler, debugging</td></tr>
-        <tr><td>F-07</td><td class="resolved">Resolved</td><td>Security hooks ran twice for single-operation dispatch.</td><td>Server runtime</td></tr>
-        <tr><td>F-08</td><td class="medium">Medium</td><td>Server state/context validation checks shape narrowly but does not validate value schemas.</td><td>Server runtime</td></tr>
-        <tr><td>F-09</td><td class="medium">Medium</td><td>SSR HTML diffing depends on a deliberately small parser and has fallback-heavy semantics.</td><td>SSR, hydrate</td></tr>
-        <tr><td>F-10</td><td class="medium">Medium</td><td>"Streaming" currently means shell plus root replacement, not granular server boundary streaming.</td><td>SSR streaming</td></tr>
-        <tr><td>F-11</td><td class="medium">Medium</td><td>Compiler split/capture inference remains easy to oversell.</td><td>Compiler, docs</td></tr>
-        <tr><td>F-12</td><td class="low">Low</td><td>Published packages are missing standard npm metadata.</td><td>Release process</td></tr>
-        <tr><td>F-13</td><td class="low">Low</td><td>Package publish audit is good but not equivalent to install-from-tarball integration testing.</td><td>Release process</td></tr>
-        <tr><td>F-14</td><td class="low">Low</td><td>Build artifact cleanup is still implicit; stale ignored <code>dist</code> files can survive locally.</td><td>Build hygiene</td></tr>
-      </tbody>
-    </table>
-  </section>
+			<section>
+				<h2>Findings Overview</h2>
+				<table>
+					<thead>
+						<tr>
+							<th>ID</th>
+							<th>Severity</th>
+							<th>Finding</th>
+							<th>Primary Area</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>F-01</td>
+							<td class="resolved">Resolved</td>
+							<td>Compiler/runtime IDs were 32-bit hashes used as protocol identity.</td>
+							<td>Compiler, server manifest</td>
+						</tr>
+						<tr>
+							<td>F-02</td>
+							<td class="resolved">Resolved</td>
+							<td>
+								<code>.exact</code> artifact resolution was hard-coded to <code>.ts</code>, but JSX
+								artifacts can emit <code>.js</code>.
+							</td>
+							<td>Compiler, adapters</td>
+						</tr>
+						<tr>
+							<td>F-03</td>
+							<td class="resolved">Resolved</td>
+							<td>
+								State contracts and state slicing rejected arrays while compiler analysis can
+								produce numeric paths.
+							</td>
+							<td>Compiler, hydrate, server</td>
+						</tr>
+						<tr>
+							<td>F-04</td>
+							<td class="resolved">Resolved</td>
+							<td>
+								Tests were excluded from package TypeScript builds without a dedicated test
+								typecheck.
+							</td>
+							<td>Build, tests</td>
+						</tr>
+						<tr>
+							<td>F-05</td>
+							<td class="high">High</td>
+							<td>
+								The public <code>@exact/core</code> entrypoint exports app APIs and framework
+								internals together.
+							</td>
+							<td>Package API</td>
+						</tr>
+						<tr>
+							<td>F-06</td>
+							<td class="medium">Medium</td>
+							<td>Source maps are line-only approximations, not true transform maps.</td>
+							<td>Compiler, debugging</td>
+						</tr>
+						<tr>
+							<td>F-07</td>
+							<td class="resolved">Resolved</td>
+							<td>Security hooks ran twice for single-operation dispatch.</td>
+							<td>Server runtime</td>
+						</tr>
+						<tr>
+							<td>F-08</td>
+							<td class="medium">Medium</td>
+							<td>
+								Server state/context validation checks shape narrowly but does not validate value
+								schemas.
+							</td>
+							<td>Server runtime</td>
+						</tr>
+						<tr>
+							<td>F-09</td>
+							<td class="medium">Medium</td>
+							<td>
+								SSR HTML diffing depends on a deliberately small parser and has fallback-heavy
+								semantics.
+							</td>
+							<td>SSR, hydrate</td>
+						</tr>
+						<tr>
+							<td>F-10</td>
+							<td class="medium">Medium</td>
+							<td>
+								"Streaming" currently means shell plus root replacement, not granular server
+								boundary streaming.
+							</td>
+							<td>SSR streaming</td>
+						</tr>
+						<tr>
+							<td>F-11</td>
+							<td class="medium">Medium</td>
+							<td>Compiler split/capture inference remains easy to oversell.</td>
+							<td>Compiler, docs</td>
+						</tr>
+						<tr>
+							<td>F-12</td>
+							<td class="low">Low</td>
+							<td>Published packages are missing standard npm metadata.</td>
+							<td>Release process</td>
+						</tr>
+						<tr>
+							<td>F-13</td>
+							<td class="low">Low</td>
+							<td>
+								Package publish audit is good but not equivalent to install-from-tarball integration
+								testing.
+							</td>
+							<td>Release process</td>
+						</tr>
+						<tr>
+							<td>F-14</td>
+							<td class="low">Low</td>
+							<td>
+								Build artifact cleanup is still implicit; stale ignored <code>dist</code> files can
+								survive locally.
+							</td>
+							<td>Build hygiene</td>
+						</tr>
+					</tbody>
+				</table>
+			</section>
 
-  <section>
-    <h2>Detailed Findings</h2>
+			<section>
+				<h2>Detailed Findings</h2>
 
-    <article class="finding">
-      <header>
-        <h3>F-01: Stable IDs are only 32-bit hashes but act like protocol identity</h3>
-        <span class="severity critical">Critical</span>
-      </header>
-      <div class="finding-body">
-        <p>
-          <code>stableId(...parts)</code> uses a 32-bit FNV-style hash and returns a short base-36 string.
-          These IDs are used for component IDs, action IDs, boundary IDs, render edges, element IDs, list IDs,
-          and server manifest allowlists. That makes collision behavior a correctness and security concern,
-          not just a cosmetic naming concern.
-        </p>
-        <p>
-          A collision inside <code>serverActions</code> can overwrite an entry before the runtime manifest ever sees it.
-          A collision across manifests is detected only if the conflicting object metadata differs; a same-looking
-          collision can remain invisible. Even non-malicious large projects eventually make 32-bit collisions plausible.
-        </p>
-        <p><strong>Recommendation:</strong> move to a longer deterministic digest, for example SHA-256 truncated to at least 96 or 128 bits, and add explicit duplicate-ID detection during compiler manifest creation before object insertion. Treat duplicate IDs as compiler errors.</p>
-        <p class="resolved"><strong>Status:</strong> resolved with SHA-256 based IDs and duplicate checks for server actions, components, symbols, and boundaries.</p>
-        <p class="evidence">Evidence: <code>packages/compiler/src/ids.ts:1</code>, <code>packages/compiler/src/index.ts</code> serverActions insertion, <code>packages/server/src/manifest.ts</code> conflict handling.</p>
-      </div>
-    </article>
+				<article class="finding">
+					<header>
+						<h3>F-01: Stable IDs are only 32-bit hashes but act like protocol identity</h3>
+						<span class="severity critical">Critical</span>
+					</header>
+					<div class="finding-body">
+						<p>
+							<code>stableId(...parts)</code> uses a 32-bit FNV-style hash and returns a short
+							base-36 string. These IDs are used for component IDs, action IDs, boundary IDs, render
+							edges, element IDs, list IDs, and server manifest allowlists. That makes collision
+							behavior a correctness and security concern, not just a cosmetic naming concern.
+						</p>
+						<p>
+							A collision inside <code>serverActions</code> can overwrite an entry before the
+							runtime manifest ever sees it. A collision across manifests is detected only if the
+							conflicting object metadata differs; a same-looking collision can remain invisible.
+							Even non-malicious large projects eventually make 32-bit collisions plausible.
+						</p>
+						<p>
+							<strong>Recommendation:</strong> move to a longer deterministic digest, for example
+							SHA-256 truncated to at least 96 or 128 bits, and add explicit duplicate-ID detection
+							during compiler manifest creation before object insertion. Treat duplicate IDs as
+							compiler errors.
+						</p>
+						<p class="resolved">
+							<strong>Status:</strong> resolved with SHA-256 based IDs and duplicate checks for
+							server actions, components, symbols, and boundaries.
+						</p>
+						<p class="evidence">
+							Evidence: <code>packages/compiler/src/ids.ts:1</code>,
+							<code>packages/compiler/src/index.ts</code> serverActions insertion,
+							<code>packages/server/src/manifest.ts</code> conflict handling.
+						</p>
+					</div>
+				</article>
 
-    <article class="finding">
-      <header>
-        <h3>F-02: <code>.exact</code> facade resolution looks wrong for JSX artifacts</h3>
-        <span class="severity high">High</span>
-      </header>
-      <div class="finding-body">
-        <p>
-          <code>artifactPathsFor()</code> emits <code>.exact.client.js</code> / <code>.exact.server.js</code>
-          for <code>.jsx</code> inputs, but <code>resolveExactArtifactImport()</code> always resolves
-          <code>./Component.exact</code> to <code>./Component.exact.client.ts</code> or
-          <code>./Component.exact.server.ts</code>. That means facade imports are probably broken for JSX
-          source packages, despite docs presenting facade imports as build-tool agnostic.
-        </p>
-        <p><strong>Recommendation:</strong> make facade resolution extension-aware. Options: consult the artifact manifest, check for both <code>.ts</code> and <code>.js</code>, or encode the artifact extension in generated package exports instead of deriving blindly.</p>
-        <p class="resolved"><strong>Status:</strong> resolved by checking existing <code>.ts</code>/<code>.js</code> artifacts and preferring the importer-appropriate extension when no file exists yet.</p>
-        <p class="evidence">Evidence: <code>packages/compiler/src/paths.ts:25</code>, <code>packages/compiler/src/artifacts.ts:93</code>, Vite/Webpack/Bun adapters call the same resolver.</p>
-      </div>
-    </article>
+				<article class="finding">
+					<header>
+						<h3>F-02: <code>.exact</code> facade resolution looks wrong for JSX artifacts</h3>
+						<span class="severity high">High</span>
+					</header>
+					<div class="finding-body">
+						<p>
+							<code>artifactPathsFor()</code> emits <code>.exact.client.js</code> /
+							<code>.exact.server.js</code> for <code>.jsx</code> inputs, but
+							<code>resolveExactArtifactImport()</code> always resolves
+							<code>./Component.exact</code> to <code>./Component.exact.client.ts</code> or
+							<code>./Component.exact.server.ts</code>. That means facade imports are probably
+							broken for JSX source packages, despite docs presenting facade imports as build-tool
+							agnostic.
+						</p>
+						<p>
+							<strong>Recommendation:</strong> make facade resolution extension-aware. Options:
+							consult the artifact manifest, check for both <code>.ts</code> and <code>.js</code>,
+							or encode the artifact extension in generated package exports instead of deriving
+							blindly.
+						</p>
+						<p class="resolved">
+							<strong>Status:</strong> resolved by checking existing <code>.ts</code>/<code
+								>.js</code
+							>
+							artifacts and preferring the importer-appropriate extension when no file exists yet.
+						</p>
+						<p class="evidence">
+							Evidence: <code>packages/compiler/src/paths.ts:25</code>,
+							<code>packages/compiler/src/artifacts.ts:93</code>, Vite/Webpack/Bun adapters call the
+							same resolver.
+						</p>
+					</div>
+				</article>
 
-    <article class="finding">
-      <header>
-        <h3>F-03: State contracts do not handle arrays consistently</h3>
-        <span class="severity high">High</span>
-      </header>
-      <div class="finding-body">
-        <p>
-          Compiler state analysis can produce paths such as <code>items.0</code> from array destructuring.
-          The hydration client and server validation both walk state paths by requiring each intermediate value
-          to be a plain object and rejecting arrays. This means a legitimate exact read from array state can be
-          omitted by the client and rejected by the server.
-        </p>
-        <p>
-          This is a semantic mismatch between compiler contracts and protocol validation. It will be especially
-          surprising because lists are a first-class framework story.
-        </p>
-        <p><strong>Recommendation:</strong> define path semantics explicitly. Either support arrays and numeric segments in both <code>stateForContract()</code> and <code>stateMatchesContract()</code>, or prevent the compiler from emitting exact numeric paths and mark them broad/unsupported instead.</p>
-        <p class="resolved"><strong>Status:</strong> resolved by supporting numeric array segments in hydration state slicing and server state-contract validation, with tests on both sides.</p>
-        <p class="evidence">Evidence: <code>packages/compiler/src/state-analysis.ts</code> array binding alias support, <code>packages/hydrate/src/state.ts:16</code>, <code>packages/server/src/validation.ts:104</code>.</p>
-      </div>
-    </article>
+				<article class="finding">
+					<header>
+						<h3>F-03: State contracts do not handle arrays consistently</h3>
+						<span class="severity high">High</span>
+					</header>
+					<div class="finding-body">
+						<p>
+							Compiler state analysis can produce paths such as <code>items.0</code> from array
+							destructuring. The hydration client and server validation both walk state paths by
+							requiring each intermediate value to be a plain object and rejecting arrays. This
+							means a legitimate exact read from array state can be omitted by the client and
+							rejected by the server.
+						</p>
+						<p>
+							This is a semantic mismatch between compiler contracts and protocol validation. It
+							will be especially surprising because lists are a first-class framework story.
+						</p>
+						<p>
+							<strong>Recommendation:</strong> define path semantics explicitly. Either support
+							arrays and numeric segments in both <code>stateForContract()</code> and
+							<code>stateMatchesContract()</code>, or prevent the compiler from emitting exact
+							numeric paths and mark them broad/unsupported instead.
+						</p>
+						<p class="resolved">
+							<strong>Status:</strong> resolved by supporting numeric array segments in hydration
+							state slicing and server state-contract validation, with tests on both sides.
+						</p>
+						<p class="evidence">
+							Evidence: <code>packages/compiler/src/state-analysis.ts</code> array binding alias
+							support, <code>packages/hydrate/src/state.ts:16</code>,
+							<code>packages/server/src/validation.ts:104</code>.
+						</p>
+					</div>
+				</article>
 
-    <article class="finding">
-      <header>
-        <h3>F-04: Test files are no longer typechecked by the TypeScript build</h3>
-        <span class="severity high">High</span>
-      </header>
-      <div class="finding-body">
-        <p>
-          Package <code>tsconfig.json</code> files now exclude <code>*.test.ts</code> and <code>*.test.tsx</code>
-          so tests do not ship in build output. That is good for publishing, but it also means
-          <code>npm run build</code> no longer typechecks test files. Vitest runs the tests, but it does not
-          replace a TypeScript project typecheck for test-only imports, helper signatures, and expectation setup.
-        </p>
-        <p><strong>Recommendation:</strong> add a root <code>tsconfig.test.json</code> or package-level test configs with <code>noEmit</code>, then include it in <code>release:check</code>. Keep production builds clean, but typecheck tests separately.</p>
-        <p class="resolved"><strong>Status:</strong> resolved with root <code>tsconfig.test.json</code>, <code>typecheck:tests</code>, and <code>release:check</code>.</p>
-        <p class="evidence">Evidence: package <code>tsconfig.json</code> files exclude tests; <code>package.json</code> currently has <code>build</code>, <code>test</code>, and <code>check:publish</code>, but no test typecheck.</p>
-      </div>
-    </article>
+				<article class="finding">
+					<header>
+						<h3>F-04: Test files are no longer typechecked by the TypeScript build</h3>
+						<span class="severity high">High</span>
+					</header>
+					<div class="finding-body">
+						<p>
+							Package <code>tsconfig.json</code> files now exclude <code>*.test.ts</code> and
+							<code>*.test.tsx</code>
+							so tests do not ship in build output. That is good for publishing, but it also means
+							<code>npm run build</code> no longer typechecks test files. Vitest runs the tests, but
+							it does not replace a TypeScript project typecheck for test-only imports, helper
+							signatures, and expectation setup.
+						</p>
+						<p>
+							<strong>Recommendation:</strong> add a root <code>tsconfig.test.json</code> or
+							package-level test configs with <code>noEmit</code>, then include it in
+							<code>release:check</code>. Keep production builds clean, but typecheck tests
+							separately.
+						</p>
+						<p class="resolved">
+							<strong>Status:</strong> resolved with root <code>tsconfig.test.json</code>,
+							<code>typecheck:tests</code>, and <code>release:check</code>.
+						</p>
+						<p class="evidence">
+							Evidence: package <code>tsconfig.json</code> files exclude tests;
+							<code>package.json</code> currently has <code>build</code>, <code>test</code>, and
+							<code>check:publish</code>, but no test typecheck.
+						</p>
+					</div>
+				</article>
 
-    <article class="finding">
-      <header>
-        <h3>F-05: <code>@exact/core</code> exports too much as one public surface</h3>
-        <span class="severity high">High</span>
-      </header>
-      <div class="finding-body">
-        <p>
-          The README already admits this, and the code confirms it: <code>@exact/core</code> exposes app-facing
-          APIs beside framework internals such as component instance creation, rendering internals, vnode helpers,
-          task observers, server boundary symbols, and error routing hooks.
-        </p>
-        <p>
-          Once external users import these internals, they become de facto API. This will make future refactors
-          much more expensive.
-        </p>
-        <p><strong>Recommendation:</strong> split exports before public release. For example:
-          <code>@exact/core</code> for app APIs, <code>@exact/core/vnode</code> for low-level vnode helpers,
-          <code>@exact/core/runtime</code> for renderer/SSR internals, and possibly package-private imports
-          for cross-package internals if the build allows it.</p>
-        <p class="evidence">Evidence: <code>packages/core/src/index.ts</code>, README "next export cleanup" note.</p>
-      </div>
-    </article>
+				<article class="finding">
+					<header>
+						<h3>F-05: <code>@exact/core</code> exports too much as one public surface</h3>
+						<span class="severity high">High</span>
+					</header>
+					<div class="finding-body">
+						<p>
+							The README already admits this, and the code confirms it:
+							<code>@exact/core</code> exposes app-facing APIs beside framework internals such as
+							component instance creation, rendering internals, vnode helpers, task observers,
+							server boundary symbols, and error routing hooks.
+						</p>
+						<p>
+							Once external users import these internals, they become de facto API. This will make
+							future refactors much more expensive.
+						</p>
+						<p>
+							<strong>Recommendation:</strong> split exports before public release. For example:
+							<code>@exact/core</code> for app APIs, <code>@exact/core/vnode</code> for low-level
+							vnode helpers, <code>@exact/core/runtime</code> for renderer/SSR internals, and
+							possibly package-private imports for cross-package internals if the build allows it.
+						</p>
+						<p class="evidence">
+							Evidence: <code>packages/core/src/index.ts</code>, README "next export cleanup" note.
+						</p>
+					</div>
+				</article>
 
-    <article class="finding">
-      <header>
-        <h3>F-06: Source maps are line-level approximations</h3>
-        <span class="severity medium">Medium</span>
-      </header>
-      <div class="finding-body">
-        <p>
-          The source-map implementation creates a generated-line to original-line mapping. It does not preserve
-          columns, transformed node spans, names, or real TypeScript transform mapping. This is acceptable as an
-          early debugging aid, but it should not be presented as full source-map support.
-        </p>
-        <p><strong>Recommendation:</strong> document current fidelity honestly and add tests around expected mapping behavior. Longer term, use TypeScript source-map output or a source-map builder that tracks generated node positions.</p>
-        <p class="evidence">Evidence: <code>packages/compiler/src/source-maps.ts:16</code>, <code>packages/compiler/src/index.ts:139</code>.</p>
-      </div>
-    </article>
+				<article class="finding">
+					<header>
+						<h3>F-06: Source maps are line-level approximations</h3>
+						<span class="severity medium">Medium</span>
+					</header>
+					<div class="finding-body">
+						<p>
+							The source-map implementation creates a generated-line to original-line mapping. It
+							does not preserve columns, transformed node spans, names, or real TypeScript transform
+							mapping. This is acceptable as an early debugging aid, but it should not be presented
+							as full source-map support.
+						</p>
+						<p>
+							<strong>Recommendation:</strong> document current fidelity honestly and add tests
+							around expected mapping behavior. Longer term, use TypeScript source-map output or a
+							source-map builder that tracks generated node positions.
+						</p>
+						<p class="evidence">
+							Evidence: <code>packages/compiler/src/source-maps.ts:16</code>,
+							<code>packages/compiler/src/index.ts:139</code>.
+						</p>
+					</div>
+				</article>
 
-    <article class="finding">
-      <header>
-        <h3>F-07: Server security hooks run twice for single-operation requests</h3>
-        <span class="severity medium">Medium</span>
-      </header>
-      <div class="finding-body">
-        <p>
-          <code>handleExactRequest()</code> calls <code>checkSecurityHooks()</code> before dispatch.
-          <code>dispatchExactOperation()</code> calls it again. For single requests, that means authorization
-          and CSRF validation run twice. For batches, hooks run once for the batch and again per operation.
-        </p>
-        <p>
-          Double-running is not harmless if hooks consume one-time CSRF tokens, update audit records, refresh sessions,
-          rate-limit, or perform expensive I/O.
-        </p>
-        <p><strong>Recommendation:</strong> make the policy explicit. Either run top-level hooks once and pass a verified context into dispatch, or intentionally support batch-level and operation-level hooks with separate hook names.</p>
-        <p class="resolved"><strong>Status:</strong> resolved for single-operation requests; batches retain one top-level check plus per-operation dispatch checks.</p>
-        <p class="evidence">Evidence: <code>packages/server/src/index.ts:60</code>, <code>packages/server/src/index.ts:116</code>, <code>packages/server/src/index.ts:156</code>.</p>
-      </div>
-    </article>
+				<article class="finding">
+					<header>
+						<h3>F-07: Server security hooks run twice for single-operation requests</h3>
+						<span class="severity medium">Medium</span>
+					</header>
+					<div class="finding-body">
+						<p>
+							<code>handleExactRequest()</code> calls <code>checkSecurityHooks()</code> before
+							dispatch. <code>dispatchExactOperation()</code> calls it again. For single requests,
+							that means authorization and CSRF validation run twice. For batches, hooks run once
+							for the batch and again per operation.
+						</p>
+						<p>
+							Double-running is not harmless if hooks consume one-time CSRF tokens, update audit
+							records, refresh sessions, rate-limit, or perform expensive I/O.
+						</p>
+						<p>
+							<strong>Recommendation:</strong> make the policy explicit. Either run top-level hooks
+							once and pass a verified context into dispatch, or intentionally support batch-level
+							and operation-level hooks with separate hook names.
+						</p>
+						<p class="resolved">
+							<strong>Status:</strong> resolved for single-operation requests; batches retain one
+							top-level check plus per-operation dispatch checks.
+						</p>
+						<p class="evidence">
+							Evidence: <code>packages/server/src/index.ts:60</code>,
+							<code>packages/server/src/index.ts:116</code>,
+							<code>packages/server/src/index.ts:156</code>.
+						</p>
+					</div>
+				</article>
 
-    <article class="finding">
-      <header>
-        <h3>F-08: State/context validation is not value-schema validation</h3>
-        <span class="severity medium">Medium</span>
-      </header>
-      <div class="finding-body">
-        <p>
-          The server validates that exact state paths exist and that submitted context tokens match the compiler
-          contract. It does not validate the type, range, brand, tenant ownership, or semantic correctness of those
-          values. That is a reasonable v1 boundary, but it is easy to mistake for full payload validation.
-        </p>
-        <p><strong>Recommendation:</strong> keep the manifest contract as the framework boundary, but expose an app-level schema hook per action or document that server actions must validate all business-critical values before using them.</p>
-        <p class="evidence">Evidence: <code>packages/server/src/validation.ts</code>, especially <code>stateMatchesContract()</code> and <code>contextMatchesContract()</code>.</p>
-      </div>
-    </article>
+				<article class="finding">
+					<header>
+						<h3>F-08: State/context validation is not value-schema validation</h3>
+						<span class="severity medium">Medium</span>
+					</header>
+					<div class="finding-body">
+						<p>
+							The server validates that exact state paths exist and that submitted context tokens
+							match the compiler contract. It does not validate the type, range, brand, tenant
+							ownership, or semantic correctness of those values. That is a reasonable v1 boundary,
+							but it is easy to mistake for full payload validation.
+						</p>
+						<p>
+							<strong>Recommendation:</strong> keep the manifest contract as the framework boundary,
+							but expose an app-level schema hook per action or document that server actions must
+							validate all business-critical values before using them.
+						</p>
+						<p class="evidence">
+							Evidence: <code>packages/server/src/validation.ts</code>, especially
+							<code>stateMatchesContract()</code> and <code>contextMatchesContract()</code>.
+						</p>
+					</div>
+				</article>
 
-    <article class="finding">
-      <header>
-        <h3>F-09: SSR HTML diffing is intentionally narrow</h3>
-        <span class="severity medium">Medium</span>
-      </header>
-      <div class="finding-body">
-        <p>
-          <code>diffBoundaryHtml()</code> uses a small regex parser for framework-shaped HTML. That is defensible
-          if the input is always eXact-generated boundary HTML, but it will not behave like a browser parser.
-          It ignores comments, expects simple attributes, has limited style parsing, and falls back to replacement
-          on many shape changes.
-        </p>
-        <p><strong>Recommendation:</strong> document this as "framework HTML diffing", not general HTML diffing. Add adversarial tests for comments, boolean attributes, single-quoted attributes, nested exact IDs, browser-normalized HTML, and malformed submitted boundary snapshots.</p>
-        <p class="evidence">Evidence: <code>packages/ssr/src/diff.ts:19</code>, <code>packages/ssr/src/diff.ts:211</code>.</p>
-      </div>
-    </article>
+				<article class="finding">
+					<header>
+						<h3>F-09: SSR HTML diffing is intentionally narrow</h3>
+						<span class="severity medium">Medium</span>
+					</header>
+					<div class="finding-body">
+						<p>
+							<code>diffBoundaryHtml()</code> uses a small regex parser for framework-shaped HTML.
+							That is defensible if the input is always eXact-generated boundary HTML, but it will
+							not behave like a browser parser. It ignores comments, expects simple attributes, has
+							limited style parsing, and falls back to replacement on many shape changes.
+						</p>
+						<p>
+							<strong>Recommendation:</strong> document this as "framework HTML diffing", not
+							general HTML diffing. Add adversarial tests for comments, boolean attributes,
+							single-quoted attributes, nested exact IDs, browser-normalized HTML, and malformed
+							submitted boundary snapshots.
+						</p>
+						<p class="evidence">
+							Evidence: <code>packages/ssr/src/diff.ts:19</code>,
+							<code>packages/ssr/src/diff.ts:211</code>.
+						</p>
+					</div>
+				</article>
 
-    <article class="finding">
-      <header>
-        <h3>F-10: Initial streaming is root replacement, not granular async boundary streaming</h3>
-        <span class="severity medium">Medium</span>
-      </header>
-      <div class="finding-body">
-        <p>
-          The current document streaming path emits a shell, waits for observed tasks, then emits a root replacement
-          if final HTML differs. This is useful, but it is not equivalent to granular server component streaming,
-          Suspense-style boundary reveals, or progressive per-boundary hydration.
-        </p>
-        <p><strong>Recommendation:</strong> keep the current API, but name the limitation in docs and tests. Future work should stream boundary-level replacements keyed by compiler IDs instead of replacing the root document container.</p>
-        <p class="evidence">Evidence: <code>packages/ssr/src/index.ts:161</code>, <code>packages/ssr/src/index.ts:181</code>, <code>packages/ssr/src/index.ts:182</code>.</p>
-      </div>
-    </article>
+				<article class="finding">
+					<header>
+						<h3>
+							F-10: Initial streaming is root replacement, not granular async boundary streaming
+						</h3>
+						<span class="severity medium">Medium</span>
+					</header>
+					<div class="finding-body">
+						<p>
+							The current document streaming path emits a shell, waits for observed tasks, then
+							emits a root replacement if final HTML differs. This is useful, but it is not
+							equivalent to granular server component streaming, Suspense-style boundary reveals, or
+							progressive per-boundary hydration.
+						</p>
+						<p>
+							<strong>Recommendation:</strong> keep the current API, but name the limitation in docs
+							and tests. Future work should stream boundary-level replacements keyed by compiler IDs
+							instead of replacing the root document container.
+						</p>
+						<p class="evidence">
+							Evidence: <code>packages/ssr/src/index.ts:161</code>,
+							<code>packages/ssr/src/index.ts:181</code>,
+							<code>packages/ssr/src/index.ts:182</code>.
+						</p>
+					</div>
+				</article>
 
-    <article class="finding">
-      <header>
-        <h3>F-11: Compiler split/capture inference is still easy to oversell</h3>
-        <span class="severity medium">Medium</span>
-      </header>
-      <div class="finding-body">
-        <p>
-          The compiler handles useful cases: event/ref islands, client component stubs, simple captures,
-          derived consts, task placement, server-only imports, and JSON-safe boundary payloads. But this is not
-          yet a general semantic JavaScript compiler. Closure capture, aliasing, dynamic property access,
-          non-local side effects, namespace patterns, complex class/function boundaries, and expression-level
-          distributed execution remain constrained.
-        </p>
-        <p><strong>Recommendation:</strong> keep adding focused compiler IR tests and diagnostics. When inference is uncertain, fail clearly or classify conservatively rather than silently producing an inefficient or incorrect split.</p>
-        <p class="evidence">Evidence: <code>packages/compiler/src/component-analysis.ts</code>, <code>packages/compiler/src/jsx-transform.ts</code>, README "remaining work" and "expansion points" language.</p>
-      </div>
-    </article>
+				<article class="finding">
+					<header>
+						<h3>F-11: Compiler split/capture inference is still easy to oversell</h3>
+						<span class="severity medium">Medium</span>
+					</header>
+					<div class="finding-body">
+						<p>
+							The compiler handles useful cases: event/ref islands, client component stubs, simple
+							captures, derived consts, task placement, server-only imports, and JSON-safe boundary
+							payloads. But this is not yet a general semantic JavaScript compiler. Closure capture,
+							aliasing, dynamic property access, non-local side effects, namespace patterns, complex
+							class/function boundaries, and expression-level distributed execution remain
+							constrained.
+						</p>
+						<p>
+							<strong>Recommendation:</strong> keep adding focused compiler IR tests and
+							diagnostics. When inference is uncertain, fail clearly or classify conservatively
+							rather than silently producing an inefficient or incorrect split.
+						</p>
+						<p class="evidence">
+							Evidence: <code>packages/compiler/src/component-analysis.ts</code>,
+							<code>packages/compiler/src/jsx-transform.ts</code>, README "remaining work" and
+							"expansion points" language.
+						</p>
+					</div>
+				</article>
 
-    <article class="finding">
-      <header>
-        <h3>F-12: npm package metadata is incomplete</h3>
-        <span class="severity low">Low</span>
-      </header>
-      <div class="finding-body">
-        <p>
-          Public packages are missing <code>description</code>, <code>license</code>, and <code>repository</code>.
-          This does not break code, but it is a release-quality issue and affects npm discoverability, legal clarity,
-          and user trust.
-        </p>
-        <p><strong>Recommendation:</strong> add consistent metadata to all public packages before publishing. If the project is not ready to choose a license, it is not ready for public npm release.</p>
-        <p class="evidence">Evidence: all package manifests under <code>packages/*/package.json</code>.</p>
-      </div>
-    </article>
+				<article class="finding">
+					<header>
+						<h3>F-12: npm package metadata is incomplete</h3>
+						<span class="severity low">Low</span>
+					</header>
+					<div class="finding-body">
+						<p>
+							Public packages are missing <code>description</code>, <code>license</code>, and
+							<code>repository</code>. This does not break code, but it is a release-quality issue
+							and affects npm discoverability, legal clarity, and user trust.
+						</p>
+						<p>
+							<strong>Recommendation:</strong> add consistent metadata to all public packages before
+							publishing. If the project is not ready to choose a license, it is not ready for
+							public npm release.
+						</p>
+						<p class="evidence">
+							Evidence: all package manifests under <code>packages/*/package.json</code>.
+						</p>
+					</div>
+				</article>
 
-    <article class="finding">
-      <header>
-        <h3>F-13: Package-content auditing is not install-from-tarball testing</h3>
-        <span class="severity low">Low</span>
-      </header>
-      <div class="finding-body">
-        <p>
-          <code>npm run check:publish</code> is valuable: it catches source/tests/tsconfig/build-info leakage.
-          It does not prove that packed tarballs install correctly in a clean external project, that exports resolve
-          from Node and bundlers, or that transitive local <code>file:</code> dependencies become publishable version ranges.
-        </p>
-        <p><strong>Recommendation:</strong> add a smoke test that packs packages, installs them into a temporary outside-the-workspace app, imports each public entrypoint, runs <code>exactc --help</code> or a small transform, and builds a tiny DOM/SSR example.</p>
-        <p class="evidence">Evidence: <code>scripts/check-package-contents.mjs</code>.</p>
-      </div>
-    </article>
+				<article class="finding">
+					<header>
+						<h3>F-13: Package-content auditing is not install-from-tarball testing</h3>
+						<span class="severity low">Low</span>
+					</header>
+					<div class="finding-body">
+						<p>
+							<code>npm run check:publish</code> is valuable: it catches
+							source/tests/tsconfig/build-info leakage. It does not prove that packed tarballs
+							install correctly in a clean external project, that exports resolve from Node and
+							bundlers, or that transitive local <code>file:</code> dependencies become publishable
+							version ranges.
+						</p>
+						<p>
+							<strong>Recommendation:</strong> add a smoke test that packs packages, installs them
+							into a temporary outside-the-workspace app, imports each public entrypoint, runs
+							<code>exactc --help</code> or a small transform, and builds a tiny DOM/SSR example.
+						</p>
+						<p class="evidence">Evidence: <code>scripts/check-package-contents.mjs</code>.</p>
+					</div>
+				</article>
 
-    <article class="finding">
-      <header>
-        <h3>F-14: Local build outputs can remain stale</h3>
-        <span class="severity low">Low</span>
-      </header>
-      <div class="finding-body">
-        <p>
-          During the audit, ignored <code>dist/*.test.*</code> outputs remained present locally after build hygiene
-          changes. Package <code>files</code> exclusions now prevent them from shipping, but local stale output can still
-          confuse debugging and manual inspection.
-        </p>
-        <p><strong>Recommendation:</strong> add a safe clean script for package <code>dist</code> directories and build-info files, then make <code>release:check</code> start from a clean build.</p>
-        <p class="evidence">Evidence: package <code>files</code> exclusions were needed even after test build exclusions.</p>
-      </div>
-    </article>
-  </section>
+				<article class="finding">
+					<header>
+						<h3>F-14: Local build outputs can remain stale</h3>
+						<span class="severity low">Low</span>
+					</header>
+					<div class="finding-body">
+						<p>
+							During the audit, ignored <code>dist/*.test.*</code> outputs remained present locally
+							after build hygiene changes. Package <code>files</code> exclusions now prevent them
+							from shipping, but local stale output can still confuse debugging and manual
+							inspection.
+						</p>
+						<p>
+							<strong>Recommendation:</strong> add a safe clean script for package
+							<code>dist</code> directories and build-info files, then make
+							<code>release:check</code> start from a clean build.
+						</p>
+						<p class="evidence">
+							Evidence: package <code>files</code> exclusions were needed even after test build
+							exclusions.
+						</p>
+					</div>
+				</article>
+			</section>
 
-  <section>
-    <h2>Fallacies To Avoid</h2>
-    <ul>
-      <li><strong>"Tests pass, so the compiler is semantically complete."</strong> Current tests prove many important examples, not JavaScript semantic completeness.</li>
-      <li><strong>"Manifest allowlisting means server actions are secure."</strong> Allowlisting prevents arbitrary dispatch; app data still needs authorization and schema validation.</li>
-      <li><strong>"Source maps exist, so debugging is solved."</strong> Current maps are line-level approximations.</li>
-      <li><strong>"Streaming exists, so server components are progressive."</strong> Initial streaming is currently shell plus root replacement.</li>
-      <li><strong>"Package contents are clean, so packages are publish-ready."</strong> Metadata, dependency ranges, install-from-tarball tests, and API boundaries still matter.</li>
-      <li><strong>"Generated IDs are stable, so they are safe protocol keys."</strong> Stability and collision resistance are different properties; the ID implementation has been strengthened, but this distinction remains worth remembering.</li>
-    </ul>
-  </section>
+			<section>
+				<h2>Fallacies To Avoid</h2>
+				<ul>
+					<li>
+						<strong>"Tests pass, so the compiler is semantically complete."</strong> Current tests
+						prove many important examples, not JavaScript semantic completeness.
+					</li>
+					<li>
+						<strong>"Manifest allowlisting means server actions are secure."</strong> Allowlisting
+						prevents arbitrary dispatch; app data still needs authorization and schema validation.
+					</li>
+					<li>
+						<strong>"Source maps exist, so debugging is solved."</strong> Current maps are
+						line-level approximations.
+					</li>
+					<li>
+						<strong>"Streaming exists, so server components are progressive."</strong> Initial
+						streaming is currently shell plus root replacement.
+					</li>
+					<li>
+						<strong>"Package contents are clean, so packages are publish-ready."</strong> Metadata,
+						dependency ranges, install-from-tarball tests, and API boundaries still matter.
+					</li>
+					<li>
+						<strong>"Generated IDs are stable, so they are safe protocol keys."</strong> Stability
+						and collision resistance are different properties; the ID implementation has been
+						strengthened, but this distinction remains worth remembering.
+					</li>
+				</ul>
+			</section>
 
-  <section>
-    <h2>Recommended Fix Order</h2>
-    <ol>
-      <li><span class="resolved">Done:</span> replace <code>stableId()</code> with a longer digest and add compiler duplicate-ID detection.</li>
-      <li><span class="resolved">Done:</span> fix <code>.exact</code> facade resolution for JSX artifacts and add coverage for TS/JS artifact choices.</li>
-      <li><span class="resolved">Done:</span> resolve array/numeric path semantics in state contracts and add hydrate/server validation tests.</li>
-      <li><span class="resolved">Done:</span> add test typechecking through <code>tsconfig.test.json</code> or equivalent.</li>
-      <li>Split public app APIs from framework internals in <code>@exact/core</code>.</li>
-      <li>Add <code>release:check</code> that runs clean, build, test, test typecheck, package-content check, and tarball smoke tests.</li>
-      <li>Reword docs where needed so current source maps, streaming, HTML diffing, and compiler inference are described as current capabilities, not completed end-state guarantees.</li>
-    </ol>
-  </section>
-</main>
-</body>
+			<section>
+				<h2>Recommended Fix Order</h2>
+				<ol>
+					<li>
+						<span class="resolved">Done:</span> replace <code>stableId()</code> with a longer digest
+						and add compiler duplicate-ID detection.
+					</li>
+					<li>
+						<span class="resolved">Done:</span> fix <code>.exact</code> facade resolution for JSX
+						artifacts and add coverage for TS/JS artifact choices.
+					</li>
+					<li>
+						<span class="resolved">Done:</span> resolve array/numeric path semantics in state
+						contracts and add hydrate/server validation tests.
+					</li>
+					<li>
+						<span class="resolved">Done:</span> add test typechecking through
+						<code>tsconfig.test.json</code> or equivalent.
+					</li>
+					<li>Split public app APIs from framework internals in <code>@exact/core</code>.</li>
+					<li>
+						Add <code>release:check</code> that runs clean, build, test, test typecheck,
+						package-content check, and tarball smoke tests.
+					</li>
+					<li>
+						Reword docs where needed so current source maps, streaming, HTML diffing, and compiler
+						inference are described as current capabilities, not completed end-state guarantees.
+					</li>
+				</ol>
+			</section>
+		</main>
+	</body>
 </html>

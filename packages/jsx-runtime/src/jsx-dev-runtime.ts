@@ -1,2 +1,2 @@
-export { _, Fragment, jsxDEV } from "./jsx-runtime.js";
-export type { JSX } from "./jsx-runtime.js";
+export { _, Fragment, jsxDEV } from './jsx-runtime.js';
+export type { JSX } from './jsx-runtime.js';

@@ -174,16 +174,16 @@ contains fields such as:
 
 ```ts
 interface ExactRouteDefinition {
-  id: string;
-  path?: string;
-  index?: boolean;
-  caseSensitive?: boolean;
-  children?: readonly ExactRouteDefinition[];
-  loader?: ExactRouteLoader;
-  action?: ExactRouteAction;
-  shouldRevalidate?: ExactShouldRevalidate;
-  lazy?: ExactLazyRoute;
-  handle?: unknown;
+	id: string;
+	path?: string;
+	index?: boolean;
+	caseSensitive?: boolean;
+	children?: readonly ExactRouteDefinition[];
+	loader?: ExactRouteLoader;
+	action?: ExactRouteAction;
+	shouldRevalidate?: ExactShouldRevalidate;
+	lazy?: ExactLazyRoute;
+	handle?: unknown;
 }
 ```
 
@@ -204,16 +204,16 @@ capability should resemble:
 
 ```ts
 interface ExactRouter {
-  getSnapshot(): ExactRouterSnapshot;
-  subscribe(listener: () => void): () => void;
+	getSnapshot(): ExactRouterSnapshot;
+	subscribe(listener: () => void): () => void;
 
-  createHref(to: ExactTo): string;
-  encodeLocation(to: ExactTo): RouteLocation;
-  navigate(to: ExactTo | number, options?: NavigationOptions): Promise<void>;
-  submit(target: FormData | URLSearchParams | object, options: SubmitOptions): Promise<void>;
-  fetch(key: string, routeId: string, target: ExactTo, options?: FetchOptions): Promise<void>;
-  revalidate(): Promise<void>;
-  dispose(): Promise<void>;
+	createHref(to: ExactTo): string;
+	encodeLocation(to: ExactTo): RouteLocation;
+	navigate(to: ExactTo | number, options?: NavigationOptions): Promise<void>;
+	submit(target: FormData | URLSearchParams | object, options: SubmitOptions): Promise<void>;
+	fetch(key: string, routeId: string, target: ExactTo, options?: FetchOptions): Promise<void>;
+	revalidate(): Promise<void>;
+	dispose(): Promise<void>;
 }
 ```
 
@@ -442,40 +442,40 @@ module:
 
 ```json
 {
-  "exact": {
-    "reactCompatibility": {
-      "schemaVersion": 1,
-      "substitutions": {
-        "react-router-dom": {
-          "variants": [
-            {
-              "version": ">=5 <6",
-              "exports": {
-                "Switch": { "subpath": "./v5", "export": "Switch" },
-                "Route": { "subpath": "./v5", "export": "Route" }
-              }
-            },
-            {
-              "version": ">=6 <6.4",
-              "exports": {
-                "Routes": { "subpath": "./modern", "export": "Routes" },
-                "Route": { "subpath": "./modern", "export": "Route" }
-              }
-            },
-            {
-              "version": ">=6.4 <8",
-              "exports": {
-                "RouterProvider": {
-                  "subpath": "./data",
-                  "export": "RouterProvider"
-                }
-              }
-            }
-          ]
-        }
-      }
-    }
-  }
+	"exact": {
+		"reactCompatibility": {
+			"schemaVersion": 1,
+			"substitutions": {
+				"react-router-dom": {
+					"variants": [
+						{
+							"version": ">=5 <6",
+							"exports": {
+								"Switch": { "subpath": "./v5", "export": "Switch" },
+								"Route": { "subpath": "./v5", "export": "Route" }
+							}
+						},
+						{
+							"version": ">=6 <6.4",
+							"exports": {
+								"Routes": { "subpath": "./modern", "export": "Routes" },
+								"Route": { "subpath": "./modern", "export": "Route" }
+							}
+						},
+						{
+							"version": ">=6.4 <8",
+							"exports": {
+								"RouterProvider": {
+									"subpath": "./data",
+									"export": "RouterProvider"
+								}
+							}
+						}
+					]
+				}
+			}
+		}
+	}
 }
 ```
 
@@ -660,6 +660,7 @@ Exit criteria:
   context.
 
 ### Phase 4: Native data router and modern data compatibility — complete for
+
 the initial supported surface
 
 - Add loaders, actions, fetchers, revalidation, errors, lazy routes, blockers,
@@ -678,6 +679,7 @@ Exit criteria:
 - SSR and hydration do not duplicate loader execution or leak server-only data.
 
 ### Phase 5: React Router v5 compatibility — complete for the initial
+
 supported surface
 
 - Implement v5 routers, `Switch`, route rendering forms, redirects, history,

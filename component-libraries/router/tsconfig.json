@@ -1,12 +1,19 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "composite": true, "rootDir": "src", "outDir": "dist", "lib": ["ES2022", "DOM"], "jsx": "react-jsx", "jsxImportSource": "@exact/jsx" },
-  "references": [
-    { "path": "../../packages/core" },
-    { "path": "../../packages/request" },
-    { "path": "../../packages/jsx-runtime" },
-    { "path": "../../packages/react-compat" }
-  ],
-  "include": ["src"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"composite": true,
+		"rootDir": "src",
+		"outDir": "dist",
+		"lib": ["ES2022", "DOM"],
+		"jsx": "react-jsx",
+		"jsxImportSource": "@exact/jsx"
+	},
+	"references": [
+		{ "path": "../../packages/core" },
+		{ "path": "../../packages/request" },
+		{ "path": "../../packages/jsx-runtime" },
+		{ "path": "../../packages/react-compat" }
+	],
+	"include": ["src"],
+	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

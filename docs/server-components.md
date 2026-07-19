@@ -65,9 +65,9 @@ The Vite, Webpack, and Bun adapters share the same compiler options:
 
 ```ts
 exact({
-  target: "server",
-  serverComponents: true,
-  manifestFiles: ["./.exact/ProfilePage.exact.manifest.json"]
+	target: 'server',
+	serverComponents: true,
+	manifestFiles: ['./.exact/ProfilePage.exact.manifest.json']
 });
 ```
 
@@ -114,18 +114,18 @@ controls, and retain request resources through stream completion.
 Server apps convert compiler manifests into a runtime allowlist:
 
 ```ts
-import compilerManifest from "../.exact/ProfilePage.exact.manifest.json" with { type: "json" };
-import { createExactServerManifest } from "@exact/server";
+import compilerManifest from '../.exact/ProfilePage.exact.manifest.json' with { type: 'json' };
+import { createExactServerManifest } from '@exact/server';
 
 const manifest = createExactServerManifest(compilerManifest, {
-  endpoint: "/__exact",
-  actions: {
-    "ProfilePage.task.loadProfile": {
-      id: "ProfilePage.task.loadProfile",
-      componentId: "ProfilePage",
-      placement: "server"
-    }
-  }
+	endpoint: '/__exact',
+	actions: {
+		'ProfilePage.task.loadProfile': {
+			id: 'ProfilePage.task.loadProfile',
+			componentId: 'ProfilePage',
+			placement: 'server'
+		}
+	}
 });
 ```
 
@@ -136,25 +136,25 @@ Only IDs present in the runtime manifest can be invoked. The client never sends 
 `@exact/ssr` can build a ready runtime context from manifest-scoped action and boundary handlers:
 
 ```ts
-import { createExactServerRuntime } from "@exact/ssr";
-import { handleExactRequest } from "@exact/server";
-import { renderProfilePage } from "./server-entry";
+import { createExactServerRuntime } from '@exact/ssr';
+import { handleExactRequest } from '@exact/server';
+import { renderProfilePage } from './server-entry';
 
 const runtime = createExactServerRuntime({
-  manifest,
-  actions: {
-    "ProfilePage.task.loadProfile": async input => {
-      // App code runs here, but only behind the manifest ID allowlist.
-      return { state: { profileId: input.state } };
-    }
-  },
-  boundaries: {
-    ProfilePage: () => renderProfilePage()
-  },
-  patchStrategy: "element",
-  authorize: validateSession,
-  validateCsrf,
-  logger
+	manifest,
+	actions: {
+		'ProfilePage.task.loadProfile': async (input) => {
+			// App code runs here, but only behind the manifest ID allowlist.
+			return { state: { profileId: input.state } };
+		}
+	},
+	boundaries: {
+		ProfilePage: () => renderProfilePage()
+	},
+	patchStrategy: 'element',
+	authorize: validateSession,
+	validateCsrf,
+	logger
 });
 
 const response = await handleExactRequest(request, runtime);
@@ -167,11 +167,11 @@ The same `handleExactRequest(request, context)` core works with Fetch-compatible
 Server rendering sends endpoint, state contracts, and action boundary hints to the browser:
 
 ```ts
-import { createExactHydrationManifestConfig } from "@exact/server";
-import { renderToHydratableStringAsync } from "@exact/ssr";
+import { createExactHydrationManifestConfig } from '@exact/server';
+import { renderToHydratableStringAsync } from '@exact/ssr';
 
 const hydration = createExactHydrationManifestConfig(manifest, {
-  sessionId: "s1"
+	sessionId: 's1'
 });
 
 const html = await renderToHydratableStringAsync(renderProfilePage(), hydration);

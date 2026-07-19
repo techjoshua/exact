@@ -1,14 +1,16 @@
-import { describe, expect, it } from "vitest";
-import path from "node:path";
-import { createExpressionProject } from "./index.js";
+import { describe, expect, it } from 'vitest';
+import path from 'node:path';
+import { createExpressionProject } from './index.js';
 
-const root = path.resolve(import.meta.dirname, "../../..");
+const root = path.resolve(import.meta.dirname, '../../..');
 
-describe("@exact/expressions runtime syntax coverage", () => {
-  it("represents control flow, classes, async code, mutation, and JSX with specialized kinds", () => {
-    const project = createExpressionProject({ tsconfigPath: path.join(root, "apps/kanban/tsconfig.json") });
-    const filename = path.join(root, "apps/kanban/src/__expressions_syntax.tsx");
-    const source = `
+describe('@exact/expressions runtime syntax coverage', () => {
+	it('represents control flow, classes, async code, mutation, and JSX with specialized kinds', () => {
+		const project = createExpressionProject({
+			tsconfigPath: path.join(root, 'apps/kanban/tsconfig.json')
+		});
+		const filename = path.join(root, 'apps/kanban/src/__expressions_syntax.tsx');
+		const source = `
       export class Counter {
         static total = 0;
         #value = 0;
@@ -34,16 +36,42 @@ describe("@exact/expressions runtime syntax coverage", () => {
       export function* sequence() { yield 1; yield* [2, 3]; }
       export const result = new Counter().run?.(1);
     `;
-    const module = project.updateModule(filename, source);
-    const kinds = new Set(module.walk().toArray().map(ref => ref.kind));
-    const required = [
-      "ClassDeclaration", "PropertyDeclaration", "GetAccessor", "SetAccessor", "MethodDeclaration",
-      "ForStatement", "ForOfStatement", "WhileStatement", "DoStatement", "SwitchStatement",
-      "TryStatement", "CatchClause", "ThrowStatement", "AwaitExpression", "YieldExpression",
-      "BinaryExpression", "PostfixUnaryExpression", "TaggedTemplateExpression", "NewExpression",
-      "JsxFragment", "JsxElement", "JsxSpreadAttribute"
-    ];
-    for (const kind of required) expect(kinds.has(kind), `missing ${kind}`).toBe(true);
-    expect(module.diagnostics.filter(diagnostic => diagnostic.code.startsWith("TS1") && diagnostic.severity === "error")).toEqual([]);
-  });
+		const module = project.updateModule(filename, source);
+		const kinds = new Set(
+			module
+				.walk()
+				.toArray()
+				.map((ref) => ref.kind)
+		);
+		const required = [
+			'ClassDeclaration',
+			'PropertyDeclaration',
+			'GetAccessor',
+			'SetAccessor',
+			'MethodDeclaration',
+			'ForStatement',
+			'ForOfStatement',
+			'WhileStatement',
+			'DoStatement',
+			'SwitchStatement',
+			'TryStatement',
+			'CatchClause',
+			'ThrowStatement',
+			'AwaitExpression',
+			'YieldExpression',
+			'BinaryExpression',
+			'PostfixUnaryExpression',
+			'TaggedTemplateExpression',
+			'NewExpression',
+			'JsxFragment',
+			'JsxElement',
+			'JsxSpreadAttribute'
+		];
+		for (const kind of required) expect(kinds.has(kind), `missing ${kind}`).toBe(true);
+		expect(
+			module.diagnostics.filter(
+				(diagnostic) => diagnostic.code.startsWith('TS1') && diagnostic.severity === 'error'
+			)
+		).toEqual([]);
+	});
 });

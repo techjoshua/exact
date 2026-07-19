@@ -33,10 +33,10 @@ The bounded owner frame contains component ancestry, child/sibling relationships
 
 Pinned generic lines currently passing are:
 
-| React target | react-reconciler | scheduler | Status |
-| --- | --- | --- | --- |
-| 18.3.1 | 0.29.2 | 0.23.2 | compatible |
-| 19.2.0 | 0.33.0 | 0.27.0 | compatible |
+| React target | react-reconciler | scheduler | Status     |
+| ------------ | ---------------- | --------- | ---------- |
+| 18.3.1       | 0.29.2           | 0.23.2    | compatible |
+| 19.2.0       | 0.33.0           | 0.27.0    | compatible |
 
 Renderer candidates passing their current Node/mock-host scenarios are R3F 8.18.0 on React 18, R3F 9.6.1 on React 19, Ink 7.1.0, and React PDF 4.5.1. R3F 9.6.1 also passes maintained `<Canvas>`, context-bridge, Three object update, continuous/manual frame, pointer-raycast, WebGL loss/restoration, and independent five-cycle cleanup scenarios in Chromium, Firefox, and WebKit. Chromium's precise-memory gate runs forced collection and enforces a 64 MB retained-heap ceiling. The selected Drei 10.7.7 texture, GLTF, controls, environment, and HTML-overlay scenarios pass. These packages remain `compatible`, not certified, until every remaining certification gate in `packages/react-compatibility/renderer-certification.json` is maintained and passing.
 
@@ -71,11 +71,11 @@ The compatibility path is runtime-first: already-published packages in `node_mod
 
 ```ts
 exact({
-  reactCompatibility: {
-    target: 19,
-    source: /[\\/]src[\\/]react[\\/]/
-  }
-})
+	reactCompatibility: {
+		target: 19,
+		source: /[\\/]src[\\/]react[\\/]/
+	}
+});
 ```
 
 React-owned source can be identified by the `source` filter or `@jsxImportSource react`. It is routed through the compiler's React JSX lowering rather than the native eXact JSX transformer. Strict mode rejects a source file that claims both React and eXact JSX ownership. With compatibility disabled, plugin resolution and compilation behavior is unchanged.

@@ -1,38 +1,38 @@
 {
-  "name": "@exact/vite-plugin",
-  "version": "0.0.0",
-  "type": "module",
-  "files": [
-    "dist",
-    "!dist/**/*.test.*"
-  ],
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    }
-  },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "dependencies": {
-    "@exact/compiler": "file:../../packages/compiler",
-    "@exact/instrumentation": "file:../../packages/instrumentation",
-    "@exact/plugin-api": "file:../../packages/plugin-api",
-    "@exact/plugin-host": "file:../../packages/plugin-host",
-    "@exact/react-compat": "file:../../packages/react-compat",
-    "@exact/react-dom-compat": "file:../../packages/react-dom-compat"
-  },
-  "peerDependencies": {
-    "vite": "^5.0.0 || ^6.0.0 || ^7.0.0"
-  },
-  "peerDependenciesMeta": {
-    "vite": {
-      "optional": true
-    }
-  },
-  "scripts": {
-    "build": "tsc -b",
-    "test": "vitest run",
-    "test:coverage": "node ../../scripts/run-package-coverage.mjs"
-  }
+	"name": "@exact/vite-plugin",
+	"version": "0.0.0",
+	"type": "module",
+	"files": [
+		"dist",
+		"!dist/**/*.test.*"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"dependencies": {
+		"@exact/compiler": "file:../../packages/compiler",
+		"@exact/instrumentation": "file:../../packages/instrumentation",
+		"@exact/plugin-api": "file:../../packages/plugin-api",
+		"@exact/plugin-host": "file:../../packages/plugin-host",
+		"@exact/react-compat": "file:../../packages/react-compat",
+		"@exact/react-dom-compat": "file:../../packages/react-dom-compat"
+	},
+	"peerDependencies": {
+		"vite": "^5.0.0 || ^6.0.0 || ^7.0.0"
+	},
+	"peerDependenciesMeta": {
+		"vite": {
+			"optional": true
+		}
+	},
+	"scripts": {
+		"build": "tsc -b",
+		"test": "vitest run",
+		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	}
 }

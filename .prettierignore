@@ -1,0 +1,18 @@
+node_modules/
+coverage/
+.tmp/
+**/dist/
+**/*.tsbuildinfo
+package-lock.json
+
+# Generated compatibility reports and exact-text reference corpora.
+packages/react-compatibility/phase-*-result.json
+packages/react-compatibility/phase-0-baseline.json
+packages/react-compatibility/renderer-certification.json
+packages/react-compatibility/ordinary-package-corpus.json
+packages/react-compatibility/package-fixtures.json
+packages/react-dom-compat/fixtures/
+apps/*/.exact/
+apps/react-reconciler-reference-*/
+apps/react-reference-*/
+apps/*/test-results/

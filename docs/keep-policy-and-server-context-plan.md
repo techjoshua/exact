@@ -53,16 +53,16 @@ Use one closed annotation with three values:
 
 ```ts
 interface ProfileState {
-  /** @exact keep=server */
-  account: Account;
+	/** @exact keep=server */
+	account: Account;
 
-  /** @exact keep=client */
-  selectedFile?: File;
+	/** @exact keep=client */
+	selectedFile?: File;
 
-  /** @exact keep=secret */
-  accessToken: string;
+	/** @exact keep=secret */
+	accessToken: string;
 
-  displayName: string;
+	displayName: string;
 }
 ```
 
@@ -137,7 +137,7 @@ All of the following remain secret-derived:
 
 ```ts
 const authorization = `Bearer ${apiKey}`;
-const isPrivileged = apiKey.startsWith("admin");
+const isPrivileged = apiKey.startsWith('admin');
 const metadata = { authorization };
 ```
 
@@ -148,7 +148,7 @@ return () => <p>{apiKey}</p>;
 ```
 
 ```tsx
-return () => isPrivileged ? <AdminBadge /> : null;
+return () => (isPrivileged ? <AdminBadge /> : null);
 ```
 
 The second example is prohibited because the secret changes observable output even though the raw value is not rendered.
@@ -159,10 +159,10 @@ Policies apply to values and state paths, not automatically to entire containing
 
 ```ts
 interface User {
-  name: string;
+	name: string;
 
-  /** @exact keep=secret */
-  token: string;
+	/** @exact keep=secret */
+	token: string;
 }
 ```
 
@@ -190,17 +190,13 @@ Policy matching must account for ancestors and descendants:
 Reactive values inherit placement and secrecy from their dependencies.
 
 ```ts
-const greeting = this.reactive(
-  () => `Welcome, ${this.state.account.displayName}`
-);
+const greeting = this.reactive(() => `Welcome, ${this.state.account.displayName}`);
 ```
 
 Because `account` is server-kept, `greeting` is server-executed. It may be rendered by the server but must not be captured as client data.
 
 ```ts
-const authorization = this.reactive(
-  () => `Bearer ${this.state.accessToken}`
-);
+const authorization = this.reactive(() => `Bearer ${this.state.accessToken}`);
 ```
 
 Because `accessToken` is secret, `authorization` is secret and cannot influence a VNode or serialized output.
@@ -223,14 +219,11 @@ Examples include:
 The context API should support policy and lifetime metadata:
 
 ```ts
-export const WeatherClientContext = createContext<WeatherClient>(
-  "weather.client",
-  {
-    global: true,
-    keep: "server",
-    scope: "application"
-  }
-);
+export const WeatherClientContext = createContext<WeatherClient>('weather.client', {
+	global: true,
+	keep: 'server',
+	scope: 'application'
+});
 ```
 
 The implemented `createContext()` options overload carries lifetime metadata
@@ -250,13 +243,15 @@ Application-scoped providers:
 
 ```ts
 const server = createExactServerRuntime({
-  applicationContexts: [
-    [WeatherClientContext, {
-      create: ({ signal }) =>
-        new WeatherClient(secrets.require("WEATHER_API_KEY"), { signal }),
-      dispose: client => client.close()
-    }]
-  ]
+	applicationContexts: [
+		[
+			WeatherClientContext,
+			{
+				create: ({ signal }) => new WeatherClient(secrets.require('WEATHER_API_KEY'), { signal }),
+				dispose: (client) => client.close()
+			}
+		]
+	]
 });
 ```
 
@@ -274,14 +269,11 @@ Request-scoped providers:
 - Are disposed at the end of the request.
 
 ```ts
-export const CurrentSessionContext = createContext<Session>(
-  "request.session",
-  {
-    global: true,
-    keep: "server",
-    scope: "request"
-  }
-);
+export const CurrentSessionContext = createContext<Session>('request.session', {
+	global: true,
+	keep: 'server',
+	scope: 'request'
+});
 ```
 
 There is no separate session lifetime. A session-store client may be
@@ -320,27 +312,27 @@ A server capability may contain secret fields without the capability itself beco
 
 ```ts
 interface WeatherClient {
-  getWeather(city: string): Promise<Weather>;
+	getWeather(city: string): Promise<Weather>;
 }
 
 class WeatherClientImpl implements WeatherClient {
-  /** @exact keep=secret */
-  readonly #apiKey: string;
+	/** @exact keep=secret */
+	readonly #apiKey: string;
 
-  constructor(
-    /** @exact keep=secret */
-    apiKey: string
-  ) {
-    this.#apiKey = apiKey;
-  }
+	constructor(
+		/** @exact keep=secret */
+		apiKey: string
+	) {
+		this.#apiKey = apiKey;
+	}
 
-  async getWeather(city: string): Promise<Weather> {
-    const response = await fetchWeather({
-      city,
-      authorization: `Bearer ${this.#apiKey}`
-    });
-    return response.json();
-  }
+	async getWeather(city: string): Promise<Weather> {
+		const response = await fetchWeather({
+			city,
+			authorization: `Bearer ${this.#apiKey}`
+		});
+		return response.json();
+	}
 }
 ```
 
@@ -364,7 +356,7 @@ annotation.
 The server runtime should provide a typed secrets API:
 
 ```ts
-const apiKey = secrets.require("WEATHER_API_KEY");
+const apiKey = secrets.require('WEATHER_API_KEY');
 // inferred as Secret<string>
 ```
 
@@ -394,16 +386,10 @@ An unconsumed secret crosses a function boundary only through an explicitly
 `Secret<T>` parameter. Ordinary parameters require caller-side consumption:
 
 ```ts
-declare function fetchWeather(
-  city: string,
-  authorization: string
-): Promise<Weather>;
+declare function fetchWeather(city: string, authorization: string): Promise<Weather>;
 
 const weatherApiKey = apiKey;
-const weather = await fetchWeather(
-  "Seattle",
-  consume(weatherApiKey)
-);
+const weather = await fetchWeather('Seattle', consume(weatherApiKey));
 ```
 
 The original binding remains secret-qualified. `consume()` returns an ordinary
@@ -416,8 +402,8 @@ For broader local use, the caller may retain the ordinary result:
 ```ts
 const rawWeatherApiKey = consume(weatherApiKey);
 
-const weather = await fetchWeather("Seattle", rawWeatherApiKey);
-const forecast = await fetchForecast("Seattle", rawWeatherApiKey);
+const weather = await fetchWeather('Seattle', rawWeatherApiKey);
+const forecast = await fetchForecast('Seattle', rawWeatherApiKey);
 ```
 
 That resulting binding is ordinary and no longer tracked. Exact audits the
@@ -433,8 +419,8 @@ behavior of the ordinary value after tracking ends.
 Normal operations derive new secret-qualified values without helper APIs:
 
 ```ts
-const combo = secrets.require("ClientKeyAndSecret");
-const [key, clientSecret] = combo.split(":");
+const combo = secrets.require('ClientKeyAndSecret');
+const [key, clientSecret] = combo.split(':');
 const authorization = `JWT-Bearer - ${key}:${clientSecret}`;
 ```
 
@@ -458,10 +444,8 @@ Example wrapper:
 
 ```ts
 /** @exact server */
-export function createWeatherClient(
-  apiKey: Secret<string>
-): WeatherClient {
-  return new ThirdPartyWeatherClient({ apiKey: consume(apiKey) });
+export function createWeatherClient(apiKey: Secret<string>): WeatherClient {
+	return new ThirdPartyWeatherClient({ apiKey: consume(apiKey) });
 }
 ```
 
@@ -548,11 +532,11 @@ Extend `@exact/expressions` type metadata so policy information survives:
 Conceptually, the compiler carries:
 
 ```ts
-type ExactResidency = "inferred" | "server" | "client";
+type ExactResidency = 'inferred' | 'server' | 'client';
 
 type ExactValuePolicy = {
-  residency: ExactResidency;
-  secret: boolean;
+	residency: ExactResidency;
+	secret: boolean;
 };
 ```
 
@@ -609,10 +593,10 @@ Introduce a server context registry owned by an eXact server runtime:
 
 ```ts
 type ServerContextProvider<T> = {
-  token: ContextToken<T>;
-  scope: "application" | "request";
-  create(scope: ProviderScope): T | Promise<T>;
-  dispose?(value: T): void | Promise<void>;
+	token: ContextToken<T>;
+	scope: 'application' | 'request';
+	create(scope: ProviderScope): T | Promise<T>;
+	dispose?(value: T): void | Promise<void>;
 };
 ```
 
@@ -640,17 +624,19 @@ Adapters must establish the request scope before rendering or dispatching action
 ### Reusable authenticated API client
 
 ```ts
-export const WeatherClientContext = createContext<WeatherClient>(
-  "weather.client",
-  { keep: "server", scope: "application", global: true }
-);
+export const WeatherClientContext = createContext<WeatherClient>('weather.client', {
+	keep: 'server',
+	scope: 'application',
+	global: true
+});
 
 const runtime = createExactServer({
-  contexts: [
-    provide(WeatherClientContext, ({ secrets }) =>
-      new WeatherClient(secrets.require("WEATHER_API_KEY"))
-    )
-  ]
+	contexts: [
+		provide(
+			WeatherClientContext,
+			({ secrets }) => new WeatherClient(secrets.require('WEATHER_API_KEY'))
+		)
+	]
 });
 ```
 
@@ -683,10 +669,10 @@ Expected behavior:
 
 ```ts
 interface UploadState {
-  /** @exact keep=client */
-  file?: File;
+	/** @exact keep=client */
+	file?: File;
 
-  progress: number;
+	progress: number;
 }
 ```
 

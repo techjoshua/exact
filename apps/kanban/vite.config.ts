@@ -1,5 +1,5 @@
-import { exact } from "@exact/vite-plugin";
+import { exact } from '@exact/vite-plugin';
 
 export default {
-  plugins: [exact()]
+	plugins: [exact()]
 };

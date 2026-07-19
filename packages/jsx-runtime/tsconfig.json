@@ -1,16 +1,14 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "composite": true,
-    "rootDir": "src",
-    "outDir": "dist",
-    "lib": ["ES2022", "DOM"],
-    "jsx": "react-jsx",
-    "jsxImportSource": "@exact/jsx"
-  },
-  "references": [
-    { "path": "../core" }
-  ],
-  "include": ["src"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"composite": true,
+		"rootDir": "src",
+		"outDir": "dist",
+		"lib": ["ES2022", "DOM"],
+		"jsx": "react-jsx",
+		"jsxImportSource": "@exact/jsx"
+	},
+	"references": [{ "path": "../core" }],
+	"include": ["src"],
+	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

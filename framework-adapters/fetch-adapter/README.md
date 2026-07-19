@@ -3,19 +3,21 @@
 Fetch-compatible adapter for the eXact server runtime. Use this anywhere the platform receives a standard `Request` and returns a standard `Response`.
 
 ```ts
-import { createExactFetchHandler } from "@exact/fetch-adapter";
-import { createExactServerRuntime } from "@exact/ssr";
+import { createExactFetchHandler } from '@exact/fetch-adapter';
+import { createExactServerRuntime } from '@exact/ssr';
 
-const exact = createExactFetchHandler(createExactServerRuntime({
-  manifest,
-  actions,
-  boundaries
-}));
+const exact = createExactFetchHandler(
+	createExactServerRuntime({
+		manifest,
+		actions,
+		boundaries
+	})
+);
 
 export default {
-  fetch(request: Request) {
-    return exact(request);
-  }
+	fetch(request: Request) {
+		return exact(request);
+	}
 };
 ```
 

@@ -3,7 +3,7 @@
 Generic serverless adapter for eXact endpoints. The default shape matches AWS Lambda/API Gateway style events with string bodies.
 
 ```ts
-import { createExactServerlessHandler } from "@exact/serverless-adapter";
+import { createExactServerlessHandler } from '@exact/serverless-adapter';
 
 export const handler = createExactServerlessHandler(exactRuntime);
 ```

@@ -1,21 +1,21 @@
 {
-  "name": "@exact/sample-server-components",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "generate": "node scripts/generate-artifacts.mjs",
-    "build": "tsc --noEmit",
-    "test": "npm run generate && vitest run"
-  },
-  "dependencies": {
-    "@exact/core": "file:../../packages/core",
-    "@exact/hydrate": "file:../../packages/hydrate",
-    "@exact/jsx": "file:../../packages/jsx-runtime",
-    "@exact/server": "file:../../packages/server",
-    "@exact/ssr": "file:../../packages/ssr"
-  },
-  "devDependencies": {
-    "typescript": "^5.7.2"
-  }
+	"name": "@exact/sample-server-components",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"generate": "node scripts/generate-artifacts.mjs",
+		"build": "tsc --noEmit",
+		"test": "npm run generate && vitest run"
+	},
+	"dependencies": {
+		"@exact/core": "file:../../packages/core",
+		"@exact/hydrate": "file:../../packages/hydrate",
+		"@exact/jsx": "file:../../packages/jsx-runtime",
+		"@exact/server": "file:../../packages/server",
+		"@exact/ssr": "file:../../packages/ssr"
+	},
+	"devDependencies": {
+		"typescript": "^5.7.2"
+	}
 }

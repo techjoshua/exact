@@ -1,1 +1,11 @@
-{"products":[{"productCode":"N","productName":"DHL Express Domestic","totalPrice":[{"price":24.18}],"deliveryCapabilities":{"totalTransitDays":2},"detailedPriceBreakdown":[{"type":"FUEL","name":"Fuel surcharge","price":1.2}]}]}
+{
+	"products": [
+		{
+			"productCode": "N",
+			"productName": "DHL Express Domestic",
+			"totalPrice": [{ "price": 24.18 }],
+			"deliveryCapabilities": { "totalTransitDays": 2 },
+			"detailedPriceBreakdown": [{ "type": "FUEL", "name": "Fuel surcharge", "price": 1.2 }]
+		}
+	]
+}

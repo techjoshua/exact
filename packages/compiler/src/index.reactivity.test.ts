@@ -1,80 +1,84 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { describe, expect, it } from "vitest";
-import { build as esbuild, type Plugin } from "esbuild";
-import { createTestWorkspace } from "./test-support/workspace.js";
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { build as esbuild, type Plugin } from 'esbuild';
+import { createTestWorkspace } from './test-support/workspace.js';
 import {
-  analyzeSource,
-  analyzeSemanticGraph,
-  assertExactArtifactTarget,
-  createClientIslandRegistryEntries,
-  createClientIslandRegistryModule,
-  createExactArtifactDevState,
-  createExactArtifactGraph,
-  createExactArtifactPlan,
-  createExactArtifactRegistryModules,
-  createExactHydrationRegistrationModule,
-  createServerPartRegistryModule,
-  compileArtifactPlanEntries,
-  compileFile,
-  compileFileArtifacts,
-  compileProject,
-  compileProjectArtifacts,
-  createPackageExportMap,
-  createServerPartRegistryEntries,
-  diffExactArtifactPlans,
-  exactExportConditions,
-  exactCompilerManifestVersion,
-  generatedComponentName,
-  parseExactCompilerManifest,
-  preprocessPropPunning,
-  readExactArtifactManifestEntries,
-  resolveExactArtifactImport,
-  transform,
-  transformSource,
-  updateExactArtifactDevState
-} from "./index.js";
+	analyzeSource,
+	analyzeSemanticGraph,
+	assertExactArtifactTarget,
+	createClientIslandRegistryEntries,
+	createClientIslandRegistryModule,
+	createExactArtifactDevState,
+	createExactArtifactGraph,
+	createExactArtifactPlan,
+	createExactArtifactRegistryModules,
+	createExactHydrationRegistrationModule,
+	createServerPartRegistryModule,
+	compileArtifactPlanEntries,
+	compileFile,
+	compileFileArtifacts,
+	compileProject,
+	compileProjectArtifacts,
+	createPackageExportMap,
+	createServerPartRegistryEntries,
+	diffExactArtifactPlans,
+	exactExportConditions,
+	exactCompilerManifestVersion,
+	generatedComponentName,
+	parseExactCompilerManifest,
+	preprocessPropPunning,
+	readExactArtifactManifestEntries,
+	resolveExactArtifactImport,
+	transform,
+	transformSource,
+	updateExactArtifactDevState
+} from './index.js';
 
-describe("@exact/compiler: reactivity", () => {
-  it("lowers JSX to eXact compiled vnode helpers", () => {
-    const output = transform("const view = <button title={label}>Save</button>;");
+describe('@exact/compiler: reactivity', () => {
+	it('lowers JSX to eXact compiled vnode helpers', () => {
+		const output = transform('const view = <button title={label}>Save</button>;');
 
-    expect(output).toContain("createCompiledVNode as __exactVNode");
-    expect(output).toContain("createDynamicChild as __exactDynamic");
-    expect(output).toContain("__exactVNode(\"button\"");
-    expect(output).toContain("title: __exactExpression(() => label)");
-    expect(output).toContain("\"Save\"");
-  });
+		expect(output).toContain('createCompiledVNode as __exactVNode');
+		expect(output).toContain('createDynamicChild as __exactDynamic');
+		expect(output).toContain('__exactVNode("button"');
+		expect(output).toContain('title: __exactExpression(() => label)');
+		expect(output).toContain('"Save"');
+	});
 
-  it("returns transform results for generic adapters", () => {
-    const result = transformSource("const view = <span />;", { filename: "view.tsx" });
+	it('returns transform results for generic adapters', () => {
+		const result = transformSource('const view = <span />;', { filename: 'view.tsx' });
 
-    expect(result.filename).toBe("view.tsx");
-    expect(result.map).toBeNull();
-    expect(result.code).toContain("__exactVNode(\"span\"");
-    expect(result.manifest.filename).toBe("view.tsx");
-  });
+		expect(result.filename).toBe('view.tsx');
+		expect(result.map).toBeNull();
+		expect(result.code).toContain('__exactVNode("span"');
+		expect(result.manifest.filename).toBe('view.tsx');
+	});
 
-  it("emits stable exact ids for compiled dom elements", () => {
-    const output = transform("const view = <section><Label /><span>Ready</span></section>;", { filename: "view.tsx" });
+	it('emits stable exact ids for compiled dom elements', () => {
+		const output = transform('const view = <section><Label /><span>Ready</span></section>;', {
+			filename: 'view.tsx'
+		});
 
-    expect(output).toMatch(/"data-exact-id": "x[A-Za-z0-9_-]{22}"/);
-    expect(output.match(/"data-exact-id":/g)).toHaveLength(2);
-    expect(output).toContain("__exactVNode(Label, {})");
-  });
+		expect(output).toMatch(/"data-exact-id": "x[A-Za-z0-9_-]{22}"/);
+		expect(output.match(/"data-exact-id":/g)).toHaveLength(2);
+		expect(output).toContain('__exactVNode(Label, {})');
+	});
 
-  it("retains emitted element and list ids across unrelated preceding edits", () => {
-    const source = `function View(this: Component<{}>) {
+	it('retains emitted element and list ids across unrelated preceding edits', () => {
+		const source = `function View(this: Component<{}>) {
       return () => <section><i /><i />{this.map(items, item => item.id, item => <span>{item.id}</span>)}</section>;
     }`;
-    const first = transform(source, { filename: "stable-hmr.tsx" });
-    const second = transform(`const unrelated = true;\n${source}`, { filename: "stable-hmr.tsx" });
-    const ids = (output: string) => Array.from(output.matchAll(/"(x[A-Za-z0-9_-]{22})"/g), match => match[1]);
-    expect(ids(second)).toEqual(ids(first));
-  });
+		const first = transform(source, { filename: 'stable-hmr.tsx' });
+		const second = transform(`const unrelated = true;\n${source}`, { filename: 'stable-hmr.tsx' });
+		const ids = (output: string) =>
+			Array.from(output.matchAll(/"(x[A-Za-z0-9_-]{22})"/g), (match) => match[1]);
+		expect(ids(second)).toEqual(ids(first));
+	});
 
-  it("builds semantic task metadata for server component planning", () => {
-    const manifest = analyzeSource(`
+	it('builds semantic task metadata for server component planning', () => {
+		const manifest = analyzeSource(
+			`
       import { readFile } from "node:fs/promises";
 
       export function ProjectPage(this: Component<{ project?: string; width?: number }>) {
@@ -89,85 +93,103 @@ describe("@exact/compiler: reactivity", () => {
         });
         return () => <button onClick={() => save()} ref={this.ref(button)}>{this.state.project}</button>;
       }
-    `, { filename: "ProjectPage.tsx" });
+    `,
+			{ filename: 'ProjectPage.tsx' }
+		);
 
-    const component = manifest.components[0]!;
-    expect(component.name).toBe("ProjectPage");
-    expect(component.exported).toBe(true);
-    expect(component.placement).toBe("isomorphic");
-    expect(manifest.exports).toContainEqual({
-      name: "ProjectPage",
-      kind: "component",
-      placement: "isomorphic"
-    });
-    expect(manifest.symbols).toEqual(expect.arrayContaining([expect.objectContaining({
-      id: expect.stringMatching(/^x/),
-      componentId: component.id,
-      exportName: "ProjectPage",
-      localName: "ProjectPage",
-      generatedName: "ProjectPage",
-      debugName: "ProjectPage",
-      kind: "component",
-      role: "root",
-      target: "server",
-      placement: "isomorphic"
-    }), expect.objectContaining({
-      componentId: component.id,
-      exportName: "ProjectPage_ExactServer_1",
-      localName: "ProjectPage",
-      generatedName: "ProjectPage_ExactServer_1",
-      role: "server-part",
-      target: "server",
-      placement: "isomorphic"
-    }), expect.objectContaining({
-      componentId: component.id,
-      exportName: "ProjectPage_ExactClient_1",
-      localName: "ProjectPage_ExactClient_1",
-      generatedName: "ProjectPage_ExactClient_1",
-      role: "client-island",
-      target: "client",
-      placement: "client"
-    })]));
-    expect(component.splitBoundaries).toEqual(expect.arrayContaining(["browser:window", "event-handler", "ref", "server-import:readFile"]));
-    expect(component.tasks.map(task => task.placement)).toEqual(["server", "client", "client"]);
-    expect(component.tasks[0]!.writes).toContainEqual({
-      path: "project",
-      kind: "write",
-      confidence: "exact"
-    });
-    expect(component.tasks[0]!.reads).toEqual([]);
-    expect(Object.values(manifest.serverActions)[0]!.stateContract).toMatchObject({
-      reads: [],
-      writes: [{ path: "project", kind: "write", confidence: "exact" }]
-    });
-    expect(component.tasks[1]!.diagnostics).toContain("task writes component state and references browser-only globals; classify as client and split at this boundary");
-    expect(Object.keys(manifest.serverActions)).toEqual([component.tasks[0]!.id]);
-  });
+		const component = manifest.components[0]!;
+		expect(component.name).toBe('ProjectPage');
+		expect(component.exported).toBe(true);
+		expect(component.placement).toBe('isomorphic');
+		expect(manifest.exports).toContainEqual({
+			name: 'ProjectPage',
+			kind: 'component',
+			placement: 'isomorphic'
+		});
+		expect(manifest.symbols).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: expect.stringMatching(/^x/),
+					componentId: component.id,
+					exportName: 'ProjectPage',
+					localName: 'ProjectPage',
+					generatedName: 'ProjectPage',
+					debugName: 'ProjectPage',
+					kind: 'component',
+					role: 'root',
+					target: 'server',
+					placement: 'isomorphic'
+				}),
+				expect.objectContaining({
+					componentId: component.id,
+					exportName: 'ProjectPage_ExactServer_1',
+					localName: 'ProjectPage',
+					generatedName: 'ProjectPage_ExactServer_1',
+					role: 'server-part',
+					target: 'server',
+					placement: 'isomorphic'
+				}),
+				expect.objectContaining({
+					componentId: component.id,
+					exportName: 'ProjectPage_ExactClient_1',
+					localName: 'ProjectPage_ExactClient_1',
+					generatedName: 'ProjectPage_ExactClient_1',
+					role: 'client-island',
+					target: 'client',
+					placement: 'client'
+				})
+			])
+		);
+		expect(component.splitBoundaries).toEqual(
+			expect.arrayContaining(['browser:window', 'event-handler', 'ref', 'server-import:readFile'])
+		);
+		expect(component.tasks.map((task) => task.placement)).toEqual(['server', 'client', 'client']);
+		expect(component.tasks[0]!.writes).toContainEqual({
+			path: 'project',
+			kind: 'write',
+			confidence: 'exact'
+		});
+		expect(component.tasks[0]!.reads).toEqual([]);
+		expect(Object.values(manifest.serverActions)[0]!.stateContract).toMatchObject({
+			reads: [],
+			writes: [{ path: 'project', kind: 'write', confidence: 'exact' }]
+		});
+		expect(component.tasks[1]!.diagnostics).toContain(
+			'task writes component state and references browser-only globals; classify as client and split at this boundary'
+		);
+		expect(Object.keys(manifest.serverActions)).toEqual([component.tasks[0]!.id]);
+	});
 
-  it("uses semantic export metadata for aliased component exports", () => {
-    const manifest = analyzeSource(`
+	it('uses semantic export metadata for aliased component exports', () => {
+		const manifest = analyzeSource(
+			`
       function ProjectPage() {
         return () => <p>Ready</p>;
       }
 
       export { ProjectPage as Page };
-    `, { filename: "ProjectPage.tsx" });
+    `,
+			{ filename: 'ProjectPage.tsx' }
+		);
 
-    expect(manifest.components[0]!.exported).toBe(true);
-    expect(manifest.exports).toContainEqual({
-      name: "Page",
-      kind: "component",
-      placement: "isomorphic"
-    });
-    expect(manifest.symbols).toContainEqual(expect.objectContaining({
-      exportName: "Page",
-      localName: "ProjectPage",
-      role: "root"
-    }));
-  });
+		expect(manifest.components[0]!.exported).toBe(true);
+		expect(manifest.exports).toContainEqual({
+			name: 'Page',
+			kind: 'component',
+			placement: 'isomorphic'
+		});
+		expect(manifest.symbols).toContainEqual(
+			expect.objectContaining({
+				exportName: 'Page',
+				localName: 'ProjectPage',
+				role: 'root'
+			})
+		);
+	});
 
-  it("traces state aliases in task state contracts", () => {
-    const manifest = analyzeSource(`
+	it('traces state aliases in task state contracts', () => {
+		const manifest = analyzeSource(
+			`
       export function ProjectPage(this: Component<{ project: { title: string }; count: number }>) {
         this.task(() => {
           const state = this.state;
@@ -177,21 +199,28 @@ describe("@exact/compiler: reactivity", () => {
         });
         return () => <p>{this.state.project.title}</p>;
       }
-    `, { filename: "ProjectPage.tsx" });
+    `,
+			{ filename: 'ProjectPage.tsx' }
+		);
 
-    const task = manifest.components[0]!.tasks[0]!;
-    expect(task.writes).toEqual(expect.arrayContaining([
-      { path: "project.title", kind: "write", confidence: "exact" },
-      { path: "*", kind: "write", confidence: "broad" }
-    ]));
-    expect(task.reads).toEqual(expect.arrayContaining([
-      { path: "project", kind: "read", confidence: "exact" },
-      { path: "project.title", kind: "read", confidence: "exact" }
-    ]));
-  });
+		const task = manifest.components[0]!.tasks[0]!;
+		expect(task.writes).toEqual(
+			expect.arrayContaining([
+				{ path: 'project.title', kind: 'write', confidence: 'exact' },
+				{ path: '*', kind: 'write', confidence: 'broad' }
+			])
+		);
+		expect(task.reads).toEqual(
+			expect.arrayContaining([
+				{ path: 'project', kind: 'read', confidence: 'exact' },
+				{ path: 'project.title', kind: 'read', confidence: 'exact' }
+			])
+		);
+	});
 
-  it("traces destructured state aliases in task state contracts", () => {
-    const manifest = analyzeSource(`
+	it('traces destructured state aliases in task state contracts', () => {
+		const manifest = analyzeSource(
+			`
       export function ProjectPage(this: Component<{ project: { title: string }; queue: string[] }>) {
         this.task(() => {
           const { project: currentProject, queue } = this.state;
@@ -201,20 +230,25 @@ describe("@exact/compiler: reactivity", () => {
         });
         return () => <p>{this.state.project.title}</p>;
       }
-    `, { filename: "ProjectPage.tsx" });
+    `,
+			{ filename: 'ProjectPage.tsx' }
+		);
 
-    const task = manifest.components[0]!.tasks[0]!;
-    expect(task.writes).toEqual(expect.arrayContaining([
-      { path: "project.title", kind: "write", confidence: "exact" },
-      { path: "queue", kind: "write", confidence: "broad" }
-    ]));
-    expect(task.reads).toEqual(expect.arrayContaining([
-      { path: "project.title", kind: "read", confidence: "exact" }
-    ]));
-  });
+		const task = manifest.components[0]!.tasks[0]!;
+		expect(task.writes).toEqual(
+			expect.arrayContaining([
+				{ path: 'project.title', kind: 'write', confidence: 'exact' },
+				{ path: 'queue', kind: 'write', confidence: 'broad' }
+			])
+		);
+		expect(task.reads).toEqual(
+			expect.arrayContaining([{ path: 'project.title', kind: 'read', confidence: 'exact' }])
+		);
+	});
 
-  it("does not treat shadowed Object.assign as a built-in state mutator", () => {
-    const manifest = analyzeSource(`
+	it('does not treat shadowed Object.assign as a built-in state mutator', () => {
+		const manifest = analyzeSource(
+			`
       export function ProjectPage(this: Component<{ title: string }>) {
         this.task(() => {
           const Object = { assign() {} };
@@ -222,13 +256,16 @@ describe("@exact/compiler: reactivity", () => {
         });
         return () => <p>{this.state.title}</p>;
       }
-    `, { filename: "ProjectPage.tsx" });
+    `,
+			{ filename: 'ProjectPage.tsx' }
+		);
 
-    expect(manifest.components[0]!.tasks[0]!.writes).toEqual([]);
-  });
+		expect(manifest.components[0]!.tasks[0]!.writes).toEqual([]);
+	});
 
-  it("uses state aliases in server action contracts", () => {
-    const manifest = analyzeSource(`
+	it('uses state aliases in server action contracts', () => {
+		const manifest = analyzeSource(
+			`
       import { readFile } from "node:fs/promises";
 
       export function ProjectPage(this: Component<{ project: { title?: string } }>) {
@@ -238,20 +275,23 @@ describe("@exact/compiler: reactivity", () => {
         });
         return () => <p>{this.state.project.title}</p>;
       }
-    `, { filename: "ProjectPage.tsx" });
+    `,
+			{ filename: 'ProjectPage.tsx' }
+		);
 
-    const task = manifest.components[0]!.tasks[0]!;
-    const action = Object.values(manifest.serverActions)[0]!;
-    expect(task.placement).toBe("server");
-    expect(action.stateContract.writes).toContainEqual({
-      path: "project.title",
-      kind: "write",
-      confidence: "exact"
-    });
-  });
+		const task = manifest.components[0]!.tasks[0]!;
+		const action = Object.values(manifest.serverActions)[0]!;
+		expect(task.placement).toBe('server');
+		expect(action.stateContract.writes).toContainEqual({
+			path: 'project.title',
+			kind: 'write',
+			confidence: 'exact'
+		});
+	});
 
-  it("records component and task context contracts", () => {
-    const manifest = analyzeSource(`
+	it('records component and task context contracts', () => {
+		const manifest = analyzeSource(
+			`
       import { LocaleContext } from "./contexts";
 
       export function ProjectPage(this: Component<{ title?: string }>) {
@@ -264,27 +304,30 @@ describe("@exact/compiler: reactivity", () => {
         this.getContext(createDynamicToken());
         return () => <p>{this.state.title}</p>;
       }
-    `, { filename: "ProjectPage.tsx" });
+    `,
+			{ filename: 'ProjectPage.tsx' }
+		);
 
-    const component = manifest.components[0]!;
-    const task = component.tasks[0]!;
-    const action = Object.values(manifest.serverActions)[0]!;
+		const component = manifest.components[0]!;
+		const task = component.tasks[0]!;
+		const action = Object.values(manifest.serverActions)[0]!;
 
-    expect(component.contexts).toEqual([
-      { token: "LocaleContext", kind: "read", confidence: "exact" },
-      { token: "Services.Logger", kind: "read", confidence: "exact" },
-      { token: "unknown", kind: "read", confidence: "unknown" },
-      { token: "LocaleContext", kind: "write", confidence: "exact" }
-    ]);
-    expect(task.contexts).toEqual([
-      { token: "Services.Logger", kind: "read", confidence: "exact" },
-      { token: "LocaleContext", kind: "write", confidence: "exact" }
-    ]);
-    expect(action.contextContract).toEqual(task.contexts);
-  });
+		expect(component.contexts).toEqual([
+			{ token: 'LocaleContext', kind: 'read', confidence: 'exact' },
+			{ token: 'Services.Logger', kind: 'read', confidence: 'exact' },
+			{ token: 'unknown', kind: 'read', confidence: 'unknown' },
+			{ token: 'LocaleContext', kind: 'write', confidence: 'exact' }
+		]);
+		expect(task.contexts).toEqual([
+			{ token: 'Services.Logger', kind: 'read', confidence: 'exact' },
+			{ token: 'LocaleContext', kind: 'write', confidence: 'exact' }
+		]);
+		expect(action.contextContract).toEqual(task.contexts);
+	});
 
-  it("uses resolved references when classifying task environments", () => {
-    const manifest = analyzeSource(`
+	it('uses resolved references when classifying task environments', () => {
+		const manifest = analyzeSource(
+			`
       import { readFile } from "node:fs/promises";
 
       export function ProjectPage(this: Component<{ title?: string; width?: number }>) {
@@ -298,19 +341,28 @@ describe("@exact/compiler: reactivity", () => {
         });
         return () => <p>{this.state.title}</p>;
       }
-    `, { filename: "ProjectPage.tsx" });
+    `,
+			{ filename: 'ProjectPage.tsx' }
+		);
 
-    const component = manifest.components[0]!;
-    expect(component.tasks.map(task => task.placement)).toEqual(["isomorphic", "isomorphic"]);
-    expect(component.tasks[0]!.diagnostics).toContain("task writes component state without environment-specific effects; classify as isomorphic so SSR can run it and hydration can skip duplicate initial work");
-    expect(component.tasks[1]!.diagnostics).toContain("task writes component state without environment-specific effects; classify as isomorphic so SSR can run it and hydration can skip duplicate initial work");
-    expect(manifest.diagnostics).toContain("task writes component state without environment-specific effects; classify as isomorphic so SSR can run it and hydration can skip duplicate initial work");
-    expect(component.splitBoundaries).not.toContain("server-import:readFile");
-    expect(component.splitBoundaries).not.toContain("browser:window");
-  });
+		const component = manifest.components[0]!;
+		expect(component.tasks.map((task) => task.placement)).toEqual(['isomorphic', 'isomorphic']);
+		expect(component.tasks[0]!.diagnostics).toContain(
+			'task writes component state without environment-specific effects; classify as isomorphic so SSR can run it and hydration can skip duplicate initial work'
+		);
+		expect(component.tasks[1]!.diagnostics).toContain(
+			'task writes component state without environment-specific effects; classify as isomorphic so SSR can run it and hydration can skip duplicate initial work'
+		);
+		expect(manifest.diagnostics).toContain(
+			'task writes component state without environment-specific effects; classify as isomorphic so SSR can run it and hydration can skip duplicate initial work'
+		);
+		expect(component.splitBoundaries).not.toContain('server-import:readFile');
+		expect(component.splitBoundaries).not.toContain('browser:window');
+	});
 
-  it("does not classify type-only server imports as runtime server effects", () => {
-    const manifest = analyzeSource(`
+	it('does not classify type-only server imports as runtime server effects', () => {
+		const manifest = analyzeSource(
+			`
       import type { Stats } from "node:fs";
 
       export function ProjectPage(this: Component<{ title?: string }>) {
@@ -320,21 +372,26 @@ describe("@exact/compiler: reactivity", () => {
         });
         return () => <p>{this.state.title}</p>;
       }
-    `, { filename: "ProjectPage.tsx" });
+    `,
+			{ filename: 'ProjectPage.tsx' }
+		);
 
-    const component = manifest.components[0]!;
-    expect(component.tasks[0]!.placement).toBe("isomorphic");
-    expect(component.tasks[0]!.diagnostics).toContain("task writes component state without environment-specific effects; classify as isomorphic so SSR can run it and hydration can skip duplicate initial work");
-    expect(component.splitBoundaries).not.toContain("server-import:Stats");
-    expect(Object.values(manifest.serverActions)[0]!.stateContract.writes).toContainEqual({
-      path: "title",
-      kind: "write",
-      confidence: "exact"
-    });
-  });
+		const component = manifest.components[0]!;
+		expect(component.tasks[0]!.placement).toBe('isomorphic');
+		expect(component.tasks[0]!.diagnostics).toContain(
+			'task writes component state without environment-specific effects; classify as isomorphic so SSR can run it and hydration can skip duplicate initial work'
+		);
+		expect(component.splitBoundaries).not.toContain('server-import:Stats');
+		expect(Object.values(manifest.serverActions)[0]!.stateContract.writes).toContainEqual({
+			path: 'title',
+			kind: 'write',
+			confidence: 'exact'
+		});
+	});
 
-  it("preserves type-only server imports in client artifacts", () => {
-    const client = transform(`
+	it('preserves type-only server imports in client artifacts', () => {
+		const client = transform(
+			`
       import type { Stats } from "node:fs";
       import { readFile } from "node:fs/promises";
 
@@ -345,15 +402,17 @@ describe("@exact/compiler: reactivity", () => {
         const stats: Stats | undefined = undefined;
         return () => <p>{stats ? this.state.title : "missing"}</p>;
       }
-    `, { filename: "ProjectPage.tsx", target: "client" });
+    `,
+			{ filename: 'ProjectPage.tsx', target: 'client' }
+		);
 
-    expect(client).toContain("import type { Stats } from \"node:fs\";");
-    expect(client).not.toContain("node:fs/promises");
-    expect(client).not.toContain("readFile");
-  });
+		expect(client).toContain('import type { Stats } from "node:fs";');
+		expect(client).not.toContain('node:fs/promises');
+		expect(client).not.toContain('readFile');
+	});
 
-  it("emits target-specific client and server task artifacts", () => {
-    const source = `
+	it('emits target-specific client and server task artifacts', () => {
+		const source = `
       import { readFile } from "node:fs/promises";
 
       export function ProjectPage(this: Component<{ project?: string; width?: number }>) {
@@ -367,20 +426,20 @@ describe("@exact/compiler: reactivity", () => {
       }
     `;
 
-    const client = transform(source, { filename: "ProjectPage.tsx", target: "client" });
-    const server = transform(source, { filename: "ProjectPage.tsx", target: "server" });
+		const client = transform(source, { filename: 'ProjectPage.tsx', target: 'client' });
+		const server = transform(source, { filename: 'ProjectPage.tsx', target: 'server' });
 
-    expect(client).not.toContain("node:fs/promises");
-    expect(client).not.toContain("readFile");
-    expect(client).toContain("window.innerWidth");
-    expect(server).toContain("node:fs/promises");
-    expect(server).toContain("readFile");
-    expect(server).not.toContain("window.innerWidth");
-    expect(server).toContain("export { ProjectPage as ProjectPage_ExactServer_1 };");
-  });
+		expect(client).not.toContain('node:fs/promises');
+		expect(client).not.toContain('readFile');
+		expect(client).toContain('window.innerWidth');
+		expect(server).toContain('node:fs/promises');
+		expect(server).toContain('readFile');
+		expect(server).not.toContain('window.innerWidth');
+		expect(server).toContain('export { ProjectPage as ProjectPage_ExactServer_1 };');
+	});
 
-  it("honors explicit task placement aliases as compiler escape hatches", () => {
-    const source = `
+	it('honors explicit task placement aliases as compiler escape hatches', () => {
+		const source = `
       function Page(this: Component<{ title?: string; width?: number }>) {
         this.task.server(() => {
           this.state.title = "server";
@@ -392,31 +451,42 @@ describe("@exact/compiler: reactivity", () => {
       }
     `;
 
-    const manifest = analyzeSource(source, { filename: "Page.tsx" });
-    const client = transform(source, { filename: "Page.tsx", target: "client" });
-    const server = transform(source, { filename: "Page.tsx", target: "server" });
+		const manifest = analyzeSource(source, { filename: 'Page.tsx' });
+		const client = transform(source, { filename: 'Page.tsx', target: 'client' });
+		const server = transform(source, { filename: 'Page.tsx', target: 'server' });
 
-    expect(manifest.components[0]!.tasks.map(task => task.placement)).toEqual(["server", "client"]);
-    expect(manifest.components[0]!.tasks.map(task => task.requestedPlacement)).toEqual(["server", "client"]);
-    expect(manifest.components[0]!.tasks[0]!.diagnostics).toContain("task placement forced by this.task.server()");
-    expect(client).not.toContain("server");
-    expect(client).toContain("__exactWrite(this.state, [\"width\"], () => 1)");
-    expect(client).toContain("this.task.client(this.reactive(() => this.state.width)");
-    expect(server).toContain("server");
-    expect(server).not.toContain("width = 1");
-  });
+		expect(manifest.components[0]!.tasks.map((task) => task.placement)).toEqual([
+			'server',
+			'client'
+		]);
+		expect(manifest.components[0]!.tasks.map((task) => task.requestedPlacement)).toEqual([
+			'server',
+			'client'
+		]);
+		expect(manifest.components[0]!.tasks[0]!.diagnostics).toContain(
+			'task placement forced by this.task.server()'
+		);
+		expect(client).not.toContain('server');
+		expect(client).toContain('__exactWrite(this.state, ["width"], () => 1)');
+		expect(client).toContain('this.task.client(this.reactive(() => this.state.width)');
+		expect(server).toContain('server');
+		expect(server).not.toContain('width = 1');
+	});
 
-  it("fails compilation when explicit task placement contradicts detected environment usage", () => {
-    expect(() => transform(`
+	it('fails compilation when explicit task placement contradicts detected environment usage', () => {
+		expect(() =>
+			transform(`
       function Page(this: Component<{}>) {
         this.task.server(() => {
           window.addEventListener("resize", () => {});
         });
         return () => <p />;
       }
-    `)).toThrow("this.task.server() cannot reference browser-only globals");
+    `)
+		).toThrow('this.task.server() cannot reference browser-only globals');
 
-    expect(() => transform(`
+		expect(() =>
+			transform(`
       import { readFile } from "node:fs/promises";
       function Page(this: Component<{}>) {
         this.task.client(async () => {
@@ -424,114 +494,146 @@ describe("@exact/compiler: reactivity", () => {
         });
         return () => <p />;
       }
-    `)).toThrow("this.task.client() cannot reference server-only imports");
-  });
+    `)
+		).toThrow('this.task.client() cannot reference server-only imports');
+	});
 
-  it("lowers shorthand and underscore fragments", () => {
-    const output = transform("const view = <_ key={id}><span /></_>; const next = <>tail</>;");
+	it('lowers shorthand and underscore fragments', () => {
+		const output = transform('const view = <_ key={id}><span /></_>; const next = <>tail</>;');
 
-    expect(output).toContain("__exactFragment({ key: id }");
-    expect(output).toContain("__exactVNode(\"span\"");
-    expect(output).toContain("__exactFragment({}");
-  });
+		expect(output).toContain('__exactFragment({ key: id }');
+		expect(output).toContain('__exactVNode("span"');
+		expect(output).toContain('__exactFragment({}');
+	});
 
-  it("lowers expression children to dynamic child boundaries", () => {
-    const output = transform("const view = <section>{show ? <span>A</span> : <strong>B</strong>}</section>;");
+	it('lowers expression children to dynamic child boundaries', () => {
+		const output = transform(
+			'const view = <section>{show ? <span>A</span> : <strong>B</strong>}</section>;'
+		);
 
-    expect(output).toContain("__exactDynamic(() => show ? __exactVNode(\"span\"");
-    expect(output).toContain(": __exactVNode(\"strong\"");
-  });
+		expect(output).toContain('__exactDynamic(() => show ? __exactVNode("span"');
+		expect(output).toContain(': __exactVNode("strong"');
+	});
 
-  it("preserves event handlers as direct functions", () => {
-    const output = transform("const view = <button onClick={() => save()} disabled={disabled} />;");
+	it('preserves event handlers as direct functions', () => {
+		const output = transform('const view = <button onClick={() => save()} disabled={disabled} />;');
 
-    expect(output).toContain("onClick: () => save()");
-    expect(output).toContain("disabled: __exactExpression(() => disabled)");
-  });
+		expect(output).toContain('onClick: () => save()');
+		expect(output).toContain('disabled: __exactExpression(() => disabled)');
+	});
 
-  it("preserves ref bindings as direct values", () => {
-    const output = transform("const view = <button ref={this.ref(button)} title={title} />;");
+	it('preserves ref bindings as direct values', () => {
+		const output = transform('const view = <button ref={this.ref(button)} title={title} />;');
 
-    expect(output).toContain("ref: this.ref(button)");
-    expect(output).toContain("title: __exactExpression(() => title)");
-    expect(output).not.toContain("ref: __exactExpression");
-  });
+		expect(output).toContain('ref: this.ref(button)');
+		expect(output).toContain('title: __exactExpression(() => title)');
+		expect(output).not.toContain('ref: __exactExpression');
+	});
 
-  it("preserves spread prop ordering around compiled reactive props", () => {
-    const output = transform("const view = <Panel id=\"fixed\" {...shared} title={title} {...extra} />;");
+	it('preserves spread prop ordering around compiled reactive props', () => {
+		const output = transform(
+			'const view = <Panel id="fixed" {...shared} title={title} {...extra} />;'
+		);
 
-    expect(output).toContain("id: \"fixed\", ...shared, title: __exactExpression(() => title), ...extra");
-  });
+		expect(output).toContain(
+			'id: "fixed", ...shared, title: __exactExpression(() => title), ...extra'
+		);
+	});
 
-  it("quotes non-identifier JSX prop names", () => {
-    const output = transform("const view = <div data-task-id={task.id} aria-label=\"Task\" />;");
+	it('quotes non-identifier JSX prop names', () => {
+		const output = transform('const view = <div data-task-id={task.id} aria-label="Task" />;');
 
-    expect(output).toContain("\"data-task-id\": __exactExpression(() => task.id)");
-    expect(output).toContain("\"aria-label\": \"Task\"");
-  });
+		expect(output).toContain('"data-task-id": __exactExpression(() => task.id)');
+		expect(output).toContain('"aria-label": "Task"');
+	});
 
-  it("captures this.reactive value arguments as expressions", () => {
-    const output = transform("function View() { const query = this.reactive(this.state.query); }");
+	it('captures this.reactive value arguments as expressions', () => {
+		const output = transform('function View() { const query = this.reactive(this.state.query); }');
 
-    expect(output).toContain("this.reactive(() => this.state.query)");
-  });
+		expect(output).toContain('this.reactive(() => this.state.query)');
+	});
 
-  it("captures this.reactive tagged templates as expressions", () => {
-    const output = transform("function View() { const name = this.reactive`${this.state.first} ${this.state.last}`; }");
+	it('captures this.reactive tagged templates as expressions', () => {
+		const output = transform(
+			'function View() { const name = this.reactive`${this.state.first} ${this.state.last}`; }'
+		);
 
-    expect(output).toContain("this.reactive(() => `${this.state.first} ${this.state.last}`)");
-  });
+		expect(output).toContain('this.reactive(() => `${this.state.first} ${this.state.last}`)');
+	});
 
-  it("captures this.task dependency arguments as component reactive values", () => {
-    const output = transform("function View() { this.task(this.state.query, this.state.page, async (query, page) => {}); }");
+	it('captures this.task dependency arguments as component reactive values', () => {
+		const output = transform(
+			'function View() { this.task(this.state.query, this.state.page, async (query, page) => {}); }'
+		);
 
-    expect(output).toContain("this.task(this.reactive(() => this.state.query), this.reactive(() => this.state.page), async (query, page) => { });");
-  });
+		expect(output).toContain(
+			'this.task(this.reactive(() => this.state.query), this.reactive(() => this.state.page), async (query, page) => { });'
+		);
+	});
 
-  it("caches safe derived collection locals when they feed this.map", () => {
-    const output = transform(`function Board(this: Component<{ tasks: { id: string; status: string }[] }>) {
+	it('caches safe derived collection locals when they feed this.map', () => {
+		const output = transform(
+			`function Board(this: Component<{ tasks: { id: string; status: string }[] }>) {
       const todoTasks = this.state.tasks.filter(task => task.status === "todo");
       return () => this.map(todoTasks, task => task.id, task => <li>{task.id}</li>);
-    }`, { filename: "Board.tsx" });
-    expect(output).toContain("const todoTasks = __exactDerived(() => this.state.tasks.filter(task => task.status === \"todo\"));");
-    expect(output).toContain("this.map(todoTasks, task => task.id");
-    expect(output).toContain(", this.state.tasks, \"member:id\"");
-  });
+    }`,
+			{ filename: 'Board.tsx' }
+		);
+		expect(output).toContain(
+			'const todoTasks = __exactDerived(() => this.state.tasks.filter(task => task.status === "todo"));'
+		);
+		expect(output).toContain('this.map(todoTasks, task => task.id');
+		expect(output).toContain(', this.state.tasks, "member:id"');
+	});
 
-  it("keeps expanded derived prop collections live when they feed this.map", () => {
-    const output = transform(`function Column(this: Component<{}>, props: { tasks: { id: string; status: string }[]; column: { id: string } }) {
+	it('keeps expanded derived prop collections live when they feed this.map', () => {
+		const output = transform(
+			`function Column(this: Component<{}>, props: { tasks: { id: string; status: string }[]; column: { id: string } }) {
       const columnTasks = props.tasks.filter(task => task.status === props.column.id);
       return () => <section>{this.map(columnTasks, task => task.id, task => <li>{task.id}</li>)}</section>;
-    }`, { filename: "Column.tsx" });
-    expect(output).toContain("const columnTasks = __exactDerived(() => props.tasks.filter(task => task.status === props.column.id));");
-    expect(output).toContain("this.map(columnTasks, task => task.id");
-    expect(output).toContain(", props.tasks, \"member:id\")))");
-  });
+    }`,
+			{ filename: 'Column.tsx' }
+		);
+		expect(output).toContain(
+			'const columnTasks = __exactDerived(() => props.tasks.filter(task => task.status === props.column.id));'
+		);
+		expect(output).toContain('this.map(columnTasks, task => task.id');
+		expect(output).toContain(', props.tasks, "member:id")))');
+	});
 
-  it("allows callback-local mutation but rejects captured writes in derived collections", () => {
-    const local = transform(`function Board(this: Component<{ tasks: { id: string; status: string }[] }>) {
+	it('allows callback-local mutation but rejects captured writes in derived collections', () => {
+		const local = transform(
+			`function Board(this: Component<{ tasks: { id: string; status: string }[] }>) {
       const todoTasks = this.state.tasks.filter(task => { let match = false; match = task.status === "todo"; return match; });
       return () => this.map(todoTasks, task => task.id, task => <li>{task.id}</li>);
-    }`, { filename: "Board.tsx" });
-    expect(local).toContain("const todoTasks = __exactDerived(() => this.state.tasks.filter");
-    expect(local).toContain("this.map(todoTasks, task => task.id");
+    }`,
+			{ filename: 'Board.tsx' }
+		);
+		expect(local).toContain('const todoTasks = __exactDerived(() => this.state.tasks.filter');
+		expect(local).toContain('this.map(todoTasks, task => task.id');
 
-    const captured = transform(`function Board(this: Component<{ tasks: { id: string }[] }>) {
+		const captured = transform(
+			`function Board(this: Component<{ tasks: { id: string }[] }>) {
       let seen = 0;
       const tasks = this.state.tasks.filter(task => { seen++; return !!task.id; });
       return () => this.map(tasks, task => task.id, task => <li>{task.id}</li>);
-    }`, { filename: "Board.tsx" });
-    expect(captured).toContain("this.map(tasks, task => task.id");
-    expect(captured).not.toContain("this.map(this.reactive(() => this.state.tasks.filter");
-  });
+    }`,
+			{ filename: 'Board.tsx' }
+		);
+		expect(captured).toContain('this.map(tasks, task => task.id');
+		expect(captured).not.toContain('this.map(this.reactive(() => this.state.tasks.filter');
+	});
 
-  it("keeps filter/reduce locals reactive in JSX while allowing accumulator mutation", () => {
-    const output = transform(`function Totals(this: Component<{ items: { index: number; val: number }[] }>) {
+	it('keeps filter/reduce locals reactive in JSX while allowing accumulator mutation', () => {
+		const output = transform(
+			`function Totals(this: Component<{ items: { index: number; val: number }[] }>) {
       const count = this.state.items.filter(i => i.index % 2).reduce((agg, i) => { agg += i.val; return agg; }, 0);
       return () => <p>{count}</p>;
-    }`, { filename: "Totals.tsx" });
-    expect(output).toContain("const count = __exactDerived(() => this.state.items.filter");
-    expect(output).toContain("__exactDynamic(() => count.get())");
-    expect(output).toContain("reduce((agg, i) => { agg += i.val; return agg; }, 0))");
-  });
+    }`,
+			{ filename: 'Totals.tsx' }
+		);
+		expect(output).toContain('const count = __exactDerived(() => this.state.items.filter');
+		expect(output).toContain('__exactDynamic(() => count.get())');
+		expect(output).toContain('reduce((agg, i) => { agg += i.val; return agg; }, 0))');
+	});
 });

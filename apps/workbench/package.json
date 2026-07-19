@@ -1,21 +1,21 @@
 {
-  "name": "@exact/sample-workbench",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "vite build",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@exact/core": "file:../../packages/core",
-    "@exact/dom": "file:../../packages/dom",
-    "@exact/jsx": "file:../../packages/jsx-runtime",
-    "@exact/vite-plugin": "file:../../framework-adapters/vite-plugin"
-  },
-  "devDependencies": {
-    "typescript": "^5.7.2",
-    "vite": "^5.4.21"
-  }
+	"name": "@exact/sample-workbench",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vite --host 0.0.0.0",
+		"build": "vite build",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@exact/core": "file:../../packages/core",
+		"@exact/dom": "file:../../packages/dom",
+		"@exact/jsx": "file:../../packages/jsx-runtime",
+		"@exact/vite-plugin": "file:../../framework-adapters/vite-plugin"
+	},
+	"devDependencies": {
+		"typescript": "^5.7.2",
+		"vite": "^5.4.21"
+	}
 }

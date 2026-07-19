@@ -1,20 +1,20 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "composite": true,
-    "rootDir": "src",
-    "outDir": "dist",
-    "lib": ["ES2022", "DOM"],
-    "types": ["node"]
-  },
-  "references": [
-    { "path": "../instrumentation" },
-    { "path": "../plugin-api" },
-    { "path": "../plugin-host" },
-    { "path": "../core" },
-    { "path": "../reactive" },
-    { "path": "../server" }
-  ],
-  "include": ["src"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"composite": true,
+		"rootDir": "src",
+		"outDir": "dist",
+		"lib": ["ES2022", "DOM"],
+		"types": ["node"]
+	},
+	"references": [
+		{ "path": "../instrumentation" },
+		{ "path": "../plugin-api" },
+		{ "path": "../plugin-host" },
+		{ "path": "../core" },
+		{ "path": "../reactive" },
+		{ "path": "../server" }
+	],
+	"include": ["src"],
+	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

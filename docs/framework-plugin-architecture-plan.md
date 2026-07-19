@@ -55,17 +55,17 @@ Owns the canonical application configuration types and loader-facing helpers:
 export interface ExactPluginConfigRegistry {}
 
 export type ExactPluginConfigTransform<T> = (
-  config: T,
-  context: ExactPluginConfigContext
+	config: T,
+	context: ExactPluginConfigContext
 ) => T | undefined | Promise<T | undefined>;
 
 export interface ExactConfig {
-  pluginDiscovery?: ExactPluginDiscoveryConfig;
-  plugins?: {
-    [K in keyof ExactPluginConfigRegistry]?:
-      | ExactPluginConfigTransform<ExactPluginConfigRegistry[K]>
-      | false;
-  };
+	pluginDiscovery?: ExactPluginDiscoveryConfig;
+	plugins?: {
+		[K in keyof ExactPluginConfigRegistry]?:
+			| ExactPluginConfigTransform<ExactPluginConfigRegistry[K]>
+			| false;
+	};
 }
 
 export function defineConfig(config: ExactConfig): ExactConfig;
@@ -94,22 +94,22 @@ Vite, Webpack, Bun, CLI, SSR, server, hydration, and testing consume this shared
 Example:
 
 ```ts
-import { defineConfig } from "@exact/config";
-import { environmentSecrets } from "@exact/secrets/providers";
+import { defineConfig } from '@exact/config';
+import { environmentSecrets } from '@exact/secrets/providers';
 
 export default defineConfig({
-  pluginDiscovery: {
-    mode: "trusted",
-    trustedPrefixes: ["@exact/", "@acme/"],
-    ignore: ["@acme/unused-framework"]
-  },
-  plugins: {
-    secrets: async config => {
-      config.providers.push(environmentSecrets());
-      config.required.push("DATABASE_URL");
-      return undefined;
-    }
-  }
+	pluginDiscovery: {
+		mode: 'trusted',
+		trustedPrefixes: ['@exact/', '@acme/'],
+		ignore: ['@acme/unused-framework']
+	},
+	plugins: {
+		secrets: async (config) => {
+			config.providers.push(environmentSecrets());
+			config.required.push('DATABASE_URL');
+			return undefined;
+		}
+	}
 });
 ```
 
@@ -125,7 +125,7 @@ if (result !== undefined) current = result;
 The type intentionally uses `undefined`, not `void`:
 
 ```ts
-T | undefined | Promise<T | undefined>
+T | undefined | Promise<T | undefined>;
 ```
 
 This prevents unrelated return types from being erased by TypeScript's permissive `void` assignability. `null` is a replacement value and fails validation unless it is valid for the plugin configuration type.
@@ -134,21 +134,21 @@ This prevents unrelated return types from being erased by TypeScript's permissiv
 
 ```ts
 export type ExactPluginDiscoveryConfig =
-  | {
-      mode?: "root";
-      ignore?: readonly string[];
-    }
-  | {
-      mode: "trusted";
-      trustedPackages?: readonly string[];
-      trustedPrefixes?: readonly string[];
-      includeDefaultTrustedPrefixes?: boolean;
-      ignore?: readonly string[];
-    }
-  | {
-      mode: "all";
-      ignore?: readonly string[];
-    };
+	| {
+			mode?: 'root';
+			ignore?: readonly string[];
+	  }
+	| {
+			mode: 'trusted';
+			trustedPackages?: readonly string[];
+			trustedPrefixes?: readonly string[];
+			includeDefaultTrustedPrefixes?: boolean;
+			ignore?: readonly string[];
+	  }
+	| {
+			mode: 'all';
+			ignore?: readonly string[];
+	  };
 ```
 
 Omitting `pluginDiscovery` selects `trusted` mode with the default trusted prefix `@exact/`.
@@ -212,26 +212,26 @@ Example:
 
 ```json
 {
-  "name": "@exact/secrets",
-  "dependencies": {
-    "@exact/plugin-api": "^1.0.0"
-  },
-  "exact": {
-    "plugin": {
-      "schemaVersion": 1,
-      "protocolVersion": "1.0.0",
-      "configKey": "secrets",
-      "entries": {
-        "config": "./plugin-config",
-        "configTypes": "./config",
-        "compiler": "./compiler",
-        "server": "./server",
-        "render": "./render",
-        "client": "./client",
-        "testing": "./testing"
-      }
-    }
-  }
+	"name": "@exact/secrets",
+	"dependencies": {
+		"@exact/plugin-api": "^1.0.0"
+	},
+	"exact": {
+		"plugin": {
+			"schemaVersion": 1,
+			"protocolVersion": "1.0.0",
+			"configKey": "secrets",
+			"entries": {
+				"config": "./plugin-config",
+				"configTypes": "./config",
+				"compiler": "./compiler",
+				"server": "./server",
+				"render": "./render",
+				"client": "./client",
+				"testing": "./testing"
+			}
+		}
+	}
 }
 ```
 
@@ -251,29 +251,29 @@ Example application framework:
 
 ```json
 {
-  "name": "@acme/app-framework",
-  "dependencies": {
-    "@exact/plugin-api": "^1.0.0",
-    "@exact/secrets": "^1.0.0"
-  },
-  "exact": {
-    "pluginForwarding": {
-      "schemaVersion": 1,
-      "include": {
-        "@exact/secrets": {
-          "required": true
-        }
-      },
-      "ignore": []
-    },
-    "pluginConfiguration": {
-      "@exact/secrets": {
-        "version": "^1.0.0",
-        "subpath": "./exact",
-        "export": "configureSecrets"
-      }
-    }
-  }
+	"name": "@acme/app-framework",
+	"dependencies": {
+		"@exact/plugin-api": "^1.0.0",
+		"@exact/secrets": "^1.0.0"
+	},
+	"exact": {
+		"pluginForwarding": {
+			"schemaVersion": 1,
+			"include": {
+				"@exact/secrets": {
+					"required": true
+				}
+			},
+			"ignore": []
+		},
+		"pluginConfiguration": {
+			"@exact/secrets": {
+				"version": "^1.0.0",
+				"subpath": "./exact",
+				"export": "configureSecrets"
+			}
+		}
+	}
 }
 ```
 
@@ -325,10 +325,10 @@ Required branches cannot be silently pruned to resolve conflicts.
 Plugins augment the shared registry:
 
 ```ts
-declare module "@exact/config" {
-  interface ExactPluginConfigRegistry {
-    secrets: SecretsPluginConfig;
-  }
+declare module '@exact/config' {
+	interface ExactPluginConfigRegistry {
+		secrets: SecretsPluginConfig;
+	}
 }
 ```
 
@@ -353,27 +353,15 @@ The plugin config entry exports a controller:
 
 ```ts
 export interface ExactPluginConfigController<T> {
-  defaults(context: ExactPluginConfigContext): T | Promise<T>;
-  validate(
-    config: T,
-    context: ExactPluginConfigContext
-  ): undefined | Promise<undefined>;
-  compilerConfig?(
-    config: T,
-    context: ExactPluginConfigContext
-  ): ExactCompilerPluginConfig | Promise<ExactCompilerPluginConfig>;
-  serverConfig?(
-    config: T,
-    context: ExactPluginConfigContext
-  ): unknown | Promise<unknown>;
-  clientConfig?(
-    config: T,
-    context: ExactPluginConfigContext
-  ): unknown | Promise<unknown>;
-  testingConfig?(
-    config: T,
-    context: ExactPluginConfigContext
-  ): unknown | Promise<unknown>;
+	defaults(context: ExactPluginConfigContext): T | Promise<T>;
+	validate(config: T, context: ExactPluginConfigContext): undefined | Promise<undefined>;
+	compilerConfig?(
+		config: T,
+		context: ExactPluginConfigContext
+	): ExactCompilerPluginConfig | Promise<ExactCompilerPluginConfig>;
+	serverConfig?(config: T, context: ExactPluginConfigContext): unknown | Promise<unknown>;
+	clientConfig?(config: T, context: ExactPluginConfigContext): unknown | Promise<unknown>;
+	testingConfig?(config: T, context: ExactPluginConfigContext): unknown | Promise<unknown>;
 }
 ```
 
@@ -518,20 +506,20 @@ Introduce a new compiler manifest version with:
 
 ```json
 {
-  "pluginRegistry": {
-    "fingerprint": "...",
-    "plugins": {
-      "@exact/secrets": {
-        "version": "1.0.0",
-        "protocolVersion": "1.0.0",
-        "required": true,
-        "compilerConfigKey": "..."
-      }
-    }
-  },
-  "pluginData": {
-    "@exact/secrets": {}
-  }
+	"pluginRegistry": {
+		"fingerprint": "...",
+		"plugins": {
+			"@exact/secrets": {
+				"version": "1.0.0",
+				"protocolVersion": "1.0.0",
+				"required": true,
+				"compilerConfigKey": "..."
+			}
+		}
+	},
+	"pluginData": {
+		"@exact/secrets": {}
+	}
 }
 ```
 

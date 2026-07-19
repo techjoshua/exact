@@ -1,44 +1,44 @@
 {
-  "name": "@exact/compiler",
-  "version": "0.0.0",
-  "type": "module",
-  "files": [
-    "dist",
-    "!dist/**/*.test.*"
-  ],
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    },
-    "./cli": {
-      "types": "./dist/cli.d.ts",
-      "default": "./dist/cli.js"
-    },
-    "./adapter-support": {
-      "types": "./dist/adapter-support.d.ts",
-      "default": "./dist/adapter-support.js"
-    }
-  },
-  "bin": {
-    "exactc": "./dist/cli.js"
-  },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "dependencies": {
-    "@exact/core": "file:../core",
-    "@exact/expressions": "file:../expressions",
-    "@exact/instrumentation": "file:../instrumentation",
-    "@exact/plugin-api": "file:../plugin-api",
-    "@exact/plugin-host": "file:../plugin-host",
-    "typescript": "^5.7.2"
-  },
-  "devDependencies": {
-    "vite": "^5.4.21"
-  },
-  "scripts": {
-    "build": "tsc -b",
-    "test": "vitest run",
-    "test:coverage": "node ../../scripts/run-package-coverage.mjs"
-  }
+	"name": "@exact/compiler",
+	"version": "0.0.0",
+	"type": "module",
+	"files": [
+		"dist",
+		"!dist/**/*.test.*"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./cli": {
+			"types": "./dist/cli.d.ts",
+			"default": "./dist/cli.js"
+		},
+		"./adapter-support": {
+			"types": "./dist/adapter-support.d.ts",
+			"default": "./dist/adapter-support.js"
+		}
+	},
+	"bin": {
+		"exactc": "./dist/cli.js"
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"dependencies": {
+		"@exact/core": "file:../core",
+		"@exact/expressions": "file:../expressions",
+		"@exact/instrumentation": "file:../instrumentation",
+		"@exact/plugin-api": "file:../plugin-api",
+		"@exact/plugin-host": "file:../plugin-host",
+		"typescript": "^5.7.2"
+	},
+	"devDependencies": {
+		"vite": "^5.4.21"
+	},
+	"scripts": {
+		"build": "tsc -b",
+		"test": "vitest run",
+		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	}
 }

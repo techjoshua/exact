@@ -6,23 +6,25 @@ only target its own public exports.
 
 ```json
 {
-  "dependencies": { "@exact/react-compat-adapter-api": "^1.0.0" },
-  "exact": {
-    "reactCompatibility": {
-      "schemaVersion": 1,
-      "substitutions": {
-        "some-react-binding": {
-          "fallback": "retain",
-          "variants": [{
-            "version": ">=1 <2",
-            "exports": {
-              "Provider": { "subpath": "./react", "export": "Provider" }
-            }
-          }]
-        }
-      }
-    }
-  }
+	"dependencies": { "@exact/react-compat-adapter-api": "^1.0.0" },
+	"exact": {
+		"reactCompatibility": {
+			"schemaVersion": 1,
+			"substitutions": {
+				"some-react-binding": {
+					"fallback": "retain",
+					"variants": [
+						{
+							"version": ">=1 <2",
+							"exports": {
+								"Provider": { "subpath": "./react", "export": "Provider" }
+							}
+						}
+					]
+				}
+			}
+		}
+	}
 }
 ```
 

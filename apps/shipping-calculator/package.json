@@ -1,33 +1,33 @@
 {
-  "name": "@exact/sample-shipping-calculator",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "generate": "node scripts/generate-artifacts.mjs",
-    "dev": "npm run generate && node scripts/dev.mjs",
-    "build:client": "vite build",
-    "build:server": "vite build --config vite.server.config.ts",
-    "build": "npm run generate && npm run build:client && npm run build:server",
-    "start": "node dist/server/start.js",
-    "typecheck": "tsc --noEmit",
-    "test": "npm run generate && vitest run --config vitest.config.ts",
-    "test:e2e": "playwright test"
-  },
-  "dependencies": {
-    "@exact/compiler": "file:../../packages/compiler",
-    "@exact/core": "file:../../packages/core",
-    "@exact/hydrate": "file:../../packages/hydrate",
-    "@exact/jsx": "file:../../packages/jsx-runtime",
-    "@exact/node-adapter": "file:../../framework-adapters/node-adapter",
-    "@exact/request": "file:../../packages/request",
-    "@exact/server": "file:../../packages/server",
-    "@exact/ssr": "file:../../packages/ssr"
-  },
-  "devDependencies": {
-    "@playwright/test": "^1.52.0",
-    "typescript": "^5.7.2",
-    "vite": "^5.4.21",
-    "vitest": "^2.1.8"
-  }
+	"name": "@exact/sample-shipping-calculator",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"generate": "node scripts/generate-artifacts.mjs",
+		"dev": "npm run generate && node scripts/dev.mjs",
+		"build:client": "vite build",
+		"build:server": "vite build --config vite.server.config.ts",
+		"build": "npm run generate && npm run build:client && npm run build:server",
+		"start": "node dist/server/start.js",
+		"typecheck": "tsc --noEmit",
+		"test": "npm run generate && vitest run --config vitest.config.ts",
+		"test:e2e": "playwright test"
+	},
+	"dependencies": {
+		"@exact/compiler": "file:../../packages/compiler",
+		"@exact/core": "file:../../packages/core",
+		"@exact/hydrate": "file:../../packages/hydrate",
+		"@exact/jsx": "file:../../packages/jsx-runtime",
+		"@exact/node-adapter": "file:../../framework-adapters/node-adapter",
+		"@exact/request": "file:../../packages/request",
+		"@exact/server": "file:../../packages/server",
+		"@exact/ssr": "file:../../packages/ssr"
+	},
+	"devDependencies": {
+		"@playwright/test": "^1.52.0",
+		"typescript": "^5.7.2",
+		"vite": "^5.4.21",
+		"vitest": "^2.1.8"
+	}
 }

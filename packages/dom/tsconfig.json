@@ -1,16 +1,16 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "composite": true,
-    "rootDir": "src",
-    "outDir": "dist",
-    "lib": ["ES2022", "DOM"]
-  },
-  "references": [
-    { "path": "../instrumentation" },
-    { "path": "../core" },
-    { "path": "../reactive" }
-  ],
-  "include": ["src"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"composite": true,
+		"rootDir": "src",
+		"outDir": "dist",
+		"lib": ["ES2022", "DOM"]
+	},
+	"references": [
+		{ "path": "../instrumentation" },
+		{ "path": "../core" },
+		{ "path": "../reactive" }
+	],
+	"include": ["src"],
+	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

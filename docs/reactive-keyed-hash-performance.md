@@ -16,17 +16,17 @@ This report records the before-and-after measurements for keyed collection hash 
 
 ## Baseline
 
-| Scenario | Median | p95 | Raw payload |
-| --- | ---: | ---: | ---: |
-| Unkeyed identical refresh | 167.77 ms | 330.82 ms | — |
-| Keyed identical refresh | 157.45 ms | 328.23 ms | — |
-| Keyed one-item change | 254.79 ms | 336.71 ms | — |
-| Keyed one-percent change | 272.48 ms | 440.81 ms | — |
-| Keyed rotation | 273.14 ms | 396.26 ms | — |
-| Keyed add-delete | 252.58 ms | 268.94 ms | — |
-| Local mutation then matching fetch | 246.71 ms | 335.32 ms | — |
-| 100 local mutations then matching fetch | 248.87 ms | 356.66 ms | — |
-| Keyed protocol roundtrip | 154.88 ms | 300.36 ms | 762,781 bytes |
+| Scenario                                |    Median |       p95 |   Raw payload |
+| --------------------------------------- | --------: | --------: | ------------: |
+| Unkeyed identical refresh               | 167.77 ms | 330.82 ms |             — |
+| Keyed identical refresh                 | 157.45 ms | 328.23 ms |             — |
+| Keyed one-item change                   | 254.79 ms | 336.71 ms |             — |
+| Keyed one-percent change                | 272.48 ms | 440.81 ms |             — |
+| Keyed rotation                          | 273.14 ms | 396.26 ms |             — |
+| Keyed add-delete                        | 252.58 ms | 268.94 ms |             — |
+| Local mutation then matching fetch      | 246.71 ms | 335.32 ms |             — |
+| 100 local mutations then matching fetch | 248.87 ms | 356.66 ms |             — |
+| Keyed protocol roundtrip                | 154.88 ms | 300.36 ms | 762,781 bytes |
 
 The baseline recursively compares every retained keyed item. Key registration improves identity matching, but does not avoid structural traversal when the incoming data is equal.
 
@@ -34,17 +34,17 @@ The baseline recursively compares every retained keyed item. Key registration im
 
 Implementation commits measured: `f797a39`, `4e7d9e6`, `5991f5a`, `36ccd19`, and `dbce1d4`.
 
-| Scenario | Median | p95 | Median change | Raw payload |
-| --- | ---: | ---: | ---: | ---: |
-| Unkeyed identical refresh | 142.89 ms | 304.90 ms | 1.17× faster | — |
-| Keyed identical refresh | 2.62 ms | 3.02 ms | 60.12× faster | — |
-| Keyed one-item change | 91.96 ms | 121.89 ms | 2.77× faster | — |
-| Keyed one-percent change | 103.28 ms | 141.59 ms | 2.64× faster | — |
-| Keyed rotation | 152.07 ms | 161.65 ms | 1.80× faster | — |
-| Keyed add-delete | 151.30 ms | 163.40 ms | 1.67× faster | — |
-| Local mutation then matching fetch | 94.04 ms | 323.97 ms | 2.62× faster | — |
-| 100 local mutations then matching fetch | 93.46 ms | 135.40 ms | 2.66× faster | — |
-| Keyed protocol roundtrip | 29.33 ms | 38.33 ms | 5.28× faster | 1,181,837 bytes |
+| Scenario                                |    Median |       p95 | Median change |     Raw payload |
+| --------------------------------------- | --------: | --------: | ------------: | --------------: |
+| Unkeyed identical refresh               | 142.89 ms | 304.90 ms |  1.17× faster |               — |
+| Keyed identical refresh                 |   2.62 ms |   3.02 ms | 60.12× faster |               — |
+| Keyed one-item change                   |  91.96 ms | 121.89 ms |  2.77× faster |               — |
+| Keyed one-percent change                | 103.28 ms | 141.59 ms |  2.64× faster |               — |
+| Keyed rotation                          | 152.07 ms | 161.65 ms |  1.80× faster |               — |
+| Keyed add-delete                        | 151.30 ms | 163.40 ms |  1.67× faster |               — |
+| Local mutation then matching fetch      |  94.04 ms | 323.97 ms |  2.62× faster |               — |
+| 100 local mutations then matching fetch |  93.46 ms | 135.40 ms |  2.66× faster |               — |
+| Keyed protocol roundtrip                |  29.33 ms |  38.33 ms |  5.28× faster | 1,181,837 bytes |
 
 The keyed protocol adds 419,056 raw bytes, or 54.94%, for 10,000 string keys, 10,000 128-bit item hashes, and the aggregate hashes. The measurement is deliberately uncompressed; normal HTTP content compression will reduce the repeated envelope and hexadecimal structure.
 

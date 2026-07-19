@@ -1,35 +1,35 @@
 {
-  "extends": "./tsconfig.base.json",
-  "compilerOptions": {
-    "noEmit": true,
-    "declaration": false,
-    "declarationMap": false,
-    "composite": false,
-    "lib": ["ES2022", "DOM"],
-    "types": ["node", "vitest"],
-    "jsx": "react-jsx",
-    "jsxImportSource": "@exact/jsx"
-  },
-  "include": [
-    "packages/*/src/**/*.ts",
-    "packages/*/src/**/*.tsx",
-    "framework-adapters/*/src/**/*.ts",
-    "framework-adapters/*/src/**/*.tsx",
-    "react-adapters/*/src/**/*.ts",
-    "react-adapters/*/src/**/*.tsx",
-    "plugins/*/src/**/*.ts",
-    "plugins/*/src/**/*.tsx",
-    "component-libraries/*/src/**/*.ts",
-    "component-libraries/*/src/**/*.tsx",
-    "apps/server-components/src/**/*.ts",
-    "apps/server-components/src/**/*.tsx"
-  ],
-  "exclude": [
-    "packages/*/dist",
-    "framework-adapters/*/dist",
-    "react-adapters/*/dist",
-    "plugins/*/dist",
-    "component-libraries/*/dist",
-    "apps/*/dist"
-  ]
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"noEmit": true,
+		"declaration": false,
+		"declarationMap": false,
+		"composite": false,
+		"lib": ["ES2022", "DOM"],
+		"types": ["node", "vitest"],
+		"jsx": "react-jsx",
+		"jsxImportSource": "@exact/jsx"
+	},
+	"include": [
+		"packages/*/src/**/*.ts",
+		"packages/*/src/**/*.tsx",
+		"framework-adapters/*/src/**/*.ts",
+		"framework-adapters/*/src/**/*.tsx",
+		"react-adapters/*/src/**/*.ts",
+		"react-adapters/*/src/**/*.tsx",
+		"plugins/*/src/**/*.ts",
+		"plugins/*/src/**/*.tsx",
+		"component-libraries/*/src/**/*.ts",
+		"component-libraries/*/src/**/*.tsx",
+		"apps/server-components/src/**/*.ts",
+		"apps/server-components/src/**/*.tsx"
+	],
+	"exclude": [
+		"packages/*/dist",
+		"framework-adapters/*/dist",
+		"react-adapters/*/dist",
+		"plugins/*/dist",
+		"component-libraries/*/dist",
+		"apps/*/dist"
+	]
 }

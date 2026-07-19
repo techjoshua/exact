@@ -5,8 +5,8 @@ eXact packages expose profiling through the dependency-free
 does not install global collectors.
 
 ```ts
-import { createProfileCollector, summarizeProfile } from "@exact/instrumentation";
-import { createCompilerSession } from "@exact/compiler";
+import { createProfileCollector, summarizeProfile } from '@exact/instrumentation';
+import { createCompilerSession } from '@exact/compiler';
 
 const profile = createProfileCollector();
 const session = createCompilerSession({ onProfile: profile.sink });

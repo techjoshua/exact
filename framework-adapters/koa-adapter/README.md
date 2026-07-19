@@ -3,8 +3,8 @@
 Koa middleware for eXact server endpoints.
 
 ```ts
-import Koa from "koa";
-import { createExactKoaMiddleware } from "@exact/koa-adapter";
+import Koa from 'koa';
+import { createExactKoaMiddleware } from '@exact/koa-adapter';
 
 const app = new Koa();
 app.use(createExactKoaMiddleware(exactRuntime));

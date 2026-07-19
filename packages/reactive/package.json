@@ -1,25 +1,25 @@
 {
-  "name": "@exact/reactive",
-  "version": "0.0.0",
-  "type": "module",
-  "files": [
-    "dist",
-    "!dist/**/*.test.*"
-  ],
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    }
-  },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "dependencies": {
-    "@exact/instrumentation": "file:../instrumentation"
-  },
-  "scripts": {
-    "build": "tsc -b",
-    "test": "vitest run",
-    "test:coverage": "node ../../scripts/run-package-coverage.mjs"
-  }
+	"name": "@exact/reactive",
+	"version": "0.0.0",
+	"type": "module",
+	"files": [
+		"dist",
+		"!dist/**/*.test.*"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"dependencies": {
+		"@exact/instrumentation": "file:../instrumentation"
+	},
+	"scripts": {
+		"build": "tsc -b",
+		"test": "vitest run",
+		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	}
 }

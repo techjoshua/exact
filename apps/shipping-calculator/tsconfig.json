@@ -1,23 +1,23 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "composite": true,
-    "noEmit": true,
-    "lib": ["ES2022", "DOM"],
-    "jsx": "preserve",
-    "jsxImportSource": "@exact/jsx",
-    "resolveJsonModule": true,
-    "types": ["node", "vite/client"]
-  },
-  "references": [
-    { "path": "../../packages/core" },
-    { "path": "../../packages/hydrate" },
-    { "path": "../../packages/jsx-runtime" },
-    { "path": "../../packages/request" },
-    { "path": "../../packages/server" },
-    { "path": "../../packages/ssr" },
-    { "path": "../../framework-adapters/node-adapter" }
-  ],
-  "include": ["src", ".exact/**/*", "vite.config.ts", "vite.server.config.ts", "vitest.config.ts"],
-  "exclude": ["dist", "e2e", "playwright.config.ts"]
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"composite": true,
+		"noEmit": true,
+		"lib": ["ES2022", "DOM"],
+		"jsx": "preserve",
+		"jsxImportSource": "@exact/jsx",
+		"resolveJsonModule": true,
+		"types": ["node", "vite/client"]
+	},
+	"references": [
+		{ "path": "../../packages/core" },
+		{ "path": "../../packages/hydrate" },
+		{ "path": "../../packages/jsx-runtime" },
+		{ "path": "../../packages/request" },
+		{ "path": "../../packages/server" },
+		{ "path": "../../packages/ssr" },
+		{ "path": "../../framework-adapters/node-adapter" }
+	],
+	"include": ["src", ".exact/**/*", "vite.config.ts", "vite.server.config.ts", "vitest.config.ts"],
+	"exclude": ["dist", "e2e", "playwright.config.ts"]
 }

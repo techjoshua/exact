@@ -1,8 +1,8 @@
-import { createContext } from "@exact/core";
-import type { ExactRouteDefinition, ExactRouter } from "./core.js";
+import { createContext } from '@exact/core';
+import type { ExactRouteDefinition, ExactRouter } from './core.js';
 
 /** Shared controller identity bridged by native eXact and React facades. */
 export const RouterControllerContext = createContext<ExactRouter<ExactRouteDefinition>>(
-  "exact.router.controller",
-  { global: true, reactive: true }
+	'exact.router.controller',
+	{ global: true, reactive: true }
 );

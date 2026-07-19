@@ -124,10 +124,10 @@ Configure TypeScript with `jsxImportSource` set to `@exact/jsx`:
 
 ```json
 {
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "jsxImportSource": "@exact/jsx"
-  }
+	"compilerOptions": {
+		"jsx": "react-jsx",
+		"jsxImportSource": "@exact/jsx"
+	}
 }
 ```
 
@@ -136,7 +136,7 @@ When React 18 or 19 is installed, the Vite, Webpack, and Bun adapters automatica
 ```tsx
 /** @jsxImportSource react */
 export function ReactView() {
-  return <button>React-compatible</button>;
+	return <button>React-compatible</button>;
 }
 ```
 
@@ -145,23 +145,23 @@ Use `@jsxImportSource @exact/jsx` to force eXact ownership in a mixed file, `rea
 Compiler mode is build-tool agnostic through `@exact/compiler`:
 
 ```ts
-import { transformSource } from "@exact/compiler";
+import { transformSource } from '@exact/compiler';
 
-const result = transformSource(source, { filename: "Component.tsx" });
+const result = transformSource(source, { filename: 'Component.tsx' });
 ```
 
 Long-running build tools should own their incremental compiler state and dispose it with the host lifecycle:
 
 ```ts
-import { createCompilerSession, transformSource } from "@exact/compiler";
+import { createCompilerSession, transformSource } from '@exact/compiler';
 
 const session = createCompilerSession();
 const result = transformSource(source, {
-  filename: "/workspace/src/Component.tsx",
-  session
+	filename: '/workspace/src/Component.tsx',
+	session
 });
 
-session.invalidate("/workspace/src/Component.tsx"); // HMR update
+session.invalidate('/workspace/src/Component.tsx'); // HMR update
 session.dispose(); // watcher or development server shutdown
 ```
 
@@ -174,8 +174,8 @@ Pass `sourceMap: true` to `transformSource()`, `compileFile()`, or artifact comp
 eXact uses import attributes when a module needs an explicit evaluation boundary. The compiler consumes the `exact` attribute, uses it for placement analysis, and removes it before the host bundler sees the module:
 
 ```ts
-import "./browser-registration.js" with { exact: "client" };
-import { readPrivateConfig } from "./private-config.js" with { exact: "server" };
+import './browser-registration.js' with { exact: 'client' };
+import { readPrivateConfig } from './private-config.js' with { exact: 'server' };
 ```
 
 Side-effect imports of `.css`, `.less`, and `.scss` default to client evaluation and client delivery. A value-bearing style import, such as a CSS module, remains available to both server and client evaluation while still being delivered as a client asset. The Vite, Webpack, and Bun adapters retain client asset edges during server compilation so their asset pipelines can extract and emit them.
@@ -230,13 +230,13 @@ For precompile workflows, `exactc --artifacts --serverComponents` enables the sa
 In server-target artifacts, pure client components are emitted as server-safe boundary stubs instead of leaking browser-only code into the server bundle. Isomorphic components can still split simple interactive JSX islands such as elements with `onClick` or `ref` into server-rendered client-boundary placeholders. The compiler also splits clear client component tags out of server artifacts, replacing each tag instance with a source-stable boundary named after the client component and pruning imports that become unused after the split. Exported pure-client component stubs keep a component-level boundary ID, while rendered client component tag instances get distinct IDs so repeated tags and their server child slots can refresh independently. The client artifact preserves the interactive component and exports generated island aliases for element-level splits, which can be registered with the hydration client:
 
 ```tsx
-import { hydrate } from "@exact/hydrate";
-import { ProjectCard_ExactClient_1 } from "./ProjectCard.exact";
+import { hydrate } from '@exact/hydrate';
+import { ProjectCard_ExactClient_1 } from './ProjectCard.exact';
 
-hydrate(<App />, document.getElementById("app")!, {
-  islands: {
-    ProjectCard_ExactClient_1
-  }
+hydrate(<App />, document.getElementById('app')!, {
+	islands: {
+		ProjectCard_ExactClient_1
+	}
 });
 ```
 
@@ -245,10 +245,10 @@ This first split path handles pure client component stubs, generated element isl
 Vite is supported through a thin adapter over the same compiler:
 
 ```ts
-import { exact } from "@exact/vite-plugin";
+import { exact } from '@exact/vite-plugin';
 
 export default {
-  plugins: [exact()]
+	plugins: [exact()]
 };
 ```
 
@@ -258,31 +258,27 @@ Browser apps mount through `@exact/dom`:
 
 ```tsx
 /** @jsxImportSource @exact/jsx */
-import { render } from "@exact/dom";
-import type { Component } from "@exact/core";
+import { render } from '@exact/dom';
+import type { Component } from '@exact/core';
 
 function Counter(this: Component<{ count: number }>) {
-  this.state.count = 0;
+	this.state.count = 0;
 
-  return () => (
-    <button onClick={() => this.state.count++}>
-      {this.state.count}
-    </button>
-  );
+	return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
 }
 
-render(<Counter />, document.getElementById("app")!);
+render(<Counter />, document.getElementById('app')!);
 ```
 
 `render()` accepts root options for framework-level services:
 
 ```tsx
-import { createConsoleLogger } from "@exact/core";
-import { render } from "@exact/dom";
+import { createConsoleLogger } from '@exact/core';
+import { render } from '@exact/dom';
 
-const logger = createConsoleLogger({ level: "debug" });
+const logger = createConsoleLogger({ level: 'debug' });
 
-render(<App logger={logger} />, document.getElementById("app")!, { logger });
+render(<App logger={logger} />, document.getElementById('app')!, { logger });
 ```
 
 If no logger is provided, eXact uses its default console logger.
@@ -299,19 +295,21 @@ Use ordinary `Array.map()` in compiled JSX. Mark the stable identity member on t
 
 ```tsx
 type Todo = {
-  /** @exact key */
-  id: string;
-  text: string;
+	/** @exact key */
+	id: string;
+	text: string;
 };
 
 function TodoList(this: Component<{ todos: Todo[] }>) {
-  this.state.todos = [];
+	this.state.todos = [];
 
-  return () => (
-    <ul>
-      {this.state.todos.map(todo => <li>{todo.text}</li>)}
-    </ul>
-  );
+	return () => (
+		<ul>
+			{this.state.todos.map((todo) => (
+				<li>{todo.text}</li>
+			))}
+		</ul>
+	);
 }
 ```
 
@@ -323,14 +321,14 @@ Component functions construct component instances. They run once, initialize ins
 
 ```tsx
 function Counter(this: Component<{ count: number }>) {
-  this.state.count = 0;
+	this.state.count = 0;
 
-  this.onMount(() => this.log.info("mounted"));
-  this.task(({ signal }) => {
-    void signal;
-  });
+	this.onMount(() => this.log.info('mounted'));
+	this.task(({ signal }) => {
+		void signal;
+	});
 
-  return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
+	return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
 }
 ```
 
@@ -355,11 +353,11 @@ Nonstandard package contracts can use the compiler's closed annotation vocabular
 The compiler also inspects callable signatures. When an optional parameter is an `AbortSignal`, or an options object has a typed `signal?: AbortSignal` property, the generated call receives the task signal automatically while preserving an author-supplied signal and options. This includes `fetch()` and project APIs with the same typed contract:
 
 ```ts
-this.task(this.state.projectId, async projectId => {
-  const response = await fetch(`/api/projects/${projectId}`);
-  const result = await client.loadProject(projectId, { cache: "reload" });
-  this.state.project = await response.json();
-  this.state.related = result;
+this.task(this.state.projectId, async (projectId) => {
+	const response = await fetch(`/api/projects/${projectId}`);
+	const result = await client.loadProject(projectId, { cache: 'reload' });
+	this.state.project = await response.json();
+	this.state.related = result;
 });
 ```
 
@@ -370,40 +368,54 @@ Resource values may be used locally for the duration of the task. Returning an e
 Errors are delivered through `ErrorContext`. A component becomes an error boundary by providing an error receiver for descendants. Its render function can then decide whether to show errors, hide children, keep rendering, or report the failures elsewhere:
 
 ```tsx
-import { ErrorContext, createErrorContext, type Child, type Component, type ErrorReport } from "@exact/core";
+import {
+	ErrorContext,
+	createErrorContext,
+	type Child,
+	type Component,
+	type ErrorReport
+} from '@exact/core';
 
-function Boundary(this: Component<{ errors: ErrorReport[] }>, props: { children?: Child | Child[] }) {
-  this.state.errors = [];
-  const errors = createErrorContext(this.state.errors);
-  this.setContext(ErrorContext, errors);
+function Boundary(
+	this: Component<{ errors: ErrorReport[] }>,
+	props: { children?: Child | Child[] }
+) {
+	this.state.errors = [];
+	const errors = createErrorContext(this.state.errors);
+	this.setContext(ErrorContext, errors);
 
-  return () => this.state.errors.length
-    ? (
-      <section role="alert">
-        <h2>Something went wrong</h2>
-        {this.map(
-          this.state.errors,
-          error => error.id,
-          error => (
-            <article>
-              <pre>{String(error.error)}</pre>
-              <button type="button" onClick={() => errors.clear(error)}>Clear</button>
-            </article>
-          )
-        )}
-        <button type="button" onClick={() => errors.clearAll()}>Clear all</button>
-      </section>
-    )
-    : props.children;
+	return () =>
+		this.state.errors.length ? (
+			<section role="alert">
+				<h2>Something went wrong</h2>
+				{this.map(
+					this.state.errors,
+					(error) => error.id,
+					(error) => (
+						<article>
+							<pre>{String(error.error)}</pre>
+							<button type="button" onClick={() => errors.clear(error)}>
+								Clear
+							</button>
+						</article>
+					)
+				)}
+				<button type="button" onClick={() => errors.clearAll()}>
+					Clear all
+				</button>
+			</section>
+		) : (
+			props.children
+		);
 }
 ```
 
 Failures include construction, render, event, task, lifecycle, reactive, and DOM phases. Components can also report errors without throwing:
 
 ```ts
-this.getContext(ErrorContext).report(new Error("Save failed"), {
-  source: "component",
-  phase: "save"
+this.getContext(ErrorContext).report(new Error('Save failed'), {
+	source: 'component',
+	phase: 'save'
 });
 ```
 
@@ -417,19 +429,19 @@ In compiler mode, ordinary JSX expressions and task dependency arguments are rea
 
 ```tsx
 function Profile(this: Component<{ firstName: string; lastName: string; saving: boolean }>) {
-  const fullName = `${this.state.firstName} ${this.state.lastName}`;
-  const tone = this.state.saving == true ? "gray" : "black";
+	const fullName = `${this.state.firstName} ${this.state.lastName}`;
+	const tone = this.state.saving == true ? 'gray' : 'black';
 
-  this.task(fullName, (name, { signal }) => {
-    void signal;
-    console.log(name);
-  });
+	this.task(fullName, (name, { signal }) => {
+		void signal;
+		console.log(name);
+	});
 
-  return () => (
-    <span title={fullName} style={{ color: tone }}>
-      {fullName}
-    </span>
-  );
+	return () => (
+		<span title={fullName} style={{ color: tone }}>
+			{fullName}
+		</span>
+	);
 }
 ```
 
@@ -443,8 +455,8 @@ In compiler mode, selected API arguments are treated as reactive expression posi
 const query = this.reactive(this.state.query);
 
 query.task(async (query, { signal }) => {
-  void signal;
-  console.log(query);
+	void signal;
+	console.log(query);
 });
 ```
 
@@ -459,15 +471,15 @@ const query = this.reactive(() => this.state.query);
 Reactive state fields read as normal JavaScript values. In compiler mode, expression positions preserve the reactive source:
 
 ```ts
-this.reactive(this.state.query)
-this.task(this.state.query, async query => {})
+this.reactive(this.state.query);
+this.task(this.state.query, async (query) => {});
 ```
 
 Runtime-only code should write the expression boundary explicitly:
 
 ```ts
-this.reactive(() => this.state.query)
-this.reactive(() => this.state.query).task(async query => {})
+this.reactive(() => this.state.query);
+this.reactive(() => this.state.query).task(async (query) => {});
 ```
 
 JSX elements are internally mounted through cell boundaries. In compiler mode, expression cells and `ReactiveValue`s let the renderer patch an already chosen JSX subtree in place without rerunning unrelated component code.
@@ -507,15 +519,15 @@ The current SSR/server-component foundation implements:
 Example:
 
 ```tsx
-import { hydrate } from "@exact/hydrate";
-import { renderToHydratableStringAsync } from "@exact/ssr";
+import { hydrate } from '@exact/hydrate';
+import { renderToHydratableStringAsync } from '@exact/ssr';
 
 const server = await renderToHydratableStringAsync(<App />, {
-  endpoint: "/__exact",
-  state: { userId: "u1" }
+	endpoint: '/__exact',
+	state: { userId: 'u1' }
 });
 
-hydrate(<App />, document.getElementById("app")!);
+hydrate(<App />, document.getElementById('app')!);
 ```
 
 Server components are not yet a complete production distributed component protocol. The pieces now in place are the semantic compiler manifest, client/server compiler targets, secure generic endpoint, dependency-aware concurrent batched action/refresh dispatch, streamed endpoint result events, initial document event streams, progressive initial HTML streams and neutral response helpers, hydration state exchange, server boundary replacement patches, text/exact-element boundary diffs, independent nested structural element replacements, compiler-assigned list boundary IDs, key-stable list snapshot patch helpers, inferred list snapshots from submitted boundary HTML, refreshable server child slots, action-triggered boundary refresh helpers, per-instance client component boundaries, server-part artifact aliases, generated client islands, manifest-driven imported client component splitting, context contract metadata with endpoint validation, bundler-neutral artifact graph metadata, incremental artifact plan compilation with retained manifest inputs, reusable dev-server artifact state helpers, component-attached descriptors with generated hydration composition, immediate hydration for registered remote islands, and thin Vite/Webpack/Bun adapters. The remaining work is richer distributed patch semantics and production integration guidance.
@@ -526,15 +538,15 @@ Every component instance has a logger facade:
 
 ```tsx
 function SaveButton(this: Component<{}>) {
-  return () => (
-    <button
-      onClick={() => {
-        this.log.info("saving");
-      }}
-    >
-      Save
-    </button>
-  );
+	return () => (
+		<button
+			onClick={() => {
+				this.log.info('saving');
+			}}
+		>
+			Save
+		</button>
+	);
 }
 ```
 
@@ -542,25 +554,25 @@ Supported levels are `trace`, `debug`, `info`, `warn`, and `error`. Log message,
 
 ```ts
 this.log.trace(
-  () => `patching ${items.length} items`,
-  () => ({ items })
+	() => `patching ${items.length} items`,
+	() => ({ items })
 );
 ```
 
 Errors are preserved as native console error arguments:
 
 ```ts
-this.log.error("save failed", error, { taskId });
+this.log.error('save failed', error, { taskId });
 ```
 
 Apps can override component logging through context:
 
 ```tsx
-import { LoggerContext, createConsoleLogger } from "@exact/core";
+import { LoggerContext, createConsoleLogger } from '@exact/core';
 
 function App(this: Component<{}>) {
-  this.setContext(LoggerContext, createConsoleLogger({ level: "debug" }));
-  return () => <Dashboard />;
+	this.setContext(LoggerContext, createConsoleLogger({ level: 'debug' }));
+	return () => <Dashboard />;
 }
 ```
 
@@ -575,21 +587,28 @@ and v6/v7 compatibility facades are specified in the
 [React Router compatibility plan](docs/react-router-compatibility-plan.md).
 
 ```tsx
-import { Link, Outlet, Route, Router } from "@exact/router";
+import { Link, Outlet, Route, Router } from '@exact/router';
 
 function Layout() {
-  return () => <main><nav><Link to="/users">Users</Link></nav><Outlet /></main>;
+	return () => (
+		<main>
+			<nav>
+				<Link to="/users">Users</Link>
+			</nav>
+			<Outlet />
+		</main>
+	);
 }
 
 render(
-  <Router basename="/app">
-    <Route component={Layout}>
-      <Route index component={Home} />
-      <Route path="users/:id" component={User} />
-      <Route path="*" component={NotFound} />
-    </Route>
-  </Router>,
-  document.getElementById("app")!
+	<Router basename="/app">
+		<Route component={Layout}>
+			<Route index component={Home} />
+			<Route path="users/:id" component={User} />
+			<Route path="*" component={NotFound} />
+		</Route>
+	</Router>,
+	document.getElementById('app')!
 );
 ```
 
@@ -614,13 +633,17 @@ History mode supports SSR directly. Hash fragments are not sent in HTTP requests
 
 ```tsx
 <Form onValidSubmit={(_event, data) => save(data)}>
-  <Field name="email" required validate={value => String(value).includes("@") || "Enter an email"}>
-    <Label>Email</Label>
-    <Input type="email" />
-    <FieldHelp>We will only use this for account messages.</FieldHelp>
-    <FieldError />
-  </Field>
-  <button type="submit">Save</button>
+	<Field
+		name="email"
+		required
+		validate={(value) => String(value).includes('@') || 'Enter an email'}
+	>
+		<Label>Email</Label>
+		<Input type="email" />
+		<FieldHelp>We will only use this for account messages.</FieldHelp>
+		<FieldError />
+	</Field>
+	<button type="submit">Save</button>
 </Form>
 ```
 
@@ -631,13 +654,10 @@ Fields validate on first blur and submit, then revalidate invalid values on inpu
 `@exact/testing` mounts real DOM-rendered components and exposes their framework instances through a runner-neutral fluent API:
 
 ```tsx
-const view = await testComponent(Counter)
-  .props({ initial: 1 })
-  .context(AuthContext, auth)
-  .mount();
+const view = await testComponent(Counter).props({ initial: 1 }).context(AuthContext, auth).mount();
 
 await view.root.setState({ count: 2 });
-await view.root.getByRole("button", { name: "Increment" }).click();
+await view.root.getByRole('button', { name: 'Increment' }).click();
 
 expect(view.root.state().count).toBe(3);
 expect(view.root.find(Status).context(AuthContext)).toBe(auth);
@@ -649,8 +669,8 @@ Queries are available by selector, role/name, label, visible text, and `data-tes
 Matchers are opt-in and do not couple the base package to a runner:
 
 ```ts
-import { expect } from "vitest";
-import { installVitestMatchers } from "@exact/testing/vitest";
+import { expect } from 'vitest';
+import { installVitestMatchers } from '@exact/testing/vitest';
 
 installVitestMatchers(expect);
 ```
@@ -663,7 +683,7 @@ Compiler mode supports normal fragment shorthand for unkeyed fragments:
 
 ```tsx
 <>
-  <span />
+	<span />
 </>
 ```
 
@@ -671,7 +691,7 @@ Use the reserved `_` tag for keyed or prop-bearing fragments:
 
 ```tsx
 <_ key={id}>
-  <span />
+	<span />
 </_>
 ```
 

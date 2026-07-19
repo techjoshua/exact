@@ -125,8 +125,8 @@ this.task.client(() => {});
 Imports can declare an explicit evaluation boundary:
 
 ```ts
-import "./browser-registration.js" with { exact: "client" };
-import { readPrivateConfig } from "./private-config.js" with { exact: "server" };
+import './browser-registration.js' with { exact: 'client' };
+import { readPrivateConfig } from './private-config.js' with { exact: 'server' };
 ```
 
 The compiler rejects known contradictions, such as a server task using browser
@@ -280,22 +280,19 @@ component that computes or stores a value and publishes it with
 `this.setContext()`.
 
 ```tsx
-function AuthorizationProvider(
-  this: Component<{ roles: string[] }>,
-  props: { children?: Child }
-) {
-  this.state.roles ??= [];
+function AuthorizationProvider(this: Component<{ roles: string[] }>, props: { children?: Child }) {
+	this.state.roles ??= [];
 
-  this.task.server(async () => {
-    const request = this.getContext(RequestContext);
-    this.state.roles = await loadAuthorizedRoles(request);
-  });
+	this.task.server(async () => {
+		const request = this.getContext(RequestContext);
+		this.state.roles = await loadAuthorizedRoles(request);
+	});
 
-  this.setContext(AuthorizationContext, {
-    hasRole: role => this.state.roles.includes(role)
-  });
+	this.setContext(AuthorizationContext, {
+		hasRole: (role) => this.state.roles.includes(role)
+	});
 
-  return () => props.children;
+	return () => props.children;
 }
 ```
 
@@ -338,20 +335,17 @@ or by native SSR adoption.
 A brand provider may derive public branding from request-only server data:
 
 ```tsx
-function BrandProvider(
-  this: Component<{ brand?: PublicBrand }>,
-  props: { children?: Child }
-) {
-  this.task.server(async () => {
-    const request = this.getContext(RequestContext);
-    this.state.brand = await resolvePublicBrand(request.url);
-  });
+function BrandProvider(this: Component<{ brand?: PublicBrand }>, props: { children?: Child }) {
+	this.task.server(async () => {
+		const request = this.getContext(RequestContext);
+		this.state.brand = await resolvePublicBrand(request.url);
+	});
 
-  this.setContext(BrandContext, {
-    getBrand: () => this.state.brand
-  });
+	this.setContext(BrandContext, {
+		getBrand: () => this.state.brand
+	});
 
-  return () => props.children;
+	return () => props.children;
 }
 ```
 
@@ -362,11 +356,11 @@ while `PublicBrand` is intentionally isomorphic.
 
 Context and state policy must keep three concerns separate:
 
-| Dimension | Values | Meaning |
-| --- | --- | --- |
-| Execution | `client`, `server`, inferred | Where code may execute |
+| Dimension | Values                                     | Meaning                            |
+| --------- | ------------------------------------------ | ---------------------------------- |
+| Execution | `client`, `server`, inferred               | Where code may execute             |
 | Residency | `client`, `server`, `isomorphic`, `secret` | Where a value may reside or travel |
-| Lifetime | `application`, `request`, `component` | How long a provided value lives |
+| Lifetime  | `application`, `request`, `component`      | How long a provided value lives    |
 
 A database pool or session-store client is application-scoped and server-kept.
 Session data loaded for the current request is request-scoped and normally
@@ -413,16 +407,16 @@ response controls before root component setup:
 
 ```ts
 type RequestInfo = {
-  url: URL;
-  method: string;
-  headers: Headers;
-  signal: AbortSignal;
-  locale?: string;
-  traceId?: string;
+	url: URL;
+	method: string;
+	headers: Headers;
+	signal: AbortSignal;
+	locale?: string;
+	traceId?: string;
 
-  redirect(location: string | URL, status?: number): void;
-  setStatus(status: number): void;
-  setHeader(name: string, value: string): void;
+	redirect(location: string | URL, status?: number): void;
+	setStatus(status: number): void;
+	setHeader(name: string, value: string): void;
 };
 ```
 
@@ -440,23 +434,26 @@ callable context values are never confused with factories:
 
 ```ts
 createExactServerRuntime({
-  applicationContexts: [
-    [ApplicationConfigContext, { value: applicationConfig }],
-    [DatabaseContext, {
-      create: ({ signal }) => connectDatabase({ signal }),
-      dispose: database => database.close()
-    }]
-  ],
-  requestContexts: async ({ request, platformRequest, get }) => [
-    [RouteContext, { value: await matchRoute(request!.url) }],
-    [AuthorizationContext, {
-      create: async () => authorize(
-        request!,
-        await get(ApplicationConfigContext)
-      )
-    }],
-    [PlatformRequestContext, { value: platformRequest }]
-  ]
+	applicationContexts: [
+		[ApplicationConfigContext, { value: applicationConfig }],
+		[
+			DatabaseContext,
+			{
+				create: ({ signal }) => connectDatabase({ signal }),
+				dispose: (database) => database.close()
+			}
+		]
+	],
+	requestContexts: async ({ request, platformRequest, get }) => [
+		[RouteContext, { value: await matchRoute(request!.url) }],
+		[
+			AuthorizationContext,
+			{
+				create: async () => authorize(request!, await get(ApplicationConfigContext))
+			}
+		],
+		[PlatformRequestContext, { value: platformRequest }]
+	]
 });
 ```
 
@@ -529,10 +526,10 @@ Structured context options should carry the same metadata and should be
 authoritative when available:
 
 ```ts
-export const RequestContext = createContext<RequestInfo>(
-  "exact.request",
-  { scope: "request", keep: "server" }
-);
+export const RequestContext = createContext<RequestInfo>('exact.request', {
+	scope: 'request',
+	keep: 'server'
+});
 ```
 
 Annotations remain important for fields, parameters, return contracts, state
@@ -570,13 +567,13 @@ becoming server-kept or secret:
 
 ```ts
 interface ServerAuthorization {
-  publicRoles(): string[];
+	publicRoles(): string[];
 
-  /** @exact keep=server */
-  internalPolicy(): InternalPolicy;
+	/** @exact keep=server */
+	internalPolicy(): InternalPolicy;
 
-  /** @exact keep=secret */
-  sessionCredential(): string;
+	/** @exact keep=secret */
+	sessionCredential(): string;
 }
 ```
 
@@ -587,8 +584,8 @@ This permits:
 
 ```ts
 this.task.server(async () => {
-  const authorization = this.getContext(ServerAuthorizationContext);
-  this.state.roles = authorization.publicRoles();
+	const authorization = this.getContext(ServerAuthorizationContext);
+	this.state.roles = authorization.publicRoles();
 });
 ```
 
@@ -606,8 +603,8 @@ engine. Internally, a value carries at least:
 
 ```ts
 type DataPolicy = {
-  residency: "server" | "client" | "isomorphic";
-  secret: boolean;
+	residency: 'server' | 'client' | 'isomorphic';
+	secret: boolean;
 };
 ```
 
@@ -622,8 +619,8 @@ inputs unless a more specific declaration contract applies.
 qualification through normal JavaScript rather than requiring wrapper APIs:
 
 ```ts
-const clientKeySecretCombo = secrets.require("ClientKeyAndSecret");
-const [key, clientSecret] = clientKeySecretCombo.split(":");
+const clientKeySecretCombo = secrets.require('ClientKeyAndSecret');
+const [key, clientSecret] = clientKeySecretCombo.split(':');
 const authorization = `JWT-Bearer - ${key}:${clientSecret}`;
 ```
 
@@ -634,8 +631,7 @@ When TypeScript would erase that qualification, the compiler emits a type-only
 assertion in generated source:
 
 ```ts
-const authorization =
-  `JWT-Bearer - ${key}:${clientSecret}` as Secret<string>;
+const authorization = `JWT-Bearer - ${key}:${clientSecret}` as Secret<string>;
 ```
 
 The assertion is emitted only for an expression already proven
@@ -650,16 +646,10 @@ An unconsumed secret crosses a call boundary only through an explicitly
 
 ```ts
 /** @exact server */
-declare function requestWeather(
-  city: string,
-  apiKey: string
-): Promise<Weather>;
+declare function requestWeather(city: string, apiKey: string): Promise<Weather>;
 
-const apiKey = secrets.require("WEATHER_API_KEY");
-const weather = await requestWeather(
-  "Seattle",
-  consume(apiKey)
-);
+const apiKey = secrets.require('WEATHER_API_KEY');
+const weather = await requestWeather('Seattle', consume(apiKey));
 ```
 
 `secrets.require()` and `secrets.optional()` return secret-qualified values, so
@@ -674,7 +664,7 @@ compiler associates the boundary with the package and source location that
 contain the `consume()` call:
 
 ```ts
-const weather = await requestWeather("Seattle", consume(apiKey));
+const weather = await requestWeather('Seattle', consume(apiKey));
 ```
 
 A standalone consumption creates a broader application-owned escape:
@@ -682,8 +672,8 @@ A standalone consumption creates a broader application-owned escape:
 ```ts
 const rawApiKey = consume(apiKey);
 
-const weather = await requestWeather("Seattle", rawApiKey);
-const forecast = await requestForecast("Seattle", rawApiKey);
+const weather = await requestWeather('Seattle', rawApiKey);
+const forecast = await requestForecast('Seattle', rawApiKey);
 ```
 
 Exact records that standalone boundary, but tracking has deliberately stopped,
@@ -710,7 +700,7 @@ Projection may be represented on a destination state/context path:
 
 ```ts
 interface AuthorizationState {
-  roles: string[];
+	roles: string[];
 }
 ```
 
@@ -773,19 +763,17 @@ Each export selects a target-specific artifact:
 
 ```json
 {
-  "exact": {
-    "manifests": [
-      "./dist/components/page.exact.manifest.json"
-    ]
-  },
-  "exports": {
-    "./components/page": {
-      "types": "./dist/components/page.d.ts",
-      "exact-client": "./dist/components/page.exact.client.js",
-      "exact-server": "./dist/components/page.exact.server.js",
-      "default": "./dist/components/page.exact.client.js"
-    }
-  }
+	"exact": {
+		"manifests": ["./dist/components/page.exact.manifest.json"]
+	},
+	"exports": {
+		"./components/page": {
+			"types": "./dist/components/page.d.ts",
+			"exact-client": "./dist/components/page.exact.client.js",
+			"exact-server": "./dist/components/page.exact.server.js",
+			"default": "./dist/components/page.exact.client.js"
+		}
+	}
 }
 ```
 
@@ -818,18 +806,18 @@ build performs the inverse assertion.
 
 ### Shared versus dual-target code
 
-The user-facing term *isomorphic* means that an API or value is available in
+The user-facing term _isomorphic_ means that an API or value is available in
 both environments. It does not necessarily mean that the client and server use
 one byte-identical implementation.
 
 The compiler should distinguish:
 
-| Classification | Meaning |
-| --- | --- |
-| `shared` | Target-neutral output with a dependency closure made entirely of other shared declarations |
-| `client` | Browser-only output |
-| `server` | Server-only output |
-| `dual` | Emitted for both targets, but transformed or specialized differently for each |
+| Classification | Meaning                                                                                    |
+| -------------- | ------------------------------------------------------------------------------------------ |
+| `shared`       | Target-neutral output with a dependency closure made entirely of other shared declarations |
+| `client`       | Browser-only output                                                                        |
+| `server`       | Server-only output                                                                         |
+| `dual`         | Emitted for both targets, but transformed or specialized differently for each              |
 
 `shared` and `dual` are compiler emission classifications, not requirements to
 add declarations to a package's public root barrel. A declaration referenced
@@ -843,7 +831,7 @@ For example, a pure formatter may be genuinely shared:
 
 ```ts
 export function formatCurrency(value: number): string {
-  return `$${value.toFixed(2)}`;
+	return `$${value.toFixed(2)}`;
 }
 ```
 
@@ -851,10 +839,10 @@ A component with target-specific tasks is dual-target:
 
 ```tsx
 export function AccountProvider(this: Component<AccountState>) {
-  this.task.server(loadAccount);
-  this.task.client(connectBrowserEvents);
+	this.task.server(loadAccount);
+	this.task.client(connectBrowserEvents);
 
-  return () => <AccountPage />;
+	return () => <AccountPage />;
 }
 ```
 
@@ -935,52 +923,50 @@ matching generated artifact.
 The client artifact can attach its local island descriptor:
 
 ```ts
-const exactClientDescriptor: unique symbol =
-  /* @__PURE__ */ Symbol.for("@exact/client-component-descriptor");
+const exactClientDescriptor: unique symbol = /* @__PURE__ */ Symbol.for(
+	'@exact/client-component-descriptor'
+);
 
 function ProjectCardImplementation() {
-  // Client implementation.
+	// Client implementation.
 }
 
 function ProjectCard_ExactClient_1() {
-  // Generated island implementation.
+	// Generated island implementation.
 }
 
-export const ProjectCard: typeof ProjectCardImplementation =
-/* @__PURE__ */ (() => Object.assign(
-  ProjectCardImplementation, {
-    [exactClientDescriptor]: [
-      1,
-      [["stable-boundary-id", "ProjectCard_ExactClient_1", ProjectCard_ExactClient_1]]
-    ]
-  }
-))();
+export const ProjectCard: typeof ProjectCardImplementation = /* @__PURE__ */ (() =>
+	Object.assign(ProjectCardImplementation, {
+		[exactClientDescriptor]: [
+			1,
+			[['stable-boundary-id', 'ProjectCard_ExactClient_1', ProjectCard_ExactClient_1]]
+		]
+	}))();
 ```
 
 The matching server artifact exports the same public name with its server
 descriptor:
 
 ```ts
-const exactServerDescriptor: unique symbol =
-  /* @__PURE__ */ Symbol.for("@exact/server-component-descriptor");
+const exactServerDescriptor: unique symbol = /* @__PURE__ */ Symbol.for(
+	'@exact/server-component-descriptor'
+);
 
 function ProjectCardImplementation() {
-  // Server implementation.
+	// Server implementation.
 }
 
 function ProjectCard_ExactServer_1() {
-  // Generated server-part implementation.
+	// Generated server-part implementation.
 }
 
-export const ProjectCard: typeof ProjectCardImplementation =
-/* @__PURE__ */ (() => Object.assign(
-  ProjectCardImplementation, {
-    [exactServerDescriptor]: [
-      1,
-      [["stable-server-part-id", "ProjectCard_ExactServer_1", ProjectCard_ExactServer_1]]
-    ]
-  }
-))();
+export const ProjectCard: typeof ProjectCardImplementation = /* @__PURE__ */ (() =>
+	Object.assign(ProjectCardImplementation, {
+		[exactServerDescriptor]: [
+			1,
+			[['stable-server-part-id', 'ProjectCard_ExactServer_1', ProjectCard_ExactServer_1]]
+		]
+	}))();
 ```
 
 The zero-argument pure initializer prevents argument evaluation from retaining
@@ -1014,14 +1000,14 @@ An ESM barrel re-export preserves the same function object. A library can
 therefore continue to expose:
 
 ```ts
-export { ProjectCard } from "./ProjectCard.js";
-export { ProjectList } from "./ProjectList.js";
+export { ProjectCard } from './ProjectCard.js';
+export { ProjectList } from './ProjectList.js';
 ```
 
 and consumers can continue to write:
 
 ```ts
-import { ProjectCard, ProjectList } from "project-components";
+import { ProjectCard, ProjectList } from 'project-components';
 ```
 
 No package-wide descriptor object, metadata barrel, or manual aggregation is
@@ -1085,11 +1071,7 @@ as side-effectful:
 
 ```json
 {
-  "sideEffects": [
-    "**/*.css",
-    "**/*.less",
-    "**/*.scss"
-  ]
+	"sideEffects": ["**/*.css", "**/*.less", "**/*.scss"]
 }
 ```
 
@@ -1176,14 +1158,14 @@ Illustrative package requirements:
 
 ```json
 {
-  "requiredCapabilities": {
-    "rawHtml": [
-      {
-        "location": "dist/article.js#ArticleBody",
-        "targets": ["server", "client"]
-      }
-    ]
-  }
+	"requiredCapabilities": {
+		"rawHtml": [
+			{
+				"location": "dist/article.js#ArticleBody",
+				"targets": ["server", "client"]
+			}
+		]
+	}
 }
 ```
 
@@ -1191,12 +1173,10 @@ Illustrative application policy:
 
 ```ts
 defineExactConfig({
-  unsafeHtml: {
-    enabled: true,
-    grants: [
-      { package: "@acme/article-components" }
-    ]
-  }
+	unsafeHtml: {
+		enabled: true,
+		grants: [{ package: '@acme/article-components' }]
+	}
 });
 ```
 
@@ -1271,18 +1251,16 @@ An SSR application may render the complete document explicitly from its root:
 
 ```tsx
 return () => (
-  <html lang="en">
-    <head>
-      <title>{this.state.title}</title>
-      <meta name="description" content={this.state.description} />
-      <script nonce={request.cspNonce}>
-        {trackingInitialization}
-      </script>
-    </head>
-    <body>
-      <Application />
-    </body>
-  </html>
+	<html lang="en">
+		<head>
+			<title>{this.state.title}</title>
+			<meta name="description" content={this.state.description} />
+			<script nonce={request.cspNonce}>{trackingInitialization}</script>
+		</head>
+		<body>
+			<Application />
+		</body>
+	</html>
 );
 ```
 
@@ -1455,10 +1433,8 @@ A dependency may preserve a still-qualified value only through an explicit
 
 ```ts
 /** @exact server */
-async function createStripeClient(
-  apiKey: Secret<string>
-) {
-  return new StripeClient(consume(apiKey));
+async function createStripeClient(apiKey: Secret<string>) {
+	return new StripeClient(consume(apiKey));
 }
 ```
 
@@ -1466,12 +1442,12 @@ The consuming application permits packages containing `consume()` by name:
 
 ```ts
 defineExactConfig({
-  secrets: {
-    allowPackages: ["@acme/payments"]
-  }
+	secrets: {
+		allowPackages: ['@acme/payments']
+	}
 });
 
-const apiKey = secrets.require("STRIPE_SECRET_KEY");
+const apiKey = secrets.require('STRIPE_SECRET_KEY');
 const stripe = createStripeClient(apiKey);
 ```
 
@@ -1514,14 +1490,14 @@ policy-sensitive capabilities without granting them:
 
 ```json
 {
-  "requiredCapabilities": {
-    "rawHtml": [
-      {
-        "location": "dist/article.js#ArticleBody",
-        "targets": ["server", "client"]
-      }
-    ]
-  }
+	"requiredCapabilities": {
+		"rawHtml": [
+			{
+				"location": "dist/article.js#ArticleBody",
+				"targets": ["server", "client"]
+			}
+		]
+	}
 }
 ```
 
@@ -1549,25 +1525,25 @@ Illustrative shape:
 
 ```json
 {
-  "policyUsage": {
-    "version": 1,
-    "sources": [
-      {
-        "policy": "secret",
-        "name": "STRIPE_SECRET_KEY",
-        "location": "src/server.ts:18"
-      }
-    ],
-    "consumers": [
-      {
-        "name": "STRIPE_SECRET_KEY",
-        "package": "@acme/payments",
-        "symbol": "consume",
-        "parameter": 0,
-        "authorization": "library-requirement"
-      }
-    ]
-  }
+	"policyUsage": {
+		"version": 1,
+		"sources": [
+			{
+				"policy": "secret",
+				"name": "STRIPE_SECRET_KEY",
+				"location": "src/server.ts:18"
+			}
+		],
+		"consumers": [
+			{
+				"name": "STRIPE_SECRET_KEY",
+				"package": "@acme/payments",
+				"symbol": "consume",
+				"parameter": 0,
+				"authorization": "library-requirement"
+			}
+		]
+	}
 }
 ```
 

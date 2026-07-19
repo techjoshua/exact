@@ -53,9 +53,9 @@ An adapter must declare a direct dependency on the marker package. The direct de
 
 ```json
 {
-  "dependencies": {
-    "@exact/react-compat-adapter-api": "^1.0.0"
-  }
+	"dependencies": {
+		"@exact/react-compat-adapter-api": "^1.0.0"
+	}
 }
 ```
 
@@ -65,31 +65,31 @@ The adapter package's `package.json` is the only substitution metadata source. T
 
 ```json
 {
-  "name": "@exact/tanstack-query",
-  "exact": {
-    "reactCompatibility": {
-      "schemaVersion": 1,
-      "substitutions": {
-        "@tanstack/react-query": {
-          "version": ">=5 <6",
-          "exports": {
-            "QueryClientProvider": {
-              "subpath": "./provider",
-              "export": "QueryClientProvider"
-            },
-            "QueryErrorResetBoundary": {
-              "subpath": "./provider",
-              "export": "QueryErrorResetBoundary"
-            }
-          }
-        }
-      }
-    }
-  },
-  "exports": {
-    ".": "./dist/index.js",
-    "./provider": "./dist/provider.js"
-  }
+	"name": "@exact/tanstack-query",
+	"exact": {
+		"reactCompatibility": {
+			"schemaVersion": 1,
+			"substitutions": {
+				"@tanstack/react-query": {
+					"version": ">=5 <6",
+					"exports": {
+						"QueryClientProvider": {
+							"subpath": "./provider",
+							"export": "QueryClientProvider"
+						},
+						"QueryErrorResetBoundary": {
+							"subpath": "./provider",
+							"export": "QueryErrorResetBoundary"
+						}
+					}
+				}
+			}
+		}
+	},
+	"exports": {
+		".": "./dist/index.js",
+		"./provider": "./dist/provider.js"
+	}
 }
 ```
 
@@ -109,14 +109,11 @@ The build root can suppress discovered adapters in its own `package.json`:
 
 ```json
 {
-  "exact": {
-    "reactCompatibility": {
-      "ignoreAdapters": [
-        "@company/legacy-redux-adapter",
-        "@exact/tanstack-query"
-      ]
-    }
-  }
+	"exact": {
+		"reactCompatibility": {
+			"ignoreAdapters": ["@company/legacy-redux-adapter", "@exact/tanstack-query"]
+		}
+	}
 }
 ```
 
@@ -158,8 +155,8 @@ The implementation should not shell out to npm during normal builds. Instead, Re
 
 ```ts
 interface ExactPackageGraph {
-  packagesDependingDirectlyOn(name: string): readonly ExactPackageNode[];
-  manifest(node: ExactPackageNode): ExactPackageManifest;
+	packagesDependingDirectlyOn(name: string): readonly ExactPackageNode[];
+	manifest(node: ExactPackageNode): ExactPackageManifest;
 }
 ```
 
@@ -196,14 +193,14 @@ The common build API should normalize host inputs and outputs:
 
 ```ts
 interface ReactCompatibilityBuildEngine {
-  transformModule(input: {
-    id: string;
-    source: string;
-    format: "module" | "commonjs";
-    target: "client" | "server";
-  }): ReactCompatibilityTransformResult;
+	transformModule(input: {
+		id: string;
+		source: string;
+		format: 'module' | 'commonjs';
+		target: 'client' | 'server';
+	}): ReactCompatibilityTransformResult;
 
-  invalidate(file: string): void;
+	invalidate(file: string): void;
 }
 ```
 

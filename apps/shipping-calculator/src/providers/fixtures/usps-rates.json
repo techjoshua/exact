@@ -1,1 +1,10 @@
-{"rateOptions":[{"rates":[{"mailClass":"PRIORITY_MAIL","description":"Priority Mail","totalBasePrice":12.35}],"extraServices":[{"name":"Signature Confirmation","price":3.7}]}]}
+{
+	"rateOptions": [
+		{
+			"rates": [
+				{ "mailClass": "PRIORITY_MAIL", "description": "Priority Mail", "totalBasePrice": 12.35 }
+			],
+			"extraServices": [{ "name": "Signature Confirmation", "price": 3.7 }]
+		}
+	]
+}

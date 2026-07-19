@@ -53,17 +53,19 @@ Evidence:
 Example:
 
 ```ts
-const router = createMemoryRouter([{
-  id: "account",
-  path: "account/:id",
-  action: async () => {
-    await slowServiceThatIgnoresAbort();
-    return { saved: "old request" };
-  }
-}]);
+const router = createMemoryRouter([
+	{
+		id: 'account',
+		path: 'account/:id',
+		action: async () => {
+			await slowServiceThatIgnoresAbort();
+			return { saved: 'old request' };
+		}
+	}
+]);
 
-const oldSubmit = router.submit("/account/1", { method: "POST" });
-await router.navigate("/account/2");
+const oldSubmit = router.submit('/account/1', { method: 'POST' });
+await router.navigate('/account/2');
 await oldSubmit;
 
 // The old action/revalidation is still allowed to overwrite current state.
@@ -73,6 +75,7 @@ This is a controller correctness issue, not merely a React compatibility
 difference.
 
 ### AR-02 — High: controlled `Router` and v5 external history locations are
+
 captured once
 
 The modern low-level `Router` converts `props.location` into a local string,
@@ -130,14 +133,17 @@ Evidence:
 Example:
 
 ```ts
-const routes = [{
-  id: "download",
-  path: "download",
-  loader: () => new Response("ready", {
-    status: 202,
-    headers: { "Cache-Control": "private", "X-Route": "download" }
-  })
-}];
+const routes = [
+	{
+		id: 'download',
+		path: 'download',
+		loader: () =>
+			new Response('ready', {
+				status: 202,
+				headers: { 'Cache-Control': 'private', 'X-Route': 'download' }
+			})
+	}
+];
 
 // query() returns body data, but loaderHeaders is {} and statusCode remains
 // 200, so the root SSR response cannot reproduce the route response.
@@ -209,7 +215,7 @@ Example:
 
 ```html
 <script id="__exact_router_hydration" type="application/json">
-  {"loaderData":{"account":{"name":"Tenant A"}}}
+	{ "loaderData": { "account": { "name": "Tenant A" } } }
 </script>
 ```
 
@@ -223,6 +229,7 @@ This differs from the plan's protocol-version requirement and its separate-root
 and hydration-adoption requirements.
 
 ### AR-06 — High: route hydration is JSON-checked but not a compiler data-policy
+
 sink
 
 `hydrationDataFromSnapshot()` validates JSON shape, depth, node count, and byte
@@ -243,8 +250,8 @@ Example:
 ```ts
 /** @exact server */
 async function loader() {
-  const internal = await loadServerOwnedAccountData();
-  return { internal }; // JSON-safe is sufficient for the current serializer.
+	const internal = await loadServerOwnedAccountData();
+	return { internal }; // JSON-safe is sufficient for the current serializer.
 }
 
 // The route-transfer boundary has no policy check comparable to an island or
@@ -329,9 +336,9 @@ Example:
 ```tsx
 const context = {};
 renderToString(
-  <StaticRouter location="/old" context={context}>
-    <Redirect to="/new" />
-  </StaticRouter>
+	<StaticRouter location="/old" context={context}>
+		<Redirect to="/new" />
+	</StaticRouter>
 );
 
 // context does not receive the redirect because the effect never runs.
@@ -358,6 +365,7 @@ This falls short of the planned route-level lazy chunks and modern data-router
 route-object support.
 
 ### AR-11 — Medium: conformance evidence and compatibility reporting are much
+
 narrower than the mapped surface
 
 The pinned differential suite contains seven tests. It compares v5 matching,

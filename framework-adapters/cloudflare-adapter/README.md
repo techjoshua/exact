@@ -3,14 +3,14 @@
 Cloudflare Workers adapter for eXact server endpoints.
 
 ```ts
-import { createExactCloudflareHandler } from "@exact/cloudflare-adapter";
+import { createExactCloudflareHandler } from '@exact/cloudflare-adapter';
 
 const exact = createExactCloudflareHandler(exactRuntime);
 
 export default {
-  fetch(request, env, ctx) {
-    return exact(request, env, ctx);
-  }
+	fetch(request, env, ctx) {
+		return exact(request, env, ctx);
+	}
 };
 ```
 
