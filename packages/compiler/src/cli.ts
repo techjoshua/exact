@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { prepareExactPluginRegistry } from '@exact/plugin-host/node';
 import path from 'node:path';
-import { compileProject, compileProjectArtifacts } from './compilation/compiler.js';
+import { compileProjectArtifacts } from './compilation/compiler.js';
+import { compileProject } from './compilation/source-analysis.js';
 import type { TransformTarget } from './types.js';
 
 type CliOptions = {
