@@ -127,8 +127,8 @@ describe('router compatibility integration', () => {
 		expect(manifest.sideEffects).toBe(false);
 		expect(native).not.toContain('@exact/react-compat');
 		expect(native).not.toMatch(/from\s+["']\.\/(?:modern|data|v5)\.js["']/);
-		expect(data).toContain('from "./modern.js"');
-		expect(data).not.toContain('from "./v5.js"');
-		expect(v5).not.toContain('from "./data.js"');
+		expect(data).toContain("from './modern.js'");
+		expect(data).not.toContain("from './v5.js'");
+		expect(v5).not.toContain("from './data.js'");
 	});
 });
