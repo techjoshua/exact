@@ -15,7 +15,10 @@ const results = await compileProjectArtifacts([path.join(root, 'App.tsx')], {
 for (const result of results) {
 	for (const artifact of [result.clientFile, result.serverFile]) {
 		const source = await readFile(artifact, 'utf8');
-		await writeFile(artifact, source.replaceAll('from "./', 'from "../src/'), 'utf8');
+		const relocated = source
+			.replaceAll('from "./', 'from "../src/')
+			.replaceAll("from './", "from '../src/");
+		await writeFile(artifact, relocated, 'utf8');
 	}
 }
 console.log(`Generated ${results.length} eXact component artifact set`);
