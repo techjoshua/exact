@@ -17,7 +17,7 @@ import {
 	readExactArtifactManifestEntries
 } from '../artifacts.js';
 import { analyzeModuleImports } from '../assets.js';
-import { analyzeCallableEffects } from '../callable-effects.js';
+import { analyzeCallableEffects } from '../analysis/callable-effects.js';
 import { collectRawHtmlCapabilities } from '../capabilities.js';
 import { exactComponentDescriptorTransformer } from '../descriptor-transform.js';
 import { collectExpressionExportBindings } from '../exports.js';
@@ -58,7 +58,7 @@ import {
 	applyExactPolicyToTasks,
 	createExactPolicyManifest,
 	createExactSecretQualificationPlan
-} from '../policy.js';
+} from '../policy/analysis.js';
 import { preprocessPropPunning } from '../preprocess.js';
 import { buildExactProvenance } from '../provenance.js';
 import { exactSecretQualificationTransformer } from '../secret-transform.js';

@@ -1,12 +1,12 @@
 import type { BoundModule, NodeRef, Variable } from '@exact/expressions';
 import path from 'node:path';
-import { hasExactDirective, trackedCallbackArguments } from './annotations.js';
-import type { ExactModuleImportPlan } from './assets.js';
-import { expressionComponentIndex } from './expression/component-index.js';
-import { expressionStatePath, type ExpressionWritePlan } from './expression/writes.js';
-import { stableId } from './ids.js';
-import { isServerOnlyModule } from './imports.js';
-import { isUnshadowedPlatformGlobal } from './platform-effects.js';
+import { hasExactDirective, trackedCallbackArguments } from '../annotations.js';
+import type { ExactModuleImportPlan } from '../assets.js';
+import { expressionComponentIndex } from '../expression/component-index.js';
+import { expressionStatePath, type ExpressionWritePlan } from '../expression/writes.js';
+import { stableId } from '../ids.js';
+import { isServerOnlyModule } from '../imports.js';
+import { isUnshadowedPlatformGlobal } from '../platform-effects.js';
 import type {
 	ExactArtifactTarget,
 	ExactCallableSummaryIR,
@@ -17,7 +17,7 @@ import type {
 	ExactEnvironmentEffectSourceIR,
 	ExactSemanticGraphIR,
 	ExactStateEffect
-} from './types.js';
+} from '../types.js';
 
 export interface CallableEffectPlan {
 	readonly callables: readonly ExactCallableSummaryIR[];

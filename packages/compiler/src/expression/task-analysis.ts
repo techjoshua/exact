@@ -1,6 +1,6 @@
 import type { BoundModule } from '@exact/expressions';
 
-import type { CallableEffectPlan } from '../callable-effects.js';
+import type { CallableEffectPlan } from '../analysis/callable-effects.js';
 
 import { isServerOnlyModule } from '../imports.js';
 

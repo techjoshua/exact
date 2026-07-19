@@ -2,7 +2,7 @@ import type { BoundModule } from '@exact/expressions';
 import ts from 'typescript';
 import { stripExactImportAttribute, type ExactModuleImportPlan } from '../../assets.js';
 import { isIdentifierDeclarationName, isPropertyAccessName } from '../../ast.js';
-import type { CallableEffectPlan } from '../../callable-effects.js';
+import type { CallableEffectPlan } from '../../analysis/callable-effects.js';
 import {
 	isFunctionLikeExpression,
 	isThisMethodAccess,

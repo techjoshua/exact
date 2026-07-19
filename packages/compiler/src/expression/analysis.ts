@@ -1,6 +1,6 @@
 import type { BoundModule, Variable } from '@exact/expressions';
 
-import type { CallableEffectPlan } from '../callable-effects.js';
+import type { CallableEffectPlan } from '../analysis/callable-effects.js';
 
 import { browserPlatformGlobals } from '../platform-effects.js';
 
