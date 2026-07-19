@@ -1,5 +1,5 @@
 import type { BoundModule, ExpressionType, NodeRef, Variable } from '@exact/expressions';
-import { exactKeepPolicy, type ExactKeepPolicy } from '../annotations.js';
+import { exactKeepPolicy } from '../annotations.js';
 import type { CallableEffectPlan } from '../analysis/callable-effects.js';
 import { expressionComponentIndex } from '../expression/component-index.js';
 import type { ExpressionComponentPlan } from '../expression/contracts.js';
@@ -28,6 +28,7 @@ import {
 	type PolicyRecord,
 	type StatePolicyRecord
 } from './algebra.js';
+import { parseContextPolicyOptions } from './context-options.js';
 import type {
 	ExactCompilerManifest,
 	ExactComponentIR,
@@ -1617,22 +1618,6 @@ function collectStateTypePolicies(
 			seen
 		);
 	}
-}
-
-function parseContextPolicyOptions(text: string | undefined): {
-	keep?: ExactKeepPolicy;
-	error?: string;
-} {
-	if (!text || !/\bkeep\s*:/.test(text)) return {};
-	const match = /\bkeep\s*:\s*(["'])([^"']+)\1/.exec(text);
-	if (!match) return { error: 'keep option must be a static string literal' };
-	const keep = match[2];
-	if (keep === 'isomorphic')
-		return { error: 'cannot use keep=isomorphic; safe isomorphic residency is inferred' };
-	if (keep !== 'server' && keep !== 'client' && keep !== 'secret') {
-		return { error: `has unknown keep option '${keep}'; expected server, client, or secret` };
-	}
-	return { keep };
 }
 
 function isCreateContextCall(call: NodeRef): boolean {
