@@ -1,0 +1,128 @@
+import { type VNode } from '@exact/core';
+import { unwrap } from '@exact/reactive';
+import { escapeAttr } from '../html.js';
+import { jsonUnsafePath, serializeHydrationPayload } from '../hydration.js';
+import { markerId, markerPair } from '../markup.js';
+import type {
+	ComponentInstance,
+	RenderToDocumentStreamOptions,
+	RenderToStringOptions,
+	SsrContext
+} from '../types.js';
+import { renderChildrenAsync } from './async-tree.js';
+import { renderChildren } from './sync-tree.js';
+
+export function renderServerBoundary(context: SsrContext, vnode: VNode): string {
+	const id = String(unwrap(vnode.props.id) ?? '');
+	const name = String(unwrap(vnode.props.name) ?? '');
+	const props = clientBoundaryProps(vnode);
+	const unsafePath = jsonUnsafePath(props);
+	if (unsafePath) {
+		throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
+	}
+	const children = renderServerBoundaryChildren(context, vnode, undefined);
+	// Client boundary props are serialized into an attribute, while children are
+	// represented as server slots so the client bundle does not need server-only code.
+	const html = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}">${children}</div>`;
+	return markerPair(context, markerId(context, 'client-boundary', name, id), () => html);
+}
+
+export async function renderServerBoundaryAsync(
+	context: SsrContext,
+	vnode: VNode,
+	parent: ComponentInstance<any> | undefined,
+	options: RenderToStringOptions
+): Promise<string> {
+	const id = String(unwrap(vnode.props.id) ?? '');
+	const name = String(unwrap(vnode.props.name) ?? '');
+	const props = clientBoundaryProps(vnode);
+	const unsafePath = jsonUnsafePath(props);
+	if (unsafePath) {
+		throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
+	}
+	const slotId = serverSlotId(id);
+	const children = vnode.children.length
+		? `<span data-exact-server-slot="${escapeAttr(slotId)}" style="display: contents;">${await renderChildrenAsync(context, vnode.children, parent, options)}</span>`
+		: '';
+	const html = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}">${children}</div>`;
+	return markerPair(context, markerId(context, 'client-boundary', name, id), () => html);
+}
+
+export function clientBoundaryProps(vnode: VNode): Record<string, unknown> {
+	const id = String(unwrap(vnode.props.id) ?? '');
+	const rawProps = unwrap(vnode.props.props) ?? {};
+	const props =
+		rawProps && typeof rawProps === 'object' && !Array.isArray(rawProps)
+			? { ...(rawProps as Record<string, unknown>) }
+			: rawProps;
+	if (
+		vnode.children.length &&
+		props &&
+		typeof props === 'object' &&
+		!Array.isArray(props) &&
+		!('children' in props)
+	) {
+		(props as Record<string, unknown>).children = serverSlotPayload(serverSlotId(id));
+	}
+	return props as Record<string, unknown>;
+}
+
+export function clientBoundarySerializationMessage(
+	name: string,
+	id: string,
+	unsafePath: string
+): string {
+	const label = name || id;
+	const location = name && id ? `${label} (${id})` : label;
+	const generatedBucket = clientBoundaryGeneratedBucket(unsafePath);
+	const generatedHint = generatedBucket ? ` in generated ${generatedBucket} payload` : '';
+	return `Client boundary ${location} props must be JSON-serializable; non-serializable value at ${unsafePath}${generatedHint}`;
+}
+
+export function clientBoundaryGeneratedBucket(path: string): string | undefined {
+	const match = /^\$\.(__exact[A-Za-z0-9_$]*)(?:\.|\[|$)/.exec(path);
+	return match?.[1];
+}
+
+export function renderServerBoundaryChildren(
+	context: SsrContext,
+	vnode: VNode,
+	parent: ComponentInstance<any> | undefined
+): string {
+	if (!vnode.children.length) return '';
+	const slotId = serverSlotId(String(unwrap(vnode.props.id) ?? ''));
+	return `<span data-exact-server-slot="${escapeAttr(slotId)}" style="display: contents;">${renderChildren(context, vnode.children, parent)}</span>`;
+}
+
+export function serverSlotId(boundaryId: string): string {
+	return `${boundaryId}:children`;
+}
+
+export function serverSlotPayload(id: string): Record<string, string> {
+	return { __exactServerSlot: id };
+}
+
+export function shouldEmitDocumentHydration(options: RenderToDocumentStreamOptions): boolean {
+	if (options.hydration === false) return false;
+	if (options.hydration === true) return true;
+	return (
+		options.endpoint !== undefined ||
+		options.endpoints !== undefined ||
+		options.state !== undefined ||
+		options.stateContracts !== undefined ||
+		options.actionBoundaries !== undefined ||
+		options.scriptId !== undefined ||
+		options.nonce !== undefined
+	);
+}
+
+export function getComponentProps(vnode: VNode): Record<string, unknown> {
+	const props = { ...vnode.props };
+	if (vnode.children.length === 1) props.children = vnode.children[0];
+	else if (vnode.children.length > 1) props.children = vnode.children;
+	return props;
+}
+
+export function componentName(type: VNode['type']): string {
+	return typeof type === 'function' ? type.name || 'anonymous' : String(type);
+}

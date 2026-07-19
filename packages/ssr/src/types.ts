@@ -8,6 +8,8 @@ import type {
 	UnsafeHtmlAuditEvent,
 	VNode
 } from '@exact/core';
+import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation';
+import type { ExactOutputExtension } from '@exact/plugin-api';
 import type {
 	ExactEndpointRoutes,
 	ExactInvocationRequest,
@@ -19,8 +21,6 @@ import type {
 	ExactServerManifest,
 	ExactStateContract
 } from '@exact/server';
-import type { ExactOutputExtension } from '@exact/plugin-api';
-import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation';
 
 export type RenderToStringOptions = {
 	markers?: boolean;
@@ -250,11 +250,16 @@ export type SsrContext = {
 	componentContexts?: ComponentContextValues;
 };
 
-export type { Child, ComponentFunction, ComponentInstance, Logger, TaskObserver, VNode };
 export type {
+	Child,
+	ComponentFunction,
+	ComponentInstance,
 	ExactInvocationRequest,
 	ExactInvocationResult,
 	ExactRequestLike,
 	ExactResponseLike,
-	ExactServerContext
+	ExactServerContext,
+	Logger,
+	TaskObserver,
+	VNode
 };

@@ -1,5 +1,5 @@
-import { unwrap } from '@exact/reactive';
 import { decodeExactMarkerPart, encodeExactMarkerPart, sanitizeUrlAttribute } from '@exact/core';
+import { unwrap } from '@exact/reactive';
 import { escapeAttr, escapeAttrName } from './html.js';
 import type { SsrContext } from './types.js';
 

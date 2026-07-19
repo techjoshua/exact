@@ -1,8 +1,8 @@
-import { escapeAttr } from './html.js';
 import { encodeReactiveProtocolValue } from '@exact/core';
-import type { HydrationScriptOptions } from './types.js';
-import { processExactOutputSync } from '@exact/plugin-host/runtime';
 import type { ExactOutputExtension } from '@exact/plugin-api';
+import { processExactOutputSync } from '@exact/plugin-host/runtime';
+import { escapeAttr } from './html.js';
+import type { HydrationScriptOptions } from './types.js';
 
 /** Renders the JSON script tag consumed by the hydration client. */
 export function renderHydrationScript(options: HydrationScriptOptions = {}): string {
