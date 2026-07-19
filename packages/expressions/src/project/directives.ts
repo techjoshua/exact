@@ -1,5 +1,77 @@
-import type ts from 'typescript';
+import ts from 'typescript';
 import type { ExpressionDirective } from '../model.js';
+import type { ProjectionCounters } from './contracts.js';
+
+/** Caches declaration and inline directives for one immutable source projection. */
+export class ExpressionDirectiveIndex {
+	private readonly declarations = new Map<ts.Node, readonly ExpressionDirective[]>();
+	private readonly inlineDeclarations = new Map<ts.Node, readonly ExpressionDirective[]>();
+
+	constructor(
+		private readonly detailedProfile: boolean,
+		private readonly counters: ProjectionCounters
+	) {}
+
+	for(node: ts.Node | undefined, inline = false): readonly ExpressionDirective[] {
+		if (!node) return Object.freeze([]);
+		const cache = inline ? this.inlineDeclarations : this.declarations;
+		const cached = cache.get(node);
+		if (cached) return cached;
+		const directiveSource = node.getSourceFile();
+		const fullStart = node.getFullStart();
+		const start = node.getStart(directiveSource, false);
+		const segments =
+			start > fullStart
+				? [{ text: directiveSource.text.slice(fullStart, start), start: fullStart }]
+				: [];
+		if (inline && ts.isVariableDeclaration(node)) {
+			const inlineStart = node.name.end;
+			const end = node.type?.getFullStart() ?? node.initializer?.getFullStart() ?? node.end;
+			if (end > inlineStart)
+				segments.push({
+					text: directiveSource.text.slice(inlineStart, end),
+					start: inlineStart
+				});
+		}
+		if (this.detailedProfile) {
+			this.counters.directiveScans += segments.length;
+			this.counters.directiveCharacters += segments.reduce(
+				(count, segment) => count + segment.text.length,
+				0
+			);
+		}
+		const directives = Object.freeze(
+			uniqueDirectives(
+				segments.flatMap((segment) =>
+					segment.text.includes('@exact')
+						? parseExpressionDirectives(segment.text, segment.start, directiveSource)
+						: []
+				)
+			)
+		);
+		cache.set(node, directives);
+		return directives;
+	}
+
+	forBinding(node: ts.Node | undefined): readonly ExpressionDirective[] {
+		if (!node) return Object.freeze([]);
+		const values = [...this.for(node, ts.isVariableDeclaration(node))];
+		if (
+			ts.isVariableDeclaration(node) &&
+			ts.isVariableDeclarationList(node.parent) &&
+			ts.isVariableStatement(node.parent.parent)
+		)
+			values.unshift(...this.for(node.parent.parent));
+		return Object.freeze(uniqueDirectives(values));
+	}
+
+	forType(type: ts.Type): readonly ExpressionDirective[] {
+		const symbol = type.aliasSymbol ?? type.getSymbol();
+		return Object.freeze(
+			uniqueDirectives((symbol?.declarations ?? []).flatMap((declaration) => this.for(declaration)))
+		);
+	}
+}
 
 export function parseExpressionDirectives(
 	text: string,

@@ -82,3 +82,16 @@ export type TypeProjectionBucket =
 	| 'arguments'
 	| 'directives'
 	| 'construction';
+
+/** Mutable counters shared by detailed projection instrumentation stages. */
+export type ProjectionCounters = {
+	typeCacheHits: number;
+	typeCacheMisses: number;
+	shallowTypeCacheHits: number;
+	shallowTypeCacheMisses: number;
+	checkerTypeQueries: number;
+	checkerSymbolQueries: number;
+	resolvedSignatureQueries: number;
+	directiveScans: number;
+	directiveCharacters: number;
+};
