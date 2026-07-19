@@ -3,7 +3,8 @@ import path from 'node:path';
 import { collectInputFiles, commonRoot, manifestPathFor, outputPathFor } from '../paths.js';
 import { sourceMapPathFor, withSourceMapFile, withSourceMappingUrl } from '../source-maps.js';
 import type { CompileFileOptions, CompileFileResult, CompileProjectOptions } from '../types.js';
-import { capabilityCompilationOptions, transformSource } from './source-analysis.js';
+import { capabilityCompilationOptions } from './capability-options.js';
+import { transformSource } from './transformation.js';
 
 /** Compiles one input file and optionally writes code, source map, and manifest artifacts. */
 export async function compileFile(

@@ -25,11 +25,11 @@ import {
 	sharedArtifactResult
 } from './shared-artifact.js';
 import {
-	analyzeSource,
 	capabilityCompilationOptions,
-	transformSource,
 	type CapabilityCompilationOptions
-} from './source-analysis.js';
+} from './capability-options.js';
+import { analyzeSource } from './source-analysis.js';
+import { transformSource } from './transformation.js';
 
 /** Compiles one source file into paired client/server artifacts plus an artifact manifest. */
 export async function compileFileArtifacts(

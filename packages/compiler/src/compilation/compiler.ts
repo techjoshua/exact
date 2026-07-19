@@ -62,13 +62,8 @@ export type * from '../types.js';
 export { exactCompilerManifestVersion } from '../versions.js';
 
 export { compileFile, compileProject } from './file-compilation.js';
-export {
-	analyzeReactiveProvenance,
-	analyzeSemanticGraph,
-	analyzeSource,
-	transform,
-	transformSource
-} from './source-analysis.js';
+export { analyzeSemanticGraph, analyzeSource } from './source-analysis.js';
+export { analyzeReactiveProvenance, transform, transformSource } from './transformation.js';
 
 export {
 	compileArtifactPlanEntries,
