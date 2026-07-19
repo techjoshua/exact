@@ -1,4 +1,5 @@
 import type { ComponentFunction, ErrorReport, Logger, UnsafeHtmlAuditEvent } from '@exact/core';
+import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation';
 import type {
 	ExactInvocationKind,
 	ExactInvocationRequest,
@@ -7,7 +8,6 @@ import type {
 	ExactPatch,
 	ExactStateContract
 } from '@exact/server';
-import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation';
 
 export type HydrateOptions = {
 	/** Compiler registry fingerprint for the client artifact. */

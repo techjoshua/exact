@@ -1,0 +1,109 @@
+import { decodeReactiveProtocolValue } from '@exact/core';
+import type {
+	ExactInvocationRequest,
+	ExactInvocationResult,
+	ExactOperationResult,
+	ExactPatch
+} from '@exact/server';
+import { hasOnlyKeys, isJsonSafe } from '../validation.js';
+import { positiveLimit } from './ndjson.js';
+import { isPatchLike, parseExactOperationResult } from './result.js';
+import { matchesOperation } from './stream.js';
+
+export type ResponseLimits = {
+	maxBytes?: number;
+	maxJsonDepth?: number;
+	maxJsonNodes?: number;
+	maxPatches?: number;
+};
+
+export function parseExactInvocationResponse(
+	body: unknown,
+	message: string,
+	expected?: ExactInvocationRequest,
+	limits: ResponseLimits = {}
+): ExactInvocationResult {
+	if (
+		!isJsonSafe(body, {
+			maxDepth: limits.maxJsonDepth,
+			maxNodes: limits.maxJsonNodes,
+			maxBytes: limits.maxBytes
+		})
+	)
+		throw new Error(message);
+	try {
+		body = decodeReactiveProtocolValue(body);
+	} catch {
+		throw new Error(message);
+	}
+	if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error(message);
+	if (
+		!isJsonSafe(body, {
+			maxDepth: limits.maxJsonDepth,
+			maxNodes: limits.maxJsonNodes,
+			maxBytes: limits.maxBytes
+		})
+	)
+		throw new Error(message);
+	const record = body as Record<string, unknown>;
+	if (record.ok !== true) throw new Error(message);
+	if (!hasOnlyKeys(record, ['ok', 'type', 'id', 'opId', 'patches', 'state', 'html']))
+		throw new Error(message);
+	if (expected && !matchesOperation(record, expected)) throw new Error(message);
+	if ('state' in record && record.state === undefined) throw new Error(message);
+	if (
+		record.patches !== undefined &&
+		(!Array.isArray(record.patches) || !record.patches.every(isPatchLike))
+	)
+		throw new Error(message);
+	if (
+		Array.isArray(record.patches) &&
+		record.patches.length > positiveLimit(limits.maxPatches, 10_000)
+	)
+		throw new Error(message);
+	if (record.html !== undefined && typeof record.html !== 'string') throw new Error(message);
+	return {
+		...(record.patches === undefined ? {} : { patches: record.patches as ExactPatch[] }),
+		...('state' in record ? { state: record.state } : {}),
+		...(record.html === undefined ? {} : { html: record.html })
+	};
+}
+
+export function parseExactBatchResponse(
+	body: unknown,
+	expected?: readonly ExactInvocationRequest[],
+	limits: ResponseLimits = {}
+): ExactOperationResult[] {
+	const message = 'eXact batch invocation returned malformed results';
+	if (
+		!isJsonSafe(body, {
+			maxDepth: limits.maxJsonDepth,
+			maxNodes: limits.maxJsonNodes,
+			maxBytes: limits.maxBytes
+		})
+	)
+		throw new Error(message);
+	try {
+		body = decodeReactiveProtocolValue(body);
+	} catch {
+		throw new Error(message);
+	}
+	if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error(message);
+	if (
+		!isJsonSafe(body, {
+			maxDepth: limits.maxJsonDepth,
+			maxNodes: limits.maxJsonNodes,
+			maxBytes: limits.maxBytes
+		})
+	)
+		throw new Error(message);
+	const record = body as Record<string, unknown>;
+	if (record.ok !== true) throw new Error(message);
+	if (!hasOnlyKeys(record, ['ok', 'version', 'results'])) throw new Error(message);
+	if (record.version !== 1) throw new Error(message);
+	if (!Array.isArray(record.results)) throw new Error(message);
+	if (expected && record.results.length !== expected.length) throw new Error(message);
+	return record.results.map((result, index) =>
+		parseExactOperationResult(result, expected?.[index], limits)
+	);
+}

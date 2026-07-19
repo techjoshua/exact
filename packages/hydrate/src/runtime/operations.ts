@@ -1,0 +1,186 @@
+import { createDomWorkBudget, type DomWorkBudget } from '@exact/dom';
+import { enqueueExactOperation } from '../batching.js';
+import { invokeExact } from '../invocations.js';
+import { hydrateClientIslands } from '../islands.js';
+import {
+	applyPatches,
+	boundaryInnerHtml,
+	boundaryInnerHtmls,
+	createPatchBoundaryResolver
+} from '../patches.js';
+import { stateForContract } from '../state.js';
+import type {
+	ExactClient,
+	ExactInvocationKind,
+	ExactInvocationRequest,
+	ExactInvocationResult,
+	FetchLike,
+	HydrateOptions
+} from '../types.js';
+import { requestVersions } from './state.js';
+
+export async function invokeAndApply(
+	container: Element,
+	client: ExactClient,
+	type: ExactInvocationKind,
+	id: string,
+	payload: unknown,
+	options: HydrateOptions
+): Promise<ExactInvocationResult> {
+	const work = createDomWorkBudget(options.maxTreeNodes);
+	let versions = requestVersions.get(container);
+	if (!versions) {
+		versions = new Map();
+		requestVersions.set(container, versions);
+	}
+	const configuredBoundaries = options.actionBoundaries?.[id];
+	const requestKeys = [
+		...new Set(
+			type === 'refresh'
+				? [`boundary:${id}`]
+				: configuredBoundaries?.length
+					? configuredBoundaries.map((boundary) => `boundary:${boundary}`)
+					: [`action:${id}`]
+		)
+	];
+	const requestVersion = Math.max(0, ...requestKeys.map((key) => versions!.get(key) ?? 0)) + 1;
+	for (const key of requestKeys) versions.set(key, requestVersion);
+	const requestOrdinal = (versions.get('request') ?? 0) + 1;
+	versions.set('request', requestOrdinal);
+	const operation: ExactInvocationRequest = {
+		type,
+		id,
+		payload,
+		state:
+			type === 'action'
+				? stateForContract(client.state, client.stateContracts?.[id])
+				: client.state,
+		boundaryHtml: type === 'refresh' ? boundaryInnerHtml(container, id, work) : undefined,
+		boundaryHtmls:
+			type === 'action'
+				? boundaryHtmlsFor(container, options.actionBoundaries?.[id], work)
+				: undefined
+	};
+	const endpoint = requireEndpoint(endpointForOperation(client, type, id));
+	const transport = transportForEndpoint(options, endpoint);
+	// Operations can route to per-action or per-boundary endpoints, which keeps
+	// server components usable inside independently deployed micro-frontend bundles.
+	const result =
+		options.batch === false
+			? await invokeExact({
+					endpoint,
+					...operation,
+					fetch: transport.fetch,
+					headers: transport.headers,
+					logger: options.logger,
+					stream: options.stream,
+					streamLimits: options.streamLimits,
+					signal: options.signal
+				})
+			: await enqueueExactOperation(container, {
+					endpoint,
+					operation,
+					fetch: transport.fetch,
+					headers: transport.headers,
+					logger: options.logger,
+					stream: options.stream,
+					streamLimits: options.streamLimits,
+					signal: options.signal
+				});
+	const staleKeys = new Set(requestKeys.filter((key) => versions!.get(key) !== requestVersion));
+	if (staleKeys.size === requestKeys.length) {
+		options.onDiagnostic?.({
+			code: 'stale-response',
+			message: `ignored stale exact ${type} response for ${id}`,
+			patch: { type, id }
+		});
+		return result;
+	}
+	let responsePatches = result.patches;
+	const partiallyStale = staleKeys.size > 0;
+	if (partiallyStale && configuredBoundaries && responsePatches) {
+		const rejected: string[] = [];
+		const boundaryForPatch = createPatchBoundaryResolver(container, configuredBoundaries, work);
+		responsePatches = responsePatches.filter((patch) => {
+			const owner = boundaryForPatch(patch.id);
+			const accepted = owner !== undefined && !staleKeys.has(`boundary:${owner}`);
+			if (!accepted) rejected.push(`${patch.type}:${patch.id}`);
+			return accepted;
+		});
+		options.onDiagnostic?.({
+			code: 'stale-response',
+			message:
+				`partially ignored stale exact ${type} response for ${id}` +
+				(rejected.length ? ` (${rejected.join(', ')})` : ''),
+			patch: { type, id }
+		});
+	}
+	const patchOptions = { ...options, workBudget: work };
+	let patchesApplied = responsePatches
+		? applyPatches(container, responsePatches, patchOptions)
+		: true;
+	if (!patchesApplied && type === 'refresh' && result.html) {
+		patchesApplied = applyPatches(
+			container,
+			[{ type: 'replace', id, html: result.html }],
+			patchOptions
+		);
+	}
+	if (!patchesApplied) {
+		options.onDiagnostic?.({
+			code: 'invalid-patch',
+			message: `rejected exact ${type} response for ${id}; DOM and state were left unchanged`,
+			patch: { type, id }
+		});
+		return result;
+	}
+	if (responsePatches?.length && options.islands)
+		hydrateClientIslands(container, options.islands, options);
+	if (
+		!partiallyStale &&
+		'state' in result &&
+		requestOrdinal >= (versions.get('state-committed') ?? 0)
+	) {
+		versions.set('state-committed', requestOrdinal);
+		client.state = result.state;
+	}
+	return result;
+}
+
+export function requireEndpoint(endpoint: string | undefined): string {
+	if (!endpoint) throw new Error('eXact endpoint is not configured');
+	return endpoint;
+}
+
+export function endpointForOperation(
+	client: ExactClient,
+	type: ExactInvocationKind,
+	id: string
+): string | undefined {
+	if (type === 'action') return client.endpoints?.actions?.[id] ?? client.endpoint;
+	return client.endpoints?.boundaries?.[id] ?? client.endpoint;
+}
+
+export function transportForEndpoint(
+	options: HydrateOptions,
+	endpoint: string
+): { fetch?: FetchLike; headers?: Record<string, string> } {
+	const transport = options.transports?.[endpoint];
+	return {
+		fetch: transport?.fetch ?? options.fetch,
+		headers: {
+			...(options.headers ?? {}),
+			...(transport?.headers ?? {})
+		}
+	};
+}
+
+export function boundaryHtmlsFor(
+	container: Element,
+	ids: readonly string[] | undefined,
+	work: DomWorkBudget
+): Record<string, string> | undefined {
+	if (!ids?.length) return undefined;
+	const htmls = boundaryInnerHtmls(container, ids, work);
+	return Object.keys(htmls).length ? htmls : undefined;
+}

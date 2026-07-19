@@ -1,4 +1,3 @@
-import { hasOnlyKeys, isJsonSafe } from './validation.js';
 import { decodeReactiveProtocolValue, sameJsonData } from '@exact/core';
 import { createDomWorkBudget, walkDomSubtree, type DomWorkBudget } from '@exact/dom';
 import type {
@@ -6,11 +5,12 @@ import type {
 	ExactEndpointRoutes,
 	ExactEndpointTransport,
 	ExactHydrationConfig,
+	ExactHydrationConfigLimits,
 	ExactHydrationRegistration,
-	HydrateOptions,
-	ExactStateContract
+	ExactStateContract,
+	HydrateOptions
 } from './types.js';
-import type { ExactHydrationConfigLimits } from './types.js';
+import { hasOnlyKeys, isJsonSafe } from './validation.js';
 
 /** Reads and validates the serialized hydration configuration embedded in the document. */
 export function readExactHydrationConfig(

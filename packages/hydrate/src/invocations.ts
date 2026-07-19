@@ -5,8 +5,8 @@ import {
 	readExactStreamResponse
 } from './responses.js';
 import type {
-	ExactInvocationResult,
 	ExactInvocationRequest,
+	ExactInvocationResult,
 	ExactOperationResult,
 	InvokeExactBatchOptions,
 	InvokeExactOptions

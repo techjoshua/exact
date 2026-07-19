@@ -5,6 +5,7 @@ import type {
 	ExactBatchQueue,
 	ExactInvocationRequest,
 	ExactInvocationResult,
+	ExactStreamLimits,
 	FetchLike
 } from './types.js';
 
@@ -20,7 +21,7 @@ export function enqueueExactOperation(
 		headers?: Record<string, string>;
 		logger?: Logger;
 		stream?: boolean;
-		streamLimits?: import('./types.js').ExactStreamLimits;
+		streamLimits?: ExactStreamLimits;
 		signal?: AbortSignal;
 	}
 ): Promise<ExactInvocationResult> {

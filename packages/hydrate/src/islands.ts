@@ -6,8 +6,8 @@ import {
 } from '@exact/core';
 import { consumeDomWork, createDomWorkBudget, render, walkDomSubtree } from '@exact/dom';
 import { isSafeObjectKey } from './safety.js';
-import { isJsonSafe } from './validation.js';
 import type { ClientIslandRegistry, HydrateOptions } from './types.js';
+import { isJsonSafe } from './validation.js';
 
 /** Hydrates all unhydrated client island boundaries found under a container. */
 export function hydrateClientIslands(

@@ -1,8 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it } from 'vitest';
 import { createVNode } from '@exact/core';
+import { describe, expect, it } from 'vitest';
 import { hydrate, readExactHydrationConfig } from './index.js';
 
 describe('bounded hydration bootstrap and adoption', () => {
