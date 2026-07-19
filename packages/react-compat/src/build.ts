@@ -62,6 +62,8 @@ export interface ReactCompatibilityReport {
     targetModule: string;
     targetExport: string;
   }>[];
+  /** Importer-specific decisions observed while transforming application modules. */
+  readonly selections: readonly ReactCompatibilitySelection[];
   readonly unsupportedVersions: readonly Readonly<{
     sourceModule: string;
     sourceLocation: string;
@@ -71,6 +73,20 @@ export interface ReactCompatibilityReport {
     adapterVersion: string;
   }>[];
   readonly watchFiles: readonly string[];
+}
+
+export interface ReactCompatibilitySelection {
+  readonly importer: string;
+  readonly status: "substituted" | "rejected";
+  readonly sourceModule: string;
+  readonly sourceExport: string;
+  readonly sourceLocation: string;
+  readonly installedVersion: string;
+  readonly adapterPackage: string;
+  readonly adapterVersion: string;
+  readonly targetModule?: string;
+  readonly targetExport?: string;
+  readonly reason?: "unsupported-export" | "unsupported-version";
 }
 
 export interface ReactCompatibilityBuildEngine {
@@ -102,6 +118,7 @@ export function createReactCompatibilityBuildEngine(options: ReactCompatibilityO
   if (!resolved) throw new Error("React compatibility build engine cannot be disabled");
   let invalidated = false;
   const usedAdapters = new Set<string>();
+  const selections = new Map<string, ReactCompatibilitySelection>();
   const state = (): CachedDiscovery => {
     const existing = discoveryCache.get(buildRoot);
     if (!invalidated && existing && existing.signature === fileSignature(existing.watchFiles)) return existing;
@@ -124,6 +141,10 @@ export function createReactCompatibilityBuildEngine(options: ReactCompatibilityO
       const current = state();
       const resolvedReplacements = replacementsForImporter(current.graph, current.registry, input.id);
       const replacements = moduleReplacements(resolvedReplacements);
+      const usedSourceExports = new Map<string, ReadonlySet<string>>();
+      for (const sourceModule of new Set(resolvedReplacements.map(value => value.sourceModule))) {
+        usedSourceExports.set(sourceModule, new Set(runtimeSourceExports(input.source, input.id, sourceModule)));
+      }
       const exclusiveDiagnostics: ReactCompatibilityDiagnostic[] = [];
       for (const policy of sourcePoliciesForImporter(current.graph, current.registry, input.id)) {
         if (policy.fallback !== "error" || !containsModule(input.source, policy.sourceModule)) continue;
@@ -137,6 +158,17 @@ export function createReactCompatibilityBuildEngine(options: ReactCompatibilityO
           `Unsupported runtime ${policy.sourceModule} ${unsupportedExports.join(", ")} ` +
           `from ${policy.sourceLocation}@${policy.installedVersion} in ${input.id}; ` +
           `retaining it would mix compatibility authorities`;
+        for (const sourceExport of unsupportedExports) recordSelection(selections, {
+          importer: input.id,
+          status: "rejected",
+          sourceModule: policy.sourceModule,
+          sourceExport,
+          sourceLocation: policy.sourceLocation,
+          installedVersion: policy.installedVersion,
+          adapterPackage: policy.adapterPackage,
+          adapterVersion: policy.adapterVersion,
+          reason: "unsupported-export"
+        });
         if (resolved.strict) throw new Error(message);
         exclusiveDiagnostics.push(...unsupportedExports.map(sourceExport => ({
           severity: "error" as const,
@@ -154,6 +186,20 @@ export function createReactCompatibilityBuildEngine(options: ReactCompatibilityO
       }
       const unsupported = unsupportedSourcesForImporter(current.graph, current.registry, input.id)
         .filter(source => containsModule(input.source, source.sourceModule));
+      for (const source of unsupported) {
+        const sourceExports = runtimeSourceExports(input.source, input.id, source.sourceModule);
+        for (const sourceExport of sourceExports.length ? sourceExports : ["*"]) recordSelection(selections, {
+          importer: input.id,
+          status: "rejected",
+          sourceModule: source.sourceModule,
+          sourceExport,
+          sourceLocation: source.sourceLocation,
+          installedVersion: source.installedVersion,
+          adapterPackage: source.adapterPackage,
+          adapterVersion: source.adapterVersion,
+          reason: "unsupported-version"
+        });
+      }
       if (unsupported.length && resolved.strict) {
         const source = unsupported[0]!;
         throw new Error(
@@ -200,6 +246,23 @@ export function createReactCompatibilityBuildEngine(options: ReactCompatibilityO
         const adapter = [...current.registry.replacements.values()].find(value => value.specifier === dependency)?.adapterPackage;
         if (adapter) usedAdapters.add(adapter);
       }
+      for (const replacement of resolvedReplacements) {
+        const sourceExports = usedSourceExports.get(replacement.sourceModule);
+        if (!sourceExports?.has(replacement.sourceExport) || !containsModule(transformed.code, replacement.specifier)) continue;
+        const installedVersion = current.graph.nodes.get(replacement.sourceInstance)?.manifest.version;
+        recordSelection(selections, {
+          importer: input.id,
+          status: "substituted",
+          sourceModule: replacement.sourceModule,
+          sourceExport: replacement.sourceExport,
+          sourceLocation: replacement.sourceLocation,
+          installedVersion: typeof installedVersion === "string" ? installedVersion : "unknown",
+          adapterPackage: replacement.adapterPackage,
+          adapterVersion: replacement.adapterVersion,
+          targetModule: replacement.specifier,
+          targetExport: replacement.export
+        });
+      }
       diagnostics.push(...retainedDiagnostics(input.id, transformed.code, current.registry, buildRoot));
       return Object.freeze({
         code: transformed.code,
@@ -237,6 +300,11 @@ export function createReactCompatibilityBuildEngine(options: ReactCompatibilityO
           targetModule: replacement.specifier,
           targetExport: replacement.export
         }))),
+        selections: Object.freeze([...selections.values()]
+          .sort((left, right) => left.importer.localeCompare(right.importer)
+            || left.sourceModule.localeCompare(right.sourceModule)
+            || left.sourceExport.localeCompare(right.sourceExport))
+          .map(selection => Object.freeze({ ...selection }))),
         unsupportedVersions: Object.freeze(current.registry.unsupportedSources.map(source => Object.freeze({
           sourceModule: source.sourceModule,
           sourceLocation: source.sourceLocation,
@@ -250,6 +318,23 @@ export function createReactCompatibilityBuildEngine(options: ReactCompatibilityO
     }
   };
   return Object.freeze(engine);
+}
+
+function recordSelection(
+  selections: Map<string, ReactCompatibilitySelection>,
+  selection: ReactCompatibilitySelection
+): void {
+  const key = [
+    selection.importer,
+    selection.status,
+    selection.sourceLocation,
+    selection.sourceModule,
+    selection.sourceExport,
+    selection.targetModule ?? "",
+    selection.targetExport ?? "",
+    selection.reason ?? ""
+  ].join("\0");
+  selections.set(key, Object.freeze(selection));
 }
 
 function runtimeSourceExports(source: string, filename: string, sourceModule: string): string[] {

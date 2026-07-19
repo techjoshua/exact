@@ -305,7 +305,7 @@ describe("React Router modern facade", () => {
     ));
     await settle();
     const event = new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 });
-    container.querySelector("a")!.onclick?.call(container.querySelector("a")!, event);
+    container.querySelector("a")!.onclick?.call(container.querySelector("a")!, event as PointerEvent);
     expect(event.defaultPrevented).toBe(false);
   });
 

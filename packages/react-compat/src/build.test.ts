@@ -34,6 +34,20 @@ describe("React compatibility build engine", () => {
       })
     ]));
     expect(engine.report().unusedAdapters).toEqual([]);
+    expect(engine.report().selections).toEqual([
+      expect.objectContaining({
+        importer: "/query.js",
+        status: "substituted",
+        sourceModule: "@tanstack/react-query",
+        sourceExport: "QueryClientProvider",
+        sourceLocation: expect.stringContaining("node_modules"),
+        installedVersion: "5.101.2",
+        adapterPackage: "@exact/tanstack-query",
+        adapterVersion: "0.0.0",
+        targetModule: "@exact/tanstack-query/react",
+        targetExport: "QueryClientProvider"
+      })
+    ]);
   });
 
   it("reports dynamic export escapes without executing adapter code", () => {

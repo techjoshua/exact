@@ -75,6 +75,74 @@ describe("pinned React Router differential conformance", () => {
   });
 
   it.each([
+    ["final v6", "react-router-dom-v6"],
+    ["v7", "react-router-dom-v7"]
+  ])("matches %s mutation action data and loader revalidation", async (_label, packageName) => {
+    const actual: any = await import(packageName);
+    let actualCount = 0;
+    let exactCount = 0;
+    const actualRouter = actual.createMemoryRouter([{
+      id: "counter",
+      path: "/",
+      loader: () => ({ count: actualCount }),
+      action: async ({ request }: any) => {
+        actualCount = Number((await request.formData()).get("count"));
+        return { accepted: actualCount };
+      }
+    }], { initialEntries: ["/"] });
+    await initialized(actualRouter);
+    const exactRouter = createExactMemoryRouter([{
+      id: "counter",
+      path: "/",
+      loader: () => ({ count: exactCount }),
+      action: async ({ request }) => {
+        exactCount = Number((await request.formData()).get("count"));
+        return { accepted: exactCount };
+      }
+    }], { initialEntries: ["/"] });
+    await exactRouter.initialize();
+    const actualData = new FormData();
+    const exactData = new FormData();
+    actualData.set("count", "3");
+    exactData.set("count", "3");
+    await Promise.all([
+      actualRouter.navigate("/", { formMethod: "post", formData: actualData }),
+      exactRouter.submit("/", { method: "POST", body: exactData })
+    ]);
+    expect({
+      actionData: exactRouter.getSnapshot().actionData,
+      loaderData: exactRouter.getSnapshot().loaderData
+    }).toEqual({
+      actionData: actualRouter.state.actionData,
+      loaderData: actualRouter.state.loaderData
+    });
+    actualRouter.dispose();
+    exactRouter.dispose();
+  });
+
+  it.each([
+    ["final v6", "react-router-dom-v6"],
+    ["v7", "react-router-dom-v7"]
+  ])("matches %s lazy loader materialization", async (_label, packageName) => {
+    const actual: any = await import(packageName);
+    const actualRouter = actual.createMemoryRouter([{
+      id: "lazy",
+      path: "/lazy",
+      lazy: async () => ({ loader: () => "ready" })
+    }], { initialEntries: ["/lazy"] });
+    await initialized(actualRouter);
+    const exactRouter = createExactMemoryRouter([{
+      id: "lazy",
+      path: "/lazy",
+      lazy: async () => ({ loader: () => "ready" })
+    }], { initialEntries: ["/lazy"] });
+    await exactRouter.initialize();
+    expect(exactRouter.getSnapshot().loaderData).toEqual(actualRouter.state.loaderData);
+    actualRouter.dispose();
+    exactRouter.dispose();
+  });
+
+  it.each([
     ["pre-data v6", "react-router-dom-v63"],
     ["final v6", "react-router-dom-v6"],
     ["v7", "react-router-dom-v7"]

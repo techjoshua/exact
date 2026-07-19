@@ -2,6 +2,10 @@
 
 Status: final findings from the post-implementation adversarial pass.
 
+This document preserves the findings against the frozen review baseline. The
+subsequent disposition and verification evidence are tracked in
+`react-router-adversarial-remediation.md`.
+
 Review baseline: pre-execution plan commit
 `0fc11e9976f28bfe6f050839b87604cc32a8db78`.
 
@@ -399,4 +403,5 @@ architecture:
 - Several advertised modern APIs are partial placeholders.
 - Certification is substantially narrower than the public substitution map.
 
-No fixes were made during or after this review.
+No fixes were made during the review itself. Subsequent fixes do not rewrite
+these historical findings; see the remediation record linked above.

@@ -693,7 +693,7 @@ Exit criteria:
   replacement conflicts.
 - V5 support adds no data-router claims or modern semantics not present in v5.
 
-### Phase 6: Hardening and adoption certification — partially complete
+### Phase 6: Hardening and adoption certification — substantially complete
 
 - Add differential conformance fixtures against the corresponding real React
   Router versions.
@@ -702,8 +702,9 @@ Exit criteria:
   hosts do not receive router-specific selection logic.
 - Certify package contents, conditional exports, tree shaking, lazy routes,
   source maps, watch invalidation, and production bundles.
-- Maintain the compatibility matrix below. Structured report presentation
-  remains future work.
+- Maintain the compatibility matrix below. Reports expose both discovered
+  substitution inventory and importer-specific selections, including the
+  resolved package location and installed version.
 - Evaluate v8 and add a variant only after conformance evidence.
 
 Exit criteria:
@@ -792,8 +793,9 @@ The executable production bundle gate currently verifies:
 - React Router v8 matches no supported variant and fails closed.
 - Source exports absent from the selected version map fail closed; transformed
   and original router authorities are never mixed.
-- Deferred data supports the controller's documented promise/suspense behavior,
-  not React Router framework-mode streaming protocols.
+- `Await`, `useAsyncValue`, and `useAsyncError` support ordinary promise
+  settlement. React Router `defer` and framework-mode streaming protocols are
+  unsupported and fail closed.
 - The facades use local public-shape TypeScript declarations. They do not
   import private React Router types or runtime internals.
 
@@ -833,8 +835,6 @@ definitions immediately.
 
 ## Open Design Questions
 
-- How compatibility reporting presents one importer graph that reaches several
-  source package instances of the same version.
 - Which v7 framework-mode APIs, if any, are sufficiently independent of its
   build system to include later.
 - Whether a compatible v8 range can reuse the modern facade or requires its own
@@ -854,8 +854,8 @@ definitions immediately.
 - Public-shape facade types are maintained locally.
 - V5 `Prompt` and modern blocker hooks use the shared controller blocker and
   continuation contract.
-- Initial deferred support is limited to the controller's documented
-  promise/suspense behavior.
+- Ordinary promises are supported through `Await`; the `defer` API and
+  framework-mode streaming protocols are outside the initial surface.
 - Client route context is not server authorization.
 - V7 framework-mode build and deployment tooling is outside the initial scope.
 - V8 support follows evidence rather than an optimistic semver range.
