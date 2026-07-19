@@ -1,4 +1,4 @@
-import { proxyMarker, rawTarget, reactiveValueMarker, reactiveValueRef } from './symbols.js';
+import { proxyMarker, rawTarget, reactiveValueMarker, type reactiveValueRef } from './symbols.js';
 import type { ReactiveRef, ReactiveValue } from './types.js';
 
 /** Returns whether a value is an eXact reactive-value wrapper. */

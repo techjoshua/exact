@@ -38,7 +38,7 @@ export function keyedCollectionMetadata(
 	collection: unknown[],
 	key?: KeyExtractor
 ): KeyedCollectionMetadata | undefined {
-	let metadata = metadataByCollection.get(collection);
+	const metadata = metadataByCollection.get(collection);
 	if (!metadata) return key ? rebuildMetadata(collection, key) : undefined;
 	if (!metadata.structureDirty && metadata.dirtyKeys.size === 0) return metadata;
 	if (!key) return undefined;
