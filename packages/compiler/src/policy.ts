@@ -644,6 +644,9 @@ export function createExactPolicyManifest(
   const outputSinks = collectSecretOutputSinks(filename, module, metadata, subjects);
   flows.push(...outputSinks.flows);
   for (const diagnostic of outputSinks.diagnostics) diagnostics.add(diagnostic);
+  const routeTransfers = collectRouteHydrationSinks(filename, module, metadata, subjects);
+  flows.push(...routeTransfers.flows);
+  for (const diagnostic of routeTransfers.diagnostics) diagnostics.add(diagnostic);
 
   for (const record of metadata.statePolicies) {
     const component = componentsByName.get(record.component);
@@ -961,6 +964,85 @@ function collectSecretOutputSinks(
     }
   }
 
+  return {
+    flows: flows.sort((left, right) => left.id.localeCompare(right.id)),
+    diagnostics: [...diagnostics].sort()
+  };
+}
+
+function collectRouteHydrationSinks(
+  filename: string,
+  module: BoundModule,
+  metadata: ExactPolicyMetadata,
+  subjects: ExactPolicySubjectIR[]
+): {
+  flows: ExactPolicyFlowIR[];
+  diagnostics: string[];
+} {
+  const handlerNames = new Set(["loader", "action"]);
+  const referencedHandlers = new Map<string, string>();
+  for (const property of module.walk().where(reference =>
+    (reference.node.kind === "PropertyAssignment" || reference.node.kind === "ShorthandPropertyAssignment")
+    && handlerNames.has(reference.node.name ?? "")
+  )) {
+    const value = property.children().toArray().at(-1);
+    if (value?.variable) referencedHandlers.set(value.variable.id, property.node.name!);
+  }
+
+  const flows: ExactPolicyFlowIR[] = [];
+  const diagnostics = new Set<string>();
+  const seen = new Set<string>();
+  for (const fn of module.walk().functions()) {
+    let handler = fn.node.kind === "MethodDeclaration" && handlerNames.has(fn.node.name ?? "")
+      ? fn.node.name
+      : fn.parent?.node.kind === "PropertyAssignment" && handlerNames.has(fn.parent.node.name ?? "")
+        ? fn.parent.node.name
+        : undefined;
+    if (!handler) {
+      const declaration = fn.parent?.node.kind === "VariableDeclaration" ? fn.parent : undefined;
+      const variable = declaration?.children().first(child => !!child.variable)?.variable;
+      if (variable) handler = referencedHandlers.get(variable.id);
+    }
+    if (!handler) continue;
+
+    const returnValues = fn.descendants({ nestedFunctions: false })
+      .ofKind("ReturnStatement")
+      .toArray()
+      .map(statement => statement.children().toArray().at(-1))
+      .filter((value): value is NodeRef => !!value);
+    if (!returnValues.length && fn.node.kind === "ArrowFunction") {
+      const expressionBody = fn.children().toArray().at(-1);
+      if (expressionBody?.node.category === "expression") returnValues.push(expressionBody);
+    }
+
+    for (const value of returnValues) {
+      const inputs = policyInputs(
+        value,
+        metadata.declarationPolicies,
+        metadata.namedDeclarationPolicies,
+        metadata.secretConsumeCallIds
+      ).filter(input => input.record.policy.secret || input.record.policy.residency === "server");
+      if (!inputs.length) continue;
+      materializePolicyInputSubjects(inputs, subjects);
+      const combined = combinePolicyRecords(inputs.map(input => input.record));
+      const policy = combined.policy ?? dataPolicy("server");
+      const key = `${handler}:${value.node.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const location = value.node.span ?? fn.node.span ?? { line: 0, column: 0 };
+      const reason = `${describePolicy(policy)} value cannot enter route ${handler} hydration data`;
+      flows.push(policyFlow(filename, {
+        kind: "transfer",
+        from: inputs.map(input => input.record.subjectId).sort(),
+        to: stableId(filename, "policy:route-hydration", handler, value.node.id),
+        policy,
+        boundary: "hydration",
+        authorized: false,
+        reason
+      }));
+      diagnostics.add(`error: ${reason} at ${filename}:${location.line}:${location.column}`);
+    }
+  }
   return {
     flows: flows.sort((left, right) => left.id.localeCompare(right.id)),
     diagnostics: [...diagnostics].sort()

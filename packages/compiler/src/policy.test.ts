@@ -62,6 +62,35 @@ describe("generic data policy IR", () => {
     );
   });
 
+  it("treats route loader and action results as hydration transfer sinks", () => {
+    const manifest = analyzeSource(`
+      import { consume, type Secret } from "@exact/secrets";
+      /** @exact keep=server */ const internal = { tenant: "private" };
+      /** @exact keep=secret */ const credential = "configured" as Secret<string>;
+      const loader = () => internal;
+      const safeLoader = () => consume(credential);
+      export const routes = [
+        { path: "direct", loader: () => internal },
+        { path: "shorthand", loader },
+        { path: "action", async action() { return credential; } },
+        { path: "safe", loader: safeLoader }
+      ];
+    `, {
+      filename: fixture("route-hydration-policy"),
+      packageType: "application",
+      target: "server"
+    });
+
+    expect(manifest.diagnostics.filter(diagnostic => diagnostic.includes("route loader hydration data"))).toHaveLength(2);
+    expect(manifest.diagnostics).toEqual(expect.arrayContaining([
+      expect.stringContaining("server-kept value cannot enter route loader hydration data"),
+      expect.stringContaining("secret value cannot enter route action hydration data")
+    ]));
+    expect(manifest.policy.flows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ boundary: "hydration", authorized: false })
+    ]));
+  });
+
   it("uses protected state reads as task placement effects", () => {
     const manifest = analyzeSource(`
       import type { Component } from "@exact/core";

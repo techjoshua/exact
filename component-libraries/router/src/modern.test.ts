@@ -199,7 +199,13 @@ describe("React Router modern facade", () => {
     const hydration = document.createElement("script");
     hydration.id = "__exact_router_hydration";
     hydration.type = "application/json";
-    hydration.textContent = JSON.stringify({ loaderData: { home: { source: "server" } } });
+    hydration.textContent = JSON.stringify({
+      protocol: 1,
+      key: "default",
+      location: "/home",
+      matches: ["home"],
+      data: { loaderData: { home: { source: "server" } } }
+    });
     document.body.appendChild(hydration);
     let loaderCalls = 0;
     const router = createBrowserRouter([
@@ -210,6 +216,46 @@ describe("React Router modern facade", () => {
     expect(loaderCalls).toBe(0);
     expect(document.getElementById("__exact_router_hydration")).toBeNull();
     router.dispose();
+  });
+
+  it("rejects hydration for another location and supports keyed router roots", async () => {
+    window.history.replaceState(null, "", "/home");
+    const stale = document.createElement("script");
+    stale.id = "__exact_router_hydration";
+    stale.type = "application/json";
+    stale.textContent = JSON.stringify({
+      protocol: 1,
+      key: "default",
+      location: "/other",
+      matches: ["home"],
+      data: { loaderData: { home: "stale" } }
+    });
+    document.body.appendChild(stale);
+    let loaderCalls = 0;
+    const rejected = createBrowserRouter([
+      { id: "home", path: "home", loader: () => { loaderCalls++; return "fresh"; } }
+    ]);
+    await rejected.initialize();
+    expect(rejected.getSnapshot().loaderData).toEqual({ home: "fresh" });
+    expect(loaderCalls).toBe(1);
+    rejected.dispose();
+
+    const keyed = document.createElement("script");
+    keyed.id = "__exact_router_hydration_account";
+    keyed.type = "application/json";
+    keyed.textContent = JSON.stringify({
+      protocol: 1,
+      key: "account",
+      location: "/home",
+      matches: ["home"],
+      data: { loaderData: { home: "account server" } }
+    });
+    document.body.appendChild(keyed);
+    const adopted = createBrowserRouter([
+      { id: "home", path: "home", loader: () => "client" }
+    ], { hydrationKey: "account" });
+    expect(adopted.getSnapshot().loaderData).toEqual({ home: "account server" });
+    adopted.dispose();
   });
 
   it("updates controlled router locations and navigation types", async () => {

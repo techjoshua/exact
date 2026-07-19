@@ -21,11 +21,15 @@ import {
   createMemoryLocationSource,
   createBrowserLocationSource,
   generatePath,
+  hydrationEnvelopeFromSnapshot,
+  locationValue,
   matchPath,
   matchRoutes as exactMatchRoutes,
+  normalizeBasename,
   redirect as exactRedirect,
   RouterControllerContext,
   type ExactHydrationData,
+  type ExactHydrationEnvelope,
   type ExactRouteDefinition,
   type ExactRouter,
   type ExactRouterSnapshot,
@@ -34,7 +38,6 @@ import {
   type RouteLocation,
   type RouterMode
 } from "./index.js";
-import { hydrationDataFromSnapshot } from "./core.js";
 
 export type To = string | Partial<Pick<RouteLocation, "pathname" | "search" | "hash">>;
 export type NavigateOptions = NavigationOptions & { relative?: "route" | "path"; preventScrollReset?: boolean };
@@ -228,7 +231,7 @@ export function RouterProvider(props: RouterProviderProps): ReactNode {
 
 export function createBrowserRouter(
   routes: readonly RouteObject[],
-  options: { basename?: string; hydrationData?: ExactHydrationData; window?: Window } = {}
+  options: { basename?: string; hydrationData?: ExactHydrationData; hydrationKey?: string; window?: Window } = {}
 ): ExactRouter<RouteObject> {
   const source = options.window ? browserWindowSource(options.window, "history") : createBrowserLocationSource("history");
   if (!source) throw new Error("createBrowserRouter requires a browser");
@@ -236,13 +239,19 @@ export function createBrowserRouter(
     source,
     routes,
     basename: options.basename,
-    hydrationData: options.hydrationData ?? readRouterHydrationData()
+    hydrationData: options.hydrationData ?? readRouterHydrationData(
+      source,
+      routes,
+      options.basename,
+      "history",
+      options.hydrationKey
+    )
   });
 }
 
 export function createHashRouter(
   routes: readonly RouteObject[],
-  options: { basename?: string; hydrationData?: ExactHydrationData; window?: Window } = {}
+  options: { basename?: string; hydrationData?: ExactHydrationData; hydrationKey?: string; window?: Window } = {}
 ): ExactRouter<RouteObject> {
   const source = options.window ? browserWindowSource(options.window, "hash") : createBrowserLocationSource("hash");
   if (!source) throw new Error("createHashRouter requires a browser");
@@ -251,7 +260,13 @@ export function createHashRouter(
     routes,
     basename: options.basename,
     mode: "hash",
-    hydrationData: options.hydrationData ?? readRouterHydrationData()
+    hydrationData: options.hydrationData ?? readRouterHydrationData(
+      source,
+      routes,
+      options.basename,
+      "hash",
+      options.hydrationKey
+    )
   });
 }
 
@@ -656,11 +671,13 @@ export function StaticRouterProvider(props: {
   router: ExactRouter<RouteObject>;
   context: StaticHandlerContext;
   hydrate?: boolean;
+  hydrationKey?: string;
   nonce?: string;
 }): ReactNode {
   const provider = createElement(RouterProvider, { router: props.router });
   if (props.hydrate === false) return provider;
-  const hydration = hydrationDataFromSnapshot(props.router.getSnapshot());
+  const hydrationKey = props.hydrationKey ?? "default";
+  const hydration = hydrationEnvelopeFromSnapshot(props.router.getSnapshot(), hydrationKey);
   const source = JSON.stringify(hydration)
     .replace(/</g, "\\u003C")
     .replace(/\u2028/g, "\\u2028")
@@ -668,7 +685,7 @@ export function StaticRouterProvider(props: {
   return [
     provider,
     createElement("script", {
-      id: "__exact_router_hydration",
+      id: hydrationElementId(hydrationKey),
       type: "application/json",
       nonce: props.nonce,
       dangerouslySetInnerHTML: { __html: source }
@@ -959,11 +976,33 @@ function browserWindowSource(target: Window, mode: RouterMode): LocationSource {
     }
   };
 }
-function readRouterHydrationData(): ExactHydrationData | undefined {
+function readRouterHydrationData(
+  source: LocationSource,
+  routes: readonly RouteObject[],
+  basename: string | undefined,
+  mode: RouterMode,
+  hydrationKey = "default"
+): ExactHydrationData | undefined {
   if (typeof document === "undefined") return undefined;
-  const element = document.getElementById("__exact_router_hydration");
+  const element = document.getElementById(hydrationElementId(hydrationKey));
   if (!element?.textContent) return undefined;
-  const value = JSON.parse(element.textContent) as ExactHydrationData;
   element.remove();
-  return value;
+  let envelope: ExactHydrationEnvelope;
+  try {
+    envelope = JSON.parse(element.textContent) as ExactHydrationEnvelope;
+  } catch {
+    return undefined;
+  }
+  if (envelope?.protocol !== 1 || envelope.key !== hydrationKey || !envelope.data) return undefined;
+  const location = locationValue(source, mode, normalizeBasename(basename));
+  const matches = exactMatchRoutes(routes, location.pathname).map(match => match.id);
+  if (envelope.location !== locationToString(location)
+    || envelope.matches.length !== matches.length
+    || envelope.matches.some((id, index) => id !== matches[index])) return undefined;
+  return envelope.data;
+}
+function hydrationElementId(key: string): string {
+  return key === "default"
+    ? "__exact_router_hydration"
+    : `__exact_router_hydration_${encodeURIComponent(key)}`;
 }

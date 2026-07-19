@@ -57,6 +57,13 @@ export type ExactHydrationData = Readonly<{
   actionData?: Readonly<Record<string, unknown>>;
   errors?: Readonly<Record<string, unknown>>;
 }>;
+export type ExactHydrationEnvelope = Readonly<{
+  protocol: 1;
+  key: string;
+  location: string;
+  matches: readonly string[];
+  data: ExactHydrationData;
+}>;
 export type FetcherSnapshot = Readonly<{
   state: "idle" | "loading" | "submitting";
   data?: unknown;
@@ -617,6 +624,23 @@ export function hydrationDataFromSnapshot(
   };
   assertJsonTransferSafe(data, limits);
   return data;
+}
+
+export function hydrationEnvelopeFromSnapshot(
+  snapshot: ExactRouterSnapshot,
+  key = "default",
+  limits: { maxDepth?: number; maxNodes?: number; maxBytes?: number } = {}
+): ExactHydrationEnvelope {
+  if (!key) throw new Error("Router hydration key must be non-empty");
+  const envelope: ExactHydrationEnvelope = {
+    protocol: 1,
+    key,
+    location: `${snapshot.location.pathname}${snapshot.location.search}${snapshot.location.hash}`,
+    matches: snapshot.matches.map(match => match.id),
+    data: hydrationDataFromSnapshot(snapshot, limits)
+  };
+  assertJsonTransferSafe(envelope, limits);
+  return envelope;
 }
 
 function assertJsonTransferSafe(

@@ -4,6 +4,7 @@ import {
   createExactRouter,
   generatePath,
   hydrationDataFromSnapshot,
+  hydrationEnvelopeFromSnapshot,
   matchPath,
   matchRoutes,
   redirect,
@@ -198,6 +199,13 @@ describe("renderer-neutral router core", () => {
     });
     expect(() => hydrationDataFromSnapshot(unsafe.getSnapshot())).toThrow(/not JSON-safe/);
     expect(() => hydrationDataFromSnapshot(safe.getSnapshot(), { maxBytes: 1 })).toThrow(/byte limits/);
+    expect(hydrationEnvelopeFromSnapshot(safe.getSnapshot(), "account")).toMatchObject({
+      protocol: 1,
+      key: "account",
+      location: "/",
+      matches: ["root"],
+      data: { loaderData: { root: { value: 1 } } }
+    });
   });
 
   it("bounds redirect chains and supersedes fetchers by key", async () => {
