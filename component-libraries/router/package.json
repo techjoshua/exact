@@ -113,7 +113,6 @@
                 "createRoutesFromChildren": { "subpath": "./data", "export": "createRoutesFromChildren" },
                 "createRoutesFromElements": { "subpath": "./data", "export": "createRoutesFromElements" },
                 "createSearchParams": { "subpath": "./data", "export": "createSearchParams" },
-                "defer": { "subpath": "./data", "export": "defer" },
                 "generatePath": { "subpath": "./data", "export": "generatePath" },
                 "json": { "subpath": "./data", "export": "json" },
                 "isRouteErrorResponse": { "subpath": "./data", "export": "isRouteErrorResponse" },
@@ -153,8 +152,7 @@
                 "useRouteError": { "subpath": "./data", "export": "useRouteError" },
                 "useRouteLoaderData": { "subpath": "./data", "export": "useRouteLoaderData" },
                 "useRoutes": { "subpath": "./data", "export": "useRoutes" },
-                "useSubmit": { "subpath": "./data", "export": "useSubmit" },
-                "useViewTransitionState": { "subpath": "./data", "export": "useViewTransitionState" }
+                "useSubmit": { "subpath": "./data", "export": "useSubmit" }
               }
             }
           ]
@@ -252,7 +250,6 @@
                 "createSearchParams": { "subpath": "./data", "export": "createSearchParams" },
                 "createStaticHandler": { "subpath": "./data", "export": "createStaticHandler" },
                 "createStaticRouter": { "subpath": "./data", "export": "createStaticRouter" },
-                "defer": { "subpath": "./data", "export": "defer" },
                 "generatePath": { "subpath": "./data", "export": "generatePath" },
                 "json": { "subpath": "./data", "export": "json" },
                 "isRouteErrorResponse": { "subpath": "./data", "export": "isRouteErrorResponse" },
@@ -294,8 +291,7 @@
                 "useRouteLoaderData": { "subpath": "./data", "export": "useRouteLoaderData" },
                 "useRoutes": { "subpath": "./data", "export": "useRoutes" },
                 "useSearchParams": { "subpath": "./data", "export": "useSearchParams" },
-                "useSubmit": { "subpath": "./data", "export": "useSubmit" },
-                "useViewTransitionState": { "subpath": "./data", "export": "useViewTransitionState" }
+                "useSubmit": { "subpath": "./data", "export": "useSubmit" }
               }
             }
           ]

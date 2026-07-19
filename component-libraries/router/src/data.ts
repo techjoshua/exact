@@ -30,7 +30,6 @@ export {
   createSearchParams,
   createStaticHandler,
   createStaticRouter,
-  defer,
   generatePath,
   isRouteErrorResponse,
   json,
@@ -71,8 +70,7 @@ export {
   useRouteLoaderData,
   useRoutes,
   useSearchParams,
-  useSubmit,
-  useViewTransitionState
+  useSubmit
 } from "./modern.js";
 export type {
   IndexRouteObject,

@@ -41,13 +41,14 @@ import {
 
 export type To = string | Partial<Pick<RouteLocation, "pathname" | "search" | "hash">>;
 export type NavigateOptions = NavigationOptions & { relative?: "route" | "path"; preventScrollReset?: boolean };
-export type RouteObject = Omit<ExactRouteDefinition, "children"> & {
+export type RouteObject = Omit<ExactRouteDefinition, "children" | "lazy"> & {
   element?: ReactNode;
   Component?: ReactComponentType<any>;
   errorElement?: ReactNode;
   ErrorBoundary?: ReactComponentType<any>;
   hydrateFallbackElement?: ReactNode;
   HydrateFallback?: ReactComponentType<any>;
+  lazy?: () => Promise<Partial<Omit<RouteObject, "children" | "lazy">>>;
   children?: readonly RouteObject[];
 };
 export type IndexRouteObject = RouteObject & { index: true };
@@ -76,6 +77,7 @@ const OutletContext = createContext<ReactNode>(null);
 const OutletValueContext = createContext<unknown>(undefined);
 const RouteIdContext = createContext<string | undefined>(undefined);
 const RouteErrorContext = createContext<Readonly<{ active: boolean; error?: unknown }>>({ active: false });
+const RouteSnapshotOverrideContext = createContext<ExactRouterSnapshot<RouteObject> | undefined>(undefined);
 const configuredRoutes = new WeakMap<ExactRouter<any>, unknown>();
 
 function useRouter(): ExactRouter<RouteObject> {
@@ -89,7 +91,8 @@ export function useInRouterContext(): boolean { return !!useContext(ReactRouterC
 export function UNSAFE_useExactRouter(): ExactRouter<RouteObject> { return useRouter(); }
 
 function useSnapshot(router = useRouter()): ExactRouterSnapshot<RouteObject> {
-  return useSyncExternalStore(router.subscribe, router.getSnapshot, router.getSnapshot);
+  const snapshot = useSyncExternalStore(router.subscribe, router.getSnapshot, router.getSnapshot);
+  return useContext(RouteSnapshotOverrideContext) ?? snapshot;
 }
 
 function ControllerProvider(props: { router: ExactRouter<RouteObject>; children?: ReactNode }): ReactNode {
@@ -211,21 +214,46 @@ export function createRoutesFromChildren(children: ReactNode): RouteObject[] {
 
 export const createRoutesFromElements = createRoutesFromChildren;
 
-export function useRoutes(routes: readonly RouteObject[], _location?: string | Partial<RouteLocation>): ReactNode {
+export function useRoutes(routes: readonly RouteObject[], locationOverride?: string | Partial<RouteLocation>): ReactNode {
   const router = useRouter();
   if (configuredRoutes.get(router) !== routes) {
     configuredRoutes.set(router, routes);
     router.setRoutes(routes);
   }
-  return renderRouteMatches(useSnapshot(router));
+  const snapshot = useSnapshot(router);
+  if (locationOverride === undefined) return renderRouteMatches(snapshot);
+  const override: Partial<RouteLocation> = typeof locationOverride === "string"
+    ? parsePath(locationOverride)
+    : locationOverride;
+  const location: RouteLocation = {
+    pathname: override.pathname ?? snapshot.location.pathname,
+    search: override.search ?? "",
+    hash: override.hash ?? "",
+    state: "state" in override ? override.state : undefined,
+    key: override.key ?? `override:${locationToString(override)}`
+  };
+  const matches = exactMatchRoutes(routes, location.pathname);
+  const projected: ExactRouterSnapshot<RouteObject> = {
+    ...snapshot,
+    location,
+    matches,
+    params: Object.freeze({ ...(matches.at(-1)?.params ?? {}) })
+  };
+  return createElement(RouteSnapshotOverrideContext.Provider, {
+    value: projected,
+    children: renderRouteMatches(projected)
+  });
 }
 
 export function RouterProvider(props: RouterProviderProps): ReactNode {
   const snapshot = useSnapshot(props.router);
   useEffect(() => { void props.router.initialize(); return () => props.router.dispose(); }, [props.router]);
+  const fallback = snapshot.initialized ? undefined : renderHydrationFallback(snapshot);
   return createElement(ControllerProvider, {
     router: props.router,
-    children: snapshot.initialized ? renderRouteMatches(snapshot) : props.fallbackElement ?? null
+    children: snapshot.initialized
+      ? renderRouteMatches(snapshot)
+      : fallback?.found ? fallback.node : props.fallbackElement ?? null
   });
 }
 
@@ -503,18 +531,21 @@ export function useLinkClickHandler<T extends Element = HTMLAnchorElement>(
 }
 
 export function ScrollRestoration(props: { getKey?: (location: RouteLocation, matches: ReturnType<typeof useMatches>) => string }): null {
+  const router = useRouter();
   const location = useLocation();
   const matches = useMatches();
   useEffect(() => {
     if (typeof window === "undefined") return;
     const key = props.getKey?.(location, matches) ?? location.key;
-    const saved = scrollPositions.get(key);
+    let positions = scrollPositions.get(router);
+    if (!positions) scrollPositions.set(router, positions = new Map());
+    const saved = positions.get(key);
     if (saved) window.scrollTo(saved[0], saved[1]);
-    return () => { scrollPositions.set(key, [window.scrollX, window.scrollY]); };
+    return () => { positions!.set(key, [window.scrollX, window.scrollY]); };
   }, [location.key]);
   return null;
 }
-const scrollPositions = new Map<string, readonly [number, number]>();
+const scrollPositions = new WeakMap<ExactRouter<RouteObject>, Map<string, readonly [number, number]>>();
 
 export function useSubmit(): (
   target: HTMLFormElement | FormData | URLSearchParams | Record<string, string>,
@@ -695,18 +726,36 @@ export function StaticRouterProvider(props: {
 
 const AsyncValueContext = createContext<unknown>(undefined);
 const AsyncErrorContext = createContext<unknown>(undefined);
+type AwaitedValueState = { status: "pending" | "fulfilled" | "rejected"; value?: unknown; error?: unknown };
+const awaitedValues = new WeakMap<object, AwaitedValueState>();
 export function Await(props: {
   resolve: unknown;
   errorElement?: ReactNode;
   children?: ReactNode | ((value: unknown) => ReactNode);
 }): ReactNode {
-  if (props.resolve instanceof Promise) throw props.resolve;
-  const children = typeof props.children === "function" ? props.children(props.resolve) : props.children;
-  return createElement(AsyncValueContext.Provider, { value: props.resolve, children });
+  let value = props.resolve;
+  if (isPromiseLike(value)) {
+    let state = awaitedValues.get(value);
+    if (!state) {
+      state = { status: "pending" };
+      awaitedValues.set(value, state);
+      void Promise.resolve(value).then(
+        result => { state!.status = "fulfilled"; state!.value = result; },
+        error => { state!.status = "rejected"; state!.error = error; }
+      );
+    }
+    if (state.status === "pending") throw value;
+    if (state.status === "rejected") {
+      if (props.errorElement === undefined) throw state.error;
+      return createElement(AsyncErrorContext.Provider, { value: state.error, children: props.errorElement });
+    }
+    value = state.value;
+  }
+  const children = typeof props.children === "function" ? props.children(value) : props.children;
+  return createElement(AsyncValueContext.Provider, { value, children });
 }
 export function useAsyncValue<T = unknown>(): T { return useContext(AsyncValueContext) as T; }
 export function useAsyncError(): unknown { return useContext(AsyncErrorContext); }
-export function defer<T extends Record<string, unknown>>(data: T): T { return data; }
 export function json<T>(data: T, init?: number | ResponseInit): Response {
   return Response.json(data, typeof init === "number" ? { status: init } : init);
 }
@@ -729,7 +778,6 @@ export function isRouteErrorResponse(value: unknown): value is Response | { stat
   return value instanceof Response || !!value && typeof value === "object"
     && typeof (value as any).status === "number" && "data" in value;
 }
-export function useViewTransitionState(_to: To, _options?: { relative?: "route" | "path" }): boolean { return false; }
 export function createSearchParams(
   init: string | URLSearchParams | readonly (readonly [string, string])[] | Record<string, string | readonly string[]> = ""
 ): URLSearchParams {
@@ -840,6 +888,26 @@ function renderRouteMatches(snapshot: ExactRouterSnapshot<RouteObject>): ReactNo
   return outlet;
 }
 
+function renderHydrationFallback(snapshot: ExactRouterSnapshot<RouteObject>): { found: boolean; node?: ReactNode } {
+  let fallbackIndex = -1;
+  for (let index = snapshot.matches.length - 1; index >= 0; index--) {
+    const route = snapshot.matches[index]!.route;
+    if (route.hydrateFallbackElement !== undefined || route.HydrateFallback) {
+      fallbackIndex = index;
+      break;
+    }
+  }
+  if (fallbackIndex < 0) return { found: false };
+  const route = snapshot.matches[fallbackIndex]!.route;
+  let outlet = routeProvider(snapshot.matches[fallbackIndex]!.id, route.HydrateFallback
+    ? createElement(route.HydrateFallback, {})
+    : route.hydrateFallbackElement);
+  for (let index = fallbackIndex - 1; index >= 0; index--) {
+    outlet = renderMatchedRoute(snapshot.matches[index]!, outlet, snapshot.location.key);
+  }
+  return { found: true, node: outlet };
+}
+
 function renderMatchedRoute(
   match: ExactRouterSnapshot<RouteObject>["matches"][number],
   outlet: ReactNode,
@@ -880,6 +948,11 @@ class RouteRenderBoundary extends ReactComponent<{
 
 function routeProvider(id: string, children: ReactNode): ReactNode {
   return createElement(RouteIdContext.Provider, { value: id, children });
+}
+
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> & object {
+  return (typeof value === "object" && value !== null || typeof value === "function")
+    && typeof (value as PromiseLike<unknown>).then === "function";
 }
 
 function toValue(to: To): string {

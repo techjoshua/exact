@@ -48,10 +48,10 @@ export type ExactShouldRevalidate = (args: Readonly<{
   actionResult?: unknown;
   defaultShouldRevalidate: boolean;
 }>) => boolean;
-export type ExactLazyRoute = () => Promise<Partial<Pick<
+export type ExactLazyRoute<Result extends object = Partial<Pick<
   ExactRouteDefinition,
   "loader" | "action" | "shouldRevalidate" | "handle"
->>>;
+>>> = () => Promise<Result>;
 export type ExactHydrationData = Readonly<{
   loaderData?: Readonly<Record<string, unknown>>;
   actionData?: Readonly<Record<string, unknown>>;

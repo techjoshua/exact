@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { act, createElement } from "@exact/react-compat";
+import { act, createElement, Suspense } from "@exact/react-compat";
 import { exposeExactComponent } from "@exact/react-compat/interop";
 import { createRoot } from "@exact/react-dom-compat/client19";
 import { renderToString } from "@exact/react-dom-compat/server19";
@@ -9,6 +9,7 @@ import { RouterControllerContext } from "./context.js";
 import {
   Link,
   MemoryRouter,
+  Await,
   Outlet,
   Route,
   Router,
@@ -284,6 +285,19 @@ describe("React Router modern facade", () => {
     expect(container.textContent).toBe("/two");
   });
 
+  it("scopes route hooks to a Routes location override", async () => {
+    function Current() { return createElement("p", null, useLocation().pathname); }
+    const container = document.createElement("div");
+    createRoot(container).render(createElement(MemoryRouter, { initialEntries: ["/one"] },
+      createElement(Routes, { location: "/two" },
+        createElement(Route, { path: "one", element: "One" }),
+        createElement(Route, { path: "two", Component: Current })
+      )
+    ));
+    await settle();
+    expect(container.textContent).toBe("/two");
+  });
+
   it("leaves cross-origin links to normal browser navigation", async () => {
     const container = document.createElement("div");
     createRoot(container).render(createElement(MemoryRouter, null,
@@ -340,5 +354,54 @@ describe("React Router modern facade", () => {
     createRoot(container).render(createElement(RouterProvider, { router }));
     await settle();
     expect(container.textContent).toBe("Caught render failed");
+  });
+
+  it("renders route hydration fallbacks inside ancestor layouts", async () => {
+    let resolveLoader!: () => void;
+    const loader = new Promise<void>(resolve => { resolveLoader = resolve; });
+    function Layout() { return createElement("main", null, "Layout:", createElement(Outlet, {})); }
+    const router = createMemoryRouter([{
+      id: "root",
+      Component: Layout,
+      children: [{
+        id: "slow",
+        path: "slow",
+        loader: () => loader,
+        hydrateFallbackElement: createElement("p", null, "Route loading")
+      }]
+    }], { initialEntries: ["/slow"] });
+    const container = document.createElement("div");
+    createRoot(container).render(createElement(RouterProvider, { router, fallbackElement: "Global loading" }));
+    await settle();
+    expect(container.textContent).toBe("Layout:Route loading");
+    resolveLoader();
+    await settle();
+  });
+
+  it("materializes renderer fields from lazy routes", async () => {
+    function LazyView() { return createElement("p", null, "Lazy ready"); }
+    const router = createMemoryRouter([{
+      id: "lazy",
+      path: "lazy",
+      lazy: async () => ({ Component: LazyView, loader: () => "ready" })
+    }], { initialEntries: ["/lazy"] });
+    const container = document.createElement("div");
+    createRoot(container).render(createElement(RouterProvider, { router }));
+    await settle();
+    await settle();
+    expect(container.textContent).toBe("Lazy ready");
+  });
+
+  it("settles Await promises and exposes their resolved value", async () => {
+    let resolve!: (value: string) => void;
+    const pending = new Promise<string>(next => { resolve = next; });
+    const container = document.createElement("div");
+    createRoot(container).render(createElement(Suspense, { fallback: "Waiting" },
+      createElement(Await, { resolve: pending, children: (value: unknown) => `Resolved ${value}` })
+    ));
+    await settle();
+    expect(container.textContent).toBe("Waiting");
+    await act(async () => { resolve("value"); await pending; });
+    expect(container.textContent).toBe("Resolved value");
   });
 });
