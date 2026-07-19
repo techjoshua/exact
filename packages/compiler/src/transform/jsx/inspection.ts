@@ -1,5 +1,5 @@
 import ts from 'typescript';
-import type { ExactImportedComponentIR } from './types.js';
+import type { ExactImportedComponentIR } from '../../types.js';
 
 /** Returns whether JSX attributes force an element into a client island. */
 export function jsxElementIsClientIsland(attributes: ts.JsxAttributes): boolean {

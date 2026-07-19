@@ -5,7 +5,7 @@ import {
 	clientComponentHasServerSlotChildren,
 	jsxElementIsClientIsland,
 	jsxTagIsIntrinsicElement
-} from './jsx-inspect.js';
+} from './transform/jsx/inspection.js';
 
 function source(text: string): ts.SourceFile {
 	return ts.createSourceFile('sample.tsx', text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);

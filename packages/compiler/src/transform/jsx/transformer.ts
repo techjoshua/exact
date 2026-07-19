@@ -1,48 +1,48 @@
 import type { BoundModule } from '@exact/expressions';
 import ts from 'typescript';
-import { stripExactImportAttribute, type ExactModuleImportPlan } from './assets.js';
-import { isIdentifierDeclarationName, isPropertyAccessName } from './ast.js';
-import type { CallableEffectPlan } from './callable-effects.js';
+import { stripExactImportAttribute, type ExactModuleImportPlan } from '../../assets.js';
+import { isIdentifierDeclarationName, isPropertyAccessName } from '../../ast.js';
+import type { CallableEffectPlan } from '../../callable-effects.js';
 import {
 	isFunctionLikeExpression,
 	isThisMethodAccess,
 	isThisMethodCall,
 	isThisTaskCall
-} from './calls.js';
-import { allocateHelperNames, insertAfterDirectivePrologue } from './emission/helpers.js';
+} from '../../calls.js';
+import { allocateHelperNames, insertAfterDirectivePrologue } from '../../emission/helpers.js';
 import {
 	componentStateRoot,
 	isArrayMutator,
 	statePathLiteral,
 	transformStateAssignment,
 	transformStateUpdate
-} from './emission/state-writes.js';
-import { collectExports } from './exports.js';
+} from '../../emission/state-writes.js';
+import { collectExports } from '../../exports.js';
 import type {
 	ExpressionClientIslandSite,
 	ExpressionComponentPlan
-} from './expression/contracts.js';
-import type { ExpressionDerivedPlan } from './expression/derived.js';
-import type { ExpressionJsxListSite, ExpressionJsxPlan } from './expression/jsx.js';
+} from '../../expression/contracts.js';
+import type { ExpressionDerivedPlan } from '../../expression/derived.js';
+import type { ExpressionJsxListSite, ExpressionJsxPlan } from '../../expression/jsx.js';
 import type {
 	ExpressionTaskPlan,
 	ExpressionTaskResource,
 	ExpressionTaskResourceKind,
 	ExpressionTaskSignalCall
-} from './expression/task-contracts.js';
-import type { ExpressionWritePlan } from './expression/writes.js';
-import { stableId } from './ids.js';
-import { isServerOnlyImportDeclaration } from './imports.js';
+} from '../../expression/task-contracts.js';
+import type { ExpressionWritePlan } from '../../expression/writes.js';
+import { stableId } from '../../ids.js';
+import { isServerOnlyImportDeclaration } from '../../imports.js';
 import {
 	clientComponentChildrenProp,
 	componentBoundaryName,
 	jsxElementHasNoMeaningfulChildren,
 	jsxElementIsClientIsland,
 	jsxTagIsIntrinsicElement
-} from './jsx-inspect.js';
-import { clientComponentBoundaryId, generatedComponentName } from './names.js';
-import { componentPlacementsFromInfo } from './placement.js';
-import { pruneUnusedImports } from './prune-imports.js';
+} from './inspection.js';
+import { clientComponentBoundaryId, generatedComponentName } from '../../names.js';
+import { componentPlacementsFromInfo } from '../../placement.js';
+import { pruneUnusedImports } from '../../prune-imports.js';
 import type {
 	ClientIslandCaptures,
 	ClientIslandElementNode,
@@ -52,7 +52,7 @@ import type {
 	HelperNames,
 	StateSnapshotTree,
 	TransformTarget
-} from './types.js';
+} from '../../types.js';
 
 type ComponentLocalInfo = { functions: Map<string, ts.Statement> };
 type DerivedReactiveEntry = { variableId: string; initializer: ts.Expression; cached: boolean };
@@ -975,7 +975,7 @@ function shouldOmitPlacement(placement: ExactPlacement, target: TransformTarget)
 }
 
 function incompatibleEffect(
-	effect: import('./types.js').ExactEnvironmentEffect,
+	effect: import('../../types.js').ExactEnvironmentEffect,
 	target: TransformTarget
 ): boolean {
 	return target === 'client'
@@ -986,7 +986,7 @@ function incompatibleEffect(
 }
 
 function incompatibleSummary(
-	summary: import('./types.js').ExactCallableSummaryIR,
+	summary: import('../../types.js').ExactCallableSummaryIR,
 	target: TransformTarget
 ): boolean {
 	if (target === 'default') return false;

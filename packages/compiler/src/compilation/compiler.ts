@@ -40,7 +40,7 @@ import {
 import { analyzeExpressionTasks } from '../expression/task-analysis.js';
 import { analyzeExpressionWrites } from '../expression/writes.js';
 import { collectExpressionImportedComponents } from '../imports.js';
-import { exactJsxTransformer } from '../jsx-transform.js';
+import { exactJsxTransformer } from '../transform/jsx/transformer.js';
 import { parseExactCompilerManifest } from '../manifest-parse.js';
 import {
 	artifactPathsFor,
