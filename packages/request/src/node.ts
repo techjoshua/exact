@@ -1,11 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import {
-	configureRequestContextStorage,
-	createRequestScope,
-	type RequestContextStorage,
-	type RequestContextValue,
-	type RequestScope
-} from './context.js';
+import type { RequestContextStorage, RequestContextValue, RequestScope } from './contracts.js';
+import { configureRequestContextStorage, createRequestScope } from './storage.js';
 
 /** Creates a node request storage. */
 export function createNodeRequestStorage(): RequestContextStorage {
