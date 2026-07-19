@@ -8,17 +8,8 @@ import {
 	syntacticDiagnostics as collectSyntacticDiagnostics,
 	type LanguageServiceDiagnosticContext
 } from './diagnostics.js';
-import type {
-	ExpressionLanguageServiceOptions,
-	SnapshotEntry
-} from './contracts.js';
-import {
-	canonicalFile,
-	diagnosticFromTs,
-	displayFile,
-	hash,
-	isTsx
-} from './utilities.js';
+import type { ExpressionLanguageServiceOptions, SnapshotEntry } from './contracts.js';
+import { canonicalFile, diagnosticFromTs, displayFile, hash, isTsx } from './utilities.js';
 import { ExpressionProjectError, findExpressionConfig } from '../project.js';
 
 const sharedDocumentRegistry = ts.createDocumentRegistry(
