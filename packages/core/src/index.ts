@@ -1,4 +1,3 @@
-export type { Reactive, ReactiveValue, StopHandle } from '@exact/reactive';
 export {
 	batch,
 	computed,
@@ -14,6 +13,7 @@ export {
 	writeReactive,
 	writeReactiveLazy
 } from '@exact/reactive';
+export type { Reactive, ReactiveValue, StopHandle } from '@exact/reactive';
 export {
 	attachSuppressedCleanupFailure,
 	attemptCleanup,
@@ -22,66 +22,8 @@ export {
 	throwCleanupFailure,
 	type CleanupFailure
 } from './cleanup.js';
-export {
-	combineTaskSignal,
-	withAbortSignal,
-	withTaskSignal,
-	type ManagedEventListenerOptions
-} from './task/signals.js';
-export {
-	decodeExactMarkerPart,
-	encodeExactMarkerPart,
-	exactMarkerEnd,
-	exactMarkerStart
-} from './protocol.js';
-export { sameJsonData, type JsonComparisonOptions } from './json.js';
-export { BLOCKED_JAVASCRIPT_URL, isUrlAttribute, sanitizeUrlAttribute } from './url.js';
-export {
-	composeExactComponentDescriptors,
-	exactClientComponentDescriptor,
-	exactServerComponentDescriptor,
-	readExactComponentDescriptor,
-	type ExactComponentDescriptor,
-	type ExactComponentDescriptorEntry
-} from './descriptors.js';
-export { createContext, createRef, type ContextOptions } from './keys.js';
-export {
-	createConsoleLogger,
-	type ComponentLog,
-	type ConsoleLoggerOptions,
-	type Logger,
-	type LogEvent,
-	type LogLevel,
-	type LogScope
-} from './logging.js';
-export {
-	Cell,
-	Dynamic,
-	Fragment,
-	Portal,
-	ServerBoundary,
-	ServerSlot,
-	Text,
-	UnsafeHtml
-} from './symbols.js';
-export {
-	createCellVNode,
-	createCompiledFragment,
-	createCompiledVNode,
-	createDynamicChild,
-	createExpression,
-	createPortal,
-	createServerBoundary,
-	createServerSlot,
-	createTextVNode,
-	createVNode,
-	getCellVNode,
-	isCellVNode,
-	isVNode,
-	normalizeChildren,
-	normalizeDocumentVNode,
-	unsafeHtml
-} from './vnode.js';
+export { observeComponentAsync, trackComponentAsync } from './component/async.js';
+export { ErrorContext, LoggerContext, SuspensionContext } from './component/contexts.js';
 export type {
 	Child,
 	Cleanup,
@@ -120,11 +62,6 @@ export type {
 	VNodeCell,
 	VNodeType
 } from './component/contracts.js';
-export { ErrorContext, LoggerContext, SuspensionContext } from './component/contexts.js';
-export { createComponentInstance } from './component/runtime.js';
-export { renderInstance } from './component/render.js';
-export { observeComponentAsync, trackComponentAsync } from './component/async.js';
-export { withTaskObserver } from './task/observers.js';
 export {
 	createErrorContext,
 	createErrorReport,
@@ -133,6 +70,44 @@ export {
 	normalizeRenderResult
 } from './component/errors.js';
 export { logFrameworkEvent } from './component/log.js';
+export { renderInstance } from './component/render.js';
+export { createComponentInstance } from './component/runtime.js';
+export {
+	composeExactComponentDescriptors,
+	exactClientComponentDescriptor,
+	exactServerComponentDescriptor,
+	readExactComponentDescriptor,
+	type ExactComponentDescriptor,
+	type ExactComponentDescriptorEntry
+} from './descriptors.js';
+export { sameJsonData, type JsonComparisonOptions } from './json.js';
+export { createContext, createRef, type ContextOptions } from './keys.js';
+export {
+	createConsoleLogger,
+	type ComponentLog,
+	type ConsoleLoggerOptions,
+	type LogEvent,
+	type LogLevel,
+	type LogScope,
+	type Logger
+} from './logging.js';
+export {
+	decodeExactMarkerPart,
+	encodeExactMarkerPart,
+	exactMarkerEnd,
+	exactMarkerStart
+} from './protocol.js';
+export {
+	Cell,
+	Dynamic,
+	Fragment,
+	Portal,
+	ServerBoundary,
+	ServerSlot,
+	Text,
+	UnsafeHtml
+} from './symbols.js';
+export { withTaskObserver } from './task/observers.js';
 export {
 	createDerived,
 	ownTaskResource,
@@ -145,3 +120,28 @@ export {
 	taskObserver,
 	taskTimeout
 } from './task/resources.js';
+export {
+	combineTaskSignal,
+	withAbortSignal,
+	withTaskSignal,
+	type ManagedEventListenerOptions
+} from './task/signals.js';
+export { BLOCKED_JAVASCRIPT_URL, isUrlAttribute, sanitizeUrlAttribute } from './url.js';
+export {
+	createCellVNode,
+	createCompiledFragment,
+	createCompiledVNode,
+	createDynamicChild,
+	createExpression,
+	createPortal,
+	createServerBoundary,
+	createServerSlot,
+	createTextVNode,
+	createVNode,
+	getCellVNode,
+	isCellVNode,
+	isVNode,
+	normalizeChildren,
+	normalizeDocumentVNode,
+	unsafeHtml
+} from './vnode.js';

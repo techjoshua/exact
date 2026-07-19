@@ -1,28 +1,28 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import type { Component } from '@exact/core';
 import { act, createElement, Suspense } from '@exact/react-compat';
 import { exposeExactComponent } from '@exact/react-compat/interop';
 import { createRoot } from '@exact/react-dom-compat/client19';
 import { renderToString } from '@exact/react-dom-compat/server19';
-import type { Component } from '@exact/core';
+import { describe, expect, it } from 'vitest';
 import { RouterControllerContext } from './context.js';
 import {
+	Await,
+	createBrowserRouter,
+	createMemoryRouter,
+	createStaticHandler,
+	createStaticRouter,
 	Link,
 	MemoryRouter,
-	Await,
 	Outlet,
 	Route,
 	Router,
 	RouterProvider,
-	StaticRouterProvider,
 	Routes,
-	createBrowserRouter,
-	createMemoryRouter,
-	createStaticRouter,
-	createStaticHandler,
-	useLoaderData,
-	useHref,
+	StaticRouterProvider,
 	useBlocker,
+	useHref,
+	useLoaderData,
 	useLocation,
 	useParams,
 	useRouteError

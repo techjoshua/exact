@@ -1,7 +1,6 @@
 import type { Component } from '@exact/core';
-import { usStatePaths } from './data/us-state-paths.js';
 import { exactClient } from './client-runtime.js';
-import { configuredProviderIds, quoteProvider } from './providers/index.js';
+import { usStatePaths } from './data/us-state-paths.js';
 import { resolveRoute } from './geography.js';
 import {
 	defaultDraft,
@@ -12,6 +11,7 @@ import {
 	packagePresets,
 	rankQuotes
 } from './model.js';
+import { configuredProviderIds, quoteProvider } from './providers/index.js';
 import type {
 	ExtraService,
 	InitialModel,

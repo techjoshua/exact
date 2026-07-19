@@ -1,7 +1,6 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it, vi } from 'vitest';
 import {
 	Component,
 	Fragment,
@@ -12,9 +11,10 @@ import {
 	createElement,
 	createRef
 } from '@exact/react-compat';
+import { exactComponentForReactInstance } from '@exact/react-compat/exact';
+import { describe, expect, it, vi } from 'vitest';
 import { createRoot } from './client.js';
 import { findDOMNode, hydrate, render as legacyRender, unmountComponentAtNode } from './index.js';
-import { exactComponentForReactInstance } from '@exact/react-compat/exact';
 
 describe('React compatibility Phase 4', () => {
 	it('preserves class identity, state, context, refs, and update lifecycles', async () => {

@@ -1,8 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { beforeAll, describe, expect, it } from 'vitest';
 import { Suspense, act, createElement } from '@exact/react-compat';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { createRoot } from './client.js';
 
 let Dialog: any;

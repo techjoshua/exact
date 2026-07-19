@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { clearExpressionProjectCache, expressionModuleFor } from './expression/session.js';
 import {
 	analyzeExactAnnotations,
 	exactCleanupForCall,
@@ -7,6 +6,7 @@ import {
 	exactKeyContract,
 	exactOwnsReturn
 } from './annotations.js';
+import { clearExpressionProjectCache, expressionModuleFor } from './expression/session.js';
 
 describe('@exact compiler annotations', () => {
 	it('projects key metadata from type members and merged declarations', () => {

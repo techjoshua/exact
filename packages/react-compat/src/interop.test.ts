@@ -1,12 +1,13 @@
-import { describe, expect, it } from 'vitest';
 import {
 	createComponentInstance,
 	createContext,
 	renderInstance,
 	type Component
 } from '@exact/core';
+import { describe, expect, it } from 'vitest';
 import { adaptReactComponent } from './exact.js';
-import { HookHost } from './internals.js';
+import { createElement, withReactProfile } from './index.js';
+import { HookHost, toExactNode } from './internals.js';
 import {
 	bridgeReactContext,
 	defineInteropContext,
@@ -14,8 +15,6 @@ import {
 	exposeExactComponent,
 	useExactContext
 } from './interop.js';
-import { createElement, withReactProfile } from './index.js';
-import { toExactNode } from './internals.js';
 
 describe('eXact and React context interop', () => {
 	it('profiles render and commit work through an explicit compatibility scope', () => {

@@ -1,5 +1,5 @@
-import { exposeExactComponent, useExactContext } from '@exact/react-compat/interop';
 import type { ReactComponentType } from '@exact/react-compat';
+import { exposeExactComponent, useExactContext } from '@exact/react-compat/interop';
 import {
 	ConvexClientContext,
 	ExactConvexProvider,

@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import path from 'node:path';
 import { rmSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { describe, expect, it } from 'vitest';
 import {
 	ExpressionProjectError,
 	expressions,

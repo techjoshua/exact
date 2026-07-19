@@ -1,6 +1,6 @@
-import { createStore, type StoreApi, type StateCreator } from 'zustand/vanilla';
-import { createSelectedExternalSource, type ExternalSource } from '@exact/reactive';
 import type { Component } from '@exact/core';
+import { createSelectedExternalSource, type ExternalSource } from '@exact/reactive';
+import { createStore, type StateCreator, type StoreApi } from 'zustand/vanilla';
 
 export { createStore };
 export type { StateCreator, StoreApi };

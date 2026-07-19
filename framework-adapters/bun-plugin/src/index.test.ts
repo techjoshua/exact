@@ -1,14 +1,14 @@
-import path from 'node:path';
 import { rmSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	exact,
 	mergeConditions,
 	resolveExactBunRequest,
 	transformExactBunSource,
+	type BunBuildLike,
 	type BunLoadArgs,
-	type BunLoadResult,
-	type BunBuildLike
+	type BunLoadResult
 } from './index.js';
 
 describe('@exact/bun-plugin', () => {

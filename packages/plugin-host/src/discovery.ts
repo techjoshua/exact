@@ -1,4 +1,4 @@
-import path from 'node:path';
+import type { ExactPluginDiscoveryConfig } from '@exact/config';
 import {
 	assertPackageSelector,
 	dependencyRange,
@@ -11,7 +11,7 @@ import {
 	type ExactPluginConfigurationDeclaration,
 	type ExactPluginDeclaration
 } from '@exact/plugin-api';
-import type { ExactPluginDiscoveryConfig } from '@exact/config';
+import path from 'node:path';
 import { rcompare, satisfies, valid, validRange } from 'semver';
 import {
 	dependencyDistance,

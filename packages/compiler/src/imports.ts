@@ -1,5 +1,5 @@
-import path from 'node:path';
 import { builtinModules } from 'node:module';
+import path from 'node:path';
 import ts from 'typescript';
 import { slashPath } from './paths.js';
 import type {

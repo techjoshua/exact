@@ -1,4 +1,3 @@
-import { performance } from 'node:perf_hooks';
 import type { ExactConfig } from '@exact/config';
 import type {
 	ExactCompilerPluginConfig,
@@ -7,13 +6,14 @@ import type {
 	ExactPluginConfigTransform,
 	ExactPluginHostMode
 } from '@exact/plugin-api';
-import { satisfies, validRange } from 'semver';
-import { packageName, packageVersion, type ExactPackageNode } from './graph.js';
+import { performance } from 'node:perf_hooks';
+import { validRange } from 'semver';
 import type {
 	ExactConfigurationContributor,
 	ExactPluginDiscoveryResult,
 	ExactSelectedPlugin
 } from './discovery.js';
+import { packageName, packageVersion, type ExactPackageNode } from './graph.js';
 import { importPublicPackageEntry } from './modules.js';
 
 export interface ExactConfigTransformReport {

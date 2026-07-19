@@ -7,8 +7,8 @@ import {
 	createConsoleLogger,
 	type ComponentLog,
 	type LazyLogValue,
-	type Logger,
 	type LogEvent,
+	type Logger,
 	type LogLevel,
 	type LogScope
 } from '../logging.js';

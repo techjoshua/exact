@@ -1,18 +1,18 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-import { intersects, satisfies, validRange } from 'semver';
 import {
-	packageDirectlyDependsOnAdapterMarker,
 	dependencyRange,
+	packageDirectlyDependsOnAdapterMarker,
 	packageNameFromBareSpecifier,
-	readReactCompatAdapterDeclaration,
-	readReactCompatApplicationPolicy,
 	reactCompatAdapterMarkerPackage,
 	reactCompatAdapterProtocolVersion,
+	readReactCompatAdapterDeclaration,
+	readReactCompatApplicationPolicy,
 	type PackageManifestLike,
 	type ReactCompatAdapterDeclaration,
 	type ReactCompatReplacementDeclaration
 } from '@exact/react-compat-adapter-api';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { intersects, satisfies, validRange } from 'semver';
 
 export interface ReactCompatPackageNode {
 	readonly id: string;

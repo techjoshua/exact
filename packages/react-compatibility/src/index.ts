@@ -22,15 +22,6 @@ export type ReactCapability = Readonly<{
 const both = ['18.3', '19.2'] as const;
 const react19 = ['19.2'] as const;
 
-function planned(
-	module: ReactCompatibilityModule,
-	phase: 1 | 2 | 3 | 4 | 5 | 6,
-	names: readonly string[],
-	baselines: readonly ReactBaseline[] = both
-): ReactCapability[] {
-	return names.map((name) => ({ module, name, phase, status: 'planned', baselines }));
-}
-
 function supported(
 	module: ReactCompatibilityModule,
 	phase: 1 | 2 | 3 | 4 | 5 | 6,

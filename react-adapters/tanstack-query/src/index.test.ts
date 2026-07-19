@@ -1,13 +1,13 @@
-import { describe, expect, it } from 'vitest';
-import { QueryClient } from '@tanstack/query-core';
 import { createComponentInstance, type Component } from '@exact/core';
-import { flushSync } from '@exact/reactive';
-import { createComponentQuery, ExactQueryClientProvider, QueryClientContext } from './index.js';
-import { QueryClientProvider } from './provider.js';
 import { createElement } from '@exact/react-compat';
 import { toExactNode } from '@exact/react-compat/exact';
+import { flushSync } from '@exact/reactive';
+import { QueryClient } from '@tanstack/query-core';
 import { build } from 'esbuild';
 import { readFile } from 'node:fs/promises';
+import { describe, expect, it } from 'vitest';
+import { createComponentQuery, ExactQueryClientProvider, QueryClientContext } from './index.js';
+import { QueryClientProvider } from './provider.js';
 
 describe('@exact/tanstack-query', () => {
 	it('shares an opaque QueryClient through the native provider', () => {

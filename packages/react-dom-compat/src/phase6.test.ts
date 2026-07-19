@@ -1,8 +1,6 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it, vi } from 'vitest';
-import { PassThrough } from 'node:stream';
 import {
 	Component,
 	Suspense,
@@ -11,8 +9,9 @@ import {
 	useId,
 	type ReactNode
 } from '@exact/react-compat';
+import { PassThrough } from 'node:stream';
+import { describe, expect, it, vi } from 'vitest';
 import { createRoot, hydrateRoot } from './client.js';
-import { renderToPipeableStream, renderToReadableStream, renderToString } from './server-node.js';
 import {
 	preconnect,
 	prefetchDNS,
@@ -21,6 +20,7 @@ import {
 	preload,
 	preloadModule
 } from './index.js';
+import { renderToPipeableStream, renderToReadableStream, renderToString } from './server-node.js';
 
 describe('React compatibility Phase 6 root hardening', () => {
 	it('uses identifierPrefix deterministically across server rendering and hydration', () => {

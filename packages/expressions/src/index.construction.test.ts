@@ -1,12 +1,6 @@
-import { describe, expect, it } from 'vitest';
 import path from 'node:path';
-import {
-	cloneWithVariables,
-	expressions,
-	lowerModuleText,
-	rewriteModule,
-	validateExpressionTree
-} from './index.js';
+import { describe, expect, it } from 'vitest';
+import { expressions } from './index.js';
 import { createExpressionProject } from './test-support/project.js';
 
 const root = path.resolve(import.meta.dirname, '../../..');

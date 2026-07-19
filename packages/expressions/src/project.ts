@@ -1,12 +1,12 @@
-import ts from 'typescript';
-import path from 'node:path';
-import fs from 'node:fs';
-import { performance } from 'node:perf_hooks';
 import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation';
+import fs from 'node:fs';
+import path from 'node:path';
+import { performance } from 'node:perf_hooks';
+import ts from 'typescript';
 import type {
+	ExpressionCallSignature,
 	ExpressionDiagnostic,
 	ExpressionDirective,
-	ExpressionCallSignature,
 	ExpressionNode,
 	ExpressionScope,
 	ExpressionSymbol,

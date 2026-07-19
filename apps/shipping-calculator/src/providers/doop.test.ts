@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeDraft, defaultDraft } from '../model.js';
+import { defaultDraft, normalizeDraft } from '../model.js';
 import { doopProvider } from './doop.js';
 
 const signal = new AbortController().signal;

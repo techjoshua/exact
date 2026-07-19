@@ -1,6 +1,6 @@
 import { createReadStream } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
-import { createServer } from 'node:http';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { handleParcelLabRequest } from './server-app.js';
@@ -14,7 +14,7 @@ const entry =
 	manifest['src/client.ts'] ?? Object.values(manifest).find((item) => item.file.endsWith('.js'));
 if (!entry) throw new Error('Parcel Lab client manifest has no entry');
 
-const server = createServer(async (request, response) => {
+async function handleRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
 	try {
 		if (request.url?.startsWith('/assets/')) {
 			const file = path.resolve(clientRoot, `.${new URL(request.url, 'http://local').pathname}`);
@@ -47,6 +47,10 @@ const server = createServer(async (request, response) => {
 		response.end('Parcel Lab could not render this request');
 		process.emitWarning(error instanceof Error ? error : new Error(String(error)));
 	}
+}
+
+const server = createServer((request, response) => {
+	void handleRequest(request, response);
 });
 
 const port = Number(process.env.PORT || 4175);

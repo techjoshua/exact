@@ -1,6 +1,7 @@
+import type { ModuleRewriteOptions } from '@exact/expressions';
+import type { ExactJsonValue, ExactPreparedCompilerRegistry } from '@exact/plugin-api';
 import type ts from 'typescript';
 import type { ExactCompilerSession } from './expression/project.js';
-import type { ExactJsonValue, ExactPreparedCompilerRegistry } from '@exact/plugin-api';
 
 export type TransformOptions = {
 	filename?: string;
@@ -726,4 +727,3 @@ export type ClientIslandCaptures = {
 	stateReads?: string[];
 	serverSlotChildren?: boolean;
 };
-import type { ModuleRewriteOptions } from '@exact/expressions';

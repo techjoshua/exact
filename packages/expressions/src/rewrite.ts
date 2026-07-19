@@ -1,3 +1,4 @@
+import { printNode } from './builder.js';
 import type { ExpressionNode, Variable } from './model.js';
 import {
 	createModule,
@@ -6,7 +7,6 @@ import {
 	type UnboundModule
 } from './module.js';
 import type { NodeRef } from './query.js';
-import { printNode } from './builder.js';
 import { validateExpressionTree } from './validation.js';
 
 type Replacement = ExpressionNode | null;

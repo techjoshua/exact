@@ -4,12 +4,7 @@ import type { CallableEffectPlan } from '../callable-effects.js';
 
 import { isServerOnlyModule } from '../imports.js';
 
-import type {
-	ExactContextEffect,
-	ExactEnvironmentEffect,
-	ExactPlacement,
-	ExactStateEffect
-} from '../types.js';
+import type { ExactContextEffect, ExactPlacement, ExactStateEffect } from '../types.js';
 
 import { expressionComponentIndex } from './component-index.js';
 

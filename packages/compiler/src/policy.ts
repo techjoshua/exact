@@ -1,22 +1,10 @@
 import type { BoundModule, ExpressionType, NodeRef, Variable } from '@exact/expressions';
 import { exactKeepPolicy, type ExactKeepPolicy } from './annotations.js';
-import { expressionComponentIndex } from './expression/component-index.js';
 import type { CallableEffectPlan } from './callable-effects.js';
-import type { ExpressionComponentPlan, ExpressionComponentSite } from './expression/contracts.js';
+import { expressionComponentIndex } from './expression/component-index.js';
+import type { ExpressionComponentPlan } from './expression/contracts.js';
 import type { ExpressionTaskPlan, ExpressionTaskSite } from './expression/task-contracts.js';
 import { stableId } from './ids.js';
-import type {
-	ExactCompilerManifest,
-	ExactCallableSummaryIR,
-	ExactComponentIR,
-	ExactDataPolicyIR,
-	ExactPolicyFlowIR,
-	ExactPolicyManifestIR,
-	ExactPolicySubjectIR,
-	ExactSecretConsumptionIR,
-	ExactStateEffect,
-	TransformOptions
-} from './types.js';
 import {
 	combinePolicies,
 	combinePolicyRecords,
@@ -40,6 +28,17 @@ import {
 	type PolicyRecord,
 	type StatePolicyRecord
 } from './policy/algebra.js';
+import type {
+	ExactCompilerManifest,
+	ExactComponentIR,
+	ExactDataPolicyIR,
+	ExactPolicyFlowIR,
+	ExactPolicyManifestIR,
+	ExactPolicySubjectIR,
+	ExactSecretConsumptionIR,
+	ExactStateEffect,
+	TransformOptions
+} from './types.js';
 
 type PolicyInput = {
 	variable: Variable;

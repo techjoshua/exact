@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generatePath as exactGeneratePath, matchPath as exactMatchPath } from './core.js';
+import { generatePath as exactGeneratePath } from './core.js';
 import {
 	createMemoryRouter as createExactMemoryRouter,
 	matchPath as modernMatchPath

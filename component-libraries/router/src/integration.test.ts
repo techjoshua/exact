@@ -1,8 +1,8 @@
+import { createReactCompatibilityBuildEngine } from '@exact/react-compat/build';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createReactCompatibilityBuildEngine } from '@exact/react-compat/build';
 
 const temporaryDirectories: string[] = [];
 afterEach(() => {

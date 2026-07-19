@@ -1,9 +1,9 @@
 import {
 	Children,
-	Component as ReactComponent,
 	createContext,
 	createElement,
 	isValidElement,
+	Component as ReactComponent,
 	useContext,
 	useEffect,
 	useId,
@@ -12,36 +12,18 @@ import {
 	useState,
 	useSyncExternalStore,
 	type ReactComponentType,
-	type ReactElement,
 	type ReactNode
 } from '@exact/react-compat';
 import { bridgeReactContext } from '@exact/react-compat/interop';
 import {
-	createPath,
-	createSearchParams,
-	locationToString,
-	parsePath,
-	resolvePath,
-	resolveRouteRelativeTo,
-	toNavigationValue,
-	type To
-} from './modern/paths.js';
-import {
-	isRouteErrorResponse,
-	json,
-	redirect,
-	redirectDocument,
-	replace
-} from './modern/responses.js';
-import {
+	createBrowserLocationSource,
 	createExactRouter,
 	createMemoryLocationSource,
-	createBrowserLocationSource,
+	matchRoutes as exactMatchRoutes,
 	generatePath,
 	hydrationEnvelopeFromSnapshot,
 	locationValue,
 	matchPath,
-	matchRoutes as exactMatchRoutes,
 	normalizeBasename,
 	RouterControllerContext,
 	type ExactHydrationData,
@@ -54,9 +36,16 @@ import {
 	type RouteLocation,
 	type RouterMode
 } from './index.js';
+import {
+	locationToString,
+	parsePath,
+	resolveRouteRelativeTo,
+	toNavigationValue,
+	type To
+} from './modern/paths.js';
 
-export type { To } from './modern/paths.js';
 export { createPath, createSearchParams, parsePath, resolvePath } from './modern/paths.js';
+export type { To } from './modern/paths.js';
 export {
 	isRouteErrorResponse,
 	json,

@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import path from 'node:path';
+import { describe, expect, it } from 'vitest';
 import { createExpressionProject } from './index.js';
 
 const root = path.resolve(import.meta.dirname, '../../..');

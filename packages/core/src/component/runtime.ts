@@ -6,8 +6,8 @@ import {
 	reactive,
 	ref as reactiveRef,
 	registerReactiveListKey,
-	updateReactive,
 	unwrap,
+	updateReactive,
 	withEffectScope,
 	type Reactive,
 	type ReactiveRef,
@@ -15,8 +15,8 @@ import {
 	type StopHandle
 } from '@exact/reactive';
 
-import { createVNode } from '../vnode.js';
 import { Fragment } from '../symbols.js';
+import { createVNode } from '../vnode.js';
 
 import type {
 	ComponentContextValues,
@@ -41,12 +41,12 @@ import { createNoopComponentLog } from './log.js';
 import { applyInternalPlugins, defaultContexts } from './plugins.js';
 
 import { createComponentReactiveValue, createTask } from '../task/execution.js';
-import { createErrorContext, createErrorReport, handleComponentError } from './errors.js';
-import { ErrorContext } from './contexts.js';
+import { releaseTaskObserver, retainTaskObserver, taskObserverFor } from '../task/observers.js';
 import { isPromiseLike } from './async-value.js';
 import { observeLifecyclePromise } from './async.js';
+import { ErrorContext } from './contexts.js';
+import { createErrorContext, createErrorReport, handleComponentError } from './errors.js';
 import { reactiveValue } from './reactive-value.js';
-import { releaseTaskObserver, retainTaskObserver, taskObserverFor } from '../task/observers.js';
 
 let nextComponentId = 1;
 

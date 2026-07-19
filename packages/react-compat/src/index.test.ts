@@ -1,16 +1,16 @@
-import { describe, expect, it } from 'vitest';
 import path from 'node:path';
+import { describe, expect, it } from 'vitest';
 import {
 	Children,
+	__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
+	__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
 	cache,
 	cacheSignal,
 	captureOwnerStack,
 	cloneElement,
 	createElement,
 	isValidElement,
-	useEffect,
-	__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
-	__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE
+	useEffect
 } from './index.js';
 import { jsx } from './jsx-runtime.js';
 import {

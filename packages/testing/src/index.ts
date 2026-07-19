@@ -640,8 +640,10 @@ function publicComponentNodes(root: DomInspectionNode): DomInspectionNode[] {
 }
 function directComponentChildren(root: DomInspectionNode): DomInspectionNode[] {
 	const output: DomInspectionNode[] = [];
-	for (const child of root.children)
-		child.instance ? output.push(child) : output.push(...directComponentChildren(child));
+	for (const child of root.children) {
+		if (child.instance) output.push(child);
+		else output.push(...directComponentChildren(child));
+	}
 	return output;
 }
 function componentElements(view: TestView<any, any>, instance: ComponentInstance<any>): Element[] {

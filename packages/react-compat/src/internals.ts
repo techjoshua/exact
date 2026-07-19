@@ -2,9 +2,9 @@ import {
 	ErrorContext,
 	Fragment as ExactFragment,
 	SuspensionContext,
-	createContext as createExactContext,
 	createErrorContext,
 	createErrorReport,
+	createContext as createExactContext,
 	createPortal,
 	createVNode,
 	handleComponentError,
@@ -19,8 +19,8 @@ import {
 	type RefBinding,
 	type VNode
 } from '@exact/core';
-import { reactive, unwrap, type Reactive } from '@exact/reactive';
 import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation';
+import { reactive, unwrap, type Reactive } from '@exact/reactive';
 import {
 	assertHookKind,
 	cloneDependencies,
@@ -1034,7 +1034,7 @@ export function isUnmountedReactClassInstance(value: unknown): boolean {
 }
 
 export function adaptReactType(
-	type: ReactComponentType<any> | Function
+	type: ReactComponentType<any>
 ): ComponentFunction<Record<string, unknown>, Record<string, unknown>> {
 	const identity = type as object;
 	const cached = adapterCache.get(identity);
@@ -1138,7 +1138,6 @@ function createClassAdapter(
 		publicInstance.refs ??= {};
 
 		let constructing = true;
-		let rendering = false;
 		let mounted = false;
 		let force = false;
 		let capturedWithoutDerivedState = false;
@@ -1264,7 +1263,6 @@ function createClassAdapter(
 
 		return () => {
 			Number(this.state.__reactRevision);
-			rendering = true;
 			const previousRuntime = currentRootRuntime;
 			const previousOwnerFrame = currentOwnerFrame;
 			const previousReact18Owner = ReactSharedInternals18.ReactCurrentOwner.current;
@@ -1359,7 +1357,6 @@ function createClassAdapter(
 				ReactSharedInternals18.ReactCurrentOwner.current = previousReact18Owner;
 				currentOwnerFrame = previousOwnerFrame;
 				currentRootRuntime = previousRuntime;
-				rendering = false;
 			}
 		};
 	} as ComponentFunction<Record<string, unknown>, Record<string, unknown>>;
@@ -1478,7 +1475,7 @@ function exactComponentType(
 }
 
 function invokeReactType(
-	type: ReactComponentType<any> | Function,
+	type: ReactComponentType<any>,
 	props: Record<string, unknown>,
 	ref?: unknown
 ): ReactNode {

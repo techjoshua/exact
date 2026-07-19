@@ -9,9 +9,9 @@ import {
 	type CallExpressionNode,
 	type ExpressionNode,
 	type FunctionExpressionNode,
-	type JsxExpressionNode,
 	type JsxAttributeNode,
 	type JsxElementNode,
+	type JsxExpressionNode,
 	type WalkOptions
 } from './model.js';
 

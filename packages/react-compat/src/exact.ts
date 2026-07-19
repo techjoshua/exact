@@ -1,17 +1,17 @@
 export {
-	ReactCacheContext,
-	ReactRootContext,
 	adaptReactType as adaptReactComponent,
 	exactComponentForReactInstance,
 	isUnmountedReactClassInstance,
+	ReactCacheContext,
 	reactCompatibilityTarget,
+	ReactRootContext,
 	recordReactResourceHint,
 	toExactNode,
 	type ReactCacheScope,
 	type ReactRootRuntime
 } from './internals.js';
-import { adaptReactType, toExactNode } from './internals.js';
 import type { Component } from '@exact/core';
+import { adaptReactType, toExactNode } from './internals.js';
 import type { ReactComponentType, ReactNode } from './types.js';
 
 export function ReactHost(

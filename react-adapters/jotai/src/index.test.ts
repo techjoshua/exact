@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { atom, createStore } from 'jotai/vanilla';
 import { flushSync } from '@exact/reactive';
+import { atom, createStore } from 'jotai/vanilla';
+import { describe, expect, it } from 'vitest';
 import { createAtomSource } from './index.js';
 
 describe('@exact/jotai', () => {

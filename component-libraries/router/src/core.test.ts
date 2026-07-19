@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createMemoryLocationSource } from './index.js';
 import {
 	createExactRouter,
 	generatePath,
@@ -10,6 +9,7 @@ import {
 	redirect,
 	type ExactRouteDefinition
 } from './core.js';
+import { createMemoryLocationSource } from './index.js';
 
 describe('renderer-neutral router core', () => {
 	const routes = [

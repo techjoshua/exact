@@ -1,33 +1,33 @@
 import {
-	exactExportConditions,
 	createCompilerSession,
+	exactExportConditions,
 	resolveExactArtifactImport,
 	transformSource,
-	type ExactCompilerManifest,
 	type ExactAssetRule,
+	type ExactCompilerManifest,
 	type ExactCompilerSession,
 	type TransformTarget
 } from '@exact/compiler';
-import {
-	profileTimestamp,
-	type ExactProfileEvent,
-	type ExactProfileSink
-} from '@exact/instrumentation';
 import {
 	createExactDiagnosticReporter,
 	loadExactImportedManifests,
 	matchesExactBuildFilter
 } from '@exact/compiler/adapter-support';
-import { transformReactJsx, usesReactRuntimeImports } from '@exact/react-compat/transform';
-import path from 'node:path';
+import {
+	profileTimestamp,
+	type ExactProfileEvent,
+	type ExactProfileSink
+} from '@exact/instrumentation';
+import type { ExactPreparedCompilerRegistry } from '@exact/plugin-api';
+import { prepareExactPluginRegistry } from '@exact/plugin-host/node';
 import {
 	jsxSourceOwnership,
 	resolveReactCompatibility,
 	validateInstalledReactReconciler,
 	type ReactCompatibilityOptions
 } from '@exact/react-compat/plugin';
-import type { ExactPreparedCompilerRegistry } from '@exact/plugin-api';
-import { prepareExactPluginRegistry } from '@exact/plugin-host/node';
+import { transformReactJsx, usesReactRuntimeImports } from '@exact/react-compat/transform';
+import path from 'node:path';
 
 export type ExactBunPluginOptions = {
 	target?: TransformTarget;

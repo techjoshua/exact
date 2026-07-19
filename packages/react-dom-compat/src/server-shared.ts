@@ -1,4 +1,5 @@
 import { createVNode, type ComponentFunction } from '@exact/core';
+import type { ReactNode } from '@exact/react-compat';
 import {
 	ReactCacheContext,
 	ReactRootContext,
@@ -7,7 +8,6 @@ import {
 	type ReactCacheScope,
 	type ReactRootRuntime
 } from '@exact/react-compat/exact';
-import type { ReactNode } from '@exact/react-compat';
 import {
 	renderToString as renderExactToString,
 	renderToStringAsync as renderExactToStringAsync

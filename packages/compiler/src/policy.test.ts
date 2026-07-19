@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import path from 'node:path';
+import { describe, expect, it } from 'vitest';
 import { analyzeSource, parseExactCompilerManifest, transform } from './index.js';
 
 const fixture = (name: string) => path.join(process.cwd(), `${name}.policy-fixture.tsx`);

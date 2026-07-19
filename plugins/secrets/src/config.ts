@@ -1,5 +1,5 @@
-import type { Secret } from './index.js';
 import type {} from '@exact/config';
+import type { Secret } from './index.js';
 
 export interface SecretProviderContext {
 	readonly applicationRoot: string;

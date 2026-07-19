@@ -9,16 +9,12 @@ import {
 	type VNode
 } from '@exact/core';
 import { getRequestContext, RequestContext, type RequestContextValue } from '@exact/request';
+import { RouterControllerContext } from './context.js';
 import {
 	createExactRouter,
 	createKey,
-	hrefFor,
-	matchRoutes,
 	normalizeBasename,
 	normalizePath,
-	redirect,
-	resolveTarget,
-	routeUrl,
 	stripBasename,
 	toUrl,
 	type ExactRouteDefinition,
@@ -30,8 +26,8 @@ import {
 	type RouteMatch,
 	type RouterMode
 } from './core.js';
-import { RouterControllerContext } from './context.js';
 
+export { RouterControllerContext } from './context.js';
 export {
 	createExactRouter,
 	generatePath,
@@ -49,20 +45,19 @@ export {
 	stripBasename,
 	toUrl
 } from './core.js';
-export { RouterControllerContext } from './context.js';
 export type {
 	CreateExactRouterOptions,
-	ExactRouteDefinition,
 	ExactDataFunctionArgs,
 	ExactHydrationData,
 	ExactHydrationEnvelope,
 	ExactLazyRoute,
 	ExactRouteAction,
+	ExactRouteDefinition,
 	ExactRouteLoader,
 	ExactRouter,
 	ExactRouterSnapshot,
-	HistoryAction,
 	FetcherSnapshot,
+	HistoryAction,
 	LocationSource,
 	NavigationBlocker,
 	NavigationOptions,
@@ -107,7 +102,6 @@ export function Router(this: Component<RouterState>, props: RouterProps) {
 	const routes = routeChildren(props.children);
 	const controller = createExactRouter({ source, routes, basename, mode });
 	const owner = this;
-	let routeContext!: RouteContextValue;
 
 	const refresh = () => {
 		this.state.version++;
@@ -121,7 +115,7 @@ export function Router(this: Component<RouterState>, props: RouterProps) {
 		controller.dispose();
 	});
 
-	routeContext = {
+	const routeContext: RouteContextValue = {
 		router: controller,
 		get location() {
 			void owner.state.version;
@@ -376,15 +370,15 @@ export function createBrowserLocationSource(
 		key: () => String(window.history.state?.key ?? 'default'),
 		push(url, state) {
 			const next = { usr: state, key: createKey() };
-			mode === 'hash'
-				? window.history.pushState(next, '', `#${url.pathname}${url.search}${url.hash}`)
-				: window.history.pushState(next, '', url);
+			if (mode === 'hash')
+				window.history.pushState(next, '', `#${url.pathname}${url.search}${url.hash}`);
+			else window.history.pushState(next, '', url);
 		},
 		replace(url, state) {
 			const next = { usr: state, key: createKey() };
-			mode === 'hash'
-				? window.history.replaceState(next, '', `#${url.pathname}${url.search}${url.hash}`)
-				: window.history.replaceState(next, '', url);
+			if (mode === 'hash')
+				window.history.replaceState(next, '', `#${url.pathname}${url.search}${url.hash}`);
+			else window.history.replaceState(next, '', url);
 		},
 		go(delta) {
 			window.history.go(delta);

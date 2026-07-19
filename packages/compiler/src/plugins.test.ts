@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import type { ExactPreparedCompilerRegistry } from '@exact/plugin-api';
+import { describe, expect, it } from 'vitest';
 import { analyzeSource } from './index.js';
 
 describe('compiler plugins', () => {

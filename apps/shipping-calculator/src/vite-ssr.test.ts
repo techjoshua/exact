@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import { createLogger, createServer } from 'vite';
+import { describe, expect, it } from 'vitest';
 
 describe('shipping development SSR graph', () => {
 	it('loads the server application without analyzing Node-only config imports', async () => {

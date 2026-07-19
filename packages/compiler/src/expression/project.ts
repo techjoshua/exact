@@ -1,7 +1,7 @@
 import {
 	createExpressionLanguageService,
 	createExpressionProject,
-	ExpressionProject,
+	type ExpressionProject,
 	findExpressionConfig,
 	type BoundModule,
 	type ExpressionLanguageService,

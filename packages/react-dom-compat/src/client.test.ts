@@ -1,8 +1,6 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it, vi } from 'vitest';
-import { Airplay } from 'lucide-react-phase1';
 import {
 	Children,
 	Suspense,
@@ -20,6 +18,8 @@ import {
 	useState
 } from '@exact/react-compat';
 import { flushSync } from '@exact/reactive';
+import { Airplay } from 'lucide-react-phase1';
+import { describe, expect, it, vi } from 'vitest';
 import { createRoot, hydrateRoot } from './client.js';
 import { createPortal } from './index.js';
 

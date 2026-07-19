@@ -1,6 +1,6 @@
 import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import type { ExactCompilerManifest, ExactArtifactPlanEntry } from './types.js';
+import type { ExactArtifactPlanEntry, ExactCompilerManifest } from './types.js';
 
 /** Recursively collects transformable source files from files or directories. */
 export async function collectInputFiles(inputs: readonly string[]): Promise<string[]> {

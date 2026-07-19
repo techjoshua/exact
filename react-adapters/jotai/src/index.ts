@@ -1,6 +1,6 @@
-import { atom, createStore, getDefaultStore, type Atom } from 'jotai/vanilla';
 import { createContext, type Child, type Component } from '@exact/core';
 import { createExternalSource, type ExternalSource } from '@exact/reactive';
+import { atom, createStore, getDefaultStore, type Atom } from 'jotai/vanilla';
 
 export { atom, createStore, getDefaultStore };
 export type { Atom };

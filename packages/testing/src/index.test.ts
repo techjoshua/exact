@@ -1,7 +1,6 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it } from 'vitest';
 import {
 	createContext,
 	createErrorContext,
@@ -9,6 +8,7 @@ import {
 	ErrorContext,
 	type Component
 } from '@exact/core';
+import { describe, expect, it } from 'vitest';
 import { installExactMatchers, mountTest, testComponent } from './index.js';
 import { installVitestMatchers } from './vitest.js';
 

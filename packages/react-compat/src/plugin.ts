@@ -3,12 +3,12 @@ import path from 'node:path';
 import { intersects, validRange } from 'semver';
 
 export {
-	createNpmReactCompatPackageGraph,
 	createInstalledReactCompatPackageGraph,
+	createNpmReactCompatPackageGraph,
 	createReactCompatPackageGraph,
 	discoverReactCompatAdapters,
-	validateReactCompatAdapterPackage,
 	replacementKey,
+	validateReactCompatAdapterPackage,
 	type ReactCompatPackageGraph,
 	type ReactCompatPackageNode,
 	type ResolvedReactCompatAdapters,

@@ -1,39 +1,13 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { build as esbuild, type Plugin } from 'esbuild';
-import { createTestWorkspace } from './test-support/workspace.js';
 import {
 	analyzeSource,
-	analyzeSemanticGraph,
-	assertExactArtifactTarget,
-	createClientIslandRegistryEntries,
-	createClientIslandRegistryModule,
-	createExactArtifactDevState,
-	createExactArtifactGraph,
-	createExactArtifactPlan,
-	createExactArtifactRegistryModules,
-	createExactHydrationRegistrationModule,
-	createServerPartRegistryModule,
-	compileArtifactPlanEntries,
-	compileFile,
 	compileFileArtifacts,
-	compileProject,
 	compileProjectArtifacts,
-	createPackageExportMap,
-	createServerPartRegistryEntries,
-	diffExactArtifactPlans,
-	exactExportConditions,
-	exactCompilerManifestVersion,
-	generatedComponentName,
-	parseExactCompilerManifest,
-	preprocessPropPunning,
-	readExactArtifactManifestEntries,
-	resolveExactArtifactImport,
-	transform,
-	transformSource,
-	updateExactArtifactDevState
+	transform
 } from './index.js';
+import { createTestWorkspace } from './test-support/workspace.js';
 
 describe('@exact/compiler: islands', () => {
 	it('generates child-bearing client island components with state bridge props', () => {

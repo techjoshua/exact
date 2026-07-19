@@ -2,7 +2,7 @@ import type { BoundModule, NodeRef } from '@exact/expressions';
 
 import type { ExactContextEffect, ExactStateEffect } from '../types.js';
 
-import { expressionComponentIndex } from './component-index.js';
+import { type expressionComponentIndex } from './component-index.js';
 
 export function collectStateAliases(
 	module: BoundModule,

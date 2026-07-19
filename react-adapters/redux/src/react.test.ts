@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
 import { createContext, createElement, useContext } from '@exact/react-compat';
 import { createRoot } from '@exact/react-dom-compat/client19';
-import { Provider } from './react.js';
+import { describe, expect, it } from 'vitest';
 import type { ReduxStore } from './index.js';
+import { Provider } from './react.js';
 
 describe('@exact/redux React bridge', () => {
 	it('provides React Redux-compatible custom context without a react-redux runtime import', async () => {

@@ -1,10 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import { analyzeSource } from '@exact/compiler';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-import { exact } from './index.js';
 import { createReactCompatibilityBuildEngine } from '@exact/react-compat/build';
+import path from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { exact } from './index.js';
 
 describe('@exact/vite-plugin: React compatibility', () => {
 	it('automatically aliases installed React and compiles React-owned JSX to the compatibility runtime', () => {

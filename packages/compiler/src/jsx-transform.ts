@@ -1,25 +1,14 @@
+import type { BoundModule } from '@exact/expressions';
 import ts from 'typescript';
-import { isIdentifierDeclarationName, isPropertyAccessName, nodeNameText } from './ast.js';
+import { stripExactImportAttribute, type ExactModuleImportPlan } from './assets.js';
+import { isIdentifierDeclarationName, isPropertyAccessName } from './ast.js';
+import type { CallableEffectPlan } from './callable-effects.js';
 import {
 	isFunctionLikeExpression,
 	isThisMethodAccess,
 	isThisMethodCall,
 	isThisTaskCall
 } from './calls.js';
-import { componentPlacementsFromInfo } from './placement.js';
-import { collectExports } from './exports.js';
-import { stableId } from './ids.js';
-import { isServerOnlyImportDeclaration, isServerOnlyModule } from './imports.js';
-import { stripExactImportAttribute, type ExactModuleImportPlan } from './assets.js';
-import {
-	clientComponentChildrenProp,
-	componentBoundaryName,
-	jsxElementHasNoMeaningfulChildren,
-	jsxElementIsClientIsland,
-	jsxTagIsIntrinsicElement
-} from './jsx-inspect.js';
-import { clientComponentBoundaryId, generatedComponentName } from './names.js';
-import { pruneUnusedImports } from './prune-imports.js';
 import { allocateHelperNames, insertAfterDirectivePrologue } from './emission/helpers.js';
 import {
 	componentStateRoot,
@@ -28,21 +17,32 @@ import {
 	transformStateAssignment,
 	transformStateUpdate
 } from './emission/state-writes.js';
-import type { CallableEffectPlan } from './callable-effects.js';
-import type { BoundModule } from '@exact/expressions';
+import { collectExports } from './exports.js';
+import type {
+	ExpressionClientIslandSite,
+	ExpressionComponentPlan
+} from './expression/contracts.js';
 import type { ExpressionDerivedPlan } from './expression/derived.js';
-import type { ExpressionWritePlan } from './expression/writes.js';
+import type { ExpressionJsxListSite, ExpressionJsxPlan } from './expression/jsx.js';
 import type {
 	ExpressionTaskPlan,
 	ExpressionTaskResource,
 	ExpressionTaskResourceKind,
 	ExpressionTaskSignalCall
 } from './expression/task-contracts.js';
-import type { ExpressionJsxListSite, ExpressionJsxPlan } from './expression/jsx.js';
-import type {
-	ExpressionClientIslandSite,
-	ExpressionComponentPlan
-} from './expression/contracts.js';
+import type { ExpressionWritePlan } from './expression/writes.js';
+import { stableId } from './ids.js';
+import { isServerOnlyImportDeclaration } from './imports.js';
+import {
+	clientComponentChildrenProp,
+	componentBoundaryName,
+	jsxElementHasNoMeaningfulChildren,
+	jsxElementIsClientIsland,
+	jsxTagIsIntrinsicElement
+} from './jsx-inspect.js';
+import { clientComponentBoundaryId, generatedComponentName } from './names.js';
+import { componentPlacementsFromInfo } from './placement.js';
+import { pruneUnusedImports } from './prune-imports.js';
 import type {
 	ClientIslandCaptures,
 	ClientIslandElementNode,
@@ -261,7 +261,6 @@ export function exactJsxTransformer(
 			const componentId = ts.isFunctionDeclaration(node) ? expressionEmissionId(node) : undefined;
 			const componentSite = componentId ? expressionComponents.sites.get(componentId) : undefined;
 			if (ts.isFunctionDeclaration(node) && node.name && componentSite) {
-				const componentPlacement = componentPlacements.get(node.name.text);
 				if (target === 'server' && componentPlacements.get(node.name.text) === 'client') {
 					sawBoundary = true;
 					return createClientComponentServerStub(sourceFile, context, helpers, node);
@@ -1067,14 +1066,6 @@ function transformJsxSelfClosingElement(
 		derivedReactiveLocals,
 		expressionJsx
 	);
-}
-
-function expressionElementId(
-	sourceFile: ts.SourceFile,
-	node: ts.Node,
-	plan?: ExpressionJsxPlan
-): string | undefined {
-	return plan?.elements.get(expressionEmissionId(node) ?? '')?.exactId;
 }
 
 function canonicalElementId(
@@ -2411,29 +2402,6 @@ function containsManagedTaskWork(
 	};
 	visit(node);
 	return found;
-}
-
-function containsGlobalAddEventListener(node: ts.Node): boolean {
-	let found = false;
-	const visit = (current: ts.Node): void => {
-		if (found) return;
-		if (ts.isCallExpression(current) && isGlobalAddEventListener(current)) {
-			found = true;
-			return;
-		}
-		ts.forEachChild(current, visit);
-	};
-	visit(node);
-	return found;
-}
-
-function isGlobalAddEventListener(node: ts.CallExpression): boolean {
-	return (
-		ts.isPropertyAccessExpression(node.expression) &&
-		node.expression.name.text === 'addEventListener' &&
-		ts.isIdentifier(node.expression.expression) &&
-		['window', 'document', 'globalThis'].includes(node.expression.expression.text)
-	);
 }
 
 function taskResourceHelper(

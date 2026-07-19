@@ -2,10 +2,10 @@ import type {
 	ExactArtifactManifest,
 	ExactCallableSummaryIR,
 	ExactCompilerManifest,
+	ExactPolicyManifestIR,
 	ExactSemanticDeclarationIR,
 	ExactSemanticExportIR,
 	ExactSemanticGraphIR,
-	ExactPolicyManifestIR,
 	ExactSemanticReferenceIR,
 	ExactSemanticScopeIR
 } from './types.js';

@@ -1,39 +1,5 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { build as esbuild, type Plugin } from 'esbuild';
-import { createTestWorkspace } from './test-support/workspace.js';
-import {
-	analyzeSource,
-	analyzeSemanticGraph,
-	assertExactArtifactTarget,
-	createClientIslandRegistryEntries,
-	createClientIslandRegistryModule,
-	createExactArtifactDevState,
-	createExactArtifactGraph,
-	createExactArtifactPlan,
-	createExactArtifactRegistryModules,
-	createExactHydrationRegistrationModule,
-	createServerPartRegistryModule,
-	compileArtifactPlanEntries,
-	compileFile,
-	compileFileArtifacts,
-	compileProject,
-	compileProjectArtifacts,
-	createPackageExportMap,
-	createServerPartRegistryEntries,
-	diffExactArtifactPlans,
-	exactExportConditions,
-	exactCompilerManifestVersion,
-	generatedComponentName,
-	parseExactCompilerManifest,
-	preprocessPropPunning,
-	readExactArtifactManifestEntries,
-	resolveExactArtifactImport,
-	transform,
-	transformSource,
-	updateExactArtifactDevState
-} from './index.js';
+import { preprocessPropPunning, transform, transformSource } from './index.js';
 
 describe('@exact/compiler: derived values', () => {
 	it('shares cached derived consts across reactive JSX children', () => {

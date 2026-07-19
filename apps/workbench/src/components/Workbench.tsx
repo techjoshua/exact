@@ -1,6 +1,6 @@
 import {
-	ErrorContext,
 	createConsoleLogger,
+	ErrorContext,
 	LoggerContext,
 	type Component,
 	type Logger

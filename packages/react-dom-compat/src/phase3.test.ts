@@ -1,7 +1,6 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it, vi } from 'vitest';
 import {
 	Activity,
 	act,
@@ -11,6 +10,7 @@ import {
 	useOptimistic
 } from '@exact/react-compat';
 import { c } from '@exact/react-compat/compiler-runtime';
+import { describe, expect, it, vi } from 'vitest';
 import { createRoot } from './client.js';
 import { preconnect, preinitModule, preload, requestFormReset, useFormStatus } from './index.js';
 

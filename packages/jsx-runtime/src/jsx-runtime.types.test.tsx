@@ -1,8 +1,8 @@
 /** @jsxImportSource @exact/jsx */
-import { describe, expect, it } from 'vitest';
 import { createRef, getCellVNode, isCellVNode, type Component, type RefBinding } from '@exact/core';
-import { _ } from './jsx-runtime.js';
+import { describe, expect, it } from 'vitest';
 import type { JSX } from './jsx-runtime.js';
+import { _ } from './jsx-runtime.js';
 
 type LabelProps = {
 	text: string;

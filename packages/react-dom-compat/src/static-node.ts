@@ -1,5 +1,5 @@
-import { Readable, type Writable } from 'node:stream';
 import type { ReactNode } from '@exact/react-compat';
+import { Readable, type Writable } from 'node:stream';
 import {
 	renderReactToStringAsync,
 	withBootstrapScripts,

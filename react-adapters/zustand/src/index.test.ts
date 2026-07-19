@@ -1,6 +1,6 @@
+import { flushSync } from '@exact/reactive';
 import { describe, expect, it } from 'vitest';
 import { createStore } from 'zustand/vanilla';
-import { flushSync } from '@exact/reactive';
 import { createZustandSource } from './index.js';
 
 describe('@exact/zustand', () => {

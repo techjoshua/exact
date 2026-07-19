@@ -1,10 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import { analyzeSource } from '@exact/compiler';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { describe, expect, it } from 'vitest';
 import { exact } from './index.js';
-import { createReactCompatibilityBuildEngine } from '@exact/react-compat/build';
 
 describe('@exact/vite-plugin: lifecycle', () => {
 	it('honors include and exclude filters', () => {

@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import { analyzeSource } from '@exact/compiler';
+import { describe, expect, it } from 'vitest';
 import { consume, secret } from './index.js';
 import { parseEnvironmentFile } from './providers.js';
 import createSecretsServerExtension, { createSecretResolver } from './server.js';

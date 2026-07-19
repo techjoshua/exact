@@ -1,4 +1,5 @@
 import { computed, unwrap } from '@exact/reactive';
+import type { Child, RenderResult, VNode, VNodeCell, VNodeType } from './index.js';
 import {
 	Cell,
 	Dynamic,
@@ -9,7 +10,6 @@ import {
 	Text,
 	UnsafeHtml
 } from './symbols.js';
-import type { Child, RenderResult, VNode, VNodeCell, VNodeType } from './index.js';
 
 /** Creates a normalized virtual node and extracts the special JSX key prop. */
 export function createVNode(

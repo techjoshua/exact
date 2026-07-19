@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
+import { buildExactProvenance } from '../provenance.js';
+import { analyzeExpressionComponents } from './analysis.js';
 import {
 	createExpressionComponentBoundaries,
 	createExpressionGeneratedServerSlotBoundaries,
 	createExpressionRenderEdges
 } from './boundaries.js';
-import { analyzeExpressionComponents } from './analysis.js';
-import { createExpressionComponents } from './manifest.js';
 import { analyzeExpressionJsx } from './jsx.js';
+import { createExpressionComponents } from './manifest.js';
 import { clearExpressionProjectCache, expressionModuleFor } from './session.js';
 import { analyzeExpressionTasks } from './task-analysis.js';
-import { buildExactProvenance } from '../provenance.js';
 import { analyzeExpressionWrites } from './writes.js';
 
 describe('expression-backed component effects', () => {

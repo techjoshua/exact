@@ -1,24 +1,23 @@
-import { createHash } from 'node:crypto';
-import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { existsSync, statSync } from 'node:fs';
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
-import ts from 'typescript';
 import type { ExactConfig } from '@exact/config';
 import type {
-	ExactJsonValue,
 	ExactPluginHostMode,
 	ExactPreparedCompilerPlugin,
 	ExactPreparedCompilerRegistry,
 	ExactRuntimePluginExtension
 } from '@exact/plugin-api';
-import { createExactPackageGraph, findUp, packageName, type ExactPackageGraph } from './graph.js';
-import { discoverExactPlugins, type ExactPluginDiscoveryResult } from './discovery.js';
+import { createHash } from 'node:crypto';
+import { existsSync, statSync } from 'node:fs';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import ts from 'typescript';
 import {
 	resolveExactPluginConfigurations,
 	type ExactConfigTransformReport,
 	type ExactResolvedPluginConfiguration
 } from './configuration.js';
+import { discoverExactPlugins, type ExactPluginDiscoveryResult } from './discovery.js';
+import { createExactPackageGraph, findUp, packageName, type ExactPackageGraph } from './graph.js';
 import { importPublicPackageEntry } from './modules.js';
 import { validateExactRuntimeExtensions } from './runtime.js';
 

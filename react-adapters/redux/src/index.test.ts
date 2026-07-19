@@ -1,6 +1,6 @@
+import { flushSync } from '@exact/reactive';
 import { describe, expect, it } from 'vitest';
 import { createReduxSource, createReduxSubscription, type ReduxStore } from './index.js';
-import { flushSync } from '@exact/reactive';
 
 describe('@exact/redux', () => {
 	it('bridges Redux-compatible stores without depending on React Redux', () => {

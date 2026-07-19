@@ -1,6 +1,6 @@
+import { Suspense, cache, cacheSignal, createElement } from '@exact/react-compat';
 import { PassThrough } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
-import { Suspense, cache, cacheSignal, createElement } from '@exact/react-compat';
 import {
 	renderToPipeableStream,
 	renderToReadableStream,

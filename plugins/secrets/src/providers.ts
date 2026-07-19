@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { secret } from './index.js';
 import type { SecretProvider } from './config.js';
+import { secret } from './index.js';
 
 export interface EnvironmentSecretsOptions {
 	readonly files?: readonly string[];

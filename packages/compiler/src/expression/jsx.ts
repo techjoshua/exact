@@ -1,7 +1,7 @@
 import type { BoundModule, NodeRef, Variable } from '@exact/expressions';
+import { exactDirective, exactKeyContract, type ExactKeyContract } from '../annotations.js';
 import { stableId } from '../ids.js';
 import type { ExactProvenanceGraph } from '../provenance.js';
-import { exactDirective, exactKeyContract, type ExactKeyContract } from '../annotations.js';
 
 export interface ExpressionJsxElementSite {
 	readonly nodeId: string;

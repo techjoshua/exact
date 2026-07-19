@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest';
 import { flushSync } from '@exact/reactive';
+import { describe, expect, it } from 'vitest';
 import { createConvexQuery, type ConvexClient, type ConvexWatch } from './index.js';
 
 describe('@exact/convex', () => {
 	it('bridges Convex watchQuery without importing its React binding', () => {
-		let value: number | undefined;
+		let value: number | undefined = undefined;
 		let notify = () => {};
 		const watch: ConvexWatch<number> = {
 			localQueryResult: () => value,

@@ -32,6 +32,15 @@ export default tseslint.config(
 			ecmaVersion: 'latest',
 			sourceType: 'module',
 			globals: globals.node
+		},
+		rules: {
+			'no-empty': ['error', { allowEmptyCatch: true }]
+		}
+	},
+	{
+		files: ['scripts/benchmark-dom-list.mjs', 'scripts/check-r3f-browser.mjs'],
+		languageOptions: {
+			globals: globals.browser
 		}
 	},
 	...tseslint.configs.recommended.map((entry) => ({
@@ -47,8 +56,35 @@ export default tseslint.config(
 		}
 	},
 	{
+		files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+		rules: {
+			'@typescript-eslint/no-unused-vars': [
+				'error',
+				{ argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_', varsIgnorePattern: '^_' }
+			]
+		}
+	},
+	{
+		files: [
+			'packages/jsx-runtime/src/jsx-runtime.ts',
+			'packages/testing/src/jest.ts',
+			'packages/testing/src/vitest.ts'
+		],
+		rules: {
+			'@typescript-eslint/no-namespace': 'off',
+			'@typescript-eslint/no-unused-vars': 'off'
+		}
+	},
+	{
 		files: maintainedSource,
-		ignores: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+		ignores: [
+			'**/*.test.{ts,tsx}',
+			'**/*.spec.{ts,tsx}',
+			'**/test-support/**',
+			'**/*.config.ts',
+			'packages/testing/src/jest.ts',
+			'packages/testing/src/vitest.ts'
+		],
 		languageOptions: {
 			parserOptions: {
 				projectService: true,
@@ -58,7 +94,11 @@ export default tseslint.config(
 		rules: {
 			'@typescript-eslint/consistent-type-imports': [
 				'error',
-				{ fixStyle: 'inline-type-imports', prefer: 'type-imports' }
+				{
+					disallowTypeAnnotations: false,
+					fixStyle: 'inline-type-imports',
+					prefer: 'type-imports'
+				}
 			],
 			'@typescript-eslint/no-floating-promises': 'error',
 			'@typescript-eslint/no-misused-promises': 'error',

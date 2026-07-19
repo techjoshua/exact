@@ -1,16 +1,16 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it } from 'vitest';
 import { createErrorContext, createVNode, ErrorContext, type Component } from '@exact/core';
 import { render } from '@exact/dom';
-import { renderToString } from '@exact/ssr';
 import {
 	createRequestContextValue,
 	RequestContext,
 	runWithRequestContext,
 	type RequestResponseState
 } from '@exact/request';
+import { renderToString } from '@exact/ssr';
+import { describe, expect, it } from 'vitest';
 import {
 	createMemoryLocationSource,
 	Link,

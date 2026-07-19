@@ -1,12 +1,12 @@
-import { createHash } from 'node:crypto';
-import { readFileSync, statSync } from 'node:fs';
-import path from 'node:path';
-import ts from 'typescript';
 import {
 	rewriteModuleReferences,
 	type ModuleExportReplacement,
 	type ModuleRewriteOptions
 } from '@exact/expressions';
+import { createHash } from 'node:crypto';
+import { readFileSync, statSync } from 'node:fs';
+import path from 'node:path';
+import ts from 'typescript';
 import {
 	createReactCompatPackageGraph,
 	discoverReactCompatAdapters,

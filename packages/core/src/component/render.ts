@@ -2,14 +2,14 @@ import { watch } from '@exact/reactive';
 
 import type { Child, ComponentInstance, RenderResult } from './contracts.js';
 
+import { isPromiseLike } from './async-value.js';
+import { observeLifecyclePromise } from './async.js';
 import {
 	createErrorReport,
 	handleComponentError,
 	handleComponentSuspension,
 	normalizeRenderResult
 } from './errors.js';
-import { observeLifecyclePromise } from './async.js';
-import { isPromiseLike } from './async-value.js';
 
 /** Renders a component instance inside a watcher and returns normalized child output. */
 export function renderInstance(

@@ -1,7 +1,6 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it, vi } from 'vitest';
 import {
 	act,
 	createContext,
@@ -19,6 +18,7 @@ import {
 	useState,
 	useSyncExternalStore
 } from '@exact/react-compat';
+import { describe, expect, it, vi } from 'vitest';
 import { createRoot } from './client.js';
 import { flushSync as flushReactDOM, unstable_batchedUpdates } from './index.js';
 

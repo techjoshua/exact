@@ -1,5 +1,5 @@
-import { beforeAll, describe, expect, it } from 'vitest';
 import { createElement } from '@exact/react-compat';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { renderToString } from './server-node.js';
 
 let ThemeProvider: any;

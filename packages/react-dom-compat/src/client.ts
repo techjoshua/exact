@@ -1,8 +1,8 @@
 import { createVNode, type Component, type ComponentFunction, type ErrorReport } from '@exact/core';
 import { render as renderExact, unmount as unmountExact } from '@exact/dom';
 import { hydrate as hydrateExact, type HydrationRoot } from '@exact/hydrate';
-import { ReactRootContext, toExactNode, type ReactRootRuntime } from '@exact/react-compat/exact';
 import type { ReactNode } from '@exact/react-compat';
+import { ReactRootContext, toExactNode, type ReactRootRuntime } from '@exact/react-compat/exact';
 
 export interface RootOptions {
 	identifierPrefix?: string;

@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import path from 'node:path';
 import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { promisify } from 'node:util';
+import { describe, expect, it } from 'vitest';
 import { createExactReactNodeLoader } from './node-loader.js';
 
 const fixtureRoot = path.resolve(

@@ -1,3 +1,4 @@
+import type { ProviderId, ProviderResult, RateProvider, RateRequest } from '../types.js';
 import { doopProvider } from './doop.js';
 import {
 	createDhlProvider,
@@ -6,7 +7,6 @@ import {
 	createUspsProvider,
 	ProviderHttpError
 } from './live.js';
-import type { ProviderId, ProviderResult, RateProvider, RateRequest } from '../types.js';
 
 const providerNames: Record<ProviderId, string> = {
 	doop: 'DOOP',

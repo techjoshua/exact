@@ -1,4 +1,3 @@
-import ts from 'typescript';
 import {
 	ExpressionProjectError,
 	rewriteModule,
@@ -8,18 +7,75 @@ import {
 } from '@exact/expressions';
 import { access, mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import ts from 'typescript';
+import { analyzeExactAnnotations } from './annotations.js';
 import {
 	artifactGraphEntryFromCompileResult,
 	createExactArtifactGraph,
-	discoverExactPackageManifests,
 	diffExactArtifactPlans,
+	discoverExactPackageManifests,
 	readExactArtifactManifestEntries
 } from './artifacts.js';
-import { combinePlacements } from './placement.js';
+import { analyzeModuleImports } from './assets.js';
 import { analyzeCallableEffects } from './callable-effects.js';
+import { collectRawHtmlCapabilities } from './capabilities.js';
 import { exactComponentDescriptorTransformer } from './descriptor-transform.js';
+import { collectExpressionExportBindings } from './exports.js';
+import { analyzeExpressionComponents } from './expression/analysis.js';
+import {
+	createExpressionComponentBoundaries,
+	createExpressionGeneratedServerSlotBoundaries,
+	createExpressionRenderEdges
+} from './expression/boundaries.js';
+import { analyzeExpressionDerived } from './expression/derived.js';
+import { analyzeExpressionJsx } from './expression/jsx.js';
+import { createExpressionComponents } from './expression/manifest.js';
 import type { ExactCompilerSession } from './expression/project.js';
-import { expressionDependencyFiles, invalidateExpressionModule } from './expression/session.js';
+import { analyzeExpressionSafety } from './expression/safety.js';
+import {
+	expressionDependencyFiles,
+	expressionModuleFor,
+	invalidateExpressionModule
+} from './expression/session.js';
+import { analyzeExpressionTasks } from './expression/task-analysis.js';
+import { analyzeExpressionWrites } from './expression/writes.js';
+import { collectExpressionImportedComponents } from './imports.js';
+import { exactJsxTransformer } from './jsx-transform.js';
+import { parseExactCompilerManifest } from './manifest-parse.js';
+import {
+	artifactPathsFor,
+	collectInputFiles,
+	commonRoot,
+	manifestPathFor,
+	outputPathFor,
+	withArtifactMetadata
+} from './paths.js';
+import { combinePlacements } from './placement.js';
+import { applyCompilerPlugins, validateImportedPluginRegistries } from './plugins.js';
+import {
+	analyzeExactPolicyMetadata,
+	applyExactPolicyToCallables,
+	applyExactPolicyToTasks,
+	createExactPolicyManifest,
+	createExactSecretQualificationPlan
+} from './policy.js';
+import { preprocessPropPunning } from './preprocess.js';
+import { buildExactProvenance } from './provenance.js';
+import { exactSecretQualificationTransformer } from './secret-transform.js';
+import { buildExpressionSemanticGraph } from './semantic.js';
+import {
+	createLineSourceMap,
+	sourceMapPathFor,
+	withSourceMapFile,
+	withSourceMappingUrl
+} from './source-maps.js';
+import {
+	createClientIslandBoundaries,
+	createClientIslandSymbols,
+	createRootSymbols,
+	createServerPartSymbols,
+	createValueRootSymbols
+} from './symbols.js';
 import type {
 	CompileArtifactPlanEntriesOptions,
 	CompileArtifactsOptions,
@@ -38,7 +94,6 @@ import type {
 	ExactComponentIR,
 	ExactExportIR,
 	ExactImportedComponentIR,
-	ExactPlacement,
 	ExactRawHtmlCapabilityIR,
 	ExactSemanticGraphIR,
 	ExactSymbolIR,
@@ -46,73 +101,8 @@ import type {
 	TransformResult,
 	TransformTarget
 } from './types.js';
-import { collectExpressionExportBindings } from './exports.js';
-import { collectExpressionImportedComponents } from './imports.js';
-import { generatedComponentName } from './names.js';
-import { parseExactCompilerManifest } from './manifest-parse.js';
-import {
-	artifactPathsFor,
-	collectInputFiles,
-	commonRoot,
-	manifestPathFor,
-	outputPathFor,
-	withArtifactMetadata
-} from './paths.js';
-import { preprocessPropPunning } from './preprocess.js';
-import {
-	createClientIslandRegistryEntries,
-	createClientIslandRegistryModule,
-	createExactHydrationRegistrationModule,
-	createServerPartRegistryEntries,
-	createServerPartRegistryModule
-} from './registry.js';
-import { buildExpressionSemanticGraph } from './semantic.js';
-import {
-	createLineSourceMap,
-	sourceMapPathFor,
-	withSourceMapFile,
-	withSourceMappingUrl
-} from './source-maps.js';
-import {
-	createClientIslandBoundaries,
-	createClientIslandSymbols,
-	createRootSymbols,
-	createServerPartSymbols,
-	createValueRootSymbols
-} from './symbols.js';
-import { exactJsxTransformer } from './jsx-transform.js';
 import { exactCompilerManifestVersion } from './versions.js';
-import { expressionModuleFor } from './expression/session.js';
-import { buildExactProvenance } from './provenance.js';
-import { analyzeExpressionWrites } from './expression/writes.js';
-import { analyzeExpressionSafety } from './expression/safety.js';
-import { analyzeExpressionTasks } from './expression/task-analysis.js';
-import { analyzeExpressionJsx } from './expression/jsx.js';
-import { analyzeExpressionComponents } from './expression/analysis.js';
-import { analyzeExpressionDerived } from './expression/derived.js';
-import { createExpressionComponents } from './expression/manifest.js';
-import {
-	createExpressionComponentBoundaries,
-	createExpressionGeneratedServerSlotBoundaries,
-	createExpressionRenderEdges
-} from './expression/boundaries.js';
-import { analyzeExactAnnotations } from './annotations.js';
-import { applyCompilerPlugins, validateImportedPluginRegistries } from './plugins.js';
-import { analyzeModuleImports } from './assets.js';
-import { collectRawHtmlCapabilities } from './capabilities.js';
-import {
-	analyzeExactPolicyMetadata,
-	applyExactPolicyToCallables,
-	applyExactPolicyToTasks,
-	createExactSecretQualificationPlan,
-	createExactPolicyManifest
-} from './policy.js';
-import { exactSecretQualificationTransformer } from './secret-transform.js';
 
-export type * from './types.js';
-export { preprocessPropPunning } from './preprocess.js';
-export { parseExactCompilerManifest } from './manifest-parse.js';
-export { generatedComponentName } from './names.js';
 export {
 	assertExactArtifactTarget,
 	createExactArtifactComponentEdges,
@@ -125,38 +115,18 @@ export {
 	readExactArtifactManifestEntries,
 	resolveExactArtifactImport
 } from './artifacts.js';
-export {
-	createClientIslandRegistryEntries,
-	createClientIslandRegistryModule,
-	createExactHydrationRegistrationModule,
-	createServerPartRegistryEntries,
-	createServerPartRegistryModule
-} from './registry.js';
-export { exactCompilerManifestVersion } from './versions.js';
-export { createLineSourceMap } from './source-maps.js';
-export {
-	createExactPolicyAuditReport,
-	formatExactPolicyAuditReport,
-	type ExactPolicyAuditReportOptions
-} from './policy-report.js';
-export {
-	rewriteModuleReferences,
-	type ModuleExportReplacement,
-	type ModuleRewriteOptions,
-	type ModuleRewriteResult
-} from './module-rewrite.js';
-export {
-	createCompilerSession,
-	clearExpressionProjectCache,
-	invalidateExpressionModule
-} from './expression/session.js';
 export { ExactCompilerSession } from './expression/project.js';
 export type {
-	ExactCompilerProfileEvent,
 	ExactCompilerInvalidation,
+	ExactCompilerProfileEvent,
 	ExactCompilerSessionOptions,
 	ExactCompilerSessionStats
 } from './expression/session-contracts.js';
+export {
+	clearExpressionProjectCache,
+	createCompilerSession,
+	invalidateExpressionModule
+} from './expression/session.js';
 export {
 	analyzeExpressionWrites,
 	lowerExpressionWrites,
@@ -164,6 +134,20 @@ export {
 	type ExpressionWriteResult,
 	type ExpressionWriteSite
 } from './expression/writes.js';
+export { parseExactCompilerManifest } from './manifest-parse.js';
+export {
+	rewriteModuleReferences,
+	type ModuleExportReplacement,
+	type ModuleRewriteOptions,
+	type ModuleRewriteResult
+} from './module-rewrite.js';
+export { generatedComponentName } from './names.js';
+export {
+	createExactPolicyAuditReport,
+	formatExactPolicyAuditReport,
+	type ExactPolicyAuditReportOptions
+} from './policy-report.js';
+export { preprocessPropPunning } from './preprocess.js';
 export {
 	buildExactProvenance,
 	type ExactProvenanceEntry,
@@ -171,6 +155,16 @@ export {
 	type ExactReactiveCell,
 	type ExactReactiveProvenance
 } from './provenance.js';
+export {
+	createClientIslandRegistryEntries,
+	createClientIslandRegistryModule,
+	createExactHydrationRegistrationModule,
+	createServerPartRegistryEntries,
+	createServerPartRegistryModule
+} from './registry.js';
+export { createLineSourceMap } from './source-maps.js';
+export type * from './types.js';
+export { exactCompilerManifestVersion } from './versions.js';
 
 type CapabilityCompilationOptions = Pick<
 	TransformOptions,
@@ -1245,7 +1239,7 @@ export async function compileArtifactPlanEntries(
 	for (const entry of entries) {
 		const filename = options.filename?.(entry) ?? entry.inputFile;
 		const source = await readFile(entry.inputFile, 'utf8');
-		sources.set(path.resolve(entry.inputFile), source);
+		sources.set(path.resolve(filename), source);
 	}
 	const dependencyGraph = await collectPlacementAnalysisDependencies(sources, options.session);
 	const packageManifests =

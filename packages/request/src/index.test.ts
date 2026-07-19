@@ -1,6 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { createNodeRequestScope } from './node.js';
 import { createComponentInstance, type Component } from '@exact/core';
+import { describe, expect, it } from 'vitest';
 import {
 	commitRequestResponseState,
 	createRequestContextValue,
@@ -10,6 +9,7 @@ import {
 	RequestProvider,
 	runWithRequestContext
 } from './index.js';
+import { createNodeRequestScope } from './node.js';
 
 const request = (path: string) =>
 	createRequestContextValue({

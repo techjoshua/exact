@@ -1,5 +1,5 @@
-import ts from 'typescript';
 import { rewriteModuleReferences, type ModuleExportReplacement } from '@exact/expressions';
+import ts from 'typescript';
 import { reactCompatibilityAliases } from './plugin.js';
 
 export type ReactJsxTransformOptions = {

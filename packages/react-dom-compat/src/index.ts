@@ -1,12 +1,12 @@
-import { batch, flushSync as flushExact } from '@exact/reactive';
+import { findComponentDomNode } from '@exact/dom';
 import type { Key, ReactNode, ReactPortal } from '@exact/react-compat';
 import { useActionState } from '@exact/react-compat';
-import { recordReactResourceHint } from '@exact/react-compat/exact';
 import {
 	exactComponentForReactInstance,
-	isUnmountedReactClassInstance
+	isUnmountedReactClassInstance,
+	recordReactResourceHint
 } from '@exact/react-compat/exact';
-import { findComponentDomNode } from '@exact/dom';
+import { batch, flushSync as flushExact } from '@exact/reactive';
 import {
 	createRoot as createClientRoot,
 	hydrateRoot as hydrateClientRoot,

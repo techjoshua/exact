@@ -1,3 +1,5 @@
+import { createContext, type Child, type Component } from '@exact/core';
+import { createExternalSource, type ExternalSource, type ReactiveValue } from '@exact/reactive';
 import {
 	InfiniteQueryObserver,
 	MutationObserver,
@@ -12,10 +14,8 @@ import {
 	type QueryObserverOptions,
 	type QueryObserverResult
 } from '@tanstack/query-core';
-import { createContext, type Child, type Component } from '@exact/core';
-import { createExternalSource, type ExternalSource, type ReactiveValue } from '@exact/reactive';
 
-export { QueryClient, QueryCache, MutationCache, dehydrate, hydrate } from '@tanstack/query-core';
+export { dehydrate, hydrate, MutationCache, QueryCache, QueryClient } from '@tanstack/query-core';
 export type {
 	DehydratedState,
 	InfiniteQueryObserverOptions,

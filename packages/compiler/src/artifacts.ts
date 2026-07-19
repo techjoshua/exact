@@ -1,5 +1,5 @@
-import { readdir, readFile, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { isExactArtifactManifest, parseExactCompilerManifest } from './manifest-parse.js';
 import { packageExportSpecifier, packageExportTarget, sortPlanEntries } from './paths.js';

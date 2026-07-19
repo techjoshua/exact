@@ -1,25 +1,25 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it } from 'vitest';
-import { createExactClient, hydrateClientIslands, readExactHydrationConfig } from '@exact/hydrate';
 import { createVNode } from '@exact/core';
+import { createExactClient, hydrateClientIslands, readExactHydrationConfig } from '@exact/hydrate';
 import { handleExactRequest } from '@exact/server';
 import { createExactServerRuntime, renderExactRequestToHtmlResponse } from '@exact/ssr';
-import { ProfilePage_ExactClient_1 } from '../.exact/ProfilePage.exact.client.js';
+import { describe, expect, it } from 'vitest';
 import { IdentityProvider } from '../.exact/IdentityProvider.exact.client.js';
 import {
-	ServerIdentityProjection,
 	ServerAuthorizationContext,
-	ServerBrandContext
+	ServerBrandContext,
+	ServerIdentityProjection
 } from '../.exact/IdentityProvider.exact.server.js';
+import { ProfilePage_ExactClient_1 } from '../.exact/ProfilePage.exact.client.js';
 import type { PublicIdentity } from './IdentityProvider.js';
 import {
+	exactManifest,
 	handleExactServerRequest,
 	renderProfilePage,
 	renderProfilePageResponse
 } from './server.js';
-import { exactManifest } from './server.js';
 
 async function readStreamText(stream: ReadableStream<Uint8Array>): Promise<string> {
 	const reader = stream.getReader();

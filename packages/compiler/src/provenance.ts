@@ -1,6 +1,6 @@
 import type { BoundModule, ExpressionNode, NodeRef, Variable } from '@exact/expressions';
-import { expressionComponentIndex } from './expression/component-index.js';
 import { trackedCallbackArguments } from './annotations.js';
+import { expressionComponentIndex } from './expression/component-index.js';
 
 export type ExactReactiveProvenance =
 	| 'state'
@@ -289,13 +289,6 @@ function isWithin(reference: NodeRef, ancestor: NodeRef): boolean {
 	return (
 		reference.node === ancestor.node ||
 		reference.ancestors().any((candidate) => candidate.node === ancestor.node)
-	);
-}
-
-function isDeclarationName(reference: NodeRef, declaration: NodeRef): boolean {
-	return (
-		reference.parent?.node === declaration.node ||
-		reference.ancestors().first()?.node === declaration.node
 	);
 }
 

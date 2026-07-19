@@ -1,6 +1,6 @@
+import type { ExactPackageManifest } from '@exact/plugin-api';
 import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
-import type { ExactPackageManifest } from '@exact/plugin-api';
 
 export type ExactDependencyKind = 'dependency' | 'optional' | 'peer';
 

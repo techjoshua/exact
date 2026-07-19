@@ -155,7 +155,9 @@ function synchronize(service, changes) {
 		}
 	};
 	let builder = ts.createSemanticDiagnosticsBuilderProgram([model, consumer], options, host);
-	while (builder.getSemanticDiagnosticsOfNextAffectedFile()) {}
+	while (builder.getSemanticDiagnosticsOfNextAffectedFile()) {
+		// Drain the affected-file queue so the next measurement starts from a stable program.
+	}
 	sources.set(model, {
 		version: 2,
 		source:

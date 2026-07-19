@@ -1,3 +1,4 @@
+import { buildControlFlowGraph, type ControlFlowGraph } from './control-flow.js';
 import type {
 	EmitOptions,
 	EmitResult,
@@ -8,7 +9,6 @@ import type {
 	WalkOptions
 } from './model.js';
 import { buildParentIndex, NodeQuery, NodeRef, type ParentIndex } from './query.js';
-import { buildControlFlowGraph, type ControlFlowGraph } from './control-flow.js';
 
 export type ModuleState = 'bound' | 'unbound';
 

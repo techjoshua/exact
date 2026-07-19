@@ -1,8 +1,8 @@
+import { transform as transpile } from 'esbuild';
 import { execFile } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { transform as transpile } from 'esbuild';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { compileFileArtifacts, discoverExactPackageManifests } from './index.js';
 

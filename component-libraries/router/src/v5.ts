@@ -9,25 +9,23 @@ import {
 	useMemo,
 	useSyncExternalStore,
 	type ReactComponentType,
-	type ReactElement,
 	type ReactNode
 } from '@exact/react-compat';
+import { matchPath as exactMatchPath, type RouteLocation } from './index.js';
 import {
 	BrowserRouter,
 	HashRouter,
-	Link as ModernLink,
 	MemoryRouter,
+	Link as ModernLink,
 	Router as ModernRouter,
+	UNSAFE_useExactRouter,
 	generatePath,
 	useLocation,
 	useNavigate,
 	useNavigationType,
 	useResolvedPath,
-	UNSAFE_useExactRouter,
-	type NavigateOptions,
 	type To
 } from './modern.js';
-import { matchPath as exactMatchPath, type RouteLocation } from './index.js';
 
 export { BrowserRouter, HashRouter, MemoryRouter, generatePath, useLocation };
 

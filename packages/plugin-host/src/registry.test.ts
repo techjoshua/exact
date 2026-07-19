@@ -1,8 +1,8 @@
+import type { ExactConfig } from '@exact/config';
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { ExactConfig } from '@exact/config';
 import {
 	prepareExactPluginRegistry,
 	type ExactPackageGraph,

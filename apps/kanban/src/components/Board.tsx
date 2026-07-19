@@ -1,9 +1,9 @@
 import { createConsoleLogger, LoggerContext, type Component, type Logger } from '@exact/core';
 import { px } from '@exact/dom';
+import { _ } from '@exact/jsx';
 import { BoardContext } from '../context.js';
 import { columns, createTask, loadTasks, storageKey } from '../data.js';
 import type { BoardServices, BoardState, Status, Task } from '../types.js';
-import { _ } from '@exact/jsx';
 import { BoardHeader } from './BoardHeader.jsx';
 import { ColumnView } from './ColumnView.jsx';
 import { TaskDetailsDialog } from './TaskDetailsDialog.jsx';

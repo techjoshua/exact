@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import type ts from 'typescript';
 import type { ExactSemanticGraphIR, ExportBinding } from './types.js';
 
 /** Collects exported names from a source file. */

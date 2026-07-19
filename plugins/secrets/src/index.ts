@@ -26,4 +26,4 @@ export function consume<T>(value: T): T {
 	return value;
 }
 
-export type { SecretsPluginConfig, SecretProvider, SecretResolver } from './config.js';
+export type { SecretProvider, SecretResolver, SecretsPluginConfig } from './config.js';

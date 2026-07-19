@@ -1,5 +1,5 @@
-import { createReactCompatibilityBuildEngine } from './build.js';
 import type { ReactCompatibilityDiagnostic } from './build.js';
+import { createReactCompatibilityBuildEngine } from './build.js';
 import type { ReactCompatibilityOptions } from './plugin.js';
 
 export interface ExactReactNodeLoaderOptions extends ReactCompatibilityOptions {

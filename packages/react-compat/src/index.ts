@@ -1,20 +1,18 @@
+import { flushSync } from '@exact/reactive';
 import {
-	REACT_CONTEXT_TYPE,
+	activeReactCacheScope,
+	createReactContext,
+	currentReactOwnerFrame,
+	isReactElement,
 	REACT_ACTIVITY_TYPE,
+	REACT_CLASS_UPDATER,
 	REACT_FORWARD_REF_TYPE,
 	REACT_FRAGMENT_TYPE,
 	REACT_LAZY_TYPE,
 	REACT_MEMO_TYPE,
 	REACT_PROFILER_TYPE,
-	REACT_PROVIDER_TYPE,
 	REACT_STRICT_MODE_TYPE,
 	REACT_SUSPENSE_TYPE,
-	REACT_CLASS_UPDATER,
-	activeReactCacheScope,
-	assignReactRef,
-	createReactContext,
-	currentReactOwnerFrame,
-	isReactElement,
 	reactCompatibilityTarget,
 	reactElementSymbol,
 	ReactSharedInternals18,
@@ -28,18 +26,17 @@ import type {
 	Key,
 	MutableRefObject,
 	ReactComponentType,
+	ReactContext,
 	ReactElement,
 	ReactNode,
-	ReactContext,
 	ReactRef,
 	Reducer,
 	SetStateAction
 } from './types.js';
-import { flushSync } from '@exact/reactive';
 
+export type { ReactCompatibilityProfileEvent } from './internals.js';
 export type * from './types.js';
 export { withReactProfile };
-export type { ReactCompatibilityProfileEvent } from './internals.js';
 
 export const Fragment = REACT_FRAGMENT_TYPE;
 export const StrictMode = REACT_STRICT_MODE_TYPE;
@@ -514,10 +511,6 @@ function flattenChildren(children: ReactNode, omitEmpty = true): ReactNode[] {
 	return output;
 }
 
-function phaseError(api: string, phase: number): Error {
-	return new Error(`React API ${api} requires eXact compatibility Phase ${phase}`);
-}
-
 function classUpdater(instance: object): {
 	setState(
 		state: object | null | ((previous: unknown, props: unknown) => object | null),
@@ -559,52 +552,6 @@ function initializeLazy<P>(rawPayload: unknown): ReactComponentType<P> {
 			);
 	}
 	throw payload.promise;
-}
-
-type ThenableRecord<T> = {
-	status: 'pending' | 'fulfilled' | 'rejected';
-	value?: T;
-	error?: unknown;
-};
-const thenableRecords = new WeakMap<object, ThenableRecord<unknown>>();
-function readThenable<T>(thenable: PromiseLike<T>): T {
-	const instrumented = thenable as PromiseLike<T> & {
-		status?: string;
-		value?: T;
-		reason?: unknown;
-	};
-	if (instrumented.status === 'fulfilled') return instrumented.value as T;
-	if (instrumented.status === 'rejected') throw instrumented.reason;
-	let record = thenableRecords.get(thenable as object) as ThenableRecord<T> | undefined;
-	if (!record) {
-		record = { status: 'pending' };
-		thenableRecords.set(thenable as object, record as ThenableRecord<unknown>);
-		Promise.resolve(thenable).then(
-			(value) => {
-				record!.status = 'fulfilled';
-				record!.value = value;
-			},
-			(error) => {
-				record!.status = 'rejected';
-				record!.error = error;
-			}
-		);
-	}
-	if (record.status === 'fulfilled') return record.value as T;
-	if (record.status === 'rejected') throw record.error;
-	throw thenable;
-}
-
-function isThenable(value: unknown): value is PromiseLike<any> {
-	return (
-		!!value &&
-		(typeof value === 'object' || typeof value === 'function') &&
-		typeof (value as { then?: unknown }).then === 'function'
-	);
-}
-
-function isReactContext<T>(value: unknown): value is ReactContext<T> {
-	return !!value && typeof value === 'object' && '_exactToken' in value;
 }
 
 const cacheResultKey = Symbol('react.cache.result');

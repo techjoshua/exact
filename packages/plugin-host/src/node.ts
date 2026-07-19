@@ -1,4 +1,14 @@
 export {
+	discoverExactPlugins,
+	resolveDiscoveryPolicy,
+	type ExactConfigurationContributor,
+	type ExactDiscoveryPolicy,
+	type ExactParticipatingPackage,
+	type ExactPluginDiscoveryResult,
+	type ExactPluginRequirement,
+	type ExactSelectedPlugin
+} from './discovery.js';
+export {
 	createExactPackageGraph,
 	createInstalledExactPackageGraph,
 	createNpmExactPackageGraph,
@@ -12,18 +22,8 @@ export {
 	type ExactPackageNode
 } from './graph.js';
 export {
-	discoverExactPlugins,
-	resolveDiscoveryPolicy,
-	type ExactConfigurationContributor,
-	type ExactDiscoveryPolicy,
-	type ExactParticipatingPackage,
-	type ExactPluginDiscoveryResult,
-	type ExactPluginRequirement,
-	type ExactSelectedPlugin
-} from './discovery.js';
-export {
-	prepareExactPluginRegistry,
 	invalidateExactPluginRegistry,
+	prepareExactPluginRegistry,
 	syncExactPluginTypes,
 	type ExactPreparedPluginRegistry,
 	type PrepareExactPluginRegistryOptions

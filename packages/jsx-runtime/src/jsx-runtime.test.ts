@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import { getCellVNode, isCellVNode } from '@exact/core';
+import { describe, expect, it } from 'vitest';
 import { _, Fragment, jsx, jsxs } from './jsx-runtime.js';
 
 describe('@exact/jsx', () => {

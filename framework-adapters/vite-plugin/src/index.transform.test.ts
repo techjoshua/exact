@@ -1,7 +1,6 @@
-import { describe, expect, it } from 'vitest';
 import { analyzeSource } from '@exact/compiler';
+import { describe, expect, it } from 'vitest';
 import { exact } from './index.js';
-import { createReactCompatibilityBuildEngine } from '@exact/react-compat/build';
 
 describe('@exact/vite-plugin: transform', () => {
 	it('forwards profiling into its compiler session', () => {

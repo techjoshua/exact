@@ -1,4 +1,3 @@
-import { exposeExactComponent, useExactContext } from '@exact/react-compat/interop';
 import {
 	createElement,
 	useEffect,
@@ -8,6 +7,7 @@ import {
 	type ReactContext,
 	type ReactNode
 } from '@exact/react-compat';
+import { exposeExactComponent, useExactContext } from '@exact/react-compat/interop';
 import { unwrap } from '@exact/reactive';
 import {
 	createReduxSubscription,
