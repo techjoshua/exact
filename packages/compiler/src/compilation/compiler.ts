@@ -102,6 +102,7 @@ import {
 	collectPlacementAnalysisDependencies,
 	transitiveDependencies
 } from './dependency-discovery.js';
+import { affectedArtifactInputs } from './dev-state-planning.js';
 
 export {
 	assertExactArtifactTarget,
@@ -1550,18 +1551,8 @@ export async function updateExactArtifactDevState(
 		else invalidateExpressionModule(changed, removed);
 	}
 	const nextPlan = await createExactArtifactPlan(inputs, options);
-	const changed = new Set(changedInputs.map((input) => path.resolve(input)));
-	const effectiveChanges = new Set(changed);
-	for (const entry of state.entries) {
-		if (
-			entry.manifest.dependencies.some((dependency) =>
-				changed.has(path.resolve(path.dirname(entry.manifest.filename), dependency))
-			)
-		)
-			effectiveChanges.add(path.resolve(entry.inputFile));
-	}
 	const diff = diffExactArtifactPlans(state.plan, nextPlan, {
-		changedInputs: [...effectiveChanges]
+		changedInputs: affectedArtifactInputs(state.entries, changedInputs)
 	});
 	const retainedManifestFiles = diff.retained.map((entry) => entry.manifestFile);
 	const retainedEntries = retainedManifestFiles.length
