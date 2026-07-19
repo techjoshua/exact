@@ -32,11 +32,7 @@ import { analyzeExpressionJsx } from '../expression/jsx.js';
 import { createExpressionComponents } from '../expression/manifest.js';
 import type { ExactCompilerSession } from '../expression/project.js';
 import { analyzeExpressionSafety } from '../expression/safety.js';
-import {
-	expressionDependencyFiles,
-	expressionModuleFor,
-	invalidateExpressionModule
-} from '../expression/session.js';
+import { expressionModuleFor, invalidateExpressionModule } from '../expression/session.js';
 import { analyzeExpressionTasks } from '../expression/task-analysis.js';
 import { analyzeExpressionWrites } from '../expression/writes.js';
 import { collectExpressionImportedComponents } from '../imports.js';
@@ -102,6 +98,10 @@ import type {
 	TransformTarget
 } from '../types.js';
 import { exactCompilerManifestVersion } from '../versions.js';
+import {
+	collectPlacementAnalysisDependencies,
+	transitiveDependencies
+} from './dependency-discovery.js';
 
 export {
 	assertExactArtifactTarget,
@@ -1319,110 +1319,6 @@ export async function compileArtifactPlanEntries(
 	}
 
 	return results;
-}
-
-async function collectPlacementAnalysisDependencies(
-	sources: Map<string, string>,
-	session?: ExactCompilerSession
-): Promise<Map<string, string[]>> {
-	const graph = new Map<string, string[]>();
-	const pending = [...sources.keys()];
-	while (pending.length) {
-		const filename = pending.shift()!;
-		const source = sources.get(filename)!;
-		const resolvedDependencies: string[] = [];
-		const semanticDependencies = session
-			? session.expressionDependencyFiles(filename, source)
-			: expressionDependencyFiles(filename, source);
-		const syntacticDependencies = await localModuleDependencyFiles(filename, source);
-		for (const dependency of [...semanticDependencies, ...syntacticDependencies]) {
-			const resolved = path.resolve(dependency);
-			if (
-				/(?:^|[\\/])node_modules(?:[\\/]|$)/.test(resolved) ||
-				/\.d\.[cm]?ts$/i.test(resolved) ||
-				!/\.[cm]?[jt]sx?$/i.test(resolved)
-			)
-				continue;
-			try {
-				await access(resolved);
-				resolvedDependencies.push(resolved);
-				if (!sources.has(resolved)) {
-					sources.set(resolved, await readFile(resolved, 'utf8'));
-					pending.push(resolved);
-				}
-			} catch {
-				// Resolution candidates include extension substitutions that may not exist.
-			}
-		}
-		graph.set(filename, [...new Set(resolvedDependencies)].sort());
-	}
-	return graph;
-}
-
-async function localModuleDependencyFiles(filename: string, source: string): Promise<string[]> {
-	const sourceFile = ts.createSourceFile(
-		filename,
-		source,
-		ts.ScriptTarget.ES2022,
-		true,
-		ts.ScriptKind.TSX
-	);
-	const specifiers = sourceFile.statements.flatMap((statement) => {
-		if (
-			(ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)) &&
-			statement.moduleSpecifier &&
-			ts.isStringLiteral(statement.moduleSpecifier) &&
-			statement.moduleSpecifier.text.startsWith('.')
-		) {
-			return [statement.moduleSpecifier.text];
-		}
-		return [];
-	});
-	const dependencies: string[] = [];
-	for (const specifier of specifiers) {
-		const absolute = path.resolve(path.dirname(filename), specifier);
-		const extension = path.extname(absolute);
-		const stem = /\.[cm]?[jt]sx?$/i.test(extension)
-			? absolute.slice(0, -extension.length)
-			: absolute;
-		const candidates = [
-			absolute,
-			`${stem}.ts`,
-			`${stem}.tsx`,
-			`${stem}.mts`,
-			`${stem}.cts`,
-			`${stem}.js`,
-			`${stem}.jsx`,
-			path.join(absolute, 'index.ts'),
-			path.join(absolute, 'index.tsx'),
-			path.join(absolute, 'index.js')
-		];
-		for (const candidate of candidates) {
-			try {
-				await access(candidate);
-				dependencies.push(path.resolve(candidate));
-				break;
-			} catch {
-				// Try the next TypeScript/JavaScript resolution candidate.
-			}
-		}
-	}
-	return [...new Set(dependencies)];
-}
-
-function transitiveDependencies(
-	entry: string,
-	graph: ReadonlyMap<string, readonly string[]>
-): string[] {
-	const result = new Set<string>();
-	const pending = [...(graph.get(entry) ?? [])];
-	while (pending.length) {
-		const dependency = pending.shift()!;
-		if (result.has(dependency)) continue;
-		result.add(dependency);
-		pending.push(...(graph.get(dependency) ?? []));
-	}
-	return [...result];
 }
 
 function callableEffectSignature(manifest: ExactCompilerManifest): string {
