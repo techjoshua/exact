@@ -6,11 +6,14 @@ import {
   type BoundModule,
   type ExpressionDiagnostic,
   type ExpressionLanguageService,
-  type ExpressionLanguageServiceUpdate
+  type ExpressionLanguageServiceUpdate,
+  type ExpressionProjectProfileEvent
 } from "@exact/expressions";
+import type { ExactProfileEvent, ExactProfileSink } from "@exact/instrumentation";
 import fs from "node:fs";
 import path from "node:path";
 import ts from "typescript";
+import { performance } from "node:perf_hooks";
 
 type ModuleCacheEntry = Readonly<{
   projectKey: string;
@@ -43,7 +46,14 @@ export type ExactCompilerSessionStats = Readonly<{
 
 export type ExactCompilerSessionOptions = Readonly<{
   languageService?: boolean;
+  /** Receives compiler and nested expression profiling observations. */
+  onProfile?: ExactProfileSink<ExactCompilerProfileEvent | ExpressionProjectProfileEvent>;
 }>;
+
+export type ExactCompilerProfileEvent = ExactProfileEvent<
+  "compiler",
+  "expression-module" | "invalidate" | "clear"
+>;
 
 export type ExactCompilerInvalidation = Readonly<{
   affectedFiles: readonly string[];
@@ -83,24 +93,30 @@ export class ExactCompilerSession {
   private readonly inferredRoots = new Map<string, string>();
   private readonly languageServices = new Map<string, ExpressionLanguageService>();
   private readonly languageServiceEnabled: boolean;
+  private readonly onProfile?: ExactProfileSink<ExactCompilerProfileEvent | ExpressionProjectProfileEvent>;
   private disposed = false;
 
   constructor(options: ExactCompilerSessionOptions = {}) {
     this.languageServiceEnabled = options.languageService ?? false;
+    this.onProfile = options.onProfile;
   }
 
   expressionModuleFor(filename: string, source: string, options: ExpressionModuleOptions = {}): BoundModule {
     this.assertActive();
+    const profileStarted = this.onProfile ? performance.now() : undefined;
     const virtual = options.virtual ?? !path.isAbsolute(filename);
     const relative = virtual ? this.relativeLocation(filename, options.root) : undefined;
     const root = relative?.root;
     const absolute = relative?.absolute ?? path.resolve(filename);
     const config = findExpressionConfig(path.dirname(absolute)) ?? findExpressionConfig(root ?? process.cwd());
     if (!config) {
-      return createExpressionProject({
+      const module = createExpressionProject({
         cwd: path.dirname(absolute),
-        forceModuleDetection: virtual
+        forceModuleDetection: virtual,
+        onProfile: this.onProfile
       }).updateModule(absolute, source);
+      this.profile("expression-module", profileStarted, { cached: 0, dependencies: 0 });
+      return module;
     }
     const configPath = path.resolve(config);
     const canonicalConfig = canonical(configPath);
@@ -117,13 +133,17 @@ export class ExactCompilerSession {
     const projectKey = virtual ? `${configuredKey}::virtual-root:${canonical(root!)}` : configuredKey;
     const moduleKey = this.moduleKey(projectKey, absolute);
     const cached = this.modules.get(moduleKey);
-    if (cached?.source === source) return cached.module;
+    if (cached?.source === source) {
+      this.profile("expression-module", profileStarted, { cached: 1 });
+      return cached.module;
+    }
     let project = this.projects.get(projectKey);
     if (!project) {
       project = createExpressionProject({
         tsconfigPath: configPath,
         forceModuleDetection: virtual,
-        diagnostics: diagnosticMode
+        diagnostics: diagnosticMode,
+        onProfile: this.onProfile
       });
       this.projects.set(projectKey, project);
     }
@@ -137,6 +157,7 @@ export class ExactCompilerSession {
       if (!consumers) this.dependents.set(dependency, consumers = new Set());
       consumers.add(moduleKey);
     }
+    this.profile("expression-module", profileStarted, { cached: 0, dependencies: dependencies.length });
     return module;
   }
 
@@ -152,18 +173,21 @@ export class ExactCompilerSession {
   /** Invalidates only workspaces that contain the file or a tracked consumer. */
   invalidate(filename: string, removed = false): ExactCompilerInvalidation {
     this.assertActive();
+    const profileStarted = this.onProfile ? performance.now() : undefined;
     const absolute = path.resolve(filename);
     const update = this.synchronizeLanguageServiceFile(absolute, removed);
     this.invalidateTracked(absolute, removed);
     for (const affected of update.affectedFiles) {
       if (canonical(affected) !== canonical(absolute)) this.invalidateTracked(affected, false);
     }
-    return Object.freeze({
+    const result = Object.freeze({
       affectedFiles: Object.freeze([
         ...new Set([absolute, ...update.affectedFiles].map((filename) => path.resolve(filename))),
       ]),
       diagnostics: update.diagnostics
     });
+    this.profile("invalidate", profileStarted, { affectedFiles: result.affectedFiles.length });
+    return result;
   }
 
   private invalidateTracked(absolute: string, removed: boolean): void {
@@ -206,6 +230,9 @@ export class ExactCompilerSession {
   }
 
   clear(): void {
+    const profileStarted = this.onProfile ? performance.now() : undefined;
+    const projectCount = this.projects.size;
+    const moduleCount = this.modules.size;
     for (const project of this.projects.values()) project.dispose();
     this.projects.clear();
     this.modules.clear();
@@ -213,6 +240,7 @@ export class ExactCompilerSession {
     this.inferredRoots.clear();
     for (const service of this.languageServices.values()) service.dispose();
     this.languageServices.clear();
+    this.profile("clear", profileStarted, { projects: projectCount, modules: moduleCount });
   }
 
   dispose(): void {
@@ -262,6 +290,20 @@ export class ExactCompilerSession {
 
   private assertActive(): void {
     if (this.disposed) throw new Error("This eXact compiler session has been disposed");
+  }
+
+  private profile(
+    phase: ExactCompilerProfileEvent["phase"],
+    started: number | undefined,
+    counts?: Readonly<Record<string, number>>
+  ): void {
+    if (started === undefined) return;
+    this.onProfile?.(Object.freeze({
+      subsystem: "compiler",
+      phase,
+      elapsedMs: performance.now() - started,
+      ...(counts ? { counts } : {})
+    }));
   }
 
   private languageServiceFor(configPath: string): ExpressionLanguageService {

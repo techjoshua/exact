@@ -13,6 +13,7 @@ describe("expression-backed task effects", () => {
     `);
     expect(analyzeExpressionTasks(module).resources.size).toBe(0);
   });
+
   it("plans direct component setup listeners for implicit lifecycle ownership", () => {
     clearExpressionProjectCache();
     const module = expressionModuleFor("SetupListener.tsx", `function Panel(this: Component<{}>) {
@@ -30,6 +31,7 @@ describe("expression-backed task effects", () => {
     expect([...analyzeExpressionTasks(globalModule).lifecycleListeners.values()])
       .toContainEqual(expect.objectContaining({ component: "Panel" }));
   });
+
   it("uses canonical Component this bindings instead of function-name capitalization", () => {
     clearExpressionProjectCache();
     const module = expressionModuleFor("CanonicalTaskOwner.tsx", `function panel(this: Component<{}>) {
@@ -47,6 +49,7 @@ describe("expression-backed task effects", () => {
     expect([...plan.lifecycleListeners.values()])
       .toContainEqual(expect.objectContaining({ component: "panel" }));
   });
+
   it("recognizes aliased Component receiver types structurally", () => {
     clearExpressionProjectCache();
     const module = expressionModuleFor("AliasedTaskOwner.tsx", `
@@ -58,6 +61,7 @@ describe("expression-backed task effects", () => {
     expect([...analyzeExpressionTasks(module).sites.values()])
       .toContainEqual(expect.objectContaining({ component: "worker" }));
   });
+
   it("plans direct setup resources and typed cancellable calls as owned client tasks", () => {
     clearExpressionProjectCache();
     const module = expressionModuleFor("SetupResources.tsx", `
@@ -84,6 +88,7 @@ describe("expression-backed task effects", () => {
     ]));
     expect([...plan.signalCalls.values()]).toContainEqual(expect.objectContaining({ mode: "options" }));
   });
+
   it("diagnoses setup resources whose values escape automatic lifecycle ownership", () => {
     clearExpressionProjectCache();
     const module = expressionModuleFor("EscapingSetupResource.tsx", `function Panel(this: Component<{}>) {
@@ -93,6 +98,7 @@ describe("expression-backed task effects", () => {
     expect(analyzeExpressionTasks(module).diagnostics)
       .toContainEqual(expect.stringContaining("setup-created WebSocket cannot be owned without changing its expression result"));
   });
+
   it("classifies state, context, environment, async, and explicit placement effects", () => {
     clearExpressionProjectCache();
     const module = expressionModuleFor("ExpressionTasks.tsx", `

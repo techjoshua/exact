@@ -24,38 +24,27 @@ import {
   type ReactiveRef,
   type StopHandle
 } from "@exact/reactive";
-
-/** Mutable collector used to make multi-resource cleanup failure-complete. */
-export type CleanupFailure = { failed: boolean; error: unknown };
-
-export function createCleanupFailure(): CleanupFailure {
-  return { failed: false, error: undefined };
-}
-
-export function recordCleanupFailure(failure: CleanupFailure, error: unknown): void {
-  if (!failure.failed) failure.error = error;
-  failure.failed = true;
-}
-
-export function attemptCleanup(failure: CleanupFailure, cleanup: () => void): void {
-  try { cleanup(); }
-  catch (error) { recordCleanupFailure(failure, error); }
-}
-
-export function throwCleanupFailure(failure: CleanupFailure): void {
-  if (failure.failed) throw failure.error;
-}
-
-/** Preserves an active primary failure while retaining cleanup diagnostics. */
-export function attachSuppressedCleanupFailure(primary: unknown, cleanup: unknown): void {
-  if (!primary || (typeof primary !== "object" && typeof primary !== "function")) return;
-  try {
-    const target = primary as { suppressed?: unknown[] };
-    const suppressed = Array.isArray(target.suppressed) ? target.suppressed : [];
-    suppressed.push(cleanup);
-    if (target.suppressed !== suppressed) Object.defineProperty(target, "suppressed", { configurable: true, value: suppressed });
-  } catch { /* preserving the primary failure takes precedence */ }
-}
+import {
+  attachSuppressedCleanupFailure,
+  attemptCleanup,
+  createCleanupFailure,
+  recordCleanupFailure,
+  throwCleanupFailure
+} from "./cleanup.js";
+export {
+  combineTaskSignal,
+  withAbortSignal,
+  withTaskSignal,
+  type ManagedEventListenerOptions
+} from "./task/signals.js";
+import {
+  combineAbortSignals,
+  combineTaskSignal,
+  createTaskAbortError,
+  isAbortSignal,
+  withAbortSignal,
+  withTaskSignal
+} from "./task/signals.js";
 import { createContext, createRef } from "./keys.js";
 import {
   createConsoleLogger,
@@ -70,6 +59,14 @@ import { Cell, Dynamic, Fragment, Portal, ServerBoundary, ServerSlot, Text, Unsa
 export { decodeExactMarkerPart, encodeExactMarkerPart, exactMarkerEnd, exactMarkerStart } from "./protocol.js";
 export { sameJsonData, type JsonComparisonOptions } from "./json.js";
 export { BLOCKED_JAVASCRIPT_URL, isUrlAttribute, sanitizeUrlAttribute } from "./url.js";
+export {
+  attachSuppressedCleanupFailure,
+  attemptCleanup,
+  createCleanupFailure,
+  recordCleanupFailure,
+  throwCleanupFailure,
+  type CleanupFailure
+} from "./cleanup.js";
 export {
   composeExactComponentDescriptors,
   exactClientComponentDescriptor,
@@ -244,12 +241,6 @@ export type TaskContext = {
   signal: AbortSignal;
 };
 
-type ManagedEventListenerOptions = EventListenerOptions & {
-  once?: boolean;
-  passive?: boolean;
-  signal?: AbortSignal;
-};
-
 export type TaskResourceDisposal = string;
 export type TaskCleanup = (reason?: unknown) => void | Promise<void>;
 export type TaskIdleDeadline = { readonly didTimeout: boolean; timeRemaining(): number };
@@ -257,32 +248,6 @@ export type TaskIdleOptions = { timeout?: number };
 
 const taskOwners = new WeakMap<AbortSignal, ComponentInstance<any>>();
 const taskCleanupPromises = new WeakMap<AbortSignal, Set<Promise<void>>>();
-
-/** Compiler helper that attaches framework ownership without discarding author event options. */
-export function withAbortSignal(
-  options: boolean | ManagedEventListenerOptions | undefined,
-  owner: AbortSignal
-): ManagedEventListenerOptions {
-  const normalized: ManagedEventListenerOptions = typeof options === "boolean"
-    ? { capture: options }
-    : options ? { ...options } : {};
-  const existing = normalized.signal;
-  if (!existing || existing === owner) return { ...normalized, signal: owner };
-  return { ...normalized, signal: combineAbortSignals(existing, owner) };
-}
-
-/** Compiler helper that adds task cancellation to an API options object. */
-export function withTaskSignal<T extends object | undefined>(options: T, owner: AbortSignal): T & { signal: AbortSignal } {
-  const normalized = options ? { ...options } : {};
-  const existing = "signal" in normalized && isAbortSignal(normalized.signal) ? normalized.signal : undefined;
-  return { ...normalized, signal: combineTaskSignal(owner, existing) } as T & { signal: AbortSignal };
-}
-
-/** Compiler helper that combines an explicit signal with the owning task generation. */
-export function combineTaskSignal(owner: AbortSignal, existing?: AbortSignal): AbortSignal {
-  if (!existing || existing === owner) return owner;
-  return combineAbortSignals(existing, owner);
-}
 
 /** Registers once-only task cleanup and reports asynchronous disposal failures. */
 export function registerTaskCleanup(signal: AbortSignal, cleanup: TaskCleanup): void {
@@ -360,24 +325,6 @@ export function taskIdleCallback(
   if (signal.aborted) cancel();
   else signal.addEventListener("abort", cancel, { once: true });
   return handle;
-}
-
-function combineAbortSignals(left: AbortSignal, right: AbortSignal): AbortSignal {
-  const nativeAny = (AbortSignal as typeof AbortSignal & { any?(signals: AbortSignal[]): AbortSignal }).any;
-  if (nativeAny) return nativeAny.call(AbortSignal, [left, right]);
-  const controller = new AbortController();
-  const abort = (event: Event) => {
-    left.removeEventListener("abort", abort);
-    right.removeEventListener("abort", abort);
-    controller.abort((event.currentTarget as AbortSignal | null)?.reason);
-  };
-  if (left.aborted) controller.abort(left.reason);
-  else if (right.aborted) controller.abort(right.reason);
-  else {
-    left.addEventListener("abort", abort, { once: true });
-    right.addEventListener("abort", abort, { once: true });
-  }
-  return controller.signal;
 }
 
 function disposeTaskResource<T>(
@@ -465,20 +412,14 @@ export function taskFetch<T>(signal: AbortSignal, fetcher: (...args: any[]) => T
   return fetcher(input, options);
 }
 
-function isAbortSignal(value: unknown): value is AbortSignal {
-  return !!value && typeof value === "object"
-    && typeof (value as AbortSignal).addEventListener === "function"
-    && typeof (value as AbortSignal).aborted === "boolean";
-}
-
 export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Promise<T> {
-  if (signal.aborted) return Promise.reject(createAbortError(signal.reason));
+  if (signal.aborted) return Promise.reject(createTaskAbortError(signal.reason));
   return new Promise<T>((resolve, reject) => {
     let settled = false;
     const abort = () => {
       if (settled) return;
       settled = true;
-      reject(createAbortError(signal.reason));
+      reject(createTaskAbortError(signal.reason));
     };
     signal.addEventListener("abort", abort, { once: true });
     Promise.resolve(value).then(result => {
@@ -498,13 +439,6 @@ export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Pr
 /** Compiler runtime hook for a shared, lazily evaluated derived component value. */
 export function createDerived<T>(compute: () => T): ReactiveValue<T> {
   return computed(compute);
-}
-
-function createAbortError(reason: unknown): Error {
-  if (reason instanceof Error) return reason;
-  const error = new Error(reason === undefined ? "Task aborted" : String(reason));
-  error.name = "AbortError";
-  return error;
 }
 
 export type TaskObserver = {

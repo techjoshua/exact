@@ -1,4 +1,6 @@
-import type { Reaction } from "./types.js";
+import type { ExactProfileSink } from "@exact/instrumentation";
+import { profileTimestamp } from "@exact/instrumentation";
+import type { Reaction, ReactiveProfileEvent } from "./types.js";
 
 const queuedReactions = new Set<Reaction>();
 const queuedComputations = new Map<() => void, ((error: unknown) => void) | undefined>();
@@ -28,6 +30,8 @@ export function flushSync(): void {
   let passes = 0;
   let firstError: unknown;
   let hasError = false;
+  let profileStarted: number | undefined;
+  const profiledReactions = new Map<ExactProfileSink<ReactiveProfileEvent>, number>();
   try {
     while (queuedComputations.size || queuedReactions.size) {
       if (++passes > maxFlushPasses) {
@@ -66,6 +70,11 @@ export function flushSync(): void {
 
       for (const reaction of reactions) {
         if (!reaction.active || reaction.scope && !reaction.scope.active) continue;
+        const profile = reaction.scope?.onProfile;
+        if (profile) {
+          profileStarted ??= profileTimestamp();
+          profiledReactions.set(profile, (profiledReactions.get(profile) ?? 0) + 1);
+        }
         try {
           reaction.run();
         } catch (error) {
@@ -80,6 +89,16 @@ export function flushSync(): void {
     // Overflow deliberately clears both queues above; ordinary failures may
     // have queued new work while their error was being handled.
     if (queuedComputations.size || queuedReactions.size) scheduleFlush();
+    if (profileStarted !== undefined) {
+      for (const [sink, reactions] of profiledReactions) {
+        sink(Object.freeze({
+          subsystem: "reactive",
+          phase: "flush",
+          elapsedMs: profileTimestamp() - profileStarted,
+          counts: Object.freeze({ passes, reactions })
+        }));
+      }
+    }
   }
   if (hasError) throw firstError;
 }

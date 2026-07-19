@@ -1,5 +1,5 @@
 import { createStore, type StoreApi, type StateCreator } from "zustand/vanilla";
-import { createExternalSource, type ExternalSource } from "@exact/reactive";
+import { createSelectedExternalSource, type ExternalSource } from "@exact/reactive";
 import type { Component } from "@exact/core";
 
 export { createStore };
@@ -10,16 +10,12 @@ export function createZustandSource<T, Slice = T>(
   selector: (state: T) => Slice = identity as (state: T) => Slice,
   equality: (left: Slice, right: Slice) => boolean = Object.is
 ): ExternalSource<Slice> {
-  let selected = selector(store.getState());
-  const snapshot = () => {
-    const next = selector(store.getState());
-    if (!equality(selected, next)) selected = next;
-    return selected;
-  };
-  return createExternalSource({
-    getSnapshot: snapshot,
-    getServerSnapshot: () => selector(store.getInitialState()),
-    subscribe: notify => store.subscribe(notify)
+  return createSelectedExternalSource({
+    getSnapshot: store.getState,
+    getServerSnapshot: store.getInitialState,
+    subscribe: notify => store.subscribe(notify),
+    selector,
+    isEqual: equality
   });
 }
 

@@ -1,5 +1,6 @@
 import type { ComponentFunction, ErrorReport, Logger, UnsafeHtmlAuditEvent } from "@exact/core";
 import type { ExactInvocationKind, ExactInvocationRequest, ExactInvocationResult, ExactOperationResult, ExactPatch, ExactStateContract } from "@exact/server";
+import type { ExactProfileEvent, ExactProfileSink } from "@exact/instrumentation";
 
 export type HydrateOptions = {
   /** Compiler registry fingerprint for the client artifact. */
@@ -34,7 +35,11 @@ export type HydrateOptions = {
   onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
   /** Limits applied before accepting serialized hydration bootstrap data. */
   configLimits?: ExactHydrationConfigLimits;
+  /** Receives hydration and nested renderer profiling observations. */
+  onProfile?: ExactProfileSink;
 };
+
+export type HydrateProfileEvent = ExactProfileEvent<"hydrate", "hydrate">;
 
 export type ExactHydrationConfigLimits = {
   /** Maximum encoded bootstrap bytes. Defaults to 16 MiB. */

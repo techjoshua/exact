@@ -33,6 +33,8 @@ const task = (name, args, options = {}) => ({
 const build = task("build", ["run", "build"]);
 const staticChecks = [
   task("platform boundaries", ["run", "check:platform-boundaries"]),
+  task("source architecture", ["run", "check:source-architecture"]),
+  task("JSDoc contracts", ["run", "check:jsdoc"]),
   task("test typecheck", ["run", "typecheck:tests"]),
   task("package contents", ["run", "check:publish"])
 ];
@@ -143,6 +145,8 @@ async function runAffected() {
   );
   const checks = [
     task("platform boundaries", ["run", "check:platform-boundaries"]),
+    task("source architecture", ["run", "check:source-architecture"]),
+    task("JSDoc contracts", ["run", "check:jsdoc"]),
     task("test typecheck", ["run", "typecheck:tests"]),
     task("package contents", ["run", "check:publish"])
   ];

@@ -8,6 +8,20 @@ import {
 } from "./expression-project.js";
 
 describe("shared expression projects", () => {
+  it("emits compiler and nested expression profile events when enabled", () => {
+    const events: Array<{ subsystem: string; phase: string }> = [];
+    const session = createCompilerSession({ onProfile: event => events.push(event) });
+    try {
+      session.expressionModuleFor("__profiled_compiler.ts", "export const value = 1;");
+      session.expressionModuleFor("__profiled_compiler.ts", "export const value = 1;");
+
+      expect(events).toContainEqual(expect.objectContaining({ subsystem: "compiler", phase: "expression-module" }));
+      expect(events).toContainEqual(expect.objectContaining({ subsystem: "expressions", phase: "module-projection" }));
+    } finally {
+      session.dispose();
+    }
+  });
+
   it("caches modules by canonical filename within one project", () => {
     clearExpressionProjectCache();
     const root = path.resolve(import.meta.dirname, "../../..");

@@ -50,6 +50,7 @@ export {
   createExpressionProject,
   findExpressionConfig,
   type ExpressionProjectOptions,
+  type ExpressionProjectProfileEvent,
   type ExpressionProjectStats
 } from "./project.js";
 export {

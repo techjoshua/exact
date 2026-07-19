@@ -41,6 +41,23 @@ import {
 } from "@exact/plugin-host/runtime";
 import { decodeMarkerKey, exactMarkerId, keyedItemMarkerId, markerId, markerPair, renderAttrs, withMarker } from "./markup.js";
 import { createDocumentEventStream, createHtmlStream, createProgressiveHtmlStream, progressiveHtmlResponse } from "./streams.js";
+import {
+  SsrTaskDeadlineError,
+  SsrTreeDepthError,
+  assertOutputCharacterBound,
+  assertOutputWithinLimit,
+  boundedJoin,
+  countSsrNode,
+  defaultMaxSsrOutputBytes,
+  defaultMaxSsrTreeNodes,
+  isSsrRenderInterruption,
+  isSsrRenderLimitError,
+  normalizePositiveLimit,
+  normalizeSsrTreeDepth,
+  withSsrTreeDepth,
+  withSsrTreeDepthAsync,
+  withTaskDeadline
+} from "./render/limits.js";
 import type {
   ActionRefreshOptions,
   ActionRefreshBoundaryOptions,
@@ -74,6 +91,7 @@ import type {
   RenderToProgressiveHtmlStreamOptions,
   RenderToStringOptions,
   RenderToStringResult,
+  SsrProfileEvent,
   SsrContext,
   TaskObserver
 } from "./types.js";
@@ -82,44 +100,11 @@ export type * from "./types.js";
 export { diffBoundaryHtml, diffKeyedListItems } from "./diff.js";
 export { renderHydrationScript } from "./hydration.js";
 
-const DEFAULT_MAX_TREE_DEPTH = 512;
-const HARD_MAX_TREE_DEPTH = 1_024;
-const DEFAULT_MAX_TREE_NODES = 100_000;
-const DEFAULT_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
-const DEFAULT_MAX_TASK_DURATION_MS = 30_000;
-
 type SsrRenderOptions = RenderToStringOptions & { taskDeadline?: number };
-
-class SsrTreeDepthError extends Error {
-  constructor(limit: number) {
-    super(`eXact SSR tree exceeds the configured maximum depth of ${limit}`);
-    this.name = "SsrTreeDepthError";
-  }
-}
-
-class SsrTaskDeadlineError extends Error {
-  constructor() {
-    super("SSR task duration limit exceeded");
-    this.name = "SsrTaskDeadlineError";
-  }
-}
-
-class SsrTreeNodeError extends Error {
-  constructor(limit: number) {
-    super(`eXact SSR tree exceeds the configured maximum of ${limit} render values`);
-    this.name = "SsrTreeNodeError";
-  }
-}
-
-class SsrOutputLimitError extends Error {
-  constructor(limit: number) {
-    super(`eXact SSR output exceeds the configured maximum of ${limit} bytes`);
-    this.name = "SsrOutputLimitError";
-  }
-}
 
 /** Renders a vnode tree to an HTML string without waiting for async component tasks. */
 export function renderToString(vnode: VNode, options: RenderToStringOptions = {}): RenderToStringResult {
+  const profileStarted = options.onProfile ? performance.now() : undefined;
   const owner = createSsrOwner();
   let primary: unknown = noPrimaryFailure;
   try {
@@ -129,6 +114,13 @@ export function renderToString(vnode: VNode, options: RenderToStringOptions = {}
     throw error;
   } finally {
     disposePreservingPrimary(() => owner.dispose("ssr render complete"), primary);
+    if (profileStarted !== undefined) {
+      options.onProfile?.(Object.freeze({
+        subsystem: "ssr",
+        phase: "render-to-string",
+        elapsedMs: performance.now() - profileStarted
+      } satisfies SsrProfileEvent));
+    }
   }
 }
 
@@ -174,6 +166,7 @@ export function renderToHydratableString(vnode: VNode, options: RenderToStringOp
 
 /** Renders a vnode tree lazily as demand-driven HTML chunks. */
 export function renderToStream(vnode: VNode, options: RenderToStringOptions = {}): ReadableStream<Uint8Array> {
+  const profileStarted = options.onProfile ? performance.now() : undefined;
   const context = createSsrContext(options);
   const owner = createSsrOwner();
   const validatedVNode = processExactOutputSync(vnode, { kind: "vnode", signal: options.signal }, options.outputExtensions ?? []) as VNode;
@@ -196,12 +189,20 @@ export function renderToStream(vnode: VNode, options: RenderToStringOptions = {}
       };
     }
   };
-  return createHtmlStream(observed, {
+  const stream = createHtmlStream(observed, {
     signal: options.signal,
     maxBytes: options.maxStreamBytes,
     maxChunks: options.maxStreamChunks,
     close: () => owner.dispose(options.signal?.reason ?? "ssr stream complete")
   });
+  if (profileStarted !== undefined) {
+    options.onProfile?.(Object.freeze({
+      subsystem: "ssr",
+      phase: "create-stream",
+      elapsedMs: performance.now() - profileStarted
+    } satisfies SsrProfileEvent));
+  }
+  return stream;
 }
 
 /** Streams document render lifecycle events for shell/final/hydration output. */
@@ -659,9 +660,9 @@ export function parseKeyedListSnapshotHtml(
   options: KeyedListSnapshotParseOptions = {}
 ): KeyedListSnapshot | undefined {
   if (html === undefined) return undefined;
-  const maxBytes = normalizePositiveLimit(options.maxBytes, DEFAULT_MAX_OUTPUT_BYTES);
-  const maxItems = normalizePositiveLimit(options.maxItems, DEFAULT_MAX_TREE_NODES);
-  const maxMarkers = normalizePositiveLimit(options.maxMarkers, DEFAULT_MAX_TREE_NODES * 2);
+  const maxBytes = normalizePositiveLimit(options.maxBytes, defaultMaxSsrOutputBytes);
+  const maxItems = normalizePositiveLimit(options.maxItems, defaultMaxSsrTreeNodes);
+  const maxMarkers = normalizePositiveLimit(options.maxMarkers, defaultMaxSsrTreeNodes * 2);
   if (html.length > maxBytes || new TextEncoder().encode(html).byteLength > maxBytes) return undefined;
   const items: KeyedListSnapshotItem[] = [];
   const keys = new Set<string>();
@@ -1477,11 +1478,11 @@ function createSsrContext(options: RenderToStringOptions): SsrContext {
     reactMarkup: options.reactMarkup ?? false,
     nextId: 0,
     logger: options.logger,
-    maxTreeDepth: normalizeTreeDepth(options.maxTreeDepth),
+    maxTreeDepth: normalizeSsrTreeDepth(options.maxTreeDepth),
     traversalDepth: 0,
-    maxTreeNodes: normalizePositiveLimit(options.maxTreeNodes, DEFAULT_MAX_TREE_NODES),
+    maxTreeNodes: normalizePositiveLimit(options.maxTreeNodes, defaultMaxSsrTreeNodes),
     traversedNodes: 0,
-    maxOutputBytes: normalizePositiveLimit(options.maxOutputBytes, DEFAULT_MAX_OUTPUT_BYTES),
+    maxOutputBytes: normalizePositiveLimit(options.maxOutputBytes, defaultMaxSsrOutputBytes),
     reactResourceHints: [],
     reactResourceKeys: new Set(),
     allowUnsafeHtml: options.allowUnsafeHtml ?? false,
@@ -1493,82 +1494,4 @@ function createSsrContext(options: RenderToStringOptions): SsrContext {
     hostStack: [],
     componentContexts: options.contexts
   };
-}
-
-function normalizePositiveLimit(value: number | undefined, fallback: number): number {
-  return Number.isSafeInteger(value) && value! > 0 ? value! : fallback;
-}
-
-function countSsrNode(context: SsrContext): void {
-  if (++context.traversedNodes > context.maxTreeNodes) throw new SsrTreeNodeError(context.maxTreeNodes);
-}
-
-function boundedJoin(context: SsrContext, chunks: readonly string[]): string {
-  let characters = 0;
-  for (const chunk of chunks) {
-    characters += chunk.length;
-    if (characters > context.maxOutputBytes) throw new SsrOutputLimitError(context.maxOutputBytes);
-  }
-  const html = chunks.join("");
-  assertOutputCharacterBound(context, html);
-  return html;
-}
-
-function assertOutputCharacterBound(context: SsrContext, html: string): void {
-  // UTF-8 is never shorter than the UTF-16 code-unit count. This constant-time
-  // subtree check prevents oversized allocation without rescanning the same
-  // descendant output at every ancestor; roots receive the exact byte check.
-  if (html.length > context.maxOutputBytes) throw new SsrOutputLimitError(context.maxOutputBytes);
-}
-
-function assertOutputWithinLimit(context: SsrContext, html: string): void {
-  assertOutputCharacterBound(context, html);
-  // ASCII is the overwhelmingly common SSR path and needs no allocation.
-  if (/[^\x00-\x7f]/.test(html) && new TextEncoder().encode(html).byteLength > context.maxOutputBytes) {
-    throw new SsrOutputLimitError(context.maxOutputBytes);
-  }
-}
-
-function normalizeTreeDepth(value: number | undefined): number {
-  return Number.isSafeInteger(value) && value! > 0
-    ? Math.min(value!, HARD_MAX_TREE_DEPTH)
-    : DEFAULT_MAX_TREE_DEPTH;
-}
-
-function withSsrTreeDepth<T>(context: SsrContext, run: () => T): T {
-  context.traversalDepth++;
-  if (context.traversalDepth > context.maxTreeDepth) {
-    context.traversalDepth--;
-    throw new SsrTreeDepthError(context.maxTreeDepth);
-  }
-  try { return run(); }
-  finally { context.traversalDepth--; }
-}
-
-async function withSsrTreeDepthAsync<T>(context: SsrContext, run: () => Promise<T>): Promise<T> {
-  context.traversalDepth++;
-  if (context.traversalDepth > context.maxTreeDepth) {
-    context.traversalDepth--;
-    throw new SsrTreeDepthError(context.maxTreeDepth);
-  }
-  try { return await run(); }
-  finally { context.traversalDepth--; }
-}
-
-function withTaskDeadline<T extends RenderToStringOptions>(options: T): T & { taskDeadline: number } {
-  const existing = (options as SsrRenderOptions).taskDeadline;
-  if (typeof existing === "number") return options as T & { taskDeadline: number };
-  const duration = Number.isSafeInteger(options.maxTaskDurationMs) && options.maxTaskDurationMs! > 0
-    ? options.maxTaskDurationMs!
-    : DEFAULT_MAX_TASK_DURATION_MS;
-  return { ...options, taskDeadline: Date.now() + duration };
-}
-
-function isSsrRenderLimitError(error: unknown): error is SsrTreeDepthError | SsrTreeNodeError | SsrOutputLimitError | SsrTaskDeadlineError {
-  return error instanceof SsrTreeDepthError || error instanceof SsrTreeNodeError
-    || error instanceof SsrOutputLimitError || error instanceof SsrTaskDeadlineError;
-}
-
-function isSsrRenderInterruption(error: unknown, signal?: AbortSignal): boolean {
-  return isSsrRenderLimitError(error) || signal?.aborted === true;
 }

@@ -1,14 +1,14 @@
-import { createCompilerSession, type ExactCompilerSession } from "@exact/compiler";
+import { createCompilerSession, type ExactCompilerSession, type ExactCompilerSessionOptions } from "@exact/compiler";
 
 const sessions = new Map<string, ExactCompilerSession>();
 let nextSessionId = 0;
 
-export function createWebpackCompilerSession(enabled: boolean): Readonly<{
+export function createWebpackCompilerSession(enabled: boolean, onProfile?: ExactCompilerSessionOptions["onProfile"]): Readonly<{
   id: string;
   session: ExactCompilerSession;
 }> {
   const id = `exact-webpack-${++nextSessionId}`;
-  const session = createCompilerSession({ languageService: enabled });
+  const session = createCompilerSession({ languageService: enabled, onProfile });
   sessions.set(id, session);
   return { id, session };
 }
@@ -17,9 +17,9 @@ export function webpackCompilerSession(id: string | undefined): ExactCompilerSes
   return id ? sessions.get(id) : undefined;
 }
 
-export function replaceWebpackCompilerSession(id: string, enabled: boolean): ExactCompilerSession {
+export function replaceWebpackCompilerSession(id: string, enabled: boolean, onProfile?: ExactCompilerSessionOptions["onProfile"]): ExactCompilerSession {
   sessions.get(id)?.dispose();
-  const session = createCompilerSession({ languageService: enabled });
+  const session = createCompilerSession({ languageService: enabled, onProfile });
   sessions.set(id, session);
   return session;
 }

@@ -81,6 +81,7 @@
   "dependencies": {
     "@exact/core": "file:../core",
     "@exact/expressions": "file:../expressions",
+    "@exact/instrumentation": "file:../instrumentation",
     "@exact/react-compat-adapter-api": "file:../react-compat-adapter-api",
     "@exact/reactive": "file:../reactive",
     "semver": "^7.8.5",
@@ -88,6 +89,7 @@
   },
   "scripts": {
     "build": "tsc -b",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "node ../../scripts/run-package-coverage.mjs"
   }
 }

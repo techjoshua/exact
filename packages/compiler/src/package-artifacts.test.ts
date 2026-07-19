@@ -10,6 +10,9 @@ import {
 } from "./index.js";
 
 const execFileAsync = promisify(execFile);
+// Subprocess packing and installation are substantially slower while V8
+// coverage is collecting every compiler source file.
+const packageArtifactTimeout = process.env.EXACT_COVERAGE ? 60_000 : 30_000;
 
 describe("installed eXact component package artifacts", () => {
   it("uses one packed package in client, SSR, and server-component builds", async () => {
@@ -173,7 +176,7 @@ describe("installed eXact component package artifacts", () => {
     expect(ssr.source).toContain("__exactBoundary");
     expect(ssr.source).not.toContain("window.location.href");
     expect(serverComponent).toEqual(ssr);
-  }, 30_000);
+  }, packageArtifactTimeout);
 
   it("discovers linked component packages by package name", async () => {
     const root = await mkdtemp(path.join(process.cwd(), ".exact-linked-package-"));

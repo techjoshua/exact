@@ -20,6 +20,7 @@ import type {
   ExactStateContract
 } from "@exact/server";
 import type { ExactOutputExtension } from "@exact/plugin-api";
+import type { ExactProfileEvent, ExactProfileSink } from "@exact/instrumentation";
 
 export type RenderToStringOptions = {
   markers?: boolean;
@@ -51,7 +52,11 @@ export type RenderToStringOptions = {
   onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
   /** Trusted application/request values inherited by the component root. */
   contexts?: ComponentContextValues;
+  /** Receives SSR rendering profiling observations. */
+  onProfile?: ExactProfileSink;
 };
+
+export type SsrProfileEvent = ExactProfileEvent<"ssr", "render-to-string" | "create-stream">;
 
 export type RenderToStringResult = {
   html: string;

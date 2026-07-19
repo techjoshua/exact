@@ -18,5 +18,5 @@
     "@exact/reactive": "file:../reactive"
   },
   "devDependencies": { "vitest": "^2.1.8" },
-  "scripts": { "build": "tsc -b", "test": "vitest run" }
+  "scripts": { "build": "tsc -b", "test": "vitest run", "test:coverage": "node ../../scripts/run-package-coverage.mjs" }
 }

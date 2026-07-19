@@ -3,10 +3,11 @@ import path from "node:path";
 import { rmSync, writeFileSync } from "node:fs";
 import {
   ExpressionProjectError,
-  createExpressionProject,
   expressions,
-  rewriteModule
+  rewriteModule,
+  type ExpressionProjectProfileEvent
 } from "./index.js";
+import { createExpressionProject } from "./test-support/project.js";
 
 const root = path.resolve(import.meta.dirname, "../../..");
 const config = path.join(root, "apps/kanban/tsconfig.json");
@@ -37,6 +38,106 @@ describe("@exact/expressions binding", () => {
       project.dispose();
       rmSync(filename, { force: true });
     }
+  });
+
+  it("loads excluded disk sources in one rebuild without retaining overlays", () => {
+    const first = path.join(root, "apps/kanban/src/__expressions_disk_batch_first.ts");
+    const second = path.join(root, "apps/kanban/src/__expressions_disk_batch_second.ts");
+    const project = createExpressionProject({ tsconfigPath: config });
+    writeFileSync(first, "export const first = 1;");
+    writeFileSync(second, "export const second = 2;");
+    try {
+      const modules = project.loadModules([first, second]);
+
+      expect(modules.get(first.replaceAll("\\", "/"))?.emit().code).toContain("first = 1");
+      expect(modules.get(second.replaceAll("\\", "/"))?.emit().code).toContain("second = 2");
+      expect(project.stats()).toMatchObject({ rebuilds: 1, overlays: 0 });
+    } finally {
+      project.dispose();
+      rmSync(first, { force: true });
+      rmSync(second, { force: true });
+    }
+  });
+
+  it("invalidates and removes disk-backed roots without converting them to overlays", () => {
+    const filename = path.join(root, "apps/kanban/src/__expressions_disk_root.ts");
+    const project = createExpressionProject({ tsconfigPath: config });
+    writeFileSync(filename, "export const value = 1;");
+    try {
+      expect(project.loadModule(filename).emit().code).toContain("value = 1");
+
+      writeFileSync(filename, "export const value = 2;");
+      project.invalidateFile(filename);
+      expect(project.loadModule(filename).emit().code).toContain("value = 2");
+      expect(project.stats().overlays).toBe(0);
+
+      project.removeModule(filename);
+      expect(() => project.getModule(filename)).toThrow(ExpressionProjectError);
+    } finally {
+      project.dispose();
+      rmSync(filename, { force: true });
+    }
+  });
+
+  it("reports opt-in project phase timings and projection counters", () => {
+    const events: ExpressionProjectProfileEvent[] = [];
+    const project = createExpressionProject({ tsconfigPath: config, onProfile: event => events.push(event) });
+    const filename = path.join(root, "apps/kanban/src/__expressions_profile.ts");
+
+    project.updateModule(filename, "export const value = { count: 1 }.count;");
+
+    expect(events.map(event => event.phase)).toEqual([
+      "configuration",
+      "program",
+      "syntax-diagnostics",
+      "semantic-diagnostics",
+      "module-projection"
+    ]);
+    expect(events.every(event => event.elapsedMs >= 0)).toBe(true);
+    expect(events.find(event => event.phase === "program")?.fileCount).toBeGreaterThan(0);
+    const projection = events.find(event => event.phase === "module-projection");
+    expect(projection?.filename?.toLowerCase()).toBe(filename.replaceAll("\\", "/").toLowerCase());
+    expect(projection).toMatchObject({
+      nodeCount: expect.any(Number),
+      typeCount: expect.any(Number),
+      symbolCount: expect.any(Number),
+      scopeCount: expect.any(Number)
+    });
+  });
+
+  it("reports detailed, exclusive module-projection stages on request", () => {
+    const events: ExpressionProjectProfileEvent[] = [];
+    const project = createExpressionProject({
+      tsconfigPath: config,
+      profileDetail: "detailed",
+      onProfile: event => events.push(event)
+    });
+    const filename = path.join(root, "apps/kanban/src/__expressions_detailed_profile.ts");
+
+    project.updateModule(filename, "export const value = { count: 1 }.count;");
+
+    expect(events.map(event => event.phase)).toEqual(expect.arrayContaining([
+      "projection-identity",
+      "projection-node-conversion",
+      "projection-node-metadata",
+      "projection-node-types",
+      "projection-node-bindings",
+      "projection-node-common",
+      "projection-node-specialization",
+      "projection-node-overhead",
+      "projection-finalization",
+      "projection-type-display",
+      "projection-type-signatures",
+      "projection-type-properties"
+    ]));
+    expect(events.find(event => event.phase === "projection-node-types")).toMatchObject({
+      checkerTypeQueries: expect.any(Number),
+      typeCacheHits: expect.any(Number),
+      typeCacheMisses: expect.any(Number)
+    });
+    expect(events.find(event => event.phase === "projection-node-bindings")).toMatchObject({
+      checkerSymbolQueries: expect.any(Number)
+    });
   });
 
   it("binds local export specifiers to their declaration identity", () => {

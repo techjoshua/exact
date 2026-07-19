@@ -7,6 +7,7 @@
     "lib": ["ES2022"]
   },
   "references": [
+    { "path": "../../packages/instrumentation" },
     { "path": "../../packages/plugin-api" },
     { "path": "../../packages/config" },
     { "path": "../../packages/plugin-host" },

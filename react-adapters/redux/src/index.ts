@@ -1,5 +1,5 @@
 import { createContext, type Child, type Component } from "@exact/core";
-import { createExternalSource, unwrap, type ExternalSource } from "@exact/reactive";
+import { createSelectedExternalSource, unwrap, type ExternalSource } from "@exact/reactive";
 
 export interface ReduxStore<State = unknown, Action = unknown> {
   dispatch(action: Action): unknown;
@@ -61,15 +61,12 @@ export function createReduxSource<State, Selected = State>(
   equality: (left: Selected, right: Selected) => boolean = Object.is,
   serverState?: State
 ): ExternalSource<Selected> {
-  let selected = selector(store.getState());
-  return createExternalSource({
-    getSnapshot() {
-      const next = selector(store.getState());
-      if (!equality(selected, next)) selected = next;
-      return selected;
-    },
-    ...(serverState === undefined ? {} : { getServerSnapshot: () => selector(serverState) }),
-    subscribe: notify => store.subscribe(notify)
+  return createSelectedExternalSource({
+    getSnapshot: () => store.getState(),
+    ...(serverState === undefined ? {} : { getServerSnapshot: () => serverState }),
+    subscribe: notify => store.subscribe(notify),
+    selector,
+    isEqual: equality
   });
 }
 

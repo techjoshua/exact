@@ -21,12 +21,14 @@
   "types": "./dist/index.d.ts",
   "dependencies": {
     "@exact/core": "file:../core",
+    "@exact/instrumentation": "file:../instrumentation",
     "@exact/request": "file:../request",
     "@exact/plugin-api": "file:../plugin-api",
     "@exact/plugin-host": "file:../plugin-host"
   },
   "scripts": {
     "build": "tsc -b",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "node ../../scripts/run-package-coverage.mjs"
   }
 }

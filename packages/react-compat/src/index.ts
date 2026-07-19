@@ -19,7 +19,8 @@ import {
   reactElementSymbol,
   ReactSharedInternals18,
   ReactSharedInternals19,
-  resolveDispatcher
+  resolveDispatcher,
+  withReactProfile
 } from "./internals.js";
 import type {
   DependencyList,
@@ -37,6 +38,8 @@ import type {
 import { flushSync } from "@exact/reactive";
 
 export type * from "./types.js";
+export { withReactProfile };
+export type { ReactCompatibilityProfileEvent } from "./internals.js";
 
 export const Fragment = REACT_FRAGMENT_TYPE;
 export const StrictMode = REACT_STRICT_MODE_TYPE;
@@ -52,6 +55,7 @@ export const __CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = R
 // never acquire a second dispatcher merely because it crossed an export condition.
 export const __SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = ReactSharedInternals19;
 
+/** Creates a React-compatible element while preserving target-specific key and ref semantics. */
 export function createElement<P extends object>(type: string | symbol | ReactComponentType<P>, config?: (P & { key?: Key; ref?: unknown }) | null, ...children: ReactNode[]): ReactElement<P> {
   const source = config ?? {} as P;
   const props: Record<string, unknown> = {};
@@ -76,6 +80,7 @@ export function createElement<P extends object>(type: string | symbol | ReactCom
   };
 }
 
+/** Clones an element, replacing supplied props and children without mutating the source element. */
 export function cloneElement<P extends object>(element: ReactElement<P>, config?: Partial<P> & { key?: Key; ref?: unknown }, ...children: ReactNode[]): ReactElement<P> {
   if (!isValidElement(element)) throw new TypeError("cloneElement requires a valid React element");
   const props = { ...element.props, ...(config ?? {}) } as Record<string, unknown> & P & { key?: Key; ref?: unknown; children?: ReactNode };
@@ -88,8 +93,10 @@ export function cloneElement<P extends object>(element: ReactElement<P>, config?
   return createElement(element.type, { ...props, key: key ?? undefined, ref }, ...(children.length ? children : childrenFrom(props.children))) as ReactElement<P>;
 }
 
+/** Returns whether a value carries a supported React element marker. */
 export function isValidElement(value: unknown): value is ReactElement { return isReactElement(value); }
 
+/** React-compatible utilities for traversing opaque children values. */
 export const Children = Object.freeze({
   map<T>(children: ReactNode, callback: (child: ReactNode, index: number) => T): T[] | null {
     if (children === null || children === undefined) return null;
@@ -106,38 +113,50 @@ export const Children = Object.freeze({
   toArray(children: ReactNode): ReactNode[] { return flattenChildren(children); }
 });
 
+/** Declares component-local state in the current compatibility render. */
 export function useState<S>(initial: S | (() => S)): readonly [S, Dispatch<SetStateAction<S>>] {
   return resolveDispatcher().useState(initial) as readonly [S, Dispatch<SetStateAction<S>>];
 }
 
+/** Declares reducer-managed component state in the current compatibility render. */
 export function useReducer<S, A>(reducer: Reducer<S, A>, initialArg: S): readonly [S, Dispatch<A>];
 export function useReducer<S, I, A>(reducer: Reducer<S, A>, initialArg: I, initializer: (value: I) => S): readonly [S, Dispatch<A>];
 export function useReducer<S, I, A>(reducer: Reducer<S, A>, initialArg: I, initializer?: (value: I) => S): readonly [S, Dispatch<A>] {
   return resolveDispatcher().useReducer(reducer as (state: unknown, action: unknown) => unknown, initialArg, initializer as ((value: unknown) => unknown) | undefined) as readonly [S, Dispatch<A>];
 }
 
+/** Returns a stable mutable ref object for the component lifetime. */
 export function useRef<T>(initial: T): MutableRefObject<T> { return resolveDispatcher().useRef(initial) as MutableRefObject<T>; }
+/** Memoizes a computed value according to React dependency-list semantics. */
 export function useMemo<T>(factory: () => T, deps?: DependencyList): T { return resolveDispatcher().useMemo(factory, deps) as T; }
+/** Memoizes a callback according to React dependency-list semantics. */
 export function useCallback<T extends (...args: any[]) => any>(callback: T, deps?: DependencyList): T { return resolveDispatcher().useCallback(callback, deps); }
+/** Records a developer-tools value without affecting rendering. */
 export function useDebugValue<T>(value: T, format?: (value: T) => unknown): void { resolveDispatcher().useDebugValue(value, format as ((value: unknown) => unknown) | undefined); }
 
+/** Creates a component that receives its ref as a second render argument. */
 export function forwardRef<P>(render: (props: P, ref: unknown) => ReactNode): ReactComponentType<P> {
   return { $$typeof: REACT_FORWARD_REF_TYPE, render };
 }
 
+/** Creates a component wrapper that can skip renders when props compare equal. */
 export function memo<P>(type: ReactComponentType<P>, compare?: (previous: P, next: P) => boolean): ReactComponentType<P> {
   return { $$typeof: REACT_MEMO_TYPE, type, compare: compare ?? null };
 }
 
+/** Defers loading a component until its first render and suspends while it loads. */
 export function lazy<P extends Record<string, unknown> = Record<string, unknown>>(loader: () => Promise<{ default: ReactComponentType<P> }>): ReactComponentType<P> {
   const payload: LazyPayload<P> = { status: "uninitialized", loader };
   return { $$typeof: REACT_LAZY_TYPE, _payload: payload, _init: initializeLazy };
 }
 
+/** Creates a React-compatible context backed by an eXact context token. */
 export function createContext<T>(defaultValue: T): ReactContext<T> { return createReactContext(defaultValue); }
 
+/** Creates an object ref initialized to null. */
 export function createRef<T>(): MutableRefObject<T | null> { return { current: null }; }
 
+/** Base class for React-compatible class components. */
 export class Component<P = Record<string, unknown>, S = Record<string, unknown>> {
   declare readonly isReactComponent: object;
   props: P;
@@ -145,31 +164,43 @@ export class Component<P = Record<string, unknown>, S = Record<string, unknown>>
   context: unknown;
   refs: Record<string, unknown> = {};
   constructor(props: P, context?: unknown) { this.props = props; this.context = context; }
+  /** Enqueues a partial state update through the mounted compatibility root. */
   setState(
     state: Partial<S> | null | ((previous: Readonly<S>, props: Readonly<P>) => Partial<S> | null),
     callback?: () => void
   ): void {
     classUpdater(this).setState(state as never, callback);
   }
+  /** Requests a render even when state and props are otherwise unchanged. */
   forceUpdate(callback?: () => void): void { classUpdater(this).forceUpdate(callback); }
+  /** Produces this component's children; subclasses override this method. */
   render(): ReactNode { return null; }
 }
 Object.defineProperty(Component.prototype, "isReactComponent", { value: {} });
+/** Class component base that opts into shallow prop and state comparison. */
 export class PureComponent<P = Record<string, unknown>, S = Record<string, unknown>> extends Component<P, S> {
   readonly isPureReactComponent = true;
 }
 
+/** Reads the nearest value for a React-compatible context. */
 export function useContext<T>(context: ReactContext<T>): T { return resolveDispatcher().useContext(context); }
+/** Schedules a passive effect after the render commits. */
 export function useEffect(create: () => void | (() => void), deps?: DependencyList): void { resolveDispatcher().useEffect(create, deps); }
+/** Schedules a layout effect during the synchronous commit phase. */
 export function useLayoutEffect(create: () => void | (() => void), deps?: DependencyList): void { resolveDispatcher().useLayoutEffect(create, deps); }
+/** Schedules an insertion effect before layout effects run. */
 export function useInsertionEffect(create: () => void | (() => void), deps?: DependencyList): void { resolveDispatcher().useInsertionEffect(create, deps); }
+/** Assigns an imperative handle to a forwarded ref for the committed render. */
 export function useImperativeHandle<T>(ref: ReactRef<T> | undefined, create: () => T, deps?: DependencyList): void {
   resolveDispatcher().useImperativeHandle(ref as ReactRef<unknown> | undefined, create, deps);
 }
+/** Returns a stable identifier scoped by the current root's identifier prefix. */
 export function useId(): string { return resolveDispatcher().useId(); }
+/** Subscribes to an external store with tear-resistant snapshot reads. */
 export function useSyncExternalStore<T>(subscribe: (onStoreChange: () => void) => () => void, getSnapshot: () => T, _getServerSnapshot?: () => T): T {
   return resolveDispatcher().useSyncExternalStore(subscribe, getSnapshot, _getServerSnapshot) as T;
 }
+/** Marks updates performed by a synchronous scope as non-urgent transition work. */
 export function startTransition(scope: () => void): void {
   const previous18 = ReactSharedInternals18.ReactCurrentBatchConfig.transition;
   const previous19 = ReactSharedInternals19.T;
@@ -184,15 +215,19 @@ export function startTransition(scope: () => void): void {
     ReactSharedInternals19.T = previous19;
   }
 }
+/** Returns transition pending state and a function for starting transition work. */
 export function useTransition(): readonly [boolean, (scope: () => void | Promise<void>) => void] {
   return resolveDispatcher().useTransition();
 }
+/** Returns a deferred copy of a value that may lag urgent rendering. */
 export function useDeferredValue<T>(value: T, initialValue?: T): T {
   return resolveDispatcher().useDeferredValue(value, initialValue) as T;
 }
+/** Reads a supported promise or context, suspending when a promise is pending. */
 export function use<T>(usable: PromiseLike<T> | ReactContext<T>): T {
   return resolveDispatcher().use(usable as PromiseLike<unknown> | ReactContext<unknown>) as T;
 }
+/** Couples an action with its latest state and pending status. */
 export function useActionState<State, Payload>(
   action: (previousState: State, payload: Payload) => State | Promise<State>,
   initialState: State,
@@ -200,6 +235,7 @@ export function useActionState<State, Payload>(
 ): readonly [State, (payload: Payload) => void, boolean] {
   return resolveDispatcher().useActionState(action as (previous: unknown, payload: unknown) => unknown, initialState, _permalink) as readonly [State, (payload: Payload) => void, boolean];
 }
+/** Applies optimistic actions until the authoritative passthrough value changes. */
 export function useOptimistic<State, Action = State>(
   passthrough: State,
   reducer?: (currentState: State, action: Action) => State
@@ -209,7 +245,9 @@ export function useOptimistic<State, Action = State>(
     reducer as ((state: unknown, action: unknown) => unknown) | undefined
   ) as readonly [State, (action: Action) => void];
 }
+/** Returns a stable effect callback that always invokes the latest implementation. */
 export function useEffectEvent<T extends (...args: any[]) => unknown>(implementation: T): T { return resolveDispatcher().useEffectEvent(implementation); }
+/** Memoizes a function result within the active React cache scope and argument path. */
 export function cache<Args extends readonly unknown[], Result>(fn: (...args: Args) => Result): (...args: Args) => Result {
   const identity = {};
   const fallbackRoot = new Map<unknown, unknown>();
@@ -247,11 +285,13 @@ export function cache<Args extends readonly unknown[], Result>(fn: (...args: Arg
   };
 }
 const compatibilityCacheController = new AbortController();
+/** Returns the abort signal associated with the active React cache scope. */
 export function cacheSignal(): AbortSignal {
   return ReactSharedInternals19.A?.cacheSignal?.()
     ?? activeReactCacheScope()?.controller.signal
     ?? compatibilityCacheController.signal;
 }
+/** Formats the current compatibility owner chain as a React-style component stack. */
 export function captureOwnerStack(): string | null {
   let frame = currentReactOwnerFrame() as { type?: unknown; return?: unknown } | null;
   if (!frame) return null;
@@ -266,9 +306,13 @@ export function captureOwnerStack(): string | null {
   }
   return lines.join("");
 }
+/** Reports that the experimental transition-type API is not implemented. */
 export function addTransitionType(): never { throw new Error("React API addTransitionType is not supported by eXact compatibility"); }
+/** Reports that the experimental cache-refresh hook is not implemented. */
 export function unstable_useCacheRefresh(): never { throw new Error("React API unstable_useCacheRefresh is not supported by eXact compatibility"); }
+/** Reports that the removed legacy factory API is not implemented. */
 export function createFactory(): never { throw new Error("React API createFactory is not supported by eXact compatibility"); }
+/** Runs a test interaction and flushes compatibility work until it settles. */
 export async function act<T>(callback: () => T | Promise<T>): Promise<T> {
   type ActCallback = (didTimeout: boolean) => ActCallback | null;
   const target = reactCompatibilityTarget();
@@ -330,6 +374,7 @@ function flushCompatibilityActQueue(
   }
 }
 
+/** Returns the currently selected React compatibility behavior level. */
 export function compatibilityVersion(): 18 | 19 { return reactCompatibilityTarget(); }
 
 function applyDefaultProps(type: unknown, props: Record<string, unknown>): void {

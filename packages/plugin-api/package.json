@@ -17,6 +17,7 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsc -b",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "node ../../scripts/run-package-coverage.mjs"
   }
 }

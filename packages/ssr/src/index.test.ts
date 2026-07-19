@@ -29,6 +29,18 @@ import {
 } from "./index.js";
 
 describe("request-aware SSR", () => {
+  it("reports opt-in string render timings", () => {
+    const events: Array<{ subsystem: string; phase: string }> = [];
+
+    expect(renderToString(createVNode("p", null, "profiled"), {
+      onProfile: event => events.push(event)
+    }).html).toContain("profiled");
+    expect(events).toContainEqual(expect.objectContaining({
+      subsystem: "ssr",
+      phase: "render-to-string"
+    }));
+  });
+
   const ApplicationName = createContext<string>("ssr.application", {
     reactive: false,
     scope: "application"

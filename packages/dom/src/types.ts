@@ -9,6 +9,7 @@ import type {
   VNode
 } from "@exact/core";
 import type { EffectScope } from "@exact/reactive";
+import type { ExactProfileEvent, ExactProfileSink } from "@exact/instrumentation";
 import type { DomWorkBudget } from "./work.js";
 
 export type Mounted = {
@@ -55,6 +56,7 @@ export type Root = {
   workBudget?: DomWorkBudget;
   allowUnsafeHtml: boolean;
   onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
+  onProfile?: ExactProfileSink<DomProfileEvent>;
   /** Hydrated roots are anchored by SSR markers rather than the synthetic client root boundary. */
   mode?: "client" | "hydrated" | "document";
   /** Component ranges are inferred when the public server format omits eXact markers. */
@@ -74,6 +76,10 @@ export type RenderOptions = {
   allowUnsafeHtml?: boolean;
   /** Receives an audit notification whenever an unsafe HTML range is mounted or changed. */
   onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
+  /** Receives coarse renderer timings and traversal counts. */
+  onProfile?: ExactProfileSink<DomProfileEvent>;
   /** Internal shared budget used when hydration combines DOM scans and renderer work. */
   workBudget?: DomWorkBudget;
 };
+
+export type DomProfileEvent = ExactProfileEvent<"dom", "render">;

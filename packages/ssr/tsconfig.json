@@ -8,6 +8,7 @@
     "types": ["node"]
   },
   "references": [
+    { "path": "../instrumentation" },
     { "path": "../plugin-api" },
     { "path": "../plugin-host" },
     { "path": "../core" },

@@ -2,15 +2,19 @@ import {
   exactExportConditions,
   createLineSourceMap,
   createCompilerSession,
-  parseExactCompilerManifest,
   resolveExactArtifactImport,
   transformSource,
   type ExactCompilerManifest,
   type ExactAssetRule,
   type TransformTarget
 } from "@exact/compiler";
+import { profileTimestamp, type ExactProfileEvent, type ExactProfileSink } from "@exact/instrumentation";
+import {
+  createExactDiagnosticReporter,
+  loadExactImportedManifests,
+  matchesExactBuildFilter
+} from "@exact/compiler/adapter-support";
 import { transformReactJsx, usesReactRuntimeImports } from "@exact/react-compat/transform";
-import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
   jsxSourceOwnership,
@@ -43,7 +47,10 @@ export type ExactPluginOptions = {
   pluginRegistry?: ExactPreparedCompilerRegistry;
   assetRules?: readonly ExactAssetRule[];
   diagnostics?: boolean;
+  onProfile?: ExactProfileSink;
 };
+
+export type ExactViteProfileEvent = ExactProfileEvent<"vite-plugin", "transform">;
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
 
@@ -68,13 +75,13 @@ export type ExactPlugin = {
 /** Creates the Vite plugin that transforms eXact JSX and resolves .exact facade imports. */
 export function exact(options: ExactPluginOptions = {}): ExactPlugin {
   let diagnosticsEnabled = options.diagnostics ?? false;
-  let compilerSession = createCompilerSession({ languageService: diagnosticsEnabled });
-  const diagnosticReporter = createDiagnosticReporter();
+  let compilerSession = createCompilerSession({ languageService: diagnosticsEnabled, onProfile: options.onProfile });
+  const diagnosticReporter = createExactDiagnosticReporter();
   const configureDiagnostics = (enabled: boolean): void => {
     if (enabled === diagnosticsEnabled) return;
     compilerSession.dispose();
     diagnosticsEnabled = enabled;
-    compilerSession = createCompilerSession({ languageService: enabled });
+    compilerSession = createCompilerSession({ languageService: enabled, onProfile: options.onProfile });
   };
   const compatibilityCwd = typeof options.reactCompatibility === "object" ? options.reactCompatibility.cwd : undefined;
   const reactCompatibility = resolveReactCompatibility(options.reactCompatibility, compatibilityCwd);
@@ -150,6 +157,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
     },
     transform(code, id) {
       if (!isTransformableModule(id)) return null;
+      const profileStarted = options.onProfile ? profileTimestamp() : undefined;
       try {
         const ownership = jsxSourceOwnership(id, code, reactCompatibility);
         const reactOwned = ownership === "react" || ownership === "unknown" && usesReactRuntimeImports(code, id);
@@ -195,47 +203,18 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         throw new Error(`eXact JSX transform failed for ${id}\n${message}`);
+      } finally {
+        if (profileStarted !== undefined) {
+          options.onProfile?.(Object.freeze({
+            subsystem: "vite-plugin",
+            phase: "transform",
+            elapsedMs: profileTimestamp() - profileStarted,
+            attributes: Object.freeze({ filename: id })
+          }));
+        }
       }
     }
   };
-}
-
-function createDiagnosticReporter(): (
-  update: Readonly<{ affectedFiles: readonly string[]; diagnostics: readonly DiagnosticLike[] }>,
-  warn: (message: string) => void
-) => void {
-  const previous = new Map<string, Set<string>>();
-  return (update, warn) => {
-    const next = new Map<string, Set<string>>();
-    for (const diagnostic of update.diagnostics) {
-      const file = diagnostic.filename ?? "<project>";
-      let keys = next.get(file);
-      if (!keys) next.set(file, keys = new Set());
-      const key = diagnosticKey(diagnostic);
-      keys.add(key);
-      if (!previous.get(file)?.has(key)) warn(formatDiagnostic(diagnostic));
-    }
-    for (const file of update.affectedFiles) previous.delete(file.replaceAll("\\", "/"));
-    for (const [file, keys] of next) previous.set(file, keys);
-  };
-}
-
-type DiagnosticLike = Readonly<{
-  code: string;
-  message: string;
-  filename?: string;
-  span?: Readonly<{ line: number; column: number }>;
-}>;
-
-function diagnosticKey(diagnostic: DiagnosticLike): string {
-  return `${diagnostic.code}:${diagnostic.span?.line}:${diagnostic.span?.column}:${diagnostic.message}`;
-}
-
-function formatDiagnostic(diagnostic: DiagnosticLike): string {
-  const location = diagnostic.filename
-    ? `${diagnostic.filename}${diagnostic.span ? `:${diagnostic.span.line}:${diagnostic.span.column}` : ""}`
-    : "TypeScript";
-  return `${location} - ${diagnostic.code}: ${diagnostic.message}`;
 }
 
 function targetFor(options: ExactPluginOptions): "client" | "server" {
@@ -243,10 +222,7 @@ function targetFor(options: ExactPluginOptions): "client" | "server" {
 }
 
 function importedManifestsFor(options: { importedManifests?: readonly ExactCompilerManifest[]; manifestFiles?: readonly string[] }): ExactCompilerManifest[] {
-  return [
-    ...(options.importedManifests ?? []),
-    ...(options.manifestFiles ?? []).map(file => parseExactCompilerManifest(JSON.parse(readFileSync(file, "utf8")), file))
-  ];
+  return loadExactImportedManifests(options);
 }
 
 function shouldCompileExactModule(
@@ -256,8 +232,8 @@ function shouldCompileExactModule(
   registry: ExactPreparedCompilerRegistry | undefined
 ): boolean {
   if (!options.include && /(?:^|[\\/])node_modules(?:[\\/]|$)/.test(id)) return false;
-  if (options.include && !matchesFilter(id, options.include)) return false;
-  if (options.exclude && matchesFilter(id, options.exclude)) return false;
+  if (options.include && !matchesExactBuildFilter(id, options.include)) return false;
+  if (options.exclude && matchesExactBuildFilter(id, options.exclude)) return false;
   return containsJsx(id, code)
     || /@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(code)
     || Object.values(registry?.plugins ?? {}).some(plugin => {
@@ -296,9 +272,4 @@ function viteReactAliases(resolved: ResolvedReactCompatibility): Array<{ find: R
     find: new RegExp(`^${find.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`),
     replacement
   }));
-}
-
-function matchesFilter(id: string, pattern: FilterPattern): boolean {
-  const patterns = Array.isArray(pattern) ? pattern : [pattern];
-  return patterns.some(item => typeof item === "string" ? id.includes(item) : item.test(id));
 }

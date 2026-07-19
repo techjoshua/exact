@@ -14,6 +14,23 @@ const noopLogger = {
   log() {}
 };
 
+it("reports opt-in hydration timings", () => {
+  function Profiled() {
+    return () => createVNode("p", null, "profiled");
+  }
+  const vnode = createVNode(Profiled, null);
+  const container = document.createElement("div");
+  container.innerHTML = renderToHydratableString(vnode).htmlWithHydration;
+  const events: Array<{ subsystem: string; phase: string }> = [];
+
+  hydrate(vnode, container, { onProfile: event => events.push(event) });
+
+  expect(events).toContainEqual(expect.objectContaining({
+    subsystem: "hydrate",
+    phase: "hydrate"
+  }));
+});
+
 it("adopts a complete authored document while retaining framework-owned body augmentation", () => {
   function DocumentApp(this: Component<{ count: number }>) {
     this.state.count = 1;

@@ -1,11 +1,13 @@
-import type { EffectScope, EffectScopeImpl } from "./types.js";
+import type { ExactProfileSink } from "@exact/instrumentation";
+import type { EffectScope, EffectScopeImpl, ReactiveProfileEvent } from "./types.js";
 
 const scopeStack: EffectScopeImpl[] = [];
 
 /** Creates an effect scope that can stop all child scopes and reactions as one unit. */
 export function createEffectScope(
   parent: EffectScope | undefined = currentEffectScope(),
-  onError?: (error: unknown) => void
+  onError?: (error: unknown) => void,
+  onProfile?: ExactProfileSink<ReactiveProfileEvent>
 ): EffectScope {
   const parentScope = parent as EffectScopeImpl | undefined;
   if (parentScope && !parentScope.active) {
@@ -18,12 +20,22 @@ export function createEffectScope(
     reactions: new Set(),
     cleanups: new Set(),
     onError: onError ?? parentScope?.onError,
+    onProfile: onProfile ?? parentScope?.onProfile,
     stop() {
       stopEffectScope(scope);
     }
   };
   scope.parent?.children.add(scope);
   return scope;
+}
+
+/** Creates an effect scope whose owned scheduler work emits profiling events. */
+export function createProfiledEffectScope(
+  onProfile: ExactProfileSink<ReactiveProfileEvent>,
+  parent: EffectScope | undefined = currentEffectScope(),
+  onError?: (error: unknown) => void
+): EffectScope {
+  return createEffectScope(parent, onError, onProfile);
 }
 
 function stopEffectScope(root: EffectScopeImpl): void {

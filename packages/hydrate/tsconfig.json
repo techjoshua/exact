@@ -8,6 +8,7 @@
     "types": ["node"]
   },
   "references": [
+    { "path": "../instrumentation" },
     { "path": "../core" },
     { "path": "../dom" },
     { "path": "../server" }

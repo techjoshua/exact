@@ -71,6 +71,19 @@ async function readNextStreamLine(reader: ReadableStreamDefaultReader<Uint8Array
 }
 
 describe("@exact/server", () => {
+  it("reports opt-in request timings", async () => {
+    const onProfile = vi.fn();
+
+    const response = await handleExactRequest({ method: "GET" }, context({ onProfile }));
+
+    expect(response.status).toBe(405);
+    expect(onProfile).toHaveBeenCalledWith(expect.objectContaining({
+      subsystem: "server",
+      phase: "request",
+      elapsedMs: expect.any(Number)
+    }));
+  });
+
   it("encodes registered keyed collections in response state", async () => {
     const records = [{ id: "a", title: "A" }, { id: "b", title: "B" }];
     registerReactiveListKey(records, item => (item as { id: string }).id, "server response test", "member:id");

@@ -28,6 +28,20 @@ import { adoptStatic, percent, px, rem, render, unmount } from "./index.js";
 import { mountedDomNodes, placeMountedBefore } from "./placement.js";
 
 describe("@exact/dom", () => {
+  it("reports opt-in render timings without changing renderer behavior", () => {
+    const container = document.createElement("div");
+    const onProfile = vi.fn();
+
+    render(createVNode("p", null, "profiled"), container, { onProfile });
+
+    expect(container.textContent).toBe("profiled");
+    expect(onProfile).toHaveBeenCalledWith(expect.objectContaining({
+      subsystem: "dom",
+      phase: "render",
+      elapsedMs: expect.any(Number)
+    }));
+  });
+
   it("mounts and replaces opted-in opaque unsafe HTML ranges", () => {
     const container = document.createElement("div");
     const audit = vi.fn();

@@ -3,10 +3,29 @@ import { createComponentInstance, createContext, renderInstance, type Component 
 import { adaptReactComponent } from "./exact.js";
 import { HookHost } from "./internals.js";
 import { bridgeReactContext, defineInteropContext, exactContextToken, exposeExactComponent, useExactContext } from "./interop.js";
-import { createElement } from "./index.js";
+import { createElement, withReactProfile } from "./index.js";
 import { toExactNode } from "./internals.js";
 
 describe("eXact and React context interop", () => {
+  it("profiles render and commit work through an explicit compatibility scope", () => {
+    const events: Array<{ subsystem: string; phase: string }> = [];
+    const component = createComponentInstance(function Profiled(this: Component<{}>) {
+      return () => null;
+    }, {});
+
+    withReactProfile(event => events.push(event), () => {
+      const host = new HookHost(component as Component<{}>);
+      host.render(() => null);
+      host.mount();
+      host.dispose();
+    });
+
+    expect(events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ subsystem: "react-compat", phase: "render" }),
+      expect.objectContaining({ subsystem: "react-compat", phase: "commit" })
+    ]));
+  });
+
   it("lets React compatibility hooks consume a native ancestor context", () => {
     const Service = createContext<string>("fixture.service");
     let observed: string | undefined;

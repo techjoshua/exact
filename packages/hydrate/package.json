@@ -17,10 +17,12 @@
   "dependencies": {
     "@exact/core": "file:../core",
     "@exact/dom": "file:../dom",
+    "@exact/instrumentation": "file:../instrumentation",
     "@exact/server": "file:../server"
   },
   "scripts": {
     "build": "tsc -b",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "node ../../scripts/run-package-coverage.mjs"
   }
 }

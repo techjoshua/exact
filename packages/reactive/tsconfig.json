@@ -6,6 +6,9 @@
     "outDir": "dist",
     "lib": ["ES2022"]
   },
+  "references": [
+    { "path": "../instrumentation" }
+  ],
   "include": ["src"],
   "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

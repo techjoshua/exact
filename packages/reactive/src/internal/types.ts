@@ -46,6 +46,7 @@ export type EffectScopeImpl = EffectScope & {
   reactions: Set<Reaction>;
   cleanups: Set<StopHandle>;
   onError?: (error: unknown) => void;
+  onProfile?: ExactProfileSink<ReactiveProfileEvent>;
 };
 
 export type WatchOptions = {
@@ -53,3 +54,6 @@ export type WatchOptions = {
   onSchedule?(): void;
   onError?(error: unknown): void;
 };
+import type { ExactProfileEvent, ExactProfileSink } from "@exact/instrumentation";
+
+export type ReactiveProfileEvent = ExactProfileEvent<"reactive", "flush">;

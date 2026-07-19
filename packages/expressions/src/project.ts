@@ -1,6 +1,8 @@
 import ts from "typescript";
 import path from "node:path";
 import fs from "node:fs";
+import { performance } from "node:perf_hooks";
+import type { ExactProfileEvent, ExactProfileSink } from "@exact/instrumentation";
 import type {
   ExpressionDiagnostic,
   ExpressionDirective,
@@ -16,6 +18,7 @@ import type {
   Variable
 } from "./model.js";
 import { createModule, type BoundModule, type UnboundModule } from "./module.js";
+import { ExclusiveTimer } from "./profiling.js";
 
 export interface ExpressionProjectOptions {
   readonly tsconfigPath?: string;
@@ -24,7 +27,59 @@ export interface ExpressionProjectOptions {
   readonly forceModuleDetection?: boolean;
   /** Controls diagnostic collection without disabling TypeChecker-backed binding. */
   readonly diagnostics?: "syntax" | "full";
+  /** Receives opt-in phase timings and structural counters for profiling. */
+  readonly onProfile?: ExactProfileSink<ExpressionProjectProfileEvent>;
+  /**
+   * Controls instrumentation granularity.
+   *
+   * Detailed profiling samples internal projection stages and therefore adds
+   * per-node timing overhead. It should be enabled for investigations, not
+   * routine production telemetry.
+   */
+  readonly profileDetail?: "summary" | "detailed";
 }
+
+export type ExpressionProjectProfileEvent = ExactProfileEvent<
+  "expressions",
+  | "configuration"
+  | "program"
+  | "syntax-diagnostics"
+  | "semantic-diagnostics"
+  | "module-projection"
+  | "projection-identity"
+  | "projection-node-conversion"
+  | "projection-node-metadata"
+  | "projection-node-types"
+  | "projection-node-bindings"
+  | "projection-node-common"
+  | "projection-node-specialization"
+  | "projection-node-overhead"
+  | "projection-finalization"
+  | "projection-type-display"
+  | "projection-type-members"
+  | "projection-type-signatures"
+  | "projection-type-properties"
+  | "projection-type-arguments"
+  | "projection-type-directives"
+  | "projection-type-construction"
+> & Readonly<{
+  filename?: string;
+  fileCount?: number;
+  nodeCount?: number;
+  typeCount?: number;
+  shallowTypeCount?: number;
+  symbolCount?: number;
+  scopeCount?: number;
+  typeCacheHits?: number;
+  typeCacheMisses?: number;
+  shallowTypeCacheHits?: number;
+  shallowTypeCacheMisses?: number;
+  checkerTypeQueries?: number;
+  checkerSymbolQueries?: number;
+  resolvedSignatureQueries?: number;
+  directiveScans?: number;
+  directiveCharacters?: number;
+}>;
 
 export type ExpressionProjectStats = Readonly<{
   rebuilds: number;
@@ -34,6 +89,15 @@ export type ExpressionProjectStats = Readonly<{
   nodeIdentityRoots: number;
   symbolIdentities: number;
 }>;
+
+type TypeProjectionBucket =
+  | "display"
+  | "members"
+  | "signatures"
+  | "properties"
+  | "arguments"
+  | "directives"
+  | "construction";
 
 export class ExpressionProjectError extends Error {
   constructor(readonly diagnostics: readonly ExpressionDiagnostic[]) {
@@ -106,6 +170,8 @@ export class ExpressionProject {
   private readonly parsed: ts.ParsedCommandLine;
   private readonly forceModuleDetection: boolean;
   private readonly diagnosticMode: "syntax" | "full";
+  private readonly onProfile?: ExactProfileSink<ExpressionProjectProfileEvent>;
+  private readonly profileDetail: "summary" | "detailed";
   private readonly compilerOptions: ts.CompilerOptions;
   private readonly compilerHost: ts.CompilerHost;
   private readonly moduleResolutionCache: ts.ModuleResolutionCache;
@@ -116,6 +182,8 @@ export class ExpressionProject {
   private readonly diskFileContents = new Map<string, string | undefined>();
   private readonly sourceFiles = new Map<string, Readonly<{ version: string; sourceFile: ts.SourceFile }>>();
   private readonly boundModules = new Map<string, Readonly<{ program: ts.Program; module: BoundModule }>>();
+  private readonly configuredRoots: ReadonlySet<string>;
+  private readonly diskRoots = new Set<string>();
   private readonly nodeIdentityRoots = new Map<string, ExpressionNode>();
   private readonly symbolIdentities = new Map<string, ExpressionSymbol>();
   private readonly identityKeysByFile = new Map<string, Set<string>>();
@@ -127,6 +195,9 @@ export class ExpressionProject {
   private disposed = false;
 
   constructor(options: ExpressionProjectOptions = {}) {
+    const configurationStarted = options.onProfile ? performance.now() : undefined;
+    this.onProfile = options.onProfile;
+    this.profileDetail = options.profileDetail ?? "summary";
     const cwd = path.resolve(options.cwd ?? process.cwd());
     const config = options.tsconfigPath
       ? path.resolve(cwd, options.tsconfigPath)
@@ -139,6 +210,7 @@ export class ExpressionProject {
     if (read.error) throw new ExpressionProjectError([{ ...diagnosticFromTs(read.error), phase: "configuration" }]);
     this.parsed = ts.parseJsonConfigFileContent(read.config, ts.sys, path.dirname(config), undefined, config);
     if (this.parsed.errors.length) throw new ExpressionProjectError(this.parsed.errors.map(error => ({ ...diagnosticFromTs(error), phase: "configuration" as const })));
+    this.configuredRoots = new Set(this.parsed.fileNames.map(normalizeFile));
     this.compilerOptions = {
       ...this.parsed.options,
       // JavaScript modules are part of the supported runtime grammar even when
@@ -198,6 +270,14 @@ export class ExpressionProject {
         return created;
       }
     };
+    if (configurationStarted !== undefined) {
+      this.recordProfile({
+        subsystem: "expressions",
+        phase: "configuration",
+        elapsedMs: performance.now() - configurationStarted,
+        fileCount: this.configuredRoots.size
+      });
+    }
   }
 
   updateModule(filename: string, source: string): BoundModule {
@@ -225,7 +305,37 @@ export class ExpressionProject {
       }
     }
     this.rebuild();
-    return new Map(filenames.map(filename => [filename.display, this.readBoundModule(filename.canonical)]));
+    return this.readBoundModules(filenames);
+  }
+
+  /**
+   * Loads one disk-backed source as a project root without retaining an
+   * identical in-memory overlay.
+   */
+  loadModule(filename: string): BoundModule {
+    return this.loadModules([filename]).get(displayFile(filename))!;
+  }
+
+  /**
+   * Loads disk-backed sources as project roots in one rebuild.
+   *
+   * Files outside the configured include patterns remain roots until removed.
+   * Call {@link invalidateFile} after an external write to refresh cached disk
+   * contents without removing that root.
+   */
+  loadModules(filenames: Iterable<string>): ReadonlyMap<string, BoundModule> {
+    this.assertActive();
+    const requested: Array<Readonly<{ display: string; canonical: string }>> = [];
+    for (const filename of filenames) {
+      const canonical = normalizeFile(filename);
+      requested.push({ display: displayFile(filename), canonical });
+      if (!this.configuredRoots.has(canonical) && !this.diskRoots.has(canonical)) {
+        this.diskRoots.add(canonical);
+        this.dirty = true;
+      }
+    }
+    if (!this.program || this.dirty) this.rebuild();
+    return this.readBoundModules(requested);
   }
 
   getModule(filename: string, source?: string): BoundModule {
@@ -299,6 +409,7 @@ export class ExpressionProject {
       this.diskFileExistence.delete(normalized);
       this.diskFileContents.delete(normalized);
       this.boundModules.delete(normalized);
+      this.diskRoots.delete(normalized);
       this.nodeIdentityRoots.delete(normalized);
       const identityKeys = this.identityKeysByFile.get(normalized);
       for (const key of identityKeys ?? []) this.symbolIdentities.delete(key);
@@ -337,6 +448,7 @@ export class ExpressionProject {
     this.diskFileExistence.clear();
     this.diskFileContents.clear();
     this.boundModules.clear();
+    this.diskRoots.clear();
     this.nodeIdentityRoots.clear();
     this.symbolIdentities.clear();
     this.identityKeysByFile.clear();
@@ -368,13 +480,23 @@ export class ExpressionProject {
     // Clearing these weak handles avoids retaining superseded Programs.
     this.typeHandles = new WeakMap();
     const roots = new Set(this.parsed.fileNames.map(normalizeFile));
+    for (const file of this.diskRoots) roots.add(file);
     for (const file of this.overlays.keys()) roots.add(file);
+    const started = this.onProfile ? performance.now() : undefined;
     this.program = ts.createProgram({
       rootNames: [...roots],
       options: this.compilerOptions,
       host: this.compilerHost,
       oldProgram: this.program
     });
+    if (started !== undefined) {
+      this.recordProfile({
+        subsystem: "expressions",
+        phase: "program",
+        elapsedMs: performance.now() - started,
+        fileCount: roots.size
+      });
+    }
     this.dirty = false;
   }
 
@@ -387,6 +509,15 @@ export class ExpressionProject {
     return true;
   }
 
+  private readBoundModules(
+    filenames: ReadonlyArray<Readonly<{ display: string; canonical: string }>>
+  ): ReadonlyMap<string, BoundModule> {
+    return new Map(filenames.map(filename => [
+      filename.display,
+      this.readBoundModule(filename.canonical)
+    ]));
+  }
+
   private readBoundModule(filename: string): BoundModule {
     const program = this.program!;
     const sourceFile = program.getSourceFile(filename) ?? program.getSourceFiles().find(file => normalizeFile(file.fileName) === filename);
@@ -397,8 +528,27 @@ export class ExpressionProject {
     const implicitThisVariables = new Map<ts.Node, ProjectVariable>();
     const typeCache = new Map<ts.Type, ExpressionType>();
     const shallowTypeCache = new Map<ts.Type, Map<string, ExpressionType>>();
+    // TypeScript formatting is location-sensitive. Keep exact-node variants
+    // local to this projection so reuse is safe and no Program is retained.
+    const shallowTypeLocationCache = new Map<ts.Type, Map<ts.Node, ExpressionType>>();
+    const typeSummaryCache = new Map<ts.Type, Map<ts.Node, ExpressionType>>();
+    const typeDisplayCache = new Map<ts.Type, Map<ts.Node, string>>();
+    const signatureDisplayCache = new Map<ts.Signature, Map<ts.Node, string>>();
+    // Source nodes are immutable for the lifetime of this Program generation.
+    const directiveCache = new Map<ts.Node, readonly ExpressionDirective[]>();
+    const inlineDirectiveCache = new Map<ts.Node, readonly ExpressionDirective[]>();
+    const syntaxStarted = this.onProfile ? performance.now() : undefined;
     const syntacticDiagnostics = program.getSyntacticDiagnostics(sourceFile)
       .map(diagnostic => ({ ...diagnosticFromTs(diagnostic), phase: "syntax" as const }));
+    if (syntaxStarted !== undefined) {
+      this.recordProfile({
+        subsystem: "expressions",
+        phase: "syntax-diagnostics",
+        elapsedMs: performance.now() - syntaxStarted,
+        filename
+      });
+    }
+    const semanticStarted = this.onProfile ? performance.now() : undefined;
     // TypeScript diagnostics must be captured before expression conversion:
     // asking the checker afterwards can reinterpret lazily populated JSX
     // children as ordinary identifiers. Projection into the public diagnostic
@@ -407,10 +557,77 @@ export class ExpressionProject {
       ? (
           this.semanticDiagnosticCount++,
           program.getSemanticDiagnostics(sourceFile)
-        )
+      )
       : [];
+    if (semanticStarted !== undefined) {
+      this.recordProfile({
+        subsystem: "expressions",
+        phase: "semantic-diagnostics",
+        elapsedMs: performance.now() - semanticStarted,
+        filename
+      });
+    }
+    const projectionStarted = this.onProfile ? performance.now() : undefined;
+    const detailedProfile = this.profileDetail === "detailed" && this.onProfile !== undefined;
+    const projectionBuckets = {
+      metadata: 0,
+      types: 0,
+      bindings: 0,
+      common: 0,
+      specialization: 0
+    };
+    const projectionCounters = {
+      typeCacheHits: 0,
+      typeCacheMisses: 0,
+      shallowTypeCacheHits: 0,
+      shallowTypeCacheMisses: 0,
+      checkerTypeQueries: 0,
+      checkerSymbolQueries: 0,
+      resolvedSignatureQueries: 0,
+      directiveScans: 0,
+      directiveCharacters: 0
+    };
+    const measureProjection = <T>(
+      bucket: keyof typeof projectionBuckets,
+      operation: () => T
+    ): T => {
+      if (!detailedProfile) return operation();
+      const started = performance.now();
+      try {
+        return operation();
+      } finally {
+        projectionBuckets[bucket] += performance.now() - started;
+      }
+    };
+    const typeProjectionTimer = new ExclusiveTimer<TypeProjectionBucket>(detailedProfile);
+    const displayType = (type: ts.Type, at: ts.Node): string => {
+      const locations = typeDisplayCache.get(type);
+      const cached = locations?.get(at);
+      if (cached !== undefined) return cached;
+      const display = typeProjectionTimer.measure(
+        "display",
+        () => checker.typeToString(type, at, ts.TypeFormatFlags.NoTruncation)
+      );
+      const target = locations ?? new Map<ts.Node, string>();
+      target.set(at, display);
+      if (!locations) typeDisplayCache.set(type, target);
+      return display;
+    };
+    const displaySignature = (signature: ts.Signature, at: ts.Node): string => {
+      const locations = signatureDisplayCache.get(signature);
+      const cached = locations?.get(at);
+      if (cached !== undefined) return cached;
+      const display = checker.signatureToString(signature, at, ts.TypeFormatFlags.NoTruncation);
+      const target = locations ?? new Map<ts.Node, string>();
+      target.set(at, display);
+      if (!locations) signatureDisplayCache.set(signature, target);
+      return display;
+    };
     const directivesFor = (node: ts.Node | undefined, inline = false): readonly ExpressionDirective[] => {
       if (!node) return Object.freeze([]);
+      const cache = inline ? inlineDirectiveCache : directiveCache;
+      const cached = cache.get(node);
+      if (cached) return cached;
       const directiveSource = node.getSourceFile();
       const fullStart = node.getFullStart();
       const start = node.getStart(directiveSource, false);
@@ -422,7 +639,17 @@ export class ExpressionProject {
         const end = node.type?.getFullStart() ?? node.initializer?.getFullStart() ?? node.end;
         if (end > start) segments.push({ text: directiveSource.text.slice(start, end), start });
       }
-      return Object.freeze(uniqueDirectives(segments.flatMap(segment => parseExpressionDirectives(segment.text, segment.start, directiveSource))));
+      if (detailedProfile) {
+        projectionCounters.directiveScans += segments.length;
+        projectionCounters.directiveCharacters += segments.reduce((count, segment) => count + segment.text.length, 0);
+      }
+      const directives = Object.freeze(uniqueDirectives(segments.flatMap(segment =>
+        segment.text.includes("@exact")
+          ? parseExpressionDirectives(segment.text, segment.start, directiveSource)
+          : []
+      )));
+      cache.set(node, directives);
+      return directives;
     };
     const bindingDirectivesFor = (node: ts.Node | undefined): readonly ExpressionDirective[] => {
       if (!node) return Object.freeze([]);
@@ -462,22 +689,30 @@ export class ExpressionProject {
 
     const typeFor = (type: ts.Type, at: ts.Node): ExpressionType => {
       const cached = typeCache.get(type);
-      if (cached) return cached;
-      const display = checker.typeToString(type, at, ts.TypeFormatFlags.NoTruncation);
+      if (cached) {
+        if (detailedProfile) projectionCounters.typeCacheHits++;
+        return cached;
+      }
+      if (detailedProfile) projectionCounters.typeCacheMisses++;
+      const display = displayType(type, at);
+      const callSignatures = type.getCallSignatures();
       const key = `${filename}:${(type as ts.Type & { id?: number }).id ?? "anonymous"}:${type.flags}:${display}`;
       // Install a cycle breaker before expanding recursive union members.
       const placeholder: ExpressionType = {
         id: `type:${key}`, kind: typeKind(type), display,
-        nullable: false, callable: type.getCallSignatures().length > 0,
+        nullable: false, callable: callSignatures.length > 0,
         properties: Object.freeze([]), propertyTypes: Object.freeze([]), unionMembers: Object.freeze([]),
         callSignatures: Object.freeze([]), typeArguments: Object.freeze([]), typeParameters: Object.freeze([])
       };
       typeCache.set(type, placeholder);
-      const members = type.isUnionOrIntersection() ? type.types.map(member => typeFor(member, at)) : [];
-      const signatures = type.getCallSignatures().map(signature => {
+      const members = typeProjectionTimer.measure(
+        "members",
+        () => type.isUnionOrIntersection() ? type.types.map(member => typeFor(member, at)) : []
+      );
+      const signatures = typeProjectionTimer.measure("signatures", () => callSignatures.map(signature => {
         const declaration = signature.getDeclaration() ?? at;
         return Object.freeze({
-          display: checker.signatureToString(signature, at, ts.TypeFormatFlags.NoTruncation),
+          display: displaySignature(signature, at),
           parameters: Object.freeze(signature.getParameters().map(parameter => {
             const parameterDeclaration = parameter.valueDeclaration ?? parameter.declarations?.[0] ?? declaration;
             return Object.freeze({
@@ -490,38 +725,43 @@ export class ExpressionProject {
             });
           })),
           returnType: typeFor(checker.getReturnTypeOfSignature(signature), declaration),
-          typeParameters: Object.freeze((signature.typeParameters ?? []).map(parameter => checker.typeToString(parameter, declaration))),
+          typeParameters: Object.freeze((signature.typeParameters ?? []).map(parameter => displayType(parameter, declaration))),
           declarationSource: displayFile(declaration.getSourceFile().fileName),
           directives: directivesFor(declaration),
           returnDirectives: directivesFor(signature.getDeclaration()?.type)
         });
-      });
-      const typeArguments = type.flags & ts.TypeFlags.Object && ((type as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference)
-        ? checker.getTypeArguments(type as ts.TypeReference).map(argument => typeFor(argument, at))
-        : [];
-      const typeParameters = ((type as ts.Type & { typeParameters?: readonly ts.Type[] }).typeParameters ?? []).map(parameter => checker.typeToString(parameter, at));
+      }));
+      const [typeArguments, typeParameters] = typeProjectionTimer.measure("arguments", () => [
+        type.flags & ts.TypeFlags.Object && ((type as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference)
+          ? checker.getTypeArguments(type as ts.TypeReference).map(argument => typeFor(argument, at))
+          : [],
+        ((type as ts.Type & { typeParameters?: readonly ts.Type[] }).typeParameters ?? [])
+          .map(parameter => checker.typeToString(parameter, at))
+      ] as const);
       // Optional parameters are commonly represented as `Options | undefined`.
       // Surface the non-nullish object's properties on that union so callers do
       // not need to understand TypeScript's internal union representation.
-      const propertyOwner = type.getNonNullableType();
-      const properties = propertyOwner.getProperties();
-      const propertyTypes = properties.map(property => {
-        const declaration = property.valueDeclaration ?? property.declarations?.[0] ?? at;
-        return Object.freeze({
-          name: property.name,
-          type: shallowTypeFor(checker.getTypeOfSymbolAtLocation(property, declaration), declaration),
-          optional: Boolean(property.flags & ts.SymbolFlags.Optional),
-          readonly: property.declarations?.some(candidate => ts.canHaveModifiers(candidate)
-            && ts.getModifiers(candidate)?.some(modifier => modifier.kind === ts.SyntaxKind.ReadonlyKeyword)) ?? false,
-          directives: Object.freeze(uniqueDirectives((property.declarations ?? []).flatMap(declaration => directivesFor(declaration))))
-        });
+      const [properties, propertyTypes] = typeProjectionTimer.measure("properties", () => {
+        const properties = type.getNonNullableType().getProperties();
+        return [properties, properties.map(property => {
+          const declaration = property.valueDeclaration ?? property.declarations?.[0] ?? at;
+          return Object.freeze({
+            name: property.name,
+            type: shallowTypeFor(checker.getTypeOfSymbolAtLocation(property, declaration), declaration),
+            optional: Boolean(property.flags & ts.SymbolFlags.Optional),
+            readonly: property.declarations?.some(candidate => ts.canHaveModifiers(candidate)
+              && ts.getModifiers(candidate)?.some(modifier => modifier.kind === ts.SyntaxKind.ReadonlyKeyword)) ?? false,
+            directives: Object.freeze(uniqueDirectives((property.declarations ?? []).flatMap(declaration => directivesFor(declaration))))
+          });
+        })] as const;
       });
-      const value = new ProjectType(
+      const typeDirectives = typeProjectionTimer.measure("directives", () => typeDirectivesFor(type));
+      const value = typeProjectionTimer.measure("construction", () => new ProjectType(
         `type:${key}`,
         typeKind(type),
         display,
         Boolean(type.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined | ts.TypeFlags.Any | ts.TypeFlags.Unknown)) || members.some(member => member.nullable),
-        type.getCallSignatures().length > 0,
+        callSignatures.length > 0,
         Object.freeze(properties.map(property => property.name)),
         Object.freeze(propertyTypes),
         Object.freeze(members),
@@ -529,91 +769,111 @@ export class ExpressionProject {
         Object.freeze(typeArguments),
         Object.freeze(typeParameters),
         checker.isTupleType(type) ? "tuple" : checker.isArrayType(type) ? "array" : isReadonlyArrayType(checker, type) ? "readonly-array" : undefined,
-        typeDirectivesFor(type)
-      );
+        typeDirectives
+      ));
       // Recursive members already reference the placeholder. Populate that
       // same identity rather than replacing it with a second object whose
       // recursive edges would remain permanently empty.
-      Object.assign(placeholder, value);
-      Object.freeze(placeholder);
-      this.typeHandles.set(placeholder, type);
+      typeProjectionTimer.measure("construction", () => {
+        Object.assign(placeholder, value);
+        Object.freeze(placeholder);
+        this.typeHandles.set(placeholder, type);
+      });
       return placeholder;
     };
 
-    const shallowTypeFor = (type: ts.Type, at: ts.Node): ExpressionType => {
-      const summary = (value: ts.Type, location: ts.Node): ExpressionType => {
-        const display = checker.typeToString(value, location, ts.TypeFormatFlags.NoTruncation);
-        return Object.freeze({
+    const summary = (value: ts.Type, location: ts.Node): ExpressionType => {
+      const locations = typeSummaryCache.get(value);
+      const cached = locations?.get(location);
+      if (cached) return cached;
+      const display = displayType(value, location);
+      const callSignatures = value.getCallSignatures();
+      const properties = value.getProperties();
+      const result = typeProjectionTimer.measure("construction", () => Object.freeze({
         id: `type-summary:${value.flags}:${display}`,
         kind: typeKind(value),
         display,
         nullable: Boolean(value.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined | ts.TypeFlags.Any | ts.TypeFlags.Unknown)),
-        callable: value.getCallSignatures().length > 0,
-        properties: Object.freeze(value.getProperties().map(property => property.name)),
+        callable: callSignatures.length > 0,
+        properties: Object.freeze(properties.map(property => property.name)),
         propertyTypes: Object.freeze([]), unionMembers: Object.freeze([]), callSignatures: Object.freeze([]),
         typeArguments: Object.freeze([]), typeParameters: Object.freeze([])
-        });
-      };
-      const display = checker.typeToString(type, at, ts.TypeFormatFlags.NoTruncation);
+      }));
+      const target = locations ?? new Map<ts.Node, ExpressionType>();
+      target.set(location, result);
+      if (!locations) typeSummaryCache.set(value, target);
+      return result;
+    };
+
+    const shallowTypeFor = (type: ts.Type, at: ts.Node): ExpressionType => {
+      const locations = shallowTypeLocationCache.get(type);
+      const locationCached = locations?.get(at);
+      if (locationCached) {
+        if (detailedProfile) projectionCounters.shallowTypeCacheHits++;
+        return locationCached;
+      }
+      const display = displayType(type, at);
       const variants = shallowTypeCache.get(type);
       const cached = variants?.get(display);
-      if (cached) return cached;
-      const members = type.isUnionOrIntersection()
-        ? type.types.map(member => Object.freeze({
-          id: `type-summary:${member.flags}:${checker.typeToString(member, at, ts.TypeFormatFlags.NoTruncation)}`,
-          kind: typeKind(member),
-          display: checker.typeToString(member, at, ts.TypeFormatFlags.NoTruncation),
-          nullable: Boolean(member.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined | ts.TypeFlags.Any | ts.TypeFlags.Unknown)),
-          callable: member.getCallSignatures().length > 0,
-          properties: Object.freeze(member.getProperties().map(property => property.name)),
-          propertyTypes: Object.freeze([]),
-          unionMembers: Object.freeze([]),
-          callSignatures: Object.freeze([]),
-          typeArguments: Object.freeze([]),
-          typeParameters: Object.freeze([])
-        } satisfies ExpressionType))
-        : [];
-      const value = Object.freeze({
+      if (cached) {
+        if (detailedProfile) projectionCounters.shallowTypeCacheHits++;
+        const target = locations ?? new Map<ts.Node, ExpressionType>();
+        target.set(at, cached);
+        if (!locations) shallowTypeLocationCache.set(type, target);
+        return cached;
+      }
+      if (detailedProfile) projectionCounters.shallowTypeCacheMisses++;
+      const callSignatures = type.getCallSignatures();
+      const properties = type.getProperties();
+      const members = typeProjectionTimer.measure("members", () => type.isUnionOrIntersection()
+        ? type.types.map(member => summary(member, at))
+        : []);
+      const signatures = typeProjectionTimer.measure("signatures", () => callSignatures.map(signature => {
+        const declaration = signature.getDeclaration() ?? at;
+        return Object.freeze({
+          display: displaySignature(signature, at),
+          parameters: Object.freeze(signature.getParameters().map(parameter => {
+            const parameterDeclaration = parameter.valueDeclaration ?? parameter.declarations?.[0] ?? declaration;
+            return Object.freeze({
+              name: parameter.name,
+              type: summary(checker.getTypeOfSymbolAtLocation(parameter, parameterDeclaration), parameterDeclaration),
+              optional: Boolean(parameter.flags & ts.SymbolFlags.Optional),
+              rest: ts.isParameter(parameterDeclaration) && !!parameterDeclaration.dotDotDotToken,
+              directives: directivesFor(parameterDeclaration)
+            });
+          })),
+          returnType: summary(checker.getReturnTypeOfSignature(signature), declaration),
+          typeParameters: Object.freeze((signature.typeParameters ?? []).map(parameter => displayType(parameter, declaration))),
+          declarationSource: displayFile(declaration.getSourceFile().fileName),
+          directives: directivesFor(declaration),
+          returnDirectives: directivesFor(signature.getDeclaration()?.type)
+        });
+      }));
+      const value = typeProjectionTimer.measure("construction", () => Object.freeze({
         id: `type-summary:${type.flags}:${display}`,
         kind: typeKind(type),
         display,
         nullable: Boolean(type.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined | ts.TypeFlags.Any | ts.TypeFlags.Unknown)) || members.some(member => member.nullable),
-        callable: type.getCallSignatures().length > 0,
-        properties: Object.freeze(type.getProperties().map(property => property.name)),
+        callable: callSignatures.length > 0,
+        properties: Object.freeze(properties.map(property => property.name)),
         propertyTypes: Object.freeze([]),
         unionMembers: Object.freeze(members),
-        callSignatures: Object.freeze(type.getCallSignatures().map(signature => {
-          const declaration = signature.getDeclaration() ?? at;
-          return Object.freeze({
-            display: checker.signatureToString(signature, at, ts.TypeFormatFlags.NoTruncation),
-            parameters: Object.freeze(signature.getParameters().map(parameter => {
-              const parameterDeclaration = parameter.valueDeclaration ?? parameter.declarations?.[0] ?? declaration;
-              return Object.freeze({
-                name: parameter.name,
-                type: summary(checker.getTypeOfSymbolAtLocation(parameter, parameterDeclaration), parameterDeclaration),
-                optional: Boolean(parameter.flags & ts.SymbolFlags.Optional),
-                rest: ts.isParameter(parameterDeclaration) && !!parameterDeclaration.dotDotDotToken,
-                directives: directivesFor(parameterDeclaration)
-              });
-            })),
-            returnType: summary(checker.getReturnTypeOfSignature(signature), declaration),
-            typeParameters: Object.freeze((signature.typeParameters ?? []).map(parameter => checker.typeToString(parameter, declaration))),
-            declarationSource: displayFile(declaration.getSourceFile().fileName),
-            directives: directivesFor(declaration),
-            returnDirectives: directivesFor(signature.getDeclaration()?.type)
-          });
-        })),
+        callSignatures: Object.freeze(signatures),
         typeArguments: Object.freeze([]),
         typeParameters: Object.freeze([])
-      });
+      }));
       const target = variants ?? new Map<string, ExpressionType>();
       target.set(display, value);
       if (!variants) shallowTypeCache.set(type, target);
+      const locationTarget = locations ?? new Map<ts.Node, ExpressionType>();
+      locationTarget.set(at, value);
+      if (!locations) shallowTypeLocationCache.set(type, locationTarget);
       return value;
     };
 
     const variableFor = (identifier: ts.Identifier): Variable | undefined => {
       if (identifier.text === "this" && ts.isParameter(identifier.parent)) return variableForThis(identifier);
+      if (detailedProfile) projectionCounters.checkerSymbolQueries++;
       const locatedSymbol = ts.isShorthandPropertyAssignment(identifier.parent) && identifier.parent.name === identifier
         ? checker.getShorthandAssignmentValueSymbol(identifier.parent) ?? checker.getSymbolAtLocation(identifier)
         : checker.getSymbolAtLocation(identifier);
@@ -636,7 +896,10 @@ export class ExpressionProject {
       usedIdentityKeys.add(key);
       const scope = scopeFor(declaration);
       let variableType: ExpressionType | undefined;
-      try { variableType = typeFor(checker.getTypeOfSymbolAtLocation(symbol, identifier), identifier); } catch { /* TypeScript can reject incomplete error symbols. */ }
+      try {
+        if (detailedProfile) projectionCounters.checkerTypeQueries++;
+        variableType = typeFor(checker.getTypeOfSymbolAtLocation(symbol, identifier), identifier);
+      } catch { /* TypeScript can reject incomplete error symbols. */ }
       const variable = new ProjectVariable(symbolIdentity(key, localName), localName, ts.SyntaxKind[declaration.kind], scope, isMutableBinding(declaration));
       symbolVariables.set(symbol, variable);
       variable.type = variableType;
@@ -679,7 +942,10 @@ export class ExpressionProject {
         !!declaration,
         !declaration
       );
-      try { variable.type = typeFor(checker.getTypeAtLocation(node), node); } catch { /* Invalid implicit this types remain unresolved. */ }
+      try {
+        if (detailedProfile) projectionCounters.checkerTypeQueries++;
+        variable.type = typeFor(checker.getTypeAtLocation(node), node);
+      } catch { /* Invalid implicit this types remain unresolved. */ }
       variable.typeOnly = false;
       scope.add(variable);
       Object.freeze(variable);
@@ -688,9 +954,12 @@ export class ExpressionProject {
     };
 
     let nodeSequence = 0;
+    let convertedNodeCount = 0;
+    const identityStarted = detailedProfile ? performance.now() : undefined;
     const priorRoot = this.nodeIdentityRoots.get(filename);
     const retainedNodeIds = priorRoot ? alignNodeIdentities(sourceFile, priorRoot) : new Map<ts.Node, string>();
     const allocatedNodeIds = new Set<string>(priorRoot ? [...walkExpressionNodes(priorRoot)].map(node => node.id) : []);
+    const identityElapsed = identityStarted === undefined ? undefined : performance.now() - identityStarted;
     const nodeId = (node: ts.Node, start: number, kind: string): string => {
       const retained = retainedNodeIds.get(node);
       if (retained) return retained;
@@ -707,23 +976,47 @@ export class ExpressionProject {
       return candidate;
     };
     const convert = (node: ts.Node): ExpressionNode => {
+      convertedNodeCount++;
       const children: ExpressionNode[] = [];
       ts.forEachChild(node, child => {
         children.push(convert(child));
       });
-      const start = ts.isSourceFile(node) ? 0 : node.getStart(sourceFile, false);
-      const line = sourceFile.getLineAndCharacterOfPosition(start);
-      const span: SourceSpan = Object.freeze({ start, end: node.end, line: line.line + 1, column: line.character + 1 });
-      let semanticType: ExpressionType | undefined;
-      if (ts.isExpression(node)) {
-        try { semanticType = typeFor(checker.getTypeAtLocation(node), node); } catch { /* Invalid code is represented alongside diagnostics. */ }
-      }
-      const variable = ts.isIdentifier(node) ? variableFor(node) : node.kind === ts.SyntaxKind.ThisKeyword ? variableForThis(node) : undefined;
-      const common: ExpressionNode = {
-        id: nodeId(node, start, syntaxKindName(node)),
-        kind: syntaxKindName(node),
+      const metadata = measureProjection("metadata", () => {
+        const start = ts.isSourceFile(node) ? 0 : node.getStart(sourceFile, false);
+        const line = sourceFile.getLineAndCharacterOfPosition(start);
+        return {
+          start,
+          kind: syntaxKindName(node),
+          span: Object.freeze({
+            start,
+            end: node.end,
+            line: line.line + 1,
+            column: line.character + 1
+          } satisfies SourceSpan)
+        };
+      });
+      const semanticType = measureProjection("types", () => {
+        if (!ts.isExpression(node)) return undefined;
+        try {
+          if (detailedProfile) projectionCounters.checkerTypeQueries++;
+          return typeFor(checker.getTypeAtLocation(node), node);
+        } catch {
+          // Invalid code is represented alongside diagnostics.
+          return undefined;
+        }
+      });
+      const variable = measureProjection("bindings", () =>
+        ts.isIdentifier(node)
+          ? variableFor(node)
+          : node.kind === ts.SyntaxKind.ThisKeyword
+            ? variableForThis(node)
+            : undefined
+      );
+      const common = measureProjection("common", (): ExpressionNode => ({
+        id: nodeId(node, metadata.start, metadata.kind),
+        kind: metadata.kind,
         category: category(node),
-        span,
+        span: metadata.span,
         children: Object.freeze(children),
         synthetic: false,
         scope: scopeFor(node),
@@ -732,65 +1025,83 @@ export class ExpressionProject {
         name: nodeName(node),
         operator: nodeOperator(node),
         directives: bindingDirectivesFor(node)
-      };
-      if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
-        const target = children[0]!;
-        const argumentOffset = 1 + (node.typeArguments?.length ?? 0);
-        let resolvedSignature: ExpressionCallSignature | undefined;
-        if (ts.isCallExpression(node)) {
-          const signature = checker.getResolvedSignature(node);
-          if (signature) resolvedSignature = signatureFor(signature, node, checker, typeFor, directivesFor);
+      }));
+      return measureProjection("specialization", () => {
+        if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
+          const target = children[0]!;
+          const argumentOffset = 1 + (node.typeArguments?.length ?? 0);
+          let resolvedSignature: ExpressionCallSignature | undefined;
+          if (ts.isCallExpression(node)) {
+            if (detailedProfile) projectionCounters.resolvedSignatureQueries++;
+            const signature = checker.getResolvedSignature(node);
+            if (signature) {
+              resolvedSignature = signatureFor(
+                signature,
+                node,
+                checker,
+                typeFor,
+                directivesFor,
+                displayType,
+                displaySignature
+              );
+            }
+          }
+          return freezeSourceNode({
+            ...common,
+            target,
+            arguments: Object.freeze(children.slice(argumentOffset)),
+            ...(resolvedSignature ? { resolvedSignature } : {})
+          }, sourceFile.text);
         }
-        return freezeSourceNode({
-          ...common,
-          target,
-          arguments: Object.freeze(children.slice(argumentOffset)),
-          ...(resolvedSignature ? { resolvedSignature } : {})
-        }, sourceFile.text);
-      }
-      if (ts.isFunctionLike(node)) {
-        const parameters = node.parameters.flatMap(parameter => parameter.name.getText(sourceFile) === "this"
-          ? [variableForThis(parameter.name)]
-          : collectBindingIdentifiers(parameter.name).map(variableFor).filter((value): value is Variable => !!value));
-        return freezeSourceNode({
-          ...common,
-          parameters: Object.freeze(parameters),
-          captures: Object.freeze(functionCaptures(children, common.scope))
-        }, sourceFile.text);
-      }
-      if (ts.isJsxElement(node)) {
-        const opening = children[0]!;
-        const attributes = opening.children.find(child => child.kind === "JsxAttributes")?.children ?? [];
-        return freezeSourceNode({
-          ...common,
-          tagName: node.openingElement.tagName.getText(sourceFile),
-          attributes: Object.freeze(attributes),
-          jsxChildren: Object.freeze(children.slice(1, -1))
-        }, sourceFile.text);
-      }
-      if (ts.isJsxSelfClosingElement(node)) {
-        const attributes = children.find(child => child.kind === "JsxAttributes")?.children ?? [];
-        return freezeSourceNode({
-          ...common,
-          tagName: node.tagName.getText(sourceFile),
-          attributes: Object.freeze(attributes),
-          jsxChildren: Object.freeze([])
-        }, sourceFile.text);
-      }
-      if (ts.isJsxFragment(node)) {
-        return freezeSourceNode({ ...common, attributes: Object.freeze([]), jsxChildren: Object.freeze(children.slice(1, -1)) }, sourceFile.text);
-      }
-      if (ts.isJsxAttribute(node) || ts.isJsxSpreadAttribute(node)) {
-        return freezeSourceNode({
-          ...common,
-          name: ts.isJsxAttribute(node) ? node.name.getText(sourceFile) : undefined,
-          initializer: children.at(-1)
-        }, sourceFile.text);
-      }
-      return freezeSourceNode(common, sourceFile.text);
+        if (ts.isFunctionLike(node)) {
+          const parameters = node.parameters.flatMap(parameter => parameter.name.getText(sourceFile) === "this"
+            ? [variableForThis(parameter.name)]
+            : collectBindingIdentifiers(parameter.name).map(variableFor).filter((value): value is Variable => !!value));
+          return freezeSourceNode({
+            ...common,
+            parameters: Object.freeze(parameters),
+            captures: Object.freeze(functionCaptures(children, common.scope))
+          }, sourceFile.text);
+        }
+        if (ts.isJsxElement(node)) {
+          const opening = children[0]!;
+          const attributes = opening.children.find(child => child.kind === "JsxAttributes")?.children ?? [];
+          return freezeSourceNode({
+            ...common,
+            tagName: node.openingElement.tagName.getText(sourceFile),
+            attributes: Object.freeze(attributes),
+            jsxChildren: Object.freeze(children.slice(1, -1))
+          }, sourceFile.text);
+        }
+        if (ts.isJsxSelfClosingElement(node)) {
+          const attributes = children.find(child => child.kind === "JsxAttributes")?.children ?? [];
+          return freezeSourceNode({
+            ...common,
+            tagName: node.tagName.getText(sourceFile),
+            attributes: Object.freeze(attributes),
+            jsxChildren: Object.freeze([])
+          }, sourceFile.text);
+        }
+        if (ts.isJsxFragment(node)) {
+          return freezeSourceNode({ ...common, attributes: Object.freeze([]), jsxChildren: Object.freeze(children.slice(1, -1)) }, sourceFile.text);
+        }
+        if (ts.isJsxAttribute(node) || ts.isJsxSpreadAttribute(node)) {
+          return freezeSourceNode({
+            ...common,
+            name: ts.isJsxAttribute(node) ? node.name.getText(sourceFile) : undefined,
+            initializer: children.at(-1)
+          }, sourceFile.text);
+        }
+        return freezeSourceNode(common, sourceFile.text);
+      });
     };
 
+    const nodeConversionStarted = detailedProfile ? performance.now() : undefined;
     const root = convert(sourceFile);
+    const nodeConversionElapsed = nodeConversionStarted === undefined
+      ? undefined
+      : performance.now() - nodeConversionStarted;
+    const finalizationStarted = detailedProfile ? performance.now() : undefined;
     this.nodeIdentityRoots.set(filename, root);
     for (const scope of scopes.values()) scope.seal();
     const module = createModule({
@@ -810,7 +1121,90 @@ export class ExpressionProject {
     }
     this.identityKeysByFile.set(filename, ownUsedIdentityKeys);
     this.boundModules.set(filename, { program, module });
+    const finalizationElapsed = finalizationStarted === undefined
+      ? undefined
+      : performance.now() - finalizationStarted;
+    if (detailedProfile && identityElapsed !== undefined && nodeConversionElapsed !== undefined && finalizationElapsed !== undefined) {
+      const detail = { subsystem: "expressions" as const, filename };
+      this.recordProfile({ ...detail, phase: "projection-identity", elapsedMs: identityElapsed });
+      this.recordProfile({ ...detail, phase: "projection-node-conversion", elapsedMs: nodeConversionElapsed, nodeCount: convertedNodeCount });
+      this.recordProfile({ ...detail, phase: "projection-node-metadata", elapsedMs: projectionBuckets.metadata });
+      this.recordProfile({
+        ...detail,
+        phase: "projection-node-types",
+        elapsedMs: projectionBuckets.types,
+        typeCacheHits: projectionCounters.typeCacheHits,
+        typeCacheMisses: projectionCounters.typeCacheMisses,
+        shallowTypeCacheHits: projectionCounters.shallowTypeCacheHits,
+        shallowTypeCacheMisses: projectionCounters.shallowTypeCacheMisses,
+        checkerTypeQueries: projectionCounters.checkerTypeQueries
+      });
+      this.recordProfile({
+        ...detail,
+        phase: "projection-node-bindings",
+        elapsedMs: projectionBuckets.bindings,
+        checkerSymbolQueries: projectionCounters.checkerSymbolQueries,
+        symbolCount: symbolVariables.size
+      });
+      this.recordProfile({
+        ...detail,
+        phase: "projection-node-common",
+        elapsedMs: projectionBuckets.common,
+        directiveScans: projectionCounters.directiveScans,
+        directiveCharacters: projectionCounters.directiveCharacters,
+        scopeCount: scopes.size
+      });
+      this.recordProfile({
+        ...detail,
+        phase: "projection-node-specialization",
+        elapsedMs: projectionBuckets.specialization,
+        resolvedSignatureQueries: projectionCounters.resolvedSignatureQueries
+      });
+      const measuredNodeWork = Object.values(projectionBuckets).reduce((total, elapsed) => total + elapsed, 0);
+      this.recordProfile({
+        ...detail,
+        phase: "projection-node-overhead",
+        elapsedMs: Math.max(0, nodeConversionElapsed - measuredNodeWork)
+      });
+      this.recordProfile({ ...detail, phase: "projection-finalization", elapsedMs: finalizationElapsed });
+      const typePhases = {
+        "projection-type-display": "display",
+        "projection-type-members": "members",
+        "projection-type-signatures": "signatures",
+        "projection-type-properties": "properties",
+        "projection-type-arguments": "arguments",
+        "projection-type-directives": "directives",
+        "projection-type-construction": "construction"
+      } as const;
+      for (const [phase, bucket] of Object.entries(typePhases) as Array<
+        [keyof typeof typePhases, TypeProjectionBucket]
+      >) {
+        this.recordProfile({
+          ...detail,
+          phase,
+          elapsedMs: typeProjectionTimer.elapsed(bucket)
+        });
+      }
+    }
+    if (projectionStarted !== undefined) {
+      this.recordProfile({
+        subsystem: "expressions",
+        phase: "module-projection",
+        elapsedMs: performance.now() - projectionStarted,
+        filename,
+        nodeCount: convertedNodeCount,
+        typeCount: typeCache.size,
+        shallowTypeCount: [...shallowTypeCache.values()].reduce((count, variants) => count + variants.size, 0),
+        symbolCount: symbolVariables.size,
+        scopeCount: scopes.size
+      });
+    }
     return module;
+  }
+
+  /** Emits one immutable profiling observation when instrumentation is enabled. */
+  private recordProfile(event: ExpressionProjectProfileEvent): void {
+    this.onProfile?.(Object.freeze(event));
   }
 
   private fileVersion(filename: string): string {
@@ -1145,11 +1539,13 @@ function signatureFor(
   at: ts.Node,
   checker: ts.TypeChecker,
   typeFor: (type: ts.Type, at: ts.Node) => ExpressionType,
-  directivesFor: (node: ts.Node | undefined, inline?: boolean) => readonly ExpressionDirective[]
+  directivesFor: (node: ts.Node | undefined, inline?: boolean) => readonly ExpressionDirective[],
+  displayType: (type: ts.Type, at: ts.Node) => string,
+  displaySignature: (signature: ts.Signature, at: ts.Node) => string
 ): ExpressionCallSignature {
   const declaration = signature.getDeclaration() ?? at;
   return Object.freeze({
-    display: checker.signatureToString(signature, at, ts.TypeFormatFlags.NoTruncation),
+    display: displaySignature(signature, at),
     parameters: Object.freeze(signature.getParameters().map((parameter, index) => {
       const parameterDeclaration = parameter.valueDeclaration ?? parameter.declarations?.[0] ?? declaration;
       const contextual = ts.isCallExpression(at) && at.arguments[index]
@@ -1165,7 +1561,7 @@ function signatureFor(
       });
     })),
     returnType: typeFor(checker.getReturnTypeOfSignature(signature), declaration),
-    typeParameters: Object.freeze((signature.typeParameters ?? []).map(parameter => checker.typeToString(parameter, declaration))),
+    typeParameters: Object.freeze((signature.typeParameters ?? []).map(parameter => displayType(parameter, declaration))),
     declarationSource: displayFile(declaration.getSourceFile().fileName),
     directives: directivesFor(declaration),
     returnDirectives: directivesFor(signature.getDeclaration()?.type)

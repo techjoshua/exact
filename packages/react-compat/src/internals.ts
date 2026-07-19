@@ -1,5 +1,7 @@
 import { ErrorContext, Fragment as ExactFragment, SuspensionContext, createContext as createExactContext, createErrorContext, createErrorReport, createPortal, createVNode, handleComponentError, isVNode, trackComponentAsync, type Child, type Component, type ComponentFunction, type ComponentInstance, type ContextToken, type ErrorReport, type RefBinding, type VNode } from "@exact/core";
 import { reactive, unwrap, type Reactive } from "@exact/reactive";
+import type { ExactProfileEvent, ExactProfileSink } from "@exact/instrumentation";
+import { assertHookKind, cloneDependencies, cloneHookSlot, haveSameDependencies, runEffectCleanup, type ContextCell, type EffectEventSlot, type EffectKind, type HookSlot } from "./runtime/hook-slots.js";
 import type { DependencyList, ExternalStoreSubscribe, ReactClassInstance, ReactClassType, ReactComponentType, ReactContext, ReactElement, ReactNode, ReactRef, ReactSpecialType } from "./types.js";
 
 export const REACT_ELEMENT_18 = Symbol.for("react.element");
@@ -22,6 +24,22 @@ export const EXACT_COMPONENT_TYPE = Symbol.for("exact.react.native-component");
 const REACT_REF_PROP = "__exactReactCompatibilityRef";
 
 let target: 18 | 19 = 19;
+
+export type ReactCompatibilityProfileEvent = ExactProfileEvent<"react-compat", "render" | "commit">;
+const profileStack: ExactProfileSink<ReactCompatibilityProfileEvent>[] = [];
+
+/** Runs React compatibility component creation with an explicitly scoped profiler. */
+export function withReactProfile<T>(
+  sink: ExactProfileSink<ReactCompatibilityProfileEvent>,
+  run: () => T
+): T {
+  profileStack.push(sink);
+  try {
+    return run();
+  } finally {
+    profileStack.pop();
+  }
+}
 
 export function setReactCompatibilityTarget(next: 18 | 19): void { target = next; }
 export function reactCompatibilityTarget(): 18 | 19 { return target; }
@@ -58,37 +76,6 @@ function createReactContextObject<T>(defaultValue: T, token: ContextToken<unknow
   context.Consumer = { $$typeof: REACT_CONSUMER_TYPE, _context: context };
   return context as unknown as ReactContext<T>;
 }
-
-type HookSlot = StateSlot | ReducerSlot | RefSlot | MemoSlot | DebugSlot | ContextSlot | EffectSlot | IdSlot | ExternalStoreSlot | EffectEventSlot | DeferredSlot | OptimisticSlot | MemoCacheSlot;
-type StateSlot = { kind: "state"; value: unknown; dispatch: (value: unknown) => void };
-type ReducerSlot = { kind: "reducer"; value: unknown; reducer: (state: unknown, action: unknown) => unknown; dispatch: (action: unknown) => void };
-type RefSlot = { kind: "ref"; value: { current: unknown } };
-type MemoSlot = { kind: "memo"; value: unknown; deps: DependencyList | undefined };
-type DebugSlot = { kind: "debug"; value: unknown };
-type ContextSlot = { kind: "context"; context: ReactContext<unknown>; value: unknown };
-type EffectKind = "insertion" | "layout" | "passive";
-type EffectSlot = {
-  kind: "effect";
-  effectKind: EffectKind;
-  create: () => void | (() => void);
-  deps: DependencyList | undefined;
-  cleanup?: () => void;
-  pending: boolean;
-};
-type IdSlot = { kind: "id"; value: string };
-type ExternalStoreSlot = {
-  kind: "external-store";
-  subscribe: ExternalStoreSubscribe;
-  getSnapshot: () => unknown;
-  value: unknown;
-  unsubscribe?: () => void;
-  pendingSubscription: boolean;
-};
-type EffectEventSlot = { kind: "effect-event"; implementation: (...args: any[]) => unknown; callback: (...args: any[]) => unknown };
-type DeferredSlot = { kind: "deferred"; value: unknown; input: unknown; scheduled: boolean };
-type OptimisticSlot = { kind: "optimistic"; base: unknown; value: unknown; reducer?: (state: unknown, action: unknown) => unknown; dispatch: (action: unknown) => void };
-type MemoCacheSlot = { kind: "memo-cache"; value: unknown[] };
-type ContextCell = { current: unknown };
 
 export type ReactDispatcher = {
   useState(initial: unknown): readonly [unknown, (value: unknown) => void];
@@ -249,6 +236,7 @@ export class HookHost {
   private readonly id: number;
   private readonly identifierPrefix: string;
   private readonly providedContexts = new Map<ReactContext<unknown>, Reactive<ContextCell>>();
+  private readonly onProfile = profileStack.at(-1);
 
   constructor(private readonly component: Component<Record<string, unknown>>) {
     const runtime = readReactRootRuntime(component);
@@ -261,11 +249,12 @@ export class HookHost {
   }
 
   render(run: () => ReactNode): ReactNode {
+    const profileStarted = this.onProfile ? performance.now() : undefined;
     if (this.disposed) throw new Error("Cannot render an unmounted React compatibility component");
     if (this.rendering) throw new Error("React compatibility component rendered recursively");
     this.rendering = true;
     this.cursor = 0;
-    this.working = this.committed.map(cloneSlot);
+    this.working = this.committed.map(cloneHookSlot);
     this.syncOwnerHooks();
     const previous = currentHost;
     const previousRuntime = currentRootRuntime;
@@ -293,6 +282,14 @@ export class HookHost {
       currentRootRuntime = previousRuntime;
       this.working = undefined;
       this.rendering = false;
+      if (profileStarted !== undefined) {
+        this.onProfile?.(Object.freeze({
+          subsystem: "react-compat",
+          phase: "render",
+          elapsedMs: performance.now() - profileStarted,
+          counts: Object.freeze({ hooks: this.cursor })
+        }));
+      }
     }
   }
 
@@ -304,7 +301,7 @@ export class HookHost {
     let firstError: unknown;
     for (const slot of this.committed) {
       try {
-        if (slot.kind === "effect") runCleanup(slot);
+        if (slot.kind === "effect") runEffectCleanup(slot);
         else if (slot.kind === "external-store") slot.unsubscribe?.();
       } catch (error) {
         firstError ??= error;
@@ -344,7 +341,7 @@ export class HookHost {
       slot = { kind: "state", value, dispatch };
       this.setSlot(index, slot);
     }
-    assertKind(slot, "state", index);
+    assertHookKind(slot, "state", index);
     return [slot.value, slot.dispatch];
   }
 
@@ -356,7 +353,7 @@ export class HookHost {
       slot = { kind: "reducer", value: initializer ? initializer(initialArg) : initialArg, reducer, dispatch };
       this.setSlot(index, slot);
     }
-    assertKind(slot, "reducer", index);
+    assertHookKind(slot, "reducer", index);
     slot.reducer = reducer;
     return [slot.value, slot.dispatch];
   }
@@ -368,7 +365,7 @@ export class HookHost {
       slot = { kind: "ref", value: { current: initial } };
       this.setSlot(index, slot);
     }
-    assertKind(slot, "ref", index);
+    assertHookKind(slot, "ref", index);
     return slot.value;
   }
 
@@ -380,8 +377,8 @@ export class HookHost {
       this.setSlot(index, slot);
       return slot.value;
     }
-    assertKind(slot, "memo", index);
-    if (deps === undefined || slot.deps === undefined || !sameDependencies(slot.deps, deps)) {
+    assertHookKind(slot, "memo", index);
+    if (deps === undefined || slot.deps === undefined || !haveSameDependencies(slot.deps, deps)) {
       slot.value = factory();
       slot.deps = deps;
     }
@@ -395,7 +392,7 @@ export class HookHost {
       slot = { kind: "debug", value };
       this.setSlot(index, slot);
     }
-    assertKind(slot, "debug", index);
+    assertHookKind(slot, "debug", index);
     slot.value = value;
   }
 
@@ -407,7 +404,7 @@ export class HookHost {
       slot = { kind: "context", context: context as ReactContext<unknown>, value };
       this.setSlot(index, slot);
     }
-    assertKind(slot, "context", index);
+    assertHookKind(slot, "context", index);
     if (slot.context !== context) throw new Error(`Hook order changed at slot ${index}: useContext received a different context`);
     slot.value = value;
     return value as T;
@@ -436,9 +433,9 @@ export class HookHost {
       this.setSlot(index, slot);
       return;
     }
-    assertKind(slot, "effect", index);
+    assertHookKind(slot, "effect", index);
     if (slot.effectKind !== effectKind) throw new Error(`Hook order changed at slot ${index}: expected ${slot.effectKind} effect, received ${effectKind}`);
-    if (deps === undefined || slot.deps === undefined || !sameDependencies(slot.deps, deps)) {
+    if (deps === undefined || slot.deps === undefined || !haveSameDependencies(slot.deps, deps)) {
       slot.create = create;
       slot.deps = cloneDependencies(deps);
       slot.pending = true;
@@ -452,7 +449,7 @@ export class HookHost {
       slot = { kind: "id", value: `:${this.identifierPrefix}exact-r${this.id}-${index}:` };
       this.setSlot(index, slot);
     }
-    assertKind(slot, "id", index);
+    assertHookKind(slot, "id", index);
     return slot.value;
   }
 
@@ -465,7 +462,7 @@ export class HookHost {
       this.setSlot(index, slot);
       return value;
     }
-    assertKind(slot, "external-store", index);
+    assertHookKind(slot, "external-store", index);
     if (slot.subscribe !== subscribe || slot.getSnapshot !== getSnapshot) {
       slot.subscribe = subscribe;
       slot.getSnapshot = getSnapshot;
@@ -487,7 +484,7 @@ export class HookHost {
       slot = state;
       this.setSlot(index, slot);
     }
-    assertKind(slot, "effect-event", index);
+    assertHookKind(slot, "effect-event", index);
     slot.implementation = implementation;
     return slot.callback as T;
   }
@@ -499,7 +496,7 @@ export class HookHost {
       slot = { kind: "deferred", value: hasInitialValue ? initialValue : value, input: value, scheduled: false };
       this.setSlot(index, slot);
     }
-    assertKind(slot, "deferred", index);
+    assertHookKind(slot, "deferred", index);
     slot.input = value;
     if (!Object.is(slot.value, value) && !slot.scheduled) {
       slot.scheduled = true;
@@ -523,7 +520,7 @@ export class HookHost {
       slot = { kind: "optimistic", base, value: base, reducer, dispatch };
       this.setSlot(index, slot);
     }
-    assertKind(slot, "optimistic", index);
+    assertHookKind(slot, "optimistic", index);
     if (!Object.is(slot.base, base)) {
       slot.base = base;
       slot.value = base;
@@ -539,7 +536,7 @@ export class HookHost {
       slot = { kind: "memo-cache", value: Array(size).fill(Symbol.for("react.memo_cache_sentinel")) };
       this.setSlot(index, slot);
     }
-    assertKind(slot, "memo-cache", index);
+    assertHookKind(slot, "memo-cache", index);
     if (slot.value.length !== size) throw new Error(`React compiler memo cache changed size at slot ${index}`);
     return slot.value;
   }
@@ -549,17 +546,29 @@ export class HookHost {
   }
 
   private commit(): void {
-    this.commitEffects("insertion");
-    this.commitExternalStores();
-    this.commitEffects("layout");
-    if (this.committed.some(slot => slot.kind === "effect" && slot.effectKind === "passive" && slot.pending)) this.schedulePassiveEffects();
+    const profileStarted = this.onProfile ? performance.now() : undefined;
+    try {
+      this.commitEffects("insertion");
+      this.commitExternalStores();
+      this.commitEffects("layout");
+      if (this.committed.some(slot => slot.kind === "effect" && slot.effectKind === "passive" && slot.pending)) this.schedulePassiveEffects();
+    } finally {
+      if (profileStarted !== undefined) {
+        this.onProfile?.(Object.freeze({
+          subsystem: "react-compat",
+          phase: "commit",
+          elapsedMs: performance.now() - profileStarted,
+          counts: Object.freeze({ hooks: this.committed.length })
+        }));
+      }
+    }
   }
 
   private commitEffects(kind: EffectKind): void {
     for (const slot of this.committed) {
       if (slot.kind !== "effect" || slot.effectKind !== kind || !slot.pending) continue;
       slot.pending = false;
-      runCleanup(slot);
+      runEffectCleanup(slot);
       const cleanup = slot.create();
       if (cleanup !== undefined && typeof cleanup !== "function") throw new TypeError(`${kind} effect must return a cleanup function or undefined`);
       slot.cleanup = typeof cleanup === "function" ? cleanup : undefined;
@@ -617,7 +626,7 @@ export class HookHost {
     if (this.disposed) return;
     if (this.rendering) throw new Error("Updating React state during render is not supported in compatibility Phase 1");
     const slot = this.committed[index];
-    assertKind(slot, "state", index);
+    assertHookKind(slot, "state", index);
     const next = typeof action === "function" ? (action as (value: unknown) => unknown)(slot.value) : action;
     if (Object.is(next, slot.value)) return;
     slot.value = next;
@@ -628,7 +637,7 @@ export class HookHost {
     if (this.disposed) return;
     if (this.rendering) throw new Error("Dispatching React state during render is not supported in compatibility Phase 1");
     const slot = this.committed[index];
-    assertKind(slot, "reducer", index);
+    assertHookKind(slot, "reducer", index);
     const next = slot.reducer(slot.value, action);
     slot.value = next;
     this.invalidate();
@@ -637,7 +646,7 @@ export class HookHost {
   private updateOptimistic(index: number, action: unknown): void {
     if (this.disposed) return;
     const slot = this.committed[index];
-    assertKind(slot, "optimistic", index);
+    assertHookKind(slot, "optimistic", index);
     slot.value = slot.reducer ? slot.reducer(slot.value, action) : action;
     this.invalidate();
   }
@@ -1335,36 +1344,6 @@ type ClassLifecycles = ReactClassInstance<Record<string, unknown>> & {
 
 function childrenArray(children: ReactNode | undefined): ReactNode[] {
   return Array.isArray(children) ? children : children === undefined ? [] : [children];
-}
-
-function cloneSlot(slot: HookSlot): HookSlot {
-  if (slot.kind === "state") return { ...slot };
-  if (slot.kind === "reducer") return { ...slot };
-  if (slot.kind === "memo") return { ...slot, deps: slot.deps ? [...slot.deps] : undefined };
-  if (slot.kind === "debug") return { ...slot };
-  if (slot.kind === "effect") return { ...slot, deps: cloneDependencies(slot.deps) };
-  if (slot.kind === "context") return { ...slot };
-  if (slot.kind === "deferred") return { ...slot };
-  if (slot.kind === "optimistic") return { ...slot };
-  return slot;
-}
-
-function assertKind<K extends HookSlot["kind"]>(slot: HookSlot | undefined, kind: K, index: number): asserts slot is Extract<HookSlot, { kind: K }> {
-  if (!slot || slot.kind !== kind) throw new Error(`Hook order changed at slot ${index}: expected ${kind}, received ${slot?.kind ?? "none"}`);
-}
-
-function sameDependencies(previous: DependencyList, next: DependencyList): boolean {
-  return previous.length === next.length && previous.every((value, index) => Object.is(value, next[index]));
-}
-
-function cloneDependencies(deps: DependencyList | undefined): DependencyList | undefined {
-  return deps === undefined ? undefined : [...deps];
-}
-
-function runCleanup(slot: EffectSlot): void {
-  const cleanup = slot.cleanup;
-  slot.cleanup = undefined;
-  cleanup?.();
 }
 
 function readComponentReactContext(component: Component<Record<string, unknown>>, context: ReactContext<unknown>): unknown {

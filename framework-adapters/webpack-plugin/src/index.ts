@@ -1,6 +1,5 @@
 import {
   exactExportConditions,
-  parseExactCompilerManifest,
   resolveExactArtifactImport,
   transformSource,
   type ExactCompilerManifest,
@@ -8,8 +7,13 @@ import {
   type ExactCompilerSession,
   type TransformTarget
 } from "@exact/compiler";
+import { profileTimestamp, type ExactProfileEvent, type ExactProfileSink } from "@exact/instrumentation";
+import {
+  createExactDiagnosticReporter,
+  loadExactImportedManifests,
+  matchesExactBuildFilter
+} from "@exact/compiler/adapter-support";
 import { transformReactJsx, usesReactRuntimeImports } from "@exact/react-compat/transform";
-import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
   jsxSourceOwnership,
@@ -43,7 +47,10 @@ export type ExactWebpackPluginOptions = {
   pluginRegistry?: ExactPreparedCompilerRegistry;
   assetRules?: readonly ExactAssetRule[];
   diagnostics?: boolean;
+  onProfile?: ExactProfileSink;
 };
+
+export type ExactWebpackProfileEvent = ExactProfileEvent<"webpack-plugin", "transform">;
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
 
@@ -102,14 +109,14 @@ export class ExactWebpackPlugin {
   apply(compiler: WebpackCompilerLike): void {
     let diagnosticsEnabled = this.options.diagnostics
       ?? Boolean(compiler.watchMode || compiler.options.watch);
-    const owned = createWebpackCompilerSession(diagnosticsEnabled);
+    const owned = createWebpackCompilerSession(diagnosticsEnabled, this.options.onProfile);
     let compilerSession = owned.session;
     const configureDiagnostics = (enabled: boolean): void => {
       if (enabled === diagnosticsEnabled) return;
       diagnosticsEnabled = enabled;
-      compilerSession = replaceWebpackCompilerSession(owned.id, enabled);
+      compilerSession = replaceWebpackCompilerSession(owned.id, enabled, this.options.onProfile);
     };
-    const reporter = createDiagnosticReporter();
+    const reporter = createExactDiagnosticReporter();
     const warn = (message: string): void =>
       compiler.getInfrastructureLogger?.("ExactWebpackPlugin").warn(message);
     addWebpackConditions(compiler, exactExportConditions(targetFor(this.options), this.options));
@@ -158,6 +165,7 @@ export function transformExactWebpackSource(
   session?: ExactCompilerSession
 ): { code: string; map: unknown } | null {
   if (!shouldTransform(filename, source, options)) return null;
+  const profileStarted = options.onProfile ? profileTimestamp() : undefined;
   try {
     const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
     const ownership = jsxSourceOwnership(filename, source, reactCompatibility);
@@ -188,6 +196,15 @@ export function transformExactWebpackSource(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`eXact JSX transform failed for ${filename}\n${message}`);
+  } finally {
+    if (profileStarted !== undefined) {
+      options.onProfile?.(Object.freeze({
+        subsystem: "webpack-plugin",
+        phase: "transform",
+        elapsedMs: profileTimestamp() - profileStarted,
+        attributes: Object.freeze({ filename })
+      }));
+    }
   }
 }
 
@@ -214,38 +231,8 @@ export function compilerSessionForWebpackLoader(sessionId: string | undefined): 
   return webpackCompilerSession(sessionId);
 }
 
-type DiagnosticLike = Readonly<{ code: string; message: string; filename?: string; span?: Readonly<{ line: number; column: number }> }>;
-
-function createDiagnosticReporter(): (
-  update: Readonly<{ affectedFiles: readonly string[]; diagnostics: readonly DiagnosticLike[] }>,
-  warn: (message: string) => void
-) => void {
-  const previous = new Map<string, Set<string>>();
-  return (update, warn) => {
-    const next = new Map<string, Set<string>>();
-    for (const diagnostic of update.diagnostics) {
-      const file = diagnostic.filename ?? "<project>";
-      let keys = next.get(file);
-      if (!keys) next.set(file, keys = new Set());
-      const key = `${diagnostic.code}:${diagnostic.span?.line}:${diagnostic.span?.column}:${diagnostic.message}`;
-      keys.add(key);
-      if (!previous.get(file)?.has(key)) {
-        const location = diagnostic.filename
-          ? `${diagnostic.filename}${diagnostic.span ? `:${diagnostic.span.line}:${diagnostic.span.column}` : ""}`
-          : "TypeScript";
-        warn(`${location} - ${diagnostic.code}: ${diagnostic.message}`);
-      }
-    }
-    for (const file of update.affectedFiles) previous.delete(file.replaceAll("\\", "/"));
-    for (const [file, keys] of next) previous.set(file, keys);
-  };
-}
-
 function importedManifestsFor(options: { importedManifests?: readonly ExactCompilerManifest[]; manifestFiles?: readonly string[] }): ExactCompilerManifest[] {
-  return [
-    ...(options.importedManifests ?? []),
-    ...(options.manifestFiles ?? []).map(file => parseExactCompilerManifest(JSON.parse(readFileSync(file, "utf8")), file))
-  ];
+  return loadExactImportedManifests(options);
 }
 
 /** Resolves a webpack import request for a .exact facade to a target artifact. */
@@ -315,8 +302,8 @@ function targetFor(options: ExactWebpackPluginOptions): "client" | "server" {
 function shouldTransform(id: string, code: string, options: ExactWebpackPluginOptions): boolean {
   if (!/\.[cm]?[jt]sx?(?:$|\?)/.test(id)) return false;
   if (!options.include && /(?:^|[\\/])node_modules(?:[\\/]|$)/.test(id)) return false;
-  if (options.include && !matchesFilter(id, options.include)) return false;
-  if (options.exclude && matchesFilter(id, options.exclude)) return false;
+  if (options.include && !matchesExactBuildFilter(id, options.include)) return false;
+  if (options.exclude && matchesExactBuildFilter(id, options.exclude)) return false;
   return code.includes("<")
     || /@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(code)
     || Object.values(options.pluginRegistry?.plugins ?? {}).some(plugin => {
@@ -325,9 +312,4 @@ function shouldTransform(id: string, code: string, options: ExactWebpackPluginOp
       include.lastIndex = 0;
       return include.test(id);
     });
-}
-
-function matchesFilter(id: string, pattern: FilterPattern): boolean {
-  const patterns = Array.isArray(pattern) ? pattern : [pattern];
-  return patterns.some(item => typeof item === "string" ? id.includes(item) : item.test(id));
 }

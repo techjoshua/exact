@@ -1,7 +1,25 @@
 import { describe, expect, it, vi } from "vitest";
-import { batch, computed, createEffectScope, decodeReactiveProtocolValue, encodeReactiveProtocolValue, flushSync, isReactive, mutateReactiveArray, peek, reactive, ref, registerReactiveListKey, snapshot, subscribe, unwrap, updateReactiveValue, watch, withEffectScope, writeReactive } from "./index.js";
+import { batch, computed, createEffectScope, createProfiledEffectScope, decodeReactiveProtocolValue, encodeReactiveProtocolValue, flushSync, isReactive, mutateReactiveArray, peek, reactive, ref, registerReactiveListKey, snapshot, subscribe, unwrap, updateReactiveValue, watch, withEffectScope, writeReactive } from "./index.js";
 
 describe("@exact/reactive", () => {
+  it("profiles scheduler work owned by an explicit effect scope", () => {
+    const events: Array<{ subsystem: string; phase: string }> = [];
+    const scope = createProfiledEffectScope(event => events.push(event), undefined);
+    const state = reactive({ count: 0 });
+    try {
+      withEffectScope(scope, () => watch(() => void state.count));
+      state.count++;
+      flushSync();
+
+      expect(events).toContainEqual(expect.objectContaining({
+        subsystem: "reactive",
+        phase: "flush"
+      }));
+    } finally {
+      scope.stop();
+    }
+  });
+
   it("round-trips keyed collections through a transparent protocol envelope", () => {
     const records = [{ id: "a", title: "A" }, { id: "b", title: "B" }];
     registerReactiveListKey(records, item => (item as { id: string }).id, "test", "member:id");

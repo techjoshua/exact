@@ -4,6 +4,7 @@ import type {
   RequestResponseState
 } from "@exact/request";
 import type { ExactOutputExtension } from "@exact/plugin-api";
+import type { ExactProfileEvent, ExactProfileSink } from "@exact/instrumentation";
 
 export type ExactInvocationKind = "action" | "refresh";
 
@@ -288,9 +289,13 @@ export type ExactServerContext = ExactServerContextConfiguration & {
   platformRequest?: unknown;
   /** Request-owned response mutations recorded before response commit. */
   responseState?: RequestResponseState;
+  /** Receives request protocol profiling observations. */
+  onProfile?: ExactProfileSink;
   /** Disposes application-scoped resources owned by this server runtime. */
   dispose?(): Promise<void>;
 };
+
+export type ServerProfileEvent = ExactProfileEvent<"server", "request">;
 
 export type ExactHydrationManifestConfig = {
   pluginRegistryFingerprint?: string;

@@ -133,6 +133,7 @@ export type CreateExactRouterOptions<Route extends ExactRouteDefinition> = {
   hydrationData?: ExactHydrationData;
 };
 
+/** Creates the framework-neutral router state machine for a route tree. */
 export function createExactRouter<Route extends ExactRouteDefinition>(
   options: CreateExactRouterOptions<Route>
 ): ExactRouter<Route> {
@@ -609,10 +610,12 @@ function locationForUrl(url: URL, init: RequestInit): RouteLocation {
   });
 }
 
+/** Creates a redirect response for loaders and actions. */
 export function redirect(location: string, status = 302): Response {
   return new Response(null, { status, headers: { Location: location } });
 }
 
+/** Projects a router snapshot into serializable client hydration data. */
 export function hydrationDataFromSnapshot(
   snapshot: ExactRouterSnapshot,
   limits: { maxDepth?: number; maxNodes?: number; maxBytes?: number } = {}
@@ -626,6 +629,7 @@ export function hydrationDataFromSnapshot(
   return data;
 }
 
+/** Creates the versioned hydration envelope emitted by server rendering. */
 export function hydrationEnvelopeFromSnapshot(
   snapshot: ExactRouterSnapshot,
   key = "default",
@@ -688,6 +692,7 @@ async function unwrapDataResult(value: unknown): Promise<unknown> {
   return contentType.includes("application/json") ? value.json() : value.text();
 }
 
+/** Returns the highest-ranked route branch matching a pathname. */
 export function matchRoutes<Route extends ExactRouteDefinition>(
   routes: readonly Route[],
   pathname: string
@@ -701,6 +706,7 @@ export function matchRoutes<Route extends ExactRouteDefinition>(
   return Object.freeze(matches?.matched ?? []);
 }
 
+/** Matches a single path pattern and returns decoded parameters. */
 export function matchPath(
   pattern: string | Readonly<{ path: string; caseSensitive?: boolean; end?: boolean }>,
   pathname: string
@@ -719,6 +725,7 @@ export function matchPath(
   };
 }
 
+/** Interpolates named and splat parameters into a route path template. */
 export function generatePath(path: string, params: Readonly<Record<string, string | null | undefined>> = {}): string {
   return path.replace(/:([A-Za-z0-9_]+)(\?)?|\*/g, (token, name: string | undefined, optional: string | undefined) => {
     const key = name ?? "*";
@@ -817,6 +824,7 @@ function matchRoute(
   return { cursor, params, pathname, pathnameBase: pathnameBase || "/" };
 }
 
+/** Normalizes a location source into the router's public location value. */
 export function locationValue(source: LocationSource, mode: RouterMode, basename: string): RouteLocation {
   const url = routeUrl(source.location(), mode);
   const pathname = stripBasename(normalizePath(url.pathname), basename);
@@ -829,6 +837,7 @@ export function locationValue(source: LocationSource, mode: RouterMode, basename
   });
 }
 
+/** Formats a destination URL as a browser- or hash-router href. */
 export function hrefFor(to: string | URL, current: URL, basename: string, mode: RouterMode): string {
   if (to instanceof URL || typeof to === "string" && /^[a-z][a-z\d+.-]*:/i.test(to)) return String(to);
   const url = resolveTarget(to, current, basename, mode);
@@ -836,6 +845,7 @@ export function hrefFor(to: string | URL, current: URL, basename: string, mode: 
   return mode === "hash" ? `#${path}` : path;
 }
 
+/** Resolves a destination against the current route and basename. */
 export function resolveTarget(to: string | URL, current: URL, basename: string, mode: RouterMode): URL {
   if (to instanceof URL) return to;
   if (/^[a-z][a-z\d+.-]*:/i.test(to)) return new URL(to);
@@ -844,18 +854,23 @@ export function resolveTarget(to: string | URL, current: URL, basename: string, 
   return new URL(to, routeCurrent);
 }
 
+/** Converts a browser URL into the route URL observed by the selected router mode. */
 export function routeUrl(url: URL, mode: RouterMode): URL {
   return mode === "hash" && url.hash.startsWith("#/") ? new URL(url.hash.slice(1), url.origin) : url;
 }
+/** Coerces a string or URL into an absolute URL suitable for matching. */
 export function toUrl(value: string | URL): URL { return value instanceof URL ? value : new URL(value, "http://exact.local"); }
+/** Normalizes a basename to a leading-slash path without a trailing slash. */
 export function normalizeBasename(value?: string): string {
   const normalized = normalizePath(value ?? "/");
   return normalized === "/" ? "" : normalized.replace(/\/$/, "");
 }
+/** Normalizes a pathname to a leading-slash path without redundant trailing slashes. */
 export function normalizePath(value: string): string {
   const normalized = `/${value}`.replace(/\/{2,}/g, "/");
   return normalized.length > 1 ? normalized.replace(/\/$/, "") : normalized;
 }
+/** Removes a matching router basename while preserving the root path. */
 export function stripBasename(pathname: string, basename: string): string {
   if (!basename) return pathname;
   const path = pathname.toLowerCase();
@@ -865,4 +880,5 @@ export function stripBasename(pathname: string, basename: string): string {
 function segments(path: string): string[] { return normalizePath(path).split("/").filter(Boolean); }
 function decode(value: string): string { try { return decodeURIComponent(value); } catch { return value; } }
 let keySequence = 0;
+/** Allocates a compact process-local history entry key. */
 export function createKey(): string { return (++keySequence).toString(36); }

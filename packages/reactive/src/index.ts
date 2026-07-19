@@ -20,9 +20,10 @@ import {
   markReactiveHashDirty,
   seedKeyedCollectionMetadata
 } from "./internal/keyed-collections.js";
-import { createEffectScope, currentEffectScope, withEffectScope } from "./internal/scopes.js";
+import { createEffectScope, createProfiledEffectScope, currentEffectScope, withEffectScope } from "./internal/scopes.js";
 import { flushSync, queueComputation, queueReaction, removeQueuedComputation } from "./internal/scheduler.js";
 import { iterateKey, proxyMarker, rawTarget, reactiveValueMarker, reactiveValueRef } from "./internal/symbols.js";
+import { isReactive, isReactiveValue, unwrap } from "./internal/values.js";
 import type {
   EffectScope,
   EffectScopeImpl,
@@ -35,7 +36,9 @@ import type {
   WatchOptions
 } from "./internal/types.js";
 
-export { batch, createEffectScope, flushSync, peek, withEffectScope };
+export { batch, createEffectScope, createProfiledEffectScope, flushSync, peek, withEffectScope };
+export type { ReactiveProfileEvent } from "./internal/types.js";
+export { isReactive, isReactiveValue, unwrap } from "./internal/values.js";
 
 /** Encodes registered keyed arrays into the eXact server-to-client JSON protocol shape. */
 export function encodeReactiveProtocolValue(value: unknown): unknown {
@@ -120,6 +123,36 @@ export function createExternalSource<T>(options: ExternalSourceOptions<T>): Exte
   ownerScope?.cleanups.add(source.dispose);
   if (options.connect ?? !serverSnapshot) source.connect();
   return Object.freeze(source);
+}
+
+/** Options for adapting a selected view of an external state container. */
+export interface SelectedExternalSourceOptions<State, Selected> {
+  readonly getSnapshot: () => State;
+  readonly subscribe: (notify: () => void) => StopHandle;
+  readonly selector: (state: State) => Selected;
+  readonly getServerSnapshot?: () => State;
+  readonly isEqual?: (left: Selected, right: Selected) => boolean;
+  readonly connect?: boolean;
+}
+
+/**
+ * Creates an external source for a selected view of container state.
+ *
+ * Selection and equality semantics live here so store adapters cannot drift in
+ * how they retain stable snapshots or initialize server rendering.
+ */
+export function createSelectedExternalSource<State, Selected>(
+  options: SelectedExternalSourceOptions<State, Selected>
+): ExternalSource<Selected> {
+  return createExternalSource({
+    getSnapshot: () => options.selector(options.getSnapshot()),
+    subscribe: options.subscribe,
+    ...(options.getServerSnapshot
+      ? { getServerSnapshot: () => options.selector(options.getServerSnapshot!()) }
+      : {}),
+    isEqual: options.isEqual,
+    connect: options.connect
+  });
 }
 
 /**
@@ -478,19 +511,6 @@ export function subscribe<T>(source: ReactiveRef<T>, callback: () => void, optio
   return reaction.stop;
 }
 
-/** Returns the raw value behind a reactive proxy or reactive value wrapper. */
-export function unwrap<T>(value: T): T {
-  if (isReactiveValue(value)) {
-    return value.get() as T;
-  }
-
-  if (isReactive(value)) {
-    return (value as { [rawTarget]: T })[rawTarget];
-  }
-
-  return value;
-}
-
 /** Returns the reactive reference that drives a reactive value or proxied object, when available. */
 export function ref<T>(value: ReactiveValue<T>): ReactiveRef<T>;
 export function ref<T>(value: T): ReactiveRef<T> | undefined;
@@ -505,11 +525,6 @@ export function ref<T>(value: T): ReactiveRef<T> | undefined {
   }
 
   return undefined;
-}
-
-/** Returns whether a value is an eXact reactive proxy. */
-export function isReactive(value: unknown): boolean {
-  return !!value && typeof value === "object" && Boolean((value as { [proxyMarker]?: boolean })[proxyMarker]);
 }
 
 /** Creates a plain recursive snapshot of reactive state for serialization or comparison. */
@@ -1071,10 +1086,6 @@ function reactiveOptionsKey(options: ReactiveOptions): object {
   if (!options.readonly && !options.onReadonlyWrite && !options.passthroughKeys?.length) return defaultReactiveOptions;
   if (options.readonly && !options.onReadonlyWrite && !options.passthroughKeys?.length) return readonlyReactiveOptionsKey;
   return options as object;
-}
-
-export function isReactiveValue(value: unknown): value is ReactiveValue & { [reactiveValueRef]: ReactiveRef } {
-  return !!value && typeof value === "object" && reactiveValueMarker in value;
 }
 
 function hasChanged(previous: unknown, next: unknown): boolean {

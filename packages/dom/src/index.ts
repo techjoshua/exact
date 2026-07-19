@@ -59,7 +59,16 @@ import { adoptServerSlot, mountServerSlot } from "./server-slots.js";
 import { componentMounts, roots } from "./state.js";
 import { namespaceForTag } from "./namespace.js";
 import { consumeDomWork, walkDomSubtree, type DomWorkBudget } from "./work.js";
-import type { Mounted, RenderOptions, Root } from "./types.js";
+import type { DomProfileEvent, Mounted, RenderOptions, Root } from "./types.js";
+import {
+  countDomWork,
+  isDomRenderLimitError,
+  normalizeTreeDepth,
+  normalizeTreeNodes,
+  withDomWork,
+  withTreeDepth
+} from "./renderer/limits.js";
+import { longestIncreasingSubsequencePositions } from "./renderer/reconciliation.js";
 export {
   deg,
   em,
@@ -78,7 +87,7 @@ export {
   type CssValue
 } from "./style.js";
 
-export type { RenderOptions } from "./types.js";
+export type { DomProfileEvent, RenderOptions } from "./types.js";
 export { applyDomProp };
 export { HTML_NAMESPACE, MATHML_NAMESPACE, SVG_NAMESPACE, namespaceForTag } from "./namespace.js";
 export { DEFAULT_DOM_WORK_LIMIT, DomTraversalLimitError, consumeDomWork, createDomWorkBudget, reserveDomWork, walkDomSubtree, type DomWorkBudget } from "./work.js";
@@ -107,24 +116,6 @@ function ownMountedInstance(mounted: Mounted, instance: ComponentInstance<any>):
   componentMounts.set(instance, mounted);
 }
 
-const DEFAULT_MAX_TREE_DEPTH = 512;
-const HARD_MAX_TREE_DEPTH = 1_024;
-const DEFAULT_MAX_TREE_NODES = 100_000;
-
-class DomTreeDepthError extends Error {
-  constructor(limit: number) {
-    super(`eXact DOM tree exceeds the configured maximum depth of ${limit}`);
-    this.name = "DomTreeDepthError";
-  }
-}
-
-class DomTreeWorkError extends Error {
-  constructor(limit: number) {
-    super(`eXact DOM update exceeds the configured maximum of ${limit} render values`);
-    this.name = "DomTreeWorkError";
-  }
-}
-
 /**
  * Renders or patches a vnode tree into a DOM container.
  * @exact client
@@ -147,7 +138,8 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
       workDepth: 0,
       workBudget: options.workBudget,
       allowUnsafeHtml: options.allowUnsafeHtml ?? false,
-      onUnsafeHtml: options.onUnsafeHtml
+      onUnsafeHtml: options.onUnsafeHtml,
+      onProfile: options.onProfile
     };
     root.boundary = createRootBoundary(root);
     roots.set(container, root);
@@ -161,16 +153,29 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
   root.workBudget = options.workBudget;
   root.allowUnsafeHtml = options.allowUnsafeHtml ?? root.allowUnsafeHtml;
   root.onUnsafeHtml = options.onUnsafeHtml ?? root.onUnsafeHtml;
+  root.onProfile = options.onProfile ?? root.onProfile;
 
   const next = root.mode === "hydrated"
     ? vnode
     : createVNode(root.boundary, { version: root.version });
+  const profileStarted = root.onProfile ? performance.now() : undefined;
   try {
     withDomWork(root, () => {
       root.mounted = patch(root, container, root.mounted, next, undefined, undefined);
       flushSync();
     });
   } finally {
+    if (profileStarted !== undefined) {
+      root.onProfile?.(Object.freeze({
+        subsystem: "dom",
+        phase: "render",
+        elapsedMs: performance.now() - profileStarted,
+        counts: Object.freeze({
+          version: root.version,
+          traversedNodes: root.traversedNodes
+        })
+      } satisfies DomProfileEvent));
+    }
     root.workBudget = undefined;
   }
 }
@@ -1331,32 +1336,6 @@ function patchChildrenInner(
   return nextMounted;
 }
 
-/** Returns next-child positions that are already in increasing old-child order. */
-function longestIncreasingSubsequencePositions(values: readonly number[]): Set<number> {
-  const tails: number[] = [];
-  const predecessors = new Array<number>(values.length).fill(-1);
-  for (let index = 0; index < values.length; index++) {
-    const value = values[index]!;
-    if (value < 0) continue;
-    let low = 0;
-    let high = tails.length;
-    while (low < high) {
-      const middle = (low + high) >> 1;
-      if (values[tails[middle]!]! < value) low = middle + 1;
-      else high = middle;
-    }
-    if (low > 0) predecessors[index] = tails[low - 1]!;
-    tails[low] = index;
-  }
-  const positions = new Set<number>();
-  let cursor = tails[tails.length - 1] ?? -1;
-  while (cursor >= 0) {
-    positions.add(cursor);
-    cursor = predecessors[cursor]!;
-  }
-  return positions;
-}
-
 function rerenderComponent(root: Root, mounted: Mounted): void {
   if (!mounted.instance) return;
   if (!mounted.scope.active) return;
@@ -1511,43 +1490,4 @@ function removeMountedNodes(parent: Node, mounted: Mounted): void {
     if (current.mounted.end?.parentNode === current.parent) attemptTeardown(failure, () => current.parent.removeChild(current.mounted.end!));
   }
   throwTeardownFailure(failure);
-}
-
-function normalizeTreeDepth(value: number | undefined): number {
-  return Number.isSafeInteger(value) && value! > 0
-    ? Math.min(value!, HARD_MAX_TREE_DEPTH)
-    : DEFAULT_MAX_TREE_DEPTH;
-}
-
-function normalizeTreeNodes(value: number | undefined): number {
-  return Number.isSafeInteger(value) && value! > 0 ? value! : DEFAULT_MAX_TREE_NODES;
-}
-
-function withDomWork<T>(root: Root, run: () => T): T {
-  const outermost = root.workDepth++ === 0;
-  if (outermost) root.traversedNodes = 0;
-  try { return run(); }
-  finally { root.workDepth--; }
-}
-
-function countDomWork(root: Root): void {
-  if (root.workBudget) consumeDomWork(root.workBudget);
-  if (++root.traversedNodes > root.maxTreeNodes) throw new DomTreeWorkError(root.maxTreeNodes);
-}
-
-function isDomRenderLimitError(error: unknown): error is DomTreeDepthError | DomTreeWorkError {
-  return error instanceof DomTreeDepthError || error instanceof DomTreeWorkError;
-}
-
-function withTreeDepth<T>(root: Root, run: () => T): T {
-  root.traversalDepth++;
-  if (root.traversalDepth > root.maxTreeDepth) {
-    root.traversalDepth--;
-    throw new DomTreeDepthError(root.maxTreeDepth);
-  }
-  try {
-    return run();
-  } finally {
-    root.traversalDepth--;
-  }
 }

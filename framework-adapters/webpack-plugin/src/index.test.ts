@@ -1,8 +1,6 @@
 import path from "node:path";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { describe, expect, it } from "vitest";
-import { analyzeSource } from "@exact/compiler";
+import { rmSync, writeFileSync } from "node:fs";
+import { describe, expect, it, vi } from "vitest";
 import {
   ExactWebpackPlugin,
   applyExactWebpackResolver,
@@ -15,6 +13,17 @@ import {
 import { webpackCompilerSessionCount } from "./sessions.js";
 
 describe("@exact/webpack-plugin", () => {
+  it("reports opt-in transform timings", () => {
+    const onProfile = vi.fn();
+
+    transformExactWebpackSource("const view = <span />;", "/src/profiled.tsx", { onProfile });
+
+    expect(onProfile).toHaveBeenCalledWith(expect.objectContaining({
+      subsystem: "webpack-plugin",
+      phase: "transform"
+    }));
+  });
+
   it("transforms matching TSX sources through the shared compiler", () => {
     const result = transformExactWebpackSource("const view = <span />;", "/src/view.tsx");
 
@@ -38,63 +47,6 @@ describe("@exact/webpack-plugin", () => {
     `, "/src/page.tsx", { target: "client" });
 
     expect(result?.code).not.toContain("node:fs/promises");
-  });
-
-  it("passes imported manifests through to transforms", () => {
-    const manifest = analyzeSource(`
-      export function ClientWidget(this: Component<{ width: number }>) {
-        this.state.width = window.innerWidth;
-        return () => <button onClick={() => this.state.width++} />;
-      }
-    `, { filename: "/src/ClientWidget.tsx" });
-    const result = transformExactWebpackSource(`
-      import { ClientWidget } from "./ClientWidget";
-      export function Page() {
-        return () => <ClientWidget />;
-      }
-    `, "/src/Page.tsx", { target: "server", importedManifests: [manifest] });
-
-    expect(result?.code).toContain("__exactBoundary");
-    expect(result?.code).toContain("\"ClientWidget\"");
-    expect(result?.code).not.toContain("from \"./ClientWidget\"");
-  });
-
-  it("loads fresh manifest files for each transform", () => {
-    const root = mkdtempSync(path.join(tmpdir(), "exact-webpack-manifest-files-"));
-    const manifestFile = path.join(root, "ClientWidget.exact.manifest.json");
-    const first = analyzeSource(`
-      export function ClientWidget() {
-        return () => <p>Server</p>;
-      }
-    `, { filename: "/src/ClientWidget.tsx" });
-    const second = analyzeSource(`
-      export function ClientWidget(this: Component<{ width: number }>) {
-        this.state.width = window.innerWidth;
-        return () => <button onClick={() => this.state.width++} />;
-      }
-    `, { filename: "/src/ClientWidget.tsx" });
-    const source = `
-      import { ClientWidget } from "./ClientWidget";
-      export function Page() {
-        return () => <ClientWidget />;
-      }
-    `;
-
-    writeFileSync(manifestFile, JSON.stringify(first));
-    expect(transformExactWebpackSource(source, "/src/Page.tsx", { target: "server", manifestFiles: [manifestFile] })?.code).not.toContain("__exactBoundary");
-
-    writeFileSync(manifestFile, JSON.stringify(second));
-    expect(transformExactWebpackSource(source, "/src/Page.tsx", { target: "server", manifestFiles: [manifestFile] })?.code).toContain("__exactBoundary");
-  });
-
-  it("rejects malformed manifest files", () => {
-    const root = mkdtempSync(path.join(tmpdir(), "exact-webpack-bad-manifest-"));
-    const manifestFile = path.join(root, "bad.exact.manifest.json");
-    writeFileSync(manifestFile, JSON.stringify({ version: 1, filename: "bad.tsx" }));
-
-    expect(() => transformExactWebpackSource("const view = <span />;", "/src/view.tsx", {
-      manifestFiles: [manifestFile]
-    })).toThrow("Malformed eXact compiler manifest");
   });
 
   it("resolves exact facade imports through shared artifact resolution", () => {

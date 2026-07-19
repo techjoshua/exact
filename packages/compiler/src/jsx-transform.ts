@@ -30,6 +30,14 @@ import {
   generatedComponentName
 } from "./names.js";
 import { pruneUnusedImports } from "./prune-imports.js";
+import { allocateHelperNames, insertAfterDirectivePrologue } from "./emission/helpers.js";
+import {
+  componentStateRoot,
+  isArrayMutator,
+  statePathLiteral,
+  transformStateAssignment,
+  transformStateUpdate
+} from "./emission/state-writes.js";
 import type { CallableEffectPlan } from "./callable-effects.js";
 import type { BoundModule } from "@exact/expressions";
 import type { ExpressionDerivedPlan } from "./expression-derived.js";
@@ -56,11 +64,6 @@ type DerivedReactiveIndex = {
 };
 
 const helperModule = "@exact/core";
-const elementHelper = "__exactVNode";
-const fragmentHelper = "__exactFragment";
-const expressionHelper = "__exactExpression";
-const dynamicHelper = "__exactDynamic";
-const boundaryHelper = "__exactBoundary";
 const sourceIdentityFilenames = new WeakMap<ts.SourceFile, string>();
 const identityFilenameFor = (sourceFile: ts.SourceFile): string => sourceIdentityFilenames.get(sourceFile) ?? sourceFile.fileName;
 const isAssignmentOperator = (kind: ts.SyntaxKind): boolean => kind >= ts.SyntaxKind.FirstAssignment && kind <= ts.SyntaxKind.LastAssignment;
@@ -243,7 +246,7 @@ export function exactJsxTransformer(
         if (path) {
           sawStateWrite = true;
           return context.factory.createCallExpression(context.factory.createIdentifier(helpers.remove), undefined, [
-            stateRoot(context), pathLiteral(context, path)
+            componentStateRoot(context), statePathLiteral(context, path)
           ]);
         }
       }
@@ -267,7 +270,7 @@ export function exactJsxTransformer(
         if (path && isArrayMutator(method)) {
           sawStateWrite = true;
           return context.factory.createCallExpression(context.factory.createIdentifier(helpers.arrayMutation), undefined, [
-            stateRoot(context), pathLiteral(context, path), context.factory.createStringLiteral(method),
+            componentStateRoot(context), statePathLiteral(context, path), context.factory.createStringLiteral(method),
             context.factory.createArrowFunction(undefined, undefined, [], undefined, context.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
               context.factory.createArrayLiteralExpression(node.arguments.map(argument => ts.visitNode(argument, visitor) as ts.Expression)))
           ]);
@@ -1771,117 +1774,6 @@ function templateToExpression(template: ts.TemplateLiteral): ts.Expression {
   );
 }
 
-function allocateHelperNames(sourceFile: ts.SourceFile): HelperNames {
-  const used = new Set<string>();
-
-  function visit(node: ts.Node): void {
-    if (ts.isIdentifier(node)) used.add(node.text);
-    ts.forEachChild(node, visit);
-  }
-
-  visit(sourceFile);
-
-  return {
-    element: allocateName(elementHelper, used),
-    fragment: allocateName(fragmentHelper, used),
-    expression: allocateName(expressionHelper, used),
-    dynamic: allocateName(dynamicHelper, used),
-    derived: allocateName("__exactDerived", used),
-    boundary: allocateName(boundaryHelper, used),
-    write: allocateName("__exactWrite", used),
-    update: allocateName("__exactUpdate", used),
-    updateResult: allocateName("__exactUpdateResult", used),
-    abortOptions: allocateName("__exactAbortOptions", used),
-    taskSignal: allocateName("__exactSignal", used),
-    taskTimeout: allocateName("__exactTaskTimeout", used),
-    taskInterval: allocateName("__exactTaskInterval", used),
-    taskAnimationFrame: allocateName("__exactTaskAnimationFrame", used),
-    taskIdleCallback: allocateName("__exactTaskIdleCallback", used),
-    taskObserver: allocateName("__exactTaskObserver", used),
-    taskFetch: allocateName("__exactTaskFetch", used),
-    taskResource: allocateName("__exactTaskResource", used),
-    taskOptionsSignal: allocateName("__exactTaskOptionsSignal", used),
-    taskCombinedSignal: allocateName("__exactTaskCombinedSignal", used),
-    taskAwait: allocateName("__exactTaskAwait", used),
-    remove: allocateName("__exactDelete", used),
-    arrayMutation: allocateName("__exactArrayMutation", used)
-  };
-}
-
-function stateRoot(context: ts.TransformationContext): ts.Expression {
-  return context.factory.createPropertyAccessExpression(context.factory.createThis(), "state");
-}
-
-function pathLiteral(context: ts.TransformationContext, path: readonly string[]): ts.ArrayLiteralExpression {
-  return context.factory.createArrayLiteralExpression(path.map(segment => context.factory.createStringLiteral(segment)));
-}
-
-function transformStateAssignment(
-  context: ts.TransformationContext,
-  node: ts.BinaryExpression,
-  path: readonly string[],
-  visitor: ts.Visitor,
-  helpers: HelperNames
-): ts.Expression {
-  const value = ts.visitNode(node.right, visitor) as ts.Expression;
-  if (node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
-    return context.factory.createCallExpression(context.factory.createIdentifier(helpers.write), undefined, [
-      stateRoot(context), pathLiteral(context, path),
-      context.factory.createArrowFunction(undefined, undefined, [], undefined, context.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken), value)
-    ]);
-  }
-  const operator = compoundOperator(node.operatorToken.kind);
-  if (operator === undefined) return node;
-  const previous = context.factory.createIdentifier("previous");
-  return context.factory.createCallExpression(context.factory.createIdentifier(helpers.update), undefined, [
-    stateRoot(context), pathLiteral(context, path),
-    context.factory.createArrowFunction(undefined, undefined, [context.factory.createParameterDeclaration(undefined, undefined, previous)], undefined,
-      context.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-      context.factory.createBinaryExpression(previous, operator, value))
-  ]);
-}
-
-function transformStateUpdate(
-  context: ts.TransformationContext,
-  node: ts.PrefixUnaryExpression | ts.PostfixUnaryExpression,
-  path: readonly string[],
-  helpers: HelperNames
-): ts.Expression {
-  const previous = context.factory.createIdentifier("previous");
-  const operation = node.kind === ts.SyntaxKind.PostfixUnaryExpression
-    ? context.factory.createPostfixUnaryExpression(previous, node.operator)
-    : context.factory.createPrefixUnaryExpression(node.operator, previous);
-  const result = context.factory.createIdentifier("result");
-  return context.factory.createCallExpression(context.factory.createIdentifier(helpers.updateResult), undefined, [
-    stateRoot(context), pathLiteral(context, path),
-    context.factory.createArrowFunction(undefined, undefined, [context.factory.createParameterDeclaration(undefined, undefined, previous)], undefined,
-      context.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-      context.factory.createBlock([
-        context.factory.createVariableStatement(undefined, context.factory.createVariableDeclarationList([
-          context.factory.createVariableDeclaration(result, undefined, undefined, operation)
-        ], ts.NodeFlags.Const)),
-        context.factory.createReturnStatement(context.factory.createArrayLiteralExpression([previous, result]))
-      ], true))
-  ]);
-}
-
-function compoundOperator(kind: ts.SyntaxKind): ts.BinaryOperator | undefined {
-  const operators = new Map<ts.SyntaxKind, ts.BinaryOperator>([
-    [ts.SyntaxKind.PlusEqualsToken, ts.SyntaxKind.PlusToken], [ts.SyntaxKind.MinusEqualsToken, ts.SyntaxKind.MinusToken],
-    [ts.SyntaxKind.AsteriskEqualsToken, ts.SyntaxKind.AsteriskToken], [ts.SyntaxKind.SlashEqualsToken, ts.SyntaxKind.SlashToken],
-    [ts.SyntaxKind.PercentEqualsToken, ts.SyntaxKind.PercentToken], [ts.SyntaxKind.AsteriskAsteriskEqualsToken, ts.SyntaxKind.AsteriskAsteriskToken],
-    [ts.SyntaxKind.LessThanLessThanEqualsToken, ts.SyntaxKind.LessThanLessThanToken], [ts.SyntaxKind.GreaterThanGreaterThanEqualsToken, ts.SyntaxKind.GreaterThanGreaterThanToken],
-    [ts.SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken, ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken],
-    [ts.SyntaxKind.AmpersandEqualsToken, ts.SyntaxKind.AmpersandToken], [ts.SyntaxKind.BarEqualsToken, ts.SyntaxKind.BarToken], [ts.SyntaxKind.CaretEqualsToken, ts.SyntaxKind.CaretToken],
-    [ts.SyntaxKind.AmpersandAmpersandEqualsToken, ts.SyntaxKind.AmpersandAmpersandToken], [ts.SyntaxKind.BarBarEqualsToken, ts.SyntaxKind.BarBarToken], [ts.SyntaxKind.QuestionQuestionEqualsToken, ts.SyntaxKind.QuestionQuestionToken]
-  ]);
-  return operators.get(kind);
-}
-
-function isArrayMutator(name: string): name is "copyWithin" | "fill" | "pop" | "push" | "reverse" | "shift" | "sort" | "splice" | "unshift" {
-  return ["copyWithin", "fill", "pop", "push", "reverse", "shift", "sort", "splice", "unshift"].includes(name);
-}
-
 const expressionEmissionIds = new WeakMap<ts.Node, string>();
 
 function expressionEmissionId(node: ts.Node): string | undefined {
@@ -1941,29 +1833,4 @@ function emissionNodeIds(
   for (const call of module.walk().calls()) if (call.target?.isMember("map")) ids.add(call.node.id);
   addKeys(callableEffects.byNodeId);
   return ids;
-}
-
-function allocateName(base: string, used: Set<string>): string {
-  let name = base;
-  let index = 1;
-  while (used.has(name)) {
-    name = `${base}_${index}`;
-    index++;
-  }
-  used.add(name);
-  return name;
-}
-
-function insertAfterDirectivePrologue(statements: ts.NodeArray<ts.Statement>, statement: ts.Statement): ts.Statement[] {
-  const nextStatements = [...statements];
-  let index = 0;
-  while (index < nextStatements.length && isDirectivePrologueStatement(nextStatements[index]!)) {
-    index++;
-  }
-  nextStatements.splice(index, 0, statement);
-  return nextStatements;
-}
-
-function isDirectivePrologueStatement(statement: ts.Statement): boolean {
-  return ts.isExpressionStatement(statement) && ts.isStringLiteral(statement.expression);
 }

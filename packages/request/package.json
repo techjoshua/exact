@@ -10,5 +10,5 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "dependencies": { "@exact/core": "file:../core" },
-  "scripts": { "build": "tsc -b", "test": "vitest run" }
+  "scripts": { "build": "tsc -b", "test": "vitest run", "test:coverage": "node ../../scripts/run-package-coverage.mjs" }
 }

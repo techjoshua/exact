@@ -145,6 +145,7 @@ export {
   createCompilerSession,
   clearExpressionProjectCache,
   invalidateExpressionModule,
+  type ExactCompilerProfileEvent,
   type ExactCompilerInvalidation,
   type ExactCompilerSessionOptions,
   type ExactCompilerSessionStats

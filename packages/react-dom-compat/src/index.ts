@@ -8,6 +8,7 @@ import { createRoot as createClientRoot, hydrateRoot as hydrateClientRoot, legac
 
 export const version = "19.2.0-exact";
 
+/** Runs a callback and synchronously flushes compatibility updates before returning. */
 export function flushSync<T>(callback?: () => T): T | undefined {
   let result: T | undefined;
   try { result = callback?.(); }
@@ -15,10 +16,12 @@ export function flushSync<T>(callback?: () => T): T | undefined {
   return result;
 }
 
+/** Batches reactive notifications produced by a callback. */
 export function unstable_batchedUpdates<T>(callback: () => T): T {
   return batch(callback);
 }
 
+/** Creates a React-compatible portal targeting an external DOM container. */
 export function createPortal(children: ReactNode, container: Element | DocumentFragment, key?: Key | null): ReactPortal {
   if (!(container instanceof Node)) throw new TypeError("createPortal target must be a DOM Node");
   return {
@@ -30,6 +33,7 @@ export function createPortal(children: ReactNode, container: Element | DocumentF
   };
 }
 
+/** Resolves a mounted compatibility component or DOM value to its host node. */
 export function findDOMNode(componentOrElement: unknown): Node | null {
   if (componentOrElement === null || componentOrElement === undefined) return null;
   if (componentOrElement instanceof Node) return componentOrElement;
@@ -39,23 +43,32 @@ export function findDOMNode(componentOrElement: unknown): Node | null {
   return findComponentDomNode(owner);
 }
 
+/** Creates a concurrent React-compatible client root. */
 export function createRoot(container: Element | DocumentFragment, options?: RootOptions): Root { return createClientRoot(container, options); }
+/** Hydrates a React-compatible tree into existing server markup. */
 export function hydrateRoot(container: Element | DocumentFragment, children: ReactNode, options?: RootOptions): Root { return hydrateClientRoot(container, children, options); }
+/** Hydrates through the legacy ReactDOM root API. */
 export function hydrate(children: ReactNode, container: Element, callback?: () => void): null { return legacyHydrate(children, container, callback); }
+/** Renders through the legacy ReactDOM root API. */
 export function render(children: ReactNode, container: Element, callback?: () => void): null { return legacyRender(children, container, callback); }
+/** Unmounts a legacy root, returning whether one was present. */
 export function unmountComponentAtNode(container: Element): boolean { return legacyUnmount(container); }
+/** Reports that React's removed subtree rendering API is unsupported. */
 export function unstable_renderSubtreeIntoContainer(): never { throw new Error("unstable_renderSubtreeIntoContainer is not supported by eXact React compatibility"); }
 
+/** Emits or records a preconnect resource hint for an origin. */
 export function preconnect(href: string, options?: { crossOrigin?: string }): void {
   const crossOrigin = resourceCrossOrigin(options?.crossOrigin);
   if (recordReactResourceHint(`preconnect:${href}:${crossOrigin}`, 20,
     `<link rel="preconnect" href="${escapeResource(href)}"${crossOrigin === undefined ? "" : ` crossorigin="${escapeResource(crossOrigin)}"`}/>`)) return;
   ensureLink("preconnect", href, options);
 }
+/** Emits or records a DNS-prefetch resource hint. */
 export function prefetchDNS(href: string): void {
   if (recordReactResourceHint(`dns:${href}`, 10, `<link href="${escapeResource(href)}" rel="dns-prefetch"/>`)) return;
   ensureLink("dns-prefetch", href);
 }
+/** Preinitializes a stylesheet or classic script resource. */
 export function preinit(href: string, options: Record<string, unknown> & { as: "style" | "script" }): void {
   if (options.as === "style") {
     const precedence = options.precedence === undefined ? "default" : String(options.precedence);
@@ -69,11 +82,13 @@ export function preinit(href: string, options: Record<string, unknown> & { as: "
     ensureScript(href, false, options);
   }
 }
+/** Preinitializes an ECMAScript module resource. */
 export function preinitModule(href: string, options?: Record<string, unknown>): void {
   const nonce = options?.nonce === undefined ? "" : ` nonce="${escapeResource(String(options.nonce))}"`;
   if (recordReactResourceHint(`module-script:${href}`, 50, `<script src="${escapeResource(href)}" type="module" async=""${nonce}></script>`)) return;
   ensureScript(href, true, options);
 }
+/** Emits or records a preload hint for a typed resource. */
 export function preload(href: string, options: Record<string, unknown> & { as: string }): void {
   const crossOrigin = resourceCrossOrigin(options.crossOrigin);
   const type = options.type === undefined ? "" : ` type="${escapeResource(String(options.type))}"`;
@@ -81,14 +96,17 @@ export function preload(href: string, options: Record<string, unknown> & { as: s
   if (recordReactResourceHint(`preload:${options.as}:${href}`, 30, html)) return;
   ensureLink("preload", href, options);
 }
+/** Emits or records a modulepreload resource hint. */
 export function preloadModule(href: string, options?: Record<string, unknown>): void {
   if (recordReactResourceHint(`modulepreload:${href}`, 60, `<link rel="modulepreload" href="${escapeResource(href)}"/>`)) return;
   ensureLink("modulepreload", href, options);
 }
+/** Restores a form's controls to their authored default values. */
 export function requestFormReset(form: HTMLFormElement): void {
   if (!(form instanceof HTMLFormElement)) throw new TypeError("requestFormReset expects an HTMLFormElement");
   form.reset();
 }
+/** Compatibility alias for React's action-state form hook. */
 export function useFormState<State, Payload>(
   action: (previousState: State, payload: Payload) => State | Promise<State>,
   initialState: State,
@@ -96,6 +114,7 @@ export function useFormState<State, Payload>(
 ): readonly [State, (payload: Payload) => void, boolean] {
   return useActionState(action, initialState, permalink);
 }
+/** Returns the status of the nearest compatibility form submission. */
 export function useFormStatus(): { pending: boolean; data: FormData | null; method: string | null; action: string | ((formData: FormData) => unknown) | null } {
   return { pending: false, data: null, method: null, action: null };
 }
