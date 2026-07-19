@@ -1,7 +1,7 @@
 import type { ComponentContextValues, ContextToken, Logger } from '@exact/core';
-import type { RequestContextValue, RequestResponseState } from '@exact/request';
-import type { ExactOutputExtension } from '@exact/plugin-api';
 import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation';
+import type { ExactOutputExtension } from '@exact/plugin-api';
+import type { RequestContextValue, RequestResponseState } from '@exact/request';
 
 export type ExactInvocationKind = 'action' | 'refresh';
 

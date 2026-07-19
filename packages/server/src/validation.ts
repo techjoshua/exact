@@ -1,3 +1,4 @@
+import { hasOnlyKeys, isJsonSafe } from './protocol.js';
 import type {
 	ExactContextEffect,
 	ExactInvocationRequest,
@@ -6,7 +7,6 @@ import type {
 	ExactServerManifest,
 	ExactStateContract
 } from './types.js';
-import { hasOnlyKeys, isJsonSafe } from './protocol.js';
 
 /** Returns whether an invocation references an action or boundary allowed by the manifest. */
 export function isManifestAllowed(

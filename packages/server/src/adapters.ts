@@ -1,10 +1,10 @@
-import { handleExactRequest } from './index.js';
 import {
 	attachSuppressedCleanupFailure,
 	attemptCleanup,
 	createCleanupFailure,
 	throwCleanupFailure
 } from '@exact/core';
+import { handleExactRequest } from './index.js';
 import type { ExactServerContext } from './types.js';
 
 export type ExactExpressRequest = {

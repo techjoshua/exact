@@ -1,13 +1,6 @@
 import { logFrameworkEvent } from '@exact/core';
 import { processExactOutputSync } from '@exact/plugin-host/runtime';
 import { jsonResponse } from './protocol.js';
-import {
-	boundaryHintsAllowed,
-	contextMatchesContract,
-	isInvocationResultSafe,
-	isManifestAllowed,
-	stateMatchesContract
-} from './validation.js';
 import type {
 	ExactBatchRequest,
 	ExactInvocationRequest,
@@ -17,6 +10,13 @@ import type {
 	ExactResponseLike,
 	ExactServerContext
 } from './types.js';
+import {
+	boundaryHintsAllowed,
+	contextMatchesContract,
+	isInvocationResultSafe,
+	isManifestAllowed,
+	stateMatchesContract
+} from './validation.js';
 
 export type ExactSecurityResult = 'allowed' | 'unauthorized' | 'csrf';
 

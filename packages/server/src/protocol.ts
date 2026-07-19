@@ -1,10 +1,10 @@
+import { encodeReactiveProtocolValue } from '@exact/core';
 import type {
 	ExactBatchRequest,
 	ExactInvocationRequest,
 	ExactRequestLike,
 	ExactResponseLike
 } from './types.js';
-import { encodeReactiveProtocolValue } from '@exact/core';
 
 /** Reads a runtime-neutral request body from body/json/text adapters. */
 export async function readBody(request: ExactRequestLike): Promise<unknown> {

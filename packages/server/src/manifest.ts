@@ -1,4 +1,3 @@
-import { exactCompilerManifestVersion, exactServerManifestVersion } from './versions.js';
 import { sameJsonData } from '@exact/core';
 import type {
 	CreateExactServerManifestOptions,
@@ -12,6 +11,7 @@ import type {
 	ExactStateContract,
 	ExactStatePath
 } from './types.js';
+import { exactCompilerManifestVersion, exactServerManifestVersion } from './versions.js';
 
 /** Builds a runtime server manifest from one or more compiler manifests plus app overrides. */
 export function createExactServerManifest(
