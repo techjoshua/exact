@@ -1,11 +1,13 @@
 import { createContext, type Child, type Component } from '@exact/core';
 import { createExternalSource, type ExternalSource } from '@exact/reactive';
 
+/** Defines the convex watch interface contract. */
 export interface ConvexWatch<Value> {
 	localQueryResult(): Value | undefined;
 	onUpdate(callback: () => void): () => void;
 }
 
+/** Defines the convex client interface contract. */
 export interface ConvexClient {
 	watchQuery<Value>(query: unknown, ...argsAndOptions: unknown[]): ConvexWatch<Value>;
 	mutation?<Value>(mutation: unknown, ...argsAndOptions: unknown[]): Promise<Value>;
@@ -19,15 +21,18 @@ export interface ConvexClient {
 	subscribeToConnectionState?(callback: () => void): () => void;
 }
 
+/** Provides the canonical convex client context value. */
 export const ConvexClientContext = createContext<ConvexClient>('exact.convex.client', {
 	reactive: false
 });
 
+/** Defines the properties accepted by exact convex provider. */
 export interface ExactConvexProviderProps {
 	readonly client: ConvexClient;
 	readonly children?: Child | readonly Child[];
 }
 
+/** Performs the exact convex provider domain operation. */
 export function ExactConvexProvider(
 	this: Component<Record<string, unknown>>,
 	props: ExactConvexProviderProps
@@ -64,6 +69,7 @@ export function createSeededConvexQuery<Value>(
 	});
 }
 
+/** Performs the convex mutation domain operation. */
 export function convexMutation<Value>(
 	client: ConvexClient,
 	mutation: unknown,
@@ -73,6 +79,7 @@ export function convexMutation<Value>(
 	return client.mutation<Value>(mutation, ...argsAndOptions);
 }
 
+/** Performs the convex action domain operation. */
 export function convexAction<Value>(
 	client: ConvexClient,
 	action: unknown,
@@ -82,6 +89,7 @@ export function convexAction<Value>(
 	return client.action<Value>(action, ...args);
 }
 
+/** Performs the configure convex auth domain operation. */
 export function configureConvexAuth(
 	client: ConvexClient,
 	fetchToken: () => Promise<string | null>,
@@ -93,6 +101,7 @@ export function configureConvexAuth(
 	return () => client.clearAuth!();
 }
 
+/** Creates a convex connection source. */
 export function createConvexConnectionSource<State = unknown>(
 	client: ConvexClient
 ): ExternalSource<State> {
@@ -105,6 +114,7 @@ export function createConvexConnectionSource<State = unknown>(
 	});
 }
 
+/** Creates a component convex query. */
 export function createComponentConvexQuery<Value>(
 	component: Component<any>,
 	query: unknown,

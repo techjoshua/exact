@@ -1,5 +1,6 @@
 import { handleExactRequest, type ExactServerContext } from '@exact/server';
 
+/** Defines the exact fastify request type contract. */
 export type ExactFastifyRequest = {
 	method: string;
 	url: string;
@@ -7,6 +8,7 @@ export type ExactFastifyRequest = {
 	body?: unknown;
 };
 
+/** Defines the exact fastify reply type contract. */
 export type ExactFastifyReply = {
 	code(status: number): ExactFastifyReply;
 	header(name: string, value: string): ExactFastifyReply;

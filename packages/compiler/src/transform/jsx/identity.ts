@@ -7,11 +7,15 @@ import type { ExpressionJsxPlan } from '../../expression/jsx.js';
 import type { ExpressionTaskPlan } from '../../expression/task-contracts.js';
 import type { ExpressionWritePlan } from '../../expression/writes.js';
 
+/** Provides the canonical source identity filenames value. */
 export const sourceIdentityFilenames = new WeakMap<ts.SourceFile, string>();
+/** Provides the canonical identity filename for value. */
 export const identityFilenameFor = (sourceFile: ts.SourceFile): string =>
 	sourceIdentityFilenames.get(sourceFile) ?? sourceFile.fileName;
+/** Provides the canonical expression emission ids value. */
 export const expressionEmissionIds = new WeakMap<ts.Node, string>();
 
+/** Performs the expression emission id domain operation. */
 export function expressionEmissionId(node: ts.Node): string | undefined {
 	return expressionEmissionIds.get(node) ?? expressionEmissionIds.get(ts.getOriginalNode(node));
 }
@@ -45,6 +49,7 @@ export function bindExpressionEmissionNodes(
 	bind(sourceFile, module.rootNode);
 }
 
+/** Performs the emission syntax kind name domain operation. */
 export function emissionSyntaxKindName(node: ts.Node): string {
 	if (ts.isNumericLiteral(node)) return 'NumericLiteral';
 	if (ts.isBigIntLiteral(node)) return 'BigIntLiteral';
@@ -55,6 +60,7 @@ export function emissionSyntaxKindName(node: ts.Node): string {
 	return ts.SyntaxKind[node.kind];
 }
 
+/** Performs the emission node ids domain operation. */
 export function emissionNodeIds(
 	module: BoundModule,
 	derived: ExpressionDerivedPlan,

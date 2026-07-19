@@ -3,8 +3,10 @@ import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation
 import type { ExactOutputExtension } from '@exact/plugin-api';
 import type { RequestContextValue, RequestResponseState } from '@exact/request';
 
+/** Defines the exact invocation kind type contract. */
 export type ExactInvocationKind = 'action' | 'refresh';
 
+/** Defines the exact server manifest type contract. */
 export type ExactServerManifest = {
 	version: 1;
 	pluginRegistryFingerprint?: string;
@@ -15,11 +17,13 @@ export type ExactServerManifest = {
 	actionBoundaries?: Record<string, string[]>;
 };
 
+/** Defines the exact endpoint routes type contract. */
 export type ExactEndpointRoutes = {
 	actions?: Record<string, string>;
 	boundaries?: Record<string, string>;
 };
 
+/** Defines the exact manifest action type contract. */
 export type ExactManifestAction = {
 	id: string;
 	componentId?: string;
@@ -29,6 +33,7 @@ export type ExactManifestAction = {
 	contextContract?: ExactContextEffect[];
 };
 
+/** Defines the exact manifest boundary type contract. */
 export type ExactManifestBoundary = {
 	id: string;
 	name?: string;
@@ -40,23 +45,27 @@ export type ExactManifestBoundary = {
 	kind?: string;
 };
 
+/** Defines the exact state contract type contract. */
 export type ExactStateContract = {
 	reads?: ExactStatePath[];
 	writes?: ExactStatePath[];
 };
 
+/** Defines the exact context effect type contract. */
 export type ExactContextEffect = {
 	token: string;
 	kind: 'read' | 'write';
 	confidence: 'exact' | 'unknown';
 };
 
+/** Defines the exact state path type contract. */
 export type ExactStatePath = {
 	path: string;
 	kind: 'read' | 'write';
 	confidence: 'exact' | 'broad' | 'unknown';
 };
 
+/** Defines the exact compiler manifest like type contract. */
 export type ExactCompilerManifestLike = {
 	version: 1;
 	pluginRegistry?: {
@@ -89,6 +98,7 @@ export type ExactCompilerManifestLike = {
 	}[];
 };
 
+/** Configures create exact server manifest. */
 export type CreateExactServerManifestOptions = {
 	endpoint?: string;
 	endpoints?: ExactEndpointRoutes;
@@ -96,6 +106,7 @@ export type CreateExactServerManifestOptions = {
 	boundaries?: Record<string, ExactManifestBoundary>;
 };
 
+/** Defines the exact request like type contract. */
 export type ExactRequestLike = {
 	method: string;
 	url?: string | URL;
@@ -108,6 +119,7 @@ export type ExactRequestLike = {
 	platformRequest?: unknown;
 };
 
+/** Carries the context required by exact context factory. */
 export type ExactContextFactoryContext = {
 	scope: 'application' | 'request';
 	signal: AbortSignal;
@@ -116,20 +128,24 @@ export type ExactContextFactoryContext = {
 	get<T>(token: ContextToken<T>): Promise<T>;
 };
 
+/** Defines the exact context factory type contract. */
 export type ExactContextFactory<T> = {
 	create(context: ExactContextFactoryContext): T | Promise<T>;
 	dispose?(value: T, reason?: unknown): void | Promise<void>;
 };
 
+/** Defines the exact context value type contract. */
 export type ExactContextValue<T> = {
 	value: T;
 };
 
+/** Defines the exact context registration type contract. */
 export type ExactContextRegistration<T = unknown> = readonly [
 	token: ContextToken<T>,
 	source: ExactContextValue<T> | ExactContextFactory<T>
 ];
 
+/** Defines the exact request context registration source type contract. */
 export type ExactRequestContextRegistrationSource =
 	| readonly ExactContextRegistration<any>[]
 	| ((
@@ -138,6 +154,7 @@ export type ExactRequestContextRegistrationSource =
 			| readonly ExactContextRegistration<any>[]
 			| Promise<readonly ExactContextRegistration<any>[]>);
 
+/** Defines the exact context overrides type contract. */
 export type ExactContextOverrides = {
 	/** Trusted application-supplied test values; never populated from request data. */
 	application?: readonly (readonly [ContextToken<any>, unknown])[];
@@ -145,12 +162,14 @@ export type ExactContextOverrides = {
 	request?: readonly (readonly [ContextToken<any>, unknown])[];
 };
 
+/** Configures exact server context. */
 export type ExactServerContextConfiguration = {
 	applicationContexts?: readonly ExactContextRegistration<any>[];
 	requestContexts?: ExactRequestContextRegistrationSource;
 	contextOverrides?: ExactContextOverrides;
 };
 
+/** Defines the exact context scope type contract. */
 export type ExactContextScope = {
 	readonly kind: 'application' | 'request';
 	readonly componentValues: ComponentContextValues;
@@ -158,6 +177,7 @@ export type ExactContextScope = {
 	getSync<T>(token: ContextToken<T>): T;
 };
 
+/** Defines the exact context runtime type contract. */
 export type ExactContextRuntime = {
 	open(
 		request: ExactRequestLike,
@@ -171,6 +191,7 @@ export type ExactContextRuntime = {
 	dispose(reason?: unknown): Promise<void>;
 };
 
+/** Defines the exact response like type contract. */
 export type ExactResponseLike = {
 	status: number;
 	headers: Record<string, string>;
@@ -178,6 +199,7 @@ export type ExactResponseLike = {
 	stream?: ReadableStream<Uint8Array>;
 };
 
+/** Defines the exact invocation request type contract. */
 export type ExactInvocationRequest = {
 	type: ExactInvocationKind;
 	id: string;
@@ -190,18 +212,21 @@ export type ExactInvocationRequest = {
 	boundaryHtmls?: Record<string, string>;
 };
 
+/** Defines the exact batch request type contract. */
 export type ExactBatchRequest = {
 	type: 'batch';
 	version?: 1;
 	operations: ExactInvocationRequest[];
 };
 
+/** Describes the result produced by exact invocation. */
 export type ExactInvocationResult = {
 	patches?: ExactPatch[];
 	state?: unknown;
 	html?: string;
 };
 
+/** Defines the exact operation success type contract. */
 export type ExactOperationSuccess = {
 	ok: true;
 	type: ExactInvocationKind;
@@ -209,6 +234,7 @@ export type ExactOperationSuccess = {
 	opId?: string;
 } & ExactInvocationResult;
 
+/** Represents a failure raised by exact operation. */
 export type ExactOperationError = {
 	ok: false;
 	type: ExactInvocationKind;
@@ -218,14 +244,17 @@ export type ExactOperationError = {
 	error: 'bad_request' | 'not_found' | 'forbidden' | 'internal_error' | 'dependency_failed';
 };
 
+/** Describes the result produced by exact operation. */
 export type ExactOperationResult = ExactOperationSuccess | ExactOperationError;
 
+/** Describes the result produced by exact batch. */
 export type ExactBatchResult = {
 	ok: true;
 	version: 1;
 	results: ExactOperationResult[];
 };
 
+/** Reports an observable exact stream event. */
 export type ExactStreamEvent =
 	| { event: 'start'; version: 1; operations: number }
 	| {
@@ -258,6 +287,7 @@ export type ExactStreamEvent =
 	| { event: 'result'; version: 1; index: number; result: ExactOperationResult }
 	| { event: 'complete'; version: 1 };
 
+/** Defines the exact patch type contract. */
 export type ExactPatch =
 	| { type: 'text'; id: string; value: string }
 	| { type: 'prop'; id: string; name: string; value: unknown }
@@ -273,6 +303,7 @@ export type ExactPatch =
 	| { type: 'state'; id: string; value: unknown }
 	| { type: 'replace'; id: string; html: string };
 
+/** Carries the context required by exact server. */
 export type ExactServerContext = ExactServerContextConfiguration & {
 	manifest: ExactServerManifest;
 	actions?: Record<
@@ -340,8 +371,10 @@ export type ExactServerContext = ExactServerContextConfiguration & {
 	dispose?(): Promise<void>;
 };
 
+/** Reports an observable server profile event. */
 export type ServerProfileEvent = ExactProfileEvent<'server', 'request'>;
 
+/** Configures exact hydration manifest. */
 export type ExactHydrationManifestConfig = {
 	pluginRegistryFingerprint?: string;
 	endpoint?: string;

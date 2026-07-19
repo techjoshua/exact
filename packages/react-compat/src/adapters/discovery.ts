@@ -22,6 +22,7 @@ import {
 	validateProtocolRange
 } from './validation-rules.js';
 
+/** Performs the replacements for importer domain operation. */
 export function replacementsForImporter(
 	graph: ReactCompatPackageGraph,
 	registry: ResolvedReactCompatAdapters,
@@ -44,6 +45,7 @@ export function replacementsForImporter(
 	return Object.freeze(selected);
 }
 
+/** Performs the unsupported sources for importer domain operation. */
 export function unsupportedSourcesForImporter(
 	graph: ReactCompatPackageGraph,
 	registry: ResolvedReactCompatAdapters,
@@ -57,6 +59,7 @@ export function unsupportedSourcesForImporter(
 	);
 }
 
+/** Performs the source policies for importer domain operation. */
 export function sourcePoliciesForImporter(
 	graph: ReactCompatPackageGraph,
 	registry: ResolvedReactCompatAdapters,

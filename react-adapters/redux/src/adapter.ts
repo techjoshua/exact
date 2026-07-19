@@ -1,19 +1,23 @@
 import { createContext, type Child, type Component } from '@exact/core';
 import { createSelectedExternalSource, unwrap, type ExternalSource } from '@exact/reactive';
 
+/** Defines the redux store interface contract. */
 export interface ReduxStore<State = unknown, Action = unknown> {
 	dispatch(action: Action): unknown;
 	getState(): State;
 	subscribe(listener: () => void): () => void;
 }
 
+/** Provides the canonical redux store context value. */
 export const ReduxStoreContext = createContext<ReduxStore<any, any>>('exact.redux.store', {
 	reactive: false
 });
+/** Provides the canonical redux server state context value. */
 export const ReduxServerStateContext = createContext<unknown>('exact.redux.server-state', {
 	reactive: false
 });
 
+/** Defines the properties accepted by exact redux provider. */
 export interface ExactReduxProviderProps<State = unknown, Action = unknown> {
 	readonly store: ReduxStore<State, Action>;
 	readonly children?: Child | readonly Child[];
@@ -21,6 +25,7 @@ export interface ExactReduxProviderProps<State = unknown, Action = unknown> {
 	readonly serverState?: State;
 }
 
+/** Performs the exact redux provider domain operation. */
 export function ExactReduxProvider(
 	this: Component<Record<string, unknown>>,
 	props: ExactReduxProviderProps
@@ -35,6 +40,7 @@ export function ExactReduxProvider(
 	return () => props.children ?? null;
 }
 
+/** Defines the redux compatibility subscription interface contract. */
 export interface ReduxCompatibilitySubscription {
 	addNestedSub(listener: () => void): () => void;
 	notifyNestedSubs(): void;
@@ -85,6 +91,7 @@ export function createReduxSubscription(
 	return subscription;
 }
 
+/** Creates a redux source. */
 export function createReduxSource<State, Selected = State>(
 	store: ReduxStore<State, any>,
 	selector: (state: State) => Selected = identity as (state: State) => Selected,
@@ -100,6 +107,7 @@ export function createReduxSource<State, Selected = State>(
 	});
 }
 
+/** Creates a component selector. */
 export function createComponentSelector<State, Selected = State>(
 	component: Component<any>,
 	selector?: (state: State) => Selected,

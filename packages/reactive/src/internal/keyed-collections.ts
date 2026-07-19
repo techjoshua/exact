@@ -1,5 +1,6 @@
 import { hashCanonicalJson, hashStringSequence } from './hash.js';
 
+/** Defines the keyed collection envelope interface contract. */
 export interface KeyedCollectionEnvelope {
 	readonly $exact: 'keyed-collection';
 	readonly version: 1;
@@ -10,6 +11,7 @@ export interface KeyedCollectionEnvelope {
 	readonly items: unknown[];
 }
 
+/** Defines the keyed collection metadata interface contract. */
 export interface KeyedCollectionMetadata {
 	keys: string[];
 	keyHash: string;
@@ -27,6 +29,7 @@ const metadataByCollection = new WeakMap<object, KeyedCollectionMetadata>();
 const ownersByObject = new WeakMap<object, Set<OwnerRecord>>();
 const hashPattern = /^[0-9a-f]{32}$/;
 
+/** Performs the seed keyed collection metadata domain operation. */
 export function seedKeyedCollectionMetadata(
 	collection: unknown[],
 	key: KeyExtractor
@@ -34,6 +37,7 @@ export function seedKeyedCollectionMetadata(
 	return rebuildMetadata(collection, key);
 }
 
+/** Performs the keyed collection metadata domain operation. */
 export function keyedCollectionMetadata(
 	collection: unknown[],
 	key?: KeyExtractor
@@ -61,6 +65,7 @@ export function keyedCollectionMetadata(
 	}
 }
 
+/** Performs the mark reactive hash dirty domain operation. */
 export function markReactiveHashDirty(target: object): void {
 	const own = metadataByCollection.get(target);
 	if (own) own.structureDirty = true;
@@ -68,6 +73,7 @@ export function markReactiveHashDirty(target: object): void {
 		ownerMetadata(owner)?.dirtyKeys.add(owner.key);
 }
 
+/** Performs the install keyed collection metadata domain operation. */
 export function installKeyedCollectionMetadata(
 	collection: unknown[],
 	source: Pick<KeyedCollectionMetadata, 'keys' | 'keyHash' | 'itemHashes' | 'itemsHash'>,
@@ -87,6 +93,7 @@ export function installKeyedCollectionMetadata(
 	if (bindMutationOwners) bindOwners(metadata, collection);
 }
 
+/** Performs the adopt keyed collection metadata domain operation. */
 export function adoptKeyedCollectionMetadata(
 	collection: unknown[],
 	source: Pick<KeyedCollectionMetadata, 'keys' | 'keyHash' | 'itemHashes' | 'itemsHash'>,
@@ -126,6 +133,7 @@ export function adoptKeyedCollectionMetadata(
 	metadata.dirtyKeys.clear();
 }
 
+/** Produces a reactive protocol value internal in its external representation. */
 export function encodeReactiveProtocolValueInternal(
 	value: unknown,
 	extractorFor: (collection: unknown[]) => KeyExtractor | undefined
@@ -133,6 +141,7 @@ export function encodeReactiveProtocolValueInternal(
 	return encodeValue(value, extractorFor, new WeakSet(), 0);
 }
 
+/** Reads a reactive protocol value internal from its source representation. */
 export function decodeReactiveProtocolValueInternal(value: unknown): unknown {
 	return decodeValue(value, new WeakSet(), 0);
 }

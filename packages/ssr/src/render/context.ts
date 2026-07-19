@@ -7,6 +7,7 @@ import {
 } from '../render/limits.js';
 import type { RenderToStringOptions, SsrContext } from '../types.js';
 
+/** Performs the drain tasks domain operation. */
 export async function drainTasks(
 	pending: Set<Promise<unknown>>,
 	maxPasses: number,
@@ -23,6 +24,7 @@ export async function drainTasks(
 	}
 }
 
+/** Performs the await with abort domain operation. */
 export async function awaitWithAbort<T>(
 	promise: Promise<T>,
 	signal?: AbortSignal,
@@ -49,6 +51,7 @@ export async function awaitWithAbort<T>(
 	}
 }
 
+/** Creates a ssr context. */
 export function createSsrContext(options: RenderToStringOptions): SsrContext {
 	return {
 		markers: options.markers ?? true,

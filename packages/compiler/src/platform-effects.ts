@@ -1,5 +1,6 @@
 import type { Variable } from '@exact/expressions';
 
+/** Provides the canonical browser platform globals value. */
 export const browserPlatformGlobals = new Set([
 	'window',
 	'document',
@@ -24,6 +25,7 @@ export const browserPlatformGlobals = new Set([
 	'Worker'
 ]);
 
+/** Provides the canonical server platform globals value. */
 export const serverPlatformGlobals = new Set([
 	'process',
 	'Buffer',
@@ -32,6 +34,7 @@ export const serverPlatformGlobals = new Set([
 	'__filename'
 ]);
 
+/** Reports whether unshadowed platform global. */
 export function isUnshadowedPlatformGlobal(
 	name: string | undefined,
 	variable: Variable | undefined,

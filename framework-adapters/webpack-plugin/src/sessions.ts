@@ -7,6 +7,7 @@ import {
 const sessions = new Map<string, ExactCompilerSession>();
 let nextSessionId = 0;
 
+/** Creates a webpack compiler session. */
 export function createWebpackCompilerSession(
 	enabled: boolean,
 	onProfile?: ExactCompilerSessionOptions['onProfile']
@@ -20,10 +21,12 @@ export function createWebpackCompilerSession(
 	return { id, session };
 }
 
+/** Performs the webpack compiler session domain operation. */
 export function webpackCompilerSession(id: string | undefined): ExactCompilerSession | undefined {
 	return id ? sessions.get(id) : undefined;
 }
 
+/** Performs the replace webpack compiler session domain operation. */
 export function replaceWebpackCompilerSession(
 	id: string,
 	enabled: boolean,
@@ -35,11 +38,13 @@ export function replaceWebpackCompilerSession(
 	return session;
 }
 
+/** Releases webpack compiler session and its owned resources. */
 export function disposeWebpackCompilerSession(id: string): void {
 	sessions.get(id)?.dispose();
 	sessions.delete(id);
 }
 
+/** Performs the webpack compiler session count domain operation. */
 export function webpackCompilerSessionCount(): number {
 	return sessions.size;
 }

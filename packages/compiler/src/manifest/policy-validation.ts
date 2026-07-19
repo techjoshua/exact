@@ -1,5 +1,6 @@
 import type { ExactPolicyManifestIR } from '../types.js';
 
+/** Reports whether exact policy manifest. */
 export function isExactPolicyManifest(value: unknown): value is ExactPolicyManifestIR {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const policy = value as Partial<ExactPolicyManifestIR>;
@@ -100,6 +101,7 @@ function isExactDataPolicy(value: unknown): boolean {
 	);
 }
 
+/** Reports whether exact capability requirements. */
 export function isExactCapabilityRequirements(value: unknown): boolean {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const record = value as Record<string, unknown>;
@@ -123,6 +125,7 @@ export function isExactCapabilityRequirements(value: unknown): boolean {
 	});
 }
 
+/** Reports whether exact asset dependency. */
 export function isExactAssetDependency(value: unknown): boolean {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const asset = value as Record<string, unknown>;

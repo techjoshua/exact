@@ -1,5 +1,6 @@
 import { handleExactRequest, type ExactServerContext } from '@exact/server';
 
+/** Carries the context required by exact koa. */
 export type ExactKoaContext = {
 	method: string;
 	url: string;
@@ -13,6 +14,7 @@ export type ExactKoaContext = {
 	set(name: string, value: string): void;
 };
 
+/** Defines the exact koa next type contract. */
 export type ExactKoaNext = () => Promise<unknown>;
 
 /** Creates a Koa middleware for an eXact endpoint. */

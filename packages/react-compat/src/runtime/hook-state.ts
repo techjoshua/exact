@@ -14,6 +14,7 @@ import {
 import { readReactRootRuntime } from './nodes.js';
 import { nextReactCompatibilityId, profileStack } from './shared.js';
 
+/** Tracks the state owned by hook. */
 export abstract class HookState {
 	protected committed: HookSlot[] = [];
 	protected working: HookSlot[] | undefined;
@@ -35,18 +36,21 @@ export abstract class HookState {
 		this.identifierPrefix = runtime?.identifierPrefix ?? '';
 	}
 
+	/** Performs the exact context domain operation for this hook state instance. */
 	exactContext<T>(context: ContextToken<T>): T {
 		return this.component.getContext(context);
 	}
 
 	protected abstract syncOwnerHooks(): void;
 
+	/** Performs the context changed domain operation for this hook state instance. */
 	contextChanged(): boolean {
 		return this.committed.some(
 			(slot) => slot.kind === 'context' && !Object.is(slot.value, this.readContext(slot.context))
 		);
 	}
 
+	/** Performs the state domain operation for this hook state instance. */
 	state(initializer: unknown | (() => unknown)): readonly [unknown, (value: unknown) => void] {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
@@ -61,6 +65,7 @@ export abstract class HookState {
 		return [slot.value, slot.dispatch];
 	}
 
+	/** Performs the reducer domain operation for this hook state instance. */
 	reducer(
 		reducer: (state: unknown, action: unknown) => unknown,
 		initialArg: unknown,
@@ -83,6 +88,7 @@ export abstract class HookState {
 		return [slot.value, slot.dispatch];
 	}
 
+	/** Performs the ref domain operation for this hook state instance. */
 	ref(initial: unknown): { current: unknown } {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
@@ -94,6 +100,7 @@ export abstract class HookState {
 		return slot.value;
 	}
 
+	/** Performs the memo domain operation for this hook state instance. */
 	memo(factory: () => unknown, deps: DependencyList | undefined): unknown {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
@@ -110,6 +117,7 @@ export abstract class HookState {
 		return slot.value;
 	}
 
+	/** Performs the debug domain operation for this hook state instance. */
 	debug(value: unknown): void {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
@@ -121,6 +129,7 @@ export abstract class HookState {
 		slot.value = value;
 	}
 
+	/** Performs the context domain operation for this hook state instance. */
 	context<T>(context: ReactContext<T>): T {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
@@ -138,6 +147,7 @@ export abstract class HookState {
 		return value as T;
 	}
 
+	/** Performs the provide domain operation for this hook state instance. */
 	provide<T>(context: ReactContext<T>, value: T): void {
 		if (context._exactContextMode === 'value') {
 			this.component.setContext(contextToken(context), value);
@@ -153,6 +163,7 @@ export abstract class HookState {
 		cell.current = value;
 	}
 
+	/** Performs the effect domain operation for this hook state instance. */
 	effect(
 		effectKind: EffectKind,
 		create: () => void | (() => void),
@@ -177,6 +188,7 @@ export abstract class HookState {
 		}
 	}
 
+	/** Performs the id value domain operation for this hook state instance. */
 	idValue(): string {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
@@ -188,6 +200,7 @@ export abstract class HookState {
 		return slot.value;
 	}
 
+	/** Performs the external store domain operation for this hook state instance. */
 	externalStore(subscribe: ExternalStoreSubscribe, getSnapshot: () => unknown): unknown {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
@@ -207,6 +220,7 @@ export abstract class HookState {
 		return value;
 	}
 
+	/** Performs the effect event domain operation for this hook state instance. */
 	effectEvent<T extends (...args: any[]) => unknown>(implementation: T): T {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
@@ -224,6 +238,7 @@ export abstract class HookState {
 		return slot.callback as T;
 	}
 
+	/** Performs the deferred domain operation for this hook state instance. */
 	deferred(value: unknown, initialValue: unknown, hasInitialValue: boolean): unknown {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
@@ -252,6 +267,7 @@ export abstract class HookState {
 		return slot.value;
 	}
 
+	/** Performs the optimistic domain operation for this hook state instance. */
 	optimistic(
 		base: unknown,
 		reducer?: (state: unknown, action: unknown) => unknown
@@ -272,6 +288,7 @@ export abstract class HookState {
 		return [slot.value, slot.dispatch];
 	}
 
+	/** Performs the memo cache domain operation for this hook state instance. */
 	memoCache(size: number): unknown[] {
 		const index = this.nextIndex();
 		let slot = this.slot(index);
@@ -288,6 +305,7 @@ export abstract class HookState {
 		return slot.value;
 	}
 
+	/** Performs the usable context domain operation for this hook state instance. */
 	usableContext<T>(context: ReactContext<T>): T {
 		return this.readContext(context as ReactContext<unknown>) as T;
 	}

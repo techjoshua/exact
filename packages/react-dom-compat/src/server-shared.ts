@@ -13,6 +13,7 @@ import {
 	renderToStringAsync as renderExactToStringAsync
 } from '@exact/ssr';
 
+/** Configures server render. */
 export interface ServerRenderOptions {
 	identifierPrefix?: string;
 	signal?: AbortSignal;
@@ -54,6 +55,7 @@ function serverVNode(
 	return createVNode(ServerRoot, { node, options, resources });
 }
 
+/** Transforms react to string into its required representation. */
 export function renderReactToString(
 	node: ReactNode,
 	options: ServerRenderOptions = {},
@@ -74,6 +76,7 @@ export function renderReactToString(
 	}
 }
 
+/** Transforms react to string async into its required representation. */
 export async function renderReactToStringAsync(
 	node: ReactNode,
 	options: ServerRenderOptions = {},
@@ -103,6 +106,7 @@ function renderResourceHints(resources: Map<string, { priority: number; html: st
 		.join('');
 }
 
+/** Performs the readable stream from string domain operation. */
 export function readableStreamFromString(html: string): ReadableStream<Uint8Array> {
 	const bytes = new TextEncoder().encode(html);
 	return new ReadableStream<Uint8Array>({
@@ -113,6 +117,7 @@ export function readableStreamFromString(html: string): ReadableStream<Uint8Arra
 	});
 }
 
+/** Transforms to readable stream into its required representation. */
 export async function renderToReadableStream(
 	node: ReactNode,
 	options: ServerRenderOptions = {}
@@ -125,6 +130,7 @@ export async function renderToReadableStream(
 	return stream;
 }
 
+/** Performs the with bootstrap scripts domain operation. */
 export function withBootstrapScripts(html: string, options: ServerRenderOptions): string {
 	const scripts = options.bootstrapScripts ?? [];
 	const modules = options.bootstrapModules ?? [];
@@ -173,10 +179,12 @@ function escapeInlineScript(value: string): string {
 	return value.replace(/<\/(script)/gi, '<\\/$1');
 }
 
+/** Transforms to string into its required representation. */
 export function renderToString(node: ReactNode, options?: ServerRenderOptions): string {
 	return renderReactToString(node, options);
 }
 
+/** Transforms to static markup into its required representation. */
 export function renderToStaticMarkup(node: ReactNode, options?: ServerRenderOptions): string {
 	return renderReactToString(node, options, false);
 }

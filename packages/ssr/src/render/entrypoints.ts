@@ -35,8 +35,10 @@ import { createSsrContext } from './context.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { renderVNode, renderVNodeChunks } from './sync-tree.js';
 
+/** Configures ssr render. */
 export type SsrRenderOptions = RenderToStringOptions & { taskDeadline?: number };
 
+/** Transforms to string into its required representation. */
 export function renderToString(
 	vnode: VNode,
 	options: RenderToStringOptions = {}
@@ -63,6 +65,7 @@ export function renderToString(
 	}
 }
 
+/** Transforms to string owned into its required representation. */
 export function renderToStringOwned(
 	vnode: VNode,
 	options: RenderToStringOptions
@@ -86,6 +89,7 @@ export function renderToStringOwned(
 	};
 }
 
+/** Transforms to hydratable string into its required representation. */
 export function renderToHydratableString(
 	vnode: VNode,
 	options: RenderToStringOptions & HydrationScriptOptions = {}
@@ -112,6 +116,7 @@ export function renderToHydratableString(
 	};
 }
 
+/** Transforms to stream into its required representation. */
 export function renderToStream(
 	vnode: VNode,
 	options: RenderToStringOptions = {}
@@ -163,6 +168,7 @@ export function renderToStream(
 	return stream;
 }
 
+/** Transforms to document stream into its required representation. */
 export function renderToDocumentStream(
 	vnode: VNode,
 	options: RenderToDocumentStreamOptions = {}
@@ -179,6 +185,7 @@ export function renderToDocumentStream(
 	);
 }
 
+/** Transforms to hydratable document stream into its required representation. */
 export function renderToHydratableDocumentStream(
 	vnode: VNode,
 	options: RenderToDocumentStreamOptions = {}
@@ -189,6 +196,7 @@ export function renderToHydratableDocumentStream(
 	});
 }
 
+/** Transforms to progressive html stream into its required representation. */
 export function renderToProgressiveHtmlStream(
 	vnode: VNode,
 	options: RenderToProgressiveHtmlStreamOptions = {}
@@ -199,6 +207,7 @@ export function renderToProgressiveHtmlStream(
 	);
 }
 
+/** Transforms to hydratable progressive html stream into its required representation. */
 export function renderToHydratableProgressiveHtmlStream(
 	vnode: VNode,
 	options: RenderToProgressiveHtmlStreamOptions = {}
@@ -209,6 +218,7 @@ export function renderToHydratableProgressiveHtmlStream(
 	});
 }
 
+/** Transforms to progressive html response into its required representation. */
 export function renderToProgressiveHtmlResponse(
 	vnode: VNode,
 	options: RenderToProgressiveHtmlResponseOptions = {}
@@ -216,6 +226,7 @@ export function renderToProgressiveHtmlResponse(
 	return progressiveHtmlResponse(renderToProgressiveHtmlStream(vnode, options), options);
 }
 
+/** Transforms to hydratable progressive html response into its required representation. */
 export function renderToHydratableProgressiveHtmlResponse(
 	vnode: VNode,
 	options: RenderToProgressiveHtmlResponseOptions = {}
@@ -223,6 +234,7 @@ export function renderToHydratableProgressiveHtmlResponse(
 	return progressiveHtmlResponse(renderToHydratableProgressiveHtmlStream(vnode, options), options);
 }
 
+/** Transforms exact request to html response into its required representation. */
 export async function renderExactRequestToHtmlResponse(
 	request: ExactRequestLike,
 	server: ExactServerContext,
@@ -256,6 +268,7 @@ export async function renderExactRequestToHtmlResponse(
 	);
 }
 
+/** Transforms exact request to progressive html response into its required representation. */
 export async function renderExactRequestToProgressiveHtmlResponse(
 	request: ExactRequestLike,
 	server: ExactServerContext,
@@ -300,14 +313,17 @@ export async function renderExactRequestToProgressiveHtmlResponse(
 	);
 }
 
+/** Performs the progressive root domain operation. */
 export function progressiveRoot(html: string, rootId = 'exact-root'): string {
 	return isRenderedDocument(html) ? html : `<div id="${escapeAttr(rootId)}">${html}</div>`;
 }
 
+/** Reports whether rendered document. */
 export function isRenderedDocument(html: string): boolean {
 	return /^\s*(?:<!doctype\s+html>\s*)?<html(?:\s|>)/i.test(html);
 }
 
+/** Performs the string stream domain operation. */
 export function stringStream(value: string): ReadableStream<Uint8Array> {
 	const encoded = new TextEncoder().encode(value);
 	let emitted = false;

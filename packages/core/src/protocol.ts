@@ -15,10 +15,12 @@ export function decodeExactMarkerPart(value: string): string {
 	return new TextDecoder().decode(bytes);
 }
 
+/** Performs the exact marker start domain operation. */
 export function exactMarkerStart(id: string): string {
 	return `exact:${id}`;
 }
 
+/** Performs the exact marker end domain operation. */
 export function exactMarkerEnd(id: string): string {
 	return `/exact:${id}`;
 }

@@ -1,5 +1,6 @@
 import { unwrap } from '@exact/reactive';
 
+/** Transforms react host props into its required representation. */
 export function normalizeReactHostProps(tag: string, props: Record<string, unknown>): void {
 	const handlers = Object.entries(props).filter(
 		([name, value]) => /^on[A-Z]/.test(name) && typeof value === 'function'
@@ -31,6 +32,7 @@ export function normalizeReactHostProps(tag: string, props: Record<string, unkno
 	}
 }
 
+/** Performs the react event handler domain operation. */
 export function reactEventHandler(
 	handler: (event: Event) => unknown,
 	props: Record<string, unknown>
@@ -54,6 +56,7 @@ export function reactEventHandler(
 	};
 }
 
+/** Performs the augment react event domain operation. */
 export function augmentReactEvent(event: Event): void {
 	const record = event as Event & {
 		nativeEvent?: Event;

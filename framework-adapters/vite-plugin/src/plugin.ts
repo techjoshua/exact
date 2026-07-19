@@ -38,6 +38,7 @@ import {
 import { transformReactJsx, usesReactRuntimeImports } from '@exact/react-compat/transform';
 import path from 'node:path';
 
+/** Configures exact plugin. */
 export type ExactPluginOptions = {
 	include?: FilterPattern;
 	exclude?: FilterPattern;
@@ -57,10 +58,12 @@ export type ExactPluginOptions = {
 	onProfile?: ExactProfileSink;
 };
 
+/** Reports an observable exact vite profile event. */
 export type ExactViteProfileEvent = ExactProfileEvent<'vite-plugin', 'transform'>;
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
 
+/** Defines the exact plugin type contract. */
 export type ExactPlugin = {
 	name: string;
 	enforce: 'pre';

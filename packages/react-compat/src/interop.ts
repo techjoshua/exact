@@ -7,6 +7,7 @@ import {
 } from './internals.js';
 import type { ReactComponentType, ReactContext, ReactNode, ReactRef } from './types.js';
 
+/** Carries the context required by exact react interop. */
 export interface ExactReactInteropContext<T> {
 	/** Framework-neutral token used by native eXact components and adapters. */
 	readonly exact: ContextToken<T>;

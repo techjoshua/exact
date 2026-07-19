@@ -11,6 +11,7 @@ function targetsForCallable(callable: MutableCallable): ExactArtifactTarget[] {
 	return browser === server ? [] : browser ? ['client'] : ['server'];
 }
 
+/** Performs the allowed targets for callable domain operation. */
 export function allowedTargetsForCallable(callable: MutableCallable): ExactArtifactTarget[] {
 	const effect = effectFor(callable.sources);
 	if (effect !== 'unknown') return targetsFor(effect);
@@ -22,6 +23,7 @@ export function allowedTargetsForCallable(callable: MutableCallable): ExactArtif
 	return ['client', 'server'];
 }
 
+/** Performs the callable scc order domain operation. */
 export function callableSccOrder(callables: readonly MutableCallable[]): MutableCallable[][] {
 	return orderStronglyConnectedComponents(
 		callables,
@@ -30,6 +32,7 @@ export function callableSccOrder(callables: readonly MutableCallable[]): Mutable
 	);
 }
 
+/** Performs the callable artifact targets domain operation. */
 export function callableArtifactTargets(
 	callables: readonly MutableCallable[]
 ): Map<string, Set<ExactArtifactTarget>> {

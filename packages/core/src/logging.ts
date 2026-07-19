@@ -1,5 +1,7 @@
+/** Defines the log level type contract. */
 export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error';
 
+/** Defines the log scope type contract. */
 export type LogScope = {
 	source: 'component' | 'framework';
 	packageName?: string;
@@ -11,6 +13,7 @@ export type LogScope = {
 	};
 };
 
+/** Reports an observable log event. */
 export type LogEvent = {
 	level: LogLevel;
 	message: string;
@@ -19,13 +22,16 @@ export type LogEvent = {
 	scope: LogScope;
 };
 
+/** Defines the logger type contract. */
 export type Logger = {
 	isEnabled?(level: LogLevel, scope: LogScope): boolean;
 	log(event: LogEvent): void;
 };
 
+/** Defines the lazy log value type contract. */
 export type LazyLogValue<T> = T | (() => T);
 
+/** Defines the component log type contract. */
 export type ComponentLog = {
 	trace(message: LazyLogValue<string>, data?: LazyLogValue<unknown>): void;
 	debug(message: LazyLogValue<string>, data?: LazyLogValue<unknown>): void;
@@ -38,6 +44,7 @@ export type ComponentLog = {
 	): void;
 };
 
+/** Configures console logger. */
 export type ConsoleLoggerOptions = {
 	level?: LogLevel;
 };

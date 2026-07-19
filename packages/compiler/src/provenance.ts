@@ -2,6 +2,7 @@ import type { BoundModule, ExpressionNode, NodeRef, Variable } from '@exact/expr
 import { trackedCallbackArguments } from './annotations.js';
 import { expressionComponentIndex } from './expression/component-index.js';
 
+/** Defines the exact reactive provenance type contract. */
 export type ExactReactiveProvenance =
 	| 'state'
 	| 'props'
@@ -11,6 +12,7 @@ export type ExactReactiveProvenance =
 	| 'snapshot'
 	| 'unknown';
 
+/** Defines the exact provenance entry interface contract. */
 export interface ExactProvenanceEntry {
 	readonly variable: Variable;
 	readonly provenance: ExactReactiveProvenance;
@@ -18,6 +20,7 @@ export interface ExactProvenanceEntry {
 	readonly safeToReevaluate: boolean;
 }
 
+/** Defines the exact provenance graph interface contract. */
 export interface ExactProvenanceGraph {
 	readonly entries: readonly ExactProvenanceEntry[];
 	readonly cells: readonly ExactReactiveCell[];
@@ -25,6 +28,7 @@ export interface ExactProvenanceGraph {
 	get(variable: Variable): ExactProvenanceEntry | undefined;
 }
 
+/** Defines the exact reactive cell interface contract. */
 export interface ExactReactiveCell {
 	readonly node: ExpressionNode;
 	readonly kind: 'jsx-child' | 'jsx-attribute';

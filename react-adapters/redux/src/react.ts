@@ -19,6 +19,7 @@ import {
 } from './adapter.js';
 
 const NativeProvider = exposeExactComponent(ExactReduxProvider, 'ReduxProvider');
+/** Provides the canonical provider value. */
 export const Provider: ReactComponentType<ExactReduxProviderProps> = function ReduxProvider(
 	props
 ): ReactNode {
@@ -51,12 +52,15 @@ class ReduxContextValue {
 		if (serverState !== undefined) this.getServerState = () => serverState;
 	}
 }
+/** Performs the use store domain operation. */
 export function useStore<State = unknown, Action = unknown>(): ReduxStore<State, Action> {
 	return useExactContext(ReduxStoreContext) as ReduxStore<State, Action>;
 }
+/** Performs the use dispatch domain operation. */
 export function useDispatch<Action = unknown>(): ReduxStore<unknown, Action>['dispatch'] {
 	return useStore<unknown, Action>().dispatch;
 }
+/** Performs the use selector domain operation. */
 export function useSelector<State, Selected>(
 	selector: (state: State) => Selected,
 	equality: (left: Selected, right: Selected) => boolean = Object.is

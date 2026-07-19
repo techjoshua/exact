@@ -1,6 +1,7 @@
 import type { ExactCompilerManifest } from './manifest.js';
 import type { ExactPlacement } from './policy.js';
 
+/** Configures package export map. */
 export type PackageExportMapOptions = {
 	packageRoot: string;
 	sourceRoot?: string;
@@ -10,24 +11,30 @@ export type PackageExportMapOptions = {
 	typesRoot?: string;
 };
 
+/** Defines the package export entry type contract. */
 export type PackageExportEntry = {
 	[condition: string]: string;
 };
 
+/** Defines the exact artifact target type contract. */
 export type ExactArtifactTarget = 'client' | 'server';
 
+/** Configures exact export condition. */
 export type ExactExportConditionOptions = {
 	clientCondition?: string;
 	serverCondition?: string;
 };
 
+/** Defines the exact artifact import resolution type contract. */
 export type ExactArtifactImportResolution = {
 	id: string;
 	target: ExactArtifactTarget;
 };
 
+/** Configures exact artifact graph. */
 export type ExactArtifactGraphOptions = PackageExportMapOptions & ClientIslandRegistryOptions;
 
+/** Defines the exact artifact graph type contract. */
 export type ExactArtifactGraph = {
 	conditions: {
 		client: string[];
@@ -40,6 +47,7 @@ export type ExactArtifactGraph = {
 	artifacts: ExactArtifactGraphEntry[];
 };
 
+/** Defines the exact artifact component edge type contract. */
 export type ExactArtifactComponentEdge = {
 	id: string;
 	sourceFile: string;
@@ -54,6 +62,7 @@ export type ExactArtifactComponentEdge = {
 	path: string;
 };
 
+/** Defines the exact artifact graph entry type contract. */
 export type ExactArtifactGraphEntry = {
 	inputFile: string;
 	clientFile: string;
@@ -63,10 +72,12 @@ export type ExactArtifactGraphEntry = {
 	manifest: ExactCompilerManifest;
 };
 
+/** Configures client island registry. */
 export type ClientIslandRegistryOptions = {
 	rootDir?: string;
 };
 
+/** Defines the client island registry entry type contract. */
 export type ClientIslandRegistryEntry = {
 	id: string;
 	name: string;
@@ -75,10 +86,12 @@ export type ClientIslandRegistryEntry = {
 	componentId?: string;
 };
 
+/** Configures server part registry. */
 export type ServerPartRegistryOptions = {
 	rootDir?: string;
 };
 
+/** Defines the server part registry entry type contract. */
 export type ServerPartRegistryEntry = {
 	id: string;
 	name: string;
@@ -87,10 +100,12 @@ export type ServerPartRegistryEntry = {
 	componentId?: string;
 };
 
+/** Configures exact registry module. */
 export type ExactRegistryModuleOptions = {
 	exportName?: string;
 };
 
+/** Configures exact hydration registration module. */
 export type ExactHydrationRegistrationModuleOptions = {
 	endpoint?: string;
 	endpoints?: ExactHydrationEndpointRoutes;
@@ -98,16 +113,19 @@ export type ExactHydrationRegistrationModuleOptions = {
 	registrationExportName?: string;
 };
 
+/** Defines the exact hydration endpoint routes type contract. */
 export type ExactHydrationEndpointRoutes = {
 	actions?: Record<string, string>;
 	boundaries?: Record<string, string>;
 };
 
+/** Configures exact artifact registry modules. */
 export type ExactArtifactRegistryModulesOptions = {
 	clientExportName?: string;
 	serverExportName?: string;
 };
 
+/** Defines the exact artifact registry modules type contract. */
 export type ExactArtifactRegistryModules = {
 	client: string;
 	server: string;

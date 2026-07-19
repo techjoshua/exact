@@ -11,6 +11,7 @@ import type { ExactClient, HydrateOptions, HydrationRoot } from '../types.js';
 import { invokeAndApply } from './operations.js';
 import { requestVersions, roots } from './state.js';
 
+/** Creates an exact client. */
 export function createExactClient(container: Element, options: HydrateOptions = {}): ExactClient {
 	const resolvedOptions = resolveHydrateOptions(container, options);
 	const lifetime = new AbortController();
@@ -83,12 +84,14 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 	return client;
 }
 
+/** Performs the remaining dom work domain operation. */
 export function remainingDomWork(work: DomWorkBudget): number {
 	const remaining = work.limit - work.used;
 	if (remaining <= 0) consumeDomWork(work);
 	return remaining;
 }
 
+/** Resolves a hydration root. */
 export function getHydrationRoot(container: Element): HydrationRoot | undefined {
 	return roots.get(container);
 }

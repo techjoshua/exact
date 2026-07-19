@@ -9,6 +9,7 @@ import type { ModuleBuilder } from './module-builder.js';
 import { indentLines, printNode } from './printing.js';
 import { SyntheticScope, SyntheticVariable, syntheticNode } from './primitives.js';
 
+/** Defines the block builder class contract. */
 export class BlockBuilder {
 	private readonly statements: ExpressionNode[] = [];
 	readonly scope: SyntheticScope;
@@ -20,6 +21,7 @@ export class BlockBuilder {
 	) {
 		this.scope = new SyntheticScope(kind, parent);
 	}
+	/** Performs the variable domain operation for this block builder instance. */
 	variable(
 		name: string,
 		initializer?: ExpressionNode,
@@ -48,10 +50,12 @@ export class BlockBuilder {
 		return variable;
 	}
 
+	/** Performs the let domain operation for this block builder instance. */
 	let(name: string, initializer?: ExpressionNode, valueType?: ExpressionType): Variable {
 		return this.variable(name, initializer, valueType, 'let');
 	}
 
+	/** Performs the expression domain operation for this block builder instance. */
 	expression(expression: ExpressionNode): this {
 		this.statements.push(
 			syntheticNode('ExpressionStatement', 'statement', this.scope, `${printNode(expression)};`, [
@@ -61,6 +65,7 @@ export class BlockBuilder {
 		return this;
 	}
 
+	/** Performs the returns domain operation for this block builder instance. */
 	returns(expression?: ExpressionNode): this {
 		this.statements.push(
 			syntheticNode(
@@ -74,6 +79,7 @@ export class BlockBuilder {
 		return this;
 	}
 
+	/** Performs the throws domain operation for this block builder instance. */
 	throws(expression: ExpressionNode): this {
 		this.statements.push(
 			syntheticNode('ThrowStatement', 'statement', this.scope, `throw ${printNode(expression)};`, [
@@ -83,6 +89,7 @@ export class BlockBuilder {
 		return this;
 	}
 
+	/** Performs the if domain operation for this block builder instance. */
 	if(
 		condition: ExpressionNode,
 		whenTrue: (block: BlockBuilder) => void,
@@ -106,6 +113,7 @@ export class BlockBuilder {
 		return this;
 	}
 
+	/** Performs the for of domain operation for this block builder instance. */
 	forOf(
 		name: string,
 		iterable: ExpressionNode,
@@ -129,6 +137,7 @@ export class BlockBuilder {
 		return this;
 	}
 
+	/** Performs the while domain operation for this block builder instance. */
 	while(condition: ExpressionNode, configure: (block: BlockBuilder) => void): this {
 		const block = new BlockBuilder(this.module, this.scope);
 		configure(block);
@@ -144,18 +153,22 @@ export class BlockBuilder {
 		return this;
 	}
 
+	/** Performs the break domain operation for this block builder instance. */
 	break(): this {
 		this.statements.push(syntheticNode('BreakStatement', 'statement', this.scope, 'break;'));
 		return this;
 	}
+	/** Performs the continue domain operation for this block builder instance. */
 	continue(): this {
 		this.statements.push(syntheticNode('ContinueStatement', 'statement', this.scope, 'continue;'));
 		return this;
 	}
 
+	/** Performs the nodes domain operation for this block builder instance. */
 	nodes(): readonly ExpressionNode[] {
 		return Object.freeze([...this.statements]);
 	}
+	/** Performs the print block domain operation for this block builder instance. */
 	printBlock(indent = '  '): string {
 		const body = this.statements
 			.map((statement) => `${indent}${indentLines(printNode(statement), indent)}`)

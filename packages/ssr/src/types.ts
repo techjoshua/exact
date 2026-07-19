@@ -22,6 +22,7 @@ import type {
 	ExactStateContract
 } from '@exact/server';
 
+/** Configures render to string. */
 export type RenderToStringOptions = {
 	markers?: boolean;
 	/** Inserts React-compatible separators between adjacent primitive text children. */
@@ -56,13 +57,16 @@ export type RenderToStringOptions = {
 	onProfile?: ExactProfileSink;
 };
 
+/** Reports an observable ssr profile event. */
 export type SsrProfileEvent = ExactProfileEvent<'ssr', 'render-to-string' | 'create-stream'>;
 
+/** Describes the result produced by render to string. */
 export type RenderToStringResult = {
 	html: string;
 	state?: unknown;
 };
 
+/** Configures hydration script. */
 export type HydrationScriptOptions = {
 	pluginRegistryFingerprint?: string;
 	endpoint?: string;
@@ -81,11 +85,13 @@ export type HydrationScriptOptions = {
 	outputExtensions?: readonly ExactOutputExtension[];
 };
 
+/** Describes the result produced by hydratable string. */
 export type HydratableStringResult = RenderToStringResult & {
 	hydrationScript: string;
 	htmlWithHydration: string;
 };
 
+/** Configures render to document stream. */
 export type RenderToDocumentStreamOptions = RenderToStringOptions &
 	HydrationScriptOptions & {
 		rootId?: string;
@@ -93,6 +99,7 @@ export type RenderToDocumentStreamOptions = RenderToStringOptions &
 		maxStreamEvents?: number;
 	};
 
+/** Configures render to progressive html stream. */
 export type RenderToProgressiveHtmlStreamOptions = RenderToDocumentStreamOptions & {
 	rootId?: string;
 	/**
@@ -102,14 +109,17 @@ export type RenderToProgressiveHtmlStreamOptions = RenderToDocumentStreamOptions
 	progressiveMode?: 'inline' | 'inert';
 };
 
+/** Configures render to progressive html response. */
 export type RenderToProgressiveHtmlResponseOptions = RenderToProgressiveHtmlStreamOptions & {
 	status?: number;
 	headers?: Record<string, string>;
 	contentType?: string;
 };
 
+/** Defines the exact request render function type contract. */
 export type ExactRequestRenderFunction = (context: ExactServerContext) => VNode | Promise<VNode>;
 
+/** Configures render exact request to html response. */
 export type RenderExactRequestToHtmlResponseOptions = RenderToStringOptions &
 	HydrationScriptOptions & {
 		hydration?: boolean;
@@ -118,6 +128,7 @@ export type RenderExactRequestToHtmlResponseOptions = RenderToStringOptions &
 		contentType?: string;
 	};
 
+/** Reports an observable exact document stream event. */
 export type ExactDocumentStreamEvent =
 	| { event: 'start'; version: 1 }
 	| { event: 'shell'; version: 1; html: string }
@@ -126,11 +137,13 @@ export type ExactDocumentStreamEvent =
 	| { event: 'complete'; version: 1 }
 	| { event: 'error'; version: 1; message: string };
 
+/** Defines the boundary render function type contract. */
 export type BoundaryRenderFunction = (
 	input: ExactInvocationRequest,
 	context: ExactServerContext
 ) => VNode | Promise<VNode>;
 
+/** Configures boundary refresh. */
 export type BoundaryRefreshOptions = RenderToStringOptions & {
 	boundaryId: string;
 	patchStrategy?: 'replace' | 'text' | 'element';
@@ -140,10 +153,12 @@ export type BoundaryRefreshOptions = RenderToStringOptions & {
 	): string | Promise<string | undefined> | undefined;
 };
 
+/** Configures action refresh boundary. */
 export type ActionRefreshBoundaryOptions = BoundaryRefreshOptions & {
 	render: BoundaryRenderFunction;
 };
 
+/** Configures action refresh. */
 export type ActionRefreshOptions = {
 	action(
 		input: ExactInvocationRequest,
@@ -152,10 +167,12 @@ export type ActionRefreshOptions = {
 	boundaries: readonly ActionRefreshBoundaryOptions[];
 };
 
+/** Defines the exact boundary renderer type contract. */
 export type ExactBoundaryRenderer =
 	| BoundaryRenderFunction
 	| (Partial<BoundaryRefreshOptions> & { render: BoundaryRenderFunction });
 
+/** Configures exact server handler registry. */
 export type ExactServerHandlerRegistryOptions = RenderToStringOptions & {
 	manifest: ExactServerManifest;
 	actions?: Record<
@@ -169,22 +186,26 @@ export type ExactServerHandlerRegistryOptions = RenderToStringOptions & {
 	patchStrategy?: BoundaryRefreshOptions['patchStrategy'];
 };
 
+/** Defines the exact server handler registry type contract. */
 export type ExactServerHandlerRegistry = {
 	actions: NonNullable<ExactServerContext['actions']>;
 	refreshBoundaries: NonNullable<ExactServerContext['refreshBoundaries']>;
 };
 
+/** Configures exact server runtime. */
 export type ExactServerRuntimeOptions = ExactServerHandlerRegistryOptions &
 	ExactServerContextConfiguration & {
 		authorize?: ExactServerContext['authorize'];
 		validateCsrf?: ExactServerContext['validateCsrf'];
 	};
 
+/** Defines the keyed list snapshot item type contract. */
 export type KeyedListSnapshotItem = {
 	key: string;
 	html: string;
 };
 
+/** Defines the keyed list snapshot type contract. */
 export type KeyedListSnapshot = {
 	listId: string;
 	html: string;
@@ -192,6 +213,7 @@ export type KeyedListSnapshot = {
 	items: KeyedListSnapshotItem[];
 };
 
+/** Configures keyed list snapshot. */
 export type KeyedListSnapshotOptions<T> = RenderToStringOptions & {
 	listId: string;
 	items: Iterable<T>;
@@ -199,6 +221,7 @@ export type KeyedListSnapshotOptions<T> = RenderToStringOptions & {
 	render(item: T): VNode;
 };
 
+/** Configures keyed list snapshot parse. */
 export type KeyedListSnapshotParseOptions = {
 	/** Maximum encoded snapshot bytes. Defaults to 16 MiB. */
 	maxBytes?: number;
@@ -208,6 +231,7 @@ export type KeyedListSnapshotParseOptions = {
 	maxMarkers?: number;
 };
 
+/** Configures keyed list refresh. */
 export type KeyedListRefreshOptions<T> = RenderToStringOptions & {
 	listId: string;
 	key(item: T): string;
@@ -225,6 +249,7 @@ export type KeyedListRefreshOptions<T> = RenderToStringOptions & {
 		| undefined;
 };
 
+/** Carries the context required by ssr. */
 export type SsrContext = {
 	markers: boolean;
 	textSeparators: boolean;

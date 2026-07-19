@@ -4,6 +4,7 @@ import { ControlRef, FieldContext } from './context.js';
 import type { LabelProps } from './contracts.js';
 import { childrenArray, combineAsync, mergeIds } from './values.js';
 
+/** Performs the label domain operation. */
 export function Label(this: Component<{}>, props: LabelProps) {
 	const field = this.getContext(FieldContext);
 	return () => {
@@ -12,6 +13,7 @@ export function Label(this: Component<{}>, props: LabelProps) {
 	};
 }
 
+/** Defines the properties accepted by control. */
 export type ControlProps = Record<string, unknown> & {
 	id?: string;
 	name?: string;
@@ -22,19 +24,27 @@ export type ControlProps = Record<string, unknown> & {
 	children?: Child | Child[];
 };
 
+/** Defines the properties accepted by input. */
 export type InputProps = ControlProps;
+/** Defines the properties accepted by textarea. */
 export type TextareaProps = ControlProps;
+/** Defines the properties accepted by select. */
 export type SelectProps = ControlProps;
+/** Defines the properties accepted by checkbox. */
 export type CheckboxProps = ControlProps;
+/** Performs the input domain operation. */
 export function Input(this: Component<{}>, props: InputProps) {
 	return controlComponent.call(this, 'input', props);
 }
+/** Performs the textarea domain operation. */
 export function Textarea(this: Component<{}>, props: TextareaProps) {
 	return controlComponent.call(this, 'textarea', props);
 }
+/** Performs the select domain operation. */
 export function Select(this: Component<{}>, props: SelectProps) {
 	return controlComponent.call(this, 'select', props);
 }
+/** Performs the checkbox domain operation. */
 export function Checkbox(this: Component<{}>, props: CheckboxProps) {
 	return controlComponent.call(this, 'input', { ...props, type: 'checkbox' });
 }

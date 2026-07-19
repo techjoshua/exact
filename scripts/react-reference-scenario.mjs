@@ -90,6 +90,7 @@ export async function collectReactReferenceTrace({
 	}
 }
 
+/** Performs the benchmark react reference domain operation. */
 export function benchmarkReactReference({ React, ReactDOMServer, baseline, iterations = 200 }) {
 	function Tree({ offset }) {
 		return React.createElement(

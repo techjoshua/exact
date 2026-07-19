@@ -1,5 +1,8 @@
+/** Defines the key type contract. */
 export type Key = string | number | bigint;
+/** Defines the react text type contract. */
 export type ReactText = string | number;
+/** Defines the react node type contract. */
 export type ReactNode =
 	| ReactElement
 	| ReactPortal
@@ -9,11 +12,13 @@ export type ReactNode =
 	| undefined
 	| ReactNode[]
 	| object;
+/** Defines the react component type type contract. */
 export type ReactComponentType<P = Record<string, unknown>> =
 	| ((props: P) => ReactNode)
 	| ReactClassType<P>
 	| ReactSpecialType<P>;
 
+/** Defines the react class type interface contract. */
 export interface ReactClassType<P = Record<string, unknown>> {
 	new (props: P, context?: unknown): ReactClassInstance<P>;
 	readonly contextType?: ReactContext<any>;
@@ -25,6 +30,7 @@ export interface ReactClassType<P = Record<string, unknown>> {
 	readonly displayName?: string;
 }
 
+/** Defines the react class instance interface contract. */
 export interface ReactClassInstance<P = Record<string, unknown>> {
 	props: P;
 	state: any;
@@ -45,6 +51,7 @@ export interface ReactClassInstance<P = Record<string, unknown>> {
 	getChildContext?(): Record<string, unknown>;
 }
 
+/** Defines the react element interface contract. */
 export interface ReactElement<P = Record<string, unknown>> {
 	readonly $$typeof: symbol;
 	readonly type: string | symbol | ReactComponentType<P>;
@@ -56,6 +63,7 @@ export interface ReactElement<P = Record<string, unknown>> {
 	readonly _debugInfo?: unknown;
 }
 
+/** Defines the react portal interface contract. */
 export interface ReactPortal {
 	readonly $$typeof: symbol;
 	readonly key: string | null;
@@ -64,6 +72,7 @@ export interface ReactPortal {
 	readonly implementation: null;
 }
 
+/** Defines the react special type interface contract. */
 export interface ReactSpecialType<P = Record<string, unknown>> {
 	readonly $$typeof: symbol;
 	readonly type?: ReactComponentType<P>;
@@ -73,19 +82,26 @@ export interface ReactSpecialType<P = Record<string, unknown>> {
 	readonly compare?: ((previous: P, next: P) => boolean) | null;
 }
 
+/** Defines the mutable ref object interface contract. */
 export interface MutableRefObject<T> {
 	current: T;
 }
+/** Defines the dispatch type contract. */
 export type Dispatch<A> = (value: A) => void;
+/** Defines the set state action type contract. */
 export type SetStateAction<S> = S | ((previous: S) => S);
+/** Defines the reducer type contract. */
 export type Reducer<S, A> = (previous: S, action: A) => S;
+/** Defines the dependency list type contract. */
 export type DependencyList = readonly unknown[];
 
+/** Defines the react ref type contract. */
 export type ReactRef<T> =
 	| ((value: T | null) => void | (() => void))
 	| MutableRefObject<T | null>
 	| null;
 
+/** Carries the context required by react. */
 export interface ReactContext<T> {
 	readonly $$typeof: symbol;
 	readonly Provider: ReactComponentType<{ value: T; children?: ReactNode }>;
@@ -100,4 +116,5 @@ export interface ReactContext<T> {
 	readonly _exactContextMode?: 'cell' | 'value';
 }
 
+/** Defines the external store subscribe type contract. */
 export type ExternalStoreSubscribe = (onStoreChange: () => void) => () => void;

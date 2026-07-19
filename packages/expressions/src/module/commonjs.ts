@@ -2,6 +2,7 @@ import ts from 'typescript';
 import type { ModuleExportReplacement } from './contracts.js';
 import { isRequireCall } from './inspection.js';
 
+/** Transforms common js destructuring into its required representation. */
 export function rewriteCommonJsDestructuring(
 	factory: ts.NodeFactory,
 	node: ts.VariableStatement,

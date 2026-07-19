@@ -8,6 +8,7 @@ import { expressionStatePath } from './writes.js';
 
 import type { ExpressionComponentSite } from './contracts.js';
 
+/** Performs the component site map domain operation. */
 export function componentSiteMap(
 	entries: readonly (readonly [string, ExpressionComponentSite])[]
 ): ReadonlyMap<string, ExpressionComponentSite> {
@@ -41,11 +42,13 @@ export function componentSiteMap(
 	});
 }
 
+/** Performs the declaration description domain operation. */
 export function declarationDescription(kind: string): string {
 	if (['VariableDeclaration', 'BindingElement'].includes(kind)) return 'variable';
 	if (['ClassDeclaration', 'ClassExpression'].includes(kind)) return 'class';
 	return kind;
 }
+/** Performs the expression island captures domain operation. */
 export function expressionIslandCaptures(
 	module: BoundModule,
 	component: NodeRef,
@@ -76,6 +79,7 @@ export function expressionIslandCaptures(
 	return { values: [...values].sort(), functions: [...functions].sort() };
 }
 
+/** Performs the expression island state reads domain operation. */
 export function expressionIslandStateReads(
 	module: BoundModule,
 	island: NodeRef | undefined,
@@ -162,9 +166,11 @@ function isWithin(reference: NodeRef, owner: NodeRef): boolean {
 	);
 }
 
+/** Reports whether client island attribute. */
 export function isClientIslandAttribute(name: string): boolean {
 	return name === 'ref' || /^on[A-Z]/.test(name);
 }
+/** Performs the node path domain operation. */
 export function nodePath(reference: NodeRef, component: NodeRef): string {
 	const path: number[] = [];
 	let current = reference;
@@ -177,6 +183,7 @@ export function nodePath(reference: NodeRef, component: NodeRef): string {
 	return path.join('.');
 }
 
+/** Performs the unique contexts domain operation. */
 export function uniqueContexts(values: readonly ExactContextEffect[]): ExactContextEffect[] {
 	return [
 		...new Map(
@@ -187,6 +194,7 @@ export function uniqueContexts(values: readonly ExactContextEffect[]): ExactCont
 	);
 }
 
+/** Performs the nearest component domain operation. */
 export function nearestComponent(
 	reference: NodeRef,
 	components: ReadonlySet<NodeRef['node']>
@@ -197,6 +205,7 @@ export function nearestComponent(
 		.first((candidate) => components.has(candidate.node));
 }
 
+/** Performs the inside task domain operation. */
 export function insideTask(reference: NodeRef): boolean {
 	return reference
 		.ancestors()
@@ -204,6 +213,7 @@ export function insideTask(reference: NodeRef): boolean {
 		.any((call) => /^this\.task(?:\.[A-Za-z_$][\w$]*)?\s*\(/.test(call.node.text ?? ''));
 }
 
+/** Performs the inside client island domain operation. */
 export function insideClientIsland(reference: NodeRef): boolean {
 	return reference
 		.ancestors()
@@ -213,6 +223,7 @@ export function insideClientIsland(reference: NodeRef): boolean {
 		);
 }
 
+/** Performs the inside client island opening domain operation. */
 export function insideClientIslandOpening(reference: NodeRef): boolean {
 	if (!insideClientIsland(reference)) return false;
 	return reference
@@ -225,6 +236,7 @@ export function insideClientIslandOpening(reference: NodeRef): boolean {
 		);
 }
 
+/** Performs the span start domain operation. */
 export function spanStart(reference: NodeRef): number {
 	return reference.node.span?.start ?? 0;
 }

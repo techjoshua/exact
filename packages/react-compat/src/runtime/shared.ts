@@ -12,28 +12,47 @@ import { type ContextCell } from './hook-slots.js';
 export { toExactNode } from './nodes.js';
 export { assignReactRef } from './refs.js';
 
+/** Provides the canonical react element 18 value. */
 export const REACT_ELEMENT_18 = Symbol.for('react.element');
+/** Provides the canonical react element 19 value. */
 export const REACT_ELEMENT_19 = Symbol.for('react.transitional.element');
+/** Provides the canonical react fragment type value. */
 export const REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
+/** Provides the canonical react forward ref type value. */
 export const REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
+/** Provides the canonical react memo type value. */
 export const REACT_MEMO_TYPE = Symbol.for('react.memo');
+/** Provides the canonical react lazy type value. */
 export const REACT_LAZY_TYPE = Symbol.for('react.lazy');
+/** Provides the canonical react context type value. */
 export const REACT_CONTEXT_TYPE = Symbol.for('react.context');
+/** Provides the canonical react provider type value. */
 export const REACT_PROVIDER_TYPE = Symbol.for('react.provider');
+/** Provides the canonical react consumer type value. */
 export const REACT_CONSUMER_TYPE = Symbol.for('react.consumer');
+/** Provides the canonical react strict mode type value. */
 export const REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
+/** Provides the canonical react profiler type value. */
 export const REACT_PROFILER_TYPE = Symbol.for('react.profiler');
+/** Provides the canonical react suspense type value. */
 export const REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
+/** Provides the canonical react portal type value. */
 export const REACT_PORTAL_TYPE = Symbol.for('react.portal');
+/** Provides the canonical react activity type value. */
 export const REACT_ACTIVITY_TYPE = Symbol.for('react.activity');
+/** Provides the canonical react class updater value. */
 export const REACT_CLASS_UPDATER = Symbol.for('exact.react.class-updater');
+/** Provides the canonical exact component type value. */
 export const EXACT_COMPONENT_TYPE = Symbol.for('exact.react.native-component');
 
+/** Provides the canonical react ref prop value. */
 export const REACT_REF_PROP = '__exactReactCompatibilityRef';
 
 let target: 18 | 19 = 19;
 
+/** Reports an observable react compatibility profile event. */
 export type ReactCompatibilityProfileEvent = ExactProfileEvent<'react-compat', 'render' | 'commit'>;
+/** Provides the canonical profile stack value. */
 export const profileStack: ExactProfileSink<ReactCompatibilityProfileEvent>[] = [];
 let nextCompatibilityId = 1;
 
@@ -55,27 +74,33 @@ export function withReactProfile<T>(
 	}
 }
 
+/** Applies a react compatibility target to the owned runtime state. */
 export function setReactCompatibilityTarget(next: 18 | 19): void {
 	target = next;
 }
+/** Performs the react compatibility target domain operation. */
 export function reactCompatibilityTarget(): 18 | 19 {
 	return target;
 }
+/** Performs the react element symbol domain operation. */
 export function reactElementSymbol(): symbol {
 	return target === 18 ? REACT_ELEMENT_18 : REACT_ELEMENT_19;
 }
 
+/** Reports whether react element. */
 export function isReactElement(value: unknown): value is ReactElement {
 	if (!value || typeof value !== 'object') return false;
 	const marker = (value as { $$typeof?: unknown }).$$typeof;
 	return marker === REACT_ELEMENT_18 || marker === REACT_ELEMENT_19;
 }
 
+/** Creates a react context. */
 export function createReactContext<T>(defaultValue: T): ReactContext<T> {
 	const token = createExactContext<ContextCell>(`react.compat.${nextReactCompatibilityId()}`);
 	return createReactContextObject(defaultValue, token, 'cell');
 }
 
+/** Creates a react context for exact token. */
 export function createReactContextForExactToken<T>(
 	defaultValue: T,
 	token: ContextToken<T>
@@ -104,6 +129,7 @@ function createReactContextObject<T>(
 	return context as unknown as ReactContext<T>;
 }
 
+/** Defines the react dispatcher type contract. */
 export type ReactDispatcher = {
 	useState(initial: unknown): readonly [unknown, (value: unknown) => void];
 	useReducer(
@@ -147,6 +173,7 @@ export type ReactDispatcher = {
 	readContext?<T>(context: ReactContext<T>): T;
 };
 
+/** Defines the react async dispatcher type contract. */
 export type ReactAsyncDispatcher = {
 	getCacheForType?<T>(resourceType: () => T): T;
 	cacheSignal?(): AbortSignal;
@@ -164,6 +191,7 @@ export type ReactOwnerFrame = {
 	stateNode: unknown;
 };
 
+/** Provides the canonical react shared internals18 value. */
 export const ReactSharedInternals18 = {
 	ReactCurrentDispatcher: { current: null as ReactDispatcher | null },
 	ReactCurrentBatchConfig: { transition: null as unknown },
@@ -179,6 +207,7 @@ export const ReactSharedInternals18 = {
 	}
 };
 
+/** Provides the canonical react shared internals19 value. */
 export const ReactSharedInternals19 = {
 	H: null as ReactDispatcher | null,
 	A: null as ReactAsyncDispatcher | null,
@@ -194,6 +223,7 @@ export const ReactSharedInternals19 = {
 	recentlyCreatedOwnerStacks: 0
 };
 
+/** Resolves a dispatcher. */
 export function resolveDispatcher(): ReactDispatcher {
 	const dispatcher =
 		target === 18
@@ -206,6 +236,7 @@ export function resolveDispatcher(): ReactDispatcher {
 	return dispatcher;
 }
 
+/** Applies a current dispatcher to the owned runtime state. */
 export function setCurrentDispatcher(dispatcher: ReactDispatcher | null): ReactDispatcher | null {
 	if (target === 18) {
 		const previous = ReactSharedInternals18.ReactCurrentDispatcher.current;
@@ -217,11 +248,13 @@ export function setCurrentDispatcher(dispatcher: ReactDispatcher | null): ReactD
 	return previous;
 }
 
+/** Defines the react cache scope type contract. */
 export type ReactCacheScope = {
 	roots: Map<object, Map<unknown, unknown>>;
 	controller: AbortController;
 };
 
+/** Defines the react root runtime type contract. */
 export type ReactRootRuntime = {
 	identifierPrefix: string;
 	nextComponentId: number;
@@ -232,7 +265,10 @@ export type ReactRootRuntime = {
 	resources?: Map<string, { priority: number; html: string }>;
 };
 
+/** Provides the canonical react cache context value. */
 export const ReactCacheContext = createExactContext<ReactCacheScope>('react.cache', true);
+/** Provides the canonical react root context value. */
 export const ReactRootContext = createExactContext<ReactRootRuntime>('react.root', true);
+/** Provides the canonical legacy react context value. */
 export const LegacyReactContext =
 	createExactContext<Record<string, unknown>>('react.legacy-context');

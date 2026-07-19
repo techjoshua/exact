@@ -4,6 +4,7 @@ import { FormContext } from './context.js';
 import type { FieldContextValue, FormContextValue, FormProps, FormState } from './contracts.js';
 import { childrenArray } from './values.js';
 
+/** Performs the form domain operation. */
 export function Form(this: Component<FormState>, props: FormProps) {
 	this.state.submitting = false;
 	const fields = new Set<FieldContextValue>();

@@ -29,6 +29,7 @@ import {
 
 export { BrowserRouter, HashRouter, MemoryRouter, generatePath, useLocation };
 
+/** Defines the v5 match type contract. */
 export type V5Match<
 	Params extends Record<string, string | undefined> = Record<string, string | undefined>
 > = {
@@ -37,6 +38,7 @@ export type V5Match<
 	isExact: boolean;
 	params: Params;
 };
+/** Defines the properties accepted by route component. */
 export type RouteComponentProps<
 	Params extends Record<string, string | undefined> = Record<string, string | undefined>
 > = {
@@ -45,6 +47,7 @@ export type RouteComponentProps<
 	match: V5Match<Params> | null;
 	staticContext?: unknown;
 };
+/** Defines the v5 history type contract. */
 export type V5History = {
 	readonly length: number;
 	readonly action: 'POP' | 'PUSH' | 'REPLACE';
@@ -64,6 +67,7 @@ export type V5History = {
 	): () => void;
 	createHref(to: To): string;
 };
+/** Defines the properties accepted by route. */
 export type RouteProps = {
 	path?: string | readonly string[];
 	exact?: boolean;
@@ -82,6 +86,7 @@ const MatchContext = createContext<Readonly<{
 }> | null>(null);
 const StaticContext = createContext<Record<string, unknown> | null>(null);
 
+/** Performs the router domain operation. */
 export function Router(props: { history: any; children?: ReactNode }): ReactNode {
 	const location = useSyncExternalStore(
 		(notify) => props.history.listen(notify),
@@ -106,6 +111,7 @@ export function Router(props: { history: any; children?: ReactNode }): ReactNode
 	});
 }
 
+/** Performs the static router domain operation. */
 export function StaticRouter(props: {
 	basename?: string;
 	children?: ReactNode;
@@ -131,6 +137,7 @@ export function StaticRouter(props: {
 	});
 }
 
+/** Performs the switch domain operation. */
 export function Switch(props: { children?: ReactNode; location?: RouteLocation }): ReactNode {
 	const location = props.location ?? useLocation();
 	for (const child of Children.toArray(props.children)) {
@@ -144,6 +151,7 @@ export function Switch(props: { children?: ReactNode; location?: RouteLocation }
 	return null;
 }
 
+/** Performs the route domain operation. */
 export function Route(props: RouteProps): ReactNode {
 	const location = props.location ?? useLocation();
 	const match =
@@ -167,6 +175,7 @@ export function Route(props: RouteProps): ReactNode {
 	return createElement(MatchContext.Provider, { value: { match, location }, children: output });
 }
 
+/** Performs the redirect domain operation. */
 export function Redirect(props: {
 	to: To | ((location: RouteLocation) => To);
 	push?: boolean;
@@ -193,11 +202,13 @@ export function Redirect(props: {
 	return null;
 }
 
+/** Performs the link domain operation. */
 export function Link(props: Parameters<typeof ModernLink>[0] & { innerRef?: unknown }): ReactNode {
 	const { innerRef, ...rest } = props;
 	return createElement(ModernLink, { ...rest, ref: innerRef });
 }
 
+/** Performs the nav link domain operation. */
 export function NavLink(
 	props: Parameters<typeof Link>[0] & {
 		activeClassName?: string;
@@ -234,6 +245,7 @@ export function NavLink(
 	});
 }
 
+/** Performs the prompt domain operation. */
 export function Prompt(props: {
 	when?: boolean;
 	message:
@@ -248,6 +260,7 @@ export function Prompt(props: {
 	return null;
 }
 
+/** Performs the use history domain operation. */
 export function useHistory(): V5History {
 	const router = UNSAFE_useExactRouter();
 	const navigate = useNavigate();
@@ -303,12 +316,14 @@ export function useHistory(): V5History {
 	);
 }
 
+/** Performs the use params domain operation. */
 export function useParams<
 	T extends Record<string, string | undefined> = Record<string, string | undefined>
 >(): T {
 	return (useContext(MatchContext)?.match?.params ?? {}) as T;
 }
 
+/** Performs the use route match domain operation. */
 export function useRouteMatch<
 	Params extends Record<string, string | undefined> = Record<string, string | undefined>
 >(
@@ -321,6 +336,7 @@ export function useRouteMatch<
 	return matchPath(location.pathname, props as RouteProps) as V5Match<Params> | null;
 }
 
+/** Performs the with router domain operation. */
 export function withRouter<P extends RouteComponentProps<any>>(
 	Component: ReactComponentType<P>
 ): ReactComponentType<Omit<P, keyof RouteComponentProps<any>>> {
@@ -341,6 +357,7 @@ export function withRouter<P extends RouteComponentProps<any>>(
 	return WithRouter;
 }
 
+/** Performs the match path domain operation. */
 export function matchPath<
 	Params extends Record<string, string | undefined> = Record<string, string | undefined>
 >(

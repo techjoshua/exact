@@ -32,6 +32,7 @@ import {
 	uniqueSources
 } from './effect-sources.js';
 
+/** Collects direct callable effects in deterministic order. */
 export function collectDirectCallableEffects(state: CallableAnalysisState): void {
 	const {
 		module,

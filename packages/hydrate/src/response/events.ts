@@ -2,6 +2,7 @@ import type { ExactStreamEvent } from '@exact/server';
 import { hasOnlyKeys, isJsonSafe } from '../validation.js';
 import { isPatchLike } from './result.js';
 
+/** Reports whether exact stream start event. */
 export function isExactStreamStartEvent(
 	value: unknown
 ): value is Extract<ExactStreamEvent, { event: 'start' }> {
@@ -18,6 +19,7 @@ export function isExactStreamStartEvent(
 	);
 }
 
+/** Reports whether exact stream result event. */
 export function isExactStreamResultEvent(
 	value: unknown
 ): value is Extract<ExactStreamEvent, { event: 'result' }> {
@@ -33,6 +35,7 @@ export function isExactStreamResultEvent(
 	);
 }
 
+/** Reports whether exact stream patch event. */
 export function isExactStreamPatchEvent(
 	value: unknown
 ): value is Extract<ExactStreamEvent, { event: 'patch' }> {
@@ -52,6 +55,7 @@ export function isExactStreamPatchEvent(
 	);
 }
 
+/** Reports whether exact stream state event. */
 export function isExactStreamStateEvent(
 	value: unknown
 ): value is Extract<ExactStreamEvent, { event: 'state' }> {
@@ -72,6 +76,7 @@ export function isExactStreamStateEvent(
 	);
 }
 
+/** Reports whether exact stream html event. */
 export function isExactStreamHtmlEvent(
 	value: unknown
 ): value is Extract<ExactStreamEvent, { event: 'html' }> {
@@ -91,6 +96,7 @@ export function isExactStreamHtmlEvent(
 	);
 }
 
+/** Reports whether exact stream complete event. */
 export function isExactStreamCompleteEvent(
 	value: unknown
 ): value is Extract<ExactStreamEvent, { event: 'complete' }> {

@@ -1,11 +1,16 @@
+/** Defines the status type contract. */
 export type Status = 'backlog' | 'active' | 'review' | 'done';
 
+/** Defines the priority type contract. */
 export type Priority = 'low' | 'medium' | 'high';
 
+/** Defines the view mode type contract. */
 export type ViewMode = 'board' | 'list';
 
+/** Tracks the state owned by sync. */
 export type SyncState = 'idle' | 'saving' | 'synced' | 'failed';
 
+/** Defines the task type contract. */
 export type Task = {
 	/** @exact key */
 	id: string;
@@ -18,12 +23,14 @@ export type Task = {
 	updatedAt: string;
 };
 
+/** Defines the column type contract. */
 export type Column = {
 	/** @exact key */
 	id: Status;
 	title: string;
 };
 
+/** Defines the activity type contract. */
 export type Activity = {
 	/** @exact key */
 	id: string;
@@ -31,6 +38,7 @@ export type Activity = {
 	at: string;
 };
 
+/** Tracks the state owned by workbench. */
 export type WorkbenchState = {
 	tasks: Task[];
 	query: string;
@@ -46,6 +54,7 @@ export type WorkbenchState = {
 	syncState: SyncState;
 };
 
+/** Defines the workbench services type contract. */
 export type WorkbenchServices = {
 	setQuery(value: string): void;
 	setDraftTitle(value: string): void;

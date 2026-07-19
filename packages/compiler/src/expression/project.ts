@@ -40,6 +40,7 @@ export class ExactCompilerSession {
 		this.onProfile = options.onProfile;
 	}
 
+	/** Performs the expression module for domain operation for this exact compiler session instance. */
 	expressionModuleFor(
 		filename: string,
 		source: string,
@@ -112,6 +113,7 @@ export class ExactCompilerSession {
 		return module;
 	}
 
+	/** Performs the expression dependency files domain operation for this exact compiler session instance. */
 	expressionDependencyFiles(
 		filename: string,
 		source: string,
@@ -188,6 +190,7 @@ export class ExactCompilerSession {
 		}
 	}
 
+	/** Releases clear and its owned resources for this exact compiler session instance. */
 	clear(): void {
 		const profileStarted = this.onProfile ? performance.now() : undefined;
 		const projectCount = this.projects.size;
@@ -202,12 +205,14 @@ export class ExactCompilerSession {
 		this.profile('clear', profileStarted, { projects: projectCount, modules: moduleCount });
 	}
 
+	/** Releases resources owned by this exact compiler session instance. */
 	dispose(): void {
 		if (this.disposed) return;
 		this.clear();
 		this.disposed = true;
 	}
 
+	/** Performs the stats domain operation for this exact compiler session instance. */
 	stats(): ExactCompilerSessionStats {
 		let rebuilds = 0;
 		let semanticDiagnostics = 0;

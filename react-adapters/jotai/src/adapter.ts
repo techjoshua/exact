@@ -4,15 +4,19 @@ import { atom, createStore, getDefaultStore, type Atom } from 'jotai/vanilla';
 
 export { atom, createStore, getDefaultStore };
 export type { Atom };
+/** Defines the store type contract. */
 export type Store = ReturnType<typeof createStore>;
 
+/** Provides the canonical jotai store context value. */
 export const JotaiStoreContext = createContext<Store>('exact.jotai.store', { reactive: false });
 
+/** Defines the properties accepted by exact jotai provider. */
 export interface ExactJotaiProviderProps {
 	readonly store?: Store;
 	readonly children?: Child | readonly Child[];
 }
 
+/** Performs the exact jotai provider domain operation. */
 export function ExactJotaiProvider(
 	this: Component<Record<string, unknown>>,
 	props: ExactJotaiProviderProps
@@ -21,6 +25,7 @@ export function ExactJotaiProvider(
 	return () => props.children ?? null;
 }
 
+/** Creates an atom source. */
 export function createAtomSource<Value>(
 	store: Store,
 	valueAtom: Atom<Value>
@@ -31,6 +36,7 @@ export function createAtomSource<Value>(
 	});
 }
 
+/** Creates a component atom. */
 export function createComponentAtom<Value>(
 	component: Component<any>,
 	valueAtom: Atom<Value>,

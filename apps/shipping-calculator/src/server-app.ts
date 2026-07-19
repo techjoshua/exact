@@ -58,12 +58,14 @@ const exactRuntime = {
 };
 const exactHandler = createExactNodeHandler(exactRuntime);
 
+/** Configures parcel lab server. */
 export type ParcelLabServerOptions = {
 	clientScript: string;
 	stylesheet?: string;
 	transformHtml?(html: string): Promise<string>;
 };
 
+/** Runs parcel lab request with the supplied execution context. */
 export async function handleParcelLabRequest(
 	request: IncomingMessage,
 	response: ServerResponse,

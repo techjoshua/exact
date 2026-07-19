@@ -15,6 +15,7 @@ import { createRequestLifetime } from './request.js';
 import { abortReason, applyOverrides, awaitWithAbort, headerValue } from './response.js';
 import { ContextScope } from './scope.js';
 
+/** Defines the context runtime class contract. */
 export class ContextRuntime implements ExactContextRuntime {
 	private readonly applicationAbort = new AbortController();
 	private readonly activeRequests = new Set<(reason?: unknown) => Promise<void>>();
@@ -24,6 +25,7 @@ export class ContextRuntime implements ExactContextRuntime {
 
 	constructor(private readonly configuration: ExactServerContextConfiguration) {}
 
+	/** Performs the open domain operation for this context runtime instance. */
 	async open(
 		request: ExactRequestLike,
 		platformRequest: unknown = request
@@ -118,6 +120,7 @@ export class ContextRuntime implements ExactContextRuntime {
 		};
 	}
 
+	/** Releases resources owned by this context runtime instance. */
 	async dispose(reason = 'eXact server runtime disposed'): Promise<void> {
 		if (this.disposed) return;
 		this.disposed = true;

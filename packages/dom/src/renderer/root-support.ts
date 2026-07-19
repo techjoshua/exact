@@ -12,6 +12,7 @@ import { formatError } from '../debug.js';
 import { namespaceForTag } from '../namespace.js';
 import type { RenderOptions, Root } from '../types.js';
 
+/** Creates a root boundary. */
 export function createRootBoundary(root: Root): ComponentFunction<{}, { version: number }> {
 	return function RootBoundary(this: Component<{}>, props: { version: number }) {
 		this.setContext(ErrorContext, root.errors);
@@ -23,6 +24,7 @@ export function createRootBoundary(root: Root): ComponentFunction<{}, { version:
 	};
 }
 
+/** Creates a dom error context. */
 export function createDomErrorContext(options: RenderOptions): ErrorContextValue {
 	const base = createErrorContext();
 	if (!options.onErrorReport) return base;
@@ -36,6 +38,7 @@ export function createDomErrorContext(options: RenderOptions): ErrorContextValue
 	};
 }
 
+/** Creates a root error view. */
 export function createRootErrorView(errors: ErrorReport[]): VNode {
 	const reports: ErrorReport[] = [];
 	for (let index = 0; index < errors.length; index++) {
@@ -57,6 +60,7 @@ export function createRootErrorView(errors: ErrorReport[]): VNode {
 	);
 }
 
+/** Creates a marker. */
 export function createMarker(
 	root: Root,
 	label: 'cell' | 'component' | 'dynamic' | 'fragment' | 'portal'
@@ -64,6 +68,7 @@ export function createMarker(
 	return root.debugMarkers ? document.createComment(`exact-${label}`) : document.createTextNode('');
 }
 
+/** Creates an element. */
 export function createElement(
 	tag: string,
 	parent?: Node,

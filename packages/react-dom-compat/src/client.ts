@@ -4,6 +4,7 @@ import { hydrate as hydrateExact, type HydrationRoot } from '@exact/hydrate';
 import type { ReactNode } from '@exact/react-compat';
 import { ReactRootContext, toExactNode, type ReactRootRuntime } from '@exact/react-compat/exact';
 
+/** Configures root. */
 export interface RootOptions {
 	identifierPrefix?: string;
 	onCaughtError?: (
@@ -14,6 +15,7 @@ export interface RootOptions {
 	onUncaughtError?: (error: unknown, info: { componentStack: string }) => void;
 }
 
+/** Defines the root interface contract. */
 export interface Root {
 	render(children: ReactNode): void;
 	unmount(): void;
@@ -67,6 +69,7 @@ class CompatibilityRoot implements Root {
 	}
 }
 
+/** Creates a root. */
 export function createRoot(container: Element | DocumentFragment, _options?: RootOptions): Root {
 	if (!(container instanceof Element)) {
 		throw new TypeError(
@@ -80,6 +83,7 @@ export function createRoot(container: Element | DocumentFragment, _options?: Roo
 	return root;
 }
 
+/** Performs the hydrate root domain operation. */
 export function hydrateRoot(
 	container: Element | DocumentFragment,
 	initialChildren: ReactNode,
@@ -138,6 +142,7 @@ export function legacyUnmount(container: Element): boolean {
 	return true;
 }
 
+/** Provides the canonical version value. */
 export const version = '19.2.0-exact';
 
 function reportUncaught(options: RootOptions | undefined, report: ErrorReport): void {

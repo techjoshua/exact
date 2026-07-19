@@ -8,6 +8,7 @@ import type {
 	ExactSemanticScopeIR
 } from './types.js';
 
+/** Provides the canonical browser globals value. */
 export const browserGlobals = browserPlatformGlobals;
 
 /** Builds compiler semantic IR solely from canonical expression bindings. */

@@ -2,6 +2,7 @@ import type { Component } from '@exact/core';
 import { usStatePaths } from '../data/us-state-paths.js';
 import type { ExtraService, ProviderId, RateQuote, RouteResult } from '../types.js';
 
+/** Performs the route map domain operation. */
 export function RouteMap(
 	this: Component<{}>,
 	props: { route: RouteResult; origin: string; destination: string }
@@ -55,6 +56,7 @@ export function RouteMap(
 	};
 }
 
+/** Performs the rate card domain operation. */
 export function RateCard(
 	this: Component<{}>,
 	props: { quote: RateQuote; best: boolean; refreshing: boolean }
@@ -116,6 +118,7 @@ export function RateCard(
 	);
 }
 
+/** Performs the feature domain operation. */
 export function Feature(this: Component<{}>, props: { feature: ExtraService }) {
 	return () => (
 		<span
@@ -139,9 +142,11 @@ export function Feature(this: Component<{}>, props: { feature: ExtraService }) {
 	);
 }
 
+/** Performs the capitalize domain operation. */
 export function capitalize(value: string): string {
 	return value.charAt(0).toUpperCase() + value.slice(1);
 }
+/** Performs the provider name domain operation. */
 export function providerName(id: ProviderId): string {
 	return (
 		{ doop: 'DOOP', usps: 'USPS', ups: 'UPS', fedex: 'FedEx', dhl: 'DHL Express' } as Record<

@@ -17,6 +17,7 @@ import { createSsrContext, drainTasks } from './context.js';
 import { renderToStringOwned } from './entrypoints.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 
+/** Transforms to string async into its required representation. */
 export async function renderToStringAsync(
 	vnode: VNode,
 	options: RenderToStringOptions = {}
@@ -42,6 +43,7 @@ export async function renderToStringAsync(
 	};
 }
 
+/** Transforms to hydratable string async into its required representation. */
 export async function renderToHydratableStringAsync(
 	vnode: VNode,
 	options: RenderToStringOptions & HydrationScriptOptions = {}
@@ -68,6 +70,7 @@ export async function renderToHydratableStringAsync(
 	};
 }
 
+/** Performs the stream document render domain operation. */
 export async function streamDocumentRender(
 	vnode: VNode,
 	options: RenderToDocumentStreamOptions & { taskDeadline?: number },

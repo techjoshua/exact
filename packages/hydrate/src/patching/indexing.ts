@@ -6,6 +6,7 @@ import {
 } from '@exact/dom';
 import { type ExactRange, type ProtocolIndex } from './planning.js';
 
+/** Creates a protocol index. */
 export function createProtocolIndex(
 	container: Element,
 	work?: number | DomWorkBudget
@@ -89,6 +90,7 @@ export function createProtocolIndex(
 	return !valid || stack.length ? undefined : index;
 }
 
+/** Performs the reindex list domain operation. */
 export function reindexList(index: ProtocolIndex, listId: string): void {
 	const list = index.ranges.get(listId);
 	if (!list) return;

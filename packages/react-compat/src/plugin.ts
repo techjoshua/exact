@@ -17,9 +17,12 @@ export {
 	type UnsupportedReactCompatSource
 } from './adapters.js';
 
+/** Defines the react filter pattern type contract. */
 export type ReactFilterPattern = string | RegExp | readonly (string | RegExp)[];
+/** Defines the react compatibility target type contract. */
 export type ReactCompatibilityTarget = 'auto' | 18 | 19 | '18' | '19';
 
+/** Configures react compatibility. */
 export interface ReactCompatibilityOptions {
 	target?: ReactCompatibilityTarget;
 	source?: ReactFilterPattern;
@@ -28,6 +31,7 @@ export interface ReactCompatibilityOptions {
 	cwd?: string;
 }
 
+/** Defines the resolved react compatibility interface contract. */
 export interface ResolvedReactCompatibility {
 	target: 18 | 19;
 	source?: ReactFilterPattern;
@@ -35,8 +39,10 @@ export interface ResolvedReactCompatibility {
 	aliases: Readonly<Record<string, string>>;
 }
 
+/** Defines the jsx source ownership type contract. */
 export type JsxSourceOwnership = 'react' | 'exact' | 'unknown';
 
+/** Resolves a react compatibility. */
 export function resolveReactCompatibility(
 	options: boolean | ReactCompatibilityOptions | undefined = undefined,
 	cwd = process.cwd()
@@ -60,6 +66,7 @@ export function resolveReactCompatibility(
 	};
 }
 
+/** Defines the react reconciler manifest type contract. */
 export type ReactReconcilerManifest = {
 	version?: string;
 	peerDependencies?: { react?: string };
@@ -81,6 +88,7 @@ export function validateReactReconcilerTarget(
 	);
 }
 
+/** Validates installed react reconciler and throws when the contract is violated. */
 export function validateInstalledReactReconciler(target: 18 | 19, cwd = process.cwd()): void {
 	try {
 		const manifest = JSON.parse(
@@ -102,6 +110,7 @@ function rangeAllowsMajor(range: string, major: 18 | 19): boolean {
 	return intersects(range, `>=${major}.0.0-0 <${major + 1}.0.0-0`, { includePrerelease: true });
 }
 
+/** Performs the react compatibility aliases domain operation. */
 export function reactCompatibilityAliases(target: 18 | 19): Readonly<Record<string, string>> {
 	return Object.freeze({
 		'react/jsx-runtime': `@exact/react-compat/jsx-runtime${target}`,
@@ -123,6 +132,7 @@ export function reactCompatibilityAliases(target: 18 | 19): Readonly<Record<stri
 	});
 }
 
+/** Reports whether react compatibility source. */
 export function isReactCompatibilitySource(
 	id: string,
 	code: string,

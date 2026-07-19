@@ -39,11 +39,13 @@ import { createExactDispatcher } from './runtime/dispatcher.js';
 const ownerFrames = new WeakMap<ComponentInstance<any>, ReactOwnerFrame>();
 let currentOwnerFrame: ReactOwnerFrame | null = null;
 
+/** Performs the current react owner frame domain operation. */
 export function currentReactOwnerFrame(): ReactOwnerFrame | unknown | null {
 	const externalOwner = ReactSharedInternals19.A?.getOwner?.();
 	return externalOwner ?? currentOwnerFrame;
 }
 
+/** Creates an owner frame. */
 export function createOwnerFrame(
 	component: ComponentInstance<any>,
 	type: unknown,
@@ -76,6 +78,7 @@ export function createOwnerFrame(
 	return frame;
 }
 
+/** Releases owner frame and its owned resources. */
 export function removeOwnerFrame(component: ComponentInstance<any>): void {
 	const frame = ownerFrames.get(component);
 	if (!frame) return;
@@ -118,7 +121,9 @@ export function enterReactOwnerScope(
 
 import { HookState } from './runtime/hook-state.js';
 
+/** Defines the hook host class contract. */
 export class HookHost extends HookState {
+	/** Transforms render into its required representation for this hook host instance. */
 	render(run: () => ReactNode): ReactNode {
 		const profileStarted = this.onProfile ? performance.now() : undefined;
 		if (this.disposed) throw new Error('Cannot render an unmounted React compatibility component');
@@ -168,6 +173,7 @@ export class HookHost extends HookState {
 		}
 	}
 
+	/** Releases resources owned by this hook host instance. */
 	dispose(): void {
 		this.disposed = true;
 		this.mounted = false;
@@ -188,12 +194,14 @@ export class HookHost extends HookState {
 		if (firstError !== undefined) throw firstError;
 	}
 
+	/** Performs the mount domain operation for this hook host instance. */
 	mount(): void {
 		if (this.disposed) return;
 		this.mounted = true;
 		this.commit();
 	}
 
+	/** Performs the schedule commit domain operation for this hook host instance. */
 	scheduleCommit(): void {
 		if (!this.mounted || this.disposed || this.commitScheduled) return;
 		this.commitScheduled = true;
@@ -301,6 +309,7 @@ function ownerHookValue(slot: HookSlot): unknown {
 
 let currentHost: HookHost | undefined;
 let currentRootRuntime: ReactRootRuntime | undefined;
+/** Performs the active hook host domain operation. */
 export function activeHookHost(): HookHost {
 	if (!currentHost)
 		throw new Error(
@@ -309,6 +318,7 @@ export function activeHookHost(): HookHost {
 	return currentHost;
 }
 
+/** Performs the active react cache scope domain operation. */
 export function activeReactCacheScope(): ReactCacheScope | undefined {
 	if (!currentHost) return undefined;
 	try {
@@ -318,6 +328,7 @@ export function activeReactCacheScope(): ReactCacheScope | undefined {
 	}
 }
 
+/** Performs the record react resource hint domain operation. */
 export function recordReactResourceHint(key: string, priority: number, html: string): boolean {
 	const resources = currentRootRuntime?.resources;
 	if (!resources) return false;

@@ -79,6 +79,7 @@ export class ExpressionProject {
 		this.configuredRoots = host.configuredRoots;
 	}
 
+	/** Applies a module to the owned runtime state for this expression project instance. */
 	updateModule(filename: string, source: string): BoundModule {
 		this.assertActive();
 		const normalized = normalizeFile(filename);
@@ -90,6 +91,7 @@ export class ExpressionProject {
 		return this.readBoundModule(normalized);
 	}
 
+	/** Applies a modules to the owned runtime state for this expression project instance. */
 	updateModules(
 		entries: Iterable<readonly [filename: string, source: string]>
 	): ReadonlyMap<string, BoundModule> {
@@ -142,6 +144,7 @@ export class ExpressionProject {
 		return this.readBoundModules(requested);
 	}
 
+	/** Resolves a module for this expression project instance. */
 	getModule(filename: string, source?: string): BoundModule {
 		this.assertActive();
 		const normalized = normalizeFile(filename);
@@ -150,6 +153,7 @@ export class ExpressionProject {
 		return this.readBoundModule(normalized);
 	}
 
+	/** Performs the bind domain operation for this expression project instance. */
 	async bind(module: UnboundModule): Promise<BoundModule> {
 		const structuralErrors = module
 			.validate()
@@ -169,12 +173,14 @@ export class ExpressionProject {
 		});
 	}
 
+	/** Produces an emit in its external representation for this expression project instance. */
 	emit(module: BoundModule, options: Parameters<BoundModule['emit']>[0] = {}) {
 		const errors = module.diagnostics.filter((diagnostic) => diagnostic.severity === 'error');
 		if (errors.length) throw new ExpressionProjectError(errors);
 		return module.emit(options);
 	}
 
+	/** Reports whether assignable for this expression project instance. */
 	isAssignable(source: ExpressionType, target: ExpressionType): boolean {
 		const sourceHandle = this.typeHandles.get(source);
 		const targetHandle = this.typeHandles.get(target);
@@ -259,6 +265,7 @@ export class ExpressionProject {
 		this.dirty = true;
 	}
 
+	/** Releases resources owned by this expression project instance. */
 	dispose(): void {
 		this.disposed = true;
 		this.overlays.clear();
@@ -384,6 +391,7 @@ export class ExpressionProject {
 	}
 }
 
+/** Creates an expression project. */
 export function createExpressionProject(options: ExpressionProjectOptions = {}): ExpressionProject {
 	return new ExpressionProject(options);
 }

@@ -1,5 +1,6 @@
 import type ts from 'typescript';
 
+/** Defines the helper names type contract. */
 export type HelperNames = {
 	element: string;
 	fragment: string;
@@ -26,15 +27,19 @@ export type HelperNames = {
 	arrayMutation: string;
 };
 
+/** Defines the state snapshot tree type contract. */
 export type StateSnapshotTree = Map<string, StateSnapshotTree | ts.Expression>;
 
+/** Defines the client island element node type contract. */
 export type ClientIslandElementNode = ts.JsxElement | ts.JsxSelfClosingElement;
 
+/** Defines the export binding type contract. */
 export type ExportBinding = {
 	exportedName: string;
 	localName: string;
 };
 
+/** Defines the client island captures type contract. */
 export type ClientIslandCaptures = {
 	values: string[];
 	functions: ts.Statement[];

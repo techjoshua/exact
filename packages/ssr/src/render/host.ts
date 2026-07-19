@@ -5,6 +5,7 @@ import { renderAttrs } from '../markup.js';
 import type { Child, ComponentInstance, SsrContext } from '../types.js';
 import { renderChildren } from './sync-tree.js';
 
+/** Transforms element into its required representation. */
 export function renderElement(
 	context: SsrContext,
 	vnode: VNode,
@@ -38,6 +39,7 @@ export function renderElement(
 	}
 }
 
+/** Performs the enter host domain operation. */
 export function enterHost(
 	context: SsrContext,
 	input: VNode
@@ -85,11 +87,13 @@ export function enterHost(
 	};
 }
 
+/** Performs the leave host domain operation. */
 export function leaveHost(context: SsrContext, tag: string): void {
 	const current = context.hostStack.pop();
 	if (current !== tag) throw new Error('eXact SSR host traversal became unbalanced.');
 }
 
+/** Performs the claim root text domain operation. */
 export function claimRootText(context: SsrContext): void {
 	if (context.hostStack.length) return;
 	if (context.documentRootSeen)
@@ -97,6 +101,7 @@ export function claimRootText(context: SsrContext): void {
 	context.documentProbe = false;
 }
 
+/** Performs the reset document probe domain operation. */
 export function resetDocumentProbe(context: SsrContext): void {
 	context.documentProbe = true;
 	context.documentRootSeen = false;
@@ -105,6 +110,7 @@ export function resetDocumentProbe(context: SsrContext): void {
 	context.hostStack.length = 0;
 }
 
+/** Performs the react host content domain operation. */
 export function reactHostContent(context: SsrContext, vnode: VNode): string | undefined {
 	const tag = String(vnode.type);
 	if (!context.reactMarkup) {
@@ -127,6 +133,7 @@ export function reactHostContent(context: SsrContext, vnode: VNode): string | un
 	return undefined;
 }
 
+/** Transforms unsafe html into its required representation. */
 export function renderUnsafeHtml(context: SsrContext, vnode: VNode): string {
 	if (!context.allowUnsafeHtml) {
 		throw new Error('unsafeHtml() requires allowUnsafeHtml: true on the native eXact SSR root.');
@@ -136,6 +143,7 @@ export function renderUnsafeHtml(context: SsrContext, vnode: VNode): string {
 	return html;
 }
 
+/** Performs the primitive text domain operation. */
 export function primitiveText(children: readonly Child[]): string {
 	let text = '';
 	for (const child of children) {
@@ -147,6 +155,7 @@ export function primitiveText(children: readonly Child[]): string {
 	return text;
 }
 
+/** Performs the react host props domain operation. */
 export function reactHostProps(context: SsrContext, vnode: VNode): Record<string, unknown> {
 	if (!context.reactMarkup || vnode.type !== 'option' || context.reactSelectValue === undefined)
 		return vnode.props;
@@ -157,6 +166,7 @@ export function reactHostProps(context: SsrContext, vnode: VNode): Record<string
 	return { ...vnode.props, selected };
 }
 
+/** Performs the register react image preload domain operation. */
 export function registerReactImagePreload(
 	context: SsrContext,
 	tag: string,

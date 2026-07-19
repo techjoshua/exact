@@ -7,11 +7,13 @@ import type {
 } from '@exact/expressions';
 import type { ExactAnnotationKey, ExactKeepPolicy, ExactKeyContract } from '../annotations.js';
 
+/** Performs the node width domain operation. */
 export function nodeWidth(reference: NodeRef): number {
 	const span = reference.node.span;
 	return span ? span.end - span.start : Number.MAX_SAFE_INTEGER;
 }
 
+/** Performs the exact key contract domain operation. */
 export function exactKeyContract(
 	type: ExpressionType | undefined,
 	local?: readonly ExpressionDirective[]
@@ -38,6 +40,7 @@ export function exactKeyContract(
 	return propertyKeyContract(annotated[0]!);
 }
 
+/** Performs the exact cleanup domain operation. */
 export function exactCleanup(type: ExpressionType | undefined): string | 'call' | undefined {
 	if (!type) return undefined;
 	if (type.unionMembers.length) {
@@ -56,6 +59,7 @@ export function exactCleanup(type: ExpressionType | undefined): string | 'call' 
 	return hasExactDirective(type.directives, 'cleanup') && type.callable ? 'call' : undefined;
 }
 
+/** Performs the exact cleanup for call domain operation. */
 export function exactCleanupForCall(call: NodeRef): string | undefined {
 	const local = directInitializerDeclaration(call);
 	const localDirective = exactDirective(local?.node.directives, 'cleanup');
@@ -69,6 +73,7 @@ export function exactCleanupForCall(call: NodeRef): string | undefined {
 	return exactCleanup(call.type);
 }
 
+/** Performs the exact owns return domain operation. */
 export function exactOwnsReturn(call: NodeRef): boolean {
 	return (
 		hasExactDirective(directInitializerDeclaration(call)?.node.directives, 'own') ||
@@ -77,10 +82,12 @@ export function exactOwnsReturn(call: NodeRef): boolean {
 	);
 }
 
+/** Performs the tracked parameter domain operation. */
 export function trackedParameter(parameter: ExpressionCallParameter): boolean {
 	return hasExactDirective(parameter.directives, 'track');
 }
 
+/** Performs the tracked callback arguments domain operation. */
 export function trackedCallbackArguments(call: NodeRef): readonly NodeRef[] {
 	const signature = call.node.resolvedSignature;
 	if (!signature) return [];
@@ -104,6 +111,7 @@ export function trackedCallbackArguments(call: NodeRef): readonly NodeRef[] {
 	return callbacks;
 }
 
+/** Performs the exact directive domain operation. */
 export function exactDirective(
 	values: readonly ExpressionDirective[] | undefined,
 	key: ExactAnnotationKey
@@ -111,6 +119,7 @@ export function exactDirective(
 	return values?.find((value) => value.namespace === 'exact' && value.key === key);
 }
 
+/** Reports whether exact directive. */
 export function hasExactDirective(
 	values: readonly ExpressionDirective[] | undefined,
 	key: ExactAnnotationKey
@@ -118,6 +127,7 @@ export function hasExactDirective(
 	return exactDirective(values, key) !== undefined;
 }
 
+/** Performs the exact keep policy domain operation. */
 export function exactKeepPolicy(
 	values: readonly ExpressionDirective[] | undefined
 ): ExactKeepPolicy | undefined {
@@ -127,6 +137,7 @@ export function exactKeepPolicy(
 	return policies.size === 1 ? [...policies][0] : undefined;
 }
 
+/** Reports whether exact keep policy. */
 export function isExactKeepPolicy(value: string | undefined): value is ExactKeepPolicy {
 	return value === 'server' || value === 'client' || value === 'secret';
 }
@@ -198,6 +209,7 @@ function validCleanupMember(type: ExpressionType | undefined, member: string): b
 	return type.propertyTypes.some((property) => property.name === member && property.type.callable);
 }
 
+/** Runs declares cleanup with the supplied execution context. */
 export function callDeclaresCleanup(call: NodeRef): boolean {
 	const local = directInitializerDeclaration(call);
 	return (
@@ -216,6 +228,7 @@ function typeDeclares(type: ExpressionType | undefined, key: ExactAnnotationKey)
 	);
 }
 
+/** Reports whether standard disposable. */
 export function isStandardDisposable(type: ExpressionType | undefined): boolean {
 	if (!type) return false;
 	return (
@@ -225,6 +238,7 @@ export function isStandardDisposable(type: ExpressionType | undefined): boolean 
 	);
 }
 
+/** Performs the valid directive location domain operation. */
 export function validDirectiveLocation(key: ExactAnnotationKey, reference: NodeRef): boolean {
 	const kind = reference.node.kind;
 	if (key === 'client' || key === 'server')
@@ -286,6 +300,7 @@ export function validDirectiveLocation(key: ExactAnnotationKey, reference: NodeR
 	return ['Parameter', 'PropertySignature', 'PropertyDeclaration'].includes(kind);
 }
 
+/** Performs the directive location kind domain operation. */
 export function directiveLocationKind(reference: NodeRef): string {
 	return reference.node.kind === 'Identifier' && reference.parent?.node.kind === 'Parameter'
 		? 'Parameter'

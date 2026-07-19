@@ -6,6 +6,7 @@ import type {
 	ExactStateEffect
 } from '../types.js';
 
+/** Defines the expression task site interface contract. */
 export interface ExpressionTaskSite {
 	readonly nodeId: string;
 	readonly component?: string;
@@ -26,6 +27,7 @@ export interface ExpressionTaskSite {
 	readonly effectSources: readonly ExactEnvironmentEffectSourceIR[];
 }
 
+/** Describes the planned expression task operation. */
 export interface ExpressionTaskPlan {
 	readonly sites: ReadonlyMap<string, ExpressionTaskSite>;
 	readonly resources: ReadonlyMap<string, ExpressionTaskResource>;
@@ -36,6 +38,7 @@ export interface ExpressionTaskPlan {
 	readonly diagnosticLocations: readonly Readonly<{ message: string; start: number }>[];
 }
 
+/** Defines the expression lifecycle listener interface contract. */
 export interface ExpressionLifecycleListener {
 	readonly nodeId: string;
 	readonly component: string;
@@ -51,6 +54,7 @@ export interface ExpressionSetupTask {
 	readonly end: number;
 }
 
+/** Defines the expression task resource kind type contract. */
 export type ExpressionTaskResourceKind =
 	| 'timeout'
 	| 'interval'
@@ -59,7 +63,9 @@ export type ExpressionTaskResourceKind =
 	| 'fetch'
 	| 'observer'
 	| 'owned';
+/** Defines the expression task resource disposal type contract. */
 export type ExpressionTaskResourceDisposal = string;
+/** Defines the expression task resource interface contract. */
 export interface ExpressionTaskResource {
 	readonly nodeId: string;
 	readonly start: number;
@@ -69,6 +75,7 @@ export interface ExpressionTaskResource {
 	readonly description?: string;
 }
 
+/** Defines the expression task signal call interface contract. */
 export interface ExpressionTaskSignalCall {
 	readonly nodeId: string;
 	readonly start: number;

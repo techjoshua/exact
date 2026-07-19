@@ -16,6 +16,7 @@ import {
 } from './algebra.js';
 
 import type { ExactPolicyMetadata, PolicyInput } from './contracts.js';
+/** Performs the policy inputs domain operation. */
 export function policyInputs(
 	expression: NodeRef,
 	policies: ReadonlyMap<string, PolicyRecord>,
@@ -88,6 +89,7 @@ export function policyInputs(
 	return [...values.values()];
 }
 
+/** Performs the materialize policy input subjects domain operation. */
 export function materializePolicyInputSubjects(
 	inputs: readonly PolicyInput[],
 	subjects: ExactPolicySubjectIR[]
@@ -106,6 +108,7 @@ export function materializePolicyInputSubjects(
 	}
 }
 
+/** Collects state type policies in deterministic order. */
 export function collectStateTypePolicies(
 	filename: string,
 	component: string,
@@ -163,6 +166,7 @@ export function collectStateTypePolicies(
 	}
 }
 
+/** Reports whether create context call. */
 export function isCreateContextCall(call: NodeRef): boolean {
 	if (call.target?.name !== 'createContext' && call.target?.node.text !== 'createContext')
 		return false;
@@ -170,6 +174,7 @@ export function isCreateContextCall(call: NodeRef): boolean {
 	return !variable?.importedFrom || variable.importedFrom === '@exact/core';
 }
 
+/** Performs the unique variables domain operation. */
 export function uniqueVariables(module: BoundModule): Variable[] {
 	const values = new Map<string, Variable>();
 	for (const reference of module.walk().references()) {
@@ -179,6 +184,7 @@ export function uniqueVariables(module: BoundModule): Variable[] {
 	return [...values.values()];
 }
 
+/** Performs the parameter index domain operation. */
 export function parameterIndex(module: BoundModule, variable: Variable): number | undefined {
 	const declaration = module
 		.walk()
@@ -188,6 +194,7 @@ export function parameterIndex(module: BoundModule, variable: Variable): number 
 	return owner?.node.parameters.findIndex((parameter) => parameter.id === variable.id);
 }
 
+/** Performs the state policy for effect domain operation. */
 export function statePolicyForEffect(
 	metadata: ExactPolicyMetadata,
 	component: string | undefined,
@@ -196,6 +203,7 @@ export function statePolicyForEffect(
 	return component ? statePolicyForPath(metadata, component, effect.path) : undefined;
 }
 
+/** Performs the state policy for path domain operation. */
 export function statePolicyForPath(
 	metadata: ExactPolicyMetadata,
 	component: string,

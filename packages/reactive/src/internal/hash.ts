@@ -13,6 +13,7 @@ export function hashStringSequence(values: readonly string[], domain: string): s
 	return hashText(framed);
 }
 
+/** Performs the canonical json domain operation. */
 export function canonicalJson(value: unknown): string {
 	return encodeValue(value, new WeakSet(), 0);
 }

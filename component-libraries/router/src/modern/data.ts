@@ -30,6 +30,7 @@ import { locationToString } from './paths.js';
 import { RouterProvider } from './routers.js';
 
 export { createPath, createSearchParams, parsePath, resolvePath } from './paths.js';
+/** Performs the use submit domain operation. */
 export function useSubmit(): (
 	target: HTMLFormElement | FormData | URLSearchParams | Record<string, string>,
 	options?: { action?: string; method?: string; encType?: string; replace?: boolean }

@@ -1,5 +1,6 @@
 import ts from 'typescript';
 
+/** Reports whether module call. */
 export function isModuleCall(
 	node: ts.Node
 ): node is ts.CallExpression & { arguments: [ts.StringLiteral, ...ts.Expression[]] } {
@@ -12,6 +13,7 @@ export function isModuleCall(
 	);
 }
 
+/** Reports whether require call. */
 export function isRequireCall(
 	node: ts.Node
 ): node is ts.CallExpression & { arguments: [ts.StringLiteral] } {

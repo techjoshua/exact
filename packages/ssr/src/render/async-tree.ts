@@ -51,6 +51,7 @@ import {
 import { disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { renderChildren } from './sync-tree.js';
 
+/** Transforms children async into its required representation. */
 export async function renderChildrenAsync(
 	context: SsrContext,
 	children: readonly Child[],
@@ -70,6 +71,7 @@ export async function renderChildrenAsync(
 	return boundedJoin(context, html);
 }
 
+/** Transforms child async into its required representation. */
 export async function renderChildAsync(
 	context: SsrContext,
 	child: Child,
@@ -83,6 +85,7 @@ export async function renderChildAsync(
 	return escapeText(String(unwrap(child)));
 }
 
+/** Transforms vnode async into its required representation. */
 export async function renderVNodeAsync(
 	context: SsrContext,
 	vnode: VNode,
@@ -97,6 +100,7 @@ export async function renderVNodeAsync(
 	});
 }
 
+/** Transforms vnode async inner into its required representation. */
 export async function renderVNodeAsyncInner(
 	context: SsrContext,
 	vnode: VNode,
@@ -200,6 +204,7 @@ export async function renderVNodeAsyncInner(
 	}
 }
 
+/** Transforms component into its required representation. */
 export function renderComponent(
 	context: SsrContext,
 	vnode: VNode,
@@ -242,6 +247,7 @@ export function renderComponent(
 	}
 }
 
+/** Transforms component async into its required representation. */
 export async function renderComponentAsync(
 	context: SsrContext,
 	vnode: VNode,

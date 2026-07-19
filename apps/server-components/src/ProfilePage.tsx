@@ -1,5 +1,6 @@
 import type { Component } from '@exact/core';
 
+/** Tracks the state owned by profile. */
 export type ProfileState = {
 	saves: number;
 	status: string;

@@ -6,6 +6,7 @@ import {
 } from '@exact/core';
 import type { ComponentInstance, TaskObserver } from '../types.js';
 
+/** Creates a ssr owner. */
 export function createSsrOwner(): {
 	observer: TaskObserver;
 	pending: Set<Promise<unknown>>;
@@ -36,8 +37,10 @@ export function createSsrOwner(): {
 	};
 }
 
+/** Provides the canonical no primary failure value. */
 export const noPrimaryFailure = Symbol('no primary SSR failure');
 
+/** Releases preserving primary and its owned resources. */
 export function disposePreservingPrimary(dispose: () => void, primary: unknown): void {
 	try {
 		dispose();

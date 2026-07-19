@@ -4,6 +4,7 @@ import { observeTaskPromise } from '../task/observers.js';
 import { isPromiseLike } from './async-value.js';
 import { createErrorReport, handleComponentError } from './errors.js';
 
+/** Performs the observe lifecycle promise domain operation. */
 export function observeLifecyclePromise(
 	instance: ComponentInstance<any>,
 	promise: PromiseLike<unknown>,

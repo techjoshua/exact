@@ -32,11 +32,13 @@ export const QueryClientContext = createContext<QueryClient>('exact.tanstack-que
 	reactive: false
 });
 
+/** Defines the properties accepted by exact query client provider. */
 export interface ExactQueryClientProviderProps {
 	readonly client: QueryClient;
 	readonly children?: Child | readonly Child[];
 }
 
+/** Performs the exact query client provider domain operation. */
 export function ExactQueryClientProvider(
 	this: Component<Record<string, unknown>>,
 	props: ExactQueryClientProviderProps
@@ -45,6 +47,7 @@ export function ExactQueryClientProvider(
 	return () => props.children ?? null;
 }
 
+/** Defines the exact query source interface contract. */
 export interface ExactQuerySource<TData = unknown, TError = DefaultError> {
 	readonly observer: QueryObserver<any, TError, TData, any, any>;
 	readonly result: ReactiveValue<QueryObserverResult<TData, TError>>;
@@ -53,6 +56,7 @@ export interface ExactQuerySource<TData = unknown, TError = DefaultError> {
 	dispose(): void;
 }
 
+/** Defines the exact observer source interface contract. */
 export interface ExactObserverSource<TResult, TOptions, TObserver> {
 	readonly observer: TObserver;
 	readonly result: ReactiveValue<TResult>;

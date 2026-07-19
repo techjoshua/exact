@@ -6,8 +6,10 @@ import type {
 	ExactAssetTarget
 } from './types.js';
 
+/** Defines the exact import placement type contract. */
 export type ExactImportPlacement = 'client' | 'server';
 
+/** Describes the planned exact module import operation. */
 export type ExactModuleImportPlan = {
 	readonly assets: readonly ExactAssetDependencyIR[];
 	readonly diagnostics: readonly string[];
@@ -23,6 +25,7 @@ const defaultAssetRules: readonly ExactAssetRule[] = [
 	}
 ];
 
+/** Computes a module imports without changing caller-owned input. */
 export function analyzeModuleImports(
 	source: string,
 	filename: string,
@@ -74,6 +77,7 @@ export function analyzeModuleImports(
 	});
 }
 
+/** Performs the strip exact import attribute domain operation. */
 export function stripExactImportAttribute(
 	node: ts.ImportDeclaration,
 	factory: ts.NodeFactory

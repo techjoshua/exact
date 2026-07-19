@@ -12,6 +12,7 @@ import type {
 	TransformOptions
 } from '../types.js';
 
+/** Performs the imported secret requirement diagnostics domain operation. */
 export function importedSecretRequirementDiagnostics(
 	imported: readonly ExactCompilerManifest[],
 	options: TransformOptions
@@ -43,6 +44,7 @@ export function importedSecretRequirementDiagnostics(
 	return [...diagnostics].sort();
 }
 
+/** Performs the raw html capability diagnostics domain operation. */
 export function rawHtmlCapabilityDiagnostics(
 	local: readonly ExactRawHtmlCapabilityIR[],
 	imported: readonly ExactCompilerManifest[],
@@ -80,6 +82,7 @@ export function rawHtmlCapabilityDiagnostics(
 	return diagnostics;
 }
 
+/** Performs the effect diagnostic path domain operation. */
 export function effectDiagnosticPath(
 	initializer: ExactCompilerManifest['callables'][number],
 	effect: 'mixed' | 'unknown'
@@ -100,6 +103,7 @@ export function effectDiagnosticPath(
 	return browser && server ? `${browser} ↔ ${server}` : (browser ?? server ?? initializer.name);
 }
 
+/** Performs the validated imported manifests domain operation. */
 export function validatedImportedManifests(
 	manifests: readonly ExactCompilerManifest[] | undefined,
 	registry: TransformOptions['pluginRegistry']
@@ -111,6 +115,7 @@ export function validatedImportedManifests(
 	return parsed;
 }
 
+/** Validates unique ids and throws when the contract is violated. */
 export function assertUniqueIds(label: string, ids: readonly string[]): void {
 	const seen = new Set<string>();
 	for (const id of ids) {
@@ -119,6 +124,7 @@ export function assertUniqueIds(label: string, ids: readonly string[]): void {
 	}
 }
 
+/** Performs the portable semantic graph domain operation. */
 export function portableSemanticGraph(
 	graph: ExactSemanticGraphIR,
 	boundFilename: string,
@@ -160,6 +166,7 @@ export function analyzeSemanticGraph(
 	);
 }
 
+/** Performs the session expression module domain operation. */
 export function sessionExpressionModule(
 	session: ExactCompilerSession | undefined,
 	filename: string,

@@ -1,3 +1,4 @@
+/** Defines the router operation type contract. */
 export type RouterOperation = Readonly<{ id: number; abort: AbortController }>;
 
 /** Owns cancellation and identity checks for overlapping router operations. */

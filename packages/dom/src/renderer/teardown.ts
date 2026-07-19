@@ -10,20 +10,26 @@ import { clearElementProps } from '../props.js';
 import { componentMounts } from '../state.js';
 import type { Mounted } from '../types.js';
 
+/** Provides the canonical teardown failure value. */
 export const teardownFailure = createCleanupFailure;
 
+/** Provides the canonical record teardown failure value. */
 export const recordTeardownFailure = recordCleanupFailure;
 
+/** Provides the canonical attempt teardown value. */
 export const attemptTeardown = attemptCleanup;
 
+/** Provides the canonical throw teardown failure value. */
 export const throwTeardownFailure = throwCleanupFailure;
 
+/** Performs the unmount many domain operation. */
 export function unmountMany(mounts: readonly Mounted[]): void {
 	const failure = teardownFailure();
 	for (const mounted of mounts) attemptTeardown(failure, () => unmountMounted(mounted));
 	throwTeardownFailure(failure);
 }
 
+/** Releases mounted and its owned resources. */
 export function disposeMounted(parent: Node, mounted: Mounted): void {
 	const failure = teardownFailure();
 	attemptTeardown(failure, () => unmountMounted(mounted));
@@ -31,6 +37,7 @@ export function disposeMounted(parent: Node, mounted: Mounted): void {
 	throwTeardownFailure(failure);
 }
 
+/** Performs the unmount mounted domain operation. */
 export function unmountMounted(mounted: Mounted): void {
 	const pending: Array<{ mounted: Mounted; complete: boolean }> = [{ mounted, complete: false }];
 	const failure = teardownFailure();
@@ -59,6 +66,7 @@ export function unmountMounted(mounted: Mounted): void {
 	throwTeardownFailure(failure);
 }
 
+/** Releases mounted nodes and its owned resources. */
 export function removeMountedNodes(parent: Node, mounted: Mounted): void {
 	const pending: Array<{ mounted: Mounted; parent: Node; complete: boolean }> = [
 		{ mounted, parent, complete: false }

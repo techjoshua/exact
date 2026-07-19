@@ -15,6 +15,7 @@ import type { HydrateOptions, HydrateProfileEvent, HydrationRoot } from '../type
 import { createExactClient, remainingDomWork } from './client.js';
 import { roots } from './state.js';
 
+/** Hydrates a server-rendered container and returns ownership of its client root. */
 export function hydrate(
 	vnode: VNode,
 	container: Element | Document,
@@ -36,6 +37,7 @@ export function hydrate(
 	}
 }
 
+/** Adopts the root DOM range, reporting mismatches before applying client mutations. */
 export function hydrateRoot(
 	vnode: VNode,
 	container: Element | Document,

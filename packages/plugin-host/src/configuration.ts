@@ -16,6 +16,7 @@ import type {
 import { packageName, packageVersion, type ExactPackageNode } from './graph.js';
 import { importPublicPackageEntry } from './modules.js';
 
+/** Defines the exact config transform report interface contract. */
 export interface ExactConfigTransformReport {
 	readonly plugin: string;
 	readonly contributor: string;
@@ -26,6 +27,7 @@ export interface ExactConfigTransformReport {
 	readonly outcome: 'mutated' | 'replaced';
 }
 
+/** Configures exact resolved plugin. */
 export interface ExactResolvedPluginConfiguration {
 	readonly plugin: ExactSelectedPlugin;
 	readonly compiler?: ExactCompilerPluginConfig;
@@ -35,11 +37,13 @@ export interface ExactResolvedPluginConfiguration {
 	readonly testing?: unknown;
 }
 
+/** Defines the exact configuration resolution interface contract. */
 export interface ExactConfigurationResolution {
 	readonly plugins: ReadonlyMap<string, ExactResolvedPluginConfiguration>;
 	readonly reports: readonly ExactConfigTransformReport[];
 }
 
+/** Configures exact configuration. */
 export interface ExactConfigurationOptions {
 	readonly applicationConfig?: ExactConfig;
 	readonly applicationRoot: string;
@@ -48,6 +52,7 @@ export interface ExactConfigurationOptions {
 	readonly signal: AbortSignal;
 }
 
+/** Resolves an exact plugin configurations. */
 export async function resolveExactPluginConfigurations(
 	discovery: ExactPluginDiscoveryResult,
 	options: ExactConfigurationOptions

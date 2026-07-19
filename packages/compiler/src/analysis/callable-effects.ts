@@ -12,6 +12,7 @@ import type {
 	ExactSemanticGraphIR
 } from '../types.js';
 
+/** Describes the planned callable effect operation. */
 export interface CallableEffectPlan {
 	readonly callables: readonly ExactCallableSummaryIR[];
 	readonly byNodeId: ReadonlyMap<string, ExactCallableSummaryIR>;
@@ -21,6 +22,7 @@ export interface CallableEffectPlan {
 	>;
 }
 
+/** Describes the planned callable effect operation. */
 export interface CallableEffectPlan {
 	readonly callables: readonly ExactCallableSummaryIR[];
 	readonly byNodeId: ReadonlyMap<string, ExactCallableSummaryIR>;

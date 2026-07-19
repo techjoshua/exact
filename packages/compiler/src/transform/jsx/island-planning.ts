@@ -19,6 +19,7 @@ import { identityFilenameFor } from './identity.js';
 import { islandProps } from './island-emission.js';
 import { childrenExpressions, propName } from './node-emission.js';
 import { tagExpression } from './reactive-emission.js';
+/** Performs the client island captures domain operation. */
 export function clientIslandCaptures(
 	site: ExpressionClientIslandSite | undefined,
 	locals: ComponentLocalInfo | undefined
@@ -34,6 +35,7 @@ export function clientIslandCaptures(
 	};
 }
 
+/** Creates a client island boundary call. */
 export function createClientIslandBoundaryCall(
 	sourceFile: ts.SourceFile,
 	context: ts.TransformationContext,
@@ -70,6 +72,7 @@ export function createClientIslandBoundaryCall(
 	]);
 }
 
+/** Performs the record client island definition domain operation. */
 export function recordClientIslandDefinition(
 	sourceFile: ts.SourceFile,
 	context: ts.TransformationContext,
@@ -89,6 +92,7 @@ export function recordClientIslandDefinition(
 	);
 }
 
+/** Creates a client island definition. */
 export function createClientIslandDefinition(
 	sourceFile: ts.SourceFile,
 	context: ts.TransformationContext,
@@ -172,6 +176,7 @@ export function createClientIslandDefinition(
 	);
 }
 
+/** Creates a client island state init. */
 export function createClientIslandStateInit(
 	factory: ts.NodeFactory,
 	props: ts.Identifier
@@ -191,6 +196,7 @@ export function createClientIslandStateInit(
 	);
 }
 
+/** Performs the append server part export aliases domain operation. */
 export function appendServerPartExportAliases(
 	sourceFile: ts.SourceFile,
 	transformed: ts.SourceFile,
@@ -227,6 +233,7 @@ export function appendServerPartExportAliases(
 		: transformed;
 }
 
+/** Performs the client island element props domain operation. */
 export function clientIslandElementProps(
 	sourceFile: ts.SourceFile,
 	context: ts.TransformationContext,
@@ -285,6 +292,7 @@ export function clientIslandElementProps(
 	return factory.createObjectLiteralExpression(properties, false);
 }
 
+/** Performs the client island children expressions domain operation. */
 export function clientIslandChildrenExpressions(
 	context: ts.TransformationContext,
 	children: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[] | undefined,
@@ -328,6 +336,7 @@ function rewriteCapturedNode<T extends ts.Node>(
 	return ts.visitNode(node, visitor) as T;
 }
 
+/** Performs the captured function declarations domain operation. */
 export function capturedFunctionDeclarations(
 	context: ts.TransformationContext,
 	functions: readonly ts.Statement[],
@@ -337,6 +346,7 @@ export function capturedFunctionDeclarations(
 	return functions.map((fn) => rewriteCapturedNode(context, fn, props, captures));
 }
 
+/** Performs the empty client island captures domain operation. */
 export function emptyClientIslandCaptures(): ClientIslandCaptures {
 	return { values: [], functions: [] };
 }

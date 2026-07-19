@@ -1,5 +1,6 @@
 import type { ExactCompilerManifest, ExactPolicyAuditReport } from './types.js';
 
+/** Configures exact policy audit report. */
 export type ExactPolicyAuditReportOptions = {
 	allowPackages?: readonly string[];
 	generatedAt?: Date;

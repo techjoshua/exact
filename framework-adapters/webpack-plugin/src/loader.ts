@@ -13,6 +13,7 @@ type LoaderContext = {
 	callback(error: Error | null, code?: string, map?: unknown): void;
 };
 
+/** Performs the exact webpack loader domain operation. */
 export default async function exactWebpackLoader(
 	this: LoaderContext,
 	source: string

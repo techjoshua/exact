@@ -6,6 +6,7 @@ import { ExpressionProjectError } from './errors.js';
 import { diskFileVersion } from './filesystem.js';
 import { diagnosticFromTs, normalizeFile, scriptKind } from './syntax.js';
 
+/** Defines the expression project host storage type contract. */
 export type ExpressionProjectHostStorage = {
 	overlays: Map<string, string>;
 	overlayVersions: Map<string, number>;

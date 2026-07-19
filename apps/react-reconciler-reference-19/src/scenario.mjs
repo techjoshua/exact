@@ -112,6 +112,7 @@ const actUpdate = async (root, element) => {
 };
 const serialize = node => node.type === "#text" ? node.text : { type: node.type, props: node.props, children: node.children.map(serialize), hidden: node.hidden };
 
+/** Runs scenario with the supplied execution context. */
 export async function runScenario() {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   resourceReady = false;

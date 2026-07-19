@@ -21,6 +21,7 @@ import {
 } from './mutation.js';
 import { type PreparedPatch, type ProtocolIndex } from './planning.js';
 
+/** Applies a patch to the owned runtime state. */
 export function applyPatch(
 	container: Element,
 	patch: ExactPatch,

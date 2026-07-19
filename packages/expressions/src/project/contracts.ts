@@ -74,6 +74,7 @@ export type ExpressionProjectStats = Readonly<{
 	symbolIdentities: number;
 }>;
 
+/** Defines the type projection bucket type contract. */
 export type TypeProjectionBucket =
 	| 'display'
 	| 'members'

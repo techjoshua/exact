@@ -16,11 +16,13 @@ import {
 	unmountMounted
 } from './teardown.js';
 
+/** Resolves a component dom node. */
 export function findComponentDomNode(instance: ComponentInstance<any>): Node | null {
 	const mounted = componentMounts.get(instance);
 	return mounted ? firstHostNode(mounted) : null;
 }
 
+/** Performs the first host node domain operation. */
 export function firstHostNode(mounted: Mounted): Node | null {
 	if (typeof mounted.vnode.type === 'string' && mounted.dom instanceof Element) return mounted.dom;
 	if (
@@ -36,11 +38,13 @@ export function firstHostNode(mounted: Mounted): Node | null {
 	return null;
 }
 
+/** Transfers a mounted component instance to the root so teardown releases it exactly once. */
 export function ownMountedInstance(mounted: Mounted, instance: ComponentInstance<any>): void {
 	mounted.instance = instance;
 	componentMounts.set(instance, mounted);
 }
 
+/** Transforms render into its required representation. */
 export function render(vnode: VNode, container: Element, options: RenderOptions = {}): void {
 	let root = roots.get(container);
 	if (!root) {
@@ -103,10 +107,12 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 	}
 }
 
+/** Unmounts a root, releasing component ownership before removing its remaining DOM nodes. */
 export function unmount(container: Element): boolean {
 	return dispose(container, true);
 }
 
+/** Releases dispose and its owned resources. */
 export function dispose(container: Element, removeDom = false): boolean {
 	const root = roots.get(container);
 	if (!root) return false;
@@ -127,6 +133,7 @@ export function dispose(container: Element, removeDom = false): boolean {
 	return true;
 }
 
+/** Releases owned subtree and its owned resources. */
 export function disposeOwnedSubtree(
 	container: Element,
 	includeSelf = true,

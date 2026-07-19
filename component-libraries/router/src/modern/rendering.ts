@@ -17,6 +17,7 @@ import { parsePath } from './paths.js';
 import { Router } from './routers.js';
 
 export { createPath, createSearchParams, parsePath, resolvePath } from './paths.js';
+/** Performs the match routes domain operation. */
 export function matchRoutes(
 	routes: readonly RouteObject[],
 	location: string | Partial<RouteLocation>,
@@ -85,11 +86,13 @@ export function unstable_HistoryRouter(props: {
 		children: props.children
 	});
 }
+/** Provides the canonical history router value. */
 export const HistoryRouter = unstable_HistoryRouter;
 
 export { generatePath, matchPath };
 export type { ExactHydrationData };
 
+/** Transforms route matches into its required representation. */
 export function renderRouteMatches(snapshot: ExactRouterSnapshot<RouteObject>): ReactNode {
 	if (!snapshot.matches.length) return null;
 	const errorMatch = [...snapshot.matches]
@@ -129,6 +132,7 @@ export function renderRouteMatches(snapshot: ExactRouterSnapshot<RouteObject>): 
 	return outlet;
 }
 
+/** Transforms hydration fallback into its required representation. */
 export function renderHydrationFallback(snapshot: ExactRouterSnapshot<RouteObject>): {
 	found: boolean;
 	node?: ReactNode;

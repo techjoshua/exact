@@ -22,6 +22,7 @@ import { category, collectBindingIdentifiers, nodeName, nodeOperator } from './s
 
 type NodeProjectionBucket = 'metadata' | 'types' | 'bindings' | 'common' | 'specialization';
 
+/** Configures expression node projection. */
 export type ExpressionNodeProjectionOptions = {
 	filename: string;
 	sourceFile: ts.SourceFile;

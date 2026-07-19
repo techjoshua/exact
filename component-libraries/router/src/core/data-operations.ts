@@ -7,10 +7,12 @@ import type {
 } from './contracts.js';
 import { createKey, normalizePath } from './locations.js';
 
+/** Reports whether data work. */
 export function hasDataWork(route: ExactRouteDefinition): boolean {
 	return !!(route.loader || route.lazy || route.children?.some(hasDataWork));
 }
 
+/** Transforms route ids into its required representation. */
 export function normalizeRouteIds<Route extends ExactRouteDefinition>(
 	values: readonly Route[],
 	parent = 'route'
@@ -23,16 +25,19 @@ export function normalizeRouteIds<Route extends ExactRouteDefinition>(
 	return values;
 }
 
+/** Reports whether own data work. */
 export function hasOwnDataWork(route: ExactRouteDefinition): boolean {
 	return !!(route.loader || route.lazy);
 }
 
+/** Performs the redirect result domain operation. */
 export function redirectResult(value: unknown): { location: string; status: number } | undefined {
 	if (!(value instanceof Response) || value.status < 300 || value.status >= 400) return undefined;
 	const location = value.headers.get('Location');
 	return location ? { location, status: value.status } : undefined;
 }
 
+/** Performs the location for url domain operation. */
 export function locationForUrl(url: URL, init: RequestInit): RouteLocation {
 	return Object.freeze({
 		pathname: normalizePath(url.pathname),
@@ -118,10 +123,12 @@ function assertJsonTransferSafe(
 	}
 }
 
+/** Performs the positive limit domain operation. */
 export function positiveLimit(value: number | undefined, fallback: number): number {
 	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
 
+/** Performs the unwrap data result domain operation. */
 export async function unwrapDataResult(value: unknown): Promise<unknown> {
 	if (!(value instanceof Response)) return value;
 	if (value.status === 204 || value.status === 205) return null;

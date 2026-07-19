@@ -1,5 +1,6 @@
 import ts from 'typescript';
 
+/** Performs the bind source file domain operation. */
 export function bindSourceFile(
 	filename: string,
 	source: string
@@ -65,13 +66,16 @@ function createRewriteProgram(filename: string, normalized: string): RewriteProg
 	return entry;
 }
 
+/** Performs the path key domain operation. */
 export function pathKey(value: string): string {
 	return value.replaceAll('\\', '/').toLowerCase();
 }
+/** Performs the safe identifier domain operation. */
 export function safeIdentifier(value: string): string {
 	return value.replace(/[^$A-Z_a-z0-9]/g, '_');
 }
 
+/** Performs the script kind domain operation. */
 export function scriptKind(filename: string): ts.ScriptKind {
 	const clean = filename.split('?', 1)[0]!;
 	if (/\.tsx$/i.test(clean)) return ts.ScriptKind.TSX;

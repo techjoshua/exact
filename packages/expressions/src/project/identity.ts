@@ -3,6 +3,7 @@ import type { ExpressionNode, ExpressionScope, Variable } from '../model.js';
 import { fingerprint } from './directives.js';
 import { declarationBindingName, hasNodeName, nodeName, nodeOperator } from './syntax.js';
 
+/** Performs the function captures domain operation. */
 export function functionCaptures(
 	children: readonly ExpressionNode[],
 	functionScope: ExpressionScope
@@ -39,6 +40,7 @@ function isBindingPosition(node: ExpressionNode, parent?: ExpressionNode): boole
 	);
 }
 
+/** Performs the syntax kind name domain operation. */
 export function syntaxKindName(node: ts.Node): string {
 	if (ts.isNumericLiteral(node)) return 'NumericLiteral';
 	if (ts.isBigIntLiteral(node)) return 'BigIntLiteral';
@@ -217,11 +219,13 @@ export function alignNodeIdentities(
 	return identities;
 }
 
+/** Performs the walk expression nodes domain operation. */
 export function* walkExpressionNodes(root: ExpressionNode): Iterable<ExpressionNode> {
 	yield root;
 	for (const child of root.children) yield* walkExpressionNodes(child);
 }
 
+/** Performs the declaration identity domain operation. */
 export function declarationIdentity(
 	filename: string,
 	declaration: ts.Node,

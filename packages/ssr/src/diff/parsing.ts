@@ -13,6 +13,7 @@ import {
 	textOnlyContent
 } from './patches.js';
 
+/** Reads a html nodes from its source representation. */
 export function parseHtmlNodes(html: string): ParsedHtmlNode[] | undefined {
 	if (new TextEncoder().encode(html).byteLength > MAX_DIFF_HTML_BYTES) return undefined;
 	const root: ParsedHtmlElement = {
@@ -68,6 +69,7 @@ export function parseHtmlNodes(html: string): ParsedHtmlNode[] | undefined {
 	return root.children;
 }
 
+/** Collects exact elements in deterministic order. */
 export function collectExactElements(
 	nodes: readonly ParsedHtmlNode[],
 	output = new Map<string, ParsedHtmlElement>()
@@ -84,6 +86,7 @@ export function collectExactElements(
 	return output;
 }
 
+/** Collects exact element entries in deterministic order. */
 export function collectExactElementEntries(
 	nodes: readonly ParsedHtmlNode[],
 	output: ExactElementEntry[] = [],
@@ -113,8 +116,10 @@ export function collectExactElementEntries(
 	return output;
 }
 
+/** Defines the exact ancestor type contract. */
 export type ExactAncestor = { readonly id: string; readonly parent?: ExactAncestor };
 
+/** Defines the exact element entry type contract. */
 export type ExactElementEntry = {
 	readonly id: string;
 	readonly element: ParsedHtmlElement;
@@ -122,6 +127,7 @@ export type ExactElementEntry = {
 	readonly exactParent?: ExactAncestor;
 };
 
+/** Collects normalized shape ids in deterministic order. */
 export function collectNormalizedShapeIds(
 	nodes: readonly ParsedHtmlNode[],
 	interner: Map<string, number>
@@ -154,6 +160,7 @@ export function collectNormalizedShapeIds(
 	return ids;
 }
 
+/** Performs the normalized element signature domain operation. */
 export function normalizedElementSignature(
 	element: ParsedHtmlElement,
 	ids: WeakMap<ParsedHtmlNode, number>

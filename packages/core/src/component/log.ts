@@ -13,6 +13,7 @@ import {
 	type LogScope
 } from '../logging.js';
 
+/** Provides the canonical default console logger value. */
 export const defaultConsoleLogger = createConsoleLogger();
 
 /** Emits a framework-scoped log event through the supplied or default logger. */
@@ -38,6 +39,7 @@ export function logFrameworkEvent(
 	});
 }
 
+/** Creates a noop component log. */
 export function createNoopComponentLog(): ComponentLog {
 	const noop = () => undefined;
 	return {
@@ -49,6 +51,7 @@ export function createNoopComponentLog(): ComponentLog {
 	};
 }
 
+/** Creates a component log. */
 export function createComponentLog(instance: ComponentInstance<any>): ComponentLog {
 	return {
 		trace(message, data) {
@@ -153,6 +156,7 @@ function resolveLogger(instance: ComponentInstance<any>): Logger {
 	return defaultConsoleLogger;
 }
 
+/** Performs the component log scope domain operation. */
 export function componentLogScope(instance: ComponentInstance<any>): LogScope {
 	return {
 		source: 'component',
@@ -172,12 +176,14 @@ function isErrorLike(value: unknown): boolean {
 	return value instanceof Error;
 }
 
+/** Reports whether error report. */
 export function isErrorReport(value: unknown): value is ErrorReport {
 	return (
 		!!value && typeof value === 'object' && 'id' in value && 'error' in value && 'source' in value
 	);
 }
 
+/** Performs the format error domain operation. */
 export function formatError(error: unknown): string {
 	if (error instanceof Error) {
 		return error.stack ?? error.message;

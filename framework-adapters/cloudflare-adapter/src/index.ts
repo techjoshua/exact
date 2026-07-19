@@ -1,5 +1,6 @@
 import { handleExactRequest, type ExactServerContext } from '@exact/server';
 
+/** Defines the exact cloudflare handler type contract. */
 export type ExactCloudflareHandler<Env = unknown, CfContext = unknown> = (
 	request: Request,
 	env: Env,

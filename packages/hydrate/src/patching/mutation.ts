@@ -7,6 +7,7 @@ import {
 } from '@exact/dom';
 import { isExactItemStart } from './lookup.js';
 
+/** Performs the replace range domain operation. */
 export function replaceRange(
 	range: { start: Comment; end: Comment },
 	fragment: DocumentFragment | undefined,
@@ -28,6 +29,7 @@ export function replaceRange(
 	if (fragment && parent) parent.insertBefore(fragment, range.end);
 }
 
+/** Performs the replace element children domain operation. */
 export function replaceElementChildren(
 	element: Element,
 	fragment: DocumentFragment | undefined,
@@ -39,6 +41,7 @@ export function replaceElementChildren(
 	if (fragment) element.appendChild(fragment);
 }
 
+/** Performs the replace element domain operation. */
 export function replaceElement(
 	element: Element,
 	fragment: DocumentFragment | undefined,
@@ -53,11 +56,13 @@ export function replaceElement(
 	element.replaceWith(fragment);
 }
 
+/** Performs the insert fragment before domain operation. */
 export function insertFragmentBefore(anchor: Node, fragment: DocumentFragment | undefined): void {
 	const parent = anchor.parentNode;
 	if (parent && fragment) parent.insertBefore(fragment, anchor);
 }
 
+/** Reads a fragment from its source representation. */
 export function parseFragment(
 	parent: Node,
 	html: string,
@@ -80,6 +85,7 @@ export function parseFragment(
 	return { fragment, nodeCount };
 }
 
+/** Reports whether valid list item fragment. */
 export function isValidListItemFragment(fragment: DocumentFragment, key: string): boolean {
 	const stack: string[] = [];
 	let started = false;
@@ -104,6 +110,7 @@ export function isValidListItemFragment(fragment: DocumentFragment, key: string)
 	return started && complete && stack.length === 0;
 }
 
+/** Performs the move range before domain operation. */
 export function moveRangeBefore(
 	range: { start: Comment; end: Comment },
 	anchor: Node,
@@ -122,6 +129,7 @@ export function moveRangeBefore(
 	anchor.parentNode?.insertBefore(fragment, anchor);
 }
 
+/** Reports whether node inside range. */
 export function isNodeInsideRange(node: Node, range: { start: Comment; end: Comment }): boolean {
 	let cursor: Node | null = range.start;
 	while (cursor) {

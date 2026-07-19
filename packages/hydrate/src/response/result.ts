@@ -3,6 +3,7 @@ import { hasOnlyKeys, isJsonSafe } from '../validation.js';
 import { type ResponseLimits, parseExactInvocationResponse } from './json.js';
 import { matchesOperation } from './stream.js';
 
+/** Reads an exact operation result from its source representation. */
 export function parseExactOperationResult(
 	value: unknown,
 	expected?: ExactInvocationRequest,
@@ -83,6 +84,7 @@ export function parseExactOperationResult(
 	throw new Error('eXact batch invocation returned malformed results');
 }
 
+/** Reports whether patch like. */
 export function isPatchLike(value: unknown): value is ExactPatch {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	if (!isJsonSafe(value)) return false;

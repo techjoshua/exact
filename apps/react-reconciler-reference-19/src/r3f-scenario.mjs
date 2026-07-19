@@ -6,6 +6,7 @@ extend(THREE);
 
 const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 
+/** Runs r3f scenario with the supplied execution context. */
 export async function runR3fScenario() {
   const canvas = {};
   const lifecycle = [];

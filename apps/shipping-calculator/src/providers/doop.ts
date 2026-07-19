@@ -64,6 +64,7 @@ const services: DoopService[] = [
 	}
 ];
 
+/** Provides the canonical doop provider value. */
 export const doopProvider: RateProvider = {
 	id: 'doop',
 	name: 'DOOP',

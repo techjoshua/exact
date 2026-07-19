@@ -23,6 +23,7 @@ const profileBoundaryId = profileCompilerManifest.boundaries.find(
 	(boundary) => boundary.ownerComponentId === profileComponentId
 )!.id;
 
+/** Provides the canonical exact manifest value. */
 export const exactManifest = createExactServerManifest(generatedProfileManifest, {
 	endpoint: '/__exact',
 	actions: {
@@ -34,6 +35,7 @@ export const exactManifest = createExactServerManifest(generatedProfileManifest,
 	}
 });
 
+/** Provides the canonical exact runtime value. */
 export const exactRuntime = createExactServerRuntime({
 	manifest: exactManifest,
 	markers: false,

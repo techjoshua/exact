@@ -61,18 +61,21 @@ const classInstanceOwners = new WeakMap<object, ComponentInstance<any>>();
 const unmountedClassInstances = new WeakSet<object>();
 const unsetRef = Symbol('exact.react.unset-ref');
 
+/** Performs the exact component for react instance domain operation. */
 export function exactComponentForReactInstance(value: unknown): ComponentInstance<any> | undefined {
 	return value !== null && (typeof value === 'object' || typeof value === 'function')
 		? classInstanceOwners.get(value as object)
 		: undefined;
 }
 
+/** Reports whether unmounted react class instance. */
 export function isUnmountedReactClassInstance(value: unknown): boolean {
 	return value !== null && (typeof value === 'object' || typeof value === 'function')
 		? unmountedClassInstances.has(value as object)
 		: false;
 }
 
+/** Performs the adapt react type domain operation. */
 export function adaptReactType(
 	type: ReactComponentType<any>
 ): ComponentFunction<Record<string, unknown>, Record<string, unknown>> {

@@ -1,7 +1,10 @@
+/** Provides the canonical default dom work limit value. */
 export const DEFAULT_DOM_WORK_LIMIT = 100_000;
 
+/** Defines the dom work budget type contract. */
 export type DomWorkBudget = { readonly limit: number; used: number };
 
+/** Creates a dom work budget. */
 export function createDomWorkBudget(maxNodes?: number): DomWorkBudget {
 	return {
 		limit: Number.isSafeInteger(maxNodes) && maxNodes! > 0 ? maxNodes! : DEFAULT_DOM_WORK_LIMIT,
@@ -9,6 +12,7 @@ export function createDomWorkBudget(maxNodes?: number): DomWorkBudget {
 	};
 }
 
+/** Performs the consume dom work domain operation. */
 export function consumeDomWork(budget: DomWorkBudget): void {
 	if (++budget.used > budget.limit) throw new DomTraversalLimitError(budget.limit);
 }
@@ -21,6 +25,7 @@ export function reserveDomWork(budget: DomWorkBudget, amount: number): void {
 	budget.used += amount;
 }
 
+/** Represents a failure raised by dom traversal limit. */
 export class DomTraversalLimitError extends Error {
 	constructor(readonly limit: number) {
 		super(`eXact DOM traversal exceeds the configured maximum of ${limit} nodes`);

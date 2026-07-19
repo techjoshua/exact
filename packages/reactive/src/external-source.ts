@@ -6,6 +6,7 @@ import type { ReactiveValue, StopHandle } from './internal/types.js';
 
 import { computed, reactive } from './observation.js';
 
+/** Configures external source. */
 export interface ExternalSourceOptions<T> {
 	readonly getSnapshot: () => T;
 	readonly subscribe: (notify: () => void) => StopHandle;
@@ -14,6 +15,7 @@ export interface ExternalSourceOptions<T> {
 	readonly connect?: boolean;
 }
 
+/** Defines the external source interface contract. */
 export interface ExternalSource<T> {
 	readonly value: ReactiveValue<T>;
 	readonly connected: boolean;

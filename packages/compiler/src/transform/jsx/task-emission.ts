@@ -10,6 +10,7 @@ import type { HelperNames } from '../../types.js';
 import { captureArgument } from './collection-emission.js';
 import type { DerivedReactiveIndex } from './contracts.js';
 import { expressionEmissionId } from './identity.js';
+/** Transforms task call into its required representation. */
 export function transformTaskCall(
 	sourceFile: ts.SourceFile,
 	node: ts.CallExpression,
@@ -67,6 +68,7 @@ export function transformTaskCall(
 	);
 }
 
+/** Transforms task work into its required representation. */
 export function transformTaskWork(
 	work: ts.ArrowFunction | ts.FunctionExpression,
 	dependencyCount: number,
@@ -256,6 +258,7 @@ export function transformTaskWork(
 	);
 }
 
+/** Reports whether managed task work. */
 export function containsManagedTaskWork(
 	node: ts.Node,
 	resourceFor: (node: ts.Node) => ExpressionTaskResource | undefined,
@@ -274,6 +277,7 @@ export function containsManagedTaskWork(
 	return found;
 }
 
+/** Performs the task resource helper domain operation. */
 export function taskResourceHelper(
 	kind: ExpressionTaskResourceKind,
 	helpers: HelperNames

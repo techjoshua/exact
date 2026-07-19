@@ -2,6 +2,7 @@ import { unlink } from 'node:fs/promises';
 import path from 'node:path';
 import type { ExactCompilerManifest, TransformResult } from '../types.js';
 
+/** Performs the shared artifact result domain operation. */
 export function sharedArtifactResult(
 	manifest: ExactCompilerManifest,
 	client: TransformResult,
@@ -28,6 +29,7 @@ export function sharedArtifactResult(
 	return client;
 }
 
+/** Releases generated artifact and its owned resources. */
 export async function removeGeneratedArtifact(filename: string): Promise<void> {
 	try {
 		await unlink(filename);
@@ -36,6 +38,7 @@ export async function removeGeneratedArtifact(filename: string): Promise<void> {
 	}
 }
 
+/** Performs the shared artifact facade domain operation. */
 export function sharedArtifactFacade(
 	manifest: ExactCompilerManifest,
 	sharedFile: string,

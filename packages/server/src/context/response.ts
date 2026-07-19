@@ -3,6 +3,7 @@ import { commitRequestResponseState, type RequestResponseState } from '@exact/re
 import type { ExactContextFactory, ExactRequestLike, ExactResponseLike } from '../types.js';
 import { type AnyRegistration, type OwnedValue, type ScopeKind } from './scope.js';
 
+/** Applies a response state to the owned runtime state. */
 export function applyResponseState(response: ExactResponseLike, state: RequestResponseState): void {
 	const committed = commitRequestResponseState(state);
 	if (committed.status !== undefined) response.status = committed.status;
@@ -11,6 +12,7 @@ export function applyResponseState(response: ExactResponseLike, state: RequestRe
 	});
 }
 
+/** Applies an overrides to the owned runtime state. */
 export function applyOverrides(
 	registrations: readonly AnyRegistration[],
 	overrides: readonly (readonly [ContextToken<any>, unknown])[],
@@ -37,6 +39,7 @@ export function applyOverrides(
 	return [...result.values()];
 }
 
+/** Reports whether factory. */
 export function isFactory<T>(
 	value: { value: T } | ExactContextFactory<T>
 ): value is ExactContextFactory<T> {
@@ -47,6 +50,7 @@ export function isFactory<T>(
 	);
 }
 
+/** Releases owned value and its owned resources. */
 export async function disposeOwnedValue(owned: OwnedValue, reason: unknown): Promise<void> {
 	if (owned.factory.dispose) {
 		await owned.factory.dispose(owned.value, reason);
@@ -62,6 +66,7 @@ export async function disposeOwnedValue(owned: OwnedValue, reason: unknown): Pro
 	}
 }
 
+/** Awaits response work while rejecting promptly when its request lifetime is aborted. */
 export function awaitWithAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
 	if (signal.aborted) return Promise.reject(abortReason(signal));
 	return new Promise<T>((resolve, reject) => {
@@ -93,10 +98,12 @@ export function awaitWithAbort<T>(promise: Promise<T>, signal: AbortSignal): Pro
 	});
 }
 
+/** Releases reason and its owned resources. */
 export function abortReason(signal: AbortSignal): unknown {
 	return signal.reason ?? new DOMException('eXact request aborted', 'AbortError');
 }
 
+/** Performs the header value domain operation. */
 export function headerValue(
 	headers: ExactRequestLike['headers'],
 	name: string
@@ -111,6 +118,7 @@ export function headerValue(
 	return undefined;
 }
 
+/** Reports whether response. */
 export function isResponse(value: unknown): value is ExactResponseLike {
 	return (
 		!!value &&
@@ -121,6 +129,7 @@ export function isResponse(value: unknown): value is ExactResponseLike {
 	);
 }
 
+/** Performs the retain scope for stream domain operation. */
 export function retainScopeForStream(
 	stream: ReadableStream<Uint8Array>,
 	dispose: (reason?: unknown) => Promise<void>,
@@ -186,6 +195,7 @@ export function retainScopeForStream(
 	);
 }
 
+/** Releases preserving primary and its owned resources. */
 export async function disposePreservingPrimary(
 	dispose: (reason?: unknown) => Promise<void>,
 	primary: unknown

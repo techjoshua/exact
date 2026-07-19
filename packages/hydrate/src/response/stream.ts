@@ -17,6 +17,7 @@ import { type ResponseLimits } from './json.js';
 import { isAbortSignal, positiveLimit, readNdjsonEvents } from './ndjson.js';
 import { parseExactOperationResult } from './result.js';
 
+/** Reads an exact stream response from its source representation. */
 export async function readExactStreamResponse(
 	response: { body?: ReadableStream<Uint8Array> | null },
 	expected: number | readonly ExactInvocationRequest[],
@@ -131,6 +132,7 @@ export async function readExactStreamResponse(
 	return results;
 }
 
+/** Validates stream operation and throws when the contract is violated. */
 export function assertStreamOperation(
 	index: number,
 	actual: { type: unknown; id: unknown; opId?: string },
@@ -141,6 +143,7 @@ export function assertStreamOperation(
 		throw new Error(message);
 }
 
+/** Reports whether operation. */
 export function matchesOperation(
 	record: Record<string, unknown>,
 	expected: ExactInvocationRequest
@@ -150,6 +153,7 @@ export function matchesOperation(
 	);
 }
 
+/** Validates stream index and throws when the contract is violated. */
 export function assertStreamIndex(
 	index: number,
 	expectedOperations: number,

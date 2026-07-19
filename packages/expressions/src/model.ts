@@ -6,6 +6,7 @@ export type SourceSpan = Readonly<{
 	column: number;
 }>;
 
+/** Defines the node category type contract. */
 export type NodeCategory =
 	| 'module'
 	| 'statement'
@@ -24,6 +25,7 @@ export interface ExpressionDirective {
 	readonly span?: SourceSpan;
 }
 
+/** Defines the expression type kind type contract. */
 export type ExpressionTypeKind =
 	| 'any'
 	| 'unknown'
@@ -42,6 +44,7 @@ export type ExpressionTypeKind =
 	| 'intersection'
 	| 'type-parameter';
 
+/** Defines the expression call parameter interface contract. */
 export interface ExpressionCallParameter {
 	readonly name: string;
 	readonly type: ExpressionType;
@@ -50,6 +53,7 @@ export interface ExpressionCallParameter {
 	readonly directives?: readonly ExpressionDirective[];
 }
 
+/** Defines the expression call signature interface contract. */
 export interface ExpressionCallSignature {
 	readonly display: string;
 	readonly parameters: readonly ExpressionCallParameter[];
@@ -61,6 +65,7 @@ export interface ExpressionCallSignature {
 	readonly returnDirectives?: readonly ExpressionDirective[];
 }
 
+/** Defines the expression type property interface contract. */
 export interface ExpressionTypeProperty {
 	readonly name: string;
 	readonly type: ExpressionType;
@@ -87,8 +92,10 @@ export interface ExpressionType {
 	readonly directives?: readonly ExpressionDirective[];
 }
 
+/** Defines the scope kind type contract. */
 export type ScopeKind = 'module' | 'function' | 'class' | 'block' | 'catch';
 
+/** Defines the expression scope interface contract. */
 export interface ExpressionScope {
 	readonly id: string;
 	readonly kind: ScopeKind;
@@ -121,6 +128,7 @@ export interface Variable {
 	readonly directives?: readonly ExpressionDirective[];
 }
 
+/** Defines the expression node interface contract. */
 export interface ExpressionNode {
 	readonly id: string;
 	/** A stable, descriptive TypeScript syntax name such as CallExpression. */
@@ -141,6 +149,7 @@ export interface ExpressionNode {
 	readonly directives?: readonly ExpressionDirective[];
 }
 
+/** Defines the call expression node interface contract. */
 export interface CallExpressionNode extends ExpressionNode {
 	readonly kind: 'CallExpression' | 'NewExpression';
 	readonly target: ExpressionNode;
@@ -148,6 +157,7 @@ export interface CallExpressionNode extends ExpressionNode {
 	readonly resolvedSignature?: ExpressionCallSignature;
 }
 
+/** Defines the function expression node interface contract. */
 export interface FunctionExpressionNode extends ExpressionNode {
 	readonly kind:
 		| 'FunctionDeclaration'
@@ -158,15 +168,18 @@ export interface FunctionExpressionNode extends ExpressionNode {
 	readonly captures: readonly Variable[];
 }
 
+/** Defines the assignment expression node interface contract. */
 export interface AssignmentExpressionNode extends ExpressionNode {
 	readonly kind: 'BinaryExpression' | 'PrefixUnaryExpression' | 'PostfixUnaryExpression';
 	readonly operator: string;
 }
 
+/** Defines the jsx expression node interface contract. */
 export interface JsxExpressionNode extends ExpressionNode {
 	readonly category: 'jsx';
 }
 
+/** Defines the jsx element node interface contract. */
 export interface JsxElementNode extends JsxExpressionNode {
 	readonly kind: 'JsxElement' | 'JsxSelfClosingElement' | 'JsxFragment';
 	readonly tagName?: string;
@@ -174,12 +187,14 @@ export interface JsxElementNode extends JsxExpressionNode {
 	readonly jsxChildren: readonly ExpressionNode[];
 }
 
+/** Defines the jsx attribute node interface contract. */
 export interface JsxAttributeNode extends JsxExpressionNode {
 	readonly kind: 'JsxAttribute' | 'JsxSpreadAttribute';
 	readonly name?: string;
 	readonly initializer?: ExpressionNode;
 }
 
+/** Defines the expression diagnostic interface contract. */
 export interface ExpressionDiagnostic {
 	readonly code: string;
 	readonly message: string;
@@ -189,12 +204,14 @@ export interface ExpressionDiagnostic {
 	readonly span?: SourceSpan;
 }
 
+/** Defines the node effect interface contract. */
 export interface NodeEffect {
 	readonly node: ExpressionNode;
 	readonly variable: Variable;
 	readonly kind: 'read' | 'write' | 'capture';
 }
 
+/** Configures emit. */
 export interface EmitOptions {
 	readonly format?: 'preserve' | 'generated';
 	readonly sourceMap?: boolean;
@@ -203,6 +220,7 @@ export interface EmitOptions {
 	readonly semicolons?: boolean;
 }
 
+/** Describes the result produced by emit. */
 export interface EmitResult {
 	readonly code: string;
 	readonly map?: Readonly<{
@@ -215,6 +233,7 @@ export interface EmitResult {
 	}>;
 }
 
+/** Configures walk. */
 export interface WalkOptions {
 	readonly includeSelf?: boolean;
 	readonly nestedFunctions?: boolean;
@@ -223,10 +242,12 @@ export interface WalkOptions {
 	readonly types?: boolean;
 }
 
+/** Reports whether call expression. */
 export function isCallExpression(node: ExpressionNode): node is CallExpressionNode {
 	return node.kind === 'CallExpression' || node.kind === 'NewExpression';
 }
 
+/** Reports whether function expression. */
 export function isFunctionExpression(node: ExpressionNode): node is FunctionExpressionNode {
 	return (
 		node.kind === 'FunctionDeclaration' ||
@@ -236,6 +257,7 @@ export function isFunctionExpression(node: ExpressionNode): node is FunctionExpr
 	);
 }
 
+/** Reports whether assignment expression. */
 export function isAssignmentExpression(node: ExpressionNode): node is AssignmentExpressionNode {
 	return (
 		(node.kind === 'BinaryExpression' ||
@@ -245,10 +267,12 @@ export function isAssignmentExpression(node: ExpressionNode): node is Assignment
 	);
 }
 
+/** Reports whether jsx expression. */
 export function isJsxExpression(node: ExpressionNode): node is JsxExpressionNode {
 	return node.category === 'jsx';
 }
 
+/** Reports whether jsx element. */
 export function isJsxElement(node: ExpressionNode): node is JsxElementNode {
 	return (
 		node.kind === 'JsxElement' ||
@@ -257,6 +281,7 @@ export function isJsxElement(node: ExpressionNode): node is JsxElementNode {
 	);
 }
 
+/** Reports whether jsx attribute. */
 export function isJsxAttribute(node: ExpressionNode): node is JsxAttributeNode {
 	return node.kind === 'JsxAttribute' || node.kind === 'JsxSpreadAttribute';
 }

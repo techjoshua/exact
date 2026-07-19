@@ -9,6 +9,7 @@ import type { ExactPlacement, HelperNames, TransformTarget } from '../../types.j
 
 import { expressionEmissionId } from './identity.js';
 import { transformTaskWork } from './task-emission.js';
+/** Transforms implicit lifecycle listener into its required representation. */
 export function transformImplicitLifecycleListener(
 	node: ts.CallExpression,
 	context: ts.TransformationContext,
@@ -56,6 +57,7 @@ export function transformImplicitLifecycleListener(
 	);
 }
 
+/** Transforms implicit setup task into its required representation. */
 export function transformImplicitSetupTask(
 	node: ts.CallExpression | ts.NewExpression,
 	context: ts.TransformationContext,
@@ -107,6 +109,7 @@ export function transformImplicitSetupTask(
 	);
 }
 
+/** Reads a type node from its source representation. */
 export function parseTypeNode(source: string): ts.TypeNode {
 	const file = ts.createSourceFile(
 		'__exact_contextual_type.ts',
@@ -121,6 +124,7 @@ export function parseTypeNode(source: string): ts.TypeNode {
 	return declaration.type;
 }
 
+/** Performs the expression write path domain operation. */
 export function expressionWritePath(
 	node: ts.Node,
 	sourceFile: ts.SourceFile,
@@ -130,12 +134,14 @@ export function expressionWritePath(
 	return plan.sites.get(expressionEmissionId(node) ?? '')?.path;
 }
 
+/** Reports whether omit placement. */
 export function shouldOmitPlacement(placement: ExactPlacement, target: TransformTarget): boolean {
 	if (target === 'default') return false;
 	if (target === 'client') return placement === 'server';
 	return placement === 'client';
 }
 
+/** Performs the incompatible effect domain operation. */
 export function incompatibleEffect(
 	effect: import('../../types.js').ExactEnvironmentEffect,
 	target: TransformTarget
@@ -147,6 +153,7 @@ export function incompatibleEffect(
 			: false;
 }
 
+/** Performs the incompatible summary domain operation. */
 export function incompatibleSummary(
 	summary: import('../../types.js').ExactCallableSummaryIR,
 	target: TransformTarget

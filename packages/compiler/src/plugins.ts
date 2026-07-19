@@ -9,6 +9,7 @@ const maxPluginDataBytes = 256 * 1024;
 const maxPluginDataDepth = 32;
 const maxPluginDataNodes = 10_000;
 
+/** Applies a compiler plugins to the owned runtime state. */
 export function applyCompilerPlugins(
 	source: string,
 	filename: string,
@@ -86,6 +87,7 @@ export function applyCompilerPlugins(
 	};
 }
 
+/** Validates imported plugin registries and throws when the contract is violated. */
 export function validateImportedPluginRegistries(
 	manifests: readonly ExactCompilerManifest[],
 	registry: ExactPreparedCompilerRegistry | undefined
@@ -110,6 +112,7 @@ export function validateImportedPluginRegistries(
 	}
 }
 
+/** Collects plugin directives in deterministic order. */
 export function collectPluginDirectives(source: string): ExactCompilerDirective[] {
 	const result: ExactCompilerDirective[] = [];
 	const marker =

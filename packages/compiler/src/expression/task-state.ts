@@ -4,6 +4,7 @@ import type { ExactContextEffect, ExactStateEffect } from '../types.js';
 
 import { type expressionComponentIndex } from './component-index.js';
 
+/** Collects state aliases in deterministic order. */
 export function collectStateAliases(
 	module: BoundModule,
 	work: NodeRef
@@ -57,6 +58,7 @@ function bindPattern(
 	});
 }
 
+/** Performs the state path domain operation. */
 export function statePath(
 	module: BoundModule,
 	reference: NodeRef,
@@ -88,6 +90,7 @@ function parsePath(text: string, root: string): readonly string[] | undefined {
 	return end === suffix.length ? segments : undefined;
 }
 
+/** Performs the inside assignment target domain operation. */
 export function insideAssignmentTarget(reference: NodeRef): boolean {
 	for (const assignment of reference.ancestors().assignments()) {
 		const left = assignment.children().first();
@@ -96,6 +99,7 @@ export function insideAssignmentTarget(reference: NodeRef): boolean {
 	return false;
 }
 
+/** Reports whether within. */
 export function isWithin(reference: NodeRef, owner: NodeRef): boolean {
 	return (
 		reference.node === owner.node ||
@@ -103,10 +107,12 @@ export function isWithin(reference: NodeRef, owner: NodeRef): boolean {
 	);
 }
 
+/** Performs the effect domain operation. */
 export function effect(path: string, kind: 'read' | 'write', broad = false): ExactStateEffect {
 	return Object.freeze({ path, kind, confidence: broad || path.includes('*') ? 'broad' : 'exact' });
 }
 
+/** Performs the unique effects domain operation. */
 export function uniqueEffects(effects: readonly ExactStateEffect[]): ExactStateEffect[] {
 	return [
 		...new Map(
@@ -115,10 +121,12 @@ export function uniqueEffects(effects: readonly ExactStateEffect[]): ExactStateE
 	];
 }
 
+/** Performs the unique contexts domain operation. */
 export function uniqueContexts(effects: readonly ExactContextEffect[]): ExactContextEffect[] {
 	return [...new Map(effects.map((value) => [`${value.kind}:${value.token}`, value])).values()];
 }
 
+/** Reports whether task call. */
 export function isTaskCall(
 	call: NodeRef,
 	components?: ReturnType<typeof expressionComponentIndex>
@@ -131,6 +139,7 @@ export function isTaskCall(
 	return components.ownsReceiver(components.owner(call), taskTarget.rootVariable);
 }
 
+/** Performs the task component owner domain operation. */
 export function taskComponentOwner(
 	task: NodeRef,
 	components: ReturnType<typeof expressionComponentIndex>
@@ -140,6 +149,7 @@ export function taskComponentOwner(
 	return components.ownsReceiver(owner, receiver) ? owner : undefined;
 }
 
+/** Reports whether function. */
 export function isFunction(reference: NodeRef): boolean {
 	return reference.node.kind === 'ArrowFunction' || reference.node.kind === 'FunctionExpression';
 }

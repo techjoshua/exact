@@ -2,6 +2,7 @@ import type { BoundModule, NodeRef, Variable } from '@exact/expressions';
 import type { ExactProvenanceGraph } from '../provenance.js';
 import { expressionComponentIndex } from './component-index.js';
 
+/** Defines the expression derived site interface contract. */
 export interface ExpressionDerivedSite {
 	readonly nodeId: string;
 	readonly start: number;
@@ -13,6 +14,7 @@ export interface ExpressionDerivedSite {
 	readonly cached: boolean;
 }
 
+/** Defines the expression derived declaration interface contract. */
 export interface ExpressionDerivedDeclaration {
 	readonly nodeId: string;
 	readonly variableId: string;
@@ -24,6 +26,7 @@ export interface ExpressionDerivedDeclaration {
 	readonly cached: boolean;
 }
 
+/** Describes the planned expression derived operation. */
 export interface ExpressionDerivedPlan {
 	readonly sites: ReadonlyMap<string, ExpressionDerivedSite>;
 	readonly declarations: ReadonlyMap<string, ExpressionDerivedDeclaration>;

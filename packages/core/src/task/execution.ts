@@ -22,6 +22,7 @@ import { observeTaskPromise } from './observers.js';
 
 import { drainTaskCleanupPromises, trackTaskOwner } from './resources.js';
 
+/** Creates a task. */
 export function createTask(
 	instance: ComponentInstance<any>,
 	deps: unknown[],
@@ -184,6 +185,7 @@ function isAbortError(error: unknown): boolean {
 	);
 }
 
+/** Creates a component reactive value. */
 export function createComponentReactiveValue<T>(
 	instance: ComponentInstance<any>,
 	value: ReactiveValue<T>

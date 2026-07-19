@@ -1,6 +1,7 @@
 import { createLineSourceMap as createGenericLineSourceMap } from '@exact/expressions';
 import type { ExactSourceMap } from './types.js';
 
+/** Creates a line source map. */
 export function createLineSourceMap(
 	filename: string,
 	source: string,

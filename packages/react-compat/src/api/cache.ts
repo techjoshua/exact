@@ -7,6 +7,7 @@ import {
 const cacheResultKey = Symbol('react.cache.result');
 type CacheEntry<T> = { status: 'fulfilled' | 'rejected'; value: T | unknown };
 
+/** Performs the cache domain operation. */
 export function cache<Args extends readonly unknown[], Result>(
 	fn: (...args: Args) => Result
 ): (...args: Args) => Result {

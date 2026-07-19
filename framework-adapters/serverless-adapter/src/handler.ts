@@ -1,5 +1,6 @@
 import { handleExactRequest, type ExactResponseLike, type ExactServerContext } from '@exact/server';
 
+/** Reports an observable exact serverless event. */
 export type ExactServerlessEvent = {
 	httpMethod?: string;
 	method?: string;
@@ -11,6 +12,7 @@ export type ExactServerlessEvent = {
 	isBase64Encoded?: boolean;
 };
 
+/** Describes the result produced by exact serverless. */
 export type ExactServerlessResult = {
 	statusCode: number;
 	headers: Record<string, string>;

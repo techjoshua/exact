@@ -1,5 +1,6 @@
 import { handleExactRequest, type ExactServerContext } from '@exact/server';
 
+/** Defines the exact hapi request type contract. */
 export type ExactHapiRequest = {
 	method: string;
 	url?: { href?: string; path?: string };
@@ -7,12 +8,14 @@ export type ExactHapiRequest = {
 	payload?: unknown;
 };
 
+/** Defines the exact hapi toolkit type contract. */
 export type ExactHapiToolkit = {
 	response(body: unknown): {
 		code(status: number): ExactHapiResponse;
 	};
 };
 
+/** Defines the exact hapi response type contract. */
 export type ExactHapiResponse = {
 	header(name: string, value: string): ExactHapiResponse;
 };

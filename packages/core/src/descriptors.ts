@@ -1,12 +1,16 @@
+/** Provides the canonical exact client component descriptor value. */
 export const exactClientComponentDescriptor = Symbol.for('@exact/client-component-descriptor');
+/** Provides the canonical exact server component descriptor value. */
 export const exactServerComponentDescriptor = Symbol.for('@exact/server-component-descriptor');
 
+/** Defines the exact component descriptor entry type contract. */
 export type ExactComponentDescriptorEntry = readonly [
 	id: string,
 	runtimeName: string,
 	implementation: (...args: any[]) => any
 ];
 
+/** Defines the exact component descriptor type contract. */
 export type ExactComponentDescriptor = readonly [
 	version: 1,
 	entries: readonly ExactComponentDescriptorEntry[]

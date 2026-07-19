@@ -5,6 +5,7 @@ import * as THREE from "three";
 extend(THREE);
 const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 
+/** Runs r3f18 scenario with the supplied execution context. */
 export async function runR3f18Scenario() {
   const canvas = {};
   const lifecycle = [];

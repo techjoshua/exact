@@ -23,6 +23,7 @@ import { createDomErrorContext, createRootBoundary } from '../root-support.js';
 import { unmountMounted } from '../teardown.js';
 import { adoptStaticChildren, boundaryMarkers, contentNodesBetween } from './boundaries.js';
 
+/** Performs the adopt static domain operation. */
 export function adoptStatic(
 	vnode: VNode,
 	container: Element,
@@ -94,6 +95,7 @@ export function adoptStatic(
 	}
 }
 
+/** Performs the adopt component root domain operation. */
 export function adoptComponentRoot(
 	vnode: VNode,
 	container: Element,
@@ -166,6 +168,7 @@ export function adoptComponentRoot(
 	}
 }
 
+/** Performs the adopt markerless component root domain operation. */
 export function adoptMarkerlessComponentRoot(
 	vnode: VNode,
 	container: Element,
@@ -245,6 +248,7 @@ export function adoptMarkerlessComponentRoot(
 	}
 }
 
+/** Performs the adopt document root domain operation. */
 export function adoptDocumentRoot(
 	vnode: VNode,
 	documentNode: Document,

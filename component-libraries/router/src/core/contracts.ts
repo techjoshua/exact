@@ -1,5 +1,8 @@
+/** Defines the router mode type contract. */
 export type RouterMode = 'history' | 'hash';
+/** Defines the history action type contract. */
 export type HistoryAction = 'POP' | 'PUSH' | 'REPLACE';
+/** Defines the route location type contract. */
 export type RouteLocation = {
 	pathname: string;
 	search: string;
@@ -7,11 +10,13 @@ export type RouteLocation = {
 	state?: unknown;
 	key: string;
 };
+/** Configures navigation. */
 export type NavigationOptions = {
 	replace?: boolean;
 	state?: unknown;
 	status?: number;
 };
+/** Defines the route match type contract. */
 export type RouteMatch<Route = ExactRouteDefinition> = {
 	id: string;
 	route: Route;
@@ -20,6 +25,7 @@ export type RouteMatch<Route = ExactRouteDefinition> = {
 	pathnameBase: string;
 	params: Readonly<Record<string, string>>;
 };
+/** Defines the exact route definition type contract. */
 export type ExactRouteDefinition = {
 	id?: string;
 	path?: string;
@@ -32,14 +38,18 @@ export type ExactRouteDefinition = {
 	lazy?: ExactLazyRoute;
 	handle?: unknown;
 };
+/** Defines the exact data function args type contract. */
 export type ExactDataFunctionArgs = Readonly<{
 	request: Request;
 	params: Readonly<Record<string, string>>;
 	context: unknown;
 	signal: AbortSignal;
 }>;
+/** Defines the exact route loader type contract. */
 export type ExactRouteLoader = (args: ExactDataFunctionArgs) => unknown | Promise<unknown>;
+/** Defines the exact route action type contract. */
 export type ExactRouteAction = (args: ExactDataFunctionArgs) => unknown | Promise<unknown>;
+/** Defines the exact should revalidate type contract. */
 export type ExactShouldRevalidate = (
 	args: Readonly<{
 		currentUrl: URL;
@@ -50,16 +60,19 @@ export type ExactShouldRevalidate = (
 		defaultShouldRevalidate: boolean;
 	}>
 ) => boolean;
+/** Defines the exact lazy route type contract. */
 export type ExactLazyRoute<
 	Result extends object = Partial<
 		Pick<ExactRouteDefinition, 'loader' | 'action' | 'shouldRevalidate' | 'handle'>
 	>
 > = () => Promise<Result>;
+/** Defines the exact hydration data type contract. */
 export type ExactHydrationData = Readonly<{
 	loaderData?: Readonly<Record<string, unknown>>;
 	actionData?: Readonly<Record<string, unknown>>;
 	errors?: Readonly<Record<string, unknown>>;
 }>;
+/** Defines the exact hydration envelope type contract. */
 export type ExactHydrationEnvelope = Readonly<{
 	protocol: 1;
 	key: string;
@@ -67,11 +80,13 @@ export type ExactHydrationEnvelope = Readonly<{
 	matches: readonly string[];
 	data: ExactHydrationData;
 }>;
+/** Defines the fetcher snapshot type contract. */
 export type FetcherSnapshot = Readonly<{
 	state: 'idle' | 'loading' | 'submitting';
 	data?: unknown;
 	error?: unknown;
 }>;
+/** Defines the navigation blocker type contract. */
 export type NavigationBlocker = (
 	transition: Readonly<{
 		currentLocation: RouteLocation;
@@ -80,6 +95,7 @@ export type NavigationBlocker = (
 	}>
 ) => boolean | string;
 
+/** Defines the location source interface contract. */
 export interface LocationSource {
 	location(): URL;
 	push(url: URL, state?: unknown, status?: number): void;
@@ -91,6 +107,7 @@ export interface LocationSource {
 	action?(): HistoryAction;
 }
 
+/** Defines the exact router snapshot type contract. */
 export type ExactRouterSnapshot<Route extends ExactRouteDefinition = ExactRouteDefinition> =
 	Readonly<{
 		location: RouteLocation;
@@ -113,6 +130,7 @@ export type ExactRouterSnapshot<Route extends ExactRouteDefinition = ExactRouteD
 		fetchers: ReadonlyMap<string, FetcherSnapshot>;
 	}>;
 
+/** Defines the exact router interface contract. */
 export interface ExactRouter<Route extends ExactRouteDefinition = ExactRouteDefinition> {
 	readonly basename: string;
 	readonly mode: RouterMode;
@@ -130,6 +148,7 @@ export interface ExactRouter<Route extends ExactRouteDefinition = ExactRouteDefi
 	dispose(): void;
 }
 
+/** Configures create exact router. */
 export type CreateExactRouterOptions<Route extends ExactRouteDefinition> = {
 	source: LocationSource;
 	routes?: readonly Route[];

@@ -1,5 +1,6 @@
 import type { LocationSource, RouteLocation, RouterMode } from './contracts.js';
 
+/** Performs the location value domain operation. */
 export function locationValue(
 	source: LocationSource,
 	mode: RouterMode,
@@ -73,9 +74,11 @@ export function stripBasename(pathname: string, basename: string): string {
 		? normalizePath(pathname.slice(basename.length))
 		: pathname;
 }
+/** Performs the segments domain operation. */
 export function segments(path: string): string[] {
 	return normalizePath(path).split('/').filter(Boolean);
 }
+/** Reads a decode from its source representation. */
 export function decode(value: string): string {
 	try {
 		return decodeURIComponent(value);

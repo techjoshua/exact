@@ -5,6 +5,7 @@ import {
 } from '@exact/plugin-api';
 import { type ExactPackageNode } from '../graph.js';
 
+/** Defines the exact discovery policy interface contract. */
 export interface ExactDiscoveryPolicy {
 	readonly mode: 'root' | 'trusted' | 'all';
 	readonly trustedPackages: readonly string[];
@@ -12,6 +13,7 @@ export interface ExactDiscoveryPolicy {
 	readonly ignore: readonly string[];
 }
 
+/** Defines the exact plugin requirement interface contract. */
 export interface ExactPluginRequirement {
 	readonly plugin: string;
 	readonly range: string;
@@ -20,12 +22,14 @@ export interface ExactPluginRequirement {
 	readonly path: readonly string[];
 }
 
+/** Defines the exact participating package interface contract. */
 export interface ExactParticipatingPackage {
 	readonly node: ExactPackageNode;
 	readonly participation: ExactPackageParticipation;
 	readonly activationPaths: readonly (readonly string[])[];
 }
 
+/** Defines the exact selected plugin interface contract. */
 export interface ExactSelectedPlugin {
 	readonly packageName: string;
 	readonly version: string;
@@ -34,12 +38,14 @@ export interface ExactSelectedPlugin {
 	readonly requirements: readonly ExactPluginRequirement[];
 }
 
+/** Defines the exact configuration contributor interface contract. */
 export interface ExactConfigurationContributor {
 	readonly plugin: string;
 	readonly node: ExactPackageNode;
 	readonly declaration: ExactPluginConfigurationDeclaration;
 }
 
+/** Describes the result produced by exact plugin discovery. */
 export interface ExactPluginDiscoveryResult {
 	readonly policy: ExactDiscoveryPolicy;
 	readonly root: ExactPackageNode;

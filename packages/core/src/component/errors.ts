@@ -149,4 +149,5 @@ export function normalizeRenderResult(result: RenderResult): Child[] {
 	return Array.isArray(result) ? normalizeChildren(result) : normalizeChildren([result]);
 }
 
+/** Provides the canonical default error context value. */
 export const defaultErrorContext = createErrorContext();

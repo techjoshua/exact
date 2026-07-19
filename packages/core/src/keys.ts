@@ -1,5 +1,6 @@
 import type { ContextToken, RefKey } from './component/contracts.js';
 
+/** Configures context. */
 export interface ContextOptions {
 	readonly global?: boolean;
 	/** False preserves opaque service/class identity instead of proxying it. */

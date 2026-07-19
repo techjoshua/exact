@@ -1,6 +1,7 @@
 import type { EmitResult } from '../model.js';
 import type { SourceTrivia } from '../module.js';
 
+/** Performs the detect trivia domain operation. */
 export function detectTrivia(source: string): SourceTrivia {
 	const single = (source.match(/'/g) ?? []).length;
 	const double = (source.match(/"/g) ?? []).length;
@@ -18,6 +19,7 @@ export function detectTrivia(source: string): SourceTrivia {
 	});
 }
 
+/** Performs the source map domain operation. */
 export function sourceMap(
 	filename: string,
 	source: string,

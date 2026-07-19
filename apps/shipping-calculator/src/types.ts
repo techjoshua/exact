@@ -1,8 +1,13 @@
+/** Defines the provider id type contract. */
 export type ProviderId = 'doop' | 'usps' | 'ups' | 'fedex' | 'dhl';
+/** Defines the mailpiece kind type contract. */
 export type MailpieceKind = 'parcel' | 'envelope' | 'flat';
+/** Defines the signature level type contract. */
 export type SignatureLevel = 'none' | 'standard' | 'adult';
+/** Defines the quote sort type contract. */
 export type QuoteSort = 'recommended' | 'cheapest' | 'fastest' | 'carrier';
 
+/** Defines the shipment draft type contract. */
 export type ShipmentDraft = {
 	version: 1;
 	originZip: string;
@@ -30,6 +35,7 @@ export type ShipmentDraft = {
 	shipDate: string;
 };
 
+/** Defines the rate request type contract. */
 export type RateRequest = {
 	version: 1;
 	originZip: string;
@@ -46,6 +52,7 @@ export type RateRequest = {
 	shipDate: string;
 };
 
+/** Defines the charge type contract. */
 export type Charge = {
 	code: string;
 	name: string;
@@ -53,6 +60,7 @@ export type Charge = {
 	kind: 'postage' | 'surcharge' | 'extra-service' | 'tax';
 };
 
+/** Defines the extra service type contract. */
 export type ExtraService = {
 	code: 'tracking' | 'signature' | 'adult-signature' | 'insurance' | string;
 	name: string;
@@ -63,6 +71,7 @@ export type ExtraService = {
 	explanation?: string;
 };
 
+/** Defines the rate quote type contract. */
 export type RateQuote = {
 	version: 1;
 	id: string;
@@ -87,6 +96,7 @@ export type RateQuote = {
 	accountRate?: boolean;
 };
 
+/** Represents a failure raised by public provider. */
 export type PublicProviderError = {
 	code:
 		| 'not_configured'
@@ -99,6 +109,7 @@ export type PublicProviderError = {
 	retryAfterSeconds?: number;
 };
 
+/** Describes the result produced by provider. */
 export type ProviderResult = {
 	version: 1;
 	providerId: ProviderId;
@@ -108,7 +119,9 @@ export type ProviderResult = {
 	error?: PublicProviderError;
 };
 
+/** Defines the geo point type contract. */
 export type GeoPoint = { zip: string; latitude: number; longitude: number };
+/** Describes the result produced by route. */
 export type RouteResult = {
 	status: 'success' | 'partial' | 'unavailable';
 	origin?: GeoPoint;
@@ -116,6 +129,7 @@ export type RouteResult = {
 	distanceMiles?: number;
 };
 
+/** Defines the initial model type contract. */
 export type InitialModel = {
 	version: 1;
 	draft: ShipmentDraft;
@@ -126,7 +140,9 @@ export type InitialModel = {
 	providers: ProviderResult[];
 };
 
+/** Carries the context required by rate provider. */
 export type RateProviderContext = { signal: AbortSignal; fetch: typeof globalThis.fetch };
+/** Defines the rate provider interface contract. */
 export interface RateProvider {
 	readonly id: ProviderId;
 	readonly name: string;

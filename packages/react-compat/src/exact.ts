@@ -14,6 +14,7 @@ import type { Component } from '@exact/core';
 import { adaptReactType, toExactNode } from './internals.js';
 import type { ReactComponentType, ReactNode } from './types.js';
 
+/** Performs the react host domain operation. */
 export function ReactHost(
 	this: Component<Record<string, unknown>>,
 	props: {
@@ -33,6 +34,7 @@ export function ReactHost(
 	});
 }
 
+/** Performs the exact node domain operation. */
 export function exactNode(node: ReactNode) {
 	return toExactNode(node);
 }

@@ -1,14 +1,17 @@
 import type { ExactArtifactTarget } from './artifacts.js';
 import type { ExactPlacement } from './policy.js';
 
+/** Defines the exact environment effect type contract. */
 export type ExactEnvironmentEffect = 'neutral' | 'browser' | 'server' | 'mixed' | 'unknown';
 
+/** Defines the exact environment effect source ir type contract. */
 export type ExactEnvironmentEffectSourceIR = {
 	environment: 'browser' | 'server' | 'unknown';
 	description: string;
 	path: string[];
 };
 
+/** Defines the exact call edge ir type contract. */
 export type ExactCallEdgeIR = {
 	id: string;
 	name: string;
@@ -23,6 +26,7 @@ export type ExactCallEdgeIR = {
 	}>;
 };
 
+/** Defines the exact callable summary ir type contract. */
 export type ExactCallableSummaryIR = {
 	id: string;
 	name: string;
@@ -39,6 +43,7 @@ export type ExactCallableSummaryIR = {
 	contexts: ExactContextEffect[];
 };
 
+/** Defines the exact state effect type contract. */
 export type ExactStateEffect = {
 	path: string;
 	kind: 'read' | 'write';
@@ -46,12 +51,14 @@ export type ExactStateEffect = {
 	receiver?: { kind: 'component' } | { kind: 'parameter'; index: number } | { kind: 'unknown' };
 };
 
+/** Defines the exact context effect type contract. */
 export type ExactContextEffect = {
 	token: string;
 	kind: 'read' | 'write';
 	confidence: 'exact' | 'unknown';
 };
 
+/** Defines the exact task ir type contract. */
 export type ExactTaskIR = {
 	id: string;
 	placement: ExactPlacement;
@@ -66,6 +73,7 @@ export type ExactTaskIR = {
 	effectSources?: ExactEnvironmentEffectSourceIR[];
 };
 
+/** Defines the exact component render edge ir type contract. */
 export type ExactComponentRenderEdgeIR = {
 	id: string;
 	tag: string;
@@ -77,6 +85,7 @@ export type ExactComponentRenderEdgeIR = {
 	path: string;
 };
 
+/** Defines the exact component ir type contract. */
 export type ExactComponentIR = {
 	id: string;
 	name: string;
@@ -93,16 +102,19 @@ export type ExactComponentIR = {
 	artifactTargets?: ExactArtifactTarget[];
 };
 
+/** Defines the exact export ir type contract. */
 export type ExactExportIR = {
 	name: string;
 	kind: 'component' | 'value';
 	placement: ExactPlacement;
 };
 
+/** Defines the exact artifact export ir type contract. */
 export type ExactArtifactExportIR = ExactExportIR & {
 	artifactClass: 'shared' | 'dual' | 'client' | 'server';
 };
 
+/** Defines the exact symbol ir type contract. */
 export type ExactSymbolIR = {
 	id: string;
 	componentId?: string;
@@ -116,6 +128,7 @@ export type ExactSymbolIR = {
 	placement: ExactPlacement;
 };
 
+/** Defines the exact boundary ir type contract. */
 export type ExactBoundaryIR = {
 	id: string;
 	name: string;
@@ -127,6 +140,7 @@ export type ExactBoundaryIR = {
 	kind: 'client-island' | 'server-slot';
 };
 
+/** Defines the exact imported component ir type contract. */
 export type ExactImportedComponentIR = {
 	name: string;
 	boundaryName?: string;
@@ -134,6 +148,7 @@ export type ExactImportedComponentIR = {
 	componentId?: string;
 };
 
+/** Defines the exact semantic scope ir type contract. */
 export type ExactSemanticScopeIR = {
 	id: string;
 	parentId?: string;
@@ -141,6 +156,7 @@ export type ExactSemanticScopeIR = {
 	nodeKind: string;
 };
 
+/** Defines the exact semantic declaration ir type contract. */
 export type ExactSemanticDeclarationIR = {
 	id: string;
 	name: string;
@@ -154,6 +170,7 @@ export type ExactSemanticDeclarationIR = {
 	exportedName?: string;
 };
 
+/** Defines the exact semantic reference ir type contract. */
 export type ExactSemanticReferenceIR = {
 	name: string;
 	scopeId: string;
@@ -168,6 +185,7 @@ export type ExactSemanticReferenceIR = {
 	exportedName?: string;
 };
 
+/** Defines the exact semantic export ir type contract. */
 export type ExactSemanticExportIR = {
 	exportedName: string;
 	localName?: string;
@@ -176,6 +194,7 @@ export type ExactSemanticExportIR = {
 	typeOnly?: boolean;
 };
 
+/** Defines the exact semantic graph ir type contract. */
 export type ExactSemanticGraphIR = {
 	scopes: ExactSemanticScopeIR[];
 	declarations: ExactSemanticDeclarationIR[];

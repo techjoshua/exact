@@ -60,6 +60,7 @@ function trackTaskCleanupPromise(signal: AbortSignal, promise: Promise<void>): v
 	});
 }
 
+/** Waits for registered task cleanup promises and preserves failures for aggregate reporting. */
 export function drainTaskCleanupPromises(
 	signal: AbortSignal | undefined
 ): Promise<void> | undefined {
@@ -160,6 +161,7 @@ export function taskTimeout(
 	return timeout;
 }
 
+/** Starts an interval whose timer is cleared automatically when the task signal aborts. */
 export function taskInterval(
 	signal: AbortSignal,
 	handler: (...args: any[]) => void,
@@ -178,6 +180,7 @@ export function taskInterval(
 	return interval;
 }
 
+/** Requests an animation frame that is cancelled automatically with the owning task. */
 export function taskAnimationFrame(signal: AbortSignal, handler: (time: number) => void): number {
 	const platform = globalThis as typeof globalThis & {
 		requestAnimationFrame(callback: (time: number) => void): number;
@@ -194,6 +197,7 @@ export function taskAnimationFrame(signal: AbortSignal, handler: (time: number) 
 	return frame;
 }
 
+/** Owns an observer instance and disconnects it when the task is cancelled. */
 export function taskObserver<T extends { disconnect(): void }>(
 	signal: AbortSignal,
 	observer: T
@@ -212,6 +216,7 @@ function runTaskCallback(signal: AbortSignal, phase: string, callback: () => voi
 	}
 }
 
+/** Runs fetch with the task signal combined with any caller-provided cancellation signal. */
 export function taskFetch<T>(
 	signal: AbortSignal,
 	fetcher: (...args: any[]) => T,
@@ -224,6 +229,7 @@ export function taskFetch<T>(
 	return fetcher(input, options);
 }
 
+/** Awaits a promise while rejecting promptly if the owning task is cancelled. */
 export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Promise<T> {
 	if (signal.aborted) return Promise.reject(createTaskAbortError(signal.reason));
 	return new Promise<T>((resolve, reject) => {

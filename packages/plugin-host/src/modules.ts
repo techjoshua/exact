@@ -3,6 +3,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { ExactPackageNode } from './graph.js';
 
+/** Resolves a public package entry. */
 export function resolvePublicPackageEntry(node: ExactPackageNode, subpath: string): string {
 	const name = typeof node.manifest.name === 'string' ? node.manifest.name : undefined;
 	if (!name) throw new Error(`${node.location}/package.json must declare a package name`);
@@ -21,6 +22,7 @@ export function resolvePublicPackageEntry(node: ExactPackageNode, subpath: strin
 	return resolved;
 }
 
+/** Performs the import public package entry domain operation. */
 export async function importPublicPackageEntry(
 	node: ExactPackageNode,
 	subpath: string

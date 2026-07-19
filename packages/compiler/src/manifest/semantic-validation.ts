@@ -6,6 +6,7 @@ import type {
 	ExactSemanticScopeIR
 } from '../types.js';
 
+/** Reports whether exact semantic graph. */
 export function isExactSemanticGraph(value: unknown): value is ExactSemanticGraphIR {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const graph = value as Partial<ExactSemanticGraphIR>;

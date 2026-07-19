@@ -3,6 +3,7 @@ import type { ReactContext } from '../types.js';
 import { assignReactRef } from './refs.js';
 import { REACT_CONTEXT_TYPE, type ReactDispatcher } from './shared.js';
 
+/** Creates an exact dispatcher. */
 export function createExactDispatcher(host: HookHost): ReactDispatcher {
 	const dispatcher: ReactDispatcher = {
 		useState: (initial) => host.state(initial),

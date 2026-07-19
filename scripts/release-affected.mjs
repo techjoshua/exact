@@ -13,6 +13,7 @@ const workspaceGroups = [
 	'apps'
 ];
 
+/** Creates an affected release plan. */
 export async function createAffectedReleasePlan(base = process.env.RELEASE_BASE ?? 'HEAD^') {
 	const workspaces = await readWorkspaces();
 	const changedFiles = changedFilesSince(base);

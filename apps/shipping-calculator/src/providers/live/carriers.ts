@@ -4,6 +4,7 @@ import type { Json } from './contracts.js';
 import { bearer, oauthFedex, oauthForm, oauthJson, requestJson } from './http.js';
 import { array, normalizeGeneric, normalizeUsps, provider } from './normalization.js';
 
+/** Creates an usps provider. */
 export function createUspsProvider(env: NodeJS.ProcessEnv): RateProvider {
 	return provider(
 		'usps',
@@ -56,6 +57,7 @@ export function createUspsProvider(env: NodeJS.ProcessEnv): RateProvider {
 	);
 }
 
+/** Creates an ups provider. */
 export function createUpsProvider(env: NodeJS.ProcessEnv): RateProvider {
 	return provider(
 		'ups',
@@ -128,6 +130,7 @@ export function createUpsProvider(env: NodeJS.ProcessEnv): RateProvider {
 	);
 }
 
+/** Creates a fedex provider. */
 export function createFedexProvider(env: NodeJS.ProcessEnv): RateProvider {
 	return provider(
 		'fedex',
@@ -204,6 +207,7 @@ export function createFedexProvider(env: NodeJS.ProcessEnv): RateProvider {
 	);
 }
 
+/** Creates a dhl provider. */
 export function createDhlProvider(env: NodeJS.ProcessEnv): RateProvider {
 	return provider(
 		'dhl',

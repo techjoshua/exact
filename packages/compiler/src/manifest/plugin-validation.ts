@@ -1,5 +1,6 @@
 import type { ExactCompilerManifest } from '../types.js';
 
+/** Validates plugin envelope and throws when the contract is violated. */
 export function validatePluginEnvelope(
 	manifest: Partial<ExactCompilerManifest>,
 	source: string,

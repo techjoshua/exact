@@ -16,6 +16,7 @@ import type {
 	ExactStreamEvent
 } from './types.js';
 
+/** Defines the exact operation dispatcher type contract. */
 export type ExactOperationDispatcher = (
 	request: ExactRequestLike,
 	operation: ExactInvocationRequest,

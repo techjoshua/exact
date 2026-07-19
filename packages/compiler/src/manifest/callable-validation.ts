@@ -1,5 +1,6 @@
 import type { ExactCallableSummaryIR } from '../types.js';
 
+/** Reports whether exact callable summary. */
 export function isExactCallableSummary(value: unknown): value is ExactCallableSummaryIR {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const summary = value as Partial<ExactCallableSummaryIR>;

@@ -2,6 +2,7 @@ import type { ComponentInstance, VNode } from '@exact/core';
 import { elementOwners, roots } from './state.js';
 import type { Mounted } from './types.js';
 
+/** Defines the dom inspection node type contract. */
 export type DomInspectionNode = {
 	readonly vnode: Readonly<Pick<VNode, 'type' | 'key'>>;
 	readonly instance?: ComponentInstance<any>;
@@ -17,6 +18,7 @@ export function inspectDomRoot(container: Element): DomInspectionNode | undefine
 	return mounted ? inspectMounted(mounted, undefined) : undefined;
 }
 
+/** Resolves an element owner. */
 export function findElementOwner(element: Element): ComponentInstance<any> | undefined {
 	return elementOwners.get(element);
 }

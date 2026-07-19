@@ -1,24 +1,30 @@
 import type { BoundModule, ExpressionDirective, NodeRef } from '@exact/expressions';
 
+/** Defines the exact annotation key type contract. */
 export type ExactAnnotationKey = 'key' | 'cleanup' | 'own' | 'track' | 'client' | 'server' | 'keep';
 
+/** Defines the exact keep policy type contract. */
 export type ExactKeepPolicy = 'server' | 'client' | 'secret';
 
+/** Defines the exact annotation diagnostic interface contract. */
 export interface ExactAnnotationDiagnostic {
 	readonly message: string;
 	readonly start: number;
 }
 
+/** Describes the planned exact annotation operation. */
 export interface ExactAnnotationPlan {
 	readonly diagnostics: readonly ExactAnnotationDiagnostic[];
 	readonly trackedCallbacks: ReadonlyMap<string, readonly ExactTrackedCallback[]>;
 }
 
+/** Defines the exact tracked callback interface contract. */
 export interface ExactTrackedCallback {
 	readonly parameter: number;
 	readonly property?: string;
 }
 
+/** Defines the exact key contract interface contract. */
 export interface ExactKeyContract {
 	readonly member?: string;
 	readonly method: boolean;

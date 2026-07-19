@@ -14,6 +14,7 @@ import { normalizeGenerated, printNode, safePropertyName } from './printing.js';
 import { SyntheticScope, SyntheticVariable, syntheticNode } from './primitives.js';
 import { TypeBuilder, syntheticType } from './types.js';
 
+/** Defines the module builder class contract. */
 export class ModuleBuilder {
 	readonly types = new TypeBuilder();
 	readonly scope = new SyntheticScope('module');
@@ -21,6 +22,7 @@ export class ModuleBuilder {
 
 	constructor(readonly filename: string) {}
 
+	/** Performs the variable domain operation for this module builder instance. */
 	variable(name: string, valueType?: ExpressionType): Variable {
 		const variable = new SyntheticVariable(name, 'const', this.scope, valueType);
 		this.scope.add(variable);
@@ -34,6 +36,7 @@ export class ModuleBuilder {
 		return variable;
 	}
 
+	/** Performs the import domain operation for this module builder instance. */
 	import(names: readonly string[], from: string, options: ImportOptions = {}): readonly Variable[] {
 		const variables = names.map((importedName) => {
 			const name = options.aliases?.[importedName] ?? importedName;
@@ -65,10 +68,12 @@ export class ModuleBuilder {
 		return variables;
 	}
 
+	/** Performs the export function domain operation for this module builder instance. */
 	exportFunction(name: string, configure: (fn: FunctionBuilder) => void): this {
 		return this.function(name, configure, { exported: true });
 	}
 
+	/** Performs the function domain operation for this module builder instance. */
 	function(
 		name: string,
 		configure: (fn: FunctionBuilder) => void,
@@ -88,6 +93,7 @@ export class ModuleBuilder {
 		return this;
 	}
 
+	/** Performs the export class domain operation for this module builder instance. */
 	exportClass(
 		name: string,
 		configure: (value: ClassBuilder) => void,
@@ -109,6 +115,7 @@ export class ModuleBuilder {
 		return this;
 	}
 
+	/** Performs the export const domain operation for this module builder instance. */
 	exportConst(name: string, initializer: ExpressionNode, valueType?: ExpressionType): Variable {
 		const variable = new SyntheticVariable(
 			name,
@@ -132,6 +139,7 @@ export class ModuleBuilder {
 		return variable;
 	}
 
+	/** Performs the literal domain operation for this module builder instance. */
 	literal(value: string | number | bigint | boolean | null | undefined): ExpressionNode {
 		const valueType =
 			value === null
@@ -153,6 +161,7 @@ export class ModuleBuilder {
 		});
 	}
 
+	/** Performs the reference domain operation for this module builder instance. */
 	reference(variable: Variable): ExpressionNode {
 		return syntheticNode('Identifier', 'expression', variable.scope, variable.name, [], {
 			name: variable.name,
@@ -161,14 +170,17 @@ export class ModuleBuilder {
 		});
 	}
 
+	/** Performs the this value domain operation for this module builder instance. */
 	thisValue(): ExpressionNode {
 		return syntheticNode('ThisKeyword', 'expression', this.scope, 'this');
 	}
 
+	/** Performs the multiply domain operation for this module builder instance. */
 	multiply(left: ExpressionNode, right: ExpressionNode): ExpressionNode {
 		return this.binary(left, '*', right, this.types.number());
 	}
 
+	/** Performs the binary domain operation for this module builder instance. */
 	binary(
 		left: ExpressionNode,
 		operator: string,
@@ -185,6 +197,7 @@ export class ModuleBuilder {
 		);
 	}
 
+	/** Performs the member domain operation for this module builder instance. */
 	member(target: ExpressionNode, name: string): ExpressionNode {
 		return syntheticNode(
 			'PropertyAccessExpression',
@@ -196,6 +209,7 @@ export class ModuleBuilder {
 		);
 	}
 
+	/** Performs the element domain operation for this module builder instance. */
 	element(target: ExpressionNode, index: ExpressionNode): ExpressionNode {
 		return syntheticNode(
 			'ElementAccessExpression',
@@ -206,6 +220,7 @@ export class ModuleBuilder {
 		);
 	}
 
+	/** Performs the conditional domain operation for this module builder instance. */
 	conditional(
 		condition: ExpressionNode,
 		whenTrue: ExpressionNode,
@@ -222,6 +237,7 @@ export class ModuleBuilder {
 		);
 	}
 
+	/** Performs the unary domain operation for this module builder instance. */
 	unary(operator: string, operand: ExpressionNode, valueType?: ExpressionType): ExpressionNode {
 		return syntheticNode(
 			'PrefixUnaryExpression',
@@ -233,6 +249,7 @@ export class ModuleBuilder {
 		);
 	}
 
+	/** Performs the assignment domain operation for this module builder instance. */
 	assignment(target: ExpressionNode, value: ExpressionNode, operator = '='): ExpressionNode {
 		return syntheticNode(
 			'BinaryExpression',
@@ -244,6 +261,7 @@ export class ModuleBuilder {
 		);
 	}
 
+	/** Performs the array domain operation for this module builder instance. */
 	array(...items: ExpressionNode[]): ExpressionNode {
 		return syntheticNode(
 			'ArrayLiteralExpression',
@@ -254,6 +272,7 @@ export class ModuleBuilder {
 		);
 	}
 
+	/** Performs the object domain operation for this module builder instance. */
 	object(properties: Readonly<Record<string, ExpressionNode>>): ExpressionNode {
 		const children = Object.values(properties);
 		const text = `{ ${Object.entries(properties)
@@ -262,12 +281,14 @@ export class ModuleBuilder {
 		return syntheticNode('ObjectLiteralExpression', 'expression', this.scope, text, children);
 	}
 
+	/** Performs the await domain operation for this module builder instance. */
 	await(value: ExpressionNode): ExpressionNode {
 		return syntheticNode('AwaitExpression', 'expression', this.scope, `await ${printNode(value)}`, [
 			value
 		]);
 	}
 
+	/** Creates a construct for this module builder instance. */
 	construct(target: ExpressionNode, ...args: ExpressionNode[]): ExpressionNode {
 		return Object.freeze({
 			...syntheticNode(
@@ -282,6 +303,7 @@ export class ModuleBuilder {
 		});
 	}
 
+	/** Performs the arrow domain operation for this module builder instance. */
 	arrow(
 		configure: (fn: FunctionBuilder) => ExpressionNode | void,
 		options: Omit<FunctionOptions, 'exported' | 'generator'> = {}
@@ -289,6 +311,7 @@ export class ModuleBuilder {
 		return this.arrowIn(this.scope, configure, options);
 	}
 
+	/** Performs the arrow in domain operation for this module builder instance. */
 	arrowIn(
 		parent: ExpressionScope,
 		configure: (fn: FunctionBuilder) => ExpressionNode | void,
@@ -317,6 +340,7 @@ export class ModuleBuilder {
 		);
 	}
 
+	/** Runs call with the supplied execution context for this module builder instance. */
 	call(target: ExpressionNode, ...args: ExpressionNode[]): ExpressionNode {
 		return Object.freeze({
 			...syntheticNode(
@@ -331,6 +355,7 @@ export class ModuleBuilder {
 		});
 	}
 
+	/** Performs the jsx domain operation for this module builder instance. */
 	jsx(
 		tag: string,
 		props: Readonly<Record<string, ExpressionNode | string | boolean>> = {},
@@ -355,6 +380,7 @@ export class ModuleBuilder {
 		);
 	}
 
+	/** Creates a build for this module builder instance. */
 	build(): UnboundModule {
 		const code = this.statements.map(printNode).join('\n');
 		const root = syntheticNode('SourceFile', 'module', this.scope, code, this.statements);

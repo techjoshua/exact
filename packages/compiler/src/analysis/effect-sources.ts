@@ -5,6 +5,7 @@ import type {
 	ExactEnvironmentEffectSourceIR
 } from '../types.js';
 
+/** Performs the source domain operation. */
 export function source(
 	environment: 'browser' | 'server' | 'unknown',
 	description: string,
@@ -13,6 +14,7 @@ export function source(
 	return Object.freeze({ environment, description, path: [owner, description] });
 }
 
+/** Performs the prepend domain operation. */
 export function prepend(
 	value: ExactEnvironmentEffectSourceIR,
 	owner: string
@@ -23,6 +25,7 @@ export function prepend(
 	});
 }
 
+/** Performs the unique sources domain operation. */
 export function uniqueSources(
 	values: readonly ExactEnvironmentEffectSourceIR[]
 ): ExactEnvironmentEffectSourceIR[] {
@@ -44,12 +47,14 @@ export function uniqueSources(
 	);
 }
 
+/** Performs the source signature domain operation. */
 export function sourceSignature(values: readonly ExactEnvironmentEffectSourceIR[]): string {
 	return values
 		.map((value) => `${value.environment}:${value.description}:${value.path.join('>')}`)
 		.join('|');
 }
 
+/** Performs the external callable index domain operation. */
 export function externalCallableIndex(
 	filename: string,
 	manifests: readonly ExactCompilerManifest[]
@@ -66,6 +71,7 @@ export function externalCallableIndex(
 	return result;
 }
 
+/** Performs the external module initializers domain operation. */
 export function externalModuleInitializers(
 	filename: string,
 	moduleSpecifier: string,
@@ -83,6 +89,7 @@ export function externalModuleInitializers(
 		);
 }
 
+/** Performs the relative specifier domain operation. */
 export function relativeSpecifier(from: string, target: string): string {
 	let value = path
 		.relative(from, path.resolve(target))
@@ -92,6 +99,7 @@ export function relativeSpecifier(from: string, target: string): string {
 	return value;
 }
 
+/** Performs the external key domain operation. */
 export function externalKey(specifier: string, exportName: string): string {
 	return `${specifier.replace(/\\/g, '/').replace(/\.[cm]?[jt]sx?$/i, '')}:${exportName}`;
 }

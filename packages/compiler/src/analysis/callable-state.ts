@@ -11,6 +11,7 @@ import type {
 	ExactStateEffect
 } from '../types.js';
 
+/** Defines the mutable callable type contract. */
 export type MutableCallable = {
 	id: string;
 	nodeId: string;
@@ -31,6 +32,7 @@ export type MutableCallable = {
 	parameters: readonly Variable[];
 };
 
+/** Tracks the state owned by callable analysis. */
 export type CallableAnalysisState = {
 	module: BoundModule;
 	stateAliases: ReadonlyMap<string, readonly string[]>;

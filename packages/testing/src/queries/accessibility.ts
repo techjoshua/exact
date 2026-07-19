@@ -1,5 +1,6 @@
 import type { AccessibleName } from '../contracts.js';
 
+/** Performs the role of domain operation. */
 export function roleOf(element: Element): string | undefined {
 	const explicit = element.getAttribute('role');
 	if (explicit) return explicit.split(/\s+/)[0];
@@ -33,6 +34,7 @@ export function roleOf(element: Element): string | undefined {
 	}
 	return undefined;
 }
+/** Performs the accessible name domain operation. */
 export function accessibleName(element: Element): string {
 	const labelledBy = element.getAttribute('aria-labelledby');
 	if (labelledBy)
@@ -49,6 +51,7 @@ export function accessibleName(element: Element): string {
 			: (element.textContent?.trim() ?? ''))
 	);
 }
+/** Performs the label text domain operation. */
 export function labelText(element: Element): string | undefined {
 	if (!element.matches('input, textarea, select')) return undefined;
 	return (
@@ -58,11 +61,13 @@ export function labelText(element: Element): string | undefined {
 			.trim() || undefined
 	);
 }
+/** Reports whether name. */
 export function matchesName(actual: string | undefined, expected: AccessibleName): boolean {
 	if (typeof expected === 'string') return actual?.trim() === expected;
 	expected.lastIndex = 0;
 	return expected.test(actual ?? '');
 }
+/** Performs the minimal text matches domain operation. */
 export function minimalTextMatches(elements: Element[], text: AccessibleName): Element[] {
 	return elements.filter(
 		(element) =>
@@ -71,6 +76,7 @@ export function minimalTextMatches(elements: Element[], text: AccessibleName): E
 			!Array.from(element.children).some((child) => matchesName(child.textContent?.trim(), text))
 	);
 }
+/** Reports whether element visible. */
 export function isElementVisible(element: Element): boolean {
 	for (let cursor: Element | null = element; cursor; cursor = cursor.parentElement) {
 		const style = (cursor as unknown as HTMLElement).style;

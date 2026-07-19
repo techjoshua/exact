@@ -15,12 +15,14 @@ type RewriteFactory = (ref: NodeRef) => Replacement;
 let generatedRewriteId = 1;
 let generatedCloneId = 1;
 
+/** Carries the context required by text lowering. */
 export interface TextLoweringContext {
 	readonly reference: NodeRef;
 	readonly text: string;
 	readonly childText: readonly string[];
 }
 
+/** Defines the text lowerer type contract. */
 export type TextLowerer = (context: TextLoweringContext) => string | undefined;
 
 /** Collects immutable tree edits and applies them in one structural-sharing pass. */
@@ -31,6 +33,7 @@ export class ModuleRewriter {
 	private readonly before = new Map<ExpressionNode, ExpressionNode[]>();
 	private readonly after = new Map<ExpressionNode, ExpressionNode[]>();
 
+	/** Performs the replace where domain operation for this module rewriter instance. */
 	replaceWhere(select: RewriteSelector, replace: RewriteFactory): this {
 		this.replacements.push(Object.freeze({ select, replace }));
 		return this;
@@ -41,22 +44,26 @@ export class ModuleRewriter {
 		return this.replaceWhere(select, (ref) => generatedNode(ref, replace(ref)));
 	}
 
+	/** Releases where and its owned resources for this module rewriter instance. */
 	removeWhere(select: RewriteSelector): this {
 		return this.replaceWhere(select, () => null);
 	}
 
+	/** Performs the insert before domain operation for this module rewriter instance. */
 	insertBefore(target: ExpressionNode | NodeRef, node: ExpressionNode): this {
 		const key = 'node' in target ? target.node : target;
 		this.before.set(key, [...(this.before.get(key) ?? []), node]);
 		return this;
 	}
 
+	/** Performs the insert after domain operation for this module rewriter instance. */
 	insertAfter(target: ExpressionNode | NodeRef, node: ExpressionNode): this {
 		const key = 'node' in target ? target.node : target;
 		this.after.set(key, [...(this.after.get(key) ?? []), node]);
 		return this;
 	}
 
+	/** Performs the insert text before domain operation for this module rewriter instance. */
 	insertTextBefore(target: ExpressionNode | NodeRef, text: string): this {
 		const ref = 'node' in target ? target : undefined;
 		const node = ref
@@ -65,6 +72,7 @@ export class ModuleRewriter {
 		return this.insertBefore(target, node);
 	}
 
+	/** Performs the insert text after domain operation for this module rewriter instance. */
 	insertTextAfter(target: ExpressionNode | NodeRef, text: string): this {
 		const ref = 'node' in target ? target : undefined;
 		const node = ref
@@ -73,6 +81,7 @@ export class ModuleRewriter {
 		return this.insertAfter(target, node);
 	}
 
+	/** Applies an apply to the owned runtime state for this module rewriter instance. */
 	apply(module: BoundModule | UnboundModule): BoundModule | UnboundModule {
 		if (module.state === 'unbound' && module.provenance) {
 			throw new Error(
@@ -239,6 +248,7 @@ function applyEdits(
 	return Object.freeze({ source: output, lineOrigins: Object.freeze(lineOrigins) });
 }
 
+/** Transforms module into its required representation. */
 export function rewriteModule(
 	module: BoundModule | UnboundModule,
 	configure: (rewriter: ModuleRewriter) => void
@@ -288,6 +298,7 @@ function renderSourceRegion(
 	return output;
 }
 
+/** Performs the clone with variables domain operation. */
 export function cloneWithVariables(
 	node: ExpressionNode,
 	variables: ReadonlyMap<Variable, Variable>

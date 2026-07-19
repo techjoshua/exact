@@ -24,6 +24,7 @@ import {
 	sourcedProxyCache
 } from './state.js';
 
+/** Creates a reactive. */
 export function createReactive(
 	value: object,
 	options: ReactiveOptions,

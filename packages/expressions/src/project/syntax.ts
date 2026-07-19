@@ -8,15 +8,18 @@ import type {
 	SourceSpan
 } from '../model.js';
 
+/** Transforms file into its required representation. */
 export function normalizeFile(filename: string): string {
 	const normalized = displayFile(filename);
 	return ts.sys.useCaseSensitiveFileNames ? normalized : normalized.toLowerCase();
 }
 
+/** Performs the display file domain operation. */
 export function displayFile(filename: string): string {
 	return path.resolve(filename).replace(/\\/g, '/');
 }
 
+/** Performs the script kind domain operation. */
 export function scriptKind(filename: string): ts.ScriptKind {
 	if (filename.endsWith('.tsx')) return ts.ScriptKind.TSX;
 	if (filename.endsWith('.jsx')) return ts.ScriptKind.JSX;
@@ -24,6 +27,7 @@ export function scriptKind(filename: string): ts.ScriptKind {
 	return ts.ScriptKind.TS;
 }
 
+/** Reports whether scope node. */
 export function isScopeNode(node: ts.Node): boolean {
 	return (
 		ts.isSourceFile(node) ||
@@ -36,6 +40,7 @@ export function isScopeNode(node: ts.Node): boolean {
 	);
 }
 
+/** Performs the scope kind domain operation. */
 export function scopeKind(node: ts.Node): ScopeKind {
 	if (ts.isSourceFile(node) || ts.isModuleBlock(node)) return 'module';
 	if (ts.isFunctionLike(node)) return 'function';
@@ -44,6 +49,7 @@ export function scopeKind(node: ts.Node): ScopeKind {
 	return 'block';
 }
 
+/** Performs the category domain operation. */
 export function category(node: ts.Node): NodeCategory {
 	if (ts.isSourceFile(node)) return 'module';
 	if (isJsxNode(node)) return 'jsx';
@@ -77,6 +83,7 @@ function isJsxNode(node: ts.Node): boolean {
 	);
 }
 
+/** Performs the node name domain operation. */
 export function nodeName(node: ts.Node): string | undefined {
 	if (ts.isIdentifier(node) || ts.isPrivateIdentifier(node) || ts.isJsxText(node)) return node.text;
 	if (
@@ -124,10 +131,12 @@ function isDeclarationNode(node: ts.Node): boolean {
 	);
 }
 
+/** Reports whether node name. */
 export function hasNodeName(node: ts.Node): node is ts.Node & { name: ts.DeclarationName } {
 	return 'name' in node;
 }
 
+/** Performs the node operator domain operation. */
 export function nodeOperator(node: ts.Node): string | undefined {
 	if (ts.isBinaryExpression(node)) return node.operatorToken.getText();
 	if (ts.isPrefixUnaryExpression(node) || ts.isPostfixUnaryExpression(node))
@@ -135,6 +144,7 @@ export function nodeOperator(node: ts.Node): string | undefined {
 	return undefined;
 }
 
+/** Collects binding identifiers in deterministic order. */
 export function collectBindingIdentifiers(name: ts.BindingName): ts.Identifier[] {
 	if (ts.isIdentifier(name)) return [name];
 	return name.elements.flatMap((element) =>
@@ -142,12 +152,14 @@ export function collectBindingIdentifiers(name: ts.BindingName): ts.Identifier[]
 	);
 }
 
+/** Performs the declaration binding name domain operation. */
 export function declarationBindingName(node: ts.Node): string | undefined {
 	if (ts.isIdentifier(node)) return node.text;
 	if (hasNodeName(node) && node.name && ts.isIdentifier(node.name)) return node.name.text;
 	return undefined;
 }
 
+/** Reports whether mutable binding. */
 export function isMutableBinding(node: ts.Node): boolean {
 	if (ts.isParameter(node)) return node.name.getText() !== 'this';
 	if (ts.isBindingElement(node)) return isMutableBinding(node.parent.parent);
@@ -160,6 +172,7 @@ export function isMutableBinding(node: ts.Node): boolean {
 	return false;
 }
 
+/** Performs the import source domain operation. */
 export function importSource(node: ts.Node): string | undefined {
 	let cursor: ts.Node | undefined = node;
 	while (cursor && !ts.isImportDeclaration(cursor)) cursor = cursor.parent;
@@ -168,6 +181,7 @@ export function importSource(node: ts.Node): string | undefined {
 		: undefined;
 }
 
+/** Reports whether type only binding. */
 export function isTypeOnlyBinding(node: ts.Node): boolean {
 	let cursor: ts.Node | undefined = node;
 	while (cursor && !ts.isImportDeclaration(cursor)) {
@@ -177,6 +191,7 @@ export function isTypeOnlyBinding(node: ts.Node): boolean {
 	return !!cursor?.importClause?.isTypeOnly;
 }
 
+/** Performs the type kind domain operation. */
 export function typeKind(type: ts.Type): ExpressionTypeKind {
 	const flags = type.flags;
 	if (flags & ts.TypeFlags.Any) return 'any';
@@ -196,6 +211,7 @@ export function typeKind(type: ts.Type): ExpressionTypeKind {
 	return type.getCallSignatures().length ? 'function' : 'object';
 }
 
+/** Performs the diagnostic from ts domain operation. */
 export function diagnosticFromTs(diagnostic: ts.Diagnostic): ExpressionDiagnostic {
 	const source = diagnostic.file;
 	const start = diagnostic.start;

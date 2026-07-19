@@ -48,6 +48,7 @@ import {
 	renderUnsafeHtml
 } from './host.js';
 
+/** Transforms vnode chunks into its required representation. */
 export function* renderVNodeChunks(
 	context: SsrContext,
 	vnode: VNode,
@@ -200,6 +201,7 @@ export function* renderVNodeChunks(
 	}
 }
 
+/** Transforms root component chunks into its required representation. */
 export function* renderRootComponentChunks(
 	context: SsrContext,
 	componentId: string,
@@ -213,6 +215,7 @@ export function* renderRootComponentChunks(
 	if (!document && context.markers) yield `<!--/exact:${componentId}-->`;
 }
 
+/** Transforms child chunks into its required representation. */
 export function* renderChildChunks(
 	context: SsrContext,
 	child: Child,
@@ -228,6 +231,7 @@ export function* renderChildChunks(
 	}
 }
 
+/** Transforms children into its required representation. */
 export function renderChildren(
 	context: SsrContext,
 	children: readonly Child[],
@@ -246,6 +250,7 @@ export function renderChildren(
 	return boundedJoin(context, html);
 }
 
+/** Transforms child into its required representation. */
 export function renderChild(
 	context: SsrContext,
 	child: Child,
@@ -258,6 +263,7 @@ export function renderChild(
 	return escapeText(String(unwrap(child)));
 }
 
+/** Transforms vnode into its required representation. */
 export function renderVNode(
 	context: SsrContext,
 	vnode: VNode,
@@ -271,6 +277,7 @@ export function renderVNode(
 	});
 }
 
+/** Transforms vnode inner into its required representation. */
 export function renderVNodeInner(
 	context: SsrContext,
 	vnode: VNode,

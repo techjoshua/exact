@@ -8,6 +8,7 @@ import type {
 } from '../types.js';
 
 import type { MutableCallable } from './callable-state.js';
+/** Performs the unique state effects domain operation. */
 export function uniqueStateEffects(values: readonly ExactStateEffect[]): ExactStateEffect[] {
 	return [
 		...new Map(
@@ -19,12 +20,14 @@ export function uniqueStateEffects(values: readonly ExactStateEffect[]): ExactSt
 	].sort((left, right) => `${left.kind}:${left.path}`.localeCompare(`${right.kind}:${right.path}`));
 }
 
+/** Performs the state receiver key domain operation. */
 export function stateReceiverKey(value: ExactStateEffect): string {
 	return value.receiver?.kind === 'parameter'
 		? `parameter:${value.receiver.index}`
 		: (value.receiver?.kind ?? 'component');
 }
 
+/** Performs the receiver binding field domain operation. */
 export function receiverBindingField(
 	call: NodeRef,
 	caller: MutableCallable,
@@ -57,6 +60,7 @@ export function receiverBindingField(
 	};
 }
 
+/** Performs the map state effects domain operation. */
 export function mapStateEffects(
 	effects: readonly ExactStateEffect[],
 	edge: ExactCallEdgeIR
@@ -79,6 +83,7 @@ export function mapStateEffects(
 	});
 }
 
+/** Performs the parameter state effect domain operation. */
 export function parameterStateEffect(
 	member: NodeRef,
 	parameters: readonly Variable[]
@@ -151,6 +156,7 @@ const intrinsicCollectionMethods = new Set([
 	'toSpliced'
 ]);
 
+/** Reports whether compiler owned collection call. */
 export function isCompilerOwnedCollectionCall(
 	module: BoundModule,
 	call: NodeRef,
@@ -161,6 +167,7 @@ export function isCompilerOwnedCollectionCall(
 	return isCompilerOwnedCollectionReceiver(module, call.target.target, aliases);
 }
 
+/** Reports whether compiler owned collection receiver. */
 export function isCompilerOwnedCollectionReceiver(
 	module: BoundModule,
 	receiver: NodeRef | undefined,
@@ -177,6 +184,7 @@ export function isCompilerOwnedCollectionReceiver(
 	return isCompilerOwnedCollectionReceiver(module, receiver.target.target, aliases);
 }
 
+/** Reports whether state write. */
 export function isStateWrite(member: NodeRef): boolean {
 	const parent = member.parent;
 	if (!parent) return false;
@@ -199,6 +207,7 @@ export function isStateWrite(member: NodeRef): boolean {
 	);
 }
 
+/** Performs the unique context effects domain operation. */
 export function uniqueContextEffects(values: readonly ExactContextEffect[]): ExactContextEffect[] {
 	return [
 		...new Map(
@@ -209,6 +218,7 @@ export function uniqueContextEffects(values: readonly ExactContextEffect[]): Exa
 	);
 }
 
+/** Performs the known higher order call domain operation. */
 export function knownHigherOrderCall(call: NodeRef): boolean {
 	const name = call.target?.name;
 	return (
@@ -232,6 +242,7 @@ export function knownHigherOrderCall(call: NodeRef): boolean {
 	);
 }
 
+/** Reports whether function node. */
 export function isFunctionNode(reference: NodeRef): boolean {
 	return (
 		reference.node.kind === 'ArrowFunction' ||

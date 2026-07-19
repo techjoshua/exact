@@ -7,7 +7,9 @@ import type {
 	ShipmentDraft
 } from '../../types.js';
 
+/** Tracks the state owned by page. */
 export type PageState = { model: InitialModel };
+/** Tracks the state owned by workspace. */
 export type WorkspaceState = {
 	draft: ShipmentDraft;
 	providers: ProviderResult[];

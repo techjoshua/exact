@@ -1,6 +1,7 @@
 import ts from 'typescript';
 import type { ModuleExportReplacement } from './contracts.js';
 
+/** Transforms import declaration into its required representation. */
 export function rewriteImportDeclaration(
 	factory: ts.NodeFactory,
 	node: ts.ImportDeclaration,
@@ -97,6 +98,7 @@ export function rewriteImportDeclaration(
 	return declarations;
 }
 
+/** Transforms export declaration into its required representation. */
 export function rewriteExportDeclaration(
 	factory: ts.NodeFactory,
 	node: ts.ExportDeclaration,
@@ -154,6 +156,7 @@ export function rewriteExportDeclaration(
 	return declarations;
 }
 
+/** Performs the replacement index domain operation. */
 export function replacementIndex(
 	values: readonly ModuleExportReplacement[]
 ): Map<string, Map<string, ModuleExportReplacement>> {

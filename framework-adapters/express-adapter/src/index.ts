@@ -1,5 +1,6 @@
 import { handleExactRequest, type ExactServerContext } from '@exact/server';
 
+/** Defines the exact express request type contract. */
 export type ExactExpressRequest = {
 	method: string;
 	originalUrl?: string;
@@ -9,6 +10,7 @@ export type ExactExpressRequest = {
 	text?(): Promise<string>;
 };
 
+/** Defines the exact express response type contract. */
 export type ExactExpressResponse = {
 	status(code: number): ExactExpressResponse;
 	setHeader(name: string, value: string): void;
@@ -18,6 +20,7 @@ export type ExactExpressResponse = {
 	destroy?(error: unknown): void;
 };
 
+/** Defines the exact express next type contract. */
 export type ExactExpressNext = (error?: unknown) => void;
 
 /** Creates an Express middleware for an eXact endpoint. */

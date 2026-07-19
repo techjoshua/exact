@@ -9,6 +9,7 @@ import type {
 
 import type { Json } from './contracts.js';
 
+/** Performs the provider domain operation. */
 export function provider(
 	id: ProviderId,
 	name: string,
@@ -19,6 +20,7 @@ export function provider(
 	return { id, name, capabilities, configured, quote };
 }
 
+/** Transforms usps into its required representation. */
 export function normalizeUsps(option: Json, index: number, request: RateRequest): RateQuote[] {
 	const rate = array(option.rates)[0] ?? option;
 	const price = rate.totalBasePrice ?? rate.price ?? option.totalBasePrice ?? option.totalPrice;
@@ -40,6 +42,7 @@ export function normalizeUsps(option: Json, index: number, request: RateRequest)
 	];
 }
 
+/** Transforms generic into its required representation. */
 export function normalizeGeneric(
 	providerId: ProviderId,
 	providerName: string,
@@ -130,6 +133,7 @@ export function normalizeGeneric(
 	};
 }
 
+/** Performs the feature domain operation. */
 export function feature(
 	code: string,
 	name: string,
@@ -140,6 +144,7 @@ export function feature(
 ): ExtraService {
 	return { code, name, selected, availability, priceCents, coverageCents };
 }
+/** Performs the array domain operation. */
 export function array(value: unknown): Json[] {
 	return Array.isArray(value)
 		? (value as Json[])
@@ -147,14 +152,17 @@ export function array(value: unknown): Json[] {
 			? [value as Json]
 			: [];
 }
+/** Performs the cents domain operation. */
 export function cents(value: unknown): number {
 	const result = Number(typeof value === 'object' && value ? (value as Json).amount : value);
 	return Number.isFinite(result) ? Math.round(result * 100) : 0;
 }
+/** Performs the days domain operation. */
 export function days(value: unknown): number | undefined {
 	const match = String(value ?? '').match(/\d+/);
 	return match ? Number(match[0]) : undefined;
 }
+/** Resolves a charge. */
 export function findCharge(charges: Json[], term: string): number {
 	const found = charges.find((item) =>
 		String(item.name ?? item.description ?? item.type)

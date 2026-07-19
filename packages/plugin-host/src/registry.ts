@@ -21,6 +21,7 @@ import { createExactPackageGraph, findUp, packageName, type ExactPackageGraph } 
 import { importPublicPackageEntry } from './modules.js';
 import { validateExactRuntimeExtensions } from './runtime.js';
 
+/** Configures prepare exact plugin registry. */
 export interface PrepareExactPluginRegistryOptions {
 	readonly applicationRoot?: string;
 	readonly configPath?: string;
@@ -33,6 +34,7 @@ export interface PrepareExactPluginRegistryOptions {
 	readonly syncTypes?: boolean;
 }
 
+/** Defines the exact prepared plugin registry interface contract. */
 export interface ExactPreparedPluginRegistry {
 	readonly applicationRoot: string;
 	readonly configPath?: string;
@@ -52,6 +54,7 @@ export interface ExactPreparedPluginRegistry {
 
 const registryCache = new Map<string, Promise<ExactPreparedPluginRegistry>>();
 
+/** Performs the prepare exact plugin registry domain operation. */
 export async function prepareExactPluginRegistry(
 	options: PrepareExactPluginRegistryOptions = {}
 ): Promise<ExactPreparedPluginRegistry> {
@@ -82,6 +85,7 @@ export async function prepareExactPluginRegistry(
 	}
 }
 
+/** Performs the invalidate exact plugin registry domain operation. */
 export function invalidateExactPluginRegistry(applicationRoot?: string): void {
 	if (!applicationRoot) {
 		registryCache.clear();
@@ -92,6 +96,7 @@ export function invalidateExactPluginRegistry(applicationRoot?: string): void {
 		if (key.includes(JSON.stringify(root).slice(1, -1))) registryCache.delete(key);
 }
 
+/** Performs the sync exact plugin types domain operation. */
 export async function syncExactPluginTypes(
 	options: PrepareExactPluginRegistryOptions = {}
 ): Promise<string> {

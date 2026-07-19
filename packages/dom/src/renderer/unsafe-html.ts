@@ -1,6 +1,7 @@
 import { unwrap, watch } from '@exact/core';
 import type { Mounted, Root } from '../types.js';
 
+/** Validates unsafe html allowed and throws when the contract is violated. */
 export function assertUnsafeHtmlAllowed(root: Root): void {
 	if (!root.allowUnsafeHtml) {
 		throw new Error(
@@ -9,6 +10,7 @@ export function assertUnsafeHtmlAllowed(root: Root): void {
 	}
 }
 
+/** Performs the bind unsafe html domain operation. */
 export function bindUnsafeHtml(
 	root: Root,
 	mounted: Mounted,
@@ -35,6 +37,7 @@ export function bindUnsafeHtml(
 	);
 }
 
+/** Performs the replace unsafe html range domain operation. */
 export function replaceUnsafeHtmlRange(mounted: Mounted, html: string): void {
 	const template = document.createElement('template');
 	template.innerHTML = html;
@@ -49,6 +52,7 @@ export function replaceUnsafeHtmlRange(mounted: Mounted, html: string): void {
 	mounted.rawNodes = next;
 }
 
+/** Performs the raw html for nodes domain operation. */
 export function rawHtmlForNodes(nodes: readonly Node[]): string {
 	const template = document.createElement('template');
 	for (const node of nodes) template.content.appendChild(node.cloneNode(true));

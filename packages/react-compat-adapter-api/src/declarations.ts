@@ -1,8 +1,11 @@
 /** Package marker used to discover eXact adapters in an installed dependency graph. */
 export const reactCompatAdapterMarkerPackage = '@exact/react-compat-adapter-api' as const;
+/** Provides the canonical react compat adapter schema version value. */
 export const reactCompatAdapterSchemaVersion = 1 as const;
+/** Provides the canonical react compat adapter protocol version value. */
 export const reactCompatAdapterProtocolVersion = '1.0.0' as const;
 
+/** Defines the react compat replacement declaration interface contract. */
 export interface ReactCompatReplacementDeclaration {
 	/** Public package export subpath on the package declaring this replacement. */
 	readonly subpath: '.' | `./${string}`;
@@ -10,6 +13,7 @@ export interface ReactCompatReplacementDeclaration {
 	readonly export: string;
 }
 
+/** Defines the react compat source declaration interface contract. */
 export interface ReactCompatSourceDeclaration {
 	/** Whether runtime exports not listed by the selected variant may remain on the source module. */
 	readonly fallback: 'retain' | 'error';
@@ -17,6 +21,7 @@ export interface ReactCompatSourceDeclaration {
 	readonly variants: readonly ReactCompatSourceVariantDeclaration[];
 }
 
+/** Defines the react compat source variant declaration interface contract. */
 export interface ReactCompatSourceVariantDeclaration {
 	/** Supported versions of the resolved source package instance. */
 	readonly version: string;
@@ -24,15 +29,18 @@ export interface ReactCompatSourceVariantDeclaration {
 	readonly exports: Readonly<Record<string, ReactCompatReplacementDeclaration>>;
 }
 
+/** Defines the react compat adapter declaration interface contract. */
 export interface ReactCompatAdapterDeclaration {
 	readonly schemaVersion: typeof reactCompatAdapterSchemaVersion;
 	readonly substitutions: Readonly<Record<string, ReactCompatSourceDeclaration>>;
 }
 
+/** Defines the react compat application policy interface contract. */
 export interface ReactCompatApplicationPolicy {
 	readonly ignoreAdapters?: readonly string[];
 }
 
+/** Defines the package manifest like interface contract. */
 export interface PackageManifestLike {
 	readonly name?: unknown;
 	readonly version?: unknown;
@@ -162,6 +170,7 @@ export function readReactCompatApplicationPolicy(
 	return Object.freeze({ ignoreAdapters: Object.freeze(ignoreAdapters) });
 }
 
+/** Performs the package directly depends on adapter marker domain operation. */
 export function packageDirectlyDependsOnAdapterMarker(manifest: PackageManifestLike): boolean {
 	return (
 		dependencyRange(manifest.dependencies, reactCompatAdapterMarkerPackage) !== undefined ||
@@ -169,6 +178,7 @@ export function packageDirectlyDependsOnAdapterMarker(manifest: PackageManifestL
 	);
 }
 
+/** Performs the dependency range domain operation. */
 export function dependencyRange(dependencies: unknown, packageName: string): string | undefined {
 	if (!isRecord(dependencies)) return undefined;
 	const value = dependencies[packageName];
@@ -182,6 +192,7 @@ function assertSourceModule(specifier: string, label: string): void {
 	}
 }
 
+/** Performs the package name from bare specifier domain operation. */
 export function packageNameFromBareSpecifier(specifier: string): string {
 	if (!specifier || specifier.includes('\\') || /^(?:\.|\/|[a-z][a-z+.-]*:)/i.test(specifier)) {
 		throw new Error(

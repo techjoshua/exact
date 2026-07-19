@@ -1,17 +1,25 @@
 import type { DependencyList, ExternalStoreSubscribe, ReactContext } from '../types.js';
 
+/** Defines the state slot type contract. */
 export type StateSlot = { kind: 'state'; value: unknown; dispatch: (value: unknown) => void };
+/** Defines the reducer slot type contract. */
 export type ReducerSlot = {
 	kind: 'reducer';
 	value: unknown;
 	reducer: (state: unknown, action: unknown) => unknown;
 	dispatch: (action: unknown) => void;
 };
+/** Defines the ref slot type contract. */
 export type RefSlot = { kind: 'ref'; value: { current: unknown } };
+/** Defines the memo slot type contract. */
 export type MemoSlot = { kind: 'memo'; value: unknown; deps: DependencyList | undefined };
+/** Defines the debug slot type contract. */
 export type DebugSlot = { kind: 'debug'; value: unknown };
+/** Defines the context slot type contract. */
 export type ContextSlot = { kind: 'context'; context: ReactContext<unknown>; value: unknown };
+/** Defines the effect kind type contract. */
 export type EffectKind = 'insertion' | 'layout' | 'passive';
+/** Defines the effect slot type contract. */
 export type EffectSlot = {
 	kind: 'effect';
 	effectKind: EffectKind;
@@ -20,7 +28,9 @@ export type EffectSlot = {
 	cleanup?: () => void;
 	pending: boolean;
 };
+/** Defines the id slot type contract. */
 export type IdSlot = { kind: 'id'; value: string };
+/** Defines the external store slot type contract. */
 export type ExternalStoreSlot = {
 	kind: 'external-store';
 	subscribe: ExternalStoreSubscribe;
@@ -29,12 +39,15 @@ export type ExternalStoreSlot = {
 	unsubscribe?: () => void;
 	pendingSubscription: boolean;
 };
+/** Defines the effect event slot type contract. */
 export type EffectEventSlot = {
 	kind: 'effect-event';
 	implementation: (...args: any[]) => unknown;
 	callback: (...args: any[]) => unknown;
 };
+/** Defines the deferred slot type contract. */
 export type DeferredSlot = { kind: 'deferred'; value: unknown; input: unknown; scheduled: boolean };
+/** Defines the optimistic slot type contract. */
 export type OptimisticSlot = {
 	kind: 'optimistic';
 	base: unknown;
@@ -42,6 +55,7 @@ export type OptimisticSlot = {
 	reducer?: (state: unknown, action: unknown) => unknown;
 	dispatch: (action: unknown) => void;
 };
+/** Defines the memo cache slot type contract. */
 export type MemoCacheSlot = { kind: 'memo-cache'; value: unknown[] };
 
 /** A committed or in-progress entry in a component's positional hook list. */

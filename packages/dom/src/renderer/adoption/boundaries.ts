@@ -5,6 +5,7 @@ import type { Mounted, Root } from '../../types.js';
 import { unmountMany } from '../teardown.js';
 import { adoptStaticMounted } from './tree.js';
 
+/** Performs the boundary markers domain operation. */
 export function boundaryMarkers(container: Element): { start: Comment; end: Comment } | undefined {
 	const comments = Array.from(container.childNodes).filter(
 		(node): node is Comment => node.nodeType === Node.COMMENT_NODE
@@ -15,6 +16,7 @@ export function boundaryMarkers(container: Element): { start: Comment; end: Comm
 	return end ? { start, end } : undefined;
 }
 
+/** Performs the content nodes between domain operation. */
 export function contentNodesBetween(start: Node, end: Node): Node[] {
 	const nodes: Node[] = [];
 	for (let current = start.nextSibling; current && current !== end; current = current.nextSibling)
@@ -22,14 +24,17 @@ export function contentNodesBetween(start: Node, end: Node): Node[] {
 	return nodes;
 }
 
+/** Creates a range anchor. */
 export function createRangeAnchor(parent: Node): Node {
 	return parent.nodeType === Node.DOCUMENT_NODE
 		? document.createComment('exact:component-range')
 		: document.createTextNode('');
 }
 
+/** Defines the framework child range type contract. */
 export type FrameworkChildRange = { start: Comment; end: Comment };
 
+/** Performs the framework child range domain operation. */
 export function frameworkChildRange(parent: Element): FrameworkChildRange | undefined {
 	const children = Array.from(parent.childNodes);
 	const startIndex = children.findIndex(
@@ -47,6 +52,7 @@ export function frameworkChildRange(parent: Element): FrameworkChildRange | unde
 	};
 }
 
+/** Performs the authored child nodes domain operation. */
 export function authoredChildNodes(
 	parent: Element,
 	framework: FrameworkChildRange | undefined
@@ -68,6 +74,7 @@ export function authoredChildNodes(
 	return nodes;
 }
 
+/** Performs the adopt static children domain operation. */
 export function adoptStaticChildren(
 	root: Root,
 	children: Child[],
@@ -78,6 +85,7 @@ export function adoptStaticChildren(
 	return adoptStaticChildrenRange(root, children, nodes, parentInstance, parentScope, true)?.mounts;
 }
 
+/** Performs the adopt static children range domain operation. */
 export function adoptStaticChildrenRange(
 	root: Root,
 	children: Child[],

@@ -5,6 +5,7 @@ import { markReactiveHashDirty } from './internal/keyed-collections.js';
 import { iterateKey } from './internal/symbols.js';
 import { unwrap } from './internal/values.js';
 
+/** Applies an array to the owned runtime state. */
 export function mutateArray(
 	target: unknown[],
 	methodName: string,
@@ -89,11 +90,13 @@ function mutateArrayEnd(
 	return result === target ? receiver : result;
 }
 
+/** Performs the record property undo domain operation. */
 export function recordPropertyUndo(target: object, key: PropertyKey): void {
 	if (!hasActiveTransaction()) return;
 	recordTransactionUndo(createPropertyUndo(target, key));
 }
 
+/** Creates a property undo. */
 export function createPropertyUndo(target: object, key: PropertyKey): () => void {
 	if (Array.isArray(target) && key === 'length') return createArrayUndo(target);
 	const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
@@ -107,11 +110,13 @@ export function createPropertyUndo(target: object, key: PropertyKey): () => void
 	};
 }
 
+/** Performs the record array undo domain operation. */
 export function recordArrayUndo(target: unknown[]): void {
 	if (!hasActiveTransaction()) return;
 	recordTransactionUndo(createArrayUndo(target));
 }
 
+/** Creates an array undo. */
 export function createArrayUndo(target: unknown[]): () => void {
 	const descriptors = new Map<PropertyKey, PropertyDescriptor>();
 	for (const key of Reflect.ownKeys(target)) {

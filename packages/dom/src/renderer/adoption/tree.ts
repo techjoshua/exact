@@ -43,6 +43,7 @@ import {
 } from './boundaries.js';
 import { adoptKeyedListChildren } from './keyed.js';
 
+/** Performs the adopt static mounted domain operation. */
 export function adoptStaticMounted(
 	root: Root,
 	vnode: VNode,
@@ -57,6 +58,7 @@ export function adoptStaticMounted(
 	});
 }
 
+/** Performs the adopt static mounted inner domain operation. */
 export function adoptStaticMountedInner(
 	root: Root,
 	vnode: VNode,

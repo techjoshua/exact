@@ -11,11 +11,13 @@ import type {
 
 import { isTaskCall, isWithin } from './task-state.js';
 
+/** Performs the effect path suffix domain operation. */
 export function effectPathSuffix(sources: readonly ExactEnvironmentEffectSourceIR[]): string {
 	const candidate = sources.find((source) => source.environment === 'unknown') ?? sources[0];
 	return candidate?.path.length ? ` (${candidate.path.join(' → ')})` : '';
 }
 
+/** Performs the module local variables domain operation. */
 export function moduleLocalVariables(module: BoundModule): Set<Variable> {
 	return new Set(
 		module
@@ -35,6 +37,7 @@ export function moduleLocalVariables(module: BoundModule): Set<Variable> {
 	);
 }
 
+/** Reports whether owned listener. */
 export function isOwnedListener(call: NodeRef, localVariables: ReadonlySet<Variable>): boolean {
 	if (!call.target?.isMember('addEventListener')) return false;
 	const receiver = call.target.target;
@@ -50,6 +53,7 @@ export function isOwnedListener(call: NodeRef, localVariables: ReadonlySet<Varia
 	return taskSignalCall(call, localVariables)?.mode === 'options';
 }
 
+/** Performs the direct setup expression domain operation. */
 export function directSetupExpression(call: NodeRef): NodeRef | undefined {
 	const statement = call.ancestors().ofKind('ExpressionStatement').first();
 	if (!statement) return undefined;
@@ -59,10 +63,12 @@ export function directSetupExpression(call: NodeRef): NodeRef | undefined {
 	return statement.children().first();
 }
 
+/** Performs the inside task domain operation. */
 export function insideTask(reference: NodeRef): boolean {
 	return reference.ancestors().calls().any(isTaskCall);
 }
 
+/** Performs the inside client jsx domain operation. */
 export function insideClientJsx(reference: NodeRef): boolean {
 	return reference
 		.ancestors()
@@ -72,6 +78,7 @@ export function insideClientJsx(reference: NodeRef): boolean {
 		);
 }
 
+/** Performs the task resource domain operation. */
 export function taskResource(
 	call: NodeRef,
 	localVariables: ReadonlySet<Variable>
@@ -139,6 +146,7 @@ export function taskResource(
 	return undefined;
 }
 
+/** Performs the task signal call domain operation. */
 export function taskSignalCall(
 	call: NodeRef,
 	localVariables: ReadonlySet<Variable>
@@ -222,6 +230,7 @@ function isDisposableType(type: NodeRef['type']): boolean {
 	);
 }
 
+/** Performs the task resource ownership domain operation. */
 export function taskResourceOwnership(
 	module: BoundModule,
 	work: NodeRef,

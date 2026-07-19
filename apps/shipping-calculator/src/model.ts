@@ -8,6 +8,7 @@ import type {
 
 const zipPattern = /^\d{5}(?:-\d{4})?$/;
 
+/** Provides the canonical default draft value. */
 export const defaultDraft: ShipmentDraft = {
 	version: 1,
 	originZip: '97205',
@@ -28,6 +29,7 @@ export const defaultDraft: ShipmentDraft = {
 	shipDate: new Date().toISOString().slice(0, 10)
 };
 
+/** Provides the canonical package presets value. */
 export const packagePresets: Record<
 	ShipmentDraft['preset'],
 	Partial<ShipmentDraft> & { kind?: MailpieceKind }
@@ -41,6 +43,7 @@ export const packagePresets: Record<
 	'large-envelope': { kind: 'flat', length: '12', width: '9', height: '0.5' }
 };
 
+/** Transforms draft into its required representation. */
 export function normalizeDraft(draft: ShipmentDraft): RateRequest {
 	const originZip = draft.originZip.trim();
 	const destinationZip = draft.destinationZip.trim();
@@ -78,6 +81,7 @@ export function normalizeDraft(draft: ShipmentDraft): RateRequest {
 	};
 }
 
+/** Reads a rate request from its source representation. */
 export function parseRateRequest(value: unknown): RateRequest {
 	if (!value || typeof value !== 'object') throw new Error('Invalid rate request');
 	const record = value as Record<string, unknown>;
@@ -107,6 +111,7 @@ export function parseRateRequest(value: unknown): RateRequest {
 	return normalizeDraft(draft);
 }
 
+/** Performs the draft from url domain operation. */
 export function draftFromUrl(url: URL): { draft: ShipmentDraft; explicit: boolean } {
 	const params = url.searchParams;
 	const explicit = ['from', 'to', 'kind', 'weight', 'size'].some((key) => params.has(key));
@@ -135,6 +140,7 @@ export function draftFromUrl(url: URL): { draft: ShipmentDraft; explicit: boolea
 	return { draft, explicit: true };
 }
 
+/** Performs the draft url domain operation. */
 export function draftUrl(draft: ShipmentDraft, base: URL): URL {
 	const url = new URL(base);
 	const params = new URLSearchParams();
@@ -154,6 +160,7 @@ export function draftUrl(draft: ShipmentDraft, base: URL): URL {
 	return url;
 }
 
+/** Performs the rank quotes domain operation. */
 export function rankQuotes(
 	quotes: RateQuote[],
 	sort: 'recommended' | 'cheapest' | 'fastest' | 'carrier'
@@ -174,6 +181,7 @@ export function rankQuotes(
 	});
 }
 
+/** Performs the empty initial model domain operation. */
 export function emptyInitialModel(
 	draft: ShipmentDraft,
 	request: RateRequest,

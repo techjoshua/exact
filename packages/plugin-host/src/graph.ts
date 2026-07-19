@@ -2,8 +2,10 @@ import type { ExactPackageManifest } from '@exact/plugin-api';
 import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 
+/** Defines the exact dependency kind type contract. */
 export type ExactDependencyKind = 'dependency' | 'optional' | 'peer';
 
+/** Defines the exact package dependency interface contract. */
 export interface ExactPackageDependency {
 	readonly name: string;
 	readonly range: string;
@@ -11,6 +13,7 @@ export interface ExactPackageDependency {
 	readonly targetId?: string;
 }
 
+/** Defines the exact package node interface contract. */
 export interface ExactPackageNode {
 	readonly id: string;
 	readonly location: string;
@@ -19,11 +22,13 @@ export interface ExactPackageNode {
 	readonly dependencies: ReadonlyMap<string, ExactPackageDependency>;
 }
 
+/** Defines the exact package graph interface contract. */
 export interface ExactPackageGraph {
 	readonly rootId: string;
 	readonly nodes: ReadonlyMap<string, ExactPackageNode>;
 }
 
+/** Creates an exact package graph. */
 export function createExactPackageGraph(cwd = process.cwd()): ExactPackageGraph {
 	try {
 		return createNpmExactPackageGraph(cwd);
@@ -33,6 +38,7 @@ export function createExactPackageGraph(cwd = process.cwd()): ExactPackageGraph 
 	}
 }
 
+/** Creates a npm exact package graph. */
 export function createNpmExactPackageGraph(cwd = process.cwd()): ExactPackageGraph {
 	const applicationManifestFile = findUp(cwd, 'package.json');
 	const lockFile = findUp(path.dirname(applicationManifestFile), 'package-lock.json');
@@ -90,6 +96,7 @@ export function createNpmExactPackageGraph(cwd = process.cwd()): ExactPackageGra
 	return Object.freeze({ rootId, nodes });
 }
 
+/** Creates an installed exact package graph. */
 export function createInstalledExactPackageGraph(cwd = process.cwd()): ExactPackageGraph {
 	const rootManifestFile = findUp(cwd, 'package.json');
 	const rootId = normalizeId(path.resolve(rootManifestFile));
@@ -121,6 +128,7 @@ export function createInstalledExactPackageGraph(cwd = process.cwd()): ExactPack
 	return Object.freeze({ rootId, nodes });
 }
 
+/** Performs the package name domain operation. */
 export function packageName(node: ExactPackageNode): string {
 	if (typeof node.manifest.name !== 'string' || !node.manifest.name) {
 		throw new Error(`${node.location}/package.json must declare a package name`);
@@ -128,6 +136,7 @@ export function packageName(node: ExactPackageNode): string {
 	return node.manifest.name;
 }
 
+/** Performs the package version domain operation. */
 export function packageVersion(node: ExactPackageNode): string {
 	if (typeof node.manifest.version !== 'string' || !node.manifest.version) {
 		throw new Error(`${node.location}/package.json must declare a package version`);
@@ -135,6 +144,7 @@ export function packageVersion(node: ExactPackageNode): string {
 	return node.manifest.version;
 }
 
+/** Performs the dependency distance domain operation. */
 export function dependencyDistance(graph: ExactPackageGraph): ReadonlyMap<string, number> {
 	const result = new Map<string, number>([[graph.rootId, 0]]);
 	const pending = [graph.rootId];
@@ -154,6 +164,7 @@ export function dependencyDistance(graph: ExactPackageGraph): ReadonlyMap<string
 	return result;
 }
 
+/** Resolves an up. */
 export function findUp(cwd: string, filename: string): string {
 	let directory = path.resolve(cwd);
 	while (true) {

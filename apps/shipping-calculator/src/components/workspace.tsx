@@ -7,6 +7,7 @@ import { renderWorkspace } from './workspace/view.js';
 import type { WorkspaceState } from './workspace/contracts.js';
 import { cloneDraft, createWorkspaceInputs, delay } from './workspace/inputs.js';
 
+/** Performs the calculator workspace domain operation. */
 export function CalculatorWorkspace(
 	this: Component<WorkspaceState>,
 	props: { initial: InitialModel }

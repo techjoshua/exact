@@ -13,6 +13,7 @@ import {
 } from './response.js';
 import { ContextRuntime } from './runtime.js';
 
+/** Creates a request lifetime. */
 export function createRequestLifetime(...signals: Array<AbortSignal | undefined>): {
 	signal: AbortSignal;
 	abort(reason?: unknown): void;
@@ -44,14 +45,17 @@ export function createRequestLifetime(...signals: Array<AbortSignal | undefined>
 	};
 }
 
+/** Provides the canonical context runtimes value. */
 export const contextRuntimes = new WeakMap<ExactServerContext, ExactContextRuntime>();
 
+/** Creates an exact context runtime. */
 export function createExactContextRuntime(
 	configuration: ExactServerContextConfiguration = {}
 ): ExactContextRuntime {
 	return new ContextRuntime(configuration);
 }
 
+/** Performs the open exact request scope domain operation. */
 export async function openExactRequestScope(
 	request: ExactRequestLike,
 	server: ExactServerContext,
@@ -89,6 +93,7 @@ export async function openExactRequestScope(
 	};
 }
 
+/** Runs with exact request scope with the supplied execution context. */
 export async function runWithExactRequestScope<T>(
 	request: ExactRequestLike,
 	server: ExactServerContext,

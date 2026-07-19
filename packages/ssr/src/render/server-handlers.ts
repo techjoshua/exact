@@ -33,6 +33,7 @@ import { createSsrContext } from './context.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { renderVNode } from './sync-tree.js';
 
+/** Creates a boundary refresh handler. */
 export function createBoundaryRefreshHandler(
 	render: BoundaryRenderFunction,
 	options: BoundaryRefreshOptions
@@ -56,6 +57,7 @@ export function createBoundaryRefreshHandler(
 	};
 }
 
+/** Creates an action refresh handler. */
 export function createActionRefreshHandler(
 	options: ActionRefreshOptions
 ): (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> {
@@ -95,6 +97,7 @@ export function createActionRefreshHandler(
 	};
 }
 
+/** Creates an exact server handler registry. */
 export function createExactServerHandlerRegistry(
 	options: ExactServerHandlerRegistryOptions
 ): ExactServerHandlerRegistry {
@@ -135,6 +138,7 @@ export function createExactServerHandlerRegistry(
 	};
 }
 
+/** Creates an exact server runtime. */
 export function createExactServerRuntime(options: ExactServerRuntimeOptions): ExactServerContext {
 	const registry = createExactServerHandlerRegistry(options);
 	const contextRuntime = createExactContextRuntime({
@@ -157,10 +161,12 @@ export function createExactServerRuntime(options: ExactServerRuntimeOptions): Ex
 	};
 }
 
+/** Performs the boundary render function domain operation. */
 export function boundaryRenderFunction(renderer: ExactBoundaryRenderer): BoundaryRenderFunction {
 	return typeof renderer === 'function' ? renderer : renderer.render;
 }
 
+/** Performs the boundary refresh options domain operation. */
 export function boundaryRefreshOptions(
 	boundaryId: string,
 	renderer: ExactBoundaryRenderer,
@@ -181,6 +187,7 @@ export function boundaryRefreshOptions(
 	};
 }
 
+/** Transforms keyed list snapshot into its required representation. */
 export function renderKeyedListSnapshot<T>(
 	options: KeyedListSnapshotOptions<T>
 ): KeyedListSnapshot {
@@ -196,6 +203,7 @@ export function renderKeyedListSnapshot<T>(
 	}
 }
 
+/** Transforms keyed list snapshot owned into its required representation. */
 export function renderKeyedListSnapshotOwned<T>(
 	options: KeyedListSnapshotOptions<T>
 ): KeyedListSnapshot {
@@ -228,6 +236,7 @@ export function renderKeyedListSnapshotOwned<T>(
 	};
 }
 
+/** Creates a keyed list refresh handler. */
 export function createKeyedListRefreshHandler<T>(
 	options: KeyedListRefreshOptions<T>
 ): (input: ExactInvocationRequest, context: ExactServerContext) => Promise<ExactInvocationResult> {
@@ -251,6 +260,7 @@ export function createKeyedListRefreshHandler<T>(
 	};
 }
 
+/** Reads a keyed list snapshot html from its source representation. */
 export function parseKeyedListSnapshotHtml(
 	listId: string,
 	html: string | undefined,

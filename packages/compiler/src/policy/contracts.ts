@@ -4,12 +4,14 @@ import type { ExpressionTaskPlan } from '../expression/task-contracts.js';
 import type { ExactPolicyFlowIR, ExactPolicyManifestIR, ExactPolicySubjectIR } from '../types.js';
 import { type PolicyRecord, type StatePolicyRecord } from './algebra.js';
 
+/** Defines the policy input type contract. */
 export type PolicyInput = {
 	variable: Variable;
 	record: PolicyRecord;
 	syntheticSource?: true;
 };
 
+/** Defines the exact policy metadata interface contract. */
 export interface ExactPolicyMetadata {
 	readonly subjects: readonly ExactPolicySubjectIR[];
 	readonly declarationPolicies: ReadonlyMap<string, PolicyRecord>;
@@ -23,27 +25,32 @@ export interface ExactPolicyMetadata {
 	readonly diagnostics: readonly string[];
 }
 
+/** Describes the result produced by exact policy task. */
 export interface ExactPolicyTaskResult {
 	readonly tasks: ExpressionTaskPlan;
 	readonly diagnostics: readonly string[];
 }
 
+/** Describes the result produced by exact policy callable. */
 export interface ExactPolicyCallableResult {
 	readonly callables: CallableEffectPlan;
 	readonly diagnostics: readonly string[];
 }
 
+/** Describes the result produced by exact policy manifest. */
 export interface ExactPolicyManifestResult {
 	readonly policy: ExactPolicyManifestIR;
 	readonly diagnostics: readonly string[];
 }
 
+/** Defines the exact secret qualification site interface contract. */
 export interface ExactSecretQualificationSite {
 	readonly start: number;
 	readonly end: number;
 	readonly underlyingType: string;
 }
 
+/** Describes the planned exact secret qualification operation. */
 export interface ExactSecretQualificationPlan {
 	readonly sites: readonly ExactSecretQualificationSite[];
 }

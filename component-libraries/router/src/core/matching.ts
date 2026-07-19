@@ -1,6 +1,7 @@
 import type { ExactRouteDefinition, RouteMatch } from './contracts.js';
 import { decode, segments } from './locations.js';
 
+/** Performs the match routes domain operation. */
 export function matchRoutes<Route extends ExactRouteDefinition>(
 	routes: readonly Route[],
 	pathname: string

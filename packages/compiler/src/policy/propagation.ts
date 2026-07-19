@@ -9,6 +9,7 @@ import {
 } from './algebra.js';
 
 import { materializePolicyInputSubjects, parameterIndex, policyInputs } from './inputs.js';
+/** Performs the propagate declaration policies domain operation. */
 export function propagateDeclarationPolicies(
 	module: BoundModule,
 	policies: Map<string, PolicyRecord>,

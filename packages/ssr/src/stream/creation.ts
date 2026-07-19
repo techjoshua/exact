@@ -10,16 +10,19 @@ import {
 	progressiveRootId
 } from './protocol.js';
 
+/** Defines the document stream render type contract. */
 export type DocumentStreamRender = (
 	signal: AbortSignal,
 	emit: (event: ExactDocumentStreamEvent) => Promise<void>
 ) => Promise<void> | void;
 
+/** Defines the progressive document stream render type contract. */
 export type ProgressiveDocumentStreamRender = (
 	options: RenderToProgressiveHtmlStreamOptions,
 	emit: (event: ExactDocumentStreamEvent) => Promise<void>
 ) => Promise<void> | void;
 
+/** Creates a html stream. */
 export function createHtmlStream(
 	chunks: Iterable<string>,
 	options: { signal?: AbortSignal; maxBytes?: number; maxChunks?: number; close?(): void } = {}
@@ -103,6 +106,7 @@ export function createHtmlStream(
 	);
 }
 
+/** Creates a document event stream. */
 export function createDocumentEventStream(
 	render: DocumentStreamRender,
 	options: {
@@ -221,6 +225,7 @@ export function createDocumentEventStream(
 	);
 }
 
+/** Creates a progressive html stream. */
 export function createProgressiveHtmlStream(
 	render: ProgressiveDocumentStreamRender,
 	options: RenderToProgressiveHtmlStreamOptions

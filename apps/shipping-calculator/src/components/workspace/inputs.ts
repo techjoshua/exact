@@ -34,6 +34,7 @@ export function createWorkspaceInputs(state: WorkspaceState) {
 	return { change, text, checked, select, applyPreset, toggleProvider };
 }
 
+/** Performs the delay domain operation. */
 export function delay(milliseconds: number, signal: AbortSignal): Promise<void> {
 	return new Promise((resolve, reject) => {
 		const timer = setTimeout(resolve, milliseconds);
@@ -45,6 +46,7 @@ export function delay(milliseconds: number, signal: AbortSignal): Promise<void> 
 		else signal.addEventListener('abort', abort, { once: true });
 	});
 }
+/** Performs the clone draft domain operation. */
 export function cloneDraft(draft: ShipmentDraft): ShipmentDraft {
 	return { ...draft };
 }

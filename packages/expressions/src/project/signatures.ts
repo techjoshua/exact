@@ -2,6 +2,7 @@ import ts from 'typescript';
 import type { ExpressionCallSignature, ExpressionDirective, ExpressionType } from '../model.js';
 import { displayFile } from './syntax.js';
 
+/** Performs the signature for domain operation. */
 export function signatureFor(
 	signature: ts.Signature,
 	at: ts.Node,
@@ -44,6 +45,7 @@ export function signatureFor(
 	});
 }
 
+/** Reports whether readonly array type. */
 export function isReadonlyArrayType(checker: ts.TypeChecker, type: ts.Type): boolean {
 	const symbol = type.aliasSymbol ?? type.getSymbol();
 	if (symbol?.name === 'ReadonlyArray') return true;

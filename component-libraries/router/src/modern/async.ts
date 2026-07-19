@@ -3,7 +3,9 @@ import { isPromiseLike } from './browser.js';
 
 export { createPath, createSearchParams, parsePath, resolvePath } from './paths.js';
 
+/** Provides the canonical async value context value. */
 export const AsyncValueContext = createContext<unknown>(undefined);
+/** Provides the canonical async error context value. */
 export const AsyncErrorContext = createContext<unknown>(undefined);
 type AwaitedValueState = {
 	status: 'pending' | 'fulfilled' | 'rejected';

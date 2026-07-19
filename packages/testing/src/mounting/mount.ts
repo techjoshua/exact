@@ -17,8 +17,10 @@ import type { ContextEntry, PropsOf, StateOf, TestConfiguration } from '../contr
 import { attachCleanupError } from '../control/settling.js';
 import { TestView } from './views.js';
 
+/** Defines the task tracker class contract. */
 export class TaskTracker implements TaskObserver {
 	readonly pending = new Map<Promise<unknown>, ComponentInstance<any>>();
+	/** Performs the register domain operation for this task tracker instance. */
 	register(promise: Promise<unknown>, instance: ComponentInstance<any>): void {
 		this.pending.set(promise, instance);
 		void promise.then(
@@ -26,9 +28,11 @@ export class TaskTracker implements TaskObserver {
 			() => this.pending.delete(promise)
 		);
 	}
+	/** Performs the retain domain operation for this task tracker instance. */
 	retain(): void {}
 }
 
+/** Defines the test component builder class contract. */
 export class TestComponentBuilder<C extends ComponentFunction<any, any>> {
 	private componentProps = {} as PropsOf<C>;
 	private contextEntries: ContextEntry[] = [];
@@ -36,26 +40,32 @@ export class TestComponentBuilder<C extends ComponentFunction<any, any>> {
 	private configuration: TestConfiguration = {};
 
 	constructor(readonly component: C) {}
+	/** Performs the props domain operation for this test component builder instance. */
 	props(props: PropsOf<C>): this {
 		this.componentProps = props;
 		return this;
 	}
+	/** Performs the context domain operation for this test component builder instance. */
 	context<T>(token: ContextToken<T>, value: T): this {
 		this.contextEntries.push({ token, value });
 		return this;
 	}
+	/** Performs the contexts domain operation for this test component builder instance. */
 	contexts(entries: Iterable<readonly [ContextToken<any>, unknown]>): this {
 		for (const [token, value] of entries) this.contextEntries.push({ token, value });
 		return this;
 	}
+	/** Performs the container domain operation for this test component builder instance. */
 	container(container: Element): this {
 		this.targetContainer = container;
 		return this;
 	}
+	/** Performs the configure domain operation for this test component builder instance. */
 	configure(configuration: TestConfiguration): this {
 		this.configuration = { ...this.configuration, ...configuration };
 		return this;
 	}
+	/** Performs the mount domain operation for this test component builder instance. */
 	async mount(): Promise<TestView<StateOf<C>, PropsOf<C>>> {
 		return mountComponent(this.component, this.componentProps, {
 			...this.configuration,
@@ -65,17 +75,20 @@ export class TestComponentBuilder<C extends ComponentFunction<any, any>> {
 	}
 }
 
+/** Performs the test component domain operation. */
 export function testComponent<C extends ComponentFunction<any, any>>(
 	component: C
 ): TestComponentBuilder<C> {
 	return new TestComponentBuilder(component);
 }
 
+/** Configures mount test. */
 export type MountTestOptions = TestConfiguration & {
 	container?: Element;
 	contexts?: Iterable<readonly [ContextToken<any>, unknown]>;
 };
 
+/** Performs the mount test domain operation. */
 export async function mountTest(
 	vnode: VNode,
 	options: MountTestOptions = {}
@@ -147,6 +160,7 @@ function normalizeContexts(
 	);
 }
 
+/** Performs the test mount host domain operation. */
 export function TestMountHost(
 	this: Component<{}>,
 	props: { entries: ContextEntry[]; children?: Child | Child[] }

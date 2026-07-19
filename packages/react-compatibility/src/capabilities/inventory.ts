@@ -1,5 +1,8 @@
+/** Defines the react baseline type contract. */
 export type ReactBaseline = '18.3' | '19.2';
+/** Defines the capability status type contract. */
 export type CapabilityStatus = 'planned' | 'supported' | 'approximate' | 'unsupported';
+/** Defines the react compatibility module type contract. */
 export type ReactCompatibilityModule =
 	| 'react'
 	| 'react/jsx-runtime'
@@ -10,6 +13,7 @@ export type ReactCompatibilityModule =
 	| 'react-dom/static'
 	| 'react/compiler-runtime';
 
+/** Defines the react capability type contract. */
 export type ReactCapability = Readonly<{
 	module: ReactCompatibilityModule;
 	name: string;
@@ -341,6 +345,7 @@ export const reactCapabilities: readonly ReactCapability[] = Object.freeze([
 	)
 ]);
 
+/** Defines the renderer compatibility capability type contract. */
 export type RendererCompatibilityCapability = Readonly<{
 	name:
 		| 'shared-internals'
@@ -353,6 +358,7 @@ export type RendererCompatibilityCapability = Readonly<{
 	note: string;
 }>;
 
+/** Provides the canonical renderer compatibility capabilities value. */
 export const rendererCompatibilityCapabilities: readonly RendererCompatibilityCapability[] =
 	Object.freeze([
 		{

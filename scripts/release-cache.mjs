@@ -5,6 +5,7 @@ import path from 'node:path';
 const root = path.resolve(import.meta.dirname, '..');
 const cacheRoot = path.join(root, '.tmp', 'release-cache');
 
+/** Releases cache key and its owned resources. */
 export async function releaseCacheKey(inputs, salt = '') {
 	const hash = createHash('sha256');
 	hash.update(
@@ -21,6 +22,7 @@ export async function releaseCacheKey(inputs, salt = '') {
 	return hash.digest('hex').slice(0, 24);
 }
 
+/** Performs the restore cached artifact domain operation. */
 export async function restoreCachedArtifact(namespace, key, destination) {
 	const source = path.join(cacheRoot, namespace, key, path.basename(destination));
 	try {
@@ -31,6 +33,7 @@ export async function restoreCachedArtifact(namespace, key, destination) {
 	}
 }
 
+/** Performs the store cached artifact domain operation. */
 export async function storeCachedArtifact(namespace, key, source) {
 	const directory = path.join(cacheRoot, namespace, key);
 	await mkdir(directory, { recursive: true });

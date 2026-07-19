@@ -11,8 +11,10 @@ import type {
 import { buildParentIndex, NodeQuery, NodeRef, type ParentIndex } from './query.js';
 import { detectTrivia, sourceMap } from './module/source.js';
 
+/** Tracks the state owned by module. */
 export type ModuleState = 'bound' | 'unbound';
 
+/** Defines the source trivia interface contract. */
 export interface SourceTrivia {
 	readonly newline: 'lf' | 'crlf';
 	readonly quote: 'single' | 'double';
@@ -20,6 +22,7 @@ export interface SourceTrivia {
 	readonly directives: readonly string[];
 }
 
+/** Defines the module data interface contract. */
 export interface ModuleData {
 	readonly filename: string;
 	readonly source: string;
@@ -31,6 +34,7 @@ export interface ModuleData {
 	readonly provenance?: SourceProvenance;
 }
 
+/** Defines the source provenance interface contract. */
 export interface SourceProvenance {
 	readonly originalSource: string;
 	readonly lineOrigins: readonly number[];
@@ -76,6 +80,7 @@ export class ExpressionModule<S extends ModuleState = ModuleState> {
 		Object.freeze(this);
 	}
 
+	/** Performs the diagnostics domain operation for this expression module instance. */
 	get diagnostics(): readonly ExpressionDiagnostic[] {
 		const cached = diagnosticCache.get(this);
 		if (cached) return cached;
@@ -85,26 +90,31 @@ export class ExpressionModule<S extends ModuleState = ModuleState> {
 		return diagnostics;
 	}
 
+	/** Performs the root domain operation for this expression module instance. */
 	get root(): NodeRef {
 		return new NodeRef(this.rootNode, this.parents);
 	}
 
+	/** Performs the walk domain operation for this expression module instance. */
 	walk(options?: WalkOptions): NodeQuery {
 		if (options !== undefined) return this.root.walk(options);
 		const module = this;
 		return new NodeQuery(() => defaultWalk(module));
 	}
 
+	/** Performs the ref domain operation for this expression module instance. */
 	ref(node: ExpressionNode): NodeRef {
 		if (!this.parents.has(node))
 			throw new Error('Node does not belong to this expression module version');
 		return new NodeRef(node, this.parents);
 	}
 
+	/** Performs the effects domain operation for this expression module instance. */
 	effects(): readonly NodeEffect[] {
 		return getAnalyses(this).effects;
 	}
 
+	/** Performs the effects of domain operation for this expression module instance. */
 	effectsOf(node: ExpressionNode | NodeRef): readonly NodeEffect[] {
 		const target = node instanceof NodeRef ? node.node : node;
 		if (!this.parents.has(target))
@@ -121,6 +131,7 @@ export class ExpressionModule<S extends ModuleState = ModuleState> {
 		return effects;
 	}
 
+	/** Performs the dependencies of domain operation for this expression module instance. */
 	dependenciesOf(node: ExpressionNode | NodeRef): readonly Variable[] {
 		return Object.freeze([
 			...new Set(
@@ -131,6 +142,7 @@ export class ExpressionModule<S extends ModuleState = ModuleState> {
 		]);
 	}
 
+	/** Performs the writes of domain operation for this expression module instance. */
 	writesOf(node: ExpressionNode | NodeRef): readonly Variable[] {
 		return Object.freeze([
 			...new Set(
@@ -141,6 +153,7 @@ export class ExpressionModule<S extends ModuleState = ModuleState> {
 		]);
 	}
 
+	/** Performs the captures of domain operation for this expression module instance. */
 	capturesOf(functionNode: ExpressionNode | NodeRef): readonly Variable[] {
 		const target = functionNode instanceof NodeRef ? functionNode.node : functionNode;
 		let cache = captureCache.get(target);
@@ -153,15 +166,18 @@ export class ExpressionModule<S extends ModuleState = ModuleState> {
 		return captures;
 	}
 
+	/** Performs the control flow of domain operation for this expression module instance. */
 	controlFlowOf(functionNode: ExpressionNode | NodeRef): ControlFlowGraph {
 		const reference = functionNode instanceof NodeRef ? functionNode : this.ref(functionNode);
 		return buildControlFlowGraph(reference);
 	}
 
+	/** Validates validate and throws when the contract is violated for this expression module instance. */
 	validate(): readonly ExpressionDiagnostic[] {
 		return this.diagnostics;
 	}
 
+	/** Produces an emit in its external representation for this expression module instance. */
 	emit(options: EmitOptions = {}): EmitResult {
 		if (options.format === 'generated' && this.emitGenerated) return this.emitGenerated(options);
 		if (this.emitGenerated && !this.source) return this.emitGenerated(options);
@@ -209,9 +225,12 @@ function defaultWalk(module: ExpressionModule): readonly NodeRef[] {
 	return references;
 }
 
+/** Defines the bound module type contract. */
 export type BoundModule = ExpressionModule<'bound'>;
+/** Defines the unbound module type contract. */
 export type UnboundModule = ExpressionModule<'unbound'>;
 
+/** Creates a module. */
 export function createModule<S extends ModuleState>(
 	data: ModuleData & { state: S }
 ): ExpressionModule<S> {

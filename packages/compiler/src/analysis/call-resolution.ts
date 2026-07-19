@@ -4,6 +4,7 @@ import { isUnshadowedPlatformGlobal } from '../platform-effects.js';
 import type { ExactSemanticGraphIR } from '../types.js';
 
 import type { MutableCallable } from './callable-state.js';
+/** Performs the client boundary function domain operation. */
 export function clientBoundaryFunction(reference: NodeRef): boolean {
 	const attribute = reference.ancestors().ofKind('JsxAttribute').first();
 	return (
@@ -11,6 +12,7 @@ export function clientBoundaryFunction(reference: NodeRef): boolean {
 	);
 }
 
+/** Performs the task owner domain operation. */
 export function taskOwner(fn: NodeRef): NodeRef | undefined {
 	const call = fn.parent?.node.kind === 'CallExpression' ? fn.parent : undefined;
 	return call && /^this\.task(?:\.(?:client|server))?\s*\(/.test(call.node.text ?? '')
@@ -18,6 +20,7 @@ export function taskOwner(fn: NodeRef): NodeRef | undefined {
 		: undefined;
 }
 
+/** Performs the declaration variable domain operation. */
 export function declarationVariable(fn: NodeRef): Variable | undefined {
 	if (fn.node.kind === 'FunctionDeclaration' || fn.node.kind === 'MethodDeclaration') {
 		return fn
@@ -29,10 +32,12 @@ export function declarationVariable(fn: NodeRef): Variable | undefined {
 	return declaration?.children().first()?.variable;
 }
 
+/** Performs the callable name domain operation. */
 export function callableName(fn: NodeRef, variable: Variable | undefined): string {
 	return variable?.name ?? fn.node.name ?? `<function@${fn.node.span?.start ?? 0}>`;
 }
 
+/** Performs the exported names by variable domain operation. */
 export function exportedNamesByVariable(
 	module: BoundModule,
 	graph: ExactSemanticGraphIR
@@ -74,10 +79,12 @@ export function exportedNamesByVariable(
 	return result;
 }
 
+/** Performs the nearest function domain operation. */
 export function nearestFunction(reference: NodeRef): NodeRef | undefined {
 	return reference.ancestors().functions().first();
 }
 
+/** Runs variable with the supplied execution context. */
 export function callVariable(call: NodeRef): Variable | undefined {
 	const targetVariable = call.target?.variable;
 	const rootVariable = call.target?.rootVariable;
@@ -89,6 +96,7 @@ export function callVariable(call: NodeRef): Variable | undefined {
 	return targetVariable ?? rootVariable;
 }
 
+/** Performs the unresolved call effect domain operation. */
 export function unresolvedCallEffect(
 	call: NodeRef,
 	localVariables: ReadonlySet<Variable>
@@ -191,6 +199,7 @@ const universalCallRoots = new Set([
 	'structuredClone'
 ]);
 
+/** Performs the local call target domain operation. */
 export function localCallTarget(
 	call: NodeRef,
 	callables: ReadonlyMap<string, MutableCallable>,

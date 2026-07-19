@@ -18,6 +18,7 @@ import {
 
 import type { ExactPolicyMetadata } from './contracts.js';
 import { materializePolicyInputSubjects, policyInputs } from './inputs.js';
+/** Collects secret consumptions in deterministic order. */
 export function collectSecretConsumptions(
 	module: BoundModule,
 	metadata: ExactPolicyMetadata,
@@ -142,6 +143,7 @@ export function collectSecretConsumptions(
 	};
 }
 
+/** Performs the imported call symbol domain operation. */
 export function importedCallSymbol(module: BoundModule, call: NodeRef, variable: Variable): string {
 	if (call.target?.isMember())
 		return call.target.node.name ?? call.target.node.text ?? variable.name;
@@ -165,6 +167,7 @@ export function importedCallSymbol(module: BoundModule, call: NodeRef, variable:
 	return variable.name;
 }
 
+/** Reports whether secret consume call. */
 export function isSecretConsumeCall(module: BoundModule, call: NodeRef): boolean {
 	if (call.node.kind !== 'CallExpression') return false;
 	const variable = call.target?.rootVariable;
@@ -174,6 +177,7 @@ export function isSecretConsumeCall(module: BoundModule, call: NodeRef): boolean
 	return importedCallSymbol(module, call, variable) === 'consume';
 }
 
+/** Resolves the package selector that authorizes a declaration to consume secret-qualified data. */
 export function secretSelectorForDeclaration(
 	module: BoundModule,
 	variable: Variable
@@ -188,16 +192,19 @@ export function secretSelectorForDeclaration(
 	return match?.[2];
 }
 
+/** Performs the package name from specifier domain operation. */
 export function packageNameFromSpecifier(specifier: string): string {
 	if (specifier.startsWith('@')) return specifier.split('/').slice(0, 2).join('/');
 	return specifier.split('/')[0]!;
 }
 
+/** Finds the nearest callable owner used to attribute a secret-consumption audit record. */
 export function nearestCallableName(reference: NodeRef): string {
 	const owner = reference.ancestors().functions().first();
 	return owner?.node.name ?? '<module>';
 }
 
+/** Collects callable return policies in deterministic order. */
 export function collectCallableReturnPolicies(
 	module: BoundModule,
 	declarationPolicies: ReadonlyMap<string, PolicyRecord>,

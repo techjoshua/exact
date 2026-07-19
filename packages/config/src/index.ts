@@ -1,7 +1,9 @@
 import type { ExactPluginConfigContext, ExactPluginConfigTransform } from '@exact/plugin-api';
 
+/** Defines the exact plugin config registry interface contract. */
 export interface ExactPluginConfigRegistry {}
 
+/** Configures exact plugin discovery. */
 export type ExactPluginDiscoveryConfig =
 	| {
 			mode?: 'root';
@@ -19,6 +21,7 @@ export type ExactPluginDiscoveryConfig =
 			ignore?: readonly string[];
 	  };
 
+/** Configures exact. */
 export interface ExactConfig {
 	pluginDiscovery?: ExactPluginDiscoveryConfig;
 	plugins?: {
@@ -28,6 +31,7 @@ export interface ExactConfig {
 	};
 }
 
+/** Performs the define config domain operation. */
 export function defineConfig<const T extends ExactConfig>(config: T): T {
 	return config;
 }

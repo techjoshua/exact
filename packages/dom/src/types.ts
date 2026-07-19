@@ -12,6 +12,7 @@ import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation
 import type { EffectScope } from '@exact/reactive';
 import type { DomWorkBudget } from './work.js';
 
+/** Defines the mounted type contract. */
 export type Mounted = {
 	vnode: VNode;
 	dom: Node;
@@ -36,6 +37,7 @@ export type Mounted = {
 	childEnd?: Node;
 };
 
+/** Defines the root type contract. */
 export type Root = {
 	container: Element;
 	mounted?: Mounted;
@@ -63,6 +65,7 @@ export type Root = {
 	markerlessHydration?: boolean;
 };
 
+/** Configures render. */
 export type RenderOptions = {
 	logger?: Logger;
 	debugMarkers?: boolean;
@@ -82,4 +85,5 @@ export type RenderOptions = {
 	workBudget?: DomWorkBudget;
 };
 
+/** Reports an observable dom profile event. */
 export type DomProfileEvent = ExactProfileEvent<'dom', 'render'>;

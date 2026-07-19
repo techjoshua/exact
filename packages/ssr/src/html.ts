@@ -1,3 +1,4 @@
+/** Provides the canonical void elements value. */
 export const voidElements = new Set([
 	'area',
 	'base',

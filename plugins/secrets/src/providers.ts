@@ -3,12 +3,14 @@ import path from 'node:path';
 import type { SecretProvider } from './config.js';
 import { secret } from './values.js';
 
+/** Configures environment secrets. */
 export interface EnvironmentSecretsOptions {
 	readonly files?: readonly string[];
 	readonly includeProcessEnvironment?: boolean;
 	readonly optionalFiles?: boolean;
 }
 
+/** Performs the environment secrets domain operation. */
 export function environmentSecrets(options: EnvironmentSecretsOptions = {}): SecretProvider {
 	return Object.freeze({
 		name: 'environment',
@@ -36,6 +38,7 @@ export function environmentSecrets(options: EnvironmentSecretsOptions = {}): Sec
 	});
 }
 
+/** Reads an environment file from its source representation. */
 export function parseEnvironmentFile(source: string): Map<string, string> {
 	const result = new Map<string, string>();
 	for (const rawLine of source.split(/\r?\n/)) {

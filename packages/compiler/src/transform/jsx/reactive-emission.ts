@@ -17,6 +17,7 @@ import { captureArgument, templateToExpression, transformMapCall } from './colle
 import type { DerivedReactiveIndex } from './contracts.js';
 import { expressionEmissionId } from './identity.js';
 import { transformTaskCall } from './task-emission.js';
+/** Performs the visit reactive sink expression domain operation. */
 export function visitReactiveSinkExpression(
 	context: ts.TransformationContext,
 	expression: ts.Expression,
@@ -31,6 +32,7 @@ export function visitReactiveSinkExpression(
 	return ts.visitNode(rewritten, visitor) as ts.Expression;
 }
 
+/** Transforms derived reactive expression into its required representation. */
 export function rewriteDerivedReactiveExpression(
 	context: ts.TransformationContext,
 	expression: ts.Expression,
@@ -102,6 +104,7 @@ export function rewriteDerivedReactiveExpression(
 	return ts.visitNode(expression, visitor) as ts.Expression;
 }
 
+/** Performs the tag expression domain operation. */
 export function tagExpression(tagName: ts.JsxTagNameExpression): ts.Expression {
 	if (ts.isIdentifier(tagName)) {
 		const text = tagName.text;
@@ -120,6 +123,7 @@ export function tagExpression(tagName: ts.JsxTagNameExpression): ts.Expression {
 	return ts.factory.createStringLiteral(tagName.getText());
 }
 
+/** Transforms captured call into its required representation. */
 export function transformCapturedCall(
 	sourceFile: ts.SourceFile,
 	node: ts.CallExpression,
@@ -162,6 +166,7 @@ export function transformCapturedCall(
 	return ts.visitEachChild(node, visitor, context);
 }
 
+/** Transforms reactive tagged template into its required representation. */
 export function transformReactiveTaggedTemplate(
 	node: ts.TaggedTemplateExpression,
 	context: ts.TransformationContext,
@@ -178,6 +183,7 @@ export function transformReactiveTaggedTemplate(
 	);
 }
 
+/** Transforms reactive call into its required representation. */
 export function transformReactiveCall(
 	sourceFile: ts.SourceFile,
 	node: ts.CallExpression,

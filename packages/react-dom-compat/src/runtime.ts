@@ -17,6 +17,7 @@ import {
 	type RootOptions
 } from './client.js';
 
+/** Provides the canonical version value. */
 export const version = '19.2.0-exact';
 
 /** Runs a callback and synchronously flushes compatibility updates before returning. */

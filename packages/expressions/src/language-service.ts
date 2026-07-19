@@ -26,6 +26,7 @@ import { ExpressionProjectError } from './project.js';
 
 /** Long-lived TypeScript diagnostics and affected-file sidecar. */
 export class ExpressionLanguageService extends ExpressionLanguageServiceSession {
+	/** Performs the synchronize domain operation for this expression language service instance. */
 	synchronize(changes: Iterable<ExpressionLanguageServiceChange>): ExpressionLanguageServiceUpdate {
 		this.assertActive();
 		const started = performance.now();
@@ -200,6 +201,7 @@ export class ExpressionLanguageService extends ExpressionLanguageServiceSession 
 		);
 	}
 
+	/** Performs the stats domain operation for this expression language service instance. */
 	stats(): ExpressionLanguageServiceStats {
 		this.assertActive();
 		return Object.freeze({
@@ -212,6 +214,7 @@ export class ExpressionLanguageService extends ExpressionLanguageServiceSession 
 		});
 	}
 
+	/** Releases resources owned by this expression language service instance. */
 	dispose(): void {
 		if (this.disposed) return;
 		this.disposed = true;
@@ -229,6 +232,7 @@ export class ExpressionLanguageService extends ExpressionLanguageServiceSession 
 	}
 }
 
+/** Creates an expression language service. */
 export function createExpressionLanguageService(
 	options: ExpressionLanguageServiceOptions = {}
 ): ExpressionLanguageService {

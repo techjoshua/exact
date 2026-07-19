@@ -44,6 +44,7 @@ export function writeReactiveLazy(
 	return next;
 }
 
+/** Applies a reactive write to the owned runtime state. */
 export function commitReactiveWrite(parent: object, key: PropertyKey, next: unknown): void {
 	batch(() => {
 		const previous = Reflect.get(parent, key);

@@ -1,7 +1,9 @@
 import type { Column, Status, Task } from './types.js';
 
+/** Provides the canonical storage key value. */
 export const storageKey = 'exact.sample.kanban';
 
+/** Provides the canonical columns value. */
 export const columns: Column[] = [
 	{ id: 'todo', title: 'To do' },
 	{ id: 'doing', title: 'Doing' },

@@ -2,6 +2,7 @@ import type ts from 'typescript';
 import type { ModuleExportReplacement } from './contracts.js';
 import { safeIdentifier } from './program.js';
 
+/** Performs the injected adapter import domain operation. */
 export function injectedAdapterImport(
 	factory: ts.NodeFactory,
 	imports: Map<string, { targetModule: string; targetExport: string; local: ts.Identifier }>,

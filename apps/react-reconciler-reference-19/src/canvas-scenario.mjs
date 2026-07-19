@@ -6,6 +6,7 @@ import { Canvas, useThree } from "@react-three/fiber";
 const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 const SurroundingContext = createContext("default");
 
+/** Runs canvas scenario with the supplied execution context. */
 export async function runCanvasScenario() {
   const dom = new JSDOM("<!doctype html><html><body><main id=app></main></body></html>", { pretendToBeVisual: true });
   const previous = new Map();

@@ -10,8 +10,10 @@ import {
 } from './lookup.js';
 import { isValidListItemFragment, parseFragment } from './mutation.js';
 
+/** Defines the exact range type contract. */
 export type ExactRange = { start: Comment; end: Comment };
 
+/** Defines the protocol index type contract. */
 export type ProtocolIndex = {
 	ranges: Map<string, ExactRange>;
 	exactElements: Map<string, Element>;
@@ -21,10 +23,13 @@ export type ProtocolIndex = {
 	budget: DomWorkBudget;
 };
 
+/** Defines the prepared patch type contract. */
 export type PreparedPatch = { fragment?: DocumentFragment; stateJson?: string };
 
+/** Defines the prepared batch type contract. */
 export type PreparedBatch = { ok: true; patches: PreparedPatch[] } | { ok: false; detail: string };
 
+/** Resolves the indexed DOM target addressed by a hydration protocol operation. */
 export function protocolTarget(index: ProtocolIndex, id: string): Node | ExactRange | undefined {
 	return (
 		index.ranges.get(id) ??
@@ -34,6 +39,7 @@ export function protocolTarget(index: ProtocolIndex, id: string): Node | ExactRa
 	);
 }
 
+/** Reports whether one protocol target structurally contains another target. */
 export function protocolTargetContains(
 	container: Node | ExactRange,
 	target: Node | ExactRange
@@ -56,6 +62,7 @@ export function protocolTargetContains(
 	return false;
 }
 
+/** Reports whether apply patch. */
 export function canApplyPatch(index: ProtocolIndex, patch: ExactPatch): boolean {
 	if (patch.type === 'text')
 		return (
@@ -84,6 +91,7 @@ export function canApplyPatch(index: ProtocolIndex, patch: ExactPatch): boolean 
 	return false;
 }
 
+/** Validates patch sequence and throws when the contract is violated. */
 export function validatePatchSequence(
 	index: ProtocolIndex,
 	patches: readonly ExactPatch[]
@@ -116,6 +124,7 @@ export function validatePatchSequence(
 	return true;
 }
 
+/** Validates patch topology and throws when the contract is violated. */
 export function validatePatchTopology(
 	index: ProtocolIndex,
 	patches: readonly ExactPatch[]
@@ -136,10 +145,12 @@ export function validatePatchTopology(
 	return true;
 }
 
+/** Reports whether structural patch. */
 export function isStructuralPatch(patch: ExactPatch): boolean {
 	return patch.type === 'text' || patch.type === 'replace' || patch.type === 'list';
 }
 
+/** Validates and orders a patch batch before any DOM mutation becomes observable. */
 export function preparePatchBatch(
 	container: Element,
 	index: ProtocolIndex,
@@ -184,6 +195,7 @@ export function preparePatchBatch(
 	return { ok: true, patches: prepared };
 }
 
+/** Performs the fragment context domain operation. */
 export function fragmentContext(
 	container: Element,
 	index: ProtocolIndex,
@@ -200,6 +212,7 @@ export function fragmentContext(
 	return findServerSlotElement(container, patch.id, index);
 }
 
+/** Counts the concrete DOM nodes represented by a protocol target without mutating it. */
 export function countProtocolTargetNodes(index: ProtocolIndex, id: string): number {
 	const target = protocolTarget(index, id);
 	if (!target) return 0;

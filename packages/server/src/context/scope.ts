@@ -12,16 +12,20 @@ import type {
 } from '../types.js';
 import { abortReason, awaitWithAbort, disposeOwnedValue, isFactory } from './response.js';
 
+/** Defines the any registration type contract. */
 export type AnyRegistration = ExactContextRegistration<any>;
 
+/** Defines the scope kind type contract. */
 export type ScopeKind = 'application' | 'request';
 
+/** Defines the owned value type contract. */
 export type OwnedValue = {
 	token: ContextToken<any>;
 	value: unknown;
 	factory: ExactContextFactory<any>;
 };
 
+/** Defines the context scope class contract. */
 export class ContextScope implements ExactContextScope {
 	readonly values = new Map<symbol, unknown>();
 	readonly componentValues: ComponentContextValues;
@@ -63,6 +67,7 @@ export class ContextScope implements ExactContextScope {
 		this.componentValues = componentValues;
 	}
 
+	/** Performs the initialize domain operation for this context scope instance. */
 	async initialize(): Promise<void> {
 		try {
 			for (const [token] of this.providers.values()) await this.resolve(token);
@@ -76,16 +81,19 @@ export class ContextScope implements ExactContextScope {
 		}
 	}
 
+	/** Resolves a get for this context scope instance. */
 	async get<T>(token: ContextToken<T>): Promise<T> {
 		return this.resolve(token);
 	}
 
+	/** Resolves a sync for this context scope instance. */
 	getSync<T>(token: ContextToken<T>): T {
 		if (this.values.has(token.id)) return this.values.get(token.id) as T;
 		if (this.parent) return this.parent.getSync(token);
 		throw new Error(`Context "${token.description}" has not been initialized in this server scope`);
 	}
 
+	/** Releases resources owned by this context scope instance. */
 	async dispose(reason?: unknown): Promise<void> {
 		if (this.disposed) return;
 		this.disposed = true;

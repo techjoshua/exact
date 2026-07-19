@@ -1,3 +1,4 @@
+/** Performs the with timeout domain operation. */
 export function withTimeout<T>(
 	promise: Promise<T>,
 	timeout: number,
@@ -17,6 +18,7 @@ export function withTimeout<T>(
 		);
 	});
 }
+/** Performs the attach cleanup error domain operation. */
 export function attachCleanupError(primary: unknown, cleanup: unknown): void {
 	if (!primary || (typeof primary !== 'object' && typeof primary !== 'function')) return;
 	try {

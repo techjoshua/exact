@@ -20,16 +20,19 @@ export class ProjectScope implements ExpressionScope {
 		readonly parent?: ExpressionScope
 	) {}
 
+	/** Performs the variables domain operation for this project scope instance. */
 	get variables(): readonly Variable[] {
 		return this.owned;
 	}
 
+	/** Performs the add domain operation for this project scope instance. */
 	add(variable: Variable): void {
 		if (this.members.has(variable)) return;
 		this.members.add(variable);
 		this.owned.push(variable);
 	}
 
+	/** Performs the seal domain operation for this project scope instance. */
 	seal(): void {
 		Object.freeze(this.owned);
 	}

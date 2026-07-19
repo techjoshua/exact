@@ -7,6 +7,7 @@ import { ProjectType } from './projection-model.js';
 import { isReadonlyArrayType } from './signatures.js';
 import { displayFile, typeKind } from './syntax.js';
 
+/** Configures expression type projection. */
 export type ExpressionTypeProjectionOptions = {
 	filename: string;
 	checker: ts.TypeChecker;

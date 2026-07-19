@@ -6,6 +6,7 @@ import { componentBoundaryName } from './inspection.js';
 
 import { expressionEmissionId, identityFilenameFor } from './identity.js';
 import { childrenExpressions, propName } from './node-emission.js';
+/** Creates a component island boundary call. */
 export function createComponentIslandBoundaryCall(
 	sourceFile: ts.SourceFile,
 	context: ts.TransformationContext,
@@ -35,6 +36,7 @@ export function createComponentIslandBoundaryCall(
 	]);
 }
 
+/** Creates a client component server stub. */
 export function createClientComponentServerStub(
 	sourceFile: ts.SourceFile,
 	context: ts.TransformationContext,
@@ -84,6 +86,7 @@ export function createClientComponentServerStub(
 	);
 }
 
+/** Performs the island props domain operation. */
 export function islandProps(
 	context: ts.TransformationContext,
 	attributes: ts.JsxAttributes,
@@ -142,6 +145,7 @@ export function islandProps(
 	return factory.createObjectLiteralExpression(props, false);
 }
 
+/** Performs the state snapshot object domain operation. */
 export function stateSnapshotObject(
 	factory: ts.NodeFactory,
 	paths: readonly string[]
@@ -161,6 +165,7 @@ export function stateSnapshotObject(
 	return mapToObjectLiteral(factory, root);
 }
 
+/** Performs the map to object literal domain operation. */
 export function mapToObjectLiteral(
 	factory: ts.NodeFactory,
 	map: StateSnapshotTree
@@ -176,6 +181,7 @@ export function mapToObjectLiteral(
 	);
 }
 
+/** Performs the append object property domain operation. */
 export function appendObjectProperty(
 	context: ts.TransformationContext,
 	object: ts.ObjectLiteralExpression,
@@ -188,6 +194,7 @@ export function appendObjectProperty(
 	]);
 }
 
+/** Performs the state access expression domain operation. */
 export function stateAccessExpression(
 	factory: ts.NodeFactory,
 	segments: readonly string[]
@@ -204,6 +211,7 @@ export function stateAccessExpression(
 	return expression;
 }
 
+/** Reports whether identifier text. */
 export function isIdentifierText(value: string): boolean {
 	return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(value);
 }

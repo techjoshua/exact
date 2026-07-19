@@ -1,5 +1,6 @@
 import { isPlainObject } from './objects.js';
 
+/** Defines the unwrap value type contract. */
 export type UnwrapValue = (value: unknown) => unknown;
 
 /** Returns whether two values differ after reactive wrappers and plain structures are compared. */

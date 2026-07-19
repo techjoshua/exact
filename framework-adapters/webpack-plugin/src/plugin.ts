@@ -35,6 +35,7 @@ import {
 	webpackCompilerSession
 } from './sessions.js';
 
+/** Configures exact webpack plugin. */
 export type ExactWebpackPluginOptions = {
 	target?: TransformTarget;
 	importedManifests?: readonly ExactCompilerManifest[];
@@ -54,10 +55,12 @@ export type ExactWebpackPluginOptions = {
 	onProfile?: ExactProfileSink;
 };
 
+/** Reports an observable exact webpack profile event. */
 export type ExactWebpackProfileEvent = ExactProfileEvent<'webpack-plugin', 'transform'>;
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
 
+/** Defines the webpack resolver like type contract. */
 export type WebpackResolverLike = {
 	hooks?: {
 		resolve?: {
@@ -91,6 +94,7 @@ export type WebpackResolverLike = {
 	): void;
 };
 
+/** Defines the webpack compiler like type contract. */
 export type WebpackCompilerLike = {
 	options: {
 		watch?: boolean;
@@ -136,13 +140,16 @@ export type WebpackCompilerLike = {
 	getInfrastructureLogger?(name: string): { warn(message: string): void };
 };
 
+/** Defines the webpack resolve request type contract. */
 export type WebpackResolveRequest = {
 	request?: string;
 	path?: string;
 };
 
+/** Defines the webpack resolve callback type contract. */
 export type WebpackResolveCallback = (error?: Error | null, result?: unknown) => void;
 
+/** Defines the exact webpack plugin class contract. */
 export class ExactWebpackPlugin {
 	readonly options: ExactWebpackPluginOptions;
 
@@ -150,6 +157,7 @@ export class ExactWebpackPlugin {
 		this.options = options;
 	}
 
+	/** Applies an apply to the owned runtime state for this exact webpack plugin instance. */
 	apply(compiler: WebpackCompilerLike): void {
 		let diagnosticsEnabled =
 			this.options.diagnostics ?? Boolean(compiler.watchMode || compiler.options.watch);
@@ -290,6 +298,7 @@ export async function transformExactWebpackSourceAsync(
 	);
 }
 
+/** Performs the compiler session for webpack loader domain operation. */
 export function compilerSessionForWebpackLoader(
 	sessionId: string | undefined
 ): ExactCompilerSession | undefined {
@@ -376,6 +385,7 @@ export function addWebpackConditions(
 	];
 }
 
+/** Performs the add webpack react aliases domain operation. */
 export function addWebpackReactAliases(
 	compiler: WebpackCompilerLike,
 	resolved: ResolvedReactCompatibility

@@ -8,12 +8,14 @@ import {
 } from '@exact/expressions';
 import { expressionComponentIndex } from './component-index.js';
 
+/** Describes the result produced by expression write. */
 export interface ExpressionWriteResult {
 	readonly module: BoundModule | UnboundModule;
 	readonly changed: boolean;
 	readonly count: number;
 }
 
+/** Defines the expression write site interface contract. */
 export interface ExpressionWriteSite {
 	readonly nodeId: string;
 	readonly start: number;
@@ -22,6 +24,7 @@ export interface ExpressionWriteSite {
 	readonly operation: 'assignment' | 'update' | 'delete' | 'array-mutation';
 }
 
+/** Describes the planned expression write operation. */
 export interface ExpressionWritePlan {
 	readonly sites: ReadonlyMap<string, ExpressionWriteSite>;
 	readonly aliases: ReadonlyMap<string, readonly string[]>;

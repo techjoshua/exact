@@ -1,5 +1,6 @@
 import type { BoundModule, FunctionExpressionNode, NodeRef, Variable } from '@exact/expressions';
 
+/** Defines the expression component index interface contract. */
 export interface ExpressionComponentIndex {
 	readonly functions: readonly NodeRef<FunctionExpressionNode>[];
 	isComponent(reference: NodeRef | undefined): boolean;

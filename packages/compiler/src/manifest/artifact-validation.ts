@@ -1,5 +1,6 @@
 import type { ExactArtifactManifest } from '../types.js';
 
+/** Reports whether exact artifact manifest. */
 export function isExactArtifactManifest(value: unknown): value is ExactArtifactManifest {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const record = value as Record<string, unknown>;

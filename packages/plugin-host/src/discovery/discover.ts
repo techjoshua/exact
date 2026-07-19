@@ -22,6 +22,7 @@ import {
 	type MutableParticipant
 } from './selection.js';
 
+/** Collects exact plugins in deterministic order. */
 export function discoverExactPlugins(
 	graph: ExactPackageGraph,
 	discoveryConfig?: ExactPluginDiscoveryConfig

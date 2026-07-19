@@ -6,6 +6,7 @@ import { stableId } from '../../ids.js';
 import type { DerivedReactiveIndex } from './contracts.js';
 import { expressionEmissionId, identityFilenameFor } from './identity.js';
 import { visitReactiveSinkExpression } from './reactive-emission.js';
+/** Transforms map call into its required representation. */
 export function transformMapCall(
 	sourceFile: ts.SourceFile,
 	node: ts.CallExpression,
@@ -66,6 +67,7 @@ export function transformMapCall(
 	);
 }
 
+/** Transforms annotated map call into its required representation. */
 export function transformAnnotatedMapCall(
 	sourceFile: ts.SourceFile,
 	node: ts.CallExpression,
@@ -104,6 +106,7 @@ export function transformAnnotatedMapCall(
 	return transformMapCall(sourceFile, keyed, context, visitor, derivedReactiveLocals, list.nodeId);
 }
 
+/** Performs the key extractor identity domain operation. */
 export function keyExtractorIdentity(expression: ts.Expression): string | undefined {
 	if (!isFunctionLikeExpression(expression) || expression.parameters.length !== 1) return undefined;
 	const parameter = expression.parameters[0]!.name;
@@ -128,6 +131,7 @@ export function keyExtractorIdentity(expression: ts.Expression): string | undefi
 	return `member:${segments.join('.')}`;
 }
 
+/** Reports whether derived collection expression. */
 export function isDerivedCollectionExpression(expression: ts.Expression): boolean {
 	const current = withoutParentheses(expression);
 	return (
@@ -139,6 +143,7 @@ export function isDerivedCollectionExpression(expression: ts.Expression): boolea
 	);
 }
 
+/** Performs the derived collection source domain operation. */
 export function derivedCollectionSource(expression: ts.Expression): ts.Expression | undefined {
 	let current = withoutParentheses(expression);
 	while (
@@ -164,12 +169,14 @@ export function derivedCollectionSource(expression: ts.Expression): ts.Expressio
 		: undefined;
 }
 
+/** Performs the without parentheses domain operation. */
 export function withoutParentheses(expression: ts.Expression): ts.Expression {
 	let current = expression;
 	while (ts.isParenthesizedExpression(current)) current = current.expression;
 	return current;
 }
 
+/** Performs the capture argument domain operation. */
 export function captureArgument(
 	context: ts.TransformationContext,
 	expression: ts.Expression,
@@ -187,6 +194,7 @@ export function captureArgument(
 	);
 }
 
+/** Performs the template to expression domain operation. */
 export function templateToExpression(template: ts.TemplateLiteral): ts.Expression {
 	if (ts.isNoSubstitutionTemplateLiteral(template)) {
 		return ts.factory.createStringLiteral(template.text);

@@ -1,5 +1,6 @@
 import type { ExpressionNode } from '../model.js';
 
+/** Performs the may throw domain operation. */
 export function mayThrow(node: ExpressionNode): boolean {
 	switch (node.kind) {
 		case 'BreakStatement':
@@ -39,11 +40,13 @@ function expressionMayThrow(node: ExpressionNode): boolean {
 	}
 }
 
+/** Performs the jump label domain operation. */
 export function jumpLabel(node: ExpressionNode): { label?: string } {
 	const match = node.text?.match(/^\s*(?:break|continue)\s+([A-Za-z_$][\w$]*)/);
 	return match?.[1] ? { label: match[1] } : {};
 }
 
+/** Performs the function body domain operation. */
 export function functionBody(owner: ExpressionNode): ExpressionNode | undefined {
 	if (
 		![
@@ -61,6 +64,7 @@ export function functionBody(owner: ExpressionNode): ExpressionNode | undefined 
 		.find((child) => child.kind === 'Block' || child.category === 'expression');
 }
 
+/** Reports whether executable. */
 export function isExecutable(node: ExpressionNode): boolean {
 	return (
 		node.category === 'statement' ||
@@ -72,6 +76,7 @@ export function isExecutable(node: ExpressionNode): boolean {
 	);
 }
 
+/** Reports whether loop. */
 export function isLoop(kind: string): boolean {
 	return (
 		kind === 'ForStatement' ||
@@ -82,6 +87,7 @@ export function isLoop(kind: string): boolean {
 	);
 }
 
+/** Performs the readonly map domain operation. */
 export function readonlyMap<K, V>(entries: Iterable<readonly [K, V]>): ReadonlyMap<K, V> {
 	const values = new Map(entries);
 	return Object.freeze({

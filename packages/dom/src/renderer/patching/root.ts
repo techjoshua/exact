@@ -40,6 +40,7 @@ import { disposeMounted } from '../teardown.js';
 import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
 import { bindText, patchChildren } from './children.js';
 
+/** Performs the patch domain operation. */
 export function patch(
 	root: Root,
 	parent: Node,
@@ -54,6 +55,7 @@ export function patch(
 	});
 }
 
+/** Performs the patch inner domain operation. */
 export function patchInner(
 	root: Root,
 	parent: Node,

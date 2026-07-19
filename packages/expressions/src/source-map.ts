@@ -1,5 +1,6 @@
 import ts from 'typescript';
 
+/** Defines the generated source map interface contract. */
 export interface GeneratedSourceMap {
 	version: 3;
 	file?: string;

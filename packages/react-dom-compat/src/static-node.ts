@@ -9,6 +9,7 @@ import { prerender, resume, resumeAndPrerender } from './static-shared.js';
 
 export { prerender, resume, resumeAndPrerender };
 
+/** Performs the prerender to node stream domain operation. */
 export async function prerenderToNodeStream(
 	node: ReactNode,
 	options?: ServerRenderOptions
@@ -22,6 +23,7 @@ export async function prerenderToNodeStream(
 	};
 }
 
+/** Performs the resume and prerender to node stream domain operation. */
 export async function resumeAndPrerenderToNodeStream(
 	node: ReactNode,
 	_postponedState: unknown,
@@ -30,6 +32,7 @@ export async function resumeAndPrerenderToNodeStream(
 	return prerenderToNodeStream(node, options);
 }
 
+/** Performs the resume to pipeable stream domain operation. */
 export function resumeToPipeableStream(
 	node: ReactNode,
 	_postponedState: unknown,

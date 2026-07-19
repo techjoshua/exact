@@ -8,10 +8,12 @@ const points = new Map(
 	])
 );
 
+/** Performs the point for zip domain operation. */
 export function pointForZip(zip: string): GeoPoint | undefined {
 	return points.get(zip.slice(0, 5));
 }
 
+/** Resolves a route. */
 export function resolveRoute(originZip: string, destinationZip: string): RouteResult {
 	const origin = pointForZip(originZip);
 	const destination = pointForZip(destinationZip);
@@ -25,6 +27,7 @@ export function resolveRoute(originZip: string, destinationZip: string): RouteRe
 	};
 }
 
+/** Performs the haversine miles domain operation. */
 export function haversineMiles(left: GeoPoint, right: GeoPoint): number {
 	const radians = (degrees: number) => (degrees * Math.PI) / 180;
 	const lat1 = radians(left.latitude);
@@ -36,6 +39,7 @@ export function haversineMiles(left: GeoPoint, right: GeoPoint): number {
 	return 3958.8 * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
 }
 
+/** Performs the distance zone domain operation. */
 export function distanceZone(miles: number | undefined): number {
 	if (miles === undefined) return 8;
 	const thresholds = [150, 300, 600, 1_000, 1_400, 1_800, 2_200];

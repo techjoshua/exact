@@ -21,6 +21,7 @@ const quoteCache = new Map<
 >();
 const cooldowns = new Map<ProviderId, number>();
 
+/** Creates a provider registry. */
 export function createProviderRegistry(
 	env: NodeJS.ProcessEnv = process.env
 ): Map<ProviderId, RateProvider> {
@@ -34,6 +35,7 @@ export function createProviderRegistry(
 	return new Map(all.map((provider) => [provider.id, provider]));
 }
 
+/** Performs the configured provider ids domain operation. */
 export function configuredProviderIds(env: NodeJS.ProcessEnv = process.env): ProviderId[] {
 	const requested = new Set(
 		(env.SHIPPING_PROVIDERS || 'doop').split(',').map((value) => value.trim().toLowerCase())
@@ -44,6 +46,7 @@ export function configuredProviderIds(env: NodeJS.ProcessEnv = process.env): Pro
 		.map((provider) => provider.id);
 }
 
+/** Performs the quote provider domain operation. */
 export async function quoteProvider(
 	id: ProviderId,
 	request: RateRequest,
@@ -119,6 +122,7 @@ export async function quoteProvider(
 	}
 }
 
+/** Performs the provider name domain operation. */
 export function providerName(id: ProviderId): string {
 	return providerNames[id];
 }

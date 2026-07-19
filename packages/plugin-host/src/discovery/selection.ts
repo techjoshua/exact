@@ -23,12 +23,14 @@ import type {
 	ExactSelectedPlugin
 } from './contracts.js';
 
+/** Defines the mutable participant type contract. */
 export type MutableParticipant = {
 	node: ExactPackageNode;
 	participation: ExactPackageParticipation;
 	activationPaths: string[][];
 };
 
+/** Performs the accept participant domain operation. */
 export function acceptParticipant(
 	participants: Map<string, MutableParticipant>,
 	edges: Map<string, Set<string>>,
@@ -55,6 +57,7 @@ export function acceptParticipant(
 	edges.set(parent.id, children);
 }
 
+/** Performs the select plugins domain operation. */
 export function selectPlugins(
 	graph: ExactPackageGraph,
 	root: ExactPackageNode,
@@ -112,6 +115,7 @@ export function selectPlugins(
 	return result;
 }
 
+/** Validates participant marker and throws when the contract is violated. */
 export function validateParticipantMarker(node: ExactPackageNode): void {
 	if (!packageDirectlyDependsOnPluginApi(node.manifest)) {
 		throw new Error(
@@ -132,6 +136,7 @@ export function validateParticipantMarker(node: ExactPackageNode): void {
 	}
 }
 
+/** Validates plugin protocol and throws when the contract is violated. */
 export function validatePluginProtocol(name: string, declaration: ExactPluginDeclaration): void {
 	if (
 		!valid(declaration.protocolVersion) ||
@@ -141,6 +146,7 @@ export function validatePluginProtocol(name: string, declaration: ExactPluginDec
 	}
 }
 
+/** Validates plugin entries and throws when the contract is violated. */
 export function validatePluginEntries(
 	node: ExactPackageNode,
 	declaration: ExactPluginDeclaration
@@ -154,6 +160,7 @@ export function validatePluginEntries(
 	}
 }
 
+/** Performs the reject ambiguous participants domain operation. */
 export function rejectAmbiguousParticipants(
 	participants: ReadonlyMap<string, MutableParticipant>,
 	rootId: string
@@ -182,6 +189,7 @@ export function rejectAmbiguousParticipants(
 	}
 }
 
+/** Performs the reject config key conflicts domain operation. */
 export function rejectConfigKeyConflicts(plugins: ReadonlyMap<string, ExactSelectedPlugin>): void {
 	const keys = new Map<string, string>();
 	for (const plugin of plugins.values()) {
@@ -194,6 +202,7 @@ export function rejectConfigKeyConflicts(plugins: ReadonlyMap<string, ExactSelec
 	}
 }
 
+/** Reports whether trusted child. */
 export function isTrustedChild(
 	root: ExactPackageNode,
 	child: ExactPackageNode,
@@ -207,6 +216,7 @@ export function isTrustedChild(
 	);
 }
 
+/** Performs the version satisfies domain operation. */
 export function versionSatisfies(version: string, range: string): boolean {
 	if (isLocalRange(range)) return true;
 	return (
@@ -216,10 +226,12 @@ export function versionSatisfies(version: string, range: string): boolean {
 	);
 }
 
+/** Reports whether local range. */
 export function isLocalRange(range: string): boolean {
 	return /^(?:file|workspace|link):/.test(range) || range === '*';
 }
 
+/** Reports whether participation. */
 export function hasParticipation(value: ExactPackageParticipation): boolean {
 	return (
 		value.plugin !== undefined ||
@@ -228,6 +240,7 @@ export function hasParticipation(value: ExactPackageParticipation): boolean {
 	);
 }
 
+/** Performs the freeze participant domain operation. */
 export function freezeParticipant(value: MutableParticipant): ExactParticipatingPackage {
 	return Object.freeze({
 		node: value.node,
@@ -238,22 +251,26 @@ export function freezeParticipant(value: MutableParticipant): ExactParticipating
 	});
 }
 
+/** Performs the required node domain operation. */
 export function requiredNode(graph: ExactPackageGraph, id: string): ExactPackageNode {
 	const node = graph.nodes.get(id);
 	if (!node) throw new Error(`Package graph references missing node ${JSON.stringify(id)}`);
 	return node;
 }
 
+/** Performs the safe package name domain operation. */
 export function safePackageName(node: ExactPackageNode): string | undefined {
 	return typeof node.manifest.name === 'string' && node.manifest.name
 		? node.manifest.name
 		: undefined;
 }
 
+/** Performs the manifest label domain operation. */
 export function manifestLabel(node: ExactPackageNode): string {
 	return path.join(node.location, 'package.json');
 }
 
+/** Performs the manifest exports subpath domain operation. */
 export function manifestExportsSubpath(exportsField: unknown, subpath: string): boolean {
 	if (typeof exportsField === 'string' || Array.isArray(exportsField)) return subpath === '.';
 	if (!exportsField || typeof exportsField !== 'object') return false;

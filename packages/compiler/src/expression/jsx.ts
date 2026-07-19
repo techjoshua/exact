@@ -3,6 +3,7 @@ import { exactDirective, exactKeyContract, type ExactKeyContract } from '../anno
 import { stableId } from '../ids.js';
 import type { ExactProvenanceGraph } from '../provenance.js';
 
+/** Defines the expression jsx element site interface contract. */
 export interface ExpressionJsxElementSite {
 	readonly nodeId: string;
 	readonly start: number;
@@ -14,6 +15,7 @@ export interface ExpressionJsxElementSite {
 	readonly serverSlotChildren: boolean;
 }
 
+/** Defines the expression jsx cell site interface contract. */
 export interface ExpressionJsxCellSite {
 	readonly nodeId: string;
 	readonly start: number;
@@ -23,6 +25,7 @@ export interface ExpressionJsxCellSite {
 	readonly reactive: boolean;
 }
 
+/** Describes the planned expression jsx operation. */
 export interface ExpressionJsxPlan {
 	readonly elements: ReadonlyMap<string, ExpressionJsxElementSite>;
 	readonly cells: ReadonlyMap<string, ExpressionJsxCellSite>;
@@ -32,6 +35,7 @@ export interface ExpressionJsxPlan {
 	readonly diagnostics: readonly Readonly<{ message: string; start: number }>[];
 }
 
+/** Defines the expression jsx list site interface contract. */
 export interface ExpressionJsxListSite extends ExactKeyContract {
 	readonly nodeId: string;
 	readonly start: number;

@@ -10,6 +10,7 @@ import { positiveLimit } from './ndjson.js';
 import { isPatchLike, parseExactOperationResult } from './result.js';
 import { matchesOperation } from './stream.js';
 
+/** Defines the response limits type contract. */
 export type ResponseLimits = {
 	maxBytes?: number;
 	maxJsonDepth?: number;
@@ -17,6 +18,7 @@ export type ResponseLimits = {
 	maxPatches?: number;
 };
 
+/** Reads an exact invocation response from its source representation. */
 export function parseExactInvocationResponse(
 	body: unknown,
 	message: string,
@@ -69,6 +71,7 @@ export function parseExactInvocationResponse(
 	};
 }
 
+/** Reads an exact batch response from its source representation. */
 export function parseExactBatchResponse(
 	body: unknown,
 	expected?: readonly ExactInvocationRequest[],

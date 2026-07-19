@@ -4,6 +4,7 @@ import { discoverReactCompatAdapters } from './discovery.js';
 import { createInstalledReactCompatPackageGraph } from './package-graph.js';
 import { validateReplacementTypeDeclarations } from './validation-rules.js';
 
+/** Validates react compat adapter package and throws when the contract is violated. */
 export function validateReactCompatAdapterPackage(
 	cwd = process.cwd()
 ): ResolvedReactCompatAdapters {

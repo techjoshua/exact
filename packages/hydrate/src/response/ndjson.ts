@@ -1,5 +1,6 @@
 import { type ResponseLimits } from './json.js';
 
+/** Reads a ndjson events from its source representation. */
 export async function readNdjsonEvents(
 	stream: ReadableStream<Uint8Array>,
 	message: string,
@@ -58,6 +59,7 @@ export async function readNdjsonEvents(
 	}
 }
 
+/** Reads a ndjson line from its source representation. */
 export function parseNdjsonLine(line: string, message: string): unknown {
 	try {
 		return JSON.parse(line);
@@ -66,10 +68,12 @@ export function parseNdjsonLine(line: string, message: string): unknown {
 	}
 }
 
+/** Performs the positive limit domain operation. */
 export function positiveLimit(value: number | undefined, fallback: number): number {
 	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
 
+/** Reports whether abort signal. */
 export function isAbortSignal(value: unknown): value is AbortSignal {
 	return (
 		!!value &&

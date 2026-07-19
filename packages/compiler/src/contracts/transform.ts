@@ -4,6 +4,7 @@ import type { ExactCompilerSession } from '../expression/project.js';
 import type { ExactArtifactTarget } from './artifacts.js';
 import type { ExactCompilerManifest } from './manifest.js';
 
+/** Configures transform. */
 export type TransformOptions = {
 	filename?: string;
 	/** Root used to resolve relative filenames; defaults to the nearest package.json from cwd. */
@@ -58,8 +59,10 @@ export type ModuleTransform = (
 	}>
 ) => Readonly<{ code: string }>;
 
+/** Defines the transform target type contract. */
 export type TransformTarget = 'default' | 'client' | 'server';
 
+/** Defines the exact asset kind type contract. */
 export type ExactAssetKind =
 	| 'style'
 	| 'image'
@@ -71,10 +74,13 @@ export type ExactAssetKind =
 	| 'worker'
 	| 'other';
 
+/** Defines the exact asset import mode type contract. */
 export type ExactAssetImportMode = 'side-effect' | 'url' | 'raw' | 'inline' | 'module' | 'worker';
 
+/** Defines the exact asset target type contract. */
 export type ExactAssetTarget = 'client' | 'server' | 'both' | 'embedded';
 
+/** Defines the exact asset rule type contract. */
 export type ExactAssetRule = {
 	extensions?: readonly string[];
 	queries?: readonly string[];
@@ -84,6 +90,7 @@ export type ExactAssetRule = {
 	deliveryTarget?: ExactAssetTarget;
 };
 
+/** Defines the exact asset dependency ir type contract. */
 export type ExactAssetDependencyIR = {
 	specifier: string;
 	kind: ExactAssetKind;
@@ -92,6 +99,7 @@ export type ExactAssetDependencyIR = {
 	deliveryTarget: ExactAssetTarget;
 };
 
+/** Defines the exact raw html capability ir type contract. */
 export type ExactRawHtmlCapabilityIR = {
 	source: string;
 	line: number;
@@ -100,6 +108,7 @@ export type ExactRawHtmlCapabilityIR = {
 	targets: ExactArtifactTarget[];
 };
 
+/** Describes the result produced by transform. */
 export type TransformResult = {
 	code: string;
 	map: ExactSourceMap | null;
@@ -107,6 +116,7 @@ export type TransformResult = {
 	manifest: ExactCompilerManifest;
 };
 
+/** Defines the exact source map type contract. */
 export type ExactSourceMap = {
 	version: 3;
 	file?: string;

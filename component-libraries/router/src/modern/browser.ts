@@ -12,6 +12,7 @@ import { locationToString } from './paths.js';
 
 export { createPath, createSearchParams, parsePath, resolvePath } from './paths.js';
 
+/** Reports whether promise like. */
 export function isPromiseLike(value: unknown): value is PromiseLike<unknown> & object {
 	return (
 		((typeof value === 'object' && value !== null) || typeof value === 'function') &&
@@ -19,6 +20,7 @@ export function isPromiseLike(value: unknown): value is PromiseLike<unknown> & o
 	);
 }
 
+/** Reports whether handle click. */
 export function shouldHandleClick(event: MouseEvent, href?: string): boolean {
 	const anchor = (event.currentTarget ?? event.target) as HTMLAnchorElement | null;
 	return (
@@ -33,6 +35,7 @@ export function shouldHandleClick(event: MouseEvent, href?: string): boolean {
 		!isExternalHref(href ?? anchor?.href)
 	);
 }
+/** Reports whether external href. */
 export function isExternalHref(href: string | undefined): boolean {
 	if (!href || typeof window === 'undefined') return false;
 	try {
@@ -42,11 +45,13 @@ export function isExternalHref(href: string | undefined): boolean {
 		return true;
 	}
 }
+/** Performs the form data search params domain operation. */
 export function formDataSearchParams(formData: FormData): URLSearchParams {
 	const params = new URLSearchParams();
 	formData.forEach((value, name) => params.append(name, String(value)));
 	return params;
 }
+/** Creates a static location source. */
 export function createStaticLocationSource(initial: string | URL): {
 	source: LocationSource;
 	redirect(): { location: URL; status: number } | undefined;
@@ -72,6 +77,7 @@ export function createStaticLocationSource(initial: string | URL): {
 		redirect: () => redirected
 	};
 }
+/** Performs the request init domain operation. */
 export async function requestInit(request: Request): Promise<RequestInit> {
 	const body = await request.clone().arrayBuffer();
 	return {
@@ -80,6 +86,7 @@ export async function requestInit(request: Request): Promise<RequestInit> {
 		...(body.byteLength ? { body } : {})
 	};
 }
+/** Performs the browser window source domain operation. */
 export function browserWindowSource(target: Window, mode: RouterMode): LocationSource {
 	const read = () =>
 		mode === 'hash'
@@ -112,6 +119,7 @@ export function browserWindowSource(target: Window, mode: RouterMode): LocationS
 		}
 	};
 }
+/** Reads a router hydration data from its source representation. */
 export function readRouterHydrationData(
 	source: LocationSource,
 	routes: readonly RouteObject[],
@@ -140,6 +148,7 @@ export function readRouterHydrationData(
 		return undefined;
 	return envelope.data;
 }
+/** Performs the hydration element id domain operation. */
 export function hydrationElementId(key: string): string {
 	return key === 'default'
 		? '__exact_router_hydration'

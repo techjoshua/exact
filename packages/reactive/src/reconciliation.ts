@@ -72,6 +72,7 @@ function canUpdateNestedReactive(previous: unknown, next: unknown): boolean {
 	);
 }
 
+/** Resolves a reactive path. */
 export function resolveReactivePath(
 	target: object,
 	path: readonly PropertyKey[]
@@ -187,6 +188,7 @@ type ReconcilePairs = {
 };
 const arrayHole = Symbol('exact.array-hole');
 
+/** Creates a reconcile pairs. */
 export function createReconcilePairs(): ReconcilePairs {
 	return { oldToNext: new WeakMap(), nextToOld: new WeakMap() };
 }

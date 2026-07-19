@@ -5,6 +5,7 @@ import type { ModuleBuilder } from './module-builder.js';
 import { indentLines, printNode } from './printing.js';
 import { SyntheticScope, SyntheticVariable, syntheticNode } from './primitives.js';
 
+/** Defines the class builder class contract. */
 export class ClassBuilder {
 	readonly scope: SyntheticScope;
 	private readonly members: ExpressionNode[] = [];
@@ -16,6 +17,7 @@ export class ClassBuilder {
 		this.scope = new SyntheticScope('class', parent);
 	}
 
+	/** Performs the property domain operation for this class builder instance. */
 	property(
 		name: string,
 		valueType?: ExpressionType,
@@ -45,6 +47,7 @@ export class ClassBuilder {
 		return variable;
 	}
 
+	/** Performs the method domain operation for this class builder instance. */
 	method(
 		name: string,
 		configure: (method: FunctionBuilder) => void,
@@ -70,6 +73,7 @@ export class ClassBuilder {
 		return this;
 	}
 
+	/** Creates a build for this class builder instance. */
 	build(name: string, exported: boolean, extendsExpression?: ExpressionNode): ExpressionNode {
 		const extension = extendsExpression ? ` extends ${printNode(extendsExpression)}` : '';
 		const body = this.members

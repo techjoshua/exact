@@ -14,6 +14,7 @@ import {
 	scopeKind
 } from './syntax.js';
 
+/** Configures expression binding projection. */
 export type ExpressionBindingProjectionOptions = {
 	filename: string;
 	sourceFile: ts.SourceFile;

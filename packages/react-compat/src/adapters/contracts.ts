@@ -3,6 +3,7 @@ import {
 	type ReactCompatReplacementDeclaration
 } from '@exact/react-compat-adapter-api';
 
+/** Defines the react compat package node interface contract. */
 export interface ReactCompatPackageNode {
 	readonly id: string;
 	readonly location: string;
@@ -10,11 +11,13 @@ export interface ReactCompatPackageNode {
 	readonly dependencies: readonly string[];
 }
 
+/** Defines the react compat package graph interface contract. */
 export interface ReactCompatPackageGraph {
 	readonly rootId: string;
 	readonly nodes: ReadonlyMap<string, ReactCompatPackageNode>;
 }
 
+/** Defines the resolved react compat replacement interface contract. */
 export interface ResolvedReactCompatReplacement extends ReactCompatReplacementDeclaration {
 	readonly sourceInstance: string;
 	readonly sourceLocation: string;
@@ -27,6 +30,7 @@ export interface ResolvedReactCompatReplacement extends ReactCompatReplacementDe
 	readonly specifier: string;
 }
 
+/** Defines the resolved react compat adapters interface contract. */
 export interface ResolvedReactCompatAdapters {
 	readonly replacements: ReadonlyMap<string, ResolvedReactCompatReplacement>;
 	readonly unsupportedSources: readonly UnsupportedReactCompatSource[];
@@ -35,6 +39,7 @@ export interface ResolvedReactCompatAdapters {
 	readonly ignoredAdapters: readonly string[];
 }
 
+/** Defines the resolved react compat source policy interface contract. */
 export interface ResolvedReactCompatSourcePolicy {
 	readonly sourceInstance: string;
 	readonly sourceLocation: string;
@@ -46,6 +51,7 @@ export interface ResolvedReactCompatSourcePolicy {
 	readonly adapterVersion: string;
 }
 
+/** Defines the unsupported react compat source interface contract. */
 export interface UnsupportedReactCompatSource {
 	readonly sourceInstance: string;
 	readonly sourceLocation: string;

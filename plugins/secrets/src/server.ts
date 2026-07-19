@@ -1,6 +1,7 @@
 import type { ExactRuntimePluginExtension } from '@exact/plugin-api';
 import type { SecretProviderContext, SecretResolver, SecretsPluginConfig } from './config.js';
 
+/** Creates a secret resolver. */
 export function createSecretResolver(
 	config: SecretsPluginConfig,
 	context: SecretProviderContext
@@ -39,6 +40,7 @@ export function createSecretResolver(
 	}
 }
 
+/** Creates a secrets server extension. */
 export default function createSecretsServerExtension(
 	resolver: SecretResolver
 ): ExactRuntimePluginExtension {

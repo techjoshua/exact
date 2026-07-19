@@ -13,6 +13,7 @@ import type {
 import { expressionEmissionId, identityFilenameFor } from './identity.js';
 import { callElement, callFragment } from './node-emission.js';
 import { tagExpression } from './reactive-emission.js';
+/** Transforms jsx element into its required representation. */
 export function transformJsxElement(
 	sourceFile: ts.SourceFile,
 	node: ts.JsxElement,
@@ -50,6 +51,7 @@ export function transformJsxElement(
 	);
 }
 
+/** Transforms jsx self closing element into its required representation. */
 export function transformJsxSelfClosingElement(
 	sourceFile: ts.SourceFile,
 	node: ts.JsxSelfClosingElement,
@@ -86,6 +88,7 @@ export function transformJsxSelfClosingElement(
 	);
 }
 
+/** Performs the canonical element id domain operation. */
 export function canonicalElementId(
 	sourceFile: ts.SourceFile,
 	node: ts.Node,
@@ -100,6 +103,7 @@ export function canonicalElementId(
 	return stableId(identityFilenameFor(sourceFile), 'element', nodeId);
 }
 
+/** Transforms jsx fragment into its required representation. */
 export function transformJsxFragment(
 	node: ts.JsxFragment,
 	context: ts.TransformationContext,
@@ -121,6 +125,7 @@ export function transformJsxFragment(
 	);
 }
 
+/** Collects component local info in deterministic order. */
 export function collectComponentLocalInfo(node: ts.FunctionDeclaration): ComponentLocalInfo {
 	const functions = new Map<string, ts.Statement>();
 	function visit(current: ts.Node): void {
@@ -189,6 +194,7 @@ export function collectExpressionDerivedLocals(
 	return { references, declarations };
 }
 
+/** Performs the cloneable function variable domain operation. */
 export function cloneableFunctionVariable(
 	name: ts.Identifier,
 	initializer: ts.Expression

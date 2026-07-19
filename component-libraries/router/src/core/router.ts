@@ -29,6 +29,7 @@ import { matchRoutes } from './matching.js';
 import { RouterOperationCoordinator } from './operation-coordinator.js';
 import { createRouteLoader } from './route-loaders.js';
 
+/** Creates an exact router. */
 export function createExactRouter<Route extends ExactRouteDefinition>(
 	options: CreateExactRouterOptions<Route>
 ): ExactRouter<Route> {

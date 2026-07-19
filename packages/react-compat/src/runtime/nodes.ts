@@ -49,6 +49,7 @@ import type {
 import { normalizeReactHostProps } from './host-props.js';
 import { envelopeReactRef, reactRefBinding } from './refs.js';
 
+/** Reads a react root runtime from its source representation. */
 export function readReactRootRuntime(
 	component: Component<Record<string, unknown>>
 ): ReactRootRuntime | undefined {
@@ -59,6 +60,7 @@ export function readReactRootRuntime(
 	}
 }
 
+/** Performs the to exact node domain operation. */
 export function toExactNode(node: ReactNode): Child | Child[] {
 	if (Array.isArray(node)) return node.map(toExactNode).flat() as Child[];
 	if (
@@ -81,6 +83,7 @@ export function toExactNode(node: ReactNode): Child | Child[] {
 	return reactElementToVNode(node);
 }
 
+/** Performs the react element to vnode domain operation. */
 export function reactElementToVNode(element: ReactElement): VNode {
 	const elementProps = element.props as Record<string, unknown> & { children?: ReactNode };
 	const keyedProps: Record<string, unknown> = {
@@ -136,6 +139,7 @@ export function reactElementToVNode(element: ReactElement): VNode {
 	return createVNode(adaptReactType(element.type), keyedProps);
 }
 
+/** Performs the exact component type domain operation. */
 export function exactComponentType(
 	type: unknown
 ): { component: ComponentFunction<any, any>; refProp?: PropertyKey } | undefined {
@@ -156,6 +160,7 @@ export function exactComponentType(
 		: undefined;
 }
 
+/** Runs react type with the supplied execution context. */
 export function invokeReactType(
 	type: ReactComponentType<any>,
 	props: Record<string, unknown>,
@@ -249,6 +254,7 @@ const ReactSuspenseBoundary = function ReactSuspenseBoundary(
 	return () => toExactNode((this.state.pending ? props.fallback : props.children) as ReactNode);
 } as ComponentFunction<{ pending: number }, Record<string, unknown>>;
 
+/** Reports whether react portal. */
 export function isReactPortal(value: unknown): value is import('../types.js').ReactPortal {
 	return (
 		!!value &&

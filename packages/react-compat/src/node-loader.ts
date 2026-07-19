@@ -2,11 +2,13 @@ import type { ReactCompatibilityDiagnostic } from './build.js';
 import { createReactCompatibilityBuildEngine } from './build.js';
 import type { ReactCompatibilityOptions } from './plugin.js';
 
+/** Configures exact react node loader. */
 export interface ExactReactNodeLoaderOptions extends ReactCompatibilityOptions {
 	readonly cwd?: string;
 	readonly onDiagnostic?: (diagnostic: ReactCompatibilityDiagnostic) => void;
 }
 
+/** Defines the exact react node loader interface contract. */
 export interface ExactReactNodeLoader {
 	readonly target: 18 | 19;
 	readonly adapters: readonly string[];

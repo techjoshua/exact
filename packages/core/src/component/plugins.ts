@@ -19,6 +19,7 @@ type DefaultContextProvider = {
 	readonly value: unknown;
 };
 
+/** Provides the canonical default contexts value. */
 export const defaultContexts = new Map<symbol, unknown>();
 const internalPlugins: InternalPlugin[] = [
 	{
@@ -45,6 +46,7 @@ for (const plugin of internalPlugins) {
 	}
 }
 
+/** Applies an internal plugins to the owned runtime state. */
 export function applyInternalPlugins(instance: ComponentInstance<any>): void {
 	for (const plugin of internalPlugins) {
 		plugin.augmentComponent?.(instance);

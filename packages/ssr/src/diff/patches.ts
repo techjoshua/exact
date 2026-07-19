@@ -4,6 +4,7 @@ import type { BoundaryRefreshOptions } from '../types.js';
 import { type ParsedHtmlElement, type ParsedHtmlNode } from './elements.js';
 import { collectNormalizedShapeIds } from './parsing.js';
 
+/** Performs the same keys domain operation. */
 export function sameKeys<T>(left: Map<string, T>, right: Map<string, T>): boolean {
 	if (left.size !== right.size) return false;
 	for (const key of left.keys()) {
@@ -12,6 +13,7 @@ export function sameKeys<T>(left: Map<string, T>, right: Map<string, T>): boolea
 	return true;
 }
 
+/** Performs the text only content domain operation. */
 export function textOnlyContent(element: ParsedHtmlElement): string | undefined {
 	let text = '';
 	for (const child of element.children) {
@@ -21,6 +23,7 @@ export function textOnlyContent(element: ParsedHtmlElement): string | undefined 
 	return text;
 }
 
+/** Performs the diff style attribute domain operation. */
 export function diffStyleAttribute(
 	id: string,
 	previous: string | undefined,
@@ -43,6 +46,7 @@ export function diffStyleAttribute(
 	return patches;
 }
 
+/** Reads a style attribute from its source representation. */
 export function parseStyleAttribute(value: string): Map<string, string> | undefined {
 	const styles = new Map<string, string>();
 	const trimmed = value.trim();
@@ -60,6 +64,7 @@ export function parseStyleAttribute(value: string): Map<string, string> | undefi
 	return styles;
 }
 
+/** Performs the same normalized html shape domain operation. */
 export function sameNormalizedHtmlShape(
 	left: readonly ParsedHtmlNode[],
 	right: readonly ParsedHtmlNode[]
@@ -71,6 +76,7 @@ export function sameNormalizedHtmlShape(
 	return left.every((node, index) => leftIds.get(node) === rightIds.get(right[index]!));
 }
 
+/** Produces a parsed html element in its external representation. */
 export function serializeParsedHtmlElement(element: ParsedHtmlElement): string {
 	const output: string[] = [];
 	const pending: Array<ParsedHtmlNode | string> = [element];
@@ -96,6 +102,7 @@ export function serializeParsedHtmlElement(element: ParsedHtmlElement): string {
 	return output.join('');
 }
 
+/** Performs the boundary patch domain operation. */
 export function boundaryPatch(
 	boundaryId: string,
 	html: string,
@@ -115,10 +122,12 @@ export function boundaryPatch(
 	};
 }
 
+/** Reports whether text only html. */
 export function isTextOnlyHtml(html: string): boolean {
 	return !/[<>]/.test(html);
 }
 
+/** Reads an escaped text from its source representation. */
 export function decodeEscapedText(value: string): string {
 	return value
 		.replace(/&#(\d+);/g, (_, decimal: string) => String.fromCodePoint(Number(decimal)))
@@ -132,6 +141,7 @@ export function decodeEscapedText(value: string): string {
 		.replace(/&amp;/g, '&');
 }
 
+/** Reads a simple element from its source representation. */
 export function parseSimpleElement(
 	html: string
 ): { tagName: string; attributes: Map<string, string | true>; text: string } | undefined {
@@ -143,6 +153,7 @@ export function parseSimpleElement(
 	return { tagName: tagName!, attributes, text: text ?? '' };
 }
 
+/** Reads a simple attributes from its source representation. */
 export function parseSimpleAttributes(raw: string): Map<string, string | true> | undefined {
 	const attributes = new Map<string, string | true>();
 	let rest = raw.trim();
@@ -155,6 +166,7 @@ export function parseSimpleAttributes(raw: string): Map<string, string | true> |
 	return attributes;
 }
 
+/** Performs the string attribute domain operation. */
 export function stringAttribute(
 	element: { attributes: Map<string, string | true> },
 	name: string
@@ -162,6 +174,7 @@ export function stringAttribute(
 	return stringValue(element.attributes.get(name));
 }
 
+/** Performs the string value domain operation. */
 export function stringValue(value: string | true | undefined): string | undefined {
 	return typeof value === 'string' ? value : undefined;
 }

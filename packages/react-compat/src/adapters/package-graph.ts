@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { ReactCompatPackageGraph, ReactCompatPackageNode } from './contracts.js';
 
+/** Creates a npm react compat package graph. */
 export function createNpmReactCompatPackageGraph(cwd = process.cwd()): ReactCompatPackageGraph {
 	const applicationManifestFile = findUp(cwd, 'package.json');
 	const lockFile = findUp(path.dirname(applicationManifestFile), 'package-lock.json');
@@ -195,6 +196,7 @@ function normalizeId(value: string): string {
 function objectKeys(value: unknown): string[] {
 	return isRecord(value) ? Object.keys(value) : [];
 }
+/** Reports whether record. */
 export function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

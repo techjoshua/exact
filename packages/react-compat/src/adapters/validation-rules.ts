@@ -10,6 +10,7 @@ import { satisfies, validRange } from 'semver';
 import type { ReactCompatPackageNode } from './contracts.js';
 import { isRecord } from './package-graph.js';
 
+/** Validates replacement type declarations and throws when the contract is violated. */
 export function validateReplacementTypeDeclarations(
 	node: ReactCompatPackageNode,
 	declaration: ReactCompatAdapterDeclaration
@@ -47,6 +48,7 @@ export function validateReplacementTypeDeclarations(
 			}
 }
 
+/** Performs the export target domain operation. */
 export function exportTarget(exportsField: unknown, subpath: string): unknown {
 	if (typeof exportsField === 'string' || Array.isArray(exportsField))
 		return subpath === '.' ? exportsField : undefined;
@@ -57,6 +59,7 @@ export function exportTarget(exportsField: unknown, subpath: string): unknown {
 		: undefined;
 }
 
+/** Performs the conditional target domain operation. */
 export function conditionalTarget(value: unknown, condition: string): string | undefined {
 	if (typeof value === 'string') return value;
 	if (Array.isArray(value))
@@ -71,6 +74,7 @@ export function conditionalTarget(value: unknown, condition: string): string | u
 	);
 }
 
+/** Performs the declares export domain operation. */
 export function declaresExport(source: string, exportName: string): boolean {
 	if (exportName === 'default') return /\bexport\s+default\b/.test(source);
 	const escaped = exportName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -90,6 +94,7 @@ export function declaresExport(source: string, exportName: string): boolean {
 	);
 }
 
+/** Validates adapter exports and throws when the contract is violated. */
 export function validateAdapterExports(
 	node: ReactCompatPackageNode,
 	declaration: ReactCompatAdapterDeclaration
@@ -105,6 +110,7 @@ export function validateAdapterExports(
 			}
 }
 
+/** Validates protocol range and throws when the contract is violated. */
 export function validateProtocolRange(node: ReactCompatPackageNode): void {
 	const range =
 		dependencyRange(node.manifest.dependencies, reactCompatAdapterMarkerPackage) ??
@@ -120,6 +126,7 @@ export function validateProtocolRange(node: ReactCompatPackageNode): void {
 	}
 }
 
+/** Performs the manifest exports subpath domain operation. */
 export function manifestExportsSubpath(exportsField: unknown, subpath: string): boolean {
 	const target = exportTarget(exportsField, subpath);
 	return (
@@ -129,6 +136,7 @@ export function manifestExportsSubpath(exportsField: unknown, subpath: string): 
 	);
 }
 
+/** Performs the resolves export target domain operation. */
 export function resolvesExportTarget(value: unknown, conditions: ReadonlySet<string>): boolean {
 	if (typeof value === 'string') return value.length > 0;
 	if (Array.isArray(value)) return value.some((item) => resolvesExportTarget(item, conditions));
@@ -140,12 +148,14 @@ export function resolvesExportTarget(value: unknown, conditions: ReadonlySet<str
 	return false;
 }
 
+/** Performs the package name domain operation. */
 export function packageName(node: ReactCompatPackageNode): string {
 	if (typeof node.manifest.name !== 'string' || !node.manifest.name)
 		throw new Error(`${node.location}/package.json must declare a package name`);
 	return node.manifest.name;
 }
 
+/** Performs the package version domain operation. */
 export function packageVersion(node: ReactCompatPackageNode): string {
 	if (typeof node.manifest.version !== 'string' || !node.manifest.version)
 		throw new Error(`${node.location}/package.json must declare a package version`);

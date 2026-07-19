@@ -2,10 +2,12 @@ import { ProviderHttpError, type Json, type Token } from './contracts.js';
 
 const tokens = new Map<string, Token>();
 
+/** Performs the bearer domain operation. */
 export function bearer(token: string): Record<string, string> {
 	return { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
 }
 
+/** Performs the oauth json domain operation. */
 export async function oauthJson(
 	key: string,
 	url: string,
@@ -30,6 +32,7 @@ export async function oauthJson(
 		)
 	);
 }
+/** Performs the oauth form domain operation. */
 export async function oauthForm(
 	key: string,
 	url: string,
@@ -53,6 +56,7 @@ export async function oauthForm(
 		)
 	);
 }
+/** Performs the oauth fedex domain operation. */
 export async function oauthFedex(
 	key: string,
 	url: string,
@@ -78,6 +82,7 @@ export async function oauthFedex(
 		)
 	);
 }
+/** Performs the token domain operation. */
 export async function token(key: string, load: () => Promise<Json>): Promise<string> {
 	const existing = tokens.get(key);
 	if (existing && existing.expiresAt > Date.now() + 30_000) return existing.value;
@@ -91,6 +96,7 @@ export async function token(key: string, load: () => Promise<Json>): Promise<str
 	return value;
 }
 
+/** Performs the request json domain operation. */
 export async function requestJson(
 	url: string,
 	init: RequestInit,

@@ -9,6 +9,7 @@ import type {
 
 let syntheticId = 1;
 
+/** Defines the synthetic scope class contract. */
 export class SyntheticScope implements ExpressionScope {
 	readonly id = `synthetic-scope:${syntheticId++}`;
 	private readonly owned: Variable[] = [];
@@ -16,9 +17,11 @@ export class SyntheticScope implements ExpressionScope {
 		readonly kind: ScopeKind,
 		readonly parent?: ExpressionScope
 	) {}
+	/** Performs the variables domain operation for this synthetic scope instance. */
 	get variables(): readonly Variable[] {
 		return this.owned;
 	}
+	/** Performs the add domain operation for this synthetic scope instance. */
 	add(variable: Variable): void {
 		if (this.owned.some((current) => current.name === variable.name))
 			throw new Error(`Duplicate binding "${variable.name}"`);
@@ -26,6 +29,7 @@ export class SyntheticScope implements ExpressionScope {
 	}
 }
 
+/** Defines the synthetic variable class contract. */
 export class SyntheticVariable implements Variable {
 	readonly id = `synthetic-variable:${syntheticId++}`;
 	readonly synthetic = true;
@@ -49,6 +53,7 @@ export class SyntheticVariable implements Variable {
 	}
 }
 
+/** Performs the synthetic node domain operation. */
 export function syntheticNode(
 	kind: string,
 	category: ExpressionNode['category'],

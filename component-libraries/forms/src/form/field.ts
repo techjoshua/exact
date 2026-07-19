@@ -11,6 +11,7 @@ import {
 	withoutId
 } from './values.js';
 
+/** Performs the field domain operation. */
 export function Field(this: Component<FieldState>, props: FieldProps) {
 	this.state.error = undefined;
 	this.state.touched = false;

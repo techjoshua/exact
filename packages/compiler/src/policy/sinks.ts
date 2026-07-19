@@ -5,6 +5,7 @@ import { combinePolicyRecords, dataPolicy, describePolicy, policyFlow } from './
 
 import type { ExactPolicyMetadata } from './contracts.js';
 import { materializePolicyInputSubjects, policyInputs } from './inputs.js';
+/** Collects secret output sinks in deterministic order. */
 export function collectSecretOutputSinks(
 	filename: string,
 	module: BoundModule,
@@ -108,6 +109,7 @@ export function collectSecretOutputSinks(
 	};
 }
 
+/** Collects route hydration sinks in deterministic order. */
 export function collectRouteHydrationSinks(
 	filename: string,
 	module: BoundModule,
@@ -196,6 +198,7 @@ export function collectRouteHydrationSinks(
 	};
 }
 
+/** Reports whether console output call. */
 export function isConsoleOutputCall(call: NodeRef): boolean {
 	if (
 		!call.target?.isMember() ||

@@ -5,6 +5,7 @@ import { createStore, type StateCreator, type StoreApi } from 'zustand/vanilla';
 export { createStore };
 export type { StateCreator, StoreApi };
 
+/** Creates a zustand source. */
 export function createZustandSource<T, Slice = T>(
 	store: StoreApi<T>,
 	selector: (state: T) => Slice = identity as (state: T) => Slice,
@@ -19,6 +20,7 @@ export function createZustandSource<T, Slice = T>(
 	});
 }
 
+/** Creates a component store. */
 export function createComponentStore<T, Slice = T>(
 	component: Component<any>,
 	store: StoreApi<T>,

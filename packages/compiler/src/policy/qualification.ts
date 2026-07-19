@@ -85,6 +85,7 @@ export function createExactSecretQualificationPlan(
 	};
 }
 
+/** Propagates secret qualification through call parameters until the policy analysis reaches a fixed point. */
 export function propagateSecretCallParameters(
 	module: BoundModule,
 	policies: Map<string, PolicyRecord>,
@@ -183,6 +184,7 @@ export function propagateSecretCallParameters(
 	}
 }
 
+/** Performs the function binding domain operation. */
 export function functionBinding(fn: NodeRef): Variable | undefined {
 	const declared = fn
 		.children()

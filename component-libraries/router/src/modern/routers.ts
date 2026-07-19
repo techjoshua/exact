@@ -32,6 +32,7 @@ import { locationToString, parsePath, toNavigationValue, type To } from './paths
 import { renderHydrationFallback, renderRouteMatches } from './rendering.js';
 
 export { createPath, createSearchParams, parsePath, resolvePath } from './paths.js';
+/** Performs the browser router domain operation. */
 export function BrowserRouter(props: {
 	basename?: string;
 	children?: ReactNode;
@@ -195,6 +196,7 @@ export function createRoutesFromChildren(children: ReactNode): RouteObject[] {
 	return routes;
 }
 
+/** Provides the canonical create routes from elements value. */
 export const createRoutesFromElements = createRoutesFromChildren;
 
 /** Matches and renders route objects against the current or supplied location. */

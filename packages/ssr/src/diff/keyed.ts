@@ -1,6 +1,7 @@
 import type { ExactPatch } from '@exact/server';
 import type { KeyedListSnapshotItem } from '../types.js';
 
+/** Performs the diff keyed list items domain operation. */
 export function diffKeyedListItems(
 	listId: string,
 	previousItems: readonly KeyedListSnapshotItem[],
@@ -66,6 +67,7 @@ export function diffKeyedListItems(
 	return patches;
 }
 
+/** Validates unique list keys and throws when the contract is violated. */
 export function assertUniqueListKeys(keys: readonly string[], label: string): void {
 	const seen = new Set<string>();
 	for (const key of keys) {
@@ -75,6 +77,7 @@ export function assertUniqueListKeys(keys: readonly string[], label: string): vo
 	}
 }
 
+/** Performs the longest increasing subsequence positions domain operation. */
 export function longestIncreasingSubsequencePositions(values: readonly number[]): number[] {
 	const predecessors = new Int32Array(values.length);
 	predecessors.fill(-1);

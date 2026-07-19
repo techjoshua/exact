@@ -2,6 +2,7 @@ import ts from 'typescript';
 import type { ExpressionDiagnostic } from '../model.js';
 import { canonicalFile, diagnosticFromTs, uniqueDiagnostics } from './utilities.js';
 
+/** Carries the context required by language service diagnostic. */
 export type LanguageServiceDiagnosticContext = {
 	service: ts.LanguageService;
 	compilerOptions: ts.CompilerOptions;

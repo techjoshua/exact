@@ -11,6 +11,7 @@ import { projectExpressionNodes } from './node-projection.js';
 import { createExpressionTypeProjection } from './type-projection.js';
 import { diagnosticFromTs, normalizeFile } from './syntax.js';
 
+/** Configures expression projection session. */
 export type ExpressionProjectionSessionOptions = {
 	program: ts.Program;
 	filename: string;

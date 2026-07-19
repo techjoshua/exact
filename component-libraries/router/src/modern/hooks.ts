@@ -26,6 +26,7 @@ import {
 import { locationToString, resolveRouteRelativeTo, type To } from './paths.js';
 
 export { createPath, createSearchParams, parsePath, resolvePath } from './paths.js';
+/** Performs the outlet domain operation. */
 export function Outlet(props: { context?: unknown }): ReactNode {
 	const outlet = useContext(OutletContext);
 	return createElement(OutletValueContext.Provider, { value: props.context, children: outlet });

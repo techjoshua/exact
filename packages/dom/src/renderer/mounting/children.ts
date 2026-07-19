@@ -7,6 +7,7 @@ import type { Mounted, Root } from '../../types.js';
 import { countDomWork } from '../limits.js';
 import { mount } from './root.js';
 
+/** Performs the mount detached children domain operation. */
 export function mountDetachedChildren(
 	root: Root,
 	children: Child[],
@@ -27,12 +28,14 @@ export function mountDetachedChildren(
 	return mounted;
 }
 
+/** Performs the portal target domain operation. */
 export function portalTarget(vnode: VNode): Node {
 	const target = vnode.props.target;
 	if (!(target instanceof Node)) throw new TypeError('An eXact portal target must be a DOM Node');
 	return target;
 }
 
+/** Performs the with event container domain operation. */
 export function withEventContainer<T>(root: Root, container: Node, run: () => T): T {
 	const previous = root.eventContainer;
 	root.eventContainer = container;
@@ -43,10 +46,12 @@ export function withEventContainer<T>(root: Root, container: Node, run: () => T)
 	}
 }
 
+/** Performs the portal event container domain operation. */
 export function portalEventContainer(root: Root, target: Node): Node {
 	return root.container === target || root.container.contains(target) ? root.container : target;
 }
 
+/** Performs the mount children domain operation. */
 export function mountChildren(
 	root: Root,
 	parent: Node,
@@ -70,6 +75,7 @@ export function mountChildren(
 	return mounted;
 }
 
+/** Validates unique child keys and throws when the contract is violated. */
 export function assertUniqueChildKeys(children: Child[]): void {
 	const keys = new Set<string>();
 	for (const child of children) {

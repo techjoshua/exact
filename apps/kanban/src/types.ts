@@ -1,5 +1,7 @@
+/** Defines the status type contract. */
 export type Status = 'todo' | 'doing' | 'done';
 
+/** Defines the task type contract. */
 export type Task = {
 	/** @exact key */
 	id: string;
@@ -8,12 +10,14 @@ export type Task = {
 	notes: string;
 };
 
+/** Defines the column type contract. */
 export type Column = {
 	/** @exact key */
 	id: Status;
 	title: string;
 };
 
+/** Tracks the state owned by board. */
 export type BoardState = {
 	tasks: Task[];
 	draft: string;
@@ -21,12 +25,14 @@ export type BoardState = {
 	dragPlacement?: DragPlacement;
 };
 
+/** Defines the drag placement type contract. */
 export type DragPlacement = {
 	taskId: string;
 	status: Status;
 	beforeTaskId?: string;
 };
 
+/** Defines the board services type contract. */
 export type BoardServices = {
 	setDraft(value: string): void;
 	addTask(): void;

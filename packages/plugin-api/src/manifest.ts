@@ -1,10 +1,16 @@
+/** Provides the canonical exact plugin api package value. */
 export const exactPluginApiPackage = '@exact/plugin-api' as const;
+/** Provides the canonical exact plugin schema version value. */
 export const exactPluginSchemaVersion = 1 as const;
+/** Provides the canonical exact plugin forwarding schema version value. */
 export const exactPluginForwardingSchemaVersion = 1 as const;
+/** Provides the canonical exact plugin protocol version value. */
 export const exactPluginProtocolVersion = '1.0.0' as const;
 
+/** Defines the exact plugin host mode type contract. */
 export type ExactPluginHostMode = 'compiler' | 'server' | 'render' | 'client' | 'testing';
 
+/** Defines the exact json value type contract. */
 export type ExactJsonValue =
 	| null
 	| boolean
@@ -13,11 +19,13 @@ export type ExactJsonValue =
 	| ExactJsonValue[]
 	| { [key: string]: ExactJsonValue };
 
+/** Defines the exact plugin provenance interface contract. */
 export interface ExactPluginProvenance {
 	readonly activationPaths: readonly (readonly string[])[];
 	readonly orderingAfter: readonly string[];
 }
 
+/** Carries the context required by exact plugin config. */
 export interface ExactPluginConfigContext {
 	readonly plugin: {
 		readonly packageName: string;
@@ -35,11 +43,13 @@ export interface ExactPluginConfigContext {
 	readonly provenance: ExactPluginProvenance;
 }
 
+/** Defines the exact plugin config transform type contract. */
 export type ExactPluginConfigTransform<T> = (
 	config: T,
 	context: ExactPluginConfigContext
 ) => T | undefined | Promise<T | undefined>;
 
+/** Defines the exact compiler diagnostic interface contract. */
 export interface ExactCompilerDiagnostic {
 	readonly severity: 'info' | 'warning' | 'error';
 	readonly code: string;
@@ -48,6 +58,7 @@ export interface ExactCompilerDiagnostic {
 	readonly length?: number;
 }
 
+/** Defines the exact compiler module view interface contract. */
 export interface ExactCompilerModuleView {
 	readonly id: string;
 	readonly source: string;
@@ -55,6 +66,7 @@ export interface ExactCompilerModuleView {
 	readonly directives: readonly ExactCompilerDirective[];
 }
 
+/** Defines the exact compiler directive interface contract. */
 export interface ExactCompilerDirective {
 	readonly namespace: string;
 	readonly name: string;
@@ -63,11 +75,13 @@ export interface ExactCompilerDirective {
 	readonly length: number;
 }
 
+/** Defines the exact compiler module contribution interface contract. */
 export interface ExactCompilerModuleContribution {
 	readonly diagnostics?: readonly ExactCompilerDiagnostic[];
 	readonly manifestData?: ExactJsonValue;
 }
 
+/** Defines the exact compiler plugin extension interface contract. */
 export interface ExactCompilerPluginExtension {
 	readonly namespace: string;
 	readonly directives?: readonly string[];
@@ -76,11 +90,13 @@ export interface ExactCompilerPluginExtension {
 	validateManifestData?(value: ExactJsonValue): undefined;
 }
 
+/** Configures exact compiler plugin. */
 export interface ExactCompilerPluginConfig {
 	readonly cacheKey: ExactJsonValue;
 	readonly extension?: ExactCompilerPluginExtension;
 }
 
+/** Defines the exact prepared compiler plugin interface contract. */
 export interface ExactPreparedCompilerPlugin {
 	readonly packageName: string;
 	readonly version: string;
@@ -90,11 +106,13 @@ export interface ExactPreparedCompilerPlugin {
 	readonly extension?: ExactCompilerPluginExtension;
 }
 
+/** Defines the exact prepared compiler registry interface contract. */
 export interface ExactPreparedCompilerRegistry {
 	readonly fingerprint: string;
 	readonly plugins: Readonly<Record<string, ExactPreparedCompilerPlugin>>;
 }
 
+/** Carries the context required by exact output. */
 export interface ExactOutputContext {
 	readonly kind:
 		| 'vnode'
@@ -112,21 +130,25 @@ export interface ExactOutputContext {
 	readonly signal?: AbortSignal;
 }
 
+/** Defines the exact output extension interface contract. */
 export interface ExactOutputExtension<T = unknown> {
 	transform?(value: T, context: ExactOutputContext): T | Promise<T>;
 	validate?(value: T, context: ExactOutputContext): undefined | Promise<undefined>;
 }
 
+/** Carries the context required by exact plugin lifecycle. */
 export interface ExactPluginLifecycleContext {
 	readonly applicationRoot: string;
 	readonly environment: string;
 	readonly signal: AbortSignal;
 }
 
+/** Defines the exact plugin resource interface contract. */
 export interface ExactPluginResource {
 	dispose(): void | Promise<void>;
 }
 
+/** Defines the exact runtime plugin extension interface contract. */
 export interface ExactRuntimePluginExtension {
 	validate?(): undefined | Promise<undefined>;
 	initializeApplication?(
@@ -138,6 +160,7 @@ export interface ExactRuntimePluginExtension {
 	output?: ExactOutputExtension;
 }
 
+/** Defines the exact plugin config controller interface contract. */
 export interface ExactPluginConfigController<T> {
 	defaults(context: ExactPluginConfigContext): T | Promise<T>;
 	structuralValidate?(config: T, context: ExactPluginConfigContext): undefined;
@@ -152,6 +175,7 @@ export interface ExactPluginConfigController<T> {
 	testingConfig?(config: T, context: ExactPluginConfigContext): unknown | Promise<unknown>;
 }
 
+/** Defines the exact plugin entries interface contract. */
 export interface ExactPluginEntries {
 	readonly config?: string;
 	readonly configTypes?: string;
@@ -162,6 +186,7 @@ export interface ExactPluginEntries {
 	readonly testing?: string;
 }
 
+/** Defines the exact plugin declaration interface contract. */
 export interface ExactPluginDeclaration {
 	readonly schemaVersion: typeof exactPluginSchemaVersion;
 	readonly protocolVersion: string;
@@ -169,22 +194,26 @@ export interface ExactPluginDeclaration {
 	readonly entries: ExactPluginEntries;
 }
 
+/** Defines the exact plugin forward declaration interface contract. */
 export interface ExactPluginForwardDeclaration {
 	readonly required?: boolean;
 }
 
+/** Defines the exact plugin forwarding declaration interface contract. */
 export interface ExactPluginForwardingDeclaration {
 	readonly schemaVersion: typeof exactPluginForwardingSchemaVersion;
 	readonly include: Readonly<Record<string, ExactPluginForwardDeclaration>>;
 	readonly ignore?: readonly string[];
 }
 
+/** Defines the exact plugin configuration declaration interface contract. */
 export interface ExactPluginConfigurationDeclaration {
 	readonly version?: string;
 	readonly subpath: string;
 	readonly export: string;
 }
 
+/** Defines the exact package manifest interface contract. */
 export interface ExactPackageManifest {
 	readonly name?: unknown;
 	readonly version?: unknown;
@@ -195,12 +224,14 @@ export interface ExactPackageManifest {
 	readonly exact?: unknown;
 }
 
+/** Defines the exact package participation interface contract. */
 export interface ExactPackageParticipation {
 	readonly plugin?: ExactPluginDeclaration;
 	readonly forwarding?: ExactPluginForwardingDeclaration;
 	readonly configuration: Readonly<Record<string, ExactPluginConfigurationDeclaration>>;
 }
 
+/** Reads an exact package participation from its source representation. */
 export function readExactPackageParticipation(
 	manifest: ExactPackageManifest,
 	label = packageLabel(manifest)
@@ -213,6 +244,7 @@ export function readExactPackageParticipation(
 	return Object.freeze({ plugin, forwarding, configuration });
 }
 
+/** Performs the package directly depends on plugin api domain operation. */
 export function packageDirectlyDependsOnPluginApi(manifest: ExactPackageManifest): boolean {
 	return (
 		dependencyRange(manifest.dependencies, exactPluginApiPackage) !== undefined ||
@@ -220,12 +252,14 @@ export function packageDirectlyDependsOnPluginApi(manifest: ExactPackageManifest
 	);
 }
 
+/** Performs the dependency range domain operation. */
 export function dependencyRange(value: unknown, packageName: string): string | undefined {
 	if (!isRecord(value)) return undefined;
 	const range = value[packageName];
 	return typeof range === 'string' && range.length ? range : undefined;
 }
 
+/** Validates package selector and throws when the contract is violated. */
 export function assertPackageSelector(value: string, label: string): void {
 	if (value.endsWith('/')) {
 		const base = value.slice(0, -1);
@@ -237,6 +271,7 @@ export function assertPackageSelector(value: string, label: string): void {
 	assertPackageName(value, label);
 }
 
+/** Validates public package subpath and throws when the contract is violated. */
 export function assertPublicPackageSubpath(value: string, label: string): void {
 	if (value === '.') return;
 	if (
@@ -366,6 +401,7 @@ function readConfiguration(
 	return Object.freeze(result);
 }
 
+/** Reads a selectors from its source representation. */
 export function readSelectors(value: unknown, label: string): readonly string[] {
 	if (value === undefined) return Object.freeze([]);
 	if (!Array.isArray(value)) throw new Error(`${label} must be an array`);
@@ -380,6 +416,7 @@ export function readSelectors(value: unknown, label: string): readonly string[] 
 	return Object.freeze(result);
 }
 
+/** Reports whether package selectors. */
 export function matchesPackageSelectors(
 	packageName: string,
 	selectors: readonly string[]

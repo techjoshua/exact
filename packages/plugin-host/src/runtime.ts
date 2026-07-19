@@ -6,6 +6,7 @@ import type {
 	ExactRuntimePluginExtension
 } from '@exact/plugin-api';
 
+/** Performs the process exact output domain operation. */
 export async function processExactOutput<T>(
 	value: T,
 	context: ExactOutputContext,
@@ -30,6 +31,7 @@ export async function processExactOutput<T>(
 	return current;
 }
 
+/** Performs the process exact output sync domain operation. */
 export function processExactOutputSync<T>(
 	value: T,
 	context: ExactOutputContext,
@@ -60,6 +62,7 @@ export function processExactOutputSync<T>(
 	return current;
 }
 
+/** Performs the initialize exact plugin resources domain operation. */
 export async function initializeExactPluginResources(
 	extensions: readonly ExactRuntimePluginExtension[],
 	scope: 'application' | 'request',
@@ -80,6 +83,7 @@ export async function initializeExactPluginResources(
 	}
 }
 
+/** Releases exact plugin resources and its owned resources. */
 export async function disposeExactPluginResources(
 	resources: readonly ExactPluginResource[]
 ): Promise<void> {
@@ -94,6 +98,7 @@ export async function disposeExactPluginResources(
 	if (failures.length) throw new AggregateError(failures, 'eXact plugin resource disposal failed');
 }
 
+/** Validates exact runtime extensions and throws when the contract is violated. */
 export async function validateExactRuntimeExtensions(
 	extensions: readonly ExactRuntimePluginExtension[]
 ): Promise<void> {

@@ -19,6 +19,7 @@ import type {
 } from '../types.js';
 import { requestVersions } from './state.js';
 
+/** Runs and apply with the supplied execution context. */
 export async function invokeAndApply(
 	container: Element,
 	client: ExactClient,
@@ -147,11 +148,13 @@ export async function invokeAndApply(
 	return result;
 }
 
+/** Validates endpoint and throws when the contract is violated. */
 export function requireEndpoint(endpoint: string | undefined): string {
 	if (!endpoint) throw new Error('eXact endpoint is not configured');
 	return endpoint;
 }
 
+/** Performs the endpoint for operation domain operation. */
 export function endpointForOperation(
 	client: ExactClient,
 	type: ExactInvocationKind,
@@ -161,6 +164,7 @@ export function endpointForOperation(
 	return client.endpoints?.boundaries?.[id] ?? client.endpoint;
 }
 
+/** Performs the transport for endpoint domain operation. */
 export function transportForEndpoint(
 	options: HydrateOptions,
 	endpoint: string
@@ -175,6 +179,7 @@ export function transportForEndpoint(
 	};
 }
 
+/** Performs the boundary htmls for domain operation. */
 export function boundaryHtmlsFor(
 	container: Element,
 	ids: readonly string[] | undefined,

@@ -2,12 +2,14 @@ import { type RefBinding } from '@exact/core';
 import { unwrap } from '@exact/reactive';
 import type { ReactRef } from '../types.js';
 
+/** Defines the react ref envelope class contract. */
 export class ReactRefEnvelope {
 	constructor(readonly value: unknown) {}
 }
 
 const objectRefEnvelopes = new WeakMap<object, ReactRefEnvelope>();
 
+/** Performs the envelope react ref domain operation. */
 export function envelopeReactRef(ref: unknown): ReactRefEnvelope {
 	if (ref !== null && (typeof ref === 'object' || typeof ref === 'function')) {
 		const identity = ref as object;
@@ -21,6 +23,7 @@ export function envelopeReactRef(ref: unknown): ReactRefEnvelope {
 	return new ReactRefEnvelope(ref);
 }
 
+/** Reads a react ref from its source representation. */
 export function readReactRef(value: unknown): unknown {
 	const envelope = unwrap(value) as ReactRefEnvelope | undefined;
 	return envelope?.value;
@@ -29,6 +32,7 @@ export function readReactRef(value: unknown): unknown {
 /** Resolves a public React class instance to its eXact component owner. */
 
 const refBindings = new WeakMap<object, RefBinding<unknown>>();
+/** Performs the react ref binding domain operation. */
 export function reactRefBinding<T>(ref: ReactRef<T>): RefBinding<T> {
 	const identity = ref as object;
 	const cached = refBindings.get(identity);
@@ -58,6 +62,7 @@ export function reactRefBinding<T>(ref: ReactRef<T>): RefBinding<T> {
 	return binding;
 }
 
+/** Performs the assign react ref domain operation. */
 export function assignReactRef<T>(ref: ReactRef<T> | undefined, value: T | null): void {
 	if (!ref) return;
 	const rawRef = unwrap(ref) as ReactRef<T>;

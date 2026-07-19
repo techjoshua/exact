@@ -5,7 +5,9 @@ import { TestComponent } from '../mounting/views.js';
 import { matchesName } from '../queries/accessibility.js';
 import { TestElement } from '../queries/host.js';
 
+/** Describes the result produced by matcher. */
 export type MatcherResult = { pass: boolean; message(): string };
+/** Defines the exact matcher declarations interface contract. */
 export interface ExactMatcherDeclarations<R = void> {
 	toBeMounted(): R;
 	toHaveState(expected: object): R;
@@ -19,6 +21,7 @@ export interface ExactMatcherDeclarations<R = void> {
 	toBeDisabled(): R;
 	toHaveFocus(): R;
 }
+/** Defines the expect like type contract. */
 export type ExpectLike = {
 	extend(
 		matchers: Record<string, (received: unknown, ...expected: unknown[]) => MatcherResult>
@@ -37,6 +40,7 @@ const elementValue = (value: unknown): Element | undefined =>
 			? (value as Element)
 			: undefined;
 
+/** Provides the canonical exact matchers value. */
 export const exactMatchers = {
 	toBeMounted(received: unknown) {
 		const pass =
@@ -136,6 +140,7 @@ export const exactMatchers = {
 	}
 };
 
+/** Performs the install exact matchers domain operation. */
 export function installExactMatchers(expect: ExpectLike): void {
 	expect.extend(
 		exactMatchers as unknown as Record<

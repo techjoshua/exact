@@ -6,8 +6,10 @@ import {
 	type ServerRenderOptions
 } from './server-shared.js';
 
+/** Tracks the state owned by postponed. */
 export type PostponedState = null;
 
+/** Performs the prerender domain operation. */
 export async function prerender(
 	node: ReactNode,
 	options?: ServerRenderOptions
@@ -21,6 +23,7 @@ export async function prerender(
 	};
 }
 
+/** Performs the resume domain operation. */
 export async function resume(
 	node: ReactNode,
 	_postponedState: unknown,
@@ -31,6 +34,7 @@ export async function resume(
 	);
 }
 
+/** Performs the resume and prerender domain operation. */
 export function resumeAndPrerender(
 	node: ReactNode,
 	_postponedState: unknown,

@@ -20,8 +20,10 @@ import {
 	textOnlyContent
 } from './patches.js';
 
+/** Defines the parsed html node type contract. */
 export type ParsedHtmlNode = ParsedHtmlElement | ParsedHtmlText;
 
+/** Defines the parsed html element type contract. */
 export type ParsedHtmlElement = {
 	kind: 'element';
 	tagName: string;
@@ -29,19 +31,25 @@ export type ParsedHtmlElement = {
 	children: ParsedHtmlNode[];
 };
 
+/** Defines the parsed html text type contract. */
 export type ParsedHtmlText = {
 	kind: 'text';
 	value: string;
 };
 
+/** Provides the canonical max diff html bytes value. */
 export const MAX_DIFF_HTML_BYTES = 2 * 1024 * 1024;
 
+/** Provides the canonical max diff html nodes value. */
 export const MAX_DIFF_HTML_NODES = 100_000;
 
+/** Provides the canonical max diff html depth value. */
 export const MAX_DIFF_HTML_DEPTH = 256;
 
+/** Provides the canonical max fine grained patches value. */
 export const MAX_FINE_GRAINED_PATCHES = 10_000;
 
+/** Performs the diff boundary html domain operation. */
 export function diffBoundaryHtml(
 	boundaryId: string,
 	previousHtml: string,
@@ -85,6 +93,7 @@ export function diffBoundaryHtml(
 	return [boundaryPatch(boundaryId, nextHtml, 'replace')];
 }
 
+/** Performs the diff exact element html domain operation. */
 export function diffExactElementHtml(
 	previousHtml: string,
 	nextHtml: string
@@ -165,6 +174,7 @@ export function diffExactElementHtml(
 	return rootExactElementReplace(previousTree, nextTree, nextHtml);
 }
 
+/** Performs the nested exact element replace domain operation. */
 export function nestedExactElementReplace(
 	previousTree: readonly ParsedHtmlNode[],
 	nextTree: readonly ParsedHtmlNode[]
@@ -193,6 +203,7 @@ export function nestedExactElementReplace(
 	return patches.length ? patches : undefined;
 }
 
+/** Performs the root exact element replace domain operation. */
 export function rootExactElementReplace(
 	previousTree: readonly ParsedHtmlNode[],
 	nextTree: readonly ParsedHtmlNode[],

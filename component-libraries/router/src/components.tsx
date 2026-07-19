@@ -65,6 +65,7 @@ export type {
 	RouteMatch,
 	RouterMode
 } from './core.js';
+/** Defines the route context value type contract. */
 export type RouteContextValue = {
 	router: ExactRouter<RouteRecord>;
 	location: RouteLocation;
@@ -76,9 +77,11 @@ export type RouteContextValue = {
 	searchParams(): URLSearchParams;
 };
 
+/** Provides the canonical route context value. */
 export const RouteContext = createContext<RouteContextValue>('exact.route', true);
 const OutletContext = createContext<Child | Child[] | undefined>('exact.route.outlet');
 
+/** Defines the properties accepted by router. */
 export type RouterProps = {
 	mode?: RouterMode;
 	basename?: string;
@@ -88,6 +91,7 @@ export type RouterProps = {
 
 type RouterState = { version: number };
 
+/** Performs the router domain operation. */
 export function Router(this: Component<RouterState>, props: RouterProps) {
 	this.state.version = 0;
 	const mode = props.mode ?? 'history';
@@ -151,6 +155,7 @@ export function Router(this: Component<RouterState>, props: RouterProps) {
 	};
 }
 
+/** Defines the properties accepted by route. */
 export type RouteProps = {
 	path?: string;
 	index?: boolean;
@@ -206,11 +211,13 @@ function MatchedRoute(
 			: props.outlet;
 }
 
+/** Performs the outlet domain operation. */
 export function Outlet(this: Component<{}>) {
 	const outlet = this.getContext(OutletContext);
 	return () => outlet as Child;
 }
 
+/** Defines the properties accepted by link. */
 export type LinkProps = Record<string, unknown> & {
 	to: string | URL;
 	replace?: boolean;
@@ -219,6 +226,7 @@ export type LinkProps = Record<string, unknown> & {
 	onClick?: (event: MouseEvent) => unknown;
 };
 
+/** Performs the link domain operation. */
 export function Link(this: Component<{}>, props: LinkProps) {
 	const route = this.getContext(RouteContext);
 	const click = (event: MouseEvent) => {
@@ -254,10 +262,12 @@ export function Link(this: Component<{}>, props: LinkProps) {
 	};
 }
 
+/** Defines the properties accepted by nav link. */
 export type NavLinkProps = LinkProps & {
 	end?: boolean;
 	className?: string | ((active: boolean) => string);
 };
+/** Performs the nav link domain operation. */
 export function NavLink(this: Component<{}>, props: NavLinkProps) {
 	const route = this.getContext(RouteContext);
 	return () => {
@@ -276,6 +286,7 @@ export function NavLink(this: Component<{}>, props: NavLinkProps) {
 	};
 }
 
+/** Performs the navigate domain operation. */
 export function Navigate(
 	this: Component<{}>,
 	props: { to: string | URL; replace?: boolean; status?: number }

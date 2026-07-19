@@ -1,5 +1,6 @@
 import { createContext, type Child, type Component } from '@exact/core';
 
+/** Defines the request context value type contract. */
 export type RequestContextValue = {
 	url: URL;
 	method: string;
@@ -12,6 +13,7 @@ export type RequestContextValue = {
 	setHeader(name: string, value: string): void;
 };
 
+/** Defines the request context input type contract. */
 export type RequestContextInput = {
 	url?: string | URL;
 	method?: string;
@@ -21,6 +23,7 @@ export type RequestContextInput = {
 	traceId?: string;
 };
 
+/** Tracks the state owned by request response. */
 export type RequestResponseState = {
 	status?: number;
 	redirect?: { location: URL; status: number };
@@ -28,6 +31,7 @@ export type RequestResponseState = {
 	committed: boolean;
 };
 
+/** Represents a failure raised by request response committed. */
 export class RequestResponseCommittedError extends Error {
 	constructor() {
 		super('Cannot mutate an eXact response after its status and headers are committed');
@@ -35,16 +39,19 @@ export class RequestResponseCommittedError extends Error {
 	}
 }
 
+/** Defines the request context storage interface contract. */
 export interface RequestContextStorage {
 	run<T>(value: RequestContextValue, callback: () => T): T;
 	getStore(): RequestContextValue | undefined;
 }
 
+/** Defines the request scope interface contract. */
 export interface RequestScope {
 	run<T>(value: RequestContextValue, callback: () => T): T;
 	current(): RequestContextValue | undefined;
 }
 
+/** Provides the canonical request context value. */
 export const RequestContext = createContext<RequestContextValue>('exact.request', {
 	global: true,
 	reactive: false,
@@ -142,6 +149,7 @@ class StackStorage implements RequestContextStorage {
 
 let defaultStorage: RequestContextStorage = new StackStorage();
 
+/** Creates a request scope. */
 export function createRequestScope(
 	storage: RequestContextStorage = new StackStorage()
 ): RequestScope {
@@ -156,6 +164,7 @@ export function configureRequestContextStorage(storage: RequestContextStorage): 
 	defaultStorage = storage;
 }
 
+/** Runs with request context with the supplied execution context. */
 export function runWithRequestContext<T>(
 	value: RequestContextValue,
 	callback: () => T,
@@ -164,10 +173,12 @@ export function runWithRequestContext<T>(
 	return scope ? scope.run(value, callback) : defaultStorage.run(value, callback);
 }
 
+/** Resolves a request context. */
 export function getRequestContext(scope?: RequestScope): RequestContextValue | undefined {
 	return scope ? scope.current() : defaultStorage.getStore();
 }
 
+/** Defines the properties accepted by request provider. */
 export type RequestProviderProps = {
 	value?: RequestContextValue;
 	children?: Child | Child[];

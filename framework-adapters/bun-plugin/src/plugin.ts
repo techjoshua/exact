@@ -29,6 +29,7 @@ import {
 import { transformReactJsx, usesReactRuntimeImports } from '@exact/react-compat/transform';
 import path from 'node:path';
 
+/** Configures exact bun plugin. */
 export type ExactBunPluginOptions = {
 	target?: TransformTarget;
 	importedManifests?: readonly ExactCompilerManifest[];
@@ -48,10 +49,12 @@ export type ExactBunPluginOptions = {
 	onProfile?: ExactProfileSink;
 };
 
+/** Reports an observable exact bun profile event. */
 export type ExactBunProfileEvent = ExactProfileEvent<'bun-plugin', 'transform'>;
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
 
+/** Defines the bun build like type contract. */
 export type BunBuildLike = {
 	config?: {
 		conditions?: string[];
@@ -68,27 +71,32 @@ export type BunBuildLike = {
 	onStart?(handler: () => void | Promise<void>): void;
 };
 
+/** Defines the bun resolve args type contract. */
 export type BunResolveArgs = {
 	path: string;
 	importer?: string;
 };
 
+/** Describes the result produced by bun resolve. */
 export type BunResolveResult = {
 	path?: string;
 	external?: boolean;
 };
 
+/** Defines the bun load args type contract. */
 export type BunLoadArgs = {
 	path: string;
 	text?(): Promise<string>;
 };
 
+/** Describes the result produced by bun load. */
 export type BunLoadResult = {
 	contents?: string;
 	loader?: 'js' | 'jsx' | 'ts' | 'tsx';
 	sourcemap?: unknown;
 };
 
+/** Defines the bun plugin like type contract. */
 export type BunPluginLike = {
 	name: string;
 	setup(build: BunBuildLike): void;

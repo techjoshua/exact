@@ -13,6 +13,7 @@ import type {
 import type { ExactPlacement, ExactPolicyManifestIR } from './policy.js';
 import type { ExactAssetDependencyIR, ExactRawHtmlCapabilityIR } from './transform.js';
 
+/** Defines the exact artifact manifest type contract. */
 export type ExactArtifactManifest = {
 	source: string;
 	client: string;
@@ -29,6 +30,7 @@ export type ExactArtifactManifest = {
 	boundaries: ExactBoundaryIR[];
 };
 
+/** Defines the exact compiler manifest type contract. */
 export type ExactCompilerManifest = {
 	version: 1;
 	filename: string;

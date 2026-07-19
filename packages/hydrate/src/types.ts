@@ -9,6 +9,7 @@ import type {
 	ExactStateContract
 } from '@exact/server';
 
+/** Configures hydrate. */
 export type HydrateOptions = {
 	/** Compiler registry fingerprint for the client artifact. */
 	clientPluginRegistryFingerprint?: string;
@@ -46,8 +47,10 @@ export type HydrateOptions = {
 	onProfile?: ExactProfileSink;
 };
 
+/** Reports an observable hydrate profile event. */
 export type HydrateProfileEvent = ExactProfileEvent<'hydrate', 'hydrate'>;
 
+/** Defines the exact hydration config limits type contract. */
 export type ExactHydrationConfigLimits = {
 	/** Maximum encoded bootstrap bytes. Defaults to 16 MiB. */
 	maxBytes?: number;
@@ -57,12 +60,14 @@ export type ExactHydrationConfigLimits = {
 	maxNodes?: number;
 };
 
+/** Defines the hydration diagnostic type contract. */
 export type HydrationDiagnostic = {
 	code: 'missing-markers' | 'adoption-mismatch' | 'invalid-patch' | 'stale-response';
 	message: string;
 	patch?: { type: string; id: string };
 };
 
+/** Configures exact hydration. */
 export type ExactHydrationConfig = {
 	pluginRegistryFingerprint?: string;
 	endpoint?: string;
@@ -72,18 +77,22 @@ export type ExactHydrationConfig = {
 	actionBoundaries?: Record<string, readonly string[]>;
 };
 
+/** Defines the exact hydration registration type contract. */
 export type ExactHydrationRegistration = ExactHydrationConfig & {
 	islands?: ClientIslandRegistry;
 	transports?: Record<string, ExactEndpointTransport>;
 };
 
+/** Defines the exact endpoint routes type contract. */
 export type ExactEndpointRoutes = {
 	actions?: Record<string, string>;
 	boundaries?: Record<string, string>;
 };
 
+/** Defines the client island registry type contract. */
 export type ClientIslandRegistry = Record<string, ComponentFunction<any, any>>;
 
+/** Defines the fetch like type contract. */
 export type FetchLike = (
 	input: string,
 	init: {
@@ -100,11 +109,13 @@ export type FetchLike = (
 	text?(): Promise<string>;
 }>;
 
+/** Defines the exact endpoint transport type contract. */
 export type ExactEndpointTransport = {
 	fetch?: FetchLike;
 	headers?: Record<string, string>;
 };
 
+/** Defines the exact client type contract. */
 export type ExactClient = {
 	readonly endpoint?: string;
 	readonly endpoints?: ExactEndpointRoutes;
@@ -123,8 +134,10 @@ export type ExactClient = {
 	dispose(): void;
 };
 
+/** Defines the hydration root type contract. */
 export type HydrationRoot = ExactClient;
 
+/** Configures invoke exact. */
 export type InvokeExactOptions = {
 	endpoint: string;
 	type: ExactInvocationKind;
@@ -142,6 +155,7 @@ export type InvokeExactOptions = {
 	signal?: AbortSignal;
 };
 
+/** Configures invoke exact batch. */
 export type InvokeExactBatchOptions = {
 	endpoint: string;
 	operations: readonly ExactInvocationRequest[];
@@ -153,12 +167,14 @@ export type InvokeExactBatchOptions = {
 	signal?: AbortSignal;
 };
 
+/** Defines the pending exact operation type contract. */
 export type PendingExactOperation = {
 	operation: ExactInvocationRequest;
 	resolve(result: ExactInvocationResult): void;
 	reject(error: unknown): void;
 };
 
+/** Defines the exact batch queue type contract. */
 export type ExactBatchQueue = {
 	endpoint: string;
 	fetch?: FetchLike;
@@ -173,6 +189,7 @@ export type ExactBatchQueue = {
 	active?: number;
 };
 
+/** Defines the exact stream limits type contract. */
 export type ExactStreamLimits = {
 	/** Maximum encoded response bytes. Defaults to 16 MiB. */
 	maxBytes?: number;

@@ -1,6 +1,8 @@
+/** Performs the window for domain operation. */
 export function windowFor(element: Element): Window & typeof globalThis {
 	return element.ownerDocument.defaultView as unknown as Window & typeof globalThis;
 }
+/** Creates an event. */
 export function createEvent(element: Element, type: string, init: EventInit): Event {
 	const view = windowFor(element);
 	if (type === 'click') return new view.MouseEvent(type, init as MouseEventInit);
@@ -10,6 +12,7 @@ export function createEvent(element: Element, type: string, init: EventInit): Ev
 	if (type === 'focus' || type === 'blur') return new view.FocusEvent(type, init as FocusEventInit);
 	return new view.Event(type, init);
 }
+/** Applies a native value to the owned runtime state. */
 export function setNativeValue(element: Element, value: unknown): void {
 	if (
 		element.matches('input') &&

@@ -1,14 +1,18 @@
 import type { ExactArtifactTarget } from './artifacts.js';
 
+/** Defines the exact placement type contract. */
 export type ExactPlacement = 'server' | 'client' | 'isomorphic' | 'unknown';
 
+/** Defines the exact policy residency type contract. */
 export type ExactPolicyResidency = 'server' | 'client' | 'isomorphic';
 
+/** Defines the exact data policy ir type contract. */
 export type ExactDataPolicyIR = {
 	residency: ExactPolicyResidency;
 	secret: boolean;
 };
 
+/** Defines the exact policy subject ir type contract. */
 export type ExactPolicySubjectIR = {
 	id: string;
 	kind: 'declaration' | 'field' | 'parameter' | 'return' | 'state' | 'context';
@@ -23,8 +27,10 @@ export type ExactPolicySubjectIR = {
 	source: 'annotation' | 'context-option' | 'inference' | 'import';
 };
 
+/** Defines the exact policy flow kind type contract. */
 export type ExactPolicyFlowKind = 'propagation' | 'receipt' | 'projection' | 'transfer';
 
+/** Defines the exact policy flow ir type contract. */
 export type ExactPolicyFlowIR = {
 	id: string;
 	kind: ExactPolicyFlowKind;
@@ -44,11 +50,13 @@ export type ExactPolicyFlowIR = {
 	reason?: string;
 };
 
+/** Defines the exact secret consumption authorization type contract. */
 export type ExactSecretConsumptionAuthorization =
 	| 'implicit-application-owner'
 	| 'library-requirement'
 	| 'denied';
 
+/** Defines the exact secret consumption ir type contract. */
 export type ExactSecretConsumptionIR = {
 	id: string;
 	selector?: string;
@@ -67,6 +75,7 @@ export type ExactSecretConsumptionIR = {
 	reason?: string;
 };
 
+/** Defines the exact policy audit report type contract. */
 export type ExactPolicyAuditReport = {
 	version: 1;
 	generatedAt: string;
@@ -82,6 +91,7 @@ export type ExactPolicyAuditReport = {
 	errors: string[];
 };
 
+/** Defines the exact policy manifest ir type contract. */
 export type ExactPolicyManifestIR = {
 	version: 1;
 	subjects: ExactPolicySubjectIR[];

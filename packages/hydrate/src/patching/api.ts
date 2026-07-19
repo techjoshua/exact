@@ -21,6 +21,7 @@ import {
 	type ProtocolIndex
 } from './planning.js';
 
+/** Configures patch. */
 export type PatchOptions = {
 	logger?: Logger;
 	onMismatch?: 'replace' | 'throw';
@@ -29,6 +30,7 @@ export type PatchOptions = {
 	workBudget?: DomWorkBudget;
 };
 
+/** Applies a patches to the owned runtime state. */
 export function applyPatches(
 	container: Element,
 	patches: readonly ExactPatch[],
@@ -85,6 +87,7 @@ export function applyPatches(
 	return true;
 }
 
+/** Reports whether exact markers. */
 export function hasExactMarkers(container: Element, work?: number | DomWorkBudget): boolean {
 	let found = false;
 	walkDomSubtree(
@@ -97,6 +100,7 @@ export function hasExactMarkers(container: Element, work?: number | DomWorkBudge
 	return found;
 }
 
+/** Performs the boundary inner html domain operation. */
 export function boundaryInnerHtml(
 	container: Element,
 	id: string,
@@ -107,6 +111,7 @@ export function boundaryInnerHtml(
 	return indexedBoundaryHtml(container, index, id);
 }
 
+/** Performs the boundary inner htmls domain operation. */
 export function boundaryInnerHtmls(
 	container: Element,
 	ids: readonly string[],
@@ -122,6 +127,7 @@ export function boundaryInnerHtmls(
 	return htmls;
 }
 
+/** Performs the indexed boundary html domain operation. */
 export function indexedBoundaryHtml(
 	container: Element,
 	index: ProtocolIndex,
@@ -142,6 +148,7 @@ export function indexedBoundaryHtml(
 	return wrapper.innerHTML;
 }
 
+/** Creates a patch boundary resolver. */
 export function createPatchBoundaryResolver(
 	container: Element,
 	boundaryIds: readonly string[],
@@ -167,6 +174,7 @@ export function createPatchBoundaryResolver(
 	};
 }
 
+/** Performs the report mismatch domain operation. */
 export function reportMismatch(
 	options: PatchOptions,
 	message: string,

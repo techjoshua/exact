@@ -12,6 +12,7 @@ import type {
 import { renderChildrenAsync } from './async-tree.js';
 import { renderChildren } from './sync-tree.js';
 
+/** Transforms server boundary into its required representation. */
 export function renderServerBoundary(context: SsrContext, vnode: VNode): string {
 	const id = String(unwrap(vnode.props.id) ?? '');
 	const name = String(unwrap(vnode.props.name) ?? '');
@@ -27,6 +28,7 @@ export function renderServerBoundary(context: SsrContext, vnode: VNode): string 
 	return markerPair(context, markerId(context, 'client-boundary', name, id), () => html);
 }
 
+/** Transforms server boundary async into its required representation. */
 export async function renderServerBoundaryAsync(
 	context: SsrContext,
 	vnode: VNode,
@@ -48,6 +50,7 @@ export async function renderServerBoundaryAsync(
 	return markerPair(context, markerId(context, 'client-boundary', name, id), () => html);
 }
 
+/** Performs the client boundary props domain operation. */
 export function clientBoundaryProps(vnode: VNode): Record<string, unknown> {
 	const id = String(unwrap(vnode.props.id) ?? '');
 	const rawProps = unwrap(vnode.props.props) ?? {};
@@ -67,6 +70,7 @@ export function clientBoundaryProps(vnode: VNode): Record<string, unknown> {
 	return props as Record<string, unknown>;
 }
 
+/** Performs the client boundary serialization message domain operation. */
 export function clientBoundarySerializationMessage(
 	name: string,
 	id: string,
@@ -79,11 +83,13 @@ export function clientBoundarySerializationMessage(
 	return `Client boundary ${location} props must be JSON-serializable; non-serializable value at ${unsafePath}${generatedHint}`;
 }
 
+/** Performs the client boundary generated bucket domain operation. */
 export function clientBoundaryGeneratedBucket(path: string): string | undefined {
 	const match = /^\$\.(__exact[A-Za-z0-9_$]*)(?:\.|\[|$)/.exec(path);
 	return match?.[1];
 }
 
+/** Transforms server boundary children into its required representation. */
 export function renderServerBoundaryChildren(
 	context: SsrContext,
 	vnode: VNode,
@@ -94,14 +100,17 @@ export function renderServerBoundaryChildren(
 	return `<span data-exact-server-slot="${escapeAttr(slotId)}" style="display: contents;">${renderChildren(context, vnode.children, parent)}</span>`;
 }
 
+/** Performs the server slot id domain operation. */
 export function serverSlotId(boundaryId: string): string {
 	return `${boundaryId}:children`;
 }
 
+/** Performs the server slot payload domain operation. */
 export function serverSlotPayload(id: string): Record<string, string> {
 	return { __exactServerSlot: id };
 }
 
+/** Reports whether emit document hydration. */
 export function shouldEmitDocumentHydration(options: RenderToDocumentStreamOptions): boolean {
 	if (options.hydration === false) return false;
 	if (options.hydration === true) return true;
@@ -116,6 +125,7 @@ export function shouldEmitDocumentHydration(options: RenderToDocumentStreamOptio
 	);
 }
 
+/** Resolves a component props. */
 export function getComponentProps(vnode: VNode): Record<string, unknown> {
 	const props = { ...vnode.props };
 	if (vnode.children.length === 1) props.children = vnode.children[0];
@@ -123,6 +133,7 @@ export function getComponentProps(vnode: VNode): Record<string, unknown> {
 	return props;
 }
 
+/** Performs the component name domain operation. */
 export function componentName(type: VNode['type']): string {
 	return typeof type === 'function' ? type.name || 'anonymous' : String(type);
 }

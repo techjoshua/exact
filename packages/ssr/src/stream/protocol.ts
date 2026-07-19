@@ -8,16 +8,19 @@ import type {
 	RenderToProgressiveHtmlStreamOptions
 } from '../types.js';
 
+/** Performs the positive limit domain operation. */
 export function positiveLimit(value: number | undefined, fallback: number): number {
 	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
 
+/** Runs all stream cleanup callbacks while retaining the first failure as the primary error. */
 export function cleanupAll(...actions: Array<() => void>): void {
 	const failure = createCleanupFailure();
 	for (const action of actions) attemptCleanup(failure, action);
 	throwCleanupFailure(failure);
 }
 
+/** Forwards cancellation from the request signal into the progressive render controller. */
 export function forwardAbort(source: AbortSignal | undefined, target: AbortController): () => void {
 	if (!source) return () => undefined;
 	const abort = () => target.abort(source.reason);
@@ -26,6 +29,7 @@ export function forwardAbort(source: AbortSignal | undefined, target: AbortContr
 	return () => source.removeEventListener('abort', abort);
 }
 
+/** Creates the progressive HTML response and owns cancellation until its stream is closed. */
 export function progressiveHtmlResponse(
 	stream: ReadableStream<Uint8Array>,
 	options: RenderToProgressiveHtmlResponseOptions
@@ -44,11 +48,13 @@ export function progressiveHtmlResponse(
 	};
 }
 
+/** Tracks the state owned by progressive document. */
 export type ProgressiveDocumentState = {
 	html?: string;
 	hydration?: string;
 };
 
+/** Encodes one progressive HTML payload with the protocol framing expected by hydration. */
 export function progressiveHtmlChunk(
 	event: ExactDocumentStreamEvent,
 	options: RenderToProgressiveHtmlStreamOptions,
@@ -89,14 +95,17 @@ export function progressiveHtmlChunk(
 	}
 }
 
+/** Performs the progressive root id domain operation. */
 export function progressiveRootId(options: RenderToProgressiveHtmlStreamOptions): string {
 	return options.rootId ?? 'exact-root';
 }
 
+/** Reports whether header. */
 export function hasHeader(headers: Record<string, string>, name: string): boolean {
 	return Object.keys(headers).some((header) => header.toLowerCase() === name);
 }
 
+/** Applies a header to the owned runtime state. */
 export function setHeader(headers: Record<string, string>, name: string, value: string): void {
 	const existing = Object.keys(headers).find((header) => header.toLowerCase() === name);
 	if (existing) {
@@ -106,6 +115,7 @@ export function setHeader(headers: Record<string, string>, name: string, value: 
 	}
 }
 
+/** Serializes a progressive-render failure into a safe inline client notification script. */
 export function progressiveErrorScript(
 	error: unknown,
 	options: RenderToProgressiveHtmlStreamOptions
@@ -116,6 +126,7 @@ export function progressiveErrorScript(
 	return inlineScript(`console.error("eXact document stream failed");`, options);
 }
 
+/** Emits the script that replaces one resolved server boundary without touching sibling ranges. */
 export function scopedReplacementScript(
 	id: string,
 	html: string,
@@ -134,11 +145,13 @@ export function scopedReplacementScript(
 	);
 }
 
+/** Performs the inline script domain operation. */
 export function inlineScript(body: string, options: RenderToProgressiveHtmlStreamOptions): string {
 	const nonce = options.nonce === undefined ? '' : ` nonce="${escapeAttr(options.nonce)}"`;
 	return `<script${nonce}>${body}</script>`;
 }
 
+/** Performs the inline json string domain operation. */
 export function inlineJsonString(value: string): string {
 	return JSON.stringify(value)
 		.replace(/</g, '\\u003C')

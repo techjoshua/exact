@@ -5,6 +5,7 @@ import type { HelperNames } from '../../types.js';
 import type { DerivedReactiveIndex } from './contracts.js';
 import { expressionEmissionId } from './identity.js';
 import { visitReactiveSinkExpression } from './reactive-emission.js';
+/** Runs element with the supplied execution context. */
 export function callElement(
 	context: ts.TransformationContext,
 	tag: ts.Expression,
@@ -45,6 +46,7 @@ export function callElement(
 	);
 }
 
+/** Runs fragment with the supplied execution context. */
 export function callFragment(
 	context: ts.TransformationContext,
 	attributes: ts.JsxAttributes | undefined,
@@ -82,6 +84,7 @@ export function callFragment(
 	);
 }
 
+/** Performs the props object domain operation. */
 export function propsObject(
 	context: ts.TransformationContext,
 	attributes: ts.JsxAttributes | undefined,
@@ -152,12 +155,14 @@ export function propsObject(
 	return factory.createObjectLiteralExpression(properties, false);
 }
 
+/** Performs the prop name domain operation. */
 export function propName(name: string): ts.PropertyName {
 	return /^[$A-Z_a-z][$\w]*$/.test(name)
 		? ts.factory.createIdentifier(name)
 		: ts.factory.createStringLiteral(name);
 }
 
+/** Performs the children expressions domain operation. */
 export function childrenExpressions(
 	context: ts.TransformationContext,
 	children: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[],
@@ -199,6 +204,7 @@ export function childrenExpressions(
 	return output;
 }
 
+/** Reports whether planned jsx cell. */
 export function isPlannedJsxCell(
 	node: ts.JsxExpression,
 	kind: 'jsx-child' | 'jsx-attribute',
@@ -209,6 +215,7 @@ export function isPlannedJsxCell(
 	return plan.cells.get(expressionEmissionId(node) ?? '')?.kind === kind;
 }
 
+/** Reports whether wrap attribute. */
 export function shouldWrapAttribute(name: string, expression: ts.Expression): boolean {
 	if (name === 'key') return false;
 	if (name === 'ref') return false;
@@ -217,6 +224,7 @@ export function shouldWrapAttribute(name: string, expression: ts.Expression): bo
 	return true;
 }
 
+/** Performs the wrap dynamic child domain operation. */
 export function wrapDynamicChild(
 	context: ts.TransformationContext,
 	expression: ts.Expression,
@@ -238,6 +246,7 @@ export function wrapDynamicChild(
 	]);
 }
 
+/** Performs the wrap expression domain operation. */
 export function wrapExpression(
 	context: ts.TransformationContext,
 	expression: ts.Expression,

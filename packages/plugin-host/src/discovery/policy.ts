@@ -2,6 +2,7 @@ import type { ExactPluginDiscoveryConfig } from '@exact/config';
 import { assertPackageSelector } from '@exact/plugin-api';
 import type { ExactDiscoveryPolicy } from './contracts.js';
 
+/** Resolves a discovery policy. */
 export function resolveDiscoveryPolicy(
 	config: ExactPluginDiscoveryConfig | undefined
 ): ExactDiscoveryPolicy {

@@ -9,6 +9,7 @@ import {
 	readonlyMap
 } from './control-flow/inspection.js';
 
+/** Defines the control flow node interface contract. */
 export interface ControlFlowNode {
 	readonly id: string;
 	readonly expression: ExpressionNode;
@@ -22,6 +23,7 @@ export interface ControlFlowNode {
 	readonly terminal: boolean;
 }
 
+/** Defines the control flow graph interface contract. */
 export interface ControlFlowGraph {
 	readonly owner: ExpressionNode;
 	readonly entry?: string;

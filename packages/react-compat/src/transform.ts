@@ -2,6 +2,7 @@ import { rewriteModuleReferences, type ModuleExportReplacement } from '@exact/ex
 import ts from 'typescript';
 import { reactCompatibilityAliases } from './plugin.js';
 
+/** Configures react jsx transform. */
 export type ReactJsxTransformOptions = {
 	filename?: string;
 	target: 18 | 19;
@@ -9,6 +10,7 @@ export type ReactJsxTransformOptions = {
 	replacements?: readonly ModuleExportReplacement[];
 };
 
+/** Describes the result produced by react jsx transform. */
 export type ReactJsxTransformResult = { code: string; map: unknown; filename: string };
 
 const reactRuntimeModules = new Set([
@@ -26,6 +28,7 @@ const reactRuntimeModules = new Set([
 	'react-dom/static.node'
 ]);
 
+/** Performs the uses react runtime imports domain operation. */
 export function usesReactRuntimeImports(source: string, filename = 'input.tsx'): boolean {
 	const sourceFile = ts.createSourceFile(
 		filename,
@@ -67,6 +70,7 @@ export function usesReactRuntimeImports(source: string, filename = 'input.tsx'):
 	return referenced;
 }
 
+/** Transforms react jsx into its required representation. */
 export function transformReactJsx(
 	source: string,
 	options: ReactJsxTransformOptions

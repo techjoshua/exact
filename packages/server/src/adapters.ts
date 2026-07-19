@@ -7,6 +7,7 @@ import {
 import { handleExactRequest } from './runtime/request-handler.js';
 import type { ExactServerContext } from './types.js';
 
+/** Defines the exact express request type contract. */
 export type ExactExpressRequest = {
 	method: string;
 	originalUrl?: string;
@@ -20,6 +21,7 @@ export type ExactExpressRequest = {
 	removeListener?(event: 'aborted', listener: () => void): unknown;
 };
 
+/** Defines the exact express response type contract. */
 export type ExactExpressResponse = {
 	status(code: number): ExactExpressResponse;
 	setHeader(name: string, value: string): void;
@@ -32,6 +34,7 @@ export type ExactExpressResponse = {
 	removeListener?(event: 'close' | 'drain', listener: () => void): unknown;
 };
 
+/** Defines the exact hapi request type contract. */
 export type ExactHapiRequest = {
 	method: string;
 	url?: { href?: string; path?: string };
@@ -45,12 +48,14 @@ export type ExactHapiRequest = {
 	};
 };
 
+/** Defines the exact hapi toolkit type contract. */
 export type ExactHapiToolkit<Response extends ExactHapiResponse = ExactHapiResponse> = {
 	response(body: unknown): {
 		code(status: number): Response;
 	};
 };
 
+/** Defines the exact hapi response type contract. */
 export type ExactHapiResponse = {
 	header(name: string, value: string): ExactHapiResponse;
 };

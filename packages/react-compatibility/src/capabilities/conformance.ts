@@ -5,6 +5,7 @@ import {
 	type ReactCompatibilityModule
 } from './inventory.js';
 
+/** Defines the conformance trace type contract. */
 export type ConformanceTrace = Readonly<{
 	baseline: ReactBaseline;
 	version: string;
@@ -19,6 +20,7 @@ export type ConformanceTrace = Readonly<{
 	}>;
 }>;
 
+/** Defines the trace difference type contract. */
 export type TraceDifference = Readonly<{ path: string; expected: unknown; actual: unknown }>;
 
 /** Compares observable scenario output while allowing version/export inventories to differ by baseline. */
@@ -33,6 +35,7 @@ export function compareConformanceTraces(
 	return differences;
 }
 
+/** Performs the capability for domain operation. */
 export function capabilityFor(
 	module: ReactCompatibilityModule,
 	name: string,

@@ -43,6 +43,7 @@ export async function act<T>(callback: () => T | Promise<T>): Promise<T> {
 		ReactSharedInternals19.isBatchingLegacy = previousBatching19;
 	}
 }
+/** Provides the canonical unstable act value. */
 export const unstable_act = act;
 
 function flushCompatibilityActQueue(

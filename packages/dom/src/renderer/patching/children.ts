@@ -26,6 +26,7 @@ import {
 } from '../teardown.js';
 import { patch } from './root.js';
 
+/** Performs the patch children domain operation. */
 export function patchChildren(
 	root: Root,
 	parent: Node,
@@ -59,6 +60,7 @@ export function patchChildren(
 	);
 }
 
+/** Performs the patch children inner domain operation. */
 export function patchChildrenInner(
 	root: Root,
 	parent: Node,
@@ -123,6 +125,7 @@ export function patchChildrenInner(
 	return nextMounted;
 }
 
+/** Performs the rerender component domain operation. */
 export function rerenderComponent(root: Root, mounted: Mounted): void {
 	if (!mounted.instance) return;
 	if (!mounted.scope.active) return;
@@ -158,6 +161,7 @@ export function rerenderComponent(root: Root, mounted: Mounted): void {
 	}
 }
 
+/** Performs the bind text domain operation. */
 export function bindText(mounted: Mounted, value: unknown): void {
 	mounted.stop?.();
 	const node = mounted.dom as CharacterData;

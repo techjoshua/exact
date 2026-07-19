@@ -13,12 +13,14 @@ import {
 export { renderToReadableStream, renderToStaticMarkup, renderToString };
 export type { ServerRenderOptions };
 
+/** Configures pipeable stream. */
 export interface PipeableStreamOptions extends ServerRenderOptions {
 	onShellReady?: () => void;
 	onShellError?: (error: unknown) => void;
 	onAllReady?: () => void;
 }
 
+/** Defines the pipeable stream interface contract. */
 export interface PipeableStream {
 	pipe(destination: Writable): Writable;
 	abort(reason?: unknown): void;
@@ -28,14 +30,17 @@ function nodeStream(html: string): Readable {
 	return Readable.from([html]);
 }
 
+/** Transforms to node stream into its required representation. */
 export function renderToNodeStream(node: ReactNode, options?: ServerRenderOptions): Readable {
 	return nodeStream(renderReactToString(node, options));
 }
 
+/** Transforms to static node stream into its required representation. */
 export function renderToStaticNodeStream(node: ReactNode, options?: ServerRenderOptions): Readable {
 	return nodeStream(renderReactToString(node, options));
 }
 
+/** Transforms to pipeable stream into its required representation. */
 export function renderToPipeableStream(
 	node: ReactNode,
 	options: PipeableStreamOptions = {}

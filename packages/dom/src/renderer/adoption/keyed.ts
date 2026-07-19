@@ -4,6 +4,7 @@ import type { Mounted, Root } from '../../types.js';
 import { unmountMany } from '../teardown.js';
 import { adoptStaticMounted } from './tree.js';
 
+/** Performs the adopt keyed list children domain operation. */
 export function adoptKeyedListChildren(
 	root: Root,
 	vnodes: VNode[],
@@ -56,6 +57,7 @@ export function adoptKeyedListChildren(
 	return mounts;
 }
 
+/** Reports whether item marker for key. */
 export function isItemMarkerForKey(marker: string, key: string): boolean {
 	if (!marker.startsWith('exact:item:')) return false;
 	const encoded = marker.slice('exact:item:'.length);

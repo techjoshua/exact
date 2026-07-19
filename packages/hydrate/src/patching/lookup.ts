@@ -2,6 +2,7 @@ import { encodeExactMarkerPart } from '@exact/core';
 import { walkDomSubtree } from '@exact/dom';
 import { type ExactRange, type ProtocolIndex } from './planning.js';
 
+/** Resolves an exact target. */
 export function findExactTarget(
 	container: Element,
 	id: string,
@@ -17,6 +18,7 @@ export function findExactTarget(
 	return undefined;
 }
 
+/** Resolves an exact element. */
 export function findExactElement(
 	container: Element,
 	id: string,
@@ -26,6 +28,7 @@ export function findExactElement(
 	return findElementByExactAttribute(container, 'data-exact-id', id);
 }
 
+/** Resolves a server slot element. */
 export function findServerSlotElement(
 	container: Element,
 	id: string,
@@ -35,6 +38,7 @@ export function findServerSlotElement(
 	return findElementByExactAttribute(container, 'data-exact-server-slot', id);
 }
 
+/** Resolves a client boundary element. */
 export function findClientBoundaryElement(
 	container: Element,
 	id: string,
@@ -44,6 +48,7 @@ export function findClientBoundaryElement(
 	return findElementByExactAttribute(container, 'data-exact-client-boundary', id);
 }
 
+/** Resolves an element by exact attribute. */
 export function findElementByExactAttribute(
 	container: Element,
 	attribute: string,
@@ -56,6 +61,7 @@ export function findElementByExactAttribute(
 	return match;
 }
 
+/** Resolves an exact element target. */
 export function findExactElementTarget(
 	container: Element,
 	id: string,
@@ -73,6 +79,7 @@ export function findExactElementTarget(
 	return undefined;
 }
 
+/** Resolves an exact range. */
 export function findExactRange(
 	container: Element,
 	id: string,
@@ -90,6 +97,7 @@ export function findExactRange(
 	return result;
 }
 
+/** Resolves an exact item range. */
 export function findExactItemRange(
 	container: Element,
 	key: string,
@@ -116,6 +124,7 @@ export function findExactItemRange(
 	return result;
 }
 
+/** Reports whether exact item start. */
 export function isExactItemStart(comment: Comment, key: string): boolean {
 	if (!comment.data.startsWith('exact:item:')) return false;
 	const suffix = comment.data.slice(comment.data.lastIndexOf(':') + 1);
@@ -124,6 +133,7 @@ export function isExactItemStart(comment: Comment, key: string): boolean {
 	);
 }
 
+/** Resolves an indexed item. */
 export function findIndexedItem(
 	index: ProtocolIndex,
 	listId: string,

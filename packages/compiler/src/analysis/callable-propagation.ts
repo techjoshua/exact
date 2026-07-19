@@ -15,6 +15,7 @@ import type { CallableAnalysisState } from './callable-state.js';
 import { callableArtifactTargets, callableSccOrder } from './callable-targets.js';
 import { externalKey, prepend, sourceSignature, uniqueSources } from './effect-sources.js';
 
+/** Resolves a callable effects. */
 export function resolveCallableEffects(state: CallableAnalysisState): CallableEffectPlan {
 	const { mutable, external, callNodeIds } = state;
 	// Resolve callee SCCs before callers, then run a monotone fixed point only

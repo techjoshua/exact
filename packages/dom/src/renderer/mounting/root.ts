@@ -46,6 +46,7 @@ import {
 	withEventContainer
 } from './children.js';
 
+/** Performs the mount domain operation. */
 export function mount(
 	root: Root,
 	vnode: VNode,
@@ -66,6 +67,7 @@ export function mount(
 	});
 }
 
+/** Performs the mount inner domain operation. */
 export function mountInner(
 	root: Root,
 	vnode: VNode,

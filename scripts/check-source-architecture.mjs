@@ -126,14 +126,43 @@ function inspectOwnershipName(relative) {
 
 function inspectSize(file, source, isTest = false) {
 	const relative = repositoryPath(file);
-	const text = source ?? '';
-	const logicalLines = text
-		.split(/\r?\n/)
-		.filter((line) => line.trim() && !line.trim().startsWith('//')).length;
+	const logicalLines = logicalLineCount(source ?? '');
 	const limit = isTest ? 600 : 400;
 	if (logicalLines > limit) {
 		violations.push(`${relative}: ${logicalLines} logical lines exceeds the ${limit}-line limit`);
 	}
+}
+
+function logicalLineCount(source) {
+	let inBlockComment = false;
+	let count = 0;
+	for (const line of source.split(/\r?\n/)) {
+		let code = line;
+		if (inBlockComment) {
+			const end = code.indexOf('*/');
+			if (end < 0) continue;
+			code = code.slice(end + 2);
+			inBlockComment = false;
+		}
+		while (true) {
+			const block = code.indexOf('/*');
+			const single = code.indexOf('//');
+			if (single >= 0 && (block < 0 || single < block)) {
+				code = code.slice(0, single);
+				break;
+			}
+			if (block < 0) break;
+			const end = code.indexOf('*/', block + 2);
+			if (end < 0) {
+				code = code.slice(0, block);
+				inBlockComment = true;
+				break;
+			}
+			code = code.slice(0, block) + code.slice(end + 2);
+		}
+		if (code.trim()) count++;
+	}
+	return count;
 }
 
 async function inspectFlatClusters(sourceRoot) {

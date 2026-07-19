@@ -10,6 +10,7 @@ import {
 
 export { Fragment };
 
+/** Provides the canonical  value. */
 export const _ = Fragment as unknown as ComponentFunction<any, { children?: Child | Child[] }>;
 
 type Props = Record<string, unknown> & {

@@ -1,5 +1,7 @@
+/** Defines the reactive type contract. */
 export type Reactive<T> = T;
 
+/** Defines the reactive ref type contract. */
 export type ReactiveRef<T = unknown> = {
 	readonly target: object;
 	readonly key: PropertyKey;
@@ -7,6 +9,7 @@ export type ReactiveRef<T = unknown> = {
 	set(value: T): void;
 };
 
+/** Defines the reactive value type contract. */
 export type ReactiveValue<T = unknown> = {
 	get(): T;
 	toJSON(): T;
@@ -15,8 +18,10 @@ export type ReactiveValue<T = unknown> = {
 	[Symbol.toPrimitive](): T;
 };
 
+/** Defines the dep type contract. */
 export type Dep = Set<Reaction>;
 
+/** Defines the reaction type contract. */
 export type Reaction = {
 	active: boolean;
 	scheduled: boolean;
@@ -27,19 +32,23 @@ export type Reaction = {
 	stop(): void;
 };
 
+/** Configures reactive. */
 export type ReactiveOptions = {
 	readonly?: boolean;
 	passthroughKeys?: readonly PropertyKey[];
 	onReadonlyWrite?(key: PropertyKey): void;
 };
 
+/** Defines the stop handle type contract. */
 export type StopHandle = () => void;
 
+/** Defines the effect scope type contract. */
 export type EffectScope = {
 	active: boolean;
 	stop(): void;
 };
 
+/** Defines the effect scope impl type contract. */
 export type EffectScopeImpl = EffectScope & {
 	parent?: EffectScopeImpl;
 	children: Set<EffectScopeImpl>;
@@ -49,6 +58,7 @@ export type EffectScopeImpl = EffectScope & {
 	onProfile?: ExactProfileSink<ReactiveProfileEvent>;
 };
 
+/** Configures watch. */
 export type WatchOptions = {
 	scope?: EffectScope;
 	onSchedule?(): void;
@@ -56,4 +66,5 @@ export type WatchOptions = {
 };
 import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation';
 
+/** Reports an observable reactive profile event. */
 export type ReactiveProfileEvent = ExactProfileEvent<'reactive', 'flush'>;

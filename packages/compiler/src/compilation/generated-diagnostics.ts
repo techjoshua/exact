@@ -5,6 +5,7 @@ import type { ExactCompilerSession } from '../expression/project.js';
 import type { TransformTarget } from '../types.js';
 import { sessionExpressionModule } from './analysis-results.js';
 
+/** Validates target analysis and throws when the contract is violated. */
 export function validateTargetAnalysis(
 	effects: ReturnType<typeof analyzeCallableEffects>,
 	target: TransformTarget,
@@ -35,6 +36,7 @@ export function validateTargetAnalysis(
 		}
 }
 
+/** Produces an expression rewrite in its external representation. */
 export function emitExpressionRewrite(
 	module: BoundModule,
 	generated: string,
@@ -107,6 +109,7 @@ export function emitExpressionRewrite(
 	return rebound.emit().code;
 }
 
+/** Performs the diagnostic from type script domain operation. */
 export function diagnosticFromTypeScript(diagnostic: ts.Diagnostic): {
 	code: string;
 	message: string;
@@ -135,6 +138,7 @@ export function diagnosticFromTypeScript(diagnostic: ts.Diagnostic): {
 	};
 }
 
+/** Performs the throw located compiler diagnostics domain operation. */
 export function throwLocatedCompilerDiagnostics(
 	filename: string,
 	sourceFile: ts.SourceFile,
@@ -152,6 +156,7 @@ export function throwLocatedCompilerDiagnostics(
 	);
 }
 
+/** Performs the diagnostic identity domain operation. */
 export function diagnosticIdentity(
 	diagnostic: { code: string; message: string; span?: { start: number; end: number } },
 	source: string
@@ -167,6 +172,7 @@ export function diagnosticIdentity(
 	return `${diagnostic.code}:${diagnostic.message}:${token}:${line}`;
 }
 
+/** Reports whether synthetic helper diagnostic. */
 export function isSyntheticHelperDiagnostic(
 	diagnostic: { code: string; span?: { start: number; end: number } },
 	source: string,

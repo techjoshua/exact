@@ -12,6 +12,7 @@ export class ExpressionDirectiveIndex {
 		private readonly counters: ProjectionCounters
 	) {}
 
+	/** Performs the for domain operation for this expression directive index instance. */
 	for(node: ts.Node | undefined, inline = false): readonly ExpressionDirective[] {
 		if (!node) return Object.freeze([]);
 		const cache = inline ? this.inlineDeclarations : this.declarations;
@@ -53,6 +54,7 @@ export class ExpressionDirectiveIndex {
 		return directives;
 	}
 
+	/** Performs the for binding domain operation for this expression directive index instance. */
 	forBinding(node: ts.Node | undefined): readonly ExpressionDirective[] {
 		if (!node) return Object.freeze([]);
 		const values = [...this.for(node, ts.isVariableDeclaration(node))];
@@ -65,6 +67,7 @@ export class ExpressionDirectiveIndex {
 		return Object.freeze(uniqueDirectives(values));
 	}
 
+	/** Performs the for type domain operation for this expression directive index instance. */
 	forType(type: ts.Type): readonly ExpressionDirective[] {
 		const symbol = type.aliasSymbol ?? type.getSymbol();
 		return Object.freeze(
@@ -73,6 +76,7 @@ export class ExpressionDirectiveIndex {
 	}
 }
 
+/** Reads an expression directives from its source representation. */
 export function parseExpressionDirectives(
 	text: string,
 	offset: number,
@@ -107,6 +111,7 @@ export function parseExpressionDirectives(
 	return directives;
 }
 
+/** Performs the unique directives domain operation. */
 export function uniqueDirectives(values: readonly ExpressionDirective[]): ExpressionDirective[] {
 	return [
 		...new Map(
@@ -115,6 +120,7 @@ export function uniqueDirectives(values: readonly ExpressionDirective[]): Expres
 	];
 }
 
+/** Performs the fingerprint domain operation. */
 export function fingerprint(value: string): string {
 	let hash = 2166136261;
 	for (let index = 0; index < value.length; index++) {

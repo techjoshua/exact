@@ -3,9 +3,11 @@ const javascriptProtocol =
 
 const urlAttributes = new Set(['action', 'formaction', 'href', 'src', 'xlink:href', 'xlinkhref']);
 
+/** Provides the canonical blocked javascript url value. */
 export const BLOCKED_JAVASCRIPT_URL =
 	"javascript:throw new Error('eXact has blocked a javascript: URL as a security precaution.')";
 
+/** Reports whether url attribute. */
 export function isUrlAttribute(name: string): boolean {
 	return urlAttributes.has(name.toLowerCase());
 }

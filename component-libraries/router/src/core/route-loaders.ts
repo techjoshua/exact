@@ -1,6 +1,7 @@
 import type { ExactDataFunctionArgs, ExactRouteDefinition, RouteMatch } from './contracts.js';
 import { redirectResult, unwrapDataResult } from './data-operations.js';
 
+/** Describes the result produced by route loader. */
 export type RouteLoaderResult = Readonly<{
 	data: Record<string, unknown>;
 	errors: Record<string, unknown>;

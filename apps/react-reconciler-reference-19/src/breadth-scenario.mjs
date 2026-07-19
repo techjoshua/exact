@@ -5,6 +5,7 @@ import { Document, Page, Text as PdfText, View, renderToBuffer } from "@react-pd
 
 const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 
+/** Runs breadth scenario with the supplied execution context. */
 export async function runBreadthScenario() {
   const inkOutput = new PassThrough();
   inkOutput.columns = 80;

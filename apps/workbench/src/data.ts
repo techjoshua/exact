@@ -1,7 +1,9 @@
 import type { Column, Priority, Status, Task } from './types.js';
 
+/** Provides the canonical storage key value. */
 export const storageKey = 'exact-workbench-tasks';
 
+/** Provides the canonical columns value. */
 export const columns: Column[] = [
 	{ id: 'backlog', title: 'Backlog' },
 	{ id: 'active', title: 'Active' },
@@ -9,8 +11,10 @@ export const columns: Column[] = [
 	{ id: 'done', title: 'Done' }
 ];
 
+/** Provides the canonical priorities value. */
 export const priorities: Priority[] = ['low', 'medium', 'high'];
 
+/** Provides the canonical statuses value. */
 export const statuses: Status[] = columns.map((column) => column.id);
 
 /**

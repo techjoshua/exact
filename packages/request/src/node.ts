@@ -7,6 +7,7 @@ import {
 	type RequestScope
 } from './context.js';
 
+/** Creates a node request storage. */
 export function createNodeRequestStorage(): RequestContextStorage {
 	const storage = new AsyncLocalStorage<RequestContextValue>();
 	return {
@@ -15,6 +16,7 @@ export function createNodeRequestStorage(): RequestContextStorage {
 	};
 }
 
+/** Creates a node request scope. */
 export function createNodeRequestScope(): RequestScope {
 	return createRequestScope(createNodeRequestStorage());
 }

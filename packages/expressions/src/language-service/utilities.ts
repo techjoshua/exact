@@ -3,6 +3,7 @@ import ts from 'typescript';
 import type { ExpressionDiagnostic } from '../model.js';
 import type { ExpressionLanguageServiceUpdate } from './contracts.js';
 
+/** Performs the freeze update domain operation. */
 export function freezeUpdate(
 	generation: number,
 	changedFiles: readonly string[],
@@ -17,6 +18,7 @@ export function freezeUpdate(
 	});
 }
 
+/** Performs the unique diagnostics domain operation. */
 export function uniqueDiagnostics(
 	diagnostics: readonly ExpressionDiagnostic[]
 ): ExpressionDiagnostic[] {
@@ -29,6 +31,7 @@ export function uniqueDiagnostics(
 	});
 }
 
+/** Performs the diagnostic from ts domain operation. */
 export function diagnosticFromTs(
 	diagnostic: ts.Diagnostic,
 	phase: ExpressionDiagnostic['phase']
@@ -55,27 +58,33 @@ export function diagnosticFromTs(
 	};
 }
 
+/** Reports whether configuration dependency. */
 export function isConfigurationDependency(filename: string): boolean {
 	return /(?:^|[\\/])(?:tsconfig(?:\.[^\\/]+)?\.json|package\.json)$/i.test(filename);
 }
 
+/** Reports whether script. */
 export function isScript(filename: string): boolean {
 	return /\.[cm]?[jt]sx?$/i.test(filename);
 }
 
+/** Reports whether tsx. */
 export function isTsx(filename: string): boolean {
 	return /\.[cm]?[jt]sx$/i.test(filename);
 }
 
+/** Performs the display file domain operation. */
 export function displayFile(filename: string): string {
 	return path.resolve(filename).replaceAll('\\', '/');
 }
 
+/** Performs the canonical file domain operation. */
 export function canonicalFile(filename: string): string {
 	const displayed = displayFile(filename);
 	return ts.sys.useCaseSensitiveFileNames ? displayed : displayed.toLowerCase();
 }
 
+/** Performs the hash domain operation. */
 export function hash(value: string): string {
 	return ts.sys.createHash?.(value) ?? String(value.length);
 }

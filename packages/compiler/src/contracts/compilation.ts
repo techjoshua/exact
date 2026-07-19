@@ -14,12 +14,14 @@ import type {
 	TransformResult
 } from './transform.js';
 
+/** Configures compile file. */
 export type CompileFileOptions = TransformOptions & {
 	outDir?: string;
 	rootDir?: string;
 	emitManifest?: boolean;
 };
 
+/** Describes the result produced by compile file. */
 export type CompileFileResult = TransformResult & {
 	inputFile: string;
 	outputFile?: string;
@@ -27,12 +29,14 @@ export type CompileFileResult = TransformResult & {
 	manifestFile?: string;
 };
 
+/** Configures compile project. */
 export type CompileProjectOptions = TransformOptions & {
 	outDir?: string;
 	rootDir?: string;
 	emitManifest?: boolean;
 };
 
+/** Configures compile artifacts. */
 export type CompileArtifactsOptions = {
 	outDir: string;
 	rootDir?: string;
@@ -53,6 +57,7 @@ export type CompileArtifactsOptions = {
 	discoverPackageManifests?: boolean;
 };
 
+/** Describes the result produced by compile artifacts. */
 export type CompileArtifactsResult = {
 	inputFile: string;
 	clientFile: string;
@@ -67,6 +72,7 @@ export type CompileArtifactsResult = {
 	manifest: ExactCompilerManifest;
 };
 
+/** Defines the exact artifact graph input type contract. */
 export type ExactArtifactGraphInput = {
 	inputFile: string;
 	clientFile: string;
@@ -76,6 +82,7 @@ export type ExactArtifactGraphInput = {
 	manifest: ExactCompilerManifest;
 };
 
+/** Configures compile artifact plan entries. */
 export type CompileArtifactPlanEntriesOptions = {
 	filename?(entry: ExactArtifactPlanEntry): string;
 	importedManifests?: readonly ExactCompilerManifest[];
@@ -94,6 +101,7 @@ export type CompileArtifactPlanEntriesOptions = {
 	discoverPackageManifests?: boolean;
 };
 
+/** Defines the exact discovered package manifest type contract. */
 export type ExactDiscoveredPackageManifest = {
 	packageName: string;
 	packageRoot: string;
@@ -101,16 +109,19 @@ export type ExactDiscoveredPackageManifest = {
 	manifest: ExactCompilerManifest;
 };
 
+/** Configures exact artifact plan. */
 export type ExactArtifactPlanOptions = {
 	outDir: string;
 	rootDir?: string;
 };
 
+/** Describes the planned exact artifact operation. */
 export type ExactArtifactPlan = {
 	rootDir: string;
 	entries: ExactArtifactPlanEntry[];
 };
 
+/** Defines the exact artifact plan entry type contract. */
 export type ExactArtifactPlanEntry = {
 	inputFile: string;
 	clientFile: string;
@@ -119,6 +130,7 @@ export type ExactArtifactPlanEntry = {
 	manifestFile: string;
 };
 
+/** Defines the exact artifact plan diff type contract. */
 export type ExactArtifactPlanDiff = {
 	added: ExactArtifactPlanEntry[];
 	removed: ExactArtifactPlanEntry[];
@@ -126,18 +138,22 @@ export type ExactArtifactPlanDiff = {
 	retained: ExactArtifactPlanEntry[];
 };
 
+/** Configures exact artifact plan diff. */
 export type ExactArtifactPlanDiffOptions = {
 	changedInputs?: readonly string[];
 };
 
+/** Configures exact artifact dev state. */
 export type ExactArtifactDevStateOptions = CompileArtifactsOptions & ExactArtifactGraphOptions;
 
+/** Tracks the state owned by exact artifact dev. */
 export type ExactArtifactDevState = {
 	plan: ExactArtifactPlan;
 	entries: ExactArtifactGraphEntry[];
 	graph: ExactArtifactGraph;
 };
 
+/** Defines the exact artifact dev state update type contract. */
 export type ExactArtifactDevStateUpdate = ExactArtifactDevState & {
 	diff: ExactArtifactPlanDiff;
 	compiled: CompileArtifactsResult[];

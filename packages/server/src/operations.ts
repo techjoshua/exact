@@ -18,6 +18,7 @@ import {
 	stateMatchesContract
 } from './validation.js';
 
+/** Describes the result produced by exact security. */
 export type ExactSecurityResult = 'allowed' | 'unauthorized' | 'csrf';
 
 /** Returns whether an operation result is the protocol's structured error variant. */

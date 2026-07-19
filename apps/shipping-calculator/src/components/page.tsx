@@ -6,6 +6,7 @@ import { configuredProviderIds, quoteProvider } from '../providers/registry.js';
 import { CalculatorWorkspace } from './workspace.js';
 import type { PageState } from './workspace/contracts.js';
 
+/** Performs the shipping calculator page domain operation. */
 export function ShippingCalculatorPage(this: Component<PageState>, props: { url: string }) {
 	const parsed = draftFromUrl(new URL(props.url));
 	const request = normalizeDraft(parsed.draft);
