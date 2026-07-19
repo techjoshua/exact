@@ -5,6 +5,7 @@ import { flushSync } from '@exact/reactive';
 import { QueryClient } from '@tanstack/query-core';
 import { build } from 'esbuild';
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { createComponentQuery, ExactQueryClientProvider, QueryClientContext } from './index.js';
 import { QueryClientProvider } from './provider.js';
@@ -53,7 +54,8 @@ describe('@exact/tanstack-query', () => {
 			stdin: {
 				contents: await readFile(new URL('./index.ts', import.meta.url), 'utf8'),
 				loader: 'ts',
-				sourcefile: 'native-tanstack-query.ts'
+				sourcefile: 'native-tanstack-query.ts',
+				resolveDir: fileURLToPath(new URL('.', import.meta.url))
 			},
 			bundle: true,
 			external: ['@tanstack/query-core', '@exact/core', '@exact/reactive'],

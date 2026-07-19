@@ -11,7 +11,7 @@ import {
 	type ReactComponentType,
 	type ReactNode
 } from '@exact/react-compat';
-import { matchPath as exactMatchPath, type RouteLocation } from './index.js';
+import { matchPath as exactMatchPath, type RouteLocation } from './components.js';
 import {
 	BrowserRouter,
 	HashRouter,

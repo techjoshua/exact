@@ -2,7 +2,7 @@ import {
 	compilerSessionForWebpackLoader,
 	transformExactWebpackSourceAsync,
 	type ExactWebpackPluginOptions
-} from './index.js';
+} from './plugin.js';
 
 type ExactWebpackLoaderOptions = ExactWebpackPluginOptions & { __exactSessionId?: string };
 

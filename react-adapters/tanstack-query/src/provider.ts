@@ -1,6 +1,6 @@
 import type { ReactComponentType } from '@exact/react-compat';
 import { exposeExactComponent } from '@exact/react-compat/interop';
-import { ExactQueryClientProvider, type ExactQueryClientProviderProps } from './index.js';
+import { ExactQueryClientProvider, type ExactQueryClientProviderProps } from './adapter.js';
 
 /** React-facing replacement that mounts the native provider boundary. */
 export const QueryClientProvider: ReactComponentType<ExactQueryClientProviderProps> =

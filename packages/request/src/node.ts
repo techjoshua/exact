@@ -5,7 +5,7 @@ import {
 	type RequestContextStorage,
 	type RequestContextValue,
 	type RequestScope
-} from './index.js';
+} from './context.js';
 
 export function createNodeRequestStorage(): RequestContextStorage {
 	const storage = new AsyncLocalStorage<RequestContextValue>();

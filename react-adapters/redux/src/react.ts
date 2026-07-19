@@ -16,7 +16,7 @@ import {
 	ReduxStoreContext,
 	type ExactReduxProviderProps,
 	type ReduxStore
-} from './index.js';
+} from './adapter.js';
 
 const NativeProvider = exposeExactComponent(ExactReduxProvider, 'ReduxProvider');
 export const Provider: ReactComponentType<ExactReduxProviderProps> = function ReduxProvider(

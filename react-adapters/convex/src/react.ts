@@ -5,7 +5,7 @@ import {
 	ExactConvexProvider,
 	type ConvexClient,
 	type ExactConvexProviderProps
-} from './index.js';
+} from './adapter.js';
 
 export const ConvexProvider: ReactComponentType<ExactConvexProviderProps> = exposeExactComponent(
 	ExactConvexProvider,
