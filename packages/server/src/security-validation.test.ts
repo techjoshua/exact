@@ -211,7 +211,7 @@ describe('@exact/server security-validation', () => {
 	});
 
 	it('normalizes undefined optional request fields like JSON transport', async () => {
-		const action = vi.fn(() => ({ patches: [] }));
+		const action = vi.fn((_request: unknown) => ({ patches: [] }));
 		const result = await handleExactRequest(
 			{
 				method: 'POST',

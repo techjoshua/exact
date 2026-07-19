@@ -45,6 +45,9 @@ async function inspectSource(file) {
 	const isTest =
 		/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(relative) || relative.includes('/test-support/');
 	inspectSize(file, source, isTest);
+	if (/\/index\.(?:test|spec)\.[cm]?[jt]sx?$/.test(relative)) {
+		violations.push(`${relative}: tests must be named for the behavior they exercise`);
+	}
 	if (isTest) return;
 
 	const sourceFile = ts.createSourceFile(
