@@ -1,4 +1,4 @@
-import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation';
+import type { ExactProfileSink } from '@exact/instrumentation';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import ts from 'typescript';
@@ -7,16 +7,25 @@ import type {
 	ExpressionDiagnostic,
 	ExpressionDirective,
 	ExpressionNode,
-	ExpressionScope,
 	ExpressionSymbol,
 	ExpressionType,
-	ExpressionTypeKind,
-	ScopeKind,
 	SourceSpan,
 	Variable
 } from './model.js';
 import { createModule, type BoundModule, type UnboundModule } from './module.js';
 import { ExclusiveTimer } from './profiling.js';
+import type {
+	ExpressionProjectOptions,
+	ExpressionProjectProfileEvent,
+	ExpressionProjectStats,
+	TypeProjectionBucket
+} from './project/contracts.js';
+import { ProjectScope, ProjectType, ProjectVariable } from './project/projection-model.js';
+export type {
+	ExpressionProjectOptions,
+	ExpressionProjectProfileEvent,
+	ExpressionProjectStats
+} from './project/contracts.js';
 import { parseExpressionDirectives, uniqueDirectives } from './project/directives.js';
 import { diskFileVersion } from './project/filesystem.js';
 import {
@@ -46,86 +55,6 @@ import {
 	typeKind
 } from './project/syntax.js';
 
-export interface ExpressionProjectOptions {
-	readonly tsconfigPath?: string;
-	readonly cwd?: string;
-	/** Keeps independently supplied virtual sources out of TypeScript's shared script global scope. */
-	readonly forceModuleDetection?: boolean;
-	/** Controls diagnostic collection without disabling TypeChecker-backed binding. */
-	readonly diagnostics?: 'syntax' | 'full';
-	/** Receives opt-in phase timings and structural counters for profiling. */
-	readonly onProfile?: ExactProfileSink<ExpressionProjectProfileEvent>;
-	/**
-	 * Controls instrumentation granularity.
-	 *
-	 * Detailed profiling samples internal projection stages and therefore adds
-	 * per-node timing overhead. It should be enabled for investigations, not
-	 * routine production telemetry.
-	 */
-	readonly profileDetail?: 'summary' | 'detailed';
-}
-
-export type ExpressionProjectProfileEvent = ExactProfileEvent<
-	'expressions',
-	| 'configuration'
-	| 'program'
-	| 'syntax-diagnostics'
-	| 'semantic-diagnostics'
-	| 'module-projection'
-	| 'projection-identity'
-	| 'projection-node-conversion'
-	| 'projection-node-metadata'
-	| 'projection-node-types'
-	| 'projection-node-bindings'
-	| 'projection-node-common'
-	| 'projection-node-specialization'
-	| 'projection-node-overhead'
-	| 'projection-finalization'
-	| 'projection-type-display'
-	| 'projection-type-members'
-	| 'projection-type-signatures'
-	| 'projection-type-properties'
-	| 'projection-type-arguments'
-	| 'projection-type-directives'
-	| 'projection-type-construction'
-> &
-	Readonly<{
-		filename?: string;
-		fileCount?: number;
-		nodeCount?: number;
-		typeCount?: number;
-		shallowTypeCount?: number;
-		symbolCount?: number;
-		scopeCount?: number;
-		typeCacheHits?: number;
-		typeCacheMisses?: number;
-		shallowTypeCacheHits?: number;
-		shallowTypeCacheMisses?: number;
-		checkerTypeQueries?: number;
-		checkerSymbolQueries?: number;
-		resolvedSignatureQueries?: number;
-		directiveScans?: number;
-		directiveCharacters?: number;
-	}>;
-
-export type ExpressionProjectStats = Readonly<{
-	rebuilds: number;
-	semanticDiagnostics: number;
-	overlays: number;
-	sourceFiles: number;
-	nodeIdentityRoots: number;
-	symbolIdentities: number;
-}>;
-
-type TypeProjectionBucket =
-	| 'display'
-	| 'members'
-	| 'signatures'
-	| 'properties'
-	| 'arguments'
-	| 'directives'
-	| 'construction';
-
 export class ExpressionProjectError extends Error {
 	constructor(readonly diagnostics: readonly ExpressionDiagnostic[]) {
 		super(diagnostics.map(formatExpressionDiagnostic).join('\n'));
@@ -140,72 +69,6 @@ function formatExpressionDiagnostic(diagnostic: ExpressionDiagnostic): string {
 			? `${diagnostic.span.line}:${diagnostic.span.column}`
 			: undefined;
 	return `${location ? `${location} - ` : ''}${diagnostic.code}: ${diagnostic.message}`;
-}
-
-class ProjectScope implements ExpressionScope {
-	private owned: Variable[] = [];
-	private readonly members = new Set<Variable>();
-	constructor(
-		readonly id: string,
-		readonly kind: ScopeKind,
-		readonly parent?: ExpressionScope
-	) {}
-	get variables(): readonly Variable[] {
-		return this.owned;
-	}
-	add(variable: Variable): void {
-		if (this.members.has(variable)) return;
-		this.members.add(variable);
-		this.owned.push(variable);
-	}
-	seal(): void {
-		Object.freeze(this.owned);
-	}
-}
-
-class ProjectVariable implements Variable {
-	readonly id: string;
-	constructor(
-		readonly symbol: ExpressionSymbol,
-		name: string,
-		kind: string,
-		scope: ExpressionScope,
-		readonly mutable: boolean,
-		readonly synthetic = false
-	) {
-		this.id = symbol.id;
-		this.name = name;
-		this.declarationKind = kind;
-		this.scope = scope;
-	}
-	readonly name: string;
-	readonly declarationKind: string;
-	readonly scope: ExpressionScope;
-	type?: ExpressionType;
-	exported = false;
-	importedFrom?: string;
-	typeOnly = false;
-	directives?: readonly ExpressionDirective[];
-}
-
-class ProjectType implements ExpressionType {
-	constructor(
-		readonly id: string,
-		readonly kind: ExpressionTypeKind,
-		readonly display: string,
-		readonly nullable: boolean,
-		readonly callable: boolean,
-		readonly properties: readonly string[],
-		readonly propertyTypes: ExpressionType['propertyTypes'],
-		readonly unionMembers: readonly ExpressionType[],
-		readonly callSignatures: readonly ExpressionCallSignature[],
-		readonly typeArguments: readonly ExpressionType[],
-		readonly typeParameters: readonly string[],
-		readonly collectionKind?: 'array' | 'readonly-array' | 'tuple',
-		readonly directives?: readonly ExpressionDirective[]
-	) {
-		Object.freeze(this);
-	}
 }
 
 /** Project-aware TypeScript bridge. No TypeScript compiler objects escape this class. */
