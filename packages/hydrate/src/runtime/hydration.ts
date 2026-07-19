@@ -41,7 +41,9 @@ export function hydrateRoot(
 	container: Element | Document,
 	options: HydrateOptions
 ): HydrationRoot {
-	const documentNode = container instanceof Document ? container : undefined;
+	// A DOM can be supplied by a window that is not installed on globalThis.
+	// nodeType avoids coupling hydration to that realm's Document constructor.
+	const documentNode = container.nodeType === 9 ? (container as Document) : undefined;
 	const rootContainer = documentNode?.documentElement ?? (container as Element);
 	const existing = roots.get(rootContainer);
 	if (existing) {
