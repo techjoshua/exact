@@ -1,0 +1,8 @@
+export default {
+	plugins: {
+		microfrontends(config) {
+			config.providedPackages.push('@exact/sample-microfrontend-portal/shared');
+			config.exposes['./Billing'] = { component: './src/Billing.tsx' };
+		}
+	}
+};

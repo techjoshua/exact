@@ -12,6 +12,8 @@ export const directEventHandlers = new WeakMap<
 >();
 /** Provides the canonical element owners value. */
 export const elementOwners = new WeakMap<Element, ComponentInstance<any>>();
+/** Provides ownership for framework marker and text nodes. */
+export const nodeOwners = new WeakMap<Node, ComponentInstance<any>>();
 /** Provides the canonical prop bindings value. */
 export const propBindings = new WeakMap<Element, Map<string, StopHandle>>();
 /** Provides the canonical component mounts value. */

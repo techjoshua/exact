@@ -39,11 +39,13 @@
 		{ "path": "./framework-adapters/serverless-adapter" },
 		{ "path": "./packages/ssr" },
 		{ "path": "./packages/hydrate" },
+		{ "path": "./plugins/microfrontends" },
 		{ "path": "./framework-adapters/vite-plugin" },
 		{ "path": "./framework-adapters/webpack-plugin" },
 		{ "path": "./framework-adapters/bun-plugin" },
 		{ "path": "./apps/kanban" },
 		{ "path": "./apps/workbench" },
+		{ "path": "./apps/microfrontend-portal" },
 		{ "path": "./apps/server-components" },
 		{ "path": "./apps/shipping-calculator" }
 	]

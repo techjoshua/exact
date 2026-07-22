@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { describe, expect, it } from 'vitest';
-import { createExactNodeHandler, writeNodeResponse } from './index.js';
+import { createExactNodeHandler, readNodeRequestBody, writeNodeResponse } from './index.js';
 
 describe('@exact/node-adapter', () => {
 	it('handles eXact requests through Node request and response objects', async () => {
@@ -114,5 +114,88 @@ describe('@exact/node-adapter', () => {
 		await writeNodeResponse(response, { status: 200, headers: {}, body: '', stream });
 		expect(writes).toEqual(['1', '2']);
 		expect(reads).toBe(2);
+	});
+
+	it('collects mixed request chunks and propagates transport errors', async () => {
+		const request = new EventEmitter() as IncomingMessage;
+		const body = readNodeRequestBody(request);
+		request.emit('data', Buffer.from('first'));
+		request.emit('data', '-second');
+		request.emit('end');
+		await expect(body).resolves.toBe('first-second');
+
+		const failedRequest = new EventEmitter() as IncomingMessage;
+		const failedBody = readNodeRequestBody(failedRequest);
+		failedRequest.emit('error', new Error('socket failed'));
+		await expect(failedBody).rejects.toThrow('socket failed');
+	});
+
+	it('writes status, headers, and non-stream bodies', async () => {
+		const response = Object.assign(new EventEmitter(), {
+			statusCode: 0,
+			headers: new Map<string, unknown>(),
+			body: '',
+			setHeader(name: string, value: unknown) {
+				this.headers.set(name, value);
+				return this;
+			},
+			end(chunk?: string) {
+				this.body += chunk ?? '';
+				return this;
+			}
+		}) as unknown as ServerResponse & { headers: Map<string, unknown>; body: string };
+
+		await writeNodeResponse(response, {
+			status: 202,
+			headers: { 'x-result': 'accepted' },
+			body: 'queued'
+		});
+
+		expect(response.statusCode).toBe(202);
+		expect(response.headers.get('x-result')).toBe('accepted');
+		expect(response.body).toBe('queued');
+	});
+
+	it('cancels a backpressured stream when the client disconnects', async () => {
+		const disconnect = new AbortController();
+		let cancelled: unknown;
+		const stream = new ReadableStream<Uint8Array>({
+			pull(controller) {
+				controller.enqueue(Buffer.from('chunk'));
+			},
+			cancel(reason) {
+				cancelled = reason;
+			}
+		});
+		const events = new EventEmitter();
+		const response = Object.assign(events, {
+			statusCode: 0,
+			destroyed: false,
+			destroyError: undefined as Error | undefined,
+			setHeader() {
+				return this;
+			},
+			write() {
+				disconnect.abort(new DOMException('Client disconnected', 'AbortError'));
+				return false;
+			},
+			end() {
+				return this;
+			},
+			destroy(error?: Error) {
+				this.destroyed = true;
+				this.destroyError = error;
+				return this;
+			}
+		}) as unknown as ServerResponse & { destroyError?: Error };
+
+		await writeNodeResponse(
+			response,
+			{ status: 200, headers: {}, body: '', stream },
+			disconnect.signal
+		);
+
+		expect(cancelled).toBeInstanceOf(DOMException);
+		expect(response.destroyError?.name).toBe('AbortError');
 	});
 });

@@ -10,6 +10,7 @@ export { flushSync } from './internal/scheduler.js';
 export {
 	createEffectScope,
 	createProfiledEffectScope,
+	transferEffectScope,
 	withEffectScope
 } from './internal/scopes.js';
 export type {

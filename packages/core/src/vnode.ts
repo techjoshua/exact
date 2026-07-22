@@ -1,5 +1,6 @@
 import { computed, unwrap } from '@exact/reactive';
 import type { Child, RenderResult, VNode, VNodeCell, VNodeType } from './component/contracts.js';
+import { currentComponentDomain } from './component/domain.js';
 import {
 	Cell,
 	Dynamic,
@@ -20,27 +21,32 @@ export function createVNode(
 	const normalizedProps = { ...(props ?? {}) };
 	const rawKey = unwrap(normalizedProps.key);
 	const key = rawKey === null || rawKey === undefined ? undefined : String(rawKey);
+	const domain = currentComponentDomain();
 	delete normalizedProps.key;
 
 	return {
 		type,
 		props: normalizedProps,
 		children: normalizeChildren(children),
-		key
+		key,
+		...(domain ? { domain } : {})
 	};
 }
 
 /** Creates a virtual text node from an arbitrary value. */
 export function createTextVNode(value: unknown): VNode {
+	const domain = currentComponentDomain();
 	return {
 		type: Text,
 		props: { value },
-		children: []
+		children: [],
+		...(domain ? { domain } : {})
 	};
 }
 
 /** Wraps a vnode in a stable compiled cell used by generated reactive output. */
 export function createCellVNode(vnode: VNode): VNode<{ cell: VNodeCell }> {
+	const domain = vnode.domain ?? currentComponentDomain();
 	return {
 		type: Cell,
 		props: {
@@ -50,7 +56,8 @@ export function createCellVNode(vnode: VNode): VNode<{ cell: VNodeCell }> {
 			}
 		},
 		children: [],
-		key: vnode.key
+		key: vnode.key,
+		...(domain ? { domain } : {})
 	};
 }
 

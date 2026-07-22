@@ -5,6 +5,59 @@ import { describe, expect, it } from 'vitest';
 import { createExactClient } from './index.js';
 
 describe('@exact/hydrate batching', () => {
+	it('batches compatible operations from different client roots while preserving roots', async () => {
+		const left = document.createElement('div');
+		const right = document.createElement('div');
+		const requests: unknown[] = [];
+		const fetch = async (_input: string, init: { body: string }) => {
+			const body = JSON.parse(init.body);
+			requests.push(body);
+			return {
+				ok: true,
+				status: 200,
+				async json() {
+					return {
+						ok: true,
+						version: 1,
+						results: body.operations.map((operation: { type: string; id: string }) => ({
+							ok: true,
+							type: operation.type,
+							id: operation.id
+						}))
+					};
+				}
+			};
+		};
+		const shared = {
+			endpoint: '/__exact',
+			binding: 'billing',
+			buildKey: '0123456789abcdef0123456789abcdef01234567',
+			fetch
+		};
+		const leftClient = createExactClient(left, {
+			...shared,
+			executionRoot: '@company/billing#./Area'
+		});
+		const rightClient = createExactClient(right, {
+			...shared,
+			executionRoot: '@company/billing#./Summary'
+		});
+
+		await Promise.all([leftClient.invokeAction('save'), rightClient.invokeAction('save')]);
+		expect(requests).toEqual([
+			{
+				type: 'batch',
+				version: 1,
+				operations: [
+					{ type: 'action', root: '@company/billing#./Area', id: 'save' },
+					{ type: 'action', root: '@company/billing#./Summary', id: 'save' }
+				]
+			}
+		]);
+		leftClient.dispose();
+		rightClient.dispose();
+	});
+
 	it('coalesces same-tick client operations into a batch request', async () => {
 		const container = document.createElement('div');
 		container.innerHTML =
@@ -56,12 +109,14 @@ describe('@exact/hydrate batching', () => {
 				operations: [
 					{
 						type: 'action',
+						root: 'page',
 						id: 'save-title',
 						payload: { title: 'New' },
 						state: { saved: false }
 					},
 					{
 						type: 'refresh',
+						root: 'page',
 						id: 'panel',
 						state: { saved: false },
 						boundaryHtml: '<p>Old</p>'

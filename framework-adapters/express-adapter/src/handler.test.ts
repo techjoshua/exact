@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createExactExpressMiddleware, type ExactExpressResponse } from './index.js';
 
 describe('@exact/express-adapter', () => {
@@ -44,6 +44,88 @@ describe('@exact/express-adapter', () => {
 			}
 		});
 	});
+
+	it('streams response chunks and serializes action failures', async () => {
+		const context = {
+			manifest: {
+				version: 1 as const,
+				endpoint: '/__exact',
+				actions: {
+					save: { id: 'save', placement: 'server' as const },
+					fail: { id: 'fail', placement: 'server' as const }
+				}
+			},
+			actions: {
+				save: () => ({ state: { saved: true } }),
+				fail: () => {
+					throw new Error('action failed');
+				}
+			}
+		};
+		const middleware = createExactExpressMiddleware(context);
+		const streamed = createStreamingExpressResponse();
+
+		middleware(
+			{
+				method: 'POST',
+				url: '/__exact',
+				headers: {
+					host: 'express.example.test',
+					accept: 'application/x-ndjson'
+				},
+				async text() {
+					return JSON.stringify({ type: 'action', id: 'save' });
+				}
+			},
+			streamed
+		);
+
+		await streamed.done;
+		expect(streamed.statusCode).toBe(200);
+		expect(streamed.chunks.join('')).toContain('"event":"complete"');
+
+		const failed = createExpressResponse();
+		middleware(
+			{
+				method: 'POST',
+				url: '/__exact',
+				headers: { host: 'express.example.test' },
+				body: { type: 'action', id: 'fail' }
+			},
+			failed
+		);
+		await failed.done;
+		expect(failed.statusCode).toBe(500);
+		expect(JSON.parse(String(failed.body))).toEqual({ error: 'internal_error' });
+	});
+
+	it('forwards request-scope initialization failures to next', async () => {
+		const middleware = createExactExpressMiddleware({
+			manifest: {
+				version: 1,
+				endpoint: '/__exact',
+				actions: {}
+			},
+			requestContexts() {
+				throw new Error('context failed');
+			}
+		});
+		const next = vi.fn();
+
+		middleware(
+			{
+				method: 'POST',
+				url: '/__exact',
+				headers: { host: 'express.example.test' },
+				body: { type: 'action', id: 'missing' }
+			},
+			createExpressResponse(),
+			next
+		);
+
+		await vi.waitFor(() => expect(next).toHaveBeenCalledOnce());
+		expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'context failed' }));
+	});
 });
 
 function createExpressResponse(): ExactExpressResponse & {
@@ -64,6 +146,38 @@ function createExpressResponse(): ExactExpressResponse & {
 		send(body) {
 			this.body = body;
 			finish();
+		}
+	};
+}
+
+function createStreamingExpressResponse(): ExactExpressResponse & {
+	statusCode?: number;
+	chunks: string[];
+	done: Promise<void>;
+} {
+	let finish!: () => void;
+	const chunks: string[] = [];
+	return {
+		chunks,
+		done: new Promise((resolve) => {
+			finish = resolve;
+		}),
+		status(code) {
+			this.statusCode = code;
+			return this;
+		},
+		setHeader() {},
+		write(chunk) {
+			chunks.push(Buffer.from(chunk).toString('utf8'));
+		},
+		end() {
+			finish();
+		},
+		send() {
+			throw new Error('stream should not use send');
+		},
+		destroy(error) {
+			throw error;
 		}
 	};
 }

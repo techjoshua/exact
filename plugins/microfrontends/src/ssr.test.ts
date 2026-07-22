@@ -1,0 +1,21 @@
+import { createVNode } from '@exact/core';
+import { renderToString } from '@exact/ssr';
+import { describe, expect, it } from 'vitest';
+import { RemoteComponent } from './client.js';
+
+describe('RemoteComponent server rendering', () => {
+	it('emits only the page-owned client placeholder', () => {
+		const result = renderToString(
+			createVNode(RemoteComponent, {
+				binding: 'billing',
+				fallback: createVNode('p', null, 'Remote unavailable')
+			}),
+			{ markers: false }
+		);
+
+		expect(result.html).toBe(
+			'<div data-exact-remote="billing" data-exact-remote-state="placeholder"></div>'
+		);
+		expect(result.html).not.toContain('Remote unavailable');
+	});
+});

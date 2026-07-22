@@ -1,0 +1,10 @@
+{
+	"extends": "../../../tsconfig.base.json",
+	"compilerOptions": {
+		"noEmit": true,
+		"lib": ["ES2022", "DOM"],
+		"jsx": "preserve",
+		"jsxImportSource": "@exact/jsx"
+	},
+	"include": ["src"]
+}

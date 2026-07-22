@@ -1,4 +1,10 @@
-import type { ComponentFunction, ErrorReport, Logger, UnsafeHtmlAuditEvent } from '@exact/core';
+import type {
+	ComponentDomain,
+	ComponentFunction,
+	ErrorReport,
+	Logger,
+	UnsafeHtmlAuditEvent
+} from '@exact/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation';
 import type {
 	ExactInvocationKind,
@@ -20,6 +26,14 @@ export type HydrateOptions = {
 	onMismatch?: 'replace' | 'throw';
 	fetch?: FetchLike;
 	headers?: Record<string, string>;
+	/** Immutable protocol namespace used by operations issued from this client root. */
+	executionRoot?: string;
+	/** Page-owned transport binding used to route this client root. */
+	binding?: string;
+	/** Full Git commit SHA embedded in this client root's generated entry. */
+	buildKey?: string;
+	/** Internal explicit ownership used when mounting islands into this client root. */
+	componentDomain?: ComponentDomain;
 	transports?: Record<string, ExactEndpointTransport>;
 	stateContracts?: Record<string, ExactStateContract>;
 	actionBoundaries?: Record<string, readonly string[]>;
@@ -29,6 +43,12 @@ export type HydrateOptions = {
 	streamLimits?: ExactStreamLimits;
 	signal?: AbortSignal;
 	onDiagnostic?: (diagnostic: HydrationDiagnostic) => void;
+	/** Observes framework response compatibility metadata before its body is consumed. */
+	onResponse?: (response: ExactResponseMetadata) => void;
+	/** Internal recovery signal emitted only after validating the reserved 410 body. */
+	onBuildUnsupported?: () => void;
+	/** Internal signal that a structural patch replaced an ancestor of another execution root. */
+	onCrossRootReplacement?: () => void;
 	/** Observes component failures that reach the hydrated renderer root. */
 	onErrorReport?: (report: ErrorReport) => void;
 	/** Allows a component root to adopt compatible markup without eXact markers. */
@@ -75,6 +95,9 @@ export type ExactHydrationConfig = {
 	state?: unknown;
 	stateContracts?: Record<string, ExactStateContract>;
 	actionBoundaries?: Record<string, readonly string[]>;
+	executionRoot?: string;
+	binding?: string;
+	buildKey?: string;
 };
 
 /** Defines the exact hydration registration type contract. */
@@ -104,10 +127,22 @@ export type FetchLike = (
 ) => Promise<{
 	ok: boolean;
 	status: number;
+	headers?: ExactResponseHeaders | Readonly<Record<string, string>>;
 	body?: ReadableStream<Uint8Array> | null;
 	json(): Promise<unknown>;
 	text?(): Promise<string>;
 }>;
+
+/** Minimal header surface accepted from native and runtime-neutral fetch implementations. */
+export type ExactResponseHeaders = {
+	get(name: string): string | null;
+};
+
+/** Compatibility metadata exposed by the transport without exposing response bodies. */
+export type ExactResponseMetadata = {
+	readonly status: number;
+	readonly preferredBuildKey?: string;
+};
 
 /** Defines the exact endpoint transport type contract. */
 export type ExactEndpointTransport = {
@@ -117,10 +152,13 @@ export type ExactEndpointTransport = {
 
 /** Defines the exact client type contract. */
 export type ExactClient = {
+	readonly domain: ComponentDomain;
 	readonly endpoint?: string;
 	readonly endpoints?: ExactEndpointRoutes;
 	state?: unknown;
 	readonly stateContracts?: Record<string, ExactStateContract>;
+	/** Number of action, refresh, or stream promises still owned by this client generation. */
+	readonly pendingRequests: number;
 	applyPatches(patches: readonly ExactPatch[]): boolean;
 	invokeAction(id: string, payload?: unknown): Promise<ExactInvocationResult>;
 	refreshBoundary(id: string, payload?: unknown): Promise<ExactInvocationResult>;
@@ -130,6 +168,10 @@ export type ExactClient = {
 		payload?: unknown
 	): Promise<ExactInvocationResult>;
 	registerManifest(config: ExactHydrationRegistration): void;
+	/** Prevents new work while allowing already accepted work to settle. */
+	retire(): void;
+	/** Resolves once all work admitted before retirement has settled. */
+	whenSettled(): Promise<void>;
 	/** Releases client requests, renderer scopes, listeners, and root ownership. */
 	dispose(): void;
 };
@@ -141,6 +183,7 @@ export type HydrationRoot = ExactClient;
 export type InvokeExactOptions = {
 	endpoint: string;
 	type: ExactInvocationKind;
+	root?: string;
 	id: string;
 	payload?: unknown;
 	state?: unknown;
@@ -153,6 +196,7 @@ export type InvokeExactOptions = {
 	stream?: boolean;
 	streamLimits?: ExactStreamLimits;
 	signal?: AbortSignal;
+	onResponse?: (response: ExactResponseMetadata) => void;
 };
 
 /** Configures invoke exact batch. */
@@ -165,11 +209,14 @@ export type InvokeExactBatchOptions = {
 	stream?: boolean;
 	streamLimits?: ExactStreamLimits;
 	signal?: AbortSignal;
+	onResponse?: (response: ExactResponseMetadata) => void;
 };
 
 /** Defines the pending exact operation type contract. */
 export type PendingExactOperation = {
 	operation: ExactInvocationRequest;
+	signal?: AbortSignal;
+	onResponse?: (response: ExactResponseMetadata) => void;
 	resolve(result: ExactInvocationResult): void;
 	reject(error: unknown): void;
 };
@@ -183,7 +230,6 @@ export type ExactBatchQueue = {
 	logger?: Logger;
 	stream?: boolean;
 	streamLimits?: ExactStreamLimits;
-	signal?: AbortSignal;
 	pending: PendingExactOperation[];
 	scheduled: boolean;
 	active?: number;

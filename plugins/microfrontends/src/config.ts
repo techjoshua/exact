@@ -1,0 +1,28 @@
+import type {} from '@exact/config';
+
+/** Configures one explicitly exposed component root. */
+export type ExactRemoteExposureConfig = {
+	component: string;
+};
+
+/** Configures the browser and private-server locations for a trusted remote. */
+export type ExactRemoteBindingConfig = {
+	endpoint: string;
+	clientEntry: string;
+	clientEntryResolver?: string;
+};
+
+/** Configures trusted eXact microfrontend production and consumption. */
+export type ExactMicrofrontendConfig = {
+	exposes: Record<string, ExactRemoteExposureConfig>;
+	remotes: Record<string, ExactRemoteBindingConfig>;
+	providedPackages: string[];
+};
+
+declare module '@exact/config' {
+	interface ExactPluginConfigRegistry {
+		microfrontends: ExactMicrofrontendConfig;
+	}
+}
+
+export {};

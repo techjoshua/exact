@@ -88,7 +88,11 @@ export function patchInner(
 		return replacement;
 	}
 
-	if (mounted.vnode.type !== next.type || mounted.vnode.key !== next.key) {
+	if (
+		mounted.vnode.type !== next.type ||
+		mounted.vnode.key !== next.key ||
+		mounted.vnode.domain !== next.domain
+	) {
 		domDebug(root, 'replace node', {
 			previousType: describeVNodeType(mounted.vnode.type),
 			previousKey: mounted.vnode.key ?? 'none',
@@ -96,8 +100,30 @@ export function patchInner(
 			nextKey: next.key ?? 'none',
 			parent: describeNode(parent)
 		});
-		const replacement = mount(root, next, parentInstance, parentScope, parent, false);
+		const previousParking = root.replacementParking;
+		const parking = {
+			mounts: new Map<VNode, Array<{ mounted: Mounted; parent: Node }>>(),
+			commits: [] as Array<() => void>
+		};
+		const ownerSnapshots = new Map<Mounted, Mounted[]>();
+		const replacedDomain = mounted.instance?.domain ?? mounted.vnode.domain;
+		if (replacedDomain)
+			parkForeignMounts(mounted, replacedDomain, parking.mounts, ownerSnapshots, parent);
+		root.replacementParking = parking;
+		let replacement: Mounted;
+		try {
+			replacement = mount(root, next, parentInstance, parentScope, parent, false);
+		} catch (error) {
+			for (const [owner, children] of ownerSnapshots) owner.children = children;
+			throw error;
+		} finally {
+			root.replacementParking = previousParking;
+		}
+		for (const commit of parking.commits) commit();
 		placeMountedBefore(root, parent, replacement, mounted.dom);
+		for (const entries of parking.mounts.values()) {
+			for (const entry of entries) disposeMounted(entry.parent, entry.mounted);
+		}
 		disposeMounted(parent, mounted);
 		return replacement;
 	}
@@ -300,4 +326,33 @@ export function patchInner(
 	);
 	updateProps(root, mounted.dom as Element, previousProps, next.props, mounted.scope);
 	return mounted;
+}
+
+function parkForeignMounts(
+	owner: Mounted,
+	replacedDomain: ComponentInstance<any>['domain'],
+	parking: Map<VNode, Array<{ mounted: Mounted; parent: Node }>>,
+	ownerSnapshots: Map<Mounted, Mounted[]>,
+	fallbackParent: Node
+): void {
+	ownerSnapshots.set(owner, owner.children);
+	const retained: Mounted[] = [];
+	for (const child of owner.children) {
+		const domain = child.instance?.domain ?? child.vnode.domain;
+		if (domain && domain !== replacedDomain) {
+			const candidates = parking.get(child.vnode) ?? [];
+			candidates.push({ mounted: child, parent: child.dom.parentNode ?? fallbackParent });
+			parking.set(child.vnode, candidates);
+			continue;
+		}
+		parkForeignMounts(
+			child,
+			replacedDomain,
+			parking,
+			ownerSnapshots,
+			child.portalTarget ?? fallbackParent
+		);
+		retained.push(child);
+	}
+	owner.children = retained;
 }

@@ -150,7 +150,12 @@ export function materializeList<T>(list: ListBinding<T>): VNode[] {
 }
 
 function canPatchMounted(mounted: Mounted, next: VNode): boolean {
-	if (mounted.vnode.type !== next.type || mounted.vnode.key !== next.key) return false;
+	if (
+		mounted.vnode.type !== next.type ||
+		mounted.vnode.key !== next.key ||
+		mounted.vnode.domain !== next.domain
+	)
+		return false;
 	if (isCellVNode(next)) {
 		const previousChild = mounted.children[0];
 		return previousChild

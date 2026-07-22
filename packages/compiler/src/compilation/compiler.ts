@@ -31,6 +31,10 @@ export {
 } from '../expression/writes.js';
 export { parseExactCompilerManifest } from '../manifest-parse.js';
 export {
+	exactReachableExposureComponents,
+	selectExactExposureArtifactGraph
+} from '../exposures.js';
+export {
 	rewriteModuleReferences,
 	type ModuleExportReplacement,
 	type ModuleRewriteOptions,

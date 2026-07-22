@@ -252,6 +252,7 @@ describe('@exact/hydrate patch-application', () => {
 		expect(requests).toEqual([
 			{
 				type: 'action',
+				root: 'page',
 				id: 'save-title',
 				payload: { title: 'New' },
 				state: { saved: false }

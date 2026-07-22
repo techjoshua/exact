@@ -4,7 +4,12 @@ import {
 	throwCleanupFailure,
 	type Logger
 } from '@exact/core';
-import { createDomWorkBudget, walkDomSubtree, type DomWorkBudget } from '@exact/dom';
+import {
+	createDomWorkBudget,
+	findNodeOwnerInstance,
+	walkDomSubtree,
+	type DomWorkBudget
+} from '@exact/dom';
 import type { ExactPatch } from '@exact/server';
 import type { HydrationDiagnostic } from '../types.js';
 import { applyPatch } from './application.js';
@@ -12,6 +17,7 @@ import { createProtocolIndex } from './indexing.js';
 import { findClientBoundaryElement, findServerSlotElement } from './lookup.js';
 import {
 	canApplyPatch,
+	isStructuralPatch,
 	preparePatchBatch,
 	protocolTarget,
 	protocolTargetContains,
@@ -28,6 +34,10 @@ export type PatchOptions = {
 	onDiagnostic?: (diagnostic: HydrationDiagnostic) => void;
 	maxTreeNodes?: number;
 	workBudget?: DomWorkBudget;
+	/** Rejects or ignores targets owned by another immutable execution root. */
+	executionRoot?: string;
+	/** Reconciles a logical subtree after a structural patch crosses an execution-root boundary. */
+	onCrossRootReplacement?: () => void;
 };
 
 /** Applies a patches to the owned runtime state. */
@@ -37,7 +47,11 @@ export function applyPatches(
 	options: PatchOptions = {}
 ): boolean {
 	if (!patches.length) return true;
-	const index = createProtocolIndex(container, options.workBudget ?? options.maxTreeNodes);
+	const index = createProtocolIndex(
+		container,
+		options.workBudget ?? options.maxTreeNodes,
+		options.executionRoot
+	);
 	if (!index || !validatePatchSequence(index, patches) || !validatePatchTopology(index, patches)) {
 		const failed = patches.find((patch) => !index || !canApplyPatch(index, patch));
 		const detail = failed ? `${failed.type}:${failed.id}` : 'invalid marker topology';
@@ -63,6 +77,18 @@ export function applyPatches(
 			throw new Error(`Could not apply exact patch batch (${prepared.detail})`);
 		return false;
 	}
+	const crossesRoot =
+		options.executionRoot !== undefined &&
+		options.onCrossRootReplacement !== undefined &&
+		patches.some(
+			(patch) =>
+				isStructuralPatch(patch) &&
+				targetContainsForeignRoot(
+					protocolTarget(index, patch.id),
+					options.executionRoot!,
+					index.budget
+				)
+		);
 
 	// Patches target compiler-owned server boundaries. Disposing the containing
 	// renderer root here would tear down unrelated client components even for a
@@ -84,7 +110,32 @@ export function applyPatches(
 		}
 	}
 	throwCleanupFailure(cleanupFailure);
+	if (crossesRoot) options.onCrossRootReplacement?.();
 	return true;
+}
+
+function targetContainsForeignRoot(
+	target: Node | ExactRange | undefined,
+	executionRoot: string,
+	work: DomWorkBudget
+): boolean {
+	if (!target) return false;
+	let foreign = false;
+	const inspect = (node: Node) => {
+		const owner = findNodeOwnerInstance(node);
+		if (owner && owner.domain.executionRoot !== executionRoot) foreign = true;
+	};
+	if (target instanceof Node) {
+		walkDomSubtree(target, inspect, { budget: work });
+		return foreign;
+	}
+	for (
+		let cursor = target.start.nextSibling;
+		cursor && cursor !== target.end;
+		cursor = cursor.nextSibling
+	)
+		walkDomSubtree(cursor, inspect, { budget: work });
+	return foreign;
 }
 
 /** Reports whether exact markers. */
@@ -104,9 +155,10 @@ export function hasExactMarkers(container: Element, work?: number | DomWorkBudge
 export function boundaryInnerHtml(
 	container: Element,
 	id: string,
-	work?: number | DomWorkBudget
+	work?: number | DomWorkBudget,
+	executionRoot?: string
 ): string | undefined {
-	const index = createProtocolIndex(container, work);
+	const index = createProtocolIndex(container, work, executionRoot);
 	if (!index) return undefined;
 	return indexedBoundaryHtml(container, index, id);
 }
@@ -115,9 +167,10 @@ export function boundaryInnerHtml(
 export function boundaryInnerHtmls(
 	container: Element,
 	ids: readonly string[],
-	work?: number | DomWorkBudget
+	work?: number | DomWorkBudget,
+	executionRoot?: string
 ): Record<string, string> {
-	const index = createProtocolIndex(container, work);
+	const index = createProtocolIndex(container, work, executionRoot);
 	if (!index) return {};
 	const htmls: Record<string, string> = {};
 	for (const id of ids) {

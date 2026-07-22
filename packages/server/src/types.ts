@@ -202,6 +202,8 @@ export type ExactResponseLike = {
 /** Defines the exact invocation request type contract. */
 export type ExactInvocationRequest = {
 	type: ExactInvocationKind;
+	/** Compiler-generated namespace in which id and patch targets are interpreted. */
+	root?: string;
 	id: string;
 	opId?: string;
 	dependsOn?: string[];
@@ -210,6 +212,56 @@ export type ExactInvocationRequest = {
 	context?: Record<string, unknown>;
 	boundaryHtml?: string;
 	boundaryHtmls?: Record<string, string>;
+};
+
+/** Selects the manifest and handlers for one execution root in a retained build. */
+export type ExactRemoteRootDispatch = {
+	manifest: ExactServerManifest;
+	actions?: ExactServerContext['actions'];
+	refreshBoundaries?: ExactServerContext['refreshBoundaries'];
+};
+
+/** Registers the executor artifacts retained for one immutable client build. */
+export type ExactRemoteBuildRegistration = {
+	buildKey: string;
+	roots: Readonly<Record<string, ExactRemoteRootDispatch>>;
+};
+
+/** Reports a bounded page-gateway rejection without request credentials or payloads. */
+export type ExactGatewayRejectEvent = {
+	reason:
+		| 'invalid_binding'
+		| 'unknown_binding'
+		| 'invalid_build'
+		| 'transform_failed'
+		| 'upstream_unavailable'
+		| 'upstream_invalid_response';
+	binding?: string;
+};
+
+/** Rewrites one validated page request into the request sent to its component host. */
+export type TransformForwardedExactRequest = (
+	request: ExactRequestLike,
+	target: { binding: string; buildKey: string; endpoint: string },
+	context: ExactServerContext
+) => ExactRequestLike | Promise<ExactRequestLike>;
+
+/** Configures binding lookup and forwarding at the page's ordinary eXact endpoint. */
+export type ExactBindingGatewayOptions = {
+	bindings: Readonly<Record<string, { endpoint: string }>>;
+	fetch?: typeof fetch;
+	transformForwardedRequest?: TransformForwardedExactRequest;
+	maxBindingLength?: number;
+	onReject?: (event: ExactGatewayRejectEvent) => void;
+};
+
+/** Forwards already parsed and security-checked binding-routed requests. */
+export type ExactBindingGateway = {
+	forward(
+		request: ExactRequestLike,
+		input: ExactInvocationRequest | ExactBatchRequest,
+		context: ExactServerContext
+	): Promise<ExactResponseLike>;
 };
 
 /** Defines the exact batch request type contract. */
@@ -320,6 +372,12 @@ export type ExactServerContext = ExactServerContextConfiguration & {
 			context: ExactServerContext
 		) => Promise<ExactInvocationResult> | ExactInvocationResult
 	>;
+	/** Build-keyed remote executor registrations installed by the application. */
+	remoteBuilds?: Readonly<Record<string, ExactRemoteBuildRegistration>>;
+	/** Advisory retained build advertised for a future client root replacement. */
+	preferredBuildKey?: string;
+	/** Optional page-host alternate dispatch configured for trusted remote bindings. */
+	gateway?: ExactBindingGateway;
 	authorize?(
 		request: ExactRequestLike,
 		input: ExactInvocationRequest | ExactBatchRequest,

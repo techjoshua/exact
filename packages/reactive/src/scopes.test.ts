@@ -8,6 +8,7 @@ import {
 	reactive,
 	ref,
 	subscribe,
+	transferEffectScope,
 	watch,
 	withEffectScope
 } from './index.js';
@@ -204,6 +205,25 @@ describe('@exact/reactive scopes', () => {
 			'inactive effect scope'
 		);
 		expect(() => createEffectScope(scope)).toThrow('inactive parent scope');
+	});
+
+	it('transfers a live scope without stopping its work and rejects invalid transfers', () => {
+		const first = createEffectScope() as any;
+		const second = createEffectScope() as any;
+		const child = createEffectScope(first) as any;
+		const stopped = vi.fn();
+		child.cleanups.add(stopped);
+
+		transferEffectScope(child, second);
+		expect(first.children.has(child)).toBe(false);
+		expect(second.children.has(child)).toBe(true);
+		first.stop();
+		expect(child.active).toBe(true);
+		expect(stopped).not.toHaveBeenCalled();
+		expect(() => transferEffectScope(second, child)).toThrow('effect scope cycle');
+		second.stop();
+		expect(stopped).toHaveBeenCalledTimes(1);
+		expect(() => transferEffectScope(child, undefined)).toThrow('inactive effect scope');
 	});
 
 	it('stops deeply nested effect scopes without using the JavaScript call stack', () => {

@@ -1,0 +1,10 @@
+@font-face {
+	font-family: 'Fixture Billing';
+	src: url('./fixture.woff2');
+}
+
+.billing-area {
+	font-family: 'Fixture Billing', sans-serif;
+	background-image: url('./billing.svg');
+	color: var(--brand-foreground, currentColor);
+}

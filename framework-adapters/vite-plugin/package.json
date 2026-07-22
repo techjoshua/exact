@@ -22,10 +22,17 @@
 		"@exact/react-compat": "file:../../packages/react-compat",
 		"@exact/react-dom-compat": "file:../../packages/react-dom-compat"
 	},
+	"devDependencies": {
+		"@exact/microfrontends": "file:../../plugins/microfrontends"
+	},
 	"peerDependencies": {
+		"@exact/microfrontends": "0.0.0",
 		"vite": "^5.0.0 || ^6.0.0 || ^7.0.0"
 	},
 	"peerDependenciesMeta": {
+		"@exact/microfrontends": {
+			"optional": true
+		},
 		"vite": {
 			"optional": true
 		}

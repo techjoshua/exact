@@ -57,6 +57,7 @@ describe('@exact/hydrate remote-registry', () => {
 				input: 'https://remote.test/__exact',
 				body: {
 					type: 'action',
+					root: 'page',
 					id: 'remote-save',
 					payload: { title: 'Saved' },
 					state: { project: { id: 'p1' } },
@@ -273,8 +274,8 @@ describe('@exact/hydrate remote-registry', () => {
 					type: 'batch',
 					version: 1,
 					operations: [
-						{ type: 'action', id: 'remote-a' },
-						{ type: 'action', id: 'remote-b' }
+						{ type: 'action', root: 'page', id: 'remote-a' },
+						{ type: 'action', root: 'page', id: 'remote-b' }
 					]
 				}
 			}

@@ -1,6 +1,7 @@
 import {
 	consumeDomWork,
 	createDomWorkBudget,
+	findNodeOwnerInstance,
 	walkDomSubtree,
 	type DomWorkBudget
 } from '@exact/dom';
@@ -9,7 +10,8 @@ import { type ExactRange, type ProtocolIndex } from './planning.js';
 /** Creates a protocol index. */
 export function createProtocolIndex(
 	container: Element,
-	work?: number | DomWorkBudget
+	work?: number | DomWorkBudget,
+	executionRoot?: string
 ): ProtocolIndex | undefined {
 	const budget = typeof work === 'number' || work === undefined ? createDomWorkBudget(work) : work;
 	const index: ProtocolIndex = {
@@ -39,6 +41,7 @@ export function createProtocolIndex(
 		(node) => {
 			if (!valid) return;
 			if (node instanceof Element) {
+				if (!ownedByExecutionRoot(node, executionRoot)) return;
 				for (const [attribute, output] of attributes) {
 					const value = node.getAttribute(attribute);
 					if (value === null) continue;
@@ -60,6 +63,7 @@ export function createProtocolIndex(
 					return;
 				}
 				const range = { start: open.start, end: comment };
+				if (!ownedByExecutionRoot(open.start, executionRoot)) return;
 				if (open.itemKey !== undefined && open.listId) {
 					let items = index.listItems.get(open.listId);
 					if (!items) index.listItems.set(open.listId, (items = new Map()));
@@ -88,6 +92,12 @@ export function createProtocolIndex(
 		{ budget }
 	);
 	return !valid || stack.length ? undefined : index;
+}
+
+function ownedByExecutionRoot(node: Node, executionRoot: string | undefined): boolean {
+	if (!executionRoot) return true;
+	const owner = findNodeOwnerInstance(node);
+	return !owner || owner.domain.executionRoot === executionRoot;
 }
 
 /** Performs the reindex list domain operation. */

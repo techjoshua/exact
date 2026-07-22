@@ -8,6 +8,8 @@ import type {
 	ExactInvocationRequest,
 	ExactInvocationResult,
 	ExactOperationResult,
+	ExactResponseHeaders,
+	ExactResponseMetadata,
 	InvokeExactBatchOptions,
 	InvokeExactOptions
 } from './types.js';
@@ -20,6 +22,7 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
 	const requestBody = encodeRequest(
 		{
 			type: options.type,
+			root: options.root,
 			id: options.id,
 			payload: options.payload,
 			state: options.state,
@@ -42,6 +45,7 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
 		}),
 		options.signal
 	);
+	notifyResponse(options.onResponse, response);
 
 	if (!response.ok) {
 		logFrameworkEvent(
@@ -52,9 +56,13 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
 			undefined,
 			options.logger
 		);
-		throw new Error(`eXact ${options.type} invocation failed`);
+		throw await invocationFailure(response, `eXact ${options.type} invocation failed`, options);
 	}
-	const operation: ExactInvocationRequest = { type: options.type, id: options.id };
+	const operation: ExactInvocationRequest = {
+		type: options.type,
+		root: options.root,
+		id: options.id
+	};
 	if (options.stream) {
 		const results = await readExactStreamResponse(response, [operation], {
 			signal: options.signal,
@@ -98,6 +106,7 @@ export async function invokeExactBatch(
 		}),
 		options.signal
 	);
+	notifyResponse(options.onResponse, response);
 
 	if (!response.ok) {
 		logFrameworkEvent(
@@ -108,7 +117,7 @@ export async function invokeExactBatch(
 			undefined,
 			options.logger
 		);
-		throw new Error('eXact batch invocation failed');
+		throw await invocationFailure(response, 'eXact batch invocation failed', options);
 	}
 	if (options.stream)
 		return readExactStreamResponse(response, options.operations, {
@@ -117,6 +126,58 @@ export async function invokeExactBatch(
 		});
 	const body = await readJsonResponse(response, options.streamLimits, options.signal);
 	return parseExactBatchResponse(body, options.operations, options.streamLimits);
+}
+
+/** Identifies the reserved top-level response that asks a remote root to replace its build. */
+export class ExactBuildUnsupportedError extends Error {
+	readonly status = 410;
+	readonly code = 'exact_build_unsupported';
+
+	constructor() {
+		super('eXact remote build is no longer supported');
+		this.name = 'ExactBuildUnsupportedError';
+	}
+}
+
+async function invocationFailure(
+	response: { status: number; json(): Promise<unknown>; text?(): Promise<string> },
+	fallback: string,
+	options: Pick<InvokeExactOptions, 'signal' | 'streamLimits'>
+): Promise<Error> {
+	if (response.status !== 410) return new Error(fallback);
+	try {
+		const value = await readJsonResponse(response, options.streamLimits, options.signal);
+		if (
+			value !== null &&
+			typeof value === 'object' &&
+			(value as { error?: unknown }).error === 'exact_build_unsupported'
+		)
+			return new ExactBuildUnsupportedError();
+	} catch {
+		// Malformed failure bodies retain the ordinary transport failure contract.
+	}
+	return new Error(fallback);
+}
+
+function notifyResponse(
+	listener: ((response: ExactResponseMetadata) => void) | undefined,
+	response: { status: number; headers?: ExactResponseHeaders | Readonly<Record<string, string>> }
+): void {
+	if (!listener) return;
+	const preferredBuildKey = responseHeader(response.headers, 'x-exact-preferred-build');
+	listener(
+		Object.freeze({ status: response.status, ...(preferredBuildKey ? { preferredBuildKey } : {}) })
+	);
+}
+
+function responseHeader(
+	headers: ExactResponseHeaders | Readonly<Record<string, string>> | undefined,
+	name: string
+): string | undefined {
+	if (!headers) return undefined;
+	if ('get' in headers && typeof headers.get === 'function') return headers.get(name) ?? undefined;
+	const key = Object.keys(headers).find((candidate) => candidate.toLowerCase() === name);
+	return key ? (headers as Readonly<Record<string, string>>)[key] : undefined;
 }
 
 function encodeRequest(value: unknown, maxBytes?: number): string {

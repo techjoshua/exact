@@ -5,15 +5,16 @@ import type {
 	ExactBatchQueue,
 	ExactInvocationRequest,
 	ExactInvocationResult,
+	ExactResponseMetadata,
 	ExactStreamLimits,
 	FetchLike
 } from './types.js';
 
-const batchQueues = new WeakMap<Element, ExactBatchQueue[]>();
+const batchQueues: ExactBatchQueue[] = [];
 
 /** Queues an eXact operation for microtask batching by endpoint, transport, and headers. */
 export function enqueueExactOperation(
-	container: Element,
+	_container: Element,
 	options: {
 		endpoint: string;
 		operation: ExactInvocationRequest;
@@ -23,23 +24,18 @@ export function enqueueExactOperation(
 		stream?: boolean;
 		streamLimits?: ExactStreamLimits;
 		signal?: AbortSignal;
+		onResponse?: (response: ExactResponseMetadata) => void;
 	}
 ): Promise<ExactInvocationResult> {
-	let queues = batchQueues.get(container);
-	if (!queues) {
-		queues = [];
-		batchQueues.set(container, queues);
-	}
 	const headersKey = headersCacheKey(options.headers);
-	let queue = queues.find(
+	let queue = batchQueues.find(
 		(item) =>
 			item.endpoint === options.endpoint &&
 			item.fetch === options.fetch &&
 			item.headersKey === headersKey &&
 			item.logger === options.logger &&
 			item.stream === options.stream &&
-			item.streamLimits === options.streamLimits &&
-			item.signal === options.signal
+			item.streamLimits === options.streamLimits
 	);
 	if (!queue) {
 		queue = {
@@ -50,17 +46,18 @@ export function enqueueExactOperation(
 			logger: options.logger,
 			stream: options.stream,
 			streamLimits: options.streamLimits,
-			signal: options.signal,
 			pending: [],
 			scheduled: false,
 			active: 0
 		};
-		queues.push(queue);
+		batchQueues.push(queue);
 	}
 
 	const promise = new Promise<ExactInvocationResult>((resolve, reject) => {
 		queue!.pending.push({
 			operation: options.operation,
+			signal: options.signal,
+			onResponse: options.onResponse,
 			resolve,
 			reject
 		});
@@ -71,7 +68,7 @@ export function enqueueExactOperation(
 		// Microtask batching groups operations triggered by the same user turn without
 		// introducing a visible delay for isolated single operations.
 		queueMicrotask(() => {
-			void flushExactBatchQueue(queue!).finally(() => reclaimQueue(container, queue!));
+			void flushExactBatchQueue(queue!).finally(() => reclaimQueue(queue!));
 		});
 	}
 
@@ -82,40 +79,56 @@ async function flushExactBatchQueue(queue: ExactBatchQueue): Promise<void> {
 	const pending = queue.pending.splice(0);
 	queue.scheduled = false;
 	if (!pending.length) return;
+	const active = pending.filter((item) => {
+		if (!item.signal?.aborted) return true;
+		item.reject(abortReason(item.signal));
+		return false;
+	});
+	if (!active.length) return;
 	queue.active = (queue.active ?? 0) + 1;
 
 	try {
-		if (pending.length === 1) {
+		if (active.length === 1) {
 			try {
 				const result = await invokeExact({
 					endpoint: queue.endpoint,
-					...pending[0]!.operation,
+					...active[0]!.operation,
 					fetch: queue.fetch,
 					headers: queue.headers,
 					logger: queue.logger,
 					stream: queue.stream,
 					streamLimits: queue.streamLimits,
-					signal: queue.signal
+					signal: active[0]!.signal,
+					onResponse: active[0]!.onResponse
 				});
-				pending[0]!.resolve(result);
+				if (active[0]!.signal?.aborted) active[0]!.reject(abortReason(active[0]!.signal));
+				else active[0]!.resolve(result);
 			} catch (error) {
-				pending[0]!.reject(error);
+				active[0]!.reject(error);
 			}
 			return;
 		}
 
+		const combined = abortWhenAllAbort(active.map((item) => item.signal));
 		try {
 			const results = await invokeExactBatch({
 				endpoint: queue.endpoint,
-				operations: pending.map((item) => item.operation),
+				operations: active.map((item) => item.operation),
 				fetch: queue.fetch,
 				headers: queue.headers,
 				logger: queue.logger,
 				stream: queue.stream,
 				streamLimits: queue.streamLimits,
-				signal: queue.signal
+				signal: combined.signal,
+				onResponse: (response) => {
+					for (const item of active) item.onResponse?.(response);
+				}
 			});
-			pending.forEach((item, index) => {
+			active.forEach((item, index) => {
+				if (item.signal?.aborted) {
+					item.reject(abortReason(item.signal));
+					return;
+				}
 				const result = results[index];
 				if (!result) {
 					item.reject(new Error(`eXact ${item.operation.type} invocation failed`));
@@ -137,18 +150,42 @@ async function flushExactBatchQueue(queue: ExactBatchQueue): Promise<void> {
 				item.resolve(body);
 			});
 		} catch (error) {
-			for (const item of pending) item.reject(error);
+			for (const item of active) item.reject(error);
+		} finally {
+			combined.dispose();
 		}
 	} finally {
 		queue.active = Math.max(0, (queue.active ?? 1) - 1);
 	}
 }
 
-function reclaimQueue(container: Element, queue: ExactBatchQueue): void {
+function reclaimQueue(queue: ExactBatchQueue): void {
 	if (queue.scheduled || queue.pending.length || queue.active) return;
-	const queues = batchQueues.get(container);
-	if (!queues) return;
-	const index = queues.indexOf(queue);
-	if (index >= 0) queues.splice(index, 1);
-	if (!queues.length) batchQueues.delete(container);
+	const index = batchQueues.indexOf(queue);
+	if (index >= 0) batchQueues.splice(index, 1);
+}
+
+function abortWhenAllAbort(signals: readonly (AbortSignal | undefined)[]): {
+	signal?: AbortSignal;
+	dispose(): void;
+} {
+	const defined = signals.filter((signal): signal is AbortSignal => signal !== undefined);
+	if (!defined.length) return { signal: undefined, dispose() {} };
+	const controller = new AbortController();
+	const abort = () => {
+		if (defined.every((signal) => signal.aborted))
+			controller.abort(defined.find((signal) => signal.reason !== undefined)?.reason);
+	};
+	for (const signal of defined) signal.addEventListener('abort', abort);
+	abort();
+	return {
+		signal: controller.signal,
+		dispose() {
+			for (const signal of defined) signal.removeEventListener('abort', abort);
+		}
+	};
+}
+
+function abortReason(signal: AbortSignal): unknown {
+	return signal.reason ?? new DOMException('eXact request aborted', 'AbortError');
 }

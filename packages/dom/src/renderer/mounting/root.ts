@@ -8,6 +8,7 @@ import {
 	isCellVNode,
 	normalizeRenderResult,
 	Portal,
+	reparentComponentInstance,
 	renderInstance,
 	ServerSlot,
 	Text,
@@ -19,7 +20,12 @@ import {
 	type ComponentInstance,
 	type VNode
 } from '@exact/core';
-import { createEffectScope, withEffectScope, type EffectScope } from '@exact/reactive';
+import {
+	createEffectScope,
+	transferEffectScope,
+	withEffectScope,
+	type EffectScope
+} from '@exact/reactive';
 import {
 	getComponentProps,
 	getListBinding,
@@ -28,7 +34,7 @@ import {
 	stopReplacedChildren
 } from '../../children.js';
 import { describeVNodeType } from '../../debug.js';
-import { setElementOwner } from '../../ownership.js';
+import { setElementOwner, setNodeOwner } from '../../ownership.js';
 import { afterMountedChildren } from '../../placement.js';
 import { updateProps } from '../../props.js';
 import { mountServerSlot } from '../../server-slots.js';
@@ -57,14 +63,43 @@ export function mount(
 ): Mounted {
 	return withTreeDepth(root, () => {
 		if (countWork) countDomWork(root);
+		const parked = takeParkedMount(root, vnode, parentInstance, parentScope);
+		if (parked) return parked;
 		const scope = createEffectScope(parentScope);
 		try {
-			return mountInner(root, vnode, scope, parentInstance, parentNode);
+			const mounted = mountInner(root, vnode, scope, parentInstance, parentNode);
+			const owner = mounted.instance ?? parentInstance;
+			if (owner) {
+				setNodeOwner(mounted.dom, owner);
+				if (mounted.end) setNodeOwner(mounted.end, owner);
+			}
+			return mounted;
 		} catch (error) {
 			scope.stop();
 			throw error;
 		}
 	});
+}
+
+function takeParkedMount(
+	root: Root,
+	vnode: VNode,
+	parentInstance?: ComponentInstance<any>,
+	parentScope?: EffectScope
+): Mounted | undefined {
+	const candidates = root.replacementParking?.mounts.get(vnode);
+	const parked = candidates?.shift();
+	if (!parked) return undefined;
+	if (!candidates?.length) root.replacementParking?.mounts.delete(vnode);
+	root.replacementParking?.commits.push(() => {
+		transferEffectScope(parked.mounted.scope, parentScope);
+		parked.mounted.vnode = vnode;
+		if (parked.mounted.instance) {
+			reparentComponentInstance(parked.mounted.instance, parentInstance);
+			parked.mounted.instance.updateProps(getComponentProps(vnode));
+		}
+	});
+	return parked.mounted;
 }
 
 /** Performs the mount inner domain operation. */
@@ -213,7 +248,9 @@ export function mountInner(
 				createComponentInstance(
 					vnode.type as ComponentFunction<any, Record<string, unknown>>,
 					getComponentProps(vnode),
-					parentInstance
+					parentInstance,
+					undefined,
+					vnode.domain ?? parentInstance?.domain
 				)
 			);
 			ownMountedInstance(mounted, instance);

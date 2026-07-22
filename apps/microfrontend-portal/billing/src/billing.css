@@ -1,0 +1,26 @@
+.billing-card {
+	display: grid;
+	gap: 0.8rem;
+	padding: 1.25rem;
+	border-radius: 0.8rem;
+	background: white;
+	border: 1px solid #ded8e1;
+}
+
+.billing-card h2,
+.billing-card p {
+	margin: 0;
+}
+
+.billing-actions,
+.billing-results {
+	display: flex;
+	gap: 0.75rem;
+	flex-wrap: wrap;
+}
+
+.billing-results output {
+	padding: 0.5rem;
+	border-radius: 0.4rem;
+	background: #f7f2fa;
+}

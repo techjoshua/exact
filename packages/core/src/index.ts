@@ -23,12 +23,19 @@ export {
 	type CleanupFailure
 } from './cleanup.js';
 export { observeComponentAsync, trackComponentAsync } from './component/async.js';
+export {
+	createComponentDomain,
+	currentComponentDomain,
+	pageComponentDomain,
+	withComponentDomain
+} from './component/domain.js';
 export { ErrorContext, LoggerContext, SuspensionContext } from './component/contexts.js';
 export type {
 	Child,
 	Cleanup,
 	Component,
 	ComponentContextValues,
+	ComponentDomain,
 	ComponentFunction,
 	ComponentInstance,
 	ComponentReactiveValue,
@@ -71,7 +78,7 @@ export {
 } from './component/errors.js';
 export { logFrameworkEvent } from './component/log.js';
 export { renderInstance } from './component/render.js';
-export { createComponentInstance } from './component/runtime.js';
+export { createComponentInstance, reparentComponentInstance } from './component/runtime.js';
 export {
 	composeExactComponentDescriptors,
 	exactClientComponentDescriptor,

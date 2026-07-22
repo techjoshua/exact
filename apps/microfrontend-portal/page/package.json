@@ -1,0 +1,10 @@
+{
+	"name": "@exact/sample-microfrontend-page",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"dependencies": {
+		"@exact/microfrontends": "0.0.0",
+		"@exact/sample-microfrontend-portal": "0.0.0"
+	}
+}

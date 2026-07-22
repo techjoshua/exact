@@ -86,7 +86,14 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 	const profileStarted = root.onProfile ? performance.now() : undefined;
 	try {
 		withDomWork(root, () => {
-			root.mounted = patch(root, container, root.mounted, next, undefined, undefined);
+			root.mounted = patch(
+				root,
+				container,
+				root.mounted,
+				next,
+				options.logicalParent,
+				options.logicalParent?.scope
+			);
 			flushSync();
 		});
 	} finally {

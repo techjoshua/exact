@@ -147,6 +147,7 @@ describe('@exact/hydrate action-operations', () => {
 		expect(requests).toEqual([
 			{
 				type: 'refresh',
+				root: 'page',
 				id: 'panel',
 				boundaryHtml: '<p class="old">Loading</p>'
 			}
@@ -186,6 +187,7 @@ describe('@exact/hydrate action-operations', () => {
 		expect(requests).toEqual([
 			{
 				type: 'action',
+				root: 'page',
 				id: 'save-project',
 				state: { project: { id: 'p1' } }
 			}
@@ -225,6 +227,7 @@ describe('@exact/hydrate action-operations', () => {
 		expect(requests).toEqual([
 			{
 				type: 'action',
+				root: 'page',
 				id: 'save-project',
 				state: { projects: [null, { id: 'p2' }] }
 			}
@@ -262,6 +265,7 @@ describe('@exact/hydrate action-operations', () => {
 		expect(requests).toEqual([
 			{
 				type: 'action',
+				root: 'page',
 				id: 'save-project',
 				state: { project: { id: 'p1' } }
 			}

@@ -1,0 +1,33 @@
+{
+	"name": "@exact/sample-microfrontend-portal",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		"./shared": "./src/shared.ts"
+	},
+	"scripts": {
+		"dev": "node scripts/dev.mjs",
+		"build": "node scripts/build.mjs",
+		"start": "node dist/server/start.js",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run --testTimeout=60000"
+	},
+	"dependencies": {
+		"@exact/core": "file:../../packages/core",
+		"@exact/dom": "file:../../packages/dom",
+		"@exact/hydrate": "file:../../packages/hydrate",
+		"@exact/jsx": "file:../../packages/jsx-runtime",
+		"@exact/microfrontends": "file:../../plugins/microfrontends",
+		"@exact/node-adapter": "file:../../framework-adapters/node-adapter",
+		"@exact/server": "file:../../packages/server",
+		"@exact/ssr": "file:../../packages/ssr"
+	},
+	"devDependencies": {
+		"@types/node": "^22.10.2",
+		"@exact/vite-plugin": "file:../../framework-adapters/vite-plugin",
+		"typescript": "^5.7.2",
+		"vite": "^5.4.21",
+		"vitest": "^2.1.8"
+	}
+}

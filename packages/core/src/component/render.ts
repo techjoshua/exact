@@ -10,6 +10,7 @@ import {
 	handleComponentSuspension,
 	normalizeRenderResult
 } from './errors.js';
+import { withComponentDomain } from './domain.js';
 
 /** Renders a component instance inside a watcher and returns normalized child output. */
 export function renderInstance(
@@ -25,7 +26,10 @@ export function renderInstance(
 		() => {
 			try {
 				instance.beginRender();
-				output = (instance.errorFallback ?? instance.renderFunction)();
+				output = withComponentDomain(
+					instance.domain,
+					instance.errorFallback ?? instance.renderFunction
+				);
 			} catch (error) {
 				if (isPromiseLike(error) && handleComponentSuspension(instance, error)) {
 					output = null;
@@ -40,7 +44,7 @@ export function renderInstance(
 					return;
 				}
 				instance.errorFallback = fallback;
-				output = fallback();
+				output = withComponentDomain(instance.domain, fallback);
 			} finally {
 				instance.endRender();
 			}

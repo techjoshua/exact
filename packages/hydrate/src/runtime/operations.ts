@@ -1,6 +1,6 @@
 import { createDomWorkBudget, type DomWorkBudget } from '@exact/dom';
 import { enqueueExactOperation } from '../batching.js';
-import { invokeExact } from '../invocations.js';
+import { ExactBuildUnsupportedError, invokeExact } from '../invocations.js';
 import { hydrateClientIslands } from '../islands.js';
 import {
 	applyPatches,
@@ -50,44 +50,61 @@ export async function invokeAndApply(
 	versions.set('request', requestOrdinal);
 	const operation: ExactInvocationRequest = {
 		type,
+		root: options.executionRoot ?? 'page',
 		id,
 		payload,
 		state:
 			type === 'action'
 				? stateForContract(client.state, client.stateContracts?.[id])
 				: client.state,
-		boundaryHtml: type === 'refresh' ? boundaryInnerHtml(container, id, work) : undefined,
+		boundaryHtml:
+			type === 'refresh'
+				? boundaryInnerHtml(container, id, work, options.executionRoot ?? 'page')
+				: undefined,
 		boundaryHtmls:
 			type === 'action'
-				? boundaryHtmlsFor(container, options.actionBoundaries?.[id], work)
+				? boundaryHtmlsFor(
+						container,
+						options.actionBoundaries?.[id],
+						work,
+						options.executionRoot ?? 'page'
+					)
 				: undefined
 	};
 	const endpoint = requireEndpoint(endpointForOperation(client, type, id));
 	const transport = transportForEndpoint(options, endpoint);
 	// Operations can route to per-action or per-boundary endpoints, which keeps
 	// server components usable inside independently deployed micro-frontend bundles.
-	const result =
-		options.batch === false
-			? await invokeExact({
-					endpoint,
-					...operation,
-					fetch: transport.fetch,
-					headers: transport.headers,
-					logger: options.logger,
-					stream: options.stream,
-					streamLimits: options.streamLimits,
-					signal: options.signal
-				})
-			: await enqueueExactOperation(container, {
-					endpoint,
-					operation,
-					fetch: transport.fetch,
-					headers: transport.headers,
-					logger: options.logger,
-					stream: options.stream,
-					streamLimits: options.streamLimits,
-					signal: options.signal
-				});
+	let result: ExactInvocationResult;
+	try {
+		result =
+			options.batch === false
+				? await invokeExact({
+						endpoint,
+						...operation,
+						fetch: transport.fetch,
+						headers: transport.headers,
+						logger: options.logger,
+						stream: options.stream,
+						streamLimits: options.streamLimits,
+						signal: options.signal,
+						onResponse: options.onResponse
+					})
+				: await enqueueExactOperation(container, {
+						endpoint,
+						operation,
+						fetch: transport.fetch,
+						headers: transport.headers,
+						logger: options.logger,
+						stream: options.stream,
+						streamLimits: options.streamLimits,
+						signal: options.signal,
+						onResponse: options.onResponse
+					});
+	} catch (error) {
+		if (error instanceof ExactBuildUnsupportedError) options.onBuildUnsupported?.();
+		throw error;
+	}
 	const staleKeys = new Set(requestKeys.filter((key) => versions!.get(key) !== requestVersion));
 	if (staleKeys.size === requestKeys.length) {
 		options.onDiagnostic?.({
@@ -174,7 +191,9 @@ export function transportForEndpoint(
 		fetch: transport?.fetch ?? options.fetch,
 		headers: {
 			...(options.headers ?? {}),
-			...(transport?.headers ?? {})
+			...(transport?.headers ?? {}),
+			...(options.binding ? { 'X-Exact-Binding': options.binding } : {}),
+			...(options.buildKey ? { 'X-Exact-Build': options.buildKey } : {})
 		}
 	};
 }
@@ -183,9 +202,10 @@ export function transportForEndpoint(
 export function boundaryHtmlsFor(
 	container: Element,
 	ids: readonly string[] | undefined,
-	work: DomWorkBudget
+	work: DomWorkBudget,
+	executionRoot?: string
 ): Record<string, string> | undefined {
 	if (!ids?.length) return undefined;
-	const htmls = boundaryInnerHtmls(container, ids, work);
+	const htmls = boundaryInnerHtmls(container, ids, work, executionRoot);
 	return Object.keys(htmls).length ? htmls : undefined;
 }

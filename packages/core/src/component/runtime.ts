@@ -45,6 +45,7 @@ import { releaseTaskObserver, retainTaskObserver, taskObserverFor } from '../tas
 import { isPromiseLike } from './async-value.js';
 import { observeLifecyclePromise } from './async.js';
 import { ErrorContext } from './contexts.js';
+import { pageComponentDomain, withComponentDomain } from './domain.js';
 import { createErrorContext, createErrorReport, handleComponentError } from './errors.js';
 import { reactiveValue } from './reactive-value.js';
 
@@ -58,7 +59,8 @@ export function createComponentInstance<
 	type: ComponentFunction<State, Props>,
 	rawProps: Props,
 	parent?: ComponentInstance<any>,
-	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts
+	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
+	domain = parent?.domain ?? pageComponentDomain
 ): ComponentInstance<State> {
 	const refs = new Map<symbol, unknown>();
 	const listCaches = new Map<
@@ -95,6 +97,7 @@ export function createComponentInstance<
 	instance = {
 		type,
 		parent,
+		domain,
 		id,
 		scope,
 		state,
@@ -132,7 +135,7 @@ export function createComponentInstance<
 		getContext<T>(token: ContextToken<T>): Reactive<T> {
 			// Context lookup walks parents first, then falls back to framework defaults.
 			// Values are stored reactive so consumers can keep using normal state reads.
-			let cursor = parent;
+			let cursor = instance.parent;
 			while (cursor) {
 				if (cursor.contexts.has(token.id)) {
 					return cursor.contexts.get(token.id) as Reactive<T>;
@@ -352,7 +355,9 @@ export function createComponentInstance<
 
 	let result: RenderFunction | RenderResult;
 	try {
-		result = withEffectScope(scope, () => type.call(instance, props as Props));
+		result = withEffectScope(scope, () =>
+			withComponentDomain(domain, () => type.call(instance, props as Props))
+		);
 	} catch (error) {
 		acceptingTaskRegistrations = false;
 		cleanupFailedConstruction(instance);
@@ -366,6 +371,17 @@ export function createComponentInstance<
 	if (taskObserver?.retain) retainTaskObserver(instance, taskObserver);
 
 	return instance;
+}
+
+/** Transfers a live component to a new logical parent during renderer-owned root replacement. */
+export function reparentComponentInstance(
+	instance: ComponentInstance<any>,
+	parent?: ComponentInstance<any>
+): void {
+	for (let cursor = parent; cursor; cursor = cursor.parent) {
+		if (cursor === instance) throw new Error('Cannot create a component parent cycle');
+	}
+	instance.parent = parent;
 }
 
 function cleanupFailedConstruction(instance: ComponentInstance<any>): void {

@@ -1,6 +1,7 @@
 /** Public DOM renderer facade. */
 export { HTML_NAMESPACE, MATHML_NAMESPACE, SVG_NAMESPACE, namespaceForTag } from './namespace.js';
 export { applyDomProp } from './props.js';
+export { findNodeOwnerInstance } from './ownership.js';
 export {
 	adoptComponentRoot,
 	adoptDocumentRoot,

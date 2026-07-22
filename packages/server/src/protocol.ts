@@ -174,6 +174,7 @@ function parseInvocationRecord(record: Record<string, unknown>): ExactInvocation
 	if (
 		!hasOnlyKeys(record, [
 			'type',
+			'root',
 			'id',
 			'opId',
 			'dependsOn',
@@ -187,6 +188,8 @@ function parseInvocationRecord(record: Record<string, unknown>): ExactInvocation
 		throw new Error('unknown invocation field');
 	if (record.type !== 'action' && record.type !== 'refresh')
 		throw new Error('invalid invocation type');
+	if (record.root !== undefined && (typeof record.root !== 'string' || !record.root))
+		throw new Error('invalid execution root');
 	if (typeof record.id !== 'string' || !record.id) throw new Error('invalid invocation id');
 	if (record.opId !== undefined && (typeof record.opId !== 'string' || !record.opId))
 		throw new Error('invalid operation id');
@@ -200,6 +203,7 @@ function parseInvocationRecord(record: Record<string, unknown>): ExactInvocation
 		throw new Error('invalid boundary htmls');
 	return {
 		type: record.type,
+		...(typeof record.root === 'string' ? { root: record.root } : {}),
 		id: record.id,
 		...(typeof record.opId === 'string' ? { opId: record.opId } : {}),
 		...(Array.isArray(record.dependsOn) ? { dependsOn: record.dependsOn } : {}),

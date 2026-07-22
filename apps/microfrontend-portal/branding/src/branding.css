@@ -1,0 +1,48 @@
+.brand-shell {
+	max-width: 78rem;
+	margin: auto;
+	border: 2px solid var(--brand-accent, #6750a4);
+	border-radius: 1rem;
+	overflow: hidden;
+	background: color-mix(in srgb, var(--brand-accent, #6750a4) 7%, white);
+	color: #211f26;
+	box-shadow: 0 1rem 3rem rgb(0 0 0 / 12%);
+}
+
+.brand-shell.compact {
+	border-style: dashed;
+}
+
+.brand-header,
+.brand-tools {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	flex-wrap: wrap;
+	padding: 1rem;
+}
+
+.brand-header {
+	justify-content: space-between;
+	background: var(--brand-accent, #6750a4);
+	color: white;
+}
+
+.brand-header h1,
+.brand-header p {
+	margin: 0;
+}
+
+.ownership {
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+}
+
+.brand-tools output {
+	font-size: 0.875rem;
+}
+
+.brand-shell main {
+	padding: 1rem;
+}

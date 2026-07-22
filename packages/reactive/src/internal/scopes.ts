@@ -38,6 +38,22 @@ export function createProfiledEffectScope(
 	return createEffectScope(parent, onError, onProfile);
 }
 
+/** Transfers a live scope beneath another live scope without stopping owned work. */
+export function transferEffectScope(scope: EffectScope, parent?: EffectScope): void {
+	const child = scope as EffectScopeImpl;
+	const nextParent = parent as EffectScopeImpl | undefined;
+	if (!child.active) throw new Error('Cannot transfer an inactive effect scope');
+	if (nextParent && !nextParent.active)
+		throw new Error('Cannot transfer an effect scope beneath an inactive parent scope');
+	for (let cursor = nextParent; cursor; cursor = cursor.parent) {
+		if (cursor === child) throw new Error('Cannot create an effect scope cycle');
+	}
+	if (child.parent === nextParent) return;
+	child.parent?.children.delete(child);
+	child.parent = nextParent;
+	nextParent?.children.add(child);
+}
+
 function stopEffectScope(root: EffectScopeImpl): void {
 	if (!root.active) return;
 	const pending: Array<{ readonly scope: EffectScopeImpl; readonly complete: boolean }> = [

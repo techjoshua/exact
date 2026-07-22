@@ -15,6 +15,7 @@ import type {
 	ExactBatchResult,
 	ExactInvocationRequest,
 	ExactRequestLike,
+	ExactRemoteBuildRegistration,
 	ExactResponseLike,
 	ExactServerContext,
 	ServerProfileEvent
@@ -42,6 +43,7 @@ export {
 	createExactHydrationStateContracts,
 	createExactServerManifest
 } from '../manifest.js';
+export { createExactBindingGateway } from '../gateway.js';
 export type * from '../types.js';
 export { exactCompilerManifestVersion, exactServerManifestVersion } from '../versions.js';
 
@@ -124,12 +126,41 @@ async function handleExactRequestOwned(
 		return jsonResponse(403, { error: 'forbidden' });
 	}
 
+	if (requestHeader(request, 'x-exact-binding') !== undefined) {
+		if (!context.gateway) {
+			logReject(context, 'rejected exact invocation for unknown binding');
+			return jsonResponse(404, { error: 'unknown_binding' });
+		}
+		return context.gateway.forward(request, input, context);
+	}
+
+	const build = resolveRemoteBuild(request, context);
+	if (build === null) {
+		return withBuildHeaders(jsonResponse(410, { error: 'exact_build_unsupported' }), context);
+	}
+	const responseContext = context;
+	const dispatch = build
+		? (
+				operationRequest: ExactRequestLike,
+				operation: ExactInvocationRequest,
+				_base: ExactServerContext
+			) =>
+				dispatchSecurityCheckedExactOperation(
+					operationRequest,
+					operation,
+					contextForRemoteOperation(responseContext, build, operation)
+				)
+		: dispatchSecurityCheckedExactOperation;
+
 	if (wantsStreaming(request)) {
-		return streamExactResponse(
-			request,
-			input,
-			context,
-			input.type === 'batch' ? dispatchExactOperation : dispatchSecurityCheckedExactOperation
+		return withBuildHeaders(
+			await streamExactResponse(
+				request,
+				input,
+				responseContext,
+				build ? dispatch : input.type === 'batch' ? dispatchExactOperation : dispatch
+			),
+			context
 		);
 	}
 
@@ -137,17 +168,85 @@ async function handleExactRequestOwned(
 		const results = await dispatchExactBatch(
 			request,
 			input.operations,
-			context,
-			dispatchExactOperation
+			responseContext,
+			build ? dispatch : dispatchExactOperation
 		);
-		return limitedJsonResponse(context, 200, {
-			ok: true,
-			version: 1,
-			results
-		} satisfies ExactBatchResult);
+		return withBuildHeaders(
+			limitedJsonResponse(responseContext, 200, {
+				ok: true,
+				version: 1,
+				results
+			} satisfies ExactBatchResult),
+			context
+		);
 	}
 
-	const result = await dispatchSecurityCheckedExactOperation(request, input, context);
-	if (isOperationError(result)) return jsonResponse(result.status, { error: result.error });
-	return limitedJsonResponse(context, 200, result);
+	const result = await dispatch(request, input, responseContext);
+	if (isOperationError(result))
+		return withBuildHeaders(jsonResponse(result.status, { error: result.error }), context);
+	return withBuildHeaders(limitedJsonResponse(responseContext, 200, result), context);
+}
+
+function resolveRemoteBuild(
+	request: ExactRequestLike,
+	context: ExactServerContext
+): ExactRemoteBuildRegistration | undefined | null {
+	if (!context.remoteBuilds) return undefined;
+	const key = requestHeader(request, 'x-exact-build');
+	if (!key) return null;
+	const registration = context.remoteBuilds[key];
+	if (!registration || registration.buildKey !== key) return null;
+	return registration;
+}
+
+function contextForRemoteOperation(
+	context: ExactServerContext,
+	build: ExactRemoteBuildRegistration,
+	input: ExactInvocationRequest
+): ExactServerContext {
+	const root = input.root ? build.roots[input.root] : undefined;
+	if (!root) {
+		return { ...context, manifest: emptyManifest(context), actions: {}, refreshBoundaries: {} };
+	}
+	return {
+		...context,
+		manifest: root.manifest,
+		actions: root.actions,
+		refreshBoundaries: root.refreshBoundaries
+	};
+}
+
+function emptyManifest(context: ExactServerContext): ExactServerContext['manifest'] {
+	return {
+		version: 1,
+		endpoint: context.manifest.endpoint,
+		actions: {},
+		boundaries: {},
+		actionBoundaries: {}
+	};
+}
+
+function withBuildHeaders(
+	response: ExactResponseLike,
+	context: ExactServerContext
+): ExactResponseLike {
+	if (!context.preferredBuildKey) return response;
+	return {
+		...response,
+		headers: {
+			...response.headers,
+			'X-Exact-Preferred-Build': context.preferredBuildKey
+		}
+	};
+}
+
+function requestHeader(request: ExactRequestLike, name: string): string | undefined {
+	const headers = request.headers;
+	if (!headers) return undefined;
+	if (headers instanceof Headers) return headers.get(name) ?? undefined;
+	for (const [key, value] of Object.entries(headers)) {
+		if (key.toLowerCase() !== name) continue;
+		return Array.isArray(value) ? value[0] : value;
+	}
+	return undefined;
 }

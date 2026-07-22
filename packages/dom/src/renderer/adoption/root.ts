@@ -133,7 +133,10 @@ export function adoptComponentRoot(
 			const instance = withEffectScope(scope, () =>
 				createComponentInstance(
 					vnode.type as ComponentFunction<any, Record<string, unknown>>,
-					getComponentProps(vnode)
+					getComponentProps(vnode),
+					undefined,
+					undefined,
+					vnode.domain
 				)
 			);
 			ownMountedInstance(mounted, instance);
@@ -209,7 +212,10 @@ export function adoptMarkerlessComponentRoot(
 			const instance = withEffectScope(scope, () =>
 				createComponentInstance(
 					vnode.type as ComponentFunction<any, Record<string, unknown>>,
-					getComponentProps(vnode)
+					getComponentProps(vnode),
+					undefined,
+					undefined,
+					vnode.domain
 				)
 			);
 			ownMountedInstance(mounted, instance);

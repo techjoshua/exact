@@ -1,0 +1,22 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"composite": true,
+		"rootDir": "src",
+		"outDir": "dist",
+		"lib": ["ES2022", "DOM"],
+		"types": ["node"]
+	},
+	"references": [
+		{ "path": "../../packages/compiler" },
+		{ "path": "../../packages/config" },
+		{ "path": "../../packages/core" },
+		{ "path": "../../packages/dom" },
+		{ "path": "../../packages/hydrate" },
+		{ "path": "../../packages/plugin-api" },
+		{ "path": "../../packages/server" },
+		{ "path": "../../packages/ssr" }
+	],
+	"include": ["src"],
+	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+}

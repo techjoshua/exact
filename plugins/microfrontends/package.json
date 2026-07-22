@@ -1,0 +1,81 @@
+{
+	"name": "@exact/microfrontends",
+	"version": "0.0.0",
+	"type": "module",
+	"files": [
+		"dist",
+		"!dist/**/*.test.*"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./config": {
+			"types": "./dist/config.d.ts",
+			"default": "./dist/config.js"
+		},
+		"./plugin-config": {
+			"types": "./dist/plugin-config.d.ts",
+			"default": "./dist/plugin-config.js"
+		},
+		"./artifacts": {
+			"types": "./dist/artifacts.d.ts",
+			"default": "./dist/artifacts.js"
+		},
+		"./build": {
+			"types": "./dist/build.d.ts",
+			"default": "./dist/build.js"
+		},
+		"./client": {
+			"types": "./dist/client.d.ts",
+			"default": "./dist/client.js"
+		},
+		"./rollup": {
+			"types": "./dist/rollup.d.ts",
+			"default": "./dist/rollup.js"
+		},
+		"./webpack-feasibility": {
+			"types": "./dist/webpack-feasibility.d.ts",
+			"default": "./dist/webpack-feasibility.js"
+		},
+		"./bun-feasibility": {
+			"types": "./dist/bun-feasibility.d.ts",
+			"default": "./dist/bun-feasibility.js"
+		}
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"sideEffects": false,
+	"dependencies": {
+		"@exact/compiler": "file:../../packages/compiler",
+		"@exact/config": "file:../../packages/config",
+		"@exact/core": "file:../../packages/core",
+		"@exact/hydrate": "file:../../packages/hydrate",
+		"@exact/plugin-api": "file:../../packages/plugin-api",
+		"@exact/server": "file:../../packages/server",
+		"typescript": "^5.7.2"
+	},
+	"devDependencies": {
+		"@exact/dom": "file:../../packages/dom",
+		"@exact/ssr": "file:../../packages/ssr",
+		"@types/node": "^22.10.2",
+		"vite": "^5.0.0"
+	},
+	"exact": {
+		"plugin": {
+			"schemaVersion": 1,
+			"protocolVersion": "1.0.0",
+			"configKey": "microfrontends",
+			"entries": {
+				"config": "./plugin-config",
+				"configTypes": "./config"
+			}
+		}
+	},
+	"scripts": {
+		"build": "tsc -b",
+		"test": "vitest run",
+		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	}
+}

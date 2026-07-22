@@ -83,7 +83,9 @@ export function adoptStaticMountedInner(
 					createComponentInstance(
 						vnode.type as ComponentFunction<any, Record<string, unknown>>,
 						getComponentProps(vnode),
-						parentInstance
+						parentInstance,
+						undefined,
+						vnode.domain ?? parentInstance?.domain
 					)
 				);
 				ownMountedInstance(mounted, instance);
@@ -147,7 +149,9 @@ export function adoptStaticMountedInner(
 				createComponentInstance(
 					vnode.type as ComponentFunction<any, Record<string, unknown>>,
 					getComponentProps(vnode),
-					parentInstance
+					parentInstance,
+					undefined,
+					vnode.domain ?? parentInstance?.domain
 				)
 			);
 			ownMountedInstance(mounted, instance);

@@ -1,10 +1,18 @@
 import {
 	createServerSlot,
+	createComponentDomain,
 	createVNode,
 	decodeReactiveProtocolValue,
-	logFrameworkEvent
+	logFrameworkEvent,
+	withComponentDomain
 } from '@exact/core';
-import { consumeDomWork, createDomWorkBudget, render, walkDomSubtree } from '@exact/dom';
+import {
+	consumeDomWork,
+	createDomWorkBudget,
+	findNodeOwnerInstance,
+	render,
+	walkDomSubtree
+} from '@exact/dom';
 import { isSafeObjectKey } from './safety.js';
 import type { ClientIslandRegistry, HydrateOptions } from './types.js';
 import { isJsonSafe } from './validation.js';
@@ -19,6 +27,7 @@ export function hydrateClientIslands(
 	const attempted = new Set<Element>();
 	const work = createDomWorkBudget(options.maxTreeNodes);
 	const boundaries: Element[] = [];
+	const domain = options.componentDomain ?? createComponentDomain(options.executionRoot ?? 'page');
 	const enqueue = (root: Node) =>
 		walkDomSubtree(
 			root,
@@ -61,12 +70,17 @@ export function hydrateClientIslands(
 		const props = parseIslandProps(boundary.getAttribute('data-exact-client-props'), options);
 		const remaining = work.limit - work.used;
 		if (remaining <= 0) consumeDomWork(work);
-		render(createVNode(component, props), boundary, {
-			logger: options.logger,
-			maxTreeDepth: options.maxTreeDepth,
-			maxTreeNodes: remaining,
-			workBudget: work
-		});
+		render(
+			withComponentDomain(domain, () => createVNode(component, props)),
+			boundary,
+			{
+				logger: options.logger,
+				maxTreeDepth: options.maxTreeDepth,
+				maxTreeNodes: remaining,
+				workBudget: work,
+				logicalParent: findNodeOwnerInstance(boundary)
+			}
+		);
 		boundary.setAttribute('data-exact-client-hydrated', 'true');
 		hydrated++;
 		enqueue(boundary);

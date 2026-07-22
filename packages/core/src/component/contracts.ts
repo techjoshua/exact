@@ -32,12 +32,19 @@ export type VNodeType =
 	| typeof UnsafeHtml
 	| ComponentFunction<any, any>;
 
+/** Immutable execution-root ownership for one component instance. */
+export type ComponentDomain = {
+	readonly executionRoot: string;
+};
+
 /** Defines the vnode type contract. */
 export type VNode<Props = Record<string, unknown>> = {
 	type: VNodeType;
 	props: Props;
 	children: Child[];
 	key?: string;
+	/** Captured when authored; explicit ownership survives cross-root composition. */
+	readonly domain?: ComponentDomain;
 };
 
 /** Defines the vnode cell type contract. */
@@ -257,7 +264,8 @@ export interface Component<State extends object> {
 /** Defines the component instance type contract. */
 export type ComponentInstance<State extends object> = Component<State> & {
 	readonly type: ComponentFunction<State, any>;
-	readonly parent?: ComponentInstance<any>;
+	parent?: ComponentInstance<any>;
+	readonly domain: ComponentDomain;
 	readonly props: Reactive<Record<string, unknown>>;
 	readonly contexts: Map<symbol, unknown>;
 	/** Server-owned values inherited by the whole component root. */

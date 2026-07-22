@@ -1,0 +1,64 @@
+:root {
+	font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+	color: #211f26;
+	background: #f7f2fa;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+}
+
+button,
+a {
+	font: inherit;
+}
+
+button {
+	border: 1px solid color-mix(in srgb, var(--accent, #6750a4) 55%, white);
+	border-radius: 0.65rem;
+	padding: 0.55rem 0.8rem;
+	background: white;
+	cursor: pointer;
+}
+
+.page-frame {
+	min-height: 100vh;
+	padding: 1rem;
+	background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, white), white 55%);
+}
+
+.page-frame.dark {
+	color: #f4eff7;
+	background: #201a24;
+}
+
+.page-controls {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	flex-wrap: wrap;
+	max-width: 78rem;
+	margin: 0 auto 1rem;
+}
+
+.page-controls output {
+	flex-basis: 100%;
+	font-size: 0.875rem;
+}
+
+.portal-navigation {
+	display: flex;
+	gap: 1rem;
+}
+
+.portal-navigation a {
+	color: inherit;
+}
+
+.account-badge {
+	white-space: nowrap;
+}

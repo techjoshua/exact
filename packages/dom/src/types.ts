@@ -63,6 +63,11 @@ export type Root = {
 	mode?: 'client' | 'hydrated' | 'document';
 	/** Component ranges are inferred when the public server format omits eXact markers. */
 	markerlessHydration?: boolean;
+	/** Renderer-internal mounts parked during one cross-domain replacement transaction. */
+	replacementParking?: {
+		mounts: Map<VNode, Array<{ mounted: Mounted; parent: Node }>>;
+		commits: Array<() => void>;
+	};
 };
 
 /** Configures render. */
@@ -83,6 +88,8 @@ export type RenderOptions = {
 	onProfile?: ExactProfileSink<DomProfileEvent>;
 	/** Internal shared budget used when hydration combines DOM scans and renderer work. */
 	workBudget?: DomWorkBudget;
+	/** Internal logical parent used by a late island mounted in a nested DOM root. */
+	logicalParent?: ComponentInstance<any>;
 };
 
 /** Reports an observable dom profile event. */
