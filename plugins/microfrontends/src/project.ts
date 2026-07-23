@@ -13,6 +13,7 @@ import { generateExactClientBindingsBootstrap } from './artifacts.js';
 import type { ExactMicrofrontendConfig } from './config.js';
 import type { ExactMicrofrontendCompilerConfig } from './plugin-config.js';
 
+/** Retains the shared exposure plan and optional compiler graph prepared for one bundler build. */
 export type ExactPreparedRemoteArtifactBuild = {
 	plan: ReturnType<typeof createExactRemoteArtifactPlan>;
 	artifactGraph?: ExactArtifactGraph;

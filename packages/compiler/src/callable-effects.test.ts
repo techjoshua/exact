@@ -46,6 +46,28 @@ describe('symbol-level placement inference', () => {
 		);
 	});
 
+	it('propagates interactive JSX placement through imported render helpers', () => {
+		const helper = analyzeSource(
+			`export function renderButton(click: () => void) { return <button onClick={click}>Save</button>; }`,
+			{ filename: 'C:/src/render-button.tsx' }
+		);
+		const manifest = analyzeSource(
+			`
+      import { renderButton } from './render-button.js';
+      export function Page() { return () => <section>{renderButton(() => undefined)}</section>; }
+    `,
+			{ filename: 'C:/src/page.tsx', importedManifests: [helper] }
+		);
+
+		expect(helper.callables.find((callable) => callable.name === 'renderButton')?.effect).toBe(
+			'browser'
+		);
+		expect(manifest.components.find((component) => component.name === 'Page')).toMatchObject({
+			placement: 'client',
+			artifactTargets: ['client']
+		});
+	});
+
 	it('constrains opaque helpers through a client event invocation', () => {
 		const manifest = analyzeSource(
 			`

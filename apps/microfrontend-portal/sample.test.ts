@@ -1,9 +1,10 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode, type ComponentFunction } from '@exact/core';
+import type { ComponentFunction } from '@exact/core';
 import { render, unmount } from '@exact/dom';
-import { createExactClient, createExactRoot } from '@exact/hydrate';
+import { createExactClient } from '@exact/hydrate';
+import { createExactRoot } from '@exact/hydrate/internal';
 import { registerExactRemoteClientBindings } from '@exact/microfrontends/client';
 import { handleExactRequest, type ExactRequestLike, type ExactResponseLike } from '@exact/server';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -216,6 +217,10 @@ describe('trusted microfrontend portal sample', () => {
 
 		unmount(container);
 	});
+
+	it.todo(
+		'dispatches compiled this.task.server() calls through the client owned by each hidden root'
+	);
 });
 
 function remoteModule(component: ComponentFunction<any, any>, root: string) {

@@ -8,6 +8,7 @@ type RecoveryMember = {
 	fail(): void;
 };
 
+/** Controls one remote instance's membership in coordinated build replacement. */
 export type ExactRemoteRecoveryRegistration = {
 	response(metadata: ExactResponseMetadata): void;
 	unsupported(): void;
@@ -94,13 +95,15 @@ class RecoveryCoordinator {
 
 	#schedule(preferred: string | undefined): void {
 		if (this.#replacement) return;
+		let failed = false;
 		this.#replacement = this.#prepare(preferred)
 			.then((module) => this.#commitWhenSettled(module))
 			.catch(() => {
-				if (this.#stale) for (const member of [...this.#members]) member.fail();
+				failed = true;
 			})
 			.finally(() => {
-				if (!this.#stale) {
+				if (failed && this.#stale) for (const member of [...this.#members]) member.fail();
+				if (failed || !this.#stale) {
 					this.#preparation = undefined;
 					this.#replacement = undefined;
 				}

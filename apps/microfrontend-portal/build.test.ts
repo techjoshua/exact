@@ -6,8 +6,26 @@ import { describe, expect, it } from 'vitest';
 
 const execute = promisify(execFile);
 const root = path.resolve(import.meta.dirname);
+const typescriptCli = path.resolve(root, '../../node_modules/typescript/bin/tsc');
 
 describe('microfrontend portal production build', () => {
+	it.each(['page', 'billing', 'branding'])(
+		'type-checks JSX and side-effect CSS imports in the %s Vite root',
+		async (application) => {
+			await execute(
+				process.execPath,
+				[
+					typescriptCli,
+					'--noEmit',
+					'--noUncheckedSideEffectImports',
+					'-p',
+					path.join(root, application, 'tsconfig.json')
+				],
+				{ cwd: root }
+			);
+		}
+	);
+
 	it('emits one page deployment with independently built remote artifacts', async () => {
 		await execute(process.execPath, ['scripts/build.mjs'], { cwd: root, timeout: 60_000 });
 		const html = await readFile(path.join(root, 'dist', 'public', 'index.html'), 'utf8');
@@ -17,7 +35,13 @@ describe('microfrontend portal production build', () => {
 				.filter((file) => file.endsWith('.js'))
 				.map((file) => readFile(path.join(root, 'dist', 'public', file), 'utf8'))
 		);
+		const styles = await Promise.all(
+			files
+				.filter((file) => file.endsWith('.css'))
+				.map((file) => readFile(path.join(root, 'dist', 'public', file), 'utf8'))
+		);
 		const pageProgram = programs.join('\n');
+		const emittedStyles = styles.join('\n');
 
 		expect(html).toContain('id="app"');
 		expect(
@@ -31,6 +55,17 @@ describe('microfrontend portal production build', () => {
 				/remotes[\\/]branding[\\/].*exact-remote-CompactShell.*\.js$/i.test(file)
 			)
 		).toBe(true);
+		expect(
+			files.some((file) => /remotes[\\/]billing[\\/].*exact-remote-Billing.*\.css$/i.test(file))
+		).toBe(true);
+		expect(
+			files.some((file) =>
+				/remotes[\\/]branding[\\/].*exact-remote-(?:Shell|CompactShell).*\.css$/i.test(file)
+			)
+		).toBe(true);
+		expect(emittedStyles).toContain('.page-frame');
+		expect(emittedStyles).toContain('.billing-card');
+		expect(emittedStyles).toContain('.brand-shell');
 		expect(pageProgram).toContain('/remotes/billing/');
 		expect(pageProgram).toContain('/remotes/branding/');
 		expect(pageProgram).not.toContain('localhost:4401');

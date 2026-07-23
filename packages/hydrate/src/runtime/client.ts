@@ -13,13 +13,29 @@ import { invokeAndApply } from './operations.js';
 import { requestVersions, roots } from './state.js';
 
 const requestClients = new WeakMap<import('@exact/core').ComponentDomain, ExactClient>();
+const requestDomains = new WeakMap<ExactClient, Set<import('@exact/core').ComponentDomain>>();
+const activeRequestClients = new WeakSet<ExactClient>();
 
-/** @internal Associates a provider generation with its framework-owned request client. */
+/**
+ * Associates one immutable component-domain generation with the request client
+ * selected by its hidden framework root.
+ * @internal
+ */
 export function bindRequestClientDomain(
 	domain: import('@exact/core').ComponentDomain,
 	client: ExactClient
 ): void {
+	if (!activeRequestClients.has(client))
+		throw new Error('Cannot bind a component root to an inactive eXact client');
+	const previous = requestClients.get(domain);
+	if (previous && previous !== client) requestDomains.get(previous)?.delete(domain);
 	requestClients.set(domain, client);
+	let domains = requestDomains.get(client);
+	if (!domains) {
+		domains = new Set();
+		requestDomains.set(client, domains);
+	}
+	domains.add(domain);
 }
 
 /** Resolves the request client privately owned by an immutable component root. */
@@ -129,17 +145,21 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 			roots.delete(container);
 			container.removeAttribute('data-exact-hydrated');
 			requestVersions.get(container)?.clear();
-			requestClients.delete(domain);
+			activeRequestClients.delete(client);
+			for (const ownedDomain of requestDomains.get(client) ?? [])
+				requestClients.delete(ownedDomain);
+			requestDomains.delete(client);
 			disposeOwnedSubtree(container, false);
 			unmount(container);
 		}
 	};
 	domain = createComponentDomain(runtimeOptions.executionRoot ?? 'page');
 	runtimeOptions.componentDomain = domain;
-	bindRequestClientDomain(domain, client);
 	const existing = roots.get(container);
 	if (existing && existing !== client)
 		throw new Error('An eXact client root is already registered for this container');
+	activeRequestClients.add(client);
+	bindRequestClientDomain(domain, client);
 	roots.set(container, client);
 	return client;
 }

@@ -26,6 +26,7 @@ function LateBillingIsland(this: Component<Record<string, never>>) {
 	);
 }
 
+/** Renders the independently loaded billing root against page-owned reactive context. */
 export default function Billing(this: Component<BillingState>, props: BillingProps) {
 	const portal = this.getContext(PortalContext);
 	this.state.showDetails = false;

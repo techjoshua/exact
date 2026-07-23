@@ -8,11 +8,7 @@ import {
 	type ExactCompilerManifest,
 	type TransformTarget
 } from '@exact/compiler';
-import {
-	createExactDiagnosticReporter,
-	loadExactImportedManifests,
-	matchesExactBuildFilter
-} from '@exact/compiler/adapter-support';
+import { createExactDiagnosticReporter } from '@exact/compiler/adapter-support';
 import {
 	profileTimestamp,
 	type ExactProfileEvent,
@@ -37,6 +33,15 @@ import {
 } from '@exact/react-compat/plugin';
 import { transformReactJsx, usesReactRuntimeImports } from '@exact/react-compat/transform';
 import path from 'node:path';
+import { createExactViteMicrofrontendIntegration } from './microfrontends.js';
+import {
+	containsExactJsx,
+	exactImportedManifests,
+	exactModuleFilename,
+	exactTransformTarget,
+	isExactTransformableModule,
+	shouldCompileExactModule
+} from './module-selection.js';
 
 /** Configures exact plugin. */
 export type ExactPluginOptions = {
@@ -65,60 +70,11 @@ export type ExactViteProfileEvent = ExactProfileEvent<'vite-plugin', 'transform'
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
 
-type ExactRemoteRollupAdapterLike = {
-	readonly pageBootstrapImport: string;
-	readonly developmentEntries: Readonly<Record<string, string>>;
-	buildStart(context: {
-		emitFile(file: {
-			type: 'chunk';
-			id: string;
-			name: string;
-			preserveSignature: 'strict';
-		}): string;
-	}): void;
-	recordModule(code: string, id: string): void;
-	resolveId(
-		source: string,
-		importer?: string,
-		resolve?: (
-			source: string,
-			importer?: string
-		) => Promise<{ id: string; external?: boolean | 'absolute' | 'relative' } | null>
-	):
-		| string
-		| { id: string; external?: boolean | 'absolute' | 'relative' }
-		| null
-		| Promise<string | { id: string; external?: boolean | 'absolute' | 'relative' } | null>;
-	load(id: string): string | null;
-	generateBundle(bundle: Readonly<Record<string, ExactRollupOutputLike>>): void;
-};
-
 type ExactRollupOutputLike = {
 	type: 'chunk' | 'asset';
 	fileName: string;
 	facadeModuleId?: string | null;
 	isEntry?: boolean;
-};
-
-type ExactMicrofrontendsRollupModule = {
-	readExactMicrofrontendCompilerConfig(value: unknown): unknown;
-	prepareExactRemoteArtifactBuild(options: {
-		applicationRoot: string;
-		compilerConfig: unknown;
-		pluginRegistry: ExactPreparedCompilerRegistry;
-		serverComponents?: boolean;
-	}): Promise<{
-		plan: { exposures: readonly unknown[] };
-		artifactGraph?: unknown;
-		hasRemoteBindings: boolean;
-	}>;
-	createExactRemoteRollupAdapter(options: {
-		plan: unknown;
-		applicationRoot: string;
-		artifactGraph?: unknown;
-		registrationModules?: Readonly<Record<string, string>>;
-		onEntries?: (entries: Readonly<Record<string, string>>) => void;
-	}): ExactRemoteRollupAdapterLike;
 };
 
 /** Defines the exact plugin type contract. */
@@ -211,8 +167,8 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			)
 		: undefined;
 	let preparedRegistry: ExactPreparedPluginRegistry | undefined;
-	let remoteAdapter: ExactRemoteRollupAdapterLike | undefined;
-	let publishProvidedPackages = false;
+	let viteCommand: 'build' | 'serve' = 'build';
+	const microfrontends = createExactViteMicrofrontendIntegration(options);
 	const prepareRegistry = async (): Promise<ExactPreparedPluginRegistry> => {
 		if (preparedRegistry) return preparedRegistry;
 		preparedRegistry = await prepareExactPluginRegistry({
@@ -237,6 +193,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			};
 		},
 		configResolved(config) {
+			viteCommand = config.command;
 			configureDiagnostics(options.diagnostics ?? config.command === 'serve');
 		},
 		async buildStart() {
@@ -244,36 +201,11 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			const registry = await prepareRegistry();
 			for (const file of registry.watchFiles) this.addWatchFile(file);
 			for (const warning of registry.warnings) this.warn?.(warning);
-			if (options.target !== 'server') {
-				const remotePlugin = registry.compiler.plugins['@exact/microfrontends'];
-				if (remotePlugin) {
-					const integration = (await import(
-						'@exact/microfrontends/rollup'
-					)) as unknown as ExactMicrofrontendsRollupModule;
-					const compilerConfig = integration.readExactMicrofrontendCompilerConfig(
-						remotePlugin.cacheKey
-					);
-					const prepared = await integration.prepareExactRemoteArtifactBuild({
-						applicationRoot: registry.applicationRoot,
-						compilerConfig,
-						pluginRegistry: registry.compiler,
-						serverComponents: options.serverComponents
-					});
-					remoteAdapter = integration.createExactRemoteRollupAdapter({
-						plan: prepared.plan,
-						applicationRoot: registry.applicationRoot,
-						...(prepared.artifactGraph
-							? { artifactGraph: prepared.artifactGraph }
-							: { registrationModules: {} }),
-						onEntries: options.onRemoteEntries
-					});
-					options.onRemoteDevelopmentEntries?.(remoteAdapter.developmentEntries);
-					publishProvidedPackages = prepared.hasRemoteBindings;
-					if (!this.emitFile)
-						throw new Error('Vite/Rollup emitFile is unavailable for remote entries');
-					remoteAdapter.buildStart({ emitFile: (file) => this.emitFile!(file) });
-				}
-			}
+			await microfrontends.buildStart(
+				registry,
+				viteCommand === 'build' && this.emitFile ? (file) => this.emitFile!(file) : undefined,
+				viteCommand
+			);
 		},
 		configureServer(server) {
 			server.httpServer?.once('close', () => compilerSession.dispose());
@@ -295,25 +227,26 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 					)?.id ?? null
 				);
 			};
-			if (!remoteAdapter) return resolveFrameworkImport();
-			return Promise.resolve(
-				remoteAdapter.resolveId(source, importer, (request, owner) =>
-					this.resolve ? this.resolve(request, owner, { skipSelf: true }) : Promise.resolve(null)
-				)
-			).then((remote) => remote ?? resolveFrameworkImport());
+			return microfrontends.resolveId(
+				source,
+				importer,
+				resolveFrameworkImport,
+				this.resolve
+					? (request, owner) => this.resolve!(request, owner, { skipSelf: true })
+					: undefined
+			);
 		},
 		load(id) {
-			return remoteAdapter?.load(id) ?? null;
+			return microfrontends.load(id);
 		},
 		transformIndexHtml: {
 			order: 'pre',
 			handler(html) {
-				if (!publishProvidedPackages || !remoteAdapter) return html;
-				return injectProvidedPackageBootstrap(html, remoteAdapter.pageBootstrapImport);
+				return microfrontends.transformIndexHtml(html);
 			}
 		},
 		generateBundle(_output, bundle) {
-			remoteAdapter?.generateBundle(bundle);
+			microfrontends.generateBundle(bundle);
 		},
 		handleHotUpdate(context) {
 			if (options.diagnostics === undefined) configureDiagnostics(true);
@@ -347,16 +280,16 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			compilerSession.dispose();
 		},
 		transform(code, id) {
-			if (!isTransformableModule(id)) return null;
-			remoteAdapter?.recordModule(code, id);
-			const filename = moduleFilename(id);
+			if (!isExactTransformableModule(id)) return null;
+			microfrontends.recordModule(code, id);
+			const filename = exactModuleFilename(id);
 			const profileStarted = options.onProfile ? profileTimestamp() : undefined;
 			try {
 				const ownership = jsxSourceOwnership(filename, code, reactCompatibility);
 				const reactOwned =
 					ownership === 'react' ||
 					(ownership === 'unknown' && usesReactRuntimeImports(code, filename));
-				if (reactOwned && containsJsx(filename, code)) {
+				if (reactOwned && containsExactJsx(filename, code)) {
 					if (!reactCompatibility) return null;
 					const lowered = transformReactJsx(code, {
 						filename,
@@ -370,7 +303,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 						options,
 						code
 					);
-					remoteAdapter?.recordModule(rewritten.code, id);
+					microfrontends.recordModule(rewritten.code, id);
 					return rewritten;
 				}
 				if (
@@ -384,8 +317,8 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 					const result = transformSource(code, {
 						filename,
 						session: compilerSession,
-						target: targetFor(options),
-						importedManifests: importedManifestsFor(options),
+						target: exactTransformTarget(options),
+						importedManifests: exactImportedManifests(options),
 						serverComponents: options.serverComponents,
 						sourceMap: false,
 						assetRules: options.assetRules,
@@ -401,7 +334,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 								sourceMap: false
 							})
 						: { code: result.code };
-					remoteAdapter?.recordModule(rewritten.code, id);
+					microfrontends.recordModule(rewritten.code, id);
 					return {
 						code: rewritten.code,
 						map:
@@ -420,7 +353,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				});
 				for (const diagnostic of rewritten.diagnostics)
 					if (diagnostic.severity === 'warning') this.warn?.(diagnostic.message);
-				if (rewritten.changed) remoteAdapter?.recordModule(rewritten.code, id);
+				if (rewritten.changed) microfrontends.recordModule(rewritten.code, id);
 				return rewritten.changed ? { code: rewritten.code, map: rewritten.map } : null;
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
@@ -439,59 +372,6 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			}
 		}
 	};
-}
-
-function moduleFilename(id: string): string {
-	return id.startsWith('\0') ? id : id.split('?', 1)[0]!;
-}
-
-function injectProvidedPackageBootstrap(html: string, moduleId: string): string {
-	const bootstrap = `<script type="module" src=${JSON.stringify(moduleId)}></script>`;
-	const firstModule = /<script\b(?=[^>]*\btype\s*=\s*["']module["'])[^>]*>/i;
-	if (firstModule.test(html)) return html.replace(firstModule, `${bootstrap}$&`);
-	const body = /<\/body\s*>/i;
-	if (body.test(html)) return html.replace(body, `${bootstrap}$&`);
-	return `${html}${bootstrap}`;
-}
-
-function targetFor(options: ExactPluginOptions): 'client' | 'server' {
-	return options.target === 'server' ? 'server' : 'client';
-}
-
-function importedManifestsFor(options: {
-	importedManifests?: readonly ExactCompilerManifest[];
-	manifestFiles?: readonly string[];
-}): ExactCompilerManifest[] {
-	return loadExactImportedManifests(options);
-}
-
-function shouldCompileExactModule(
-	id: string,
-	code: string,
-	options: ExactPluginOptions,
-	registry: ExactPreparedCompilerRegistry | undefined
-): boolean {
-	if (!options.include && /(?:^|[\\/])node_modules(?:[\\/]|$)/.test(id)) return false;
-	if (options.include && !matchesExactBuildFilter(id, options.include)) return false;
-	if (options.exclude && matchesExactBuildFilter(id, options.exclude)) return false;
-	return (
-		containsJsx(id, code) ||
-		/@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(code) ||
-		Object.values(registry?.plugins ?? {}).some((plugin) => {
-			const include = plugin.extension?.include;
-			if (!include) return false;
-			include.lastIndex = 0;
-			return include.test(id);
-		})
-	);
-}
-
-function isTransformableModule(id: string): boolean {
-	return /\.[cm]?[jt]sx?(?:$|\?)/i.test(id);
-}
-
-function containsJsx(id: string, code: string): boolean {
-	return /\.[jt]sx(?:$|\?)/i.test(id) && code.includes('<');
 }
 
 function rewriteWithCompatibility(

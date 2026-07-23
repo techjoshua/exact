@@ -80,6 +80,16 @@ export function visitJsxExpression(
 			);
 		}
 		if (target === 'server' && jsxElementIsClientIsland(node.openingElement.attributes)) {
+			if (!state.componentSiteStack.length)
+				return transformJsxElement(
+					sourceFile,
+					node,
+					context,
+					visitor,
+					helpers,
+					derivedReactiveLocals,
+					expressionJsx
+				);
 			const serverChildren = islandHasServerChildren(node) ? node.children : undefined;
 			state.sawBoundary = true;
 			const captures = clientIslandCaptures(
@@ -104,10 +114,9 @@ export function visitJsxExpression(
 			const ownerSite = state.componentSiteStack.at(-1);
 			const owner = state.componentStack.at(-1);
 			if (
+				ownerSite &&
 				state.clientIslandDepth === 0 &&
-				(!ownerSite ||
-					componentPlacements.get(expressionComponents.sites.get(ownerSite)?.name ?? '') !==
-						'client')
+				componentPlacements.get(expressionComponents.sites.get(ownerSite)?.name ?? '') !== 'client'
 			) {
 				const serverSlotChildren = islandHasServerChildren(node);
 				state.clientIslandDepth++;
@@ -157,10 +166,9 @@ export function visitJsxExpression(
 			const ownerSite = state.componentSiteStack.at(-1);
 			const owner = state.componentStack.at(-1);
 			if (
+				ownerSite &&
 				state.clientIslandDepth === 0 &&
-				(!ownerSite ||
-					componentPlacements.get(expressionComponents.sites.get(ownerSite)?.name ?? '') !==
-						'client')
+				componentPlacements.get(expressionComponents.sites.get(ownerSite)?.name ?? '') !== 'client'
 			) {
 				recordClientIslandDefinition(
 					sourceFile,
@@ -189,6 +197,16 @@ export function visitJsxExpression(
 			);
 		}
 		if (target === 'server' && jsxElementIsClientIsland(node.attributes)) {
+			if (!state.componentSiteStack.length)
+				return transformJsxSelfClosingElement(
+					sourceFile,
+					node,
+					context,
+					visitor,
+					helpers,
+					derivedReactiveLocals,
+					expressionJsx
+				);
 			state.sawBoundary = true;
 			return createClientIslandBoundaryCall(
 				sourceFile,
@@ -260,7 +278,11 @@ export function visitJsxExpression(
 		if (isThisTaskCall(node) && shouldOmitPlacement(taskPlacementFor(node), target))
 			return factory.createVoidExpression(factory.createNumericLiteral(0));
 		const annotatedList = expressionJsx.lists.get(expressionEmissionId(node) ?? '');
-		if (annotatedList && ts.isPropertyAccessExpression(node.expression)) {
+		if (
+			annotatedList &&
+			state.componentSiteStack.length &&
+			ts.isPropertyAccessExpression(node.expression)
+		) {
 			return transformAnnotatedMapCall(
 				sourceFile,
 				node,

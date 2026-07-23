@@ -55,6 +55,16 @@ export function collectDirectCallableEffects(state: CallableAnalysisState): void
 	for (const summary of mutable) summary.writes = uniqueStateEffects(summary.directWrites);
 	for (const fn of functions) {
 		const summary = callableByNode.get(fn.node.id)!;
+		for (const element of fn.descendants({ types: false }).jsxElements()) {
+			if (nearestFunction(element)?.node !== fn.node) continue;
+			if (
+				element.node.attributes.some(
+					(attribute) => attribute.name === 'ref' || /^on[A-Z]/.test(attribute.name ?? '')
+				)
+			) {
+				summary.directSources.push(source('browser', 'interactive JSX', summary.name));
+			}
+		}
 		for (const reference of fn
 			.descendants({ types: false })
 			.where(

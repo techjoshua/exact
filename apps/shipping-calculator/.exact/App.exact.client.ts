@@ -1,4 +1,4 @@
 ;
-export { CalculatorWorkspace } from '../src/components/workspace.js';
-export { Feature, RateCard, RouteMap } from '../src/components/presentation.js';
+export { CalculatorWorkspace } from "./components/workspace.exact.client.js";
+export { Feature, RateCard, RouteMap } from "./components/presentation.exact.client.js";
 //# sourceMappingURL=App.exact.client.ts.map

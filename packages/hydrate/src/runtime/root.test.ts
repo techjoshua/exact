@@ -1,7 +1,13 @@
 /**
  * @vitest-environment jsdom
  */
-import { createContext, createVNode, type Component, type ComponentInstance } from '@exact/core';
+import {
+	createComponentDomain,
+	createContext,
+	createVNode,
+	type Component,
+	type ComponentInstance
+} from '@exact/core';
 import { render, unmount } from '@exact/dom';
 import { describe, expect, it } from 'vitest';
 import { createExactClient, requestClientForComponentDomain } from './client.js';
@@ -57,5 +63,28 @@ describe('hidden exact roots', () => {
 		unmount(container);
 		pageClient.dispose();
 		remoteClient.dispose();
+	});
+
+	it('releases every rotated domain and refuses to revive a disposed client', () => {
+		const container = document.createElement('div');
+		const client = createExactClient(container, { executionRoot: '@company/area#./Root' });
+		const rotated = createComponentDomain('@company/area#./Root');
+		function Area() {
+			return () => createVNode('p', null, 'area');
+		}
+
+		createExactRoot(client, Area, undefined, undefined, rotated);
+		expect(requestClientForComponentDomain(client.domain)).toBe(client);
+		expect(requestClientForComponentDomain(rotated)).toBe(client);
+
+		client.dispose();
+		expect(requestClientForComponentDomain(client.domain)).toBeUndefined();
+		expect(requestClientForComponentDomain(rotated)).toBeUndefined();
+		expect(() => createExactRoot(client, Area)).toThrow('inactive eXact client');
+
+		const replacement = createExactClient(container, { executionRoot: '@company/area#./Root' });
+		expect(replacement.domain).not.toBe(client.domain);
+		expect(requestClientForComponentDomain(replacement.domain)).toBe(replacement);
+		replacement.dispose();
 	});
 });

@@ -6,7 +6,11 @@ import { findComponentDomNode, findNodeOwnerInstance, render, unmount } from '@e
 import { inspectDomRoot, type DomInspectionNode } from '@exact/dom/testing';
 import { getHydrationRoot } from '@exact/hydrate';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { registerExactRemoteClientBindings, RemoteComponent } from './client.js';
+import {
+	loadExactRemoteModule,
+	registerExactRemoteClientBindings,
+	RemoteComponent
+} from './client.js';
 
 const buildKey = '0123456789abcdef0123456789abcdef01234567';
 const entrySource = `
@@ -95,6 +99,16 @@ export default Object.freeze({
 const replacementShellEntry = `data:text/javascript;base64,${Buffer.from(replacementShellSource).toString('base64')}`;
 const resolveRetiringShellEntry = vi.fn(async () => replacementShellEntry);
 const resolveUnchangedEntry = vi.fn(async () => retiringEntry);
+const resolveRejectedEntry = vi.fn(async () => {
+	throw new Error('replacement unavailable');
+});
+const slowEntry = dataModule(`
+await new Promise((resolve) => { globalThis.__releaseSlowRemote = resolve; });
+${entrySource}`);
+const unmountedSlowEntry = dataModule(`
+await new Promise((resolve) => { globalThis.__releaseUnmountedRemote = resolve; });
+${brandSource}`);
+const brokenEntry = dataModule('throw new Error("remote import failed");');
 const bindings = Object.freeze({
 	billing: Object.freeze({ clientEntry }),
 	brand: Object.freeze({ clientEntry: brandEntry }),
@@ -111,7 +125,14 @@ const bindings = Object.freeze({
 	unchanged: Object.freeze({
 		clientEntry: retiringEntry,
 		resolveClientEntry: resolveUnchangedEntry
-	})
+	}),
+	rejecting: Object.freeze({
+		clientEntry: retiringEntry,
+		resolveClientEntry: resolveRejectedEntry
+	}),
+	slow: Object.freeze({ clientEntry: slowEntry }),
+	unmountedSlow: Object.freeze({ clientEntry: unmountedSlowEntry }),
+	broken: Object.freeze({ clientEntry: brokenEntry })
 });
 
 describe('RemoteComponent', () => {
@@ -122,6 +143,41 @@ describe('RemoteComponent', () => {
 		resolveRetiringEntry.mockClear();
 		resolveRetiringShellEntry.mockClear();
 		resolveUnchangedEntry.mockClear();
+		resolveRejectedEntry.mockClear();
+		delete (globalThis as Record<string, unknown>).__releaseSlowRemote;
+		delete (globalThis as Record<string, unknown>).__releaseUnmountedRemote;
+	});
+
+	it.each([
+		['empty URL', ''],
+		['missing module value', dataModule('export default undefined;')],
+		[
+			'invalid build key',
+			dataModule(
+				'export default { buildKey: "release", root: "area", component() {}, registration: {} };'
+			)
+		],
+		[
+			'missing root',
+			dataModule(
+				`export default { buildKey: "${buildKey}", root: "", component() {}, registration: {} };`
+			)
+		],
+		[
+			'non-function component',
+			dataModule(
+				`export default { buildKey: "${buildKey}", root: "area", component: {}, registration: {} };`
+			)
+		],
+		[
+			'missing registration',
+			dataModule(
+				`export default { buildKey: "${buildKey}", root: "area", component() {}, registration: null };`
+			)
+		],
+		['rejected import', brokenEntry]
+	])('rejects a remote entry with %s', async (_name, entry) => {
+		await expect(loadExactRemoteModule(entry)).rejects.toBeInstanceOf(Error);
 	});
 
 	it('loads a canonical entry client-side and renders it under the configured binding', async () => {
@@ -147,6 +203,55 @@ describe('RemoteComponent', () => {
 		await waitFor(() => container.textContent === 'Unavailable');
 		expect(container.querySelector('[role="alert"]')?.textContent).toBe('Unavailable');
 		unmount(container);
+	});
+
+	it('renders the host fallback when the configured module import rejects', async () => {
+		const container = document.createElement('div');
+		render(
+			createVNode(RemoteComponent, {
+				binding: 'broken',
+				fallback: createVNode('p', null, 'Unavailable')
+			}),
+			container
+		);
+
+		await waitFor(() => container.textContent === 'Unavailable');
+		expect(container.querySelector('[data-exact-remote-state="failed"]')).not.toBeNull();
+		unmount(container);
+	});
+
+	it('ignores a stale module completion after the binding changes', async () => {
+		const container = document.createElement('div');
+		render(createVNode(RemoteComponent, { binding: 'slow' }), container);
+		await waitFor(
+			() => typeof (globalThis as Record<string, unknown>).__releaseSlowRemote === 'function'
+		);
+
+		render(createVNode(RemoteComponent, { binding: 'billing' }), container);
+		await waitFor(() => container.textContent === 'Loaded billing');
+		((globalThis as Record<string, unknown>).__releaseSlowRemote as () => void)();
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(container.textContent).toBe('Loaded billing');
+		expect(container.querySelector('[data-exact-remote="billing"]')).not.toBeNull();
+		unmount(container);
+	});
+
+	it('does not install a module that settles after its component unmounts', async () => {
+		const container = document.createElement('div');
+		render(createVNode(RemoteComponent, { binding: 'unmountedSlow' }), container);
+		await waitFor(
+			() => typeof (globalThis as Record<string, unknown>).__releaseUnmountedRemote === 'function'
+		);
+		const remoteContainer = container.firstElementChild!;
+		unmount(container);
+		((globalThis as Record<string, unknown>).__releaseUnmountedRemote as () => void)();
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(container.childNodes).toHaveLength(0);
+		expect(getHydrationRoot(remoteContainer)).toBeUndefined();
 	});
 
 	it('updates props without replacing the remote instance and replaces it when binding changes', async () => {
@@ -369,6 +474,36 @@ describe('RemoteComponent', () => {
 		unmount(container);
 	});
 
+	it('falls back when the page-owned replacement resolver rejects', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => ({
+				ok: false,
+				status: 410,
+				headers: new Headers({ 'X-Exact-Preferred-Build': replacementBuildKey }),
+				async json() {
+					return { error: 'exact_build_unsupported' };
+				}
+			}))
+		);
+		const container = document.createElement('div');
+		render(
+			createVNode(RemoteComponent, {
+				binding: 'rejecting',
+				fallback: createVNode('p', null, 'Replacement unavailable')
+			}),
+			container
+		);
+		await waitFor(() => container.textContent === 'Old remote');
+		void remoteClient(container, 'rejecting')
+			.invokeAction('probe')
+			.catch(() => undefined);
+
+		await waitFor(() => container.textContent === 'Replacement unavailable');
+		expect(resolveRejectedEntry).toHaveBeenCalledTimes(1);
+		unmount(container);
+	});
+
 	it('preserves a page-owned child instance across whole remote-build replacement', async () => {
 		let release!: () => void;
 		const responseReady = new Promise<void>((resolve) => (release = resolve));
@@ -437,6 +572,10 @@ async function waitFor(predicate: () => boolean): Promise<void> {
 		await new Promise((resolve) => setTimeout(resolve, 0));
 	}
 	throw new Error(`RemoteComponent did not settle: ${document.body.innerHTML}`);
+}
+
+function dataModule(source: string): string {
+	return `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
 }
 
 function remoteInstance(node: DomInspectionNode | undefined, root: string): unknown {

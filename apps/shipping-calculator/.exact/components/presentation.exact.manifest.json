@@ -1,0 +1,2751 @@
+{
+  "version": 1,
+  "filename": "c:\\users\\techj\\projects\\exact\\apps\\shipping-calculator\\src\\components\\presentation.tsx",
+  "dependencies": [
+    "../data/us-state-paths.ts",
+    "../types.ts"
+  ],
+  "assets": [],
+  "semanticGraph": {
+    "scopes": [
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:0:6494:SourceFile",
+        "kind": "module",
+        "nodeKind": "SourceFile"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:1081:1245:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:1875:3633:FunctionDeclaration",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:0:6494:SourceFile",
+        "kind": "function",
+        "nodeKind": "FunctionDeclaration"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:188:1875:FunctionDeclaration",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:0:6494:SourceFile",
+        "kind": "function",
+        "nodeKind": "FunctionDeclaration"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2039:3633:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:1875:3633:FunctionDeclaration",
+        "kind": "block",
+        "nodeKind": "Block"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2039:3633:Block",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3198:3253:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3377:3490:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3546:3612:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:355:1875:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:188:1875:FunctionDeclaration",
+        "kind": "block",
+        "nodeKind": "Block"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3633:4327:FunctionDeclaration",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:0:6494:SourceFile",
+        "kind": "function",
+        "nodeKind": "FunctionDeclaration"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:365:1872:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:355:1875:Block",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:365:1872:ArrowFunction",
+        "kind": "block",
+        "nodeKind": "Block"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3759:4327:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3633:4327:FunctionDeclaration",
+        "kind": "block",
+        "nodeKind": "Block"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3769:4324:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3759:4327:Block",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4327:4487:FunctionDeclaration",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:0:6494:SourceFile",
+        "kind": "function",
+        "nodeKind": "FunctionDeclaration"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4427:4487:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4327:4487:FunctionDeclaration",
+        "kind": "block",
+        "nodeKind": "Block"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4487:4735:FunctionDeclaration",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:0:6494:SourceFile",
+        "kind": "function",
+        "nodeKind": "FunctionDeclaration"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4592:4735:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4487:4735:FunctionDeclaration",
+        "kind": "block",
+        "nodeKind": "Block"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4735:4877:FunctionDeclaration",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:0:6494:SourceFile",
+        "kind": "function",
+        "nodeKind": "FunctionDeclaration"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4773:4877:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4735:4877:FunctionDeclaration",
+        "kind": "block",
+        "nodeKind": "Block"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4877:5004:FunctionDeclaration",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:0:6494:SourceFile",
+        "kind": "function",
+        "nodeKind": "FunctionDeclaration"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4926:5004:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4877:5004:FunctionDeclaration",
+        "kind": "block",
+        "nodeKind": "Block"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5004:5519:FunctionDeclaration",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:0:6494:SourceFile",
+        "kind": "function",
+        "nodeKind": "FunctionDeclaration"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5053:5519:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5004:5519:FunctionDeclaration",
+        "kind": "block",
+        "nodeKind": "Block"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5519:6043:FunctionDeclaration",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:0:6494:SourceFile",
+        "kind": "function",
+        "nodeKind": "FunctionDeclaration"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5599:6043:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5519:6043:FunctionDeclaration",
+        "kind": "block",
+        "nodeKind": "Block"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6043:6493:FunctionDeclaration",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:0:6494:SourceFile",
+        "kind": "function",
+        "nodeKind": "FunctionDeclaration"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6043:6493:FunctionDeclaration",
+        "kind": "block",
+        "nodeKind": "Block"
+      }
+    ],
+    "declarations": [
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::ImportSpecifier#0:Component",
+        "name": "Component",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:0:6494:SourceFile",
+        "kind": "import",
+        "nodeStart": 14,
+        "nodeEnd": 23,
+        "moduleSpecifier": "@exact/core",
+        "importedName": "Component",
+        "typeOnly": true
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::ImportSpecifier#0:usStatePaths",
+        "name": "usStatePaths",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:0:6494:SourceFile",
+        "kind": "import",
+        "nodeStart": 55,
+        "nodeEnd": 67,
+        "moduleSpecifier": "../data/us-state-paths.js",
+        "importedName": "usStatePaths"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::ImportSpecifier#0:ExtraService",
+        "name": "ExtraService",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:0:6494:SourceFile",
+        "kind": "import",
+        "nodeStart": 118,
+        "nodeEnd": 130,
+        "moduleSpecifier": "../types.js",
+        "importedName": "ExtraService",
+        "typeOnly": true
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::ImportSpecifier#0:ProviderId",
+        "name": "ProviderId",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:0:6494:SourceFile",
+        "kind": "import",
+        "nodeStart": 132,
+        "nodeEnd": 142,
+        "moduleSpecifier": "../types.js",
+        "importedName": "ProviderId",
+        "typeOnly": true
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::ImportSpecifier#0:RateQuote",
+        "name": "RateQuote",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:0:6494:SourceFile",
+        "kind": "import",
+        "nodeStart": 144,
+        "nodeEnd": 153,
+        "moduleSpecifier": "../types.js",
+        "importedName": "RateQuote",
+        "typeOnly": true
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::ImportSpecifier#0:RouteResult",
+        "name": "RouteResult",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:0:6494:SourceFile",
+        "kind": "import",
+        "nodeStart": 155,
+        "nodeEnd": 166,
+        "moduleSpecifier": "../types.js",
+        "importedName": "RouteResult",
+        "typeOnly": true
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::FunctionDeclaration#0:RouteMap",
+        "name": "RouteMap",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:188:1875:FunctionDeclaration",
+        "kind": "function",
+        "nodeStart": 254,
+        "nodeEnd": 262,
+        "exportedName": "RouteMap"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap:Parameter#0:this",
+        "name": "this",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:188:1875:FunctionDeclaration",
+        "kind": "parameter",
+        "nodeStart": 265,
+        "nodeEnd": 269
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap:Parameter#0:props",
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:188:1875:FunctionDeclaration",
+        "kind": "parameter",
+        "nodeStart": 287,
+        "nodeEnd": 292
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:start",
+        "name": "start",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "kind": "variable",
+        "nodeStart": 382,
+        "nodeEnd": 387
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:end",
+        "name": "end",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "kind": "variable",
+        "nodeStart": 505,
+        "nodeEnd": 508
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:arc",
+        "name": "arc",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "kind": "variable",
+        "nodeStart": 641,
+        "nodeEnd": 644
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body/ArrowFunction:CallExpression:ztntfp#0:Parameter#0:state",
+        "name": "state",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:1081:1245:ArrowFunction",
+        "kind": "parameter",
+        "nodeStart": 1082,
+        "nodeEnd": 1087
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::FunctionDeclaration#0:RateCard",
+        "name": "RateCard",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:1875:3633:FunctionDeclaration",
+        "kind": "function",
+        "nodeStart": 1941,
+        "nodeEnd": 1949,
+        "exportedName": "RateCard"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard:Parameter#0:this",
+        "name": "this",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:1875:3633:FunctionDeclaration",
+        "kind": "parameter",
+        "nodeStart": 1952,
+        "nodeEnd": 1956
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard:Parameter#0:props",
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:1875:3633:FunctionDeclaration",
+        "kind": "parameter",
+        "nodeStart": 1974,
+        "nodeEnd": 1979
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/ArrowFunction:CallExpression:ztntfp#0@1:Parameter#0:feature",
+        "name": "feature",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3198:3253:ArrowFunction",
+        "kind": "parameter",
+        "nodeStart": 3199,
+        "nodeEnd": 3206
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/ArrowFunction:CallExpression:ztntfp#1@1:Parameter#0:charge",
+        "name": "charge",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3377:3490:ArrowFunction",
+        "kind": "parameter",
+        "nodeStart": 3378,
+        "nodeEnd": 3384
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/ArrowFunction:CallExpression:ztntfp#2@1:Parameter#0:warning",
+        "name": "warning",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3546:3612:ArrowFunction",
+        "kind": "parameter",
+        "nodeStart": 3547,
+        "nodeEnd": 3554
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::FunctionDeclaration#0:Feature",
+        "name": "Feature",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3633:4327:FunctionDeclaration",
+        "kind": "function",
+        "nodeStart": 3697,
+        "nodeEnd": 3704,
+        "exportedName": "Feature"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:Feature:Parameter#0:this",
+        "name": "this",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3633:4327:FunctionDeclaration",
+        "kind": "parameter",
+        "nodeStart": 3705,
+        "nodeEnd": 3709
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:Feature:Parameter#0:props",
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3633:4327:FunctionDeclaration",
+        "kind": "parameter",
+        "nodeStart": 3726,
+        "nodeEnd": 3731
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::FunctionDeclaration#0:capitalize",
+        "name": "capitalize",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4327:4487:FunctionDeclaration",
+        "kind": "function",
+        "nodeStart": 4394,
+        "nodeEnd": 4404,
+        "exportedName": "capitalize"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:capitalize:Parameter#0:value",
+        "name": "value",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4327:4487:FunctionDeclaration",
+        "kind": "parameter",
+        "nodeStart": 4405,
+        "nodeEnd": 4410
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::FunctionDeclaration#0:providerName",
+        "name": "providerName",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4487:4735:FunctionDeclaration",
+        "kind": "function",
+        "nodeStart": 4556,
+        "nodeEnd": 4568,
+        "exportedName": "providerName"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:providerName:Parameter#0:id",
+        "name": "id",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4487:4735:FunctionDeclaration",
+        "kind": "parameter",
+        "nodeStart": 4569,
+        "nodeEnd": 4571
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::FunctionDeclaration#0:money",
+        "name": "money",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4735:4877:FunctionDeclaration",
+        "kind": "function",
+        "nodeStart": 4745,
+        "nodeEnd": 4750
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:money:Parameter#0:cents",
+        "name": "cents",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4735:4877:FunctionDeclaration",
+        "kind": "parameter",
+        "nodeStart": 4751,
+        "nodeEnd": 4756
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::FunctionDeclaration#0:carrierInitials",
+        "name": "carrierInitials",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4877:5004:FunctionDeclaration",
+        "kind": "function",
+        "nodeStart": 4887,
+        "nodeEnd": 4902
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:carrierInitials:Parameter#0:id",
+        "name": "id",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4877:5004:FunctionDeclaration",
+        "kind": "parameter",
+        "nodeStart": 4903,
+        "nodeEnd": 4905
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::FunctionDeclaration#0:deliveryLabel",
+        "name": "deliveryLabel",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5004:5519:FunctionDeclaration",
+        "kind": "function",
+        "nodeStart": 5014,
+        "nodeEnd": 5027
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:deliveryLabel:Parameter#0:quote",
+        "name": "quote",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5004:5519:FunctionDeclaration",
+        "kind": "parameter",
+        "nodeStart": 5028,
+        "nodeEnd": 5033
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:deliveryLabel/Block:function-body:BindingElement#0:minimumDays",
+        "name": "minimumDays",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5053:5519:Block",
+        "kind": "variable",
+        "nodeStart": 5065,
+        "nodeEnd": 5076
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:deliveryLabel/Block:function-body:BindingElement#0:maximumDays",
+        "name": "maximumDays",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5053:5519:Block",
+        "kind": "variable",
+        "nodeStart": 5078,
+        "nodeEnd": 5089
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:deliveryLabel/Block:function-body:BindingElement#0:estimatedDate",
+        "name": "estimatedDate",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5053:5519:Block",
+        "kind": "variable",
+        "nodeStart": 5091,
+        "nodeEnd": 5104
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::FunctionDeclaration#0:project",
+        "name": "project",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5519:6043:FunctionDeclaration",
+        "kind": "function",
+        "nodeStart": 5529,
+        "nodeEnd": 5536
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:project:Parameter#0:latitude",
+        "name": "latitude",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5519:6043:FunctionDeclaration",
+        "kind": "parameter",
+        "nodeStart": 5537,
+        "nodeEnd": 5545
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:project:Parameter#0:longitude",
+        "name": "longitude",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5519:6043:FunctionDeclaration",
+        "kind": "parameter",
+        "nodeStart": 5555,
+        "nodeEnd": 5564
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::FunctionDeclaration#0:arcPath",
+        "name": "arcPath",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6043:6493:FunctionDeclaration",
+        "kind": "function",
+        "nodeStart": 6053,
+        "nodeEnd": 6060
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath:Parameter#0:start",
+        "name": "start",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6043:6493:FunctionDeclaration",
+        "kind": "parameter",
+        "nodeStart": 6061,
+        "nodeEnd": 6066
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath:Parameter#0:end",
+        "name": "end",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6043:6493:FunctionDeclaration",
+        "kind": "parameter",
+        "nodeStart": 6094,
+        "nodeEnd": 6097
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath/Block:function-body:VariableDeclaration#0:dx",
+        "name": "dx",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "kind": "variable",
+        "nodeStart": 6142,
+        "nodeEnd": 6144
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath/Block:function-body:VariableDeclaration#0:dy",
+        "name": "dy",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "kind": "variable",
+        "nodeStart": 6171,
+        "nodeEnd": 6173
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath/Block:function-body:VariableDeclaration#0:length",
+        "name": "length",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "kind": "variable",
+        "nodeStart": 6200,
+        "nodeEnd": 6206
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath/Block:function-body:VariableDeclaration#0:lift",
+        "name": "lift",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "kind": "variable",
+        "nodeStart": 6241,
+        "nodeEnd": 6245
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath/Block:function-body:VariableDeclaration#0:middle",
+        "name": "middle",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "kind": "variable",
+        "nodeStart": 6297,
+        "nodeEnd": 6303
+      }
+    ],
+    "references": [
+      {
+        "name": "Component",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:188:1875:FunctionDeclaration",
+        "source": "import",
+        "nodeStart": 271,
+        "nodeEnd": 280,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::ImportSpecifier#0:Component",
+        "declarationKind": "import",
+        "moduleSpecifier": "@exact/core",
+        "importedName": "Component",
+        "typeOnly": true
+      },
+      {
+        "name": "RouteResult",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:188:1875:FunctionDeclaration",
+        "source": "import",
+        "nodeStart": 303,
+        "nodeEnd": 314,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::ImportSpecifier#0:RouteResult",
+        "declarationKind": "import",
+        "moduleSpecifier": "../types.js",
+        "importedName": "RouteResult",
+        "typeOnly": true
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 390,
+        "nodeEnd": 395,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "project",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 414,
+        "nodeEnd": 421,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::FunctionDeclaration#0:project",
+        "declarationKind": "function"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 422,
+        "nodeEnd": 427,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 451,
+        "nodeEnd": 456,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "undefined",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "unresolved",
+        "nodeStart": 486,
+        "nodeEnd": 495
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 511,
+        "nodeEnd": 516,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "project",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 540,
+        "nodeEnd": 547,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::FunctionDeclaration#0:project",
+        "declarationKind": "function"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 548,
+        "nodeEnd": 553,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 582,
+        "nodeEnd": 587,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "undefined",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "unresolved",
+        "nodeStart": 622,
+        "nodeEnd": 631
+      },
+      {
+        "name": "start",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 647,
+        "nodeEnd": 652,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:start",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "end",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 656,
+        "nodeEnd": 659,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:end",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "arcPath",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 662,
+        "nodeEnd": 669,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::FunctionDeclaration#0:arcPath",
+        "declarationKind": "function"
+      },
+      {
+        "name": "start",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 670,
+        "nodeEnd": 675,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:start",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "end",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 677,
+        "nodeEnd": 680,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:end",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "undefined",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "unresolved",
+        "nodeStart": 684,
+        "nodeEnd": 693
+      },
+      {
+        "name": "start",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 839,
+        "nodeEnd": 844,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:start",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "end",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 848,
+        "nodeEnd": 851,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:end",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 887,
+        "nodeEnd": 892,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 906,
+        "nodeEnd": 911,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "usStatePaths",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "import",
+        "nodeStart": 1064,
+        "nodeEnd": 1076,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::ImportSpecifier#0:usStatePaths",
+        "declarationKind": "import",
+        "moduleSpecifier": "../data/us-state-paths.js",
+        "importedName": "usStatePaths"
+      },
+      {
+        "name": "state",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:1081:1245:ArrowFunction",
+        "source": "local",
+        "nodeStart": 1138,
+        "nodeEnd": 1143,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body/ArrowFunction:CallExpression:ztntfp#0:Parameter#0:state",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "state",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:1081:1245:ArrowFunction",
+        "source": "local",
+        "nodeStart": 1177,
+        "nodeEnd": 1182,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body/ArrowFunction:CallExpression:ztntfp#0:Parameter#0:state",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "state",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:1081:1245:ArrowFunction",
+        "source": "local",
+        "nodeStart": 1203,
+        "nodeEnd": 1208,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body/ArrowFunction:CallExpression:ztntfp#0:Parameter#0:state",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "arc",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 1264,
+        "nodeEnd": 1267,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:arc",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "arc",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 1301,
+        "nodeEnd": 1304,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:arc",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "start",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 1323,
+        "nodeEnd": 1328,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:start",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "start",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 1390,
+        "nodeEnd": 1395,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:start",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "start",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 1403,
+        "nodeEnd": 1408,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:start",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "start",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 1461,
+        "nodeEnd": 1466,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:start",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "start",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 1474,
+        "nodeEnd": 1479,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:start",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "end",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 1524,
+        "nodeEnd": 1527,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:end",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "end",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 1594,
+        "nodeEnd": 1597,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:end",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "end",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 1605,
+        "nodeEnd": 1608,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:end",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "end",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 1661,
+        "nodeEnd": 1664,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:end",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "end",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 1672,
+        "nodeEnd": 1675,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:end",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "start",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 1731,
+        "nodeEnd": 1736,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:start",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "end",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:371:1872:Block",
+        "source": "local",
+        "nodeStart": 1741,
+        "nodeEnd": 1744,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RouteMap/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/Block:function-body:VariableDeclaration#0:end",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "Component",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:1875:3633:FunctionDeclaration",
+        "source": "import",
+        "nodeStart": 1958,
+        "nodeEnd": 1967,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::ImportSpecifier#0:Component",
+        "declarationKind": "import",
+        "moduleSpecifier": "@exact/core",
+        "importedName": "Component",
+        "typeOnly": true
+      },
+      {
+        "name": "RateQuote",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:1875:3633:FunctionDeclaration",
+        "source": "import",
+        "nodeStart": 1990,
+        "nodeEnd": 1999,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::ImportSpecifier#0:RateQuote",
+        "declarationKind": "import",
+        "moduleSpecifier": "../types.js",
+        "importedName": "RateQuote",
+        "typeOnly": true
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "source": "local",
+        "nodeStart": 2095,
+        "nodeEnd": 2100,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "source": "local",
+        "nodeStart": 2143,
+        "nodeEnd": 2148,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "source": "local",
+        "nodeStart": 2291,
+        "nodeEnd": 2296,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "carrierInitials",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "source": "local",
+        "nodeStart": 2325,
+        "nodeEnd": 2340,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::FunctionDeclaration#0:carrierInitials",
+        "declarationKind": "function"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "source": "local",
+        "nodeStart": 2341,
+        "nodeEnd": 2346,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "source": "local",
+        "nodeStart": 2408,
+        "nodeEnd": 2413,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "source": "local",
+        "nodeStart": 2468,
+        "nodeEnd": 2473,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "source": "local",
+        "nodeStart": 2500,
+        "nodeEnd": 2505,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "source": "local",
+        "nodeStart": 2564,
+        "nodeEnd": 2569,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "source": "local",
+        "nodeStart": 2667,
+        "nodeEnd": 2672,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "deliveryLabel",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "source": "local",
+        "nodeStart": 2804,
+        "nodeEnd": 2817,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::FunctionDeclaration#0:deliveryLabel",
+        "declarationKind": "function"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "source": "local",
+        "nodeStart": 2818,
+        "nodeEnd": 2823,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "source": "local",
+        "nodeStart": 2847,
+        "nodeEnd": 2852,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "money",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "source": "local",
+        "nodeStart": 3001,
+        "nodeEnd": 3006,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::FunctionDeclaration#0:money",
+        "declarationKind": "function"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "source": "local",
+        "nodeStart": 3007,
+        "nodeEnd": 3012,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "source": "local",
+        "nodeStart": 3052,
+        "nodeEnd": 3057,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "source": "local",
+        "nodeStart": 3173,
+        "nodeEnd": 3178,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "Feature",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3198:3253:ArrowFunction",
+        "source": "local",
+        "nodeStart": 3219,
+        "nodeEnd": 3226,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::FunctionDeclaration#0:Feature",
+        "declarationKind": "function"
+      },
+      {
+        "name": "feature",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3198:3253:ArrowFunction",
+        "source": "local",
+        "nodeStart": 3236,
+        "nodeEnd": 3243,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/ArrowFunction:CallExpression:ztntfp#0@1:Parameter#0:feature",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "source": "local",
+        "nodeStart": 3353,
+        "nodeEnd": 3358,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "charge",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3377:3490:ArrowFunction",
+        "source": "local",
+        "nodeStart": 3412,
+        "nodeEnd": 3418,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/ArrowFunction:CallExpression:ztntfp#1@1:Parameter#0:charge",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "money",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3377:3490:ArrowFunction",
+        "source": "local",
+        "nodeStart": 3442,
+        "nodeEnd": 3447,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::FunctionDeclaration#0:money",
+        "declarationKind": "function"
+      },
+      {
+        "name": "charge",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3377:3490:ArrowFunction",
+        "source": "local",
+        "nodeStart": 3448,
+        "nodeEnd": 3454,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/ArrowFunction:CallExpression:ztntfp#1@1:Parameter#0:charge",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:2049:3630:ArrowFunction",
+        "source": "local",
+        "nodeStart": 3521,
+        "nodeEnd": 3526,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "warning",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3546:3612:ArrowFunction",
+        "source": "local",
+        "nodeStart": 3595,
+        "nodeEnd": 3602,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:RateCard/Block:function-body/ArrowFunction:ReturnStatement:ztntfp#0/ArrowFunction:CallExpression:ztntfp#2@1:Parameter#0:warning",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "Component",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3633:4327:FunctionDeclaration",
+        "source": "import",
+        "nodeStart": 3711,
+        "nodeEnd": 3720,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::ImportSpecifier#0:Component",
+        "declarationKind": "import",
+        "moduleSpecifier": "@exact/core",
+        "importedName": "Component",
+        "typeOnly": true
+      },
+      {
+        "name": "ExtraService",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3633:4327:FunctionDeclaration",
+        "source": "import",
+        "nodeStart": 3744,
+        "nodeEnd": 3756,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::ImportSpecifier#0:ExtraService",
+        "declarationKind": "import",
+        "moduleSpecifier": "../types.js",
+        "importedName": "ExtraService",
+        "typeOnly": true
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3769:4324:ArrowFunction",
+        "source": "local",
+        "nodeStart": 3811,
+        "nodeEnd": 3816,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:Feature:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3769:4324:ArrowFunction",
+        "source": "local",
+        "nodeStart": 3840,
+        "nodeEnd": 3845,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:Feature:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3769:4324:ArrowFunction",
+        "source": "local",
+        "nodeStart": 3895,
+        "nodeEnd": 3900,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:Feature:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3769:4324:ArrowFunction",
+        "source": "local",
+        "nodeStart": 3930,
+        "nodeEnd": 3935,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:Feature:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3769:4324:ArrowFunction",
+        "source": "local",
+        "nodeStart": 3988,
+        "nodeEnd": 3993,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:Feature:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3769:4324:ArrowFunction",
+        "source": "local",
+        "nodeStart": 4063,
+        "nodeEnd": 4068,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:Feature:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3769:4324:ArrowFunction",
+        "source": "local",
+        "nodeStart": 4087,
+        "nodeEnd": 4092,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:Feature:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3769:4324:ArrowFunction",
+        "source": "local",
+        "nodeStart": 4116,
+        "nodeEnd": 4121,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:Feature:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3769:4324:ArrowFunction",
+        "source": "local",
+        "nodeStart": 4165,
+        "nodeEnd": 4170,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:Feature:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "money",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3769:4324:ArrowFunction",
+        "source": "local",
+        "nodeStart": 4200,
+        "nodeEnd": 4205,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::FunctionDeclaration#0:money",
+        "declarationKind": "function"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3769:4324:ArrowFunction",
+        "source": "local",
+        "nodeStart": 4206,
+        "nodeEnd": 4211,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:Feature:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "props",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:3769:4324:ArrowFunction",
+        "source": "local",
+        "nodeStart": 4240,
+        "nodeEnd": 4245,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:Feature:Parameter#0:props",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "value",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4427:4487:Block",
+        "source": "local",
+        "nodeStart": 4438,
+        "nodeEnd": 4443,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:capitalize:Parameter#0:value",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "value",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4427:4487:Block",
+        "source": "local",
+        "nodeStart": 4470,
+        "nodeEnd": 4475,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:capitalize:Parameter#0:value",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "ProviderId",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4487:4735:FunctionDeclaration",
+        "source": "import",
+        "nodeStart": 4573,
+        "nodeEnd": 4583,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::ImportSpecifier#0:ProviderId",
+        "declarationKind": "import",
+        "moduleSpecifier": "../types.js",
+        "importedName": "ProviderId",
+        "typeOnly": true
+      },
+      {
+        "name": "Record",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4592:4735:Block",
+        "source": "unresolved",
+        "nodeStart": 4689,
+        "nodeEnd": 4695,
+        "typeOnly": true
+      },
+      {
+        "name": "ProviderId",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4592:4735:Block",
+        "source": "import",
+        "nodeStart": 4700,
+        "nodeEnd": 4710,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::ImportSpecifier#0:ProviderId",
+        "declarationKind": "import",
+        "moduleSpecifier": "../types.js",
+        "importedName": "ProviderId",
+        "typeOnly": true
+      },
+      {
+        "name": "id",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4592:4735:Block",
+        "source": "local",
+        "nodeStart": 4729,
+        "nodeEnd": 4731,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:providerName:Parameter#0:id",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "Intl",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4773:4877:Block",
+        "source": "unresolved",
+        "nodeStart": 4788,
+        "nodeEnd": 4792
+      },
+      {
+        "name": "cents",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4773:4877:Block",
+        "source": "local",
+        "nodeStart": 4862,
+        "nodeEnd": 4867,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:money:Parameter#0:cents",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "ProviderId",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4877:5004:FunctionDeclaration",
+        "source": "import",
+        "nodeStart": 4907,
+        "nodeEnd": 4917,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::ImportSpecifier#0:ProviderId",
+        "declarationKind": "import",
+        "moduleSpecifier": "../types.js",
+        "importedName": "ProviderId",
+        "typeOnly": true
+      },
+      {
+        "name": "id",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:4926:5004:Block",
+        "source": "local",
+        "nodeStart": 4998,
+        "nodeEnd": 5000,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:carrierInitials:Parameter#0:id",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "RateQuote",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5004:5519:FunctionDeclaration",
+        "source": "import",
+        "nodeStart": 5035,
+        "nodeEnd": 5044,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx::ImportSpecifier#0:RateQuote",
+        "declarationKind": "import",
+        "moduleSpecifier": "../types.js",
+        "importedName": "RateQuote",
+        "typeOnly": true
+      },
+      {
+        "name": "quote",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5053:5519:Block",
+        "source": "local",
+        "nodeStart": 5109,
+        "nodeEnd": 5114,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:deliveryLabel:Parameter#0:quote",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "estimatedDate",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5053:5519:Block",
+        "source": "local",
+        "nodeStart": 5130,
+        "nodeEnd": 5143,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:deliveryLabel/Block:function-body:BindingElement#0:estimatedDate",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "Date",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5053:5519:Block",
+        "source": "unresolved",
+        "nodeStart": 5158,
+        "nodeEnd": 5162
+      },
+      {
+        "name": "estimatedDate",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5053:5519:Block",
+        "source": "local",
+        "nodeStart": 5166,
+        "nodeEnd": 5179,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:deliveryLabel/Block:function-body:BindingElement#0:estimatedDate",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "minimumDays",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5053:5519:Block",
+        "source": "local",
+        "nodeStart": 5270,
+        "nodeEnd": 5281,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:deliveryLabel/Block:function-body:BindingElement#0:minimumDays",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "undefined",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5053:5519:Block",
+        "source": "unresolved",
+        "nodeStart": 5286,
+        "nodeEnd": 5295
+      },
+      {
+        "name": "maximumDays",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5053:5519:Block",
+        "source": "local",
+        "nodeStart": 5299,
+        "nodeEnd": 5310,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:deliveryLabel/Block:function-body:BindingElement#0:maximumDays",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "undefined",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5053:5519:Block",
+        "source": "unresolved",
+        "nodeStart": 5315,
+        "nodeEnd": 5324
+      },
+      {
+        "name": "minimumDays",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5053:5519:Block",
+        "source": "local",
+        "nodeStart": 5358,
+        "nodeEnd": 5369,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:deliveryLabel/Block:function-body:BindingElement#0:minimumDays",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "maximumDays",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5053:5519:Block",
+        "source": "local",
+        "nodeStart": 5374,
+        "nodeEnd": 5385,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:deliveryLabel/Block:function-body:BindingElement#0:maximumDays",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "minimumDays",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5053:5519:Block",
+        "source": "local",
+        "nodeStart": 5399,
+        "nodeEnd": 5410,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:deliveryLabel/Block:function-body:BindingElement#0:minimumDays",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "minimumDays",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5053:5519:Block",
+        "source": "local",
+        "nodeStart": 5426,
+        "nodeEnd": 5437,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:deliveryLabel/Block:function-body:BindingElement#0:minimumDays",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "minimumDays",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5053:5519:Block",
+        "source": "local",
+        "nodeStart": 5469,
+        "nodeEnd": 5480,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:deliveryLabel/Block:function-body:BindingElement#0:minimumDays",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "maximumDays",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5053:5519:Block",
+        "source": "local",
+        "nodeStart": 5489,
+        "nodeEnd": 5500,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:deliveryLabel/Block:function-body:BindingElement#0:maximumDays",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "latitude",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5599:6043:Block",
+        "source": "local",
+        "nodeStart": 5607,
+        "nodeEnd": 5615,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:project:Parameter#0:latitude",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "longitude",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5599:6043:Block",
+        "source": "local",
+        "nodeStart": 5624,
+        "nodeEnd": 5633,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:project:Parameter#0:longitude",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "longitude",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5599:6043:Block",
+        "source": "local",
+        "nodeStart": 5662,
+        "nodeEnd": 5671,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:project:Parameter#0:longitude",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "latitude",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5599:6043:Block",
+        "source": "local",
+        "nodeStart": 5696,
+        "nodeEnd": 5704,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:project:Parameter#0:latitude",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "latitude",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5599:6043:Block",
+        "source": "local",
+        "nodeStart": 5725,
+        "nodeEnd": 5733,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:project:Parameter#0:latitude",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "longitude",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5599:6043:Block",
+        "source": "local",
+        "nodeStart": 5742,
+        "nodeEnd": 5751,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:project:Parameter#0:longitude",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "longitude",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5599:6043:Block",
+        "source": "local",
+        "nodeStart": 5781,
+        "nodeEnd": 5790,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:project:Parameter#0:longitude",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "latitude",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5599:6043:Block",
+        "source": "local",
+        "nodeStart": 5813,
+        "nodeEnd": 5821,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:project:Parameter#0:latitude",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "latitude",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5599:6043:Block",
+        "source": "local",
+        "nodeStart": 5840,
+        "nodeEnd": 5848,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:project:Parameter#0:latitude",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "longitude",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5599:6043:Block",
+        "source": "local",
+        "nodeStart": 5857,
+        "nodeEnd": 5866,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:project:Parameter#0:longitude",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "longitude",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5599:6043:Block",
+        "source": "local",
+        "nodeStart": 5895,
+        "nodeEnd": 5904,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:project:Parameter#0:longitude",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "latitude",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5599:6043:Block",
+        "source": "local",
+        "nodeStart": 5927,
+        "nodeEnd": 5935,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:project:Parameter#0:latitude",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "longitude",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5599:6043:Block",
+        "source": "local",
+        "nodeStart": 5972,
+        "nodeEnd": 5981,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:project:Parameter#0:longitude",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "latitude",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:5599:6043:Block",
+        "source": "local",
+        "nodeStart": 6017,
+        "nodeEnd": 6025,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:project:Parameter#0:latitude",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "end",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6147,
+        "nodeEnd": 6150,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath:Parameter#0:end",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "start",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6155,
+        "nodeEnd": 6160,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath:Parameter#0:start",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "end",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6176,
+        "nodeEnd": 6179,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath:Parameter#0:end",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "start",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6184,
+        "nodeEnd": 6189,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath:Parameter#0:start",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "Math",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "unresolved",
+        "nodeStart": 6209,
+        "nodeEnd": 6213
+      },
+      {
+        "name": "dx",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6220,
+        "nodeEnd": 6222,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath/Block:function-body:VariableDeclaration#0:dx",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "dy",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6224,
+        "nodeEnd": 6226,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath/Block:function-body:VariableDeclaration#0:dy",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "Math",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "unresolved",
+        "nodeStart": 6248,
+        "nodeEnd": 6252
+      },
+      {
+        "name": "Math",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "unresolved",
+        "nodeStart": 6261,
+        "nodeEnd": 6265
+      },
+      {
+        "name": "length",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6274,
+        "nodeEnd": 6280,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath/Block:function-body:VariableDeclaration#0:length",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "start",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6314,
+        "nodeEnd": 6319,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath:Parameter#0:start",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "end",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6324,
+        "nodeEnd": 6327,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath:Parameter#0:end",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "dy",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6338,
+        "nodeEnd": 6340,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath/Block:function-body:VariableDeclaration#0:dy",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "length",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6343,
+        "nodeEnd": 6349,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath/Block:function-body:VariableDeclaration#0:length",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "lift",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6353,
+        "nodeEnd": 6357,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath/Block:function-body:VariableDeclaration#0:lift",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "start",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6365,
+        "nodeEnd": 6370,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath:Parameter#0:start",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "end",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6375,
+        "nodeEnd": 6378,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath:Parameter#0:end",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "dx",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6389,
+        "nodeEnd": 6391,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath/Block:function-body:VariableDeclaration#0:dx",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "length",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6394,
+        "nodeEnd": 6400,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath/Block:function-body:VariableDeclaration#0:length",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "lift",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6404,
+        "nodeEnd": 6408,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath/Block:function-body:VariableDeclaration#0:lift",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "start",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6426,
+        "nodeEnd": 6431,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath:Parameter#0:start",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "start",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6437,
+        "nodeEnd": 6442,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath:Parameter#0:start",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "middle",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6450,
+        "nodeEnd": 6456,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath/Block:function-body:VariableDeclaration#0:middle",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "middle",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6462,
+        "nodeEnd": 6468,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath/Block:function-body:VariableDeclaration#0:middle",
+        "declarationKind": "variable"
+      },
+      {
+        "name": "end",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6474,
+        "nodeEnd": 6477,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath:Parameter#0:end",
+        "declarationKind": "parameter"
+      },
+      {
+        "name": "end",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:scope:6132:6493:Block",
+        "source": "local",
+        "nodeStart": 6483,
+        "nodeEnd": 6486,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/presentation.tsx:FunctionDeclaration:arcPath:Parameter#0:end",
+        "declarationKind": "parameter"
+      }
+    ],
+    "exports": [
+      {
+        "exportedName": "capitalize",
+        "localName": "capitalize"
+      },
+      {
+        "exportedName": "Feature",
+        "localName": "Feature"
+      },
+      {
+        "exportedName": "providerName",
+        "localName": "providerName"
+      },
+      {
+        "exportedName": "RateCard",
+        "localName": "RateCard"
+      },
+      {
+        "exportedName": "RouteMap",
+        "localName": "RouteMap"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "x_RgyWk2Fk44K7ZHqyQI7aS",
+      "name": "RouteMap",
+      "exported": true,
+      "placement": "isomorphic",
+      "subgraphPlacement": "isomorphic",
+      "renderEdges": [],
+      "clientIslandCount": 0,
+      "tasks": [],
+      "contexts": [],
+      "splitBoundaries": [],
+      "diagnostics": [],
+      "environmentEffect": "neutral",
+      "artifactTargets": [
+        "client",
+        "server"
+      ]
+    },
+    {
+      "id": "xhw3njyI2xCH4lJmzOzcNJ1",
+      "name": "RateCard",
+      "exported": true,
+      "placement": "isomorphic",
+      "subgraphPlacement": "isomorphic",
+      "renderEdges": [
+        {
+          "id": "xM7f1NjJ1HJAYrOFUteUBXS",
+          "tag": "Feature",
+          "name": "Feature",
+          "componentId": "x1_NEWxTkLQoimMGHVq6Ymt",
+          "placement": "isomorphic",
+          "boundary": "isomorphic",
+          "index": 1,
+          "path": "4.0.0.1.0.4.2.0.1.2.0"
+        }
+      ],
+      "clientIslandCount": 0,
+      "tasks": [],
+      "contexts": [],
+      "splitBoundaries": [],
+      "diagnostics": [],
+      "environmentEffect": "neutral",
+      "artifactTargets": [
+        "client",
+        "server"
+      ]
+    },
+    {
+      "id": "x1_NEWxTkLQoimMGHVq6Ymt",
+      "name": "Feature",
+      "exported": true,
+      "placement": "isomorphic",
+      "subgraphPlacement": "isomorphic",
+      "renderEdges": [],
+      "clientIslandCount": 0,
+      "tasks": [],
+      "contexts": [],
+      "splitBoundaries": [],
+      "diagnostics": [],
+      "environmentEffect": "neutral",
+      "artifactTargets": [
+        "client",
+        "server"
+      ]
+    }
+  ],
+  "exports": [
+    {
+      "name": "capitalize",
+      "kind": "value",
+      "placement": "isomorphic"
+    },
+    {
+      "name": "Feature",
+      "kind": "component",
+      "placement": "isomorphic"
+    },
+    {
+      "name": "providerName",
+      "kind": "value",
+      "placement": "isomorphic"
+    },
+    {
+      "name": "RateCard",
+      "kind": "component",
+      "placement": "isomorphic"
+    },
+    {
+      "name": "RouteMap",
+      "kind": "component",
+      "placement": "isomorphic"
+    }
+  ],
+  "symbols": [
+    {
+      "id": "xCyE0Z7xD_NpUcFW2QZigWe",
+      "componentId": "xhw3njyI2xCH4lJmzOzcNJ1",
+      "exportName": "RateCard",
+      "localName": "RateCard",
+      "generatedName": "RateCard",
+      "debugName": "RateCard",
+      "kind": "component",
+      "role": "root",
+      "target": "both",
+      "placement": "isomorphic"
+    },
+    {
+      "id": "xfocQpIqlhQCXTRDvEwffz9",
+      "componentId": "x_RgyWk2Fk44K7ZHqyQI7aS",
+      "exportName": "RouteMap",
+      "localName": "RouteMap",
+      "generatedName": "RouteMap",
+      "debugName": "RouteMap",
+      "kind": "component",
+      "role": "root",
+      "target": "both",
+      "placement": "isomorphic"
+    },
+    {
+      "id": "xNV9LpHozUuS3qNfFj5CqYP",
+      "componentId": "x1_NEWxTkLQoimMGHVq6Ymt",
+      "exportName": "Feature",
+      "localName": "Feature",
+      "generatedName": "Feature",
+      "debugName": "Feature",
+      "kind": "component",
+      "role": "root",
+      "target": "both",
+      "placement": "isomorphic"
+    },
+    {
+      "id": "xe05UOP3nCKdZwy_sQwH9iH",
+      "exportName": "capitalize",
+      "localName": "capitalize",
+      "generatedName": "capitalize",
+      "debugName": "capitalize",
+      "kind": "value",
+      "role": "root",
+      "target": "both",
+      "placement": "isomorphic"
+    },
+    {
+      "id": "xnVLGvKa7gb-8R9CyjG7H35",
+      "exportName": "providerName",
+      "localName": "providerName",
+      "generatedName": "providerName",
+      "debugName": "providerName",
+      "kind": "value",
+      "role": "root",
+      "target": "both",
+      "placement": "isomorphic"
+    }
+  ],
+  "boundaries": [],
+  "callables": [
+    {
+      "id": "x1lwDNwYef6qA3pRZFsXR_H",
+      "name": "project",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "x2XnwhAe8Bu2OxLk6gJ-lqF",
+      "name": "arcPath",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "xeVqfVsdD2bEQJ_YXZHnD8-",
+          "name": "Math.min",
+          "resolved": false
+        },
+        {
+          "id": "xpEW2l0Z2i-a86T6ge4MlQt",
+          "name": "Math.max",
+          "resolved": false
+        },
+        {
+          "id": "xxxltjFeRbYuccCvq0-akCc",
+          "name": "Math.hypot",
+          "resolved": false
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "x8UYg3S6UW5J-bmEPUUVewL",
+      "name": "RateCard",
+      "kind": "component",
+      "exportNames": [
+        "RateCard"
+      ],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "xVa3R4uYkpdGX16ywzFfICx",
+          "name": "<function@2050>:returned",
+          "targetId": "xeR1mb-WhbA6zqD0JR67ujA",
+          "resolved": true
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "xceoQhxIYSVJu_pc8l-r5t0",
+      "name": "carrierInitials",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "xeR1mb-WhbA6zqD0JR67ujA",
+      "name": "<function@2050>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "xajX2W3qrYUlzYKFnAl9JOm",
+          "name": "deliveryLabel",
+          "targetId": "xpD_sN8i-sLblOcor1fZfvo",
+          "resolved": true,
+          "receiverBindings": [
+            {
+              "parameterIndex": 0,
+              "source": "unknown"
+            }
+          ]
+        },
+        {
+          "id": "xc50IQsmaYwHZdKP6WJDyxk",
+          "name": "props.quote.warnings.map:callback",
+          "targetId": "xHXKkJtNvTW_ffYfYIcuHAK",
+          "resolved": true
+        },
+        {
+          "id": "xFfd3CiHQO5i-DJ1LPVaQEU",
+          "name": "props.quote.warnings.map",
+          "resolved": false
+        },
+        {
+          "id": "xg87mW_CXIAmbX-_2rCg8kV",
+          "name": "props.quote.features.map",
+          "resolved": false
+        },
+        {
+          "id": "xk_6NynWNiKymMw7KjPPgxw",
+          "name": "props.quote.features.map:callback",
+          "targetId": "xXJkqz-fUlFRZATwRatOmt4",
+          "resolved": true
+        },
+        {
+          "id": "xK90uhXippZpFmu0bfz872c",
+          "name": "props.quote.charges.map",
+          "resolved": false
+        },
+        {
+          "id": "xKA0TpeZTsJGH0Q7lrbY_wz",
+          "name": "carrierInitials",
+          "targetId": "xceoQhxIYSVJu_pc8l-r5t0",
+          "resolved": true,
+          "receiverBindings": [
+            {
+              "parameterIndex": 0,
+              "source": "unknown"
+            }
+          ]
+        },
+        {
+          "id": "xQT5RFp0nw0VQVxHKZxrHER",
+          "name": "money",
+          "targetId": "xgmbVIr2IkFTB2pN8YvE8FY",
+          "resolved": true,
+          "receiverBindings": [
+            {
+              "parameterIndex": 0,
+              "source": "unknown"
+            }
+          ]
+        },
+        {
+          "id": "xRLjwMc6WnFIRsY3KMPVYpr",
+          "name": "props.quote.charges.map:callback",
+          "targetId": "xRWz4XOkiqXeVM409FFdyFw",
+          "resolved": true
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "xgmbVIr2IkFTB2pN8YvE8FY",
+      "name": "money",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "xQsz3HplSCRR32cJ_4y2AU3",
+          "name": "Intl.NumberFormat",
+          "resolved": false
+        },
+        {
+          "id": "xxaBKeN1qntXSRXcmbWNuYp",
+          "name": "new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format",
+          "resolved": false
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "xHXKkJtNvTW_ffYfYIcuHAK",
+      "name": "<function@3546>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "xjF3YsKy45JgdN_XuaD_jCm",
+      "name": "RouteMap",
+      "kind": "component",
+      "exportNames": [
+        "RouteMap"
+      ],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "xr8WpaAaGyTM5t_wcvGYpqu",
+          "name": "<function@366>:returned",
+          "targetId": "xPS3XDLjZY8zwK_mKP1dbt0",
+          "resolved": true
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "xnC5d3gsU93UeiJKcmTBdhz",
+      "name": "Feature",
+      "kind": "component",
+      "exportNames": [
+        "Feature"
+      ],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "xmbhVzRLopJtok6LWqyUbk_",
+          "name": "<function@3770>:returned",
+          "targetId": "xRRr5eun6M9_INsfQcOk3td",
+          "resolved": true
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "xoGRIdSxLvWmUARcQUZPkao",
+      "name": "capitalize",
+      "kind": "function",
+      "exportNames": [
+        "capitalize"
+      ],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "xA9wUoxmb8OjNY_xMCMxcXf",
+          "name": "value.charAt",
+          "resolved": false
+        },
+        {
+          "id": "xf66aNi_piIcghH4Na5moGr",
+          "name": "value.charAt(0).toUpperCase",
+          "resolved": false
+        },
+        {
+          "id": "xyCC-YmK-9T6DvnT283BPH-",
+          "name": "value.slice",
+          "resolved": false
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "xpD_sN8i-sLblOcor1fZfvo",
+      "name": "deliveryLabel",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "x5UPaZdhnTaeX9bZSlFly3k",
+          "name": "new Date(`${estimatedDate}T12:00:00`).toLocaleDateString",
+          "resolved": false
+        },
+        {
+          "id": "xJApG_v-SHeinK30EwDQdSd",
+          "name": "Date",
+          "resolved": false
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "xPS3XDLjZY8zwK_mKP1dbt0",
+      "name": "<function@366>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "xGo4bOitKA0Gmzax_cdoQZu",
+          "name": "usStatePaths.map",
+          "moduleSpecifier": "../data/us-state-paths.js",
+          "exportName": "usStatePaths",
+          "resolved": true
+        },
+        {
+          "id": "xIu6YPSL08OkMWStwzqj4VN",
+          "name": "arcPath",
+          "targetId": "x2XnwhAe8Bu2OxLk6gJ-lqF",
+          "resolved": true,
+          "receiverBindings": [
+            {
+              "parameterIndex": 0,
+              "source": "unknown"
+            },
+            {
+              "parameterIndex": 1,
+              "source": "unknown"
+            }
+          ]
+        },
+        {
+          "id": "xmdIt4LGbOyrDYCsnn7-Eb3",
+          "name": "project",
+          "targetId": "x1lwDNwYef6qA3pRZFsXR_H",
+          "resolved": true,
+          "receiverBindings": [
+            {
+              "parameterIndex": 0,
+              "source": "unknown"
+            },
+            {
+              "parameterIndex": 1,
+              "source": "unknown"
+            }
+          ]
+        },
+        {
+          "id": "xpKjjLxDlxszt3-rfWMxT9I",
+          "name": "usStatePaths.map:callback",
+          "targetId": "xyov14sjbo5OUK7zc6aX0o3",
+          "resolved": true
+        },
+        {
+          "id": "xxV06230WXU0ycebpNfQxVD",
+          "name": "project",
+          "targetId": "x1lwDNwYef6qA3pRZFsXR_H",
+          "resolved": true,
+          "receiverBindings": [
+            {
+              "parameterIndex": 0,
+              "source": "unknown"
+            },
+            {
+              "parameterIndex": 1,
+              "source": "unknown"
+            }
+          ]
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "xRRr5eun6M9_INsfQcOk3td",
+      "name": "<function@3770>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "xvKSAh2Qcd3gdtORbLYsz75",
+          "name": "money",
+          "targetId": "xgmbVIr2IkFTB2pN8YvE8FY",
+          "resolved": true,
+          "receiverBindings": [
+            {
+              "parameterIndex": 0,
+              "source": "unknown"
+            }
+          ]
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "xRWz4XOkiqXeVM409FFdyFw",
+      "name": "<function@3377>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "xYAqTRQkjK03EUUKsAIqZOa",
+          "name": "money",
+          "targetId": "xgmbVIr2IkFTB2pN8YvE8FY",
+          "resolved": true,
+          "receiverBindings": [
+            {
+              "parameterIndex": 0,
+              "source": "parameter",
+              "sourceParameterIndex": 0
+            }
+          ]
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "xvPmeII83nVLkmK0JGu1g2n",
+      "name": "providerName",
+      "kind": "function",
+      "exportNames": [
+        "providerName"
+      ],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "xXJkqz-fUlFRZATwRatOmt4",
+      "name": "<function@3198>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": []
+    },
+    {
+      "id": "xyov14sjbo5OUK7zc6aX0o3",
+      "name": "<function@1081>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "x8m7kZdSPtTyv6op5RC5865",
+          "name": "state.abbreviation.toLowerCase",
+          "resolved": false
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": []
+    }
+  ],
+  "policy": {
+    "version": 1,
+    "subjects": [],
+    "flows": [],
+    "secretConsumers": []
+  },
+  "serverActions": {},
+  "diagnostics": [],
+  "artifacts": {
+    "source": "../../src/components/presentation.tsx",
+    "client": "presentation.exact.client.ts",
+    "server": "presentation.exact.server.ts",
+    "manifest": "presentation.exact.manifest.json",
+    "targets": {
+      "client": "client",
+      "server": "server"
+    },
+    "exports": [
+      {
+        "name": "capitalize",
+        "kind": "value",
+        "placement": "isomorphic",
+        "artifactClass": "dual"
+      },
+      {
+        "name": "Feature",
+        "kind": "component",
+        "placement": "isomorphic",
+        "artifactClass": "dual"
+      },
+      {
+        "name": "providerName",
+        "kind": "value",
+        "placement": "isomorphic",
+        "artifactClass": "dual"
+      },
+      {
+        "name": "RateCard",
+        "kind": "component",
+        "placement": "isomorphic",
+        "artifactClass": "dual"
+      },
+      {
+        "name": "RouteMap",
+        "kind": "component",
+        "placement": "isomorphic",
+        "artifactClass": "dual"
+      }
+    ],
+    "symbols": [
+      {
+        "id": "xCyE0Z7xD_NpUcFW2QZigWe",
+        "componentId": "xhw3njyI2xCH4lJmzOzcNJ1",
+        "exportName": "RateCard",
+        "localName": "RateCard",
+        "generatedName": "RateCard",
+        "debugName": "RateCard",
+        "kind": "component",
+        "role": "root",
+        "target": "both",
+        "placement": "isomorphic"
+      },
+      {
+        "id": "xfocQpIqlhQCXTRDvEwffz9",
+        "componentId": "x_RgyWk2Fk44K7ZHqyQI7aS",
+        "exportName": "RouteMap",
+        "localName": "RouteMap",
+        "generatedName": "RouteMap",
+        "debugName": "RouteMap",
+        "kind": "component",
+        "role": "root",
+        "target": "both",
+        "placement": "isomorphic"
+      },
+      {
+        "id": "xNV9LpHozUuS3qNfFj5CqYP",
+        "componentId": "x1_NEWxTkLQoimMGHVq6Ymt",
+        "exportName": "Feature",
+        "localName": "Feature",
+        "generatedName": "Feature",
+        "debugName": "Feature",
+        "kind": "component",
+        "role": "root",
+        "target": "both",
+        "placement": "isomorphic"
+      },
+      {
+        "id": "xe05UOP3nCKdZwy_sQwH9iH",
+        "exportName": "capitalize",
+        "localName": "capitalize",
+        "generatedName": "capitalize",
+        "debugName": "capitalize",
+        "kind": "value",
+        "role": "root",
+        "target": "both",
+        "placement": "isomorphic"
+      },
+      {
+        "id": "xnVLGvKa7gb-8R9CyjG7H35",
+        "exportName": "providerName",
+        "localName": "providerName",
+        "generatedName": "providerName",
+        "debugName": "providerName",
+        "kind": "value",
+        "role": "root",
+        "target": "both",
+        "placement": "isomorphic"
+      }
+    ],
+    "boundaries": []
+  }
+}

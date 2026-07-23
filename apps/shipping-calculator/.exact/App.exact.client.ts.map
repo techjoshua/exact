@@ -1,12 +1,12 @@
 {
   "version": 3,
   "sources": [
-    "src/App.tsx"
+    "C:\\Users\\techj\\Projects\\eXact\\apps\\shipping-calculator\\src\\App.tsx"
   ],
   "sourcesContent": [
     "export { ShippingCalculatorPage } from './components/page.js';\nexport { CalculatorWorkspace } from './components/workspace.js';\nexport { Feature, RateCard, RouteMap } from './components/presentation.js';\n"
   ],
   "names": [],
-  "mappings": "AAA6D;AAC7D,OAAO,EAAE,oBAAoB,EAAE,KAAK,2BAA2B;AAC/D,OAAO,EAAE,OAAO,EAAE,QAAQ,EAAE,SAAS,EAAE,KAAK,8BAA8B;",
+  "mappings": "AAA6D;AAC7D,OAAO,EAAE,oBAAoB,EAAE,6CAAgC;AAC/D,OAAO,EAAE,OAAO,EAAE,QAAQ,EAAE,SAAS,EAAE,gDAAmC;",
   "file": "App.exact.client.ts"
 }

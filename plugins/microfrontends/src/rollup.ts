@@ -9,6 +9,7 @@ import { createExactExposureRegistrationModules } from './exposures.js';
 import { analyzeProvidedPackageImports } from './import-analysis.js';
 import type { ExactArtifactGraph } from '@exact/compiler';
 
+/** Configures remote artifact emission for one application-scoped Rollup build. */
 export type ExactRemoteRollupAdapterOptions = {
 	plan: ExactRemoteArtifactPlan;
 	applicationRoot: string;
@@ -18,6 +19,7 @@ export type ExactRemoteRollupAdapterOptions = {
 	| { artifactGraph: ExactArtifactGraph; registrationModules?: never }
 );
 
+/** Bridges the bundler-neutral remote artifact plan into Rollup lifecycle hooks. */
 export type ExactRemoteRollupAdapter = {
 	readonly pageBootstrapImport: string;
 	readonly developmentEntries: Readonly<Record<string, string>>;
@@ -39,6 +41,7 @@ export type ExactRemoteRollupAdapter = {
 	generateBundle(bundle: Readonly<Record<string, ExactRollupOutput>>): void;
 };
 
+/** Describes the Rollup output metadata needed to locate emitted remote entry chunks. */
 export type ExactRollupOutput = {
 	type: 'chunk' | 'asset';
 	fileName: string;
@@ -46,11 +49,13 @@ export type ExactRollupOutput = {
 	isEntry?: boolean;
 };
 
+/** Represents the subset of Rollup module-resolution results used by the adapter. */
 export type ExactRollupResolveResult =
 	| string
 	| { id: string; external?: boolean | 'absolute' | 'relative' }
 	| null;
 
+/** Resolves imports through the owning Rollup host without recursively invoking this adapter. */
 export type ExactRollupResolver = (
 	source: string,
 	importer?: string

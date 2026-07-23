@@ -2,6 +2,7 @@ import type { Child, Component } from '@exact/core';
 import { PortalContext } from '@exact/sample-microfrontend-portal/shared';
 import './branding.css';
 
+/** Defines page-authored slots accepted by either branding exposure. */
 export type BrandShellProps = {
 	navigation?: Child;
 	account?: Child;
@@ -18,6 +19,7 @@ function BrandPulse(this: Component<{ pulses: number }>) {
 	);
 }
 
+/** Renders the full branding exposure while preserving ownership of supplied page slots. */
 export default function BrandShell(this: Component<Record<string, never>>, props: BrandShellProps) {
 	const portal = this.getContext(PortalContext);
 

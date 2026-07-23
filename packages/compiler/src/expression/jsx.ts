@@ -23,6 +23,7 @@ export interface ExpressionJsxCellSite {
 	readonly kind: 'jsx-child' | 'jsx-attribute';
 	readonly dependencies: readonly Variable[];
 	readonly reactive: boolean;
+	readonly preserveNative: boolean;
 }
 
 /** Describes the planned expression jsx operation. */
@@ -83,6 +84,17 @@ export function analyzeExpressionJsx(
 		if (!expression.node.span) continue;
 		const key = expression.node.id;
 		const reactive = reactiveCells.get(key);
+		const preserveNative =
+			reactive === undefined &&
+			expression
+				.descendants()
+				.calls()
+				.any(
+					(call) =>
+						call.target?.isMember('map') === true &&
+						isIntrinsicArrayMap(call) &&
+						call.target.target?.rootVariable?.scope.kind === 'module'
+				);
 		const site = Object.freeze({
 			nodeId: expression.node.id,
 			start: expression.node.span.start,
@@ -92,7 +104,8 @@ export function analyzeExpressionJsx(
 					? ('jsx-attribute' as const)
 					: ('jsx-child' as const),
 			dependencies: reactive?.dependencies ?? module.dependenciesOf(expression),
-			reactive: reactive !== undefined
+			reactive: reactive !== undefined,
+			preserveNative
 		});
 		cells.set(site.nodeId, site);
 	}
@@ -129,6 +142,10 @@ export function analyzeExpressionJsx(
 			continue;
 		if (!call.ancestors().ofKind('JsxExpression').any() || !isIntrinsicArrayMap(call)) continue;
 		const collection = call.target.target;
+		// Module and imported collections are declarative constants, not component
+		// reactive state. Preserve native Array.map so consumers such as routers
+		// receive the authored child array instead of a live keyed-list boundary.
+		if (collection?.rootVariable?.scope.kind === 'module') continue;
 		const element = collectionElementType(collection?.type);
 		const localDirectives = collection?.rootVariable?.directives;
 		const key = exactKeyContract(element, localDirectives);

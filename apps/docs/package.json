@@ -1,0 +1,26 @@
+{
+	"name": "@exact/docs",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "node scripts/build.mjs",
+		"preview": "node scripts/preview.mjs",
+		"typecheck": "tsc --noEmit",
+		"verify": "npm run typecheck && npm run build"
+	},
+	"dependencies": {
+		"@exact/core": "file:../../packages/core",
+		"@exact/dom": "file:../../packages/dom",
+		"@exact/hydrate": "file:../../packages/hydrate",
+		"@exact/jsx": "file:../../packages/jsx-runtime",
+		"@exact/router": "file:../../component-libraries/router",
+		"@exact/ssr": "file:../../packages/ssr",
+		"@exact/vite-plugin": "file:../../framework-adapters/vite-plugin"
+	},
+	"devDependencies": {
+		"typescript": "^5.7.2",
+		"vite": "^5.4.21"
+	}
+}

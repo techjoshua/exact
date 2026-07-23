@@ -10,10 +10,14 @@ import type {
 	ExactServerManifest
 } from '@exact/server';
 
+/** Immutable protocol root for the billing exposure. */
 export const billingRoot = '@exact/sample-microfrontend-billing#./Billing';
+/** Immutable protocol root for the full branding exposure. */
 export const brandingRoot = '@exact/sample-microfrontend-branding#./Shell';
+/** Immutable protocol root for the compact branding exposure. */
 export const compactBrandingRoot = '@exact/sample-microfrontend-branding#./CompactShell';
 
+/** Configures build identity, private endpoints, and transport for the sample topology. */
 export type SampleRuntimeOptions = {
 	buildKey: string;
 	billingEndpoint?: string;
@@ -21,6 +25,7 @@ export type SampleRuntimeOptions = {
 	fetch?: typeof fetch;
 };
 
+/** Exposes the three server contexts and observable execution counters used by tests. */
 export type SampleRuntimeSet = {
 	page: ExactServerContext;
 	billing: ExactServerContext;

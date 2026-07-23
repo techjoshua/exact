@@ -9,7 +9,8 @@ import {
 	type ComponentFunction,
 	type VNode
 } from '@exact/core';
-import { createExactClient, createExactRoot, type ExactClient } from '@exact/hydrate';
+import { createExactClient, type ExactClient } from '@exact/hydrate';
+import { createExactRoot } from '@exact/hydrate/internal';
 import type { ExactRemoteModule } from './artifacts.js';
 import { registerExactRemoteRecovery, type ExactRemoteRecoveryRegistration } from './recovery.js';
 

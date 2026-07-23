@@ -67,7 +67,12 @@ export function expressionComponentIndex(module: BoundModule): ExpressionCompone
 			.ancestors()
 			.functions()
 			.first((candidate) => candidate.node.kind === 'FunctionDeclaration');
-		if (owner) componentNodes.add(owner.node);
+		// JSX may also live in ordinary render helpers. Only a component-style
+		// declaration name is an implicit component signal; explicit Component
+		// receivers and component protocol calls were indexed above regardless of
+		// name. This keeps helpers such as renderWorkspace() eligible for JSX
+		// lowering without applying component-only state and collection rewrites.
+		if (owner && isComponentDeclarationName(owner.node.name)) componentNodes.add(owner.node);
 	}
 
 	const functions = Object.freeze(
@@ -90,6 +95,10 @@ export function expressionComponentIndex(module: BoundModule): ExpressionCompone
 	});
 	cache.set(module, index);
 	return index;
+}
+
+function isComponentDeclarationName(name: string | undefined): boolean {
+	return !!name && /^\p{Lu}/u.test(name);
 }
 
 function isImplicitProtocolCall(member: NodeRef): boolean {

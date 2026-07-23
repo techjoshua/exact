@@ -1,4 +1,6 @@
 import { createLogger, createServer } from 'vite';
+import { createVNode } from '@exact/core';
+import { renderToHydratableStringAsync } from '@exact/ssr';
 import { describe, expect, it } from 'vitest';
 
 describe('shipping development SSR graph', () => {
@@ -19,6 +21,13 @@ describe('shipping development SSR graph', () => {
 		});
 		try {
 			await vite.ssrLoadModule('/src/server-app.ts');
+			const { ShippingCalculatorPage } = await vite.ssrLoadModule('/.exact/App.exact.server.ts');
+			const rendered = await renderToHydratableStringAsync(
+				createVNode(ShippingCalculatorPage, { url: 'http://localhost:4175/' }),
+				{ maxTaskPasses: 3, maxTaskDurationMs: 1_200 }
+			);
+			expect(rendered.html).toContain('Find the right way to send it.');
+			expect(rendered.html).toContain('DOOP');
 		} finally {
 			await vite.close();
 		}

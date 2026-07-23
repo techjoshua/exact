@@ -15,9 +15,11 @@ import type {
 } from '../types.js';
 import {
 	collectPlacementAnalysisDependencies,
+	localModuleDependencyEntries,
 	transitiveDependencies
 } from './dependency-discovery.js';
 import { createExactArtifactPlan } from './artifact-plan.js';
+import { artifactModuleRewrite, expandArtifactPlanDependencies } from './artifact-dependencies.js';
 
 import {
 	removeGeneratedArtifact,
@@ -144,8 +146,10 @@ export async function compileProjectArtifacts(
 	options: CompileArtifactsOptions
 ): Promise<CompileArtifactsResult[]> {
 	const plan = await createExactArtifactPlan(inputs, options);
-	return compileArtifactPlanEntries(plan.entries, {
-		filename: (entry) => options.filename ?? entry.inputFile,
+	const entries = await expandArtifactPlanDependencies(plan.entries, options);
+	return compileArtifactPlanEntries(entries, {
+		filename: (entry) =>
+			entries.length === 1 ? (options.filename ?? entry.inputFile) : entry.inputFile,
 		importedManifests: options.importedManifests,
 		serverComponents: options.serverComponents,
 		sourceMap: options.sourceMap,
@@ -169,11 +173,13 @@ export async function compileArtifactPlanEntries(
 	const sources = new Map<string, string>();
 
 	for (const entry of entries) {
-		const filename = options.filename?.(entry) ?? entry.inputFile;
 		const source = await readFile(entry.inputFile, 'utf8');
-		sources.set(path.resolve(filename), source);
+		sources.set(path.resolve(entry.inputFile), source);
 	}
 	const dependencyGraph = await collectPlacementAnalysisDependencies(sources, options.session);
+	const localDependencies = new Map<string, Array<{ specifier: string; file: string }>>();
+	for (const [filename, source] of sources)
+		localDependencies.set(filename, await localModuleDependencyEntries(filename, source));
 	const packageManifests =
 		options.discoverPackageManifests === false || !entries.length
 			? []
@@ -182,11 +188,13 @@ export async function compileArtifactPlanEntries(
 				);
 	const externalManifests = [...(options.importedManifests ?? []), ...packageManifests];
 	const capabilityOptions = capabilityCompilationOptions(options);
-	for (const [inputFile, source] of sources)
+	for (const [inputFile, source] of sources) {
+		const entry = entries.find((candidate) => path.resolve(candidate.inputFile) === inputFile);
+		const filename = entry ? (options.filename?.(entry) ?? entry.inputFile) : inputFile;
 		manifestBases.set(
 			inputFile,
 			analyzeSource(source, {
-				filename: inputFile,
+				filename,
 				session: options.session,
 				importedManifests: externalManifests,
 				assetRules: options.assetRules,
@@ -195,6 +203,7 @@ export async function compileArtifactPlanEntries(
 				...capabilityOptions
 			})
 		);
+	}
 	// Resolve cross-file callable summaries to a fixed point. Each pass consumes
 	// the previous immutable manifest generation, so results do not depend on
 	// source ordering and recursive import groups converge monotonically.
@@ -239,6 +248,8 @@ export async function compileArtifactPlanEntries(
 				options.sourceMap ?? false,
 				dependencies,
 				dependencies.includes(inputFile),
+				entries,
+				localDependencies.get(inputFile) ?? [],
 				options.moduleRewrite,
 				options.moduleTransform,
 				options.session,
@@ -270,6 +281,8 @@ async function compileArtifactPlanEntry(
 	sourceMap = false,
 	dependencies: readonly string[] = [],
 	preserveComponentHoisting = false,
+	entries: readonly ExactArtifactPlanEntry[] = [],
+	localDependencies: readonly { specifier: string; file: string }[] = [],
 	moduleRewrite?: ModuleRewriteOptions,
 	moduleTransform?: import('../types.js').ModuleTransform,
 	session?: ExactCompilerSession,
@@ -303,7 +316,13 @@ async function compileArtifactPlanEntry(
 		serverComponents,
 		sourceMap,
 		preserveComponentHoisting,
-		moduleRewrite,
+		moduleRewrite: artifactModuleRewrite(
+			entry,
+			'client',
+			entries,
+			localDependencies,
+			moduleRewrite
+		),
 		moduleTransform,
 		assetRules,
 		pluginRegistry,
@@ -318,7 +337,13 @@ async function compileArtifactPlanEntry(
 		serverComponents,
 		sourceMap,
 		preserveComponentHoisting,
-		moduleRewrite,
+		moduleRewrite: artifactModuleRewrite(
+			entry,
+			'server',
+			entries,
+			localDependencies,
+			moduleRewrite
+		),
 		moduleTransform,
 		assetRules,
 		pluginRegistry,

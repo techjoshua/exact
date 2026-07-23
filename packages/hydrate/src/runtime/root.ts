@@ -9,7 +9,11 @@ import {
 import type { ExactClient } from '../types.js';
 import { bindRequestClientDomain } from './client.js';
 
-/** @internal Creates an ordinary component beneath a hidden immutable request-root provider. */
+/**
+ * Creates an ordinary component beneath a hidden immutable request root while
+ * retaining the supplied ownership domain on every VNode it authors.
+ * @internal
+ */
 export function createExactRoot(
 	client: ExactClient,
 	component: ComponentFunction<any, any>,

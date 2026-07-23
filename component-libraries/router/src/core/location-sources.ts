@@ -59,9 +59,11 @@ export function createBrowserLocationSource(
 	mode: RouterMode = 'history'
 ): LocationSource | undefined {
 	if (typeof window === 'undefined') return undefined;
+	const opaqueOrigin = window.location.origin === 'null';
+	const routeOrigin = opaqueOrigin ? 'http://exact.local' : window.location.origin;
 	const read = () =>
 		mode === 'hash'
-			? new URL(window.location.hash.slice(1) || '/', window.location.origin)
+			? new URL(window.location.hash.slice(1) || '/', routeOrigin)
 			: new URL(window.location.href);
 	return {
 		location: read,
@@ -69,15 +71,19 @@ export function createBrowserLocationSource(
 		key: () => String(window.history.state?.key ?? 'default'),
 		push(url, state) {
 			const next = { usr: state, key: createKey() };
-			if (mode === 'hash')
-				window.history.pushState(next, '', `#${url.pathname}${url.search}${url.hash}`);
-			else window.history.pushState(next, '', url);
+			if (mode === 'hash') {
+				const hash = `#${url.pathname}${url.search}${url.hash}`;
+				if (opaqueOrigin) window.location.hash = hash;
+				else window.history.pushState(next, '', hash);
+			} else window.history.pushState(next, '', url);
 		},
 		replace(url, state) {
 			const next = { usr: state, key: createKey() };
-			if (mode === 'hash')
-				window.history.replaceState(next, '', `#${url.pathname}${url.search}${url.hash}`);
-			else window.history.replaceState(next, '', url);
+			if (mode === 'hash') {
+				const hash = `#${url.pathname}${url.search}${url.hash}`;
+				if (opaqueOrigin) window.location.replace(hash);
+				else window.history.replaceState(next, '', hash);
+			} else window.history.replaceState(next, '', url);
 		},
 		go(delta) {
 			window.history.go(delta);

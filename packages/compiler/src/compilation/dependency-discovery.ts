@@ -23,7 +23,9 @@ export async function collectPlacementAnalysisDependencies(
 		const semanticDependencies = session
 			? session.expressionDependencyFiles(filename, source)
 			: expressionDependencyFiles(filename, source);
-		const syntacticDependencies = await localModuleDependencyFiles(filename, source);
+		const syntacticDependencies = (await localModuleDependencyEntries(filename, source)).map(
+			(entry) => entry.file
+		);
 		for (const dependency of [...semanticDependencies, ...syntacticDependencies]) {
 			const resolved = path.resolve(dependency);
 			if (
@@ -49,8 +51,11 @@ export async function collectPlacementAnalysisDependencies(
 	return graph;
 }
 
-/** Resolves relative TypeScript and JavaScript imports without loading package dependencies. */
-async function localModuleDependencyFiles(filename: string, source: string): Promise<string[]> {
+/** Resolves authored relative module specifiers to local source files. */
+export async function localModuleDependencyEntries(
+	filename: string,
+	source: string
+): Promise<Array<{ specifier: string; file: string }>> {
 	const sourceFile = ts.createSourceFile(
 		filename,
 		source,
@@ -69,7 +74,7 @@ async function localModuleDependencyFiles(filename: string, source: string): Pro
 		}
 		return [];
 	});
-	const dependencies: string[] = [];
+	const dependencies: Array<{ specifier: string; file: string }> = [];
 	for (const specifier of specifiers) {
 		const absolute = path.resolve(path.dirname(filename), specifier);
 		const extension = path.extname(absolute);
@@ -91,14 +96,18 @@ async function localModuleDependencyFiles(filename: string, source: string): Pro
 		for (const candidate of candidates) {
 			try {
 				await access(candidate);
-				dependencies.push(path.resolve(candidate));
+				dependencies.push({ specifier, file: path.resolve(candidate) });
 				break;
 			} catch {
 				// Continue through the same extension order used by the compiler.
 			}
 		}
 	}
-	return [...new Set(dependencies)];
+	return [
+		...new Map(
+			dependencies.map((dependency) => [`${dependency.specifier}\0${dependency.file}`, dependency])
+		).values()
+	];
 }
 
 /** Returns every dependency reachable from an entry without including the entry itself. */

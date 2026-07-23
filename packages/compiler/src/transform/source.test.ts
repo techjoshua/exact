@@ -41,6 +41,20 @@ describe('@exact/compiler: transform', () => {
 		expect(output).not.toContain('this.map(props.tasks');
 	});
 
+	it('preserves native map semantics for module-level declarative collections', () => {
+		const output = transform(`
+			type Page = { /** @exact key */ path: string; component: ComponentFunction };
+			function Route() { return null; }
+			const pages: Page[] = [];
+			function App(this: Component<{}>) {
+				return () => <Route>{pages.map(page => <Route path={page.path} component={page.component} />)}</Route>;
+			}
+		`);
+		expect(output).toContain('pages.map(page =>');
+		expect(output).not.toContain('this.map(pages');
+		expect(output).not.toContain('__exactDynamic(() => pages.map');
+	});
+
 	it('reports malformed compiler annotations at their source line', () => {
 		expect(() =>
 			transform(

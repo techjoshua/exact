@@ -326,6 +326,89 @@ describe('@exact/compiler: artifacts', () => {
 		expect(client).not.toContain('const __exactImplementation_A');
 	});
 
+	it('routes barrel exports through target artifacts and infers transitive task placement', async () => {
+		const root = await createTestWorkspace('exact-artifact-barrel-');
+		const srcDir = path.join(root, 'src');
+		const components = path.join(srcDir, 'components');
+		const outDir = path.join(root, '.exact');
+		await mkdir(components, { recursive: true });
+		await writeFile(path.join(srcDir, 'App.tsx'), `export { Page } from './components/page.js';`);
+		await writeFile(
+			path.join(components, 'page.tsx'),
+			`
+      import type { Component } from '@exact/core';
+      import { quote } from '../provider.js';
+      import { Workspace } from './workspace.js';
+      export function Page(this: Component<{ value: string }>) {
+        this.task(async () => { this.state.value = await quote(); });
+        return () => <main>{this.state.value}<Workspace /></main>;
+      }
+    `
+		);
+		await writeFile(
+			path.join(srcDir, 'provider.ts'),
+			`export async function quote() { return process.env.QUOTE ?? 'ready'; }`
+		);
+		await writeFile(
+			path.join(components, 'workspace.tsx'),
+			`
+      import type { Component } from '@exact/core';
+      import { renderWorkspace } from './workspace-view.js';
+      export function Workspace(this: Component<{ count: number }>) {
+        this.state.count = 0;
+        return () => renderWorkspace(() => this.state.count++);
+      }
+    `
+		);
+		await writeFile(
+			path.join(components, 'workspace-view.tsx'),
+			`export function renderWorkspace(click: () => void) { return <div>{(['one', 'two'] as const).map(value => <button onClick={click}>{value}</button>)}</div>; }`
+		);
+
+		const results = await compileProjectArtifacts([path.join(srcDir, 'App.tsx')], {
+			outDir,
+			rootDir: srcDir,
+			serverComponents: true
+		});
+		const app = results.find((result) => path.basename(result.inputFile) === 'App.tsx')!;
+		const page = results.find((result) => path.basename(result.inputFile) === 'page.tsx')!;
+		const workspace = results.find(
+			(result) => path.basename(result.inputFile) === 'workspace.tsx'
+		)!;
+		const workspaceView = results.find(
+			(result) => path.basename(result.inputFile) === 'workspace-view.tsx'
+		)!;
+		const appServer = await readFile(app.serverFile, 'utf8');
+		const pageServer = await readFile(page.serverFile, 'utf8');
+		const pageClient = await readFile(page.clientFile, 'utf8');
+		const workspaceServer = await readFile(workspace.serverFile, 'utf8');
+		const workspaceClient = await readFile(workspace.clientFile, 'utf8');
+		const workspaceViewClient = await readFile(workspaceView.clientFile, 'utf8');
+
+		expect(results.map((result) => path.basename(result.inputFile)).sort()).toEqual([
+			'App.tsx',
+			'page.tsx',
+			'workspace-view.tsx',
+			'workspace.tsx'
+		]);
+		expect(appServer).toContain('./components/page.exact.server.js');
+		expect(pageServer).toContain('createServerBoundary as __exactBoundary');
+		expect(pageServer).not.toContain('./workspace.js');
+		expect(workspaceServer).toContain('createServerBoundary as __exactBoundary');
+		expect(workspaceClient).toContain('./workspace-view.exact.client.js');
+		expect(workspaceViewClient).toContain('__exactVNode');
+		expect(workspaceViewClient).toContain("(['one', 'two'] as const).map(");
+		expect(workspaceViewClient).not.toContain('this.map(');
+		expect(workspaceViewClient).not.toContain('Anonymous_ExactClient');
+		expect(workspaceView.manifest.components).toEqual([]);
+		expect(pageClient).not.toContain('../provider.js');
+		expect(page.manifest.components[0]?.tasks[0]?.placement).toBe('server');
+		expect(workspace.manifest.components[0]).toMatchObject({
+			placement: 'client',
+			artifactTargets: ['client']
+		});
+	}, 15_000);
+
 	it('removes a stale shared artifact when a module becomes target-specific', async () => {
 		const root = await createTestWorkspace('exact-shared-stale-');
 		const input = path.join(root, 'src', 'value.tsx');

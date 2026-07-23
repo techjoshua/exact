@@ -17,9 +17,15 @@ const runtimeLoader = await createViteServer({
 	configFile: false,
 	appType: 'custom',
 	logLevel: 'error',
-	server: { middlewareMode: true }
+	server: { middlewareMode: true, hmr: false }
 });
-const { createSampleRuntimes } = await runtimeLoader.ssrLoadModule('/server/runtime.ts');
+let runtimeModule;
+try {
+	runtimeModule = await runtimeLoader.ssrLoadModule('/server/runtime.ts');
+} finally {
+	await runtimeLoader.close();
+}
+const { createSampleRuntimes } = runtimeModule;
 const runtimes = createSampleRuntimes({ buildKey: process.env.EXACT_BUILD_KEY });
 
 const billingAssets = await remoteAssets('billing', 4301);
@@ -61,8 +67,7 @@ const close = async () => {
 		closeHttp(branding),
 		pageVite.close(),
 		billingAssets.close(),
-		brandingAssets.close(),
-		runtimeLoader.close()
+		brandingAssets.close()
 	]);
 };
 process.once('SIGINT', () => void close().then(() => process.exit(0)));
@@ -77,7 +82,7 @@ async function remoteAssets(name, port) {
 		logLevel: 'info',
 		resolve: { alias: sharedAlias() },
 		plugins: [exact({ applicationRoot })],
-		server: { port, strictPort: true, cors: true }
+		server: { host: '127.0.0.1', port, strictPort: true, cors: true }
 	});
 	await server.listen();
 	return server;

@@ -1,8 +1,11 @@
 import {
 	createContext,
 	createVNode,
+	Dynamic,
+	Fragment,
 	getCellVNode,
 	isCellVNode,
+	unwrap,
 	type Child,
 	type Component,
 	type ComponentFunction,
@@ -79,7 +82,10 @@ export type RouteContextValue = {
 
 /** Provides the canonical route context value. */
 export const RouteContext = createContext<RouteContextValue>('exact.route', true);
-const OutletContext = createContext<Child | Child[] | undefined>('exact.route.outlet');
+type OutletContextValue = { readonly current: Child | Child[] | undefined };
+const OutletContext = createContext<OutletContextValue>('exact.route.outlet', {
+	reactive: false
+});
 
 /** Defines the properties accepted by router. */
 export type RouterProps = {
@@ -175,46 +181,94 @@ type RouteRecord = RouteProps & ExactRouteDefinition & { children: RouteRecord[]
 function routeChildren(children: Child | Child[] | undefined, parentId = 'root'): RouteRecord[] {
 	const values = Array.isArray(children) ? children : children === undefined ? [] : [children];
 	const output: RouteRecord[] = [];
-	for (const value of values) {
+	const collect = (value: Child) => {
+		if (Array.isArray(value)) {
+			for (const child of value) collect(child);
+			return;
+		}
 		const vnode = unwrapCell(value);
-		if (!vnode || vnode.type !== Route) continue;
-		const props = vnode.props as RouteProps;
+		if (!vnode) return;
+		if (vnode.type === Dynamic) {
+			const resolved = unwrap(vnode.props.value) as Child | Child[];
+			if (Array.isArray(resolved)) for (const child of resolved) collect(child);
+			else collect(resolved);
+			return;
+		}
+		if (vnode.type === Fragment) {
+			for (const child of vnode.children) collect(child);
+			return;
+		}
+		if (vnode.type !== Route) return;
+		const rawProps = vnode.props as RouteProps;
+		const props: RouteProps = {
+			...rawProps,
+			...(rawProps.path !== undefined ? { path: unwrap(rawProps.path) as string } : {}),
+			...(rawProps.index !== undefined ? { index: unwrap(rawProps.index) as boolean } : {}),
+			...(rawProps.caseSensitive !== undefined
+				? { caseSensitive: unwrap(rawProps.caseSensitive) as boolean }
+				: {}),
+			...(rawProps.component !== undefined
+				? { component: unwrap(rawProps.component) as ComponentFunction<any, any> }
+				: {}),
+			...(rawProps.componentProps !== undefined
+				? {
+						componentProps: unwrap(rawProps.componentProps) as Record<string, unknown>
+					}
+				: {})
+		};
 		const id = `${parentId}.${output.length}`;
 		const children = routeChildren(vnode.children.length ? vnode.children : props.children, id);
 		output.push({ ...props, id, children });
-	}
+	};
+	for (const value of values) collect(value);
 	return output;
 }
 
 function unwrapCell(value: Child): VNode | undefined {
 	if (!value || typeof value !== 'object') return undefined;
-	const vnode = value as VNode;
-	return isCellVNode(vnode) ? getCellVNode(vnode) : vnode;
+	let vnode = value as VNode;
+	while (isCellVNode(vnode)) vnode = getCellVNode(vnode);
+	return vnode;
 }
 
 function renderBranch(routes: RouteRecord[], context: RouteContextValue): Child {
 	let outlet: Child = null;
-	for (let index = routes.length - 1; index >= 0; index--)
-		outlet = createVNode(MatchedRoute, { route: routes[index]!, context, outlet });
+	for (let index = routes.length - 1; index >= 0; index--) {
+		const route = routes[index]!;
+		const child = outlet;
+		outlet = createVNode(
+			MatchedRoute,
+			{
+				context,
+				key: route.id,
+				render: () =>
+					route.component
+						? createVNode(route.component, route.componentProps ?? {})
+						: child
+			},
+			child
+		);
+	}
 	return outlet;
 }
 
 function MatchedRoute(
 	this: Component<{}>,
-	props: { route: RouteRecord; context: RouteContextValue; outlet: Child }
+	props: { context: RouteContextValue; render: () => Child; children?: Child | Child[] }
 ) {
 	this.setContext(RouteContext, props.context);
-	this.setContext(OutletContext, props.outlet);
-	return () =>
-		props.route.component
-			? createVNode(props.route.component, props.route.componentProps ?? {})
-			: props.outlet;
+	this.setContext(OutletContext, {
+		get current() {
+			return props.children;
+		}
+	});
+	return () => props.render();
 }
 
 /** Performs the outlet domain operation. */
 export function Outlet(this: Component<{}>) {
 	const outlet = this.getContext(OutletContext);
-	return () => outlet as Child;
+	return () => outlet.current as Child;
 }
 
 /** Defines the properties accepted by link. */

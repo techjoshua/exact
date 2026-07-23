@@ -1,7 +1,13 @@
 /**
  * @vitest-environment jsdom
  */
-import { createErrorContext, createVNode, ErrorContext, type Component } from '@exact/core';
+import {
+	createErrorContext,
+	createExpression,
+	createVNode,
+	ErrorContext,
+	type Component
+} from '@exact/core';
 import { render } from '@exact/dom';
 import {
 	createRequestContextValue,
@@ -90,6 +96,56 @@ describe('router', () => {
 		);
 		expect(container.querySelector('p')?.textContent).toBe('?from=ssr');
 		expect(container.querySelector('a')?.getAttribute('href')).toBe('#/app/start?page=2');
+	});
+
+	it('collects routes generated inside compiled fragments', () => {
+		function Layout() {
+			return () => (
+				<>
+					<nav>
+						<NavLink to="/guides/routing">Routing</NavLink>
+						<NavLink to="/learn/state">State</NavLink>
+					</nav>
+					<Outlet />
+				</>
+			);
+		}
+		function GeneratedPage() {
+			return () => <p>Generated route</p>;
+		}
+		function StatePage() {
+			return () => <p>State route</p>;
+		}
+		function MissingPage() {
+			return () => <p>Missing route</p>;
+		}
+		const generated = [
+			createVNode(Route, {
+				path: createExpression(() => 'guides/routing'),
+				component: createExpression(() => GeneratedPage)
+			}),
+			createVNode(Route, {
+				path: createExpression(() => 'learn/state'),
+				component: createExpression(() => StatePage)
+			})
+		];
+		const source = createMemoryLocationSource('https://example.test/guides/routing');
+		const container = document.createElement('div');
+		render(
+			<Router source={source}>
+				<Route component={Layout}>
+					{generated}
+					<Route path="*" component={MissingPage} />
+				</Route>
+			</Router>,
+			container
+		);
+		expect(container.querySelector('p')?.textContent).toBe('Generated route');
+		container.querySelectorAll('a')[1]!.click();
+		expect(container.querySelector('p')?.textContent).toBe('State route');
+		container.querySelectorAll('a')[0]!.click();
+		expect(source.location().pathname).toBe('/guides/routing');
+		expect(container.querySelector('p')?.textContent).toBe('Generated route');
 	});
 
 	it('keeps the current pathname for query and fragment targets', () => {

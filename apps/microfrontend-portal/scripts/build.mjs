@@ -7,6 +7,7 @@ import { build } from 'vite';
 const sampleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outputRoot = path.join(sampleRoot, 'dist');
 
+/** Builds remote artifacts first, then binds their emitted entries into the public page build. */
 export async function buildMicrofrontendPortal() {
 	const previousBuildKey = process.env.EXACT_BUILD_KEY;
 	const previousBilling = process.env.EXACT_BILLING_ENTRY;

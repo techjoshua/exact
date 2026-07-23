@@ -8,6 +8,7 @@ type PortalState = {
 	remoteOffline: boolean;
 };
 
+/** Creates page-owned navigation that may be embedded beneath a remote shell. */
 export function Navigation() {
 	return () => (
 		<nav class="portal-navigation" data-owner="page">
@@ -17,6 +18,7 @@ export function Navigation() {
 	);
 }
 
+/** Keeps page-local reactive state while the instance is displayed inside a remote root. */
 export function AccountBadge(this: Component<{ visits: number }>) {
 	const portal = this.getContext(PortalContext);
 	this.state.visits = 0;
@@ -32,6 +34,7 @@ export function AccountBadge(this: Component<{ visits: number }>) {
 	);
 }
 
+/** Mounts the nested billing binding using the account selected by the page context. */
 export function BillingSlot(this: Component<Record<string, never>>) {
 	const portal = this.getContext(PortalContext);
 	return () => (
@@ -43,6 +46,7 @@ export function BillingSlot(this: Component<Record<string, never>>) {
 	);
 }
 
+/** Owns shared portal context and composes page children with independently loaded roots. */
 export default function PortalPage(this: Component<PortalState>) {
 	this.state.portal = {
 		tenant: 'Northwind',

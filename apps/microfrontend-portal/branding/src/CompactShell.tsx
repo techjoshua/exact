@@ -3,6 +3,7 @@ import { PortalContext } from '@exact/sample-microfrontend-portal/shared';
 import type { BrandShellProps } from './BrandShell.js';
 import './branding.css';
 
+/** Renders the compact exposure from the same remote build and shared page context. */
 export default function CompactShell(
 	this: Component<Record<string, never>>,
 	props: BrandShellProps & { children?: Child }

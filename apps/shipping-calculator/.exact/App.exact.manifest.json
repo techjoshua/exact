@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "filename": "src/App.tsx",
+  "filename": "C:\\Users\\techj\\Projects\\eXact\\apps\\shipping-calculator\\src\\App.tsx",
   "dependencies": [
     "client-runtime.ts",
     "components/page.tsx",
@@ -25,7 +25,7 @@
   "semanticGraph": {
     "scopes": [
       {
-        "id": "src/app.tsx:scope:0:204:SourceFile",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/app.tsx:scope:0:204:SourceFile",
         "kind": "module",
         "nodeKind": "SourceFile"
       }
@@ -64,29 +64,7 @@
   "exports": [],
   "symbols": [
     {
-      "id": "x21GCeJXBrlXXflzrt9nl-8",
-      "exportName": "ShippingCalculatorPage",
-      "localName": "ShippingCalculatorPage",
-      "generatedName": "ShippingCalculatorPage",
-      "debugName": "ShippingCalculatorPage",
-      "kind": "value",
-      "role": "root",
-      "target": "server",
-      "placement": "server"
-    },
-    {
-      "id": "x77W26zW1JgVlvXMZw1OWW2",
-      "exportName": "Feature",
-      "localName": "Feature",
-      "generatedName": "Feature",
-      "debugName": "Feature",
-      "kind": "value",
-      "role": "root",
-      "target": "both",
-      "placement": "isomorphic"
-    },
-    {
-      "id": "xcJRhGBNroU8A5--xaVtbMZ",
+      "id": "xfltLAW_o3E97OqXmNzGuHu",
       "exportName": "RouteMap",
       "localName": "RouteMap",
       "generatedName": "RouteMap",
@@ -97,11 +75,44 @@
       "placement": "isomorphic"
     },
     {
-      "id": "xnc2koHwHQlV8wteouKp_zx",
+      "id": "xppKZzpTz9XEYpqzI4gLHUo",
       "exportName": "RateCard",
       "localName": "RateCard",
       "generatedName": "RateCard",
       "debugName": "RateCard",
+      "kind": "value",
+      "role": "root",
+      "target": "both",
+      "placement": "isomorphic"
+    },
+    {
+      "id": "xqIBsYHUNuLVJtEAlo6jtDu",
+      "exportName": "ShippingCalculatorPage",
+      "localName": "ShippingCalculatorPage",
+      "generatedName": "ShippingCalculatorPage",
+      "debugName": "ShippingCalculatorPage",
+      "kind": "value",
+      "role": "root",
+      "target": "server",
+      "placement": "server"
+    },
+    {
+      "id": "xqZPeROweLDyhVaEk6XnCnd",
+      "exportName": "CalculatorWorkspace",
+      "localName": "CalculatorWorkspace",
+      "generatedName": "CalculatorWorkspace",
+      "debugName": "CalculatorWorkspace",
+      "kind": "value",
+      "role": "root",
+      "target": "client",
+      "placement": "client"
+    },
+    {
+      "id": "xrUbM8JkZ0xEB7evWGLqlac",
+      "exportName": "Feature",
+      "localName": "Feature",
+      "generatedName": "Feature",
+      "debugName": "Feature",
       "kind": "value",
       "role": "root",
       "target": "both",
@@ -233,6 +244,16 @@
       "effect": "unknown",
       "directEffectSources": [
         {
+          "environment": "browser",
+          "description": "interactive JSX",
+          "path": [
+            "CalculatorWorkspace",
+            "<function@3193>",
+            "renderWorkspace",
+            "interactive JSX"
+          ]
+        },
+        {
           "environment": "unknown",
           "description": "checked",
           "path": [
@@ -264,6 +285,16 @@
         }
       ],
       "effectSources": [
+        {
+          "environment": "browser",
+          "description": "interactive JSX",
+          "path": [
+            "CalculatorWorkspace",
+            "<function@3193>",
+            "renderWorkspace",
+            "interactive JSX"
+          ]
+        },
         {
           "environment": "unknown",
           "description": "checked",
@@ -304,7 +335,9 @@
           "resolved": true
         }
       ],
-      "artifactTargets": [],
+      "artifactTargets": [
+        "client"
+      ],
       "stateReads": [
         {
           "path": "revision",
@@ -438,29 +471,7 @@
     "exports": [],
     "symbols": [
       {
-        "id": "x21GCeJXBrlXXflzrt9nl-8",
-        "exportName": "ShippingCalculatorPage",
-        "localName": "ShippingCalculatorPage",
-        "generatedName": "ShippingCalculatorPage",
-        "debugName": "ShippingCalculatorPage",
-        "kind": "value",
-        "role": "root",
-        "target": "server",
-        "placement": "server"
-      },
-      {
-        "id": "x77W26zW1JgVlvXMZw1OWW2",
-        "exportName": "Feature",
-        "localName": "Feature",
-        "generatedName": "Feature",
-        "debugName": "Feature",
-        "kind": "value",
-        "role": "root",
-        "target": "both",
-        "placement": "isomorphic"
-      },
-      {
-        "id": "xcJRhGBNroU8A5--xaVtbMZ",
+        "id": "xfltLAW_o3E97OqXmNzGuHu",
         "exportName": "RouteMap",
         "localName": "RouteMap",
         "generatedName": "RouteMap",
@@ -471,11 +482,44 @@
         "placement": "isomorphic"
       },
       {
-        "id": "xnc2koHwHQlV8wteouKp_zx",
+        "id": "xppKZzpTz9XEYpqzI4gLHUo",
         "exportName": "RateCard",
         "localName": "RateCard",
         "generatedName": "RateCard",
         "debugName": "RateCard",
+        "kind": "value",
+        "role": "root",
+        "target": "both",
+        "placement": "isomorphic"
+      },
+      {
+        "id": "xqIBsYHUNuLVJtEAlo6jtDu",
+        "exportName": "ShippingCalculatorPage",
+        "localName": "ShippingCalculatorPage",
+        "generatedName": "ShippingCalculatorPage",
+        "debugName": "ShippingCalculatorPage",
+        "kind": "value",
+        "role": "root",
+        "target": "server",
+        "placement": "server"
+      },
+      {
+        "id": "xqZPeROweLDyhVaEk6XnCnd",
+        "exportName": "CalculatorWorkspace",
+        "localName": "CalculatorWorkspace",
+        "generatedName": "CalculatorWorkspace",
+        "debugName": "CalculatorWorkspace",
+        "kind": "value",
+        "role": "root",
+        "target": "client",
+        "placement": "client"
+      },
+      {
+        "id": "xrUbM8JkZ0xEB7evWGLqlac",
+        "exportName": "Feature",
+        "localName": "Feature",
+        "generatedName": "Feature",
+        "debugName": "Feature",
         "kind": "value",
         "role": "root",
         "target": "both",

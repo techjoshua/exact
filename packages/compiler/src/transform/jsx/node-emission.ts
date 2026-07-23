@@ -212,7 +212,8 @@ export function isPlannedJsxCell(
 	plan?: ExpressionJsxPlan
 ): boolean {
 	if (!plan || !sourceFile) return true;
-	return plan.cells.get(expressionEmissionId(node) ?? '')?.kind === kind;
+	const site = plan.cells.get(expressionEmissionId(node) ?? '');
+	return site?.kind === kind && !site.preserveNative;
 }
 
 /** Reports whether wrap attribute. */
