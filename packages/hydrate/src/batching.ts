@@ -1,4 +1,4 @@
-import { logFrameworkEvent, type Logger } from '@exact/core';
+import { logFrameworkEvent, type Logger } from '@exactjs/core';
 import { headersCacheKey } from './config.js';
 import { invokeExact, invokeExactBatch } from './invocations.js';
 import type {

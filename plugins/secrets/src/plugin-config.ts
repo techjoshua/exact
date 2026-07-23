@@ -1,4 +1,4 @@
-import type { ExactPluginConfigController } from '@exact/plugin-api';
+import type { ExactPluginConfigController } from '@exactjs/plugin-api';
 import type { SecretsPluginConfig } from './config.js';
 import { environmentSecrets } from './providers.js';
 import { createSecretResolver } from './server.js';
@@ -15,17 +15,17 @@ const controller: ExactPluginConfigController<SecretsPluginConfig> = {
 	validate(config) {
 		validateShape(config);
 		if (!config.providers.length)
-			throw new Error('@exact/secrets requires at least one secret provider');
+			throw new Error('@exactjs/secrets requires at least one secret provider');
 		const duplicate = config.required.find(
 			(value, index) => config.required.indexOf(value) !== index
 		);
 		if (duplicate)
-			throw new Error(`@exact/secrets required secret ${duplicate} is listed more than once`);
+			throw new Error(`@exactjs/secrets required secret ${duplicate} is listed more than once`);
 		const duplicatePackage = config.allowPackages.find(
 			(value, index) => config.allowPackages.indexOf(value) !== index
 		);
 		if (duplicatePackage)
-			throw new Error(`@exact/secrets package ${duplicatePackage} is allowed more than once`);
+			throw new Error(`@exactjs/secrets package ${duplicatePackage} is allowed more than once`);
 		return undefined;
 	},
 	compilerConfig(config) {
@@ -62,7 +62,7 @@ function validateShape(value: SecretsPluginConfig): undefined {
 			(packageName) => typeof packageName === 'string' && packageName.length
 		)
 	) {
-		throw new Error('Invalid @exact/secrets configuration');
+		throw new Error('Invalid @exactjs/secrets configuration');
 	}
 	return undefined;
 }

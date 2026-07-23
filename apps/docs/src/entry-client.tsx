@@ -1,4 +1,4 @@
-import { hydrate } from '@exact/hydrate';
+import { hydrate } from '@exactjs/hydrate';
 import { DocsApp } from './DocsApp.jsx';
 import './styles.css';
 

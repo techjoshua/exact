@@ -9,7 +9,7 @@ import {
 } from './index.js';
 import { context } from './test-support/server.js';
 
-describe('@exact/server adapters', () => {
+describe('@exactjs/server adapters', () => {
 	it('dispatches through fetch-compatible adapters', async () => {
 		const handler = createFetchHandler(context());
 		const response = await handler(

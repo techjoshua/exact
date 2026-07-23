@@ -1,5 +1,5 @@
-import type { ExactPluginDiscoveryConfig } from '@exact/config';
-import { assertPackageSelector } from '@exact/plugin-api';
+import type { ExactPluginDiscoveryConfig } from '@exactjs/config';
+import { assertPackageSelector } from '@exactjs/plugin-api';
 import type { ExactDiscoveryPolicy } from './contracts.js';
 
 /** Resolves a discovery policy. */
@@ -10,7 +10,7 @@ export function resolveDiscoveryPolicy(
 		return Object.freeze({
 			mode: 'trusted',
 			trustedPackages: Object.freeze([]),
-			trustedPrefixes: Object.freeze(['@exact/']),
+			trustedPrefixes: Object.freeze(['@exactjs/']),
 			ignore: Object.freeze([])
 		});
 	}
@@ -41,7 +41,7 @@ export function resolveDiscoveryPolicy(
 			mode: 'trusted',
 			trustedPackages: Object.freeze([...(config.trustedPackages ?? [])]),
 			trustedPrefixes: Object.freeze([
-				...(config.includeDefaultTrustedPrefixes === false ? [] : ['@exact/']),
+				...(config.includeDefaultTrustedPrefixes === false ? [] : ['@exactjs/']),
 				...(config.trustedPrefixes ?? [])
 			]),
 			ignore: Object.freeze([...(config.ignore ?? [])])

@@ -1,5 +1,5 @@
-import { decodeReactiveProtocolValue, sameJsonData } from '@exact/core';
-import { createDomWorkBudget, walkDomSubtree, type DomWorkBudget } from '@exact/dom';
+import { decodeReactiveProtocolValue, sameJsonData } from '@exactjs/core';
+import { createDomWorkBudget, walkDomSubtree, type DomWorkBudget } from '@exactjs/dom';
 import type {
 	ClientIslandRegistry,
 	ExactEndpointRoutes,

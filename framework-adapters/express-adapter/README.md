@@ -1,10 +1,10 @@
-# @exact/express-adapter
+# @exactjs/express-adapter
 
 Express middleware for eXact server endpoints.
 
 ```ts
 import express from 'express';
-import { createExactExpressMiddleware } from '@exact/express-adapter';
+import { createExactExpressMiddleware } from '@exactjs/express-adapter';
 
 const app = express();
 app.use(express.json());

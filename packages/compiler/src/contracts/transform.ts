@@ -1,5 +1,5 @@
-import type { ModuleRewriteOptions } from '@exact/expressions';
-import type { ExactPreparedCompilerRegistry } from '@exact/plugin-api';
+import type { ModuleRewriteOptions } from '@exactjs/expressions';
+import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import type { ExactCompilerSession } from '../expression/project.js';
 import type { ExactArtifactTarget } from './artifacts.js';
 import type { ExactCompilerManifest } from './manifest.js';

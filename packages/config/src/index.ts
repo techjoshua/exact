@@ -1,4 +1,4 @@
-import type { ExactPluginConfigContext, ExactPluginConfigTransform } from '@exact/plugin-api';
+import type { ExactPluginConfigContext, ExactPluginConfigTransform } from '@exactjs/plugin-api';
 
 /** Defines the exact plugin config registry interface contract. */
 export interface ExactPluginConfigRegistry {}

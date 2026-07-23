@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createExactServerlessHandler, responseToServerlessResult } from './index.js';
 
-describe('@exact/serverless-adapter', () => {
+describe('@exactjs/serverless-adapter', () => {
 	it('handles API Gateway style events', async () => {
 		const handler = createExactServerlessHandler({
 			manifest: {

@@ -1,4 +1,4 @@
-import { type Component, type ComponentInstance } from '@exact/core';
+import { type Component, type ComponentInstance } from '@exactjs/core';
 import {
 	cloneHookSlot,
 	runEffectCleanup,

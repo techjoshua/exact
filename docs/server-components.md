@@ -115,7 +115,7 @@ Server apps convert compiler manifests into a runtime allowlist:
 
 ```ts
 import compilerManifest from '../.exact/ProfilePage.exact.manifest.json' with { type: 'json' };
-import { createExactServerManifest } from '@exact/server';
+import { createExactServerManifest } from '@exactjs/server';
 
 const manifest = createExactServerManifest(compilerManifest, {
 	endpoint: '/__exact',
@@ -133,11 +133,11 @@ Only IDs present in the runtime manifest can be invoked. The client never sends 
 
 ## Handler Registry
 
-`@exact/ssr` can build a ready runtime context from manifest-scoped action and boundary handlers:
+`@exactjs/ssr` can build a ready runtime context from manifest-scoped action and boundary handlers:
 
 ```ts
-import { createExactServerRuntime } from '@exact/ssr';
-import { handleExactRequest } from '@exact/server';
+import { createExactServerRuntime } from '@exactjs/ssr';
+import { handleExactRequest } from '@exactjs/server';
 import { renderProfilePage } from './server-entry';
 
 const runtime = createExactServerRuntime({
@@ -167,8 +167,8 @@ The same `handleExactRequest(request, context)` core works with Fetch-compatible
 Server rendering sends endpoint, state contracts, and action boundary hints to the browser:
 
 ```ts
-import { createExactHydrationManifestConfig } from '@exact/server';
-import { renderToHydratableStringAsync } from '@exact/ssr';
+import { createExactHydrationManifestConfig } from '@exactjs/server';
+import { renderToHydratableStringAsync } from '@exactjs/ssr';
 
 const hydration = createExactHydrationManifestConfig(manifest, {
 	sessionId: 's1'
@@ -180,7 +180,7 @@ const html = await renderToHydratableStringAsync(renderProfilePage(), hydration)
 The client reads the hydration script automatically:
 
 ```ts
-import { hydrate } from "@exact/hydrate";
+import { hydrate } from "@exactjs/hydrate";
 import { ProfilePage_ExactClient_1 } from "../.exact/ProfilePage.exact.client";
 
 hydrate(<ProfilePage />, document.getElementById("app")!, {
@@ -208,7 +208,7 @@ The client endpoint supports:
 
 Batches behave like independent GraphQL-style operation groups: each operation has its own result, and optional `opId` / `dependsOn` metadata can express dependency ordering. `opId` values must be unique within a batch. Independent operations run concurrently and preserve request-order results. Dependent operations wait for successful prerequisites and are skipped with `dependency_failed` if a prerequisite does not succeed.
 
-Clients can opt into streamed endpoint responses by sending `Accept: application/x-ndjson` or `x-exact-stream: 1`; `@exact/hydrate` does this when `stream: true` is set. Stream responses are newline-delimited JSON events: `start`, zero or more per-operation `patch`, `state`, and `html` chunk events, one terminal `result` event per operation with `index` and optional `opId`, then `complete`. Independent batch chunks may arrive out of order as operations finish; the client restores request-order results before resolving helper promises.
+Clients can opt into streamed endpoint responses by sending `Accept: application/x-ndjson` or `x-exact-stream: 1`; `@exactjs/hydrate` does this when `stream: true` is set. Stream responses are newline-delimited JSON events: `start`, zero or more per-operation `patch`, `state`, and `html` chunk events, one terminal `result` event per operation with `index` and optional `opId`, then `complete`. Independent batch chunks may arrive out of order as operations finish; the client restores request-order results before resolving helper promises.
 
 Initial document rendering can stream through `renderToDocumentStream()` or `renderToHydratableDocumentStream()`. These streams emit newline-delimited JSON document events: `start`, `shell`, optional root `replace` after observed async server tasks settle, optional `hydration`, and `complete`.
 
@@ -253,7 +253,7 @@ Context sharing across micro frontend bundles has an explicit same-realm token o
 - For cross-bundle context, `createContext(description, true)` creates a globally keyed context while keeping local contexts as the default.
 - A global context uses a namespaced `Symbol.for()` key, for example `Symbol.for("exact.context:com.company.auth.user")`.
 - Authors should use collision-resistant namespaced descriptions for global contexts, such as `com.company.auth.user`, not generic names like `user`.
-- Built-in framework contexts such as logger and error context use global keys so duplicated `@exact/core` copies can share them in one browser realm.
+- Built-in framework contexts such as logger and error context use global keys so duplicated `@exactjs/core` copies can share them in one browser realm.
 - `Symbol.for()` only solves identity within the same JavaScript realm. Cross-iframe, worker, or remote server endpoint context still has to be passed explicitly as validated serialized request/session data.
 - Remote server components should not receive arbitrary client-provided context. Compiler/runtime manifests record action context contracts from `this.getContext(...)` / `this.setContext(...)`, and endpoint validation rejects serialized context tokens that are not allowlisted by the action contract. Cross-endpoint context should still be treated as explicit app/session data, not ambient authority.
 

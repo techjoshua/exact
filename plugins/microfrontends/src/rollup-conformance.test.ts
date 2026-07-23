@@ -23,7 +23,7 @@ describe('Vite/Rollup remote producer conformance', () => {
 		await writeFile(
 			path.join(root, 'src', 'Area.js'),
 			[
-				`import { createVNode } from '@exact/core';`,
+				`import { createVNode } from '@exactjs/core';`,
 				`import './area.css';`,
 				`function Area() {`,
 				`  return () => createVNode('p', null, 'remote');`,
@@ -113,15 +113,15 @@ describe('Vite/Rollup remote producer conformance', () => {
 					.map((file) => readFile(path.join(outDir, file), 'utf8'))
 			)
 		).join('\n');
-		expect(javascript).toContain(`Symbol.for("@exact/provided-packages")`);
+		expect(javascript).toContain(`Symbol.for("@exactjs/provided-packages")`);
 		expect(javascript).not.toContain('createComponentInstance');
 
 		const previous = (globalThis as Record<PropertyKey, unknown>)[
-			Symbol.for('@exact/provided-packages')
+			Symbol.for('@exactjs/provided-packages')
 		];
-		(globalThis as Record<PropertyKey, unknown>)[Symbol.for('@exact/provided-packages')] = {
+		(globalThis as Record<PropertyKey, unknown>)[Symbol.for('@exactjs/provided-packages')] = {
 			require(key: string) {
-				if (key !== '@exact/core') throw new Error(`unexpected provider ${key}`);
+				if (key !== '@exactjs/core') throw new Error(`unexpected provider ${key}`);
 				return { createVNode: () => undefined };
 			}
 		};
@@ -137,9 +137,9 @@ describe('Vite/Rollup remote producer conformance', () => {
 			expect(typeof loaded.default.component).toBe('function');
 		} finally {
 			if (previous === undefined)
-				delete (globalThis as Record<PropertyKey, unknown>)[Symbol.for('@exact/provided-packages')];
+				delete (globalThis as Record<PropertyKey, unknown>)[Symbol.for('@exactjs/provided-packages')];
 			else
-				(globalThis as Record<PropertyKey, unknown>)[Symbol.for('@exact/provided-packages')] =
+				(globalThis as Record<PropertyKey, unknown>)[Symbol.for('@exactjs/provided-packages')] =
 					previous;
 		}
 	});

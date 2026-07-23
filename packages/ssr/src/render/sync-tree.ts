@@ -14,8 +14,8 @@ import {
 	normalizeRenderResult,
 	renderInstance,
 	type VNode
-} from '@exact/core';
-import { unwrap } from '@exact/reactive';
+} from '@exactjs/core';
+import { unwrap } from '@exactjs/reactive';
 import { escapeAttr, escapeText, voidElements } from '../html.js';
 import { jsonUnsafePath, serializeHydrationPayload } from '../hydration.js';
 import { exactMarkerId, markerId, markerPair, renderAttrs, withMarker } from '../markup.js';

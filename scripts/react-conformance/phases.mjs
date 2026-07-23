@@ -46,9 +46,9 @@ export async function validateImplementedExports(reference, target) {
 async function validatePhaseCompatibility(phase) {
 	const script = `phase${phase}`;
 	const [reference18, exact18, reference19, exact19] = await Promise.all([
-		runWorkspaceScript('@exact/react-reference-18', script),
+		runWorkspaceScript('@exactjs/react-reference-18', script),
 		runExactPhase(phase, 18),
-		runWorkspaceScript('@exact/react-reference-19', script),
+		runWorkspaceScript('@exactjs/react-reference-19', script),
 		runExactPhase(phase, 19)
 	]);
 	const cases = [

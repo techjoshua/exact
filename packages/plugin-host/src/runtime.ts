@@ -4,7 +4,7 @@ import type {
 	ExactPluginLifecycleContext,
 	ExactPluginResource,
 	ExactRuntimePluginExtension
-} from '@exact/plugin-api';
+} from '@exactjs/plugin-api';
 
 /** Performs the process exact output domain operation. */
 export async function processExactOutput<T>(

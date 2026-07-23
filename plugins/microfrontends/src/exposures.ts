@@ -2,12 +2,12 @@ import {
 	createExactHydrationRegistrationModule,
 	selectExactExposureArtifactGraph,
 	type ExactArtifactGraph
-} from '@exact/compiler';
+} from '@exactjs/compiler';
 import {
 	createExactServerManifest,
 	type ExactRemoteBuildRegistration,
 	type ExactServerContext
-} from '@exact/server';
+} from '@exactjs/server';
 import path from 'node:path';
 import type { ExactRemoteArtifactPlan } from './build.js';
 

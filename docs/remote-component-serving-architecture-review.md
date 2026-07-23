@@ -142,7 +142,7 @@ eXact request handler on private addresses.
 ## Plugin model
 
 The feature should be delivered as an official trusted microfrontend plugin,
-named `@exact/microfrontends`.
+named `@exactjs/microfrontends`.
 
 The same plugin operates in producer and consumer modes.
 
@@ -832,8 +832,8 @@ before hydration. Its generated bootstrap publishes the mandatory eXact package
 instances and configured application package instances at that point:
 
 ```ts
-providedPackages.register('@exact/reactive', exactReactive);
-providedPackages.register('@exact/core', exactCore);
+providedPackages.register('@exactjs/reactive', exactReactive);
+providedPackages.register('@exactjs/core', exactCore);
 providedPackages.register('@company/app-contexts', appContexts);
 ```
 
@@ -878,10 +878,10 @@ Effects and tasks created by the remote subtree are disposed with the boundary.
 
 Remote bundles must not embed independent copies of:
 
-- `@exact/reactive`;
-- `@exact/core`;
-- `@exact/dom`;
-- `@exact/hydrate`.
+- `@exactjs/reactive`;
+- `@exactjs/core`;
+- `@exactjs/dom`;
+- `@exactjs/hydrate`.
 
 Reactive markers and several framework symbols use `Symbol.for`, but dependency
 tracking, effect scopes, proxy caches, renderer ownership, and hydration roots
@@ -897,7 +897,7 @@ package, identity-sensitive state container, or component library with
 module-local registration must be configured as a provided package if host and
 remote code are intended to interoperate through it.
 
-`@exact/router` is not mandatory. Applications that do not use the router
+`@exactjs/router` is not mandatory. Applications that do not use the router
 should neither publish nor download it. When both the page shell and a remote
 use router APIs, providing it is normally sensible and avoids duplicate code,
 but it remains an application choice. The primary eXact route and controller
@@ -1410,7 +1410,7 @@ of their pending operation and their ordinary logical parent.
 
 The implementation uses existing plugin discovery, typed configuration,
 compiler/server/client projections, lifecycle, and output processing directly.
-The Vite plugin discovers `@exact/microfrontends`, prepares the artifact graph,
+The Vite plugin discovers `@exactjs/microfrontends`, prepares the artifact graph,
 injects page package publication before the normal page entry, and emits remote
 entries without adding a generalized plugin-host contribution API.
 
@@ -1697,7 +1697,7 @@ parallel systems:
 
 | Existing facility                                           | How the implementation uses it                                                                                                                                                                                                 |
 | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `createExactClient(container, options)` in `@exact/hydrate` | Creates the concrete remote client root. Its existing `endpoint`, `headers`, batching, cancellation, patching, stale-response handling, registration, and disposal behavior cover most remote-instance lifecycle requirements. |
+| `createExactClient(container, options)` in `@exactjs/hydrate` | Creates the concrete remote client root. Its existing `endpoint`, `headers`, batching, cancellation, patching, stale-response handling, registration, and disposal behavior cover most remote-instance lifecycle requirements. |
 | Header-aware batching in `packages/hydrate/src/batching.ts` | `X-Exact-Binding` already separates component hosts. Add `X-Exact-Build` to prevent different builds from sharing a queue while compatible roots continue to batch.                                                            |
 | `ExactClient.registerManifest()`                            | Registers the generated remote island registry, state contracts, and action boundaries after the loader arrives.                                                                                                               |
 | Container-relative `applyPatches()`                         | Confines remote patches to the remote area's DOM container.                                                                                                                                                                    |
@@ -1743,7 +1743,7 @@ packages.
 
 ### Phase 1: define the minimal public contracts
 
-Add shared types to `@exact/microfrontends`:
+Add shared types to `@exactjs/microfrontends`:
 
 ```ts
 export type ExactRemoteExposureConfig = {
@@ -1782,19 +1782,19 @@ The plugin adds mandatory eXact client keys internally. Application code does
 not repeat them:
 
 ```text
-@exact/core
-@exact/dom
-@exact/hydrate
-@exact/reactive
-@exact/jsx/jsx-runtime
+@exactjs/core
+@exactjs/dom
+@exactjs/hydrate
+@exactjs/reactive
+@exactjs/jsx/jsx-runtime
 ```
 
 Add or remove a mandatory key only when the emitted remote graph actually uses
 that package.
 
-`@exact/router` is intentionally absent from this mandatory set. If the page
+`@exactjs/router` is intentionally absent from this mandatory set. If the page
 shell already uses it and a remote imports it, the application will normally
-add `@exact/router` to `providedPackages` to reuse the loaded module and avoid
+add `@exactjs/router` to `providedPackages` to reuse the loaded module and avoid
 duplicate code. Router-free applications have no router-specific requirement.
 
 #### Producer configuration example
@@ -1803,7 +1803,7 @@ An independently runnable billing application exposes one authored eXact
 component root:
 
 ```ts
-import { defineConfig } from '@exact/config';
+import { defineConfig } from '@exactjs/config';
 
 export default defineConfig({
 	plugins: {
@@ -1827,7 +1827,7 @@ graph participate.
 #### Page-host configuration example
 
 ```ts
-import { defineConfig } from '@exact/config';
+import { defineConfig } from '@exactjs/config';
 
 export default defineConfig({
 	plugins: {
@@ -1915,25 +1915,25 @@ The first implementation may store the registry under a framework global
 symbol so independently built loaders can reach the same object:
 
 ```ts
-const registrySymbol = Symbol.for('@exact/provided-packages');
+const registrySymbol = Symbol.for('@exactjs/provided-packages');
 ```
 
 The page build adapter generates a bootstrap module similar to:
 
 ```ts
-import * as exactCore from '@exact/core';
-import * as exactDom from '@exact/dom';
-import * as exactHydrate from '@exact/hydrate';
-import * as exactReactive from '@exact/reactive';
+import * as exactCore from '@exactjs/core';
+import * as exactDom from '@exactjs/dom';
+import * as exactHydrate from '@exactjs/hydrate';
+import * as exactReactive from '@exactjs/reactive';
 import * as appContexts from '@company/app-contexts';
 import * as designSystem from '@company/design-system';
-import { getExactProvidedPackageRegistry } from '@exact/hydrate';
+import { getExactProvidedPackageRegistry } from '@exactjs/hydrate';
 
 const provided = getExactProvidedPackageRegistry();
-provided.register('@exact/core', exactCore);
-provided.register('@exact/dom', exactDom);
-provided.register('@exact/hydrate', exactHydrate);
-provided.register('@exact/reactive', exactReactive);
+provided.register('@exactjs/core', exactCore);
+provided.register('@exactjs/dom', exactDom);
+provided.register('@exactjs/hydrate', exactHydrate);
+provided.register('@exactjs/reactive', exactReactive);
 provided.register('@company/app-contexts', appContexts);
 provided.register('@company/design-system', designSystem);
 ```
@@ -1988,7 +1988,7 @@ Given this authored eXact component:
 ```tsx
 import { CurrentAccountContext } from '@company/app-contexts';
 import { Button } from '@company/design-system';
-import type { Component } from '@exact/core';
+import type { Component } from '@exactjs/core';
 
 type BillingProps = { accountId: string };
 
@@ -2247,7 +2247,7 @@ this feature.
 ### Phase 5: implement `RemoteComponent`
 
 `RemoteComponent` is an eXact component supplied by
-`@exact/microfrontends/client`. It owns loading, validation, the concrete client
+`@exactjs/microfrontends/client`. It owns loading, validation, the concrete client
 root, remote component domain, and fallback lifecycle. The remote bundle only
 exports compiled component artifacts.
 
@@ -2266,8 +2266,8 @@ export type RemoteComponentProps<Props extends Record<string, unknown>> = {
 Page component example:
 
 ```tsx
-import { RemoteComponent } from '@exact/microfrontends/client';
-import type { Component } from '@exact/core';
+import { RemoteComponent } from '@exactjs/microfrontends/client';
+import type { Component } from '@exactjs/core';
 
 export function BillingPage(this: Component<{}>) {
 	return () => (
@@ -2543,7 +2543,7 @@ application hook.
 ### Phase 7: integrate the reference adapter and stage the remaining adapters
 
 Implement the remote artifact planner, common module generators, internal
-adapter contract, and conformance validator inside `@exact/microfrontends`.
+adapter contract, and conformance validator inside `@exactjs/microfrontends`.
 Integrate them directly with the current framework bundler plugins. Add a
 general plugin-host hook only if all concrete adapters prove they require the
 same missing capability.

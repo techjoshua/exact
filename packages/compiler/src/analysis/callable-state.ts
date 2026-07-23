@@ -1,4 +1,4 @@
-import type { BoundModule, NodeRef, Variable } from '@exact/expressions';
+import type { BoundModule, NodeRef, Variable } from '@exactjs/expressions';
 import type { ExactModuleImportPlan } from '../assets.js';
 import { type ExpressionWritePlan } from '../expression/writes.js';
 import type {

@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode, type Component } from '@exact/core';
-import { flushSync, registerReactiveListKey } from '@exact/reactive';
-import { renderHydrationScript, renderToHydratableString } from '@exact/ssr';
+import { createVNode, type Component } from '@exactjs/core';
+import { flushSync, registerReactiveListKey } from '@exactjs/reactive';
+import { renderHydrationScript, renderToHydratableString } from '@exactjs/ssr';
 import { expect, it } from 'vitest';
 import { hydrate, readExactHydrationConfig } from './index.js';
 

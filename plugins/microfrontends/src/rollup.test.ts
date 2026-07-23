@@ -34,7 +34,7 @@ describe('Rollup remote artifact adapter', () => {
 		);
 		expect(await adapter.resolveId(adapter.pageBootstrapImport)).toBe('\0exact:provided/bootstrap');
 		expect(adapter.load('\0exact:provided/bootstrap')).toContain('getExactProvidedPackageRegistry');
-		expect(await adapter.resolveId('@exact/core', '\0exact:provided/bootstrap')).toBeNull();
+		expect(await adapter.resolveId('@exactjs/core', '\0exact:provided/bootstrap')).toBeNull();
 		adapter.buildStart({ emitFile });
 		expect(emitFile).toHaveBeenCalledWith({
 			type: 'chunk',

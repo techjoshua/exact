@@ -27,7 +27,7 @@ describe('staged bundler feasibility mappings', () => {
 			'export default __exactRemoteModule'
 		);
 		expect(
-			mapping.providedBridge('@exact/core', [{ kind: 'named', imported: 'createVNode' }])
+			mapping.providedBridge('@exactjs/core', [{ kind: 'named', imported: 'createVNode' }])
 		).toContain('as createVNode');
 	});
 
@@ -49,7 +49,7 @@ describe('staged bundler feasibility mappings', () => {
 			contents: expect.stringContaining('export default __exactRemoteModule')
 		});
 		expect(
-			mapping.providedBridge('@exact/core', [{ kind: 'named', imported: 'createVNode' }])
+			mapping.providedBridge('@exactjs/core', [{ kind: 'named', imported: 'createVNode' }])
 		).toMatchObject({ loader: 'js', contents: expect.stringContaining('as createVNode') });
 	});
 });
@@ -59,7 +59,7 @@ function fixturePlan() {
 		{
 			exposes: { './Area': { component: './src/Area.tsx' } },
 			remotes: {},
-			providedPackages: ['@exact/core']
+			providedPackages: ['@exactjs/core']
 		},
 		{ packageName: '@company/remote', buildKey }
 	);

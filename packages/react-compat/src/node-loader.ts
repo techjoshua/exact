@@ -77,7 +77,7 @@ export function createExactReactNodeLoader(
 
 let defaultLoader: ExactReactNodeLoader | undefined;
 
-/** Node ESM loader hook for `node --loader @exact/react-compat/node-loader`. */
+/** Node ESM loader hook for `node --loader @exactjs/react-compat/node-loader`. */
 export async function load(
 	url: string,
 	context: Readonly<{ format?: string | null }>,

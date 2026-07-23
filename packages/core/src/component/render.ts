@@ -1,4 +1,4 @@
-import { watch } from '@exact/reactive';
+import { watch } from '@exactjs/reactive';
 
 import type { Child, ComponentInstance, RenderResult } from './contracts.js';
 

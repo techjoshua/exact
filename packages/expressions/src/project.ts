@@ -1,4 +1,4 @@
-import type { ExactProfileSink } from '@exact/instrumentation';
+import type { ExactProfileSink } from '@exactjs/instrumentation';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import ts from 'typescript';

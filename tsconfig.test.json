@@ -8,7 +8,7 @@
 		"lib": ["ES2022", "DOM"],
 		"types": ["node", "vitest"],
 		"jsx": "react-jsx",
-		"jsxImportSource": "@exact/jsx"
+		"jsxImportSource": "@exactjs/jsx"
 	},
 	"include": [
 		"packages/*/src/**/*.ts",

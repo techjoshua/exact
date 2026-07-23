@@ -1,4 +1,4 @@
-import { createContext, createRef } from '@exact/core';
+import { createContext, createRef } from '@exactjs/core';
 
 import type { FieldContextValue, FormContextValue } from './contracts.js';
 

@@ -1,5 +1,5 @@
-import { useSyncExternalStore, type ReactComponentType } from '@exact/react-compat';
-import { exposeExactComponent, useExactContext } from '@exact/react-compat/interop';
+import { useSyncExternalStore, type ReactComponentType } from '@exactjs/react-compat';
+import { exposeExactComponent, useExactContext } from '@exactjs/react-compat/interop';
 import { getDefaultStore, type Atom, type WritableAtom } from 'jotai/vanilla';
 import {
 	ExactJotaiProvider,

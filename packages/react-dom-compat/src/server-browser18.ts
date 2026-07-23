@@ -1,4 +1,4 @@
-import '@exact/react-compat/react18';
+import '@exactjs/react-compat/react18';
 import * as Server from './server-shared.js';
 export * from './server-shared.js';
 /** Provides the canonical version value. */

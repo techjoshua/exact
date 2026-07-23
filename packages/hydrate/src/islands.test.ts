@@ -1,14 +1,14 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode, type Component } from '@exact/core';
-import { render } from '@exact/dom';
-import { handleExactRequest } from '@exact/server';
+import { createVNode, type Component } from '@exactjs/core';
+import { render } from '@exactjs/dom';
+import { handleExactRequest } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { applyPatches, createExactClient, hydrateClientIslands } from './index.js';
 import { noopLogger } from './test-support/responses.js';
 
-describe('@exact/hydrate islands', () => {
+describe('@exactjs/hydrate islands', () => {
 	it('disposes a hydrated island before a server replacement removes it', () => {
 		let clicks = 0;
 		function Counter() {

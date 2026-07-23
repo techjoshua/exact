@@ -9,7 +9,7 @@ describe('policy audit reports', () => {
 	it('reports which packages deliberately consume secret-qualified variables', () => {
 		const dependency = analyzeSource(
 			`
-      import { consume } from "@exact/secrets";
+      import { consume } from "@exactjs/secrets";
       import { connect } from "@acme/database";
       declare const secrets: { require(name: string): string };
       /** @exact keep=secret */
@@ -44,7 +44,7 @@ describe('policy audit reports', () => {
 	it('reports unresolved library requirements', () => {
 		const manifest = analyzeSource(
 			`
-      import { consume } from "@exact/secrets";
+      import { consume } from "@exactjs/secrets";
       import { connect } from "@acme/database";
       /** @exact keep=secret */
       declare const url: string;

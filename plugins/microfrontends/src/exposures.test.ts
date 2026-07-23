@@ -1,4 +1,4 @@
-import { compileProjectArtifacts, createExactArtifactGraph } from '@exact/compiler';
+import { compileProjectArtifacts, createExactArtifactGraph } from '@exactjs/compiler';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';

@@ -154,7 +154,7 @@ export function collectComponentLocalInfo(node: ts.FunctionDeclaration): Compone
 
 /**
  * Materializes source expressions for variables whose reactive provenance was
- * established by @exact/expressions. The TypeScript nodes are retained only as
+ * established by @exactjs/expressions. The TypeScript nodes are retained only as
  * emission handles; deciding which declarations are derived is expression-owned.
  */
 export function collectExpressionDerivedLocals(

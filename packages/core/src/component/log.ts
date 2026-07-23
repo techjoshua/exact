@@ -1,4 +1,4 @@
-import { unwrap } from '@exact/reactive';
+import { unwrap } from '@exactjs/reactive';
 import type { ComponentInstance, ErrorReport } from './contracts.js';
 
 import { LoggerContext } from './contexts.js';

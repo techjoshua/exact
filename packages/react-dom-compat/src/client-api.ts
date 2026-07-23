@@ -1,10 +1,10 @@
-import { findComponentDomNode } from '@exact/dom';
-import type { Key, ReactNode, ReactPortal } from '@exact/react-compat';
+import { findComponentDomNode } from '@exactjs/dom';
+import type { Key, ReactNode, ReactPortal } from '@exactjs/react-compat';
 import {
 	exactComponentForReactInstance,
 	isUnmountedReactClassInstance
-} from '@exact/react-compat/exact';
-import { batch, flushSync as flushExact } from '@exact/reactive';
+} from '@exactjs/react-compat/exact';
+import { batch, flushSync as flushExact } from '@exactjs/reactive';
 import {
 	createRoot as createClientRoot,
 	hydrateRoot as hydrateClientRoot,

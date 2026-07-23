@@ -8,7 +8,7 @@ describe('plugin discovery', () => {
 			packages: [
 				packageFixture('@acme/framework', '1.0.0', {
 					dependencies: {
-						'@exact/plugin-api': '^1.0.0',
+						'@exactjs/plugin-api': '^1.0.0',
 						'@untrusted/security': '^1.0.0'
 					},
 					exact: {
@@ -39,7 +39,7 @@ describe('plugin discovery', () => {
 			packages: [
 				packageFixture('@acme/framework', '1.0.0', {
 					dependencies: {
-						'@exact/plugin-api': '^1.0.0',
+						'@exactjs/plugin-api': '^1.0.0',
 						'@third-party/security': '^1.0.0'
 					},
 					exact: {
@@ -64,22 +64,22 @@ describe('plugin discovery', () => {
 			packages: [
 				packageFixture('@acme/framework', '1.0.0', {
 					dependencies: {
-						'@exact/plugin-api': '^1.0.0',
-						'@exact/security': '^2.0.0'
+						'@exactjs/plugin-api': '^1.0.0',
+						'@exactjs/security': '^2.0.0'
 					},
 					exact: {
 						pluginForwarding: {
 							schemaVersion: 1,
-							include: { '@exact/security': { required: true } }
+							include: { '@exactjs/security': { required: true } }
 						}
 					}
 				}),
-				pluginFixture('@exact/security', '2.0.0', 'security-two'),
-				pluginFixture('@exact/security', '2.3.0', 'security-three')
+				pluginFixture('@exactjs/security', '2.0.0', 'security-two'),
+				pluginFixture('@exactjs/security', '2.3.0', 'security-three')
 			]
 		});
 		const result = discoverExactPlugins(graph);
-		expect(result.plugins.get('@exact/security')?.version).toBe('2.3.0');
+		expect(result.plugins.get('@exactjs/security')?.version).toBe('2.3.0');
 	});
 
 	it('uses one ignore mechanism to prune optional forwarding', () => {
@@ -87,22 +87,22 @@ describe('plugin discovery', () => {
 			rootDependencies: { '@acme/framework': '^1.0.0' },
 			packages: [
 				packageFixture('@acme/framework', '1.0.0', {
-					dependencies: { '@exact/plugin-api': '^1.0.0' },
-					optionalDependencies: { '@exact/security': '^1.0.0' },
+					dependencies: { '@exactjs/plugin-api': '^1.0.0' },
+					optionalDependencies: { '@exactjs/security': '^1.0.0' },
 					exact: {
 						pluginForwarding: {
 							schemaVersion: 1,
-							include: { '@exact/security': { required: false } }
+							include: { '@exactjs/security': { required: false } }
 						}
 					}
 				}),
-				pluginFixture('@exact/security', '1.0.0')
+				pluginFixture('@exactjs/security', '1.0.0')
 			]
 		});
 		expect([
 			...discoverExactPlugins(graph, {
 				mode: 'trusted',
-				ignore: ['@exact/security']
+				ignore: ['@exactjs/security']
 			}).plugins
 		]).toEqual([]);
 	});
@@ -210,7 +210,7 @@ function pluginFixture(name: string, version: string, id?: string): PackageInput
 		version,
 		id,
 		manifest: {
-			dependencies: { '@exact/plugin-api': '^1.0.0' },
+			dependencies: { '@exactjs/plugin-api': '^1.0.0' },
 			exports: { './config': './config.js', './config-types': './config.d.ts' },
 			exact: {
 				plugin: {

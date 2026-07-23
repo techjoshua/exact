@@ -1,4 +1,4 @@
-import { flushSync, watch } from '@exact/reactive';
+import { flushSync, watch } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	ErrorContext,
@@ -11,7 +11,7 @@ import {
 	type ErrorReport
 } from './index.js';
 
-describe('@exact/core lifecycle', () => {
+describe('@exactjs/core lifecycle', () => {
 	it('constructs once and renders repeatedly from tracked state', () => {
 		const constructed = vi.fn();
 		const rendered = vi.fn();

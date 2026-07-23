@@ -3,7 +3,7 @@ import {
 	createContext,
 	renderInstance,
 	type Component
-} from '@exact/core';
+} from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { adaptReactComponent } from './exact.js';
 import { createElement, withReactProfile } from './index.js';

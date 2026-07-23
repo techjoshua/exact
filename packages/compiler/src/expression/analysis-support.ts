@@ -1,4 +1,4 @@
-import type { BoundModule, NodeRef, Variable } from '@exact/expressions';
+import type { BoundModule, NodeRef, Variable } from '@exactjs/expressions';
 
 import type { ExactProvenanceGraph } from '../provenance.js';
 
@@ -168,7 +168,13 @@ function isWithin(reference: NodeRef, owner: NodeRef): boolean {
 
 /** Reports whether client island attribute. */
 export function isClientIslandAttribute(name: string): boolean {
-	return name === 'ref' || /^on[A-Z]/.test(name);
+	return (
+		name === 'ref' ||
+		/^on[A-Z]/.test(name) ||
+		name === 'value:input' ||
+		name === 'value:change' ||
+		name === 'checked:change'
+	);
 }
 /** Performs the node path domain operation. */
 export function nodePath(reference: NodeRef, component: NodeRef): string {

@@ -1,4 +1,4 @@
-import type { BoundModule, ExpressionType, NodeRef, Variable } from '@exact/expressions';
+import type { BoundModule, ExpressionType, NodeRef, Variable } from '@exactjs/expressions';
 import { exactKeepPolicy } from '../annotations.js';
 import { stableId } from '../ids.js';
 import type { ExactPolicySubjectIR, ExactStateEffect } from '../types.js';
@@ -171,7 +171,7 @@ export function isCreateContextCall(call: NodeRef): boolean {
 	if (call.target?.name !== 'createContext' && call.target?.node.text !== 'createContext')
 		return false;
 	const variable = call.target?.rootVariable ?? call.target?.variable;
-	return !variable?.importedFrom || variable.importedFrom === '@exact/core';
+	return !variable?.importedFrom || variable.importedFrom === '@exactjs/core';
 }
 
 /** Performs the unique variables domain operation. */

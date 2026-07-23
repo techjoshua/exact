@@ -3,14 +3,14 @@ import {
 	logFrameworkEvent,
 	throwCleanupFailure,
 	type Logger
-} from '@exact/core';
+} from '@exactjs/core';
 import {
 	createDomWorkBudget,
 	findNodeOwnerInstance,
 	walkDomSubtree,
 	type DomWorkBudget
-} from '@exact/dom';
-import type { ExactPatch } from '@exact/server';
+} from '@exactjs/dom';
+import type { ExactPatch } from '@exactjs/server';
 import type { HydrationDiagnostic } from '../types.js';
 import { applyPatch } from './application.js';
 import { createProtocolIndex } from './indexing.js';

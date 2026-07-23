@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { compileProjectArtifacts } from '@exact/compiler';
+import { compileProjectArtifacts } from '@exactjs/compiler';
 
 const root = path.resolve('src');
 const outDir = path.resolve('.exact');

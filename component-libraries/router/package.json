@@ -1,6 +1,6 @@
 {
-	"name": "@exact/router",
-	"version": "0.0.0",
+	"name": "@exactjs/router",
+	"version": "0.1.0",
 	"type": "module",
 	"files": [
 		"dist",
@@ -28,17 +28,17 @@
 	"types": "./dist/index.d.ts",
 	"sideEffects": false,
 	"dependencies": {
-		"@exact/core": "file:../../packages/core",
-		"@exact/request": "file:../../packages/request",
-		"@exact/react-compat-adapter-api": "file:../../packages/react-compat-adapter-api"
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/request": "^0.1.0",
+		"@exactjs/react-compat-adapter-api": "^0.1.0"
 	},
 	"peerDependencies": {
-		"@exact/react-compat": "0.0.0",
+		"@exactjs/react-compat": "^0.1.0",
 		"react-router": ">=5 <8",
 		"react-router-dom": ">=5 <8"
 	},
 	"peerDependenciesMeta": {
-		"@exact/react-compat": {
+		"@exactjs/react-compat": {
 			"optional": true
 		},
 		"react-router": {
@@ -49,11 +49,11 @@
 		}
 	},
 	"devDependencies": {
-		"@exact/jsx": "file:../../packages/jsx-runtime",
-		"@exact/dom": "file:../../packages/dom",
-		"@exact/ssr": "file:../../packages/ssr",
-		"@exact/react-compat": "file:../../packages/react-compat",
-		"@exact/react-dom-compat": "file:../../packages/react-dom-compat"
+		"@exactjs/jsx": "^0.1.0",
+		"@exactjs/dom": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0",
+		"@exactjs/react-compat": "^0.1.0",
+		"@exactjs/react-dom-compat": "^0.1.0"
 	},
 	"exact": {
 		"reactCompatibility": {
@@ -1013,5 +1013,8 @@
 		"build": "tsc -b",
 		"test": "vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeSemanticGraph, analyzeSource } from '../index.js';
 
-describe('@exact/compiler: semantic graph', () => {
+describe('@exactjs/compiler: semantic graph', () => {
 	it('builds a semantic graph for scopes declarations imports and references', () => {
 		const graph = analyzeSemanticGraph(
 			`

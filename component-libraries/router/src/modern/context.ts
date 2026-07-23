@@ -5,8 +5,8 @@ import {
 	useSyncExternalStore,
 	type ReactComponentType,
 	type ReactNode
-} from '@exact/react-compat';
-import { bridgeReactContext } from '@exact/react-compat/interop';
+} from '@exactjs/react-compat';
+import { bridgeReactContext } from '@exactjs/react-compat/interop';
 import { RouterControllerContext } from '../context.js';
 import {
 	createExactRouter,

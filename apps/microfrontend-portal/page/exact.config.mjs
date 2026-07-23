@@ -4,7 +4,7 @@ const remoteEntry = (port, exposure) =>
 export default {
 	plugins: {
 		microfrontends(config) {
-			config.providedPackages.push('@exact/sample-microfrontend-portal/shared');
+			config.providedPackages.push('@exactjs/sample-microfrontend-portal/shared');
 			config.remotes.branding = {
 				clientEntry: process.env.EXACT_BRANDING_ENTRY ?? remoteEntry(4302, './Shell'),
 				endpoint: process.env.EXACT_BRANDING_ENDPOINT ?? 'http://localhost:4402/__exact'

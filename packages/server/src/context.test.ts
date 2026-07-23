@@ -1,5 +1,5 @@
-import { createContext } from '@exact/core';
-import { RequestContext } from '@exact/request';
+import { createContext } from '@exactjs/core';
+import { RequestContext } from '@exactjs/request';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	createExactContextRuntime,

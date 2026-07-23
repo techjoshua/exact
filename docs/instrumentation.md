@@ -1,12 +1,12 @@
 # Optional instrumentation
 
 eXact packages expose profiling through the dependency-free
-`@exact/instrumentation` contract. Instrumentation is disabled by default and
+`@exactjs/instrumentation` contract. Instrumentation is disabled by default and
 does not install global collectors.
 
 ```ts
-import { createProfileCollector, summarizeProfile } from '@exact/instrumentation';
-import { createCompilerSession } from '@exact/compiler';
+import { createProfileCollector, summarizeProfile } from '@exactjs/instrumentation';
+import { createCompilerSession } from '@exactjs/compiler';
 
 const profile = createProfileCollector();
 const session = createCompilerSession({ onProfile: profile.sink });

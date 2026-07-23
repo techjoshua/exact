@@ -10,8 +10,8 @@ import {
 	type Component,
 	type ComponentFunction,
 	type VNode
-} from '@exact/core';
-import { getRequestContext, RequestContext, type RequestContextValue } from '@exact/request';
+} from '@exactjs/core';
+import { getRequestContext, RequestContext, type RequestContextValue } from '@exactjs/request';
 import { RouterControllerContext } from './context.js';
 import {
 	createBrowserLocationSource,

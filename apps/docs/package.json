@@ -1,5 +1,5 @@
 {
-	"name": "@exact/docs",
+	"name": "@exactjs/docs",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
@@ -11,13 +11,13 @@
 		"verify": "npm run typecheck && npm run build"
 	},
 	"dependencies": {
-		"@exact/core": "file:../../packages/core",
-		"@exact/dom": "file:../../packages/dom",
-		"@exact/hydrate": "file:../../packages/hydrate",
-		"@exact/jsx": "file:../../packages/jsx-runtime",
-		"@exact/router": "file:../../component-libraries/router",
-		"@exact/ssr": "file:../../packages/ssr",
-		"@exact/vite-plugin": "file:../../framework-adapters/vite-plugin"
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/dom": "^0.1.0",
+		"@exactjs/hydrate": "^0.1.0",
+		"@exactjs/jsx": "^0.1.0",
+		"@exactjs/router": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0",
+		"@exactjs/vite-plugin": "^0.1.0"
 	},
 	"devDependencies": {
 		"typescript": "^5.7.2",

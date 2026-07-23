@@ -1,4 +1,4 @@
-import type { ExactRuntimePluginExtension } from '@exact/plugin-api';
+import type { ExactRuntimePluginExtension } from '@exactjs/plugin-api';
 import type { SecretProviderContext, SecretResolver, SecretsPluginConfig } from './config.js';
 
 /** Creates a secret resolver. */

@@ -1,4 +1,4 @@
-import { type BoundModule } from '@exact/expressions';
+import { type BoundModule } from '@exactjs/expressions';
 import type { ExactCompilerSession } from '../expression/project.js';
 import { expressionModuleFor } from '../expression/session.js';
 import { parseExactCompilerManifest } from '../manifest-parse.js';

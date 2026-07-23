@@ -1,9 +1,9 @@
-import { registerReactiveListKey } from '@exact/reactive';
+import { registerReactiveListKey } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { handleExactRequest } from './index.js';
 import { context, readStreamEvents } from './test-support/server.js';
 
-describe('@exact/server security-validation', () => {
+describe('@exactjs/server security-validation', () => {
 	it('reports opt-in request timings', async () => {
 		const onProfile = vi.fn();
 

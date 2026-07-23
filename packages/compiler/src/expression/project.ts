@@ -7,8 +7,8 @@ import {
 	type ExpressionLanguageService,
 	type ExpressionLanguageServiceUpdate,
 	type ExpressionProjectProfileEvent
-} from '@exact/expressions';
-import type { ExactProfileSink } from '@exact/instrumentation';
+} from '@exactjs/expressions';
+import type { ExactProfileSink } from '@exactjs/instrumentation';
 import fs from 'node:fs';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';

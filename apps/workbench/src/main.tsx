@@ -1,5 +1,5 @@
-import { createConsoleLogger } from '@exact/core';
-import { render } from '@exact/dom';
+import { createConsoleLogger } from '@exactjs/core';
+import { render } from '@exactjs/dom';
 import { AppBoundary } from './components/AppBoundary.jsx';
 import { Workbench } from './components/Workbench.jsx';
 import './styles.css';

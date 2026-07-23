@@ -4,8 +4,8 @@ import {
 	renderInstance,
 	type ComponentFunction,
 	type VNode
-} from '@exact/core';
-import { createEffectScope, withEffectScope } from '@exact/reactive';
+} from '@exactjs/core';
+import { createEffectScope, withEffectScope } from '@exactjs/reactive';
 import { getComponentProps } from '../../children.js';
 import { clearDelegated } from '../../events.js';
 import { roots } from '../../state.js';

@@ -1,13 +1,81 @@
 /**
  * @vitest-environment jsdom
  */
-import { createCompiledVNode, createExpression, type Component } from '@exact/core';
-import { jsx } from '@exact/jsx';
-import { flushSync } from '@exact/reactive';
+import { createCompiledVNode, createExpression, type Component } from '@exactjs/core';
+import { jsx } from '@exactjs/jsx';
+import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from './index.js';
 
-describe('@exact/dom form-controls', () => {
+describe('@exactjs/dom form-controls', () => {
+	it('does not rewrite a control value after its binding copies the browser value to state', () => {
+		function BoundInput(this: Component<{ name: string }>) {
+			this.state.name = 'before';
+			return () =>
+				createCompiledVNode('input', {
+					value: createExpression(() => this.state.name),
+					__exactBindInput: (event: Event) => {
+						this.state.name = (event.currentTarget as HTMLInputElement).value;
+					}
+				});
+		}
+		const container = document.createElement('div');
+		render(jsx(BoundInput, {}), container);
+		const input = container.querySelector('input')!;
+		const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!;
+		const writes: string[] = [];
+		Object.defineProperty(input, 'value', {
+			get() {
+				return descriptor.get!.call(this);
+			},
+			set(value: string) {
+				writes.push(value);
+				descriptor.set!.call(this, value);
+			},
+			configurable: true
+		});
+
+		descriptor.set!.call(input, 'after');
+		input.dispatchEvent(new Event('input', { bubbles: true }));
+		flushSync();
+		expect(writes).toEqual([]);
+	});
+
+	it('projects Date and multiple-select reactive values through their native control APIs', () => {
+		let instance!: Component<{ date: Date | null; tags: string[] }>;
+		function BoundControls(this: Component<{ date: Date | null; tags: string[] }>) {
+			instance = this;
+			this.state.date = new Date('2026-07-23T00:00:00.000Z');
+			this.state.tags = ['a', 'c'];
+			return () =>
+				jsx('section', {
+					children: [
+						jsx('input', {
+							type: 'date',
+							value: createExpression(() => this.state.date)
+						}),
+						jsx('select', {
+							multiple: true,
+							value: createExpression(() => this.state.tags),
+							children: ['a', 'b', 'c'].map((value) => jsx('option', { value, children: value }))
+						})
+					]
+				});
+		}
+		const container = document.createElement('div');
+		render(jsx(BoundControls, {}), container);
+		const input = container.querySelector('input')!;
+		const select = container.querySelector('select')!;
+		expect(input.value).toBe('2026-07-23');
+		expect(Array.from(select.selectedOptions, (option) => option.value)).toEqual(['a', 'c']);
+
+		instance.state.date = null;
+		instance.state.tags = ['b'];
+		flushSync();
+		expect(input.value).toBe('');
+		expect(Array.from(select.selectedOptions, (option) => option.value)).toEqual(['b']);
+	});
+
 	it('applies select value after options are mounted and can return to the first option', () => {
 		let instance!: Component<{ status: 'todo' | 'doing' | 'done' }>;
 

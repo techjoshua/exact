@@ -25,12 +25,12 @@ describe('plugin package graph', () => {
 		writeJson(path.join(framework, 'package.json'), {
 			name: '@acme/framework',
 			version: '1.0.0',
-			peerDependencies: { '@exact/plugin': '^1.0.0' }
+			peerDependencies: { '@exactjs/plugin': '^1.0.0' }
 		});
-		const plugin = path.join(root, 'node_modules', '@exact', 'plugin');
+		const plugin = path.join(root, 'node_modules', '@exactjs', 'plugin');
 		mkdirSync(plugin, { recursive: true });
 		writeJson(path.join(plugin, 'package.json'), {
-			name: '@exact/plugin',
+			name: '@exactjs/plugin',
 			version: '1.2.0'
 		});
 		writeJson(path.join(root, 'package-lock.json'), {
@@ -48,10 +48,10 @@ describe('plugin package graph', () => {
 				'packages/framework': {
 					name: '@acme/framework',
 					version: '1.0.0',
-					peerDependencies: { '@exact/plugin': '^1.0.0' }
+					peerDependencies: { '@exactjs/plugin': '^1.0.0' }
 				},
-				'node_modules/@exact/plugin': {
-					name: '@exact/plugin',
+				'node_modules/@exactjs/plugin': {
+					name: '@exactjs/plugin',
 					version: '1.2.0'
 				}
 			}
@@ -63,14 +63,14 @@ describe('plugin package graph', () => {
 		expect(graph.nodes.get('')?.dependencies.get('@acme/framework')?.targetId).toBe(
 			'packages/framework'
 		);
-		expect(graph.nodes.get('packages/framework')?.dependencies.get('@exact/plugin')).toEqual(
-			expect.objectContaining({ kind: 'peer', targetId: 'node_modules/@exact/plugin' })
+		expect(graph.nodes.get('packages/framework')?.dependencies.get('@exactjs/plugin')).toEqual(
+			expect.objectContaining({ kind: 'peer', targetId: 'node_modules/@exactjs/plugin' })
 		);
 		expect(dependencyDistance(graph)).toEqual(
 			new Map([
 				['', 0],
 				['packages/framework', 1],
-				['node_modules/@exact/plugin', 2]
+				['node_modules/@exactjs/plugin', 2]
 			])
 		);
 	});

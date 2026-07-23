@@ -1,4 +1,4 @@
-import { createContext, type Child, type Component } from '@exact/core';
+import { createContext, type Child, type Component } from '@exactjs/core';
 
 /** Defines the server authorization interface contract. */
 export interface ServerAuthorization {

@@ -1,4 +1,4 @@
-import { recordReactResourceHint } from '@exact/react-compat/exact';
+import { recordReactResourceHint } from '@exactjs/react-compat/exact';
 
 /** Emits or records a preconnect resource hint for an origin. */
 export function preconnect(href: string, options?: { crossOrigin?: string }): void {

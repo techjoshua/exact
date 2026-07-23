@@ -1,9 +1,9 @@
-import { flushSync } from '@exact/reactive';
+import { flushSync } from '@exactjs/reactive';
 import { atom, createStore } from 'jotai/vanilla';
 import { describe, expect, it } from 'vitest';
 import { createAtomSource } from './index.js';
 
-describe('@exact/jotai', () => {
+describe('@exactjs/jotai', () => {
 	it('bridges vanilla atoms and stores', () => {
 		const count = atom(0);
 		const store = createStore();

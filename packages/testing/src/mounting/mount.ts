@@ -8,10 +8,10 @@ import {
 	type ContextToken,
 	type TaskObserver,
 	type VNode
-} from '@exact/core';
-import { render, unmount } from '@exact/dom';
-import { inspectDomRoot } from '@exact/dom/testing';
-import { flushSync } from '@exact/reactive';
+} from '@exactjs/core';
+import { render, unmount } from '@exactjs/dom';
+import { inspectDomRoot } from '@exactjs/dom/testing';
+import { flushSync } from '@exactjs/reactive';
 
 import type { ContextEntry, PropsOf, StateOf, TestConfiguration } from '../contracts.js';
 import { attachCleanupError } from '../control/settling.js';

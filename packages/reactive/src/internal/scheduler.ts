@@ -1,5 +1,5 @@
-import type { ExactProfileSink } from '@exact/instrumentation';
-import { profileTimestamp } from '@exact/instrumentation';
+import type { ExactProfileSink } from '@exactjs/instrumentation';
+import { profileTimestamp } from '@exactjs/instrumentation';
 import type { Reaction, ReactiveProfileEvent } from './types.js';
 
 const queuedReactions = new Set<Reaction>();

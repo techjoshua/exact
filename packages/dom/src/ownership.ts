@@ -1,4 +1,4 @@
-import type { ComponentInstance } from '@exact/core';
+import type { ComponentInstance } from '@exactjs/core';
 import { elementOwners, nodeOwners } from './state.js';
 
 /** Associates a DOM element with the component instance that rendered it. */

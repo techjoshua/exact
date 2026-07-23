@@ -1,5 +1,5 @@
-import { composeExactComponentDescriptors } from '@exact/core';
-import { createExactClient, hydrateClientIslands, readExactHydrationConfig } from '@exact/hydrate';
+import { composeExactComponentDescriptors } from '@exactjs/core';
+import { createExactClient, hydrateClientIslands, readExactHydrationConfig } from '@exactjs/hydrate';
 import { CalculatorWorkspace } from '../.exact/App.exact.client.js';
 import { installExactClient } from './client-runtime.js';
 import './styles.css';

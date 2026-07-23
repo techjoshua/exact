@@ -8,8 +8,8 @@ import {
 	createElement,
 	useActionState,
 	useOptimistic
-} from '@exact/react-compat';
-import { c } from '@exact/react-compat/compiler-runtime';
+} from '@exactjs/react-compat';
+import { c } from '@exactjs/react-compat/compiler-runtime';
 import { describe, expect, it, vi } from 'vitest';
 import { createRoot } from './client.js';
 import { preconnect, preinitModule, preload, requestFormReset, useFormStatus } from './index.js';

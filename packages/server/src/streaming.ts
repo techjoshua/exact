@@ -4,7 +4,7 @@ import {
 	createCleanupFailure,
 	encodeReactiveProtocolValue,
 	throwCleanupFailure
-} from '@exact/core';
+} from '@exactjs/core';
 import type {
 	ExactBatchRequest,
 	ExactInvocationRequest,

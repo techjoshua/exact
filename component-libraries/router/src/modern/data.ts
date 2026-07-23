@@ -5,7 +5,7 @@ import {
 	useState,
 	type ReactComponentType,
 	type ReactNode
-} from '@exact/react-compat';
+} from '@exactjs/react-compat';
 import {
 	createExactRouter,
 	createMemoryLocationSource,

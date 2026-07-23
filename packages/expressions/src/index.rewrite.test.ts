@@ -12,7 +12,7 @@ import { createExpressionProject } from './test-support/project.js';
 const root = path.resolve(import.meta.dirname, '../../..');
 const kanbanConfig = path.join(root, 'apps/kanban/tsconfig.json');
 
-describe('@exact/expressions: rewrite', () => {
+describe('@exactjs/expressions: rewrite', () => {
 	it('rewrites source losslessly outside the selected node', () => {
 		const project = createExpressionProject({ tsconfigPath: kanbanConfig });
 		const filename = path.join(root, 'apps/kanban/src/__expressions_rewrite.ts');

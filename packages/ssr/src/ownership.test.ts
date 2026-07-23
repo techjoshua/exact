@@ -1,8 +1,8 @@
-import { createVNode, type Component } from '@exact/core';
+import { createVNode, type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { renderToString, renderToStringAsync } from './index.js';
 
-describe('@exact/ssr ownership', () => {
+describe('@exactjs/ssr ownership', () => {
 	it('disposes component tasks and lifecycle ownership after synchronous SSR', () => {
 		let taskSignal: AbortSignal | undefined;
 		let unmounted = 0;

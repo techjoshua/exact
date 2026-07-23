@@ -1,4 +1,4 @@
-import '@exact/react-compat/react19';
+import '@exactjs/react-compat/react19';
 import * as Server from './server-shared.js';
 import { resume } from './static-shared.js';
 export * from './server-shared.js';

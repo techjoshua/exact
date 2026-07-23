@@ -1,6 +1,6 @@
-import { encodeReactiveProtocolValue } from '@exact/core';
-import type { ExactOutputExtension } from '@exact/plugin-api';
-import { processExactOutputSync } from '@exact/plugin-host/runtime';
+import { encodeReactiveProtocolValue } from '@exactjs/core';
+import type { ExactOutputExtension } from '@exactjs/plugin-api';
+import { processExactOutputSync } from '@exactjs/plugin-host/runtime';
 import { escapeAttr } from './html.js';
 import type { HydrationScriptOptions } from './types.js';
 

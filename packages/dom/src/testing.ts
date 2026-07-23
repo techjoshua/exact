@@ -1,4 +1,4 @@
-import type { ComponentInstance, VNode } from '@exact/core';
+import type { ComponentInstance, VNode } from '@exactjs/core';
 import { elementOwners, roots } from './state.js';
 import type { Mounted } from './types.js';
 

@@ -1,4 +1,4 @@
-import { createRef, type Component } from '@exact/core';
+import { createRef, type Component } from '@exactjs/core';
 import { WorkbenchContext } from '../context.js';
 import { priorities, statuses } from '../data.js';
 import type { Priority, Status, Task } from '../types.js';
@@ -33,7 +33,7 @@ export function DetailPanel(this: Component<{}>, props: DetailPanelProps) {
 					value={props.task.title}
 					onInput={(event) =>
 						workbench.updateTask(props.task.id, {
-							title: (event.currentTarget as HTMLInputElement).value
+							title: event.currentTarget.value
 						})
 					}
 				/>
@@ -46,7 +46,7 @@ export function DetailPanel(this: Component<{}>, props: DetailPanelProps) {
 					value={props.task.notes}
 					onInput={(event) =>
 						workbench.updateTask(props.task.id, {
-							notes: (event.currentTarget as HTMLTextAreaElement).value
+							notes: event.currentTarget.value
 						})
 					}
 				/>
@@ -58,7 +58,7 @@ export function DetailPanel(this: Component<{}>, props: DetailPanelProps) {
 					value={props.task.owner}
 					onInput={(event) =>
 						workbench.updateTask(props.task.id, {
-							owner: (event.currentTarget as HTMLInputElement).value
+							owner: event.currentTarget.value
 						})
 					}
 				/>
@@ -71,7 +71,7 @@ export function DetailPanel(this: Component<{}>, props: DetailPanelProps) {
 						value={props.task.status}
 						onChange={(event) =>
 							workbench.updateTask(props.task.id, {
-								status: (event.currentTarget as HTMLSelectElement).value as Status
+								status: event.currentTarget.value as Status
 							})
 						}
 					>
@@ -87,7 +87,7 @@ export function DetailPanel(this: Component<{}>, props: DetailPanelProps) {
 						value={props.task.priority}
 						onChange={(event) =>
 							workbench.updateTask(props.task.id, {
-								priority: (event.currentTarget as HTMLSelectElement).value as Priority
+								priority: event.currentTarget.value as Priority
 							})
 						}
 					>
@@ -110,9 +110,7 @@ export function DetailPanel(this: Component<{}>, props: DetailPanelProps) {
 					<input
 						value={props.draftLabel}
 						placeholder="Add label"
-						onInput={(event) =>
-							workbench.setDraftLabel((event.currentTarget as HTMLInputElement).value)
-						}
+						onInput={(event) => workbench.setDraftLabel(event.currentTarget.value)}
 					/>
 				</label>
 				<button type="submit">Add</button>

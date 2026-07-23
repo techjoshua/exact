@@ -1,4 +1,4 @@
-import type { BoundModule, FunctionExpressionNode, NodeRef, Variable } from '@exact/expressions';
+import type { BoundModule, FunctionExpressionNode, NodeRef, Variable } from '@exactjs/expressions';
 
 /** Defines the expression component index interface contract. */
 export interface ExpressionComponentIndex {

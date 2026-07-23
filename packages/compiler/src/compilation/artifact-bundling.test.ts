@@ -12,7 +12,7 @@ import {
 } from '../index.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 
-describe('@exact/compiler: artifact bundling', () => {
+describe('@exactjs/compiler: artifact bundling', () => {
 	it('keeps descriptor ids stable through minification and shakes unused components', async () => {
 		const root = await createTestWorkspace('exact-descriptor-bundle-');
 		const srcDir = path.join(root, 'src');
@@ -72,7 +72,7 @@ describe('@exact/compiler: artifact bundling', () => {
 		});
 		const code = bundled.outputFiles[0]!.text;
 
-		expect(code).toContain('@exact/client-component-descriptor');
+		expect(code).toContain('@exactjs/client-component-descriptor');
 		expect(code).toContain(usedId);
 		expect(code).not.toContain(unusedId);
 		expect(code).not.toContain('innerHeight');
@@ -94,7 +94,7 @@ describe('@exact/compiler: artifact bundling', () => {
 		});
 		const lazyDescriptorChunk = lazy.outputFiles.find(
 			(file) =>
-				file.text.includes('@exact/client-component-descriptor') && file.text.includes(usedId)
+				file.text.includes('@exactjs/client-component-descriptor') && file.text.includes(usedId)
 		);
 
 		expect(lazyDescriptorChunk).toBeDefined();
@@ -211,7 +211,7 @@ describe('@exact/compiler: artifact bundling', () => {
 
 		expect(client).toContain('export default DefaultWidget;');
 		expect(client).toContain('export { AliasedWidget as RenamedWidget };');
-		expect(client.match(/@exact\/client-component-descriptor/g)).toHaveLength(1);
+		expect(client.match(/@exactjs\/client-component-descriptor/g)).toHaveLength(1);
 		expect(client.match(/Object\.assign/g)).toHaveLength(2);
 		expect(result.manifest.exports).toContainEqual(
 			expect.objectContaining({

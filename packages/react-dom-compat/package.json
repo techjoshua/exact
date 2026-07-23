@@ -1,6 +1,6 @@
 {
-	"name": "@exact/react-dom-compat",
-	"version": "0.0.0",
+	"name": "@exactjs/react-dom-compat",
+	"version": "0.1.0",
 	"type": "module",
 	"files": [
 		"dist",
@@ -63,12 +63,12 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exact/core": "file:../core",
-		"@exact/dom": "file:../dom",
-		"@exact/hydrate": "file:../hydrate",
-		"@exact/react-compat": "file:../react-compat",
-		"@exact/reactive": "file:../reactive",
-		"@exact/ssr": "file:../ssr"
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/dom": "^0.1.0",
+		"@exactjs/hydrate": "^0.1.0",
+		"@exactjs/react-compat": "^0.1.0",
+		"@exactjs/reactive": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0"
 	},
 	"scripts": {
 		"build": "tsc -b",
@@ -85,5 +85,8 @@
 		"react-error-boundary": "^6.1.2",
 		"react-hook-form": "7.81.0",
 		"zustand": "5.0.14"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }

@@ -1,5 +1,5 @@
 /** Provides the canonical exact plugin api package value. */
-export const exactPluginApiPackage = '@exact/plugin-api' as const;
+export const exactPluginApiPackage = '@exactjs/plugin-api' as const;
 /** Provides the canonical exact plugin schema version value. */
 export const exactPluginSchemaVersion = 1 as const;
 /** Provides the canonical exact plugin forwarding schema version value. */

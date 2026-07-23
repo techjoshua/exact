@@ -13,7 +13,7 @@ import type {
 
 import { ErrorContext, SuspensionContext } from './contexts.js';
 
-import { reactive, unwrap } from '@exact/reactive';
+import { reactive, unwrap } from '@exactjs/reactive';
 import { createVNode, normalizeChildren } from '../vnode.js';
 import { componentLogScope, formatError, isErrorReport, logFrameworkEvent } from './log.js';
 

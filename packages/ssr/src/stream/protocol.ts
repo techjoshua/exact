@@ -1,4 +1,4 @@
-import { attemptCleanup, createCleanupFailure, throwCleanupFailure } from '@exact/core';
+import { attemptCleanup, createCleanupFailure, throwCleanupFailure } from '@exactjs/core';
 import { augmentDocumentBody, isExactDocumentHtml } from '../document.js';
 import { escapeAttr } from '../html.js';
 import type {

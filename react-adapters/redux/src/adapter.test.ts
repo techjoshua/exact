@@ -1,8 +1,8 @@
-import { flushSync } from '@exact/reactive';
+import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import { createReduxSource, createReduxSubscription, type ReduxStore } from './index.js';
 
-describe('@exact/redux', () => {
+describe('@exactjs/redux', () => {
 	it('bridges Redux-compatible stores without depending on React Redux', () => {
 		let state = { count: 0 };
 		const listeners = new Set<() => void>();

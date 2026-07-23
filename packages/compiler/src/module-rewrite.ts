@@ -3,4 +3,4 @@ export {
 	type ModuleExportReplacement,
 	type ModuleRewriteOptions,
 	type ModuleRewriteResult
-} from '@exact/expressions';
+} from '@exactjs/expressions';

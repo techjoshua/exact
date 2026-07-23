@@ -1,13 +1,13 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode, type Component } from '@exact/core';
-import { render } from '@exact/dom';
+import { createVNode, type Component } from '@exactjs/core';
+import { render } from '@exactjs/dom';
 import { describe, expect, it } from 'vitest';
 import { applyPatches } from './index.js';
 import { noopLogger } from './test-support/responses.js';
 
-describe('@exact/hydrate patch-validation', () => {
+describe('@exactjs/hydrate patch-validation', () => {
 	it('rejects duplicate element protocol ids before mutating live DOM', () => {
 		const container = document.createElement('div');
 		container.innerHTML = '<p data-exact-id="same">A</p><p data-exact-id="same">B</p>';

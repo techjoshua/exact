@@ -1,5 +1,5 @@
 {
-	"name": "@exact/sample-server-components",
+	"name": "@exactjs/sample-server-components",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
@@ -9,11 +9,11 @@
 		"test": "npm run generate && vitest run"
 	},
 	"dependencies": {
-		"@exact/core": "file:../../packages/core",
-		"@exact/hydrate": "file:../../packages/hydrate",
-		"@exact/jsx": "file:../../packages/jsx-runtime",
-		"@exact/server": "file:../../packages/server",
-		"@exact/ssr": "file:../../packages/ssr"
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/hydrate": "^0.1.0",
+		"@exactjs/jsx": "^0.1.0",
+		"@exactjs/server": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0"
 	},
 	"devDependencies": {
 		"typescript": "^5.7.2"

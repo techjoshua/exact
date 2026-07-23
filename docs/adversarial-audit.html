@@ -316,7 +316,7 @@
 							<td>F-05</td>
 							<td class="high">High</td>
 							<td>
-								The public <code>@exact/core</code> entrypoint exports app APIs and framework
+								The public <code>@exactjs/core</code> entrypoint exports app APIs and framework
 								internals together.
 							</td>
 							<td>Package API</td>
@@ -537,13 +537,13 @@
 
 				<article class="finding">
 					<header>
-						<h3>F-05: <code>@exact/core</code> exports too much as one public surface</h3>
+						<h3>F-05: <code>@exactjs/core</code> exports too much as one public surface</h3>
 						<span class="severity high">High</span>
 					</header>
 					<div class="finding-body">
 						<p>
 							The README already admits this, and the code confirms it:
-							<code>@exact/core</code> exposes app-facing APIs beside framework internals such as
+							<code>@exactjs/core</code> exposes app-facing APIs beside framework internals such as
 							component instance creation, rendering internals, vnode helpers, task observers,
 							server boundary symbols, and error routing hooks.
 						</p>
@@ -553,8 +553,8 @@
 						</p>
 						<p>
 							<strong>Recommendation:</strong> split exports before public release. For example:
-							<code>@exact/core</code> for app APIs, <code>@exact/core/vnode</code> for low-level
-							vnode helpers, <code>@exact/core/runtime</code> for renderer/SSR internals, and
+							<code>@exactjs/core</code> for app APIs, <code>@exactjs/core/vnode</code> for low-level
+							vnode helpers, <code>@exactjs/core/runtime</code> for renderer/SSR internals, and
 							possibly package-private imports for cross-package internals if the build allows it.
 						</p>
 						<p class="evidence">
@@ -842,7 +842,7 @@
 						<span class="resolved">Done:</span> add test typechecking through
 						<code>tsconfig.test.json</code> or equivalent.
 					</li>
-					<li>Split public app APIs from framework internals in <code>@exact/core</code>.</li>
+					<li>Split public app APIs from framework internals in <code>@exactjs/core</code>.</li>
 					<li>
 						Add <code>release:check</code> that runs clean, build, test, test typecheck,
 						package-content check, and tarball smoke tests.

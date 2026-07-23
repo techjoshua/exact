@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-import type { Component } from '@exact/core';
-import { act, createElement, Suspense } from '@exact/react-compat';
-import { exposeExactComponent } from '@exact/react-compat/interop';
-import { createRoot } from '@exact/react-dom-compat/client19';
-import { renderToString } from '@exact/react-dom-compat/server19';
+import type { Component } from '@exactjs/core';
+import { act, createElement, Suspense } from '@exactjs/react-compat';
+import { exposeExactComponent } from '@exactjs/react-compat/interop';
+import { createRoot } from '@exactjs/react-dom-compat/client19';
+import { renderToString } from '@exactjs/react-dom-compat/server19';
 import { describe, expect, it } from 'vitest';
 import { RouterControllerContext } from './context.js';
 import {

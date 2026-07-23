@@ -1,6 +1,6 @@
-import { logFrameworkEvent, withTaskObserver, type VNode } from '@exact/core';
-import { processExactOutputSync } from '@exact/plugin-host/runtime';
-import { runWithExactRequestScope } from '@exact/server';
+import { logFrameworkEvent, withTaskObserver, type VNode } from '@exactjs/core';
+import { processExactOutputSync } from '@exactjs/plugin-host/runtime';
+import { runWithExactRequestScope } from '@exactjs/server';
 import { augmentDocumentBody } from '../document.js';
 import { escapeAttr } from '../html.js';
 import { renderHydrationScript } from '../hydration.js';

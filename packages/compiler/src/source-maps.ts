@@ -1,4 +1,4 @@
-import { createLineSourceMap as createGenericLineSourceMap } from '@exact/expressions';
+import { createLineSourceMap as createGenericLineSourceMap } from '@exactjs/expressions';
 import type { ExactSourceMap } from './types.js';
 
 /** Creates a line source map. */

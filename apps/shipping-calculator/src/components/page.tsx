@@ -1,4 +1,4 @@
-import type { Component } from '@exact/core';
+import type { Component } from '@exactjs/core';
 import { resolveRoute } from '../geography.js';
 import { draftFromUrl, emptyInitialModel, normalizeDraft } from '../model.js';
 import { configuredProviderIds, quoteProvider } from '../providers/registry.js';

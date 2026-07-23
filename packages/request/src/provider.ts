@@ -1,4 +1,4 @@
-import type { Child, Component } from '@exact/core';
+import type { Child, Component } from '@exactjs/core';
 import type { RequestContextValue } from './contracts.js';
 import { getRequestContext } from './storage.js';
 import { RequestContext } from './value.js';

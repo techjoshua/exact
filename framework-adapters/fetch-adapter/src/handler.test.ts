@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createExactFetchHandler } from './index.js';
 
-describe('@exact/fetch-adapter', () => {
+describe('@exactjs/fetch-adapter', () => {
 	it('handles eXact requests through Fetch Request and Response objects', async () => {
 		const handler = createExactFetchHandler({
 			manifest: {

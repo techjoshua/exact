@@ -6,7 +6,7 @@ import {
 	type Component,
 	type ErrorReport,
 	type Logger
-} from '@exact/core';
+} from '@exactjs/core';
 
 type AppBoundaryState = {
 	errors: ErrorReport[];

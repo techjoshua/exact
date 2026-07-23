@@ -1,5 +1,5 @@
-import type { Child, Component } from '@exact/core';
-import { PortalContext } from '@exact/sample-microfrontend-portal/shared';
+import type { Child, Component } from '@exactjs/core';
+import { PortalContext } from '@exactjs/sample-microfrontend-portal/shared';
 import './branding.css';
 
 /** Defines page-authored slots accepted by either branding exposure. */

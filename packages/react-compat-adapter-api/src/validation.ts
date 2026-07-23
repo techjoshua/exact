@@ -8,7 +8,7 @@ export function dependencyRange(dependencies: unknown, packageName: string): str
 /** Validates a bare source module and its optional public subpath. */
 export function assertSourceModule(specifier: string, label: string): void {
 	const name = packageNameFromBareSpecifier(specifier);
-	if (name === 'react' || name === 'react-dom' || name.startsWith('@exact/')) {
+	if (name === 'react' || name === 'react-dom' || name.startsWith('@exactjs/')) {
 		throw new Error(`${label} cannot replace reserved framework package ${specifier}`);
 	}
 }

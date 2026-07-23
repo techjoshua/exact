@@ -1,9 +1,9 @@
 /** Package marker used to discover eXact adapters in an installed dependency graph. */
-export const reactCompatAdapterMarkerPackage = '@exact/react-compat-adapter-api' as const;
+export const reactCompatAdapterMarkerPackage = '@exactjs/react-compat-adapter-api' as const;
 /** Provides the canonical react compat adapter schema version value. */
 export const reactCompatAdapterSchemaVersion = 1 as const;
 /** Provides the canonical react compat adapter protocol version value. */
-export const reactCompatAdapterProtocolVersion = '1.0.0' as const;
+export const reactCompatAdapterProtocolVersion = '0.1.0' as const;
 
 /** Defines the react compat replacement declaration interface contract. */
 export interface ReactCompatReplacementDeclaration {

@@ -1,11 +1,11 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode } from '@exact/core';
+import { createVNode } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { render, unmount } from './index.js';
 
-describe('@exact/dom limits', () => {
+describe('@exactjs/dom limits', () => {
 	it('rejects over-deep vnode trees without mounting a partial root', () => {
 		let vnode = createVNode('span', null, 'leaf');
 		for (let depth = 0; depth < 20; depth++) vnode = createVNode('div', null, vnode);

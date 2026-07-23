@@ -1,6 +1,6 @@
 {
-	"name": "@exact/config",
-	"version": "1.0.0",
+	"name": "@exactjs/config",
+	"version": "0.1.0",
 	"type": "module",
 	"files": [
 		"dist",
@@ -16,11 +16,14 @@
 	"types": "./dist/index.d.ts",
 	"sideEffects": false,
 	"dependencies": {
-		"@exact/plugin-api": "file:../plugin-api"
+		"@exactjs/plugin-api": "^0.1.0"
 	},
 	"scripts": {
 		"build": "tsc -b",
 		"test": "vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }

@@ -4,7 +4,7 @@ import type {
 	ExpressionType,
 	ExpressionTypeProperty,
 	NodeRef
-} from '@exact/expressions';
+} from '@exactjs/expressions';
 import type { ExactAnnotationKey, ExactKeepPolicy, ExactKeyContract } from '../annotations.js';
 
 /** Performs the node width domain operation. */

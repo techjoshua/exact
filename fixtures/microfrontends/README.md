@@ -10,6 +10,6 @@ trusted same-organization microfrontend architecture:
 - `branding-host` exposes a shell that renders page-owned VNodes supplied as
   ordinary named props.
 
-The fixture build test lives with `@exact/vite-plugin`. Runtime protocol,
+The fixture build test lives with `@exactjs/vite-plugin`. Runtime protocol,
 cross-root ownership, gateway, and replacement behavior are covered by the
 focused framework integration suites.

@@ -1,5 +1,5 @@
-import { createVNode, type ComponentFunction } from '@exact/core';
-import type { ReactNode } from '@exact/react-compat';
+import { createVNode, type ComponentFunction } from '@exactjs/core';
+import type { ReactNode } from '@exactjs/react-compat';
 import {
 	ReactCacheContext,
 	ReactRootContext,
@@ -7,11 +7,11 @@ import {
 	toExactNode,
 	type ReactCacheScope,
 	type ReactRootRuntime
-} from '@exact/react-compat/exact';
+} from '@exactjs/react-compat/exact';
 import {
 	renderToString as renderExactToString,
 	renderToStringAsync as renderExactToStringAsync
-} from '@exact/ssr';
+} from '@exactjs/ssr';
 
 /** Configures server render. */
 export interface ServerRenderOptions {
@@ -30,7 +30,7 @@ type ServerRootProps = {
 	resources: Map<string, { priority: number; html: string }>;
 };
 const ServerRoot = function ExactReactServerRoot(
-	this: import('@exact/core').Component<Record<string, never>>,
+	this: import('@exactjs/core').Component<Record<string, never>>,
 	props: ServerRootProps
 ) {
 	const scope: ReactCacheScope = { roots: new Map(), controller: new AbortController() };

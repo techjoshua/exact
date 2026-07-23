@@ -1,5 +1,5 @@
 {
-	"name": "@exact/sample-microfrontend-page",
+	"name": "@exactjs/sample-microfrontend-page",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
@@ -7,7 +7,7 @@
 		"**/*.css"
 	],
 	"dependencies": {
-		"@exact/microfrontends": "0.0.0",
-		"@exact/sample-microfrontend-portal": "0.0.0"
+		"@exactjs/microfrontends": "^0.1.0",
+		"@exactjs/sample-microfrontend-portal": "0.0.0"
 	}
 }

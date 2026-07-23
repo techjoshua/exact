@@ -11,7 +11,7 @@ describe('React compatibility build engine', () => {
 	it('reports a frozen registry and fast-paths irrelevant modules', () => {
 		const engine = createReactCompatibilityBuildEngine({ cwd: fixtureRoot, target: 18 });
 		expect(engine.report()).toMatchObject({
-			activeAdapters: ['@exact/tanstack-query'],
+			activeAdapters: ['@exactjs/tanstack-query'],
 			target: 18
 		});
 		const result = engine.transformModule({
@@ -33,13 +33,13 @@ describe('React compatibility build engine', () => {
 			format: 'module',
 			target: 'client'
 		});
-		expect(result.code).toContain('from "@exact/tanstack-query/react"');
+		expect(result.code).toContain('from "@exactjs/tanstack-query/react"');
 		expect(result.code).toContain('useQuery } from "@tanstack/react-query"');
 		expect(result.diagnostics).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
 					code: 'compatibility-retained',
-					adapterPackage: '@exact/tanstack-query',
+					adapterPackage: '@exactjs/tanstack-query',
 					adapterVersion: '0.0.0',
 					sourceVersion: '>=5 <6',
 					sourceExport: 'QueryClientProvider',
@@ -56,9 +56,9 @@ describe('React compatibility build engine', () => {
 				sourceExport: 'QueryClientProvider',
 				sourceLocation: expect.stringContaining('node_modules'),
 				installedVersion: '5.101.2',
-				adapterPackage: '@exact/tanstack-query',
+				adapterPackage: '@exactjs/tanstack-query',
 				adapterVersion: '0.0.0',
-				targetModule: '@exact/tanstack-query/react',
+				targetModule: '@exactjs/tanstack-query/react',
 				targetExport: 'QueryClientProvider'
 			})
 		]);
@@ -76,7 +76,7 @@ describe('React compatibility build engine', () => {
 			expect.arrayContaining([
 				expect.objectContaining({
 					code: 'dynamic-export-escape',
-					adapterPackage: '@exact/tanstack-query'
+					adapterPackage: '@exactjs/tanstack-query'
 				})
 			])
 		);

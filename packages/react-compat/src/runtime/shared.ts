@@ -1,5 +1,5 @@
-import { createContext as createExactContext, type ContextToken } from '@exact/core';
-import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation';
+import { createContext as createExactContext, type ContextToken } from '@exactjs/core';
+import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type {
 	DependencyList,
 	ExternalStoreSubscribe,

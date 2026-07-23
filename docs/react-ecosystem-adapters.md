@@ -6,7 +6,7 @@ implementations. Vite discovers adapters automatically from the application
 dependency graph. Node uses the same engine through:
 
 ```sh
-node --import @exact/react-compat/register app.js
+node --import @exactjs/react-compat/register app.js
 ```
 
 For ahead-of-time output, use `exact-reactc`. Inspect a build with
@@ -21,7 +21,7 @@ Only the build-root package can suppress a transitive adapter:
 {
 	"exact": {
 		"reactCompatibility": {
-			"ignoreAdapters": ["@exact/redux"]
+			"ignoreAdapters": ["@exactjs/redux"]
 		}
 	}
 }
@@ -38,16 +38,16 @@ continue to work, but registered providers/hooks are rewritten to adapter leaf
 exports. Move consumers to native APIs incrementally; the context bridge keeps
 the service descendant-scoped across alternating React/eXact layers.
 
-- `@exact/tanstack-query`: `ExactQueryClientProvider`, `createComponentQuery`,
+- `@exactjs/tanstack-query`: `ExactQueryClientProvider`, `createComponentQuery`,
   `createInfiniteQuerySource`, `createMutationSource`, `dehydrate`, and `hydrate`.
-- `@exact/zustand`: vanilla `createStore`, `createZustandSource`, and
+- `@exactjs/zustand`: vanilla `createStore`, `createZustandSource`, and
   `createComponentStore`; vanilla middleware and persistence remain attached to
   the same store object.
-- `@exact/convex`: native query watches, SSR seeds, mutation/action helpers,
+- `@exactjs/convex`: native query watches, SSR seeds, mutation/action helpers,
   auth configuration, and connection-state sources.
-- `@exact/redux`: native store providers/selectors, server snapshots, dispatch,
+- `@exactjs/redux`: native store providers/selectors, server snapshots, dispatch,
   nested subscriptions, and compatibility custom-context support.
-- `@exact/jotai`: vanilla atoms/stores and native atom sources.
+- `@exactjs/jotai`: vanilla atoms/stores and native atom sources.
 
 Native root entrypoints do not import React, React DOM, React compatibility, or
 the source React binding. Compatibility wrappers are isolated under `./react`.

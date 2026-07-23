@@ -8,7 +8,7 @@ describe('generic data policy IR', () => {
 	it('records explicit fields and inferred isomorphic island transfers', () => {
 		const manifest = analyzeSource(
 			`
-      import type { Component } from "@exact/core";
+      import type { Component } from "@exactjs/core";
       interface State {
         /** @exact keep=server */ internal: string;
         title: string;
@@ -59,7 +59,7 @@ describe('generic data policy IR', () => {
 		expect(() =>
 			transform(
 				`
-      import type { Component } from "@exact/core";
+      import type { Component } from "@exactjs/core";
       interface State {
         /** @exact keep=secret */ credential: string;
       }
@@ -75,7 +75,7 @@ describe('generic data policy IR', () => {
 	it('treats route loader and action results as hydration transfer sinks', () => {
 		const manifest = analyzeSource(
 			`
-      import { consume, type Secret } from "@exact/secrets";
+      import { consume, type Secret } from "@exactjs/secrets";
       /** @exact keep=server */ const internal = { tenant: "private" };
       /** @exact keep=secret */ const credential = "configured" as Secret<string>;
       const loader = () => internal;
@@ -115,7 +115,7 @@ describe('generic data policy IR', () => {
 	it('uses protected state reads as task placement effects', () => {
 		const manifest = analyzeSource(
 			`
-      import type { Component } from "@exact/core";
+      import type { Component } from "@exactjs/core";
       interface State {
         /** @exact keep=server */ internal: string;
       }
@@ -134,7 +134,7 @@ describe('generic data policy IR', () => {
 		expect(() =>
 			transform(
 				`
-      import { createContext, type Component } from "@exact/core";
+      import { createContext, type Component } from "@exactjs/core";
       export const AuthorizationContext = createContext<{ hasRole(role: string): boolean }>(
         "authorization",
         { global: true, keep: "server", scope: "request" }
@@ -152,7 +152,7 @@ describe('generic data policy IR', () => {
 	it('keeps inferred public context calls neutral and protected context calls server-only', () => {
 		const manifest = analyzeSource(
 			`
-      import { createContext, type Component } from "@exact/core";
+      import { createContext, type Component } from "@exactjs/core";
       const PublicContext = createContext<{ value(): string }>("public");
       const ServerContext = createContext<{ value(): string }>(
         "server",
@@ -247,7 +247,7 @@ describe('generic data policy IR', () => {
 	it('recognizes transparent secret API values through their type policy', () => {
 		const manifest = analyzeSource(
 			`
-      import { secret } from "@exact/secrets";
+      import { secret } from "@exactjs/secrets";
       const apiKey = secret("API_KEY", "configured");
       const authorization = \`Bearer \${apiKey}\`;
       export { authorization };
@@ -278,7 +278,7 @@ describe('generic data policy IR', () => {
 	it('audits consume() itself and rejects a secret passed to an ordinary parameter', () => {
 		const manifest = analyzeSource(
 			`
-      import { consume } from "@exact/secrets";
+      import { consume } from "@exactjs/secrets";
       /** @exact keep=secret */ const apiKey = "configured";
       function createStripeClient(value: string) {}
       function createSomeOtherClient(value: string) {}
@@ -311,7 +311,7 @@ describe('generic data policy IR', () => {
 	it('stops tracking the result of a standalone consume() call', () => {
 		const manifest = analyzeSource(
 			`
-      import { consume } from "@exact/secrets";
+      import { consume } from "@exactjs/secrets";
       /** @exact keep=secret */ const configuredApiKey = "configured";
       const apiKey = consume(configuredApiKey);
       function createStripeClient(value: string) {}
@@ -339,7 +339,7 @@ describe('generic data policy IR', () => {
 	it('rejects consume() on a non-secret argument', () => {
 		const manifest = analyzeSource(
 			`
-      import { consume } from "@exact/secrets";
+      import { consume } from "@exactjs/secrets";
       const publicValue = "public";
       consume(publicValue);
       export {};
@@ -353,7 +353,7 @@ describe('generic data policy IR', () => {
 	it('propagates secret qualification through method calls and destructuring until consume()', () => {
 		const manifest = analyzeSource(
 			`
-      import { consume, type Secret } from "@exact/secrets";
+      import { consume, type Secret } from "@exactjs/secrets";
       declare const secrets: { require(name: string): Secret<string> };
       const combo = secrets.require("ClientKeyAndSecret");
       const [key, clientSecret] = combo.split(":");

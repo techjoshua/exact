@@ -1,4 +1,4 @@
-import type { ComponentInstance, StopHandle } from '@exact/core';
+import type { ComponentInstance, StopHandle } from '@exactjs/core';
 import type { Mounted, Root } from './types.js';
 
 /** Provides the canonical roots value. */

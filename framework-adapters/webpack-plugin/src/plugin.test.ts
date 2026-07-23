@@ -12,7 +12,7 @@ import {
 } from './index.js';
 import { webpackCompilerSessionCount } from './sessions.js';
 
-describe('@exact/webpack-plugin', () => {
+describe('@exactjs/webpack-plugin', () => {
 	it('reports opt-in transform timings', () => {
 		const onProfile = vi.fn();
 
@@ -75,7 +75,7 @@ describe('@exact/webpack-plugin', () => {
 	it('creates a pre-loader rule', () => {
 		expect(createExactWebpackRule({ target: 'server' })).toMatchObject({
 			enforce: 'pre',
-			use: [{ loader: '@exact/webpack-plugin/loader', options: { target: 'server' } }]
+			use: [{ loader: '@exactjs/webpack-plugin/loader', options: { target: 'server' } }]
 		});
 	});
 
@@ -191,9 +191,9 @@ describe('@exact/webpack-plugin', () => {
 		const compiler: WebpackCompilerLike = { options: {} };
 		new ExactWebpackPlugin({ reactCompatibility: { target: 19 } }).apply(compiler);
 		expect(compiler.options.resolve?.alias).toMatchObject({
-			react$: '@exact/react-compat/react19',
-			'react/jsx-runtime$': '@exact/react-compat/jsx-runtime19',
-			'react-dom/client$': '@exact/react-dom-compat/client19'
+			react$: '@exactjs/react-compat/react19',
+			'react/jsx-runtime$': '@exactjs/react-compat/jsx-runtime19',
+			'react-dom/client$': '@exactjs/react-dom-compat/client19'
 		});
 		expect(
 			transformExactWebpackSource(
@@ -201,14 +201,14 @@ describe('@exact/webpack-plugin', () => {
 				'/src/view.tsx',
 				{ reactCompatibility: { target: 19 } }
 			)?.code
-		).toContain('@exact/react-compat/jsx-runtime19');
+		).toContain('@exactjs/react-compat/jsx-runtime19');
 		expect(
 			transformExactWebpackSource(
 				'import * as React from "react"; const view = <span>{React.version}</span>;',
 				'/src/inferred.tsx',
 				{ reactCompatibility: { target: 19 } }
 			)?.code
-		).toContain('@exact/react-compat/jsx-runtime19');
+		).toContain('@exactjs/react-compat/jsx-runtime19');
 	});
 
 	it('rewrites exact facade requests through Webpack resolver hooks', () => {

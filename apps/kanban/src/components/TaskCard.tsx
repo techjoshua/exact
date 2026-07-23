@@ -1,4 +1,4 @@
-import type { Component } from '@exact/core';
+import type { Component } from '@exactjs/core';
 import { BoardContext } from '../context.js';
 import type { Task } from '../types.js';
 
@@ -113,10 +113,10 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
 					target: targetName(event.target)
 				});
 			}}
-			onPointerDown={(event) => startPointerDrag(event as PointerEvent)}
-			onPointerMove={(event) => movePointerDrag(event as PointerEvent)}
-			onPointerUp={(event) => endPointerDrag(event as PointerEvent)}
-			onPointerCancel={(event) => endPointerDrag(event as PointerEvent)}
+			onPointerDown={(event) => startPointerDrag(event)}
+			onPointerMove={(event) => movePointerDrag(event)}
+			onPointerUp={(event) => endPointerDrag(event)}
+			onPointerCancel={(event) => endPointerDrag(event)}
 			onLostPointerCapture={() => cancelPointerDrag('lostpointercapture')}
 		>
 			<span

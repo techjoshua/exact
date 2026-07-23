@@ -1,5 +1,5 @@
-import { ServerSlot, type VNode } from '@exact/core';
-import type { EffectScope } from '@exact/reactive';
+import { ServerSlot, type VNode } from '@exactjs/core';
+import type { EffectScope } from '@exactjs/reactive';
 import type { Mounted, Root } from './types.js';
 import { walkDomSubtree } from './work.js';
 

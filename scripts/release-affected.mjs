@@ -71,7 +71,7 @@ export async function createAffectedReleasePlan(base = process.env.RELEASE_BASE 
 		expressions:
 			selected.some(
 				(workspace) =>
-					workspace.name === '@exact/expressions' || workspace.name === '@exact/compiler'
+					workspace.name === '@exactjs/expressions' || workspace.name === '@exactjs/compiler'
 			) || changedScripts.some((filename) => filename.includes('expression'))
 	});
 }

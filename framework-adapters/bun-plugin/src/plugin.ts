@@ -7,26 +7,26 @@ import {
 	type ExactCompilerManifest,
 	type ExactCompilerSession,
 	type TransformTarget
-} from '@exact/compiler';
+} from '@exactjs/compiler';
 import {
 	createExactDiagnosticReporter,
 	loadExactImportedManifests,
 	matchesExactBuildFilter
-} from '@exact/compiler/adapter-support';
+} from '@exactjs/compiler/adapter-support';
 import {
 	profileTimestamp,
 	type ExactProfileEvent,
 	type ExactProfileSink
-} from '@exact/instrumentation';
-import type { ExactPreparedCompilerRegistry } from '@exact/plugin-api';
-import { prepareExactPluginRegistry } from '@exact/plugin-host/node';
+} from '@exactjs/instrumentation';
+import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
+import { prepareExactPluginRegistry } from '@exactjs/plugin-host/node';
 import {
 	jsxSourceOwnership,
 	resolveReactCompatibility,
 	validateInstalledReactReconciler,
 	type ReactCompatibilityOptions
-} from '@exact/react-compat/plugin';
-import { transformReactJsx, usesReactRuntimeImports } from '@exact/react-compat/transform';
+} from '@exactjs/react-compat/plugin';
+import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
 import path from 'node:path';
 
 /** Configures exact bun plugin. */
@@ -200,7 +200,7 @@ async function readBunLoadSource(args: BunLoadArgs): Promise<string> {
 		};
 	};
 	if (!runtime.Bun)
-		throw new Error('Bun runtime is required to load files through @exact/bun-plugin');
+		throw new Error('Bun runtime is required to load files through @exactjs/bun-plugin');
 	return runtime.Bun.file(args.path).text();
 }
 

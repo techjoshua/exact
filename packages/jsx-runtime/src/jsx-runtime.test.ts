@@ -1,8 +1,8 @@
-import { getCellVNode, isCellVNode } from '@exact/core';
+import { getCellVNode, isCellVNode } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { _, Fragment, jsx, jsxs } from './jsx-runtime.js';
 
-describe('@exact/jsx', () => {
+describe('@exactjs/jsx', () => {
 	it('creates vnodes and normalizes children', () => {
 		const vnode = jsxs('ul', {
 			children: [jsx('li', { children: 'A' }), jsx('li', { children: 'B' })]

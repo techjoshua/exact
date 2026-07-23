@@ -6,7 +6,7 @@ import {
 	readExactPackageParticipation,
 	type ExactPackageParticipation,
 	type ExactPluginDeclaration
-} from '@exact/plugin-api';
+} from '@exactjs/plugin-api';
 import path from 'node:path';
 import { rcompare, satisfies, valid, validRange } from 'semver';
 import {

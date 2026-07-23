@@ -1,8 +1,8 @@
-import { analyzeSource } from '@exact/compiler';
+import { analyzeSource } from '@exactjs/compiler';
 import { describe, expect, it } from 'vitest';
 import { exact } from './index.js';
 
-describe('@exact/vite-plugin: transform', () => {
+describe('@exactjs/vite-plugin: transform', () => {
 	it('forwards profiling into its compiler session', () => {
 		const events: Array<{ subsystem: string; phase: string }> = [];
 		const plugin = exact({
@@ -44,8 +44,8 @@ describe('@exact/vite-plugin: transform', () => {
 			pluginRegistry: {
 				fingerprint: 'test',
 				plugins: {
-					'@exact/policy': {
-						packageName: '@exact/policy',
+					'@exactjs/policy': {
+						packageName: '@exactjs/policy',
 						version: '1.0.0',
 						protocolVersion: '1.0.0',
 						required: true,

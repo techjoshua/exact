@@ -1,4 +1,4 @@
-import type { BoundModule, NodeRef } from '@exact/expressions';
+import type { BoundModule, NodeRef } from '@exactjs/expressions';
 
 import type { ExactContextEffect, ExactStateEffect } from '../types.js';
 

@@ -1,4 +1,4 @@
-import { handleExactRequest, type ExactServerContext } from '@exact/server';
+import { handleExactRequest, type ExactServerContext } from '@exactjs/server';
 
 /** Creates a Fetch API compatible eXact endpoint handler. */
 export function createExactFetchHandler(

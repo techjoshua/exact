@@ -151,7 +151,7 @@ function createClientDescriptorCompositionModule(
 	);
 	const values = sorted.map((_, index) => `  __exactComponent${index}`);
 	return [
-		'import { composeExactComponentDescriptors as __exactComposeDescriptors } from "@exact/core";',
+		'import { composeExactComponentDescriptors as __exactComposeDescriptors } from "@exactjs/core";',
 		...imports,
 		'',
 		`export const ${exportName} = __exactComposeDescriptors([`,

@@ -1,4 +1,4 @@
-import '@exact/react-compat/react18';
+import '@exactjs/react-compat/react18';
 import * as Server from './server-node.js';
 export * from './server-node.js';
 /** Provides the canonical version value. */

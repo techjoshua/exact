@@ -1,5 +1,5 @@
 {
-	"name": "@exact/sample-microfrontend-portal",
+	"name": "@exactjs/sample-microfrontend-portal",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
@@ -14,18 +14,18 @@
 		"test": "vitest run --testTimeout=60000"
 	},
 	"dependencies": {
-		"@exact/core": "file:../../packages/core",
-		"@exact/dom": "file:../../packages/dom",
-		"@exact/hydrate": "file:../../packages/hydrate",
-		"@exact/jsx": "file:../../packages/jsx-runtime",
-		"@exact/microfrontends": "file:../../plugins/microfrontends",
-		"@exact/node-adapter": "file:../../framework-adapters/node-adapter",
-		"@exact/server": "file:../../packages/server",
-		"@exact/ssr": "file:../../packages/ssr"
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/dom": "^0.1.0",
+		"@exactjs/hydrate": "^0.1.0",
+		"@exactjs/jsx": "^0.1.0",
+		"@exactjs/microfrontends": "^0.1.0",
+		"@exactjs/node-adapter": "^0.1.0",
+		"@exactjs/server": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0"
 	},
 	"devDependencies": {
 		"@types/node": "^22.10.2",
-		"@exact/vite-plugin": "file:../../framework-adapters/vite-plugin",
+		"@exactjs/vite-plugin": "^0.1.0",
 		"typescript": "^5.7.2",
 		"vite": "^5.4.21",
 		"vitest": "^2.1.8"

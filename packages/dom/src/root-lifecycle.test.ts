@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  */
-import { createCompiledVNode, createRef, createVNode, type Component } from '@exact/core';
-import { jsx } from '@exact/jsx';
-import { flushSync } from '@exact/reactive';
+import { createCompiledVNode, createRef, createVNode, type Component } from '@exactjs/core';
+import { jsx } from '@exactjs/jsx';
+import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from './index.js';
 
@@ -18,7 +18,7 @@ function commentData(root: Node): string[] {
 	return comments;
 }
 
-describe('@exact/dom root-lifecycle', () => {
+describe('@exactjs/dom root-lifecycle', () => {
 	it('reports opt-in render timings without changing renderer behavior', () => {
 		const container = document.createElement('div');
 		const onProfile = vi.fn();

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createExactCloudflareHandler } from './index.js';
 
-describe('@exact/cloudflare-adapter', () => {
+describe('@exactjs/cloudflare-adapter', () => {
 	it('handles Cloudflare Worker fetch requests', async () => {
 		const handler = createExactCloudflareHandler({
 			manifest: {

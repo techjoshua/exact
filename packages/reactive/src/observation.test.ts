@@ -18,7 +18,7 @@ import {
 	writeReactive
 } from './index.js';
 
-describe('@exact/reactive observation', () => {
+describe('@exactjs/reactive observation', () => {
 	it('retains a locally mutated keyed item when a later server snapshot has the same hashes', () => {
 		const state = reactive({
 			records: [

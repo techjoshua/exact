@@ -7,31 +7,31 @@ import {
 	type ExactAssetRule,
 	type ExactCompilerManifest,
 	type TransformTarget
-} from '@exact/compiler';
-import { createExactDiagnosticReporter } from '@exact/compiler/adapter-support';
+} from '@exactjs/compiler';
+import { createExactDiagnosticReporter } from '@exactjs/compiler/adapter-support';
 import {
 	profileTimestamp,
 	type ExactProfileEvent,
 	type ExactProfileSink
-} from '@exact/instrumentation';
-import type { ExactPreparedCompilerRegistry } from '@exact/plugin-api';
+} from '@exactjs/instrumentation';
+import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import {
 	invalidateExactPluginRegistry,
 	prepareExactPluginRegistry,
 	type ExactPreparedPluginRegistry
-} from '@exact/plugin-host/node';
+} from '@exactjs/plugin-host/node';
 import {
 	createReactCompatibilityBuildEngine,
 	type ReactCompatibilityBuildEngine
-} from '@exact/react-compat/build';
+} from '@exactjs/react-compat/build';
 import {
 	jsxSourceOwnership,
 	resolveReactCompatibility,
 	validateInstalledReactReconciler,
 	type ReactCompatibilityOptions,
 	type ResolvedReactCompatibility
-} from '@exact/react-compat/plugin';
-import { transformReactJsx, usesReactRuntimeImports } from '@exact/react-compat/transform';
+} from '@exactjs/react-compat/plugin';
+import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
 import path from 'node:path';
 import { createExactViteMicrofrontendIntegration } from './microfrontends.js';
 import {

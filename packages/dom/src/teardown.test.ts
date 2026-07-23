@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode } from '@exact/core';
+import { createVNode } from '@exactjs/core';
 import { describe, expect, it, vi } from 'vitest';
 import { render, unmount } from './index.js';
 

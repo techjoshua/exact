@@ -1,5 +1,5 @@
-import { withTaskObserver } from '@exact/core';
-import { createExactContextRuntime, type ExactPatch } from '@exact/server';
+import { withTaskObserver } from '@exactjs/core';
+import { createExactContextRuntime, type ExactPatch } from '@exactjs/server';
 import { boundaryPatch, diffBoundaryHtml, diffKeyedListItems } from '../diff.js';
 import { decodeMarkerKey, exactMarkerId, keyedItemMarkerId, markerPair } from '../markup.js';
 import {

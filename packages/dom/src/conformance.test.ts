@@ -12,9 +12,9 @@ import {
 	type ErrorReport,
 	type LogEvent,
 	type Logger
-} from '@exact/core';
-import { jsx } from '@exact/jsx';
-import { flushSync } from '@exact/reactive';
+} from '@exactjs/core';
+import { jsx } from '@exactjs/jsx';
+import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from './index.js';
 

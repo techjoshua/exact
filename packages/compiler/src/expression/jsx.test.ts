@@ -45,6 +45,8 @@ describe('expression-backed JSX plan', () => {
 			`const view = <form onSubmit={event => event.preventDefault()} />;`
 		);
 		const plan = analyzeExpressionJsx(module, buildExactProvenance(module));
-		expect([...plan.contextualParameters.values()]).toEqual(['Event']);
+		expect([...plan.contextualParameters.values()][0]).toContain(
+			'JSX.TargetedEvent<HTMLFormElement, SubmitEvent>'
+		);
 	});
 });

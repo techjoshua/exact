@@ -1,4 +1,4 @@
-import type { BoundModule, ExpressionDirective, NodeRef } from '@exact/expressions';
+import type { BoundModule, ExpressionDirective, NodeRef } from '@exactjs/expressions';
 
 /** Defines the exact annotation key type contract. */
 export type ExactAnnotationKey = 'key' | 'cleanup' | 'own' | 'track' | 'client' | 'server' | 'keep';

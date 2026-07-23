@@ -1,5 +1,5 @@
-import { createCompiledVNode as __exactVNode, createCompiledFragment as __exactFragment, createExpression as __exactExpression, createDynamicChild as __exactDynamic } from "@exact/core";
-import type { Component } from '@exact/core';
+import { createCompiledVNode as __exactVNode, createCompiledFragment as __exactFragment, createExpression as __exactExpression, createDynamicChild as __exactDynamic } from "@exactjs/core";
+import type { Component } from '@exactjs/core';
 import { usStatePaths } from "../../src/data/us-state-paths.js";
 import type { ExtraService, ProviderId, RateQuote, RouteResult } from "../../src/types.js";
 /** Performs the route map domain operation. */

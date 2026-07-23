@@ -5,7 +5,7 @@
 		"noEmit": true,
 		"lib": ["ES2022", "DOM"],
 		"jsx": "preserve",
-		"jsxImportSource": "@exact/jsx",
+		"jsxImportSource": "@exactjs/jsx",
 		"resolveJsonModule": true,
 		"types": ["node", "vite/client"]
 	},

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { act, createElement } from '@exact/react-compat';
-import { createRoot } from '@exact/react-dom-compat/client19';
-import { renderToString } from '@exact/react-dom-compat/server19';
+import { act, createElement } from '@exactjs/react-compat';
+import { createRoot } from '@exactjs/react-dom-compat/client19';
+import { renderToString } from '@exactjs/react-dom-compat/server19';
 import { describe, expect, it, vi } from 'vitest';
 import type { RouteComponentProps } from './v5.js';
 import {

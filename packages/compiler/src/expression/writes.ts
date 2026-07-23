@@ -5,7 +5,7 @@ import {
 	type NodeRef,
 	type UnboundModule,
 	type Variable
-} from '@exact/expressions';
+} from '@exactjs/expressions';
 import { expressionComponentIndex } from './component-index.js';
 
 /** Describes the result produced by expression write. */
@@ -102,7 +102,7 @@ export function lowerExpressionWrites(module: BoundModule): ExpressionWriteResul
 	});
 	if (!count) return Object.freeze({ module, changed: false, count: 0 });
 
-	const importText = `import { ${[...imports].map(([imported, local]) => `${imported} as ${local}`).join(', ')} } from "@exact/reactive";`;
+	const importText = `import { ${[...imports].map(([imported, local]) => `${imported} as ${local}`).join(', ')} } from "@exactjs/reactive";`;
 	generated = insertAfterDirectives(generated, importText);
 	const rewritten = rewriteModule(module, (rewriter) => {
 		rewriter.replaceTextWhere(

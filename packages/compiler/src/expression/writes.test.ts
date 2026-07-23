@@ -1,4 +1,4 @@
-import { createExpressionProject } from '@exact/expressions';
+import { createExpressionProject } from '@exactjs/expressions';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { analyzeExpressionWrites, lowerExpressionWrites } from './writes.js';
@@ -25,7 +25,7 @@ describe('expression-backed writes', () => {
 		const result = lowerExpressionWrites(module);
 		const source = result.module.emit().code;
 		expect(result.count).toBe(5);
-		expect(source.indexOf(`"use client"`)).toBeLessThan(source.indexOf('@exact/reactive'));
+		expect(source.indexOf(`"use client"`)).toBeLessThan(source.indexOf('@exactjs/reactive'));
 		expect(source).toContain(`__exactWrite(this.state, ["count"], () => (next()))`);
 		expect(source).toContain(
 			`__exactUpdate(this.state, ["count"], previous => previous + (amount))`

@@ -5,14 +5,14 @@ import {
 	decodeReactiveProtocolValue,
 	logFrameworkEvent,
 	withComponentDomain
-} from '@exact/core';
+} from '@exactjs/core';
 import {
 	consumeDomWork,
 	createDomWorkBudget,
 	findNodeOwnerInstance,
 	render,
 	walkDomSubtree
-} from '@exact/dom';
+} from '@exactjs/dom';
 import { isSafeObjectKey } from './safety.js';
 import type { ClientIslandRegistry, HydrateOptions } from './types.js';
 import { isJsonSafe } from './validation.js';

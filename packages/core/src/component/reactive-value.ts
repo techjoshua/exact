@@ -1,4 +1,4 @@
-import { reactive, ref as reactiveRef, type Reactive } from '@exact/reactive';
+import { reactive, ref as reactiveRef, type Reactive } from '@exactjs/reactive';
 
 /** Preserves reactive objects while wrapping primitive context values in refs. */
 export function reactiveValue<T>(value: T): Reactive<T> {

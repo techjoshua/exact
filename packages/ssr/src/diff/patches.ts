@@ -1,4 +1,4 @@
-import type { ExactPatch } from '@exact/server';
+import type { ExactPatch } from '@exactjs/server';
 import { escapeAttr, escapeText, voidElements } from '../html.js';
 import type { BoundaryRefreshOptions } from '../types.js';
 import { type ParsedHtmlElement, type ParsedHtmlNode } from './elements.js';

@@ -1,4 +1,4 @@
-import { readReactCompatAdapterDeclaration } from '@exact/react-compat-adapter-api';
+import { readReactCompatAdapterDeclaration } from '@exactjs/react-compat-adapter-api';
 import type { ResolvedReactCompatAdapters } from './contracts.js';
 import { discoverReactCompatAdapters } from './discovery.js';
 import { createInstalledReactCompatPackageGraph } from './package-graph.js';
@@ -27,7 +27,7 @@ export function validateReactCompatAdapterPackage(
 		Object.freeze({
 			id: rootId,
 			location: adapter.location,
-			manifest: { name: '@exact/adapter-validation-root', version: '1.0.0' },
+			manifest: { name: '@exactjs/adapter-validation-root', version: '1.0.0' },
 			dependencies: Object.freeze([installed.rootId])
 		})
 	);

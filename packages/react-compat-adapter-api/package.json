@@ -1,6 +1,6 @@
 {
-	"name": "@exact/react-compat-adapter-api",
-	"version": "1.0.0",
+	"name": "@exactjs/react-compat-adapter-api",
+	"version": "0.1.0",
 	"type": "module",
 	"files": [
 		"dist",
@@ -19,5 +19,8 @@
 		"build": "tsc -b",
 		"test": "vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }

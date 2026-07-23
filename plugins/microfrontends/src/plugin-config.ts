@@ -1,4 +1,4 @@
-import type { ExactJsonValue, ExactPluginConfigController } from '@exact/plugin-api';
+import type { ExactJsonValue, ExactPluginConfigController } from '@exactjs/plugin-api';
 import type { ExactMicrofrontendConfig } from './config.js';
 
 /** JSON-safe microfrontend build projection consumed by bundler adapters. */
@@ -13,11 +13,11 @@ export type ExactMicrofrontendCompilerConfig = {
 
 /** Packages whose identity must be shared by every eXact remote client. */
 export const mandatoryExactProvidedPackages = Object.freeze([
-	'@exact/core',
-	'@exact/dom',
-	'@exact/hydrate',
-	'@exact/reactive',
-	'@exact/jsx/jsx-runtime'
+	'@exactjs/core',
+	'@exactjs/dom',
+	'@exactjs/hydrate',
+	'@exactjs/reactive',
+	'@exactjs/jsx/jsx-runtime'
 ] as const);
 
 const controller: ExactPluginConfigController<ExactMicrofrontendConfig> = {

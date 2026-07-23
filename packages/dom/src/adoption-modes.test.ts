@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { createDynamicChild, createVNode, Fragment, type Component, unsafeHtml } from '@exact/core';
+import { createDynamicChild, createVNode, Fragment, type Component, unsafeHtml } from '@exactjs/core';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	adoptComponentRoot,

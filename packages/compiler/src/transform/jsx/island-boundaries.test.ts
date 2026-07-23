@@ -9,7 +9,7 @@ import {
 } from '../../index.js';
 import { createTestWorkspace } from '../../test-support/workspace.js';
 
-describe('@exact/compiler: island boundaries', () => {
+describe('@exactjs/compiler: island boundaries', () => {
 	it('splits self-closing client components out of server artifacts', async () => {
 		const root = await createTestWorkspace('exact-component-split-');
 		const input = path.join(root, 'src', 'page.tsx');

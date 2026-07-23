@@ -1,4 +1,4 @@
-import type { Component } from '@exact/core';
+import type { Component } from '@exactjs/core';
 import type { Column, Task } from '../types.js';
 import { TaskCard } from './TaskCard.jsx';
 

@@ -1,4 +1,4 @@
-import { computed, type ReactiveValue } from '@exact/reactive';
+import { computed, type ReactiveValue } from '@exactjs/reactive';
 
 import { combineAbortSignals, createTaskAbortError, isAbortSignal } from './signals.js';
 

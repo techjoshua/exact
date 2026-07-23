@@ -113,22 +113,22 @@ function rangeAllowsMajor(range: string, major: 18 | 19): boolean {
 /** Performs the react compatibility aliases domain operation. */
 export function reactCompatibilityAliases(target: 18 | 19): Readonly<Record<string, string>> {
 	return Object.freeze({
-		'react/jsx-runtime': `@exact/react-compat/jsx-runtime${target}`,
-		'react/jsx-dev-runtime': `@exact/react-compat/jsx-dev-runtime${target}`,
-		'react/compiler-runtime': '@exact/react-compat/compiler-runtime',
-		react: `@exact/react-compat/react${target}`,
-		'react-dom/client': `@exact/react-dom-compat/client${target}`,
-		'react-dom/server': `@exact/react-dom-compat/server${target}`,
-		'react-dom/server.browser': `@exact/react-dom-compat/server-browser${target}`,
-		'react-dom/server.node': `@exact/react-dom-compat/server${target}`,
+		'react/jsx-runtime': `@exactjs/react-compat/jsx-runtime${target}`,
+		'react/jsx-dev-runtime': `@exactjs/react-compat/jsx-dev-runtime${target}`,
+		'react/compiler-runtime': '@exactjs/react-compat/compiler-runtime',
+		react: `@exactjs/react-compat/react${target}`,
+		'react-dom/client': `@exactjs/react-dom-compat/client${target}`,
+		'react-dom/server': `@exactjs/react-dom-compat/server${target}`,
+		'react-dom/server.browser': `@exactjs/react-dom-compat/server-browser${target}`,
+		'react-dom/server.node': `@exactjs/react-dom-compat/server${target}`,
 		...(target === 19
 			? {
-					'react-dom/static': '@exact/react-dom-compat/static19',
-					'react-dom/static.browser': '@exact/react-dom-compat/static-browser19',
-					'react-dom/static.node': '@exact/react-dom-compat/static19'
+					'react-dom/static': '@exactjs/react-dom-compat/static19',
+					'react-dom/static.browser': '@exactjs/react-dom-compat/static-browser19',
+					'react-dom/static.node': '@exactjs/react-dom-compat/static19'
 				}
 			: {}),
-		'react-dom': `@exact/react-dom-compat/react${target}`
+		'react-dom': `@exactjs/react-dom-compat/react${target}`
 	});
 }
 
@@ -148,7 +148,7 @@ export function jsxSourceOwnership(
 	resolved: ResolvedReactCompatibility | undefined
 ): JsxSourceOwnership {
 	const reactPragma = /@jsxImportSource\s+react(?:\s|$)/m.test(code);
-	const exactPragma = /@jsxImportSource\s+@exact\/jsx(?:\s|$)/m.test(code);
+	const exactPragma = /@jsxImportSource\s+@exactjs\/jsx(?:\s|$)/m.test(code);
 	if ((resolved?.strict ?? true) && reactPragma && exactPragma) {
 		throw new Error(
 			`Mixed React and eXact JSX import-source directives are not supported in ${id}`

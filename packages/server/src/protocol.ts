@@ -1,4 +1,4 @@
-import { encodeReactiveProtocolValue } from '@exact/core';
+import { encodeReactiveProtocolValue } from '@exactjs/core';
 import type {
 	ExactBatchRequest,
 	ExactInvocationRequest,

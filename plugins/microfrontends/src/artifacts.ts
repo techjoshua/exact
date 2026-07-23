@@ -27,7 +27,7 @@ export function generateProvidedPackageBootstrap(keys: readonly string[]): strin
 		registrations.push(`__exactRegistry.register(${quote(key)}, ${local});`);
 	}
 	return [
-		`import { getExactProvidedPackageRegistry } from '@exact/hydrate';`,
+		`import { getExactProvidedPackageRegistry } from '@exactjs/hydrate';`,
 		...imports,
 		'',
 		'const __exactRegistry = getExactProvidedPackageRegistry();',
@@ -46,7 +46,7 @@ export function generateExactClientBindingsBootstrap(
 ): string {
 	if (!bindings.length) return '';
 	const imports = [
-		`import { registerExactRemoteClientBindings as __exactRegisterBindings } from '@exact/microfrontends/client';`
+		`import { registerExactRemoteClientBindings as __exactRegisterBindings } from '@exactjs/microfrontends/client';`
 	];
 	const properties: string[] = [];
 	for (const [index, [binding, config]] of bindings.entries()) {
@@ -107,7 +107,7 @@ export function generateProvidedPackageBridge(bridge: ExactProvidedPackageBridge
 		throw new Error('A side-effect-only provided-package bridge cannot declare exports');
 
 	const lines = [
-		`const __exactRegistry = globalThis[Symbol.for('@exact/provided-packages')];`,
+		`const __exactRegistry = globalThis[Symbol.for('@exactjs/provided-packages')];`,
 		`if (!__exactRegistry || typeof __exactRegistry.require !== 'function') throw new Error('eXact provided-package registry is unavailable');`,
 		`const __exactProvided = __exactRegistry.require(${quote(bridge.key)});`
 	];
@@ -184,8 +184,8 @@ function pathSpecifier(applicationRoot: string, configured: string): string {
 	if (!configured.startsWith('.')) return configured;
 	return path.resolve(applicationRoot, configured).replaceAll('\\', '/');
 }
-import type { ComponentFunction } from '@exact/core';
-import type { ExactHydrationRegistration } from '@exact/hydrate';
+import type { ComponentFunction } from '@exactjs/core';
+import type { ExactHydrationRegistration } from '@exactjs/hydrate';
 
 /** Public shape exported by every independently loadable eXact remote entry. */
 export type ExactRemoteModule = {

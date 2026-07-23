@@ -2,8 +2,8 @@ import {
 	attachSuppressedCleanupFailure,
 	type ComponentContextValues,
 	type ContextToken
-} from '@exact/core';
-import { type RequestContextValue } from '@exact/request';
+} from '@exactjs/core';
+import { type RequestContextValue } from '@exactjs/request';
 import type {
 	ExactContextFactory,
 	ExactContextFactoryContext,

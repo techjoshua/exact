@@ -168,12 +168,12 @@ describe('installed eXact component package artifacts', () => {
 					env: npmEnvironment
 				}
 			);
-			const exactCore = path.join(consumer, 'node_modules', '@exact', 'core');
+			const exactCore = path.join(consumer, 'node_modules', '@exactjs', 'core');
 			await mkdir(exactCore, { recursive: true });
 			await writeFile(
 				path.join(exactCore, 'package.json'),
 				`${JSON.stringify({
-					name: '@exact/core',
+					name: '@exactjs/core',
 					version: '0.0.0-fixture',
 					type: 'module',
 					exports: './index.js'
@@ -231,7 +231,7 @@ describe('installed eXact component package artifacts', () => {
 			const ssr = await loadConsumer(consumer, 'exact-server');
 			const serverComponent = await loadConsumer(consumer, 'react-server');
 
-			expect(client.symbols).toContain('@exact/client-component-descriptor');
+			expect(client.symbols).toContain('@exactjs/client-component-descriptor');
 			expect(client.source).toContain('window.location.href');
 			expect(ssr.source).toContain('__exactBoundary');
 			expect(ssr.source).not.toContain('window.location.href');

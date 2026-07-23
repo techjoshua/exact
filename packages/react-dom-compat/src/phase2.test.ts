@@ -17,7 +17,7 @@ import {
 	useLayoutEffect,
 	useState,
 	useSyncExternalStore
-} from '@exact/react-compat';
+} from '@exactjs/react-compat';
 import { describe, expect, it, vi } from 'vitest';
 import { createRoot } from './client.js';
 import { flushSync as flushReactDOM, unstable_batchedUpdates } from './index.js';

@@ -1,4 +1,4 @@
-import type { BoundModule } from '@exact/expressions';
+import type { BoundModule } from '@exactjs/expressions';
 import type { ExpressionComponentPlan } from '../expression/contracts.js';
 import type { ExpressionTaskPlan } from '../expression/task-contracts.js';
 import type {

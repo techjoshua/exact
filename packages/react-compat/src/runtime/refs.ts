@@ -1,5 +1,5 @@
-import { type RefBinding } from '@exact/core';
-import { unwrap } from '@exact/reactive';
+import { type RefBinding } from '@exactjs/core';
+import { unwrap } from '@exactjs/reactive';
 import type { ReactRef } from '../types.js';
 
 /** Defines the react ref envelope class contract. */

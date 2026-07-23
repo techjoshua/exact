@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createExactDenoHandler } from './index.js';
 
-describe('@exact/deno-adapter', () => {
+describe('@exactjs/deno-adapter', () => {
 	it('handles Deno Fetch-compatible requests', async () => {
 		const handler = createExactDenoHandler({
 			manifest: {

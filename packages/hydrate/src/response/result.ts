@@ -1,4 +1,4 @@
-import type { ExactInvocationRequest, ExactOperationResult, ExactPatch } from '@exact/server';
+import type { ExactInvocationRequest, ExactOperationResult, ExactPatch } from '@exactjs/server';
 import { hasOnlyKeys, isJsonSafe } from '../validation.js';
 import { type ResponseLimits, parseExactInvocationResponse } from './json.js';
 import { matchesOperation } from './stream.js';

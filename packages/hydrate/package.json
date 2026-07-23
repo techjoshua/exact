@@ -1,6 +1,6 @@
 {
-	"name": "@exact/hydrate",
-	"version": "0.0.0",
+	"name": "@exactjs/hydrate",
+	"version": "0.1.0",
 	"type": "module",
 	"files": [
 		"dist",
@@ -19,14 +19,17 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exact/core": "file:../core",
-		"@exact/dom": "file:../dom",
-		"@exact/instrumentation": "file:../instrumentation",
-		"@exact/server": "file:../server"
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/dom": "^0.1.0",
+		"@exactjs/instrumentation": "^0.1.0",
+		"@exactjs/server": "^0.1.0"
 	},
 	"scripts": {
 		"build": "tsc -b",
 		"test": "vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }

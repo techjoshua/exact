@@ -1,6 +1,6 @@
-import { encodeExactMarkerPart } from '@exact/core';
-import { reserveDomWork, walkDomSubtree, type DomWorkBudget } from '@exact/dom';
-import type { ExactPatch } from '@exact/server';
+import { encodeExactMarkerPart } from '@exactjs/core';
+import { reserveDomWork, walkDomSubtree, type DomWorkBudget } from '@exactjs/dom';
+import type { ExactPatch } from '@exactjs/server';
 import {
 	findClientBoundaryElement,
 	findExactElement,

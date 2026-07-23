@@ -1,6 +1,6 @@
 {
-	"name": "@exact/server",
-	"version": "0.0.0",
+	"name": "@exactjs/server",
+	"version": "0.1.0",
 	"type": "module",
 	"files": [
 		"dist",
@@ -20,15 +20,18 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exact/core": "file:../core",
-		"@exact/instrumentation": "file:../instrumentation",
-		"@exact/request": "file:../request",
-		"@exact/plugin-api": "file:../plugin-api",
-		"@exact/plugin-host": "file:../plugin-host"
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/instrumentation": "^0.1.0",
+		"@exactjs/request": "^0.1.0",
+		"@exactjs/plugin-api": "^0.1.0",
+		"@exactjs/plugin-host": "^0.1.0"
 	},
 	"scripts": {
 		"build": "tsc -b",
 		"test": "vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }

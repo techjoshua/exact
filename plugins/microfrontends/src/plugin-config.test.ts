@@ -17,7 +17,7 @@ describe('microfrontends compiler configuration', () => {
 			providedPackages: [...mandatoryExactProvidedPackages, '@company/contexts'],
 			remoteBindings: [['billing', { clientEntry: 'https://cdn.example.test/billing.js' }]]
 		});
-		expect(config.providedPackages).toContain('@exact/jsx/jsx-runtime');
+		expect(config.providedPackages).toContain('@exactjs/jsx/jsx-runtime');
 	});
 
 	it('rejects malformed or incomplete adapter input', () => {

@@ -1,9 +1,9 @@
-import { decodeReactiveProtocolValue } from '@exact/core';
+import { decodeReactiveProtocolValue } from '@exactjs/core';
 import type {
 	ExactInvocationRequest,
 	ExactInvocationResult,
 	ExactOperationResult
-} from '@exact/server';
+} from '@exactjs/server';
 import { isJsonSafe } from '../validation.js';
 import {
 	isExactStreamCompleteEvent,

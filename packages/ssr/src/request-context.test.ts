@@ -1,6 +1,6 @@
-import { createContext, createVNode, type Component } from '@exact/core';
-import { RequestContext } from '@exact/request';
-import { handleExactRequest } from '@exact/server';
+import { createContext, createVNode, type Component } from '@exactjs/core';
+import { RequestContext } from '@exactjs/request';
+import { handleExactRequest } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import {
 	createExactServerRuntime,
@@ -9,7 +9,7 @@ import {
 } from './index.js';
 import { readStreamText } from './test-support/streams.js';
 
-describe('@exact/ssr request-context', () => {
+describe('@exactjs/ssr request-context', () => {
 	const ApplicationName = createContext<string>('ssr.application', {
 		reactive: false,
 		scope: 'application'
@@ -136,7 +136,7 @@ describe('@exact/ssr request-context', () => {
 
 	it('commits redirects and rejects response mutations after SSR returns', async () => {
 		const runtime = createExactServerRuntime({ manifest: { version: 1 } });
-		let activeRequest: import('@exact/request').RequestContextValue | undefined;
+		let activeRequest: import('@exactjs/request').RequestContextValue | undefined;
 		function RedirectPage(this: Component<{}>) {
 			activeRequest = this.getContext(RequestContext);
 			activeRequest.redirect('/sign-in', 307);

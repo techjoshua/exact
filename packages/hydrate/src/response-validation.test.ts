@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { invokeExact, invokeExactBatch, readExactHydrationConfig } from './index.js';
 import { ndjsonResponse } from './test-support/responses.js';
 
-describe('@exact/hydrate response-validation', () => {
+describe('@exactjs/hydrate response-validation', () => {
 	it('ignores malformed endpoint routes in the hydration bootstrap script', () => {
 		const root = document.createElement('main');
 		root.innerHTML =

@@ -1,4 +1,4 @@
-import type { ExactClient, ExactResponseMetadata } from '@exact/hydrate';
+import type { ExactClient, ExactResponseMetadata } from '@exactjs/hydrate';
 import type { ExactRemoteModule } from './artifacts.js';
 import { loadExactRemoteModule, type ExactRemoteClientBinding } from './client.js';
 

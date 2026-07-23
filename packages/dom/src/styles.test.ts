@@ -1,13 +1,13 @@
 /**
  * @vitest-environment jsdom
  */
-import { createExpression, type Component } from '@exact/core';
-import { jsx } from '@exact/jsx';
-import { flushSync } from '@exact/reactive';
+import { createExpression, type Component } from '@exactjs/core';
+import { jsx } from '@exactjs/jsx';
+import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { percent, px, rem, render } from './index.js';
 
-describe('@exact/dom styles', () => {
+describe('@exactjs/dom styles', () => {
 	it('updates className, boolean properties, and style props', () => {
 		let instance!: Component<{ disabled: boolean; tone: string; compact: boolean }>;
 

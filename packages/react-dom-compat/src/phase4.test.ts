@@ -10,8 +10,8 @@ import {
 	createContext,
 	createElement,
 	createRef
-} from '@exact/react-compat';
-import { exactComponentForReactInstance } from '@exact/react-compat/exact';
+} from '@exactjs/react-compat';
+import { exactComponentForReactInstance } from '@exactjs/react-compat/exact';
 import { describe, expect, it, vi } from 'vitest';
 import { createRoot } from './client.js';
 import { findDOMNode, hydrate, render as legacyRender, unmountComponentAtNode } from './index.js';

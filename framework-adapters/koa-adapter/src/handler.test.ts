@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createExactKoaMiddleware, type ExactKoaContext } from './index.js';
 
-describe('@exact/koa-adapter', () => {
+describe('@exactjs/koa-adapter', () => {
 	it('writes eXact responses into Koa context', async () => {
 		const middleware = createExactKoaMiddleware({
 			manifest: {

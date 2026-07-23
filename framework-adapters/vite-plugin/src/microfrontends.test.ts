@@ -5,7 +5,7 @@ const registry = (enabled = true) =>
 	({
 		applicationRoot: '/application',
 		compiler: {
-			plugins: enabled ? { '@exact/microfrontends': { cacheKey: { enabled: true } } } : {}
+			plugins: enabled ? { '@exactjs/microfrontends': { cacheKey: { enabled: true } } } : {}
 		}
 	}) as any;
 

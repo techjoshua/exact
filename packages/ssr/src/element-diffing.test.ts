@@ -1,9 +1,9 @@
-import { createVNode } from '@exact/core';
-import { handleExactRequest } from '@exact/server';
+import { createVNode } from '@exactjs/core';
+import { handleExactRequest } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { createBoundaryRefreshHandler, diffBoundaryHtml, diffKeyedListItems } from './index.js';
 
-describe('@exact/ssr element-diffing', () => {
+describe('@exactjs/ssr element-diffing', () => {
 	it('falls back to replacement patches when text strategy renders html', async () => {
 		const response = await handleExactRequest(
 			{

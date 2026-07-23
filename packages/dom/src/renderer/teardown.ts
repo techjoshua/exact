@@ -4,7 +4,7 @@ import {
 	recordCleanupFailure,
 	throwCleanupFailure,
 	type RefBinding
-} from '@exact/core';
+} from '@exactjs/core';
 import { clearElementOwner } from '../ownership.js';
 import { clearElementProps } from '../props.js';
 import { componentMounts } from '../state.js';

@@ -1,7 +1,7 @@
 import ts from 'typescript';
 import type { ExactRawHtmlCapabilityIR, TransformTarget } from './types.js';
 
-/** Finds calls to unsafeHtml imported from @exact/core and records no runtime values. */
+/** Finds calls to unsafeHtml imported from @exactjs/core and records no runtime values. */
 export function collectRawHtmlCapabilities(
 	sourceFile: ts.SourceFile,
 	filename: string,
@@ -14,7 +14,7 @@ export function collectRawHtmlCapabilities(
 		if (
 			!ts.isImportDeclaration(statement) ||
 			!ts.isStringLiteral(statement.moduleSpecifier) ||
-			statement.moduleSpecifier.text !== '@exact/core' ||
+			statement.moduleSpecifier.text !== '@exactjs/core' ||
 			!statement.importClause
 		)
 			continue;

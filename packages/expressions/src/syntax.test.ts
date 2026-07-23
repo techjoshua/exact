@@ -4,7 +4,7 @@ import { createExpressionProject } from './index.js';
 
 const root = path.resolve(import.meta.dirname, '../../..');
 
-describe('@exact/expressions runtime syntax coverage', () => {
+describe('@exactjs/expressions runtime syntax coverage', () => {
 	it('represents control flow, classes, async code, mutation, and JSX with specialized kinds', () => {
 		const project = createExpressionProject({
 			tsconfigPath: path.join(root, 'apps/kanban/tsconfig.json')

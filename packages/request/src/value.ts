@@ -1,4 +1,4 @@
-import { createContext } from '@exact/core';
+import { createContext } from '@exactjs/core';
 import {
 	RequestResponseCommittedError,
 	type RequestContextInput,

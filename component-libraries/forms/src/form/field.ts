@@ -1,4 +1,4 @@
-import { type Component } from '@exact/core';
+import { type Component } from '@exactjs/core';
 
 import { FieldContext, FormContext } from './context.js';
 import type { FieldContextValue, FieldProps, FieldState, FormContextValue } from './contracts.js';

@@ -1,4 +1,4 @@
-import { createContext, createElement, useContext, type ReactNode } from '@exact/react-compat';
+import { createContext, createElement, useContext, type ReactNode } from '@exactjs/react-compat';
 import { isPromiseLike } from './browser.js';
 
 export { createPath, createSearchParams, parsePath, resolvePath } from './paths.js';

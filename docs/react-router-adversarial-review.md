@@ -243,7 +243,7 @@ Evidence:
 - `component-libraries/router/src/core.ts:481`
 - `component-libraries/router/src/core.ts:491`
 - No compiler reference to `hydrationDataFromSnapshot`, route loader data, or
-  the router hydration element exists outside `@exact/router`.
+  the router hydration element exists outside `@exactjs/router`.
 
 Example:
 
@@ -395,7 +395,7 @@ metadata maps.
 ## Plan comparison summary
 
 The implementation follows the plan's central architectural decision:
-`@exact/router` is the single routing authority, version selection is based on
+`@exactjs/router` is the single routing authority, version selection is based on
 resolved package instances, v5 and modern semantics are separated, unsupported
 versions fail closed, and compatibility families tree-shake from their own
 subpaths.

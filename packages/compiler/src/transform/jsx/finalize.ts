@@ -11,7 +11,7 @@ import { appendServerPartExportAliases } from './island-planning.js';
 import { taskResourceHelper } from './task-emission.js';
 import type { JsxTransformState } from './transform-state.js';
 
-const helperModule = '@exact/core';
+const helperModule = '@exactjs/core';
 
 /**
  * Publishes generated island declarations and runtime imports after JSX traversal.

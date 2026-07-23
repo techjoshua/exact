@@ -1,10 +1,10 @@
-import { analyzeSource } from '@exact/compiler';
+import { analyzeSource } from '@exactjs/compiler';
 import { describe, expect, it } from 'vitest';
 import { consume, secret } from './index.js';
 import { parseEnvironmentFile } from './providers.js';
 import createSecretsServerExtension, { createSecretResolver } from './server.js';
 
-describe('@exact/secrets', () => {
+describe('@exactjs/secrets', () => {
 	it('uses transparent runtime values and an identity consume boundary', () => {
 		const combo = secret('CLIENT_KEY_AND_SECRET', 'client:credential');
 		const [key, clientSecret] = combo.split(':');
@@ -16,7 +16,7 @@ describe('@exact/secrets', () => {
 	it('records call-argument application-owned secret consumption', () => {
 		const manifest = analyzeSource(
 			`
-      import { consume, type Secret } from "@exact/secrets";
+      import { consume, type Secret } from "@exactjs/secrets";
       declare const secrets: { require(name: string): Secret<string> };
       const apiKey = secrets.require("STRIPE_SECRET_KEY");
       function createClient(value: string) { return { ok: true }; }
@@ -40,7 +40,7 @@ describe('@exact/secrets', () => {
 
 	it('trusts application consumption without authorizing the later receiver', () => {
 		const source = `
-      import { consume, type Secret } from "@exact/secrets";
+      import { consume, type Secret } from "@exactjs/secrets";
       import { createClient } from "@acme/payments";
       declare const secrets: { require(name: string): Secret<string> };
       const apiKey = secrets.require("STRIPE_SECRET_KEY");
@@ -78,7 +78,7 @@ describe('@exact/secrets', () => {
 	it('uses the package allowlist for dependencies that contain consume()', () => {
 		const dependency = analyzeSource(
 			`
-      import { consume } from "@exact/secrets";
+      import { consume } from "@exactjs/secrets";
       /** @exact keep=secret */
       declare const apiKey: string;
       export const raw = consume(apiKey);
@@ -99,8 +99,8 @@ describe('@exact/secrets', () => {
 			pluginRegistry: {
 				fingerprint: 'secrets-config',
 				plugins: {
-					'@exact/secrets': {
-						packageName: '@exact/secrets',
+					'@exactjs/secrets': {
+						packageName: '@exactjs/secrets',
 						version: '1.0.0',
 						protocolVersion: '1.0.0',
 						required: true,
@@ -133,7 +133,7 @@ describe('@exact/secrets', () => {
 	it('does not treat consuming-package permission as selector policy', () => {
 		const manifest = analyzeSource(
 			`
-      import { consume } from "@exact/secrets";
+      import { consume } from "@exactjs/secrets";
       /** @exact keep=secret */
       declare const apiKey: string;
       export const raw = consume(apiKey);
@@ -152,7 +152,7 @@ describe('@exact/secrets', () => {
 	it('trusts the package containing consume() without authorizing downstream receivers', () => {
 		const dependency = analyzeSource(
 			`
-      import { consume, type Secret } from "@exact/secrets";
+      import { consume, type Secret } from "@exactjs/secrets";
       import { charge } from "@untrusted/gateway";
       export function createClient(value: Secret<string>) {
         return charge(consume(value));
@@ -194,7 +194,7 @@ describe('@exact/secrets', () => {
 	it('tracks local secret forwarding by binding identity instead of shadowed names', () => {
 		const manifest = analyzeSource(
 			`
-      import { consume } from "@exact/secrets";
+      import { consume } from "@exactjs/secrets";
       import { send } from "@untrusted/gateway";
       /** @exact keep=secret */
       declare const apiKey: string;
@@ -240,7 +240,7 @@ describe('@exact/secrets', () => {
 	it('stops tracking after consumption inside an application helper call', () => {
 		const manifest = analyzeSource(
 			`
-      import { consume } from "@exact/secrets";
+      import { consume } from "@exactjs/secrets";
       import { send } from "@acme/gateway";
       /** @exact keep=secret */
       declare const apiKey: string;
@@ -283,7 +283,7 @@ describe('@exact/secrets', () => {
 	it('rejects secret consumers retained in client compilation', () => {
 		const manifest = analyzeSource(
 			`
-      import { consume, type Secret } from "@exact/secrets";
+      import { consume, type Secret } from "@exactjs/secrets";
       declare const secrets: { require(name: string): Secret<string> };
       const apiKey = secrets.require("API_KEY");
       function connect(value: string) {}

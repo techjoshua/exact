@@ -1,11 +1,11 @@
-import { createVNode } from '@exact/core';
-import { createExactNodeHandler } from '@exact/node-adapter';
+import { createVNode } from '@exactjs/core';
+import { createExactNodeHandler } from '@exactjs/node-adapter';
 import {
 	createExactHydrationManifestConfig,
 	createExactServerManifest,
 	type ExactCompilerManifestLike
-} from '@exact/server';
-import { createExactServerRuntime, renderExactRequestToProgressiveHtmlResponse } from '@exact/ssr';
+} from '@exactjs/server';
+import { createExactServerRuntime, renderExactRequestToProgressiveHtmlResponse } from '@exactjs/ssr';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import appManifestJson from '../.exact/App.exact.manifest.json' with { type: 'json' };
 import { ShippingCalculatorPage } from '../.exact/App.exact.server.js';

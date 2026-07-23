@@ -5,8 +5,8 @@ import {
 	type ComponentInstance,
 	type ContextToken,
 	type ErrorReport
-} from '@exact/core';
-import { type Reactive } from '@exact/reactive';
+} from '@exactjs/core';
+import { type Reactive } from '@exactjs/reactive';
 import type {
 	ReactClassInstance,
 	ReactClassType,

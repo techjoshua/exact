@@ -1,4 +1,4 @@
-import type { ComponentFunction, ContextToken } from '@exact/core';
+import type { ComponentFunction, ContextToken } from '@exactjs/core';
 
 /** Defines the state of type contract. */
 export type StateOf<C> = C extends ComponentFunction<infer State, any> ? State : never;

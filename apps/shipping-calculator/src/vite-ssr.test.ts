@@ -1,6 +1,6 @@
 import { createLogger, createServer } from 'vite';
-import { createVNode } from '@exact/core';
-import { renderToHydratableStringAsync } from '@exact/ssr';
+import { createVNode } from '@exactjs/core';
+import { renderToHydratableStringAsync } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
 
 describe('shipping development SSR graph', () => {

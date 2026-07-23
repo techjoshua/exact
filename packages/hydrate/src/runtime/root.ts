@@ -5,7 +5,7 @@ import {
 	type ComponentDomain,
 	type ComponentFunction,
 	type VNode
-} from '@exact/core';
+} from '@exactjs/core';
 import type { ExactClient } from '../types.js';
 import { bindRequestClientDomain } from './client.js';
 

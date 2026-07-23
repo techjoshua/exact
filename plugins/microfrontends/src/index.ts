@@ -23,7 +23,7 @@ export {
 	RemoteComponent
 } from './client.js';
 export type { ExactRemoteClientBinding, RemoteComponentProps } from './client.js';
-export { createExactBindingGateway } from '@exact/server';
+export { createExactBindingGateway } from '@exactjs/server';
 export { createExactRemoteRollupAdapter } from './rollup.js';
 export {
 	createExactExposureRegistrationModules,
@@ -39,4 +39,4 @@ export type {
 	ExactBindingGatewayOptions,
 	ExactGatewayRejectEvent,
 	TransformForwardedExactRequest
-} from '@exact/server';
+} from '@exactjs/server';

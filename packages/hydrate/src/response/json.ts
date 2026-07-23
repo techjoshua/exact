@@ -1,10 +1,10 @@
-import { decodeReactiveProtocolValue } from '@exact/core';
+import { decodeReactiveProtocolValue } from '@exactjs/core';
 import type {
 	ExactInvocationRequest,
 	ExactInvocationResult,
 	ExactOperationResult,
 	ExactPatch
-} from '@exact/server';
+} from '@exactjs/server';
 import { hasOnlyKeys, isJsonSafe } from '../validation.js';
 import { positiveLimit } from './ndjson.js';
 import { isPatchLike, parseExactOperationResult } from './result.js';

@@ -1,5 +1,5 @@
 // node_modules/lucide-react/dist/esm/createLucideIcon.mjs
-import { forwardRef as forwardRef2, createElement as createElement3 } from "@exact/react-compat/react19";
+import { forwardRef as forwardRef2, createElement as createElement3 } from "@exactjs/react-compat/react19";
 
 // node_modules/lucide-react/dist/esm/shared/src/utils/mergeClasses.mjs
 var mergeClasses = (...classes) => classes.filter((className, index, array) => {
@@ -22,7 +22,7 @@ var toPascalCase = (string) => {
 };
 
 // node_modules/lucide-react/dist/esm/Icon.mjs
-import { forwardRef, createElement as createElement2 } from "@exact/react-compat/react19";
+import { forwardRef, createElement as createElement2 } from "@exactjs/react-compat/react19";
 
 // node_modules/lucide-react/dist/esm/defaultAttributes.mjs
 var defaultAttributes = {
@@ -48,7 +48,7 @@ var hasA11yProp = (props) => {
 };
 
 // node_modules/lucide-react/dist/esm/context.mjs
-import { createContext, useContext, useMemo, createElement } from "@exact/react-compat/react19";
+import { createContext, useContext, useMemo, createElement } from "@exactjs/react-compat/react19";
 var LucideContext = createContext({});
 var useLucideContext = () => useContext(LucideContext);
 
@@ -116,7 +116,7 @@ var __iconNode = [
 var Airplay = createLucideIcon("airplay", __iconNode);
 
 // node_modules/react-hook-form/dist/index.esm.mjs
-import React from "@exact/react-compat/react19";
+import React from "@exactjs/react-compat/react19";
 var isCheckBoxInput = (element) => element.type === "checkbox";
 var isDateObject = (value) => value instanceof Date;
 var isNullOrUndefined = (value) => value == null;
@@ -2109,7 +2109,7 @@ var createStoreImpl = (createState) => {
 var createStore = (createState) => createState ? createStoreImpl(createState) : createStoreImpl;
 
 // node_modules/zustand/esm/react.mjs
-import React2 from "@exact/react-compat/react19";
+import React2 from "@exactjs/react-compat/react19";
 var identity = (arg) => arg;
 function useStore(api, selector = identity) {
   const slice = React2.useSyncExternalStore(

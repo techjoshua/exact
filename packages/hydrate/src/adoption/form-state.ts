@@ -1,4 +1,4 @@
-import { consumeDomWork, walkDomSubtree, type DomWorkBudget } from '@exact/dom';
+import { consumeDomWork, walkDomSubtree, type DomWorkBudget } from '@exactjs/dom';
 
 type FormState = {
 	node: Element;

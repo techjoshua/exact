@@ -6,8 +6,8 @@ import {
 	type Child,
 	type ListBinding,
 	type VNode
-} from '@exact/core';
-import { peek } from '@exact/reactive';
+} from '@exactjs/core';
+import { peek } from '@exactjs/reactive';
 import type { Mounted } from './types.js';
 
 /** Stops mounted children that cannot be reused by an upcoming replacement patch. */

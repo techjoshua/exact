@@ -1,5 +1,5 @@
-import type { Child, Component } from '@exact/core';
-import { PortalContext } from '@exact/sample-microfrontend-portal/shared';
+import type { Child, Component } from '@exactjs/core';
+import { PortalContext } from '@exactjs/sample-microfrontend-portal/shared';
 import type { BrandShellProps } from './BrandShell.js';
 import './branding.css';
 

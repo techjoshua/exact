@@ -4,7 +4,7 @@ import { rewriteModuleReferences } from './module-rewrite.js';
 const provider = {
 	sourceModule: '@tanstack/react-query',
 	sourceExport: 'QueryClientProvider',
-	targetModule: '@exact/tanstack-query/provider',
+	targetModule: '@exactjs/tanstack-query/provider',
 	targetExport: 'ExactQueryClientProvider'
 };
 
@@ -18,7 +18,7 @@ describe('expressions module reference rewriting', () => {
 			'import { useQuery, type QueryKey } from "@tanstack/react-query";'
 		);
 		expect(result.code).toContain(
-			'import { ExactQueryClientProvider as Provider } from "@exact/tanstack-query/provider";'
+			'import { ExactQueryClientProvider as Provider } from "@exactjs/tanstack-query/provider";'
 		);
 		expect(result.map).toMatchObject({ version: 3, sources: ['fixture.ts'] });
 	});
@@ -34,20 +34,20 @@ describe('expressions module reference rewriting', () => {
 			{
 				replacements: [provider],
 				moduleAliases: {
-					react: '@exact/react-compat/react19',
-					'react/jsx-runtime': '@exact/react-compat/jsx-runtime19'
+					react: '@exactjs/react-compat/react19',
+					'react/jsx-runtime': '@exactjs/react-compat/jsx-runtime19'
 				}
 			}
 		);
 		expect(result.code).toContain('export { useQuery } from "@tanstack/react-query";');
 		expect(result.code).toContain(
-			'export { ExactQueryClientProvider as Provider } from "@exact/tanstack-query/provider";'
+			'export { ExactQueryClientProvider as Provider } from "@exactjs/tanstack-query/provider";'
 		);
 		expect(result.code).toContain(
-			'require("@exact/tanstack-query/provider").ExactQueryClientProvider'
+			'require("@exactjs/tanstack-query/provider").ExactQueryClientProvider'
 		);
-		expect(result.code).toContain('require("@exact/react-compat/react19")');
-		expect(result.code).toContain('import("@exact/react-compat/jsx-runtime19")');
+		expect(result.code).toContain('require("@exactjs/react-compat/react19")');
+		expect(result.code).toContain('import("@exactjs/react-compat/jsx-runtime19")');
 	});
 
 	it('rewrites namespace uses by binding identity without touching shadowed names', () => {
@@ -57,7 +57,7 @@ describe('expressions module reference rewriting', () => {
 				replacements: [
 					provider,
 					{
-						sourceModule: '@exact/tanstack-query/provider',
+						sourceModule: '@exactjs/tanstack-query/provider',
 						sourceExport: 'ExactQueryClientProvider',
 						targetModule: '@example/should-not-run',
 						targetExport: 'Other'
@@ -82,7 +82,7 @@ describe('expressions module reference rewriting', () => {
 			{ replacements: [provider] }
 		);
 		expect(result.code).toContain(
-			'const { useQuery } = require("@tanstack/react-query"), { ExactQueryClientProvider: Provider } = require("@exact/tanstack-query/provider");'
+			'const { useQuery } = require("@tanstack/react-query"), { ExactQueryClientProvider: Provider } = require("@exactjs/tanstack-query/provider");'
 		);
 	});
 });

@@ -1,4 +1,4 @@
-import '@exact/react-compat/react19';
+import '@exactjs/react-compat/react19';
 import ReactDOM from './runtime.js';
 export * from './runtime.js';
 /** Provides the canonical version value. */

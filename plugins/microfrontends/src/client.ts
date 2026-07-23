@@ -8,9 +8,9 @@ import {
 	type ComponentDomain,
 	type ComponentFunction,
 	type VNode
-} from '@exact/core';
-import { createExactClient, type ExactClient } from '@exact/hydrate';
-import { createExactRoot } from '@exact/hydrate/internal';
+} from '@exactjs/core';
+import { createExactClient, type ExactClient } from '@exactjs/hydrate';
+import { createExactRoot } from '@exactjs/hydrate/internal';
 import type { ExactRemoteModule } from './artifacts.js';
 import { registerExactRemoteRecovery, type ExactRemoteRecoveryRegistration } from './recovery.js';
 
@@ -28,7 +28,7 @@ export type RemoteComponentProps = {
 	fallback?: Child | Child[];
 };
 
-const bindingsSymbol = Symbol.for('@exact/microfrontends/client-bindings');
+const bindingsSymbol = Symbol.for('@exactjs/microfrontends/client-bindings');
 const moduleLoads = new Map<string, Promise<ExactRemoteModule>>();
 
 type BindingHost = typeof globalThis & {

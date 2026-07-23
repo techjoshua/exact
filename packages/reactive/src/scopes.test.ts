@@ -13,7 +13,7 @@ import {
 	withEffectScope
 } from './index.js';
 
-describe('@exact/reactive scopes', () => {
+describe('@exactjs/reactive scopes', () => {
 	it('profiles scheduler work owned by an explicit effect scope', () => {
 		const events: Array<{ subsystem: string; phase: string }> = [];
 		const scope = createProfiledEffectScope((event) => events.push(event), undefined);

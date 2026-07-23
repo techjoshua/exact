@@ -1,6 +1,6 @@
 {
-	"name": "@exact/vite-plugin",
-	"version": "0.0.0",
+	"name": "@exactjs/vite-plugin",
+	"version": "0.1.0",
 	"type": "module",
 	"files": [
 		"dist",
@@ -15,22 +15,22 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exact/compiler": "file:../../packages/compiler",
-		"@exact/instrumentation": "file:../../packages/instrumentation",
-		"@exact/plugin-api": "file:../../packages/plugin-api",
-		"@exact/plugin-host": "file:../../packages/plugin-host",
-		"@exact/react-compat": "file:../../packages/react-compat",
-		"@exact/react-dom-compat": "file:../../packages/react-dom-compat"
+		"@exactjs/compiler": "^0.1.0",
+		"@exactjs/instrumentation": "^0.1.0",
+		"@exactjs/plugin-api": "^0.1.0",
+		"@exactjs/plugin-host": "^0.1.0",
+		"@exactjs/react-compat": "^0.1.0",
+		"@exactjs/react-dom-compat": "^0.1.0"
 	},
 	"devDependencies": {
-		"@exact/microfrontends": "file:../../plugins/microfrontends"
+		"@exactjs/microfrontends": "^0.1.0"
 	},
 	"peerDependencies": {
-		"@exact/microfrontends": "0.0.0",
+		"@exactjs/microfrontends": "^0.1.0",
 		"vite": "^5.0.0 || ^6.0.0 || ^7.0.0"
 	},
 	"peerDependenciesMeta": {
-		"@exact/microfrontends": {
+		"@exactjs/microfrontends": {
 			"optional": true
 		},
 		"vite": {
@@ -41,5 +41,8 @@
 		"build": "tsc -b",
 		"test": "vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }

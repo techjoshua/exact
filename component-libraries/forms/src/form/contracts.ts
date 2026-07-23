@@ -1,4 +1,4 @@
-import { type Child, type RefBinding } from '@exact/core';
+import { type Child, type RefBinding } from '@exactjs/core';
 
 /** Defines the field value type contract. */
 export type FieldValue = string | string[] | boolean | FileList | null;

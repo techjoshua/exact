@@ -1,16 +1,16 @@
-import { createVNode } from '@exact/core';
+import { createVNode } from '@exactjs/core';
 import {
 	createExactHydrationManifestConfig,
 	createExactServerManifest,
 	handleExactRequest,
 	type ExactCompilerManifestLike,
 	type ExactRequestLike
-} from '@exact/server';
+} from '@exactjs/server';
 import {
 	createExactServerRuntime,
 	renderToHydratableProgressiveHtmlResponse,
 	renderToHydratableStringAsync
-} from '@exact/ssr';
+} from '@exactjs/ssr';
 import profileCompilerManifest from '../.exact/ProfilePage.exact.manifest.json' with { type: 'json' };
 import { ProfilePage } from '../.exact/ProfilePage.exact.server.js';
 

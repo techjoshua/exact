@@ -10,7 +10,7 @@ const buildKey = '0123456789abcdef0123456789abcdef01234567';
 const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url));
 const temporaryRoots: string[] = [];
 
-describe('@exact/vite-plugin: microfrontend integration', () => {
+describe('@exactjs/vite-plugin: microfrontend integration', () => {
 	afterEach(async () => {
 		await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, { recursive: true })));
 	});
@@ -26,7 +26,7 @@ describe('@exact/vite-plugin: microfrontend integration', () => {
 				name: '@company/page-and-remote',
 				version: '1.0.0',
 				type: 'module',
-				dependencies: { '@exact/microfrontends': '0.0.0' }
+				dependencies: { '@exactjs/microfrontends': '0.0.0' }
 			})
 		);
 		await writeFile(
@@ -101,18 +101,18 @@ describe('@exact/vite-plugin: microfrontend integration', () => {
 			scripts.map((source) => readFile(path.join(root, 'dist', source.replace(/^\//, '')), 'utf8'))
 		);
 		const pageProgram = javascript.join('\n');
-		expect(pageProgram).toContain('@exact/provided-packages');
+		expect(pageProgram).toContain('@exactjs/provided-packages');
 		expect(pageProgram).toContain('__pageLoaded');
 		expect(pageProgram).toContain('https://cdn.example.test/billing.js');
 		expect(pageProgram).not.toContain('billing.internal');
-		expect(pageProgram.indexOf('@exact/provided-packages')).toBeLessThan(
+		expect(pageProgram.indexOf('@exactjs/provided-packages')).toBeLessThan(
 			pageProgram.indexOf('__pageLoaded')
 		);
 	});
 });
 
 async function linkExactPackages(root: string): Promise<void> {
-	const scope = path.join(root, 'node_modules', '@exact');
+	const scope = path.join(root, 'node_modules', '@exactjs');
 	await mkdir(scope, { recursive: true });
 	for (const [name, relative] of [
 		['microfrontends', 'plugins/microfrontends'],

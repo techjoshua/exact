@@ -1,8 +1,8 @@
-import { createVNode, type Component } from '@exact/core';
+import { createVNode, type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { renderHydrationScript, renderToString, renderToStringAsync } from './index.js';
 
-describe('@exact/ssr limits', () => {
+describe('@exactjs/ssr limits', () => {
 	it('rejects over-deep sync and async vnode trees with a deterministic limit error', async () => {
 		let vnode = createVNode('span', null, 'leaf');
 		for (let depth = 0; depth < 20; depth++) vnode = createVNode('div', null, vnode);

@@ -1,5 +1,5 @@
-import { createServerBoundary, createTextVNode, createVNode, type Component } from '@exact/core';
-import { handleExactRequest } from '@exact/server';
+import { createServerBoundary, createTextVNode, createVNode, type Component } from '@exactjs/core';
+import { handleExactRequest } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import {
 	createActionRefreshHandler,
@@ -11,7 +11,7 @@ import {
 	renderToStringAsync
 } from './index.js';
 
-describe('@exact/ssr boundaries', () => {
+describe('@exactjs/ssr boundaries', () => {
 	it('passes request cancellation into boundary render callbacks', async () => {
 		const abort = new AbortController();
 		let observed: AbortSignal | undefined;

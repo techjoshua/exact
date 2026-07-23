@@ -1,4 +1,4 @@
-import type { BoundModule, NodeRef, Variable } from '@exact/expressions';
+import type { BoundModule, NodeRef, Variable } from '@exactjs/expressions';
 import { hasExactDirective } from '../annotations.js';
 import type { ExactModuleImportPlan } from '../assets.js';
 import { expressionComponentIndex } from '../expression/component-index.js';

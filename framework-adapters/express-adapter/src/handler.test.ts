@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createExactExpressMiddleware, type ExactExpressResponse } from './index.js';
 
-describe('@exact/express-adapter', () => {
+describe('@exactjs/express-adapter', () => {
 	it('writes eXact responses through Express response methods', async () => {
 		const middleware = createExactExpressMiddleware({
 			manifest: {

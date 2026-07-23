@@ -3,7 +3,7 @@ import {
 	Component as ReactComponent,
 	type ReactComponentType,
 	type ReactNode
-} from '@exact/react-compat';
+} from '@exactjs/react-compat';
 import {
 	matchRoutes as exactMatchRoutes,
 	generatePath,

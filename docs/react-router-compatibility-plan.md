@@ -5,9 +5,9 @@ compatibility scope. Framework mode and v8 remain intentionally unsupported.
 
 ## Purpose
 
-eXact should not operate an independent React Router beside `@exact/router`.
+eXact should not operate an independent React Router beside `@exactjs/router`.
 The framework should provide one renderer-neutral routing controller through
-`@exact/router`, then expose that controller through:
+`@exactjs/router`, then expose that controller through:
 
 - Native eXact router components and context.
 - A React Router v5 compatibility surface.
@@ -51,7 +51,7 @@ by executable conformance fixtures.
 
 ## Goals
 
-- Make `@exact/router` the single routing authority across alternating native
+- Make `@exactjs/router` the single routing authority across alternating native
   eXact and React compatibility subtrees.
 - Extract matching, history, navigation, data loading, and transition state
   from the current native `Router` component into a renderer-neutral
@@ -74,9 +74,9 @@ by executable conformance fixtures.
 ## Non-goals
 
 - Depending on `react-router` or `react-router-dom` from native
-  `@exact/router`.
+  `@exactjs/router`.
 - Reusing private React Router contexts or internal implementation modules.
-- Shipping React or React compatibility code from the native `@exact/router`
+- Shipping React or React compatibility code from the native `@exactjs/router`
   entrypoint.
 - Reproducing undocumented implementation accidents when an equivalent public
   behavior can be provided.
@@ -92,7 +92,7 @@ by executable conformance fixtures.
 
 ## Implemented Repository State
 
-`@exact/router` now provides:
+`@exactjs/router` now provides:
 
 - History, hash, memory, and request-backed location sources.
 - Nested component-reference routes and outlets.
@@ -112,7 +112,7 @@ by executable conformance fixtures.
 The React adapter system now:
 
 - Discovers inert package metadata through
-  `@exact/react-compat-adapter-api`.
+  `@exactjs/react-compat-adapter-api`.
 - Selects non-overlapping source-version variants per resolved package
   instance.
 - Normalizes replacements by source module and export name.
@@ -131,7 +131,7 @@ Keep the implementation in one package with environment- and feature-specific
 subpath entrypoints:
 
 ```text
-@exact/router
+@exactjs/router
 |- renderer-neutral controller, route model, matching, history, and data APIs
 |- native eXact components and context
 |- ./v5: v5 React compatibility facade
@@ -647,7 +647,7 @@ Exit criteria:
 
 ### Phase 3: Modern declarative compatibility — complete
 
-- Add `@exact/router/modern` and version-conditioned metadata.
+- Add `@exactjs/router/modern` and version-conditioned metadata.
 - Implement v6/v7 declarative components, hooks, helpers, and route objects.
 - Bridge router context across alternating eXact and React ownership.
 - Support v6 pre-6.4 separately from data-router-capable versions.
@@ -844,14 +844,14 @@ definitions immediately.
 
 ## Settled Decisions
 
-- `@exact/router` is authoritative; React Router is a compatibility API over it.
+- `@exactjs/router` is authoritative; React Router is a compatibility API over it.
 - V5 and v6/v7 are separate semantic facades over one controller.
 - V6 before 6.4 is distinguished from data-router-capable v6.
 - Selection is based on the resolved source package instance and version.
 - Multiple installed majors are supported rather than rejected globally.
 - Runtime version or prop guessing is not the selection mechanism.
-- Native `@exact/router` does not depend on React Router.
-- Compatibility facades are subpaths of `@exact/router`, not a second adapter
+- Native `@exactjs/router` does not depend on React Router.
+- Compatibility facades are subpaths of `@exactjs/router`, not a second adapter
   package.
 - Public-shape facade types are maintained locally.
 - V5 `Prompt` and modern blocker hooks use the shared controller blocker and

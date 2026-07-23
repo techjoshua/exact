@@ -1,4 +1,4 @@
-import '@exact/react-compat/react19';
+import '@exactjs/react-compat/react19';
 import * as Static from './static-shared.js';
 export * from './static-shared.js';
 /** Provides the canonical version value. */

@@ -1,4 +1,4 @@
-import type { BoundModule, ExpressionScope, NodeRef } from '@exact/expressions';
+import type { BoundModule, ExpressionScope, NodeRef } from '@exactjs/expressions';
 import { browserPlatformGlobals } from './platform-effects.js';
 import type {
 	ExactSemanticDeclarationIR,

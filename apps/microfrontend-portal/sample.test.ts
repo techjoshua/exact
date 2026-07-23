@@ -1,12 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import type { ComponentFunction } from '@exact/core';
-import { render, unmount } from '@exact/dom';
-import { createExactClient } from '@exact/hydrate';
-import { createExactRoot } from '@exact/hydrate/internal';
-import { registerExactRemoteClientBindings } from '@exact/microfrontends/client';
-import { handleExactRequest, type ExactRequestLike, type ExactResponseLike } from '@exact/server';
+import type { ComponentFunction } from '@exactjs/core';
+import { render, unmount } from '@exactjs/dom';
+import { createExactClient } from '@exactjs/hydrate';
+import { createExactRoot } from '@exactjs/hydrate/internal';
+import { registerExactRemoteClientBindings } from '@exactjs/microfrontends/client';
+import { handleExactRequest, type ExactRequestLike, type ExactResponseLike } from '@exactjs/server';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import Billing from './billing/src/Billing.js';
 import BrandShell from './branding/src/BrandShell.js';

@@ -1,5 +1,5 @@
-import { encodeExactMarkerPart, type ComponentInstance, type VNode } from '@exact/core';
-import { createEffectScope, type EffectScope } from '@exact/reactive';
+import { encodeExactMarkerPart, type ComponentInstance, type VNode } from '@exactjs/core';
+import { createEffectScope, type EffectScope } from '@exactjs/reactive';
 import type { Mounted, Root } from '../../types.js';
 import { unmountMany } from '../teardown.js';
 import { adoptStaticMounted } from './tree.js';

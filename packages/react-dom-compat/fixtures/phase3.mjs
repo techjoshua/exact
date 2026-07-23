@@ -305,7 +305,7 @@ __export(dist_exports, {
   WarningProvider: () => WarningProvider,
   createDialogScope: () => createDialogScope
 });
-import * as React21 from "@exact/react-compat/react19";
+import * as React21 from "@exactjs/react-compat/react19";
 
 // node_modules/@radix-ui/primitive/dist/index.mjs
 var canUseDOM = !!(typeof window !== "undefined" && window.document && window.document.createElement);
@@ -319,7 +319,7 @@ function composeEventHandlers(originalEventHandler, ourEventHandler, { checkForD
 }
 
 // node_modules/@radix-ui/react-compose-refs/dist/index.mjs
-import * as React from "@exact/react-compat/react19";
+import * as React from "@exactjs/react-compat/react19";
 function setRef(ref, value) {
   if (typeof ref === "function") {
     return ref(value);
@@ -356,8 +356,8 @@ function useComposedRefs(...refs) {
 }
 
 // node_modules/@radix-ui/react-context/dist/index.mjs
-import * as React2 from "@exact/react-compat/react19";
-import { jsx } from "@exact/react-compat/jsx-runtime19";
+import * as React2 from "@exactjs/react-compat/react19";
+import { jsx } from "@exactjs/react-compat/jsx-runtime19";
 function createContextScope(scopeName, createContextScopeDeps = []) {
   let defaultContexts = [];
   function createContext32(rootComponentName, defaultContext) {
@@ -420,10 +420,10 @@ function composeContextScopes(...scopes) {
 }
 
 // node_modules/@radix-ui/react-id/dist/index.mjs
-import * as React4 from "@exact/react-compat/react19";
+import * as React4 from "@exactjs/react-compat/react19";
 
 // node_modules/@radix-ui/react-use-layout-effect/dist/index.mjs
-import * as React3 from "@exact/react-compat/react19";
+import * as React3 from "@exactjs/react-compat/react19";
 var useLayoutEffect2 = globalThis?.document ? React3.useLayoutEffect : () => {
 };
 
@@ -439,8 +439,8 @@ function useId(deterministicId) {
 }
 
 // node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs
-import * as React5 from "@exact/react-compat/react19";
-import * as React22 from "@exact/react-compat/react19";
+import * as React5 from "@exactjs/react-compat/react19";
+import * as React22 from "@exactjs/react-compat/react19";
 var useInsertionEffect = React5[" useInsertionEffect ".trim().toString()] || useLayoutEffect2;
 function useControllableState({
   prop,
@@ -508,14 +508,14 @@ function isFunction(value) {
 var SYNC_STATE = Symbol("RADIX:SYNC_STATE");
 
 // node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs
-import * as React9 from "@exact/react-compat/react19";
+import * as React9 from "@exactjs/react-compat/react19";
 
 // node_modules/@radix-ui/react-primitive/dist/index.mjs
-import * as React7 from "@exact/react-compat/react19";
-import * as ReactDOM from "@exact/react-dom-compat/react19";
+import * as React7 from "@exactjs/react-compat/react19";
+import * as ReactDOM from "@exactjs/react-dom-compat/react19";
 
 // node_modules/@radix-ui/react-slot/dist/index.mjs
-import * as React6 from "@exact/react-compat/react19";
+import * as React6 from "@exactjs/react-compat/react19";
 // @__NO_SIDE_EFFECTS__
 function createSlot(ownerName) {
   const Slot2 = React6.forwardRef((props, forwardedRef) => {
@@ -635,7 +635,7 @@ var createSlottableError = (ownerName) => {
 var use = React6[" use ".trim().toString()];
 
 // node_modules/@radix-ui/react-primitive/dist/index.mjs
-import { jsx as jsx2 } from "@exact/react-compat/jsx-runtime19";
+import { jsx as jsx2 } from "@exactjs/react-compat/jsx-runtime19";
 var NODES = [
   "a",
   "button",
@@ -673,7 +673,7 @@ function dispatchDiscreteCustomEvent(target, event) {
 }
 
 // node_modules/@radix-ui/react-use-callback-ref/dist/index.mjs
-import * as React8 from "@exact/react-compat/react19";
+import * as React8 from "@exactjs/react-compat/react19";
 function useCallbackRef(callback) {
   const callbackRef = React8.useRef(callback);
   React8.useEffect(() => {
@@ -683,7 +683,7 @@ function useCallbackRef(callback) {
 }
 
 // node_modules/@radix-ui/react-dismissable-layer/dist/index.mjs
-import { jsx as jsx3 } from "@exact/react-compat/jsx-runtime19";
+import { jsx as jsx3 } from "@exactjs/react-compat/jsx-runtime19";
 var DISMISSABLE_LAYER_NAME = "DismissableLayer";
 var CONTEXT_UPDATE = "dismissableLayer.update";
 var POINTER_DOWN_OUTSIDE = "dismissableLayer.pointerDownOutside";
@@ -1022,8 +1022,8 @@ function handleAndDispatchCustomEvent(name, handler, detail, { discrete }) {
 }
 
 // node_modules/@radix-ui/react-focus-scope/dist/index.mjs
-import * as React10 from "@exact/react-compat/react19";
-import { jsx as jsx4 } from "@exact/react-compat/jsx-runtime19";
+import * as React10 from "@exactjs/react-compat/react19";
+import { jsx as jsx4 } from "@exactjs/react-compat/jsx-runtime19";
 var AUTOFOCUS_ON_MOUNT = "focusScope.autoFocusOnMount";
 var AUTOFOCUS_ON_UNMOUNT = "focusScope.autoFocusOnUnmount";
 var EVENT_OPTIONS = { bubbles: false, cancelable: true };
@@ -1230,9 +1230,9 @@ function removeLinks(items) {
 }
 
 // node_modules/@radix-ui/react-portal/dist/index.mjs
-import * as React11 from "@exact/react-compat/react19";
-import * as ReactDOM2 from "@exact/react-dom-compat/react19";
-import { jsx as jsx5 } from "@exact/react-compat/jsx-runtime19";
+import * as React11 from "@exactjs/react-compat/react19";
+import * as ReactDOM2 from "@exactjs/react-dom-compat/react19";
+import { jsx as jsx5 } from "@exactjs/react-compat/jsx-runtime19";
 var PORTAL_NAME = "Portal";
 var Portal = React11.forwardRef((props, forwardedRef) => {
   const { container: containerProp, ...portalProps } = props;
@@ -1244,8 +1244,8 @@ var Portal = React11.forwardRef((props, forwardedRef) => {
 Portal.displayName = PORTAL_NAME;
 
 // node_modules/@radix-ui/react-presence/dist/index.mjs
-import * as React23 from "@exact/react-compat/react19";
-import * as React12 from "@exact/react-compat/react19";
+import * as React23 from "@exactjs/react-compat/react19";
+import * as React12 from "@exactjs/react-compat/react19";
 function useStateMachine(initialState, machine) {
   return React12.useReducer((state, event) => {
     const nextState = machine[state][event];
@@ -1416,7 +1416,7 @@ function getElementRef2(element) {
 }
 
 // node_modules/@radix-ui/react-focus-guards/dist/index.mjs
-import * as React13 from "@exact/react-compat/react19";
+import * as React13 from "@exactjs/react-compat/react19";
 var count2 = 0;
 var guards = null;
 function useFocusGuards() {
@@ -1486,10 +1486,10 @@ function __spreadArray(to, from2, pack) {
 }
 
 // node_modules/react-remove-scroll/dist/es2015/Combination.js
-import * as React20 from "@exact/react-compat/react19";
+import * as React20 from "@exactjs/react-compat/react19";
 
 // node_modules/react-remove-scroll/dist/es2015/UI.js
-import * as React16 from "@exact/react-compat/react19";
+import * as React16 from "@exactjs/react-compat/react19";
 
 // node_modules/react-remove-scroll-bar/dist/es2015/constants.js
 var zeroRightClassName = "right-scroll-bar-position";
@@ -1508,7 +1508,7 @@ function assignRef(ref, value) {
 }
 
 // node_modules/use-callback-ref/dist/es2015/useRef.js
-import { useState as useState7 } from "@exact/react-compat/react19";
+import { useState as useState7 } from "@exactjs/react-compat/react19";
 function useCallbackRef2(initialValue, callback) {
   var ref = useState7(function() {
     return {
@@ -1536,7 +1536,7 @@ function useCallbackRef2(initialValue, callback) {
 }
 
 // node_modules/use-callback-ref/dist/es2015/useMergeRef.js
-import * as React14 from "@exact/react-compat/react19";
+import * as React14 from "@exactjs/react-compat/react19";
 var useIsomorphicLayoutEffect = typeof window !== "undefined" ? React14.useLayoutEffect : React14.useEffect;
 var currentValues = /* @__PURE__ */ new WeakMap();
 function useMergeRefs(refs, defaultValue) {
@@ -1654,7 +1654,7 @@ function createSidecarMedium(options) {
 }
 
 // node_modules/use-sidecar/dist/es2015/exports.js
-import * as React15 from "@exact/react-compat/react19";
+import * as React15 from "@exactjs/react-compat/react19";
 var SideCar = function(_a) {
   var sideCar = _a.sideCar, rest = __rest(_a, ["sideCar"]);
   if (!sideCar) {
@@ -1708,13 +1708,13 @@ RemoveScroll.classNames = {
 };
 
 // node_modules/react-remove-scroll/dist/es2015/SideEffect.js
-import * as React19 from "@exact/react-compat/react19";
+import * as React19 from "@exactjs/react-compat/react19";
 
 // node_modules/react-remove-scroll-bar/dist/es2015/component.js
-import * as React18 from "@exact/react-compat/react19";
+import * as React18 from "@exactjs/react-compat/react19";
 
 // node_modules/react-style-singleton/dist/es2015/hook.js
-import * as React17 from "@exact/react-compat/react19";
+import * as React17 from "@exactjs/react-compat/react19";
 
 // node_modules/get-nonce/dist/es2015/index.js
 var currentNonce;
@@ -2295,7 +2295,7 @@ var hideOthers = function(originalTarget, parentNode, markerName) {
 };
 
 // node_modules/@radix-ui/react-dialog/dist/index.mjs
-import { Fragment as Fragment4, jsx as jsx6 } from "@exact/react-compat/jsx-runtime19";
+import { Fragment as Fragment4, jsx as jsx6 } from "@exactjs/react-compat/jsx-runtime19";
 var DIALOG_NAME = "Dialog";
 var [createDialogContext, createDialogScope] = createContextScope(DIALOG_NAME);
 var [DialogProvider, useDialogContext] = createDialogContext(DIALOG_NAME);
@@ -2556,8 +2556,8 @@ function getState(open) {
 }
 
 // node_modules/@emotion/react/dist/emotion-element-f0de968e.browser.esm.js
-import * as React25 from "@exact/react-compat/react19";
-import { useContext as useContext4, forwardRef as forwardRef10 } from "@exact/react-compat/react19";
+import * as React25 from "@exactjs/react-compat/react19";
+import { useContext as useContext4, forwardRef as forwardRef10 } from "@exactjs/react-compat/react19";
 
 // node_modules/@emotion/sheet/dist/emotion-sheet.esm.js
 var isDevelopment = false;
@@ -3628,7 +3628,7 @@ function serializeStyles(args, registered, mergedProps) {
 }
 
 // node_modules/@emotion/use-insertion-effect-with-fallbacks/dist/emotion-use-insertion-effect-with-fallbacks.browser.esm.js
-import * as React24 from "@exact/react-compat/react19";
+import * as React24 from "@exactjs/react-compat/react19";
 var syncFallback = function syncFallback2(create) {
   return create();
 };
@@ -3734,7 +3734,7 @@ var Emotion = /* @__PURE__ */ withEmotionCache(function(props, cache, ref) {
 var Emotion$1 = Emotion;
 
 // node_modules/@emotion/react/dist/emotion-react.browser.esm.js
-import * as React26 from "@exact/react-compat/react19";
+import * as React26 from "@exactjs/react-compat/react19";
 var import_hoist_non_react_statics = __toESM(require_hoist_non_react_statics_cjs());
 var jsx7 = function jsx8(type, props) {
   var args = arguments;
@@ -6248,8 +6248,8 @@ var QueryClient = class {
 };
 
 // node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js
-import * as React27 from "@exact/react-compat/react19";
-import { jsx as jsx9 } from "@exact/react-compat/jsx-runtime19";
+import * as React27 from "@exactjs/react-compat/react19";
+import { jsx as jsx9 } from "@exactjs/react-compat/jsx-runtime19";
 var QueryClientContext = React27.createContext(
   void 0
 );
@@ -6277,14 +6277,14 @@ var QueryClientProvider = ({
 };
 
 // node_modules/@tanstack/react-query/build/modern/IsRestoringProvider.js
-import * as React28 from "@exact/react-compat/react19";
+import * as React28 from "@exactjs/react-compat/react19";
 var IsRestoringContext = React28.createContext(false);
 var useIsRestoring = () => React28.useContext(IsRestoringContext);
 var IsRestoringProvider = IsRestoringContext.Provider;
 
 // node_modules/@tanstack/react-query/build/modern/QueryErrorResetBoundary.js
-import * as React29 from "@exact/react-compat/react19";
-import { jsx as jsx10 } from "@exact/react-compat/jsx-runtime19";
+import * as React29 from "@exactjs/react-compat/react19";
+import { jsx as jsx10 } from "@exactjs/react-compat/jsx-runtime19";
 function createValue() {
   let isReset = false;
   return {
@@ -6303,7 +6303,7 @@ var QueryErrorResetBoundaryContext = React29.createContext(createValue());
 var useQueryErrorResetBoundary = () => React29.useContext(QueryErrorResetBoundaryContext);
 
 // node_modules/@tanstack/react-query/build/modern/errorBoundaryUtils.js
-import * as React30 from "@exact/react-compat/react19";
+import * as React30 from "@exactjs/react-compat/react19";
 var ensurePreventErrorBoundaryRetry = (options, errorResetBoundary, query) => {
   const throwOnError = query?.state.error && typeof options.throwOnError === "function" ? shouldThrowError(options.throwOnError, [query.state.error, query]) : options.throwOnError;
   if (options.suspense || options.experimental_prefetchInRender || throwOnError) {
@@ -6349,7 +6349,7 @@ var fetchOptimistic = (defaultedOptions, observer, errorResetBoundary) => observ
 });
 
 // node_modules/@tanstack/react-query/build/modern/useBaseQuery.js
-import * as React31 from "@exact/react-compat/react19";
+import * as React31 from "@exactjs/react-compat/react19";
 function useBaseQuery(options, Observer, queryClient) {
   if (true) {
     if (typeof options !== "object" || Array.isArray(options)) {

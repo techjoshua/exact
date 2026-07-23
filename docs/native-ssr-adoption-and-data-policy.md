@@ -12,7 +12,7 @@ layer. It also records the intended relationship between:
 - Ordinary provider components and context propagation.
 - Paired component-package artifacts.
 - Raw HTML, scripts, URLs, CSP, and server patch safety.
-- Core compiler policy and the optional `@exact/secrets` package.
+- Core compiler policy and the optional `@exactjs/secrets` package.
 - Application and dependency permissions for secret consumption.
 - Compiler manifests and application-level policy audit reports.
 
@@ -67,12 +67,12 @@ direction.
 
 ### Native rendering and server protocol
 
-- `@exact/ssr` renders strings, HTML streams, document event streams, progressive
+- `@exactjs/ssr` renders strings, HTML streams, document event streams, progressive
   HTML streams, hydration bootstraps, client boundaries, and server slots.
-- `@exact/server` provides manifest-allowlisted action and boundary dispatch,
+- `@exactjs/server` provides manifest-allowlisted action and boundary dispatch,
   authorization and CSRF hooks, state/context contract validation, batching,
   streaming, cancellation, and resource ceilings.
-- `@exact/hydrate` adopts server DOM, hydrates client islands, applies atomic
+- `@exactjs/hydrate` adopts server DOM, hydrates client islands, applies atomic
   patches, rejects invalid patch topology, and falls back to boundary
   replacement when a refresh includes authoritative HTML.
 - Compiler manifests record component placement, call effects, action state and
@@ -81,7 +81,7 @@ direction.
 
 ### Request context
 
-`@exact/request` provides:
+`@exactjs/request` provides:
 
 - `RequestContext`.
 - A normalized URL, method, headers, abort signal, locale/trace hints, and
@@ -93,11 +93,11 @@ direction.
 - Router integration that prefers explicitly propagated server context and
   retains ambient storage as a convenience.
 
-`@exact/server` now owns the runtime-neutral application/request scope. It
+`@exactjs/server` now owns the runtime-neutral application/request scope. It
 normalizes every adapter request, initializes configured contexts before root
 setup or endpoint security, propagates one scope through actions, refreshes, and
 streams, and disposes request resources on completion, cancellation, or runtime
-shutdown. `@exact/ssr` exposes request-aware authoritative and streaming
+shutdown. `@exactjs/ssr` exposes request-aware authoritative and streaming
 response entrypoints that seed the same scope into component roots.
 
 ### Placement controls
@@ -165,7 +165,7 @@ Application code may consume its own secrets. A dependency that contains a
 `consume()` call must appear in the application's simple package allowlist;
 the permission belongs to the consuming code, not a later receiver.
 
-`@exact/secrets` provides transparent `Secret<T>` declarations, providers,
+`@exactjs/secrets` provides transparent `Secret<T>` declarations, providers,
 resolver lifecycle, direct application-owned `require()`/`optional()` access,
 and the `consume()` compiler boundary. Secret values are ordinary JavaScript
 values at runtime; compiler policy, rather than an opaque wrapper, provides the
@@ -924,7 +924,7 @@ The client artifact can attach its local island descriptor:
 
 ```ts
 const exactClientDescriptor: unique symbol = /* @__PURE__ */ Symbol.for(
-	'@exact/client-component-descriptor'
+	'@exactjs/client-component-descriptor'
 );
 
 function ProjectCardImplementation() {
@@ -949,7 +949,7 @@ descriptor:
 
 ```ts
 const exactServerDescriptor: unique symbol = /* @__PURE__ */ Symbol.for(
-	'@exact/server-component-descriptor'
+	'@exactjs/server-component-descriptor'
 );
 
 function ProjectCardImplementation() {
@@ -1379,7 +1379,7 @@ URLs, embedded content, client ownership, and plugin output.
 Renderer-produced HTML may use an internal trusted brand. Arbitrary string HTML
 requires validation or an explicit trusted extension contract.
 
-## Core Policy Versus `@exact/secrets`
+## Core Policy Versus `@exactjs/secrets`
 
 The generic mechanism is broader than secrets and belongs in the main
 compiler/runtime architecture.
@@ -1397,7 +1397,7 @@ compiler/runtime architecture.
 
 These capabilities must work even when no secret provider plugin is installed.
 
-### `@exact/secrets` responsibilities
+### `@exactjs/secrets` responsibilities
 
 - Transparent compiler-qualified `Secret<T>` declarations.
 - `secrets.require()` and `secrets.optional()`.
@@ -1944,7 +1944,7 @@ about unused package permissions.
 - A dependency containing `consume()` requires its package name in
   `secrets.allowPackages`; later receivers of the ordinary value do not.
 - Generic policy belongs in the core compiler/runtime architecture.
-- `@exact/secrets` remains the optional provider, resolver, transparent secret
+- `@exactjs/secrets` remains the optional provider, resolver, transparent secret
   declaration, consumption-boundary, and runtime integration package.
 - One component package contains shared, client, server, and manifest artifacts
   as required by its declaration graph.

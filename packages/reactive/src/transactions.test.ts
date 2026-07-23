@@ -9,7 +9,7 @@ import {
 	writeReactive
 } from './index.js';
 
-describe('@exact/reactive transactions', () => {
+describe('@exactjs/reactive transactions', () => {
 	it('deduplicates scheduling across a compiler-owned transaction', () => {
 		const state = reactive({ first: 0, second: 0 });
 		const scheduled = vi.fn();

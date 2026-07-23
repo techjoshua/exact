@@ -1,6 +1,6 @@
-import { createCompiledVNode as __exactVNode, createCompiledFragment as __exactFragment, createExpression as __exactExpression, createDynamicChild as __exactDynamic, writeReactiveLazy as __exactWrite, updateReactiveValue as __exactUpdate, updateReactiveValueWithResult as __exactUpdateResult, deleteReactiveValue as __exactDelete, mutateReactiveArray as __exactArrayMutation, taskAwait as __exactTaskAwait, createServerBoundary as __exactBoundary } from "@exact/core";
-import type { Component } from '@exact/core';
-const __exactServerComponentDescriptor_1 = /* @__PURE__ */ Symbol.for("@exact/server-component-descriptor");
+import { createCompiledVNode as __exactVNode, createCompiledFragment as __exactFragment, createExpression as __exactExpression, createDynamicChild as __exactDynamic, writeReactiveLazy as __exactWrite, updateReactiveValue as __exactUpdate, updateReactiveValueWithResult as __exactUpdateResult, deleteReactiveValue as __exactDelete, mutateReactiveArray as __exactArrayMutation, taskAwait as __exactTaskAwait, createServerBoundary as __exactBoundary } from "@exactjs/core";
+import type { Component } from '@exactjs/core';
+const __exactServerComponentDescriptor_1 = /* @__PURE__ */ Symbol.for("@exactjs/server-component-descriptor");
 /** Tracks the state owned by profile. */
 export type ProfileState = {
     saves: number;

@@ -1,12 +1,13 @@
-import { type Component, type Child } from '@exact/core';
+import { type Component, type Child } from '@exactjs/core';
 import {
 	Link,
 	NavLink,
 	Outlet,
 	Route,
+	RouteContext,
 	Router,
 	type LocationSource
-} from '@exact/router';
+} from '@exactjs/router';
 import { docGroups, docPages } from './docs-manifest.js';
 import { NotFoundPage } from './pages.jsx';
 
@@ -38,6 +39,7 @@ type LayoutState = {
 };
 
 function DocsLayout(this: Component<LayoutState>) {
+	const route = this.getContext(RouteContext);
 	this.state.theme = 'system';
 	this.state.mobileOpen = false;
 	this.state.searchOpen = false;
@@ -48,8 +50,15 @@ function DocsLayout(this: Component<LayoutState>) {
 		if (stored === 'light' || stored === 'dark') this.state.theme = stored;
 	});
 
-	const chooseTheme = (value: ThemePreference) => {
-		this.state.theme = value;
+	// Every route gets a fresh reading position, regardless of which link initiated navigation.
+	this.onMount(({ signal }) => {
+		const unsubscribe = route.router.subscribe(() => {
+			window.scrollTo(0, 0);
+		});
+		signal.addEventListener('abort', unsubscribe, { once: true });
+	});
+
+	const applyTheme = (value: ThemePreference) => {
 		if (value === 'system') {
 			document.documentElement.removeAttribute('data-theme');
 			localStorage.removeItem('exact-docs-theme');
@@ -108,9 +117,9 @@ function DocsLayout(this: Component<LayoutState>) {
 						<label className="theme-control">
 							<span>Appearance</span>
 							<select
-								value={this.state.theme}
-								onChange={(event: Event) => {
-									chooseTheme((event.currentTarget as HTMLSelectElement).value as ThemePreference);
+								value:change={this.state.theme}
+								onChange={() => {
+									applyTheme(this.state.theme);
 								}}
 							>
 								<option value="system">System</option>
@@ -143,7 +152,7 @@ function DocsLayout(this: Component<LayoutState>) {
 								</section>
 							))}
 						</nav>
-						<p className="sidebar-note">Experimental, carefully documented, and still being shaped.</p>
+						<p className="sidebar-note">Compiler-led components, from state to server boundaries.</p>
 					</aside>
 
 					<main id="article" className="content-panel" tabindex="-1">
@@ -161,10 +170,7 @@ function DocsLayout(this: Component<LayoutState>) {
 										autofocus
 										type="search"
 										placeholder="Search components, tasks, routing…"
-										value={this.state.query}
-										onInput={(event: Event) => {
-											this.state.query = (event.currentTarget as HTMLInputElement).value;
-										}}
+										value:input={this.state.query}
 									/>
 								</label>
 								<button

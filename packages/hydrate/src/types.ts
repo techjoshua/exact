@@ -4,8 +4,8 @@ import type {
 	ErrorReport,
 	Logger,
 	UnsafeHtmlAuditEvent
-} from '@exact/core';
-import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation';
+} from '@exactjs/core';
+import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type {
 	ExactInvocationKind,
 	ExactInvocationRequest,
@@ -13,7 +13,7 @@ import type {
 	ExactOperationResult,
 	ExactPatch,
 	ExactStateContract
-} from '@exact/server';
+} from '@exactjs/server';
 
 /** Configures hydrate. */
 export type HydrateOptions = {

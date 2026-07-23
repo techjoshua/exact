@@ -3,7 +3,7 @@ import {
 	attemptCleanup,
 	createCleanupFailure,
 	throwCleanupFailure
-} from '@exact/core';
+} from '@exactjs/core';
 import type { ComponentInstance, TaskObserver } from '../types.js';
 
 /** Creates a ssr owner. */

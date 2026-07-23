@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createExactServerManifest, handleExactRequest } from './index.js';
 import { context } from './test-support/server.js';
 
-describe('@exact/server actions', () => {
+describe('@exactjs/server actions', () => {
 	it('accepts equivalent action contracts independent of object key order', () => {
 		const base = {
 			id: 'save',

@@ -3,7 +3,7 @@
 ## Status
 
 This document is the decision-complete plan for a general eXact framework
-plugin system. `@exact/secrets` is its runtime/provider conformance consumer,
+plugin system. `@exactjs/secrets` is its runtime/provider conformance consumer,
 while generic residency, secret flow, package grants, and policy auditing live
 in the core compiler. The protocol must support future compiler, server,
 rendering, client, and testing plugins without adding plugin-specific hooks to
@@ -33,7 +33,7 @@ The design treats activated plugin packages and configuration contributors as tr
 
 ## Packages
 
-### `@exact/plugin-api`
+### `@exactjs/plugin-api`
 
 A lightweight, runtime-minimal protocol package containing:
 
@@ -45,9 +45,9 @@ A lightweight, runtime-minimal protocol package containing:
 - Package metadata parsing and validation helpers.
 - Authoring helpers used by plugin and framework package tests.
 
-Every plugin and every package participating in forwarding or plugin configuration must directly declare a compatible `@exact/plugin-api` dependency or optional dependency. Peer dependency alone is not sufficient for the participation marker.
+Every plugin and every package participating in forwarding or plugin configuration must directly declare a compatible `@exactjs/plugin-api` dependency or optional dependency. Peer dependency alone is not sufficient for the participation marker.
 
-### `@exact/config`
+### `@exactjs/config`
 
 Owns the canonical application configuration types and loader-facing helpers:
 
@@ -94,13 +94,13 @@ Vite, Webpack, Bun, CLI, SSR, server, hydration, and testing consume this shared
 Example:
 
 ```ts
-import { defineConfig } from '@exact/config';
-import { environmentSecrets } from '@exact/secrets/providers';
+import { defineConfig } from '@exactjs/config';
+import { environmentSecrets } from '@exactjs/secrets/providers';
 
 export default defineConfig({
 	pluginDiscovery: {
 		mode: 'trusted',
-		trustedPrefixes: ['@exact/', '@acme/'],
+		trustedPrefixes: ['@exactjs/', '@acme/'],
 		ignore: ['@acme/unused-framework']
 	},
 	plugins: {
@@ -151,7 +151,7 @@ export type ExactPluginDiscoveryConfig =
 	  };
 ```
 
-Omitting `pluginDiscovery` selects `trusted` mode with the default trusted prefix `@exact/`.
+Omitting `pluginDiscovery` selects `trusted` mode with the default trusted prefix `@exactjs/`.
 
 Package match entries are either:
 
@@ -172,7 +172,7 @@ A package participates when:
 1. It is a direct dependency of the application root or its canonical package name matches `trustedPackages` or `trustedPrefixes`.
 2. It is directly declared by the application or explicitly forwarded by a participating trusted package.
 3. It is not ignored.
-4. Its participation metadata and `@exact/plugin-api` version are valid.
+4. Its participation metadata and `@exactjs/plugin-api` version are valid.
 
 The application root is inherently trusted.
 
@@ -212,9 +212,9 @@ Example:
 
 ```json
 {
-	"name": "@exact/secrets",
+	"name": "@exactjs/secrets",
 	"dependencies": {
-		"@exact/plugin-api": "^1.0.0"
+		"@exactjs/plugin-api": "^1.0.0"
 	},
 	"exact": {
 		"plugin": {
@@ -253,21 +253,21 @@ Example application framework:
 {
 	"name": "@acme/app-framework",
 	"dependencies": {
-		"@exact/plugin-api": "^1.0.0",
-		"@exact/secrets": "^1.0.0"
+		"@exactjs/plugin-api": "^1.0.0",
+		"@exactjs/secrets": "^1.0.0"
 	},
 	"exact": {
 		"pluginForwarding": {
 			"schemaVersion": 1,
 			"include": {
-				"@exact/secrets": {
+				"@exactjs/secrets": {
 					"required": true
 				}
 			},
 			"ignore": []
 		},
 		"pluginConfiguration": {
-			"@exact/secrets": {
+			"@exactjs/secrets": {
 				"version": "^1.0.0",
 				"subpath": "./exact",
 				"export": "configureSecrets"
@@ -281,7 +281,7 @@ Forwarded children must be declared in the parent's `dependencies`, `optionalDep
 
 - Missing required dependencies or peers fail discovery.
 - Missing optional dependencies skip that forwarding edge.
-- Every forwarding participant must directly depend on a compatible `@exact/plugin-api`.
+- Every forwarding participant must directly depend on a compatible `@exactjs/plugin-api`.
 
 Any trusted participating package may declare one configuration transform for any active plugin. It does not need to forward, depend on, or declare a separate integration relationship with the target plugin.
 
@@ -325,7 +325,7 @@ Required branches cannot be silently pruned to resolve conflicts.
 Plugins augment the shared registry:
 
 ```ts
-declare module '@exact/config' {
+declare module '@exactjs/config' {
 	interface ExactPluginConfigRegistry {
 		secrets: SecretsPluginConfig;
 	}
@@ -335,7 +335,7 @@ declare module '@exact/config' {
 Discovery atomically generates `.exact/plugins.d.ts`:
 
 ```ts
-/// <reference types="@exact/secrets/config" />
+/// <reference types="@exactjs/secrets/config" />
 ```
 
 Rules:
@@ -492,7 +492,7 @@ Unknown namespaced directives fail compilation even when no matching plugin is i
 Secret residency uses the core `keep=secret` directive for custom declaration
 contracts. Standard secret sources carry that policy through `Secret<T>`.
 Consumption uses the compiler-recognized `consume()` function exported by
-`@exact/secrets`, not an annotation or namespaced plugin directive. The secrets
+`@exactjs/secrets`, not an annotation or namespaced plugin directive. The secrets
 package therefore does not install a compiler extension or define source/sink
 annotations.
 
@@ -509,7 +509,7 @@ Introduce a new compiler manifest version with:
 	"pluginRegistry": {
 		"fingerprint": "...",
 		"plugins": {
-			"@exact/secrets": {
+			"@exactjs/secrets": {
 				"version": "1.0.0",
 				"protocolVersion": "1.0.0",
 				"required": true,
@@ -518,7 +518,7 @@ Introduce a new compiler manifest version with:
 		}
 	},
 	"pluginData": {
-		"@exact/secrets": {}
+		"@exactjs/secrets": {}
 	}
 }
 ```
@@ -622,7 +622,7 @@ Never cache a partially resolved or failed registry.
 ### Phase 1: Shared graph and protocol packages
 
 - Extract reusable package graph and metadata validation from React compatibility.
-- Add `@exact/plugin-api` and `@exact/config`.
+- Add `@exactjs/plugin-api` and `@exactjs/config`.
 - Define strict plugin, forwarding, configuration, and capability schemas.
 
 ### Phase 2: Discovery and singleton registry
@@ -656,7 +656,7 @@ Never cache a partially resolved or failed registry.
 - Wire the shared registry into CLI, Vite, Webpack, Bun, artifact builds, SSR, server, hydration, and testing.
 - Add common caching, watching, reporting, and mismatch errors.
 
-### Phase 7: `@exact/secrets`
+### Phase 7: `@exactjs/secrets`
 
 - Implement secrets as the runtime/provider conformance plugin.
 - Use it to validate server provider configuration,
@@ -726,7 +726,7 @@ Never cache a partially resolved or failed registry.
 
 - Identical registry across CLI and all bundler hosts.
 - Config/type regeneration and HMR invalidation.
-- Reusable frameworks forwarding and configuring `@exact/secrets`.
+- Reusable frameworks forwarding and configuring `@exactjs/secrets`.
 - Two independent plugins configuring one another while both are active.
 - Plugin-free applications retain current behavior.
 
@@ -734,7 +734,7 @@ Never cache a partially resolved or failed registry.
 
 - Canonical config is `exact.config.ts`.
 - Default discovery mode is `trusted`.
-- `@exact/` is the initial default trusted prefix.
+- `@exactjs/` is the initial default trusted prefix.
 - There is one package ignore concept.
 - Any trusted participating package may configure any active plugin.
 - There is no forwarding-subtree configuration restriction or separate integration protocol.

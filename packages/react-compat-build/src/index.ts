@@ -5,4 +5,4 @@ export {
 	type ReactCompatibilityDiagnostic,
 	type ReactCompatibilityReport,
 	type ReactCompatibilityTransformResult
-} from '@exact/react-compat/build';
+} from '@exactjs/react-compat/build';

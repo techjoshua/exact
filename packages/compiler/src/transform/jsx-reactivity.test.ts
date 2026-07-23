@@ -1,7 +1,8 @@
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { transform } from '../index.js';
 
-describe('@exact/compiler: JSX reactivity', () => {
+describe('@exactjs/compiler: JSX reactivity', () => {
 	it('lowers shorthand and underscore fragments', () => {
 		const output = transform('const view = <_ key={id}><span /></_>; const next = <>tail</>;');
 
@@ -24,6 +25,123 @@ describe('@exact/compiler: JSX reactivity', () => {
 
 		expect(output).toContain('onClick: () => save()');
 		expect(output).toContain('disabled: __exactExpression(() => disabled)');
+	});
+
+	it('lowers typed form bindings to reactive props and direct binding handlers', () => {
+		const output = transform(
+			`declare class Component<S> { state: S }
+			function View(this: Component<{
+				name: string;
+				count: number | null;
+				enabled: boolean;
+				method: "ground" | "express";
+				tags: string[];
+				providers: ("ups" | "fedex")[] | null;
+				codes: number[];
+				birthday: Date | null;
+				nickname?: string;
+			}>) {
+				return () => <>
+					<input value:input={this.state.name} />
+					<input type="number" value:change={this.state.count} />
+					<input type="checkbox" checked:change={this.state.enabled} />
+					<input type="radio" value="ground" checked:change={this.state.method} />
+					<select multiple value:change={this.state.tags}><option value="a">A</option></select>
+					<input type="checkbox" value="ups" checked:change={this.state.providers} />
+					<input type="checkbox" value="2" checked:change={this.state.codes} />
+					<input type="date" value:change={this.state.birthday} />
+					<input value:input={this.state.nickname} />
+				</>;
+			}`,
+			{ filename: path.resolve(import.meta.dirname, 'binding-feature-fixture.tsx') }
+		);
+
+		expect(output).toContain('value: __exactExpression(() => this.state.name ?? "")');
+		expect(output).toContain('this.state.name = event.currentTarget.value');
+		expect(output).toContain(
+			'event.currentTarget.value === "" ? null : event.currentTarget.valueAsNumber'
+		);
+		expect(output).toContain('Number.isNaN(this.state.count) ? "" : String(this.state.count)');
+		expect(output).toContain('checked: __exactExpression(() => this.state.enabled ?? false)');
+		expect(output).toContain('this.state.enabled = event.currentTarget.checked');
+		expect(output).toContain('checked: __exactExpression(() => this.state.method === "ground")');
+		expect(output).toContain('Array.from(event.currentTarget.selectedOptions');
+		expect(output).toContain(
+			'checked: __exactExpression(() => (this.state.providers ?? []).includes("ups"))'
+		);
+		expect(output).toContain('const value = event.currentTarget.value as any;');
+		expect(output).toContain(
+			'const next = event.currentTarget.checked ? values.includes(value) ? values : [...values, value] : values.filter(item => item !== value);'
+		);
+		expect(output).toContain('this.state.providers = next.length ? next : null;');
+		expect(output).toContain(
+			'checked: __exactExpression(() => (this.state.codes ?? []).includes(Number("2")))'
+		);
+		expect(output).toContain('const value = Number(event.currentTarget.value);');
+		expect(output).toContain(
+			'event.currentTarget.value === "" ? null : event.currentTarget.valueAsDate'
+		);
+		expect(output).toContain(
+			'event.currentTarget.value === "" ? undefined : event.currentTarget.value'
+		);
+		expect(output).toContain('__exactBindInput:');
+		expect(output).toContain('__exactBindChange:');
+		expect(output).not.toContain('"value:input"');
+		expect(output).not.toContain('"checked:change"');
+	});
+
+	it('requires checkbox array bindings to declare a value', () => {
+		expect(() =>
+			transform(
+				`declare class Component<S> { state: S }
+				 function View(this: Component<{ tags: string[] }>) {
+					return () => <input type="checkbox" checked:change={this.state.tags} />;
+				 }`,
+				{ filename: 'InvalidCheckboxBinding.tsx' }
+			)
+		).toThrow(/checkbox array bindings require an explicit value prop/);
+	});
+
+	it('rejects derived and conflicting form bindings', () => {
+		expect(() =>
+			transform(
+				`declare class Component<S> { state: S }
+			 function View(this: Component<{ first: string; last: string }>) {
+				return () => <input value="fixed" value:input={\`\${this.state.first} \${this.state.last}\`} />;
+			 }`,
+				{ filename: 'InvalidBinding.tsx' }
+			)
+		).toThrow(/value:input requires one writable reactive location/);
+	});
+
+	it('rejects removed and incompatible binding spellings', () => {
+		expect(() =>
+			transform(
+				`declare class Component<S> { state: S }
+				 function View(this: Component<{ name: string }>) {
+					return () => <input bindInput={this.state.name} />;
+				 }`,
+				{ filename: 'RemovedBinding.tsx' }
+			)
+		).toThrow(/bindInput and bindChange were removed/);
+		expect(() =>
+			transform(
+				`declare class Component<S> { state: S }
+				 function View(this: Component<{ enabled: boolean }>) {
+					return () => <input type="checkbox" value:change={this.state.enabled} />;
+				 }`,
+				{ filename: 'WrongPropertyBinding.tsx' }
+			)
+		).toThrow(/value:change is not supported.*checked:change/);
+		expect(() =>
+			transform(
+				`declare class Component<S> { state: S }
+				 function View(this: Component<{ status: string }>) {
+					return () => <select value:input={this.state.status} />;
+				 }`,
+				{ filename: 'WrongEventBinding.tsx' }
+			)
+		).toThrow(/value:input is not supported.*value:change/);
 	});
 
 	it('preserves ref bindings as direct values', () => {

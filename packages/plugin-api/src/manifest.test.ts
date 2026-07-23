@@ -57,12 +57,12 @@ describe('plugin package manifests', () => {
 	it('recognizes direct runtime and optional marker dependencies', () => {
 		expect(
 			packageDirectlyDependsOnPluginApi({
-				optionalDependencies: { '@exact/plugin-api': '^1.0.0' }
+				optionalDependencies: { '@exactjs/plugin-api': '^1.0.0' }
 			})
 		).toBe(true);
 		expect(
 			packageDirectlyDependsOnPluginApi({
-				peerDependencies: { '@exact/plugin-api': '^1.0.0' }
+				peerDependencies: { '@exactjs/plugin-api': '^1.0.0' }
 			})
 		).toBe(false);
 	});

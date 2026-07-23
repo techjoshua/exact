@@ -2,7 +2,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { transform, transformSource } from '../index.js';
 
-describe('@exact/compiler: transform', () => {
+describe('@exactjs/compiler: transform', () => {
 	it('lowers annotated object and primitive Array.map JSX to keyed framework lists', () => {
 		const output = transform(`
       type Task = { /** @exact key */ id: string; title: string };
@@ -134,7 +134,10 @@ describe('@exact/compiler: transform', () => {
     }`,
 			{ filename }
 		);
-		expect(output.match(/\(event: Event\)/g)).toHaveLength(2);
+		expect(output).toContain('JSX.TargetedEvent<HTMLFormElement, SubmitEvent>');
+		expect(output).toContain('JSX.TargetedEvent<HTMLInputElement, Event>');
+		expect(output).toContain('import("@exactjs/jsx/jsx-runtime")');
+		expect(output).not.toContain('packages/jsx-runtime/dist/jsx-runtime');
 	});
 
 	it('lowers recognized component state writes to conditional runtime helpers', () => {

@@ -1,6 +1,6 @@
-import { createConsoleLogger, LoggerContext, type Component, type Logger } from '@exact/core';
-import { px } from '@exact/dom';
-import { _ } from '@exact/jsx';
+import { createConsoleLogger, LoggerContext, type Component, type Logger } from '@exactjs/core';
+import { px } from '@exactjs/dom';
+import { _ } from '@exactjs/jsx';
 import { BoardContext } from '../context.js';
 import { columns, createTask, loadTasks, storageKey } from '../data.js';
 import type { BoardServices, BoardState, Status, Task } from '../types.js';

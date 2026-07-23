@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  */
-import { createErrorContext, ErrorContext } from '@exact/core';
-import { render } from '@exact/dom';
-import { testComponent } from '@exact/testing';
+import { createErrorContext, ErrorContext } from '@exactjs/core';
+import { render } from '@exactjs/dom';
+import { testComponent } from '@exactjs/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { Field, FieldError, FieldHelp, Form, Input, Label } from './index.js';
 

@@ -1,4 +1,4 @@
-import { createContext } from '@exact/core';
+import { createContext } from '@exactjs/core';
 import type { BoardServices } from './types.js';
 
 /** Provides the canonical board context value. */

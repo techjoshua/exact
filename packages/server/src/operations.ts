@@ -1,5 +1,5 @@
-import { logFrameworkEvent } from '@exact/core';
-import { processExactOutputSync } from '@exact/plugin-host/runtime';
+import { logFrameworkEvent } from '@exactjs/core';
+import { processExactOutputSync } from '@exactjs/plugin-host/runtime';
 import { jsonResponse } from './protocol.js';
 import type {
 	ExactBatchRequest,

@@ -1,4 +1,4 @@
-import { type PackageManifestLike } from '@exact/react-compat-adapter-api';
+import { type PackageManifestLike } from '@exactjs/react-compat-adapter-api';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { ReactCompatPackageGraph, ReactCompatPackageNode } from './contracts.js';

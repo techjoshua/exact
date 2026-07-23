@@ -1,5 +1,5 @@
 import { packagePresets } from '../../model.js';
-import type { ProviderId, ShipmentDraft } from '../../types.js';
+import type { ShipmentDraft } from '../../types.js';
 import type { WorkspaceState } from './contracts.js';
 
 /** Creates draft and provider-filter event handlers bound to one workspace state object. */
@@ -25,13 +25,7 @@ export function createWorkspaceInputs(state: WorkspaceState) {
 		Object.assign(state.draft, packagePresets[preset], { preset });
 		state.revision++;
 	};
-	const toggleProvider = (id: ProviderId, event: Event) => {
-		const include = (event.currentTarget as HTMLInputElement).checked;
-		state.enabledFilters = include
-			? [...new Set([...state.enabledFilters, id])]
-			: state.enabledFilters.filter((item) => item !== id);
-	};
-	return { change, text, checked, select, applyPreset, toggleProvider };
+	return { change, text, checked, select, applyPreset };
 }
 
 /** Performs the delay domain operation. */

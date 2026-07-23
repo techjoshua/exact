@@ -2,7 +2,7 @@ import {
 	createCompilerSession,
 	type ExactCompilerSession,
 	type ExactCompilerSessionOptions
-} from '@exact/compiler';
+} from '@exactjs/compiler';
 
 const sessions = new Map<string, ExactCompilerSession>();
 let nextSessionId = 0;

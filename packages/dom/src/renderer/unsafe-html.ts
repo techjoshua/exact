@@ -1,4 +1,4 @@
-import { unwrap, watch } from '@exact/core';
+import { unwrap, watch } from '@exactjs/core';
 import type { Mounted, Root } from '../types.js';
 
 /** Validates unsafe html allowed and throws when the contract is violated. */

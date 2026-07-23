@@ -2,7 +2,7 @@ import {
 	prepareExactPluginRegistry,
 	type ExactPreparedPluginRegistry,
 	type PrepareExactPluginRegistryOptions
-} from '@exact/plugin-host/node';
+} from '@exactjs/plugin-host/node';
 
 /** Prepares plugin testing projections and lifecycle extensions. */
 export function prepareExactTestingPlugins(

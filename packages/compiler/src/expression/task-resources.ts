@@ -1,4 +1,4 @@
-import type { BoundModule, NodeRef, Variable } from '@exact/expressions';
+import type { BoundModule, NodeRef, Variable } from '@exactjs/expressions';
 
 import { exactCleanupForCall, exactOwnsReturn } from '../annotations.js';
 

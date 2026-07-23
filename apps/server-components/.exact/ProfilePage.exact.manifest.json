@@ -55,7 +55,7 @@
         "kind": "import",
         "nodeStart": 14,
         "nodeEnd": 23,
-        "moduleSpecifier": "@exact/core",
+        "moduleSpecifier": "@exactjs/core",
         "importedName": "Component",
         "typeOnly": true
       },
@@ -103,7 +103,7 @@
         "nodeEnd": 282,
         "declarationId": "apps/server-components/src/profilepage.tsx::ImportSpecifier#0:Component",
         "declarationKind": "import",
-        "moduleSpecifier": "@exact/core",
+        "moduleSpecifier": "@exactjs/core",
         "importedName": "Component",
         "typeOnly": true
       },
@@ -427,7 +427,7 @@
     ],
     "secretConsumers": []
   },
-  "packageName": "@exact/sample-server-components",
+  "packageName": "@exactjs/sample-server-components",
   "serverActions": {
     "x3JLureiZflgJmddVWOBoBF": {
       "id": "x3JLureiZflgJmddVWOBoBF",

@@ -7,13 +7,13 @@ import {
 	createExpression,
 	type Child,
 	type Component
-} from '@exact/core';
-import { jsx, jsxs } from '@exact/jsx';
-import { flushSync } from '@exact/reactive';
+} from '@exactjs/core';
+import { jsx, jsxs } from '@exactjs/jsx';
+import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from './index.js';
 
-describe('@exact/dom component-props', () => {
+describe('@exactjs/dom component-props', () => {
 	it('updates a derived prop collection when a canonical record changes membership', () => {
 		const container = document.createElement('div');
 		let board!: Component<{ tasks: { id: string; status: string }[] }>;

@@ -11,13 +11,33 @@ import {
 	type ErrorReport,
 	type LogEvent,
 	type Logger
-} from '@exact/core';
-import { jsx } from '@exact/jsx';
-import { flushSync, watch } from '@exact/reactive';
+} from '@exactjs/core';
+import { jsx } from '@exactjs/jsx';
+import { flushSync, watch } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
-import { render } from './index.js';
+import { render, unmount } from './index.js';
 
-describe('@exact/dom events-errors', () => {
+describe('@exactjs/dom events-errors', () => {
+	it('runs binding listeners before delegated user handlers and removes them on unmount', () => {
+		const container = document.createElement('div');
+		const calls: string[] = [];
+		const binding = vi.fn(() => calls.push('binding'));
+		render(
+			jsx('input', {
+				__exactBindChange: binding,
+				onChange: () => calls.push('user')
+			}),
+			container
+		);
+		const input = container.querySelector('input')!;
+		input.dispatchEvent(new Event('change', { bubbles: true }));
+		expect(calls).toEqual(['binding', 'user']);
+
+		unmount(container);
+		input.dispatchEvent(new Event('change', { bubbles: true }));
+		expect(binding).toHaveBeenCalledOnce();
+	});
+
 	it('normalizes JSX double-click handlers to the browser dblclick event', () => {
 		const container = document.createElement('div');
 		let calls = 0;

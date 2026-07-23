@@ -1,5 +1,5 @@
 import { build } from 'vite';
-import { exact } from '@exact/vite-plugin';
+import { exact } from '@exactjs/vite-plugin';
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -46,10 +46,22 @@ await build({
 	}
 });
 
-const { renderStatic } = await import(
+const { renderStatic, renderStaticPages } = await import(
 	`${pathToFileURL(join(serverRoot, 'entry-server.mjs')).href}?t=${Date.now()}`
 );
 const rendered = await renderStatic();
+const renderedPages = renderStaticPages();
+for (const page of renderedPages) {
+	if (page.html.includes('That page is not in this map.')) {
+		throw new Error(`Documentation route ${page.path} rendered the not-found page.`);
+	}
+	if (page.html.includes('Application error')) {
+		throw new Error(`Documentation route ${page.path} rendered an application error.`);
+	}
+	if (page.html.includes('&amp;gt;') || page.html.includes('&amp;lt;')) {
+		throw new Error(`Documentation route ${page.path} contains double-encoded code.`);
+	}
+}
 const clientHtml = await readFile(join(clientRoot, 'index.html'), 'utf8');
 const assets = await readdir(join(clientRoot, 'assets'));
 const scriptName = assets.find((name) => name.endsWith('.js'));
@@ -89,8 +101,9 @@ if (files.length !== 1 || files[0] !== 'index.html') {
 if (/<script[^>]+\bsrc=/i.test(documentHtml) || /<link[^>]+\brel=["']stylesheet["']/i.test(documentHtml)) {
 	throw new Error('The standalone documentation still contains an external script or stylesheet.');
 }
-if (!documentHtml.includes('Reactive interfaces with ordinary TypeScript') || !documentHtml.includes('exact:')) {
+if (!documentHtml.includes('Write the component. Do not rerun it.') || !documentHtml.includes('exact:')) {
 	throw new Error('The standalone documentation is missing prerendered content or hydration markers.');
 }
 
 console.log(`Built standalone documentation: dist/index.html (${documentHtml.length} bytes)`);
+console.log(`Verified ${renderedPages.length} documentation routes.`);

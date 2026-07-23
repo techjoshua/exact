@@ -3,7 +3,7 @@ import { handleExactRequest } from './index.js';
 import { dispatchExactBatch } from './streaming.js';
 import { context, readNextStreamLine, readRemainingStreamEvents } from './test-support/server.js';
 
-describe('@exact/server batching', () => {
+describe('@exactjs/server batching', () => {
 	it('dispatches batched operations with independent ordered results', async () => {
 		const result = await handleExactRequest(
 			{

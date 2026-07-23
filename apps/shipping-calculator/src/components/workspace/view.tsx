@@ -1,5 +1,5 @@
 import { rankQuotes } from '../../model.js';
-import type { InitialModel, QuoteSort } from '../../types.js';
+import type { InitialModel } from '../../types.js';
 import { RateCard, RouteMap, capitalize, providerName } from '../presentation.js';
 import type { WorkspaceState } from './contracts.js';
 import type { createWorkspaceInputs } from './inputs.js';
@@ -10,7 +10,7 @@ export function renderWorkspace(
 	props: { initial: InitialModel },
 	inputs: ReturnType<typeof createWorkspaceInputs>
 ) {
-	const { change, text, checked, select, applyPreset, toggleProvider } = inputs;
+	const { change, text, checked, select, applyPreset } = inputs;
 	const visibleProviders = state.providers.filter((provider) =>
 		state.enabledFilters.includes(provider.providerId)
 	);
@@ -21,7 +21,7 @@ export function renderWorkspace(
 	return (
 		<section className="calculator" aria-label="Shipping calculator">
 			<div className="calculator-grid">
-				<form className="shipment-card" onSubmit={(event: Event) => event.preventDefault()}>
+				<form className="shipment-card" onSubmit={(event) => event.preventDefault()}>
 					<div className="section-heading">
 						<div>
 							<p className="step">01</p>
@@ -282,10 +282,7 @@ export function renderWorkspace(
 							<label>
 								Sort
 								<select
-									value={state.sort}
-									onChange={(event: Event) => {
-										state.sort = (event.currentTarget as HTMLSelectElement).value as QuoteSort;
-									}}
+									value:change={state.sort}
 								>
 									<option value="recommended">Recommended</option>
 									<option value="cheapest">Cheapest</option>
@@ -298,8 +295,8 @@ export function renderWorkspace(
 									<label>
 										<input
 											type="checkbox"
-											checked={state.enabledFilters.includes(id)}
-											onChange={(event: Event) => toggleProvider(id, event)}
+											value={id}
+											checked:change={state.enabledFilters}
 										/>
 										{providerName(id)}
 									</label>

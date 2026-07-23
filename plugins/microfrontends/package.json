@@ -1,6 +1,6 @@
 {
-	"name": "@exact/microfrontends",
-	"version": "0.0.0",
+	"name": "@exactjs/microfrontends",
+	"version": "0.1.0",
 	"type": "module",
 	"files": [
 		"dist",
@@ -48,17 +48,17 @@
 	"types": "./dist/index.d.ts",
 	"sideEffects": false,
 	"dependencies": {
-		"@exact/compiler": "file:../../packages/compiler",
-		"@exact/config": "file:../../packages/config",
-		"@exact/core": "file:../../packages/core",
-		"@exact/hydrate": "file:../../packages/hydrate",
-		"@exact/plugin-api": "file:../../packages/plugin-api",
-		"@exact/server": "file:../../packages/server",
+		"@exactjs/compiler": "^0.1.0",
+		"@exactjs/config": "^0.1.0",
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/hydrate": "^0.1.0",
+		"@exactjs/plugin-api": "^0.1.0",
+		"@exactjs/server": "^0.1.0",
 		"typescript": "^5.7.2"
 	},
 	"devDependencies": {
-		"@exact/dom": "file:../../packages/dom",
-		"@exact/ssr": "file:../../packages/ssr",
+		"@exactjs/dom": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0",
 		"@types/node": "^22.10.2",
 		"vite": "^5.0.0"
 	},
@@ -77,5 +77,8 @@
 		"build": "tsc -b",
 		"test": "vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }

@@ -1,4 +1,4 @@
-import type { Component } from '@exact/core';
+import type { Component } from '@exactjs/core';
 import { CodeBlock } from './CodeBlock.jsx';
 
 type LogoOp = 'forward' | 'back' | 'left' | 'right' | 'penup' | 'pendown' | 'home' | 'clear' | 'color';
@@ -150,11 +150,9 @@ export function LogoLab(this: Component<LogoState>) {
 					<label>
 						Preset
 						<select
-							value={this.state.preset}
-							onChange={(event: Event) => {
-								const value = (event.currentTarget as HTMLSelectElement).value;
-								this.state.preset = value;
-								this.state.source = presets[value]!;
+							value:change={this.state.preset}
+							onChange={() => {
+								this.state.source = presets[this.state.preset]!;
 								compile();
 							}}
 						>
@@ -192,9 +190,8 @@ export function LogoLab(this: Component<LogoState>) {
 						<textarea
 							id="logo-source"
 							spellcheck="false"
-							value={this.state.source}
-							onInput={(event: Event) => {
-								this.state.source = (event.currentTarget as HTMLTextAreaElement).value;
+							value:input={this.state.source}
+							onInput={() => {
 								this.state.preset = '';
 								compile();
 							}}

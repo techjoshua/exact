@@ -8,7 +8,7 @@ import {
 	type Logger
 } from './index.js';
 
-describe('@exact/core logging', () => {
+describe('@exactjs/core logging', () => {
 	it('provides a default component logger', () => {
 		const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
 

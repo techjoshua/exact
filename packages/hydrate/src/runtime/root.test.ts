@@ -7,8 +7,8 @@ import {
 	createVNode,
 	type Component,
 	type ComponentInstance
-} from '@exact/core';
-import { render, unmount } from '@exact/dom';
+} from '@exactjs/core';
+import { render, unmount } from '@exactjs/dom';
 import { describe, expect, it } from 'vitest';
 import { createExactClient, requestClientForComponentDomain } from './client.js';
 import { createExactRoot } from './root.js';

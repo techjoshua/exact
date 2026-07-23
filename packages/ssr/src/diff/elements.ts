@@ -1,4 +1,4 @@
-import type { ExactPatch } from '@exact/server';
+import type { ExactPatch } from '@exactjs/server';
 import type { BoundaryRefreshOptions } from '../types.js';
 import {
 	collectExactElementEntries,

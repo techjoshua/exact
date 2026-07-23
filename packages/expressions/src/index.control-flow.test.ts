@@ -5,7 +5,7 @@ import { createExpressionProject } from './test-support/project.js';
 const root = path.resolve(import.meta.dirname, '../../..');
 const kanbanConfig = path.join(root, 'apps/kanban/tsconfig.json');
 
-describe('@exact/expressions: control flow', () => {
+describe('@exactjs/expressions: control flow', () => {
 	it('builds immutable control-flow graphs with branch and terminal edges', () => {
 		const project = createExpressionProject({ tsconfigPath: kanbanConfig });
 		const filename = path.join(root, 'apps/kanban/src/__control_flow.ts');

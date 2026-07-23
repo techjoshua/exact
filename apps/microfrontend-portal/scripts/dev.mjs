@@ -2,8 +2,8 @@ import { execFileSync } from 'node:child_process';
 import { createServer as createHttpServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createExactNodeHandler } from '@exact/node-adapter';
-import { exact } from '@exact/vite-plugin';
+import { createExactNodeHandler } from '@exactjs/node-adapter';
+import { exact } from '@exactjs/vite-plugin';
 import { createServer as createViteServer } from 'vite';
 
 const sampleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -90,7 +90,7 @@ async function remoteAssets(name, port) {
 
 function sharedAlias() {
 	return {
-		'@exact/sample-microfrontend-portal/shared': path.join(sampleRoot, 'src', 'shared.ts')
+		'@exactjs/sample-microfrontend-portal/shared': path.join(sampleRoot, 'src', 'shared.ts')
 	};
 }
 

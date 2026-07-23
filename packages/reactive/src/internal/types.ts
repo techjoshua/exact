@@ -64,7 +64,7 @@ export type WatchOptions = {
 	onSchedule?(): void;
 	onError?(error: unknown): void;
 };
-import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation';
+import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 
 /** Reports an observable reactive profile event. */
 export type ReactiveProfileEvent = ExactProfileEvent<'reactive', 'flush'>;

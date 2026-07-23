@@ -14,8 +14,8 @@ import {
 	type Child,
 	type ComponentInstance,
 	type VNode
-} from '@exact/core';
-import { type EffectScope } from '@exact/reactive';
+} from '@exactjs/core';
+import { type EffectScope } from '@exactjs/reactive';
 import {
 	getComponentProps,
 	getListBinding,

@@ -4,19 +4,19 @@ eXact is an experimental TypeScript web framework built around reactive state, c
 
 The repository is an npm workspace monorepo. The current implementation slice contains:
 
-- `@exact/reactive`: reactive proxies, refs, tracking, batching, `unwrap`, `peek`, computed values, and snapshots.
-- `@exact/core`: component instances, readonly props, context, refs, tasks, lifecycle hooks, vnodes, and `this.map()`.
-- `@exact/jsx`: TypeScript JSX entrypoints and JSX namespace types used by the compiler toolchain.
-- `@exact/dom`: browser mounting, DOM patching, delegated events, DOM refs, and keyed list reconciliation.
-- `@exact/compiler`: eXact JSX/TSX transform core for expression-preserving compiled JSX.
-- `@exact/ssr`: server-side HTML rendering with hydration boundary markers.
-- `@exact/hydrate`: client hydration entrypoint and server patch application.
-- `@exact/server`: adapter-neutral secure server-component/action request handling.
-- `@exact/vite-plugin`: Vite integration for the eXact compiler.
-- `@exact/webpack-plugin`: Webpack integration for the eXact compiler.
-- `@exact/bun-plugin`: Bun integration for the eXact compiler.
+- `@exactjs/reactive`: reactive proxies, refs, tracking, batching, `unwrap`, `peek`, computed values, and snapshots.
+- `@exactjs/core`: component instances, readonly props, context, refs, tasks, lifecycle hooks, vnodes, and `this.map()`.
+- `@exactjs/jsx`: TypeScript JSX entrypoints and JSX namespace types used by the compiler toolchain.
+- `@exactjs/dom`: browser mounting, DOM patching, delegated events, DOM refs, and keyed list reconciliation.
+- `@exactjs/compiler`: eXact JSX/TSX transform core for expression-preserving compiled JSX.
+- `@exactjs/ssr`: server-side HTML rendering with hydration boundary markers.
+- `@exactjs/hydrate`: client hydration entrypoint and server patch application.
+- `@exactjs/server`: adapter-neutral secure server-component/action request handling.
+- `@exactjs/vite-plugin`: Vite integration for the eXact compiler.
+- `@exactjs/webpack-plugin`: Webpack integration for the eXact compiler.
+- `@exactjs/bun-plugin`: Bun integration for the eXact compiler.
 
-Each package publishes a single public entrypoint today, except `@exact/compiler`, which also exposes the `exactc` CLI entrypoint. Browser rendering is intentionally exported from `@exact/dom`; platform-neutral component APIs live in `@exact/core`.
+Each package publishes a single public entrypoint today, except `@exactjs/compiler`, which also exposes the `exactc` CLI entrypoint. Browser rendering is intentionally exported from `@exactjs/dom`; platform-neutral component APIs live in `@exactjs/core`.
 
 ## Current API Contract
 
@@ -34,7 +34,7 @@ The current contract is intentionally small:
 - Context is descendant-scoped and is the service mechanism for logging, error handling, and app services.
 - Errors flow through `ErrorContext`; boundaries are normal components that provide a new error context.
 - The compiler rejects setup-time reactive snapshots captured by unmanaged async callbacks. Direct component-setup listeners on `window`, `document`, and `globalThis` are automatically moved into abort-owned client lifecycle tasks; nested unmanaged callbacks must use `this.task.client(...)`. Use `peek(() => value)` when an intentional snapshot is required.
-- Browser rendering, DOM patching, DOM refs, delegated events, and CSS helpers live in `@exact/dom`.
+- Browser rendering, DOM patching, DOM refs, delegated events, and CSS helpers live in `@exactjs/dom`.
 
 The conformance suite in `packages/dom/src/conformance.test.ts` is the executable version of that contract. It covers reactive DOM bindings, keyed list identity, context overrides, error boundaries, logging overrides, and DOM refs.
 
@@ -53,80 +53,99 @@ npm run dev:kanban
 npm run build:kanban
 ```
 
+## Package Releases
+
+Public `@exactjs/*` packages use one synchronized version. Internal dependencies use ordinary
+semver ranges, so npm links matching local workspaces during development and preserves
+registry-valid dependencies in published packages.
+
+Prepare a version change from the workspace root:
+
+```sh
+npm run version:packages -- --version=0.2.0
+npm install --package-lock-only --ignore-scripts
+npm run check:publish
+```
+
+The version command updates every public package, every internal dependency range, and public
+scope access together. `check:publish` rejects version drift and local dependency protocols
+before dry-packing every public package. Private applications and fixtures remain outside the
+published version set.
+
 ## Public Package Surface
 
 The package entrypoints are:
 
-- `@exact/reactive`
+- `@exactjs/reactive`
   - App/library surface: `reactive`, `computed`, `unwrap`, `peek`, `ref`, `subscribe`, `watch`, `flushSync`, `snapshot`, `isReactive`.
   - Types: `Reactive`, `ReactiveRef`, `ReactiveValue`, `ReactiveOptions`, `StopHandle`.
-- `@exact/core`
+- `@exactjs/core`
   - App surface: `Component`, `Child`, `ContextToken`, `createContext`, `createRef`, `LoggerContext`, `createConsoleLogger`, `ErrorContext`, `createErrorContext`, logging and error types.
   - Framework/lower-level surface used by eXact packages and tests: vnode creation, component instance creation/rendering, compiled JSX helpers, and framework logging/error routing hooks.
-- `@exact/request`
+- `@exactjs/request`
   - Ambient request URL and redirect context for SSR, with pluggable storage and a Node `AsyncLocalStorage` adapter.
-- `@exact/router`
+- `@exactjs/router`
   - Nested history/hash routing through `Router`, `Route`, `Outlet`, `Link`, `NavLink`, `Navigate`, and `RouteContext`.
-- `@exact/forms`
+- `@exactjs/forms`
   - Accessible field composition and native/callback validation through `FormContext` and `FieldContext`.
-- `@exact/testing`
+- `@exactjs/testing`
   - Fluent component instances, state/context inspection, accessible DOM queries, user events, task settling, and Vitest/Jest matchers.
-- `@exact/jsx`
+- `@exactjs/jsx`
   - Root exports: `jsx`, `jsxs`, `Fragment`, `_`.
-  - Automatic JSX subpaths: `@exact/jsx/jsx-runtime` and `@exact/jsx/jsx-dev-runtime`.
+  - Automatic JSX subpaths: `@exactjs/jsx/jsx-runtime` and `@exactjs/jsx/jsx-dev-runtime`.
   - Keyed fragment marker: `_`.
   - JSX namespace types.
-- `@exact/dom`
+- `@exactjs/dom`
   - Browser app surface: `render(vnode, container, options?)`.
   - CSS helper surface: `px`, `rem`, `em`, `percent`, `vh`, `vw`, `vmin`, `vmax`, `fr`, `ms`, `s`, `deg`, `rad`, `turn`.
-- `@exact/compiler`
+- `@exactjs/compiler`
   - Build-tool surface: `createCompilerSession`, `transform`, `transformSource`, `compileFile`, `compileProject`, `compileFileArtifacts`, `compileProjectArtifacts`, `createExactArtifactPlan`, `diffExactArtifactPlans`, `createExactArtifactDevState`, `updateExactArtifactDevState`, `readExactArtifactManifestEntries`, `exactExportConditions`, `resolveExactArtifactImport`, `createExactArtifactGraph`, `createPackageExportMap`, `createExactHydrationRegistrationModule`, the compatibility registry helpers, and `preprocessPropPunning`.
   - Semantic surface: `analyzeSource` and emitted manifests for component/task placement planning.
   - CLI: `exactc`.
-- `@exact/plugin-host`
-  - Runtime-safe surface: output transforms/validation and plugin resource lifecycle helpers. `@exact/plugin-host/runtime` is the explicit alias for this same platform-neutral surface.
-  - Node preparation surface: `@exact/plugin-host/node` owns package discovery, configuration loading, registry preparation/invalidation, and generated plugin types.
-  - Treat `@exact/plugin-host/node` as external when bundling build tooling; it intentionally loads application configuration and plugin entrypoints through the native Node module loader.
-- `@exact/ssr`
+- `@exactjs/plugin-host`
+  - Runtime-safe surface: output transforms/validation and plugin resource lifecycle helpers. `@exactjs/plugin-host/runtime` is the explicit alias for this same platform-neutral surface.
+  - Node preparation surface: `@exactjs/plugin-host/node` owns package discovery, configuration loading, registry preparation/invalidation, and generated plugin types.
+  - Treat `@exactjs/plugin-host/node` as external when bundling build tooling; it intentionally loads application configuration and plugin entrypoints through the native Node module loader.
+- `@exactjs/ssr`
   - Server render surface: `renderToString(vnode, options?)`, `renderToStringAsync(vnode, options?)`, `renderToStream(vnode, options?)`, `renderToDocumentStream(vnode, options?)`, `renderToHydratableDocumentStream(vnode, options?)`, `renderToProgressiveHtmlStream(vnode, options?)`, `renderToHydratableProgressiveHtmlStream(vnode, options?)`, `renderToProgressiveHtmlResponse(vnode, options?)`, `renderToHydratableProgressiveHtmlResponse(vnode, options?)`.
   - Hydration bootstrap surface: `renderHydrationScript(options?)`, `renderToHydratableString(vnode, options?)`, `renderToHydratableStringAsync(vnode, options?)`.
   - Server boundary surface: `createBoundaryRefreshHandler(render, options)`, `createActionRefreshHandler(options)`, `createExactServerHandlerRegistry(options)`, `createExactServerRuntime(options)`.
   - Emits deterministic comment markers for component, cell, dynamic, fragment, and keyed-list item boundaries.
-  - Node plugin preparation: `prepareExactRenderPlugins` from `@exact/ssr/plugins`.
-- `@exact/hydrate`
+  - Node plugin preparation: `prepareExactRenderPlugins` from `@exactjs/ssr/plugins`.
+- `@exactjs/hydrate`
   - Client hydration surface: `hydrate(vnode, container, options?)`.
   - Client endpoint surface: `createExactClient(container, options?)`, `invokeExact(options)`, `readExactHydrationConfig(root?, scriptId?)`.
   - Patch surface: `applyPatches(container, patches, options?)`.
-- `@exact/server`
+- `@exactjs/server`
   - Server runtime surface: `handleExactRequest(request, context)`.
   - Manifest bridge: `createExactServerManifest(compilerManifest | compilerManifest[], options?)`.
   - Hydration bridge: `createExactHydrationManifestConfig(serverManifest, state?)`, `createExactHydrationStateContracts(serverManifest)`, `createExactHydrationActionBoundaries(serverManifest)`.
   - Adapter helpers: `createFetchHandler`, `createExpressHandler`, `createHapiHandler`.
   - Security model: manifest-allowlisted action and boundary IDs only; no client-provided module or function dispatch.
-  - Node plugin preparation: `prepareExactServerPlugins` from `@exact/server/plugins`.
-- `@exact/vite-plugin`
+  - Node plugin preparation: `prepareExactServerPlugins` from `@exactjs/server/plugins`.
+- `@exactjs/vite-plugin`
   - Vite adapter: `exact({ target?: "default" | "client" | "server" })`.
   - Adds `exact-client` or `exact-server` package export conditions based on the configured target.
-- `@exact/webpack-plugin`
+- `@exactjs/webpack-plugin`
   - Webpack adapter: `new ExactWebpackPlugin({ target?: "default" | "client" | "server" })`.
   - Adds target package export conditions, `.exact` facade resolution helpers, and a pre-loader for TSX/JSX transforms.
-- `@exact/bun-plugin`
+- `@exactjs/bun-plugin`
   - Bun adapter: `exact({ target?: "default" | "client" | "server" })`.
   - Adds target package export conditions, `.exact` facade resolution, and TSX/JSX transform hooks.
 
-The next export cleanup should split `@exact/core` into clearer app-facing and framework-internal subpaths before external publication. For now the single entrypoint keeps package integration straightforward while the framework is still being shaped.
+The next export cleanup should split `@exactjs/core` into clearer app-facing and framework-internal subpaths before external publication. For now the single entrypoint keeps package integration straightforward while the framework is still being shaped.
 
 ## JSX
 
-The eXact rendering model is compiler-based. JSX expressions become fine-grained reactive DOM and component boundaries only when the eXact compiler runs. `@exact/jsx` supplies the TypeScript JSX entrypoints and JSX namespace types that the compiler toolchain expects; it is support infrastructure, not a second app runtime.
+The eXact rendering model is compiler-based. JSX expressions become fine-grained reactive DOM and component boundaries only when the eXact compiler runs. `@exactjs/jsx` supplies the TypeScript JSX entrypoints and JSX namespace types that the compiler toolchain expects; it is support infrastructure, not a second app runtime.
 
-Configure TypeScript with `jsxImportSource` set to `@exact/jsx`:
+Configure TypeScript with `jsxImportSource` set to `@exactjs/jsx`:
 
 ```json
 {
 	"compilerOptions": {
 		"jsx": "react-jsx",
-		"jsxImportSource": "@exact/jsx"
+		"jsxImportSource": "@exactjs/jsx"
 	}
 }
 ```
@@ -140,12 +159,12 @@ export function ReactView() {
 }
 ```
 
-Use `@jsxImportSource @exact/jsx` to force eXact ownership in a mixed file, `reactCompatibility.source` for import-free React component directories, an explicit `reactCompatibility.target` to override version detection, or `reactCompatibility: false` to disable automatic compatibility. Resolver aliases continue to cover precompiled React packages in `node_modules`; those packages do not need to be recompiled.
+Use `@jsxImportSource @exactjs/jsx` to force eXact ownership in a mixed file, `reactCompatibility.source` for import-free React component directories, an explicit `reactCompatibility.target` to override version detection, or `reactCompatibility: false` to disable automatic compatibility. Resolver aliases continue to cover precompiled React packages in `node_modules`; those packages do not need to be recompiled.
 
-Compiler mode is build-tool agnostic through `@exact/compiler`:
+Compiler mode is build-tool agnostic through `@exactjs/compiler`:
 
 ```ts
-import { transformSource } from '@exact/compiler';
+import { transformSource } from '@exactjs/compiler';
 
 const result = transformSource(source, { filename: 'Component.tsx' });
 ```
@@ -153,7 +172,7 @@ const result = transformSource(source, { filename: 'Component.tsx' });
 Long-running build tools should own their incremental compiler state and dispose it with the host lifecycle:
 
 ```ts
-import { createCompilerSession, transformSource } from '@exact/compiler';
+import { createCompilerSession, transformSource } from '@exactjs/compiler';
 
 const session = createCompilerSession();
 const result = transformSource(source, {
@@ -230,7 +249,7 @@ For precompile workflows, `exactc --artifacts --serverComponents` enables the sa
 In server-target artifacts, pure client components are emitted as server-safe boundary stubs instead of leaking browser-only code into the server bundle. Isomorphic components can still split simple interactive JSX islands such as elements with `onClick` or `ref` into server-rendered client-boundary placeholders. The compiler also splits clear client component tags out of server artifacts, replacing each tag instance with a source-stable boundary named after the client component and pruning imports that become unused after the split. Exported pure-client component stubs keep a component-level boundary ID, while rendered client component tag instances get distinct IDs so repeated tags and their server child slots can refresh independently. The client artifact preserves the interactive component and exports generated island aliases for element-level splits, which can be registered with the hydration client:
 
 ```tsx
-import { hydrate } from '@exact/hydrate';
+import { hydrate } from '@exactjs/hydrate';
 import { ProjectCard_ExactClient_1 } from './ProjectCard.exact';
 
 hydrate(<App />, document.getElementById('app')!, {
@@ -245,21 +264,21 @@ This first split path handles pure client component stubs, generated element isl
 Vite is supported through a thin adapter over the same compiler:
 
 ```ts
-import { exact } from '@exact/vite-plugin';
+import { exact } from '@exactjs/vite-plugin';
 
 export default {
 	plugins: [exact()]
 };
 ```
 
-The compiler preserves JSX expressions as reactive bindings, so ordinary JSX values can update at their owning text, prop, style, child, or component-prop boundary. Uncompiled JSX may create structural VNodes in narrow tests, but it does not preserve arbitrary expression boundaries after JavaScript has evaluated them. Apps should use `@exact/vite-plugin` or `exactc`.
+The compiler preserves JSX expressions as reactive bindings, so ordinary JSX values can update at their owning text, prop, style, child, or component-prop boundary. Uncompiled JSX may create structural VNodes in narrow tests, but it does not preserve arbitrary expression boundaries after JavaScript has evaluated them. Apps should use `@exactjs/vite-plugin` or `exactc`.
 
-Browser apps mount through `@exact/dom`:
+Browser apps mount through `@exactjs/dom`:
 
 ```tsx
-/** @jsxImportSource @exact/jsx */
-import { render } from '@exact/dom';
-import type { Component } from '@exact/core';
+/** @jsxImportSource @exactjs/jsx */
+import { render } from '@exactjs/dom';
+import type { Component } from '@exactjs/core';
 
 function Counter(this: Component<{ count: number }>) {
 	this.state.count = 0;
@@ -273,8 +292,8 @@ render(<Counter />, document.getElementById('app')!);
 `render()` accepts root options for framework-level services:
 
 ```tsx
-import { createConsoleLogger } from '@exact/core';
-import { render } from '@exact/dom';
+import { createConsoleLogger } from '@exactjs/core';
+import { render } from '@exactjs/dom';
 
 const logger = createConsoleLogger({ level: 'debug' });
 
@@ -374,7 +393,7 @@ import {
 	type Child,
 	type Component,
 	type ErrorReport
-} from '@exact/core';
+} from '@exactjs/core';
 
 function Boundary(
 	this: Component<{ errors: ErrorReport[] }>,
@@ -494,33 +513,33 @@ safety policy, and generalized data/secret policy are consolidated in
 
 The current SSR/server-component foundation implements:
 
-- `@exact/ssr` renders VNodes/components to HTML with boundary markers.
+- `@exactjs/ssr` renders VNodes/components to HTML with boundary markers.
 - `renderToStringAsync()` waits for observed `this.task()` promises before rendering the component instance, so server-loaded reactive state can be serialized into the first response. Synchronous, asynchronous, and progressive SSR own every constructed component and unmount it after the render or stream ends; cancellation aborts tasks and releases component resources in child-first order.
 - `renderHydrationScript()` serializes endpoint/state bootstrap data as inert escaped JSON.
 - Hydration state and state contract payloads must be JSON-serializable; validation is side-effect-free and bounded by `maxHydrationDepth`, `maxHydrationNodes`, and `maxHydrationBytes` (defaults: 100 levels, 100,000 values, and 16 MiB).
-- `@exact/hydrate` automatically reads bootstrap data from the hydration script, invokes the configured endpoint, and applies returned patches. Server child slots use the same refresh flow: if a refresh ID targets `data-exact-server-slot`, the client sends that slot's current `innerHTML` as the diff hint and applies text/replacement patches inside the slot without replacing the hydrated client island around it.
+- `@exactjs/hydrate` automatically reads bootstrap data from the hydration script, invokes the configured endpoint, and applies returned patches. Server child slots use the same refresh flow: if a refresh ID targets `data-exact-server-slot`, the client sends that slot's current `innerHTML` as the diff hint and applies text/replacement patches inside the slot without replacing the hydrated client island around it.
 - Dynamically registered hydration manifests are idempotent for identical metadata and reject conflicting endpoint routes, state contracts, action boundary hints, transports, or client island component names.
-- `@exact/hydrate` coalesces same-tick action and refresh operations into a strict `type: "batch"` endpoint request. Batch operations are validated independently and dispatched in dependency waves; independent ready operations run concurrently while results preserve request order. Server contexts can tune bounded protocol budgets with `limits.maxBatchOperations`, `maxBatchConcurrency`, `maxJsonDepth`, `maxJsonNodes`, `maxRequestBytes`, `maxResponseBytes`, `maxPatches`, `maxStreamEvents`, and `maxStreamBytes`. Client transports have corresponding `streamLimits` controls. Malformed top-level requests still fail as a whole, while operation-level errors return ordered per-operation results. Operations may include unique `opId` values and `dependsOn` metadata; dependent operations are skipped with `dependency_failed` when a prerequisite did not succeed.
+- `@exactjs/hydrate` coalesces same-tick action and refresh operations into a strict `type: "batch"` endpoint request. Batch operations are validated independently and dispatched in dependency waves; independent ready operations run concurrently while results preserve request order. Server contexts can tune bounded protocol budgets with `limits.maxBatchOperations`, `maxBatchConcurrency`, `maxJsonDepth`, `maxJsonNodes`, `maxRequestBytes`, `maxResponseBytes`, `maxPatches`, `maxStreamEvents`, and `maxStreamBytes`. Client transports have corresponding `streamLimits` controls. Malformed top-level requests still fail as a whole, while operation-level errors return ordered per-operation results. Operations may include unique `opId` values and `dependsOn` metadata; dependent operations are skipped with `dependency_failed` when a prerequisite did not succeed.
 - Endpoint responses can stream as newline-delimited JSON when clients opt in with `stream: true` / `Accept: application/x-ndjson`. Streamed batches emit `start`, per-operation `patch`/`state`/`html` chunks, terminal `result` events, and `complete`; independent operation chunks may arrive as soon as they settle while client helpers still resolve in request order. Producers use zero-prefetch demand flow, adapters honor writable backpressure and cancellation, malformed UTF-8 is rejected, and every response/result/chunk is checked against the requested operation identity before application.
 - Initial document rendering can stream as newline-delimited JSON through `renderToDocumentStream()` / `renderToHydratableDocumentStream()`. Document streams emit `start`, `shell`, optional root `replace` when async server tasks settle into different HTML, optional `hydration`, and `complete`. Apps that want browser-ready chunks instead of event objects can use `renderToProgressiveHtmlStream()` / `renderToHydratableProgressiveHtmlStream()`, which stream the shell in a root container and send later root replacements as safe inline scripts. `renderToProgressiveHtmlResponse()` / `renderToHydratableProgressiveHtmlResponse()` package those streams as runtime-neutral `ExactResponseLike` objects for server adapters.
-- Action invocations can opt into server boundary snapshots through `actionBoundaries`, either in `renderHydrationScript()`/`renderToHydratableString()` bootstrap data or in `createExactClient()` options. The client sends current HTML only for configured boundary IDs, and `@exact/server` rejects snapshot IDs that are not present in the manifest boundary allowlist.
+- Action invocations can opt into server boundary snapshots through `actionBoundaries`, either in `renderHydrationScript()`/`renderToHydratableString()` bootstrap data or in `createExactClient()` options. The client sends current HTML only for configured boundary IDs, and `@exactjs/server` rejects snapshot IDs that are not present in the manifest boundary allowlist.
 - `createActionRefreshHandler()` runs an allowlisted server action, rerenders configured server boundaries, and returns replacement/text/exact-element patches using the submitted boundary snapshots as diff hints.
 - Hydration bootstrap data may include per-action state contracts; when present, the client sends only the exact state reads required for that action.
-- `@exact/server` owns adapter-neutral request handling and rejects anything not present in the manifest allowlist.
+- `@exactjs/server` owns adapter-neutral request handling and rejects anything not present in the manifest allowlist.
 - `createExactServerManifest()` converts one or more compiler manifests into runtime action/boundary allowlists, including compiler-generated client island boundary IDs. Conflicting duplicate action or boundary IDs across compiler manifests fail during manifest creation; app-provided boundary overrides remain explicit.
-- `createExactHydrationStateContracts()` extracts the compiler-derived action state contracts for `renderHydrationScript()` / `@exact/hydrate`.
+- `createExactHydrationStateContracts()` extracts the compiler-derived action state contracts for `renderHydrationScript()` / `@exactjs/hydrate`.
 - If the manifest includes an endpoint path, the shared handler rejects requests for any other path before dispatching.
 - Request, response, and patch protocol objects are strict: unknown fields are rejected instead of being forwarded through the server runtime, and the hydration client validates successful response shapes before applying patches.
-- `createBoundaryRefreshHandler()` rerenders a server boundary and returns patches through the same secure endpoint path. It defaults to boundary replacement, can emit text patches for text-only boundary output with `patchStrategy: "text"`, and can diff compiler-assigned `data-exact-id` elements with `patchStrategy: "element"`, including nested text, prop, style, and independent nested structural replacements. `@exact/hydrate` includes the current boundary HTML on refresh requests as a diff hint; the server still renders authoritative next HTML and falls back to boundary replacement if the hint cannot be used safely. Refresh responses include that authoritative HTML, so the client can replace the refreshed boundary if a fine-grained patch cannot apply cleanly.
-- `renderKeyedListSnapshot()` and `createKeyedListRefreshHandler()` produce key-stable list/item marker snapshots and return list insert/move/remove patches through the secure endpoint. Compiled `this.map()` calls receive stable list boundary IDs that SSR uses as exact marker targets. The keyed-list refresh handler can infer the previous snapshot from the boundary HTML that `@exact/hydrate` sends on refresh, while `diffKeyedListItems()` remains available as the lower-level primitive for custom snapshot storage.
+- `createBoundaryRefreshHandler()` rerenders a server boundary and returns patches through the same secure endpoint path. It defaults to boundary replacement, can emit text patches for text-only boundary output with `patchStrategy: "text"`, and can diff compiler-assigned `data-exact-id` elements with `patchStrategy: "element"`, including nested text, prop, style, and independent nested structural replacements. `@exactjs/hydrate` includes the current boundary HTML on refresh requests as a diff hint; the server still renders authoritative next HTML and falls back to boundary replacement if the hint cannot be used safely. Refresh responses include that authoritative HTML, so the client can replace the refreshed boundary if a fine-grained patch cannot apply cleanly.
+- `renderKeyedListSnapshot()` and `createKeyedListRefreshHandler()` produce key-stable list/item marker snapshots and return list insert/move/remove patches through the secure endpoint. Compiled `this.map()` calls receive stable list boundary IDs that SSR uses as exact marker targets. The keyed-list refresh handler can infer the previous snapshot from the boundary HTML that `@exactjs/hydrate` sends on refresh, while `diffKeyedListItems()` remains available as the lower-level primitive for custom snapshot storage.
 - `this.task(...)` placement is inferred by the compiler. Use `this.task.server(...)` or `this.task.client(...)` only when inference needs an explicit boundary; contradictory environment usage fails compilation.
 - Compiler manifests include state read/write contracts for server-capable tasks and context contracts for `this.getContext(...)` / `this.setContext(...)` usage. The server runtime validates exact state reads and serialized context tokens on action requests before dispatch, giving server actions a narrow data/context contract instead of requiring whole-app state or arbitrary client-provided context by default.
 
 Example:
 
 ```tsx
-import { hydrate } from '@exact/hydrate';
-import { renderToHydratableStringAsync } from '@exact/ssr';
+import { hydrate } from '@exactjs/hydrate';
+import { renderToHydratableStringAsync } from '@exactjs/ssr';
 
 const server = await renderToHydratableStringAsync(<App />, {
 	endpoint: '/__exact',
@@ -568,7 +587,7 @@ this.log.error('save failed', error, { taskId });
 Apps can override component logging through context:
 
 ```tsx
-import { LoggerContext, createConsoleLogger } from '@exact/core';
+import { LoggerContext, createConsoleLogger } from '@exactjs/core';
 
 function App(this: Component<{}>) {
 	this.setContext(LoggerContext, createConsoleLogger({ level: 'debug' }));
@@ -580,14 +599,14 @@ Framework diagnostics use the root logger passed to `render()`. The default cons
 
 ## Web essentials
 
-`@exact/router` supplies component-reference routes with nested outlets. `Router` uses an explicit `LocationSource` when supplied, otherwise it reads the ambient server request or the browser History API:
+`@exactjs/router` supplies component-reference routes with nested outlets. `Router` uses an explicit `LocationSource` when supplied, otherwise it reads the ambient server request or the browser History API:
 
 The planned renderer-neutral data-router core and versioned React Router v5
 and v6/v7 compatibility facades are specified in the
 [React Router compatibility plan](docs/react-router-compatibility-plan.md).
 
 ```tsx
-import { Link, Outlet, Route, Router } from '@exact/router';
+import { Link, Outlet, Route, Router } from '@exactjs/router';
 
 function Layout() {
 	return () => (
@@ -615,8 +634,8 @@ render(
 For Node SSR, install concurrency-safe storage once and wrap each render. Other runtimes can implement the small `RequestContextStorage` contract:
 
 ```ts
-import { installNodeRequestContext } from "@exact/request/node";
-import { runWithRequestContext } from "@exact/request";
+import { installNodeRequestContext } from "@exactjs/request/node";
+import { runWithRequestContext } from "@exactjs/request";
 
 installNodeRequestContext();
 const result = await runWithRequestContext(
@@ -625,11 +644,11 @@ const result = await runWithRequestContext(
 );
 ```
 
-The built-in portable storage is intentionally synchronous and throws if a callback returns a promise, preventing silent request-context leakage. Use `@exact/request/node` (or provide an async-safe storage implementation) before wrapping asynchronous SSR work. `createRequestScope()` creates an independent synchronous scope when no storage is supplied.
+The built-in portable storage is intentionally synchronous and throws if a callback returns a promise, preventing silent request-context leakage. Use `@exactjs/request/node` (or provide an async-safe storage implementation) before wrapping asynchronous SSR work. `createRequestScope()` creates an independent synchronous scope when no storage is supplied.
 
 History mode supports SSR directly. Hash fragments are not sent in HTTP requests, so hash-mode SSR needs an explicit fragment-bearing `LocationSource` when server and client matching must agree.
 
-`@exact/forms` composes accessible fields without taking ownership of application values:
+`@exactjs/forms` composes accessible fields without taking ownership of application values:
 
 ```tsx
 <Form onValidSubmit={(_event, data) => save(data)}>
@@ -651,7 +670,7 @@ Fields validate on first blur and submit, then revalidate invalid values on inpu
 
 ## Component testing
 
-`@exact/testing` mounts real DOM-rendered components and exposes their framework instances through a runner-neutral fluent API:
+`@exactjs/testing` mounts real DOM-rendered components and exposes their framework instances through a runner-neutral fluent API:
 
 ```tsx
 const view = await testComponent(Counter).props({ initial: 1 }).context(AuthContext, auth).mount();
@@ -670,7 +689,7 @@ Matchers are opt-in and do not couple the base package to a runner:
 
 ```ts
 import { expect } from 'vitest';
-import { installVitestMatchers } from '@exact/testing/vitest';
+import { installVitestMatchers } from '@exactjs/testing/vitest';
 
 installVitestMatchers(expect);
 ```
@@ -709,10 +728,10 @@ Prop punning lowers a local binding into a same-named prop:
 <div className={{ panel: true, active: isActive }} />
 ```
 
-`style` accepts plain CSS strings, plain objects, reactive entries, and CSS unit helpers from `@exact/dom`:
+`style` accepts plain CSS strings, plain objects, reactive entries, and CSS unit helpers from `@exactjs/dom`:
 
 ```tsx
-import { percent, px, rem } from "@exact/dom";
+import { percent, px, rem } from "@exactjs/dom";
 
 <div style="height: 10px; margin-top: 1rem" />
 <div style={{ height: "10px", marginTop: "1rem" }} />
@@ -720,6 +739,26 @@ import { percent, px, rem } from "@exact/dom";
 ```
 
 The v1 unit helpers are `px`, `rem`, `em`, `percent`, `vh`, `vw`, `vmin`, `vmax`, `fr`, `ms`, `s`, `deg`, `rad`, and `turn`.
+
+Form controls can bind a DOM property to one writable reactive location through the native
+`input` or `change` event. The namespaced attribute spells this as `property:event`:
+
+```tsx
+<input value:input={this.state.query} />
+<input type="number" value:change={this.state.quantity} />
+<input type="checkbox" checked:change={this.state.enabled} />
+<input type="checkbox" value="priority" checked:change={this.state.filters} />
+<textarea value:input={this.state.notes} />
+<select value:change={this.state.status}>...</select>
+<select multiple value:change={this.state.tags}>...</select>
+```
+
+The compiler infers string, number, `Date`, array, `null`, and `undefined` conversion from
+the bound location's type. Radio inputs bind their checked state to their declared value;
+checkboxes bound to string or number arrays add and remove their declared value.
+Bindings require one assignable member or element access; derived expressions, conflicting
+`value`/`checked` props, and ambiguous `null | undefined` unions are compile errors. Binding
+listeners are independent from authored `onInput` and `onChange` handlers.
 
 ## Parcel Lab demo
 

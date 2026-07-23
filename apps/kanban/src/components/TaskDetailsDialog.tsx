@@ -1,4 +1,4 @@
-import type { Component } from '@exact/core';
+import type { Component } from '@exactjs/core';
 import { BoardContext } from '../context.js';
 import { columns } from '../data.js';
 import type { Status, Task } from '../types.js';
@@ -45,7 +45,7 @@ export function TaskDetailsDialog(
 						this.log.debug('details focusout', {
 							taskId,
 							target: eventTargetName(event.target),
-							relatedTarget: eventTargetName((event as FocusEvent).relatedTarget),
+							relatedTarget: eventTargetName(event.relatedTarget),
 							active: activeElementName()
 						});
 					}}
@@ -71,12 +71,12 @@ export function TaskDetailsDialog(
 							onFocusOut={(event) => {
 								this.log.debug('title focusout', {
 									taskId,
-									relatedTarget: eventTargetName((event as FocusEvent).relatedTarget),
+									relatedTarget: eventTargetName(event.relatedTarget),
 									active: activeElementName()
 								});
 							}}
 							onInput={(event) => {
-								const title = (event.target as HTMLInputElement).value;
+								const title = event.currentTarget.value;
 								this.log.debug('title input', {
 									taskId,
 									value: title,
@@ -95,7 +95,7 @@ export function TaskDetailsDialog(
 							value={status}
 							onChange={(event) => {
 								board.updateTask(taskId, {
-									status: (event.target as HTMLSelectElement).value as Status
+									status: event.currentTarget.value as Status
 								});
 							}}
 						>
@@ -120,12 +120,12 @@ export function TaskDetailsDialog(
 							onFocusOut={(event) => {
 								this.log.debug('notes focusout', {
 									taskId,
-									relatedTarget: eventTargetName((event as FocusEvent).relatedTarget),
+									relatedTarget: eventTargetName(event.relatedTarget),
 									active: activeElementName()
 								});
 							}}
 							onInput={(event) => {
-								const notes = (event.target as HTMLTextAreaElement).value;
+								const notes = event.currentTarget.value;
 								this.log.debug('notes input', {
 									taskId,
 									length: notes.length,

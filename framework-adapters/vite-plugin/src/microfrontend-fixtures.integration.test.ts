@@ -35,7 +35,7 @@ describe('microfrontend fixture applications', () => {
 			expect(pageProgram).toContain('https://cdn.example.test/branding/');
 			expect(pageProgram).not.toContain('billing.internal');
 			expect(pageProgram).not.toContain('branding.internal');
-			expect(pageProgram.indexOf('@exact/provided-packages')).toBeLessThan(
+			expect(pageProgram.indexOf('@exactjs/provided-packages')).toBeLessThan(
 				pageProgram.indexOf('fixture-theme')
 			);
 
@@ -47,7 +47,7 @@ describe('microfrontend fixture applications', () => {
 
 			for (const remote of [billing, branding]) {
 				const program = await combinedJavaScript(remote.outDir);
-				expect(program).toContain('@exact/provided-packages');
+				expect(program).toContain('@exactjs/provided-packages');
 				expect(program).toContain(buildKey);
 				expect(program).not.toContain('billing.internal');
 				expect(program).not.toContain('branding.internal');

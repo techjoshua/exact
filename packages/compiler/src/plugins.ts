@@ -2,7 +2,7 @@ import type {
 	ExactCompilerDirective,
 	ExactJsonValue,
 	ExactPreparedCompilerRegistry
-} from '@exact/plugin-api';
+} from '@exactjs/plugin-api';
 import type { ExactCompilerManifest, TransformTarget } from './types.js';
 
 const maxPluginDataBytes = 256 * 1024;

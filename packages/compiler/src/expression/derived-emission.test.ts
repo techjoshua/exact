@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { preprocessPropPunning, transform, transformSource } from '../index.js';
 
-describe('@exact/compiler: derived values', () => {
+describe('@exactjs/compiler: derived values', () => {
 	it('shares cached derived consts across reactive JSX children', () => {
 		const output = transform(`
       function View(this: Component<{ first: string; last: string }>) {

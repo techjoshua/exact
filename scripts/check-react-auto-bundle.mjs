@@ -22,7 +22,7 @@ for (const target of [18, 19]) {
 	if (!inputs.some((file) => file.endsWith(`/react-compat/dist/jsx-runtime${target}.js`))) {
 		throw new Error(`React ${target} compatibility JSX runtime was not included in the bundle`);
 	}
-	if (result.outputFiles[0].text.includes('@exact/react-compat')) {
+	if (result.outputFiles[0].text.includes('@exactjs/react-compat')) {
 		throw new Error(`React ${target} compatibility imports remained external`);
 	}
 	console.log(`React ${target} automatic compiler output bundled ${inputs.length} modules`);

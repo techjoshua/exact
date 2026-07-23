@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { exact } from '@exact/vite-plugin';
+import { exact } from '@exactjs/vite-plugin';
 import { build } from 'vite';
 
 const sampleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -62,7 +62,7 @@ async function buildClient(name, outDir, emptyOutDir, onRemoteEntries) {
 
 function sharedAlias() {
 	return {
-		'@exact/sample-microfrontend-portal/shared': path.join(sampleRoot, 'src', 'shared.ts')
+		'@exactjs/sample-microfrontend-portal/shared': path.join(sampleRoot, 'src', 'shared.ts')
 	};
 }
 

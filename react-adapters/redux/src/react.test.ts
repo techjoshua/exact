@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-import { createContext, createElement, useContext } from '@exact/react-compat';
-import { createRoot } from '@exact/react-dom-compat/client19';
+import { createContext, createElement, useContext } from '@exactjs/react-compat';
+import { createRoot } from '@exactjs/react-dom-compat/client19';
 import { describe, expect, it } from 'vitest';
 import type { ReduxStore } from './index.js';
 import { Provider } from './react.js';
 
-describe('@exact/redux React bridge', () => {
+describe('@exactjs/redux React bridge', () => {
 	it('provides React Redux-compatible custom context without a react-redux runtime import', async () => {
 		const store: ReduxStore<{ count: number }> = {
 			getState: () => ({ count: 1 }),

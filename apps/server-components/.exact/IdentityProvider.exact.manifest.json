@@ -133,7 +133,7 @@
         "kind": "import",
         "nodeStart": 9,
         "nodeEnd": 22,
-        "moduleSpecifier": "@exact/core",
+        "moduleSpecifier": "@exactjs/core",
         "importedName": "createContext"
       },
       {
@@ -143,7 +143,7 @@
         "kind": "import",
         "nodeStart": 29,
         "nodeEnd": 34,
-        "moduleSpecifier": "@exact/core",
+        "moduleSpecifier": "@exactjs/core",
         "importedName": "Child",
         "typeOnly": true
       },
@@ -154,7 +154,7 @@
         "kind": "import",
         "nodeStart": 41,
         "nodeEnd": 50,
-        "moduleSpecifier": "@exact/core",
+        "moduleSpecifier": "@exactjs/core",
         "importedName": "Component",
         "typeOnly": true
       },
@@ -388,7 +388,7 @@
         "nodeEnd": 861,
         "declarationId": "apps/server-components/src/identityprovider.tsx::ImportSpecifier#0:createContext",
         "declarationKind": "import",
-        "moduleSpecifier": "@exact/core",
+        "moduleSpecifier": "@exactjs/core",
         "importedName": "createContext"
       },
       {
@@ -409,7 +409,7 @@
         "nodeEnd": 1103,
         "declarationId": "apps/server-components/src/identityprovider.tsx::ImportSpecifier#0:createContext",
         "declarationKind": "import",
-        "moduleSpecifier": "@exact/core",
+        "moduleSpecifier": "@exactjs/core",
         "importedName": "createContext"
       },
       {
@@ -430,7 +430,7 @@
         "nodeEnd": 1327,
         "declarationId": "apps/server-components/src/identityprovider.tsx::ImportSpecifier#0:createContext",
         "declarationKind": "import",
-        "moduleSpecifier": "@exact/core",
+        "moduleSpecifier": "@exactjs/core",
         "importedName": "createContext"
       },
       {
@@ -451,7 +451,7 @@
         "nodeEnd": 1505,
         "declarationId": "apps/server-components/src/identityprovider.tsx::ImportSpecifier#0:createContext",
         "declarationKind": "import",
-        "moduleSpecifier": "@exact/core",
+        "moduleSpecifier": "@exactjs/core",
         "importedName": "createContext"
       },
       {
@@ -472,7 +472,7 @@
         "nodeEnd": 1713,
         "declarationId": "apps/server-components/src/identityprovider.tsx::ImportSpecifier#0:Component",
         "declarationKind": "import",
-        "moduleSpecifier": "@exact/core",
+        "moduleSpecifier": "@exactjs/core",
         "importedName": "Component",
         "typeOnly": true
       },
@@ -561,7 +561,7 @@
         "nodeEnd": 2668,
         "declarationId": "apps/server-components/src/identityprovider.tsx::ImportSpecifier#0:Component",
         "declarationKind": "import",
-        "moduleSpecifier": "@exact/core",
+        "moduleSpecifier": "@exactjs/core",
         "importedName": "Component",
         "typeOnly": true
       },
@@ -583,7 +583,7 @@
         "nodeEnd": 2793,
         "declarationId": "apps/server-components/src/identityprovider.tsx::ImportSpecifier#0:Child",
         "declarationKind": "import",
-        "moduleSpecifier": "@exact/core",
+        "moduleSpecifier": "@exactjs/core",
         "importedName": "Child",
         "typeOnly": true
       },
@@ -695,7 +695,7 @@
         "nodeEnd": 3450,
         "declarationId": "apps/server-components/src/identityprovider.tsx::ImportSpecifier#0:Component",
         "declarationKind": "import",
-        "moduleSpecifier": "@exact/core",
+        "moduleSpecifier": "@exactjs/core",
         "importedName": "Component",
         "typeOnly": true
       },
@@ -1252,7 +1252,7 @@
         {
           "id": "x45YxCPCb49dlsbY2kX_18W",
           "name": "createContext",
-          "moduleSpecifier": "@exact/core",
+          "moduleSpecifier": "@exactjs/core",
           "exportName": "createContext",
           "resolved": false
         }
@@ -1551,7 +1551,7 @@
         {
           "id": "xdauN9GN6u0DNJxvUngw2Y8",
           "name": "createContext",
-          "moduleSpecifier": "@exact/core",
+          "moduleSpecifier": "@exactjs/core",
           "exportName": "createContext",
           "resolved": false
         }
@@ -1618,7 +1618,7 @@
         {
           "id": "xRoSRLsLo9sk3ryerOKznym",
           "name": "createContext",
-          "moduleSpecifier": "@exact/core",
+          "moduleSpecifier": "@exactjs/core",
           "exportName": "createContext",
           "resolved": false
         }
@@ -1750,7 +1750,7 @@
         {
           "id": "xQA4kLlM9goH-oDhPrbfyJl",
           "name": "createContext",
-          "moduleSpecifier": "@exact/core",
+          "moduleSpecifier": "@exactjs/core",
           "exportName": "createContext",
           "resolved": false
         }
@@ -2049,7 +2049,7 @@
     ],
     "secretConsumers": []
   },
-  "packageName": "@exact/sample-server-components",
+  "packageName": "@exactjs/sample-server-components",
   "serverActions": {
     "xBSFY15Nxenh4yiPSTnHZOB": {
       "id": "xBSFY15Nxenh4yiPSTnHZOB",

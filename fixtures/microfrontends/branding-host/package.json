@@ -1,11 +1,11 @@
 {
-	"name": "@exact/fixture-microfrontend-branding-host",
+	"name": "@exactjs/fixture-microfrontend-branding-host",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
 	"dependencies": {
-		"@exact/core": "0.0.0",
-		"@exact/jsx": "0.0.0",
-		"@exact/microfrontends": "0.0.0"
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/jsx": "^0.1.0",
+		"@exactjs/microfrontends": "^0.1.0"
 	}
 }

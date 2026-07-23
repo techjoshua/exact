@@ -8,15 +8,15 @@ import {
 	createRef,
 	createVNode,
 	type Component
-} from '@exact/core';
-import { render } from '@exact/dom';
-import { flushSync } from '@exact/reactive';
-import { renderToString } from '@exact/ssr';
+} from '@exactjs/core';
+import { render } from '@exactjs/dom';
+import { flushSync } from '@exactjs/reactive';
+import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
 import { hydrate } from './index.js';
 import { noopLogger } from './test-support/responses.js';
 
-describe('@exact/hydrate adoption', () => {
+describe('@exactjs/hydrate adoption', () => {
 	it('preserves dirty form state entered before hydration', () => {
 		const container = document.createElement('div');
 		container.innerHTML = '<!--exact:fragment:0--><input value=server><!--/exact:fragment:0-->';

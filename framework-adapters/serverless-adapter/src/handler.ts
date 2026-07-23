@@ -1,4 +1,4 @@
-import { handleExactRequest, type ExactResponseLike, type ExactServerContext } from '@exact/server';
+import { handleExactRequest, type ExactResponseLike, type ExactServerContext } from '@exactjs/server';
 
 /** Reports an observable exact serverless event. */
 export type ExactServerlessEvent = {

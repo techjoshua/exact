@@ -1,4 +1,4 @@
-import { createRef, type Component } from '@exact/core';
+import { createRef, type Component } from '@exactjs/core';
 import { WorkbenchContext } from '../context.js';
 
 type ImportDialogProps = {
@@ -38,9 +38,7 @@ export function ImportDialog(this: Component<{}>, props: ImportDialogProps) {
 					ref={this.ref(importRef)}
 					rows={16}
 					value={props.value}
-					onInput={(event) =>
-						workbench.setImportText((event.currentTarget as HTMLTextAreaElement).value)
-					}
+					onInput={(event) => workbench.setImportText(event.currentTarget.value)}
 				/>
 
 				{props.error ? <p className="form-error">{props.error}</p> : null}

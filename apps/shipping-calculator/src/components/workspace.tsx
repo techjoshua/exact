@@ -1,4 +1,4 @@
-import type { Component } from '@exact/core';
+import type { Component } from '@exactjs/core';
 import { exactClient } from '../client-runtime.js';
 import { defaultDraft, draftUrl, normalizeDraft } from '../model.js';
 import type { InitialModel, ProviderResult, RouteResult, ShipmentDraft } from '../types.js';

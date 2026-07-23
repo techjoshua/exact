@@ -1,4 +1,4 @@
-import { computed, unwrap } from '@exact/reactive';
+import { computed, unwrap } from '@exactjs/reactive';
 import type { Child, RenderResult, VNode, VNodeCell, VNodeType } from './component/contracts.js';
 import { currentComponentDomain } from './component/domain.js';
 import {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeSource, transform } from '../../index.js';
 
-describe('@exact/compiler: islands', () => {
+describe('@exactjs/compiler: islands', () => {
 	it('generates child-bearing client island components with state bridge props', () => {
 		const source = `
       import { readFile } from "node:fs/promises";
@@ -27,6 +27,32 @@ describe('@exact/compiler: islands', () => {
 		);
 		expect(server).toContain('title: this.state.label');
 		expect(server).not.toContain('onClick');
+	});
+
+	it('lowers namespaced form bindings inside generated client islands', () => {
+		const source = `
+      import { readFile } from "node:fs/promises";
+      declare class Component<S> {
+        state: S;
+        task: { server(work: () => Promise<void>): void };
+      }
+
+      export function Panel(this: Component<{ name: string }>) {
+        this.state.name = "";
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        return () => <input value:input={this.state.name} />;
+      }
+    `;
+		const client = transform(source, { filename: 'Panel.tsx', target: 'client' });
+		const server = transform(source, { filename: 'Panel.tsx', target: 'server' });
+
+		expect(client).toContain('value: __exactExpression(() => this.state.name ?? "")');
+		expect(client).toContain('__exactBindInput:');
+		expect(client).not.toContain('value:input');
+		expect(server).toContain('"__exactState": { name: this.state.name }');
+		expect(server).not.toContain('value:input');
 	});
 
 	it('bridges owner-local captures into generated client islands', () => {

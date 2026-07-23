@@ -1,4 +1,4 @@
-import { type ComponentFunction, type ContextToken } from '@exact/core';
+import { type ComponentFunction, type ContextToken } from '@exactjs/core';
 
 import type { AccessibleName } from '../contracts.js';
 import { TestComponent } from '../mounting/views.js';

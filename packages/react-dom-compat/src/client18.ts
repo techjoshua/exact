@@ -1,4 +1,4 @@
-import '@exact/react-compat/react18';
+import '@exactjs/react-compat/react18';
 import ReactDOMClient from './client.js';
 export * from './client.js';
 /** Provides the canonical version value. */

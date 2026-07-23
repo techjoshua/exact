@@ -1,9 +1,9 @@
-import { createReactCompatibilityBuildEngine } from '@exact/react-compat/build';
+import { createReactCompatibilityBuildEngine } from '@exactjs/react-compat/build';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { exact } from './index.js';
 
-describe('@exact/vite-plugin: React compatibility', () => {
+describe('@exactjs/vite-plugin: React compatibility', () => {
 	it('automatically aliases installed React and compiles React-owned JSX to the compatibility runtime', () => {
 		const compatibilityRoot = path.resolve(import.meta.dirname, '../test-fixtures/adapter-app');
 		const plugin = exact({
@@ -12,8 +12,8 @@ describe('@exact/vite-plugin: React compatibility', () => {
 		const config = plugin.config?.();
 		expect(config?.resolve.alias).toEqual(
 			expect.arrayContaining([
-				expect.objectContaining({ replacement: '@exact/react-compat/react18' }),
-				expect.objectContaining({ replacement: '@exact/react-dom-compat/client18' })
+				expect.objectContaining({ replacement: '@exactjs/react-compat/react18' }),
+				expect.objectContaining({ replacement: '@exactjs/react-dom-compat/client18' })
 			])
 		);
 		expect(
@@ -21,15 +21,15 @@ describe('@exact/vite-plugin: React compatibility', () => {
 				'/** @jsxImportSource react */\nconst view = <span />;',
 				'/src/react-view.tsx'
 			)?.code
-		).toContain('@exact/react-compat/jsx-runtime18');
+		).toContain('@exactjs/react-compat/jsx-runtime18');
 		expect(plugin.transform('const view = <span />;', '/src/react/widget.tsx')?.code).toContain(
-			'@exact/react-compat/jsx-runtime18'
+			'@exactjs/react-compat/jsx-runtime18'
 		);
 		expect(
 			exact({ reactCompatibility: { target: 18, cwd: compatibilityRoot } }).config?.().resolve.alias
 		).toEqual(
 			expect.arrayContaining([
-				expect.objectContaining({ replacement: '@exact/react-compat/react18' })
+				expect.objectContaining({ replacement: '@exactjs/react-compat/react18' })
 			])
 		);
 		expect(
@@ -37,7 +37,7 @@ describe('@exact/vite-plugin: React compatibility', () => {
 				'import { useState } from "react"; const view = <span>{useState(0)[0]}</span>;',
 				'/src/inferred.tsx'
 			)?.code
-		).toContain('@exact/react-compat/jsx-runtime18');
+		).toContain('@exactjs/react-compat/jsx-runtime18');
 		expect(plugin.transform('const view = <span />;', '/src/exact-view.tsx')).not.toBeNull();
 	});
 
@@ -57,14 +57,14 @@ describe('@exact/vite-plugin: React compatibility', () => {
     `,
 			'/src/query.tsx'
 		);
-		expect(authored?.code).toContain('from "@exact/tanstack-query/react"');
+		expect(authored?.code).toContain('from "@exactjs/tanstack-query/react"');
 		expect(authored?.code).toContain('useQuery } from "@tanstack/react-query"');
 
 		const packaged = plugin.transform(
 			'import { QueryClientProvider } from "@tanstack/react-query"; export { QueryClientProvider };',
 			'/project/node_modules/example/index.js'
 		);
-		expect(packaged?.code).toContain('from "@exact/tanstack-query/react"');
+		expect(packaged?.code).toContain('from "@exactjs/tanstack-query/react"');
 	});
 
 	it('matches the shared engine for prepackaged modules', () => {
@@ -87,7 +87,7 @@ describe('@exact/vite-plugin: React compatibility', () => {
 
 	it('honors explicit eXact ownership and the automatic React opt-out', () => {
 		const exactOwned =
-			'/** @jsxImportSource @exact/jsx */\nimport { useState } from "react"; const view = <span>{useState}</span>;';
+			'/** @jsxImportSource @exactjs/jsx */\nimport { useState } from "react"; const view = <span>{useState}</span>;';
 		expect(
 			exact({ reactCompatibility: false }).transform(exactOwned, '/src/exact.tsx')?.code
 		).toContain('__exactVNode');
@@ -103,7 +103,7 @@ describe('@exact/vite-plugin: React compatibility', () => {
 		const plugin = exact({ reactCompatibility: { target: 19 } });
 		expect(() =>
 			plugin.transform(
-				'/** @jsxImportSource react */\n/** @jsxImportSource @exact/jsx */\nconst view = <span />;',
+				'/** @jsxImportSource react */\n/** @jsxImportSource @exactjs/jsx */\nconst view = <span />;',
 				'/src/mixed.tsx'
 			)
 		).toThrow(/Mixed React and eXact JSX/);

@@ -408,7 +408,7 @@ function Counter(
 				</div>
 
 				<h3>Root rendering</h3>
-				<pre><code class="language-tsx">import { render } from "@exact/dom";
+				<pre><code class="language-tsx">import { render } from "@exactjs/dom";
 
 render(&lt;App /&gt;, document.getElementById("app")!);</code></pre>
 			</section>
@@ -999,9 +999,9 @@ type ErrorReporter = {
 };</code></pre>
 
 				<h3>Type augmentation</h3>
-				<pre><code class="language-ts">// @exact/logging
+				<pre><code class="language-ts">// @exactjs/logging
 
-declare module "@exact/core" {
+declare module "@exactjs/core" {
   interface Component&lt;State&gt; {
     log: Logger;
   }
@@ -1076,10 +1076,10 @@ declare module "@exact/core" {
 
 				<h3>Package split</h3>
 				<pre><code class="language-ts">// Server only
-import { renderToString } from "@exact/ssr";
+import { renderToString } from "@exactjs/ssr";
 
 // Client only
-import { hydrate } from "@exact/hydrate";</code></pre>
+import { hydrate } from "@exactjs/hydrate";</code></pre>
 
 				<table>
 					<thead>
@@ -1090,14 +1090,14 @@ import { hydrate } from "@exact/hydrate";</code></pre>
 					</thead>
 					<tbody>
 						<tr>
-							<td><code>@exact/ssr</code></td>
+							<td><code>@exactjs/ssr</code></td>
 							<td>
 								Server render, async constructor resolution, state capture, HTML markers, serialized
 								payload generation.
 							</td>
 						</tr>
 						<tr>
-							<td><code>@exact/hydrate</code></td>
+							<td><code>@exactjs/hydrate</code></td>
 							<td>
 								Client reattachment, state restore, event binding, DOM reconciliation against
 								existing HTML.

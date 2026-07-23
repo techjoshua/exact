@@ -1,4 +1,4 @@
-import { batch, createErrorReport, handleComponentError, observeComponentAsync } from '@exact/core';
+import { batch, createErrorReport, handleComponentError, observeComponentAsync } from '@exactjs/core';
 import { preserveFocus } from './focus.js';
 import { findOwnerInstance } from './ownership.js';
 import { eventHandlers } from './state.js';

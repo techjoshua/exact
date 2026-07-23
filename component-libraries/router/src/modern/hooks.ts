@@ -5,7 +5,7 @@ import {
 	useRef,
 	useState,
 	type ReactNode
-} from '@exact/react-compat';
+} from '@exactjs/react-compat';
 import {
 	matchPath,
 	type ExactRouter,

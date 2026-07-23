@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { analyzeSource, compileProject, generatedComponentName, transform } from '../index.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 
-describe('@exact/compiler: diagnostics', () => {
+describe('@exactjs/compiler: diagnostics', () => {
 	it('does not split an imported client component when a local binding shadows it', () => {
 		const widgetManifest = analyzeSource(
 			`

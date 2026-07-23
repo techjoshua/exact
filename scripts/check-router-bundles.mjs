@@ -5,7 +5,7 @@ const cases = [
 		name: 'native',
 		imported: 'createExactRouter',
 		module: './component-libraries/router/src/index.tsx',
-		absent: ['@exact/react-compat', 'function Switch', 'createStaticHandler']
+		absent: ['@exactjs/react-compat', 'function Switch', 'createStaticHandler']
 	},
 	{
 		name: 'data',
@@ -34,10 +34,10 @@ for (const fixture of cases) {
 		platform: 'browser',
 		treeShaking: true,
 		external: [
-			'@exact/core',
-			'@exact/request',
-			'@exact/react-compat',
-			'@exact/react-compat/interop'
+			'@exactjs/core',
+			'@exactjs/request',
+			'@exactjs/react-compat',
+			'@exactjs/react-compat/interop'
 		]
 	});
 	const source = result.outputFiles[0].text;

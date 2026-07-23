@@ -1,4 +1,4 @@
-import type { BoundModule, ExpressionProject } from '@exact/expressions';
+import type { BoundModule, ExpressionProject } from '@exactjs/expressions';
 import path from 'node:path';
 import ts from 'typescript';
 

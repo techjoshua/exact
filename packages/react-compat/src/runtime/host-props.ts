@@ -1,4 +1,4 @@
-import { unwrap } from '@exact/reactive';
+import { unwrap } from '@exactjs/reactive';
 
 /** Transforms react host props into its required representation. */
 export function normalizeReactHostProps(tag: string, props: Record<string, unknown>): void {

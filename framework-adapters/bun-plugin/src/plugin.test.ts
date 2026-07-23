@@ -11,7 +11,7 @@ import {
 	type BunLoadResult
 } from './index.js';
 
-describe('@exact/bun-plugin', () => {
+describe('@exactjs/bun-plugin', () => {
 	it('reports opt-in transform timings', () => {
 		const onProfile = vi.fn();
 
@@ -172,7 +172,7 @@ describe('@exact/bun-plugin', () => {
 		exact({ reactCompatibility: { target: 18 } }).setup(build);
 		const reactResolver = resolvers.find((entry) => entry.filter.test('react'))!;
 		await expect(Promise.resolve(reactResolver.handler({ path: 'react' }))).resolves.toEqual({
-			path: '@exact/react-compat/react18'
+			path: '@exactjs/react-compat/react18'
 		});
 		expect(
 			transformExactBunSource(
@@ -180,14 +180,14 @@ describe('@exact/bun-plugin', () => {
 				'/src/view.tsx',
 				{ reactCompatibility: { target: 18 } }
 			)?.code
-		).toContain('@exact/react-compat/jsx-runtime18');
+		).toContain('@exactjs/react-compat/jsx-runtime18');
 		expect(
 			transformExactBunSource(
 				'import { useMemo } from "react"; const view = <span>{useMemo(() => 1, [])}</span>;',
 				'/src/inferred.tsx',
 				{ reactCompatibility: { target: 18 } }
 			)?.code
-		).toContain('@exact/react-compat/jsx-runtime18');
+		).toContain('@exactjs/react-compat/jsx-runtime18');
 	});
 
 	it('rejects a mismatched reconciler relative to the importer', async () => {

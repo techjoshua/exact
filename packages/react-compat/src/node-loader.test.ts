@@ -18,12 +18,12 @@ describe('Node React compatibility loader', () => {
 			'import React from "react"; export const view = React.createElement("p");',
 			'file:///fixture.mjs'
 		);
-		expect(esm?.code).toContain('from "@exact/react-compat/react18"');
+		expect(esm?.code).toContain('from "@exactjs/react-compat/react18"');
 		const loaded = await loader.load('file:///fixture.cjs', { format: 'commonjs' }, async () => ({
 			format: 'commonjs',
 			source: 'module.exports = require("react");'
 		}));
-		expect(String(loaded.source)).toContain('require("@exact/react-compat/react18")');
+		expect(String(loaded.source)).toContain('require("@exactjs/react-compat/react18")');
 	});
 
 	it('passes unrelated and non-JavaScript loads through by identity', async () => {

@@ -1,4 +1,4 @@
-import type { ExactConfig } from '@exact/config';
+import type { ExactConfig } from '@exactjs/config';
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -46,7 +46,7 @@ describe('prepared plugin registry', () => {
 		const root = mkdtempSync(path.join(tmpdir(), 'exact-plugin-registry-'));
 		const plugin = createPackage(
 			root,
-			'@exact/example',
+			'@exactjs/example',
 			{
 				exports: {
 					'./config': './config.js',
@@ -82,10 +82,10 @@ describe('prepared plugin registry', () => {
 				exact: {
 					pluginForwarding: {
 						schemaVersion: 1,
-						include: { '@exact/example': { required: true } }
+						include: { '@exactjs/example': { required: true } }
 					},
 					pluginConfiguration: {
-						'@exact/example': {
+						'@exactjs/example': {
 							version: '^1.0.0',
 							subpath: './exact',
 							export: 'configureExample'
@@ -103,7 +103,7 @@ describe('prepared plugin registry', () => {
         }
       `
 			},
-			{ '@exact/example': '^1.0.0' }
+			{ '@exactjs/example': '^1.0.0' }
 		);
 		const graph = createFixtureGraph(root, plugin, framework);
 		const config: ExactConfig = {
@@ -120,7 +120,7 @@ describe('prepared plugin registry', () => {
 			config,
 			syncTypes: true
 		});
-		expect(registry.compiler.plugins['@exact/example']?.cacheKey).toEqual({
+		expect(registry.compiler.plugins['@exactjs/example']?.cacheKey).toEqual({
 			order: ['defaults', 'framework', 'root']
 		});
 		expect(registry.reports.map((report) => report.contributor)).toEqual([
@@ -128,7 +128,7 @@ describe('prepared plugin registry', () => {
 			'@app/root'
 		]);
 		expect(readFileSync(path.join(root, '.exact', 'plugins.d.ts'), 'utf8')).toContain(
-			'/// <reference types="@exact/example/config-types" />'
+			'/// <reference types="@exactjs/example/config-types" />'
 		);
 		expect(JSON.stringify(registry)).not.toContain('providers');
 	});
@@ -159,7 +159,7 @@ function createPackage(
 		version: '1.0.0',
 		type: 'module',
 		dependencies: {
-			'@exact/plugin-api': '^1.0.0',
+			'@exactjs/plugin-api': '^1.0.0',
 			...dependencies
 		},
 		...manifest
@@ -200,10 +200,10 @@ function createFixtureGraph(
 	const frameworkNode: ExactPackageNode = {
 		...framework,
 		dependencies: new Map([
-			['@exact/plugin-api', { name: '@exact/plugin-api', range: '^1.0.0', kind: 'dependency' }],
+			['@exactjs/plugin-api', { name: '@exactjs/plugin-api', range: '^1.0.0', kind: 'dependency' }],
 			[
-				'@exact/example',
-				{ name: '@exact/example', range: '^1.0.0', kind: 'dependency', targetId: plugin.id }
+				'@exactjs/example',
+				{ name: '@exactjs/example', range: '^1.0.0', kind: 'dependency', targetId: plugin.id }
 			]
 		])
 	};

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createExactBunHandler } from './index.js';
 
-describe('@exact/bun-adapter', () => {
+describe('@exactjs/bun-adapter', () => {
 	it('handles Bun Fetch-compatible requests', async () => {
 		const handler = createExactBunHandler({
 			manifest: {

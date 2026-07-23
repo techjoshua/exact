@@ -20,7 +20,7 @@ describe('exact-reactc', { timeout: 15_000 }, () => {
 		await mkdir(path.dirname(input), { recursive: true });
 		await writeFile(
 			input,
-			'/** @jsxImportSource @exact/jsx */\nimport { QueryClientProvider } from "@tanstack/react-query";\nconst view = <QueryClientProvider client={client} />;'
+			'/** @jsxImportSource @exactjs/jsx */\nimport { QueryClientProvider } from "@tanstack/react-query";\nconst view = <QueryClientProvider client={client} />;'
 		);
 		await execFileAsync(process.execPath, [
 			cli,
@@ -35,7 +35,7 @@ describe('exact-reactc', { timeout: 15_000 }, () => {
 			input
 		]);
 		expect(await readFile(path.join(outDir, 'view.ts'), 'utf8')).toContain(
-			'from "@exact/tanstack-query/react"'
+			'from "@exactjs/tanstack-query/react"'
 		);
 	});
 });

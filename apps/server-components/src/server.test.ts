@@ -1,10 +1,10 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode } from '@exact/core';
-import { createExactClient, hydrateClientIslands, readExactHydrationConfig } from '@exact/hydrate';
-import { handleExactRequest } from '@exact/server';
-import { createExactServerRuntime, renderExactRequestToHtmlResponse } from '@exact/ssr';
+import { createVNode } from '@exactjs/core';
+import { createExactClient, hydrateClientIslands, readExactHydrationConfig } from '@exactjs/hydrate';
+import { handleExactRequest } from '@exactjs/server';
+import { createExactServerRuntime, renderExactRequestToHtmlResponse } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
 import { IdentityProvider } from '../.exact/IdentityProvider.exact.client.js';
 import {
@@ -32,7 +32,7 @@ async function readStreamText(stream: ReadableStream<Uint8Array>): Promise<strin
 	}
 }
 
-describe('@exact/sample-server-components', () => {
+describe('@exactjs/sample-server-components', () => {
 	it('streams the initial document as a hydratable html response', async () => {
 		const response = renderProfilePageResponse('Ada');
 

@@ -1,4 +1,4 @@
-import type { Variable } from '@exact/expressions';
+import type { Variable } from '@exactjs/expressions';
 import type { CallableEffectPlan } from '../analysis/callable-effects.js';
 import type { ExpressionTaskPlan } from '../expression/task-contracts.js';
 import type { ExactPolicyFlowIR, ExactPolicyManifestIR, ExactPolicySubjectIR } from '../types.js';

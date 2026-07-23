@@ -1,9 +1,9 @@
-# @exact/bun-adapter
+# @exactjs/bun-adapter
 
 Bun runtime adapter for eXact server endpoints.
 
 ```ts
-import { createExactBunHandler } from '@exact/bun-adapter';
+import { createExactBunHandler } from '@exactjs/bun-adapter';
 
 const exact = createExactBunHandler(exactRuntime);
 

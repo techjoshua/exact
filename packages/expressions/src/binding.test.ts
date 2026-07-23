@@ -12,7 +12,7 @@ import { createExpressionProject } from './test-support/project.js';
 const root = path.resolve(import.meta.dirname, '../../..');
 const config = path.join(root, 'apps/kanban/tsconfig.json');
 
-describe('@exact/expressions binding', () => {
+describe('@exactjs/expressions binding', () => {
 	it('reuses an unchanged bound overlay without rebuilding', () => {
 		const project = createExpressionProject({ tsconfigPath: config });
 		const filename = path.join(root, 'apps/kanban/src/__expressions_unchanged.ts');

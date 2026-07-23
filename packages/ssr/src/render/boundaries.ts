@@ -1,5 +1,5 @@
-import { type VNode } from '@exact/core';
-import { unwrap } from '@exact/reactive';
+import { type VNode } from '@exactjs/core';
+import { unwrap } from '@exactjs/reactive';
 import { escapeAttr } from '../html.js';
 import { jsonUnsafePath, serializeHydrationPayload } from '../hydration.js';
 import { markerId, markerPair } from '../markup.js';

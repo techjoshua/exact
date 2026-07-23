@@ -9,7 +9,7 @@ type TestHapiResponse = {
 	header(name: string, value: string): TestHapiResponse;
 };
 
-describe('@exact/hapi-adapter', () => {
+describe('@exactjs/hapi-adapter', () => {
 	it('returns a Hapi response object', async () => {
 		const handler = createExactHapiHandler({
 			manifest: {

@@ -1,7 +1,7 @@
 import ts from 'typescript';
 import type { ExactSecretQualificationPlan } from './policy/analysis.js';
 
-const secretModule = '@exact/secrets';
+const secretModule = '@exactjs/secrets';
 const preferredAlias = '__ExactSecret';
 
 /**

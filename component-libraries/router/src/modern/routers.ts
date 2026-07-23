@@ -6,7 +6,7 @@ import {
 	useMemo,
 	useRef,
 	type ReactNode
-} from '@exact/react-compat';
+} from '@exactjs/react-compat';
 import {
 	createBrowserLocationSource,
 	createExactRouter,

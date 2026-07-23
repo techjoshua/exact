@@ -1,4 +1,4 @@
-import { createVNode, type Component } from '@exact/core';
+import { createVNode, type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import {
 	diffKeyedListItems,
@@ -7,7 +7,7 @@ import {
 	renderToString
 } from './index.js';
 
-describe('@exact/ssr keyed-lists', () => {
+describe('@exactjs/ssr keyed-lists', () => {
 	it('renders keyed list fragments with item markers', () => {
 		function List(this: Component<{}>) {
 			return () =>

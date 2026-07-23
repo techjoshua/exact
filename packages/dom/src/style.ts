@@ -1,4 +1,4 @@
-import { computed, unwrap, type ReactiveValue } from '@exact/reactive';
+import { computed, unwrap, type ReactiveValue } from '@exactjs/reactive';
 
 /** Defines the css value type contract. */
 export type CssValue = string | number | ReactiveValue<string>;

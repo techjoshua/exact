@@ -1,5 +1,5 @@
-import type { Component } from '@exact/core';
-import { createSelectedExternalSource, type ExternalSource } from '@exact/reactive';
+import type { Component } from '@exactjs/core';
+import { createSelectedExternalSource, type ExternalSource } from '@exactjs/reactive';
 import { createStore, type StateCreator, type StoreApi } from 'zustand/vanilla';
 
 export { createStore };

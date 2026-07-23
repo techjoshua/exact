@@ -44,7 +44,7 @@ if (process.argv[2] === '--group') {
 
 	await writeProfile(profiles, concurrency, checked, groups.size);
 	console.log(
-		`@exact/expressions losslessly round-tripped ${checked} source files across ${groups.size} projects with ${concurrency} workers`
+		`@exactjs/expressions losslessly round-tripped ${checked} source files across ${groups.size} projects with ${concurrency} workers`
 	);
 	printProfileSummary(profiles);
 }

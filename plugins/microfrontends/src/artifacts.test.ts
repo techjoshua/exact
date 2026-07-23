@@ -9,10 +9,10 @@ import {
 
 describe('provided-package artifact generation', () => {
 	it('generates static page imports and exact-key registrations in source order', () => {
-		const source = generateProvidedPackageBootstrap(['@exact/core', '@company/contexts']);
-		expect(source).toContain('import * as __exactProvided0 from "@exact/core";');
+		const source = generateProvidedPackageBootstrap(['@exactjs/core', '@company/contexts']);
+		expect(source).toContain('import * as __exactProvided0 from "@exactjs/core";');
 		expect(source).toContain('__exactRegistry.register("@company/contexts", __exactProvided1);');
-		expect(source.indexOf('@exact/core')).toBeLessThan(source.indexOf('@company/contexts'));
+		expect(source.indexOf('@exactjs/core')).toBeLessThan(source.indexOf('@company/contexts'));
 	});
 
 	it('generates only the requested default and named export shape', () => {
@@ -22,7 +22,7 @@ describe('provided-package artifact generation', () => {
 			exportNames: ['Button', 'Dialog', 'Button']
 		});
 		expect(source).toContain('.require("@company/design-system")');
-		expect(source).not.toContain("from '@exact/hydrate'");
+		expect(source).not.toContain("from '@exactjs/hydrate'");
 		expect(source).toContain('export { __exactDefault as default };');
 		expect(source).toContain('export { __exactExport0 as Button };');
 		expect(source).toContain('export { __exactExport1 as Dialog };');

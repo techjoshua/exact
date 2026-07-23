@@ -1,7 +1,7 @@
 import {
 	type PackageManifestLike,
 	type ReactCompatReplacementDeclaration
-} from '@exact/react-compat-adapter-api';
+} from '@exactjs/react-compat-adapter-api';
 
 /** Defines the react compat package node interface contract. */
 export interface ReactCompatPackageNode {

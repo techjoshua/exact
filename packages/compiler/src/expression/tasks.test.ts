@@ -69,7 +69,7 @@ describe('expression-backed task effects', () => {
 		const module = expressionModuleFor(
 			'AliasedTaskOwner.tsx',
 			`
-      import type { Component as ExactComponent } from "@exact/core";
+      import type { Component as ExactComponent } from "@exactjs/core";
       type Owner<State extends object> = ExactComponent<State>;
       function worker(this: Owner<{}>) { this.task.client(() => fetch("/ready")); }
     `

@@ -1,4 +1,4 @@
-import type { BoundModule, NodeRef, Variable } from '@exact/expressions';
+import type { BoundModule, NodeRef, Variable } from '@exactjs/expressions';
 import type { ExactProvenanceGraph } from '../provenance.js';
 import { expressionComponentIndex } from './component-index.js';
 

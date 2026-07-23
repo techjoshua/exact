@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  */
-import { Fragment, createVNode } from '@exact/core';
-import { render } from '@exact/dom';
-import { handleExactRequest } from '@exact/server';
+import { Fragment, createVNode } from '@exactjs/core';
+import { render } from '@exactjs/dom';
+import { handleExactRequest } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import {
 	applyPatches,
@@ -15,7 +15,7 @@ import {
 } from './index.js';
 import { noopLogger } from './test-support/responses.js';
 
-describe('@exact/hydrate request-operations', () => {
+describe('@exactjs/hydrate request-operations', () => {
 	it('keeps unrelated client ownership active after a server prop patch', () => {
 		let clicks = 0;
 		function Counter() {

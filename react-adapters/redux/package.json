@@ -1,6 +1,6 @@
 {
-	"name": "@exact/redux",
-	"version": "0.0.0",
+	"name": "@exactjs/redux",
+	"version": "0.1.0",
 	"type": "module",
 	"files": [
 		"dist",
@@ -20,16 +20,16 @@
 	"types": "./dist/index.d.ts",
 	"sideEffects": false,
 	"dependencies": {
-		"@exact/core": "file:../../packages/core",
-		"@exact/react-compat-adapter-api": "file:../../packages/react-compat-adapter-api",
-		"@exact/reactive": "file:../../packages/reactive"
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/react-compat-adapter-api": "^0.1.0",
+		"@exactjs/reactive": "^0.1.0"
 	},
 	"peerDependencies": {
-		"@exact/react-compat": "0.0.0",
+		"@exactjs/react-compat": "^0.1.0",
 		"react-redux": ">=8 <10"
 	},
 	"peerDependenciesMeta": {
-		"@exact/react-compat": {
+		"@exactjs/react-compat": {
 			"optional": true
 		},
 		"react-redux": {
@@ -72,5 +72,8 @@
 		"build": "tsc -b",
 		"test": "vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }

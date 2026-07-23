@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeSource, transform, transformSource } from '../index.js';
 
-describe('@exact/compiler: reactivity', () => {
+describe('@exactjs/compiler: reactivity', () => {
 	it('lowers JSX to eXact compiled vnode helpers', () => {
 		const output = transform('const view = <button title={label}>Save</button>;');
 

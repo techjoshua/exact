@@ -1,4 +1,4 @@
-import type { ExactPreparedCompilerRegistry } from '@exact/plugin-api';
+import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import { describe, expect, it } from 'vitest';
 import { analyzeSource } from './index.js';
 
@@ -19,8 +19,8 @@ describe('compiler plugins', () => {
 		const registry: ExactPreparedCompilerRegistry = {
 			fingerprint: 'registry-one',
 			plugins: {
-				'@exact/secrets': {
-					packageName: '@exact/secrets',
+				'@exactjs/secrets': {
+					packageName: '@exactjs/secrets',
 					version: '1.0.0',
 					protocolVersion: '1.0.0',
 					required: true,
@@ -52,9 +52,9 @@ describe('compiler plugins', () => {
 			{ filename: 'config.ts', pluginRegistry: registry }
 		);
 		expect(manifest.pluginRegistry?.fingerprint).toBe('registry-one');
-		expect(manifest.pluginData?.['@exact/secrets']).toEqual({ sources: 1 });
+		expect(manifest.pluginData?.['@exactjs/secrets']).toEqual({ sources: 1 });
 		expect(manifest.diagnostics).toContain(
-			'info: [@exact/secrets/source] secret source registered'
+			'info: [@exactjs/secrets/source] secret source registered'
 		);
 	});
 
@@ -79,8 +79,8 @@ function registry(fingerprint: string): ExactPreparedCompilerRegistry {
 	return {
 		fingerprint,
 		plugins: {
-			'@exact/test': {
-				packageName: '@exact/test',
+			'@exactjs/test': {
+				packageName: '@exactjs/test',
 				version: '1.0.0',
 				protocolVersion: '1.0.0',
 				required: true,

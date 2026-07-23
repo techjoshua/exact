@@ -8,7 +8,7 @@ import {
 	lazy,
 	useId,
 	type ReactNode
-} from '@exact/react-compat';
+} from '@exactjs/react-compat';
 import { PassThrough } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
 import { createRoot, hydrateRoot } from './client.js';

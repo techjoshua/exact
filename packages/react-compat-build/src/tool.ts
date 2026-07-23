@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { createReactCompatibilityBuildEngine } from '@exact/react-compat/build';
-import { validateReactCompatAdapterPackage } from '@exact/react-compat/plugin';
+import { createReactCompatibilityBuildEngine } from '@exactjs/react-compat/build';
+import { validateReactCompatAdapterPackage } from '@exactjs/react-compat/plugin';
 import path from 'node:path';
 
 function main(argv: string[]): void {

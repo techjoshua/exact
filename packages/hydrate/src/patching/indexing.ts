@@ -4,7 +4,7 @@ import {
 	findNodeOwnerInstance,
 	walkDomSubtree,
 	type DomWorkBudget
-} from '@exact/dom';
+} from '@exactjs/dom';
 import { type ExactRange, type ProtocolIndex } from './planning.js';
 
 /** Creates a protocol index. */

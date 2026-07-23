@@ -1,4 +1,4 @@
-import type { BoundModule, Variable } from '@exact/expressions';
+import type { BoundModule, Variable } from '@exactjs/expressions';
 import type { ExactPolicyFlowIR, ExactPolicySubjectIR } from '../types.js';
 import {
 	combinePolicyRecords,

@@ -1,6 +1,6 @@
-import type { Component } from '@exact/core';
-import { RemoteComponent } from '@exact/microfrontends/client';
-import { PortalContext, type PortalContextValue } from '@exact/sample-microfrontend-portal/shared';
+import type { Component } from '@exactjs/core';
+import { RemoteComponent } from '@exactjs/microfrontends/client';
+import { PortalContext, type PortalContextValue } from '@exactjs/sample-microfrontend-portal/shared';
 
 type PortalState = {
 	portal: PortalContextValue;

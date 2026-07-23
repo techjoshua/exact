@@ -1,4 +1,4 @@
-import type { NodeRef } from '@exact/expressions';
+import type { NodeRef } from '@exactjs/expressions';
 import { trackedCallbackArguments } from '../annotations.js';
 import { expressionStatePath } from '../expression/writes.js';
 import { stableId } from '../ids.js';

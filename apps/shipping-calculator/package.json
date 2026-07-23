@@ -1,5 +1,5 @@
 {
-	"name": "@exact/sample-shipping-calculator",
+	"name": "@exactjs/sample-shipping-calculator",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
@@ -15,14 +15,14 @@
 		"test:e2e": "playwright test"
 	},
 	"dependencies": {
-		"@exact/compiler": "file:../../packages/compiler",
-		"@exact/core": "file:../../packages/core",
-		"@exact/hydrate": "file:../../packages/hydrate",
-		"@exact/jsx": "file:../../packages/jsx-runtime",
-		"@exact/node-adapter": "file:../../framework-adapters/node-adapter",
-		"@exact/request": "file:../../packages/request",
-		"@exact/server": "file:../../packages/server",
-		"@exact/ssr": "file:../../packages/ssr"
+		"@exactjs/compiler": "^0.1.0",
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/hydrate": "^0.1.0",
+		"@exactjs/jsx": "^0.1.0",
+		"@exactjs/node-adapter": "^0.1.0",
+		"@exactjs/request": "^0.1.0",
+		"@exactjs/server": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.52.0",

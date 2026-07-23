@@ -1,10 +1,10 @@
-import { Fragment, Text, isVNode, sanitizeUrlAttribute, type Child, type VNode } from '@exact/core';
+import { Fragment, Text, isVNode, sanitizeUrlAttribute, type Child, type VNode } from '@exactjs/core';
 import {
 	consumeDomWork,
 	createDomWorkBudget,
 	namespaceForTag,
 	type DomWorkBudget
-} from '@exact/dom';
+} from '@exactjs/dom';
 import type { HydrateOptions } from '../types.js';
 
 /** Shared work and depth limits for conservative static-tree adoption. */

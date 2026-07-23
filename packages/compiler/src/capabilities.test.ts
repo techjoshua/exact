@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { analyzeSource, parseExactCompilerManifest, transformSource } from './index.js';
 
 const rawHtmlSource = `
-  import { unsafeHtml as raw } from "@exact/core";
-  import * as exact from "@exact/core";
+  import { unsafeHtml as raw } from "@exactjs/core";
+  import * as exact from "@exactjs/core";
   export function Article() {
     return () => <main>{raw("<b>article</b>")}{exact.unsafeHtml("<i>tail</i>")}</main>;
   }

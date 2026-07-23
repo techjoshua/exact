@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { act, createElement } from '@exact/react-compat';
+import { act, createElement } from '@exactjs/react-compat';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createRoot } from './client.js';
 

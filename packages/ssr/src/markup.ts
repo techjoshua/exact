@@ -1,5 +1,5 @@
-import { decodeExactMarkerPart, encodeExactMarkerPart, sanitizeUrlAttribute } from '@exact/core';
-import { unwrap } from '@exact/reactive';
+import { decodeExactMarkerPart, encodeExactMarkerPart, sanitizeUrlAttribute } from '@exactjs/core';
+import { unwrap } from '@exactjs/reactive';
 import { escapeAttr, escapeAttrName } from './html.js';
 import type { SsrContext } from './types.js';
 
@@ -23,6 +23,8 @@ export function renderAttrs(
 			name === 'children' ||
 			name === 'key' ||
 			name === 'ref' ||
+			name === '__exactBindInput' ||
+			name === '__exactBindChange' ||
 			name === 'dangerouslySetInnerHTML' ||
 			/^on[A-Z]/.test(name)
 		)
@@ -34,7 +36,14 @@ export function renderAttrs(
 		)
 			continue;
 		if (reactMarkup && tag === 'option' && name === 'children') continue;
-		const value = sanitizeUrlAttribute(name, unwrap(rawValue));
+		const unwrapped = unwrap(rawValue);
+		const normalized =
+			name === 'value' && tag === 'input' && props.type === 'date' && unwrapped instanceof Date
+				? Number.isNaN(unwrapped.getTime())
+					? ''
+					: unwrapped.toISOString().slice(0, 10)
+				: unwrapped;
+		const value = sanitizeUrlAttribute(name, normalized);
 		const attrName = reactMarkup
 			? reactAttributeName(name, reactMarkup, customElement)
 			: nativeAttributeName(name, tag);

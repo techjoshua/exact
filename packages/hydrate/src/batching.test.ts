@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { createExactClient } from './index.js';
 
-describe('@exact/hydrate batching', () => {
+describe('@exactjs/hydrate batching', () => {
 	it('batches compatible operations from different client roots while preserving roots', async () => {
 		const left = document.createElement('div');
 		const right = document.createElement('div');

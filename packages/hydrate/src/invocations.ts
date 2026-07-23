@@ -1,4 +1,4 @@
-import { logFrameworkEvent } from '@exact/core';
+import { logFrameworkEvent } from '@exactjs/core';
 import {
 	parseExactBatchResponse,
 	parseExactInvocationResponse,

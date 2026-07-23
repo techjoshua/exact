@@ -4,7 +4,7 @@ import type {
 	ReactiveRef,
 	ReactiveValue,
 	StopHandle
-} from '@exact/reactive';
+} from '@exactjs/reactive';
 
 import type { ComponentLog } from '../logging.js';
 

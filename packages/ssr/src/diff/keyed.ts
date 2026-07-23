@@ -1,4 +1,4 @@
-import type { ExactPatch } from '@exact/server';
+import type { ExactPatch } from '@exactjs/server';
 import type { KeyedListSnapshotItem } from '../types.js';
 
 /** Performs the diff keyed list items domain operation. */

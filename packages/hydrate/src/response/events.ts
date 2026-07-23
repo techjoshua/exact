@@ -1,4 +1,4 @@
-import type { ExactStreamEvent } from '@exact/server';
+import type { ExactStreamEvent } from '@exactjs/server';
 import { hasOnlyKeys, isJsonSafe } from '../validation.js';
 import { isPatchLike } from './result.js';
 

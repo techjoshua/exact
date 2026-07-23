@@ -1,13 +1,13 @@
 /**
  * @vitest-environment jsdom
  */
-import { createDynamicChild, createRef, type Component } from '@exact/core';
-import { jsx, jsxs } from '@exact/jsx';
-import { flushSync } from '@exact/reactive';
+import { createDynamicChild, createRef, type Component } from '@exactjs/core';
+import { jsx, jsxs } from '@exactjs/jsx';
+import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from './index.js';
 
-describe('@exact/dom child-cleanup', () => {
+describe('@exactjs/dom child-cleanup', () => {
 	it('removes replaced style object properties', () => {
 		let instance!: Component<{ compact: boolean }>;
 

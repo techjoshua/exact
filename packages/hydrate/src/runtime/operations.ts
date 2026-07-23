@@ -1,4 +1,4 @@
-import { createDomWorkBudget, type DomWorkBudget } from '@exact/dom';
+import { createDomWorkBudget, type DomWorkBudget } from '@exactjs/dom';
 import { enqueueExactOperation } from '../batching.js';
 import { ExactBuildUnsupportedError, invokeExact } from '../invocations.js';
 import { hydrateClientIslands } from '../islands.js';

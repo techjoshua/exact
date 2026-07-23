@@ -1,12 +1,12 @@
-import { createCompiledVNode as __exactVNode, createCompiledFragment as __exactFragment, createExpression as __exactExpression, createDynamicChild as __exactDynamic, writeReactiveLazy as __exactWrite, updateReactiveValue as __exactUpdate, updateReactiveValueWithResult as __exactUpdateResult, deleteReactiveValue as __exactDelete, mutateReactiveArray as __exactArrayMutation, ownTaskResource as __exactTaskResource, combineTaskSignal as __exactTaskCombinedSignal, taskAwait as __exactTaskAwait } from "@exact/core";
-import type { Component } from '@exact/core';
+import { createCompiledVNode as __exactVNode, createCompiledFragment as __exactFragment, createExpression as __exactExpression, createDynamicChild as __exactDynamic, writeReactiveLazy as __exactWrite, updateReactiveValue as __exactUpdate, updateReactiveValueWithResult as __exactUpdateResult, deleteReactiveValue as __exactDelete, mutateReactiveArray as __exactArrayMutation, ownTaskResource as __exactTaskResource, combineTaskSignal as __exactTaskCombinedSignal, taskAwait as __exactTaskAwait } from "@exactjs/core";
+import type { Component } from '@exactjs/core';
 import { exactClient } from "../../src/client-runtime.js";
 import { defaultDraft, draftUrl, normalizeDraft } from "../../src/model.js";
 import type { InitialModel, ProviderResult, RouteResult, ShipmentDraft } from "../../src/types.js";
 import { renderWorkspace } from "./workspace/view.exact.client.js";
 import type { WorkspaceState } from "../../src/components/workspace/contracts.js";
 import { cloneDraft, createWorkspaceInputs, delay } from "../../src/components/workspace/inputs.js";
-const __exactClientComponentDescriptor_1 = /* @__PURE__ */ Symbol.for("@exact/client-component-descriptor");
+const __exactClientComponentDescriptor_1 = /* @__PURE__ */ Symbol.for("@exactjs/client-component-descriptor");
 const __exactImplementation_CalculatorWorkspace_1 = function CalculatorWorkspace(this: Component<WorkspaceState>, props: {
     initial: InitialModel;
 }) {

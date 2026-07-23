@@ -1,6 +1,6 @@
 {
-	"name": "@exact/dom",
-	"version": "0.0.0",
+	"name": "@exactjs/dom",
+	"version": "0.1.0",
 	"type": "module",
 	"files": [
 		"dist",
@@ -19,16 +19,19 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exact/core": "file:../core",
-		"@exact/instrumentation": "file:../instrumentation",
-		"@exact/reactive": "file:../reactive"
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/instrumentation": "^0.1.0",
+		"@exactjs/reactive": "^0.1.0"
 	},
 	"devDependencies": {
-		"@exact/jsx": "file:../jsx-runtime"
+		"@exactjs/jsx": "^0.1.0"
 	},
 	"scripts": {
 		"build": "tsc -b",
 		"test": "vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }

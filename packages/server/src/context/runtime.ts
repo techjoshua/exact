@@ -3,7 +3,7 @@ import {
 	createRequestContextValue,
 	type RequestContextValue,
 	type RequestResponseState
-} from '@exact/request';
+} from '@exactjs/request';
 import type {
 	ExactContextFactoryContext,
 	ExactContextRuntime,

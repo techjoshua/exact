@@ -7,9 +7,9 @@ import type {
 	TaskObserver,
 	UnsafeHtmlAuditEvent,
 	VNode
-} from '@exact/core';
-import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation';
-import type { ExactOutputExtension } from '@exact/plugin-api';
+} from '@exactjs/core';
+import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
+import type { ExactOutputExtension } from '@exactjs/plugin-api';
 import type {
 	ExactEndpointRoutes,
 	ExactInvocationRequest,
@@ -20,7 +20,7 @@ import type {
 	ExactServerContextConfiguration,
 	ExactServerManifest,
 	ExactStateContract
-} from '@exact/server';
+} from '@exactjs/server';
 
 /** Configures render to string. */
 export type RenderToStringOptions = {

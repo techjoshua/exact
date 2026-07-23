@@ -4,7 +4,7 @@ import {
 	readReactCompatAdapterDeclaration,
 	readReactCompatApplicationPolicy,
 	type ReactCompatAdapterDeclaration
-} from '@exact/react-compat-adapter-api';
+} from '@exactjs/react-compat-adapter-api';
 import path from 'node:path';
 import { intersects, satisfies, validRange } from 'semver';
 import type {
@@ -128,7 +128,7 @@ export function discoverReactCompatAdapters(
 		const name = packageName(node);
 		if (!packageDirectlyDependsOnAdapterMarker(node.manifest)) {
 			throw new Error(
-				`React compatibility adapter ${name} must directly depend on @exact/react-compat-adapter-api`
+				`React compatibility adapter ${name} must directly depend on @exactjs/react-compat-adapter-api`
 			);
 		}
 		validateProtocolRange(node);

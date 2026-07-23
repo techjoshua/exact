@@ -3,8 +3,8 @@ import { stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createExactNodeHandler } from '@exact/node-adapter';
-import { resolveExactBuildKey } from '@exact/microfrontends/build';
+import { createExactNodeHandler } from '@exactjs/node-adapter';
+import { resolveExactBuildKey } from '@exactjs/microfrontends/build';
 import { createSampleRuntimes } from './runtime.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');

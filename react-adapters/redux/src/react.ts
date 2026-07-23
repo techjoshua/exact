@@ -6,9 +6,9 @@ import {
 	type ReactComponentType,
 	type ReactContext,
 	type ReactNode
-} from '@exact/react-compat';
-import { exposeExactComponent, useExactContext } from '@exact/react-compat/interop';
-import { unwrap } from '@exact/reactive';
+} from '@exactjs/react-compat';
+import { exposeExactComponent, useExactContext } from '@exactjs/react-compat/interop';
+import { unwrap } from '@exactjs/reactive';
 import {
 	createReduxSubscription,
 	ExactReduxProvider,

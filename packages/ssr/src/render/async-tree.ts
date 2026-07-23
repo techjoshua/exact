@@ -15,8 +15,8 @@ import {
 	renderInstance,
 	withTaskObserver,
 	type VNode
-} from '@exact/core';
-import { flushSync, unwrap } from '@exact/reactive';
+} from '@exactjs/core';
+import { flushSync, unwrap } from '@exactjs/reactive';
 import { escapeText, voidElements } from '../html.js';
 import { exactMarkerId, markerId, markerPair, renderAttrs } from '../markup.js';
 import {

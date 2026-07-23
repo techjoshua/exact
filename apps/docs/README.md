@@ -7,7 +7,7 @@ This workspace contains the routed, client-only eXact documentation site. It is 
 From the repository root:
 
 ```sh
-npm run dev -w @exact/docs
+npm run dev -w @exactjs/docs
 ```
 
 Development uses Vite and falls back from an empty document to the normal client render. The production build additionally prerenders the initial documentation route and hydrates that existing markup.
@@ -15,7 +15,7 @@ Development uses Vite and falls back from an empty document to the normal client
 ## Build
 
 ```sh
-npm run build -w @exact/docs
+npm run build -w @exactjs/docs
 ```
 
 The build performs two eXact compilations:
@@ -34,7 +34,7 @@ The build fails if the output contains an external script or stylesheet, if more
 ## Verify
 
 ```sh
-npm run verify -w @exact/docs
+npm run verify -w @exactjs/docs
 ```
 
 This runs the package-local typecheck followed by the standalone production build.
@@ -44,7 +44,7 @@ This runs the package-local typecheck followed by the standalone production buil
 The standalone file supports direct `file://` opening, including hash navigation. A local HTTP preview is still useful because it matches GitHub Pages more closely:
 
 ```sh
-npm run preview -w @exact/docs
+npm run preview -w @exactjs/docs
 ```
 
 Then open `http://127.0.0.1:4175/`.

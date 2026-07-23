@@ -1,4 +1,4 @@
-import { handleExactRequest, type ExactServerContext } from '@exact/server';
+import { handleExactRequest, type ExactServerContext } from '@exactjs/server';
 
 /** Defines the exact cloudflare handler type contract. */
 export type ExactCloudflareHandler<Env = unknown, CfContext = unknown> = (

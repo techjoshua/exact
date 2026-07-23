@@ -1,4 +1,4 @@
-import type { BoundModule, NodeRef, Variable } from '@exact/expressions';
+import type { BoundModule, NodeRef, Variable } from '@exactjs/expressions';
 import { stableId } from '../ids.js';
 import type {
 	ExactPolicyFlowIR,
@@ -171,7 +171,7 @@ export function importedCallSymbol(module: BoundModule, call: NodeRef, variable:
 export function isSecretConsumeCall(module: BoundModule, call: NodeRef): boolean {
 	if (call.node.kind !== 'CallExpression') return false;
 	const variable = call.target?.rootVariable;
-	if (!variable || packageNameFromSpecifier(variable.importedFrom ?? '') !== '@exact/secrets') {
+	if (!variable || packageNameFromSpecifier(variable.importedFrom ?? '') !== '@exactjs/secrets') {
 		return false;
 	}
 	return importedCallSymbol(module, call, variable) === 'consume';

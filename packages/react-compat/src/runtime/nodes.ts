@@ -10,7 +10,7 @@ import {
 	type ComponentFunction,
 	type ComponentInstance,
 	type VNode
-} from '@exact/core';
+} from '@exactjs/core';
 import {
 	EXACT_COMPONENT_TYPE,
 	REACT_ACTIVITY_TYPE,

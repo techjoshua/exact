@@ -1,4 +1,4 @@
-import type { Component } from '@exact/core';
+import type { Component } from '@exactjs/core';
 
 /** Tracks the state owned by profile. */
 export type ProfileState = {

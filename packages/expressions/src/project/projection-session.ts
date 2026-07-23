@@ -1,4 +1,4 @@
-import type { ExactProfileSink } from '@exact/instrumentation';
+import type { ExactProfileSink } from '@exactjs/instrumentation';
 import { performance } from 'node:perf_hooks';
 import type ts from 'typescript';
 import type { ExpressionNode, ExpressionSymbol, ExpressionType } from '../model.js';

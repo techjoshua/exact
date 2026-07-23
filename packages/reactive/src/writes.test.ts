@@ -8,7 +8,7 @@ import {
 	writeReactive
 } from './index.js';
 
-describe('@exact/reactive writes', () => {
+describe('@exactjs/reactive writes', () => {
 	it('retains keyed record identity when an API response reorders records', () => {
 		const state = reactive({
 			records: [

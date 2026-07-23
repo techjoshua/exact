@@ -8,7 +8,7 @@ import {
 	currentComponentDomain,
 	withComponentDomain,
 	type Component
-} from '@exact/core';
+} from '@exactjs/core';
 import { describe, expect, it, vi } from 'vitest';
 import { render, unmount } from './index.js';
 import { inspectDomRoot } from './testing.js';

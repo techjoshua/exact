@@ -1,4 +1,4 @@
-import type { Variable } from '@exact/expressions';
+import type { Variable } from '@exactjs/expressions';
 
 /** Provides the canonical browser platform globals value. */
 export const browserPlatformGlobals = new Set([

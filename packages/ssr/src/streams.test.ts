@@ -1,4 +1,4 @@
-import { createVNode, type Component } from '@exact/core';
+import { createVNode, type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import {
 	renderToDocumentStream,
@@ -18,7 +18,7 @@ import {
 	readStreamText
 } from './test-support/streams.js';
 
-describe('@exact/ssr streams', () => {
+describe('@exactjs/ssr streams', () => {
 	it('supports inert progressive replacement payloads without inline execution', async () => {
 		let resolveTask!: () => void;
 		const taskReady = new Promise<void>((resolve) => {

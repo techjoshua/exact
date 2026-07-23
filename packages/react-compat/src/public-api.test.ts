@@ -55,7 +55,7 @@ describe('React compatibility elements', () => {
 	it('gives explicit JSX ownership precedence over source inference', () => {
 		const resolved = resolveReactCompatibility({ target: 19, source: '/src/' });
 		expect(
-			jsxSourceOwnership('/src/view.tsx', '/** @jsxImportSource @exact/jsx */', resolved)
+			jsxSourceOwnership('/src/view.tsx', '/** @jsxImportSource @exactjs/jsx */', resolved)
 		).toBe('exact');
 		expect(jsxSourceOwnership('/other/view.tsx', '/** @jsxImportSource react */', resolved)).toBe(
 			'react'

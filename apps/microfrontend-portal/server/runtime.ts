@@ -1,6 +1,6 @@
-import { createExactBindingGateway } from '@exact/microfrontends';
-import { createVNode } from '@exact/core';
-import { renderToStringAsync } from '@exact/ssr';
+import { createExactBindingGateway } from '@exactjs/microfrontends';
+import { createVNode } from '@exactjs/core';
+import { renderToStringAsync } from '@exactjs/ssr';
 import type {
 	ExactGatewayRejectEvent,
 	ExactInvocationRequest,
@@ -8,14 +8,14 @@ import type {
 	ExactRequestLike,
 	ExactServerContext,
 	ExactServerManifest
-} from '@exact/server';
+} from '@exactjs/server';
 
 /** Immutable protocol root for the billing exposure. */
-export const billingRoot = '@exact/sample-microfrontend-billing#./Billing';
+export const billingRoot = '@exactjs/sample-microfrontend-billing#./Billing';
 /** Immutable protocol root for the full branding exposure. */
-export const brandingRoot = '@exact/sample-microfrontend-branding#./Shell';
+export const brandingRoot = '@exactjs/sample-microfrontend-branding#./Shell';
 /** Immutable protocol root for the compact branding exposure. */
-export const compactBrandingRoot = '@exact/sample-microfrontend-branding#./CompactShell';
+export const compactBrandingRoot = '@exactjs/sample-microfrontend-branding#./CompactShell';
 
 /** Configures build identity, private endpoints, and transport for the sample topology. */
 export type SampleRuntimeOptions = {

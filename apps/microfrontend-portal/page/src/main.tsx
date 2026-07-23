@@ -1,6 +1,6 @@
-import { render } from '@exact/dom';
-import { createExactClient } from '@exact/hydrate';
-import { createExactRoot } from '@exact/hydrate/internal';
+import { render } from '@exactjs/dom';
+import { createExactClient } from '@exactjs/hydrate';
+import { createExactRoot } from '@exactjs/hydrate/internal';
 import PortalPage from './PortalPage.js';
 import './styles.css';
 

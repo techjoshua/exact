@@ -4,7 +4,7 @@ import process from 'node:process';
 const npm = process.env.npm_execpath
 	? { file: process.execPath, args: [process.env.npm_execpath] }
 	: { file: process.platform === 'win32' ? 'npm.cmd' : 'npm', args: [] };
-for (const workspace of ['@exact/react-reference-18', '@exact/react-reference-19']) {
+for (const workspace of ['@exactjs/react-reference-18', '@exactjs/react-reference-19']) {
 	const output = execFileSync(
 		npm.file,
 		[...npm.args, 'run', 'benchmark', '-w', workspace, '--silent'],

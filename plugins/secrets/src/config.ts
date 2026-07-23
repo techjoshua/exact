@@ -1,4 +1,4 @@
-import type {} from '@exact/config';
+import type {} from '@exactjs/config';
 import type { Secret } from './values.js';
 
 /** Carries the context required by secret provider. */
@@ -30,7 +30,7 @@ export interface SecretsPluginConfig {
 	allowPackages: string[];
 }
 
-declare module '@exact/config' {
+declare module '@exactjs/config' {
 	interface ExactPluginConfigRegistry {
 		secrets: SecretsPluginConfig;
 	}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createProfileCollector, summarizeProfile, type ExactProfileEvent } from './index.js';
 
-describe('@exact/instrumentation', () => {
+describe('@exactjs/instrumentation', () => {
 	it('collects immutable snapshots and clears without global state', () => {
 		const collector = createProfileCollector<ExactProfileEvent<'compiler', 'transform'>>();
 		collector.sink(

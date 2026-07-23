@@ -18,8 +18,8 @@ import {
 mkdirSync(outputDirectory, { recursive: true });
 
 const [reference18, reference19] = await Promise.all([
-	runReference('@exact/react-reference-18'),
-	runReference('@exact/react-reference-19')
+	runReference('@exactjs/react-reference-18'),
+	runReference('@exactjs/react-reference-19')
 ]);
 
 validateVersion(reference18, '18.3');

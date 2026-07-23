@@ -1,5 +1,5 @@
 // node_modules/react-error-boundary/dist/react-error-boundary.js
-import { createContext as l, Component as y, createElement as d, useContext as f, useState as p, useMemo as E, forwardRef as B } from "@exact/react-compat/react19";
+import { createContext as l, Component as y, createElement as d, useContext as f, useState as p, useMemo as E, forwardRef as B } from "@exactjs/react-compat/react19";
 var h = l(null);
 var c = {
   didCatch: false,

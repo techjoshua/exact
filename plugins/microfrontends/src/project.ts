@@ -2,8 +2,8 @@ import {
 	compileProjectArtifacts,
 	createExactArtifactGraph,
 	type ExactArtifactGraph
-} from '@exact/compiler';
-import type { ExactPreparedCompilerRegistry } from '@exact/plugin-api';
+} from '@exactjs/compiler';
+import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';

@@ -12,8 +12,8 @@ export {
 	watch,
 	writeReactive,
 	writeReactiveLazy
-} from '@exact/reactive';
-export type { Reactive, ReactiveValue, StopHandle } from '@exact/reactive';
+} from '@exactjs/reactive';
+export type { Reactive, ReactiveValue, StopHandle } from '@exactjs/reactive';
 export {
 	attachSuppressedCleanupFailure,
 	attemptCleanup,

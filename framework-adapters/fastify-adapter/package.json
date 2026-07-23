@@ -1,6 +1,6 @@
 {
-	"name": "@exact/fastify-adapter",
-	"version": "0.0.0",
+	"name": "@exactjs/fastify-adapter",
+	"version": "0.1.0",
 	"type": "module",
 	"files": [
 		"dist",
@@ -16,11 +16,14 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exact/server": "file:../../packages/server"
+		"@exactjs/server": "^0.1.0"
 	},
 	"scripts": {
 		"build": "tsc -b",
 		"test": "vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }

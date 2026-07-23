@@ -4,10 +4,10 @@
 		"noEmit": true,
 		"lib": ["ES2022", "DOM", "DOM.Iterable"],
 		"jsx": "preserve",
-		"jsxImportSource": "@exact/jsx",
+		"jsxImportSource": "@exactjs/jsx",
 		"baseUrl": ".",
 		"paths": {
-			"@exact/sample-microfrontend-portal/shared": ["./src/shared.ts"]
+			"@exactjs/sample-microfrontend-portal/shared": ["./src/shared.ts"]
 		},
 		"types": ["node", "vitest/globals", "vite/client"]
 	},

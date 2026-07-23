@@ -4,7 +4,7 @@ export interface ExactProvidedPackageRegistry {
 	require(key: string): unknown;
 }
 
-const registrySymbol = Symbol.for('@exact/provided-packages');
+const registrySymbol = Symbol.for('@exactjs/provided-packages');
 const maximumDiagnosticKeyLength = 160;
 
 type RegistryHost = typeof globalThis & {

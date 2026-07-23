@@ -87,5 +87,5 @@ export interface ReactCompatibilityBuildEngine {
 	invalidate(file: string): void;
 	report(): ReactCompatibilityReport;
 }
-import type { ModuleRewriteOptions } from '@exact/expressions';
+import type { ModuleRewriteOptions } from '@exactjs/expressions';
 import type { ResolvedReactCompatibility } from '../plugin.js';

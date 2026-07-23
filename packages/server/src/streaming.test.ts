@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createExpressHandler, createFetchHandler, handleExactRequest } from './index.js';
 import { context, readNextStreamLine, readStreamEvents } from './test-support/server.js';
 
-describe('@exact/server streaming', () => {
+describe('@exactjs/server streaming', () => {
 	it('streams single operation results as ndjson events', async () => {
 		const result = await handleExactRequest(
 			{

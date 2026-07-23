@@ -14,13 +14,13 @@ The newer consolidated direction is recorded in
 [native-ssr-adoption-and-data-policy.md](native-ssr-adoption-and-data-policy.md).
 That document confirms that generic residency, consumption, projection, package
 permission, and audit behavior belongs in the main semantic compiler/runtime
-architecture. `@exact/secrets` remains an optional provider, resolver, runtime
+architecture. `@exactjs/secrets` remains an optional provider, resolver, runtime
 brand, and integration package rather than owning an independent policy engine.
 Where the documents differ, the consolidated document takes precedence.
 
 The proposal builds on the existing compiler placement analysis, state/context effect tracking, generated client islands, server slots, hydration state contracts, and secure server endpoint.
 
-`@exact/secrets` is intended to be an opt-in framework plugin. Its discovery,
+`@exactjs/secrets` is intended to be an opt-in framework plugin. Its discovery,
 configuration, compiler hooks, runtime hooks, and host integration must use the
 general protocol defined in
 [framework-plugin-architecture-plan.md](framework-plugin-architecture-plan.md).
@@ -282,7 +282,7 @@ scope for the current request. The application owns cross-request identity,
 persistence, invalidation, concurrency, and distribution, and explicitly
 commits changes to its store or response cookie.
 
-The existing `@exact/request` ambient storage is the starting point for request lifetime integration. Async-safe storage remains an adapter/runtime responsibility.
+The existing `@exactjs/request` ambient storage is the starting point for request lifetime integration. Async-safe storage remains an adapter/runtime responsibility.
 
 ### Component scope
 
@@ -509,7 +509,7 @@ not silently omit a field.
 
 ### Directive parsing
 
-Extend `@exact/compiler` annotation validation:
+Extend `@exactjs/compiler` annotation validation:
 
 - Add `keep` to the closed directive set.
 - Accept only `server`, `client`, or `secret`.
@@ -519,7 +519,7 @@ Extend `@exact/compiler` annotation validation:
 
 ### Expression type qualifications
 
-Extend `@exact/expressions` type metadata so policy information survives:
+Extend `@exactjs/expressions` type metadata so policy information survives:
 
 - Binding and property resolution.
 - Generic substitution where possible.
@@ -755,7 +755,7 @@ Exit criteria:
 - Extend context token metadata with `keep` and `scope`.
 - Implement application and request provider registries.
 - Add lazy initialization, dependency resolution, cycle detection, and disposal.
-- Integrate `@exact/request` storage.
+- Integrate `@exactjs/request` storage.
 - Wire SSR and server endpoint dispatch to the same request scope.
 - Add testing utilities for scoped provider overrides and disposal assertions.
 

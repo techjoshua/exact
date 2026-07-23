@@ -1,4 +1,4 @@
-import { createReactCompatibilityBuildEngine } from '@exact/react-compat/build';
+import { createReactCompatibilityBuildEngine } from '@exactjs/react-compat/build';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -23,7 +23,7 @@ describe('router compatibility integration', () => {
 				name: 'router-variant-app',
 				version: '1.0.0',
 				dependencies: {
-					'@exact/router': '0.0.0',
+					'@exactjs/router': '0.0.0',
 					'react-router-dom': '7.9.0',
 					nested: '1.0.0',
 					unsupported: '1.0.0'
@@ -41,15 +41,15 @@ describe('router compatibility integration', () => {
 						name: 'router-variant-app',
 						version: '1.0.0',
 						dependencies: {
-							'@exact/router': '0.0.0',
+							'@exactjs/router': '0.0.0',
 							'react-router-dom': '7.9.0',
 							nested: '1.0.0',
 							unsupported: '1.0.0'
 						}
 					},
-					'node_modules/@exact/router': routerManifest,
-					'node_modules/@exact/react-compat-adapter-api': {
-						name: '@exact/react-compat-adapter-api',
+					'node_modules/@exactjs/router': routerManifest,
+					'node_modules/@exactjs/react-compat-adapter-api': {
+						name: '@exactjs/react-compat-adapter-api',
 						version: '1.0.0'
 					},
 					'node_modules/react-router-dom': {
@@ -93,12 +93,12 @@ describe('router compatibility integration', () => {
 			format: 'module',
 			target: 'client'
 		});
-		expect(modern.code).toContain('from "@exact/router/data"');
-		expect(legacy.code).toContain('from "@exact/router/v5"');
+		expect(modern.code).toContain('from "@exactjs/router/data"');
+		expect(legacy.code).toContain('from "@exactjs/router/v5"');
 		expect(engine.report().substitutions).toEqual(
 			expect.arrayContaining([
-				expect.objectContaining({ sourceVersion: '>=6.4 <8', targetModule: '@exact/router/data' }),
-				expect.objectContaining({ sourceVersion: '>=5 <6', targetModule: '@exact/router/v5' })
+				expect.objectContaining({ sourceVersion: '>=6.4 <8', targetModule: '@exactjs/router/data' }),
+				expect.objectContaining({ sourceVersion: '>=5 <6', targetModule: '@exactjs/router/v5' })
 			])
 		);
 		expect(() =>
@@ -125,7 +125,7 @@ describe('router compatibility integration', () => {
 		const data = readFileSync(new URL('./data.ts', import.meta.url), 'utf8');
 		const v5 = readFileSync(new URL('./v5.ts', import.meta.url), 'utf8');
 		expect(manifest.sideEffects).toBe(false);
-		expect(native).not.toContain('@exact/react-compat');
+		expect(native).not.toContain('@exactjs/react-compat');
 		expect(native).not.toMatch(/from\s+["']\.\/(?:modern|data|v5)\.js["']/);
 		expect(data).toContain("from './modern.js'");
 		expect(data).not.toContain("from './v5.js'");

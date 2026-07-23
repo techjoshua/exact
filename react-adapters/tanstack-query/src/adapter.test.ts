@@ -1,7 +1,7 @@
-import { createComponentInstance, type Component } from '@exact/core';
-import { createElement } from '@exact/react-compat';
-import { toExactNode } from '@exact/react-compat/exact';
-import { flushSync } from '@exact/reactive';
+import { createComponentInstance, type Component } from '@exactjs/core';
+import { createElement } from '@exactjs/react-compat';
+import { toExactNode } from '@exactjs/react-compat/exact';
+import { flushSync } from '@exactjs/reactive';
 import { QueryClient } from '@tanstack/query-core';
 import { build } from 'esbuild';
 import { readFile } from 'node:fs/promises';
@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { createComponentQuery, ExactQueryClientProvider, QueryClientContext } from './index.js';
 import { QueryClientProvider } from './provider.js';
 
-describe('@exact/tanstack-query', () => {
+describe('@exactjs/tanstack-query', () => {
 	it('shares an opaque QueryClient through the native provider', () => {
 		const client = new QueryClient();
 		const provider = createComponentInstance(ExactQueryClientProvider, { client });
@@ -58,14 +58,14 @@ describe('@exact/tanstack-query', () => {
 				resolveDir: fileURLToPath(new URL('.', import.meta.url))
 			},
 			bundle: true,
-			external: ['@tanstack/query-core', '@exact/core', '@exact/reactive'],
+			external: ['@tanstack/query-core', '@exactjs/core', '@exactjs/reactive'],
 			write: false,
 			metafile: true,
 			platform: 'browser',
 			format: 'esm'
 		});
 		const output = result.outputFiles![0]!.text;
-		expect(output).not.toContain('@exact/react-compat');
+		expect(output).not.toContain('@exactjs/react-compat');
 		expect(output).not.toContain('@tanstack/react-query');
 	});
 });

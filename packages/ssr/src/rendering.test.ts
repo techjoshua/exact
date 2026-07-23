@@ -1,4 +1,4 @@
-import { createVNode, type Component } from '@exact/core';
+import { createVNode, type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import {
 	createExactServerHandlerRegistry,
@@ -7,7 +7,7 @@ import {
 	renderToStringAsync
 } from './index.js';
 
-describe('@exact/ssr rendering', () => {
+describe('@exactjs/ssr rendering', () => {
 	it('reports opt-in string render timings', () => {
 		const events: Array<{ subsystem: string; phase: string }> = [];
 

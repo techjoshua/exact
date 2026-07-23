@@ -47,8 +47,8 @@ describe('automatic React JSX ownership', () => {
 				sourceMap: true
 			}
 		);
-		expect(result.code).toContain('from "@exact/react-compat/jsx-runtime18"');
-		expect(result.code).toContain('from "@exact/react-compat/react18"');
+		expect(result.code).toContain('from "@exactjs/react-compat/jsx-runtime18"');
+		expect(result.code).toContain('from "@exactjs/react-compat/react18"');
 		expect(result.code).not.toContain('from "react"');
 		expect(result.map).toMatchObject({ sources: ['view.tsx'] });
 	});
@@ -91,7 +91,7 @@ describe('automatic React JSX ownership', () => {
 		);
 
 		expect(classic.code).toContain('React.createElement');
-		expect(classic.code).toContain('@exact/react-compat/react19');
+		expect(classic.code).toContain('@exactjs/react-compat/react19');
 		expect(classic.map).toBeNull();
 	});
 
@@ -134,7 +134,7 @@ describe('automatic React JSX ownership', () => {
 		expect(containsModule("import value from 'source'", 'source')).toBe(true);
 		expect(containsModule('import value from "other"', 'source')).toBe(false);
 		expect(
-			containsCandidate("import value from 'library'", { react: '@exact/react-compat' }, [
+			containsCandidate("import value from 'library'", { react: '@exactjs/react-compat' }, [
 				{
 					sourceModule: 'library',
 					sourceExport: 'value',
@@ -151,7 +151,7 @@ describe('automatic React JSX ownership', () => {
 			{
 				sourceModule: 'library',
 				sourceExport: 'hook',
-				targetModule: '@exact/adapter/runtime',
+				targetModule: '@exactjs/adapter/runtime',
 				targetExport: 'useHook'
 			}
 		]);
@@ -181,9 +181,9 @@ describe('automatic React JSX ownership', () => {
 			sourceModule: 'library',
 			sourceExport: 'hook',
 			installedVersion: '1.0.0',
-			adapterPackage: '@exact/adapter',
+			adapterPackage: '@exactjs/adapter',
 			adapterVersion: '1.0.0',
-			targetModule: '@exact/adapter/runtime',
+			targetModule: '@exactjs/adapter/runtime',
 			targetExport: 'useHook'
 		};
 		recordSelection(selections, selection);
@@ -209,10 +209,10 @@ function fixtureReplacement(): ResolvedReactCompatReplacement {
 		sourcePackage: 'library',
 		sourceExport: 'hook',
 		sourceVersion: '1.0.0',
-		adapterPackage: '@exact/adapter',
+		adapterPackage: '@exactjs/adapter',
 		adapterVersion: '1.0.0',
 		subpath: './runtime',
-		specifier: '@exact/adapter/runtime',
+		specifier: '@exactjs/adapter/runtime',
 		export: 'useHook'
 	};
 }

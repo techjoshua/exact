@@ -1,4 +1,4 @@
-import { logFrameworkEvent, type VNode } from '@exact/core';
+import { logFrameworkEvent, type VNode } from '@exactjs/core';
 import type { Root } from './types.js';
 
 /** Emits a DOM patch trace event through the root logger. */

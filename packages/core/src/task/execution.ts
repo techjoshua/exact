@@ -5,7 +5,7 @@ import {
 	unwrap,
 	type ReactiveRef,
 	type ReactiveValue
-} from '@exact/reactive';
+} from '@exactjs/reactive';
 
 import type {
 	ComponentInstance,

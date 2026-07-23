@@ -1,4 +1,4 @@
-import { handleExactRequest, type ExactServerContext } from '@exact/server';
+import { handleExactRequest, type ExactServerContext } from '@exactjs/server';
 
 /** Creates a Bun.serve-compatible fetch handler for an eXact endpoint. */
 export function createExactBunHandler(

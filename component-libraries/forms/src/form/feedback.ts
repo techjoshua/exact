@@ -1,4 +1,4 @@
-import { createVNode, type Component } from '@exact/core';
+import { createVNode, type Component } from '@exactjs/core';
 
 import { FieldContext } from './context.js';
 import type { FieldHelpProps } from './contracts.js';

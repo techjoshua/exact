@@ -1,4 +1,4 @@
-import { findElementOwner } from '@exact/dom/testing';
+import { findElementOwner } from '@exactjs/dom/testing';
 
 import type { AccessibleName, ActionOptions, RoleQueryOptions } from '../contracts.js';
 import type { TestComponent, TestView } from '../mounting/views.js';

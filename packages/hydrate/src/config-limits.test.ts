@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode } from '@exact/core';
+import { createVNode } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { hydrate, readExactHydrationConfig } from './index.js';
 

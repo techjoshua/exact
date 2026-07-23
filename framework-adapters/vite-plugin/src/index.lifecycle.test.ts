@@ -3,7 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { exact } from './index.js';
 
-describe('@exact/vite-plugin: lifecycle', () => {
+describe('@exactjs/vite-plugin: lifecycle', () => {
 	it('honors include and exclude filters', () => {
 		expect(
 			exact({ include: '/src/', reactCompatibility: false }).transform(
@@ -126,7 +126,7 @@ describe('@exact/vite-plugin: lifecycle', () => {
 		expect(watched.some((file) => file.endsWith('package-lock.json'))).toBe(true);
 		expect(
 			watched.some((file) =>
-				file.replaceAll('\\', '/').endsWith('@exact/tanstack-query/package.json')
+				file.replaceAll('\\', '/').endsWith('@exactjs/tanstack-query/package.json')
 			)
 		).toBe(true);
 	});

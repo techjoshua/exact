@@ -6,7 +6,7 @@ import { createExpressionProject } from './test-support/project.js';
 const root = path.resolve(import.meta.dirname, '../../..');
 const kanbanConfig = path.join(root, 'apps/kanban/tsconfig.json');
 
-describe('@exact/expressions: incremental', () => {
+describe('@exactjs/expressions: incremental', () => {
 	it('keeps earlier module versions and analyses immutable', () => {
 		const project = createExpressionProject({ tsconfigPath: kanbanConfig });
 		const filename = path.join(root, 'apps/kanban/src/__expressions_versions.ts');

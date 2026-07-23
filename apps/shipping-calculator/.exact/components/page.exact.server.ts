@@ -1,5 +1,5 @@
-import { createCompiledVNode as __exactVNode, createCompiledFragment as __exactFragment, createExpression as __exactExpression, createDynamicChild as __exactDynamic, writeReactiveLazy as __exactWrite, updateReactiveValue as __exactUpdate, updateReactiveValueWithResult as __exactUpdateResult, deleteReactiveValue as __exactDelete, mutateReactiveArray as __exactArrayMutation, combineTaskSignal as __exactTaskCombinedSignal, taskAwait as __exactTaskAwait, createServerBoundary as __exactBoundary } from "@exact/core";
-import type { Component } from '@exact/core';
+import { createCompiledVNode as __exactVNode, createCompiledFragment as __exactFragment, createExpression as __exactExpression, createDynamicChild as __exactDynamic, writeReactiveLazy as __exactWrite, updateReactiveValue as __exactUpdate, updateReactiveValueWithResult as __exactUpdateResult, deleteReactiveValue as __exactDelete, mutateReactiveArray as __exactArrayMutation, combineTaskSignal as __exactTaskCombinedSignal, taskAwait as __exactTaskAwait, createServerBoundary as __exactBoundary } from "@exactjs/core";
+import type { Component } from '@exactjs/core';
 import { resolveRoute } from "../../src/geography.js";
 import { draftFromUrl, emptyInitialModel, normalizeDraft } from "../../src/model.js";
 import { configuredProviderIds, quoteProvider } from "../../src/providers/registry.js";

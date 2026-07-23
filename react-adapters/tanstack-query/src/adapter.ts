@@ -1,5 +1,5 @@
-import { createContext, type Child, type Component } from '@exact/core';
-import { createExternalSource, type ExternalSource, type ReactiveValue } from '@exact/reactive';
+import { createContext, type Child, type Component } from '@exactjs/core';
+import { createExternalSource, type ExternalSource, type ReactiveValue } from '@exactjs/reactive';
 import {
 	InfiniteQueryObserver,
 	MutationObserver,

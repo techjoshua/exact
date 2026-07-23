@@ -1,5 +1,5 @@
-import { attachSuppressedCleanupFailure, type ContextToken } from '@exact/core';
-import { commitRequestResponseState, type RequestResponseState } from '@exact/request';
+import { attachSuppressedCleanupFailure, type ContextToken } from '@exactjs/core';
+import { commitRequestResponseState, type RequestResponseState } from '@exactjs/request';
 import type { ExactContextFactory, ExactRequestLike, ExactResponseLike } from '../types.js';
 import { type AnyRegistration, type OwnedValue, type ScopeKind } from './scope.js';
 

@@ -3,10 +3,10 @@ import {
 	type ComponentFunction,
 	type ComponentInstance,
 	type ContextToken
-} from '@exact/core';
-import { unmount } from '@exact/dom';
-import { inspectDomRoot, type DomInspectionNode } from '@exact/dom/testing';
-import { flushSync, unwrap } from '@exact/reactive';
+} from '@exactjs/core';
+import { unmount } from '@exactjs/dom';
+import { inspectDomRoot, type DomInspectionNode } from '@exactjs/dom/testing';
+import { flushSync, unwrap } from '@exactjs/reactive';
 
 import type { ActionOptions, InternalConfiguration, PropsOf, StateOf } from '../contracts.js';
 import { withTimeout } from '../control/settling.js';

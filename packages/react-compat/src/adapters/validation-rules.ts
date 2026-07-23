@@ -3,7 +3,7 @@ import {
 	reactCompatAdapterMarkerPackage,
 	reactCompatAdapterProtocolVersion,
 	type ReactCompatAdapterDeclaration
-} from '@exact/react-compat-adapter-api';
+} from '@exactjs/react-compat-adapter-api';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { satisfies, validRange } from 'semver';
@@ -116,8 +116,8 @@ export function validateProtocolRange(node: ReactCompatPackageNode): void {
 		dependencyRange(node.manifest.dependencies, reactCompatAdapterMarkerPackage) ??
 		dependencyRange(node.manifest.optionalDependencies, reactCompatAdapterMarkerPackage);
 	if (!range) return;
-	// Workspace/file dependencies are resolved to a concrete package version by
-	// the package graph. Published semver ranges must opt into protocol major 1.
+	// Local dependencies are resolved to a concrete package version by the
+	// package graph. Published semver ranges must accept this protocol release.
 	if (range.startsWith('file:') || range.startsWith('workspace:')) return;
 	if (!validRange(range) || !satisfies(reactCompatAdapterProtocolVersion, range)) {
 		throw new Error(

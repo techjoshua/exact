@@ -6,7 +6,7 @@ import {
 	registerReactiveListKey
 } from './index.js';
 
-describe('@exact/reactive protocol', () => {
+describe('@exactjs/reactive protocol', () => {
 	it('round-trips keyed collections through a transparent protocol envelope', () => {
 		const records = [
 			{ id: 'a', title: 'A' },

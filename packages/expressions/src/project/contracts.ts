@@ -1,4 +1,4 @@
-import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation';
+import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 
 /** Configuration for one TypeScript-backed expression project session. */
 export interface ExpressionProjectOptions {

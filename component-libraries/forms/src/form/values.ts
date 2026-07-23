@@ -1,4 +1,4 @@
-import { type Child } from '@exact/core';
+import { type Child } from '@exactjs/core';
 import type { FieldValue } from './contracts.js';
 
 /** Performs the children array domain operation. */

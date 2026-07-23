@@ -10,7 +10,7 @@ import {
 } from '../index.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 
-describe('@exact/compiler: artifacts', () => {
+describe('@exactjs/compiler: artifacts', () => {
 	it('compiles a single TSX file to an output directory', async () => {
 		const root = await createTestWorkspace('exact-compiler-');
 		const input = path.join(root, 'src', 'view.tsx');
@@ -267,14 +267,14 @@ describe('@exact/compiler: artifacts', () => {
 		const clientSymbol = result.manifest.symbols.find((symbol) => symbol.role === 'client-island')!;
 		const serverSymbol = result.manifest.symbols.find((symbol) => symbol.role === 'server-part')!;
 
-		expect(client).toContain('Symbol.for("@exact/client-component-descriptor")');
+		expect(client).toContain('Symbol.for("@exactjs/client-component-descriptor")');
 		expect(client).toContain(
 			`["${clientSymbol.id}", "${clientSymbol.generatedName}", ${clientSymbol.exportName}]`
 		);
 		expect(client).toMatch(
 			/export const Panel: typeof __exactImplementation_Panel_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/
 		);
-		expect(server).toContain('Symbol.for("@exact/server-component-descriptor")');
+		expect(server).toContain('Symbol.for("@exactjs/server-component-descriptor")');
 		expect(server).toMatch(
 			new RegExp(
 				`\\["${serverSymbol.id}", "${serverSymbol.generatedName}", (?:${serverSymbol.localName}|__exactImplementation_Panel_\\d+)\\]`
@@ -336,7 +336,7 @@ describe('@exact/compiler: artifacts', () => {
 		await writeFile(
 			path.join(components, 'page.tsx'),
 			`
-      import type { Component } from '@exact/core';
+      import type { Component } from '@exactjs/core';
       import { quote } from '../provider.js';
       import { Workspace } from './workspace.js';
       export function Page(this: Component<{ value: string }>) {
@@ -352,7 +352,7 @@ describe('@exact/compiler: artifacts', () => {
 		await writeFile(
 			path.join(components, 'workspace.tsx'),
 			`
-      import type { Component } from '@exact/core';
+      import type { Component } from '@exactjs/core';
       import { renderWorkspace } from './workspace-view.js';
       export function Workspace(this: Component<{ count: number }>) {
         this.state.count = 0;

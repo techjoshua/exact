@@ -1,4 +1,4 @@
-import type { BoundModule, NodeRef, Variable } from '@exact/expressions';
+import type { BoundModule, NodeRef, Variable } from '@exactjs/expressions';
 import { stableId } from '../ids.js';
 import type { ExactPolicyFlowIR, ExactPolicySubjectIR } from '../types.js';
 import {

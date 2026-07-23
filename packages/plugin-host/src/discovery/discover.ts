@@ -1,5 +1,5 @@
-import type { ExactPluginDiscoveryConfig } from '@exact/config';
-import { matchesPackageSelectors, readExactPackageParticipation } from '@exact/plugin-api';
+import type { ExactPluginDiscoveryConfig } from '@exactjs/config';
+import { matchesPackageSelectors, readExactPackageParticipation } from '@exactjs/plugin-api';
 import { packageName, type ExactPackageGraph } from '../graph.js';
 import type {
 	ExactConfigurationContributor,

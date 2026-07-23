@@ -6,27 +6,27 @@ import {
 	type ExactCompilerManifest,
 	type ExactCompilerSession,
 	type TransformTarget
-} from '@exact/compiler';
+} from '@exactjs/compiler';
 import {
 	createExactDiagnosticReporter,
 	loadExactImportedManifests,
 	matchesExactBuildFilter
-} from '@exact/compiler/adapter-support';
+} from '@exactjs/compiler/adapter-support';
 import {
 	profileTimestamp,
 	type ExactProfileEvent,
 	type ExactProfileSink
-} from '@exact/instrumentation';
-import type { ExactPreparedCompilerRegistry } from '@exact/plugin-api';
-import { prepareExactPluginRegistry } from '@exact/plugin-host/node';
+} from '@exactjs/instrumentation';
+import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
+import { prepareExactPluginRegistry } from '@exactjs/plugin-host/node';
 import {
 	jsxSourceOwnership,
 	resolveReactCompatibility,
 	validateInstalledReactReconciler,
 	type ReactCompatibilityOptions,
 	type ResolvedReactCompatibility
-} from '@exact/react-compat/plugin';
-import { transformReactJsx, usesReactRuntimeImports } from '@exact/react-compat/transform';
+} from '@exactjs/react-compat/plugin';
+import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
 import path from 'node:path';
 import {
 	createWebpackCompilerSession,
@@ -211,7 +211,7 @@ export function createExactWebpackRule(
 		enforce: 'pre',
 		use: [
 			{
-				loader: '@exact/webpack-plugin/loader',
+				loader: '@exactjs/webpack-plugin/loader',
 				options: { ...options, ...(sessionId ? { __exactSessionId: sessionId } : {}) }
 			}
 		]

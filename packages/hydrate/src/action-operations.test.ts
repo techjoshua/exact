@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { createExactClient } from './index.js';
 
-describe('@exact/hydrate action-operations', () => {
+describe('@exactjs/hydrate action-operations', () => {
 	it('sends configured action boundary snapshots with action invocations', async () => {
 		const container = document.createElement('main');
 		container.innerHTML =

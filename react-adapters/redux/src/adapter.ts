@@ -1,5 +1,5 @@
-import { createContext, type Child, type Component } from '@exact/core';
-import { createSelectedExternalSource, unwrap, type ExternalSource } from '@exact/reactive';
+import { createContext, type Child, type Component } from '@exactjs/core';
+import { createSelectedExternalSource, unwrap, type ExternalSource } from '@exactjs/reactive';
 
 /** Defines the redux store interface contract. */
 export interface ReduxStore<State = unknown, Action = unknown> {
@@ -33,7 +33,7 @@ export function ExactReduxProvider(
 	const store = unwrap(props.store);
 	if (props.context !== undefined)
 		throw new Error(
-			'@exact/redux does not substitute react-redux custom contexts; use ReduxStoreContext'
+			'@exactjs/redux does not substitute react-redux custom contexts; use ReduxStoreContext'
 		);
 	this.setContext(ReduxStoreContext, store);
 	if (props.serverState !== undefined) this.setContext(ReduxServerStateContext, props.serverState);

@@ -1,5 +1,5 @@
-import { createVNode, Text, type ComponentInstance, type VNode } from '@exact/core';
-import { flushSync } from '@exact/reactive';
+import { createVNode, Text, type ComponentInstance, type VNode } from '@exactjs/core';
+import { flushSync } from '@exactjs/reactive';
 import { clearDelegated } from '../events.js';
 import { componentMounts, roots } from '../state.js';
 import type { DomProfileEvent, Mounted, RenderOptions } from '../types.js';

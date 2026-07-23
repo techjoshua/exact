@@ -50,6 +50,6 @@ The automated tests in `sample.test.ts` separate browser composition from protoc
 
 ## Shared package contract
 
-All three builds declare `@exact/sample-microfrontend-portal/shared` as provided. The page emits the shared module, while remote builds leave it external and resolve the page-provided instance at runtime. This makes the reactive context token identical across roots without bundling another copy of eXact core.
+All three builds declare `@exactjs/sample-microfrontend-portal/shared` as provided. The page emits the shared module, while remote builds leave it external and resolve the page-provided instance at runtime. This makes the reactive context token identical across roots without bundling another copy of eXact core.
 
 The sample uses the current Git SHA as its build key. Remote client requests carry that key through the page gateway so the owning host can select the matching build registration.

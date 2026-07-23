@@ -16,8 +16,8 @@ import {
 	useReducer,
 	useRef,
 	useState
-} from '@exact/react-compat';
-import { flushSync } from '@exact/reactive';
+} from '@exactjs/react-compat';
+import { flushSync } from '@exactjs/reactive';
 import { Airplay } from 'lucide-react-phase1';
 import { describe, expect, it, vi } from 'vitest';
 import { createRoot, hydrateRoot } from './client.js';

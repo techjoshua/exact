@@ -1,4 +1,4 @@
-import { Suspense, cache, cacheSignal, createElement } from '@exact/react-compat';
+import { Suspense, cache, cacheSignal, createElement } from '@exactjs/react-compat';
 import { PassThrough } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
 import {

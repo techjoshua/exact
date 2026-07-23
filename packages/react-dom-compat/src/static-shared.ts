@@ -1,4 +1,4 @@
-import type { ReactNode } from '@exact/react-compat';
+import type { ReactNode } from '@exactjs/react-compat';
 import {
 	readableStreamFromString,
 	renderReactToStringAsync,

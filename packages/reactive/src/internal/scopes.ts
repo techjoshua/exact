@@ -1,4 +1,4 @@
-import type { ExactProfileSink } from '@exact/instrumentation';
+import type { ExactProfileSink } from '@exactjs/instrumentation';
 import type { EffectScope, EffectScopeImpl, ReactiveProfileEvent } from './types.js';
 
 const scopeStack: EffectScopeImpl[] = [];

@@ -11,7 +11,7 @@ import {
 	writeReactive
 } from './index.js';
 
-describe('@exact/reactive reconciliation', () => {
+describe('@exactjs/reactive reconciliation', () => {
 	it('uses keyed item hashes across moves and only reconciles changed items', () => {
 		const state = reactive({
 			records: [

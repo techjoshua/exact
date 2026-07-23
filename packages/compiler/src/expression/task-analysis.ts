@@ -1,4 +1,4 @@
-import type { BoundModule } from '@exact/expressions';
+import type { BoundModule } from '@exactjs/expressions';
 
 import type { CallableEffectPlan } from '../analysis/callable-effects.js';
 

@@ -1,5 +1,5 @@
-import { createComponentDomain } from '@exact/core';
-import { consumeDomWork, disposeOwnedSubtree, unmount, type DomWorkBudget } from '@exact/dom';
+import { createComponentDomain } from '@exactjs/core';
+import { consumeDomWork, disposeOwnedSubtree, unmount, type DomWorkBudget } from '@exactjs/dom';
 import {
 	cloneEndpointRoutes,
 	mergeClientIslands,
@@ -12,8 +12,8 @@ import type { ExactClient, HydrateOptions, HydrationRoot } from '../types.js';
 import { invokeAndApply } from './operations.js';
 import { requestVersions, roots } from './state.js';
 
-const requestClients = new WeakMap<import('@exact/core').ComponentDomain, ExactClient>();
-const requestDomains = new WeakMap<ExactClient, Set<import('@exact/core').ComponentDomain>>();
+const requestClients = new WeakMap<import('@exactjs/core').ComponentDomain, ExactClient>();
+const requestDomains = new WeakMap<ExactClient, Set<import('@exactjs/core').ComponentDomain>>();
 const activeRequestClients = new WeakSet<ExactClient>();
 
 /**
@@ -22,7 +22,7 @@ const activeRequestClients = new WeakSet<ExactClient>();
  * @internal
  */
 export function bindRequestClientDomain(
-	domain: import('@exact/core').ComponentDomain,
+	domain: import('@exactjs/core').ComponentDomain,
 	client: ExactClient
 ): void {
 	if (!activeRequestClients.has(client))
@@ -40,7 +40,7 @@ export function bindRequestClientDomain(
 
 /** Resolves the request client privately owned by an immutable component root. */
 export function requestClientForComponentDomain(
-	domain: import('@exact/core').ComponentDomain
+	domain: import('@exactjs/core').ComponentDomain
 ): ExactClient | undefined {
 	return requestClients.get(domain);
 }

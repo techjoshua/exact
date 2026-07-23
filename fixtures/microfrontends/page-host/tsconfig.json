@@ -4,7 +4,7 @@
 		"noEmit": true,
 		"lib": ["ES2022", "DOM"],
 		"jsx": "preserve",
-		"jsxImportSource": "@exact/jsx"
+		"jsxImportSource": "@exactjs/jsx"
 	},
 	"include": ["src"]
 }

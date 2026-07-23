@@ -4,7 +4,7 @@ React compatibility is an automatically detected runtime layer. When the Vite, W
 
 ## Baselines
 
-The initial stable baselines are React 18.3 and React 19.2. `@exact/react-compatibility` contains the machine-readable API disposition and phase assignment for both baselines. Runtime reference traces are produced under `.tmp/react-conformance/` by:
+The initial stable baselines are React 18.3 and React 19.2. `@exactjs/react-compatibility` contains the machine-readable API disposition and phase assignment for both baselines. Runtime reference traces are produced under `.tmp/react-conformance/` by:
 
 ```sh
 npm run check:react-compat
@@ -65,7 +65,7 @@ These existing conditions are the comparison baseline for Phase 0. Compatibility
 
 ## Phase 1: elements and shallow hooks
 
-Phase 1 is implemented as `@exact/react-compat` and `@exact/react-dom-compat`. It supports function components, fragments, the automatic and development JSX runtimes, `Children`, element creation/cloning/validation, `createRoot`, and shallow custom hooks composed from `useState`, `useReducer`, `useRef`, `useMemo`, `useCallback`, and `useDebugValue`.
+Phase 1 is implemented as `@exactjs/react-compat` and `@exactjs/react-dom-compat`. It supports function components, fragments, the automatic and development JSX runtimes, `Children`, element creation/cloning/validation, `createRoot`, and shallow custom hooks composed from `useState`, `useReducer`, `useRef`, `useMemo`, `useCallback`, and `useDebugValue`.
 
 The compatibility path is runtime-first: already-published packages in `node_modules` do not need to pass through the eXact compiler. Vite, Webpack, and Bun integrations automatically locate the nearest installed React package and select major 18 or 19. `reactCompatibility` can override the target, provide an import-free source filter, or disable the behavior:
 
@@ -80,9 +80,9 @@ exact({
 
 React-owned source can be identified by the `source` filter or `@jsxImportSource react`. It is routed through the compiler's React JSX lowering rather than the native eXact JSX transformer. Strict mode rejects a source file that claims both React and eXact JSX ownership. With compatibility disabled, plugin resolution and compilation behavior is unchanged.
 
-React ownership is also inferred semantically when a TSX/JSX file references a value binding imported from a public `react` or `react-dom` entrypoint. Type-only imports and unused value imports do not claim ownership. Explicit `@jsxImportSource react` and `@jsxImportSource @exact/jsx` directives take precedence, with the eXact directive protecting a mixed file from automatic inference.
+React ownership is also inferred semantically when a TSX/JSX file references a value binding imported from a public `react` or `react-dom` entrypoint. Type-only imports and unused value imports do not claim ownership. Explicit `@jsxImportSource react` and `@jsxImportSource @exactjs/jsx` directives take precedence, with the eXact directive protecting a mixed file from automatic inference.
 
-React-owned source is lowered by the shared compiler using the automatic JSX runtime. Generated modules directly import the selected `@exact/react-compat/jsx-runtime18` or `jsx-runtime19`, and authored public React imports are rewritten to their target-specific compatibility entrypoints. Resolver aliases remain installed because already-compiled dependencies in `node_modules` still contain their original React specifiers. Import-free automatic-runtime components cannot be distinguished from eXact JSX by syntax alone, so they still need a React import, an explicit directive, or a configured `source` filter.
+React-owned source is lowered by the shared compiler using the automatic JSX runtime. Generated modules directly import the selected `@exactjs/react-compat/jsx-runtime18` or `jsx-runtime19`, and authored public React imports are rewritten to their target-specific compatibility entrypoints. Resolver aliases remain installed because already-compiled dependencies in `node_modules` still contain their original React specifiers. Import-free automatic-runtime components cannot be distinguished from eXact JSX by syntax alone, so they still need a React import, an explicit directive, or a configured `source` filter.
 
 The emitted imports are verified as real bundle inputs for both targets with `npm run check:react-auto-bundle`.
 

@@ -1,4 +1,4 @@
-import type { BoundModule } from '@exact/expressions';
+import type { BoundModule } from '@exactjs/expressions';
 import { exactKeepPolicy } from '../annotations.js';
 import { expressionComponentIndex } from '../expression/component-index.js';
 import { stableId } from '../ids.js';

@@ -1,4 +1,4 @@
-import { flushSync } from '@exact/reactive';
+import { flushSync } from '@exactjs/reactive';
 import {
 	reactCompatibilityTarget,
 	ReactSharedInternals18,

@@ -10,7 +10,7 @@
   hash.
 
 For Node ESM, preload the shared loader with
-`node --import @exact/react-compat/register app.js`. CommonJS entry modules do
+`node --import @exactjs/react-compat/register app.js`. CommonJS entry modules do
 not pass through Node's ESM load hook reliably; precompile them with
 `exact-reactc` for production. Static CommonJS encountered by a cooperating
 host is supported by the shared transformer.

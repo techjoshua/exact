@@ -1,5 +1,5 @@
-import type { Component } from '@exact/core';
-import { PortalContext } from '@exact/sample-microfrontend-portal/shared';
+import type { Component } from '@exactjs/core';
+import { PortalContext } from '@exactjs/sample-microfrontend-portal/shared';
 import './billing.css';
 
 type BillingProps = { accountId?: string };

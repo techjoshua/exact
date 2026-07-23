@@ -1,4 +1,4 @@
-import type { ExactPluginConfigContext } from '@exact/plugin-api';
+import type { ExactPluginConfigContext } from '@exactjs/plugin-api';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -110,7 +110,7 @@ describe('secret provider and resolver lifecycle', () => {
 		] as unknown as SecretsPluginConfig[];
 		for (const invalid of invalidShapes) {
 			expect(() => controller.structuralValidate?.(invalid, context)).toThrow(
-				'Invalid @exact/secrets configuration'
+				'Invalid @exactjs/secrets configuration'
 			);
 		}
 		expect(() =>
@@ -178,7 +178,7 @@ function providerContext(applicationRoot: string) {
 
 function pluginContext(applicationRoot: string): ExactPluginConfigContext {
 	return {
-		plugin: { packageName: '@exact/secrets', version: '1.0.0' },
+		plugin: { packageName: '@exactjs/secrets', version: '1.0.0' },
 		contributor: { packageName: '@app/root', version: '1.0.0' },
 		applicationRoot,
 		environment: 'test',

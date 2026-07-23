@@ -6,7 +6,7 @@ import { createExpressionProject } from './test-support/project.js';
 const root = path.resolve(import.meta.dirname, '../../..');
 const kanbanConfig = path.join(root, 'apps/kanban/tsconfig.json');
 
-describe('@exact/expressions: construction', () => {
+describe('@exactjs/expressions: construction', () => {
 	it('constructs, emits, and binds typed modules programmatically', async () => {
 		const builder = expressions.module(
 			path.join(root, 'apps/kanban/src/__generated_expression.ts')
@@ -30,15 +30,15 @@ describe('@exact/expressions: construction', () => {
 
 	it('constructs type-only aliased imports as canonical variables', () => {
 		const builder = expressions.module('generated-import.ts');
-		const [component] = builder.import(['Component'], '@exact/core', {
+		const [component] = builder.import(['Component'], '@exactjs/core', {
 			typeOnly: true,
 			aliases: { Component: 'ExactComponent' }
 		});
 		expect(component?.name).toBe('ExactComponent');
-		expect(component?.importedFrom).toBe('@exact/core');
+		expect(component?.importedFrom).toBe('@exactjs/core');
 		expect(component?.typeOnly).toBe(true);
 		expect(builder.build().emit().code).toContain(
-			'import type { Component as ExactComponent } from "@exact/core";'
+			'import type { Component as ExactComponent } from "@exactjs/core";'
 		);
 	});
 

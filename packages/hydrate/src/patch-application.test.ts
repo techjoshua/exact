@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { applyPatches, createExactClient } from './index.js';
 import { ndjsonResponse, noopLogger } from './test-support/responses.js';
 
-describe('@exact/hydrate patch-application', () => {
+describe('@exactjs/hydrate patch-application', () => {
 	it('applies text patches to exact marker ranges', () => {
 		const container = document.createElement('div');
 		container.innerHTML = '<!--exact:title-->Old<!--/exact:title-->';

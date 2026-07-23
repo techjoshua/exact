@@ -9,14 +9,14 @@ import {
 	Fragment,
 	type Child,
 	type Component
-} from '@exact/core';
-import { jsx, jsxs } from '@exact/jsx';
-import { createEffectScope, flushSync } from '@exact/reactive';
+} from '@exactjs/core';
+import { jsx, jsxs } from '@exactjs/jsx';
+import { createEffectScope, flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { adoptStatic, render, unmount } from './index.js';
 import { mountedDomNodes, placeMountedBefore } from './placement.js';
 
-describe('@exact/dom keyed-reconciliation', () => {
+describe('@exactjs/dom keyed-reconciliation', () => {
 	it('moves an adopted boundary as one start-to-end DOM range', () => {
 		const container = document.createElement('div');
 		const start = document.createComment('exact:component:0');

@@ -3,7 +3,7 @@ import {
 	attemptCleanup,
 	createCleanupFailure,
 	throwCleanupFailure
-} from '@exact/core';
+} from '@exactjs/core';
 import { handleExactRequest } from './runtime/request-handler.js';
 import type { ExactServerContext } from './types.js';
 

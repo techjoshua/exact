@@ -6,8 +6,8 @@ import {
 	createVNode,
 	withComponentDomain,
 	type Component
-} from '@exact/core';
-import { render, unmount } from '@exact/dom';
+} from '@exactjs/core';
+import { render, unmount } from '@exactjs/dom';
 import { describe, expect, it, vi } from 'vitest';
 import { applyPatches } from './patches.js';
 

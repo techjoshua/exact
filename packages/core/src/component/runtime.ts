@@ -13,7 +13,7 @@ import {
 	type ReactiveRef,
 	type ReactiveValue,
 	type StopHandle
-} from '@exact/reactive';
+} from '@exactjs/reactive';
 
 import { Fragment } from '../symbols.js';
 import { createVNode } from '../vnode.js';

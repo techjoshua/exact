@@ -1,4 +1,4 @@
-import { Cell, Dynamic, Fragment, UnsafeHtml } from '@exact/core';
+import { Cell, Dynamic, Fragment, UnsafeHtml } from '@exactjs/core';
 import { describeNode, domDebug } from './debug.js';
 import type { Mounted, Root } from './types.js';
 

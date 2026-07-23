@@ -1,5 +1,5 @@
-import type { Component, ContextToken } from '@exact/core';
-import { reactive, type Reactive } from '@exact/reactive';
+import type { Component, ContextToken } from '@exactjs/core';
+import { reactive, type Reactive } from '@exactjs/reactive';
 import type { DependencyList, ExternalStoreSubscribe, ReactContext } from '../types.js';
 import { contextToken, readComponentReactContext } from './class-support.js';
 import {

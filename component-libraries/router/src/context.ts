@@ -1,4 +1,4 @@
-import { createContext } from '@exact/core';
+import { createContext } from '@exactjs/core';
 import type { ExactRouteDefinition, ExactRouter } from './core.js';
 
 /** Shared controller identity bridged by native eXact and React facades. */

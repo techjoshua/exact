@@ -1,4 +1,4 @@
-import { rewriteModuleReferences } from '@exact/expressions';
+import { rewriteModuleReferences } from '@exactjs/expressions';
 import path from 'node:path';
 import ts from 'typescript';
 import { analyzeCallableEffects } from '../analysis/callable-effects.js';

@@ -1,11 +1,11 @@
-import type { ExactConfig } from '@exact/config';
+import type { ExactConfig } from '@exactjs/config';
 import type {
 	ExactCompilerPluginConfig,
 	ExactPluginConfigContext,
 	ExactPluginConfigController,
 	ExactPluginConfigTransform,
 	ExactPluginHostMode
-} from '@exact/plugin-api';
+} from '@exactjs/plugin-api';
 import { performance } from 'node:perf_hooks';
 import { validRange } from 'semver';
 import type {

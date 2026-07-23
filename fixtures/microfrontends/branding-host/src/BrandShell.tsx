@@ -1,4 +1,4 @@
-import type { Child } from '@exact/core';
+import type { Child } from '@exactjs/core';
 
 export default function BrandShell(props: {
 	navigation?: Child;

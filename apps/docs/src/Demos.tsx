@@ -1,4 +1,4 @@
-import type { Component } from '@exact/core';
+import type { Component } from '@exactjs/core';
 
 type CounterState = { count: number; lastChanged: string };
 
@@ -62,10 +62,7 @@ export function PriceDemo(this: Component<PriceState>) {
 						type="range"
 						min="1"
 						max="8"
-						value={this.state.quantity}
-						onInput={(event: Event) => {
-							this.state.quantity = Number((event.currentTarget as HTMLInputElement).value);
-						}}
+						value:input={this.state.quantity}
 					/>
 				</label>
 				<label>
@@ -75,19 +72,13 @@ export function PriceDemo(this: Component<PriceState>) {
 						min="8"
 						max="60"
 						step="2"
-						value={this.state.price}
-						onInput={(event: Event) => {
-							this.state.price = Number((event.currentTarget as HTMLInputElement).value);
-						}}
+						value:input={this.state.price}
 					/>
 				</label>
 				<label className="check-row">
 					<input
 						type="checkbox"
-						checked={this.state.express}
-						onChange={(event: Event) => {
-							this.state.express = (event.currentTarget as HTMLInputElement).checked;
-						}}
+						checked:change={this.state.express}
 					/>
 					Express delivery
 				</label>
@@ -117,7 +108,8 @@ type ReadingItem = {
 	note: string;
 };
 
-type ListState = { items: ReadingItem[]; expanded: string | undefined };
+type ListState = { items: ReadingItem[] };
+type ReadingRowState = { expanded: boolean };
 
 const initialReading: ReadingItem[] = [
 	{ id: 'compiler', title: 'Compiler-guided JSX', note: 'Expressions remain independently reactive.' },
@@ -127,7 +119,6 @@ const initialReading: ReadingItem[] = [
 
 export function KeyedListDemo(this: Component<ListState>) {
 	this.state.items = initialReading.map((item) => ({ ...item }));
-	this.state.expanded = 'compiler';
 
 	const rotate = () => {
 		const first = this.state.items.shift();
@@ -147,21 +138,30 @@ export function KeyedListDemo(this: Component<ListState>) {
 			</div>
 			<ol className="reading-list">
 				{this.state.items.map((item) => (
-					<li>
-						<button
-							type="button"
-							aria-expanded={this.state.expanded === item.id}
-							onClick={() => {
-								this.state.expanded = this.state.expanded === item.id ? undefined : item.id;
-							}}
-						>
-							<span>{item.title}</span>
-							<span aria-hidden="true">{this.state.expanded === item.id ? '−' : '+'}</span>
-						</button>
-						{this.state.expanded === item.id ? <p>{item.note}</p> : null}
-					</li>
+					<ReadingRow item={item} />
 				))}
 			</ol>
 		</section>
+	);
+}
+
+function ReadingRow(this: Component<ReadingRowState>, props: { item: ReadingItem }) {
+	// This local state belongs to the keyed item component, not its array position.
+	this.state.expanded = props.item.id === 'compiler';
+
+	return () => (
+		<li>
+			<button
+				type="button"
+				aria-expanded={this.state.expanded}
+				onClick={() => {
+					this.state.expanded = !this.state.expanded;
+				}}
+			>
+				<span>{props.item.title}</span>
+				<span aria-hidden="true">{this.state.expanded ? '−' : '+'}</span>
+			</button>
+			{this.state.expanded ? <p>{props.item.note}</p> : null}
+		</li>
 	);
 }

@@ -1,4 +1,4 @@
-import type { ExpressionDirective, ExpressionType } from '@exact/expressions';
+import type { ExpressionDirective, ExpressionType } from '@exactjs/expressions';
 import { exactKeepPolicy, type ExactKeepPolicy } from '../annotations.js';
 import { stableId } from '../ids.js';
 import type {

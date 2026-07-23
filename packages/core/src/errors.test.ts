@@ -1,4 +1,4 @@
-import { flushSync, watch } from '@exact/reactive';
+import { flushSync, watch } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	ErrorContext,
@@ -15,7 +15,7 @@ import {
 	type TaskObserver
 } from './index.js';
 
-describe('@exact/core errors', () => {
+describe('@exactjs/core errors', () => {
 	it('routes render failures to the nearest error context', () => {
 		let instance!: Component<{ errors: ErrorReport[] }>;
 

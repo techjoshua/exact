@@ -7,15 +7,15 @@ import {
 	createVNode,
 	ErrorContext,
 	type Component
-} from '@exact/core';
-import { render } from '@exact/dom';
+} from '@exactjs/core';
+import { render } from '@exactjs/dom';
 import {
 	createRequestContextValue,
 	RequestContext,
 	runWithRequestContext,
 	type RequestResponseState
-} from '@exact/request';
-import { renderToString } from '@exact/ssr';
+} from '@exactjs/request';
+import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
 import {
 	createMemoryLocationSource,

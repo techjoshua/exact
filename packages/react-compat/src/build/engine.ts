@@ -1,4 +1,4 @@
-import { rewriteModuleReferences, type ModuleExportReplacement } from '@exact/expressions';
+import { rewriteModuleReferences, type ModuleExportReplacement } from '@exactjs/expressions';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import {

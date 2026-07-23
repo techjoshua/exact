@@ -19,7 +19,7 @@ import {
 	type ErrorReport
 } from './index.js';
 
-describe('@exact/core task-resources', () => {
+describe('@exactjs/core task-resources', () => {
 	it('runs every cleanup and can retain cleanup failure on a primary error', () => {
 		const calls: number[] = [];
 		const failure = createCleanupFailure();

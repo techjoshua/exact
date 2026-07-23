@@ -1,4 +1,4 @@
-import { createContext } from '@exact/core';
+import { createContext } from '@exactjs/core';
 
 /** Live page-owned state intentionally shared across independently built roots. */
 export type PortalContextValue = {

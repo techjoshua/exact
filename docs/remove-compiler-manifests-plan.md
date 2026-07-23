@@ -115,7 +115,7 @@ export default defineConfig({
 			rendering: ['local', 'remote', 'client'],
 			execution: ['local', 'remote'],
 			hostCapabilities: {
-				navigation: '@exact/navigation@1',
+				navigation: '@exactjs/navigation@1',
 				theme: '@company/design-system@2',
 				identity: '@company/identity-claims@1'
 			}
@@ -298,7 +298,7 @@ Replace the separate client and server descriptor tuples with versioned,
 target-local component contracts attached under a global symbol:
 
 ```ts
-export const exactComponentContract = Symbol.for('@exact/component-contract');
+export const exactComponentContract = Symbol.for('@exactjs/component-contract');
 
 export type ExactComponentContract = {
 	version: 1;

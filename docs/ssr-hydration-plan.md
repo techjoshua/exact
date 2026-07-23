@@ -8,18 +8,18 @@ server/request context model, native rendering safety, and data policy, see
 
 ## Goals
 
-- Keep `@exact/core` platform-neutral.
-- Keep browser rendering in `@exact/dom`.
-- Keep server rendering in `@exact/ssr`.
-- Keep hydration and endpoint patch application in `@exact/hydrate`.
-- Keep secure server-component/action dispatch in `@exact/server`.
+- Keep `@exactjs/core` platform-neutral.
+- Keep browser rendering in `@exactjs/dom`.
+- Keep server rendering in `@exactjs/ssr`.
+- Keep hydration and endpoint patch application in `@exactjs/hydrate`.
+- Keep secure server-component/action dispatch in `@exactjs/server`.
 - Preserve eXact's core model: component instances, reactive values, context, keyed lists, cells, logging, and error contexts.
 
 ## Implemented Package Boundaries
 
-### `@exact/ssr`
+### `@exactjs/ssr`
 
-`@exact/ssr` owns server rendering:
+`@exactjs/ssr` owns server rendering:
 
 - Converts core VNodes to HTML strings, raw HTML streams, document event streams, browser-consumable progressive HTML streams, and neutral progressive HTML response objects.
 - Executes component constructors and render functions without DOM globals.
@@ -32,9 +32,9 @@ server/request context model, native rendering safety, and data policy, see
 - Serializes hydration bootstrap data through `renderHydrationScript()`.
 - Builds boundary refresh, action refresh, keyed-list refresh, and manifest-scoped server handler registries.
 
-### `@exact/hydrate`
+### `@exactjs/hydrate`
 
-`@exact/hydrate` owns client reattachment and server patch application:
+`@exactjs/hydrate` owns client reattachment and server patch application:
 
 - Reads hydration bootstrap data from the rendered script tag.
 - Hydrates generated client islands from `data-exact-client-boundary` placeholders.
@@ -44,18 +44,18 @@ server/request context model, native rendering safety, and data policy, see
 - Applies text, prop, style, keyed-list, state, and replacement patches.
 - Falls back to authoritative server replacement HTML when a fine-grained patch misses.
 
-### `@exact/server`
+### `@exactjs/server`
 
-`@exact/server` owns the runtime-neutral secure endpoint:
+`@exactjs/server` owns the runtime-neutral secure endpoint:
 
 - Converts compiler manifests into runtime action and boundary allowlists.
 - Rejects unsupported manifest versions, unknown IDs, malformed requests, unknown protocol fields, endpoint mismatches, unauthorized requests, invalid CSRF, mismatched state contracts, and non-JSON-safe payload/results.
 - Dispatches independent batch operations in order and skips explicitly dependent operations when prerequisites fail.
 - Exposes Fetch, Express, and Hapi adapters as thin wrappers around the same core handler.
 
-### `@exact/compiler`
+### `@exactjs/compiler`
 
-`@exact/compiler` owns semantic analysis and artifact generation:
+`@exactjs/compiler` owns semantic analysis and artifact generation:
 
 - Emits strictly validated compiler manifest v2 metadata for callable and initializer effects, call edges, state/context flow, artifact targets, components, tasks, render edges, symbols, boundaries, and server actions. Runtime transport protocols remain v1.
 - Infers `this.task(...)` placement transitively across project sources and v2 manifests, and supports validated `this.task.server(...)` / `this.task.client(...)` escape hatches.
@@ -103,7 +103,7 @@ Endpoint responses can stream as newline-delimited JSON when the client opts in 
 
 Initial document event streams are also newline-delimited JSON. Document stream events are `start`, `shell`, optional root `replace`, optional `hydration`, and `complete`.
 
-For direct HTTP document responses, `renderToProgressiveHtmlStream()` and `renderToHydratableProgressiveHtmlStream()` convert those events into browser-consumable HTML chunks. The shell is emitted first inside a configurable root element, async task settlement can emit an escaped inline replacement script for that root, and hydratable streams include the normal inert hydration JSON script. `renderToProgressiveHtmlResponse()` and `renderToHydratableProgressiveHtmlResponse()` wrap the same streams in the adapter-neutral response shape used by `@exact/server`.
+For direct HTTP document responses, `renderToProgressiveHtmlStream()` and `renderToHydratableProgressiveHtmlStream()` convert those events into browser-consumable HTML chunks. The shell is emitted first inside a configurable root element, async task settlement can emit an escaped inline replacement script for that root, and hydratable streams include the normal inert hydration JSON script. `renderToProgressiveHtmlResponse()` and `renderToHydratableProgressiveHtmlResponse()` wrap the same streams in the adapter-neutral response shape used by `@exactjs/server`.
 
 The native SSR adoption target adds a root-document mode in which the application renders `html`, `head`, and `body` explicitly. Those tags are normalized only at the document root, and eXact augments their children with reserved framework-owned hydration, manifest, bootstrap, and progressive-stream nodes as required. Authored document children retain their order; hydration treats injected nodes separately so the client root does not reproduce them. This is a target design rather than a description of the current configurable-root stream implementation.
 

@@ -1,5 +1,5 @@
-import type { ExactPreparedCompilerRegistry } from '@exact/plugin-api';
-import type { ExactPreparedPluginRegistry } from '@exact/plugin-host/node';
+import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
+import type { ExactPreparedPluginRegistry } from '@exactjs/plugin-host/node';
 
 type ExactRemoteRollupAdapterLike = {
 	readonly pageBootstrapImport: string;
@@ -77,7 +77,7 @@ export type ExactViteMicrofrontendOptions = {
 export function createExactViteMicrofrontendIntegration(
 	options: ExactViteMicrofrontendOptions,
 	loadRollup: ExactMicrofrontendsRollupLoader = async () =>
-		(await import('@exact/microfrontends/rollup')) as unknown as ExactMicrofrontendsRollupModule
+		(await import('@exactjs/microfrontends/rollup')) as unknown as ExactMicrofrontendsRollupModule
 ) {
 	let adapter: ExactRemoteRollupAdapterLike | undefined;
 	let publishProvidedPackages = false;
@@ -98,7 +98,7 @@ export function createExactViteMicrofrontendIntegration(
 		): Promise<void> {
 			if (options.target === 'server') return;
 			serveMode = command === 'serve';
-			const remotePlugin = registry.compiler.plugins['@exact/microfrontends'];
+			const remotePlugin = registry.compiler.plugins['@exactjs/microfrontends'];
 			if (!remotePlugin) return;
 			const integration = await loadRollup();
 			const compilerConfig = integration.readExactMicrofrontendCompilerConfig(

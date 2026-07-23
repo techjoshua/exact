@@ -2,7 +2,7 @@ import ts from 'typescript';
 import { stableId } from '../../ids.js';
 import { clientComponentBoundaryId } from '../../names.js';
 import type { ExactImportedComponentIR, HelperNames, StateSnapshotTree } from '../../types.js';
-import { componentBoundaryName } from './inspection.js';
+import { componentBoundaryName, isReactiveFormAttribute } from './inspection.js';
 
 import { expressionEmissionId, identityFilenameFor } from './identity.js';
 import { childrenExpressions, propName } from './node-emission.js';
@@ -123,7 +123,7 @@ export function islandProps(
 			continue;
 		}
 		const name = attribute.name.getText();
-		if (/^on[A-Z]/.test(name) || name === 'ref') continue;
+		if (/^on[A-Z]/.test(name) || name === 'ref' || isReactiveFormAttribute(name)) continue;
 		if (!attribute.initializer) {
 			props.push(factory.createPropertyAssignment(propName(name), factory.createTrue()));
 			continue;

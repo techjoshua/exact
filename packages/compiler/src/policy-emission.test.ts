@@ -8,7 +8,7 @@ describe('policy emission and sinks', () => {
 	it('preserves compiler-derived qualification in emitted TypeScript', () => {
 		const output = transform(
 			`
-      import { secret, type Secret } from "@exact/secrets";
+      import { secret, type Secret } from "@exactjs/secrets";
       const apiKey = secret("API_KEY", "configured");
       const header = \`Bearer \${apiKey}\`;
       function forward(value: Secret<string>): Secret<string> {
@@ -28,7 +28,7 @@ describe('policy emission and sinks', () => {
 			}
 		);
 
-		expect(output).toContain('import type { Secret as __ExactSecret } from "@exact/secrets";');
+		expect(output).toContain('import type { Secret as __ExactSecret } from "@exactjs/secrets";');
 		expect(output).toMatch(/const header = `Bearer \$\{apiKey\}` as __ExactSecret<string>;/);
 		expect(output).toMatch(/return `Derived \$\{value\}` as __ExactSecret<string>;/);
 		expect(output).toMatch(/forward\(`Direct \$\{apiKey\}` as __ExactSecret<string>\)/);
@@ -37,7 +37,7 @@ describe('policy emission and sinks', () => {
 	it('allows an unconsumed secret only through an explicit Secret<T> parameter', () => {
 		const manifest = analyzeSource(
 			`
-      import { secret, type Secret } from "@exact/secrets";
+      import { secret, type Secret } from "@exactjs/secrets";
       const apiKey = secret("API_KEY", "configured");
       function preserve(value: Secret<string>) { return value; }
       function ordinary(value: string) { return value; }
@@ -68,7 +68,7 @@ describe('policy emission and sinks', () => {
 	it('rejects unconsumed secrets in VNode children, attributes, and spreads', () => {
 		const manifest = analyzeSource(
 			`
-      import type { Component } from "@exact/core";
+      import type { Component } from "@exactjs/core";
       /** @exact keep=secret */ const credential = "configured";
       export function Panel(this: Component<{}>) {
         const attributes = { title: credential };
@@ -97,8 +97,8 @@ describe('policy emission and sinks', () => {
 	it('allows consume() to end tracking before deliberate server VNode output', () => {
 		const manifest = analyzeSource(
 			`
-      import { consume } from "@exact/secrets";
-      import type { Component } from "@exact/core";
+      import { consume } from "@exactjs/secrets";
+      import type { Component } from "@exactjs/core";
       /** @exact keep=secret */ const credential = "configured";
       export function Panel(this: Component<{}>) {
         return () => <div>{consume(credential)}</div>;
@@ -161,7 +161,7 @@ describe('policy emission and sinks', () => {
 	it('propagates secret control dependencies through branch writes into VNode sinks', () => {
 		const manifest = analyzeSource(
 			`
-      import type { Component } from "@exact/core";
+      import type { Component } from "@exactjs/core";
       /** @exact keep=secret */ const credential = "configured";
       export function Panel(this: Component<{}>) {
         let label = "not matched";

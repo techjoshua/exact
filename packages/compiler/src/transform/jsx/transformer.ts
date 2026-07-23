@@ -1,4 +1,4 @@
-import type { BoundModule } from '@exact/expressions';
+import type { BoundModule } from '@exactjs/expressions';
 import ts from 'typescript';
 import type { CallableEffectPlan } from '../../analysis/callable-effects.js';
 import { stripExactImportAttribute, type ExactModuleImportPlan } from '../../assets.js';
@@ -195,7 +195,7 @@ export function exactJsxTransformer(
 						node.dotDotDotToken,
 						node.name,
 						node.questionToken,
-						parseTypeNode(contextualType),
+						parseTypeNode(portableContextualType(contextualType)),
 						node.initializer
 					);
 				}
@@ -347,4 +347,11 @@ export function exactJsxTransformer(
 			semanticGraph
 		);
 	};
+}
+
+function portableContextualType(type: string): string {
+	return type.replace(
+		/import\((['"])(?:[A-Za-z]:)?[\\/][^'"]*[\\/]dist[\\/]jsx-runtime\1\)/g,
+		'import("@exactjs/jsx/jsx-runtime")'
+	);
 }

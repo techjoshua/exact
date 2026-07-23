@@ -1,4 +1,4 @@
-import { type RequestResponseState } from '@exact/request';
+import { type RequestResponseState } from '@exactjs/request';
 import type {
 	ExactContextRuntime,
 	ExactRequestLike,

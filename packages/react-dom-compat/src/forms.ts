@@ -1,4 +1,4 @@
-import { useActionState } from '@exact/react-compat';
+import { useActionState } from '@exactjs/react-compat';
 
 /** Restores a form's controls to their authored default values. */
 export function requestFormReset(form: HTMLFormElement): void {

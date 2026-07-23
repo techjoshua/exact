@@ -8,7 +8,7 @@ import {
 } from './index.js';
 import { context } from './test-support/server.js';
 
-describe('@exact/server manifests', () => {
+describe('@exactjs/server manifests', () => {
 	it('rejects unsupported compiler manifest versions', () => {
 		expect(() =>
 			createExactServerManifest({

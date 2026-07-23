@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  */
-import { createContext, createVNode, currentComponentDomain, type Component } from '@exact/core';
-import { render, unmount } from '@exact/dom';
-import { inspectDomRoot, type DomInspectionNode } from '@exact/dom/testing';
+import { createContext, createVNode, currentComponentDomain, type Component } from '@exactjs/core';
+import { render, unmount } from '@exactjs/dom';
+import { inspectDomRoot, type DomInspectionNode } from '@exactjs/dom/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { createExactClient } from './index.js';
 

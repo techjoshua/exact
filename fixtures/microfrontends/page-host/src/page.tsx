@@ -1,6 +1,6 @@
-import { createContext, type Component } from '@exact/core';
-import { render } from '@exact/dom';
-import { RemoteComponent } from '@exact/microfrontends/client';
+import { createContext, type Component } from '@exactjs/core';
+import { render } from '@exactjs/dom';
+import { RemoteComponent } from '@exactjs/microfrontends/client';
 
 export const Theme = createContext<string>('fixture-theme', { global: true });
 

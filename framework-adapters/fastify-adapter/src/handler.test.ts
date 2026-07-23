@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createExactFastifyHandler, type ExactFastifyReply } from './index.js';
 
-describe('@exact/fastify-adapter', () => {
+describe('@exactjs/fastify-adapter', () => {
 	it('writes eXact responses through Fastify reply methods', async () => {
 		const handler = createExactFastifyHandler({
 			manifest: {

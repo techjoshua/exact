@@ -1,4 +1,4 @@
-import type { BoundModule, NodeRef, Variable } from '@exact/expressions';
+import type { BoundModule, NodeRef, Variable } from '@exactjs/expressions';
 import { hasExactDirective } from '../annotations.js';
 import { isUnshadowedPlatformGlobal } from '../platform-effects.js';
 import type { ExactSemanticGraphIR } from '../types.js';

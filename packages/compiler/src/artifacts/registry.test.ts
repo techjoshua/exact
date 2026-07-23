@@ -14,7 +14,7 @@ import {
 } from '../index.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 
-describe('@exact/compiler: registries', () => {
+describe('@exactjs/compiler: registries', () => {
 	it('creates client island registry entries for generated client artifacts', async () => {
 		const root = await createTestWorkspace('exact-island-registry-');
 		const input = path.join(root, 'src', 'panel.tsx');

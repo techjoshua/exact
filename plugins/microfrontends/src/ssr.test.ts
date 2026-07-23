@@ -1,5 +1,5 @@
-import { createVNode } from '@exact/core';
-import { renderToString } from '@exact/ssr';
+import { createVNode } from '@exactjs/core';
+import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
 import { RemoteComponent } from './client.js';
 

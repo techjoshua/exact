@@ -1,10 +1,10 @@
 /**
  * @vitest-environment jsdom
  */
-import { createContext, createVNode, type Component, type ComponentInstance } from '@exact/core';
-import { findComponentDomNode, findNodeOwnerInstance, render, unmount } from '@exact/dom';
-import { inspectDomRoot, type DomInspectionNode } from '@exact/dom/testing';
-import { getHydrationRoot } from '@exact/hydrate';
+import { createContext, createVNode, type Component, type ComponentInstance } from '@exactjs/core';
+import { findComponentDomNode, findNodeOwnerInstance, render, unmount } from '@exactjs/dom';
+import { inspectDomRoot, type DomInspectionNode } from '@exactjs/dom/testing';
+import { getHydrationRoot } from '@exactjs/hydrate';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
 	loadExactRemoteModule,

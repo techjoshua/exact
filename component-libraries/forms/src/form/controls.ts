@@ -1,4 +1,4 @@
-import { createVNode, type Child, type Component, type RefBinding } from '@exact/core';
+import { createVNode, type Child, type Component, type RefBinding } from '@exactjs/core';
 
 import { ControlRef, FieldContext } from './context.js';
 import type { LabelProps } from './contracts.js';

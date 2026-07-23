@@ -1,4 +1,4 @@
-import { BLOCKED_JAVASCRIPT_URL, createVNode, unsafeHtml, type Component } from '@exact/core';
+import { BLOCKED_JAVASCRIPT_URL, createVNode, unsafeHtml, type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import {
 	createExactServerRuntime,
@@ -17,7 +17,7 @@ import {
 	readStreamText
 } from './test-support/streams.js';
 
-describe('@exact/ssr documents-security', () => {
+describe('@exactjs/ssr documents-security', () => {
 	it('preserves authored documents instead of adding a progressive root wrapper', async () => {
 		const runtime = createExactServerRuntime({ manifest: { version: 1 } });
 		const response = await renderExactRequestToProgressiveHtmlResponse(

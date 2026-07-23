@@ -1,14 +1,19 @@
-import type { ComponentFunction } from '@exact/core';
+import type { ComponentFunction } from '@exactjs/core';
 import {
 	AdvancedPage,
+	ComparisonPage,
 	ComponentsPage,
 	FormsPage,
 	GettingStartedPage,
 	IntroductionPage,
 	ListsPage,
 	LogoLabPage,
+	MicrofrontendsPluginPage,
 	PackagesPage,
+	PluginsPage,
+	ReactCompatibilityPage,
 	RoutingPage,
+	SecretsPluginPage,
 	StatePage,
 	TasksPage,
 	TestingPage
@@ -36,8 +41,8 @@ export const docGroups: DocGroup[] = [
 			{
 				path: '/',
 				label: 'Introduction',
-				summary: 'The small mental model behind eXact.',
-				keywords: 'overview compiler reactive TypeScript JSX',
+				summary: 'Why eXact runs component setup once, keeps state inspectable, and compiles precise client/server updates.',
+				keywords: 'overview component compiler reactive TypeScript JSX React Vue Svelte comparison state virtual DOM',
 				component: IntroductionPage
 			},
 			{
@@ -95,8 +100,8 @@ export const docGroups: DocGroup[] = [
 			{
 				path: '/guides/forms',
 				label: 'Accessible forms',
-				summary: 'Compose fields without surrendering your data.',
-				keywords: 'form field validation label accessible',
+				summary: 'Bind native inputs and compose accessible validation without surrendering your data.',
+				keywords: 'form input binding value change checked field validation label accessible',
 				component: FormsPage
 			},
 			{
@@ -105,6 +110,39 @@ export const docGroups: DocGroup[] = [
 				summary: 'Exercise real components through user behavior.',
 				keywords: 'test vitest jest query click mount',
 				component: TestingPage
+			},
+			{
+				path: '/guides/react-compatibility',
+				label: 'React compatibility',
+				summary: 'Bring supported React code and packages into an eXact application.',
+				keywords: 'React compatibility hooks components migration interop adapter',
+				component: ReactCompatibilityPage
+			}
+		]
+	},
+	{
+		label: 'Extend eXact',
+		pages: [
+			{
+				path: '/plugins',
+				label: 'Plugin system',
+				summary: 'Package cross-cutting behavior as a validated, multi-host extension.',
+				keywords: 'plugin compiler server render client testing configuration package',
+				component: PluginsPage
+			},
+			{
+				path: '/plugins/microfrontends',
+				label: 'Microfrontends',
+				summary: 'Expose and consume independently built eXact component roots.',
+				keywords: 'plugin microfrontends remotes exposes binding recovery deployment',
+				component: MicrofrontendsPluginPage
+			},
+			{
+				path: '/plugins/secrets',
+				label: 'Secrets',
+				summary: 'Load server secrets while preserving compiler-visible data boundaries.',
+				keywords: 'plugin secrets server provider environment consume security',
+				component: SecretsPluginPage
 			}
 		]
 	},
@@ -117,6 +155,13 @@ export const docGroups: DocGroup[] = [
 				summary: 'Program a turtle and watch eXact coordinate the work.',
 				keywords: 'logo turtle interpreter canvas demo playground',
 				component: LogoLabPage
+			},
+			{
+				path: '/compare',
+				label: 'Framework comparison',
+				summary: 'Compare eXact with React, Vue, and Svelte without a winner-takes-all scorecard.',
+				keywords: 'compare React Vue Svelte reactivity compiler components ecosystem',
+				component: ComparisonPage
 			},
 			{
 				path: '/advanced',

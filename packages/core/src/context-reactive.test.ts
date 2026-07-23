@@ -1,4 +1,4 @@
-import { flushSync, unwrap } from '@exact/reactive';
+import { flushSync, unwrap } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	ErrorContext,
@@ -14,7 +14,7 @@ import {
 	type ComponentInstance
 } from './index.js';
 
-describe('@exact/core context-reactive', () => {
+describe('@exactjs/core context-reactive', () => {
 	it('scopes contexts to descendants and stores refs', () => {
 		const token = createContext<{ name: string }>('user');
 		const input = createRef<{ focus(): void }>('input');

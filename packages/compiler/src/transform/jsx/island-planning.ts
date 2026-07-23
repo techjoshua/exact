@@ -2,6 +2,7 @@ import ts from 'typescript';
 import { isIdentifierDeclarationName, isPropertyAccessName } from '../../ast.js';
 import { collectExports } from '../../exports.js';
 import type { ExpressionClientIslandSite } from '../../expression/contracts.js';
+import type { ExpressionJsxPlan } from '../../expression/jsx.js';
 import { stableId } from '../../ids.js';
 import { generatedComponentName } from '../../names.js';
 import type {
@@ -15,9 +16,9 @@ import { jsxTagIsIntrinsicElement } from './inspection.js';
 
 import type { ComponentLocalInfo, DerivedReactiveIndex } from './contracts.js';
 import { canonicalElementId } from './element-emission.js';
-import { identityFilenameFor } from './identity.js';
+import { expressionEmissionId, identityFilenameFor } from './identity.js';
 import { islandProps } from './island-emission.js';
-import { childrenExpressions, propName } from './node-emission.js';
+import { bindingPropertyAssignments, childrenExpressions, propName } from './node-emission.js';
 import { tagExpression } from './reactive-emission.js';
 /** Performs the client island captures domain operation. */
 export function clientIslandCaptures(
@@ -82,13 +83,26 @@ export function recordClientIslandDefinition(
 	islandCounts: Map<string, number>,
 	node: ClientIslandElementNode,
 	definitions: ts.FunctionDeclaration[],
-	captures: ClientIslandCaptures = emptyClientIslandCaptures()
+	captures: ClientIslandCaptures = emptyClientIslandCaptures(),
+	derivedReactiveLocals?: DerivedReactiveIndex,
+	expressionJsx?: ExpressionJsxPlan
 ): void {
 	const owner = componentName ?? 'Anonymous';
 	const next = (islandCounts.get(owner) ?? 0) + 1;
 	islandCounts.set(owner, next);
 	definitions.push(
-		createClientIslandDefinition(sourceFile, context, visitor, helpers, owner, next, node, captures)
+		createClientIslandDefinition(
+			sourceFile,
+			context,
+			visitor,
+			helpers,
+			owner,
+			next,
+			node,
+			captures,
+			derivedReactiveLocals,
+			expressionJsx
+		)
 	);
 }
 
@@ -101,7 +115,9 @@ export function createClientIslandDefinition(
 	owner: string,
 	index: number,
 	node: ClientIslandElementNode,
-	captures: ClientIslandCaptures
+	captures: ClientIslandCaptures,
+	derivedReactiveLocals?: DerivedReactiveIndex,
+	expressionJsx?: ExpressionJsxPlan
 ): ts.FunctionDeclaration {
 	const factory = context.factory;
 	const props = factory.createIdentifier('props');
@@ -156,7 +172,11 @@ export function createClientIslandDefinition(
 								attributes,
 								node,
 								props,
-								captures.values
+								captures.values,
+								visitor,
+								helpers,
+								derivedReactiveLocals,
+								expressionJsx
 							),
 							...clientIslandChildrenExpressions(
 								context,
@@ -241,7 +261,11 @@ export function clientIslandElementProps(
 	attributes: ts.JsxAttributes,
 	node: ts.Node,
 	props: ts.Identifier,
-	captures: readonly string[]
+	captures: readonly string[],
+	visitor: ts.Visitor,
+	helpers: HelperNames,
+	derivedReactiveLocals?: DerivedReactiveIndex,
+	expressionJsx?: ExpressionJsxPlan
 ): ts.ObjectLiteralExpression {
 	const factory = context.factory;
 	const properties: ts.ObjectLiteralElementLike[] = [];
@@ -262,6 +286,34 @@ export function clientIslandElementProps(
 			continue;
 		}
 		const name = attribute.name.getText(sourceFile);
+		const initializer = attribute.initializer;
+		const binding =
+			initializer && ts.isJsxExpression(initializer) && initializer.expression
+				? expressionJsx?.bindings.get(expressionEmissionId(initializer) ?? '')
+				: undefined;
+		if (binding && initializer && ts.isJsxExpression(initializer) && initializer.expression) {
+			const target = ts.visitNode(
+				rewriteCapturedNode(context, initializer.expression, props, captures),
+				visitor
+			) as ts.Expression;
+			const valueAttribute = attributes.properties.find(
+				(candidate): candidate is ts.JsxAttribute =>
+					ts.isJsxAttribute(candidate) && candidate.name.getText(sourceFile) === 'value'
+			);
+			properties.push(
+				...bindingPropertyAssignments(
+					context,
+					target,
+					binding,
+					islandBindingValueAttribute(factory, valueAttribute, props),
+					visitor,
+					helpers,
+					sourceFile,
+					derivedReactiveLocals
+				)
+			);
+			continue;
+		}
 		if (!attribute.initializer) {
 			properties.push(
 				factory.createPropertyAssignment(
@@ -290,6 +342,19 @@ export function clientIslandElementProps(
 		);
 	}
 	return factory.createObjectLiteralExpression(properties, false);
+}
+
+function islandBindingValueAttribute(
+	factory: ts.NodeFactory,
+	attribute: ts.JsxAttribute | undefined,
+	props: ts.Identifier
+): ts.JsxAttribute | undefined {
+	if (!attribute?.initializer || ts.isStringLiteral(attribute.initializer)) return attribute;
+	return factory.updateJsxAttribute(
+		attribute,
+		attribute.name,
+		factory.createJsxExpression(undefined, factory.createPropertyAccessExpression(props, 'value'))
+	);
 }
 
 /** Performs the client island children expressions domain operation. */

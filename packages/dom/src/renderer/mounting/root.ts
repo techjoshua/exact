@@ -19,13 +19,13 @@ import {
 	type ComponentFunction,
 	type ComponentInstance,
 	type VNode
-} from '@exact/core';
+} from '@exactjs/core';
 import {
 	createEffectScope,
 	transferEffectScope,
 	withEffectScope,
 	type EffectScope
-} from '@exact/reactive';
+} from '@exactjs/reactive';
 import {
 	getComponentProps,
 	getListBinding,

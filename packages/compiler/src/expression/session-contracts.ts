@@ -2,8 +2,8 @@ import type {
 	BoundModule,
 	ExpressionDiagnostic,
 	ExpressionProjectProfileEvent
-} from '@exact/expressions';
-import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation';
+} from '@exactjs/expressions';
+import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 
 /** Cached expression module state owned by a compiler session. */
 export type ModuleCacheEntry = Readonly<{

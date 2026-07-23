@@ -7,13 +7,13 @@ import {
 	createRef,
 	createVNode,
 	type Component
-} from '@exact/core';
-import { jsx } from '@exact/jsx';
-import { flushSync } from '@exact/reactive';
+} from '@exactjs/core';
+import { jsx } from '@exactjs/jsx';
+import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { adoptStatic, render, unmount } from './index.js';
 
-describe('@exact/dom bindings', () => {
+describe('@exactjs/dom bindings', () => {
 	it('updates reactive text compositions without rerendering the component', () => {
 		let instance!: Component<{ first: string; last: string }>;
 		const rendered = vi.fn();

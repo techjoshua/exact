@@ -4,7 +4,7 @@ import {
 	LoggerContext,
 	type Component,
 	type Logger
-} from '@exact/core';
+} from '@exactjs/core';
 import { WorkbenchContext } from '../context.js';
 import {
 	columns,

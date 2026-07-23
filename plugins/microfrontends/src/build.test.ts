@@ -21,7 +21,7 @@ describe('remote artifact planning', () => {
 			'@company/billing#./AccountArea',
 			'@company/billing#./BillingArea'
 		]);
-		expect(plan.providedPackages).toContain('@exact/core');
+		expect(plan.providedPackages).toContain('@exactjs/core');
 		expect(plan.providedPackages).toContain('@company/contexts');
 		expect(plan.exposures[0]?.entrySource).toContain(`buildKey: "${buildKey}"`);
 	});

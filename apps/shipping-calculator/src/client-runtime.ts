@@ -1,4 +1,4 @@
-import type { ExactClient } from '@exact/hydrate';
+import type { ExactClient } from '@exactjs/hydrate';
 
 let client: ExactClient | undefined;
 

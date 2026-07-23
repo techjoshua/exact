@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { invokeExact, invokeExactBatch } from './index.js';
 import { ndjsonResponse } from './test-support/responses.js';
 
-describe('@exact/hydrate stream-transport', () => {
+describe('@exactjs/hydrate stream-transport', () => {
 	it('invokes streaming exact endpoints directly', async () => {
 		let requestHeaders: Record<string, string> | undefined;
 		const result = await invokeExact({

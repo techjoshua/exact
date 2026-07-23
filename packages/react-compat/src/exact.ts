@@ -10,7 +10,7 @@ export {
 	type ReactCacheScope,
 	type ReactRootRuntime
 } from './internals.js';
-import type { Component } from '@exact/core';
+import type { Component } from '@exactjs/core';
 import { adaptReactType, toExactNode } from './internals.js';
 import type { ReactComponentType, ReactNode } from './types.js';
 

@@ -1,5 +1,5 @@
-import { createContext, type Child, type Component } from '@exact/core';
-import { createExternalSource, type ExternalSource } from '@exact/reactive';
+import { createContext, type Child, type Component } from '@exactjs/core';
+import { createExternalSource, type ExternalSource } from '@exactjs/reactive';
 
 /** Defines the convex watch interface contract. */
 export interface ConvexWatch<Value> {

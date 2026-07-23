@@ -1,5 +1,5 @@
 {
-	"name": "@exact/sample-kanban",
+	"name": "@exactjs/sample-kanban",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
@@ -9,10 +9,10 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@exact/core": "file:../../packages/core",
-		"@exact/dom": "file:../../packages/dom",
-		"@exact/jsx": "file:../../packages/jsx-runtime",
-		"@exact/vite-plugin": "file:../../framework-adapters/vite-plugin"
+		"@exactjs/core": "^0.1.0",
+		"@exactjs/dom": "^0.1.0",
+		"@exactjs/jsx": "^0.1.0",
+		"@exactjs/vite-plugin": "^0.1.0"
 	},
 	"devDependencies": {
 		"typescript": "^5.7.2",

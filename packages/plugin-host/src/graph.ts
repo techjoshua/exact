@@ -1,4 +1,4 @@
-import type { ExactPackageManifest } from '@exact/plugin-api';
+import type { ExactPackageManifest } from '@exactjs/plugin-api';
 import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 

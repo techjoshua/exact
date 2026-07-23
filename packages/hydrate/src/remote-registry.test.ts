@@ -1,11 +1,11 @@
 /**
  * @vitest-environment jsdom
  */
-import { createVNode, type Component } from '@exact/core';
+import { createVNode, type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { createExactClient } from './index.js';
 
-describe('@exact/hydrate remote-registry', () => {
+describe('@exactjs/hydrate remote-registry', () => {
 	it('registers remote hydration metadata after client creation', async () => {
 		const container = document.createElement('div');
 		container.innerHTML = '<!--exact:remote-panel--><p>Old remote</p><!--/exact:remote-panel-->';

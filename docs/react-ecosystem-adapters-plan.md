@@ -2,7 +2,7 @@
 
 ## Purpose
 
-eXact can run many existing React libraries through `@exact/react-compat`, but doing so retains the React compatibility runtime and its associated rendering, hook, context, and bundle costs. The adapter system described here provides a progressive path from an unchanged React package to a native eXact integration while allowing migrated and unmigrated components to share the same store, client, cache, and descendant-scoped services.
+eXact can run many existing React libraries through `@exactjs/react-compat`, but doing so retains the React compatibility runtime and its associated rendering, hook, context, and bundle costs. The adapter system described here provides a progressive path from an unchanged React package to a native eXact integration while allowing migrated and unmigrated components to share the same store, client, cache, and descendant-scoped services.
 
 The system must work for application source processed by the eXact compiler and for already-published JavaScript packages whose JSX has been lowered to `react/jsx-runtime` or `React.createElement`. The initial implementation targets the repository's current Node and Vite stack. Webpack, Bun, and other hosts follow after the common discovery and transformation engine has been proven through Node and Vite without requiring host-specific semantic implementations.
 
@@ -36,7 +36,7 @@ router-specific registry.
 ## Terminology
 
 - **Source package**: the React ecosystem package whose export is referenced, such as `@tanstack/react-query`.
-- **Adapter package**: the eXact package that declares substitutions and provides native replacements, such as `@exact/tanstack-query`.
+- **Adapter package**: the eXact package that declares substitutions and provides native replacements, such as `@exactjs/tanstack-query`.
 - **Replacement**: a public component export provided by the adapter package.
 - **Marker package**: the zero-runtime package that identifies participants in the adapter protocol and versions its metadata contract.
 - **Build root**: the nearest application or workspace package selected by the host integration for the current build.
@@ -47,14 +47,14 @@ router-specific registry.
 
 ### Marker package
 
-Create `@exact/react-compat-adapter-api` as a zero-runtime protocol package. It should contain TypeScript types, schema constants, metadata validation helpers, and adapter-author documentation. It must not import React or participate in browser rendering.
+Create `@exactjs/react-compat-adapter-api` as a zero-runtime protocol package. It should contain TypeScript types, schema constants, metadata validation helpers, and adapter-author documentation. It must not import React or participate in browser rendering.
 
 An adapter must declare a direct dependency on the marker package. The direct dependency edge is the transitive discovery signal and the dependency range declares the protocol generation the adapter expects.
 
 ```json
 {
 	"dependencies": {
-		"@exact/react-compat-adapter-api": "^1.0.0"
+		"@exactjs/react-compat-adapter-api": "^1.0.0"
 	}
 }
 ```
@@ -65,7 +65,7 @@ The adapter package's `package.json` is the only substitution metadata source. T
 
 ```json
 {
-	"name": "@exact/tanstack-query",
+	"name": "@exactjs/tanstack-query",
 	"exact": {
 		"reactCompatibility": {
 			"schemaVersion": 1,
@@ -93,7 +93,7 @@ The adapter package's `package.json` is the only substitution metadata source. T
 }
 ```
 
-Replacement modules are expressed as package-relative public subpaths. The normalized target for the first mapping above is `@exact/tanstack-query/provider#QueryClientProvider`. The schema deliberately has no arbitrary target package field.
+Replacement modules are expressed as package-relative public subpaths. The normalized target for the first mapping above is `@exactjs/tanstack-query/provider#QueryClientProvider`. The schema deliberately has no arbitrary target package field.
 
 The single `version` plus `exports` form above is the one-variant shorthand.
 Adapters that support incompatible source-package API families may instead
@@ -111,7 +111,7 @@ The build root can suppress discovered adapters in its own `package.json`:
 {
 	"exact": {
 		"reactCompatibility": {
-			"ignoreAdapters": ["@company/legacy-redux-adapter", "@exact/tanstack-query"]
+			"ignoreAdapters": ["@company/legacy-redux-adapter", "@exactjs/tanstack-query"]
 		}
 	}
 }
@@ -128,8 +128,8 @@ Only the build root's ignore policy applies. A dependency cannot suppress anothe
 5. Every source package mapping or normalized source variant must declare a
    supported semantic version range; variant ranges for one source module
    cannot overlap.
-6. The adapter must directly depend on `@exact/react-compat-adapter-api` using a compatible protocol range.
-7. Third-party adapters cannot replace `@exact/*`, `react`, `react-dom`, or their public subpaths. Core React runtime rewriting remains owned by eXact.
+6. The adapter must directly depend on `@exactjs/react-compat-adapter-api` using a compatible protocol range.
+7. Third-party adapters cannot replace `@exactjs/*`, `react`, `react-dom`, or their public subpaths. Core React runtime rewriting remains owned by eXact.
 8. Substitution is one-pass. A replacement output is never fed back through the substitution table.
 9. Two active adapters cannot claim the same resolved source package instance,
    subpath, and export. Conflicts fail before source transformation; ordering
@@ -148,7 +148,7 @@ Only the build root's ignore policy applies. A dependency cannot suppress anothe
 The conceptual query is the equivalent of:
 
 ```sh
-npm ls @exact/react-compat-adapter-api
+npm ls @exactjs/react-compat-adapter-api
 ```
 
 The implementation should not shell out to npm during normal builds. Instead, React compatibility should consume a package-graph abstraction capable of finding packages with a direct dependency edge to the marker:
@@ -180,14 +180,14 @@ Cache discovery by build root, package-manager identity, root manifest signature
 
 ## Shared implementation boundary
 
-React-specific discovery and rewriting belong publicly to `@exact/react-compat/plugin`. Generic AST, binding, edit, and source-map primitives remain in `@exact/compiler` or `@exact/expressions` so the dependency direction remains:
+React-specific discovery and rewriting belong publicly to `@exactjs/react-compat/plugin`. Generic AST, binding, edit, and source-map primitives remain in `@exactjs/compiler` or `@exactjs/expressions` so the dependency direction remains:
 
 ```text
-@exact/react-compat/plugin
+@exactjs/react-compat/plugin
         -> generic compiler rewriting utilities
 ```
 
-The compiler must not import React compatibility or know about individual ecosystem packages. If build-only dependencies make the runtime `@exact/react-compat` package materially heavier when published, split the build surface into `@exact/react-compat-build` without changing the protocol.
+The compiler must not import React compatibility or know about individual ecosystem packages. If build-only dependencies make the runtime `@exactjs/react-compat` package materially heavier when published, split the build surface into `@exactjs/react-compat-build` without changing the protocol.
 
 The common build API should normalize host inputs and outputs:
 
@@ -217,12 +217,12 @@ Most dependencies are irrelevant. Before parsing, scan for public React module s
 Rewrite public React imports directly to target-specific compatibility entrypoints:
 
 ```text
-react                         -> @exact/react-compat/react18|react19
-react/jsx-runtime             -> @exact/react-compat/jsx-runtime18|jsx-runtime19
-react/jsx-dev-runtime         -> @exact/react-compat/jsx-dev-runtime18|jsx-dev-runtime19
-react/compiler-runtime        -> @exact/react-compat/compiler-runtime
-react-dom                     -> @exact/react-dom-compat/react18|react19
-react-dom/client              -> @exact/react-dom-compat/client18|client19
+react                         -> @exactjs/react-compat/react18|react19
+react/jsx-runtime             -> @exactjs/react-compat/jsx-runtime18|jsx-runtime19
+react/jsx-dev-runtime         -> @exactjs/react-compat/jsx-dev-runtime18|jsx-dev-runtime19
+react/compiler-runtime        -> @exactjs/react-compat/compiler-runtime
+react-dom                     -> @exactjs/react-dom-compat/react18|react19
+react-dom/client              -> @exactjs/react-dom-compat/client18|client19
 react-dom/server*             -> matching server compatibility entrypoint
 react-dom/static*             -> matching React 19 static entrypoint
 ```
@@ -341,19 +341,19 @@ Expose the same engine through the eXact compiler/CLI so server packages, tests,
 Use leaf entrypoints so native paths remain independent of React:
 
 ```text
-@exact/tanstack-query
+@exactjs/tanstack-query
 |- .                  native query APIs using @tanstack/query-core
 |- ./provider         native eXact providers declared in metadata
 |- ./react            optional React-facing bridge helpers
 `- package.json       substitution metadata
 ```
 
-The root and provider entrypoints may depend on the framework-neutral library core, `@exact/core`, and `@exact/reactive`. They must not depend on the React binding. An optional React bridge must live in an isolated leaf entrypoint or, if package-manager behavior requires stronger isolation, a separate package.
+The root and provider entrypoints may depend on the framework-neutral library core, `@exactjs/core`, and `@exactjs/reactive`. They must not depend on the React binding. An optional React bridge must live in an isolated leaf entrypoint or, if package-manager behavior requires stronger isolation, a separate package.
 
 ## Initial adapter roadmap
 
 1. **External-source reactive primitive**
-   - Add lazy `{ getSnapshot, subscribe }` integration, selectors, equality, batching, SSR snapshots, and effect-scope disposal to `@exact/reactive` or a small native interop package.
+   - Add lazy `{ getSnapshot, subscribe }` integration, selectors, equality, batching, SSR snapshots, and effect-scope disposal to `@exactjs/reactive` or a small native interop package.
 2. **TanStack Query**
    - Build on `@tanstack/query-core`.
    - Cover query, infinite query, mutation, cancellation, batching, cache lifecycle, dehydration, and hydration.
@@ -369,7 +369,7 @@ The root and provider entrypoints may depend on the framework-neutral library co
 6. **Jotai and other stores**
    - Reuse the external-source primitive where their framework-neutral APIs provide stable snapshot/subscription contracts.
 7. **React Router**
-   - Expand `@exact/router` into the single renderer-neutral routing authority.
+   - Expand `@exactjs/router` into the single renderer-neutral routing authority.
    - Add resolved-package-instance adapter variants before supporting multiple
      installed React Router majors.
    - Provide separate v5 and v6/v7 semantic facades, with v6 before 6.4
@@ -381,7 +381,7 @@ The root and provider entrypoints may depend on the framework-neutral library co
 
 ### Phase 1: Protocol and validation
 
-- Create `@exact/react-compat-adapter-api`.
+- Create `@exactjs/react-compat-adapter-api`.
 - Define and document schema version 1.
 - Add strict package metadata parsing and normalized IR types.
 - Enforce own-package targets, public export subpaths, source ranges, reserved namespaces, and explicit exports.
@@ -402,7 +402,7 @@ The root and provider entrypoints may depend on the framework-neutral library co
 
 ### Phase 3: Common React module transformer
 
-- Move React import substitution policy behind `@exact/react-compat/plugin`.
+- Move React import substitution policy behind `@exactjs/react-compat/plugin`.
 - Implement generic binding-aware import/re-export rewrite helpers.
 - Rewrite core React/React DOM imports directly.
 - Implement adapter substitution for authored eXact source.

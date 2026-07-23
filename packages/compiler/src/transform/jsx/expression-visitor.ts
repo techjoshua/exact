@@ -133,7 +133,9 @@ export function visitJsxExpression(
 					state.islandCounts,
 					node,
 					state.clientIslandDefinitions,
-					{ ...captures, serverSlotChildren }
+					{ ...captures, serverSlotChildren },
+					derivedReactiveLocals,
+					expressionJsx
 				);
 				state.clientIslandDepth--;
 			}
@@ -179,7 +181,9 @@ export function visitJsxExpression(
 					state.islandCounts,
 					node,
 					state.clientIslandDefinitions,
-					clientIslandCaptures(clientIslandSiteFor(node), state.componentLocalStack.at(-1))
+					clientIslandCaptures(clientIslandSiteFor(node), state.componentLocalStack.at(-1)),
+					derivedReactiveLocals,
+					expressionJsx
 				);
 			}
 		}

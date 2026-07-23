@@ -7,7 +7,7 @@ import {
 import type { ExactRemoteArtifactPlan, ExactRemoteExposureArtifact } from './build.js';
 import { createExactExposureRegistrationModules } from './exposures.js';
 import { analyzeProvidedPackageImports } from './import-analysis.js';
-import type { ExactArtifactGraph } from '@exact/compiler';
+import type { ExactArtifactGraph } from '@exactjs/compiler';
 
 /** Configures remote artifact emission for one application-scoped Rollup build. */
 export type ExactRemoteRollupAdapterOptions = {

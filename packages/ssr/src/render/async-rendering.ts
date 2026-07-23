@@ -1,5 +1,5 @@
-import { withTaskObserver, type VNode } from '@exact/core';
-import { processExactOutput } from '@exact/plugin-host/runtime';
+import { withTaskObserver, type VNode } from '@exactjs/core';
+import { processExactOutput } from '@exactjs/plugin-host/runtime';
 import { augmentDocumentBody } from '../document.js';
 import { renderHydrationScript } from '../hydration.js';
 import { assertOutputWithinLimit, boundedJoin, withTaskDeadline } from '../render/limits.js';

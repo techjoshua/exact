@@ -1,4 +1,4 @@
-import { ErrorContext, type Component } from '@exact/core';
+import { ErrorContext, type Component } from '@exactjs/core';
 import { BoardContext } from '../context.js';
 
 type BoardHeaderProps = {
@@ -51,7 +51,7 @@ export function BoardHeader(this: Component<{}>, props: BoardHeaderProps) {
 						value={props.draft}
 						placeholder="Add a task"
 						onInput={(event) => {
-							board.setDraft((event.target as HTMLInputElement).value);
+							board.setDraft(event.currentTarget.value);
 						}}
 					/>
 					<button type="submit" disabled={props.draft.trim().length === 0}>

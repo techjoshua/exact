@@ -1,4 +1,4 @@
-import '@exact/react-compat/react19';
+import '@exactjs/react-compat/react19';
 import * as Server from './server-node.js';
 import { resume, resumeToPipeableStream } from './static-node.js';
 export * from './server-node.js';

@@ -1,4 +1,4 @@
-import type { BoundModule, ExpressionNode, NodeRef, Variable } from '@exact/expressions';
+import type { BoundModule, ExpressionNode, NodeRef, Variable } from '@exactjs/expressions';
 import { trackedCallbackArguments } from './annotations.js';
 import { expressionComponentIndex } from './expression/component-index.js';
 

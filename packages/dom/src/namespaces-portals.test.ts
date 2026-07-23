@@ -1,12 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import { createContext, createPortal, createVNode, type Child, type Component } from '@exact/core';
-import { jsx } from '@exact/jsx';
+import { createContext, createPortal, createVNode, type Child, type Component } from '@exactjs/core';
+import { jsx } from '@exactjs/jsx';
 import { describe, expect, it } from 'vitest';
 import { render, unmount } from './index.js';
 
-describe('@exact/dom namespaces-portals', () => {
+describe('@exactjs/dom namespaces-portals', () => {
 	it('renders portals in another container while preserving logical context and cleanup', () => {
 		const container = document.createElement('div');
 		const target = document.createElement('aside');

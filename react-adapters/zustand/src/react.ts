@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from '@exact/react-compat';
+import { useSyncExternalStore } from '@exactjs/react-compat';
 import type { StoreApi } from 'zustand/vanilla';
 
 /** React-compatible replacement backed only by Zustand's vanilla store API. */

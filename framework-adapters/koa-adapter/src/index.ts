@@ -1,4 +1,4 @@
-import { handleExactRequest, type ExactServerContext } from '@exact/server';
+import { handleExactRequest, type ExactServerContext } from '@exactjs/server';
 
 /** Carries the context required by exact koa. */
 export type ExactKoaContext = {

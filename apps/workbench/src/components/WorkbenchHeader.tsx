@@ -1,4 +1,4 @@
-import type { Component } from '@exact/core';
+import type { Component } from '@exactjs/core';
 import { WorkbenchContext } from '../context.js';
 import type { SyncState, ViewMode } from '../types.js';
 
@@ -29,7 +29,7 @@ export function WorkbenchHeader(this: Component<{}>, props: WorkbenchHeaderProps
 					type="search"
 					placeholder="Search tasks, owners, labels"
 					value={props.query}
-					onInput={(event) => workbench.setQuery((event.currentTarget as HTMLInputElement).value)}
+					onInput={(event) => workbench.setQuery(event.currentTarget.value)}
 				/>
 				<div className="segmented" role="group" aria-label="View mode">
 					<button
@@ -61,9 +61,7 @@ export function WorkbenchHeader(this: Component<{}>, props: WorkbenchHeaderProps
 						type="text"
 						placeholder="New task"
 						value={props.draftTitle}
-						onInput={(event) =>
-							workbench.setDraftTitle((event.currentTarget as HTMLInputElement).value)
-						}
+						onInput={(event) => workbench.setDraftTitle(event.currentTarget.value)}
 					/>
 					<button type="submit">Add</button>
 				</form>

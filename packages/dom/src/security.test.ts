@@ -1,11 +1,11 @@
 /**
  * @vitest-environment jsdom
  */
-import { BLOCKED_JAVASCRIPT_URL, createVNode, unsafeHtml } from '@exact/core';
+import { BLOCKED_JAVASCRIPT_URL, createVNode, unsafeHtml } from '@exactjs/core';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from './index.js';
 
-describe('@exact/dom security', () => {
+describe('@exactjs/dom security', () => {
 	it('mounts and replaces opted-in opaque unsafe HTML ranges', () => {
 		const container = document.createElement('div');
 		const audit = vi.fn();

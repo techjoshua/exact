@@ -1,4 +1,4 @@
-import type { ExactJsonValue } from '@exact/plugin-api';
+import type { ExactJsonValue } from '@exactjs/plugin-api';
 import type {
 	ExactArtifactExportIR,
 	ExactBoundaryIR,

@@ -14,7 +14,7 @@ import {
 	writeReactive
 } from './index.js';
 
-describe('@exact/reactive collections', () => {
+describe('@exactjs/reactive collections', () => {
 	it('notifies array growth and preserves reused identities during an unregistered prepend', () => {
 		const state = reactive({ activity: [] as Array<{ id: string; message: string }> });
 		const lengths: number[] = [];

@@ -1,4 +1,4 @@
-import { attachSuppressedCleanupFailure, logFrameworkEvent } from '@exact/core';
+import { attachSuppressedCleanupFailure, logFrameworkEvent } from '@exactjs/core';
 import type { ExactDocumentStreamEvent, RenderToProgressiveHtmlStreamOptions } from '../types.js';
 import {
 	cleanupAll,

@@ -7,7 +7,7 @@ import {
 	createVNode,
 	ErrorContext,
 	type Component
-} from '@exact/core';
+} from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { installExactMatchers, mountTest, testComponent } from './index.js';
 import { installVitestMatchers } from './vitest.js';

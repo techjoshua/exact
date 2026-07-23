@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { compileProject, compileProjectArtifacts, type TransformTarget } from '@exact/compiler';
-import { createReactCompatibilityBuildEngine } from '@exact/react-compat/build';
-import type { ReactCompatibilityTarget } from '@exact/react-compat/plugin';
+import { compileProject, compileProjectArtifacts, type TransformTarget } from '@exactjs/compiler';
+import { createReactCompatibilityBuildEngine } from '@exactjs/react-compat/build';
+import type { ReactCompatibilityTarget } from '@exactjs/react-compat/plugin';
 
 type CliOptions = {
 	inputs: string[];

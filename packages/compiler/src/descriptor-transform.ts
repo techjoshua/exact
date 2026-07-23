@@ -48,8 +48,8 @@ export function exactComponentDescriptorTransformer(
 			groups.set(component.name, {
 				protocol:
 					target === 'client'
-						? '@exact/client-component-descriptor'
-						: '@exact/server-component-descriptor',
+						? '@exactjs/client-component-descriptor'
+						: '@exactjs/server-component-descriptor',
 				entries
 			});
 	}
@@ -88,8 +88,8 @@ export function exactComponentDescriptorTransformer(
 		const descriptorDeclaration = createDescriptorSymbolDeclaration(
 			descriptorSymbol,
 			target === 'client'
-				? '@exact/client-component-descriptor'
-				: '@exact/server-component-descriptor',
+				? '@exactjs/client-component-descriptor'
+				: '@exactjs/server-component-descriptor',
 			context.factory
 		);
 		let insertionIndex = 0;

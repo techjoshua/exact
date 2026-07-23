@@ -1,4 +1,4 @@
-import { type ModuleRewriteOptions } from '@exact/expressions';
+import { type ModuleRewriteOptions } from '@exactjs/expressions';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { discoverExactPackageManifests } from '../artifacts.js';

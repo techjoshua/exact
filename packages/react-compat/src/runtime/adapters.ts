@@ -4,7 +4,7 @@ import {
 	type Component,
 	type ComponentFunction,
 	type ComponentInstance
-} from '@exact/core';
+} from '@exactjs/core';
 import type {
 	ReactClassInstance,
 	ReactClassType,

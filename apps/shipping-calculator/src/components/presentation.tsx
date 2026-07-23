@@ -1,4 +1,4 @@
-import type { Component } from '@exact/core';
+import type { Component } from '@exactjs/core';
 import { usStatePaths } from '../data/us-state-paths.js';
 import type { ExtraService, ProviderId, RateQuote, RouteResult } from '../types.js';
 

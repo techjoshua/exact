@@ -10,7 +10,7 @@ const insert = (parent, child, before) => { parent.children = parent.children.fi
 const remove = (parent, child) => { parent.children = parent.children.filter(value => value !== child); };
 
 const reconciler = createReconciler({
-  rendererPackageName: "@exact/react-reconciler-reference-19",
+  rendererPackageName: "@exactjs/react-reconciler-reference-19",
   rendererVersion: "0.0.0",
   isPrimaryRenderer: false,
   supportsMutation: true,

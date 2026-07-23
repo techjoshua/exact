@@ -7,7 +7,7 @@ import {
 
 const validManifest = {
 	name: '@example/exact-query',
-	dependencies: { '@exact/react-compat-adapter-api': '^0.0.0' },
+	dependencies: { '@exactjs/react-compat-adapter-api': '^0.0.0' },
 	exact: {
 		reactCompatibility: {
 			schemaVersion: 1,

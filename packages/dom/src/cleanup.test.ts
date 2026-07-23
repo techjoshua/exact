@@ -1,13 +1,13 @@
 /**
  * @vitest-environment jsdom
  */
-import { createRef, type Component } from '@exact/core';
-import { jsx } from '@exact/jsx';
-import { flushSync } from '@exact/reactive';
+import { createRef, type Component } from '@exactjs/core';
+import { jsx } from '@exactjs/jsx';
+import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { render, unmount } from './index.js';
 
-describe('@exact/dom cleanup', () => {
+describe('@exactjs/dom cleanup', () => {
 	it('clears refs when DOM nodes are replaced', () => {
 		const buttonRef = createRef<HTMLButtonElement>('button');
 		let parent!: Component<{ mode: 'button' | 'input' }>;

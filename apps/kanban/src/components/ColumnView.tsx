@@ -1,4 +1,4 @@
-import type { Component } from '@exact/core';
+import type { Component } from '@exactjs/core';
 import { BoardContext } from '../context.js';
 import type { Column, DragPlacement, Task } from '../types.js';
 import { TaskCard } from './TaskCard.jsx';
@@ -39,9 +39,9 @@ export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
 		<article
 			id={`column-${props.column.id}`}
 			className={['column', { empty: columnTasks.length === 0 }]}
-			onDragEnter={(event) => allowDrop(event as DragEvent)}
-			onDragOver={(event) => allowDrop(event as DragEvent)}
-			onDrop={(event) => dropTask(event as DragEvent)}
+			onDragEnter={(event) => allowDrop(event)}
+			onDragOver={(event) => allowDrop(event)}
+			onDrop={(event) => dropTask(event)}
 		>
 			<header>
 				<h2>{props.column.title}</h2>

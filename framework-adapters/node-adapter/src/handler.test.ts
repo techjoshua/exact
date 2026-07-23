@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { describe, expect, it } from 'vitest';
 import { createExactNodeHandler, readNodeRequestBody, writeNodeResponse } from './index.js';
 
-describe('@exact/node-adapter', () => {
+describe('@exactjs/node-adapter', () => {
 	it('handles eXact requests through Node request and response objects', async () => {
 		const handler = createExactNodeHandler({
 			manifest: {

@@ -10,7 +10,7 @@ import {
 	useSyncExternalStore,
 	type ReactComponentType,
 	type ReactNode
-} from '@exact/react-compat';
+} from '@exactjs/react-compat';
 import { matchPath as exactMatchPath, type RouteLocation } from './components.js';
 import {
 	BrowserRouter,

@@ -1,4 +1,4 @@
-import type { BoundModule, Variable } from '@exact/expressions';
+import type { BoundModule, Variable } from '@exactjs/expressions';
 
 import type { CallableEffectPlan } from '../analysis/callable-effects.js';
 
@@ -119,7 +119,7 @@ export function analyzeExpressionComponents(
 			if (!reference || nearestComponent(reference, componentNodes)?.node !== component.node)
 				continue;
 			for (const attribute of element.attributes) {
-				if (!/^on[A-Z]/.test(attribute) && attribute !== 'ref') continue;
+				if (!isClientIslandAttribute(attribute)) continue;
 				clientEffects = true;
 				splitBoundaries.add(attribute === 'ref' ? 'ref' : 'event-handler');
 			}

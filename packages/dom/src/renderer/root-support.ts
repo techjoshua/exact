@@ -7,7 +7,7 @@ import {
 	type ErrorContextValue,
 	type ErrorReport,
 	type VNode
-} from '@exact/core';
+} from '@exactjs/core';
 import { formatError } from '../debug.js';
 import { namespaceForTag } from '../namespace.js';
 import type { RenderOptions, Root } from '../types.js';

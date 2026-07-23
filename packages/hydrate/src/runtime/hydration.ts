@@ -1,4 +1,4 @@
-import type { VNode } from '@exact/core';
+import type { VNode } from '@exactjs/core';
 import {
 	adoptComponentRoot,
 	adoptDocumentRoot,
@@ -6,7 +6,7 @@ import {
 	adoptStatic,
 	createDomWorkBudget,
 	render
-} from '@exact/dom';
+} from '@exactjs/dom';
 import { captureHydrationDom, restoreFormState } from '../adoption/form-state.js';
 import { adoptStaticTree, createStaticAdoptionBudget } from '../adoption/static-tree.js';
 import { resolveHydrateOptions } from '../config.js';

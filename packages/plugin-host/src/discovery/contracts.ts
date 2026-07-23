@@ -2,7 +2,7 @@ import {
 	type ExactPackageParticipation,
 	type ExactPluginConfigurationDeclaration,
 	type ExactPluginDeclaration
-} from '@exact/plugin-api';
+} from '@exactjs/plugin-api';
 import { type ExactPackageNode } from '../graph.js';
 
 /** Defines the exact discovery policy interface contract. */

@@ -1,9 +1,9 @@
-# @exact/hapi-adapter
+# @exactjs/hapi-adapter
 
 Hapi route handler for eXact server endpoints.
 
 ```ts
-import { createExactHapiHandler } from '@exact/hapi-adapter';
+import { createExactHapiHandler } from '@exactjs/hapi-adapter';
 
 server.route({
 	method: 'POST',

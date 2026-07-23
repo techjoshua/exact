@@ -1,9 +1,9 @@
 import {
 	loadExactImportedManifests,
 	matchesExactBuildFilter
-} from '@exact/compiler/adapter-support';
-import type { ExactCompilerManifest, TransformTarget } from '@exact/compiler';
-import type { ExactPreparedCompilerRegistry } from '@exact/plugin-api';
+} from '@exactjs/compiler/adapter-support';
+import type { ExactCompilerManifest, TransformTarget } from '@exactjs/compiler';
+import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
 

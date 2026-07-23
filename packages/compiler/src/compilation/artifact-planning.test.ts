@@ -15,7 +15,7 @@ import {
 } from '../index.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 
-describe('@exact/compiler: artifact planning', () => {
+describe('@exactjs/compiler: artifact planning', () => {
 	it('rejects unsupported generated artifact manifest versions', async () => {
 		const root = await createTestWorkspace('exact-artifact-manifest-version-');
 		const manifestFile = path.join(root, 'panel.exact.manifest.json');

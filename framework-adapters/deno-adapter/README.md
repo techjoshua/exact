@@ -1,9 +1,9 @@
-# @exact/deno-adapter
+# @exactjs/deno-adapter
 
 Deno runtime adapter for eXact server endpoints.
 
 ```ts
-import { createExactDenoHandler } from '@exact/deno-adapter';
+import { createExactDenoHandler } from '@exactjs/deno-adapter';
 
 const exact = createExactDenoHandler(exactRuntime);
 

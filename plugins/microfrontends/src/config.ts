@@ -1,4 +1,4 @@
-import type {} from '@exact/config';
+import type {} from '@exactjs/config';
 
 /** Configures one explicitly exposed component root. */
 export type ExactRemoteExposureConfig = {
@@ -19,7 +19,7 @@ export type ExactMicrofrontendConfig = {
 	providedPackages: string[];
 };
 
-declare module '@exact/config' {
+declare module '@exactjs/config' {
 	interface ExactPluginConfigRegistry {
 		microfrontends: ExactMicrofrontendConfig;
 	}

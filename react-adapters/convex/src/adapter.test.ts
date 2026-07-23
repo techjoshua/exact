@@ -1,8 +1,8 @@
-import { flushSync } from '@exact/reactive';
+import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import { createConvexQuery, type ConvexClient, type ConvexWatch } from './index.js';
 
-describe('@exact/convex', () => {
+describe('@exactjs/convex', () => {
 	it('bridges Convex watchQuery without importing its React binding', () => {
 		let value: number | undefined = undefined;
 		let notify = () => {};

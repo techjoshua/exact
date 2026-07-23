@@ -1,6 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { compileFileArtifacts } from '@exact/compiler';
+import { compileFileArtifacts } from '@exactjs/compiler';
 
 const root = path.resolve('src');
 const outDir = path.resolve('.exact');
@@ -15,7 +15,7 @@ for (const name of names) {
 			filename: path.join('apps', 'server-components', 'src', `${name}.tsx`),
 			serverComponents: true,
 			packageType: 'application',
-			packageName: '@exact/sample-server-components'
+			packageName: '@exactjs/sample-server-components'
 		})
 	);
 }

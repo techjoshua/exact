@@ -1,4 +1,4 @@
-import { createRef, type Component } from '@exact/core';
+import { createRef, type Component } from '@exactjs/core';
 import { WorkbenchContext } from '../context.js';
 import { columns } from '../data.js';
 import type { Task } from '../types.js';

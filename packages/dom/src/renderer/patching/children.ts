@@ -7,8 +7,8 @@ import {
 	type Child,
 	type ComponentInstance,
 	type VNode
-} from '@exact/core';
-import { withEffectScope, type EffectScope } from '@exact/reactive';
+} from '@exactjs/core';
+import { withEffectScope, type EffectScope } from '@exactjs/reactive';
 import { childToVNode, planChildReconciliation } from '../../children.js';
 import { describeNode, describeVNodeType, domDebug } from '../../debug.js';
 import { preserveFocus } from '../../focus.js';

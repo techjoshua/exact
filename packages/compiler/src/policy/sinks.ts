@@ -1,4 +1,4 @@
-import type { BoundModule, NodeRef } from '@exact/expressions';
+import type { BoundModule, NodeRef } from '@exactjs/expressions';
 import { stableId } from '../ids.js';
 import type { ExactPolicyFlowIR, ExactPolicySubjectIR } from '../types.js';
 import { combinePolicyRecords, dataPolicy, describePolicy, policyFlow } from './algebra.js';

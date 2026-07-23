@@ -1,10 +1,10 @@
-import { attemptCleanup, type CleanupFailure } from '@exact/core';
+import { attemptCleanup, type CleanupFailure } from '@exactjs/core';
 import {
 	consumeDomWork,
 	disposeOwnedSubtree,
 	walkDomSubtree,
 	type DomWorkBudget
-} from '@exact/dom';
+} from '@exactjs/dom';
 import { isExactItemStart } from './lookup.js';
 
 /** Performs the replace range domain operation. */

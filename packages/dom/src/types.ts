@@ -7,9 +7,9 @@ import type {
 	StopHandle,
 	UnsafeHtmlAuditEvent,
 	VNode
-} from '@exact/core';
-import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation';
-import type { EffectScope } from '@exact/reactive';
+} from '@exactjs/core';
+import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
+import type { EffectScope } from '@exactjs/reactive';
 import type { DomWorkBudget } from './work.js';
 
 /** Defines the mounted type contract. */

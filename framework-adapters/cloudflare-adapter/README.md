@@ -1,9 +1,9 @@
-# @exact/cloudflare-adapter
+# @exactjs/cloudflare-adapter
 
 Cloudflare Workers adapter for eXact server endpoints.
 
 ```ts
-import { createExactCloudflareHandler } from '@exact/cloudflare-adapter';
+import { createExactCloudflareHandler } from '@exactjs/cloudflare-adapter';
 
 const exact = createExactCloudflareHandler(exactRuntime);
 

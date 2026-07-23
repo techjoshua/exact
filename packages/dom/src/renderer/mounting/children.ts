@@ -1,5 +1,5 @@
-import { ServerSlot, type Child, type ComponentInstance, type VNode } from '@exact/core';
-import { type EffectScope } from '@exact/reactive';
+import { ServerSlot, type Child, type ComponentInstance, type VNode } from '@exactjs/core';
+import { type EffectScope } from '@exactjs/reactive';
 import { childToVNode } from '../../children.js';
 import { placeMountedBefore } from '../../placement.js';
 import { adoptServerSlot } from '../../server-slots.js';

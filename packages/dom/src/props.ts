@@ -7,8 +7,8 @@ import {
 	type StopHandle,
 	unwrap,
 	watch
-} from '@exact/core';
-import type { EffectScope } from '@exact/reactive';
+} from '@exactjs/core';
+import type { EffectScope } from '@exactjs/reactive';
 import { describeNode, domDebug } from './debug.js';
 import { ensureDelegated } from './events.js';
 import { preserveFocus } from './focus.js';
@@ -74,44 +74,22 @@ function setProp(
 		return;
 	}
 
+	if (key === '__exactBindInput' || key === '__exactBindChange') {
+		setDirectEventHandler(
+			root,
+			element,
+			key,
+			key === '__exactBindInput' ? 'input' : 'change',
+			value,
+			false
+		);
+		return;
+	}
+
 	if (/^on[A-Z]/.test(key)) {
 		const { type, capture } = eventTypeForProp(key);
 		if (capture || isDirectEvent(type)) {
-			const previousDirect = directEventHandlers.get(element)?.get(key);
-			if (previousDirect) {
-				element.removeEventListener(
-					previousDirect.type,
-					previousDirect.listener,
-					previousDirect.capture
-				);
-				const direct = directEventHandlers.get(element);
-				direct?.delete(key);
-				if (direct && !direct.size) directEventHandlers.delete(element);
-			}
-			if (typeof value === 'function') {
-				const handler = value as EventListener;
-				const listener: EventListener = (event) =>
-					preserveFocus(root, () => {
-						try {
-							const owner = findOwnerInstance(element);
-							const result = batch(() =>
-								(handler as (this: Element, event: Event) => unknown).call(element, event)
-							);
-							observeComponentAsync(owner, result, 'event', type);
-						} catch (error) {
-							const owner = findOwnerInstance(element);
-							handleComponentError(owner, createErrorReport(error, 'event', owner, type));
-						}
-					});
-				const entry = { type, listener, capture };
-				let direct = directEventHandlers.get(element);
-				if (!direct) {
-					direct = new Map();
-					directEventHandlers.set(element, direct);
-				}
-				direct.set(key, entry);
-				element.addEventListener(type, entry.listener, capture);
-			}
+			setDirectEventHandler(root, element, key, type, value, capture);
 			return;
 		}
 		let handlers = eventHandlers.get(element);
@@ -156,6 +134,46 @@ function setProp(
 		{ scope }
 	);
 	setPropBinding(element, key, stop);
+}
+
+function setDirectEventHandler(
+	root: Root,
+	element: Element,
+	key: string,
+	type: string,
+	value: unknown,
+	capture: boolean
+): void {
+	const previous = directEventHandlers.get(element)?.get(key);
+	if (previous) {
+		element.removeEventListener(previous.type, previous.listener, previous.capture);
+		const direct = directEventHandlers.get(element);
+		direct?.delete(key);
+		if (direct && !direct.size) directEventHandlers.delete(element);
+	}
+	if (typeof value !== 'function') return;
+	const handler = value as EventListener;
+	const listener: EventListener = (event) =>
+		preserveFocus(root, () => {
+			try {
+				const owner = findOwnerInstance(element);
+				const result = batch(() =>
+					(handler as (this: Element, event: Event) => unknown).call(element, event)
+				);
+				observeComponentAsync(owner, result, 'event', type);
+			} catch (error) {
+				const owner = findOwnerInstance(element);
+				handleComponentError(owner, createErrorReport(error, 'event', owner, type));
+			}
+		});
+	const entry = { type, listener, capture };
+	let direct = directEventHandlers.get(element);
+	if (!direct) {
+		direct = new Map();
+		directEventHandlers.set(element, direct);
+	}
+	direct.set(key, entry);
+	element.addEventListener(type, listener, capture);
 }
 
 function eventContainerFor(root: Root, element: Element): Node {
@@ -300,6 +318,21 @@ function setDomProp(root: Root | undefined, element: Element, key: string, value
 	if (property in element) {
 		try {
 			const record = element as unknown as Record<string, unknown>;
+			if (property === 'value' && element instanceof HTMLSelectElement && element.multiple) {
+				const selected = new Set(
+					Array.isArray(value) ? value.map(String) : value == null ? [] : [String(value)]
+				);
+				for (const option of Array.from(element.options))
+					if (option.selected !== selected.has(option.value))
+						option.selected = selected.has(option.value);
+				return;
+			}
+			if (property === 'value' && element instanceof HTMLInputElement && value instanceof Date) {
+				const next = Number.isNaN(value.getTime()) ? null : value;
+				const current = element.valueAsDate;
+				if ((current?.getTime() ?? null) !== (next?.getTime() ?? null)) element.valueAsDate = next;
+				return;
+			}
 			if (Object.is(record[property], value)) {
 				syncBooleanAttribute(element, property, value);
 				return;
@@ -343,9 +376,9 @@ function clearDomProp(element: Element, key: string): void {
 		const current = (element as unknown as Record<string, unknown>)[property];
 		try {
 			if (typeof current === 'boolean') {
-				(element as unknown as Record<string, unknown>)[property] = false;
+				if (current) (element as unknown as Record<string, unknown>)[property] = false;
 			} else if (typeof current === 'string') {
-				(element as unknown as Record<string, unknown>)[property] = '';
+				if (current !== '') (element as unknown as Record<string, unknown>)[property] = '';
 			}
 		} catch {
 			// Attribute removal below is still the portable fallback.

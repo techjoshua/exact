@@ -65,8 +65,8 @@ The newer descriptor path works as follows:
   component and symbol records while generating each target artifact.
 - It assigns a tuple `[id, runtimeName, implementation]` to the exported
   component function using either
-  `Symbol.for('@exact/client-component-descriptor')` or
-  `Symbol.for('@exact/server-component-descriptor')`.
+  `Symbol.for('@exactjs/client-component-descriptor')` or
+  `Symbol.for('@exactjs/server-component-descriptor')`.
 - `composeExactComponentDescriptors()` reads those properties from imported
   component functions and returns a registry keyed by `runtimeName`.
 - SSR writes that runtime name to `data-exact-client-name`.

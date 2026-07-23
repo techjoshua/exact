@@ -1,4 +1,4 @@
-import { ExpressionProjectError, rewriteModule, type BoundModule } from '@exact/expressions';
+import { ExpressionProjectError, rewriteModule, type BoundModule } from '@exactjs/expressions';
 import ts from 'typescript';
 import type { analyzeCallableEffects } from '../analysis/callable-effects.js';
 import type { ExactCompilerSession } from '../expression/project.js';

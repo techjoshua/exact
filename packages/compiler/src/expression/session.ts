@@ -1,4 +1,4 @@
-import type { BoundModule } from '@exact/expressions';
+import type { BoundModule } from '@exactjs/expressions';
 import { ExactCompilerSession } from './project.js';
 import type { ExactCompilerSessionOptions, ExpressionModuleOptions } from './session-contracts.js';
 

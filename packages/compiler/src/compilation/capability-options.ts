@@ -28,7 +28,7 @@ export function capabilityCompilationOptions(
 function secretPackagesFromPluginRegistry(
 	registry: TransformOptions['pluginRegistry']
 ): readonly string[] | undefined {
-	const cacheKey = registry?.plugins['@exact/secrets']?.cacheKey;
+	const cacheKey = registry?.plugins['@exactjs/secrets']?.cacheKey;
 	if (!cacheKey || typeof cacheKey !== 'object' || Array.isArray(cacheKey)) return undefined;
 	const allowPackages = (cacheKey as Record<string, unknown>).allowPackages;
 	return Array.isArray(allowPackages) &&

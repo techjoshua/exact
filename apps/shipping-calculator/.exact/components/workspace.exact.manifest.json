@@ -184,7 +184,7 @@
         "kind": "import",
         "nodeStart": 14,
         "nodeEnd": 23,
-        "moduleSpecifier": "@exact/core",
+        "moduleSpecifier": "@exactjs/core",
         "importedName": "Component",
         "typeOnly": true
       },
@@ -534,7 +534,7 @@
         "nodeEnd": 576,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:Component",
         "declarationKind": "import",
-        "moduleSpecifier": "@exact/core",
+        "moduleSpecifier": "@exactjs/core",
         "importedName": "Component",
         "typeOnly": true
       },

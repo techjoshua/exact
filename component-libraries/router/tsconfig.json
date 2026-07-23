@@ -6,7 +6,7 @@
 		"outDir": "dist",
 		"lib": ["ES2022", "DOM"],
 		"jsx": "react-jsx",
-		"jsxImportSource": "@exact/jsx"
+		"jsxImportSource": "@exactjs/jsx"
 	},
 	"references": [
 		{ "path": "../../packages/core" },

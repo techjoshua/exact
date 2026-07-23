@@ -1,4 +1,4 @@
-import { createContext, type ComponentFunction, type ContextToken } from '@exact/core';
+import { createContext, type ComponentFunction, type ContextToken } from '@exactjs/core';
 import {
 	activeHookHost,
 	assignReactRef,
@@ -59,7 +59,7 @@ export function exposeExactComponent<
 	options: Readonly<{ refProp?: keyof P }> = {}
 ): ReactComponentType<P> {
 	const boundary = function ExactComponentBoundary(_props: P): ReactNode {
-		throw new Error('Native eXact component boundary must be rendered by @exact/react-compat');
+		throw new Error('Native eXact component boundary must be rendered by @exactjs/react-compat');
 	};
 	Object.defineProperties(boundary, {
 		name: { configurable: true, value: `ReactExact(${displayName})` },

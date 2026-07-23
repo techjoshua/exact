@@ -1,4 +1,4 @@
-import { sameJsonData } from '@exact/core';
+import { sameJsonData } from '@exactjs/core';
 import type {
 	CreateExactServerManifestOptions,
 	ExactCompilerManifestLike,

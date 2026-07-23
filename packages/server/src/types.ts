@@ -1,7 +1,7 @@
-import type { ComponentContextValues, ContextToken, Logger } from '@exact/core';
-import type { ExactProfileEvent, ExactProfileSink } from '@exact/instrumentation';
-import type { ExactOutputExtension } from '@exact/plugin-api';
-import type { RequestContextValue, RequestResponseState } from '@exact/request';
+import type { ComponentContextValues, ContextToken, Logger } from '@exactjs/core';
+import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
+import type { ExactOutputExtension } from '@exactjs/plugin-api';
+import type { RequestContextValue, RequestResponseState } from '@exactjs/request';
 
 /** Defines the exact invocation kind type contract. */
 export type ExactInvocationKind = 'action' | 'refresh';

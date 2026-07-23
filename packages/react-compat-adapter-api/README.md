@@ -6,7 +6,7 @@ only target its own public exports.
 
 ```json
 {
-	"dependencies": { "@exact/react-compat-adapter-api": "^1.0.0" },
+	"dependencies": { "@exactjs/react-compat-adapter-api": "^0.1.0" },
 	"exact": {
 		"reactCompatibility": {
 			"schemaVersion": 1,

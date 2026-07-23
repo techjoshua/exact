@@ -6,8 +6,13 @@ export function jsxElementIsClientIsland(attributes: ts.JsxAttributes): boolean 
 	return attributes.properties.some((property) => {
 		if (ts.isJsxSpreadAttribute(property)) return false;
 		const name = property.name.getText();
-		return /^on[A-Z]/.test(name) || name === 'ref';
+		return /^on[A-Z]/.test(name) || name === 'ref' || isReactiveFormAttribute(name);
 	});
+}
+
+/** Returns whether a JSX attribute is a compiler-owned reactive form relationship. */
+export function isReactiveFormAttribute(name: string): boolean {
+	return name === 'value:input' || name === 'value:change' || name === 'checked:change';
 }
 
 /** Returns the boundary name used for a JSX component tag. */
