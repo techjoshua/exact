@@ -17,7 +17,7 @@ export function DocsSidebar(this: Component<{}>, props: DocsSidebarProps) {
 						{group.pages.map((page) => (
 							<NavLink
 								to={page.path}
-								end={page.path === '/'}
+								end
 								className={(active) => (active ? 'nav-link is-active' : 'nav-link')}
 								onClick={props.onNavigate}
 							>
