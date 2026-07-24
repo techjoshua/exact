@@ -310,10 +310,16 @@ a {
 .theme-control select {
 	height: 2.25rem;
 	border: 0;
-	background: transparent;
+	background: var(--surface-raised);
+	color: var(--text);
 	padding: 0 1.8rem 0 0.2rem;
 	font-size: 0.8rem;
 	cursor: pointer;
+}
+
+.theme-control select option {
+	background: var(--surface-raised);
+	color: var(--text);
 }
 
 .github-link {
