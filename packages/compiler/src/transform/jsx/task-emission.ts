@@ -3,6 +3,7 @@ import { isFunctionLikeExpression } from '../../calls.js';
 import type {
 	ExpressionTaskResource,
 	ExpressionTaskResourceKind,
+	ExpressionTaskSite,
 	ExpressionTaskSignalCall
 } from '../../expression/task-contracts.js';
 import type { HelperNames } from '../../types.js';
@@ -23,13 +24,14 @@ export function transformTaskCall(
 	markResource?: (kind: ExpressionTaskResourceKind) => void,
 	markAwait?: () => void,
 	signalFor?: (node: ts.Node) => ExpressionTaskSignalCall | undefined,
-	markSignal?: (mode: ExpressionTaskSignalCall['mode']) => void
+	markSignal?: (mode: ExpressionTaskSignalCall['mode']) => void,
+	taskSite?: ExpressionTaskSite
 ): ts.Expression {
 	if (node.arguments.length < 1) return ts.visitEachChild(node, visitor, context);
 	const work = node.arguments[node.arguments.length - 1]!;
 	if (!isFunctionLikeExpression(work)) return ts.visitEachChild(node, visitor, context);
 	const visitedWork = ts.visitNode(work, visitor) as ts.ArrowFunction | ts.FunctionExpression;
-	const transformedWork = helpers
+	let transformedWork: ts.ArrowFunction | ts.FunctionExpression = helpers
 		? transformTaskWork(
 				visitedWork,
 				node.arguments.length - 1,
@@ -41,30 +43,113 @@ export function transformTaskCall(
 				markAwait ?? (() => {}),
 				signalFor ?? (() => undefined),
 				markSignal ?? (() => {})
-			)
+			) as ts.ArrowFunction | ts.FunctionExpression
 		: visitedWork;
 
-	const nextArguments = node.arguments.map((argument, index) => {
-		if (index === node.arguments.length - 1) return transformedWork;
-		if (isFunctionLikeExpression(argument)) {
-			return ts.visitNode(argument, visitor) as ts.Expression;
-		}
-		const derived = ts.isIdentifier(argument)
-			? derivedReactiveLocals?.references.get(expressionEmissionId(argument) ?? '')
-			: undefined;
-		if (derived?.cached) return argument;
-		return context.factory.createCallExpression(
-			context.factory.createPropertyAccessExpression(context.factory.createThis(), 'reactive'),
-			undefined,
-			[captureArgument(context, argument, visitor, sourceFile, derivedReactiveLocals)]
+	const explicitDependencies = node.arguments.slice(0, -1);
+	const inferredDependencies =
+		explicitDependencies.length === 0 ? (taskSite?.dependencyPaths ?? []) : [];
+	if (inferredDependencies.length)
+		transformedWork = prependDependencyParameters(
+			transformedWork,
+			inferredDependencies.length,
+			context
 		);
-	});
+
+	const nextDependencies =
+		inferredDependencies.length > 0
+			? inferredDependencies.map((path) => inferredStateDependency(path, context))
+			: explicitDependencies.map((argument) => {
+					if (isFunctionLikeExpression(argument)) {
+						return ts.visitNode(argument, visitor) as ts.Expression;
+					}
+					const derived = ts.isIdentifier(argument)
+						? derivedReactiveLocals?.references.get(expressionEmissionId(argument) ?? '')
+						: undefined;
+					if (derived?.cached) return argument;
+					return context.factory.createCallExpression(
+						context.factory.createPropertyAccessExpression(
+							context.factory.createThis(),
+							'reactive'
+						),
+						undefined,
+						[captureArgument(context, argument, visitor, sourceFile, derivedReactiveLocals)]
+					);
+				});
 
 	return context.factory.updateCallExpression(
 		node,
 		ts.visitNode(node.expression, visitor) as ts.Expression,
 		node.typeArguments,
-		nextArguments
+		[...nextDependencies, transformedWork]
+	);
+}
+
+function inferredStateDependency(
+	path: readonly string[],
+	context: ts.TransformationContext
+): ts.Expression {
+	const factory = context.factory;
+	let value: ts.Expression = factory.createPropertyAccessExpression(factory.createThis(), 'state');
+	for (const segment of path) {
+		value = /^[$A-Z_a-z][$\w]*$/.test(segment)
+			? factory.createPropertyAccessExpression(value, segment)
+			: factory.createElementAccessExpression(value, factory.createStringLiteral(segment));
+	}
+	return factory.createCallExpression(
+		factory.createPropertyAccessExpression(factory.createThis(), 'reactive'),
+		undefined,
+		[
+			factory.createArrowFunction(
+				undefined,
+				undefined,
+				[],
+				undefined,
+				factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+				value
+			)
+		]
+	);
+}
+
+function prependDependencyParameters(
+	work: ts.ArrowFunction | ts.FunctionExpression,
+	count: number,
+	context: ts.TransformationContext
+): ts.ArrowFunction | ts.FunctionExpression {
+	const used = new Set<string>();
+	const collect = (node: ts.Node): void => {
+		if (ts.isIdentifier(node)) used.add(node.text);
+		ts.forEachChild(node, collect);
+	};
+	collect(work);
+	const parameters: ts.ParameterDeclaration[] = [];
+	for (let index = 0; index < count; index++) {
+		let name = `__exactDependency${index || ''}`;
+		while (used.has(name)) name += '_';
+		used.add(name);
+		parameters.push(context.factory.createParameterDeclaration(undefined, undefined, name));
+	}
+	parameters.push(...work.parameters);
+	if (ts.isArrowFunction(work))
+		return context.factory.updateArrowFunction(
+			work,
+			work.modifiers,
+			work.typeParameters,
+			parameters,
+			work.type,
+			work.equalsGreaterThanToken,
+			work.body
+		);
+	return context.factory.updateFunctionExpression(
+		work,
+		work.modifiers,
+		work.asteriskToken,
+		work.name,
+		work.typeParameters,
+		parameters,
+		work.type,
+		work.body
 	);
 }
 

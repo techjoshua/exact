@@ -11,6 +11,8 @@ import {
 	type BunLoadResult
 } from './index.js';
 
+type BunResolveHandler = Parameters<NonNullable<BunBuildLike['onResolve']>>[1];
+
 describe('@exactjs/bun-plugin', () => {
 	it('reports opt-in transform timings', () => {
 		const onProfile = vi.fn();
@@ -56,13 +58,21 @@ describe('@exactjs/bun-plugin', () => {
 		);
 	});
 
+	it('leaves test modules to Bun unless explicitly enabled', () => {
+		expect(
+			transformExactBunSource('it("renders", () => <span />);', '/src/view.test.tsx')
+		).toBeNull();
+		expect(
+			transformExactBunSource('export const view = <span />;', '/src/view.test.tsx', {
+				compileTestModules: true
+			})
+		).not.toBeNull();
+	});
+
 	it('registers and executes Bun resolve and load hooks', async () => {
 		const resolveHooks: Array<{
 			filter: RegExp;
-			handler: (args: {
-				path: string;
-				importer?: string;
-			}) => { path?: string } | Promise<{ path?: string }>;
+			handler: BunResolveHandler;
 		}> = [];
 		let loadHook!: (
 			args: BunLoadArgs
@@ -166,10 +176,7 @@ describe('@exactjs/bun-plugin', () => {
 	it('registers React aliases and compiles React JSX to the compatibility runtime', async () => {
 		const resolvers: Array<{
 			filter: RegExp;
-			handler: (args: {
-				path: string;
-				importer?: string;
-			}) => { path?: string } | Promise<{ path?: string }>;
+			handler: BunResolveHandler;
 		}> = [];
 		const build: BunBuildLike = {
 			onResolve(options, handler) {
@@ -201,10 +208,7 @@ describe('@exactjs/bun-plugin', () => {
 	it('rejects a mismatched reconciler relative to the importer', async () => {
 		const resolvers: Array<{
 			filter: RegExp;
-			handler: (args: {
-				path: string;
-				importer?: string;
-			}) => { path?: string } | Promise<{ path?: string }>;
+			handler: BunResolveHandler;
 		}> = [];
 		exact({ reactCompatibility: { target: 19 } }).setup({
 			onResolve(options, handler) {

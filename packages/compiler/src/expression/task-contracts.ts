@@ -18,6 +18,8 @@ export interface ExpressionTaskSite {
 	readonly async: boolean;
 	readonly browserEffects: boolean;
 	readonly serverEffects: boolean;
+	/** Exact state paths inferred as rerun dependencies for dependency-free tasks. */
+	readonly dependencyPaths: readonly (readonly string[])[];
 	readonly reads: readonly ExactStateEffect[];
 	readonly writes: readonly ExactStateEffect[];
 	readonly contexts: readonly ExactContextEffect[];

@@ -1,0 +1,12 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"composite": true,
+		"rootDir": "src",
+		"outDir": "dist",
+		"lib": ["ES2022", "DOM"],
+		"types": ["bun"]
+	},
+	"references": [{ "path": "../testing" }, { "path": "../../framework-adapters/bun-plugin" }],
+	"include": ["src"]
+}

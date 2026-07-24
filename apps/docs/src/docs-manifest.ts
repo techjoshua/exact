@@ -1,23 +1,21 @@
 import type { ComponentFunction } from '@exactjs/core';
-import {
-	AdvancedPage,
-	ComparisonPage,
-	ComponentsPage,
-	FormsPage,
-	GettingStartedPage,
-	IntroductionPage,
-	ListsPage,
-	LogoLabPage,
-	MicrofrontendsPluginPage,
-	PackagesPage,
-	PluginsPage,
-	ReactCompatibilityPage,
-	RoutingPage,
-	SecretsPluginPage,
-	StatePage,
-	TasksPage,
-	TestingPage
-} from './pages.jsx';
+import { AdvancedPage } from './pages/AdvancedPage.jsx';
+import { ComparisonPage } from './pages/ComparisonPage.jsx';
+import { ComponentsPage } from './pages/ComponentsPage.jsx';
+import { FormsPage } from './pages/FormsPage.jsx';
+import { GettingStartedPage } from './pages/GettingStartedPage.jsx';
+import { IntroductionPage } from './pages/IntroductionPage.jsx';
+import { ListsPage } from './pages/ListsPage.jsx';
+import { LogoLabPage } from './pages/LogoLabPage.jsx';
+import { MicrofrontendsPluginPage } from './pages/MicrofrontendsPluginPage.jsx';
+import { PackagesPage } from './pages/PackagesPage.jsx';
+import { PluginsPage } from './pages/PluginsPage.jsx';
+import { ReactCompatibilityPage } from './pages/ReactCompatibilityPage.jsx';
+import { RoutingPage } from './pages/RoutingPage.jsx';
+import { SecretsPluginPage } from './pages/SecretsPluginPage.jsx';
+import { StatePage } from './pages/StatePage.jsx';
+import { TasksPage } from './pages/TasksPage.jsx';
+import { TestingPage } from './pages/TestingPage.jsx';
 
 export type DocPage = {
 	/** @exact key */
@@ -41,15 +39,17 @@ export const docGroups: DocGroup[] = [
 			{
 				path: '/',
 				label: 'Introduction',
-				summary: 'Why eXact runs component setup once, keeps state inspectable, and compiles precise client/server updates.',
-				keywords: 'overview component compiler reactive TypeScript JSX React Vue Svelte comparison state virtual DOM',
+				summary:
+					'Why eXact runs component setup once, keeps state inspectable, and compiles precise client/server updates.',
+				keywords:
+					'overview component compiler reactive TypeScript JSX React Vue Svelte comparison state virtual DOM',
 				component: IntroductionPage
 			},
 			{
 				path: '/getting-started',
 				label: 'Quick start',
-				summary: 'Build and mount a tiny browser app.',
-				keywords: 'install vite setup tsconfig render',
+				summary: 'Scaffold and run an eXact application with compatible package versions.',
+				keywords: 'create exact app install scaffold vite runtime test runner agent skill',
 				component: GettingStartedPage
 			}
 		]
@@ -100,7 +100,8 @@ export const docGroups: DocGroup[] = [
 			{
 				path: '/guides/forms',
 				label: 'Accessible forms',
-				summary: 'Bind native inputs and compose accessible validation without surrendering your data.',
+				summary:
+					'Bind native inputs and compose accessible validation without surrendering your data.',
 				keywords: 'form input binding value change checked field validation label accessible',
 				component: FormsPage
 			},

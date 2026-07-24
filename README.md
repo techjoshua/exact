@@ -15,8 +15,10 @@ The repository is an npm workspace monorepo. The current implementation slice co
 - `@exactjs/vite-plugin`: Vite integration for the eXact compiler.
 - `@exactjs/webpack-plugin`: Webpack integration for the eXact compiler.
 - `@exactjs/bun-plugin`: Bun integration for the eXact compiler.
+- `@exactjs/bun-test`: Bun test-runner preload, DOM setup, component helpers, and matchers.
 - `@exactjs/vitest` and `@exactjs/jest`: compiler-aware test-runner setup and shared matchers.
-- `create-exact-app`: interactive project scaffolding across supported build and runtime platforms.
+- `@exactjs/create-exact-app`: interactive project scaffolding across supported build and runtime
+  platforms.
 
 Packages expose focused subpaths where environment or integration boundaries require them. Browser rendering is intentionally exported from `@exactjs/dom`; platform-neutral component APIs live in `@exactjs/core`.
 
@@ -51,11 +53,11 @@ npm test
 Create a standalone application with:
 
 ```sh
-npm create exact-app@latest
+npm create @exactjs/exact-app@latest
 ```
 
-The scaffolder offers Vite, Webpack, and Bun builds; every supported runtime adapter; Vitest or
-Jest; and optional repo-local installation of the eXact Agent Skill.
+The scaffolder offers Vite, Webpack, and Bun builds; every supported runtime adapter; Vitest,
+Jest, or Bun's native test runner; and optional repo-local installation of the eXact Agent Skill.
 
 ## TypeScript compatibility
 
@@ -118,6 +120,9 @@ The package entrypoints are:
   - Vite/eXact compiler setup, Vite 8 Oxc JSX configuration, automatic matcher installation, and the shared component-testing APIs.
 - `@exactjs/jest`
   - Jest environment and matcher setup plus an eXact-aware TypeScript/TSX transformer.
+- `@exactjs/bun-test`
+  - Bun-native compiler and Happy DOM preload, component helpers, server/client testing, and
+    shared matchers.
 - `@exactjs/jsx`
   - Root exports: `jsx`, `jsxs`, `Fragment`, `_`.
   - Automatic JSX subpaths: `@exactjs/jsx/jsx-runtime` and `@exactjs/jsx/jsx-dev-runtime`.
@@ -163,6 +168,7 @@ The package entrypoints are:
   - Webpack adapter: `new ExactWebpackPlugin({ target?: "default" | "client" | "server" })`.
   - Adds target package export conditions, `.exact` facade resolution helpers, and a pre-loader for TSX/JSX transforms.
 - `@exactjs/bun-plugin`
+- `@exactjs/bun-test`
   - Bun adapter: `exact({ target?: "default" | "client" | "server" })`.
   - Adds target package export conditions, `.exact` facade resolution, and TSX/JSX transform hooks.
   - Integration-tested with Bun 1.3.5 through the real `Bun.build()` API.

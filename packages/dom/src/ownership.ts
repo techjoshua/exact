@@ -16,6 +16,11 @@ export function setNodeOwner(node: Node, owner: ComponentInstance<any>): void {
 	nodeOwners.set(node, owner);
 }
 
+/** Removes the logical ownership association for a framework marker or text node. */
+export function clearNodeOwner(node: Node): void {
+	nodeOwners.delete(node);
+}
+
 /** Finds the closest component instance that owns an element or one of its ancestors. */
 export function findOwnerInstance(element: Element): ComponentInstance<any> | undefined {
 	let cursor: Element | null = element;

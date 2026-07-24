@@ -5,7 +5,7 @@ import {
 	throwCleanupFailure,
 	type RefBinding
 } from '@exactjs/core';
-import { clearElementOwner } from '../ownership.js';
+import { clearElementOwner, clearNodeOwner } from '../ownership.js';
 import { clearElementProps } from '../props.js';
 import { componentMounts } from '../state.js';
 import type { Mounted } from '../types.js';
@@ -60,6 +60,8 @@ export function unmountMounted(mounted: Mounted): void {
 			attemptTeardown(failure, () => clearElementProps(current.mounted.dom as Element));
 			attemptTeardown(failure, () => clearElementOwner(current.mounted.dom as Element));
 		}
+		attemptTeardown(failure, () => clearNodeOwner(current.mounted.dom));
+		if (current.mounted.end) attemptTeardown(failure, () => clearNodeOwner(current.mounted.end!));
 		const ref = current.mounted.vnode.props.ref as RefBinding<unknown> | undefined;
 		if (ref) attemptTeardown(failure, () => ref.fulfill(undefined));
 	}

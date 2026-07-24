@@ -1,11 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
 	batch,
+	deleteReactiveValue,
 	flushSync,
+	mutateReactiveArray,
 	reactive,
 	registerReactiveListKey,
+	updateReactiveValue,
+	updateReactiveValueWithResult,
 	watch,
-	writeReactive
+	writeReactive,
+	writeReactiveLazy
 } from './index.js';
 
 describe('@exactjs/reactive writes', () => {
@@ -96,5 +101,85 @@ describe('@exactjs/reactive writes', () => {
 		flushSync();
 		expect(left).toHaveBeenCalledTimes(2);
 		expect(right).toHaveBeenCalledTimes(1);
+	});
+
+	it('resolves a lazy assignment target before evaluating a side-effecting right-hand side', () => {
+		const state = reactive({ selected: 'first', records: { first: 1, second: 2 } });
+
+		const result = writeReactiveLazy(state, ['records', state.selected], () => {
+			state.selected = 'second';
+			return 10;
+		});
+
+		expect(result).toBe(10);
+		expect(state.records).toEqual({ first: 10, second: 2 });
+		expect(state.selected).toBe('second');
+	});
+
+	it('preserves JavaScript assignment results for prefix, postfix, and compound updates', () => {
+		const state = reactive({ count: 2 });
+
+		expect(updateReactiveValue(state, ['count'], (value) => value + 1, true)).toBe(2);
+		expect(state.count).toBe(3);
+		expect(updateReactiveValue(state, ['count'], (value) => value * 2)).toBe(6);
+		expect(
+			updateReactiveValueWithResult(state, ['count'], (value) => [value + 4, `was:${value}`])
+		).toBe('was:6');
+		expect(state.count).toBe(10);
+	});
+
+	it('delegates array mutations while rejecting non-array compiler targets', () => {
+		const state = reactive({ items: ['a'], label: 'not-an-array' });
+
+		expect(mutateReactiveArray(state, ['items'], 'push', () => ['b', 'c'])).toBe(3);
+		expect(state.items).toEqual(['a', 'b', 'c']);
+		expect(mutateReactiveArray(state, ['items'], 'splice', [1, 1, 'B'])).toEqual(['b']);
+		expect(state.items).toEqual(['a', 'B', 'c']);
+		expect(() => mutateReactiveArray(state, ['label'], 'pop', [])).toThrow(
+			'Cannot call pop on a non-array reactive value'
+		);
+	});
+
+	it('handles compiler delete and invalid empty-path contracts deterministically', () => {
+		const state = reactive({ record: { value: 1 } as { value?: number } });
+		const existence: boolean[] = [];
+		watch(() => existence.push('value' in state.record));
+
+		expect(deleteReactiveValue(state, ['record', 'value'])).toBe(true);
+		flushSync();
+		expect(existence).toEqual([true, false]);
+		expect(deleteReactiveValue(state, [])).toBe(false);
+		expect(() => writeReactive(state, [], 1)).toThrow('writeReactive requires a state path');
+		expect(() => writeReactiveLazy(state, [], () => 1)).toThrow(
+			'writeReactiveLazy requires a state path'
+		);
+	});
+
+	it('keeps compatible list-key registrations active until their last owner stops', () => {
+		const state = reactive({ records: [{ id: 'a', slug: 'first' }] });
+		const byId = (item: unknown) => (item as { id: string }).id;
+		const first = registerReactiveListKey(state.records, byId, 'first', 'records');
+		const second = registerReactiveListKey(state.records, byId, 'second', 'records');
+
+		first();
+		expect(() =>
+			registerReactiveListKey(
+				state.records,
+				(item) => (item as { slug: string }).slug,
+				'incompatible',
+				'other'
+			)
+		).toThrow('Conflicting this.map() key extractors');
+		second();
+		let replacement!: () => void;
+		expect(() => {
+			replacement = registerReactiveListKey(
+				state.records,
+				(item) => (item as { slug: string }).slug,
+				'replacement',
+				'other'
+			);
+		}).not.toThrow();
+		replacement();
 	});
 });

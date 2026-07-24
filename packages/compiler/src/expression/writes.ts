@@ -21,6 +21,8 @@ export interface ExpressionWriteSite {
 	readonly start: number;
 	readonly end: number;
 	readonly path: readonly string[];
+	/** Absolute state path already represented by the source alias at this write site. */
+	readonly aliasPath?: readonly string[];
 	readonly operation: 'assignment' | 'update' | 'delete' | 'array-mutation';
 }
 
@@ -122,16 +124,44 @@ export function analyzeExpressionWrites(module: BoundModule): ExpressionWritePla
 		if (!insideComponent(module, reference) || !reference.node.span) continue;
 		const path = writePath(module, reference, aliases, aliasInfo.invalidAt);
 		if (!path?.length) continue;
+		const target = writeTarget(reference);
 		const site = Object.freeze({
 			nodeId: reference.node.id,
 			start: reference.node.span.start,
 			end: reference.node.span.end,
 			path: Object.freeze(path),
+			aliasPath: target ? stateAliasPath(module, target, aliases) : undefined,
 			operation: writeOperation(reference)
 		});
 		sites.set(site.nodeId, site);
 	}
 	return Object.freeze({ sites, aliases });
+}
+
+function writeTarget(reference: NodeRef): NodeRef['node'] | undefined {
+	const node = reference.node;
+	if (
+		node.kind === 'BinaryExpression' ||
+		node.kind === 'PrefixUnaryExpression' ||
+		node.kind === 'PostfixUnaryExpression' ||
+		node.kind === 'DeleteExpression'
+	)
+		return node.children[0];
+	if (node.kind === 'CallExpression' && reference.target?.isMember())
+		return reference.target.target?.node;
+	return undefined;
+}
+
+function stateAliasPath(
+	module: BoundModule,
+	node: NodeRef['node'],
+	aliases: ReadonlyMap<string, readonly string[]>
+): readonly string[] | undefined {
+	let reference = module.ref(node);
+	while (reference.isMember() && reference.target) reference = reference.target;
+	if (reference.node.kind !== 'Identifier') return undefined;
+	const variable = reference.variable ?? reference.walk().references().first()?.variable;
+	return variable ? aliases.get(variable.id) : undefined;
 }
 
 function writeOperation(reference: NodeRef): ExpressionWriteSite['operation'] {

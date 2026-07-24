@@ -45,6 +45,29 @@ describe('create-exact-app', () => {
 		expect(await readFile(path.join(target, 'src/server.ts'), 'utf8')).toContain('exactHapiPlugin');
 	});
 
+	it('creates native Bun component tests with the eXact preload', async () => {
+		const root = await mkdtemp(path.join(tmpdir(), 'create-exact-app-'));
+		const target = path.join(root, 'bun-test');
+		await createExactApp({
+			directory: target,
+			name: 'bun-test-app',
+			bundler: 'bun',
+			runtime: 'bun',
+			testRunner: 'bun',
+			skill: false
+		});
+
+		const manifest = JSON.parse(await readFile(path.join(target, 'package.json'), 'utf8'));
+		expect(manifest.devDependencies).toHaveProperty('@exactjs/bun-test');
+		expect(manifest.scripts.test).toBe('bun test');
+		expect(await readFile(path.join(target, 'bunfig.toml'), 'utf8')).toContain(
+			'@exactjs/bun-test/preload'
+		);
+		expect(await readFile(path.join(target, 'src/App.test.tsx'), 'utf8')).toContain(
+			'from "bun:test"'
+		);
+	});
+
 	it('materializes every advertised build and runtime option', async () => {
 		const root = await mkdtemp(path.join(tmpdir(), 'create-exact-app-matrix-'));
 		for (const bundler of bundlers) {

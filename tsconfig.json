@@ -13,6 +13,7 @@
 		{ "path": "./packages/testing" },
 		{ "path": "./packages/vitest" },
 		{ "path": "./packages/jest" },
+		{ "path": "./packages/bun-test" },
 		{ "path": "./packages/create-exact-app" },
 		{ "path": "./packages/react-compat-adapter-api" },
 		{ "path": "./packages/react-compatibility" },

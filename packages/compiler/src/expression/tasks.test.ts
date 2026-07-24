@@ -280,4 +280,25 @@ describe('expression-backed task effects', () => {
 			expect.objectContaining({ description: 'WebSocket' })
 		);
 	});
+
+	it('accepts a callable subscription returned directly as task cleanup', () => {
+		clearExpressionProjectCache();
+		const module = expressionModuleFor(
+			'DirectSubscriptionCleanup.tsx',
+			`interface Router { subscribe(listener: () => void): () => void; }
+      declare const router: Router;
+      function Panel(this: Component<{}>) {
+        this.task(() => router.subscribe(() => window.scrollTo(0, 0)));
+      }`
+		);
+		const site = [...analyzeExpressionTasks(module).sites.values()][0]!;
+
+		expect(site.placement).toBe('client');
+		expect(site.diagnostics).not.toContainEqual(
+			expect.stringContaining('subscription escapes its task generation')
+		);
+		expect([...analyzeExpressionTasks(module).resources.values()]).not.toContainEqual(
+			expect.objectContaining({ description: 'subscription' })
+		);
+	});
 });

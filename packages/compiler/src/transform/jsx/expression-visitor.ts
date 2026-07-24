@@ -51,6 +51,7 @@ export function visitJsxExpression(
 		expressionListenerFor,
 		expressionSetupFor,
 		expressionSignalFor,
+		expressionTaskFor,
 		taskPlacementFor,
 		isClientComponentTag,
 		islandHasServerChildren,
@@ -312,7 +313,8 @@ export function visitJsxExpression(
 				state.sawTaskAwait = true;
 			},
 			expressionSignalFor,
-			(mode) => state.taskSignalModes.add(mode)
+			(mode) => state.taskSignalModes.add(mode),
+			expressionTaskFor(node)
 		);
 	}
 	if (node.pos >= 0 && ts.isShorthandPropertyAssignment(node)) {

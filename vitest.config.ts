@@ -8,6 +8,6 @@ export default defineConfig({
 		}
 	},
 	test: {
-		exclude: [...configDefaults.exclude, '**/dist/**']
+		exclude: [...configDefaults.exclude, '**/dist/**', 'packages/bun-test/test-fixtures/**']
 	}
 });

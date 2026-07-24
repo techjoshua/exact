@@ -3,7 +3,14 @@
  */
 import { createVNode } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
-import { render, unmount } from './index.js';
+import {
+	createDomWorkBudget,
+	DomTraversalLimitError,
+	render,
+	reserveDomWork,
+	unmount,
+	walkDomSubtree
+} from './index.js';
 
 describe('@exactjs/dom limits', () => {
 	it('rejects over-deep vnode trees without mounting a partial root', () => {
@@ -38,5 +45,48 @@ describe('@exactjs/dom limits', () => {
 			expect(() => render(vnode, container, { maxTreeNodes: 20 })).not.toThrow();
 		}
 		expect(container.textContent).toBe('stable');
+	});
+
+	it('refuses an oversized reservation without partially consuming the shared budget', () => {
+		const budget = createDomWorkBudget(3);
+		reserveDomWork(budget, 2);
+
+		expect(() => reserveDomWork(budget, 2)).toThrow(DomTraversalLimitError);
+		expect(budget.used).toBe(2);
+		expect(() => reserveDomWork(budget, -1)).toThrow(
+			'DOM work reservation must be a non-negative safe integer'
+		);
+		expect(budget.used).toBe(2);
+	});
+
+	it('shares one traversal budget across independent DOM scans', () => {
+		const first = document.createElement('section');
+		first.innerHTML = '<span>A</span>';
+		const second = document.createElement('section');
+		second.innerHTML = '<span>B</span>';
+		const budget = createDomWorkBudget(4);
+
+		expect(walkDomSubtree(first, () => undefined, { budget })).toBe(3);
+		expect(() => walkDomSubtree(second, () => undefined, { budget })).toThrow(
+			'eXact DOM traversal exceeds the configured maximum of 4 nodes'
+		);
+	});
+
+	it('can exclude the traversal root while still bounding its descendants', () => {
+		const root = document.createElement('main');
+		root.innerHTML = '<section><span>A</span></section>';
+		const visited: Node[] = [];
+
+		expect(
+			walkDomSubtree(root, (node) => visited.push(node), {
+				includeRoot: false,
+				maxNodes: 3
+			})
+		).toBe(3);
+		expect(visited).toEqual([
+			root.firstElementChild,
+			root.querySelector('span'),
+			root.querySelector('span')!.firstChild
+		]);
 	});
 });

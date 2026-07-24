@@ -1,8 +1,8 @@
 # @exactjs/jest
 
 Jest integration for eXact component tests. It provides the same mounting APIs, accessible
-queries, events, and matchers as `@exactjs/vitest`, plus a Jest transformer for eXact TypeScript
-and TSX.
+queries, server component snapshots, paired client/server protocol tests, events, and matchers as
+`@exactjs/vitest`, plus a Jest transformer for eXact TypeScript and TSX.
 
 ## Setup
 

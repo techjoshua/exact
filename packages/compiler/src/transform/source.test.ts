@@ -161,6 +161,25 @@ describe('@exactjs/compiler: transform', () => {
 		expect(output).toContain('__exactArrayMutation(this.state, ["items"], "push"');
 	});
 
+	it("preserves a state alias when a nested object method has its own 'this'", () => {
+		const output = transform(
+			`
+      function ThemeProvider(this: Component<{ preference: string }>) {
+        this.state.preference = "system";
+        const state = this.state;
+        const theme = {
+          get preference() { return state.preference; },
+          setPreference(preference: string) { state.preference = preference; }
+        };
+        return () => <button onClick={() => theme.setPreference("dark")}>{theme.preference}</button>;
+      }`,
+			{ filename: 'ThemeProvider.tsx' }
+		);
+
+		expect(output).toContain('__exactWrite(state.get(), ["preference"]');
+		expect(output).not.toMatch(/setPreference[\s\S]*?__exactWrite\(this\.state/);
+	});
+
 	it('owns browser-global listeners declared in component setup', () => {
 		const output = transform(
 			`function Panel(this: Component<{}>) { window.addEventListener("resize", () => {}); return () => <p />; }`,

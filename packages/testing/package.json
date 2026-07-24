@@ -29,8 +29,11 @@
 	"dependencies": {
 		"@exactjs/core": "^0.1.0",
 		"@exactjs/dom": "^0.1.0",
+		"@exactjs/hydrate": "^0.1.0",
 		"@exactjs/plugin-host": "^0.1.0",
-		"@exactjs/reactive": "^0.1.0"
+		"@exactjs/reactive": "^0.1.0",
+		"@exactjs/server": "^0.1.0",
+		"@exactjs/ssr": "^0.1.0"
 	},
 	"devDependencies": {
 		"vitest": "^4.1.10"

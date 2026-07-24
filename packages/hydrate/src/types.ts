@@ -45,6 +45,8 @@ export type HydrateOptions = {
 	onDiagnostic?: (diagnostic: HydrationDiagnostic) => void;
 	/** Observes framework response compatibility metadata before its body is consumed. */
 	onResponse?: (response: ExactResponseMetadata) => void;
+	/** Observes the final client-side disposition of an operation and its patches. */
+	onOperation?: (observation: ExactClientOperationObservation) => void;
 	/** Internal recovery signal emitted only after validating the reserved 410 body. */
 	onBuildUnsupported?: () => void;
 	/** Internal signal that a structural patch replaced an ancestor of another execution root. */
@@ -142,6 +144,15 @@ export type ExactResponseHeaders = {
 export type ExactResponseMetadata = {
 	readonly status: number;
 	readonly preferredBuildKey?: string;
+};
+
+/** Describes how one client operation was handled after its response arrived. */
+export type ExactClientOperationObservation = {
+	readonly operation: ExactInvocationRequest;
+	readonly result: ExactInvocationResult;
+	readonly appliedPatches: readonly ExactPatch[];
+	readonly patchesApplied: boolean;
+	readonly stale: boolean;
 };
 
 /** Defines the exact endpoint transport type contract. */

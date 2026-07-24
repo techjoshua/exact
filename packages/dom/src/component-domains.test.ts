@@ -10,7 +10,7 @@ import {
 	type Component
 } from '@exactjs/core';
 import { describe, expect, it, vi } from 'vitest';
-import { render, unmount } from './index.js';
+import { findNodeOwnerInstance, render, unmount } from './index.js';
 import { inspectDomRoot } from './testing.js';
 
 describe('component domain rendering', () => {
@@ -112,5 +112,26 @@ describe('component domain rendering', () => {
 		expect(unmounted).not.toHaveBeenCalled();
 		unmount(container);
 		expect(unmounted).toHaveBeenCalledOnce();
+	});
+
+	it('resolves logical ownership through host ancestors and releases it on unmount', () => {
+		const container = document.createElement('div');
+		let panel!: Component<{}>;
+		function Panel(this: Component<{}>) {
+			panel = this;
+			return () =>
+				createVNode(
+					'section',
+					null,
+					createVNode('button', null, createVNode('span', null, 'Save'))
+				);
+		}
+
+		render(createVNode(Panel, null), container);
+		const text = container.querySelector('span')!.firstChild!;
+		expect(findNodeOwnerInstance(text)).toBe(panel);
+
+		expect(unmount(container)).toBe(true);
+		expect(findNodeOwnerInstance(text)).toBeUndefined();
 	});
 });

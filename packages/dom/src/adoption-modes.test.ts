@@ -1,7 +1,15 @@
 /**
  * @vitest-environment jsdom
  */
-import { createDynamicChild, createVNode, Fragment, type Component, unsafeHtml } from '@exactjs/core';
+import {
+	createDynamicChild,
+	createServerSlot,
+	createVNode,
+	Fragment,
+	type Component,
+	unsafeHtml
+} from '@exactjs/core';
+import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	adoptComponentRoot,
@@ -66,6 +74,50 @@ describe('DOM adoption modes', () => {
 
 		expect(adoptStatic(vnode, container)).toBe(true);
 		expect(container.querySelector('i')).toBe(first);
+		expect(unmount(container)).toBe(true);
+	});
+
+	it('adopts keyed SSR ranges and preserves their DOM identity during reorder', () => {
+		let list!: Component<{ items: { id: string; label: string }[] }>;
+		function List(this: Component<{ items: { id: string; label: string }[] }>) {
+			list = this;
+			this.state.items = [
+				{ id: 'a', label: 'A' },
+				{ id: 'b', label: 'B' }
+			];
+			return () =>
+				this.map(
+					this.state.items,
+					(item) => item.id,
+					(item) => createVNode('li', null, item.label),
+					'tasks'
+				);
+		}
+		const container = document.createElement('div');
+		container.innerHTML =
+			'<!--exact:root--><!--exact:component:List--><!--exact:tasks--><!--exact:item:a--><li>A</li><!--/exact:item:a--><!--exact:item:b--><li>B</li><!--/exact:item:b--><!--/exact:tasks--><!--/exact:component:List--><!--/exact:root-->';
+		const originalB = container.querySelectorAll('li')[1];
+
+		expect(adoptStatic(createVNode(List, null), container)).toBe(true);
+		list.state.items.reverse();
+		flushSync();
+		expect(container.querySelectorAll('li')[0]).toBe(originalB);
+		expect(container.textContent).toBe('BA');
+		expect(unmount(container)).toBe(true);
+	});
+
+	it('reuses server-rendered slot content instead of replacing it during client render', () => {
+		const container = document.createElement('div');
+		container.innerHTML =
+			'<aside><span data-exact-server-slot="shell:children"><strong>Server child</strong></span></aside>';
+		const slot = container.querySelector('[data-exact-server-slot="shell:children"]');
+		const child = container.querySelector('strong');
+
+		render(createVNode('main', null, createServerSlot('shell:children')), container);
+
+		expect(container.querySelector('[data-exact-server-slot="shell:children"]')).toBe(slot);
+		expect(container.querySelector('strong')).toBe(child);
+		expect(container.textContent).toBe('Server child');
 		expect(unmount(container)).toBe(true);
 	});
 

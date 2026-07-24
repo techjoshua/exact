@@ -30,6 +30,7 @@
 		"react-adapters/*/dist",
 		"plugins/*/dist",
 		"component-libraries/*/dist",
+		"packages/bun-test/src",
 		"apps/*/dist"
 	]
 }

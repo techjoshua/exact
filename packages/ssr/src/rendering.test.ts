@@ -81,6 +81,42 @@ describe('@exactjs/ssr rendering', () => {
 		expect(mounted).toBe(false);
 	});
 
+	it('observes settled sync and async components before renderer disposal', async () => {
+		const observed: number[] = [];
+		let disposals = 0;
+		function Observed(this: Component<{ value: number }>) {
+			this.state.value = 1;
+			this.task(async () => {
+				await Promise.resolve();
+				this.state.value++;
+			});
+			this.onUnmount(() => {
+				disposals++;
+			});
+			return () => createVNode('p', null, this.state.value);
+		}
+
+		renderToString(createVNode(Observed, {}), {
+			onComponentRendered: (instance) => {
+				observed.push(instance.state.value);
+				expect(disposals).toBe(0);
+			}
+		});
+		expect(observed).toEqual([1]);
+		expect(disposals).toBe(1);
+
+		observed.length = 0;
+		disposals = 0;
+		await renderToStringAsync(createVNode(Observed, {}), {
+			onComponentRendered: (instance) => {
+				observed.push(instance.state.value);
+				expect(disposals).toBe(0);
+			}
+		});
+		expect(observed).toEqual([2]);
+		expect(disposals).toBe(1);
+	});
+
 	it('counts empty primitive child slots against the SSR breadth budget', () => {
 		const vnode = createVNode('div', null, ...Array.from({ length: 20 }, () => null));
 		expect(() => renderToString(vnode, { markers: false, maxTreeNodes: 8 })).toThrow(

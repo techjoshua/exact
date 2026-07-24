@@ -17,7 +17,7 @@ export const runtimes = [
 	'cloudflare',
 	'serverless'
 ] as const;
-export const testRunners = ['vitest', 'jest', 'none'] as const;
+export const testRunners = ['vitest', 'jest', 'bun', 'none'] as const;
 
 export type Bundler = (typeof bundlers)[number];
 export type Runtime = (typeof runtimes)[number];
@@ -107,6 +107,10 @@ function projectFiles(options: CreateExactAppOptions): Record<string, string> {
 					lib: ['ES2022', 'DOM'],
 					jsx: 'preserve',
 					jsxImportSource: '@exactjs/jsx',
+					types:
+						options.testRunner === 'bun' || options.bundler === 'bun' || options.runtime === 'bun'
+							? ['node', 'bun']
+							: ['node'],
 					noEmit: true
 				},
 				include: ['src', '*.config.ts', 'scripts']
@@ -206,7 +210,7 @@ function addTestRunner(
 		devDependencies.jsdom = '^25.0.1';
 		scripts.test = 'vitest run';
 		scripts['test:watch'] = 'vitest';
-	} else {
+	} else if (runner === 'jest') {
 		devDependencies['@exactjs/jest'] = '^0.1.0';
 		devDependencies['@jest/globals'] = '^30.2.0';
 		devDependencies.jest = '^30.2.0';
@@ -214,6 +218,11 @@ function addTestRunner(
 		scripts.test = 'node --experimental-vm-modules ./node_modules/jest/bin/jest.js';
 		scripts['test:watch'] =
 			'node --experimental-vm-modules ./node_modules/jest/bin/jest.js --watch';
+	} else {
+		devDependencies['@exactjs/bun-test'] = '^0.1.0';
+		devDependencies['@types/bun'] = '^1.3.0';
+		scripts.test = 'bun test';
+		scripts['test:watch'] = 'bun test --watch';
 	}
 }
 
@@ -268,9 +277,17 @@ function testFiles(runner: TestRunner, bundler: Bundler): Record<string, string>
 	const imports =
 		runner === 'vitest'
 			? 'import "@exactjs/vitest";\nimport { describe, expect, it } from "vitest";\n'
-			: 'import "@exactjs/jest";\nimport { describe, expect, it } from "@jest/globals";\n';
+			: runner === 'jest'
+				? 'import "@exactjs/jest";\nimport { describe, expect, it } from "@jest/globals";\n'
+				: 'import { describe, expect, it } from "bun:test";\n';
+	const testingPackage = runner === 'bun' ? '@exactjs/bun-test' : '@exactjs/testing';
 	return {
-		'src/App.test.tsx': `${imports}import { testComponent } from "@exactjs/testing";\nimport { App } from "./App.js";\n\ndescribe("App", () => {\n\tit("updates reactive state", async () => {\n\t\tconst view = await testComponent(App).mount();\n\t\tconst button = view.getByRole("button");\n\t\tawait button.click();\n\t\texpect(button).toHaveText("Count: 1");\n\t\tview.unmount();\n\t});\n});\n`,
+		'src/App.test.tsx': `${imports}import { testComponent } from "${testingPackage}";\nimport { App } from "./App.js";\n\ndescribe("App", () => {\n\tit("updates reactive state", async () => {\n\t\tconst view = await testComponent(App).mount();\n\t\tconst button = view.getByRole("button");\n\t\tawait button.click();\n\t\texpect(button).toHaveText("Count: 1");\n\t\tview.unmount();\n\t});\n});\n`,
+		...(runner === 'bun'
+			? {
+					'bunfig.toml': '[test]\npreload = ["@exactjs/bun-test/preload"]\n'
+				}
+			: {}),
 		...(runner === 'jest'
 			? {
 					'jest.config.mjs':
@@ -290,7 +307,7 @@ function generatedReadme(options: CreateExactAppOptions): string {
 		options.runtime === 'browser'
 			? ''
 			: '\nRun the platform endpoint in a second terminal with `npm run dev:server` when that script is available.\n';
-	return `# ${options.name}\n\nAn eXact application generated with \`create-exact-app\`.\n\n- Build integration: ${options.bundler}\n- Runtime: ${options.runtime}\n- Test runner: ${options.testRunner}\n- Application type-checker: TypeScript 7\n\n## Development\n\n\`\`\`sh\nnpm install\nnpm run typecheck\nnpm run dev\n\`\`\`\n${server}\nEdit \`src/App.tsx\` to begin. The component setup runs once; mutate \`this.state\` directly and let the eXact compiler update the affected DOM expressions.\n\nThe application uses TypeScript 7 for command-line and editor checking. eXact's compiler packages carry the TypeScript 6 compatibility API they require, so both versions can safely coexist in the same install.\n`;
+	return `# ${options.name}\n\nAn eXact application generated with \`@exactjs/create-exact-app\`.\n\n- Build integration: ${options.bundler}\n- Runtime: ${options.runtime}\n- Test runner: ${options.testRunner}\n- Application type-checker: TypeScript 7\n\n## Development\n\n\`\`\`sh\nnpm install\nnpm run typecheck\nnpm run dev\n\`\`\`\n${server}\nEdit \`src/App.tsx\` to begin. The component setup runs once; mutate \`this.state\` directly and let the eXact compiler update the affected DOM expressions.\n\nThe application uses TypeScript 7 for command-line and editor checking. eXact's compiler packages carry the TypeScript 6 compatibility API they require, so both versions can safely coexist in the same install.\n`;
 }
 
 async function installAgentSkill(target: string): Promise<void> {

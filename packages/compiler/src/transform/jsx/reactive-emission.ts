@@ -9,6 +9,7 @@ import {
 import type {
 	ExpressionTaskResource,
 	ExpressionTaskResourceKind,
+	ExpressionTaskSite,
 	ExpressionTaskSignalCall
 } from '../../expression/task-contracts.js';
 import type { HelperNames } from '../../types.js';
@@ -136,7 +137,8 @@ export function transformCapturedCall(
 	markResource?: (kind: ExpressionTaskResourceKind) => void,
 	markAwait?: () => void,
 	signalFor?: (node: ts.Node) => ExpressionTaskSignalCall | undefined,
-	markSignal?: (mode: ExpressionTaskSignalCall['mode']) => void
+	markSignal?: (mode: ExpressionTaskSignalCall['mode']) => void,
+	taskSite?: ExpressionTaskSite
 ): ts.Expression {
 	if (isThisMethodCall(node, 'reactive')) {
 		return transformReactiveCall(sourceFile, node, context, visitor, derivedReactiveLocals);
@@ -155,7 +157,8 @@ export function transformCapturedCall(
 			markResource,
 			markAwait,
 			signalFor,
-			markSignal
+			markSignal,
+			taskSite
 		);
 	}
 

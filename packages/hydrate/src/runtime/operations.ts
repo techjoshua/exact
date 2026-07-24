@@ -112,6 +112,13 @@ export async function invokeAndApply(
 			message: `ignored stale exact ${type} response for ${id}`,
 			patch: { type, id }
 		});
+		options.onOperation?.({
+			operation,
+			result,
+			appliedPatches: [],
+			patchesApplied: false,
+			stale: true
+		});
 		return result;
 	}
 	let responsePatches = result.patches;
@@ -134,21 +141,26 @@ export async function invokeAndApply(
 		});
 	}
 	const patchOptions = { ...options, workBudget: work };
+	let appliedPatches: readonly import('@exactjs/server').ExactPatch[] = responsePatches ?? [];
 	let patchesApplied = responsePatches
 		? applyPatches(container, responsePatches, patchOptions)
 		: true;
 	if (!patchesApplied && type === 'refresh' && result.html) {
-		patchesApplied = applyPatches(
-			container,
-			[{ type: 'replace', id, html: result.html }],
-			patchOptions
-		);
+		appliedPatches = [{ type: 'replace', id, html: result.html }];
+		patchesApplied = applyPatches(container, appliedPatches, patchOptions);
 	}
 	if (!patchesApplied) {
 		options.onDiagnostic?.({
 			code: 'invalid-patch',
 			message: `rejected exact ${type} response for ${id}; DOM and state were left unchanged`,
 			patch: { type, id }
+		});
+		options.onOperation?.({
+			operation,
+			result,
+			appliedPatches,
+			patchesApplied: false,
+			stale: partiallyStale
 		});
 		return result;
 	}
@@ -162,6 +174,13 @@ export async function invokeAndApply(
 		versions.set('state-committed', requestOrdinal);
 		client.state = result.state;
 	}
+	options.onOperation?.({
+		operation,
+		result,
+		appliedPatches,
+		patchesApplied: true,
+		stale: partiallyStale
+	});
 	return result;
 }
 

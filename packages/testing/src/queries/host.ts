@@ -1,7 +1,8 @@
+import type { ComponentInstance } from '@exactjs/core';
 import { findElementOwner } from '@exactjs/dom/testing';
 
 import type { AccessibleName, ActionOptions, RoleQueryOptions } from '../contracts.js';
-import type { TestComponent, TestView } from '../mounting/views.js';
+import type { TestComponent } from '../mounting/views.js';
 import {
 	accessibleName,
 	isElementVisible,
@@ -18,7 +19,7 @@ export abstract class QueryHost {
 		private readonly candidates: () => Element[],
 		private readonly runAction: (work: () => unknown, options?: ActionOptions) => Promise<void>
 	) {}
-	protected abstract ownerView(): TestView<any, any>;
+	protected abstract ownerView(): TestElementView;
 	/** Resolves a by selector for this query host instance. */
 	getBySelector(selector: string): TestElement {
 		return this.one(
@@ -127,7 +128,7 @@ export abstract class QueryHost {
 /** Defines the test element class contract. */
 export class TestElement<E extends Element = Element> extends QueryHost {
 	constructor(
-		readonly view: TestView<any, any>,
+		readonly view: TestElementView,
 		readonly element: E
 	) {
 		super(
@@ -300,26 +301,33 @@ export class TestElement<E extends Element = Element> extends QueryHost {
 	private assertLive(): void {
 		assertElementLive(this.view, this.element);
 	}
-	protected ownerView(): TestView<any, any> {
+	protected ownerView(): TestElementView {
 		return this.view;
 	}
 }
 
 /** Defines the test query type contract. */
 export type TestQuery = QueryHost;
+/** Defines the view surface required by element queries and interactions. */
+export type TestElementView = {
+	readonly container: Element;
+	snapshot(): unknown;
+	action(work: () => unknown, options?: ActionOptions): Promise<void>;
+	componentFor(instance: ComponentInstance<any>): TestComponent<any, any>;
+};
 
 /** Performs the all elements domain operation. */
 export function allElements(container: Element): Element[] {
 	return Array.from(container.querySelectorAll('*'));
 }
 /** Validates element live and throws when the contract is violated. */
-export function assertElementLive(view: TestView<any, any>, element: Element): void {
+export function assertElementLive(view: TestElementView, element: Element): void {
 	view.snapshot();
 	if (element !== view.container && !view.container.contains(element))
 		throw new Error('The test element is no longer mounted in this view');
 }
 /** Performs the element candidates domain operation. */
-export function elementCandidates(view: TestView<any, any>, element: Element): Element[] {
+export function elementCandidates(view: TestElementView, element: Element): Element[] {
 	assertElementLive(view, element);
 	return [element, ...Array.from(element.querySelectorAll('*'))];
 }

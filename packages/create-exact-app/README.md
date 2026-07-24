@@ -1,9 +1,9 @@
-# create-exact-app
+# @exactjs/create-exact-app
 
 Interactive scaffolder for a new eXact application.
 
 ```sh
-npm create exact-app@latest
+npm create @exactjs/exact-app@latest
 ```
 
 The CLI asks for:
@@ -11,14 +11,14 @@ The CLI asks for:
 - Vite, Webpack, or Bun compiler integration
 - Browser-only, Fetch, Node, Express, Fastify, Hapi, Koa, Bun, Deno, Cloudflare, or generic
   serverless runtime wiring
-- Vitest, Jest, or no test runner
+- Vitest, Jest, Bun's native test runner, or no test runner
 - Optional installation of the portable eXact Agent Skill in `.agents/skills`
 - Optional dependency installation
 
 For repeatable automation, pass the choices as flags:
 
 ```sh
-npm create exact-app@latest my-app -- \
+npm create @exactjs/exact-app@latest my-app -- \
 	--bundler vite \
 	--runtime hapi \
 	--test-runner vitest \

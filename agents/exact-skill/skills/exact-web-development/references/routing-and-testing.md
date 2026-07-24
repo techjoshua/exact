@@ -52,7 +52,38 @@ Follow the runner integration already configured by the project. For new configu
   installation, and the shared testing APIs.
 - `@exactjs/jest` for automatic matcher setup, jsdom defaults, and the eXact TypeScript/TSX
   transformer.
+- `@exactjs/bun-test` for Bun's native test runner, runtime compiler preload, Happy DOM setup,
+  shared matchers, and the same component/server testing APIs.
 
 Use the lower-level `@exactjs/testing/vitest` and `@exactjs/testing/jest` entrypoints only when the
 runner configuration is intentionally managed elsewhere. Do not introduce React Testing Library
 assumptions unless the component is intentionally running through the React compatibility layer.
+
+### Server and paired tests
+
+Use `testServerComponent()` with the compiled `.exact.server` export when a test needs to prove
+server behavior. Configure component, application, and request contexts with their corresponding
+builder methods. Inspect `view.html`, server state and props, component ancestry,
+`context(token)`, and `providedContext(token)`. Do not test server placement by mounting the
+unsplit source component in jsdom.
+
+Use `mountClientServerTest()` when behavior crosses the client/server boundary. Supply hydratable
+server output, the generated client-island registry, and the application's real eXact request
+handler. Trigger behavior through accessible DOM interactions, then inspect
+`view.protocol.exchanges` for the request, response, and client patch disposition.
+
+Treat generated action and boundary IDs as opaque. Do not derive them from or couple tests to the
+compiler manifest. A test should normally cause the generated client code to issue an operation
+and then assert against the recorded exchange. Paired views also expose hydrated component state,
+inherited contexts, and contexts provided to descendants through `view.component(...)`.
+
+For Bun tests, prefer the packaged preload:
+
+```toml
+[test]
+preload = ["@exactjs/bun-test/preload"]
+```
+
+Import `describe`, `it`, and `expect` from `bun:test`, and import eXact helpers from
+`@exactjs/bun-test`. Use `configureExactBunTest()` from a project-owned preload only when compiler,
+DOM, or matcher configuration needs customization.

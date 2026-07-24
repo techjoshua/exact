@@ -5,13 +5,13 @@
 Prefer the official scaffolder when starting in an empty directory:
 
 ```sh
-npm create exact-app@latest
+npm create @exactjs/exact-app@latest
 ```
 
 Choose the build integration, runtime platform, and test runner that match the requested
 deployment. Accept the Agent Skill option unless the repository already carries equivalent,
 current eXact instructions. The scaffolder supports noninteractive flags for automation; inspect
-`npm create exact-app@latest -- --help` or the installed package README before inventing a custom
+`npm create @exactjs/exact-app@latest -- --help` or the installed package README before inventing a custom
 template.
 
 ## Minimal browser application

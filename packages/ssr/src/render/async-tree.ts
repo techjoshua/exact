@@ -212,14 +212,17 @@ export function renderComponent(
 ): string {
 	const componentId = markerId(context, 'component', componentName(vnode.type), vnode.key);
 	const documentProbe = context.documentProbe && context.hostStack.length === 0;
+	let instance: ComponentInstance<any> | undefined;
+	let output!: string;
 	try {
-		const instance = createComponentInstance(
+		instance = createComponentInstance(
 			vnode.type as ComponentFunction<any, Record<string, unknown>>,
 			getComponentProps(vnode),
 			parent,
 			context.componentContexts
 		);
 		let invalidated = false;
+		let stabilized = false;
 		for (let pass = 0; pass < 25; pass++) {
 			if (documentProbe) resetDocumentProbe(context);
 			invalidated = false;
@@ -228,12 +231,17 @@ export function renderComponent(
 			});
 			const html = renderChildren(context, children, instance);
 			flushSync();
-			if (!invalidated)
-				return documentProbe && context.documentRootSeen
-					? html
-					: markerPair(context, componentId, () => html);
+			if (!invalidated) {
+				output =
+					documentProbe && context.documentRootSeen
+						? html
+						: markerPair(context, componentId, () => html);
+				stabilized = true;
+				break;
+			}
 		}
-		throw new Error('eXact SSR component did not stabilize after 25 render passes');
+		if (!stabilized)
+			throw new Error('eXact SSR component did not stabilize after 25 render passes');
 	} catch (error) {
 		if (isSsrRenderLimitError(error)) throw error;
 		const fallback = handleComponentError(
@@ -241,10 +249,13 @@ export function renderComponent(
 			createErrorReport(error, 'construct', parent, componentName(vnode.type))
 		);
 		const html = fallback ? renderChildren(context, normalizeRenderResult(fallback()), parent) : '';
-		return documentProbe && context.documentRootSeen
-			? html
-			: markerPair(context, componentId, () => html);
+		output =
+			documentProbe && context.documentRootSeen
+				? html
+				: markerPair(context, componentId, () => html);
 	}
+	if (instance) context.onComponentRendered?.(instance);
+	return output;
 }
 
 /** Transforms component async into its required representation. */
@@ -313,10 +324,15 @@ export async function renderComponentAsync(
 		primary = error;
 		throw error;
 	} finally {
-		if (instance)
-			disposePreservingPrimary(
-				() => instance!.unmount(String(options.signal?.reason ?? 'ssr render complete')),
-				primary
-			);
+		if (instance) {
+			try {
+				if (primary === noPrimaryFailure) options.onComponentRendered?.(instance);
+			} finally {
+				disposePreservingPrimary(
+					() => instance!.unmount(String(options.signal?.reason ?? 'ssr render complete')),
+					primary
+				);
+			}
+		}
 	}
 }

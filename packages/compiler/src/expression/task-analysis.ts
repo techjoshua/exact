@@ -88,6 +88,7 @@ export function analyzeExpressionTasks(
 		if (!work || !isFunction(work)) continue;
 		const aliases = collectStateAliases(module, work);
 		const reads: ExactStateEffect[] = [];
+		const dependencyPaths: Array<readonly string[]> = [];
 		const taskWrites: ExactStateEffect[] = [];
 		const contexts: ExactContextEffect[] = [];
 		const contextSites: Array<Readonly<{ start: number; effect: ExactContextEffect }>> = [];
@@ -121,7 +122,10 @@ export function analyzeExpressionTasks(
 					callTarget && reference.target ? reference.target : reference,
 					aliases
 				);
-				if (path && !insideAssignmentTarget(reference)) reads.push(effect(path.join('.'), 'read'));
+				if (path?.length && !insideAssignmentTarget(reference)) {
+					reads.push(effect(path.join('.'), 'read'));
+					dependencyPaths.push(path);
+				}
 			}
 		}
 		for (const site of writes.sites.values()) {
@@ -279,6 +283,7 @@ export function analyzeExpressionTasks(
 			async: /^\s*async\b/.test(work.node.text ?? ''),
 			browserEffects,
 			serverEffects,
+			dependencyPaths: Object.freeze(minimalDependencyPaths(dependencyPaths)),
 			reads: Object.freeze(uniqueEffects(reads)),
 			writes: Object.freeze(uniqueEffects(taskWrites)),
 			contexts: Object.freeze(uniqueContexts(contexts)),
@@ -358,4 +363,21 @@ export function analyzeExpressionTasks(
 		diagnostics: Object.freeze(planDiagnostics),
 		diagnosticLocations: Object.freeze(diagnosticLocations)
 	});
+}
+
+function minimalDependencyPaths(
+	paths: readonly (readonly string[])[]
+): readonly (readonly string[])[] {
+	const unique = new Map<string, readonly string[]>();
+	for (const path of paths) unique.set(JSON.stringify(path), path);
+	const ordered = [...unique.values()].sort((left, right) => left.length - right.length);
+	return ordered.filter(
+		(path) =>
+			!ordered.some(
+				(candidate) =>
+					candidate !== path &&
+					candidate.length < path.length &&
+					candidate.every((segment, index) => path[index] === segment)
+			)
+	);
 }

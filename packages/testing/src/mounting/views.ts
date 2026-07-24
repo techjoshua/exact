@@ -11,7 +11,15 @@ import { flushSync, unwrap } from '@exactjs/reactive';
 import type { ActionOptions, InternalConfiguration, PropsOf, StateOf } from '../contracts.js';
 import { withTimeout } from '../control/settling.js';
 import { QueryHost, TestElement, allElements, requireOne } from '../queries/host.js';
+import type { TestElementView } from '../queries/host.js';
 import { TestMountHost, type TaskTracker } from './mount.js';
+
+/** Defines the view capabilities required to inspect a live component instance. */
+export type ComponentTestView = TestElementView & {
+	nodeFor(instance: ComponentInstance<any>): DomInspectionNode | undefined;
+	componentFor(instance: ComponentInstance<any>): TestComponent<any, any>;
+	hasComponent(instance: ComponentInstance<any>): boolean;
+};
 
 /** Defines the test view class contract. */
 export class TestView<State extends object = any, Props = any> extends QueryHost {
@@ -61,6 +69,12 @@ export class TestView<State extends object = any, Props = any> extends QueryHost
 	nodeFor(instance: ComponentInstance<any>): DomInspectionNode | undefined {
 		if (this.disposed) return undefined;
 		return componentNodes(this.snapshot()).find((node) => node.instance === instance);
+	}
+	hasComponent(instance: ComponentInstance<any>): boolean {
+		return (
+			instance.type !== TestMountHost &&
+			publicComponentNodes(this.snapshot()).some((node) => node.instance === instance)
+		);
 	}
 	/** Performs the component domain operation for this test view instance. */
 	component<C extends ComponentFunction<any, any>>(type: C): TestComponent<StateOf<C>, PropsOf<C>> {
@@ -136,7 +150,7 @@ export class TestView<State extends object = any, Props = any> extends QueryHost
 /** Defines the test component class contract. */
 export class TestComponent<State extends object = any, Props = any> extends QueryHost {
 	constructor(
-		readonly view: TestView<any, any>,
+		readonly view: ComponentTestView,
 		readonly instance: ComponentInstance<State>
 	) {
 		super(
@@ -194,10 +208,7 @@ export class TestComponent<State extends object = any, Props = any> extends Quer
 	parent(): TestComponent<any, any> | undefined {
 		this.assertMounted();
 		const parent = this.instance.parent;
-		return parent &&
-			publicComponentNodes(this.view.snapshot()).some((node) => node.instance === parent)
-			? this.view.componentFor(parent)
-			: undefined;
+		return parent && this.view.hasComponent(parent) ? this.view.componentFor(parent) : undefined;
 	}
 	/** Performs the children domain operation for this test component instance. */
 	children<C extends ComponentFunction<any, any>>(
@@ -243,7 +254,7 @@ export class TestComponent<State extends object = any, Props = any> extends Quer
 		await uniqueRoot(this).click(options);
 		return this;
 	}
-	protected ownerView(): TestView<any, any> {
+	protected ownerView(): ComponentTestView {
 		return this.view;
 	}
 	private assertMounted(): DomInspectionNode {
@@ -269,7 +280,7 @@ function directComponentChildren(root: DomInspectionNode): DomInspectionNode[] {
 	}
 	return output;
 }
-function componentElements(view: TestView<any, any>, instance: ComponentInstance<any>): Element[] {
+function componentElements(view: ComponentTestView, instance: ComponentInstance<any>): Element[] {
 	const node = view.nodeFor(instance);
 	if (!node) throw new Error(`Component ${instance.type.name || instance.id} is no longer mounted`);
 	return [

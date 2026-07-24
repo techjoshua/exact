@@ -70,13 +70,26 @@ describe('@exactjs/hydrate action-operations', () => {
 			});
 		};
 		const diagnostics: string[] = [];
+		const operations: Array<{
+			id: string;
+			stale: boolean;
+			patchesApplied: boolean;
+			patchIds: string[];
+		}> = [];
 		const client = createExactClient(container, {
 			endpoint: '/__exact',
 			batch: false,
 			fetch,
 			state: { version: 0 },
 			actionBoundaries: { save: ['left', 'left', 'right'] },
-			onDiagnostic: (diagnostic) => diagnostics.push(diagnostic.message)
+			onDiagnostic: (diagnostic) => diagnostics.push(diagnostic.message),
+			onOperation: (observation) =>
+				operations.push({
+					id: observation.operation.id,
+					stale: observation.stale,
+					patchesApplied: observation.patchesApplied,
+					patchIds: observation.appliedPatches.map((patch) => patch.id)
+				})
 		});
 
 		const action = client.invokeAction('save');
@@ -121,6 +134,12 @@ describe('@exactjs/hydrate action-operations', () => {
 		expect(diagnostics).toEqual([
 			'partially ignored stale exact action response for save (text:left-value, text:outside-contract)'
 		]);
+		expect(operations).toContainEqual({
+			id: 'save',
+			stale: true,
+			patchesApplied: true,
+			patchIds: ['right-value']
+		});
 	});
 
 	it('sends current boundary html with refresh requests', async () => {

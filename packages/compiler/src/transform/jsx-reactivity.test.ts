@@ -11,6 +11,20 @@ describe('@exactjs/compiler: JSX reactivity', () => {
 		expect(output).toContain('__exactFragment({}');
 	});
 
+	it('preserves explicit JSX keys as the manual identity fallback for native maps', () => {
+		const output = transform(
+			`type Todo = { id: string; text: string };
+      function List(this: Component<{ todos: Todo[] }>) {
+        return () => <ul>{this.state.todos.map(todo => <li key={todo.id}>{todo.text}</li>)}</ul>;
+      }`,
+			{ filename: 'ExplicitKey.tsx' }
+		);
+
+		expect(output).toContain('key: todo.id');
+		expect(output).toContain('this.state.todos.map');
+		expect(output).not.toContain('this.map(this.state.todos');
+	});
+
 	it('lowers expression children to dynamic child boundaries', () => {
 		const output = transform(
 			'const view = <section>{show ? <span>A</span> : <strong>B</strong>}</section>;'
@@ -191,6 +205,24 @@ describe('@exactjs/compiler: JSX reactivity', () => {
 		expect(output).toContain(
 			'this.task(this.reactive(() => this.state.query), this.reactive(() => this.state.page), async (query, page) => { });'
 		);
+	});
+
+	it('infers task dependencies from state reads while excluding write-only effects', () => {
+		const output = transform(
+			`function Search(this: Component<{ query: string; results: string[] }>) {
+        this.task(async ({ signal }) => {
+          const query = this.state.query;
+          this.state.results = query ? [query] : [];
+          await fetch("/search?q=" + query, { signal });
+        });
+      }`,
+			{ filename: 'Search.tsx' }
+		);
+
+		expect(output).toContain(
+			'this.task(this.reactive(() => this.state.query), async (__exactDependency, { signal }) =>'
+		);
+		expect(output).not.toContain('this.reactive(() => this.state.results)');
 	});
 
 	it('caches safe derived collection locals when they feed this.map', () => {

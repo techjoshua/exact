@@ -3,8 +3,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { exact } from './plugin.js';
 
+type SharedTestApi = Pick<typeof import('vitest'), 'describe' | 'it' | 'expect'>;
+
 const runningInBun = Boolean((globalThis as { Bun?: unknown }).Bun);
-const testApi = runningInBun ? await import('bun:test') : await import('vitest');
+const bunTestModule: string = 'bun:test';
+const testApi = (
+	runningInBun ? await import(bunTestModule) : await import('vitest')
+) as SharedTestApi;
 const describeBun = runningInBun ? testApi.describe : testApi.describe.skip;
 
 describeBun('@exactjs/bun-plugin with Bun.build', () => {
@@ -26,7 +31,7 @@ describeBun('@exactjs/bun-plugin with Bun.build', () => {
 			);
 
 			const bun = (
-				globalThis as {
+				globalThis as unknown as {
 					Bun: {
 						build(options: Record<string, unknown>): Promise<{
 							success: boolean;

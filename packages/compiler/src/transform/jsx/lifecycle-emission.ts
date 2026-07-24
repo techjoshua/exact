@@ -4,7 +4,7 @@ import type {
 	ExpressionTaskResourceKind,
 	ExpressionTaskSignalCall
 } from '../../expression/task-contracts.js';
-import type { ExpressionWritePlan } from '../../expression/writes.js';
+import type { ExpressionWritePlan, ExpressionWriteSite } from '../../expression/writes.js';
 import type { ExactPlacement, HelperNames, TransformTarget } from '../../types.js';
 
 import { expressionEmissionId } from './identity.js';
@@ -125,13 +125,13 @@ export function parseTypeNode(source: string): ts.TypeNode {
 }
 
 /** Performs the expression write path domain operation. */
-export function expressionWritePath(
+export function expressionWriteSite(
 	node: ts.Node,
 	sourceFile: ts.SourceFile,
 	plan?: ExpressionWritePlan
-): readonly string[] | undefined {
+): ExpressionWriteSite | undefined {
 	if (!plan || node.pos < 0 || node.end < 0) return undefined;
-	return plan.sites.get(expressionEmissionId(node) ?? '')?.path;
+	return plan.sites.get(expressionEmissionId(node) ?? '');
 }
 
 /** Reports whether omit placement. */

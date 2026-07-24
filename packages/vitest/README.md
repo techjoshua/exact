@@ -24,4 +24,7 @@ Pass `{ matchers: false }` when matcher setup is managed elsewhere. Pass compile
 pipeline.
 
 The package re-exports `@exactjs/testing`, including `testComponent`, `mountTest`, accessible
-queries, events, and the shared matcher declarations.
+queries, server component snapshots, paired client/server tests, protocol recording, and the
+shared matcher declarations. Server tests should import the compiled `.exact.server` artifact;
+paired tests can use the application's real request handler and inspect observed operations
+without coupling to generated IDs.

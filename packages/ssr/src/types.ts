@@ -53,6 +53,11 @@ export type RenderToStringOptions = {
 	onUnsafeHtml?: (event: UnsafeHtmlAuditEvent) => void;
 	/** Trusted application/request values inherited by the component root. */
 	contexts?: ComponentContextValues;
+	/**
+	 * Observes a component after its SSR output has stabilized and before the
+	 * renderer disposes it. Intended for diagnostics and test tooling.
+	 */
+	onComponentRendered?: (instance: ComponentInstance<any>) => void;
 	/** Receives SSR rendering profiling observations. */
 	onProfile?: ExactProfileSink;
 };
@@ -273,6 +278,7 @@ export type SsrContext = {
 	documentBodySeen: boolean;
 	hostStack: string[];
 	componentContexts?: ComponentContextValues;
+	onComponentRendered?: (instance: ComponentInstance<any>) => void;
 };
 
 export type {

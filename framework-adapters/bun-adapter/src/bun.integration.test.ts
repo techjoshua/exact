@@ -1,7 +1,12 @@
 import { createExactBunHandler } from './index.js';
 
+type SharedTestApi = Pick<typeof import('vitest'), 'describe' | 'it' | 'expect'>;
+
 const runningInBun = Boolean((globalThis as { Bun?: unknown }).Bun);
-const testApi = runningInBun ? await import('bun:test') : await import('vitest');
+const bunTestModule: string = 'bun:test';
+const testApi = (
+	runningInBun ? await import(bunTestModule) : await import('vitest')
+) as SharedTestApi;
 const describeBun = runningInBun ? testApi.describe : testApi.describe.skip;
 
 describeBun('@exactjs/bun-adapter with Bun.serve', () => {
@@ -17,7 +22,7 @@ describeBun('@exactjs/bun-adapter with Bun.serve', () => {
 			}
 		});
 		const bun = (
-			globalThis as {
+			globalThis as unknown as {
 				Bun: {
 					serve(options: { port: number; fetch(request: Request): Response | Promise<Response> }): {
 						url: URL;

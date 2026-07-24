@@ -15,7 +15,7 @@ import type { ExpressionComponentPlan } from '../../expression/contracts.js';
 import type { ExpressionDerivedPlan } from '../../expression/derived.js';
 import type { ExpressionJsxPlan } from '../../expression/jsx.js';
 import type { ExpressionTaskPlan } from '../../expression/task-contracts.js';
-import type { ExpressionWritePlan } from '../../expression/writes.js';
+import type { ExpressionWritePlan, ExpressionWriteSite } from '../../expression/writes.js';
 import { isServerOnlyImportDeclaration } from '../../imports.js';
 import { componentPlacementsFromInfo } from '../../placement.js';
 import type {
@@ -25,6 +25,7 @@ import type {
 } from '../../types.js';
 
 import { collectComponentLocalInfo, collectExpressionDerivedLocals } from './element-emission.js';
+import type { DerivedReactiveIndex } from './contracts.js';
 import { visitJsxExpression } from './expression-visitor.js';
 import { finalizeJsxSource } from './finalize.js';
 import {
@@ -35,7 +36,7 @@ import {
 } from './identity.js';
 import { createClientComponentServerStub } from './island-emission.js';
 import {
-	expressionWritePath,
+	expressionWriteSite,
 	incompatibleSummary,
 	parseTypeNode,
 	shouldOmitPlacement
@@ -251,13 +252,14 @@ export function exactJsxTransformer(
 				}
 			}
 			if (state.componentStack.length && ts.isDeleteExpression(node)) {
-				const path = expressionWritePath(node, sourceFile, expressionWrites);
-				if (path) {
+				const site = expressionWriteSite(node, sourceFile, expressionWrites);
+				if (site) {
+					const target = stateWriteTarget(context, node, site, derivedReactiveLocals);
 					state.sawStateWrite = true;
 					return context.factory.createCallExpression(
 						context.factory.createIdentifier(helpers.remove),
 						undefined,
-						[componentStateRoot(context), statePathLiteral(context, path)]
+						[target.root, statePathLiteral(context, target.path)]
 					);
 				}
 			}
@@ -266,24 +268,33 @@ export function exactJsxTransformer(
 				ts.isBinaryExpression(node) &&
 				isAssignmentOperator(node.operatorToken.kind)
 			) {
-				const path = expressionWritePath(node, sourceFile, expressionWrites);
-				if (path) {
+				const site = expressionWriteSite(node, sourceFile, expressionWrites);
+				if (site) {
+					const target = stateWriteTarget(context, node, site, derivedReactiveLocals);
 					state.sawStateWrite = true;
-					return transformStateAssignment(context, node, path, visitor, helpers);
+					return transformStateAssignment(
+						context,
+						node,
+						target.root,
+						target.path,
+						visitor,
+						helpers
+					);
 				}
 			}
 			if (
 				state.componentStack.length &&
 				(ts.isPrefixUnaryExpression(node) || ts.isPostfixUnaryExpression(node))
 			) {
-				const path = expressionWritePath(node, sourceFile, expressionWrites);
+				const site = expressionWriteSite(node, sourceFile, expressionWrites);
 				if (
-					path &&
+					site &&
 					(node.operator === ts.SyntaxKind.PlusPlusToken ||
 						node.operator === ts.SyntaxKind.MinusMinusToken)
 				) {
+					const target = stateWriteTarget(context, node, site, derivedReactiveLocals);
 					state.sawStateWrite = true;
-					return transformStateUpdate(context, node, path, helpers);
+					return transformStateUpdate(context, node, target.root, target.path, helpers);
 				}
 			}
 			if (
@@ -292,15 +303,16 @@ export function exactJsxTransformer(
 				ts.isPropertyAccessExpression(node.expression)
 			) {
 				const method = node.expression.name.text;
-				const path = expressionWritePath(node, sourceFile, expressionWrites);
-				if (path && isArrayMutator(method)) {
+				const site = expressionWriteSite(node, sourceFile, expressionWrites);
+				if (site && isArrayMutator(method)) {
+					const target = stateWriteTarget(context, node, site, derivedReactiveLocals);
 					state.sawStateWrite = true;
 					return context.factory.createCallExpression(
 						context.factory.createIdentifier(helpers.arrayMutation),
 						undefined,
 						[
-							componentStateRoot(context),
-							statePathLiteral(context, path),
+							target.root,
+							statePathLiteral(context, target.path),
 							context.factory.createStringLiteral(method),
 							context.factory.createArrowFunction(
 								undefined,
@@ -354,4 +366,48 @@ function portableContextualType(type: string): string {
 		/import\((['"])(?:[A-Za-z]:)?[\\/][^'"]*[\\/]dist[\\/]jsx-runtime\1\)/g,
 		'import("@exactjs/jsx/jsx-runtime")'
 	);
+}
+
+function stateWriteTarget(
+	context: ts.TransformationContext,
+	node: ts.Node,
+	site: ExpressionWriteSite,
+	derivedReactiveLocals: DerivedReactiveIndex
+): { root: ts.Expression; path: readonly string[] } {
+	if (!site.aliasPath) {
+		return { root: componentStateRoot(context), path: site.path };
+	}
+
+	const operand = writeOperand(node);
+	const alias = operand ? rootIdentifier(operand) : undefined;
+	if (!alias) return { root: componentStateRoot(context), path: site.path };
+
+	const derived = derivedReactiveLocals.references.get(expressionEmissionId(alias) ?? '');
+	const root = derived?.cached
+		? context.factory.createCallExpression(
+				context.factory.createPropertyAccessExpression(alias, 'get'),
+				undefined,
+				[]
+			)
+		: alias;
+	return {
+		root,
+		path: site.path.slice(site.aliasPath.length)
+	};
+}
+
+function writeOperand(node: ts.Node): ts.Expression | undefined {
+	if (ts.isBinaryExpression(node)) return node.left;
+	if (ts.isPrefixUnaryExpression(node) || ts.isPostfixUnaryExpression(node)) return node.operand;
+	if (ts.isDeleteExpression(node)) return node.expression;
+	if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression))
+		return node.expression.expression;
+	return undefined;
+}
+
+function rootIdentifier(expression: ts.Expression): ts.Identifier | undefined {
+	let current = expression;
+	while (ts.isPropertyAccessExpression(current) || ts.isElementAccessExpression(current))
+		current = current.expression;
+	return ts.isIdentifier(current) ? current : undefined;
 }

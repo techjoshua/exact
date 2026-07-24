@@ -239,7 +239,10 @@ export function taskResourceOwnership(
 ): 'owned' | 'explicit' | 'escape' {
 	const declaration = call.ancestors().ofKind('VariableDeclaration').first();
 	const variable = declaration?.children().first()?.walk().references().first()?.variable;
-	if (!declaration || !variable) return resourceEscapesDirectly(call) ? 'escape' : 'owned';
+	if (!declaration || !variable) {
+		if (resource.disposal === 'call' && isDirectTaskCleanup(work, call)) return 'explicit';
+		return resourceEscapesDirectly(call) ? 'escape' : 'owned';
+	}
 	let explicit = false;
 	for (const reference of work
 		.walk()
@@ -298,6 +301,16 @@ export function taskResourceOwnership(
 	}
 	void module;
 	return explicit ? 'explicit' : 'owned';
+}
+
+function isDirectTaskCleanup(work: NodeRef, call: NodeRef): boolean {
+	const parent = call.parent;
+	if (parent?.node === work.node) return true;
+	return (
+		parent?.node.kind === 'ReturnStatement' &&
+		parent.parent?.node.kind === 'Block' &&
+		parent.parent.parent?.node === work.node
+	);
 }
 
 function ancestorWithin(

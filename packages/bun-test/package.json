@@ -1,0 +1,50 @@
+{
+	"name": "@exactjs/bun-test",
+	"version": "0.1.0",
+	"description": "Bun test runner integration, DOM setup, compiler preload, and matchers for eXact",
+	"type": "module",
+	"files": [
+		"dist",
+		"README.md",
+		"!dist/**/*.test.*"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./setup": {
+			"types": "./dist/setup.d.ts",
+			"default": "./dist/setup.js"
+		},
+		"./preload": {
+			"types": "./dist/preload.d.ts",
+			"default": "./dist/preload.js"
+		}
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"dependencies": {
+		"@exactjs/bun-plugin": "^0.1.0",
+		"@exactjs/testing": "^0.1.0",
+		"@happy-dom/global-registrator": "^20.11.1"
+	},
+	"peerDependencies": {
+		"@types/bun": ">=1.3.0"
+	},
+	"devDependencies": {
+		"@types/bun": "^1.3.0"
+	},
+	"engines": {
+		"bun": ">=1.3.0"
+	},
+	"scripts": {
+		"build": "tsc6 -b",
+		"test": "npm run typecheck:test && bun test --preload ./dist/preload.js ./test-fixtures/component.bun.test.tsx",
+		"test:bun": "npm run typecheck:test && bun test --preload ./dist/preload.js ./test-fixtures/component.bun.test.tsx",
+		"typecheck:test": "tsc6 -p tsconfig.test.json"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

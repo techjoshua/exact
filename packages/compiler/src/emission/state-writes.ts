@@ -5,6 +5,7 @@ import type { HelperNames } from '../types.js';
 export function transformStateAssignment(
 	context: ts.TransformationContext,
 	node: ts.BinaryExpression,
+	root: ts.Expression,
 	path: readonly string[],
 	visitor: ts.Visitor,
 	helpers: HelperNames
@@ -15,7 +16,7 @@ export function transformStateAssignment(
 			context.factory.createIdentifier(helpers.write),
 			undefined,
 			[
-				componentStateRoot(context),
+				root,
 				statePathLiteral(context, path),
 				context.factory.createArrowFunction(
 					undefined,
@@ -36,7 +37,7 @@ export function transformStateAssignment(
 		context.factory.createIdentifier(helpers.update),
 		undefined,
 		[
-			componentStateRoot(context),
+			root,
 			statePathLiteral(context, path),
 			context.factory.createArrowFunction(
 				undefined,
@@ -54,6 +55,7 @@ export function transformStateAssignment(
 export function transformStateUpdate(
 	context: ts.TransformationContext,
 	node: ts.PrefixUnaryExpression | ts.PostfixUnaryExpression,
+	root: ts.Expression,
 	path: readonly string[],
 	helpers: HelperNames
 ): ts.Expression {
@@ -67,7 +69,7 @@ export function transformStateUpdate(
 		context.factory.createIdentifier(helpers.updateResult),
 		undefined,
 		[
-			componentStateRoot(context),
+			root,
 			statePathLiteral(context, path),
 			context.factory.createArrowFunction(
 				undefined,

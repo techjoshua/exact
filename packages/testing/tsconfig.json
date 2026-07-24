@@ -10,7 +10,10 @@
 		{ "path": "../plugin-host" },
 		{ "path": "../core" },
 		{ "path": "../dom" },
-		{ "path": "../reactive" }
+		{ "path": "../reactive" },
+		{ "path": "../server" },
+		{ "path": "../ssr" },
+		{ "path": "../hydrate" }
 	],
 	"include": ["src"],
 	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]

@@ -38,6 +38,7 @@ export type ExactBunPluginOptions = {
 	serverCondition?: string;
 	include?: FilterPattern;
 	exclude?: FilterPattern;
+	compileTestModules?: boolean;
 	serverComponents?: boolean;
 	sourceMap?: boolean;
 	reactCompatibility?: boolean | ReactCompatibilityOptions;
@@ -81,7 +82,7 @@ export type BunResolveArgs = {
 
 /** Describes the result produced by bun resolve. */
 export type BunResolveResult = {
-	path?: string;
+	path: string;
 	external?: boolean;
 };
 
@@ -93,7 +94,7 @@ export type BunLoadArgs = {
 
 /** Describes the result produced by bun load. */
 export type BunLoadResult = {
-	contents?: string;
+	contents: string;
 	loader?: 'js' | 'jsx' | 'ts' | 'tsx';
 };
 
@@ -173,7 +174,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 			// Bun does not expose Vite's changed-file HMR hook. Observe every loaded
 			// TypeScript/JavaScript dependency so non-JSX type and export changes
 			// invalidate their transitive expression consumers before compilation.
-			build.onLoad({ filter: /\.[cm]?[jt]sx?$/ }, async (args) => {
+			build.onLoad({ filter: bunLoadFilter(options) }, async (args) => {
 				const source = await readBunLoadSource(args);
 				reportDiagnostics(compilerSession.invalidate(args.path), console.warn);
 				const result = transformExactBunSource(
@@ -190,6 +191,13 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 			});
 		}
 	};
+}
+
+function bunLoadFilter(options: ExactBunPluginOptions): RegExp {
+	if (!options.include && !options.exclude && options.compileTestModules !== true) {
+		return /^(?!.*[\\/](?:node_modules|dist)[\\/])(?!.*\.(?:test|spec|jest)\.[cm]?[jt]sx?$).*\.[cm]?[jt]sx?$/i;
+	}
+	return /\.[cm]?[jt]sx?$/;
 }
 
 function normalizeConditions(conditions: string | readonly string[] | undefined): string[] {
@@ -308,6 +316,11 @@ function targetFor(options: ExactBunPluginOptions): 'client' | 'server' {
 function shouldTransform(id: string, code: string, options: ExactBunPluginOptions): boolean {
 	if (!/\.[cm]?[jt]sx?(?:$|\?)/.test(id)) return false;
 	if (!options.include && /(?:^|[\\/])node_modules(?:[\\/]|$)/.test(id)) return false;
+	if (
+		options.compileTestModules !== true &&
+		/(?:^|[\\/])[^\\/]+\.(?:test|spec|jest)\.[cm]?[jt]sx?$/i.test(id)
+	)
+		return false;
 	if (options.include && !matchesExactBuildFilter(id, options.include)) return false;
 	if (options.exclude && matchesExactBuildFilter(id, options.exclude)) return false;
 	return (
