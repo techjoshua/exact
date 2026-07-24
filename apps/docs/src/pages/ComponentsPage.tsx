@@ -55,7 +55,7 @@ export function ComponentsPage(this: Component<{}>) {
 			eyebrow="Learn"
 			title="Components are long-lived instances"
 			description="A component function is setup, not a rerender loop. It initializes state and services once, then returns the view that stays connected to them."
-			previous={{ path: '/', label: 'Introduction' }}
+			previous={{ path: '/runtimes', label: 'Runtimes & integrations' }}
 			next={{ path: '/learn/state', label: 'State & derived values' }}
 		>
 			<section>

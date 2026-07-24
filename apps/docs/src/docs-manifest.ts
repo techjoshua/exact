@@ -12,6 +12,7 @@ import { PackagesPage } from './pages/PackagesPage.jsx';
 import { PluginsPage } from './pages/PluginsPage.jsx';
 import { ReactCompatibilityPage } from './pages/ReactCompatibilityPage.jsx';
 import { RoutingPage } from './pages/RoutingPage.jsx';
+import { RuntimesPage } from './pages/RuntimesPage.jsx';
 import { SecretsPluginPage } from './pages/SecretsPluginPage.jsx';
 import { StatePage } from './pages/StatePage.jsx';
 import { TasksPage } from './pages/TasksPage.jsx';
@@ -51,6 +52,14 @@ export const docGroups: DocGroup[] = [
 				summary: 'Scaffold and run an eXact application with compatible package versions.',
 				keywords: 'create exact app install scaffold vite runtime test runner agent skill',
 				component: GettingStartedPage
+			},
+			{
+				path: '/runtimes',
+				label: 'Runtimes & integrations',
+				summary: 'Compare the current support depth for compiler hosts and deployment runtimes.',
+				keywords:
+					'runtime adapter integration status Vite Webpack Bun Node Express Fastify Hapi Koa Deno Cloudflare serverless Fetch',
+				component: RuntimesPage
 			}
 		]
 	},
