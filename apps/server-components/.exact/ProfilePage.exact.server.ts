@@ -15,7 +15,7 @@ const __exactImplementation_ProfilePage_1 = function ProfilePage(this: Component
         await __exactTaskAwait(__exactSignal, Promise.resolve());
         __exactWrite(this.state, ["status"], () => `Ready for ${props.name}`);
     });
-    return () => (__exactVNode("section", { "data-exact-id": "xBuHCKFdykv7I3woV46yTBg" }, __exactVNode("p", { "data-exact-id": "xEXUMX62Gak5a5FLcNuc3Bq" }, __exactDynamic(() => this.state.status)), __exactBoundary("xjbD874UpZxqjxcAu1_iYpK", "ProfilePage_ExactClient_1", { "__exactState": { saves: this.state.saves } })));
+    return () => (__exactVNode("section", { "data-exact-id": "xbSlycRQOMTMIout-46XRGt" }, __exactVNode("p", { "data-exact-id": "xI2oufUW56KAQo6TSBTmvEG" }, __exactDynamic(() => this.state.status)), __exactBoundary("xjbD874UpZxqjxcAu1_iYpK", "ProfilePage_ExactClient_1", { "__exactState": { saves: this.state.saves } })));
 };
 export const ProfilePage: typeof __exactImplementation_ProfilePage_1 = /* @__PURE__ */ (() => Object.assign(__exactImplementation_ProfilePage_1, {
     [__exactServerComponentDescriptor_1]: [

@@ -6,43 +6,43 @@
   "semanticGraph": {
     "scopes": [
       {
-        "id": "apps/server-components/src/profilepage.tsx:scope:0:671:SourceFile",
+        "id": "apps/server-components/src/profilepage.tsx:scope:0:673:SourceFile",
         "kind": "module",
         "nodeKind": "SourceFile"
       },
       {
-        "id": "apps/server-components/src/profilepage.tsx:scope:153:670:FunctionDeclaration",
-        "parentId": "apps/server-components/src/profilepage.tsx:scope:0:671:SourceFile",
+        "id": "apps/server-components/src/profilepage.tsx:scope:155:672:FunctionDeclaration",
+        "parentId": "apps/server-components/src/profilepage.tsx:scope:0:673:SourceFile",
         "kind": "function",
         "nodeKind": "FunctionDeclaration"
       },
       {
-        "id": "apps/server-components/src/profilepage.tsx:scope:322:670:Block",
-        "parentId": "apps/server-components/src/profilepage.tsx:scope:153:670:FunctionDeclaration",
+        "id": "apps/server-components/src/profilepage.tsx:scope:324:672:Block",
+        "parentId": "apps/server-components/src/profilepage.tsx:scope:155:672:FunctionDeclaration",
         "kind": "block",
         "nodeKind": "Block"
       },
       {
-        "id": "apps/server-components/src/profilepage.tsx:scope:412:504:ArrowFunction",
-        "parentId": "apps/server-components/src/profilepage.tsx:scope:322:670:Block",
+        "id": "apps/server-components/src/profilepage.tsx:scope:414:506:ArrowFunction",
+        "parentId": "apps/server-components/src/profilepage.tsx:scope:324:672:Block",
         "kind": "function",
         "nodeKind": "ArrowFunction"
       },
       {
-        "id": "apps/server-components/src/profilepage.tsx:scope:423:504:Block",
-        "parentId": "apps/server-components/src/profilepage.tsx:scope:412:504:ArrowFunction",
+        "id": "apps/server-components/src/profilepage.tsx:scope:425:506:Block",
+        "parentId": "apps/server-components/src/profilepage.tsx:scope:414:506:ArrowFunction",
         "kind": "block",
         "nodeKind": "Block"
       },
       {
-        "id": "apps/server-components/src/profilepage.tsx:scope:515:667:ArrowFunction",
-        "parentId": "apps/server-components/src/profilepage.tsx:scope:322:670:Block",
+        "id": "apps/server-components/src/profilepage.tsx:scope:517:669:ArrowFunction",
+        "parentId": "apps/server-components/src/profilepage.tsx:scope:324:672:Block",
         "kind": "function",
         "nodeKind": "ArrowFunction"
       },
       {
-        "id": "apps/server-components/src/profilepage.tsx:scope:586:610:ArrowFunction",
-        "parentId": "apps/server-components/src/profilepage.tsx:scope:515:667:ArrowFunction",
+        "id": "apps/server-components/src/profilepage.tsx:scope:588:612:ArrowFunction",
+        "parentId": "apps/server-components/src/profilepage.tsx:scope:517:669:ArrowFunction",
         "kind": "function",
         "nodeKind": "ArrowFunction"
       }
@@ -51,7 +51,7 @@
       {
         "id": "apps/server-components/src/profilepage.tsx::ImportSpecifier#0:Component",
         "name": "Component",
-        "scopeId": "apps/server-components/src/profilepage.tsx:scope:0:671:SourceFile",
+        "scopeId": "apps/server-components/src/profilepage.tsx:scope:0:673:SourceFile",
         "kind": "import",
         "nodeStart": 14,
         "nodeEnd": 23,
@@ -62,45 +62,45 @@
       {
         "id": "apps/server-components/src/profilepage.tsx::TypeAliasDeclaration#0:ProfileState",
         "name": "ProfileState",
-        "scopeId": "apps/server-components/src/profilepage.tsx:scope:0:671:SourceFile",
+        "scopeId": "apps/server-components/src/profilepage.tsx:scope:0:673:SourceFile",
         "kind": "type",
-        "nodeStart": 101,
-        "nodeEnd": 113,
+        "nodeStart": 103,
+        "nodeEnd": 115,
         "exportedName": "ProfileState"
       },
       {
         "id": "apps/server-components/src/profilepage.tsx::FunctionDeclaration#0:ProfilePage",
         "name": "ProfilePage",
-        "scopeId": "apps/server-components/src/profilepage.tsx:scope:153:670:FunctionDeclaration",
+        "scopeId": "apps/server-components/src/profilepage.tsx:scope:155:672:FunctionDeclaration",
         "kind": "function",
-        "nodeStart": 255,
-        "nodeEnd": 266,
+        "nodeStart": 257,
+        "nodeEnd": 268,
         "exportedName": "ProfilePage"
       },
       {
         "id": "apps/server-components/src/profilepage.tsx:FunctionDeclaration:ProfilePage:Parameter#0:this",
         "name": "this",
-        "scopeId": "apps/server-components/src/profilepage.tsx:scope:153:670:FunctionDeclaration",
+        "scopeId": "apps/server-components/src/profilepage.tsx:scope:155:672:FunctionDeclaration",
         "kind": "parameter",
-        "nodeStart": 267,
-        "nodeEnd": 271
+        "nodeStart": 269,
+        "nodeEnd": 273
       },
       {
         "id": "apps/server-components/src/profilepage.tsx:FunctionDeclaration:ProfilePage:Parameter#0:props",
         "name": "props",
-        "scopeId": "apps/server-components/src/profilepage.tsx:scope:153:670:FunctionDeclaration",
+        "scopeId": "apps/server-components/src/profilepage.tsx:scope:155:672:FunctionDeclaration",
         "kind": "parameter",
-        "nodeStart": 298,
-        "nodeEnd": 303
+        "nodeStart": 300,
+        "nodeEnd": 305
       }
     ],
     "references": [
       {
         "name": "Component",
-        "scopeId": "apps/server-components/src/profilepage.tsx:scope:153:670:FunctionDeclaration",
+        "scopeId": "apps/server-components/src/profilepage.tsx:scope:155:672:FunctionDeclaration",
         "source": "import",
-        "nodeStart": 273,
-        "nodeEnd": 282,
+        "nodeStart": 275,
+        "nodeEnd": 284,
         "declarationId": "apps/server-components/src/profilepage.tsx::ImportSpecifier#0:Component",
         "declarationKind": "import",
         "moduleSpecifier": "@exactjs/core",
@@ -109,27 +109,27 @@
       },
       {
         "name": "ProfileState",
-        "scopeId": "apps/server-components/src/profilepage.tsx:scope:153:670:FunctionDeclaration",
+        "scopeId": "apps/server-components/src/profilepage.tsx:scope:155:672:FunctionDeclaration",
         "source": "local",
-        "nodeStart": 283,
-        "nodeEnd": 295,
+        "nodeStart": 285,
+        "nodeEnd": 297,
         "declarationId": "apps/server-components/src/profilepage.tsx::TypeAliasDeclaration#0:ProfileState",
         "declarationKind": "type",
         "typeOnly": true
       },
       {
         "name": "Promise",
-        "scopeId": "apps/server-components/src/profilepage.tsx:scope:423:504:Block",
+        "scopeId": "apps/server-components/src/profilepage.tsx:scope:425:506:Block",
         "source": "unresolved",
-        "nodeStart": 434,
-        "nodeEnd": 441
+        "nodeStart": 436,
+        "nodeEnd": 443
       },
       {
         "name": "props",
-        "scopeId": "apps/server-components/src/profilepage.tsx:scope:423:504:Block",
+        "scopeId": "apps/server-components/src/profilepage.tsx:scope:425:506:Block",
         "source": "local",
-        "nodeStart": 488,
-        "nodeEnd": 493,
+        "nodeStart": 490,
+        "nodeEnd": 495,
         "declarationId": "apps/server-components/src/profilepage.tsx:FunctionDeclaration:ProfilePage:Parameter#0:props",
         "declarationKind": "parameter"
       }
@@ -147,7 +147,7 @@
   },
   "components": [
     {
-      "id": "xUN52JXdOrIR32Cz5qCOrbd",
+      "id": "x7gsBV1RVj9VfGBkq4km6f7",
       "name": "ProfilePage",
       "exported": true,
       "placement": "isomorphic",
@@ -204,8 +204,8 @@
   ],
   "symbols": [
     {
-      "id": "x21mPTW0sow43PnTv5PsaR5",
-      "componentId": "xUN52JXdOrIR32Cz5qCOrbd",
+      "id": "x8icV1Qx_EWOZ-CItp3VOgl",
+      "componentId": "x7gsBV1RVj9VfGBkq4km6f7",
       "exportName": "ProfilePage",
       "localName": "ProfilePage",
       "generatedName": "ProfilePage",
@@ -217,7 +217,7 @@
     },
     {
       "id": "xn4HBfS6VSk_X0fHSn2U6sr",
-      "componentId": "xUN52JXdOrIR32Cz5qCOrbd",
+      "componentId": "x7gsBV1RVj9VfGBkq4km6f7",
       "exportName": "ProfilePage_ExactServer_1",
       "localName": "ProfilePage",
       "generatedName": "ProfilePage_ExactServer_1",
@@ -229,7 +229,7 @@
     },
     {
       "id": "xjbD874UpZxqjxcAu1_iYpK",
-      "componentId": "xUN52JXdOrIR32Cz5qCOrbd",
+      "componentId": "x7gsBV1RVj9VfGBkq4km6f7",
       "exportName": "ProfilePage_ExactClient_1",
       "localName": "ProfilePage_ExactClient_1",
       "generatedName": "ProfilePage_ExactClient_1",
@@ -244,25 +244,105 @@
     {
       "id": "xjbD874UpZxqjxcAu1_iYpK",
       "name": "ProfilePage_ExactClient_1",
-      "componentId": "xUN52JXdOrIR32Cz5qCOrbd",
-      "ownerComponentId": "xUN52JXdOrIR32Cz5qCOrbd",
+      "componentId": "x7gsBV1RVj9VfGBkq4km6f7",
+      "ownerComponentId": "x7gsBV1RVj9VfGBkq4km6f7",
       "kind": "client-island"
     }
   ],
   "callables": [
     {
-      "id": "x_zmakwkiCNqPLgY3f-IBsR",
-      "name": "<function@516>",
+      "id": "xe2q5c9-1IC1yBnHDyEltmN",
+      "name": "ProfilePage",
+      "kind": "component",
+      "exportNames": [
+        "ProfilePage"
+      ],
+      "directEffect": "neutral",
+      "effect": "browser",
+      "directEffectSources": [],
+      "effectSources": [
+        {
+          "environment": "browser",
+          "description": "interactive JSX",
+          "path": [
+            "ProfilePage",
+            "<function@518>",
+            "interactive JSX"
+          ]
+        }
+      ],
+      "calls": [
+        {
+          "id": "xNxkqNJrj6vttCRqSsMCLV9",
+          "name": "this.task.server",
+          "resolved": false
+        },
+        {
+          "id": "xPyqvCDptQ39oInQIxbSCuP",
+          "name": "<function@518>:returned",
+          "targetId": "xLxVC5yWYBM94WNxtlHu-6h",
+          "resolved": true
+        }
+      ],
+      "artifactTargets": [
+        "client"
+      ],
+      "stateReads": [
+        {
+          "path": "saves",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "path": "status",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "stateWrites": [
+        {
+          "path": "saves",
+          "kind": "write",
+          "confidence": "exact"
+        },
+        {
+          "path": "status",
+          "kind": "write",
+          "confidence": "exact"
+        }
+      ],
+      "contexts": []
+    },
+    {
+      "id": "xLxVC5yWYBM94WNxtlHu-6h",
+      "name": "<function@518>",
       "kind": "function",
       "exportNames": [],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
+      "directEffect": "browser",
+      "effect": "browser",
+      "directEffectSources": [
+        {
+          "environment": "browser",
+          "description": "interactive JSX",
+          "path": [
+            "<function@518>",
+            "interactive JSX"
+          ]
+        }
+      ],
+      "effectSources": [
+        {
+          "environment": "browser",
+          "description": "interactive JSX",
+          "path": [
+            "<function@518>",
+            "interactive JSX"
+          ]
+        }
+      ],
       "calls": [],
       "artifactTargets": [
-        "client",
-        "server"
+        "client"
       ],
       "stateReads": [
         {
@@ -280,92 +360,8 @@
       "contexts": []
     },
     {
-      "id": "x3XliucY44QnkeCiFdOQyfM",
-      "name": "ProfilePage",
-      "kind": "component",
-      "exportNames": [
-        "ProfilePage"
-      ],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [
-        {
-          "id": "x-NJ6DGeDp_h7hWSlnwWnKa",
-          "name": "<function@516>:returned",
-          "targetId": "x_zmakwkiCNqPLgY3f-IBsR",
-          "resolved": true
-        },
-        {
-          "id": "xSbeYfwRWbGDe-VBvXqx51K",
-          "name": "this.task.server",
-          "resolved": false
-        }
-      ],
-      "artifactTargets": [
-        "client",
-        "server"
-      ],
-      "stateReads": [
-        {
-          "path": "saves",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "path": "status",
-          "kind": "read",
-          "confidence": "exact"
-        }
-      ],
-      "stateWrites": [
-        {
-          "path": "saves",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "status",
-          "kind": "write",
-          "confidence": "exact"
-        }
-      ],
-      "contexts": []
-    },
-    {
-      "id": "xaqgSGd3cXfg1Q30GrjwOuB",
-      "name": "ProfilePage.task@412",
-      "kind": "task",
-      "exportNames": [],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [
-        {
-          "id": "xsZ7aKrLBV-ShmBM1YG00n2",
-          "name": "Promise.resolve",
-          "resolved": false
-        }
-      ],
-      "artifactTargets": [
-        "client",
-        "server"
-      ],
-      "stateReads": [],
-      "stateWrites": [
-        {
-          "path": "status",
-          "kind": "write",
-          "confidence": "exact"
-        }
-      ],
-      "contexts": []
-    },
-    {
-      "id": "xMXc1794bs9pQdKhsdn2MmC",
-      "name": "<function@586>",
+      "id": "xsjdkoJXXjZ9HLB4AMYg3Vz",
+      "name": "<function@588>",
       "kind": "function",
       "exportNames": [],
       "directEffect": "neutral",
@@ -391,17 +387,47 @@
         }
       ],
       "contexts": []
+    },
+    {
+      "id": "xzH2zYjcnHxk2iPMSLNYn12",
+      "name": "ProfilePage.task@414",
+      "kind": "task",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "x7XNjJ5kAdmFgVx7gGf01iz",
+          "name": "Promise.resolve",
+          "resolved": false
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [
+        {
+          "path": "status",
+          "kind": "write",
+          "confidence": "exact"
+        }
+      ],
+      "contexts": []
     }
   ],
   "policy": {
     "version": 1,
     "subjects": [
       {
-        "id": "xtZiEaIeZIx-06GwGg6drSf",
+        "id": "xznlFO5JUgdZpG5n8KryuzE",
         "kind": "state",
         "name": "ProfilePage.state.saves",
         "path": "saves",
-        "componentId": "xUN52JXdOrIR32Cz5qCOrbd",
+        "componentId": "x7gsBV1RVj9VfGBkq4km6f7",
         "policy": {
           "residency": "isomorphic",
           "secret": false
@@ -411,12 +437,12 @@
     ],
     "flows": [
       {
-        "id": "xlD-BWDmKz4Lm-Dl-VqcULR",
+        "id": "xRESR5BbDuZ7oXvznB7sZtr",
         "kind": "transfer",
         "from": [
-          "xtZiEaIeZIx-06GwGg6drSf"
+          "xznlFO5JUgdZpG5n8KryuzE"
         ],
-        "to": "xUN52JXdOrIR32Cz5qCOrbd:client-island:1:saves",
+        "to": "x7gsBV1RVj9VfGBkq4km6f7:client-island:1:saves",
         "policy": {
           "residency": "isomorphic",
           "secret": false
@@ -431,7 +457,7 @@
   "serverActions": {
     "x3JLureiZflgJmddVWOBoBF": {
       "id": "x3JLureiZflgJmddVWOBoBF",
-      "componentId": "xUN52JXdOrIR32Cz5qCOrbd",
+      "componentId": "x7gsBV1RVj9VfGBkq4km6f7",
       "taskId": "x3JLureiZflgJmddVWOBoBF",
       "placement": "server",
       "stateContract": {
@@ -475,8 +501,8 @@
     ],
     "symbols": [
       {
-        "id": "x21mPTW0sow43PnTv5PsaR5",
-        "componentId": "xUN52JXdOrIR32Cz5qCOrbd",
+        "id": "x8icV1Qx_EWOZ-CItp3VOgl",
+        "componentId": "x7gsBV1RVj9VfGBkq4km6f7",
         "exportName": "ProfilePage",
         "localName": "ProfilePage",
         "generatedName": "ProfilePage",
@@ -488,7 +514,7 @@
       },
       {
         "id": "xn4HBfS6VSk_X0fHSn2U6sr",
-        "componentId": "xUN52JXdOrIR32Cz5qCOrbd",
+        "componentId": "x7gsBV1RVj9VfGBkq4km6f7",
         "exportName": "ProfilePage_ExactServer_1",
         "localName": "ProfilePage",
         "generatedName": "ProfilePage_ExactServer_1",
@@ -500,7 +526,7 @@
       },
       {
         "id": "xjbD874UpZxqjxcAu1_iYpK",
-        "componentId": "xUN52JXdOrIR32Cz5qCOrbd",
+        "componentId": "x7gsBV1RVj9VfGBkq4km6f7",
         "exportName": "ProfilePage_ExactClient_1",
         "localName": "ProfilePage_ExactClient_1",
         "generatedName": "ProfilePage_ExactClient_1",
@@ -515,8 +541,8 @@
       {
         "id": "xjbD874UpZxqjxcAu1_iYpK",
         "name": "ProfilePage_ExactClient_1",
-        "componentId": "xUN52JXdOrIR32Cz5qCOrbd",
-        "ownerComponentId": "xUN52JXdOrIR32Cz5qCOrbd",
+        "componentId": "x7gsBV1RVj9VfGBkq4km6f7",
+        "ownerComponentId": "x7gsBV1RVj9VfGBkq4km6f7",
         "kind": "client-island"
       }
     ]

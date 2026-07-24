@@ -33,7 +33,7 @@
 		"@exactjs/reactive": "^0.1.0"
 	},
 	"devDependencies": {
-		"vitest": "^2.1.8"
+		"vitest": "^4.1.10"
 	},
 	"scripts": {
 		"build": "tsc -b",

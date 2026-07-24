@@ -5,6 +5,7 @@ import { flushSync } from '@exactjs/reactive';
 import { QueryClient } from '@tanstack/query-core';
 import { build } from 'esbuild';
 import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { createComponentQuery, ExactQueryClientProvider, QueryClientContext } from './index.js';
@@ -58,6 +59,16 @@ describe('@exactjs/tanstack-query', () => {
 				resolveDir: fileURLToPath(new URL('.', import.meta.url))
 			},
 			bundle: true,
+			plugins: [
+				{
+					name: 'resolve-typescript-source-extensions',
+					setup(build) {
+						build.onResolve({ filter: /^\..*\.js$/ }, (args) => ({
+							path: path.resolve(args.resolveDir, args.path.replace(/\.js$/, '.ts'))
+						}));
+					}
+				}
+			],
 			external: ['@tanstack/query-core', '@exactjs/core', '@exactjs/reactive'],
 			write: false,
 			metafile: true,

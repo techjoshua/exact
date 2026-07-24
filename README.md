@@ -15,8 +15,10 @@ The repository is an npm workspace monorepo. The current implementation slice co
 - `@exactjs/vite-plugin`: Vite integration for the eXact compiler.
 - `@exactjs/webpack-plugin`: Webpack integration for the eXact compiler.
 - `@exactjs/bun-plugin`: Bun integration for the eXact compiler.
+- `@exactjs/vitest` and `@exactjs/jest`: compiler-aware test-runner setup and shared matchers.
+- `create-exact-app`: interactive project scaffolding across supported build and runtime platforms.
 
-Each package publishes a single public entrypoint today, except `@exactjs/compiler`, which also exposes the `exactc` CLI entrypoint. Browser rendering is intentionally exported from `@exactjs/dom`; platform-neutral component APIs live in `@exactjs/core`.
+Packages expose focused subpaths where environment or integration boundaries require them. Browser rendering is intentionally exported from `@exactjs/dom`; platform-neutral component APIs live in `@exactjs/core`.
 
 ## Current API Contract
 
@@ -45,6 +47,28 @@ npm install
 npm run build
 npm test
 ```
+
+Create a standalone application with:
+
+```sh
+npm create exact-app@latest
+```
+
+The scaffolder offers Vite, Webpack, and Bun builds; every supported runtime adapter; Vitest or
+Jest; and optional repo-local installation of the eXact Agent Skill.
+
+## TypeScript compatibility
+
+eXact applications use TypeScript 7 for editor support and command-line type-checking. eXact's
+compiler, expression tooling, transforms, and test integrations currently use the stable
+TypeScript 6 programmatic API. Those packages declare `typescript` as an npm alias of
+`@typescript/typescript6`, allowing the API implementation to coexist safely with an
+application's TypeScript 7 installation.
+
+This split is required because TypeScript 7.0 does not ship a programmatic compiler API. The
+repository builds against TypeScript 6 and runs a separate TypeScript 7 compatibility build so
+application-facing types, JSX, and configuration remain compatible. The compiler integration can
+move to TypeScript 7 after its new API is released and adopted.
 
 The Kanban sample can be run from the workspace root:
 
@@ -90,6 +114,10 @@ The package entrypoints are:
   - Accessible field composition and native/callback validation through `FormContext` and `FieldContext`.
 - `@exactjs/testing`
   - Fluent component instances, state/context inspection, accessible DOM queries, user events, task settling, and Vitest/Jest matchers.
+- `@exactjs/vitest`
+  - Vite/eXact compiler setup, Vite 8 Oxc JSX configuration, automatic matcher installation, and the shared component-testing APIs.
+- `@exactjs/jest`
+  - Jest environment and matcher setup plus an eXact-aware TypeScript/TSX transformer.
 - `@exactjs/jsx`
   - Root exports: `jsx`, `jsxs`, `Fragment`, `_`.
   - Automatic JSX subpaths: `@exactjs/jsx/jsx-runtime` and `@exactjs/jsx/jsx-dev-runtime`.
@@ -130,6 +158,7 @@ The package entrypoints are:
 - `@exactjs/vite-plugin`
   - Vite adapter: `exact({ target?: "default" | "client" | "server" })`.
   - Adds `exact-client` or `exact-server` package export conditions based on the configured target.
+  - Configures the `@exactjs/jsx` automatic runtime for Vite 8's Oxc transform.
 - `@exactjs/webpack-plugin`
   - Webpack adapter: `new ExactWebpackPlugin({ target?: "default" | "client" | "server" })`.
   - Adds target package export conditions, `.exact` facade resolution helpers, and a pre-loader for TSX/JSX transforms.
@@ -137,8 +166,6 @@ The package entrypoints are:
   - Bun adapter: `exact({ target?: "default" | "client" | "server" })`.
   - Adds target package export conditions, `.exact` facade resolution, and TSX/JSX transform hooks.
   - Integration-tested with Bun 1.3.5 through the real `Bun.build()` API.
-
-The next export cleanup should split `@exactjs/core` into clearer app-facing and framework-internal subpaths before external publication. For now the single entrypoint keeps package integration straightforward while the framework is still being shaped.
 
 ## JSX
 
@@ -149,7 +176,7 @@ Configure TypeScript with `jsxImportSource` set to `@exactjs/jsx`:
 ```json
 {
 	"compilerOptions": {
-		"jsx": "react-jsx",
+		"jsx": "preserve",
 		"jsxImportSource": "@exactjs/jsx"
 	}
 }
@@ -704,16 +731,21 @@ view.unmount();
 
 Queries are available by selector, role/name, label, visible text, and `data-testid`. Singular queries reject missing or ambiguous matches. State and event actions flush reactive rendering and await observed component tasks; use `{ settleTasks: false }` for intentionally long-lived work, `view.flush()` for synchronous rendering only, or `view.settle()` explicitly.
 
-Matchers are opt-in and do not couple the base package to a runner:
+Use the runner integrations to install matchers and compiler behavior together:
 
 ```ts
-import { expect } from 'vitest';
-import { installVitestMatchers } from '@exactjs/testing/vitest';
+import { exactVitest } from '@exactjs/vitest';
+import { defineConfig } from 'vitest/config';
 
-installVitestMatchers(expect);
+export default defineConfig({
+	plugins: [exactVitest()],
+	test: { environment: 'jsdom' }
+});
 ```
 
-The Jest adapter exports the equivalent `installJestMatchers(expect)` function. DOM tests require a browser-like environment such as jsdom or happy-dom.
+`@exactjs/jest` provides equivalent matchers, jsdom setup, and the eXact TypeScript/TSX
+transformer. The lower-level `@exactjs/testing/vitest` and `@exactjs/testing/jest` entrypoints
+remain available for custom runner configurations.
 
 ## Compiled JSX Conveniences
 

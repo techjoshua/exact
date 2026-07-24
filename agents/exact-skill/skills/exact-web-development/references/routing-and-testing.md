@@ -46,6 +46,13 @@ Use `@exactjs/testing` to mount through the real DOM renderer and access the fra
 Prefer user-visible queries and events for behavioral assertions, while using exposed component
 state when a test genuinely needs to inspect or diagnose state.
 
-Follow the runner integration already configured by the project, such as
-`@exactjs/testing/vitest` or `@exactjs/testing/jest`. Do not introduce React Testing Library
+Follow the runner integration already configured by the project. For new configurations, prefer:
+
+- `@exactjs/vitest` for compiler setup, Vite 5–8 JSX configuration, automatic matcher
+  installation, and the shared testing APIs.
+- `@exactjs/jest` for automatic matcher setup, jsdom defaults, and the eXact TypeScript/TSX
+  transformer.
+
+Use the lower-level `@exactjs/testing/vitest` and `@exactjs/testing/jest` entrypoints only when the
+runner configuration is intentionally managed elsewhere. Do not introduce React Testing Library
 assumptions unless the component is intentionally running through the React compatibility layer.

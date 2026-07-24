@@ -4,6 +4,20 @@ import { describe, expect, it } from 'vitest';
 import { exact } from './index.js';
 
 describe('@exactjs/vite-plugin: lifecycle', () => {
+	it('configures the automatic eXact JSX runtime for Vite and Vitest', () => {
+		expect(exact({ reactCompatibility: false }).config?.()).toMatchObject({
+			oxc: {
+				jsx: {
+					runtime: 'automatic',
+					importSource: '@exactjs/jsx'
+				}
+			}
+		});
+		expect(
+			exact({ reactCompatibility: false, configureJsxRuntime: false }).config?.()
+		).not.toHaveProperty('oxc');
+	});
+
 	it('honors include and exclude filters', () => {
 		expect(
 			exact({ include: '/src/', reactCompatibility: false }).transform(
@@ -23,6 +37,21 @@ describe('@exactjs/vite-plugin: lifecycle', () => {
 				'/src/ignored.tsx'
 			)
 		).toBeNull();
+	});
+
+	it('leaves test modules to the automatic JSX runtime unless explicitly enabled', () => {
+		expect(
+			exact({ reactCompatibility: false }).transform(
+				'it("renders", () => <span />);',
+				'/src/view.test.tsx'
+			)
+		).toBeNull();
+		expect(
+			exact({ reactCompatibility: false, compileTestModules: true }).transform(
+				'export const view = <span />;',
+				'/src/view.test.tsx'
+			)
+		).not.toBeNull();
 	});
 
 	it('skips node_modules unless explicitly included', () => {

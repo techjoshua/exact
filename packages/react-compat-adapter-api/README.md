@@ -1,4 +1,6 @@
-# eXact React compatibility adapter protocol
+# @exactjs/react-compat-adapter-api
+
+Protocol and validation helpers for eXact React compatibility adapters.
 
 Adapters declare inert substitution metadata in `package.json`; discovery never
 imports adapter code. An adapter must directly depend on this package and may

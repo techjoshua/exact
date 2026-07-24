@@ -1,0 +1,26 @@
+{
+	"name": "create-exact-app",
+	"version": "0.1.0",
+	"description": "Interactive project scaffolder for eXact web applications",
+	"type": "module",
+	"bin": {
+		"create-exact-app": "./dist/cli.js"
+	},
+	"files": [
+		"dist"
+	],
+	"dependencies": {
+		"@exactjs/agent-skill": "^0.1.0"
+	},
+	"devDependencies": {
+		"vitest": "^4.1.10"
+	},
+	"scripts": {
+		"build": "tsc -b",
+		"test": "vitest run",
+		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

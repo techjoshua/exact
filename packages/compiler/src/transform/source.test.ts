@@ -135,7 +135,7 @@ describe('@exactjs/compiler: transform', () => {
 			{ filename }
 		);
 		expect(output).toContain('JSX.TargetedEvent<HTMLFormElement, SubmitEvent>');
-		expect(output).toContain('JSX.TargetedEvent<HTMLInputElement, Event>');
+		expect(output).toContain('JSX.TargetedEvent<HTMLInputElement, InputEvent>');
 		expect(output).toContain('import("@exactjs/jsx/jsx-runtime")');
 		expect(output).not.toContain('packages/jsx-runtime/dist/jsx-runtime');
 	});

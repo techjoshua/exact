@@ -117,7 +117,8 @@ export function unresolvedCallEffect(
 		receiver?.variable ??
 		call.target?.rootVariable ??
 		call.target?.variable;
-	const rootName = rootVariable?.name ?? receiver?.name ?? call.target?.name;
+	const textualRoot = targetText.match(/^([A-Za-z_$][\w$]*)/)?.[1];
+	const rootName = rootVariable?.name ?? textualRoot ?? receiver?.name ?? call.target?.name;
 	const platform = isUnshadowedPlatformGlobal(rootName, rootVariable, localVariables);
 	if (platform) return platform;
 	if (rootName && universalCallRoots.has(rootName)) return undefined;
@@ -129,9 +130,16 @@ export function unresolvedCallEffect(
 	)
 		return undefined;
 	const declaration = call.node.resolvedSignature?.declarationSource?.replace(/\\/g, '/') ?? '';
-	if (/\/typescript\/lib\/lib\.(?:dom|webworker)(?:\.[^/]*)?\.d\.ts$/i.test(declaration))
+	if (
+		/\/(?:typescript|@typescript\/(?:old|typescript6))\/lib\/lib\.(?:dom|webworker)(?:\.[^/]*)?\.d\.ts$/i.test(
+			declaration
+		)
+	)
 		return 'browser';
-	if (/\/typescript\/lib\/lib\.[^/]+\.d\.ts$/i.test(declaration)) return undefined;
+	if (
+		/\/(?:typescript|@typescript\/(?:old|typescript6))\/lib\/lib\.[^/]+\.d\.ts$/i.test(declaration)
+	)
+		return undefined;
 	if (
 		/(?:^|\/)@types\/node\//.test(declaration) ||
 		/\/node_modules\/(?:node:)?(?:fs|path|crypto|http|https|net|tls|child_process)\//.test(

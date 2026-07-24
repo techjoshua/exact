@@ -1,0 +1,43 @@
+{
+	"name": "@exactjs/vitest",
+	"version": "0.1.0",
+	"description": "Vitest integration, matchers, and Vite configuration for eXact applications",
+	"type": "module",
+	"files": [
+		"dist",
+		"!dist/**/*.test.*"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./setup": {
+			"types": "./dist/setup.d.ts",
+			"default": "./dist/setup.js"
+		}
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"dependencies": {
+		"@exactjs/testing": "^0.1.0",
+		"@exactjs/vite-plugin": "^0.1.0"
+	},
+	"peerDependencies": {
+		"vite": "^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0",
+		"vitest": "^2.0.0 || ^3.0.0 || ^4.0.0"
+	},
+	"devDependencies": {
+		"vite": "^8.1.5",
+		"vitest": "^4.1.10"
+	},
+	"scripts": {
+		"build": "tsc -b",
+		"test": "vitest run",
+		"test:integration": "vitest run --config test-fixtures/vitest.config.ts",
+		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

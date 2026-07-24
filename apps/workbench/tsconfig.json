@@ -4,6 +4,7 @@
 		"composite": true,
 		"noEmit": true,
 		"lib": ["ES2022", "DOM"],
+		"types": ["node", "vite/client"],
 		"jsx": "preserve",
 		"jsxImportSource": "@exactjs/jsx"
 	},

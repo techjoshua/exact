@@ -13,7 +13,8 @@
 		"apps/*"
 	],
 	"scripts": {
-		"build": "tsc -b",
+		"build": "tsc6 -b",
+		"build:typescript7": "tsc -b",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"lint": "eslint . --cache --cache-location .tmp/eslint-cache",
@@ -21,7 +22,8 @@
 		"check:style": "npm run format:check && npm run lint",
 		"test": "npm run test:packages && npm run test:server-components && npm run test:shipping",
 		"test:bun": "npm run build -w @exactjs/bun-plugin -w @exactjs/bun-adapter && npm run test:bun -w @exactjs/bun-plugin -w @exactjs/bun-adapter",
-		"check:publish": "node scripts/check-release-manifests.mjs && node scripts/check-package-contents.mjs",
+		"check:publish": "node scripts/check-release-manifests.mjs && node scripts/check-package-contents.mjs && npm run check:readmes",
+		"check:readmes": "node scripts/check-package-readmes.mjs",
 		"version:packages": "node scripts/version-packages.mjs",
 		"release:check": "node scripts/release-check.mjs --profile=check",
 		"release:quick": "node scripts/release-check.mjs --profile=quick",
@@ -32,10 +34,12 @@
 		"check:source-architecture": "node scripts/check-source-architecture.mjs",
 		"check:jsdoc": "node scripts/check-jsdoc.mjs",
 		"check:sample-builds": "npm run build:kanban && npm run build:workbench && npm run build:microfrontends",
-		"test:packages": "vitest run packages framework-adapters react-adapters plugins component-libraries --testTimeout=15000",
+		"test:packages": "vitest run --config vitest.config.ts packages framework-adapters react-adapters plugins component-libraries --testTimeout=30000",
 		"test:coverage": "npm run test:coverage --workspaces --if-present",
-		"typecheck": "tsc -b --pretty",
-		"typecheck:tests": "tsc -p tsconfig.test.json --pretty",
+		"typecheck": "tsc6 -b --pretty",
+		"typecheck:typescript7": "tsc -b --pretty",
+		"typecheck:tests": "tsc6 -p tsconfig.test.json --pretty",
+		"check:typescript-compatibility": "node scripts/check-typescript-compatibility.mjs",
 		"benchmark:reactive": "node scripts/benchmark-reactive.mjs && node scripts/benchmark-dom-list.mjs",
 		"benchmark:expressions": "node scripts/benchmark-expressions.mjs && node scripts/benchmark-compiler-workflow.mjs && node scripts/benchmark-language-service.mjs",
 		"check:expressions": "node scripts/check-expressions-roundtrip.mjs",
@@ -67,8 +71,8 @@
 	"devDependencies": {
 		"@eslint/js": "9.39.1",
 		"@types/node": "^22.10.2",
-		"@vitest/coverage-v8": "^2.1.9",
-		"esbuild": "^0.21.5",
+		"@vitest/coverage-v8": "^4.1.10",
+		"esbuild": "0.27.2",
 		"eslint": "9.39.1",
 		"globals": "16.5.0",
 		"jsdom": "^25.0.1",
@@ -79,8 +83,9 @@
 		"react-router-dom-v6": "npm:react-router-dom@6.30.4",
 		"react-router-dom-v63": "npm:react-router-dom@6.3.0",
 		"react-router-dom-v7": "npm:react-router-dom@7.18.1",
-		"typescript": "^5.7.2",
-		"typescript-eslint": "8.46.4",
-		"vitest": "^2.1.8"
+		"@typescript/native": "npm:typescript@^7.0.2",
+		"typescript": "npm:@typescript/typescript6@^6.0.2",
+		"typescript-eslint": "8.65.0",
+		"vitest": "^4.1.10"
 	}
 }

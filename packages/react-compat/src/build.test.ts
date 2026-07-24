@@ -40,7 +40,7 @@ describe('React compatibility build engine', () => {
 				expect.objectContaining({
 					code: 'compatibility-retained',
 					adapterPackage: '@exactjs/tanstack-query',
-					adapterVersion: '0.0.0',
+					adapterVersion: '0.1.0',
 					sourceVersion: '>=5 <6',
 					sourceExport: 'QueryClientProvider',
 					replacementExport: 'QueryClientProvider'
@@ -57,7 +57,7 @@ describe('React compatibility build engine', () => {
 				sourceLocation: expect.stringContaining('node_modules'),
 				installedVersion: '5.101.2',
 				adapterPackage: '@exactjs/tanstack-query',
-				adapterVersion: '0.0.0',
+				adapterVersion: '0.1.0',
 				targetModule: '@exactjs/tanstack-query/react',
 				targetExport: 'QueryClientProvider'
 			})

@@ -34,10 +34,10 @@
 		"@exactjs/config": "^0.1.0",
 		"@exactjs/plugin-api": "^0.1.0",
 		"semver": "^7.8.5",
-		"typescript": "^5.7.2"
+		"typescript": "npm:@typescript/typescript6@^6.0.2"
 	},
 	"scripts": {
-		"build": "tsc -b",
+		"build": "tsc6 -b",
 		"test": "vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},

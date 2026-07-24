@@ -1011,7 +1011,7 @@
 	},
 	"scripts": {
 		"build": "tsc -b",
-		"test": "vitest run",
+		"test": "vitest run --config ../../vitest.config.ts",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},
 	"publishConfig": {

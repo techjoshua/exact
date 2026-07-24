@@ -60,6 +60,8 @@ export type ExactPluginOptions = {
 	pluginRegistry?: ExactPreparedCompilerRegistry;
 	assetRules?: readonly ExactAssetRule[];
 	diagnostics?: boolean;
+	configureJsxRuntime?: boolean;
+	compileTestModules?: boolean;
 	onProfile?: ExactProfileSink;
 	onRemoteEntries?: (entries: Readonly<Record<string, string>>) => void;
 	onRemoteDevelopmentEntries?: (entries: Readonly<Record<string, string>>) => void;
@@ -84,6 +86,12 @@ export type ExactPlugin = {
 	warn?(message: string): void;
 	config?(): {
 		resolve: { conditions: string[]; alias?: Array<{ find: RegExp; replacement: string }> };
+		oxc?: {
+			jsx: {
+				runtime: 'automatic';
+				importSource: '@exactjs/jsx';
+			};
+		};
 	};
 	configResolved?(config: { command: 'build' | 'serve' }): void;
 	buildStart?(this: {
@@ -195,7 +203,17 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 						options
 					),
 					...(reactCompatibility ? { alias: viteReactAliases(reactCompatibility) } : {})
-				}
+				},
+				...(options.configureJsxRuntime === false
+					? {}
+					: {
+							oxc: {
+								jsx: {
+									runtime: 'automatic' as const,
+									importSource: '@exactjs/jsx' as const
+								}
+							}
+						})
 			};
 		},
 		configResolved(config) {

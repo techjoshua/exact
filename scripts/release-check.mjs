@@ -32,6 +32,12 @@ const task = (name, args, options = {}) => ({
 });
 
 const build = task('build', ['run', 'build']);
+const typescript7Compatibility = task('TypeScript 7 compatibility', [
+	'run',
+	'build:typescript7',
+	'--',
+	'--force'
+]);
 const staticChecks = [
 	task('style', ['run', 'check:style']),
 	task('platform boundaries', ['run', 'check:platform-boundaries']),
@@ -60,6 +66,7 @@ try {
 		throw new Error(`Unknown release profile "${profile}"`);
 	}
 	await run(build);
+	await run(typescript7Compatibility);
 	if (profile === 'affected') {
 		await runAffected();
 	} else if (profile !== 'performance') {

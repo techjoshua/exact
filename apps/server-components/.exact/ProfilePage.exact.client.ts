@@ -9,5 +9,5 @@ export type ProfileState = {
 export function ProfilePage_ExactClient_1(this: any, props: any = {}) {
     if (props.__exactState)
         Object.assign(this.state, props.__exactState);
-    return () => __exactVNode("button", { "data-exact-id": "xvwdM8r3Rs6YaX-lxA_RXFo", onClick: () => this.state.saves++ }, "Saved ", __exactDynamic(() => this.state.saves), " times");
+    return () => __exactVNode("button", { "data-exact-id": "x_36QDkuwkjhvmVwTM7OF9w", onClick: () => this.state.saves++ }, "Saved ", __exactDynamic(() => this.state.saves), " times");
 }

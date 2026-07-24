@@ -14,6 +14,7 @@ export type ExactModuleSelectionOptions = {
 	target?: TransformTarget;
 	importedManifests?: readonly ExactCompilerManifest[];
 	manifestFiles?: readonly string[];
+	compileTestModules?: boolean;
 };
 
 /** Removes Vite query parameters while retaining virtual module identifiers. */
@@ -41,6 +42,11 @@ export function shouldCompileExactModule(
 	registry: ExactPreparedCompilerRegistry | undefined
 ): boolean {
 	if (!options.include && /(?:^|[\\/])node_modules(?:[\\/]|$)/.test(id)) return false;
+	if (
+		options.compileTestModules !== true &&
+		/(?:^|[\\/])[^\\/]+\.(?:test|spec|jest)\.[cm]?[jt]sx?$/i.test(id)
+	)
+		return false;
 	if (options.include && !matchesExactBuildFilter(id, options.include)) return false;
 	if (options.exclude && matchesExactBuildFilter(id, options.exclude)) return false;
 	return (

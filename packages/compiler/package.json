@@ -31,13 +31,13 @@
 		"@exactjs/instrumentation": "^0.1.0",
 		"@exactjs/plugin-api": "^0.1.0",
 		"@exactjs/plugin-host": "^0.1.0",
-		"typescript": "^5.7.2"
+		"typescript": "npm:@typescript/typescript6@^6.0.2"
 	},
 	"devDependencies": {
 		"vite": "^8.1.5"
 	},
 	"scripts": {
-		"build": "tsc -b",
+		"build": "tsc6 -b",
 		"test": "vitest run",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},

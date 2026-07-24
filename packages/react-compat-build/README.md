@@ -1,4 +1,6 @@
-# eXact React compatibility build tools
+# @exactjs/react-compat-build
+
+CLI and Node build tools for eXact React compatibility.
 
 - `exact-reactc` compiles eXact source and applies the same compatibility
   registry used by Vite and Node. Use `--reactTarget auto|18|19` and

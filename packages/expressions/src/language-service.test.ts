@@ -97,7 +97,7 @@ describe('ExpressionLanguageService', () => {
 		} finally {
 			service.dispose();
 		}
-	});
+	}, 30_000);
 
 	it('rejects work after disposal', () => {
 		const service = createExpressionLanguageService({ tsconfigPath: config });

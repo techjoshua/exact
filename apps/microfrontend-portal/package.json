@@ -26,8 +26,8 @@
 	"devDependencies": {
 		"@types/node": "^22.10.2",
 		"@exactjs/vite-plugin": "^0.1.0",
-		"typescript": "^5.7.2",
+		"typescript": "^7.0.2",
 		"vite": "^8.1.5",
-		"vitest": "^2.1.8"
+		"vitest": "^4.1.10"
 	}
 }

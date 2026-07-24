@@ -5,7 +5,6 @@
 		"lib": ["ES2022", "DOM", "DOM.Iterable"],
 		"jsx": "preserve",
 		"jsxImportSource": "@exactjs/jsx",
-		"baseUrl": ".",
 		"paths": {
 			"@exactjs/sample-microfrontend-portal/shared": ["./src/shared.ts"]
 		},

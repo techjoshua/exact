@@ -1,0 +1,11 @@
+# @exactjs/instrumentation
+
+Shared profiling contracts and collectors for eXact compiler, bundler, server, and runtime
+integrations.
+
+Profile events carry a subsystem, phase, elapsed time, and bounded serializable attributes.
+Integrations accept an `onProfile` sink so applications and tooling can aggregate timings without
+coupling to internal implementations.
+
+Use the supplied collector utilities for deterministic reports. Avoid placing secrets, request
+bodies, or unbounded application data in profiling attributes.
