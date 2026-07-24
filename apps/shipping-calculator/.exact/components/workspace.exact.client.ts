@@ -90,7 +90,7 @@ export const CalculatorWorkspace: typeof __exactImplementation_CalculatorWorkspa
     [__exactClientComponentDescriptor_1]: [
         1,
         [
-            ["xGd2E4YYEWyCjGauzFtKqRu", "CalculatorWorkspace", __exactImplementation_CalculatorWorkspace_1]
+            ["xZoxrmFqT5oXZSeTaQ7WmTu", "CalculatorWorkspace", __exactImplementation_CalculatorWorkspace_1]
         ]
     ]
 }))();

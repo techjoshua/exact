@@ -125,13 +125,9 @@ export function validateParticipantMarker(node: ExactPackageNode): void {
 	const range =
 		dependencyRange(node.manifest.dependencies, exactPluginApiPackage) ??
 		dependencyRange(node.manifest.optionalDependencies, exactPluginApiPackage);
-	if (
-		range &&
-		!isLocalRange(range) &&
-		(!validRange(range) || !satisfies(exactPluginProtocolVersion, range))
-	) {
+	if (range && !isLocalRange(range) && !validRange(range)) {
 		throw new Error(
-			`${packageName(node)} declares incompatible ${exactPluginApiPackage} range ${JSON.stringify(range)}`
+			`${packageName(node)} declares invalid ${exactPluginApiPackage} range ${JSON.stringify(range)}`
 		);
 	}
 }

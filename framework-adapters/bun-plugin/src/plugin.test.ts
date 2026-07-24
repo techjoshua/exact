@@ -64,7 +64,9 @@ describe('@exactjs/bun-plugin', () => {
 				importer?: string;
 			}) => { path?: string } | Promise<{ path?: string }>;
 		}> = [];
-		let loadHook!: (args: BunLoadArgs) => BunLoadResult | Promise<BunLoadResult>;
+		let loadHook!: (
+			args: BunLoadArgs
+		) => BunLoadResult | undefined | Promise<BunLoadResult | undefined>;
 		let startHook!: () => void | Promise<void>;
 		const build: BunBuildLike = {
 			config: { conditions: ['browser'] },
@@ -101,25 +103,31 @@ describe('@exactjs/bun-plugin', () => {
 			})
 		).resolves.toMatchObject({
 			contents: expect.stringContaining('__exactVNode("span"'),
-			loader: 'tsx',
-			sourcemap: {
-				version: 3,
-				sources: ['/app/src/view.tsx']
-			}
+			loader: 'tsx'
 		});
+		expect(
+			(
+				await loadHook({
+					path: '/app/src/view.tsx',
+					text: async () => 'const view = <span />;'
+				})
+			)?.contents
+		).toContain('sourceMappingURL=data:application/json');
 		await expect(
 			loadHook({
 				path: '/app/src/model.ts',
 				text: async () => 'export type Model = { title: string };'
 			})
-		).resolves.toEqual({});
+		).resolves.toBeUndefined();
 	});
 
 	it('surfaces and deduplicates diagnostics by default in watch mode', async () => {
 		const root = path.resolve(import.meta.dirname, '../../..');
 		const model = path.join(root, 'apps/kanban/src/__bun_diagnostic_model.ts');
 		const consumer = path.join(root, 'apps/kanban/src/__bun_diagnostic_consumer.ts');
-		let loadHook!: (args: BunLoadArgs) => BunLoadResult | Promise<BunLoadResult>;
+		let loadHook!: (
+			args: BunLoadArgs
+		) => BunLoadResult | undefined | Promise<BunLoadResult | undefined>;
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		try {
 			writeFileSync(

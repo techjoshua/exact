@@ -1,0 +1,93 @@
+# Components and reactivity
+
+## Component shape
+
+Read the outer function as construction and the returned function as the connected view:
+
+```tsx
+import type { Child, Component } from '@exactjs/core';
+
+type PanelState = {
+	open: boolean;
+	count: number;
+};
+
+type PanelProps = {
+	title: string;
+	children?: Child;
+};
+
+function Panel(this: Component<PanelState>, props: PanelProps) {
+	this.state.open = false;
+	this.state.count = 0;
+
+	this.onMount(() => this.log.info('Panel mounted'));
+
+	const doubled = this.state.count * 2;
+
+	return () => (
+		<section>
+			<button onClick={() => (this.state.open = !this.state.open)}>
+				{props.title}: {doubled}
+			</button>
+			{this.state.open ? props.children : null}
+		</section>
+	);
+}
+```
+
+The component instance owns reactive state, lifecycle, tasks, refs, context, and logging. Assigning
+state invalidates only consumers that read the changed data; it does not rerun the setup function.
+
+## Derived values
+
+Prefer ordinary setup expressions when they are pure and compiler-analyzable:
+
+```ts
+const subtotal = this.state.quantity * this.state.price;
+const total = subtotal + this.state.shipping;
+```
+
+Use an explicit reactive value when runtime code needs the boundary itself:
+
+```ts
+const subtotal = this.reactive(() => this.state.quantity * this.state.price);
+
+// Values returned by this.reactive() provide this component-owned shorthand.
+subtotal.task((value, { signal }) => {
+	reportEstimate(Number(value), { signal });
+});
+```
+
+`this.reactive()` returns a `ComponentReactiveValue`, which extends the base `ReactiveValue` with
+the `.task()` shorthand. A `ReactiveValue` created directly through `@exactjs/reactive` does not
+have that method. Use the general component task form for any reactive dependency:
+
+```ts
+this.task(subtotal, (value, { signal }) => {
+	reportEstimate(Number(value), { signal });
+});
+```
+
+Do not wrap values in `useMemo`, `useCallback`, or ref-like boxes to preserve reactivity.
+
+## Context and refs
+
+Use typed eXact context tokens with `this.setContext()` and `this.getContext()`. Use `this.ref()`
+and `this.refs` for DOM references. Initialize both during setup rather than discovering them
+through rerender timing.
+
+## Event handlers
+
+Let JSX attribute types infer the event and `currentTarget`:
+
+```tsx
+<input
+	value={this.state.query}
+	onInput={(event) => {
+		this.state.query = event.currentTarget.value;
+	}}
+/>
+```
+
+Add an explicit event type only when the handler is extracted and lacks contextual typing.

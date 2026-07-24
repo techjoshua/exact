@@ -4,6 +4,7 @@
 	"type": "module",
 	"packageManager": "npm@11.6.4",
 	"workspaces": [
+		"agents/*",
 		"packages/*",
 		"framework-adapters/*",
 		"react-adapters/*",
@@ -19,6 +20,7 @@
 		"lint:fix": "npm run lint -- --fix",
 		"check:style": "npm run format:check && npm run lint",
 		"test": "npm run test:packages && npm run test:server-components && npm run test:shipping",
+		"test:bun": "npm run build -w @exactjs/bun-plugin -w @exactjs/bun-adapter && npm run test:bun -w @exactjs/bun-plugin -w @exactjs/bun-adapter",
 		"check:publish": "node scripts/check-release-manifests.mjs && node scripts/check-package-contents.mjs",
 		"version:packages": "node scripts/version-packages.mjs",
 		"release:check": "node scripts/release-check.mjs --profile=check",

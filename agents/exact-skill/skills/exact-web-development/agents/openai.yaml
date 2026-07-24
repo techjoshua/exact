@@ -1,0 +1,4 @@
+interface:
+  display_name: 'eXact Web Development'
+  short_description: 'Build idiomatic eXact web applications'
+  default_prompt: 'Use $exact-web-development to build an idiomatic eXact web application.'

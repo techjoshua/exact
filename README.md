@@ -123,6 +123,10 @@ The package entrypoints are:
   - Adapter helpers: `createFetchHandler`, `createExpressHandler`, `createHapiHandler`.
   - Security model: manifest-allowlisted action and boundary IDs only; no client-provided module or function dispatch.
   - Node plugin preparation: `prepareExactServerPlugins` from `@exactjs/server/plugins`.
+- `@exactjs/hapi-adapter`
+  - Hapi 21 plugin: register `exactHapiPlugin` with `{ runtime }` to mount the manifest endpoint with safe JSON payload defaults.
+  - Direct handler: `createExactHapiHandler(runtime)` for applications that intentionally own their Hapi route configuration.
+  - Converts Web response streams to Node streams and propagates Hapi client disconnects into the eXact request signal.
 - `@exactjs/vite-plugin`
   - Vite adapter: `exact({ target?: "default" | "client" | "server" })`.
   - Adds `exact-client` or `exact-server` package export conditions based on the configured target.
@@ -132,6 +136,7 @@ The package entrypoints are:
 - `@exactjs/bun-plugin`
   - Bun adapter: `exact({ target?: "default" | "client" | "server" })`.
   - Adds target package export conditions, `.exact` facade resolution, and TSX/JSX transform hooks.
+  - Integration-tested with Bun 1.3.5 through the real `Bun.build()` API.
 
 The next export cleanup should split `@exactjs/core` into clearer app-facing and framework-internal subpaths before external publication. For now the single entrypoint keeps package integration straightforward while the framework is still being shaped.
 
@@ -468,6 +473,11 @@ The compiler infers conservative derived consts: identifier declarations whose i
 
 Reactive values are cached after first use and recompute when their tracked dependencies change. Structurally equal plain objects and arrays retain the previously published identity, so repeated API-shaped calculations neither invalidate consumers nor churn list identities. Component-owned derived subscriptions are released automatically during unmount.
 
+`this.reactive()` returns a component-scoped `ComponentReactiveValue`, which extends the base
+`ReactiveValue` contract with a `.task()` registration shorthand. A `ReactiveValue` created
+directly through `@exactjs/reactive` does not have that method. Pass any reactive value to
+`this.task(reactiveValue, work)` when the general form is clearer.
+
 In compiler mode, selected API arguments are treated as reactive expression positions. This means:
 
 ```ts
@@ -483,6 +493,15 @@ is compiled as if it had been written with an explicit expression boundary:
 
 ```ts
 const query = this.reactive(() => this.state.query);
+```
+
+The component-scoped shorthand above registers the same dependency relationship as:
+
+```ts
+this.task(query, async (query, { signal }) => {
+	void signal;
+	console.log(query);
+});
 ```
 
 `this.task(dep, ..., work)` dependency arguments are captured the same way in compiler mode. Runtime-only code should use explicit lambdas or existing reactive values when source identity matters.

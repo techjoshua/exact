@@ -81,7 +81,8 @@ describe('@exactjs/vite-plugin: React compatibility', () => {
 		});
 		expect(plugin.transform(source, '/node_modules/example/index.js')).toEqual({
 			code: shared.code,
-			map: shared.map
+			map: shared.map,
+			moduleType: 'js'
 		});
 	});
 

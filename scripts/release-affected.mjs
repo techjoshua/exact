@@ -5,6 +5,7 @@ import process from 'node:process';
 
 const root = path.resolve(import.meta.dirname, '..');
 const workspaceGroups = [
+	'agents',
 	'packages',
 	'framework-adapters',
 	'react-adapters',

@@ -18,6 +18,12 @@
 	"dependencies": {
 		"@exactjs/server": "^0.1.0"
 	},
+	"peerDependencies": {
+		"@hapi/hapi": "^21.0.0"
+	},
+	"devDependencies": {
+		"@hapi/hapi": "^21.0.0"
+	},
 	"scripts": {
 		"build": "tsc -b",
 		"test": "vitest run",

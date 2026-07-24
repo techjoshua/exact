@@ -4,7 +4,8 @@
 		"composite": true,
 		"rootDir": "src",
 		"outDir": "dist",
-		"lib": ["ES2022", "DOM"]
+		"lib": ["ES2022", "DOM"],
+		"types": ["node"]
 	},
 	"references": [{ "path": "../../packages/server" }],
 	"include": ["src"],

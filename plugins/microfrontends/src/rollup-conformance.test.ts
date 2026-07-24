@@ -113,7 +113,8 @@ describe('Vite/Rollup remote producer conformance', () => {
 					.map((file) => readFile(path.join(outDir, file), 'utf8'))
 			)
 		).join('\n');
-		expect(javascript).toContain(`Symbol.for("@exactjs/provided-packages")`);
+		expect(javascript).toContain('Symbol.for(');
+		expect(javascript).toContain('@exactjs/provided-packages');
 		expect(javascript).not.toContain('createComponentInstance');
 
 		const previous = (globalThis as Record<PropertyKey, unknown>)[
@@ -137,7 +138,9 @@ describe('Vite/Rollup remote producer conformance', () => {
 			expect(typeof loaded.default.component).toBe('function');
 		} finally {
 			if (previous === undefined)
-				delete (globalThis as Record<PropertyKey, unknown>)[Symbol.for('@exactjs/provided-packages')];
+				delete (globalThis as Record<PropertyKey, unknown>)[
+					Symbol.for('@exactjs/provided-packages')
+				];
 			else
 				(globalThis as Record<PropertyKey, unknown>)[Symbol.for('@exactjs/provided-packages')] =
 					previous;

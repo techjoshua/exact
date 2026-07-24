@@ -23,11 +23,12 @@
 		"@exactjs/react-dom-compat": "^0.1.0"
 	},
 	"devDependencies": {
-		"@exactjs/microfrontends": "^0.1.0"
+		"@exactjs/microfrontends": "^0.1.0",
+		"vite": "^8.1.5"
 	},
 	"peerDependencies": {
 		"@exactjs/microfrontends": "^0.1.0",
-		"vite": "^5.0.0 || ^6.0.0 || ^7.0.0"
+		"vite": "^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0"
 	},
 	"peerDependenciesMeta": {
 		"@exactjs/microfrontends": {

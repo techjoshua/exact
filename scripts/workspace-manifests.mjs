@@ -2,6 +2,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 export const publishableWorkspaceRoots = Object.freeze([
+	'agents',
 	'packages',
 	'framework-adapters',
 	'react-adapters',

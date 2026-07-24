@@ -1,5 +1,11 @@
 import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import type { ExactPreparedPluginRegistry } from '@exactjs/plugin-host/node';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+
+type ExactViteModuleType = 'js' | 'jsx' | 'ts' | 'tsx';
+
+type ExactViteLoadResult = string | { code: string; moduleType: ExactViteModuleType } | null;
 
 type ExactRemoteRollupAdapterLike = {
 	readonly pageBootstrapImport: string;
@@ -136,8 +142,15 @@ export function createExactViteMicrofrontendIntegration(
 				(remote) => remote ?? resolveFrameworkImport()
 			);
 		},
-		load(id: string): string | null {
-			return adapter?.load(id) ?? null;
+		async load(id: string): Promise<ExactViteLoadResult> {
+			const generated = adapter?.load(id);
+			if (generated != null) return { code: generated, moduleType: 'js' };
+			const source = exactRemoteSource(id);
+			if (!source) return null;
+			return {
+				code: await readFile(source.filename, 'utf8'),
+				moduleType: source.moduleType
+			};
 		},
 		recordModule(code: string, id: string): void {
 			adapter?.recordModule(code, id);
@@ -153,6 +166,26 @@ export function createExactViteMicrofrontendIntegration(
 			adapter?.generateBundle(bundle);
 		}
 	};
+}
+
+function exactRemoteSource(
+	id: string
+): { filename: string; moduleType: ExactViteModuleType } | undefined {
+	const queryIndex = id.indexOf('?');
+	if (queryIndex < 0) return undefined;
+	const query = new URLSearchParams(id.slice(queryIndex + 1));
+	if (!query.has('exact-remote-scope')) return undefined;
+	query.delete('exact-remote-scope');
+	query.delete('exact-remote-lang');
+	if ([...query].length > 0) return undefined;
+	const filename = id.slice(0, queryIndex);
+	const extension = path.extname(filename).toLowerCase();
+	if (!['.js', '.jsx', '.ts', '.tsx', '.mjs', '.mts', '.cjs', '.cts'].includes(extension))
+		return undefined;
+	// The eXact pre-transform converts all supported source forms to JavaScript
+	// before Vite's built-in transform runs. Explicitly identifying that output
+	// avoids Rolldown trying to infer a language from our scoped query-string id.
+	return { filename, moduleType: 'js' };
 }
 
 function injectProvidedPackageBootstrap(html: string, moduleId: string): string {

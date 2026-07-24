@@ -26,7 +26,7 @@ describe('@exactjs/vite-plugin: microfrontend integration', () => {
 				name: '@company/page-and-remote',
 				version: '1.0.0',
 				type: 'module',
-				dependencies: { '@exactjs/microfrontends': '0.0.0' }
+				dependencies: { '@exactjs/microfrontends': '^0.1.0' }
 			})
 		);
 		await writeFile(

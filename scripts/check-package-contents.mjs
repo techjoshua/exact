@@ -7,6 +7,7 @@ import process from 'node:process';
 const execFileAsync = promisify(execFile);
 const root = process.cwd();
 const packageRoots = [
+	'agents',
 	'packages',
 	'framework-adapters',
 	'react-adapters',

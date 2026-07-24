@@ -1,0 +1,20 @@
+{
+	"name": "@exactjs/agent-skill",
+	"version": "0.1.0",
+	"description": "Portable Agent Skill for building idiomatic eXact web applications",
+	"type": "module",
+	"files": [
+		"skills"
+	],
+	"keywords": [
+		"exact",
+		"exactjs",
+		"agent-skill",
+		"skill",
+		"typescript",
+		"tsx"
+	],
+	"publishConfig": {
+		"access": "public"
+	}
+}

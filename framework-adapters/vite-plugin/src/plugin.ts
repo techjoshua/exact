@@ -116,12 +116,18 @@ export type ExactPlugin = {
 		| { id: string; external?: boolean | 'absolute' | 'relative' }
 		| null
 		| Promise<string | { id: string; external?: boolean | 'absolute' | 'relative' } | null>;
-	load?(id: string): string | null;
+	load?(
+		id: string
+	):
+		| string
+		| { code: string; moduleType: 'js' | 'jsx' | 'ts' | 'tsx' }
+		| null
+		| Promise<string | { code: string; moduleType: 'js' | 'jsx' | 'ts' | 'tsx' } | null>;
 	transform(
 		this: { warn?(message: string): void },
 		code: string,
 		id: string
-	): { code: string; map: unknown } | null;
+	): { code: string; map: unknown; moduleType?: 'js' } | null;
 	handleHotUpdate?(this: { warn?(message: string): void }, context: { file: string }): void;
 	watchChange?(
 		this: { warn?(message: string): void },
@@ -304,7 +310,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 						code
 					);
 					microfrontends.recordModule(rewritten.code, id);
-					return rewritten;
+					return { ...rewritten, moduleType: 'js' };
 				}
 				if (
 					shouldCompileExactModule(
@@ -340,7 +346,8 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 						map:
 							options.sourceMap === false
 								? null
-								: createLineSourceMap(filename, code, rewritten.code)
+								: createLineSourceMap(filename, code, rewritten.code),
+						moduleType: 'js'
 					};
 				}
 				if (!compatibilityEngine) return null;
@@ -354,7 +361,9 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				for (const diagnostic of rewritten.diagnostics)
 					if (diagnostic.severity === 'warning') this.warn?.(diagnostic.message);
 				if (rewritten.changed) microfrontends.recordModule(rewritten.code, id);
-				return rewritten.changed ? { code: rewritten.code, map: rewritten.map } : null;
+				return rewritten.changed
+					? { code: rewritten.code, map: rewritten.map, moduleType: 'js' }
+					: null;
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
 				throw new Error(`eXact JSX transform failed for ${id}\n${message}`);

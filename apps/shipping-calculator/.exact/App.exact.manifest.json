@@ -248,7 +248,7 @@
           "description": "interactive JSX",
           "path": [
             "CalculatorWorkspace",
-            "<function@3193>",
+            "<function@3195>",
             "renderWorkspace",
             "interactive JSX"
           ]
@@ -258,7 +258,7 @@
           "description": "checked",
           "path": [
             "CalculatorWorkspace",
-            "<function@3193>",
+            "<function@3195>",
             "renderWorkspace",
             "checked"
           ]
@@ -268,7 +268,7 @@
           "description": "select",
           "path": [
             "CalculatorWorkspace",
-            "<function@3193>",
+            "<function@3195>",
             "renderWorkspace",
             "select"
           ]
@@ -278,7 +278,7 @@
           "description": "text",
           "path": [
             "CalculatorWorkspace",
-            "<function@3193>",
+            "<function@3195>",
             "renderWorkspace",
             "text"
           ]
@@ -290,7 +290,7 @@
           "description": "interactive JSX",
           "path": [
             "CalculatorWorkspace",
-            "<function@3193>",
+            "<function@3195>",
             "renderWorkspace",
             "interactive JSX"
           ]
@@ -300,7 +300,7 @@
           "description": "checked",
           "path": [
             "CalculatorWorkspace",
-            "<function@3193>",
+            "<function@3195>",
             "renderWorkspace",
             "checked"
           ]
@@ -310,7 +310,7 @@
           "description": "select",
           "path": [
             "CalculatorWorkspace",
-            "<function@3193>",
+            "<function@3195>",
             "renderWorkspace",
             "select"
           ]
@@ -320,7 +320,7 @@
           "description": "text",
           "path": [
             "CalculatorWorkspace",
-            "<function@3193>",
+            "<function@3195>",
             "renderWorkspace",
             "text"
           ]

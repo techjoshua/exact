@@ -57,16 +57,18 @@ type FilterPattern = string | RegExp | readonly (string | RegExp)[];
 /** Defines the bun build like type contract. */
 export type BunBuildLike = {
 	config?: {
-		conditions?: string[];
+		conditions?: string | string[];
 		watch?: boolean;
 	};
 	onResolve(
 		options: { filter: RegExp },
-		handler: (args: BunResolveArgs) => BunResolveResult | Promise<BunResolveResult>
+		handler: (
+			args: BunResolveArgs
+		) => BunResolveResult | undefined | Promise<BunResolveResult | undefined>
 	): void;
 	onLoad(
 		options: { filter: RegExp },
-		handler: (args: BunLoadArgs) => BunLoadResult | Promise<BunLoadResult>
+		handler: (args: BunLoadArgs) => BunLoadResult | undefined | Promise<BunLoadResult | undefined>
 	): void;
 	onStart?(handler: () => void | Promise<void>): void;
 };
@@ -93,7 +95,6 @@ export type BunLoadArgs = {
 export type BunLoadResult = {
 	contents?: string;
 	loader?: 'js' | 'jsx' | 'ts' | 'tsx';
-	sourcemap?: unknown;
 };
 
 /** Defines the bun plugin like type contract. */
@@ -132,7 +133,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 			let pluginRegistry = options.pluginRegistry;
 			build.config ??= {};
 			build.config.conditions = mergeConditions(
-				build.config.conditions ?? [],
+				normalizeConditions(build.config.conditions),
 				exactExportConditions(targetFor(options), options)
 			);
 			build.onStart?.(async () => {
@@ -148,7 +149,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 			});
 			build.onResolve({ filter: /\.exact$/ }, (args) => {
 				const resolved = resolveExactArtifactImport(args.path, args.importer, targetFor(options));
-				return resolved ? { path: resolved.id } : {};
+				return resolved ? { path: resolved.id } : undefined;
 			});
 			if (reactCompatibility) {
 				build.onResolve({ filter: /^react-reconciler$/ }, (args) => {
@@ -156,7 +157,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 						reactCompatibility.target,
 						args.importer ? path.dirname(args.importer) : process.cwd()
 					);
-					return {};
+					return undefined;
 				});
 				build.onResolve(
 					{
@@ -165,7 +166,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 					},
 					(args) => {
 						const replacement = reactCompatibility.aliases[args.path];
-						return replacement ? { path: replacement } : {};
+						return replacement ? { path: replacement } : undefined;
 					}
 				);
 			}
@@ -181,15 +182,35 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 					{ ...options, pluginRegistry },
 					compilerSession
 				);
-				if (!result) return {};
+				if (!result) return undefined;
 				return {
-					contents: result.code,
-					loader: args.path.endsWith('.tsx') ? 'tsx' : 'jsx',
-					...(result.map ? { sourcemap: result.map } : {})
+					contents: bunSourceWithMap(result.code, result.map),
+					loader: bunLoader(args.path)
 				};
 			});
 		}
 	};
+}
+
+function normalizeConditions(conditions: string | readonly string[] | undefined): string[] {
+	if (!conditions) return [];
+	return typeof conditions === 'string' ? [conditions] : [...conditions];
+}
+
+function bunSourceWithMap(code: string, map: unknown): string {
+	if (!map) return code;
+	const encoded = Buffer.from(typeof map === 'string' ? map : JSON.stringify(map)).toString(
+		'base64'
+	);
+	return `${code}\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${encoded}`;
+}
+
+function bunLoader(filename: string): NonNullable<BunLoadResult['loader']> {
+	const extension = path.extname(filename.split('?', 1)[0] ?? '').toLowerCase();
+	if (extension === '.tsx') return 'tsx';
+	if (extension === '.ts' || extension === '.mts' || extension === '.cts') return 'ts';
+	if (extension === '.jsx') return 'jsx';
+	return 'js';
 }
 
 async function readBunLoadSource(args: BunLoadArgs): Promise<string> {
@@ -290,7 +311,7 @@ function shouldTransform(id: string, code: string, options: ExactBunPluginOption
 	if (options.include && !matchesExactBuildFilter(id, options.include)) return false;
 	if (options.exclude && matchesExactBuildFilter(id, options.exclude)) return false;
 	return (
-		code.includes('<') ||
+		(/\.[jt]sx(?:$|\?)/i.test(id) && code.includes('<')) ||
 		/@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(code) ||
 		Object.values(options.pluginRegistry?.plugins ?? {}).some((plugin) => {
 			const include = plugin.extension?.include;

@@ -65,6 +65,7 @@ const bridgePrefix = '\0exact:provided/';
 const pageBootstrapImport = 'virtual:exact-provided-packages';
 const pageBootstrapId = '\0exact:provided/bootstrap';
 const remoteScopeParameter = 'exact-remote-scope';
+const remoteLanguageParameter = 'exact-remote-lang';
 const developmentEntryPrefix = 'virtual:exact-remote-entry/';
 
 /** Maps the common remote artifact plan onto Rollup/Vite native plugin hooks. */
@@ -215,7 +216,11 @@ function remoteScope(id: string, exposuresById: ReadonlyMap<string, unknown>): s
 
 function scopedId(id: string, scope: string): string {
 	const separator = id.includes('?') ? '&' : '?';
-	return `${id}${separator}${remoteScopeParameter}=${encodeURIComponent(scope)}`;
+	const extension = path.extname(id.split('?', 1)[0] ?? '');
+	const language = /^\.\w+$/.test(extension)
+		? `&${remoteLanguageParameter}=${encodeURIComponent(extension)}`
+		: '';
+	return `${id}${separator}${remoteScopeParameter}=${encodeURIComponent(scope)}${language}`;
 }
 
 function unscopedId(id: string): string {
@@ -223,6 +228,7 @@ function unscopedId(id: string): string {
 	if (!query) return id;
 	const parameters = new URLSearchParams(query);
 	parameters.delete(remoteScopeParameter);
+	parameters.delete(remoteLanguageParameter);
 	const remaining = parameters.toString();
 	return remaining ? `${pathname}?${remaining}` : pathname!;
 }

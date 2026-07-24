@@ -53,7 +53,7 @@ function DocsLayout(this: Component<LayoutState>) {
 	// Every route gets a fresh reading position, regardless of which link initiated navigation.
 	this.onMount(({ signal }) => {
 		const unsubscribe = route.router.subscribe(() => {
-			window.scrollTo(0, 0);
+			window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
 		});
 		signal.addEventListener('abort', unsubscribe, { once: true });
 	});
