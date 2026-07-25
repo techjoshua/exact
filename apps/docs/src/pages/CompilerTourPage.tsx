@@ -2,8 +2,9 @@ import type { Component } from '@exactjs/core';
 import { CodeBlock } from '../CodeBlock.jsx';
 import {
 	compilerTourAuthoredSource,
-	compilerTourGeneratedSource
-} from '../generated/compiler-tour.js';
+	compilerTourGeneratedSetupSource,
+	compilerTourGeneratedViewSource
+} from '../examples/compiler-tour.js';
 import { Article, Callout } from './Article.jsx';
 
 /** Explains how ordinary eXact source becomes precise runtime machinery. */
@@ -12,7 +13,7 @@ export function CompilerTourPage(this: Component<{}>) {
 		<Article
 			eyebrow="Learn"
 			title="What the compiler writes for you"
-			description="Follow one component from ordinary state, tasks, bindings, conditions, and keyed lists to the exact helper calls emitted by the current compiler."
+			description="Follow one component from ordinary state, tasks, bindings, conditions, and keyed lists to the runtime machinery the compiler creates."
 			previous={{ path: '/learn/state', label: 'State & derived values' }}
 			next={{ path: '/learn/lists', label: 'Keyed lists' }}
 		>
@@ -27,20 +28,35 @@ export function CompilerTourPage(this: Component<{}>) {
 				<CodeBlock source={compilerTourAuthoredSource} language="tsx" title="CatalogEditor.tsx" />
 			</section>
 			<section>
-				<h2>The actual generated module</h2>
+				<h2>Setup becomes owned reactive work</h2>
 				<p>
-					The following is not pseudocode. The docs build runs this repository&apos;s current{' '}
-					<code>@exactjs/compiler</code> transform over the example and generates the displayed
-					module. A compiler change therefore produces a reviewable documentation diff.
+					This is a compiler-faithful lowering, formatted and annotated for people rather than
+					copied byte-for-byte from a build artifact. Unchanged type declarations are omitted,
+					intermediate values are named where that clarifies sequencing, and opaque stable IDs are
+					replaced with descriptive placeholders. The helper calls and ownership structure are the
+					machinery the compiler creates.
 				</p>
 				<CodeBlock
-					source={compilerTourGeneratedSource}
+					source={compilerTourGeneratedSetupSource}
 					language="ts"
-					title="CatalogEditor.generated.ts"
+					title="Generated setup, annotated"
 				/>
 			</section>
 			<section>
-				<h2>Read the lowering by responsibility</h2>
+				<h2>JSX becomes narrow reactive boundaries</h2>
+				<p>
+					Formatting the nested VNode calls makes the important division visible: an attribute, text
+					expression, conditional range, binding, event, and keyed collection each retain their own
+					reactive responsibility.
+				</p>
+				<CodeBlock
+					source={compilerTourGeneratedViewSource}
+					language="ts"
+					title="Generated view, annotated"
+				/>
+			</section>
+			<section>
+				<h2>What to notice</h2>
 				<div className="definition-grid">
 					<code>Component wrapper</code>
 					<p>
