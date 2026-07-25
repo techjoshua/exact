@@ -8,6 +8,28 @@ export const defaultExpressionCorpusBatchSize = 16;
 /** Heap guardrail for the single TypeScript projection worker, in megabytes. */
 export const defaultExpressionCorpusWorkerHeapMb = 1_024;
 
+/** Selects projects that own expression projection or provide representative eXact TSX input. */
+export function isExpressionCorpusProject(manifest, jsxImportSource) {
+	return (
+		manifest?.name === '@exactjs/expressions' ||
+		['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'].some(
+			(section) => manifest?.[section]?.['@exactjs/expressions'] !== undefined
+		) ||
+		jsxImportSource === '@exactjs/jsx'
+	);
+}
+
+/** Omits tests, declarations, and Vitest-named test integration entry points from routine coverage. */
+export function isExpressionCorpusSource(filename) {
+	const basename = path.basename(filename);
+	return (
+		/\.[cm]?[jt]sx?$/.test(basename) &&
+		!/\.d\.[cm]?[jt]s$/.test(basename) &&
+		!/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(basename) &&
+		!/^vitest(?:\..+)?\.[cm]?[jt]s$/.test(basename)
+	);
+}
+
 /** Resolves a positive integer override or returns the supplied default. */
 export function positiveInteger(value, fallback, label) {
 	if (value === undefined || value === '') return fallback;
@@ -34,6 +56,7 @@ export function expressionCorpusRunRecord({
 	workers,
 	workerHeapMb,
 	batchSize,
+	profileDetail,
 	fileCount,
 	projectCount,
 	batchCount,
@@ -44,7 +67,10 @@ export function expressionCorpusRunRecord({
 	const expectedMs =
 		baseline?.workers === workers &&
 		baseline?.workerHeapMb === workerHeapMb &&
-		baseline?.batchSize === batchSize
+		baseline?.batchSize === batchSize &&
+		baseline?.profileDetail === profileDetail &&
+		baseline?.fileCount === fileCount &&
+		baseline?.projectCount === projectCount
 			? baseline.elapsedMs
 			: undefined;
 	return {
@@ -55,6 +81,7 @@ export function expressionCorpusRunRecord({
 		workers,
 		workerHeapMb,
 		batchSize,
+		profileDetail,
 		fileCount,
 		projectCount,
 		batchCount,
@@ -121,6 +148,7 @@ export async function writeExpressionCorpusBaseline(root, record) {
 				workers: record.workers,
 				workerHeapMb: record.workerHeapMb,
 				batchSize: record.batchSize,
+				profileDetail: record.profileDetail,
 				peakWorkerRssMb: record.peakWorkerRssMb,
 				fileCount: record.fileCount,
 				projectCount: record.projectCount,

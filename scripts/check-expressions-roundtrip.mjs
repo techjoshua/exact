@@ -1,8 +1,10 @@
-import { mkdir, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
+import os from 'node:os';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
+import ts from 'typescript';
 import {
 	appendExpressionCorpusHistory,
 	batchExpressionCorpusGroups,
@@ -10,6 +12,8 @@ import {
 	defaultExpressionCorpusWorkerHeapMb,
 	expressionCorpusRunRecord,
 	expressionCorpusTrend,
+	isExpressionCorpusProject,
+	isExpressionCorpusSource,
 	positiveInteger,
 	readExpressionCorpusBaseline,
 	writeExpressionCorpusBaseline
@@ -19,15 +23,22 @@ const root = path.resolve(import.meta.dirname, '..');
 const profiles = [];
 if (process.argv[2] === '--group') {
 	const input = await readStandardInput();
-	const { config, filenames } = JSON.parse(input);
-	process.stdout.write(JSON.stringify(await checkGroup(config, filenames)));
+	const { config, filenames, profileDetail } = JSON.parse(input);
+	process.stdout.write(JSON.stringify(await checkGroup(config, filenames, profileDetail)));
 } else {
 	const corpusStarted = performance.now();
 	const files = await collectSources(root);
 	const groups = new Map();
+	const projectEligibility = new Map();
 	for (const filename of files) {
 		const config = nearestConfig(path.dirname(filename));
 		if (!config) throw new Error(`No tsconfig.json found for ${filename}`);
+		let eligible = projectEligibility.get(config);
+		if (eligible === undefined) {
+			eligible = await expressionCorpusProject(config);
+			projectEligibility.set(config, eligible);
+		}
+		if (!eligible) continue;
 		const group = groups.get(config) ?? [];
 		group.push(filename);
 		groups.set(config, group);
@@ -42,12 +53,17 @@ if (process.argv[2] === '--group') {
 		[...groups].sort((left, right) => right[1].length - left[1].length),
 		batchSize
 	);
-	const concurrency = Math.max(1, Number.parseInt(process.env.EXACT_EXPRESSION_WORKERS ?? '1', 10));
+	const concurrency = positiveInteger(
+		process.env.EXACT_EXPRESSION_WORKERS,
+		Math.min(4, Math.max(2, os.availableParallelism() - 1)),
+		'EXACT_EXPRESSION_WORKERS'
+	);
 	const workerHeapMb = positiveInteger(
 		process.env.EXACT_EXPRESSION_WORKER_HEAP_MB,
 		defaultExpressionCorpusWorkerHeapMb,
 		'EXACT_EXPRESSION_WORKER_HEAP_MB'
 	);
+	const profileDetail = expressionProfileDetail(process.env.EXACT_EXPRESSION_PROFILE_DETAIL);
 	let cursor = 0;
 	const checked = entries.reduce((count, [, filenames]) => count + filenames.length, 0);
 	const baseline = await readExpressionCorpusBaseline(root);
@@ -57,7 +73,7 @@ if (process.argv[2] === '--group') {
 			Array.from({ length: Math.min(concurrency, entries.length) }, async () => {
 				while (cursor < entries.length) {
 					const [config, filenames] = entries[cursor++];
-					await runAdaptiveGroup(config, filenames, workerHeapMb);
+					await runAdaptiveGroup(config, filenames, workerHeapMb, profileDetail);
 				}
 			})
 		);
@@ -71,6 +87,7 @@ if (process.argv[2] === '--group') {
 		workers: concurrency,
 		workerHeapMb,
 		batchSize,
+		profileDetail,
 		fileCount: checked,
 		projectCount: groups.size,
 		batchCount: entries.length,
@@ -95,7 +112,7 @@ if (process.argv[2] === '--group') {
 	}
 }
 
-async function checkGroup(config, filenames) {
+async function checkGroup(config, filenames, profileDetail = 'summary') {
 	const { createExpressionProject } = await import('../packages/expressions/dist/index.js');
 	const { createProfileCollector } = await import('../packages/instrumentation/dist/index.js');
 	const collector = createProfileCollector();
@@ -106,7 +123,7 @@ async function checkGroup(config, filenames) {
 	const project = createExpressionProject({
 		tsconfigPath: config,
 		diagnostics: 'syntax',
-		profileDetail: 'detailed',
+		profileDetail,
 		onProfile: collector.sink
 	});
 	try {
@@ -123,6 +140,7 @@ async function checkGroup(config, filenames) {
 			fileCount: filenames.length,
 			elapsedMs: performance.now() - started,
 			maxRssMb: Math.ceil(process.resourceUsage().maxRSS / 1_024),
+			profileDetail,
 			events: collector.snapshot()
 		};
 	} finally {
@@ -130,7 +148,7 @@ async function checkGroup(config, filenames) {
 	}
 }
 
-function runGroup(config, filenames, workerHeapMb) {
+function runGroup(config, filenames, workerHeapMb, profileDetail) {
 	return new Promise((resolve, reject) => {
 		const child = spawn(
 			process.execPath,
@@ -169,18 +187,18 @@ function runGroup(config, filenames, workerHeapMb) {
 				);
 			}
 		});
-		child.stdin.end(JSON.stringify({ config, filenames }));
+		child.stdin.end(JSON.stringify({ config, filenames, profileDetail }));
 	});
 }
 
-async function runAdaptiveGroup(config, filenames, workerHeapMb) {
+async function runAdaptiveGroup(config, filenames, workerHeapMb, profileDetail) {
 	try {
-		profiles.push(await runGroup(config, filenames, workerHeapMb));
+		profiles.push(await runGroup(config, filenames, workerHeapMb, profileDetail));
 	} catch (error) {
 		if (filenames.length === 1) throw error;
 		const middle = Math.ceil(filenames.length / 2);
-		await runAdaptiveGroup(config, filenames.slice(0, middle), workerHeapMb);
-		await runAdaptiveGroup(config, filenames.slice(middle), workerHeapMb);
+		await runAdaptiveGroup(config, filenames.slice(0, middle), workerHeapMb, profileDetail);
+		await runAdaptiveGroup(config, filenames.slice(middle), workerHeapMb, profileDetail);
 	}
 }
 
@@ -232,6 +250,7 @@ function printProfileSummary(projects) {
 		'semantic-diagnostics',
 		'module-projection'
 	]);
+	if (!projects.some((project) => project.profileDetail === 'detailed')) return;
 	printPhases('Module projection stage breakdown:', [
 		'projection-identity',
 		'projection-node-conversion',
@@ -291,6 +310,14 @@ function printProfileSummary(projects) {
 	);
 }
 
+function expressionProfileDetail(value) {
+	if (value === undefined || value === '') return 'summary';
+	if (value === 'summary' || value === 'detailed') return value;
+	throw new Error(
+		`EXACT_EXPRESSION_PROFILE_DETAIL must be "summary" or "detailed", received ${JSON.stringify(value)}`
+	);
+}
+
 async function readStandardInput() {
 	let input = '';
 	for await (const chunk of process.stdin) input += chunk;
@@ -309,10 +336,38 @@ async function collectSources(directory) {
 			continue;
 		const filename = path.join(directory, entry.name);
 		if (entry.isDirectory()) output.push(...(await collectSources(filename)));
-		else if (/\.[cm]?[jt]sx?$/.test(entry.name) && !entry.name.endsWith('.d.ts'))
-			output.push(filename);
+		else if (isExpressionCorpusSource(entry.name)) output.push(filename);
 	}
 	return output;
+}
+
+async function expressionCorpusProject(config) {
+	const read = ts.readConfigFile(config, ts.sys.readFile);
+	if (read.error) return false;
+	const parsed = ts.parseJsonConfigFileContent(
+		read.config,
+		ts.sys,
+		path.dirname(config),
+		undefined,
+		config
+	);
+	const manifest = nearestManifest(path.dirname(config));
+	return isExpressionCorpusProject(
+		manifest ? JSON.parse(await readFile(manifest, 'utf8')) : undefined,
+		parsed.options.jsxImportSource
+	);
+}
+
+function nearestManifest(directory) {
+	let cursor = directory;
+	while (cursor.startsWith(root)) {
+		const candidate = path.join(cursor, 'package.json');
+		if (existsSync(candidate)) return candidate;
+		const parent = path.dirname(cursor);
+		if (parent === cursor) break;
+		cursor = parent;
+	}
+	return undefined;
 }
 
 function nearestConfig(directory) {

@@ -7,6 +7,8 @@ import {
 	batchExpressionCorpusGroups,
 	expressionCorpusRunRecord,
 	expressionCorpusTrend,
+	isExpressionCorpusProject,
+	isExpressionCorpusSource,
 	positiveInteger,
 	writeExpressionCorpusBaseline
 } from './measurement.mjs';
@@ -22,6 +24,29 @@ afterEach(async () => {
 });
 
 describe('expression corpus measurement policy', () => {
+	it('selects expression owners, direct consumers, and native eXact TSX projects', () => {
+		expect(isExpressionCorpusProject({ name: '@exactjs/expressions' })).toBe(true);
+		expect(
+			isExpressionCorpusProject({
+				name: '@exactjs/compiler',
+				dependencies: { '@exactjs/expressions': '^0.1.0' }
+			})
+		).toBe(true);
+		expect(isExpressionCorpusProject({ name: '@exactjs/sample-kanban' }, '@exactjs/jsx')).toBe(
+			true
+		);
+		expect(isExpressionCorpusProject({ name: '@exactjs/node-adapter' })).toBe(false);
+	});
+
+	it('selects corpus sources without test-runner-only entries', () => {
+		expect(isExpressionCorpusSource('component.tsx')).toBe(true);
+		expect(isExpressionCorpusSource('runtime.spec.ts')).toBe(false);
+		expect(isExpressionCorpusSource('runtime.test.tsx')).toBe(false);
+		expect(isExpressionCorpusSource('vitest.config.ts')).toBe(false);
+		expect(isExpressionCorpusSource('vitest.ts')).toBe(false);
+		expect(isExpressionCorpusSource('runtime.d.ts')).toBe(false);
+	});
+
 	it('bounds worker batches without changing project or file order', () => {
 		expect(
 			batchExpressionCorpusGroups(
@@ -52,15 +77,49 @@ describe('expression corpus measurement policy', () => {
 			workers: 2,
 			workerHeapMb: 4_096,
 			batchSize: 16,
+			profileDetail: 'summary',
 			fileCount: 4,
 			projectCount: 1,
 			batchCount: 1,
 			peakWorkerRssMb: 384,
-			baseline: { elapsedMs: 100, workers: 2, workerHeapMb: 4_096, batchSize: 16 }
+			baseline: {
+				elapsedMs: 100,
+				workers: 2,
+				workerHeapMb: 4_096,
+				batchSize: 16,
+				profileDetail: 'summary',
+				fileCount: 4,
+				projectCount: 1
+			}
 		});
 		expect(record.baselineRatio).toBe(1.2);
 		expect(record.peakWorkerRssMb).toBe(384);
 		expect(expressionCorpusTrend(record)).toBe('20.0% slower than baseline');
+	});
+
+	it('does not compare timings from a different corpus source set', () => {
+		const record = expressionCorpusRunRecord({
+			status: 'passed',
+			elapsedMs: 120,
+			workers: 2,
+			workerHeapMb: 1_024,
+			batchSize: 16,
+			profileDetail: 'summary',
+			fileCount: 4,
+			projectCount: 1,
+			batchCount: 1,
+			peakWorkerRssMb: 384,
+			baseline: {
+				elapsedMs: 100,
+				workers: 2,
+				workerHeapMb: 1_024,
+				batchSize: 16,
+				profileDetail: 'summary',
+				fileCount: 5,
+				projectCount: 1
+			}
+		});
+		expect(record.baselineRatio).toBeUndefined();
 	});
 
 	it('retains bounded local history and writes only successful baselines', async () => {
@@ -72,6 +131,7 @@ describe('expression corpus measurement policy', () => {
 			workers: 1,
 			workerHeapMb: 4_096,
 			batchSize: 16,
+			profileDetail: 'summary',
 			fileCount: 1,
 			projectCount: 1,
 			batchCount: 1,
