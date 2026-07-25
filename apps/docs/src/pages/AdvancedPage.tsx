@@ -5,17 +5,17 @@ type AdvancedCard = { /** @exact key */ title: string; text: string; packages: s
 const advancedCards: AdvancedCard[] = [
 	{
 		title: 'SSR and hydration',
-		text: 'Render boundary-marked HTML, then adopt it without discarding useful server work.',
+		text: 'Render boundary-marked HTML, adopt existing DOM, and lazily activate safe interaction islands.',
 		packages: '@exactjs/ssr · @exactjs/hydrate'
 	},
 	{
 		title: 'Server components',
-		text: 'Compile client and server artifacts with manifest-allowlisted actions and refresh boundaries.',
+		text: 'Compile cooperating client/server state machines with allowlisted actions and refresh boundaries.',
 		packages: '@exactjs/compiler · @exactjs/server'
 	},
 	{
 		title: 'Streaming',
-		text: 'Produce document events or browser-ready progressive HTML while respecting cancellation and backpressure.',
+		text: 'Reveal settled Suspense ranges while respecting cancellation, limits, and backpressure.',
 		packages: '@exactjs/ssr'
 	},
 	{
@@ -26,11 +26,11 @@ const advancedCards: AdvancedCard[] = [
 	{
 		title: 'Build adapters',
 		text: 'Use the compiler through Vite, Webpack, Bun, or the exactc precompile workflow.',
-		packages: '@exactjs/vite-plugin · @exactjs/webpack-plugin'
+		packages: '@exactjs/vite-plugin · @exactjs/webpack-plugin · @exactjs/bun-plugin'
 	},
 	{
 		title: 'Microfrontends',
-		text: 'Describe exposures, resolve remote components, and recover boundaries through an explicit plugin.',
+		text: 'Expose trusted component roots and recover independently deployed boundaries.',
 		packages: '@exactjs/microfrontends'
 	}
 ];
@@ -41,15 +41,16 @@ export function AdvancedPage(this: Component<{}>) {
 		<Article
 			eyebrow="Explore"
 			title="Beyond the browser"
-			description="The browser component model is the approachable center. Around it, eXact is developing a compiler-led path through servers, streams, hydration, and other ecosystems."
+			description="The same component model extends through SSR, progressive readiness, selective hydration, server execution, React compatibility, and trusted microfrontends."
 			previous={{ path: '/compare', label: 'Framework comparison' }}
 			next={{ path: '/packages', label: 'Package map' }}
 		>
-			<Callout title="Read this as capability, not a production promise" tone="warning">
+			<Callout title="Implemented does not mean unlimited" tone="warning">
 				<p>
-					The foundation is implemented and tested, but the distributed component protocol is still
-					expanding. Consult the repository’s focused architecture documents before adopting these
-					paths.
+					These paths have implementation and integration coverage. Production adopters must still
+					configure authorization, CSRF, CSP, limits, deployment pinning, observability, and request
+					contexts. Complicated server-child splitting, additional structural patch forms, and
+					microfrontend hosts beyond Vite/Rollup remain explicit limits.
 				</p>
 			</Callout>
 			<section>
@@ -76,14 +77,15 @@ export function AdvancedPage(this: Component<{}>) {
 				<p>
 					The compiler recognizes client islands whose initial browser responsibility is limited to
 					supported events and reactive form bindings. SSR emits the real inert control, and the
-					hydration runtime adopts that range when its first interaction reaches the document.
-					Islands with refs, initial client work, unsupported events, or server-only child graphs
-					remain eager automatically.
+					generated hydration registration loads that island&apos;s chunk when its first interaction
+					reaches the document. Islands with refs, initial client work, unsupported events, opaque
+					prop spreads, or server-only child graphs remain eager automatically.
 				</p>
 				<p>
-					A dirty input keeps its live browser value during adoption. That value flows through the
-					same compiled binding used after hydration, while generated element identity prevents a
-					captured interaction from being delivered to a stale replacement.
+					Actions are queued in order while code loads, repeated input/change events coalesce to the
+					latest value per target, and generated identity prevents replay into a stale replacement.
+					A dirty input keeps its live browser value during adoption and flows through the same
+					compiled binding used after hydration.
 				</p>
 				<Callout title="Framework-owned, not cooperative">
 					<p>

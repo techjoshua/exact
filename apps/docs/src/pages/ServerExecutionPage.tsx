@@ -14,18 +14,16 @@ const ProductRepositoryContext = createContext<ProductRepository>(
   { scope: 'request', reactive: false }
 );
 
-function ProductPage(
+async function ProductPage(
   this: Component<{ product?: Product; saves: number }>,
   props: { productId: string }
 ) {
   const products = this.getContext(ProductRepositoryContext);
   this.state.saves = 0;
 
-  this.task.server(async () => {
-    // props.productId is captured for this server transition.
-    // The repository is resolved from trusted server context.
-    this.state.product = await products.find(props.productId);
-  });
+  // The repository makes this continuation server-only. productId is
+  // captured automatically and the public result is staged into state.
+  this.state.product = await products.find(props.productId);
 
   return () => (
     <article>
@@ -96,7 +94,8 @@ export function ServerExecutionPage(this: Component<{}>) {
 				<CodeBlock source={authoredSource} language="tsx" title="ProductPage.tsx" />
 				<p>
 					The repository is created by the application&apos;s server runtime and resolved again for
-					each server transition. It is not serialized from the browser. The product ID is a
+					each server transition. Its use makes the awaited continuation server-only without an
+					explicit placement call. It is not serialized from the browser. The product ID is a
 					compiler-selected input, and the returned product is a deliberately shared, transport-safe
 					result that updates component state.
 				</p>

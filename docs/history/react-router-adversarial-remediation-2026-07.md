@@ -1,9 +1,10 @@
-# React Router Adversarial Remediation
+# React Router adversarial remediation (July 2026)
 
 Status: implemented and repository-wide verification complete.
 
 This document records how the findings in
-`react-router-adversarial-review.md` were addressed. The review remains a
+[`react-router-adversarial-review-2026-07.md`](react-router-adversarial-review-2026-07.md)
+were addressed. The review remains a
 historical description of the frozen implementation it examined.
 
 ## Finding dispositions

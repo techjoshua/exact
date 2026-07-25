@@ -85,8 +85,8 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 				<h2>The page renders a normal component boundary</h2>
 				<CodeBlock source={remoteComponentSource} language="tsx" title="BillingSlot.tsx" />
 				<p>
-					<code>RemoteComponent</code> loads and validates the entry, installs its manifest into an
-					isolated execution root, passes props and children, and owns disposal. A binding change
+					<code>RemoteComponent</code> loads and validates the generated registration, establishes
+					an isolated execution root, passes props and children, and owns disposal. A binding change
 					replaces the remote generation. Failed loads render the supplied fallback.
 				</p>
 			</section>
@@ -98,6 +98,15 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 					module, and preserve the page-owned root around it. Cross-root structural patches rotate
 					the remote component descriptor instead of pretending two independently built trees are
 					one local bundle.
+				</p>
+			</section>
+			<section>
+				<h2>Current host support is deliberately explicit</h2>
+				<p>
+					The complete producer/consumer reference path is Vite/Rollup. Webpack and Bun currently
+					have focused mappings that prove the common artifact plan can fit their native hooks, but
+					they are not yet advertised as complete microfrontend hosts. The normal compiler and
+					server adapters for those tools are a separate capability.
 				</p>
 			</section>
 			<Callout title="Trust boundary" tone="warning">

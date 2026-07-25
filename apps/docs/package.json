@@ -4,9 +4,13 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
+		"generate:compiler-tour": "node scripts/generate-compiler-tour.mjs",
+		"predev": "npm run generate:compiler-tour",
 		"dev": "vite",
+		"prebuild": "npm run generate:compiler-tour",
 		"build": "node scripts/build.mjs",
 		"preview": "node scripts/preview.mjs",
+		"pretypecheck": "npm run generate:compiler-tour",
 		"typecheck": "tsc --noEmit",
 		"verify": "npm run typecheck && npm run build"
 	},
@@ -20,6 +24,8 @@
 		"@exactjs/vite-plugin": "^0.1.0"
 	},
 	"devDependencies": {
+		"@exactjs/compiler": "^0.1.0",
+		"prettier": "3.6.2",
 		"typescript": "^7.0.2",
 		"vite": "^8.1.5"
 	}

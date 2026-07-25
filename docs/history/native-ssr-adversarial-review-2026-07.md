@@ -1,4 +1,7 @@
-# Native SSR And Server Components Adversarial Review
+# Native SSR and server components adversarial review (July 2026)
+
+Historical review record. Findings describe the frozen implementation named
+below and must not be read as the current framework contract.
 
 Date: 2026-07-18
 

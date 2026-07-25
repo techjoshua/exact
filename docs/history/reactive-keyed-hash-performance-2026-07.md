@@ -1,4 +1,7 @@
-# Reactive keyed-collection hash performance
+# Reactive keyed-collection hash performance (July 2026)
+
+Historical benchmark record. Current performance expectations live in the
+benchmark scripts and release gates, not in these captured measurements.
 
 This report records the before-and-after measurements for keyed collection hash metadata. The benchmark isolates reactive reconciliation from construction of the incoming snapshot; the protocol scenario includes encoding, JSON serialization, parsing, and decoding.
 

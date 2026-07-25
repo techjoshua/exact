@@ -2,6 +2,7 @@ import type { ComponentFunction } from '@exactjs/core';
 import { AdvancedPage } from './pages/AdvancedPage.jsx';
 import { AsyncInterfacesPage } from './pages/AsyncInterfacesPage.jsx';
 import { ComparisonPage } from './pages/ComparisonPage.jsx';
+import { CompilerTourPage } from './pages/CompilerTourPage.jsx';
 import { ComponentsPage } from './pages/ComponentsPage.jsx';
 import { FormsPage } from './pages/FormsPage.jsx';
 import { GettingStartedPage } from './pages/GettingStartedPage.jsx';
@@ -84,6 +85,15 @@ export const docGroups: DocGroup[] = [
 				summary: 'Direct state with precise reactive updates.',
 				keywords: 'state reactive computed derived batch',
 				component: StatePage
+			},
+			{
+				path: '/learn/compiler-tour',
+				label: 'Inside the compiler',
+				summary:
+					'Compare an ordinary eXact component with the precise runtime machinery generated for it.',
+				keywords:
+					'compiler generated output lowering transform reactive helpers task binding map JSX',
+				component: CompilerTourPage
 			},
 			{
 				path: '/learn/lists',

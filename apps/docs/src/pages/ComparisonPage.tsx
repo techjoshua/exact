@@ -7,7 +7,7 @@ export function ComparisonPage(this: Component<{}>) {
 		<Article
 			eyebrow="Explore"
 			title="How eXact compares"
-			description="React, Vue, Svelte, and eXact can all build serious interfaces. The useful comparison is where each framework puts state, update work, lifecycle, and ecosystem boundaries—and which tradeoffs fit your application."
+			description="React, Vue, Svelte, and eXact can all build serious interfaces. The useful comparison is where each framework puts state, update work, lifecycle, async readiness, and server coordination."
 			previous={{ path: '/examples/logo-lab', label: 'Logo lab' }}
 			next={{ path: '/advanced', label: 'Beyond the browser' }}
 		>
@@ -29,19 +29,16 @@ export function ComparisonPage(this: Component<{}>) {
 								<td>Component model</td>
 								<td>Long-lived instance; setup returns a connected view.</td>
 								<td>Function components are called to produce the next UI description.</td>
-								<td>
-									Component instance with Options or Composition API setup and a reactive render
-									effect.
-								</td>
+								<td>Component instance with setup and a reactive render effect.</td>
 								<td>Compiled component source using Svelte syntax and runes.</td>
 							</tr>
 							<tr>
 								<td>State</td>
-								<td>Direct fields on a deeply reactive instance object.</td>
+								<td>Direct fields on a deeply reactive, inspectable instance object.</td>
 								<td>Hooks or external stores; setters schedule rendering.</td>
 								<td>Reactive proxies and refs, with computed values and watchers.</td>
 								<td>
-									<code>$state</code>, <code>$derived</code>, and related runes in current syntax.
+									<code>$state</code>, <code>$derived</code>, and related runes.
 								</td>
 							</tr>
 							<tr>
@@ -52,23 +49,24 @@ export function ComparisonPage(this: Component<{}>) {
 								<td>Compiler-generated reactive updates with push-pull derived propagation.</td>
 							</tr>
 							<tr>
-								<td>Async ownership</td>
-								<td>Tasks combine dependencies, cancellation, placement, and resource disposal.</td>
+								<td>Async interface</td>
 								<td>
-									Effects and framework/library conventions; cleanup is returned from effects.
+									Compiler-lowered awaits, owned tasks, Suspense readiness, retained Activity
+									ranges, and task priority.
 								</td>
-								<td>
-									Watchers, effects, lifecycle hooks, and surrounding application framework
-									conventions.
-								</td>
-								<td>Effects, lifecycle, async template features, and SvelteKit conventions.</td>
+								<td>Suspense, transitions, Actions, Activity, and concurrent rendering.</td>
+								<td>Async setup, Suspense, watchers, and framework conventions.</td>
+								<td>Async template boundaries, effects, and SvelteKit data conventions.</td>
 							</tr>
 							<tr>
-								<td>Ecosystem today</td>
-								<td>Small and repository-first; includes targeted React compatibility.</td>
-								<td>Very large package, renderer, and framework ecosystem.</td>
-								<td>Large ecosystem with an official application framework.</td>
-								<td>Mature compiler framework with SvelteKit and a growing package ecosystem.</td>
+								<td>Server coordination</td>
+								<td>
+									Compiler-distributed client/server state machines and validated state/context
+									exchange.
+								</td>
+								<td>SSR primitives plus framework-defined server-component architecture.</td>
+								<td>SSR primitives plus framework-defined server routes and hydration.</td>
+								<td>Compiled SSR and SvelteKit server/client boundaries.</td>
 							</tr>
 						</tbody>
 					</table>
@@ -81,7 +79,7 @@ export function ComparisonPage(this: Component<{}>) {
 					compiler inference over ordinary TSX, fine-grained reactive DOM expressions, and
 					compiler-visible ownership of async and distributed work. The goal is not merely fewer DOM
 					operations; it is one analyzable model from a state read through tasks, server placement,
-					manifests, hydration, and plugins.
+					executable component contracts, hydration, and plugins.
 				</p>
 				<div className="card-grid">
 					<div className="topic-card">
@@ -111,12 +109,24 @@ export function ComparisonPage(this: Component<{}>) {
 				</div>
 			</section>
 			<section>
-				<h2>Reasons not to choose eXact yet</h2>
+				<h2>The functional boundary today</h2>
 				<p>
-					Choose an established alternative when public-package stability, a broad hiring pool,
-					third-party UI libraries, production case studies, or a large support community outweigh
-					eXact's model. eXact's current setup is repository-first, and some distributed protocols
-					are still expanding.
+					eXact covers precise client updates, keyed identity, portals, typed bindings, owned async
+					work, Suspense, retained inactive trees, scheduling, SSR, progressive boundary reveals,
+					DOM adoption, lazy interaction hydration, server execution, and fine-grained server
+					patches. Those are current capabilities rather than roadmap labels.
+				</p>
+				<p>
+					React remains more permissive when a component type comes from an opaque runtime registry.
+					It also exposes coordinated form Actions, optimistic state, View Transitions, resource
+					hints, and partial-prerender resume primitives that eXact does not yet match with one
+					native API. eXact supports declared components, immutable aliases, and finite conditional
+					component values; arbitrary registry lookup still needs an explicit compiler contract.
+				</p>
+				<p>
+					eXact&apos;s progressive renderer does not serialize postponed renderer state for a later
+					resume request. Some complicated server-child graphs still fall back to broader splitting
+					or boundary replacement. These are specific remaining gaps, not a missing component model.
 				</p>
 			</section>
 			<section>
@@ -125,7 +135,7 @@ export function ComparisonPage(this: Component<{}>) {
 					eXact is worth a close look when you want direct mutable-looking state without component
 					rerender semantics; when async cancellation and cleanup are central rather than
 					incidental; when compiler, server, hydration, and plugin boundaries should share one
-					manifest model; or when React compatibility can make a gradual trial realistic.
+					checked component model; or when React compatibility can make a gradual trial realistic.
 				</p>
 			</section>
 			<Callout title="Comparison basis">

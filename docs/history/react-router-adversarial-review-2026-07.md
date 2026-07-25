@@ -1,10 +1,10 @@
-# React Router Compatibility Adversarial Review
+# React Router compatibility adversarial review (July 2026)
 
 Status: final findings from the post-implementation adversarial pass.
 
 This document preserves the findings against the frozen review baseline. The
 subsequent disposition and verification evidence are tracked in
-`react-router-adversarial-remediation.md`.
+[`react-router-adversarial-remediation-2026-07.md`](react-router-adversarial-remediation-2026-07.md).
 
 Review baseline: pre-execution plan commit
 `0fc11e9976f28bfe6f050839b87604cc32a8db78`.
@@ -386,7 +386,7 @@ Evidence:
 - `packages/react-compat/src/build.ts:104`
 - `packages/react-compat/src/build.ts:222`
 - `packages/react-compat/src/build.ts:231`
-- `docs/react-router-compatibility-plan.md:753`
+- the implementation plan at the frozen review baseline
 
 The implementation is meaningfully tested, but the current evidence cannot
 justify broad claims of behavioral compatibility for every export in the

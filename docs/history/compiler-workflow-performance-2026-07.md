@@ -1,4 +1,7 @@
-# Compiler workflow performance
+# Compiler workflow performance (July 2026)
+
+Historical measurement record. The commit, machine, and commands below define
+the measured baseline; this file is not a current performance guarantee.
 
 Measured on commit `ca2d367` plus the compiler workflow changes in this
 working tree.

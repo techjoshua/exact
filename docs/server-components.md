@@ -35,29 +35,28 @@ const Products = createContext<ProductRepository>('products', {
 	reactive: false
 });
 
-export function ProductPage(
+export async function ProductPage(
 	this: Component<{ product?: { id: string; name: string } }>,
 	props: { id: string }
 ) {
 	const products = this.getContext(Products);
-
-	this.task.server(async () => {
-		this.state.product = await products.find(props.id);
-	});
+	this.state.product = await products.find(props.id);
 
 	return () => <h1>{this.state.product?.name}</h1>;
 }
 ```
 
-The compiler captures `props.id` for the server transition. `Products` is
-resolved from trusted request context on the server and is never accepted from
-the client. The result contract deliberately permits the plain product value
-to cross.
+The compiler sees that the awaited operation uses a request-scoped server
+context, lowers it into a blocking server continuation, and captures
+`props.id` for that transition. `Products` is resolved from trusted request
+context on the server and is never accepted from the client. The result
+contract deliberately permits the plain product value to cross.
 
-Use `this.task.server()` or `this.task.client()` when placement expresses
-architecture or an opaque dependency prevents inference. Explicit placement
-cannot contradict known effects: a server task cannot read `window`, and a
-client task cannot import a server-only module.
+Use explicit `this.task.server()` or `this.task.client()` when the work is an
+external effect, needs manual scheduling/readiness policy, placement itself
+expresses architecture, or an opaque dependency prevents inference. Explicit
+placement cannot contradict known effects: a server task cannot read
+`window`, and a client task cannot import a server-only module.
 
 ## Residency and disclosure
 

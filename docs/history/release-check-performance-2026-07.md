@@ -1,4 +1,7 @@
-# Release check performance
+# Release check performance (July 2026)
+
+Historical workflow measurement. The root `package.json` and
+`scripts/release-check.mjs` are authoritative for current commands and phases.
 
 The release workflow uses `scripts/release-check.mjs` to run each phase once, record
 its duration, and keep correctness checks separate from benchmarks. Timing reports

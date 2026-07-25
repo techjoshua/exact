@@ -586,10 +586,10 @@ JSX elements are internally mounted through cell boundaries. In compiler mode, e
 ## SSR And Hydration
 
 For the end-to-end server component build/runtime flow, see
-[docs/server-components.md](docs/server-components.md). The native adoption
-roadmap, server/request context direction, component-package contract, rendering
-safety policy, and generalized data/secret policy are consolidated in
-[docs/native-ssr-adoption-and-data-policy.md](docs/native-ssr-adoption-and-data-policy.md).
+[docs/server-components.md](docs/server-components.md). The current
+server/request context, component-package, rendering-safety, and generalized
+data/secret contracts are consolidated in
+[docs/server-context-and-data-policy.md](docs/server-context-and-data-policy.md).
 
 The current SSR/server-component foundation implements:
 
@@ -681,9 +681,9 @@ Framework diagnostics use the root logger passed to `render()`. The default cons
 
 `@exactjs/router` supplies component-reference routes with nested outlets. `Router` uses an explicit `LocationSource` when supplied, otherwise it reads the ambient server request or the browser History API:
 
-The planned renderer-neutral data-router core and versioned React Router v5
-and v6/v7 compatibility facades are specified in the
-[React Router compatibility plan](docs/react-router-compatibility-plan.md).
+The renderer-neutral data-router core and implemented React Router v5 and v6/v7
+compatibility facades are described in
+[React Router compatibility](docs/react-router-compatibility.md).
 
 ```tsx
 import { Link, Outlet, Route, Router } from '@exactjs/router';

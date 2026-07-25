@@ -1,9 +1,14 @@
-# Remove Compiler Manifest Files
+# Remove compiler manifest files
 
 ## Status
 
-Decision-complete implementation plan for removing generated
+Decision-complete proposal for removing generated
 `*.exact.manifest.json` files and the cross-package manifest protocol.
+
+This is not current behavior. The current producers and consumers are tracked
+in [`../manifest-usage-inventory.md`](../manifest-usage-inventory.md). The
+implementation must update current references and delete this proposal when
+the final sidecar is removed.
 
 This is a clean break. eXact is unreleased, so the work will not retain
 deprecated APIs, compatibility readers, legacy registry generators, or package

@@ -98,7 +98,7 @@ export function StatePage(this: Component<{}>) {
 			title="State that reads like state"
 			description="Read a field when you need it. Assign to it when something changes. Safe derived constants stay cached and update their consumers precisely."
 			previous={{ path: '/learn/components', label: 'Components' }}
-			next={{ path: '/learn/lists', label: 'Keyed lists' }}
+			next={{ path: '/learn/compiler-tour', label: 'Inside the compiler' }}
 		>
 			<section>
 				<h2>Reactivity is the connective tissue</h2>
