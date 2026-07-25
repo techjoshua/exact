@@ -124,6 +124,22 @@ export function mergeHydrationRegistration(
 			(left, right) => sameStringList(left, right)
 		);
 	}
+	if (registration.continuations) {
+		options.continuations = mergeUniqueRecord(
+			options.continuations,
+			registration.continuations,
+			'continuation',
+			sameJsonData
+		);
+	}
+	if (registration.publicContexts) {
+		options.publicContexts = mergeUniqueRecord(
+			options.publicContexts,
+			registration.publicContexts,
+			'public context',
+			sameJsonData
+		);
+	}
 	if (registration.islands) mergeClientIslands(options, registration.islands);
 	if (registration.transports) {
 		options.transports = mergeUniqueRecord(

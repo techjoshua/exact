@@ -29,12 +29,13 @@ export async function invokeAndApply(
 	options: HydrateOptions
 ): Promise<ExactInvocationResult> {
 	const work = createDomWorkBudget(options.maxTreeNodes);
+	const continuation = type === 'action' ? options.continuations?.[id] : undefined;
 	let versions = requestVersions.get(container);
 	if (!versions) {
 		versions = new Map();
 		requestVersions.set(container, versions);
 	}
-	const configuredBoundaries = options.actionBoundaries?.[id];
+	const configuredBoundaries = continuation?.boundaries ?? options.actionBoundaries?.[id];
 	const requestKeys = [
 		...new Set(
 			type === 'refresh'
@@ -55,20 +56,26 @@ export async function invokeAndApply(
 		payload,
 		state:
 			type === 'action'
-				? stateForContract(client.state, client.stateContracts?.[id])
+				? stateForContract(
+						client.state,
+						continuation
+							? {
+									reads: continuation.stateReads
+								}
+							: client.stateContracts?.[id]
+					)
 				: client.state,
+		publicContext:
+			type === 'action'
+				? publicContextFor(options.publicContexts, continuation?.publicContexts)
+				: undefined,
 		boundaryHtml:
 			type === 'refresh'
 				? boundaryInnerHtml(container, id, work, options.executionRoot ?? 'page')
 				: undefined,
 		boundaryHtmls:
 			type === 'action'
-				? boundaryHtmlsFor(
-						container,
-						options.actionBoundaries?.[id],
-						work,
-						options.executionRoot ?? 'page'
-					)
+				? boundaryHtmlsFor(container, configuredBoundaries, work, options.executionRoot ?? 'page')
 				: undefined
 	};
 	const endpoint = requireEndpoint(endpointForOperation(client, type, id));
@@ -182,6 +189,22 @@ export async function invokeAndApply(
 		stale: partiallyStale
 	});
 	return result;
+}
+
+/** Selects only compiler-approved shared context projections for one activation record. */
+function publicContextFor(
+	values: Record<string, unknown> | undefined,
+	tokens: readonly string[] | undefined
+): Record<string, unknown> | undefined {
+	if (!tokens?.length) return undefined;
+	const output: Record<string, unknown> = {};
+	for (const token of tokens) {
+		if (!values || !Object.prototype.hasOwnProperty.call(values, token)) {
+			throw new Error(`Missing eXact public context projection ${token}`);
+		}
+		output[token] = values[token];
+	}
+	return output;
 }
 
 /** Validates endpoint and throws when the contract is violated. */

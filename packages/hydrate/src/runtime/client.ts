@@ -57,6 +57,8 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 		endpoints: cloneEndpointRoutes(resolvedOptions.endpoints),
 		stateContracts: { ...(resolvedOptions.stateContracts ?? {}) },
 		actionBoundaries: { ...(resolvedOptions.actionBoundaries ?? {}) },
+		continuations: { ...(resolvedOptions.continuations ?? {}) },
+		publicContexts: { ...(resolvedOptions.publicContexts ?? {}) },
 		islands: { ...(resolvedOptions.islands ?? {}) },
 		transports: { ...(resolvedOptions.transports ?? {}) },
 		signal: lifetime.signal
@@ -104,6 +106,9 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 		},
 		get stateContracts() {
 			return runtimeOptions.stateContracts;
+		},
+		get continuations() {
+			return runtimeOptions.continuations;
 		},
 		get pendingRequests() {
 			return pendingRequests;

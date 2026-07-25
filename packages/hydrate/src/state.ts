@@ -2,12 +2,12 @@ import { isSafeObjectKey } from './safety.js';
 import type { ExactStateContract } from './types.js';
 
 type MutableStateContainer = Record<string, unknown> | unknown[];
+type StateReadContract = {
+	readonly reads?: readonly NonNullable<ExactStateContract['reads']>[number][];
+};
 
 /** Returns only the client state paths required by an exact server action contract. */
-export function stateForContract(
-	state: unknown,
-	contract: ExactStateContract | undefined
-): unknown {
+export function stateForContract(state: unknown, contract: StateReadContract | undefined): unknown {
 	if (!contract) return state;
 	const reads =
 		contract.reads?.filter((read) => read.kind === 'read' && read.confidence === 'exact') ?? [];

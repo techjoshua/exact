@@ -5,10 +5,8 @@ import type {
 	ClientIslandRegistryOptions,
 	ExactArtifactGraph,
 	ExactArtifactGraphInput,
-	ExactBoundaryIR,
 	ExactHydrationRegistrationModuleOptions,
 	ExactRegistryModuleOptions,
-	ExactStateEffect,
 	ExactSymbolIR,
 	ServerPartRegistryEntry,
 	ServerPartRegistryOptions
@@ -92,15 +90,19 @@ export function createExactHydrationRegistrationModule(
 ): string {
 	const islandsExportName = options.islandsExportName ?? 'exactClientIslands';
 	const registrationExportName = options.registrationExportName ?? 'exactHydrationRegistration';
-	const islandsModule = createClientDescriptorCompositionModule(graph, islandsExportName);
+	const continuationsName = '__exactContinuations';
+	const islandsModule = createClientDescriptorCompositionModule(
+		graph,
+		islandsExportName,
+		continuationsName
+	);
 	const registration = omitUndefinedProperties({
 		endpoint: options.endpoint,
-		endpoints: options.endpoints,
-		stateContracts: hydrationStateContractsFromGraph(graph),
-		actionBoundaries: hydrationActionBoundariesFromGraph(graph)
+		endpoints: options.endpoints
 	});
 	const registrationEntries = [
 		`  islands: ${islandsExportName}`,
+		`  continuations: ${continuationsName}`,
 		...Object.entries(registration).map(
 			([key, value]) => `  ${JSON.stringify(key)}: ${JSON.stringify(value)}`
 		)
@@ -110,7 +112,8 @@ export function createExactHydrationRegistrationModule(
 
 function createClientDescriptorCompositionModule(
 	graph: ExactArtifactGraph,
-	exportName: string
+	exportName: string,
+	continuationsName: string
 ): string {
 	const moduleByComponent = new Map(
 		graph.clientIslands.map((entry) => [entry.componentId, entry.module])
@@ -151,10 +154,13 @@ function createClientDescriptorCompositionModule(
 	);
 	const values = sorted.map((_, index) => `  __exactComponent${index}`);
 	return [
-		'import { composeExactComponentDescriptors as __exactComposeDescriptors } from "@exactjs/core";',
+		'import { composeExactComponentDescriptors as __exactComposeDescriptors, composeExactContinuationDescriptors as __exactComposeContinuations } from "@exactjs/core";',
 		...imports,
 		'',
 		`export const ${exportName} = __exactComposeDescriptors([`,
+		...values.map((value, index) => `${value}${index + 1 < values.length ? ',' : ''}`),
+		'], "client");',
+		`const ${continuationsName} = __exactComposeContinuations([`,
 		...values.map((value, index) => `${value}${index + 1 < values.length ? ',' : ''}`),
 		'], "client");',
 		''
@@ -192,53 +198,6 @@ function createNamedRegistryModule(
 		properties.push(`  ${JSON.stringify(entry.name)}: ${local}`);
 	});
 	return `${imports.join('\n')}\n\nexport const ${exportName} = {\n${properties.join(',\n')}\n};\n`;
-}
-
-function hydrationStateContractsFromGraph(
-	graph: ExactArtifactGraph
-): Record<string, { reads: ExactStateEffect[]; writes: ExactStateEffect[] }> {
-	const entries: [string, { reads: ExactStateEffect[]; writes: ExactStateEffect[] }][] = [];
-	for (const entry of graph.artifacts) {
-		for (const [id, action] of Object.entries(entry.manifest.serverActions)) {
-			entries.push([id, action.stateContract]);
-		}
-	}
-	return Object.fromEntries(entries.sort(([left], [right]) => left.localeCompare(right)));
-}
-
-function hydrationActionBoundariesFromGraph(graph: ExactArtifactGraph): Record<string, string[]> {
-	const boundaries = new Map<string, ExactBoundaryIR>();
-	const componentBoundaries = new Map<string, string>();
-	for (const entry of graph.artifacts) {
-		for (const boundary of entry.manifest.boundaries) {
-			boundaries.set(boundary.id, boundary);
-		}
-		for (const component of entry.manifest.components) {
-			if (component.placement === 'client') continue;
-			componentBoundaries.set(component.id, component.id);
-		}
-	}
-
-	const output: Record<string, string[]> = {};
-	const actions = graph.artifacts
-		.flatMap((entry) => Object.values(entry.manifest.serverActions))
-		.sort((left, right) => left.id.localeCompare(right.id));
-	for (const action of actions) {
-		// Actions refresh all boundaries owned by the action's component, including
-		// the component root fallback boundary for server-renderable components.
-		const ids = [
-			...[...boundaries.values()]
-				.filter(
-					(boundary) => (boundary.ownerComponentId ?? boundary.componentId) === action.componentId
-				)
-				.map((boundary) => boundary.id),
-			...[...componentBoundaries.entries()]
-				.filter(([componentId]) => componentId === action.componentId)
-				.map(([, boundaryId]) => boundaryId)
-		].sort();
-		if (ids.length) output[action.id] = [...new Set(ids)];
-	}
-	return output;
 }
 
 function omitUndefinedProperties(value: Record<string, unknown>): Record<string, unknown> {

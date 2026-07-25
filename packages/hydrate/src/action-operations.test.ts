@@ -5,6 +5,58 @@ import { describe, expect, it } from 'vitest';
 import { createExactClient } from './index.js';
 
 describe('@exactjs/hydrate action-operations', () => {
+	it('uses continuation descriptors for minimal activation records', async () => {
+		const container = document.createElement('main');
+		container.innerHTML = '<!--exact:profile--><p>Ada</p><!--/exact:profile-->';
+		let requestBody: any;
+		const client = createExactClient(container, {
+			endpoint: '/__exact',
+			state: {
+				project: { id: 'p1', privateNote: 'hidden' },
+				unrelated: true
+			},
+			continuations: {
+				save: {
+					id: 'save',
+					stateReads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }],
+					stateWrites: [],
+					publicContexts: ['PublicConfig'],
+					serverContexts: [],
+					boundaries: ['profile']
+				}
+			},
+			publicContexts: {
+				PublicConfig: { appDomain: 'https://example.test' },
+				UnusedConfig: { value: 'not transported' }
+			},
+			fetch: async (_input, init) => {
+				requestBody = JSON.parse(init.body);
+				return {
+					ok: true,
+					status: 200,
+					async json() {
+						return { ok: true, type: 'action', id: 'save' };
+					}
+				};
+			}
+		});
+
+		await client.invokeAction('save');
+
+		expect(requestBody).toEqual({
+			type: 'action',
+			root: 'page',
+			id: 'save',
+			state: { project: { id: 'p1' } },
+			publicContext: {
+				PublicConfig: { appDomain: 'https://example.test' }
+			},
+			boundaryHtmls: {
+				profile: '<p>Ada</p>'
+			}
+		});
+	});
+
 	it('sends configured action boundary snapshots with action invocations', async () => {
 		const container = document.createElement('main');
 		container.innerHTML =

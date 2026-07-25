@@ -81,11 +81,14 @@ export { renderInstance } from './component/render.js';
 export { createComponentInstance, reparentComponentInstance } from './component/runtime.js';
 export {
 	composeExactComponentDescriptors,
+	composeExactContinuationDescriptors,
 	exactClientComponentDescriptor,
 	exactServerComponentDescriptor,
 	readExactComponentDescriptor,
 	type ExactComponentDescriptor,
-	type ExactComponentDescriptorEntry
+	type ExactComponentDescriptorEntry,
+	type ExactComponentContinuationDescriptor,
+	type ExactContinuationStatePathDescriptor
 } from './descriptors.js';
 export { sameJsonData, type JsonComparisonOptions } from './json.js';
 export { createContext, createRef, type ContextOptions } from './keys.js';

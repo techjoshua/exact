@@ -1,5 +1,10 @@
 import ts from 'typescript';
-import type { ExactCompilerManifest, ExactSymbolIR, TransformTarget } from './types.js';
+import type {
+	ExactCompilerManifest,
+	ExactContinuationIR,
+	ExactSymbolIR,
+	TransformTarget
+} from './types.js';
 
 type DescriptorGroup = {
 	protocol: string;
@@ -7,6 +12,7 @@ type DescriptorGroup = {
 		symbol: ExactSymbolIR;
 		componentImplementation: boolean;
 	}>;
+	continuations: ExactContinuationIR[];
 };
 
 /**
@@ -50,7 +56,10 @@ export function exactComponentDescriptorTransformer(
 					target === 'client'
 						? '@exactjs/client-component-descriptor'
 						: '@exactjs/server-component-descriptor',
-				entries
+				entries,
+				continuations: manifest.continuations.filter(
+					(continuation) => continuation.componentId === component.id
+				)
 			});
 	}
 
@@ -291,7 +300,16 @@ function descriptorAttachment(
 			factory.createPropertyAssignment(
 				factory.createComputedPropertyName(descriptorSymbol),
 				factory.createArrayLiteralExpression(
-					[factory.createNumericLiteral(1), factory.createArrayLiteralExpression(entries, true)],
+					[
+						factory.createNumericLiteral(2),
+						factory.createArrayLiteralExpression(entries, true),
+						jsonExpression(
+							group.continuations.map((continuation) =>
+								runtimeContinuationDescriptor(continuation, group.protocol)
+							),
+							factory
+						)
+					],
 					true
 				)
 			)
@@ -320,6 +338,58 @@ function descriptorAttachment(
 			[]
 		)
 	);
+}
+
+/** Produces the target-local public operation contract attached to a component artifact. */
+function runtimeContinuationDescriptor(
+	continuation: ExactContinuationIR,
+	protocol: string
+): Record<string, unknown> {
+	const client = protocol === '@exactjs/client-component-descriptor';
+	return {
+		id: continuation.id,
+		stateReads: continuation.activation.stateReads.map(statePathDescriptor),
+		stateWrites: continuation.effects.stateWrites.map(statePathDescriptor),
+		publicContexts: continuation.activation.publicContexts.map((context) => context.token),
+		serverContexts: client
+			? []
+			: continuation.activation.serverContexts.map((context) => context.token),
+		boundaries: continuation.effects.boundaries
+	};
+}
+
+/** Removes compiler-only receiver metadata from a runtime state-path contract. */
+function statePathDescriptor(
+	effect: ExactContinuationIR['activation']['stateReads'][number]
+): Record<string, unknown> {
+	return {
+		path: effect.path,
+		kind: effect.kind,
+		confidence: effect.confidence
+	};
+}
+
+/** Converts JSON-shaped compiler IR into a TypeScript expression without executable source text. */
+function jsonExpression(value: unknown, factory: ts.NodeFactory): ts.Expression {
+	if (value === null) return factory.createNull();
+	if (typeof value === 'string') return factory.createStringLiteral(value);
+	if (typeof value === 'number') return factory.createNumericLiteral(value);
+	if (typeof value === 'boolean') return value ? factory.createTrue() : factory.createFalse();
+	if (Array.isArray(value)) {
+		return factory.createArrayLiteralExpression(
+			value.map((item) => jsonExpression(item, factory)),
+			true
+		);
+	}
+	if (value && typeof value === 'object') {
+		return factory.createObjectLiteralExpression(
+			Object.entries(value as Record<string, unknown>).map(([key, item]) =>
+				factory.createPropertyAssignment(key, jsonExpression(item, factory))
+			),
+			true
+		);
+	}
+	throw new TypeError('Continuation descriptor contains an unsupported value');
 }
 
 function createDescriptorSymbolDeclaration(
