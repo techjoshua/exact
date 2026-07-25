@@ -36,6 +36,7 @@ describe('@exactjs/ssr component resumption', () => {
 					{
 						id: 'task:load',
 						componentId: 'component:Counter',
+						readiness: 'nonblocking' as const,
 						dependencies: [],
 						stateReads: [],
 						stateWrites: [{ path: 'count', kind: 'write' as const, confidence: 'exact' as const }],
@@ -95,6 +96,7 @@ describe('@exactjs/ssr component resumption', () => {
 					{
 						id: 'task:stream',
 						componentId: 'component:StreamedCounter',
+						readiness: 'nonblocking' as const,
 						dependencies: [],
 						stateReads: [],
 						stateWrites: [{ path: 'count', kind: 'write' as const, confidence: 'exact' as const }],
@@ -154,6 +156,7 @@ describe('@exactjs/ssr component resumption', () => {
 					{
 						id: 'task:status',
 						componentId: 'component:Provider',
+						readiness: 'nonblocking' as const,
 						dependencies: [],
 						stateReads: [],
 						stateWrites: [],

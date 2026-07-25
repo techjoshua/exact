@@ -1,24 +1,37 @@
 import {
+	Activity,
 	Dynamic,
 	Fragment,
+	ReadinessContext,
 	ServerBoundary,
 	ServerSlot,
+	Suspense,
+	SuspensionContext,
 	Text,
 	UnsafeHtml,
 	createComponentInstance,
+	createReadinessCoordinator,
 	createErrorReport,
 	getCellVNode,
 	handleComponentError,
 	isCellVNode,
 	isVNode,
 	normalizeRenderResult,
+	normalizeActivityMode,
 	renderInstance,
 	withTaskObserver,
+	type Component,
 	type VNode
 } from '@exactjs/core';
 import { flushSync, unwrap } from '@exactjs/reactive';
 import { escapeText, voidElements } from '../html.js';
-import { exactMarkerId, markerId, markerPair, renderAttrs } from '../markup.js';
+import {
+	exactMarkerId,
+	markerId,
+	markerPair,
+	renderAttrs,
+	suspenseStatusMarkerId
+} from '../markup.js';
 import {
 	assertOutputCharacterBound,
 	boundedJoin,
@@ -36,7 +49,7 @@ import type {
 	TaskObserver
 } from '../types.js';
 import { componentName, getComponentProps, renderServerBoundaryAsync } from './boundaries.js';
-import { drainTasks } from './context.js';
+import { awaitWithAbort, drainTasks } from './context.js';
 import { type SsrRenderOptions } from './entrypoints.js';
 import {
 	claimRootText,
@@ -123,6 +136,23 @@ export async function renderVNodeAsyncInner(
 		);
 	}
 
+	if (vnode.type === Activity) {
+		const mode = normalizeActivityMode(unwrap(vnode.props.mode));
+		return markerPair(context, markerId(context, 'activity', undefined, vnode.key), async () =>
+			mode === 'active' ? await renderChildrenAsync(context, vnode.children, parent, options) : ''
+		);
+	}
+
+	if (vnode.type === Suspense) {
+		const identity = markerId(context, 'suspense', undefined, vnode.key);
+		const rendered = await renderNativeSuspenseAsync(context, vnode, parent, options);
+		return markerPair(
+			context,
+			suspenseStatusMarkerId(identity, rendered.status),
+			() => rendered.html
+		);
+	}
+
 	if (vnode.type === Fragment) {
 		const list = vnode.props.list as
 			| {
@@ -202,6 +232,60 @@ export async function renderVNodeAsyncInner(
 	} finally {
 		leaveHost(context, tag);
 	}
+}
+
+async function renderNativeSuspenseAsync(
+	context: SsrContext,
+	vnode: VNode,
+	parent: ComponentInstance<any> | undefined,
+	options: SsrRenderOptions
+): Promise<{ readonly html: string; readonly status: 'content' | 'fallback' }> {
+	const coordinator = createReadinessCoordinator(() => undefined, { commitSettled: true });
+	coordinator.beginGeneration();
+	const owner = createComponentInstance(
+		SsrReadinessOwner,
+		{ context: coordinator.context },
+		parent,
+		context.componentContexts
+	);
+	try {
+		const maxPasses = options.maxTaskPasses ?? 10;
+		for (let pass = 0; pass < maxPasses; pass++) {
+			if (pass) coordinator.beginGeneration();
+			const candidate = await renderChildrenAsync(context, vnode.children, owner, options);
+			const readiness = await awaitWithAbort(
+				coordinator.whenReady(),
+				options.signal,
+				options.taskDeadline
+			);
+			if (readiness.generation !== coordinator.generation) continue;
+			if (readiness.retry) continue;
+			return { html: candidate, status: 'content' };
+		}
+		throw new Error(
+			`eXact async SSR Suspense boundary did not stabilize after ${maxPasses} render passes`
+		);
+	} finally {
+		coordinator.dispose();
+		owner.unmount('ssr suspense complete');
+	}
+}
+
+function SsrReadinessOwner(
+	this: Component<Record<string, never>>,
+	props: { context: ReturnType<typeof createReadinessCoordinator>['context'] }
+) {
+	this.setContext(ReadinessContext, props.context);
+	this.setContext(SuspensionContext, {
+		suspend: (settlement) =>
+			props.context.register({
+				owner: this as unknown as ComponentInstance<any>,
+				taskGeneration: 0,
+				settlement,
+				retry: true
+			})
+	});
+	return () => null;
 }
 
 /** Transforms component into its required representation. */

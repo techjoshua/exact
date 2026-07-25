@@ -6,6 +6,7 @@ export {
 	encodeReactiveProtocolValue,
 	mutateReactiveArray,
 	peek,
+	runWithPriority,
 	unwrap,
 	updateReactiveValue,
 	updateReactiveValueWithResult,
@@ -13,7 +14,7 @@ export {
 	writeReactive,
 	writeReactiveLazy
 } from '@exactjs/reactive';
-export type { Reactive, ReactiveValue, StopHandle } from '@exactjs/reactive';
+export type { Reactive, ReactiveValue, StopHandle, WorkPriority } from '@exactjs/reactive';
 export {
 	attachSuppressedCleanupFailure,
 	attemptCleanup,
@@ -22,6 +23,7 @@ export {
 	throwCleanupFailure,
 	type CleanupFailure
 } from './cleanup.js';
+export { normalizeActivityMode } from './activity.js';
 export { observeComponentAsync, trackComponentAsync } from './component/async.js';
 export {
 	createComponentDomain,
@@ -34,8 +36,20 @@ export {
 	componentContinuationContextValues,
 	registerComponentContinuationContexts
 } from './component/context-resumption.js';
-export { ErrorContext, LoggerContext, SuspensionContext } from './component/contexts.js';
+export {
+	ErrorContext,
+	LoggerContext,
+	ReadinessContext,
+	SuspensionContext
+} from './component/contexts.js';
+export {
+	componentReadinessContext,
+	createReadinessCoordinator,
+	type ReadinessCoordinator,
+	type ReadinessCoordinatorOptions
+} from './component/readiness.js';
 export type {
+	ActivityMode,
 	Child,
 	Cleanup,
 	Component,
@@ -47,8 +61,10 @@ export type {
 	ComponentFunction,
 	ComponentInstance,
 	ComponentReactiveValue,
+	BlockingWork,
 	ComponentResumptionActivation,
 	ComponentTask,
+	ComponentTaskCallable,
 	ComponentTaskRegistration,
 	ContextToken,
 	ErrorContextValue,
@@ -61,6 +77,8 @@ export type {
 	RefBinding,
 	RefKey,
 	RefRegistry,
+	ReadinessContextValue,
+	ReadinessRegistration,
 	RenderEventHandler,
 	RenderFunction,
 	RenderResult,
@@ -70,6 +88,8 @@ export type {
 	TaskIdleDeadline,
 	TaskIdleOptions,
 	TaskObserver,
+	TaskPlacementRequest,
+	TaskPolicy,
 	TaskResourceDisposal,
 	TaskResult,
 	UnsafeHtmlAuditEvent,
@@ -122,12 +142,14 @@ export {
 	exactMarkerStart
 } from './protocol.js';
 export {
+	Activity,
 	Cell,
 	Dynamic,
 	Fragment,
 	Portal,
 	ServerBoundary,
 	ServerSlot,
+	Suspense,
 	Text,
 	UnsafeHtml
 } from './symbols.js';
@@ -138,8 +160,11 @@ export {
 } from './task/continuation.js';
 export {
 	createDerived,
+	discardTaskMutations,
 	ownTaskResource,
+	publishTaskMutations,
 	registerTaskCleanup,
+	stageTaskMutation,
 	taskAnimationFrame,
 	taskAwait,
 	taskFetch,

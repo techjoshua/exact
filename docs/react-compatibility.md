@@ -129,12 +129,12 @@ The following behavior is supported directly:
 - React Compiler memo-cache slots through `react/compiler-runtime`.
 - `requestFormReset` for mounted HTML forms.
 
-Scheduling and request-scoped APIs are intentionally approximate because eXact does not implement React Fiber lanes or React server cache lifetimes:
+Scheduling and request-scoped APIs use eXact's ownership model rather than React Fiber:
 
-- Suspense implements fallback and retry semantics, but not concurrent reveal ordering, Suspense streaming, or hydration coordination.
-- `startTransition`, `useTransition`, and `useDeferredValue` preserve the public state/action contract using synchronous actions and microtask deferral rather than concurrent priority lanes.
+- Suspense delegates fallback, retained committed content, retry, cancellation, and candidate ownership to eXact readiness ranges. React-compatible server streams remain all-ready rather than reproducing React's private progressive wire protocol.
+- `startTransition`, `useTransition`, and `useDeferredValue` schedule work in eXact's deferred lane. They do not reproduce Fiber's complete lane-entanglement and interruption model.
 - `useActionState` and `useOptimistic` provide async pending state and optimistic reduction without native form-transition coordination or lane-based rollback.
-- `Activity` provides visible/hidden structural behavior without preserving a hidden subtree's effects and state.
+- React 19 `Activity` preserves the hidden component and DOM subtree. Hook effects and external-store subscriptions disconnect while hidden and reconnect when shown.
 - `cache` memoizes by argument identity for the process, while `cacheSignal` is stable and non-aborting; neither has a server-request lifetime until Phase 5.
 - ReactDOM resource hints create deduplicated client document resources without server resource coordination. `useFormStatus` reports a stable non-pending status outside the unsupported native form-action pipeline.
 
@@ -184,12 +184,12 @@ Phase 6 closes the production-hardening work that can be implemented without rec
 
 React server serialization now applies target-specific React 18/19 rules for form controls, SVG names, custom elements, vendor styles, void elements, raw script/style text, image preloads, bootstrap scripts/modules, and React 19 resource hints. Resource hints are request-scoped, deduplicated, and emitted in React-compatible priority order for the certified matrix. This covers the common production host surface but is not a claim that every private React DOM host-config edge case is reproduced.
 
-Async compatibility streams wait for thrown Suspense resources to settle, expose all-ready behavior, and propagate abort signals and task deadlines instead of converting interruptions into component fallbacks. Hydration replacement preserves dirty input, textarea, select, and editable state when a control can be matched by a unique explicit ID or form name plus control signature. Incremental boundary reveal, selective hydration, event replay, and serialized postponed Fiber state remain outside this runtime's architecture.
+Async compatibility streams wait for thrown Suspense resources to settle, expose all-ready behavior, and propagate abort signals and task deadlines instead of converting interruptions into component fallbacks. Native eXact progressive streams can reveal individual native Suspense marker ranges, but the React-compatible stream entrypoints do not claim React's wire format or postponed Fiber state. Hydration replacement preserves dirty input, textarea, select, and editable state when a control can be matched by a unique explicit ID or form name plus control signature. Selective hydration, event replay, and serialized postponed Fiber state remain outside this runtime's architecture.
 
 The Phase 6 differential trace runs a deterministic combinatorial host-serialization matrix plus identifier, bootstrap, and resource scenarios against React 18.3.1 and React 19.2.0. The package certification suite composes current pinned builds of `lucide-react`, `@emotion/react`, `@tanstack/react-query`, and `react-error-boundary` through the runtime aliases and server renderer.
 
 The final compatibility boundary is explicit:
 
-- Function and class components, custom hooks built from implemented hooks, context, refs, effects, external stores, portals, error boundaries, all-ready Suspense, markerless hydration, and common React DOM server output are supported or documented approximations.
+- Function and class components, custom hooks built from implemented hooks, context, refs, effects, external stores, portals, error boundaries, retained Activity, all-ready Suspense, markerless hydration, and common React DOM server output are supported or documented approximations.
 - Fiber scheduler lanes, development Strict Mode replay, exact Fiber ID/source-stack encoding, progressive Suspense wire protocols, selective hydration/event replay, genuine postponed-state resume, and React Server Components wire protocols are not reproduced.
 - Existing packages require resolution aliases for public React entrypoints, not compilation. The eXact compiler may accept React JSX as an ergonomic feature, but it is not required for compatibility packages already published in `node_modules`.

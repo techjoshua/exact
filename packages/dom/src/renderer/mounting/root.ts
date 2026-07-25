@@ -1,4 +1,5 @@
 import {
+	Activity,
 	createComponentInstance,
 	createErrorReport,
 	Dynamic,
@@ -6,11 +7,13 @@ import {
 	getCellVNode,
 	handleComponentError,
 	isCellVNode,
+	normalizeActivityMode,
 	normalizeRenderResult,
 	Portal,
 	reparentComponentInstance,
 	renderInstance,
 	ServerSlot,
+	Suspense,
 	Text,
 	UnsafeHtml,
 	unwrap,
@@ -42,6 +45,8 @@ import type { Mounted, Root } from '../../types.js';
 import { countDomWork, isDomRenderLimitError, withTreeDepth } from '../limits.js';
 import { bindText, patchChildren, rerenderComponent } from '../patching/children.js';
 import { ownMountedInstance } from '../root-lifecycle.js';
+import { installActivity, prepareActivity } from '../activity.js';
+import { initializeSuspense } from '../suspense.js';
 import { createElement, createMarker } from '../root-support.js';
 import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
 import {
@@ -137,6 +142,42 @@ export function mountInner(
 		const end = document.createComment(`/${id}`);
 		const mounted: Mounted = { vnode, dom: start, end, scope, children: [], rawNodes: [] };
 		bindUnsafeHtml(root, mounted, vnode.props.value);
+		return mounted;
+	}
+
+	if (vnode.type === Activity) {
+		const start = createMarker(root, 'activity');
+		const end = createMarker(root, 'activity-end');
+		const contentScope = createEffectScope(scope);
+		const mounted: Mounted = {
+			vnode,
+			dom: start,
+			end,
+			scope,
+			children: []
+		};
+		const mode = normalizeActivityMode(unwrap(vnode.props.mode));
+		const activityOwner = prepareActivity(root, mounted, parentInstance, contentScope, mode);
+		mounted.children = mountDetachedChildren(
+			root,
+			vnode.children,
+			activityOwner,
+			contentScope,
+			parentNode
+		);
+		installActivity(root, mounted);
+		return mounted;
+	}
+
+	if (vnode.type === Suspense) {
+		const mounted: Mounted = {
+			vnode,
+			dom: createMarker(root, 'suspense'),
+			end: createMarker(root, 'suspense-end'),
+			scope,
+			children: []
+		};
+		initializeSuspense(root, mounted, parentInstance, parentNode);
 		return mounted;
 	}
 

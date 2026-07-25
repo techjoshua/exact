@@ -114,7 +114,10 @@ function createRuntimeHelperImports(
 		imports.push(helperImport(factory, 'withTaskSignal', helpers.taskOptionsSignal));
 	if (state.taskSignalModes.has('direct'))
 		imports.push(helperImport(factory, 'combineTaskSignal', helpers.taskCombinedSignal));
-	if (state.sawTaskAwait) imports.push(helperImport(factory, 'taskAwait', helpers.taskAwait));
+	if (state.sawTaskAwait) {
+		imports.push(helperImport(factory, 'taskAwait', helpers.taskAwait));
+		imports.push(helperImport(factory, 'stageTaskMutation', helpers.stageTaskMutation));
+	}
 	if (state.sawContinuationTask)
 		imports.push(helperImport(factory, 'markComponentContinuationTask', helpers.taskContinuation));
 	if (state.sawDistributedContinuation)

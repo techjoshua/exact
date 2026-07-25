@@ -16,6 +16,7 @@ function continuation(
 	return {
 		id,
 		componentId: `test:${id}`,
+		readiness: 'nonblocking' as const,
 		dependencies: [],
 		stateReads: options.reads ?? [],
 		stateWrites: options.writes ?? [],
@@ -41,6 +42,7 @@ describe('@exactjs/hydrate action-operations', () => {
 				save: {
 					id: 'save',
 					componentId: 'test:save',
+					readiness: 'nonblocking',
 					dependencies: [],
 					stateReads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }],
 					stateWrites: [],
@@ -94,6 +96,7 @@ describe('@exactjs/hydrate action-operations', () => {
 				save: {
 					id: 'save',
 					componentId: 'test:save',
+					readiness: 'nonblocking',
 					dependencies: [],
 					stateReads: [],
 					stateWrites: [{ path: 'profile.name', kind: 'write', confidence: 'exact' }],
@@ -138,6 +141,7 @@ describe('@exactjs/hydrate action-operations', () => {
 				save: {
 					id: 'save',
 					componentId: 'test:save',
+					readiness: 'nonblocking',
 					dependencies: [],
 					stateReads: [],
 					stateWrites: [{ path: 'profile.name', kind: 'write', confidence: 'exact' }],

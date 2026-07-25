@@ -1,5 +1,6 @@
 import { createContext as createExactContext, type ContextToken } from '@exactjs/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
+import { runWithPriority } from '@exactjs/reactive';
 import type {
 	DependencyList,
 	ExternalStoreSubscribe,
@@ -55,6 +56,14 @@ export type ReactCompatibilityProfileEvent = ExactProfileEvent<'react-compat', '
 /** Provides the canonical profile stack value. */
 export const profileStack: ExactProfileSink<ReactCompatibilityProfileEvent>[] = [];
 let nextCompatibilityId = 1;
+const exactTransitionOwnership = Symbol('exact.react.transition-ownership');
+
+/** Tracks deferred React work until every render and readiness owner releases it. */
+export type ReactTransitionOwnership = {
+	readonly [exactTransitionOwnership]: true;
+	retain(): () => void;
+	finish(): void;
+};
 
 /** Allocates an identifier shared by contexts and hook hosts. */
 export function nextReactCompatibilityId(): number {
@@ -81,6 +90,86 @@ export function setReactCompatibilityTarget(next: 18 | 19): void {
 /** Performs the react compatibility target domain operation. */
 export function reactCompatibilityTarget(): 18 | 19 {
 	return target;
+}
+
+/** Creates one reference-counted React transition settlement group. */
+export function createReactTransitionOwnership(onSettled: () => void): ReactTransitionOwnership {
+	let pending = 1;
+	let finished = false;
+	let settlementVersion = 0;
+	const release = (): void => {
+		if (pending > 0) pending--;
+		if (pending || !finished) return;
+		const version = ++settlementVersion;
+		queueMicrotask(() => {
+			if (!pending && finished && version === settlementVersion) onSettled();
+		});
+	};
+	return {
+		[exactTransitionOwnership]: true,
+		retain() {
+			pending++;
+			let active = true;
+			return () => {
+				if (!active) return;
+				active = false;
+				release();
+			};
+		},
+		finish() {
+			if (finished) return;
+			finished = true;
+			release();
+		}
+	};
+}
+
+/** Returns the compatibility transition currently owning a render or update. */
+export function currentReactTransitionOwnership(): ReactTransitionOwnership | undefined {
+	const transition =
+		ReactSharedInternals19.T ?? ReactSharedInternals18.ReactCurrentBatchConfig.transition;
+	return transition && typeof transition === 'object' && exactTransitionOwnership in transition
+		? (transition as ReactTransitionOwnership)
+		: undefined;
+}
+
+/** Runs work while restoring one transition's identity for descendant adapters. */
+export function withReactTransitionOwnership<T>(
+	transition: ReactTransitionOwnership | undefined,
+	work: () => T
+): T {
+	if (!transition) return work();
+	const previous18 = ReactSharedInternals18.ReactCurrentBatchConfig.transition;
+	const previous19 = ReactSharedInternals19.T;
+	ReactSharedInternals18.ReactCurrentBatchConfig.transition = transition;
+	ReactSharedInternals19.T = transition;
+	try {
+		return work();
+	} finally {
+		ReactSharedInternals18.ReactCurrentBatchConfig.transition = previous18;
+		ReactSharedInternals19.T = previous19;
+	}
+}
+
+/** Runs a React transition scope in eXact's deferred scheduler priority. */
+export function runReactTransitionScope<T>(
+	scope: () => T,
+	transition: ReactTransitionOwnership = createReactTransitionOwnership(() => undefined)
+): T {
+	const previous18 = ReactSharedInternals18.ReactCurrentBatchConfig.transition;
+	const previous19 = ReactSharedInternals19.T;
+	ReactSharedInternals18.ReactCurrentBatchConfig.transition = transition;
+	ReactSharedInternals19.T = transition;
+	try {
+		return runWithPriority('deferred', () => {
+			const result = scope();
+			ReactSharedInternals19.S?.(transition, result);
+			return result;
+		});
+	} finally {
+		ReactSharedInternals18.ReactCurrentBatchConfig.transition = previous18;
+		ReactSharedInternals19.T = previous19;
+	}
 }
 /** Performs the react element symbol domain operation. */
 export function reactElementSymbol(): symbol {

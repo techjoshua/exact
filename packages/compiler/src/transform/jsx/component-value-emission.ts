@@ -11,6 +11,7 @@ import { expressionEmissionId } from './identity.js';
 import { createClientComponentServerStubExpression } from './island-emission.js';
 import { createClientComponentServerStub } from './island-emission.js';
 import type { JsxTransformState } from './transform-state.js';
+import { lowerAsyncComponentTasks } from './async-component-emission.js';
 
 /** Visits a function-valued component while maintaining component ownership stacks. */
 export function visitVariableComponent(
@@ -20,10 +21,11 @@ export function visitVariableComponent(
 	visitor: ts.Visitor,
 	context: ts.TransformationContext
 ): ts.FunctionExpression | ts.ArrowFunction {
+	const lowered = lowerAsyncComponentTasks(node, context);
 	state.componentStack.push(site.name);
 	state.componentSiteStack.push(site.id);
-	state.componentLocalStack.push(collectComponentLocalInfo(node));
-	const visited = ts.visitEachChild(node, visitor, context);
+	state.componentLocalStack.push(collectComponentLocalInfo(lowered));
+	const visited = ts.visitEachChild(lowered, visitor, context);
 	state.componentLocalStack.pop();
 	state.componentSiteStack.pop();
 	state.componentStack.pop();
@@ -50,17 +52,18 @@ export function transformFunctionComponentDeclaration(
 		state.sawBoundary = true;
 		return createClientComponentServerStub(sourceFile, context, helpers, node);
 	}
+	const lowered = lowerAsyncComponentTasks(node, context);
 	state.componentStack.push(node.name.text);
 	state.componentSiteStack.push(site.id);
-	state.componentLocalStack.push(collectComponentLocalInfo(node));
+	state.componentLocalStack.push(collectComponentLocalInfo(lowered));
 	if (target === 'client' && serverComponents && site.serverEffects) {
-		ts.visitEachChild(node, visitor, context);
+		ts.visitEachChild(lowered, visitor, context);
 		state.componentLocalStack.pop();
 		state.componentStack.pop();
 		state.componentSiteStack.pop();
 		return context.factory.createEmptyStatement();
 	}
-	const visited = ts.visitEachChild(node, visitor, context);
+	const visited = ts.visitEachChild(lowered, visitor, context);
 	state.componentLocalStack.pop();
 	state.componentStack.pop();
 	state.componentSiteStack.pop();

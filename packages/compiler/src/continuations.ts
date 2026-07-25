@@ -39,6 +39,7 @@ export function createExactContinuations(
 				componentId: component.id,
 				taskId: task.id,
 				placement: task.placement,
+				readiness: task.readiness,
 				async: task.async,
 				activation: {
 					stateReads: [...task.reads],

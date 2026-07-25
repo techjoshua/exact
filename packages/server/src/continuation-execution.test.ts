@@ -1,4 +1,8 @@
-import { createContext, type ExactComponentContinuationContract } from '@exactjs/core';
+import {
+	createContext,
+	stageTaskMutation,
+	type ExactComponentContinuationContract
+} from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { createExactContinuationHandler } from './continuation-execution.js';
 import { dispatchExactOperation } from './operations.js';
@@ -11,6 +15,7 @@ const DatabaseContext = createContext<{
 const contract: ExactComponentContinuationContract = {
 	id: 'task:load',
 	componentId: 'component:Page',
+	readiness: 'nonblocking',
 	dependencies: [{ source: 'state' }],
 	stateReads: [{ path: 'id', kind: 'read', confidence: 'exact' }],
 	stateWrites: [{ path: 'title', kind: 'write', confidence: 'exact' }],
@@ -89,6 +94,59 @@ describe('@exactjs/server generated continuation execution', () => {
 			)
 		).rejects.toThrow('Malformed activation record');
 		expect(executed).toBe(false);
+	});
+
+	it('publishes compiler-staged writes only after a continuation succeeds', async () => {
+		const handler = createExactContinuationHandler(contract, {
+			id: contract.id,
+			componentId: contract.componentId,
+			async execute(activation, execution) {
+				stageTaskMutation(execution.signal, () => {
+					activation.state.title = 'Settled';
+				});
+				await Promise.resolve();
+				return { state: activation.state };
+			}
+		});
+
+		await expect(
+			handler(
+				{
+					type: 'action',
+					id: contract.id,
+					payload: { dependencies: ['p1'] },
+					state: { id: 'p1' }
+				},
+				context()
+			)
+		).resolves.toEqual({ state: { title: 'Settled' } });
+	});
+
+	it('discards compiler-staged writes when a continuation fails', async () => {
+		const activationState = { id: 'p1' };
+		const handler = createExactContinuationHandler(contract, {
+			id: contract.id,
+			componentId: contract.componentId,
+			execute(activation, execution) {
+				stageTaskMutation(execution.signal, () => {
+					activation.state.title = 'Leaked';
+				});
+				throw new Error('query failed');
+			}
+		});
+
+		await expect(
+			handler(
+				{
+					type: 'action',
+					id: contract.id,
+					payload: { dependencies: ['p1'] },
+					state: activationState
+				},
+				context()
+			)
+		).rejects.toThrow('query failed');
+		expect(activationState).toEqual({ id: 'p1' });
 	});
 
 	it('returns only declared public component-context writes', async () => {

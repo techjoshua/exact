@@ -23,6 +23,7 @@ export type HelperNames = {
 	taskOptionsSignal: string;
 	taskCombinedSignal: string;
 	taskAwait: string;
+	stageTaskMutation: string;
 	taskContinuation: string;
 	dispatchContinuation: string;
 	registerContinuationContexts: string;

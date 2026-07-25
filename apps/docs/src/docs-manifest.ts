@@ -1,5 +1,6 @@
 import type { ComponentFunction } from '@exactjs/core';
 import { AdvancedPage } from './pages/AdvancedPage.jsx';
+import { AsyncInterfacesPage } from './pages/AsyncInterfacesPage.jsx';
 import { ComparisonPage } from './pages/ComparisonPage.jsx';
 import { ComponentsPage } from './pages/ComponentsPage.jsx';
 import { FormsPage } from './pages/FormsPage.jsx';
@@ -97,6 +98,15 @@ export const docGroups: DocGroup[] = [
 				summary: 'Own asynchronous work with the component.',
 				keywords: 'task async abort signal cleanup effects',
 				component: TasksPage
+			},
+			{
+				path: '/learn/async-interfaces',
+				label: 'Suspense, Activity & scheduling',
+				summary:
+					'Await task values, coordinate readiness, retain inactive trees, and schedule deferred work.',
+				keywords:
+					'async await task Suspense Activity parked background deferred blocking scheduling readiness cancellation',
+				component: AsyncInterfacesPage
 			},
 			{
 				path: '/learn/server-execution',

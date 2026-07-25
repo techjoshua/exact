@@ -131,12 +131,28 @@ export function isTaskCall(
 	call: NodeRef,
 	components?: ReturnType<typeof expressionComponentIndex>
 ): boolean {
-	const target = call.target;
-	const taskTarget =
-		target?.isMember('client') || target?.isMember('server') ? target.target : target;
+	const taskTarget = expressionTaskTarget(call);
 	if (!taskTarget?.isMember('task')) return false;
 	if (!components) return true;
 	return components.ownsReceiver(components.owner(call), taskTarget.rootVariable);
+}
+
+/** Returns the canonical `this.task` member beneath any supported task facets. */
+export function expressionTaskTarget(call: NodeRef): NodeRef | undefined {
+	let target = call.target;
+	while (target && !target.isMember('task')) target = target.target;
+	return target;
+}
+
+/** Returns authored task facet names from the expression graph in source order. */
+export function expressionTaskFacets(call: NodeRef): readonly string[] {
+	const names: string[] = [];
+	let target = call.target;
+	while (target && !target.isMember('task')) {
+		if (target.name) names.push(target.name);
+		target = target.target;
+	}
+	return names.reverse();
 }
 
 /** Performs the task component owner domain operation. */
@@ -144,7 +160,7 @@ export function taskComponentOwner(
 	task: NodeRef,
 	components: ReturnType<typeof expressionComponentIndex>
 ): NodeRef | undefined {
-	const receiver = task.target?.rootVariable;
+	const receiver = expressionTaskTarget(task)?.rootVariable;
 	const owner = components.owner(task);
 	return components.ownsReceiver(owner, receiver) ? owner : undefined;
 }

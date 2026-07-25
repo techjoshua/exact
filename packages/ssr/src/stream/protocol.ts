@@ -140,7 +140,7 @@ export function scopedReplacementScript(
 	const targetId = inlineJsonString(id);
 	const content = inlineJsonString(html);
 	return inlineScript(
-		`var r=document.getElementById(${rootId});if(r&&r.getAttribute("data-exact-hydrated")!=="true"){var e=document.getElementById(${targetId});if(e&&(e===r||r.contains(e))){var t=document.createElement("template");t.innerHTML=${content};e.replaceChildren(t.content)}}`,
+		`var r=document.getElementById(${rootId});if(r&&r.getAttribute("data-exact-hydrated")!=="true"){var i=${targetId},e=document.getElementById(i),t=document.createElement("template");t.innerHTML=${content};if(e&&(e===r||r.contains(e)))e.replaceChildren(t.content);else{var w=document.createTreeWalker(r,128),s=null,n;while(n=w.nextNode())if(n.data==="exact:"+i){s=n;break}if(s){var p=s.parentNode,x=s;while(x&&!(x.nodeType===8&&x.data==="/exact:"+i))x=x.nextSibling;if(x){var a=x.nextSibling;p.insertBefore(t.content,s);while(s!==a){var q=s.nextSibling;p.removeChild(s);s=q}}}}}`,
 		options
 	);
 }

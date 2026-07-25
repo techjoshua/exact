@@ -121,13 +121,10 @@ function isComponentDeclarationName(name: string | undefined): boolean {
 function isImplicitProtocolCall(member: NodeRef): boolean {
 	if (!implicitComponentProtocolCalls.has(member.name ?? '')) return false;
 	let target = member;
-	if (
-		member.isMember('task') &&
-		member.parent?.isMember() &&
-		(member.parent.name === 'client' || member.parent.name === 'server') &&
-		member.parent.target?.node === member.node
-	)
-		target = member.parent;
+	if (member.isMember('task')) {
+		while (target.parent?.isMember() && target.parent.target?.node === target.node)
+			target = target.parent;
+	}
 	return (
 		target.parent?.node.kind === 'CallExpression' && target.parent.target?.node === target.node
 	);

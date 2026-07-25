@@ -4,6 +4,7 @@ import {
 	handleComponentError,
 	observeComponentAsync
 } from '@exactjs/core';
+import { runWithPriority } from '@exactjs/reactive';
 import { preserveFocus } from './focus.js';
 import { findOwnerInstance } from './ownership.js';
 import { eventHandlers } from './state.js';
@@ -27,7 +28,9 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 				preserveFocus(root, () => {
 					try {
 						const owner = findOwnerInstance(current);
-						const result = batch(() => callDelegatedHandler(handler, current, event));
+						const result = runWithPriority('interactive', () =>
+							batch(() => callDelegatedHandler(handler, current, event))
+						);
 						observeComponentAsync(owner, result, 'event', type);
 					} catch (error) {
 						const owner = findOwnerInstance(current);

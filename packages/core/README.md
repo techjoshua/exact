@@ -15,3 +15,8 @@ export function Counter(this: Component<{ count: number }>) {
 Application code normally combines this package with `@exactjs/jsx`, a renderer such as
 `@exactjs/dom` or `@exactjs/ssr`, and an eXact compiler integration. The outer component function
 runs once per instance; its returned render function and compiled expression cells stay reactive.
+
+`Suspense` coordinates compiler-owned blocking task generations, while `Activity` retains an
+inactive mounted subtree in `parked` or deferred `background` mode. Task policy facets compose:
+`this.task.server.deferred.blocking(...)` independently selects placement, scheduling priority,
+and readiness.

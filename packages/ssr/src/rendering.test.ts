@@ -1,4 +1,4 @@
-import { createVNode, type Component } from '@exactjs/core';
+import { Activity, Suspense, createVNode, stageTaskMutation, type Component } from '@exactjs/core';
 import { defineExactActionContract, defineExactBoundaryContract } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import {
@@ -62,6 +62,45 @@ describe('@exactjs/ssr rendering', () => {
 		expect(result.html).toBe(
 			'<section class="panel" style="color: red; margin-top: 4px;">Hello &lt;Ada&gt;<input disabled value="x&quot;y"></section>'
 		);
+	});
+
+	it('emits active Activity content and leaves retained modes out of the document', async () => {
+		const child = createVNode('p', null, 'retained');
+
+		expect(
+			renderToString(createVNode(Activity, { mode: 'active' }, child), { markers: false }).html
+		).toBe('<p>retained</p>');
+		expect(
+			renderToString(createVNode(Activity, { mode: 'parked' }, child), { markers: false }).html
+		).toBe('');
+		expect(
+			(
+				await renderToStringAsync(createVNode(Activity, { mode: 'background' }, child), {
+					markers: false
+				})
+			).html
+		).toBe('');
+	});
+
+	it('renders native Suspense fallback synchronously and settled content asynchronously', async () => {
+		function AsyncPanel(this: Component<{ label: string }>) {
+			this.state.label = '';
+			this.task.blocking(async ({ signal }) => {
+				const label = await Promise.resolve('ready');
+				stageTaskMutation(signal, () => {
+					this.state.label = label;
+				});
+			});
+			return () => createVNode('p', null, this.state.label);
+		}
+		const vnode = createVNode(
+			Suspense,
+			{ fallback: createVNode('span', null, 'loading') },
+			createVNode(AsyncPanel, {})
+		);
+
+		expect(renderToString(vnode, { markers: false }).html).toBe('<span>loading</span>');
+		expect((await renderToStringAsync(vnode, { markers: false })).html).toBe('<p>ready</p>');
 	});
 
 	it('renders component output without marking components as mounted', () => {

@@ -1,4 +1,8 @@
-import { ReactSharedInternals18, ReactSharedInternals19, resolveDispatcher } from '../internals.js';
+import {
+	createReactTransitionOwnership,
+	resolveDispatcher,
+	runReactTransitionScope
+} from '../internals.js';
 import type {
 	DependencyList,
 	Dispatch,
@@ -91,17 +95,11 @@ export function useSyncExternalStore<T>(
 }
 /** Marks updates performed by a synchronous scope as non-urgent transition work. */
 export function startTransition(scope: () => void): void {
-	const previous18 = ReactSharedInternals18.ReactCurrentBatchConfig.transition;
-	const previous19 = ReactSharedInternals19.T;
-	const transition = {};
-	ReactSharedInternals18.ReactCurrentBatchConfig.transition = transition;
-	ReactSharedInternals19.T = transition;
+	const transition = createReactTransitionOwnership(() => undefined);
 	try {
-		const result = scope();
-		ReactSharedInternals19.S?.(transition, result);
+		runReactTransitionScope(scope, transition);
 	} finally {
-		ReactSharedInternals18.ReactCurrentBatchConfig.transition = previous18;
-		ReactSharedInternals19.T = previous19;
+		transition.finish();
 	}
 }
 /** Returns transition pending state and a function for starting transition work. */

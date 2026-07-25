@@ -1,4 +1,5 @@
 import {
+	Activity,
 	Dynamic,
 	Fragment,
 	getCellVNode,
@@ -7,6 +8,7 @@ import {
 	normalizeRenderResult,
 	Portal,
 	ServerSlot,
+	Suspense,
 	Text,
 	UnsafeHtml,
 	unwrap,
@@ -38,6 +40,8 @@ import {
 import { mount } from '../mounting/root.js';
 import { disposeMounted } from '../teardown.js';
 import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
+import { installActivity } from '../activity.js';
+import { updateSuspense } from '../suspense.js';
 import { bindText, patchChildren } from './children.js';
 
 /** Performs the patch domain operation. */
@@ -170,6 +174,31 @@ export function patchInner(
 		mounted.vnode = next;
 		assertUnsafeHtmlAllowed(root);
 		bindUnsafeHtml(root, mounted, next.props.value);
+		return mounted;
+	}
+
+	if (next.type === Activity) {
+		const activity = mounted.activity;
+		if (!activity) throw new Error('Cannot patch an Activity boundary without Activity state');
+		mounted.stop?.();
+		mounted.stop = undefined;
+		mounted.vnode = next;
+		const contentParent = activity.retained?.segments[0]?.fragment ?? parent;
+		mounted.children = patchChildren(
+			root,
+			contentParent,
+			mounted.children,
+			next.children,
+			activity.owner,
+			activity.contentScope,
+			activity.retained?.detached ? null : mounted.end
+		);
+		installActivity(root, mounted);
+		return mounted;
+	}
+
+	if (next.type === Suspense) {
+		updateSuspense(root, parent, mounted, next, parentInstance);
 		return mounted;
 	}
 

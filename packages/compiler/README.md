@@ -16,6 +16,20 @@ npx exactc --help
 Compiler diagnostics are part of the programming model: writable bindings, stable list identity,
 task placement, and server/client boundaries are validated before runtime.
 
+Async component source may assign one awaited task result directly to state:
+
+```tsx
+async function Options(this: Component<State>) {
+	this.state.options = await this.task(() => getOptions(this.state.destination));
+	return () => <OptionsList options={this.state.options} />;
+}
+```
+
+The compiler emits a synchronous component setup plus a repeatable blocking continuation, inferred
+dependencies, cancellation, and staged state publication. Arbitrary component-level awaits,
+derived targets, multiple sequential awaited tasks, and statements after the awaited assignment
+are diagnosed until their restart semantics can be preserved.
+
 Set `explain: true` with `transformSource()` to receive a stable,
 component-organized account of placement, transported captures, server-only
 context tokens, returned effects, and SSR resumption liveness. The explanation

@@ -337,6 +337,7 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 		hasOnlyKeys(record, [
 			'id',
 			'componentId',
+			'readiness',
 			'dependencies',
 			'stateReads',
 			'stateWrites',
@@ -347,6 +348,7 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 		]) &&
 		typeof record.id === 'string' &&
 		typeof record.componentId === 'string' &&
+		(record.readiness === 'blocking' || record.readiness === 'nonblocking') &&
 		isContinuationDependencies(record.dependencies) &&
 		isStatePathList(record.stateReads) &&
 		isStatePathList(record.stateWrites) &&

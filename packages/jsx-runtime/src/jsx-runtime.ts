@@ -1,11 +1,11 @@
-import {
-	createCellVNode,
-	createVNode,
-	Fragment,
-	type Child,
-	type ComponentFunction,
-	type RefBinding,
-	type VNode
+import { createCellVNode, createVNode, Fragment } from '@exactjs/core';
+import type {
+	Activity,
+	Child,
+	ComponentFunction,
+	RefBinding,
+	Suspense,
+	VNode
 } from '@exactjs/core';
 
 export { Fragment };
@@ -18,7 +18,12 @@ type Props = Record<string, unknown> & {
 	key?: string;
 };
 
-type JsxType = string | ComponentFunction<any, any> | typeof Fragment;
+type JsxType =
+	| string
+	| ComponentFunction<any, any>
+	| typeof Activity
+	| typeof Fragment
+	| typeof Suspense;
 
 /** Creates a vnode for the automatic JSX runtime's single-child entrypoint. */
 export function jsx<P extends Props>(
@@ -26,7 +31,11 @@ export function jsx<P extends Props>(
 	props: P | null,
 	key?: string
 ): VNode<P>;
-export function jsx(type: string | typeof Fragment, props: Props | null, key?: string): VNode;
+export function jsx(
+	type: string | typeof Activity | typeof Fragment | typeof Suspense,
+	props: Props | null,
+	key?: string
+): VNode;
 export function jsx(type: JsxType, props: Props | null, key?: string): VNode {
 	return createJsxVNode(type, props, key);
 }
@@ -37,7 +46,11 @@ export function jsxs<P extends Props>(
 	props: P | null,
 	key?: string
 ): VNode<P>;
-export function jsxs(type: string | typeof Fragment, props: Props | null, key?: string): VNode;
+export function jsxs(
+	type: string | typeof Activity | typeof Fragment | typeof Suspense,
+	props: Props | null,
+	key?: string
+): VNode;
 export function jsxs(type: JsxType, props: Props | null, key?: string): VNode {
 	return createJsxVNode(type, props, key);
 }
@@ -59,7 +72,12 @@ function createJsxVNode(type: JsxType, props: Props | null, key?: string): VNode
 
 export namespace JSX {
 	export type Element = VNode;
-	export type ElementType = string | typeof Fragment | ComponentFunction<any, any>;
+	export type ElementType =
+		| string
+		| typeof Activity
+		| typeof Fragment
+		| typeof Suspense
+		| ComponentFunction<any, any>;
 	export type TargetedEvent<
 		TCurrentTarget extends EventTarget,
 		TEvent extends Event = Event

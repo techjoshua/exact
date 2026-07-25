@@ -8,6 +8,7 @@ import {
 	createErrorContext,
 	ownTaskResource,
 	registerTaskCleanup,
+	stageTaskMutation,
 	taskAwait,
 	taskIdleCallback,
 	taskObserver,
@@ -64,6 +65,50 @@ describe('@exactjs/core task-resources', () => {
 		} finally {
 			vi.useRealTimers();
 		}
+	});
+	it('lets awaited work settle while parking its authored continuation', async () => {
+		let resolveValue!: (value: string) => void;
+		const value = new Promise<string>((resolve) => {
+			resolveValue = resolve;
+		});
+		let continued: string | undefined;
+		const component = createComponentInstance(function Worker(this: Component<{}>) {
+			this.task(async ({ signal }) => {
+				continued = await taskAwait(signal, value);
+			});
+			return () => null;
+		}, {});
+
+		component.markMounted();
+		component.scope.pause();
+		resolveValue('settled');
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(continued).toBeUndefined();
+
+		component.scope.resume();
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(continued).toBe('settled');
+		component.unmount();
+	});
+	it('publishes root blocking task mutations without requiring an authored boundary', async () => {
+		let instance!: Component<{ ready: boolean }>;
+		createComponentInstance(function Worker(this: Component<{ ready: boolean }>) {
+			instance = this;
+			this.state.ready = false;
+			this.task.blocking(async ({ signal }) => {
+				await Promise.resolve();
+				stageTaskMutation(signal, () => {
+					this.state.ready = true;
+				});
+			});
+			return () => null;
+		}, {});
+
+		expect(instance.state.ready).toBe(false);
+		for (let index = 0; index < 6; index++) await Promise.resolve();
+		expect(instance.state.ready).toBe(true);
 	});
 	it('combines compiler-owned abort signals with listener options', () => {
 		const owner = new AbortController();

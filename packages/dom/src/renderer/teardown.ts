@@ -46,6 +46,16 @@ export function unmountMounted(mounted: Mounted): void {
 		if (!current.complete) {
 			attemptTeardown(failure, () => current.mounted.scope.stop());
 			pending.push({ mounted: current.mounted, complete: true });
+			for (
+				let index = (current.mounted.suspense?.candidate?.children.length ?? 0) - 1;
+				index >= 0;
+				index--
+			) {
+				pending.push({
+					mounted: current.mounted.suspense!.candidate!.children[index]!,
+					complete: false
+				});
+			}
 			for (let index = current.mounted.children.length - 1; index >= 0; index--) {
 				pending.push({ mounted: current.mounted.children[index]!, complete: false });
 			}

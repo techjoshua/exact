@@ -2,7 +2,11 @@ import { createContext } from '../keys.js';
 
 import type { Logger } from '../logging.js';
 
-import type { ErrorContextValue, SuspensionContextValue } from './contracts.js';
+import type {
+	ErrorContextValue,
+	ReadinessContextValue,
+	SuspensionContextValue
+} from './contracts.js';
 
 /** Provides the canonical logger context value. */
 export const LoggerContext = createContext<Logger>('exact.logger', true);
@@ -13,3 +17,5 @@ export const ErrorContext = createContext<ErrorContextValue>('exact.error', {
 });
 /** Provides the canonical suspension context value. */
 export const SuspensionContext = createContext<SuspensionContextValue>('exact.suspension');
+/** Provides generation-bound readiness to blocking descendant work. */
+export const ReadinessContext = createContext<ReadinessContextValue>('exact.readiness');

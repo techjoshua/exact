@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import {
+	Suspense,
 	createContext,
 	createVNode,
 	currentComponentDomain,
@@ -17,6 +18,59 @@ import { createExactClient, hydrate } from './index.js';
 import { testContinuation } from './test-support/responses.js';
 
 describe('component-domain transport', () => {
+	it('commits a blocking continuation response through its Suspense readiness generation', async () => {
+		const container = document.createElement('div');
+		const continuation = testContinuation('load-options', {
+			readiness: 'blocking',
+			writes: [{ path: 'result', kind: 'write', confidence: 'exact' }]
+		});
+		function Options(this: Component<{ result: string }>) {
+			this.state.result = 'waiting';
+			this.task.blocking(({ signal }) =>
+				dispatchComponentContinuation(
+					this as unknown as ComponentInstance<{ result: string }>,
+					'load-options',
+					[],
+					signal
+				)
+			);
+			return () => createVNode('output', null, this.state.result);
+		}
+		const client = createExactClient(container, {
+			endpoint: '/__exact',
+			batch: false,
+			continuations: { 'load-options': continuation },
+			fetch: async () => ({
+				ok: true,
+				status: 200,
+				async json() {
+					return {
+						ok: true,
+						type: 'action' as const,
+						id: 'load-options',
+						state: { result: 'Ground' }
+					};
+				}
+			})
+		});
+
+		render(
+			withComponentDomain(client.domain, () =>
+				createVNode(
+					Suspense,
+					{ fallback: createVNode('i', null, 'Loading') },
+					createVNode(Options, {})
+				)
+			),
+			container
+		);
+		expect(container.textContent).toBe('Loading');
+
+		await client.whenSettled();
+		await vi.waitFor(() => expect(container.textContent).toBe('Ground'));
+		client.dispose();
+	});
+
 	it('commits compiler-mapped public context writes to the owning component', async () => {
 		const StatusContext = createContext<{ message: string }>('status', {
 			global: true,
@@ -66,9 +120,7 @@ describe('component-domain transport', () => {
 		);
 		await client.whenSettled();
 
-		await vi.waitFor(() =>
-			expect(container.querySelector('output')?.textContent).toBe('updated')
-		);
+		await vi.waitFor(() => expect(container.querySelector('output')?.textContent).toBe('updated'));
 		client.dispose();
 	});
 

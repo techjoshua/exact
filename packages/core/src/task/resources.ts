@@ -1,4 +1,4 @@
-import { computed, type ReactiveValue } from '@exactjs/reactive';
+import { batch, computed, whenEffectScopeResumed, type ReactiveValue } from '@exactjs/reactive';
 
 import { combineAbortSignals, createTaskAbortError, isAbortSignal } from './signals.js';
 
@@ -21,6 +21,34 @@ export function trackTaskOwner(signal: AbortSignal, owner: ComponentInstance<any
 	taskOwners.set(signal, owner);
 }
 const taskCleanupPromises = new WeakMap<AbortSignal, Set<Promise<void>>>();
+const taskMutations = new WeakMap<AbortSignal, Array<() => void>>();
+
+/** Stages a compiler-generated mutation until its blocking task generation commits. */
+export function stageTaskMutation(signal: AbortSignal, mutation: () => void): void {
+	if (signal.aborted) return;
+	let staged = taskMutations.get(signal);
+	if (!staged) {
+		staged = [];
+		taskMutations.set(signal, staged);
+		signal.addEventListener('abort', () => discardTaskMutations(signal), { once: true });
+	}
+	staged.push(mutation);
+}
+
+/** Publishes staged mutations for a successful task generation as one reactive batch. */
+export function publishTaskMutations(signal: AbortSignal): void {
+	const staged = taskMutations.get(signal);
+	if (!staged) return;
+	taskMutations.delete(signal);
+	batch(() => {
+		for (const mutation of staged) mutation();
+	});
+}
+
+/** Discards every unpublished mutation owned by a task generation. */
+export function discardTaskMutations(signal: AbortSignal): void {
+	taskMutations.delete(signal);
+}
 
 /** Registers once-only task cleanup and reports asynchronous disposal failures. */
 export function registerTaskCleanup(signal: AbortSignal, cleanup: TaskCleanup): void {
@@ -229,7 +257,12 @@ export function taskFetch<T>(
 	return fetcher(input, options);
 }
 
-/** Awaits a promise while rejecting promptly if the owning task is cancelled. */
+/**
+ * Awaits a value while retaining task cancellation and Activity parking semantics.
+ *
+ * The source promise continues while its component scope is paused. Its authored continuation
+ * remains parked until the scope resumes, and cancellation can still reject during that wait.
+ */
 export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Promise<T> {
 	if (signal.aborted) return Promise.reject(createTaskAbortError(signal.reason));
 	return new Promise<T>((resolve, reject) => {
@@ -241,11 +274,14 @@ export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Pr
 		};
 		signal.addEventListener('abort', abort, { once: true });
 		Promise.resolve(value).then(
-			(result) => {
+			async (result) => {
+				const owner = taskOwners.get(signal);
+				if (owner?.scope.paused) await whenEffectScopeResumed(owner.scope);
 				if (settled) return;
 				settled = true;
 				signal.removeEventListener('abort', abort);
-				resolve(result);
+				if (signal.aborted) reject(createTaskAbortError(signal.reason));
+				else resolve(result);
 			},
 			(error) => {
 				if (settled) return;

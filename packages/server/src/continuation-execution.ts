@@ -2,6 +2,7 @@ import type {
 	ExactComponentContinuationContract,
 	ExactComponentContinuationExecutorContract
 } from '@exactjs/core';
+import { discardTaskMutations, publishTaskMutations } from '@exactjs/core';
 import type { ExactInvocationRequest, ExactInvocationResult, ExactServerContext } from './types.js';
 
 /** Application-compatible handler generated from one compiler-owned continuation executor. */
@@ -35,31 +36,41 @@ export function createExactContinuationHandler(
 		if (!dependencies)
 			throw new TypeError(`Malformed activation record for eXact continuation ${contract.id}`);
 		const state = activationState(input.state);
-		const result = await executor.execute(
-			{
-				state,
-				dependencies,
-				publicContext: input.publicContext ?? {}
-			},
-			{
-				signal: context.signal ?? neverAbortedSignal(),
-				getContext: (token, authoredName) => {
-					if (!context.contexts)
-						throw new Error(
-							`No server context scope is active for eXact continuation ${contract.id}`
+		const signal = context.signal ?? neverAbortedSignal();
+		let result: Awaited<ReturnType<typeof executor.execute>>;
+		try {
+			result = await executor.execute(
+				{
+					state,
+					dependencies,
+					publicContext: input.publicContext ?? {}
+				},
+				{
+					signal,
+					getContext: (token, authoredName) => {
+						if (!context.contexts)
+							throw new Error(
+								`No server context scope is active for eXact continuation ${contract.id}`
+							);
+						context.onContextAccess?.(
+							Object.freeze({
+								operationId: contract.id,
+								componentId: contract.componentId,
+								token: authoredName ?? token.description,
+								scope: token.scope
+							})
 						);
-					context.onContextAccess?.(
-						Object.freeze({
-							operationId: contract.id,
-							componentId: contract.componentId,
-							token: authoredName ?? token.description,
-							scope: token.scope
-						})
-					);
-					return context.contexts.getSync(token);
+						return context.contexts.getSync(token);
+					}
 				}
-			}
-		);
+			);
+			// The request-local activation is an unpublished transaction. Compiler-staged
+			// writes become visible only after the executor has completed successfully.
+			publishTaskMutations(signal);
+		} catch (error) {
+			discardTaskMutations(signal);
+			throw error;
+		}
 		const projected = projectContinuationState(result.state, contract.stateWrites);
 		const contexts = projectContinuationContexts(result.contexts, contract.contextWrites);
 		return {

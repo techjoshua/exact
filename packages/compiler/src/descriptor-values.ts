@@ -11,6 +11,7 @@ export function continuationDescriptorExpression(
 		continuations.map((continuation) => ({
 			id: continuation.id,
 			componentId: continuation.componentId,
+			readiness: continuation.readiness,
 			dependencies: continuation.activation.dependencies.map(({ source }) => ({ source })),
 			stateReads: continuation.activation.stateReads.map(statePathDescriptor),
 			stateWrites: continuation.effects.stateWrites.map(statePathDescriptor),

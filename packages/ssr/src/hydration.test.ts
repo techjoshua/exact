@@ -84,6 +84,7 @@ describe('@exactjs/ssr hydration', () => {
 				save: {
 					id: 'save',
 					componentId: 'test:save',
+					readiness: 'nonblocking',
 					dependencies: [],
 					stateReads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }],
 					stateWrites: [],
@@ -141,6 +142,7 @@ describe('@exactjs/ssr hydration', () => {
 				save: {
 					id: 'save',
 					componentId: 'test:save',
+					readiness: 'nonblocking',
 					dependencies: [],
 					stateReads: [{ path: 'ready', kind: 'read', confidence: 'exact' }],
 					stateWrites: [],

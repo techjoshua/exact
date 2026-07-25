@@ -1,16 +1,21 @@
 import type {
 	ComponentFunction,
 	ComponentInstance,
+	ActivityMode,
 	ErrorContextValue,
 	ErrorReport,
 	Logger,
+	ReadinessContextValue,
+	ReadinessRegistration,
 	StopHandle,
 	UnsafeHtmlAuditEvent,
 	VNode
 } from '@exactjs/core';
+import type { ReadinessCoordinator } from '@exactjs/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type { EffectScope } from '@exactjs/reactive';
 import type { DomWorkBudget } from './work.js';
+import type { RetainedMountedRanges } from './renderer/retained-range.js';
 
 /** Defines the mounted type contract. */
 export type Mounted = {
@@ -35,6 +40,30 @@ export type Mounted = {
 	rawNodes?: Node[];
 	/** Reserved framework-owned insertion point after authored host children. */
 	childEnd?: Node;
+	/** Retained native Activity state owned by this boundary mount. */
+	activity?: {
+		mode: ActivityMode;
+		readonly token: symbol;
+		readonly contentScope: EffectScope;
+		readonly readiness: ReadinessCoordinator;
+		readonly owner: ComponentInstance<any>;
+		readonly parentReadiness?: ReadinessContextValue;
+		readinessRegistration?: ReadinessRegistration;
+		activationGeneration: number;
+		retained?: RetainedMountedRanges;
+	};
+	/** Generation-owned candidate state for a native Suspense boundary. */
+	suspense?: {
+		readonly coordinator: ReadinessCoordinator;
+		readonly owner: ComponentInstance<any>;
+		readonly parentInstance?: ComponentInstance<any>;
+		revealed: boolean;
+		releaseTransition?: () => void;
+		candidate?: {
+			readonly generation: number;
+			readonly children: Mounted[];
+		};
+	};
 };
 
 /** Defines the root type contract. */

@@ -1,6 +1,5 @@
 import { createDomWorkBudget, type DomWorkBudget } from '@exactjs/dom';
-import type { ComponentInstance } from '@exactjs/core';
-import type { ContextToken } from '@exactjs/core';
+import { stageTaskMutation, type ComponentInstance, type ContextToken } from '@exactjs/core';
 import { enqueueExactOperation } from '../batching.js';
 import { ExactBuildUnsupportedError, invokeExact } from '../invocations.js';
 import { hydrateClientIslands } from '../islands.js';
@@ -69,10 +68,9 @@ export async function invokeAndApply(
 		payload: component ? { dependencies: component.dependencies } : payload,
 		state:
 			type === 'action'
-				? stateForContract(
-						component?.instance.state ?? client.state,
-						{ reads: continuation!.stateReads }
-					)
+				? stateForContract(component?.instance.state ?? client.state, {
+						reads: continuation!.stateReads
+					})
 				: client.state,
 		publicContext:
 			type === 'action'
@@ -192,57 +190,62 @@ export async function invokeAndApply(
 		});
 	}
 	const patchOptions = { ...options, workBudget: work };
-	let appliedPatches: readonly import('@exactjs/server').ExactPatch[] = responsePatches ?? [];
-	let patchesApplied = responsePatches
-		? applyPatches(container, responsePatches, patchOptions)
-		: true;
-	if (!patchesApplied && type === 'refresh' && result.html) {
-		appliedPatches = [{ type: 'replace', id, html: result.html }];
-		patchesApplied = applyPatches(container, appliedPatches, patchOptions);
-	}
-	if (!patchesApplied) {
-		options.onDiagnostic?.({
-			code: 'invalid-patch',
-			message: `rejected exact ${type} response for ${id}; DOM and state were left unchanged`,
-			patch: { type, id }
-		});
+	const applyResponse = (): void => {
+		let appliedPatches: readonly import('@exactjs/server').ExactPatch[] = responsePatches ?? [];
+		let patchesApplied = responsePatches
+			? applyPatches(container, responsePatches, patchOptions)
+			: true;
+		if (!patchesApplied && type === 'refresh' && result.html) {
+			appliedPatches = [{ type: 'replace', id, html: result.html }];
+			patchesApplied = applyPatches(container, appliedPatches, patchOptions);
+		}
+		if (!patchesApplied) {
+			options.onDiagnostic?.({
+				code: 'invalid-patch',
+				message: `rejected exact ${type} response for ${id}; DOM and state were left unchanged`,
+				patch: { type, id }
+			});
+			options.onOperation?.({
+				operation,
+				result,
+				appliedPatches,
+				patchesApplied: false,
+				stale: partiallyStale
+			});
+			return;
+		}
+		if (responsePatches?.length && options.islands)
+			hydrateClientIslands(container, options.islands, options);
+		if (
+			!partiallyStale &&
+			'state' in result &&
+			requestOrdinal >= (versions.get(stateCommittedKey) ?? 0)
+		) {
+			versions.set(stateCommittedKey, requestOrdinal);
+			if (component) {
+				commitStateForContract(component.instance.state, result.state, {
+					writes: continuation!.stateWrites
+				});
+			} else {
+				client.state = result.state;
+			}
+		}
+		if (!partiallyStale && component && result.contexts) {
+			const tokens = new Map(component.contextWrites.map((write) => [write.name, write.token]));
+			for (const [name, value] of Object.entries(result.contexts))
+				component.instance.setContext(tokens.get(name)!, value);
+		}
 		options.onOperation?.({
 			operation,
 			result,
 			appliedPatches,
-			patchesApplied: false,
+			patchesApplied: true,
 			stale: partiallyStale
 		});
-		return result;
-	}
-	if (responsePatches?.length && options.islands)
-		hydrateClientIslands(container, options.islands, options);
-	if (
-		!partiallyStale &&
-		'state' in result &&
-		requestOrdinal >= (versions.get(stateCommittedKey) ?? 0)
-	) {
-		versions.set(stateCommittedKey, requestOrdinal);
-		if (component) {
-			commitStateForContract(component.instance.state, result.state, {
-				writes: continuation!.stateWrites
-			});
-		} else {
-			client.state = result.state;
-		}
-	}
-	if (!partiallyStale && component && result.contexts) {
-		const tokens = new Map(component.contextWrites.map((write) => [write.name, write.token]));
-		for (const [name, value] of Object.entries(result.contexts))
-			component.instance.setContext(tokens.get(name)!, value);
-	}
-	options.onOperation?.({
-		operation,
-		result,
-		appliedPatches,
-		patchesApplied: true,
-		stale: partiallyStale
-	});
+	};
+	if (component && continuation?.readiness === 'blocking')
+		stageTaskMutation(component.signal, applyResponse);
+	else applyResponse();
 	return result;
 }
 
@@ -255,9 +258,7 @@ function unauthorizedContinuationContexts(
 	if (!contexts) return false;
 	const allowedNames = new Set(allowed);
 	const mappedNames = new Set((mappings ?? []).map((mapping) => mapping.name));
-	return Object.keys(contexts).some(
-		(name) => !allowedNames.has(name) || !mappedNames.has(name)
-	);
+	return Object.keys(contexts).some((name) => !allowedNames.has(name) || !mappedNames.has(name));
 }
 
 const componentIds = new WeakMap<ComponentInstance<any>, number>();

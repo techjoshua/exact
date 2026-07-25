@@ -22,6 +22,7 @@ export type ExactContinuationStatePathContract = Readonly<{
 export type ExactComponentContinuationContract = Readonly<{
 	id: string;
 	componentId: string;
+	readiness: 'blocking' | 'nonblocking';
 	dependencies: readonly Readonly<{
 		source: 'state' | 'props' | 'derived';
 	}>[];
@@ -259,6 +260,7 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 		hasOnlyKeys(value, [
 			'id',
 			'componentId',
+			'readiness',
 			'dependencies',
 			'stateReads',
 			'stateWrites',
@@ -269,6 +271,7 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 		]) &&
 		isString(value.id) &&
 		isString(value.componentId) &&
+		(value.readiness === 'blocking' || value.readiness === 'nonblocking') &&
 		Array.isArray(value.dependencies) &&
 		value.dependencies.every(isDependency) &&
 		Array.isArray(value.stateReads) &&

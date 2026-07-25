@@ -410,7 +410,7 @@ describe('@exactjs/compiler: reactivity', () => {
 	it('honors explicit task placement aliases as compiler escape hatches', () => {
 		const source = `
       function Page(this: Component<{ title?: string; width?: number }>) {
-        this.task.server(() => {
+        this.task.server.deferred.blocking(() => {
           this.state.title = "server";
         });
         this.task.client(this.state.width, width => {
@@ -432,6 +432,10 @@ describe('@exactjs/compiler: reactivity', () => {
 			'server',
 			'client'
 		]);
+		expect(manifest.components[0]!.tasks[0]).toMatchObject({
+			priority: 'deferred',
+			readiness: 'blocking'
+		});
 		expect(manifest.components[0]!.tasks[0]!.diagnostics).toContain(
 			'task placement forced by this.task.server()'
 		);
@@ -440,6 +444,7 @@ describe('@exactjs/compiler: reactivity', () => {
 		expect(client).toContain(
 			`__exactDispatchContinuation(this, "${manifest.components[0]!.tasks[0]!.id}"`
 		);
+		expect(client).toContain('this.task.deferred.blocking(');
 		expect(client).toContain('__exactWrite(this.state, ["width"], () => 1)');
 		expect(client).toContain('this.task.client(this.reactive(() => this.state.width)');
 		expect(server).toContain('server');

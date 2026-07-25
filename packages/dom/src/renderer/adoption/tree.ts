@@ -1,12 +1,13 @@
 import {
+	Activity,
 	createComponentInstance,
 	Dynamic,
 	Fragment,
 	getCellVNode,
 	isCellVNode,
-	normalizeDocumentVNode,
 	normalizeRenderResult,
 	renderInstance,
+	Suspense,
 	Text,
 	UnsafeHtml,
 	unwrap,
@@ -29,11 +30,11 @@ import { setElementOwner } from '../../ownership.js';
 import { afterMountedChildren } from '../../placement.js';
 import { updateProps } from '../../props.js';
 import type { Mounted, Root } from '../../types.js';
-import { countDomWork, withTreeDepth } from '../limits.js';
 import { patchChildren, rerenderComponent } from '../patching/children.js';
 import { ownMountedInstance } from '../root-lifecycle.js';
 import { unmountMany, unmountMounted } from '../teardown.js';
 import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
+import { adoptActivityBoundary, adoptSuspenseBoundary } from './mode-boundaries.js';
 import {
 	adoptStaticChildren,
 	adoptStaticChildrenRange,
@@ -42,21 +43,7 @@ import {
 	frameworkChildRange
 } from './boundaries.js';
 import { adoptKeyedListChildren } from './keyed.js';
-
-/** Performs the adopt static mounted domain operation. */
-export function adoptStaticMounted(
-	root: Root,
-	vnode: VNode,
-	nodes: readonly Node[],
-	cursor: number,
-	parentInstance: ComponentInstance<any>,
-	parentScope: EffectScope
-): { mounted: Mounted; next: number } | undefined {
-	return withTreeDepth(root, () => {
-		countDomWork(root);
-		return adoptStaticMountedInner(root, vnode, nodes, cursor, parentInstance, parentScope);
-	});
-}
+import { normalizeAdoptionVNode } from './normalization.js';
 
 /** Performs the adopt static mounted inner domain operation. */
 export function adoptStaticMountedInner(
@@ -67,13 +54,7 @@ export function adoptStaticMountedInner(
 	parentInstance: ComponentInstance<any>,
 	parentScope: EffectScope
 ): { mounted: Mounted; next: number } | undefined {
-	if (
-		root.mode === 'document' &&
-		typeof vnode.type === 'string' &&
-		vnode.type.toLowerCase() === 'html'
-	) {
-		vnode = normalizeDocumentVNode(vnode);
-	}
+	vnode = normalizeAdoptionVNode(root, vnode);
 	const scope = createEffectScope(parentScope);
 	if (typeof vnode.type === 'function') {
 		if (root.markerlessHydration) {
@@ -262,6 +243,30 @@ export function adoptStaticMountedInner(
 		};
 		bindUnsafeHtml(root, mounted, vnode.props.value, true);
 		return { mounted, next: endIndex + 1 };
+	}
+	if (vnode.type === Activity) {
+		scope.stop();
+		return adoptActivityBoundary(
+			root,
+			vnode,
+			nodes,
+			cursor,
+			parentInstance,
+			parentScope,
+			adoptStaticChildren
+		);
+	}
+	if (vnode.type === Suspense) {
+		scope.stop();
+		return adoptSuspenseBoundary(
+			root,
+			vnode,
+			nodes,
+			cursor,
+			parentInstance,
+			parentScope,
+			adoptStaticChildren
+		);
 	}
 	if (vnode.type === Fragment) {
 		const start = nodes[cursor];

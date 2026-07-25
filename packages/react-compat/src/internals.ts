@@ -142,7 +142,7 @@ export class HookHost extends HookState {
 		currentHost = this;
 		currentRootRuntime = readReactRootRuntime(this.component);
 		try {
-			const output = run();
+			const output = this.withRenderTransition(run);
 			if (this.expectedHooks !== undefined && this.cursor !== this.expectedHooks) {
 				throw new Error(
 					`Rendered ${this.cursor} hooks, but the previous render used ${this.expectedHooks}`
@@ -175,6 +175,7 @@ export class HookHost extends HookState {
 
 	/** Releases resources owned by this hook host instance. */
 	dispose(): void {
+		this.finishTransitionRender();
 		this.disposed = true;
 		this.mounted = false;
 		this.commitScheduled = false;
@@ -199,6 +200,30 @@ export class HookHost extends HookState {
 		if (this.disposed) return;
 		this.mounted = true;
 		this.commit();
+	}
+
+	/** Disconnects React effects and external stores while retaining Hook and DOM state. */
+	deactivate(): void {
+		if (this.disposed || !this.mounted) return;
+		this.mounted = false;
+		this.commitScheduled = false;
+		this.passiveScheduled = false;
+		let firstError: unknown;
+		for (const slot of this.committed) {
+			try {
+				if (slot.kind === 'effect') {
+					runEffectCleanup(slot);
+					slot.pending = true;
+				} else if (slot.kind === 'external-store') {
+					slot.unsubscribe?.();
+					slot.unsubscribe = undefined;
+					slot.pendingSubscription = true;
+				}
+			} catch (error) {
+				firstError ??= error;
+			}
+		}
+		if (firstError !== undefined) throw firstError;
 	}
 
 	/** Performs the schedule commit domain operation for this hook host instance. */

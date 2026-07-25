@@ -1,6 +1,9 @@
 import {
 	batch,
+	effectScopeWorkPriority,
 	ref as reactiveRef,
+	runWithPriority,
+	scheduleWork,
 	subscribe,
 	unwrap,
 	type ReactiveRef,
@@ -11,35 +14,62 @@ import type {
 	ComponentInstance,
 	ComponentReactiveValue,
 	TaskContext,
+	TaskPolicy,
 	TaskRegistration,
 	TaskResult
 } from '../component/contracts.js';
 
 import { createErrorReport, handleComponentError } from '../component/errors.js';
+import { componentReadinessContext } from '../component/readiness.js';
 
 import { isPromiseLike } from '../component/async-value.js';
 import { observeTaskPromise } from './observers.js';
 
-import { drainTaskCleanupPromises, trackTaskOwner } from './resources.js';
+import {
+	discardTaskMutations,
+	drainTaskCleanupPromises,
+	publishTaskMutations,
+	trackTaskOwner
+} from './resources.js';
 
 /** Creates a task. */
 export function createTask(
 	instance: ComponentInstance<any>,
 	deps: unknown[],
-	work: (...args: any[]) => TaskResult
+	work: (...args: any[]) => TaskResult,
+	policy: TaskPolicy = {
+		placement: 'inferred',
+		priority: 'normal',
+		readiness: 'nonblocking'
+	}
 ): TaskRegistration {
 	const sources = deps
 		.map((dep) => reactiveRef(dep))
 		.filter((source): source is ReactiveRef => !!source);
+	const startQueuedGeneration = (): void => {
+		const generation = task.queuedGeneration;
+		if (generation !== undefined) startTaskGeneration(task, instance, generation);
+	};
+	const scheduleTaskGeneration = (): void => {
+		const priority = effectScopeWorkPriority(instance.scope, task.policy.priority);
+		if (priority === 'deferred') {
+			scheduleWork(startQueuedGeneration, 'deferred', undefined, instance.scope);
+			return;
+		}
+		startQueuedGeneration();
+	};
 	const task: TaskRegistration = {
 		deps,
 		sources,
 		work,
+		policy,
 		stops: [],
 		generation: 0,
 		stopped: false,
 		run() {
 			const generation = ++task.generation;
+			task.readinessRegistration?.cancel();
+			task.readinessRegistration = undefined;
 			task.queuedGeneration = generation;
 			task.stopped = false;
 			const previousSignal = task.controller?.signal;
@@ -68,12 +98,11 @@ export function createTask(
 				void barrier.then(() => {
 					if (task.settlement !== barrier) return;
 					task.settlement = undefined;
-					if (!task.stopped && task.queuedGeneration === generation)
-						startTaskGeneration(task, instance, generation);
+					if (!task.stopped && task.queuedGeneration === generation) scheduleTaskGeneration();
 				});
 				return;
 			}
-			startTaskGeneration(task, instance, generation);
+			scheduleTaskGeneration();
 		},
 		resume() {
 			task.stopped = false;
@@ -90,6 +119,8 @@ export function createTask(
 			task.stopped = true;
 			task.queuedGeneration = undefined;
 			task.generation++;
+			task.readinessRegistration?.cancel();
+			task.readinessRegistration = undefined;
 			const signal = task.controller?.signal;
 			task.controller?.abort('unmount');
 			const cleanupSettlement = runTaskCleanup(task, instance);
@@ -129,7 +160,9 @@ function startTaskGeneration(
 	const values = task.deps.map((dep) => unwrap(dep));
 	let result: TaskResult;
 	try {
-		result = batch(() => task.work(...values, { signal: controller.signal }));
+		result = runWithPriority(effectScopeWorkPriority(instance.scope, task.policy.priority), () =>
+			batch(() => task.work(...values, { signal: controller.signal }))
+		);
 	} catch (error) {
 		handleComponentError(instance, createErrorReport(error, 'task', instance, 'run'));
 		return;
@@ -164,6 +197,29 @@ function startTaskGeneration(
 			});
 		const settlement = observed.then(() => undefined);
 		task.settlement = settlement;
+		if (task.policy.readiness === 'blocking') {
+			const blockingWork = {
+				owner: instance,
+				taskGeneration: generation,
+				settlement,
+				commit: () => {
+					if (task.failedGeneration === generation) discardTaskMutations(controller.signal);
+					else publishTaskMutations(controller.signal);
+				},
+				discard: () => discardTaskMutations(controller.signal)
+			};
+			const readiness = componentReadinessContext(instance);
+			if (readiness) task.readinessRegistration = readiness.register(blockingWork);
+			else
+				void settlement.then(() => {
+					if (
+						task.generation === generation &&
+						task.controller === controller &&
+						!controller.signal.aborted
+					)
+						blockingWork.commit();
+				});
+		}
 		observeTaskPromise(settlement, instance);
 		void settlement.then(() => {
 			if (task.settlement === settlement) task.settlement = undefined;

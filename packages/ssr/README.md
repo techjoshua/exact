@@ -19,3 +19,8 @@ remain script-free.
 Hydratable results expose the same public component resumption activations serialized into their
 hydration script. Server-only context and resources may influence permitted HTML but never enter
 that client record.
+
+Synchronous rendering emits native Suspense fallbacks with explicit status markers. Async
+rendering waits for blocking descendants, and progressive document streams emit the smallest
+outermost settled Suspense range when boundary-local replacement can reproduce the final output;
+otherwise they conservatively replace the root.

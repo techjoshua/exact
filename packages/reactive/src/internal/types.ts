@@ -1,6 +1,9 @@
 /** Defines the reactive type contract. */
 export type Reactive<T> = T;
 
+/** Orders framework work without changing reactive dependency semantics. */
+export type WorkPriority = 'interactive' | 'normal' | 'deferred';
+
 /** Defines the reactive ref type contract. */
 export type ReactiveRef<T = unknown> = {
 	readonly target: object;
@@ -25,6 +28,8 @@ export type Dep = Set<Reaction>;
 export type Reaction = {
 	active: boolean;
 	scheduled: boolean;
+	/** Highest-priority invalidation waiting to run this reaction. */
+	pendingPriority?: WorkPriority;
 	scope?: EffectScopeImpl;
 	deps: Set<Dep>;
 	run(): void;
@@ -45,15 +50,24 @@ export type StopHandle = () => void;
 /** Defines the effect scope type contract. */
 export type EffectScope = {
 	active: boolean;
+	/** Whether this scope is paused directly or by an ancestor. */
+	readonly paused: boolean;
+	/** Prevents owned scheduled work from running without disposing ownership. */
+	pause(): void;
+	/** Releases this scope's own pause and schedules eligible accumulated work. */
+	resume(): void;
 	stop(): void;
 };
 
 /** Defines the effect scope impl type contract. */
 export type EffectScopeImpl = EffectScope & {
+	selfPaused: boolean;
+	workPriority?: WorkPriority;
 	parent?: EffectScopeImpl;
 	children: Set<EffectScopeImpl>;
 	reactions: Set<Reaction>;
 	cleanups: Set<StopHandle>;
+	resumeWaiters: Set<() => void>;
 	onError?: (error: unknown) => void;
 	onProfile?: ExactProfileSink<ReactiveProfileEvent>;
 };

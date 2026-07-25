@@ -108,6 +108,7 @@ export function defineExactActionContract(
 	id: string,
 	options: {
 		componentId?: string;
+		readiness?: ExactComponentContinuationContract['readiness'];
 		reads?: ExactComponentContinuationContract['stateReads'];
 		writes?: ExactComponentContinuationContract['stateWrites'];
 		publicContexts?: readonly string[];
@@ -120,6 +121,7 @@ export function defineExactActionContract(
 	return Object.freeze({
 		id,
 		componentId: options.componentId ?? `application:${id}`,
+		readiness: options.readiness ?? 'nonblocking',
 		dependencies: [],
 		stateReads: options.reads ?? [],
 		stateWrites: options.writes ?? [],

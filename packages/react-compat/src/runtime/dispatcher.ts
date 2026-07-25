@@ -1,7 +1,13 @@
 import type { HookHost } from '../internals.js';
+import { scheduleWork } from '@exactjs/reactive';
 import type { ReactContext } from '../types.js';
 import { assignReactRef } from './refs.js';
-import { REACT_CONTEXT_TYPE, type ReactDispatcher } from './shared.js';
+import {
+	REACT_CONTEXT_TYPE,
+	createReactTransitionOwnership,
+	runReactTransitionScope,
+	type ReactDispatcher
+} from './shared.js';
 
 /** Creates an exact dispatcher. */
 export function createExactDispatcher(host: HookHost): ReactDispatcher {
@@ -33,17 +39,19 @@ export function createExactDispatcher(host: HookHost): ReactDispatcher {
 			const [pending, setPending] = dispatcher.useState(false);
 			const start = dispatcher.useCallback((scope: () => void | Promise<void>) => {
 				setPending(true);
+				const transition = createReactTransitionOwnership(() =>
+					scheduleWork(() => setPending(false), 'deferred')
+				);
 				try {
-					const result = scope();
-					if (isThenableValue(result))
-						void Promise.resolve(result).then(
-							() => setPending(false),
-							() => setPending(false)
-						);
-					else queueMicrotask(() => setPending(false));
+					const result = runReactTransitionScope(scope, transition);
+					if (isThenableValue(result)) {
+						const release = transition.retain();
+						void Promise.resolve(result).then(release, release);
+					}
 				} catch (error) {
-					setPending(false);
 					throw error;
+				} finally {
+					transition.finish();
 				}
 			}, []);
 			return [Boolean(pending), start];

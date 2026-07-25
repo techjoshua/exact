@@ -103,7 +103,7 @@ describe('@exactjs/hydrate request-operations', () => {
 	it('reads endpoint and state from the hydration bootstrap script', () => {
 		const root = document.createElement('main');
 		root.innerHTML =
-			'<script type="application/json" id="__exact_hydration">{"endpoint":"/__exact","endpoints":{"actions":{"save-remote":"https://remote.test/__exact"},"boundaries":{"remote-panel":"https://remote.test/__exact"}},"state":{"ready":true},"continuations":{"save":{"id":"save","componentId":"test:save","dependencies":[],"stateReads":[{"path":"project.id","kind":"read","confidence":"exact"}],"stateWrites":[],"publicContexts":[],"serverContexts":[],"contextWrites":[],"boundaries":["profile","slot:children"]}}}</script>';
+			'<script type="application/json" id="__exact_hydration">{"endpoint":"/__exact","endpoints":{"actions":{"save-remote":"https://remote.test/__exact"},"boundaries":{"remote-panel":"https://remote.test/__exact"}},"state":{"ready":true},"continuations":{"save":{"id":"save","componentId":"test:save","readiness":"nonblocking","dependencies":[],"stateReads":[{"path":"project.id","kind":"read","confidence":"exact"}],"stateWrites":[],"publicContexts":[],"serverContexts":[],"contextWrites":[],"boundaries":["profile","slot:children"]}}}</script>';
 
 		expect(readExactHydrationConfig(root)).toEqual({
 			endpoint: '/__exact',
@@ -120,6 +120,7 @@ describe('@exactjs/hydrate request-operations', () => {
 				save: {
 					id: 'save',
 					componentId: 'test:save',
+					readiness: 'nonblocking',
 					dependencies: [],
 					stateReads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }],
 					stateWrites: [],
@@ -134,7 +135,7 @@ describe('@exactjs/hydrate request-operations', () => {
 
 	it('creates clients from hydration bootstrap data by default', async () => {
 		document.body.innerHTML =
-			'<script type="application/json" id="__exact_hydration">{"endpoint":"/__exact","state":{"project":{"id":"p1","secret":"hidden"}},"continuations":{"save":{"id":"save","componentId":"test:save","dependencies":[],"stateReads":[{"path":"project.id","kind":"read","confidence":"exact"}],"stateWrites":[],"publicContexts":[],"serverContexts":[],"contextWrites":[],"boundaries":[]}}}</script>';
+			'<script type="application/json" id="__exact_hydration">{"endpoint":"/__exact","state":{"project":{"id":"p1","secret":"hidden"}},"continuations":{"save":{"id":"save","componentId":"test:save","readiness":"nonblocking","dependencies":[],"stateReads":[{"path":"project.id","kind":"read","confidence":"exact"}],"stateWrites":[],"publicContexts":[],"serverContexts":[],"contextWrites":[],"boundaries":[]}}}</script>';
 		const container = document.createElement('main');
 		document.body.appendChild(container);
 		let requestBody: any;

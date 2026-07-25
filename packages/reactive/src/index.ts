@@ -6,11 +6,20 @@ export {
 	type SelectedExternalSourceOptions
 } from './external-source.js';
 export { batch, peek } from './internal/deps.js';
-export { flushSync } from './internal/scheduler.js';
+export {
+	currentWorkPriority,
+	flushSync,
+	inspectScheduledWork,
+	runWithPriority,
+	scheduleWork
+} from './internal/scheduler.js';
 export {
 	createEffectScope,
 	createProfiledEffectScope,
+	effectScopeWorkPriority,
+	setEffectScopeWorkPriority,
 	transferEffectScope,
+	whenEffectScopeResumed,
 	withEffectScope
 } from './internal/scopes.js';
 export type {
@@ -21,6 +30,7 @@ export type {
 	ReactiveRef,
 	ReactiveValue,
 	StopHandle,
+	WorkPriority,
 	WatchOptions
 } from './internal/types.js';
 export { isReactive, isReactiveValue, unwrap } from './internal/values.js';

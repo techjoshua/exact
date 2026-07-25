@@ -17,6 +17,8 @@ export interface ExpressionTaskSite {
 	readonly start: number;
 	readonly end: number;
 	readonly requestedPlacement?: 'client' | 'server';
+	readonly priority: 'normal' | 'deferred';
+	readonly readiness: 'blocking' | 'nonblocking';
 	readonly placement: ExactPlacement;
 	readonly async: boolean;
 	readonly browserEffects: boolean;

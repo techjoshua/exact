@@ -9,12 +9,14 @@ import type {
 import type { ComponentLog } from '../logging.js';
 
 import type {
+	Activity,
 	Cell,
 	Dynamic,
 	Fragment,
 	Portal,
 	ServerBoundary,
 	ServerSlot,
+	Suspense,
 	Text,
 	UnsafeHtml
 } from '../symbols.js';
@@ -22,6 +24,7 @@ import type {
 /** Defines the vnode type type contract. */
 export type VNodeType =
 	| string
+	| typeof Activity
 	| typeof Fragment
 	| typeof Text
 	| typeof Cell
@@ -29,8 +32,12 @@ export type VNodeType =
 	| typeof Portal
 	| typeof ServerBoundary
 	| typeof ServerSlot
+	| typeof Suspense
 	| typeof UnsafeHtml
 	| ComponentFunction<any, any>;
+
+/** Controls whether a native Activity subtree is connected, parked, or prepared in background. */
+export type ActivityMode = 'active' | 'parked' | 'background';
 
 /** Immutable execution-root ownership for one component instance. */
 export type ComponentDomain = {
@@ -161,6 +168,32 @@ export type SuspensionContextValue = {
 	suspend(promise: PromiseLike<unknown>): void;
 };
 
+/** Describes one task generation that participates in a readiness boundary. */
+export type BlockingWork = {
+	readonly owner: ComponentInstance<any>;
+	readonly taskGeneration: number;
+	readonly settlement: PromiseLike<unknown>;
+	/** Whether settlement requires reconstructing the candidate rather than committing it directly. */
+	readonly retry?: boolean;
+	/** Publishes state staged by this generation when its boundary commits. */
+	commit?(): void;
+	/** Releases staged state when its boundary generation is discarded. */
+	discard?(): void;
+};
+
+/** Cancels one generation-bound readiness registration without cancelling its underlying work. */
+export type ReadinessRegistration = {
+	readonly boundaryGeneration: number;
+	readonly settlement: PromiseLike<unknown>;
+	cancel(): void;
+};
+
+/** Registers blocking descendant work against the current candidate generation. */
+export type ReadinessContextValue = {
+	readonly generation: number;
+	register(work: BlockingWork): ReadinessRegistration;
+};
+
 /** Defines the context token type contract. */
 export type ContextToken<T> = {
 	readonly id: symbol;
@@ -221,6 +254,14 @@ export type TaskObserver = {
 export type Cleanup = void | (() => void | Promise<void>);
 /** Describes the result produced by task. */
 export type TaskResult = Cleanup | Promise<Cleanup>;
+/** Selects where authored task work is required to execute. */
+export type TaskPlacementRequest = 'inferred' | 'client' | 'server';
+/** Controls when a task generation runs and whether it participates in boundary readiness. */
+export type TaskPolicy = {
+	readonly placement: TaskPlacementRequest;
+	readonly priority: 'normal' | 'deferred';
+	readonly readiness: 'blocking' | 'nonblocking';
+};
 /** Defines the unwrapped type contract. */
 export type Unwrapped<Deps extends readonly unknown[]> = {
 	[K in keyof Deps]: Deps[K] extends ReactiveValue<infer T>
@@ -236,22 +277,38 @@ export type ComponentReactiveValue<T> = ReactiveValue<T> & {
 /** Defines the iterable item type contract. */
 export type IterableItem<T> = T extends Iterable<infer Item> ? Item : never;
 
-/** Defines the component task type contract. */
-export type ComponentTask = {
+/** Defines the callable task registration overloads shared by every task facet. */
+export type ComponentTaskCallable = {
+	/**
+	 * Represents compiler-owned value flow from an awaited task into component state.
+	 *
+	 * The compiler lowers this form into a synchronous registration whose result is published by
+	 * its blocking generation. The returned promise is source-level syntax and is not available
+	 * when the component is executed without compilation.
+	 */
+	<Result>(work: (ctx: TaskContext) => PromiseLike<Result>): Promise<Awaited<Result>>;
+	<Result, Deps extends readonly unknown[]>(
+		...args: [
+			...deps: Deps,
+			work: (...args: [...Unwrapped<Deps>, TaskContext]) => PromiseLike<Result>
+		]
+	): Promise<Awaited<Result>>;
 	(work: (ctx: TaskContext) => TaskResult): void;
 	<Deps extends readonly unknown[]>(
 		...args: [...deps: Deps, work: (...args: [...Unwrapped<Deps>, TaskContext]) => TaskResult]
 	): void;
-	server: ComponentTaskRegistration;
-	client: ComponentTaskRegistration;
 };
 
-/** Defines the component task registration type contract. */
-export type ComponentTaskRegistration = {
-	(work: (ctx: TaskContext) => TaskResult): void;
-	<Deps extends readonly unknown[]>(
-		...args: [...deps: Deps, work: (...args: [...Unwrapped<Deps>, TaskContext]) => TaskResult]
-	): void;
+/** Defines a task registration with composable scheduling and readiness facets. */
+export type ComponentTaskRegistration = ComponentTaskCallable & {
+	readonly deferred: ComponentTaskRegistration;
+	readonly blocking: ComponentTaskRegistration;
+};
+
+/** Defines the component task type contract. */
+export type ComponentTask = ComponentTaskRegistration & {
+	server: ComponentTaskRegistration;
+	client: ComponentTaskRegistration;
 };
 
 // Callback return values are intentionally permissive: concise callbacks often
@@ -291,6 +348,8 @@ export interface Component<State extends object> {
 		keyIdentity?: string
 	): VNode;
 	onMount(handler: LifecycleHandler): void;
+	onActivate(handler: LifecycleHandler): void;
+	onDeactivate(handler: LifecycleHandler): void;
 	onUnmount(handler: LifecycleHandler): void;
 	onRender(handler: RenderEventHandler): void;
 }
@@ -310,8 +369,11 @@ export type ComponentInstance<State extends object> = Component<State> & {
 	readonly renderFunction: RenderFunction;
 	renderStop?: StopHandle;
 	mountController?: AbortController;
+	activationController?: AbortController;
 	tasks: TaskRegistration[];
 	mountHandlers: LifecycleHandler[];
+	activateHandlers: LifecycleHandler[];
+	deactivateHandlers: LifecycleHandler[];
 	unmountHandlers: LifecycleHandler[];
 	renderHandlers: RenderEventHandler[];
 	invalidate?: () => void;
@@ -319,6 +381,7 @@ export type ComponentInstance<State extends object> = Component<State> & {
 	beginRender(): void;
 	endRender(): void;
 	markMounted(): void;
+	setActivity(token: symbol, active: boolean, reason?: string): void;
 	updateProps(props: Record<string, unknown>): void;
 	unmount(reason?: string): void;
 };
@@ -328,6 +391,7 @@ export type TaskRegistration = {
 	deps: unknown[];
 	sources: ReactiveRef[];
 	work: (...args: any[]) => TaskResult;
+	policy: TaskPolicy;
 	stops: StopHandle[];
 	controller?: AbortController;
 	cleanup?: () => void | Promise<void>;
@@ -335,6 +399,7 @@ export type TaskRegistration = {
 	queuedGeneration?: number;
 	completedGeneration?: number;
 	failedGeneration?: number;
+	readinessRegistration?: ReadinessRegistration;
 	stopped: boolean;
 	generation: number;
 	run(): void;

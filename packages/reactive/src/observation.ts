@@ -2,9 +2,15 @@ import { cleanupReaction, getDep, runTracked, track, trigger } from './internal/
 
 import { isPlainObject } from './internal/objects.js';
 
-import { currentEffectScope } from './internal/scopes.js';
+import { currentEffectScope, effectScopeWorkPriority } from './internal/scopes.js';
 
-import { queueComputation, queueReaction, removeQueuedComputation } from './internal/scheduler.js';
+import {
+	currentWorkPriority,
+	isHigherWorkPriority,
+	queueComputation,
+	queueReaction,
+	removeQueuedComputation
+} from './internal/scheduler.js';
 
 import { reactiveValueMarker, reactiveValueRef } from './internal/symbols.js';
 
@@ -93,14 +99,21 @@ export function computed<T>(compute: () => T): ReactiveValue<T> {
 
 	function queueRecompute(): void {
 		if (scope && !scope.active) return;
-		if (queued) return;
+		if (queued) {
+			queueComputation(recomputeAndNotify, scope?.onError, currentWorkPriority(), scope);
+			return;
+		}
 		queued = true;
-		queueComputation(recomputeAndNotify, scope?.onError);
+		queueComputation(recomputeAndNotify, scope?.onError, currentWorkPriority(), scope);
 	}
 
 	function recomputeAndNotify(): void {
 		// A computed value tears down and rebuilds its watcher on each flush so dependency
 		// sets follow the latest branch of the compute function instead of stale reads.
+		if (scope?.paused) {
+			queueComputation(recomputeAndNotify, scope.onError, currentWorkPriority(), scope);
+			return;
+		}
 		queued = false;
 		removeQueuedComputation(recomputeAndNotify);
 		if (scope && !scope.active) return;
@@ -150,6 +163,7 @@ export function watch(
 				return;
 			}
 			reaction.scheduled = false;
+			reaction.pendingPriority = undefined;
 			try {
 				runTracked(reaction, fn);
 			} catch (error) {
@@ -162,8 +176,20 @@ export function watch(
 				reaction.stop();
 				return;
 			}
-			if (reaction.scheduled) return;
+			const priority = effectScopeWorkPriority(reaction.scope, currentWorkPriority());
+			if (reaction.scheduled) {
+				if (
+					reaction.pendingPriority !== undefined &&
+					isHigherWorkPriority(priority, reaction.pendingPriority)
+				) {
+					reaction.pendingPriority = priority;
+					if (scheduler) scheduler();
+					else queueReaction(reaction, priority);
+				}
+				return;
+			}
 			reaction.scheduled = true;
+			reaction.pendingPriority = priority;
 			try {
 				options.onSchedule?.();
 				if (scheduler) {
@@ -175,12 +201,14 @@ export function watch(
 				// A failed scheduler did not arrange for run() to clear this bit. Reset it
 				// so a later dependency change can retry rather than wedging the watcher.
 				reaction.scheduled = false;
+				reaction.pendingPriority = undefined;
 				handleError(error);
 			}
 		},
 		stop() {
 			reaction.active = false;
 			reaction.scheduled = false;
+			reaction.pendingPriority = undefined;
 			cleanupReaction(reaction);
 			reaction.scope?.reactions.delete(reaction);
 		}
@@ -218,6 +246,7 @@ export function subscribe<T>(
 		deps: new Set([dep]),
 		run() {
 			reaction.scheduled = false;
+			reaction.pendingPriority = undefined;
 			if (!reaction.active || (scope && !scope.active)) {
 				reaction.stop();
 				return;
@@ -233,13 +262,25 @@ export function subscribe<T>(
 				reaction.stop();
 				return;
 			}
-			if (reaction.scheduled) return;
+			const priority = effectScopeWorkPriority(scope, currentWorkPriority());
+			if (reaction.scheduled) {
+				if (
+					reaction.pendingPriority !== undefined &&
+					isHigherWorkPriority(priority, reaction.pendingPriority)
+				) {
+					reaction.pendingPriority = priority;
+					queueReaction(reaction, priority);
+				}
+				return;
+			}
 			reaction.scheduled = true;
-			queueReaction(reaction);
+			reaction.pendingPriority = priority;
+			queueReaction(reaction, priority);
 		},
 		stop() {
 			reaction.active = false;
 			reaction.scheduled = false;
+			reaction.pendingPriority = undefined;
 			cleanupReaction(reaction);
 			scope?.reactions.delete(reaction);
 		}

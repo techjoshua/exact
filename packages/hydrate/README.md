@@ -14,3 +14,7 @@ endpoints continue to validate operations, authorization, CSRF policy, and paylo
 mounted fresh DOM, or updated an existing hydrated root. Component resumption records restore only
 compiler-declared state and shared context, and settled server work is armed without an immediate
 duplicate run.
+
+Blocking distributed continuations validate their response first, then stage authorized DOM,
+component-state, and public-context changes under the task generation signal. The nearest
+readiness boundary publishes that response atomically or discards it when the generation is stale.

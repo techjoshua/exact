@@ -17,6 +17,7 @@ import { shouldEmitDocumentHydration } from './boundaries.js';
 import { createSsrContext, drainTasks } from './context.js';
 import { renderToStringOwned } from './entrypoints.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
+import { planSuspenseStreamReplacements } from './suspense-streaming.js';
 
 /** Transforms to string async into its required representation. */
 export async function renderToStringAsync(
@@ -109,12 +110,18 @@ export async function streamDocumentRender(
 			capture = createSsrResumptionCapture(options);
 			final = await renderToStringAsync(vnode, capture.options);
 			if (final.html !== shell.html) {
-				await emit({
-					event: 'replace',
-					version: 1,
-					id: options.rootId ?? 'document',
-					html: final.html
-				});
+				const replacements = planSuspenseStreamReplacements(shell.html, final.html);
+				if (replacements) {
+					for (const replacement of replacements)
+						await emit({ event: 'replace', version: 1, ...replacement });
+				} else {
+					await emit({
+						event: 'replace',
+						version: 1,
+						id: options.rootId ?? 'document',
+						html: final.html
+					});
+				}
 			}
 		}
 

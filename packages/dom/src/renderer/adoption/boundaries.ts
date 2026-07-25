@@ -3,7 +3,7 @@ import { type EffectScope } from '@exactjs/reactive';
 import { childToVNode } from '../../children.js';
 import type { Mounted, Root } from '../../types.js';
 import { unmountMany } from '../teardown.js';
-import { adoptStaticMounted } from './tree.js';
+import { adoptStaticMounted } from './entry.js';
 
 /** Performs the boundary markers domain operation. */
 export function boundaryMarkers(container: Element): { start: Comment; end: Comment } | undefined {

@@ -10,8 +10,7 @@ import type {
 	ReactClassType,
 	ReactComponentType,
 	ReactNode,
-	ReactRef,
-	ReactSpecialType
+	ReactRef
 } from '../types.js';
 
 import {
@@ -25,17 +24,22 @@ import {
 	routeClassLifecycleError,
 	shallowEqualProps,
 	shallowEqualState,
-	snapshotProps,
 	type ClassLifecycles,
 	type ClassStatics
 } from './class-support.js';
-import { invokeReactType, readReactRootRuntime, toExactNode } from './nodes.js';
-import { assignReactRef, readReactRef } from './refs.js';
+import { readReactRootRuntime, toExactNode } from './nodes.js';
+import { assignReactRef } from './refs.js';
+import { createFunctionAdapter } from './function-adapter.js';
+import {
+	markReactClassInstanceMounted,
+	markReactClassInstanceUnmounted
+} from './class-instances.js';
 import {
 	LegacyReactContext,
 	REACT_CLASS_UPDATER,
-	REACT_MEMO_TYPE,
-	REACT_REF_PROP
+	currentReactTransitionOwnership,
+	withReactTransitionOwnership,
+	type ReactTransitionOwnership
 } from './shared.js';
 export {
 	childrenArray,
@@ -47,33 +51,15 @@ export {
 } from './class-support.js';
 export { toExactNode } from './nodes.js';
 export { assignReactRef } from './refs.js';
+export {
+	exactComponentForReactInstance,
+	isUnmountedReactClassInstance
+} from './class-instances.js';
 export * from './shared.js';
 
-import {
-	HookHost,
-	createOwnerFrame,
-	enterReactOwnerScope,
-	removeOwnerFrame
-} from '../internals.js';
+import { createOwnerFrame, enterReactOwnerScope, removeOwnerFrame } from '../internals.js';
 
 const adapterCache = new WeakMap<object, ComponentFunction<any, any>>();
-const classInstanceOwners = new WeakMap<object, ComponentInstance<any>>();
-const unmountedClassInstances = new WeakSet<object>();
-const unsetRef = Symbol('exact.react.unset-ref');
-
-/** Performs the exact component for react instance domain operation. */
-export function exactComponentForReactInstance(value: unknown): ComponentInstance<any> | undefined {
-	return value !== null && (typeof value === 'object' || typeof value === 'function')
-		? classInstanceOwners.get(value as object)
-		: undefined;
-}
-
-/** Reports whether unmounted react class instance. */
-export function isUnmountedReactClassInstance(value: unknown): boolean {
-	return value !== null && (typeof value === 'object' || typeof value === 'function')
-		? unmountedClassInstances.has(value as object)
-		: false;
-}
 
 /** Performs the adapt react type domain operation. */
 export function adaptReactType(
@@ -87,64 +73,7 @@ export function adaptReactType(
 		adapterCache.set(identity, classAdapter);
 		return classAdapter;
 	}
-	const displayName = reactTypeName(type);
-	const adapter = function ReactCompatibilityAdapter(
-		this: Component<Record<string, unknown>>,
-		props: Record<string, unknown>
-	) {
-		this.state.__reactRevision = 0;
-		const exactInstance = this as ComponentInstance<Record<string, unknown>>;
-		createOwnerFrame(exactInstance, type);
-		const host = new HookHost(this);
-		let mounted = false;
-		let previousMemoProps: Record<string, unknown> | undefined;
-		let previousMemoOutput: ReactNode;
-		let previousRevision = -1;
-		let previousRef: unknown = unsetRef;
-		this.onMount(() => {
-			mounted = true;
-			host.mount();
-		});
-		this.onRender(() => {
-			if (mounted) host.scheduleCommit();
-		});
-		this.onUnmount(() => {
-			try {
-				host.dispose();
-			} finally {
-				removeOwnerFrame(exactInstance);
-			}
-		});
-		return () => {
-			const revision = Number(this.state.__reactRevision);
-			const snapshot = snapshotProps(props);
-			const ref = readReactRef(snapshot[REACT_REF_PROP]);
-			delete snapshot[REACT_REF_PROP];
-			const refChanged = previousRef !== unsetRef && !Object.is(previousRef, ref);
-			const special =
-				typeof type === 'object' && type !== null ? (type as ReactSpecialType) : undefined;
-			if (
-				!refChanged &&
-				special?.$$typeof === REACT_MEMO_TYPE &&
-				previousMemoProps &&
-				previousRevision === revision &&
-				!host.contextChanged()
-			) {
-				const compare = special.compare ?? shallowEqualProps;
-				if (compare(previousMemoProps, snapshot)) return toExactNode(previousMemoOutput);
-			}
-			const output = host.render(() => invokeReactType(type, snapshot, ref));
-			previousMemoProps = snapshot;
-			previousMemoOutput = output;
-			previousRevision = revision;
-			previousRef = ref;
-			return toExactNode(output);
-		};
-	} as ComponentFunction<Record<string, unknown>, Record<string, unknown>>;
-	Object.defineProperty(adapter, 'name', {
-		configurable: true,
-		value: `ExactReact(${displayName})`
-	});
+	const adapter = createFunctionAdapter(type);
 	adapterCache.set(identity, adapter);
 	return adapter;
 }
@@ -173,8 +102,7 @@ function createClassAdapter(
 			writable: true,
 			value: ownerFrame
 		});
-		classInstanceOwners.set(publicInstance as object, exactInstance);
-		unmountedClassInstances.delete(publicInstance as object);
+		markReactClassInstanceMounted(publicInstance as object, exactInstance);
 		if (publicInstance.state === undefined) publicInstance.state = null;
 		publicInstance.props = initialSnapshot.props;
 		publicInstance.context = initialContext;
@@ -191,7 +119,21 @@ function createClassAdapter(
 			| { props: Record<string, unknown>; state: unknown; snapshot: unknown }
 			| undefined;
 		let commitScheduled = false;
+		let renderTransition: ReactTransitionOwnership | undefined;
+		let releaseRenderTransition: (() => void) | undefined;
 		const callbacks: Array<() => void> = [];
+		const captureTransition = () => {
+			const transition = currentReactTransitionOwnership();
+			if (!transition || transition === renderTransition) return;
+			releaseRenderTransition?.();
+			renderTransition = transition;
+			releaseRenderTransition = transition.retain();
+		};
+		const finishTransitionRender = () => {
+			releaseRenderTransition?.();
+			releaseRenderTransition = undefined;
+			renderTransition = undefined;
+		};
 
 		const invalidate = () => {
 			if (!constructing) this.state.__reactRevision = Number(this.state.__reactRevision ?? 0) + 1;
@@ -219,11 +161,13 @@ function createClassAdapter(
 						? update(publicInstance.state, publicInstance.props)
 						: update;
 				const changed = mergeState(partial, true);
+				if (changed) captureTransition();
 				if (callback) callbacks.push(callback);
 				if (!changed && callback) invalidate();
 			},
 			forceUpdate: (callback?: () => void) => {
 				force = true;
+				captureTransition();
 				capturedWithoutDerivedState = false;
 				if (callback) callbacks.push(callback);
 				invalidate();
@@ -288,8 +232,12 @@ function createClassAdapter(
 			publicInstance.componentDidMount?.();
 			scheduleCommit();
 		});
-		this.onRender(scheduleCommit);
+		this.onRender(() => {
+			scheduleCommit();
+			finishTransitionRender();
+		});
 		this.onUnmount(() => {
+			finishTransitionRender();
 			mounted = false;
 			removeOwnerFrame(exactInstance);
 			try {
@@ -298,8 +246,7 @@ function createClassAdapter(
 				assignReactRef(currentRef as ReactRef<unknown> | undefined, null);
 				callbacks.splice(0, callbacks.length);
 				delete (publicInstance as unknown as Record<PropertyKey, unknown>)[REACT_CLASS_UPDATER];
-				classInstanceOwners.delete(publicInstance as object);
-				unmountedClassInstances.add(publicInstance as object);
+				markReactClassInstanceUnmounted(publicInstance as object);
 				(publicInstance as unknown as { _reactInternals?: unknown })._reactInternals = null;
 			}
 		});
@@ -380,7 +327,9 @@ function createClassAdapter(
 				}
 
 				if (shouldUpdate) {
-					output = capturedWithoutDerivedState ? null : publicInstance.render();
+					output = capturedWithoutDerivedState
+						? null
+						: withReactTransitionOwnership(renderTransition, () => publicInstance.render());
 					if (!firstRender) {
 						const snapshot = publicInstance.getSnapshotBeforeUpdate?.(previousProps, previousState);
 						pendingDidUpdate = { props: previousProps, state: previousState, snapshot };
@@ -390,7 +339,7 @@ function createClassAdapter(
 				committedState = publicInstance.state;
 				force = false;
 				constructing = false;
-				return toExactNode(output);
+				return withReactTransitionOwnership(renderTransition, () => toExactNode(output));
 			} finally {
 				restoreOwnerScope();
 			}

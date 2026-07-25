@@ -79,6 +79,7 @@ describe('server component testing', () => {
 					'generated-action-7f3a': {
 						id: 'generated-action-7f3a',
 						componentId: 'component:ClientIsland',
+						readiness: 'nonblocking',
 						dependencies: [],
 						stateReads: [],
 						stateWrites: [{ path: 'saved', kind: 'write', confidence: 'exact' }],

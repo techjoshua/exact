@@ -104,7 +104,7 @@ function insideManagedTask(reference: NodeRef): boolean {
 }
 
 function isTaskCall(call: NodeRef): boolean {
-	return /^this\.task(?:\.[A-Za-z_$][\w$]*)?\s*\(/.test(call.node.text ?? '');
+	return /^this\.task(?:\.[A-Za-z_$][\w$]*)*\s*\(/.test(call.node.text ?? '');
 }
 
 function insideClientJsx(reference: NodeRef): boolean {

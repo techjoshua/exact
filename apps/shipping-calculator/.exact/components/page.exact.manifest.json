@@ -471,6 +471,8 @@
         {
           "id": "xkjfiXay5PtKM6N0lOjvJw_",
           "placement": "server",
+          "priority": "normal",
+          "readiness": "nonblocking",
           "async": true,
           "browserEffects": false,
           "dependencies": [
@@ -912,6 +914,7 @@
       "componentId": "xyIOb0BS-znAt8cFQzx9c5L",
       "taskId": "xkjfiXay5PtKM6N0lOjvJw_",
       "placement": "server",
+      "readiness": "nonblocking",
       "async": true,
       "activation": {
         "stateReads": [

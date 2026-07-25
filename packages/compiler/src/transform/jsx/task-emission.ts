@@ -6,7 +6,6 @@ import type {
 	ExpressionTaskSite,
 	ExpressionTaskSignalCall
 } from '../../expression/task-contracts.js';
-import type { ExpressionTaskDependency } from '../../expression/task-dependencies.js';
 import type { HelperNames } from '../../types.js';
 
 import { captureArgument } from './collection-emission.js';
@@ -14,7 +13,12 @@ import type { DerivedReactiveIndex } from './contracts.js';
 import { markContinuationTask } from './distributed-task-emission.js';
 import { expressionEmissionId } from './identity.js';
 import { taskResourceHelper } from './task-resource-emission.js';
-import { parseTypeNode } from './type-node.js';
+import {
+	allocateDependencyParameters,
+	findTaskExpressionNode,
+	prependDependencyParameters,
+	rewriteTaskDependencyReads
+} from './task-dependency-emission.js';
 /** Transforms task call into its required representation. */
 export function transformTaskCall(
 	sourceFile: ts.SourceFile,
@@ -62,7 +66,8 @@ export function transformTaskCall(
 				markResource ?? (() => {}),
 				markAwait ?? (() => {}),
 				signalFor ?? (() => undefined),
-				markSignal ?? (() => {})
+				markSignal ?? (() => {}),
+				taskSite?.readiness === 'blocking'
 			) as ts.ArrowFunction | ts.FunctionExpression)
 		: visitedWork;
 
@@ -78,7 +83,7 @@ export function transformTaskCall(
 	const nextDependencies =
 		transportedDependencies.length > 0
 			? transportedDependencies.map((dependency) => {
-					const expression = findExpressionNode(work, dependency.nodeId);
+					const expression = findTaskExpressionNode(work, dependency.nodeId);
 					if (!expression)
 						throw new Error(
 							`Missing task dependency expression ${dependency.nodeId} in ${sourceFile.fileName}`
@@ -118,95 +123,6 @@ export function transformTaskCall(
 	);
 }
 
-function prependDependencyParameters(
-	work: ts.ArrowFunction | ts.FunctionExpression,
-	parameters: readonly Readonly<{ name: string; type: string }>[],
-	context: ts.TransformationContext
-): ts.ArrowFunction | ts.FunctionExpression {
-	const declarations = parameters.map((parameter) =>
-		context.factory.createParameterDeclaration(
-			undefined,
-			undefined,
-			parameter.name,
-			undefined,
-			parseTypeNode(parameter.type)
-		)
-	);
-	declarations.push(...work.parameters);
-	if (ts.isArrowFunction(work))
-		return context.factory.updateArrowFunction(
-			work,
-			work.modifiers,
-			work.typeParameters,
-			declarations,
-			work.type,
-			work.equalsGreaterThanToken,
-			work.body
-		);
-	return context.factory.updateFunctionExpression(
-		work,
-		work.modifiers,
-		work.asteriskToken,
-		work.name,
-		work.typeParameters,
-		declarations,
-		work.type,
-		work.body
-	);
-}
-
-function allocateDependencyParameters(
-	work: ts.FunctionLikeDeclaration,
-	dependencies: readonly ExpressionTaskDependency[]
-): ReadonlyArray<Readonly<{ name: string; type: string }>> {
-	const used = new Set<string>();
-	const collect = (node: ts.Node): void => {
-		if (ts.isIdentifier(node)) used.add(node.text);
-		ts.forEachChild(node, collect);
-	};
-	collect(work);
-	const parameters: Array<Readonly<{ name: string; type: string }>> = [];
-	for (let index = 0; index < dependencies.length; index++) {
-		let name = `__exactDependency${index || ''}`;
-		while (used.has(name)) name += '_';
-		used.add(name);
-		parameters.push(Object.freeze({ name, type: dependencies[index]!.type }));
-	}
-	return parameters;
-}
-
-function rewriteTaskDependencyReads(
-	work: ts.ArrowFunction | ts.FunctionExpression,
-	dependencies: readonly ExpressionTaskDependency[],
-	parameters: readonly Readonly<{ name: string; type: string }>[],
-	context: ts.TransformationContext
-): ts.ArrowFunction | ts.FunctionExpression {
-	const replacements = new Map<string, ts.Identifier>();
-	dependencies.forEach((dependency, index) => {
-		const parameter = context.factory.createIdentifier(parameters[index]!.name);
-		for (const nodeId of dependency.readNodeIds) replacements.set(nodeId, parameter);
-	});
-	const rewrite: ts.Visitor = (node) => {
-		const replacement = replacements.get(expressionEmissionId(node) ?? '');
-		return replacement ?? ts.visitEachChild(node, rewrite, context);
-	};
-	return ts.visitNode(work, rewrite) as ts.ArrowFunction | ts.FunctionExpression;
-}
-
-function findExpressionNode(work: ts.Node, nodeId: string): ts.Expression | undefined {
-	let found: ts.Expression | undefined;
-	const visit = (node: ts.Node): void => {
-		if (found) return;
-		if (expressionEmissionId(node) === nodeId && ts.isExpression(node)) {
-			found = node;
-			return;
-		}
-		ts.forEachChild(node, visit);
-	};
-	visit(work);
-	return found;
-}
-
 /** Transforms task work into its required representation. */
 export function transformTaskWork(
 	work: ts.ArrowFunction | ts.FunctionExpression,
@@ -218,7 +134,8 @@ export function transformTaskWork(
 	markResource: (kind: ExpressionTaskResourceKind) => void,
 	markAwait: () => void,
 	signalFor: (node: ts.Node) => ExpressionTaskSignalCall | undefined,
-	markSignal: (mode: ExpressionTaskSignalCall['mode']) => void
+	markSignal: (mode: ExpressionTaskSignalCall['mode']) => void,
+	stageMutations = false
 ): ts.Expression {
 	if (!containsManagedTaskWork(work, resourceFor, signalFor)) return work;
 	const factory = context.factory;
@@ -269,6 +186,30 @@ export function transformTaskWork(
 	}
 
 	const taskVisitor: ts.Visitor = (current) => {
+		if (
+			stageMutations &&
+			ts.isExpressionStatement(current) &&
+			isGeneratedStateMutation(current.expression, helpers)
+		) {
+			return factory.updateExpressionStatement(
+				current,
+				factory.createCallExpression(
+					factory.createIdentifier(helpers.stageTaskMutation),
+					undefined,
+					[
+						signal,
+						factory.createArrowFunction(
+							undefined,
+							undefined,
+							[],
+							undefined,
+							factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+							ts.visitNode(current.expression, taskVisitor) as ts.Expression
+						)
+					]
+				)
+			);
+		}
 		if (ts.isAwaitExpression(current)) {
 			markAwait();
 			return factory.updateAwaitExpression(
@@ -394,6 +335,20 @@ export function transformTaskWork(
 		parameters,
 		work.type,
 		body as ts.Block
+	);
+}
+
+function isGeneratedStateMutation(expression: ts.Expression, helpers: HelperNames): boolean {
+	return (
+		ts.isCallExpression(expression) &&
+		ts.isIdentifier(expression.expression) &&
+		[
+			helpers.write,
+			helpers.update,
+			helpers.updateResult,
+			helpers.remove,
+			helpers.arrayMutation
+		].includes(expression.expression.text)
 	);
 }
 

@@ -15,7 +15,7 @@ export function clientBoundaryFunction(reference: NodeRef): boolean {
 /** Performs the task owner domain operation. */
 export function taskOwner(fn: NodeRef): NodeRef | undefined {
 	const call = fn.parent?.node.kind === 'CallExpression' ? fn.parent : undefined;
-	return call && /^this\.task(?:\.(?:client|server))?\s*\(/.test(call.node.text ?? '')
+	return call && /^this\.task(?:\.[A-Za-z_$][\w$]*)*\s*\(/.test(call.node.text ?? '')
 		? call
 		: undefined;
 }
@@ -106,7 +106,7 @@ export function unresolvedCallEffect(
 	if (hasExactDirective(directives, 'server')) return 'server';
 	const targetText = call.target?.node.text?.trim() ?? '';
 	if (
-		/^this\.(?:task(?:\.(?:client|server))?|map|getContext|setContext|prop|ref|reactive)$/.test(
+		/^this\.(?:task(?:\.[A-Za-z_$][\w$]*)*|map|getContext|setContext|prop|ref|reactive)$/.test(
 			targetText
 		)
 	)

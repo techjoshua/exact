@@ -10,3 +10,8 @@ integration code.
 
 This is a compatibility layer, not the native eXact component model. New eXact components should
 use `this.state`, lifecycle methods, tasks, and compiled JSX rather than React hooks.
+
+React `Suspense` uses eXact readiness ranges for lazy and `use()` thenables. React 19 `Activity`
+maps visible/hidden behavior onto retained native ranges and reconnects effects and external-store
+subscriptions when shown again. Transition and deferred-value updates enter eXact's deferred
+scheduler lane.

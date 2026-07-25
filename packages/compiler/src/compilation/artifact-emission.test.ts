@@ -296,6 +296,49 @@ describe('@exactjs/compiler: artifacts', () => {
 		);
 	});
 
+	it('preserves awaited server task value flow in both client and executor artifacts', async () => {
+		const root = await createTestWorkspace('exact-awaited-server-task-');
+		const input = path.join(root, 'src', 'options.tsx');
+		const outDir = path.join(root, 'dist');
+		await mkdir(path.dirname(input), { recursive: true });
+		await writeFile(
+			input,
+			`
+			import type { Component } from "@exactjs/core";
+			declare function getOptions(
+				destination: string,
+				options?: { signal?: AbortSignal }
+			): Promise<string[]>;
+			export async function ShippingOptions(
+				this: Component<{ destination: string; options: string[] }>
+			) {
+				this.state.options = await this.task.server(
+					() => getOptions(this.state.destination)
+				);
+				return () => <button onClick={() => this.state.destination = "next"}>
+					{this.state.options.join(",")}
+				</button>;
+			}
+		`
+		);
+
+		const result = await compileFileArtifacts(input, {
+			outDir,
+			rootDir: path.join(root, 'src')
+		});
+		const client = await readFile(result.clientFile, 'utf8');
+		const server = await readFile(result.serverFile, 'utf8');
+
+		expect(client).toContain('this.task.blocking(');
+		expect(client).toContain('__exactDispatchContinuation');
+		expect(client).toContain('readiness: "blocking"');
+		expect(server).toContain('executors: [');
+		expect(server).toContain('getOptions(');
+		expect(server).toContain('__exactExecution_');
+		expect(server).toContain('__exactStageTaskMutation');
+		expect(server).toMatch(/__exactComponent_\d+\.state, \["options"\]/);
+	});
+
 	it('keeps direct server-context dependencies out of client activation records', async () => {
 		const root = await createTestWorkspace('exact-continuation-context-');
 		const input = path.join(root, 'src', 'panel.tsx');

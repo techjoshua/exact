@@ -73,7 +73,7 @@ export function ServerExecutionPage(this: Component<{}>) {
 			eyebrow="Learn"
 			title="One component, two cooperating state machines"
 			description="Server work remains ordinary component code. The compiler separates the client and server transitions, carries only required public values, and keeps server libraries and resources out of the browser."
-			previous={{ path: '/learn/tasks', label: 'Tasks & cleanup' }}
+			previous={{ path: '/learn/async-interfaces', label: 'Suspense, Activity & scheduling' }}
 			next={{ path: '/guides/routing', label: 'Routing' }}
 		>
 			<section>

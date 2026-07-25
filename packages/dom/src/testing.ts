@@ -8,6 +8,18 @@ export type DomInspectionNode = {
 	readonly instance?: ComponentInstance<any>;
 	readonly parent?: DomInspectionNode;
 	readonly children: readonly DomInspectionNode[];
+	readonly activity?: Readonly<{
+		mode: NonNullable<Mounted['activity']>['mode'];
+		detached: boolean;
+		pending: number;
+		generation: number;
+	}>;
+	readonly suspense?: Readonly<{
+		pending: number;
+		generation: number;
+		revealed: boolean;
+		hasCandidate: boolean;
+	}>;
 	elements(): readonly Element[];
 	ownedElements(): readonly Element[];
 };
@@ -38,6 +50,22 @@ function inspectMounted(
 		vnode: Object.freeze({ type: mounted.vnode.type, key: mounted.vnode.key }),
 		instance: mounted.instance,
 		parent,
+		activity: mounted.activity
+			? Object.freeze({
+					mode: mounted.activity.mode,
+					detached: mounted.activity.retained?.detached ?? false,
+					pending: mounted.activity.readiness.pending,
+					generation: mounted.activity.readiness.generation
+				})
+			: undefined,
+		suspense: mounted.suspense
+			? Object.freeze({
+					pending: mounted.suspense.coordinator.pending,
+					generation: mounted.suspense.coordinator.generation,
+					revealed: mounted.suspense.revealed,
+					hasCandidate: mounted.suspense.candidate !== undefined
+				})
+			: undefined,
 		get children() {
 			return children;
 		},

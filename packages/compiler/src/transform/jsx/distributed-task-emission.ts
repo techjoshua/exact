@@ -1,5 +1,10 @@
 import ts from 'typescript';
-import { isFunctionLikeExpression, isThisTaskCall, taskRequestedPlacement } from '../../calls.js';
+import {
+	isFunctionLikeExpression,
+	isThisTaskCall,
+	taskCallFacets,
+	taskRequestedPlacement
+} from '../../calls.js';
 import type { ExpressionComponentPlan } from '../../expression/contracts.js';
 import type { ExpressionTaskPlan, ExpressionTaskSite } from '../../expression/task-contracts.js';
 import { stableId } from '../../ids.js';
@@ -157,12 +162,18 @@ export function createDistributedTaskCall(
 		)
 	);
 	const taggedWork = markContinuationTask(work, continuationId, context, helpers);
-	const task = factory.updateCallExpression(
-		node,
-		factory.createPropertyAccessExpression(factory.createThis(), 'task'),
-		node.typeArguments,
-		[...dependencies, taggedWork]
+	let taskTarget: ts.Expression = factory.createPropertyAccessExpression(
+		factory.createThis(),
+		'task'
 	);
+	for (const facet of taskCallFacets(node)?.names ?? []) {
+		if (facet === 'server' || facet === 'client') continue;
+		taskTarget = factory.createPropertyAccessExpression(taskTarget, facet);
+	}
+	const task = factory.updateCallExpression(node, taskTarget, node.typeArguments, [
+		...dependencies,
+		taggedWork
+	]);
 	return registerContinuationContextBindings(task, contextWrites, context, helpers);
 }
 

@@ -15,3 +15,7 @@ const subtotal = computed(() => state.quantity * state.price);
 Component authors usually mutate `this.state` directly and let the compiler/runtime manage these
 primitives. Use the low-level APIs when building framework integrations or explicit reactive
 models.
+
+Framework work is scheduled at `interactive`, `normal`, or `deferred` priority. Effect scopes can
+be paused and resumed without disposal; invalidations received while paused settle once after
+reactivation.

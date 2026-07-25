@@ -1,8 +1,10 @@
 import {
+	Activity,
 	Dynamic,
 	Fragment,
 	ServerBoundary,
 	ServerSlot,
+	Suspense,
 	Text,
 	UnsafeHtml,
 	createComponentInstance,
@@ -12,13 +14,21 @@ import {
 	isCellVNode,
 	isVNode,
 	normalizeRenderResult,
+	normalizeActivityMode,
 	renderInstance,
 	type VNode
 } from '@exactjs/core';
 import { unwrap } from '@exactjs/reactive';
 import { escapeAttr, escapeText, voidElements } from '../html.js';
 import { jsonUnsafePath, serializeHydrationPayload } from '../hydration.js';
-import { exactMarkerId, markerId, markerPair, renderAttrs, withMarker } from '../markup.js';
+import {
+	exactMarkerId,
+	markerId,
+	markerPair,
+	renderAttrs,
+	suspenseStatusMarkerId,
+	withMarker
+} from '../markup.js';
 import {
 	SsrTreeDepthError,
 	assertOutputCharacterBound,
@@ -47,6 +57,7 @@ import {
 	renderElement,
 	renderUnsafeHtml
 } from './host.js';
+import { renderNativeSuspenseSync } from './native-boundaries.js';
 
 /** Transforms vnode chunks into its required representation. */
 export function* renderVNodeChunks(
@@ -76,6 +87,25 @@ export function* renderVNodeChunks(
 		const id = markerId(context, 'unsafe-html', undefined, vnode.key);
 		yield* marked(id, function* () {
 			yield renderUnsafeHtml(context, vnode);
+		});
+		return;
+	}
+	if (vnode.type === Activity) {
+		const id = markerId(context, 'activity', undefined, vnode.key);
+		const mode = normalizeActivityMode(unwrap(vnode.props.mode));
+		yield* marked(id, function* () {
+			if (mode !== 'active') return;
+			for (const child of vnode.children)
+				yield* renderChildChunks(context, child, parent, depth + 1);
+		});
+		return;
+	}
+	if (vnode.type === Suspense) {
+		const identity = markerId(context, 'suspense', undefined, vnode.key);
+		const rendered = renderNativeSuspenseSync(context, vnode, parent, renderChildren);
+		const id = suspenseStatusMarkerId(identity, rendered.status);
+		yield* marked(id, function* () {
+			yield rendered.html;
 		});
 		return;
 	}
@@ -297,6 +327,23 @@ export function renderVNodeInner(
 	if (vnode.type === UnsafeHtml) {
 		return markerPair(context, markerId(context, 'unsafe-html', undefined, vnode.key), () =>
 			renderUnsafeHtml(context, vnode)
+		);
+	}
+
+	if (vnode.type === Activity) {
+		const mode = normalizeActivityMode(unwrap(vnode.props.mode));
+		return markerPair(context, markerId(context, 'activity', undefined, vnode.key), () =>
+			mode === 'active' ? renderChildren(context, vnode.children, parent) : ''
+		);
+	}
+
+	if (vnode.type === Suspense) {
+		const identity = markerId(context, 'suspense', undefined, vnode.key);
+		const rendered = renderNativeSuspenseSync(context, vnode, parent, renderChildren);
+		return markerPair(
+			context,
+			suspenseStatusMarkerId(identity, rendered.status),
+			() => rendered.html
 		);
 	}
 

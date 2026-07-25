@@ -3,6 +3,86 @@ import { clearExpressionProjectCache, expressionModuleFor } from './session.js';
 import { analyzeExpressionTasks } from './task-analysis.js';
 
 describe('expression-backed task effects', () => {
+	it('records composed scheduling and readiness policy', () => {
+		clearExpressionProjectCache();
+		const module = expressionModuleFor(
+			'TaskPolicy.tsx',
+			`function Panel(this: Component<{}>) {
+				this.task.server.deferred.blocking(async () => fetch("/ready"));
+			}`
+		);
+
+		expect([...analyzeExpressionTasks(module).sites.values()]).toContainEqual(
+			expect.objectContaining({
+				requestedPlacement: 'server',
+				priority: 'deferred',
+				readiness: 'blocking'
+			})
+		);
+	});
+
+	it('requires awaited task values to target one state location', () => {
+		clearExpressionProjectCache();
+		const module = expressionModuleFor(
+			'AwaitedTaskTarget.tsx',
+			`async function Panel(this: Component<{ value: string }>) {
+				const value = await this.task.client(async () => "ready");
+				return () => <p>{value}</p>;
+			}`
+		);
+
+		expect(analyzeExpressionTasks(module).diagnostics).toContain(
+			'error: an awaited this.task() result must be assigned directly to one writable this.state location'
+		);
+	});
+
+	it('rejects multiple awaited task continuations until their ordering can be preserved', () => {
+		clearExpressionProjectCache();
+		const module = expressionModuleFor(
+			'SequentialAwaitedTasks.tsx',
+			`async function Panel(this: Component<{ first: string; second: string }>) {
+				this.state.first = await this.task.client(async () => "first");
+				this.state.second = await this.task.client(async () => this.state.first);
+				return () => <p>{this.state.second}</p>;
+			}`
+		);
+
+		expect(analyzeExpressionTasks(module).diagnostics).toContain(
+			'error: multiple awaited tasks in one component setup are not yet supported because their sequential continuation must remain deterministic'
+		);
+	});
+
+	it('rejects arbitrary component-setup awaits without task ownership', () => {
+		clearExpressionProjectCache();
+		const module = expressionModuleFor(
+			'ArbitraryComponentAwait.tsx',
+			`async function Panel(this: Component<{ value: string }>) {
+				this.state.value = await Promise.resolve("ready");
+				return () => <p>{this.state.value}</p>;
+			}`
+		);
+
+		expect(analyzeExpressionTasks(module).diagnostics).toContain(
+			'error: component setup may only await compiler-owned this.task() work so cancellation and restart semantics remain deterministic'
+		);
+	});
+
+	it('rejects setup statements whose execution would move ahead of an awaited task', () => {
+		clearExpressionProjectCache();
+		const module = expressionModuleFor(
+			'AwaitedTaskContinuation.tsx',
+			`async function Panel(this: Component<{ value: string; count: number }>) {
+				this.state.value = await this.task.client(async () => "ready");
+				this.state.count++;
+				return () => <p>{this.state.value}</p>;
+			}`
+		);
+
+		expect(analyzeExpressionTasks(module).diagnostics).toContain(
+			'error: statements after an awaited this.task() assignment require continuation lowering; move them into the task callback or derive them from the assigned state'
+		);
+	});
+
 	it('does not classify shadowed async resource functions as globals', () => {
 		clearExpressionProjectCache();
 		const module = expressionModuleFor(

@@ -283,6 +283,40 @@ describe('@exactjs/compiler: transform', () => {
 		);
 	});
 
+	it('stages blocking task state effects until their readiness generation commits', () => {
+		const output = transform(
+			`function Panel(this: Component<{ loaded: boolean }>) {
+				this.task.blocking(async () => {
+					await fetch("/tasks");
+					this.state.loaded = true;
+				});
+				return () => <p />;
+			}`,
+			{ filename: 'BlockingTask.tsx' }
+		);
+		expect(output).toContain('stageTaskMutation as __exactStageTaskMutation');
+		expect(output).toContain('__exactStageTaskMutation(__exactSignal, () =>');
+		expect(output).toContain('__exactWrite(this.state, ["loaded"], () => true)');
+	});
+
+	it('lowers an awaited component task into a repeatable blocking task generation', () => {
+		const output = transform(
+			`declare function getOptions(destination: string, options?: { signal?: AbortSignal }): Promise<string[]>;
+			async function ShippingOptions(this: Component<{ destination: string; options: string[] }>) {
+				this.state.options = await this.task(() => getOptions(this.state.destination));
+				return () => <p>{this.state.options.join(",")}</p>;
+			}`,
+			{ filename: 'ShippingOptions.tsx' }
+		);
+		expect(output).toContain('function ShippingOptions');
+		expect(output).not.toContain('async function ShippingOptions');
+		expect(output).toContain('this.task.blocking(this.reactive(() => this.state.destination)');
+		expect(output).toContain('getOptions(__exactDependency');
+		expect(output).toMatch(/__exactTaskOptionsSignal\(undefined, __exactTaskContext_\d+\.signal\)/);
+		expect(output).toMatch(/await __exactTaskAwait\(__exactTaskContext_\d+\.signal, .*getOptions/);
+		expect(output).toMatch(/__exactStageTaskMutation\(__exactTaskContext_\d+\.signal, \(\) =>/);
+	});
+
 	it('owns disposable task resources and injects signals from call signatures', () => {
 		const output = transform(
 			`

@@ -15,7 +15,8 @@ import {
 	useMemo,
 	useReducer,
 	useRef,
-	useState
+	useState,
+	useTransition
 } from '@exactjs/react-compat';
 import { flushSync } from '@exactjs/reactive';
 import { Airplay } from 'lucide-react-phase1';
@@ -249,5 +250,66 @@ describe('React compatibility root', () => {
 		await Promise.resolve();
 		flushSync();
 		expect(second.textContent).toBe('used');
+	});
+
+	it('keeps a transition pending while Suspense retains committed content', async () => {
+		let resolveModule!: (value: { default: () => ReturnType<typeof createElement> }) => void;
+		const modulePromise = new Promise<{ default: () => ReturnType<typeof createElement> }>(
+			(resolve) => {
+				resolveModule = resolve;
+			}
+		);
+		const LazyMessage = lazy(() => modulePromise);
+		let reveal!: () => void;
+		function App() {
+			const [shown, setShown] = useState(false);
+			const [pending, start] = useTransition();
+			reveal = () => start(() => setShown(true));
+			return createElement(
+				'section',
+				null,
+				createElement('output', null, pending ? 'pending' : 'settled'),
+				createElement(
+					Suspense,
+					{ fallback: 'loading' },
+					shown ? createElement(LazyMessage) : createElement('strong', null, 'committed')
+				)
+			);
+		}
+		const container = document.createElement('div');
+		createRoot(container).render(createElement(App));
+		expect(container.textContent).toBe('settledcommitted');
+
+		reveal();
+		flushSync();
+		expect(container.textContent).toBe('pendingcommitted');
+
+		resolveModule({ default: () => createElement('b', null, 'ready') });
+		await modulePromise;
+		for (let index = 0; index < 8; index++) await Promise.resolve();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		flushSync();
+		expect(container.textContent).toBe('settledready');
+	});
+
+	it('shows fallback for an urgent React Suspense update', () => {
+		const Pending = lazy(() => new Promise<{ default: () => null }>(() => undefined));
+		let reveal!: () => void;
+		function App() {
+			const [shown, setShown] = useState(false);
+			reveal = () => setShown(true);
+			return createElement(
+				Suspense,
+				{ fallback: 'loading' },
+				shown ? createElement(Pending) : createElement('strong', null, 'committed')
+			);
+		}
+		const container = document.createElement('div');
+		createRoot(container).render(createElement(App));
+		expect(container.textContent).toBe('committed');
+
+		reveal();
+		flushSync();
+		expect(container.textContent).toBe('loading');
 	});
 });

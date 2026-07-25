@@ -95,6 +95,28 @@ describe('@exactjs/core errors', () => {
 		expect(instance.state.clientRuns).toBe(2);
 	});
 
+	it('composes task placement, scheduling, and readiness facets', () => {
+		const run = vi.fn();
+
+		const instance = createComponentInstance(function Worker(this: Component<{}>) {
+			this.task.server.deferred.blocking(run);
+			return () => null;
+		}, {});
+
+		expect(run).not.toHaveBeenCalled();
+		expect(instance.tasks[0]?.policy).toEqual({
+			placement: 'server',
+			priority: 'deferred',
+			readiness: 'blocking'
+		});
+
+		flushSync('normal');
+		expect(run).not.toHaveBeenCalled();
+
+		flushSync();
+		expect(run).toHaveBeenCalledOnce();
+	});
+
 	it('assigns stable ids to multiple error reports', () => {
 		let instance!: Component<{ errors: ErrorReport[] }>;
 

@@ -23,6 +23,7 @@ const helperBases: Readonly<Record<keyof HelperNames, string>> = {
 	taskOptionsSignal: '__exactTaskOptionsSignal',
 	taskCombinedSignal: '__exactTaskCombinedSignal',
 	taskAwait: '__exactTaskAwait',
+	stageTaskMutation: '__exactStageTaskMutation',
 	taskContinuation: '__exactContinuationTask',
 	dispatchContinuation: '__exactDispatchContinuation',
 	registerContinuationContexts: '__exactRegisterContinuationContexts',

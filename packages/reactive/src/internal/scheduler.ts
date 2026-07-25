@@ -1,25 +1,62 @@
 import type { ExactProfileSink } from '@exactjs/instrumentation';
 import { profileTimestamp } from '@exactjs/instrumentation';
-import type { Reaction, ReactiveProfileEvent } from './types.js';
+import type {
+	EffectScope,
+	EffectScopeImpl,
+	Reaction,
+	ReactiveProfileEvent,
+	WorkPriority
+} from './types.js';
 
-const queuedReactions = new Set<Reaction>();
-const queuedComputations = new Map<() => void, ((error: unknown) => void) | undefined>();
-let flushScheduled = false;
+type QueuedComputation = {
+	priority: WorkPriority;
+	onError?: (error: unknown) => void;
+	scope?: EffectScopeImpl;
+};
+
+const queuedReactions = new Map<Reaction, WorkPriority>();
+const queuedComputations = new Map<() => void, QueuedComputation>();
+const priorityStack: WorkPriority[] = [];
+let foregroundFlushScheduled = false;
+let deferredFlushScheduled = false;
+let consecutiveForegroundFlushes = 0;
 const maxFlushPasses = 1_000;
+const maxForegroundFlushesBeforeDeferred = 8;
+const priorityOrder: Record<WorkPriority, number> = {
+	interactive: 0,
+	normal: 1,
+	deferred: 2
+};
 
 /** Queues a reaction to run during the next scheduler flush. */
-export function queueReaction(reaction: Reaction): void {
-	queuedReactions.add(reaction);
-	scheduleFlush();
+export function queueReaction(
+	reaction: Reaction,
+	priority: WorkPriority = currentWorkPriority()
+): void {
+	priority = constrainedPriority(reaction.scope, priority);
+	const previous = queuedReactions.get(reaction);
+	if (!previous || isHigherWorkPriority(priority, previous))
+		queuedReactions.set(reaction, priority);
+	scheduleFlush(priority);
 }
 
 /** Queues an arbitrary computation to run before reactions during the next flush. */
 export function queueComputation(
 	computation: () => void,
-	onError?: (error: unknown) => void
+	onError?: (error: unknown) => void,
+	priority: WorkPriority = currentWorkPriority(),
+	scope?: EffectScope
 ): void {
-	queuedComputations.set(computation, onError);
-	scheduleFlush();
+	priority = constrainedPriority(scope as EffectScopeImpl | undefined, priority);
+	const previous = queuedComputations.get(computation);
+	if (!previous || isHigherWorkPriority(priority, previous.priority)) {
+		queuedComputations.set(computation, {
+			priority,
+			onError: onError ?? previous?.onError,
+			scope: (scope as EffectScopeImpl | undefined) ?? previous?.scope
+		});
+	}
+	scheduleFlush(priority);
 }
 
 /** Removes a computation that was queued but has already been run synchronously. */
@@ -27,8 +64,60 @@ export function removeQueuedComputation(computation: () => void): void {
 	queuedComputations.delete(computation);
 }
 
-/** Drains all pending computations and reactions until the scheduler reaches a stable state. */
-export function flushSync(): void {
+/** Returns the priority inherited by work scheduled in the current synchronous execution scope. */
+export function currentWorkPriority(): WorkPriority {
+	return priorityStack[priorityStack.length - 1] ?? 'normal';
+}
+
+/** Returns a read-only snapshot of queued scheduler work for framework tests and tooling. */
+export function inspectScheduledWork(): Readonly<{
+	currentPriority: WorkPriority;
+	computations: Readonly<Record<WorkPriority, number>>;
+	reactions: Readonly<Record<WorkPriority, number>>;
+}> {
+	const computations = { interactive: 0, normal: 0, deferred: 0 };
+	const reactions = { interactive: 0, normal: 0, deferred: 0 };
+	for (const queued of queuedComputations.values()) computations[queued.priority]++;
+	for (const priority of queuedReactions.values()) reactions[priority]++;
+	return Object.freeze({
+		currentPriority: currentWorkPriority(),
+		computations: Object.freeze(computations),
+		reactions: Object.freeze(reactions)
+	});
+}
+
+/** Runs synchronous work so its reactive invalidations inherit the requested priority. */
+export function runWithPriority<T>(priority: WorkPriority, work: () => T): T {
+	priorityStack.push(priority);
+	try {
+		return work();
+	} finally {
+		priorityStack.pop();
+	}
+}
+
+/** Schedules framework-owned computation work at an explicit priority. */
+export function scheduleWork(
+	work: () => void,
+	priority: WorkPriority = currentWorkPriority(),
+	onError?: (error: unknown) => void,
+	scope?: EffectScope
+): void {
+	queueComputation(work, onError, priority, scope);
+}
+
+/** Reschedules queued work whose owning scopes may just have become runnable. */
+export function resumeScheduledWork(): void {
+	scheduleRemainingWork();
+}
+
+/**
+ * Drains pending work through a priority until the eligible scheduler reaches a stable state.
+ *
+ * The default drains every priority for deterministic SSR, testing, and explicit synchronous
+ * rendering. Passing `normal` leaves deferred work queued for its host turn.
+ */
+export function flushSync(through: WorkPriority = 'deferred'): void {
 	// Computations run before reactions so derived values settle before render/watch effects observe them.
 	let passes = 0;
 	let firstError: unknown;
@@ -36,7 +125,7 @@ export function flushSync(): void {
 	let profileStarted: number | undefined;
 	const profiledReactions = new Map<ExactProfileSink<ReactiveProfileEvent>, number>();
 	try {
-		while (queuedComputations.size || queuedReactions.size) {
+		while (hasEligibleWork(through)) {
 			if (++passes > maxFlushPasses) {
 				const overflow = new Error(
 					'eXact reactive scheduler exceeded its flush limit; a reaction is repeatedly invalidating itself'
@@ -44,7 +133,7 @@ export function flushSync(): void {
 				if (settleOverflow(overflow)) return;
 				throw overflow;
 			}
-			while (queuedComputations.size) {
+			while (hasEligibleComputations(through)) {
 				if (++passes > maxFlushPasses) {
 					const overflow = new Error(
 						'eXact reactive scheduler exceeded its flush limit; a computation is repeatedly invalidating itself'
@@ -52,15 +141,15 @@ export function flushSync(): void {
 					if (settleOverflow(overflow)) return;
 					throw overflow;
 				}
-				const computations = [...queuedComputations.entries()];
-				queuedComputations.clear();
-				for (const [computation, onError] of computations) {
+				const computations = takeEligibleComputations(through);
+				for (const [computation, queued] of computations) {
+					if (queued.scope && !queued.scope.active) continue;
 					try {
-						computation();
+						runWithPriority(queued.priority, computation);
 					} catch (error) {
-						if (onError) {
+						if (queued.onError) {
 							try {
-								onError(error);
+								queued.onError(error);
 							} catch (handlerError) {
 								if (!hasError) firstError = handlerError;
 								hasError = true;
@@ -73,18 +162,21 @@ export function flushSync(): void {
 				}
 			}
 
-			const reactions = [...queuedReactions];
-			queuedReactions.clear();
+			const reactions = takeEligibleReactions(through);
 
-			for (const reaction of reactions) {
-				if (!reaction.active || (reaction.scope && !reaction.scope.active)) continue;
+			for (const [reaction, priority] of reactions) {
+				if (
+					!reaction.active ||
+					(reaction.scope && (!reaction.scope.active || reaction.scope.paused))
+				)
+					continue;
 				const profile = reaction.scope?.onProfile;
 				if (profile) {
 					profileStarted ??= profileTimestamp();
 					profiledReactions.set(profile, (profiledReactions.get(profile) ?? 0) + 1);
 				}
 				try {
-					reaction.run();
+					runWithPriority(priority, reaction.run);
 				} catch (error) {
 					if (!hasError) firstError = error;
 					hasError = true;
@@ -92,11 +184,16 @@ export function flushSync(): void {
 			}
 		}
 	} finally {
-		flushScheduled = false;
+		if (through === 'deferred') {
+			foregroundFlushScheduled = false;
+			deferredFlushScheduled = false;
+		} else {
+			foregroundFlushScheduled = false;
+		}
 		// Errors must not leave work queued without a corresponding microtask.
 		// Overflow deliberately clears both queues above; ordinary failures may
 		// have queued new work while their error was being handled.
-		if (queuedComputations.size || queuedReactions.size) scheduleFlush();
+		scheduleRemainingWork();
 		if (profileStarted !== undefined) {
 			for (const [sink, reactions] of profiledReactions) {
 				sink(
@@ -116,9 +213,11 @@ export function flushSync(): void {
 /** Clears a runaway generation and reports it once to each owning scope. */
 function settleOverflow(error: Error): boolean {
 	const handlers = new Set<(error: unknown) => void>();
-	for (const handler of queuedComputations.values()) if (handler) handlers.add(handler);
-	for (const reaction of queuedReactions) {
+	for (const queued of queuedComputations.values())
+		if (queued.onError) handlers.add(queued.onError);
+	for (const reaction of queuedReactions.keys()) {
 		reaction.scheduled = false;
+		reaction.pendingPriority = undefined;
 		if (reaction.scope?.onError) handlers.add(reaction.scope.onError);
 	}
 	queuedComputations.clear();
@@ -138,8 +237,122 @@ function settleOverflow(error: Error): boolean {
 	return true;
 }
 
-function scheduleFlush(): void {
-	if (flushScheduled) return;
-	flushScheduled = true;
-	queueMicrotask(flushSync);
+function scheduleFlush(priority: WorkPriority): void {
+	if (priority === 'deferred') {
+		if (foregroundFlushScheduled || deferredFlushScheduled) return;
+		deferredFlushScheduled = true;
+		scheduleDeferredFlush(() => {
+			deferredFlushScheduled = false;
+			consecutiveForegroundFlushes = 0;
+			flushSync();
+		});
+		return;
+	}
+	if (foregroundFlushScheduled) return;
+	foregroundFlushScheduled = true;
+	queueMicrotask(() => {
+		foregroundFlushScheduled = false;
+		const drainDeferred =
+			hasQueuedPriority('deferred') &&
+			++consecutiveForegroundFlushes >= maxForegroundFlushesBeforeDeferred;
+		if (drainDeferred) consecutiveForegroundFlushes = 0;
+		flushSync(drainDeferred ? 'deferred' : 'normal');
+	});
+}
+
+function scheduleRemainingWork(): void {
+	const priority = highestQueuedPriority();
+	if (priority) scheduleFlush(priority);
+}
+
+function highestQueuedPriority(): WorkPriority | undefined {
+	let selected: WorkPriority | undefined;
+	for (const [reaction, priority] of queuedReactions) {
+		if (reaction.scope?.paused) continue;
+		if (!selected || isHigherWorkPriority(priority, selected)) selected = priority;
+	}
+	for (const queued of queuedComputations.values()) {
+		if (queued.scope?.paused) continue;
+		if (!selected || isHigherWorkPriority(queued.priority, selected)) selected = queued.priority;
+	}
+	return selected;
+}
+
+function hasEligibleWork(through: WorkPriority): boolean {
+	return hasEligibleComputations(through) || hasEligibleReactions(through);
+}
+
+function hasEligibleComputations(through: WorkPriority): boolean {
+	for (const queued of queuedComputations.values()) {
+		if (queued.scope?.paused) continue;
+		if (isEligible(queued.priority, through)) return true;
+	}
+	return false;
+}
+
+function hasEligibleReactions(through: WorkPriority): boolean {
+	for (const [reaction, priority] of queuedReactions) {
+		if (reaction.scope?.paused) continue;
+		if (isEligible(priority, through)) return true;
+	}
+	return false;
+}
+
+function hasQueuedPriority(priority: WorkPriority): boolean {
+	for (const [reaction, queuedPriority] of queuedReactions)
+		if (!reaction.scope?.paused && queuedPriority === priority) return true;
+	for (const queued of queuedComputations.values())
+		if (!queued.scope?.paused && queued.priority === priority) return true;
+	return false;
+}
+
+function takeEligibleComputations(through: WorkPriority): Array<[() => void, QueuedComputation]> {
+	const selected: Array<[() => void, QueuedComputation]> = [];
+	for (const [computation, queued] of queuedComputations) {
+		if (queued.scope?.paused) continue;
+		if (!isEligible(queued.priority, through)) continue;
+		queuedComputations.delete(computation);
+		selected.push([computation, queued]);
+	}
+	selected.sort(
+		(left, right) => priorityOrder[left[1].priority] - priorityOrder[right[1].priority]
+	);
+	return selected;
+}
+
+function takeEligibleReactions(through: WorkPriority): Array<[Reaction, WorkPriority]> {
+	const selected: Array<[Reaction, WorkPriority]> = [];
+	for (const [reaction, priority] of queuedReactions) {
+		if (reaction.scope?.paused) continue;
+		if (!isEligible(priority, through)) continue;
+		queuedReactions.delete(reaction);
+		selected.push([reaction, priority]);
+	}
+	selected.sort((left, right) => priorityOrder[left[1]] - priorityOrder[right[1]]);
+	return selected;
+}
+
+function isEligible(priority: WorkPriority, through: WorkPriority): boolean {
+	return priorityOrder[priority] <= priorityOrder[through];
+}
+
+/** Reports whether candidate should run before current. */
+export function isHigherWorkPriority(candidate: WorkPriority, current: WorkPriority): boolean {
+	return priorityOrder[candidate] < priorityOrder[current];
+}
+
+function constrainedPriority(
+	scope: EffectScopeImpl | undefined,
+	requested: WorkPriority
+): WorkPriority {
+	let resolved = requested;
+	for (let cursor = scope; cursor; cursor = cursor.parent) {
+		if (cursor.workPriority && isHigherWorkPriority(resolved, cursor.workPriority))
+			resolved = cursor.workPriority;
+	}
+	return resolved;
+}
+
+function scheduleDeferredFlush(flush: () => void): void {
+	setTimeout(flush, 0);
 }

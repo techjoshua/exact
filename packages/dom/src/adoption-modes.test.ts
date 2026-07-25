@@ -2,10 +2,12 @@
  * @vitest-environment jsdom
  */
 import {
+	Activity,
 	createDynamicChild,
 	createServerSlot,
 	createVNode,
 	Fragment,
+	Suspense,
 	type Component,
 	unsafeHtml
 } from '@exactjs/core';
@@ -75,6 +77,80 @@ describe('DOM adoption modes', () => {
 		expect(adoptStatic(vnode, container)).toBe(true);
 		expect(container.querySelector('i')).toBe(first);
 		expect(unmount(container)).toBe(true);
+	});
+
+	it('adopts active and parked Activity ranges without recreating server nodes', () => {
+		const active = document.createElement('div');
+		active.innerHTML =
+			'<!--exact:root--><!--exact:activity:0--><p>ready</p><!--/exact:activity:0--><!--/exact:root-->';
+		const paragraph = active.querySelector('p');
+		expect(
+			adoptStatic(
+				createVNode(Activity, { mode: 'active' }, createVNode('p', null, 'ready')),
+				active
+			)
+		).toBe(true);
+		expect(active.querySelector('p')).toBe(paragraph);
+		unmount(active);
+
+		const parked = document.createElement('div');
+		parked.innerHTML =
+			'<!--exact:root--><!--exact:activity:0--><!--/exact:activity:0--><!--/exact:root-->';
+		expect(
+			adoptStatic(
+				createVNode(Activity, { mode: 'parked' }, createVNode('p', null, 'prepared')),
+				parked
+			)
+		).toBe(true);
+		expect(parked.querySelector('p')).toBeNull();
+		render(createVNode(Activity, { mode: 'active' }, createVNode('p', null, 'prepared')), parked);
+		expect(parked.querySelector('p')?.textContent).toBe('prepared');
+		unmount(parked);
+	});
+
+	it('adopts explicit Suspense content and fallback protocol states', async () => {
+		const content = document.createElement('div');
+		content.innerHTML =
+			'<!--exact:root--><!--exact:suspense-content:0--><p>ready</p><!--/exact:suspense-content:0--><!--/exact:root-->';
+		const paragraph = content.querySelector('p');
+		expect(
+			adoptStatic(
+				createVNode(Suspense, { fallback: 'loading' }, createVNode('p', null, 'ready')),
+				content
+			)
+		).toBe(true);
+		expect(content.querySelector('p')).toBe(paragraph);
+		unmount(content);
+
+		let resolve!: () => void;
+		const pending = new Promise<void>((settle) => {
+			resolve = settle;
+		});
+		function Pending(this: Component<{}>) {
+			this.task.blocking(async () => {
+				await pending;
+			});
+			return () => createVNode('p', null, 'ready');
+		}
+		const fallback = document.createElement('div');
+		fallback.innerHTML =
+			'<!--exact:root--><!--exact:suspense-fallback:0--><i>loading</i><!--/exact:suspense-fallback:0--><!--/exact:root-->';
+		const indicator = fallback.querySelector('i');
+		expect(
+			adoptStatic(
+				createVNode(
+					Suspense,
+					{ fallback: createVNode('i', null, 'loading') },
+					createVNode(Pending, {})
+				),
+				fallback
+			)
+		).toBe(true);
+		expect(fallback.querySelector('i')).toBe(indicator);
+		resolve();
+		for (let index = 0; index < 6; index++) await Promise.resolve();
+		expect(fallback.textContent).toBe('ready');
+		unmount(fallback);
 	});
 
 	it('adopts keyed SSR ranges and preserves their DOM identity during reorder', () => {

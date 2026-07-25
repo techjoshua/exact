@@ -65,6 +65,8 @@ export type ExactTaskIR = {
 	id: string;
 	placement: ExactPlacement;
 	requestedPlacement?: 'server' | 'client';
+	priority: 'normal' | 'deferred';
+	readiness: 'blocking' | 'nonblocking';
 	async: boolean;
 	browserEffects: boolean;
 	/** Source-ordered values captured as scheduled dependency snapshots. */

@@ -40,10 +40,10 @@ import {
 	isFunction,
 	isTaskCall,
 	statePath,
-	taskComponentOwner,
 	uniqueContexts,
 	uniqueEffects
 } from './task-state.js';
+import { analyzeAwaitedTask, unownedComponentAwaitDiagnostics } from './task-await-analysis.js';
 
 const browserGlobals = new Set([
 	'window',
@@ -80,6 +80,8 @@ export function analyzeExpressionTasks(
 	const signalCalls = new Map<string, ExpressionTaskSignalCall>();
 	const planDiagnostics: string[] = [];
 	const diagnosticLocations: Array<Readonly<{ message: string; start: number }>> = [];
+	const awaitedTasksByComponent = new Map<string, number>();
+	const compilerOwnedAwaits = new Set<string>();
 	const writes = analyzeExpressionWrites(module);
 	const localVariables = moduleLocalVariables(module);
 	for (const task of module
@@ -192,10 +194,15 @@ export function analyzeExpressionTasks(
 			const path = target ? statePath(module, target, aliases) : undefined;
 			if (path) taskWrites.push(effect(path.length ? path.join('.') : '*', 'write', true));
 		}
-		const requestedPlacement =
-			task.target?.name === 'client' || task.target?.name === 'server'
-				? task.target.name
-				: undefined;
+		const { awaited, componentOwner, taskPolicy, diagnostics } = analyzeAwaitedTask(
+			task,
+			taskWrites,
+			writes,
+			components,
+			awaitedTasksByComponent,
+			compilerOwnedAwaits
+		);
+		const requestedPlacement = taskPolicy.placement;
 		const callableEffect = callableEffects?.byNodeId.get(work.node.id);
 		if (callableEffect) {
 			taskWrites.push(...callableEffect.stateWrites);
@@ -231,9 +238,7 @@ export function analyzeExpressionTasks(
 							: taskWrites.length
 								? 'isomorphic'
 								: 'client');
-		const diagnostics: string[] = [];
 		const nearestFunction = task.ancestors().functions().first();
-		const componentOwner = taskComponentOwner(task, components);
 		if (componentOwner && nearestFunction?.node !== componentOwner.node) {
 			diagnostics.push(
 				'error: this.task() must be registered directly during component setup, not inside render functions or callbacks'
@@ -287,8 +292,10 @@ export function analyzeExpressionTasks(
 			start: task.node.span.start,
 			end: task.node.span.end,
 			...(requestedPlacement ? { requestedPlacement } : {}),
+			priority: taskPolicy.priority,
+			readiness: awaited ? 'blocking' : taskPolicy.readiness,
 			placement,
-			async: /^\s*async\b/.test(work.node.text ?? ''),
+			async: awaited || /^\s*async\b/.test(work.node.text ?? ''),
 			browserEffects,
 			serverEffects,
 			dependencyPaths: Object.freeze(minimalDependencyPaths(dependencyPaths)),
@@ -302,6 +309,14 @@ export function analyzeExpressionTasks(
 			effectSources: Object.freeze([...effectSources])
 		});
 		sites.set(site.nodeId, site);
+	}
+	for (const diagnostic of unownedComponentAwaitDiagnostics(
+		module,
+		components,
+		compilerOwnedAwaits
+	)) {
+		planDiagnostics.push(diagnostic.message);
+		diagnosticLocations.push(diagnostic);
 	}
 	for (const call of module.walk().calls()) {
 		if (!call.node.span || insideTask(call) || insideClientJsx(call)) continue;

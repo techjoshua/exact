@@ -63,7 +63,16 @@ export function createRootErrorView(errors: ErrorReport[]): VNode {
 /** Creates a marker. */
 export function createMarker(
 	root: Root,
-	label: 'cell' | 'component' | 'dynamic' | 'fragment' | 'portal'
+	label:
+		| 'activity'
+		| 'activity-end'
+		| 'cell'
+		| 'component'
+		| 'dynamic'
+		| 'fragment'
+		| 'portal'
+		| 'suspense'
+		| 'suspense-end'
 ): Node {
 	return root.debugMarkers ? document.createComment(`exact-${label}`) : document.createTextNode('');
 }

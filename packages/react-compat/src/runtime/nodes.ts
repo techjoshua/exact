@@ -1,16 +1,16 @@
 import {
+	Activity as ExactActivity,
 	Fragment as ExactFragment,
-	SuspensionContext,
+	Suspense as ExactSuspense,
 	createPortal,
 	createVNode,
 	isVNode,
-	trackComponentAsync,
 	type Child,
 	type Component,
 	type ComponentFunction,
-	type ComponentInstance,
 	type VNode
 } from '@exactjs/core';
+import { currentWorkPriority } from '@exactjs/reactive';
 import {
 	EXACT_COMPONENT_TYPE,
 	REACT_ACTIVITY_TYPE,
@@ -31,6 +31,7 @@ import {
 	adaptReactType,
 	childrenArray,
 	contextForSpecial,
+	currentReactTransitionOwnership,
 	isReactClassType,
 	isReactElement,
 	reactCompatibilityTarget,
@@ -114,15 +115,17 @@ export function reactElementToVNode(element: ReactElement): VNode {
 		return createVNode(ExactFragment, keyedProps, ...children);
 	}
 	if (element.type === REACT_SUSPENSE_TYPE) {
+		keyedProps.__exactReactTransition = currentReactTransitionOwnership();
 		return createVNode(ReactSuspenseBoundary, keyedProps);
 	}
 	if (element.type === REACT_ACTIVITY_TYPE) {
-		const children =
-			elementProps.mode === 'hidden'
-				? []
-				: (childrenArray(elementProps.children).map(toExactNode).flat() as Child[]);
+		const children = childrenArray(elementProps.children).map(toExactNode).flat() as Child[];
 		delete keyedProps.children;
-		return createVNode(ExactFragment, keyedProps, ...children);
+		return createVNode(
+			ExactActivity,
+			{ ...keyedProps, mode: elementProps.mode === 'hidden' ? 'parked' : 'active' },
+			...children
+		);
 	}
 	if (element.type === REACT_PROFILER_TYPE) {
 		return createVNode(ReactProfilerBoundary, keyedProps);
@@ -228,31 +231,20 @@ const ReactProfilerBoundary = function ReactProfilerBoundary(
 } as ComponentFunction<Record<string, unknown>, Record<string, unknown>>;
 
 const ReactSuspenseBoundary = function ReactSuspenseBoundary(
-	this: Component<{ pending: number }>,
+	this: Component<Record<string, never>>,
 	props: Record<string, unknown>
 ) {
-	this.state.pending = 0;
-	const pending = new Set<PromiseLike<unknown>>();
-	let active = true;
-	this.setContext(SuspensionContext, {
-		suspend: (promise) => {
-			if (!active || pending.has(promise)) return;
-			pending.add(promise);
-			trackComponentAsync(this as unknown as ComponentInstance<Record<string, unknown>>, promise);
-			this.state.pending = pending.size;
-			const settle = () => {
-				if (!active || !pending.delete(promise)) return;
-				this.state.pending = pending.size;
-			};
-			Promise.resolve(promise).then(settle, settle);
-		}
-	});
-	this.onUnmount(() => {
-		active = false;
-		pending.clear();
-	});
-	return () => toExactNode((this.state.pending ? props.fallback : props.children) as ReactNode);
-} as ComponentFunction<{ pending: number }, Record<string, unknown>>;
+	return () =>
+		createVNode(
+			ExactSuspense,
+			{
+				fallback: toExactNode(props.fallback as ReactNode),
+				presentation: currentWorkPriority() === 'deferred' ? 'retain' : 'replace',
+				__exactTransition: props.__exactReactTransition
+			},
+			toExactNode(props.children as ReactNode)
+		);
+} as ComponentFunction<Record<string, never>, Record<string, unknown>>;
 
 /** Reports whether react portal. */
 export function isReactPortal(value: unknown): value is import('../types.js').ReactPortal {

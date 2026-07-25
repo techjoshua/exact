@@ -1,0 +1,66 @@
+import { isPromiseLike } from './async-value.js';
+import { observeLifecyclePromise } from './async.js';
+import type { ComponentInstance } from './contracts.js';
+import { createErrorReport, handleComponentError } from './errors.js';
+
+/** Controls active/deactive lifecycle transitions for one mounted component instance. */
+export type ComponentActivation = Readonly<{
+	get active(): boolean;
+	update(reason?: string): void;
+	deactivate(reason: string): void;
+}>;
+
+/** Creates the Activity-aware activation state machine owned by a component instance. */
+export function createComponentActivation(
+	instance: ComponentInstance<any>,
+	isMounted: () => boolean,
+	isDisposed: () => boolean,
+	blockers: ReadonlySet<symbol>
+): ComponentActivation {
+	let active = false;
+	const deactivate = (reason: string): void => {
+		if (!active) return;
+		active = false;
+		instance.activationController?.abort(reason);
+		instance.activationController = undefined;
+		for (const handler of instance.deactivateHandlers) {
+			try {
+				const result = handler({ signal: AbortSignal.abort(reason), reason });
+				if (isPromiseLike(result))
+					observeLifecyclePromise(instance, Promise.resolve(result), 'deactivate');
+			} catch (error) {
+				handleComponentError(
+					instance,
+					createErrorReport(error, 'lifecycle', instance, 'deactivate')
+				);
+			}
+		}
+	};
+	return {
+		get active() {
+			return active;
+		},
+		update(reason = 'activity') {
+			if (!isMounted() || isDisposed() || blockers.size) {
+				deactivate(reason);
+				return;
+			}
+			if (active) return;
+			active = true;
+			instance.activationController = new AbortController();
+			for (const handler of instance.activateHandlers) {
+				try {
+					const result = handler({ signal: instance.activationController.signal });
+					if (isPromiseLike(result))
+						observeLifecyclePromise(instance, Promise.resolve(result), 'activate');
+				} catch (error) {
+					handleComponentError(
+						instance,
+						createErrorReport(error, 'lifecycle', instance, 'activate')
+					);
+				}
+			}
+		},
+		deactivate
+	};
+}

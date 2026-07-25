@@ -26,6 +26,8 @@ export function createExpressionComponents(
 						id: stableId(filename, `${site.name}:task:${index}`),
 						placement: task.placement,
 						requestedPlacement: task.requestedPlacement,
+						priority: task.priority,
+						readiness: task.readiness,
 						async: task.async,
 						browserEffects: task.browserEffects,
 						dependencies: task.dependencies.map((dependency, dependencyIndex) => ({

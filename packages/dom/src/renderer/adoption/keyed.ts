@@ -2,7 +2,7 @@ import { encodeExactMarkerPart, type ComponentInstance, type VNode } from '@exac
 import { createEffectScope, type EffectScope } from '@exactjs/reactive';
 import type { Mounted, Root } from '../../types.js';
 import { unmountMany } from '../teardown.js';
-import { adoptStaticMounted } from './tree.js';
+import { adoptStaticMounted } from './entry.js';
 
 /** Performs the adopt keyed list children domain operation. */
 export function adoptKeyedListChildren(

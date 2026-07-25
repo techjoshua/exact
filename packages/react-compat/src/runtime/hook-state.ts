@@ -1,5 +1,5 @@
 import type { Component, ContextToken } from '@exactjs/core';
-import { reactive, type Reactive } from '@exactjs/reactive';
+import { reactive, scheduleWork, type Reactive } from '@exactjs/reactive';
 import type { DependencyList, ExternalStoreSubscribe, ReactContext } from '../types.js';
 import { contextToken, readComponentReactContext } from './class-support.js';
 import {
@@ -12,7 +12,13 @@ import {
 	type HookSlot
 } from './hook-slots.js';
 import { readReactRootRuntime } from './nodes.js';
-import { nextReactCompatibilityId, profileStack } from './shared.js';
+import {
+	currentReactTransitionOwnership,
+	nextReactCompatibilityId,
+	profileStack,
+	withReactTransitionOwnership,
+	type ReactTransitionOwnership
+} from './shared.js';
 
 /** Tracks the state owned by hook. */
 export abstract class HookState {
@@ -29,6 +35,8 @@ export abstract class HookState {
 	protected readonly identifierPrefix: string;
 	protected readonly providedContexts = new Map<ReactContext<unknown>, Reactive<ContextCell>>();
 	protected readonly onProfile = profileStack.at(-1);
+	private renderTransition: ReactTransitionOwnership | undefined;
+	private releaseRenderTransition: (() => void) | undefined;
 
 	constructor(protected readonly component: Component<Record<string, unknown>>) {
 		const runtime = readReactRootRuntime(component);
@@ -255,14 +263,14 @@ export abstract class HookState {
 		slot.input = value;
 		if (!Object.is(slot.value, value) && !slot.scheduled) {
 			slot.scheduled = true;
-			queueMicrotask(() => {
+			scheduleWork(() => {
 				const committed = this.committed[index];
 				if (!committed || committed.kind !== 'deferred' || this.disposed) return;
 				committed.scheduled = false;
 				if (Object.is(committed.value, committed.input)) return;
 				committed.value = committed.input;
 				this.invalidate();
-			});
+			}, 'deferred');
 		}
 		return slot.value;
 	}
@@ -343,6 +351,7 @@ export abstract class HookState {
 		const next =
 			typeof action === 'function' ? (action as (value: unknown) => unknown)(slot.value) : action;
 		if (Object.is(next, slot.value)) return;
+		this.captureTransition();
 		slot.value = next;
 		this.invalidate();
 	}
@@ -356,6 +365,7 @@ export abstract class HookState {
 		const slot = this.committed[index];
 		assertHookKind(slot, 'reducer', index);
 		const next = slot.reducer(slot.value, action);
+		this.captureTransition();
 		slot.value = next;
 		this.invalidate();
 	}
@@ -364,6 +374,7 @@ export abstract class HookState {
 		if (this.disposed) return;
 		const slot = this.committed[index];
 		assertHookKind(slot, 'optimistic', index);
+		this.captureTransition();
 		slot.value = slot.reducer ? slot.reducer(slot.value, action) : action;
 		this.invalidate();
 	}
@@ -371,5 +382,26 @@ export abstract class HookState {
 	protected invalidate(): void {
 		const state = this.component.state;
 		state.__reactRevision = Number(state.__reactRevision ?? 0) + 1;
+	}
+
+	/** Runs conversion or rendering with the transition captured by the pending update. */
+	withRenderTransition<T>(work: () => T): T {
+		return withReactTransitionOwnership(this.renderTransition, work);
+	}
+
+	/** Releases the update's transition hold after its DOM render has committed. */
+	finishTransitionRender(): void {
+		this.releaseRenderTransition?.();
+		this.releaseRenderTransition = undefined;
+		this.renderTransition = undefined;
+	}
+
+	/** Releases a superseded transition and retains the transition owning the current update. */
+	private captureTransition(): void {
+		const transition = currentReactTransitionOwnership();
+		if (!transition || transition === this.renderTransition) return;
+		this.releaseRenderTransition?.();
+		this.renderTransition = transition;
+		this.releaseRenderTransition = transition.retain();
 	}
 }

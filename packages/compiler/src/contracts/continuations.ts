@@ -35,6 +35,7 @@ export type ExactContinuationIR = {
 	componentId: string;
 	taskId: string;
 	placement: Extract<ExactPlacement, 'server' | 'isomorphic'>;
+	readiness: 'blocking' | 'nonblocking';
 	async: boolean;
 	activation: ExactContinuationActivationIR;
 	effects: ExactContinuationEffectsIR;

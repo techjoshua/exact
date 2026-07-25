@@ -1176,6 +1176,8 @@
         {
           "id": "xfYyb8VQa5QHp2pCbpOICuc",
           "placement": "client",
+          "priority": "normal",
+          "readiness": "nonblocking",
           "async": false,
           "browserEffects": true,
           "dependencies": [
@@ -1243,6 +1245,8 @@
         {
           "id": "xcPLxTJr24MTYXm4fVnEUQS",
           "placement": "client",
+          "priority": "normal",
+          "readiness": "nonblocking",
           "async": true,
           "browserEffects": true,
           "dependencies": [

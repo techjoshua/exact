@@ -7,9 +7,12 @@ import {
 	peek,
 	reactive,
 	ref,
+	runWithPriority,
+	setEffectScopeWorkPriority,
 	subscribe,
 	transferEffectScope,
 	watch,
+	whenEffectScopeResumed,
 	withEffectScope
 } from './index.js';
 
@@ -224,6 +227,96 @@ describe('@exactjs/reactive scopes', () => {
 		second.stop();
 		expect(stopped).toHaveBeenCalledTimes(1);
 		expect(() => transferEffectScope(child, undefined)).toThrow('inactive effect scope');
+	});
+
+	it('retains one latest invalidation while paused and runs it when resumed', () => {
+		const scope = createEffectScope();
+		const state = reactive({ value: 0 });
+		const seen: number[] = [];
+		withEffectScope(scope, () => watch(() => seen.push(state.value)));
+
+		scope.pause();
+		runWithPriority('deferred', () => {
+			state.value = 1;
+		});
+		state.value = 2;
+		flushSync();
+
+		expect(state.value).toBe(2);
+		expect(seen).toEqual([0]);
+
+		scope.resume();
+		flushSync();
+		expect(seen).toEqual([0, 2]);
+		scope.stop();
+	});
+
+	it('inherits ancestor pauses while preserving a child own pause', () => {
+		const parent = createEffectScope();
+		const child = createEffectScope(parent);
+		const state = reactive({ value: 0 });
+		const seen: number[] = [];
+		withEffectScope(child, () => watch(() => seen.push(state.value)));
+
+		parent.pause();
+		child.pause();
+		state.value = 1;
+		parent.resume();
+		flushSync();
+
+		expect(parent.paused).toBe(false);
+		expect(child.paused).toBe(true);
+		expect(seen).toEqual([0]);
+
+		child.resume();
+		flushSync();
+		expect(seen).toEqual([0, 1]);
+		parent.stop();
+	});
+
+	it('constrains background scope work to deferred priority', () => {
+		const scope = createEffectScope();
+		const state = reactive({ value: 0 });
+		const seen: number[] = [];
+		withEffectScope(scope, () => watch(() => seen.push(state.value)));
+		setEffectScopeWorkPriority(scope, 'deferred');
+
+		runWithPriority('interactive', () => {
+			state.value = 1;
+		});
+		flushSync('normal');
+		expect(seen).toEqual([0]);
+
+		flushSync();
+		expect(seen).toEqual([0, 1]);
+		scope.stop();
+	});
+
+	it('settles resume waiters on activation, transfer, and final disposal', async () => {
+		const activeParent = createEffectScope();
+		const pausedParent = createEffectScope();
+		pausedParent.pause();
+		const child = createEffectScope(pausedParent);
+
+		let transferred = false;
+		const transferWait = whenEffectScopeResumed(child).then(() => {
+			transferred = true;
+		});
+		transferEffectScope(child, activeParent);
+		await transferWait;
+		expect(transferred).toBe(true);
+
+		child.pause();
+		let stopped = false;
+		const stopWait = whenEffectScopeResumed(child).then(() => {
+			stopped = true;
+		});
+		child.stop();
+		await stopWait;
+		expect(stopped).toBe(true);
+
+		activeParent.stop();
+		pausedParent.stop();
 	});
 
 	it('stops deeply nested effect scopes without using the JavaScript call stack', () => {

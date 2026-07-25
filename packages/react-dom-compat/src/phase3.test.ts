@@ -7,7 +7,9 @@ import {
 	cache,
 	createElement,
 	useActionState,
-	useOptimistic
+	useEffect,
+	useOptimistic,
+	useState
 } from '@exactjs/react-compat';
 import { c } from '@exactjs/react-compat/compiler-runtime';
 import { describe, expect, it, vi } from 'vitest';
@@ -106,5 +108,35 @@ describe('React compatibility Phase 3', () => {
 			)
 		);
 		expect(container.textContent).toBe('visible');
+	});
+
+	it('retains React Activity state and DOM identity while reconnecting effects', async () => {
+		const lifecycle: string[] = [];
+		function Counter() {
+			const [count, setCount] = useState(0);
+			useEffect(() => {
+				lifecycle.push('effect');
+				return () => lifecycle.push('cleanup');
+			}, []);
+			return createElement('button', { onClick: () => setCount(count + 1) }, String(count));
+		}
+		const view = (mode: 'visible' | 'hidden') =>
+			createElement(Activity, { mode }, createElement(Counter));
+		const container = document.createElement('div');
+		const root = createRoot(container);
+
+		await act(() => root.render(view('visible')));
+		const button = container.querySelector('button')!;
+		await act(() => button.click());
+		expect(button.textContent).toBe('1');
+
+		await act(() => root.render(view('hidden')));
+		expect(container.querySelector('button')).toBeNull();
+		expect(lifecycle).toEqual(['effect', 'cleanup']);
+
+		await act(() => root.render(view('visible')));
+		expect(container.querySelector('button')).toBe(button);
+		expect(button.textContent).toBe('1');
+		expect(lifecycle).toEqual(['effect', 'cleanup', 'effect']);
 	});
 });

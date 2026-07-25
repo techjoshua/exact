@@ -23,7 +23,6 @@ import type {
 	ComponentFunction,
 	ComponentInstance,
 	ComponentReactiveValue,
-	ComponentTask,
 	ContextToken,
 	LifecycleHandler,
 	ListBinding,
@@ -39,13 +38,16 @@ import type {
 import { createNoopComponentLog } from './log.js';
 
 import { applyInternalPlugins, defaultContexts } from './plugins.js';
+import { createComponentActivation, type ComponentActivation } from './activation.js';
 
 import { createComponentReactiveValue, createTask } from '../task/execution.js';
+import { createComponentTaskApi } from './task-api.js';
 import { releaseTaskObserver, retainTaskObserver, taskObserverFor } from '../task/observers.js';
 import { isPromiseLike } from './async-value.js';
 import { observeLifecyclePromise } from './async.js';
 import { ErrorContext } from './contexts.js';
 import { prepareComponentContextResumption } from './context-resumption.js';
+import { cleanupFailedComponentConstruction, isTemplateStringsArray } from './construction.js';
 import { pageComponentDomain, withComponentDomain } from './domain.js';
 import { createErrorContext, createErrorReport, handleComponentError } from './errors.js';
 import { reactiveValue } from './reactive-value.js';
@@ -98,6 +100,7 @@ export function createComponentInstance<
 
 	let mounted = false;
 	let disposed = false;
+	const activityBlockers = new Set<symbol>();
 	let acceptingTaskRegistrations = true;
 	let renderFunction: RenderFunction = () => null;
 	const id = `c${nextComponentId++}`;
@@ -115,6 +118,8 @@ export function createComponentInstance<
 		ambientContexts,
 		tasks: [],
 		mountHandlers: [],
+		activateHandlers: [],
+		deactivateHandlers: [],
 		unmountHandlers: [],
 		renderHandlers: [],
 		get mounted() {
@@ -211,30 +216,20 @@ export function createComponentInstance<
 				(task) => startRegisteredTask(task, resumption)
 			);
 		},
-		task: Object.assign(
-			function task(...args: unknown[]): void {
-				if (!acceptingTaskRegistrations) {
-					throw new Error('this.task() must be registered during component setup');
-				}
-				const work = args[args.length - 1];
-				if (typeof work !== 'function') {
-					throw new TypeError('this.task() requires a work callback');
-				}
-
-				const deps = args.slice(0, -1);
-				const task = createTask(instance, deps, work as (...args: any[]) => TaskResult);
-				instance.tasks.push(task);
-				startRegisteredTask(task, resumption);
-			},
-			{
-				server(...args: unknown[]): void {
-					(instance.task as (...args: unknown[]) => void)(...args);
-				},
-				client(...args: unknown[]): void {
-					(instance.task as (...args: unknown[]) => void)(...args);
-				}
+		task: createComponentTaskApi((policy, args) => {
+			if (!acceptingTaskRegistrations) {
+				throw new Error('this.task() must be registered during component setup');
 			}
-		) as ComponentTask,
+			const work = args[args.length - 1];
+			if (typeof work !== 'function') {
+				throw new TypeError('this.task() requires a work callback');
+			}
+
+			const deps = args.slice(0, -1);
+			const task = createTask(instance, deps, work as (...args: any[]) => TaskResult, policy);
+			instance.tasks.push(task);
+			startRegisteredTask(task, resumption);
+		}),
 		ref<T>(key: RefKey<T>): RefBinding<T> {
 			return {
 				key,
@@ -307,6 +302,12 @@ export function createComponentInstance<
 		onMount(handler: LifecycleHandler): void {
 			instance.mountHandlers.push(handler);
 		},
+		onActivate(handler: LifecycleHandler): void {
+			instance.activateHandlers.push(handler);
+		},
+		onDeactivate(handler: LifecycleHandler): void {
+			instance.deactivateHandlers.push(handler);
+		},
 		onUnmount(handler: LifecycleHandler): void {
 			instance.unmountHandlers.push(handler);
 		},
@@ -327,12 +328,19 @@ export function createComponentInstance<
 					handleComponentError(instance, createErrorReport(error, 'lifecycle', instance, 'mount'));
 				}
 			}
+			activation.update();
+		},
+		setActivity(token: symbol, active: boolean, reason = 'activity'): void {
+			if (active) activityBlockers.delete(token);
+			else activityBlockers.add(token);
+			activation.update(reason);
 		},
 		updateProps(nextProps): void {
 			updateReactive(props, nextProps);
 		},
 		unmount(reason = 'unmount'): void {
 			if (disposed) return;
+			if (activation.active) activation.deactivate(reason);
 			disposed = true;
 			mounted = false;
 			let failed = false;
@@ -372,6 +380,12 @@ export function createComponentInstance<
 
 	// Framework fallback errors belong to one application root. A user-provided
 	// ErrorContext installed during construction replaces this seed for its tree.
+	const activation: ComponentActivation = createComponentActivation(
+		instance,
+		() => mounted,
+		() => disposed,
+		activityBlockers
+	);
 	if (!parent) instance.contexts.set(ErrorContext.id, reactiveValue(createErrorContext()));
 
 	applyInternalPlugins(instance);
@@ -384,7 +398,7 @@ export function createComponentInstance<
 		);
 	} catch (error) {
 		acceptingTaskRegistrations = false;
-		cleanupFailedConstruction(instance);
+		cleanupFailedComponentConstruction(instance);
 		throw error;
 	}
 	if (resumption) {
@@ -410,15 +424,4 @@ export function reparentComponentInstance(
 		if (cursor === instance) throw new Error('Cannot create a component parent cycle');
 	}
 	instance.parent = parent;
-}
-
-function cleanupFailedConstruction(instance: ComponentInstance<any>): void {
-	instance.renderStop?.();
-	instance.scope.stop();
-	instance.mountController?.abort('construct-failed');
-	for (const task of instance.tasks) task.stop();
-}
-
-function isTemplateStringsArray(value: unknown): value is TemplateStringsArray {
-	return Array.isArray(value) && Array.isArray((value as { raw?: unknown }).raw);
 }

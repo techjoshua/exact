@@ -121,6 +121,13 @@ export function markerId(context: SsrContext, kind: string, name?: string, key?:
 	return `${kind}:${context.nextId++}${name ? `:${encodeExactMarkerPart(name)}` : ''}${key ? `:${encodeExactMarkerPart(key)}` : ''}`;
 }
 
+/** Adds rendered Suspense status to a previously allocated stable boundary identity. */
+export function suspenseStatusMarkerId(identity: string, status: 'content' | 'fallback'): string {
+	if (!identity.startsWith('suspense:'))
+		throw new Error('Suspense marker identity must use the suspense kind');
+	return `suspense-${status}${identity.slice('suspense'.length)}`;
+}
+
 /** Normalizes a compiler-provided exact marker id by removing a leading exact prefix. */
 export function exactMarkerId(id: string): string {
 	return id.startsWith('exact:') ? id.slice('exact:'.length) : id;

@@ -1,4 +1,10 @@
-import { BLOCKED_JAVASCRIPT_URL, createVNode, unsafeHtml, type Component } from '@exactjs/core';
+import {
+	BLOCKED_JAVASCRIPT_URL,
+	Suspense,
+	createVNode,
+	unsafeHtml,
+	type Component
+} from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import {
 	createExactServerRuntime,
@@ -203,6 +209,39 @@ describe('@exactjs/ssr documents-security', () => {
 			{ event: 'complete', version: 1 }
 		]);
 		expect(events[2].html).toContain('"ready":true');
+	});
+
+	it('streams a settled Suspense range without replacing stable siblings', async () => {
+		function Options(this: Component<{ label: string }>) {
+			this.state.label = '';
+			this.task.blocking(async () => {
+				this.state.label = await Promise.resolve('Ground');
+			});
+			return () => createVNode('p', null, this.state.label);
+		}
+		const events = await readRemainingStreamEvents(
+			renderToDocumentStream(
+				createVNode(
+					'main',
+					null,
+					createVNode('h1', null, 'Shipping'),
+					createVNode(
+						Suspense,
+						{ fallback: createVNode('i', null, 'Loading') },
+						createVNode(Options, {})
+					)
+				),
+				{ hydration: false }
+			).getReader()
+		);
+
+		expect(events.find((event) => event.event === 'shell')?.html).toContain('Loading');
+		expect(events.find((event) => event.event === 'replace')).toMatchObject({
+			event: 'replace',
+			id: expect.stringMatching(/^suspense-fallback:/),
+			html: expect.stringContaining('Ground')
+		});
+		expect(events.find((event) => event.event === 'replace')?.id).not.toBe('document');
 	});
 
 	it('streams hydratable document bootstrap events', async () => {

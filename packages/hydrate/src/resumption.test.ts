@@ -54,6 +54,7 @@ describe('@exactjs/hydrate component resumption', () => {
 					{
 						id: 'task:search',
 						componentId: 'component:Search',
+						readiness: 'nonblocking' as const,
 						dependencies: [{ source: 'state' as const }],
 						stateReads: [{ path: 'query', kind: 'read' as const, confidence: 'exact' as const }],
 						stateWrites: [{ path: 'result', kind: 'write' as const, confidence: 'exact' as const }],
@@ -137,6 +138,7 @@ describe('@exactjs/hydrate component resumption', () => {
 					{
 						id: 'task:status',
 						componentId: 'component:Provider',
+						readiness: 'nonblocking' as const,
 						dependencies: [],
 						stateReads: [],
 						stateWrites: [],

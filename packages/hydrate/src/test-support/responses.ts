@@ -27,18 +27,16 @@ export function testContinuation(
 		publicContexts?: readonly string[];
 		contextWrites?: readonly string[];
 		dependencies?: ExactComponentContinuationContract['dependencies'];
+		readiness?: ExactComponentContinuationContract['readiness'];
 	} = {}
 ): ExactComponentContinuationContract {
 	return {
 		id,
 		componentId: `test:${id}`,
+		readiness: options.readiness ?? 'nonblocking',
 		dependencies: options.dependencies ?? [],
-		stateReads:
-			options.reads ??
-			([{ path: '*', kind: 'read', confidence: 'exact' }] as const),
-		stateWrites:
-			options.writes ??
-			([{ path: '*', kind: 'write', confidence: 'exact' }] as const),
+		stateReads: options.reads ?? ([{ path: '*', kind: 'read', confidence: 'exact' }] as const),
+		stateWrites: options.writes ?? ([{ path: '*', kind: 'write', confidence: 'exact' }] as const),
 		publicContexts: options.publicContexts ?? [],
 		serverContexts: [],
 		contextWrites: options.contextWrites ?? [],
