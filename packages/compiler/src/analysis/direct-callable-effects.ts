@@ -197,8 +197,22 @@ export function collectDirectCallableEffects(state: CallableAnalysisState): void
 		}
 		for (const member of fn.descendants({ types: false }).memberAccesses()) {
 			if (nearestFunction(member)?.node !== fn.node) continue;
-			const statePath = expressionStatePath(module, member.node, writePlan?.aliases ?? new Map());
-			const memberSpan = member.node.span;
+			// A called member is executable behavior on the captured value, not
+			// another serializable state segment. For `query.toUpperCase()`, where
+			// `query` aliases `this.state.query`, the activation record needs
+			// `query`; it neither needs nor can encode the built-in function.
+			const stateRead =
+				member.parent?.node.kind === 'CallExpression' &&
+				member.parent.target?.node === member.node &&
+				member.target
+					? member.target
+					: member;
+			const statePath = expressionStatePath(
+				module,
+				stateRead.node,
+				writePlan?.aliases ?? new Map()
+			);
+			const memberSpan = stateRead.node.span;
 			const assignmentTarget =
 				statePath?.length &&
 				memberSpan &&

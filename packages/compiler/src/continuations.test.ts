@@ -89,6 +89,26 @@ describe('distributed component continuation IR', () => {
 		expect(JSON.stringify(resumption.client)).not.toContain('DatabaseContext');
 	});
 
+	it('does not treat methods invoked on captured values as transport state paths', () => {
+		const manifest = analyzeSource(
+			`
+      export function Search(this: Component<{ query: string; result: string }>) {
+        this.task.server(async () => {
+          const query = this.state.query;
+          await Promise.resolve();
+          this.state.result = query.toUpperCase();
+        });
+        return () => <output>{this.state.result}</output>;
+      }
+    `,
+			{ filename: fixture('captured-value-method') }
+		);
+
+		expect(manifest.continuations[0]?.activation.stateReads).toEqual([
+			{ path: 'query', kind: 'read', confidence: 'exact' }
+		]);
+	});
+
 	it('separates explicitly shared context projections from server context lookups', () => {
 		const manifest = analyzeSource(
 			`
