@@ -12,10 +12,10 @@ export function ShippingCalculatorPage(this: Component<PageState>, props: {
     const request = normalizeDraft(parsed.draft);
     __exactWrite(this.state, ["model"], () => emptyInitialModel(parsed.draft, request, parsed.explicit));
     __exactWrite(this.state, ["model", "configuredProviders"], () => configuredProviderIds());
-    this.task(async ({ signal }) => {
-        const providers = await __exactTaskAwait(signal, Promise.all(this.state.model.configuredProviders.map((id) => quoteProvider(id, request, __exactTaskCombinedSignal(signal, signal)))));
+    this.task(this.reactive(() => this.state.model.configuredProviders), this.reactive(() => this.state.model), async (__exactDependency, __exactDependency1, { signal }) => {
+        const providers = await __exactTaskAwait(signal, Promise.all(__exactDependency.map((id) => quoteProvider(id, request, __exactTaskCombinedSignal(signal, signal)))));
         __exactWrite(this.state, ["model"], () => ({
-            ...this.state.model,
+            ...__exactDependency1,
             route: resolveRoute(request.originZip5, request.destinationZip5),
             providers
         }));

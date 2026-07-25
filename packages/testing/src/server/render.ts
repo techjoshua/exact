@@ -37,18 +37,23 @@ export class ServerTestComponent<State extends object = any, Props = any> {
 		private readonly captured: CapturedComponent
 	) {}
 
+	/** Returns the runtime identifier assigned to this captured component instance. */
 	get id(): string {
 		return this.captured.id;
 	}
+	/** Returns the component function name, falling back to `Anonymous`. */
 	get name(): string {
 		return this.captured.type.name || 'Anonymous';
 	}
+	/** Returns the component function represented by this captured server snapshot. */
 	get type(): ComponentFunction<State, Props> {
 		return this.captured.type as ComponentFunction<State, Props>;
 	}
+	/** Returns the settled state snapshot captured before server teardown. */
 	state(): State {
 		return this.captured.state as State;
 	}
+	/** Returns the settled props snapshot captured before server teardown. */
 	props(): Props {
 		return this.captured.props as Props;
 	}
@@ -68,9 +73,11 @@ export class ServerTestComponent<State extends object = any, Props = any> {
 	providedContext<T>(token: ContextToken<T>): T | undefined {
 		return unwrap(this.captured.provided.get(token.id)) as T | undefined;
 	}
+	/** Returns the captured parent component, if this component was not the render root. */
 	parent(): ServerTestComponent | undefined {
 		return this.captured.parentId ? this.view.componentById(this.captured.parentId) : undefined;
 	}
+	/** Returns direct captured children, optionally restricted to a component type. */
 	children<C extends ComponentFunction<any, any>>(
 		type?: C
 	): ServerTestComponent<StateOf<C>, PropsOf<C>>[] {
@@ -80,16 +87,19 @@ export class ServerTestComponent<State extends object = any, Props = any> {
 				(component) => component.captured.parentId === this.id && (!type || component.type === type)
 			) as ServerTestComponent<StateOf<C>, PropsOf<C>>[];
 	}
+	/** Returns the sole direct child of a type or throws when the match is not unique. */
 	child<C extends ComponentFunction<any, any>>(
 		type: C
 	): ServerTestComponent<StateOf<C>, PropsOf<C>> {
 		return requireOne(this.children(type), `direct child ${type.name || 'anonymous'}`);
 	}
+	/** Returns the sole descendant of a type or throws when the match is not unique. */
 	find<C extends ComponentFunction<any, any>>(
 		type: C
 	): ServerTestComponent<StateOf<C>, PropsOf<C>> {
 		return requireOne(this.findAll(type), `descendant ${type.name || 'anonymous'}`);
 	}
+	/** Returns every captured descendant whose component type matches the requested type. */
 	findAll<C extends ComponentFunction<any, any>>(
 		type: C
 	): ServerTestComponent<StateOf<C>, PropsOf<C>>[] {
@@ -124,6 +134,7 @@ export class ServerTestView<State extends object = any, Props = any> {
 		this.root = this.byId.get(root.id) as ServerTestComponent<State, Props>;
 	}
 
+	/** Returns the sole captured component of a type, including the root when it matches. */
 	component<C extends ComponentFunction<any, any>>(
 		type: C
 	): ServerTestComponent<StateOf<C>, PropsOf<C>> {
@@ -131,6 +142,7 @@ export class ServerTestView<State extends object = any, Props = any> {
 			return this.root as unknown as ServerTestComponent<StateOf<C>, PropsOf<C>>;
 		return this.root.find(type);
 	}
+	/** Returns every captured component whose runtime type matches the requested component. */
 	components<C extends ComponentFunction<any, any>>(
 		type: C
 	): ServerTestComponent<StateOf<C>, PropsOf<C>>[] {
@@ -140,15 +152,19 @@ export class ServerTestView<State extends object = any, Props = any> {
 				: [];
 		return [...roots, ...this.root.findAll(type)];
 	}
+	/** Returns a settled application-scoped context value captured during the render. */
 	applicationContext<T>(token: ContextToken<T>): T | undefined {
 		return unwrap(this.applicationValues.get(token.id)) as T | undefined;
 	}
+	/** Returns a settled request-scoped context value captured during the render. */
 	requestContext<T>(token: ContextToken<T>): T | undefined {
 		return unwrap(this.requestValues.get(token.id)) as T | undefined;
 	}
+	/** Returns all captured component snapshots in render traversal order. */
 	allComponents(): ServerTestComponent[] {
 		return [...this.byId.values()];
 	}
+	/** Looks up a captured component by its opaque runtime instance identifier. */
 	componentById(id: string): ServerTestComponent | undefined {
 		return this.byId.get(id);
 	}
@@ -174,10 +190,12 @@ export class ServerTestComponentBuilder<C extends ComponentFunction<any, any>> {
 	private requestRegistrations: readonly ExactContextRegistration<any>[] = [];
 
 	constructor(readonly component: C) {}
+	/** Sets the root component props used by subsequent renders. */
 	props(props: PropsOf<C>): this {
 		this.componentProps = props;
 		return this;
 	}
+	/** Provides one component-scoped context value to the root component. */
 	context<T>(token: ContextToken<T>, value: T): this {
 		if (token.scope !== 'component')
 			throw new Error(
@@ -186,26 +204,32 @@ export class ServerTestComponentBuilder<C extends ComponentFunction<any, any>> {
 		this.componentContexts.set(token.id, value);
 		return this;
 	}
+	/** Provides multiple component-scoped context values to the root component. */
 	contexts(entries: Iterable<readonly [ContextToken<any>, unknown]>): this {
 		for (const [token, value] of entries) this.context(token, value);
 		return this;
 	}
+	/** Overrides an application-scoped context value for subsequent renders. */
 	applicationContext<T>(token: ContextToken<T>, value: T): this {
 		this.applicationOverrides.push([token, value]);
 		return this;
 	}
+	/** Overrides a request-scoped context value for subsequent renders. */
 	requestContext<T>(token: ContextToken<T>, value: T): this {
 		this.requestOverrides.push([token, value]);
 		return this;
 	}
+	/** Registers application-scoped context factories used by subsequent renders. */
 	applicationContexts(registrations: readonly ExactContextRegistration<any>[]): this {
 		this.applicationRegistrations = registrations;
 		return this;
 	}
+	/** Registers request-scoped context factories used by subsequent renders. */
 	requestContexts(registrations: readonly ExactContextRegistration<any>[]): this {
 		this.requestRegistrations = registrations;
 		return this;
 	}
+	/** Renders, snapshots, and disposes the server runtime while retaining inspectable results. */
 	async render(
 		options: ServerTestRenderOptions = {}
 	): Promise<ServerTestView<StateOf<C>, PropsOf<C>>> {

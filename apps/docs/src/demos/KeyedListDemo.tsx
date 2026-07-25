@@ -20,6 +20,7 @@ const initialReading: ReadingItem[] = [
 	{ id: 'router', title: 'Nested routing', note: 'The docs shell uses it too.' }
 ];
 
+/** Demonstrates component identity surviving keyed collection reordering. */
 export function KeyedListDemo(this: Component<ListState>) {
 	this.state.items = initialReading.map((item) => ({ ...item }));
 

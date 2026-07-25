@@ -68,10 +68,11 @@ Bun, Node, Fetch runtimes, server frameworks, serverless targets, or eXact plugi
   manual `Event` annotation or element cast.
 - Use `value:input`, `value:change`, and `checked:change` for supported two-way native-control
   bindings when the target is one writable state location.
-- Use ordinary compiled `Array.map()` with an `@exact key` identity annotation, or `this.map()`
-  when an explicit selector is clearer. Do not add React JSX `key` props.
-- Use `this.task(...)` for component-owned work. Declare it during setup, pass reactive
-  dependencies before the callback, and let its generation own cancellation and cleanup.
+- Use ordinary compiled `Array.map()` with an `@exact key` identity annotation, an explicit
+  `key={...}` prop, or `this.map()` when an explicit selector is clearer.
+- Use `this.task(...)` for component-owned work. Declare it during setup, let the compiler infer
+  direct state, prop, and context reads, and let each generation own cancellation and cleanup.
+  Pass explicit reactive dependencies only when they must be supplied indirectly.
 - Use `this.task.client(...)` or `this.task.server(...)` only when placement is architectural or
   cannot be inferred from browser/server usage.
 

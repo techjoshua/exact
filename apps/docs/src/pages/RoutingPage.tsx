@@ -20,6 +20,7 @@ render(
   document.getElementById('app')!
 );`;
 
+/** Documents nested routing, navigation, data loading, and server coordination. */
 export function RoutingPage(this: Component<{}>) {
 	return () => (
 		<Article

@@ -1,9 +1,6 @@
 import path from 'node:path';
 import process from 'node:process';
-import {
-	isPublishableWorkspace,
-	readWorkspaceManifests
-} from './workspace-manifests.mjs';
+import { isPublishableWorkspace, readWorkspaceManifests } from './workspace-manifests.mjs';
 
 const dependencySections = Object.freeze([
 	'dependencies',
@@ -20,9 +17,7 @@ const versions = new Set(publishable.map((entry) => entry.manifest.version));
 const failures = [];
 
 if (versions.size !== 1) {
-	failures.push(
-		`public package versions are not synchronized: ${[...versions].sort().join(', ')}`
-	);
+	failures.push(`public package versions are not synchronized: ${[...versions].sort().join(', ')}`);
 }
 
 const [releaseVersion] = versions;

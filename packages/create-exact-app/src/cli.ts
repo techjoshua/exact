@@ -10,7 +10,7 @@ import {
 	type Bundler,
 	type Runtime,
 	type TestRunner
-} from './index.js';
+} from './project-generation.js';
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
 	output.write(`create-exact-app [directory] [options]

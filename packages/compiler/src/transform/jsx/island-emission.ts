@@ -5,7 +5,8 @@ import type { ExactImportedComponentIR, HelperNames, StateSnapshotTree } from '.
 import { componentBoundaryName, isReactiveFormAttribute } from './inspection.js';
 
 import { expressionEmissionId, identityFilenameFor } from './identity.js';
-import { childrenExpressions, propName } from './node-emission.js';
+import { childrenExpressions } from './node-emission.js';
+import { propName } from './property-emission.js';
 /** Creates a component island boundary call. */
 export function createComponentIslandBoundaryCall(
 	sourceFile: ts.SourceFile,
@@ -52,6 +53,54 @@ export function createClientComponentServerStub(
 		node.modifiers,
 		node.asteriskToken,
 		node.name,
+		undefined,
+		[
+			factory.createParameterDeclaration(
+				undefined,
+				undefined,
+				props,
+				undefined,
+				undefined,
+				factory.createObjectLiteralExpression([], false)
+			)
+		],
+		undefined,
+		factory.createBlock(
+			[
+				factory.createReturnStatement(
+					factory.createArrowFunction(
+						undefined,
+						undefined,
+						[],
+						undefined,
+						factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+						factory.createCallExpression(factory.createIdentifier(helpers.boundary), undefined, [
+							factory.createStringLiteral(id),
+							factory.createStringLiteral(componentName),
+							props
+						])
+					)
+				)
+			],
+			true
+		)
+	);
+}
+
+/** Creates the server-side boundary implementation for a function-valued client component. */
+export function createClientComponentServerStubExpression(
+	sourceFile: ts.SourceFile,
+	context: ts.TransformationContext,
+	helpers: HelperNames,
+	componentName: string
+): ts.FunctionExpression {
+	const factory = context.factory;
+	const props = factory.createIdentifier('props');
+	const id = stableId(identityFilenameFor(sourceFile), componentName, 'component-island');
+	return factory.createFunctionExpression(
+		undefined,
+		undefined,
+		factory.createIdentifier(componentName),
 		undefined,
 		[
 			factory.createParameterDeclaration(

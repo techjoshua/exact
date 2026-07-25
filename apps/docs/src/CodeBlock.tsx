@@ -11,6 +11,7 @@ type CodeBlockProps = {
 
 type CodeBlockState = { copied: boolean };
 
+/** Renders highlighted source with accessible line numbers and clipboard feedback. */
 export function CodeBlock(this: Component<CodeBlockState>, props: CodeBlockProps) {
 	this.state.copied = false;
 	const language = props.language ?? 'tsx';

@@ -70,6 +70,7 @@ export class TestView<State extends object = any, Props = any> extends QueryHost
 		if (this.disposed) return undefined;
 		return componentNodes(this.snapshot()).find((node) => node.instance === instance);
 	}
+	/** Reports whether an application component remains mounted and visible to this test view. */
 	hasComponent(instance: ComponentInstance<any>): boolean {
 		return (
 			instance.type !== TestMountHost &&

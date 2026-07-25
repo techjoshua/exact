@@ -88,7 +88,8 @@ export function resolveCallableEffects(state: CallableAnalysisState): CallableEf
 				artifactTargets: [...(targetSets.get(summary.id) ?? [])].sort(),
 				stateReads: summary.reads,
 				stateWrites: summary.writes,
-				contexts: summary.contexts
+				contexts: summary.contexts,
+				reevaluationSafe: summary.reevaluationSafe
 			} satisfies ExactCallableSummaryIR)
 		)
 		.sort((left, right) => left.id.localeCompare(right.id));
@@ -98,7 +99,11 @@ export function resolveCallableEffects(state: CallableAnalysisState): CallableEf
 	const byId = new Map(callables.map((summary) => [summary.id, summary]));
 	const callEffects = new Map<
 		string,
-		Readonly<{ effect: ExactEnvironmentEffect; sources: readonly ExactEnvironmentEffectSourceIR[] }>
+		Readonly<{
+			effect: ExactEnvironmentEffect;
+			sources: readonly ExactEnvironmentEffectSourceIR[];
+			reevaluationSafe: boolean;
+		}>
 	>();
 	for (const summary of mutable)
 		for (const edge of summary.calls) {
@@ -112,7 +117,11 @@ export function resolveCallableEffects(state: CallableAnalysisState): CallableEf
 			if (resolved && callNodeId)
 				callEffects.set(
 					callNodeId,
-					Object.freeze({ effect: resolved.effect, sources: resolved.effectSources })
+					Object.freeze({
+						effect: resolved.effect,
+						sources: resolved.effectSources,
+						reevaluationSafe: resolved.reevaluationSafe === true
+					})
 				);
 		}
 	return Object.freeze({ callables: Object.freeze(callables), byNodeId, callEffects });

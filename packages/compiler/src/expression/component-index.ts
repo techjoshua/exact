@@ -1,8 +1,10 @@
 import type { BoundModule, FunctionExpressionNode, NodeRef, Variable } from '@exactjs/expressions';
+import { componentFunctionName, componentFunctionValues } from './component-values.js';
 
 /** Defines the expression component index interface contract. */
 export interface ExpressionComponentIndex {
 	readonly functions: readonly NodeRef<FunctionExpressionNode>[];
+	name(reference: NodeRef | undefined): string | undefined;
 	isComponent(reference: NodeRef | undefined): boolean;
 	owner(reference: NodeRef): NodeRef | undefined;
 	ownsReceiver(owner: NodeRef | undefined, receiver: Variable | undefined): boolean;
@@ -26,11 +28,20 @@ export function expressionComponentIndex(module: BoundModule): ExpressionCompone
 	if (existing) return existing;
 	const componentNodes = new Set<NodeRef['node']>();
 	const receiverOwners = new WeakMap<Variable, NodeRef['node']>();
-	const declarations = module
-		.walk()
-		.functions()
-		.where((reference) => reference.node.kind === 'FunctionDeclaration' && !!reference.node.span)
-		.toArray();
+	const declarations = [
+		...module
+			.walk()
+			.functions()
+			.where((reference) => reference.node.kind === 'FunctionDeclaration' && !!reference.node.span)
+			.toArray(),
+		...componentFunctionValues(module)
+	] as NodeRef<FunctionExpressionNode>[];
+	const names = new Map<NodeRef['node'], string | undefined>(
+		declarations.map((declaration) => [
+			declaration.node,
+			componentFunctionName(module, declaration)
+		])
+	);
 
 	for (const declaration of declarations) {
 		const receiver = declaration.node.parameters.find(isComponentThisVariable);
@@ -56,7 +67,9 @@ export function expressionComponentIndex(module: BoundModule): ExpressionCompone
 		const owner = reference
 			.ancestors()
 			.functions()
-			.first((candidate) => candidate.node.kind === 'FunctionDeclaration');
+			.first((candidate) =>
+				declarations.some((declaration) => declaration.node === candidate.node)
+			);
 		if (owner) {
 			componentNodes.add(owner.node);
 			receiverOwners.set(variable, owner.node);
@@ -66,13 +79,14 @@ export function expressionComponentIndex(module: BoundModule): ExpressionCompone
 		const owner = element
 			.ancestors()
 			.functions()
-			.first((candidate) => candidate.node.kind === 'FunctionDeclaration');
+			.first((candidate) => isComponentDeclarationName(componentFunctionName(module, candidate)));
 		// JSX may also live in ordinary render helpers. Only a component-style
 		// declaration name is an implicit component signal; explicit Component
 		// receivers and component protocol calls were indexed above regardless of
 		// name. This keeps helpers such as renderWorkspace() eligible for JSX
 		// lowering without applying component-only state and collection rewrites.
-		if (owner && isComponentDeclarationName(owner.node.name)) componentNodes.add(owner.node);
+		if (owner && isComponentDeclarationName(componentFunctionName(module, owner)))
+			componentNodes.add(owner.node);
 	}
 
 	const functions = Object.freeze(
@@ -80,6 +94,9 @@ export function expressionComponentIndex(module: BoundModule): ExpressionCompone
 	);
 	const index: ExpressionComponentIndex = Object.freeze({
 		functions,
+		name(reference: NodeRef | undefined) {
+			return reference ? names.get(reference.node) : undefined;
+		},
 		isComponent(reference: NodeRef | undefined) {
 			return !!reference && componentNodes.has(reference.node);
 		},

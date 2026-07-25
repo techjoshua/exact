@@ -15,6 +15,7 @@ import {
 import {
 	isCompilerOwnedCollectionCall,
 	isFunctionNode,
+	isIntrinsicLanguageCall,
 	isStateWrite,
 	knownHigherOrderCall,
 	mapStateEffects,
@@ -156,7 +157,9 @@ export function collectDirectCallableEffects(state: CallableAnalysisState): void
 						: 'server'
 					: isCompilerOwnedCollectionCall(module, call, stateAliases)
 						? undefined
-						: unresolvedCallEffect(call, localVariables);
+						: isIntrinsicLanguageCall(call)
+							? undefined
+							: unresolvedCallEffect(call, localVariables);
 				if (unresolved)
 					summary.directSources.push(
 						source(unresolved, call.target?.node.text?.trim() ?? 'dynamic call', summary.name)

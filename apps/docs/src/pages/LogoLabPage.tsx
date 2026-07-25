@@ -2,6 +2,7 @@ import type { Component } from '@exactjs/core';
 import { LogoLab } from '../LogoLab.jsx';
 import { Article } from './Article.jsx';
 
+/** Hosts the interactive Logo interpreter within the documentation article shell. */
 export function LogoLabPage(this: Component<{}>) {
 	return () => (
 		<Article

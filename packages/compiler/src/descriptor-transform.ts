@@ -61,6 +61,34 @@ export function exactComponentDescriptorTransformer(
 			target === 'client' ? '__exactClientComponentDescriptor' : '__exactServerComponentDescriptor'
 		);
 		for (const statement of sourceFile.statements) {
+			if (ts.isVariableStatement(statement)) {
+				const declarations = statement.declarationList.declarations.map((declaration) => {
+					if (
+						!ts.isIdentifier(declaration.name) ||
+						!declaration.initializer ||
+						(!ts.isArrowFunction(declaration.initializer) &&
+							!ts.isFunctionExpression(declaration.initializer))
+					)
+						return declaration;
+					const group = groups.get(declaration.name.text);
+					if (!group) return declaration;
+					return context.factory.updateVariableDeclaration(
+						declaration,
+						declaration.name,
+						declaration.exclamationToken,
+						declaration.type,
+						wrapComponentValue(declaration.initializer, group, descriptorSymbol, context.factory)
+					);
+				});
+				statements.push(
+					context.factory.updateVariableStatement(
+						statement,
+						statement.modifiers,
+						context.factory.updateVariableDeclarationList(statement.declarationList, declarations)
+					)
+				);
+				continue;
+			}
 			if (
 				!ts.isFunctionDeclaration(statement) ||
 				!statement.name ||
@@ -105,6 +133,58 @@ export function exactComponentDescriptorTransformer(
 		statements.splice(insertionIndex, 0, descriptorDeclaration);
 		return context.factory.updateSourceFile(sourceFile, statements);
 	};
+}
+
+function wrapComponentValue(
+	initializer: ts.ArrowFunction | ts.FunctionExpression,
+	group: DescriptorGroup,
+	descriptorSymbol: ts.Identifier,
+	factory: ts.NodeFactory
+): ts.Expression {
+	const implementation = factory.createUniqueName('__exactComponentImplementation');
+	const attachment = descriptorAttachment(
+		implementation,
+		implementation,
+		group,
+		descriptorSymbol,
+		factory,
+		false
+	);
+	return pure(
+		factory.createCallExpression(
+			factory.createParenthesizedExpression(
+				factory.createArrowFunction(
+					undefined,
+					undefined,
+					[],
+					undefined,
+					factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+					factory.createBlock(
+						[
+							factory.createVariableStatement(
+								undefined,
+								factory.createVariableDeclarationList(
+									[
+										factory.createVariableDeclaration(
+											implementation,
+											undefined,
+											undefined,
+											initializer
+										)
+									],
+									ts.NodeFlags.Const
+								)
+							),
+							factory.createReturnStatement(attachment)
+						],
+						true
+					)
+				)
+			),
+			undefined,
+			[]
+		)
+	);
 }
 
 function attachToHoistedComponentFunction(

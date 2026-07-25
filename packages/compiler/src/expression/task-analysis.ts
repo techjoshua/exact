@@ -5,6 +5,7 @@ import type { CallableEffectPlan } from '../analysis/callable-effects.js';
 import { isServerOnlyModule } from '../imports.js';
 
 import type { ExactContextEffect, ExactPlacement, ExactStateEffect } from '../types.js';
+import { buildExactProvenance, type ExactProvenanceGraph } from '../provenance.js';
 
 import { expressionComponentIndex } from './component-index.js';
 
@@ -18,6 +19,7 @@ import type {
 	ExpressionTaskSignalCall,
 	ExpressionTaskSite
 } from './task-contracts.js';
+import { analyzeTaskDependencies } from './task-dependencies.js';
 
 import {
 	directSetupExpression,
@@ -67,7 +69,8 @@ const browserGlobals = new Set([
 /** Builds task effects from canonical references while retaining source spans for emission. */
 export function analyzeExpressionTasks(
 	module: BoundModule,
-	callableEffects?: CallableEffectPlan
+	callableEffects?: CallableEffectPlan,
+	provenance: ExactProvenanceGraph = buildExactProvenance(module)
 ): ExpressionTaskPlan {
 	const components = expressionComponentIndex(module);
 	const sites = new Map<string, ExpressionTaskSite>();
@@ -87,6 +90,7 @@ export function analyzeExpressionTasks(
 		const work = task.arguments.at(-1);
 		if (!work || !isFunction(work)) continue;
 		const aliases = collectStateAliases(module, work);
+		const taskDependencies = analyzeTaskDependencies(module, work, provenance);
 		const reads: ExactStateEffect[] = [];
 		const dependencyPaths: Array<readonly string[]> = [];
 		const taskWrites: ExactStateEffect[] = [];
@@ -261,6 +265,10 @@ export function analyzeExpressionTasks(
 			);
 		if (requestedPlacement)
 			diagnostics.push(`task placement forced by this.task.${requestedPlacement}()`);
+		for (const variable of taskDependencies.unsafeDerived)
+			diagnostics.push(
+				`error: task reads derived local ${variable.name}, which cannot be safely reevaluated; capture an explicit reactive value or move the effectful expression into this.task()`
+			);
 		diagnostics.push(...resourceDiagnostics);
 		// The plan-level channel is consumed before emission and must include every
 		// fatal site diagnostic. Informational placement notes remain site-local.
@@ -271,7 +279,7 @@ export function analyzeExpressionTasks(
 					Object.freeze({ message: diagnostic, start: task.node.span.start })
 				);
 			}
-		const component = componentOwner?.node.name;
+		const component = componentOwner ? components.name(componentOwner) : undefined;
 		const site = Object.freeze({
 			nodeId: task.node.id,
 			...(component ? { component } : {}),
@@ -284,6 +292,7 @@ export function analyzeExpressionTasks(
 			browserEffects,
 			serverEffects,
 			dependencyPaths: Object.freeze(minimalDependencyPaths(dependencyPaths)),
+			dependencies: taskDependencies.dependencies,
 			reads: Object.freeze(uniqueEffects(reads)),
 			writes: Object.freeze(uniqueEffects(taskWrites)),
 			contexts: Object.freeze(uniqueContexts(contexts)),
@@ -339,7 +348,7 @@ export function analyzeExpressionTasks(
 		}
 		const setup = Object.freeze({
 			nodeId: expression.node.id,
-			component: owner.node.name!,
+			component: components.name(owner)!,
 			start: expression.node.span.start,
 			end: expression.node.span.end
 		});
@@ -347,7 +356,7 @@ export function analyzeExpressionTasks(
 		if (listenerCall) {
 			const listener = Object.freeze({
 				nodeId: call.node.id,
-				component: owner.node.name!,
+				component: components.name(owner)!,
 				start: call.node.span.start,
 				end: call.node.span.end
 			});

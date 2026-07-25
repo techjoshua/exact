@@ -5,7 +5,10 @@ import {
 	createExactServerManifest,
 	type ExactCompilerManifestLike
 } from '@exactjs/server';
-import { createExactServerRuntime, renderExactRequestToProgressiveHtmlResponse } from '@exactjs/ssr';
+import {
+	createExactServerRuntime,
+	renderExactRequestToProgressiveHtmlResponse
+} from '@exactjs/ssr';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import appManifestJson from '../.exact/App.exact.manifest.json' with { type: 'json' };
 import { ShippingCalculatorPage } from '../.exact/App.exact.server.js';

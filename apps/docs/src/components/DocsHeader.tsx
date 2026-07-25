@@ -9,6 +9,7 @@ type DocsHeaderProps = {
 	onOpenSearch(): void;
 };
 
+/** Renders the documentation masthead and delegates shell navigation controls. */
 export function DocsHeader(this: Component<{}>, props: DocsHeaderProps) {
 	return () => (
 		<header className="topbar">

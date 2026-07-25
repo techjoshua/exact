@@ -10,6 +10,7 @@ type ArticleProps = {
 	next?: { path: string; label: string };
 };
 
+/** Provides the shared heading, navigation, and content layout for documentation articles. */
 export function Article(this: Component<{}>, props: ArticleProps) {
 	const children = Array.isArray(props.children)
 		? props.children
@@ -46,6 +47,7 @@ export function Article(this: Component<{}>, props: ArticleProps) {
 	);
 }
 
+/** Renders a semantically titled aside for important article guidance. */
 export function Callout(
 	this: Component<{}>,
 	props: { tone?: 'note' | 'warning' | 'tip'; title: string; children?: Child | Child[] }

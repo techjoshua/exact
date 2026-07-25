@@ -28,6 +28,7 @@ const authorization = 'Bearer ' + credential;
 // Deliberately end tracking in trusted server code.
 const client = createStripeClient(consume(authorization));`;
 
+/** Documents server-only secret providers and compiler-enforced consumption boundaries. */
 export function SecretsPluginPage(this: Component<{}>) {
 	return () => (
 		<Article

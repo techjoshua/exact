@@ -1,6 +1,7 @@
 import type { Component } from '@exactjs/core';
 import { Link } from '@exactjs/router';
 
+/** Renders the fallback route with a path back to the documentation introduction. */
 export function NotFoundPage(this: Component<{}>) {
 	return () => (
 		<article className="article not-found">

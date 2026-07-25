@@ -2,14 +2,15 @@
 
 ## Reactive task generations
 
-Declare tasks directly during component setup. Put dependencies before the callback:
+Declare tasks directly during component setup. Prefer the compiler-inferred form:
 
 ```tsx
 function Search(this: Component<SearchState>) {
 	this.state.query = '';
 	this.state.results = [];
 
-	this.task(this.state.query, async (query, { signal }) => {
+	this.task(async () => {
+		const query = this.state.query;
 		if (!query.trim()) {
 			this.state.results = [];
 			return;
@@ -23,8 +24,14 @@ function Search(this: Component<SearchState>) {
 }
 ```
 
+State, prop, and reactive context reads become dependencies. The compiler captures their values
+for each generation and uses those captured values throughout the callback, including after
+`await`. Computed reads such as `this.state[props.key]` remain executable expressions rather than
+being reduced to wildcard paths.
+
 When a dependency changes, eXact aborts and cleans up the previous generation before owning the
-replacement. Unmounting aborts the active generation.
+replacement. Unmounting aborts the active generation. Use explicit
+`this.task(dependency, work)` arguments when a dependency must be supplied indirectly.
 
 Do not register tasks from the returned render function, event handlers, or later asynchronous
 continuations.

@@ -5,7 +5,6 @@ import { stripExactImportAttribute, type ExactModuleImportPlan } from '../../ass
 import { isThisTaskCall } from '../../calls.js';
 import { allocateHelperNames } from '../../emission/operations.js';
 import {
-	componentStateRoot,
 	isArrayMutator,
 	statePathLiteral,
 	transformStateAssignment,
@@ -15,7 +14,7 @@ import type { ExpressionComponentPlan } from '../../expression/contracts.js';
 import type { ExpressionDerivedPlan } from '../../expression/derived.js';
 import type { ExpressionJsxPlan } from '../../expression/jsx.js';
 import type { ExpressionTaskPlan } from '../../expression/task-contracts.js';
-import type { ExpressionWritePlan, ExpressionWriteSite } from '../../expression/writes.js';
+import type { ExpressionWritePlan } from '../../expression/writes.js';
 import { isServerOnlyImportDeclaration } from '../../imports.js';
 import { componentPlacementsFromInfo } from '../../placement.js';
 import type {
@@ -24,8 +23,7 @@ import type {
 	TransformTarget
 } from '../../types.js';
 
-import { collectComponentLocalInfo, collectExpressionDerivedLocals } from './element-emission.js';
-import type { DerivedReactiveIndex } from './contracts.js';
+import { collectExpressionDerivedLocals } from './element-emission.js';
 import { visitJsxExpression } from './expression-visitor.js';
 import { finalizeJsxSource } from './finalize.js';
 import {
@@ -34,7 +32,11 @@ import {
 	expressionEmissionId,
 	sourceIdentityFilenames
 } from './identity.js';
-import { createClientComponentServerStub } from './island-emission.js';
+import {
+	retainVariableComponentInClientArtifact,
+	transformFunctionComponentDeclaration,
+	transformVariableComponentDeclaration
+} from './component-value-emission.js';
 import {
 	expressionWriteSite,
 	incompatibleSummary,
@@ -42,6 +44,7 @@ import {
 	shouldOmitPlacement
 } from './lifecycle-emission.js';
 import { createJsxTransformState } from './transform-state.js';
+import { stateWriteTarget } from './state-write-target.js';
 import { createJsxVisitorEnvironment } from './visitor-environment.js';
 
 const isAssignmentOperator = (kind: ts.SyntaxKind): boolean =>
@@ -169,6 +172,16 @@ export function exactJsxTransformer(
 				const declarations = node.declarationList.declarations.filter((declaration) => {
 					const initializer = declaration.initializer;
 					if (!initializer) return true;
+					const retainComponent = retainVariableComponentInClientArtifact(
+						initializer,
+						expressionComponents,
+						state,
+						visitor,
+						context,
+						target,
+						serverComponents
+					);
+					if (retainComponent !== undefined) return retainComponent;
 					const summary = callableEffects.byNodeId.get(expressionEmissionId(initializer) ?? '');
 					return !summary || !incompatibleSummary(summary, target);
 				});
@@ -201,35 +214,34 @@ export function exactJsxTransformer(
 					);
 				}
 			}
-			const componentId = ts.isFunctionDeclaration(node) ? expressionEmissionId(node) : undefined;
-			const componentSite = componentId ? expressionComponents.sites.get(componentId) : undefined;
-			if (ts.isFunctionDeclaration(node) && node.name && componentSite) {
-				if (target === 'server' && componentPlacements.get(node.name.text) === 'client') {
-					state.sawBoundary = true;
-					return createClientComponentServerStub(sourceFile, context, helpers, node);
-				}
-				if (target === 'client' && serverComponents && componentSite.serverEffects) {
-					// In server-component mode, non-client components are removed from the
-					// client artifact after their nested client islands have been collected.
-					state.componentStack.push(node.name.text);
-					state.componentSiteStack.push(componentSite.id);
-					state.componentLocalStack.push(collectComponentLocalInfo(node));
-					ts.visitEachChild(node, visitor, context);
-					state.componentLocalStack.pop();
-					state.componentStack.pop();
-					state.componentSiteStack.pop();
-					return factory.createEmptyStatement();
-				}
-				state.componentStack.push(node.name.text);
-				state.componentSiteStack.push(componentSite.id);
-				state.componentLocalStack.push(collectComponentLocalInfo(node));
-				const visited = ts.visitEachChild(node, visitor, context);
-				state.componentLocalStack.pop();
-				state.componentStack.pop();
-				state.componentSiteStack.pop();
-				return visited;
+			if (ts.isFunctionDeclaration(node)) {
+				const componentDeclaration = transformFunctionComponentDeclaration(
+					sourceFile,
+					node,
+					expressionComponents,
+					componentPlacements,
+					state,
+					visitor,
+					context,
+					helpers,
+					target,
+					serverComponents
+				);
+				if (componentDeclaration) return componentDeclaration;
 			}
 			if (ts.isVariableDeclaration(node) && node.initializer) {
+				const componentDeclaration = transformVariableComponentDeclaration(
+					sourceFile,
+					node,
+					expressionComponents,
+					componentPlacements,
+					state,
+					visitor,
+					context,
+					helpers,
+					target
+				);
+				if (componentDeclaration) return componentDeclaration;
 				const derived = derivedReactiveLocals.declarations.get(expressionEmissionId(node) ?? '');
 				if (derived?.cached) {
 					state.sawDerived = true;
@@ -362,52 +374,13 @@ export function exactJsxTransformer(
 }
 
 function portableContextualType(type: string): string {
-	return type.replace(
+	const portable = type.replace(
 		/import\((['"])(?:[A-Za-z]:)?[\\/][^'"]*[\\/]dist[\\/]jsx-runtime\1\)/g,
 		'import("@exactjs/jsx/jsx-runtime")'
 	);
-}
-
-function stateWriteTarget(
-	context: ts.TransformationContext,
-	node: ts.Node,
-	site: ExpressionWriteSite,
-	derivedReactiveLocals: DerivedReactiveIndex
-): { root: ts.Expression; path: readonly string[] } {
-	if (!site.aliasPath) {
-		return { root: componentStateRoot(context), path: site.path };
-	}
-
-	const operand = writeOperand(node);
-	const alias = operand ? rootIdentifier(operand) : undefined;
-	if (!alias) return { root: componentStateRoot(context), path: site.path };
-
-	const derived = derivedReactiveLocals.references.get(expressionEmissionId(alias) ?? '');
-	const root = derived?.cached
-		? context.factory.createCallExpression(
-				context.factory.createPropertyAccessExpression(alias, 'get'),
-				undefined,
-				[]
-			)
-		: alias;
-	return {
-		root,
-		path: site.path.slice(site.aliasPath.length)
-	};
-}
-
-function writeOperand(node: ts.Node): ts.Expression | undefined {
-	if (ts.isBinaryExpression(node)) return node.left;
-	if (ts.isPrefixUnaryExpression(node) || ts.isPostfixUnaryExpression(node)) return node.operand;
-	if (ts.isDeleteExpression(node)) return node.expression;
-	if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression))
-		return node.expression.expression;
-	return undefined;
-}
-
-function rootIdentifier(expression: ts.Expression): ts.Identifier | undefined {
-	let current = expression;
-	while (ts.isPropertyAccessExpression(current) || ts.isElementAccessExpression(current))
-		current = current.expression;
-	return ts.isIdentifier(current) ? current : undefined;
+	// TypeScript's ordinary (truncated) display form may shorten an import type
+	// to the ambient JSX namespace. Generated files cannot assume that namespace
+	// is in scope, so retain the same portable package-owned qualification used
+	// by the fully expanded display form.
+	return portable.replace(/(^|[^\w.])JSX\./g, '$1import("@exactjs/jsx/jsx-runtime").JSX.');
 }

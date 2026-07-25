@@ -93,6 +93,7 @@ const invalidInputBindingsSource = `// A binding needs one writable location, no
 // An array-bound checkbox needs the value it will add or remove.
 <input type="checkbox" checked:change={this.state.filters} />`;
 
+/** Documents native element bindings separately from eXact form-library components. */
 export function FormsPage(this: Component<{}>) {
 	return () => (
 		<Article

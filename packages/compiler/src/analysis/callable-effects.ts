@@ -2,6 +2,7 @@ import type { BoundModule, NodeRef, Variable } from '@exactjs/expressions';
 import { hasExactDirective } from '../annotations.js';
 import type { ExactModuleImportPlan } from '../assets.js';
 import { expressionComponentIndex } from '../expression/component-index.js';
+import { applyCallableReevaluationSafety } from '../expression/callable-reevaluation.js';
 import { type ExpressionWritePlan } from '../expression/writes.js';
 import { stableId } from '../ids.js';
 import type {
@@ -18,17 +19,11 @@ export interface CallableEffectPlan {
 	readonly byNodeId: ReadonlyMap<string, ExactCallableSummaryIR>;
 	readonly callEffects: ReadonlyMap<
 		string,
-		Readonly<{ effect: ExactEnvironmentEffect; sources: readonly ExactEnvironmentEffectSourceIR[] }>
-	>;
-}
-
-/** Describes the planned callable effect operation. */
-export interface CallableEffectPlan {
-	readonly callables: readonly ExactCallableSummaryIR[];
-	readonly byNodeId: ReadonlyMap<string, ExactCallableSummaryIR>;
-	readonly callEffects: ReadonlyMap<
-		string,
-		Readonly<{ effect: ExactEnvironmentEffect; sources: readonly ExactEnvironmentEffectSourceIR[] }>
+		Readonly<{
+			effect: ExactEnvironmentEffect;
+			sources: readonly ExactEnvironmentEffectSourceIR[];
+			reevaluationSafe: boolean;
+		}>
 	>;
 }
 
@@ -64,6 +59,7 @@ export function analyzeCallableEffects(
 		knownCallEffects
 	);
 	collectDirectCallableEffects(state);
+	applyCallableReevaluationSafety(state);
 	return resolveCallableEffects(state);
 }
 
@@ -158,7 +154,8 @@ function createCallableAnalysisState(
 			executable: false,
 			parameters: ((fn.node as { parameters?: readonly Variable[] }).parameters ?? []).filter(
 				(parameter) => parameter.name !== 'this'
-			)
+			),
+			reevaluationSafe: false
 		};
 		mutable.push(summary);
 		callableByNode.set(fn.node.id, summary);
@@ -194,7 +191,8 @@ function createCallableAnalysisState(
 			contexts: [],
 			seedTargets: [],
 			executable: false,
-			parameters: []
+			parameters: [],
+			reevaluationSafe: false
 		};
 		mutable.push(summary);
 		callableByNode.set(initializer.node.id, summary);
@@ -228,7 +226,8 @@ function createCallableAnalysisState(
 			contexts: [],
 			seedTargets: [],
 			executable: true,
-			parameters: []
+			parameters: [],
+			reevaluationSafe: false
 		};
 		mutable.push(summary);
 		callableByNode.set(statement.node.id, summary);
@@ -280,7 +279,8 @@ function createCallableAnalysisState(
 			contexts: [...target.contexts],
 			seedTargets: [],
 			executable: false,
-			parameters: []
+			parameters: [],
+			reevaluationSafe: target.reevaluationSafe === true
 		};
 		mutable.push(summary);
 	}

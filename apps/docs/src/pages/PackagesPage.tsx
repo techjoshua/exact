@@ -112,6 +112,7 @@ const packageGroups: PackageGroup[] = [
 	}
 ];
 
+/** Maps public eXact packages to their owned framework responsibilities. */
 export function PackagesPage(this: Component<{}>) {
 	return () => (
 		<Article

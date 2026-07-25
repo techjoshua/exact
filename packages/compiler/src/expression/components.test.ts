@@ -215,9 +215,11 @@ describe('expression-backed component effects', () => {
 		expect(site.diagnostics).toEqual(
 			expect.arrayContaining([
 				'error: JSX tag TypeWidget resolves to a type-only import and cannot be rendered at runtime',
-				'error: JSX tag ValueWidget resolves to variable, not a runtime component',
 				'error: JSX tag MissingWidget is not defined as a runtime component'
 			])
+		);
+		expect(site.diagnostics).not.toContain(
+			'error: JSX tag ValueWidget resolves to variable, not a runtime component'
 		);
 	});
 

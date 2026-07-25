@@ -502,7 +502,29 @@ function Profile(this: Component<{ firstName: string; lastName: string; saving: 
 }
 ```
 
-The compiler infers conservative derived consts: identifier declarations whose initializers are side-effect-free expressions over `this.state`, component props, or other inferred derived consts. Setup-level derived consts become shared lazy cells, so multiple JSX, list, and task consumers reuse one cached calculation. Collection callbacks may mutate values declared inside the callback, but cannot mutate captured values. Calls outside the recognized collection methods, `new`, `await`, captured assignments, increment/decrement, and nested function/class bodies remain outside automatic inference. Use `this.reactive(() => ...)` when you need an explicit runtime reactive value or when runtime-only code needs source identity.
+The compiler infers conservative derived bindings: declarations whose initializers are
+side-effect-free expressions over `this.state`, component props, context values, or other inferred
+derived values. A never-reassigned `let` is treated like a `const`. Setup-level derived values
+become shared lazy cells, so multiple JSX, list, and task consumers reuse one cached calculation.
+Pure local helper calls and non-mutating intrinsic string and collection operations are followed;
+unknown calls, `new`, `await`, captured assignments, increment/decrement, and effectful helper
+bodies remain outside automatic inference. An unsafe setup-derived local used as live JSX is a
+compiler error instead of a one-time snapshot that merely looks reactive. Use
+`this.reactive(() => ...)` when you need an explicit runtime reactive value or when runtime-only
+code needs source identity.
+
+Library authors can mark a callable contract with `@exact pure` when repeated calls are
+deterministic and neither read nor change external state. The compiler may then follow that call
+while deriving reactive values:
+
+```ts
+/** Formats a name without external effects. @exact pure */
+export declare function formatName(value: string): string;
+```
+
+Incorrect purity declarations can repeat side effects whenever dependencies change, so the
+annotation belongs on the callable declaration and is a behavioral contract, not an optimization
+hint.
 
 Reactive values are cached after first use and recompute when their tracked dependencies change. Structurally equal plain objects and arrays retain the previously published identity, so repeated API-shaped calculations neither invalidate consumers nor churn list identities. Component-owned derived subscriptions are released automatically during unmount.
 
@@ -538,6 +560,12 @@ this.task(query, async (query, { signal }) => {
 ```
 
 `this.task(dep, ..., work)` dependency arguments are captured the same way in compiler mode. Runtime-only code should use explicit lambdas or existing reactive values when source identity matters.
+
+When a compiler-mode task omits explicit dependencies, reads from state, props, and reactive
+context values become dependencies automatically. The compiler preserves computed reads such as
+`this.state[props.key]` as executable expressions and substitutes each captured generation value
+into the task callback. A read after an `await` therefore still refers to that generation's
+captured value rather than silently switching to newer component state.
 
 Reactive state fields read as normal JavaScript values. In compiler mode, expression positions preserve the reactive source:
 

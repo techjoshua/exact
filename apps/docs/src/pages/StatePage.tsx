@@ -71,6 +71,7 @@ subtotal.task((value, { signal }) => {
 // It can also be used directly in JSX.
 return () => <strong>\${subtotal}</strong>;`;
 
+/** Documents direct reactive state, derived expressions, batching, and explicit cells. */
 export function StatePage(this: Component<{}>) {
 	return () => (
 		<Article

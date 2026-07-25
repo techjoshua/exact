@@ -1,10 +1,33 @@
 # Agent guidance
 
+## Maintainability requirements
+
+All repository changes must follow the
+[code maintainability standard](docs/code-maintainability.md). Treat its module ownership, JSDoc,
+testing, and change-acceptance rules as required review criteria rather than optional cleanup.
+
 ## Preserve what makes eXact different
 
 eXact is a compiler-led web framework, not a React dialect. Its TSX is intentionally familiar,
 but its component, state, update, lifecycle, and server models have different goals. Do not
 mechanically translate React architecture into native eXact code.
+
+### Fix problems at their source
+
+This repository is centered on the eXact framework. Its apps, adapters, plugins, component
+libraries, examples, and tooling exist to facilitate and validate use of the framework.
+
+When one of those projects exposes a bug or limitation, determine whether responsibility belongs
+to the project or to the framework before changing code. Trace the failing behavior through the
+compiler and runtime contracts when necessary. If the project is using a supported framework
+feature correctly, fix the underlying framework defect and add regression coverage at the
+appropriate framework boundary. Do not silence diagnostics, duplicate framework behavior, reshape
+otherwise valid application code, or introduce project-local workarounds merely to make the
+immediate failure disappear.
+
+A project-level fix is appropriate when the project violates a framework contract, has
+project-specific requirements, or contains an ordinary application bug. Make that ownership
+decision explicit in the reasoning for the change.
 
 ### Component and update model
 

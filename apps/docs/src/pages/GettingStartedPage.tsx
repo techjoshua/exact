@@ -26,6 +26,7 @@ export function App(this: Component<{ count: number }>) {
   );
 }`;
 
+/** Presents the supported create-exact-app workflow and first development commands. */
 export function GettingStartedPage(this: Component<{}>) {
 	return () => (
 		<Article

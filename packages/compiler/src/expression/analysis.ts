@@ -11,6 +11,7 @@ import type { ExactContextEffect, ExactEnvironmentEffect } from '../types.js';
 import type { ExactProvenanceGraph } from '../provenance.js';
 
 import { expressionComponentIndex } from './component-index.js';
+import { resolveComponentValue } from './component-values.js';
 
 import type { ExpressionJsxPlan } from './jsx.js';
 
@@ -191,26 +192,26 @@ export function analyzeExpressionComponents(
 								)
 					);
 				const rootTag = element.tagName.split('.')[0]!;
+				const componentValue = tagBinding?.variable
+					? tagBinding.variable.declarationKind === 'NamespaceImport'
+						? Object.freeze({
+								targets: Object.freeze([element.tagName]),
+								dynamic: false
+							})
+						: resolveComponentValue(module, tagBinding.variable)
+					: undefined;
 				if (tagBinding?.variable?.typeOnly) {
 					diagnostics.add(
 						`error: JSX tag ${rootTag} resolves to a type-only import and cannot be rendered at runtime`
 					);
 				} else if (!tagBinding?.variable) {
 					diagnostics.add(`error: JSX tag ${rootTag} is not defined as a runtime component`);
-				} else if (
-					!['ImportSpecifier', 'ImportClause', 'NamespaceImport', 'FunctionDeclaration'].includes(
-						tagBinding.variable.declarationKind
-					)
-				) {
+				} else if (!componentValue) {
 					diagnostics.add(
 						`error: JSX tag ${rootTag} resolves to ${declarationDescription(tagBinding.variable.declarationKind)}, not a runtime component`
 					);
 				}
-				const canReferenceComponent =
-					!!tagBinding?.variable &&
-					['ImportSpecifier', 'ImportClause', 'NamespaceImport', 'FunctionDeclaration'].includes(
-						tagBinding.variable.declarationKind
-					);
+				const canReferenceComponent = !!componentValue;
 				if (
 					reference &&
 					canReferenceComponent &&
@@ -219,16 +220,17 @@ export function analyzeExpressionComponents(
 						.functions()
 						.any((fn) => fn.node !== component.node && fn.node.kind !== 'ArrowFunction')
 				) {
-					renders.push(
-						Object.freeze({
-							nodeId: reference.node.id,
-							tag: element.tagName,
-							start: element.start,
-							end: element.end,
-							path: nodePath(reference, component),
-							serverSlotChildren: element.serverSlotChildren
-						})
-					);
+					for (const target of componentValue.targets)
+						renders.push(
+							Object.freeze({
+								nodeId: reference.node.id,
+								tag: target,
+								start: element.start,
+								end: element.end,
+								path: nodePath(reference, component),
+								serverSlotChildren: element.serverSlotChildren
+							})
+						);
 				}
 			}
 		}
@@ -324,7 +326,7 @@ export function analyzeExpressionComponents(
 			component.node.id,
 			Object.freeze({
 				id: component.node.id,
-				name: component.node.name!,
+				name: componentIndex.name(component)!,
 				start: span.start,
 				end: span.end,
 				clientEffects,
@@ -342,16 +344,15 @@ export function analyzeExpressionComponents(
 			})
 		]);
 	}
-	const declarations = module
-		.walk()
-		.functions()
-		.where((reference) => reference.node.kind === 'FunctionDeclaration' && !!reference.node.span)
-		.toArray()
+	const declarations = componentIndex.functions
+		.filter((reference) => !!reference.node.span)
 		.sort((left, right) => spanStart(left) - spanStart(right))
 		.map((reference) =>
 			Object.freeze({
 				id: reference.node.id,
-				...(reference.node.name === undefined ? {} : { name: reference.node.name }),
+				...(componentIndex.name(reference) === undefined
+					? {}
+					: { name: componentIndex.name(reference) }),
 				...(componentIndex.isComponent(reference) ? { componentId: reference.node.id } : {})
 			})
 		);

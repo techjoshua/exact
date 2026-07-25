@@ -84,6 +84,11 @@ export function emissionNodeIds(
 	addKeys(tasks.lifecycleListeners);
 	addKeys(tasks.setupTasks);
 	addKeys(tasks.signalCalls);
+	for (const site of tasks.sites.values())
+		for (const dependency of site.dependencies) {
+			ids.add(dependency.nodeId);
+			for (const readNodeId of dependency.readNodeIds) ids.add(readNodeId);
+		}
 	addKeys(jsx.elements);
 	addKeys(jsx.cells);
 	addKeys(jsx.contextualParameters);

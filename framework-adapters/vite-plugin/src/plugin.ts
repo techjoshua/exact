@@ -20,16 +20,12 @@ import {
 	prepareExactPluginRegistry,
 	type ExactPreparedPluginRegistry
 } from '@exactjs/plugin-host/node';
-import {
-	createReactCompatibilityBuildEngine,
-	type ReactCompatibilityBuildEngine
-} from '@exactjs/react-compat/build';
+import { createReactCompatibilityBuildEngine } from '@exactjs/react-compat/build';
 import {
 	jsxSourceOwnership,
 	resolveReactCompatibility,
 	validateInstalledReactReconciler,
-	type ReactCompatibilityOptions,
-	type ResolvedReactCompatibility
+	type ReactCompatibilityOptions
 } from '@exactjs/react-compat/plugin';
 import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
 import path from 'node:path';
@@ -42,6 +38,7 @@ import {
 	isExactTransformableModule,
 	shouldCompileExactModule
 } from './module-selection.js';
+import { rewriteWithCompatibility, viteReactAliases } from './react-compatibility-emission.js';
 
 /** Configures exact plugin. */
 export type ExactPluginOptions = {
@@ -324,7 +321,8 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 						compatibilityEngine!,
 						lowered.code,
 						filename,
-						options,
+						options.target,
+						options.sourceMap,
 						code
 					);
 					microfrontends.recordModule(rewritten.code, id);
@@ -399,33 +397,4 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			}
 		}
 	};
-}
-
-function rewriteWithCompatibility(
-	engine: ReactCompatibilityBuildEngine,
-	lowered: string,
-	id: string,
-	options: ExactPluginOptions,
-	original: string
-): { code: string; map: unknown } {
-	const rewritten = engine.transformModule({
-		id,
-		source: lowered,
-		format: 'module',
-		target: options.target === 'server' ? 'server' : 'client',
-		sourceMap: false
-	});
-	return {
-		code: rewritten.code,
-		map: options.sourceMap === false ? null : createLineSourceMap(id, original, rewritten.code)
-	};
-}
-
-function viteReactAliases(
-	resolved: ResolvedReactCompatibility
-): Array<{ find: RegExp; replacement: string }> {
-	return Object.entries(resolved.aliases).map(([find, replacement]) => ({
-		find: new RegExp(`^${find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`),
-		replacement
-	}));
 }

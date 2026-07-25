@@ -35,6 +35,7 @@ const explicitMapSource = `return () => this.map(
   (todo) => <TodoRow todo={todo} />
 );`;
 
+/** Documents inferred, explicit, and manual keyed-list identity strategies. */
 export function ListsPage(this: Component<{}>) {
 	return () => (
 		<Article

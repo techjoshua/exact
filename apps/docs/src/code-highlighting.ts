@@ -1,3 +1,4 @@
+/** Languages whose source tokens the documentation renderer can classify. */
 export type CodeLanguage = 'tsx' | 'ts' | 'json' | 'css' | 'shell' | 'logo';
 
 type TokenKind =
@@ -118,6 +119,11 @@ const logoCommands = new Set([
 	'COLOR'
 ]);
 
+/**
+ * Tokenizes source into deterministic presentation spans without external state.
+ *
+ * @exact pure
+ */
 export function tokenize(source: string, language: CodeLanguage): CodeLine[] {
 	return source.split('\n').map((line, lineIndex) => ({
 		id: `line-${lineIndex}`,

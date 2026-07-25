@@ -2,6 +2,7 @@ import type { Component } from '@exactjs/core';
 import { Link } from '@exactjs/router';
 import { docPages } from '../docs-manifest.js';
 
+/** Filters the documentation manifest in an accessible modal search surface. */
 export function DocsSearch(this: Component<{ query: string }>, props: { onClose(): void }) {
 	this.state.query = '';
 

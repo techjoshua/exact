@@ -41,6 +41,8 @@ export type ExactCallableSummaryIR = {
 	stateReads: ExactStateEffect[];
 	stateWrites: ExactStateEffect[];
 	contexts: ExactContextEffect[];
+	/** Whether repeated evaluation is free of externally observable mutation. */
+	reevaluationSafe?: boolean;
 };
 
 /** Defines the exact state effect type contract. */

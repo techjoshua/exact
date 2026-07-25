@@ -1,7 +1,15 @@
 import type { BoundModule, ExpressionDirective, NodeRef } from '@exactjs/expressions';
 
 /** Defines the exact annotation key type contract. */
-export type ExactAnnotationKey = 'key' | 'cleanup' | 'own' | 'track' | 'client' | 'server' | 'keep';
+export type ExactAnnotationKey =
+	| 'key'
+	| 'cleanup'
+	| 'own'
+	| 'track'
+	| 'client'
+	| 'server'
+	| 'keep'
+	| 'pure';
 
 /** Defines the exact keep policy type contract. */
 export type ExactKeepPolicy = 'server' | 'client' | 'secret';
@@ -38,7 +46,8 @@ const supported = new Set<ExactAnnotationKey>([
 	'track',
 	'client',
 	'server',
-	'keep'
+	'keep',
+	'pure'
 ]);
 const identifier = /^[A-Za-z_$][\w$]*$/;
 
@@ -72,7 +81,7 @@ export function analyzeExactAnnotations(module: BoundModule): ExactAnnotationPla
 		if (directive.key.includes('.')) continue;
 		if (!supported.has(directive.key as ExactAnnotationKey)) {
 			diagnostics.push({
-				message: `error: unknown @exact directive '${directive.key}'; supported directives are key, cleanup, own, track, client, server, and keep`,
+				message: `error: unknown @exact directive '${directive.key}'; supported directives are key, cleanup, own, track, client, server, keep, and pure`,
 				start
 			});
 			continue;
@@ -99,7 +108,8 @@ export function analyzeExactAnnotations(module: BoundModule): ExactAnnotationPla
 			(directive.key === 'own' ||
 				directive.key === 'track' ||
 				directive.key === 'client' ||
-				directive.key === 'server') &&
+				directive.key === 'server' ||
+				directive.key === 'pure') &&
 			directive.value !== undefined
 		) {
 			diagnostics.push({

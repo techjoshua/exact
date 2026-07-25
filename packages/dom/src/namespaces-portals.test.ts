@@ -1,7 +1,13 @@
 /**
  * @vitest-environment jsdom
  */
-import { createContext, createPortal, createVNode, type Child, type Component } from '@exactjs/core';
+import {
+	createContext,
+	createPortal,
+	createVNode,
+	type Child,
+	type Component
+} from '@exactjs/core';
 import { jsx } from '@exactjs/jsx';
 import { describe, expect, it } from 'vitest';
 import { render, unmount } from './index.js';

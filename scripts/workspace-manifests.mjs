@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
+/** Repository roots whose package manifests participate in publishing workflows. */
 export const publishableWorkspaceRoots = Object.freeze([
 	'agents',
 	'packages',
@@ -15,11 +16,7 @@ const ignoredDirectories = new Set(['.git', '.tmp', 'dist', 'node_modules']);
 /** Reads every package manifest maintained by this repository. */
 export async function readWorkspaceManifests(root) {
 	const manifests = [];
-	for (const directory of [
-		...publishableWorkspaceRoots,
-		'apps',
-		'fixtures'
-	]) {
+	for (const directory of [...publishableWorkspaceRoots, 'apps', 'fixtures']) {
 		await visit(path.join(root, directory), directory, manifests);
 	}
 	return manifests.sort((left, right) => left.relativePath.localeCompare(right.relativePath));
@@ -55,10 +52,6 @@ async function visit(directory, relativeDirectory, manifests) {
 
 	for (const entry of entries) {
 		if (!entry.isDirectory() || ignoredDirectories.has(entry.name)) continue;
-		await visit(
-			path.join(directory, entry.name),
-			`${relativeDirectory}/${entry.name}`,
-			manifests
-		);
+		await visit(path.join(directory, entry.name), `${relativeDirectory}/${entry.name}`, manifests);
 	}
 }

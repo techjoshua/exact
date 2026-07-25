@@ -18,6 +18,7 @@ import { StatePage } from './pages/StatePage.jsx';
 import { TasksPage } from './pages/TasksPage.jsx';
 import { TestingPage } from './pages/TestingPage.jsx';
 
+/** Describes one routable and searchable documentation article. */
 export type DocPage = {
 	/** @exact key */
 	path: string;
@@ -27,12 +28,14 @@ export type DocPage = {
 	component: ComponentFunction<any, any>;
 };
 
+/** Groups related documentation pages under one navigation heading. */
 export type DocGroup = {
 	/** @exact key */
 	label: string;
 	pages: DocPage[];
 };
 
+/** Ordered documentation navigation and route metadata. */
 export const docGroups: DocGroup[] = [
 	{
 		label: 'Start here',
@@ -191,4 +194,5 @@ export const docGroups: DocGroup[] = [
 	}
 ];
 
+/** Flat page inventory used by routing, search, and static generation. */
 export const docPages = docGroups.flatMap((group) => group.pages);

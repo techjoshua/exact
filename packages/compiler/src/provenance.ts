@@ -1,6 +1,11 @@
-import type { BoundModule, ExpressionNode, NodeRef, Variable } from '@exactjs/expressions';
-import { trackedCallbackArguments } from './annotations.js';
+import type { BoundModule, ExpressionNode, Variable } from '@exactjs/expressions';
 import { expressionComponentIndex } from './expression/component-index.js';
+import {
+	hasWriteAfterDeclaration,
+	isReactiveCollectionCallbackMethod,
+	isSafeDerivedInitializer,
+	localHelperCaptures
+} from './expression/reevaluation-safety.js';
 
 /** Defines the exact reactive provenance type contract. */
 export type ExactReactiveProvenance =
@@ -36,7 +41,10 @@ export interface ExactReactiveCell {
 }
 
 /** Adds eXact semantics over the package's generic canonical dependency model. */
-export function buildExactProvenance(module: BoundModule): ExactProvenanceGraph {
+export function buildExactProvenance(
+	module: BoundModule,
+	callEffects: ReadonlyMap<string, Readonly<{ reevaluationSafe: boolean }>> = new Map()
+): ExactProvenanceGraph {
 	const dependencies = new Map<Variable, Set<Variable>>();
 	const hints = new Map<Variable, ExactReactiveProvenance>();
 	const reevaluationSafety = new Map<Variable, boolean>();
@@ -49,6 +57,9 @@ export function buildExactProvenance(module: BoundModule): ExactProvenanceGraph 
 	for (const declaration of module.walk().ofKind('VariableDeclaration')) {
 		const binding = declaration.children().first();
 		const initializer = declaration.children().toArray().at(-1);
+		const functionInitializer =
+			initializer &&
+			(initializer.node.kind === 'ArrowFunction' || initializer.node.kind === 'FunctionExpression');
 		const declaredVariables =
 			binding
 				?.walk()
@@ -63,31 +74,38 @@ export function buildExactProvenance(module: BoundModule): ExactProvenanceGraph 
 		if (!declaredVariables.length) continue;
 		for (const declared of new Set(declaredVariables)) {
 			const values = dependencies.get(declared) ?? new Set<Variable>();
-			for (const variable of initializer ? module.dependenciesOf(initializer) : [])
-				if (variable !== declared) values.add(variable);
+			if (!functionInitializer) {
+				for (const variable of initializer ? module.dependenciesOf(initializer) : [])
+					if (variable !== declared) values.add(variable);
+				for (const variable of initializer ? localHelperCaptures(module, initializer) : [])
+					if (variable !== declared) values.add(variable);
+			}
 			dependencies.set(declared, values);
 			reevaluationSafety.set(
 				declared,
-				!declared.mutable && !!initializer && isSafeDerivedInitializer(module, initializer)
+				!hasWriteAfterDeclaration(module, declared, binding) &&
+					!!initializer &&
+					isSafeDerivedInitializer(
+						module,
+						initializer,
+						new Set(),
+						(call) => callEffects.get(call.node.id)?.reevaluationSafe === true
+					)
 			);
 		}
+		if (functionInitializer) continue;
 		const text = declaration.node.text ?? '';
 		for (const declared of new Set(declaredVariables)) {
 			if (/\bpeek\s*\(/.test(text)) hints.set(declared, 'snapshot');
 			else if (/\bthis\.state\b/.test(text)) hints.set(declared, 'derived');
 			else if (/\bthis\.props\b/.test(text)) hints.set(declared, 'derived');
 			else if (/\b(?:useContext|this\.(?:getContext|context))\b/.test(text))
-				hints.set(declared, 'derived');
+				hints.set(declared, 'context');
 		}
 	}
 
 	for (const call of module.walk().calls()) {
-		if (
-			!call.target?.isMember() ||
-			!['filter', 'map', 'flatMap', 'reduce', 'find', 'some', 'every'].includes(
-				call.target.name ?? ''
-			)
-		)
+		if (!call.target?.isMember() || !isReactiveCollectionCallbackMethod(call.target.name ?? ''))
 			continue;
 		const componentMap =
 			call.target.name === 'map' && /^this\.map$/.test(call.target.node.text ?? '');
@@ -146,7 +164,7 @@ export function buildExactProvenance(module: BoundModule): ExactProvenanceGraph 
 				variable,
 				provenance: classify(variable),
 				dependencies: Object.freeze([...(dependencies.get(variable) ?? [])]),
-				safeToReevaluate: reevaluationSafety.get(variable) ?? true
+				safeToReevaluate: safelyReevaluates(variable)
 			})
 		)
 	);
@@ -171,129 +189,16 @@ export function buildExactProvenance(module: BoundModule): ExactProvenanceGraph 
 		byVariableId,
 		get: (variable: Variable) => byVariableId.get(variable.id)
 	});
-}
 
-const safeCollectionMethods = new Set([
-	'filter',
-	'map',
-	'flatMap',
-	'slice',
-	'concat',
-	'toSorted',
-	'toReversed',
-	'toSpliced',
-	'reduce',
-	'find',
-	'some',
-	'every'
-]);
-const safeStringMethods = new Set([
-	'trim',
-	'trimStart',
-	'trimEnd',
-	'toLowerCase',
-	'toUpperCase',
-	'includes',
-	'startsWith',
-	'endsWith',
-	'slice',
-	'substring',
-	'substr'
-]);
-
-function isSafeDerivedInitializer(module: BoundModule, initializer: NodeRef): boolean {
-	for (const effect of module.effectsOf(initializer)) {
-		if (effect.kind !== 'write') continue;
-		const reference = module.ref(effect.node);
-		const callback = reference
-			.ancestors()
-			.functions()
-			.first((fn) => isWithin(fn, initializer));
-		if (!callback || module.capturesOf(callback).includes(effect.variable)) return false;
+	function safelyReevaluates(variable: Variable, resolving = new Set<Variable>()): boolean {
+		if (!(reevaluationSafety.get(variable) ?? true)) return false;
+		if (resolving.has(variable)) return true;
+		const next = new Set(resolving);
+		next.add(variable);
+		return [...(dependencies.get(variable) ?? [])].every(
+			(dependency) => classify(dependency) !== 'derived' || safelyReevaluates(dependency, next)
+		);
 	}
-	for (const reference of initializer.walk()) {
-		const kind = reference.node.kind;
-		if (
-			kind === 'NewExpression' ||
-			kind === 'AwaitExpression' ||
-			kind === 'YieldExpression' ||
-			kind === 'DeleteExpression'
-		)
-			return false;
-		if (
-			(kind === 'PrefixUnaryExpression' || kind === 'PostfixUnaryExpression') &&
-			(reference.node.operator === '++' || reference.node.operator === '--')
-		) {
-			const callback = reference
-				.ancestors()
-				.functions()
-				.first((fn) => isWithin(fn, initializer));
-			if (!callback) return false;
-		}
-		if (kind === 'CallExpression') {
-			const tracked = trackedCallbackArguments(reference);
-			if (tracked.length) {
-				if (
-					tracked.some(
-						(argument) => !['ArrowFunction', 'FunctionExpression'].includes(argument.node.kind)
-					)
-				)
-					return false;
-				continue;
-			}
-			if (
-				reference.target?.isMember() &&
-				safeStringMethods.has(reference.target.name ?? '') &&
-				isTypeScriptLibraryCall(reference)
-			)
-				continue;
-			if (
-				!reference.target?.isMember() ||
-				!safeCollectionMethods.has(reference.target.name ?? '') ||
-				!isIntrinsicCollectionCall(reference)
-			)
-				return false;
-		}
-	}
-	return true;
-}
-
-function isIntrinsicCollectionCall(call: NodeRef): boolean {
-	const receiver = call.target?.target;
-	const directReactive = /^this\.(?:state|props)(?:\.|\[)/.test(receiver?.node.text?.trim() ?? '');
-	// Editor/isolated transforms deliberately continue through pre-existing type
-	// errors.  When the application omitted the Component import, TypeScript can
-	// only report a direct state/props member as `any`; its syntactic provenance
-	// is nevertheless compiler-owned.  Do not extend this fallback to arbitrary
-	// receivers: custom objects named `filter`/`map` remain effectful by default.
-	if (directReactive && (isIntrinsicCollection(receiver?.type) || receiver?.type?.kind === 'any'))
-		return true;
-	if (isTypeScriptLibraryCall(call)) return true;
-	return isIntrinsicCollection(receiver?.type);
-}
-
-function isTypeScriptLibraryCall(call: NodeRef): boolean {
-	const declaration = call.node.resolvedSignature?.declarationSource?.replace(/\\/g, '/');
-	return !!declaration && /\/typescript\/lib\/lib\.[^/]+\.d\.ts$/i.test(declaration);
-}
-
-function isIntrinsicCollection(type: NodeRef['type']): boolean {
-	if (!type) return false;
-	if (type.collectionKind) return true;
-	return (
-		/(?:\[\]|\bArray<|\bReadonlyArray<)/.test(type.display) ||
-		['length', 'filter', 'map', 'slice', 'reduce'].every((property) =>
-			type.properties.includes(property)
-		) ||
-		(type.unionMembers.length > 0 && type.unionMembers.every(isIntrinsicCollection))
-	);
-}
-
-function isWithin(reference: NodeRef, ancestor: NodeRef): boolean {
-	return (
-		reference.node === ancestor.node ||
-		reference.ancestors().any((candidate) => candidate.node === ancestor.node)
-	);
 }
 
 function classifyName(name: string): ExactReactiveProvenance {

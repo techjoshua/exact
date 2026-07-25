@@ -54,6 +54,7 @@ export function CounterDemo(this: Component<CounterState>) {
   );
 }`;
 
+/** Introduces eXact's setup-once, compiler-led reactive web framework model. */
 export function IntroductionPage(this: Component<{}>) {
 	return () => (
 		<Article

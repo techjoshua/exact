@@ -1,4 +1,11 @@
-import { Fragment, Text, isVNode, sanitizeUrlAttribute, type Child, type VNode } from '@exactjs/core';
+import {
+	Fragment,
+	Text,
+	isVNode,
+	sanitizeUrlAttribute,
+	type Child,
+	type VNode
+} from '@exactjs/core';
 import {
 	consumeDomWork,
 	createDomWorkBudget,

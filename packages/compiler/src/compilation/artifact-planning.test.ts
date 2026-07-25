@@ -318,6 +318,63 @@ describe('@exactjs/compiler: artifact planning', () => {
 		expect(server).not.toContain('from "./ClientWidget"');
 	});
 
+	it('carries inferred reevaluation safety across local module boundaries', async () => {
+		const root = await createTestWorkspace('exact-artifact-derived-import-');
+		const src = path.join(root, 'src');
+		const outDir = path.join(root, '.exact');
+		await mkdir(src, { recursive: true });
+		await writeFile(
+			path.join(src, 'format.ts'),
+			`export function format(value: string) { return value.trim().toUpperCase(); }`
+		);
+		await writeFile(
+			path.join(src, 'Panel.tsx'),
+			`
+				import { format } from "./format.js";
+				export function Panel(this: Component<{ name: string }>) {
+					const label = format(this.state.name);
+					return () => <p>{label}</p>;
+				}
+			`
+		);
+
+		const results = await compileProjectArtifacts([src], { outDir, rootDir: src });
+		const panel = results.find((result) => result.inputFile.endsWith('Panel.tsx'))!;
+
+		expect(await readFile(panel.clientFile, 'utf8')).toContain('format(this.state.name)');
+	});
+
+	it('does not trust imported helpers that mutate captured storage', async () => {
+		const root = await createTestWorkspace('exact-artifact-effectful-derived-import-');
+		const src = path.join(root, 'src');
+		const outDir = path.join(root, '.exact');
+		await mkdir(src, { recursive: true });
+		await writeFile(
+			path.join(src, 'format.ts'),
+			`
+				let calls = 0;
+				export function format(value: string) {
+					calls++;
+					return value;
+				}
+			`
+		);
+		await writeFile(
+			path.join(src, 'Panel.tsx'),
+			`
+				import { format } from "./format.js";
+				export function Panel(this: Component<{ name: string }>) {
+					const label = format(this.state.name);
+					return () => <p>{label}</p>;
+				}
+			`
+		);
+
+		await expect(compileProjectArtifacts([src], { outDir, rootDir: src })).rejects.toThrow(
+			/derived local label cannot be safely reevaluated/
+		);
+	});
+
 	it('updates dev-server artifact state with retained manifest context', async () => {
 		const root = await createTestWorkspace('exact-artifact-dev-state-');
 		const src = path.join(root, 'src');

@@ -98,11 +98,19 @@ const files = await readdir(outputRoot);
 if (files.length !== 1 || files[0] !== 'index.html') {
 	throw new Error(`Expected one standalone index.html, found: ${files.join(', ')}`);
 }
-if (/<script[^>]+\bsrc=/i.test(documentHtml) || /<link[^>]+\brel=["']stylesheet["']/i.test(documentHtml)) {
+if (
+	/<script[^>]+\bsrc=/i.test(documentHtml) ||
+	/<link[^>]+\brel=["']stylesheet["']/i.test(documentHtml)
+) {
 	throw new Error('The standalone documentation still contains an external script or stylesheet.');
 }
-if (!documentHtml.includes('Write the component. Do not rerun it.') || !documentHtml.includes('exact:')) {
-	throw new Error('The standalone documentation is missing prerendered content or hydration markers.');
+if (
+	!documentHtml.includes('Write the component. Do not rerun it.') ||
+	!documentHtml.includes('exact:')
+) {
+	throw new Error(
+		'The standalone documentation is missing prerendered content or hydration markers.'
+	);
 }
 
 console.log(`Built standalone documentation: dist/index.html (${documentHtml.length} bytes)`);

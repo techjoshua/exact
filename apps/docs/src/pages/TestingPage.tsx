@@ -50,6 +50,7 @@ expect(exchange.clientOperations[0]?.patchesApplied).toBe(true);
 expect(view.component(AccountEditor).providedContext(EditorContext)).toBeDefined();
 view.unmount();`;
 
+/** Documents behavior-focused component, server, and client/server testing workflows. */
 export function TestingPage(this: Component<{}>) {
 	return () => (
 		<Article

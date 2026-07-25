@@ -1,4 +1,4 @@
-import { exactJest } from '../dist/index.js';
+import { exactJest } from '@exactjs/jest';
 
 export default {
 	...exactJest(),

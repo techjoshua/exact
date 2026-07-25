@@ -5,6 +5,7 @@ import type {
 	ExactPlacement,
 	ExactStateEffect
 } from '../types.js';
+import type { ExpressionTaskDependency } from './task-dependencies.js';
 
 /** Defines the expression task site interface contract. */
 export interface ExpressionTaskSite {
@@ -20,6 +21,8 @@ export interface ExpressionTaskSite {
 	readonly serverEffects: boolean;
 	/** Exact state paths inferred as rerun dependencies for dependency-free tasks. */
 	readonly dependencyPaths: readonly (readonly string[])[];
+	/** Authored expressions captured for dependency-free tasks and substituted into their work. */
+	readonly dependencies: readonly ExpressionTaskDependency[];
 	readonly reads: readonly ExactStateEffect[];
 	readonly writes: readonly ExactStateEffect[];
 	readonly contexts: readonly ExactContextEffect[];

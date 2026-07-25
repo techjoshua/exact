@@ -48,6 +48,7 @@ COLOR teal
 REPEAT 5 [ FORWARD 52 RIGHT 144 ]`
 };
 
+/** Runs the bounded Logo interpreter and renders its reactive editor and SVG output. */
 export function LogoLab(this: Component<LogoState>) {
 	this.state.source = presets.star!;
 	this.state.instructions = [];

@@ -35,6 +35,7 @@ const advancedCards: AdvancedCard[] = [
 	}
 ];
 
+/** Explains SSR, hydration, server components, and adapter-level deployment boundaries. */
 export function AdvancedPage(this: Component<{}>) {
 	return () => (
 		<Article

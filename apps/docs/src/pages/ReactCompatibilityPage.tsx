@@ -29,6 +29,7 @@ function AccountBadge(this: Component<{}>) {
 // Make a native component explicit at a React-owned JSX boundary.
 export const ReactAccountBadge = exposeExactComponent(AccountBadge);`;
 
+/** Documents how supported React-owned code can be adopted inside an eXact application. */
 export function ReactCompatibilityPage(this: Component<{}>) {
 	return () => (
 		<Article

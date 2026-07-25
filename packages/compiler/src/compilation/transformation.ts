@@ -97,8 +97,6 @@ export function transformSource(source: string, options: TransformOptions = {}):
 	const pluginErrors = manifest.diagnostics.filter((diagnostic) => /^error: \[@/.test(diagnostic));
 	if (pluginErrors.length) throw new Error(pluginErrors.join('\n'));
 	const semanticGraph = buildExpressionSemanticGraph(expressionModule);
-	const provenance = buildExactProvenance(expressionModule);
-	const expressionDerived = analyzeExpressionDerived(expressionModule, provenance);
 	const expressionWrites = analyzeExpressionWrites(expressionModule);
 	const moduleImports = analyzeModuleImports(normalized, filename, options.assetRules);
 	const policyMetadata = analyzeExactPolicyMetadata(expressionModule, importedManifests);
@@ -114,9 +112,11 @@ export function transformSource(source: string, options: TransformOptions = {}):
 			policyMetadata.contextCallEffects
 		)
 	).callables;
+	const provenance = buildExactProvenance(expressionModule, callableEffects.callEffects);
+	const expressionDerived = analyzeExpressionDerived(expressionModule, provenance);
 	const expressionTasks = applyExactPolicyToTasks(
 		policyMetadata,
-		analyzeExpressionTasks(expressionModule, callableEffects)
+		analyzeExpressionTasks(expressionModule, callableEffects, provenance)
 	).tasks;
 	const taskErrors = expressionTasks.diagnostics.filter((diagnostic) =>
 		diagnostic.startsWith('error:')

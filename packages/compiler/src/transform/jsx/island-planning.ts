@@ -18,7 +18,9 @@ import type { ComponentLocalInfo, DerivedReactiveIndex } from './contracts.js';
 import { canonicalElementId } from './element-emission.js';
 import { expressionEmissionId, identityFilenameFor } from './identity.js';
 import { islandProps } from './island-emission.js';
-import { bindingPropertyAssignments, childrenExpressions, propName } from './node-emission.js';
+import { bindingPropertyAssignments } from './form-binding-emission.js';
+import { childrenExpressions } from './node-emission.js';
+import { propName } from './property-emission.js';
 import { tagExpression } from './reactive-emission.js';
 /** Performs the client island captures domain operation. */
 export function clientIslandCaptures(

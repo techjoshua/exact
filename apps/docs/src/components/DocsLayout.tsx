@@ -9,6 +9,7 @@ type LayoutState = {
 	searchOpen: boolean;
 };
 
+/** Owns the responsive documentation shell, route scrolling, and search visibility. */
 export function DocsLayout(this: Component<LayoutState>) {
 	const route = this.getContext(RouteContext);
 	this.state.mobileOpen = false;

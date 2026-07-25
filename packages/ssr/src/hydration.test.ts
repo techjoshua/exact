@@ -1,4 +1,9 @@
-import { createCompiledVNode, createDynamicChild, createVNode, type Component } from '@exactjs/core';
+import {
+	createCompiledVNode,
+	createDynamicChild,
+	createVNode,
+	type Component
+} from '@exactjs/core';
 import { registerReactiveListKey } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import { renderHydrationScript, renderToHydratableString, renderToString } from './index.js';

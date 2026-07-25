@@ -52,6 +52,16 @@ syntax node. Keep the default `summary` detail for routine telemetry and enable
 uses detailed mode and writes its complete structured report to
 `.tmp/expression-corpus-profile.json`.
 
+The corpus check also records elapsed time and peak worker RSS. Its default
+policy uses one worker, a 1 GB JavaScript heap guardrail, and batches of 16 files.
+Runtime is measured, not enforced as a timeout. Every run is appended to the ignored
+`.tmp/expression-corpus-history.json`; the latest successful comparison point is
+tracked in `docs/performance-baselines/expression-corpus.json`. Run
+`npm run check:expressions:baseline` only when intentionally accepting a new
+baseline. `EXACT_EXPRESSION_WORKER_HEAP_MB`, `EXACT_EXPRESSION_BATCH_SIZE`, and
+`EXACT_EXPRESSION_WORKERS` provide explicit investigation overrides without
+changing the repository policy.
+
 ## Isolation
 
 Option-bearing runtimes receive sinks directly. Reactive and React compatibility

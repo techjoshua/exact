@@ -1,10 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import {
-	isPublishableWorkspace,
-	readWorkspaceManifests
-} from './workspace-manifests.mjs';
+import { isPublishableWorkspace, readWorkspaceManifests } from './workspace-manifests.mjs';
 
 const dependencySections = Object.freeze([
 	'dependencies',
@@ -14,7 +11,10 @@ const dependencySections = Object.freeze([
 ]);
 const version = argument('version') ?? process.argv[2];
 
-if (!version || !/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/.test(version)) {
+if (
+	!version ||
+	!/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/.test(version)
+) {
 	throw new Error(
 		'Provide a release version, for example: npm run version:packages -- --version=0.1.0'
 	);

@@ -339,6 +339,29 @@ describe('@exactjs/expressions binding', () => {
 		expect(recursive.properties).toEqual(expect.arrayContaining(['value', 'next']));
 	});
 
+	it('keeps broad type structure without rendering a lossless diagnostic label', () => {
+		const project = createExpressionProject({ tsconfigPath: config });
+		const filename = path.join(root, 'apps/kanban/src/__expressions_broad_type.ts');
+		const members = Array.from({ length: 170 }, (_, index) => `member${index}(value: T): T;`).join(
+			'\n'
+		);
+		const module = project.updateModule(
+			filename,
+			`declare function inspect<T>(value: T): { ${members} }
+			const assertion = inspect({ value: 1 });`
+		);
+		const type = module
+			.walk()
+			.references()
+			.where((reference) => reference.name === 'assertion')
+			.first()!.variable!.type!;
+		const displayedMembers = type.display.match(/member\d+/g) ?? [];
+
+		expect(type.propertyTypes).toHaveLength(170);
+		expect(type.propertyTypes.at(-1)?.name).toBe('member169');
+		expect(displayedMembers.length).toBeLessThan(type.propertyTypes.length);
+	});
+
 	it('keeps generic type arguments out of runtime call arguments', () => {
 		const project = createExpressionProject({ tsconfigPath: config });
 		const filename = path.join(root, 'apps/kanban/src/__expressions_generic_call.ts');

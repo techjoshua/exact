@@ -1,5 +1,6 @@
 import { createContext, type Child, type Component } from '@exactjs/core';
 
+/** A persisted documentation color preference or delegation to the operating system. */
 export type ThemePreference = 'system' | 'light' | 'dark';
 
 type ThemeContextValue = {
@@ -7,6 +8,7 @@ type ThemeContextValue = {
 	setPreference(preference: ThemePreference): void;
 };
 
+/** Shares the current documentation theme and its persistent mutation operation. */
 export const ThemeContext = createContext<ThemeContextValue>('exact.docs.theme');
 
 function isThemePreference(value: string): value is ThemePreference {
@@ -24,6 +26,7 @@ function persistTheme(preference: ThemePreference) {
 	localStorage.setItem('exact-docs-theme', preference);
 }
 
+/** Owns theme persistence and provides the reactive preference to descendants. */
 export function ThemeProvider(
 	this: Component<{ preference: ThemePreference }>,
 	props: { children?: Child | Child[] }
@@ -49,6 +52,7 @@ export function ThemeProvider(
 	return () => props.children;
 }
 
+/** Renders the theme selector backed by the nearest documentation theme provider. */
 export function ThemeControl(this: Component<{}>) {
 	const theme = this.getContext(ThemeContext);
 

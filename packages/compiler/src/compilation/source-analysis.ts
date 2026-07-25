@@ -87,8 +87,6 @@ export function analyzeSource(
 	const manifestDiagnostics: string[] = [];
 	const serverActions: ExactCompilerManifest['serverActions'] = {};
 	const semanticGraph = buildExpressionSemanticGraph(expressionModule);
-	const provenance = buildExactProvenance(expressionModule);
-	const expressionSafety = analyzeExpressionSafety(expressionModule, provenance);
 	const expressionWrites = analyzeExpressionWrites(expressionModule);
 	const moduleImports = analyzeModuleImports(normalized, filename, options.assetRules);
 	const policyMetadata = analyzeExactPolicyMetadata(expressionModule, importedManifests);
@@ -100,6 +98,8 @@ export function analyzeSource(
 		moduleImports,
 		policyMetadata.contextCallEffects
 	);
+	const provenance = buildExactProvenance(expressionModule, rawCallableEffects.callEffects);
+	const expressionSafety = analyzeExpressionSafety(expressionModule, provenance);
 	const rawHtmlRequirements = collectRawHtmlCapabilities(
 		sourceFile,
 		filename,
@@ -126,7 +126,7 @@ export function analyzeSource(
 	manifestDiagnostics.push(...callablePolicyResult.diagnostics);
 	const expressionTasks = applyExactPolicyToTasks(
 		policyMetadata,
-		analyzeExpressionTasks(expressionModule, callableEffects)
+		analyzeExpressionTasks(expressionModule, callableEffects, provenance)
 	).tasks;
 	manifestDiagnostics.push(...expressionTasks.diagnostics);
 	manifestDiagnostics.push(

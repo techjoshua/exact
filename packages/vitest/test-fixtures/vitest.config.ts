@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config';
-import { exactVitest } from '../dist/index.js';
+import { exactVitest } from '@exactjs/vitest';
 
 export default defineConfig({
 	plugins: [exactVitest()],

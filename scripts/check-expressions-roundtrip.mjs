@@ -1,9 +1,19 @@
 import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
-import os from 'node:os';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
+import {
+	appendExpressionCorpusHistory,
+	batchExpressionCorpusGroups,
+	defaultExpressionCorpusBatchSize,
+	defaultExpressionCorpusWorkerHeapMb,
+	expressionCorpusRunRecord,
+	expressionCorpusTrend,
+	positiveInteger,
+	readExpressionCorpusBaseline,
+	writeExpressionCorpusBaseline
+} from './expression-corpus/measurement.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const profiles = [];
@@ -12,6 +22,7 @@ if (process.argv[2] === '--group') {
 	const { config, filenames } = JSON.parse(input);
 	process.stdout.write(JSON.stringify(await checkGroup(config, filenames)));
 } else {
+	const corpusStarted = performance.now();
 	const files = await collectSources(root);
 	const groups = new Map();
 	for (const filename of files) {
@@ -22,31 +33,66 @@ if (process.argv[2] === '--group') {
 		groups.set(config, group);
 	}
 
-	const entries = [...groups].sort((left, right) => right[1].length - left[1].length);
-	const concurrency = Math.max(
-		1,
-		Number.parseInt(
-			process.env.EXACT_EXPRESSION_WORKERS ??
-				String(Math.min(4, Math.max(2, os.availableParallelism() - 1))),
-			10
-		)
+	const batchSize = positiveInteger(
+		process.env.EXACT_EXPRESSION_BATCH_SIZE,
+		defaultExpressionCorpusBatchSize,
+		'EXACT_EXPRESSION_BATCH_SIZE'
+	);
+	const entries = batchExpressionCorpusGroups(
+		[...groups].sort((left, right) => right[1].length - left[1].length),
+		batchSize
+	);
+	const concurrency = Math.max(1, Number.parseInt(process.env.EXACT_EXPRESSION_WORKERS ?? '1', 10));
+	const workerHeapMb = positiveInteger(
+		process.env.EXACT_EXPRESSION_WORKER_HEAP_MB,
+		defaultExpressionCorpusWorkerHeapMb,
+		'EXACT_EXPRESSION_WORKER_HEAP_MB'
 	);
 	let cursor = 0;
-	await Promise.all(
-		Array.from({ length: Math.min(concurrency, entries.length) }, async () => {
-			while (cursor < entries.length) {
-				const [config, filenames] = entries[cursor++];
-				await runAdaptiveGroup(config, filenames);
-			}
-		})
-	);
 	const checked = entries.reduce((count, [, filenames]) => count + filenames.length, 0);
-
-	await writeProfile(profiles, concurrency, checked, groups.size);
-	console.log(
-		`@exactjs/expressions losslessly round-tripped ${checked} source files across ${groups.size} projects with ${concurrency} workers`
-	);
-	printProfileSummary(profiles);
+	const baseline = await readExpressionCorpusBaseline(root);
+	let failure;
+	try {
+		await Promise.all(
+			Array.from({ length: Math.min(concurrency, entries.length) }, async () => {
+				while (cursor < entries.length) {
+					const [config, filenames] = entries[cursor++];
+					await runAdaptiveGroup(config, filenames, workerHeapMb);
+				}
+			})
+		);
+	} catch (error) {
+		failure = error;
+	}
+	const elapsedMs = performance.now() - corpusStarted;
+	const record = expressionCorpusRunRecord({
+		status: failure ? 'failed' : 'passed',
+		elapsedMs,
+		workers: concurrency,
+		workerHeapMb,
+		batchSize,
+		fileCount: checked,
+		projectCount: groups.size,
+		batchCount: entries.length,
+		peakWorkerRssMb: Math.max(0, ...profiles.map((profile) => profile.maxRssMb ?? 0)),
+		baseline,
+		...(failure ? { error: failure instanceof Error ? failure.message : String(failure) } : {})
+	});
+	await appendExpressionCorpusHistory(root, record);
+	if (!failure) {
+		await writeProfile(profiles, concurrency, checked, groups.size, record);
+		if (process.argv.includes('--update-baseline'))
+			await writeExpressionCorpusBaseline(root, record);
+		console.log(
+			`@exactjs/expressions losslessly round-tripped ${checked} source files across ${groups.size} projects in ${(elapsedMs / 1_000).toFixed(1)}s (${expressionCorpusTrend(record)}; ${record.peakWorkerRssMb} MB peak worker RSS)`
+		);
+		printProfileSummary(profiles);
+	} else {
+		console.error(
+			`Expression corpus failed after ${(elapsedMs / 1_000).toFixed(1)}s; measurement appended to .tmp/expression-corpus-history.json`
+		);
+		throw failure;
+	}
 }
 
 async function checkGroup(config, filenames) {
@@ -73,8 +119,10 @@ async function checkGroup(config, filenames) {
 		}
 		return {
 			config,
+			filenames: filenames.map((filename) => path.relative(root, filename)),
 			fileCount: filenames.length,
 			elapsedMs: performance.now() - started,
+			maxRssMb: Math.ceil(process.resourceUsage().maxRSS / 1_024),
 			events: collector.snapshot()
 		};
 	} finally {
@@ -82,12 +130,16 @@ async function checkGroup(config, filenames) {
 	}
 }
 
-function runGroup(config, filenames) {
+function runGroup(config, filenames, workerHeapMb) {
 	return new Promise((resolve, reject) => {
-		const child = spawn(process.execPath, [import.meta.filename, '--group'], {
-			cwd: root,
-			stdio: ['pipe', 'pipe', 'pipe']
-		});
+		const child = spawn(
+			process.execPath,
+			[`--max-old-space-size=${workerHeapMb}`, import.meta.filename, '--group'],
+			{
+				cwd: root,
+				stdio: ['pipe', 'pipe', 'pipe']
+			}
+		);
 		let stdout = '';
 		let stderr = '';
 		child.stdout.on('data', (chunk) => {
@@ -102,7 +154,7 @@ function runGroup(config, filenames) {
 				reject(
 					Object.assign(
 						new Error(
-							`Expression round-trip worker exited ${code} for ${config}${stderr ? `\n${stderr}` : ''}`
+							`Expression round-trip worker exited ${code} for ${config}\nFiles: ${filenames.map((filename) => path.relative(root, filename)).join(', ')}${stderr ? `\n${stderr}` : ''}`
 						),
 						{ exitCode: code }
 					)
@@ -121,18 +173,18 @@ function runGroup(config, filenames) {
 	});
 }
 
-async function runAdaptiveGroup(config, filenames) {
+async function runAdaptiveGroup(config, filenames, workerHeapMb) {
 	try {
-		profiles.push(await runGroup(config, filenames));
+		profiles.push(await runGroup(config, filenames, workerHeapMb));
 	} catch (error) {
 		if (filenames.length === 1) throw error;
 		const middle = Math.ceil(filenames.length / 2);
-		await runAdaptiveGroup(config, filenames.slice(0, middle));
-		await runAdaptiveGroup(config, filenames.slice(middle));
+		await runAdaptiveGroup(config, filenames.slice(0, middle), workerHeapMb);
+		await runAdaptiveGroup(config, filenames.slice(middle), workerHeapMb);
 	}
 }
 
-async function writeProfile(projects, workers, fileCount, projectCount) {
+async function writeProfile(projects, workers, fileCount, projectCount, measurement) {
 	const directory = path.join(root, '.tmp');
 	await mkdir(directory, { recursive: true });
 	await writeFile(
@@ -144,6 +196,7 @@ async function writeProfile(projects, workers, fileCount, projectCount) {
 				workers,
 				fileCount,
 				projectCount,
+				measurement,
 				projects: projects.map((project) => ({
 					...project,
 					config: path.relative(root, project.config),

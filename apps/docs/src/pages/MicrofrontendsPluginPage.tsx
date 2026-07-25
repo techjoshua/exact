@@ -43,6 +43,7 @@ function BillingSlot(this: Component<{}>) {
   );
 }`;
 
+/** Documents microfrontend exposure, consumption, development, and recovery contracts. */
 export function MicrofrontendsPluginPage(this: Component<{}>) {
 	return () => (
 		<Article

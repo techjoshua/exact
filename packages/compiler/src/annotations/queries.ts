@@ -245,6 +245,14 @@ export function validDirectiveLocation(key: ExactAnnotationKey, reference: NodeR
 		return ['FunctionDeclaration', 'MethodDeclaration', 'MethodSignature', 'FunctionType'].includes(
 			kind
 		);
+	if (key === 'pure')
+		return [
+			'FunctionDeclaration',
+			'MethodDeclaration',
+			'MethodSignature',
+			'FunctionType',
+			'VariableDeclaration'
+		].includes(kind);
 	if (key === 'keep')
 		return [
 			'VariableDeclaration',

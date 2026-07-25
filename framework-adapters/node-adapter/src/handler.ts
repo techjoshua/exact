@@ -1,4 +1,8 @@
-import { handleExactRequest, type ExactResponseLike, type ExactServerContext } from '@exactjs/server';
+import {
+	handleExactRequest,
+	type ExactResponseLike,
+	type ExactServerContext
+} from '@exactjs/server';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 /** Creates a Node http.createServer-compatible eXact endpoint handler. */

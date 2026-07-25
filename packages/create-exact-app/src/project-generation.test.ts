@@ -2,7 +2,7 @@ import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { bundlers, createExactApp, runtimes } from './index.js';
+import { bundlers, createExactApp, runtimes } from './project-generation.js';
 
 describe('create-exact-app', () => {
 	it('creates a Vite and Vitest browser application with the Agent Skill', async () => {

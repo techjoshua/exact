@@ -15,6 +15,7 @@ const pluginConfigSource = `export default {
   }
 };`;
 
+/** Explains the validated compiler, runtime, rendering, and testing plugin lifecycle. */
 export function PluginsPage(this: Component<{}>) {
 	return () => (
 		<Article

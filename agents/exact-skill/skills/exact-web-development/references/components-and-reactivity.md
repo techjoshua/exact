@@ -48,6 +48,17 @@ const subtotal = this.state.quantity * this.state.price;
 const total = subtotal + this.state.shipping;
 ```
 
+The compiler follows pure local helpers and recognized intrinsic operations. Package APIs may
+declare an equally strong contract with `@exact pure`:
+
+```ts
+/** Produces a deterministic label without external state or effects. @exact pure */
+declare function formatLabel(value: string): string;
+```
+
+Treat this as a behavioral guarantee. Do not annotate calls that read clocks, randomness, mutable
+globals, I/O, or other external state.
+
 Use an explicit reactive value when runtime code needs the boundary itself:
 
 ```ts

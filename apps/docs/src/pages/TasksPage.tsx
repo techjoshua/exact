@@ -89,12 +89,13 @@ function ProjectPage(this: Component<ProjectState>) {
   return () => <h1>{this.state.title}</h1>;
 }`;
 
+/** Documents inferred task generations, cancellation, cleanup, and placement. */
 export function TasksPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Learn"
 			title="Work follows the component"
-			description="Tasks are setup declarations for work the component owns. The compiler turns state reads into rerun dependencies; reruns and unmounts cancel the previous generation."
+			description="Tasks are setup declarations for work the component owns. The compiler turns state, prop, and context reads into rerun dependencies; reruns and unmounts cancel the previous generation."
 			previous={{ path: '/learn/lists', label: 'Keyed lists' }}
 			next={{ path: '/guides/routing', label: 'Routing' }}
 		>
@@ -110,10 +111,10 @@ export function TasksPage(this: Component<{}>) {
 			<section>
 				<h2>Write the task; let the compiler find its dependencies</h2>
 				<p>
-					The idiomatic form puts the work directly in <code>this.task()</code>. Exact state reads
-					inside a task become reactive dependencies automatically. When one changes, eXact aborts
-					the current generation, waits for registered cleanup as needed, and invokes the task
-					again.
+					The idiomatic form puts the work directly in <code>this.task()</code>. Exact state, prop,
+					and reactive context reads inside a task become dependencies automatically. When one
+					changes, eXact aborts the current generation, waits for registered cleanup as needed, and
+					invokes the task again.
 				</p>
 				<CodeBlock source={taskSource} language="tsx" title="Search.tsx" />
 				<p>
@@ -138,7 +139,9 @@ export function TasksPage(this: Component<{}>) {
 					connects its generated task signal to the fetch, as shown below. You can still author the
 					explicit dependency form when a dependency must be supplied indirectly, or accept{' '}
 					<code>{'{ signal }'}</code> yourself when passing it to an API the compiler cannot
-					recognize. Ordinary component code should prefer the simpler inferred form.
+					recognize. Each invocation receives the values captured for that generation, including
+					after an <code>await</code>. Ordinary component code should prefer the simpler inferred
+					form.
 				</p>
 				<CodeBlock source={compiledTaskSource} language="tsx" title="Conceptual compiler output" />
 			</section>

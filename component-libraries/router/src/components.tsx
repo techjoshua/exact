@@ -242,9 +242,7 @@ function renderBranch(routes: RouteRecord[], context: RouteContextValue): Child 
 				context,
 				key: route.id,
 				render: () =>
-					route.component
-						? createVNode(route.component, route.componentProps ?? {})
-						: child
+					route.component ? createVNode(route.component, route.componentProps ?? {}) : child
 			},
 			child
 		);

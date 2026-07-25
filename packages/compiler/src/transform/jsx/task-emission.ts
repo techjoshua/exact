@@ -6,6 +6,7 @@ import type {
 	ExpressionTaskSite,
 	ExpressionTaskSignalCall
 } from '../../expression/task-contracts.js';
+import type { ExpressionTaskDependency } from '../../expression/task-dependencies.js';
 import type { HelperNames } from '../../types.js';
 
 import { captureArgument } from './collection-emission.js';
@@ -30,9 +31,18 @@ export function transformTaskCall(
 	if (node.arguments.length < 1) return ts.visitEachChild(node, visitor, context);
 	const work = node.arguments[node.arguments.length - 1]!;
 	if (!isFunctionLikeExpression(work)) return ts.visitEachChild(node, visitor, context);
-	const visitedWork = ts.visitNode(work, visitor) as ts.ArrowFunction | ts.FunctionExpression;
+	const explicitDependencies = node.arguments.slice(0, -1);
+	const inferredDependencies =
+		explicitDependencies.length === 0 ? (taskSite?.dependencies ?? []) : [];
+	const dependencyParameters = allocateDependencyParameters(work, inferredDependencies.length);
+	const rewrittenWork = inferredDependencies.length
+		? rewriteTaskDependencyReads(work, inferredDependencies, dependencyParameters, context)
+		: work;
+	const visitedWork = ts.visitNode(rewrittenWork, visitor) as
+		| ts.ArrowFunction
+		| ts.FunctionExpression;
 	let transformedWork: ts.ArrowFunction | ts.FunctionExpression = helpers
-		? transformTaskWork(
+		? (transformTaskWork(
 				visitedWork,
 				node.arguments.length - 1,
 				context,
@@ -43,22 +53,29 @@ export function transformTaskCall(
 				markAwait ?? (() => {}),
 				signalFor ?? (() => undefined),
 				markSignal ?? (() => {})
-			) as ts.ArrowFunction | ts.FunctionExpression
+			) as ts.ArrowFunction | ts.FunctionExpression)
 		: visitedWork;
 
-	const explicitDependencies = node.arguments.slice(0, -1);
-	const inferredDependencies =
-		explicitDependencies.length === 0 ? (taskSite?.dependencyPaths ?? []) : [];
 	if (inferredDependencies.length)
-		transformedWork = prependDependencyParameters(
-			transformedWork,
-			inferredDependencies.length,
-			context
-		);
+		transformedWork = prependDependencyParameters(transformedWork, dependencyParameters, context);
 
 	const nextDependencies =
 		inferredDependencies.length > 0
-			? inferredDependencies.map((path) => inferredStateDependency(path, context))
+			? inferredDependencies.map((dependency) => {
+					const expression = findExpressionNode(work, dependency.nodeId);
+					if (!expression)
+						throw new Error(
+							`Missing task dependency expression ${dependency.nodeId} in ${sourceFile.fileName}`
+						);
+					return context.factory.createCallExpression(
+						context.factory.createPropertyAccessExpression(
+							context.factory.createThis(),
+							'reactive'
+						),
+						undefined,
+						[captureArgument(context, expression, visitor, sourceFile, derivedReactiveLocals)]
+					);
+				})
 			: explicitDependencies.map((argument) => {
 					if (isFunctionLikeExpression(argument)) {
 						return ts.visitNode(argument, visitor) as ts.Expression;
@@ -85,51 +102,14 @@ export function transformTaskCall(
 	);
 }
 
-function inferredStateDependency(
-	path: readonly string[],
-	context: ts.TransformationContext
-): ts.Expression {
-	const factory = context.factory;
-	let value: ts.Expression = factory.createPropertyAccessExpression(factory.createThis(), 'state');
-	for (const segment of path) {
-		value = /^[$A-Z_a-z][$\w]*$/.test(segment)
-			? factory.createPropertyAccessExpression(value, segment)
-			: factory.createElementAccessExpression(value, factory.createStringLiteral(segment));
-	}
-	return factory.createCallExpression(
-		factory.createPropertyAccessExpression(factory.createThis(), 'reactive'),
-		undefined,
-		[
-			factory.createArrowFunction(
-				undefined,
-				undefined,
-				[],
-				undefined,
-				factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-				value
-			)
-		]
-	);
-}
-
 function prependDependencyParameters(
 	work: ts.ArrowFunction | ts.FunctionExpression,
-	count: number,
+	names: readonly string[],
 	context: ts.TransformationContext
 ): ts.ArrowFunction | ts.FunctionExpression {
-	const used = new Set<string>();
-	const collect = (node: ts.Node): void => {
-		if (ts.isIdentifier(node)) used.add(node.text);
-		ts.forEachChild(node, collect);
-	};
-	collect(work);
-	const parameters: ts.ParameterDeclaration[] = [];
-	for (let index = 0; index < count; index++) {
-		let name = `__exactDependency${index || ''}`;
-		while (used.has(name)) name += '_';
-		used.add(name);
-		parameters.push(context.factory.createParameterDeclaration(undefined, undefined, name));
-	}
+	const parameters = names.map((name) =>
+		context.factory.createParameterDeclaration(undefined, undefined, name)
+	);
 	parameters.push(...work.parameters);
 	if (ts.isArrowFunction(work))
 		return context.factory.updateArrowFunction(
@@ -151,6 +131,55 @@ function prependDependencyParameters(
 		work.type,
 		work.body
 	);
+}
+
+function allocateDependencyParameters(work: ts.FunctionLikeDeclaration, count: number): string[] {
+	const used = new Set<string>();
+	const collect = (node: ts.Node): void => {
+		if (ts.isIdentifier(node)) used.add(node.text);
+		ts.forEachChild(node, collect);
+	};
+	collect(work);
+	const names: string[] = [];
+	for (let index = 0; index < count; index++) {
+		let name = `__exactDependency${index || ''}`;
+		while (used.has(name)) name += '_';
+		used.add(name);
+		names.push(name);
+	}
+	return names;
+}
+
+function rewriteTaskDependencyReads(
+	work: ts.ArrowFunction | ts.FunctionExpression,
+	dependencies: readonly ExpressionTaskDependency[],
+	parameters: readonly string[],
+	context: ts.TransformationContext
+): ts.ArrowFunction | ts.FunctionExpression {
+	const replacements = new Map<string, ts.Identifier>();
+	dependencies.forEach((dependency, index) => {
+		const parameter = context.factory.createIdentifier(parameters[index]!);
+		for (const nodeId of dependency.readNodeIds) replacements.set(nodeId, parameter);
+	});
+	const rewrite: ts.Visitor = (node) => {
+		const replacement = replacements.get(expressionEmissionId(node) ?? '');
+		return replacement ?? ts.visitEachChild(node, rewrite, context);
+	};
+	return ts.visitNode(work, rewrite) as ts.ArrowFunction | ts.FunctionExpression;
+}
+
+function findExpressionNode(work: ts.Node, nodeId: string): ts.Expression | undefined {
+	let found: ts.Expression | undefined;
+	const visit = (node: ts.Node): void => {
+		if (found) return;
+		if (expressionEmissionId(node) === nodeId && ts.isExpression(node)) {
+			found = node;
+			return;
+		}
+		ts.forEachChild(node, visit);
+	};
+	visit(work);
+	return found;
 }
 
 /** Transforms task work into its required representation. */

@@ -553,9 +553,10 @@
 						</p>
 						<p>
 							<strong>Recommendation:</strong> split exports before public release. For example:
-							<code>@exactjs/core</code> for app APIs, <code>@exactjs/core/vnode</code> for low-level
-							vnode helpers, <code>@exactjs/core/runtime</code> for renderer/SSR internals, and
-							possibly package-private imports for cross-package internals if the build allows it.
+							<code>@exactjs/core</code> for app APIs, <code>@exactjs/core/vnode</code> for
+							low-level vnode helpers, <code>@exactjs/core/runtime</code> for renderer/SSR
+							internals, and possibly package-private imports for cross-package internals if the
+							build allows it.
 						</p>
 						<p class="evidence">
 							Evidence: <code>packages/core/src/index.ts</code>, README "next export cleanup" note.

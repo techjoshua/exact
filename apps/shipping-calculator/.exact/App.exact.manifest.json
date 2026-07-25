@@ -203,7 +203,8 @@
           "confidence": "exact"
         }
       ],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "xAfkD392h-q_iBscBdSte8m",
@@ -231,7 +232,8 @@
       ],
       "stateReads": [],
       "stateWrites": [],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "xeuLvBpo4rzb1x6bHi5Pqaj",
@@ -392,7 +394,8 @@
           "confidence": "exact"
         }
       ],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "xsWQnCDDsZ7lovTK5jEwZSd",
@@ -420,7 +423,8 @@
       ],
       "stateReads": [],
       "stateWrites": [],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "xTkpGvNpRTyPgMUBHrI11VU",
@@ -448,7 +452,8 @@
       ],
       "stateReads": [],
       "stateWrites": [],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     }
   ],
   "policy": {

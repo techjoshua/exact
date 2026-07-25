@@ -671,7 +671,8 @@
           "confidence": "exact"
         }
       ],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "xM-8nIq9X_wBOcTLM12TTjS",
@@ -792,7 +793,8 @@
           "confidence": "exact"
         }
       ],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "xpA8UPCIx9_rRoNYS_BQDmA",
@@ -875,7 +877,8 @@
       ],
       "stateReads": [],
       "stateWrites": [],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "xzHN-JnV8kcvLyyMNjEztMS",
@@ -898,7 +901,8 @@
         }
       ],
       "stateWrites": [],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     }
   ],
   "policy": {

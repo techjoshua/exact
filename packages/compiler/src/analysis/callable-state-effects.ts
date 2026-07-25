@@ -134,11 +134,14 @@ const arrayStateMutators = new Set([
 ]);
 const intrinsicCollectionMethods = new Set([
 	...arrayStateMutators,
+	'at',
 	'concat',
 	'every',
 	'filter',
 	'find',
 	'findIndex',
+	'findLast',
+	'findLastIndex',
 	'flat',
 	'flatMap',
 	'forEach',
@@ -153,7 +156,8 @@ const intrinsicCollectionMethods = new Set([
 	'some',
 	'toReversed',
 	'toSorted',
-	'toSpliced'
+	'toSpliced',
+	'with'
 ]);
 
 /** Reports whether compiler owned collection call. */
@@ -165,6 +169,20 @@ export function isCompilerOwnedCollectionCall(
 	if (!call.target?.isMember() || !intrinsicCollectionMethods.has(call.target.name ?? ''))
 		return false;
 	return isCompilerOwnedCollectionReceiver(module, call.target.target, aliases);
+}
+
+/**
+ * Reports whether a call resolves to the side-effect-neutral ECMAScript library.
+ *
+ * DOM declarations are deliberately excluded: being built in does not make a
+ * browser API portable or effect free.
+ */
+export function isIntrinsicLanguageCall(call: NodeRef): boolean {
+	const declaration = call.node.resolvedSignature?.declarationSource?.replace(/\\/g, '/');
+	return (
+		!!declaration &&
+		/(?:\/typescript|\/@typescript\/[^/]+)\/lib\/lib\.es[^/]*\.d\.ts$/i.test(declaration)
+	);
 }
 
 /** Reports whether compiler owned collection receiver. */
@@ -232,6 +250,8 @@ export function knownHigherOrderCall(call: NodeRef): boolean {
 			'every',
 			'find',
 			'findIndex',
+			'findLast',
+			'findLastIndex',
 			'reduce',
 			'reduceRight',
 			'sort',

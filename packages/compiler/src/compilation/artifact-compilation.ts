@@ -268,7 +268,7 @@ function callableEffectSignature(manifest: ExactCompilerManifest): string {
 	return manifest.callables
 		.map(
 			(callable) =>
-				`${callable.id}:${callable.effect}:${callable.effectSources.map((source) => `${source.environment}:${source.description}`).join(',')}:${JSON.stringify(callable.stateReads)}:${JSON.stringify(callable.stateWrites)}:${JSON.stringify(callable.contexts)}`
+				`${callable.id}:${callable.effect}:${callable.reevaluationSafe === true}:${callable.effectSources.map((source) => `${source.environment}:${source.description}`).join(',')}:${JSON.stringify(callable.stateReads)}:${JSON.stringify(callable.stateWrites)}:${JSON.stringify(callable.contexts)}`
 		)
 		.join('|');
 }

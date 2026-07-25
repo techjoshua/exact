@@ -29,7 +29,8 @@ export function isExactCallableSummary(value: unknown): value is ExactCallableSu
 		Array.isArray(summary.stateWrites) &&
 		summary.stateWrites.every(isExactStateEffect) &&
 		Array.isArray(summary.contexts) &&
-		summary.contexts.every(isExactContextEffect)
+		summary.contexts.every(isExactContextEffect) &&
+		(summary.reevaluationSafe === undefined || typeof summary.reevaluationSafe === 'boolean')
 	);
 }
 

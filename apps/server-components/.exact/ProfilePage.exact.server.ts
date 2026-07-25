@@ -11,9 +11,9 @@ const __exactImplementation_ProfilePage_1 = function ProfilePage(this: Component
 }) {
     __exactWrite(this.state, ["saves"], () => 0);
     __exactWrite(this.state, ["status"], () => 'Loaded on the server');
-    this.task.server(async ({ signal: __exactSignal }) => {
+    this.task.server(this.reactive(() => props.name), async (__exactDependency, { signal: __exactSignal }) => {
         await __exactTaskAwait(__exactSignal, Promise.resolve());
-        __exactWrite(this.state, ["status"], () => `Ready for ${props.name}`);
+        __exactWrite(this.state, ["status"], () => `Ready for ${__exactDependency}`);
     });
     return () => (__exactVNode("section", { "data-exact-id": "xbSlycRQOMTMIout-46XRGt" }, __exactVNode("p", { "data-exact-id": "xI2oufUW56KAQo6TSBTmvEG" }, __exactDynamic(() => this.state.status)), __exactBoundary("xjbD874UpZxqjxcAu1_iYpK", "ProfilePage_ExactClient_1", { "__exactState": { saves: this.state.saves } })));
 };

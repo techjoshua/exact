@@ -34,9 +34,11 @@ export function createExpressionTypeProjection(options: ExpressionTypeProjection
 		const locations = typeDisplayCache.get(type);
 		const cached = locations?.get(at);
 		if (cached !== undefined) return cached;
-		const display = typeProjectionTimer.measure('display', () =>
-			checker.typeToString(type, at, ts.TypeFormatFlags.NoTruncation)
-		);
+		// `display` is a readable diagnostic label, not a lossless serialization
+		// of the TypeScript type graph. Allow TypeScript to truncate very large
+		// generic types so assertion libraries and similarly broad APIs cannot
+		// allocate unbounded strings for every expression.
+		const display = typeProjectionTimer.measure('display', () => checker.typeToString(type, at));
 		const target = locations ?? new Map<ts.Node, string>();
 		target.set(at, display);
 		if (!locations) typeDisplayCache.set(type, target);
@@ -46,7 +48,7 @@ export function createExpressionTypeProjection(options: ExpressionTypeProjection
 		const locations = signatureDisplayCache.get(signature);
 		const cached = locations?.get(at);
 		if (cached !== undefined) return cached;
-		const display = checker.signatureToString(signature, at, ts.TypeFormatFlags.NoTruncation);
+		const display = checker.signatureToString(signature, at);
 		const target = locations ?? new Map<ts.Node, string>();
 		target.set(at, display);
 		if (!locations) signatureDisplayCache.set(signature, target);

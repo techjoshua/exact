@@ -2,6 +2,7 @@ import type { Component } from '@exactjs/core';
 
 type CounterState = { count: number; lastChanged: string };
 
+/** Demonstrates precise state and derived-text updates with direct mutation. */
 export function CounterDemo(this: Component<CounterState>) {
 	this.state.count = 0;
 	this.state.lastChanged = 'Nothing has changed yet.';

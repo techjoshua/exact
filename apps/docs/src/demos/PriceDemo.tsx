@@ -2,6 +2,7 @@ import type { Component } from '@exactjs/core';
 
 type PriceState = { quantity: number; price: number; express: boolean };
 
+/** Demonstrates native form bindings driving several derived price expressions. */
 export function PriceDemo(this: Component<PriceState>) {
 	this.state.quantity = 3;
 	this.state.price = 24;

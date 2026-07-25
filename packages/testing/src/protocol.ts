@@ -25,6 +25,7 @@ export class ExactProtocolRecorder {
 	readonly exchanges: ExactProtocolExchange[] = [];
 	private pendingStreams = new Set<Promise<void>>();
 
+	/** Wraps a fetch transport and records request, response, stream, and client-operation details. */
 	wrap(fetch: FetchLike): FetchLike {
 		return async (input, init) => {
 			const requestBody = parseJson(init.body);
@@ -105,14 +106,17 @@ export class ExactProtocolRecorder {
 		while (this.pendingStreams.size) await Promise.allSettled([...this.pendingStreams]);
 	}
 
+	/** Discards recorded exchanges without affecting transports or pending stream observation. */
 	clear(): void {
 		this.exchanges.length = 0;
 	}
 
+	/** Flattens the generated invocation operations observed across all recorded exchanges. */
 	operations(): ExactInvocationRequest[] {
 		return this.exchanges.flatMap((exchange) => exchange.operations);
 	}
 
+	/** Flattens the patches that the client actually applied after protocol responses. */
 	appliedPatches(): ExactPatch[] {
 		return this.exchanges.flatMap((exchange) =>
 			exchange.clientOperations.flatMap((operation) => operation.appliedPatches)

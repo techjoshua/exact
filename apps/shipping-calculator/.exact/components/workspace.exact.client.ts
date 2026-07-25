@@ -19,8 +19,8 @@ const __exactImplementation_CalculatorWorkspace_1 = function CalculatorWorkspace
     __exactWrite(this.state, ["sort"], () => 'recommended');
     __exactWrite(this.state, ["enabledFilters"], () => [...props.initial.configuredProviders]);
     __exactWrite(this.state, ["restored"], () => false);
-    this.task(() => {
-        if (props.initial.explicitUrlState)
+    this.task(this.reactive(() => props.initial.explicitUrlState), (__exactDependency) => {
+        if (__exactDependency)
             return;
         try {
             const saved = localStorage.getItem('parcel-lab:last-shipment');

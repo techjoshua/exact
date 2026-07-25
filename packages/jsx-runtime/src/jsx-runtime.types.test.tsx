@@ -1,5 +1,11 @@
 /** @jsxImportSource @exactjs/jsx */
-import { createRef, getCellVNode, isCellVNode, type Component, type RefBinding } from '@exactjs/core';
+import {
+	createRef,
+	getCellVNode,
+	isCellVNode,
+	type Component,
+	type RefBinding
+} from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import type { JSX } from './jsx-runtime.js';
 import { _ } from './jsx-runtime.js';

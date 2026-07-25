@@ -80,6 +80,7 @@ export default tseslint.config(
 		ignores: [
 			'**/*.test.{ts,tsx}',
 			'**/*.spec.{ts,tsx}',
+			'**/test-fixtures/**',
 			'**/test-support/**',
 			'**/*.config.ts',
 			'packages/testing/src/jest.ts',

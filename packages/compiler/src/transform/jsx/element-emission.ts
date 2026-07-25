@@ -12,7 +12,7 @@ import type {
 } from './contracts.js';
 import { expressionEmissionId, identityFilenameFor } from './identity.js';
 import { callElement, callFragment } from './node-emission.js';
-import { tagExpression } from './reactive-emission.js';
+import { tagExpression, visitReactiveSinkExpression } from './reactive-emission.js';
 /** Transforms jsx element into its required representation. */
 export function transformJsxElement(
 	sourceFile: ts.SourceFile,
@@ -37,9 +37,19 @@ export function transformJsxElement(
 		);
 	}
 
-	return callElement(
+	const site = expressionJsx?.elements.get(expressionEmissionId(node) ?? '');
+	const tag = site?.reactiveTag
+		? visitReactiveSinkExpression(
+				context,
+				opening.tagName as ts.Expression,
+				visitor,
+				sourceFile,
+				derivedReactiveLocals
+			)
+		: tagExpression(opening.tagName);
+	const element = callElement(
 		context,
-		tagExpression(opening.tagName),
+		tag,
 		opening.attributes,
 		node.children,
 		visitor,
@@ -49,6 +59,22 @@ export function transformJsxElement(
 		derivedReactiveLocals,
 		expressionJsx
 	);
+	return site?.reactiveTag
+		? context.factory.createCallExpression(
+				context.factory.createIdentifier(helpers.dynamic),
+				undefined,
+				[
+					context.factory.createArrowFunction(
+						undefined,
+						undefined,
+						[],
+						undefined,
+						context.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+						element
+					)
+				]
+			)
+		: element;
 }
 
 /** Transforms jsx self closing element into its required representation. */
@@ -74,9 +100,19 @@ export function transformJsxSelfClosingElement(
 		);
 	}
 
-	return callElement(
+	const site = expressionJsx?.elements.get(expressionEmissionId(node) ?? '');
+	const tag = site?.reactiveTag
+		? visitReactiveSinkExpression(
+				context,
+				node.tagName as ts.Expression,
+				visitor,
+				sourceFile,
+				derivedReactiveLocals
+			)
+		: tagExpression(node.tagName);
+	const element = callElement(
 		context,
-		tagExpression(node.tagName),
+		tag,
 		node.attributes,
 		[],
 		visitor,
@@ -86,6 +122,22 @@ export function transformJsxSelfClosingElement(
 		derivedReactiveLocals,
 		expressionJsx
 	);
+	return site?.reactiveTag
+		? context.factory.createCallExpression(
+				context.factory.createIdentifier(helpers.dynamic),
+				undefined,
+				[
+					context.factory.createArrowFunction(
+						undefined,
+						undefined,
+						[],
+						undefined,
+						context.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+						element
+					)
+				]
+			)
+		: element;
 }
 
 /** Performs the canonical element id domain operation. */
@@ -126,7 +178,7 @@ export function transformJsxFragment(
 }
 
 /** Collects component local info in deterministic order. */
-export function collectComponentLocalInfo(node: ts.FunctionDeclaration): ComponentLocalInfo {
+export function collectComponentLocalInfo(node: ts.FunctionLikeDeclaration): ComponentLocalInfo {
 	const functions = new Map<string, ts.Statement>();
 	function visit(current: ts.Node): void {
 		if (current !== node && ts.isFunctionDeclaration(current) && current.name) {

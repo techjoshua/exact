@@ -222,7 +222,48 @@ describe('@exactjs/compiler: JSX reactivity', () => {
 		expect(output).toContain(
 			'this.task(this.reactive(() => this.state.query), async (__exactDependency, { signal }) =>'
 		);
+		expect(output).toContain('const query = __exactDependency;');
+		expect(output).not.toContain('const query = this.state.query;');
 		expect(output).not.toContain('this.reactive(() => this.state.results)');
+	});
+
+	it('preserves computed task reads as executable captures rather than wildcard paths', () => {
+		const output = transform(
+			`function Lookup(
+        this: Component<Record<string, string>>,
+        props: { key: string }
+      ) {
+        this.task(() => console.log(this.state[props.key]));
+      }`,
+			{ filename: 'Lookup.tsx' }
+		);
+
+		expect(output).toContain('this.reactive(() => this.state[props.key])');
+		expect(output).toContain('console.log(__exactDependency)');
+		expect(output).not.toContain('this.state["*"]');
+	});
+
+	it('infers props as task dependencies and substitutes the captured value', () => {
+		const output = transform(
+			`function Profile(props: { id: string }) {
+        this.task(() => console.log(props.id));
+      }`
+		);
+
+		expect(output).toContain('this.reactive(() => props.id)');
+		expect(output).toContain('console.log(__exactDependency)');
+	});
+
+	it('infers context members as task dependencies and substitutes the captured value', () => {
+		const output = transform(
+			`function Localized(this: Component<{}>) {
+        const locale = this.getContext(Locale);
+        this.task(() => console.log(locale.code));
+      }`
+		);
+
+		expect(output).toContain('this.reactive(() => locale.code)');
+		expect(output).toContain('console.log(__exactDependency)');
 	});
 
 	it('caches safe derived collection locals when they feed this.map', () => {
@@ -266,16 +307,16 @@ describe('@exactjs/compiler: JSX reactivity', () => {
 		expect(local).toContain('const todoTasks = __exactDerived(() => this.state.tasks.filter');
 		expect(local).toContain('this.map(todoTasks, task => task.id');
 
-		const captured = transform(
-			`function Board(this: Component<{ tasks: { id: string }[] }>) {
+		expect(() =>
+			transform(
+				`function Board(this: Component<{ tasks: { id: string }[] }>) {
       let seen = 0;
       const tasks = this.state.tasks.filter(task => { seen++; return !!task.id; });
       return () => this.map(tasks, task => task.id, task => <li>{task.id}</li>);
     }`,
-			{ filename: 'Board.tsx' }
-		);
-		expect(captured).toContain('this.map(tasks, task => task.id');
-		expect(captured).not.toContain('this.map(this.reactive(() => this.state.tasks.filter');
+				{ filename: 'Board.tsx' }
+			)
+		).toThrow(/derived local tasks cannot be safely reevaluated/);
 	});
 
 	it('keeps filter/reduce locals reactive in JSX while allowing accumulator mutation', () => {

@@ -97,7 +97,10 @@ describe('router compatibility integration', () => {
 		expect(legacy.code).toContain('from "@exactjs/router/v5"');
 		expect(engine.report().substitutions).toEqual(
 			expect.arrayContaining([
-				expect.objectContaining({ sourceVersion: '>=6.4 <8', targetModule: '@exactjs/router/data' }),
+				expect.objectContaining({
+					sourceVersion: '>=6.4 <8',
+					targetModule: '@exactjs/router/data'
+				}),
 				expect.objectContaining({ sourceVersion: '>=5 <6', targetModule: '@exactjs/router/v5' })
 			])
 		);

@@ -39,7 +39,12 @@
 	--turtle-violet: #7654b5;
 	--turtle-coral: #c54f42;
 	font-family:
-		Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+		Inter,
+		ui-sans-serif,
+		-apple-system,
+		BlinkMacSystemFont,
+		'Segoe UI',
+		sans-serif;
 	font-synthesis: none;
 	text-rendering: optimizeLegibility;
 }
@@ -243,7 +248,7 @@ a {
 	border-radius: 0.45rem 0.75rem 0.45rem 0.75rem;
 	background: var(--accent-soft);
 	color: var(--accent-strong);
-	font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+	font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
 	font-size: 0.78rem;
 	font-weight: 800;
 	letter-spacing: -0.08em;
@@ -445,7 +450,7 @@ p {
 h1 {
 	max-width: 14ch;
 	margin: 0;
-	font-family: Georgia, "Times New Roman", serif;
+	font-family: Georgia, 'Times New Roman', serif;
 	font-size: clamp(2.75rem, 7vw, 5.25rem);
 	font-weight: 550;
 	letter-spacing: -0.055em;
@@ -467,7 +472,7 @@ h1 {
 
 .article h2 {
 	margin: 0 0 1rem;
-	font-family: Georgia, "Times New Roman", serif;
+	font-family: Georgia, 'Times New Roman', serif;
 	font-size: clamp(1.65rem, 3vw, 2.2rem);
 	font-weight: 570;
 	letter-spacing: -0.025em;
@@ -489,7 +494,7 @@ h1 {
 	border-radius: 0.3rem;
 	background: var(--surface-raised);
 	color: var(--accent-strong);
-	font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+	font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
 	font-size: 0.88em;
 }
 
@@ -525,7 +530,7 @@ h1 {
 
 .principles li::before {
 	grid-row: span 2;
-	content: "0" counter(principles);
+	content: '0' counter(principles);
 	color: var(--highlight);
 	font-family: ui-monospace, monospace;
 	font-size: 0.7rem;
@@ -597,7 +602,7 @@ h1 {
 	inset: 0 auto 0 0;
 	width: 3px;
 	background: var(--accent);
-	content: "";
+	content: '';
 }
 
 .counter-value {
@@ -875,7 +880,7 @@ a.topic-card:hover {
 	border-bottom: 1px solid color-mix(in srgb, var(--code-muted) 22%, transparent);
 	background: var(--code-surface-raised);
 	color: var(--code-text);
-	font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+	font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
 	font-size: 0.72rem;
 }
 
@@ -901,7 +906,7 @@ a.topic-card:hover {
 	overflow-x: auto;
 	padding: 1rem 0 1.15rem;
 	color: var(--code-text);
-	font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+	font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
 	font-size: 0.79rem;
 	line-height: 1.65;
 	tab-size: 2;
@@ -939,18 +944,46 @@ a.topic-card:hover {
 	clip: rect(0 0 0 0);
 }
 
-.syntax--keyword { color: var(--syntax-keyword); }
-.syntax--type { color: var(--syntax-type); }
-.syntax--function { color: var(--syntax-function); }
-.syntax--string { color: var(--syntax-string); }
-.syntax--number { color: var(--syntax-number); }
-.syntax--comment { color: var(--syntax-comment); font-style: italic; }
-.syntax--operator { color: var(--syntax-operator); }
-.syntax--tag { color: var(--syntax-tag); }
-.syntax--property { color: var(--syntax-property); }
-.syntax--command { color: var(--syntax-command); font-weight: 700; }
-.syntax--bracket { color: var(--syntax-bracket); font-weight: 700; }
-.syntax--invalid { color: var(--syntax-invalid); text-decoration: underline wavy; }
+.syntax--keyword {
+	color: var(--syntax-keyword);
+}
+.syntax--type {
+	color: var(--syntax-type);
+}
+.syntax--function {
+	color: var(--syntax-function);
+}
+.syntax--string {
+	color: var(--syntax-string);
+}
+.syntax--number {
+	color: var(--syntax-number);
+}
+.syntax--comment {
+	color: var(--syntax-comment);
+	font-style: italic;
+}
+.syntax--operator {
+	color: var(--syntax-operator);
+}
+.syntax--tag {
+	color: var(--syntax-tag);
+}
+.syntax--property {
+	color: var(--syntax-property);
+}
+.syntax--command {
+	color: var(--syntax-command);
+	font-weight: 700;
+}
+.syntax--bracket {
+	color: var(--syntax-bracket);
+	font-weight: 700;
+}
+.syntax--invalid {
+	color: var(--syntax-invalid);
+	text-decoration: underline wavy;
+}
 
 .code-block--compact pre {
 	max-height: 18rem;
@@ -1165,7 +1198,7 @@ td {
 	border-radius: 0.6rem;
 	background: var(--code-surface);
 	color: var(--code-text);
-	font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+	font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
 	font-size: 0.8rem;
 	line-height: 1.65;
 	tab-size: 2;
@@ -1187,7 +1220,11 @@ td {
 	border: 1px solid var(--border);
 	border-radius: 0.6rem;
 	background:
-		radial-gradient(circle at center, color-mix(in srgb, var(--accent) 5%, transparent), transparent 62%),
+		radial-gradient(
+			circle at center,
+			color-mix(in srgb, var(--accent) 5%, transparent),
+			transparent 62%
+		),
 		var(--surface-raised);
 }
 
@@ -1209,10 +1246,18 @@ td {
 	stroke-width: 2.25;
 }
 
-.turtle-segment.color-amber { stroke: var(--turtle-amber); }
-.turtle-segment.color-violet { stroke: var(--turtle-violet); }
-.turtle-segment.color-coral { stroke: var(--turtle-coral); }
-.turtle-segment.color-teal { stroke: var(--turtle-teal); }
+.turtle-segment.color-amber {
+	stroke: var(--turtle-amber);
+}
+.turtle-segment.color-violet {
+	stroke: var(--turtle-violet);
+}
+.turtle-segment.color-coral {
+	stroke: var(--turtle-coral);
+}
+.turtle-segment.color-teal {
+	stroke: var(--turtle-teal);
+}
 
 .turtle-cursor path {
 	fill: var(--accent);
@@ -1228,7 +1273,7 @@ td {
 	padding: 0.75rem 0.85rem;
 	border-top: 1px solid var(--border);
 	color: var(--text-muted);
-	font-family: ui-monospace, "Cascadia Code", monospace;
+	font-family: ui-monospace, 'Cascadia Code', monospace;
 	font-size: 0.66rem;
 }
 

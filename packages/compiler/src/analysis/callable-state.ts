@@ -30,6 +30,7 @@ export type MutableCallable = {
 	seedTargets: ExactArtifactTarget[];
 	executable: boolean;
 	parameters: readonly Variable[];
+	reevaluationSafe: boolean;
 };
 
 /** Tracks the state owned by callable analysis. */

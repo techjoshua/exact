@@ -8,6 +8,7 @@ type LogoOp =
 	| 'home'
 	| 'clear'
 	| 'color';
+/** One validated, expanded turtle command with stable list identity. */
 export type LogoInstruction = {
 	/** @exact key */
 	id: string;
@@ -16,6 +17,7 @@ export type LogoInstruction = {
 	line: number;
 };
 
+/** A colored line segment emitted by turtle movement while the pen is down. */
 export type Segment = {
 	/** @exact key */
 	id: string;
@@ -26,6 +28,7 @@ export type Segment = {
 	color: string;
 };
 
+/** Mutable interpreter and drawing state shared by the Logo demonstration component. */
 export type LogoDrawingState = {
 	cursor: number;
 	x: number;
@@ -40,7 +43,7 @@ type Lexeme = { text: string; line: number; kind: 'word' | 'number' | 'open' | '
 
 const allowedColors = new Set(['teal', 'amber', 'violet', 'coral']);
 
-/** @exact client */
+/** Mutates turtle state by applying one already validated instruction. @exact client */
 export function executeInstruction(state: LogoDrawingState, instruction: LogoInstruction): void {
 	const amount = typeof instruction.argument === 'number' ? instruction.argument : 0;
 	switch (instruction.op) {
@@ -94,7 +97,7 @@ function move(state: LogoDrawingState, amount: number): void {
 	state.y = nextY;
 }
 
-/** @exact client */
+/** Parses and safely expands Logo source, rejecting invalid or excessive programs. @exact client */
 export function parseLogo(source: string): LogoInstruction[] {
 	if (source.length > 12_000) throw new Error('Programs are limited to 12,000 characters.');
 	const lexemes = lexLogo(source);
@@ -201,7 +204,7 @@ function normalizeCommand(command: string, line: number): LogoOp {
 	return result;
 }
 
-/** @exact client */
+/** Normalizes any finite heading to the inclusive-zero, exclusive-360 range. @exact client */
 export function normalizeHeading(value: number): number {
 	return ((value % 360) + 360) % 360;
 }

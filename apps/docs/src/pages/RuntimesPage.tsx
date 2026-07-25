@@ -167,6 +167,7 @@ function StatusTable(
 	);
 }
 
+/** Reports current support depth and limitations for bundlers and runtime adapters. */
 export function RuntimesPage(this: Component<{}>) {
 	return () => (
 		<Article

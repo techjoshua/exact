@@ -20,7 +20,8 @@ export function analyzeExpressionSafety(
 	module: BoundModule,
 	provenance: ExactProvenanceGraph
 ): ReadonlyMap<string, readonly string[]> {
-	const components = expressionComponentIndex(module).functions;
+	const componentIndex = expressionComponentIndex(module);
+	const components = componentIndex.functions;
 	const setupSnapshots = new Map<string, Set<Variable>>();
 	for (const component of components) setupSnapshots.set(component.node.id, new Set());
 
@@ -84,16 +85,16 @@ export function analyzeExpressionSafety(
 	const names = new Map<string, string | undefined>();
 	for (const component of components)
 		names.set(
-			component.node.name!,
-			names.has(component.node.name!) ? undefined : component.node.id
+			componentIndex.name(component)!,
+			names.has(componentIndex.name(component)!) ? undefined : component.node.id
 		);
 	for (const component of components) {
 		const values = diagnostics.get(component.node.id);
 		if (!values) continue;
 		const frozen = Object.freeze([...values]);
 		output.set(component.node.id, frozen);
-		if (names.get(component.node.name!) === component.node.id)
-			output.set(component.node.name!, frozen);
+		if (names.get(componentIndex.name(component)!) === component.node.id)
+			output.set(componentIndex.name(component)!, frozen);
 	}
 	return output;
 }

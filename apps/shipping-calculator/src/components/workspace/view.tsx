@@ -281,9 +281,7 @@ export function renderWorkspace(
 						<div className="quote-tools">
 							<label>
 								Sort
-								<select
-									value:change={state.sort}
-								>
+								<select value:change={state.sort}>
 									<option value="recommended">Recommended</option>
 									<option value="cheapest">Cheapest</option>
 									<option value="fastest">Fastest</option>
@@ -293,11 +291,7 @@ export function renderWorkspace(
 							<div className="provider-filters" aria-label="Filter carriers">
 								{props.initial.configuredProviders.map((id) => (
 									<label>
-										<input
-											type="checkbox"
-											value={id}
-											checked:change={state.enabledFilters}
-										/>
+										<input type="checkbox" value={id} checked:change={state.enabledFilters} />
 										{providerName(id)}
 									</label>
 								))}

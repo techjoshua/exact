@@ -39,16 +39,22 @@ function Toolbar(this: Component<{}>) {
 const componentTaskSource = `function Presence(this: Component<{ userId: string; status: string }>, props: { userId: string }) {
   this.state.status = 'connecting';
 
-  // props.userId is a dependency. The compiler wraps this direct
-  // expression as a reactive value before registering the task.
-  this.task(props.userId, async (userId, { signal }) => {
-    const response = await fetch('/api/presence/' + userId, { signal });
+  this.task(async () => {
+    // The compiler infers props.userId and captures it for this generation.
+    const response = await fetch('/api/presence/' + props.userId);
     this.state.status = (await response.json()).status;
   });
 
   return () => <span>{this.state.status}</span>;
 }`;
 
+const componentValueSource = `function Results(this: Component<{ layout: 'grid' | 'list' }>) {
+  // Immutable aliases and finite choices remain ordinary component values.
+  const View = this.state.layout === 'grid' ? ResultGrid : ResultList;
+  return () => <View />;
+}`;
+
+/** Explains setup-once components, component values, context, and owned task behavior. */
 export function ComponentsPage(this: Component<{}>) {
 	return () => (
 		<Article
@@ -84,11 +90,22 @@ export function ComponentsPage(this: Component<{}>) {
 				<CodeBlock source={contextSource} language="tsx" title="ThemeContext.tsx" />
 			</section>
 			<section>
+				<h2>Component values remain ordinary TypeScript</h2>
+				<p>
+					An immutable local function, an alias to a known component, or a finite conditional choice
+					can be used as a JSX tag. A reactive choice is mounted through a slot, so changing the
+					selected component replaces only that subtree. Arbitrary registry lookups remain a
+					compiler error because the compiler cannot determine their complete client/server
+					placement graph.
+				</p>
+				<CodeBlock source={componentValueSource} language="tsx" title="Results.tsx" />
+			</section>
+			<section>
 				<h2>Tasks make work part of the component</h2>
 				<p>
 					A task is not an after-render callback. It is a setup declaration for work owned by this
-					instance. Dependency expressions come before the callback; when one changes, eXact aborts
-					the old generation and starts the next.
+					instance. State, prop, and reactive context reads are inferred as dependencies; when one
+					changes, eXact aborts the old generation and starts the next.
 				</p>
 				<CodeBlock source={componentTaskSource} language="tsx" title="Presence.tsx" />
 				<p>

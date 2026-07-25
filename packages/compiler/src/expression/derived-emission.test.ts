@@ -71,7 +71,7 @@ describe('@exactjs/compiler: derived values', () => {
 		).toThrow(/opaque call \(View → format\)/);
 	});
 
-	it('does not infer mutable derived locals', () => {
+	it('infers never-reassigned let bindings as const-like derived locals', () => {
 		const output = transform(`
       function View(this: Component<{ first: string }>) {
         let label = this.state.first;
@@ -79,21 +79,135 @@ describe('@exactjs/compiler: derived values', () => {
       }
     `);
 
-		expect(output).toContain('__exactDynamic(() => label)');
-		expect(output).not.toContain('__exactDynamic(() => (this.state.first))');
+		expect(output).toContain('let label = __exactDerived(() => this.state.first);');
+		expect(output).toContain('__exactDynamic(() => label.get())');
 	});
 
-	it('does not infer derived consts with assignment initializers', () => {
-		const output = transform(`
+	it('rejects derived locals whose initializer writes captured storage', () => {
+		expect(() =>
+			transform(`
       function View(this: Component<{ first: string }>) {
         let value = "";
         const label = value = this.state.first;
         return () => <p>{label}</p>;
       }
+    `)
+		).toThrow(/derived local label cannot be safely reevaluated/);
+	});
+
+	it('rejects unknown allocation-backed setup locals instead of emitting stale reactive JSX', () => {
+		expect(() =>
+			transform(`
+      function View(this: Component<{ values: string[] }>) {
+        class Box { constructor(readonly value: number) {} }
+        const value = new Box(this.state.values.length);
+        return () => <p>{value.value}</p>;
+      }
+    `)
+		).toThrow(/derived local value cannot be safely reevaluated/);
+	});
+
+	it('infers deterministic built-in allocations and static operations', () => {
+		const output = transform(`
+      function View(props: { values?: string[]; ratio: number }) {
+        const values = new Set(props.values ?? []);
+        const count = Array.isArray(props.values) ? values.size : 0;
+        const progress = Math.round(props.ratio * 100);
+        return () => <p>{count}:{progress}</p>;
+      }
     `);
 
-		expect(output).toContain('__exactDynamic(() => label)');
-		expect(output).not.toContain('__exactDynamic(() => (value = this.state.first))');
+		expect(output).toContain('const values = __exactDerived(() => new Set(props.values ?? []));');
+		expect(output).toContain('const count = __exactDerived');
+		expect(output).toContain('const progress = __exactDerived');
+	});
+
+	it('accepts declared pure call contracts while retaining unknown-call diagnostics', () => {
+		const output = transform(`
+      /** Formats a value without reading or changing external state. @exact pure */
+      declare function format(value: string): string;
+      function View(props: { name: string }) {
+        const label = format(props.name);
+        return () => <p>{label}</p>;
+      }
+    `);
+
+		expect(output).toContain('const label = __exactDerived(() => format(props.name));');
+	});
+
+	it('infers pure local helpers and their reactive captures', () => {
+		const output = transform(`
+      function View(
+        this: Component<{ name: string }>,
+        props: { suffix: string }
+      ) {
+        const suffix = (value: string) => value.trim().toUpperCase() + props.suffix;
+        const label = suffix(this.state.name);
+        return () => <p>{label}</p>;
+      }
+    `);
+
+		expect(output).toContain('const label = __exactDerived(() => suffix(this.state.name));');
+		expect(output).toContain('__exactDynamic(() => label.get())');
+		expect(output).not.toContain('const suffix = __exactDerived');
+	});
+
+	it('rejects effectful local helpers instead of treating their result as live', () => {
+		expect(() =>
+			transform(`
+      function View(this: Component<{ name: string }>) {
+        let calls = 0;
+        function format(value: string) {
+          calls++;
+          return value;
+        }
+        const label = format(this.state.name);
+        return () => <p>{label}</p>;
+      }
+    `)
+		).toThrow(/derived local label cannot be safely reevaluated/);
+	});
+
+	it('infers pure function declarations with captured reactive inputs', () => {
+		const output = transform(`
+      function View(props: { first: string; last: string }) {
+        function format() {
+          return props.first.trim() + " " + props.last.trim();
+        }
+        const label = format();
+        return () => <p>{label}</p>;
+      }
+    `);
+
+		expect(output).toContain('const label = __exactDerived(() => format());');
+		expect(output).toContain('__exactDynamic(() => label.get())');
+	});
+
+	it('rejects reassigned derived bindings instead of retaining a setup snapshot', () => {
+		expect(() =>
+			transform(`
+      function View(this: Component<{ first: string; last: string }>) {
+        let label = this.state.first;
+        label = this.state.last;
+        return () => <p>{label}</p>;
+      }
+    `)
+		).toThrow(/derived local label cannot be safely reevaluated/);
+	});
+
+	it('supports additional non-mutating intrinsic collection derivations', () => {
+		const output = transform(`
+      function View(this: Component<{ values: string[] }>) {
+        const first = this.state.values.at(0);
+        const position = this.state.values.findIndex(value => value === first);
+        const summary = this.state.values.with(0, first ?? "").join(",");
+        return () => <p>{position}:{summary}</p>;
+      }
+    `);
+
+		expect(output).toContain('const first = __exactDerived(() => this.state.values.at(0));');
+		expect(output).toContain('const position = __exactDerived');
+		expect(output).toContain('const summary = __exactDerived');
 	});
 
 	it('inlines safe derived consts inside task dependency captures', () => {

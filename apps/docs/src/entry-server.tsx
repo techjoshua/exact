@@ -3,6 +3,7 @@ import { renderToHydratableString } from '@exactjs/ssr';
 import { DocsApp } from './DocsApp.jsx';
 import { docPages } from './docs-manifest.js';
 
+/** Renders the documentation root with hydration metadata for the standalone build. */
 export function renderStatic(): string {
 	const source = createMemoryLocationSource('https://exact.local/#/');
 	return renderToHydratableString(<DocsApp source={source} />).htmlWithHydration;

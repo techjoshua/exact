@@ -136,6 +136,28 @@ describe('@exact compiler annotations', () => {
 		]);
 	});
 
+	it('accepts pure callable contracts and rejects invalid pure annotations', () => {
+		clearExpressionProjectCache();
+		const module = expressionModuleFor(
+			'pure-contract.ts',
+			`
+      /** Computes a deterministic label. @exact pure */
+      declare function format(value: string): string;
+      declare function invalid(/** @exact pure */ value: string): string;
+      /** @exact pure=yes */ declare function valued(value: string): string;
+    `
+		);
+
+		expect(
+			analyzeExactAnnotations(module).diagnostics.map((diagnostic) => diagnostic.message)
+		).toEqual(
+			expect.arrayContaining([
+				'error: @exact pure is not valid on Parameter',
+				'error: @exact pure does not accept a value'
+			])
+		);
+	});
+
 	it('accepts the closed keep vocabulary and rejects keep=isomorphic', () => {
 		clearExpressionProjectCache();
 		const module = expressionModuleFor(

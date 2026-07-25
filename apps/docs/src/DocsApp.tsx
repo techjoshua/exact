@@ -7,6 +7,7 @@ import { NotFoundPage } from './pages/NotFoundPage.jsx';
 
 type DocsAppProps = { source?: LocationSource };
 
+/** Composes theme, router, shared layout, and manifest-driven documentation routes. */
 export function DocsApp(this: Component<{}>, props: DocsAppProps = {}) {
 	return () => (
 		<ThemeProvider>

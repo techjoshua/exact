@@ -2,7 +2,11 @@
  * @vitest-environment jsdom
  */
 import { createVNode } from '@exactjs/core';
-import { createExactClient, hydrateClientIslands, readExactHydrationConfig } from '@exactjs/hydrate';
+import {
+	createExactClient,
+	hydrateClientIslands,
+	readExactHydrationConfig
+} from '@exactjs/hydrate';
 import { handleExactRequest } from '@exactjs/server';
 import { createExactServerRuntime, renderExactRequestToHtmlResponse } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';

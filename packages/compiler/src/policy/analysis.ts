@@ -122,7 +122,7 @@ export function analyzeExactPolicyMetadata(
 
 	const components = expressionComponentIndex(module);
 	for (const component of components.functions) {
-		const componentName = component.node.name!;
+		const componentName = components.name(component)!;
 		const thisParameter = component.node.parameters.find((parameter) => parameter.name === 'this');
 		const componentType = thisParameter?.type;
 		const state = componentType?.propertyTypes.find((property) => property.name === 'state');
