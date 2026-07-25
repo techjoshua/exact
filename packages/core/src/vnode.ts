@@ -84,8 +84,11 @@ export function createExpression<T>(compute: () => T) {
 }
 
 /** Creates a dynamic child vnode whose render result is computed reactively. */
-export function createDynamicChild(compute: () => RenderResult): VNode {
-	return createVNode(Dynamic, { value: computed(compute) });
+export function createDynamicChild(compute: () => RenderResult, markerId?: string): VNode {
+	return createVNode(Dynamic, {
+		value: computed(compute),
+		...(markerId ? { __exactMarkerId: markerId } : {})
+	});
 }
 
 /** Creates a logical child subtree whose nodes are placed in another renderer container. */

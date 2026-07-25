@@ -62,6 +62,7 @@ import {
 	resetDocumentProbe
 } from './host.js';
 import { disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
+import { markDynamic } from './marker-identity.js';
 import { renderChildren } from './sync-tree.js';
 
 /** Transforms children async into its required representation. */
@@ -184,23 +185,21 @@ export async function renderVNodeAsyncInner(
 	}
 
 	if (vnode.type === Dynamic) {
-		return markerPair(context, markerId(context, 'dynamic', undefined, vnode.key), async () => {
-			return renderChildrenAsync(
+		return markDynamic(context, vnode, async () =>
+			renderChildrenAsync(
 				context,
 				normalizeRenderResult(unwrap(vnode.props.value) as Child | Child[]),
 				parent,
 				options
-			);
-		});
+			)
+		);
 	}
 
 	if (vnode.type === ServerBoundary) {
 		return renderServerBoundaryAsync(context, vnode, parent, options);
 	}
 
-	if (vnode.type === ServerSlot) {
-		return '';
-	}
+	if (vnode.type === ServerSlot) return '';
 
 	if (typeof vnode.type === 'function') {
 		return renderComponentAsync(context, vnode, parent, options);

@@ -108,6 +108,37 @@ describe('@exactjs/compiler component computations', () => {
 		expect(objectOutput).toContain('__exactWrite(this.state, ["tax"]');
 	});
 
+	it('preserves rest and computed-key semantics while publishing derived destructuring', () => {
+		const output = transform(
+			`function Selection(this: Component<{
+				index: number;
+				values: number[];
+				selected: number;
+				remaining: number[];
+				record: Record<string, number>;
+				key: string;
+				match: number;
+				others: Record<string, number>;
+			}>) {
+				[this.state.selected = 10, ...this.state.remaining] = this.state.values;
+				({
+					[this.state.key]: this.state.match = 20,
+					...this.state.others
+				} = this.state.record);
+				return () => <output>{this.state.match}</output>;
+			}`,
+			{ filename: 'Selection.tsx' }
+		);
+
+		expect(output).toContain('const [__exactDestructured_');
+		expect(output).toContain('...__exactDestructured_');
+		expect(output).toContain('= 10');
+		expect(output).toContain('= 20');
+		expect(output).toMatch(/\[__exactDependency\d*\]: __exactDestructured_/);
+		expect(output).toContain('__exactWrite(this.state, ["remaining"]');
+		expect(output).toContain('__exactWrite(this.state, ["others"]');
+	});
+
 	it('preserves synchronous try catch finally as one reactive computation region', () => {
 		const output = transform(
 			`declare function calculate(value: number): number;

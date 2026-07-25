@@ -52,10 +52,12 @@ describe('@exactjs/ssr hydration', () => {
 				createCompiledVNode(
 					'section',
 					{},
-					createDynamicChild(() =>
-						this.state.show
-							? createVNode('strong', null, 'Visible')
-							: createVNode('span', null, 'Hidden')
+					createDynamicChild(
+						() =>
+							this.state.show
+								? createVNode('strong', null, 'Visible')
+								: createVNode('span', null, 'Hidden'),
+						'x1234567890123456789012'
 					)
 				);
 		}
@@ -64,7 +66,7 @@ describe('@exactjs/ssr hydration', () => {
 
 		expect(result.html).toContain('exact:component');
 		expect(result.html).toContain('exact:cell');
-		expect(result.html).toContain('exact:dynamic');
+		expect(result.html).toContain('exact:dynamic:x1234567890123456789012');
 		expect(result.html).toContain('<strong>Visible</strong>');
 	});
 

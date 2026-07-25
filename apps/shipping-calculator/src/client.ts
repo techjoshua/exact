@@ -1,18 +1,14 @@
-import { composeExactComponentContracts } from '@exactjs/core';
 import { createExactClient, readExactHydrationConfig } from '@exactjs/hydrate';
-import { CalculatorWorkspace } from '../.exact/App.exact.client.js';
+import { exactHydrationRegistration } from '../.exact/hydration-registration.js';
 import { installExactClient } from './client-runtime.js';
 import './styles.css';
 
 const root = document.getElementById('app');
 if (!root) throw new Error('Parcel Lab root was not found');
 const config = readExactHydrationConfig(root);
-const exactClientContracts = composeExactComponentContracts([CalculatorWorkspace], 'client');
-const exactClientIslands = exactClientContracts.implementations;
 const client = createExactClient(root, {
 	...config,
-	islands: exactClientIslands,
-	continuations: exactClientContracts.continuations,
+	...exactHydrationRegistration,
 	batch: true,
 	stream: true
 });

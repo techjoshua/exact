@@ -13,7 +13,7 @@ describe('@exactjs/compiler: derived values', () => {
 		expect(output).toContain(
 			'const fullName = __exactDerived(() => `${this.state.first} ${this.state.last}`);'
 		);
-		expect(output).toContain('__exactDynamic(() => fullName.get())');
+		expect(output).toMatch(/__exactDynamic\(\(\) => fullName\.get\(\), "x[A-Za-z0-9_-]{22}"\)/);
 	});
 
 	it('inlines safe derived const chains inside reactive JSX props', () => {
@@ -43,7 +43,7 @@ describe('@exactjs/compiler: derived values', () => {
 		expect(output).toContain(
 			'const fullName = __exactDerived(() => `${props.user.first} ${props.user.last}`);'
 		);
-		expect(output).toContain('__exactDynamic(() => fullName.get())');
+		expect(output).toMatch(/__exactDynamic\(\(\) => fullName\.get\(\), "x[A-Za-z0-9_-]{22}"\)/);
 	});
 
 	it('inlines safe destructured prop-derived consts inside reactive JSX props', () => {
@@ -80,7 +80,7 @@ describe('@exactjs/compiler: derived values', () => {
     `);
 
 		expect(output).toContain('let label = __exactDerived(() => this.state.first);');
-		expect(output).toContain('__exactDynamic(() => label.get())');
+		expect(output).toMatch(/__exactDynamic\(\(\) => label\.get\(\), "x[A-Za-z0-9_-]{22}"\)/);
 	});
 
 	it('rejects derived locals whose initializer writes captured storage', () => {
@@ -148,7 +148,7 @@ describe('@exactjs/compiler: derived values', () => {
     `);
 
 		expect(output).toContain('const label = __exactDerived(() => suffix(this.state.name));');
-		expect(output).toContain('__exactDynamic(() => label.get())');
+		expect(output).toMatch(/__exactDynamic\(\(\) => label\.get\(\), "x[A-Za-z0-9_-]{22}"\)/);
 		expect(output).not.toContain('const suffix = __exactDerived');
 	});
 
@@ -199,7 +199,7 @@ describe('@exactjs/compiler: derived values', () => {
     `);
 
 		expect(output).toContain('const label = __exactDerived(() => format());');
-		expect(output).toContain('__exactDynamic(() => label.get())');
+		expect(output).toMatch(/__exactDynamic\(\(\) => label\.get\(\), "x[A-Za-z0-9_-]{22}"\)/);
 	});
 
 	it('rejects reassigned derived bindings instead of retaining a setup snapshot', () => {
@@ -323,7 +323,7 @@ describe('@exactjs/compiler: derived values', () => {
 		);
 
 		expect(output).toMatch(
-			/this\.map\(items, item => item\.id, item => __exactVNode\("li", \{ "data-exact-id": "x[A-Za-z0-9_-]{22}" \}, __exactDynamic\(\(\) => item\.title\)\), "x[A-Za-z0-9_-]{22}", undefined, "member:id"\)/
+			/this\.map\(items, item => item\.id, item => __exactVNode\("li", \{ "data-exact-id": "x[A-Za-z0-9_-]{22}" \}, __exactDynamic\(\(\) => item\.title, "x[A-Za-z0-9_-]{22}"\)\), "x[A-Za-z0-9_-]{22}", undefined, "member:id"\)/
 		);
 	});
 

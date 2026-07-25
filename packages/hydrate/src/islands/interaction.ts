@@ -2,17 +2,41 @@ import type { HydrateOptions } from '../types.js';
 import { logFrameworkEvent } from '@exactjs/core';
 
 const activationEvents = [
+	'auxclick',
+	'beforeinput',
+	'contextmenu',
 	'click',
+	'dblclick',
+	'dragenter',
+	'dragleave',
+	'dragover',
+	'dragstart',
+	'dragend',
+	'drop',
+	'blur',
+	'focus',
+	'focusout',
 	'input',
 	'change',
 	'submit',
 	'keydown',
+	'keyup',
+	'mousedown',
+	'mouseup',
+	'pointerdown',
+	'pointerup',
+	'touchstart',
+	'touchend',
+	'wheel',
 	'focusin',
-	'compositionstart'
+	'compositionstart',
+	'compositionupdate',
+	'compositionend'
 ] as const;
+const maxQueuedInteractions = 256;
 
 type InteractionController = {
-	activate(boundary: Element, event: Event): boolean;
+	activate(boundary: Element, event: Event): boolean | Promise<boolean>;
 	dispose(): void;
 };
 
@@ -24,11 +48,14 @@ const controllers = new WeakMap<Node, InteractionController>();
  */
 export function ensureInteractionHydration(
 	container: Element | Document,
-	activate: (boundary: Element, event: Event) => boolean,
+	activate: (boundary: Element, event: Event) => boolean | Promise<boolean>,
 	options: HydrateOptions
 ): void {
 	controllers.get(container)?.dispose();
+	const pending = new WeakMap<Element, QueuedActivation>();
+	let replaying = false;
 	const listener = (event: Event) => {
+		if (replaying) return;
 		const target = eventTargetElement(event.target);
 		const boundary = target?.closest('[data-exact-client-boundary]');
 		if (
@@ -40,7 +67,14 @@ export function ensureInteractionHydration(
 			return;
 		const generation = boundary.getAttribute('data-exact-client-generation');
 		const identity = target ? captureTargetIdentity(boundary, target) : undefined;
-		let activated = false;
+		const queued = captureQueuedInteraction(event, identity);
+		const existing = pending.get(boundary);
+		if (existing) {
+			cancelOriginalInteraction(event);
+			queueInteraction(existing.events, queued);
+			return;
+		}
+		let activated: boolean | Promise<boolean> = false;
 		try {
 			activated = activate(boundary, event);
 		} catch (error) {
@@ -52,6 +86,59 @@ export function ensureInteractionHydration(
 				error,
 				options.logger
 			);
+		}
+		if (activated instanceof Promise) {
+			cancelOriginalInteraction(event);
+			const activation: QueuedActivation = { events: [queued] };
+			pending.set(boundary, activation);
+			void activated
+				.then((result) => {
+					pending.delete(boundary);
+					if (
+						boundary.getAttribute('data-exact-client-generation') !== generation ||
+						!container.contains(boundary)
+					)
+						return;
+					replaying = true;
+					try {
+						for (const interaction of activation.events) {
+							const replacement = interaction.identity
+								? resolveTargetIdentity(boundary, interaction.identity)
+								: undefined;
+							if (!replacement) continue;
+							replayInteraction(interaction.event, replacement, interaction.submitterIdentity);
+						}
+					} finally {
+						replaying = false;
+					}
+					if (result && !hasDormantIsland(container)) dispose();
+				})
+				.catch((error) => {
+					pending.delete(boundary);
+					logFrameworkEvent(
+						'error',
+						'hydrate',
+						'interaction',
+						'interaction island activation failed',
+						error,
+						options.logger
+					);
+					if (container.contains(boundary)) {
+						replaying = true;
+						try {
+							for (const interaction of activation.events) {
+								const replacement = interaction.identity
+									? resolveTargetIdentity(boundary, interaction.identity)
+									: undefined;
+								if (replacement)
+									replayInteraction(interaction.event, replacement, interaction.submitterIdentity);
+							}
+						} finally {
+							replaying = false;
+						}
+					}
+				});
+			return;
 		}
 		if (!activated) return;
 		if (
@@ -69,7 +156,7 @@ export function ensureInteractionHydration(
 		}
 		cancelOriginalInteraction(event);
 		const replacement = identity ? resolveTargetIdentity(boundary, identity) : undefined;
-		if (replacement) replayInteraction(event, replacement);
+		if (replacement) replayInteraction(event, replacement, queued.submitterIdentity);
 		if (!hasDormantIsland(container)) dispose();
 	};
 	const dispose = () => {
@@ -80,6 +167,46 @@ export function ensureInteractionHydration(
 	for (const type of activationEvents) container.addEventListener(type, listener, true);
 	options.signal?.addEventListener('abort', dispose, { once: true });
 	controllers.set(container, { activate, dispose });
+}
+
+type QueuedInteraction = Readonly<{
+	event: Event;
+	identity: TargetIdentity | undefined;
+	submitterIdentity: TargetIdentity | undefined;
+	key: string;
+	stateLike: boolean;
+}>;
+
+type QueuedActivation = {
+	events: QueuedInteraction[];
+};
+
+function captureQueuedInteraction(
+	event: Event,
+	identity: TargetIdentity | undefined
+): QueuedInteraction {
+	return {
+		event: cloneInteractionEvent(event),
+		identity,
+		submitterIdentity:
+			event instanceof SubmitEvent && event.submitter instanceof Element
+				? captureTargetIdentity(
+						event.submitter.closest('[data-exact-client-boundary]') ?? event.submitter,
+						event.submitter
+					)
+				: undefined,
+		key: `${event.type}:${identity?.exactId ?? identity?.id ?? identity?.name ?? identity?.path.join('.') ?? ''}`,
+		stateLike: event.type === 'input' || event.type === 'change'
+	};
+}
+
+function queueInteraction(queue: QueuedInteraction[], interaction: QueuedInteraction): void {
+	if (interaction.stateLike) {
+		const previous = queue.findIndex((candidate) => candidate.key === interaction.key);
+		if (previous >= 0) queue.splice(previous, 1);
+	}
+	if (queue.length >= maxQueuedInteractions) queue.shift();
+	queue.push(interaction);
 }
 
 /** Removes an interaction broker when its hydration root is explicitly released. */
@@ -157,7 +284,11 @@ function cancelOriginalInteraction(event: Event): void {
 	event.stopImmediatePropagation();
 }
 
-function replayInteraction(event: Event, target: Element): void {
+function replayInteraction(
+	event: Event,
+	target: Element,
+	submitterIdentity?: TargetIdentity
+): void {
 	if (event.type === 'click' && target instanceof HTMLElement) {
 		target.click();
 		return;
@@ -170,10 +301,16 @@ function replayInteraction(event: Event, target: Element): void {
 					? target.closest('form')
 					: undefined;
 		if (form) {
+			const resolvedSubmitter = submitterIdentity
+				? resolveTargetIdentity(form, submitterIdentity)
+				: undefined;
 			const submitter =
-				target instanceof HTMLButtonElement || target instanceof HTMLInputElement
-					? target
-					: undefined;
+				resolvedSubmitter instanceof HTMLButtonElement ||
+				resolvedSubmitter instanceof HTMLInputElement
+					? resolvedSubmitter
+					: target instanceof HTMLButtonElement || target instanceof HTMLInputElement
+						? target
+						: undefined;
 			form.requestSubmit(submitter);
 			return;
 		}
@@ -205,5 +342,45 @@ function cloneInteractionEvent(event: Event): Event {
 			inputType: event.inputType,
 			isComposing: event.isComposing
 		});
+	if (typeof CompositionEvent !== 'undefined' && event instanceof CompositionEvent)
+		return new CompositionEvent(event.type, {
+			...options,
+			data: event.data
+		});
+	if (typeof PointerEvent !== 'undefined' && event instanceof PointerEvent)
+		return new PointerEvent(event.type, mouseEventOptions(event, options));
+	if (typeof WheelEvent !== 'undefined' && event instanceof WheelEvent)
+		return new WheelEvent(event.type, {
+			...mouseEventOptions(event, options),
+			deltaX: event.deltaX,
+			deltaY: event.deltaY,
+			deltaZ: event.deltaZ,
+			deltaMode: event.deltaMode
+		});
+	if (event instanceof MouseEvent)
+		return new MouseEvent(event.type, mouseEventOptions(event, options));
+	if (typeof FocusEvent !== 'undefined' && event instanceof FocusEvent)
+		return new FocusEvent(event.type, {
+			...options,
+			relatedTarget: event.relatedTarget
+		});
 	return new Event(event.type, options);
+}
+
+function mouseEventOptions(event: MouseEvent, options: EventInit): MouseEventInit {
+	return {
+		...options,
+		detail: event.detail,
+		screenX: event.screenX,
+		screenY: event.screenY,
+		clientX: event.clientX,
+		clientY: event.clientY,
+		ctrlKey: event.ctrlKey,
+		shiftKey: event.shiftKey,
+		altKey: event.altKey,
+		metaKey: event.metaKey,
+		button: event.button,
+		buttons: event.buttons,
+		relatedTarget: event.relatedTarget
+	};
 }

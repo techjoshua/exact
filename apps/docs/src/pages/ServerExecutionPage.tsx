@@ -143,6 +143,13 @@ export function ServerExecutionPage(this: Component<{}>) {
 					server continuation. Validated state and shared context results return to the client and
 					flow through normal fine-grained reactivity.
 				</p>
+				<p>
+					Reactive JSX children have stable compiler-owned marker ranges. When a server refresh
+					changes one of those structures, eXact can replace that range while retaining unaffected
+					siblings, component instances, and DOM state. Element, list, and property patches remain
+					available, and an authoritative boundary replacement is retained as the safe fallback when
+					a finer patch cannot be proven.
+				</p>
 			</section>
 			<Callout title="Compiler errors protect the boundary">
 				<p>

@@ -1,9 +1,10 @@
 import ts from 'typescript';
 import type { ExpressionJsxPlan } from '../../expression/jsx.js';
+import { stableId } from '../../ids.js';
 import type { HelperNames } from '../../types.js';
 
 import type { DerivedReactiveIndex } from './contracts.js';
-import { expressionEmissionId } from './identity.js';
+import { expressionEmissionId, identityFilenameFor } from './identity.js';
 import { bindingPropertyAssignments } from './form-binding-emission.js';
 import { propName, wrapExpression } from './property-emission.js';
 import { visitReactiveSinkExpression } from './reactive-emission.js';
@@ -207,7 +208,8 @@ export function childrenExpressions(
 								visitor,
 								helpers,
 								sourceFile,
-								derivedReactiveLocals
+								derivedReactiveLocals,
+								child
 							)
 						: (ts.visitNode(child.expression, visitor) as ts.Expression)
 				);
@@ -248,7 +250,8 @@ export function wrapDynamicChild(
 	visitor: ts.Visitor,
 	helpers: HelperNames,
 	sourceFile?: ts.SourceFile,
-	derivedReactiveLocals?: DerivedReactiveIndex
+	derivedReactiveLocals?: DerivedReactiveIndex,
+	site?: ts.Node
 ): ts.Expression {
 	const factory = context.factory;
 	return factory.createCallExpression(factory.createIdentifier(helpers.dynamic), undefined, [
@@ -259,6 +262,13 @@ export function wrapDynamicChild(
 			undefined,
 			factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
 			visitReactiveSinkExpression(context, expression, visitor, sourceFile, derivedReactiveLocals)
-		)
+		),
+		...(sourceFile && site && expressionEmissionId(site)
+			? [
+					factory.createStringLiteral(
+						stableId(identityFilenameFor(sourceFile), 'dynamic', expressionEmissionId(site)!)
+					)
+				]
+			: [])
 	]);
 }

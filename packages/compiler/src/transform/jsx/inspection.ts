@@ -10,6 +10,42 @@ export function jsxElementIsClientIsland(attributes: ts.JsxAttributes): boolean 
 	});
 }
 
+/** Returns statically named properties from an inline JSX object spread. */
+export function staticJsxSpreadProperties(
+	expression: ts.Expression
+): readonly Readonly<{ name: string; property: ts.ObjectLiteralElementLike }>[] | undefined {
+	const value = unwrapJsxSpreadExpression(expression);
+	if (!ts.isObjectLiteralExpression(value)) return undefined;
+	const properties: Array<Readonly<{ name: string; property: ts.ObjectLiteralElementLike }>> = [];
+	for (const property of value.properties) {
+		if (ts.isSpreadAssignment(property) || !property.name) return undefined;
+		const name = staticJsxPropertyName(property.name);
+		if (!name) return undefined;
+		properties.push({ name, property });
+	}
+	return properties;
+}
+
+/** Removes syntax-only wrappers from a JSX spread expression. */
+export function unwrapJsxSpreadExpression(expression: ts.Expression): ts.Expression {
+	let current = expression;
+	while (
+		ts.isParenthesizedExpression(current) ||
+		ts.isAsExpression(current) ||
+		ts.isSatisfiesExpression(current) ||
+		ts.isTypeAssertionExpression(current)
+	)
+		current = current.expression;
+	return current;
+}
+
+/** Returns a property name only when it is statically knowable. */
+export function staticJsxPropertyName(name: ts.PropertyName): string | undefined {
+	if (ts.isIdentifier(name) || ts.isStringLiteralLike(name) || ts.isNumericLiteral(name))
+		return name.text;
+	return undefined;
+}
+
 /** Returns whether a JSX attribute is a compiler-owned reactive form relationship. */
 export function isReactiveFormAttribute(name: string): boolean {
 	return name === 'value:input' || name === 'value:change' || name === 'checked:change';

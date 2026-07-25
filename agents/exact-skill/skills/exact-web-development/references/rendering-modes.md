@@ -65,10 +65,13 @@ recovery policy, not permission to render unrelated trees.
 
 Compiler-generated intrinsic islands with only supported events and reactive form bindings use
 interaction hydration automatically. Their usable inert controls remain in SSR output, dirty form
-values survive adoption, and the first interaction activates the island. Do not add mount effects,
-refs, or application hydration hooks merely to preserve normal form state; those change placement
-or activation requirements and duplicate framework behavior. Use the eager root strategy only
-when the application has a concrete requirement to activate every safe island immediately.
+values survive adoption, and the first interaction activates the island. Generated hydration
+registrations load each dormant island's client artifact lazily; action-like interactions are
+replayed in order after the chunk loads, while repeated input/change events for one control
+coalesce to the latest DOM value. Do not add mount effects, refs, application hydration hooks, or
+handwritten dynamic-import registries merely to reproduce this behavior. Those change placement or
+activation requirements and duplicate framework behavior. Use the eager root strategy only when
+the application has a concrete requirement to activate every safe island immediately.
 
 ## Server-component mode
 
@@ -88,6 +91,11 @@ Inspect existing generated `.exact.*` artifacts and nearby sample applications b
 this flow. Keep endpoint routes, private component contracts, state contracts, and action boundary
 hints aligned. Do not model this after React Server Components or dispatch client-provided module
 names.
+
+Compiler-generated reactive JSX marker ranges also let element-mode server refreshes replace the
+smallest proven changing structure while retaining unaffected DOM and component ownership. Keep
+the compiler-generated markers intact. Whole-boundary replacement is an intentional recovery path,
+not a reason to implement application-local diffing.
 
 Server-component capabilities are version-sensitive. Inspect the installed `@exactjs/compiler`,
 `@exactjs/server`, `@exactjs/ssr`, and `@exactjs/hydrate` exports before writing integration code.

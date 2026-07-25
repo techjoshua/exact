@@ -2,7 +2,12 @@ import ts from 'typescript';
 import type { ClientIslandElementNode, HelperNames } from '../../types.js';
 import type { DerivedReactiveIndex } from './contracts.js';
 import { canonicalElementId } from './element-emission.js';
-import { jsxElementIsClientIsland } from './inspection.js';
+import {
+	jsxElementIsClientIsland,
+	staticJsxPropertyName,
+	staticJsxSpreadProperties,
+	unwrapJsxSpreadExpression
+} from './inspection.js';
 import { childrenExpressions } from './node-emission.js';
 import { propName } from './property-emission.js';
 import { tagExpression } from './reactive-emission.js';
@@ -15,26 +20,90 @@ export function isInteractionHydrationIsland(
 	if (hasServerOnlyChildren) return false;
 	const attributes = ts.isJsxElement(node) ? node.openingElement.attributes : node.attributes;
 	const activationEvents = new Set([
+		'onAuxClick',
+		'onAuxClickCapture',
+		'onBeforeInput',
+		'onBeforeInputCapture',
+		'onBlur',
+		'onBlurCapture',
 		'onChange',
 		'onChangeCapture',
 		'onClick',
 		'onClickCapture',
+		'onCompositionEnd',
+		'onCompositionEndCapture',
 		'onCompositionStart',
 		'onCompositionStartCapture',
+		'onCompositionUpdate',
+		'onCompositionUpdateCapture',
+		'onContextMenu',
+		'onContextMenuCapture',
+		'onDoubleClick',
+		'onDoubleClickCapture',
+		'onDragEnd',
+		'onDragEndCapture',
+		'onDragEnter',
+		'onDragEnterCapture',
+		'onDragLeave',
+		'onDragLeaveCapture',
+		'onDragOver',
+		'onDragOverCapture',
+		'onDragStart',
+		'onDragStartCapture',
+		'onDrop',
+		'onDropCapture',
+		'onFocus',
+		'onFocusCapture',
+		'onFocusIn',
+		'onFocusInCapture',
+		'onFocusOut',
+		'onFocusOutCapture',
 		'onInput',
 		'onInputCapture',
 		'onKeyDown',
 		'onKeyDownCapture',
+		'onKeyUp',
+		'onKeyUpCapture',
+		'onMouseDown',
+		'onMouseDownCapture',
+		'onMouseUp',
+		'onMouseUpCapture',
+		'onPointerDown',
+		'onPointerDownCapture',
+		'onPointerUp',
+		'onPointerUpCapture',
 		'onSubmit',
-		'onSubmitCapture'
+		'onSubmitCapture',
+		'onTouchEnd',
+		'onTouchEndCapture',
+		'onTouchStart',
+		'onTouchStartCapture',
+		'onWheel',
+		'onWheelCapture'
 	]);
 	for (const attribute of attributes.properties) {
-		if (ts.isJsxSpreadAttribute(attribute)) return false;
+		if (ts.isJsxSpreadAttribute(attribute)) {
+			if (!isSafeInteractionSpread(attribute.expression, activationEvents)) return false;
+			continue;
+		}
 		const name = attribute.name.getText();
 		if (name === 'ref') return false;
 		if (/^on[A-Z]/.test(name) && !activationEvents.has(name)) return false;
 	}
 	if (ts.isJsxElement(node) && containsNestedClientIsland(node)) return false;
+	return true;
+}
+
+function isSafeInteractionSpread(
+	expression: ts.Expression,
+	activationEvents: Set<string>
+): boolean {
+	const properties = staticJsxSpreadProperties(expression);
+	if (!properties) return false;
+	for (const { name } of properties) {
+		if (name === 'ref') return false;
+		if (/^on[A-Z]/.test(name) && !activationEvents.has(name)) return false;
+	}
 	return true;
 }
 
@@ -129,7 +198,11 @@ function interactionFallbackProps(
 		);
 	for (const attribute of attributes.properties) {
 		if (ts.isJsxSpreadAttribute(attribute)) {
-			properties.push(factory.createSpreadAssignment(attribute.expression));
+			properties.push(
+				factory.createSpreadAssignment(
+					interactionFallbackSpread(context, visitor, attribute.expression)
+				)
+			);
 			continue;
 		}
 		const name = attribute.name.getText(sourceFile);
@@ -161,4 +234,23 @@ function interactionFallbackProps(
 		}
 	}
 	return factory.createObjectLiteralExpression(properties, false);
+}
+
+function interactionFallbackSpread(
+	context: ts.TransformationContext,
+	visitor: ts.Visitor,
+	expression: ts.Expression
+): ts.Expression {
+	const value = unwrapJsxSpreadExpression(expression);
+	if (!ts.isObjectLiteralExpression(value))
+		return ts.visitNode(expression, visitor) as ts.Expression;
+	return context.factory.updateObjectLiteralExpression(
+		value,
+		value.properties
+			.filter((property) => {
+				const name = property.name && staticJsxPropertyName(property.name);
+				return name !== 'ref' && !(name && /^on[A-Z]/.test(name));
+			})
+			.map((property) => ts.visitNode(property, visitor) as ts.ObjectLiteralElementLike)
+	);
 }

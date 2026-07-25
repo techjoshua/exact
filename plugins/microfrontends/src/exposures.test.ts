@@ -70,7 +70,7 @@ export default function Area(this: Component<{ count: number }>) {
 			applicationRoot: root
 		})['./Area']!;
 
-		expect(registration).toContain(slash(clientButton));
+		expect(registration).toContain(slash(clientButton).replace(/\.tsx$/, '.js'));
 		expect(registration).not.toContain(slash(unused));
 		expect(registration).toContain('continuations');
 		expect(registration).not.toContain('stateContracts');

@@ -75,6 +75,62 @@ describe('@exactjs/ssr element-diffing', () => {
 		]);
 	});
 
+	it('replaces compiler-owned dynamic ranges without replacing stable siblings', () => {
+		const dynamicId = 'dynamic:x1234567890123456789012';
+		expect(
+			diffBoundaryHtml(
+				'profile',
+				`<section data-exact-id="root"><!--exact:${dynamicId}--><p>Loading</p><!--/exact:${dynamicId}--><aside>Stable</aside></section>`,
+				`<section data-exact-id="root"><!--exact:${dynamicId}--><ul><li>Ready</li></ul><!--/exact:${dynamicId}--><aside>Stable</aside></section>`,
+				'element'
+			)
+		).toEqual([
+			{
+				type: 'replace',
+				id: dynamicId,
+				html: '<ul><li>Ready</li></ul>'
+			}
+		]);
+	});
+
+	it('combines dynamic range replacements with independent element property patches', () => {
+		const dynamicId = 'dynamic:x1234567890123456789012';
+		expect(
+			diffBoundaryHtml(
+				'profile',
+				`<section data-exact-id="root" class="old"><!--exact:${dynamicId}-->Loading<!--/exact:${dynamicId}--></section>`,
+				`<section data-exact-id="root" class="new"><!--exact:${dynamicId}-->Ready<!--/exact:${dynamicId}--></section>`,
+				'element'
+			)
+		).toEqual([
+			{
+				type: 'replace',
+				id: dynamicId,
+				html: 'Ready'
+			},
+			{ type: 'prop', id: 'root', name: 'class', value: 'new' }
+		]);
+	});
+
+	it('selects one outer compiler range when nested dynamic structures both change', () => {
+		const outerId = 'dynamic:x1234567890123456789012';
+		const innerId = 'dynamic:xabcdefghijklmnopqrstuv';
+		expect(
+			diffBoundaryHtml(
+				'profile',
+				`<!--exact:${outerId}--><article><!--exact:${innerId}-->Old<!--/exact:${innerId}--></article><!--/exact:${outerId}-->`,
+				`<!--exact:${outerId}--><section><!--exact:${innerId}-->New<!--/exact:${innerId}--></section><!--/exact:${outerId}-->`,
+				'element'
+			)
+		).toEqual([
+			{
+				type: 'replace',
+				id: outerId,
+				html: `<section><!--exact:${innerId}-->New<!--/exact:${innerId}--></section>`
+			}
+		]);
+	});
+
 	it('replaces stable root exact elements when nested exact id structure changes', () => {
 		expect(
 			diffBoundaryHtml(

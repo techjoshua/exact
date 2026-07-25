@@ -85,6 +85,34 @@ describe('@exactjs/compiler: islands', () => {
 		expect(server).not.toContain('__exactHydration: "interaction"');
 	});
 
+	it('defers islands with statically inspectable prop spreads and sanitizes their fallback', () => {
+		const source = `
+			import { readFile } from "node:fs/promises";
+			export function Panel(this: Component<{ count: number }>) {
+				this.task.server(async () => {
+					await readFile("panel.txt", "utf8");
+				});
+				return () => (
+					<button
+						{...{ title: "Save" }}
+						onPointerUp={() => this.state.count++}
+					>
+						Save
+					</button>
+				);
+			}
+		`;
+		const server = transform(source, {
+			filename: 'Panel.tsx',
+			target: 'server',
+			serverComponents: true
+		});
+
+		expect(server).toContain('__exactHydration: "interaction"');
+		expect(server).toContain('...{ title: "Save" }');
+		expect(server).not.toContain('onPointerUp');
+	});
+
 	it('lowers namespaced form bindings inside generated client islands', () => {
 		const source = `
       import { readFile } from "node:fs/promises";

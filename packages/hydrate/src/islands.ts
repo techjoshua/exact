@@ -4,7 +4,8 @@ import {
 	createVNode,
 	decodeReactiveProtocolValue,
 	logFrameworkEvent,
-	withComponentDomain
+	withComponentDomain,
+	type ComponentFunction
 } from '@exactjs/core';
 import {
 	adoptMarkerlessComponentRoot,
@@ -17,6 +18,7 @@ import {
 } from '@exactjs/dom';
 import { captureHydrationDom, restoreFormState } from './adoption/form-state.js';
 import { disposeInteractionHydration, ensureInteractionHydration } from './islands/interaction.js';
+import { isClientIslandLoader, loadClientIsland } from './islands/loading.js';
 import { isSafeObjectKey } from './safety.js';
 import type { ClientIslandRegistry, HydrateOptions } from './types.js';
 import { isJsonSafe } from './validation.js';
@@ -68,9 +70,26 @@ export function hydrateClientIslands(
 			continue;
 		}
 		attempted.add(boundary);
-		if (hydrateIslandBoundary(boundary, registry, options, work, domain)) {
+		const result = hydrateIslandBoundary(boundary, registry, options, work, domain);
+		if (result === true) {
 			hydrated++;
 			enqueue(boundary);
+		} else if (result instanceof Promise) {
+			void result
+				.then((mounted) => {
+					if (mounted && container.contains(boundary))
+						hydrateClientIslands(boundary, registry, { ...options, componentDomain: domain });
+				})
+				.catch((error) =>
+					logFrameworkEvent(
+						'error',
+						'hydrate',
+						'island',
+						'client island loading failed',
+						error,
+						options.logger
+					)
+				);
 		}
 	}
 	if (dormant)
@@ -98,14 +117,18 @@ function hydrateIslandChain(
 	work: ReturnType<typeof createDomWorkBudget>,
 	domain: ReturnType<typeof createComponentDomain>,
 	activationEvent?: Event
-): boolean {
+): boolean | Promise<boolean> {
 	const parent = boundary.parentElement?.closest('[data-exact-client-boundary]');
-	if (
-		parent &&
-		parent.getAttribute('data-exact-client-hydrated') !== 'true' &&
-		!hydrateIslandChain(parent, registry, options, work, domain)
-	)
-		return false;
+	if (parent && parent.getAttribute('data-exact-client-hydrated') !== 'true') {
+		const parentResult = hydrateIslandChain(parent, registry, options, work, domain);
+		if (parentResult instanceof Promise)
+			return parentResult.then((hydrated) =>
+				hydrated
+					? hydrateIslandBoundary(boundary, registry, options, work, domain, activationEvent)
+					: false
+			);
+		if (!parentResult) return false;
+	}
 	return hydrateIslandBoundary(boundary, registry, options, work, domain, activationEvent);
 }
 
@@ -116,12 +139,12 @@ function hydrateIslandBoundary(
 	work: ReturnType<typeof createDomWorkBudget>,
 	domain: ReturnType<typeof createComponentDomain>,
 	activationEvent?: Event
-): boolean {
+): boolean | Promise<boolean> {
 	if (boundary.getAttribute('data-exact-client-hydrated') === 'true') return true;
 	const name = boundary.getAttribute('data-exact-client-name');
 	if (!name) return false;
-	const component = registry[name];
-	if (!component) {
+	const entry = registry[name];
+	if (!entry) {
 		logFrameworkEvent(
 			'warn',
 			'hydrate',
@@ -132,6 +155,25 @@ function hydrateIslandBoundary(
 		);
 		return false;
 	}
+	if (isClientIslandLoader(entry))
+		return loadClientIsland(entry, options).then((component) => {
+			registry[name] = component;
+			if (!boundary.isConnected && !boundary.parentNode) return false;
+			return mountIslandBoundary(boundary, name, component, options, work, domain, activationEvent);
+		});
+	return mountIslandBoundary(boundary, name, entry, options, work, domain, activationEvent);
+}
+
+function mountIslandBoundary(
+	boundary: Element,
+	name: string,
+	component: ComponentFunction<any, any>,
+	options: HydrateOptions,
+	work: ReturnType<typeof createDomWorkBudget>,
+	domain: ReturnType<typeof createComponentDomain>,
+	activationEvent?: Event
+): boolean {
+	if (boundary.getAttribute('data-exact-client-hydrated') === 'true') return true;
 	const props = parseIslandProps(boundary.getAttribute('data-exact-client-props'), options);
 	const vnode = withComponentDomain(domain, () => createVNode(component, props));
 	const remaining = work.limit - work.used;

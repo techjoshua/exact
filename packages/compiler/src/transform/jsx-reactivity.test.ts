@@ -319,7 +319,7 @@ describe('@exactjs/compiler: JSX reactivity', () => {
 			'const columnTasks = __exactDerived(() => props.tasks.filter(task => task.status === props.column.id));'
 		);
 		expect(output).toContain('this.map(columnTasks, task => task.id');
-		expect(output).toContain(', props.tasks, "member:id")))');
+		expect(output).toMatch(/, props\.tasks, "member:id"\), "x[A-Za-z0-9_-]{22}"\)\)/);
 	});
 
 	it('allows callback-local mutation but rejects captured writes in derived collections', () => {
@@ -354,7 +354,7 @@ describe('@exactjs/compiler: JSX reactivity', () => {
 			{ filename: 'Totals.tsx' }
 		);
 		expect(output).toContain('const count = __exactDerived(() => this.state.items.filter');
-		expect(output).toContain('__exactDynamic(() => count.get())');
+		expect(output).toMatch(/__exactDynamic\(\(\) => count\.get\(\), "x[A-Za-z0-9_-]{22}"\)/);
 		expect(output).toContain('reduce((agg, i) => { agg += i.val; return agg; }, 0))');
 	});
 });

@@ -1,7 +1,6 @@
 import { flushSync } from '@exactjs/reactive';
 import {
 	createExactClient,
-	hydrateClientIslands,
 	readExactHydrationConfig,
 	type ClientIslandRegistry,
 	type ExactClient,
@@ -127,16 +126,7 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 					explicit.onHydration?.(observation);
 				}
 			});
-			const hydrated = hydrateClientIslands(container, options.islands, {
-				...config,
-				...explicit,
-				islands: options.islands,
-				componentDomain: client.domain,
-				onHydration: (observation) => {
-					hydration.push(observation);
-					explicit.onHydration?.(observation);
-				}
-			});
+			const hydrated = hydration.length;
 			const view = new ClientServerTestView(
 				container,
 				server,

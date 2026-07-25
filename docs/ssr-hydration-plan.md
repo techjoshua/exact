@@ -38,6 +38,8 @@ server/request context model, native rendering safety, and data policy, see
 
 - Reads hydration bootstrap data from the rendered script tag.
 - Hydrates generated client islands from `data-exact-client-boundary` placeholders.
+- Loads compiler-registered interaction islands from lazy client chunks on first activation,
+  queues ordered actions, and coalesces repeated state-like input events while loading.
 - Creates an endpoint client with same-tick batching.
 - Sends action, refresh, state contract, dependency, and boundary snapshot payloads.
 - Validates successful endpoint response shapes before applying returned patches.
@@ -71,6 +73,7 @@ SSR uses compact HTML comments and exact data attributes:
 - Component boundary markers.
 - Cell markers.
 - Dynamic child markers.
+- Compiler-stable dynamic child markers used as fine-grained structural patch targets.
 - Fragment markers.
 - Keyed list and keyed item markers.
 - `data-exact-id` markers for fine-grained element patching.
@@ -112,7 +115,8 @@ The native SSR adoption target adds a root-document mode in which the applicatio
 The current foundation is usable for the sample path and core protocol tests, but it is not yet a complete production server-component system. The remaining larger pieces are:
 
 - More complete compiler-owned component splitting beyond the current nested local/imported server-child subgraphs.
-- Richer server patch generation for complex structural changes beyond the current text, prop/style, element, independent nested structural replacement, list, state, and boundary replacement paths.
+- Richer server patch generation beyond the current text, prop/style, compiler-stable dynamic
+  range, independent nested element replacement, list, state, and boundary replacement paths.
 - Stronger production context glue for larger apps with many manifests.
 - Micro frontend support beyond dynamically loaded remote manifests, immediate remote island hydration, per-boundary endpoints, per-endpoint batching, and same-realm global context tokens.
 - Broader production diagnostics surfaced by build tools and dev servers.

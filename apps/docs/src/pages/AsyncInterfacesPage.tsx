@@ -142,10 +142,10 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 					<p>
 						Values needed by the returned render function must be assigned to{' '}
 						<code>this.state</code>; a local created inside the asynchronous continuation is not
-						published state. Destructuring may assign several state locations atomically, but every
-						target must be writable state. Rest targets, dynamically computed targets, reactive
-						self-dependencies, and values that violate server/client serialization or secret policy
-						are compiler errors.
+						published state. Native array and object destructuring—including defaults, rest targets,
+						and computed property keys—may publish several writable state locations atomically. A
+						non-state target, reactive self-dependency, or value that violates server/client
+						serialization or secret policy remains a compiler error.
 					</p>
 				</Callout>
 			</section>

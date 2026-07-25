@@ -19,6 +19,7 @@ import {
 	stringValue,
 	textOnlyContent
 } from './patches.js';
+import { diffExactMarkerRanges } from './ranges.js';
 
 /** Defines the parsed html node type contract. */
 export type ParsedHtmlNode = ParsedHtmlElement | ParsedHtmlText;
@@ -100,7 +101,10 @@ export function diffExactElementHtml(
 ): ExactPatch[] | undefined {
 	// This parser intentionally handles eXact-generated HTML, not arbitrary browser HTML.
 	// Returning undefined is the signal to fall back to a boundary replacement.
-	const previousTree = parseHtmlNodes(previousHtml);
+	const markerDiff = diffExactMarkerRanges(previousHtml, nextHtml);
+	if (markerDiff?.html === nextHtml) return [...markerDiff.patches];
+	const comparisonHtml = markerDiff?.html ?? previousHtml;
+	const previousTree = parseHtmlNodes(comparisonHtml);
 	const nextTree = parseHtmlNodes(nextHtml);
 	if (!previousTree || !nextTree) return undefined;
 
@@ -168,7 +172,8 @@ export function diffExactElementHtml(
 		}
 	}
 
-	if (sameNormalizedHtmlShape(previousTree, nextTree)) return patches;
+	if (sameNormalizedHtmlShape(previousTree, nextTree))
+		return [...(markerDiff?.patches ?? []), ...patches];
 	const nestedReplacements = nestedExactElementReplace(previousTree, nextTree);
 	if (nestedReplacements) return [...patches, ...nestedReplacements];
 	return rootExactElementReplace(previousTree, nextTree, nextHtml);

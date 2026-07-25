@@ -16,6 +16,13 @@ import type {
 import type { ExactComponentContinuationContract } from '@exactjs/core';
 import { hasOnlyKeys, isJsonSafe } from './validation.js';
 
+/** Contextually types a compiler-generated hydration registration without changing its value. */
+export function defineExactHydrationRegistration(
+	registration: ExactHydrationRegistration
+): ExactHydrationRegistration {
+	return registration;
+}
+
 /** Reads and validates the serialized hydration configuration embedded in the document. */
 export function readExactHydrationConfig(
 	root: ParentNode = document,

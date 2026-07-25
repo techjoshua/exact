@@ -40,25 +40,22 @@ export function preprocessComponentStateDestructuring(source: string, filename: 
 							!ts.isObjectLiteralExpression(expression.left))
 					)
 						return;
-					const bindings: Array<Readonly<{ target: ts.Expression; access: string }>> = [];
-					collectDestructuredStateBindings(
+					const bindings: Array<Readonly<{ target: ts.Expression; temporary: string }>> = [];
+					const temporaryPrefix = `__exactDestructured_${candidate.getStart(sourceFile)}`;
+					const pattern = rewriteDestructuredStatePattern(
 						sourceFile,
 						expression.left,
-						'__exactDestructured',
+						temporaryPrefix,
 						bindings
 					);
 					if (!bindings.length) return;
-					const valueName = `__exactDestructured_${candidate.getStart(sourceFile)}`;
 					const body = bindings
-						.map(
-							(binding) =>
-								`${binding.target.getText(sourceFile)} = ${binding.access.replace('__exactDestructured', valueName)};`
-						)
+						.map((binding) => `${binding.target.getText(sourceFile)} = ${binding.temporary};`)
 						.join(' ');
 					edits.push({
 						start: candidate.getStart(sourceFile),
 						end: candidate.end,
-						text: `{ const ${valueName} = ${expression.right.getText(sourceFile)}; ${body} }`
+						text: `{ const ${pattern} = ${expression.right.getText(sourceFile)}; ${body} }`
 					});
 				});
 			}
@@ -76,56 +73,70 @@ function unwrapParentheses(expression: ts.Expression): ts.Expression {
 	return current;
 }
 
-function collectDestructuredStateBindings(
+function rewriteDestructuredStatePattern(
 	sourceFile: ts.SourceFile,
-	pattern: ts.ArrayLiteralExpression | ts.ObjectLiteralExpression,
-	access: string,
-	bindings: Array<Readonly<{ target: ts.Expression; access: string }>>
-): void {
+	pattern: ts.Expression,
+	temporaryPrefix: string,
+	bindings: Array<Readonly<{ target: ts.Expression; temporary: string }>>
+): string {
 	if (ts.isArrayLiteralExpression(pattern)) {
-		pattern.elements.forEach((element, index) => {
-			if (ts.isOmittedExpression(element)) return;
-			if (ts.isSpreadElement(element))
+		return `[${pattern.elements
+			.map((element) => {
+				if (ts.isOmittedExpression(element)) return '';
+				if (ts.isSpreadElement(element))
+					return `...${rewriteDestructuredStateTarget(
+						sourceFile,
+						element.expression,
+						temporaryPrefix,
+						bindings
+					)}`;
+				return rewriteDestructuredStateTarget(sourceFile, element, temporaryPrefix, bindings);
+			})
+			.join(', ')}]`;
+	}
+	if (!ts.isObjectLiteralExpression(pattern))
+		return rewriteDestructuredStateTarget(sourceFile, pattern, temporaryPrefix, bindings);
+	return `{ ${pattern.properties
+		.map((property) => {
+			if (ts.isSpreadAssignment(property))
+				return `...${rewriteDestructuredStateTarget(
+					sourceFile,
+					property.expression,
+					temporaryPrefix,
+					bindings
+				)}`;
+			if (!ts.isPropertyAssignment(property))
 				throw componentComputationError(
 					sourceFile,
-					element,
-					'error: rest targets are not supported in derived state destructuring'
+					property,
+					'error: every derived object-destructuring entry must explicitly target this.state'
 				);
-			collectDestructuredStateBinding(sourceFile, element, `${access}[${index}]`, bindings);
-		});
-		return;
-	}
-	for (const property of pattern.properties) {
-		if (ts.isSpreadAssignment(property))
-			throw componentComputationError(
+			return `${property.name.getText(sourceFile)}: ${rewriteDestructuredStateTarget(
 				sourceFile,
-				property,
-				'error: rest targets are not supported in derived state destructuring'
-			);
-		if (!ts.isPropertyAssignment(property))
-			throw componentComputationError(
-				sourceFile,
-				property,
-				'error: every derived object-destructuring entry must explicitly target this.state'
-			);
-		collectDestructuredStateBinding(
-			sourceFile,
-			property.initializer,
-			`${access}${propertyNameAccess(sourceFile, property.name)}`,
-			bindings
-		);
-	}
+				property.initializer,
+				temporaryPrefix,
+				bindings
+			)}`;
+		})
+		.join(', ')} }`;
 }
 
-function collectDestructuredStateBinding(
+function rewriteDestructuredStateTarget(
 	sourceFile: ts.SourceFile,
 	target: ts.Expression,
-	access: string,
-	bindings: Array<Readonly<{ target: ts.Expression; access: string }>>
-): void {
+	temporaryPrefix: string,
+	bindings: Array<Readonly<{ target: ts.Expression; temporary: string }>>
+): string {
 	if (ts.isArrayLiteralExpression(target) || ts.isObjectLiteralExpression(target)) {
-		collectDestructuredStateBindings(sourceFile, target, access, bindings);
-		return;
+		return rewriteDestructuredStatePattern(sourceFile, target, temporaryPrefix, bindings);
+	}
+	if (ts.isBinaryExpression(target) && target.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+		return `${rewriteDestructuredStateTarget(
+			sourceFile,
+			target.left,
+			temporaryPrefix,
+			bindings
+		)} = ${target.right.getText(sourceFile)}`;
 	}
 	if (!componentStatePath(target))
 		throw componentComputationError(
@@ -133,16 +144,7 @@ function collectDestructuredStateBinding(
 			target,
 			'error: every derived destructuring target must be a writable this.state location'
 		);
-	bindings.push({ target, access });
-}
-
-function propertyNameAccess(sourceFile: ts.SourceFile, name: ts.PropertyName): string {
-	if (ts.isComputedPropertyName(name))
-		throw componentComputationError(
-			sourceFile,
-			name,
-			'error: computed keys are not supported in derived state destructuring'
-		);
-	if (ts.isIdentifier(name)) return `.${name.text}`;
-	return `[${name.getText(sourceFile)}]`;
+	const temporary = `${temporaryPrefix}_${bindings.length}`;
+	bindings.push({ target, temporary });
+	return temporary;
 }

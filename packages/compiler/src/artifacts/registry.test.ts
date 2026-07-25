@@ -212,6 +212,27 @@ describe('@exactjs/compiler: registries', () => {
 		).toThrow('Duplicate eXact registry entry Panel');
 	});
 
+	it('deduplicates re-exported registry entries by component identity', () => {
+		const module = createClientIslandRegistryModule([
+			{
+				id: 'barrel',
+				name: 'Panel',
+				exportName: 'Panel',
+				module: './index.exact.client.ts'
+			},
+			{
+				id: 'source',
+				name: 'Panel',
+				exportName: 'Panel',
+				module: './components/Panel.exact.client.ts',
+				componentId: 'component:panel'
+			}
+		]);
+
+		expect(module).toContain('./components/Panel.exact.client.ts');
+		expect(module).not.toContain('./index.exact.client.ts');
+	});
+
 	it('creates registry modules from artifact graphs', async () => {
 		const root = await createTestWorkspace('exact-artifact-registry-modules-');
 		const input = path.join(root, 'src', 'panel.tsx');
@@ -290,14 +311,16 @@ describe('@exactjs/compiler: registries', () => {
 		});
 
 		expect(module).toContain('export const islands');
-		expect(module).toContain('composeExactComponentContracts as __exactComposeContracts');
-		expect(module).toContain('import { Panel as __exactComponent0 }');
+		expect(module).toContain('defineExactHydrationRegistration as __exactDefineRegistration');
+		expect(module).toContain('lazyClientIsland as __exactLazyIsland');
+		expect(module).toContain('import("./dist/panel.exact.client.js")');
+		expect(module).toContain('.then((module) => module["Panel_ExactClient_1"])');
+		expect(module).not.toContain('import { Panel');
 		expect(module).toContain('export const registration');
 		expect(module).toContain('islands: islands');
 		expect(module).toContain('"endpoint": "/__exact"');
 		expect(module).toContain('"/remote-exact"');
-		expect(module).toContain(JSON.stringify(actionId));
-		expect(module).toContain('const __exactContracts = __exactComposeContracts([');
+		expect(module).toContain(`${JSON.stringify(actionId)}: {`);
 		expect(module).toContain('continuations: __exactContinuations');
 		expect(module).not.toContain('"stateContracts"');
 		expect(module).not.toContain('"actionBoundaries"');

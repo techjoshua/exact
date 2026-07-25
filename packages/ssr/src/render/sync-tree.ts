@@ -38,6 +38,7 @@ import {
 	withSsrTreeDepth
 } from '../render/limits.js';
 import type { Child, ComponentFunction, ComponentInstance, SsrContext } from '../types.js';
+import { dynamicMarkerId } from './marker-identity.js';
 import { renderComponent } from './async-tree.js';
 import {
 	clientBoundaryProps,
@@ -140,7 +141,7 @@ export function* renderVNodeChunks(
 		return;
 	}
 	if (vnode.type === Dynamic) {
-		const id = markerId(context, 'dynamic', undefined, vnode.key);
+		const id = dynamicMarkerId(context, vnode);
 		yield* marked(id, function* () {
 			for (const child of normalizeRenderResult(unwrap(vnode.props.value) as Child | Child[])) {
 				yield* renderChildChunks(context, child, parent, depth + 1);
@@ -377,13 +378,16 @@ export function renderVNodeInner(
 	}
 
 	if (vnode.type === Dynamic) {
-		return withMarker(context, 'dynamic', vnode.key, () => {
+		const render = () => {
 			return renderChildren(
 				context,
 				normalizeRenderResult(unwrap(vnode.props.value) as Child | Child[]),
 				parent
 			);
-		});
+		};
+		return vnode.props.__exactMarkerId
+			? markerPair(context, dynamicMarkerId(context, vnode), render)
+			: withMarker(context, 'dynamic', vnode.key, render);
 	}
 
 	if (vnode.type === ServerBoundary) {

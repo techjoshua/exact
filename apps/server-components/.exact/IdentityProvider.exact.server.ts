@@ -113,5 +113,5 @@ export function IdentityProvider(this: Component<{
 export function IdentitySummary(this: Component<Record<string, never>>) {
     const authorization = this.getContext(AuthorizationContext);
     const brand = this.getContext(BrandContext);
-    return () => (__exactVNode("button", { "data-exact-id": "xIrMXn9l9qpxy-0CWHBPPL6", "data-brand": __exactExpression(() => brand.name()), "data-accent": __exactExpression(() => brand.accent()), "data-editor": __exactExpression(() => authorization.hasRole('editor') ? 'true' : 'false') }, __exactDynamic(() => brand.name()), ":", __exactDynamic(() => authorization.hasRole('editor') ? 'editor' : 'viewer')));
+    return () => (__exactVNode("button", { "data-exact-id": "xIrMXn9l9qpxy-0CWHBPPL6", "data-brand": __exactExpression(() => brand.name()), "data-accent": __exactExpression(() => brand.accent()), "data-editor": __exactExpression(() => authorization.hasRole('editor') ? 'true' : 'false') }, __exactDynamic(() => brand.name(), "xo60leiF3LuiZwniWkUKuZd"), ":", __exactDynamic(() => authorization.hasRole('editor') ? 'editor' : 'viewer', "xk7W_9JNvDZyK8H_cT5y_mm")));
 }

@@ -87,12 +87,13 @@ There are two qualifications:
   returned registry by generated runtime name. Boundary IDs remain a separate
   server/hydration concern.
 
-The compiler still exposes the older manifest-derived client-island and
-server-part registry generators for compatibility. The generated hydration
-registration module uses the new descriptor composition path for
-implementations, but still uses the artifact graph/manifests to decide which
-root exports to import and to emit action state contracts and action-to-boundary
-mappings.
+The compiler still exposes the older eager client-island and server-part
+registry generators for compatibility. The generated hydration registration
+module now creates lazy loaders for the concrete client-island exports, so a
+dormant interaction island does not evaluate its artifact until activation.
+It emits inert client continuation descriptors from the artifact graph up
+front, allowing server operations to remain callable without eagerly importing
+every component chunk.
 
 Server descriptors are emitted and composable, but no production call site in
 the repository currently composes them. The sample servers import their server

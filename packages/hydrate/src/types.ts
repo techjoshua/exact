@@ -142,8 +142,16 @@ export type ExactEndpointRoutes = {
 	boundaries?: Record<string, string>;
 };
 
+/** Defers loading one generated client-island implementation until activation. */
+export type ClientIslandLoader = Readonly<{
+	load(): Promise<ComponentFunction<any, any>>;
+}>;
+
+/** One eager or compiler-generated lazy client-island implementation. */
+export type ClientIslandRegistryEntry = ComponentFunction<any, any> | ClientIslandLoader;
+
 /** Defines the client island registry type contract. */
-export type ClientIslandRegistry = Record<string, ComponentFunction<any, any>>;
+export type ClientIslandRegistry = Record<string, ClientIslandRegistryEntry>;
 
 /** Defines the fetch like type contract. */
 export type FetchLike = (

@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { continuationDescriptorValues } from './descriptor-values.js';
 import { clientRegistryModulePath } from './paths.js';
 import type {
 	ClientIslandRegistryEntry,
@@ -115,53 +116,32 @@ function createClientDescriptorCompositionModule(
 	exportName: string,
 	continuationsName: string
 ): string {
-	const moduleByComponent = new Map(
-		graph.clientIslands.map((entry) => [entry.componentId, entry.module])
+	const entries = uniqueRegistryEntries(graph.clientIslands);
+	const islands = entries.map((entry) => {
+		return `  ${JSON.stringify(entry.name)}: __exactLazyIsland(() => import(${JSON.stringify(runtimeModuleSpecifier(entry.module))}).then((module) => module[${JSON.stringify(entry.exportName)}]))`;
+	});
+	const continuationValues = continuationDescriptorValues(
+		graph.artifacts.flatMap((artifact) => artifact.manifest.continuations),
+		true
 	);
-	const components: Array<{ exportName: string; module: string }> = [];
-	for (const artifact of graph.artifacts) {
-		const rootSymbols = artifact.manifest.symbols
-			.filter(
-				(symbol) =>
-					symbol.role === 'root' &&
-					symbol.kind === 'component' &&
-					symbol.componentId &&
-					symbol.exportName &&
-					moduleByComponent.has(symbol.componentId)
-			)
-			.sort(
-				(left, right) =>
-					Number(left.exportName === 'default') - Number(right.exportName === 'default') ||
-					left.exportName!.localeCompare(right.exportName!)
-			);
-		const seen = new Set<string>();
-		for (const symbol of rootSymbols) {
-			if (seen.has(symbol.componentId!)) continue;
-			seen.add(symbol.componentId!);
-			components.push({
-				exportName: symbol.exportName!,
-				module: moduleByComponent.get(symbol.componentId!)!
-			});
-		}
+	const continuations: Record<string, Record<string, unknown>> = {};
+	for (const continuation of continuationValues) {
+		const id = continuation.id;
+		if (typeof id !== 'string') throw new Error('Generated eXact continuation is missing its id');
+		const previous = continuations[id];
+		if (previous && JSON.stringify(previous) !== JSON.stringify(continuation))
+			throw new Error(`Conflicting eXact continuation ${id}`);
+		continuations[id] = continuation;
 	}
-	const sorted = components.sort(
-		(left, right) =>
-			left.module.localeCompare(right.module) || left.exportName.localeCompare(right.exportName)
-	);
-	const imports = sorted.map(
-		(entry, index) =>
-			`import { ${entry.exportName} as __exactComponent${index} } from ${JSON.stringify(entry.module)};`
-	);
-	const values = sorted.map((_, index) => `  __exactComponent${index}`);
 	return [
-		'import { composeExactComponentContracts as __exactComposeContracts } from "@exactjs/core";',
-		...imports,
+		'import { defineExactHydrationRegistration as __exactDefineRegistration, lazyClientIsland as __exactLazyIsland } from "@exactjs/hydrate";',
 		'',
-		'const __exactContracts = __exactComposeContracts([',
-		...values.map((value, index) => `${value}${index + 1 < values.length ? ',' : ''}`),
-		'], "client");',
-		`export const ${exportName} = __exactContracts.implementations;`,
-		`const ${continuationsName} = __exactContracts.continuations;`,
+		`export const ${exportName} = {`,
+		...islands.map((value, index) => `${value}${index + 1 < islands.length ? ',' : ''}`),
+		'};',
+		`const ${continuationsName} = __exactDefineRegistration({`,
+		`  continuations: ${JSON.stringify(continuations, null, 2)}`,
+		'}).continuations;',
 		''
 	].join('\n');
 }
@@ -171,7 +151,8 @@ function clientRegistrySymbol(
 ): symbol is ExactSymbolIR & { exportName: string } {
 	if (symbol.target !== 'client' || !symbol.exportName) return false;
 	return (
-		symbol.role === 'client-island' || (symbol.role === 'root' && symbol.placement === 'client')
+		symbol.role === 'client-island' ||
+		(symbol.role === 'root' && symbol.kind === 'component' && symbol.placement === 'client')
 	);
 }
 
@@ -179,17 +160,10 @@ function createNamedRegistryModule(
 	entries: readonly (ClientIslandRegistryEntry | ServerPartRegistryEntry)[],
 	exportName: string
 ): string {
-	const sorted = [...entries].sort(
-		(left, right) => left.name.localeCompare(right.name) || left.module.localeCompare(right.module)
-	);
-	const seen = new Set<string>();
+	const sorted = uniqueRegistryEntries(entries);
 	const imports: string[] = [];
 	const properties: string[] = [];
 	sorted.forEach((entry, index) => {
-		if (seen.has(entry.name)) {
-			throw new Error(`Duplicate eXact registry entry ${entry.name}`);
-		}
-		seen.add(entry.name);
 		const local = `__exactRegistry${index}`;
 		imports.push(
 			`import { ${entry.exportName} as ${local} } from ${JSON.stringify(entry.module)};`
@@ -199,10 +173,48 @@ function createNamedRegistryModule(
 	return `${imports.join('\n')}\n\nexport const ${exportName} = {\n${properties.join(',\n')}\n};\n`;
 }
 
+function uniqueRegistryEntries<T extends ClientIslandRegistryEntry | ServerPartRegistryEntry>(
+	entries: readonly T[]
+): T[] {
+	// Prefer the defining artifact. Root-barrel symbols may omit componentId,
+	// but retain the same public runtime/export name as that direct definition.
+	const sorted = [...entries].sort(
+		(left, right) =>
+			left.name.localeCompare(right.name) ||
+			Number(Boolean(right.componentId)) - Number(Boolean(left.componentId)) ||
+			right.module.length - left.module.length ||
+			left.module.localeCompare(right.module)
+	);
+	const unique: T[] = [];
+	const byName = new Map<string, T>();
+	for (const entry of sorted) {
+		const previous = byName.get(entry.name);
+		if (!previous) {
+			byName.set(entry.name, entry);
+			unique.push(entry);
+			continue;
+		}
+		if (
+			entry.exportName !== previous.exportName ||
+			(entry.componentId && previous.componentId && entry.componentId !== previous.componentId) ||
+			(!entry.componentId && !previous.componentId)
+		)
+			throw new Error(`Duplicate eXact registry entry ${entry.name}`);
+	}
+	return unique;
+}
+
 function omitUndefinedProperties(value: Record<string, unknown>): Record<string, unknown> {
 	const output: Record<string, unknown> = {};
 	for (const [key, item] of Object.entries(value)) {
 		if (item !== undefined) output[key] = item;
 	}
 	return output;
+}
+
+function runtimeModuleSpecifier(specifier: string): string {
+	return specifier
+		.replace(/\.tsx?$/i, '.js')
+		.replace(/\.mts$/i, '.mjs')
+		.replace(/\.cts$/i, '.cjs');
 }

@@ -7,23 +7,28 @@ export function continuationDescriptorExpression(
 	client: boolean,
 	factory: ts.NodeFactory
 ): ts.Expression {
-	return jsonExpression(
-		continuations.map((continuation) => ({
-			id: continuation.id,
-			componentId: continuation.componentId,
-			readiness: continuation.readiness,
-			dependencies: continuation.activation.dependencies.map(({ source }) => ({ source })),
-			stateReads: continuation.activation.stateReads.map(statePathDescriptor),
-			stateWrites: continuation.effects.stateWrites.map(statePathDescriptor),
-			publicContexts: continuation.activation.publicContexts.map((context) => context.token),
-			serverContexts: client
-				? []
-				: continuation.activation.serverContexts.map((context) => context.token),
-			contextWrites: continuation.effects.contextWrites.map((context) => context.token),
-			boundaries: continuation.effects.boundaries
-		})),
-		factory
-	);
+	return jsonExpression(continuationDescriptorValues(continuations, client), factory);
+}
+
+/** Converts compiler continuation IR into target-local inert runtime descriptors. */
+export function continuationDescriptorValues(
+	continuations: readonly ExactContinuationIR[],
+	client: boolean
+): readonly Record<string, unknown>[] {
+	return continuations.map((continuation) => ({
+		id: continuation.id,
+		componentId: continuation.componentId,
+		readiness: continuation.readiness,
+		dependencies: continuation.activation.dependencies.map(({ source }) => ({ source })),
+		stateReads: continuation.activation.stateReads.map(statePathDescriptor),
+		stateWrites: continuation.effects.stateWrites.map(statePathDescriptor),
+		publicContexts: continuation.activation.publicContexts.map((context) => context.token),
+		serverContexts: client
+			? []
+			: continuation.activation.serverContexts.map((context) => context.token),
+		contextWrites: continuation.effects.contextWrites.map((context) => context.token),
+		boundaries: continuation.effects.boundaries
+	}));
 }
 
 /** Emits JSON-shaped compiler metadata as inert artifact syntax. */
