@@ -5,6 +5,7 @@ import { expressionComponentIndex } from './component-index.js';
 /** Defines the expression derived site interface contract. */
 export interface ExpressionDerivedSite {
 	readonly nodeId: string;
+	readonly name: string;
 	readonly start: number;
 	readonly end: number;
 	readonly variableId: string;
@@ -17,6 +18,7 @@ export interface ExpressionDerivedSite {
 /** Defines the expression derived declaration interface contract. */
 export interface ExpressionDerivedDeclaration {
 	readonly nodeId: string;
+	readonly name: string;
 	readonly variableId: string;
 	readonly start: number;
 	readonly end: number;
@@ -55,6 +57,7 @@ export function analyzeExpressionDerived(
 		if (declaration.node.span) {
 			const planned = Object.freeze({
 				nodeId: declaration.node.id,
+				name: entry.variable.name,
 				variableId: entry.variable.id,
 				start: declaration.node.span.start,
 				end: declaration.node.span.end,
@@ -73,6 +76,7 @@ export function analyzeExpressionDerived(
 			if (!reference.node.span || (name && within(reference, name))) continue;
 			const site = Object.freeze({
 				nodeId: reference.node.id,
+				name: entry.variable.name,
 				start: reference.node.span.start,
 				end: reference.node.span.end,
 				variableId: entry.variable.id,

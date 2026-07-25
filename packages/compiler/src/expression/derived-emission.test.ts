@@ -234,7 +234,7 @@ describe('@exactjs/compiler: derived values', () => {
 		expect(output).toContain('this.task(label, async (value) => { });');
 	});
 
-	it('inlines safe derived consts declared inside render functions', () => {
+	it('materializes safe derived consts declared inside render functions', () => {
 		const output = transform(`
       function View(this: Component<{ first: string; last: string }>) {
         return () => {
@@ -244,10 +244,13 @@ describe('@exactjs/compiler: derived values', () => {
       }
     `);
 
-		expect(output).toContain('__exactDynamic(() => (`${this.state.first} ${this.state.last}`))');
+		expect(output).toContain(
+			'const __exact_fullName_1 = `${this.state.first} ${this.state.last}`;'
+		);
+		expect(output).toContain('return __exact_fullName_1;');
 	});
 
-	it('inlines safe derived consts declared inside map render callbacks', () => {
+	it('materializes safe derived consts declared inside map render callbacks', () => {
 		const output = transform(
 			`
       function View(this: Component<{ tasks: { id: string; title: string }[] }>) {
@@ -260,7 +263,26 @@ describe('@exactjs/compiler: derived values', () => {
 			{ filename: 'View.tsx' }
 		);
 
-		expect(output).toContain('__exactDynamic(() => (task.title))');
+		expect(output).toContain('const __exact_title_1 = task.title;');
+		expect(output).toContain('return __exact_title_1;');
+	});
+
+	it('preserves narrowing for nullable derived locals', () => {
+		const output = transform(`
+      function View(this: Component<{ enabled: boolean }>) {
+        return () => {
+          const point = this.state.enabled ? { x: 1 } : undefined;
+          return <p title={point ? String(point.x) : "missing"} />;
+        };
+      }
+    `);
+
+		expect(output).toContain(
+			'const __exact_point_1 = this.state.enabled ? { x: 1 } : undefined;'
+		);
+		expect(output).toContain(
+			'return __exact_point_1 ? String(__exact_point_1.x) : "missing";'
+		);
 	});
 
 	it('inlines safe derived consts inside explicit reactive captures', () => {

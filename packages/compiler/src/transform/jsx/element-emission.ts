@@ -230,6 +230,7 @@ export function collectExpressionDerivedLocals(
 		if (initializer)
 			references.set(site.nodeId, {
 				variableId: site.variableId,
+				name: site.name,
 				initializer,
 				cached: site.cached
 			});
@@ -239,6 +240,7 @@ export function collectExpressionDerivedLocals(
 		if (initializer)
 			declarations.set(declaration.nodeId, {
 				variableId: declaration.variableId,
+				name: declaration.name,
 				initializer,
 				cached: declaration.cached
 			});

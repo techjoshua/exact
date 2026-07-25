@@ -5,6 +5,7 @@ export type ComponentLocalInfo = { functions: Map<string, ts.Statement> };
 /** Defines the derived reactive entry type contract. */
 export type DerivedReactiveEntry = {
 	variableId: string;
+	name: string;
 	initializer: ts.Expression;
 	cached: boolean;
 };

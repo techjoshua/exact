@@ -16,62 +16,44 @@ export function RouteMap(this: Component<{}>, props: {
             ? project(props.route.destination.latitude, props.route.destination.longitude)
             : undefined;
         const arc = start && end ? arcPath(start, end) : undefined;
-        return (__exactVNode("div", { "data-exact-id": "xtCHfrTpHvMV-JmO_1ZRjGF", className: "map-wrap" }, __exactVNode("svg", { "data-exact-id": "x_LVQ6L9qgtVH6-ndCv5POe", className: "route-map", viewBox: "0 0 800 370", role: "img", "aria-label": __exactExpression(() => (props.route.origin
+        return (__exactVNode("div", { "data-exact-id": "xtCHfrTpHvMV-JmO_1ZRjGF", className: "map-wrap" }, __exactVNode("svg", { "data-exact-id": "x_LVQ6L9qgtVH6-ndCv5POe", className: "route-map", viewBox: "0 0 800 370", role: "img", "aria-label": __exactExpression(() => (() => {
+                const __exact_start_1 = props.route.origin
+                    ? project(props.route.origin.latitude, props.route.origin.longitude)
+                    : undefined;
+                const __exact_end_1 = props.route.destination
+                    ? project(props.route.destination.latitude, props.route.destination.longitude)
+                    : undefined;
+                return __exact_start_1 && __exact_end_1
+                    ? `Approximate route from ${props.origin} to ${props.destination}`
+                    : 'Approximate United States route map; one or both ZIP codes are unavailable';
+            })()) }, __exactVNode("g", { "data-exact-id": "xg9aQflOSTH-UOsPXPsbv7P", className: "map-states" }, __exactDynamic(() => usStatePaths.map((state) => (__exactVNode("path", { "data-exact-id": "xIKrJYAJcbO5iYcgxjWbcWd", className: __exactExpression(() => `land state state-${state.abbreviation.toLowerCase()}`), d: __exactExpression(() => state.d) }, __exactVNode("title", { "data-exact-id": "x_AosT7DNY25bOPwc_B6Ash" }, __exactDynamic(() => state.name))))))), __exactDynamic(() => (() => {
+            const __exact_start_2 = props.route.origin
                 ? project(props.route.origin.latitude, props.route.origin.longitude)
-                : undefined)
-                &&
-                    (props.route.destination
-                        ? project(props.route.destination.latitude, props.route.destination.longitude)
-                        : undefined)
-                ? `Approximate route from ${props.origin} to ${props.destination}`
-                : 'Approximate United States route map; one or both ZIP codes are unavailable') }, __exactVNode("g", { "data-exact-id": "xg9aQflOSTH-UOsPXPsbv7P", className: "map-states" }, __exactDynamic(() => usStatePaths.map((state) => (__exactVNode("path", { "data-exact-id": "xIKrJYAJcbO5iYcgxjWbcWd", className: __exactExpression(() => `land state state-${state.abbreviation.toLowerCase()}`), d: __exactExpression(() => state.d) }, __exactVNode("title", { "data-exact-id": "x_AosT7DNY25bOPwc_B6Ash" }, __exactDynamic(() => state.name))))))), __exactDynamic(() => ((props.route.origin
-            ? project(props.route.origin.latitude, props.route.origin.longitude)
-            : undefined)
-            &&
-                (props.route.destination
-                    ? project(props.route.destination.latitude, props.route.destination.longitude)
-                    : undefined) ? arcPath((props.route.origin
-            ? project(props.route.origin.latitude, props.route.origin.longitude)
-            : undefined), (props.route.destination
-            ? project(props.route.destination.latitude, props.route.destination.longitude)
-            : undefined)) : undefined)
-            ? __exactVNode("path", { "data-exact-id": "xzZm9eczoahoRg5ZisTPzEF", className: "route-arc", d: __exactExpression(() => ((props.route.origin
-                    ? project(props.route.origin.latitude, props.route.origin.longitude)
-                    : undefined)
-                    &&
-                        (props.route.destination
-                            ? project(props.route.destination.latitude, props.route.destination.longitude)
-                            : undefined) ? arcPath((props.route.origin
-                    ? project(props.route.origin.latitude, props.route.origin.longitude)
-                    : undefined), (props.route.destination
-                    ? project(props.route.destination.latitude, props.route.destination.longitude)
-                    : undefined)) : undefined)) }) : null), __exactDynamic(() => (props.route.origin
-            ? project(props.route.origin.latitude, props.route.origin.longitude)
-            : undefined)
-            ? (__exactFragment({}, __exactVNode("circle", { "data-exact-id": "x9S79WVa96qfzc1Dj0foxtT", className: "map-point origin", cx: __exactExpression(() => (props.route.origin
-                    ? project(props.route.origin.latitude, props.route.origin.longitude)
-                    : undefined).x), cy: __exactExpression(() => (props.route.origin
-                    ? project(props.route.origin.latitude, props.route.origin.longitude)
-                    : undefined).y), r: "6" }), __exactVNode("circle", { "data-exact-id": "xiNekTMkZJnsWYWBL7vH3sg", className: "map-halo", cx: __exactExpression(() => (props.route.origin
-                    ? project(props.route.origin.latitude, props.route.origin.longitude)
-                    : undefined).x), cy: __exactExpression(() => (props.route.origin
-                    ? project(props.route.origin.latitude, props.route.origin.longitude)
-                    : undefined).y), r: "12" }))) : null), __exactDynamic(() => (props.route.destination
-            ? project(props.route.destination.latitude, props.route.destination.longitude)
-            : undefined)
-            ? (__exactFragment({}, __exactVNode("circle", { "data-exact-id": "xeDIrDYZ6CdVjt1dRAZKqn0", className: "map-point destination", cx: __exactExpression(() => (props.route.destination
-                    ? project(props.route.destination.latitude, props.route.destination.longitude)
-                    : undefined).x), cy: __exactExpression(() => (props.route.destination
-                    ? project(props.route.destination.latitude, props.route.destination.longitude)
-                    : undefined).y), r: "6" }), __exactVNode("circle", { "data-exact-id": "x0PWQiFgaZ2iFPlfNvJZ4oY", className: "map-halo", cx: __exactExpression(() => (props.route.destination
-                    ? project(props.route.destination.latitude, props.route.destination.longitude)
-                    : undefined).x), cy: __exactExpression(() => (props.route.destination
-                    ? project(props.route.destination.latitude, props.route.destination.longitude)
-                    : undefined).y), r: "12" }))) : null)), __exactDynamic(() => !(props.route.origin
-            ? project(props.route.origin.latitude, props.route.origin.longitude)
-            : undefined) || !(props.route.destination
-            ? project(props.route.destination.latitude, props.route.destination.longitude)
-            : undefined) ? (__exactVNode("p", { "data-exact-id": "x1lZMvfXk6FcnBek3T8DSl9", className: "map-unavailable" }, "Map location unavailable for one or both ZIP codes.")) : null)));
+                : undefined;
+            const __exact_end_2 = props.route.destination
+                ? project(props.route.destination.latitude, props.route.destination.longitude)
+                : undefined;
+            const __exact_arc_1 = __exact_start_2 && __exact_end_2 ? arcPath(__exact_start_2, __exact_end_2) : undefined;
+            return __exact_arc_1 ? __exactVNode("path", { "data-exact-id": "xzZm9eczoahoRg5ZisTPzEF", className: "route-arc", d: __exactExpression(() => __exact_arc_1) }) : null;
+        })()), __exactDynamic(() => (() => {
+            const __exact_start_3 = props.route.origin
+                ? project(props.route.origin.latitude, props.route.origin.longitude)
+                : undefined;
+            return __exact_start_3 ? (__exactFragment({}, __exactVNode("circle", { "data-exact-id": "x9S79WVa96qfzc1Dj0foxtT", className: "map-point origin", cx: __exactExpression(() => __exact_start_3.x), cy: __exactExpression(() => __exact_start_3.y), r: "6" }), __exactVNode("circle", { "data-exact-id": "xiNekTMkZJnsWYWBL7vH3sg", className: "map-halo", cx: __exactExpression(() => __exact_start_3.x), cy: __exactExpression(() => __exact_start_3.y), r: "12" }))) : null;
+        })()), __exactDynamic(() => (() => {
+            const __exact_end_3 = props.route.destination
+                ? project(props.route.destination.latitude, props.route.destination.longitude)
+                : undefined;
+            return __exact_end_3 ? (__exactFragment({}, __exactVNode("circle", { "data-exact-id": "xeDIrDYZ6CdVjt1dRAZKqn0", className: "map-point destination", cx: __exactExpression(() => __exact_end_3.x), cy: __exactExpression(() => __exact_end_3.y), r: "6" }), __exactVNode("circle", { "data-exact-id": "x0PWQiFgaZ2iFPlfNvJZ4oY", className: "map-halo", cx: __exactExpression(() => __exact_end_3.x), cy: __exactExpression(() => __exact_end_3.y), r: "12" }))) : null;
+        })())), __exactDynamic(() => (() => {
+            const __exact_start_4 = props.route.origin
+                ? project(props.route.origin.latitude, props.route.origin.longitude)
+                : undefined;
+            const __exact_end_4 = props.route.destination
+                ? project(props.route.destination.latitude, props.route.destination.longitude)
+                : undefined;
+            return !__exact_start_4 || !__exact_end_4 ? (__exactVNode("p", { "data-exact-id": "x1lZMvfXk6FcnBek3T8DSl9", className: "map-unavailable" }, "Map location unavailable for one or both ZIP codes.")) : null;
+        })())));
     };
 }
 /** Performs the rate card domain operation. */
