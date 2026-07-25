@@ -2,11 +2,13 @@ import { createContext, type Child, type Component } from '@exactjs/core';
 
 /** Defines the server authorization interface contract. */
 export interface ServerAuthorization {
+	/** @exact shared */
 	roles(): readonly string[];
 }
 
 /** Defines the server brand interface contract. */
 export interface ServerBrand {
+	/** @exact shared */
 	publicBrand(): Readonly<{
 		name: string;
 		accent: string;
@@ -61,7 +63,10 @@ export const BrandContext = createContext<Brand>('sample.brand.public', {
 	reactive: false
 });
 
-/** Reads protected server contexts and projects only public identity state. */
+/**
+ * Reads protected server contexts and projects only explicitly shared public
+ * results into client-visible component state.
+ */
 export function ServerIdentityProjection(
 	this: Component<{
 		roleNames: string;

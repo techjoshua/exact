@@ -1,11 +1,13 @@
-import { createCompiledVNode as __exactVNode, createCompiledFragment as __exactFragment, createExpression as __exactExpression, createDynamicChild as __exactDynamic, createDerived as __exactDerived, writeReactiveLazy as __exactWrite, updateReactiveValue as __exactUpdate, updateReactiveValueWithResult as __exactUpdateResult, deleteReactiveValue as __exactDelete, mutateReactiveArray as __exactArrayMutation, taskAwait as __exactTaskAwait } from "@exactjs/core";
+import { createCompiledVNode as __exactVNode, createCompiledFragment as __exactFragment, createExpression as __exactExpression, createDynamicChild as __exactDynamic, createDerived as __exactDerived, writeReactiveLazy as __exactWrite, updateReactiveValue as __exactUpdate, updateReactiveValueWithResult as __exactUpdateResult, deleteReactiveValue as __exactDelete, mutateReactiveArray as __exactArrayMutation, taskAwait as __exactTaskAwait, markComponentContinuationTask as __exactContinuationTask } from "@exactjs/core";
 import { createContext, type Child, type Component } from '@exactjs/core';
 /** Defines the server authorization interface contract. */
 export interface ServerAuthorization {
+    /** @exact shared */
     roles(): readonly string[];
 }
 /** Defines the server brand interface contract. */
 export interface ServerBrand {
+    /** @exact shared */
     publicBrand(): Readonly<{
         name: string;
         accent: string;
@@ -52,7 +54,10 @@ export const BrandContext = createContext<Brand>('sample.brand.public', {
     global: true,
     reactive: false
 });
-/** Reads protected server contexts and projects only public identity state. */
+/**
+ * Reads protected server contexts and projects only explicitly shared public
+ * results into client-visible component state.
+ */
 export function ServerIdentityProjection(this: Component<{
     roleNames: string;
     brandName: string;
@@ -61,7 +66,7 @@ export function ServerIdentityProjection(this: Component<{
     __exactUpdate(this.state, ["roleNames"], previous => previous ?? '');
     __exactUpdate(this.state, ["brandName"], previous => previous ?? '');
     __exactUpdate(this.state, ["brandAccent"], previous => previous ?? '');
-    this.task.server(async ({ signal: __exactSignal }) => {
+    this.task.server(__exactContinuationTask("xBSFY15Nxenh4yiPSTnHZOB", async ({ signal: __exactSignal }) => {
         await __exactTaskAwait(__exactSignal, Promise.resolve());
         const authorization = this.getContext(ServerAuthorizationContext);
         const brand = this.getContext(ServerBrandContext);
@@ -69,7 +74,7 @@ export function ServerIdentityProjection(this: Component<{
         __exactWrite(this.state, ["roleNames"], () => authorization.roles().join(','));
         __exactWrite(this.state, ["brandName"], () => publicBrand.name);
         __exactWrite(this.state, ["brandAccent"], () => publicBrand.accent);
-    });
+    }));
     return () => (__exactVNode(IdentityProvider, { initial: __exactExpression(() => ({
             roles: this.state.roleNames.split(',').filter(Boolean),
             brand: {
@@ -108,5 +113,5 @@ export function IdentityProvider(this: Component<{
 export function IdentitySummary(this: Component<Record<string, never>>) {
     const authorization = this.getContext(AuthorizationContext);
     const brand = this.getContext(BrandContext);
-    return () => (__exactVNode("button", { "data-exact-id": "xAuWIHSgShlDPe74bxZ84De", "data-brand": __exactExpression(() => brand.name()), "data-accent": __exactExpression(() => brand.accent()), "data-editor": __exactExpression(() => authorization.hasRole('editor') ? 'true' : 'false') }, __exactDynamic(() => brand.name()), ":", __exactDynamic(() => authorization.hasRole('editor') ? 'editor' : 'viewer')));
+    return () => (__exactVNode("button", { "data-exact-id": "xIrMXn9l9qpxy-0CWHBPPL6", "data-brand": __exactExpression(() => brand.name()), "data-accent": __exactExpression(() => brand.accent()), "data-editor": __exactExpression(() => authorization.hasRole('editor') ? 'true' : 'false') }, __exactDynamic(() => brand.name()), ":", __exactDynamic(() => authorization.hasRole('editor') ? 'editor' : 'viewer')));
 }

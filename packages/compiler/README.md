@@ -2,18 +2,31 @@
 
 The eXact TypeScript and TSX compiler. It analyzes component setup, reactive reads and writes,
 tasks, bindings, server/client placement, assets, and server-component boundaries, then emits
-renderer-ready JavaScript and manifests.
+renderer-ready target artifacts with private runtime contracts.
 
 Most applications should consume the compiler through `@exactjs/vite-plugin`,
 `@exactjs/webpack-plugin`, or `@exactjs/bun-plugin`. Direct consumers can use `transformSource`,
-compiler sessions, artifact planning, diagnostics, and the CLI.
+compiler sessions, artifact planning, diagnostics, final client-artifact isolation, optional
+continuation explanations, and the CLI.
 
 ```sh
-npx exact-compile --help
+npx exactc --help
 ```
 
 Compiler diagnostics are part of the programming model: writable bindings, stable list identity,
 task placement, and server/client boundaries are validated before runtime.
+
+Set `explain: true` with `transformSource()` to receive a stable,
+component-organized account of placement, transported captures, server-only
+context tokens, returned effects, and SSR resumption liveness. The explanation
+is optional and does not make the compiler's planning manifest a public runtime
+contract.
+
+Bundler integrations can call `assertExactClientArtifactIsolation()` with
+their final output graph. It rejects server artifacts or host-discovered
+server-only modules in client runtime chunks and assets. Source map paths are
+optional so private development maps can remain complete; a deployment host
+may submit public map sources for a separate disclosure audit.
 
 ## TypeScript compatibility
 

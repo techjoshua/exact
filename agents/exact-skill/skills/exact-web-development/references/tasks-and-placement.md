@@ -16,7 +16,7 @@ function Search(this: Component<SearchState>) {
 			return;
 		}
 
-		const response = await fetch('/api/search?q=' + encodeURIComponent(query), { signal });
+		const response = await fetch('/api/search?q=' + encodeURIComponent(query));
 		this.state.results = await response.json();
 	});
 

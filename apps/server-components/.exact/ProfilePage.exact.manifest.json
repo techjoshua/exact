@@ -457,6 +457,7 @@
           }
         ],
         "contextWrites": [],
+        "serverContextWrites": [],
         "boundaries": [
           "xjbD874UpZxqjxcAu1_iYpK"
         ]
@@ -477,9 +478,11 @@
       },
       "client": {
         "statePaths": [
-          "saves"
+          "saves",
+          "status"
         ],
         "valueCaptures": [],
+        "contexts": [],
         "boundaries": [
           "xjbD874UpZxqjxcAu1_iYpK"
         ]

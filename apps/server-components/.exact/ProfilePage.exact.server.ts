@@ -1,4 +1,4 @@
-import { createCompiledVNode as __exactVNode, createCompiledFragment as __exactFragment, createExpression as __exactExpression, createDynamicChild as __exactDynamic, writeReactiveLazy as __exactWrite, updateReactiveValue as __exactUpdate, updateReactiveValueWithResult as __exactUpdateResult, deleteReactiveValue as __exactDelete, mutateReactiveArray as __exactArrayMutation, taskAwait as __exactTaskAwait, createServerBoundary as __exactBoundary } from "@exactjs/core";
+import { createCompiledVNode as __exactVNode, createCompiledFragment as __exactFragment, createExpression as __exactExpression, createDynamicChild as __exactDynamic, writeReactiveLazy as __exactWrite, updateReactiveValue as __exactUpdate, updateReactiveValueWithResult as __exactUpdateResult, deleteReactiveValue as __exactDelete, mutateReactiveArray as __exactArrayMutation, taskAwait as __exactTaskAwait, markComponentContinuationTask as __exactContinuationTask, createServerBoundary as __exactBoundary } from "@exactjs/core";
 import type { Component } from '@exactjs/core';
 const __exactComponentContract_1 = /* @__PURE__ */ Symbol.for("@exactjs/component-contract");
 /** Tracks the state owned by profile. */
@@ -11,10 +11,10 @@ const __exactImplementation_ProfilePage_1 = function ProfilePage(this: Component
 }) {
     __exactWrite(this.state, ["saves"], () => 0);
     __exactWrite(this.state, ["status"], () => 'Loaded on the server');
-    this.task.server(this.reactive(() => props.name), async (__exactDependency, { signal: __exactSignal }) => {
+    this.task.server(this.reactive(() => props.name), __exactContinuationTask("x3JLureiZflgJmddVWOBoBF", async (__exactDependency, { signal: __exactSignal }) => {
         await __exactTaskAwait(__exactSignal, Promise.resolve());
         __exactWrite(this.state, ["status"], () => `Ready for ${__exactDependency}`);
-    });
+    }));
     return () => (__exactVNode("section", { "data-exact-id": "xbSlycRQOMTMIout-46XRGt" }, __exactVNode("p", { "data-exact-id": "xI2oufUW56KAQo6TSBTmvEG" }, __exactDynamic(() => this.state.status)), __exactBoundary("xjbD874UpZxqjxcAu1_iYpK", "ProfilePage_ExactClient_1", { "__exactState": { saves: this.state.saves } })));
 };
 export const ProfilePage: typeof __exactImplementation_ProfilePage_1 = /* @__PURE__ */ (() => Object.assign(__exactImplementation_ProfilePage_1, {
@@ -39,9 +39,11 @@ export const ProfilePage: typeof __exactImplementation_ProfilePage_1 = /* @__PUR
         resumption: {
             componentId: "x7gsBV1RVj9VfGBkq4km6f7",
             statePaths: [
-                "saves"
+                "saves",
+                "status"
             ],
             valueCaptures: [],
+            contexts: [],
             boundaries: [
                 "xjbD874UpZxqjxcAu1_iYpK"
             ]

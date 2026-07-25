@@ -12,5 +12,10 @@ import { renderToStringAsync } from '@exactjs/ssr';
 const html = await renderToStringAsync(<App />);
 ```
 
-Use compiler-generated manifests for actions, boundaries, and server components. Pair hydratable
-output with `@exactjs/hydrate`; plain SSR can remain script-free.
+Compose private contracts from compiler-generated server artifacts for actions, boundaries, and
+distributed component continuations. Pair hydratable output with `@exactjs/hydrate`; plain SSR can
+remain script-free.
+
+Hydratable results expose the same public component resumption activations serialized into their
+hydration script. Server-only context and resources may influence permitted HTML but never enter
+that client record.

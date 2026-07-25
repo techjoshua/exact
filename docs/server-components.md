@@ -1,269 +1,211 @@
-# Server Components
+# Server component execution
 
-For the native adoption target, server/request context direction, paired
-component-package contract, data residency policy, rendering safety, and
-implementation program, see
-[native-ssr-adoption-and-data-policy.md](native-ssr-adoption-and-data-policy.md).
+eXact uses one component model for client rendering, SSR, hydration, and
+compiler-separated server execution. A component with server work is lowered
+into two cooperating state machines:
 
-eXact supports three rendering modes from the same component model:
+- the durable client machine owns the live component instance, reactive state,
+  DOM bindings, and lifecycle;
+- the stateless server machine executes allowlisted continuations selected by
+  opaque generated operation IDs; and
+- SSR is the initial transition, producing HTML plus the minimum public record
+  needed to resume the client machine.
 
-- Client-only apps compile and run entirely in the browser.
-- SSR apps render HTML on the server, serialize hydration data, then attach client behavior.
-- Server component apps emit separate client/server artifacts and use a secure endpoint for action and boundary refresh traffic.
+This is similar to the syntactic sugar C# applies to an `async` method. Authored
+linear code becomes explicit continuation and state-management machinery.
+eXact distributes that generated machinery across the browser and server.
 
-Server component mode is opt-in. The authoring goal is still simple: write ordinary eXact components, use `this.task(...)`, and let the compiler infer what can stay on the server. Explicit `this.task.server(...)` and `this.task.client(...)` are escape hatches when the compiler needs a hard boundary.
+For the full architecture and disclosure model, see
+[distributed-component-continuations.md](distributed-component-continuations.md).
+For production runtime and adapter concerns, see
+[native-ssr-production-guide.md](native-ssr-production-guide.md).
 
-## Symbol-level placement inference
+## Authoring
 
-Placement is inferred per declaration; there is deliberately no module-wide `server-only` or `client-only` marker. One source file can contain server, client, and isomorphic declarations that are emitted into different artifacts.
+Prefer ordinary component code and let placement follow environment usage:
 
-Compiler manifest v2 records canonical callable, initializer, effect-source, call-edge, state/context, dependency, and artifact-target summaries. Local and v2-manifested calls are resolved by TypeScript binding identity through aliases, methods, namespace imports, and re-exports. Recursive groups use deterministic strongly connected component fixed points. Opaque calls remain `unknown` and require an explicit task boundary when placement affects execution.
+```tsx
+interface ProductRepository {
+	/** @exact shared */
+	find(id: string): Promise<{ id: string; name: string }>;
+}
 
-Effects and artifact reachability remain separate:
+const Products = createContext<ProductRepository>('products', {
+	scope: 'request',
+	reactive: false
+});
 
-- Browser-only reachability or browser API effects imply client placement.
-- Server-only reachability or server API effects imply server placement.
-- Reachability from both artifacts implies shared or dual-target emission where
-  the effects permit it.
-- Pure effect-free components should begin isomorphic and be emitted into whichever artifact subgraphs consume them.
+export function ProductPage(
+	this: Component<{ product?: { id: string; name: string } }>,
+	props: { id: string }
+) {
+	const products = this.getContext(Products);
 
-Isomorphic is the user-facing availability model, not an authored residency
-policy. There is no `keep=isomorphic` annotation and none is needed. The
-compiler determines whether an isomorphic declaration can live in one
-target-neutral `shared` artifact or requires target-specialized `dual` output
-in both the client and server artifacts.
+	this.task.server(async () => {
+		this.state.product = await products.find(props.id);
+	});
 
-`this.task.server(...)` and `this.task.client(...)` remain escape hatches for opaque dependencies or intentional lifecycle boundaries. Explicit placement is validated and cannot contradict known transitive effects. Compiler manifest v2 is an artifact-analysis format change only; HTTP actions, streaming, and hydration remain protocol v1.
+	return () => <h1>{this.state.product?.name}</h1>;
+}
+```
 
-## Build Artifacts
+The compiler captures `props.id` for the server transition. `Products` is
+resolved from trusted request context on the server and is never accepted from
+the client. The result contract deliberately permits the plain product value
+to cross.
 
-Use `exactc --artifacts --serverComponents` to emit split artifacts:
+Use `this.task.server()` or `this.task.client()` when placement expresses
+architecture or an opaque dependency prevents inference. Explicit placement
+cannot contradict known effects: a server task cannot read `window`, and a
+client task cannot import a server-only module.
+
+## Residency and disclosure
+
+Placement, serialization, and permission to disclose are different questions.
+A JSON-compatible value is not automatically public.
+
+- Application and request contexts supplied by the server runtime are
+  server-resident by default.
+- `@exact shared` may authorize a narrow local value or function result to
+  cross the boundary.
+- The annotation changes the result policy, not the residency of the receiver,
+  credentials, or neighboring values.
+- Secret qualification always wins. Secret data cannot become shared, affect
+  public HTML, enter hydration data, or appear in a public error.
+- Non-serializable and undeclared captures remain compiler errors.
+
+Server-owned non-secret data may produce public HTML without becoming
+structured client state. If the live browser machine must continue observing
+that data, project an explicitly shared plain-data result.
+
+## Artifact isolation
+
+Target-specific compilation emits `.exact.client`, `.exact.server`, and when
+appropriate `.exact.shared` artifacts. Generated component contracts are
+attached privately to the artifacts that own them. Runtime composition reads
+those contracts; applications do not invent generated operation IDs.
+
+Imports used exclusively by server continuations remain unreachable from
+client runtime output. This includes transitive dependencies, re-exports,
+dynamic imports, CSS, workers, schemas, and WASM assets. A component can use
+Apollo Client, TanStack Query, a database SDK, or a GraphQL parser on the server
+without adding those packages or their dependency graphs to the browser
+bundle.
+
+The host-neutral final artifact verifier checks client chunks and assets after
+bundling. Vite runs it automatically for client builds. Private development
+source maps may retain authored server source for debugging; they ordinarily
+are not published. Public map disclosure is a separate deployment decision.
+
+## Build artifacts
+
+The compiler CLI can emit split artifacts:
 
 ```sh
 npx exactc --rootDir src --outDir .exact --artifacts --serverComponents src
 ```
 
-For each source component file the compiler can emit:
+Build integrations select `client` or `server` targets and preserve matching
+package export conditions. Do not import a server artifact into browser code or
+make runtime adapters reproduce compiler placement logic.
 
-- `Component.exact.shared.ts`: target-neutral declarations whose complete
-  dependency closure is also target-neutral.
-- `Component.exact.client.ts`: browser-safe exports, client islands, event handlers, refs, and client tasks.
-- `Component.exact.server.ts`: server-renderable exports, server parts, server stubs for client boundaries, and server-safe tasks.
-- `Component.exact.manifest.json`: stable IDs, generated symbol names, action contracts, boundary metadata, and component edges.
+Generated artifacts currently include planning metadata used by compilation,
+but application runtime wiring should use the private contracts attached to
+the generated modules. The planning manifest is not the long-term runtime API.
 
-Generated shared and target-specific dual declarations are exported from the
-matching generated module whenever another generated client or server module
-must import them. This internal export is required independently of the public
-barrel. The target entry re-exports the declaration publicly only when the
-authored package already exposes it through that public entrypoint.
+## Runtime composition
 
-Generated symbols are deterministic and derived from the authored export name, for example `ProfilePage_ExactClient_1` or `ProfilePage_ExactServer_1`. Runtime protocol identity should use manifest IDs rather than JavaScript function names because bundlers and minifiers may rename symbols.
-
-## Build Tool Integration
-
-The Vite, Webpack, and Bun adapters share the same compiler options:
+Compose executable authority from generated server artifacts:
 
 ```ts
-exact({
-	target: 'server',
-	serverComponents: true,
-	manifestFiles: ['./.exact/ProfilePage.exact.manifest.json']
-});
-```
-
-Use `target: "client"` for the browser bundle and `target: "server"` for server rendering. With `serverComponents: true`, client-target artifacts omit server-owned authored components while preserving generated client islands and pure client child components.
-
-Generated element islands can keep server-owned child subgraphs on the server. For example, an interactive shell element with an `onClick` handler can hydrate as a client island while a nested server component, local or imported through manifest metadata, is rendered as a server-owned `props.children` slot instead of being pulled into the browser bundle.
-
-Adapters also understand `.exact` facade imports. A client build resolves `./ProfilePage.exact` to the client artifact; a server build resolves it to the server artifact. Published component libraries can expose `exact-client` and `exact-server` package export conditions so each component remains independently tree-shakable for the selected render target.
-
-The public target artifacts may import their implementation dependencies from
-generated shared and matching target-specific artifacts. Package export
-conditions select the public client or server entry; they do not require every
-internal generated artifact to be exposed as public package API.
-
-`manifestFiles` are read at transform time. Watch pipelines can regenerate `.exact.manifest.json` files and keep imported component classification fresh without recreating plugin instances.
-
-## Context Lifetimes
-
-Application- and request-scoped contexts are established by the server runtime
-before root component setup. Component providers may read visible values from
-either scope and derive component-tree context values from them.
-
-`this.setContext()` always publishes into the component subtree. The resulting
-context cannot become application- or request-scoped, even when its value was
-derived from one of those longer-lived scopes or carries the same token shape.
-Derivation changes the value, not its lifetime. Only the server runtime creates
-application and request lifetimes.
-
-`createExactServerRuntime()` accepts `applicationContexts` and
-`requestContexts`. Registrations use `[Token, { value }]` for externally owned
-values or `[Token, { create, dispose? }]` for runtime-owned values. Factories
-receive the active abort signal, portable request data when request-scoped, the
-adapter's original `platformRequest`, and asynchronous `get(token)` dependency
-resolution.
-
-Initial SSR should use `renderExactRequestToHtmlResponse()` or
-`renderExactRequestToProgressiveHtmlResponse()`. These entrypoints establish
-the same trusted scope used by action and refresh dispatch, seed it into the
-root component, settle pre-commit component work, apply request status/header
-controls, and retain request resources through stream completion.
-
-## Server Manifest
-
-Server apps convert compiler manifests into a runtime allowlist:
-
-```ts
-import compilerManifest from '../.exact/ProfilePage.exact.manifest.json' with { type: 'json' };
-import { createExactServerManifest } from '@exactjs/server';
-
-const manifest = createExactServerManifest(compilerManifest, {
-	endpoint: '/__exact',
-	actions: {
-		'ProfilePage.task.loadProfile': {
-			id: 'ProfilePage.task.loadProfile',
-			componentId: 'ProfilePage',
-			placement: 'server'
-		}
-	}
-});
-```
-
-Only IDs present in the runtime manifest can be invoked. The client never sends module paths, export names, function bodies, or arbitrary component names. When several compiler manifests are combined, conflicting duplicate action or boundary IDs fail during runtime manifest creation instead of silently overwriting each other. App-owned boundary overrides are still explicit through `createExactServerManifest(..., { boundaries })`.
-
-## Handler Registry
-
-`@exactjs/ssr` can build a ready runtime context from manifest-scoped action and boundary handlers:
-
-```ts
+import { readExactComponentContract } from '@exactjs/core';
+import {
+	composeExactExecutorContract,
+	createExactHydrationConfig,
+	handleExactRequest
+} from '@exactjs/server';
 import { createExactServerRuntime } from '@exactjs/ssr';
-import { handleExactRequest } from '@exactjs/server';
-import { renderProfilePage } from './server-entry';
+import { ProductPage } from '../.exact/ProductPage.exact.server.js';
 
-const runtime = createExactServerRuntime({
-	manifest,
-	actions: {
-		'ProfilePage.task.loadProfile': async (input) => {
-			// App code runs here, but only behind the manifest ID allowlist.
-			return { state: { profileId: input.state } };
-		}
-	},
-	boundaries: {
-		ProfilePage: () => renderProfilePage()
-	},
-	patchStrategy: 'element',
-	authorize: validateSession,
-	validateCsrf,
-	logger
+const contract = readExactComponentContract(ProductPage);
+if (!contract) throw new Error('Missing generated ProductPage contract');
+
+const executor = composeExactExecutorContract([ProductPage], {
+	endpoint: '/__exact'
 });
+const runtime = createExactServerRuntime({ contract: executor });
 
-const response = await handleExactRequest(request, runtime);
+export const hydration = createExactHydrationConfig(executor);
+export const handle = (request: ExactRequestLike) => handleExactRequest(request, runtime);
 ```
 
-The same `handleExactRequest(request, context)` core works with Fetch-compatible runtimes, Express, Hapi, or custom JavaScript servers. `createFetchHandler`, `createExpressHandler`, and `createHapiHandler` are thin adapters over the same validation and dispatch logic. Apps that need lower-level composition can still use `createExactServerHandlerRegistry()` and merge the returned handlers into their own `ExactServerContext`.
+Adapters translate Fetch, Node, Express, Hapi, Bun, or other host requests into
+the runtime-neutral request shape. Authentication and authorization remain
+server configuration. The generated continuation never treats client context
+as proof of identity.
 
-## Hydration
+## Context lifetimes
 
-Server rendering sends endpoint, state contracts, and action boundary hints to the browser:
+`createExactServerRuntime()` accepts application and request context
+registrations. Application factories live until runtime disposal. Request
+factories live through the response or stream and receive the request abort
+signal. Dependencies resolve through asynchronous `get(token)` calls, and
+runtime-owned values dispose in dependency-safe reverse order.
 
-```ts
-import { createExactHydrationManifestConfig } from '@exactjs/server';
-import { renderToHydratableStringAsync } from '@exactjs/ssr';
+`this.setContext()` creates component-tree context for descendants. It does not
+promote a value to application or request lifetime. Shared component-context
+writes may return to the client only when the compiler contract names them;
+server-resident context writes remain server-only.
 
-const hydration = createExactHydrationManifestConfig(manifest, {
-	sessionId: 's1'
-});
+## SSR and hydration
 
-const html = await renderToHydratableStringAsync(renderProfilePage(), hydration);
-```
+Use request-aware SSR entrypoints when rendering with server contexts. SSR can
+settle server tasks, capture the permitted state and shared context needed by
+the browser, and mark those continuations as settled.
 
-The client reads the hydration script automatically:
+Hydration then:
 
-```ts
-import { hydrate } from "@exactjs/hydrate";
-import { ProfilePage_ExactClient_1 } from "../.exact/ProfilePage.exact.client";
+1. validates the emitted activation against the generated client contract;
+2. reconstructs the durable component state and shared component context;
+3. adopts matching SSR DOM instead of mounting a duplicate tree; and
+4. arms settled tasks without immediately repeating the server query.
 
-hydrate(<ProfilePage />, document.getElementById("app")!, {
-  islands: {
-    ProfilePage_ExactClient_1
-  }
-});
-```
+Later dependency changes send fresh compiler-selected snapshots to the server.
+The response can update only declared state paths, shared context names, and
+owned DOM boundaries.
 
-Hydration restores serialized state before the initial client render and skips duplicated server-completed work when the manifest confirms the server already provided it.
+## Protocol and security
 
-Apps can also provide per-action and per-boundary endpoint routes in the hydration config. The root `endpoint` remains the default, while routed operations are sent to their configured endpoint and batched separately from same-tick operations targeting other endpoints.
+The endpoint accepts allowlisted action, refresh, and batch operations. The
+runtime validates request shape, dependency arity, state reads, public context,
+response state, context writes, patches, payload limits, build identity, and
+staleness before mutating the client machine.
 
-Dynamically loaded bundles can register additional hydration metadata against an existing root with `client.registerManifest(...)`. Registration merges endpoint routes, state contracts, action boundary hints, client island components, and optional per-endpoint transport hooks so a remote subtree can route server operations to its own endpoint and hydrate returned client islands without recreating the shell root. Re-registering identical metadata is idempotent, while conflicting duplicate IDs fail immediately. If the registration includes client islands, existing matching placeholders in the root hydrate immediately and already-hydrated placeholders are skipped.
+The client does not send module paths, function bodies, export names, server
+context values, database clients, credentials, or arbitrary component names.
+Unknown operation and boundary IDs are rejected.
 
-Build tools can generate that client-side registration glue from artifact graphs with `createExactHydrationRegistrationModule()`. The generated module imports the bundle's client islands and exports a `registerManifest`-ready object containing islands, optional endpoint routes, compiler-derived state contracts, and action boundary hints.
+## Testing and explainability
 
-## Protocol
+`@exactjs/testing` supports both halves without requiring tests to know
+generated operation names:
 
-The client endpoint supports:
+- `testServerComponent()` imports a generated server artifact, configures
+  application/request/component context, and exposes settled state, HTML,
+  provided context, and emitted `view.resumptions`;
+- `mountClientServerTest()` hydrates generated client artifacts against a real
+  in-memory handler and records ordered protocol exchanges;
+- `view.hydration` reports whether roots or islands adopted, mounted, or
+  updated DOM; and
+- `ExactProtocolRecorder.serverContextAccesses()` reports authored context
+  token use without recording server-owned values when wired to the runtime's
+  `onContextAccess` callback.
 
-- `action`: invoke one manifest-allowlisted server action.
-- `refresh`: rerender one manifest-allowlisted server boundary.
-- `batch`: send same-tick operations together.
+Compiler callers may set `explain: true` on a transform to receive a stable
+component-organized report of placement, client-to-server captures,
+server-resident context tokens, returned effects, and SSR resumption liveness.
+Normal builds remain quiet.
 
-Batches behave like independent GraphQL-style operation groups: each operation has its own result, and optional `opId` / `dependsOn` metadata can express dependency ordering. `opId` values must be unique within a batch. Independent operations run concurrently and preserve request-order results. Dependent operations wait for successful prerequisites and are skipped with `dependency_failed` if a prerequisite does not succeed.
-
-Clients can opt into streamed endpoint responses by sending `Accept: application/x-ndjson` or `x-exact-stream: 1`; `@exactjs/hydrate` does this when `stream: true` is set. Stream responses are newline-delimited JSON events: `start`, zero or more per-operation `patch`, `state`, and `html` chunk events, one terminal `result` event per operation with `index` and optional `opId`, then `complete`. Independent batch chunks may arrive out of order as operations finish; the client restores request-order results before resolving helper promises.
-
-Initial document rendering can stream through `renderToDocumentStream()` or `renderToHydratableDocumentStream()`. These streams emit newline-delimited JSON document events: `start`, `shell`, optional root `replace` after observed async server tasks settle, optional `hydration`, and `complete`.
-
-Apps that want to write a browser response directly can use `renderToProgressiveHtmlStream()` or `renderToHydratableProgressiveHtmlStream()`. These streams emit the shell inside a configurable root element immediately, then convert later root replacements into escaped inline scripts. Hydratable progressive streams include the same inert hydration JSON script used by `renderToHydratableStringAsync()`. `renderToProgressiveHtmlResponse()` and `renderToHydratableProgressiveHtmlResponse()` package those streams as `ExactResponseLike` objects so adapters can return the same result shape across Fetch, Express, Hapi, Vite, Webpack, Bun, or custom servers.
-
-The planned root-document mode lets an application render `html`, `head`, and `body` directly. eXact then augments reserved positions within those authored elements with the hydration data, client bootstrap, manifests, and progressive-stream payloads required by the selected render mode. The application owns the document shell and normal head contents; injected nodes remain framework-owned and are not repeated by the client render. See the native SSR adoption design for the normalization and CSP requirements.
-
-Patch responses can include text updates, prop/style updates, independent nested structural replacements, keyed list operations, state updates, and boundary replacement. If a fine-grained patch cannot apply cleanly, the client replaces the nearest server boundary with the authoritative server-rendered HTML.
-
-## Security
-
-The manifest is the execution boundary:
-
-- Unknown action and boundary IDs are rejected.
-- Unknown request fields are rejected.
-- Endpoint path mismatches are rejected when the manifest configures an endpoint.
-- Boundary snapshot IDs must be known to the manifest and, for actions, must match the action's allowed boundary list.
-- Payload, state, result, patch, and hydration data must be JSON-safe.
-- Serialized request context is rejected unless the action manifest has an exact context contract for every submitted token; exact context reads must be present before dispatch.
-- The hydration client validates successful endpoint response shapes before applying patches.
-- App-provided `authorize` and `validateCsrf` hooks run before dispatch.
-- Server-only code is emitted only into server artifacts.
-
-Rejected requests are logged through framework logging without leaking server internals to the client.
-
-## Future Work: Micro Frontends
-
-Server component support should eventually handle micro frontend trees where the initial HTML is owned by one shell app, but feature bundles are loaded dynamically from other apps or endpoints.
-
-The expected model:
-
-- Only the shell app owns initial document SSR. Remote apps do not participate in that first server render unless the shell explicitly hosts their server artifacts.
-- Remote apps can still own server component subtrees after hydration. The shell renders a placeholder, the client loads the remote bundle, registers its manifest/client islands, and requests the remote server-rendered subtree from that remote app's endpoint.
-- Endpoint routing is manifest/action/boundary scoped. A shell action can use `/__exact`, while a billing boundary can use `https://billing.example.com/__exact`.
-- Client batching groups same-tick operations per endpoint. Operations for different remotes produce separate endpoint batches, while preserving each endpoint's existing `opId` / `dependsOn` dependency behavior.
-- A remote endpoint should only accept IDs from the manifests it owns or that the host explicitly provides. Patches from a remote endpoint should only target boundaries owned by that remote manifest unless the host grants cross-manifest authority.
-- Dynamically loaded remotes can register manifest metadata, endpoint routing, client islands, and optional per-endpoint transport hooks at runtime.
-
-Context sharing across micro frontend bundles has an explicit same-realm token option:
-
-- Context tokens currently use unique local symbols, so duplicate copies of a shared context module can create separate token identities.
-- For cross-bundle context, `createContext(description, true)` creates a globally keyed context while keeping local contexts as the default.
-- A global context uses a namespaced `Symbol.for()` key, for example `Symbol.for("exact.context:com.company.auth.user")`.
-- Authors should use collision-resistant namespaced descriptions for global contexts, such as `com.company.auth.user`, not generic names like `user`.
-- Built-in framework contexts such as logger and error context use global keys so duplicated `@exactjs/core` copies can share them in one browser realm.
-- `Symbol.for()` only solves identity within the same JavaScript realm. Cross-iframe, worker, or remote server endpoint context still has to be passed explicitly as validated serialized request/session data.
-- Remote server components should not receive arbitrary client-provided context. Compiler/runtime manifests record action context contracts from `this.getContext(...)` / `this.setContext(...)`, and endpoint validation rejects serialized context tokens that are not allowlisted by the action contract. Cross-endpoint context should still be treated as explicit app/session data, not ambient authority.
-
-## Sample
-
-`apps/server-components` is the executable wiring sample. It uses generated artifacts and manifest data, registers server handlers, exercises the secure endpoint, hydrates a generated client island in jsdom, invokes an action, and applies the returned patch.
-
-Run:
-
-```sh
-npm run build:server-components
-npm run test:server-components
-```
+See [the server-components sample](../apps/server-components/README.md) for
+generated artifact composition, hydratable rendering, server context
+projection, authorization, and client/server tests.

@@ -75,10 +75,15 @@ Bun, Node, Fetch runtimes, server frameworks, serverless targets, or eXact plugi
   Pass explicit reactive dependencies only when they must be supplied indirectly.
 - Use `this.task.client(...)` or `this.task.server(...)` only when placement is architectural or
   cannot be inferred from browser/server usage.
+- Treat a server task as one compiler-generated transition of the same component, not as a second
+  application architecture. Resolve database, API, Apollo, TanStack Query, and other resource
+  clients from server context; transport only compiler-approved public results.
 
 Read [forms-and-lists.md](references/forms-and-lists.md) for controls, conversions, nullable
 bindings, radio groups, multi-selects, checkbox groups, and list identity. Read
 [tasks-and-placement.md](references/tasks-and-placement.md) for asynchronous work and split builds.
+Read [distributed-execution.md](references/distributed-execution.md) before creating or changing
+server tasks, server context, SSR resumption, or client/server protocol tests.
 
 ## Follow existing application structure
 

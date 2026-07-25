@@ -15,6 +15,10 @@ The plugin compiles eXact TSX, resolves generated `.exact` facades, applies clie
 conditions, participates in HMR and diagnostics, and can enable React compatibility and
 microfrontend projections.
 
+Client builds also verify the final Rollup output graph. A module, dynamic import, chunk, or
+runtime asset carrying an `.exact.server` contribution fails the build after bundling, while
+private development source maps remain available for debugging.
+
 It also configures the automatic JSX runtime with `@exactjs/jsx`. This is required explicitly by
 Vite 8's Oxc transform and also protects Vitest runs that load the Vite configuration. User Vite
 configuration can still override the returned Oxc options; set `configureJsxRuntime: false` when a

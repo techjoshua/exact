@@ -14,6 +14,7 @@ import { ReactCompatibilityPage } from './pages/ReactCompatibilityPage.jsx';
 import { RoutingPage } from './pages/RoutingPage.jsx';
 import { RuntimesPage } from './pages/RuntimesPage.jsx';
 import { SecretsPluginPage } from './pages/SecretsPluginPage.jsx';
+import { ServerExecutionPage } from './pages/ServerExecutionPage.jsx';
 import { StatePage } from './pages/StatePage.jsx';
 import { TasksPage } from './pages/TasksPage.jsx';
 import { TestingPage } from './pages/TestingPage.jsx';
@@ -96,6 +97,15 @@ export const docGroups: DocGroup[] = [
 				summary: 'Own asynchronous work with the component.',
 				keywords: 'task async abort signal cleanup effects',
 				component: TasksPage
+			},
+			{
+				path: '/learn/server-execution',
+				label: 'Server execution',
+				summary:
+					'Understand distributed component continuations, SSR resumption, and server-only dependency isolation.',
+				keywords:
+					'server task continuation state machine C# async SSR hydration context Apollo TanStack bundle shared secret',
+				component: ServerExecutionPage
 			}
 		]
 	},

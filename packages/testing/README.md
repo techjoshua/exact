@@ -33,6 +33,7 @@ expect(view.html).toContain('Account 42');
 expect(view.root.state().loaded).toBe(true);
 expect(view.root.find(AccountSummary).context(CurrentUser)).toBe(user);
 expect(view.root.providedContext(AccountContext)).toEqual(expectedAccount);
+expect(view.resumptions).toEqual(expect.any(Array));
 ```
 
 `render()` runs and settles server tasks, captures state, props, parent/child ownership, inherited
@@ -49,9 +50,15 @@ const server = await testServerComponent(AccountPage)
 	.requestContext(CurrentUser, user)
 	.render({ hydration: { endpoint: '/__exact' } });
 
+const protocol = new ExactProtocolRecorder();
+const runtime = createExactServerRuntime({
+	...serverOptions,
+	onContextAccess: (observation) => protocol.observeServerContextAccess(observation)
+});
 const view = await mountClientServerTest({
 	server,
-	handle: handleExactServerRequest,
+	protocol,
+	handle: (request) => handleExactRequest(request, runtime),
 	islands
 });
 
@@ -60,15 +67,22 @@ await view.getByRole('button', { name: 'Save' }).click();
 const exchange = view.protocol.exchanges[0];
 expect(exchange.operations[0]?.type).toBe('action');
 expect(exchange.clientOperations[0]?.patchesApplied).toBe(true);
+expect(view.hydration[0]?.outcome).toBe('mounted');
+expect(protocol.serverContextAccesses().map(({ token }) => token)).toContain('CurrentUser');
 expect(view.component(AccountEditor).providedContext(EditorContext)).toBeDefined();
 view.unmount();
 ```
 
 The paired view hydrates the generated client islands, routes requests through an in-memory
 `FetchLike` transport, records request and response envelopes, and records whether returned patches
-were applied, rejected, or ignored as stale. Generated operation IDs are deliberately opaque:
+were applied, rejected, or ignored as stale. `view.hydration` records whether DOM was adopted,
+mounted, or updated.
+
+To inspect server context usage without values, create and pass an `ExactProtocolRecorder`, then
+wire the server runtime's `onContextAccess` callback to
+`protocol.observeServerContextAccess`. Generated operation IDs are deliberately opaque:
 trigger behavior through the component and interrogate the observed exchange instead of deriving an
-action name from a manifest.
+action name from planning metadata.
 
 Most applications should use `@exactjs/vitest` or `@exactjs/jest`, which install the shared
 matchers and runner configuration automatically. The `./vitest` and `./jest` entrypoints remain

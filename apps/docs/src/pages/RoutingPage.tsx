@@ -27,7 +27,7 @@ export function RoutingPage(this: Component<{}>) {
 			eyebrow="Build for the web"
 			title="Routes are components too"
 			description="The native router matches component references, nests layouts through outlets, and runs against browser history, URL hashes, memory, or an ambient server request."
-			previous={{ path: '/learn/tasks', label: 'Tasks & cleanup' }}
+			previous={{ path: '/learn/server-execution', label: 'Server execution' }}
 			next={{ path: '/guides/forms', label: 'Accessible forms' }}
 		>
 			<Callout title="You are looking at it" tone="tip">

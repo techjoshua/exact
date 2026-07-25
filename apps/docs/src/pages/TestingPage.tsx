@@ -30,14 +30,22 @@ expect(view.root.state().loaded).toBe(true);
 expect(view.root.find(AccountSummary).context(CurrentUser)).toBe(user);
 expect(view.root.providedContext(AccountContext)).toEqual(account);`;
 
-const clientServerTestingSource = `const server = await testServerComponent(AccountPage)
+const clientServerTestingSource = `const protocol = new ExactProtocolRecorder();
+const runtime = createExactServerRuntime({
+  ...serverOptions,
+  onContextAccess: (observation) =>
+    protocol.observeServerContextAccess(observation)
+});
+
+const server = await testServerComponent(AccountPage)
   .requestContext(CurrentUser, user)
   .render({ hydration: { endpoint: '/__exact' } });
 
 const view = await mountClientServerTest({
   server,
-  handle: handleExactServerRequest,
-  islands
+  protocol,
+  handle: (request) => handleExactRequest(request, runtime),
+  islands,
 });
 
 // Generated client code initiates the real in-memory request.
@@ -47,6 +55,10 @@ await view.getByRole('button', { name: 'Save' }).click();
 const exchange = view.protocol.exchanges[0];
 expect(exchange.operations[0]?.type).toBe('action');
 expect(exchange.clientOperations[0]?.patchesApplied).toBe(true);
+expect(view.hydration[0]?.outcome).toBe('mounted');
+expect(server.resumptions).toEqual(expect.any(Array));
+expect(protocol.serverContextAccesses().map(({ token }) => token))
+  .toContain('CurrentUser');
 expect(view.component(AccountEditor).providedContext(EditorContext)).toBeDefined();
 view.unmount();`;
 
@@ -101,13 +113,16 @@ export function TestingPage(this: Component<{}>) {
 				<p>
 					The paired view hydrates generated client islands and sends their requests directly to the
 					application&apos;s server handler. It records request and response envelopes as well as
-					whether response patches were applied, rejected, or ignored as stale.
+					whether response patches were applied, rejected, or ignored as stale. The server render
+					exposes the public resumption records it emitted, and the paired view records whether each
+					hydration target adopted existing DOM or mounted new DOM.
 				</p>
 				<p>
 					Tests do not need an action registry or a compiler manifest to discover generated names.
 					Trigger the behavior through the component, then inspect the recorded operation. Generated
 					identifiers remain available as opaque protocol evidence without becoming part of the test
-					contract.
+					contract. A shared recorder can also receive server-context access observations. Those
+					records contain the authored token and operation identity, never the server-owned value.
 				</p>
 			</section>
 		</Article>

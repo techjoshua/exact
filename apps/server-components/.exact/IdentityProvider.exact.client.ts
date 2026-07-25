@@ -2,10 +2,12 @@ import { createCompiledVNode as __exactVNode, createCompiledFragment as __exactF
 import { createContext, type Child, type Component } from '@exactjs/core';
 /** Defines the server authorization interface contract. */
 export interface ServerAuthorization {
+    /** @exact shared */
     roles(): readonly string[];
 }
 /** Defines the server brand interface contract. */
 export interface ServerBrand {
+    /** @exact shared */
     publicBrand(): Readonly<{
         name: string;
         accent: string;
@@ -71,5 +73,5 @@ export function IdentityProvider(this: Component<{
 export function IdentitySummary(this: Component<Record<string, never>>) {
     const authorization = this.getContext(AuthorizationContext);
     const brand = this.getContext(BrandContext);
-    return () => (__exactVNode("button", { "data-exact-id": "xAuWIHSgShlDPe74bxZ84De", "data-brand": __exactExpression(() => brand.name()), "data-accent": __exactExpression(() => brand.accent()), "data-editor": __exactExpression(() => authorization.hasRole('editor') ? 'true' : 'false') }, __exactDynamic(() => brand.name()), ":", __exactDynamic(() => authorization.hasRole('editor') ? 'editor' : 'viewer')));
+    return () => (__exactVNode("button", { "data-exact-id": "xIrMXn9l9qpxy-0CWHBPPL6", "data-brand": __exactExpression(() => brand.name()), "data-accent": __exactExpression(() => brand.accent()), "data-editor": __exactExpression(() => authorization.hasRole('editor') ? 'true' : 'false') }, __exactDynamic(() => brand.name()), ":", __exactDynamic(() => authorization.hasRole('editor') ? 'editor' : 'viewer')));
 }

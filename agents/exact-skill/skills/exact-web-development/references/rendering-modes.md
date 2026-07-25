@@ -3,12 +3,12 @@
 Choose the mode from product requirements and the existing application. Do not add SSR, hydration,
 or server components merely because eXact supports them.
 
-| Mode              | Server output                              | Browser entry                           | Typical packages                                                          |
-| ----------------- | ------------------------------------------ | --------------------------------------- | ------------------------------------------------------------------------- |
-| Client-only       | Static host shell                          | `render(<App />, root)`                 | `@exactjs/dom`                                                            |
-| SSR only          | Rendered HTML                              | None required                           | `@exactjs/ssr`                                                            |
-| Hydratable SSR    | Rendered HTML plus hydration data          | `hydrate(<App />, root)`                | `@exactjs/ssr`, `@exactjs/hydrate`                                        |
-| Server components | Server HTML, manifests, endpoints, patches | Hydration client and registered islands | Compiler artifacts, `@exactjs/server`, `@exactjs/ssr`, `@exactjs/hydrate` |
+| Mode              | Server output                                      | Browser entry                           | Typical packages                                                          |
+| ----------------- | -------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------- |
+| Client-only       | Static host shell                                  | `render(<App />, root)`                 | `@exactjs/dom`                                                            |
+| SSR only          | Rendered HTML                                      | None required                           | `@exactjs/ssr`                                                            |
+| Hydratable SSR    | Rendered HTML plus hydration data                  | `hydrate(<App />, root)`                | `@exactjs/ssr`, `@exactjs/hydrate`                                        |
+| Server components | Server HTML, private contracts, endpoints, patches | Hydration client and registered islands | Compiler artifacts, `@exactjs/server`, `@exactjs/ssr`, `@exactjs/hydrate` |
 
 ## Client-only rendering
 
@@ -69,15 +69,18 @@ Choose this only when the application needs compiler-separated client/server com
 server actions, refreshable server boundaries, or generated client islands.
 
 1. Enable `serverComponents: true` during artifact-aware client and server compilation.
-2. Produce or load compiler manifests; do not hand-invent component, action, or boundary IDs.
-3. Create the allowlisted server manifest and server runtime using installed eXact APIs.
+2. Import the compiler-generated target artifacts; do not hand-invent component, action, or
+   boundary IDs.
+3. Compose the allowlisted private component contracts and server runtime using installed eXact
+   APIs.
 4. Render hydratable server output with the corresponding manifest configuration.
 5. Expose the eXact endpoint through the deployment runtime's adapter.
 6. Configure the hydration client with the same endpoint and register generated client islands.
 
 Inspect existing generated `.exact.*` artifacts and nearby sample applications before modifying
-this flow. Keep endpoint routes, manifest metadata, state contracts, and action boundary hints
-aligned. Do not model this after React Server Components or dispatch client-provided module names.
+this flow. Keep endpoint routes, private component contracts, state contracts, and action boundary
+hints aligned. Do not model this after React Server Components or dispatch client-provided module
+names.
 
 Server-component capabilities are version-sensitive. Inspect the installed `@exactjs/compiler`,
 `@exactjs/server`, `@exactjs/ssr`, and `@exactjs/hydrate` exports before writing integration code.
