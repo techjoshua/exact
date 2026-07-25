@@ -47,7 +47,8 @@ export function createExactServerManifest(
 				taskId: action.taskId,
 				placement: action.placement,
 				stateContract: action.stateContract,
-				contextContract: action.contextContract
+				serverContextContract: action.serverContextContract,
+				publicContextContract: action.publicContextContract
 			};
 			addManifestAction(actions, nextAction);
 		}
@@ -164,7 +165,8 @@ function sameManifestAction(left: ExactManifestAction, right: ExactManifestActio
 		left.taskId === right.taskId &&
 		left.placement === right.placement &&
 		sameJsonData(left.stateContract ?? null, right.stateContract ?? null) &&
-		sameJsonData(left.contextContract ?? null, right.contextContract ?? null)
+		sameJsonData(left.serverContextContract ?? null, right.serverContextContract ?? null) &&
+		sameJsonData(left.publicContextContract ?? null, right.publicContextContract ?? null)
 	);
 }
 
@@ -222,7 +224,15 @@ function assertCompilerManifestLike(
 			throw new Error('Malformed eXact compiler manifest');
 		if (action.stateContract !== undefined && !isStateContract(action.stateContract))
 			throw new Error('Malformed eXact compiler manifest');
-		if (action.contextContract !== undefined && !isContextContract(action.contextContract))
+		if (
+			action.serverContextContract !== undefined &&
+			!isContextContract(action.serverContextContract)
+		)
+			throw new Error('Malformed eXact compiler manifest');
+		if (
+			action.publicContextContract !== undefined &&
+			!isContextContract(action.publicContextContract)
+		)
 			throw new Error('Malformed eXact compiler manifest');
 	}
 	if (record.components !== undefined && !Array.isArray(record.components))

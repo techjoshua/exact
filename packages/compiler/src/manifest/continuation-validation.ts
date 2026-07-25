@@ -22,6 +22,8 @@ export function isExactContinuation(value: unknown): value is ExactContinuationI
 		value.activation.dependencies.every(isDependency) &&
 		Array.isArray(value.activation.serverContexts) &&
 		value.activation.serverContexts.every(isContextEffect) &&
+		Array.isArray(value.activation.publicContexts) &&
+		value.activation.publicContexts.every(isContextEffect) &&
 		record(value.effects) &&
 		Array.isArray(value.effects.stateWrites) &&
 		value.effects.stateWrites.every(isStateEffect) &&

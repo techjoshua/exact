@@ -174,10 +174,8 @@ describe('@exactjs/server actions', () => {
 		expect(missingState.status).toBe(400);
 	});
 
-	it('validates serialized context against action context contracts', async () => {
-		const action = vi.fn((input) => ({
-			state: { user: (input.context as Record<string, unknown>).AuthContext }
-		}));
+	it('keeps server context resolution out of the client request contract', async () => {
+		const action = vi.fn(() => ({ state: { ready: true } }));
 		const exactContext = context({
 			manifest: {
 				version: 1,
@@ -185,7 +183,7 @@ describe('@exactjs/server actions', () => {
 					'allowed-action': {
 						id: 'allowed-action',
 						placement: 'server',
-						contextContract: [
+						serverContextContract: [
 							{ token: 'AuthContext', kind: 'read', confidence: 'exact' },
 							{ token: 'ThemeContext', kind: 'write', confidence: 'exact' }
 						]
@@ -202,11 +200,7 @@ describe('@exactjs/server actions', () => {
 				method: 'POST',
 				body: {
 					type: 'action',
-					id: 'allowed-action',
-					context: {
-						AuthContext: { id: 'u1' },
-						ThemeContext: 'dark'
-					}
+					id: 'allowed-action'
 				}
 			},
 			exactContext
@@ -215,52 +209,85 @@ describe('@exactjs/server actions', () => {
 		expect(accepted.status).toBe(200);
 		expect(JSON.parse(accepted.body)).toMatchObject({
 			ok: true,
-			state: { user: { id: 'u1' } }
+			state: { ready: true }
 		});
 		expect(action).toHaveBeenCalledOnce();
 
-		const missing = await handleExactRequest(
+		const submitted = await handleExactRequest(
 			{
 				method: 'POST',
 				body: {
 					type: 'action',
 					id: 'allowed-action',
-					context: {
-						ThemeContext: 'dark'
+					publicContext: {
+						AuthContext: { id: 'u1' }
 					}
 				}
 			},
 			exactContext
 		);
-		expect(missing.status).toBe(400);
-		expect(JSON.parse(missing.body)).toEqual({ error: 'bad_request' });
-
-		const unknown = await handleExactRequest(
-			{
-				method: 'POST',
-				body: {
-					type: 'action',
-					id: 'allowed-action',
-					context: {
-						AuthContext: { id: 'u1' },
-						SecretContext: 'nope'
-					}
-				}
-			},
-			exactContext
-		);
-		expect(unknown.status).toBe(400);
-		expect(JSON.parse(unknown.body)).toEqual({ error: 'bad_request' });
+		expect(submitted.status).toBe(400);
+		expect(JSON.parse(submitted.body)).toEqual({ error: 'bad_request' });
+		expect(action).toHaveBeenCalledOnce();
 	});
 
-	it('rejects serialized context when no action context contract allows it', async () => {
+	it('accepts only compiler-contracted public context projections', async () => {
+		const action = vi.fn((input) => ({
+			state: { domain: input.publicContext?.PublicConfig }
+		}));
+		const exactContext = context({
+			manifest: {
+				version: 1,
+				actions: {
+					'public-action': {
+						id: 'public-action',
+						placement: 'server',
+						publicContextContract: [{ token: 'PublicConfig', kind: 'read', confidence: 'exact' }]
+					}
+				}
+			},
+			actions: { 'public-action': action }
+		});
+
+		const accepted = await handleExactRequest(
+			{
+				method: 'POST',
+				body: {
+					type: 'action',
+					id: 'public-action',
+					publicContext: { PublicConfig: { domain: 'https://example.test' } }
+				}
+			},
+			exactContext
+		);
+		expect(accepted.status).toBe(200);
+		expect(JSON.parse(accepted.body)).toMatchObject({
+			state: { domain: { domain: 'https://example.test' } }
+		});
+
+		const rejected = await handleExactRequest(
+			{
+				method: 'POST',
+				body: {
+					type: 'action',
+					id: 'public-action',
+					publicContext: { SecretContext: 'nope' }
+				}
+			},
+			exactContext
+		);
+		expect(rejected.status).toBe(400);
+		expect(action).toHaveBeenCalledOnce();
+	});
+
+	it('rejects public context when no action contract allows it', async () => {
 		const result = await handleExactRequest(
 			{
 				method: 'POST',
 				body: {
 					type: 'action',
 					id: 'allowed-action',
-					context: {
+					publicContext: {
 						AuthContext: { id: 'u1' }
 					}
 				}

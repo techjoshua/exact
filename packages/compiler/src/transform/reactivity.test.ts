@@ -288,7 +288,7 @@ describe('@exactjs/compiler: reactivity', () => {
 			{ token: 'Services.Logger', kind: 'read', confidence: 'exact' },
 			{ token: 'LocaleContext', kind: 'write', confidence: 'exact' }
 		]);
-		expect(action.contextContract).toEqual([
+		expect(action.serverContextContract).toEqual([
 			{ token: 'LocaleContext', kind: 'read', confidence: 'exact' },
 			{ token: 'Services.Logger', kind: 'read', confidence: 'exact' },
 			{ token: 'LocaleContext', kind: 'write', confidence: 'exact' }

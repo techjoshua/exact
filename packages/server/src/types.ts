@@ -30,7 +30,10 @@ export type ExactManifestAction = {
 	taskId?: string;
 	placement?: 'server' | 'isomorphic';
 	stateContract?: ExactStateContract;
-	contextContract?: ExactContextEffect[];
+	/** Tokens the handler may resolve from the trusted server context scope. */
+	serverContextContract?: ExactContextEffect[];
+	/** Explicitly public context projections accepted from the client. */
+	publicContextContract?: ExactContextEffect[];
 };
 
 /** Defines the exact manifest boundary type contract. */
@@ -79,7 +82,8 @@ export type ExactCompilerManifestLike = {
 			taskId?: string;
 			placement?: 'server' | 'isomorphic' | 'client' | 'unknown';
 			stateContract?: ExactStateContract;
-			contextContract?: ExactContextEffect[];
+			serverContextContract?: ExactContextEffect[];
+			publicContextContract?: ExactContextEffect[];
 		}
 	>;
 	components?: readonly {
@@ -209,7 +213,8 @@ export type ExactInvocationRequest = {
 	dependsOn?: string[];
 	payload?: unknown;
 	state?: unknown;
-	context?: Record<string, unknown>;
+	/** Compiler-approved shared context projections; never server resource values. */
+	publicContext?: Record<string, unknown>;
 	boundaryHtml?: string;
 	boundaryHtmls?: Record<string, string>;
 };

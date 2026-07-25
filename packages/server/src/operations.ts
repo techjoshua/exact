@@ -12,9 +12,9 @@ import type {
 } from './types.js';
 import {
 	boundaryHintsAllowed,
-	contextMatchesContract,
 	isInvocationResultSafe,
 	isManifestAllowed,
+	publicContextMatchesContract,
 	stateMatchesContract
 } from './validation.js';
 
@@ -149,8 +149,8 @@ async function dispatchExactOperationAfterSecurity(
 	if (action?.stateContract && !stateMatchesContract(input.state, action.stateContract)) {
 		return reject(400, 'bad_request', 'rejected exact invocation with mismatched state contract');
 	}
-	if (!contextMatchesContract(input.context, action?.contextContract)) {
-		return reject(400, 'bad_request', 'rejected exact invocation with mismatched context contract');
+	if (!publicContextMatchesContract(input.publicContext, action?.publicContextContract)) {
+		return reject(400, 'bad_request', 'rejected mismatched public context projection');
 	}
 
 	if (!securityChecked) {

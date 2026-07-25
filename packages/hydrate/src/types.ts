@@ -198,7 +198,8 @@ export type InvokeExactOptions = {
 	id: string;
 	payload?: unknown;
 	state?: unknown;
-	context?: Record<string, unknown>;
+	/** Compiler-approved shared context projections required by this operation. */
+	publicContext?: Record<string, unknown>;
 	boundaryHtml?: string;
 	boundaryHtmls?: Record<string, string>;
 	fetch?: FetchLike;

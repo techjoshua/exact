@@ -33,7 +33,8 @@ describe('distributed component continuation IR', () => {
 			activation: {
 				stateReads: expect.arrayContaining([expect.objectContaining({ path: 'query' })]),
 				dependencies: [{ index: 1, source: 'state' }],
-				serverContexts: [{ token: 'RepositoryContext', kind: 'read', confidence: 'exact' }]
+				serverContexts: [{ token: 'RepositoryContext', kind: 'read', confidence: 'exact' }],
+				publicContexts: []
 			},
 			effects: {
 				stateWrites: expect.arrayContaining([expect.objectContaining({ path: 'results' })]),
@@ -52,7 +53,8 @@ describe('distributed component continuation IR', () => {
 				reads: continuation.activation.stateReads,
 				writes: continuation.effects.stateWrites
 			},
-			contextContract: continuation.activation.serverContexts
+			serverContextContract: continuation.activation.serverContexts,
+			publicContextContract: continuation.activation.publicContexts
 		});
 	});
 
@@ -85,5 +87,30 @@ describe('distributed component continuation IR', () => {
 		});
 		expect(resumption.client.statePaths).toEqual(expect.arrayContaining(['count', 'label']));
 		expect(JSON.stringify(resumption.client)).not.toContain('DatabaseContext');
+	});
+
+	it('separates explicitly shared context projections from server context lookups', () => {
+		const manifest = analyzeSource(
+			`
+      import { createContext, type Component } from "@exactjs/core";
+      const PublicConfig = createContext<{ domain: string }>(
+        "public config",
+        { scope: "application", keep: "shared" }
+      );
+      export function Link(this: Component<{ href: string }>) {
+        const config = this.getContext(PublicConfig);
+        this.task.server(() => {
+          this.state.href = config.domain;
+        });
+        return () => <a href={this.state.href}>Home</a>;
+      }
+    `,
+			{ filename: fixture('public-context') }
+		);
+
+		expect(manifest.continuations[0]?.activation).toMatchObject({
+			serverContexts: [],
+			publicContexts: [{ token: 'PublicConfig', kind: 'read', confidence: 'exact' }]
+		});
 	});
 });

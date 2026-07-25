@@ -68,7 +68,7 @@ export function requestPayloadSafe(
 	return (
 		isJsonSafe(input.payload, options) &&
 		isJsonSafe(input.state, options) &&
-		isJsonSafe(input.context, options)
+		isJsonSafe(input.publicContext, options)
 	);
 }
 
@@ -180,7 +180,7 @@ function parseInvocationRecord(record: Record<string, unknown>): ExactInvocation
 			'dependsOn',
 			'payload',
 			'state',
-			'context',
+			'publicContext',
 			'boundaryHtml',
 			'boundaryHtmls'
 		])
@@ -195,8 +195,8 @@ function parseInvocationRecord(record: Record<string, unknown>): ExactInvocation
 		throw new Error('invalid operation id');
 	if (record.dependsOn !== undefined && !isStringList(record.dependsOn))
 		throw new Error('invalid operation dependencies');
-	if (record.context !== undefined && !isContextValueMap(record.context))
-		throw new Error('invalid context');
+	if (record.publicContext !== undefined && !isContextValueMap(record.publicContext))
+		throw new Error('invalid public context');
 	if (record.boundaryHtml !== undefined && typeof record.boundaryHtml !== 'string')
 		throw new Error('invalid boundary html');
 	if (record.boundaryHtmls !== undefined && !isBoundaryHtmlMap(record.boundaryHtmls))
@@ -209,7 +209,7 @@ function parseInvocationRecord(record: Record<string, unknown>): ExactInvocation
 		...(Array.isArray(record.dependsOn) ? { dependsOn: record.dependsOn } : {}),
 		...(record.payload === undefined ? {} : { payload: record.payload }),
 		...(record.state === undefined ? {} : { state: record.state }),
-		...(record.context === undefined ? {} : { context: record.context }),
+		...(record.publicContext === undefined ? {} : { publicContext: record.publicContext }),
 		...(typeof record.boundaryHtml === 'string' ? { boundaryHtml: record.boundaryHtml } : {}),
 		...(record.boundaryHtmls === undefined ? {} : { boundaryHtmls: record.boundaryHtmls })
 	};

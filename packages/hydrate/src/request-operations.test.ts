@@ -252,13 +252,13 @@ describe('@exactjs/hydrate request-operations', () => {
 		expect(results[1]).toMatchObject({ ok: false, id: 'panel' });
 	});
 
-	it('sends serialized context through direct endpoint invocations', async () => {
+	it('sends compiler-approved public context through direct endpoint invocations', async () => {
 		let requestBody: unknown;
 		const result = await invokeExact({
 			endpoint: '/__exact',
 			type: 'action',
 			id: 'save',
-			context: {
+			publicContext: {
 				AuthContext: { id: 'u1' }
 			},
 			fetch: async (_input, init) => {
@@ -281,7 +281,7 @@ describe('@exactjs/hydrate request-operations', () => {
 		expect(requestBody).toEqual({
 			type: 'action',
 			id: 'save',
-			context: {
+			publicContext: {
 				AuthContext: { id: 'u1' }
 			}
 		});

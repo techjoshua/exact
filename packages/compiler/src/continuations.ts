@@ -15,7 +15,8 @@ import type {
  */
 export function createExactContinuations(
 	components: readonly ExactComponentIR[],
-	boundaries: readonly ExactBoundaryIR[]
+	boundaries: readonly ExactBoundaryIR[],
+	contextResidency: (token: string) => 'server' | 'client' | 'shared' = () => 'server'
 ): ExactContinuationIR[] {
 	const output: ExactContinuationIR[] = [];
 	for (const component of components) {
@@ -42,11 +43,32 @@ export function createExactContinuations(
 							source: dependency.source as 'state' | 'props' | 'derived'
 						})),
 					serverContexts: uniqueContexts([
-						...task.contexts.filter((context) => context.kind === 'read'),
+						...task.contexts.filter(
+							(context) => context.kind === 'read' && contextResidency(context.token) !== 'shared'
+						),
 						...task.dependencies
 							.filter(
 								(dependency): dependency is typeof dependency & { contextToken: string } =>
-									dependency.source === 'context' && !!dependency.contextToken
+									dependency.source === 'context' &&
+									!!dependency.contextToken &&
+									contextResidency(dependency.contextToken) !== 'shared'
+							)
+							.map((dependency) => ({
+								token: dependency.contextToken,
+								kind: 'read' as const,
+								confidence: 'exact' as const
+							}))
+					]),
+					publicContexts: uniqueContexts([
+						...task.contexts.filter(
+							(context) => context.kind === 'read' && contextResidency(context.token) === 'shared'
+						),
+						...task.dependencies
+							.filter(
+								(dependency): dependency is typeof dependency & { contextToken: string } =>
+									dependency.source === 'context' &&
+									!!dependency.contextToken &&
+									contextResidency(dependency.contextToken) === 'shared'
 							)
 							.map((dependency) => ({
 								token: dependency.contextToken,

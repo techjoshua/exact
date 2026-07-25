@@ -245,7 +245,11 @@ export function analyzeSource(
 			componentInfo
 		)
 	);
-	const continuations = createExactContinuations(components, boundaries);
+	const continuations = createExactContinuations(
+		components,
+		boundaries,
+		(token) => policyMetadata.contextPolicies.get(token)?.policy.residency ?? 'server'
+	);
 	const resumptions = createExactComponentResumptions(components, boundaries, expressionComponents);
 
 	for (const continuation of continuations) {
@@ -261,10 +265,11 @@ export function analyzeSource(
 				reads: continuation.activation.stateReads,
 				writes: continuation.effects.stateWrites
 			},
-			contextContract: [
+			serverContextContract: [
 				...continuation.activation.serverContexts,
 				...continuation.effects.contextWrites
-			]
+			],
+			publicContextContract: continuation.activation.publicContexts
 		};
 	}
 	for (const component of components) {

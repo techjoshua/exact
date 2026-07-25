@@ -62,7 +62,8 @@ export type ExactCompilerManifest = {
 				reads: ExactStateEffect[];
 				writes: ExactStateEffect[];
 			};
-			contextContract: ExactContextEffect[];
+			serverContextContract: ExactContextEffect[];
+			publicContextContract: ExactContextEffect[];
 		}
 	>;
 	pluginRegistry?: {

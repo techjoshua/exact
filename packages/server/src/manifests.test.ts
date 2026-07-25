@@ -72,7 +72,7 @@ describe('@exactjs/server manifests', () => {
 					action: {
 						id: 'action',
 						placement: 'server',
-						contextContract: [{ token: 'AuthContext', kind: 'inspect', confidence: 'exact' }]
+						serverContextContract: [{ token: 'AuthContext', kind: 'inspect', confidence: 'exact' }]
 					}
 				}
 			} as any)
@@ -291,7 +291,7 @@ describe('@exactjs/server manifests', () => {
 							componentId: 'Page',
 							taskId: 'task-1',
 							placement: 'server',
-							contextContract: [{ token: 'AuthContext', kind: 'read', confidence: 'exact' }]
+							serverContextContract: [{ token: 'AuthContext', kind: 'read', confidence: 'exact' }]
 						}
 					},
 					components: [{ id: 'Page', placement: 'server' }],
@@ -334,7 +334,7 @@ describe('@exactjs/server manifests', () => {
 				componentId: 'Page',
 				taskId: 'task-1',
 				placement: 'server',
-				contextContract: [{ token: 'AuthContext', kind: 'read', confidence: 'exact' }]
+				serverContextContract: [{ token: 'AuthContext', kind: 'read', confidence: 'exact' }]
 			},
 			panelTask: {
 				id: 'panelTask',

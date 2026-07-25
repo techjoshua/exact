@@ -81,24 +81,29 @@ export function stateMatchesContract(state: unknown, contract: ExactStateContrac
 	return true;
 }
 
-/** Returns whether submitted context tokens match the compiler-provided context contract. */
-export function contextMatchesContract(
+/** Validates only explicitly public context projections transported by the client. */
+export function publicContextMatchesContract(
 	context: Record<string, unknown> | undefined,
 	contract: ExactContextEffect[] | undefined
 ): boolean {
 	if (!context) return !requiresExactContext(contract);
 	if (!contract?.length) return false;
-
 	const allowed = new Set(
 		contract.filter((effect) => effect.confidence === 'exact').map((effect) => effect.token)
 	);
 	if (!Object.keys(context).every((token) => allowed.has(token))) return false;
-
 	for (const effect of contract) {
 		if (effect.kind !== 'read' || effect.confidence !== 'exact') continue;
 		if (!Object.prototype.hasOwnProperty.call(context, effect.token)) return false;
 	}
 	return true;
+}
+
+/** Reports whether a public context contract requires an exact transported value. */
+function requiresExactContext(contract: ExactContextEffect[] | undefined): boolean {
+	return Boolean(
+		contract?.some((effect) => effect.kind === 'read' && effect.confidence === 'exact')
+	);
 }
 
 function isPatchSafe(patch: unknown): patch is ExactPatch {
@@ -141,12 +146,6 @@ function isPatchSafe(patch: unknown): patch is ExactPatch {
 		default:
 			return false;
 	}
-}
-
-function requiresExactContext(contract: ExactContextEffect[] | undefined): boolean {
-	return Boolean(
-		contract?.some((effect) => effect.kind === 'read' && effect.confidence === 'exact')
-	);
 }
 
 function hasStatePath(value: unknown, path: string): boolean {

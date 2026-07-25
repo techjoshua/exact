@@ -12,6 +12,8 @@ export type ExactContinuationActivationIR = {
 	}>;
 	/** Server-owned tokens resolved for each invocation rather than transported by the client. */
 	serverContexts: ExactContextEffect[];
+	/** Explicitly shared context projections transported with the activation record. */
+	publicContexts: ExactContextEffect[];
 };
 
 /** Describes the only client-visible effects a continuation may return. */

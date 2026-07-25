@@ -26,7 +26,7 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
 			id: options.id,
 			payload: options.payload,
 			state: options.state,
-			context: options.context,
+			publicContext: options.publicContext,
 			boundaryHtml: options.boundaryHtml,
 			boundaryHtmls: options.boundaryHtmls
 		},
