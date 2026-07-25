@@ -102,6 +102,59 @@ export function transformTaskCall(
 	);
 }
 
+/** Replaces a server task body with the client half of its distributed continuation. */
+export function createDistributedTaskCall(
+	node: ts.CallExpression,
+	continuationId: string,
+	context: ts.TransformationContext,
+	helpers: HelperNames
+): ts.CallExpression {
+	const factory = context.factory;
+	const dependencies = node.arguments.slice(0, -1);
+	const dependencyParameters = dependencies.map((_, index) =>
+		factory.createIdentifier(`__exactDependency${index || ''}`)
+	);
+	const signal = factory.createIdentifier(helpers.taskSignal);
+	const work = factory.createArrowFunction(
+		undefined,
+		undefined,
+		[
+			...dependencyParameters.map((parameter) =>
+				factory.createParameterDeclaration(undefined, undefined, parameter)
+			),
+			factory.createParameterDeclaration(
+				undefined,
+				undefined,
+				factory.createObjectBindingPattern([
+					factory.createBindingElement(
+						undefined,
+						factory.createIdentifier('signal'),
+						signal
+					)
+				])
+			)
+		],
+		undefined,
+		factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+		factory.createCallExpression(
+			factory.createIdentifier(helpers.dispatchContinuation),
+			undefined,
+			[
+				factory.createThis(),
+				factory.createStringLiteral(continuationId),
+				factory.createArrayLiteralExpression(dependencyParameters),
+				signal
+			]
+		)
+	);
+	return factory.updateCallExpression(
+		node,
+		factory.createPropertyAccessExpression(factory.createThis(), 'task'),
+		node.typeArguments,
+		[...dependencies, work]
+	);
+}
+
 function prependDependencyParameters(
 	work: ts.ArrowFunction | ts.FunctionExpression,
 	names: readonly string[],

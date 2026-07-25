@@ -35,7 +35,22 @@ export type VNodeType =
 /** Immutable execution-root ownership for one component instance. */
 export type ComponentDomain = {
 	readonly executionRoot: string;
+	/** Framework-private bridge used by compiler-generated distributed continuations. */
+	readonly dispatchContinuation?: ComponentContinuationDispatcher;
 };
+
+/** Compiler-generated request to advance the server half of a component machine. */
+export type ComponentContinuationDispatch = {
+	readonly instance: ComponentInstance<any>;
+	readonly id: string;
+	readonly dependencies: readonly unknown[];
+	readonly signal: AbortSignal;
+};
+
+/** Runtime-owned transport bridge for one immutable component domain. */
+export type ComponentContinuationDispatcher = (
+	request: ComponentContinuationDispatch
+) => Promise<void>;
 
 /** Defines the vnode type contract. */
 export type VNode<Props = Record<string, unknown>> = {

@@ -2,7 +2,7 @@ import type { BoundModule } from '@exactjs/expressions';
 import ts from 'typescript';
 import type { CallableEffectPlan } from '../../analysis/callable-effects.js';
 import { stripExactImportAttribute, type ExactModuleImportPlan } from '../../assets.js';
-import { isThisTaskCall } from '../../calls.js';
+import { isThisTaskCall, taskRequestedPlacement } from '../../calls.js';
 import { allocateHelperNames } from '../../emission/operations.js';
 import {
 	isArrayMutator,
@@ -17,6 +17,7 @@ import type { ExpressionTaskPlan } from '../../expression/task-contracts.js';
 import type { ExpressionWritePlan } from '../../expression/writes.js';
 import { isServerOnlyImportDeclaration } from '../../imports.js';
 import { componentPlacementsFromInfo } from '../../placement.js';
+import { stableId } from '../../ids.js';
 import type {
 	ExactImportedComponentIR,
 	ExactSemanticGraphIR,
@@ -88,6 +89,31 @@ export function exactJsxTransformer(
 		const componentPlacements = componentPlacementsFromInfo(componentInfo);
 		const derivedReactiveLocals = collectExpressionDerivedLocals(sourceFile, expressionDerived);
 		const state = createJsxTransformState();
+		const taskIndexes = new Map<string, number>();
+		const taskSites = new Map(
+			[...expressionTasks.sites.entries()]
+				.sort(([, left], [, right]) => left.start - right.start)
+				.map(([id, site]) => {
+					const component =
+						site.component ??
+						[...expressionComponents.sites.values()].find(
+							(candidate) => site.start >= candidate.start && site.end <= candidate.end
+						)?.name;
+					if (!component) return [id, site] as const;
+					const index = taskIndexes.get(component) ?? 0;
+					taskIndexes.set(component, index + 1);
+					return [
+						id,
+						Object.freeze({
+							...site,
+							continuationId: stableId(
+								identityFilename,
+								`${component}:task:${index}`
+							)
+						})
+					] as const;
+				})
+		);
 		const visitorEnvironment = createJsxVisitorEnvironment(
 			{
 				context,
@@ -107,19 +133,30 @@ export function exactJsxTransformer(
 				componentPlacements,
 				derivedReactiveLocals
 			},
-			expressionTasks,
+			{ ...expressionTasks, sites: taskSites },
 			expressionEmissionId
 		);
 
 		const visitor: ts.Visitor = (node) => {
 			if (ts.isExpressionStatement(node) || (ts.isImportDeclaration(node) && !node.importClause)) {
 				const summary = callableEffects.byNodeId.get(expressionEmissionId(node) ?? '');
+				const distributedTask =
+					target === 'client' &&
+					ts.isExpressionStatement(node) &&
+					ts.isCallExpression(node.expression) &&
+					isThisTaskCall(node.expression) &&
+					(taskRequestedPlacement(node.expression) === 'server' ||
+						(ts.isCallExpression(ts.getOriginalNode(node.expression)) &&
+							taskRequestedPlacement(
+								ts.getOriginalNode(node.expression) as ts.CallExpression
+							) === 'server') ||
+						taskSites.get(expressionEmissionId(node.expression) ?? '')?.placement === 'server');
 				const preserveAsset =
 					ts.isImportDeclaration(node) &&
 					preserveClientAssetImports &&
 					target === 'server' &&
 					moduleImports.clientAssetSideEffectStarts.has(node.getStart(sourceFile));
-				if (!preserveAsset && summary && incompatibleSummary(summary, target))
+				if (!distributedTask && !preserveAsset && summary && incompatibleSummary(summary, target))
 					return factory.createEmptyStatement();
 			}
 			if (ts.isImportDeclaration(node)) {
@@ -345,7 +382,11 @@ export function exactJsxTransformer(
 				ts.isCallExpression(node.expression) &&
 				isThisTaskCall(node.expression)
 			) {
-				if (shouldOmitPlacement(visitorEnvironment.taskPlacementFor(node.expression), target)) {
+				const placement = visitorEnvironment.taskPlacementFor(node.expression);
+				if (
+					shouldOmitPlacement(placement, target) &&
+					!(target === 'client' && placement === 'server')
+				) {
 					return factory.createEmptyStatement();
 				}
 			}

@@ -15,6 +15,7 @@ export type JsxTransformState = {
 	taskResources: Set<ExpressionTaskResourceKind>;
 	taskSignalModes: Set<ExpressionTaskSignalCall['mode']>;
 	sawTaskAwait: boolean;
+	sawDistributedContinuation: boolean;
 	setupTaskDepth: number;
 	componentStack: string[];
 	componentSiteStack: string[];
@@ -35,6 +36,7 @@ export function createJsxTransformState(): JsxTransformState {
 		taskResources: new Set(),
 		taskSignalModes: new Set(),
 		sawTaskAwait: false,
+		sawDistributedContinuation: false,
 		setupTaskDepth: 0,
 		componentStack: [],
 		componentSiteStack: [],

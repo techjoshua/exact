@@ -1,6 +1,6 @@
 import ts from 'typescript';
 import { isIdentifierDeclarationName, isPropertyAccessName } from '../../ast.js';
-import { isThisTaskCall } from '../../calls.js';
+import { isThisTaskCall, taskRequestedPlacement } from '../../calls.js';
 import { expressionEmissionId } from './identity.js';
 import {
 	clientComponentChildrenProp,
@@ -25,6 +25,7 @@ import {
 	transformImplicitSetupTask
 } from './lifecycle-emission.js';
 import { transformCapturedCall, transformReactiveTaggedTemplate } from './reactive-emission.js';
+import { createDistributedTaskCall } from './task-emission.js';
 import type { JsxVisitorEnvironment } from './visitor-environment.js';
 
 /**
@@ -280,8 +281,58 @@ export function visitJsxExpression(
 			state.sawAbortOptions = true;
 			return transformImplicitLifecycleListener(node, context, visitor, helpers);
 		}
-		if (isThisTaskCall(node) && shouldOmitPlacement(taskPlacementFor(node), target))
+		const requestedTaskPlacement = isThisTaskCall(node)
+			? (taskRequestedPlacement(node) ??
+				(ts.isCallExpression(ts.getOriginalNode(node))
+					? taskRequestedPlacement(ts.getOriginalNode(node) as ts.CallExpression)
+					: undefined))
+			: undefined;
+		const omitTask =
+			isThisTaskCall(node) &&
+			(requestedTaskPlacement === 'server' && target === 'client'
+				? true
+				: requestedTaskPlacement === 'client' && target === 'server'
+					? true
+					: shouldOmitPlacement(taskPlacementFor(node), target));
+		if (omitTask) {
+			const task = expressionTaskFor(node);
+			if (
+				target === 'client' &&
+				(requestedTaskPlacement === 'server' || task?.placement === 'server')
+			) {
+				if (!task?.continuationId)
+					throw new Error(
+						`Missing distributed continuation identity for server task in ${sourceFile.fileName}`
+					);
+				const transformed = transformCapturedCall(
+					sourceFile,
+					node,
+					context,
+					visitor,
+					derivedReactiveLocals,
+					helpers,
+					() => {
+						state.sawAbortOptions = true;
+					},
+					expressionResourceFor,
+					(kind) => state.taskResources.add(kind),
+					() => {
+						state.sawTaskAwait = true;
+					},
+					expressionSignalFor,
+					(mode) => state.taskSignalModes.add(mode),
+					task
+				);
+				state.sawDistributedContinuation = true;
+				return createDistributedTaskCall(
+					transformed as ts.CallExpression,
+					task.continuationId,
+					context,
+					helpers
+				);
+			}
 			return factory.createVoidExpression(factory.createNumericLiteral(0));
+		}
 		const annotatedList = expressionJsx.lists.get(expressionEmissionId(node) ?? '');
 		if (
 			annotatedList &&

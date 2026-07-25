@@ -26,6 +26,7 @@ export { observeComponentAsync, trackComponentAsync } from './component/async.js
 export {
 	createComponentDomain,
 	currentComponentDomain,
+	dispatchComponentContinuation,
 	pageComponentDomain,
 	withComponentDomain
 } from './component/domain.js';
@@ -34,6 +35,8 @@ export type {
 	Child,
 	Cleanup,
 	Component,
+	ComponentContinuationDispatch,
+	ComponentContinuationDispatcher,
 	ComponentContextValues,
 	ComponentDomain,
 	ComponentFunction,

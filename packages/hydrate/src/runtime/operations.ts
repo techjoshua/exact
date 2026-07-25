@@ -1,4 +1,5 @@
 import { createDomWorkBudget, type DomWorkBudget } from '@exactjs/dom';
+import type { ComponentInstance } from '@exactjs/core';
 import { enqueueExactOperation } from '../batching.js';
 import { ExactBuildUnsupportedError, invokeExact } from '../invocations.js';
 import { hydrateClientIslands } from '../islands.js';
@@ -8,7 +9,7 @@ import {
 	boundaryInnerHtmls,
 	createPatchBoundaryResolver
 } from '../patches.js';
-import { mergeStateForContract, stateForContract } from '../state.js';
+import { commitStateForContract, mergeStateForContract, stateForContract } from '../state.js';
 import type {
 	ExactClient,
 	ExactInvocationKind,
@@ -26,7 +27,12 @@ export async function invokeAndApply(
 	type: ExactInvocationKind,
 	id: string,
 	payload: unknown,
-	options: HydrateOptions
+	options: HydrateOptions,
+	component?: {
+		instance: ComponentInstance<any>;
+		dependencies: readonly unknown[];
+		signal: AbortSignal;
+	}
 ): Promise<ExactInvocationResult> {
 	const work = createDomWorkBudget(options.maxTreeNodes);
 	const continuation = type === 'action' ? options.continuations?.[id] : undefined;
@@ -38,6 +44,7 @@ export async function invokeAndApply(
 		requestVersions.set(container, versions);
 	}
 	const configuredBoundaries = continuation?.boundaries;
+	const componentKey = component ? componentIdentity(component.instance) : undefined;
 	const requestKeys = [
 		...new Set(
 			type === 'refresh'
@@ -46,20 +53,22 @@ export async function invokeAndApply(
 					? configuredBoundaries.map((boundary) => `boundary:${boundary}`)
 					: [`action:${id}`]
 		)
-	];
+	].map((key) => (componentKey ? `${componentKey}:${key}` : key));
 	const requestVersion = Math.max(0, ...requestKeys.map((key) => versions!.get(key) ?? 0)) + 1;
 	for (const key of requestKeys) versions.set(key, requestVersion);
-	const requestOrdinal = (versions.get('request') ?? 0) + 1;
-	versions.set('request', requestOrdinal);
+	const requestOrdinalKey = componentKey ? `${componentKey}:request` : 'request';
+	const stateCommittedKey = componentKey ? `${componentKey}:state-committed` : 'state-committed';
+	const requestOrdinal = (versions.get(requestOrdinalKey) ?? 0) + 1;
+	versions.set(requestOrdinalKey, requestOrdinal);
 	const operation: ExactInvocationRequest = {
 		type,
 		root: options.executionRoot ?? 'page',
 		id,
-		payload,
+		payload: component ? { dependencies: component.dependencies } : payload,
 		state:
 			type === 'action'
 				? stateForContract(
-						client.state,
+						component?.instance.state ?? client.state,
 						{ reads: continuation!.stateReads }
 					)
 				: client.state,
@@ -92,7 +101,7 @@ export async function invokeAndApply(
 						logger: options.logger,
 						stream: options.stream,
 						streamLimits: options.streamLimits,
-						signal: options.signal,
+						signal: component?.signal ?? options.signal,
 						onResponse: options.onResponse
 					})
 				: await enqueueExactOperation(container, {
@@ -103,7 +112,7 @@ export async function invokeAndApply(
 						logger: options.logger,
 						stream: options.stream,
 						streamLimits: options.streamLimits,
-						signal: options.signal,
+						signal: component?.signal ?? options.signal,
 						onResponse: options.onResponse
 					});
 	} catch (error) {
@@ -204,10 +213,16 @@ export async function invokeAndApply(
 	if (
 		!partiallyStale &&
 		'state' in result &&
-		requestOrdinal >= (versions.get('state-committed') ?? 0)
+		requestOrdinal >= (versions.get(stateCommittedKey) ?? 0)
 	) {
-		versions.set('state-committed', requestOrdinal);
-		client.state = result.state;
+		versions.set(stateCommittedKey, requestOrdinal);
+		if (component) {
+			commitStateForContract(component.instance.state, result.state, {
+				writes: continuation!.stateWrites
+			});
+		} else {
+			client.state = result.state;
+		}
 	}
 	options.onOperation?.({
 		operation,
@@ -217,6 +232,19 @@ export async function invokeAndApply(
 		stale: partiallyStale
 	});
 	return result;
+}
+
+const componentIds = new WeakMap<ComponentInstance<any>, number>();
+let nextComponentId = 1;
+
+/** Returns one request-generation namespace for a live component instance. */
+function componentIdentity(instance: ComponentInstance<any>): string {
+	let id = componentIds.get(instance);
+	if (!id) {
+		id = nextComponentId++;
+		componentIds.set(instance, id);
+	}
+	return `component:${id}`;
 }
 
 /** Returns the first patch outside every compiler-declared affected boundary. */

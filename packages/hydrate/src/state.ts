@@ -54,6 +54,28 @@ export function mergeStateForContract(
 	return { ok: true, state: output ?? state };
 }
 
+/** Commits validated continuation writes into a live reactive component state object. */
+export function commitStateForContract(
+	target: Record<string, unknown>,
+	update: unknown,
+	contract: StateWriteContract
+): void {
+	const writes =
+		contract.writes?.filter((write) => write.kind === 'write' && write.confidence === 'exact') ??
+		[];
+	if (writes.some((write) => write.path === '*')) {
+		if (!update || typeof update !== 'object' || Array.isArray(update)) return;
+		for (const key of Object.keys(target))
+			if (!Object.prototype.hasOwnProperty.call(update, key)) delete target[key];
+		Object.assign(target, update);
+		return;
+	}
+	for (const write of writes) {
+		const value = getPath(update, write.path);
+		if (value !== undefined) setPath(target, write.path, value);
+	}
+}
+
 function getPath(value: unknown, path: string): unknown {
 	if (path === '*') return value;
 	let cursor = value;

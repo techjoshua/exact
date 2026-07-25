@@ -437,6 +437,10 @@ describe('@exactjs/compiler: reactivity', () => {
 			'task placement forced by this.task.server()'
 		);
 		expect(client).not.toContain('server');
+		expect(client).toContain('dispatchComponentContinuation as __exactDispatchContinuation');
+		expect(client).toContain(
+			`__exactDispatchContinuation(this, "${manifest.components[0]!.tasks[0]!.id}"`
+		);
 		expect(client).toContain('__exactWrite(this.state, ["width"], () => 1)');
 		expect(client).toContain('this.task.client(this.reactive(() => this.state.width)');
 		expect(server).toContain('server');

@@ -153,7 +153,23 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 			unmount(container);
 		}
 	};
-	domain = createComponentDomain(runtimeOptions.executionRoot ?? 'page');
+	domain = createComponentDomain(runtimeOptions.executionRoot ?? 'page', (request) =>
+		run(() =>
+			invokeAndApply(
+				container,
+				client,
+				'action',
+				request.id,
+				undefined,
+				runtimeOptions,
+				{
+					instance: request.instance,
+					dependencies: request.dependencies,
+					signal: request.signal
+				}
+			)
+		).then(() => undefined)
+	);
 	runtimeOptions.componentDomain = domain;
 	const existing = roots.get(container);
 	if (existing && existing !== client)

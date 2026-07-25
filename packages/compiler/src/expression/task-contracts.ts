@@ -10,6 +10,8 @@ import type { ExpressionTaskDependency } from './task-dependencies.js';
 /** Defines the expression task site interface contract. */
 export interface ExpressionTaskSite {
 	readonly nodeId: string;
+	/** Stable opaque continuation selector paired across client and executor artifacts. */
+	readonly continuationId?: string;
 	readonly component?: string;
 	readonly componentId?: string;
 	readonly start: number;
