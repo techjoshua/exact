@@ -26,6 +26,7 @@ describe('@exactjs/core component contracts', () => {
 					{
 						id: 'task:Page:1',
 						componentId: 'component:Page',
+						dependencies: [],
 						stateReads: [],
 						stateWrites: [],
 						publicContexts: [],
@@ -33,6 +34,7 @@ describe('@exactjs/core component contracts', () => {
 						boundaries: ['boundary:Page']
 					}
 				],
+				executors: [],
 				boundaries: [
 					{
 						id: 'boundary:Page',
@@ -55,6 +57,7 @@ describe('@exactjs/core component contracts', () => {
 			implementations: { Page_ExactClient_1: island },
 			implementationsById: { 'island:Page:1': island },
 			continuations: { 'task:Page:1': { componentId: 'component:Page' } },
+			executors: {},
 			boundaries: { 'boundary:Page': { kind: 'client-island' } },
 			resumptions: { 'component:Page': { statePaths: ['count'] } }
 		});
@@ -77,6 +80,7 @@ describe('@exactjs/core component contracts', () => {
 						}
 					],
 					continuations: [],
+					executors: [],
 					boundaries: []
 				}
 			});

@@ -96,6 +96,7 @@ export const CalculatorWorkspace: typeof __exactImplementation_CalculatorWorkspa
             { id: "xZoxrmFqT5oXZSeTaQ7WmTu", name: "CalculatorWorkspace", role: "root", implementation: __exactImplementation_CalculatorWorkspace_1 }
         ],
         continuations: [],
+        executors: [],
         boundaries: [
             {
                 id: "x4CYHsV3s8u9PNNJDxmFx1A",

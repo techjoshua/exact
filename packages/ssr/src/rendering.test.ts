@@ -187,6 +187,7 @@ describe('@exactjs/ssr rendering', () => {
 						boundaries: ['profile']
 					})
 				},
+				executors: {},
 				boundaries: {
 					profile: defineExactBoundaryContract('profile', {
 						componentId: 'Profile',
@@ -218,7 +219,7 @@ describe('@exactjs/ssr rendering', () => {
 				id: 'profile',
 				boundaryHtml: '<p class="old">Loading</p>'
 			},
-			{ contract: { version: 1, actions: {}, boundaries: {} } }
+			{ contract: { version: 1, actions: {}, executors: {}, boundaries: {} } }
 		);
 		const action = await registry.actions['save-profile'](
 			{
@@ -229,7 +230,7 @@ describe('@exactjs/ssr rendering', () => {
 					private: '<p>Private</p>'
 				}
 			},
-			{ contract: { version: 1, actions: {}, boundaries: {} } }
+			{ contract: { version: 1, actions: {}, executors: {}, boundaries: {} } }
 		);
 
 		expect(Object.keys(registry.actions)).toEqual(['save-profile']);
@@ -244,6 +245,57 @@ describe('@exactjs/ssr rendering', () => {
 				{ type: 'prop', id: 'profile', name: 'class', value: 'saved' },
 				{ type: 'text', id: 'profile', value: 'Saved' }
 			]
+		});
+	});
+
+	it('installs compiler-generated continuation executors and refreshes their boundaries', async () => {
+		const action = defineExactActionContract('load-profile', {
+			componentId: 'Profile',
+			reads: [{ path: 'id', kind: 'read', confidence: 'exact' }],
+			writes: [{ path: 'name', kind: 'write', confidence: 'exact' }],
+			boundaries: ['profile']
+		});
+		const registry = createExactServerHandlerRegistry({
+			contract: {
+				version: 1,
+				actions: { [action.id]: action },
+				executors: {
+					[action.id]: {
+						id: action.id,
+						componentId: action.componentId,
+						execute(activation) {
+							activation.state.name = 'Generated';
+							return { state: activation.state };
+						}
+					}
+				},
+				boundaries: {
+					profile: defineExactBoundaryContract('profile', {
+						componentId: 'Profile',
+						ownerComponentId: 'Profile'
+					})
+				}
+			},
+			markers: false,
+			boundaries: {
+				profile: () => createVNode('p', null, 'Generated')
+			}
+		});
+
+		const result = await registry.actions[action.id](
+			{
+				type: 'action',
+				id: action.id,
+				payload: { dependencies: [] },
+				state: { id: 'p1' },
+				boundaryHtmls: { profile: '<p>Loading</p>' }
+			},
+			{ contract: { version: 1, actions: {}, executors: {}, boundaries: {} } }
+		);
+
+		expect(result).toMatchObject({
+			state: { name: 'Generated' },
+			patches: [{ type: 'replace', id: 'profile', html: '<p>Generated</p>' }]
 		});
 	});
 

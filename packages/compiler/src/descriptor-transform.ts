@@ -4,9 +4,12 @@ import {
 	pureExpression,
 	type ComponentContractEmission
 } from './component-contract-emission.js';
+import { createContinuationExecutorEmissions } from './continuation-executor-emission.js';
 import type { ExactCompilerManifest, TransformTarget } from './types.js';
 
-type DescriptorGroup = ComponentContractEmission;
+type DescriptorGroup = ComponentContractEmission & {
+	clientMachine: boolean;
+};
 
 /**
  * Attaches target-local artifact implementations to the exported component
@@ -16,7 +19,8 @@ type DescriptorGroup = ComponentContractEmission;
 export function exactComponentDescriptorTransformer(
 	manifest: ExactCompilerManifest,
 	target: TransformTarget,
-	preserveHoisting = false
+	preserveHoisting = false,
+	serverComponents = false
 ): ts.TransformerFactory<ts.SourceFile> {
 	if (target === 'default') return () => (sourceFile) => sourceFile;
 	const groups = new Map<string, DescriptorGroup>();
@@ -43,15 +47,24 @@ export function exactComponentDescriptorTransformer(
 					symbol,
 					componentImplementation: symbol.localName === component.name
 				}));
-		if (entries.length)
+		if (entries.length) {
+			const clientMachine =
+				component.placement === 'client' ||
+				(!serverComponents && component.placement === 'isomorphic');
 			groups.set(component.name, {
 				componentId: component.id,
 				placement: component.placement,
 				role: target === 'client' ? 'client' : 'executor',
+				clientMachine,
 				entries,
-				continuations: manifest.continuations.filter(
-					(continuation) => continuation.componentId === component.id
-				),
+				continuations: clientMachine
+					? manifest.continuations.filter(
+							(continuation) =>
+								continuation.componentId === component.id &&
+								continuation.placement === 'server'
+						)
+					: [],
+				executors: [],
 				boundaries: manifest.boundaries.filter(
 					(boundary) => boundary.ownerComponentId === component.id
 				),
@@ -59,6 +72,7 @@ export function exactComponentDescriptorTransformer(
 					(resumption) => resumption.componentId === component.id
 				)
 			});
+		}
 	}
 
 	return (context) => (sourceFile) => {
@@ -82,7 +96,17 @@ export function exactComponentDescriptorTransformer(
 						declaration.name,
 						declaration.exclamationToken,
 						declaration.type,
-						wrapComponentValue(declaration.initializer, group, descriptorSymbol, context.factory)
+						wrapComponentValue(
+							declaration.initializer,
+							withContinuationExecutors(
+								group,
+								declaration.initializer,
+								context,
+								sourceFile.fileName
+							),
+							descriptorSymbol,
+							context.factory
+						)
 					);
 				});
 				statements.push(
@@ -106,13 +130,23 @@ export function exactComponentDescriptorTransformer(
 				...(preserveHoisting
 					? attachToHoistedComponentFunction(
 							statement,
-							groups.get(statement.name.text)!,
+							withContinuationExecutors(
+								groups.get(statement.name.text)!,
+								statement,
+								context,
+								sourceFile.fileName
+							),
 							descriptorSymbol,
 							context.factory
 						)
 					: wrapComponentFunction(
 							statement,
-							groups.get(statement.name.text)!,
+							withContinuationExecutors(
+								groups.get(statement.name.text)!,
+								statement,
+								context,
+								sourceFile.fileName
+							),
 							descriptorSymbol,
 							context.factory
 						))
@@ -134,6 +168,28 @@ export function exactComponentDescriptorTransformer(
 		}
 		statements.splice(insertionIndex, 0, descriptorDeclaration);
 		return context.factory.updateSourceFile(sourceFile, statements);
+	};
+}
+
+/** Adds executable server task segments after JSX/task lowering has completed. */
+function withContinuationExecutors(
+	group: DescriptorGroup,
+	component: ts.FunctionLikeDeclaration,
+	context: ts.TransformationContext,
+	filename: string
+): DescriptorGroup {
+	if (group.role !== 'executor' || !group.clientMachine || !group.continuations.length)
+		return group;
+	return {
+		...group,
+		executors: [
+			...createContinuationExecutorEmissions(
+				component,
+				group.continuations,
+				context,
+				filename
+			)
+		]
 	};
 }
 

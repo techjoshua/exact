@@ -185,7 +185,8 @@ export function transformSource(source: string, options: TransformOptions = {}):
 		exactComponentDescriptorTransformer(
 			manifest,
 			target,
-			options.preserveComponentHoisting ?? false
+			options.preserveComponentHoisting ?? false,
+			options.serverComponents ?? false
 		),
 		exactSecretQualificationTransformer(secretQualifications)
 	]);

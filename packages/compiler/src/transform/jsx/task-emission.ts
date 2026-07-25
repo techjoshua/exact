@@ -34,9 +34,16 @@ export function transformTaskCall(
 	const explicitDependencies = node.arguments.slice(0, -1);
 	const inferredDependencies =
 		explicitDependencies.length === 0 ? (taskSite?.dependencies ?? []) : [];
-	const dependencyParameters = allocateDependencyParameters(work, inferredDependencies.length);
-	const rewrittenWork = inferredDependencies.length
-		? rewriteTaskDependencyReads(work, inferredDependencies, dependencyParameters, context)
+	// Context dependencies are resolved from the trusted server invocation. They
+	// must remain free reads in the server callback and never become client
+	// reactive values or transported dependency slots.
+	const transportedDependencies =
+		taskSite?.placement === 'server'
+			? inferredDependencies.filter((dependency) => dependency.source !== 'context')
+			: inferredDependencies;
+	const dependencyParameters = allocateDependencyParameters(work, transportedDependencies.length);
+	const rewrittenWork = transportedDependencies.length
+		? rewriteTaskDependencyReads(work, transportedDependencies, dependencyParameters, context)
 		: work;
 	const visitedWork = ts.visitNode(rewrittenWork, visitor) as
 		| ts.ArrowFunction
@@ -56,12 +63,12 @@ export function transformTaskCall(
 			) as ts.ArrowFunction | ts.FunctionExpression)
 		: visitedWork;
 
-	if (inferredDependencies.length)
+	if (transportedDependencies.length)
 		transformedWork = prependDependencyParameters(transformedWork, dependencyParameters, context);
 
 	const nextDependencies =
-		inferredDependencies.length > 0
-			? inferredDependencies.map((dependency) => {
+		transportedDependencies.length > 0
+			? transportedDependencies.map((dependency) => {
 					const expression = findExpressionNode(work, dependency.nodeId);
 					if (!expression)
 						throw new Error(
@@ -99,59 +106,6 @@ export function transformTaskCall(
 		ts.visitNode(node.expression, visitor) as ts.Expression,
 		node.typeArguments,
 		[...nextDependencies, transformedWork]
-	);
-}
-
-/** Replaces a server task body with the client half of its distributed continuation. */
-export function createDistributedTaskCall(
-	node: ts.CallExpression,
-	continuationId: string,
-	context: ts.TransformationContext,
-	helpers: HelperNames
-): ts.CallExpression {
-	const factory = context.factory;
-	const dependencies = node.arguments.slice(0, -1);
-	const dependencyParameters = dependencies.map((_, index) =>
-		factory.createIdentifier(`__exactDependency${index || ''}`)
-	);
-	const signal = factory.createIdentifier(helpers.taskSignal);
-	const work = factory.createArrowFunction(
-		undefined,
-		undefined,
-		[
-			...dependencyParameters.map((parameter) =>
-				factory.createParameterDeclaration(undefined, undefined, parameter)
-			),
-			factory.createParameterDeclaration(
-				undefined,
-				undefined,
-				factory.createObjectBindingPattern([
-					factory.createBindingElement(
-						undefined,
-						factory.createIdentifier('signal'),
-						signal
-					)
-				])
-			)
-		],
-		undefined,
-		factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-		factory.createCallExpression(
-			factory.createIdentifier(helpers.dispatchContinuation),
-			undefined,
-			[
-				factory.createThis(),
-				factory.createStringLiteral(continuationId),
-				factory.createArrayLiteralExpression(dependencyParameters),
-				signal
-			]
-		)
-	);
-	return factory.updateCallExpression(
-		node,
-		factory.createPropertyAccessExpression(factory.createThis(), 'task'),
-		node.typeArguments,
-		[...dependencies, work]
 	);
 }
 

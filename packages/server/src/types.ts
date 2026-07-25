@@ -3,6 +3,7 @@ import type {
 	ContextToken,
 	ExactComponentBoundaryContract,
 	ExactComponentContinuationContract,
+	ExactComponentContinuationExecutorContract,
 	Logger
 } from '@exactjs/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
@@ -18,6 +19,8 @@ export type ExactExecutorContract = {
 	endpoint?: string;
 	endpoints?: ExactEndpointRoutes;
 	actions: Record<string, ExactComponentContinuationContract>;
+	/** Compiler-generated handlers; absent when a contract contains only application actions. */
+	executors?: Record<string, ExactComponentContinuationExecutorContract>;
 	boundaries: Record<string, ExactComponentBoundaryContract>;
 };
 

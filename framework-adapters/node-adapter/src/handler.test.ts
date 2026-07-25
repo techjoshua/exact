@@ -1,15 +1,23 @@
 import { EventEmitter } from 'node:events';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { defineExactActionContract } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { createExactNodeHandler, readNodeRequestBody, writeNodeResponse } from './index.js';
+
+function stateAction(id: string) {
+	return defineExactActionContract(id, {
+		writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
+	});
+}
 
 describe('@exactjs/node-adapter', () => {
 	it('handles eXact requests through Node request and response objects', async () => {
 		const handler = createExactNodeHandler({
-			manifest: {
+			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { save: { id: 'save', placement: 'server' } }
+				actions: { save: stateAction('save') },
+				boundaries: {}
 			},
 			actions: {
 				save: (_input, context) => ({

@@ -1,13 +1,15 @@
+import { defineExactActionContract } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { createExactDenoHandler } from './index.js';
 
 describe('@exactjs/deno-adapter', () => {
 	it('handles Deno Fetch-compatible requests', async () => {
 		const handler = createExactDenoHandler({
-			manifest: {
+			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { save: { id: 'save', placement: 'server' } }
+				actions: { save: stateAction('save') },
+				boundaries: {}
 			},
 			actions: {
 				save: (_input, context) => ({
@@ -36,3 +38,9 @@ describe('@exactjs/deno-adapter', () => {
 		});
 	});
 });
+
+function stateAction(id: string) {
+	return defineExactActionContract(id, {
+		writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
+	});
+}

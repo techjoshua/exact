@@ -1,13 +1,15 @@
+import { defineExactActionContract } from '@exactjs/server';
 import { describe, expect, it, vi } from 'vitest';
 import { createExactKoaMiddleware, type ExactKoaContext } from './index.js';
 
 describe('@exactjs/koa-adapter', () => {
 	it('writes eXact responses into Koa context', async () => {
 		const middleware = createExactKoaMiddleware({
-			manifest: {
+			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { save: { id: 'save', placement: 'server' } }
+				actions: { save: stateAction('save') },
+				boundaries: {}
 			},
 			actions: {
 				save: (_input, context) => ({
@@ -38,10 +40,11 @@ describe('@exactjs/koa-adapter', () => {
 
 	it('delegates unmatched requests and preserves the existing Koa response', async () => {
 		const middleware = createExactKoaMiddleware({
-			manifest: {
+			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: {}
+				actions: {},
+				boundaries: {}
 			}
 		});
 		const ctx = createKoaContext(undefined);
@@ -59,10 +62,11 @@ describe('@exactjs/koa-adapter', () => {
 
 	it('uses raw request text and writes response headers', async () => {
 		const middleware = createExactKoaMiddleware({
-			manifest: {
+			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { save: { id: 'save', placement: 'server' } }
+				actions: { save: stateAction('save') },
+				boundaries: {}
 			},
 			actions: {
 				save: () => ({ state: { ok: true } })
@@ -79,6 +83,12 @@ describe('@exactjs/koa-adapter', () => {
 		expect(headers.get('content-type')).toBe('application/json; charset=utf-8');
 	});
 });
+
+function stateAction(id: string) {
+	return defineExactActionContract(id, {
+		writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
+	});
+}
 
 function createKoaContext(body: unknown): ExactKoaContext {
 	return {

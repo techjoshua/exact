@@ -16,6 +16,7 @@ export function context(overrides: Partial<ExactServerContext> = {}): ExactServe
 			actions: {
 				'allowed-action': defineExactActionContract('allowed-action')
 			},
+			executors: {},
 			boundaries: {
 				'allowed-boundary': defineExactBoundaryContract('allowed-boundary')
 			}

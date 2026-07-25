@@ -37,10 +37,10 @@ export type ExactHapiPluginOptions = {
 };
 
 /**
- * Registers the eXact endpoint declared by `runtime.manifest.endpoint`.
+ * Registers the eXact endpoint declared by `runtime.contract.endpoint`.
  *
  * The plugin may be registered more than once when a Hapi server hosts distinct
- * eXact runtimes with distinct manifest endpoints.
+ * eXact runtimes with distinct contract endpoints.
  */
 export const exactHapiPlugin: Plugin<ExactHapiPluginOptions> = {
 	name: '@exactjs/hapi-adapter',
@@ -50,7 +50,7 @@ export const exactHapiPlugin: Plugin<ExactHapiPluginOptions> = {
 		hapi: '>=21 <22'
 	},
 	register(server, options) {
-		const endpoint = options.runtime.manifest.endpoint ?? '/__exact';
+		const endpoint = options.runtime.contract.endpoint ?? '/__exact';
 		if (!endpoint.startsWith('/')) {
 			throw new Error(
 				`eXact Hapi endpoint must be an absolute path, received ${JSON.stringify(endpoint)}`

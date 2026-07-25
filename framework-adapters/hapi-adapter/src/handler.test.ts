@@ -1,5 +1,5 @@
 import { server as createHapiServer, type Server } from '@hapi/hapi';
-import type { ExactServerContext } from '@exactjs/server';
+import { defineExactActionContract, type ExactServerContext } from '@exactjs/server';
 import { request as createHttpRequest } from 'node:http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createExactHapiHandler, exactHapiPlugin, type ExactHapiPluginOptions } from './index.js';
@@ -11,7 +11,7 @@ afterEach(async () => {
 });
 
 describe('@exactjs/hapi-adapter', () => {
-	it('registers the manifest endpoint and handles a real Hapi request', async () => {
+	it('registers the contract endpoint and handles a real Hapi request', async () => {
 		const server = trackedServer();
 		await registerExact(server, runtime());
 
@@ -43,10 +43,10 @@ describe('@exactjs/hapi-adapter', () => {
 		expect(requestUrl.search).toBe('?source=hapi');
 	});
 
-	it('uses /__exact when the manifest omits its endpoint', async () => {
+	it('uses /__exact when the contract omits its endpoint', async () => {
 		const server = trackedServer();
 		const context = runtime();
-		delete context.manifest.endpoint;
+		delete context.contract.endpoint;
 		await registerExact(server, context);
 
 		const response = await server.inject({
@@ -115,10 +115,10 @@ describe('@exactjs/hapi-adapter', () => {
 		expect(response.statusCode).toBe(200);
 	});
 
-	it('rejects a manifest endpoint that Hapi cannot register safely', async () => {
+	it('rejects a contract endpoint that Hapi cannot register safely', async () => {
 		const server = trackedServer();
 		const context = runtime();
-		context.manifest.endpoint = 'relative';
+		context.contract.endpoint = 'relative';
 
 		await expect(registerExact(server, context)).rejects.toThrow(
 			'eXact Hapi endpoint must be an absolute path'
@@ -136,7 +136,7 @@ describe('@exactjs/hapi-adapter', () => {
 			observedAbort = resolve;
 		});
 		const context = runtime();
-		context.manifest.actions!.wait = { id: 'wait', placement: 'server' };
+		context.contract.actions.wait = stateAction('wait');
 		context.actions!.wait = async (_input, requestContext) => {
 			const signal = requestContext.signal!;
 			started();
@@ -212,10 +212,11 @@ async function registerExact(
 
 function runtime(): ExactServerContext {
 	return {
-		manifest: {
+		contract: {
 			version: 1,
 			endpoint: '/__exact',
-			actions: { save: { id: 'save', placement: 'server' } }
+			actions: { save: stateAction('save') },
+			boundaries: {}
 		},
 		actions: {
 			save: (_input, context) => ({
@@ -227,4 +228,10 @@ function runtime(): ExactServerContext {
 			})
 		}
 	};
+}
+
+function stateAction(id: string) {
+	return defineExactActionContract(id, {
+		writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
+	});
 }

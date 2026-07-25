@@ -1,13 +1,15 @@
+import { defineExactActionContract, type ExactServerContext } from '@exactjs/server';
 import { describe, expect, it, vi } from 'vitest';
 import { createExactExpressMiddleware, type ExactExpressResponse } from './index.js';
 
 describe('@exactjs/express-adapter', () => {
 	it('writes eXact responses through Express response methods', async () => {
 		const middleware = createExactExpressMiddleware({
-			manifest: {
+			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { save: { id: 'save', placement: 'server' } }
+				actions: { save: stateAction('save') },
+				boundaries: {}
 			},
 			actions: {
 				save: (_input, context) => ({
@@ -46,14 +48,15 @@ describe('@exactjs/express-adapter', () => {
 	});
 
 	it('streams response chunks and serializes action failures', async () => {
-		const context = {
-			manifest: {
+		const context: ExactServerContext = {
+			contract: {
 				version: 1 as const,
 				endpoint: '/__exact',
 				actions: {
-					save: { id: 'save', placement: 'server' as const },
-					fail: { id: 'fail', placement: 'server' as const }
-				}
+					save: stateAction('save'),
+					fail: defineExactActionContract('fail')
+				},
+				boundaries: {}
 			},
 			actions: {
 				save: () => ({ state: { saved: true } }),
@@ -101,10 +104,11 @@ describe('@exactjs/express-adapter', () => {
 
 	it('forwards request-scope initialization failures to next', async () => {
 		const middleware = createExactExpressMiddleware({
-			manifest: {
+			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: {}
+				actions: {},
+				boundaries: {}
 			},
 			requestContexts() {
 				throw new Error('context failed');
@@ -127,6 +131,12 @@ describe('@exactjs/express-adapter', () => {
 		expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'context failed' }));
 	});
 });
+
+function stateAction(id: string) {
+	return defineExactActionContract(id, {
+		writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
+	});
+}
 
 function createExpressResponse(): ExactExpressResponse & {
 	statusCode?: number;

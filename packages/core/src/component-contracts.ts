@@ -1,3 +1,5 @@
+import type { ContextToken } from './component/contracts.js';
+
 /** Global property under which compiled artifacts carry their target-local contract. */
 export const exactComponentContract = Symbol.for('@exactjs/component-contract');
 
@@ -20,11 +22,44 @@ export type ExactContinuationStatePathContract = Readonly<{
 export type ExactComponentContinuationContract = Readonly<{
 	id: string;
 	componentId: string;
+	dependencies: readonly Readonly<{
+		source: 'state' | 'props' | 'derived';
+	}>[];
 	stateReads: readonly ExactContinuationStatePathContract[];
 	stateWrites: readonly ExactContinuationStatePathContract[];
 	publicContexts: readonly string[];
 	serverContexts: readonly string[];
 	boundaries: readonly string[];
+}>;
+
+/** Serializable activation record accepted by one generated server continuation. */
+export type ExactComponentContinuationActivation = Readonly<{
+	state: Record<string, unknown>;
+	dependencies: readonly unknown[];
+	publicContext: Readonly<Record<string, unknown>>;
+}>;
+
+/** Trusted invocation resources available only while a server continuation executes. */
+export type ExactComponentContinuationExecution = Readonly<{
+	signal: AbortSignal;
+	getContext<T>(token: ContextToken<T>): T;
+}>;
+
+/** State accumulated by a generated continuation before write-contract projection. */
+export type ExactComponentContinuationExecutionResult = Readonly<{
+	state: Record<string, unknown>;
+}>;
+
+/** Executable server half paired with one inert continuation descriptor. */
+export type ExactComponentContinuationExecutorContract = Readonly<{
+	id: string;
+	componentId: string;
+	execute(
+		activation: ExactComponentContinuationActivation,
+		execution: ExactComponentContinuationExecution
+	):
+		| ExactComponentContinuationExecutionResult
+		| Promise<ExactComponentContinuationExecutionResult>;
 }>;
 
 /** One compiler-owned DOM boundary and its component ownership. */
@@ -51,6 +86,7 @@ export type ExactComponentContract = Readonly<{
 	role: 'client' | 'executor';
 	implementations: readonly ExactComponentImplementationContract[];
 	continuations: readonly ExactComponentContinuationContract[];
+	executors: readonly ExactComponentContinuationExecutorContract[];
 	boundaries: readonly ExactComponentBoundaryContract[];
 	resumption?: ExactComponentResumptionContract;
 }>;
@@ -60,6 +96,7 @@ export type ExactComposedComponentContracts = Readonly<{
 	implementations: Record<string, (...args: any[]) => any>;
 	implementationsById: Record<string, (...args: any[]) => any>;
 	continuations: Record<string, ExactComponentContinuationContract>;
+	executors: Record<string, ExactComponentContinuationExecutorContract>;
 	boundaries: Record<string, ExactComponentBoundaryContract>;
 	resumptions: Record<string, ExactComponentResumptionContract>;
 }>;
@@ -79,6 +116,7 @@ export function readExactComponentContract(
 		typeof contract.id !== 'string' ||
 		!Array.isArray(contract.implementations) ||
 		!Array.isArray(contract.continuations) ||
+		!Array.isArray(contract.executors) ||
 		!Array.isArray(contract.boundaries)
 	) {
 		throw new Error('Unsupported eXact component contract');
@@ -99,6 +137,7 @@ export function composeExactComponentContracts(
 	const implementations: Record<string, (...args: any[]) => any> = {};
 	const implementationsById: Record<string, (...args: any[]) => any> = {};
 	const continuations: Record<string, ExactComponentContinuationContract> = {};
+	const executors: Record<string, ExactComponentContinuationExecutorContract> = {};
 	const boundaries: Record<string, ExactComponentBoundaryContract> = {};
 	const resumptions: Record<string, ExactComponentResumptionContract> = {};
 
@@ -119,6 +158,8 @@ export function composeExactComponentContracts(
 		}
 		for (const continuation of contract.continuations)
 			addUniqueJson(continuations, continuation.id, continuation, 'continuation');
+		for (const executor of contract.executors)
+			addUniqueExecutor(executors, executor);
 		for (const boundary of contract.boundaries)
 			addUniqueJson(boundaries, boundary.id, boundary, 'boundary');
 		if (contract.resumption)
@@ -134,9 +175,24 @@ export function composeExactComponentContracts(
 		implementations,
 		implementationsById,
 		continuations,
+		executors,
 		boundaries,
 		resumptions
 	});
+}
+
+/** Adds one generated continuation implementation while rejecting ambiguous authority. */
+function addUniqueExecutor(
+	target: Record<string, ExactComponentContinuationExecutorContract>,
+	executor: ExactComponentContinuationExecutorContract
+): void {
+	const previous = target[executor.id];
+	if (
+		previous &&
+		(previous.componentId !== executor.componentId || previous.execute !== executor.execute)
+	)
+		throw new Error(`Conflicting eXact component continuation executor ${executor.id}`);
+	target[executor.id] = executor;
 }
 
 /** Adds one implementation while rejecting ID or runtime-name collisions. */

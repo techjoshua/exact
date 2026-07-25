@@ -16,6 +16,7 @@ function continuation(
 	return {
 		id,
 		componentId: `test:${id}`,
+		dependencies: [],
 		stateReads: options.reads ?? [],
 		stateWrites: options.writes ?? [],
 		publicContexts: options.publicContexts ?? [],
@@ -38,6 +39,8 @@ describe('@exactjs/hydrate action-operations', () => {
 			continuations: {
 				save: {
 					id: 'save',
+					componentId: 'test:save',
+					dependencies: [],
 					stateReads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }],
 					stateWrites: [],
 					publicContexts: ['PublicConfig'],
@@ -88,6 +91,8 @@ describe('@exactjs/hydrate action-operations', () => {
 			continuations: {
 				save: {
 					id: 'save',
+					componentId: 'test:save',
+					dependencies: [],
 					stateReads: [],
 					stateWrites: [{ path: 'profile.name', kind: 'write', confidence: 'exact' }],
 					publicContexts: [],
@@ -129,6 +134,8 @@ describe('@exactjs/hydrate action-operations', () => {
 			continuations: {
 				save: {
 					id: 'save',
+					componentId: 'test:save',
+					dependencies: [],
 					stateReads: [],
 					stateWrites: [{ path: 'profile.name', kind: 'write', confidence: 'exact' }],
 					publicContexts: [],

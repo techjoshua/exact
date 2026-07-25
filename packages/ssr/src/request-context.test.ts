@@ -221,6 +221,7 @@ describe('@exactjs/ssr request-context', () => {
 						boundaries: ['profile']
 					})
 				},
+				executors: {},
 				boundaries: {
 					profile: defineExactBoundaryContract('profile', {
 						componentId: 'Profile',

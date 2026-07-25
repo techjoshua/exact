@@ -43,6 +43,11 @@ export {
 	defineExactActionContract,
 	defineExactBoundaryContract
 } from '../executor-contract.js';
+export {
+	continuationDependencies,
+	createExactContinuationHandler,
+	type ExactGeneratedContinuationHandler
+} from '../continuation-execution.js';
 export { createExactBindingGateway } from '../gateway.js';
 export type * from '../types.js';
 
@@ -220,6 +225,7 @@ function emptyContract(context: ExactServerContext): ExactServerContext['contrac
 		version: 1,
 		endpoint: context.contract.endpoint,
 		actions: {},
+		executors: {},
 		boundaries: {}
 	};
 }

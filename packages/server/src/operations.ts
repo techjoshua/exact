@@ -1,6 +1,10 @@
 import { logFrameworkEvent } from '@exactjs/core';
 import { processExactOutputSync } from '@exactjs/plugin-host/runtime';
 import { jsonResponse } from './protocol.js';
+import {
+	continuationDependencies,
+	createExactContinuationHandler
+} from './continuation-execution.js';
 import type {
 	ExactBatchRequest,
 	ExactInvocationRequest,
@@ -147,8 +151,16 @@ async function dispatchExactOperationAfterSecurity(
 	}
 
 	const action = input.type === 'action' ? context.contract.actions[input.id] : undefined;
+	const executor =
+		input.type === 'action' ? context.contract.executors?.[input.id] : undefined;
 	if (action && !stateMatchesContract(input.state, action.stateReads)) {
 		return reject(400, 'bad_request', 'rejected exact invocation with mismatched state contract');
+	}
+	if (
+		executor &&
+		!continuationDependencies(input.payload, action?.dependencies.length ?? 0)
+	) {
+		return reject(400, 'bad_request', 'rejected malformed exact continuation activation');
 	}
 	if (!publicContextMatchesContract(input.publicContext, action?.publicContexts ?? [])) {
 		return reject(400, 'bad_request', 'rejected mismatched public context projection');
@@ -163,7 +175,10 @@ async function dispatchExactOperationAfterSecurity(
 	}
 
 	const handler =
-		input.type === 'action' ? context.actions?.[input.id] : context.refreshBoundaries?.[input.id];
+		input.type === 'action'
+			? (context.actions?.[input.id] ??
+				(action && executor ? createExactContinuationHandler(action, executor) : undefined))
+			: context.refreshBoundaries?.[input.id];
 	if (!handler)
 		return reject(404, 'not_found', 'rejected exact invocation without registered handler');
 

@@ -1,13 +1,15 @@
+import { defineExactActionContract } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { createExactFastifyHandler, type ExactFastifyReply } from './index.js';
 
 describe('@exactjs/fastify-adapter', () => {
 	it('writes eXact responses through Fastify reply methods', async () => {
 		const handler = createExactFastifyHandler({
-			manifest: {
+			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { save: { id: 'save', placement: 'server' } }
+				actions: { save: stateAction('save') },
+				boundaries: {}
 			},
 			actions: {
 				save: (_input, context) => ({
@@ -44,6 +46,12 @@ describe('@exactjs/fastify-adapter', () => {
 		});
 	});
 });
+
+function stateAction(id: string) {
+	return defineExactActionContract(id, {
+		writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
+	});
+}
 
 function createFastifyReply(): ExactFastifyReply & { statusCode?: number; body?: unknown } {
 	return {

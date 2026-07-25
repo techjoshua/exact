@@ -1,13 +1,15 @@
+import { defineExactActionContract } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { createExactServerlessHandler, responseToServerlessResult } from './index.js';
 
 describe('@exactjs/serverless-adapter', () => {
 	it('handles API Gateway style events', async () => {
 		const handler = createExactServerlessHandler({
-			manifest: {
+			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { save: { id: 'save', placement: 'server' } }
+				actions: { save: stateAction('save') },
+				boundaries: {}
 			},
 			actions: {
 				save: (_input, context) => ({
@@ -42,10 +44,11 @@ describe('@exactjs/serverless-adapter', () => {
 
 	it('normalizes alternate event fields, query strings, and base64 request bodies', async () => {
 		const handler = createExactServerlessHandler({
-			manifest: {
+			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { save: { id: 'save', placement: 'server' } }
+				actions: { save: stateAction('save') },
+				boundaries: {}
 			},
 			actions: {
 				save: (input, context) => ({
@@ -113,3 +116,9 @@ describe('@exactjs/serverless-adapter', () => {
 		});
 	});
 });
+
+function stateAction(id: string) {
+	return defineExactActionContract(id, {
+		writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
+	});
+}

@@ -196,6 +196,7 @@ describe('@exactjs/ssr boundaries', () => {
 							boundaries: ['profile']
 						})
 					},
+					executors: {},
 					boundaries: {
 						profile: defineExactBoundaryContract('profile')
 					}

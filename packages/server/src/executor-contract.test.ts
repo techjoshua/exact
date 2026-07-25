@@ -9,6 +9,7 @@ import {
 
 describe('@exactjs/server executor contracts', () => {
 	it('composes explicitly imported executable component contracts', () => {
+		const execute = () => ({ state: {} });
 		const component = Object.assign(() => undefined, {
 			[exactComponentContract]: {
 				version: 1 as const,
@@ -23,6 +24,13 @@ describe('@exactjs/server executor contracts', () => {
 						writes: [{ path: 'project.title', kind: 'write', confidence: 'exact' }],
 						boundaries: ['page']
 					})
+				],
+				executors: [
+					{
+						id: 'save',
+						componentId: 'Page',
+						execute
+					}
 				],
 				boundaries: [
 					defineExactBoundaryContract('page', {
@@ -50,6 +58,7 @@ describe('@exactjs/server executor contracts', () => {
 					boundaries: ['page']
 				}
 			},
+			executors: { save: { componentId: 'Page', execute } },
 			boundaries: { page: { ownerComponentId: 'Page' } }
 		});
 		expect(createExactHydrationConfig(contract, { project: { id: 'p1' } })).toEqual({
@@ -76,6 +85,7 @@ describe('@exactjs/server executor contracts', () => {
 				role: 'executor' as const,
 				implementations: [],
 				continuations: [first],
+				executors: [],
 				boundaries: []
 			}
 		});

@@ -852,7 +852,13 @@
           "dependencies": [
             {
               "index": 0,
-              "source": "state"
+              "source": "context",
+              "contextToken": "ServerAuthorizationContext"
+            },
+            {
+              "index": 1,
+              "source": "context",
+              "contextToken": "ServerBrandContext"
             }
           ],
           "reads": [],
@@ -1855,12 +1861,7 @@
       "async": true,
       "activation": {
         "stateReads": [],
-        "dependencies": [
-          {
-            "index": 0,
-            "source": "state"
-          }
-        ],
+        "dependencies": [],
         "serverContexts": [
           {
             "token": "ServerAuthorizationContext",

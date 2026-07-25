@@ -280,6 +280,7 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 		hasOnlyKeys(record, [
 			'id',
 			'componentId',
+			'dependencies',
 			'stateReads',
 			'stateWrites',
 			'publicContexts',
@@ -288,12 +289,28 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 		]) &&
 		typeof record.id === 'string' &&
 		typeof record.componentId === 'string' &&
+		isContinuationDependencies(record.dependencies) &&
 		isStatePathList(record.stateReads) &&
 		isStatePathList(record.stateWrites) &&
 		isStringList(record.publicContexts) &&
 		isStringList(record.serverContexts) &&
 		record.serverContexts.length === 0 &&
 		isStringList(record.boundaries)
+	);
+}
+
+/** Validates the transport-safe dependency source descriptors. */
+function isContinuationDependencies(value: unknown): boolean {
+	return (
+		Array.isArray(value) &&
+		value.every(
+			(item) =>
+				Boolean(item && typeof item === 'object' && !Array.isArray(item)) &&
+				hasOnlyKeys(item as Record<string, unknown>, ['source']) &&
+				((item as Record<string, unknown>).source === 'state' ||
+					(item as Record<string, unknown>).source === 'props' ||
+					(item as Record<string, unknown>).source === 'derived')
+		)
 	);
 }
 

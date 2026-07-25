@@ -1,13 +1,15 @@
+import { defineExactActionContract } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { createExactCloudflareHandler } from './index.js';
 
 describe('@exactjs/cloudflare-adapter', () => {
 	it('handles Cloudflare Worker fetch requests', async () => {
 		const handler = createExactCloudflareHandler({
-			manifest: {
+			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { save: { id: 'save', placement: 'server' } }
+				actions: { save: stateAction('save') },
+				boundaries: {}
 			},
 			actions: {
 				save: (_input, context) => {
@@ -50,3 +52,9 @@ describe('@exactjs/cloudflare-adapter', () => {
 		});
 	});
 });
+
+function stateAction(id: string) {
+	return defineExactActionContract(id, {
+		writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
+	});
+}

@@ -25,11 +25,13 @@ export function testContinuation(
 		writes?: readonly ExactContinuationStatePathContract[];
 		boundaries?: readonly string[];
 		publicContexts?: readonly string[];
+		dependencies?: ExactComponentContinuationContract['dependencies'];
 	} = {}
 ): ExactComponentContinuationContract {
 	return {
 		id,
 		componentId: `test:${id}`,
+		dependencies: options.dependencies ?? [],
 		stateReads:
 			options.reads ??
 			([{ path: '*', kind: 'read', confidence: 'exact' }] as const),

@@ -61,10 +61,10 @@ export function ServerIdentityProjection(this: Component<{
     __exactUpdate(this.state, ["roleNames"], previous => previous ?? '');
     __exactUpdate(this.state, ["brandName"], previous => previous ?? '');
     __exactUpdate(this.state, ["brandAccent"], previous => previous ?? '');
-    this.task.server(this.reactive(() => this), async (__exactDependency, { signal: __exactSignal }) => {
+    this.task.server(async ({ signal: __exactSignal }) => {
         await __exactTaskAwait(__exactSignal, Promise.resolve());
-        const authorization = __exactDependency.getContext(ServerAuthorizationContext);
-        const brand = __exactDependency.getContext(ServerBrandContext);
+        const authorization = this.getContext(ServerAuthorizationContext);
+        const brand = this.getContext(ServerBrandContext);
         const publicBrand = brand.publicBrand();
         __exactWrite(this.state, ["roleNames"], () => authorization.roles().join(','));
         __exactWrite(this.state, ["brandName"], () => publicBrand.name);

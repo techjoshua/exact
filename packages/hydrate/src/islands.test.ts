@@ -51,6 +51,7 @@ describe('@exactjs/hydrate islands', () => {
 								writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
 							})
 						},
+						executors: {},
 						boundaries: {
 							panel: defineExactBoundaryContract('panel')
 						}

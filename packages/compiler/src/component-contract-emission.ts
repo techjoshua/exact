@@ -1,4 +1,5 @@
 import ts from 'typescript';
+import type { ContinuationExecutorEmission } from './continuation-executor-emission.js';
 import { continuationDescriptorExpression, inertMetadataExpression } from './descriptor-values.js';
 import type {
 	ExactBoundaryIR,
@@ -18,6 +19,7 @@ export type ComponentContractEmission = {
 		componentImplementation: boolean;
 	}>;
 	continuations: ExactContinuationIR[];
+	executors: readonly ContinuationExecutorEmission[];
 	boundaries: ExactBoundaryIR[];
 	resumption?: ExactComponentResumptionIR;
 };
@@ -105,6 +107,25 @@ function componentContractExpression(
 					contract.continuations,
 					contract.role === 'client',
 					factory
+				)
+			),
+			factory.createPropertyAssignment(
+				'executors',
+				factory.createArrayLiteralExpression(
+					contract.executors.map((executor) =>
+						factory.createObjectLiteralExpression([
+							factory.createPropertyAssignment(
+								'id',
+								factory.createStringLiteral(executor.id)
+							),
+							factory.createPropertyAssignment(
+								'componentId',
+								factory.createStringLiteral(executor.componentId)
+							),
+							factory.createPropertyAssignment('execute', executor.execute)
+						])
+					),
+					true
 				)
 			),
 			factory.createPropertyAssignment(

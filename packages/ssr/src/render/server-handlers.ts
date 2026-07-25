@@ -1,5 +1,9 @@
 import { withTaskObserver } from '@exactjs/core';
-import { createExactContextRuntime, type ExactPatch } from '@exactjs/server';
+import {
+	createExactContextRuntime,
+	createExactContinuationHandler,
+	type ExactPatch
+} from '@exactjs/server';
 import { boundaryPatch, diffBoundaryHtml, diffKeyedListItems } from '../diff.js';
 import { decodeMarkerKey, exactMarkerId, keyedItemMarkerId, markerPair } from '../markup.js';
 import {
@@ -114,7 +118,15 @@ export function createExactServerHandlerRegistry(
 	}
 
 	for (const id of Object.keys(options.contract.actions).sort()) {
-		const action = options.actions?.[id];
+		const explicitAction = options.actions?.[id];
+		const executor = options.contract.executors?.[id];
+		if (explicitAction && executor)
+			throw new Error(`Conflicting application and generated eXact action handler ${id}`);
+		const action =
+			explicitAction ??
+			(executor
+				? createExactContinuationHandler(options.contract.actions[id]!, executor)
+				: undefined);
 		if (!action) continue;
 		const boundaries = options.contract.actions[id]!.boundaries.map((boundaryId) => {
 			const renderer = options.boundaries?.[boundaryId];

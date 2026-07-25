@@ -26,25 +26,8 @@ export const ProfilePage: typeof __exactImplementation_ProfilePage_1 = /* @__PUR
         implementations: [
             { id: "xn4HBfS6VSk_X0fHSn2U6sr", name: "ProfilePage_ExactServer_1", role: "server-part", implementation: __exactImplementation_ProfilePage_1 }
         ],
-        continuations: [
-            {
-                id: "x3JLureiZflgJmddVWOBoBF",
-                componentId: "x7gsBV1RVj9VfGBkq4km6f7",
-                stateReads: [],
-                stateWrites: [
-                    {
-                        path: "status",
-                        kind: "write",
-                        confidence: "exact"
-                    }
-                ],
-                publicContexts: [],
-                serverContexts: [],
-                boundaries: [
-                    "xjbD874UpZxqjxcAu1_iYpK"
-                ]
-            }
-        ],
+        continuations: [],
+        executors: [],
         boundaries: [
             {
                 id: "xjbD874UpZxqjxcAu1_iYpK",

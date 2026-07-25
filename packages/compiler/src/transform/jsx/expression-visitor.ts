@@ -1,6 +1,6 @@
 import ts from 'typescript';
 import { isIdentifierDeclarationName, isPropertyAccessName } from '../../ast.js';
-import { isThisTaskCall, taskRequestedPlacement } from '../../calls.js';
+import { isThisTaskCall } from '../../calls.js';
 import { expressionEmissionId } from './identity.js';
 import {
 	clientComponentChildrenProp,
@@ -20,12 +20,16 @@ import {
 	recordClientIslandDefinition
 } from './island-planning.js';
 import {
-	shouldOmitPlacement,
 	transformImplicitLifecycleListener,
 	transformImplicitSetupTask
 } from './lifecycle-emission.js';
 import { transformCapturedCall, transformReactiveTaggedTemplate } from './reactive-emission.js';
-import { createDistributedTaskCall } from './task-emission.js';
+import {
+	componentOwnsClientMachine,
+	createDistributedTaskCall,
+	resolvedTaskPlacement,
+	shouldOmitTaskPlacement
+} from './distributed-task-emission.js';
 import type { JsxVisitorEnvironment } from './visitor-environment.js';
 
 /**
@@ -43,6 +47,7 @@ export function visitJsxExpression(
 		helpers,
 		state,
 		target,
+		serverComponents,
 		componentInfo,
 		componentPlacements,
 		derivedReactiveLocals,
@@ -281,25 +286,24 @@ export function visitJsxExpression(
 			state.sawAbortOptions = true;
 			return transformImplicitLifecycleListener(node, context, visitor, helpers);
 		}
-		const requestedTaskPlacement = isThisTaskCall(node)
-			? (taskRequestedPlacement(node) ??
-				(ts.isCallExpression(ts.getOriginalNode(node))
-					? taskRequestedPlacement(ts.getOriginalNode(node) as ts.CallExpression)
-					: undefined))
-			: undefined;
+		const requestedTaskPlacement = isThisTaskCall(node) ? resolvedTaskPlacement(node) : undefined;
 		const omitTask =
 			isThisTaskCall(node) &&
-			(requestedTaskPlacement === 'server' && target === 'client'
-				? true
-				: requestedTaskPlacement === 'client' && target === 'server'
-					? true
-					: shouldOmitPlacement(taskPlacementFor(node), target));
+			shouldOmitTaskPlacement(requestedTaskPlacement, taskPlacementFor(node), target);
 		if (omitTask) {
 			const task = expressionTaskFor(node);
 			if (
 				target === 'client' &&
 				(requestedTaskPlacement === 'server' || task?.placement === 'server')
 			) {
+				if (
+					!componentOwnsClientMachine(
+						state.componentStack.at(-1),
+						componentPlacements,
+						serverComponents
+					)
+				)
+					return factory.createVoidExpression(factory.createNumericLiteral(0));
 				if (!task?.continuationId)
 					throw new Error(
 						`Missing distributed continuation identity for server task in ${sourceFile.fileName}`

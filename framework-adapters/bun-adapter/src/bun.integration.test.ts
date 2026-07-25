@@ -1,3 +1,4 @@
+import { defineExactActionContract } from '@exactjs/server';
 import { createExactBunHandler } from './index.js';
 
 type SharedTestApi = Pick<typeof import('vitest'), 'describe' | 'it' | 'expect'>;
@@ -12,10 +13,11 @@ const describeBun = runningInBun ? testApi.describe : testApi.describe.skip;
 describeBun('@exactjs/bun-adapter with Bun.serve', () => {
 	testApi.it('serves an eXact action through Bun native HTTP', async () => {
 		const handler = createExactBunHandler({
-			manifest: {
+			contract: {
 				version: 1,
 				endpoint: '/__exact',
-				actions: { ping: { id: 'ping', placement: 'server' } }
+				actions: { ping: stateAction('ping') },
+				boundaries: {}
 			},
 			actions: {
 				ping: () => ({ state: { runtime: 'bun' } })
@@ -50,3 +52,9 @@ describeBun('@exactjs/bun-adapter with Bun.serve', () => {
 		}
 	});
 });
+
+function stateAction(id: string) {
+	return defineExactActionContract(id, {
+		writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
+	});
+}

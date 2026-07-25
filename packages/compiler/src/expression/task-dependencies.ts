@@ -23,6 +23,7 @@ export interface ExpressionTaskDependencyAnalysis {
 interface Candidate {
 	readonly expression: NodeRef;
 	readonly source: ExpressionTaskDependency['source'];
+	readonly contextToken?: string;
 }
 
 /**
@@ -40,10 +41,25 @@ export function analyzeTaskDependencies(
 	const candidates: Candidate[] = [];
 	const unsafeDerived = new Map<string, Variable>();
 
+	for (const call of work.walk().calls()) {
+		if (
+			!call.node.span ||
+			!call.target?.isMember('getContext') ||
+			call.target.target?.node.kind !== 'ThisKeyword'
+		)
+			continue;
+		candidates.push({
+			expression: call,
+			source: 'context',
+			contextToken: call.arguments[0]?.node.text
+		});
+	}
+
 	for (const member of work.walk().memberAccesses()) {
 		if (insideAssignmentTarget(member)) continue;
 		const expression = capturedMemberExpression(member);
 		if (!expression?.node.span) continue;
+		if (isContextLookup(expression) || nestedInContextLookup(member)) continue;
 		const variable = expression.rootVariable;
 		if (variable && declaredWithin(module, variable, work)) continue;
 		const entry = variable ? provenance.get(variable) : undefined;
@@ -103,7 +119,11 @@ export function analyzeTaskDependencies(
 				end: span.end,
 				source: first.source,
 				...(first.source === 'context'
-					? { contextToken: contextTokenForVariable(module, first.expression.rootVariable) }
+					? {
+							contextToken:
+								first.contextToken ??
+								contextTokenForVariable(module, first.expression.rootVariable)
+						}
 					: {}),
 				readNodeIds: Object.freeze([...new Set(values.map((value) => value.expression.node.id))])
 			});
@@ -113,6 +133,25 @@ export function analyzeTaskDependencies(
 		dependencies: Object.freeze(dependencies),
 		unsafeDerived: Object.freeze([...unsafeDerived.values()])
 	});
+}
+
+/** Returns whether a canonical expression is this.getContext(token). */
+function isContextLookup(expression: NodeRef): boolean {
+	return (
+		expression.node.kind === 'CallExpression' &&
+		expression.target?.isMember('getContext') === true &&
+		expression.target.target?.node.kind === 'ThisKeyword'
+	);
+}
+
+/** Excludes this/getContext receiver members already represented by the context capture. */
+function nestedInContextLookup(expression: NodeRef): boolean {
+	let current: NodeRef | undefined = expression;
+	while (current) {
+		if (isContextLookup(current)) return true;
+		current = current.parent;
+	}
+	return false;
 }
 
 /** Resolves the token argument used to create a context-derived local alias. */

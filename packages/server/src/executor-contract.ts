@@ -31,6 +31,7 @@ export function composeExactExecutorContract(
 		endpoint: options.endpoint,
 		endpoints: normalizeEndpointRoutes(options.endpoints),
 		actions,
+		executors: composed.executors,
 		boundaries
 	});
 }
@@ -118,6 +119,7 @@ export function defineExactActionContract(
 	return Object.freeze({
 		id,
 		componentId: options.componentId ?? `application:${id}`,
+		dependencies: [],
 		stateReads: options.reads ?? [],
 		stateWrites: options.writes ?? [],
 		publicContexts: options.publicContexts ?? [],

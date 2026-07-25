@@ -285,12 +285,93 @@ describe('@exactjs/compiler: artifacts', () => {
 		);
 		expect(client).not.toContain('parts:');
 		expect(server).not.toContain('parts:');
+		expect(client).toContain('executors: []');
+		expect(server).toContain('executors: [');
+		expect(server).toMatch(
+			/execute: async \(__exactActivation_\d+: any, __exactExecution_\d+: any\)/
+		);
+		expect(server).toMatch(/__exactWrite\(__exactComponent_\d+\.state, \["count"\]/);
 		expect(result.manifest.artifacts?.exports).toContainEqual(
 			expect.objectContaining({
 				name: 'Panel',
 				artifactClass: 'dual'
 			})
 		);
+	});
+
+	it('keeps direct server-context dependencies out of client activation records', async () => {
+		const root = await createTestWorkspace('exact-continuation-context-');
+		const input = path.join(root, 'src', 'panel.tsx');
+		const outDir = path.join(root, 'dist');
+		await mkdir(path.dirname(input), { recursive: true });
+		await writeFile(
+			input,
+			`
+      import type { Component, ContextToken } from "@exactjs/core";
+      declare const DatabaseContext: ContextToken<{
+        find(id: string): Promise<{ title: string }>;
+      }>;
+      export function Panel(this: Component<{ id: string; title?: string }>) {
+        this.task.server(async () => {
+          const row = await this.getContext(DatabaseContext).find(this.state.id);
+          this.state.title = row.title;
+        });
+        return () => <button onClick={() => this.state.id = "next"}>{this.state.title}</button>;
+      }
+    `
+		);
+
+		const result = await compileFileArtifacts(input, {
+			outDir,
+			rootDir: path.join(root, 'src')
+		});
+		const client = await readFile(result.clientFile, 'utf8');
+		const server = await readFile(result.serverFile, 'utf8');
+
+		expect(client).not.toContain('this.reactive(() => this.getContext(DatabaseContext))');
+		expect(client).toMatch(
+			/this\.task\(this\.reactive\(\(\) => this\.state\.id\), \(__exactDependency/
+		);
+		expect(server).toMatch(
+			/__exactExecution_\d+\.getContext\(DatabaseContext\)\.find\(__exactDependency\)/
+		);
+		expect(server).toContain('serverContexts: [\n                    "DatabaseContext"');
+	});
+
+	it('does not retain continuation machinery for components without a client machine', async () => {
+		const root = await createTestWorkspace('exact-server-only-continuation-');
+		const input = path.join(root, 'src', 'page.tsx');
+		const outDir = path.join(root, 'dist');
+		await mkdir(path.dirname(input), { recursive: true });
+		await writeFile(
+			input,
+			`
+      export function Page(this: Component<{ ready: boolean }>) {
+        this.task.server(async () => {
+          await Promise.resolve();
+          this.state.ready = true;
+        });
+        return () => <section>
+          <p>{this.state.ready ? "Ready" : "Loading"}</p>
+          <button onClick={() => console.log("client")}>Open</button>
+        </section>;
+      }
+    `
+		);
+
+		const result = await compileFileArtifacts(input, {
+			outDir,
+			rootDir: path.join(root, 'src'),
+			serverComponents: true
+		});
+		const client = await readFile(result.clientFile, 'utf8');
+		const server = await readFile(result.serverFile, 'utf8');
+
+		expect(client).not.toContain('dispatchComponentContinuation');
+		expect(client).not.toContain('taskAwait');
+		expect(client).not.toContain('executors:');
+		expect(server).toContain('continuations: []');
+		expect(server).toContain('executors: []');
 	});
 
 	it('preserves hoisted component exports when project imports form a cycle', async () => {
