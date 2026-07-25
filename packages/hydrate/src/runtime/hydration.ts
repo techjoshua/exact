@@ -6,6 +6,7 @@ import {
 	adoptStatic,
 	createDomWorkBudget,
 	render,
+	synchronizeFormBinding,
 	type DomWorkBudget,
 	type RenderOptions
 } from '@exactjs/dom';
@@ -86,7 +87,8 @@ export function hydrateRoot(
 			work,
 			root.domain
 		);
-		restoreFormState(rootContainer, formState, work);
+		for (const control of restoreFormState(rootContainer, formState, work))
+			synchronizeFormBinding(control);
 		rootContainer.setAttribute('data-exact-hydrated', 'true');
 		resolvedOptions.onHydration?.(
 			Object.freeze({

@@ -8,6 +8,7 @@ import {
 	readExactHydrationConfig
 } from '@exactjs/hydrate';
 import { handleExactRequest } from '@exactjs/server';
+import { flushSync } from '@exactjs/reactive';
 import { createExactServerRuntime, renderExactRequestToHtmlResponse } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
 import { IdentityProvider } from '../.exact/IdentityProvider.exact.client.js';
@@ -60,7 +61,6 @@ describe('@exactjs/sample-server-components', () => {
 		expect(rendered.html).not.toContain('<!--exact:');
 		const config = readExactHydrationConfig(container);
 		const islands = { ProfilePage_ExactClient_1 };
-		const hydrated = hydrateClientIslands(container, islands);
 		const client = createExactClient(container, {
 			...config,
 			islands,
@@ -81,8 +81,14 @@ describe('@exactjs/sample-server-components', () => {
 			}
 		});
 
-		expect(hydrated).toBe(1);
+		expect(container.querySelector('[data-exact-client-hydrated="true"]')).toBeNull();
+		const button = container.querySelector('button')!;
+		expect(button.textContent).toBe('Saved 0 times');
+		button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		flushSync();
+		expect(container.querySelector('button')).not.toBe(button);
 		expect(container.querySelector('[data-exact-client-hydrated="true"]')).not.toBeNull();
+		expect(container.querySelector('button')?.textContent).toBe('Saved 1 times');
 		expect(config.continuations?.['save-profile']?.boundaries).toContain(
 			container
 				.querySelector('[data-exact-client-boundary]')

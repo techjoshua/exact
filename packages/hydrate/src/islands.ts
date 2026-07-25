@@ -7,15 +7,20 @@ import {
 	withComponentDomain
 } from '@exactjs/core';
 import {
+	adoptMarkerlessComponentRoot,
 	consumeDomWork,
 	createDomWorkBudget,
 	findNodeOwnerInstance,
 	render,
+	synchronizeFormBinding,
 	walkDomSubtree
 } from '@exactjs/dom';
+import { captureHydrationDom, restoreFormState } from './adoption/form-state.js';
+import { disposeInteractionHydration, ensureInteractionHydration } from './islands/interaction.js';
 import { isSafeObjectKey } from './safety.js';
 import type { ClientIslandRegistry, HydrateOptions } from './types.js';
 import { isJsonSafe } from './validation.js';
+import { roots } from './runtime/state.js';
 
 /** Hydrates all unhydrated client island boundaries found under a container. */
 export function hydrateClientIslands(
@@ -27,7 +32,12 @@ export function hydrateClientIslands(
 	const attempted = new Set<Element>();
 	const work = createDomWorkBudget(options.maxTreeNodes);
 	const boundaries: Element[] = [];
-	const domain = options.componentDomain ?? createComponentDomain(options.executionRoot ?? 'page');
+	const rootContainer =
+		container.nodeType === 9 ? (container as Document).documentElement : container;
+	const domain =
+		options.componentDomain ??
+		(rootContainer instanceof Element ? roots.get(rootContainer)?.domain : undefined) ??
+		createComponentDomain(options.executionRoot ?? 'page');
 	const enqueue = (root: Node) =>
 		walkDomSubtree(
 			root,
@@ -42,6 +52,7 @@ export function hydrateClientIslands(
 			{ budget: work }
 		);
 	enqueue(container);
+	let dormant = false;
 	for (let index = 0; index < boundaries.length; index++) {
 		const boundary = boundaries[index]!;
 		if (
@@ -52,48 +63,120 @@ export function hydrateClientIslands(
 			continue;
 		const parent = boundary.parentElement?.closest('[data-exact-client-boundary]');
 		if (parent && parent.getAttribute('data-exact-client-hydrated') !== 'true') continue;
-		attempted.add(boundary);
-		const name = boundary.getAttribute('data-exact-client-name');
-		if (!name) continue;
-		const component = registry[name];
-		if (!component) {
-			logFrameworkEvent(
-				'warn',
-				'hydrate',
-				'island',
-				`missing client island ${name}`,
-				undefined,
-				options.logger
-			);
+		if (shouldDeferIsland(boundary, options)) {
+			dormant = true;
 			continue;
 		}
-		const props = parseIslandProps(boundary.getAttribute('data-exact-client-props'), options);
-		const remaining = work.limit - work.used;
-		if (remaining <= 0) consumeDomWork(work);
-		render(
-			withComponentDomain(domain, () => createVNode(component, props)),
-			boundary,
-			{
-				logger: options.logger,
-				maxTreeDepth: options.maxTreeDepth,
-				maxTreeNodes: remaining,
-				workBudget: work,
-				logicalParent: findNodeOwnerInstance(boundary)
-			}
-		);
-		boundary.setAttribute('data-exact-client-hydrated', 'true');
-		options.onHydration?.(
-			Object.freeze({
-				kind: 'island',
-				outcome: 'mounted',
-				component: name,
-				markers: 'none'
-			})
-		);
-		hydrated++;
-		enqueue(boundary);
+		attempted.add(boundary);
+		if (hydrateIslandBoundary(boundary, registry, options, work, domain)) {
+			hydrated++;
+			enqueue(boundary);
+		}
 	}
+	if (dormant)
+		ensureInteractionHydration(
+			container,
+			(boundary, event) =>
+				hydrateIslandChain(
+					boundary,
+					registry,
+					options,
+					createDomWorkBudget(options.maxTreeNodes),
+					domain,
+					event
+				),
+			options
+		);
+	else disposeInteractionHydration(container);
 	return hydrated;
+}
+
+function hydrateIslandChain(
+	boundary: Element,
+	registry: ClientIslandRegistry,
+	options: HydrateOptions,
+	work: ReturnType<typeof createDomWorkBudget>,
+	domain: ReturnType<typeof createComponentDomain>,
+	activationEvent?: Event
+): boolean {
+	const parent = boundary.parentElement?.closest('[data-exact-client-boundary]');
+	if (
+		parent &&
+		parent.getAttribute('data-exact-client-hydrated') !== 'true' &&
+		!hydrateIslandChain(parent, registry, options, work, domain)
+	)
+		return false;
+	return hydrateIslandBoundary(boundary, registry, options, work, domain, activationEvent);
+}
+
+function hydrateIslandBoundary(
+	boundary: Element,
+	registry: ClientIslandRegistry,
+	options: HydrateOptions,
+	work: ReturnType<typeof createDomWorkBudget>,
+	domain: ReturnType<typeof createComponentDomain>,
+	activationEvent?: Event
+): boolean {
+	if (boundary.getAttribute('data-exact-client-hydrated') === 'true') return true;
+	const name = boundary.getAttribute('data-exact-client-name');
+	if (!name) return false;
+	const component = registry[name];
+	if (!component) {
+		logFrameworkEvent(
+			'warn',
+			'hydrate',
+			'island',
+			`missing client island ${name}`,
+			undefined,
+			options.logger
+		);
+		return false;
+	}
+	const props = parseIslandProps(boundary.getAttribute('data-exact-client-props'), options);
+	const vnode = withComponentDomain(domain, () => createVNode(component, props));
+	const remaining = work.limit - work.used;
+	if (remaining <= 0) consumeDomWork(work);
+	const rendererOptions = {
+		logger: options.logger,
+		onErrorReport: options.onErrorReport,
+		maxTreeDepth: options.maxTreeDepth,
+		maxTreeNodes: remaining,
+		workBudget: work,
+		logicalParent: findNodeOwnerInstance(boundary)
+	};
+	const interaction =
+		boundary.getAttribute('data-exact-client-hydration') === 'interaction' &&
+		boundary.childNodes.length > 0;
+	const captured = interaction ? captureHydrationDom(boundary, work) : undefined;
+	const adopted = interaction
+		? adoptMarkerlessComponentRoot(vnode, boundary, rendererOptions)
+		: false;
+	if (!adopted) {
+		if (interaction) boundary.replaceChildren();
+		render(vnode, boundary, rendererOptions);
+	}
+	if (captured)
+		for (const control of restoreFormState(boundary, captured.formState, work))
+			if (
+				activationEvent?.target !== control ||
+				(activationEvent.type !== 'input' && activationEvent.type !== 'change')
+			)
+				synchronizeFormBinding(control);
+	boundary.setAttribute('data-exact-client-hydrated', 'true');
+	options.onHydration?.(
+		Object.freeze({
+			kind: 'island',
+			outcome: adopted ? 'adopted' : 'mounted',
+			component: name,
+			markers: adopted ? 'markerless' : 'none'
+		})
+	);
+	return true;
+}
+
+function shouldDeferIsland(boundary: Element, options: HydrateOptions): boolean {
+	if (options.hydration?.strategy === 'eager') return false;
+	return boundary.getAttribute('data-exact-client-hydration') === 'interaction';
 }
 
 function parseIslandProps(raw: string | null, options: HydrateOptions): Record<string, unknown> {

@@ -54,6 +54,26 @@ describe('@exactjs/ssr boundaries', () => {
 		expect(result.html).not.toContain('</script>');
 	});
 
+	it('renders adoptable interaction fallbacks without serializing compiler metadata', () => {
+		const result = renderToString(
+			createServerBoundary('interaction-1', 'Counter', {
+				count: 2,
+				__exactHydration: 'interaction',
+				__exactHydrationFallback: createVNode(
+					'button',
+					{ 'data-exact-id': 'counter-button' },
+					'Count 2'
+				)
+			})
+		);
+
+		expect(result.html).toContain('data-exact-client-hydration="interaction"');
+		expect(result.html).toContain('data-exact-client-generation="1"');
+		expect(result.html).toContain('<button data-exact-id="counter-button">Count 2</button>');
+		expect(result.html).toContain('&quot;count&quot;:2');
+		expect(result.html).not.toContain('__exactHydration');
+	});
+
 	it('renders server children inside client-boundary slots', () => {
 		const result = renderToString(
 			createServerBoundary(

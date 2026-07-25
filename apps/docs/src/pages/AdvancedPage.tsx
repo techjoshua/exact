@@ -71,6 +71,28 @@ export function AdvancedPage(this: Component<{}>) {
 					server placement when the application has a concrete reason to cross that boundary.
 				</p>
 			</section>
+			<section>
+				<h2>Interactive HTML does not have to hydrate eagerly</h2>
+				<p>
+					The compiler recognizes client islands whose initial browser responsibility is limited to
+					supported events and reactive form bindings. SSR emits the real inert control, and the
+					hydration runtime adopts that range when its first interaction reaches the document.
+					Islands with refs, initial client work, unsupported events, or server-only child graphs
+					remain eager automatically.
+				</p>
+				<p>
+					A dirty input keeps its live browser value during adoption. That value flows through the
+					same compiled binding used after hydration, while generated element identity prevents a
+					captured interaction from being delivered to a stale replacement.
+				</p>
+				<Callout title="Framework-owned, not cooperative">
+					<p>
+						Components do not need hydration lifecycle hooks. The compiler, intrinsic binding, SSR
+						boundary, and hydration runtime already have the information needed to preserve the DOM
+						and deliver the interaction once.
+					</p>
+				</Callout>
+			</section>
 		</Article>
 	);
 }

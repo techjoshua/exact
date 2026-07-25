@@ -79,7 +79,7 @@ export function transformJsxElementIsland(
 			helpers,
 			state.componentStack.at(-1),
 			state.islandCounts,
-			node.openingElement.attributes,
+			node,
 			serverChildren ? undefined : node.children,
 			{ ...captures, serverSlotChildren: !!serverChildren },
 			derivedReactiveLocals,
@@ -172,7 +172,7 @@ export function transformJsxSelfClosingIsland(
 			helpers,
 			state.componentStack.at(-1),
 			state.islandCounts,
-			node.attributes,
+			node,
 			undefined,
 			clientIslandCaptures(clientIslandSiteFor(node), state.componentLocalStack.at(-1)),
 			derivedReactiveLocals

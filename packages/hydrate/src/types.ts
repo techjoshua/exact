@@ -54,6 +54,10 @@ export type HydrateOptions = {
 	onOperation?: (observation: ExactClientOperationObservation) => void;
 	/** Observes whether a hydration target adopted existing DOM or mounted new DOM. */
 	onHydration?: (observation: ExactHydrationObservation) => void;
+	/** Controls compiler-approved eager and interaction-triggered client-island activation. */
+	hydration?: Readonly<{
+		strategy?: 'automatic' | 'eager' | 'interaction';
+	}>;
 	/** Internal recovery signal emitted only after validating the reserved 410 body. */
 	onBuildUnsupported?: () => void;
 	/** Internal signal that a structural patch replaced an ancestor of another execution root. */

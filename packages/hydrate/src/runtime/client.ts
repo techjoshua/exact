@@ -7,6 +7,7 @@ import {
 	resolveHydrateOptions
 } from '../config.js';
 import { hydrateClientIslands } from '../islands.js';
+import { disposeInteractionHydration } from '../islands/interaction.js';
 import { applyPatches } from '../patches.js';
 import type { ExactClient, HydrateOptions, HydrationRoot } from '../types.js';
 import { invokeAndApply } from './operations.js';
@@ -147,6 +148,7 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 			retired = true;
 			resolvedOptions.signal?.removeEventListener('abort', abortLifetime);
 			lifetime.abort(new DOMException('eXact hydration root disposed', 'AbortError'));
+			disposeInteractionHydration(container);
 			roots.delete(container);
 			container.removeAttribute('data-exact-hydrated');
 			requestVersions.get(container)?.clear();
@@ -180,6 +182,8 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 	activeRequestClients.add(client);
 	bindRequestClientDomain(domain, client);
 	roots.set(container, client);
+	if (runtimeOptions.islands)
+		hydrateClientIslands(container, runtimeOptions.islands, runtimeOptions);
 	return client;
 }
 

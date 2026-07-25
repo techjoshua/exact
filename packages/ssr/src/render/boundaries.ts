@@ -16,15 +16,19 @@ import { renderChildren } from './sync-tree.js';
 export function renderServerBoundary(context: SsrContext, vnode: VNode): string {
 	const id = String(unwrap(vnode.props.id) ?? '');
 	const name = String(unwrap(vnode.props.name) ?? '');
+	const hydration = clientBoundaryHydration(vnode);
 	const props = clientBoundaryProps(vnode);
 	const unsafePath = jsonUnsafePath(props);
 	if (unsafePath) {
 		throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
 	}
-	const children = renderServerBoundaryChildren(context, vnode, undefined);
+	const fallback = clientBoundaryHydrationFallback(vnode);
+	const children = fallback
+		? renderChildren(context, [fallback], undefined)
+		: renderServerBoundaryChildren(context, vnode, undefined);
 	// Client boundary props are serialized into an attribute, while children are
 	// represented as server slots so the client bundle does not need server-only code.
-	const html = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}">${children}</div>`;
+	const html = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}"${hydration ? ` data-exact-client-hydration="${hydration}" data-exact-client-generation="1"` : ''}>${children}</div>`;
 	return markerPair(context, markerId(context, 'client-boundary', name, id), () => html);
 }
 
@@ -37,16 +41,20 @@ export async function renderServerBoundaryAsync(
 ): Promise<string> {
 	const id = String(unwrap(vnode.props.id) ?? '');
 	const name = String(unwrap(vnode.props.name) ?? '');
+	const hydration = clientBoundaryHydration(vnode);
 	const props = clientBoundaryProps(vnode);
 	const unsafePath = jsonUnsafePath(props);
 	if (unsafePath) {
 		throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
 	}
+	const fallback = clientBoundaryHydrationFallback(vnode);
 	const slotId = serverSlotId(id);
-	const children = vnode.children.length
-		? `<span data-exact-server-slot="${escapeAttr(slotId)}" style="display: contents;">${await renderChildrenAsync(context, vnode.children, parent, options)}</span>`
-		: '';
-	const html = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}">${children}</div>`;
+	const children = fallback
+		? await renderChildrenAsync(context, [fallback], parent, options)
+		: vnode.children.length
+			? `<span data-exact-server-slot="${escapeAttr(slotId)}" style="display: contents;">${await renderChildrenAsync(context, vnode.children, parent, options)}</span>`
+			: '';
+	const html = `<div data-exact-client-boundary="${escapeAttr(id)}" data-exact-client-name="${escapeAttr(name)}" data-exact-client-props="${escapeAttr(serializeHydrationPayload({ props }))}"${hydration ? ` data-exact-client-hydration="${hydration}" data-exact-client-generation="1"` : ''}>${children}</div>`;
 	return markerPair(context, markerId(context, 'client-boundary', name, id), () => html);
 }
 
@@ -58,6 +66,10 @@ export function clientBoundaryProps(vnode: VNode): Record<string, unknown> {
 		rawProps && typeof rawProps === 'object' && !Array.isArray(rawProps)
 			? { ...(rawProps as Record<string, unknown>) }
 			: rawProps;
+	if (props && typeof props === 'object' && !Array.isArray(props)) {
+		delete (props as Record<string, unknown>).__exactHydration;
+		delete (props as Record<string, unknown>).__exactHydrationFallback;
+	}
 	if (
 		vnode.children.length &&
 		props &&
@@ -68,6 +80,25 @@ export function clientBoundaryProps(vnode: VNode): Record<string, unknown> {
 		(props as Record<string, unknown>).children = serverSlotPayload(serverSlotId(id));
 	}
 	return props as Record<string, unknown>;
+}
+
+/** Reads compiler-owned interaction hydration metadata without exposing it as component props. */
+export function clientBoundaryHydration(vnode: VNode): 'interaction' | undefined {
+	const props = unwrap(vnode.props.props);
+	if (!props || typeof props !== 'object' || Array.isArray(props)) return undefined;
+	return (props as Record<string, unknown>).__exactHydration === 'interaction'
+		? 'interaction'
+		: undefined;
+}
+
+/** Reads the inert server-rendered VNode used by an interaction-activated client island. */
+export function clientBoundaryHydrationFallback(vnode: VNode): VNode | undefined {
+	const props = unwrap(vnode.props.props);
+	if (!props || typeof props !== 'object' || Array.isArray(props)) return undefined;
+	const fallback = (props as Record<string, unknown>).__exactHydrationFallback;
+	return fallback && typeof fallback === 'object' && 'type' in fallback
+		? (fallback as VNode)
+		: undefined;
 }
 
 /** Performs the client boundary serialization message domain operation. */

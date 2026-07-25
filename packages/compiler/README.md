@@ -68,3 +68,16 @@ Applications may still use TypeScript 7 for editor support and command-line type
 keeps the application's TypeScript 7 executable alongside eXact's private TypeScript 6 API
 dependency. This separation will remain until the new programmatic API planned for TypeScript 7.1
 is available and eXact has adopted it.
+
+## SSR island activation
+
+The compiler classifies extracted intrinsic client islands from their actual client obligations.
+An island containing only supported activation events and reactive form bindings receives an inert
+SSR fallback and interaction hydration metadata. Refs, unsupported events, initial client work,
+and server-only child graphs remain eager. Application source does not declare hydration hooks or
+repeat the classification.
+
+The fallback omits handlers and refs but retains the intrinsic element, serializable attributes,
+generated element identity, current binding value, and renderable children. The hydration runtime
+can therefore adopt the server DOM on first interaction instead of mounting into an empty
+placeholder.

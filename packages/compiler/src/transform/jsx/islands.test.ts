@@ -33,8 +33,56 @@ describe('@exactjs/compiler: islands', () => {
 		expect(server).toContain(
 			'"__exactState": { count: this.state.count, label: this.state.label }'
 		);
+		expect(server).toContain('__exactHydration: "interaction"');
+		expect(server).toContain('__exactHydrationFallback: __exactVNode("button"');
 		expect(server).toContain('title: this.state.label');
 		expect(server).not.toContain('onClick');
+	});
+
+	it('keeps ref and non-activation-event islands eager', () => {
+		const source = `
+			export function Panel(this: Component<{}>) {
+				return () => <>
+					<div ref={undefined}>Referenced</div>
+					<div onMouseMove={() => undefined}>Pointer</div>
+				</>;
+			}
+		`;
+		const server = transform(source, {
+			filename: 'Panel.tsx',
+			target: 'server',
+			serverComponents: true
+		});
+
+		expect(server).toContain('__exactBoundary(');
+		expect(server).not.toContain('__exactHydration: "interaction"');
+	});
+
+	it('keeps islands with opaque spread attributes eager', () => {
+		const source = `
+			import { readFile } from "node:fs/promises";
+			export function Panel(
+				this: Component<{ count: number }>,
+				props: { events: { onClick(): void } }
+			) {
+				this.task.server(async () => {
+					await readFile("panel.txt", "utf8");
+				});
+				return () => (
+					<button {...props.events} onClick={() => this.state.count++}>
+						Save
+					</button>
+				);
+			}
+		`;
+		const server = transform(source, {
+			filename: 'Panel.tsx',
+			target: 'server',
+			serverComponents: true
+		});
+
+		expect(server).toContain('__exactBoundary(');
+		expect(server).not.toContain('__exactHydration: "interaction"');
 	});
 
 	it('lowers namespaced form bindings inside generated client islands', () => {

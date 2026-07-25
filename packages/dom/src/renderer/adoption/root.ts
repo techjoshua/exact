@@ -134,7 +134,7 @@ export function adoptComponentRoot(
 				createComponentInstance(
 					vnode.type as ComponentFunction<any, Record<string, unknown>>,
 					getComponentProps(vnode),
-					undefined,
+					options.logicalParent,
 					undefined,
 					vnode.domain
 				)
@@ -213,7 +213,7 @@ export function adoptMarkerlessComponentRoot(
 				createComponentInstance(
 					vnode.type as ComponentFunction<any, Record<string, unknown>>,
 					getComponentProps(vnode),
-					undefined,
+					options.logicalParent,
 					undefined,
 					vnode.domain
 				)

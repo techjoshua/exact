@@ -49,6 +49,23 @@ export function clearElementProps(element: Element): void {
 	directEventHandlers.delete(element);
 }
 
+/**
+ * Publishes one adopted dirty control through its compiler-owned binding without synthesizing an
+ * authored DOM event.
+ */
+export function synchronizeFormBinding(element: Element): boolean {
+	const entries = directEventHandlers.get(element);
+	const entry = entries?.get('__exactBindInput') ?? entries?.get('__exactBindChange');
+	if (!entry) return false;
+	const event = new Event(entry.type, { bubbles: false, cancelable: false });
+	Object.defineProperties(event, {
+		target: { configurable: true, value: element },
+		currentTarget: { configurable: true, value: element }
+	});
+	entry.listener(event);
+	return true;
+}
+
 function setProp(
 	root: Root,
 	element: Element,

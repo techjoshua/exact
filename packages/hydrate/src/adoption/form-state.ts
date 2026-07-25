@@ -78,8 +78,9 @@ export function restoreFormState(
 	container: Element,
 	states: readonly FormState[],
 	work: DomWorkBudget
-): void {
-	if (!states.length) return;
+): Element[] {
+	if (!states.length) return [];
+	const restored: Element[] = [];
 	const identities = indexFormControlIdentities(container, work);
 	for (const state of states) {
 		const identityMatch = state.identity
@@ -96,6 +97,7 @@ export function restoreFormState(
 				? candidate
 				: undefined;
 		if (!(control instanceof Element)) continue;
+		restored.push(control);
 		if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) {
 			if (state.value !== undefined) control.value = state.value;
 			if (control instanceof HTMLInputElement && state.checked !== undefined)
@@ -118,6 +120,7 @@ export function restoreFormState(
 			if (state.focused && control instanceof HTMLElement) control.focus({ preventScroll: true });
 		}
 	}
+	return restored;
 }
 
 function formControlIdentity(element: Element): { attribute: string; value: string } | undefined {

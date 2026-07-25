@@ -28,6 +28,32 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(container.querySelector('input')?.value).toBe('typed');
 	});
 
+	it('publishes preserved dirty state through the compiled binding', () => {
+		const container = document.createElement('div');
+		container.innerHTML =
+			'<!--exact:fragment:0--><input data-exact-id=name value=server><!--/exact:fragment:0-->';
+		const input = container.querySelector('input')!;
+		input.value = 'typed';
+		let value = 'server';
+		hydrate(
+			createVNode(
+				Fragment,
+				null,
+				createVNode('input', {
+					'data-exact-id': 'name',
+					value,
+					__exactBindInput: (event: Event) => {
+						value = (event.currentTarget as HTMLInputElement).value;
+					}
+				})
+			),
+			container,
+			{ logger: noopLogger }
+		);
+
+		expect(value).toBe('typed');
+	});
+
 	it('makes hydration idempotent and exposes idempotent disposal', () => {
 		const container = document.createElement('div');
 		container.innerHTML = '<!--exact:fragment:0--><p>server</p><!--/exact:fragment:0-->';

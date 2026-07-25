@@ -63,6 +63,13 @@ hydrate(<App />, document.getElementById('app')!, {
 Keep server and client component inputs deterministic. Treat hydration mismatch handling as a
 recovery policy, not permission to render unrelated trees.
 
+Compiler-generated intrinsic islands with only supported events and reactive form bindings use
+interaction hydration automatically. Their usable inert controls remain in SSR output, dirty form
+values survive adoption, and the first interaction activates the island. Do not add mount effects,
+refs, or application hydration hooks merely to preserve normal form state; those change placement
+or activation requirements and duplicate framework behavior. Use the eager root strategy only
+when the application has a concrete requirement to activate every safe island immediately.
+
 ## Server-component mode
 
 Choose this only when the application needs compiler-separated client/server components, secure

@@ -1,9 +1,5 @@
 import { composeExactComponentContracts } from '@exactjs/core';
-import {
-	createExactClient,
-	hydrateClientIslands,
-	readExactHydrationConfig
-} from '@exactjs/hydrate';
+import { createExactClient, readExactHydrationConfig } from '@exactjs/hydrate';
 import { CalculatorWorkspace } from '../.exact/App.exact.client.js';
 import { installExactClient } from './client-runtime.js';
 import './styles.css';
@@ -21,4 +17,3 @@ const client = createExactClient(root, {
 	stream: true
 });
 installExactClient(client);
-hydrateClientIslands(root, exactClientIslands, { ...config, stream: true });

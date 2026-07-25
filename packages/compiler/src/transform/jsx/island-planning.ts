@@ -1,7 +1,6 @@
 import ts from 'typescript';
 import { isIdentifierDeclarationName, isPropertyAccessName } from '../../ast.js';
 import { collectExports } from '../../exports.js';
-import type { ExpressionClientIslandSite } from '../../expression/contracts.js';
 import type { ExpressionJsxPlan } from '../../expression/jsx.js';
 import { stableId } from '../../ids.js';
 import { generatedComponentName } from '../../names.js';
@@ -14,30 +13,19 @@ import type {
 } from '../../types.js';
 import { jsxTagIsIntrinsicElement } from './inspection.js';
 
-import type { ComponentLocalInfo, DerivedReactiveIndex } from './contracts.js';
+import type { DerivedReactiveIndex } from './contracts.js';
 import { canonicalElementId } from './element-emission.js';
 import { expressionEmissionId, identityFilenameFor } from './identity.js';
 import { islandProps } from './island-emission.js';
+export { clientIslandCaptures } from './island-captures.js';
+import {
+	addInteractionHydrationMetadata,
+	isInteractionHydrationIsland
+} from './island-hydration.js';
 import { bindingPropertyAssignments } from './form-binding-emission.js';
 import { childrenExpressions } from './node-emission.js';
 import { propName } from './property-emission.js';
 import { tagExpression } from './reactive-emission.js';
-/** Performs the client island captures domain operation. */
-export function clientIslandCaptures(
-	site: ExpressionClientIslandSite | undefined,
-	locals: ComponentLocalInfo | undefined
-): ClientIslandCaptures {
-	if (!site) return { values: [], functions: [] };
-	return {
-		values: [...site.valueCaptures],
-		functions: site.functionCaptures.flatMap((name) => {
-			const declaration = locals?.functions.get(name);
-			return declaration ? [declaration] : [];
-		}),
-		stateReads: [...site.stateReads]
-	};
-}
-
 /** Creates a client island boundary call. */
 export function createClientIslandBoundaryCall(
 	sourceFile: ts.SourceFile,
@@ -46,7 +34,7 @@ export function createClientIslandBoundaryCall(
 	helpers: HelperNames,
 	componentName: string | undefined,
 	islandCounts: Map<string, number>,
-	attributes: ts.JsxAttributes,
+	node: ClientIslandElementNode,
 	children?: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[],
 	captures: ClientIslandCaptures = emptyClientIslandCaptures(),
 	derivedReactiveLocals?: DerivedReactiveIndex,
@@ -54,14 +42,27 @@ export function createClientIslandBoundaryCall(
 ): ts.Expression {
 	const factory = context.factory;
 	const owner = componentName ?? 'Anonymous';
+	const attributes = ts.isJsxElement(node) ? node.openingElement.attributes : node.attributes;
 	const next = (islandCounts.get(owner) ?? 0) + 1;
 	islandCounts.set(owner, next);
 	const generatedName = generatedComponentName(owner, 'client-island', next);
 	const id = stableId(identityFilenameFor(sourceFile), owner, 'client-island', String(next));
+	let props = islandProps(context, attributes, children, captures.values, captures.stateReads);
+	if (isInteractionHydrationIsland(node, !!serverChildren)) {
+		props = addInteractionHydrationMetadata(
+			sourceFile,
+			context,
+			visitor,
+			helpers,
+			node,
+			props,
+			derivedReactiveLocals
+		);
+	}
 	return factory.createCallExpression(factory.createIdentifier(helpers.boundary), undefined, [
 		factory.createStringLiteral(id),
 		factory.createStringLiteral(generatedName),
-		islandProps(context, attributes, children, captures.values, captures.stateReads),
+		props,
 		...(serverChildren
 			? childrenExpressions(
 					context,

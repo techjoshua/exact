@@ -18,3 +18,31 @@ duplicate run.
 Blocking distributed continuations validate their response first, then stage authorized DOM,
 component-state, and public-context changes under the task generation signal. The nearest
 readiness boundary publishes that response atomically or discards it when the generation is stale.
+
+## Interaction hydration
+
+Compiler-approved intrinsic islands whose initial client work consists only of supported events
+and reactive form bindings render inert, usable HTML during SSR. Passing their registry to
+`createExactClient()` leaves those ranges dormant by default and installs one capture-phase
+activation broker. The first click, input, change, submit, key activation, focus, or composition
+start adopts the existing range into that client's component domain before ordinary event
+delivery continues. `hydrateClientIslands()` remains available as the lower-level registration
+API when an application is not creating the complete client runtime.
+
+Dirty form controls remain authoritative during adoption and publish through their existing
+compiler-owned binding. Stable generated element identity fences mismatch recovery and permits one
+safe replay if the stale SSR range must be replaced. Refs, initial client work, unsupported event
+types, and server-only child graphs remain eager.
+
+Automatic classification is the default. Applications may force all approved islands to hydrate
+immediately:
+
+```ts
+createExactClient(root, {
+	islands,
+	hydration: { strategy: 'eager' }
+});
+```
+
+The strategy changes activation timing only. It does not weaken serialization, placement,
+component ownership, or server-operation contracts.
