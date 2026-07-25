@@ -4,6 +4,7 @@ import type {
 	ExactComponentContinuationContract,
 	ComponentFunction,
 	ComponentInstance,
+	ComponentResumptionActivation,
 	Logger,
 	TaskObserver,
 	UnsafeHtmlAuditEvent,
@@ -57,6 +58,8 @@ export type RenderToStringOptions = {
 	 * renderer disposes it. Intended for diagnostics and test tooling.
 	 */
 	onComponentRendered?: (instance: ComponentInstance<any>) => void;
+	/** Observes deterministic component construction order before descendants render. */
+	onComponentCreated?: (instance: ComponentInstance<any>) => void;
 	/** Receives SSR rendering profiling observations. */
 	onProfile?: ExactProfileSink;
 };
@@ -68,6 +71,7 @@ export type SsrProfileEvent = ExactProfileEvent<'ssr', 'render-to-string' | 'cre
 export type RenderToStringResult = {
 	html: string;
 	state?: unknown;
+	resumptions?: readonly ComponentResumptionActivation[];
 };
 
 /** Configures hydration script. */
@@ -77,6 +81,7 @@ export type HydrationScriptOptions = {
 	endpoints?: ExactEndpointRoutes;
 	state?: unknown;
 	continuations?: Record<string, ExactComponentContinuationContract>;
+	resumptions?: readonly ComponentResumptionActivation[];
 	publicContexts?: Record<string, unknown>;
 	executionRoot?: string;
 	binding?: string;
@@ -280,6 +285,7 @@ export type SsrContext = {
 	documentBodySeen: boolean;
 	hostStack: string[];
 	componentContexts?: ComponentContextValues;
+	onComponentCreated?: (instance: ComponentInstance<any>) => void;
 	onComponentRendered?: (instance: ComponentInstance<any>) => void;
 };
 

@@ -8,7 +8,7 @@ import type {
 	TransformTarget
 } from '../../types.js';
 import { appendServerPartExportAliases } from './island-planning.js';
-import { taskResourceHelper } from './task-emission.js';
+import { taskResourceHelper } from './task-resource-emission.js';
 import type { JsxTransformState } from './transform-state.js';
 
 const helperModule = '@exactjs/core';
@@ -77,6 +77,7 @@ function requiresRuntimeHelpers(state: JsxTransformState): boolean {
 		state.taskResources.size > 0 ||
 		state.taskSignalModes.size > 0 ||
 		state.sawTaskAwait ||
+		state.sawContinuationTask ||
 		state.sawDistributedContinuation
 	);
 }
@@ -113,13 +114,11 @@ function createRuntimeHelperImports(
 	if (state.taskSignalModes.has('direct'))
 		imports.push(helperImport(factory, 'combineTaskSignal', helpers.taskCombinedSignal));
 	if (state.sawTaskAwait) imports.push(helperImport(factory, 'taskAwait', helpers.taskAwait));
+	if (state.sawContinuationTask)
+		imports.push(helperImport(factory, 'markComponentContinuationTask', helpers.taskContinuation));
 	if (state.sawDistributedContinuation)
 		imports.push(
-			helperImport(
-				factory,
-				'dispatchComponentContinuation',
-				helpers.dispatchContinuation
-			)
+			helperImport(factory, 'dispatchComponentContinuation', helpers.dispatchContinuation)
 		);
 	if (state.sawBoundary)
 		imports.push(helperImport(factory, 'createServerBoundary', helpers.boundary));

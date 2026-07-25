@@ -219,8 +219,8 @@ describe('@exactjs/compiler: JSX reactivity', () => {
 			{ filename: 'Search.tsx' }
 		);
 
-		expect(output).toContain(
-			'this.task(this.reactive(() => this.state.query), async (__exactDependency, { signal }) =>'
+		expect(output).toMatch(
+			/this\.task\(this\.reactive\(\(\) => this\.state\.query\), __exactContinuationTask\("[^"]+", async \(__exactDependency, \{ signal \}\) =>/
 		);
 		expect(output).toContain('const query = __exactDependency;');
 		expect(output).not.toContain('const query = this.state.query;');

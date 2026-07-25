@@ -13,6 +13,7 @@ export function renderHydrationScript(options: HydrationScriptOptions = {}): str
 			endpoints: options.endpoints,
 			state: options.state,
 			continuations: options.continuations,
+			resumptions: options.resumptions,
 			publicContexts: options.publicContexts,
 			executionRoot: options.executionRoot,
 			binding: options.binding,

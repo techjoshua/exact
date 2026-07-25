@@ -149,6 +149,7 @@ export function* renderVNodeChunks(
 				parent,
 				context.componentContexts
 			);
+			context.onComponentCreated?.(instance);
 			childParent = instance;
 			children = renderInstance(instance, () => undefined);
 		} catch (error) {

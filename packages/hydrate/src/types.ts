@@ -1,5 +1,6 @@
 import type {
 	ComponentDomain,
+	ComponentResumptionActivation,
 	ExactComponentContinuationContract,
 	ComponentFunction,
 	ErrorReport,
@@ -37,6 +38,8 @@ export type HydrateOptions = {
 	transports?: Record<string, ExactEndpointTransport>;
 	/** Contracts composed from the imported client component artifacts. */
 	continuations?: Record<string, ExactComponentContinuationContract>;
+	/** Ordered compiler-selected component activations emitted by SSR. */
+	resumptions?: readonly ComponentResumptionActivation[];
 	/** Shared context projections available for compiler-selected operations. */
 	publicContexts?: Record<string, unknown>;
 	islands?: ClientIslandRegistry;
@@ -103,6 +106,7 @@ export type ExactHydrationConfig = {
 	endpoints?: ExactEndpointRoutes;
 	state?: unknown;
 	continuations?: Record<string, ExactComponentContinuationContract>;
+	resumptions?: readonly ComponentResumptionActivation[];
 	publicContexts?: Record<string, unknown>;
 	executionRoot?: string;
 	binding?: string;
@@ -113,6 +117,7 @@ export type ExactHydrationConfig = {
 export type ExactHydrationRegistration = ExactHydrationConfig & {
 	islands?: ClientIslandRegistry;
 	continuations?: Record<string, ExactComponentContinuationContract>;
+	resumptions?: readonly ComponentResumptionActivation[];
 	publicContexts?: Record<string, unknown>;
 	transports?: Record<string, ExactEndpointTransport>;
 };

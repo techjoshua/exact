@@ -75,6 +75,17 @@ export function createTask(
 			}
 			startTaskGeneration(task, instance, generation);
 		},
+		resume() {
+			task.stopped = false;
+			if (!task.stops.length) {
+				// Establish computed dependency edges and the SSR baseline without
+				// invoking authored work; later changes schedule a normal generation.
+				for (const dependency of task.deps) unwrap(dependency);
+				task.stops = task.sources.map((source) =>
+					subscribe(source, () => task.run(), { scope: instance.scope })
+				);
+			}
+		},
 		stop() {
 			task.stopped = true;
 			task.queuedGeneration = undefined;
@@ -127,6 +138,8 @@ function startTaskGeneration(
 	if (isPromiseLike(result)) {
 		const observed = Promise.resolve(result)
 			.then((cleanup) => {
+				if (task.generation === generation && task.controller === controller)
+					task.completedGeneration = generation;
 				if (typeof cleanup !== 'function') return;
 				if (
 					task.generation === generation &&
@@ -146,6 +159,7 @@ function startTaskGeneration(
 			.catch((error) => {
 				if (task.generation !== generation || (controller.signal.aborted && isAbortError(error)))
 					return;
+				task.failedGeneration = generation;
 				handleComponentError(instance, createErrorReport(error, 'task', instance, 'promise'));
 			});
 		const settlement = observed.then(() => undefined);
@@ -154,8 +168,9 @@ function startTaskGeneration(
 		void settlement.then(() => {
 			if (task.settlement === settlement) task.settlement = undefined;
 		});
-	} else if (typeof result === 'function') {
-		task.cleanup = result;
+	} else {
+		task.completedGeneration = generation;
+		if (typeof result === 'function') task.cleanup = result;
 	}
 }
 
@@ -188,13 +203,14 @@ function isAbortError(error: unknown): boolean {
 /** Creates a component reactive value. */
 export function createComponentReactiveValue<T>(
 	instance: ComponentInstance<any>,
-	value: ReactiveValue<T>
+	value: ReactiveValue<T>,
+	start: (task: TaskRegistration) => void = (task) => task.run()
 ): ComponentReactiveValue<T> {
 	return Object.assign(value, {
 		task(work: (value: T, ctx: TaskContext) => TaskResult): void {
 			const task = createTask(instance, [value], work as (...args: any[]) => TaskResult);
 			instance.tasks.push(task);
-			task.run();
+			start(task);
 		}
 	});
 }

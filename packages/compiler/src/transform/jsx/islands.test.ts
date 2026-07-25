@@ -15,8 +15,16 @@ describe('@exactjs/compiler: islands', () => {
         </button>;
       }
     `;
-		const client = transform(source, { filename: 'Panel.tsx', target: 'client' });
-		const server = transform(source, { filename: 'Panel.tsx', target: 'server' });
+		const client = transform(source, {
+			filename: 'Panel.tsx',
+			target: 'client',
+			serverComponents: true
+		});
+		const server = transform(source, {
+			filename: 'Panel.tsx',
+			target: 'server',
+			serverComponents: true
+		});
 
 		expect(client).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');
 		expect(client).toContain('title: props.title');
@@ -45,8 +53,16 @@ describe('@exactjs/compiler: islands', () => {
         return () => <input value:input={this.state.name} />;
       }
     `;
-		const client = transform(source, { filename: 'Panel.tsx', target: 'client' });
-		const server = transform(source, { filename: 'Panel.tsx', target: 'server' });
+		const client = transform(source, {
+			filename: 'Panel.tsx',
+			target: 'client',
+			serverComponents: true
+		});
+		const server = transform(source, {
+			filename: 'Panel.tsx',
+			target: 'server',
+			serverComponents: true
+		});
 
 		expect(client).toContain('value: __exactExpression(() => this.state.name ?? "")');
 		expect(client).toContain('__exactBindInput:');
@@ -69,8 +85,16 @@ describe('@exactjs/compiler: islands', () => {
         </button>;
       }
     `;
-		const client = transform(source, { filename: 'Panel.tsx', target: 'client' });
-		const server = transform(source, { filename: 'Panel.tsx', target: 'server' });
+		const client = transform(source, {
+			filename: 'Panel.tsx',
+			target: 'client',
+			serverComponents: true
+		});
+		const server = transform(source, {
+			filename: 'Panel.tsx',
+			target: 'server',
+			serverComponents: true
+		});
 
 		expect(server).toContain('"__exactCapture": { label: label }');
 		expect(client).toContain('console.log(props.__exactCapture.label)');
@@ -89,8 +113,16 @@ describe('@exactjs/compiler: islands', () => {
         return () => <button onClick={(label) => console.log(label)}>Save</button>;
       }
     `;
-		const client = transform(source, { filename: 'Panel.tsx', target: 'client' });
-		const server = transform(source, { filename: 'Panel.tsx', target: 'server' });
+		const client = transform(source, {
+			filename: 'Panel.tsx',
+			target: 'client',
+			serverComponents: true
+		});
+		const server = transform(source, {
+			filename: 'Panel.tsx',
+			target: 'server',
+			serverComponents: true
+		});
 
 		expect(server).not.toContain('__exactCapture');
 		expect(client).toContain('onClick: (label) => console.log(label)');
@@ -111,8 +143,16 @@ describe('@exactjs/compiler: islands', () => {
         return () => <button onClick={() => save()}>Save</button>;
       }
     `;
-		const client = transform(source, { filename: 'Panel.tsx', target: 'client' });
-		const server = transform(source, { filename: 'Panel.tsx', target: 'server' });
+		const client = transform(source, {
+			filename: 'Panel.tsx',
+			target: 'client',
+			serverComponents: true
+		});
+		const server = transform(source, {
+			filename: 'Panel.tsx',
+			target: 'server',
+			serverComponents: true
+		});
 
 		expect(server).not.toContain('__exactCapture');
 		expect(client).toContain('function save()');
@@ -131,8 +171,16 @@ describe('@exactjs/compiler: islands', () => {
         return () => <button onClick={() => save()}>Save</button>;
       }
     `;
-		const client = transform(source, { filename: 'Panel.tsx', target: 'client' });
-		const server = transform(source, { filename: 'Panel.tsx', target: 'server' });
+		const client = transform(source, {
+			filename: 'Panel.tsx',
+			target: 'client',
+			serverComponents: true
+		});
+		const server = transform(source, {
+			filename: 'Panel.tsx',
+			target: 'server',
+			serverComponents: true
+		});
 
 		expect(server).not.toContain('__exactCapture');
 		expect(client).toContain('const save = () => this.state.count++;');
@@ -153,8 +201,16 @@ describe('@exactjs/compiler: islands', () => {
       }
     `;
 		const manifest = analyzeSource(source, { filename: 'Panel.tsx' });
-		const client = transform(source, { filename: 'Panel.tsx', target: 'client' });
-		const server = transform(source, { filename: 'Panel.tsx', target: 'server' });
+		const client = transform(source, {
+			filename: 'Panel.tsx',
+			target: 'client',
+			serverComponents: true
+		});
+		const server = transform(source, {
+			filename: 'Panel.tsx',
+			target: 'server',
+			serverComponents: true
+		});
 
 		expect(manifest.components[0]!.clientIslandCount).toBe(1);
 		expect(client).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');

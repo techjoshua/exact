@@ -10,6 +10,10 @@ import { hydrateClientIslands } from '../islands.js';
 import { applyPatches } from '../patches.js';
 import type { ExactClient, HydrateOptions, HydrationRoot } from '../types.js';
 import { invokeAndApply } from './operations.js';
+import {
+	bindComponentResumptionResolver,
+	createComponentResumptionResolver
+} from './resumption.js';
 import { requestVersions, roots } from './state.js';
 
 const requestClients = new WeakMap<import('@exactjs/core').ComponentDomain, ExactClient>();
@@ -56,6 +60,7 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 		...resolvedOptions,
 		endpoints: cloneEndpointRoutes(resolvedOptions.endpoints),
 		continuations: { ...(resolvedOptions.continuations ?? {}) },
+		resumptions: [...(resolvedOptions.resumptions ?? [])],
 		publicContexts: { ...(resolvedOptions.publicContexts ?? {}) },
 		islands: { ...(resolvedOptions.islands ?? {}) },
 		transports: { ...(resolvedOptions.transports ?? {}) },
@@ -153,23 +158,20 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 			unmount(container);
 		}
 	};
-	domain = createComponentDomain(runtimeOptions.executionRoot ?? 'page', (request) =>
-		run(() =>
-			invokeAndApply(
-				container,
-				client,
-				'action',
-				request.id,
-				undefined,
-				runtimeOptions,
-				{
+	const resumptionResolver = createComponentResumptionResolver(() => runtimeOptions.resumptions);
+	domain = createComponentDomain(
+		runtimeOptions.executionRoot ?? 'page',
+		(request) =>
+			run(() =>
+				invokeAndApply(container, client, 'action', request.id, undefined, runtimeOptions, {
 					instance: request.instance,
 					dependencies: request.dependencies,
 					signal: request.signal
-				}
-			)
-		).then(() => undefined)
+				})
+			).then(() => undefined),
+		resumptionResolver
 	);
+	bindComponentResumptionResolver(domain, resumptionResolver);
 	runtimeOptions.componentDomain = domain;
 	const existing = roots.get(container);
 	if (existing && existing !== client)

@@ -74,6 +74,7 @@ export function createSsrContext(options: RenderToStringOptions): SsrContext {
 		documentBodySeen: false,
 		hostStack: [],
 		componentContexts: options.contexts,
+		onComponentCreated: options.onComponentCreated,
 		onComponentRendered: options.onComponentRendered
 	};
 }

@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import type ts from 'typescript';
 import type { ExactContinuationIR } from './types.js';
 
 /** Emits target-local continuation contracts as inert artifact metadata. */

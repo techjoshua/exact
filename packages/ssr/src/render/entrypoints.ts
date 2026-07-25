@@ -4,6 +4,7 @@ import { runWithExactRequestScope } from '@exactjs/server';
 import { augmentDocumentBody } from '../document.js';
 import { escapeAttr } from '../html.js';
 import { renderHydrationScript } from '../hydration.js';
+import { createSsrResumptionCapture } from '../resumption.js';
 import { assertOutputWithinLimit, boundedJoin } from '../render/limits.js';
 import {
 	createDocumentEventStream,
@@ -94,13 +95,16 @@ export function renderToHydratableString(
 	vnode: VNode,
 	options: RenderToStringOptions & HydrationScriptOptions = {}
 ): HydratableStringResult {
-	const result = renderToString(vnode, options);
+	const capture = createSsrResumptionCapture(options);
+	const result = renderToString(vnode, capture.options);
+	const resumptions = capture.records();
 	const hydrationScript = renderHydrationScript({
 		pluginRegistryFingerprint: options.pluginRegistryFingerprint,
 		endpoint: options.endpoint,
 		endpoints: options.endpoints,
 		state: result.state,
 		continuations: options.continuations,
+		resumptions: resumptions.length ? resumptions : options.resumptions,
 		publicContexts: options.publicContexts,
 		executionRoot: options.executionRoot,
 		binding: options.binding,
@@ -114,6 +118,7 @@ export function renderToHydratableString(
 	});
 	return {
 		...result,
+		resumptions,
 		hydrationScript,
 		htmlWithHydration: augmentDocumentBody(result.html, hydrationScript)
 	};

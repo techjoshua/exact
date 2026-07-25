@@ -4,6 +4,7 @@ import type {
 	ExactComponentBoundaryContract,
 	ExactComponentContinuationContract,
 	ExactComponentContinuationExecutorContract,
+	ComponentResumptionActivation,
 	Logger
 } from '@exactjs/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
@@ -391,5 +392,6 @@ export type ExactHydrationConfig = {
 	endpoints?: ExactEndpointRoutes;
 	state?: unknown;
 	continuations?: Record<string, ExactComponentContinuationContract>;
+	resumptions?: readonly ComponentResumptionActivation[];
 	publicContexts?: Record<string, unknown>;
 };

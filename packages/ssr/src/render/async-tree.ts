@@ -221,6 +221,7 @@ export function renderComponent(
 			parent,
 			context.componentContexts
 		);
+		context.onComponentCreated?.(instance);
 		let invalidated = false;
 		let stabilized = false;
 		for (let pass = 0; pass < 25; pass++) {
@@ -287,6 +288,7 @@ export async function renderComponentAsync(
 					context.componentContexts
 				)
 			);
+			options.onComponentCreated?.(instance);
 			await drainTasks(pending, options.maxTaskPasses ?? 10, options.signal, options.taskDeadline);
 			let invalidated = false;
 			const maxPasses = options.maxTaskPasses ?? 10;

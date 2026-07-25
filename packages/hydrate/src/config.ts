@@ -1,4 +1,8 @@
-import { decodeReactiveProtocolValue, sameJsonData } from '@exactjs/core';
+import {
+	decodeReactiveProtocolValue,
+	sameJsonData,
+	type ComponentResumptionActivation
+} from '@exactjs/core';
 import { createDomWorkBudget, walkDomSubtree, type DomWorkBudget } from '@exactjs/dom';
 import type {
 	ClientIslandRegistry,
@@ -53,6 +57,7 @@ function parseHydrationConfig(
 				'endpoints',
 				'state',
 				'continuations',
+				'resumptions',
 				'publicContexts',
 				'executionRoot',
 				'binding',
@@ -68,9 +73,8 @@ function parseHydrationConfig(
 			endpoint: typeof record.endpoint === 'string' ? record.endpoint : undefined,
 			endpoints: isEndpointRoutes(record.endpoints) ? record.endpoints : undefined,
 			...('state' in record ? { state: record.state } : {}),
-			continuations: isContinuationMap(record.continuations)
-				? record.continuations
-				: undefined,
+			continuations: isContinuationMap(record.continuations) ? record.continuations : undefined,
+			resumptions: isComponentResumptions(record.resumptions) ? record.resumptions : undefined,
 			publicContexts: isRecord(record.publicContexts) ? record.publicContexts : undefined,
 			executionRoot: typeof record.executionRoot === 'string' ? record.executionRoot : undefined,
 			binding: typeof record.binding === 'string' ? record.binding : undefined,
@@ -91,12 +95,16 @@ export function resolveHydrateOptions(container: Element, options: HydrateOption
 	) {
 		throw new Error('Client and server eXact plugin registry fingerprints do not match');
 	}
+	if (config.buildKey && options.buildKey && config.buildKey !== options.buildKey) {
+		throw new Error('Client and server eXact build identities do not match');
+	}
 	return {
 		...options,
 		endpoint: options.endpoint ?? config.endpoint,
 		endpoints: mergeEndpointRoutes(config.endpoints, options.endpoints),
 		state: options.state === undefined ? config.state : options.state,
 		continuations: options.continuations ?? config.continuations,
+		resumptions: options.resumptions ?? config.resumptions,
 		publicContexts: options.publicContexts ?? config.publicContexts,
 		executionRoot: options.executionRoot ?? config.executionRoot,
 		binding: options.binding ?? config.binding,
@@ -124,6 +132,9 @@ export function mergeHydrationRegistration(
 			'continuation',
 			sameJsonData
 		);
+	}
+	if (registration.resumptions) {
+		options.resumptions = [...(options.resumptions ?? []), ...registration.resumptions];
 	}
 	if (registration.publicContexts) {
 		options.publicContexts = mergeUniqueRecord(
@@ -271,6 +282,40 @@ function isContinuationMap(
 ): value is Record<string, ExactComponentContinuationContract> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	return Object.values(value as Record<string, unknown>).every(isContinuation);
+}
+
+/** Validates ordered SSR activations before they can affect component construction. */
+function isComponentResumptions(value: unknown): value is ComponentResumptionActivation[] {
+	return (
+		Array.isArray(value) &&
+		value.every((item) => {
+			if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+			const record = item as Record<string, unknown>;
+			return (
+				hasOnlyKeys(record, ['componentId', 'values', 'settledContinuations']) &&
+				typeof record.componentId === 'string' &&
+				isRecord(record.values) &&
+				Object.keys(record.values).every(safeResumptionPath) &&
+				isStringList(record.settledContinuations)
+			);
+		})
+	);
+}
+
+/** Rejects prototype-bearing or empty state paths in serialized activations. */
+function safeResumptionPath(path: string): boolean {
+	return (
+		path.length > 0 &&
+		path
+			.split('.')
+			.every(
+				(segment) =>
+					segment.length > 0 &&
+					segment !== '__proto__' &&
+					segment !== 'prototype' &&
+					segment !== 'constructor'
+			)
+	);
 }
 
 function isContinuation(value: unknown): value is ExactComponentContinuationContract {

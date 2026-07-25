@@ -2,6 +2,7 @@ import { withTaskObserver, type VNode } from '@exactjs/core';
 import { processExactOutput } from '@exactjs/plugin-host/runtime';
 import { augmentDocumentBody } from '../document.js';
 import { renderHydrationScript } from '../hydration.js';
+import { createSsrResumptionCapture } from '../resumption.js';
 import { assertOutputWithinLimit, boundedJoin, withTaskDeadline } from '../render/limits.js';
 import type {
 	ExactDocumentStreamEvent,
@@ -48,13 +49,16 @@ export async function renderToHydratableStringAsync(
 	vnode: VNode,
 	options: RenderToStringOptions & HydrationScriptOptions = {}
 ): Promise<HydratableStringResult> {
-	const result = await renderToStringAsync(vnode, options);
+	const capture = createSsrResumptionCapture(options);
+	const result = await renderToStringAsync(vnode, capture.options);
+	const resumptions = capture.records();
 	const hydrationScript = renderHydrationScript({
 		pluginRegistryFingerprint: options.pluginRegistryFingerprint,
 		endpoint: options.endpoint,
 		endpoints: options.endpoints,
 		state: result.state,
 		continuations: options.continuations,
+		resumptions: resumptions.length ? resumptions : options.resumptions,
 		publicContexts: options.publicContexts,
 		executionRoot: options.executionRoot,
 		binding: options.binding,
@@ -68,6 +72,7 @@ export async function renderToHydratableStringAsync(
 	});
 	return {
 		...result,
+		resumptions,
 		hydrationScript,
 		htmlWithHydration: augmentDocumentBody(result.html, hydrationScript)
 	};
@@ -84,7 +89,10 @@ export async function streamDocumentRender(
 	let primary: unknown = noPrimaryFailure;
 	try {
 		await emit({ event: 'start', version: 1 });
-		const shell = withTaskObserver(owner.observer, () => renderToStringOwned(vnode, options));
+		let capture = createSsrResumptionCapture(options);
+		const shell = withTaskObserver(owner.observer, () =>
+			renderToStringOwned(vnode, capture.options)
+		);
 		await emit({ event: 'shell', version: 1, html: shell.html });
 
 		let final = shell;
@@ -97,7 +105,8 @@ export async function streamDocumentRender(
 				options.signal,
 				options.taskDeadline
 			);
-			final = await renderToStringAsync(vnode, options);
+			capture = createSsrResumptionCapture(options);
+			final = await renderToStringAsync(vnode, capture.options);
 			if (final.html !== shell.html) {
 				await emit({
 					event: 'replace',
@@ -109,6 +118,7 @@ export async function streamDocumentRender(
 		}
 
 		if (shouldEmitDocumentHydration(options)) {
+			const resumptions = capture.records();
 			await emit({
 				event: 'hydration',
 				version: 1,
@@ -118,6 +128,7 @@ export async function streamDocumentRender(
 					endpoints: options.endpoints,
 					state: final.state,
 					continuations: options.continuations,
+					resumptions: resumptions.length > 0 ? resumptions : options.resumptions,
 					publicContexts: options.publicContexts,
 					executionRoot: options.executionRoot,
 					binding: options.binding,

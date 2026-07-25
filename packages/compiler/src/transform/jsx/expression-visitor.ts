@@ -2,23 +2,17 @@ import ts from 'typescript';
 import { isIdentifierDeclarationName, isPropertyAccessName } from '../../ast.js';
 import { isThisTaskCall } from '../../calls.js';
 import { expressionEmissionId } from './identity.js';
-import {
-	clientComponentChildrenProp,
-	jsxElementHasNoMeaningfulChildren,
-	jsxElementIsClientIsland
-} from './inspection.js';
 import { transformAnnotatedMapCall } from './collection-emission.js';
 import {
 	transformJsxElement,
 	transformJsxFragment,
 	transformJsxSelfClosingElement
 } from './element-emission.js';
-import { createComponentIslandBoundaryCall } from './island-emission.js';
 import {
-	clientIslandCaptures,
-	createClientIslandBoundaryCall,
-	recordClientIslandDefinition
-} from './island-planning.js';
+	transformJsxElementIsland,
+	transformJsxSelfClosingIsland
+} from './element-island-emission.js';
+import { jsxElementIsClientIsland } from './inspection.js';
 import {
 	transformImplicitLifecycleListener,
 	transformImplicitSetupTask
@@ -48,104 +42,22 @@ export function visitJsxExpression(
 		state,
 		target,
 		serverComponents,
-		componentInfo,
 		componentPlacements,
 		derivedReactiveLocals,
-		expressionComponents,
 		expressionJsx,
 		expressionResourceFor,
 		expressionListenerFor,
 		expressionSetupFor,
 		expressionSignalFor,
 		expressionTaskFor,
-		taskPlacementFor,
-		isClientComponentTag,
-		islandHasServerChildren,
-		clientIslandSiteFor
+		taskPlacementFor
 	} = environment;
 
 	if (ts.isJsxElement(node)) {
 		state.sawJsx = true;
-		if (target === 'server' && isClientComponentTag(node.openingElement.tagName)) {
-			const childrenProp = clientComponentChildrenProp(context, node);
-			const serverChildren =
-				!jsxElementHasNoMeaningfulChildren(node) && childrenProp === undefined
-					? node.children
-					: undefined;
-			state.sawBoundary = true;
-			return createComponentIslandBoundaryCall(
-				sourceFile,
-				context,
-				visitor,
-				helpers,
-				componentInfo,
-				node,
-				node.openingElement.tagName,
-				node.openingElement.attributes,
-				childrenProp,
-				serverChildren
-			);
-		}
-		if (target === 'server' && jsxElementIsClientIsland(node.openingElement.attributes)) {
-			if (!state.componentSiteStack.length)
-				return transformJsxElement(
-					sourceFile,
-					node,
-					context,
-					visitor,
-					helpers,
-					derivedReactiveLocals,
-					expressionJsx
-				);
-			const serverChildren = islandHasServerChildren(node) ? node.children : undefined;
-			state.sawBoundary = true;
-			const captures = clientIslandCaptures(
-				clientIslandSiteFor(node),
-				state.componentLocalStack.at(-1)
-			);
-			return createClientIslandBoundaryCall(
-				sourceFile,
-				context,
-				visitor,
-				helpers,
-				state.componentStack.at(-1),
-				state.islandCounts,
-				node.openingElement.attributes,
-				serverChildren ? undefined : node.children,
-				{ ...captures, serverSlotChildren: !!serverChildren },
-				derivedReactiveLocals,
-				serverChildren
-			);
-		}
+		const island = transformJsxElementIsland(node, visitor, environment);
+		if (island) return island;
 		if (target === 'client' && jsxElementIsClientIsland(node.openingElement.attributes)) {
-			const ownerSite = state.componentSiteStack.at(-1);
-			const owner = state.componentStack.at(-1);
-			if (
-				ownerSite &&
-				state.clientIslandDepth === 0 &&
-				componentPlacements.get(expressionComponents.sites.get(ownerSite)?.name ?? '') !== 'client'
-			) {
-				const serverSlotChildren = islandHasServerChildren(node);
-				state.clientIslandDepth++;
-				const captures = clientIslandCaptures(
-					clientIslandSiteFor(node),
-					state.componentLocalStack.at(-1)
-				);
-				recordClientIslandDefinition(
-					sourceFile,
-					context,
-					visitor,
-					helpers,
-					owner,
-					state.islandCounts,
-					node,
-					state.clientIslandDefinitions,
-					{ ...captures, serverSlotChildren },
-					derivedReactiveLocals,
-					expressionJsx
-				);
-				state.clientIslandDepth--;
-			}
 			state.clientIslandDepth++;
 			const transformed = transformJsxElement(
 				sourceFile,
@@ -171,67 +83,8 @@ export function visitJsxExpression(
 	}
 	if (ts.isJsxSelfClosingElement(node)) {
 		state.sawJsx = true;
-		if (target === 'client' && jsxElementIsClientIsland(node.attributes)) {
-			const ownerSite = state.componentSiteStack.at(-1);
-			const owner = state.componentStack.at(-1);
-			if (
-				ownerSite &&
-				state.clientIslandDepth === 0 &&
-				componentPlacements.get(expressionComponents.sites.get(ownerSite)?.name ?? '') !== 'client'
-			) {
-				recordClientIslandDefinition(
-					sourceFile,
-					context,
-					visitor,
-					helpers,
-					owner,
-					state.islandCounts,
-					node,
-					state.clientIslandDefinitions,
-					clientIslandCaptures(clientIslandSiteFor(node), state.componentLocalStack.at(-1)),
-					derivedReactiveLocals,
-					expressionJsx
-				);
-			}
-		}
-		if (target === 'server' && isClientComponentTag(node.tagName)) {
-			state.sawBoundary = true;
-			return createComponentIslandBoundaryCall(
-				sourceFile,
-				context,
-				visitor,
-				helpers,
-				componentInfo,
-				node,
-				node.tagName,
-				node.attributes
-			);
-		}
-		if (target === 'server' && jsxElementIsClientIsland(node.attributes)) {
-			if (!state.componentSiteStack.length)
-				return transformJsxSelfClosingElement(
-					sourceFile,
-					node,
-					context,
-					visitor,
-					helpers,
-					derivedReactiveLocals,
-					expressionJsx
-				);
-			state.sawBoundary = true;
-			return createClientIslandBoundaryCall(
-				sourceFile,
-				context,
-				visitor,
-				helpers,
-				state.componentStack.at(-1),
-				state.islandCounts,
-				node.attributes,
-				undefined,
-				clientIslandCaptures(clientIslandSiteFor(node), state.componentLocalStack.at(-1)),
-				derivedReactiveLocals
-			);
-		}
+		const island = transformJsxSelfClosingIsland(node, visitor, environment);
+		if (island) return island;
 		return transformJsxSelfClosingElement(
 			sourceFile,
 			node,
@@ -328,6 +181,7 @@ export function visitJsxExpression(
 					task
 				);
 				state.sawDistributedContinuation = true;
+				state.sawContinuationTask = true;
 				return createDistributedTaskCall(
 					transformed as ts.CallExpression,
 					task.continuationId,
@@ -337,6 +191,9 @@ export function visitJsxExpression(
 			}
 			return factory.createVoidExpression(factory.createNumericLiteral(0));
 		}
+		const task = isThisTaskCall(node) ? expressionTaskFor(node) : undefined;
+		if (task?.continuationId && (task.placement === 'server' || task.placement === 'isomorphic'))
+			state.sawContinuationTask = true;
 		const annotatedList = expressionJsx.lists.get(expressionEmissionId(node) ?? '');
 		if (
 			annotatedList &&

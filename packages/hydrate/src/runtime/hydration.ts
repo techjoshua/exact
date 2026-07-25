@@ -15,6 +15,7 @@ import { resolveHydrateOptions } from '../config.js';
 import { reportMismatch } from '../patches.js';
 import type { HydrateOptions, HydrateProfileEvent, HydrationRoot } from '../types.js';
 import { createExactClient, remainingDomWork } from './client.js';
+import { checkpointComponentResumptions, rollbackComponentResumptions } from './resumption.js';
 import { roots } from './state.js';
 
 /** Hydrates a server-rendered container and returns ownership of its client root. */
@@ -75,7 +76,8 @@ export function hydrateRoot(
 			documentNode,
 			captured.hasMarkers,
 			resolvedOptions,
-			work
+			work,
+			root.domain
 		);
 		restoreFormState(rootContainer, formState, work);
 		rootContainer.setAttribute('data-exact-hydrated', 'true');
@@ -93,10 +95,13 @@ function adoptOrMountRoot(
 	documentNode: Document | undefined,
 	hasMarkers: boolean,
 	options: HydrateOptions,
-	work: DomWorkBudget
+	work: DomWorkBudget,
+	domain: ComponentDomain
 ): void {
 	if (documentNode) {
+		const checkpoint = checkpointComponentResumptions(domain);
 		if (adoptDocumentRoot(vnode, documentNode, rendererOptions(options, work))) return;
+		rollbackComponentResumptions(domain, checkpoint);
 		reportMismatch(
 			options,
 			'server document did not match the authored client document',
@@ -107,11 +112,13 @@ function adoptOrMountRoot(
 		);
 	}
 	if (!hasMarkers) {
+		const checkpoint = checkpointComponentResumptions(domain);
 		const adopted =
 			options.allowMarkerless && typeof vnode.type === 'function'
 				? adoptMarkerlessComponentRoot(vnode, container, rendererOptions(options, work))
 				: false;
 		if (adopted) return;
+		rollbackComponentResumptions(domain, checkpoint);
 		reportMismatch(
 			options,
 			options.allowMarkerless
@@ -122,12 +129,14 @@ function adoptOrMountRoot(
 		mountFreshRoot(vnode, container, options, work);
 		return;
 	}
+	const checkpoint = checkpointComponentResumptions(domain);
 	const adopted =
 		typeof vnode.type === 'function'
 			? adoptComponentRoot(vnode, container, rendererOptions(options, work))
 			: adoptStaticTree(vnode, container, createStaticAdoptionBudget(options, work)) &&
 				adoptStatic(vnode, container, rendererOptions(options, work));
 	if (adopted) return;
+	rollbackComponentResumptions(domain, checkpoint);
 	// Clear the SSR range before mounting so a failed adoption cannot leave a
 	// duplicate interactive tree beside stale server markup.
 	mountFreshRoot(vnode, container, options, work);

@@ -405,7 +405,7 @@ describe('@exactjs/compiler: reactivity', () => {
 		expect(server).toContain('node:fs/promises');
 		expect(server).toContain('readFile');
 		expect(server).not.toContain('window.innerWidth');
-		expect(server).toContain('export { ProjectPage as ProjectPage_ExactServer_1 };');
+		expect(server).toContain('export const ProjectPage');
 	});
 
 	it('honors explicit task placement aliases as compiler escape hatches', () => {

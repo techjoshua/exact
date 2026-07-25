@@ -112,10 +112,10 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(result.manifestFile).toBe(path.join(outDir, 'components', 'page.exact.manifest.json'));
 		expect(client).not.toContain('node:fs/promises');
 		expect(client).toContain('window.innerWidth');
-		expect(client).toContain('export function Page');
+		expect(client).toContain('export const Page');
 		expect(server).toContain('node:fs/promises');
 		expect(server).not.toContain('window.innerWidth');
-		expect(server).toContain('export function Page');
+		expect(server).toContain('export const Page');
 		expect(Object.keys(manifest.serverActions)).toHaveLength(1);
 		expect(manifest.exports).toEqual([
 			{ name: 'Page', kind: 'component', placement: 'isomorphic' }
@@ -264,21 +264,18 @@ describe('@exactjs/compiler: artifacts', () => {
 		});
 		const client = await readFile(result.clientFile, 'utf8');
 		const server = await readFile(result.serverFile, 'utf8');
-		const clientSymbol = result.manifest.symbols.find((symbol) => symbol.role === 'client-island')!;
-		const serverSymbol = result.manifest.symbols.find((symbol) => symbol.role === 'server-part')!;
+		const rootSymbol = result.manifest.symbols.find((symbol) => symbol.role === 'root')!;
 
 		expect(client).toContain('Symbol.for("@exactjs/component-contract")');
 		expect(client).toContain(
-			`{ id: "${clientSymbol.id}", name: "${clientSymbol.generatedName}", role: "client-island", implementation: ${clientSymbol.exportName} }`
+			`{ id: "${rootSymbol.id}", name: "${rootSymbol.generatedName}", role: "root", implementation: __exactImplementation_Panel_`
 		);
 		expect(client).toMatch(
 			/export const Panel: typeof __exactImplementation_Panel_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/
 		);
 		expect(server).toContain('Symbol.for("@exactjs/component-contract")');
-		expect(server).toMatch(
-			new RegExp(
-				`\\{ id: "${serverSymbol.id}", name: "${serverSymbol.generatedName}", role: "server-part", implementation: (?:${serverSymbol.localName}|__exactImplementation_Panel_\\d+) \\}`
-			)
+		expect(server).toContain(
+			`{ id: "${rootSymbol.id}", name: "${rootSymbol.generatedName}", role: "root", implementation: __exactImplementation_Panel_`
 		);
 		expect(server).toMatch(
 			/export const Panel: typeof __exactImplementation_Panel_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/
@@ -330,7 +327,7 @@ describe('@exactjs/compiler: artifacts', () => {
 
 		expect(client).not.toContain('this.reactive(() => this.getContext(DatabaseContext))');
 		expect(client).toMatch(
-			/this\.task\(this\.reactive\(\(\) => this\.state\.id\), \(__exactDependency/
+			/this\.task\(this\.reactive\(\(\) => this\.state\.id\), __exactContinuationTask\("[^"]+", \(__exactDependency/
 		);
 		expect(server).toMatch(
 			/__exactExecution_\d+\.getContext\(DatabaseContext\)\.find\(__exactDependency\)/

@@ -11,7 +11,9 @@ import type { HelperNames } from '../../types.js';
 
 import { captureArgument } from './collection-emission.js';
 import type { DerivedReactiveIndex } from './contracts.js';
+import { markContinuationTask } from './distributed-task-emission.js';
 import { expressionEmissionId } from './identity.js';
+import { taskResourceHelper } from './task-resource-emission.js';
 /** Transforms task call into its required representation. */
 export function transformTaskCall(
 	sourceFile: ts.SourceFile,
@@ -65,6 +67,12 @@ export function transformTaskCall(
 
 	if (transportedDependencies.length)
 		transformedWork = prependDependencyParameters(transformedWork, dependencyParameters, context);
+	const emittedWork =
+		taskSite?.continuationId &&
+		(taskSite.placement === 'server' || taskSite.placement === 'isomorphic') &&
+		helpers
+			? markContinuationTask(transformedWork, taskSite.continuationId, context, helpers)
+			: transformedWork;
 
 	const nextDependencies =
 		transportedDependencies.length > 0
@@ -105,7 +113,7 @@ export function transformTaskCall(
 		node,
 		ts.visitNode(node.expression, visitor) as ts.Expression,
 		node.typeArguments,
-		[...nextDependencies, transformedWork]
+		[...nextDependencies, emittedWork]
 	);
 }
 
@@ -396,18 +404,4 @@ export function containsManagedTaskWork(
 	};
 	visit(node);
 	return found;
-}
-
-/** Performs the task resource helper domain operation. */
-export function taskResourceHelper(
-	kind: ExpressionTaskResourceKind,
-	helpers: HelperNames
-): readonly [string, string] {
-	if (kind === 'timeout') return ['taskTimeout', helpers.taskTimeout];
-	if (kind === 'interval') return ['taskInterval', helpers.taskInterval];
-	if (kind === 'animation-frame') return ['taskAnimationFrame', helpers.taskAnimationFrame];
-	if (kind === 'idle-callback') return ['taskIdleCallback', helpers.taskIdleCallback];
-	if (kind === 'observer') return ['taskObserver', helpers.taskObserver];
-	if (kind === 'owned') return ['ownTaskResource', helpers.taskResource];
-	return ['taskFetch', helpers.taskFetch];
 }

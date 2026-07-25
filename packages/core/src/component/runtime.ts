@@ -48,6 +48,11 @@ import { ErrorContext } from './contexts.js';
 import { pageComponentDomain, withComponentDomain } from './domain.js';
 import { createErrorContext, createErrorReport, handleComponentError } from './errors.js';
 import { reactiveValue } from './reactive-value.js';
+import {
+	applyComponentResumption,
+	startRegisteredTask,
+	startResumedComponentTasks
+} from './resumption.js';
 
 let nextComponentId = 1;
 
@@ -62,6 +67,7 @@ export function createComponentInstance<
 	ambientContexts: ComponentContextValues | undefined = parent?.ambientContexts,
 	domain = parent?.domain ?? pageComponentDomain
 ): ComponentInstance<State> {
+	const resumption = domain.resumeComponent?.(type);
 	const refs = new Map<symbol, unknown>();
 	const listCaches = new Map<
 		string,
@@ -80,6 +86,7 @@ export function createComponentInstance<
 		handleComponentError(instance, createErrorReport(error, 'reactive', instance, 'watch'));
 	});
 	const state = reactive({} as State);
+	if (resumption) applyComponentResumption(state as Reactive<Record<string, unknown>>, resumption);
 	const props = reactive(rawProps, {
 		readonly: true,
 		passthroughKeys: ['children'],
@@ -166,13 +173,16 @@ export function createComponentInstance<
 			...values: unknown[]
 		): ComponentReactiveValue<string> | ComponentReactiveValue<T> {
 			if (typeof input === 'function') {
-				return createComponentReactiveValue(instance, computed(input as () => T));
+				return createComponentReactiveValue(instance, computed(input as () => T), (task) =>
+					startRegisteredTask(task, resumption)
+				);
 			}
 
 			if (!isTemplateStringsArray(input)) {
 				return createComponentReactiveValue(
 					instance,
-					computed(() => input)
+					computed(() => input),
+					(task) => startRegisteredTask(task, resumption)
 				);
 			}
 
@@ -185,7 +195,8 @@ export function createComponentInstance<
 						if (index < values.length) result += String(unwrap(values[index]) ?? '');
 					}
 					return result;
-				})
+				}),
+				(task) => startRegisteredTask(task, resumption)
 			);
 		},
 		task: Object.assign(
@@ -201,7 +212,7 @@ export function createComponentInstance<
 				const deps = args.slice(0, -1);
 				const task = createTask(instance, deps, work as (...args: any[]) => TaskResult);
 				instance.tasks.push(task);
-				task.run();
+				startRegisteredTask(task, resumption);
 			},
 			{
 				server(...args: unknown[]): void {
@@ -362,6 +373,10 @@ export function createComponentInstance<
 		acceptingTaskRegistrations = false;
 		cleanupFailedConstruction(instance);
 		throw error;
+	}
+	if (resumption) {
+		applyComponentResumption(state as Reactive<Record<string, unknown>>, resumption);
+		startResumedComponentTasks(instance, resumption);
 	}
 	acceptingTaskRegistrations = false;
 	renderFunction = typeof result === 'function' ? (result as RenderFunction) : () => result;

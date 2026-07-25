@@ -42,6 +42,7 @@ export type {
 	ComponentFunction,
 	ComponentInstance,
 	ComponentReactiveValue,
+	ComponentResumptionActivation,
 	ComponentTask,
 	ComponentTaskRegistration,
 	ContextToken,
@@ -126,6 +127,10 @@ export {
 	UnsafeHtml
 } from './symbols.js';
 export { withTaskObserver } from './task/observers.js';
+export {
+	markComponentContinuationTask,
+	settledComponentContinuationIds
+} from './task/continuation.js';
 export {
 	createDerived,
 	ownTaskResource,

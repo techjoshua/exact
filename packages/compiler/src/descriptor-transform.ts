@@ -25,6 +25,13 @@ export function exactComponentDescriptorTransformer(
 	if (target === 'default') return () => (sourceFile) => sourceFile;
 	const groups = new Map<string, DescriptorGroup>();
 	for (const component of manifest.components) {
+		const clientMachine =
+			component.placement === 'client' ||
+			(!serverComponents && component.placement === 'isomorphic');
+		const distributedContinuations = manifest.continuations.filter(
+			(continuation) =>
+				continuation.componentId === component.id && continuation.placement === 'server'
+		);
 		const generatedEntries = manifest.symbols.filter(
 			(symbol) =>
 				symbol.componentId === component.id &&
@@ -33,12 +40,11 @@ export function exactComponentDescriptorTransformer(
 				symbol.role === (target === 'client' ? 'client-island' : 'server-part')
 		);
 		const rootEntry =
-			target === 'client' && component.placement === 'client'
+			clientMachine &&
+			((component.placement === 'client' && target === 'client') ||
+				(component.placement === 'isomorphic' && distributedContinuations.length > 0))
 				? manifest.symbols.find(
-						(symbol) =>
-							symbol.componentId === component.id &&
-							symbol.target === 'client' &&
-							symbol.role === 'root'
+						(symbol) => symbol.componentId === component.id && symbol.role === 'root'
 					)
 				: undefined;
 		const entries = rootEntry
@@ -48,9 +54,15 @@ export function exactComponentDescriptorTransformer(
 					componentImplementation: symbol.localName === component.name
 				}));
 		if (entries.length) {
-			const clientMachine =
-				component.placement === 'client' ||
-				(!serverComponents && component.placement === 'isomorphic');
+			const boundaries = manifest.boundaries.filter(
+				(boundary) =>
+					boundary.ownerComponentId === component.id &&
+					(!clientMachine || boundary.componentId !== boundary.ownerComponentId)
+			);
+			const boundaryIds = new Set(boundaries.map((boundary) => boundary.id));
+			const resumption = manifest.resumptions.find(
+				(candidate) => candidate.componentId === component.id
+			);
 			groups.set(component.name, {
 				componentId: component.id,
 				placement: component.placement,
@@ -58,19 +70,26 @@ export function exactComponentDescriptorTransformer(
 				clientMachine,
 				entries,
 				continuations: clientMachine
-					? manifest.continuations.filter(
-							(continuation) =>
-								continuation.componentId === component.id &&
-								continuation.placement === 'server'
-						)
+					? distributedContinuations.map((continuation) => ({
+							...continuation,
+							effects: {
+								...continuation.effects,
+								boundaries: continuation.effects.boundaries.filter((id) => boundaryIds.has(id))
+							}
+						}))
 					: [],
 				executors: [],
-				boundaries: manifest.boundaries.filter(
-					(boundary) => boundary.ownerComponentId === component.id
-				),
-				resumption: manifest.resumptions.find(
-					(resumption) => resumption.componentId === component.id
-				)
+				boundaries,
+				resumption:
+					resumption && clientMachine
+						? {
+								...resumption,
+								client: {
+									...resumption.client,
+									boundaries: resumption.client.boundaries.filter((id) => boundaryIds.has(id))
+								}
+							}
+						: resumption
 			});
 		}
 	}
@@ -183,12 +202,7 @@ function withContinuationExecutors(
 	return {
 		...group,
 		executors: [
-			...createContinuationExecutorEmissions(
-				component,
-				group.continuations,
-				context,
-				filename
-			)
+			...createContinuationExecutorEmissions(component, group.continuations, context, filename)
 		]
 	};
 }

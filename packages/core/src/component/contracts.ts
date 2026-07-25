@@ -37,7 +37,18 @@ export type ComponentDomain = {
 	readonly executionRoot: string;
 	/** Framework-private bridge used by compiler-generated distributed continuations. */
 	readonly dispatchContinuation?: ComponentContinuationDispatcher;
+	/** Framework-private source of one serialized SSR component activation. */
+	readonly resumeComponent?: (
+		type: ComponentFunction<any, any>
+	) => ComponentResumptionActivation | undefined;
 };
+
+/** Client-visible state and settled work used to reconstruct one SSR component instance. */
+export type ComponentResumptionActivation = Readonly<{
+	componentId: string;
+	values: Readonly<Record<string, unknown>>;
+	settledContinuations: readonly string[];
+}>;
 
 /** Compiler-generated request to advance the server half of a component machine. */
 export type ComponentContinuationDispatch = {
@@ -314,8 +325,12 @@ export type TaskRegistration = {
 	cleanup?: () => void | Promise<void>;
 	settlement?: Promise<void>;
 	queuedGeneration?: number;
+	completedGeneration?: number;
+	failedGeneration?: number;
 	stopped: boolean;
 	generation: number;
 	run(): void;
+	/** Subscribes to future dependency changes without executing an initial generation. */
+	resume(): void;
 	stop(): void;
 };

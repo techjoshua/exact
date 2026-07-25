@@ -125,10 +125,25 @@ export function createDistributedTaskCall(
 			]
 		)
 	);
+	const taggedWork = markContinuationTask(work, continuationId, context, helpers);
 	return factory.updateCallExpression(
 		node,
 		factory.createPropertyAccessExpression(factory.createThis(), 'task'),
 		node.typeArguments,
-		[...dependencies, work]
+		[...dependencies, taggedWork]
+	);
+}
+
+/** Tags generated task work with its stable distributed continuation identity. */
+export function markContinuationTask(
+	work: ts.Expression,
+	continuationId: string,
+	context: ts.TransformationContext,
+	helpers: HelperNames
+): ts.CallExpression {
+	return context.factory.createCallExpression(
+		context.factory.createIdentifier(helpers.taskContinuation),
+		undefined,
+		[context.factory.createStringLiteral(continuationId), work]
 	);
 }

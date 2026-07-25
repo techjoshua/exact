@@ -119,7 +119,16 @@ export function createExactComponentResumptions(
 					serverContexts: component.contexts.filter((context) => context.kind === 'read')
 				},
 				client: {
-					statePaths: uniqueSorted(islands.flatMap((island) => island.stateReads)),
+					statePaths: uniqueSorted([
+						...islands.flatMap((island) => island.stateReads),
+						...component.tasks
+							.filter((task) => task.placement === 'server' || task.placement === 'isomorphic')
+							.flatMap((task) =>
+								task.writes
+									.filter((write) => write.confidence === 'exact' && write.path !== '*')
+									.map((write) => write.path)
+							)
+					]),
 					valueCaptures: uniqueSorted(islands.flatMap((island) => island.valueCaptures)),
 					boundaries: boundaries
 						.filter((boundary) => boundary.ownerComponentId === component.id)

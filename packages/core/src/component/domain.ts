@@ -1,7 +1,9 @@
 import type {
 	ComponentContinuationDispatcher,
 	ComponentDomain,
-	ComponentInstance
+	ComponentInstance,
+	ComponentResumptionActivation,
+	ComponentFunction
 } from './contracts.js';
 
 let activeDomain: ComponentDomain | undefined;
@@ -12,12 +14,14 @@ export const pageComponentDomain = createComponentDomain('page');
 /** Creates immutable ownership metadata carried by VNodes and component instances. */
 export function createComponentDomain(
 	executionRoot: string,
-	dispatchContinuation?: ComponentContinuationDispatcher
+	dispatchContinuation?: ComponentContinuationDispatcher,
+	resumeComponent?: (type: ComponentFunction<any, any>) => ComponentResumptionActivation | undefined
 ): ComponentDomain {
 	if (!executionRoot) throw new Error('Component execution root must be a non-empty string');
 	return Object.freeze({
 		executionRoot,
-		...(dispatchContinuation ? { dispatchContinuation } : {})
+		...(dispatchContinuation ? { dispatchContinuation } : {}),
+		...(resumeComponent ? { resumeComponent } : {})
 	});
 }
 
@@ -29,8 +33,7 @@ export function dispatchComponentContinuation(
 	signal: AbortSignal
 ): Promise<void> {
 	const dispatch = instance.domain.dispatchContinuation;
-	if (!dispatch)
-		throw new Error(`No eXact continuation transport is registered for ${id}`);
+	if (!dispatch) throw new Error(`No eXact continuation transport is registered for ${id}`);
 	return dispatch({ instance, id, dependencies, signal });
 }
 

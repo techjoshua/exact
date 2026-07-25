@@ -426,7 +426,7 @@ describe('@exactjs/compiler: registries', () => {
         return () => <button title={label} onClick={() => this.state.count++} />;
       }
     `,
-			{ filename: 'Panel.tsx', target: 'server' }
+			{ filename: 'Panel.tsx', target: 'server', serverComponents: true }
 		);
 
 		expect(output).toContain('title: label');
@@ -448,7 +448,7 @@ describe('@exactjs/compiler: registries', () => {
         return () => <button title={project.title} onClick={() => project.title = "Updated"} />;
       }
     `,
-			{ filename: 'Panel.tsx', target: 'server' }
+			{ filename: 'Panel.tsx', target: 'server', serverComponents: true }
 		);
 
 		expect(output).toContain('"__exactState": { project: { title: this.state.project.title } }');
@@ -470,7 +470,7 @@ describe('@exactjs/compiler: registries', () => {
         return () => <button title={label} onClick={() => this.state.project.title = "Updated"}>{label}</button>;
       }
     `,
-			{ filename: 'Panel.tsx', target: 'server' }
+			{ filename: 'Panel.tsx', target: 'server', serverComponents: true }
 		);
 
 		expect(output).toContain(
@@ -492,7 +492,7 @@ describe('@exactjs/compiler: registries', () => {
         return () => <button title={this.state.items["first-item"].title} onClick={() => save()} />;
       }
     `,
-			{ filename: 'Panel.tsx', target: 'server' }
+			{ filename: 'Panel.tsx', target: 'server', serverComponents: true }
 		);
 
 		expect(output).toContain('"first-item": { title: this.state.items["first-item"].title }');
@@ -511,7 +511,7 @@ describe('@exactjs/compiler: registries', () => {
         return () => <button title={this.state.count} onClick={() => this.state.count++} />;
       }
     `,
-			{ filename: 'Panel.tsx', target: 'client' }
+			{ filename: 'Panel.tsx', target: 'client', serverComponents: true }
 		);
 
 		expect(output).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');

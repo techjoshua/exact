@@ -1,20 +1,15 @@
 /**
  * @vitest-environment jsdom
  */
-import {
-	composeExactComponentContracts,
-	createVNode,
-	withComponentDomain,
-	type ComponentFunction
-} from '@exactjs/core';
-import { render } from '@exactjs/dom';
-import { createExactClient, type FetchLike } from '@exactjs/hydrate';
+import { composeExactComponentContracts, createVNode, type ComponentFunction } from '@exactjs/core';
+import { hydrate, type FetchLike } from '@exactjs/hydrate';
 import {
 	composeExactExecutorContract,
 	handleExactRequest,
 	type ExactInvocationRequest,
 	type ExactServerContext
 } from '@exactjs/server';
+import { renderToHydratableStringAsync } from '@exactjs/ssr';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -24,7 +19,7 @@ import { compileFileArtifacts } from '../index.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 
 describe('@exactjs/compiler distributed continuation loopback', () => {
-	it('advances a compiled server task and commits its result to the live client instance', async () => {
+	it('resumes compiled SSR work and advances the server task after a client change', async () => {
 		const root = await createTestWorkspace('.exact-continuation-loopback-', process.cwd());
 		const sourceRoot = path.join(root, 'src');
 		const generatedRoot = path.join(root, 'generated');
@@ -77,35 +72,39 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 			contract: serverContract,
 			actions: {}
 		};
-		const container = document.createElement('main');
-		const client = createExactClient(container, {
+		const rendered = await renderToHydratableStringAsync(createVNode(ServerSearch, {}), {
 			endpoint: '/__exact',
+			continuations: clientContracts.continuations,
+			buildKey: 'loopback-build'
+		});
+		expect(rendered.html).toContain('FIRST');
+		expect(rendered.resumptions).toEqual([
+			expect.objectContaining({
+				values: expect.objectContaining({ query: 'first', result: 'FIRST' })
+			})
+		]);
+		const container = document.createElement('main');
+		container.innerHTML = rendered.htmlWithHydration;
+		const serverOutput = container.querySelector('output');
+		const client = hydrate(createVNode(ClientSearch, {}), container, {
+			endpoint: '/__exact',
+			buildKey: 'loopback-build',
 			batch: false,
 			continuations: clientContracts.continuations,
 			fetch: loopbackFetch(server, requests)
 		});
-
-		render(
-			withComponentDomain(client.domain, () => createVNode(ClientSearch, {})),
-			container
-		);
 		await client.whenSettled();
 
 		expect(container.querySelector('output')?.textContent).toBe('FIRST');
-		expect(requests).toHaveLength(1);
-		expect(requests[0]).toMatchObject({
-			type: 'action',
-			root: 'page',
-			payload: { dependencies: ['first'] },
-			state: { query: 'first' }
-		});
+		expect(container.querySelector('output')).toBe(serverOutput);
+		expect(requests).toHaveLength(0);
 
 		container.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-		await vi.waitFor(() => expect(requests).toHaveLength(2));
+		await vi.waitFor(() => expect(requests).toHaveLength(1));
 		await client.whenSettled();
 
 		expect(container.querySelector('output')?.textContent).toBe('SECOND');
-		expect(requests[1]).toMatchObject({
+		expect(requests[0]).toMatchObject({
 			type: 'action',
 			root: 'page',
 			payload: { dependencies: ['second'] },

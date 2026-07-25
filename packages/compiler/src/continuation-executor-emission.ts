@@ -31,8 +31,8 @@ export function createContinuationExecutorEmissions(
 	const aliases = componentContextAliases(component);
 	return continuations.map((continuation, index) => {
 		const task = tasks[index]!;
-		const work = task.arguments.at(-1);
-		if (!work || (!ts.isArrowFunction(work) && !ts.isFunctionExpression(work))) {
+		const work = continuationTaskWork(task, continuation.id);
+		if (!work) {
 			throw new Error(`Cannot extract server continuation ${continuation.id} in ${filename}`);
 		}
 		return Object.freeze({
@@ -41,6 +41,25 @@ export function createContinuationExecutorEmissions(
 			execute: continuationExecutor(work, continuation, aliases, context, filename)
 		});
 	});
+}
+
+/** Unwraps the compiler tag around continuation work before extracting its server body. */
+function continuationTaskWork(
+	task: ts.CallExpression,
+	continuationId: string
+): ts.ArrowFunction | ts.FunctionExpression | undefined {
+	const candidate = task.arguments.at(-1);
+	if (!candidate) return undefined;
+	if (ts.isArrowFunction(candidate) || ts.isFunctionExpression(candidate)) return candidate;
+	if (
+		!ts.isCallExpression(candidate) ||
+		candidate.arguments.length !== 2 ||
+		!ts.isStringLiteral(candidate.arguments[0]) ||
+		candidate.arguments[0].text !== continuationId
+	)
+		return undefined;
+	const work = candidate.arguments[1];
+	return work && (ts.isArrowFunction(work) || ts.isFunctionExpression(work)) ? work : undefined;
 }
 
 /** Collects task registrations whose nearest function owner is the component. */
