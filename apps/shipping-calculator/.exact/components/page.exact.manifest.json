@@ -493,11 +493,6 @@
               "path": "model",
               "kind": "read",
               "confidence": "exact"
-            },
-            {
-              "path": "model.configuredProviders.map",
-              "kind": "read",
-              "confidence": "exact"
             }
           ],
           "writes": [
@@ -665,11 +660,6 @@
         },
         {
           "path": "model.configuredProviders",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "path": "model.configuredProviders.map",
           "kind": "read",
           "confidence": "exact"
         }
@@ -934,11 +924,6 @@
             "path": "model",
             "kind": "read",
             "confidence": "exact"
-          },
-          {
-            "path": "model.configuredProviders.map",
-            "kind": "read",
-            "confidence": "exact"
           }
         ],
         "dependencies": [
@@ -963,6 +948,7 @@
           }
         ],
         "contextWrites": [],
+        "serverContextWrites": [],
         "boundaries": [
           "xqW95tUx8NQp3tVs_osJSgj"
         ]
@@ -980,14 +966,16 @@
       "serverRender": {
         "stateReads": [
           "model",
-          "model.configuredProviders",
-          "model.configuredProviders.map"
+          "model.configuredProviders"
         ],
         "serverContexts": []
       },
       "client": {
-        "statePaths": [],
+        "statePaths": [
+          "model"
+        ],
         "valueCaptures": [],
+        "contexts": [],
         "boundaries": [
           "xqW95tUx8NQp3tVs_osJSgj"
         ]
@@ -1015,11 +1003,6 @@
           },
           {
             "path": "model",
-            "kind": "read",
-            "confidence": "exact"
-          },
-          {
-            "path": "model.configuredProviders.map",
             "kind": "read",
             "confidence": "exact"
           }

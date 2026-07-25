@@ -19,7 +19,7 @@ const __exactImplementation_CalculatorWorkspace_1 = function CalculatorWorkspace
     __exactWrite(this.state, ["sort"], () => 'recommended');
     __exactWrite(this.state, ["enabledFilters"], () => [...props.initial.configuredProviders]);
     __exactWrite(this.state, ["restored"], () => false);
-    this.task(this.reactive(() => props.initial.explicitUrlState), (__exactDependency) => {
+    this.task(this.reactive(() => props.initial.explicitUrlState), (__exactDependency: boolean) => {
         if (__exactDependency)
             return;
         try {
@@ -97,21 +97,13 @@ export const CalculatorWorkspace: typeof __exactImplementation_CalculatorWorkspa
         ],
         continuations: [],
         executors: [],
-        boundaries: [
-            {
-                id: "x4CYHsV3s8u9PNNJDxmFx1A",
-                componentId: "xJkpEMXLuqnwN65cmx7UNPD",
-                ownerComponentId: "xJkpEMXLuqnwN65cmx7UNPD",
-                kind: "client-island"
-            }
-        ],
+        boundaries: [],
         resumption: {
             componentId: "xJkpEMXLuqnwN65cmx7UNPD",
             statePaths: [],
             valueCaptures: [],
-            boundaries: [
-                "x4CYHsV3s8u9PNNJDxmFx1A"
-            ]
+            contexts: [],
+            boundaries: []
         }
     }
 }))();

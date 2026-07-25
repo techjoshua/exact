@@ -8,6 +8,8 @@ export interface ExpressionTaskDependency {
 	readonly nodeId: string;
 	readonly start: number;
 	readonly end: number;
+	/** Source type retained for compiler-created callback parameters. */
+	readonly type: string;
 	readonly source: 'state' | 'props' | 'context' | 'derived';
 	/** Token resolved by the server when a captured alias came from getContext(). */
 	readonly contextToken?: string;
@@ -118,12 +120,12 @@ export function analyzeTaskDependencies(
 				nodeId: first.expression.node.id,
 				start: span.start,
 				end: span.end,
+				type: portableGeneratedType(first.expression),
 				source: first.source,
 				...(first.source === 'context'
 					? {
 							contextToken:
-								first.contextToken ??
-								contextTokenForVariable(module, first.expression.rootVariable)
+								first.contextToken ?? contextTokenForVariable(module, first.expression.rootVariable)
 						}
 					: {}),
 				readNodeIds: Object.freeze([...new Set(values.map((value) => value.expression.node.id))])
@@ -134,6 +136,29 @@ export function analyzeTaskDependencies(
 		dependencies: Object.freeze(dependencies),
 		unsafeDerived: Object.freeze([...unsafeDerived.values()])
 	});
+}
+
+function portableGeneratedType(expression: NodeRef): string {
+	const type = expression.type;
+	if (!type || type.kind === 'any') return 'any';
+	if (type.collectionKind) return 'any[]';
+	if (
+		type.kind === 'unknown' ||
+		type.kind === 'never' ||
+		type.kind === 'void' ||
+		type.kind === 'undefined' ||
+		type.kind === 'null' ||
+		type.kind === 'boolean' ||
+		type.kind === 'number' ||
+		type.kind === 'bigint' ||
+		type.kind === 'string' ||
+		type.kind === 'symbol'
+	)
+		return type.display;
+	// Named source types may not be imported into a split continuation artifact.
+	// The authored module has already been typechecked; keep generated internals
+	// explicit without inventing an incomplete type-import closure.
+	return 'any';
 }
 
 /** Excludes the component receiver of this.setContext(), which is an effect rather than input. */

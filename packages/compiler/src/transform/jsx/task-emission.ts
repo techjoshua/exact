@@ -14,6 +14,7 @@ import type { DerivedReactiveIndex } from './contracts.js';
 import { markContinuationTask } from './distributed-task-emission.js';
 import { expressionEmissionId } from './identity.js';
 import { taskResourceHelper } from './task-resource-emission.js';
+import { parseTypeNode } from './type-node.js';
 /** Transforms task call into its required representation. */
 export function transformTaskCall(
 	sourceFile: ts.SourceFile,
@@ -43,7 +44,7 @@ export function transformTaskCall(
 		taskSite?.placement === 'server'
 			? inferredDependencies.filter((dependency) => dependency.source !== 'context')
 			: inferredDependencies;
-	const dependencyParameters = allocateDependencyParameters(work, transportedDependencies.length);
+	const dependencyParameters = allocateDependencyParameters(work, transportedDependencies);
 	const rewrittenWork = transportedDependencies.length
 		? rewriteTaskDependencyReads(work, transportedDependencies, dependencyParameters, context)
 		: work;
@@ -119,19 +120,25 @@ export function transformTaskCall(
 
 function prependDependencyParameters(
 	work: ts.ArrowFunction | ts.FunctionExpression,
-	names: readonly string[],
+	parameters: readonly Readonly<{ name: string; type: string }>[],
 	context: ts.TransformationContext
 ): ts.ArrowFunction | ts.FunctionExpression {
-	const parameters = names.map((name) =>
-		context.factory.createParameterDeclaration(undefined, undefined, name)
+	const declarations = parameters.map((parameter) =>
+		context.factory.createParameterDeclaration(
+			undefined,
+			undefined,
+			parameter.name,
+			undefined,
+			parseTypeNode(parameter.type)
+		)
 	);
-	parameters.push(...work.parameters);
+	declarations.push(...work.parameters);
 	if (ts.isArrowFunction(work))
 		return context.factory.updateArrowFunction(
 			work,
 			work.modifiers,
 			work.typeParameters,
-			parameters,
+			declarations,
 			work.type,
 			work.equalsGreaterThanToken,
 			work.body
@@ -142,38 +149,41 @@ function prependDependencyParameters(
 		work.asteriskToken,
 		work.name,
 		work.typeParameters,
-		parameters,
+		declarations,
 		work.type,
 		work.body
 	);
 }
 
-function allocateDependencyParameters(work: ts.FunctionLikeDeclaration, count: number): string[] {
+function allocateDependencyParameters(
+	work: ts.FunctionLikeDeclaration,
+	dependencies: readonly ExpressionTaskDependency[]
+): ReadonlyArray<Readonly<{ name: string; type: string }>> {
 	const used = new Set<string>();
 	const collect = (node: ts.Node): void => {
 		if (ts.isIdentifier(node)) used.add(node.text);
 		ts.forEachChild(node, collect);
 	};
 	collect(work);
-	const names: string[] = [];
-	for (let index = 0; index < count; index++) {
+	const parameters: Array<Readonly<{ name: string; type: string }>> = [];
+	for (let index = 0; index < dependencies.length; index++) {
 		let name = `__exactDependency${index || ''}`;
 		while (used.has(name)) name += '_';
 		used.add(name);
-		names.push(name);
+		parameters.push(Object.freeze({ name, type: dependencies[index]!.type }));
 	}
-	return names;
+	return parameters;
 }
 
 function rewriteTaskDependencyReads(
 	work: ts.ArrowFunction | ts.FunctionExpression,
 	dependencies: readonly ExpressionTaskDependency[],
-	parameters: readonly string[],
+	parameters: readonly Readonly<{ name: string; type: string }>[],
 	context: ts.TransformationContext
 ): ts.ArrowFunction | ts.FunctionExpression {
 	const replacements = new Map<string, ts.Identifier>();
 	dependencies.forEach((dependency, index) => {
-		const parameter = context.factory.createIdentifier(parameters[index]!);
+		const parameter = context.factory.createIdentifier(parameters[index]!.name);
 		for (const nodeId of dependency.readNodeIds) replacements.set(nodeId, parameter);
 	});
 	const rewrite: ts.Visitor = (node) => {

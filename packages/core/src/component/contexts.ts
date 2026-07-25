@@ -7,6 +7,9 @@ import type { ErrorContextValue, SuspensionContextValue } from './contracts.js';
 /** Provides the canonical logger context value. */
 export const LoggerContext = createContext<Logger>('exact.logger', true);
 /** Provides the canonical error context value. */
-export const ErrorContext = createContext<ErrorContextValue>('exact.error', true);
+export const ErrorContext = createContext<ErrorContextValue>('exact.error', {
+	global: true,
+	reactive: false
+});
 /** Provides the canonical suspension context value. */
 export const SuspensionContext = createContext<SuspensionContextValue>('exact.suspension');

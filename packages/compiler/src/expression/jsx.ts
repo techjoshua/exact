@@ -150,6 +150,7 @@ export function analyzeExpressionJsx(
 		for (const variable of module.dependenciesOf(expression)) {
 			const entry = provenance.get(variable);
 			if (entry?.provenance !== 'derived' || entry.safeToReevaluate) continue;
+			if (!hasEagerReference(expression, variable)) continue;
 			const source = unsafeDerivedSource(variable, provenance);
 			if (diagnosedUnsafeDerived.has(source.id)) continue;
 			diagnosedUnsafeDerived.add(source.id);
@@ -216,6 +217,45 @@ export function analyzeExpressionJsx(
 		lists,
 		diagnostics: Object.freeze(diagnostics)
 	});
+}
+
+/**
+ * Reports whether a JSX expression reads a value while producing DOM.
+ *
+ * Event callbacks run later in response to the browser, so their captures retain
+ * setup identity and must not force those values to become reactive derivations.
+ */
+function hasEagerReference(expression: NodeRef, variable: Variable): boolean {
+	return expression
+		.walk()
+		.references()
+		.where((reference) => reference.variable === variable)
+		.any((reference) => !insideDeferredJsxHandler(reference, expression));
+}
+
+function insideDeferredJsxHandler(reference: NodeRef, expression: NodeRef): boolean {
+	let sawFunction = false;
+	let current = reference.parent;
+	while (current) {
+		if (current.node.kind === 'ArrowFunction' || current.node.kind === 'FunctionExpression')
+			sawFunction = true;
+		if (
+			sawFunction &&
+			current.node.kind === 'JsxAttribute' &&
+			/^on[A-Z]/.test(current.node.name ?? '')
+		)
+			return true;
+		if (current.node === expression.node) {
+			const attribute = current.parent;
+			return (
+				sawFunction &&
+				attribute?.node.kind === 'JsxAttribute' &&
+				/^on[A-Z]/.test(attribute.node.name ?? '')
+			);
+		}
+		current = current.parent;
+	}
+	return false;
 }
 
 function unsafeDerivedSource(

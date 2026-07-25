@@ -2665,6 +2665,7 @@
       "client": {
         "statePaths": [],
         "valueCaptures": [],
+        "contexts": [],
         "boundaries": []
       }
     },
@@ -2677,6 +2678,7 @@
       "client": {
         "statePaths": [],
         "valueCaptures": [],
+        "contexts": [],
         "boundaries": []
       }
     },
@@ -2689,6 +2691,7 @@
       "client": {
         "statePaths": [],
         "valueCaptures": [],
+        "contexts": [],
         "boundaries": []
       }
     }

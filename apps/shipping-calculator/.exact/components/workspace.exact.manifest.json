@@ -1295,21 +1295,6 @@
                 "kind": "unknown"
               },
               "kind": "read"
-            },
-            {
-              "path": "loading.filter",
-              "kind": "read",
-              "confidence": "exact"
-            },
-            {
-              "path": "providers.filter",
-              "kind": "read",
-              "confidence": "exact"
-            },
-            {
-              "path": "providers.some",
-              "kind": "read",
-              "confidence": "exact"
             }
           ],
           "writes": [
@@ -1554,16 +1539,6 @@
           "kind": "read"
         },
         {
-          "path": "loading.filter",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "path": "providers.filter",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
           "path": "revision",
           "kind": "read",
           "confidence": "exact"
@@ -1647,16 +1622,6 @@
             "index": 1
           },
           "kind": "read"
-        },
-        {
-          "path": "loading.filter",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "path": "providers.filter",
-          "kind": "read",
-          "confidence": "exact"
         },
         {
           "path": "revision",
@@ -2224,22 +2189,7 @@
           "confidence": "exact"
         },
         {
-          "path": "loading.filter",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
           "path": "providers",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "path": "providers.filter",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "path": "providers.some",
           "kind": "read",
           "confidence": "exact"
         },
@@ -2456,6 +2406,7 @@
       "client": {
         "statePaths": [],
         "valueCaptures": [],
+        "contexts": [],
         "boundaries": [
           "x4CYHsV3s8u9PNNJDxmFx1A"
         ]

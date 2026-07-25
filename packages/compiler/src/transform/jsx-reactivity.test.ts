@@ -220,11 +220,23 @@ describe('@exactjs/compiler: JSX reactivity', () => {
 		);
 
 		expect(output).toMatch(
-			/this\.task\(this\.reactive\(\(\) => this\.state\.query\), __exactContinuationTask\("[^"]+", async \(__exactDependency, \{ signal \}\) =>/
+			/this\.task\(this\.reactive\(\(\) => this\.state\.query\), __exactContinuationTask\("[^"]+", async \(__exactDependency: any, \{ signal \}\) =>/
 		);
 		expect(output).toContain('const query = __exactDependency;');
 		expect(output).not.toContain('const query = this.state.query;');
 		expect(output).not.toContain('this.reactive(() => this.state.results)');
+	});
+
+	it('retains collection types on inferred task dependency parameters', () => {
+		const output = transform(`
+      function View(this: Component<{ ids: string[] }>) {
+        this.task(async () => {
+          this.state.ids.map(id => id);
+        });
+      }
+    `);
+
+		expect(output).toContain('async (__exactDependency: any');
 	});
 
 	it('preserves computed task reads as executable captures rather than wildcard paths', () => {

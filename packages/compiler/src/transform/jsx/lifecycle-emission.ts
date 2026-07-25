@@ -9,6 +9,7 @@ import type { ExactPlacement, HelperNames, TransformTarget } from '../../types.j
 
 import { expressionEmissionId } from './identity.js';
 import { transformTaskWork } from './task-emission.js';
+export { parseTypeNode } from './type-node.js';
 /** Transforms implicit lifecycle listener into its required representation. */
 export function transformImplicitLifecycleListener(
 	node: ts.CallExpression,
@@ -107,21 +108,6 @@ export function transformImplicitSetupTask(
 		undefined,
 		[managed]
 	);
-}
-
-/** Reads a type node from its source representation. */
-export function parseTypeNode(source: string): ts.TypeNode {
-	const file = ts.createSourceFile(
-		'__exact_contextual_type.ts',
-		`type __ExactContextualType = ${source};`,
-		ts.ScriptTarget.Latest,
-		false,
-		ts.ScriptKind.TS
-	);
-	const declaration = file.statements[0];
-	if (!declaration || !ts.isTypeAliasDeclaration(declaration))
-		return ts.factory.createKeywordTypeNode(ts.SyntaxKind.UnknownKeyword);
-	return declaration.type;
 }
 
 /** Performs the expression write path domain operation. */

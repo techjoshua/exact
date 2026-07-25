@@ -168,6 +168,25 @@ describe('@exactjs/compiler: derived values', () => {
 		).toThrow(/derived local label cannot be safely reevaluated/);
 	});
 
+	it('retains setup services captured only by deferred JSX event handlers', () => {
+		const output = transform(`
+      declare function createService(values: string[]): { clear(value: string): void };
+      function View(this: Component<{ values: string[] }>) {
+        const service = createService(this.state.values);
+        return () => (
+          <div>
+            {this.state.values.map(value => (
+              <button onClick={() => service.clear(value)}>{value}</button>
+            ))}
+          </div>
+        );
+      }
+    `);
+
+		expect(output).toContain('service.clear(value)');
+		expect(output).not.toContain('service.get()');
+	});
+
 	it('infers pure function declarations with captured reactive inputs', () => {
 		const output = transform(`
       function View(props: { first: string; last: string }) {

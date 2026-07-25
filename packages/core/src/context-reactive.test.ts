@@ -100,6 +100,7 @@ describe('@exactjs/core context-reactive', () => {
 	it('uses global identity for built-in framework contexts', () => {
 		expect(LoggerContext.global).toBe(true);
 		expect(ErrorContext.global).toBe(true);
+		expect(ErrorContext.reactive).toBe(false);
 		expect(LoggerContext.id).toBe(Symbol.for('exact.context:exact.logger'));
 		expect(ErrorContext.id).toBe(Symbol.for('exact.context:exact.error'));
 	});
