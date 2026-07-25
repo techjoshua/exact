@@ -139,9 +139,16 @@ export function taskResource(
 			disposal: annotatedCleanup,
 			description: call.type?.display ?? 'annotated resource'
 		};
-	if (exactOwnsReturn(call) && call.type?.callable)
-		return { kind: 'owned', disposal: 'call', description: 'owned cleanup function' };
-	if (isDisposableType(call.type))
+	if (exactOwnsReturn(call)) {
+		if (call.type?.callable)
+			return { kind: 'owned', disposal: 'call', description: 'owned cleanup function' };
+		if (isDisposableType(call.type))
+			return { kind: 'owned', description: call.type?.display ?? 'disposable resource' };
+	}
+	// Construction establishes ownership. A function returning a disposable may
+	// instead expose a borrowed singleton, so calls require an explicit @exact own
+	// return contract before compiler-managed cleanup is safe.
+	if (call.node.kind === 'NewExpression' && isDisposableType(call.type))
 		return { kind: 'owned', description: call.type?.display ?? 'disposable resource' };
 	return undefined;
 }

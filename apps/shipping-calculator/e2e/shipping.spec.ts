@@ -1,6 +1,17 @@
 import { expect, test } from '@playwright/test';
 
 test('calculates, updates the map, and stays within the viewport', async ({ page }) => {
+	const exactResponses: number[] = [];
+	const pageErrors: string[] = [];
+	const consoleErrors: string[] = [];
+	page.on('response', (response) => {
+		if (new URL(response.url()).pathname === '/__exact') exactResponses.push(response.status());
+	});
+	page.on('pageerror', (error) => pageErrors.push(error.message));
+	page.on('console', (message) => {
+		if (message.type() === 'error') consoleErrors.push(message.text());
+	});
+
 	await page.goto('/');
 	await expect(page.getByRole('heading', { name: 'Find the right way to send it.' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'DOOP Standard' })).toBeVisible();
@@ -8,7 +19,13 @@ test('calculates, updates the map, and stays within the viewport', async ({ page
 	const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
 	expect(scrollWidth).toBeLessThanOrEqual(viewportWidth);
 
+	await expect.poll(() => exactResponses).toContain(200);
+	exactResponses.length = 0;
 	await page.getByLabel('To ZIP').fill('97209');
+	await expect
+		.poll(() => ({ exactResponses, pageErrors, consoleErrors }))
+		.toMatchObject({ exactResponses: [200], pageErrors: [], consoleErrors: [] });
+	expect(pageErrors).toEqual([]);
 	await expect(page.getByRole('heading', { name: 'DOOP Today' })).toBeVisible({ timeout: 5_000 });
 	await expect(page.locator('.route-arc')).toBeVisible();
 });

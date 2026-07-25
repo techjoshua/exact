@@ -3,9 +3,35 @@
  */
 import { createVNode } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
-import { hydrate, readExactHydrationConfig } from './index.js';
+import { createExactClient, hydrate, readExactHydrationConfig } from './index.js';
 
 describe('bounded hydration bootstrap and adoption', () => {
+	it('merges serialized server continuations with client component continuations', () => {
+		const container = document.createElement('main');
+		const continuation = (id: string) => ({
+			id,
+			componentId: `component:${id}`,
+			dependencies: [],
+			stateReads: [],
+			stateWrites: [],
+			publicContexts: [],
+			serverContexts: [],
+			contextWrites: [],
+			boundaries: []
+		});
+		container.innerHTML = `<script type="application/json" id="__exact_hydration">${JSON.stringify({
+			endpoint: '/__exact',
+			continuations: { server: continuation('server') }
+		})}</script>`;
+
+		const client = createExactClient(container, {
+			continuations: { client: continuation('client') }
+		});
+
+		expect(Object.keys(client.continuations ?? {})).toEqual(['server', 'client']);
+		client.dispose();
+	});
+
 	it('rejects bootstrap data before parsing when it exceeds the byte budget', () => {
 		const root = document.createElement('main');
 		root.innerHTML = `<script type="application/json" id="__exact_hydration">${JSON.stringify({ state: { text: 'x'.repeat(100) } })}</script>`;

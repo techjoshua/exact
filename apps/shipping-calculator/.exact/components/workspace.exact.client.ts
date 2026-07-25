@@ -1,4 +1,4 @@
-import { createCompiledVNode as __exactVNode, createCompiledFragment as __exactFragment, createExpression as __exactExpression, createDynamicChild as __exactDynamic, writeReactiveLazy as __exactWrite, updateReactiveValue as __exactUpdate, updateReactiveValueWithResult as __exactUpdateResult, deleteReactiveValue as __exactDelete, mutateReactiveArray as __exactArrayMutation, ownTaskResource as __exactTaskResource, combineTaskSignal as __exactTaskCombinedSignal, taskAwait as __exactTaskAwait } from "@exactjs/core";
+import { createCompiledVNode as __exactVNode, createCompiledFragment as __exactFragment, createExpression as __exactExpression, createDynamicChild as __exactDynamic, writeReactiveLazy as __exactWrite, updateReactiveValue as __exactUpdate, updateReactiveValueWithResult as __exactUpdateResult, deleteReactiveValue as __exactDelete, mutateReactiveArray as __exactArrayMutation, combineTaskSignal as __exactTaskCombinedSignal, taskAwait as __exactTaskAwait } from "@exactjs/core";
 import type { Component } from '@exactjs/core';
 import { exactClient } from "../../src/client-runtime.js";
 import { defaultDraft, draftUrl, normalizeDraft } from "../../src/model.js";
@@ -55,7 +55,7 @@ const __exactImplementation_CalculatorWorkspace_1 = function CalculatorWorkspace
         const generation = this.state.revision;
         const ids = props.initial.configuredProviders;
         __exactWrite(this.state, ["loading"], () => [...ids]);
-        const client = __exactTaskResource(signal, exactClient());
+        const client = exactClient();
         const routePromise = client.invokeAction('route.resolve', request);
         const providerPromises = ids.map((id) => client.invokeAction(`quote.${id}`, request).then((result) => ({ id, result })));
         routePromise

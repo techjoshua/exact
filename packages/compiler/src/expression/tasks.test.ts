@@ -86,7 +86,7 @@ describe('expression-backed task effects', () => {
 			'SetupResources.tsx',
 			`
       declare function load(options?: { signal?: AbortSignal; priority?: number }): Promise<void>;
-      declare function disposableApi(): Disposable;
+      declare function disposableApi(): /** @exact own */ Disposable;
       declare const bus: EventTarget;
       function Panel(this: Component<{}>) {
         setInterval(() => {}, 10);
@@ -192,7 +192,7 @@ describe('expression-backed task effects', () => {
 			`
       declare function optionsApi(value: string, options?: { signal?: AbortSignal; priority?: number }): void;
       declare function directApi(value: string, signal?: AbortSignal): void;
-      declare function disposableApi(): Disposable;
+      declare function disposableApi(): /** @exact own */ Disposable;
       declare const store: { subscribe(callback: () => void): { unsubscribe(): void } };
       function Panel(this: Component<{}>) {
         this.task.client(() => {
@@ -243,6 +243,25 @@ describe('expression-backed task effects', () => {
 				expect.objectContaining({ parameter: 1, mode: 'direct' })
 			])
 		);
+	});
+
+	it('does not claim ownership of borrowed disposable-returning calls', () => {
+		clearExpressionProjectCache();
+		const module = expressionModuleFor(
+			'BorrowedTaskResource.tsx',
+			`
+      interface Client { dispose(): void; invoke(): void }
+      declare function currentClient(): Client;
+      function Panel(this: Component<{}>) {
+        this.task.client(() => {
+          const client = currentClient();
+          client.invoke();
+        });
+      }
+    `
+		);
+
+		expect([...analyzeExpressionTasks(module).resources.values()]).toEqual([]);
 	});
 
 	it('uses the selected overload when inferring cancellation', () => {

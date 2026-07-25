@@ -199,7 +199,7 @@ describe('@exactjs/compiler: transform', () => {
 		const output = transform(
 			`
       declare function load(options?: { signal?: AbortSignal; priority?: number }): Promise<void>;
-      declare function disposableApi(): Disposable;
+      declare function disposableApi(): /** @exact own */ Disposable;
       declare const bus: EventTarget;
       function Panel(this: Component<{}>) {
         setInterval(() => {}, 10);
@@ -288,7 +288,7 @@ describe('@exactjs/compiler: transform', () => {
 			`
       declare function optionsApi(value: string, options?: { signal?: AbortSignal; priority?: number }): void;
       declare function directApi(value: string, signal?: AbortSignal): void;
-      declare function disposableApi(): Disposable;
+      declare function disposableApi(): /** @exact own */ Disposable;
       declare const store: { subscribe(callback: () => void): { unsubscribe(): void } };
       function Panel(this: Component<{}>) {
         this.task.client(() => {

@@ -103,7 +103,12 @@ export function resolveHydrateOptions(container: Element, options: HydrateOption
 		endpoint: options.endpoint ?? config.endpoint,
 		endpoints: mergeEndpointRoutes(config.endpoints, options.endpoints),
 		state: options.state === undefined ? config.state : options.state,
-		continuations: options.continuations ?? config.continuations,
+		continuations: mergeUniqueRecord(
+			config.continuations,
+			options.continuations,
+			'continuation',
+			sameJsonData
+		),
 		resumptions: options.resumptions ?? config.resumptions,
 		publicContexts: options.publicContexts ?? config.publicContexts,
 		executionRoot: options.executionRoot ?? config.executionRoot,
