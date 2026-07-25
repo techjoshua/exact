@@ -50,6 +50,7 @@ export {
 } from './component/readiness.js';
 export type {
 	ActivityMode,
+	AsyncComponentFunction,
 	Child,
 	Cleanup,
 	Component,

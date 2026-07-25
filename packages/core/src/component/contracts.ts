@@ -121,6 +121,17 @@ export type ComponentFunction<State extends object = Record<string, unknown>, Pr
 	props: Props
 ) => RenderFunction | RenderResult;
 
+/**
+ * Authored async component shape accepted by the eXact compiler.
+ *
+ * Compiled artifacts lower this function to a synchronous {@link ComponentFunction} plus owned
+ * continuations. Runtime renderers intentionally do not accept an uncompiled async component.
+ */
+export type AsyncComponentFunction<State extends object = Record<string, unknown>, Props = any> = (
+	this: Component<State>,
+	props: Props
+) => Promise<RenderFunction | RenderResult>;
+
 /** Defines the error source type contract. */
 export type ErrorSource =
 	| 'component'

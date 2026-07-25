@@ -93,11 +93,35 @@ function parsePath(text: string, root: string): readonly string[] | undefined {
 /** Performs the inside assignment target domain operation. */
 export function insideAssignmentTarget(reference: NodeRef): boolean {
 	for (const assignment of reference.ancestors().assignments()) {
+		if (
+			assignment.node.kind === 'BinaryExpression' &&
+			!assignmentOperators.has(assignment.node.operator ?? '')
+		)
+			continue;
 		const left = assignment.children().first();
 		if (left && isWithin(reference, left)) return true;
 	}
 	return false;
 }
+
+const assignmentOperators = new Set([
+	'=',
+	'+=',
+	'-=',
+	'*=',
+	'/=',
+	'%=',
+	'**=',
+	'<<=',
+	'>>=',
+	'>>>=',
+	'&=',
+	'|=',
+	'^=',
+	'&&=',
+	'||=',
+	'??='
+]);
 
 /** Reports whether within. */
 export function isWithin(reference: NodeRef, owner: NodeRef): boolean {

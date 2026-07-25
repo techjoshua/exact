@@ -7,11 +7,30 @@ const awaitedTaskSource = `async function ShippingOptions(
 ) {
   // destination is inferred as the rerun dependency. getOptions receives
   // the generation's AbortSignal when its signature accepts one.
-  this.state.options = await this.task(
-    () => getOptions(this.state.destination)
-  );
+  this.state.options = await getOptions(this.state.destination);
 
   return () => <Options options={this.state.options} />;
+}`;
+
+const sequentialSource = `async function CustomerOrders(
+  this: Component<CustomerState>
+) {
+  try {
+    const customer = await loadCustomer(this.state.customerId);
+    const orders = await loadOrders(customer.id);
+
+    // Both results publish together after the complete generation settles.
+    [this.state.customer, this.state.orders] = [customer, orders];
+  } catch (error) {
+    // Application failures can recover normally.
+    this.state.error = describeError(error);
+  } finally {
+    // Finally runs for success, failure, and cancellation. State from a
+    // cancelled generation is discarded rather than published.
+    this.state.loading = false;
+  }
+
+  return () => <Orders state={this.state} />;
 }`;
 
 const explicitTaskSource = `function ShippingOptions(
@@ -70,17 +89,17 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Learn"
-			title="Async work without async component lifetimes"
-			description="Await tasks in ordinary TypeScript, coordinate readiness with Suspense, retain inactive mounted trees with Activity, and choose lower-priority work without introducing a rerender loop."
+			title="Async components as ordinary value flow"
+			description="Await ordinary operations into state, coordinate readiness with Suspense, retain inactive mounted trees with Activity, and choose lower-priority work without introducing a rerender loop."
 			previous={{ path: '/learn/tasks', label: 'Tasks & cleanup' }}
 			next={{ path: '/learn/server-execution', label: 'Server execution' }}
 		>
 			<section>
-				<h2>Await a task result into state</h2>
+				<h2>Await a result into state</h2>
 				<p>
 					An eXact component remains a synchronous, durable instance at runtime. The compiler can
-					still accept an <code>async</code> component when its awaited work has explicit task
-					ownership and its result is assigned to one state location.
+					accept an <code>async</code> component and turn its setup continuation into owned,
+					restartable work when awaited results flow into component state.
 				</p>
 				<CodeBlock source={awaitedTaskSource} language="tsx" title="ShippingOptions.tsx" />
 				<p>
@@ -96,19 +115,37 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
+				<h2>Sequential control flow stays TypeScript</h2>
+				<p>
+					Awaited operations run in source order, but their state writes remain private to the
+					current generation. eXact publishes them together only after every operation and the
+					enclosing <code>finally</code> block complete successfully.
+				</p>
+				<CodeBlock source={sequentialSource} language="tsx" title="CustomerOrders.tsx" />
+				<p>
+					An authored <code>catch</code> handles application failures. Framework cancellation and
+					supersession bypass it so an obsolete request cannot turn into a committed fallback, while
+					<code>finally</code> still runs for ordinary cleanup. Server-local exceptions stay on the
+					server; expected failures that must cross runtimes should use shared, serializable result
+					values.
+				</p>
+			</section>
+			<section>
 				<h2>The explicit form is still available</h2>
 				<p>
-					Awaited task syntax is convenience, not a separate runtime feature. The equivalent
-					explicit form is useful when you want to name a dependency or receive the signal yourself.
+					The compiler lowers ordinary awaited assignments through the same task machinery. Use the
+					explicit form when you want to name a dependency, receive the signal yourself, force
+					placement, or select a scheduling policy.
 				</p>
 				<CodeBlock source={explicitTaskSource} language="tsx" title="Explicit readiness task" />
 				<Callout title="Why some awaited forms are compiler errors">
 					<p>
-						A task result must be assigned directly to one writable <code>this.state</code>{' '}
-						location. Arbitrary awaits, derived assignment targets, multiple sequential awaited
-						tasks, and additional continuation statements are rejected until the compiler can
-						preserve their restart and ordering semantics. Put additional asynchronous effects
-						inside the task callback, or derive later values reactively from the assigned state.
+						Values needed by the returned render function must be assigned to{' '}
+						<code>this.state</code>; a local created inside the asynchronous continuation is not
+						published state. Destructuring may assign several state locations atomically, but every
+						target must be writable state. Rest targets, dynamically computed targets, reactive
+						self-dependencies, and values that violate server/client serialization or secret policy
+						are compiler errors.
 					</p>
 				</Callout>
 			</section>

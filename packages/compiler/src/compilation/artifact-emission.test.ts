@@ -339,6 +339,52 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).toMatch(/__exactComponent_\d+\.state, \["options"\]/);
 	});
 
+	it('infers a server continuation from an ordinary async component assignment', async () => {
+		const root = await createTestWorkspace('exact-inferred-async-server-');
+		const input = path.join(root, 'src', 'options.tsx');
+		const outDir = path.join(root, 'dist');
+		await mkdir(path.dirname(input), { recursive: true });
+		await writeFile(
+			input,
+			`
+			import type { Component } from "@exactjs/core";
+			/** @exact server */
+			declare function getOptions(destination: string): Promise<string[]>;
+			export async function ShippingOptions(
+				this: Component<{ destination: string; options: string[]; settled: boolean }>
+			) {
+				try {
+					this.state.options = await getOptions(this.state.destination);
+				} catch (error) {
+					this.state.options = [String(error)];
+				} finally {
+					this.state.settled = true;
+				}
+				return () => <button onClick={() => this.state.destination = "next"}>
+					{this.state.options.join(",")}
+				</button>;
+			}
+		`
+		);
+
+		const result = await compileFileArtifacts(input, {
+			outDir,
+			rootDir: path.join(root, 'src')
+		});
+		const client = await readFile(result.clientFile, 'utf8');
+		const server = await readFile(result.serverFile, 'utf8');
+
+		expect(client).toContain('this.task.blocking(');
+		expect(client).toContain('__exactDispatchContinuation');
+		expect(client).toContain('readiness: "blocking"');
+		expect(server).toContain('executors: [');
+		expect(server).toContain('getOptions(');
+		expect(server).toContain('if (__exactComponentSignal.aborted)');
+		expect(server).toContain('__exactStageTaskMutation');
+		expect(server).toMatch(/__exactComponent_\d+\.state, \["options"\]/);
+		expect(server).toMatch(/__exactComponent_\d+\.state, \["settled"\]/);
+	});
+
 	it('keeps direct server-context dependencies out of client activation records', async () => {
 		const root = await createTestWorkspace('exact-continuation-context-');
 		const input = path.join(root, 'src', 'panel.tsx');

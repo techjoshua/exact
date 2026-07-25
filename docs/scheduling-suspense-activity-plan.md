@@ -6,13 +6,15 @@ Implemented in the framework runtime, compiler, DOM renderer, SSR/hydration
 pipeline, and React compatibility layer. The phase descriptions below preserve
 the design rationale and acceptance criteria.
 
-The first compiler-supported async component form deliberately accepts one
-direct state assignment from one awaited `this.task()` call, followed by the
-component's render-function return. The compiler rejects additional setup
-statements, multiple awaited task assignments, and arbitrary setup `await`
-expressions instead of emitting ambiguous restart or ordering semantics. Those
-forms can be expressed with explicit owned tasks today; broader sequential
-continuations require a separately specified state-machine extension.
+The compiler now accepts ordinary synchronous derived state assignments and
+ordinary awaited operations in async component setup. Reactive reads feed one
+owned computation generation; state destinations are effects. Sequential
+awaits, destructured atomic publication, and `try`/`catch`/`finally` preserve
+source control flow. Framework cancellation bypasses authored catches while
+still executing finally blocks, and a successful generation publishes its
+staged state only after the complete continuation settles. Explicit
+`this.task()` remains the policy form for external effects, cleanup,
+nonblocking work, placement, and scheduling.
 
 ## Objective
 

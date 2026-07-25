@@ -1,4 +1,4 @@
-import type { Component } from '@exactjs/core';
+import { peek, type Component } from '@exactjs/core';
 import { resolveRoute } from '../geography.js';
 import { draftFromUrl, emptyInitialModel, normalizeDraft } from '../model.js';
 import { configuredProviderIds, quoteProvider } from '../providers/registry.js';
@@ -10,7 +10,7 @@ import type { PageState } from './workspace/contracts.js';
 export function ShippingCalculatorPage(this: Component<PageState>, props: { url: string }) {
 	const parsed = draftFromUrl(new URL(props.url));
 	const request = normalizeDraft(parsed.draft);
-	this.state.model = emptyInitialModel(parsed.draft, request, parsed.explicit);
+	this.state.model = peek(() => emptyInitialModel(parsed.draft, request, parsed.explicit));
 	this.state.model.configuredProviders = configuredProviderIds();
 
 	this.task(async ({ signal }) => {

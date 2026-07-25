@@ -15,175 +15,209 @@
   "semanticGraph": {
     "scopes": [
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3247:SourceFile",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3301:SourceFile",
         "kind": "module",
         "nodeKind": "SourceFile"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1005:1432:ArrowFunction",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:631:3246:Block",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1059:1486:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:637:3300:Block",
         "kind": "function",
         "nodeKind": "ArrowFunction"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1010:1432:Block",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1005:1432:ArrowFunction",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1064:1486:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1059:1486:ArrowFunction",
         "kind": "block",
         "nodeKind": "Block"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1064:1361:Block",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1010:1432:Block",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1118:1415:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1064:1486:Block",
         "kind": "block",
         "nodeKind": "Block"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1361:1429:CatchClause",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1010:1432:Block",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1415:1483:CatchClause",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1064:1486:Block",
         "kind": "block",
         "nodeKind": "CatchClause"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1367:1429:Block",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1361:1429:CatchClause",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1421:1483:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1415:1483:CatchClause",
         "kind": "block",
         "nodeKind": "Block"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1467:3132:ArrowFunction",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:631:3246:Block",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1521:3186:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:637:3300:Block",
         "kind": "function",
         "nodeKind": "ArrowFunction"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1467:3132:ArrowFunction",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1521:3186:ArrowFunction",
         "kind": "block",
         "nodeKind": "Block"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1551:1637:Block",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1605:1691:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "kind": "block",
         "nodeKind": "Block"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1637:1789:CatchClause",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1691:1843:CatchClause",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "kind": "block",
         "nodeKind": "CatchClause"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1651:1789:Block",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1637:1789:CatchClause",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1705:1843:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1691:1843:CatchClause",
         "kind": "block",
         "nodeKind": "Block"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2137:2226:ArrowFunction",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2191:2280:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "kind": "function",
         "nodeKind": "ArrowFunction"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2197:2225:ArrowFunction",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2137:2226:ArrowFunction",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2251:2279:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2191:2280:ArrowFunction",
         "kind": "function",
         "nodeKind": "ArrowFunction"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2256:2387:ArrowFunction",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2310:2441:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "kind": "function",
         "nodeKind": "ArrowFunction"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2267:2387:Block",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2256:2387:ArrowFunction",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2321:2441:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2310:2441:ArrowFunction",
         "kind": "block",
         "nodeKind": "Block"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2399:2414:ArrowFunction",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2453:2468:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "kind": "function",
         "nodeKind": "ArrowFunction"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2462:2871:ArrowFunction",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2516:2925:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "kind": "function",
         "nodeKind": "ArrowFunction"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2498:2841:ArrowFunction",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2462:2871:ArrowFunction",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2552:2895:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2516:2925:ArrowFunction",
         "kind": "function",
         "nodeKind": "ArrowFunction"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2517:2841:Block",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2498:2841:ArrowFunction",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2571:2895:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2552:2895:ArrowFunction",
         "kind": "block",
         "nodeKind": "Block"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2698:2730:ArrowFunction",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2517:2841:Block",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2752:2784:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2571:2895:Block",
         "kind": "function",
         "nodeKind": "ArrowFunction"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2811:2832:ArrowFunction",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2517:2841:Block",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2865:2886:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2571:2895:Block",
         "kind": "function",
         "nodeKind": "ArrowFunction"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2855:2870:ArrowFunction",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2462:2871:ArrowFunction",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2909:2924:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2516:2925:ArrowFunction",
         "kind": "function",
         "nodeKind": "ArrowFunction"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2991:3034:ArrowFunction",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:3045:3088:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "kind": "function",
         "nodeKind": "ArrowFunction"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:3036:3129:Block",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:3090:3183:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "kind": "block",
         "nodeKind": "Block"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:3194:3243:ArrowFunction",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:631:3246:Block",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:3248:3297:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:637:3300:Block",
         "kind": "function",
         "nodeKind": "ArrowFunction"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:464:3246:FunctionDeclaration",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3247:SourceFile",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:470:3300:FunctionDeclaration",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3301:SourceFile",
         "kind": "function",
         "nodeKind": "FunctionDeclaration"
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:631:3246:Block",
-        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:464:3246:FunctionDeclaration",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:637:3300:Block",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:470:3300:FunctionDeclaration",
         "kind": "block",
         "nodeKind": "Block"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:665:702:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:637:3300:Block",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:734:763:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:637:3300:Block",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:791:816:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:637:3300:Block",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
+      },
+      {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:970:1014:ArrowFunction",
+        "parentId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:637:3300:Block",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
       }
     ],
     "declarations": [
       {
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:peek",
+        "name": "peek",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3301:SourceFile",
+        "kind": "import",
+        "nodeStart": 9,
+        "nodeEnd": 13,
+        "moduleSpecifier": "@exactjs/core",
+        "importedName": "peek"
+      },
+      {
         "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:Component",
         "name": "Component",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3247:SourceFile",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3301:SourceFile",
         "kind": "import",
-        "nodeStart": 14,
-        "nodeEnd": 23,
+        "nodeStart": 20,
+        "nodeEnd": 29,
         "moduleSpecifier": "@exactjs/core",
         "importedName": "Component",
         "typeOnly": true
@@ -191,50 +225,50 @@
       {
         "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:exactClient",
         "name": "exactClient",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3247:SourceFile",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3301:SourceFile",
         "kind": "import",
-        "nodeStart": 57,
-        "nodeEnd": 68,
+        "nodeStart": 63,
+        "nodeEnd": 74,
         "moduleSpecifier": "../client-runtime.js",
         "importedName": "exactClient"
       },
       {
         "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:defaultDraft",
         "name": "defaultDraft",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3247:SourceFile",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3301:SourceFile",
         "kind": "import",
-        "nodeStart": 109,
-        "nodeEnd": 121,
+        "nodeStart": 115,
+        "nodeEnd": 127,
         "moduleSpecifier": "../model.js",
         "importedName": "defaultDraft"
       },
       {
         "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:draftUrl",
         "name": "draftUrl",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3247:SourceFile",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3301:SourceFile",
         "kind": "import",
-        "nodeStart": 123,
-        "nodeEnd": 131,
+        "nodeStart": 129,
+        "nodeEnd": 137,
         "moduleSpecifier": "../model.js",
         "importedName": "draftUrl"
       },
       {
         "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:normalizeDraft",
         "name": "normalizeDraft",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3247:SourceFile",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3301:SourceFile",
         "kind": "import",
-        "nodeStart": 133,
-        "nodeEnd": 147,
+        "nodeStart": 139,
+        "nodeEnd": 153,
         "moduleSpecifier": "../model.js",
         "importedName": "normalizeDraft"
       },
       {
         "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:InitialModel",
         "name": "InitialModel",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3247:SourceFile",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3301:SourceFile",
         "kind": "import",
-        "nodeStart": 184,
-        "nodeEnd": 196,
+        "nodeStart": 190,
+        "nodeEnd": 202,
         "moduleSpecifier": "../types.js",
         "importedName": "InitialModel",
         "typeOnly": true
@@ -242,10 +276,10 @@
       {
         "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:ProviderResult",
         "name": "ProviderResult",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3247:SourceFile",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3301:SourceFile",
         "kind": "import",
-        "nodeStart": 198,
-        "nodeEnd": 212,
+        "nodeStart": 204,
+        "nodeEnd": 218,
         "moduleSpecifier": "../types.js",
         "importedName": "ProviderResult",
         "typeOnly": true
@@ -253,10 +287,10 @@
       {
         "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:RouteResult",
         "name": "RouteResult",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3247:SourceFile",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3301:SourceFile",
         "kind": "import",
-        "nodeStart": 214,
-        "nodeEnd": 225,
+        "nodeStart": 220,
+        "nodeEnd": 231,
         "moduleSpecifier": "../types.js",
         "importedName": "RouteResult",
         "typeOnly": true
@@ -264,10 +298,10 @@
       {
         "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:ShipmentDraft",
         "name": "ShipmentDraft",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3247:SourceFile",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3301:SourceFile",
         "kind": "import",
-        "nodeStart": 227,
-        "nodeEnd": 240,
+        "nodeStart": 233,
+        "nodeEnd": 246,
         "moduleSpecifier": "../types.js",
         "importedName": "ShipmentDraft",
         "typeOnly": true
@@ -275,20 +309,20 @@
       {
         "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:renderWorkspace",
         "name": "renderWorkspace",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3247:SourceFile",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3301:SourceFile",
         "kind": "import",
-        "nodeStart": 273,
-        "nodeEnd": 288,
+        "nodeStart": 279,
+        "nodeEnd": 294,
         "moduleSpecifier": "./workspace/view.js",
         "importedName": "renderWorkspace"
       },
       {
         "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:WorkspaceState",
         "name": "WorkspaceState",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3247:SourceFile",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3301:SourceFile",
         "kind": "import",
-        "nodeStart": 333,
-        "nodeEnd": 347,
+        "nodeStart": 339,
+        "nodeEnd": 353,
         "moduleSpecifier": "./workspace/contracts.js",
         "importedName": "WorkspaceState",
         "typeOnly": true
@@ -296,242 +330,242 @@
       {
         "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:cloneDraft",
         "name": "cloneDraft",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3247:SourceFile",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3301:SourceFile",
         "kind": "import",
-        "nodeStart": 392,
-        "nodeEnd": 402,
+        "nodeStart": 398,
+        "nodeEnd": 408,
         "moduleSpecifier": "./workspace/inputs.js",
         "importedName": "cloneDraft"
       },
       {
         "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:createWorkspaceInputs",
         "name": "createWorkspaceInputs",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3247:SourceFile",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3301:SourceFile",
         "kind": "import",
-        "nodeStart": 404,
-        "nodeEnd": 425,
+        "nodeStart": 410,
+        "nodeEnd": 431,
         "moduleSpecifier": "./workspace/inputs.js",
         "importedName": "createWorkspaceInputs"
       },
       {
         "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:delay",
         "name": "delay",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3247:SourceFile",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:0:3301:SourceFile",
         "kind": "import",
-        "nodeStart": 427,
-        "nodeEnd": 432,
+        "nodeStart": 433,
+        "nodeEnd": 438,
         "moduleSpecifier": "./workspace/inputs.js",
         "importedName": "delay"
       },
       {
         "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::FunctionDeclaration#0:CalculatorWorkspace",
         "name": "CalculatorWorkspace",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:464:3246:FunctionDeclaration",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:470:3300:FunctionDeclaration",
         "kind": "function",
-        "nodeStart": 541,
-        "nodeEnd": 560,
+        "nodeStart": 547,
+        "nodeEnd": 566,
         "exportedName": "CalculatorWorkspace"
       },
       {
         "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace:Parameter#0:this",
         "name": "this",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:464:3246:FunctionDeclaration",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:470:3300:FunctionDeclaration",
         "kind": "parameter",
-        "nodeStart": 563,
-        "nodeEnd": 567
+        "nodeStart": 569,
+        "nodeEnd": 573
       },
       {
         "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace:Parameter#0:props",
         "name": "props",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:464:3246:FunctionDeclaration",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:470:3300:FunctionDeclaration",
         "kind": "parameter",
-        "nodeStart": 597,
-        "nodeEnd": 602
+        "nodeStart": 603,
+        "nodeEnd": 608
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#0@1/Block:function-body/Block:TryStatement:av3h99#0:VariableDeclaration#0:saved",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#4@1/Block:function-body/Block:TryStatement:av3h99#0:VariableDeclaration#0:saved",
         "name": "saved",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1064:1361:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1118:1415:Block",
         "kind": "variable",
-        "nodeStart": 1076,
-        "nodeEnd": 1081
+        "nodeStart": 1130,
+        "nodeEnd": 1135
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#0@1/Block:function-body/Block:TryStatement:av3h99#0:VariableDeclaration#0:candidate",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#4@1/Block:function-body/Block:TryStatement:av3h99#0:VariableDeclaration#0:candidate",
         "name": "candidate",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1064:1361:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1118:1415:Block",
         "kind": "variable",
-        "nodeStart": 1166,
-        "nodeEnd": 1175
+        "nodeStart": 1220,
+        "nodeEnd": 1229
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1:Parameter#0:_revision",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1:Parameter#0:_revision",
         "name": "_revision",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1467:3132:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1521:3186:ArrowFunction",
         "kind": "parameter",
-        "nodeStart": 1475,
-        "nodeEnd": 1484
+        "nodeStart": 1529,
+        "nodeEnd": 1538
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1:BindingElement#0:signal",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1:BindingElement#0:signal",
         "name": "signal",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1467:3132:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1521:3186:ArrowFunction",
         "kind": "variable",
-        "nodeStart": 1488,
-        "nodeEnd": 1494
+        "nodeStart": 1542,
+        "nodeEnd": 1548
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body:VariableDeclaration#0:request",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body:VariableDeclaration#0:request",
         "name": "request",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "kind": "variable",
-        "nodeStart": 1537,
-        "nodeEnd": 1544
+        "nodeStart": 1591,
+        "nodeEnd": 1598
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/CatchClause:TryStatement:ztntfp#0:VariableDeclaration#0:error",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/CatchClause:TryStatement:ztntfp#0:VariableDeclaration#0:error",
         "name": "error",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1637:1789:CatchClause",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1691:1843:CatchClause",
         "kind": "variable",
-        "nodeStart": 1645,
-        "nodeEnd": 1650
+        "nodeStart": 1699,
+        "nodeEnd": 1704
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body:VariableDeclaration#0:generation",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body:VariableDeclaration#0:generation",
         "name": "generation",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "kind": "variable",
-        "nodeStart": 1884,
-        "nodeEnd": 1894
+        "nodeStart": 1938,
+        "nodeEnd": 1948
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body:VariableDeclaration#0:ids",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body:VariableDeclaration#0:ids",
         "name": "ids",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "kind": "variable",
-        "nodeStart": 1926,
-        "nodeEnd": 1929
+        "nodeStart": 1980,
+        "nodeEnd": 1983
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body:VariableDeclaration#0:client",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body:VariableDeclaration#0:client",
         "name": "client",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "kind": "variable",
-        "nodeStart": 2008,
-        "nodeEnd": 2014
+        "nodeStart": 2062,
+        "nodeEnd": 2068
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body:VariableDeclaration#0:routePromise",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body:VariableDeclaration#0:routePromise",
         "name": "routePromise",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "kind": "variable",
-        "nodeStart": 2040,
-        "nodeEnd": 2052
+        "nodeStart": 2094,
+        "nodeEnd": 2106
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body:VariableDeclaration#0:providerPromises",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body:VariableDeclaration#0:providerPromises",
         "name": "providerPromises",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "kind": "variable",
-        "nodeStart": 2110,
-        "nodeEnd": 2126
+        "nodeStart": 2164,
+        "nodeEnd": 2180
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#0@1:Parameter#0:id",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#0@1:Parameter#0:id",
         "name": "id",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2137:2226:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2191:2280:ArrowFunction",
         "kind": "parameter",
-        "nodeStart": 2138,
-        "nodeEnd": 2140
+        "nodeStart": 2192,
+        "nodeEnd": 2194
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#0@1/ArrowFunction:CallExpression:ztntfp#0:Parameter#0:result",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#0@1/ArrowFunction:CallExpression:ztntfp#0:Parameter#0:result",
         "name": "result",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2197:2225:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2251:2279:ArrowFunction",
         "kind": "parameter",
-        "nodeStart": 2198,
-        "nodeEnd": 2204
+        "nodeStart": 2252,
+        "nodeEnd": 2258
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1:Parameter#0:result",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1:Parameter#0:result",
         "name": "result",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2256:2387:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2310:2441:ArrowFunction",
         "kind": "parameter",
-        "nodeStart": 2257,
-        "nodeEnd": 2263
+        "nodeStart": 2311,
+        "nodeEnd": 2317
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1:Parameter#0:promise",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1:Parameter#0:promise",
         "name": "promise",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2462:2871:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2516:2925:ArrowFunction",
         "kind": "parameter",
-        "nodeStart": 2463,
-        "nodeEnd": 2470
+        "nodeStart": 2517,
+        "nodeEnd": 2524
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1:BindingElement#0:id",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1:BindingElement#0:id",
         "name": "id",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2498:2841:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2552:2895:ArrowFunction",
         "kind": "variable",
-        "nodeStart": 2501,
-        "nodeEnd": 2503
+        "nodeStart": 2555,
+        "nodeEnd": 2557
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1:BindingElement#0:result",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1:BindingElement#0:result",
         "name": "result",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2498:2841:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2552:2895:ArrowFunction",
         "kind": "variable",
-        "nodeStart": 2505,
-        "nodeEnd": 2511
+        "nodeStart": 2559,
+        "nodeEnd": 2565
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1/Block:function-body:VariableDeclaration#0:provider",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1/Block:function-body:VariableDeclaration#0:provider",
         "name": "provider",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2517:2841:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2571:2895:Block",
         "kind": "variable",
-        "nodeStart": 2586,
-        "nodeEnd": 2594
+        "nodeStart": 2640,
+        "nodeEnd": 2648
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#0@1:Parameter#0:item",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#0@1:Parameter#0:item",
         "name": "item",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2698:2730:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2752:2784:ArrowFunction",
         "kind": "parameter",
-        "nodeStart": 2699,
-        "nodeEnd": 2703
+        "nodeStart": 2753,
+        "nodeEnd": 2757
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1:Parameter#0:item",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1:Parameter#0:item",
         "name": "item",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2811:2832:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2865:2886:ArrowFunction",
         "kind": "parameter",
-        "nodeStart": 2812,
-        "nodeEnd": 2816
+        "nodeStart": 2866,
+        "nodeEnd": 2870
       },
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#4@1:Parameter#0:provider",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#4@1:Parameter#0:provider",
         "name": "provider",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2991:3034:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:3045:3088:ArrowFunction",
         "kind": "parameter",
-        "nodeStart": 2992,
-        "nodeEnd": 3000
+        "nodeStart": 3046,
+        "nodeEnd": 3054
       },
       {
         "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body:VariableDeclaration#0:inputs",
         "name": "inputs",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:631:3246:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:637:3300:Block",
         "kind": "variable",
-        "nodeStart": 3143,
-        "nodeEnd": 3149
+        "nodeStart": 3197,
+        "nodeEnd": 3203
       }
     ],
     "references": [
       {
         "name": "Component",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:464:3246:FunctionDeclaration",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:470:3300:FunctionDeclaration",
         "source": "import",
-        "nodeStart": 569,
-        "nodeEnd": 578,
+        "nodeStart": 575,
+        "nodeEnd": 584,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:Component",
         "declarationKind": "import",
         "moduleSpecifier": "@exactjs/core",
@@ -540,10 +574,10 @@
       },
       {
         "name": "WorkspaceState",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:464:3246:FunctionDeclaration",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:470:3300:FunctionDeclaration",
         "source": "import",
-        "nodeStart": 579,
-        "nodeEnd": 593,
+        "nodeStart": 585,
+        "nodeEnd": 599,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:WorkspaceState",
         "declarationKind": "import",
         "moduleSpecifier": "./workspace/contracts.js",
@@ -552,10 +586,10 @@
       },
       {
         "name": "InitialModel",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:464:3246:FunctionDeclaration",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:470:3300:FunctionDeclaration",
         "source": "import",
-        "nodeStart": 615,
-        "nodeEnd": 627,
+        "nodeStart": 621,
+        "nodeEnd": 633,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:InitialModel",
         "declarationKind": "import",
         "moduleSpecifier": "../types.js",
@@ -563,11 +597,22 @@
         "typeOnly": true
       },
       {
-        "name": "cloneDraft",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:631:3246:Block",
+        "name": "peek",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:637:3300:Block",
         "source": "import",
-        "nodeStart": 654,
+        "nodeStart": 660,
         "nodeEnd": 664,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:peek",
+        "declarationKind": "import",
+        "moduleSpecifier": "@exactjs/core",
+        "importedName": "peek"
+      },
+      {
+        "name": "cloneDraft",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:665:702:ArrowFunction",
+        "source": "import",
+        "nodeStart": 671,
+        "nodeEnd": 681,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:cloneDraft",
         "declarationKind": "import",
         "moduleSpecifier": "./workspace/inputs.js",
@@ -575,78 +620,111 @@
       },
       {
         "name": "props",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:631:3246:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:665:702:ArrowFunction",
         "source": "local",
-        "nodeStart": 665,
-        "nodeEnd": 670,
+        "nodeStart": 682,
+        "nodeEnd": 687,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace:Parameter#0:props",
         "declarationKind": "parameter"
       },
       {
+        "name": "peek",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:637:3300:Block",
+        "source": "import",
+        "nodeStart": 729,
+        "nodeEnd": 733,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:peek",
+        "declarationKind": "import",
+        "moduleSpecifier": "@exactjs/core",
+        "importedName": "peek"
+      },
+      {
         "name": "props",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:631:3246:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:734:763:ArrowFunction",
         "source": "local",
-        "nodeStart": 711,
-        "nodeEnd": 716,
+        "nodeStart": 740,
+        "nodeEnd": 745,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace:Parameter#0:props",
         "declarationKind": "parameter"
       },
       {
+        "name": "peek",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:637:3300:Block",
+        "source": "import",
+        "nodeStart": 786,
+        "nodeEnd": 790,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:peek",
+        "declarationKind": "import",
+        "moduleSpecifier": "@exactjs/core",
+        "importedName": "peek"
+      },
+      {
         "name": "props",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:631:3246:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:791:816:ArrowFunction",
         "source": "local",
-        "nodeStart": 756,
-        "nodeEnd": 761,
+        "nodeStart": 797,
+        "nodeEnd": 802,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace:Parameter#0:props",
         "declarationKind": "parameter"
       },
       {
         "name": "undefined",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:631:3246:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:637:3300:Block",
         "source": "unresolved",
-        "nodeStart": 849,
-        "nodeEnd": 858
+        "nodeStart": 891,
+        "nodeEnd": 900
+      },
+      {
+        "name": "peek",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:637:3300:Block",
+        "source": "import",
+        "nodeStart": 965,
+        "nodeEnd": 969,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:peek",
+        "declarationKind": "import",
+        "moduleSpecifier": "@exactjs/core",
+        "importedName": "peek"
       },
       {
         "name": "props",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:631:3246:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:970:1014:ArrowFunction",
         "source": "local",
-        "nodeStart": 927,
-        "nodeEnd": 932,
+        "nodeStart": 980,
+        "nodeEnd": 985,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace:Parameter#0:props",
         "declarationKind": "parameter"
       },
       {
         "name": "props",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1010:1432:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1064:1486:Block",
         "source": "local",
-        "nodeStart": 1019,
-        "nodeEnd": 1024,
+        "nodeStart": 1073,
+        "nodeEnd": 1078,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace:Parameter#0:props",
         "declarationKind": "parameter"
       },
       {
         "name": "localStorage",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1064:1361:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1118:1415:Block",
         "source": "global",
-        "nodeStart": 1084,
-        "nodeEnd": 1096
+        "nodeStart": 1138,
+        "nodeEnd": 1150
       },
       {
         "name": "saved",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1064:1361:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1118:1415:Block",
         "source": "local",
-        "nodeStart": 1142,
-        "nodeEnd": 1147,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#0@1/Block:function-body/Block:TryStatement:av3h99#0:VariableDeclaration#0:saved",
+        "nodeStart": 1196,
+        "nodeEnd": 1201,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#4@1/Block:function-body/Block:TryStatement:av3h99#0:VariableDeclaration#0:saved",
         "declarationKind": "variable"
       },
       {
         "name": "defaultDraft",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1064:1361:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1118:1415:Block",
         "source": "import",
-        "nodeStart": 1183,
-        "nodeEnd": 1195,
+        "nodeStart": 1237,
+        "nodeEnd": 1249,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:defaultDraft",
         "declarationKind": "import",
         "moduleSpecifier": "../model.js",
@@ -654,26 +732,26 @@
       },
       {
         "name": "JSON",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1064:1361:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1118:1415:Block",
         "source": "unresolved",
-        "nodeStart": 1200,
-        "nodeEnd": 1204
+        "nodeStart": 1254,
+        "nodeEnd": 1258
       },
       {
         "name": "saved",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1064:1361:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1118:1415:Block",
         "source": "local",
-        "nodeStart": 1211,
-        "nodeEnd": 1216,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#0@1/Block:function-body/Block:TryStatement:av3h99#0:VariableDeclaration#0:saved",
+        "nodeStart": 1265,
+        "nodeEnd": 1270,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#4@1/Block:function-body/Block:TryStatement:av3h99#0:VariableDeclaration#0:saved",
         "declarationKind": "variable"
       },
       {
         "name": "ShipmentDraft",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1064:1361:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1118:1415:Block",
         "source": "import",
-        "nodeStart": 1223,
-        "nodeEnd": 1236,
+        "nodeStart": 1277,
+        "nodeEnd": 1290,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:ShipmentDraft",
         "declarationKind": "import",
         "moduleSpecifier": "../types.js",
@@ -682,10 +760,10 @@
       },
       {
         "name": "normalizeDraft",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1064:1361:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1118:1415:Block",
         "source": "import",
-        "nodeStart": 1241,
-        "nodeEnd": 1255,
+        "nodeStart": 1295,
+        "nodeEnd": 1309,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:normalizeDraft",
         "declarationKind": "import",
         "moduleSpecifier": "../model.js",
@@ -693,35 +771,35 @@
       },
       {
         "name": "candidate",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1064:1361:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1118:1415:Block",
         "source": "local",
-        "nodeStart": 1256,
-        "nodeEnd": 1265,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#0@1/Block:function-body/Block:TryStatement:av3h99#0:VariableDeclaration#0:candidate",
+        "nodeStart": 1310,
+        "nodeEnd": 1319,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#4@1/Block:function-body/Block:TryStatement:av3h99#0:VariableDeclaration#0:candidate",
         "declarationKind": "variable"
       },
       {
         "name": "candidate",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1064:1361:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1118:1415:Block",
         "source": "local",
-        "nodeStart": 1290,
-        "nodeEnd": 1299,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#0@1/Block:function-body/Block:TryStatement:av3h99#0:VariableDeclaration#0:candidate",
+        "nodeStart": 1344,
+        "nodeEnd": 1353,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#4@1/Block:function-body/Block:TryStatement:av3h99#0:VariableDeclaration#0:candidate",
         "declarationKind": "variable"
       },
       {
         "name": "localStorage",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1367:1429:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1421:1483:Block",
         "source": "global",
-        "nodeStart": 1373,
-        "nodeEnd": 1385
+        "nodeStart": 1427,
+        "nodeEnd": 1439
       },
       {
         "name": "delay",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "source": "import",
-        "nodeStart": 1511,
-        "nodeEnd": 1516,
+        "nodeStart": 1565,
+        "nodeEnd": 1570,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:delay",
         "declarationKind": "import",
         "moduleSpecifier": "./workspace/inputs.js",
@@ -729,28 +807,28 @@
       },
       {
         "name": "signal",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "source": "local",
-        "nodeStart": 1522,
-        "nodeEnd": 1528,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1:BindingElement#0:signal",
+        "nodeStart": 1576,
+        "nodeEnd": 1582,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1:BindingElement#0:signal",
         "declarationKind": "variable"
       },
       {
         "name": "request",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1551:1637:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1605:1691:Block",
         "source": "local",
-        "nodeStart": 1557,
-        "nodeEnd": 1564,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body:VariableDeclaration#0:request",
+        "nodeStart": 1611,
+        "nodeEnd": 1618,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body:VariableDeclaration#0:request",
         "declarationKind": "variable"
       },
       {
         "name": "normalizeDraft",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1551:1637:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1605:1691:Block",
         "source": "import",
-        "nodeStart": 1567,
-        "nodeEnd": 1581,
+        "nodeStart": 1621,
+        "nodeEnd": 1635,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:normalizeDraft",
         "declarationKind": "import",
         "moduleSpecifier": "../model.js",
@@ -758,49 +836,49 @@
       },
       {
         "name": "undefined",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1551:1637:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1605:1691:Block",
         "source": "unresolved",
-        "nodeStart": 1623,
-        "nodeEnd": 1632
+        "nodeStart": 1677,
+        "nodeEnd": 1686
       },
       {
         "name": "error",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1651:1789:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1705:1843:Block",
         "source": "local",
-        "nodeStart": 1676,
-        "nodeEnd": 1681,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/CatchClause:TryStatement:ztntfp#0:VariableDeclaration#0:error",
+        "nodeStart": 1730,
+        "nodeEnd": 1735,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/CatchClause:TryStatement:ztntfp#0:VariableDeclaration#0:error",
         "declarationKind": "variable"
       },
       {
         "name": "Error",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1651:1789:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1705:1843:Block",
         "source": "unresolved",
-        "nodeStart": 1693,
-        "nodeEnd": 1698
+        "nodeStart": 1747,
+        "nodeEnd": 1752
       },
       {
         "name": "error",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1651:1789:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1705:1843:Block",
         "source": "local",
-        "nodeStart": 1701,
-        "nodeEnd": 1706,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/CatchClause:TryStatement:ztntfp#0:VariableDeclaration#0:error",
+        "nodeStart": 1755,
+        "nodeEnd": 1760,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/CatchClause:TryStatement:ztntfp#0:VariableDeclaration#0:error",
         "declarationKind": "variable"
       },
       {
         "name": "history",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "source": "global",
-        "nodeStart": 1792,
-        "nodeEnd": 1799
+        "nodeStart": 1846,
+        "nodeEnd": 1853
       },
       {
         "name": "draftUrl",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "source": "import",
-        "nodeStart": 1823,
-        "nodeEnd": 1831,
+        "nodeStart": 1877,
+        "nodeEnd": 1885,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:draftUrl",
         "declarationKind": "import",
         "moduleSpecifier": "../model.js",
@@ -808,42 +886,42 @@
       },
       {
         "name": "URL",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "source": "unresolved",
-        "nodeStart": 1854,
-        "nodeEnd": 1857
+        "nodeStart": 1908,
+        "nodeEnd": 1911
       },
       {
         "name": "location",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "source": "global",
-        "nodeStart": 1858,
-        "nodeEnd": 1866
+        "nodeStart": 1912,
+        "nodeEnd": 1920
       },
       {
         "name": "props",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "source": "local",
-        "nodeStart": 1932,
-        "nodeEnd": 1937,
+        "nodeStart": 1986,
+        "nodeEnd": 1991,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace:Parameter#0:props",
         "declarationKind": "parameter"
       },
       {
         "name": "ids",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "source": "local",
-        "nodeStart": 1994,
-        "nodeEnd": 1997,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body:VariableDeclaration#0:ids",
+        "nodeStart": 2048,
+        "nodeEnd": 2051,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body:VariableDeclaration#0:ids",
         "declarationKind": "variable"
       },
       {
         "name": "exactClient",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "source": "import",
-        "nodeStart": 2017,
-        "nodeEnd": 2028,
+        "nodeStart": 2071,
+        "nodeEnd": 2082,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:exactClient",
         "declarationKind": "import",
         "moduleSpecifier": "../client-runtime.js",
@@ -851,118 +929,118 @@
       },
       {
         "name": "client",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "source": "local",
-        "nodeStart": 2055,
-        "nodeEnd": 2061,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body:VariableDeclaration#0:client",
+        "nodeStart": 2109,
+        "nodeEnd": 2115,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body:VariableDeclaration#0:client",
         "declarationKind": "variable"
       },
       {
         "name": "request",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "source": "local",
-        "nodeStart": 2092,
-        "nodeEnd": 2099,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body:VariableDeclaration#0:request",
+        "nodeStart": 2146,
+        "nodeEnd": 2153,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body:VariableDeclaration#0:request",
         "declarationKind": "variable"
       },
       {
         "name": "ids",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "source": "local",
-        "nodeStart": 2129,
-        "nodeEnd": 2132,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body:VariableDeclaration#0:ids",
+        "nodeStart": 2183,
+        "nodeEnd": 2186,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body:VariableDeclaration#0:ids",
         "declarationKind": "variable"
       },
       {
         "name": "client",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2137:2226:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2191:2280:ArrowFunction",
         "source": "local",
-        "nodeStart": 2148,
-        "nodeEnd": 2154,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body:VariableDeclaration#0:client",
+        "nodeStart": 2202,
+        "nodeEnd": 2208,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body:VariableDeclaration#0:client",
         "declarationKind": "variable"
       },
       {
         "name": "id",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2137:2226:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2191:2280:ArrowFunction",
         "source": "local",
-        "nodeStart": 2177,
-        "nodeEnd": 2179,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#0@1:Parameter#0:id",
+        "nodeStart": 2231,
+        "nodeEnd": 2233,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#0@1:Parameter#0:id",
         "declarationKind": "parameter"
       },
       {
         "name": "request",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2137:2226:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2191:2280:ArrowFunction",
         "source": "local",
-        "nodeStart": 2183,
-        "nodeEnd": 2190,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body:VariableDeclaration#0:request",
+        "nodeStart": 2237,
+        "nodeEnd": 2244,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body:VariableDeclaration#0:request",
         "declarationKind": "variable"
       },
       {
         "name": "id",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2197:2225:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2251:2279:ArrowFunction",
         "source": "local",
-        "nodeStart": 2212,
-        "nodeEnd": 2214,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#0@1:Parameter#0:id",
+        "nodeStart": 2266,
+        "nodeEnd": 2268,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#0@1:Parameter#0:id",
         "declarationKind": "parameter"
       },
       {
         "name": "result",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2197:2225:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2251:2279:ArrowFunction",
         "source": "local",
-        "nodeStart": 2216,
-        "nodeEnd": 2222,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#0@1/ArrowFunction:CallExpression:ztntfp#0:Parameter#0:result",
+        "nodeStart": 2270,
+        "nodeEnd": 2276,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#0@1/ArrowFunction:CallExpression:ztntfp#0:Parameter#0:result",
         "declarationKind": "parameter"
       },
       {
         "name": "routePromise",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "source": "local",
-        "nodeStart": 2234,
-        "nodeEnd": 2246,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body:VariableDeclaration#0:routePromise",
+        "nodeStart": 2288,
+        "nodeEnd": 2300,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body:VariableDeclaration#0:routePromise",
         "declarationKind": "variable"
       },
       {
         "name": "generation",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2267:2387:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2321:2441:Block",
         "source": "local",
-        "nodeStart": 2278,
-        "nodeEnd": 2288,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body:VariableDeclaration#0:generation",
+        "nodeStart": 2332,
+        "nodeEnd": 2342,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body:VariableDeclaration#0:generation",
         "declarationKind": "variable"
       },
       {
         "name": "result",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2267:2387:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2321:2441:Block",
         "source": "local",
-        "nodeStart": 2316,
-        "nodeEnd": 2322,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1:Parameter#0:result",
+        "nodeStart": 2370,
+        "nodeEnd": 2376,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1:Parameter#0:result",
         "declarationKind": "parameter"
       },
       {
         "name": "result",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2267:2387:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2321:2441:Block",
         "source": "local",
-        "nodeStart": 2354,
-        "nodeEnd": 2360,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1:Parameter#0:result",
+        "nodeStart": 2408,
+        "nodeEnd": 2414,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1:Parameter#0:result",
         "declarationKind": "parameter"
       },
       {
         "name": "RouteResult",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2267:2387:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2321:2441:Block",
         "source": "import",
-        "nodeStart": 2370,
-        "nodeEnd": 2381,
+        "nodeStart": 2424,
+        "nodeEnd": 2435,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:RouteResult",
         "declarationKind": "import",
         "moduleSpecifier": "../types.js",
@@ -971,60 +1049,60 @@
       },
       {
         "name": "undefined",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2399:2414:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2453:2468:ArrowFunction",
         "source": "unresolved",
-        "nodeStart": 2405,
-        "nodeEnd": 2414
+        "nodeStart": 2459,
+        "nodeEnd": 2468
       },
       {
         "name": "Promise",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "source": "unresolved",
-        "nodeStart": 2425,
-        "nodeEnd": 2432
+        "nodeStart": 2479,
+        "nodeEnd": 2486
       },
       {
         "name": "providerPromises",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "source": "local",
-        "nodeStart": 2441,
-        "nodeEnd": 2457,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body:VariableDeclaration#0:providerPromises",
+        "nodeStart": 2495,
+        "nodeEnd": 2511,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body:VariableDeclaration#0:providerPromises",
         "declarationKind": "variable"
       },
       {
         "name": "promise",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2462:2871:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2516:2925:ArrowFunction",
         "source": "local",
-        "nodeStart": 2479,
-        "nodeEnd": 2486,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1:Parameter#0:promise",
+        "nodeStart": 2533,
+        "nodeEnd": 2540,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1:Parameter#0:promise",
         "declarationKind": "parameter"
       },
       {
         "name": "generation",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2517:2841:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2571:2895:Block",
         "source": "local",
-        "nodeStart": 2530,
-        "nodeEnd": 2540,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body:VariableDeclaration#0:generation",
+        "nodeStart": 2584,
+        "nodeEnd": 2594,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body:VariableDeclaration#0:generation",
         "declarationKind": "variable"
       },
       {
         "name": "result",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2517:2841:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2571:2895:Block",
         "source": "local",
-        "nodeStart": 2597,
-        "nodeEnd": 2603,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1:BindingElement#0:result",
+        "nodeStart": 2651,
+        "nodeEnd": 2657,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1:BindingElement#0:result",
         "declarationKind": "variable"
       },
       {
         "name": "ProviderResult",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2517:2841:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2571:2895:Block",
         "source": "import",
-        "nodeStart": 2613,
-        "nodeEnd": 2627,
+        "nodeStart": 2667,
+        "nodeEnd": 2681,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:ProviderResult",
         "declarationKind": "import",
         "moduleSpecifier": "../types.js",
@@ -1033,94 +1111,94 @@
       },
       {
         "name": "item",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2698:2730:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2752:2784:ArrowFunction",
         "source": "local",
-        "nodeStart": 2708,
-        "nodeEnd": 2712,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#0@1:Parameter#0:item",
+        "nodeStart": 2762,
+        "nodeEnd": 2766,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#0@1:Parameter#0:item",
         "declarationKind": "parameter"
       },
       {
         "name": "id",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2698:2730:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2752:2784:ArrowFunction",
         "source": "local",
-        "nodeStart": 2728,
-        "nodeEnd": 2730,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1:BindingElement#0:id",
+        "nodeStart": 2782,
+        "nodeEnd": 2784,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1:BindingElement#0:id",
         "declarationKind": "variable"
       },
       {
         "name": "provider",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2517:2841:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2571:2895:Block",
         "source": "local",
-        "nodeStart": 2740,
-        "nodeEnd": 2748,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1/Block:function-body:VariableDeclaration#0:provider",
+        "nodeStart": 2794,
+        "nodeEnd": 2802,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1/Block:function-body:VariableDeclaration#0:provider",
         "declarationKind": "variable"
       },
       {
         "name": "item",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2811:2832:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2865:2886:ArrowFunction",
         "source": "local",
-        "nodeStart": 2821,
-        "nodeEnd": 2825,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1:Parameter#0:item",
+        "nodeStart": 2875,
+        "nodeEnd": 2879,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1:Parameter#0:item",
         "declarationKind": "parameter"
       },
       {
         "name": "id",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2811:2832:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2865:2886:ArrowFunction",
         "source": "local",
-        "nodeStart": 2830,
-        "nodeEnd": 2832,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1:BindingElement#0:id",
+        "nodeStart": 2884,
+        "nodeEnd": 2886,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#3@1/ArrowFunction:CallExpression:ztntfp#0@1:BindingElement#0:id",
         "declarationKind": "variable"
       },
       {
         "name": "undefined",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2855:2870:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2909:2924:ArrowFunction",
         "source": "unresolved",
-        "nodeStart": 2861,
-        "nodeEnd": 2870
+        "nodeStart": 2915,
+        "nodeEnd": 2924
       },
       {
         "name": "generation",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1500:3132:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:1554:3186:Block",
         "source": "local",
-        "nodeStart": 2888,
-        "nodeEnd": 2898,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body:VariableDeclaration#0:generation",
+        "nodeStart": 2942,
+        "nodeEnd": 2952,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body:VariableDeclaration#0:generation",
         "declarationKind": "variable"
       },
       {
         "name": "provider",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:2991:3034:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:3045:3088:ArrowFunction",
         "source": "local",
-        "nodeStart": 3005,
-        "nodeEnd": 3013,
-        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#1@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#4@1:Parameter#0:provider",
+        "nodeStart": 3059,
+        "nodeEnd": 3067,
+        "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body/ArrowFunction:CallExpression:ztntfp#5@1/Block:function-body/ArrowFunction:CallExpression:ztntfp#4@1:Parameter#0:provider",
         "declarationKind": "parameter"
       },
       {
         "name": "localStorage",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:3036:3129:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:3090:3183:Block",
         "source": "global",
-        "nodeStart": 3042,
-        "nodeEnd": 3054
+        "nodeStart": 3096,
+        "nodeEnd": 3108
       },
       {
         "name": "JSON",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:3036:3129:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:3090:3183:Block",
         "source": "unresolved",
-        "nodeStart": 3091,
-        "nodeEnd": 3095
+        "nodeStart": 3145,
+        "nodeEnd": 3149
       },
       {
         "name": "createWorkspaceInputs",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:631:3246:Block",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:637:3300:Block",
         "source": "import",
-        "nodeStart": 3152,
-        "nodeEnd": 3173,
+        "nodeStart": 3206,
+        "nodeEnd": 3227,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:createWorkspaceInputs",
         "declarationKind": "import",
         "moduleSpecifier": "./workspace/inputs.js",
@@ -1128,10 +1206,10 @@
       },
       {
         "name": "renderWorkspace",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:3194:3243:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:3248:3297:ArrowFunction",
         "source": "import",
-        "nodeStart": 3201,
-        "nodeEnd": 3216,
+        "nodeStart": 3255,
+        "nodeEnd": 3270,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx::ImportSpecifier#0:renderWorkspace",
         "declarationKind": "import",
         "moduleSpecifier": "./workspace/view.js",
@@ -1139,19 +1217,19 @@
       },
       {
         "name": "props",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:3194:3243:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:3248:3297:ArrowFunction",
         "source": "local",
-        "nodeStart": 3229,
-        "nodeEnd": 3234,
+        "nodeStart": 3283,
+        "nodeEnd": 3288,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace:Parameter#0:props",
         "declarationKind": "parameter"
       },
       {
         "name": "inputs",
-        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:3194:3243:ArrowFunction",
+        "scopeId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:scope:3248:3297:ArrowFunction",
         "source": "local",
-        "nodeStart": 3236,
-        "nodeEnd": 3242,
+        "nodeStart": 3290,
+        "nodeEnd": 3296,
         "declarationId": "c:/users/techj/projects/exact/apps/shipping-calculator/src/components/workspace.tsx:FunctionDeclaration:CalculatorWorkspace/Block:function-body:VariableDeclaration#0:inputs",
         "declarationKind": "variable"
       }
@@ -1165,7 +1243,7 @@
   },
   "components": [
     {
-      "id": "xJkpEMXLuqnwN65cmx7UNPD",
+      "id": "x0sG9wwwWD4amYgX8E3QD0A",
       "name": "CalculatorWorkspace",
       "exported": true,
       "placement": "client",
@@ -1220,7 +1298,7 @@
               "environment": "browser",
               "description": "localStorage",
               "path": [
-                "CalculatorWorkspace.task@1005",
+                "CalculatorWorkspace.task@1059",
                 "localStorage"
               ]
             },
@@ -1228,7 +1306,7 @@
               "environment": "browser",
               "description": "localStorage.getItem",
               "path": [
-                "CalculatorWorkspace.task@1005",
+                "CalculatorWorkspace.task@1059",
                 "localStorage.getItem"
               ]
             },
@@ -1236,7 +1314,7 @@
               "environment": "browser",
               "description": "localStorage.removeItem",
               "path": [
-                "CalculatorWorkspace.task@1005",
+                "CalculatorWorkspace.task@1059",
                 "localStorage.removeItem"
               ]
             }
@@ -1333,7 +1411,7 @@
               "environment": "browser",
               "description": "client.invokeAction",
               "path": [
-                "CalculatorWorkspace.task@1468",
+                "CalculatorWorkspace.task@1522",
                 "client.invokeAction"
               ]
             },
@@ -1341,7 +1419,7 @@
               "environment": "browser",
               "description": "history",
               "path": [
-                "CalculatorWorkspace.task@1468",
+                "CalculatorWorkspace.task@1522",
                 "history"
               ]
             },
@@ -1349,7 +1427,7 @@
               "environment": "browser",
               "description": "history.replaceState",
               "path": [
-                "CalculatorWorkspace.task@1468",
+                "CalculatorWorkspace.task@1522",
                 "history.replaceState"
               ]
             },
@@ -1357,7 +1435,7 @@
               "environment": "browser",
               "description": "localStorage",
               "path": [
-                "CalculatorWorkspace.task@1468",
+                "CalculatorWorkspace.task@1522",
                 "localStorage"
               ]
             },
@@ -1365,7 +1443,7 @@
               "environment": "browser",
               "description": "localStorage.setItem",
               "path": [
-                "CalculatorWorkspace.task@1468",
+                "CalculatorWorkspace.task@1522",
                 "localStorage.setItem"
               ]
             },
@@ -1373,7 +1451,7 @@
               "environment": "browser",
               "description": "location",
               "path": [
-                "CalculatorWorkspace.task@1468",
+                "CalculatorWorkspace.task@1522",
                 "location"
               ]
             }
@@ -1404,8 +1482,8 @@
   ],
   "symbols": [
     {
-      "id": "xZoxrmFqT5oXZSeTaQ7WmTu",
-      "componentId": "xJkpEMXLuqnwN65cmx7UNPD",
+      "id": "x7v8mz4CVe6tOxNA6zCOPPT",
+      "componentId": "x0sG9wwwWD4amYgX8E3QD0A",
       "exportName": "CalculatorWorkspace",
       "localName": "CalculatorWorkspace",
       "generatedName": "CalculatorWorkspace",
@@ -1420,86 +1498,15 @@
     {
       "id": "x4CYHsV3s8u9PNNJDxmFx1A",
       "name": "CalculatorWorkspace",
-      "componentId": "xJkpEMXLuqnwN65cmx7UNPD",
-      "ownerComponentId": "xJkpEMXLuqnwN65cmx7UNPD",
+      "componentId": "x0sG9wwwWD4amYgX8E3QD0A",
+      "ownerComponentId": "x0sG9wwwWD4amYgX8E3QD0A",
       "kind": "client-island"
     }
   ],
   "callables": [
     {
-      "id": "x5WnFDFUMGWRD3WB1sYtMS_",
-      "name": "<function@2698>",
-      "kind": "function",
-      "exportNames": [],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [],
-      "artifactTargets": [
-        "client"
-      ],
-      "stateReads": [],
-      "stateWrites": [],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "x5x26L-mOv-kWwtN55bv04U",
-      "name": "providerPromises",
-      "kind": "function",
-      "exportNames": [],
-      "directEffect": "browser",
-      "effect": "browser",
-      "directEffectSources": [
-        {
-          "environment": "browser",
-          "description": "client.invokeAction",
-          "path": [
-            "providerPromises",
-            "client.invokeAction"
-          ]
-        }
-      ],
-      "effectSources": [
-        {
-          "environment": "browser",
-          "description": "client.invokeAction",
-          "path": [
-            "providerPromises",
-            "client.invokeAction"
-          ]
-        }
-      ],
-      "calls": [
-        {
-          "id": "x6-6BZAgMlIMxzG-KmA2j6I",
-          "name": "client.invokeAction(`quote.${id}`, request).then:callback",
-          "targetId": "xrVnQBipNEA3tI16JHE3LMW",
-          "resolved": true
-        },
-        {
-          "id": "x6-PBbFKCqpT-1Oqnb2hZnk",
-          "name": "client.invokeAction",
-          "resolved": false
-        },
-        {
-          "id": "xsNRMgO4dcR3P3MUiIbOx7C",
-          "name": "client.invokeAction(`quote.${id}`, request).then",
-          "resolved": false
-        }
-      ],
-      "artifactTargets": [
-        "client"
-      ],
-      "stateReads": [],
-      "stateWrites": [],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xELS4ecJ_axWdu9rWcVCoj_",
-      "name": "<function@2462>",
+      "id": "x_2dNBe58ExlsioM59xHii0",
+      "name": "<function@2552>",
       "kind": "function",
       "exportNames": [],
       "directEffect": "neutral",
@@ -1508,109 +1515,25 @@
       "effectSources": [],
       "calls": [
         {
-          "id": "x6a2LYoadQS8XFPnl2tQPsQ",
-          "name": "promise\n\t\t\t\t\t.then(({ id, result }) => {\n\t\t\t\t\t\tif (generation !== this.state.revision) return;\n\t\t\t\t\t\tconst provider = result.state as ProviderResult;\n\t\t\t\t\t\tthis.state.providers = [\n\t\t\t\t\t\t\t...this.state.providers.filter((item) => item.providerId !== id),\n\t\t\t\t\t\t\tprovider\n\t\t\t\t\t\t];\n\t\t\t\t\t\tthis.state.loading = this.state.loading.filter((item) => item !== id);\n\t\t\t\t\t})\n\t\t\t\t\t.catch",
-          "resolved": false
-        },
-        {
-          "id": "xnVkkboso_CPTk0h8xCHQAa",
-          "name": "promise\n\t\t\t\t\t.then(({ id, result }) => {\n\t\t\t\t\t\tif (generation !== this.state.revision) return;\n\t\t\t\t\t\tconst provider = result.state as ProviderResult;\n\t\t\t\t\t\tthis.state.providers = [\n\t\t\t\t\t\t\t...this.state.providers.filter((item) => item.providerId !== id),\n\t\t\t\t\t\t\tprovider\n\t\t\t\t\t\t];\n\t\t\t\t\t\tthis.state.loading = this.state.loading.filter((item) => item !== id);\n\t\t\t\t\t})\n\t\t\t\t\t.catch:callback",
-          "targetId": "xg2bvQ4zfGvp0vMtO1H3i0D",
-          "resolved": true
-        },
-        {
-          "id": "xUNqjStDkdOET3Ob-ImLLzD",
-          "name": "promise\n\t\t\t\t\t.then:callback",
-          "targetId": "xF249mKNC7JDuPFMvtFF86r",
-          "resolved": true
-        },
-        {
-          "id": "xwQY472h5SlAjXC18umRXUY",
-          "name": "promise\n\t\t\t\t\t.then",
-          "resolved": false
-        }
-      ],
-      "artifactTargets": [
-        "client"
-      ],
-      "stateReads": [
-        {
-          "path": "*",
-          "confidence": "unknown",
-          "receiver": {
-            "kind": "unknown"
-          },
-          "kind": "read"
-        },
-        {
-          "path": "revision",
-          "kind": "read",
-          "confidence": "exact"
-        }
-      ],
-      "stateWrites": [
-        {
-          "path": "loading",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "providers",
-          "kind": "write",
-          "confidence": "exact"
-        }
-      ],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xesazCkFAOD2Qw7ihFf9X4l",
-      "name": "<function@2991>",
-      "kind": "function",
-      "exportNames": [],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [],
-      "artifactTargets": [
-        "client"
-      ],
-      "stateReads": [],
-      "stateWrites": [],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xF249mKNC7JDuPFMvtFF86r",
-      "name": "<function@2498>",
-      "kind": "function",
-      "exportNames": [],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [
-        {
-          "id": "xKADoNeGvAzsiUHzhPf_QKA",
-          "name": "this.state.loading.filter:callback",
-          "targetId": "xqArGL9uyBTZQNTSqDGy2V1",
-          "resolved": true
-        },
-        {
-          "id": "xOGR0eQ6EscgJ5sH-xHfHKd",
-          "name": "this.state.providers.filter",
-          "resolved": false
-        },
-        {
-          "id": "xQGgAz2ksBa40mv7K_6LtlI",
+          "id": "x_exQ_Q_SEvRybkWt4rT9id",
           "name": "this.state.loading.filter",
           "resolved": false
         },
         {
-          "id": "xuObPyyh8E53UgmMDhMUBbW",
+          "id": "xSD_E5-fDE3MWFZVkFtj4Dr",
           "name": "this.state.providers.filter:callback",
-          "targetId": "x5WnFDFUMGWRD3WB1sYtMS_",
+          "targetId": "xXLX9X_ZwMjQ81HUkjM2FRw",
+          "resolved": true
+        },
+        {
+          "id": "xsTwyjWtTYw55Du1VQFn1wJ",
+          "name": "this.state.providers.filter",
+          "resolved": false
+        },
+        {
+          "id": "xXQyeYyxQlCrRWdL36sSZBL",
+          "name": "this.state.loading.filter:callback",
+          "targetId": "x4lMc1o9t7zb9v5dVPwpIMj",
           "resolved": true
         }
       ],
@@ -1649,44 +1572,8 @@
       "reevaluationSafe": false
     },
     {
-      "id": "xg2bvQ4zfGvp0vMtO1H3i0D",
-      "name": "<function@2855>",
-      "kind": "function",
-      "exportNames": [],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [],
-      "artifactTargets": [
-        "client"
-      ],
-      "stateReads": [],
-      "stateWrites": [],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xLDpGUrGbLy47jq6StEpcMb",
-      "name": "<function@2399>",
-      "kind": "function",
-      "exportNames": [],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [],
-      "artifactTargets": [
-        "client"
-      ],
-      "stateReads": [],
-      "stateWrites": [],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xle9hZYB6tRjDG8tZG6RSM_",
-      "name": "<function@3195>",
+      "id": "x-fCDl4O8Ky0Bmiycy6aJQC",
+      "name": "<function@3249>",
       "kind": "function",
       "exportNames": [],
       "directEffect": "unknown",
@@ -1696,7 +1583,7 @@
           "environment": "browser",
           "description": "interactive JSX",
           "path": [
-            "<function@3195>",
+            "<function@3249>",
             "renderWorkspace",
             "interactive JSX"
           ]
@@ -1705,7 +1592,7 @@
           "environment": "unknown",
           "description": "checked",
           "path": [
-            "<function@3195>",
+            "<function@3249>",
             "renderWorkspace",
             "checked"
           ]
@@ -1714,7 +1601,7 @@
           "environment": "unknown",
           "description": "select",
           "path": [
-            "<function@3195>",
+            "<function@3249>",
             "renderWorkspace",
             "select"
           ]
@@ -1723,7 +1610,7 @@
           "environment": "unknown",
           "description": "text",
           "path": [
-            "<function@3195>",
+            "<function@3249>",
             "renderWorkspace",
             "text"
           ]
@@ -1734,7 +1621,7 @@
           "environment": "browser",
           "description": "interactive JSX",
           "path": [
-            "<function@3195>",
+            "<function@3249>",
             "renderWorkspace",
             "interactive JSX"
           ]
@@ -1743,7 +1630,7 @@
           "environment": "unknown",
           "description": "checked",
           "path": [
-            "<function@3195>",
+            "<function@3249>",
             "renderWorkspace",
             "checked"
           ]
@@ -1752,7 +1639,7 @@
           "environment": "unknown",
           "description": "select",
           "path": [
-            "<function@3195>",
+            "<function@3249>",
             "renderWorkspace",
             "select"
           ]
@@ -1761,7 +1648,7 @@
           "environment": "unknown",
           "description": "text",
           "path": [
-            "<function@3195>",
+            "<function@3249>",
             "renderWorkspace",
             "text"
           ]
@@ -1769,7 +1656,7 @@
       ],
       "calls": [
         {
-          "id": "xbw7saxJ3D0yONc20VgHXvH",
+          "id": "x8TKOImZewoG8cfgviAijTL",
           "name": "renderWorkspace",
           "moduleSpecifier": "./workspace/view.js",
           "exportName": "renderWorkspace",
@@ -1785,7 +1672,582 @@
       "reevaluationSafe": false
     },
     {
-      "id": "xPWOEfDvXb2L5AyPDhu1q0Y",
+      "id": "x32C5fKGtzRKHsQM8UcUhtT",
+      "name": "CalculatorWorkspace.task@1522",
+      "kind": "task",
+      "exportNames": [],
+      "directEffect": "browser",
+      "effect": "browser",
+      "directEffectSources": [
+        {
+          "environment": "browser",
+          "description": "client.invokeAction",
+          "path": [
+            "CalculatorWorkspace.task@1522",
+            "client.invokeAction"
+          ]
+        },
+        {
+          "environment": "browser",
+          "description": "history",
+          "path": [
+            "CalculatorWorkspace.task@1522",
+            "history"
+          ]
+        },
+        {
+          "environment": "browser",
+          "description": "history.replaceState",
+          "path": [
+            "CalculatorWorkspace.task@1522",
+            "history.replaceState"
+          ]
+        },
+        {
+          "environment": "browser",
+          "description": "localStorage",
+          "path": [
+            "CalculatorWorkspace.task@1522",
+            "localStorage"
+          ]
+        },
+        {
+          "environment": "browser",
+          "description": "localStorage.setItem",
+          "path": [
+            "CalculatorWorkspace.task@1522",
+            "localStorage.setItem"
+          ]
+        },
+        {
+          "environment": "browser",
+          "description": "location",
+          "path": [
+            "CalculatorWorkspace.task@1522",
+            "location"
+          ]
+        }
+      ],
+      "effectSources": [
+        {
+          "environment": "browser",
+          "description": "client.invokeAction",
+          "path": [
+            "CalculatorWorkspace.task@1522",
+            "client.invokeAction"
+          ]
+        },
+        {
+          "environment": "browser",
+          "description": "history",
+          "path": [
+            "CalculatorWorkspace.task@1522",
+            "history"
+          ]
+        },
+        {
+          "environment": "browser",
+          "description": "history.replaceState",
+          "path": [
+            "CalculatorWorkspace.task@1522",
+            "history.replaceState"
+          ]
+        },
+        {
+          "environment": "browser",
+          "description": "localStorage",
+          "path": [
+            "CalculatorWorkspace.task@1522",
+            "localStorage"
+          ]
+        },
+        {
+          "environment": "browser",
+          "description": "localStorage.setItem",
+          "path": [
+            "CalculatorWorkspace.task@1522",
+            "localStorage.setItem"
+          ]
+        },
+        {
+          "environment": "browser",
+          "description": "location",
+          "path": [
+            "CalculatorWorkspace.task@1522",
+            "location"
+          ]
+        }
+      ],
+      "calls": [
+        {
+          "id": "x2gJtjoLjOUIha3FZB9FAXY",
+          "name": "ids.map:callback",
+          "targetId": "xFI_3b90OVL8pheK0n_mtzb",
+          "resolved": true
+        },
+        {
+          "id": "xABh_cxWA05yGxCgC-l_OtR",
+          "name": "JSON.stringify",
+          "resolved": false
+        },
+        {
+          "id": "xapIjP1UlodYUdw_BjmVRhR",
+          "name": "routePromise\n\t\t\t.then((result) => {\n\t\t\t\tif (generation === this.state.revision && result.state)\n\t\t\t\t\tthis.state.route = result.state as RouteResult;\n\t\t\t})\n\t\t\t.catch:callback",
+          "targetId": "xIZ9Z82Ci7LSpX0fnv6uHVP",
+          "resolved": true
+        },
+        {
+          "id": "xd_mGrwAGD7PrmHXtu2eiOv",
+          "name": "history.replaceState",
+          "resolved": false
+        },
+        {
+          "id": "xDjtUWYjNG3yg0oqDrKWZSQ",
+          "name": "this.state.providers.some:callback",
+          "targetId": "xsMbq86q5q5vZ49W3HA-0kk",
+          "resolved": true
+        },
+        {
+          "id": "xiMTXgNMM_FxeGzKCiYrIc2",
+          "name": "normalizeDraft",
+          "moduleSpecifier": "../model.js",
+          "exportName": "normalizeDraft",
+          "resolved": true
+        },
+        {
+          "id": "xkIvPMSySIvQLI9QALePqtY",
+          "name": "draftUrl",
+          "moduleSpecifier": "../model.js",
+          "exportName": "draftUrl",
+          "resolved": true
+        },
+        {
+          "id": "xKq7qjdErjsevssh9ND6U-5",
+          "name": "providerPromises.map:callback",
+          "targetId": "xwqWwL1IPloniELEUrtGVsH",
+          "resolved": true
+        },
+        {
+          "id": "xLeZstEOlb-xiS_WiKx-tdi",
+          "name": "Promise.all",
+          "resolved": false
+        },
+        {
+          "id": "xLoOa4Khpro7omtFaiD35df",
+          "name": "providerPromises.map",
+          "targetId": "xZyV3qnsaIpXb2bv87cat6l",
+          "resolved": true,
+          "receiverBindings": [
+            {
+              "parameterIndex": 0,
+              "source": "unknown"
+            }
+          ]
+        },
+        {
+          "id": "xLrX8IgDHNtBcnJ2GvwPNga",
+          "name": "this.state.providers.some",
+          "resolved": false
+        },
+        {
+          "id": "xLzaINO8CVDd-H8QIcIYe_R",
+          "name": "URL",
+          "resolved": false
+        },
+        {
+          "id": "xmE9ljn3EmycljeZjMRVSIx",
+          "name": "routePromise\n\t\t\t.then((result) => {\n\t\t\t\tif (generation === this.state.revision && result.state)\n\t\t\t\t\tthis.state.route = result.state as RouteResult;\n\t\t\t})\n\t\t\t.catch",
+          "resolved": false
+        },
+        {
+          "id": "xmTd2qN4iJB5zbV_NcVag6x",
+          "name": "delay",
+          "moduleSpecifier": "./workspace/inputs.js",
+          "exportName": "delay",
+          "resolved": true
+        },
+        {
+          "id": "xoXW0CV8Xrm18Yq6J-E0yZC",
+          "name": "routePromise\n\t\t\t.then:callback",
+          "targetId": "xLIX8wGJyRYE0wqeW17Rb7D",
+          "resolved": true
+        },
+        {
+          "id": "xRG4yWkexL3HwgQzXyBM2Lb",
+          "name": "ids.map",
+          "resolved": false
+        },
+        {
+          "id": "xSLbTyt3T0r66C2AE9jmMnL",
+          "name": "exactClient",
+          "moduleSpecifier": "../client-runtime.js",
+          "exportName": "exactClient",
+          "resolved": true
+        },
+        {
+          "id": "xSOKRHyqUq3ChKTeAppJ-vf",
+          "name": "localStorage.setItem",
+          "resolved": false
+        },
+        {
+          "id": "xYUdHfQI9OmP73iJbU1Oq5O",
+          "name": "routePromise\n\t\t\t.then",
+          "resolved": false
+        },
+        {
+          "id": "xZF5cTccRu0sqtvMkF8lG3_",
+          "name": "client.invokeAction",
+          "resolved": false
+        }
+      ],
+      "artifactTargets": [
+        "client"
+      ],
+      "stateReads": [
+        {
+          "path": "*",
+          "confidence": "unknown",
+          "receiver": {
+            "kind": "unknown"
+          },
+          "kind": "read"
+        },
+        {
+          "path": "draft",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "path": "providers",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "path": "revision",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "stateWrites": [
+        {
+          "path": "error",
+          "kind": "write",
+          "confidence": "exact"
+        },
+        {
+          "path": "loading",
+          "kind": "write",
+          "confidence": "exact"
+        },
+        {
+          "path": "providers",
+          "kind": "write",
+          "confidence": "exact"
+        },
+        {
+          "path": "route",
+          "kind": "write",
+          "confidence": "exact"
+        }
+      ],
+      "contexts": [],
+      "reevaluationSafe": false
+    },
+    {
+      "id": "x4lMc1o9t7zb9v5dVPwpIMj",
+      "name": "<function@2865>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [],
+      "artifactTargets": [
+        "client"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": [],
+      "reevaluationSafe": false
+    },
+    {
+      "id": "x4XAFuTPv1f-bcRGGDYAAtG",
+      "name": "CalculatorWorkspace.task@1059",
+      "kind": "task",
+      "exportNames": [],
+      "directEffect": "browser",
+      "effect": "browser",
+      "directEffectSources": [
+        {
+          "environment": "browser",
+          "description": "localStorage",
+          "path": [
+            "CalculatorWorkspace.task@1059",
+            "localStorage"
+          ]
+        },
+        {
+          "environment": "browser",
+          "description": "localStorage.getItem",
+          "path": [
+            "CalculatorWorkspace.task@1059",
+            "localStorage.getItem"
+          ]
+        },
+        {
+          "environment": "browser",
+          "description": "localStorage.removeItem",
+          "path": [
+            "CalculatorWorkspace.task@1059",
+            "localStorage.removeItem"
+          ]
+        }
+      ],
+      "effectSources": [
+        {
+          "environment": "browser",
+          "description": "localStorage",
+          "path": [
+            "CalculatorWorkspace.task@1059",
+            "localStorage"
+          ]
+        },
+        {
+          "environment": "browser",
+          "description": "localStorage.getItem",
+          "path": [
+            "CalculatorWorkspace.task@1059",
+            "localStorage.getItem"
+          ]
+        },
+        {
+          "environment": "browser",
+          "description": "localStorage.removeItem",
+          "path": [
+            "CalculatorWorkspace.task@1059",
+            "localStorage.removeItem"
+          ]
+        }
+      ],
+      "calls": [
+        {
+          "id": "xF7hvfySB1RwLBas7xRWx6V",
+          "name": "normalizeDraft",
+          "moduleSpecifier": "../model.js",
+          "exportName": "normalizeDraft",
+          "resolved": true
+        },
+        {
+          "id": "xffvolj598iD2zLZztWQeRN",
+          "name": "localStorage.getItem",
+          "resolved": false
+        },
+        {
+          "id": "xhlCpZRL1GFiMuTI5pFsxjV",
+          "name": "JSON.parse",
+          "resolved": false
+        },
+        {
+          "id": "xrxzkrkP0rwevr3bn0NE__e",
+          "name": "localStorage.removeItem",
+          "resolved": false
+        }
+      ],
+      "artifactTargets": [
+        "client"
+      ],
+      "stateReads": [
+        {
+          "path": "revision",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "stateWrites": [
+        {
+          "path": "draft",
+          "kind": "write",
+          "confidence": "exact"
+        },
+        {
+          "path": "restored",
+          "kind": "write",
+          "confidence": "exact"
+        },
+        {
+          "path": "revision",
+          "kind": "write",
+          "confidence": "exact"
+        }
+      ],
+      "contexts": [],
+      "reevaluationSafe": false
+    },
+    {
+      "id": "xE2s6n7AeeLZbRNUJyBhJfU",
+      "name": "<function@734>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [],
+      "artifactTargets": [],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": [],
+      "reevaluationSafe": false
+    },
+    {
+      "id": "xFI_3b90OVL8pheK0n_mtzb",
+      "name": "providerPromises",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "browser",
+      "effect": "browser",
+      "directEffectSources": [
+        {
+          "environment": "browser",
+          "description": "client.invokeAction",
+          "path": [
+            "providerPromises",
+            "client.invokeAction"
+          ]
+        }
+      ],
+      "effectSources": [
+        {
+          "environment": "browser",
+          "description": "client.invokeAction",
+          "path": [
+            "providerPromises",
+            "client.invokeAction"
+          ]
+        }
+      ],
+      "calls": [
+        {
+          "id": "xggiK76s8oiixwkitT8IVo2",
+          "name": "client.invokeAction",
+          "resolved": false
+        },
+        {
+          "id": "xt4LP8zQwYpir7Iqhey2z2N",
+          "name": "client.invokeAction(`quote.${id}`, request).then",
+          "resolved": false
+        },
+        {
+          "id": "xWyl42Xg23L0C8GiKIRsZhH",
+          "name": "client.invokeAction(`quote.${id}`, request).then:callback",
+          "targetId": "xZyV3qnsaIpXb2bv87cat6l",
+          "resolved": true
+        }
+      ],
+      "artifactTargets": [
+        "client"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": [],
+      "reevaluationSafe": false
+    },
+    {
+      "id": "xIZ9Z82Ci7LSpX0fnv6uHVP",
+      "name": "<function@2453>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [],
+      "artifactTargets": [
+        "client"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": [],
+      "reevaluationSafe": false
+    },
+    {
+      "id": "xLIX8wGJyRYE0wqeW17Rb7D",
+      "name": "<function@2310>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [],
+      "artifactTargets": [
+        "client"
+      ],
+      "stateReads": [
+        {
+          "path": "*",
+          "confidence": "broad",
+          "receiver": {
+            "kind": "parameter",
+            "index": 0
+          },
+          "kind": "read"
+        },
+        {
+          "path": "revision",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "stateWrites": [
+        {
+          "path": "route",
+          "kind": "write",
+          "confidence": "exact"
+        }
+      ],
+      "contexts": [],
+      "reevaluationSafe": false
+    },
+    {
+      "id": "xP5VhMNF1sCrMPPtLJ1rLLY",
+      "name": "<function@2909>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [],
+      "artifactTargets": [
+        "client"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": [],
+      "reevaluationSafe": false
+    },
+    {
+      "id": "xsMbq86q5q5vZ49W3HA-0kk",
+      "name": "<function@3045>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [],
+      "artifactTargets": [
+        "client"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": [],
+      "reevaluationSafe": false
+    },
+    {
+      "id": "xu0IT9DfR8E5d9qxsnYXsEv",
       "name": "CalculatorWorkspace",
       "kind": "component",
       "exportNames": [
@@ -1800,7 +2262,7 @@
           "description": "interactive JSX",
           "path": [
             "CalculatorWorkspace",
-            "<function@3195>",
+            "<function@3249>",
             "renderWorkspace",
             "interactive JSX"
           ]
@@ -1810,7 +2272,7 @@
           "description": "checked",
           "path": [
             "CalculatorWorkspace",
-            "<function@3195>",
+            "<function@3249>",
             "renderWorkspace",
             "checked"
           ]
@@ -1820,7 +2282,7 @@
           "description": "select",
           "path": [
             "CalculatorWorkspace",
-            "<function@3195>",
+            "<function@3249>",
             "renderWorkspace",
             "select"
           ]
@@ -1830,7 +2292,7 @@
           "description": "text",
           "path": [
             "CalculatorWorkspace",
-            "<function@3195>",
+            "<function@3249>",
             "renderWorkspace",
             "text"
           ]
@@ -1838,34 +2300,55 @@
       ],
       "calls": [
         {
-          "id": "x6k_XakarJzK8wIapiRY8vz",
+          "id": "x_dzSZfdn_0_K3lXepAB3LL",
+          "name": "this.task",
+          "resolved": false
+        },
+        {
+          "id": "x3Dvhp4eZ55XDkbGfBCVUGM",
+          "name": "peek",
+          "moduleSpecifier": "@exactjs/core",
+          "exportName": "peek",
+          "resolved": false
+        },
+        {
+          "id": "x8JDki1BMCMohlzbiBpb-Zb",
+          "name": "<function@3249>:returned",
+          "targetId": "x-fCDl4O8Ky0Bmiycy6aJQC",
+          "resolved": true
+        },
+        {
+          "id": "xAU9v9J4ADMrkaJXGc-V2do",
+          "name": "peek",
+          "moduleSpecifier": "@exactjs/core",
+          "exportName": "peek",
+          "resolved": false
+        },
+        {
+          "id": "xe6R6I_MjCEA-0ARg1l3iEG",
+          "name": "peek",
+          "moduleSpecifier": "@exactjs/core",
+          "exportName": "peek",
+          "resolved": false
+        },
+        {
+          "id": "xrFEbJ9EFORIKMpmTzx2tiB",
+          "name": "peek",
+          "moduleSpecifier": "@exactjs/core",
+          "exportName": "peek",
+          "resolved": false
+        },
+        {
+          "id": "xUK-mpzszK86K9itYMOIhEQ",
+          "name": "this.task",
+          "resolved": false
+        },
+        {
+          "id": "xXALCrRIzS7e5f9mel_sB-I",
           "name": "createWorkspaceInputs",
           "moduleSpecifier": "./workspace/inputs.js",
           "exportName": "createWorkspaceInputs",
           "resolved": true
-        },
-        {
-          "id": "xQ83rwN328rjPcq2pS53aVa",
-          "name": "<function@3195>:returned",
-          "targetId": "xle9hZYB6tRjDG8tZG6RSM_",
-          "resolved": true
-        },
-        {
-          "id": "xqApEDJFEymingK-ofOe3Q_",
-          "name": "cloneDraft",
-          "moduleSpecifier": "./workspace/inputs.js",
-          "exportName": "cloneDraft",
-          "resolved": true
-        },
-        {
-          "id": "xst0F6WfaIcrEQemM5f5hTf",
-          "name": "this.task",
-          "resolved": false
-        },
-        {
-          "id": "xVilMKvWD23uHQvqscMo4sC",
-          "name": "this.task",
-          "resolved": false
         }
       ],
       "artifactTargets": [
@@ -1929,8 +2412,32 @@
       "reevaluationSafe": false
     },
     {
-      "id": "xqArGL9uyBTZQNTSqDGy2V1",
-      "name": "<function@2811>",
+      "id": "xuoAys8LFmMxFvx77WKfC5l",
+      "name": "<function@665>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "xpYa4BAQfy9_-14BKo-QTsk",
+          "name": "cloneDraft",
+          "moduleSpecifier": "./workspace/inputs.js",
+          "exportName": "cloneDraft",
+          "resolved": true
+        }
+      ],
+      "artifactTargets": [],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": [],
+      "reevaluationSafe": false
+    },
+    {
+      "id": "xvaDVwmeE2VDrErRALVoCjG",
+      "name": "<function@970>",
       "kind": "function",
       "exportNames": [],
       "directEffect": "neutral",
@@ -1938,240 +2445,42 @@
       "directEffectSources": [],
       "effectSources": [],
       "calls": [],
-      "artifactTargets": [
-        "client"
-      ],
+      "artifactTargets": [],
       "stateReads": [],
       "stateWrites": [],
       "contexts": [],
       "reevaluationSafe": false
     },
     {
-      "id": "xrb2RWZJvXhMCltogjE2gGK",
-      "name": "CalculatorWorkspace.task@1468",
-      "kind": "task",
+      "id": "xwqWwL1IPloniELEUrtGVsH",
+      "name": "<function@2516>",
+      "kind": "function",
       "exportNames": [],
-      "directEffect": "browser",
-      "effect": "browser",
-      "directEffectSources": [
-        {
-          "environment": "browser",
-          "description": "client.invokeAction",
-          "path": [
-            "CalculatorWorkspace.task@1468",
-            "client.invokeAction"
-          ]
-        },
-        {
-          "environment": "browser",
-          "description": "history",
-          "path": [
-            "CalculatorWorkspace.task@1468",
-            "history"
-          ]
-        },
-        {
-          "environment": "browser",
-          "description": "history.replaceState",
-          "path": [
-            "CalculatorWorkspace.task@1468",
-            "history.replaceState"
-          ]
-        },
-        {
-          "environment": "browser",
-          "description": "localStorage",
-          "path": [
-            "CalculatorWorkspace.task@1468",
-            "localStorage"
-          ]
-        },
-        {
-          "environment": "browser",
-          "description": "localStorage.setItem",
-          "path": [
-            "CalculatorWorkspace.task@1468",
-            "localStorage.setItem"
-          ]
-        },
-        {
-          "environment": "browser",
-          "description": "location",
-          "path": [
-            "CalculatorWorkspace.task@1468",
-            "location"
-          ]
-        }
-      ],
-      "effectSources": [
-        {
-          "environment": "browser",
-          "description": "client.invokeAction",
-          "path": [
-            "CalculatorWorkspace.task@1468",
-            "client.invokeAction"
-          ]
-        },
-        {
-          "environment": "browser",
-          "description": "history",
-          "path": [
-            "CalculatorWorkspace.task@1468",
-            "history"
-          ]
-        },
-        {
-          "environment": "browser",
-          "description": "history.replaceState",
-          "path": [
-            "CalculatorWorkspace.task@1468",
-            "history.replaceState"
-          ]
-        },
-        {
-          "environment": "browser",
-          "description": "localStorage",
-          "path": [
-            "CalculatorWorkspace.task@1468",
-            "localStorage"
-          ]
-        },
-        {
-          "environment": "browser",
-          "description": "localStorage.setItem",
-          "path": [
-            "CalculatorWorkspace.task@1468",
-            "localStorage.setItem"
-          ]
-        },
-        {
-          "environment": "browser",
-          "description": "location",
-          "path": [
-            "CalculatorWorkspace.task@1468",
-            "location"
-          ]
-        }
-      ],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
       "calls": [
         {
-          "id": "x0U1pRjw9TkrBlu9BzbQCnT",
-          "name": "ids.map",
-          "resolved": false
-        },
-        {
-          "id": "x2_TvwMDwIPJNHWJb7ZvWb7",
-          "name": "exactClient",
-          "moduleSpecifier": "../client-runtime.js",
-          "exportName": "exactClient",
+          "id": "xKfL9KfPWc71-3AxXiQdRxj",
+          "name": "promise\n\t\t\t\t\t.then(({ id, result }) => {\n\t\t\t\t\t\tif (generation !== this.state.revision) return;\n\t\t\t\t\t\tconst provider = result.state as ProviderResult;\n\t\t\t\t\t\tthis.state.providers = [\n\t\t\t\t\t\t\t...this.state.providers.filter((item) => item.providerId !== id),\n\t\t\t\t\t\t\tprovider\n\t\t\t\t\t\t];\n\t\t\t\t\t\tthis.state.loading = this.state.loading.filter((item) => item !== id);\n\t\t\t\t\t})\n\t\t\t\t\t.catch:callback",
+          "targetId": "xP5VhMNF1sCrMPPtLJ1rLLY",
           "resolved": true
         },
         {
-          "id": "x2-KVqlKRSS90KDXgV4wUD1",
-          "name": "routePromise\n\t\t\t.then((result) => {\n\t\t\t\tif (generation === this.state.revision && result.state)\n\t\t\t\t\tthis.state.route = result.state as RouteResult;\n\t\t\t})\n\t\t\t.catch",
+          "id": "xNxWsoFtfJWbyyjsNY_jOxP",
+          "name": "promise\n\t\t\t\t\t.then",
           "resolved": false
         },
         {
-          "id": "x4rmrGe_Jv1hzWv4_iPE8kF",
-          "name": "history.replaceState",
+          "id": "xOaUnLEqi8TkCG8nnjZTc8R",
+          "name": "promise\n\t\t\t\t\t.then(({ id, result }) => {\n\t\t\t\t\t\tif (generation !== this.state.revision) return;\n\t\t\t\t\t\tconst provider = result.state as ProviderResult;\n\t\t\t\t\t\tthis.state.providers = [\n\t\t\t\t\t\t\t...this.state.providers.filter((item) => item.providerId !== id),\n\t\t\t\t\t\t\tprovider\n\t\t\t\t\t\t];\n\t\t\t\t\t\tthis.state.loading = this.state.loading.filter((item) => item !== id);\n\t\t\t\t\t})\n\t\t\t\t\t.catch",
           "resolved": false
         },
         {
-          "id": "xbpz922kFu4VVgnZpWX_w8k",
-          "name": "providerPromises.map:callback",
-          "targetId": "xELS4ecJ_axWdu9rWcVCoj_",
-          "resolved": true
-        },
-        {
-          "id": "xCtKMQ8k7AJOFvzaOezd_qG",
-          "name": "routePromise\n\t\t\t.then((result) => {\n\t\t\t\tif (generation === this.state.revision && result.state)\n\t\t\t\t\tthis.state.route = result.state as RouteResult;\n\t\t\t})\n\t\t\t.catch:callback",
-          "targetId": "xLDpGUrGbLy47jq6StEpcMb",
-          "resolved": true
-        },
-        {
-          "id": "xczR4H6GzxpDH_x4Sg5d60r",
-          "name": "ids.map:callback",
-          "targetId": "x5x26L-mOv-kWwtN55bv04U",
-          "resolved": true
-        },
-        {
-          "id": "xdzuC2HQc9SsUDky-rn-11o",
-          "name": "this.state.providers.some",
-          "resolved": false
-        },
-        {
-          "id": "xFJNGH1et4Nm7pqAn2FvQ4l",
-          "name": "JSON.stringify",
-          "resolved": false
-        },
-        {
-          "id": "xISMkN0rm8oGIgFPw4qnxH3",
-          "name": "routePromise\n\t\t\t.then",
-          "resolved": false
-        },
-        {
-          "id": "xJLnoOfQJgZxW-QcvD1awqU",
-          "name": "draftUrl",
-          "moduleSpecifier": "../model.js",
-          "exportName": "draftUrl",
-          "resolved": true
-        },
-        {
-          "id": "xkAj3DJm3txf-0lIi8k-U0L",
-          "name": "Promise.all",
-          "resolved": false
-        },
-        {
-          "id": "xKO4Cm--pC0I0Zyb-rEWrY1",
-          "name": "this.state.providers.some:callback",
-          "targetId": "xesazCkFAOD2Qw7ihFf9X4l",
-          "resolved": true
-        },
-        {
-          "id": "xMWwYtibzqUmgMOtc27XNEJ",
-          "name": "client.invokeAction",
-          "resolved": false
-        },
-        {
-          "id": "xnWSfRJYZJdL1gb7Fo652Sx",
-          "name": "routePromise\n\t\t\t.then:callback",
-          "targetId": "xYFez0iDE-STJzCotfDVuwG",
-          "resolved": true
-        },
-        {
-          "id": "xOi7UWpRRPoVnLmwIJYlHwk",
-          "name": "URL",
-          "resolved": false
-        },
-        {
-          "id": "xTsXakCn5i21odZF0DP1Ti1",
-          "name": "localStorage.setItem",
-          "resolved": false
-        },
-        {
-          "id": "xuB9rnWu1bOrpApwvlOwR_H",
-          "name": "normalizeDraft",
-          "moduleSpecifier": "../model.js",
-          "exportName": "normalizeDraft",
-          "resolved": true
-        },
-        {
-          "id": "xUoM7HDg_djFvhkW6ILgw77",
-          "name": "providerPromises.map",
-          "targetId": "xrVnQBipNEA3tI16JHE3LMW",
-          "resolved": true,
-          "receiverBindings": [
-            {
-              "parameterIndex": 0,
-              "source": "unknown"
-            }
-          ]
-        },
-        {
-          "id": "xZSRac7DJFGn-MCDhE21GN2",
-          "name": "delay",
-          "moduleSpecifier": "./workspace/inputs.js",
-          "exportName": "delay",
+          "id": "xUl78oiqp1NiUUTfmeky4jz",
+          "name": "promise\n\t\t\t\t\t.then:callback",
+          "targetId": "x_2dNBe58ExlsioM59xHii0",
           "resolved": true
         }
       ],
@@ -2188,27 +2497,12 @@
           "kind": "read"
         },
         {
-          "path": "draft",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "path": "providers",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
           "path": "revision",
           "kind": "read",
           "confidence": "exact"
         }
       ],
       "stateWrites": [
-        {
-          "path": "error",
-          "kind": "write",
-          "confidence": "exact"
-        },
         {
           "path": "loading",
           "kind": "write",
@@ -2218,19 +2512,14 @@
           "path": "providers",
           "kind": "write",
           "confidence": "exact"
-        },
-        {
-          "path": "route",
-          "kind": "write",
-          "confidence": "exact"
         }
       ],
       "contexts": [],
       "reevaluationSafe": false
     },
     {
-      "id": "xrVnQBipNEA3tI16JHE3LMW",
-      "name": "providerPromises",
+      "id": "xXLX9X_ZwMjQ81HUkjM2FRw",
+      "name": "<function@2752>",
       "kind": "function",
       "exportNames": [],
       "directEffect": "neutral",
@@ -2247,8 +2536,24 @@
       "reevaluationSafe": false
     },
     {
-      "id": "xYFez0iDE-STJzCotfDVuwG",
-      "name": "<function@2256>",
+      "id": "xz6r5fkUUt98wpq_SV3gpBb",
+      "name": "<function@791>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [],
+      "artifactTargets": [],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": [],
+      "reevaluationSafe": false
+    },
+    {
+      "id": "xZyV3qnsaIpXb2bv87cat6l",
+      "name": "providerPromises",
       "kind": "function",
       "exportNames": [],
       "directEffect": "neutral",
@@ -2259,142 +2564,8 @@
       "artifactTargets": [
         "client"
       ],
-      "stateReads": [
-        {
-          "path": "*",
-          "confidence": "broad",
-          "receiver": {
-            "kind": "parameter",
-            "index": 0
-          },
-          "kind": "read"
-        },
-        {
-          "path": "revision",
-          "kind": "read",
-          "confidence": "exact"
-        }
-      ],
-      "stateWrites": [
-        {
-          "path": "route",
-          "kind": "write",
-          "confidence": "exact"
-        }
-      ],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xZxk7NYn1GV3Vqqspkt_RPj",
-      "name": "CalculatorWorkspace.task@1005",
-      "kind": "task",
-      "exportNames": [],
-      "directEffect": "browser",
-      "effect": "browser",
-      "directEffectSources": [
-        {
-          "environment": "browser",
-          "description": "localStorage",
-          "path": [
-            "CalculatorWorkspace.task@1005",
-            "localStorage"
-          ]
-        },
-        {
-          "environment": "browser",
-          "description": "localStorage.getItem",
-          "path": [
-            "CalculatorWorkspace.task@1005",
-            "localStorage.getItem"
-          ]
-        },
-        {
-          "environment": "browser",
-          "description": "localStorage.removeItem",
-          "path": [
-            "CalculatorWorkspace.task@1005",
-            "localStorage.removeItem"
-          ]
-        }
-      ],
-      "effectSources": [
-        {
-          "environment": "browser",
-          "description": "localStorage",
-          "path": [
-            "CalculatorWorkspace.task@1005",
-            "localStorage"
-          ]
-        },
-        {
-          "environment": "browser",
-          "description": "localStorage.getItem",
-          "path": [
-            "CalculatorWorkspace.task@1005",
-            "localStorage.getItem"
-          ]
-        },
-        {
-          "environment": "browser",
-          "description": "localStorage.removeItem",
-          "path": [
-            "CalculatorWorkspace.task@1005",
-            "localStorage.removeItem"
-          ]
-        }
-      ],
-      "calls": [
-        {
-          "id": "x2-yiM-bj2sRNY15Dltinab",
-          "name": "JSON.parse",
-          "resolved": false
-        },
-        {
-          "id": "xex4yvm6_e7V4YUhwG-2vFA",
-          "name": "normalizeDraft",
-          "moduleSpecifier": "../model.js",
-          "exportName": "normalizeDraft",
-          "resolved": true
-        },
-        {
-          "id": "xHAIPKyLqR1YNaUS8D7yiqk",
-          "name": "localStorage.removeItem",
-          "resolved": false
-        },
-        {
-          "id": "xMJTKuwUpo6Mt-o2mhmDsv2",
-          "name": "localStorage.getItem",
-          "resolved": false
-        }
-      ],
-      "artifactTargets": [
-        "client"
-      ],
-      "stateReads": [
-        {
-          "path": "revision",
-          "kind": "read",
-          "confidence": "exact"
-        }
-      ],
-      "stateWrites": [
-        {
-          "path": "draft",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "restored",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "revision",
-          "kind": "write",
-          "confidence": "exact"
-        }
-      ],
+      "stateReads": [],
+      "stateWrites": [],
       "contexts": [],
       "reevaluationSafe": false
     }
@@ -2402,7 +2573,7 @@
   "continuations": [],
   "resumptions": [
     {
-      "componentId": "xJkpEMXLuqnwN65cmx7UNPD",
+      "componentId": "x0sG9wwwWD4amYgX8E3QD0A",
       "serverRender": {
         "stateReads": [],
         "serverContexts": []
@@ -2446,8 +2617,8 @@
     ],
     "symbols": [
       {
-        "id": "xZoxrmFqT5oXZSeTaQ7WmTu",
-        "componentId": "xJkpEMXLuqnwN65cmx7UNPD",
+        "id": "x7v8mz4CVe6tOxNA6zCOPPT",
+        "componentId": "x0sG9wwwWD4amYgX8E3QD0A",
         "exportName": "CalculatorWorkspace",
         "localName": "CalculatorWorkspace",
         "generatedName": "CalculatorWorkspace",
@@ -2462,8 +2633,8 @@
       {
         "id": "x4CYHsV3s8u9PNNJDxmFx1A",
         "name": "CalculatorWorkspace",
-        "componentId": "xJkpEMXLuqnwN65cmx7UNPD",
-        "ownerComponentId": "xJkpEMXLuqnwN65cmx7UNPD",
+        "componentId": "x0sG9wwwWD4amYgX8E3QD0A",
+        "ownerComponentId": "x0sG9wwwWD4amYgX8E3QD0A",
         "kind": "client-island"
       }
     ]

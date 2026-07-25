@@ -1,6 +1,7 @@
 import { createCellVNode, createVNode, Fragment } from '@exactjs/core';
 import type {
 	Activity,
+	AsyncComponentFunction,
 	Child,
 	ComponentFunction,
 	RefBinding,
@@ -21,13 +22,14 @@ type Props = Record<string, unknown> & {
 type JsxType =
 	| string
 	| ComponentFunction<any, any>
+	| AsyncComponentFunction<any, any>
 	| typeof Activity
 	| typeof Fragment
 	| typeof Suspense;
 
 /** Creates a vnode for the automatic JSX runtime's single-child entrypoint. */
 export function jsx<P extends Props>(
-	type: ComponentFunction<any, P>,
+	type: ComponentFunction<any, P> | AsyncComponentFunction<any, P>,
 	props: P | null,
 	key?: string
 ): VNode<P>;
@@ -42,7 +44,7 @@ export function jsx(type: JsxType, props: Props | null, key?: string): VNode {
 
 /** Creates a vnode for the automatic JSX runtime's multi-child entrypoint. */
 export function jsxs<P extends Props>(
-	type: ComponentFunction<any, P>,
+	type: ComponentFunction<any, P> | AsyncComponentFunction<any, P>,
 	props: P | null,
 	key?: string
 ): VNode<P>;
@@ -66,7 +68,11 @@ function createJsxVNode(type: JsxType, props: Props | null, key?: string): VNode
 	if ('key' in rest) delete rest.key;
 	const childList = Array.isArray(children) ? children : children === undefined ? [] : [children];
 	return createCellVNode(
-		createVNode(type, normalizedKey ? { ...rest, key: normalizedKey } : rest, ...childList)
+		createVNode(
+			type as ComponentFunction<any, any>,
+			normalizedKey ? { ...rest, key: normalizedKey } : rest,
+			...childList
+		)
 	);
 }
 
@@ -77,6 +83,7 @@ export namespace JSX {
 		| typeof Activity
 		| typeof Fragment
 		| typeof Suspense
+		| AsyncComponentFunction<any, any>
 		| ComponentFunction<any, any>;
 	export type TargetedEvent<
 		TCurrentTarget extends EventTarget,

@@ -107,14 +107,20 @@ export function TasksPage(this: Component<{}>) {
 					questions at component setup instead of scattering them across effects, controller
 					variables, and unmount callbacks.
 				</p>
+				<p>
+					When computation simply produces component state, ordinary assignment is usually enough:
+					eXact lowers synchronous derived assignments and awaited async-component assignments
+					automatically. Use <code>this.task()</code> when the work is itself the effect, when it
+					should remain nonblocking, or when you need cleanup, placement, or scheduling policy.
+				</p>
 			</section>
 			<section>
 				<h2>Write the task; let the compiler find its dependencies</h2>
 				<p>
-					The idiomatic form puts the work directly in <code>this.task()</code>. Exact state, prop,
-					and reactive context reads inside a task become dependencies automatically. When one
-					changes, eXact aborts the current generation, waits for registered cleanup as needed, and
-					invokes the task again.
+					The idiomatic explicit-task form puts the work directly in <code>this.task()</code>. Exact
+					state, prop, and reactive context reads inside a task become dependencies automatically.
+					When one changes, eXact aborts the current generation, waits for registered cleanup as
+					needed, and invokes the task again.
 				</p>
 				<CodeBlock source={taskSource} language="tsx" title="Search.tsx" />
 				<p>

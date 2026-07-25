@@ -1,4 +1,4 @@
-import type { Component } from '@exactjs/core';
+import { peek, type Component } from '@exactjs/core';
 
 type ReadingItem = {
 	/** @exact key */
@@ -51,7 +51,7 @@ export function KeyedListDemo(this: Component<ListState>) {
 
 function ReadingRow(this: Component<ReadingRowState>, props: { item: ReadingItem }) {
 	// This local state belongs to the keyed item component, not its array position.
-	this.state.expanded = props.item.id === 'compiler';
+	this.state.expanded = peek(() => props.item.id === 'compiler');
 
 	return () => (
 		<li>

@@ -1,5 +1,30 @@
 # Tasks and placement
 
+## Prefer assignment when work produces state
+
+Synchronous calculations and async-component continuations do not need an explicit task wrapper:
+
+```tsx
+function Summary(this: Component<SummaryState>) {
+	this.state.total = calculateTotal(this.state.items);
+	return () => <output>{this.state.total}</output>;
+}
+
+async function Options(this: Component<OptionsState>) {
+	this.state.options = await getOptions(this.state.destination);
+	return () => <OptionsList options={this.state.options} />;
+}
+```
+
+An async component may use sequential awaits and `try`/`catch`/`finally`. Its writes remain private
+to the active generation and publish together after successful settlement. Framework cancellation
+bypasses an ordinary catch so obsolete work cannot commit a fallback, but finally still runs.
+Assign values needed by the render function to `this.state`; continuation-local variables do not
+become published component state.
+
+Use an explicit task for external effects, cleanup-returning work, deliberately nonblocking work,
+or explicit placement and scheduling.
+
 ## Reactive task generations
 
 Declare tasks directly during component setup. Prefer the compiler-inferred form:

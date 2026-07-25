@@ -55,6 +55,7 @@ export {
 	type ExactPolicyAuditReportOptions
 } from '../policy-report.js';
 export { preprocessPropPunning } from '../preprocess.js';
+export { preprocessComponentComputations } from '../component-computation/preprocess.js';
 export {
 	buildExactProvenance,
 	type ExactProvenanceEntry,

@@ -4,6 +4,7 @@ import ts from 'typescript';
 import { analyzeCallableEffects } from '../analysis/callable-effects.js';
 import { analyzeExactAnnotations } from '../annotations.js';
 import { analyzeModuleImports } from '../assets.js';
+import { preprocessComponentComputations } from '../component-computation/preprocess.js';
 import { exactComponentDescriptorTransformer } from '../descriptor-transform.js';
 import { createExactCompilerExplanation } from '../explanation.js';
 import { analyzeExpressionComponents } from '../expression/analysis.js';
@@ -26,15 +27,20 @@ import { createLineSourceMap } from '../source-maps.js';
 import { exactJsxTransformer } from '../transform/jsx/transformer.js';
 import type { ExactImportedComponentIR, TransformOptions, TransformResult } from '../types.js';
 
-import { analyzeSource } from './source-analysis.js';
+import { analyzeNormalizedSource } from './source-analysis.js';
 
 /** Analyzes generic dependencies and overlays eXact reactive provenance. */
 export function analyzeReactiveProvenance(source: string, options: TransformOptions = {}) {
 	const filename = options.filename ?? 'input.tsx';
 	return buildExactProvenance(
-		sessionExpressionModule(options.session, filename, preprocessPropPunning(source), {
-			root: options.root
-		})
+		sessionExpressionModule(
+			options.session,
+			filename,
+			preprocessComponentComputations(preprocessPropPunning(source), filename),
+			{
+				root: options.root
+			}
+		)
 	);
 }
 
@@ -45,8 +51,8 @@ export function transform(source: string, options: TransformOptions = {}): strin
 
 /** Transforms eXact TSX/JSX source into code, source map metadata, and compiler manifest. */
 export function transformSource(source: string, options: TransformOptions = {}): TransformResult {
-	const normalized = preprocessPropPunning(source);
 	const filename = options.filename ?? 'input.tsx';
+	const normalized = preprocessComponentComputations(preprocessPropPunning(source), filename);
 	const virtual = !path.isAbsolute(filename);
 	const importedManifests = validatedImportedManifests(
 		options.importedManifests,
@@ -82,7 +88,7 @@ export function transformSource(source: string, options: TransformOptions = {}):
 	);
 	const annotations = analyzeExactAnnotations(expressionModule);
 	throwLocatedCompilerDiagnostics(filename, sourceFile, annotations.diagnostics);
-	const manifest = analyzeSource(normalized, {
+	const manifest = analyzeNormalizedSource(normalized, {
 		filename,
 		root: options.root,
 		session: options.session,

@@ -1,5 +1,5 @@
 import { createCompiledVNode as __exactVNode, createCompiledFragment as __exactFragment, createExpression as __exactExpression, createDynamicChild as __exactDynamic, writeReactiveLazy as __exactWrite, updateReactiveValue as __exactUpdate, updateReactiveValueWithResult as __exactUpdateResult, deleteReactiveValue as __exactDelete, mutateReactiveArray as __exactArrayMutation, combineTaskSignal as __exactTaskCombinedSignal, taskAwait as __exactTaskAwait, stageTaskMutation as __exactStageTaskMutation } from "@exactjs/core";
-import type { Component } from '@exactjs/core';
+import { peek, type Component } from '@exactjs/core';
 import { exactClient } from "../../src/client-runtime.js";
 import { defaultDraft, draftUrl, normalizeDraft } from "../../src/model.js";
 import type { InitialModel, ProviderResult, RouteResult, ShipmentDraft } from "../../src/types.js";
@@ -10,14 +10,14 @@ const __exactComponentContract_1 = /* @__PURE__ */ Symbol.for("@exactjs/componen
 const __exactImplementation_CalculatorWorkspace_1 = function CalculatorWorkspace(this: Component<WorkspaceState>, props: {
     initial: InitialModel;
 }) {
-    __exactWrite(this.state, ["draft"], () => cloneDraft(props.initial.draft));
-    __exactWrite(this.state, ["providers"], () => props.initial.providers);
-    __exactWrite(this.state, ["route"], () => props.initial.route);
+    __exactWrite(this.state, ["draft"], () => peek(() => cloneDraft(props.initial.draft)));
+    __exactWrite(this.state, ["providers"], () => peek(() => props.initial.providers));
+    __exactWrite(this.state, ["route"], () => peek(() => props.initial.route));
     __exactWrite(this.state, ["revision"], () => 0);
     __exactWrite(this.state, ["loading"], () => []);
     __exactWrite(this.state, ["error"], () => undefined);
     __exactWrite(this.state, ["sort"], () => 'recommended');
-    __exactWrite(this.state, ["enabledFilters"], () => [...props.initial.configuredProviders]);
+    __exactWrite(this.state, ["enabledFilters"], () => peek(() => [...props.initial.configuredProviders]));
     __exactWrite(this.state, ["restored"], () => false);
     this.task(this.reactive(() => props.initial.explicitUrlState), (__exactDependency: boolean) => {
         if (__exactDependency)
@@ -89,17 +89,17 @@ const __exactImplementation_CalculatorWorkspace_1 = function CalculatorWorkspace
 export const CalculatorWorkspace: typeof __exactImplementation_CalculatorWorkspace_1 = /* @__PURE__ */ (() => Object.assign(__exactImplementation_CalculatorWorkspace_1, {
     [__exactComponentContract_1]: {
         version: 1,
-        id: "xJkpEMXLuqnwN65cmx7UNPD",
+        id: "x0sG9wwwWD4amYgX8E3QD0A",
         placement: "client",
         role: "client",
         implementations: [
-            { id: "xZoxrmFqT5oXZSeTaQ7WmTu", name: "CalculatorWorkspace", role: "root", implementation: __exactImplementation_CalculatorWorkspace_1 }
+            { id: "x7v8mz4CVe6tOxNA6zCOPPT", name: "CalculatorWorkspace", role: "root", implementation: __exactImplementation_CalculatorWorkspace_1 }
         ],
         continuations: [],
         executors: [],
         boundaries: [],
         resumption: {
-            componentId: "xJkpEMXLuqnwN65cmx7UNPD",
+            componentId: "x0sG9wwwWD4amYgX8E3QD0A",
             statePaths: [],
             valueCaptures: [],
             contexts: [],

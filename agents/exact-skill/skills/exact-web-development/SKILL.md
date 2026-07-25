@@ -28,6 +28,11 @@ When creating or repairing compiler configuration, read
 - Keep props parent-owned. Store local mutable data in `this.state`.
 - Write ordinary safe derived setup expressions. Let the compiler preserve and cache their
   reactive dependencies; use `this.reactive()` only when an explicit reactive value is useful.
+- Assign derived results directly to `this.state`. Reactive reads on the right become dependencies;
+  use `peek(() => ...)` when an assignment intentionally captures a one-time snapshot.
+- In an async component, await ordinary operations into state. Sequential awaits and
+  `try`/`catch`/`finally` remain ordinary TypeScript while the compiler owns cancellation and
+  atomic publication.
 - Assume the outer component function runs once per instance, not once per update.
 
 Read [components-and-reactivity.md](references/components-and-reactivity.md) before creating
@@ -70,7 +75,8 @@ Bun, Node, Fetch runtimes, server frameworks, serverless targets, or eXact plugi
   bindings when the target is one writable state location.
 - Use ordinary compiled `Array.map()` with an `@exact key` identity annotation, an explicit
   `key={...}` prop, or `this.map()` when an explicit selector is clearer.
-- Use `this.task(...)` for component-owned work. Declare it during setup, let the compiler infer
+- Use `this.task(...)` for component-owned effects, cleanup, nonblocking work, or explicit
+  scheduling and placement. Declare it during setup, let the compiler infer
   direct state, prop, and context reads, and let each generation own cancellation and cleanup.
   Pass explicit reactive dependencies only when they must be supplied indirectly.
 - Use `this.task.client(...)` or `this.task.server(...)` only when placement is architectural or

@@ -1,4 +1,4 @@
-import type { Component } from '@exactjs/core';
+import { peek, type Component } from '@exactjs/core';
 import { exactClient } from '../client-runtime.js';
 import { defaultDraft, draftUrl, normalizeDraft } from '../model.js';
 import type { InitialModel, ProviderResult, RouteResult, ShipmentDraft } from '../types.js';
@@ -12,14 +12,14 @@ export function CalculatorWorkspace(
 	this: Component<WorkspaceState>,
 	props: { initial: InitialModel }
 ) {
-	this.state.draft = cloneDraft(props.initial.draft);
-	this.state.providers = props.initial.providers;
-	this.state.route = props.initial.route;
+	this.state.draft = peek(() => cloneDraft(props.initial.draft));
+	this.state.providers = peek(() => props.initial.providers);
+	this.state.route = peek(() => props.initial.route);
 	this.state.revision = 0;
 	this.state.loading = [];
 	this.state.error = undefined;
 	this.state.sort = 'recommended';
-	this.state.enabledFilters = [...props.initial.configuredProviders];
+	this.state.enabledFilters = peek(() => [...props.initial.configuredProviders]);
 	this.state.restored = false;
 
 	this.task(() => {

@@ -159,6 +159,8 @@
           "id": "x3JLureiZflgJmddVWOBoBF",
           "placement": "server",
           "requestedPlacement": "server",
+          "priority": "normal",
+          "readiness": "nonblocking",
           "async": true,
           "browserEffects": false,
           "dependencies": [
@@ -436,6 +438,7 @@
       "componentId": "x7gsBV1RVj9VfGBkq4km6f7",
       "taskId": "x3JLureiZflgJmddVWOBoBF",
       "placement": "server",
+      "readiness": "nonblocking",
       "async": true,
       "activation": {
         "stateReads": [],

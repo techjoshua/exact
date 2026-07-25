@@ -24,6 +24,11 @@ function Label(this: Component<{}>, props: LabelProps) {
 	);
 }
 
+async function AsyncLabel(this: Component<{ text?: string }>, props: { text: string }) {
+	this.state.text = await Promise.resolve(props.text);
+	return () => <span>{this.state.text}</span>;
+}
+
 describe('@exactjs/jsx types', () => {
 	it('compiles TSX through the automatic runtime', () => {
 		const button = createRef<HTMLButtonElement>('button');
@@ -49,6 +54,7 @@ describe('@exactjs/jsx types', () => {
 						Go
 					</button>
 				</Label>
+				<AsyncLabel text="Loaded" />
 				<input
 					value={query.value}
 					onInput={(inputEvent) => {
@@ -76,6 +82,6 @@ describe('@exactjs/jsx types', () => {
 		if (!isCellVNode(vnode)) throw new Error('Expected cell vnode');
 		const inner = getCellVNode(vnode);
 		expect(inner.type).toBe('section');
-		expect(inner.children).toHaveLength(4);
+		expect(inner.children).toHaveLength(5);
 	});
 });

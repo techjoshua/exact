@@ -1,4 +1,5 @@
 import { type BoundModule } from '@exactjs/expressions';
+import { preprocessComponentComputations } from '../component-computation/preprocess.js';
 import type { ExactCompilerSession } from '../expression/project.js';
 import { expressionModuleFor } from '../expression/session.js';
 import { parseExactCompilerManifest } from '../manifest-parse.js';
@@ -159,8 +160,8 @@ export function analyzeSemanticGraph(
 	source: string,
 	options: Pick<TransformOptions, 'filename' | 'root' | 'session'> = {}
 ): ExactSemanticGraphIR {
-	const normalized = preprocessPropPunning(source);
 	const filename = options.filename ?? 'input.tsx';
+	const normalized = preprocessComponentComputations(preprocessPropPunning(source), filename);
 	return buildExpressionSemanticGraph(
 		sessionExpressionModule(options.session, filename, normalized, { root: options.root })
 	);

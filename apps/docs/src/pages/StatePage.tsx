@@ -71,6 +71,25 @@ subtotal.task((value, { signal }) => {
 // It can also be used directly in JSX.
 return () => <strong>\${subtotal}</strong>;`;
 
+const derivedAssignmentSource = `function Summary(
+  this: Component<SummaryState>,
+  props: { taxRate: number; currency: string }
+) {
+  // The state targets are outputs. The reads on the right are dependencies.
+  this.state.subtotal = this.state.quantity * this.state.price;
+
+  // Destructuring publishes related results in one transaction.
+  [this.state.tax, this.state.total] = calculateTotals(
+    this.state.subtotal,
+    props.taxRate
+  );
+
+  // peek() explicitly requests a one-time snapshot instead of synchronization.
+  this.state.initialCurrency = peek(() => props.currency);
+
+  return () => <Invoice state={this.state} />;
+}`;
+
 /** Documents direct reactive state, derived expressions, batching, and explicit cells. */
 export function StatePage(this: Component<{}>) {
 	return () => (
@@ -123,6 +142,21 @@ export function StatePage(this: Component<{}>) {
 				<p>
 					The explicit form is not “more reactive” than the inferred form. It is the visible
 					spelling of a boundary the compiler can normally derive from the code.
+				</p>
+			</section>
+			<section>
+				<h2>Assign derived results directly to state</h2>
+				<p>
+					When a setup assignment reads reactive state, props, or shared context, the compiler
+					treats the right side as a repeatable calculation and the state target as its output.
+					There is no need to wrap an assignment-only calculation in <code>this.task()</code>.
+				</p>
+				<CodeBlock source={derivedAssignmentSource} language="tsx" title="Summary.tsx" />
+				<p>
+					An assignment with no reactive inputs remains ordinary one-time initialization. Use{' '}
+					<code>peek()</code> when initialization intentionally snapshots a reactive input. Reading
+					the same state target on the right would create a feedback cycle, so the compiler asks you
+					to choose an explicit snapshot or task instead.
 				</p>
 			</section>
 			<section>

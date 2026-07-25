@@ -227,6 +227,20 @@ describe('@exactjs/compiler: JSX reactivity', () => {
 		expect(output).not.toContain('this.reactive(() => this.state.results)');
 	});
 
+	it('does not mistake the left operand of an ordinary binary expression for an assignment target', () => {
+		const output = transform(
+			`function Product(this: Component<{ left: number; right: number; result: number }>) {
+				this.task(() => {
+					this.state.result = this.state.left * this.state.right;
+				});
+				return () => <output>{this.state.result}</output>;
+			}`,
+			{ filename: 'Product.tsx' }
+		);
+		expect(output).toContain('this.reactive(() => this.state.left)');
+		expect(output).toContain('this.reactive(() => this.state.right)');
+	});
+
 	it('retains collection types on inferred task dependency parameters', () => {
 		const output = transform(`
       function View(this: Component<{ ids: string[] }>) {

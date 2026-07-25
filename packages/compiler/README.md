@@ -16,19 +16,35 @@ npx exactc --help
 Compiler diagnostics are part of the programming model: writable bindings, stable list identity,
 task placement, and server/client boundaries are validated before runtime.
 
-Async component source may assign one awaited task result directly to state:
+Synchronous setup assignments can express derived state directly:
+
+```tsx
+function Summary(this: Component<State>, props: { taxRate: number }) {
+	this.state.subtotal = this.state.quantity * this.state.price;
+	[this.state.tax, this.state.total] = calculateTotals(this.state.subtotal, props.taxRate);
+	this.state.initialCurrency = peek(() => props.currency);
+	return () => <Invoice state={this.state} />;
+}
+```
+
+Reactive reads on the right become dependencies; state destinations are effects. Destructured
+destinations publish as one transaction. `peek()` explicitly retains one-time snapshot semantics.
+
+Async component source may await ordinary operations into state:
 
 ```tsx
 async function Options(this: Component<State>) {
-	this.state.options = await this.task(() => getOptions(this.state.destination));
+	this.state.options = await getOptions(this.state.destination);
 	return () => <OptionsList options={this.state.options} />;
 }
 ```
 
 The compiler emits a synchronous component setup plus a repeatable blocking continuation, inferred
-dependencies, cancellation, and staged state publication. Arbitrary component-level awaits,
-derived targets, multiple sequential awaited tasks, and statements after the awaited assignment
-are diagnosed until their restart semantics can be preserved.
+dependencies, cancellation, and staged state publication. Sequential awaits and
+`try`/`catch`/`finally` preserve ordinary TypeScript control flow; writes publish only after the
+whole generation succeeds. Framework cancellation bypasses authored catches while still executing
+finally blocks. Use explicit `this.task()` calls for external effects, cleanup, placement,
+scheduling policy, or deliberately nonblocking work.
 
 Set `explain: true` with `transformSource()` to receive a stable,
 component-organized account of placement, transported captures, server-only

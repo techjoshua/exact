@@ -847,6 +847,8 @@
           "id": "xBSFY15Nxenh4yiPSTnHZOB",
           "placement": "server",
           "requestedPlacement": "server",
+          "priority": "normal",
+          "readiness": "nonblocking",
           "async": true,
           "browserEffects": false,
           "dependencies": [
@@ -1843,6 +1845,7 @@
       "componentId": "xEwpO8d5H94aI5YNcUZQaAX",
       "taskId": "xBSFY15Nxenh4yiPSTnHZOB",
       "placement": "server",
+      "readiness": "nonblocking",
       "async": true,
       "activation": {
         "stateReads": [],

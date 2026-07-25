@@ -82,6 +82,28 @@ this.task(subtotal, (value, { signal }) => {
 
 Do not wrap values in `useMemo`, `useCallback`, or ref-like boxes to preserve reactivity.
 
+## Derived state assignments
+
+Assign a calculation directly when its result belongs in inspectable component state:
+
+```ts
+this.state.subtotal = this.state.quantity * this.state.price;
+[this.state.tax, this.state.total] = calculateTotals(this.state.subtotal, props.taxRate);
+```
+
+The compiler treats state, prop, reactive context, and safe derived reads on the right as inputs.
+State locations on the left are outputs, and destructured outputs publish in one transaction. An
+assignment without reactive inputs remains ordinary initialization.
+
+Use `peek()` for an intentional one-time snapshot:
+
+```ts
+this.state.initialName = peek(() => props.name);
+```
+
+Do not create implicit feedback by reading the same target on the right. The compiler diagnoses
+that cycle; use a snapshot or an explicit task according to the intended behavior.
+
 ## Context and refs
 
 Use typed eXact context tokens with `this.setContext()` and `this.getContext()`. Use `this.ref()`

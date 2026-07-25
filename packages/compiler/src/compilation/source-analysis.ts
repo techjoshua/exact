@@ -3,6 +3,7 @@ import { analyzeCallableEffects } from '../analysis/callable-effects.js';
 import { analyzeExactAnnotations } from '../annotations.js';
 import { analyzeModuleImports } from '../assets.js';
 import { collectRawHtmlCapabilities } from '../capabilities.js';
+import { preprocessComponentComputations } from '../component-computation/preprocess.js';
 import { createExactComponentResumptions, createExactContinuations } from '../continuations.js';
 import { collectExpressionExportBindings } from '../exports.js';
 import { analyzeExpressionComponents } from '../expression/analysis.js';
@@ -64,7 +65,21 @@ export function analyzeSource(
 	source: string,
 	options: TransformOptions = {}
 ): ExactCompilerManifest {
-	const normalized = preprocessPropPunning(source);
+	const filename = options.filename ?? 'input.tsx';
+	const normalized = preprocessComponentComputations(preprocessPropPunning(source), filename);
+	return analyzeNormalizedSource(normalized, { ...options, filename });
+}
+
+/**
+ * Analyzes source that has already passed through eXact's syntax normalization.
+ *
+ * This internal compilation entry prevents transform workflows from parsing and normalizing the
+ * same source twice. Callers outside the compilation pipeline should use {@link analyzeSource}.
+ */
+export function analyzeNormalizedSource(
+	normalized: string,
+	options: TransformOptions
+): ExactCompilerManifest {
 	const policyOptions = { ...options, ...capabilityCompilationOptions(options) };
 	const filename = options.filename ?? 'input.tsx';
 	const sourceFile = ts.createSourceFile(
