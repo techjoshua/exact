@@ -2,8 +2,10 @@ import type { Component } from '@exactjs/core';
 import { CodeBlock } from '../CodeBlock.jsx';
 import {
 	compilerTourAuthoredSource,
-	compilerTourGeneratedSetupSource,
-	compilerTourGeneratedViewSource
+	compilerTourGeneratedClientSource,
+	compilerTourGeneratedServerSource,
+	compilerTourGeneratedViewSource,
+	compilerTourServerModuleSource
 } from '../examples/compiler-tour.js';
 import { Article, Callout } from './Article.jsx';
 
@@ -13,7 +15,7 @@ export function CompilerTourPage(this: Component<{}>) {
 		<Article
 			eyebrow="Learn"
 			title="What the compiler writes for you"
-			description="Follow one component from ordinary state, tasks, bindings, conditions, and keyed lists to the runtime machinery the compiler creates."
+			description="Follow one component across browser and server artifacts, from ordinary state and TSX to reactive DOM work and a compiler-generated protocol."
 			previous={{ path: '/learn/state', label: 'State & derived values' }}
 			next={{ path: '/learn/lists', label: 'Keyed lists' }}
 		>
@@ -21,14 +23,24 @@ export function CompilerTourPage(this: Component<{}>) {
 				<h2>The component remains application-shaped</h2>
 				<p>
 					This example deliberately combines several features that are easy to read in source but
-					require careful ownership at runtime: derived state, a cancelable deferred search, typed
-					two-way bindings, reactive text and attributes, a conditional range, keyed identity, and
-					an event that writes state.
+					require careful ownership at runtime: a server-resident repository, a cancelable deferred
+					search, a browser-only effect, derived state, typed two-way bindings, a conditional range,
+					and keyed identity.
 				</p>
+				<CodeBlock
+					source={compilerTourServerModuleSource}
+					language="ts"
+					title="catalog.exact.server.ts"
+				/>
 				<CodeBlock source={compilerTourAuthoredSource} language="tsx" title="CatalogEditor.tsx" />
+				<p>
+					The server context read and the browser <code>document</code> write give the compiler
+					enough information to place both tasks. The author does not write transport code or
+					manually duplicate the component.
+				</p>
 			</section>
 			<section>
-				<h2>Setup becomes owned reactive work</h2>
+				<h2>The browser receives a continuation, not the repository</h2>
 				<p>
 					This is a compiler-faithful lowering, formatted and annotated for people rather than
 					copied byte-for-byte from a build artifact. Unchanged type declarations are omitted,
@@ -37,9 +49,23 @@ export function CompilerTourPage(this: Component<{}>) {
 					machinery the compiler creates.
 				</p>
 				<CodeBlock
-					source={compilerTourGeneratedSetupSource}
+					source={compilerTourGeneratedClientSource}
 					language="ts"
-					title="Generated setup, annotated"
+					title="Generated browser setup, annotated"
+				/>
+			</section>
+			<section>
+				<h2>The server receives an allowlisted executor</h2>
+				<p>
+					The matching server artifact retains the repository import and executable search body. The
+					request carries only compiler-selected public dependencies. The executor resolves trusted
+					context locally, injects cancellation, validates the shared result, and returns the state
+					projection that the browser runtime applies to the same component instance.
+				</p>
+				<CodeBlock
+					source={compilerTourGeneratedServerSource}
+					language="ts"
+					title="Generated server executor, annotated"
 				/>
 			</section>
 			<section>
@@ -75,9 +101,21 @@ export function CompilerTourPage(this: Component<{}>) {
 					</p>
 					<code>Search task</code>
 					<p>
-						The query reactive value drives a deferred generation. Task context owns cancellation,
-						the compiler passes its signal into the recognized optional API argument, and writes
-						made by stale or aborted asynchronous work cannot publish.
+						The query drives a deferred server generation. The browser dispatches an opaque
+						continuation; the server resolves its repository context, and cancellation crosses the
+						transport boundary.
+					</p>
+					<code>Server isolation</code>
+					<p>
+						The repository, credentials, database or API SDK, and their dependencies remain in the
+						server artifact. Only the explicitly shared product data can return to client-visible
+						state.
+					</p>
+					<code>Client task</code>
+					<p>
+						The title effect remains entirely in the browser artifact. Its use of{' '}
+						<code>document</code> determines placement, while the compiler infers selected product
+						name as its only dependency.
 					</p>
 					<code>Input bindings</code>
 					<p>
@@ -94,13 +132,20 @@ export function CompilerTourPage(this: Component<{}>) {
 						The map callback retains product identity by key while expressions inside each item keep
 						their own reactive ownership.
 					</p>
+					<code>SSR and resumption</code>
+					<p>
+						The server artifact can settle the same continuation for the initial HTML. Its public
+						state is resumed in the browser, so hydration adopts the rendered DOM without shipping
+						or rerunning the repository client.
+					</p>
 				</div>
 			</section>
 			<Callout title="Generated code is an implementation contract, not an authoring API">
 				<p>
 					The helper names are private compiler/runtime coordination. Applications should use the
 					authored form and rely on compiler diagnostics. The useful promise is semantic: precise
-					dependencies, deterministic ownership, cancellation, stable identity, and minimal updates.
+					dependencies, deterministic ownership, server isolation, cancellation, stable identity,
+					and minimal updates.
 				</p>
 			</Callout>
 		</Article>

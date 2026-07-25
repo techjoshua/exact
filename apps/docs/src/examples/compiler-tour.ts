@@ -1,7 +1,32 @@
+/** Server-only context contract used by the compiler tour component. */
+export const compilerTourServerModuleSource = `import { createContext } from '@exactjs/core';
+
+export type Product = { id: string; name: string; price: number };
+
+export interface CatalogRepository {
+  /**
+   * The repository remains server-only, but this method's plain-data
+   * result is allowed to cross into client-visible state.
+   * @exact shared
+   */
+  search(
+    query: string,
+    options?: { signal?: AbortSignal }
+  ): Promise<Product[]>;
+}
+
+export const CatalogRepositoryContext =
+  createContext<CatalogRepository>('catalog.repository', {
+    scope: 'request',
+    reactive: false
+  });`;
+
 /** Authored eXact component used by the compiler tour. */
 export const compilerTourAuthoredSource = `import type { Component } from '@exactjs/core';
-
-type Product = { id: string; name: string; price: number };
+import {
+  CatalogRepositoryContext,
+  type Product
+} from './catalog.exact.server.js';
 
 type CatalogState = {
   query: string;
@@ -9,34 +34,35 @@ type CatalogState = {
   products: Product[];
   selected?: Product;
   subtotal: number;
-  loading: boolean;
 };
-
-declare function searchCatalog(
-  query: string,
-  options?: { signal?: AbortSignal }
-): Promise<Product[]>;
 
 export function CatalogEditor(this: Component<CatalogState>) {
   this.state.query = '';
   this.state.quantity = 1;
   this.state.products = [];
-  this.state.loading = false;
 
   this.state.subtotal =
     this.state.quantity * (this.state.selected?.price ?? 0);
 
   this.task.deferred(async () => {
+    // This request-scoped context contains the database/API client.
+    // Its use makes this continuation server-only.
+    const catalog = this.getContext(CatalogRepositoryContext);
     const query = this.state.query;
-    this.state.loading = true;
-    this.state.products = query
-      ? await searchCatalog(query)
+    const products = query
+      ? await catalog.search(query)
       : [];
-    this.state.loading = false;
+
+    this.state.products = products;
+  });
+
+  this.task(() => {
+    // Use of document makes this ordinary task client-only.
+    document.title = this.state.selected?.name ?? 'Catalog';
   });
 
   return () => (
-    <section aria-busy={this.state.loading}>
+    <section>
       <label>
         Search
         <input type="search" value:input={this.state.query} />
@@ -53,7 +79,10 @@ export function CatalogEditor(this: Component<CatalogState>) {
         {this.state.subtotal}
       </output>
 
-      {this.state.loading && <p role="status">Searching…</p>}
+      {this.state.query &&
+        this.state.products.length === 0 && (
+          <p role="status">No matches</p>
+        )}
 
       <ul>
         {this.map(this.state.products, (product) => (
@@ -74,30 +103,27 @@ export function CatalogEditor(this: Component<CatalogState>) {
 }`;
 
 /**
- * Compiler-faithful setup lowering, formatted and annotated for explanation.
+ * Compiler-faithful browser lowering, formatted and annotated for explanation.
  *
  * Unchanged application types and private generated IDs are omitted.
  */
-export const compilerTourGeneratedSetupSource = `import {
+export const compilerTourGeneratedClientSource = `import {
   createExpression as __exactExpression,
   createDynamicChild as __exactDynamic,
   createCompiledVNode as __exactVNode,
+  dispatchComponentContinuation as __exactDispatchContinuation,
   markComponentContinuationTask as __exactContinuationTask,
-  taskAwait as __exactTaskAwait,
-  withTaskSignal as __exactTaskOptionsSignal,
   writeReactiveLazy as __exactWrite
 } from '@exactjs/core';
 import type { Component } from '@exactjs/core';
 
-// Product, CatalogState, and searchCatalog retain their authored declarations.
+// The server-only context import and its dependency graph are absent.
 
 export function CatalogEditor(this: Component<CatalogState>) {
   // These writes still run once during component setup.
-  // __exactWrite preserves assignment semantics and publishes reactivity.
   __exactWrite(this.state, ['query'], () => '');
   __exactWrite(this.state, ['quantity'], () => 1);
   __exactWrite(this.state, ['products'], () => []);
-  __exactWrite(this.state, ['loading'], () => false);
 
   // A derived assignment becomes an owned computation:
   // - quantity and selected.price are dependencies;
@@ -117,36 +143,107 @@ export function CatalogEditor(this: Component<CatalogState>) {
     )
   );
 
-  // Reading query makes it the deferred task's inferred dependency.
+  // The server body becomes a small transport stub. Only query is captured.
   this.task.deferred(
     this.reactive(() => this.state.query),
     __exactContinuationTask(
       '<catalog-search>',
-      async (query: string, { signal: __exactSignal }) => {
-        __exactWrite(this.state, ['loading'], () => true);
-
-        const products = query
-          ? await __exactTaskAwait(
-              __exactSignal,
-              searchCatalog(
-                query,
-                // The authored call omitted this argument. The compiler
-                // recognized the optional signal-bearing options object.
-                __exactTaskOptionsSignal(undefined, __exactSignal)
-              )
-            )
-          : [];
-
-        // The resolved value is published only after the await completes.
-        __exactWrite(this.state, ['products'], () => products);
-
-        __exactWrite(this.state, ['loading'], () => false);
-      }
+      (query: string, { signal: __exactSignal }) =>
+        __exactDispatchContinuation(
+          this,
+          '<catalog-search>',
+          [query],
+          __exactSignal,
+          []
+        )
     )
+  );
+
+  // The browser-only task remains local and observes only selected.name.
+  this.task(
+    this.reactive(() => this.state.selected?.name),
+    (selectedName: string | undefined) => {
+      document.title = selectedName ?? 'Catalog';
+    }
   );
 
   return () => /* generated view below */;
 }`;
+
+/**
+ * Compiler-faithful server executor, formatted and annotated for explanation.
+ *
+ * Contract-registration boilerplate and private generated IDs are shortened.
+ */
+export const compilerTourGeneratedServerSource = `import { CatalogRepositoryContext } from './catalog.exact.server.js';
+import {
+  taskAwait as __exactTaskAwait,
+  withTaskSignal as __exactTaskOptionsSignal,
+  writeReactiveLazy as __exactWrite
+} from '@exactjs/core';
+
+const CatalogEditorContract = {
+  continuations: [
+    {
+      id: '<catalog-search>',
+      readiness: 'nonblocking',
+      dependencies: [{ source: 'state' }],
+      stateReads: [{ path: 'query', kind: 'read' }],
+      stateWrites: [{ path: 'products', kind: 'write' }],
+      serverContexts: ['CatalogRepositoryContext']
+    }
+  ],
+
+  executors: [
+    {
+      id: '<catalog-search>',
+      async execute(activation: any, execution: any) {
+        // The browser sent the compiler-selected query dependency.
+        const query = activation.dependencies[0] as string;
+
+        // The repository is resolved from trusted request context. It is
+        // never accepted from, or serialized back to, the browser.
+        const catalog = execution.getContext(
+          CatalogRepositoryContext,
+          'CatalogRepositoryContext'
+        );
+
+        const products = query
+          ? await __exactTaskAwait(
+              execution.signal,
+              catalog.search(
+                query,
+                // The compiler injects cancellation into the optional
+                // signal-bearing argument.
+                __exactTaskOptionsSignal(
+                  undefined,
+                  execution.signal
+                )
+              )
+            )
+          : [];
+
+        const state = { ...activation.state };
+        __exactWrite(state, ['products'], () => products);
+
+        // The @exact shared return contract and serialization policy are
+        // validated before this projected state crosses the boundary.
+        return {
+          state,
+          contexts: {}
+        };
+      }
+    }
+  ]
+};
+
+// Conceptual exchange:
+// request  -> { operation: '<catalog-search>',
+//               dependencies: ['desk'], state: { query: 'desk' } }
+// response <- { state: { products: [{ id: 'p1', name: 'Desk', price: 499 }] } }
+//
+// CatalogRepositoryContext, credentials, database clients, and query-library
+// dependencies exist only in this server artifact.`;
 
 /**
  * Compiler-faithful view lowering, formatted and annotated for explanation.
@@ -157,12 +254,7 @@ export function CatalogEditor(this: Component<CatalogState>) {
 export const compilerTourGeneratedViewSource = `return () =>
   __exactVNode(
     'section',
-    {
-      'data-exact-id': '<section>',
-
-      // Only this attribute observes loading.
-      'aria-busy': __exactExpression(() => this.state.loading)
-    },
+    { 'data-exact-id': '<section>' },
 
     __exactVNode(
       'label',
@@ -236,13 +328,14 @@ export const compilerTourGeneratedViewSource = `return () =>
     // Structural control flow receives a stable replaceable range.
     __exactDynamic(
       () =>
-        this.state.loading &&
+        this.state.query &&
+        this.state.products.length === 0 &&
         __exactVNode(
           'p',
           { 'data-exact-id': '<status>', role: 'status' },
-          'Searching…'
+          'No matches'
         ),
-      '<loading-range>'
+      '<status-range>'
     ),
 
     __exactVNode(
