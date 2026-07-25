@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { handleExactRequest, type ExactRemoteBuildRegistration } from './index.js';
+import {
+	defineExactActionContract,
+	handleExactRequest,
+	type ExactRemoteBuildRegistration
+} from './index.js';
 import { context } from './test-support/server.js';
 
 const buildKey = '0123456789abcdef0123456789abcdef01234567';
@@ -94,17 +98,14 @@ function registration(
 			Object.entries(roots).map(([root, value]) => [
 				root,
 				{
-					manifest: {
+					contract: {
 						version: 1,
 						actions: {
-							submit: {
-								id: 'submit',
-								placement: 'server',
-								stateContract: {
-									writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
-								}
-							}
-						}
+							submit: defineExactActionContract('submit', {
+								writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
+							})
+						},
+						boundaries: {}
 					},
 					actions: {
 						submit: () => {

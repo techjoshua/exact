@@ -12,8 +12,11 @@ export function renderHydrationScript(options: HydrationScriptOptions = {}): str
 			endpoint: options.endpoint,
 			endpoints: options.endpoints,
 			state: options.state,
-			stateContracts: options.stateContracts,
-			actionBoundaries: options.actionBoundaries
+			continuations: options.continuations,
+			publicContexts: options.publicContexts,
+			executionRoot: options.executionRoot,
+			binding: options.binding,
+			buildKey: options.buildKey
 		}),
 		{ kind: 'hydration' },
 		(options.outputExtensions ?? []) as readonly ExactOutputExtension<Record<string, unknown>>[]

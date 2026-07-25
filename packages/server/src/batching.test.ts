@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { handleExactRequest } from './index.js';
+import {
+	defineExactActionContract,
+	defineExactBoundaryContract,
+	handleExactRequest
+} from './index.js';
 import { dispatchExactBatch } from './streaming.js';
 import { context, readNextStreamLine, readRemainingStreamEvents } from './test-support/server.js';
 
@@ -68,7 +72,7 @@ describe('@exactjs/server batching', () => {
 				}
 			},
 			context({
-				manifest: actionStateManifest('slow'),
+				contract: actionStateContract('slow'),
 				actions: {
 					'allowed-action': async () => {
 						started.push('slow');
@@ -207,7 +211,7 @@ describe('@exactjs/server batching', () => {
 				}
 			},
 			context({
-				manifest: actionStateManifest('slow'),
+				contract: actionStateContract('slow'),
 				actions: {
 					'allowed-action': async () => {
 						await slow;
@@ -415,20 +419,16 @@ describe('@exactjs/server batching', () => {
 	});
 });
 
-function actionStateManifest(path: string) {
+function actionStateContract(path: string) {
 	return {
 		version: 1 as const,
 		actions: {
-			'allowed-action': {
-				id: 'allowed-action',
-				placement: 'server' as const,
-				stateContract: {
-					writes: [{ path, kind: 'write' as const, confidence: 'exact' as const }]
-				}
-			}
+			'allowed-action': defineExactActionContract('allowed-action', {
+				writes: [{ path, kind: 'write', confidence: 'exact' }]
+			})
 		},
 		boundaries: {
-			'allowed-boundary': { id: 'allowed-boundary' }
+			'allowed-boundary': defineExactBoundaryContract('allowed-boundary')
 		}
 	};
 }

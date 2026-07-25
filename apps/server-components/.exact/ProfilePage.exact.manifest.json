@@ -161,6 +161,12 @@
           "requestedPlacement": "server",
           "async": true,
           "browserEffects": false,
+          "dependencies": [
+            {
+              "index": 0,
+              "source": "props"
+            }
+          ],
           "reads": [],
           "writes": [
             {
@@ -311,7 +317,8 @@
           "confidence": "exact"
         }
       ],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "xLxVC5yWYBM94WNxtlHu-6h",
@@ -357,7 +364,8 @@
         }
       ],
       "stateWrites": [],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "xsjdkoJXXjZ9HLB4AMYg3Vz",
@@ -386,7 +394,8 @@
           "confidence": "exact"
         }
       ],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "xzH2zYjcnHxk2iPMSLNYn12",
@@ -416,7 +425,65 @@
           "confidence": "exact"
         }
       ],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
+    }
+  ],
+  "continuations": [
+    {
+      "id": "x3JLureiZflgJmddVWOBoBF",
+      "kind": "task",
+      "componentId": "x7gsBV1RVj9VfGBkq4km6f7",
+      "taskId": "x3JLureiZflgJmddVWOBoBF",
+      "placement": "server",
+      "async": true,
+      "activation": {
+        "stateReads": [],
+        "dependencies": [
+          {
+            "index": 0,
+            "source": "props"
+          }
+        ],
+        "serverContexts": [],
+        "publicContexts": []
+      },
+      "effects": {
+        "stateWrites": [
+          {
+            "path": "status",
+            "kind": "write",
+            "confidence": "exact"
+          }
+        ],
+        "contextWrites": [],
+        "boundaries": [
+          "xjbD874UpZxqjxcAu1_iYpK"
+        ]
+      },
+      "ownership": {
+        "componentId": "x7gsBV1RVj9VfGBkq4km6f7",
+        "lifetime": "component"
+      },
+      "cancellation": "abort-signal"
+    }
+  ],
+  "resumptions": [
+    {
+      "componentId": "x7gsBV1RVj9VfGBkq4km6f7",
+      "serverRender": {
+        "stateReads": [],
+        "serverContexts": []
+      },
+      "client": {
+        "statePaths": [
+          "saves"
+        ],
+        "valueCaptures": [],
+        "boundaries": [
+          "xjbD874UpZxqjxcAu1_iYpK"
+        ]
+      }
     }
   ],
   "policy": {
@@ -429,7 +496,7 @@
         "path": "saves",
         "componentId": "x7gsBV1RVj9VfGBkq4km6f7",
         "policy": {
-          "residency": "isomorphic",
+          "residency": "shared",
           "secret": false
         },
         "source": "inference"
@@ -444,7 +511,7 @@
         ],
         "to": "x7gsBV1RVj9VfGBkq4km6f7:client-island:1:saves",
         "policy": {
-          "residency": "isomorphic",
+          "residency": "shared",
           "secret": false
         },
         "boundary": "client-island",
@@ -470,7 +537,8 @@
           }
         ]
       },
-      "contextContract": []
+      "serverContextContract": [],
+      "publicContextContract": []
     }
   },
   "diagnostics": [

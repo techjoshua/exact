@@ -3,6 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { createExactClient } from './index.js';
+import { testContinuation } from './test-support/responses.js';
 
 describe('@exactjs/hydrate batching', () => {
 	it('batches compatible operations from different client roots while preserving roots', async () => {
@@ -32,6 +33,7 @@ describe('@exactjs/hydrate batching', () => {
 			endpoint: '/__exact',
 			binding: 'billing',
 			buildKey: '0123456789abcdef0123456789abcdef01234567',
+			continuations: { save: testContinuation('save') },
 			fetch
 		};
 		const leftClient = createExactClient(left, {
@@ -95,6 +97,9 @@ describe('@exactjs/hydrate batching', () => {
 		const client = createExactClient(container, {
 			endpoint: '/__exact',
 			state: { saved: false },
+			continuations: {
+				'save-title': testContinuation('save-title', { boundaries: ['title'] })
+			},
 			fetch
 		});
 		const action = client.invokeAction('save-title', { title: 'New' });
@@ -112,7 +117,8 @@ describe('@exactjs/hydrate batching', () => {
 						root: 'page',
 						id: 'save-title',
 						payload: { title: 'New' },
-						state: { saved: false }
+						state: { saved: false },
+						boundaryHtmls: { title: 'Old' }
 					},
 					{
 						type: 'refresh',
@@ -176,6 +182,10 @@ describe('@exactjs/hydrate batching', () => {
 				boundaries: {
 					'remote-panel': 'https://remote.test/__exact'
 				}
+			},
+			continuations: {
+				'save-title': testContinuation('save-title', { boundaries: ['title'] }),
+				'save-remote': testContinuation('save-remote')
 			},
 			fetch
 		});
@@ -246,6 +256,9 @@ describe('@exactjs/hydrate batching', () => {
 
 		const client = createExactClient(container, {
 			endpoint: '/__exact',
+			continuations: {
+				'save-title': testContinuation('save-title', { boundaries: ['title'] })
+			},
 			fetch
 		});
 		const action = client.invokeAction('save-title');

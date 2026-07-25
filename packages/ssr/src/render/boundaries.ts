@@ -118,8 +118,11 @@ export function shouldEmitDocumentHydration(options: RenderToDocumentStreamOptio
 		options.endpoint !== undefined ||
 		options.endpoints !== undefined ||
 		options.state !== undefined ||
-		options.stateContracts !== undefined ||
-		options.actionBoundaries !== undefined ||
+		options.continuations !== undefined ||
+		options.publicContexts !== undefined ||
+		options.executionRoot !== undefined ||
+		options.binding !== undefined ||
+		options.buildKey !== undefined ||
 		options.scriptId !== undefined ||
 		options.nonce !== undefined
 	);

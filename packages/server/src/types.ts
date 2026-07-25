@@ -1,4 +1,10 @@
-import type { ComponentContextValues, ContextToken, Logger } from '@exactjs/core';
+import type {
+	ComponentContextValues,
+	ContextToken,
+	ExactComponentBoundaryContract,
+	ExactComponentContinuationContract,
+	Logger
+} from '@exactjs/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type { ExactOutputExtension } from '@exactjs/plugin-api';
 import type { RequestContextValue, RequestResponseState } from '@exactjs/request';
@@ -6,46 +12,19 @@ import type { RequestContextValue, RequestResponseState } from '@exactjs/request
 /** Defines the exact invocation kind type contract. */
 export type ExactInvocationKind = 'action' | 'refresh';
 
-/** Defines the exact server manifest type contract. */
-export type ExactServerManifest = {
+/** Immutable allowlist composed from explicitly imported executor artifacts. */
+export type ExactExecutorContract = {
 	version: 1;
-	pluginRegistryFingerprint?: string;
 	endpoint?: string;
 	endpoints?: ExactEndpointRoutes;
-	actions?: Record<string, ExactManifestAction>;
-	boundaries?: Record<string, ExactManifestBoundary>;
-	actionBoundaries?: Record<string, string[]>;
+	actions: Record<string, ExactComponentContinuationContract>;
+	boundaries: Record<string, ExactComponentBoundaryContract>;
 };
 
 /** Defines the exact endpoint routes type contract. */
 export type ExactEndpointRoutes = {
 	actions?: Record<string, string>;
 	boundaries?: Record<string, string>;
-};
-
-/** Defines the exact manifest action type contract. */
-export type ExactManifestAction = {
-	id: string;
-	componentId?: string;
-	taskId?: string;
-	placement?: 'server' | 'isomorphic';
-	stateContract?: ExactStateContract;
-	/** Tokens the handler may resolve from the trusted server context scope. */
-	serverContextContract?: ExactContextEffect[];
-	/** Explicitly public context projections accepted from the client. */
-	publicContextContract?: ExactContextEffect[];
-};
-
-/** Defines the exact manifest boundary type contract. */
-export type ExactManifestBoundary = {
-	id: string;
-	name?: string;
-	componentId?: string;
-	ownerComponentId?: string;
-	renderEdgeId?: string;
-	renderEdgeIndex?: number;
-	renderPath?: string;
-	kind?: string;
 };
 
 /** Defines the exact state contract type contract. */
@@ -68,46 +47,12 @@ export type ExactStatePath = {
 	confidence: 'exact' | 'broad' | 'unknown';
 };
 
-/** Defines the exact compiler manifest like type contract. */
-export type ExactCompilerManifestLike = {
-	version: 1;
-	pluginRegistry?: {
-		fingerprint: string;
-	};
-	serverActions?: Record<
-		string,
-		{
-			id: string;
-			componentId?: string;
-			taskId?: string;
-			placement?: 'server' | 'isomorphic' | 'client' | 'unknown';
-			stateContract?: ExactStateContract;
-			serverContextContract?: ExactContextEffect[];
-			publicContextContract?: ExactContextEffect[];
-		}
-	>;
-	components?: readonly {
-		id: string;
-		placement?: 'server' | 'isomorphic' | 'client' | 'unknown';
-	}[];
-	boundaries?: readonly {
-		id: string;
-		name?: string;
-		componentId?: string;
-		ownerComponentId?: string;
-		renderEdgeId?: string;
-		renderEdgeIndex?: number;
-		renderPath?: string;
-		kind?: string;
-	}[];
-};
-
-/** Configures create exact server manifest. */
-export type CreateExactServerManifestOptions = {
+/** Configures executor composition from imported component contracts. */
+export type ComposeExactExecutorContractOptions = {
 	endpoint?: string;
 	endpoints?: ExactEndpointRoutes;
-	actions?: Record<string, ExactManifestAction>;
-	boundaries?: Record<string, ExactManifestBoundary>;
+	actions?: Record<string, ExactComponentContinuationContract>;
+	boundaries?: Record<string, ExactComponentBoundaryContract>;
 };
 
 /** Defines the exact request like type contract. */
@@ -221,7 +166,7 @@ export type ExactInvocationRequest = {
 
 /** Selects the manifest and handlers for one execution root in a retained build. */
 export type ExactRemoteRootDispatch = {
-	manifest: ExactServerManifest;
+	contract: ExactExecutorContract;
 	actions?: ExactServerContext['actions'];
 	refreshBoundaries?: ExactServerContext['refreshBoundaries'];
 };
@@ -362,7 +307,7 @@ export type ExactPatch =
 
 /** Carries the context required by exact server. */
 export type ExactServerContext = ExactServerContextConfiguration & {
-	manifest: ExactServerManifest;
+	contract: ExactExecutorContract;
 	actions?: Record<
 		string,
 		(
@@ -437,12 +382,11 @@ export type ExactServerContext = ExactServerContextConfiguration & {
 /** Reports an observable server profile event. */
 export type ServerProfileEvent = ExactProfileEvent<'server', 'request'>;
 
-/** Configures exact hydration manifest. */
-export type ExactHydrationManifestConfig = {
-	pluginRegistryFingerprint?: string;
+/** Browser-visible configuration derived from an executor contract and SSR state. */
+export type ExactHydrationConfig = {
 	endpoint?: string;
 	endpoints?: ExactEndpointRoutes;
 	state?: unknown;
-	stateContracts?: Record<string, ExactStateContract>;
-	actionBoundaries?: Record<string, readonly string[]>;
+	continuations?: Record<string, ExactComponentContinuationContract>;
+	publicContexts?: Record<string, unknown>;
 };

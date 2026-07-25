@@ -17,10 +17,10 @@ describe('@exactjs/hydrate response-validation', () => {
 		});
 	});
 
-	it('ignores malformed state contracts in the hydration bootstrap script', () => {
+	it('ignores malformed continuation contracts in the hydration bootstrap script', () => {
 		const root = document.createElement('main');
 		root.innerHTML =
-			'<script type="application/json" id="__exact_hydration">{"endpoint":"/__exact","stateContracts":{"save":{"reads":[{"path":"project.id","kind":"inspect","confidence":"exact"}]}}}</script>';
+			'<script type="application/json" id="__exact_hydration">{"endpoint":"/__exact","continuations":{"save":{"id":"save","componentId":"test:save","stateReads":[{"path":"project.id","kind":"inspect","confidence":"exact"}],"stateWrites":[],"publicContexts":[],"serverContexts":[],"boundaries":[]}}}</script>';
 
 		expect(readExactHydrationConfig(root)).toEqual({
 			endpoint: '/__exact'

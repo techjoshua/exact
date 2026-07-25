@@ -12,8 +12,8 @@ import type {
 } from './types.js';
 import {
 	boundaryHintsAllowed,
+	isExecutorAllowed,
 	isInvocationResultSafe,
-	isManifestAllowed,
 	publicContextMatchesContract,
 	stateResponseMatchesContract,
 	stateMatchesContract
@@ -139,18 +139,18 @@ async function dispatchExactOperationAfterSecurity(
 
 	// Compiler-emitted opaque IDs form the execution boundary; module paths and
 	// function names supplied by a client are never resolved dynamically.
-	if (!isManifestAllowed(input, context.manifest)) {
+	if (!isExecutorAllowed(input, context.contract)) {
 		return reject(404, 'not_found', 'rejected unknown exact invocation id');
 	}
-	if (!boundaryHintsAllowed(input, context.manifest)) {
+	if (!boundaryHintsAllowed(input, context.contract)) {
 		return reject(400, 'bad_request', 'rejected exact invocation with unknown boundary hints');
 	}
 
-	const action = input.type === 'action' ? context.manifest.actions?.[input.id] : undefined;
-	if (action?.stateContract && !stateMatchesContract(input.state, action.stateContract)) {
+	const action = input.type === 'action' ? context.contract.actions[input.id] : undefined;
+	if (action && !stateMatchesContract(input.state, action.stateReads)) {
 		return reject(400, 'bad_request', 'rejected exact invocation with mismatched state contract');
 	}
-	if (!publicContextMatchesContract(input.publicContext, action?.publicContextContract)) {
+	if (!publicContextMatchesContract(input.publicContext, action?.publicContexts ?? [])) {
 		return reject(400, 'bad_request', 'rejected mismatched public context projection');
 	}
 
@@ -185,7 +185,7 @@ async function dispatchExactOperationAfterSecurity(
 		}
 		if (
 			input.type === 'action' &&
-			!stateResponseMatchesContract(result.state, action?.stateContract)
+			!stateResponseMatchesContract(result.state, action?.stateWrites ?? [])
 		) {
 			return reject(
 				500,

@@ -1,12 +1,12 @@
+import type { ExactContinuationStatePathContract } from '@exactjs/core';
 import { isSafeObjectKey } from './safety.js';
-import type { ExactStateContract } from './types.js';
 
 type MutableStateContainer = Record<string, unknown> | unknown[];
 type StateReadContract = {
-	readonly reads?: readonly NonNullable<ExactStateContract['reads']>[number][];
+	readonly reads?: readonly ExactContinuationStatePathContract[];
 };
 type StateWriteContract = {
-	readonly writes?: readonly NonNullable<ExactStateContract['writes']>[number][];
+	readonly writes?: readonly ExactContinuationStatePathContract[];
 };
 
 /** Returns only the client state paths required by an exact server action contract. */
@@ -14,13 +14,14 @@ export function stateForContract(state: unknown, contract: StateReadContract | u
 	if (!contract) return state;
 	const reads =
 		contract.reads?.filter((read) => read.kind === 'read' && read.confidence === 'exact') ?? [];
-	if (!reads.length) return {};
+	if (!reads.length) return undefined;
+	if (reads.some((read) => read.path === '*')) return state;
 	const output: Record<string, unknown> = {};
 	for (const read of reads) {
 		const value = getPath(state, read.path);
 		if (value !== undefined) setPath(output, read.path, value);
 	}
-	return output;
+	return Object.keys(output).length ? output : undefined;
 }
 
 /**

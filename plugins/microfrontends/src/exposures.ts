@@ -4,7 +4,9 @@ import {
 	type ExactArtifactGraph
 } from '@exactjs/compiler';
 import {
-	createExactServerManifest,
+	composeExactExecutorContract,
+	defineExactActionContract,
+	defineExactBoundaryContract,
 	type ExactRemoteBuildRegistration,
 	type ExactServerContext
 } from '@exactjs/server';
@@ -47,18 +49,16 @@ export function createExactRemoteBuildRegistration(
 	const entries: Array<[string, ExactRemoteBuildRegistration['roots'][string]]> = [];
 	for (const exposure of plan.exposures) {
 		const selected = selectedExposureGraph(exposure.exposure, exposure.component, graph, options);
-		const manifest = createExactServerManifest(
-			selected.artifacts.map((artifact) => artifact.manifest)
-		);
+		const contract = exposureExecutorContract(selected);
 		const handlers = options.handlers?.[exposure.root];
 		entries.push([
 			exposure.root,
 			Object.freeze({
-				manifest,
-				actions: selectHandlers(handlers?.actions, Object.keys(manifest.actions ?? {})),
+				contract,
+				actions: selectHandlers(handlers?.actions, Object.keys(contract.actions)),
 				refreshBoundaries: selectHandlers(
 					handlers?.refreshBoundaries,
-					Object.keys(manifest.boundaries ?? {})
+					Object.keys(contract.boundaries)
 				)
 			})
 		]);
@@ -67,6 +67,32 @@ export function createExactRemoteBuildRegistration(
 		buildKey: plan.buildKey,
 		roots: Object.freeze(Object.fromEntries(entries))
 	});
+}
+
+/** Composes private executor authority from the selected build-time graph. */
+function exposureExecutorContract(graph: ExactArtifactGraph) {
+	const actions: Record<string, ReturnType<typeof defineExactActionContract>> = {};
+	const boundaries: Record<string, ReturnType<typeof defineExactBoundaryContract>> = {};
+	for (const artifact of graph.artifacts) {
+		for (const [id, action] of Object.entries(artifact.manifest.serverActions)) {
+			const continuation = artifact.manifest.continuations.find((entry) => entry.id === id);
+			actions[id] = defineExactActionContract(id, {
+				componentId: action.componentId,
+				reads: action.stateContract.reads,
+				writes: action.stateContract.writes,
+				publicContexts: action.publicContextContract.map((entry) => entry.token),
+				serverContexts: action.serverContextContract.map((entry) => entry.token),
+				boundaries: continuation?.effects.boundaries ?? []
+			});
+		}
+		for (const boundary of artifact.manifest.boundaries)
+			boundaries[boundary.id] = defineExactBoundaryContract(boundary.id, {
+				componentId: boundary.componentId,
+				ownerComponentId: boundary.ownerComponentId,
+				kind: boundary.kind
+			});
+	}
+	return composeExactExecutorContract([], { actions, boundaries });
 }
 
 function selectedExposureGraph(

@@ -38,14 +38,13 @@ export {
 	runWithExactRequestScope
 } from '../context.js';
 export {
-	createExactHydrationActionBoundaries,
-	createExactHydrationManifestConfig,
-	createExactHydrationStateContracts,
-	createExactServerManifest
-} from '../manifest.js';
+	composeExactExecutorContract,
+	createExactHydrationConfig,
+	defineExactActionContract,
+	defineExactBoundaryContract
+} from '../executor-contract.js';
 export { createExactBindingGateway } from '../gateway.js';
 export type * from '../types.js';
-export { exactCompilerManifestVersion, exactServerManifestVersion } from '../versions.js';
 
 /** Handles an eXact endpoint request using the runtime-neutral server protocol. */
 export async function handleExactRequest(
@@ -84,7 +83,7 @@ async function handleExactRequestOwned(
 		return jsonResponse(405, { error: 'method_not_allowed' });
 	}
 
-	if (!matchesConfiguredEndpoint(request, context.manifest.endpoint)) {
+	if (!matchesConfiguredEndpoint(request, context.contract.endpoint)) {
 		logReject(context, 'rejected exact invocation for mismatched endpoint');
 		return jsonResponse(404, { error: 'not_found' });
 	}
@@ -206,23 +205,22 @@ function contextForRemoteOperation(
 ): ExactServerContext {
 	const root = input.root ? build.roots[input.root] : undefined;
 	if (!root) {
-		return { ...context, manifest: emptyManifest(context), actions: {}, refreshBoundaries: {} };
+		return { ...context, contract: emptyContract(context), actions: {}, refreshBoundaries: {} };
 	}
 	return {
 		...context,
-		manifest: root.manifest,
+		contract: root.contract,
 		actions: root.actions,
 		refreshBoundaries: root.refreshBoundaries
 	};
 }
 
-function emptyManifest(context: ExactServerContext): ExactServerContext['manifest'] {
+function emptyContract(context: ExactServerContext): ExactServerContext['contract'] {
 	return {
 		version: 1,
-		endpoint: context.manifest.endpoint,
+		endpoint: context.contract.endpoint,
 		actions: {},
-		boundaries: {},
-		actionBoundaries: {}
+		boundaries: {}
 	};
 }
 

@@ -7,7 +7,11 @@ import type {
 	ExactRemoteBuildRegistration,
 	ExactRequestLike,
 	ExactServerContext,
-	ExactServerManifest
+	ExactExecutorContract
+} from '@exactjs/server';
+import {
+	defineExactActionContract,
+	defineExactBoundaryContract
 } from '@exactjs/server';
 
 /** Immutable protocol root for the billing exposure. */
@@ -123,9 +127,9 @@ export function createSampleRuntimes(options: SampleRuntimeOptions): SampleRunti
 		internalAuthorization
 	);
 
-	const pageManifest = actionManifest(['page.audit'], ['page.summary']);
+	const pageContract = actionContract(['page.audit'], ['page.summary']);
 	const page: ExactServerContext = {
-		manifest: pageManifest,
+		contract: pageContract,
 		actions: {
 			'page.audit': (input) => {
 				observations.pageExecutions++;
@@ -179,7 +183,7 @@ function componentRuntime(
 	authorize: NonNullable<ExactServerContext['authorize']>
 ): ExactServerContext {
 	return {
-		manifest: { version: 1, endpoint: '/__exact' },
+		contract: actionContract([]),
 		remoteBuilds: {
 			[buildKey]: { buildKey, roots }
 		},
@@ -193,21 +197,31 @@ function rootRegistration(
 	refreshBoundaries: NonNullable<ExactServerContext['refreshBoundaries']> = {}
 ): ExactRemoteBuildRegistration['roots'][string] {
 	return {
-		manifest: actionManifest(ids, Object.keys(refreshBoundaries)),
+		contract: actionContract(ids, Object.keys(refreshBoundaries)),
 		actions,
 		refreshBoundaries
 	};
 }
 
-function actionManifest(
+function actionContract(
 	ids: readonly string[],
 	boundaries: readonly string[] = []
-): ExactServerManifest {
+): ExactExecutorContract {
 	return {
 		version: 1,
 		endpoint: '/__exact',
-		actions: Object.fromEntries(ids.map((id) => [id, { id, placement: 'server' as const }])),
-		boundaries: Object.fromEntries(boundaries.map((id) => [id, { id }]))
+		actions: Object.fromEntries(
+			ids.map((id) => [
+				id,
+				defineExactActionContract(id, {
+					writes: [{ path: '*', kind: 'write', confidence: 'exact' }],
+					boundaries
+				})
+			])
+		),
+		boundaries: Object.fromEntries(
+			boundaries.map((id) => [id, defineExactBoundaryContract(id)])
+		)
 	};
 }
 

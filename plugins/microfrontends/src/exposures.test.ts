@@ -72,8 +72,9 @@ export default function Area(this: Component<{ count: number }>) {
 
 		expect(registration).toContain(slash(clientButton));
 		expect(registration).not.toContain(slash(unused));
-		expect(registration).toContain('stateContracts');
-		expect(registration).toContain('actionBoundaries');
+		expect(registration).toContain('continuations');
+		expect(registration).not.toContain('stateContracts');
+		expect(registration).not.toContain('actionBoundaries');
 
 		const areaAction = Object.keys(
 			results.find((result) => path.resolve(result.inputFile) === path.resolve(area))!.manifest
@@ -97,7 +98,7 @@ export default function Area(this: Component<{ count: number }>) {
 		});
 		const dispatch = build.roots['@company/remote#./Area']!;
 		expect(build.buildKey).toBe(buildKey);
-		expect(Object.keys(dispatch.manifest.actions ?? {})).toEqual([areaAction]);
+		expect(Object.keys(dispatch.contract.actions)).toEqual([areaAction]);
 		expect(dispatch.actions).toEqual({ [areaAction]: areaHandler });
 		expect(dispatch.actions).not.toHaveProperty(unusedAction);
 	});

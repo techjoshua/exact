@@ -3,10 +3,14 @@
  */
 import { createVNode, type Component } from '@exactjs/core';
 import { render } from '@exactjs/dom';
-import { handleExactRequest } from '@exactjs/server';
+import {
+	defineExactActionContract,
+	defineExactBoundaryContract,
+	handleExactRequest
+} from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { applyPatches, createExactClient, hydrateClientIslands } from './index.js';
-import { noopLogger } from './test-support/responses.js';
+import { noopLogger, testContinuation } from './test-support/responses.js';
 
 describe('@exactjs/hydrate islands', () => {
 	it('disposes a hydrated island before a server replacement removes it', () => {
@@ -38,13 +42,17 @@ describe('@exactjs/hydrate islands', () => {
 					body: JSON.parse(init.body)
 				},
 				{
-					manifest: {
+					contract: {
 						version: 1,
+						endpoint: '/__exact',
 						actions: {
-							save: { id: 'save', placement: 'server' }
+							save: defineExactActionContract('save', {
+								boundaries: ['panel'],
+								writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
+							})
 						},
 						boundaries: {
-							panel: { id: 'panel' }
+							panel: defineExactBoundaryContract('panel')
 						}
 					},
 					actions: {
@@ -76,6 +84,9 @@ describe('@exactjs/hydrate islands', () => {
 
 		const client = createExactClient(container, {
 			endpoint: '/__exact',
+			continuations: {
+				save: testContinuation('save', { boundaries: ['panel'] })
+			},
 			fetch,
 			islands: {
 				Counter_ExactClient_1: Counter
@@ -219,10 +230,11 @@ describe('@exactjs/hydrate islands', () => {
 					body: JSON.parse(init.body)
 				},
 				{
-					manifest: {
+					contract: {
 						version: 1,
+						actions: {},
 						boundaries: {
-							panel: { id: 'panel' }
+							panel: defineExactBoundaryContract('panel')
 						}
 					},
 					refreshBoundaries: {
@@ -275,10 +287,11 @@ describe('@exactjs/hydrate islands', () => {
 					body: JSON.parse(init.body)
 				},
 				{
-					manifest: {
+					contract: {
 						version: 1,
+						actions: {},
 						boundaries: {
-							panel: { id: 'panel' }
+							panel: defineExactBoundaryContract('panel')
 						}
 					},
 					refreshBoundaries: {
@@ -334,10 +347,13 @@ describe('@exactjs/hydrate islands', () => {
 					body: requestBody
 				},
 				{
-					manifest: {
+					contract: {
 						version: 1,
+						actions: {},
 						boundaries: {
-							'island-children:children': { id: 'island-children:children' }
+							'island-children:children': defineExactBoundaryContract(
+								'island-children:children'
+							)
 						}
 					},
 					refreshBoundaries: {
@@ -405,7 +421,7 @@ describe('@exactjs/hydrate islands', () => {
 		);
 	});
 
-	it('hydrates client islands registered by a remote manifest', async () => {
+	it('hydrates client islands registered by a remote component contract', async () => {
 		const container = document.createElement('div');
 		container.innerHTML = '<!--exact:remote-panel--><p>Loading</p><!--/exact:remote-panel-->';
 		function RemoteIsland(this: Component<{}>, props: { label: string }) {
@@ -434,7 +450,7 @@ describe('@exactjs/hydrate islands', () => {
 			endpoint: '/__exact',
 			fetch
 		});
-		client.registerManifest({
+		client.registerComponents({
 			endpoints: {
 				boundaries: {
 					'remote-panel': 'https://remote.test/__exact'
@@ -455,7 +471,7 @@ describe('@exactjs/hydrate islands', () => {
 		expect(container.querySelector('button')?.textContent).toBe('Loaded');
 	});
 
-	it('hydrates existing client island placeholders when registering a remote manifest', () => {
+	it('hydrates existing client island placeholders when registering remote components', () => {
 		const container = document.createElement('div');
 		container.innerHTML =
 			'<div data-exact-client-boundary="remote-island" data-exact-client-name="RemoteIsland" data-exact-client-props=\'{"props":{"label":"Loaded"}}\'></div>';
@@ -468,12 +484,12 @@ describe('@exactjs/hydrate islands', () => {
 		const client = createExactClient(container, {
 			endpoint: '/__exact'
 		});
-		client.registerManifest({
+		client.registerComponents({
 			islands: {
 				RemoteIsland
 			}
 		});
-		client.registerManifest({
+		client.registerComponents({
 			islands: {
 				RemoteIsland
 			}

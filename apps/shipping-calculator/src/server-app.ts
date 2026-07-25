@@ -1,16 +1,15 @@
 import { createVNode } from '@exactjs/core';
 import { createExactNodeHandler } from '@exactjs/node-adapter';
 import {
-	createExactHydrationManifestConfig,
-	createExactServerManifest,
-	type ExactCompilerManifestLike
+	composeExactExecutorContract,
+	createExactHydrationConfig,
+	defineExactActionContract
 } from '@exactjs/server';
 import {
 	createExactServerRuntime,
 	renderExactRequestToProgressiveHtmlResponse
 } from '@exactjs/ssr';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import appManifestJson from '../.exact/App.exact.manifest.json' with { type: 'json' };
 import { ShippingCalculatorPage } from '../.exact/App.exact.server.js';
 import { resolveRoute } from './geography.js';
 import { parseRateRequest } from './model.js';
@@ -25,10 +24,16 @@ const actionIds = [
 	'quote.fedex',
 	'quote.dhl'
 ] as const;
-const appManifest = appManifestJson as ExactCompilerManifestLike;
-const exactManifest = createExactServerManifest(appManifest, {
+const exactContract = composeExactExecutorContract([ShippingCalculatorPage], {
 	endpoint: '/__exact',
-	actions: Object.fromEntries(actionIds.map((id) => [id, { id, placement: 'server' as const }]))
+	actions: Object.fromEntries(
+		actionIds.map((id) => [
+			id,
+			defineExactActionContract(id, {
+				writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
+			})
+		])
+	)
 });
 
 const actions = Object.fromEntries(
@@ -51,7 +56,7 @@ const actions = Object.fromEntries(
 );
 
 const exactRuntime = {
-	...createExactServerRuntime({ manifest: exactManifest, actions, patchStrategy: 'element' }),
+	...createExactServerRuntime({ contract: exactContract, actions, patchStrategy: 'element' }),
 	limits: {
 		maxBatchOperations: 8,
 		maxBatchConcurrency: 6,
@@ -92,7 +97,7 @@ export async function handleParcelLabRequest(
 	});
 
 	const configured = configuredProviderIds();
-	const hydration = createExactHydrationManifestConfig(exactManifest, {
+	const hydration = createExactHydrationConfig(exactContract, {
 		configuredProviders: configured
 	});
 	const rendered = await renderExactRequestToProgressiveHtmlResponse(

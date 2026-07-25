@@ -162,7 +162,7 @@ export function RemoteComponent(
 				this.state.reconcile++;
 			}
 		});
-		nextClient.registerManifest(loaded.registration);
+		nextClient.registerComponents(loaded.registration);
 		nextRecovery = registerExactRemoteRecovery(bindingName, binding, loaded, {
 			client: nextClient,
 			replace: (nextModule) => {

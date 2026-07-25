@@ -1,6 +1,10 @@
 import { createContext, createVNode, type Component } from '@exactjs/core';
 import { RequestContext } from '@exactjs/request';
-import { handleExactRequest } from '@exactjs/server';
+import {
+	defineExactActionContract,
+	defineExactBoundaryContract,
+	handleExactRequest
+} from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import {
 	createExactServerRuntime,
@@ -22,7 +26,7 @@ describe('@exactjs/ssr request-context', () => {
 
 	it('constructs the root only after contexts initialize and stabilizes task-written output', async () => {
 		const runtime = createExactServerRuntime({
-			manifest: { version: 1 },
+			contract: { version: 1, actions: {}, boundaries: {} },
 			applicationContexts: [[ApplicationName, { value: 'app' }]],
 			requestContexts: [
 				[
@@ -77,7 +81,7 @@ describe('@exactjs/ssr request-context', () => {
 		const disposed: string[] = [];
 		let rendered = false;
 		const runtime = createExactServerRuntime({
-			manifest: { version: 1 },
+			contract: { version: 1, actions: {}, boundaries: {} },
 			requestContexts: [
 				[
 					RequestName,
@@ -135,7 +139,9 @@ describe('@exactjs/ssr request-context', () => {
 	});
 
 	it('commits redirects and rejects response mutations after SSR returns', async () => {
-		const runtime = createExactServerRuntime({ manifest: { version: 1 } });
+		const runtime = createExactServerRuntime({
+			contract: { version: 1, actions: {}, boundaries: {} }
+		});
 		let activeRequest: import('@exactjs/request').RequestContextValue | undefined;
 		function RedirectPage(this: Component<{}>) {
 			activeRequest = this.getContext(RequestContext);
@@ -166,9 +172,10 @@ describe('@exactjs/ssr request-context', () => {
 
 	it('passes the active request scope through boundary refresh rendering', async () => {
 		const runtime = createExactServerRuntime({
-			manifest: {
+			contract: {
 				version: 1,
-				boundaries: { profile: { id: 'profile' } }
+				actions: {},
+				boundaries: { profile: defineExactBoundaryContract('profile') }
 			},
 			requestContexts: [
 				[
@@ -203,25 +210,22 @@ describe('@exactjs/ssr request-context', () => {
 		await runtime.dispose?.();
 	});
 
-	it('creates a ready server runtime context from manifest-scoped handlers', async () => {
+	it('creates a ready server runtime context from contract-scoped handlers', async () => {
 		const runtime = createExactServerRuntime({
-			manifest: {
+			contract: {
 				version: 1,
 				actions: {
-					'save-profile': {
-						id: 'save-profile',
+					'save-profile': defineExactActionContract('save-profile', {
 						componentId: 'Profile',
-						placement: 'server',
-						stateContract: {
-							writes: [{ path: 'saved', kind: 'write', confidence: 'exact' }]
-						}
-					}
+						writes: [{ path: 'saved', kind: 'write', confidence: 'exact' }],
+						boundaries: ['profile']
+					})
 				},
 				boundaries: {
-					profile: { id: 'profile', ownerComponentId: 'Profile' }
-				},
-				actionBoundaries: {
-					'save-profile': ['profile']
+					profile: defineExactBoundaryContract('profile', {
+						componentId: 'Profile',
+						ownerComponentId: 'Profile'
+					})
 				}
 			},
 			markers: false,

@@ -1,6 +1,7 @@
 import type {
 	Child,
 	ComponentContextValues,
+	ExactComponentContinuationContract,
 	ComponentFunction,
 	ComponentInstance,
 	Logger,
@@ -17,9 +18,7 @@ import type {
 	ExactRequestLike,
 	ExactResponseLike,
 	ExactServerContext,
-	ExactServerContextConfiguration,
-	ExactServerManifest,
-	ExactStateContract
+	ExactServerContextConfiguration
 } from '@exactjs/server';
 
 /** Configures render to string. */
@@ -77,8 +76,11 @@ export type HydrationScriptOptions = {
 	endpoint?: string;
 	endpoints?: ExactEndpointRoutes;
 	state?: unknown;
-	stateContracts?: Record<string, ExactStateContract>;
-	actionBoundaries?: Record<string, readonly string[]>;
+	continuations?: Record<string, ExactComponentContinuationContract>;
+	publicContexts?: Record<string, unknown>;
+	executionRoot?: string;
+	binding?: string;
+	buildKey?: string;
 	scriptId?: string;
 	nonce?: string;
 	/** Maximum hydration JSON graph depth. Defaults to 100. */
@@ -179,7 +181,7 @@ export type ExactBoundaryRenderer =
 
 /** Configures exact server handler registry. */
 export type ExactServerHandlerRegistryOptions = RenderToStringOptions & {
-	manifest: ExactServerManifest;
+	contract: ExactServerContext['contract'];
 	actions?: Record<
 		string,
 		(

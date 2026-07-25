@@ -13,13 +13,26 @@ import {
 } from './client.js';
 
 const buildKey = '0123456789abcdef0123456789abcdef01234567';
+const probeRegistration = JSON.stringify({
+	continuations: {
+		probe: {
+			id: 'probe',
+			componentId: 'test:probe',
+			stateReads: [],
+			stateWrites: [],
+			publicContexts: [],
+			serverContexts: [],
+			boundaries: []
+		}
+	}
+});
 const entrySource = `
 function BillingArea(props) { return () => props.label ?? "Loaded billing"; }
 export default Object.freeze({
   buildKey: "${buildKey}",
   root: "@company/billing#./BillingArea",
   component: BillingArea,
-  registration: {}
+  registration: ${probeRegistration}
 });`;
 const clientEntry = `data:text/javascript;base64,${Buffer.from(entrySource).toString('base64')}`;
 const brandSource = `
@@ -28,7 +41,7 @@ export default Object.freeze({
   buildKey: "${buildKey}",
   root: "@company/brand#./BrandArea",
   component: BrandArea,
-  registration: {}
+  registration: ${probeRegistration}
 });`;
 const brandEntry = `data:text/javascript;base64,${Buffer.from(brandSource).toString('base64')}`;
 const shellSource = `
@@ -37,7 +50,7 @@ export default Object.freeze({
   buildKey: "${buildKey}",
   root: "@company/brand#./Shell",
   component: Shell,
-  registration: {}
+  registration: ${probeRegistration}
 });`;
 const shellEntry = `data:text/javascript;base64,${Buffer.from(shellSource).toString('base64')}`;
 const patchingSource = `
@@ -52,7 +65,7 @@ export default Object.freeze({
   buildKey: "${buildKey}",
   root: "@company/brand#./PatchingShell",
   component: PatchingShell,
-  registration: {}
+  registration: ${probeRegistration}
 });`;
 const patchingEntry = `data:text/javascript;base64,${Buffer.from(patchingSource).toString('base64')}`;
 const replacementBuildKey = '89abcdef0123456789abcdef0123456789abcdef';
@@ -64,7 +77,7 @@ export default Object.freeze({
   buildKey: "${buildKey}",
   root: "@company/retiring#./Area",
   component: RetiringArea,
-  registration: {}
+  registration: ${probeRegistration}
 });`;
 const retiringEntry = `data:text/javascript;base64,${Buffer.from(retiringSource).toString('base64')}`;
 const replacementSource = `
@@ -73,7 +86,7 @@ export default Object.freeze({
   buildKey: "${replacementBuildKey}",
   root: "@company/retiring#./Area",
   component: ReplacementArea,
-  registration: {}
+  registration: ${probeRegistration}
 });`;
 const replacementEntry = `data:text/javascript;base64,${Buffer.from(replacementSource).toString('base64')}`;
 const resolveRetiringEntry = vi.fn(async () => replacementEntry);
@@ -85,7 +98,7 @@ export default Object.freeze({
   buildKey: "${buildKey}",
   root: "@company/retiring#./Shell",
   component: RetiringShell,
-  registration: {}
+  registration: ${probeRegistration}
 });`;
 const retiringShellEntry = `data:text/javascript;base64,${Buffer.from(retiringShellSource).toString('base64')}`;
 const replacementShellSource = `
@@ -94,7 +107,7 @@ export default Object.freeze({
   buildKey: "${replacementBuildKey}",
   root: "@company/retiring#./Shell",
   component: ReplacementShell,
-  registration: {}
+  registration: ${probeRegistration}
 });`;
 const replacementShellEntry = `data:text/javascript;base64,${Buffer.from(replacementShellSource).toString('base64')}`;
 const resolveRetiringShellEntry = vi.fn(async () => replacementShellEntry);

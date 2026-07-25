@@ -7,9 +7,9 @@ import type {
 	ExactHydrationConfig,
 	ExactHydrationConfigLimits,
 	ExactHydrationRegistration,
-	ExactStateContract,
 	HydrateOptions
 } from './types.js';
+import type { ExactComponentContinuationContract } from '@exactjs/core';
 import { hasOnlyKeys, isJsonSafe } from './validation.js';
 
 /** Reads and validates the serialized hydration configuration embedded in the document. */
@@ -52,8 +52,11 @@ function parseHydrationConfig(
 				'endpoint',
 				'endpoints',
 				'state',
-				'stateContracts',
-				'actionBoundaries'
+				'continuations',
+				'publicContexts',
+				'executionRoot',
+				'binding',
+				'buildKey'
 			])
 		)
 			return {};
@@ -65,10 +68,13 @@ function parseHydrationConfig(
 			endpoint: typeof record.endpoint === 'string' ? record.endpoint : undefined,
 			endpoints: isEndpointRoutes(record.endpoints) ? record.endpoints : undefined,
 			...('state' in record ? { state: record.state } : {}),
-			stateContracts: isStateContractMap(record.stateContracts) ? record.stateContracts : undefined,
-			actionBoundaries: isActionBoundaryMap(record.actionBoundaries)
-				? record.actionBoundaries
-				: undefined
+			continuations: isContinuationMap(record.continuations)
+				? record.continuations
+				: undefined,
+			publicContexts: isRecord(record.publicContexts) ? record.publicContexts : undefined,
+			executionRoot: typeof record.executionRoot === 'string' ? record.executionRoot : undefined,
+			binding: typeof record.binding === 'string' ? record.binding : undefined,
+			buildKey: typeof record.buildKey === 'string' ? record.buildKey : undefined
 		};
 	} catch {
 		return {};
@@ -90,8 +96,11 @@ export function resolveHydrateOptions(container: Element, options: HydrateOption
 		endpoint: options.endpoint ?? config.endpoint,
 		endpoints: mergeEndpointRoutes(config.endpoints, options.endpoints),
 		state: options.state === undefined ? config.state : options.state,
-		stateContracts: options.stateContracts ?? config.stateContracts,
-		actionBoundaries: options.actionBoundaries ?? config.actionBoundaries
+		continuations: options.continuations ?? config.continuations,
+		publicContexts: options.publicContexts ?? config.publicContexts,
+		executionRoot: options.executionRoot ?? config.executionRoot,
+		binding: options.binding ?? config.binding,
+		buildKey: options.buildKey ?? config.buildKey
 	};
 }
 
@@ -108,22 +117,6 @@ export function mergeHydrationRegistration(
 	}
 	options.endpoints = mergeHydrationEndpointRoutes(options.endpoints, registration.endpoints);
 	if (registration.state !== undefined) options.state = registration.state;
-	if (registration.stateContracts) {
-		options.stateContracts = mergeUniqueRecord(
-			options.stateContracts,
-			registration.stateContracts,
-			'state contract',
-			sameJsonData
-		);
-	}
-	if (registration.actionBoundaries) {
-		options.actionBoundaries = mergeUniqueRecord(
-			options.actionBoundaries,
-			registration.actionBoundaries,
-			'action boundary',
-			(left, right) => sameStringList(left, right)
-		);
-	}
 	if (registration.continuations) {
 		options.continuations = mergeUniqueRecord(
 			options.continuations,
@@ -228,17 +221,13 @@ function mergeUniqueRecord<T>(
 	const output: Record<string, T> = { ...(base ?? {}) };
 	for (const [key, value] of Object.entries(next ?? {})) {
 		// Duplicate registrations are accepted only when they are byte-for-byte equivalent;
-		// this lets independently loaded bundles share manifests without masking conflicts.
+		// this lets independently loaded bundles share contracts without masking conflicts.
 		if (Object.prototype.hasOwnProperty.call(output, key) && !same(output[key]!, value)) {
 			throw new Error(`Conflicting eXact hydration ${label} registration: ${key}`);
 		}
 		output[key] = value;
 	}
 	return output;
-}
-
-function sameStringList(left: readonly string[], right: readonly string[]): boolean {
-	return left.length === right.length && left.every((value, index) => right[index] === value);
 }
 
 function sameEndpointTransport(
@@ -277,18 +266,34 @@ function readNearestHydrationConfig(
 	return scripts[0] ? parseHydrationConfig(scripts[0], limits) : {};
 }
 
-function isStateContractMap(value: unknown): value is Record<string, ExactStateContract> {
+function isContinuationMap(
+	value: unknown
+): value is Record<string, ExactComponentContinuationContract> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-	return Object.values(value as Record<string, unknown>).every(isStateContract);
+	return Object.values(value as Record<string, unknown>).every(isContinuation);
 }
 
-function isStateContract(value: unknown): value is ExactStateContract {
+function isContinuation(value: unknown): value is ExactComponentContinuationContract {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const record = value as Record<string, unknown>;
 	return (
-		hasOnlyKeys(record, ['reads', 'writes']) &&
-		(record.reads === undefined || isStatePathList(record.reads)) &&
-		(record.writes === undefined || isStatePathList(record.writes))
+		hasOnlyKeys(record, [
+			'id',
+			'componentId',
+			'stateReads',
+			'stateWrites',
+			'publicContexts',
+			'serverContexts',
+			'boundaries'
+		]) &&
+		typeof record.id === 'string' &&
+		typeof record.componentId === 'string' &&
+		isStatePathList(record.stateReads) &&
+		isStatePathList(record.stateWrites) &&
+		isStringList(record.publicContexts) &&
+		isStringList(record.serverContexts) &&
+		record.serverContexts.length === 0 &&
+		isStringList(record.boundaries)
 	);
 }
 
@@ -314,14 +319,12 @@ function positiveLimit(value: number | undefined, fallback: number): number {
 	return Number.isSafeInteger(value) && value! > 0 ? value! : fallback;
 }
 
-function isActionBoundaryMap(value: unknown): value is Record<string, readonly string[]> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-	return Object.values(value as Record<string, unknown>).every((boundaries) => {
-		return (
-			Array.isArray(boundaries) &&
-			boundaries.every((boundary) => typeof boundary === 'string' && boundary.length > 0)
-		);
-	});
+function isStringList(value: unknown): value is string[] {
+	return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
 function isEndpointRoutes(value: unknown): value is ExactEndpointRoutes {

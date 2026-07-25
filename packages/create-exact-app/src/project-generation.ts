@@ -258,7 +258,7 @@ function bundlerFiles(bundler: Bundler, runner: TestRunner): Record<string, stri
 function runtimeFiles(runtime: Runtime): Record<string, string> {
 	if (runtime === 'browser') return {};
 	const prelude =
-		'import { createExactServerRuntime } from "@exactjs/ssr";\n\nconst exactRuntime = createExactServerRuntime({ manifest: { version: 1, endpoint: "/__exact" } });\n\n';
+		'import { composeExactExecutorContract } from "@exactjs/server";\nimport { createExactServerRuntime } from "@exactjs/ssr";\n\nconst exactContract = composeExactExecutorContract([], { endpoint: "/__exact" });\nconst exactRuntime = createExactServerRuntime({ contract: exactContract });\n\n';
 	const sources: Record<Exclude<Runtime, 'browser'>, string> = {
 		fetch:
 			'import { createExactFetchHandler } from "@exactjs/fetch-adapter";\n\nexport const handleExactRequest = createExactFetchHandler(exactRuntime);\n',

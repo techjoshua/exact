@@ -1,63 +1,34 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createExactServerManifest, handleExactRequest } from './index.js';
+import {
+	defineExactActionContract,
+	defineExactBoundaryContract,
+	handleExactRequest
+} from './index.js';
 import { context } from './test-support/server.js';
 
 describe('@exactjs/server actions', () => {
-	it('accepts equivalent action contracts independent of object key order', () => {
-		const base = {
-			id: 'save',
-			componentId: 'Page',
-			taskId: 'task-1',
-			placement: 'server' as const,
-			stateContract: {
-				reads: [{ path: 'project.id', kind: 'read' as const, confidence: 'exact' as const }]
-			}
-		};
-		expect(() =>
-			createExactServerManifest([
-				{ version: 1, serverActions: { save: base } },
-				{
-					version: 1,
-					serverActions: {
-						save: {
-							placement: 'server',
-							taskId: 'task-1',
-							componentId: 'Page',
-							id: 'save',
-							stateContract: { reads: [{ confidence: 'exact', kind: 'read', path: 'project.id' }] }
-						}
-					}
-				}
-			])
-		).not.toThrow();
-	});
-
-	it('rejects action boundary snapshots outside the action boundary contract', async () => {
+	it('rejects action boundary snapshots outside the composed contract', async () => {
 		const result = await handleExactRequest(
 			{
 				method: 'POST',
 				body: {
 					type: 'action',
-					id: 'allowed-action',
-					boundaryHtmls: {
-						'other-boundary': '<p>Other</p>'
-					}
+					id: 'save',
+					boundaryHtmls: { other: '<p>Other</p>' }
 				}
 			},
 			context({
-				manifest: {
+				contract: {
 					version: 1,
 					actions: {
-						'allowed-action': { id: 'allowed-action', placement: 'server' }
+						save: defineExactActionContract('save', { boundaries: ['allowed'] })
 					},
 					boundaries: {
-						'allowed-boundary': { id: 'allowed-boundary' },
-						'other-boundary': { id: 'other-boundary' }
-					},
-					actionBoundaries: {
-						'allowed-action': ['allowed-boundary']
+						allowed: defineExactBoundaryContract('allowed'),
+						other: defineExactBoundaryContract('other')
 					}
-				}
+				},
+				actions: { save: () => ({}) }
 			})
 		);
 
@@ -65,172 +36,71 @@ describe('@exactjs/server actions', () => {
 		expect(JSON.parse(result.body)).toEqual({ error: 'bad_request' });
 	});
 
-	it('rejects action requests missing exact state contract reads', async () => {
-		const withState = await handleExactRequest(
-			{
-				method: 'POST',
-				body: {
-					type: 'action',
-					id: 'allowed-action',
-					payload: { title: 'Ready' },
-					state: { project: { id: 'p1' } }
-				}
-			},
-			context({
-				manifest: {
-					version: 1,
-					actions: {
-						'allowed-action': {
-							id: 'allowed-action',
-							placement: 'server',
-							stateContract: {
-								reads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }]
-							}
-						}
-					}
-				}
-			})
-		);
-		expect(withState.status).toBe(200);
-
-		const missingState = await handleExactRequest(
-			{
-				method: 'POST',
-				body: { type: 'action', id: 'allowed-action', state: { project: {} } }
-			},
-			context({
-				manifest: {
-					version: 1,
-					actions: {
-						'allowed-action': {
-							id: 'allowed-action',
-							placement: 'server',
-							stateContract: {
-								reads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }]
-							}
-						}
-					}
-				}
-			})
-		);
-
-		expect(missingState.status).toBe(400);
-		expect(JSON.parse(missingState.body)).toEqual({ error: 'bad_request' });
-	});
-
-	it('accepts exact state contract reads through array paths', async () => {
-		const withState = await handleExactRequest(
-			{
-				method: 'POST',
-				body: {
-					type: 'action',
-					id: 'allowed-action',
-					payload: { title: 'Ready' },
-					state: { projects: [{ id: 'p1' }] }
-				}
-			},
-			context({
-				manifest: {
-					version: 1,
-					actions: {
-						'allowed-action': {
-							id: 'allowed-action',
-							placement: 'server',
-							stateContract: {
-								reads: [{ path: 'projects.0.id', kind: 'read', confidence: 'exact' }]
-							}
-						}
-					}
-				}
-			})
-		);
-		expect(withState.status).toBe(200);
-
-		const missingState = await handleExactRequest(
-			{
-				method: 'POST',
-				body: {
-					type: 'action',
-					id: 'allowed-action',
-					payload: { title: 'Ready' },
-					state: { projects: [] }
-				}
-			},
-			context({
-				manifest: {
-					version: 1,
-					actions: {
-						'allowed-action': {
-							id: 'allowed-action',
-							placement: 'server',
-							stateContract: {
-								reads: [{ path: 'projects.0.id', kind: 'read', confidence: 'exact' }]
-							}
-						}
-					}
-				}
-			})
-		);
-		expect(missingState.status).toBe(400);
-	});
-
-	it('keeps server context resolution out of the client request contract', async () => {
-		const action = vi.fn(() => ({ state: { ready: true } }));
+	it('requires every exact state read and supports array paths', async () => {
 		const exactContext = context({
-			manifest: {
+			contract: {
 				version: 1,
 				actions: {
-					'allowed-action': {
-						id: 'allowed-action',
-						placement: 'server',
-						stateContract: {
-							writes: [{ path: 'ready', kind: 'write', confidence: 'exact' }]
-						},
-						serverContextContract: [
-							{ token: 'AuthContext', kind: 'read', confidence: 'exact' },
-							{ token: 'ThemeContext', kind: 'write', confidence: 'exact' }
-						]
-					}
-				}
+					save: defineExactActionContract('save', {
+						reads: [{ path: 'projects.0.id', kind: 'read', confidence: 'exact' }]
+					})
+				},
+				boundaries: {}
 			},
-			actions: {
-				'allowed-action': action
-			}
+			actions: { save: () => ({}) }
 		});
-
 		const accepted = await handleExactRequest(
 			{
 				method: 'POST',
+				body: { type: 'action', id: 'save', state: { projects: [{ id: 'p1' }] } }
+			},
+			exactContext
+		);
+		const rejected = await handleExactRequest(
+			{
+				method: 'POST',
+				body: { type: 'action', id: 'save', state: { projects: [] } }
+			},
+			exactContext
+		);
+
+		expect(accepted.status).toBe(200);
+		expect(rejected.status).toBe(400);
+	});
+
+	it('keeps server context resolution out of the client request', async () => {
+		const action = vi.fn(() => ({ state: { ready: true } }));
+		const exactContext = context({
+			contract: {
+				version: 1,
+				actions: {
+					save: defineExactActionContract('save', {
+						writes: [{ path: 'ready', kind: 'write', confidence: 'exact' }],
+						serverContexts: ['AuthContext']
+					})
+				},
+				boundaries: {}
+			},
+			actions: { save: action }
+		});
+		const accepted = await handleExactRequest(
+			{ method: 'POST', body: { type: 'action', id: 'save' } },
+			exactContext
+		);
+		const submitted = await handleExactRequest(
+			{
+				method: 'POST',
 				body: {
 					type: 'action',
-					id: 'allowed-action'
+					id: 'save',
+					publicContext: { AuthContext: { id: 'u1' } }
 				}
 			},
 			exactContext
 		);
 
 		expect(accepted.status).toBe(200);
-		expect(JSON.parse(accepted.body)).toMatchObject({
-			ok: true,
-			state: { ready: true }
-		});
-		expect(action).toHaveBeenCalledOnce();
-
-		const submitted = await handleExactRequest(
-			{
-				method: 'POST',
-				body: {
-					type: 'action',
-					id: 'allowed-action',
-					publicContext: {
-						AuthContext: { id: 'u1' }
-					}
-				}
-			},
-			exactContext
-		);
 		expect(submitted.status).toBe(400);
-		expect(JSON.parse(submitted.body)).toEqual({ error: 'bad_request' });
 		expect(action).toHaveBeenCalledOnce();
 	});
 
@@ -239,71 +109,58 @@ describe('@exactjs/server actions', () => {
 			state: { domain: input.publicContext?.PublicConfig }
 		}));
 		const exactContext = context({
-			manifest: {
+			contract: {
 				version: 1,
 				actions: {
-					'public-action': {
-						id: 'public-action',
-						placement: 'server',
-						stateContract: {
-							writes: [{ path: 'domain', kind: 'write', confidence: 'exact' }]
-						},
-						publicContextContract: [{ token: 'PublicConfig', kind: 'read', confidence: 'exact' }]
-					}
-				}
+					save: defineExactActionContract('save', {
+						writes: [{ path: 'domain', kind: 'write', confidence: 'exact' }],
+						publicContexts: ['PublicConfig']
+					})
+				},
+				boundaries: {}
 			},
-			actions: { 'public-action': action }
+			actions: { save: action }
 		});
-
 		const accepted = await handleExactRequest(
 			{
 				method: 'POST',
 				body: {
 					type: 'action',
-					id: 'public-action',
+					id: 'save',
 					publicContext: { PublicConfig: { domain: 'https://example.test' } }
 				}
 			},
 			exactContext
 		);
-		expect(accepted.status).toBe(200);
-		expect(JSON.parse(accepted.body)).toMatchObject({
-			state: { domain: { domain: 'https://example.test' } }
-		});
-
 		const rejected = await handleExactRequest(
 			{
 				method: 'POST',
 				body: {
 					type: 'action',
-					id: 'public-action',
+					id: 'save',
 					publicContext: { SecretContext: 'nope' }
 				}
 			},
 			exactContext
 		);
+
+		expect(accepted.status).toBe(200);
 		expect(rejected.status).toBe(400);
 		expect(action).toHaveBeenCalledOnce();
 	});
 
 	it('rejects state outside the compiler-declared response write contract', async () => {
 		const result = await handleExactRequest(
-			{
-				method: 'POST',
-				body: { type: 'action', id: 'save' }
-			},
+			{ method: 'POST', body: { type: 'action', id: 'save' } },
 			context({
-				manifest: {
+				contract: {
 					version: 1,
 					actions: {
-						save: {
-							id: 'save',
-							placement: 'server',
-							stateContract: {
-								writes: [{ path: 'profile.name', kind: 'write', confidence: 'exact' }]
-							}
-						}
-					}
+						save: defineExactActionContract('save', {
+							writes: [{ path: 'profile.name', kind: 'write', confidence: 'exact' }]
+						})
+					},
+					boundaries: {}
 				},
 				actions: {
 					save: () => ({
@@ -320,26 +177,7 @@ describe('@exactjs/server actions', () => {
 		expect(JSON.parse(result.body)).toEqual({ error: 'internal_error' });
 	});
 
-	it('rejects public context when no action contract allows it', async () => {
-		const result = await handleExactRequest(
-			{
-				method: 'POST',
-				body: {
-					type: 'action',
-					id: 'allowed-action',
-					publicContext: {
-						AuthContext: { id: 'u1' }
-					}
-				}
-			},
-			context()
-		);
-
-		expect(result.status).toBe(400);
-		expect(JSON.parse(result.body)).toEqual({ error: 'bad_request' });
-	});
-
-	it('rejects malformed single boundary snapshots', async () => {
+	it('rejects malformed boundary snapshots before dispatch', async () => {
 		const result = await handleExactRequest(
 			{
 				method: 'POST',

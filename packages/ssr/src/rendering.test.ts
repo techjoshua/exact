@@ -1,4 +1,5 @@
 import { createVNode, type Component } from '@exactjs/core';
+import { defineExactActionContract, defineExactBoundaryContract } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import {
 	createExactServerHandlerRegistry,
@@ -175,19 +176,26 @@ describe('@exactjs/ssr rendering', () => {
 		expect(result.html).toBe('<section><strong>Ready</strong></section>');
 	});
 
-	it('creates manifest-scoped server handler registries', async () => {
+	it('creates contract-scoped server handler registries', async () => {
 		const registry = createExactServerHandlerRegistry({
-			manifest: {
+			contract: {
 				version: 1,
 				actions: {
-					'save-profile': { id: 'save-profile', componentId: 'Profile', placement: 'server' }
+					'save-profile': defineExactActionContract('save-profile', {
+						componentId: 'Profile',
+						writes: [{ path: 'saved', kind: 'write', confidence: 'exact' }],
+						boundaries: ['profile']
+					})
 				},
 				boundaries: {
-					profile: { id: 'profile', ownerComponentId: 'Profile' },
-					private: { id: 'private', ownerComponentId: 'Private' }
-				},
-				actionBoundaries: {
-					'save-profile': ['profile']
+					profile: defineExactBoundaryContract('profile', {
+						componentId: 'Profile',
+						ownerComponentId: 'Profile'
+					}),
+					private: defineExactBoundaryContract('private', {
+						componentId: 'Private',
+						ownerComponentId: 'Private'
+					})
 				}
 			},
 			markers: false,
@@ -210,7 +218,7 @@ describe('@exactjs/ssr rendering', () => {
 				id: 'profile',
 				boundaryHtml: '<p class="old">Loading</p>'
 			},
-			{ manifest: { version: 1 } }
+			{ contract: { version: 1, actions: {}, boundaries: {} } }
 		);
 		const action = await registry.actions['save-profile'](
 			{
@@ -221,7 +229,7 @@ describe('@exactjs/ssr rendering', () => {
 					private: '<p>Private</p>'
 				}
 			},
-			{ manifest: { version: 1 } }
+			{ contract: { version: 1, actions: {}, boundaries: {} } }
 		);
 
 		expect(Object.keys(registry.actions)).toEqual(['save-profile']);

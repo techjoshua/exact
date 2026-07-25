@@ -3,7 +3,10 @@
  */
 import { Fragment, createVNode } from '@exactjs/core';
 import { render } from '@exactjs/dom';
-import { handleExactRequest } from '@exactjs/server';
+import {
+	defineExactBoundaryContract,
+	handleExactRequest
+} from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import {
 	applyPatches,
@@ -13,7 +16,7 @@ import {
 	invokeExactBatch,
 	readExactHydrationConfig
 } from './index.js';
-import { noopLogger } from './test-support/responses.js';
+import { noopLogger, testContinuation } from './test-support/responses.js';
 
 describe('@exactjs/hydrate request-operations', () => {
 	it('keeps unrelated client ownership active after a server prop patch', () => {
@@ -77,6 +80,7 @@ describe('@exactjs/hydrate request-operations', () => {
 		const client = createExactClient(container, {
 			endpoint: '/__exact',
 			batch: false,
+			continuations: { save: testContinuation('save') },
 			fetch: async (_input, init) => {
 				requestSignal = init.signal;
 				return await new Promise<never>(() => undefined);
@@ -102,7 +106,7 @@ describe('@exactjs/hydrate request-operations', () => {
 	it('reads endpoint and state from the hydration bootstrap script', () => {
 		const root = document.createElement('main');
 		root.innerHTML =
-			'<script type="application/json" id="__exact_hydration">{"endpoint":"/__exact","endpoints":{"actions":{"save-remote":"https://remote.test/__exact"},"boundaries":{"remote-panel":"https://remote.test/__exact"}},"state":{"ready":true},"stateContracts":{"save":{"reads":[{"path":"project.id","kind":"read","confidence":"exact"}]}},"actionBoundaries":{"save":["profile","slot:children"]}}</script>';
+			'<script type="application/json" id="__exact_hydration">{"endpoint":"/__exact","endpoints":{"actions":{"save-remote":"https://remote.test/__exact"},"boundaries":{"remote-panel":"https://remote.test/__exact"}},"state":{"ready":true},"continuations":{"save":{"id":"save","componentId":"test:save","stateReads":[{"path":"project.id","kind":"read","confidence":"exact"}],"stateWrites":[],"publicContexts":[],"serverContexts":[],"boundaries":["profile","slot:children"]}}}</script>';
 
 		expect(readExactHydrationConfig(root)).toEqual({
 			endpoint: '/__exact',
@@ -115,20 +119,23 @@ describe('@exactjs/hydrate request-operations', () => {
 				}
 			},
 			state: { ready: true },
-			stateContracts: {
+			continuations: {
 				save: {
-					reads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }]
+					id: 'save',
+					componentId: 'test:save',
+					stateReads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }],
+					stateWrites: [],
+					publicContexts: [],
+					serverContexts: [],
+					boundaries: ['profile', 'slot:children']
 				}
-			},
-			actionBoundaries: {
-				save: ['profile', 'slot:children']
 			}
 		});
 	});
 
 	it('creates clients from hydration bootstrap data by default', async () => {
 		document.body.innerHTML =
-			'<script type="application/json" id="__exact_hydration">{"endpoint":"/__exact","state":{"project":{"id":"p1","secret":"hidden"}},"stateContracts":{"save":{"reads":[{"path":"project.id","kind":"read","confidence":"exact"}]}}}</script>';
+			'<script type="application/json" id="__exact_hydration">{"endpoint":"/__exact","state":{"project":{"id":"p1","secret":"hidden"}},"continuations":{"save":{"id":"save","componentId":"test:save","stateReads":[{"path":"project.id","kind":"read","confidence":"exact"}],"stateWrites":[],"publicContexts":[],"serverContexts":[],"boundaries":[]}}}</script>';
 		const container = document.createElement('main');
 		document.body.appendChild(container);
 		let requestBody: any;
@@ -163,10 +170,11 @@ describe('@exactjs/hydrate request-operations', () => {
 					body: JSON.parse(init.body)
 				},
 				{
-					manifest: {
+					contract: {
 						version: 1,
+						actions: {},
 						boundaries: {
-							panel: { id: 'panel' }
+							panel: defineExactBoundaryContract('panel')
 						}
 					},
 					refreshBoundaries: {

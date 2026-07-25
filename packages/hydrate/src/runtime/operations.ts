@@ -30,12 +30,14 @@ export async function invokeAndApply(
 ): Promise<ExactInvocationResult> {
 	const work = createDomWorkBudget(options.maxTreeNodes);
 	const continuation = type === 'action' ? options.continuations?.[id] : undefined;
+	if (type === 'action' && !continuation)
+		throw new Error(`No eXact client continuation contract is registered for ${id}`);
 	let versions = requestVersions.get(container);
 	if (!versions) {
 		versions = new Map();
 		requestVersions.set(container, versions);
 	}
-	const configuredBoundaries = continuation?.boundaries ?? options.actionBoundaries?.[id];
+	const configuredBoundaries = continuation?.boundaries;
 	const requestKeys = [
 		...new Set(
 			type === 'refresh'
@@ -58,11 +60,7 @@ export async function invokeAndApply(
 			type === 'action'
 				? stateForContract(
 						client.state,
-						continuation
-							? {
-									reads: continuation.stateReads
-								}
-							: client.stateContracts?.[id]
+						{ reads: continuation!.stateReads }
 					)
 				: client.state,
 		publicContext:

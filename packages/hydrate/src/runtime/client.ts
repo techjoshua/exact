@@ -55,8 +55,6 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 	const runtimeOptions: HydrateOptions = {
 		...resolvedOptions,
 		endpoints: cloneEndpointRoutes(resolvedOptions.endpoints),
-		stateContracts: { ...(resolvedOptions.stateContracts ?? {}) },
-		actionBoundaries: { ...(resolvedOptions.actionBoundaries ?? {}) },
 		continuations: { ...(resolvedOptions.continuations ?? {}) },
 		publicContexts: { ...(resolvedOptions.publicContexts ?? {}) },
 		islands: { ...(resolvedOptions.islands ?? {}) },
@@ -104,9 +102,6 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 		set state(value: unknown) {
 			runtimeOptions.state = value;
 		},
-		get stateContracts() {
-			return runtimeOptions.stateContracts;
-		},
 		get continuations() {
 			return runtimeOptions.continuations;
 		},
@@ -128,7 +123,7 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 			mergeClientIslands(runtimeOptions, registry);
 			return run(() => invokeAndApply(container, client, 'refresh', id, payload, runtimeOptions));
 		},
-		registerManifest(config) {
+		registerComponents(config) {
 			assertActive();
 			mergeHydrationRegistration(runtimeOptions, config);
 			if (config.islands)

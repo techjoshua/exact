@@ -3,6 +3,7 @@ import { RequestContext } from '@exactjs/request';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	createExactContextRuntime,
+	defineExactActionContract,
 	handleExactRequest,
 	openExactRequestScope,
 	runWithExactRequestScope,
@@ -39,9 +40,10 @@ const request = (
 });
 
 const server = (overrides: Partial<ExactServerContext> = {}): ExactServerContext => ({
-	manifest: {
+	contract: {
 		version: 1,
-		actions: { read: { id: 'read', placement: 'server' } }
+		actions: { read: defineExactActionContract('read') },
+		boundaries: {}
 	},
 	...overrides
 });

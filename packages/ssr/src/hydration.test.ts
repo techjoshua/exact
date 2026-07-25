@@ -80,13 +80,16 @@ describe('@exactjs/ssr hydration', () => {
 				}
 			},
 			state: { title: '</script><img>' },
-			stateContracts: {
+			continuations: {
 				save: {
-					reads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }]
+					id: 'save',
+					componentId: 'test:save',
+					stateReads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }],
+					stateWrites: [],
+					publicContexts: [],
+					serverContexts: [],
+					boundaries: ['profile', 'profile:children']
 				}
-			},
-			actionBoundaries: {
-				save: ['profile', 'profile:children']
 			},
 			nonce: 'abc"123'
 		});
@@ -97,8 +100,7 @@ describe('@exactjs/ssr hydration', () => {
 		expect(script).toContain('"endpoints"');
 		expect(script).toContain('"remote-save"');
 		expect(script).toContain('https://remote.example/__exact');
-		expect(script).toContain('"stateContracts"');
-		expect(script).toContain('"actionBoundaries"');
+		expect(script).toContain('"continuations"');
 		expect(script).toContain('"profile:children"');
 		expect(script).toContain('"project.id"');
 		expect(script).toContain('\\u003C/script>');
@@ -133,9 +135,15 @@ describe('@exactjs/ssr hydration', () => {
 				}
 			},
 			state: { ready: true },
-			stateContracts: {
+			continuations: {
 				save: {
-					reads: [{ path: 'ready', kind: 'read', confidence: 'exact' }]
+					id: 'save',
+					componentId: 'test:save',
+					stateReads: [{ path: 'ready', kind: 'read', confidence: 'exact' }],
+					stateWrites: [],
+					publicContexts: [],
+					serverContexts: [],
+					boundaries: []
 				}
 			}
 		});
@@ -146,6 +154,6 @@ describe('@exactjs/ssr hydration', () => {
 		expect(result.htmlWithHydration).toContain('"endpoints"');
 		expect(result.htmlWithHydration).toContain('"panel":"https://remote.example/__exact"');
 		expect(result.htmlWithHydration).toContain('"ready":true');
-		expect(result.htmlWithHydration).toContain('"stateContracts"');
+		expect(result.htmlWithHydration).toContain('"continuations"');
 	});
 });

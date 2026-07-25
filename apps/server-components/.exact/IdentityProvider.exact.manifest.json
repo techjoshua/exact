@@ -849,6 +849,12 @@
           "requestedPlacement": "server",
           "async": true,
           "browserEffects": false,
+          "dependencies": [
+            {
+              "index": 0,
+              "source": "state"
+            }
+          ],
           "reads": [],
           "writes": [
             {
@@ -1183,7 +1189,8 @@
       ],
       "stateReads": [],
       "stateWrites": [],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "x1u1U2pqELU-5ZrwBvIjCft",
@@ -1227,7 +1234,8 @@
       ],
       "stateReads": [],
       "stateWrites": [],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "x8iL3yRBzGbaq-UB4Ff23Ae",
@@ -1248,7 +1256,8 @@
         }
       ],
       "stateWrites": [],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "xdxYCqAiIGO2gkkrDsQajhk",
@@ -1293,7 +1302,8 @@
       ],
       "stateReads": [],
       "stateWrites": [],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "xhiUD-EtDvA6fKIU877lF4J",
@@ -1314,7 +1324,8 @@
         }
       ],
       "stateWrites": [],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "xIBzSwPOdqIvOeI1P62RNbX",
@@ -1383,7 +1394,8 @@
           "confidence": "exact"
         }
       ],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "xIdk9XQpGHi1wstIbg6xVhJ",
@@ -1420,7 +1432,8 @@
         }
       ],
       "stateWrites": [],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "xIJb2wmPN5oUB9CDh7mQyhw",
@@ -1448,7 +1461,8 @@
       ],
       "stateReads": [],
       "stateWrites": [],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "xJfCs-jepwPpuRHdSj92sUf",
@@ -1498,7 +1512,8 @@
         }
       ],
       "stateWrites": [],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "xkkBLb3C3Lnl_voprAIYgA1",
@@ -1595,7 +1610,8 @@
           "kind": "write",
           "confidence": "exact"
         }
-      ]
+      ],
+      "reevaluationSafe": false
     },
     {
       "id": "xLdrQDr8hr79MG5ZOutFTxM",
@@ -1613,7 +1629,8 @@
       ],
       "stateReads": [],
       "stateWrites": [],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "xtXtSooPByVXpdt7kK2glTH",
@@ -1673,7 +1690,8 @@
           "kind": "read",
           "confidence": "exact"
         }
-      ]
+      ],
+      "reevaluationSafe": false
     },
     {
       "id": "xxS0PmM5GSiV1GDqd498kQ5",
@@ -1701,7 +1719,8 @@
       ],
       "stateReads": [],
       "stateWrites": [],
-      "contexts": []
+      "contexts": [],
+      "reevaluationSafe": false
     },
     {
       "id": "xyrR6RbFEmM2CPQOKveUyWH",
@@ -1822,7 +1841,126 @@
           "kind": "read",
           "confidence": "exact"
         }
-      ]
+      ],
+      "reevaluationSafe": false
+    }
+  ],
+  "continuations": [
+    {
+      "id": "xBSFY15Nxenh4yiPSTnHZOB",
+      "kind": "task",
+      "componentId": "xM7y5djxwQWV41XKpUriZSH",
+      "taskId": "xBSFY15Nxenh4yiPSTnHZOB",
+      "placement": "server",
+      "async": true,
+      "activation": {
+        "stateReads": [],
+        "dependencies": [
+          {
+            "index": 0,
+            "source": "state"
+          }
+        ],
+        "serverContexts": [
+          {
+            "token": "ServerAuthorizationContext",
+            "kind": "read",
+            "confidence": "exact"
+          },
+          {
+            "token": "ServerBrandContext",
+            "kind": "read",
+            "confidence": "exact"
+          }
+        ],
+        "publicContexts": []
+      },
+      "effects": {
+        "stateWrites": [
+          {
+            "path": "roleNames",
+            "kind": "write",
+            "confidence": "exact"
+          },
+          {
+            "path": "brandName",
+            "kind": "write",
+            "confidence": "exact"
+          },
+          {
+            "path": "brandAccent",
+            "kind": "write",
+            "confidence": "exact"
+          }
+        ],
+        "contextWrites": [],
+        "boundaries": []
+      },
+      "ownership": {
+        "componentId": "xM7y5djxwQWV41XKpUriZSH",
+        "lifetime": "component"
+      },
+      "cancellation": "abort-signal"
+    }
+  ],
+  "resumptions": [
+    {
+      "componentId": "xjvkqjmF7HDacb8o81wCvSR",
+      "serverRender": {
+        "stateReads": [],
+        "serverContexts": [
+          {
+            "token": "AuthorizationContext",
+            "kind": "read",
+            "confidence": "exact"
+          },
+          {
+            "token": "BrandContext",
+            "kind": "read",
+            "confidence": "exact"
+          }
+        ]
+      },
+      "client": {
+        "statePaths": [],
+        "valueCaptures": [],
+        "boundaries": []
+      }
+    },
+    {
+      "componentId": "xM7y5djxwQWV41XKpUriZSH",
+      "serverRender": {
+        "stateReads": [],
+        "serverContexts": [
+          {
+            "token": "ServerAuthorizationContext",
+            "kind": "read",
+            "confidence": "exact"
+          },
+          {
+            "token": "ServerBrandContext",
+            "kind": "read",
+            "confidence": "exact"
+          }
+        ]
+      },
+      "client": {
+        "statePaths": [],
+        "valueCaptures": [],
+        "boundaries": []
+      }
+    },
+    {
+      "componentId": "xyHdh5oknOFQKwvffPrKaMN",
+      "serverRender": {
+        "stateReads": [],
+        "serverContexts": []
+      },
+      "client": {
+        "statePaths": [],
+        "valueCaptures": [],
+        "boundaries": []
+      }
     }
   ],
   "policy": {
@@ -1834,7 +1972,7 @@
         "name": "IdentitySummary",
         "callableId": "xtXtSooPByVXpdt7kK2glTH",
         "policy": {
-          "residency": "isomorphic",
+          "residency": "shared",
           "secret": false
         },
         "source": "inference"
@@ -1844,7 +1982,7 @@
         "kind": "context",
         "name": "AuthorizationContext",
         "policy": {
-          "residency": "isomorphic",
+          "residency": "shared",
           "secret": false
         },
         "source": "inference"
@@ -1874,7 +2012,7 @@
         "kind": "context",
         "name": "BrandContext",
         "policy": {
-          "residency": "isomorphic",
+          "residency": "shared",
           "secret": false
         },
         "source": "inference"
@@ -1884,7 +2022,7 @@
         "kind": "declaration",
         "name": "brand",
         "policy": {
-          "residency": "isomorphic",
+          "residency": "shared",
           "secret": false
         },
         "source": "inference"
@@ -1894,7 +2032,7 @@
         "kind": "declaration",
         "name": "authorization",
         "policy": {
-          "residency": "isomorphic",
+          "residency": "shared",
           "secret": false
         },
         "source": "inference"
@@ -1946,7 +2084,7 @@
         ],
         "to": "xjvkqjmF7HDacb8o81wCvSR",
         "policy": {
-          "residency": "isomorphic",
+          "residency": "shared",
           "secret": false
         },
         "boundary": "context",
@@ -1960,7 +2098,7 @@
         ],
         "to": "xwj-Bk1SUp_3LSbdtUXEAVr",
         "policy": {
-          "residency": "isomorphic",
+          "residency": "shared",
           "secret": false
         },
         "authorized": true
@@ -1987,7 +2125,7 @@
         ],
         "to": "x4xDFknZmUMBxcIjFWUdo68",
         "policy": {
-          "residency": "isomorphic",
+          "residency": "shared",
           "secret": false
         },
         "authorized": true
@@ -2000,7 +2138,7 @@
         ],
         "to": "xjvkqjmF7HDacb8o81wCvSR",
         "policy": {
-          "residency": "isomorphic",
+          "residency": "shared",
           "secret": false
         },
         "boundary": "context",
@@ -2014,7 +2152,7 @@
         ],
         "to": "xshktuvGHQtbuZXs-yKIMQh",
         "policy": {
-          "residency": "isomorphic",
+          "residency": "shared",
           "secret": false
         },
         "authorized": true
@@ -2076,7 +2214,7 @@
           }
         ]
       },
-      "contextContract": [
+      "serverContextContract": [
         {
           "token": "ServerAuthorizationContext",
           "kind": "read",
@@ -2087,7 +2225,8 @@
           "kind": "read",
           "confidence": "exact"
         }
-      ]
+      ],
+      "publicContextContract": []
     }
   },
   "diagnostics": [

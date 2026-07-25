@@ -4,6 +4,7 @@
 import { createVNode, type Component } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { createExactClient } from './index.js';
+import { testContinuation } from './test-support/responses.js';
 
 describe('@exactjs/hydrate remote-registry', () => {
 	it('registers remote hydration metadata after client creation', async () => {
@@ -34,19 +35,17 @@ describe('@exactjs/hydrate remote-registry', () => {
 			state: { project: { id: 'p1', title: 'Draft', secret: 'local-only' } },
 			fetch
 		});
-		client.registerManifest({
+		client.registerComponents({
 			endpoints: {
 				actions: {
 					'remote-save': 'https://remote.test/__exact'
 				}
 			},
-			stateContracts: {
-				'remote-save': {
-					reads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }]
-				}
-			},
-			actionBoundaries: {
-				'remote-save': ['remote-panel']
+			continuations: {
+				'remote-save': testContinuation('remote-save', {
+					reads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }],
+					boundaries: ['remote-panel']
+				})
 			}
 		});
 
@@ -71,7 +70,7 @@ describe('@exactjs/hydrate remote-registry', () => {
 		expect(container.textContent).toBe('Saved remote');
 	});
 
-	it('rejects conflicting remote manifest registrations', () => {
+	it('rejects conflicting remote component registrations', () => {
 		const container = document.createElement('div');
 		function RemoteIsland(this: Component<{}>) {
 			return () => createVNode('button', null, 'Remote');
@@ -87,13 +86,11 @@ describe('@exactjs/hydrate remote-registry', () => {
 					save: '/__exact'
 				}
 			},
-			stateContracts: {
-				save: {
-					reads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }]
-				}
-			},
-			actionBoundaries: {
-				save: ['profile']
+			continuations: {
+				save: testContinuation('save', {
+					reads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }],
+					boundaries: ['profile']
+				})
 			},
 			islands: {
 				RemoteIsland
@@ -101,12 +98,12 @@ describe('@exactjs/hydrate remote-registry', () => {
 		});
 
 		expect(() =>
-			client.registerManifest({
+			client.registerComponents({
 				endpoint: 'https://remote.test/__exact'
 			})
 		).toThrow('Conflicting eXact hydration endpoint registration');
 		expect(() =>
-			client.registerManifest({
+			client.registerComponents({
 				endpoints: {
 					actions: {
 						save: 'https://remote.test/__exact'
@@ -115,23 +112,27 @@ describe('@exactjs/hydrate remote-registry', () => {
 			})
 		).toThrow('Conflicting eXact hydration action endpoint route registration: save');
 		expect(() =>
-			client.registerManifest({
-				stateContracts: {
-					save: {
-						reads: [{ path: 'project.title', kind: 'read', confidence: 'exact' }]
-					}
+			client.registerComponents({
+				continuations: {
+					save: testContinuation('save', {
+						reads: [{ path: 'project.title', kind: 'read', confidence: 'exact' }],
+						boundaries: ['profile']
+					})
 				}
 			})
-		).toThrow('Conflicting eXact hydration state contract registration: save');
+		).toThrow('Conflicting eXact hydration continuation registration: save');
 		expect(() =>
-			client.registerManifest({
-				actionBoundaries: {
-					save: ['other-profile']
+			client.registerComponents({
+				continuations: {
+					save: testContinuation('save', {
+						reads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }],
+						boundaries: ['other-profile']
+					})
 				}
 			})
-		).toThrow('Conflicting eXact hydration action boundary registration: save');
+		).toThrow('Conflicting eXact hydration continuation registration: save');
 		expect(() =>
-			client.registerManifest({
+			client.registerComponents({
 				islands: {
 					RemoteIsland: OtherRemoteIsland
 				}
@@ -139,7 +140,7 @@ describe('@exactjs/hydrate remote-registry', () => {
 		).toThrow('Conflicting eXact hydration client island registration: RemoteIsland');
 	});
 
-	it('allows idempotent remote manifest registrations', () => {
+	it('allows idempotent remote component registrations', () => {
 		const container = document.createElement('div');
 		function RemoteIsland(this: Component<{}>) {
 			return () => createVNode('button', null, 'Remote');
@@ -161,13 +162,11 @@ describe('@exactjs/hydrate remote-registry', () => {
 					'remote-panel': 'https://remote.test/__exact'
 				}
 			},
-			stateContracts: {
-				'remote-save': {
-					reads: [{ path: 'project.id', kind: 'read' as const, confidence: 'exact' as const }]
-				}
-			},
-			actionBoundaries: {
-				'remote-save': ['remote-panel']
+			continuations: {
+				'remote-save': testContinuation('remote-save', {
+					reads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }],
+					boundaries: ['remote-panel']
+				})
 			},
 			islands: {
 				RemoteIsland
@@ -182,24 +181,24 @@ describe('@exactjs/hydrate remote-registry', () => {
 			}
 		};
 
-		client.registerManifest(registration);
-		client.registerManifest(registration);
+		client.registerComponents(registration);
+		client.registerComponents(registration);
 
 		expect(client.endpoints?.boundaries?.['remote-panel']).toBe('https://remote.test/__exact');
-		expect(client.stateContracts?.['remote-save']?.reads?.[0]?.path).toBe('project.id');
+		expect(client.continuations?.['remote-save']?.stateReads[0]?.path).toBe('project.id');
 	});
 
-	it('rejects cyclic state contract registrations without throwing a serialization error', () => {
+	it('rejects cyclic continuation registrations without throwing a serialization error', () => {
 		const container = document.createElement('div');
 		const client = createExactClient(container, { endpoint: '/__exact' });
-		const first: Record<string, unknown> = { reads: [] };
-		const second: Record<string, unknown> = { reads: [] };
+		const first: Record<string, unknown> = { ...testContinuation('save') };
+		const second: Record<string, unknown> = { ...testContinuation('save') };
 		first.self = first;
 		second.self = second;
-		client.registerManifest({ stateContracts: { save: first as never } });
+		client.registerComponents({ continuations: { save: first as never } });
 
-		expect(() => client.registerManifest({ stateContracts: { save: second as never } })).toThrow(
-			'Conflicting eXact hydration state contract registration: save'
+		expect(() => client.registerComponents({ continuations: { save: second as never } })).toThrow(
+			'Conflicting eXact hydration continuation registration: save'
 		);
 	});
 
@@ -241,12 +240,16 @@ describe('@exactjs/hydrate remote-registry', () => {
 				'x-shared': 'root'
 			}
 		});
-		client.registerManifest({
+		client.registerComponents({
 			endpoints: {
 				actions: {
 					'remote-a': 'https://remote.test/__exact',
 					'remote-b': 'https://remote.test/__exact'
 				}
+			},
+			continuations: {
+				'remote-a': testContinuation('remote-a'),
+				'remote-b': testContinuation('remote-b')
 			},
 			transports: {
 				'https://remote.test/__exact': {

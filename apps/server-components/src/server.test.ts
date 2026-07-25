@@ -19,7 +19,7 @@ import {
 import { ProfilePage_ExactClient_1 } from '../.exact/ProfilePage.exact.client.js';
 import type { PublicIdentity } from './IdentityProvider.js';
 import {
-	exactManifest,
+	exactContract,
 	handleExactServerRequest,
 	renderProfilePage,
 	renderProfilePageResponse
@@ -83,7 +83,7 @@ describe('@exactjs/sample-server-components', () => {
 
 		expect(hydrated).toBe(1);
 		expect(container.querySelector('[data-exact-client-hydrated="true"]')).not.toBeNull();
-		expect(config.actionBoundaries?.['save-profile']).toContain(
+		expect(config.continuations?.['save-profile']?.boundaries).toContain(
 			container
 				.querySelector('[data-exact-client-boundary]')
 				?.getAttribute('data-exact-client-boundary')
@@ -174,7 +174,7 @@ describe('@exactjs/sample-server-components', () => {
 
 function identityRuntime(identity: PublicIdentity) {
 	return createExactServerRuntime({
-		manifest: exactManifest,
+		contract: exactContract,
 		actions: {
 			'save-profile': () => ({ state: { saved: true } })
 		},

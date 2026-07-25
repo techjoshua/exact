@@ -1,9 +1,9 @@
-import { createVNode } from '@exactjs/core';
+import { createVNode, readExactComponentContract } from '@exactjs/core';
 import {
-	createExactHydrationManifestConfig,
-	createExactServerManifest,
+	composeExactExecutorContract,
+	createExactHydrationConfig,
+	defineExactActionContract,
 	handleExactRequest,
-	type ExactCompilerManifestLike,
 	type ExactRequestLike
 } from '@exactjs/server';
 import {
@@ -11,33 +11,28 @@ import {
 	renderToHydratableProgressiveHtmlResponse,
 	renderToHydratableStringAsync
 } from '@exactjs/ssr';
-import profileCompilerManifest from '../.exact/ProfilePage.exact.manifest.json' with { type: 'json' };
 import { ProfilePage } from '../.exact/ProfilePage.exact.server.js';
 
-const generatedProfileManifest = profileCompilerManifest as ExactCompilerManifestLike &
-	typeof profileCompilerManifest;
-const profileComponentId = profileCompilerManifest.components.find(
-	(component) => component.name === 'ProfilePage'
-)!.id;
-const profileBoundaryId = profileCompilerManifest.boundaries.find(
-	(boundary) => boundary.ownerComponentId === profileComponentId
-)!.id;
+const profileContract = readExactComponentContract(ProfilePage);
+if (!profileContract) throw new Error('ProfilePage is missing its generated executor contract');
+const profileBoundaryId = profileContract.boundaries[0]?.id;
+if (!profileBoundaryId) throw new Error('ProfilePage is missing its generated client boundary');
 
-/** Provides the canonical exact manifest value. */
-export const exactManifest = createExactServerManifest(generatedProfileManifest, {
+/** Provides the executor authority reachable from this application root. */
+export const exactContract = composeExactExecutorContract([ProfilePage], {
 	endpoint: '/__exact',
 	actions: {
-		'save-profile': {
-			id: 'save-profile',
-			componentId: profileComponentId,
-			placement: 'server'
-		}
+		'save-profile': defineExactActionContract('save-profile', {
+			componentId: profileContract.id,
+			writes: [{ path: 'saved', kind: 'write', confidence: 'exact' }],
+			boundaries: [profileBoundaryId]
+		})
 	}
 });
 
 /** Provides the canonical exact runtime value. */
 export const exactRuntime = createExactServerRuntime({
-	manifest: exactManifest,
+	contract: exactContract,
 	markers: false,
 	patchStrategy: 'element',
 	actions: {
@@ -52,7 +47,7 @@ export const exactRuntime = createExactServerRuntime({
 export async function renderProfilePage(name: string) {
 	return renderToHydratableStringAsync(createVNode(ProfilePage, { name }), {
 		markers: false,
-		...createExactHydrationManifestConfig(exactManifest, { profile: { name } })
+		...createExactHydrationConfig(exactContract, { profile: { name } })
 	});
 }
 
@@ -61,7 +56,7 @@ export function renderProfilePageResponse(name: string) {
 	return renderToHydratableProgressiveHtmlResponse(createVNode(ProfilePage, { name }), {
 		markers: false,
 		rootId: 'app',
-		...createExactHydrationManifestConfig(exactManifest, { profile: { name } })
+		...createExactHydrationConfig(exactContract, { profile: { name } })
 	});
 }
 

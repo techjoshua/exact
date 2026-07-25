@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createExactBindingGateway, handleExactRequest } from './index.js';
+import {
+	createExactBindingGateway,
+	defineExactActionContract,
+	handleExactRequest
+} from './index.js';
 import { context } from './test-support/server.js';
 
 const buildKey = '0123456789abcdef0123456789abcdef01234567';
@@ -25,11 +29,11 @@ describe('page host to component host integration', () => {
 					buildKey,
 					roots: {
 						'@company/billing#./Area': {
-							manifest: actionManifest('same-local-id'),
+							contract: actionContract('same-local-id'),
 							actions: { 'same-local-id': areaAction }
 						},
 						'@company/billing#./Other': {
-							manifest: actionManifest('same-local-id'),
+							contract: actionContract('same-local-id'),
 							actions: { 'same-local-id': otherAction }
 						}
 					}
@@ -43,7 +47,7 @@ describe('page host to component host integration', () => {
 					buildKey,
 					roots: {
 						'@company/branding#./Shell': {
-							manifest: actionManifest('same-local-id'),
+							contract: actionContract('same-local-id'),
 							actions: { 'same-local-id': shellAction }
 						}
 					}
@@ -168,17 +172,13 @@ describe('page host to component host integration', () => {
 	});
 });
 
-function actionManifest(id: string) {
+function actionContract(id: string) {
 	return {
 		version: 1 as const,
 		actions: {
-			[id]: {
-				id,
-				placement: 'server' as const,
-				stateContract: {
-					writes: [{ path: '*', kind: 'write' as const, confidence: 'exact' as const }]
-				}
-			}
+			[id]: defineExactActionContract(id, {
+				writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
+			})
 		},
 		boundaries: {}
 	};

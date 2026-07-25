@@ -1,5 +1,9 @@
 import { createServerBoundary, createTextVNode, createVNode, type Component } from '@exactjs/core';
-import { handleExactRequest } from '@exactjs/server';
+import {
+	defineExactActionContract,
+	defineExactBoundaryContract,
+	handleExactRequest
+} from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import {
 	createActionRefreshHandler,
@@ -25,7 +29,11 @@ describe('@exactjs/ssr boundaries', () => {
 		await handler(
 			{ type: 'refresh', id: 'panel' },
 			{
-				manifest: { version: 1, boundaries: { panel: { id: 'panel' } } },
+				contract: {
+					version: 1,
+					actions: {},
+					boundaries: { panel: defineExactBoundaryContract('panel') }
+				},
 				signal: abort.signal
 			}
 		);
@@ -135,10 +143,11 @@ describe('@exactjs/ssr boundaries', () => {
 				body: { type: 'refresh', id: 'profile', payload: { name: 'Ada' } }
 			},
 			{
-				manifest: {
+				contract: {
 					version: 1,
+					actions: {},
 					boundaries: {
-						profile: { id: 'profile' }
+						profile: defineExactBoundaryContract('profile')
 					}
 				},
 				refreshBoundaries: {
@@ -179,19 +188,16 @@ describe('@exactjs/ssr boundaries', () => {
 				}
 			},
 			{
-				manifest: {
+				contract: {
 					version: 1,
 					actions: {
-						'save-profile': {
-							id: 'save-profile',
-							placement: 'server',
-							stateContract: {
-								writes: [{ path: 'saved', kind: 'write', confidence: 'exact' }]
-							}
-						}
+						'save-profile': defineExactActionContract('save-profile', {
+							writes: [{ path: 'saved', kind: 'write', confidence: 'exact' }],
+							boundaries: ['profile']
+						})
 					},
 					boundaries: {
-						profile: { id: 'profile' }
+						profile: defineExactBoundaryContract('profile')
 					}
 				},
 				actions: {
@@ -228,9 +234,10 @@ describe('@exactjs/ssr boundaries', () => {
 				body: { type: 'refresh', id: 'profile' }
 			},
 			{
-				manifest: {
+				contract: {
 					version: 1,
-					boundaries: { profile: { id: 'profile' } }
+					actions: {},
+					boundaries: { profile: defineExactBoundaryContract('profile') }
 				},
 				refreshBoundaries: {
 					profile: createBoundaryRefreshHandler(() => createTextVNode('Ada & Lin'), {
@@ -255,9 +262,10 @@ describe('@exactjs/ssr boundaries', () => {
 				body: { type: 'refresh', id: 'profile' }
 			},
 			{
-				manifest: {
+				contract: {
 					version: 1,
-					boundaries: { profile: { id: 'profile' } }
+					actions: {},
+					boundaries: { profile: defineExactBoundaryContract('profile') }
 				},
 				refreshBoundaries: {
 					profile: createBoundaryRefreshHandler(
@@ -295,9 +303,10 @@ describe('@exactjs/ssr boundaries', () => {
 				}
 			},
 			{
-				manifest: {
+				contract: {
 					version: 1,
-					boundaries: { profile: { id: 'profile' } }
+					actions: {},
+					boundaries: { profile: defineExactBoundaryContract('profile') }
 				},
 				refreshBoundaries: {
 					profile: createBoundaryRefreshHandler(
@@ -366,9 +375,10 @@ describe('@exactjs/ssr boundaries', () => {
 				}
 			},
 			{
-				manifest: {
+				contract: {
 					version: 1,
-					boundaries: { tasks: { id: 'tasks' } }
+					actions: {},
+					boundaries: { tasks: defineExactBoundaryContract('tasks') }
 				},
 				refreshBoundaries: {
 					tasks: createKeyedListRefreshHandler({

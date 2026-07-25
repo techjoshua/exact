@@ -1,4 +1,8 @@
-import { type ExactServerContext } from '../index.js';
+import {
+	defineExactActionContract,
+	defineExactBoundaryContract,
+	type ExactServerContext
+} from '../index.js';
 
 export const noopLogger = {
 	isEnabled: () => false,
@@ -7,13 +11,13 @@ export const noopLogger = {
 
 export function context(overrides: Partial<ExactServerContext> = {}): ExactServerContext {
 	return {
-		manifest: {
+		contract: {
 			version: 1,
 			actions: {
-				'allowed-action': { id: 'allowed-action', placement: 'server' }
+				'allowed-action': defineExactActionContract('allowed-action')
 			},
 			boundaries: {
-				'allowed-boundary': { id: 'allowed-boundary' }
+				'allowed-boundary': defineExactBoundaryContract('allowed-boundary')
 			}
 		},
 		actions: {

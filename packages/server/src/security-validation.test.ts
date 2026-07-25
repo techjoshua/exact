@@ -1,6 +1,6 @@
 import { registerReactiveListKey } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
-import { handleExactRequest } from './index.js';
+import { defineExactActionContract, handleExactRequest } from './index.js';
 import { context, readStreamEvents } from './test-support/server.js';
 
 describe('@exactjs/server security-validation', () => {
@@ -36,7 +36,7 @@ describe('@exactjs/server security-validation', () => {
 				body: { type: 'action', id: 'allowed-action' }
 			},
 			context({
-				manifest: recordsStateManifest(),
+				contract: recordsStateContract(),
 				actions: {
 					'allowed-action': () => ({ state: { records } })
 				}
@@ -56,7 +56,7 @@ describe('@exactjs/server security-validation', () => {
 				body: { type: 'action', id: 'allowed-action' }
 			},
 			context({
-				manifest: recordsStateManifest(),
+				contract: recordsStateContract(),
 				actions: {
 					'allowed-action': () => ({ state: { records } })
 				}
@@ -155,12 +155,13 @@ describe('@exactjs/server security-validation', () => {
 				body: { type: 'action', id: 'allowed-action' }
 			},
 			context({
-				manifest: {
+				contract: {
 					version: 1,
 					endpoint: '/__exact',
 					actions: {
-						'allowed-action': { id: 'allowed-action', placement: 'server' }
-					}
+						'allowed-action': defineExactActionContract('allowed-action')
+					},
+					boundaries: {}
 				},
 				actions: { 'allowed-action': action }
 			})
@@ -381,17 +382,14 @@ describe('@exactjs/server security-validation', () => {
 	});
 });
 
-function recordsStateManifest() {
+function recordsStateContract() {
 	return {
 		version: 1 as const,
 		actions: {
-			'allowed-action': {
-				id: 'allowed-action',
-				placement: 'server' as const,
-				stateContract: {
-					writes: [{ path: 'records', kind: 'write' as const, confidence: 'exact' as const }]
-				}
-			}
-		}
+			'allowed-action': defineExactActionContract('allowed-action', {
+				writes: [{ path: 'records', kind: 'write', confidence: 'exact' }]
+			})
+		},
+		boundaries: {}
 	};
 }

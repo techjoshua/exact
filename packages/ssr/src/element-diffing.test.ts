@@ -1,5 +1,5 @@
 import { createVNode } from '@exactjs/core';
-import { handleExactRequest } from '@exactjs/server';
+import { defineExactBoundaryContract, handleExactRequest } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { createBoundaryRefreshHandler, diffBoundaryHtml, diffKeyedListItems } from './index.js';
 
@@ -11,9 +11,10 @@ describe('@exactjs/ssr element-diffing', () => {
 				body: { type: 'refresh', id: 'profile' }
 			},
 			{
-				manifest: {
+				contract: {
 					version: 1,
-					boundaries: { profile: { id: 'profile' } }
+					actions: {},
+					boundaries: { profile: defineExactBoundaryContract('profile') }
 				},
 				refreshBoundaries: {
 					profile: createBoundaryRefreshHandler(() => createVNode('p', null, 'Ada'), {
@@ -144,9 +145,10 @@ describe('@exactjs/ssr element-diffing', () => {
 				body: { type: 'refresh', id: 'profile' }
 			},
 			{
-				manifest: {
+				contract: {
 					version: 1,
-					boundaries: { profile: { id: 'profile' } }
+					actions: {},
+					boundaries: { profile: defineExactBoundaryContract('profile') }
 				},
 				refreshBoundaries: {
 					profile: createBoundaryRefreshHandler(() => createVNode('section', null, 'Ready'), {

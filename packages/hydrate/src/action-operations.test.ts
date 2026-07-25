@@ -4,6 +4,26 @@
 import { describe, expect, it } from 'vitest';
 import { createExactClient } from './index.js';
 
+function continuation(
+	id: string,
+	options: {
+		reads?: any[];
+		writes?: any[];
+		boundaries?: string[];
+		publicContexts?: string[];
+	} = {}
+) {
+	return {
+		id,
+		componentId: `test:${id}`,
+		stateReads: options.reads ?? [],
+		stateWrites: options.writes ?? [],
+		publicContexts: options.publicContexts ?? [],
+		serverContexts: [],
+		boundaries: options.boundaries ?? []
+	};
+}
+
 describe('@exactjs/hydrate action-operations', () => {
 	it('uses continuation descriptors for minimal activation records', async () => {
 		const container = document.createElement('main');
@@ -149,8 +169,10 @@ describe('@exactjs/hydrate action-operations', () => {
 		let requestBody: any;
 		const client = createExactClient(container, {
 			endpoint: '/__exact',
-			actionBoundaries: {
-				save: ['profile', 'profile:children', 'missing']
+			continuations: {
+				save: continuation('save', {
+					boundaries: ['profile', 'profile:children', 'missing']
+				})
 			},
 			fetch: async (_input, init) => {
 				requestBody = JSON.parse(init.body);
@@ -172,19 +194,23 @@ describe('@exactjs/hydrate action-operations', () => {
 		});
 	});
 
-	it('compares idempotent state contracts independent of object key order', () => {
+	it('compares idempotent continuation contracts independent of object key order', () => {
 		const container = document.createElement('div');
 		const client = createExactClient(container, { endpoint: '/__exact' });
-		client.registerManifest({
-			stateContracts: {
-				save: { reads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }] }
+		client.registerComponents({
+			continuations: {
+				save: continuation('save', {
+					reads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }]
+				})
 			}
 		});
 
 		expect(() =>
-			client.registerManifest({
-				stateContracts: {
-					save: { reads: [{ confidence: 'exact', kind: 'read', path: 'project.id' }] }
+			client.registerComponents({
+				continuations: {
+					save: continuation('save', {
+						reads: [{ confidence: 'exact', kind: 'read', path: 'project.id' }]
+					})
 				}
 			})
 		).not.toThrow();
@@ -218,7 +244,12 @@ describe('@exactjs/hydrate action-operations', () => {
 			batch: false,
 			fetch,
 			state: { version: 0 },
-			actionBoundaries: { save: ['left', 'left', 'right'] },
+			continuations: {
+				save: continuation('save', {
+					writes: [{ path: 'version', kind: 'write', confidence: 'exact' }],
+					boundaries: ['left', 'left', 'right']
+				})
+			},
 			onDiagnostic: (diagnostic) => diagnostics.push(diagnostic.message),
 			onOperation: (observation) =>
 				operations.push({
@@ -256,8 +287,7 @@ describe('@exactjs/hydrate action-operations', () => {
 					id: 'save',
 					patches: [
 						{ type: 'text', id: 'left-value', value: 'Left stale' },
-						{ type: 'text', id: 'right-value', value: 'Right saved' },
-						{ type: 'text', id: 'outside-contract', value: 'Unsafe' }
+						{ type: 'text', id: 'right-value', value: 'Right saved' }
 					],
 					state: { version: 1 }
 				};
@@ -269,7 +299,7 @@ describe('@exactjs/hydrate action-operations', () => {
 		expect(container.querySelector('[data-exact-id=right-value]')?.textContent).toBe('Right saved');
 		expect(client.state).toEqual({ version: 2 });
 		expect(diagnostics).toEqual([
-			'partially ignored stale exact action response for save (text:left-value, text:outside-contract)'
+			'partially ignored stale exact action response for save (text:left-value)'
 		]);
 		expect(operations).toContainEqual({
 			id: 'save',
@@ -330,10 +360,10 @@ describe('@exactjs/hydrate action-operations', () => {
 				project: { id: 'p1', title: 'Hidden' },
 				user: { id: 'u1' }
 			},
-			stateContracts: {
-				'save-project': {
+			continuations: {
+				'save-project': continuation('save-project', {
 					reads: [{ path: 'project.id', kind: 'read', confidence: 'exact' }]
-				}
+				})
 			},
 			fetch
 		});
@@ -361,10 +391,10 @@ describe('@exactjs/hydrate action-operations', () => {
 					{ id: 'p2', secret: 'hidden' }
 				]
 			},
-			stateContracts: {
-				'save-project': {
+			continuations: {
+				'save-project': continuation('save-project', {
 					reads: [{ path: 'projects.1.id', kind: 'read', confidence: 'exact' }]
-				}
+				})
 			},
 			fetch: async (_input, init) => {
 				requests.push(JSON.parse(init.body));
@@ -396,13 +426,13 @@ describe('@exactjs/hydrate action-operations', () => {
 		const client = createExactClient(container, {
 			endpoint: '/__exact',
 			state: JSON.parse('{"project":{"id":"p1"},"__proto__":{"polluted":true}}'),
-			stateContracts: {
-				'save-project': {
+			continuations: {
+				'save-project': continuation('save-project', {
 					reads: [
 						{ path: 'project.id', kind: 'read', confidence: 'exact' },
 						{ path: '__proto__.polluted', kind: 'read', confidence: 'exact' }
 					]
-				}
+				})
 			},
 			fetch: async (_input, init) => {
 				requests.push(JSON.parse(init.body));

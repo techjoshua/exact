@@ -6,6 +6,7 @@ import { render, unmount } from '@exactjs/dom';
 import { inspectDomRoot, type DomInspectionNode } from '@exactjs/dom/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { createExactClient } from './index.js';
+import { testContinuation } from './test-support/responses.js';
 
 describe('component-domain transport', () => {
 	it('emits immutable root, binding, and build metadata for every client operation', async () => {
@@ -16,6 +17,7 @@ describe('component-domain transport', () => {
 			executionRoot: '@company/billing#./Area',
 			binding: 'billing',
 			buildKey: '0123456789abcdef0123456789abcdef01234567',
+			continuations: { save: testContinuation('save') },
 			headers: {
 				'X-Exact-Binding': 'attacker-choice',
 				'X-Exact-Build': 'ffffffffffffffffffffffffffffffffffffffff'
@@ -62,7 +64,7 @@ describe('component-domain transport', () => {
 		const client = createExactClient(container, {
 			executionRoot: '@company/billing#./Area'
 		});
-		client.registerManifest({ islands: { Late } });
+		client.registerComponents({ islands: { Late } });
 
 		expect(setupRoot).toBe('@company/billing#./Area');
 		expect(findComponentRoot(inspectDomRoot(container.firstElementChild!), 'Late')).toBe(
@@ -105,7 +107,7 @@ describe('component-domain transport', () => {
 		const client = createExactClient(remoteRoot, {
 			executionRoot: '@company/billing#./Area'
 		});
-		client.registerManifest({ islands: { Late } });
+		client.registerComponents({ islands: { Late } });
 
 		expect(remoteRoot.textContent).toBe('Ada');
 		host.state.profile.name = 'Grace';

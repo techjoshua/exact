@@ -1,20 +1,19 @@
 import { hasOnlyKeys, isJsonSafe } from './protocol.js';
 import type {
-	ExactContextEffect,
+	ExactExecutorContract,
 	ExactInvocationRequest,
 	ExactInvocationResult,
 	ExactPatch,
-	ExactServerManifest,
-	ExactStateContract
+	ExactStatePath
 } from './types.js';
 
-/** Returns whether an invocation references an action or boundary allowed by the manifest. */
-export function isManifestAllowed(
+/** Returns whether an invocation references an entry in the composed executor allowlist. */
+export function isExecutorAllowed(
 	input: ExactInvocationRequest,
-	manifest: ExactServerManifest
+	contract: ExactExecutorContract
 ): boolean {
-	if (input.type === 'action') return Boolean(manifest.actions?.[input.id]);
-	if (input.type === 'refresh') return Boolean(manifest.boundaries?.[input.id]);
+	if (input.type === 'action') return Boolean(contract.actions[input.id]);
+	if (input.type === 'refresh') return Boolean(contract.boundaries[input.id]);
 	return false;
 }
 
@@ -56,25 +55,25 @@ function positiveLimit(value: number | undefined, fallback: number): number {
 /** Returns whether submitted boundary snapshots are allowed for the invocation. */
 export function boundaryHintsAllowed(
 	input: ExactInvocationRequest,
-	manifest: ExactServerManifest
+	contract: ExactExecutorContract
 ): boolean {
 	if (!input.boundaryHtmls) return true;
 	if (input.type === 'action') {
-		const allowed = manifest.actionBoundaries?.[input.id];
+		const allowed = contract.actions[input.id]?.boundaries;
 		if (allowed) {
 			const allowedSet = new Set(allowed);
 			return Object.keys(input.boundaryHtmls).every((id) => allowedSet.has(id));
 		}
 	}
 	for (const id of Object.keys(input.boundaryHtmls)) {
-		if (!manifest.boundaries?.[id]) return false;
+		if (!contract.boundaries[id]) return false;
 	}
 	return true;
 }
 
-/** Returns whether submitted state satisfies every exact read required by a contract. */
-export function stateMatchesContract(state: unknown, contract: ExactStateContract): boolean {
-	for (const read of contract.reads ?? []) {
+/** Returns whether submitted state satisfies every exact continuation read. */
+export function stateMatchesContract(state: unknown, reads: readonly ExactStatePath[]): boolean {
+	for (const read of reads) {
 		if (read.kind !== 'read' || read.confidence !== 'exact') continue;
 		if (!hasStatePath(state, read.path)) return false;
 	}
@@ -88,44 +87,33 @@ export function stateMatchesContract(state: unknown, contract: ExactStateContrac
  */
 export function stateResponseMatchesContract(
 	state: unknown,
-	contract: ExactStateContract | undefined
+	writes: readonly ExactStatePath[]
 ): boolean {
 	if (state === undefined) return true;
-	const writes =
-		contract?.writes?.filter((write) => write.kind === 'write' && write.confidence === 'exact') ??
-		[];
-	if (writes.some((write) => write.path === '*')) return true;
+	const exactWrites = writes.filter(
+		(write) => write.kind === 'write' && write.confidence === 'exact'
+	);
+	if (exactWrites.some((write) => write.path === '*')) return true;
 	if (!state || typeof state !== 'object' || Array.isArray(state)) return false;
 	return stateNodeMatchesWrites(
 		state,
 		'',
-		writes.map((write) => write.path)
+		exactWrites.map((write) => write.path)
 	);
 }
 
 /** Validates only explicitly public context projections transported by the client. */
 export function publicContextMatchesContract(
 	context: Record<string, unknown> | undefined,
-	contract: ExactContextEffect[] | undefined
+	tokens: readonly string[]
 ): boolean {
-	if (!context) return !requiresExactContext(contract);
-	if (!contract?.length) return false;
-	const allowed = new Set(
-		contract.filter((effect) => effect.confidence === 'exact').map((effect) => effect.token)
-	);
+	if (!context) return tokens.length === 0;
+	if (!tokens.length) return false;
+	const allowed = new Set(tokens);
 	if (!Object.keys(context).every((token) => allowed.has(token))) return false;
-	for (const effect of contract) {
-		if (effect.kind !== 'read' || effect.confidence !== 'exact') continue;
-		if (!Object.prototype.hasOwnProperty.call(context, effect.token)) return false;
-	}
+	for (const token of tokens)
+		if (!Object.prototype.hasOwnProperty.call(context, token)) return false;
 	return true;
-}
-
-/** Reports whether a public context contract requires an exact transported value. */
-function requiresExactContext(contract: ExactContextEffect[] | undefined): boolean {
-	return Boolean(
-		contract?.some((effect) => effect.kind === 'read' && effect.confidence === 'exact')
-	);
 }
 
 function isPatchSafe(patch: unknown): patch is ExactPatch {

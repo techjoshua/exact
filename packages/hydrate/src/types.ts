@@ -12,8 +12,7 @@ import type {
 	ExactInvocationRequest,
 	ExactInvocationResult,
 	ExactOperationResult,
-	ExactPatch,
-	ExactStateContract
+	ExactPatch
 } from '@exactjs/server';
 
 /** Configures hydrate. */
@@ -36,8 +35,6 @@ export type HydrateOptions = {
 	/** Internal explicit ownership used when mounting islands into this client root. */
 	componentDomain?: ComponentDomain;
 	transports?: Record<string, ExactEndpointTransport>;
-	stateContracts?: Record<string, ExactStateContract>;
-	actionBoundaries?: Record<string, readonly string[]>;
 	/** Contracts composed from the imported client component artifacts. */
 	continuations?: Record<string, ExactComponentContinuationContract>;
 	/** Shared context projections available for compiler-selected operations. */
@@ -105,8 +102,8 @@ export type ExactHydrationConfig = {
 	endpoint?: string;
 	endpoints?: ExactEndpointRoutes;
 	state?: unknown;
-	stateContracts?: Record<string, ExactStateContract>;
-	actionBoundaries?: Record<string, readonly string[]>;
+	continuations?: Record<string, ExactComponentContinuationContract>;
+	publicContexts?: Record<string, unknown>;
 	executionRoot?: string;
 	binding?: string;
 	buildKey?: string;
@@ -179,7 +176,6 @@ export type ExactClient = {
 	readonly endpoint?: string;
 	readonly endpoints?: ExactEndpointRoutes;
 	state?: unknown;
-	readonly stateContracts?: Record<string, ExactStateContract>;
 	readonly continuations?: Record<string, ExactComponentContinuationContract>;
 	/** Number of action, refresh, or stream promises still owned by this client generation. */
 	readonly pendingRequests: number;
@@ -191,7 +187,7 @@ export type ExactClient = {
 		registry: ClientIslandRegistry,
 		payload?: unknown
 	): Promise<ExactInvocationResult>;
-	registerManifest(config: ExactHydrationRegistration): void;
+	registerComponents(config: ExactHydrationRegistration): void;
 	/** Prevents new work while allowing already accepted work to settle. */
 	retire(): void;
 	/** Resolves once all work admitted before retirement has settled. */
@@ -281,6 +277,5 @@ export type {
 	ExactInvocationRequest,
 	ExactInvocationResult,
 	ExactOperationResult,
-	ExactPatch,
-	ExactStateContract
+	ExactPatch
 };

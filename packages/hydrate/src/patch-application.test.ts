@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { applyPatches, createExactClient } from './index.js';
-import { ndjsonResponse, noopLogger } from './test-support/responses.js';
+import { ndjsonResponse, noopLogger, testContinuation } from './test-support/responses.js';
 
 describe('@exactjs/hydrate patch-application', () => {
 	it('applies text patches to exact marker ranges', () => {
@@ -245,6 +245,9 @@ describe('@exactjs/hydrate patch-application', () => {
 		const client = createExactClient(container, {
 			endpoint: '/__exact',
 			state: { saved: false },
+			continuations: {
+				'save-title': testContinuation('save-title', { boundaries: ['title'] })
+			},
 			fetch
 		});
 		await client.invokeAction('save-title', { title: 'New' });
@@ -255,7 +258,8 @@ describe('@exactjs/hydrate patch-application', () => {
 				root: 'page',
 				id: 'save-title',
 				payload: { title: 'New' },
-				state: { saved: false }
+				state: { saved: false },
+				boundaryHtmls: { title: 'Old' }
 			}
 		]);
 		expect(container.textContent).toBe('New');
@@ -270,6 +274,9 @@ describe('@exactjs/hydrate patch-application', () => {
 		const client = createExactClient(container, {
 			endpoint: '/__exact',
 			state: { saved: false },
+			continuations: {
+				'save-title': testContinuation('save-title', { boundaries: ['title'] })
+			},
 			stream: true,
 			fetch: async (_input, init) => {
 				requestHeaders = init.headers;

@@ -19,7 +19,9 @@ import {
 
 describe('@exactjs/ssr documents-security', () => {
 	it('preserves authored documents instead of adding a progressive root wrapper', async () => {
-		const runtime = createExactServerRuntime({ manifest: { version: 1 } });
+		const runtime = createExactServerRuntime({
+			contract: { version: 1, actions: {}, boundaries: {} }
+		});
 		const response = await renderExactRequestToProgressiveHtmlResponse(
 			{
 				method: 'GET',

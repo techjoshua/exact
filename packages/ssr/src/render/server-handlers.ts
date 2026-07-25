@@ -104,7 +104,7 @@ export function createExactServerHandlerRegistry(
 	const refreshBoundaries: NonNullable<ExactServerContext['refreshBoundaries']> = {};
 	const actionHandlers: NonNullable<ExactServerContext['actions']> = {};
 
-	for (const id of Object.keys(options.manifest.boundaries ?? {}).sort()) {
+	for (const id of Object.keys(options.contract.boundaries).sort()) {
 		const renderer = options.boundaries?.[id];
 		if (!renderer) continue;
 		refreshBoundaries[id] = createBoundaryRefreshHandler(
@@ -113,20 +113,18 @@ export function createExactServerHandlerRegistry(
 		);
 	}
 
-	for (const id of Object.keys(options.manifest.actions ?? {}).sort()) {
+	for (const id of Object.keys(options.contract.actions).sort()) {
 		const action = options.actions?.[id];
 		if (!action) continue;
-		const boundaries = (options.manifest.actionBoundaries?.[id] ?? [])
-			.map((boundaryId) => {
-				const renderer = options.boundaries?.[boundaryId];
-				return renderer
-					? {
-							...boundaryRefreshOptions(boundaryId, renderer, options),
-							render: boundaryRenderFunction(renderer)
-						}
-					: undefined;
-			})
-			.filter((boundary): boundary is ActionRefreshBoundaryOptions => boundary !== undefined);
+		const boundaries = options.contract.actions[id]!.boundaries.map((boundaryId) => {
+			const renderer = options.boundaries?.[boundaryId];
+			return renderer
+				? {
+						...boundaryRefreshOptions(boundaryId, renderer, options),
+						render: boundaryRenderFunction(renderer)
+					}
+				: undefined;
+		}).filter((boundary): boundary is ActionRefreshBoundaryOptions => boundary !== undefined);
 		actionHandlers[id] = boundaries.length
 			? createActionRefreshHandler({ action, boundaries })
 			: async (input, context) => (await action(input, context)) ?? {};
@@ -147,7 +145,7 @@ export function createExactServerRuntime(options: ExactServerRuntimeOptions): Ex
 		contextOverrides: options.contextOverrides
 	});
 	return {
-		manifest: options.manifest,
+		contract: options.contract,
 		...registry,
 		authorize: options.authorize,
 		validateCsrf: options.validateCsrf,
