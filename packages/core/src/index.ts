@@ -30,11 +30,16 @@ export {
 	pageComponentDomain,
 	withComponentDomain
 } from './component/domain.js';
+export {
+	componentContinuationContextValues,
+	registerComponentContinuationContexts
+} from './component/context-resumption.js';
 export { ErrorContext, LoggerContext, SuspensionContext } from './component/contexts.js';
 export type {
 	Child,
 	Cleanup,
 	Component,
+	ComponentContinuationContextBinding,
 	ComponentContinuationDispatch,
 	ComponentContinuationDispatcher,
 	ComponentContextValues,

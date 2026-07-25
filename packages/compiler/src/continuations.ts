@@ -26,6 +26,13 @@ export function createExactContinuations(
 			.sort();
 		for (const task of component.tasks) {
 			if (task.placement !== 'server' && task.placement !== 'isomorphic') continue;
+			for (const context of task.contexts) {
+				if (context.kind === 'write' && !safeContextName(context.token)) {
+					throw new Error(
+						`Component context write must use a safe stable token binding: ${context.token}`
+					);
+				}
+			}
 			output.push({
 				id: task.id,
 				kind: 'task',
@@ -79,7 +86,12 @@ export function createExactContinuations(
 				},
 				effects: {
 					stateWrites: [...task.writes],
-					contextWrites: task.contexts.filter((context) => context.kind === 'write'),
+					contextWrites: task.contexts.filter(
+						(context) => context.kind === 'write' && contextResidency(context.token) === 'shared'
+					),
+					serverContextWrites: task.contexts.filter(
+						(context) => context.kind === 'write' && contextResidency(context.token) !== 'shared'
+					),
 					boundaries: ownedBoundaries
 				},
 				ownership: {
@@ -102,7 +114,8 @@ export function createExactContinuations(
 export function createExactComponentResumptions(
 	components: readonly ExactComponentIR[],
 	boundaries: readonly ExactBoundaryIR[],
-	plan: ExpressionComponentPlan
+	plan: ExpressionComponentPlan,
+	contextResidency: (token: string) => 'server' | 'client' | 'shared' = () => 'server'
 ): ExactComponentResumptionIR[] {
 	return components
 		.map((component): ExactComponentResumptionIR => {
@@ -130,6 +143,18 @@ export function createExactComponentResumptions(
 							)
 					]),
 					valueCaptures: uniqueSorted(islands.flatMap((island) => island.valueCaptures)),
+					contexts: uniqueSorted(
+						component.tasks
+							.filter((task) => task.placement === 'server' || task.placement === 'isomorphic')
+							.flatMap((task) =>
+								task.contexts
+									.filter(
+										(context) =>
+											context.kind === 'write' && contextResidency(context.token) === 'shared'
+									)
+									.map((context) => context.token)
+							)
+					),
 					boundaries: boundaries
 						.filter((boundary) => boundary.ownerComponentId === component.id)
 						.map((boundary) => boundary.id)
@@ -154,4 +179,9 @@ function uniqueContexts(
 			values.map((value) => [`${value.kind}:${value.token}:${value.confidence}`, value])
 		).values()
 	].sort((left, right) => left.token.localeCompare(right.token));
+}
+
+/** Rejects protocol keys that could alter an ordinary JSON object's prototype. */
+function safeContextName(name: string): boolean {
+	return name.length > 0 && name !== '__proto__' && name !== 'prototype' && name !== 'constructor';
 }

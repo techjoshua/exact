@@ -290,8 +290,7 @@ describe('@exactjs/compiler: reactivity', () => {
 		]);
 		expect(action.serverContextContract).toEqual([
 			{ token: 'LocaleContext', kind: 'read', confidence: 'exact' },
-			{ token: 'Services.Logger', kind: 'read', confidence: 'exact' },
-			{ token: 'LocaleContext', kind: 'write', confidence: 'exact' }
+			{ token: 'Services.Logger', kind: 'read', confidence: 'exact' }
 		]);
 	});
 
@@ -469,13 +468,42 @@ describe('@exactjs/compiler: reactivity', () => {
 		expect(continuation.effects.contextWrites).toEqual([
 			expect.objectContaining({ token: 'StatusContext', kind: 'write' })
 		]);
+		expect(client).toContain('name: "StatusContext", token: StatusContext');
 		expect(client).toContain(
-			'name: "StatusContext", token: StatusContext'
+			'registerComponentContinuationContexts as __exactRegisterContinuationContexts'
+		);
+		expect(server).toContain(
+			'registerComponentContinuationContexts as __exactRegisterContinuationContexts'
 		);
 		expect(client).toContain('contextWrites:');
 		expect(server).toContain('contextWrites:');
 		expect(server).toContain('["StatusContext"]');
 		expect(server).toContain('contexts: __exactContextWrites_');
+	});
+
+	it('keeps server-resident component-context writes out of client response contracts', () => {
+		const source = `
+      const DatabaseContext = createContext<{ query(): Promise<string> }>("database", {
+        global: true,
+        scope: "application"
+      });
+
+      export function Page(this: Component<{ count: number }>) {
+        this.task.server(() => {
+          this.setContext(DatabaseContext, { query: async () => "private" });
+        });
+        return () => <button onClick={() => this.state.count++}>Page</button>;
+      }
+    `;
+		const manifest = analyzeSource(source, { filename: 'Page.tsx' });
+		const client = transform(source, { filename: 'Page.tsx', target: 'client' });
+		const continuation = manifest.continuations[0]!;
+
+		expect(continuation.effects.contextWrites).toEqual([]);
+		expect(continuation.effects.serverContextWrites).toEqual([
+			expect.objectContaining({ token: 'DatabaseContext', kind: 'write' })
+		]);
+		expect(client).not.toContain('name: "DatabaseContext"');
 	});
 
 	it('fails compilation when explicit task placement contradicts detected environment usage', () => {

@@ -3,7 +3,12 @@ import { isFunctionLikeExpression, isThisTaskCall, taskRequestedPlacement } from
 import type { ExpressionComponentPlan } from '../../expression/contracts.js';
 import type { ExpressionTaskPlan, ExpressionTaskSite } from '../../expression/task-contracts.js';
 import { stableId } from '../../ids.js';
-import type { ExactPlacement, HelperNames, TransformTarget } from '../../types.js';
+import type {
+	ExactContinuationIR,
+	ExactPlacement,
+	HelperNames,
+	TransformTarget
+} from '../../types.js';
 import { expressionEmissionId } from './identity.js';
 
 type ContinuationContextWrite = Readonly<{ name: string; token: ts.Expression }>;
@@ -35,6 +40,21 @@ export function createDistributedTaskSites(
 					})
 				] as const;
 			})
+	);
+}
+
+/** Indexes the shared context writes each generated client continuation may receive. */
+export function continuationContextWriteContracts(
+	continuations: readonly ExactContinuationIR[]
+): ReadonlyMap<string, ReadonlySet<string>> {
+	return new Map(
+		continuations.map(
+			(continuation) =>
+				[
+					continuation.id,
+					new Set(continuation.effects.contextWrites.map((effect) => effect.token))
+				] as const
+		)
 	);
 }
 
@@ -93,7 +113,7 @@ export function createDistributedTaskCall(
 	contextWrites: readonly ContinuationContextWrite[],
 	context: ts.TransformationContext,
 	helpers: HelperNames
-): ts.CallExpression {
+): ts.Expression {
 	const factory = context.factory;
 	const dependencies = node.arguments.slice(0, -1);
 	const dependencyParameters = dependencies.map((_, index) =>
@@ -137,16 +157,20 @@ export function createDistributedTaskCall(
 		)
 	);
 	const taggedWork = markContinuationTask(work, continuationId, context, helpers);
-	return factory.updateCallExpression(
+	const task = factory.updateCallExpression(
 		node,
 		factory.createPropertyAccessExpression(factory.createThis(), 'task'),
 		node.typeArguments,
 		[...dependencies, taggedWork]
 	);
+	return registerContinuationContextBindings(task, contextWrites, context, helpers);
 }
 
 /** Collects direct component-context writes whose token identities must remain client-local. */
-export function continuationContextWrites(node: ts.CallExpression): ContinuationContextWrite[] {
+export function continuationContextWrites(
+	node: ts.CallExpression,
+	allowed?: ReadonlySet<string>
+): ContinuationContextWrite[] {
 	const work = node.arguments.at(-1);
 	if (!work || !isFunctionLikeExpression(work)) return [];
 	const writes = new Map<string, ts.Expression>();
@@ -165,7 +189,43 @@ export function continuationContextWrites(node: ts.CallExpression): Continuation
 		ts.forEachChild(current, visit);
 	};
 	visit(work);
-	return [...writes].map(([name, token]) => ({ name, token }));
+	return [...writes]
+		.filter(([name]) => !allowed || allowed.has(name))
+		.map(([name, token]) => ({ name, token }));
+}
+
+/**
+ * Registers source contract names against runtime-local token identities before
+ * the task can be armed from an SSR resumption record.
+ */
+export function registerContinuationContextBindings(
+	task: ts.Expression,
+	contextWrites: readonly ContinuationContextWrite[],
+	context: ts.TransformationContext,
+	helpers: HelperNames
+): ts.Expression {
+	if (!contextWrites.length) return task;
+	const factory = context.factory;
+	return factory.createParenthesizedExpression(
+		factory.createCommaListExpression([
+			factory.createCallExpression(
+				factory.createIdentifier(helpers.registerContinuationContexts),
+				undefined,
+				[
+					factory.createThis(),
+					factory.createArrayLiteralExpression(
+						contextWrites.map(({ name, token }) =>
+							factory.createObjectLiteralExpression([
+								factory.createPropertyAssignment('name', factory.createStringLiteral(name)),
+								factory.createPropertyAssignment('token', token)
+							])
+						)
+					)
+				]
+			),
+			task
+		])
+	);
 }
 
 /** Tags generated task work with its stable distributed continuation identity. */

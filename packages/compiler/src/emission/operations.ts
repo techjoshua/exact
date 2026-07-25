@@ -25,6 +25,7 @@ const helperBases: Readonly<Record<keyof HelperNames, string>> = {
 	taskAwait: '__exactTaskAwait',
 	taskContinuation: '__exactContinuationTask',
 	dispatchContinuation: '__exactDispatchContinuation',
+	registerContinuationContexts: '__exactRegisterContinuationContexts',
 	remove: '__exactDelete',
 	arrayMutation: '__exactArrayMutation'
 };

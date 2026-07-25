@@ -78,7 +78,8 @@ function requiresRuntimeHelpers(state: JsxTransformState): boolean {
 		state.taskSignalModes.size > 0 ||
 		state.sawTaskAwait ||
 		state.sawContinuationTask ||
-		state.sawDistributedContinuation
+		state.sawDistributedContinuation ||
+		state.sawContinuationContexts
 	);
 }
 
@@ -119,6 +120,14 @@ function createRuntimeHelperImports(
 	if (state.sawDistributedContinuation)
 		imports.push(
 			helperImport(factory, 'dispatchComponentContinuation', helpers.dispatchContinuation)
+		);
+	if (state.sawContinuationContexts)
+		imports.push(
+			helperImport(
+				factory,
+				'registerComponentContinuationContexts',
+				helpers.registerContinuationContexts
+			)
 		);
 	if (state.sawBoundary)
 		imports.push(helperImport(factory, 'createServerBoundary', helpers.boundary));

@@ -26,6 +26,7 @@ describe('@exactjs/core component resumption', () => {
 		const domain = createComponentDomain('page', undefined, () => ({
 			componentId: 'component:Search',
 			values: { query: 'server', result: 'SERVER' },
+			contexts: {},
 			settledContinuations: ['load']
 		}));
 

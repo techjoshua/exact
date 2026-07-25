@@ -22,6 +22,7 @@ import {
 	componentOwnsClientMachine,
 	continuationContextWrites,
 	createDistributedTaskCall,
+	registerContinuationContextBindings,
 	resolvedTaskPlacement,
 	shouldOmitTaskPlacement
 } from './distributed-task-emission.js';
@@ -44,6 +45,7 @@ export function visitJsxExpression(
 		target,
 		serverComponents,
 		componentPlacements,
+		continuationContextWrites: continuationWriteContracts,
 		derivedReactiveLocals,
 		expressionJsx,
 		expressionResourceFor,
@@ -183,10 +185,15 @@ export function visitJsxExpression(
 				);
 				state.sawDistributedContinuation = true;
 				state.sawContinuationTask = true;
+				const contextWrites = continuationContextWrites(
+					node,
+					continuationWriteContracts.get(task.continuationId)
+				);
+				if (contextWrites.length) state.sawContinuationContexts = true;
 				return createDistributedTaskCall(
 					transformed as ts.CallExpression,
 					task.continuationId,
-					continuationContextWrites(node),
+					contextWrites,
 					context,
 					helpers
 				);
@@ -211,7 +218,7 @@ export function visitJsxExpression(
 				derivedReactiveLocals
 			);
 		}
-		return transformCapturedCall(
+		const transformed = transformCapturedCall(
 			sourceFile,
 			node,
 			context,
@@ -229,6 +236,19 @@ export function visitJsxExpression(
 			expressionSignalFor,
 			(mode) => state.taskSignalModes.add(mode),
 			expressionTaskFor(node)
+		);
+		if (!task?.continuationId) return transformed;
+		const contextWrites = continuationContextWrites(
+			node,
+			continuationWriteContracts.get(task.continuationId)
+		);
+		if (!contextWrites.length) return transformed;
+		state.sawContinuationContexts = true;
+		return registerContinuationContextBindings(
+			transformed as ts.Expression,
+			contextWrites,
+			context,
+			helpers
 		);
 	}
 	if (node.pos >= 0 && ts.isShorthandPropertyAssignment(node)) {

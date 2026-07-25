@@ -28,6 +28,17 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 		await writeFile(
 			source,
 			`
+				import { createContext, type Component } from "@exactjs/core";
+
+				const StatusContext = createContext<{ message: string }>("status", {
+					keep: "shared"
+				});
+
+				function Status(this: Component<{}>) {
+					const status = this.getContext(StatusContext);
+					return () => <output data-status>{status.message}</output>;
+				}
+
 				export function Search(this: Component<{ query: string; result: string }>) {
 					this.state.query = "first";
 					this.state.result = "waiting";
@@ -35,7 +46,9 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 					this.task.server(async () => {
 						const query = this.state.query;
 						await Promise.resolve();
-						this.state.result = query.toUpperCase();
+						const result = query.toUpperCase();
+						this.state.result = result;
+						this.setContext(StatusContext, { message: result });
 					});
 
 					return () => (
@@ -50,6 +63,7 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 								Change
 							</button>
 							<output>{this.state.result}</output>
+							<Status />
 						</label>
 					);
 				}
@@ -80,12 +94,14 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 		expect(rendered.html).toContain('FIRST');
 		expect(rendered.resumptions).toEqual([
 			expect.objectContaining({
-				values: expect.objectContaining({ query: 'first', result: 'FIRST' })
+				values: expect.objectContaining({ query: 'first', result: 'FIRST' }),
+				contexts: { StatusContext: { message: 'FIRST' } }
 			})
 		]);
 		const container = document.createElement('main');
 		container.innerHTML = rendered.htmlWithHydration;
 		const serverOutput = container.querySelector('output');
+		const serverStatus = container.querySelector('[data-status]');
 		const client = hydrate(createVNode(ClientSearch, {}), container, {
 			endpoint: '/__exact',
 			buildKey: 'loopback-build',
@@ -97,6 +113,8 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 
 		expect(container.querySelector('output')?.textContent).toBe('FIRST');
 		expect(container.querySelector('output')).toBe(serverOutput);
+		expect(container.querySelector('[data-status]')).toBe(serverStatus);
+		expect(serverStatus?.textContent).toBe('FIRST');
 		expect(requests).toHaveLength(0);
 
 		container.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -104,6 +122,7 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 		await client.whenSettled();
 
 		expect(container.querySelector('output')?.textContent).toBe('SECOND');
+		expect(container.querySelector('[data-status]')?.textContent).toBe('SECOND');
 		expect(requests[0]).toMatchObject({
 			type: 'action',
 			root: 'page',

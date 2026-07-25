@@ -31,6 +31,7 @@ describe('@exactjs/core component contracts', () => {
 						stateWrites: [],
 						publicContexts: [],
 						serverContexts: [],
+						contextWrites: [],
 						boundaries: ['boundary:Page']
 					}
 				],
@@ -47,6 +48,7 @@ describe('@exactjs/core component contracts', () => {
 					componentId: 'component:Page',
 					statePaths: ['count'],
 					valueCaptures: [],
+					contexts: [],
 					boundaries: ['boundary:Page']
 				}
 			}
@@ -91,5 +93,35 @@ describe('@exactjs/core component contracts', () => {
 				'client'
 			)
 		).toThrow('Conflicting eXact component implementation island:Page:1');
+	});
+
+	it('rejects incomplete continuation metadata instead of assuming an older shape', () => {
+		const component = Object.assign(() => undefined, {
+			[exactComponentContract]: {
+				version: 1,
+				id: 'component:Page',
+				placement: 'client',
+				role: 'client',
+				implementations: [],
+				continuations: [
+					{
+						id: 'task:Page',
+						componentId: 'component:Page',
+						dependencies: [],
+						stateReads: [],
+						stateWrites: [],
+						publicContexts: [],
+						serverContexts: [],
+						boundaries: []
+					}
+				],
+				executors: [],
+				boundaries: []
+			}
+		});
+
+		expect(() => readExactComponentContract(component)).toThrow(
+			'Unsupported eXact component contract'
+		);
 	});
 });

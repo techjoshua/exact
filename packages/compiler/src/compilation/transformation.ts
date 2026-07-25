@@ -175,6 +175,7 @@ export function transformSource(source: string, options: TransformOptions = {}):
 			expressionDerived,
 			expressionWrites,
 			expressionTasks,
+			manifest.continuations,
 			expressionJsx,
 			expressionComponents,
 			emissionComponentInfo,

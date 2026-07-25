@@ -292,10 +292,12 @@ function isComponentResumptions(value: unknown): value is ComponentResumptionAct
 			if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
 			const record = item as Record<string, unknown>;
 			return (
-				hasOnlyKeys(record, ['componentId', 'values', 'settledContinuations']) &&
+				hasOnlyKeys(record, ['componentId', 'values', 'contexts', 'settledContinuations']) &&
 				typeof record.componentId === 'string' &&
 				isRecord(record.values) &&
 				Object.keys(record.values).every(safeResumptionPath) &&
+				isRecord(record.contexts) &&
+				Object.keys(record.contexts).every(safeContextName) &&
 				isStringList(record.settledContinuations)
 			);
 		})
@@ -318,6 +320,11 @@ function safeResumptionPath(path: string): boolean {
 	);
 }
 
+/** Rejects context keys that could mutate an ordinary protocol object's prototype. */
+function safeContextName(name: string): boolean {
+	return name.length > 0 && name !== '__proto__' && name !== 'prototype' && name !== 'constructor';
+}
+
 function isContinuation(value: unknown): value is ExactComponentContinuationContract {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const record = value as Record<string, unknown>;
@@ -330,6 +337,7 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 			'stateWrites',
 			'publicContexts',
 			'serverContexts',
+			'contextWrites',
 			'boundaries'
 		]) &&
 		typeof record.id === 'string' &&
@@ -340,6 +348,7 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 		isStringList(record.publicContexts) &&
 		isStringList(record.serverContexts) &&
 		record.serverContexts.length === 0 &&
+		isStringList(record.contextWrites) &&
 		isStringList(record.boundaries)
 	);
 }

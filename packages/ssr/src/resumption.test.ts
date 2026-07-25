@@ -1,7 +1,9 @@
 import {
+	createContext,
 	createVNode,
 	exactComponentContract,
 	markComponentContinuationTask,
+	registerComponentContinuationContexts,
 	type Component
 } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
@@ -39,6 +41,7 @@ describe('@exactjs/ssr component resumption', () => {
 						stateWrites: [{ path: 'count', kind: 'write' as const, confidence: 'exact' as const }],
 						publicContexts: [],
 						serverContexts: [],
+						contextWrites: [],
 						boundaries: []
 					}
 				],
@@ -48,6 +51,7 @@ describe('@exactjs/ssr component resumption', () => {
 					componentId: 'component:Counter',
 					statePaths: ['count'],
 					valueCaptures: [],
+					contexts: [],
 					boundaries: []
 				}
 			}
@@ -60,6 +64,7 @@ describe('@exactjs/ssr component resumption', () => {
 			{
 				componentId: 'component:Counter',
 				values: { count: 7 },
+				contexts: {},
 				settledContinuations: ['task:load']
 			}
 		]);
@@ -95,6 +100,7 @@ describe('@exactjs/ssr component resumption', () => {
 						stateWrites: [{ path: 'count', kind: 'write' as const, confidence: 'exact' as const }],
 						publicContexts: [],
 						serverContexts: [],
+						contextWrites: [],
 						boundaries: []
 					}
 				],
@@ -104,6 +110,7 @@ describe('@exactjs/ssr component resumption', () => {
 					componentId: 'component:StreamedCounter',
 					statePaths: ['count'],
 					valueCaptures: [],
+					contexts: [],
 					boundaries: []
 				}
 			}
@@ -118,7 +125,66 @@ describe('@exactjs/ssr component resumption', () => {
 			expect.objectContaining({ event: 'replace', html: expect.stringContaining('>9</output>') })
 		);
 		expect(hydration.html).toContain(
-			'"resumptions":[{"componentId":"component:StreamedCounter","values":{"count":9},"settledContinuations":["task:stream"]}]'
+			'"resumptions":[{"componentId":"component:StreamedCounter","values":{"count":9},"contexts":{},"settledContinuations":["task:stream"]}]'
 		);
+	});
+
+	it('captures only compiler-registered shared component context values', async () => {
+		const Status = createContext<{ message: string }>('status');
+		function Consumer(this: Component<{}>) {
+			return () => createVNode('p', null, this.getContext(Status).message);
+		}
+		const implementation = function Provider(this: Component<{}>) {
+			registerComponentContinuationContexts(this, [{ name: 'Status', token: Status }]);
+			this.task(
+				markComponentContinuationTask('task:status', () => {
+					this.setContext(Status, { message: 'ready' });
+				})
+			);
+			return () => createVNode(Consumer, {});
+		};
+		const Provider = Object.assign(implementation, {
+			[exactComponentContract]: {
+				version: 1 as const,
+				id: 'component:Provider',
+				placement: 'isomorphic' as const,
+				role: 'client' as const,
+				implementations: [],
+				continuations: [
+					{
+						id: 'task:status',
+						componentId: 'component:Provider',
+						dependencies: [],
+						stateReads: [],
+						stateWrites: [],
+						publicContexts: [],
+						serverContexts: [],
+						contextWrites: ['Status'],
+						boundaries: []
+					}
+				],
+				executors: [],
+				boundaries: [],
+				resumption: {
+					componentId: 'component:Provider',
+					statePaths: [],
+					valueCaptures: [],
+					contexts: ['Status'],
+					boundaries: []
+				}
+			}
+		});
+
+		const rendered = await renderToHydratableStringAsync(createVNode(Provider, {}));
+
+		expect(rendered.html).toContain('<p>ready</p>');
+		expect(rendered.resumptions).toEqual([
+			{
+				componentId: 'component:Provider',
+				values: {},
+				contexts: { Status: { message: 'ready' } },
+				settledContinuations: ['task:status']
+			}
+		]);
 	});
 });

@@ -42,6 +42,7 @@ export type JsxVisitorEnvironment = {
 	expressionWrites: ExpressionWritePlan;
 	componentInfo: Map<string, ExactImportedComponentIR>;
 	componentPlacements: Map<string, ExactPlacement>;
+	continuationContextWrites: ReadonlyMap<string, ReadonlySet<string>>;
 	derivedReactiveLocals: DerivedReactiveIndex;
 	expressionTaskFor(node: ts.Node): ExpressionTaskSite | undefined;
 	expressionResourceFor(node: ts.Node): ExpressionTaskResource | undefined;

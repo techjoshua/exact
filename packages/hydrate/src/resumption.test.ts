@@ -2,9 +2,11 @@
  * @vitest-environment jsdom
  */
 import {
+	createContext,
 	createVNode,
 	exactComponentContract,
 	markComponentContinuationTask,
+	registerComponentContinuationContexts,
 	type Component
 } from '@exactjs/core';
 import { renderToHydratableStringAsync } from '@exactjs/ssr';
@@ -57,6 +59,7 @@ describe('@exactjs/hydrate component resumption', () => {
 						stateWrites: [{ path: 'result', kind: 'write' as const, confidence: 'exact' as const }],
 						publicContexts: [],
 						serverContexts: [],
+						contextWrites: [],
 						boundaries: []
 					}
 				],
@@ -66,6 +69,7 @@ describe('@exactjs/hydrate component resumption', () => {
 					componentId: 'component:Search',
 					statePaths: ['query', 'result'],
 					valueCaptures: [],
+					contexts: [],
 					boundaries: []
 				}
 			}
@@ -103,5 +107,66 @@ describe('@exactjs/hydrate component resumption', () => {
 				onMismatch: 'throw'
 			})
 		).toThrow('build identities do not match');
+	});
+
+	it('restores a settled shared context before constructing its descendants', async () => {
+		const Status = createContext<{ message: string }>('status');
+		let runs = 0;
+		function Consumer(this: Component<{}>) {
+			const status = this.getContext(Status);
+			return () => createVNode('output', null, status.message);
+		}
+		const implementation = function Provider(this: Component<{}>) {
+			registerComponentContinuationContexts(this, [{ name: 'Status', token: Status }]);
+			this.task(
+				markComponentContinuationTask('task:status', () => {
+					runs++;
+					this.setContext(Status, { message: 'ready' });
+				})
+			);
+			return () => createVNode(Consumer, {});
+		};
+		const Provider = Object.assign(implementation, {
+			[exactComponentContract]: {
+				version: 1 as const,
+				id: 'component:Provider',
+				placement: 'isomorphic' as const,
+				role: 'client' as const,
+				implementations: [],
+				continuations: [
+					{
+						id: 'task:status',
+						componentId: 'component:Provider',
+						dependencies: [],
+						stateReads: [],
+						stateWrites: [],
+						publicContexts: [],
+						serverContexts: [],
+						contextWrites: ['Status'],
+						boundaries: []
+					}
+				],
+				executors: [],
+				boundaries: [],
+				resumption: {
+					componentId: 'component:Provider',
+					statePaths: [],
+					valueCaptures: [],
+					contexts: ['Status'],
+					boundaries: []
+				}
+			}
+		});
+		const rendered = await renderToHydratableStringAsync(createVNode(Provider, {}));
+		const container = document.createElement('main');
+		container.innerHTML = rendered.htmlWithHydration;
+		const serverOutput = container.querySelector('output');
+
+		const client = hydrate(createVNode(Provider, {}), container, { onMismatch: 'throw' });
+
+		expect(runs).toBe(1);
+		expect(container.querySelector('output')).toBe(serverOutput);
+		expect(serverOutput?.textContent).toBe('ready');
+		client.dispose();
 	});
 });

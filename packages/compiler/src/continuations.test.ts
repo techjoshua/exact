@@ -39,6 +39,7 @@ describe('distributed component continuation IR', () => {
 			effects: {
 				stateWrites: expect.arrayContaining([expect.objectContaining({ path: 'results' })]),
 				contextWrites: [],
+				serverContextWrites: [],
 				boundaries: expect.any(Array)
 			},
 			ownership: { componentId: component.id, lifetime: 'component' },
@@ -131,6 +132,33 @@ describe('distributed component continuation IR', () => {
 		expect(manifest.continuations[0]?.activation).toMatchObject({
 			serverContexts: [],
 			publicContexts: [{ token: 'PublicConfig', kind: 'read', confidence: 'exact' }]
+		});
+	});
+
+	it('includes only shared component-context writes in browser resumption data', () => {
+		const manifest = analyzeSource(
+			`
+      import { createContext, type Component } from "@exactjs/core";
+      const PublicStatus = createContext<{ text: string }>("status", { keep: "shared" });
+      const ServerResource = createContext<{ connected: boolean }>(
+        "resource",
+        { scope: "application" }
+      );
+      export function Provider(this: Component<{}>) {
+        this.task.server(() => {
+          this.setContext(PublicStatus, { text: "ready" });
+          this.setContext(ServerResource, { connected: true });
+        });
+        return () => <button onClick={() => undefined}>Ready</button>;
+      }
+    `,
+			{ filename: fixture('resumed-context') }
+		);
+
+		expect(manifest.resumptions[0]?.client.contexts).toEqual(['PublicStatus']);
+		expect(manifest.continuations[0]?.effects).toMatchObject({
+			contextWrites: [expect.objectContaining({ token: 'PublicStatus' })],
+			serverContextWrites: [expect.objectContaining({ token: 'ServerResource' })]
 		});
 	});
 });

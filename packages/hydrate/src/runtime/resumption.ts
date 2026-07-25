@@ -39,6 +39,11 @@ export function createComponentResumptionResolver(
 					`eXact SSR resumption contains undeclared state path ${contract.id}:${path}`
 				);
 		}
+		const allowedContexts = new Set(contract.resumption.contexts);
+		for (const name of Object.keys(record.contexts)) {
+			if (!allowedContexts.has(name))
+				throw new Error(`eXact SSR resumption contains undeclared context ${contract.id}:${name}`);
+		}
 		const allowedContinuations = new Set(
 			contract.continuations.map((continuation) => continuation.id)
 		);

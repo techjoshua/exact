@@ -47,7 +47,14 @@ export type ComponentDomain = {
 export type ComponentResumptionActivation = Readonly<{
 	componentId: string;
 	values: Readonly<Record<string, unknown>>;
+	contexts: Readonly<Record<string, unknown>>;
 	settledContinuations: readonly string[];
+}>;
+
+/** Client-local token identity paired with a compiler-stable context contract name. */
+export type ComponentContinuationContextBinding = Readonly<{
+	name: string;
+	token: ContextToken<any>;
 }>;
 
 /** Compiler-generated request to advance the server half of a component machine. */
@@ -55,10 +62,7 @@ export type ComponentContinuationDispatch = {
 	readonly instance: ComponentInstance<any>;
 	readonly id: string;
 	readonly dependencies: readonly unknown[];
-	readonly contextWrites: readonly Readonly<{
-		name: string;
-		token: ContextToken<any>;
-	}>[];
+	readonly contextWrites: readonly ComponentContinuationContextBinding[];
 	readonly signal: AbortSignal;
 };
 

@@ -22,6 +22,8 @@ export type ExactContinuationEffectsIR = {
 	stateWrites: ExactStateEffect[];
 	/** Component context tokens the continuation may provide to descendants. */
 	contextWrites: ExactContextEffect[];
+	/** Component context writes retained exclusively within server execution. */
+	serverContextWrites: ExactContextEffect[];
 	/** DOM boundaries the response is permitted to patch or replace. */
 	boundaries: string[];
 };
@@ -53,6 +55,7 @@ export type ExactServerRenderRecordIR = {
 export type ExactClientResumptionRecordIR = {
 	statePaths: string[];
 	valueCaptures: string[];
+	contexts: string[];
 	boundaries: string[];
 };
 

@@ -45,6 +45,7 @@ import { releaseTaskObserver, retainTaskObserver, taskObserverFor } from '../tas
 import { isPromiseLike } from './async-value.js';
 import { observeLifecyclePromise } from './async.js';
 import { ErrorContext } from './contexts.js';
+import { prepareComponentContextResumption } from './context-resumption.js';
 import { pageComponentDomain, withComponentDomain } from './domain.js';
 import { createErrorContext, createErrorReport, handleComponentError } from './errors.js';
 import { reactiveValue } from './reactive-value.js';
@@ -374,6 +375,7 @@ export function createComponentInstance<
 	if (!parent) instance.contexts.set(ErrorContext.id, reactiveValue(createErrorContext()));
 
 	applyInternalPlugins(instance);
+	if (resumption) prepareComponentContextResumption(instance, resumption);
 
 	let result: RenderFunction | RenderResult;
 	try {

@@ -18,6 +18,7 @@ import type { ExpressionWritePlan } from '../../expression/writes.js';
 import { isServerOnlyImportDeclaration } from '../../imports.js';
 import { componentPlacementsFromInfo } from '../../placement.js';
 import type {
+	ExactContinuationIR,
 	ExactImportedComponentIR,
 	ExactSemanticGraphIR,
 	TransformTarget
@@ -25,6 +26,7 @@ import type {
 
 import { collectExpressionDerivedLocals } from './element-emission.js';
 import {
+	continuationContextWriteContracts,
 	createDistributedTaskSites,
 	isDistributedTaskStatement
 } from './distributed-task-emission.js';
@@ -64,6 +66,7 @@ export function exactJsxTransformer(
 	expressionDerived: ExpressionDerivedPlan,
 	expressionWrites: ExpressionWritePlan,
 	expressionTasks: ExpressionTaskPlan,
+	continuations: readonly ExactContinuationIR[],
 	expressionJsx: ExpressionJsxPlan,
 	expressionComponents: ExpressionComponentPlan,
 	componentInfo: Map<string, ExactImportedComponentIR>,
@@ -97,6 +100,7 @@ export function exactJsxTransformer(
 			expressionComponents,
 			identityFilename
 		);
+		const continuationContextWrites = continuationContextWriteContracts(continuations);
 		const visitorEnvironment = createJsxVisitorEnvironment(
 			{
 				context,
@@ -114,6 +118,7 @@ export function exactJsxTransformer(
 				expressionWrites,
 				componentInfo,
 				componentPlacements,
+				continuationContextWrites,
 				derivedReactiveLocals
 			},
 			{ ...expressionTasks, sites: taskSites },

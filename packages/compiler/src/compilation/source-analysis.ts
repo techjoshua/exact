@@ -250,7 +250,12 @@ export function analyzeSource(
 		boundaries,
 		(token) => policyMetadata.contextPolicies.get(token)?.policy.residency ?? 'server'
 	);
-	const resumptions = createExactComponentResumptions(components, boundaries, expressionComponents);
+	const resumptions = createExactComponentResumptions(
+		components,
+		boundaries,
+		expressionComponents,
+		(token) => policyMetadata.contextPolicies.get(token)?.policy.residency ?? 'server'
+	);
 
 	for (const continuation of continuations) {
 		if (serverActions[continuation.id]) {
@@ -265,10 +270,7 @@ export function analyzeSource(
 				reads: continuation.activation.stateReads,
 				writes: continuation.effects.stateWrites
 			},
-			serverContextContract: [
-				...continuation.activation.serverContexts,
-				...continuation.effects.contextWrites
-			],
+			serverContextContract: [...continuation.activation.serverContexts],
 			publicContextContract: continuation.activation.publicContexts
 		};
 	}

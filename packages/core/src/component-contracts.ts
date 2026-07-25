@@ -59,9 +59,7 @@ export type ExactComponentContinuationExecutorContract = Readonly<{
 	execute(
 		activation: ExactComponentContinuationActivation,
 		execution: ExactComponentContinuationExecution
-	):
-		| ExactComponentContinuationExecutionResult
-		| Promise<ExactComponentContinuationExecutionResult>;
+	): ExactComponentContinuationExecutionResult | Promise<ExactComponentContinuationExecutionResult>;
 }>;
 
 /** One compiler-owned DOM boundary and its component ownership. */
@@ -77,6 +75,7 @@ export type ExactComponentResumptionContract = Readonly<{
 	componentId: string;
 	statePaths: readonly string[];
 	valueCaptures: readonly string[];
+	contexts: readonly string[];
 	boundaries: readonly string[];
 }>;
 
@@ -113,16 +112,7 @@ export function readExactComponentContract(
 ): ExactComponentContract | undefined {
 	const contract = (component as ContractComponent)[exactComponentContract];
 	if (!contract) return undefined;
-	if (
-		contract.version !== 1 ||
-		typeof contract.id !== 'string' ||
-		!Array.isArray(contract.implementations) ||
-		!Array.isArray(contract.continuations) ||
-		!Array.isArray(contract.executors) ||
-		!Array.isArray(contract.boundaries)
-	) {
-		throw new Error('Unsupported eXact component contract');
-	}
+	if (!isComponentContract(contract)) throw new Error('Unsupported eXact component contract');
 	return contract;
 }
 
@@ -160,8 +150,7 @@ export function composeExactComponentContracts(
 		}
 		for (const continuation of contract.continuations)
 			addUniqueJson(continuations, continuation.id, continuation, 'continuation');
-		for (const executor of contract.executors)
-			addUniqueExecutor(executors, executor);
+		for (const executor of contract.executors) addUniqueExecutor(executors, executor);
 		for (const boundary of contract.boundaries)
 			addUniqueJson(boundaries, boundary.id, boundary, 'boundary');
 		if (contract.resumption)
@@ -215,4 +204,163 @@ function addUniqueJson<T>(target: Record<string, T>, key: string, value: T, kind
 	if (previous && JSON.stringify(previous) !== JSON.stringify(value))
 		throw new Error(`Conflicting eXact component ${kind} ${key}`);
 	target[key] = value;
+}
+
+/** Validates all required metadata before a generated artifact gains runtime authority. */
+function isComponentContract(value: unknown): value is ExactComponentContract {
+	if (!isRecord(value)) return false;
+	return (
+		hasOnlyKeys(value, [
+			'version',
+			'id',
+			'placement',
+			'role',
+			'implementations',
+			'continuations',
+			'executors',
+			'boundaries',
+			'resumption'
+		]) &&
+		value.version === 1 &&
+		isString(value.id) &&
+		(value.placement === 'client' ||
+			value.placement === 'server' ||
+			value.placement === 'isomorphic' ||
+			value.placement === 'unknown') &&
+		(value.role === 'client' || value.role === 'executor') &&
+		Array.isArray(value.implementations) &&
+		value.implementations.every(isImplementation) &&
+		Array.isArray(value.continuations) &&
+		value.continuations.every(isContinuation) &&
+		Array.isArray(value.executors) &&
+		value.executors.every(isExecutor) &&
+		Array.isArray(value.boundaries) &&
+		value.boundaries.every(isBoundary) &&
+		(value.resumption === undefined || isResumption(value.resumption))
+	);
+}
+
+/** Validates one executable implementation descriptor. */
+function isImplementation(value: unknown): value is ExactComponentImplementationContract {
+	if (!isRecord(value)) return false;
+	return (
+		hasOnlyKeys(value, ['id', 'name', 'role', 'implementation']) &&
+		isString(value.id) &&
+		isString(value.name) &&
+		(value.role === 'root' || value.role === 'client-island' || value.role === 'server-part') &&
+		typeof value.implementation === 'function'
+	);
+}
+
+/** Validates one browser-visible continuation allowlist. */
+function isContinuation(value: unknown): value is ExactComponentContinuationContract {
+	if (!isRecord(value)) return false;
+	return (
+		hasOnlyKeys(value, [
+			'id',
+			'componentId',
+			'dependencies',
+			'stateReads',
+			'stateWrites',
+			'publicContexts',
+			'serverContexts',
+			'contextWrites',
+			'boundaries'
+		]) &&
+		isString(value.id) &&
+		isString(value.componentId) &&
+		Array.isArray(value.dependencies) &&
+		value.dependencies.every(isDependency) &&
+		Array.isArray(value.stateReads) &&
+		value.stateReads.every(isStatePath) &&
+		Array.isArray(value.stateWrites) &&
+		value.stateWrites.every(isStatePath) &&
+		isSafeStringList(value.publicContexts) &&
+		isSafeStringList(value.serverContexts) &&
+		isSafeStringList(value.contextWrites) &&
+		isSafeStringList(value.boundaries)
+	);
+}
+
+/** Validates one server executor descriptor. */
+function isExecutor(value: unknown): value is ExactComponentContinuationExecutorContract {
+	if (!isRecord(value)) return false;
+	return (
+		hasOnlyKeys(value, ['id', 'componentId', 'execute']) &&
+		isString(value.id) &&
+		isString(value.componentId) &&
+		typeof value.execute === 'function'
+	);
+}
+
+/** Validates one generated DOM boundary descriptor. */
+function isBoundary(value: unknown): value is ExactComponentBoundaryContract {
+	if (!isRecord(value)) return false;
+	return (
+		hasOnlyKeys(value, ['id', 'componentId', 'ownerComponentId', 'kind']) &&
+		isString(value.id) &&
+		isString(value.componentId) &&
+		isString(value.ownerComponentId) &&
+		isString(value.kind)
+	);
+}
+
+/** Validates one browser resumption allowlist. */
+function isResumption(value: unknown): value is ExactComponentResumptionContract {
+	if (!isRecord(value)) return false;
+	return (
+		hasOnlyKeys(value, ['componentId', 'statePaths', 'valueCaptures', 'contexts', 'boundaries']) &&
+		isString(value.componentId) &&
+		isSafeStringList(value.statePaths) &&
+		isSafeStringList(value.valueCaptures) &&
+		isSafeStringList(value.contexts) &&
+		isSafeStringList(value.boundaries)
+	);
+}
+
+/** Validates one transported dependency source descriptor. */
+function isDependency(value: unknown): boolean {
+	return (
+		isRecord(value) &&
+		hasOnlyKeys(value, ['source']) &&
+		(value.source === 'state' || value.source === 'props' || value.source === 'derived')
+	);
+}
+
+/** Validates one state effect descriptor. */
+function isStatePath(value: unknown): value is ExactContinuationStatePathContract {
+	return (
+		isRecord(value) &&
+		hasOnlyKeys(value, ['path', 'kind', 'confidence']) &&
+		isString(value.path) &&
+		(value.kind === 'read' || value.kind === 'write') &&
+		(value.confidence === 'exact' || value.confidence === 'broad' || value.confidence === 'unknown')
+	);
+}
+
+/** Validates non-empty names without prototype-bearing dictionary keys. */
+function isSafeStringList(value: unknown): value is string[] {
+	return (
+		Array.isArray(value) &&
+		value.every(
+			(item) =>
+				isString(item) && item !== '__proto__' && item !== 'prototype' && item !== 'constructor'
+		)
+	);
+}
+
+/** Narrows a generated metadata value to a non-array record. */
+function isRecord(value: unknown): value is Record<string, any> {
+	return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+/** Requires stable generated names to be non-empty. */
+function isString(value: unknown): value is string {
+	return typeof value === 'string' && value.length > 0;
+}
+
+/** Rejects missing and unexpected fields in versioned generated metadata. */
+function hasOnlyKeys(value: Record<string, any>, allowed: readonly string[]): boolean {
+	const keys = Object.keys(value);
+	return keys.every((key) => allowed.includes(key));
 }

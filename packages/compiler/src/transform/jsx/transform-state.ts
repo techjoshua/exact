@@ -17,6 +17,7 @@ export type JsxTransformState = {
 	sawTaskAwait: boolean;
 	sawContinuationTask: boolean;
 	sawDistributedContinuation: boolean;
+	sawContinuationContexts: boolean;
 	setupTaskDepth: number;
 	componentStack: string[];
 	componentSiteStack: string[];
@@ -39,6 +40,7 @@ export function createJsxTransformState(): JsxTransformState {
 		sawTaskAwait: false,
 		sawContinuationTask: false,
 		sawDistributedContinuation: false,
+		sawContinuationContexts: false,
 		setupTaskDepth: 0,
 		componentStack: [],
 		componentSiteStack: [],

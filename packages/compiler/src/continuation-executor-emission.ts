@@ -1,5 +1,9 @@
 import ts from 'typescript';
 import { isThisTaskCall } from './calls.js';
+import {
+	continuationContextValueExpression,
+	rewriteContinuationContextWork
+} from './continuation-context-emission.js';
 import type { ExactContinuationIR } from './types.js';
 
 /** Compiler-created executable half of one server continuation contract. */
@@ -126,6 +130,7 @@ function continuationExecutor(
 	const execution = factory.createUniqueName('__exactExecution');
 	const component = factory.createUniqueName('__exactComponent');
 	const contextWrites = factory.createUniqueName('__exactContextWrites');
+	const serverContextWrites = factory.createUniqueName('__exactServerContextWrites');
 	const referenced = referencedFreeNames(work);
 	const aliasStatements = aliases
 		.filter((alias) => referenced.has(alias.name))
@@ -138,7 +143,7 @@ function continuationExecutor(
 							alias.name,
 							undefined,
 							undefined,
-							contextValueExpression(
+							continuationContextValueExpression(
 								alias.token,
 								alias.tokenName,
 								continuation,
@@ -154,13 +159,14 @@ function continuationExecutor(
 			)
 		);
 	const rewrittenWork = annotateExecutorParameters(
-		rewriteContinuationWork(
+		rewriteContinuationContextWork(
 			work,
 			continuation,
 			activation,
 			execution,
 			component,
 			contextWrites,
+			serverContextWrites,
 			context,
 			filename
 		),
@@ -240,6 +246,20 @@ function continuationExecutor(
 						ts.NodeFlags.Const
 					)
 				),
+				factory.createVariableStatement(
+					undefined,
+					factory.createVariableDeclarationList(
+						[
+							factory.createVariableDeclaration(
+								serverContextWrites,
+								undefined,
+								undefined,
+								factory.createObjectLiteralExpression()
+							)
+						],
+						ts.NodeFlags.Const
+					)
+				),
 				...aliasStatements,
 				factory.createExpressionStatement(factory.createAwaitExpression(invoke)),
 				factory.createReturnStatement(
@@ -294,109 +314,6 @@ function annotateExecutorParameters(
 		parameters,
 		work.type,
 		work.body
-	);
-}
-
-/** Rewrites component receiver and direct context reads for stateless execution. */
-function rewriteContinuationWork(
-	work: ts.ArrowFunction | ts.FunctionExpression,
-	continuation: ExactContinuationIR,
-	activation: ts.Identifier,
-	execution: ts.Identifier,
-	component: ts.Identifier,
-	contextWrites: ts.Identifier,
-	context: ts.TransformationContext,
-	filename: string
-): ts.ArrowFunction | ts.FunctionExpression {
-	const factory = context.factory;
-	const visit: ts.Visitor = (node) => {
-		if (node !== work && ts.isFunctionExpression(node)) return node;
-		if (
-			ts.isCallExpression(node) &&
-			ts.isPropertyAccessExpression(node.expression) &&
-			node.expression.expression.kind === ts.SyntaxKind.ThisKeyword
-		) {
-			if (node.expression.name.text === 'getContext' && node.arguments.length === 1) {
-				const token = node.arguments[0]!;
-				return contextValueExpression(
-					token,
-					token.getText(),
-					continuation,
-					activation,
-					execution,
-					factory,
-					filename
-				);
-			}
-			if (node.expression.name.text === 'setContext') {
-				const token = node.arguments[0];
-				const value = node.arguments[1];
-				const tokenName = token?.getText();
-				if (
-					!token ||
-					!value ||
-					!tokenName ||
-					!continuation.effects.contextWrites.some((effect) => effect.token === tokenName)
-				)
-					throw new Error(
-						`Server continuation ${continuation.id} writes undeclared component context in ${filename}`
-					);
-				return factory.createBinaryExpression(
-					factory.createBinaryExpression(
-						factory.createElementAccessExpression(
-							contextWrites,
-							factory.createStringLiteral(tokenName)
-						),
-						factory.createToken(ts.SyntaxKind.EqualsToken),
-						ts.visitNode(value, visit) as ts.Expression
-					),
-					factory.createToken(ts.SyntaxKind.CommaToken),
-					factory.createVoidExpression(factory.createNumericLiteral(0))
-				);
-			}
-		}
-		if (
-			ts.isPropertyAccessExpression(node) &&
-			node.expression.kind === ts.SyntaxKind.ThisKeyword &&
-			node.name.text !== 'state' &&
-			node.name.text !== 'getContext' &&
-			node.name.text !== 'setContext'
-		) {
-			throw new Error(
-				`Server continuation ${continuation.id} uses unsupported component member this.${node.name.text} in ${filename}`
-			);
-		}
-		if (node.kind === ts.SyntaxKind.ThisKeyword) return component;
-		return ts.visitEachChild(node, visit, context);
-	};
-	return ts.visitNode(work, visit) as ts.ArrowFunction | ts.FunctionExpression;
-}
-
-/** Resolves public projections from the activation and server resources locally. */
-function contextValueExpression(
-	token: ts.Expression,
-	tokenName: string,
-	continuation: ExactContinuationIR,
-	activation: ts.Identifier,
-	execution: ts.Identifier,
-	factory: ts.NodeFactory,
-	filename: string
-): ts.Expression {
-	if (continuation.activation.publicContexts.some((effect) => effect.token === tokenName)) {
-		return factory.createElementAccessExpression(
-			factory.createPropertyAccessExpression(activation, 'publicContext'),
-			factory.createStringLiteral(tokenName)
-		);
-	}
-	if (continuation.activation.serverContexts.some((effect) => effect.token === tokenName)) {
-		return factory.createCallExpression(
-			factory.createPropertyAccessExpression(execution, 'getContext'),
-			undefined,
-			[token]
-		);
-	}
-	throw new Error(
-		`Server continuation ${continuation.id} reads undeclared context ${tokenName} in ${filename}`
 	);
 }
 

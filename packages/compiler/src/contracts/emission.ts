@@ -25,6 +25,7 @@ export type HelperNames = {
 	taskAwait: string;
 	taskContinuation: string;
 	dispatchContinuation: string;
+	registerContinuationContexts: string;
 	remove: string;
 	arrayMutation: string;
 };

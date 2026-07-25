@@ -1,4 +1,5 @@
 import {
+	componentContinuationContextValues,
 	readExactComponentContract,
 	settledComponentContinuationIds,
 	type ComponentInstance,
@@ -9,6 +10,7 @@ import type { RenderToStringOptions } from './types.js';
 type MutableResumption = {
 	componentId: string;
 	values: Record<string, unknown>;
+	contexts: Record<string, unknown>;
 	settledContinuations: string[];
 };
 
@@ -28,6 +30,7 @@ export function createSsrResumptionCapture(options: RenderToStringOptions): {
 					const record: MutableResumption = {
 						componentId: contract.id,
 						values: {},
+						contexts: {},
 						settledContinuations: []
 					};
 					records.push(record);
@@ -43,6 +46,10 @@ export function createSsrResumptionCapture(options: RenderToStringOptions): {
 						const found = readPath(instance.state, path);
 						if (found.present && found.value !== undefined) record.values[path] = found.value;
 					}
+					record.contexts = componentContinuationContextValues(
+						instance,
+						contract.resumption.contexts
+					);
 					const allowed = new Set(contract.continuations.map((continuation) => continuation.id));
 					record.settledContinuations = settledComponentContinuationIds(instance).filter((id) =>
 						allowed.has(id)

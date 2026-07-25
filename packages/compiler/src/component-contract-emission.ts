@@ -114,10 +114,7 @@ function componentContractExpression(
 				factory.createArrayLiteralExpression(
 					contract.executors.map((executor) =>
 						factory.createObjectLiteralExpression([
-							factory.createPropertyAssignment(
-								'id',
-								factory.createStringLiteral(executor.id)
-							),
+							factory.createPropertyAssignment('id', factory.createStringLiteral(executor.id)),
 							factory.createPropertyAssignment(
 								'componentId',
 								factory.createStringLiteral(executor.componentId)
@@ -149,6 +146,7 @@ function componentContractExpression(
 									componentId: contract.resumption.componentId,
 									statePaths: contract.resumption.client.statePaths,
 									valueCaptures: contract.resumption.client.valueCaptures,
+									contexts: contract.resumption.client.contexts,
 									boundaries: contract.resumption.client.boundaries
 								},
 								factory
