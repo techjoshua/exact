@@ -89,7 +89,12 @@ export type ExactHydrationConfigLimits = {
 
 /** Defines the hydration diagnostic type contract. */
 export type HydrationDiagnostic = {
-	code: 'missing-markers' | 'adoption-mismatch' | 'invalid-patch' | 'stale-response';
+	code:
+		| 'missing-markers'
+		| 'adoption-mismatch'
+		| 'invalid-patch'
+		| 'invalid-response'
+		| 'stale-response';
 	message: string;
 	patch?: { type: string; id: string };
 };

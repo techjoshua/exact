@@ -182,7 +182,13 @@ describe('@exactjs/ssr boundaries', () => {
 				manifest: {
 					version: 1,
 					actions: {
-						'save-profile': { id: 'save-profile', placement: 'server' }
+						'save-profile': {
+							id: 'save-profile',
+							placement: 'server',
+							stateContract: {
+								writes: [{ path: 'saved', kind: 'write', confidence: 'exact' }]
+							}
+						}
 					},
 					boundaries: {
 						profile: { id: 'profile' }

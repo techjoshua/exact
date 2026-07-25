@@ -5,6 +5,9 @@ type MutableStateContainer = Record<string, unknown> | unknown[];
 type StateReadContract = {
 	readonly reads?: readonly NonNullable<ExactStateContract['reads']>[number][];
 };
+type StateWriteContract = {
+	readonly writes?: readonly NonNullable<ExactStateContract['writes']>[number][];
+};
 
 /** Returns only the client state paths required by an exact server action contract. */
 export function stateForContract(state: unknown, contract: StateReadContract | undefined): unknown {
@@ -18,6 +21,36 @@ export function stateForContract(state: unknown, contract: StateReadContract | u
 		if (value !== undefined) setPath(output, read.path, value);
 	}
 	return output;
+}
+
+/**
+ * Validates and merges the partial state returned by a continuation.
+ *
+ * The returned object may contain only exact compiler-declared write paths.
+ * Parent writes replace their complete subtree; unrelated client state is
+ * retained. A wildcard write deliberately authorizes full replacement.
+ */
+export function mergeStateForContract(
+	state: unknown,
+	update: unknown,
+	contract: StateWriteContract
+): { ok: true; state: unknown } | { ok: false } {
+	const writes =
+		contract.writes?.filter((write) => write.kind === 'write' && write.confidence === 'exact') ??
+		[];
+	if (writes.some((write) => write.path === '*')) return { ok: true, state: update };
+	if (!update || typeof update !== 'object' || Array.isArray(update)) return { ok: false };
+	const paths = writes.map((write) => write.path);
+	if (!stateNodeMatchesWrites(update, '', paths)) return { ok: false };
+
+	let output = cloneContainer(state);
+	for (const path of paths) {
+		const value = getPath(update, path);
+		if (value === undefined) continue;
+		if (!output) output = {};
+		setPath(output as Record<string, unknown>, path, value);
+	}
+	return { ok: true, state: output ?? state };
 }
 
 function getPath(value: unknown, path: string): unknown {
@@ -56,12 +89,36 @@ function setPath(target: Record<string, unknown>, path: string, value: unknown):
 			writeContainerValue(cursor, segment, nextContainer);
 			cursor = nextContainer;
 		} else {
-			cursor = next;
+			const nextContainer: MutableStateContainer = Array.isArray(next) ? [...next] : { ...next };
+			writeContainerValue(cursor, segment, nextContainer);
+			cursor = nextContainer;
 		}
 	}
 	const last = segments[segments.length - 1]!;
 	if (Array.isArray(cursor) && !isArrayIndex(last)) return;
 	writeContainerValue(cursor, last, value);
+}
+
+/** Validates a partial state response against exact writable paths. */
+function stateNodeMatchesWrites(value: object, path: string, writes: readonly string[]): boolean {
+	for (const key of Object.keys(value)) {
+		if (!isSafeObjectKey(key)) return false;
+		if (Array.isArray(value) && !isArrayIndex(key)) return false;
+		const childPath = path ? `${path}.${key}` : key;
+		if (writes.includes(childPath)) continue;
+		if (!writes.some((write) => write.startsWith(`${childPath}.`))) return false;
+		const child = (value as Record<string, unknown>)[key];
+		if (!child || typeof child !== 'object') return false;
+		if (!stateNodeMatchesWrites(child, childPath, writes)) return false;
+	}
+	return true;
+}
+
+/** Clones the root container so state commits do not mutate a prior snapshot. */
+function cloneContainer(value: unknown): MutableStateContainer | undefined {
+	if (Array.isArray(value)) return [...value];
+	if (value && typeof value === 'object') return { ...(value as Record<string, unknown>) };
+	return undefined;
 }
 
 function readContainerValue(container: MutableStateContainer, segment: string): unknown {

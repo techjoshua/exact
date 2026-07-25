@@ -96,7 +96,15 @@ function registration(
 				{
 					manifest: {
 						version: 1,
-						actions: { submit: { id: 'submit', placement: 'server' } }
+						actions: {
+							submit: {
+								id: 'submit',
+								placement: 'server',
+								stateContract: {
+									writes: [{ path: '*', kind: 'write', confidence: 'exact' }]
+								}
+							}
+						}
 					},
 					actions: {
 						submit: () => {

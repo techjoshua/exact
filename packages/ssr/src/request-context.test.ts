@@ -208,7 +208,14 @@ describe('@exactjs/ssr request-context', () => {
 			manifest: {
 				version: 1,
 				actions: {
-					'save-profile': { id: 'save-profile', componentId: 'Profile', placement: 'server' }
+					'save-profile': {
+						id: 'save-profile',
+						componentId: 'Profile',
+						placement: 'server',
+						stateContract: {
+							writes: [{ path: 'saved', kind: 'write', confidence: 'exact' }]
+						}
+					}
 				},
 				boundaries: {
 					profile: { id: 'profile', ownerComponentId: 'Profile' }

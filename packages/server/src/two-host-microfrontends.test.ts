@@ -171,7 +171,15 @@ describe('page host to component host integration', () => {
 function actionManifest(id: string) {
 	return {
 		version: 1 as const,
-		actions: { [id]: { id, placement: 'server' as const } },
+		actions: {
+			[id]: {
+				id,
+				placement: 'server' as const,
+				stateContract: {
+					writes: [{ path: '*', kind: 'write' as const, confidence: 'exact' as const }]
+				}
+			}
+		},
 		boundaries: {}
 	};
 }

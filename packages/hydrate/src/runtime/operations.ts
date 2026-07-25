@@ -8,7 +8,7 @@ import {
 	boundaryInnerHtmls,
 	createPatchBoundaryResolver
 } from '../patches.js';
-import { stateForContract } from '../state.js';
+import { mergeStateForContract, stateForContract } from '../state.js';
 import type {
 	ExactClient,
 	ExactInvocationKind,
@@ -112,6 +112,36 @@ export async function invokeAndApply(
 		if (error instanceof ExactBuildUnsupportedError) options.onBuildUnsupported?.();
 		throw error;
 	}
+	if (continuation) {
+		const invalidPatch = unauthorizedContinuationPatch(
+			container,
+			result.patches,
+			continuation.boundaries,
+			work
+		);
+		const mergedState =
+			'state' in result
+				? mergeStateForContract(client.state, result.state, {
+						writes: continuation.stateWrites
+					})
+				: undefined;
+		if (invalidPatch || mergedState?.ok === false) {
+			options.onDiagnostic?.({
+				code: 'invalid-response',
+				message: `rejected exact action response outside the continuation contract for ${id}`,
+				patch: invalidPatch
+			});
+			options.onOperation?.({
+				operation,
+				result,
+				appliedPatches: [],
+				patchesApplied: false,
+				stale: false
+			});
+			return result;
+		}
+		if (mergedState?.ok) result = { ...result, state: mergedState.state };
+	}
 	const staleKeys = new Set(requestKeys.filter((key) => versions!.get(key) !== requestVersion));
 	if (staleKeys.size === requestKeys.length) {
 		options.onDiagnostic?.({
@@ -189,6 +219,19 @@ export async function invokeAndApply(
 		stale: partiallyStale
 	});
 	return result;
+}
+
+/** Returns the first patch outside every compiler-declared affected boundary. */
+function unauthorizedContinuationPatch(
+	container: Element,
+	patches: readonly import('@exactjs/server').ExactPatch[] | undefined,
+	boundaries: readonly string[],
+	work: DomWorkBudget
+): import('@exactjs/server').ExactPatch | undefined {
+	if (!patches?.length) return undefined;
+	if (!boundaries.length) return patches[0];
+	const boundaryForPatch = createPatchBoundaryResolver(container, boundaries, work);
+	return patches.find((patch) => boundaryForPatch(patch.id) === undefined);
 }
 
 /** Selects only compiler-approved shared context projections for one activation record. */

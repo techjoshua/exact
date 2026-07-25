@@ -57,6 +57,91 @@ describe('@exactjs/hydrate action-operations', () => {
 		});
 	});
 
+	it('merges only compiler-declared continuation state writes', async () => {
+		const container = document.createElement('main');
+		const client = createExactClient(container, {
+			endpoint: '/__exact',
+			state: {
+				profile: { name: 'Before', role: 'admin' },
+				unchanged: true
+			},
+			continuations: {
+				save: {
+					id: 'save',
+					stateReads: [],
+					stateWrites: [{ path: 'profile.name', kind: 'write', confidence: 'exact' }],
+					publicContexts: [],
+					serverContexts: [],
+					boundaries: []
+				}
+			},
+			fetch: async () => ({
+				ok: true,
+				status: 200,
+				async json() {
+					return {
+						ok: true,
+						type: 'action',
+						id: 'save',
+						state: { profile: { name: 'After' } }
+					};
+				}
+			})
+		});
+
+		await client.invokeAction('save');
+
+		expect(client.state).toEqual({
+			profile: { name: 'After', role: 'admin' },
+			unchanged: true
+		});
+	});
+
+	it('atomically rejects continuation effects outside the generated response contract', async () => {
+		const container = document.createElement('main');
+		container.innerHTML =
+			'<!--exact:allowed--><span data-exact-id="allowed-text">Before</span><!--/exact:allowed-->' +
+			'<!--exact:other--><span data-exact-id="other-text">Private</span><!--/exact:other-->';
+		const diagnostics: string[] = [];
+		const client = createExactClient(container, {
+			endpoint: '/__exact',
+			state: { profile: { name: 'Before' } },
+			continuations: {
+				save: {
+					id: 'save',
+					stateReads: [],
+					stateWrites: [{ path: 'profile.name', kind: 'write', confidence: 'exact' }],
+					publicContexts: [],
+					serverContexts: [],
+					boundaries: ['allowed']
+				}
+			},
+			onDiagnostic: (diagnostic) => diagnostics.push(diagnostic.code),
+			fetch: async () => ({
+				ok: true,
+				status: 200,
+				async json() {
+					return {
+						ok: true,
+						type: 'action',
+						id: 'save',
+						state: {
+							profile: { name: 'After' },
+							privateToken: 'must not cross'
+						},
+						patches: [{ type: 'text', id: 'other-text', value: 'Leaked' }]
+					};
+				}
+			})
+		});
+
+		await client.invokeAction('save');
+
+		expect(client.state).toEqual({ profile: { name: 'Before' } });
+		expect(container.querySelector('[data-exact-id="other-text"]')?.textContent).toBe('Private');
+		expect(diagnostics).toEqual(['invalid-response']);
+	});
+
 	it('sends configured action boundary snapshots with action invocations', async () => {
 		const container = document.createElement('main');
 		container.innerHTML =

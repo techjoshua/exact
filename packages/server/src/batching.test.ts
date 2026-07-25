@@ -68,6 +68,7 @@ describe('@exactjs/server batching', () => {
 				}
 			},
 			context({
+				manifest: actionStateManifest('slow'),
 				actions: {
 					'allowed-action': async () => {
 						started.push('slow');
@@ -206,6 +207,7 @@ describe('@exactjs/server batching', () => {
 				}
 			},
 			context({
+				manifest: actionStateManifest('slow'),
 				actions: {
 					'allowed-action': async () => {
 						await slow;
@@ -412,3 +414,21 @@ describe('@exactjs/server batching', () => {
 		expect(action).not.toHaveBeenCalled();
 	});
 });
+
+function actionStateManifest(path: string) {
+	return {
+		version: 1 as const,
+		actions: {
+			'allowed-action': {
+				id: 'allowed-action',
+				placement: 'server' as const,
+				stateContract: {
+					writes: [{ path, kind: 'write' as const, confidence: 'exact' as const }]
+				}
+			}
+		},
+		boundaries: {
+			'allowed-boundary': { id: 'allowed-boundary' }
+		}
+	};
+}

@@ -36,6 +36,7 @@ describe('@exactjs/server security-validation', () => {
 				body: { type: 'action', id: 'allowed-action' }
 			},
 			context({
+				manifest: recordsStateManifest(),
 				actions: {
 					'allowed-action': () => ({ state: { records } })
 				}
@@ -55,6 +56,7 @@ describe('@exactjs/server security-validation', () => {
 				body: { type: 'action', id: 'allowed-action' }
 			},
 			context({
+				manifest: recordsStateManifest(),
 				actions: {
 					'allowed-action': () => ({ state: { records } })
 				}
@@ -378,3 +380,18 @@ describe('@exactjs/server security-validation', () => {
 		);
 	});
 });
+
+function recordsStateManifest() {
+	return {
+		version: 1 as const,
+		actions: {
+			'allowed-action': {
+				id: 'allowed-action',
+				placement: 'server' as const,
+				stateContract: {
+					writes: [{ path: 'records', kind: 'write' as const, confidence: 'exact' as const }]
+				}
+			}
+		}
+	};
+}

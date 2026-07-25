@@ -81,6 +81,28 @@ export function stateMatchesContract(state: unknown, contract: ExactStateContrac
 	return true;
 }
 
+/**
+ * Returns whether a continuation response contains only compiler-authorized
+ * state writes. Exact parent paths authorize their complete JSON subtree;
+ * absent paths are allowed because control flow may skip a declared write.
+ */
+export function stateResponseMatchesContract(
+	state: unknown,
+	contract: ExactStateContract | undefined
+): boolean {
+	if (state === undefined) return true;
+	const writes =
+		contract?.writes?.filter((write) => write.kind === 'write' && write.confidence === 'exact') ??
+		[];
+	if (writes.some((write) => write.path === '*')) return true;
+	if (!state || typeof state !== 'object' || Array.isArray(state)) return false;
+	return stateNodeMatchesWrites(
+		state,
+		'',
+		writes.map((write) => write.path)
+	);
+}
+
 /** Validates only explicitly public context projections transported by the client. */
 export function publicContextMatchesContract(
 	context: Record<string, unknown> | undefined,
@@ -162,6 +184,21 @@ function hasStatePath(value: unknown, path: string): boolean {
 		if (!isSafeObjectKey(segment)) return false;
 		if (!Object.prototype.hasOwnProperty.call(cursor, segment)) return false;
 		cursor = (cursor as Record<string, unknown>)[segment];
+	}
+	return true;
+}
+
+/** Validates a partial response tree without traversing authorized subtrees. */
+function stateNodeMatchesWrites(value: object, path: string, writes: readonly string[]): boolean {
+	for (const key of Object.keys(value)) {
+		if (!isSafeObjectKey(key)) return false;
+		if (Array.isArray(value) && !isArrayIndex(key)) return false;
+		const childPath = path ? `${path}.${key}` : key;
+		if (writes.includes(childPath)) continue;
+		if (!writes.some((write) => write.startsWith(`${childPath}.`))) return false;
+		const child = (value as Record<string, unknown>)[key];
+		if (!child || typeof child !== 'object') return false;
+		if (!stateNodeMatchesWrites(child, childPath, writes)) return false;
 	}
 	return true;
 }

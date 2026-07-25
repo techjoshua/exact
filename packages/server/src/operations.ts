@@ -15,6 +15,7 @@ import {
 	isInvocationResultSafe,
 	isManifestAllowed,
 	publicContextMatchesContract,
+	stateResponseMatchesContract,
 	stateMatchesContract
 } from './validation.js';
 
@@ -181,6 +182,16 @@ async function dispatchExactOperationAfterSecurity(
 			})
 		) {
 			return reject(500, 'internal_error', 'rejected non-serializable exact invocation result');
+		}
+		if (
+			input.type === 'action' &&
+			!stateResponseMatchesContract(result.state, action?.stateContract)
+		) {
+			return reject(
+				500,
+				'internal_error',
+				'rejected exact invocation result outside its state write contract'
+			);
 		}
 		return { ok: true, type: input.type, id: input.id, opId: input.opId, ...result };
 	} catch (error) {

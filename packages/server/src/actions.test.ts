@@ -183,6 +183,9 @@ describe('@exactjs/server actions', () => {
 					'allowed-action': {
 						id: 'allowed-action',
 						placement: 'server',
+						stateContract: {
+							writes: [{ path: 'ready', kind: 'write', confidence: 'exact' }]
+						},
 						serverContextContract: [
 							{ token: 'AuthContext', kind: 'read', confidence: 'exact' },
 							{ token: 'ThemeContext', kind: 'write', confidence: 'exact' }
@@ -242,6 +245,9 @@ describe('@exactjs/server actions', () => {
 					'public-action': {
 						id: 'public-action',
 						placement: 'server',
+						stateContract: {
+							writes: [{ path: 'domain', kind: 'write', confidence: 'exact' }]
+						},
 						publicContextContract: [{ token: 'PublicConfig', kind: 'read', confidence: 'exact' }]
 					}
 				}
@@ -278,6 +284,40 @@ describe('@exactjs/server actions', () => {
 		);
 		expect(rejected.status).toBe(400);
 		expect(action).toHaveBeenCalledOnce();
+	});
+
+	it('rejects state outside the compiler-declared response write contract', async () => {
+		const result = await handleExactRequest(
+			{
+				method: 'POST',
+				body: { type: 'action', id: 'save' }
+			},
+			context({
+				manifest: {
+					version: 1,
+					actions: {
+						save: {
+							id: 'save',
+							placement: 'server',
+							stateContract: {
+								writes: [{ path: 'profile.name', kind: 'write', confidence: 'exact' }]
+							}
+						}
+					}
+				},
+				actions: {
+					save: () => ({
+						state: {
+							profile: { name: 'Ada' },
+							privateToken: 'must not cross'
+						}
+					})
+				}
+			})
+		);
+
+		expect(result.status).toBe(500);
+		expect(JSON.parse(result.body)).toEqual({ error: 'internal_error' });
 	});
 
 	it('rejects public context when no action contract allows it', async () => {
