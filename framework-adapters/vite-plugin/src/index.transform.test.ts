@@ -3,6 +3,26 @@ import { describe, expect, it } from 'vitest';
 import { exact } from './index.js';
 
 describe('@exactjs/vite-plugin: transform', () => {
+	it('rejects server artifact reachability in final client chunks', () => {
+		const plugin = exact();
+
+		expect(() =>
+			plugin.generateBundle?.(
+				{},
+				{
+					'page.js': {
+						type: 'chunk',
+						fileName: 'page.js',
+						modules: {
+							'/src/page.exact.client.ts': {},
+							'/src/private.exact.server.ts': {}
+						}
+					}
+				}
+			)
+		).toThrow('page.js: module /src/private.exact.server.ts');
+	});
+
 	it('forwards profiling into its compiler session', () => {
 		const events: Array<{ subsystem: string; phase: string }> = [];
 		const plugin = exact({

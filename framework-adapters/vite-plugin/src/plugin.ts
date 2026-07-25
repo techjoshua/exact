@@ -29,6 +29,10 @@ import {
 } from '@exactjs/react-compat/plugin';
 import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
 import path from 'node:path';
+import {
+	assertExactViteClientArtifactIsolation,
+	type ExactRollupOutputLike
+} from './artifact-isolation.js';
 import { createExactViteMicrofrontendIntegration } from './microfrontends.js';
 import {
 	containsExactJsx,
@@ -68,13 +72,6 @@ export type ExactPluginOptions = {
 export type ExactViteProfileEvent = ExactProfileEvent<'vite-plugin', 'transform'>;
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
-
-type ExactRollupOutputLike = {
-	type: 'chunk' | 'asset';
-	fileName: string;
-	facadeModuleId?: string | null;
-	isEntry?: boolean;
-};
 
 /** Defines the exact plugin type contract. */
 export type ExactPlugin = {
@@ -267,6 +264,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			}
 		},
 		generateBundle(_output, bundle) {
+			if (options.target !== 'server') assertExactViteClientArtifactIsolation(bundle);
 			microfrontends.generateBundle(bundle);
 		},
 		handleHotUpdate(context) {

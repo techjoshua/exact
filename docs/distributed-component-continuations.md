@@ -35,17 +35,17 @@ cleanup themselves.
 
 The current concepts map to the state-machine model as follows:
 
-| State-machine concept | eXact representation |
-| --- | --- |
-| Initial machine transition | SSR render followed by client hydration |
-| Server render activation record | Props, initial state, placement metadata, and server-resolved context |
-| Client resumption record | Client-visible props, state, public context, identity, and DOM markers |
-| Continuation selector or program counter | Opaque operation identifier |
-| Client activation record | Captured reactive dependencies, state, payload, and permitted context |
-| Server `MoveNext()` segment | Registered server operation handler |
-| Continuation output | Result and affected boundary patches |
-| Updated activation state | Client-visible state returned by the server |
-| Resume client machine | Validate the response, apply patches, and commit state |
+| State-machine concept                    | eXact representation                                                   |
+| ---------------------------------------- | ---------------------------------------------------------------------- |
+| Initial machine transition               | SSR render followed by client hydration                                |
+| Server render activation record          | Props, initial state, placement metadata, and server-resolved context  |
+| Client resumption record                 | Client-visible props, state, public context, identity, and DOM markers |
+| Continuation selector or program counter | Opaque operation identifier                                            |
+| Client activation record                 | Captured reactive dependencies, state, payload, and permitted context  |
+| Server `MoveNext()` segment              | Registered server operation handler                                    |
+| Continuation output                      | Result and affected boundary patches                                   |
+| Updated activation state                 | Client-visible state returned by the server                            |
+| Resume client machine                    | Validate the response, apply patches, and commit state                 |
 
 The opaque operation identifier selects a continuation; it is not an
 application-facing action name. A JavaScript `await` within one server
@@ -81,7 +81,10 @@ Target-specific artifact emission already removes server task bodies and their
 imports from client artifacts in compiler-covered cases. The stronger
 repository-wide guarantee still needs to be defined and verified: a server-only
 dependency and its transitive module graph must be unreachable from every
-client entry, chunk, source map, and emitted asset.
+client entry, runtime chunk, and emitted runtime asset. Source maps are
+developer artifacts: private maps may retain authored source for debugging,
+while maps deliberately published to clients require a separate disclosure
+audit or must omit server-only source content.
 
 This plan does not introduce a parallel distributed-closure system. It
 formalizes the existing design, removes accidental dependencies on its current
@@ -363,8 +366,9 @@ After target-specific compilation:
 - a client chunk cannot acquire a server-only package through a barrel, helper,
   plugin transform, package conditional export, or shared chunk;
 - type-only imports may remain because TypeScript erases them before runtime;
-- client source maps must not embed removed server source or server-only
-  `sourcesContent`;
+- source maps published to clients must not embed removed server source or
+  server-only `sourcesContent`; private development maps may remain complete
+  and should not be copied into the public deployment;
 - server-only CSS, WASM, workers, schemas, and other assets are not emitted as
   client assets unless a separate client consumer requires them; and
 - the invariant is checked against the final bundler graph, not inferred from
@@ -810,12 +814,12 @@ HTML. Conversely, a secret is always server-resident and must not influence
 HTML, attributes, patches, hydration data, public errors, client code, or even
 the shape of client-visible output.
 
-| Policy | Server execution | Server-generated public HTML | Structured transfer to client |
-| --- | --- | --- | --- |
-| Server, non-secret | Allowed | Allowed | Rejected |
-| Shared, non-secret | Allowed | Allowed | Allowed when serializable and live |
-| Server, secret | Allowed only in trusted server work | Rejected | Rejected |
-| Client | Not a server input unless explicitly transported | Not available for SSR | Already client-owned |
+| Policy             | Server execution                                 | Server-generated public HTML | Structured transfer to client      |
+| ------------------ | ------------------------------------------------ | ---------------------------- | ---------------------------------- |
+| Server, non-secret | Allowed                                          | Allowed                      | Rejected                           |
+| Shared, non-secret | Allowed                                          | Allowed                      | Allowed when serializable and live |
+| Server, secret     | Allowed only in trusted server work              | Rejected                     | Rejected                           |
+| Client             | Not a server input unless explicitly transported | Not available for SSR        | Already client-owned               |
 
 This distinction permits both outcomes for server query data without another
 component API:

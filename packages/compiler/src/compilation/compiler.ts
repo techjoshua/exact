@@ -1,4 +1,11 @@
 export {
+	assertExactClientArtifactIsolation,
+	inspectExactClientArtifactIsolation,
+	type ExactClientArtifactIsolationReport,
+	type ExactClientArtifactIsolationViolation,
+	type ExactClientArtifactOutput
+} from '../artifact-isolation.js';
+export {
 	assertExactArtifactTarget,
 	createExactArtifactComponentEdges,
 	createExactArtifactGraph,

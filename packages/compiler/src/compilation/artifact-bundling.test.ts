@@ -3,7 +3,9 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+	assertExactClientArtifactIsolation,
 	compileFileArtifacts,
+	compileProjectArtifacts,
 	createExactArtifactGraph,
 	exactExportConditions,
 	readExactArtifactManifestEntries,
@@ -13,6 +15,139 @@ import {
 import { createTestWorkspace } from '../test-support/workspace.js';
 
 describe('@exactjs/compiler: artifact bundling', () => {
+	it('keeps a transitive server data stack out of final client chunks and assets', async () => {
+		const root = await createTestWorkspace('.exact-heavy-server-stack-', process.cwd());
+		const srcDir = path.join(root, 'src');
+		const outDir = path.join(root, 'dist');
+		await mkdir(path.join(srcDir, 'data'), { recursive: true });
+		await writeFile(
+			path.join(srcDir, 'page.tsx'),
+			`
+      import { queryProducts } from "./data/index.js";
+
+      export function Page(this: Component<{ count: number; name: string }>) {
+        this.task.server(async () => {
+          const product = await queryProducts();
+          this.state.name = product.name;
+        });
+        return () => <button onClick={() => this.state.count++}>{this.state.name}</button>;
+      }
+    `
+		);
+		await writeFile(
+			path.join(srcDir, 'data', 'index.js'),
+			`export { queryProducts } from "./apollo-client.js";`
+		);
+		await writeFile(
+			path.join(srcDir, 'data', 'apollo-client.js'),
+			`
+      import { parseGraphql } from "./graphql-parser.js";
+      export async function queryProducts() {
+        const cache = await import("./tanstack-cache.js");
+        return { name: parseGraphql("HEAVY_APOLLO_QUERY") + cache.cacheMarker };
+      }
+    `
+		);
+		await writeFile(
+			path.join(srcDir, 'data', 'graphql-parser.js'),
+			`
+      import schemaUrl from "./schema.wasm";
+      export function parseGraphql(value) {
+        return value + schemaUrl + "HEAVY_GRAPHQL_PARSER";
+      }
+    `
+		);
+		await writeFile(
+			path.join(srcDir, 'data', 'tanstack-cache.js'),
+			`export const cacheMarker = "HEAVY_TANSTACK_CACHE";`
+		);
+		await writeFile(path.join(srcDir, 'data', 'schema.wasm'), 'HEAVY_SCHEMA_ASSET');
+
+		const compiledResults = await compileProjectArtifacts([path.join(srcDir, 'page.tsx')], {
+			outDir,
+			rootDir: srcDir,
+			sourceMap: true
+		});
+		const compiled = compiledResults.find(
+			(result) => path.basename(result.inputFile) === 'page.tsx'
+		)!;
+		const client = await esbuild({
+			stdin: {
+				contents: await readFile(compiled.clientFile, 'utf8'),
+				loader: 'ts',
+				resolveDir: path.dirname(compiled.clientFile),
+				sourcefile: path.basename(compiled.clientFile)
+			},
+			bundle: true,
+			write: false,
+			outdir: path.join(root, 'client-bundle'),
+			format: 'esm',
+			platform: 'browser',
+			packages: 'external',
+			external: ['@exactjs/*'],
+			metafile: true,
+			sourcemap: true,
+			loader: { '.wasm': 'file' }
+		});
+		const clientInputs = Object.keys(client.metafile!.inputs).map((value) =>
+			value.replaceAll('\\', '/')
+		);
+		const clientOutputs = client.outputFiles!.map((file) => ({
+			fileName: path.basename(file.path),
+			type: file.path.endsWith('.js') ? ('chunk' as const) : ('asset' as const),
+			modules: clientInputs
+		}));
+
+		assertExactClientArtifactIsolation(clientOutputs);
+		expect(clientInputs.some((value) => value.includes('/data/'))).toBe(false);
+		expect(client.outputFiles!.map((file) => file.text).join('\n')).not.toMatch(
+			/HEAVY_(?:APOLLO|GRAPHQL|TANSTACK|SCHEMA)/
+		);
+		expect(client.outputFiles!.some((file) => file.path.endsWith('.wasm'))).toBe(false);
+
+		const serverFixturePlugin: Plugin = {
+			name: 'exact-server-stack-fixture',
+			setup(build) {
+				build.onResolve({ filter: /^\./ }, (args) => {
+					const importerDirectory = args.importer ? path.dirname(args.importer) : args.resolveDir;
+					const resolved = path.resolve(importerDirectory, args.path);
+					if (!resolved.startsWith(root)) return;
+					return { path: resolved, namespace: 'exact-server-stack-fixture' };
+				});
+				build.onLoad({ filter: /.*/, namespace: 'exact-server-stack-fixture' }, async (args) => ({
+					contents: await readFile(args.path),
+					loader: args.path.endsWith('.wasm') ? 'file' : 'js'
+				}));
+			}
+		};
+		const server = await esbuild({
+			stdin: {
+				contents: await readFile(compiled.serverFile, 'utf8'),
+				loader: 'ts',
+				resolveDir: path.dirname(compiled.serverFile),
+				sourcefile: path.basename(compiled.serverFile)
+			},
+			bundle: true,
+			write: false,
+			outdir: path.join(root, 'server-bundle'),
+			format: 'esm',
+			platform: 'node',
+			packages: 'external',
+			external: ['@exactjs/*'],
+			metafile: true,
+			loader: { '.wasm': 'file' },
+			plugins: [serverFixturePlugin]
+		});
+		const serverInputs = Object.keys(server.metafile!.inputs)
+			.map((value) => value.replaceAll('\\', '/'))
+			.join('\n');
+
+		expect(serverInputs).toContain('/data/apollo-client.js');
+		expect(serverInputs).toContain('/data/graphql-parser.js');
+		expect(serverInputs).toContain('/data/tanstack-cache.js');
+		expect(server.outputFiles!.some((file) => file.path.endsWith('.wasm'))).toBe(true);
+	});
+
 	it('keeps descriptor ids stable through minification and shakes unused components', async () => {
 		const root = await createTestWorkspace('exact-descriptor-bundle-');
 		const srcDir = path.join(root, 'src');
