@@ -5,6 +5,7 @@ export {
 	type ExactClientArtifactIsolationViolation,
 	type ExactClientArtifactOutput
 } from '../artifact-isolation.js';
+export { createExactCompilerExplanation } from '../explanation.js';
 export {
 	assertExactArtifactTarget,
 	createExactArtifactComponentEdges,

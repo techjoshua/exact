@@ -67,8 +67,14 @@ eXact already implements the core exchange:
 - the server validates and executes an allowlisted operation;
 - the server can return state, HTML, and boundary patches;
 - the client validates and applies the response; and
-- the component test harness records request, response, patch, and lifecycle
-  exchanges without requiring tests to know generated identifiers.
+- the component test harness records request, response, patch, lifecycle,
+  emitted SSR resumption, DOM hydration outcome, and value-free server-context
+  token observations without requiring tests to know generated identifiers.
+
+An opt-in compiler explanation now organizes placement, captures,
+server-resident context tokens, response effects, and SSR resumption liveness
+by authored component. Normal compilation remains quiet and does not expose the
+planning manifest as the explanation contract.
 
 The SSR runtime also creates component instances for rendering, emits hydration
 markers, serializes hydration state and contracts, and serializes client-island
@@ -77,14 +83,15 @@ work is to make the compiler describe the complete SSR-to-client continuation
 explicitly and prove that the serialized record is sufficient without exposing
 server-owned values.
 
-Target-specific artifact emission already removes server task bodies and their
-imports from client artifacts in compiler-covered cases. The stronger
-repository-wide guarantee still needs to be defined and verified: a server-only
-dependency and its transitive module graph must be unreachable from every
-client entry, runtime chunk, and emitted runtime asset. Source maps are
-developer artifacts: private maps may retain authored source for debugging,
-while maps deliberately published to clients require a separate disclosure
-audit or must omit server-only source content.
+Target-specific artifact emission removes server task bodies and their imports
+from client artifacts. A host-neutral final-graph verifier and the Vite
+integration now reject server artifact reachability in client entries, runtime
+chunks, and emitted runtime assets. A real bundler fixture proves that a
+transitive Apollo/TanStack-style server graph, dynamic import, and WASM asset
+remain absent from client output. Source maps are developer artifacts: private
+maps may retain authored source for debugging, while maps deliberately
+published to clients require a separate disclosure audit or must omit
+server-only source content.
 
 This plan does not introduce a parallel distributed-closure system. It
 formalizes the existing design, removes accidental dependencies on its current
@@ -1110,12 +1117,14 @@ They must not need to reproduce compiler-generated continuation logic.
    residency from `isomorphic` to `shared` while retaining `isomorphic` for
    execution placement. Distinguish server-owned public HTML from structured
    client transfer in sink analysis.
-3. **Preserve and verify natural artifact isolation.** Build target-specific
-   module graphs from compiler-placed code, propagate reachability through
-   direct, transitive, re-exported, and dynamic edges, and verify final client
-   chunks, maps, and assets contain no server-only reachability. This requires
-   no package declarations or application configuration. Cover representative
-   Apollo/TanStack-style dependency fixtures.
+3. **Preserve and verify natural artifact isolation — implemented.** Build
+   target-specific module graphs from compiler-placed code, propagate
+   reachability through direct, transitive, re-exported, and dynamic edges, and
+   verify final client runtime chunks and assets contain no server-only
+   reachability. Private development maps remain complete; hosts may submit
+   publicly deployed map sources to the verifier. This requires no package
+   declarations or application configuration and includes a representative
+   Apollo/TanStack-style dependency fixture.
 4. **Define the SSR resumption contract.** Derive separate server render and
    client-resumption records, identify the minimum values needed for DOM
    adoption and later continuations, and diagnose missing or forbidden values.
@@ -1131,11 +1140,13 @@ They must not need to reproduce compiler-generated continuation logic.
 8. **Complete context handling.** Resolve server resources exclusively on the
    server, define application/request/invocation lifetimes, and add an explicit
    mechanism for intentionally public context values or projections.
-9. **Extend protocol observation and build analysis.** Record SSR inputs by
-   placement, emitted resumption data, DOM adoption, transported public context, and
-   server-context token usage without leaking server-owned values. Add an
-   optional explanation report for placement, captures, and final artifact
-   contributions.
+9. **Extend protocol observation and build analysis — runtime observation and
+   compiler explanation implemented.** Record SSR inputs by placement, emitted
+   resumption data, DOM adoption, transported public context, and
+   server-context token usage without leaking server-owned values. The optional
+   explanation reports placement, captures, response effects, and resumption
+   liveness. Bundler hosts still need to append per-component final size
+   contributions when their metadata provides that attribution.
 10. **Verify every transition.** Add focused compiler, final-bundle,
     SSR/hydration, loopback, adapter, and adversarial tests for dependency
     isolation, resumption sufficiency, build mismatch, capture snapshots,

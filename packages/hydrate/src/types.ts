@@ -52,6 +52,8 @@ export type HydrateOptions = {
 	onResponse?: (response: ExactResponseMetadata) => void;
 	/** Observes the final client-side disposition of an operation and its patches. */
 	onOperation?: (observation: ExactClientOperationObservation) => void;
+	/** Observes whether a hydration target adopted existing DOM or mounted new DOM. */
+	onHydration?: (observation: ExactHydrationObservation) => void;
 	/** Internal recovery signal emitted only after validating the reserved 410 body. */
 	onBuildUnsupported?: () => void;
 	/** Internal signal that a structural patch replaced an ancestor of another execution root. */
@@ -76,6 +78,14 @@ export type HydrateOptions = {
 
 /** Reports an observable hydrate profile event. */
 export type HydrateProfileEvent = ExactProfileEvent<'hydrate', 'hydrate'>;
+
+/** Reports the structural outcome of one root or client-island hydration attempt. */
+export type ExactHydrationObservation = Readonly<{
+	kind: 'root' | 'island';
+	outcome: 'adopted' | 'mounted' | 'updated';
+	component?: string;
+	markers: 'document' | 'exact' | 'markerless' | 'none';
+}>;
 
 /** Defines the exact hydration config limits type contract. */
 export type ExactHydrationConfigLimits = {

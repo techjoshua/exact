@@ -72,7 +72,23 @@ describe('server component testing', () => {
 		const view = await mountClientServerTest({
 			server,
 			islands: { ClientIsland },
-			hydrate: { allowMarkerless: true, batch: false },
+			hydrate: {
+				allowMarkerless: true,
+				batch: false,
+				continuations: {
+					'generated-action-7f3a': {
+						id: 'generated-action-7f3a',
+						componentId: 'component:ClientIsland',
+						dependencies: [],
+						stateReads: [],
+						stateWrites: [{ path: 'saved', kind: 'write', confidence: 'exact' }],
+						publicContexts: [],
+						serverContexts: [],
+						contextWrites: [],
+						boundaries: []
+					}
+				}
+			},
 			handle: async (request) => {
 				expect(request.body).toMatchObject({
 					type: 'action',
@@ -93,6 +109,14 @@ describe('server component testing', () => {
 		});
 
 		expect(view.hydratedIslands).toBe(1);
+		expect(view.hydration).toEqual([
+			{
+				kind: 'island',
+				outcome: 'mounted',
+				component: 'ClientIsland',
+				markers: 'none'
+			}
+		]);
 		await view.client.invokeAction('generated-action-7f3a');
 		await view.settle();
 
@@ -110,6 +134,25 @@ describe('server component testing', () => {
 		expect(view.component(ClientIsland).providedContext(ClientTheme)).toBe('ocean');
 		expect(view.component(ClientChild).context(ClientTheme)).toBe('ocean');
 		view.unmount();
+	});
+
+	it('exposes the exact public SSR resumption activations emitted to hydration', async () => {
+		function Page() {
+			return () => createVNode('main', null, 'Ready');
+		}
+		const activation = {
+			componentId: 'component:Page',
+			values: { count: 3 },
+			contexts: { PublicStatus: 'ready' },
+			settledContinuations: ['task:load']
+		} as const;
+
+		const view = await testServerComponent(Page).render({
+			hydration: { resumptions: [activation] }
+		});
+
+		expect(view.resumptions).toEqual([activation]);
+		expect(view.hydrationScript).toContain('"PublicStatus":"ready"');
 	});
 
 	it('records streamed protocol events without consuming the client stream', async () => {
@@ -139,5 +182,38 @@ describe('server component testing', () => {
 			{ event: 'start' },
 			{ event: 'result', id: 'opaque' }
 		]);
+	});
+
+	it('correlates value-free server context token access with opaque operations', async () => {
+		const recorder = new ExactProtocolRecorder();
+		const fetch = recorder.wrap(async () => {
+			recorder.observeServerContextAccess({
+				operationId: 'generated-action-7f3a',
+				componentId: 'component:Page',
+				token: 'DatabaseContext',
+				scope: 'request'
+			});
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ({ ok: true })
+			};
+		});
+
+		await fetch('/__exact', {
+			method: 'POST',
+			headers: {},
+			body: JSON.stringify({ type: 'action', id: 'generated-action-7f3a' })
+		});
+
+		expect(recorder.serverContextAccesses()).toEqual([
+			{
+				operationId: 'generated-action-7f3a',
+				componentId: 'component:Page',
+				token: 'DatabaseContext',
+				scope: 'request'
+			}
+		]);
+		expect(JSON.stringify(recorder.exchanges)).not.toContain('connectionString');
 	});
 });

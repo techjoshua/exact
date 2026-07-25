@@ -82,6 +82,14 @@ export function hydrateClientIslands(
 			}
 		);
 		boundary.setAttribute('data-exact-client-hydrated', 'true');
+		options.onHydration?.(
+			Object.freeze({
+				kind: 'island',
+				outcome: 'mounted',
+				component: name,
+				markers: 'none'
+			})
+		);
 		hydrated++;
 		enqueue(boundary);
 	}

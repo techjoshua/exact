@@ -2,6 +2,7 @@ import type { ModuleRewriteOptions } from '@exactjs/expressions';
 import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import type { ExactCompilerSession } from '../expression/project.js';
 import type { ExactArtifactTarget } from './artifacts.js';
+import type { ExactCompilerExplanation } from './explanation.js';
 import type { ExactCompilerManifest } from './manifest.js';
 
 /** Configures transform. */
@@ -20,6 +21,8 @@ export type TransformOptions = {
 	 */
 	preserveComponentHoisting?: boolean;
 	sourceMap?: boolean;
+	/** Emits a stable account of placement, transport, effects, and SSR resumption liveness. */
+	explain?: boolean;
 	moduleRewrite?: ModuleRewriteOptions;
 	moduleTransform?: ModuleTransform;
 	/** Serializable rules for imports handled as build assets. */
@@ -114,6 +117,7 @@ export type TransformResult = {
 	map: ExactSourceMap | null;
 	filename: string;
 	manifest: ExactCompilerManifest;
+	explanation?: ExactCompilerExplanation;
 };
 
 /** Defines the exact source map type contract. */

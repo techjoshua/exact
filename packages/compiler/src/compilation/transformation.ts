@@ -5,6 +5,7 @@ import { analyzeCallableEffects } from '../analysis/callable-effects.js';
 import { analyzeExactAnnotations } from '../annotations.js';
 import { analyzeModuleImports } from '../assets.js';
 import { exactComponentDescriptorTransformer } from '../descriptor-transform.js';
+import { createExactCompilerExplanation } from '../explanation.js';
 import { analyzeExpressionComponents } from '../expression/analysis.js';
 import { analyzeExpressionDerived } from '../expression/derived.js';
 import { analyzeExpressionJsx } from '../expression/jsx.js';
@@ -213,7 +214,8 @@ export function transformSource(source: string, options: TransformOptions = {}):
 		code: output,
 		map: options.sourceMap ? createLineSourceMap(filename, normalized, output) : null,
 		filename,
-		manifest
+		manifest,
+		...(options.explain ? { explanation: createExactCompilerExplanation(manifest, target) } : {})
 	};
 }
 

@@ -5,6 +5,7 @@ import {
 	readExactHydrationConfig,
 	type ClientIslandRegistry,
 	type ExactClient,
+	type ExactHydrationObservation,
 	type FetchLike,
 	type HydrateOptions
 } from '@exactjs/hydrate';
@@ -35,6 +36,8 @@ export type ClientServerTestOptions = {
 	container?: Element;
 	attachToDocument?: boolean;
 	timeout?: number;
+	/** Reuses a recorder so the server's value-free context-access callback can target it. */
+	protocol?: ExactProtocolRecorder;
 };
 
 /** Represents a hydrated client paired with its actual in-memory server protocol. */
@@ -42,6 +45,7 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 	readonly protocol: ExactProtocolRecorder;
 	readonly client: ExactClient;
 	readonly hydratedIslands: number;
+	readonly hydration: readonly ExactHydrationObservation[];
 	private disposed = false;
 	private readonly removeContainer: boolean;
 	private readonly timeout: number;
@@ -51,6 +55,7 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 		readonly server: ClientServerRenderOutput,
 		client: ExactClient,
 		protocol: ExactProtocolRecorder,
+		hydration: readonly ExactHydrationObservation[],
 		hydratedIslands: number,
 		removeContainer: boolean,
 		timeout: number
@@ -61,6 +66,7 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 		);
 		this.client = client;
 		this.protocol = protocol;
+		this.hydration = hydration;
 		this.hydratedIslands = hydratedIslands;
 		this.removeContainer = removeContainer;
 		this.timeout = timeout;
@@ -74,7 +80,7 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 		const attached = !options.container && options.attachToDocument !== false;
 		if (attached) document.body.appendChild(container);
 		container.innerHTML = server.htmlWithHydration ?? server.html;
-		const protocol = new ExactProtocolRecorder();
+		const protocol = options.protocol ?? new ExactProtocolRecorder();
 		const transport: FetchLike = async (url, init) => {
 			const body = parseBody(init.body);
 			const response = await options.handle({
@@ -104,6 +110,7 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 			])
 		);
 		let client: ExactClient | undefined;
+		const hydration: ExactHydrationObservation[] = [];
 		try {
 			client = createExactClient(container, {
 				...config,
@@ -114,19 +121,28 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 				onOperation: (observation) => {
 					protocol.observeClientOperation(observation);
 					explicit.onOperation?.(observation);
+				},
+				onHydration: (observation) => {
+					hydration.push(observation);
+					explicit.onHydration?.(observation);
 				}
 			});
 			const hydrated = hydrateClientIslands(container, options.islands, {
 				...config,
 				...explicit,
 				islands: options.islands,
-				componentDomain: client.domain
+				componentDomain: client.domain,
+				onHydration: (observation) => {
+					hydration.push(observation);
+					explicit.onHydration?.(observation);
+				}
 			});
 			const view = new ClientServerTestView(
 				container,
 				server,
 				client,
 				protocol,
+				hydration,
 				hydrated,
 				attached,
 				options.timeout ?? 1_000

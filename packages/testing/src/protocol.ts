@@ -1,5 +1,9 @@
 import type { ExactClientOperationObservation, FetchLike } from '@exactjs/hydrate';
-import type { ExactInvocationRequest, ExactPatch } from '@exactjs/server';
+import type {
+	ExactInvocationRequest,
+	ExactPatch,
+	ExactServerContextAccessObservation
+} from '@exactjs/server';
 
 /** Captures one real client/server protocol exchange without interpreting generated IDs. */
 export type ExactProtocolExchange = {
@@ -18,6 +22,7 @@ export type ExactProtocolExchange = {
 		events: unknown[];
 	};
 	clientOperations: ExactClientOperationObservation[];
+	serverContextAccesses: ExactServerContextAccessObservation[];
 };
 
 /** Records the transport envelopes and client-side results observed by a test. */
@@ -37,7 +42,8 @@ export class ExactProtocolRecorder {
 				rawRequestBody: init.body,
 				requestBody,
 				operations: operationsFrom(requestBody),
-				clientOperations: []
+				clientOperations: [],
+				serverContextAccesses: []
 			};
 			this.exchanges.push(exchange);
 			const response = await fetch(input, init);
@@ -78,6 +84,18 @@ export class ExactProtocolRecorder {
 			}
 			return wrapped;
 		};
+	}
+
+	/** Associates one value-free server context token observation with its generated operation. */
+	observeServerContextAccess(observation: ExactServerContextAccessObservation): void {
+		const exchange = [...this.exchanges]
+			.reverse()
+			.find((candidate) =>
+				candidate.operations.some((operation) => operation.id === observation.operationId)
+			);
+		if (!exchange)
+			throw new Error(`No recorded protocol request contains operation ${observation.operationId}`);
+		exchange.serverContextAccesses.push(Object.freeze({ ...observation }));
 	}
 
 	/** Associates the hydrator's final DOM disposition with its recorded request. */
@@ -121,6 +139,11 @@ export class ExactProtocolRecorder {
 		return this.exchanges.flatMap((exchange) =>
 			exchange.clientOperations.flatMap((operation) => operation.appliedPatches)
 		);
+	}
+
+	/** Flattens server-owned context tokens used during recorded operations without their values. */
+	serverContextAccesses(): ExactServerContextAccessObservation[] {
+		return this.exchanges.flatMap((exchange) => exchange.serverContextAccesses);
 	}
 }
 

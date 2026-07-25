@@ -61,6 +61,13 @@ export function hydrateRoot(
 			onUnsafeHtml: options.onUnsafeHtml,
 			onProfile: options.onProfile
 		});
+		options.onHydration?.(
+			Object.freeze({
+				kind: 'root',
+				outcome: 'updated',
+				markers: 'none'
+			})
+		);
 		return existing;
 	}
 	const resolvedOptions = resolveHydrateOptions(rootContainer, options);
@@ -70,7 +77,7 @@ export function hydrateRoot(
 	const captured = captureHydrationDom(rootContainer, work);
 	const formState = captured.formState;
 	try {
-		adoptOrMountRoot(
+		const outcome = adoptOrMountRoot(
 			vnode,
 			rootContainer,
 			documentNode,
@@ -81,6 +88,19 @@ export function hydrateRoot(
 		);
 		restoreFormState(rootContainer, formState, work);
 		rootContainer.setAttribute('data-exact-hydrated', 'true');
+		resolvedOptions.onHydration?.(
+			Object.freeze({
+				kind: 'root',
+				outcome,
+				markers: documentNode
+					? 'document'
+					: captured.hasMarkers
+						? 'exact'
+						: resolvedOptions.allowMarkerless
+							? 'markerless'
+							: 'none'
+			})
+		);
 		return root;
 	} catch (error) {
 		root.dispose();
@@ -97,10 +117,10 @@ function adoptOrMountRoot(
 	options: HydrateOptions,
 	work: DomWorkBudget,
 	domain: ComponentDomain
-): void {
+): 'adopted' | 'mounted' {
 	if (documentNode) {
 		const checkpoint = checkpointComponentResumptions(domain);
-		if (adoptDocumentRoot(vnode, documentNode, rendererOptions(options, work))) return;
+		if (adoptDocumentRoot(vnode, documentNode, rendererOptions(options, work))) return 'adopted';
 		rollbackComponentResumptions(domain, checkpoint);
 		reportMismatch(
 			options,
@@ -117,7 +137,7 @@ function adoptOrMountRoot(
 			options.allowMarkerless && typeof vnode.type === 'function'
 				? adoptMarkerlessComponentRoot(vnode, container, rendererOptions(options, work))
 				: false;
-		if (adopted) return;
+		if (adopted) return 'adopted';
 		rollbackComponentResumptions(domain, checkpoint);
 		reportMismatch(
 			options,
@@ -127,7 +147,7 @@ function adoptOrMountRoot(
 			options.allowMarkerless ? 'adoption-mismatch' : 'missing-markers'
 		);
 		mountFreshRoot(vnode, container, options, work);
-		return;
+		return 'mounted';
 	}
 	const checkpoint = checkpointComponentResumptions(domain);
 	const adopted =
@@ -135,11 +155,12 @@ function adoptOrMountRoot(
 			? adoptComponentRoot(vnode, container, rendererOptions(options, work))
 			: adoptStaticTree(vnode, container, createStaticAdoptionBudget(options, work)) &&
 				adoptStatic(vnode, container, rendererOptions(options, work));
-	if (adopted) return;
+	if (adopted) return 'adopted';
 	rollbackComponentResumptions(domain, checkpoint);
 	// Clear the SSR range before mounting so a failed adoption cannot leave a
 	// duplicate interactive tree beside stale server markup.
 	mountFreshRoot(vnode, container, options, work);
+	return 'mounted';
 }
 
 /** Clears an unowned SSR range and mounts the client-owned replacement. */

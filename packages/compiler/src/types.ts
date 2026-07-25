@@ -6,3 +6,4 @@ export type * from './contracts/compilation.js';
 export type * from './contracts/artifacts.js';
 export type * from './contracts/emission.js';
 export type * from './contracts/continuations.js';
+export type * from './contracts/explanation.js';

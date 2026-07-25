@@ -98,7 +98,7 @@ export function continuationContextValueExpression(
 		return factory.createCallExpression(
 			factory.createPropertyAccessExpression(execution, 'getContext'),
 			undefined,
-			[token]
+			[token, factory.createStringLiteral(tokenName)]
 		);
 	}
 	throw new Error(

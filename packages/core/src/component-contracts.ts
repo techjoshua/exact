@@ -43,7 +43,7 @@ export type ExactComponentContinuationActivation = Readonly<{
 /** Trusted invocation resources available only while a server continuation executes. */
 export type ExactComponentContinuationExecution = Readonly<{
 	signal: AbortSignal;
-	getContext<T>(token: ContextToken<T>): T;
+	getContext<T>(token: ContextToken<T>, authoredName?: string): T;
 }>;
 
 /** State accumulated by a generated continuation before write-contract projection. */

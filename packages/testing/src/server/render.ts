@@ -2,6 +2,7 @@ import {
 	createVNode,
 	type ComponentFunction,
 	type ComponentInstance,
+	type ComponentResumptionActivation,
 	type ContextToken,
 	type VNode
 } from '@exactjs/core';
@@ -125,6 +126,8 @@ export class ServerTestView<State extends object = any, Props = any> {
 		captured: readonly CapturedComponent[],
 		readonly hydrationScript?: string,
 		readonly htmlWithHydration?: string,
+		/** Compiler-selected public activations emitted for browser resumption. */
+		readonly resumptions: readonly ComponentResumptionActivation[] = [],
 		private readonly applicationValues = new Map<symbol, unknown>(),
 		private readonly requestValues = new Map<symbol, unknown>()
 	) {
@@ -331,6 +334,7 @@ export async function renderServerTest(
 			'htmlWithHydration' in result && typeof result.htmlWithHydration === 'string'
 				? result.htmlWithHydration
 				: undefined,
+			result.resumptions ?? [],
 			applicationValues,
 			requestValues
 		);

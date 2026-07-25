@@ -98,13 +98,14 @@ export function renderToHydratableString(
 	const capture = createSsrResumptionCapture(options);
 	const result = renderToString(vnode, capture.options);
 	const resumptions = capture.records();
+	const emittedResumptions = resumptions.length ? resumptions : options.resumptions;
 	const hydrationScript = renderHydrationScript({
 		pluginRegistryFingerprint: options.pluginRegistryFingerprint,
 		endpoint: options.endpoint,
 		endpoints: options.endpoints,
 		state: result.state,
 		continuations: options.continuations,
-		resumptions: resumptions.length ? resumptions : options.resumptions,
+		resumptions: emittedResumptions,
 		publicContexts: options.publicContexts,
 		executionRoot: options.executionRoot,
 		binding: options.binding,
@@ -118,7 +119,7 @@ export function renderToHydratableString(
 	});
 	return {
 		...result,
-		resumptions,
+		resumptions: emittedResumptions,
 		hydrationScript,
 		htmlWithHydration: augmentDocumentBody(result.html, hydrationScript)
 	};

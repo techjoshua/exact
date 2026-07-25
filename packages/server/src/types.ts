@@ -115,11 +115,21 @@ export type ExactContextOverrides = {
 	request?: readonly (readonly [ContextToken<any>, unknown])[];
 };
 
+/** Reports a server-owned context token used by one generated continuation, never its value. */
+export type ExactServerContextAccessObservation = Readonly<{
+	operationId: string;
+	componentId: string;
+	token: string;
+	scope: ContextToken<any>['scope'];
+}>;
+
 /** Configures exact server context. */
 export type ExactServerContextConfiguration = {
 	applicationContexts?: readonly ExactContextRegistration<any>[];
 	requestContexts?: ExactRequestContextRegistrationSource;
 	contextOverrides?: ExactContextOverrides;
+	/** Observes generated continuation context access without disclosing the resolved value. */
+	onContextAccess?: (observation: ExactServerContextAccessObservation) => void;
 };
 
 /** Defines the exact context scope type contract. */

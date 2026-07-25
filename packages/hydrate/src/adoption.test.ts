@@ -43,9 +43,14 @@ describe('@exactjs/hydrate adoption', () => {
 		const root = document.createElement('div');
 		root.innerHTML = '<!--exact:component:0--><p class="ready">server</p><!--/exact:component:0-->';
 		const serverNode = root.querySelector('p')!;
-		hydrate(createVNode('p', { className: 'ready' }, 'server'), root, { logger: noopLogger });
+		const observations: unknown[] = [];
+		hydrate(createVNode('p', { className: 'ready' }, 'server'), root, {
+			logger: noopLogger,
+			onHydration: (observation) => observations.push(observation)
+		});
 		expect(root.querySelector('p')).toBe(serverNode);
 		expect(root.querySelectorAll('p')).toHaveLength(1);
+		expect(observations).toEqual([{ kind: 'root', outcome: 'adopted', markers: 'exact' }]);
 	});
 
 	it('patches an adopted static root without appending a second tree', () => {

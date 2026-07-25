@@ -330,7 +330,7 @@ describe('@exactjs/compiler: artifacts', () => {
 			/this\.task\(this\.reactive\(\(\) => this\.state\.id\), __exactContinuationTask\("[^"]+", \(__exactDependency/
 		);
 		expect(server).toMatch(
-			/__exactExecution_\d+\.getContext\(DatabaseContext\)\.find\(__exactDependency\)/
+			/__exactExecution_\d+\.getContext\(DatabaseContext, "DatabaseContext"\)\.find\(__exactDependency\)/
 		);
 		expect(server).toContain('serverContexts: [\n                    "DatabaseContext"');
 	});

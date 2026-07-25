@@ -43,11 +43,19 @@ export function createExactContinuationHandler(
 			},
 			{
 				signal: context.signal ?? neverAbortedSignal(),
-				getContext: (token) => {
+				getContext: (token, authoredName) => {
 					if (!context.contexts)
 						throw new Error(
 							`No server context scope is active for eXact continuation ${contract.id}`
 						);
+					context.onContextAccess?.(
+						Object.freeze({
+							operationId: contract.id,
+							componentId: contract.componentId,
+							token: authoredName ?? token.description,
+							scope: token.scope
+						})
+					);
 					return context.contexts.getSync(token);
 				}
 			}

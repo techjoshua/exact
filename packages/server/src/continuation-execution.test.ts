@@ -22,12 +22,13 @@ const contract: ExactComponentContinuationContract = {
 
 describe('@exactjs/server generated continuation execution', () => {
 	it('resolves server context locally and returns only declared state writes', async () => {
+		const contextAccesses: unknown[] = [];
 		const handler = createExactContinuationHandler(contract, {
 			id: contract.id,
 			componentId: contract.componentId,
 			async execute(activation, execution) {
 				const row = await execution
-					.getContext(DatabaseContext)
+					.getContext(DatabaseContext, 'DatabaseContext')
 					.find(String(activation.dependencies[0]));
 				activation.state.title = row.title;
 				activation.state.secret = row.secret;
@@ -42,6 +43,7 @@ describe('@exactjs/server generated continuation execution', () => {
 				state: { id: 'p1' }
 			},
 			context({
+				onContextAccess: (observation) => contextAccesses.push(observation),
 				contexts: {
 					kind: 'request',
 					componentValues: new Map(),
@@ -58,6 +60,15 @@ describe('@exactjs/server generated continuation execution', () => {
 		);
 
 		expect(result).toEqual({ state: { title: 'Visible' } });
+		expect(contextAccesses).toEqual([
+			{
+				operationId: contract.id,
+				componentId: contract.componentId,
+				token: 'DatabaseContext',
+				scope: 'request'
+			}
+		]);
+		expect(JSON.stringify(contextAccesses)).not.toContain('Visible');
 	});
 
 	it('rejects malformed dependency activation before executing authored work', async () => {
