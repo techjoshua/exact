@@ -21,6 +21,7 @@ function continuation(
 		stateWrites: options.writes ?? [],
 		publicContexts: options.publicContexts ?? [],
 		serverContexts: [],
+		contextWrites: [],
 		boundaries: options.boundaries ?? []
 	};
 }
@@ -45,6 +46,7 @@ describe('@exactjs/hydrate action-operations', () => {
 					stateWrites: [],
 					publicContexts: ['PublicConfig'],
 					serverContexts: [],
+					contextWrites: [],
 					boundaries: ['profile']
 				}
 			},
@@ -97,6 +99,7 @@ describe('@exactjs/hydrate action-operations', () => {
 					stateWrites: [{ path: 'profile.name', kind: 'write', confidence: 'exact' }],
 					publicContexts: [],
 					serverContexts: [],
+					contextWrites: [],
 					boundaries: []
 				}
 			},
@@ -140,6 +143,7 @@ describe('@exactjs/hydrate action-operations', () => {
 					stateWrites: [{ path: 'profile.name', kind: 'write', confidence: 'exact' }],
 					publicContexts: [],
 					serverContexts: [],
+					contextWrites: [],
 					boundaries: ['allowed']
 				}
 			},

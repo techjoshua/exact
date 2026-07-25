@@ -1,10 +1,12 @@
 import ts from 'typescript';
-import { isThisTaskCall, taskRequestedPlacement } from '../../calls.js';
+import { isFunctionLikeExpression, isThisTaskCall, taskRequestedPlacement } from '../../calls.js';
 import type { ExpressionComponentPlan } from '../../expression/contracts.js';
 import type { ExpressionTaskPlan, ExpressionTaskSite } from '../../expression/task-contracts.js';
 import { stableId } from '../../ids.js';
 import type { ExactPlacement, HelperNames, TransformTarget } from '../../types.js';
 import { expressionEmissionId } from './identity.js';
+
+type ContinuationContextWrite = Readonly<{ name: string; token: ts.Expression }>;
 
 /** Adds matching opaque continuation IDs to analyzed task sites in source order. */
 export function createDistributedTaskSites(
@@ -88,6 +90,7 @@ export function componentOwnsClientMachine(
 export function createDistributedTaskCall(
 	node: ts.CallExpression,
 	continuationId: string,
+	contextWrites: readonly ContinuationContextWrite[],
 	context: ts.TransformationContext,
 	helpers: HelperNames
 ): ts.CallExpression {
@@ -121,7 +124,15 @@ export function createDistributedTaskCall(
 				factory.createThis(),
 				factory.createStringLiteral(continuationId),
 				factory.createArrayLiteralExpression(dependencyParameters),
-				signal
+				signal,
+				factory.createArrayLiteralExpression(
+					contextWrites.map(({ name, token }) =>
+						factory.createObjectLiteralExpression([
+							factory.createPropertyAssignment('name', factory.createStringLiteral(name)),
+							factory.createPropertyAssignment('token', token)
+						])
+					)
+				)
 			]
 		)
 	);
@@ -132,6 +143,29 @@ export function createDistributedTaskCall(
 		node.typeArguments,
 		[...dependencies, taggedWork]
 	);
+}
+
+/** Collects direct component-context writes whose token identities must remain client-local. */
+export function continuationContextWrites(node: ts.CallExpression): ContinuationContextWrite[] {
+	const work = node.arguments.at(-1);
+	if (!work || !isFunctionLikeExpression(work)) return [];
+	const writes = new Map<string, ts.Expression>();
+	const visit = (current: ts.Node): void => {
+		if (current !== work && ts.isFunctionLike(current)) return;
+		if (
+			ts.isCallExpression(current) &&
+			ts.isPropertyAccessExpression(current.expression) &&
+			current.expression.expression.kind === ts.SyntaxKind.ThisKeyword &&
+			current.expression.name.text === 'setContext' &&
+			current.arguments.length >= 2
+		) {
+			const token = current.arguments[0]!;
+			writes.set(token.getText(), token);
+		}
+		ts.forEachChild(current, visit);
+	};
+	visit(work);
+	return [...writes].map(([name, token]) => ({ name, token }));
 }
 
 /** Tags generated task work with its stable distributed continuation identity. */

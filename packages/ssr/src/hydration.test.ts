@@ -89,6 +89,7 @@ describe('@exactjs/ssr hydration', () => {
 					stateWrites: [],
 					publicContexts: [],
 					serverContexts: [],
+					contextWrites: [],
 					boundaries: ['profile', 'profile:children']
 				}
 			},
@@ -145,6 +146,7 @@ describe('@exactjs/ssr hydration', () => {
 					stateWrites: [],
 					publicContexts: [],
 					serverContexts: [],
+					contextWrites: [],
 					boundaries: []
 				}
 			}

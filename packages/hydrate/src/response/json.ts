@@ -49,10 +49,26 @@ export function parseExactInvocationResponse(
 		throw new Error(message);
 	const record = body as Record<string, unknown>;
 	if (record.ok !== true) throw new Error(message);
-	if (!hasOnlyKeys(record, ['ok', 'type', 'id', 'opId', 'patches', 'state', 'html']))
+	if (
+		!hasOnlyKeys(record, [
+			'ok',
+			'type',
+			'id',
+			'opId',
+			'patches',
+			'state',
+			'contexts',
+			'html'
+		])
+	)
 		throw new Error(message);
 	if (expected && !matchesOperation(record, expected)) throw new Error(message);
 	if ('state' in record && record.state === undefined) throw new Error(message);
+	if (
+		record.contexts !== undefined &&
+		(!record.contexts || typeof record.contexts !== 'object' || Array.isArray(record.contexts))
+	)
+		throw new Error(message);
 	if (
 		record.patches !== undefined &&
 		(!Array.isArray(record.patches) || !record.patches.every(isPatchLike))
@@ -67,6 +83,9 @@ export function parseExactInvocationResponse(
 	return {
 		...(record.patches === undefined ? {} : { patches: record.patches as ExactPatch[] }),
 		...('state' in record ? { state: record.state } : {}),
+		...(record.contexts === undefined
+			? {}
+			: { contexts: record.contexts as Record<string, unknown> }),
 		...(record.html === undefined ? {} : { html: record.html })
 	};
 }

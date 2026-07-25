@@ -37,8 +37,13 @@ export function isInvocationResultSafe(
 		return false;
 	if (!result || typeof result !== 'object' || Array.isArray(result)) return false;
 	const record = result as Record<string, unknown>;
-	if (!hasOnlyKeys(record, ['patches', 'state', 'html'])) return false;
+	if (!hasOnlyKeys(record, ['patches', 'state', 'contexts', 'html'])) return false;
 	if ('state' in record && record.state === undefined) return false;
+	if (
+		record.contexts !== undefined &&
+		(!record.contexts || typeof record.contexts !== 'object' || Array.isArray(record.contexts))
+	)
+		return false;
 	if (record.patches !== undefined) {
 		if (!Array.isArray(record.patches)) return false;
 		if (record.patches.length > positiveLimit(limits.maxPatches, 10_000)) return false;
@@ -114,6 +119,16 @@ export function publicContextMatchesContract(
 	for (const token of tokens)
 		if (!Object.prototype.hasOwnProperty.call(context, token)) return false;
 	return true;
+}
+
+/** Validates that a response contains only compiler-authorized component-context writes. */
+export function contextResponseMatchesContract(
+	contexts: Record<string, unknown> | undefined,
+	tokens: readonly string[]
+): boolean {
+	if (!contexts) return true;
+	const allowed = new Set(tokens);
+	return Object.keys(contexts).every((token) => allowed.has(token));
 }
 
 function isPatchSafe(patch: unknown): patch is ExactPatch {

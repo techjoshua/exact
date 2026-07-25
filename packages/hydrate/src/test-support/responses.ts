@@ -25,6 +25,7 @@ export function testContinuation(
 		writes?: readonly ExactContinuationStatePathContract[];
 		boundaries?: readonly string[];
 		publicContexts?: readonly string[];
+		contextWrites?: readonly string[];
 		dependencies?: ExactComponentContinuationContract['dependencies'];
 	} = {}
 ): ExactComponentContinuationContract {
@@ -40,6 +41,7 @@ export function testContinuation(
 			([{ path: '*', kind: 'write', confidence: 'exact' }] as const),
 		publicContexts: options.publicContexts ?? [],
 		serverContexts: [],
+		contextWrites: options.contextWrites ?? [],
 		boundaries: options.boundaries ?? []
 	};
 }

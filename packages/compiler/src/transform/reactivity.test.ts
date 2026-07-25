@@ -447,6 +447,37 @@ describe('@exactjs/compiler: reactivity', () => {
 		expect(server).not.toContain('width = 1');
 	});
 
+	it('lowers shared component-context writes into the distributed response contract', () => {
+		const source = `
+      const StatusContext = createContext<{ message: string }>("status", {
+        global: true,
+        keep: "shared"
+      });
+
+      export function Page(this: Component<{ count: number }>) {
+        this.task.server(() => {
+          this.setContext(StatusContext, { message: "ready" });
+        });
+        return () => <button onClick={() => this.state.count++}>Page</button>;
+      }
+    `;
+		const manifest = analyzeSource(source, { filename: 'Page.tsx' });
+		const client = transform(source, { filename: 'Page.tsx', target: 'client' });
+		const server = transform(source, { filename: 'Page.tsx', target: 'server' });
+		const continuation = manifest.continuations[0]!;
+
+		expect(continuation.effects.contextWrites).toEqual([
+			expect.objectContaining({ token: 'StatusContext', kind: 'write' })
+		]);
+		expect(client).toContain(
+			'name: "StatusContext", token: StatusContext'
+		);
+		expect(client).toContain('contextWrites:');
+		expect(server).toContain('contextWrites:');
+		expect(server).toContain('["StatusContext"]');
+		expect(server).toContain('contexts: __exactContextWrites_');
+	});
+
 	it('fails compilation when explicit task placement contradicts detected environment usage', () => {
 		expect(() =>
 			transform(`

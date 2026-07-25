@@ -1,4 +1,5 @@
 import type {
+	ComponentContinuationDispatch,
 	ComponentContinuationDispatcher,
 	ComponentDomain,
 	ComponentInstance,
@@ -30,11 +31,12 @@ export function dispatchComponentContinuation(
 	instance: ComponentInstance<any>,
 	id: string,
 	dependencies: readonly unknown[],
-	signal: AbortSignal
+	signal: AbortSignal,
+	contextWrites: ComponentContinuationDispatch['contextWrites'] = []
 ): Promise<void> {
 	const dispatch = instance.domain.dispatchContinuation;
 	if (!dispatch) throw new Error(`No eXact continuation transport is registered for ${id}`);
-	return dispatch({ instance, id, dependencies, signal });
+	return dispatch({ instance, id, dependencies, contextWrites, signal });
 }
 
 /** Runs synchronous VNode creation with an explicit immutable component domain. */

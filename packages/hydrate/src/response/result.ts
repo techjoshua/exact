@@ -21,7 +21,18 @@ export function parseExactOperationResult(
 		throw new Error('eXact batch invocation returned malformed results');
 	const record = value as Record<string, unknown>;
 	if (record.ok === true) {
-		if (!hasOnlyKeys(record, ['ok', 'type', 'id', 'opId', 'patches', 'state', 'html']))
+		if (
+			!hasOnlyKeys(record, [
+				'ok',
+				'type',
+				'id',
+				'opId',
+				'patches',
+				'state',
+				'contexts',
+				'html'
+			])
+		)
 			throw new Error('eXact batch invocation returned malformed results');
 		if (record.type !== 'action' && record.type !== 'refresh')
 			throw new Error('eXact batch invocation returned malformed results');
@@ -36,6 +47,7 @@ export function parseExactOperationResult(
 				ok: true,
 				...(record.patches === undefined ? {} : { patches: record.patches }),
 				...('state' in record ? { state: record.state } : {}),
+				...(record.contexts === undefined ? {} : { contexts: record.contexts }),
 				...(record.html === undefined ? {} : { html: record.html })
 			},
 			'eXact batch invocation returned malformed results',

@@ -125,6 +125,7 @@ function continuationExecutor(
 	const activation = factory.createUniqueName('__exactActivation');
 	const execution = factory.createUniqueName('__exactExecution');
 	const component = factory.createUniqueName('__exactComponent');
+	const contextWrites = factory.createUniqueName('__exactContextWrites');
 	const referenced = referencedFreeNames(work);
 	const aliasStatements = aliases
 		.filter((alias) => referenced.has(alias.name))
@@ -159,6 +160,7 @@ function continuationExecutor(
 			activation,
 			execution,
 			component,
+			contextWrites,
 			context,
 			filename
 		),
@@ -224,6 +226,20 @@ function continuationExecutor(
 						ts.NodeFlags.Const
 					)
 				),
+				factory.createVariableStatement(
+					undefined,
+					factory.createVariableDeclarationList(
+						[
+							factory.createVariableDeclaration(
+								contextWrites,
+								undefined,
+								undefined,
+								factory.createObjectLiteralExpression()
+							)
+						],
+						ts.NodeFlags.Const
+					)
+				),
 				...aliasStatements,
 				factory.createExpressionStatement(factory.createAwaitExpression(invoke)),
 				factory.createReturnStatement(
@@ -231,7 +247,8 @@ function continuationExecutor(
 						factory.createPropertyAssignment(
 							'state',
 							factory.createPropertyAccessExpression(component, 'state')
-						)
+						),
+						factory.createPropertyAssignment('contexts', contextWrites)
 					])
 				)
 			],
@@ -287,6 +304,7 @@ function rewriteContinuationWork(
 	activation: ts.Identifier,
 	execution: ts.Identifier,
 	component: ts.Identifier,
+	contextWrites: ts.Identifier,
 	context: ts.TransformationContext,
 	filename: string
 ): ts.ArrowFunction | ts.FunctionExpression {
@@ -311,8 +329,29 @@ function rewriteContinuationWork(
 				);
 			}
 			if (node.expression.name.text === 'setContext') {
-				throw new Error(
-					`Server continuation ${continuation.id} writes component context, which is not yet transportable in ${filename}`
+				const token = node.arguments[0];
+				const value = node.arguments[1];
+				const tokenName = token?.getText();
+				if (
+					!token ||
+					!value ||
+					!tokenName ||
+					!continuation.effects.contextWrites.some((effect) => effect.token === tokenName)
+				)
+					throw new Error(
+						`Server continuation ${continuation.id} writes undeclared component context in ${filename}`
+					);
+				return factory.createBinaryExpression(
+					factory.createBinaryExpression(
+						factory.createElementAccessExpression(
+							contextWrites,
+							factory.createStringLiteral(tokenName)
+						),
+						factory.createToken(ts.SyntaxKind.EqualsToken),
+						ts.visitNode(value, visit) as ts.Expression
+					),
+					factory.createToken(ts.SyntaxKind.CommaToken),
+					factory.createVoidExpression(factory.createNumericLiteral(0))
 				);
 			}
 		}

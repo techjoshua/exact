@@ -57,6 +57,7 @@ export function analyzeTaskDependencies(
 
 	for (const member of work.walk().memberAccesses()) {
 		if (insideAssignmentTarget(member)) continue;
+		if (isComponentContextWrite(member)) continue;
 		const expression = capturedMemberExpression(member);
 		if (!expression?.node.span) continue;
 		if (isContextLookup(expression) || nestedInContextLookup(member)) continue;
@@ -133,6 +134,16 @@ export function analyzeTaskDependencies(
 		dependencies: Object.freeze(dependencies),
 		unsafeDerived: Object.freeze([...unsafeDerived.values()])
 	});
+}
+
+/** Excludes the component receiver of this.setContext(), which is an effect rather than input. */
+function isComponentContextWrite(expression: NodeRef): boolean {
+	return (
+		expression.isMember('setContext') &&
+		expression.target?.node.kind === 'ThisKeyword' &&
+		expression.parent?.node.kind === 'CallExpression' &&
+		expression.parent.target?.node === expression.node
+	);
 }
 
 /** Returns whether a canonical expression is this.getContext(token). */

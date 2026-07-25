@@ -18,6 +18,7 @@ export function continuationDescriptorExpression(
 			serverContexts: client
 				? []
 				: continuation.activation.serverContexts.map((context) => context.token),
+			contextWrites: continuation.effects.contextWrites.map((context) => context.token),
 			boundaries: continuation.effects.boundaries
 		})),
 		factory

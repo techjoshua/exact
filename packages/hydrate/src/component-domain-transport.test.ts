@@ -6,6 +6,7 @@ import {
 	createVNode,
 	currentComponentDomain,
 	dispatchComponentContinuation,
+	withComponentDomain,
 	type Component,
 	type ComponentInstance
 } from '@exactjs/core';
@@ -16,6 +17,61 @@ import { createExactClient, hydrate } from './index.js';
 import { testContinuation } from './test-support/responses.js';
 
 describe('component-domain transport', () => {
+	it('commits compiler-mapped public context writes to the owning component', async () => {
+		const StatusContext = createContext<{ message: string }>('status', {
+			global: true,
+			keep: 'shared'
+		});
+		const container = document.createElement('div');
+		const continuation = testContinuation('publish-status', {
+			contextWrites: ['StatusContext']
+		});
+		function Status(this: Component<{}>) {
+			return () => createVNode('output', null, this.getContext(StatusContext).message);
+		}
+		function Provider(this: Component<{}>) {
+			this.setContext(StatusContext, { message: 'initial' });
+			this.task(({ signal }) =>
+				dispatchComponentContinuation(
+					this as unknown as ComponentInstance<{}>,
+					'publish-status',
+					[],
+					signal,
+					[{ name: 'StatusContext', token: StatusContext }]
+				)
+			);
+			return () => createVNode(Status, {});
+		}
+		const client = createExactClient(container, {
+			endpoint: '/__exact',
+			batch: false,
+			continuations: { 'publish-status': continuation },
+			fetch: async () => ({
+				ok: true,
+				status: 200,
+				async json() {
+					return {
+						ok: true,
+						type: 'action' as const,
+						id: 'publish-status',
+						contexts: { StatusContext: { message: 'updated' } }
+					};
+				}
+			})
+		});
+
+		render(
+			withComponentDomain(client.domain, () => createVNode(Provider, {})),
+			container
+		);
+		await client.whenSettled();
+
+		await vi.waitFor(() =>
+			expect(container.querySelector('output')?.textContent).toBe('updated')
+		);
+		client.dispose();
+	});
+
 	it('owns component continuations before constructing the hydrated tree', async () => {
 		const container = document.createElement('div');
 		container.innerHTML =

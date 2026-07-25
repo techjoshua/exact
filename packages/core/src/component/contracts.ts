@@ -55,6 +55,10 @@ export type ComponentContinuationDispatch = {
 	readonly instance: ComponentInstance<any>;
 	readonly id: string;
 	readonly dependencies: readonly unknown[];
+	readonly contextWrites: readonly Readonly<{
+		name: string;
+		token: ContextToken<any>;
+	}>[];
 	readonly signal: AbortSignal;
 };
 

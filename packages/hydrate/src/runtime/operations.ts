@@ -1,5 +1,6 @@
 import { createDomWorkBudget, type DomWorkBudget } from '@exactjs/dom';
 import type { ComponentInstance } from '@exactjs/core';
+import type { ContextToken } from '@exactjs/core';
 import { enqueueExactOperation } from '../batching.js';
 import { ExactBuildUnsupportedError, invokeExact } from '../invocations.js';
 import { hydrateClientIslands } from '../islands.js';
@@ -31,6 +32,7 @@ export async function invokeAndApply(
 	component?: {
 		instance: ComponentInstance<any>;
 		dependencies: readonly unknown[];
+		contextWrites: readonly Readonly<{ name: string; token: ContextToken<any> }>[];
 		signal: AbortSignal;
 	}
 ): Promise<ExactInvocationResult> {
@@ -132,7 +134,12 @@ export async function invokeAndApply(
 						writes: continuation.stateWrites
 					})
 				: undefined;
-		if (invalidPatch || mergedState?.ok === false) {
+		const invalidContexts = unauthorizedContinuationContexts(
+			result.contexts,
+			continuation.contextWrites,
+			component?.contextWrites
+		);
+		if (invalidPatch || mergedState?.ok === false || invalidContexts) {
 			options.onDiagnostic?.({
 				code: 'invalid-response',
 				message: `rejected exact action response outside the continuation contract for ${id}`,
@@ -224,6 +231,11 @@ export async function invokeAndApply(
 			client.state = result.state;
 		}
 	}
+	if (!partiallyStale && component && result.contexts) {
+		const tokens = new Map(component.contextWrites.map((write) => [write.name, write.token]));
+		for (const [name, value] of Object.entries(result.contexts))
+			component.instance.setContext(tokens.get(name)!, value);
+	}
 	options.onOperation?.({
 		operation,
 		result,
@@ -232,6 +244,20 @@ export async function invokeAndApply(
 		stale: partiallyStale
 	});
 	return result;
+}
+
+/** Rejects undeclared or unmapped component-context projections before client mutation. */
+function unauthorizedContinuationContexts(
+	contexts: Record<string, unknown> | undefined,
+	allowed: readonly string[],
+	mappings: readonly Readonly<{ name: string; token: ContextToken<any> }>[] | undefined
+): boolean {
+	if (!contexts) return false;
+	const allowedNames = new Set(allowed);
+	const mappedNames = new Set((mappings ?? []).map((mapping) => mapping.name));
+	return Object.keys(contexts).some(
+		(name) => !allowedNames.has(name) || !mappedNames.has(name)
+	);
 }
 
 const componentIds = new WeakMap<ComponentInstance<any>, number>();

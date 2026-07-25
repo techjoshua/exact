@@ -20,6 +20,7 @@ import {
 import { transformCapturedCall, transformReactiveTaggedTemplate } from './reactive-emission.js';
 import {
 	componentOwnsClientMachine,
+	continuationContextWrites,
 	createDistributedTaskCall,
 	resolvedTaskPlacement,
 	shouldOmitTaskPlacement
@@ -185,6 +186,7 @@ export function visitJsxExpression(
 				return createDistributedTaskCall(
 					transformed as ts.CallExpression,
 					task.continuationId,
+					continuationContextWrites(node),
 					context,
 					helpers
 				);

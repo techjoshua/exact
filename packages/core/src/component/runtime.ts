@@ -163,6 +163,17 @@ export function createComponentInstance<
 			throw new Error(`Context "${token.description}" was not provided`);
 		},
 		setContext<T>(token: ContextToken<T>, value: T): void {
+			const existing = instance.contexts.get(token.id);
+			if (
+				token.reactive &&
+				existing &&
+				typeof existing === 'object' &&
+				value &&
+				typeof value === 'object'
+			) {
+				updateReactive(existing as Reactive<object>, value as object);
+				return;
+			}
 			instance.contexts.set(
 				token.id,
 				token.reactive ? reactiveValue(value) : (value as Reactive<T>)

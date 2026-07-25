@@ -166,6 +166,7 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 				invokeAndApply(container, client, 'action', request.id, undefined, runtimeOptions, {
 					instance: request.instance,
 					dependencies: request.dependencies,
+					contextWrites: request.contextWrites,
 					signal: request.signal
 				})
 			).then(() => undefined),

@@ -53,10 +53,30 @@ export function createExactContinuationHandler(
 			}
 		);
 		const projected = projectContinuationState(result.state, contract.stateWrites);
-		return projected === undefined ? {} : { state: projected };
+		const contexts = projectContinuationContexts(result.contexts, contract.contextWrites);
+		return {
+			...(projected === undefined ? {} : { state: projected }),
+			...(contexts === undefined ? {} : { contexts })
+		};
 	};
 	generatedHandlers.set(executor, handler);
 	return handler;
+}
+
+/** Selects only compiler-authorized public component-context writes. */
+function projectContinuationContexts(
+	contexts: Readonly<Record<string, unknown>> | undefined,
+	allowed: readonly string[]
+): Record<string, unknown> | undefined {
+	if (!contexts) return undefined;
+	const allowedNames = new Set(allowed);
+	const output: Record<string, unknown> = {};
+	for (const name of Object.keys(contexts)) {
+		if (!allowedNames.has(name))
+			throw new TypeError(`Continuation returned undeclared component context ${name}`);
+		output[name] = contexts[name];
+	}
+	return Object.keys(output).length ? output : undefined;
 }
 
 /** Validates the generated payload envelope and exact dependency arity. */

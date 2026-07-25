@@ -29,6 +29,7 @@ export type ExactComponentContinuationContract = Readonly<{
 	stateWrites: readonly ExactContinuationStatePathContract[];
 	publicContexts: readonly string[];
 	serverContexts: readonly string[];
+	contextWrites: readonly string[];
 	boundaries: readonly string[];
 }>;
 
@@ -48,6 +49,7 @@ export type ExactComponentContinuationExecution = Readonly<{
 /** State accumulated by a generated continuation before write-contract projection. */
 export type ExactComponentContinuationExecutionResult = Readonly<{
 	state: Record<string, unknown>;
+	contexts?: Readonly<Record<string, unknown>>;
 }>;
 
 /** Executable server half paired with one inert continuation descriptor. */

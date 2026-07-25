@@ -16,6 +16,7 @@ const contract: ExactComponentContinuationContract = {
 	stateWrites: [{ path: 'title', kind: 'write', confidence: 'exact' }],
 	publicContexts: [],
 	serverContexts: ['DatabaseContext'],
+	contextWrites: [],
 	boundaries: []
 };
 
@@ -77,6 +78,37 @@ describe('@exactjs/server generated continuation execution', () => {
 			)
 		).rejects.toThrow('Malformed activation record');
 		expect(executed).toBe(false);
+	});
+
+	it('returns only declared public component-context writes', async () => {
+		const contextContract: ExactComponentContinuationContract = {
+			...contract,
+			contextWrites: ['StatusContext']
+		};
+		const handler = createExactContinuationHandler(contextContract, {
+			id: contract.id,
+			componentId: contract.componentId,
+			execute(activation) {
+				return {
+					state: activation.state,
+					contexts: { StatusContext: { message: 'ready' } }
+				};
+			}
+		});
+
+		await expect(
+			handler(
+				{
+					type: 'action',
+					id: contract.id,
+					payload: { dependencies: ['p1'] },
+					state: { id: 'p1' }
+				},
+				context()
+			)
+		).resolves.toEqual({
+			contexts: { StatusContext: { message: 'ready' } }
+		});
 	});
 
 	it('dispatches an imported executor without an application action table', async () => {

@@ -229,6 +229,8 @@ export type ExactBatchRequest = {
 export type ExactInvocationResult = {
 	patches?: ExactPatch[];
 	state?: unknown;
+	/** Compiler-approved component-context projections returned to the owning client instance. */
+	contexts?: Record<string, unknown>;
 	html?: string;
 };
 

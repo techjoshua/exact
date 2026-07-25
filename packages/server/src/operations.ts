@@ -16,6 +16,7 @@ import type {
 } from './types.js';
 import {
 	boundaryHintsAllowed,
+	contextResponseMatchesContract,
 	isExecutorAllowed,
 	isInvocationResultSafe,
 	publicContextMatchesContract,
@@ -200,12 +201,13 @@ async function dispatchExactOperationAfterSecurity(
 		}
 		if (
 			input.type === 'action' &&
-			!stateResponseMatchesContract(result.state, action?.stateWrites ?? [])
+			(!stateResponseMatchesContract(result.state, action?.stateWrites ?? []) ||
+				!contextResponseMatchesContract(result.contexts, action?.contextWrites ?? []))
 		) {
 			return reject(
 				500,
 				'internal_error',
-				'rejected exact invocation result outside its state write contract'
+				'rejected exact invocation result outside its continuation write contract'
 			);
 		}
 		return { ok: true, type: input.type, id: input.id, opId: input.opId, ...result };

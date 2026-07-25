@@ -112,6 +112,7 @@ export function defineExactActionContract(
 		writes?: ExactComponentContinuationContract['stateWrites'];
 		publicContexts?: readonly string[];
 		serverContexts?: readonly string[];
+		contextWrites?: readonly string[];
 		boundaries?: readonly string[];
 	} = {}
 ): ExactComponentContinuationContract {
@@ -124,6 +125,7 @@ export function defineExactActionContract(
 		stateWrites: options.writes ?? [],
 		publicContexts: options.publicContexts ?? [],
 		serverContexts: options.serverContexts ?? [],
+		contextWrites: options.contextWrites ?? [],
 		boundaries: options.boundaries ?? []
 	});
 }
