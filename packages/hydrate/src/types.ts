@@ -1,6 +1,6 @@
 import type {
 	ComponentDomain,
-	ExactComponentContinuationDescriptor,
+	ExactComponentContinuationContract,
 	ComponentFunction,
 	ErrorReport,
 	Logger,
@@ -39,7 +39,7 @@ export type HydrateOptions = {
 	stateContracts?: Record<string, ExactStateContract>;
 	actionBoundaries?: Record<string, readonly string[]>;
 	/** Contracts composed from the imported client component artifacts. */
-	continuations?: Record<string, ExactComponentContinuationDescriptor>;
+	continuations?: Record<string, ExactComponentContinuationContract>;
 	/** Shared context projections available for compiler-selected operations. */
 	publicContexts?: Record<string, unknown>;
 	islands?: ClientIslandRegistry;
@@ -115,7 +115,7 @@ export type ExactHydrationConfig = {
 /** Defines the exact hydration registration type contract. */
 export type ExactHydrationRegistration = ExactHydrationConfig & {
 	islands?: ClientIslandRegistry;
-	continuations?: Record<string, ExactComponentContinuationDescriptor>;
+	continuations?: Record<string, ExactComponentContinuationContract>;
 	publicContexts?: Record<string, unknown>;
 	transports?: Record<string, ExactEndpointTransport>;
 };
@@ -180,7 +180,7 @@ export type ExactClient = {
 	readonly endpoints?: ExactEndpointRoutes;
 	state?: unknown;
 	readonly stateContracts?: Record<string, ExactStateContract>;
-	readonly continuations?: Record<string, ExactComponentContinuationDescriptor>;
+	readonly continuations?: Record<string, ExactComponentContinuationContract>;
 	/** Number of action, refresh, or stream promises still owned by this client generation. */
 	readonly pendingRequests: number;
 	applyPatches(patches: readonly ExactPatch[]): boolean;

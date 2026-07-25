@@ -10,6 +10,7 @@ export function continuationDescriptorExpression(
 	return jsonExpression(
 		continuations.map((continuation) => ({
 			id: continuation.id,
+			componentId: continuation.componentId,
 			stateReads: continuation.activation.stateReads.map(statePathDescriptor),
 			stateWrites: continuation.effects.stateWrites.map(statePathDescriptor),
 			publicContexts: continuation.activation.publicContexts.map((context) => context.token),
@@ -20,6 +21,11 @@ export function continuationDescriptorExpression(
 		})),
 		factory
 	);
+}
+
+/** Emits JSON-shaped compiler metadata as inert artifact syntax. */
+export function inertMetadataExpression(value: unknown, factory: ts.NodeFactory): ts.Expression {
+	return jsonExpression(value, factory);
 }
 
 /** Removes compiler-only receiver metadata from a runtime state-path contract. */

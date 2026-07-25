@@ -154,15 +154,14 @@ function createClientDescriptorCompositionModule(
 	);
 	const values = sorted.map((_, index) => `  __exactComponent${index}`);
 	return [
-		'import { composeExactComponentDescriptors as __exactComposeDescriptors, composeExactContinuationDescriptors as __exactComposeContinuations } from "@exactjs/core";',
+		'import { composeExactComponentContracts as __exactComposeContracts } from "@exactjs/core";',
 		...imports,
 		'',
-		`export const ${exportName} = __exactComposeDescriptors([`,
+		'const __exactContracts = __exactComposeContracts([',
 		...values.map((value, index) => `${value}${index + 1 < values.length ? ',' : ''}`),
 		'], "client");',
-		`const ${continuationsName} = __exactComposeContinuations([`,
-		...values.map((value, index) => `${value}${index + 1 < values.length ? ',' : ''}`),
-		'], "client");',
+		`export const ${exportName} = __exactContracts.implementations;`,
+		`const ${continuationsName} = __exactContracts.continuations;`,
 		''
 	].join('\n');
 }

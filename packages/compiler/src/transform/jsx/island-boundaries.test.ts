@@ -40,7 +40,9 @@ describe('@exactjs/compiler: island boundaries', () => {
 		expect(client).toMatch(
 			/export const ClientWidget: typeof __exactImplementation_ClientWidget_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/
 		);
-		expect(client).toMatch(/\["[^"]+", "ClientWidget", __exactImplementation_ClientWidget_\d+\]/);
+		expect(client).toMatch(
+			/\{ id: "[^"]+", name: "ClientWidget", role: "root", implementation: __exactImplementation_ClientWidget_\d+ \}/
+		);
 		expect(client).toContain('window.innerWidth');
 		expect(server).toContain('__exactBoundary');
 		expect(server).toContain('"ClientWidget"');

@@ -231,7 +231,7 @@ describe('installed eXact component package artifacts', () => {
 			const ssr = await loadConsumer(consumer, 'exact-server');
 			const serverComponent = await loadConsumer(consumer, 'react-server');
 
-			expect(client.symbols).toContain('@exactjs/client-component-descriptor');
+			expect(client.symbols).toContain('@exactjs/component-contract');
 			expect(client.source).toContain('window.location.href');
 			expect(ssr.source).toContain('__exactBoundary');
 			expect(ssr.source).not.toContain('window.location.href');

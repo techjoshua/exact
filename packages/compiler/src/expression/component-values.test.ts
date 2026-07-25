@@ -82,7 +82,7 @@ describe('@exactjs/compiler: component values', () => {
 			{ filename: 'Card.tsx', target: 'client' }
 		);
 
-		expect(output).toContain('@exactjs/client-component-descriptor');
+		expect(output).toContain('@exactjs/component-contract');
 		expect(output).toContain('__exactComponentImplementation');
 		expect(output).toContain('Object.assign');
 	});

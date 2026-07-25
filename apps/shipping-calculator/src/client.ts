@@ -1,4 +1,4 @@
-import { composeExactComponentDescriptors } from '@exactjs/core';
+import { composeExactComponentContracts } from '@exactjs/core';
 import {
 	createExactClient,
 	hydrateClientIslands,
@@ -11,10 +11,12 @@ import './styles.css';
 const root = document.getElementById('app');
 if (!root) throw new Error('Parcel Lab root was not found');
 const config = readExactHydrationConfig(root);
-const exactClientIslands = composeExactComponentDescriptors([CalculatorWorkspace], 'client');
+const exactClientContracts = composeExactComponentContracts([CalculatorWorkspace], 'client');
+const exactClientIslands = exactClientContracts.implementations;
 const client = createExactClient(root, {
 	...config,
 	islands: exactClientIslands,
+	continuations: exactClientContracts.continuations,
 	batch: true,
 	stream: true
 });

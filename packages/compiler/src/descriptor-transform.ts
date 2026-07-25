@@ -1,20 +1,12 @@
 import ts from 'typescript';
-import { continuationDescriptorExpression } from './descriptor-values.js';
-import type {
-	ExactCompilerManifest,
-	ExactContinuationIR,
-	ExactSymbolIR,
-	TransformTarget
-} from './types.js';
+import {
+	createComponentContractAttachment,
+	pureExpression,
+	type ComponentContractEmission
+} from './component-contract-emission.js';
+import type { ExactCompilerManifest, TransformTarget } from './types.js';
 
-type DescriptorGroup = {
-	protocol: string;
-	entries: Array<{
-		symbol: ExactSymbolIR;
-		componentImplementation: boolean;
-	}>;
-	continuations: ExactContinuationIR[];
-};
+type DescriptorGroup = ComponentContractEmission;
 
 /**
  * Attaches target-local artifact implementations to the exported component
@@ -53,13 +45,18 @@ export function exactComponentDescriptorTransformer(
 				}));
 		if (entries.length)
 			groups.set(component.name, {
-				protocol:
-					target === 'client'
-						? '@exactjs/client-component-descriptor'
-						: '@exactjs/server-component-descriptor',
+				componentId: component.id,
+				placement: component.placement,
+				role: target === 'client' ? 'client' : 'executor',
 				entries,
 				continuations: manifest.continuations.filter(
 					(continuation) => continuation.componentId === component.id
+				),
+				boundaries: manifest.boundaries.filter(
+					(boundary) => boundary.ownerComponentId === component.id
+				),
+				resumption: manifest.resumptions.find(
+					(resumption) => resumption.componentId === component.id
 				)
 			});
 	}
@@ -67,9 +64,7 @@ export function exactComponentDescriptorTransformer(
 	return (context) => (sourceFile) => {
 		if (!groups.size) return sourceFile;
 		const statements: ts.Statement[] = [];
-		const descriptorSymbol = context.factory.createUniqueName(
-			target === 'client' ? '__exactClientComponentDescriptor' : '__exactServerComponentDescriptor'
-		);
+		const descriptorSymbol = context.factory.createUniqueName('__exactComponentContract');
 		for (const statement of sourceFile.statements) {
 			if (ts.isVariableStatement(statement)) {
 				const declarations = statement.declarationList.declarations.map((declaration) => {
@@ -125,9 +120,6 @@ export function exactComponentDescriptorTransformer(
 		}
 		const descriptorDeclaration = createDescriptorSymbolDeclaration(
 			descriptorSymbol,
-			target === 'client'
-				? '@exactjs/client-component-descriptor'
-				: '@exactjs/server-component-descriptor',
 			context.factory
 		);
 		let insertionIndex = 0;
@@ -152,7 +144,7 @@ function wrapComponentValue(
 	factory: ts.NodeFactory
 ): ts.Expression {
 	const implementation = factory.createUniqueName('__exactComponentImplementation');
-	const attachment = descriptorAttachment(
+	const attachment = createComponentContractAttachment(
 		implementation,
 		implementation,
 		group,
@@ -160,7 +152,7 @@ function wrapComponentValue(
 		factory,
 		false
 	);
-	return pure(
+	return pureExpression(
 		factory.createCallExpression(
 			factory.createParenthesizedExpression(
 				factory.createArrowFunction(
@@ -203,7 +195,7 @@ function attachToHoistedComponentFunction(
 	descriptorSymbol: ts.Identifier,
 	factory: ts.NodeFactory
 ): ts.Statement[] {
-	const attachment = descriptorAttachment(
+	const attachment = createComponentContractAttachment(
 		declaration.name!,
 		declaration.name!,
 		group,
@@ -244,7 +236,7 @@ function wrapComponentFunction(
 		declaration.type,
 		declaration.body ?? factory.createBlock([])
 	);
-	const attachment = descriptorAttachment(
+	const attachment = createComponentContractAttachment(
 		implementationName,
 		implementationName,
 		group,
@@ -281,68 +273,8 @@ function wrapComponentFunction(
 	];
 }
 
-function descriptorAttachment(
-	implementation: ts.Expression,
-	component: ts.Expression,
-	group: DescriptorGroup,
-	descriptorSymbol: ts.Identifier,
-	factory: ts.NodeFactory,
-	markPure: boolean
-): ts.Expression {
-	const entries = group.entries.map((entry) =>
-		factory.createArrayLiteralExpression([
-			factory.createStringLiteral(entry.symbol.id),
-			factory.createStringLiteral(entry.symbol.generatedName),
-			entry.componentImplementation ? component : factory.createIdentifier(entry.symbol.localName)
-		])
-	);
-	const descriptor = factory.createObjectLiteralExpression(
-		[
-			factory.createPropertyAssignment(
-				factory.createComputedPropertyName(descriptorSymbol),
-				factory.createArrayLiteralExpression(
-					[
-						factory.createNumericLiteral(2),
-						factory.createArrayLiteralExpression(entries, true),
-						continuationDescriptorExpression(
-							group.continuations,
-							group.protocol === '@exactjs/client-component-descriptor',
-							factory
-						)
-					],
-					true
-				)
-			)
-		],
-		true
-	);
-	const attachment = factory.createCallExpression(
-		factory.createPropertyAccessExpression(factory.createIdentifier('Object'), 'assign'),
-		undefined,
-		[implementation, descriptor]
-	);
-	if (!markPure) return attachment;
-	return pure(
-		factory.createCallExpression(
-			factory.createParenthesizedExpression(
-				factory.createArrowFunction(
-					undefined,
-					undefined,
-					[],
-					undefined,
-					factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-					attachment
-				)
-			),
-			undefined,
-			[]
-		)
-	);
-}
-
 function createDescriptorSymbolDeclaration(
 	name: ts.Identifier,
-	protocol: string,
 	factory: ts.NodeFactory
 ): ts.VariableStatement {
 	return factory.createVariableStatement(
@@ -353,25 +285,16 @@ function createDescriptorSymbolDeclaration(
 					name,
 					undefined,
 					undefined,
-					pure(
+					pureExpression(
 						factory.createCallExpression(
 							factory.createPropertyAccessExpression(factory.createIdentifier('Symbol'), 'for'),
 							undefined,
-							[factory.createStringLiteral(protocol)]
+							[factory.createStringLiteral('@exactjs/component-contract')]
 						)
 					)
 				)
 			],
 			ts.NodeFlags.Const
 		)
-	);
-}
-
-function pure<T extends ts.Node>(node: T): T {
-	return ts.addSyntheticLeadingComment(
-		node,
-		ts.SyntaxKind.MultiLineCommentTrivia,
-		' @__PURE__ ',
-		false
 	);
 }

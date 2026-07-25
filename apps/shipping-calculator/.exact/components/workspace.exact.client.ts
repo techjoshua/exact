@@ -6,7 +6,7 @@ import type { InitialModel, ProviderResult, RouteResult, ShipmentDraft } from ".
 import { renderWorkspace } from "./workspace/view.exact.client.js";
 import type { WorkspaceState } from "../../src/components/workspace/contracts.js";
 import { cloneDraft, createWorkspaceInputs, delay } from "../../src/components/workspace/inputs.js";
-const __exactClientComponentDescriptor_1 = /* @__PURE__ */ Symbol.for("@exactjs/client-component-descriptor");
+const __exactComponentContract_1 = /* @__PURE__ */ Symbol.for("@exactjs/component-contract");
 const __exactImplementation_CalculatorWorkspace_1 = function CalculatorWorkspace(this: Component<WorkspaceState>, props: {
     initial: InitialModel;
 }) {
@@ -87,11 +87,31 @@ const __exactImplementation_CalculatorWorkspace_1 = function CalculatorWorkspace
     return () => renderWorkspace(this.state, props, inputs);
 };
 export const CalculatorWorkspace: typeof __exactImplementation_CalculatorWorkspace_1 = /* @__PURE__ */ (() => Object.assign(__exactImplementation_CalculatorWorkspace_1, {
-    [__exactClientComponentDescriptor_1]: [
-        1,
-        [
-            ["xZoxrmFqT5oXZSeTaQ7WmTu", "CalculatorWorkspace", __exactImplementation_CalculatorWorkspace_1]
-        ]
-    ]
+    [__exactComponentContract_1]: {
+        version: 1,
+        id: "xJkpEMXLuqnwN65cmx7UNPD",
+        placement: "client",
+        role: "client",
+        implementations: [
+            { id: "xZoxrmFqT5oXZSeTaQ7WmTu", name: "CalculatorWorkspace", role: "root", implementation: __exactImplementation_CalculatorWorkspace_1 }
+        ],
+        continuations: [],
+        boundaries: [
+            {
+                id: "x4CYHsV3s8u9PNNJDxmFx1A",
+                componentId: "xJkpEMXLuqnwN65cmx7UNPD",
+                ownerComponentId: "xJkpEMXLuqnwN65cmx7UNPD",
+                kind: "client-island"
+            }
+        ],
+        resumption: {
+            componentId: "xJkpEMXLuqnwN65cmx7UNPD",
+            statePaths: [],
+            valueCaptures: [],
+            boundaries: [
+                "x4CYHsV3s8u9PNNJDxmFx1A"
+            ]
+        }
+    }
 }))();
 //# sourceMappingURL=workspace.exact.client.ts.map

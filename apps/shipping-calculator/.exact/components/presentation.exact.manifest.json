@@ -2654,6 +2654,45 @@
       "reevaluationSafe": false
     }
   ],
+  "continuations": [],
+  "resumptions": [
+    {
+      "componentId": "x3ID8WkOO8TRPP2silVTSH4",
+      "serverRender": {
+        "stateReads": [],
+        "serverContexts": []
+      },
+      "client": {
+        "statePaths": [],
+        "valueCaptures": [],
+        "boundaries": []
+      }
+    },
+    {
+      "componentId": "xc0Nv131nrqLvCtFltPlXAl",
+      "serverRender": {
+        "stateReads": [],
+        "serverContexts": []
+      },
+      "client": {
+        "statePaths": [],
+        "valueCaptures": [],
+        "boundaries": []
+      }
+    },
+    {
+      "componentId": "xS-tZSjvIBryAcYNBnR8uhD",
+      "serverRender": {
+        "stateReads": [],
+        "serverContexts": []
+      },
+      "client": {
+        "statePaths": [],
+        "valueCaptures": [],
+        "boundaries": []
+      }
+    }
+  ],
   "policy": {
     "version": 1,
     "subjects": [],

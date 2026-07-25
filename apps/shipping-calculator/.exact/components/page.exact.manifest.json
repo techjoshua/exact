@@ -473,6 +473,16 @@
           "placement": "server",
           "async": true,
           "browserEffects": false,
+          "dependencies": [
+            {
+              "index": 0,
+              "source": "state"
+            },
+            {
+              "index": 1,
+              "source": "state"
+            }
+          ],
           "reads": [
             {
               "path": "model.configuredProviders",
@@ -905,6 +915,85 @@
       "reevaluationSafe": false
     }
   ],
+  "continuations": [
+    {
+      "id": "xkjfiXay5PtKM6N0lOjvJw_",
+      "kind": "task",
+      "componentId": "xyIOb0BS-znAt8cFQzx9c5L",
+      "taskId": "xkjfiXay5PtKM6N0lOjvJw_",
+      "placement": "server",
+      "async": true,
+      "activation": {
+        "stateReads": [
+          {
+            "path": "model.configuredProviders",
+            "kind": "read",
+            "confidence": "exact"
+          },
+          {
+            "path": "model",
+            "kind": "read",
+            "confidence": "exact"
+          },
+          {
+            "path": "model.configuredProviders.map",
+            "kind": "read",
+            "confidence": "exact"
+          }
+        ],
+        "dependencies": [
+          {
+            "index": 0,
+            "source": "state"
+          },
+          {
+            "index": 1,
+            "source": "state"
+          }
+        ],
+        "serverContexts": [],
+        "publicContexts": []
+      },
+      "effects": {
+        "stateWrites": [
+          {
+            "path": "model",
+            "kind": "write",
+            "confidence": "exact"
+          }
+        ],
+        "contextWrites": [],
+        "boundaries": [
+          "xqW95tUx8NQp3tVs_osJSgj"
+        ]
+      },
+      "ownership": {
+        "componentId": "xyIOb0BS-znAt8cFQzx9c5L",
+        "lifetime": "component"
+      },
+      "cancellation": "abort-signal"
+    }
+  ],
+  "resumptions": [
+    {
+      "componentId": "xyIOb0BS-znAt8cFQzx9c5L",
+      "serverRender": {
+        "stateReads": [
+          "model",
+          "model.configuredProviders",
+          "model.configuredProviders.map"
+        ],
+        "serverContexts": []
+      },
+      "client": {
+        "statePaths": [],
+        "valueCaptures": [],
+        "boundaries": [
+          "xqW95tUx8NQp3tVs_osJSgj"
+        ]
+      }
+    }
+  ],
   "policy": {
     "version": 1,
     "subjects": [],
@@ -943,7 +1032,8 @@
           }
         ]
       },
-      "contextContract": []
+      "serverContextContract": [],
+      "publicContextContract": []
     }
   },
   "diagnostics": [],

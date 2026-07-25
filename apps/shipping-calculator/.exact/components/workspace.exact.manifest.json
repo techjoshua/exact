@@ -1178,6 +1178,12 @@
           "placement": "client",
           "async": false,
           "browserEffects": true,
+          "dependencies": [
+            {
+              "index": 0,
+              "source": "props"
+            }
+          ],
           "reads": [
             {
               "path": "revision",
@@ -1239,6 +1245,28 @@
           "placement": "client",
           "async": true,
           "browserEffects": true,
+          "dependencies": [
+            {
+              "index": 0,
+              "source": "state"
+            },
+            {
+              "index": 1,
+              "source": "state"
+            },
+            {
+              "index": 2,
+              "source": "props"
+            },
+            {
+              "index": 3,
+              "source": "state"
+            },
+            {
+              "index": 4,
+              "source": "state"
+            }
+          ],
           "reads": [
             {
               "path": "draft",
@@ -2415,6 +2443,23 @@
       ],
       "contexts": [],
       "reevaluationSafe": false
+    }
+  ],
+  "continuations": [],
+  "resumptions": [
+    {
+      "componentId": "xJkpEMXLuqnwN65cmx7UNPD",
+      "serverRender": {
+        "stateReads": [],
+        "serverContexts": []
+      },
+      "client": {
+        "statePaths": [],
+        "valueCaptures": [],
+        "boundaries": [
+          "x4CYHsV3s8u9PNNJDxmFx1A"
+        ]
+      }
     }
   ],
   "policy": {

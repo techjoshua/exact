@@ -290,14 +290,14 @@ describe('@exactjs/compiler: registries', () => {
 		});
 
 		expect(module).toContain('export const islands');
-		expect(module).toContain('composeExactComponentDescriptors as __exactComposeDescriptors');
+		expect(module).toContain('composeExactComponentContracts as __exactComposeContracts');
 		expect(module).toContain('import { Panel as __exactComponent0 }');
 		expect(module).toContain('export const registration');
 		expect(module).toContain('islands: islands');
 		expect(module).toContain('"endpoint": "/__exact"');
 		expect(module).toContain('"/remote-exact"');
 		expect(module).toContain(JSON.stringify(actionId));
-		expect(module).toContain('composeExactContinuationDescriptors as __exactComposeContinuations');
+		expect(module).toContain('const __exactContracts = __exactComposeContracts([');
 		expect(module).toContain('continuations: __exactContinuations');
 		expect(module).not.toContain('"stateContracts"');
 		expect(module).not.toContain('"actionBoundaries"');

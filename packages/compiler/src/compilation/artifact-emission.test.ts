@@ -243,7 +243,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		});
 	});
 
-	it('attaches positional target descriptors to the public component function', async () => {
+	it('attaches named target-local contracts to the public component function', async () => {
 		const root = await createTestWorkspace('exact-descriptor-');
 		const input = path.join(root, 'src', 'panel.tsx');
 		const outDir = path.join(root, 'dist');
@@ -267,17 +267,17 @@ describe('@exactjs/compiler: artifacts', () => {
 		const clientSymbol = result.manifest.symbols.find((symbol) => symbol.role === 'client-island')!;
 		const serverSymbol = result.manifest.symbols.find((symbol) => symbol.role === 'server-part')!;
 
-		expect(client).toContain('Symbol.for("@exactjs/client-component-descriptor")');
+		expect(client).toContain('Symbol.for("@exactjs/component-contract")');
 		expect(client).toContain(
-			`["${clientSymbol.id}", "${clientSymbol.generatedName}", ${clientSymbol.exportName}]`
+			`{ id: "${clientSymbol.id}", name: "${clientSymbol.generatedName}", role: "client-island", implementation: ${clientSymbol.exportName} }`
 		);
 		expect(client).toMatch(
 			/export const Panel: typeof __exactImplementation_Panel_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/
 		);
-		expect(server).toContain('Symbol.for("@exactjs/server-component-descriptor")');
+		expect(server).toContain('Symbol.for("@exactjs/component-contract")');
 		expect(server).toMatch(
 			new RegExp(
-				`\\["${serverSymbol.id}", "${serverSymbol.generatedName}", (?:${serverSymbol.localName}|__exactImplementation_Panel_\\d+)\\]`
+				`\\{ id: "${serverSymbol.id}", name: "${serverSymbol.generatedName}", role: "server-part", implementation: (?:${serverSymbol.localName}|__exactImplementation_Panel_\\d+) \\}`
 			)
 		);
 		expect(server).toMatch(

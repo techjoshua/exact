@@ -1995,6 +1995,8 @@
       "reevaluationSafe": false
     }
   ],
+  "continuations": [],
+  "resumptions": [],
   "policy": {
     "version": 1,
     "subjects": [],
