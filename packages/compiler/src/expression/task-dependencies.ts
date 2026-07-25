@@ -9,6 +9,8 @@ export interface ExpressionTaskDependency {
 	readonly start: number;
 	readonly end: number;
 	readonly source: 'state' | 'props' | 'context' | 'derived';
+	/** Token resolved by the server when a captured alias came from getContext(). */
+	readonly contextToken?: string;
 	readonly readNodeIds: readonly string[];
 }
 
@@ -100,6 +102,9 @@ export function analyzeTaskDependencies(
 				start: span.start,
 				end: span.end,
 				source: first.source,
+				...(first.source === 'context'
+					? { contextToken: contextTokenForVariable(module, first.expression.rootVariable) }
+					: {}),
 				readNodeIds: Object.freeze([...new Set(values.map((value) => value.expression.node.id))])
 			});
 		})
@@ -108,6 +113,23 @@ export function analyzeTaskDependencies(
 		dependencies: Object.freeze(dependencies),
 		unsafeDerived: Object.freeze([...unsafeDerived.values()])
 	});
+}
+
+/** Resolves the token argument used to create a context-derived local alias. */
+function contextTokenForVariable(
+	module: BoundModule,
+	variable: Variable | undefined
+): string | undefined {
+	if (!variable) return undefined;
+	const declaration = module
+		.walk()
+		.ofKind('VariableDeclaration')
+		.first((candidate) => candidate.children().first()?.variable?.id === variable.id);
+	const initializer = declaration?.children().toArray().at(-1);
+	if (initializer?.node.kind !== 'CallExpression' || !initializer.target?.isMember('getContext')) {
+		return undefined;
+	}
+	return initializer.arguments[0]?.node.text;
 }
 
 function capturedMemberExpression(member: NodeRef): NodeRef | undefined {

@@ -122,6 +122,8 @@ function emptyManifest(filename: string): ExactCompilerManifest {
 		symbols: [],
 		boundaries: [],
 		callables: [],
+		continuations: [],
+		resumptions: [],
 		policy: { version: 1, subjects: [], flows: [], secretConsumers: [] },
 		serverActions: {},
 		diagnostics: []

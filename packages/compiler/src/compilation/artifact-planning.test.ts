@@ -158,6 +158,8 @@ describe('@exactjs/compiler: artifact planning', () => {
 				symbols: [],
 				boundaries: [],
 				callables: [],
+				continuations: [],
+				resumptions: [],
 				policy: { version: 1, subjects: [], flows: [], secretConsumers: [] },
 				artifacts: {
 					source: 1,

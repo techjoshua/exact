@@ -52,6 +52,8 @@ function fixtureGraph(): ExactArtifactGraph {
 			symbols: [],
 			boundaries: [],
 			callables: [],
+			continuations: [],
+			resumptions: [],
 			policy: {
 				version: 1 as const,
 				capabilities: [],

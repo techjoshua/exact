@@ -3,6 +3,7 @@ import { analyzeCallableEffects } from '../analysis/callable-effects.js';
 import { analyzeExactAnnotations } from '../annotations.js';
 import { analyzeModuleImports } from '../assets.js';
 import { collectRawHtmlCapabilities } from '../capabilities.js';
+import { createExactComponentResumptions, createExactContinuations } from '../continuations.js';
 import { collectExpressionExportBindings } from '../exports.js';
 import { analyzeExpressionComponents } from '../expression/analysis.js';
 import {
@@ -244,28 +245,29 @@ export function analyzeSource(
 			componentInfo
 		)
 	);
+	const continuations = createExactContinuations(components, boundaries);
+	const resumptions = createExactComponentResumptions(components, boundaries, expressionComponents);
 
-	for (const component of components) {
-		for (const task of component.tasks) {
-			if (task.placement === 'server' || task.placement === 'isomorphic') {
-				// Server action IDs become endpoint-dispatch keys, so duplicate IDs must
-				// fail during compilation instead of letting later entries overwrite earlier ones.
-				if (serverActions[task.id]) {
-					throw new Error(`Duplicate eXact server action id generated: ${task.id}`);
-				}
-				serverActions[task.id] = {
-					id: task.id,
-					componentId: component.id,
-					taskId: task.id,
-					placement: task.placement,
-					stateContract: {
-						reads: task.reads,
-						writes: task.writes
-					},
-					contextContract: task.contexts
-				};
-			}
+	for (const continuation of continuations) {
+		if (serverActions[continuation.id]) {
+			throw new Error(`Duplicate eXact server action id generated: ${continuation.id}`);
 		}
+		serverActions[continuation.id] = {
+			id: continuation.id,
+			componentId: continuation.componentId,
+			taskId: continuation.taskId,
+			placement: continuation.placement,
+			stateContract: {
+				reads: continuation.activation.stateReads,
+				writes: continuation.effects.stateWrites
+			},
+			contextContract: [
+				...continuation.activation.serverContexts,
+				...continuation.effects.contextWrites
+			]
+		};
+	}
+	for (const component of components) {
 		manifestDiagnostics.push(...component.diagnostics);
 	}
 	const policyResult = createExactPolicyManifest(
@@ -316,6 +318,8 @@ export function analyzeSource(
 		symbols,
 		boundaries,
 		callables: [...callableEffects.callables],
+		continuations,
+		resumptions,
 		policy: policyResult.policy,
 		...(options.packageName ? { packageName: options.packageName } : {}),
 		...(rawHtmlRequirements.length

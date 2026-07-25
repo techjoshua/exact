@@ -2,6 +2,10 @@ import type { ExactCompilerManifest } from './types.js';
 import { exactCompilerManifestVersion } from './versions.js';
 
 import { isExactCallableSummary } from './manifest/callable-validation.js';
+import {
+	isExactComponentResumption,
+	isExactContinuation
+} from './manifest/continuation-validation.js';
 import { validatePluginEnvelope } from './manifest/plugin-validation.js';
 import {
 	isExactAssetDependency,
@@ -38,6 +42,8 @@ export function parseExactCompilerManifest(
 		!Array.isArray(manifest.symbols) ||
 		!Array.isArray(manifest.boundaries) ||
 		!Array.isArray(manifest.callables) ||
+		!Array.isArray(manifest.continuations) ||
+		!Array.isArray(manifest.resumptions) ||
 		!isExactPolicyManifest(manifest.policy) ||
 		!manifest.serverActions ||
 		typeof manifest.serverActions !== 'object' ||
@@ -58,6 +64,12 @@ export function parseExactCompilerManifest(
 		throw new Error(`Malformed eXact ${kind} callable summaries in ${source}`);
 	}
 	if (
+		!manifest.continuations!.every(isExactContinuation) ||
+		!manifest.resumptions!.every(isExactComponentResumption)
+	) {
+		throw new Error(`Malformed eXact ${kind} continuation contracts in ${source}`);
+	}
+	if (
 		(manifest.packageName !== undefined &&
 			(typeof manifest.packageName !== 'string' || !manifest.packageName)) ||
 		(manifest.requiredCapabilities !== undefined &&
@@ -74,6 +86,11 @@ export function parseExactCompilerManifest(
 		throw new Error(`Malformed eXact ${kind} dependencies in ${source}`);
 	}
 	const callableIds = new Set(manifest.callables!.map((callable) => callable.id));
+	const componentIds = new Set(manifest.components.map((component) => component.id));
+	const taskIds = new Set(
+		manifest.components.flatMap((component) => component.tasks.map((task) => task.id))
+	);
+	const boundaryIds = new Set(manifest.boundaries.map((boundary) => boundary.id));
 	if (
 		callableIds.size !== manifest.callables!.length ||
 		manifest.callables!.some(
@@ -84,6 +101,21 @@ export function parseExactCompilerManifest(
 		)
 	) {
 		throw new Error(`Malformed eXact ${kind} callable graph in ${source}`);
+	}
+	if (
+		manifest.continuations!.some(
+			(continuation) =>
+				!componentIds.has(continuation.componentId) ||
+				!taskIds.has(continuation.taskId) ||
+				continuation.effects.boundaries.some((boundary) => !boundaryIds.has(boundary))
+		) ||
+		manifest.resumptions!.some(
+			(resumption) =>
+				!componentIds.has(resumption.componentId) ||
+				resumption.client.boundaries.some((boundary) => !boundaryIds.has(boundary))
+		)
+	) {
+		throw new Error(`Malformed eXact ${kind} continuation graph in ${source}`);
 	}
 	const policySubjectIds = new Set(manifest.policy!.subjects.map((subject) => subject.id));
 	const secretConsumerIds = new Set(

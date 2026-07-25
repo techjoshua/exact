@@ -288,7 +288,11 @@ describe('@exactjs/compiler: reactivity', () => {
 			{ token: 'Services.Logger', kind: 'read', confidence: 'exact' },
 			{ token: 'LocaleContext', kind: 'write', confidence: 'exact' }
 		]);
-		expect(action.contextContract).toEqual(task.contexts);
+		expect(action.contextContract).toEqual([
+			{ token: 'LocaleContext', kind: 'read', confidence: 'exact' },
+			{ token: 'Services.Logger', kind: 'read', confidence: 'exact' },
+			{ token: 'LocaleContext', kind: 'write', confidence: 'exact' }
+		]);
 	});
 
 	it('uses resolved references when classifying task environments', () => {

@@ -5,3 +5,4 @@ export type * from './contracts/manifest.js';
 export type * from './contracts/compilation.js';
 export type * from './contracts/artifacts.js';
 export type * from './contracts/emission.js';
+export type * from './contracts/continuations.js';

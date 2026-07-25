@@ -67,6 +67,12 @@ export type ExactTaskIR = {
 	requestedPlacement?: 'server' | 'client';
 	async: boolean;
 	browserEffects: boolean;
+	/** Source-ordered values captured as scheduled dependency snapshots. */
+	dependencies: Array<{
+		index: number;
+		source: 'state' | 'props' | 'context' | 'derived';
+		contextToken?: string;
+	}>;
 	reads: ExactStateEffect[];
 	writes: ExactStateEffect[];
 	contexts: ExactContextEffect[];

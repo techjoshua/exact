@@ -28,6 +28,11 @@ export function createExpressionComponents(
 						requestedPlacement: task.requestedPlacement,
 						async: task.async,
 						browserEffects: task.browserEffects,
+						dependencies: task.dependencies.map((dependency, dependencyIndex) => ({
+							index: dependencyIndex,
+							source: dependency.source,
+							...(dependency.contextToken ? { contextToken: dependency.contextToken } : {})
+						})),
 						reads: [...task.reads],
 						writes: [...task.writes],
 						contexts: [...task.contexts],
