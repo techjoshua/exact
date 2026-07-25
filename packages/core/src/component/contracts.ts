@@ -133,7 +133,7 @@ export type ContextToken<T> = {
 	readonly description: string;
 	readonly global: boolean;
 	readonly reactive: boolean;
-	readonly keep?: 'server' | 'client' | 'secret';
+	readonly keep?: 'server' | 'client' | 'shared' | 'secret';
 	readonly scope: 'component' | 'application' | 'request';
 	/** Carries the context value type without affecting runtime representation. */
 	readonly __value?: T;

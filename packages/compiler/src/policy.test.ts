@@ -5,7 +5,7 @@ import { analyzeSource, transform } from './index.js';
 const fixture = (name: string) => path.join(process.cwd(), `${name}.policy-fixture.tsx`);
 
 describe('generic data policy IR', () => {
-	it('records explicit fields and inferred isomorphic island transfers', () => {
+	it('records explicit fields and inferred shared island transfers', () => {
 		const manifest = analyzeSource(
 			`
       import type { Component } from "@exactjs/core";
@@ -33,7 +33,7 @@ describe('generic data policy IR', () => {
 				expect.objectContaining({
 					kind: 'state',
 					path: 'title',
-					policy: { residency: 'isomorphic', secret: false },
+					policy: { residency: 'shared', secret: false },
 					source: 'inference'
 				})
 			])
@@ -44,12 +44,122 @@ describe('generic data policy IR', () => {
 					kind: 'transfer',
 					boundary: 'client-island',
 					authorized: true,
-					policy: { residency: 'isomorphic', secret: false }
+					policy: { residency: 'shared', secret: false }
 				}),
 				expect.objectContaining({
 					kind: 'projection',
 					boundary: 'state',
 					authorized: true
+				})
+			])
+		);
+	});
+
+	it('defaults server-provisioned contexts to server residency', () => {
+		const manifest = analyzeSource(
+			`
+      import { createContext } from "@exactjs/core";
+      export const ComponentContext = createContext<string>("component");
+      export const ApplicationContext = createContext<object>(
+        "application",
+        { scope: "application" }
+      );
+      export const RequestContext = createContext<object>(
+        "request",
+        { global: true, reactive: false, scope: "request" }
+      );
+    `,
+			{ filename: fixture('context-default-residency') }
+		);
+
+		expect(manifest.policy.subjects).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					name: 'ComponentContext',
+					policy: { residency: 'shared', secret: false },
+					source: 'inference'
+				}),
+				expect.objectContaining({
+					name: 'ApplicationContext',
+					policy: { residency: 'server', secret: false },
+					source: 'inference'
+				}),
+				expect.objectContaining({
+					name: 'RequestContext',
+					policy: { residency: 'server', secret: false },
+					source: 'inference'
+				})
+			])
+		);
+	});
+
+	it('allows explicit shared projections but never clears secret qualification', () => {
+		const shared = analyzeSource(
+			`
+      /** @exact keep=server */ const record = { id: "p1", name: "Desk" };
+      /** @exact shared */ const product = { id: record.id, name: record.name };
+      export { product };
+    `,
+			{ filename: fixture('shared-projection') }
+		);
+		expect(shared.policy.subjects).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					name: 'product',
+					policy: { residency: 'shared', secret: false },
+					source: 'annotation'
+				})
+			])
+		);
+
+		const secret = analyzeSource(
+			`
+      /** @exact keep=secret */ const token = "configured";
+      /** @exact shared */ const leaked = { token };
+      export { leaked };
+    `,
+			{ filename: fixture('shared-secret-conflict') }
+		);
+		expect(secret.diagnostics).toContain(
+			'error: @exact shared declaration leaked cannot release secret-qualified data'
+		);
+	});
+
+	it('applies shared callable contracts to resolved values without moving execution', () => {
+		const manifest = analyzeSource(
+			`
+      import { createContext } from "@exactjs/core";
+      interface Product { id: string; name: string }
+      interface Repository {
+        /** @exact shared */
+        findPublicProducts(): Promise<Product[]>;
+      }
+      /** @exact keep=server */ declare const repository: Repository;
+      const publicProducts = repository.findPublicProducts();
+      const RepositoryContext = createContext<Repository>(
+        "repository",
+        { scope: "request" }
+      );
+      export function products(repository: Repository) {
+        return repository.findPublicProducts();
+      }
+    `,
+			{ filename: fixture('shared-return') }
+		);
+
+		expect(manifest.policy.subjects).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					kind: 'return',
+					name: 'repository.findPublicProducts',
+					policy: { residency: 'shared', secret: false },
+					source: 'annotation'
+				}),
+				expect.objectContaining({
+					kind: 'declaration',
+					name: 'publicProducts',
+					policy: { residency: 'shared', secret: false },
+					source: 'inference'
 				})
 			])
 		);

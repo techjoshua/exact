@@ -50,14 +50,16 @@ export function policyInputs(
 			variable: synthetic,
 			record: {
 				policy: expressionPolicy,
-				subjectId: stableId(expression.node.id, 'policy:type')
+				subjectId: stableId(expression.node.id, 'policy:type'),
+				source: 'annotation'
 			},
 			syntheticSource: true
 		});
 	}
 	const returnPolicy =
 		expression.node.kind === 'CallExpression' || expression.node.kind === 'NewExpression'
-			? policyFromDirectives(expression.node.resolvedSignature?.returnDirectives)
+			? (policyFromDirectives(expression.node.resolvedSignature?.returnDirectives) ??
+				policyFromDirectives(expression.node.resolvedSignature?.directives))
 			: undefined;
 	if (returnPolicy) {
 		const synthetic = {
@@ -68,7 +70,8 @@ export function policyInputs(
 			variable: synthetic,
 			record: {
 				policy: returnPolicy,
-				subjectId: stableId(expression.node.id, 'policy:return')
+				subjectId: stableId(expression.node.id, 'policy:return'),
+				source: 'annotation'
 			},
 			syntheticSource: true
 		});
@@ -86,7 +89,12 @@ export function policyInputs(
 			values.set(synthetic.id, { variable: synthetic, record });
 		}
 	}
-	return [...values.values()];
+	const inputs = [...values.values()];
+	if (returnPolicy?.residency !== 'shared') return inputs;
+	// A shared return contract releases only the produced value's residency.
+	// Server-local receivers and ordinary arguments still determine execution
+	// placement elsewhere, while secret qualification must continue to win.
+	return inputs.filter((input) => input.syntheticSource || input.record.policy.secret);
 }
 
 /** Performs the materialize policy input subjects domain operation. */
@@ -102,7 +110,7 @@ export function materializePolicyInputSubjects(
 			kind: 'return',
 			name: input.variable.name,
 			policy: input.record.policy,
-			source: 'inference'
+			source: input.record.source ?? 'inference'
 		});
 		existing.add(input.record.subjectId);
 	}

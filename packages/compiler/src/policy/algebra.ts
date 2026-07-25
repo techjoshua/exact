@@ -1,5 +1,5 @@
 import type { ExpressionDirective, ExpressionType } from '@exactjs/expressions';
-import { exactKeepPolicy, type ExactKeepPolicy } from '../annotations.js';
+import { exactKeepPolicy, exactShared, type ExactKeepPolicy } from '../annotations.js';
 import { stableId } from '../ids.js';
 import type {
 	ExactArtifactTarget,
@@ -15,6 +15,7 @@ export type PolicyRecord = Readonly<{
 	policy: ExactDataPolicyIR;
 	subjectId: string;
 	selector?: string;
+	source?: ExactPolicySubjectIR['source'];
 }>;
 
 /** A policy attached to a component state path. */
@@ -51,20 +52,21 @@ export function isAncestorPath(ancestor: string, descendant: string): boolean {
 }
 
 /** Converts the author-facing keep vocabulary into compiler policy IR. */
-export function dataPolicy(keep: ExactKeepPolicy | 'isomorphic'): ExactDataPolicyIR {
+export function dataPolicy(keep: ExactKeepPolicy | 'shared'): ExactDataPolicyIR {
 	if (keep === 'secret') return Object.freeze({ residency: 'server', secret: true });
 	return Object.freeze({ residency: keep, secret: false });
 }
 
 /** Converts policy IR back to the closest author-facing keep value. */
-export function keepForPolicy(policy: ExactDataPolicyIR): ExactKeepPolicy {
-	return policy.secret ? 'secret' : policy.residency === 'isomorphic' ? 'server' : policy.residency;
+export function keepForPolicy(policy: ExactDataPolicyIR): ExactKeepPolicy | undefined {
+	return policy.secret ? 'secret' : policy.residency === 'shared' ? undefined : policy.residency;
 }
 
 /** Reads a data policy from compiler directives, when one is declared. */
 export function policyFromDirectives(
 	directives: readonly ExpressionDirective[] | undefined
 ): ExactDataPolicyIR | undefined {
+	if (exactShared(directives)) return dataPolicy('shared');
 	const keep = exactKeepPolicy(directives);
 	return keep ? dataPolicy(keep) : undefined;
 }
@@ -101,10 +103,10 @@ export function combinePolicyRecords(records: readonly PolicyRecord[]): {
 	if (!records.length) return { conflict: false };
 	const secret = records.some((record) => record.policy.secret);
 	const residencies = new Set(
-		records.map((record) => record.policy.residency).filter((value) => value !== 'isomorphic')
+		records.map((record) => record.policy.residency).filter((value) => value !== 'shared')
 	);
 	if (residencies.size > 1) return { conflict: true };
-	const residency = secret ? 'server' : ([...residencies][0] ?? 'isomorphic');
+	const residency = secret ? 'server' : ([...residencies][0] ?? 'shared');
 	return { policy: Object.freeze({ residency, secret }), conflict: false };
 }
 
@@ -149,7 +151,7 @@ export function restrictCallable(
 
 /** Returns whether policy constrains placement or transfer. */
 export function isRestrictivePolicy(policy: ExactDataPolicyIR): boolean {
-	return policy.secret || policy.residency !== 'isomorphic';
+	return policy.secret || policy.residency !== 'shared';
 }
 
 /** Deduplicates effect sources without disturbing their discovery order. */
@@ -169,8 +171,8 @@ export function uniquePolicyEffectSources(
 /** Returns whether two policies require incompatible concrete residencies. */
 export function residencyConflict(left: ExactDataPolicyIR, right: ExactDataPolicyIR): boolean {
 	return (
-		left.residency !== 'isomorphic' &&
-		right.residency !== 'isomorphic' &&
+		left.residency !== 'shared' &&
+		right.residency !== 'shared' &&
 		left.residency !== right.residency
 	);
 }

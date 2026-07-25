@@ -4,7 +4,8 @@ import {
 	exactCleanupForCall,
 	exactKeepPolicy,
 	exactKeyContract,
-	exactOwnsReturn
+	exactOwnsReturn,
+	exactShared
 } from './annotations.js';
 import { clearExpressionProjectCache, expressionModuleFor } from './expression/session.js';
 
@@ -191,6 +192,53 @@ describe('@exact compiler annotations', () => {
 		).toContain(
 			'error: @exact keep=isomorphic is not supported; safe isomorphic residency is inferred'
 		);
+	});
+
+	it('accepts shared disclosure contracts on projections and callable returns', () => {
+		clearExpressionProjectCache();
+		const module = expressionModuleFor(
+			'shared-policy.ts',
+			`
+      /** @exact shared */ const product = { id: "p1", name: "Desk" };
+      interface Repository {
+        /** @exact shared */
+        findPublicProducts(): Promise<Array<{ id: string; name: string }>>;
+      }
+      declare function invalid(/** @exact shared */ value: string): void;
+    `
+		);
+		const product = module
+			.walk()
+			.ofKind('VariableDeclaration')
+			.first((reference) => reference.node.name === 'product')!;
+		const method = module
+			.walk()
+			.ofKind('MethodSignature')
+			.first((reference) => reference.node.name === 'findPublicProducts')!;
+
+		expect(exactShared(product.node.directives)).toBe(true);
+		expect(exactShared(method.node.directives)).toBe(true);
+		expect(
+			analyzeExactAnnotations(module).diagnostics.map((diagnostic) => diagnostic.message)
+		).toContain('error: @exact shared is not valid on Parameter');
+	});
+
+	it('rejects a shared callable contract whose resolved value is secret-qualified', () => {
+		clearExpressionProjectCache();
+		const module = expressionModuleFor(
+			'shared-secret-return.ts',
+			`
+      import type { Secret } from "@exactjs/secrets";
+      interface Repository {
+        /** @exact shared */
+        readResetToken(): Promise<Secret<string>>;
+      }
+    `
+		);
+
+		expect(
+			analyzeExactAnnotations(module).diagnostics.map((diagnostic) => diagnostic.message)
+		).toContain('error: @exact shared return cannot contain secret-qualified data');
 	});
 
 	it('rejects missing, unknown, and contradictory policy values', () => {

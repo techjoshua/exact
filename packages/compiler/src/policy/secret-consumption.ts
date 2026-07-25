@@ -222,6 +222,27 @@ export function collectCallableReturnPolicies(
 			policyFromDirectives(fn.node.directives) ??
 			policyFromDirectives(fn.type?.callSignatures[0]?.returnDirectives);
 		let policy = direct;
+		if (direct?.residency === 'shared') {
+			const returnedInputs = fn
+				.descendants({ nestedFunctions: false })
+				.ofKind('ReturnStatement')
+				.toArray()
+				.flatMap((statement) => {
+					const value = statement.children().toArray().at(-1);
+					return value
+						? policyInputs(value, declarationPolicies, namedPolicies, secretConsumeCallIds)
+						: [];
+				});
+			const declaredReturn = fn.type?.callSignatures[0]?.returnType;
+			if (
+				returnedInputs.some((input) => input.record.policy.secret) ||
+				typeContainsSecretPolicy(declaredReturn)
+			) {
+				diagnostics.add(
+					`error: @exact shared return from ${fn.node.name} cannot release secret-qualified data`
+				);
+			}
+		}
 		if (!policy && infer) {
 			const inputs = fn
 				.descendants({ nestedFunctions: false })
@@ -279,4 +300,15 @@ export function collectCallableReturnPolicies(
 			);
 		}
 	}
+}
+
+/** Reports whether a return shape contains secret qualification, including promised values. */
+function typeContainsSecretPolicy(type: NodeRef['type']): boolean {
+	if (!type) return false;
+	if (policyFromType(type)?.secret) return true;
+	return (
+		type.typeArguments.some(typeContainsSecretPolicy) ||
+		type.unionMembers.some(typeContainsSecretPolicy) ||
+		type.propertyTypes.some((property) => typeContainsSecretPolicy(property.type))
+	);
 }

@@ -19,7 +19,7 @@ export function sharedArtifactResult(
 		) ||
 		manifest.callables.some((callable) => callable.effect !== 'neutral') ||
 		manifest.policy.subjects.some(
-			(subject) => subject.policy.secret || subject.policy.residency !== 'isomorphic'
+			(subject) => subject.policy.secret || subject.policy.residency !== 'shared'
 		) ||
 		manifest.semanticGraph?.declarations.some(
 			(declaration) => declaration.kind === 'import' && !declaration.typeOnly

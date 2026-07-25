@@ -1,4 +1,9 @@
-import type { BoundModule, ExpressionDirective, NodeRef } from '@exactjs/expressions';
+import type {
+	BoundModule,
+	ExpressionDirective,
+	ExpressionType,
+	NodeRef
+} from '@exactjs/expressions';
 
 /** Defines the exact annotation key type contract. */
 export type ExactAnnotationKey =
@@ -8,6 +13,7 @@ export type ExactAnnotationKey =
 	| 'track'
 	| 'client'
 	| 'server'
+	| 'shared'
 	| 'keep'
 	| 'pure';
 
@@ -46,6 +52,7 @@ const supported = new Set<ExactAnnotationKey>([
 	'track',
 	'client',
 	'server',
+	'shared',
 	'keep',
 	'pure'
 ]);
@@ -81,7 +88,7 @@ export function analyzeExactAnnotations(module: BoundModule): ExactAnnotationPla
 		if (directive.key.includes('.')) continue;
 		if (!supported.has(directive.key as ExactAnnotationKey)) {
 			diagnostics.push({
-				message: `error: unknown @exact directive '${directive.key}'; supported directives are key, cleanup, own, track, client, server, keep, and pure`,
+				message: `error: unknown @exact directive '${directive.key}'; supported directives are key, cleanup, own, track, client, server, shared, keep, and pure`,
 				start
 			});
 			continue;
@@ -109,6 +116,7 @@ export function analyzeExactAnnotations(module: BoundModule): ExactAnnotationPla
 				directive.key === 'track' ||
 				directive.key === 'client' ||
 				directive.key === 'server' ||
+				directive.key === 'shared' ||
 				directive.key === 'pure') &&
 			directive.value !== undefined
 		) {
@@ -144,6 +152,12 @@ export function analyzeExactAnnotations(module: BoundModule): ExactAnnotationPla
 				start
 			});
 		}
+		if (directive.key === 'shared' && sharedContractContainsSecret(reference)) {
+			diagnostics.push({
+				message: 'error: @exact shared return cannot contain secret-qualified data',
+				start
+			});
+		}
 	}
 
 	for (const reference of module.walk()) {
@@ -165,6 +179,11 @@ export function analyzeExactAnnotations(module: BoundModule): ExactAnnotationPla
 			diagnostics.push({
 				message: 'error: a declaration cannot have contradictory @exact keep policies',
 				start: keep[0]?.span?.start ?? reference.node.span?.start ?? 0
+			});
+		if (hasExactDirective(reference.node.directives, 'shared') && keep.length)
+			diagnostics.push({
+				message: 'error: @exact shared cannot be combined with @exact keep',
+				start: reference.node.span?.start ?? 0
 			});
 	}
 
@@ -222,6 +241,33 @@ export function analyzeExactAnnotations(module: BoundModule): ExactAnnotationPla
 	return Object.freeze({ diagnostics: Object.freeze(uniqueDiagnostics), trackedCallbacks });
 }
 
+/** Checks the complete declared signature because method nodes do not always expose a callable type. */
+function sharedContractContainsSecret(reference: NodeRef): boolean {
+	if (
+		reference.type?.callSignatures.some((signature) => containsSecretType(signature.returnType))
+	) {
+		return true;
+	}
+	return reference
+		.descendants({ nestedFunctions: false, types: true })
+		.toArray()
+		.some(
+			(candidate) =>
+				exactKeepPolicy(candidate.node.directives) === 'secret' ||
+				(candidate.type ? containsSecretType(candidate.type) : false)
+		);
+}
+
+/** Reports whether a public return contract contains an explicitly secret-qualified type. */
+function containsSecretType(type: ExpressionType): boolean {
+	if (exactKeepPolicy(type.directives) === 'secret') return true;
+	return (
+		type.typeArguments.some(containsSecretType) ||
+		type.unionMembers.some(containsSecretType) ||
+		type.propertyTypes.some((property) => containsSecretType(property.type))
+	);
+}
+
 export {
 	exactCleanup,
 	exactCleanupForCall,
@@ -229,6 +275,7 @@ export {
 	exactKeepPolicy,
 	exactKeyContract,
 	exactOwnsReturn,
+	exactShared,
 	hasExactDirective,
 	trackedCallbackArguments,
 	trackedParameter
@@ -237,6 +284,7 @@ import {
 	callDeclaresCleanup,
 	directiveLocationKind,
 	exactCleanupForCall,
+	exactKeepPolicy,
 	exactOwnsReturn,
 	hasExactDirective,
 	isExactKeepPolicy,

@@ -1,12 +1,15 @@
 import type { BoundModule } from '@exactjs/expressions';
-import { exactKeepPolicy } from '../annotations.js';
+import { exactKeepPolicy, exactShared } from '../annotations.js';
 import { expressionComponentIndex } from '../expression/component-index.js';
 import { stableId } from '../ids.js';
 import type { ExactCompilerManifest, ExactPolicyFlowIR, ExactPolicySubjectIR } from '../types.js';
 import {
 	compareStatePolicy,
+	combinePolicyRecords,
 	dataPolicy,
 	keepFromType,
+	policyFromDirectives,
+	policyFlow,
 	policySubject,
 	samePolicy,
 	sortSubjects,
@@ -19,6 +22,7 @@ import type { ExactPolicyMetadata } from './contracts.js';
 import {
 	collectStateTypePolicies,
 	isCreateContextCall,
+	materializePolicyInputSubjects,
 	parameterIndex,
 	policyInputs,
 	uniqueVariables
@@ -71,13 +75,15 @@ export function analyzeExactPolicyMetadata(
 	for (const variable of localVariables) {
 		if (!['VariableDeclaration', 'BindingElement', 'Parameter'].includes(variable.declarationKind))
 			continue;
+		const explicit = policyFromDirectives(variable.directives);
 		const keep = exactKeepPolicy(variable.directives) ?? keepFromType(variable.type);
-		if (!keep) continue;
-		const selector = keep === 'secret' ? secretSelectorForDeclaration(module, variable) : undefined;
+		const policy = explicit ?? (keep ? dataPolicy(keep) : undefined);
+		if (!policy) continue;
+		const selector = policy.secret ? secretSelectorForDeclaration(module, variable) : undefined;
 		const subject = policySubject(module.filename, {
 			kind: variable.declarationKind === 'Parameter' ? 'parameter' : 'declaration',
 			name: variable.name,
-			policy: dataPolicy(keep),
+			policy,
 			source: 'annotation',
 			...(selector ? { selector } : {}),
 			...(variable.declarationKind === 'Parameter'
@@ -153,7 +159,11 @@ export function analyzeExactPolicyMetadata(
 			diagnostics.add(`error: context ${token} ${parsed.error}`);
 			continue;
 		}
-		const policy = parsed.keep ? dataPolicy(parsed.keep) : dataPolicy('isomorphic');
+		const policy = parsed.keep
+			? dataPolicy(parsed.keep)
+			: dataPolicy(
+					parsed.scope === 'application' || parsed.scope === 'request' ? 'server' : 'shared'
+				);
 		const subject = policySubject(module.filename, {
 			kind: 'context',
 			name: token,
@@ -210,7 +220,14 @@ export function analyzeExactPolicyMetadata(
 		const token = receiver ? contextAliases.get(receiver.id) : undefined;
 		const policy = token ? contextPolicies.get(token)?.policy : undefined;
 		if (!policy) continue;
-		contextCallEffects.set(call.node.id, policy.secret ? 'server' : policy.residency);
+		contextCallEffects.set(
+			call.node.id,
+			policy.secret || policy.residency === 'server'
+				? 'server'
+				: policy.residency === 'client'
+					? 'client'
+					: 'isomorphic'
+		);
 	}
 
 	collectCallableReturnPolicies(
@@ -233,6 +250,37 @@ export function analyzeExactPolicyMetadata(
 		diagnostics,
 		secretConsumeCallIds
 	);
+	for (const declaration of module.walk().ofKind('VariableDeclaration')) {
+		if (!exactShared(declaration.node.directives)) continue;
+		const initializer = declaration.children().toArray().at(-1);
+		if (!initializer) continue;
+		const inputs = policyInputs(
+			initializer,
+			declarationPolicies,
+			namedDeclarationPolicies,
+			secretConsumeCallIds
+		);
+		materializePolicyInputSubjects(inputs, subjects);
+		const secret = inputs.some((input) => input.record.policy.secret);
+		const variable = declaration.children().first()?.variable;
+		const target = variable ? declarationPolicies.get(variable.id) : undefined;
+		if (!target) continue;
+		const reason = secret
+			? `@exact shared declaration ${declaration.node.name ?? '<anonymous>'} cannot release secret-qualified data`
+			: undefined;
+		flows.push(
+			policyFlow(module.filename, {
+				kind: 'projection',
+				from: inputs.map((input) => input.record.subjectId).sort(),
+				to: target.subjectId,
+				policy:
+					combinePolicyRecords(inputs.map((input) => input.record)).policy ?? dataPolicy('shared'),
+				authorized: !secret,
+				...(reason ? { reason } : {})
+			})
+		);
+		if (reason) diagnostics.add(`error: ${reason}`);
+	}
 	collectCallableReturnPolicies(
 		module,
 		declarationPolicies,

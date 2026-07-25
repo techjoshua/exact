@@ -137,6 +137,14 @@ export function exactKeepPolicy(
 	return policies.size === 1 ? [...policies][0] : undefined;
 }
 
+/**
+ * Reports whether a declaration or resolved return contract deliberately
+ * permits its value to reside in both runtimes.
+ */
+export function exactShared(values: readonly ExpressionDirective[] | undefined): boolean {
+	return hasExactDirective(values, 'shared');
+}
+
 /** Reports whether exact keep policy. */
 export function isExactKeepPolicy(value: string | undefined): value is ExactKeepPolicy {
 	return value === 'server' || value === 'client' || value === 'secret';
@@ -245,6 +253,14 @@ export function validDirectiveLocation(key: ExactAnnotationKey, reference: NodeR
 		return ['FunctionDeclaration', 'MethodDeclaration', 'MethodSignature', 'FunctionType'].includes(
 			kind
 		);
+	if (key === 'shared')
+		return [
+			'VariableDeclaration',
+			'FunctionDeclaration',
+			'MethodDeclaration',
+			'MethodSignature',
+			'FunctionType'
+		].includes(kind);
 	if (key === 'pure')
 		return [
 			'FunctionDeclaration',

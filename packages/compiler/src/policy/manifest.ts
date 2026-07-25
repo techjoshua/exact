@@ -66,7 +66,7 @@ export function createExactPolicyManifest(
 		for (const island of site.clientIslands) {
 			for (const path of island.stateReads) {
 				const explicit = statePolicyForPath(metadata, site.name, path);
-				const policy = explicit?.policy ?? dataPolicy('isomorphic');
+				const policy = explicit?.policy ?? dataPolicy('shared');
 				let subject = explicit
 					? subjects.find((candidate) => candidate.id === explicit.subjectId)
 					: undefined;
@@ -82,7 +82,7 @@ export function createExactPolicyManifest(
 					subjects.push(subject);
 					subjectByState.set(stateKey(site.name, path), subject);
 				}
-				const authorized = policy.residency === 'isomorphic' && !policy.secret;
+				const authorized = policy.residency === 'shared' && !policy.secret;
 				flows.push(
 					policyFlow(filename, {
 						kind: 'transfer',
@@ -114,12 +114,12 @@ export function createExactPolicyManifest(
 				for (const clientPath of clientReads) {
 					if (!pathsOverlap(write.path, clientPath)) continue;
 					const record = statePolicyForPath(metadata, component.name, clientPath);
-					const policy = record?.policy ?? dataPolicy('isomorphic');
+					const policy = record?.policy ?? dataPolicy('shared');
 					const subject = record
 						? subjects.find((candidate) => candidate.id === record.subjectId)
 						: subjectByState.get(stateKey(component.name, clientPath));
 					if (!subject) continue;
-					const authorized = policy.residency === 'isomorphic' && !policy.secret;
+					const authorized = policy.residency === 'shared' && !policy.secret;
 					flows.push(
 						policyFlow(filename, {
 							kind: 'projection',

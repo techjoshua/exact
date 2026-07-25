@@ -246,7 +246,7 @@ describe('policy emission and sinks', () => {
 							kind: 'propagation',
 							from: ['missing'],
 							to: 'missing',
-							policy: { residency: 'isomorphic', secret: false },
+							policy: { residency: 'shared', secret: false },
 							authorized: true
 						}
 					]

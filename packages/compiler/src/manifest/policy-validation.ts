@@ -95,7 +95,7 @@ function isExactDataPolicy(value: unknown): boolean {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const policy = value as Record<string, unknown>;
 	return (
-		['server', 'client', 'isomorphic'].includes(String(policy.residency)) &&
+		['server', 'client', 'shared'].includes(String(policy.residency)) &&
 		typeof policy.secret === 'boolean' &&
 		(!policy.secret || policy.residency === 'server')
 	);

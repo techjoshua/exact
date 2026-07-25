@@ -6,10 +6,11 @@ export interface ContextOptions {
 	/** False preserves opaque service/class identity instead of proxying it. */
 	readonly reactive?: boolean;
 	/**
-	 * Declares where values carried by this token may reside. Unannotated
-	 * component values remain compiler-inferred and transferable when needed.
+	 * Declares where values carried by this token may reside. Application and
+	 * request contexts default to server residency; component contexts default
+	 * to shared residency.
 	 */
-	readonly keep?: 'server' | 'client' | 'secret';
+	readonly keep?: 'server' | 'client' | 'shared' | 'secret';
 	/**
 	 * Declares where the server runtime may provision this token. Values
 	 * published with Component.setContext() always retain component lifetime.

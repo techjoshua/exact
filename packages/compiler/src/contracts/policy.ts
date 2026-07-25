@@ -4,7 +4,7 @@ import type { ExactArtifactTarget } from './artifacts.js';
 export type ExactPlacement = 'server' | 'client' | 'isomorphic' | 'unknown';
 
 /** Defines the exact policy residency type contract. */
-export type ExactPolicyResidency = 'server' | 'client' | 'isomorphic';
+export type ExactPolicyResidency = 'server' | 'client' | 'shared';
 
 /** Defines the exact data policy ir type contract. */
 export type ExactDataPolicyIR = {
