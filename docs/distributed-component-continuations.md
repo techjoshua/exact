@@ -1,7 +1,9 @@
 # Distributed component continuations
 
-Status: implemented foundation with remaining compiler and protocol
-generalization work.
+Status: implemented across the compiler, component contracts, SSR, hydration,
+server dispatch, testing, and final client-artifact verification. The
+implementation record at the end of this document maps the original delivery
+plan to the completed framework contracts.
 
 ## Architectural model
 
@@ -78,10 +80,10 @@ planning manifest as the explanation contract.
 
 The SSR runtime also creates component instances for rendering, emits hydration
 markers, serializes hydration state and contracts, and serializes client-island
-props. These are the existing ingredients of client resumption. The remaining
-work is to make the compiler describe the complete SSR-to-client continuation
-explicitly and prove that the serialized record is sufficient without exposing
-server-owned values.
+props. Compiler-owned resumption contracts identify the client-visible state
+and shared contexts required after SSR while excluding server-owned values.
+SSR, hydration, and loopback tests verify that the record reconstructs the
+durable client machine without repeating settled server work.
 
 Target-specific artifact emission removes server task bodies and their imports
 from client artifacts. A host-neutral final-graph verifier and the Vite
@@ -453,11 +455,10 @@ HTTP adapters authenticate requests and supply server context, while the
 compiler/runtime continuation contract stays consistent across Node, Bun, and
 other supported servers.
 
-## Adopted design decisions and implementation questions
+## Adopted design decisions
 
-The following questions must be answered before the continuation model is
-treated as complete. The recommendations favor ordinary TypeScript at the
-authoring layer and precise, measurable work in generated artifacts and
+The implementation follows the decisions below. They favor ordinary TypeScript
+at the authoring layer and precise, measurable work in generated artifacts and
 runtimes.
 
 These are compiler and runtime design questions, not concepts every application
@@ -1104,59 +1105,62 @@ The shared runtime protocol must:
 Adapters supply transport, authentication, request policy, and server context.
 They must not need to reproduce compiler-generated continuation logic.
 
-## Remaining implementation plan
+## Implementation record
 
-1. **Document the existing lowering.** Treat the two-machine model and the
-   SSR/resumption/request/response invariants above as the canonical
+1. **Canonical lowering documented.** The two-machine model and the
+   SSR/resumption/request/response invariants above are the canonical
    architecture.
-2. **Complete the residency and disclosure lattice.** Make
-   server-provisioned application and request contexts server-only by default.
-   Add `@exact shared` for narrow local projections and resolved callable
-   returns, preserve its provenance in policy IR, and ensure it can release
-   residency without clearing secret qualification. Rename unrestricted data
-   residency from `isomorphic` to `shared` while retaining `isomorphic` for
-   execution placement. Distinguish server-owned public HTML from structured
-   client transfer in sink analysis.
-3. **Preserve and verify natural artifact isolation — implemented.** Build
-   target-specific module graphs from compiler-placed code, propagate
-   reachability through direct, transitive, re-exported, and dynamic edges, and
-   verify final client runtime chunks and assets contain no server-only
-   reachability. Private development maps remain complete; hosts may submit
-   publicly deployed map sources to the verifier. This requires no package
-   declarations or application configuration and includes a representative
+2. **Residency and disclosure lattice implemented.** Server-provisioned
+   application and request contexts default to server residency.
+
+   The `@exact shared` annotation supports narrow local projections and
+   resolved callable returns, preserves provenance in policy IR, and never
+   clears secret qualification. Data residency remains distinct from execution
+   placement, and sink analysis separates server-owned public HTML from
+   structured client transfer.
+
+3. **Natural artifact isolation implemented and verified.** Target-specific
+   module graphs propagate reachability through direct, transitive,
+   re-exported, and dynamic edges. The final-graph verifier confirms that
+   client runtime chunks and assets contain no server-only reachability.
+   Private development maps remain complete; hosts may submit publicly
+   deployed map sources to the verifier. This requires no package declarations
+   or application configuration and includes a representative
    Apollo/TanStack-style dependency fixture.
-4. **Define the SSR resumption contract.** Derive separate server render and
-   client-resumption records, identify the minimum values needed for DOM
-   adoption and later continuations, and diagnose missing or forbidden values.
-5. **Introduce unified continuation IR.** Consolidate existing task
-   dependencies, state contracts, context effects, operation registrations,
-   SSR inputs, hydration identity, module-graph edges, boundary effects,
-   ownership, and cancellation into one compiler-owned representation.
-6. **Remove manifest coupling.** Emit matching private continuation descriptors
-   into client and server artifacts while keeping operation identifiers opaque.
-7. **Generate precise response contracts.** Use compiler-known write and
-   boundary effects to validate and commit only permitted client-visible
-   changes rather than accepting an unconstrained state object.
-8. **Complete context handling.** Resolve server resources exclusively on the
-   server, define application/request/invocation lifetimes, and add an explicit
-   mechanism for intentionally public context values or projections.
-9. **Extend protocol observation and build analysis — runtime observation and
-   compiler explanation implemented.** Record SSR inputs by placement, emitted
-   resumption data, DOM adoption, transported public context, and
-   server-context token usage without leaking server-owned values. The optional
-   explanation reports placement, captures, response effects, and resumption
-   liveness. Bundler hosts still need to append per-component final size
-   contributions when their metadata provides that attribution.
-10. **Verify every transition.** Add focused compiler, final-bundle,
-    SSR/hydration, loopback, adapter, and adversarial tests for dependency
+4. **SSR resumption contract implemented.** Separate server-render and
+   client-resumption records identify the minimum values required for DOM
+   adoption and later continuations while rejecting forbidden values.
+5. **Unified continuation contracts implemented.** Component-attached
+   contracts consolidate task dependencies, state and context effects,
+   operation registration, SSR inputs, hydration identity, boundary effects,
+   ownership, and cancellation.
+6. **Runtime manifest coupling removed.** Matching executable descriptors live
+   in client and server artifacts while operation identifiers remain opaque.
+7. **Precise response contracts implemented.** Compiler-known state, context,
+   and boundary effects constrain the client-visible changes that the server
+   may return and the client may commit.
+8. **Context handling implemented.** Server resources resolve exclusively on
+   the server with application, request, and invocation lifetimes. Explicitly
+   shared context values and projections are the only context data permitted
+   in client resumption or continuation responses.
+9. **Protocol observation and compiler explanation implemented.** Tests record
+   SSR inputs by placement, emitted resumption data, DOM adoption, transported
+   public context, and server-context token usage without leaking server-owned
+   values. The optional explanation reports placement, captures, response
+   effects, and resumption liveness. Per-component final size attribution
+   remains an optional reporting enhancement for bundlers that expose
+   sufficiently precise metadata.
+10. **Transition verification implemented.** Focused compiler, final-bundle,
+    SSR/hydration, loopback, adapter, and adversarial tests cover dependency
     isolation, resumption sufficiency, build mismatch, capture snapshots,
     server-owned HTML, shared projections, secret precedence, context defaults,
     disclosure rejection, streaming order, stale responses, cancellation,
     concurrency, teardown, malformed values, and payload limits.
-11. **Establish performance baselines.** Track client and server costs
-    separately using representative applications, including one with a heavy
-    server data dependency that must contribute zero runtime modules to the
-    client graph.
+11. **Initial performance and isolation baselines implemented.** Expression
+    workflow measurements track compiler cost, and representative final-bundle
+    fixtures prove that heavy server data dependencies contribute no runtime
+    modules to the client graph. These baselines remain ongoing measurements,
+    not unfinished continuation semantics.
 
 Unsupported cross-runtime captures must remain compiler errors. The framework
 must not silently serialize a broader object, expose a server context, or

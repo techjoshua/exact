@@ -152,15 +152,11 @@ async function dispatchExactOperationAfterSecurity(
 	}
 
 	const action = input.type === 'action' ? context.contract.actions[input.id] : undefined;
-	const executor =
-		input.type === 'action' ? context.contract.executors?.[input.id] : undefined;
+	const executor = input.type === 'action' ? context.contract.executors?.[input.id] : undefined;
 	if (action && !stateMatchesContract(input.state, action.stateReads)) {
 		return reject(400, 'bad_request', 'rejected exact invocation with mismatched state contract');
 	}
-	if (
-		executor &&
-		!continuationDependencies(input.payload, action?.dependencies.length ?? 0)
-	) {
+	if (executor && !continuationDependencies(input.payload, action?.dependencies.length ?? 0)) {
 		return reject(400, 'bad_request', 'rejected malformed exact continuation activation');
 	}
 	if (!publicContextMatchesContract(input.publicContext, action?.publicContexts ?? [])) {

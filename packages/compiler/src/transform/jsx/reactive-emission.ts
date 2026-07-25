@@ -133,7 +133,10 @@ function materializeDerivedReactiveLocals(
 
 	const collect = (node: ts.Node): void => {
 		const visit: ts.Visitor = (current) => {
-			if (ts.isCallExpression(current) && (isThisMethodCall(current, 'map') || isThisTaskCall(current))) {
+			if (
+				ts.isCallExpression(current) &&
+				(isThisMethodCall(current, 'map') || isThisTaskCall(current))
+			) {
 				const preserved = isThisMethodCall(current, 'map')
 					? new Set([0])
 					: new Set(current.arguments.map((_, index) => index).slice(0, -1));
@@ -146,10 +149,7 @@ function materializeDerivedReactiveLocals(
 			if (ts.isIdentifier(current)) {
 				const entry = derivedReactiveLocals.references.get(expressionEmissionId(current) ?? '');
 				if (entry)
-					referenceCounts.set(
-						entry.variableId,
-						(referenceCounts.get(entry.variableId) ?? 0) + 1
-					);
+					referenceCounts.set(entry.variableId, (referenceCounts.get(entry.variableId) ?? 0) + 1);
 				if (entry && !included.has(entry.variableId) && !visiting.has(entry.variableId)) {
 					visiting.add(entry.variableId);
 					if (!entry.cached) collect(entry.initializer);
@@ -163,11 +163,7 @@ function materializeDerivedReactiveLocals(
 		ts.visitNode(node, visit);
 	};
 	collect(expression);
-	if (
-		!entries.some(
-			(entry) => !entry.cached || (referenceCounts.get(entry.variableId) ?? 0) > 1
-		)
-	)
+	if (!entries.some((entry) => !entry.cached || (referenceCounts.get(entry.variableId) ?? 0) > 1))
 		return undefined;
 
 	const aliases = new Map(
@@ -186,13 +182,15 @@ function materializeDerivedReactiveLocals(
 				ts.visitNode(node.expression, replace) as ts.Expression,
 				node.typeArguments,
 				node.arguments.map((argument, index) =>
-					preserved.has(index)
-						? argument
-						: (ts.visitNode(argument, replace) as ts.Expression)
+					preserved.has(index) ? argument : (ts.visitNode(argument, replace) as ts.Expression)
 				)
 			);
 		}
-		if (ts.isIdentifier(node) && !isIdentifierDeclarationName(node) && !isPropertyAccessName(node)) {
+		if (
+			ts.isIdentifier(node) &&
+			!isIdentifierDeclarationName(node) &&
+			!isPropertyAccessName(node)
+		) {
 			const entry = derivedReactiveLocals.references.get(expressionEmissionId(node) ?? '');
 			const alias = entry ? aliases.get(entry.variableId) : undefined;
 			if (alias) return alias;

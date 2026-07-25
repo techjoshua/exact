@@ -296,12 +296,8 @@ describe('@exactjs/compiler: derived values', () => {
       }
     `);
 
-		expect(output).toContain(
-			'const __exact_point_1 = this.state.enabled ? { x: 1 } : undefined;'
-		);
-		expect(output).toContain(
-			'return __exact_point_1 ? String(__exact_point_1.x) : "missing";'
-		);
+		expect(output).toContain('const __exact_point_1 = this.state.enabled ? { x: 1 } : undefined;');
+		expect(output).toContain('return __exact_point_1 ? String(__exact_point_1.x) : "missing";');
 	});
 
 	it('inlines safe derived consts inside explicit reactive captures', () => {

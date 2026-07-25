@@ -49,18 +49,7 @@ export function parseExactInvocationResponse(
 		throw new Error(message);
 	const record = body as Record<string, unknown>;
 	if (record.ok !== true) throw new Error(message);
-	if (
-		!hasOnlyKeys(record, [
-			'ok',
-			'type',
-			'id',
-			'opId',
-			'patches',
-			'state',
-			'contexts',
-			'html'
-		])
-	)
+	if (!hasOnlyKeys(record, ['ok', 'type', 'id', 'opId', 'patches', 'state', 'contexts', 'html']))
 		throw new Error(message);
 	if (expected && !matchesOperation(record, expected)) throw new Error(message);
 	if ('state' in record && record.state === undefined) throw new Error(message);
