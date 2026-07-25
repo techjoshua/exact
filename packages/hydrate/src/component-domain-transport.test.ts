@@ -1,14 +1,79 @@
 /**
  * @vitest-environment jsdom
  */
-import { createContext, createVNode, currentComponentDomain, type Component } from '@exactjs/core';
+import {
+	createContext,
+	createVNode,
+	currentComponentDomain,
+	dispatchComponentContinuation,
+	type Component,
+	type ComponentInstance
+} from '@exactjs/core';
 import { render, unmount } from '@exactjs/dom';
 import { inspectDomRoot, type DomInspectionNode } from '@exactjs/dom/testing';
 import { describe, expect, it, vi } from 'vitest';
-import { createExactClient } from './index.js';
+import { createExactClient, hydrate } from './index.js';
 import { testContinuation } from './test-support/responses.js';
 
 describe('component-domain transport', () => {
+	it('owns component continuations before constructing the hydrated tree', async () => {
+		const container = document.createElement('div');
+		container.innerHTML =
+			'<!--exact:component:Search--><output>waiting</output><!--/exact:component:Search-->';
+		const requests: unknown[] = [];
+		const continuation = testContinuation('load', {
+			dependencies: [{ source: 'state' }],
+			reads: [{ path: 'query', kind: 'read', confidence: 'exact' }],
+			writes: [{ path: 'result', kind: 'write', confidence: 'exact' }]
+		});
+		function Search(this: Component<{ query: string; result: string }>) {
+			this.state.query = 'first';
+			this.state.result = 'waiting';
+			this.task(
+				this.reactive(() => this.state.query),
+				(query, { signal }) =>
+					dispatchComponentContinuation(
+						this as unknown as ComponentInstance<{ query: string; result: string }>,
+						'load',
+						[query],
+						signal
+					)
+			);
+			return () => createVNode('output', null, this.state.result);
+		}
+		const client = hydrate(createVNode(Search, {}), container, {
+			endpoint: '/__exact',
+			batch: false,
+			continuations: { load: continuation },
+			fetch: async (_input, init) => {
+				requests.push(JSON.parse(init.body));
+				return {
+					ok: true,
+					status: 200,
+					async json() {
+						return {
+							ok: true,
+							type: 'action' as const,
+							id: 'load',
+							state: { result: 'FIRST' }
+						};
+					}
+				};
+			}
+		});
+
+		await client.whenSettled();
+
+		expect(requests).toEqual([
+			expect.objectContaining({
+				payload: { dependencies: ['first'] },
+				state: { query: 'first' }
+			})
+		]);
+		expect(container.querySelector('output')?.textContent).toBe('FIRST');
+		client.dispose();
+	});
+
 	it('emits immutable root, binding, and build metadata for every client operation', async () => {
 		const container = document.createElement('div');
 		const requests: Array<{ headers: Record<string, string>; body: unknown }> = [];

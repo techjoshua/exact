@@ -1,11 +1,13 @@
-import type { VNode } from '@exactjs/core';
+import type { ComponentDomain, VNode } from '@exactjs/core';
 import {
 	adoptComponentRoot,
 	adoptDocumentRoot,
 	adoptMarkerlessComponentRoot,
 	adoptStatic,
 	createDomWorkBudget,
-	render
+	render,
+	type DomWorkBudget,
+	type RenderOptions
 } from '@exactjs/dom';
 import { captureHydrationDom, restoreFormState } from '../adoption/form-state.js';
 import { adoptStaticTree, createStaticAdoptionBudget } from '../adoption/static-tree.js';
@@ -49,7 +51,7 @@ export function hydrateRoot(
 	const rootContainer = documentNode?.documentElement ?? (container as Element);
 	const existing = roots.get(rootContainer);
 	if (existing) {
-		render(vnode, rootContainer, {
+		render(ownedVNode(vnode, existing.domain), rootContainer, {
 			logger: options.logger,
 			onErrorReport: options.onErrorReport,
 			maxTreeDepth: options.maxTreeDepth,
@@ -61,126 +63,102 @@ export function hydrateRoot(
 		return existing;
 	}
 	const resolvedOptions = resolveHydrateOptions(rootContainer, options);
+	const root = createExactClient(rootContainer, resolvedOptions);
+	vnode = ownedVNode(vnode, root.domain);
 	const work = createDomWorkBudget(resolvedOptions.maxTreeNodes);
 	const captured = captureHydrationDom(rootContainer, work);
 	const formState = captured.formState;
-	if (documentNode) {
-		const adopted = adoptDocumentRoot(vnode, documentNode, {
-			logger: resolvedOptions.logger,
-			onErrorReport: resolvedOptions.onErrorReport,
-			maxTreeDepth: resolvedOptions.maxTreeDepth,
-			maxTreeNodes: remainingDomWork(work),
-			workBudget: work,
-			allowUnsafeHtml: resolvedOptions.allowUnsafeHtml,
-			onUnsafeHtml: resolvedOptions.onUnsafeHtml
-		});
-		if (!adopted) {
-			reportMismatch(
-				resolvedOptions,
-				'server document did not match the authored client document',
-				'adoption-mismatch'
-			);
-			throw new Error(
-				'eXact cannot safely replace a mismatched Document root; reload the document or correct the authored root.'
-			);
-		}
-		const root = createExactClient(rootContainer, resolvedOptions);
-		roots.set(rootContainer, root);
-		rootContainer.setAttribute('data-exact-hydrated', 'true');
-		restoreFormState(rootContainer, formState, work);
-		return root;
-	}
-	if (!captured.hasMarkers) {
-		const adopted =
-			resolvedOptions.allowMarkerless && typeof vnode.type === 'function'
-				? adoptMarkerlessComponentRoot(vnode, rootContainer, {
-						logger: resolvedOptions.logger,
-						onErrorReport: resolvedOptions.onErrorReport,
-						maxTreeDepth: resolvedOptions.maxTreeDepth,
-						maxTreeNodes: remainingDomWork(work),
-						workBudget: work,
-						allowUnsafeHtml: resolvedOptions.allowUnsafeHtml,
-						onUnsafeHtml: resolvedOptions.onUnsafeHtml
-					})
-				: false;
-		if (adopted) {
-			const root = createExactClient(rootContainer, resolvedOptions);
-			roots.set(rootContainer, root);
-			rootContainer.setAttribute('data-exact-hydrated', 'true');
-			restoreFormState(rootContainer, formState, work);
-			return root;
-		}
-		reportMismatch(
+	try {
+		adoptOrMountRoot(
+			vnode,
+			rootContainer,
+			documentNode,
+			captured.hasMarkers,
 			resolvedOptions,
-			resolvedOptions.allowMarkerless
+			work
+		);
+		restoreFormState(rootContainer, formState, work);
+		rootContainer.setAttribute('data-exact-hydrated', 'true');
+		return root;
+	} catch (error) {
+		root.dispose();
+		throw error;
+	}
+}
+
+/** Adopts compatible SSR output or mounts a fresh non-document tree after reporting the mismatch. */
+function adoptOrMountRoot(
+	vnode: VNode,
+	container: Element,
+	documentNode: Document | undefined,
+	hasMarkers: boolean,
+	options: HydrateOptions,
+	work: DomWorkBudget
+): void {
+	if (documentNode) {
+		if (adoptDocumentRoot(vnode, documentNode, rendererOptions(options, work))) return;
+		reportMismatch(
+			options,
+			'server document did not match the authored client document',
+			'adoption-mismatch'
+		);
+		throw new Error(
+			'eXact cannot safely replace a mismatched Document root; reload the document or correct the authored root.'
+		);
+	}
+	if (!hasMarkers) {
+		const adopted =
+			options.allowMarkerless && typeof vnode.type === 'function'
+				? adoptMarkerlessComponentRoot(vnode, container, rendererOptions(options, work))
+				: false;
+		if (adopted) return;
+		reportMismatch(
+			options,
+			options.allowMarkerless
 				? 'server markup did not match the client tree'
 				: 'missing exact hydration markers',
-			resolvedOptions.allowMarkerless ? 'adoption-mismatch' : 'missing-markers'
+			options.allowMarkerless ? 'adoption-mismatch' : 'missing-markers'
 		);
-		rootContainer.replaceChildren();
-		render(vnode, rootContainer, {
-			logger: resolvedOptions.logger,
-			onErrorReport: resolvedOptions.onErrorReport,
-			maxTreeDepth: resolvedOptions.maxTreeDepth,
-			maxTreeNodes: remainingDomWork(work),
-			workBudget: work,
-			allowUnsafeHtml: resolvedOptions.allowUnsafeHtml,
-			onUnsafeHtml: resolvedOptions.onUnsafeHtml,
-			onProfile: options.onProfile
-		});
-	} else {
-		if (
-			typeof vnode.type === 'function'
-				? adoptComponentRoot(vnode, rootContainer, {
-						logger: resolvedOptions.logger,
-						onErrorReport: resolvedOptions.onErrorReport,
-						maxTreeDepth: resolvedOptions.maxTreeDepth,
-						maxTreeNodes: remainingDomWork(work),
-						workBudget: work,
-						allowUnsafeHtml: resolvedOptions.allowUnsafeHtml,
-						onUnsafeHtml: resolvedOptions.onUnsafeHtml
-					})
-				: adoptStaticTree(
-						vnode,
-						rootContainer,
-						createStaticAdoptionBudget(resolvedOptions, work)
-					) &&
-					adoptStatic(vnode, rootContainer, {
-						logger: resolvedOptions.logger,
-						onErrorReport: resolvedOptions.onErrorReport,
-						maxTreeDepth: resolvedOptions.maxTreeDepth,
-						maxTreeNodes: remainingDomWork(work),
-						workBudget: work,
-						allowUnsafeHtml: resolvedOptions.allowUnsafeHtml,
-						onUnsafeHtml: resolvedOptions.onUnsafeHtml
-					})
-		) {
-			const root = createExactClient(rootContainer, resolvedOptions);
-			roots.set(rootContainer, root);
-			rootContainer.setAttribute('data-exact-hydrated', 'true');
-			restoreFormState(rootContainer, formState, work);
-			return root;
-		}
-		// The DOM renderer currently mounts a new mounted graph.  Clear the SSR
-		// range first so a hydration attempt cannot leave duplicate interactive
-		// markup behind while marker adoption is unavailable for a boundary.
-		rootContainer.replaceChildren();
-		render(vnode, rootContainer, {
-			logger: resolvedOptions.logger,
-			onErrorReport: resolvedOptions.onErrorReport,
-			maxTreeDepth: resolvedOptions.maxTreeDepth,
-			maxTreeNodes: remainingDomWork(work),
-			workBudget: work,
-			allowUnsafeHtml: resolvedOptions.allowUnsafeHtml,
-			onUnsafeHtml: resolvedOptions.onUnsafeHtml,
-			onProfile: options.onProfile
-		});
+		mountFreshRoot(vnode, container, options, work);
+		return;
 	}
+	const adopted =
+		typeof vnode.type === 'function'
+			? adoptComponentRoot(vnode, container, rendererOptions(options, work))
+			: adoptStaticTree(vnode, container, createStaticAdoptionBudget(options, work)) &&
+				adoptStatic(vnode, container, rendererOptions(options, work));
+	if (adopted) return;
+	// Clear the SSR range before mounting so a failed adoption cannot leave a
+	// duplicate interactive tree beside stale server markup.
+	mountFreshRoot(vnode, container, options, work);
+}
 
-	restoreFormState(rootContainer, formState, work);
+/** Clears an unowned SSR range and mounts the client-owned replacement. */
+function mountFreshRoot(
+	vnode: VNode,
+	container: Element,
+	options: HydrateOptions,
+	work: DomWorkBudget
+): void {
+	container.replaceChildren();
+	render(vnode, container, rendererOptions(options, work));
+}
 
-	const root = createExactClient(rootContainer, resolvedOptions);
-	roots.set(rootContainer, root);
-	rootContainer.setAttribute('data-exact-hydrated', 'true');
-	return root;
+/** Creates renderer options against the one shared hydration traversal budget. */
+function rendererOptions(options: HydrateOptions, work: DomWorkBudget): RenderOptions {
+	return {
+		logger: options.logger,
+		onErrorReport: options.onErrorReport,
+		maxTreeDepth: options.maxTreeDepth,
+		maxTreeNodes: remainingDomWork(work),
+		workBudget: work,
+		allowUnsafeHtml: options.allowUnsafeHtml,
+		onUnsafeHtml: options.onUnsafeHtml,
+		onProfile: options.onProfile
+	};
+}
+
+/** Assigns a pre-authored root VNode to the client generation that will construct it. */
+function ownedVNode(vnode: VNode, domain: ComponentDomain): VNode {
+	return vnode.domain === domain ? vnode : { ...vnode, domain };
 }

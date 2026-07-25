@@ -47,6 +47,12 @@ export function ownMountedInstance(mounted: Mounted, instance: ComponentInstance
 /** Transforms render into its required representation. */
 export function render(vnode: VNode, container: Element, options: RenderOptions = {}): void {
 	let root = roots.get(container);
+	if (root?.current.domain && !vnode.domain) {
+		// A hydrated root keeps owning later authored updates even when callers
+		// create the replacement VNode outside withComponentDomain(). Explicit
+		// domains still win for deliberate cross-root composition.
+		vnode = { ...vnode, domain: root.current.domain };
+	}
 	if (!root) {
 		root = {
 			container,
