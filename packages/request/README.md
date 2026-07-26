@@ -10,3 +10,7 @@ work.
 Prefer explicit propagation at framework boundaries. Ambient context is a convenience for code
 already executing inside a correctly installed request scope, not a replacement for runtime
 adapter wiring.
+
+`createRequestContextValue()` accepts a trusted `publicOrigin`. It never infers public authority
+from `Host` or forwarded headers. Without an explicit origin, normalized URLs use
+`http://exact.invalid`, and relative redirects remain relative in the response `Location` header.

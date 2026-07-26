@@ -5,6 +5,7 @@ import { createExactFetchHandler } from './index.js';
 describe('@exactjs/fetch-adapter', () => {
 	it('handles eXact requests through Fetch Request and Response objects', async () => {
 		const handler = createExactFetchHandler({
+			publicOrigin: 'https://example.com',
 			contract: {
 				version: 1,
 				endpoint: '/__exact',

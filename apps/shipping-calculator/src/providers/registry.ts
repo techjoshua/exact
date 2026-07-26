@@ -19,6 +19,7 @@ const quoteCache = new Map<
 	string,
 	{ expiresAt: number; quotes: Awaited<ReturnType<RateProvider['quote']>> }
 >();
+const maxQuoteCacheEntries = 256;
 const cooldowns = new Map<ProviderId, number>();
 
 /** Creates a provider registry. */
@@ -92,8 +93,13 @@ export async function quoteProvider(
 			}
 		};
 	const cacheKey = `${id}:${JSON.stringify(request)}`;
+	pruneQuoteCache(Date.now());
 	const cached = quoteCache.get(cacheKey);
-	if (cached && cached.expiresAt > Date.now())
+	if (cached) {
+		// Refresh insertion order so the bounded cache evicts the least-recently
+		// used request rather than a frequently reused one.
+		quoteCache.delete(cacheKey);
+		quoteCache.set(cacheKey, cached);
 		return {
 			version: 1,
 			providerId: id,
@@ -101,12 +107,16 @@ export async function quoteProvider(
 			status: 'success',
 			quotes: cached.quotes
 		};
+	}
 	try {
 		const quotes = await retryUnavailable(
 			() => provider.quote(request, { signal: combined, fetch: globalThis.fetch }),
 			combined
 		);
-		if (!combined.aborted) quoteCache.set(cacheKey, { expiresAt: Date.now() + 5 * 60_000, quotes });
+		if (!combined.aborted) {
+			quoteCache.set(cacheKey, { expiresAt: Date.now() + 5 * 60_000, quotes });
+			pruneQuoteCache(Date.now());
+		}
 		return { version: 1, providerId: id, providerName: provider.name, status: 'success', quotes };
 	} catch (error) {
 		if (error instanceof ProviderHttpError && error.status === 429)
@@ -119,6 +129,17 @@ export async function quoteProvider(
 			quotes: [],
 			error: publicError(error, timeout.aborted)
 		};
+	}
+}
+
+function pruneQuoteCache(now: number): void {
+	for (const [key, entry] of quoteCache) {
+		if (entry.expiresAt <= now) quoteCache.delete(key);
+	}
+	while (quoteCache.size > maxQuoteCacheEntries) {
+		const oldest = quoteCache.keys().next().value;
+		if (oldest === undefined) break;
+		quoteCache.delete(oldest);
 	}
 }
 

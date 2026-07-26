@@ -5,6 +5,7 @@ import { createExactCloudflareHandler } from './index.js';
 describe('@exactjs/cloudflare-adapter', () => {
 	it('handles Cloudflare Worker fetch requests', async () => {
 		const handler = createExactCloudflareHandler({
+			publicOrigin: 'https://example.com',
 			contract: {
 				version: 1,
 				endpoint: '/__exact',

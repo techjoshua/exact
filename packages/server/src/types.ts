@@ -125,12 +125,24 @@ export type ExactServerContextAccessObservation = Readonly<{
 
 /** Configures exact server context. */
 export type ExactServerContextConfiguration = {
+	/**
+	 * Trusted externally visible application origin. A resolver is an explicit
+	 * deployment trust boundary and must apply the host server's proxy policy.
+	 */
+	publicOrigin?: string | URL | ((request: ExactPublicOriginRequest) => string | URL);
 	applicationContexts?: readonly ExactContextRegistration<any>[];
 	requestContexts?: ExactRequestContextRegistrationSource;
 	contextOverrides?: ExactContextOverrides;
 	/** Observes generated continuation context access without disclosing the resolved value. */
 	onContextAccess?: (observation: ExactServerContextAccessObservation) => void;
 };
+
+/** Untrusted request metadata available to an application-owned public-origin resolver. */
+export type ExactPublicOriginRequest = Readonly<{
+	url?: string | URL;
+	headers?: Headers | Record<string, string | string[] | undefined>;
+	platformRequest?: unknown;
+}>;
 
 /** Defines the exact context scope type contract. */
 export type ExactContextScope = {

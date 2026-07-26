@@ -28,7 +28,8 @@ const helperBases: Readonly<Record<keyof HelperNames, string>> = {
 	dispatchContinuation: '__exactDispatchContinuation',
 	registerContinuationContexts: '__exactRegisterContinuationContexts',
 	remove: '__exactDelete',
-	arrayMutation: '__exactArrayMutation'
+	arrayMutation: '__exactArrayMutation',
+	interopComponent: '__exactInteropComponent'
 };
 
 /**

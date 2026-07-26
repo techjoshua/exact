@@ -38,7 +38,7 @@ export function transformJsxElement(
 	}
 
 	const site = expressionJsx?.elements.get(expressionEmissionId(node) ?? '');
-	const tag = site?.reactiveTag
+	const sourceTag = site?.reactiveTag
 		? visitReactiveSinkExpression(
 				context,
 				opening.tagName as ts.Expression,
@@ -47,6 +47,13 @@ export function transformJsxElement(
 				derivedReactiveLocals
 			)
 		: tagExpression(opening.tagName);
+	const tag = site?.interop
+		? context.factory.createCallExpression(
+				context.factory.createIdentifier(helpers.interopComponent),
+				undefined,
+				[sourceTag]
+			)
+		: sourceTag;
 	const element = callElement(
 		context,
 		tag,
@@ -101,7 +108,7 @@ export function transformJsxSelfClosingElement(
 	}
 
 	const site = expressionJsx?.elements.get(expressionEmissionId(node) ?? '');
-	const tag = site?.reactiveTag
+	const sourceTag = site?.reactiveTag
 		? visitReactiveSinkExpression(
 				context,
 				node.tagName as ts.Expression,
@@ -110,6 +117,13 @@ export function transformJsxSelfClosingElement(
 				derivedReactiveLocals
 			)
 		: tagExpression(node.tagName);
+	const tag = site?.interop
+		? context.factory.createCallExpression(
+				context.factory.createIdentifier(helpers.interopComponent),
+				undefined,
+				[sourceTag]
+			)
+		: sourceTag;
 	const element = callElement(
 		context,
 		tag,

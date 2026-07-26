@@ -9,7 +9,7 @@ import { exactComponentDescriptorTransformer } from '../descriptor-transform.js'
 import { createExactCompilerExplanation } from '../explanation.js';
 import { analyzeExpressionComponents } from '../expression/analysis.js';
 import { analyzeExpressionDerived } from '../expression/derived.js';
-import { analyzeExpressionJsx } from '../expression/jsx.js';
+import { analyzeExpressionJsx, reactInteropFactoryCallEffects } from '../expression/jsx.js';
 import { analyzeExpressionTasks } from '../expression/task-analysis.js';
 import { analyzeExpressionWrites } from '../expression/writes.js';
 import { collectExpressionImportedComponents } from '../imports.js';
@@ -94,6 +94,7 @@ export function transformSource(source: string, options: TransformOptions = {}):
 		session: options.session,
 		importedManifests,
 		target,
+		jsxInterop: options.jsxInterop,
 		assetRules: options.assetRules,
 		pluginRegistry: options.pluginRegistry,
 		generatedValidation: options.generatedValidation,
@@ -107,6 +108,10 @@ export function transformSource(source: string, options: TransformOptions = {}):
 	const expressionWrites = analyzeExpressionWrites(expressionModule);
 	const moduleImports = analyzeModuleImports(normalized, filename, options.assetRules);
 	const policyMetadata = analyzeExactPolicyMetadata(expressionModule, importedManifests);
+	const knownCallEffects = new Map([
+		...reactInteropFactoryCallEffects(expressionModule, options.jsxInterop),
+		...policyMetadata.contextCallEffects
+	]);
 	const secretQualifications = createExactSecretQualificationPlan(expressionModule, policyMetadata);
 	const callableEffects = applyExactPolicyToCallables(
 		policyMetadata,
@@ -116,7 +121,7 @@ export function transformSource(source: string, options: TransformOptions = {}):
 			importedManifests,
 			expressionWrites,
 			moduleImports,
-			policyMetadata.contextCallEffects
+			knownCallEffects
 		)
 	).callables;
 	const provenance = buildExactProvenance(expressionModule, callableEffects.callEffects);
@@ -148,7 +153,12 @@ export function transformSource(source: string, options: TransformOptions = {}):
 	if (semanticErrors.length) {
 		throw new Error(semanticErrors.map((message) => `${filename} - ${message}`).join('\n'));
 	}
-	const expressionJsx = analyzeExpressionJsx(expressionModule, provenance, filename);
+	const expressionJsx = analyzeExpressionJsx(
+		expressionModule,
+		provenance,
+		filename,
+		options.jsxInterop
+	);
 	throwLocatedCompilerDiagnostics(filename, sourceFile, expressionJsx.diagnostics);
 	const expressionComponents = analyzeExpressionComponents(
 		expressionModule,
@@ -188,7 +198,8 @@ export function transformSource(source: string, options: TransformOptions = {}):
 			emissionComponentInfo,
 			callableEffects,
 			moduleImports,
-			options.preserveClientAssetImports ?? false
+			options.preserveClientAssetImports ?? false,
+			options.jsxInterop
 		),
 		exactComponentDescriptorTransformer(
 			manifest,

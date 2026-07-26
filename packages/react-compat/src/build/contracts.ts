@@ -83,9 +83,26 @@ export interface ReactCompatibilityBuildEngine {
 	readonly rewriteOptions: ModuleRewriteOptions;
 	readonly watchFiles: readonly string[];
 	readonly registryHash: string;
+	/** Positive native classifier and runtime adapter for native eXact JSX. */
+	readonly jsxInterop: ReactCompatibilityJsxInterop;
 	transformModule(input: ReactCompatibilityBuildInput): ReactCompatibilityTransformResult;
 	invalidate(file: string): void;
 	report(): ReactCompatibilityReport;
+}
+
+/** Matches the structural JSX interop contract accepted by the eXact compiler. */
+export interface ReactCompatibilityJsxInterop {
+	readonly adapterModule: '@exactjs/react-compat/exact';
+	readonly adapterExport: 'adaptReactComponent';
+	readonly cacheKey: string;
+	classify(candidate: {
+		readonly importer: string;
+		readonly sourceModule: string;
+		readonly localName: string;
+		readonly tagName: string;
+		readonly declarationSources: readonly string[];
+		readonly declarationSignatures: readonly string[];
+	}): 'exact' | 'component' | 'unknown' | 'ambiguous';
 }
 import type { ModuleRewriteOptions } from '@exactjs/expressions';
 import type { ResolvedReactCompatibility } from '../plugin.js';

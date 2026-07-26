@@ -83,7 +83,22 @@ describe('@exactjs/compiler: component values', () => {
 		);
 
 		expect(output).toContain('@exactjs/component-contract');
+		expect(output).toContain('@exactjs/component');
 		expect(output).toContain('__exactComponentImplementation');
 		expect(output).toContain('Object.assign');
+	});
+
+	it('brands an isomorphic component even when it has no generated artifact entries', () => {
+		const output = transform(
+			`import type { Component } from '@exactjs/core';
+			export function Badge(this: Component<{}>) {
+				return () => <small>native</small>;
+			}`,
+			{ filename: 'Badge.tsx', target: 'client' }
+		);
+
+		expect(output).toContain('@exactjs/component');
+		expect(output).toContain('Object.assign');
+		expect(output).toContain('export function Badge');
 	});
 });

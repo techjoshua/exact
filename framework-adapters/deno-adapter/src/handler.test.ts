@@ -5,6 +5,7 @@ import { createExactDenoHandler } from './index.js';
 describe('@exactjs/deno-adapter', () => {
 	it('handles Deno Fetch-compatible requests', async () => {
 		const handler = createExactDenoHandler({
+			publicOrigin: 'https://example.com',
 			contract: {
 				version: 1,
 				endpoint: '/__exact',

@@ -1,5 +1,5 @@
 import { build } from 'esbuild';
-import { transformReactJsx } from '../packages/compiler/dist/index.js';
+import { transformReactJsx } from '../packages/react-compat/dist/transform.js';
 
 for (const target of [18, 19]) {
 	const generated = transformReactJsx(
@@ -22,7 +22,11 @@ for (const target of [18, 19]) {
 	if (!inputs.some((file) => file.endsWith(`/react-compat/dist/jsx-runtime${target}.js`))) {
 		throw new Error(`React ${target} compatibility JSX runtime was not included in the bundle`);
 	}
-	if (result.outputFiles[0].text.includes('@exactjs/react-compat')) {
+	if (
+		/(?:from\s*|import\s*\()\s*["']@exactjs\/react-compat(?:\/|["'])/.test(
+			result.outputFiles[0].text
+		)
+	) {
 		throw new Error(`React ${target} compatibility imports remained external`);
 	}
 	console.log(`React ${target} automatic compiler output bundled ${inputs.length} modules`);

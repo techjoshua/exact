@@ -67,6 +67,25 @@ describe('@exactjs/vite-plugin: React compatibility', () => {
 		expect(packaged?.code).toContain('from "@exactjs/tanstack-query/react"');
 	});
 
+	it('renders a package React component directly from native eXact JSX', () => {
+		const cwd = path.resolve(import.meta.dirname, '../test-fixtures/adapter-app');
+		const plugin = exact({ reactCompatibility: { target: 18, cwd } });
+		const transformed = plugin.transform(
+			`/** @jsxImportSource @exactjs/jsx */
+			import type { Component } from "@exactjs/core";
+			import { QueryClientProvider } from "@tanstack/react-query";
+			function App(this: Component<{ client: object }>) {
+				return () => <QueryClientProvider client={this.state.client} />;
+			}`,
+			path.join(cwd, 'src', 'native.tsx')
+		)?.code;
+
+		expect(transformed).toContain('adaptReactComponent as __exactInteropComponent');
+		expect(transformed).toContain('__exactInteropComponent(QueryClientProvider)');
+		expect(transformed).toContain('client: __exactExpression(() => this.state.client)');
+		expect(transformed).not.toContain('jsx-runtime18');
+	});
+
 	it('matches the shared engine for prepackaged modules', () => {
 		const cwd = path.resolve(import.meta.dirname, '../test-fixtures/adapter-app');
 		const source =

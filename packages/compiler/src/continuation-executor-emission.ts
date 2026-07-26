@@ -27,18 +27,24 @@ export function createContinuationExecutorEmissions(
 	if (!component.body)
 		throw new Error(`Cannot emit continuations for bodyless component in ${filename}`);
 	const tasks = directComponentTasks(component);
-	if (tasks.length !== continuations.length) {
-		throw new Error(
-			`Cannot pair ${continuations.length} server continuations with ${tasks.length} emitted tasks in ${filename}`
-		);
-	}
 	const aliases = componentContextAliases(component);
-	return continuations.map((continuation, index) => {
-		const task = tasks[index]!;
-		const work = continuationTaskWork(task, continuation.id);
-		if (!work) {
-			throw new Error(`Cannot extract server continuation ${continuation.id} in ${filename}`);
+	return continuations.map((continuation) => {
+		const matches = tasks
+			.map((task) => ({ task, work: continuationTaskWork(task, continuation.id) }))
+			.filter(
+				(
+					candidate
+				): candidate is {
+					task: ts.CallExpression;
+					work: ts.ArrowFunction | ts.FunctionExpression;
+				} => candidate.work !== undefined
+			);
+		if (matches.length !== 1) {
+			throw new Error(
+				`Cannot uniquely extract server continuation ${continuation.id} from ${matches.length} emitted tasks in ${filename}`
+			);
 		}
+		const work = matches[0]!.work;
 		return Object.freeze({
 			id: continuation.id,
 			componentId: continuation.componentId,
@@ -75,7 +81,7 @@ function directComponentTasks(component: ts.FunctionLikeDeclaration): ts.CallExp
 		ts.forEachChild(node, visit);
 	};
 	visit(component.body!);
-	return tasks.sort((left, right) => left.getStart() - right.getStart());
+	return tasks;
 }
 
 type ContextAlias = Readonly<{

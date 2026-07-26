@@ -25,6 +25,7 @@
 	"types": "./dist/index.d.ts",
 	"dependencies": {
 		"@exactjs/compiler": "^0.1.0",
+		"@exactjs/react-compat": "^0.1.0",
 		"@exactjs/testing": "^0.1.0",
 		"typescript": "npm:@typescript/typescript6@^6.0.2"
 	},

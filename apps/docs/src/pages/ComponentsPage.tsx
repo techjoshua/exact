@@ -85,7 +85,10 @@ export function ComponentsPage(this: Component<{}>) {
 					Context is explicit and scoped to the component tree. A provider calls
 					<code>this.setContext()</code>; descendants call <code>this.getContext()</code> with the
 					same typed token. Reactive context values remain reactive, while tokens configured with
-					<code>reactive: false</code> preserve opaque service identity.
+					<code>reactive: false</code> preserve opaque service identity. When a provider is
+					optional, check <code>this.hasContext(token)</code> before calling
+					<code>this.getContext(token)</code>; this avoids hiding real lookup failures in a broad
+					<code>try/catch</code>.
 				</p>
 				<CodeBlock source={contextSource} language="tsx" title="ThemeContext.tsx" />
 			</section>

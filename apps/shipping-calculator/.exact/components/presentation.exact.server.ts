@@ -56,6 +56,7 @@ export function RouteMap(this: Component<{}>, props: {
         })(), "x7NDVeZjD3uJuqTW7jGvjz-")));
     };
 }
+Object.assign(RouteMap, { [Symbol.for("@exactjs/component")]: true });
 /** Performs the rate card domain operation. */
 export function RateCard(this: Component<{}>, props: {
     quote: RateQuote;
@@ -68,6 +69,7 @@ export function RateCard(this: Component<{}>, props: {
             ? 'Account'
             : 'Live', "x3SQ9HnUbhWCraCm4zA0Hom"))), __exactVNode("h3", { "data-exact-id": "x7lQ3Xlduu6efJX-QXscYIr" }, __exactDynamic(() => props.quote.serviceName, "xFJhG40q0ws9b2xAEOWf81U")))), __exactVNode("div", { "data-exact-id": "xmowQvgJmUBkqMAVoLY3OOP", className: "delivery" }, __exactVNode("small", { "data-exact-id": "xEseSXok8adt96TdL7ojZtp" }, "Estimated delivery"), __exactVNode("strong", { "data-exact-id": "xvpvzwu8F0i_umoWAMGcf_A" }, __exactDynamic(() => deliveryLabel(props.quote), "x1ikFQyGJlOtm6ox4QWE93t")), __exactDynamic(() => props.quote.delivery.guaranteed ? __exactVNode("span", { "data-exact-id": "xMYqYyl5edTd6FEtvnJ-rTn" }, "Guaranteed") : null, "xe0kAsElYvRIVwDtbfjgrZB")), __exactVNode("div", { "data-exact-id": "xhXxMLl4TCix_7a8Lnz6WYJ", className: "price" }, __exactVNode("small", { "data-exact-id": "xnq4kfT8a8zgZS5M7wRDPMK" }, "Total estimate"), __exactVNode("strong", { "data-exact-id": "xp7hCJyKA4Fkh9_2dP4IdLV" }, __exactDynamic(() => money(props.quote.totalPriceCents), "xjFZ3IRbqkGoDFCdkmiw7P8")), __exactDynamic(() => props.best ? __exactVNode("span", { "data-exact-id": "xva_2xdjIud1jvx5COrPXAF", className: "best" }, "Best value") : null, "xWy6HJS7GPVvlfJhURgh2Su"))), __exactVNode("div", { "data-exact-id": "xJgSKFG8z4IinREANcgv09X", className: "feature-row" }, __exactDynamic(() => props.quote.features.map((feature) => (__exactVNode(Feature, { feature: __exactExpression(() => feature) }))), "xTlxMa4hvOPOZZu7NXOuaUc")), __exactVNode("details", { "data-exact-id": "x2UaH5oJkMklCliaKKMlHP0", className: "breakdown" }, __exactVNode("summary", { "data-exact-id": "x8fgyuPCQTP92WcEVoKttkB" }, "Price details"), __exactVNode("dl", { "data-exact-id": "x39sigucqlArQr2CCV_pdC1" }, __exactDynamic(() => props.quote.charges.map((charge) => (__exactFragment({}, __exactVNode("dt", { "data-exact-id": "xER7LsBqZ2ZRht7aqYSS4ez" }, __exactDynamic(() => charge.name, "xojiTc5lYCXx8PdVssL_Zge")), __exactVNode("dd", { "data-exact-id": "xsF4zsiN0YmaQoCsu9mHAgB" }, __exactDynamic(() => money(charge.amountCents), "x2nS4K3CLj8CjQVRa00sVC_"))))), "xE_7CBzG6jCxRyb8IRHS4KU"))), __exactDynamic(() => this.map(props.quote.warnings, __exactItem_1 => __exactItem_1, (warning) => (__exactVNode("p", { "data-exact-id": "xHobkfxhRADLDF-qykhmfXI", className: "quote-warning" }, __exactDynamic(() => warning, "xvQLEKWb-s_u2HY4MVoMm5l"))), "xEaPzCGC2Yw1c-5NwCn4VmQ"), "xCrkydG56hw3tUsG42T-g_R")));
 }
+Object.assign(RateCard, { [Symbol.for("@exactjs/component")]: true });
 /** Performs the feature domain operation. */
 export function Feature(this: Component<{}>, props: {
     feature: ExtraService;
@@ -84,6 +86,7 @@ export function Feature(this: Component<{}>, props: {
             ? ' included'
             : '', "xTJjgqxyzxQGYMrfc_laYsw")));
 }
+Object.assign(Feature, { [Symbol.for("@exactjs/component")]: true });
 /** Performs the capitalize domain operation. */
 export function capitalize(value: string): string {
     return value.charAt(0).toUpperCase() + value.slice(1);

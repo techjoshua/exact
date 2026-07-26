@@ -103,7 +103,12 @@ async function readWorkspaces() {
 						...manifest.optionalDependencies
 					})
 				});
-			} catch {}
+			} catch (error) {
+				if (error?.code === 'ENOENT') continue;
+				throw new Error(`Unable to read workspace manifest ${directory}/package.json`, {
+					cause: error
+				});
+			}
 		}
 	}
 	return workspaces.sort((left, right) => right.directory.length - left.directory.length);

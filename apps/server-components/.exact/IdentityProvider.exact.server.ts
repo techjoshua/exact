@@ -83,6 +83,7 @@ export function ServerIdentityProjection(this: Component<{
             }
         })) }));
 }
+Object.assign(ServerIdentityProjection, { [Symbol.for("@exactjs/component")]: true });
 /**
  * Reconstructs public context methods from plain state during both SSR and
  * hydration. This context remains component-tree scoped.
@@ -109,9 +110,11 @@ export function IdentityProvider(this: Component<{
     this.setContext(BrandContext, brand.get());
     return () => props.children ?? __exactVNode(IdentitySummary, {});
 }
+Object.assign(IdentityProvider, { [Symbol.for("@exactjs/component")]: true });
 /** Performs the identity summary domain operation. */
 export function IdentitySummary(this: Component<Record<string, never>>) {
     const authorization = this.getContext(AuthorizationContext);
     const brand = this.getContext(BrandContext);
     return () => (__exactVNode("button", { "data-exact-id": "xIrMXn9l9qpxy-0CWHBPPL6", "data-brand": __exactExpression(() => brand.name()), "data-accent": __exactExpression(() => brand.accent()), "data-editor": __exactExpression(() => authorization.hasRole('editor') ? 'true' : 'false') }, __exactDynamic(() => brand.name(), "xo60leiF3LuiZwniWkUKuZd"), ":", __exactDynamic(() => authorization.hasRole('editor') ? 'editor' : 'viewer', "xk7W_9JNvDZyK8H_cT5y_mm")));
 }
+Object.assign(IdentitySummary, { [Symbol.for("@exactjs/component")]: true });

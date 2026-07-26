@@ -1,10 +1,17 @@
-import { ServerSlot, type Child, type ComponentInstance, type VNode } from '@exactjs/core';
+import {
+	ServerSlot,
+	attachSuppressedCleanupFailure,
+	type Child,
+	type ComponentInstance,
+	type VNode
+} from '@exactjs/core';
 import { type EffectScope } from '@exactjs/reactive';
 import { childToVNode } from '../../children.js';
 import { placeMountedBefore } from '../../placement.js';
 import { adoptServerSlot } from '../../server-slots.js';
 import type { Mounted, Root } from '../../types.js';
 import { countDomWork } from '../limits.js';
+import { disposeMounted } from '../teardown.js';
 import { mount } from './root.js';
 
 /** Performs the mount detached children domain operation. */
@@ -17,15 +24,20 @@ export function mountDetachedChildren(
 ): Mounted[] {
 	assertUniqueChildKeys(children);
 	const mounted: Mounted[] = [];
-	for (const child of children) {
-		const vnode = childToVNode(child);
-		if (!vnode) {
-			countDomWork(root);
-			continue;
+	try {
+		for (const child of children) {
+			const vnode = childToVNode(child);
+			if (!vnode) {
+				countDomWork(root);
+				continue;
+			}
+			mounted.push(mount(root, vnode, parentInstance, parentScope, parentNode));
 		}
-		mounted.push(mount(root, vnode, parentInstance, parentScope, parentNode));
+		return mounted;
+	} catch (error) {
+		rollbackMountedChildren(mounted, undefined, error);
+		throw error;
 	}
-	return mounted;
 }
 
 /** Performs the portal target domain operation. */
@@ -61,18 +73,45 @@ export function mountChildren(
 ): Mounted[] {
 	assertUniqueChildKeys(children);
 	const mounted: Mounted[] = [];
-	for (const child of children) {
-		const vnode = childToVNode(child);
-		if (!vnode) {
-			countDomWork(root);
-			continue;
+	try {
+		for (const child of children) {
+			const vnode = childToVNode(child);
+			if (!vnode) {
+				countDomWork(root);
+				continue;
+			}
+			const childMounted = mount(root, vnode, parentInstance, parentScope, parent);
+			if (vnode.type === ServerSlot) adoptServerSlot(parent, childMounted);
+			mounted.push(childMounted);
+			placeMountedBefore(root, parent, childMounted, null);
 		}
-		const childMounted = mount(root, vnode, parentInstance, parentScope, parent);
-		if (vnode.type === ServerSlot) adoptServerSlot(parent, childMounted);
-		mounted.push(childMounted);
-		placeMountedBefore(root, parent, childMounted, null);
+		return mounted;
+	} catch (error) {
+		rollbackMountedChildren(mounted, parent, error);
+		throw error;
 	}
-	return mounted;
+}
+
+/**
+ * Rolls back provisional children in reverse ownership order.
+ *
+ * Detached roots use a temporary parent only as the traversal origin; portal
+ * descendants still remove themselves from their actual portal targets.
+ */
+function rollbackMountedChildren(
+	mounted: readonly Mounted[],
+	parent: Node | undefined,
+	primary: unknown
+): void {
+	for (let index = mounted.length - 1; index >= 0; index--) {
+		const child = mounted[index]!;
+		const removalParent = parent ?? child.dom.parentNode ?? document.createDocumentFragment();
+		try {
+			disposeMounted(removalParent, child);
+		} catch (cleanup) {
+			attachSuppressedCleanupFailure(primary, cleanup);
+		}
+	}
 }
 
 /** Validates unique child keys and throws when the contract is violated. */

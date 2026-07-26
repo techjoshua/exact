@@ -5,6 +5,7 @@ import { createExactBunHandler } from './index.js';
 describe('@exactjs/bun-adapter', () => {
 	it('handles Bun Fetch-compatible requests', async () => {
 		const handler = createExactBunHandler({
+			publicOrigin: 'https://example.com',
 			contract: {
 				version: 1,
 				endpoint: '/__exact',

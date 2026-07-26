@@ -2,10 +2,19 @@ import { describe, expect, it } from 'vitest';
 import {
 	composeExactComponentContracts,
 	exactComponentContract,
+	isExactComponent,
+	markExactComponent,
 	readExactComponentContract
 } from './component-contracts.js';
 
 describe('@exactjs/core component contracts', () => {
+	it('brands native library components without inventing an executable contract', () => {
+		const Component = markExactComponent(function Component() {});
+
+		expect(isExactComponent(Component)).toBe(true);
+		expect(readExactComponentContract(Component)).toBeUndefined();
+	});
+
 	it('reads and composes target-local executable contracts', () => {
 		const island = () => undefined;
 		const component = Object.assign(() => undefined, {

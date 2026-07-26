@@ -161,16 +161,19 @@ describe('@exactjs/core lifecycle', () => {
 		expect(instance.state.errors[0]).toMatchObject({ source: 'reactive', phase: 'watch' });
 	});
 
-	it('stops tasks when construction fails', () => {
-		const cleanup = vi.fn();
+	it('runs normal lifecycle cleanup when construction fails', () => {
+		const taskCleanup = vi.fn();
+		const unmountCleanup = vi.fn();
 
 		expect(() =>
 			createComponentInstance(function Broken(this: Component<{}>) {
-				this.task(() => cleanup);
+				this.task(() => taskCleanup);
+				this.onUnmount(unmountCleanup);
 				throw new Error('construct failed');
 			}, {})
 		).toThrow('construct failed');
 
-		expect(cleanup).toHaveBeenCalledTimes(1);
+		expect(taskCleanup).toHaveBeenCalledTimes(1);
+		expect(unmountCleanup).toHaveBeenCalledTimes(1);
 	});
 });

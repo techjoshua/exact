@@ -209,6 +209,13 @@ describe('@exactjs/webpack-plugin', () => {
 				{ reactCompatibility: { target: 19 } }
 			)?.code
 		).toContain('@exactjs/react-compat/jsx-runtime19');
+		expect(
+			transformExactWebpackSource(
+				'/** @jsxImportSource @exactjs/jsx */\nimport { Suspense } from "react"; function View() { return () => <Suspense fallback="wait" />; }',
+				path.resolve(process.cwd(), 'src/direct-react.tsx'),
+				{ reactCompatibility: { target: 19 } }
+			)?.code
+		).toContain('adaptReactComponent as __exactInteropComponent');
 	});
 
 	it('rewrites exact facade requests through Webpack resolver hooks', () => {

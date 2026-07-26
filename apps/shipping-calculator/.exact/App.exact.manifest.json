@@ -146,7 +146,7 @@
           "path": [
             "ShippingCalculatorPage",
             "configuredProviderIds",
-            "<function@1301>",
+            "<function@1335>",
             "provider.configured"
           ]
         }
@@ -167,7 +167,7 @@
           "path": [
             "ShippingCalculatorPage",
             "configuredProviderIds",
-            "<function@1301>",
+            "<function@1335>",
             "provider.configured"
           ]
         }
@@ -250,7 +250,7 @@
           "description": "interactive JSX",
           "path": [
             "CalculatorWorkspace",
-            "<function@3249>",
+            "<function@4198>",
             "renderWorkspace",
             "interactive JSX"
           ]
@@ -260,7 +260,7 @@
           "description": "checked",
           "path": [
             "CalculatorWorkspace",
-            "<function@3249>",
+            "<function@4198>",
             "renderWorkspace",
             "checked"
           ]
@@ -270,7 +270,7 @@
           "description": "select",
           "path": [
             "CalculatorWorkspace",
-            "<function@3249>",
+            "<function@4198>",
             "renderWorkspace",
             "select"
           ]
@@ -280,7 +280,7 @@
           "description": "text",
           "path": [
             "CalculatorWorkspace",
-            "<function@3249>",
+            "<function@4198>",
             "renderWorkspace",
             "text"
           ]
@@ -292,7 +292,7 @@
           "description": "interactive JSX",
           "path": [
             "CalculatorWorkspace",
-            "<function@3249>",
+            "<function@4198>",
             "renderWorkspace",
             "interactive JSX"
           ]
@@ -302,7 +302,7 @@
           "description": "checked",
           "path": [
             "CalculatorWorkspace",
-            "<function@3249>",
+            "<function@4198>",
             "renderWorkspace",
             "checked"
           ]
@@ -312,7 +312,7 @@
           "description": "select",
           "path": [
             "CalculatorWorkspace",
-            "<function@3249>",
+            "<function@4198>",
             "renderWorkspace",
             "select"
           ]
@@ -322,7 +322,7 @@
           "description": "text",
           "path": [
             "CalculatorWorkspace",
-            "<function@3249>",
+            "<function@4198>",
             "renderWorkspace",
             "text"
           ]

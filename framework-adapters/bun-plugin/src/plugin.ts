@@ -21,6 +21,10 @@ import {
 import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import { prepareExactPluginRegistry } from '@exactjs/plugin-host/node';
 import {
+	createReactCompatibilityBuildEngine,
+	type ReactCompatibilityBuildEngine
+} from '@exactjs/react-compat/build';
+import {
 	jsxSourceOwnership,
 	resolveReactCompatibility,
 	validateInstalledReactReconciler,
@@ -54,6 +58,10 @@ export type ExactBunPluginOptions = {
 export type ExactBunProfileEvent = ExactProfileEvent<'bun-plugin', 'transform'>;
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
+const bunCompatibilityEngines = new WeakMap<
+	ExactCompilerSession,
+	Map<string, ReactCompatibilityBuildEngine>
+>();
 
 /** Defines the bun build like type contract. */
 export type BunBuildLike = {
@@ -244,6 +252,10 @@ export function transformExactBunSource(
 	const profileStarted = options.onProfile ? profileTimestamp() : undefined;
 	try {
 		const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
+		const compatibilityEngine = reactCompatibility
+			? bunCompatibilityEngine(options, session, reactCompatibility.target)
+			: undefined;
+		compatibilityEngine?.invalidate(filename);
 		const ownership = jsxSourceOwnership(filename, source, reactCompatibility);
 		const reactOwned =
 			ownership === 'react' ||
@@ -265,7 +277,8 @@ export function transformExactBunSource(
 			sourceMap: options.sourceMap ?? true,
 			assetRules: options.assetRules,
 			preserveClientAssetImports: true,
-			pluginRegistry: options.pluginRegistry
+			pluginRegistry: options.pluginRegistry,
+			jsxInterop: compatibilityEngine?.jsxInterop
 		});
 		return {
 			code: result.code,
@@ -286,6 +299,36 @@ export function transformExactBunSource(
 			);
 		}
 	}
+}
+
+function bunCompatibilityEngine(
+	options: ExactBunPluginOptions,
+	session: ExactCompilerSession | undefined,
+	target: 18 | 19
+): ReactCompatibilityBuildEngine {
+	const configured =
+		typeof options.reactCompatibility === 'object'
+			? options.reactCompatibility
+			: { target, cwd: options.applicationRoot ?? process.cwd() };
+	if (!session) return createReactCompatibilityBuildEngine(configured);
+	const key = JSON.stringify([
+		target,
+		configured.cwd ?? '',
+		configured.source instanceof RegExp
+			? [configured.source.source, configured.source.flags]
+			: (configured.source ?? '')
+	]);
+	let engines = bunCompatibilityEngines.get(session);
+	if (!engines) {
+		engines = new Map();
+		bunCompatibilityEngines.set(session, engines);
+	}
+	let engine = engines.get(key);
+	if (!engine) {
+		engine = createReactCompatibilityBuildEngine(configured);
+		engines.set(key, engine);
+	}
+	return engine;
 }
 
 function importedManifestsFor(options: {

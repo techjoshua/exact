@@ -25,8 +25,8 @@ export function envelopeReactRef(ref: unknown): ReactRefEnvelope {
 
 /** Reads a react ref from its source representation. */
 export function readReactRef(value: unknown): unknown {
-	const envelope = unwrap(value) as ReactRefEnvelope | undefined;
-	return envelope?.value;
+	const candidate = unwrap(value);
+	return candidate instanceof ReactRefEnvelope ? candidate.value : candidate;
 }
 
 /** Resolves a public React class instance to its eXact component owner. */

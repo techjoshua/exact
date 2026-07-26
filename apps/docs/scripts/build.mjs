@@ -3,6 +3,7 @@ import { exact } from '@exactjs/vite-plugin';
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { exactPluginOptions } from '../exact-options.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const buildRoot = join(root, '.build');
@@ -17,7 +18,7 @@ await build({
 	root,
 	base: './',
 	configFile: false,
-	plugins: [exact()],
+	plugins: [exact(exactPluginOptions)],
 	build: {
 		outDir: clientRoot,
 		emptyOutDir: true,
@@ -35,7 +36,7 @@ await build({
 await build({
 	root,
 	configFile: false,
-	plugins: [exact()],
+	plugins: [exact(exactPluginOptions)],
 	build: {
 		ssr: join(root, 'src/entry-server.tsx'),
 		outDir: serverRoot,

@@ -68,7 +68,8 @@ function createRewriteProgram(filename: string, normalized: string): RewriteProg
 
 /** Performs the path key domain operation. */
 export function pathKey(value: string): string {
-	return value.replaceAll('\\', '/').toLowerCase();
+	const normalized = value.replaceAll('\\', '/');
+	return ts.sys.useCaseSensitiveFileNames ? normalized : normalized.toLowerCase();
 }
 /** Performs the safe identifier domain operation. */
 export function safeIdentifier(value: string): string {

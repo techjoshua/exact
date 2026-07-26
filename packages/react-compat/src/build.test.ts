@@ -1,4 +1,6 @@
 import path from 'node:path';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { describe, expect, it } from 'vitest';
 import { createReactCompatibilityBuildEngine } from './build.js';
 
@@ -80,5 +82,106 @@ describe('React compatibility build engine', () => {
 				})
 			])
 		);
+	});
+
+	it('classifies package and configured local React component ownership without compiling them', () => {
+		const engine = createReactCompatibilityBuildEngine({
+			cwd: fixtureRoot,
+			target: 18,
+			source: /build\.test\.ts$/
+		});
+
+		expect(
+			engine.jsxInterop.classify({
+				importer: path.join(fixtureRoot, 'src', 'App.tsx'),
+				sourceModule: '@tanstack/react-query',
+				localName: 'QueryClientProvider',
+				tagName: 'QueryClientProvider',
+				declarationSources: [],
+				declarationSignatures: []
+			})
+		).toBe('component');
+		expect(
+			engine.jsxInterop.classify({
+				importer: path.join(fixtureRoot, 'src', 'App.tsx'),
+				sourceModule: './local-react.js',
+				localName: 'LocalReact',
+				tagName: 'LocalReact',
+				declarationSources: [path.join(import.meta.dirname, 'build.test.ts')],
+				declarationSignatures: []
+			})
+		).toBe('component');
+		expect(
+			engine.jsxInterop.classify({
+				importer: path.join(fixtureRoot, 'src', 'App.tsx'),
+				sourceModule: './local-exact.js',
+				localName: 'LocalExact',
+				tagName: 'LocalExact',
+				declarationSources: [
+					path.resolve(import.meta.dirname, '../../../apps/docs/src/demos/CounterDemo.tsx')
+				],
+				declarationSignatures: []
+			})
+		).toBe('exact');
+		expect(
+			engine.jsxInterop.classify({
+				importer: path.join(fixtureRoot, 'src', 'App.tsx'),
+				sourceModule: 'unclassified-components',
+				localName: 'Unknown',
+				tagName: 'Unknown',
+				declarationSources: [],
+				declarationSignatures: []
+			})
+		).toBe('unknown');
+		expect(
+			engine.jsxInterop.classify({
+				importer: path.join(fixtureRoot, 'src', 'App.tsx'),
+				sourceModule: 'mixed-components',
+				localName: 'ExactPanel',
+				tagName: 'ExactPanel',
+				declarationSources: [],
+				declarationSignatures: ['(this: Component<State>, props: Props) => () => JSX.Element']
+			})
+		).toBe('exact');
+		expect(
+			engine.jsxInterop.classify({
+				importer: path.join(fixtureRoot, 'src', 'App.tsx'),
+				sourceModule: 'mixed-components',
+				localName: 'ReactPanel',
+				tagName: 'ReactPanel',
+				declarationSources: [],
+				declarationSignatures: ['(props: Props) => ReactNode']
+			})
+		).toBe('component');
+	});
+
+	it('follows local static re-exports and fails closed for unresolved relative ownership', async () => {
+		const root = await mkdtemp(path.join(tmpdir(), 'exact-react-ownership-'));
+		const barrel = path.join(root, 'barrel.ts');
+		await writeFile(barrel, `export { Component as Widget } from 'react';`, 'utf8');
+		const engine = createReactCompatibilityBuildEngine({ cwd: fixtureRoot, target: 19 });
+		const importer = path.join(root, 'App.tsx');
+
+		expect(
+			engine.jsxInterop.classify({
+				importer,
+				sourceModule: './barrel',
+				localName: 'Widget',
+				tagName: 'Widget',
+				declarationSources: [barrel],
+				declarationSignatures: []
+			})
+		).toBe('component');
+		expect(
+			engine.jsxInterop.classify({
+				importer,
+				sourceModule: './missing',
+				localName: 'Unknown',
+				tagName: 'Unknown',
+				declarationSources: [],
+				declarationSignatures: []
+			})
+		).toBe('unknown');
+		expect(engine.watchFiles).toContain(barrel);
 	});
 });

@@ -1,4 +1,10 @@
-import { decodeExactMarkerPart, encodeExactMarkerPart, sanitizeUrlAttribute } from '@exactjs/core';
+import {
+	UnsafeHtml,
+	decodeExactMarkerPart,
+	encodeExactMarkerPart,
+	isVNode,
+	sanitizeUrlAttribute
+} from '@exactjs/core';
 import { unwrap } from '@exactjs/reactive';
 import { escapeAttr, escapeAttrName } from './html.js';
 import type { SsrContext } from './types.js';
@@ -7,7 +13,8 @@ import type { SsrContext } from './types.js';
 export function renderAttrs(
 	props: Record<string, unknown>,
 	reactMarkup: boolean | 18 | 19 = false,
-	tag?: string
+	tag?: string,
+	context?: Pick<SsrContext, 'allowUnsafeHtml' | 'onUnsafeHtml'>
 ): string {
 	let attrs = '';
 	const customElement = !!reactMarkup && !!tag?.includes('-');
@@ -36,7 +43,10 @@ export function renderAttrs(
 		)
 			continue;
 		if (reactMarkup && tag === 'option' && name === 'children') continue;
-		const unwrapped = unwrap(rawValue);
+		const unwrapped =
+			!reactMarkup && (name === 'srcdoc' || name === 'srcDoc')
+				? unsafeHtmlAttribute(rawValue, context)
+				: unwrap(rawValue);
 		const normalized =
 			name === 'value' && tag === 'input' && props.type === 'date' && unwrapped instanceof Date
 				? Number.isNaN(unwrapped.getTime())
@@ -67,6 +77,26 @@ export function renderAttrs(
 		attrs += ` ${escapeAttrName(attrName)}="${escapeAttr(String(value))}"`;
 	}
 	return attrs;
+}
+
+function unsafeHtmlAttribute(
+	value: unknown,
+	context: Pick<SsrContext, 'allowUnsafeHtml' | 'onUnsafeHtml'> | undefined
+): string {
+	const candidate = unwrap(value);
+	if (!isVNode(candidate) || candidate.type !== UnsafeHtml) {
+		throw new Error(
+			'Native eXact iframe srcdoc requires unsafeHtml() and explicit allowUnsafeHtml root opt-in.'
+		);
+	}
+	if (!context?.allowUnsafeHtml) {
+		throw new Error(
+			'unsafeHtml() used for iframe srcdoc requires allowUnsafeHtml: true on the native eXact SSR root.'
+		);
+	}
+	const html = String(unwrap(candidate.props.value) ?? '');
+	context.onUnsafeHtml?.({ characters: html.length });
+	return html;
 }
 
 function nativeAttributeName(name: string, tag: string | undefined): string {

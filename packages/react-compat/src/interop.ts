@@ -55,6 +55,22 @@ export function exposeExactComponent<
 	State extends object = Record<string, unknown>
 >(
 	component: ComponentFunction<State, P>,
+	displayName: string,
+	options: Readonly<{ refProp: keyof P }>
+): ReactComponentType<P & { ref?: ReactRef<unknown> }>;
+export function exposeExactComponent<
+	P extends object,
+	State extends object = Record<string, unknown>
+>(
+	component: ComponentFunction<State, P>,
+	displayName?: string,
+	options?: Readonly<{ refProp?: undefined }>
+): ReactComponentType<P>;
+export function exposeExactComponent<
+	P extends object,
+	State extends object = Record<string, unknown>
+>(
+	component: ComponentFunction<State, P>,
 	displayName = component.name || 'Anonymous',
 	options: Readonly<{ refProp?: keyof P }> = {}
 ): ReactComponentType<P> {

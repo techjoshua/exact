@@ -103,6 +103,21 @@ function resolveExpression(
 			dynamic: true
 		});
 	}
+	if (expression.node.kind === 'CallExpression') {
+		const target = expression.target;
+		const targetVariable = target?.rootVariable;
+		const wrapper = target?.name ?? targetVariable?.name;
+		if (
+			targetVariable?.importedFrom === 'react' &&
+			(wrapper === 'memo' || wrapper === 'forwardRef' || wrapper === 'lazy')
+		) {
+			if (wrapper === 'memo' && expression.arguments[0]) {
+				const wrapped = resolveExpression(module, expression.arguments[0], ownName, resolving);
+				if (wrapped) return wrapped;
+			}
+			return Object.freeze({ targets: Object.freeze([ownName]), dynamic: false });
+		}
+	}
 	if (expression.node.kind !== 'Identifier' && expression.node.kind !== 'PropertyAccessExpression')
 		return undefined;
 	const target = expression.rootVariable;

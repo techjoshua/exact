@@ -5,6 +5,24 @@ import { describe, expect, it } from 'vitest';
 import { bundlers, createExactApp, runtimes } from './project-generation.js';
 
 describe('create-exact-app', () => {
+	it('rejects an unknown package manager before creating the target', async () => {
+		const root = await mkdtemp(path.join(tmpdir(), 'create-exact-app-invalid-manager-'));
+		const target = path.join(root, 'sample');
+
+		await expect(
+			createExactApp({
+				directory: target,
+				name: 'sample',
+				bundler: 'vite',
+				runtime: 'browser',
+				testRunner: 'none',
+				skill: false,
+				install: true,
+				packageManager: 'npm & unwanted-command' as 'npm'
+			})
+		).rejects.toThrow('Unsupported package manager');
+	});
+
 	it('creates a Vite and Vitest browser application with the Agent Skill', async () => {
 		const root = await mkdtemp(path.join(tmpdir(), 'create-exact-app-'));
 		const target = path.join(root, 'sample');
@@ -43,6 +61,28 @@ describe('create-exact-app', () => {
 		expect(manifest.dependencies).toHaveProperty('@exactjs/hapi-adapter');
 		expect(manifest.devDependencies).toHaveProperty('@exactjs/jest');
 		expect(await readFile(path.join(target, 'src/server.ts'), 'utf8')).toContain('exactHapiPlugin');
+	});
+
+	it('configures a selected React compatibility target for build and type checking', async () => {
+		const root = await mkdtemp(path.join(tmpdir(), 'create-exact-app-react-'));
+		const target = path.join(root, 'react');
+		await createExactApp({
+			directory: target,
+			name: 'react-interop-app',
+			bundler: 'vite',
+			runtime: 'browser',
+			testRunner: 'vitest',
+			skill: false,
+			reactCompatibility: 19
+		});
+
+		const manifest = JSON.parse(await readFile(path.join(target, 'package.json'), 'utf8'));
+		const config = await readFile(path.join(target, 'vite.config.ts'), 'utf8');
+		const tsconfig = JSON.parse(await readFile(path.join(target, 'tsconfig.json'), 'utf8'));
+		expect(manifest.dependencies).toHaveProperty('@exactjs/react-compat');
+		expect(manifest.devDependencies.react).toBe('^19.2.0');
+		expect(config).toContain('reactCompatibility: { target: 19 }');
+		expect(tsconfig.compilerOptions.types).toContain('@exactjs/react-compat/types19');
 	});
 
 	it('creates native Bun component tests with the eXact preload', async () => {

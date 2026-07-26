@@ -12,6 +12,7 @@ The CLI asks for:
 - Browser-only, Fetch, Node, Express, Fastify, Hapi, Koa, Bun, Deno, Cloudflare, or generic
   serverless runtime wiring
 - Vitest, Jest, Bun's native test runner, or no test runner
+- Optional React 18 or React 19 component compatibility
 - Optional installation of the portable eXact Agent Skill in `.agents/skills`
 - Optional dependency installation
 
@@ -22,6 +23,7 @@ npm create @exactjs/exact-app@latest my-app -- \
 	--bundler vite \
 	--runtime hapi \
 	--test-runner vitest \
+	--react 19 \
 	--skill \
 	--no-install
 ```

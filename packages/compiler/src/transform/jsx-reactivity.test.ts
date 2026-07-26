@@ -3,6 +3,149 @@ import { describe, expect, it } from 'vitest';
 import { transform } from '../index.js';
 
 describe('@exactjs/compiler: JSX reactivity', () => {
+	it('lowers imported components through the configured runtime adapter', () => {
+		const output = transform(
+			`import { Widget } from 'react-widget';
+			declare class Component<S> { state: S }
+			function View(this: Component<{ count: number }>) {
+				return () => <Widget value={this.state.count} />;
+			}`,
+			{
+				filename: 'ReactWidget.tsx',
+				jsxInterop: {
+					adapterModule: '@exactjs/react-compat/exact',
+					adapterExport: 'adaptReactComponent',
+					cacheKey: 'react:19:test',
+					classify: ({ sourceModule }) =>
+						sourceModule === 'react-widget' ? 'component' : 'unknown'
+				}
+			}
+		);
+
+		expect(output).toContain(
+			'import { adaptReactComponent as __exactInteropComponent } from "@exactjs/react-compat/exact"'
+		);
+		expect(output).toContain('__exactVNode(__exactInteropComponent(Widget)');
+		expect(output).toContain('value: __exactExpression(() => this.state.count)');
+	});
+
+	it('routes imported components through the runtime brand check regardless of inferred ownership', () => {
+		const source =
+			'import { Widget } from "component-package"; function View() { return () => <Widget />; }';
+		const jsxInterop = {
+			adapterModule: '@exactjs/react-compat/exact',
+			adapterExport: 'adaptReactComponent',
+			cacheKey: 'react:19:test',
+			classify: () => 'exact' as const
+		};
+
+		expect(transform(source, { filename: 'NativeWidget.tsx', jsxInterop })).toContain(
+			'__exactInteropComponent(Widget)'
+		);
+		expect(
+			transform(source, {
+				filename: 'UnknownWidget.tsx',
+				jsxInterop: { ...jsxInterop, classify: () => 'unknown' as const }
+			})
+		).toContain('__exactInteropComponent(Widget)');
+	});
+
+	it('keeps positively known same-module eXact components direct', () => {
+		const output = transform(
+			`function NativePanel() {
+				return () => <section>native</section>;
+			}
+			const Alias = NativePanel;
+			function View() {
+				return () => <><NativePanel /><Alias /></>;
+			}`,
+			{
+				filename: 'LocalNative.tsx',
+				jsxInterop: {
+					adapterModule: '@exactjs/react-compat/exact',
+					adapterExport: 'adaptReactComponent',
+					cacheKey: 'react:19:test',
+					classify: () => 'component'
+				}
+			}
+		);
+
+		expect(output).not.toContain('__exactInteropComponent(NativePanel)');
+		expect(output).not.toContain('__exactInteropComponent(Alias)');
+	});
+
+	it('lowers default and namespace React imports without inspecting their implementations', () => {
+		const output = transform(
+			`import DefaultWidget from 'react-default';
+			import * as Widgets from 'react-widgets';
+			function View() {
+				return () => <><DefaultWidget /><Widgets.Panel /></>;
+			}`,
+			{
+				filename: 'ReactImports.tsx',
+				jsxInterop: {
+					adapterModule: '@exactjs/react-compat/exact',
+					adapterExport: 'adaptReactComponent',
+					cacheKey: 'react:19:test',
+					classify: ({ sourceModule }) =>
+						sourceModule.startsWith('react-') ? 'component' : 'unknown'
+				}
+			}
+		);
+
+		expect(output).toContain('__exactInteropComponent(DefaultWidget)');
+		expect(output).toContain('__exactInteropComponent(Widgets.Panel)');
+	});
+
+	it('follows imported ownership through safe local aliases and wrappers', () => {
+		const output = transform(
+			`import { memo } from 'react';
+			import { Widget } from 'react-widget';
+			const Alias = Widget;
+			const Wrapped = memo(Widget);
+			function View() {
+				return () => <><Alias /><Wrapped /></>;
+			}`,
+			{
+				filename: 'ReactAliases.tsx',
+				jsxInterop: {
+					adapterModule: '@exactjs/react-compat/exact',
+					adapterExport: 'adaptReactComponent',
+					cacheKey: 'react:19:test',
+					classify: ({ sourceModule }) =>
+						sourceModule === 'react' || sourceModule === 'react-widget' ? 'component' : 'unknown'
+				}
+			}
+		);
+
+		expect(output).toContain('__exactInteropComponent(Alias)');
+		expect(output).toContain('__exactInteropComponent(Wrapped)');
+	});
+
+	it('resolves a derived mixed component through the active compatibility adapter', () => {
+		const source = `import { Widget } from 'react-widget';
+			import { Native } from 'exact-widget';
+			const Selected = enabled ? Widget : Native;
+			function View() { return () => <Selected />; }`;
+
+		const output = transform(source, {
+			filename: 'MixedAlias.tsx',
+			jsxInterop: {
+				adapterModule: '@exactjs/react-compat/exact',
+				adapterExport: 'adaptReactComponent',
+				cacheKey: 'react:19:test',
+				classify: ({ sourceModule }) =>
+					sourceModule === 'react-widget'
+						? 'component'
+						: sourceModule === 'exact-widget'
+							? 'exact'
+							: 'unknown'
+			}
+		});
+
+		expect(output).toContain('__exactInteropComponent(Selected)');
+	});
+
 	it('lowers shorthand and underscore fragments', () => {
 		const output = transform('const view = <_ key={id}><span /></_>; const next = <>tail</>;');
 

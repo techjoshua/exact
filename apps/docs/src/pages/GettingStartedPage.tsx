@@ -33,7 +33,7 @@ export function GettingStartedPage(this: Component<{}>) {
 			eyebrow="Start here"
 			title="Create an eXact app"
 			description="The official scaffolder creates a working project with compatible public package versions, compiler integration, runtime wiring, tests, and optional agent guidance."
-			previous={{ path: '/', label: 'Introduction' }}
+			previous={{ path: '/story', label: 'The story behind eXact' }}
 			next={{ path: '/runtimes', label: 'Runtimes & integrations' }}
 		>
 			<section>

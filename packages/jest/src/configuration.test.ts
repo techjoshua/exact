@@ -9,7 +9,7 @@ describe('@exactjs/jest', () => {
 			testEnvironment: 'jest-environment-jsdom',
 			extensionsToTreatAsEsm: ['.ts', '.tsx'],
 			transform: {
-				'^.+\\.tsx?$': expect.stringMatching(/transformer\.js$/)
+				'^.+\\.tsx?$': [expect.stringMatching(/transformer\.js$/), {}]
 			},
 			moduleNameMapper: {
 				'^(\\.{1,2}/.*)\\.js$': '$1'
@@ -19,5 +19,14 @@ describe('@exactjs/jest', () => {
 
 	it('allows applications to retain their own test environment', () => {
 		expect(exactJest({ testEnvironment: false })).not.toHaveProperty('testEnvironment');
+	});
+
+	it('maps the selected React runtime and forwards compiler ownership options', () => {
+		const config = exactJest({ compiler: { reactCompatibility: { target: 19 } } });
+		expect(config.moduleNameMapper['^react$']).toBe('@exactjs/react-compat/react19');
+		expect(config.transform['^.+\\.tsx?$']).toEqual([
+			expect.stringMatching(/transformer\.js$/),
+			{ reactCompatibility: { target: 19 } }
+		]);
 	});
 });

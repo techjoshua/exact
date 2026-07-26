@@ -25,6 +25,13 @@ export type TransformOptions = {
 	explain?: boolean;
 	moduleRewrite?: ModuleRewriteOptions;
 	moduleTransform?: ModuleTransform;
+	/**
+	 * Optional host-owned JSX component interop. The compiler remains independent
+	 * of the foreign component runtime. Positively identified native eXact
+	 * components remain direct; every other component tag is emitted through the
+	 * one configured adapter, which performs the authoritative runtime brand check.
+	 */
+	jsxInterop?: ExactJsxInterop;
 	/** Serializable rules for imports handled as build assets. */
 	assetRules?: readonly ExactAssetRule[];
 	/** Keeps client asset edges for a host bundler to consume during server builds. */
@@ -51,6 +58,29 @@ export type TransformOptions = {
 			allowPackages?: readonly string[];
 		};
 	};
+};
+
+/** Describes an imported JSX component candidate to optional host interop analysis. */
+export type ExactJsxInteropCandidate = {
+	readonly importer: string;
+	readonly sourceModule: string;
+	readonly localName: string;
+	readonly tagName: string;
+	readonly declarationSources: readonly string[];
+	readonly declarationSignatures: readonly string[];
+};
+
+/** Configures lowering for one compatibility runtime. */
+export type ExactJsxInterop = {
+	readonly adapterModule: string;
+	readonly adapterExport: string;
+	readonly cacheKey: string;
+	/**
+	 * Retained for host diagnostics and compatibility analysis. Lowering does not
+	 * trust package ownership inference: cross-module eXact identity is determined
+	 * from the compiler-emitted runtime brand.
+	 */
+	classify(candidate: ExactJsxInteropCandidate): 'exact' | 'component' | 'unknown' | 'ambiguous';
 };
 
 /** Host-neutral final module pass applied after eXact lowering and before maps. */

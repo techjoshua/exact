@@ -27,6 +27,20 @@ type JsxType =
 	| typeof Fragment
 	| typeof Suspense;
 
+/**
+ * Extension point for compiler-supported foreign JSX component types.
+ *
+ * Runtime packages augment this registry only when their explicit type facade
+ * is referenced by an application.
+ */
+declare global {
+	/** Component types enabled by an explicitly referenced JSX interop facade. */
+	interface ExactJsxInteropElementTypeRegistry {}
+}
+
+type InteropElementType =
+	ExactJsxInteropElementTypeRegistry[keyof ExactJsxInteropElementTypeRegistry];
+
 /** Creates a vnode for the automatic JSX runtime's single-child entrypoint. */
 export function jsx<P extends Props>(
 	type: ComponentFunction<any, P> | AsyncComponentFunction<any, P>,
@@ -70,7 +84,7 @@ function createJsxVNode(type: JsxType, props: Props | null, key?: string): VNode
 	return createCellVNode(
 		createVNode(
 			type as ComponentFunction<any, any>,
-			normalizedKey ? { ...rest, key: normalizedKey } : rest,
+			normalizedKey !== undefined ? { ...rest, key: normalizedKey } : rest,
 			...childList
 		)
 	);
@@ -84,7 +98,8 @@ export namespace JSX {
 		| typeof Fragment
 		| typeof Suspense
 		| AsyncComponentFunction<any, any>
-		| ComponentFunction<any, any>;
+		| ComponentFunction<any, any>
+		| InteropElementType;
 	export type TargetedEvent<
 		TCurrentTarget extends EventTarget,
 		TEvent extends Event = Event

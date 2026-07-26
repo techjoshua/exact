@@ -39,9 +39,19 @@ export class ContextRuntime implements ExactContextRuntime {
 		const application = await this.applicationScope();
 		const lifetime = createRequestLifetime(request.signal, this.applicationAbort.signal);
 		const response: RequestResponseState = { headers: new Headers(), committed: false };
+		const configuredOrigin = this.configuration.publicOrigin;
+		const publicOrigin =
+			typeof configuredOrigin === 'function'
+				? configuredOrigin({
+						url: request.url,
+						headers: request.headers,
+						platformRequest
+					})
+				: configuredOrigin;
 		const requestValue = createRequestContextValue(
 			{
 				url: request.url,
+				...(publicOrigin === undefined ? {} : { publicOrigin }),
 				method: request.method,
 				headers: request.headers,
 				signal: lifetime.signal,

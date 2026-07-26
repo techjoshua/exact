@@ -1,4 +1,4 @@
-import type { Child, Component } from '@exactjs/core';
+import { markExactComponent, type Child, type Component } from '@exactjs/core';
 import type { RequestContextValue } from './contracts.js';
 import { getRequestContext } from './storage.js';
 import { RequestContext } from './value.js';
@@ -17,3 +17,5 @@ export function RequestProvider(this: Component<{}>, props: RequestProviderProps
 	this.setContext(RequestContext, value);
 	return () => props.children;
 }
+
+markExactComponent(RequestProvider);

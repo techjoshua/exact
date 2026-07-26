@@ -32,3 +32,10 @@ claiming modules that do not require an eXact transform.
 
 HTTP request handling is separate. Use `@exactjs/bun-adapter` with `Bun.serve()` for eXact server
 endpoints.
+
+Set `reactCompatibility: { target: 18 }` or `{ target: 19 }` to render imported or
+runtime-selected components directly from native eXact JSX. The compiler inserts a cached
+compatibility adapter; compiler-branded eXact components pass through unchanged while unbranded
+values use the active React layer. Bun redirects React runtime imports without eXact-compiling
+dependency implementations. Reference the matching `@exactjs/react-compat/types18` or `types19`
+facade for TypeScript.

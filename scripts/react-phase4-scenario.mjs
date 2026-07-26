@@ -1,11 +1,14 @@
+import { captureExpectedConsole } from './react-conformance/diagnostics.mjs';
+
 /** Collects stable observable Phase 4 class, boundary, PureComponent, and Profiler behavior. */
 export async function collectReactPhase4Trace({ React, ReactDOMClient, JSDOM, baseline }) {
 	const dom = new JSDOM('<!doctype html><div id="root"></div><div id="boundary"></div>', {
 		url: 'https://exact.invalid/'
 	});
 	const previousGlobals = installDomGlobals(dom.window);
-	const originalError = console.error;
-	console.error = () => {};
+	const diagnostics = captureExpectedConsole(`React ${baseline} phase 4`, [
+		/caught|<Broken>|error boundary/i
+	]);
 	const metrics = {
 		mounts: 0,
 		updates: 0,
@@ -136,9 +139,12 @@ export async function collectReactPhase4Trace({ React, ReactDOMClient, JSDOM, ba
 			}
 		};
 	} finally {
-		console.error = originalError;
-		restoreDomGlobals(previousGlobals);
-		dom.window.close();
+		try {
+			diagnostics.restoreAndAssert();
+		} finally {
+			restoreDomGlobals(previousGlobals);
+			dom.window.close();
+		}
 	}
 }
 

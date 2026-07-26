@@ -1,6 +1,8 @@
 import {
 	ErrorContext,
 	createErrorContext,
+	createVNode,
+	isExactComponent,
 	type Component,
 	type ComponentFunction,
 	type ComponentInstance
@@ -27,8 +29,8 @@ import {
 	type ClassLifecycles,
 	type ClassStatics
 } from './class-support.js';
-import { readReactRootRuntime, toExactNode } from './nodes.js';
-import { assignReactRef } from './refs.js';
+import { readReactRootRuntime, toExactNode, toReactNode } from './nodes.js';
+import { assignReactRef, readReactRef } from './refs.js';
 import { createFunctionAdapter } from './function-adapter.js';
 import {
 	markReactClassInstanceMounted,
@@ -36,7 +38,9 @@ import {
 } from './class-instances.js';
 import {
 	LegacyReactContext,
+	EXACT_COMPONENT_TYPE,
 	REACT_CLASS_UPDATER,
+	REACT_REF_PROP,
 	currentReactTransitionOwnership,
 	withReactTransitionOwnership,
 	type ReactTransitionOwnership
@@ -62,20 +66,60 @@ import { createOwnerFrame, enterReactOwnerScope, removeOwnerFrame } from '../int
 const adapterCache = new WeakMap<object, ComponentFunction<any, any>>();
 
 /** Performs the adapt react type domain operation. */
-export function adaptReactType(
-	type: ReactComponentType<any>
-): ComponentFunction<Record<string, unknown>, Record<string, unknown>> {
+export function adaptReactType<P>(
+	type: ReactComponentType<P> | ComponentFunction<any, P>
+): ComponentFunction<Record<string, unknown>, P> {
 	const identity = type as object;
 	const cached = adapterCache.get(identity);
-	if (cached) return cached;
-	if (isReactClassType(type)) {
-		const classAdapter = createClassAdapter(type);
-		adapterCache.set(identity, classAdapter);
-		return classAdapter;
+	if (cached) return cached as ComponentFunction<Record<string, unknown>, P>;
+	if (typeof type === 'function' && isExactComponent(type)) {
+		const component = type as ComponentFunction<Record<string, unknown>, P>;
+		adapterCache.set(identity, component);
+		return component;
 	}
-	const adapter = createFunctionAdapter(type);
+	const exactBoundary = type as ReactComponentType<P> & {
+		$$typeof?: unknown;
+		exactComponent?: unknown;
+		exactRefProp?: unknown;
+	};
+	if (
+		exactBoundary.$$typeof === EXACT_COMPONENT_TYPE &&
+		typeof exactBoundary.exactComponent === 'function'
+	) {
+		const component = exactBoundary.exactComponent as ComponentFunction<Record<string, unknown>, P>;
+		const refProp =
+			typeof exactBoundary.exactRefProp === 'string' ||
+			typeof exactBoundary.exactRefProp === 'symbol'
+				? exactBoundary.exactRefProp
+				: undefined;
+		if (refProp === undefined) {
+			adapterCache.set(identity, component);
+			return component;
+		}
+		const boundaryAdapter = function ExactCompatibilityNativeRefAdapter(
+			this: Component<Record<string, never>>,
+			props: Record<string, unknown>
+		) {
+			return () => {
+				const snapshot = { ...props };
+				const ref = readReactRef(snapshot[REACT_REF_PROP] ?? snapshot.ref);
+				delete snapshot[REACT_REF_PROP];
+				delete snapshot.ref;
+				Reflect.set(snapshot, refProp, ref);
+				return createVNode(component, snapshot);
+			};
+		} as ComponentFunction<Record<string, never>, Record<string, unknown>>;
+		adapterCache.set(identity, boundaryAdapter);
+		return boundaryAdapter as ComponentFunction<Record<string, unknown>, P>;
+	}
+	if (isReactClassType(type)) {
+		const classAdapter = createClassAdapter(type as ReactClassType<Record<string, unknown>>);
+		adapterCache.set(identity, classAdapter);
+		return classAdapter as ComponentFunction<Record<string, unknown>, P>;
+	}
+	const adapter = createFunctionAdapter(type as ReactComponentType<any>);
 	adapterCache.set(identity, adapter);
-	return adapter;
+	return adapter as ComponentFunction<Record<string, unknown>, P>;
 }
 
 function createClassAdapter(
@@ -89,6 +133,8 @@ function createClassAdapter(
 		this.state.__reactRevision = 0;
 		const statics = type as ReactClassType<Record<string, unknown>> & ClassStatics;
 		const initialSnapshot = classProps(reactiveProps);
+		if ('children' in initialSnapshot.props)
+			initialSnapshot.props.children = toReactNode(initialSnapshot.props.children);
 		let currentRef = initialSnapshot.ref;
 		const initialContext = readClassContext(this, statics.contextType, statics.contextTypes);
 		const publicInstance = new type(initialSnapshot.props, initialContext) as ReactClassInstance<
@@ -256,6 +302,8 @@ function createClassAdapter(
 			const restoreOwnerScope = enterReactOwnerScope(this, ownerFrame);
 			try {
 				const nextSnapshot = classProps(reactiveProps);
+				if ('children' in nextSnapshot.props)
+					nextSnapshot.props.children = toReactNode(nextSnapshot.props.children);
 				const nextContext = readClassContext(this, statics.contextType, statics.contextTypes);
 				const firstRender = constructing;
 				const previousProps = committedProps;

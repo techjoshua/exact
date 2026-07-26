@@ -31,3 +31,8 @@ module deliberately written to satisfy normal application-module placement rules
 
 Use `target: "server"` for server artifacts, `serverComponents: true` for split server-component
 builds, and `reactCompatibility` only when the application intentionally consumes React packages.
+With compatibility enabled, imported and runtime-selected components can be rendered directly
+from native eXact JSX. The compiler inserts the adapter without compiling dependency
+implementations from `node_modules`; compiler-branded eXact components pass through unchanged and
+unbranded values use the active React layer. Reference the matching
+`@exactjs/react-compat/types18` or `types19` facade in the application TypeScript configuration.

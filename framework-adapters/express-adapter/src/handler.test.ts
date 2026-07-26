@@ -5,6 +5,7 @@ import { createExactExpressMiddleware, type ExactExpressResponse } from './index
 describe('@exactjs/express-adapter', () => {
 	it('writes eXact responses through Express response methods', async () => {
 		const middleware = createExactExpressMiddleware({
+			publicOrigin: 'http://express.example.test',
 			contract: {
 				version: 1,
 				endpoint: '/__exact',

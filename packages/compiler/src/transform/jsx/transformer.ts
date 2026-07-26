@@ -20,6 +20,7 @@ import { componentPlacementsFromInfo } from '../../placement.js';
 import type {
 	ExactContinuationIR,
 	ExactImportedComponentIR,
+	ExactJsxInterop,
 	ExactSemanticGraphIR,
 	TransformTarget
 } from '../../types.js';
@@ -72,7 +73,8 @@ export function exactJsxTransformer(
 	componentInfo: Map<string, ExactImportedComponentIR>,
 	callableEffects: CallableEffectPlan,
 	moduleImports: ExactModuleImportPlan,
-	preserveClientAssetImports: boolean
+	preserveClientAssetImports: boolean,
+	jsxInterop?: ExactJsxInterop
 ): ts.TransformerFactory<ts.SourceFile> {
 	return (context) => (sourceFile) => {
 		sourceIdentityFilenames.set(sourceFile, identityFilename);
@@ -387,7 +389,8 @@ export function exactJsxTransformer(
 			state,
 			target,
 			componentPlacements,
-			semanticGraph
+			semanticGraph,
+			jsxInterop
 		);
 	};
 }

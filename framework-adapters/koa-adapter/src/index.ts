@@ -1,4 +1,11 @@
-import { handleExactRequest, type ExactServerContext } from '@exactjs/server';
+import {
+	cleanupAdapterPreservingPrimary,
+	createAdapterLifetime,
+	handleExactRequest,
+	withAdapterStreamCleanup,
+	type ExactDisconnectSource,
+	type ExactServerContext
+} from '@exactjs/server';
 
 /** Carries the context required by exact koa. */
 export type ExactKoaContext = {
@@ -8,7 +15,10 @@ export type ExactKoaContext = {
 	request: {
 		body?: unknown;
 		rawBody?: string;
+		signal?: AbortSignal;
 	};
+	req?: ExactDisconnectSource;
+	res?: ExactDisconnectSource;
 	status: number;
 	body: unknown;
 	set(name: string, value: string): void;
@@ -22,24 +32,42 @@ export function createExactKoaMiddleware(
 	context: ExactServerContext
 ): (ctx: ExactKoaContext, next?: ExactKoaNext) => Promise<void> {
 	return async (ctx, next) => {
-		const result = await handleExactRequest(
-			{
-				method: ctx.method,
-				url: ctx.url,
-				headers: ctx.headers,
-				body: ctx.request.body,
-				text: ctx.request.rawBody === undefined ? undefined : async () => ctx.request.rawBody!,
-				platformRequest: ctx
-			},
-			context
+		const lifetime = createAdapterLifetime(
+			[
+				...(ctx.req ? ([[ctx.req, 'aborted']] as const) : []),
+				...(ctx.res ? ([[ctx.res, 'close']] as const) : [])
+			],
+			ctx.request.signal
 		);
+		let result: Awaited<ReturnType<typeof handleExactRequest>>;
+		try {
+			result = await handleExactRequest(
+				{
+					method: ctx.method,
+					url: ctx.url,
+					headers: ctx.headers,
+					body: ctx.request.body,
+					text: ctx.request.rawBody === undefined ? undefined : async () => ctx.request.rawBody!,
+					signal: lifetime.signal,
+					platformRequest: ctx
+				},
+				context
+			);
+		} catch (error) {
+			cleanupAdapterPreservingPrimary(lifetime.cleanup, error);
+			throw error;
+		}
 		if (result.status === 404 && next) {
+			lifetime.cleanup();
 			await next();
 			return;
 		}
 		ctx.status = result.status;
 		for (const [name, value] of Object.entries(result.headers)) ctx.set(name, value);
-		ctx.body = result.stream ?? result.body ?? '';
+		ctx.body = result.stream
+			? withAdapterStreamCleanup(result.stream, lifetime.cleanup)
+			: (result.body ?? '');
+		if (!result.stream) lifetime.cleanup();
 	};
 }
 

@@ -22,10 +22,28 @@ the Fetch body, destroys an Express response, or terminates the corresponding
 host stream. Applications must not attempt to render a second document into the
 same response.
 
-`RequestContext.redirect(location, status)` resolves relative locations against
-the trusted request URL, records the `Location` header, and requires a 3xx
-status. Explicit request-context status and headers take precedence over render
-option defaults.
+`RequestContext.redirect(location, status)` validates relative locations
+against the normalized request URL while preserving them as relative
+`Location` headers, and requires a 3xx status. Explicit absolute locations
+remain absolute. Explicit request-context status and headers take precedence
+over render option defaults.
+
+Configure the externally visible origin on the server context:
+
+```ts
+const runtime = createExactServerRuntime({
+	contract,
+	publicOrigin: 'https://app.example.com'
+});
+```
+
+eXact never treats `Host` or `X-Forwarded-Proto` as deployment authority. A
+multi-tenant application may supply a `publicOrigin(request)` resolver that
+uses `request.platformRequest` after the host adapter has applied its trusted
+proxy policy and the application has allowlisted the resulting host. Without
+this configuration, the normalized URL uses `http://exact.invalid`; path,
+query, headers, and platform request remain available as untrusted request
+data.
 
 ## Cancellation and cleanup
 
@@ -143,7 +161,10 @@ metadata so runtime events can be mapped to authored code.
 Prefer an external hydration bootstrap under strict CSP. If inline scripts are
 enabled, provide a request-specific nonce and apply it to every framework-owned
 executable script. `unsafeHtml()` requires explicit application policy and
-dependency grants; it is not sanitized by eXact. Native URL behavior blocks
+dependency grants; it is not sanitized by eXact. Native `iframe.srcdoc` accepts
+only an `unsafeHtml()` value and requires the same DOM, SSR, or hydration-root
+opt-in, so it cannot bypass that capability through an ordinary string prop.
+Native URL behavior blocks
 React-compatible `javascript:` forms, while broader URL policy remains an
 application concern.
 

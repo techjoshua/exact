@@ -15,11 +15,16 @@
 		"@exactjs/dom": "^0.1.0",
 		"@exactjs/hydrate": "^0.1.0",
 		"@exactjs/jsx": "^0.1.0",
+		"@exactjs/react-compat": "^0.1.0",
+		"@exactjs/react-dom-compat": "^0.1.0",
 		"@exactjs/router": "^0.1.0",
 		"@exactjs/ssr": "^0.1.0",
 		"@exactjs/vite-plugin": "^0.1.0"
 	},
 	"devDependencies": {
+		"@types/react": "^19.2.17",
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0",
 		"typescript": "^7.0.2",
 		"vite": "^8.1.5"
 	}

@@ -73,6 +73,25 @@ describe('@exactjs/core context-reactive', () => {
 		);
 	});
 
+	it('checks optional context presence without masking lookup failures', () => {
+		const provided = createContext<string>('provided', { reactive: false });
+		const missing = createContext<string>('missing', { reactive: false });
+		const parent = createComponentInstance(function Parent(this: Component<{}>) {
+			this.setContext(provided, 'ready');
+			return () => null;
+		}, {});
+		createComponentInstance(
+			function Child(this: Component<{}>) {
+				expect(this.hasContext(provided)).toBe(true);
+				expect(this.hasContext(missing)).toBe(false);
+				expect(this.getContext(provided)).toBe('ready');
+				return () => null;
+			},
+			{},
+			parent
+		);
+	});
+
 	it('can create global context tokens for cross-bundle identity', () => {
 		const providerToken = createContext<{ name: string }>('com.example.user', true);
 		const consumerToken = createContext<{ name: string }>('com.example.user', true);

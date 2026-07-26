@@ -3,6 +3,9 @@ import type { ContextToken } from './component/contracts.js';
 /** Global property under which compiled artifacts carry their target-local contract. */
 export const exactComponentContract = Symbol.for('@exactjs/component-contract');
 
+/** Global marker distinguishing a native eXact component from compatibility-owned functions. */
+export const exactComponentType = Symbol.for('@exactjs/component');
+
 /** One executable implementation owned by a compiled component artifact. */
 export type ExactComponentImplementationContract = Readonly<{
 	id: string;
@@ -105,7 +108,26 @@ export type ExactComposedComponentContracts = Readonly<{
 
 type ContractComponent = ((...args: any[]) => any) & {
 	[exactComponentContract]?: ExactComponentContract;
+	[exactComponentType]?: true;
 };
+
+/** Marks a framework or library component that does not pass through the eXact compiler. */
+export function markExactComponent<T extends (...args: any[]) => any>(component: T): T {
+	Object.defineProperty(component, exactComponentType, {
+		configurable: false,
+		enumerable: false,
+		value: true,
+		writable: false
+	});
+	return component;
+}
+
+/** Returns whether a callable carries the native eXact component marker or compiled contract. */
+export function isExactComponent(component: unknown): component is (...args: any[]) => unknown {
+	if (typeof component !== 'function') return false;
+	const candidate = component as ContractComponent;
+	return candidate[exactComponentType] === true || candidate[exactComponentContract] !== undefined;
+}
 
 /** Reads and validates compiler-attached metadata from one target-local component export. */
 export function readExactComponentContract(

@@ -48,10 +48,57 @@ translated into native eXact component semantics.
 
 ## Native interop
 
-`ReactHost` mounts a React component type beneath an eXact owner.
-`exposeExactComponent()` makes a native component explicit at a React-owned JSX
-boundary. `defineInteropContext()` provides paired React/eXact tokens with one
-logical descendant value.
+With compatibility enabled, a native eXact component can render a statically
+referenced component directly:
+
+```tsx
+import { DatePicker } from 'react-date-picker';
+
+function BookingForm(this: Component<{ date: Date | null }>) {
+	return () => <DatePicker value={this.state.date} onChange={(date) => (this.state.date = date)} />;
+}
+```
+
+Compiled eXact component functions carry the
+`Symbol.for('@exactjs/component-contract')` brand. For a component imported into
+native JSX, the compiler emits the active compatibility adapter. At runtime the
+adapter returns a branded eXact component unchanged; an unbranded component is
+handled by the one enabled compatibility layer. This avoids guessing ownership
+from a package name, dependency list, or incomplete declaration.
+
+Reactive props remain eXact expression cells. Updating `this.state.date`
+therefore updates the hosted component without rerunning `BookingForm`.
+
+Already-compiled dependency implementations in `node_modules` are not passed
+through the eXact compiler. Bundler aliases redirect their React runtime imports
+to the selected compatibility target.
+
+Applications should reference `@exactjs/react-compat/types18` or
+`@exactjs/react-compat/types19` from `compilerOptions.types`, matching the
+configured runtime target.
+
+Runtime-selected component values can also be used directly in native eXact
+JSX when React compatibility is enabled; the same brand check happens after
+selection. `ReactHost` and `adaptReactComponent()` remain explicit tools for
+imperative hosts and code outside compiler-owned native JSX.
+When the matching React type facade is active, React-owned source compiled by
+an eXact integration can also render a compiled native component directly. The
+compatible React element pipeline recognizes its component-contract brand and
+mounts it natively:
+
+```tsx
+/** @jsxImportSource react */
+import { NativeAccountBadge } from './NativeAccountBadge.js';
+
+export function ReactToolbar() {
+	return <NativeAccountBadge />;
+}
+```
+
+`exposeExactComponent()` remains available for stock React builds that are not
+using eXact's compatibility runtime, and for an explicit ref-property bridge.
+`defineInteropContext()` provides paired React/eXact tokens with one logical
+descendant value.
 
 Interop boundaries preserve component ownership, context, refs, cleanup, and
 tree shaking. Native application code should not import React Hooks merely to

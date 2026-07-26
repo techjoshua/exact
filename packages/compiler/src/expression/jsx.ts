@@ -2,6 +2,9 @@ import type { BoundModule, NodeRef, Variable } from '@exactjs/expressions';
 import { exactDirective, exactKeyContract, type ExactKeyContract } from '../annotations.js';
 import { stableId } from '../ids.js';
 import type { ExactProvenanceGraph } from '../provenance.js';
+import type { ExactJsxInterop } from '../types.js';
+import { expressionComponentIndex } from './component-index.js';
+import { resolveComponentValue } from './component-values.js';
 import { analyzeFormBindings, type ExpressionJsxBinding } from './form-bindings.js';
 export type { ExpressionJsxBinding } from './form-bindings.js';
 
@@ -16,6 +19,11 @@ export interface ExpressionJsxElementSite {
 	readonly attributes: readonly string[];
 	readonly serverSlotChildren: boolean;
 	readonly reactiveTag: boolean;
+	/**
+	 * Active compatibility adapter selected for a component that is not
+	 * positively identified as native eXact.
+	 */
+	readonly interop: boolean;
 }
 
 /** Defines the expression jsx cell site interface contract. */
@@ -46,13 +54,35 @@ export interface ExpressionJsxListSite extends ExactKeyContract {
 	readonly start: number;
 }
 
+/** Marks React's component wrapper factories as placement-neutral compiler-known calls. */
+export function reactInteropFactoryCallEffects(
+	module: BoundModule,
+	interop?: ExactJsxInterop
+): ReadonlyMap<string, 'isomorphic'> {
+	if (!interop) return new Map();
+	const effects = new Map<string, 'isomorphic'>();
+	for (const call of module.walk().calls()) {
+		const target = call.target;
+		const variable = target?.rootVariable;
+		const name = target?.name ?? variable?.name;
+		if (
+			variable?.importedFrom === 'react' &&
+			(name === 'memo' || name === 'forwardRef' || name === 'lazy')
+		)
+			effects.set(call.node.id, 'isomorphic');
+	}
+	return effects;
+}
+
 /** Indexes JSX identities and reactive cells from typed expression relationships. */
 export function analyzeExpressionJsx(
 	module: BoundModule,
 	provenance: ExactProvenanceGraph,
-	identityFilename = module.filename
+	identityFilename = module.filename,
+	interop?: ExactJsxInterop
 ): ExpressionJsxPlan {
 	const elements = new Map<string, ExpressionJsxElementSite>();
+	const diagnostics: Array<Readonly<{ message: string; start: number }>> = [];
 	for (const element of module.walk().jsxElements()) {
 		if (!element.node.span) continue;
 		const tagName = element.node.tagName;
@@ -65,6 +95,8 @@ export function analyzeExpressionJsx(
 						.first((candidate) => candidate.name === tagName.split('.')[0])
 				: undefined;
 		const tagProvenance = tagBinding?.variable ? provenance.get(tagBinding.variable) : undefined;
+		const localExact =
+			!!tagBinding?.variable && isPositivelyLocalExactComponent(module, tagBinding.variable);
 		const site = Object.freeze({
 			nodeId: element.node.id,
 			start: element.node.span.start,
@@ -87,7 +119,12 @@ export function analyzeExpressionJsx(
 					child.kind === 'JsxFragment'
 				);
 			}),
-			reactiveTag: tagProvenance?.provenance === 'derived' && tagProvenance.safeToReevaluate
+			reactiveTag: tagProvenance?.provenance === 'derived' && tagProvenance.safeToReevaluate,
+			// A configured compatibility layer is the fallback for every component
+			// that the compiler cannot positively prove is native eXact. The
+			// adapter performs the authoritative runtime brand check, so dynamic
+			// and mixed component values remain safe without ownership guessing.
+			interop: !!interop && !intrinsic && !localExact
 		});
 		elements.set(site.nodeId, site);
 	}
@@ -144,7 +181,6 @@ export function analyzeExpressionJsx(
 			});
 		}
 	}
-	const diagnostics: Array<Readonly<{ message: string; start: number }>> = [];
 	const diagnosedUnsafeDerived = new Set<string>();
 	for (const expression of module.walk().ofKind('JsxExpression')) {
 		for (const variable of module.dependenciesOf(expression)) {
@@ -217,6 +253,26 @@ export function analyzeExpressionJsx(
 		lists,
 		diagnostics: Object.freeze(diagnostics)
 	});
+}
+
+/**
+ * Proves that one authored binding resolves exclusively to component
+ * declarations compiled in the current module.
+ *
+ * Imported values deliberately do not qualify: their emitted eXact contract is
+ * the authoritative cross-module brand and is checked by the active adapter.
+ */
+function isPositivelyLocalExactComponent(module: BoundModule, variable: Variable): boolean {
+	if (variable.importedFrom) return false;
+	const value = resolveComponentValue(module, variable);
+	if (!value) return false;
+	const index = expressionComponentIndex(module);
+	const localNames = new Set(
+		index.functions
+			.map((component) => index.name(component))
+			.filter((name): name is string => !!name)
+	);
+	return value.targets.length > 0 && value.targets.every((target) => localNames.has(target));
 }
 
 /**

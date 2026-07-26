@@ -28,6 +28,14 @@ The portable `RequestContext` exposes normalized URL, method, headers, abort
 signal, response status/headers, and redirect control. Adapters establish it
 before root component setup.
 
+The application may configure a trusted `publicOrigin` on its server context.
+eXact combines that origin with the incoming path and query, but never infers
+public authority from `Host` or `X-Forwarded-Proto`. A resolver may consult the
+adapter-owned platform request for multi-tenant or trusted-proxy deployments;
+that resolver is an explicit deployment trust boundary and must validate any
+host it accepts. Without a configured origin, request URLs use the reserved
+`http://exact.invalid` authority and relative redirects remain relative.
+
 ## Placement and residency
 
 Ordinary task placement is inferred from the APIs and values it uses.
@@ -84,7 +92,8 @@ not dependency sandboxing.
 Structured JSX is the normal rendering boundary. Native SSR centralizes URL
 sanitization and blocks `javascript:` URLs. Opaque markup requires
 `unsafeHtml()` plus explicit root policy opt-in and is denied to dependency
-packages without a non-transitive grant.
+packages without a non-transitive grant. The same capability and root opt-in
+are required when opaque markup is supplied through native `iframe.srcdoc`.
 
 Root-document rendering preserves authored `html`, `head`, and `body`
 structure while inserting only reserved framework hydration and streaming

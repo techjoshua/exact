@@ -145,6 +145,11 @@ export function createComponentInstance<
 				return refs.get(key.id) as T | undefined;
 			}
 		},
+		hasContext(token: ContextToken<unknown>): boolean {
+			for (let cursor = instance.parent; cursor; cursor = cursor.parent)
+				if (cursor.contexts.has(token.id)) return true;
+			return ambientContexts?.has(token.id) === true || defaultContexts.has(token.id);
+		},
 		getContext<T>(token: ContextToken<T>): Reactive<T> {
 			// Context lookup walks parents first, then falls back to framework defaults.
 			// Values are stored reactive so consumers can keep using normal state reads.
@@ -398,7 +403,7 @@ export function createComponentInstance<
 		);
 	} catch (error) {
 		acceptingTaskRegistrations = false;
-		cleanupFailedComponentConstruction(instance);
+		cleanupFailedComponentConstruction(instance, error);
 		throw error;
 	}
 	if (resumption) {

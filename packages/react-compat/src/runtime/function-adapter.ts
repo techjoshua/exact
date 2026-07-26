@@ -2,7 +2,7 @@ import type { Component, ComponentFunction, ComponentInstance } from '@exactjs/c
 import type { ReactComponentType, ReactNode, ReactSpecialType } from '../types.js';
 import { HookHost, createOwnerFrame, removeOwnerFrame } from '../internals.js';
 import { reactTypeName, shallowEqualProps, snapshotProps } from './class-support.js';
-import { invokeReactType, toExactNode } from './nodes.js';
+import { invokeReactType, toExactNode, toReactNode } from './nodes.js';
 import { readReactRef } from './refs.js';
 import { REACT_MEMO_TYPE, REACT_REF_PROP } from './shared.js';
 
@@ -45,8 +45,14 @@ export function createFunctionAdapter(
 		return () => {
 			const revision = Number(this.state.__reactRevision);
 			const snapshot = snapshotProps(props);
-			const ref = readReactRef(snapshot[REACT_REF_PROP]);
+			// React elements use the private channel so eXact never mistakes a
+			// React ref for a native RefBinding. Compiler-generated direct JSX
+			// reaches this adapter with the authored `ref` prop, so normalize
+			// both representations at the one compatibility boundary.
+			const ref = readReactRef(snapshot[REACT_REF_PROP] ?? snapshot.ref);
 			delete snapshot[REACT_REF_PROP];
+			delete snapshot.ref;
+			if ('children' in snapshot) snapshot.children = toReactNode(snapshot.children);
 			const refChanged = previousRef !== unsetRef && !Object.is(previousRef, ref);
 			const special =
 				typeof type === 'object' && type !== null ? (type as ReactSpecialType) : undefined;

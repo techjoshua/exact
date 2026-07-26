@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { defineExactActionContract } from '@exactjs/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createExactNodeHandler, readNodeRequestBody, writeNodeResponse } from './index.js';
 
 function stateAction(id: string) {
@@ -13,6 +13,7 @@ function stateAction(id: string) {
 describe('@exactjs/node-adapter', () => {
 	it('handles eXact requests through Node request and response objects', async () => {
 		const handler = createExactNodeHandler({
+			publicOrigin: 'http://node.example.test',
 			contract: {
 				version: 1,
 				endpoint: '/__exact',
@@ -136,6 +137,33 @@ describe('@exactjs/node-adapter', () => {
 		const failedBody = readNodeRequestBody(failedRequest);
 		failedRequest.emit('error', new Error('socket failed'));
 		await expect(failedBody).rejects.toThrow('socket failed');
+	});
+
+	it('rejects an oversized body while it is being received and removes listeners', async () => {
+		const request = Object.assign(new EventEmitter(), {
+			resume: vi.fn()
+		}) as unknown as IncomingMessage & { resume: ReturnType<typeof vi.fn> };
+		const body = readNodeRequestBody(request, 5);
+
+		request.emit('data', Buffer.from('123'));
+		request.emit('data', Buffer.from('456'));
+
+		await expect(body).rejects.toThrow('exceeded 5 bytes');
+		expect(request.resume).toHaveBeenCalledTimes(1);
+		expect(request.listenerCount('data')).toBe(0);
+		expect(request.listenerCount('end')).toBe(0);
+		expect(request.listenerCount('error')).toBe(0);
+	});
+
+	it('rejects an oversized declared body before installing transport listeners', async () => {
+		const request = Object.assign(new EventEmitter(), {
+			headers: { 'content-length': '12' },
+			resume: vi.fn()
+		}) as unknown as IncomingMessage & { resume: ReturnType<typeof vi.fn> };
+
+		await expect(readNodeRequestBody(request, 5)).rejects.toThrow('exceeded 5 bytes');
+		expect(request.resume).toHaveBeenCalledTimes(1);
+		expect(request.listenerCount('data')).toBe(0);
 	});
 
 	it('writes status, headers, and non-stream bodies', async () => {

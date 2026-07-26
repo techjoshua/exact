@@ -54,19 +54,24 @@ export function CalculatorWorkspace(
 		this.state.loading = [...ids];
 		const client = exactClient();
 		const routePromise = client.invokeAction('route.resolve', request);
-		const providerPromises = ids.map((id) =>
-			client.invokeAction(`quote.${id}`, request).then((result) => ({ id, result }))
-		);
+		const providerPromises = ids.map((id) => ({
+			id,
+			promise: client.invokeAction(`quote.${id}`, request)
+		}));
 		routePromise
 			.then((result) => {
 				if (generation === this.state.revision && result.state)
 					this.state.route = result.state as RouteResult;
 			})
-			.catch(() => undefined);
+			.catch(() => {
+				if (signal.aborted || generation !== this.state.revision) return;
+				this.state.route = { status: 'unavailable' };
+				this.state.error = 'The route could not be refreshed. Change an input to retry.';
+			});
 		await Promise.all(
-			providerPromises.map((promise) =>
+			providerPromises.map(({ id, promise }) =>
 				promise
-					.then(({ id, result }) => {
+					.then((result) => {
 						if (generation !== this.state.revision) return;
 						const provider = result.state as ProviderResult;
 						this.state.providers = [
@@ -75,7 +80,27 @@ export function CalculatorWorkspace(
 						];
 						this.state.loading = this.state.loading.filter((item) => item !== id);
 					})
-					.catch(() => undefined)
+					.catch(() => {
+						if (signal.aborted || generation !== this.state.revision) return;
+						const previous = this.state.providers.find((item) => item.providerId === id);
+						this.state.providers = [
+							...this.state.providers.filter((item) => item.providerId !== id),
+							{
+								version: 1,
+								providerId: id,
+								providerName: previous?.providerName ?? id.toUpperCase(),
+								status: 'error',
+								quotes: [],
+								error: {
+									code: 'unavailable',
+									message: 'The carrier request failed before returning a current result'
+								}
+							}
+						];
+						this.state.loading = this.state.loading.filter((item) => item !== id);
+						this.state.error =
+							'Some carrier rates could not be refreshed. Change an input to retry.';
+					})
 			)
 		);
 		if (generation !== this.state.revision) return;

@@ -18,6 +18,7 @@ const __exactImplementation_ProfilePage_1 = function ProfilePage(this: Component
     return () => (__exactVNode("section", { "data-exact-id": "xbSlycRQOMTMIout-46XRGt" }, __exactVNode("p", { "data-exact-id": "xI2oufUW56KAQo6TSBTmvEG" }, __exactDynamic(() => this.state.status, "x-f2xy-ZZk2LjXLDd_1G8li")), __exactBoundary("xjbD874UpZxqjxcAu1_iYpK", "ProfilePage_ExactClient_1", { "__exactState": { saves: this.state.saves }, __exactHydration: "interaction", __exactHydrationFallback: __exactVNode("button", { "data-exact-id": "x_36QDkuwkjhvmVwTM7OF9w" }, "Saved ", __exactDynamic(() => this.state.saves, "xqDvDe78Z92z2v3BWyk0tC8"), " times") })));
 };
 export const ProfilePage: typeof __exactImplementation_ProfilePage_1 = /* @__PURE__ */ (() => Object.assign(__exactImplementation_ProfilePage_1, {
+    [Symbol.for("@exactjs/component")]: true,
     [__exactComponentContract_1]: {
         version: 1,
         id: "x7gsBV1RVj9VfGBkq4km6f7",

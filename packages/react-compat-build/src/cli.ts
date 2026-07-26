@@ -49,6 +49,7 @@ async function main(argv: string[]): Promise<void> {
 			rootDir: options.rootDir,
 			serverComponents: options.serverComponents,
 			sourceMap: options.sourceMap,
+			jsxInterop: engine.jsxInterop,
 			moduleTransform: transformModule
 		});
 		for (const result of results) {
@@ -65,6 +66,7 @@ async function main(argv: string[]): Promise<void> {
 		emitManifest: options.emitManifest,
 		serverComponents: options.serverComponents,
 		sourceMap: options.sourceMap,
+		jsxInterop: engine.jsxInterop,
 		moduleTransform: transformModule
 	});
 	if (!options.outDir && results.length > 1)

@@ -112,6 +112,9 @@ export { createComponentInstance, reparentComponentInstance } from './component/
 export {
 	composeExactComponentContracts,
 	exactComponentContract,
+	exactComponentType,
+	isExactComponent,
+	markExactComponent,
 	readExactComponentContract,
 	type ExactComponentBoundaryContract,
 	type ExactComponentContinuationActivation,

@@ -7,7 +7,7 @@ import {
 	renderToStaticMarkup,
 	renderToString
 } from './server-node.js';
-import { prerender, prerenderToNodeStream } from './static-node.js';
+import { prerender, prerenderToNodeStream, resumeToPipeableStream } from './static-node.js';
 
 async function webText(stream: ReadableStream<Uint8Array>): Promise<string> {
 	return new TextDecoder().decode(await new Response(stream).arrayBuffer());
@@ -84,5 +84,21 @@ describe('React compatibility server rendering', () => {
 
 		expect(await webText((await prerender(tree)).prelude)).toBe('<main>ready</main>');
 		expect(await nodeText((await prerenderToNodeStream(tree)).prelude)).toBe('<main>ready</main>');
+	});
+
+	it('aborts replacement work started by the static resume facade', async () => {
+		function Pending(): never {
+			throw new Promise(() => {});
+		}
+		const destination = new PassThrough();
+		const output = nodeText(destination);
+		const resumed = resumeToPipeableStream(
+			createElement(Suspense, { fallback: 'waiting' }, createElement(Pending)),
+			null
+		);
+		resumed.pipe(destination);
+		resumed.abort(new Error('resume cancelled'));
+
+		await expect(output).rejects.toThrow('resume cancelled');
 	});
 });

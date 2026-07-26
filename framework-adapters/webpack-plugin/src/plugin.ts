@@ -34,6 +34,7 @@ import {
 	replaceWebpackCompilerSession,
 	webpackCompilerSession
 } from './sessions.js';
+import { webpackCompatibilityEngine } from './react-compatibility.js';
 
 /** Configures exact webpack plugin. */
 export type ExactWebpackPluginOptions = {
@@ -229,6 +230,10 @@ export function transformExactWebpackSource(
 	const profileStarted = options.onProfile ? profileTimestamp() : undefined;
 	try {
 		const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
+		const compatibilityEngine = reactCompatibility
+			? webpackCompatibilityEngine(options, session, reactCompatibility.target)
+			: undefined;
+		compatibilityEngine?.invalidate(filename);
 		const ownership = jsxSourceOwnership(filename, source, reactCompatibility);
 		const reactOwned =
 			ownership === 'react' ||
@@ -250,7 +255,8 @@ export function transformExactWebpackSource(
 			sourceMap: options.sourceMap ?? true,
 			assetRules: options.assetRules,
 			preserveClientAssetImports: true,
-			pluginRegistry: options.pluginRegistry
+			pluginRegistry: options.pluginRegistry,
+			jsxInterop: compatibilityEngine?.jsxInterop
 		});
 		return {
 			code: result.code,

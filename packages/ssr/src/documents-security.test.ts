@@ -79,6 +79,26 @@ describe('@exactjs/ssr documents-security', () => {
 		expect(observed).toEqual([{ characters: raw.length }]);
 	});
 
+	it('routes iframe srcdoc through the unsafe HTML capability and root audit', () => {
+		expect(() =>
+			renderToString(createVNode('iframe', { srcdoc: '<p>untrusted</p>' }), { markers: false })
+		).toThrow(/unsafeHtml/);
+		expect(() =>
+			renderToString(createVNode('iframe', { srcdoc: unsafeHtml('<p>trusted</p>') }), {
+				markers: false
+			})
+		).toThrow(/allowUnsafeHtml/);
+
+		const observed: Array<{ characters: number }> = [];
+		const result = renderToString(createVNode('iframe', { srcdoc: unsafeHtml('<p>trusted</p>') }), {
+			markers: false,
+			allowUnsafeHtml: true,
+			onUnsafeHtml: (event) => observed.push(event)
+		});
+		expect(result.html).toBe('<iframe srcdoc="&lt;p&gt;trusted&lt;/p&gt;"></iframe>');
+		expect(observed).toEqual([{ characters: 14 }]);
+	});
+
 	it('applies the javascript URL guard to SSR attributes', () => {
 		const result = renderToString(createVNode('a', { href: 'java\nscript:alert(1)' }, 'blocked'), {
 			markers: false

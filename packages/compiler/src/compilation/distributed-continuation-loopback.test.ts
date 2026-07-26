@@ -1,12 +1,20 @@
 /**
  * @vitest-environment jsdom
  */
-import { composeExactComponentContracts, createVNode, type ComponentFunction } from '@exactjs/core';
+import {
+	composeExactComponentContracts,
+	createVNode,
+	type Component,
+	type ComponentFunction
+} from '@exactjs/core';
+import { render, unmount } from '@exactjs/dom';
 import { hydrate, type FetchLike } from '@exactjs/hydrate';
+import { RemoteComponent, registerExactRemoteClientBindings } from '@exactjs/microfrontends/client';
 import {
 	composeExactExecutorContract,
 	handleExactRequest,
 	type ExactInvocationRequest,
+	type ExactResponseLike,
 	type ExactServerContext
 } from '@exactjs/server';
 import { renderToHydratableStringAsync } from '@exactjs/ssr';
@@ -131,7 +139,207 @@ describe('@exactjs/compiler distributed continuation loopback', () => {
 		});
 		client.dispose();
 	});
+
+	it('routes compiled server tasks through the client owned by each hidden root', async () => {
+		const root = await createTestWorkspace('.exact-hidden-root-loopback-', process.cwd());
+		const billing = await compileRemoteTask(root, 'billing');
+		const branding = await compileRemoteTask(root, 'branding');
+		const buildKey = '0123456789abcdef0123456789abcdef01234567';
+		const moduleHost = globalThis as Record<string, unknown>;
+		const bindings = Object.fromEntries(
+			[billing, branding].map((fixture) => {
+				const key = `__exactHiddenRoot${fixture.name}`;
+				moduleHost[key] = Object.freeze({
+					buildKey,
+					root: fixture.root,
+					component: fixture.client,
+					registration: fixture.registration
+				});
+				const source = `export default globalThis[${JSON.stringify(key)}];`;
+				return [
+					fixture.name,
+					{
+						clientEntry: `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`
+					}
+				];
+			})
+		);
+		registerExactRemoteClientBindings(bindings);
+		const exchanges: Array<{
+			body: ExactInvocationRequest;
+			binding: string | null;
+			build: string | null;
+			signal: AbortSignal | undefined;
+		}> = [];
+		const servers = new Map([
+			[billing.root, remoteServer(billing, buildKey)],
+			[branding.root, remoteServer(branding, buildKey)]
+		]);
+		const fetch: FetchLike = async (input, init) => {
+			const body = JSON.parse(init.body) as ExactInvocationRequest;
+			const headers = new Headers(init.headers);
+			exchanges.push({
+				body,
+				binding: headers.get('x-exact-binding'),
+				build: headers.get('x-exact-build'),
+				signal: init.signal
+			});
+			const server = servers.get(String(body.root));
+			if (!server) throw new Error(`Unexpected hidden execution root ${String(body.root)}`);
+			const privateHeaders = new Headers(init.headers);
+			privateHeaders.delete('x-exact-binding');
+			const response = await handleExactRequest(
+				{
+					method: init.method,
+					url: input,
+					headers: privateHeaders,
+					body,
+					signal: init.signal
+				},
+				server
+			);
+			return responseLike(response);
+		};
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = fetch as typeof globalThis.fetch;
+		const container = document.createElement('main');
+		document.body.append(container);
+		try {
+			render(createVNode(HiddenRootTasks, null), container);
+			await vi.waitFor(() => {
+				expect(container.querySelector('[data-result="billing"]')?.textContent).toBe(
+					'BILLING-READY'
+				);
+				expect(container.querySelector('[data-result="branding"]')?.textContent).toBe(
+					'BRANDING-READY'
+				);
+			});
+			exchanges.length = 0;
+
+			click(container, '[data-task="billing"]');
+			click(container, '[data-task="branding"]');
+			await vi.waitFor(() => {
+				expect(container.querySelector('[data-result="billing"]')?.textContent).toBe(
+					'BILLING-NEXT'
+				);
+				expect(container.querySelector('[data-result="branding"]')?.textContent).toBe(
+					'BRANDING-NEXT'
+				);
+			});
+			expect(
+				exchanges.map(({ body, binding, build }) => ({
+					root: body.root,
+					binding,
+					build
+				}))
+			).toEqual(
+				expect.arrayContaining([
+					{ root: billing.root, binding: 'billing', build: buildKey },
+					{ root: branding.root, binding: 'branding', build: buildKey }
+				])
+			);
+			const signals = exchanges.map((exchange) => exchange.signal);
+			unmount(container);
+			expect(signals.every((signal) => signal?.aborted)).toBe(true);
+		} finally {
+			globalThis.fetch = originalFetch;
+			if (container.childNodes.length) unmount(container);
+			container.remove();
+			delete moduleHost.__exactHiddenRootbilling;
+			delete moduleHost.__exactHiddenRootbranding;
+		}
+	});
 });
+
+function HiddenRootTasks(this: Component<Record<string, never>>) {
+	return () =>
+		createVNode(
+			'section',
+			null,
+			createVNode(RemoteComponent, { binding: 'billing', props: { name: 'billing' } }),
+			createVNode(RemoteComponent, { binding: 'branding', props: { name: 'branding' } })
+		);
+}
+
+async function compileRemoteTask(root: string, name: string) {
+	const sourceRoot = path.join(root, name, 'src');
+	const generatedRoot = path.join(root, name, 'generated');
+	const source = path.join(sourceRoot, 'RemoteTask.tsx');
+	await mkdir(sourceRoot, { recursive: true });
+	await writeFile(
+		source,
+		`
+			import type { Component } from "@exactjs/core";
+			export function RemoteTask(
+				this: Component<{ query: string; result: string }>,
+				props: { name: string }
+			) {
+				this.state.query = props.name + "-ready";
+				this.state.result = "waiting";
+				this.task.server(async () => {
+					const query = this.state.query;
+					await Promise.resolve();
+					this.state.result = query.toUpperCase();
+				});
+				return () => (
+					<section>
+						<button
+							data-task={props.name}
+							onClick={() => this.state.query = props.name + "-next"}
+						>
+							Run
+						</button>
+						<output data-result={props.name}>{this.state.result}</output>
+					</section>
+				);
+			}
+		`
+	);
+	const compiled = await compileFileArtifacts(source, {
+		outDir: generatedRoot,
+		rootDir: sourceRoot
+	});
+	const clientModule = await importArtifact(
+		compiled.clientFile,
+		path.join(root, name, 'client.mjs')
+	);
+	const serverModule = await importArtifact(
+		compiled.serverFile,
+		path.join(root, name, 'server.mjs')
+	);
+	const client = componentExport(clientModule, 'RemoteTask');
+	const server = componentExport(serverModule, 'RemoteTask');
+	const clientContract = composeExactComponentContracts([client], 'client');
+	const serverContract = composeExactExecutorContract([server], { endpoint: '/__exact' });
+	return {
+		name,
+		root: `@exactjs/hidden-${name}#./RemoteTask`,
+		client,
+		registration: { continuations: clientContract.continuations },
+		serverContract
+	};
+}
+
+function remoteServer(
+	fixture: Awaited<ReturnType<typeof compileRemoteTask>>,
+	buildKey: string
+): ExactServerContext {
+	return {
+		contract: { version: 1, actions: {}, boundaries: {} },
+		remoteBuilds: {
+			[buildKey]: {
+				buildKey,
+				roots: {
+					[fixture.root]: {
+						contract: fixture.serverContract,
+						actions: {}
+					}
+				}
+			}
+		},
+		authorize: () => true
+	};
+}
 
 /** Bundles one generated target while retaining the workspace runtime as shared package imports. */
 async function importArtifact(entry: string, output: string): Promise<Record<string, unknown>> {
@@ -189,21 +397,31 @@ function loopbackFetch(server: ExactServerContext, requests: ExactInvocationRequ
 			},
 			server
 		);
-		return {
-			ok: response.status >= 200 && response.status < 300,
-			status: response.status,
-			headers: {
-				get(name) {
-					const expected = name.toLowerCase();
-					const entry = Object.entries(response.headers).find(
-						([key]) => key.toLowerCase() === expected
-					);
-					return entry?.[1] ?? null;
-				}
-			},
-			async json() {
-				return JSON.parse(response.body);
-			}
-		};
+		return responseLike(response);
 	};
+}
+
+function responseLike(response: ExactResponseLike): Awaited<ReturnType<FetchLike>> {
+	return {
+		ok: response.status >= 200 && response.status < 300,
+		status: response.status,
+		headers: {
+			get(name) {
+				const expected = name.toLowerCase();
+				const entry = Object.entries(response.headers).find(
+					([key]) => key.toLowerCase() === expected
+				);
+				return entry?.[1] ?? null;
+			}
+		},
+		async json() {
+			return JSON.parse(response.body);
+		}
+	};
+}
+
+function click(container: Element, selector: string): void {
+	const element = container.querySelector(selector);
+	if (!(element instanceof HTMLElement)) throw new Error(`Missing ${selector}`);
+	element.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 }

@@ -18,6 +18,7 @@ import { RuntimesPage } from './pages/RuntimesPage.jsx';
 import { SecretsPluginPage } from './pages/SecretsPluginPage.jsx';
 import { ServerExecutionPage } from './pages/ServerExecutionPage.jsx';
 import { StatePage } from './pages/StatePage.jsx';
+import { StoryPage } from './pages/StoryPage.jsx';
 import { TasksPage } from './pages/TasksPage.jsx';
 import { TestingPage } from './pages/TestingPage.jsx';
 
@@ -51,6 +52,15 @@ export const docGroups: DocGroup[] = [
 				keywords:
 					'overview component compiler reactive TypeScript JSX React Vue Svelte comparison state virtual DOM',
 				component: IntroductionPage
+			},
+			{
+				path: '/story',
+				label: 'The story behind eXact',
+				summary:
+					'How async/await inspired eXact’s compiler-led model for components, reactivity, and coordinated server work.',
+				keywords:
+					'story history async await compiler state machine React JSX reactivity server components philosophy',
+				component: StoryPage
 			},
 			{
 				path: '/getting-started',
@@ -158,7 +168,8 @@ export const docGroups: DocGroup[] = [
 				path: '/guides/react-compatibility',
 				label: 'React compatibility',
 				summary: 'Bring supported React code and packages into an eXact application.',
-				keywords: 'React compatibility hooks components migration interop adapter',
+				keywords:
+					'React compatibility direct JSX components reactive props hooks migration interop adapter',
 				component: ReactCompatibilityPage
 			}
 		]

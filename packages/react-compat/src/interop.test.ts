@@ -1,12 +1,21 @@
 import {
 	createComponentInstance,
 	createContext,
+	createVNode,
+	exactComponentContract,
 	renderInstance,
 	type Component
 } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
 import { adaptReactComponent } from './exact.js';
-import { createElement, withReactProfile } from './index.js';
+import {
+	Children,
+	cloneElement,
+	createElement,
+	forwardRef,
+	isValidElement,
+	withReactProfile
+} from './index.js';
 import { HookHost, toExactNode } from './internals.js';
 import {
 	bridgeReactContext,
@@ -94,6 +103,63 @@ describe('eXact and React context interop', () => {
 		const vnode = toExactNode(createElement(Boundary, {}));
 		expect(Array.isArray(vnode)).toBe(false);
 		expect((vnode as { type: unknown }).type).toBe(Native);
+		expect(adaptReactComponent(Boundary)).toBe(Native);
+	});
+
+	it('normalizes compiler-authored refs at a direct React adapter boundary', () => {
+		const ref = { current: null };
+		let observed: unknown;
+		const Forwarded = forwardRef((_props, forwardedRef) => {
+			observed = forwardedRef;
+			return null;
+		});
+		const instance = createComponentInstance(adaptReactComponent(Forwarded), { ref });
+
+		renderInstance(instance, () => undefined);
+
+		expect(observed).toBe(ref);
+		instance.unmount();
+	});
+
+	it('projects native children as inspectable React elements', () => {
+		let child: unknown;
+		function Wrapper(props: { children?: unknown }) {
+			child = Children.only(props.children as never);
+			expect(isValidElement(child)).toBe(true);
+			return cloneElement(child as never, { title: 'wrapped' });
+		}
+		const instance = createComponentInstance(adaptReactComponent(Wrapper), {
+			children: createVNode('span', { key: 'native', title: 'source' }, 'child')
+		});
+
+		renderInstance(instance, () => undefined);
+
+		expect((child as { key?: string }).key).toBe('native');
+		instance.unmount();
+	});
+
+	it('recognizes compiler-attached native components inside React-owned JSX', () => {
+		function Native(this: Component<{}>) {
+			return () => 'native';
+		}
+		Object.assign(Native, {
+			[exactComponentContract]: {
+				version: 1,
+				id: 'fixture.native',
+				placement: 'client',
+				role: 'client',
+				implementations: [],
+				continuations: [],
+				executors: [],
+				boundaries: []
+			}
+		});
+
+		const reactOwnedType: import('react').JSXElementConstructor<{}> = Native;
+		const vnode = toExactNode(createElement(Native, {}));
+		expect(reactOwnedType).toBe(Native);
+		expect((vnode as { type: unknown }).type).toBe(Native);
+		expect(adaptReactComponent(Native)).toBe(Native);
 	});
 
 	it('preserves keys, children, and explicitly forwarded refs at native boundaries', () => {
@@ -109,6 +175,22 @@ describe('eXact and React context interop', () => {
 		expect(vnode.key).toBe('stable');
 		expect(vnode.props.nativeRef).toBe(ref);
 		expect(vnode.props.children).toBe('child');
+	});
+
+	it('preserves a custom native ref prop through explicit double adaptation', () => {
+		const ref = { current: null };
+		function Native(this: Component<{}>, _props: { nativeRef?: unknown }) {
+			return () => null;
+		}
+		const Boundary = exposeExactComponent(Native, 'Native', { refProp: 'nativeRef' });
+		const adapter = adaptReactComponent(Boundary);
+		const instance = createComponentInstance(adapter, { ref });
+		const rendered = renderInstance(instance, () => undefined);
+		const vnode = rendered[0] as { props: Record<string, unknown> };
+
+		expect(adapter).not.toBe(Native);
+		expect(vnode.props.nativeRef).toBe(ref);
+		instance.unmount();
 	});
 
 	it('keeps nearest-provider semantics through alternating ownership layers', () => {

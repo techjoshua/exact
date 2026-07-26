@@ -42,6 +42,9 @@ and which decisions remain open. Code and current references take precedence.
 They explain why decisions were made but are not current API documentation.
 Every historical record identifies its measurement or review baseline.
 
+The current repository-wide implementation review is recorded in
+[`history/repository-code-review-2026-07.md`](history/repository-code-review-2026-07.md).
+
 ## Maintenance rule
 
 When implementation lands, update the relevant current reference and either

@@ -1,4 +1,5 @@
 import { PassThrough } from 'node:stream';
+import { captureExpectedConsole } from './react-conformance/diagnostics.mjs';
 
 /** Collects stable React DOM server and hydration observations for Phase 5. */
 export async function collectReactPhase5Trace({
@@ -31,8 +32,7 @@ export async function collectReactPhase5Trace({
 		url: 'https://exact.invalid/'
 	});
 	const previousGlobals = installDomGlobals(dom.window);
-	const originalError = console.error;
-	console.error = () => {};
+	const diagnostics = captureExpectedConsole(`React ${baseline} phase 5`);
 	let renders = 0;
 	function Counter() {
 		const [count, setCount] = React.useState(0);
@@ -66,9 +66,12 @@ export async function collectReactPhase5Trace({
 			hydration: { adopted, updated, renders, unmounted: container.innerHTML }
 		};
 	} finally {
-		console.error = originalError;
-		restoreDomGlobals(previousGlobals);
-		dom.window.close();
+		try {
+			diagnostics.restoreAndAssert();
+		} finally {
+			restoreDomGlobals(previousGlobals);
+			dom.window.close();
+		}
 	}
 }
 

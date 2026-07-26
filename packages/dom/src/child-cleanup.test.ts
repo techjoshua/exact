@@ -1,13 +1,37 @@
 /**
  * @vitest-environment jsdom
  */
-import { createDynamicChild, createRef, type Component } from '@exactjs/core';
+import { createDynamicChild, createRef, unsafeHtml, type Component } from '@exactjs/core';
 import { jsx, jsxs } from '@exactjs/jsx';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from './index.js';
 
 describe('@exactjs/dom child-cleanup', () => {
+	it('rolls back earlier child ownership when a later child cannot mount', () => {
+		const released = vi.fn();
+		const errorLog = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+		function Owned(this: Component<{}>) {
+			this.onUnmount(released);
+			return () => jsx('span', { children: 'provisional' });
+		}
+
+		function Parent() {
+			return () => [jsx(Owned, {}), unsafeHtml('<strong>not allowed</strong>')];
+		}
+
+		try {
+			const container = document.createElement('div');
+			render(jsx(Parent, {}), container);
+
+			expect(released).toHaveBeenCalledTimes(1);
+			expect(container.textContent).not.toContain('provisional');
+		} finally {
+			errorLog.mockRestore();
+		}
+	});
+
 	it('removes replaced style object properties', () => {
 		let instance!: Component<{ compact: boolean }>;
 

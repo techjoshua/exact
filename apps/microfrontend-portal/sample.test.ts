@@ -217,10 +217,6 @@ describe('trusted microfrontend portal sample', () => {
 
 		unmount(container);
 	});
-
-	it.todo(
-		'dispatches compiled this.task.server() calls through the client owned by each hidden root'
-	);
 });
 
 function remoteModule(component: ComponentFunction<any, any>, root: string) {

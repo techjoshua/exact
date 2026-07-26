@@ -7,16 +7,23 @@ export type ReactNode =
 	| ReactElement
 	| ReactPortal
 	| ReactText
+	| bigint
 	| boolean
 	| null
 	| undefined
 	| ReactNode[]
+	| Promise<ReactNode>
 	| object;
 /** Defines the react component type type contract. */
 export type ReactComponentType<P = Record<string, unknown>> =
 	| ((props: P) => ReactNode)
 	| ReactClassType<P>
 	| ReactSpecialType<P>;
+
+/** Component values accepted by the compatibility element pipeline. */
+export type ReactCompatibleComponentType<P = Record<string, unknown>> =
+	| ReactComponentType<P>
+	| ComponentFunction<any, P>;
 
 /** Defines the react class type interface contract. */
 export interface ReactClassType<P = Record<string, unknown>> {
@@ -54,7 +61,7 @@ export interface ReactClassInstance<P = Record<string, unknown>> {
 /** Defines the react element interface contract. */
 export interface ReactElement<P = Record<string, unknown>> {
 	readonly $$typeof: symbol;
-	readonly type: string | symbol | ReactComponentType<P>;
+	readonly type: string | symbol | ReactCompatibleComponentType<P>;
 	readonly key: string | null;
 	readonly ref: unknown;
 	readonly props: P & { children?: ReactNode };
@@ -118,3 +125,4 @@ export interface ReactContext<T> {
 
 /** Defines the external store subscribe type contract. */
 export type ExternalStoreSubscribe = (onStoreChange: () => void) => () => void;
+import type { ComponentFunction } from '@exactjs/core';

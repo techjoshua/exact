@@ -10,6 +10,53 @@ import { findOwnerInstance } from './ownership.js';
 import { eventHandlers } from './state.js';
 import type { Root } from './types.js';
 
+// Delegation is valid only for events whose platform contract bubbles.
+const DIRECT_EVENTS = new Set([
+	'abort',
+	'blur',
+	'cancel',
+	'canplay',
+	'canplaythrough',
+	'close',
+	'cuechange',
+	'durationchange',
+	'emptied',
+	'ended',
+	'error',
+	'focus',
+	'gotpointercapture',
+	'invalid',
+	'load',
+	'loadeddata',
+	'loadedmetadata',
+	'loadstart',
+	'lostpointercapture',
+	'mouseenter',
+	'mouseleave',
+	'pause',
+	'play',
+	'playing',
+	'pointerenter',
+	'pointerleave',
+	'progress',
+	'ratechange',
+	'resize',
+	'scroll',
+	'seeked',
+	'seeking',
+	'stalled',
+	'suspend',
+	'timeupdate',
+	'toggle',
+	'volumechange',
+	'waiting'
+]);
+
+/** Returns whether ordinary DOM semantics require a listener on the target element. */
+export function requiresDirectListener(type: string): boolean {
+	return DIRECT_EVENTS.has(type);
+}
+
 /** Ensures a delegated event listener exists for a root/type pair. */
 export function ensureDelegated(root: Root, type: string, container: Node = root.container): void {
 	let listeners = root.delegated.get(container);

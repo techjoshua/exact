@@ -58,6 +58,8 @@ export function visitJsxExpression(
 
 	if (ts.isJsxElement(node)) {
 		state.sawJsx = true;
+		if (expressionJsx.elements.get(expressionEmissionId(node) ?? '')?.interop)
+			state.sawInterop = true;
 		const island = transformJsxElementIsland(node, visitor, environment);
 		if (island) return island;
 		if (target === 'client' && jsxElementIsClientIsland(node.openingElement.attributes)) {
@@ -86,6 +88,8 @@ export function visitJsxExpression(
 	}
 	if (ts.isJsxSelfClosingElement(node)) {
 		state.sawJsx = true;
+		if (expressionJsx.elements.get(expressionEmissionId(node) ?? '')?.interop)
+			state.sawInterop = true;
 		const island = transformJsxSelfClosingIsland(node, visitor, environment);
 		if (island) return island;
 		return transformJsxSelfClosingElement(

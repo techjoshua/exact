@@ -20,7 +20,11 @@ export function createExactNodeHandler(
 		};
 		// Begin consuming the evented request body before asynchronous context
 		// factories run so early data/end events cannot be missed.
-		const body = readNodeRequestBody(request);
+		const body = readNodeRequestBody(request, requestLimit(context));
+		// The server runtime may initialize asynchronous request contexts before it
+		// asks for text. Observe an early transport rejection immediately while
+		// preserving the original rejected promise for readBody().
+		void body.catch(() => undefined);
 		void handleExactRequest(
 			{
 				method: request.method ?? 'GET',
@@ -41,14 +45,54 @@ export function createExactNodeHandler(
 	};
 }
 
-/** Reads a Node IncomingMessage body as UTF-8 text. */
-export function readNodeRequestBody(request: IncomingMessage): Promise<string> {
+/** Reads a Node request body while enforcing the configured byte limit during transport. */
+export function readNodeRequestBody(
+	request: IncomingMessage,
+	maxBytes = 4 * 1024 * 1024
+): Promise<string> {
+	const declaredLength = Number(request.headers?.['content-length']);
+	if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+		request.resume();
+		return Promise.reject(new Error(`eXact request exceeded ${maxBytes} bytes`));
+	}
 	return new Promise((resolve, reject) => {
 		const chunks: Buffer[] = [];
-		request.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
-		request.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-		request.on('error', reject);
+		let bytes = 0;
+		let settled = false;
+		const cleanup = () => {
+			request.off('data', onData);
+			request.off('end', onEnd);
+			request.off('error', onError);
+		};
+		const finish = (callback: () => void) => {
+			if (settled) return;
+			settled = true;
+			cleanup();
+			callback();
+		};
+		const onData = (chunk: Buffer | string) => {
+			const value = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+			bytes += value.byteLength;
+			if (bytes > maxBytes) {
+				finish(() => reject(new Error(`eXact request exceeded ${maxBytes} bytes`)));
+				request.resume();
+				return;
+			}
+			chunks.push(value);
+		};
+		const onEnd = () => finish(() => resolve(Buffer.concat(chunks).toString('utf8')));
+		const onError = (error: Error) => finish(() => reject(error));
+		request.on('data', onData);
+		request.on('end', onEnd);
+		request.on('error', onError);
 	});
+}
+
+function requestLimit(context: ExactServerContext): number {
+	const configured = context.limits?.maxRequestBytes;
+	return typeof configured === 'number' && Number.isSafeInteger(configured) && configured > 0
+		? configured
+		: 4 * 1024 * 1024;
 }
 
 /** Writes an eXact response object to a Node ServerResponse. */

@@ -5,16 +5,18 @@
 		"noEmit": true,
 		"lib": ["ES2022", "DOM"],
 		"jsx": "preserve",
-		"jsxImportSource": "@exactjs/jsx"
+		"jsxImportSource": "@exactjs/jsx",
+		"types": ["node", "@exactjs/react-compat/types19"]
 	},
 	"references": [
 		{ "path": "../../packages/core" },
 		{ "path": "../../packages/dom" },
 		{ "path": "../../packages/hydrate" },
 		{ "path": "../../packages/jsx-runtime" },
+		{ "path": "../../packages/react-compat" },
 		{ "path": "../../packages/ssr" },
 		{ "path": "../../component-libraries/router" },
 		{ "path": "../../framework-adapters/vite-plugin" }
 	],
-	"include": ["src", "vite.config.ts"]
+	"include": ["src", "vite.config.ts", "exact-options.mjs"]
 }

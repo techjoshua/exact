@@ -162,7 +162,9 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		});
 	};
 	const compatibilityCwd =
-		typeof options.reactCompatibility === 'object' ? options.reactCompatibility.cwd : undefined;
+		(typeof options.reactCompatibility === 'object' ? options.reactCompatibility.cwd : undefined) ??
+		options.applicationRoot ??
+		process.cwd();
 	const reactCompatibility = resolveReactCompatibility(
 		options.reactCompatibility,
 		compatibilityCwd
@@ -343,7 +345,8 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 						sourceMap: false,
 						assetRules: options.assetRules,
 						preserveClientAssetImports: true,
-						pluginRegistry: options.pluginRegistry ?? preparedRegistry?.compiler
+						pluginRegistry: options.pluginRegistry ?? preparedRegistry?.compiler,
+						jsxInterop: compatibilityEngine?.jsxInterop
 					});
 					const rewritten = compatibilityEngine
 						? compatibilityEngine.transformModule({

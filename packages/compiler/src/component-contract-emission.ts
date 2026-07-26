@@ -55,6 +55,16 @@ export function createComponentContractAttachment(
 			factory.createObjectLiteralExpression(
 				[
 					factory.createPropertyAssignment(
+						factory.createComputedPropertyName(
+							factory.createCallExpression(
+								factory.createPropertyAccessExpression(factory.createIdentifier('Symbol'), 'for'),
+								undefined,
+								[factory.createStringLiteral('@exactjs/component')]
+							)
+						),
+						factory.createTrue()
+					),
+					factory.createPropertyAssignment(
 						factory.createComputedPropertyName(contractSymbol),
 						componentContractExpression(contract, implementations, factory)
 					)

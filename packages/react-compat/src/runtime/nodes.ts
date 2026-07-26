@@ -5,6 +5,7 @@ import {
 	createPortal,
 	createVNode,
 	isVNode,
+	isExactComponent,
 	type Child,
 	type Component,
 	type ComponentFunction,
@@ -12,7 +13,6 @@ import {
 } from '@exactjs/core';
 import { currentWorkPriority } from '@exactjs/reactive';
 import {
-	EXACT_COMPONENT_TYPE,
 	REACT_ACTIVITY_TYPE,
 	REACT_CONSUMER_TYPE,
 	REACT_CONTEXT_TYPE,
@@ -31,15 +31,18 @@ import {
 	adaptReactType,
 	childrenArray,
 	contextForSpecial,
+	currentReactOwnerFrame,
 	currentReactTransitionOwnership,
 	isReactClassType,
 	isReactElement,
+	reactElementSymbol,
 	reactCompatibilityTarget,
 	reactTypeName,
 	routeClassLifecycleError,
 	unsupportedType,
 	type ReactRootRuntime
 } from '../internals.js';
+import { EXACT_COMPONENT_TYPE } from './shared.js';
 import type {
 	ReactComponentType,
 	ReactElement,
@@ -83,6 +86,45 @@ export function toExactNode(node: ReactNode): Child | Child[] {
 		);
 	return reactElementToVNode(node);
 }
+
+/**
+ * Projects native eXact children into opaque React element records.
+ *
+ * React-owned wrappers must be able to inspect, clone, and key children before
+ * they are lowered back into the native renderer. The element's exact boundary
+ * carries the original VNode without invoking its component as React code.
+ */
+export function toReactNode(node: unknown): ReactNode {
+	if (Array.isArray(node)) return node.map(toReactNode);
+	if (!isVNode(node)) return node as ReactNode;
+	const type = ExactVNodeBoundaryType as ReactComponentType<Record<string, unknown>>;
+	return {
+		$$typeof: reactElementSymbol(),
+		type,
+		key: node.key ?? null,
+		ref: null,
+		props: { vnode: node },
+		_owner: currentReactOwnerFrame(),
+		_store: { validated: 0 }
+	};
+}
+
+const ExactVNodeBoundary = function ExactVNodeBoundary(
+	this: Component<Record<string, never>>,
+	props: { vnode: VNode }
+) {
+	return () => props.vnode;
+} as ComponentFunction<Record<string, never>, { vnode: VNode }>;
+
+const ExactVNodeBoundaryType = Object.defineProperties(
+	function ReactExactVNodeBoundary(): never {
+		throw new Error('Native eXact child boundary must be rendered by @exactjs/react-compat');
+	},
+	{
+		$$typeof: { value: EXACT_COMPONENT_TYPE },
+		exactComponent: { value: ExactVNodeBoundary }
+	}
+);
 
 /** Performs the react element to vnode domain operation. */
 export function reactElementToVNode(element: ReactElement): VNode {
@@ -147,6 +189,8 @@ export function exactComponentType(
 	type: unknown
 ): { component: ComponentFunction<any, any>; refProp?: PropertyKey } | undefined {
 	if ((typeof type !== 'function' && typeof type !== 'object') || type === null) return undefined;
+	if (typeof type === 'function' && isExactComponent(type))
+		return { component: type as ComponentFunction<any, any> };
 	const candidate = type as {
 		$$typeof?: unknown;
 		exactComponent?: unknown;

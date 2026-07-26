@@ -1,11 +1,13 @@
 import {
 	Fragment,
 	Text,
+	UnsafeHtml,
 	isVNode,
 	sanitizeUrlAttribute,
 	type Child,
 	type VNode
 } from '@exactjs/core';
+import { unwrap } from '@exactjs/reactive';
 import {
 	consumeDomWork,
 	createDomWorkBudget,
@@ -15,7 +17,11 @@ import {
 import type { HydrateOptions } from '../types.js';
 
 /** Shared work and depth limits for conservative static-tree adoption. */
-export type StaticAdoptionBudget = { work: DomWorkBudget; maxDepth: number };
+export type StaticAdoptionBudget = {
+	work: DomWorkBudget;
+	maxDepth: number;
+	allowUnsafeHtml: boolean;
+};
 
 /** Creates a bounded budget for inspecting and repairing static SSR output. */
 export function createStaticAdoptionBudget(
@@ -27,7 +33,8 @@ export function createStaticAdoptionBudget(
 		maxDepth:
 			Number.isSafeInteger(options.maxTreeDepth) && options.maxTreeDepth! > 0
 				? Math.min(options.maxTreeDepth!, 1_024)
-				: 512
+				: 512,
+		allowUnsafeHtml: options.allowUnsafeHtml ?? false
 	};
 }
 
@@ -78,15 +85,18 @@ function matchesStaticVNode(
 	for (const [name, value] of Object.entries(vnode.props)) {
 		if (name === 'key' || name === 'children') continue;
 		if (name === 'ref' || /^on[A-Z]/.test(name)) continue;
-		if ((value !== null && typeof value === 'object') || typeof value === 'function') return false;
-		const attribute = name === 'className' ? 'class' : name;
-		if (value === false || value === null || value === undefined) {
-			if (node.hasAttribute(attribute)) return false;
-		} else if (value === true) {
-			if (!node.hasAttribute(attribute)) return false;
-		} else if (node.getAttribute(attribute) !== String(sanitizeUrlAttribute(name, value)))
+		const normalized = staticAttributeValue(name, value, budget);
+		if ((normalized !== null && typeof normalized === 'object') || typeof normalized === 'function')
 			return false;
-		if (value !== false && value !== null && value !== undefined) expectedAttributes.add(attribute);
+		const attribute = name === 'className' ? 'class' : name;
+		if (normalized === false || normalized === null || normalized === undefined) {
+			if (node.hasAttribute(attribute)) return false;
+		} else if (normalized === true) {
+			if (!node.hasAttribute(attribute)) return false;
+		} else if (node.getAttribute(attribute) !== String(sanitizeUrlAttribute(name, normalized)))
+			return false;
+		if (normalized !== false && normalized !== null && normalized !== undefined)
+			expectedAttributes.add(attribute);
 	}
 	for (const attribute of Array.from(node.attributes))
 		if (!expectedAttributes.has(attribute.name)) return false;
@@ -154,12 +164,16 @@ function patchStaticVNode(
 	for (const [name, value] of Object.entries(vnode.props)) {
 		if (name === 'key' || name === 'children') continue;
 		if (name === 'ref' || /^on[A-Z]/.test(name)) continue;
-		if ((value !== null && typeof value === 'object') || typeof value === 'function') return false;
+		const normalized = staticAttributeValue(name, value, budget);
+		if ((normalized !== null && typeof normalized === 'object') || typeof normalized === 'function')
+			return false;
 		const attribute = name === 'className' ? 'class' : name;
-		if (value === false || value === null || value === undefined) node.removeAttribute(attribute);
-		else if (value === true) node.setAttribute(attribute, '');
-		else node.setAttribute(attribute, String(sanitizeUrlAttribute(name, value)));
-		if (value !== false && value !== null && value !== undefined) expectedAttributes.add(attribute);
+		if (normalized === false || normalized === null || normalized === undefined)
+			node.removeAttribute(attribute);
+		else if (normalized === true) node.setAttribute(attribute, '');
+		else node.setAttribute(attribute, String(sanitizeUrlAttribute(name, normalized)));
+		if (normalized !== false && normalized !== null && normalized !== undefined)
+			expectedAttributes.add(attribute);
 	}
 	for (const attribute of Array.from(node.attributes))
 		if (!expectedAttributes.has(attribute.name)) node.removeAttribute(attribute.name);
@@ -238,12 +252,13 @@ function createStaticNode(
 	for (const [name, value] of Object.entries(vnode.props)) {
 		if (name === 'key' || name === 'children') continue;
 		if (name === 'ref' || /^on[A-Z]/.test(name)) continue;
-		if ((value !== null && typeof value === 'object') || typeof value === 'function')
+		const normalized = staticAttributeValue(name, value, budget);
+		if ((normalized !== null && typeof normalized === 'object') || typeof normalized === 'function')
 			return undefined;
 		const attribute = name === 'className' ? 'class' : name;
-		if (value === true) element.setAttribute(attribute, '');
-		else if (value !== false && value !== null && value !== undefined)
-			element.setAttribute(attribute, String(sanitizeUrlAttribute(name, value)));
+		if (normalized === true) element.setAttribute(attribute, '');
+		else if (normalized !== false && normalized !== null && normalized !== undefined)
+			element.setAttribute(attribute, String(sanitizeUrlAttribute(name, normalized)));
 	}
 	for (const child of flattenStaticChildren(vnode.children, budget, depth + 1)) {
 		const node = createStaticNodeFromChild(child, element, budget, depth + 1);
@@ -251,6 +266,23 @@ function createStaticNode(
 		element.appendChild(node);
 	}
 	return element;
+}
+
+function staticAttributeValue(name: string, value: unknown, budget: StaticAdoptionBudget): unknown {
+	if (name !== 'srcdoc' && name !== 'srcDoc') return value;
+	const candidate = unwrap(value);
+	if (!isVNode(candidate) || candidate.type !== UnsafeHtml) {
+		throw new Error(
+			'Native eXact iframe srcdoc requires unsafeHtml() and explicit allowUnsafeHtml hydration opt-in.'
+		);
+	}
+	if (!budget.allowUnsafeHtml) {
+		throw new Error(
+			'unsafeHtml() used for iframe srcdoc requires allowUnsafeHtml: true on the native eXact hydration root.'
+		);
+	}
+	const html = String(unwrap(candidate.props.value) ?? '');
+	return html;
 }
 
 function replaceNode(previous: Node, next: Node): void {

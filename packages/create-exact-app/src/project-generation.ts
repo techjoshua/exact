@@ -28,6 +28,8 @@ export type Bundler = (typeof bundlers)[number];
 export type Runtime = (typeof runtimes)[number];
 /** A test integration accepted by the application generator. */
 export type TestRunner = (typeof testRunners)[number];
+/** React compatibility target optionally included in a generated application. */
+export type ReactCompatibilityTarget = false | 18 | 19;
 
 /** Describes the application files and optional installation work to generate. */
 export type CreateExactAppOptions = {
@@ -37,6 +39,7 @@ export type CreateExactAppOptions = {
 	runtime: Runtime;
 	testRunner: TestRunner;
 	skill: boolean;
+	reactCompatibility?: ReactCompatibilityTarget;
 	install?: boolean;
 	packageManager?: 'npm' | 'pnpm' | 'yarn' | 'bun';
 };
@@ -45,6 +48,7 @@ export type CreateExactAppOptions = {
 export async function createExactApp(options: CreateExactAppOptions): Promise<void> {
 	const target = path.resolve(options.directory);
 	validatePackageName(options.name);
+	validatePackageManager(options.packageManager);
 	await assertEmptyTarget(target);
 	await mkdir(path.join(target, 'src'), { recursive: true });
 	await mkdir(path.join(target, 'public'), { recursive: true });
@@ -73,6 +77,14 @@ function validatePackageName(name: string): void {
 	}
 }
 
+function validatePackageManager(
+	value: unknown
+): asserts value is CreateExactAppOptions['packageManager'] {
+	if (value !== undefined && !['npm', 'pnpm', 'yarn', 'bun'].includes(String(value))) {
+		throw new Error(`Unsupported package manager: ${String(value)}`);
+	}
+}
+
 function projectFiles(options: CreateExactAppOptions): Record<string, string> {
 	const dependencies: Record<string, string> = {
 		'@exactjs/core': '^0.1.0',
@@ -87,6 +99,7 @@ function projectFiles(options: CreateExactAppOptions): Record<string, string> {
 		typecheck: 'tsc --noEmit'
 	};
 	addBundler(options.bundler, devDependencies, scripts);
+	addReactCompatibility(options.reactCompatibility ?? false, dependencies, devDependencies);
 	addRuntime(options.runtime, dependencies, devDependencies, scripts);
 	addTestRunner(options.testRunner, devDependencies, scripts);
 
@@ -114,10 +127,17 @@ function projectFiles(options: CreateExactAppOptions): Record<string, string> {
 					lib: ['ES2022', 'DOM'],
 					jsx: 'preserve',
 					jsxImportSource: '@exactjs/jsx',
-					types:
-						options.testRunner === 'bun' || options.bundler === 'bun' || options.runtime === 'bun'
-							? ['node', 'bun']
-							: ['node'],
+					types: [
+						'node',
+						...(options.testRunner === 'bun' ||
+						options.bundler === 'bun' ||
+						options.runtime === 'bun'
+							? ['bun']
+							: []),
+						...(options.reactCompatibility
+							? [`@exactjs/react-compat/types${options.reactCompatibility}`]
+							: [])
+					],
 					noEmit: true
 				},
 				include: ['src', '*.config.ts', 'scripts']
@@ -136,11 +156,25 @@ function projectFiles(options: CreateExactAppOptions): Record<string, string> {
 			'import { render } from "@exactjs/dom";\nimport { App } from "./App.js";\nimport "./styles.css";\n\nrender(<App />, document.getElementById("app")!);\n',
 		'src/styles.css':
 			':root { font-family: system-ui, sans-serif; color: #18212f; background: #f6f8fb; }\nbody { margin: 0; }\nmain { max-width: 42rem; margin: 12vh auto; padding: 2rem; }\nbutton { font: inherit; padding: .65rem 1rem; cursor: pointer; }\n',
-		...bundlerFiles(options.bundler, options.testRunner),
+		...bundlerFiles(options.bundler, options.testRunner, options.reactCompatibility ?? false),
 		...runtimeFiles(options.runtime),
-		...testFiles(options.testRunner, options.bundler),
+		...testFiles(options.testRunner, options.bundler, options.reactCompatibility ?? false),
 		'README.md': generatedReadme(options)
 	};
+}
+
+function addReactCompatibility(
+	target: ReactCompatibilityTarget,
+	dependencies: Record<string, string>,
+	devDependencies: Record<string, string>
+): void {
+	if (!target) return;
+	dependencies['@exactjs/react-compat'] = '^0.1.0';
+	dependencies['@exactjs/react-dom-compat'] = '^0.1.0';
+	devDependencies.react = target === 18 ? '^18.3.1' : '^19.2.0';
+	devDependencies['react-dom'] = target === 18 ? '^18.3.1' : '^19.2.0';
+	devDependencies['@types/react'] = target === 18 ? '^18.3.0' : '^19.2.0';
+	devDependencies['@types/react-dom'] = target === 18 ? '^18.3.0' : '^19.2.0';
 }
 
 function addBundler(
@@ -233,25 +267,30 @@ function addTestRunner(
 	}
 }
 
-function bundlerFiles(bundler: Bundler, runner: TestRunner): Record<string, string> {
+function bundlerFiles(
+	bundler: Bundler,
+	runner: TestRunner,
+	reactCompatibility: ReactCompatibilityTarget
+): Record<string, string> {
+	const reactOption = reactCompatibility
+		? `{ reactCompatibility: { target: ${reactCompatibility} } }`
+		: '';
 	if (bundler === 'vite') {
 		const integration =
 			runner === 'vitest'
-				? 'import { exactVitest } from "@exactjs/vitest";\n\nexport default defineConfig({ plugins: [exactVitest()]'
-				: 'import { exact } from "@exactjs/vite-plugin";\n\nexport default defineConfig({ plugins: [exact()]';
+				? `import { exactVitest } from "@exactjs/vitest";\n\nexport default defineConfig({ plugins: [exactVitest(${reactCompatibility ? `{ compiler: ${reactOption} }` : ''})]`
+				: `import { exact } from "@exactjs/vite-plugin";\n\nexport default defineConfig({ plugins: [exact(${reactOption})]`;
 		return {
 			'vite.config.ts': `import { defineConfig } from "vite";\n${integration}${runner === 'vitest' ? ', test: { environment: "jsdom", globals: true }' : ''} });\n`
 		};
 	}
 	if (bundler === 'webpack') {
 		return {
-			'webpack.config.mjs':
-				'import path from "node:path";\nimport { fileURLToPath } from "node:url";\nimport { ExactWebpackPlugin } from "@exactjs/webpack-plugin";\n\nconst root = path.dirname(fileURLToPath(import.meta.url));\nexport default {\n\tentry: "./src/client.tsx",\n\toutput: { path: path.join(root, "dist"), filename: "main.js", clean: true },\n\tresolve: { extensions: [".tsx", ".ts", ".js"] },\n\tplugins: [new ExactWebpackPlugin()],\n\tdevServer: { static: path.join(root, "public"), port: 5173 }\n};\n'
+			'webpack.config.mjs': `import path from "node:path";\nimport { fileURLToPath } from "node:url";\nimport { ExactWebpackPlugin } from "@exactjs/webpack-plugin";\n\nconst root = path.dirname(fileURLToPath(import.meta.url));\nexport default {\n\tentry: "./src/client.tsx",\n\toutput: { path: path.join(root, "dist"), filename: "main.js", clean: true },\n\tresolve: { extensions: [".tsx", ".ts", ".js"] },\n\tplugins: [new ExactWebpackPlugin(${reactOption})],\n\tdevServer: { static: path.join(root, "public"), port: 5173 }\n};\n`
 		};
 	}
 	return {
-		'scripts/build.ts':
-			'import { exact } from "@exactjs/bun-plugin";\n\nconst result = await Bun.build({ entrypoints: ["./src/client.tsx"], outdir: "./dist", target: "browser", format: "esm", plugins: [exact()] });\nif (!result.success) throw new AggregateError(result.logs, "eXact build failed");\n'
+		'scripts/build.ts': `import { exact } from "@exactjs/bun-plugin";\n\nconst result = await Bun.build({ entrypoints: ["./src/client.tsx"], outdir: "./dist", target: "browser", format: "esm", plugins: [exact(${reactOption})] });\nif (!result.success) throw new AggregateError(result.logs, "eXact build failed");\n`
 	};
 }
 
@@ -279,7 +318,11 @@ function runtimeFiles(runtime: Runtime): Record<string, string> {
 	return { 'src/server.ts': prelude + sources[runtime] };
 }
 
-function testFiles(runner: TestRunner, bundler: Bundler): Record<string, string> {
+function testFiles(
+	runner: TestRunner,
+	bundler: Bundler,
+	reactCompatibility: ReactCompatibilityTarget
+): Record<string, string> {
 	if (runner === 'none') return {};
 	const imports =
 		runner === 'vitest'
@@ -292,19 +335,24 @@ function testFiles(runner: TestRunner, bundler: Bundler): Record<string, string>
 		'src/App.test.tsx': `${imports}import { testComponent } from "${testingPackage}";\nimport { App } from "./App.js";\n\ndescribe("App", () => {\n\tit("updates reactive state", async () => {\n\t\tconst view = await testComponent(App).mount();\n\t\tconst button = view.getByRole("button");\n\t\tawait button.click();\n\t\texpect(button).toHaveText("Count: 1");\n\t\tview.unmount();\n\t});\n});\n`,
 		...(runner === 'bun'
 			? {
-					'bunfig.toml': '[test]\npreload = ["@exactjs/bun-test/preload"]\n'
+					'bunfig.toml': reactCompatibility
+						? '[test]\npreload = ["./test-preload.ts"]\n'
+						: '[test]\npreload = ["@exactjs/bun-test/preload"]\n',
+					...(reactCompatibility
+						? {
+								'test-preload.ts': `import { configureExactBunTest } from "@exactjs/bun-test";\n\nconfigureExactBunTest({ compiler: { reactCompatibility: { target: ${reactCompatibility} } } });\n`
+							}
+						: {})
 				}
 			: {}),
 		...(runner === 'jest'
 			? {
-					'jest.config.mjs':
-						'import { exactJest } from "@exactjs/jest";\n\nexport default { ...exactJest() };\n'
+					'jest.config.mjs': `import { exactJest } from "@exactjs/jest";\n\nexport default { ...exactJest(${reactCompatibility ? `{ compiler: { reactCompatibility: { target: ${reactCompatibility} } } }` : ''}) };\n`
 				}
 			: bundler === 'vite'
 				? {}
 				: {
-						'vitest.config.ts':
-							'import { exactVitest } from "@exactjs/vitest";\nimport { defineConfig } from "vitest/config";\n\nexport default defineConfig({ plugins: [exactVitest()], test: { environment: "jsdom", globals: true } });\n'
+						'vitest.config.ts': `import { exactVitest } from "@exactjs/vitest";\nimport { defineConfig } from "vitest/config";\n\nexport default defineConfig({ plugins: [exactVitest(${reactCompatibility ? `{ compiler: { reactCompatibility: { target: ${reactCompatibility} } } }` : ''})], test: { environment: "jsdom", globals: true } });\n`
 					})
 	};
 }
@@ -314,7 +362,10 @@ function generatedReadme(options: CreateExactAppOptions): string {
 		options.runtime === 'browser'
 			? ''
 			: '\nRun the platform endpoint in a second terminal with `npm run dev:server` when that script is available.\n';
-	return `# ${options.name}\n\nAn eXact application generated with \`@exactjs/create-exact-app\`.\n\n- Build integration: ${options.bundler}\n- Runtime: ${options.runtime}\n- Test runner: ${options.testRunner}\n- Application type-checker: TypeScript 7\n\n## Development\n\n\`\`\`sh\nnpm install\nnpm run typecheck\nnpm run dev\n\`\`\`\n${server}\nEdit \`src/App.tsx\` to begin. The component setup runs once; mutate \`this.state\` directly and let the eXact compiler update the affected DOM expressions.\n\nThe application uses TypeScript 7 for command-line and editor checking. eXact's compiler packages carry the TypeScript 6 compatibility API they require, so both versions can safely coexist in the same install.\n`;
+	const react = options.reactCompatibility
+		? `- React compatibility: React ${options.reactCompatibility}\n`
+		: '';
+	return `# ${options.name}\n\nAn eXact application generated with \`@exactjs/create-exact-app\`.\n\n- Build integration: ${options.bundler}\n- Runtime: ${options.runtime}\n- Test runner: ${options.testRunner}\n${react}- Application type-checker: TypeScript 7\n\n## Development\n\n\`\`\`sh\nnpm install\nnpm run typecheck\nnpm run dev\n\`\`\`\n${server}\nEdit \`src/App.tsx\` to begin. The component setup runs once; mutate \`this.state\` directly and let the eXact compiler update the affected DOM expressions.\n\nThe application uses TypeScript 7 for command-line and editor checking. eXact's compiler packages carry the TypeScript 6 compatibility API they require, so both versions can safely coexist in the same install.\n`;
 }
 
 async function installAgentSkill(target: string): Promise<void> {
@@ -327,8 +378,10 @@ async function installAgentSkill(target: string): Promise<void> {
 }
 
 function installDependencies(target: string, packageManager: string): void {
-	const command = packageManager === 'yarn' ? 'yarn' : packageManager;
+	validatePackageManager(packageManager);
+	const executable = process.platform === 'win32' ? `${packageManager}.cmd` : packageManager;
 	const args = packageManager === 'yarn' ? [] : ['install'];
-	const result = spawnSync(command, args, { cwd: target, stdio: 'inherit', shell: true });
+	const result = spawnSync(executable, args, { cwd: target, stdio: 'inherit', shell: false });
+	if (result.error) throw result.error;
 	if (result.status !== 0) throw new Error(`${packageManager} install failed`);
 }

@@ -31,6 +31,7 @@
 		"@exactjs/instrumentation": "^0.1.0",
 		"@exactjs/plugin-api": "^0.1.0",
 		"@exactjs/plugin-host": "^0.1.0",
+		"entities": "^6.0.1",
 		"typescript": "npm:@typescript/typescript6@^6.0.2"
 	},
 	"devDependencies": {

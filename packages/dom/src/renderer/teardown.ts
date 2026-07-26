@@ -73,7 +73,8 @@ export function unmountMounted(mounted: Mounted): void {
 		attemptTeardown(failure, () => clearNodeOwner(current.mounted.dom));
 		if (current.mounted.end) attemptTeardown(failure, () => clearNodeOwner(current.mounted.end!));
 		const ref = current.mounted.vnode.props.ref as RefBinding<unknown> | undefined;
-		if (ref) attemptTeardown(failure, () => ref.fulfill(undefined));
+		if (ref && typeof ref.fulfill === 'function')
+			attemptTeardown(failure, () => ref.fulfill(undefined));
 	}
 	throwTeardownFailure(failure);
 }

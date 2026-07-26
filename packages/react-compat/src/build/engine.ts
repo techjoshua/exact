@@ -1,4 +1,5 @@
 import { rewriteModuleReferences, type ModuleExportReplacement } from '@exactjs/expressions';
+import type { PackageManifestLike } from '@exactjs/react-compat-adapter-api';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import {
@@ -10,11 +11,18 @@ import {
 	type ReactCompatPackageGraph,
 	type ResolvedReactCompatAdapters
 } from '../adapters.js';
-import { resolveReactCompatibility, type ReactCompatibilityOptions } from '../plugin.js';
+import {
+	jsxSourceOwnership,
+	resolveReactCompatibility,
+	type ReactCompatibilityOptions,
+	type ResolvedReactCompatibility
+} from '../plugin.js';
+import { readFileSync } from 'node:fs';
 
 import type {
 	ReactCompatibilityBuildEngine,
 	ReactCompatibilityDiagnostic,
+	ReactCompatibilityJsxInterop,
 	ReactCompatibilitySelection
 } from './contracts.js';
 import {
@@ -50,6 +58,8 @@ export function createReactCompatibilityBuildEngine(
 	let invalidated = false;
 	const usedAdapters = new Set<string>();
 	const selections = new Map<string, ReactCompatibilitySelection>();
+	const ownershipCache = new Map<string, 'exact' | 'component' | 'unknown' | 'ambiguous'>();
+	const ownershipFiles = new Set<string>();
 	const state = (): CachedDiscovery => {
 		const existing = discoveryCache.get(buildRoot);
 		if (!invalidated && existing && existing.signature === fileSignature(existing.watchFiles))
@@ -80,10 +90,51 @@ export function createReactCompatibilityBuildEngine(
 			return Object.freeze({ moduleAliases: resolved.aliases, replacements: state().replacements });
 		},
 		get watchFiles() {
-			return state().watchFiles;
+			return combinedWatchFiles(state().watchFiles, ownershipFiles);
 		},
 		get registryHash() {
 			return state().hash;
+		},
+		get jsxInterop() {
+			const current = state();
+			return Object.freeze({
+				adapterModule: '@exactjs/react-compat/exact' as const,
+				adapterExport: 'adaptReactComponent' as const,
+				cacheKey: `${resolved.target}:${current.hash}`,
+				classify(candidate: Parameters<ReactCompatibilityJsxInterop['classify']>[0]) {
+					for (const source of candidate.declarationSources)
+						for (const filename of readableSourceCandidates(source)) ownershipFiles.add(filename);
+					if (candidate.sourceModule.startsWith('.')) {
+						for (const filename of readableSourceCandidates(
+							path.resolve(path.dirname(candidate.importer), candidate.sourceModule)
+						))
+							ownershipFiles.add(filename);
+					}
+					const key = JSON.stringify([
+						candidate.importer,
+						candidate.sourceModule,
+						candidate.localName,
+						candidate.tagName,
+						candidate.declarationSources,
+						candidate.declarationSignatures,
+						resolved.target,
+						current.hash,
+						fileSignature([...ownershipFiles])
+					]);
+					const cached = ownershipCache.get(key);
+					if (cached) return cached;
+					const ownership = classifyReactComponent(
+						candidate.importer,
+						candidate.sourceModule,
+						candidate.declarationSources,
+						candidate.declarationSignatures,
+						resolved,
+						current.graph
+					);
+					ownershipCache.set(key, ownership);
+					return ownership;
+				}
+			});
 		},
 		transformModule(input) {
 			const current = state();
@@ -197,7 +248,7 @@ export function createReactCompatibilityBuildEngine(
 					code: input.source,
 					map: null,
 					changed: false,
-					watchFiles: current.watchFiles,
+					watchFiles: combinedWatchFiles(current.watchFiles, ownershipFiles),
 					dependencyIds: [],
 					diagnostics: Object.freeze(unsupportedDiagnostics),
 					registryHash: current.hash
@@ -254,7 +305,7 @@ export function createReactCompatibilityBuildEngine(
 				code: transformed.code,
 				map: transformed.map,
 				changed: transformed.changed,
-				watchFiles: current.watchFiles,
+				watchFiles: combinedWatchFiles(current.watchFiles, ownershipFiles),
 				dependencyIds: Object.freeze(dependencyIds),
 				diagnostics: Object.freeze(diagnostics),
 				registryHash: current.hash
@@ -265,10 +316,13 @@ export function createReactCompatibilityBuildEngine(
 			const normalized = path.resolve(file).toLowerCase();
 			if (
 				!current ||
-				current.watchFiles.some((watch) => path.resolve(watch).toLowerCase() === normalized)
+				[...current.watchFiles, ...ownershipFiles].some(
+					(watch) => path.resolve(watch).toLowerCase() === normalized
+				)
 			) {
 				invalidated = true;
 				discoveryCache.delete(buildRoot);
+				ownershipCache.clear();
 			}
 		},
 		report() {
@@ -317,9 +371,197 @@ export function createReactCompatibilityBuildEngine(
 						})
 					)
 				),
-				watchFiles: current.watchFiles
+				watchFiles: combinedWatchFiles(current.watchFiles, ownershipFiles)
 			});
 		}
 	};
 	return Object.freeze(engine);
+}
+
+function classifyReactComponent(
+	importer: string,
+	sourceModule: string,
+	declarationSources: readonly string[],
+	declarationSignatures: readonly string[],
+	resolved: ResolvedReactCompatibility,
+	graph: ReactCompatPackageGraph
+): 'exact' | 'component' | 'unknown' | 'ambiguous' {
+	if (sourceModule === 'react' || sourceModule.startsWith('react/')) return 'component';
+	const signatureOwnership = ownershipFromSignatures(declarationSignatures);
+	if (signatureOwnership) return signatureOwnership;
+	const packageName = barePackageName(sourceModule);
+	const candidates = [
+		...declarationSources,
+		...(sourceModule.startsWith('.') ? [path.resolve(path.dirname(importer), sourceModule)] : [])
+	];
+	let sawExact = false;
+	let sawReact = false;
+	for (const candidate of candidates) {
+		const normalized = candidate.replaceAll('\\', '/');
+		if (/\/@types\/react(?:\/|$)/.test(normalized)) {
+			sawReact = true;
+			continue;
+		}
+		const source = readableSource(candidate);
+		if (!source) continue;
+		const ownership = jsxSourceOwnership(candidate, source, resolved);
+		if (ownership === 'react') {
+			sawReact = true;
+			continue;
+		}
+		if (ownership === 'exact') {
+			sawExact = true;
+			continue;
+		}
+		if (hasReactRuntimeImport(source)) sawReact = true;
+		if (
+			/@exactjs\/(?:core|jsx)/.test(source) ||
+			/\bthis\s*:\s*(?:import\([^)]*\)\.)?Component\b/.test(source)
+		)
+			sawExact = true;
+		const reexportOwnership = ownershipFromStaticReexports(candidate, source, resolved, graph);
+		if (reexportOwnership === 'component') sawReact = true;
+		else if (reexportOwnership === 'exact') sawExact = true;
+		else if (reexportOwnership === 'ambiguous') {
+			sawReact = true;
+			sawExact = true;
+		}
+	}
+	if (sawReact && sawExact) return 'ambiguous';
+	if (sawReact) return 'component';
+	if (sawExact) return 'exact';
+	const manifest = packageName
+		? [...graph.nodes.values()].find((node) => node.manifest.name === packageName)?.manifest
+		: undefined;
+	if (manifest) {
+		const packageUsesReact = manifestUsesReact(manifest);
+		const packageUsesExact = manifestUsesExact(manifest);
+		if (packageUsesReact && packageUsesExact) return 'ambiguous';
+		if (packageUsesReact) return 'component';
+		if (packageUsesExact) return 'exact';
+	}
+	return 'unknown';
+}
+
+function ownershipFromSignatures(
+	signatures: readonly string[]
+): 'exact' | 'component' | 'ambiguous' | undefined {
+	const exact = signatures.some(
+		(signature) =>
+			/\bthis\s*:\s*(?:import\([^)]*\)\.)?Component\b/.test(signature) ||
+			/\b(?:Async)?ComponentFunction\b/.test(signature)
+	);
+	const react = signatures.some(
+		(signature) =>
+			/\bReact(?:Element|Node)\b/.test(signature) ||
+			/\b(?:FunctionComponent|ComponentClass|FC)\s*</.test(signature)
+	);
+	if (exact && react) return 'ambiguous';
+	if (exact) return 'exact';
+	return react ? 'component' : undefined;
+}
+
+function barePackageName(specifier: string): string | undefined {
+	if (specifier.startsWith('.') || specifier.startsWith('/') || /^[A-Za-z]:[\\/]/.test(specifier))
+		return undefined;
+	const parts = specifier.split('/');
+	return specifier.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0];
+}
+
+function manifestUsesReact(manifest: PackageManifestLike): boolean {
+	const fields = [manifest.peerDependencies, manifest.dependencies, manifest.optionalDependencies];
+	return fields.some((field) => typeof field === 'object' && field !== null && 'react' in field);
+}
+
+function manifestUsesExact(manifest: PackageManifestLike): boolean {
+	const fields = [manifest.peerDependencies, manifest.dependencies, manifest.optionalDependencies];
+	return fields.some(
+		(field) =>
+			typeof field === 'object' &&
+			field !== null &&
+			('@exactjs/core' in field || '@exactjs/jsx' in field)
+	);
+}
+
+function readableSourceCandidates(filename: string): string[] {
+	return /\.[cm]?[jt]sx?$|\.d\.[cm]?ts$/i.test(filename)
+		? [filename]
+		: [
+				filename,
+				`${filename}.tsx`,
+				`${filename}.ts`,
+				`${filename}.jsx`,
+				`${filename}.js`,
+				path.join(filename, 'index.tsx'),
+				path.join(filename, 'index.ts')
+			];
+}
+
+function readableSource(filename: string): string | undefined {
+	const candidates = readableSourceCandidates(filename);
+	for (const candidate of candidates) {
+		try {
+			return readFileSync(candidate, 'utf8');
+		} catch {}
+	}
+	return undefined;
+}
+
+function hasReactRuntimeImport(source: string): boolean {
+	return /\b(?:from\s*|import\s*\()\s*['"]react(?:\/[^'"]*)?['"]/.test(source);
+}
+
+function ownershipFromStaticReexports(
+	filename: string,
+	source: string,
+	resolved: ResolvedReactCompatibility,
+	graph: ReactCompatPackageGraph,
+	visited = new Set<string>()
+): 'exact' | 'component' | 'ambiguous' | undefined {
+	const identity = path.resolve(filename);
+	if (visited.has(identity)) return undefined;
+	visited.add(identity);
+	const ownerships: Array<'exact' | 'component' | 'ambiguous'> = [];
+	for (const match of source.matchAll(/\bexport\s+(?:\*|\{[^}]*\})\s+from\s+['"]([^'"]+)['"]/g)) {
+		const specifier = match[1]!;
+		if (specifier === 'react' || specifier.startsWith('react/')) {
+			ownerships.push('component');
+			continue;
+		}
+		if (specifier.startsWith('.')) {
+			const target = path.resolve(path.dirname(identity), specifier);
+			const targetSource = readableSource(target);
+			if (!targetSource) continue;
+			const direct = jsxSourceOwnership(target, targetSource, resolved);
+			if (direct === 'react') ownerships.push('component');
+			else if (direct === 'exact') ownerships.push('exact');
+			else {
+				const nested = ownershipFromStaticReexports(target, targetSource, resolved, graph, visited);
+				if (nested) ownerships.push(nested);
+			}
+			continue;
+		}
+		const packageName = barePackageName(specifier);
+		const manifest = packageName
+			? [...graph.nodes.values()].find((node) => node.manifest.name === packageName)?.manifest
+			: undefined;
+		if (!manifest) continue;
+		const react = manifestUsesReact(manifest);
+		const exact = manifestUsesExact(manifest);
+		if (react && exact) ownerships.push('ambiguous');
+		else if (react) ownerships.push('component');
+		else if (exact) ownerships.push('exact');
+	}
+	const sawReact = ownerships.some((value) => value === 'component' || value === 'ambiguous');
+	const sawExact = ownerships.some((value) => value === 'exact' || value === 'ambiguous');
+	if (sawReact && sawExact) return 'ambiguous';
+	if (sawReact) return 'component';
+	return sawExact ? 'exact' : undefined;
+}
+
+function combinedWatchFiles(
+	base: readonly string[],
+	ownership: ReadonlySet<string>
+): readonly string[] {
+	return Object.freeze([...new Set([...base, ...ownership])].sort());
 }

@@ -211,7 +211,7 @@ export async function renderVNodeAsyncInner(
 	try {
 		const hostProps = reactHostProps(context, hostVNode);
 		registerReactImagePreload(context, tag, hostProps);
-		const attrs = renderAttrs(hostProps, context.reactMarkup, tag);
+		const attrs = renderAttrs(hostProps, context.reactMarkup, tag, context);
 		if (voidElements.has(tag))
 			return `${host.prefix}<${tag}${attrs}${context.reactMarkup ? '/' : ''}>`;
 		const raw = reactHostContent(context, hostVNode);

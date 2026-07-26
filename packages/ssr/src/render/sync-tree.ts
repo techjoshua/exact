@@ -212,7 +212,7 @@ export function* renderVNodeChunks(
 	try {
 		const hostProps = reactHostProps(context, hostVNode);
 		registerReactImagePreload(context, tag, hostProps);
-		yield `${host.prefix}<${tag}${renderAttrs(hostProps, context.reactMarkup, tag)}${context.reactMarkup && voidElements.has(tag) ? '/' : ''}>`;
+		yield `${host.prefix}<${tag}${renderAttrs(hostProps, context.reactMarkup, tag, context)}${context.reactMarkup && voidElements.has(tag) ? '/' : ''}>`;
 		if (voidElements.has(tag)) return;
 		const raw = reactHostContent(context, hostVNode);
 		if (raw !== undefined) yield raw;

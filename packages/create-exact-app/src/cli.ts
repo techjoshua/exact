@@ -9,6 +9,7 @@ import {
 	testRunners,
 	type Bundler,
 	type Runtime,
+	type ReactCompatibilityTarget,
 	type TestRunner
 } from './project-generation.js';
 
@@ -20,6 +21,7 @@ Options:
   --bundler <vite|webpack|bun>  build integration
   --runtime <platform>          ${runtimes.join(', ')}
   --test-runner <runner>        ${testRunners.join(', ')}
+  --react <none|18|19>          include React component compatibility
   --skill | --no-skill          include the repo-local eXact Agent Skill
   --install | --no-install      install dependencies after generation
   --yes                         accept recommended defaults
@@ -34,6 +36,7 @@ type Arguments = {
 	bundler?: Bundler;
 	runtime?: Runtime;
 	testRunner?: TestRunner;
+	reactCompatibility?: ReactCompatibilityTarget;
 	skill?: boolean;
 	install?: boolean;
 };
@@ -48,6 +51,9 @@ try {
 	const runtime = parsed.runtime ?? (await choose(prompt, 'Runtime platform', runtimes, 'browser'));
 	const testRunner =
 		parsed.testRunner ?? (await choose(prompt, 'Test runner', testRunners, 'vitest'));
+	const reactCompatibility =
+		parsed.reactCompatibility ??
+		(await choose(prompt, 'React compatibility', ['none', '18', '19'] as const, 'none'));
 	const skill =
 		parsed.skill ??
 		(await confirm(prompt, 'Install the portable eXact Agent Skill in this project?', true));
@@ -58,6 +64,8 @@ try {
 		bundler,
 		runtime,
 		testRunner,
+		reactCompatibility:
+			reactCompatibility === 'none' ? false : (Number(reactCompatibility) as 18 | 19),
 		skill,
 		install
 	});
@@ -76,7 +84,10 @@ function parseArguments(values: string[]): Arguments {
 		else if (value === '--runtime') result.runtime = option(values[++index], runtimes, 'runtime');
 		else if (value === '--test-runner')
 			result.testRunner = option(values[++index], testRunners, 'test runner');
-		else if (value === '--skill') result.skill = true;
+		else if (value === '--react') {
+			const target = option(values[++index], ['none', '18', '19'] as const, 'React target');
+			result.reactCompatibility = target === 'none' ? false : (Number(target) as 18 | 19);
+		} else if (value === '--skill') result.skill = true;
 		else if (value === '--no-skill') result.skill = false;
 		else if (value === '--install') result.install = true;
 		else if (value === '--no-install') result.install = false;
@@ -84,6 +95,7 @@ function parseArguments(values: string[]): Arguments {
 			result.bundler ??= 'vite';
 			result.runtime ??= 'browser';
 			result.testRunner ??= 'vitest';
+			result.reactCompatibility ??= false;
 			result.skill ??= true;
 			result.install ??= true;
 		} else throw new Error(`Unknown option: ${value}`);

@@ -40,9 +40,15 @@ export function resumeToPipeableStream(
 ) {
 	let destination: Writable | undefined;
 	let html: string | undefined;
-	void renderReactToStringAsync(node, options).then(
+	const controller = new AbortController();
+	const signal = options?.signal
+		? AbortSignal.any([options.signal, controller.signal])
+		: controller.signal;
+	const resolved = { ...options, signal };
+	void renderReactToStringAsync(node, resolved).then(
 		(value) => {
-			html = withBootstrapScripts(value, options ?? {});
+			if (signal.aborted) return;
+			html = withBootstrapScripts(value, resolved);
 			if (destination) Readable.from([html]).pipe(destination);
 		},
 		(error) => destination?.destroy?.(error instanceof Error ? error : new Error(String(error)))
@@ -50,9 +56,23 @@ export function resumeToPipeableStream(
 	return {
 		pipe(next: Writable) {
 			destination = next;
-			if (html !== undefined) Readable.from([html]).pipe(next);
+			if (signal.aborted) {
+				const reason = signal.reason;
+				next.destroy(reason instanceof Error ? reason : new Error(String(reason ?? 'aborted')));
+			} else if (html !== undefined) Readable.from([html]).pipe(next);
 			return next;
 		},
-		abort() {}
+		abort(reason?: unknown) {
+			if (controller.signal.aborted) return;
+			const error =
+				reason instanceof Error
+					? reason
+					: new DOMException(
+							typeof reason === 'string' ? reason : 'React static render aborted',
+							'AbortError'
+						);
+			controller.abort(error);
+			destination?.destroy(error);
+		}
 	};
 }

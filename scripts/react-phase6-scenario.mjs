@@ -1,9 +1,9 @@
 import { PassThrough } from 'node:stream';
+import { captureExpectedConsole } from './react-conformance/diagnostics.mjs';
 
 /** Collects stable production-hardening observations for Phase 6. */
 export async function collectReactPhase6Trace({ React, ReactDOM, ReactDOMServer, baseline }) {
-	const originalError = console.error;
-	console.error = () => {};
+	const diagnostics = captureExpectedConsole(`React ${baseline} phase 6`);
 	try {
 		const hostCases = generatedHostCases(React).map((tree) => ReactDOMServer.renderToString(tree));
 		const identifiers = ReactDOMServer.renderToString(React.createElement(IdentifierPair), {
@@ -53,7 +53,7 @@ export async function collectReactPhase6Trace({ React, ReactDOM, ReactDOMServer,
 			return React.createElement('article', null, 'resources');
 		}
 	} finally {
-		console.error = originalError;
+		diagnostics.restoreAndAssert();
 	}
 }
 

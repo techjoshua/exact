@@ -29,6 +29,7 @@ export type HelperNames = {
 	registerContinuationContexts: string;
 	remove: string;
 	arrayMutation: string;
+	interopComponent: string;
 };
 
 /** Defines the state snapshot tree type contract. */

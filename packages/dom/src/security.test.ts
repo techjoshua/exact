@@ -33,6 +33,26 @@ describe('@exactjs/dom security', () => {
 		expect(container.querySelector('a')?.getAttribute('href')).toBe('/safe');
 	});
 
+	it('routes iframe srcdoc through the unsafe HTML capability and root audit', () => {
+		const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+		const plainContainer = document.createElement('div');
+		const unconfiguredContainer = document.createElement('div');
+		render(createVNode('iframe', { srcdoc: '<p>untrusted</p>' }), plainContainer);
+		render(createVNode('iframe', { srcdoc: unsafeHtml('<p>trusted</p>') }), unconfiguredContainer);
+		expect(plainContainer.querySelector('iframe')).toBeNull();
+		expect(unconfiguredContainer.querySelector('iframe')).toBeNull();
+		logged.mockRestore();
+
+		const container = document.createElement('div');
+		const audit = vi.fn();
+		render(createVNode('iframe', { srcdoc: unsafeHtml('<p>trusted</p>') }), container, {
+			allowUnsafeHtml: true,
+			onUnsafeHtml: audit
+		});
+		expect(container.querySelector('iframe')?.getAttribute('srcdoc')).toBe('<p>trusted</p>');
+		expect(audit).toHaveBeenCalledWith({ characters: 14 });
+	});
+
 	it('creates intrinsic scripts inertly during client mounting', () => {
 		const container = document.createElement('div');
 		delete (globalThis as { __exactScriptRan?: boolean }).__exactScriptRan;

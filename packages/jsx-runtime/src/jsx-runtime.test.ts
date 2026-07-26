@@ -28,4 +28,11 @@ describe('@exactjs/jsx', () => {
 	it('exports underscore as the keyed fragment JSX marker', () => {
 		expect(_).toBe(Fragment);
 	});
+
+	it('preserves an explicitly empty key', () => {
+		const vnode = jsx('li', { children: 'empty key' }, '');
+		expect(isCellVNode(vnode)).toBe(true);
+		if (!isCellVNode(vnode)) throw new Error('Expected cell vnode');
+		expect(getCellVNode(vnode).key).toBe('');
+	});
 });

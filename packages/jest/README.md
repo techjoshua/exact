@@ -10,9 +10,15 @@ queries, server component snapshots, paired client/server protocol tests, events
 import { exactJest } from '@exactjs/jest';
 
 export default {
-	...exactJest()
+	...exactJest({
+		compiler: { reactCompatibility: { target: 19 } }
+	})
 };
 ```
+
+When enabled, the transformer accepts supported React components directly in native eXact JSX
+and Jest maps React runtime imports to the selected compatibility target. Add the matching
+`@exactjs/react-compat/types18` or `types19` facade to `compilerOptions.types`.
 
 Run ESM tests with Jest's VM modules support:
 

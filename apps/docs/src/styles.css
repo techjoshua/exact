@@ -592,6 +592,25 @@ h1 {
 	background: var(--surface-raised);
 }
 
+.react-stepper {
+	display: grid;
+	gap: 0.75rem;
+	margin-top: 1rem;
+	padding: 1rem;
+	border: 1px dashed var(--border-strong);
+	border-radius: 0.6rem;
+	background: var(--surface);
+}
+
+.react-stepper p,
+.react-stepper small {
+	margin: 0;
+}
+
+.react-stepper .button-row {
+	align-items: center;
+}
+
 .counter-demo {
 	position: relative;
 	overflow: hidden;

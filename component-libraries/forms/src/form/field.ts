@@ -1,4 +1,4 @@
-import { type Component } from '@exactjs/core';
+import { markExactComponent, type Component } from '@exactjs/core';
 
 import { FieldContext, FormContext } from './context.js';
 import type { FieldContextValue, FieldProps, FieldState, FormContextValue } from './contracts.js';
@@ -20,11 +20,10 @@ export function Field(this: Component<FieldState>, props: FieldProps) {
 	let generation = 0;
 	let nextHelpIndex = 0;
 	let controller: AbortController | undefined;
-	let form: FormContextValue | undefined;
+	const form = this.hasContext(FormContext)
+		? (this.getContext(FormContext) as FormContextValue)
+		: undefined;
 	const owner = this;
-	try {
-		form = this.getContext(FormContext) as FormContextValue;
-	} catch {}
 	const id = props.id ?? `exact-field-${sanitizeId(props.name)}`;
 	const context: FieldContextValue = {
 		name: props.name,
@@ -126,3 +125,5 @@ export function Field(this: Component<FieldState>, props: FieldProps) {
 	});
 	return () => (registered ? props.children : null);
 }
+
+markExactComponent(Field);

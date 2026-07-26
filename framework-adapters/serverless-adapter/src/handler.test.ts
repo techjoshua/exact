@@ -5,6 +5,7 @@ import { createExactServerlessHandler, responseToServerlessResult } from './inde
 describe('@exactjs/serverless-adapter', () => {
 	it('handles API Gateway style events', async () => {
 		const handler = createExactServerlessHandler({
+			publicOrigin: 'https://lambda.example.test',
 			contract: {
 				version: 1,
 				endpoint: '/__exact',
@@ -44,6 +45,7 @@ describe('@exactjs/serverless-adapter', () => {
 
 	it('normalizes alternate event fields, query strings, and base64 request bodies', async () => {
 		const handler = createExactServerlessHandler({
+			publicOrigin: 'http://lambda.example.test',
 			contract: {
 				version: 1,
 				endpoint: '/__exact',

@@ -483,10 +483,10 @@
       "subgraphPlacement": "isomorphic",
       "renderEdges": [
         {
-          "id": "xnzU298f9pA_OhfCGoJH1R-",
+          "id": "x1EwUH-MKItU5y1CmUux4nG",
           "tag": "CalculatorWorkspace",
           "name": "CalculatorWorkspace",
-          "componentId": "x0sG9wwwWD4amYgX8E3QD0A",
+          "componentId": "x3QwD2srelZ7JL4fIYctIBR",
           "placement": "client",
           "boundary": "client",
           "index": 1,
@@ -603,9 +603,9 @@
     {
       "id": "xG1VdS7AhctN3YpqNne2u51",
       "name": "CalculatorWorkspace",
-      "componentId": "x0sG9wwwWD4amYgX8E3QD0A",
+      "componentId": "x3QwD2srelZ7JL4fIYctIBR",
       "ownerComponentId": "xWlcOlFiMzqEjqVOs2HlMar",
-      "renderEdgeId": "xnzU298f9pA_OhfCGoJH1R-",
+      "renderEdgeId": "x1EwUH-MKItU5y1CmUux4nG",
       "renderEdgeIndex": 1,
       "renderPath": "4.5.0.1.0.4.4",
       "kind": "client-island"
@@ -661,7 +661,7 @@
           "path": [
             "ShippingCalculatorPage",
             "configuredProviderIds",
-            "<function@1301>",
+            "<function@1335>",
             "provider.configured"
           ]
         }
@@ -682,7 +682,7 @@
           "path": [
             "ShippingCalculatorPage",
             "configuredProviderIds",
-            "<function@1301>",
+            "<function@1335>",
             "provider.configured"
           ]
         }
@@ -1109,9 +1109,9 @@
       {
         "id": "xG1VdS7AhctN3YpqNne2u51",
         "name": "CalculatorWorkspace",
-        "componentId": "x0sG9wwwWD4amYgX8E3QD0A",
+        "componentId": "x3QwD2srelZ7JL4fIYctIBR",
         "ownerComponentId": "xWlcOlFiMzqEjqVOs2HlMar",
-        "renderEdgeId": "xnzU298f9pA_OhfCGoJH1R-",
+        "renderEdgeId": "x1EwUH-MKItU5y1CmUux4nG",
         "renderEdgeIndex": 1,
         "renderPath": "4.5.0.1.0.4.4",
         "kind": "client-island"

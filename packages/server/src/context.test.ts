@@ -55,6 +55,7 @@ describe('server context scopes', () => {
 		let securityScope: unknown;
 		let actionScope: unknown;
 		const context = server({
+			publicOrigin: 'https://example.test',
 			applicationContexts: [
 				[
 					ApplicationValue,
@@ -107,6 +108,43 @@ describe('server context scopes', () => {
 		expect(observed[2]).toBe('application:/orders');
 		expect(observed[3]).toBe(platform);
 		expect(securityScope).toBe(actionScope);
+	});
+
+	it('uses an application-owned public-origin resolver instead of request authority headers', async () => {
+		const platform = { proxy: 'trusted' };
+		const resolver = vi.fn(
+			(input: {
+				headers?: Headers | Record<string, string | string[] | undefined>;
+				platformRequest?: unknown;
+			}) => {
+				expect(input.platformRequest).toBe(platform);
+				expect(input.headers).toMatchObject({
+					host: 'attacker.example',
+					'x-forwarded-proto': 'javascript'
+				});
+				return 'https://tenant.example.test';
+			}
+		);
+		const runtime = createExactContextRuntime({ publicOrigin: resolver });
+		const opened = await runtime.open(
+			{
+				method: 'GET',
+				url: 'https://attacker.example/orders?open=1',
+				headers: {
+					host: 'attacker.example',
+					'x-forwarded-proto': 'javascript'
+				}
+			},
+			platform
+		);
+		try {
+			expect(opened.request.url.href).toBe('https://tenant.example.test/orders?open=1');
+			expect(opened.request.publicOrigin?.href).toBe('https://tenant.example.test/');
+			expect(resolver).toHaveBeenCalledOnce();
+		} finally {
+			await opened.dispose();
+			await runtime.dispose();
+		}
 	});
 
 	it('rejects invalid lifetimes, duplicate registrations, and dependency cycles', async () => {

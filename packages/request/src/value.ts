@@ -20,8 +20,16 @@ export function createRequestContextValue(
 ): RequestContextValue {
 	const signal = input.signal ?? new AbortController().signal;
 	const headers = normalizeHeaders(input.headers);
-	const baseUrl = `${headers.get('x-forwarded-proto') ?? 'http'}://${headers.get('host') ?? 'exact.local'}`;
-	const url = input.url instanceof URL ? new URL(input.url) : new URL(input.url ?? '/', baseUrl);
+	const publicOrigin =
+		input.publicOrigin === undefined ? undefined : normalizePublicOrigin(input.publicOrigin);
+	const supplied = new URL(
+		input.url instanceof URL ? input.url.href : (input.url ?? '/'),
+		'http://exact.invalid'
+	);
+	const url = new URL(
+		`${supplied.pathname}${supplied.search}`,
+		publicOrigin ?? 'http://exact.invalid'
+	);
 	const setStatus = (status: number) => {
 		assertResponseMutable(response);
 		if (!Number.isInteger(status) || status < 100 || status > 999) {
@@ -31,6 +39,7 @@ export function createRequestContextValue(
 	};
 	return {
 		url,
+		...(publicOrigin === undefined ? {} : { publicOrigin: new URL(publicOrigin) }),
 		method: (input.method ?? 'GET').toUpperCase(),
 		headers,
 		signal,
@@ -43,7 +52,9 @@ export function createRequestContextValue(
 			setStatus(status);
 			const target = location instanceof URL ? new URL(location) : new URL(location, url);
 			response.redirect = { location: target, status };
-			response.headers.set('location', target.href);
+			// Preserve authored relative redirects. Turning them into absolute
+			// locations would make request-controlled authority data observable.
+			response.headers.set('location', location instanceof URL ? location.href : location);
 		},
 		setStatus,
 		setHeader(name, value) {
@@ -51,6 +62,24 @@ export function createRequestContextValue(
 			response.headers.set(name, value);
 		}
 	};
+}
+
+/** Validates an application-owned externally visible HTTP origin. */
+function normalizePublicOrigin(value: string | URL): URL {
+	const origin = new URL(value);
+	if (
+		(origin.protocol !== 'http:' && origin.protocol !== 'https:') ||
+		origin.username ||
+		origin.password ||
+		origin.pathname !== '/' ||
+		origin.search ||
+		origin.hash
+	) {
+		throw new TypeError(
+			'publicOrigin must be an HTTP(S) origin without credentials, path, or query'
+		);
+	}
+	return new URL(origin.origin);
 }
 
 /** Freezes request-owned response controls at the transport commit boundary. */

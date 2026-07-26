@@ -163,7 +163,7 @@ describe('@exactjs/ssr request-context', () => {
 		);
 
 		expect(response.status).toBe(307);
-		expect(response.headers.location).toBe('https://example.test/sign-in');
+		expect(response.headers.location).toBe('/sign-in');
 		expect(() => activeRequest!.setHeader('x-too-late', 'yes')).toThrow(
 			'after its status and headers are committed'
 		);

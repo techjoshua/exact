@@ -1,3 +1,4 @@
+import { decodeHTMLStrict } from 'entities';
 import ts from 'typescript';
 import type { ExpressionJsxPlan } from '../../expression/jsx.js';
 import { stableId } from '../../ids.js';
@@ -193,7 +194,8 @@ export function childrenExpressions(
 
 	for (const child of children) {
 		if (ts.isJsxText(child)) {
-			const text = child.text.replace(/\s+/g, ' ');
+			// Character references belong to JSX source syntax; expression values stay opaque.
+			const text = decodeHTMLStrict(child.text.replace(/\s+/g, ' '));
 			if (text.trim()) output.push(context.factory.createStringLiteral(text));
 			continue;
 		}

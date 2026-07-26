@@ -61,7 +61,7 @@ export function IntroductionPage(this: Component<{}>) {
 			eyebrow="Welcome to eXact"
 			title="Write the component. Do not rerun it."
 			description="eXact is a compiler-led web framework built around long-lived TypeScript components, precise reactive updates, and automatic client/server coordination. Component setup runs once; the expressions that depend on changing state stay connected."
-			next={{ path: '/getting-started', label: 'Quick start' }}
+			next={{ path: '/story', label: 'The story behind eXact' }}
 		>
 			<section>
 				<h2>Why another web framework?</h2>

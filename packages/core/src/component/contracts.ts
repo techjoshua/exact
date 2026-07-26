@@ -334,6 +334,8 @@ export type RenderEventHandler = (event: { duration: number; dependencies?: unkn
 export interface Component<State extends object> {
 	state: Reactive<State>;
 	log: ComponentLog;
+	/** Reports whether a context lookup would resolve without reading its value. */
+	hasContext(token: ContextToken<unknown>): boolean;
 	getContext<T>(token: ContextToken<T>): Reactive<T>;
 	setContext<T>(token: ContextToken<T>, value: T): void;
 	reactive(strings: TemplateStringsArray, ...values: unknown[]): ComponentReactiveValue<string>;

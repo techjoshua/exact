@@ -203,6 +203,13 @@ describe('@exactjs/bun-plugin', () => {
 				{ reactCompatibility: { target: 18 } }
 			)?.code
 		).toContain('@exactjs/react-compat/jsx-runtime18');
+		expect(
+			transformExactBunSource(
+				'/** @jsxImportSource @exactjs/jsx */\nimport { Suspense } from "react"; function View() { return () => <Suspense fallback="wait" />; }',
+				path.resolve(process.cwd(), 'src/direct-react.tsx'),
+				{ reactCompatibility: { target: 18 } }
+			)?.code
+		).toContain('adaptReactComponent as __exactInteropComponent');
 	});
 
 	it('rejects a mismatched reconciler relative to the importer', async () => {

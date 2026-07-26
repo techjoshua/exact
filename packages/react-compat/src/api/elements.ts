@@ -4,11 +4,11 @@ import {
 	reactCompatibilityTarget,
 	reactElementSymbol
 } from '../internals.js';
-import type { Key, ReactComponentType, ReactElement, ReactNode } from '../types.js';
+import type { Key, ReactCompatibleComponentType, ReactElement, ReactNode } from '../types.js';
 
 /** Creates a React-compatible element while preserving target-specific key and ref semantics. */
 export function createElement<P extends object>(
-	type: string | symbol | ReactComponentType<P>,
+	type: string | symbol | ReactCompatibleComponentType<P>,
 	config?: (P & { key?: Key; ref?: unknown }) | null,
 	...children: ReactNode[]
 ): ReactElement<P> {

@@ -92,13 +92,14 @@ describe('request context', () => {
 		value.setHeader('x-result', 'created');
 		value.redirect('../complete', 303);
 
-		expect(value.url.href).toBe('http://exact.local/orders?open=1');
+		expect(value.url.href).toBe('http://exact.invalid/orders?open=1');
 		expect(value.method).toBe('POST');
 		expect(value.headers.get('x-trace-id')).toBe('trace-1');
 		expect(value.locale).toBe('en-US');
 		expect(value.traceId).toBe('trace-1');
 		expect(response.status).toBe(303);
-		expect(response.redirect?.location.href).toBe('http://exact.local/complete');
+		expect(response.redirect?.location.href).toBe('http://exact.invalid/complete');
+		expect(response.headers.get('location')).toBe('../complete');
 		expect(response.headers.get('x-result')).toBe('created');
 	});
 
@@ -109,7 +110,8 @@ describe('request context', () => {
 		};
 		const value = createRequestContextValue(
 			{
-				url: 'https://example.test/account'
+				url: 'https://example.test/account',
+				publicOrigin: 'https://example.test'
 			},
 			response
 		);
@@ -119,22 +121,39 @@ describe('request context', () => {
 		const committed = commitRequestResponseState(response);
 
 		expect(committed.status).toBe(307);
-		expect(committed.headers.get('location')).toBe('https://example.test/login');
+		expect(committed.headers.get('location')).toBe('/login');
 		expect(() => value.setStatus(204)).toThrow('after its status and headers are committed');
 		expect(() => value.setHeader('x-late', 'no')).toThrow(
 			'after its status and headers are committed'
 		);
 	});
 
-	it('uses host and forwarded protocol headers to normalize relative adapter URLs', () => {
+	it('uses only an explicit public origin for relative adapter URLs', () => {
 		const value = createRequestContextValue({
 			url: '/orders',
+			publicOrigin: 'https://shop.example.test',
 			headers: {
-				host: 'shop.example.test',
-				'x-forwarded-proto': 'https'
+				host: 'attacker.example',
+				'x-forwarded-proto': 'javascript'
 			}
 		});
 		expect(value.url.href).toBe('https://shop.example.test/orders');
+		expect(value.publicOrigin?.href).toBe('https://shop.example.test/');
+	});
+
+	it('rejects malformed public origins and never adopts an absolute request authority', () => {
+		expect(() =>
+			createRequestContextValue({
+				url: 'https://attacker.example/orders',
+				publicOrigin: 'https://shop.example.test/base'
+			})
+		).toThrow(/publicOrigin/);
+
+		const value = createRequestContextValue({
+			url: 'https://attacker.example/orders?open=1',
+			headers: { host: 'also-attacker.example', 'x-forwarded-proto': 'https' }
+		});
+		expect(value.url.href).toBe('http://exact.invalid/orders?open=1');
 	});
 
 	it('makes server-owned root contexts visible without changing component lifetime', () => {

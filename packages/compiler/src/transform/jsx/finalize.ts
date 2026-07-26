@@ -3,6 +3,7 @@ import { insertAfterDirectivePrologue } from '../../emission/operations.js';
 import { pruneUnusedImports } from '../../prune-imports.js';
 import type {
 	ExactPlacement,
+	ExactJsxInterop,
 	ExactSemanticGraphIR,
 	HelperNames,
 	TransformTarget
@@ -27,7 +28,8 @@ export function finalizeJsxSource(
 	state: JsxTransformState,
 	target: TransformTarget,
 	componentPlacements: Map<string, ExactPlacement>,
-	semanticGraph: ExactSemanticGraphIR
+	semanticGraph: ExactSemanticGraphIR,
+	jsxInterop?: ExactJsxInterop
 ): ts.SourceFile {
 	const withIslands =
 		target === 'client' && state.clientIslandDefinitions.length
@@ -61,10 +63,27 @@ export function finalizeJsxSource(
 		factory.createStringLiteral(helperModule)
 	);
 
-	return factory.updateSourceFile(
-		visited,
-		insertAfterDirectivePrologue(visited.statements, importDeclaration)
-	);
+	let statements = insertAfterDirectivePrologue(visited.statements, importDeclaration);
+	if (state.sawInterop) {
+		if (!jsxInterop) throw new Error('JSX interop lowering requires a configured runtime adapter');
+		const interopImport = factory.createImportDeclaration(
+			undefined,
+			factory.createImportClause(
+				false,
+				undefined,
+				factory.createNamedImports([
+					factory.createImportSpecifier(
+						false,
+						factory.createIdentifier(jsxInterop.adapterExport),
+						factory.createIdentifier(helpers.interopComponent)
+					)
+				])
+			),
+			factory.createStringLiteral(jsxInterop.adapterModule)
+		);
+		statements = insertAfterDirectivePrologue(factory.createNodeArray(statements), interopImport);
+	}
+	return factory.updateSourceFile(visited, statements);
 }
 
 function requiresRuntimeHelpers(state: JsxTransformState): boolean {

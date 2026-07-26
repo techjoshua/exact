@@ -57,15 +57,23 @@ const __exactImplementation_CalculatorWorkspace_1 = function CalculatorWorkspace
         __exactWrite(this.state, ["loading"], () => [...ids]);
         const client = exactClient();
         const routePromise = client.invokeAction('route.resolve', request);
-        const providerPromises = ids.map((id) => client.invokeAction(`quote.${id}`, request).then((result) => ({ id, result })));
+        const providerPromises = ids.map((id) => ({
+            id,
+            promise: client.invokeAction(`quote.${id}`, request)
+        }));
         routePromise
             .then((result) => {
             if (generation === this.state.revision && result.state)
                 __exactWrite(this.state, ["route"], () => result.state as RouteResult);
         })
-            .catch(() => undefined);
-        await __exactTaskAwait(signal, Promise.all(providerPromises.map((promise) => promise
-            .then(({ id, result }) => {
+            .catch(() => {
+            if (signal.aborted || generation !== this.state.revision)
+                return;
+            __exactWrite(this.state, ["route"], () => ({ status: 'unavailable' }));
+            __exactWrite(this.state, ["error"], () => 'The route could not be refreshed. Change an input to retry.');
+        });
+        await __exactTaskAwait(signal, Promise.all(providerPromises.map(({ id, promise }) => promise
+            .then((result) => {
             if (generation !== this.state.revision)
                 return;
             const provider = result.state as ProviderResult;
@@ -75,7 +83,27 @@ const __exactImplementation_CalculatorWorkspace_1 = function CalculatorWorkspace
             ]);
             __exactWrite(this.state, ["loading"], () => this.state.loading.filter((item) => item !== id));
         })
-            .catch(() => undefined))));
+            .catch(() => {
+            if (signal.aborted || generation !== this.state.revision)
+                return;
+            const previous = this.state.providers.find((item) => item.providerId === id);
+            __exactWrite(this.state, ["providers"], () => [
+                ...this.state.providers.filter((item) => item.providerId !== id),
+                {
+                    version: 1,
+                    providerId: id,
+                    providerName: previous?.providerName ?? id.toUpperCase(),
+                    status: 'error',
+                    quotes: [],
+                    error: {
+                        code: 'unavailable',
+                        message: 'The carrier request failed before returning a current result'
+                    }
+                }
+            ]);
+            __exactWrite(this.state, ["loading"], () => this.state.loading.filter((item) => item !== id));
+            __exactWrite(this.state, ["error"], () => 'Some carrier rates could not be refreshed. Change an input to retry.');
+        }))));
         if (generation !== this.state.revision)
             return;
         __exactWrite(this.state, ["loading"], () => []);
@@ -87,19 +115,20 @@ const __exactImplementation_CalculatorWorkspace_1 = function CalculatorWorkspace
     return () => renderWorkspace(this.state, props, inputs);
 };
 export const CalculatorWorkspace: typeof __exactImplementation_CalculatorWorkspace_1 = /* @__PURE__ */ (() => Object.assign(__exactImplementation_CalculatorWorkspace_1, {
+    [Symbol.for("@exactjs/component")]: true,
     [__exactComponentContract_1]: {
         version: 1,
-        id: "x0sG9wwwWD4amYgX8E3QD0A",
+        id: "x3QwD2srelZ7JL4fIYctIBR",
         placement: "client",
         role: "client",
         implementations: [
-            { id: "x7v8mz4CVe6tOxNA6zCOPPT", name: "CalculatorWorkspace", role: "root", implementation: __exactImplementation_CalculatorWorkspace_1 }
+            { id: "xLPXzNeWh96-eTwfBjNT93h", name: "CalculatorWorkspace", role: "root", implementation: __exactImplementation_CalculatorWorkspace_1 }
         ],
         continuations: [],
         executors: [],
         boundaries: [],
         resumption: {
-            componentId: "x0sG9wwwWD4amYgX8E3QD0A",
+            componentId: "x3QwD2srelZ7JL4fIYctIBR",
             statePaths: [],
             valueCaptures: [],
             contexts: [],

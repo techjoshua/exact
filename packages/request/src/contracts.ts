@@ -1,6 +1,8 @@
 /** Describes the normalized request information exposed to components. */
 export type RequestContextValue = {
 	url: URL;
+	/** Trusted externally visible origin configured by the application, when available. */
+	publicOrigin?: URL;
 	method: string;
 	headers: Headers;
 	signal: AbortSignal;
@@ -14,6 +16,8 @@ export type RequestContextValue = {
 /** Accepts adapter-specific request values before normalization. */
 export type RequestContextInput = {
 	url?: string | URL;
+	/** Trusted externally visible origin; never inferred from forwarded request headers. */
+	publicOrigin?: string | URL;
 	method?: string;
 	headers?: Headers | Record<string, string | readonly string[] | undefined>;
 	signal?: AbortSignal;

@@ -7,6 +7,7 @@ import {
 	createDynamicChild,
 	createRef,
 	createVNode,
+	unsafeHtml,
 	type Component
 } from '@exactjs/core';
 import { render } from '@exactjs/dom';
@@ -77,6 +78,21 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(root.querySelector('p')).toBe(serverNode);
 		expect(root.querySelectorAll('p')).toHaveLength(1);
 		expect(observations).toEqual([{ kind: 'root', outcome: 'adopted', markers: 'exact' }]);
+	});
+
+	it('adopts opted-in iframe srcdoc through the unsafe HTML capability', () => {
+		const root = document.createElement('div');
+		root.innerHTML =
+			'<!--exact:component:0--><iframe srcdoc="&lt;p&gt;trusted&lt;/p&gt;"></iframe><!--/exact:component:0-->';
+		const serverNode = root.querySelector('iframe');
+		const audit: Array<{ characters: number }> = [];
+		hydrate(createVNode('iframe', { srcdoc: unsafeHtml('<p>trusted</p>') }), root, {
+			logger: noopLogger,
+			allowUnsafeHtml: true,
+			onUnsafeHtml: (event) => audit.push(event)
+		});
+		expect(root.querySelector('iframe')).toBe(serverNode);
+		expect(audit).toEqual([{ characters: 14 }]);
 	});
 
 	it('patches an adopted static root without appending a second tree', () => {

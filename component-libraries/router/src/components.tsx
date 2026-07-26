@@ -5,6 +5,7 @@ import {
 	Fragment,
 	getCellVNode,
 	isCellVNode,
+	markExactComponent,
 	unwrap,
 	type Child,
 	type Component,
@@ -347,6 +348,9 @@ export function Navigate(
 	route.navigate(props.to, { replace: props.replace ?? true, status: props.status });
 	return null;
 }
+
+for (const component of [Router, Route, Outlet, Link, NavLink, Navigate])
+	markExactComponent(component);
 
 function requestSource(request: RequestContextValue | undefined): LocationSource | undefined {
 	if (!request) return undefined;

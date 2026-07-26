@@ -2,6 +2,7 @@ import {
 	createComponentDomain,
 	createRef,
 	createVNode,
+	markExactComponent,
 	watch,
 	type Child,
 	type Component,
@@ -30,6 +31,7 @@ export type RemoteComponentProps = {
 
 const bindingsSymbol = Symbol.for('@exactjs/microfrontends/client-bindings');
 const moduleLoads = new Map<string, Promise<ExactRemoteModule>>();
+const maxModuleLoads = 64;
 
 type BindingHost = typeof globalThis & {
 	[bindingsSymbol]?: Readonly<Record<string, ExactRemoteClientBinding>>;
@@ -51,7 +53,20 @@ export function loadExactRemoteModule(url: string): Promise<ExactRemoteModule> {
 	let pending = moduleLoads.get(url);
 	if (!pending) {
 		pending = importExactRemoteModule(url)
-			.then((module) => validateRemoteModule(module.default))
+			.then((module) => {
+				const validated = validateRemoteModule(module.default);
+				// Keep successful deployments bounded. Recovery URLs deliberately
+				// change across generations, so an unbounded process cache would
+				// otherwise retain every deployed entry for the shell's lifetime.
+				moduleLoads.delete(url);
+				moduleLoads.set(url, Promise.resolve(validated));
+				while (moduleLoads.size > maxModuleLoads) {
+					const oldest = moduleLoads.keys().next().value;
+					if (oldest === undefined || oldest === url) break;
+					moduleLoads.delete(oldest);
+				}
+				return validated;
+			})
 			.catch((error) => {
 				moduleLoads.delete(url);
 				throw error;
@@ -222,6 +237,8 @@ export function RemoteComponent(
 		);
 	};
 }
+
+markExactComponent(RemoteComponent);
 
 async function importExactRemoteModule(url: string): Promise<{ default: unknown }> {
 	return import(/* @vite-ignore */ url) as Promise<{ default: unknown }>;

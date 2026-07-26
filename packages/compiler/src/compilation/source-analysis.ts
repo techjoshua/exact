@@ -12,7 +12,7 @@ import {
 	createExpressionGeneratedServerSlotBoundaries,
 	createExpressionRenderEdges
 } from '../expression/boundaries.js';
-import { analyzeExpressionJsx } from '../expression/jsx.js';
+import { analyzeExpressionJsx, reactInteropFactoryCallEffects } from '../expression/jsx.js';
 import { createExpressionComponents } from '../expression/manifest.js';
 import { analyzeExpressionSafety } from '../expression/safety.js';
 import { analyzeExpressionTasks } from '../expression/task-analysis.js';
@@ -106,13 +106,17 @@ export function analyzeNormalizedSource(
 	const expressionWrites = analyzeExpressionWrites(expressionModule);
 	const moduleImports = analyzeModuleImports(normalized, filename, options.assetRules);
 	const policyMetadata = analyzeExactPolicyMetadata(expressionModule, importedManifests);
+	const knownCallEffects = new Map([
+		...reactInteropFactoryCallEffects(expressionModule, options.jsxInterop),
+		...policyMetadata.contextCallEffects
+	]);
 	const rawCallableEffects = analyzeCallableEffects(
 		expressionModule,
 		semanticGraph,
 		importedManifests,
 		expressionWrites,
 		moduleImports,
-		policyMetadata.contextCallEffects
+		knownCallEffects
 	);
 	const provenance = buildExactProvenance(expressionModule, rawCallableEffects.callEffects);
 	const expressionSafety = analyzeExpressionSafety(expressionModule, provenance);
@@ -148,7 +152,12 @@ export function analyzeNormalizedSource(
 	manifestDiagnostics.push(
 		...analyzeExactAnnotations(expressionModule).diagnostics.map((diagnostic) => diagnostic.message)
 	);
-	const expressionJsx = analyzeExpressionJsx(expressionModule, provenance, filename);
+	const expressionJsx = analyzeExpressionJsx(
+		expressionModule,
+		provenance,
+		filename,
+		options.jsxInterop
+	);
 	manifestDiagnostics.push(...expressionJsx.diagnostics.map((diagnostic) => diagnostic.message));
 	const expressionComponents = analyzeExpressionComponents(
 		expressionModule,

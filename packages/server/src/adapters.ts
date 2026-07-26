@@ -34,6 +34,9 @@ export type ExactExpressResponse = {
 	removeListener?(event: 'close' | 'drain', listener: () => void): unknown;
 };
 
+/** Continues an Express middleware chain with an optional failure. */
+export type ExactExpressNext = (error?: unknown) => void;
+
 /** Defines the exact hapi request type contract. */
 export type ExactHapiRequest = {
 	method: string;
@@ -87,10 +90,10 @@ export function createFetchHandler(
 /** Creates an Express-style eXact endpoint handler. */
 export function createExpressHandler(
 	context: ExactServerContext
-): (request: ExactExpressRequest, response: ExactExpressResponse) => void {
-	return (request, response) => {
+): (request: ExactExpressRequest, response: ExactExpressResponse, next?: ExactExpressNext) => void {
+	return (request, response, next) => {
 		const readText = request.text;
-		const disconnect = abortOnEvents(
+		const disconnect = createAdapterLifetime(
 			[
 				[request, 'aborted'],
 				[response, 'close']
@@ -126,8 +129,13 @@ export function createExpressHandler(
 				}
 			},
 			(error) => {
-				cleanupPreservingPrimary(disconnect.cleanup, error);
-				response.destroy?.(error);
+				cleanupAdapterPreservingPrimary(disconnect.cleanup, error);
+				if (next) next(error);
+				else if (response.destroy) response.destroy(error);
+				else {
+					response.status(500);
+					response.send({ error: 'internal_error' });
+				}
 			}
 		);
 	};
@@ -138,7 +146,7 @@ export function createHapiHandler<Response extends ExactHapiResponse = ExactHapi
 	context: ExactServerContext
 ): (request: ExactHapiRequest, h: ExactHapiToolkit<Response>) => Promise<Response> {
 	return async (request, h) => {
-		const disconnect = abortOnEvents(
+		const disconnect = createAdapterLifetime(
 			request.events ? [[request.events, 'disconnect']] : [],
 			request.signal
 		);
@@ -156,11 +164,11 @@ export function createHapiHandler<Response extends ExactHapiResponse = ExactHapi
 				context
 			);
 		} catch (error) {
-			cleanupPreservingPrimary(disconnect.cleanup, error);
+			cleanupAdapterPreservingPrimary(disconnect.cleanup, error);
 			throw error;
 		}
 		const body = result.stream
-			? withStreamCleanup(result.stream, disconnect.cleanup)
+			? withAdapterStreamCleanup(result.stream, disconnect.cleanup)
 			: (result.body ?? '');
 		const response = h.response(body).code(result.status);
 		for (const [name, value] of Object.entries(result.headers)) response.header(name, value);
@@ -235,17 +243,20 @@ function throwIfAborted(signal?: AbortSignal): void {
 	if (signal?.aborted) throw signal.reason ?? new DOMException('Client disconnected', 'AbortError');
 }
 
-type DisconnectSource = {
+/** Minimal event source used to derive an adapter request lifetime. */
+export type ExactDisconnectSource = {
 	once?(event: string, listener: () => void): unknown;
 	off?(event: string, listener: () => void): unknown;
 	removeListener?(event: string, listener: () => void): unknown;
 };
 
-function abortOnEvents(
-	sources: readonly (readonly [DisconnectSource, string])[],
+/** Derives one abort signal and idempotent listener cleanup from platform transport events. */
+export function createAdapterLifetime(
+	sources: readonly (readonly [ExactDisconnectSource, string])[],
 	upstream?: AbortSignal
 ): { signal: AbortSignal; cleanup(): void } {
 	const controller = new AbortController();
+	let cleaned = false;
 	const abort = () => controller.abort(new DOMException('Client disconnected', 'AbortError'));
 	const abortUpstream = () => controller.abort(upstream?.reason);
 	for (const [source, event] of sources) source.once?.(event, abort);
@@ -254,6 +265,8 @@ function abortOnEvents(
 	return {
 		signal: controller.signal,
 		cleanup() {
+			if (cleaned) return;
+			cleaned = true;
 			const failure = createCleanupFailure();
 			for (const [source, event] of sources) {
 				attemptCleanup(failure, () => {
@@ -267,7 +280,8 @@ function abortOnEvents(
 	};
 }
 
-function withStreamCleanup(
+/** Retains an adapter lifetime until a response stream closes, fails, or is cancelled. */
+export function withAdapterStreamCleanup(
 	stream: ReadableStream<Uint8Array>,
 	cleanup: () => void
 ): ReadableStream<Uint8Array> {
@@ -308,7 +322,8 @@ function withStreamCleanup(
 	);
 }
 
-function cleanupPreservingPrimary(cleanup: () => void, primary: unknown): void {
+/** Runs adapter cleanup without replacing a transport or runtime failure already in flight. */
+export function cleanupAdapterPreservingPrimary(cleanup: () => void, primary: unknown): void {
 	try {
 		cleanup();
 	} catch (cleanupError) {

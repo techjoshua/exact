@@ -187,7 +187,10 @@ describe('router', () => {
 	it('reads SSR request URLs and records redirects', () => {
 		const first: RequestResponseState = { headers: new Headers(), committed: false };
 		runWithRequestContext(
-			createRequestContextValue({ url: 'https://example.test/old' }, first),
+			createRequestContextValue(
+				{ url: 'https://example.test/old', publicOrigin: 'https://example.test' },
+				first
+			),
 			() =>
 				renderToString(
 					<Router>
@@ -199,7 +202,10 @@ describe('router', () => {
 
 		const second: RequestResponseState = { headers: new Headers(), committed: false };
 		runWithRequestContext(
-			createRequestContextValue({ url: 'https://example.test/old' }, second),
+			createRequestContextValue(
+				{ url: 'https://example.test/old', publicOrigin: 'https://example.test' },
+				second
+			),
 			() =>
 				renderToString(
 					<Router>
@@ -221,7 +227,8 @@ describe('router', () => {
 		const response: RequestResponseState = { headers: new Headers(), committed: false };
 		const request = createRequestContextValue(
 			{
-				url: 'https://example.test/explicit'
+				url: 'https://example.test/explicit',
+				publicOrigin: 'https://example.test'
 			},
 			response
 		);

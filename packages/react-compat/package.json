@@ -47,6 +47,14 @@
 			"types": "./dist/exact.d.ts",
 			"default": "./dist/exact.js"
 		},
+		"./types18": {
+			"types": "./dist/types18.d.ts",
+			"default": "./dist/types18.js"
+		},
+		"./types19": {
+			"types": "./dist/types19.d.ts",
+			"default": "./dist/types19.js"
+		},
 		"./plugin": {
 			"types": "./dist/plugin.d.ts",
 			"default": "./dist/plugin.js"

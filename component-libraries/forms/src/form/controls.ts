@@ -1,4 +1,10 @@
-import { createVNode, type Child, type Component, type RefBinding } from '@exactjs/core';
+import {
+	createVNode,
+	markExactComponent,
+	type Child,
+	type Component,
+	type RefBinding
+} from '@exactjs/core';
 
 import { ControlRef, FieldContext } from './context.js';
 import type { LabelProps } from './contracts.js';
@@ -48,6 +54,8 @@ export function Select(this: Component<{}>, props: SelectProps) {
 export function Checkbox(this: Component<{}>, props: CheckboxProps) {
 	return controlComponent.call(this, 'input', { ...props, type: 'checkbox' });
 }
+
+for (const component of [Label, Input, Textarea, Select, Checkbox]) markExactComponent(component);
 
 function controlComponent(
 	this: Component<{}>,

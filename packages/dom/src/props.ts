@@ -2,15 +2,17 @@ import {
 	batch,
 	createErrorReport,
 	handleComponentError,
+	isVNode,
 	observeComponentAsync,
 	sanitizeUrlAttribute,
+	UnsafeHtml,
 	type StopHandle,
 	unwrap,
 	watch
 } from '@exactjs/core';
 import type { EffectScope } from '@exactjs/reactive';
 import { describeNode, domDebug } from './debug.js';
-import { ensureDelegated } from './events.js';
+import { ensureDelegated, requiresDirectListener } from './events.js';
 import { preserveFocus } from './focus.js';
 import { findOwnerInstance } from './ownership.js';
 import { directEventHandlers, eventHandlers, propBindings } from './state.js';
@@ -105,7 +107,7 @@ function setProp(
 
 	if (/^on[A-Z]/.test(key)) {
 		const { type, capture } = eventTypeForProp(key);
-		if (capture || isDirectEvent(type)) {
+		if (capture || requiresDirectListener(type)) {
 			setDirectEventHandler(root, element, key, type, value, capture);
 			return;
 		}
@@ -144,7 +146,12 @@ function setProp(
 					return;
 				}
 
-				const normalized = key === 'class' || key === 'className' ? normalizeClass(actual) : actual;
+				const normalized =
+					key === 'srcdoc' || key === 'srcDoc'
+						? unsafeHtmlAttribute(root, actual)
+						: key === 'class' || key === 'className'
+							? normalizeClass(actual)
+							: actual;
 				setDomProp(root, element, key, sanitizeUrlAttribute(key, normalized));
 			}),
 		undefined,
@@ -214,23 +221,6 @@ function eventTypeForProp(key: string): { type: string; capture: boolean } {
 		FocusOut: 'focusout'
 	};
 	return { type: aliases[name] ?? name.toLowerCase(), capture };
-}
-
-function isDirectEvent(type: string): boolean {
-	// Pointer events, including capture lifecycle events, bubble after retargeting
-	// and are safe to delegate. Keeping them on the root avoids four-to-six
-	// listeners per draggable list item.
-	return [
-		'focus',
-		'blur',
-		'mouseenter',
-		'mouseleave',
-		'scroll',
-		'load',
-		'error',
-		'lostpointercapture',
-		'gotpointercapture'
-	].includes(type);
 }
 
 function bindStyle(element: HTMLElement, value: unknown, scope: EffectScope): StopHandle {
@@ -316,8 +306,29 @@ export function applyDomProp(element: Element, key: string, value: unknown): voi
 			'Native eXact does not support dangerouslySetInnerHTML; use unsafeHtml() with explicit root opt-in.'
 		);
 	}
+	if ((key === 'srcdoc' || key === 'srcDoc') && value !== null && value !== undefined) {
+		throw new Error(
+			'Native eXact srcdoc patches require an unsafeHtml() capability owned by a render root.'
+		);
+	}
 	if (value === false || value === null || value === undefined) clearDomProp(element, key);
 	else setDomProp(undefined, element, key, sanitizeUrlAttribute(key, value));
+}
+
+function unsafeHtmlAttribute(root: Root, value: unknown): string {
+	if (!isVNode(value) || value.type !== UnsafeHtml) {
+		throw new Error(
+			'Native eXact iframe srcdoc requires unsafeHtml() and explicit allowUnsafeHtml root opt-in.'
+		);
+	}
+	if (!root.allowUnsafeHtml) {
+		throw new Error(
+			'unsafeHtml() used for iframe srcdoc requires allowUnsafeHtml: true on the native eXact render or hydration root.'
+		);
+	}
+	const html = String(unwrap(value.props.value) ?? '');
+	root.onUnsafeHtml?.({ characters: html.length });
+	return html;
 }
 
 function setDomProp(root: Root | undefined, element: Element, key: string, value: unknown): void {

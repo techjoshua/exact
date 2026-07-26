@@ -1,5 +1,5 @@
 /** Languages whose source tokens the documentation renderer can classify. */
-export type CodeLanguage = 'tsx' | 'ts' | 'json' | 'css' | 'shell' | 'logo';
+export type CodeLanguage = 'tsx' | 'ts' | 'csharp' | 'json' | 'css' | 'shell' | 'logo';
 
 type TokenKind =
 	| 'plain'
@@ -56,6 +56,7 @@ const keywords = new Set([
 	'in',
 	'instanceof',
 	'interface',
+	'internal',
 	'let',
 	'new',
 	'null',
@@ -88,11 +89,14 @@ const typeWords = new Set([
 	'Error',
 	'FormData',
 	'Logger',
+	'HttpResponseMessage',
+	'IEnumerable',
 	'Promise',
 	'ReactiveValue',
 	'Record',
 	'Request',
 	'Response',
+	'Task',
 	'string',
 	'number',
 	'boolean',

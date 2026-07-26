@@ -9,6 +9,7 @@ import type { ExactCompilerManifest, TransformTarget } from './types.js';
 
 type DescriptorGroup = ComponentContractEmission & {
 	clientMachine: boolean;
+	brandOnly: boolean;
 };
 
 /**
@@ -53,7 +54,11 @@ export function exactComponentDescriptorTransformer(
 					symbol,
 					componentImplementation: symbol.localName === component.name
 				}));
-		if (entries.length) {
+		const executableOnTarget =
+			target === 'client'
+				? component.placement === 'client' || component.placement === 'isomorphic'
+				: component.placement === 'server' || component.placement === 'isomorphic';
+		if (entries.length || executableOnTarget) {
 			const boundaries = manifest.boundaries.filter(
 				(boundary) =>
 					boundary.ownerComponentId === component.id &&
@@ -68,6 +73,7 @@ export function exactComponentDescriptorTransformer(
 				placement: component.placement,
 				role: target === 'client' ? 'client' : 'executor',
 				clientMachine,
+				brandOnly: entries.length === 0,
 				entries,
 				continuations: clientMachine
 					? distributedContinuations.map((continuation) => ({
@@ -115,17 +121,19 @@ export function exactComponentDescriptorTransformer(
 						declaration.name,
 						declaration.exclamationToken,
 						declaration.type,
-						wrapComponentValue(
-							declaration.initializer,
-							withContinuationExecutors(
-								group,
-								declaration.initializer,
-								context,
-								sourceFile.fileName
-							),
-							descriptorSymbol,
-							context.factory
-						)
+						group.brandOnly
+							? createComponentBrandAttachment(declaration.initializer, context.factory)
+							: wrapComponentValue(
+									declaration.initializer,
+									withContinuationExecutors(
+										group,
+										declaration.initializer,
+										context,
+										sourceFile.fileName
+									),
+									descriptorSymbol,
+									context.factory
+								)
 					);
 				});
 				statements.push(
@@ -145,36 +153,34 @@ export function exactComponentDescriptorTransformer(
 				statements.push(statement);
 				continue;
 			}
+			const group = groups.get(statement.name.text)!;
 			statements.push(
-				...(preserveHoisting
-					? attachToHoistedComponentFunction(
+				...(group.brandOnly
+					? [
 							statement,
-							withContinuationExecutors(
-								groups.get(statement.name.text)!,
+							context.factory.createExpressionStatement(
+								createComponentBrandAttachment(statement.name, context.factory)
+							)
+						]
+					: preserveHoisting
+						? attachToHoistedComponentFunction(
 								statement,
-								context,
-								sourceFile.fileName
-							),
-							descriptorSymbol,
-							context.factory
-						)
-					: wrapComponentFunction(
-							statement,
-							withContinuationExecutors(
-								groups.get(statement.name.text)!,
+								withContinuationExecutors(group, statement, context, sourceFile.fileName),
+								descriptorSymbol,
+								context.factory
+							)
+						: wrapComponentFunction(
 								statement,
-								context,
-								sourceFile.fileName
-							),
-							descriptorSymbol,
-							context.factory
-						))
+								withContinuationExecutors(group, statement, context, sourceFile.fileName),
+								descriptorSymbol,
+								context.factory
+							))
 			);
 		}
-		const descriptorDeclaration = createDescriptorSymbolDeclaration(
-			descriptorSymbol,
-			context.factory
-		);
+		const needsDescriptor = [...groups.values()].some((group) => !group.brandOnly);
+		const descriptorDeclaration = needsDescriptor
+			? createDescriptorSymbolDeclaration(descriptorSymbol, context.factory)
+			: undefined;
 		let insertionIndex = 0;
 		while (insertionIndex < statements.length) {
 			const statement = statements[insertionIndex]!;
@@ -185,9 +191,35 @@ export function exactComponentDescriptorTransformer(
 				break;
 			insertionIndex++;
 		}
-		statements.splice(insertionIndex, 0, descriptorDeclaration);
+		if (descriptorDeclaration) statements.splice(insertionIndex, 0, descriptorDeclaration);
 		return context.factory.updateSourceFile(sourceFile, statements);
 	};
+}
+
+/** Adds only the native ownership marker when no executable artifact contract exists. */
+function createComponentBrandAttachment(
+	component: ts.Expression,
+	factory: ts.NodeFactory
+): ts.Expression {
+	return factory.createCallExpression(
+		factory.createPropertyAccessExpression(factory.createIdentifier('Object'), 'assign'),
+		undefined,
+		[
+			component,
+			factory.createObjectLiteralExpression([
+				factory.createPropertyAssignment(
+					factory.createComputedPropertyName(
+						factory.createCallExpression(
+							factory.createPropertyAccessExpression(factory.createIdentifier('Symbol'), 'for'),
+							undefined,
+							[factory.createStringLiteral('@exactjs/component')]
+						)
+					),
+					factory.createTrue()
+				)
+			])
+		]
+	);
 }
 
 /** Adds executable server task segments after JSX/task lowering has completed. */

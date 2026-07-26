@@ -3,6 +3,21 @@ import { describe, expect, it } from 'vitest';
 import { transform, transformSource } from '../index.js';
 
 describe('@exactjs/compiler: transform', () => {
+	it('decodes character references in static JSX text without interpreting dynamic values', () => {
+		const output = transform(`
+			function Copy() {
+				const value = "&apos;<em>";
+				return () => <p>eXact&apos;s &#169; &NotEqualTilde; &bogus; {value}</p>;
+			}
+		`);
+
+		expect(output).toContain('"eXact\'s');
+		expect(output).not.toContain('&apos; &#169; &NotEqualTilde;');
+		expect(output).toContain('&bogus;');
+		expect(output).toContain('const value = "&apos;<em>"');
+		expect(output).toContain('__exactDynamic(() => value');
+	});
+
 	it('lowers annotated object and primitive Array.map JSX to keyed framework lists', () => {
 		const output = transform(`
       type Task = { /** @exact key */ id: string; title: string };

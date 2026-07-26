@@ -40,8 +40,9 @@ export function classProps(props: Record<string, unknown>): {
 	ref: unknown;
 } {
 	const snapshot = snapshotProps(props);
-	const ref = readReactRef(snapshot[REACT_REF_PROP]);
+	const ref = readReactRef(snapshot[REACT_REF_PROP] ?? snapshot.ref);
 	delete snapshot[REACT_REF_PROP];
+	delete snapshot.ref;
 	return { props: snapshot, ref };
 }
 

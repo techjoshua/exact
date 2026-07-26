@@ -165,6 +165,26 @@ describe('@exactjs/dom events-errors', () => {
 		expect(scrolled).toHaveBeenCalledTimes(1);
 	});
 
+	it.each([
+		['pointerenter', 'onPointerEnter'],
+		['invalid', 'onInvalid'],
+		['toggle', 'onToggle'],
+		['ended', 'onEnded']
+	])('delivers non-bubbling %s events through direct listeners', (type, prop) => {
+		const container = document.createElement('div');
+		const handled = vi.fn();
+		render(
+			jsx(type === 'ended' ? 'video' : type === 'invalid' ? 'input' : 'div', {
+				[prop]: handled
+			}),
+			container
+		);
+
+		container.firstElementChild!.dispatchEvent(new Event(type, { bubbles: false }));
+
+		expect(handled).toHaveBeenCalledTimes(1);
+	});
+
 	it('uses the root logger for framework diagnostics', () => {
 		const events: LogEvent[] = [];
 		const logger: Logger = {

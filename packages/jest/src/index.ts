@@ -1,4 +1,8 @@
 import { fileURLToPath } from 'node:url';
+import {
+	resolveReactCompatibility,
+	type ReactCompatibilityOptions
+} from '@exactjs/react-compat/plugin';
 
 export {
 	exactMatchers,
@@ -14,20 +18,42 @@ export type ExactJestConfig = {
 	setupFilesAfterEnv: string[];
 	testEnvironment?: string;
 	extensionsToTreatAsEsm: string[];
-	transform: Record<string, string>;
+	transform: Record<string, string | [string, unknown]>;
 	moduleNameMapper: Record<string, string>;
 };
 
+/** Configures the compiler and environment behavior contributed to Jest. */
+export type ExactJestOptions = {
+	testEnvironment?: string | false;
+	compiler?: {
+		reactCompatibility?: boolean | ReactCompatibilityOptions;
+	};
+};
+
 /** Creates a Jest configuration fragment with eXact matchers installed. */
-export function exactJest(options: { testEnvironment?: string | false } = {}): ExactJestConfig {
+export function exactJest(options: ExactJestOptions = {}): ExactJestConfig {
+	const reactOptions = options.compiler?.reactCompatibility;
+	const compatibility =
+		reactOptions === undefined ? undefined : resolveReactCompatibility(reactOptions);
 	return {
 		setupFiles: [fileURLToPath(new URL('./polyfills.js', import.meta.url))],
 		setupFilesAfterEnv: [fileURLToPath(new URL('./setup.js', import.meta.url))],
 		extensionsToTreatAsEsm: ['.ts', '.tsx'],
 		transform: {
-			'^.+\\.tsx?$': fileURLToPath(new URL('./transformer.js', import.meta.url))
+			'^.+\\.tsx?$': [
+				fileURLToPath(new URL('./transformer.js', import.meta.url)),
+				reactOptions === undefined ? {} : { reactCompatibility: reactOptions }
+			]
 		},
 		moduleNameMapper: {
+			...(compatibility
+				? Object.fromEntries(
+						Object.entries(compatibility.aliases).map(([source, replacement]) => [
+							`^${source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+							replacement
+						])
+					)
+				: {}),
 			'^(\\.{1,2}/.*)\\.js$': '$1'
 		},
 		...(options.testEnvironment === false

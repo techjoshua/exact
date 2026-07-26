@@ -1,5 +1,6 @@
 import type { Component } from '@exactjs/core';
 import { CodeBlock } from '../CodeBlock.jsx';
+import { ReactCompatibilityDemo } from '../demos/ReactCompatibilityDemo.jsx';
 import { Article } from './Article.jsx';
 
 const reactCompatibilitySource = `import { exact } from '@exactjs/vite-plugin';
@@ -9,93 +10,189 @@ export default {
     exact({
       reactCompatibility: {
         target: 19,
-        // Only this source is interpreted as React-owned JSX.
-        source: [/node_modules\\/react-package/, /src\\/legacy-react/]
+        // Only authored React source needs a source rule.
+        source: [/src\\/legacy-react/]
       }
     })
   ]
 };`;
 
-const reactInteropSource = `import { defineInteropContext, exposeExactComponent } from '@exactjs/react-compat/interop';
+const directComponentSource = `import type { Component } from '@exactjs/core';
+import { DatePicker } from 'react-date-picker';
 
-// One token can be read from native eXact and compatible React components.
-export const Session = defineInteropContext('session', anonymousSession);
+function BookingForm(this: Component<{ date: Date | null }>) {
+  this.state.date = null;
 
-function AccountBadge(this: Component<{}>) {
-  const session = this.getContext(Session.exact);
-  return () => <strong>{session.userName}</strong>;
-}
+  return () => (
+    <section>
+      {/* Imported component values use the active compatibility layer. */}
+      <DatePicker
+        value={this.state.date}
+        onChange={(date) => (this.state.date = date)}
+      />
 
-// Make a native component explicit at a React-owned JSX boundary.
-export const ReactAccountBadge = exposeExactComponent(AccountBadge);`;
+      {/* This remains a precise native eXact expression. */}
+      <p>Selected: {this.state.date?.toLocaleDateString() ?? 'none'}</p>
+    </section>
+  );
+}`;
 
-/** Documents how supported React-owned code can be adopted inside an eXact application. */
+const conceptualOutputSource = `import { createCompiledVNode, createExpression } from '@exactjs/core';
+import { adaptReactComponent } from '@exactjs/react-compat/exact';
+import { DatePicker } from 'react-date-picker';
+
+// The adapter first returns compiler-branded eXact components unchanged.
+// Every unbranded value belongs to the one active compatibility layer.
+// The result is cached by component identity.
+const CompatibleDatePicker = adaptReactComponent(DatePicker);
+
+function BookingForm() {
+  this.state.date = null;
+
+  return () =>
+    createCompiledVNode('section', {},
+      createCompiledVNode(CompatibleDatePicker, {
+        // Only this prop is reevaluated when date changes.
+        value: createExpression(() => this.state.date),
+        onChange: (date) => (this.state.date = date)
+      }),
+      createCompiledVNode('p', {},
+        'Selected: ',
+        createExpression(
+          () => this.state.date?.toLocaleDateString() ?? 'none'
+        )
+      )
+    );
+}`;
+
+const explicitInteropSource = `import { ReactHost, adaptReactComponent } from '@exactjs/react-compat/exact';
+
+// Native compiled JSX normally inserts this adapter automatically.
+// Call it yourself when constructing a VNode outside that path.
+const CompatibleWidget = adaptReactComponent(runtimeSelectedWidget);
+
+return () => (
+  <>
+    <CompatibleWidget value={this.state.value} />
+    <ReactHost component={runtimeSelectedPanel} componentProps={{ value: this.state.value }} />
+  </>
+);`;
+
+/** Documents direct, compiler-owned use of supported React components in eXact applications. */
 export function ReactCompatibilityPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Build for the web"
-			title="Adopt eXact without leaving supported React code behind"
-			description="eXact includes compatibility runtimes for supported React 18 and 19 code, build-time JSX ownership, DOM and server entry aliases, and explicit boundaries between native eXact and React-shaped components."
+			title="Use React components inside an eXact application"
+			description="Supported React 18 and 19 components can appear directly in native eXact JSX. The compiler inserts the compatibility boundary while eXact state and precise reactive updates remain in control."
 			previous={{ path: '/guides/testing', label: 'Testing' }}
 			next={{ path: '/plugins', label: 'Plugin system' }}
 		>
 			<section>
-				<h2>Why compatibility belongs in the framework</h2>
+				<h2>The ordinary case is direct JSX</h2>
 				<p>
-					A new framework is easier to evaluate when existing packages and migration work do not
-					become an all-or-nothing rewrite. Compatibility mode lets a build recognize selected
-					React-owned modules, rewrite their runtime imports, and render them through eXact's
-					compatibility layer while native eXact components keep their own model.
+					Import a React component and render it where you need it. A reactive eXact prop causes
+					that React component to receive the new value, and its callbacks can mutate the owning
+					eXact component's inspectable state directly.
 				</p>
+				<CodeBlock source={directComponentSource} language="tsx" title="BookingForm.tsx" />
 				<p>
-					This is an adoption bridge, not a claim that every package in the React ecosystem is
-					automatically supported. Packages can depend on undocumented reconciler behavior or host
-					assumptions; adapter discovery and validation exist for those cases.
+					The React component retains React behavior internally: Hooks, class state, effects,
+					context, refs, Suspense, and cleanup still follow their React contracts. The surrounding
+					eXact component does not become a React component and does not start rerendering as one.
 				</p>
 			</section>
+
+			<ReactCompatibilityDemo />
+
 			<section>
-				<h2>Select React-owned source deliberately</h2>
+				<h2>What the compiler supplies</h2>
+				<p>
+					The generated boundary is conceptually equivalent to the code below. Reactive props are
+					ordinary eXact expression cells, so only affected values are sampled again. The adapter is
+					cached by component identity. A compiled eXact component carries its component-contract
+					brand and passes through unchanged; an unbranded value belongs to the enabled React layer.
+				</p>
+				<CodeBlock
+					source={conceptualOutputSource}
+					language="ts"
+					title="Conceptual generated output"
+				/>
+			</section>
+
+			<section>
+				<h2>Choose the React target once</h2>
 				<CodeBlock source={reactCompatibilitySource} language="ts" title="vite.config.ts" />
 				<p>
-					The target may be React 18 or 19, or can be detected from an installed React package.
-					Explicit
-					<code>@jsxImportSource react</code> and <code>@jsxImportSource @exactjs/jsx</code>{' '}
-					directives take precedence over source filters, which keeps ownership visible in mixed
-					projects.
+					The target can be React 18 or 19, or it can be detected from an installed React package.
+					The same option is available in the Webpack and Bun integrations. Reference
+					<code>@exactjs/react-compat/types18</code> or
+					<code>@exactjs/react-compat/types19</code> in <code>compilerOptions.types</code> so the
+					editor and compiler accept the matching React component types in native eXact JSX.
 				</p>
 			</section>
+
 			<section>
-				<h2>Interop is explicit where models meet</h2>
-				<CodeBlock source={reactInteropSource} language="tsx" title="interop.tsx" />
+				<h2>Published packages are not recompiled</h2>
 				<p>
-					Compatibility includes shared context tokens, a native component boundary for React-owned
-					JSX, and a<code>ReactHost</code> component for hosting React component types from eXact.
-					Explicit boundaries preserve tree shaking and make it clear which semantics apply on each
-					side.
+					The eXact compiler does not run compilation over a package's implementation in
+					<code>node_modules</code>. Instead, compiled eXact component exports carry
+					<code>Symbol.for('@exactjs/component-contract')</code>. The generated compatibility
+					boundary checks that brand at runtime. Build aliases redirect React, the JSX runtimes,
+					React DOM, and supported package adapters to the selected compatibility runtime.
+				</p>
+				<p>
+					Use the <code>source</code> option only for React-owned source that your application
+					authors or compiles itself. An explicit <code>@jsxImportSource react</code> directive can
+					mark an individual source module; <code>@jsxImportSource @exactjs/jsx</code> keeps native
+					eXact ownership explicit.
 				</p>
 			</section>
+
 			<section>
-				<h2>What is implemented today</h2>
-				<div className="definition-grid">
-					<code>Build aliases</code>
-					<p>React, JSX runtime, React DOM client, server, and React 19 static entrypoints.</p>
-					<code>React majors</code>
-					<p>Separate compatibility targets for React 18 and React 19.</p>
-					<code>Core runtime</code>
-					<p>
-						React-shaped elements, function and class support, hooks, context, refs, suspense, and
-						compatible roots.
-					</p>
-					<code>Package adapters</code>
-					<p>Discovery and version validation for packages needing targeted compatibility rules.</p>
-					<code>Interop</code>
-					<p>Shared contexts, native component exposure, React hosting, and node conversion.</p>
-					<code>Guardrails</code>
-					<p>
-						Strict JSX ownership and reconciler-major validation fail early when a build is
-						ambiguous.
-					</p>
-				</div>
+				<h2>Mixed trees keep their owners</h2>
+				<p>
+					Statically known React descendants stay React-owned. Statically known eXact children are
+					bridged when they cross a React boundary, preserving their long-lived eXact instances,
+					context, DOM ownership, and cleanup. Shared values can use
+					<code>defineInteropContext()</code> when both models need one logical context.
+				</p>
+				<p>
+					The matching <code>types18</code> or <code>types19</code> facade also lets React-owned
+					source render a compiled eXact component directly. The compatible React element pipeline
+					checks its compiler-emitted brand before mounting it natively. The live stepper above
+					includes an eXact-owned child through exactly that path.{' '}
+					<code>exposeExactComponent()</code>
+					remains useful for stock React builds outside eXact compatibility and explicit
+					ref-property bridges.
+				</p>
+				<p>
+					SSR and hydration use the same ownership decision as the client build. Native eXact ranges
+					retain eXact's selective hydration behavior; compatible React trees use the supported
+					React hydration contract. Browser-only React packages should remain inside an explicit
+					client placement.
+				</p>
+			</section>
+
+			<section>
+				<h2>Runtime-selected components work too</h2>
+				<p>
+					A component selected by a conditional, alias, or runtime registry uses the same generated
+					boundary. The selected value is checked for the eXact brand; otherwise the active React
+					layer owns it. Use <code>adaptReactComponent()</code> or <code>ReactHost</code> explicitly
+					only when constructing or hosting component values outside compiler-owned native JSX.
+				</p>
+				<CodeBlock source={explicitInteropSource} language="tsx" title="Explicit host APIs" />
+			</section>
+
+			<section>
+				<h2>Compatibility boundary</h2>
+				<p>
+					This is an adoption bridge, not a second architecture for native eXact code. Packages that
+					depend on private Fiber or host-renderer behavior can still be rejected. Supported public
+					behavior includes function and class components, Hooks, context, refs, portals, Suspense,
+					scheduling, compatible roots, SSR, and hydration.
+				</p>
 			</section>
 		</Article>
 	);

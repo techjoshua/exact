@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import ts from 'typescript';
+import { pathKey } from './module/program.js';
 import { rewriteModuleReferences } from './module-rewrite.js';
 
 const provider = {
@@ -9,6 +11,12 @@ const provider = {
 };
 
 describe('expressions module reference rewriting', () => {
+	it('preserves filename case only on case-sensitive hosts', () => {
+		expect(pathKey('Project\\Foo.ts')).toBe(
+			ts.sys.useCaseSensitiveFileNames ? 'Project/Foo.ts' : 'project/foo.ts'
+		);
+	});
+
 	it('splits named imports while retaining unmapped and type-only bindings', () => {
 		const result = rewriteModuleReferences(
 			'import { QueryClientProvider as Provider, useQuery, type QueryKey } from "@tanstack/react-query";\nexport const value = Provider;',
