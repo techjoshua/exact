@@ -2,10 +2,10 @@ import type { Component } from '@exactjs/core';
 import { CodeBlock } from '../CodeBlock.jsx';
 import {
 	compilerTourAuthoredSource,
+	compilerTourContextSource,
 	compilerTourGeneratedClientSource,
 	compilerTourGeneratedServerSource,
-	compilerTourGeneratedViewSource,
-	compilerTourServerModuleSource
+	compilerTourGeneratedViewSource
 } from '../examples/compiler-tour.js';
 import { Article, Callout } from './Article.jsx';
 
@@ -29,15 +29,11 @@ export function CompilerTourPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={compilerTourAuthoredSource} language="tsx" title="CatalogEditor.tsx" />
 				<p>
-					The component imports this small server-only context contract. Its implementation can own
-					a database or API client and any supporting libraries, while <code>@exact shared</code>{' '}
-					allowlists only the plain product data returned by <code>search()</code>.
+					The component imports this ordinary context contract. The server runtime supplies its
+					request-scoped database or API-backed value, while <code>@exact shared</code> allowlists
+					only the plain product data returned by <code>search()</code>.
 				</p>
-				<CodeBlock
-					source={compilerTourServerModuleSource}
-					language="ts"
-					title="catalog.exact.server.ts"
-				/>
+				<CodeBlock source={compilerTourContextSource} language="ts" title="catalog-context.ts" />
 				<p>
 					The server context read and the browser <code>document</code> write give the compiler
 					enough information to place both tasks. The author does not write transport code or

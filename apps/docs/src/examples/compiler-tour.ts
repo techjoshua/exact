@@ -1,5 +1,5 @@
 /** Server-only context contract used by the compiler tour component. */
-export const compilerTourServerModuleSource = `import { createContext } from '@exactjs/core';
+export const compilerTourContextSource = `import { createContext } from '@exactjs/core';
 
 export type Product = { id: string; name: string; price: number };
 
@@ -26,7 +26,7 @@ export const compilerTourAuthoredSource = `import type { Component } from '@exac
 import {
   CatalogRepositoryContext,
   type Product
-} from './catalog.exact.server.js';
+} from './catalog-context.js';
 
 type CatalogState = {
   query: string;
@@ -117,7 +117,7 @@ export const compilerTourGeneratedClientSource = `import {
 } from '@exactjs/core';
 import type { Component } from '@exactjs/core';
 
-// The server-only context import and its dependency graph are absent.
+// The repository value and its implementation dependency graph are absent.
 
 export function CatalogEditor(this: Component<CatalogState>) {
   // These writes still run once during component setup.
@@ -175,7 +175,7 @@ export function CatalogEditor(this: Component<CatalogState>) {
  *
  * Contract-registration boilerplate and private generated IDs are shortened.
  */
-export const compilerTourGeneratedServerSource = `import { CatalogRepositoryContext } from './catalog.exact.server.js';
+export const compilerTourGeneratedServerSource = `import { CatalogRepositoryContext } from './catalog-context.js';
 import {
   taskAwait as __exactTaskAwait,
   withTaskSignal as __exactTaskOptionsSignal,
