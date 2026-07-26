@@ -20,19 +20,24 @@ export function CompilerTourPage(this: Component<{}>) {
 			next={{ path: '/learn/lists', label: 'Keyed lists' }}
 		>
 			<section>
-				<h2>The component remains application-shaped</h2>
+				<h2>What you write</h2>
 				<p>
 					This example deliberately combines several features that are easy to read in source but
 					require careful ownership at runtime: a server-resident repository, a cancelable deferred
 					search, a browser-only effect, derived state, typed two-way bindings, a conditional range,
 					and keyed identity.
 				</p>
+				<CodeBlock source={compilerTourAuthoredSource} language="tsx" title="CatalogEditor.tsx" />
+				<p>
+					The component imports this small server-only context contract. Its implementation can own
+					a database or API client and any supporting libraries, while <code>@exact shared</code>{' '}
+					allowlists only the plain product data returned by <code>search()</code>.
+				</p>
 				<CodeBlock
 					source={compilerTourServerModuleSource}
 					language="ts"
 					title="catalog.exact.server.ts"
 				/>
-				<CodeBlock source={compilerTourAuthoredSource} language="tsx" title="CatalogEditor.tsx" />
 				<p>
 					The server context read and the browser <code>document</code> write give the compiler
 					enough information to place both tasks. The author does not write transport code or
@@ -40,7 +45,7 @@ export function CompilerTourPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>The browser receives a continuation, not the repository</h2>
+				<h2>What the compiler generates</h2>
 				<p>
 					This is a compiler-faithful lowering, formatted and annotated for people rather than
 					copied byte-for-byte from a build artifact. Unchanged type declarations are omitted,
@@ -48,14 +53,13 @@ export function CompilerTourPage(this: Component<{}>) {
 					replaced with descriptive placeholders. The helper calls and ownership structure are the
 					machinery the compiler creates.
 				</p>
+				<h3>Browser artifact: a continuation, not the repository</h3>
 				<CodeBlock
 					source={compilerTourGeneratedClientSource}
 					language="ts"
 					title="Generated browser setup, annotated"
 				/>
-			</section>
-			<section>
-				<h2>The server receives an allowlisted executor</h2>
+				<h3>Server artifact: an allowlisted executor</h3>
 				<p>
 					The matching server artifact retains the repository import and executable search body. The
 					request carries only compiler-selected public dependencies. The executor resolves trusted
