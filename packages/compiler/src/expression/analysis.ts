@@ -2,7 +2,7 @@ import type { BoundModule, Variable } from '@exactjs/expressions';
 
 import type { CallableEffectPlan } from '../analysis/callable-effects.js';
 
-import { browserPlatformGlobals } from '../platform-effects.js';
+import { browserPlatformGlobals, isStaticMemberPropertyName } from '../platform-effects.js';
 
 import { isServerOnlyModule } from '../imports.js';
 
@@ -244,6 +244,7 @@ export function analyzeExpressionComponents(
 			const variable = reference.variable;
 			const name = variable?.name ?? reference.name;
 			if (
+				!isStaticMemberPropertyName(reference) &&
 				name &&
 				browserPlatformGlobals.has(name) &&
 				(!variable || !localVariables.has(variable))

@@ -3,6 +3,7 @@ import type { BoundModule } from '@exactjs/expressions';
 import type { CallableEffectPlan } from '../analysis/callable-effects.js';
 
 import { isServerOnlyModule } from '../imports.js';
+import { isStaticMemberPropertyName } from '../platform-effects.js';
 
 import type { ExactContextEffect, ExactPlacement, ExactStateEffect } from '../types.js';
 import { buildExactProvenance, type ExactProvenanceGraph } from '../provenance.js';
@@ -106,6 +107,7 @@ export function analyzeExpressionTasks(
 			const variable = reference.variable;
 			const name = variable?.name ?? reference.name;
 			if (
+				!isStaticMemberPropertyName(reference) &&
 				reference.node.kind === 'Identifier' &&
 				name &&
 				browserGlobals.has(name) &&

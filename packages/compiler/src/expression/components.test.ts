@@ -191,6 +191,25 @@ describe('expression-backed component effects', () => {
 		).toEqual(['window']);
 	});
 
+	it('does not classify member property names as browser globals', () => {
+		clearExpressionProjectCache();
+		const module = expressionModuleFor(
+			'PlatformProperty.tsx',
+			`function View(this: Component<{ history: string[]; location: string }>) {
+				this.state.history = [];
+				this.state.location = "board";
+				return () => <p>{this.state.history.length}:{this.state.location}</p>;
+			}`
+		);
+		const tasks = analyzeExpressionTasks(module);
+		const jsx = analyzeExpressionJsx(module, buildExactProvenance(module), 'PlatformProperty.tsx');
+		const site = analyzeExpressionComponents(module, jsx, tasks).sites.get('View')!;
+
+		expect(site.browserGlobalsOutsideClientBoundary).toEqual([]);
+		expect(site.splitBoundaries).not.toContain('browser:history');
+		expect(site.splitBoundaries).not.toContain('browser:location');
+	});
+
 	it('owns client island counts and JSX binding diagnostics', () => {
 		clearExpressionProjectCache();
 		const module = expressionModuleFor(

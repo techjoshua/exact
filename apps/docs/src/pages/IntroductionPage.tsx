@@ -63,6 +63,20 @@ export function IntroductionPage(this: Component<{}>) {
 			description="eXact is a compiler-led web framework built around long-lived TypeScript components, precise reactive updates, and automatic client/server coordination. Component setup runs once; the expressions that depend on changing state stay connected."
 			next={{ path: '/story', label: 'The story behind eXact' }}
 		>
+			<section className="sudoku-showcase">
+				<div>
+					<p className="demo-kicker">Built with eXact</p>
+					<h2>See the model at play.</h2>
+					<p>
+						Sudoku Atelier turns direct state, precise updates, tasks, persistence, responsive
+						layout, and full theming into one polished application.
+					</p>
+				</div>
+				<a className="primary-link" href="./sudoku.html">
+					Play Sudoku Atelier <span aria-hidden="true">{'\u2192'}</span>
+				</a>
+			</section>
+
 			<section>
 				<h2>Why another web framework?</h2>
 				<p>

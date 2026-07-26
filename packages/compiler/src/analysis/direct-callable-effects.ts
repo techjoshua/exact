@@ -3,7 +3,7 @@ import { trackedCallbackArguments } from '../annotations.js';
 import { expressionStatePath } from '../expression/writes.js';
 import { stableId } from '../ids.js';
 import { isServerOnlyModule } from '../imports.js';
-import { isUnshadowedPlatformGlobal } from '../platform-effects.js';
+import { isStaticMemberPropertyName, isUnshadowedPlatformGlobal } from '../platform-effects.js';
 import type { ExactCallEdgeIR } from '../types.js';
 
 import {
@@ -74,7 +74,9 @@ export function collectDirectCallableEffects(state: CallableAnalysisState): void
 			if (nearestFunction(reference)?.node !== fn.node) continue;
 			const variable = reference.variable;
 			const name = variable?.name ?? reference.name;
-			const platform = isUnshadowedPlatformGlobal(name, variable, localVariables);
+			const platform = isStaticMemberPropertyName(reference)
+				? undefined
+				: isUnshadowedPlatformGlobal(name, variable, localVariables);
 			if (platform) summary.directSources.push(source(platform, name!, summary.name));
 			const explicitImportPlacement = variable?.importedFrom
 				? moduleImports?.placementBySpecifier.get(variable.importedFrom)
@@ -290,7 +292,9 @@ export function collectDirectCallableEffects(state: CallableAnalysisState): void
 			if (nearestFunction(reference)) continue;
 			const variable = reference.variable;
 			const name = variable?.name ?? reference.name;
-			const platform = isUnshadowedPlatformGlobal(name, variable, localVariables);
+			const platform = isStaticMemberPropertyName(reference)
+				? undefined
+				: isUnshadowedPlatformGlobal(name, variable, localVariables);
 			if (platform) summary.directSources.push(source(platform, name!, summary.name));
 			const explicitImportPlacement = variable?.importedFrom
 				? moduleImports?.placementBySpecifier.get(variable.importedFrom)

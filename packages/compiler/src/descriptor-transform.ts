@@ -43,7 +43,11 @@ export function exactComponentDescriptorTransformer(
 		const rootEntry =
 			clientMachine &&
 			((component.placement === 'client' && target === 'client') ||
-				(component.placement === 'isomorphic' && distributedContinuations.length > 0))
+				(component.placement === 'isomorphic' && distributedContinuations.length > 0) ||
+				(component.placement === 'isomorphic' &&
+					target === 'client' &&
+					!serverComponents &&
+					generatedEntries.length > 0))
 				? manifest.symbols.find(
 						(symbol) => symbol.componentId === component.id && symbol.role === 'root'
 					)

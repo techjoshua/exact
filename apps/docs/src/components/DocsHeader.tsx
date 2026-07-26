@@ -30,6 +30,9 @@ export function DocsHeader(this: Component<{}>, props: DocsHeaderProps) {
 				<small>docs</small>
 			</Link>
 			<div className="topbar-actions">
+				<a className="sudoku-link" href="./sudoku.html">
+					<span>Play Sudoku</span> <span aria-hidden="true">{'\u2192'}</span>
+				</a>
 				<button className="search-trigger" type="button" onClick={props.onOpenSearch}>
 					<span aria-hidden="true">{'\u2315'}</span> Search
 				</button>

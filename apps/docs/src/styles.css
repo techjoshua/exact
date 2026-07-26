@@ -263,6 +263,7 @@ a {
 .search-trigger,
 .theme-control,
 .github-link,
+.sudoku-link,
 .mobile-menu-button {
 	min-height: 2.35rem;
 	border: 1px solid var(--border);
@@ -331,6 +332,21 @@ a {
 	display: inline-flex;
 	align-items: center;
 	padding: 0 0.75rem;
+}
+
+.sudoku-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0 0.8rem;
+	border-color: var(--accent);
+	background: var(--accent);
+	color: var(--surface-raised);
+	font-weight: 760;
+}
+
+:root[data-theme='dark'] .sudoku-link {
+	color: #0d211e;
 }
 
 .mobile-menu-button {
@@ -509,6 +525,28 @@ h1 {
 	border-radius: 1rem;
 	background: var(--surface);
 	box-shadow: var(--shadow);
+}
+
+.sudoku-showcase {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 2rem;
+	margin-top: -1rem !important;
+	padding: clamp(1.25rem, 3vw, 1.8rem);
+	border: 1px solid var(--accent);
+	border-radius: 1rem;
+	background: linear-gradient(115deg, var(--accent-soft), transparent 72%), var(--surface);
+	box-shadow: var(--shadow);
+}
+
+.sudoku-showcase h2,
+.sudoku-showcase p {
+	margin-bottom: 0;
+}
+
+.sudoku-showcase .primary-link {
+	flex: 0 0 auto;
 }
 
 .principles {
@@ -1450,6 +1488,13 @@ td {
 		padding: 1.15rem;
 	}
 
+	.sudoku-showcase {
+		align-items: stretch;
+		flex-direction: column;
+		gap: 1rem;
+		margin-top: -0.75rem !important;
+	}
+
 	.hero-actions,
 	.logo-toolbar,
 	.demo-heading-row {
@@ -1459,6 +1504,7 @@ td {
 
 	.primary-link,
 	.secondary-link,
+	.sudoku-showcase .primary-link,
 	.demo-heading-row button {
 		width: 100%;
 	}
@@ -1512,6 +1558,16 @@ td {
 	.page-nav-link--next {
 		align-items: flex-start;
 		text-align: left;
+	}
+}
+
+@media (max-width: 480px) {
+	.sudoku-link span:first-child {
+		display: none;
+	}
+
+	.sudoku-link::before {
+		content: '9×9';
 	}
 }
 

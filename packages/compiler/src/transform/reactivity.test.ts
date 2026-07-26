@@ -21,6 +21,19 @@ describe('@exactjs/compiler: reactivity', () => {
 		expect(result.manifest.filename).toBe('view.tsx');
 	});
 
+	it('attaches the component root in client-only builds instead of un-emitted island symbols', () => {
+		const output = transform(
+			`export function View(this: Component<{ count: number }>) {
+				this.state.count = 0;
+				return () => <button onClick={() => this.state.count++}>{this.state.count}</button>;
+			}`,
+			{ filename: 'View.tsx', target: 'client', serverComponents: false }
+		);
+
+		expect(output).toMatch(/role: "root", implementation: __exactImplementation_View_\d+/);
+		expect(output).not.toContain('implementation: View_ExactClient_1');
+	});
+
 	it('emits stable exact ids for compiled dom elements', () => {
 		const output = transform('const view = <section><Label /><span>Ready</span></section>;', {
 			filename: 'view.tsx'
