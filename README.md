@@ -133,6 +133,7 @@ From a repository checkout, try:
 
 ```sh
 npm install
+npm run build
 npm run dev:sudoku
 ```
 
@@ -143,14 +144,23 @@ component libraries, tests, documentation, and examples.
 
 ```sh
 npm install
-npm run build:native-compiler
 npm run build
 npm test
 ```
 
-The native compiler build requires Go 1.26.2 and automatically creates a pinned TypeScript-Go
-checkout under `.tmp/typescript-go-source` when one is not already present. Pass `--source <path>`
-or set `EXACT_TYPESCRIPT_GO_SOURCE` only to use an existing TypeScript-Go checkout instead.
+`npm run build` is the complete local build. It:
+
+1. builds the core workspace prerequisite used by native semantic tests;
+2. checks out the repository's pinned TypeScript-Go source when necessary;
+3. tests and compiles the native eXact compiler when its inputs have changed;
+4. generates application artifacts; and
+5. builds every referenced package, integration, component library, and sample application.
+
+The initial build requires Node.js 24, npm 11, Git, and Go 1.26.2. Native source and successful
+compiler builds are retained under `.tmp`, so later builds reuse them until the pinned revision,
+native overlay, target platform, or build host changes. Use
+`npm run build:native-compiler -- --force` to deliberately rebuild it. Pass `--source <path>` or
+set `EXACT_TYPESCRIPT_GO_SOURCE` only to use an existing TypeScript-Go checkout instead.
 
 Compiler changes have an additional cross-application acceptance suite:
 

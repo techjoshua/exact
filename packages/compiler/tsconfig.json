@@ -44,6 +44,7 @@
 		"src/expression/project.ts",
 		"src/expression/session-contracts.ts",
 		"src/expression/session.ts",
+		"src/expression/watch-invalidation.ts",
 		"src/ids.ts",
 		"src/index.ts",
 		"src/manifest-parse.ts",

@@ -1,4 +1,5 @@
-import { rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { exact } from './index.js';
@@ -83,6 +84,26 @@ describe('@exactjs/vite-plugin: lifecycle', () => {
 		expect(() => plugin.handleHotUpdate?.({ file: '/project/tsconfig.json' })).not.toThrow();
 		expect(() => plugin.watchChange?.('/src/removed.tsx', { event: 'delete' })).not.toThrow();
 		plugin.closeBundle?.();
+	});
+
+	it('ignores watcher events for files outside the compiler program', () => {
+		const directory = mkdtempSync(path.join(tmpdir(), 'exact-vite-watch-'));
+		const style = path.join(directory, 'styles.css');
+		const manifest = path.join(directory, 'manifest.webmanifest');
+		const buildInfo = path.join(directory, 'tsconfig.tsbuildinfo');
+		const plugin = exact({ reactCompatibility: false });
+		try {
+			writeFileSync(style, '.view { display: grid; }');
+			writeFileSync(manifest, '{"name":"fixture"}');
+			writeFileSync(buildInfo, '{}');
+
+			expect(() => plugin.handleHotUpdate?.({ file: style })).not.toThrow();
+			expect(() => plugin.watchChange?.(manifest, { event: 'update' })).not.toThrow();
+			expect(() => plugin.watchChange?.(buildInfo, { event: 'update' })).not.toThrow();
+		} finally {
+			plugin.closeBundle?.();
+			rmSync(directory, { recursive: true, force: true });
+		}
 	});
 
 	it('enables and deduplicates diagnostics by default during development', () => {
