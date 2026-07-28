@@ -35,4 +35,13 @@ describe('@exactjs/jsx', () => {
 		if (!isCellVNode(vnode)) throw new Error('Expected cell vnode');
 		expect(getCellVNode(vnode).key).toBe('');
 	});
+
+	it('extracts an authored key without retaining it as an ordinary prop', () => {
+		const vnode = jsx('li', { children: 'authored key', key: 'item' });
+		expect(isCellVNode(vnode)).toBe(true);
+		if (!isCellVNode(vnode)) throw new Error('Expected cell vnode');
+		const inner = getCellVNode(vnode);
+		expect(inner.key).toBe('item');
+		expect(inner.props).not.toHaveProperty('key');
+	});
 });

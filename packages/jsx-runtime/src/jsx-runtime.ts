@@ -77,9 +77,10 @@ export function jsxDEV(type: JsxType, props: Props | null, key?: string): VNode 
 }
 
 function createJsxVNode(type: JsxType, props: Props | null, key?: string): VNode {
-	const { children, ...rest } = props ?? {};
-	const normalizedKey = key ?? (typeof rest.key === 'string' ? rest.key : undefined);
-	if ('key' in rest) delete rest.key;
+	// Strip JSX-only fields during construction so the authored prop bag never enters dictionary
+	// mode through delete before core performs its own normalization.
+	const { children, key: authoredKey, ...rest } = props ?? {};
+	const normalizedKey = key ?? (typeof authoredKey === 'string' ? authoredKey : undefined);
 	const childList = Array.isArray(children) ? children : children === undefined ? [] : [children];
 	return createCellVNode(
 		createVNode(
