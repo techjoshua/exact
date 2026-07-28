@@ -93,6 +93,22 @@ export class ContextScope implements ExactContextScope {
 		throw new Error(`Context "${token.description}" has not been initialized in this server scope`);
 	}
 
+	/** Replaces a value in the scope which owns the token's residency. */
+	setSync<T>(token: ContextToken<T>, value: T): void {
+		if (this.disposed) throw new Error(`Cannot write disposed ${this.kind} context scope`);
+		if (token.scope !== 'component' && token.scope !== this.kind && this.parent) {
+			this.parent.setSync(token, value);
+			return;
+		}
+		if (token.scope !== this.kind && token.scope !== 'component') {
+			throw new Error(
+				`Context "${token.description}" cannot be written through a ${this.kind} scope`
+			);
+		}
+		this.values.set(token.id, value);
+		(this.componentValues as Map<symbol, unknown>).set(token.id, value);
+	}
+
 	/** Releases resources owned by this context scope instance. */
 	async dispose(reason?: unknown): Promise<void> {
 		if (this.disposed) return;

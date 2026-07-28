@@ -1,9 +1,24 @@
-import type { ModuleRewriteOptions } from '@exactjs/expressions';
 import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import type { ExactCompilerSession } from '../expression/project.js';
 import type { ExactArtifactTarget } from './artifacts.js';
 import type { ExactCompilerExplanation } from './explanation.js';
 import type { ExactCompilerManifest } from './manifest.js';
+
+/** Replaces one imported or exported binding during native module lowering. */
+export interface ModuleExportReplacement {
+	readonly sourceModule: string;
+	readonly sourceExport: string;
+	readonly targetModule: string;
+	readonly targetExport: string;
+}
+
+/** Configures module aliases and binding replacements owned by the native compiler. */
+export interface ModuleRewriteOptions {
+	readonly filename?: string;
+	readonly moduleAliases?: Readonly<Record<string, string>>;
+	readonly replacements?: readonly ModuleExportReplacement[];
+	readonly sourceMap?: boolean;
+}
 
 /** Configures transform. */
 export type TransformOptions = {

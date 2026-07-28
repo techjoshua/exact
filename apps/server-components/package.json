@@ -4,8 +4,9 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
+		"pregenerate": "npm run build -w @exactjs/compiler",
 		"generate": "node scripts/generate-artifacts.mjs",
-		"build": "tsc --noEmit",
+		"build": "npm run generate && tsc --noEmit",
 		"test": "npm run generate && vitest run"
 	},
 	"dependencies": {

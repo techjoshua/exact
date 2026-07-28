@@ -6,6 +6,7 @@
 		{ "path": "./packages/config" },
 		{ "path": "./packages/plugin-host" },
 		{ "path": "./plugins/secrets" },
+		{ "path": "./packages/module-rewrite" },
 		{ "path": "./packages/expressions" },
 		{ "path": "./packages/reactive" },
 		{ "path": "./packages/core" },

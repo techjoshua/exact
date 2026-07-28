@@ -214,23 +214,31 @@ describe('@exactjs/compiler: JSX reactivity', () => {
 		);
 
 		expect(output).toContain('value: __exactExpression(() => this.state.name ?? "")');
-		expect(output).toContain('this.state.name = event.currentTarget.value');
+		expect(output).toContain(
+			'__exactWrite(this.state, ["name"], () => event.currentTarget.value as any)'
+		);
+		expect(output).toContain('readonly currentTarget: HTMLInputElement');
 		expect(output).toContain(
 			'event.currentTarget.value === "" ? null : event.currentTarget.valueAsNumber'
 		);
 		expect(output).toContain('Number.isNaN(this.state.count) ? "" : String(this.state.count)');
 		expect(output).toContain('checked: __exactExpression(() => this.state.enabled ?? false)');
-		expect(output).toContain('this.state.enabled = event.currentTarget.checked');
+		expect(output).toContain(
+			'__exactWrite(this.state, ["enabled"], () => event.currentTarget.checked)'
+		);
 		expect(output).toContain('checked: __exactExpression(() => this.state.method === "ground")');
 		expect(output).toContain('Array.from(event.currentTarget.selectedOptions');
 		expect(output).toContain(
 			'checked: __exactExpression(() => (this.state.providers ?? []).includes("ups"))'
 		);
 		expect(output).toContain('const value = event.currentTarget.value as any;');
-		expect(output).toContain(
-			'const next = event.currentTarget.checked ? values.includes(value) ? values : [...values, value] : values.filter(item => item !== value);'
+		expect(output).not.toContain('__exactAny');
+		expect(output).toMatch(
+			/const next = event\.currentTarget\.checked \? values\.includes\(value\) \? values : \[\.\.\.values, value\] : values\.filter\(\(?item\)? => item !== value\);/
 		);
-		expect(output).toContain('this.state.providers = next.length ? next : null;');
+		expect(output).toContain(
+			'__exactWrite(this.state, ["providers"], () => next.length ? next : null);'
+		);
 		expect(output).toContain(
 			'checked: __exactExpression(() => (this.state.codes ?? []).includes(Number("2")))'
 		);
@@ -443,10 +451,10 @@ describe('@exactjs/compiler: JSX reactivity', () => {
     }`,
 			{ filename: 'Board.tsx' }
 		);
-		expect(output).toContain(
-			'const todoTasks = __exactDerived(() => this.state.tasks.filter(task => task.status === "todo"));'
+		expect(output).toMatch(
+			/const todoTasks = __exactDerived\(\(\) => this\.state\.tasks\.filter\(\(?task\)? => task\.status === "todo"\)\);/
 		);
-		expect(output).toContain('this.map(todoTasks, task => task.id');
+		expect(output).toMatch(/this\.map\(todoTasks, \(?task\)? => task\.id/);
 		expect(output).toContain(', this.state.tasks, "member:id"');
 	});
 
@@ -458,10 +466,10 @@ describe('@exactjs/compiler: JSX reactivity', () => {
     }`,
 			{ filename: 'Column.tsx' }
 		);
-		expect(output).toContain(
-			'const columnTasks = __exactDerived(() => props.tasks.filter(task => task.status === props.column.id));'
+		expect(output).toMatch(
+			/const columnTasks = __exactDerived\(\(\) => props\.tasks\.filter\(\(?task\)? => task\.status === props\.column\.id\)\);/
 		);
-		expect(output).toContain('this.map(columnTasks, task => task.id');
+		expect(output).toMatch(/this\.map\(columnTasks, \(?task\)? => task\.id/);
 		expect(output).toMatch(/, props\.tasks, "member:id"\), "x[A-Za-z0-9_-]{22}"\)\)/);
 	});
 
@@ -474,7 +482,7 @@ describe('@exactjs/compiler: JSX reactivity', () => {
 			{ filename: 'Board.tsx' }
 		);
 		expect(local).toContain('const todoTasks = __exactDerived(() => this.state.tasks.filter');
-		expect(local).toContain('this.map(todoTasks, task => task.id');
+		expect(local).toMatch(/this\.map\(todoTasks, \(?task\)? => task\.id/);
 
 		expect(() =>
 			transform(

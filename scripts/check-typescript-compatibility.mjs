@@ -11,6 +11,7 @@ if (!ts.version.startsWith('6.0.')) {
 	);
 }
 
+runNpmScript('generate:app-artifacts', 'generated application artifacts');
 run(
 	path.join(root, 'node_modules', 'typescript', 'bin', 'tsc6'),
 	['-b', '--force', '--pretty', 'false'],
@@ -23,6 +24,12 @@ run(
 );
 
 console.log(`TypeScript compatibility passed with API ${ts.version} and the TypeScript 7 CLI.`);
+
+function runNpmScript(script, label) {
+	const npmCli = process.env.npm_execpath;
+	if (!npmCli) throw new Error(`npm_execpath is required to prepare ${label}`);
+	run(npmCli, ['run', script], label);
+}
 
 function run(entrypoint, args, label) {
 	const result = spawnSync(process.execPath, [entrypoint, ...args], {

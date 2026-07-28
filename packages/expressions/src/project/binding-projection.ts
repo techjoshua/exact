@@ -97,7 +97,20 @@ export function createExpressionBindingProjection(options: ExpressionBindingProj
 		let variableType: ExpressionType | undefined;
 		try {
 			if (detailedProfile) projectionCounters.checkerTypeQueries++;
-			variableType = typeFor(checker.getTypeOfSymbolAtLocation(symbol, identifier), identifier);
+			const contextualParameter =
+				ts.isParameter(declaration) &&
+				!declaration.type &&
+				(ts.isArrowFunction(declaration.parent) || ts.isFunctionExpression(declaration.parent))
+					? checker.getContextualType(declaration.parent)?.getCallSignatures()[0]?.getParameters()[
+							declaration.parent.parameters.indexOf(declaration)
+						]
+					: undefined;
+			variableType = typeFor(
+				contextualParameter
+					? checker.getTypeOfSymbolAtLocation(contextualParameter, identifier)
+					: checker.getTypeOfSymbolAtLocation(symbol, identifier),
+				identifier
+			);
 		} catch {
 			/* TypeScript can reject incomplete error symbols. */
 		}

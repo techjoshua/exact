@@ -2,7 +2,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '..');
-const ignoredDirectories = new Set(['.git', '.exact', 'coverage', 'dist', 'node_modules']);
+const ignoredDirectories = new Set(['.git', '.exact', '.tmp', 'coverage', 'dist', 'node_modules']);
 const failures = [];
 let packages = 0;
 

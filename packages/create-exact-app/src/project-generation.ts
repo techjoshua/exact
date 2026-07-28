@@ -365,7 +365,7 @@ function generatedReadme(options: CreateExactAppOptions): string {
 	const react = options.reactCompatibility
 		? `- React compatibility: React ${options.reactCompatibility}\n`
 		: '';
-	return `# ${options.name}\n\nAn eXact application generated with \`@exactjs/create-exact-app\`.\n\n- Build integration: ${options.bundler}\n- Runtime: ${options.runtime}\n- Test runner: ${options.testRunner}\n${react}- Application type-checker: TypeScript 7\n\n## Development\n\n\`\`\`sh\nnpm install\nnpm run typecheck\nnpm run dev\n\`\`\`\n${server}\nEdit \`src/App.tsx\` to begin. The component setup runs once; mutate \`this.state\` directly and let the eXact compiler update the affected DOM expressions.\n\nThe application uses TypeScript 7 for command-line and editor checking. eXact's compiler packages carry the TypeScript 6 compatibility API they require, so both versions can safely coexist in the same install.\n`;
+	return `# ${options.name}\n\nAn eXact application generated with \`@exactjs/create-exact-app\`.\n\n- Build integration: ${options.bundler}\n- Runtime: ${options.runtime}\n- Test runner: ${options.testRunner}\n${react}- Application type-checker: TypeScript 7\n\n## Development\n\n\`\`\`sh\nnpm install\nnpm run typecheck\nnpm run dev\n\`\`\`\n${server}\nEdit \`src/App.tsx\` to begin. The component setup runs once; mutate \`this.state\` directly and let the eXact compiler update the affected DOM expressions.\n\nThe application uses TypeScript 7 for command-line and editor checking. eXact's compiler is a small JavaScript host plus the npm-selected native binary for the current platform; the retired JavaScript compiler is not installed.\n`;
 }
 
 async function installAgentSkill(target: string): Promise<void> {

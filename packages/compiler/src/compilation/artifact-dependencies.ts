@@ -1,4 +1,4 @@
-import type { ModuleRewriteOptions } from '@exactjs/expressions';
+import type { ModuleRewriteOptions } from '../types.js';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import {

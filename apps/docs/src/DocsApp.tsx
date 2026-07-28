@@ -1,7 +1,7 @@
 import type { Component } from '@exactjs/core';
 import { Route, Router, type LocationSource } from '@exactjs/router';
 import { DocsLayout } from './components/DocsLayout.jsx';
-import { ThemeProvider } from './components/Theme.jsx';
+import { ThemeProvider } from './components/ThemeProvider.jsx';
 import { docPages } from './docs-manifest.js';
 import { NotFoundPage } from './pages/NotFoundPage.jsx';
 

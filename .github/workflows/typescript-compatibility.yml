@@ -15,5 +15,14 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.2'
+          cache: false
       - run: npm ci
+      - run: npm run build -w @exactjs/core
+      - run: node scripts/checkout-native-typescript-go.mjs .tmp/typescript-go-source
+      - run: node scripts/build-native-compiler.mjs --source .tmp/typescript-go-source
       - run: npm run check:typescript-compatibility
+        env:
+          EXACT_NATIVE_COMPILER: ${{ github.workspace }}/.tmp/native-compiler/exactc-native

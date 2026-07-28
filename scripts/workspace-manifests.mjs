@@ -8,7 +8,8 @@ export const publishableWorkspaceRoots = Object.freeze([
 	'framework-adapters',
 	'react-adapters',
 	'plugins',
-	'component-libraries'
+	'component-libraries',
+	'native/npm'
 ]);
 
 const ignoredDirectories = new Set(['.git', '.tmp', 'dist', 'node_modules']);

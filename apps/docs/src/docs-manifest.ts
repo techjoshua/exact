@@ -66,7 +66,8 @@ export const docGroups: DocGroup[] = [
 				path: '/getting-started',
 				label: 'Quick start',
 				summary: 'Scaffold and run an eXact application with compatible package versions.',
-				keywords: 'create exact app install scaffold vite runtime test runner agent skill',
+				keywords:
+					'create exact app install scaffold vite runtime test runner agent skill native compiler platform binary TypeScript 7',
 				component: GettingStartedPage
 			},
 			{
@@ -102,7 +103,7 @@ export const docGroups: DocGroup[] = [
 				summary:
 					'Compare an ordinary eXact component with the precise runtime machinery generated for it.',
 				keywords:
-					'compiler generated output lowering transform reactive helpers task binding map JSX',
+					'compiler native TypeScript Go generated output lowering transform reactive helpers task binding map JSX',
 				component: CompilerTourPage
 			},
 			{
@@ -228,7 +229,7 @@ export const docGroups: DocGroup[] = [
 				path: '/packages',
 				label: 'Package map',
 				summary: 'Find the package that owns the job at hand.',
-				keywords: 'packages core dom compiler hydrate testing',
+				keywords: 'packages core dom compiler native platform binary hydrate testing',
 				component: PackagesPage
 			}
 		]

@@ -3,6 +3,8 @@ import { prepareExactPluginRegistry } from '@exactjs/plugin-host/node';
 import path from 'node:path';
 import { compileProjectArtifacts } from './compilation/compiler.js';
 import { compileProject } from './compilation/file-compilation.js';
+import { createCompilerSession } from './expression/session.js';
+import { resolveNativeCompilerExecutable } from './native/executable.js';
 import type { TransformTarget } from './types.js';
 
 type CliOptions = {
@@ -24,52 +26,63 @@ async function main(argv: string[]): Promise<void> {
 		return;
 	}
 	const pluginRegistry = await prepareCliRegistry(options);
-
-	if (options.artifacts) {
-		if (!options.outDir) throw new Error('exactc --artifacts requires --outDir');
-		const results = await compileProjectArtifacts(options.inputs, {
-			outDir: options.outDir,
-			rootDir: options.rootDir,
-			serverComponents: options.serverComponents,
-			sourceMap: options.sourceMap,
-			pluginRegistry
-		});
-		for (const result of results) {
-			console.log(`${result.inputFile} -> ${result.clientFile}`);
-			if (result.clientMapFile) console.log(`${result.inputFile} -> ${result.clientMapFile}`);
-			console.log(`${result.inputFile} -> ${result.serverFile}`);
-			if (result.serverMapFile) console.log(`${result.inputFile} -> ${result.serverMapFile}`);
-			console.log(`${result.inputFile} -> ${result.manifestFile}`);
-		}
-		return;
-	}
-
-	const results = await compileProject(options.inputs, {
-		outDir: options.outDir,
-		rootDir: options.rootDir,
-		target: options.target,
-		emitManifest: options.emitManifest,
-		serverComponents: options.serverComponents,
-		sourceMap: options.sourceMap,
-		pluginRegistry
+	const hasCompilerRegistry =
+		pluginRegistry !== undefined && Object.keys(pluginRegistry.plugins).length > 0;
+	const session = createCompilerSession({
+		nativeCompiler: { executable: resolveNativeCompilerExecutable() }
 	});
 
-	if (!options.outDir && results.length > 1) {
-		throw new Error('exactc requires --outDir when compiling more than one file');
-	}
-
-	for (const result of results) {
-		if (result.outputFile) {
-			console.log(`${result.inputFile} -> ${result.outputFile}`);
-			if (result.sourceMapFile) {
-				console.log(`${result.inputFile} -> ${result.sourceMapFile}`);
-			}
-			if (result.manifestFile) {
+	try {
+		if (options.artifacts) {
+			if (!options.outDir) throw new Error('exactc --artifacts requires --outDir');
+			const results = await compileProjectArtifacts(options.inputs, {
+				outDir: options.outDir,
+				rootDir: options.rootDir,
+				serverComponents: options.serverComponents,
+				sourceMap: options.sourceMap,
+				...(hasCompilerRegistry ? { pluginRegistry } : {}),
+				session
+			});
+			for (const result of results) {
+				console.log(`${result.inputFile} -> ${result.clientFile}`);
+				if (result.clientMapFile) console.log(`${result.inputFile} -> ${result.clientMapFile}`);
+				console.log(`${result.inputFile} -> ${result.serverFile}`);
+				if (result.serverMapFile) console.log(`${result.inputFile} -> ${result.serverMapFile}`);
 				console.log(`${result.inputFile} -> ${result.manifestFile}`);
 			}
-		} else {
-			process.stdout.write(result.code);
+			return;
 		}
+
+		const results = await compileProject(options.inputs, {
+			outDir: options.outDir,
+			rootDir: options.rootDir,
+			target: options.target,
+			emitManifest: options.emitManifest,
+			serverComponents: options.serverComponents,
+			sourceMap: options.sourceMap,
+			...(hasCompilerRegistry ? { pluginRegistry } : {}),
+			session
+		});
+
+		if (!options.outDir && results.length > 1) {
+			throw new Error('exactc requires --outDir when compiling more than one file');
+		}
+
+		for (const result of results) {
+			if (result.outputFile) {
+				console.log(`${result.inputFile} -> ${result.outputFile}`);
+				if (result.sourceMapFile) {
+					console.log(`${result.inputFile} -> ${result.sourceMapFile}`);
+				}
+				if (result.manifestFile) {
+					console.log(`${result.inputFile} -> ${result.manifestFile}`);
+				}
+			} else {
+				process.stdout.write(result.code);
+			}
+		}
+	} finally {
+		session.dispose();
 	}
 }
 
@@ -97,7 +110,6 @@ function parseArgs(argv: string[]): CliOptions {
 	let artifacts = false;
 	let serverComponents = false;
 	let sourceMap = false;
-
 	for (let index = 0; index < argv.length; index++) {
 		const arg = argv[index]!;
 		if (arg === '--outDir') {
@@ -122,7 +134,16 @@ function parseArgs(argv: string[]): CliOptions {
 		}
 	}
 
-	return { inputs, outDir, rootDir, target, emitManifest, artifacts, serverComponents, sourceMap };
+	return {
+		inputs,
+		outDir,
+		rootDir,
+		target,
+		emitManifest,
+		artifacts,
+		serverComponents,
+		sourceMap
+	};
 }
 
 function printUsage(): void {

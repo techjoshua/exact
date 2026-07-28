@@ -1,8 +1,16 @@
 import { rankQuotes } from '../../model.js';
 import type { InitialModel } from '../../types.js';
-import { RateCard, RouteMap, capitalize, providerName } from '../presentation.js';
+import { providerName } from '../provider-name.js';
+import { RateCard } from '../RateCard.js';
+import { RouteMap } from '../RouteMap.js';
 import type { WorkspaceState } from './contracts.js';
 import type { createWorkspaceInputs } from './inputs.js';
+
+const mailpieceKinds = [
+	{ id: 'parcel', label: 'Parcel' },
+	{ id: 'envelope', label: 'Envelope' },
+	{ id: 'flat', label: 'Flat' }
+] as const;
 
 /** Renders the calculator workspace from reactive state and bound input operations. */
 export function renderWorkspace(
@@ -18,6 +26,10 @@ export function renderWorkspace(
 		visibleProviders.flatMap((provider) => provider.quotes),
 		state.sort
 	);
+	const successfulProviderCount = visibleProviders.filter(
+		(provider) => provider.status === 'success'
+	).length;
+	const failedProviders = visibleProviders.filter((provider) => provider.status === 'error');
 	return (
 		<section className="calculator" aria-label="Shipping calculator">
 			<div className="calculator-grid">
@@ -70,14 +82,14 @@ export function renderWorkspace(
 					<fieldset>
 						<legend>Mailpiece</legend>
 						<div className="segmented" role="group" aria-label="Mailpiece type">
-							{(['parcel', 'envelope', 'flat'] as const).map((kind) => (
+							{mailpieceKinds.map((kind) => (
 								<button
 									type="button"
-									className={state.draft.kind === kind ? 'active' : ''}
-									aria-pressed={state.draft.kind === kind}
-									onClick={() => change('kind', kind)}
+									className={[state.draft.kind === kind.id && 'active']}
+									aria-pressed={state.draft.kind === kind.id}
+									onClick={() => change('kind', kind.id)}
 								>
-									{capitalize(kind)}
+									{kind.label}
 								</button>
 							))}
 						</div>
@@ -301,16 +313,14 @@ export function renderWorkspace(
 					<p className="status-line" role="status" aria-live="polite">
 						{state.loading.length
 							? `Refreshing ${state.loading.map(providerName).join(', ')}…`
-							: `Showing rates from ${visibleProviders.filter((item) => item.status === 'success').length} source${visibleProviders.filter((item) => item.status === 'success').length === 1 ? '' : 's'}.`}
+							: `Showing rates from ${successfulProviderCount} source${successfulProviderCount === 1 ? '' : 's'}.`}
 					</p>
-					{visibleProviders
-						.filter((provider) => provider.status === 'error')
-						.map((provider) => (
-							<div className="provider-error">
-								<strong>{provider.providerName}</strong>
-								<span>{provider.error?.message}</span>
-							</div>
-						))}
+					{failedProviders.map((provider) => (
+						<div className="provider-error">
+							<strong>{provider.providerName}</strong>
+							<span>{provider.error?.message}</span>
+						</div>
+					))}
 					<div className="quote-list">
 						{quotes.map((quote, index) => (
 							<RateCard

@@ -35,7 +35,7 @@ describe('@exactjs/vite-plugin: transform', () => {
 		expect(events).toContainEqual(
 			expect.objectContaining({
 				subsystem: 'compiler',
-				phase: 'expression-module'
+				phase: 'native-request'
 			})
 		);
 		expect(events).toContainEqual(

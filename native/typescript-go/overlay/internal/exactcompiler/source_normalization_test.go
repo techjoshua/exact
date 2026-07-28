@@ -1,0 +1,144 @@
+package exactcompiler
+
+import (
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/microsoft/typescript-go/internal/tspath"
+)
+
+func TestNormalizeAuthoredSourceRewritesPropPunning(t *testing.T) {
+	source := `
+		const text = "<Card {ignored} />";
+		// <Card {commented} />
+		export function View() {
+			return () => <Card {value} expression={{ pattern: /}/ }} />;
+		}
+	`
+	normalized, err := normalizeAuthoredSource(normalizationTestFile(t, "view.tsx"), source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(normalized.text, "<Card value={value}") {
+		t.Fatalf("punned prop was not normalized:\n%s", normalized.text)
+	}
+	for _, retained := range []string{
+		`"<Card {ignored} />"`,
+		`// <Card {commented} />`,
+		`expression={{ pattern: /}/ }}`,
+	} {
+		if !strings.Contains(normalized.text, retained) {
+			t.Fatalf("normalization changed %q:\n%s", retained, normalized.text)
+		}
+	}
+}
+
+func TestNormalizeAuthoredSourceOwnsDerivedComponentWork(t *testing.T) {
+	normalized, err := normalizeAuthoredSource(
+		normalizationTestFile(t, "summary.tsx"),
+		`
+			export function Summary(
+				this: Component<{ quantity: number; price: number; subtotal: number }>
+			) {
+				this.state.subtotal = this.state.quantity * this.state.price;
+				return () => <output>{this.state.subtotal}</output>;
+			}
+		`,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(
+		normalized.text,
+		`this.task(() => { this.state.subtotal = this.state.quantity * this.state.price; });`,
+	) {
+		t.Fatalf("derived setup work was not owned by a task:\n%s", normalized.text)
+	}
+}
+
+func TestNormalizeAuthoredSourceOwnsAsyncComponentContinuation(t *testing.T) {
+	normalized, err := normalizeAuthoredSource(
+		normalizationTestFile(t, "customer.tsx"),
+		`
+			declare function load(id: string): Promise<string>;
+			export async function Customer(
+				this: Component<{ id: string; value?: string; error?: string }>
+			) {
+				try {
+					this.state.value = await load(this.state.id);
+				} catch (error) {
+					this.state.error = String(error);
+				}
+				return () => <output>{this.state.value}</output>;
+			}
+		`,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		"export  function Customer",
+		"this.task.blocking(async ({ signal: __exactComponentSignal }) => {",
+		"if (__exactComponentSignal.aborted) throw __exactComponentSignal.reason;",
+	} {
+		if !strings.Contains(normalized.text, expected) {
+			t.Fatalf("async normalization is missing %q:\n%s", expected, normalized.text)
+		}
+	}
+}
+
+func TestNormalizeAuthoredSourcePublishesDestructuredState(t *testing.T) {
+	normalized, err := normalizeAuthoredSource(
+		normalizationTestFile(t, "selection.tsx"),
+		`
+			export function Selection(
+				this: Component<{ values: number[]; selected: number; remaining: number[] }>
+			) {
+				[this.state.selected = 10, ...this.state.remaining] = this.state.values;
+				return () => <output>{this.state.selected}</output>;
+			}
+		`,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		"const [__exactDestructured_",
+		"this.state.selected = __exactDestructured_",
+		"this.state.remaining = __exactDestructured_",
+	} {
+		if !strings.Contains(normalized.text, expected) {
+			t.Fatalf("destructuring normalization is missing %q:\n%s", expected, normalized.text)
+		}
+	}
+}
+
+func TestNormalizedSourceRemapsSourceMapColumns(t *testing.T) {
+	authored := `const view = <Card {value} />;`
+	normalized, err := normalizeAuthoredSource(
+		normalizationTestFile(t, "view.tsx"),
+		authored,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	normalizedColumn := strings.Index(normalized.text, "/>")
+	authoredColumn := strings.Index(authored, "/>")
+	mapping := encodeSourceMapSegment([]int{0, 0, 0, normalizedColumn})
+	remapped := remapSourceMapMappings(mapping, normalized)
+	values, valid := decodeSourceMapSegment(remapped)
+	if !valid || len(values) != 4 || values[3] != authoredColumn {
+		t.Fatalf(
+			"source map column was not remapped: got %q (%#v), expected %d",
+			remapped,
+			values,
+			authoredColumn,
+		)
+	}
+}
+
+func normalizationTestFile(t *testing.T, name string) string {
+	t.Helper()
+	return tspath.NormalizePath(filepath.ToSlash(filepath.Join(t.TempDir(), name)))
+}

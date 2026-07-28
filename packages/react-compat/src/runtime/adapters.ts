@@ -65,7 +65,14 @@ import { createOwnerFrame, enterReactOwnerScope, removeOwnerFrame } from '../int
 
 const adapterCache = new WeakMap<object, ComponentFunction<any, any>>();
 
-/** Performs the adapt react type domain operation. */
+/**
+ * Returns the stable eXact component adapter for a React type.
+ *
+ * The internal cache changes only allocation behavior; equal input identity
+ * always produces equal output identity.
+ *
+ * @exact pure
+ */
 export function adaptReactType<P>(
 	type: ReactComponentType<P> | ComponentFunction<any, P>
 ): ComponentFunction<Record<string, unknown>, P> {

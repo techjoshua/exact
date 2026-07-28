@@ -1,11 +1,11 @@
 import path from 'node:path';
-import { continuationDescriptorValues } from './descriptor-values.js';
 import { clientRegistryModulePath } from './paths.js';
 import type {
 	ClientIslandRegistryEntry,
 	ClientIslandRegistryOptions,
 	ExactArtifactGraph,
 	ExactArtifactGraphInput,
+	ExactContinuationIR,
 	ExactHydrationRegistrationModuleOptions,
 	ExactRegistryModuleOptions,
 	ExactSymbolIR,
@@ -144,6 +144,39 @@ function createClientDescriptorCompositionModule(
 		'}).continuations;',
 		''
 	].join('\n');
+}
+
+function continuationDescriptorValues(
+	continuations: readonly ExactContinuationIR[],
+	client: boolean
+): readonly Record<string, unknown>[] {
+	return continuations.map((continuation) => ({
+		id: continuation.id,
+		componentId: continuation.componentId,
+		readiness: continuation.readiness,
+		dependencies: continuation.activation.dependencies.map(({ source }) => ({ source })),
+		stateReads: continuation.activation.stateReads.map(statePathDescriptor),
+		stateWrites: continuation.effects.stateWrites.map(statePathDescriptor),
+		publicContexts: continuation.activation.publicContexts.map((context) => context.token),
+		serverContexts: client
+			? []
+			: continuation.activation.serverContexts.map((context) => context.token),
+		contextWrites: continuation.effects.contextWrites.map((context) => context.token),
+		serverContextWrites: client
+			? []
+			: continuation.effects.serverContextWrites.map((context) => context.token),
+		boundaries: continuation.effects.boundaries
+	}));
+}
+
+function statePathDescriptor(
+	effect: ExactContinuationIR['activation']['stateReads'][number]
+): Record<string, unknown> {
+	return {
+		path: effect.path,
+		kind: effect.kind,
+		confidence: effect.confidence
+	};
 }
 
 function clientRegistrySymbol(

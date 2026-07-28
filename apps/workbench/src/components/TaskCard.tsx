@@ -14,7 +14,9 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
 
 	return () => (
 		<article className={['task-card', props.compact && 'compact']}>
-			<span className={`task-priority priority ${props.task.priority}`}>{props.task.priority}</span>
+			<span className={['task-priority', 'priority', props.task.priority]}>
+				{props.task.priority}
+			</span>
 			<button type="button" className="task-title" onClick={() => workbench.selectTask(props.task)}>
 				{props.task.title}
 			</button>
@@ -24,7 +26,7 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
 				{columns.map((column) => (
 					<button
 						type="button"
-						className={props.task.status === column.id ? 'active' : ''}
+						className={[props.task.status === column.id && 'active']}
 						disabled={props.task.status === column.id}
 						onClick={() => workbench.moveTask(props.task, column.id as Status)}
 					>

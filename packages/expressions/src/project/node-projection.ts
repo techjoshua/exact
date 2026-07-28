@@ -34,8 +34,11 @@ export type ExpressionNodeProjectionOptions = {
 	overlayVersion: number;
 	measure<T>(bucket: NodeProjectionBucket, operation: () => T): T;
 	typeFor(type: ts.Type, at: ts.Node): ExpressionType;
+	/** Fully projects types that are part of a resolved callable contract. */
+	signatureTypeFor(type: ts.Type, at: ts.Node): ExpressionType;
 	displayType(type: ts.Type, at: ts.Node): string;
 	displaySignature(signature: ts.Signature, at: ts.Node): string;
+	preferVariableTypes?: boolean;
 	scopeFor(node: ts.Node): ProjectScope;
 	variableFor(identifier: ts.Identifier): Variable | undefined;
 	variableForThis(node: ts.Node): Variable;
@@ -88,7 +91,7 @@ export function projectExpressionNodes(options: ExpressionNodeProjectionOptions)
 	const convert = (node: ts.Node): ExpressionNode => {
 		convertedNodeCount++;
 		const children: ExpressionNode[] = [];
-		ts.forEachChild(node, (child) => {
+		node.forEachChild((child) => {
 			children.push(convert(child));
 		});
 		const metadata = measureProjection('metadata', () => {
@@ -106,10 +109,11 @@ export function projectExpressionNodes(options: ExpressionNodeProjectionOptions)
 			};
 		});
 		const semanticType = measureProjection('types', () => {
-			if (!ts.isExpression(node)) return undefined;
+			if (!ts.isExpression(node) && !ts.isTypeNode(node)) return undefined;
 			try {
 				if (detailedProfile) projectionCounters.checkerTypeQueries++;
-				return typeFor(checker.getTypeAtLocation(node), node);
+				const projectType = ts.isTypeNode(node) ? options.signatureTypeFor : typeFor;
+				return projectType(checker.getTypeAtLocation(node), node);
 			} catch {
 				// Invalid code is represented alongside diagnostics.
 				return undefined;
@@ -132,7 +136,10 @@ export function projectExpressionNodes(options: ExpressionNodeProjectionOptions)
 				children: Object.freeze(children),
 				synthetic: false,
 				scope: scopeFor(node),
-				type: semanticType,
+				type:
+					options.preferVariableTypes && ts.isIdentifier(node)
+						? (variable?.type ?? semanticType)
+						: semanticType,
 				variable,
 				name: nodeName(node),
 				operator: nodeOperator(node),
@@ -152,7 +159,7 @@ export function projectExpressionNodes(options: ExpressionNodeProjectionOptions)
 							signature,
 							node,
 							checker,
-							typeFor,
+							options.signatureTypeFor,
 							(candidate, inline) => directives.for(candidate, inline),
 							displayType,
 							displaySignature
@@ -162,6 +169,7 @@ export function projectExpressionNodes(options: ExpressionNodeProjectionOptions)
 				return freezeSourceNode(
 					{
 						...common,
+						...(resolvedSignature ? { type: resolvedSignature.returnType } : {}),
 						target,
 						arguments: Object.freeze(children.slice(argumentOffset)),
 						...(resolvedSignature ? { resolvedSignature } : {})
@@ -170,13 +178,15 @@ export function projectExpressionNodes(options: ExpressionNodeProjectionOptions)
 				);
 			}
 			if (ts.isFunctionLike(node)) {
-				const parameters = node.parameters.flatMap((parameter) =>
-					parameter.name.getText(sourceFile) === 'this'
-						? [variableForThis(parameter.name)]
-						: collectBindingIdentifiers(parameter.name)
+				const parameters = node.parameters.flatMap((parameter) => {
+					const name = parameter.name;
+					if (!name) return [];
+					return name.getText(sourceFile) === 'this'
+						? [variableForThis(name)]
+						: collectBindingIdentifiers(name)
 								.map(variableFor)
-								.filter((value): value is Variable => !!value)
-				);
+								.filter((value): value is Variable => !!value);
+				});
 				return freezeSourceNode(
 					{
 						...common,

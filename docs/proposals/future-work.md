@@ -51,6 +51,91 @@ runtime selection. The design must preserve:
 This should be an eXact compiler contract, not an application-local
 `createVNode()` escape that hides the graph.
 
+## Conditional classes through namespaced props
+
+Investigate compiler support for declaring a statically named conditional class
+as a namespaced intrinsic-element prop:
+
+```tsx
+<div
+	className={['card', this.state.compact && 'compact']}
+	className:selected={this.state.selected}
+	className:disabled={!this.state.enabled}
+/>
+```
+
+Each `className:name` entry would append `name` after the ordinary `class` or
+`className` input while its value is truthy and omit it while falsey. An entry
+without an initializer would be unconditionally enabled. The compiler should
+lower all inputs to one canonical class value so namespaced props do not escape
+into DOM attributes, SSR markup, hydration contracts, or component props.
+
+An initial design should:
+
+- support intrinsic and custom elements, but reject the syntax on components;
+- preserve the authored order of namespaced classes after the ordinary class
+  input;
+- treat `class` and `className` as aliases of the same input;
+- report an error for duplicate class tokens when the collision is statically
+  provable, while accepting possible collisions hidden in dynamic class values;
+- retain the existing truthy-map semantics rather than requiring boolean-only
+  conditions; and
+- either define correct spread ordering and single-evaluation semantics or
+  reject prop spreads on elements using conditional class props in the first
+  version.
+
+The suffix is limited by TypeScript's JSX namespaced-name grammar. It can
+represent common names such as `selected` and `is-active`, but not every valid
+CSS token, including names with another colon, a slash, brackets, or a leading
+digit. Existing string, array, map, CSS-module, and computed class forms must
+remain available.
+
+Before lowering the feature to the existing class-list representation, make
+class normalization a shared DOM, SSR, and hydration contract. The DOM renderer
+currently normalizes arrays and truthy maps, while native SSR and static
+hydration do not apply the same normalization. Add compiler diagnostics and
+emission tests plus DOM reactivity, SSR, and hydration regression coverage.
+
+## JavaScript runtime object layout
+
+Investigate whether the client renderer and server runtime can reduce polymorphic
+inline caches and hidden-class transitions without increasing retained heap size.
+This is an implementation optimization, not a dependency on V8 semantics; behavior
+must remain correct and competitive in other supported JavaScript engines.
+
+The initial audit identified these candidates:
+
+- VNodes conditionally carry domain metadata and text VNodes omit fields present
+  on ordinary and cell VNodes. A canonical construction layout may make renderer
+  property access more predictable, but adding absent own properties can affect
+  reflection and must be treated as a contract decision.
+- `Mounted` records are the renderer's hottest and most polymorphic objects.
+  Host nodes, components, portals, dynamic ranges, Activity, Suspense, and raw HTML
+  add different optional fields in different orders. Compare a common fixed-layout
+  header plus variant state against the current compact representation.
+- Component instances and task registrations acquire optional controllers,
+  cleanup functions, settlements, and renderer callbacks after construction.
+  Internal lifecycle state may benefit from an eagerly initialized fixed-layout
+  record or a private sidecar, provided public component inspection remains clear.
+- Server protocol and patch objects use conditional spreads to keep wire payloads
+  minimal. Preserve the serialized format, but consider separate fixed-layout
+  internal work records where request dispatch repeatedly reads the same fields.
+- Renderer roots have several construction paths and late-added optional fields.
+  They are lower priority because roots are few and long-lived compared with
+  VNodes and mounted records.
+
+Do not pad every record speculatively. Added slots consume memory and can make
+cache locality worse even when they reduce map polymorphism. Evaluate candidates
+with representative Chrome and Node versions using allocation counts, retained
+heap, inline-cache or deoptimization evidence, and the existing reactive and DOM
+benchmarks. Accept a layout change only when repeated measurements improve a hot
+workload without materially regressing another supported engine or observable
+own-property behavior.
+
+See [`javascript-runtime-object-layout.md`](javascript-runtime-object-layout.md)
+for the initial measurements, rejected options, prioritized experiments, and
+acceptance gates.
+
 ## Partial prerender and resume
 
 Native eXact progressive SSR can emit a fallback shell and reveal settled

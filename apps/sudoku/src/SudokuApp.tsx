@@ -159,23 +159,38 @@ export function SudokuApp(this: Component<SudokuState>) {
 	};
 	this.setContext(SudokuContext, commands);
 
+	const persistGame = () => {
+		localStorage.setItem(
+			storageKey,
+			JSON.stringify(
+				createSavedGame(
+					this.state.puzzleId,
+					this.state.cells,
+					this.state.elapsedSeconds,
+					this.state.theme
+				)
+			)
+		);
+	};
+
 	this.task(this.state.paused, complete, (paused, solved) => {
 		if (paused || solved) return;
 		setInterval(() => this.state.elapsedSeconds++, 1000);
 	});
 
-	this.task(
-		this.state.puzzleId,
-		JSON.stringify(this.state.cells),
-		this.state.elapsedSeconds,
-		this.state.theme,
-		(puzzleId, _cells, elapsedSeconds, theme) => {
-			localStorage.setItem(
-				storageKey,
-				JSON.stringify(createSavedGame(puzzleId, this.state.cells, elapsedSeconds, theme))
-			);
-		}
+	this.task(this.state.puzzleId, JSON.stringify(this.state.cells), this.state.theme, () =>
+		persistGame()
 	);
+
+	// Capture timer-only progress when the session is suspended without making
+	// the one-second display update a persistence dependency.
+	this.task(({ signal }) => {
+		const persistWhenHidden = () => {
+			if (document.visibilityState === 'hidden') persistGame();
+		};
+		document.addEventListener('visibilitychange', persistWhenHidden, { signal });
+		window.addEventListener('pagehide', persistGame, { signal });
+	});
 
 	this.task(({ signal }) => {
 		window.addEventListener(
@@ -224,7 +239,7 @@ export function SudokuApp(this: Component<SudokuState>) {
 	});
 
 	return () => (
-		<div className={`sudoku-app theme-${this.state.theme}`}>
+		<div className={['sudoku-app', `theme-${this.state.theme}`]}>
 			<div className="ambient ambient-one" aria-hidden="true" />
 			<div className="ambient ambient-two" aria-hidden="true" />
 			<header className="topbar">

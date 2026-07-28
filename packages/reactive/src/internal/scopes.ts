@@ -1,6 +1,10 @@
 import type { ExactProfileSink } from '@exactjs/instrumentation';
 import type { EffectScope, EffectScopeImpl, ReactiveProfileEvent, WorkPriority } from './types.js';
-import { isHigherWorkPriority, resumeScheduledWork } from './scheduler.js';
+import {
+	discardScheduledScopeWork,
+	isHigherWorkPriority,
+	resumeScheduledWork
+} from './scheduler.js';
 
 const scopeStack: EffectScopeImpl[] = [];
 
@@ -113,6 +117,9 @@ function stopEffectScope(root: EffectScopeImpl): void {
 				failed = true;
 			}
 		}
+		// Cleanup callbacks may synchronously enqueue final work. Purge ownership only after every
+		// callback has run so an inactive paused scope cannot become globally retained again.
+		discardScheduledScopeWork(scope);
 		scope.children.clear();
 		scope.reactions.clear();
 		scope.cleanups.clear();

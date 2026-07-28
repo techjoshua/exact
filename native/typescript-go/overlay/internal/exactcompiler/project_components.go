@@ -1,0 +1,767 @@
+package exactcompiler
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+
+	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/typescript-go/internal/checker"
+	"github.com/microsoft/typescript-go/internal/compiler"
+	"github.com/microsoft/typescript-go/internal/tspath"
+)
+
+type projectComponent struct {
+	sourceFile *ast.SourceFile
+	candidate  componentCandidate
+	component  Component
+}
+
+// linkProjectComponents resolves JSX component tags by checker symbol across
+// every project source and computes one cross-file placement fixed point.
+// Only components from the requested module are returned.
+func linkProjectComponents(
+	project *projectState,
+	requested *ast.SourceFile,
+	typeChecker *checker.Checker,
+	current []Component,
+	callables callableAnalysis,
+	externalManifests []ExternalManifest,
+) []Component {
+	if len(externalManifests) == 0 && project.componentCache != nil {
+		if cached, exists := project.componentCache[requested]; exists {
+			return append([]Component(nil), cached...)
+		}
+	}
+	records := projectComponentRecords(
+		project.program,
+		requested,
+		typeChecker,
+		current,
+		callables,
+		externalManifests,
+	)
+	componentBySymbol := make(map[ast.SymbolId]int, len(records))
+	componentByIdentity := make(map[string]int, len(records))
+	componentByImport := make(map[string]int, len(records))
+	importBindingsBySource := make(map[*ast.SourceFile]externalImportBindings)
+	externalIndexes := make(map[*ast.SourceFile]externalManifestIndex)
+	for index := range records {
+		symbol := callableDeclarationSymbol(records[index].candidate.node, typeChecker)
+		symbol = resolvedCallableSymbol(symbol, typeChecker)
+		if symbol != nil {
+			componentBySymbol[ast.GetSymbolId(symbol)] = index
+			if identity := projectComponentSymbolIdentity(symbol); identity != "" {
+				componentByIdentity[identity] = index
+			}
+		}
+		if records[index].component.Exported {
+			module := projectComponentModuleIdentity(records[index].sourceFile.FileName())
+			componentByImport[module+"\x00"+records[index].component.Name] = index
+			if ast.HasSyntacticModifier(
+				records[index].candidate.node,
+				ast.ModifierFlagsDefault,
+			) {
+				componentByImport[module+"\x00default"] = index
+			}
+		}
+	}
+	for index := range records {
+		record := &records[index]
+		edges := []RenderEdge{}
+		candidates := activeComponentCandidates(record.sourceFile)
+		nodeIDs := expressionNodeIDs(record.sourceFile)
+		walkNode(record.candidate.node, func(node *ast.Node) bool {
+			if componentOwnerIndex(node, candidates) != componentCandidateIndex(
+				record.candidate,
+				candidates,
+			) {
+				return false
+			}
+			tag := jsxTagNode(node)
+			if tag == nil {
+				return true
+			}
+			tagText := strings.TrimSpace(sourceText(record.sourceFile, tag))
+			if tagText == "_" || jsxIntrinsic(tagText) {
+				return true
+			}
+			symbol := resolvedCallableSymbol(
+				typeChecker.GetSymbolAtLocation(jsxTagSymbolNode(tag)),
+				typeChecker,
+			)
+			targetIndex, exists := -1, false
+			if symbol != nil {
+				targetIndex, exists = componentBySymbol[ast.GetSymbolId(symbol)]
+				if !exists {
+					identity := projectComponentSymbolIdentity(symbol)
+					targetIndex, exists = componentByIdentity[identity]
+				}
+			}
+			if !exists {
+				if jsxTagResolvesToLocalValue(tag, record.sourceFile, typeChecker) {
+					value, resolved := resolveJSXComponentValue(
+						tag,
+						record.sourceFile,
+						typeChecker,
+					)
+					if resolved {
+						for _, possible := range value {
+							possibleIndex, found := componentIndexForSymbol(
+								possible.symbol,
+								componentBySymbol,
+								componentByIdentity,
+							)
+							if !found {
+								continue
+							}
+							target := records[possibleIndex]
+							edgeIndex := len(edges) + 1
+							edges = append(edges, RenderEdge{
+								ID: fmt.Sprintf(
+									"%s:render:%d:%s",
+									record.component.ID,
+									node.Pos(),
+									possible.tag,
+								),
+								NodeID:      nodeIDs[node],
+								Tag:         possible.tag,
+								Name:        target.component.Name,
+								ComponentID: target.component.ID,
+								Placement:   target.component.Placement,
+								Boundary:    target.component.Placement,
+								Index:       edgeIndex,
+								Path:        fmt.Sprintf("%d", node.Pos()),
+							})
+						}
+						return true
+					}
+					appendComponentDiagnostic(
+						&record.component,
+						"error: JSX tag "+
+							strings.TrimSpace(sourceText(record.sourceFile, tag))+
+							" resolves to variable, not a runtime component",
+					)
+					return true
+				}
+				bindings := importBindingsBySource[record.sourceFile]
+				if bindings.bySymbol == nil {
+					bindings = collectExternalImportBindings(record.sourceFile, typeChecker)
+					importBindingsBySource[record.sourceFile] = bindings
+				}
+				reference, imported := externalImportForExpression(tag, bindings, typeChecker)
+				if !imported {
+					appendComponentDiagnostic(
+						&record.component,
+						jsxComponentResolutionDiagnostic(
+							tag,
+							record.sourceFile,
+							typeChecker,
+						),
+					)
+					return true
+				}
+				localIdentity := importedProjectComponentIdentity(
+					record.sourceFile,
+					reference,
+				)
+				if localIdentity != "" {
+					if localTarget, resolved := componentByImport[localIdentity]; resolved {
+						targetIndex, exists = localTarget, true
+					}
+				}
+				if exists {
+					// Continue below so local imports use the same render-edge
+					// representation as checker-resolved component symbols.
+				} else {
+					index, indexed := externalIndexes[record.sourceFile]
+					if !indexed {
+						index = newExternalManifestIndex(record.sourceFile, externalManifests)
+						externalIndexes[record.sourceFile] = index
+					}
+					target, resolved := index.component(record.sourceFile, reference)
+					if !resolved {
+						// Runtime imports are valid component values even when the
+						// caller has not supplied a component manifest. In that
+						// case placement is opaque, so there is no render edge to
+						// add. A type-only import still has no runtime value and
+						// must remain an error.
+						if diagnostic := jsxComponentResolutionDiagnostic(
+							tag,
+							record.sourceFile,
+							typeChecker,
+						); strings.Contains(diagnostic, "type-only import") {
+							appendComponentDiagnostic(
+								&record.component,
+								diagnostic,
+							)
+						}
+						return true
+					}
+					edgeIndex := len(edges) + 1
+					tagText := strings.TrimSpace(sourceText(record.sourceFile, tag))
+					edges = append(edges, RenderEdge{
+						ID: fmt.Sprintf(
+							"%s:render:%d:%s",
+							record.component.ID,
+							node.Pos(),
+							tagText,
+						),
+						NodeID:      nodeIDs[node],
+						Tag:         tagText,
+						Name:        target.Name,
+						ComponentID: target.ComponentID,
+						Placement:   target.Placement,
+						Boundary:    target.Placement,
+						Index:       edgeIndex,
+						Path:        fmt.Sprintf("%d", node.Pos()),
+					})
+					return true
+				}
+			}
+			target := records[targetIndex]
+			edgeIndex := len(edges) + 1
+			edges = append(edges, RenderEdge{
+				ID: fmt.Sprintf(
+					"%s:render:%d:%s",
+					record.component.ID,
+					node.Pos(),
+					tagText,
+				),
+				NodeID:      nodeIDs[node],
+				Tag:         tagText,
+				Name:        target.component.Name,
+				ComponentID: target.component.ID,
+				Placement:   target.component.Placement,
+				Boundary:    target.component.Placement,
+				Index:       edgeIndex,
+				Path:        fmt.Sprintf("%d", node.Pos()),
+			})
+			return true
+		})
+		record.component.RenderEdges = edges
+	}
+	resolveProjectComponentSubgraphs(records)
+
+	result := []Component{}
+	for _, record := range records {
+		if record.sourceFile == requested {
+			result = append(result, record.component)
+		}
+	}
+	sort.Slice(result, func(left int, right int) bool {
+		return result[left].Start < result[right].Start
+	})
+	if len(externalManifests) == 0 {
+		cacheRequestedComponents(project, requested, result)
+	}
+	return result
+}
+
+func jsxTagResolvesToLocalValue(
+	tag *ast.Node,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) bool {
+	root := jsxTagSymbolNode(tag)
+	if root == nil {
+		return false
+	}
+	symbol := typeChecker.GetSymbolAtLocation(root)
+	if symbol == nil {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		if ast.GetSourceFileOfNode(declaration) == sourceFile &&
+			enclosingImportDeclaration(declaration) == nil {
+			return true
+		}
+	}
+	return false
+}
+
+func jsxTagResolvesToCallableValue(
+	tag *ast.Node,
+	typeChecker *checker.Checker,
+) bool {
+	symbol := resolvedCallableSymbol(
+		typeChecker.GetSymbolAtLocation(jsxTagSymbolNode(tag)),
+		typeChecker,
+	)
+	if symbol == nil {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		if ast.IsFunctionDeclaration(declaration) {
+			return true
+		}
+		if ast.IsVariableDeclaration(declaration) {
+			initializer := declaration.AsVariableDeclaration().Initializer
+			if initializer != nil &&
+				(ast.IsArrowFunction(initializer) ||
+					ast.IsFunctionExpression(initializer)) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+type jsxComponentValueTarget struct {
+	symbol *ast.Symbol
+	tag    string
+}
+
+func componentIndexForSymbol(
+	symbol *ast.Symbol,
+	bySymbol map[ast.SymbolId]int,
+	byIdentity map[string]int,
+) (int, bool) {
+	if symbol == nil {
+		return -1, false
+	}
+	if index, exists := bySymbol[ast.GetSymbolId(symbol)]; exists {
+		return index, true
+	}
+	index, exists := byIdentity[projectComponentSymbolIdentity(symbol)]
+	return index, exists
+}
+
+// resolveJSXComponentValue proves immutable aliases and finite conditional
+// selections. Calls and element access remain deliberately opaque because
+// their possible runtime component identities cannot be represented in the
+// render graph.
+func resolveJSXComponentValue(
+	tag *ast.Node,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) ([]jsxComponentValueTarget, bool) {
+	root := jsxTagSymbolNode(tag)
+	if root == nil {
+		return nil, false
+	}
+	return resolveJSXComponentValueExpression(
+		root,
+		sourceFile,
+		typeChecker,
+		make(map[ast.SymbolId]bool),
+	)
+}
+
+func resolveJSXComponentValueExpression(
+	expression *ast.Node,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+	resolving map[ast.SymbolId]bool,
+) ([]jsxComponentValueTarget, bool) {
+	if expression == nil {
+		return nil, false
+	}
+	switch {
+	case ast.IsParenthesizedExpression(expression):
+		return resolveJSXComponentValueExpression(
+			expression.AsParenthesizedExpression().Expression,
+			sourceFile,
+			typeChecker,
+			resolving,
+		)
+	case ast.IsAsExpression(expression):
+		return resolveJSXComponentValueExpression(
+			expression.AsAsExpression().Expression,
+			sourceFile,
+			typeChecker,
+			resolving,
+		)
+	case ast.IsSatisfiesExpression(expression):
+		return resolveJSXComponentValueExpression(
+			expression.AsSatisfiesExpression().Expression,
+			sourceFile,
+			typeChecker,
+			resolving,
+		)
+	case ast.IsNonNullExpression(expression):
+		return resolveJSXComponentValueExpression(
+			expression.AsNonNullExpression().Expression,
+			sourceFile,
+			typeChecker,
+			resolving,
+		)
+	case ast.IsConditionalExpression(expression):
+		conditional := expression.AsConditionalExpression()
+		left, leftOK := resolveJSXComponentValueExpression(
+			conditional.WhenTrue,
+			sourceFile,
+			typeChecker,
+			resolving,
+		)
+		right, rightOK := resolveJSXComponentValueExpression(
+			conditional.WhenFalse,
+			sourceFile,
+			typeChecker,
+			resolving,
+		)
+		if !leftOK || !rightOK {
+			return nil, false
+		}
+		return uniqueJSXComponentValueTargets(append(left, right...)), true
+	case ast.IsArrowFunction(expression), ast.IsFunctionExpression(expression):
+		return []jsxComponentValueTarget{{tag: ""}}, true
+	}
+
+	symbol := typeChecker.GetSymbolAtLocation(jsxTagSymbolNode(expression))
+	if symbol == nil {
+		return nil, false
+	}
+	original := symbol
+	symbol = resolvedCallableSymbol(symbol, typeChecker)
+	if symbol == nil {
+		symbol = original
+	}
+	symbolID := ast.GetSymbolId(symbol)
+	if resolving[symbolID] {
+		return nil, false
+	}
+	for _, declaration := range symbol.Declarations {
+		if ast.IsFunctionDeclaration(declaration) {
+			return []jsxComponentValueTarget{{
+				symbol: symbol,
+				tag:    strings.TrimSpace(sourceText(sourceFile, expression)),
+			}}, true
+		}
+	}
+	for _, declaration := range original.Declarations {
+		if enclosingImportDeclaration(declaration) != nil {
+			return []jsxComponentValueTarget{{
+				symbol: symbol,
+				tag:    strings.TrimSpace(sourceText(sourceFile, expression)),
+			}}, true
+		}
+		if !ast.IsVariableDeclaration(declaration) ||
+			declaration.Parent == nil ||
+			!ast.IsVariableDeclarationList(declaration.Parent) ||
+			declaration.Parent.Flags&ast.NodeFlagsConst == 0 {
+			continue
+		}
+		initializer := declaration.AsVariableDeclaration().Initializer
+		if initializer == nil ||
+			componentValueSymbolIsWrittenAfter(
+				original,
+				declaration.End(),
+				sourceFile,
+				typeChecker,
+			) {
+			return nil, false
+		}
+		next := make(map[ast.SymbolId]bool, len(resolving)+1)
+		for id, active := range resolving {
+			next[id] = active
+		}
+		next[symbolID] = true
+		targets, ok := resolveJSXComponentValueExpression(
+			initializer,
+			sourceFile,
+			typeChecker,
+			next,
+		)
+		if ok {
+			for index := range targets {
+				if targets[index].tag == "" {
+					targets[index].tag = declaration.Name().Text()
+				}
+			}
+		}
+		return targets, ok
+	}
+	return nil, false
+}
+
+func componentValueSymbolIsWrittenAfter(
+	symbol *ast.Symbol,
+	declarationEnd int,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) bool {
+	written := false
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if written || node.Pos() <= declarationEnd ||
+			!ast.IsIdentifier(node) || !identifierIsWriteTarget(node) {
+			return !written
+		}
+		reference := typeChecker.GetSymbolAtLocation(node)
+		if reference != nil && ast.GetSymbolId(reference) == ast.GetSymbolId(symbol) {
+			written = true
+		}
+		return !written
+	})
+	return written
+}
+
+func uniqueJSXComponentValueTargets(
+	targets []jsxComponentValueTarget,
+) []jsxComponentValueTarget {
+	seen := make(map[string]bool, len(targets))
+	result := make([]jsxComponentValueTarget, 0, len(targets))
+	for _, target := range targets {
+		key := target.tag
+		if target.symbol != nil {
+			key = fmt.Sprintf("%d", ast.GetSymbolId(target.symbol))
+		}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		result = append(result, target)
+	}
+	return result
+}
+
+func appendComponentDiagnostic(component *Component, message string) {
+	if message == "" || containsString(component.Diagnostics, message) {
+		return
+	}
+	component.Diagnostics = append(component.Diagnostics, message)
+}
+
+func jsxComponentResolutionDiagnostic(
+	tag *ast.Node,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) string {
+	tagText := strings.TrimSpace(sourceText(sourceFile, tag))
+	root := jsxTagSymbolNode(tag)
+	if root == nil {
+		return ""
+	}
+	if ast.IsIdentifier(root) && jsxTypeOnlyImport(root.Text(), sourceFile) {
+		return "error: JSX tag " + tagText +
+			" resolves to a type-only import and cannot be rendered at runtime"
+	}
+	symbol := typeChecker.GetSymbolAtLocation(root)
+	if symbol == nil {
+		return "error: JSX tag " + tagText +
+			" is not defined as a runtime component"
+	}
+	return "error: JSX tag " + tagText +
+		" resolves to variable, not a runtime component"
+}
+
+func jsxTypeOnlyImport(name string, sourceFile *ast.SourceFile) bool {
+	for _, statement := range sourceFile.Statements.Nodes {
+		if !ast.IsImportDeclaration(statement) {
+			continue
+		}
+		declaration := statement.AsImportDeclaration()
+		if declaration.ImportClause == nil {
+			continue
+		}
+		clause := declaration.ImportClause.AsImportClause()
+		clauseTypeOnly := clause.PhaseModifier == ast.KindTypeKeyword
+		if clause.Name() != nil && clause.Name().Text() == name {
+			return clauseTypeOnly
+		}
+		if clause.NamedBindings == nil ||
+			!ast.IsNamedImports(clause.NamedBindings) {
+			continue
+		}
+		for _, element := range clause.NamedBindings.AsNamedImports().Elements.Nodes {
+			specifier := element.AsImportSpecifier()
+			if specifier.Name().Text() == name {
+				return clauseTypeOnly || specifier.IsTypeOnly
+			}
+		}
+	}
+	return false
+}
+
+func importedProjectComponentIdentity(
+	sourceFile *ast.SourceFile,
+	reference externalImportReference,
+) string {
+	if sourceFile == nil ||
+		(!strings.HasPrefix(reference.moduleSpecifier, "./") &&
+			!strings.HasPrefix(reference.moduleSpecifier, "../")) {
+		return ""
+	}
+	resolved := tspath.GetNormalizedAbsolutePath(
+		reference.moduleSpecifier,
+		tspath.GetDirectoryPath(sourceFile.FileName()),
+	)
+	return projectComponentModuleIdentity(resolved) + "\x00" + reference.exportName
+}
+
+func projectComponentModuleIdentity(fileName string) string {
+	normalized := strings.ToLower(strings.ReplaceAll(fileName, `\`, `/`))
+	for _, extension := range []string{".tsx", ".ts", ".jsx", ".js", ".mts", ".mjs", ".cts", ".cjs"} {
+		if strings.HasSuffix(normalized, extension) {
+			normalized = strings.TrimSuffix(normalized, extension)
+			break
+		}
+	}
+	return strings.TrimSuffix(normalized, "/index")
+}
+
+func projectComponentSymbolIdentity(symbol *ast.Symbol) string {
+	if symbol == nil {
+		return ""
+	}
+	for _, declaration := range symbol.Declarations {
+		sourceFile := ast.GetSourceFileOfNode(declaration)
+		if sourceFile == nil {
+			continue
+		}
+		return strings.ToLower(
+			strings.ReplaceAll(sourceFile.FileName(), `\`, `/`),
+		) + "\x00" + ast.SymbolName(symbol)
+	}
+	return ""
+}
+
+func cacheRequestedComponents(
+	project *projectState,
+	requested *ast.SourceFile,
+	components []Component,
+) {
+	if project.componentCache == nil {
+		project.componentCache = make(map[*ast.SourceFile][]Component)
+		for _, sourceFile := range project.program.GetSourceFiles() {
+			if sourceFile.IsDeclarationFile ||
+				strings.Contains(
+					strings.ReplaceAll(sourceFile.FileName(), `\`, `/`),
+					"/node_modules/",
+				) {
+				continue
+			}
+			if len(collectComponents(sourceFile)) == 0 {
+				project.componentCache[sourceFile] = []Component{}
+			}
+		}
+	}
+	project.componentCache[requested] = append([]Component(nil), components...)
+}
+
+func projectComponentRecords(
+	program *compiler.Program,
+	requested *ast.SourceFile,
+	typeChecker *checker.Checker,
+	current []Component,
+	callables callableAnalysis,
+	externalManifests []ExternalManifest,
+) []projectComponent {
+	records := []projectComponent{}
+	currentCandidates := activeComponentCandidates(requested)
+	for index := range current {
+		records = append(records, projectComponent{
+			sourceFile: requested,
+			candidate:  currentCandidates[index],
+			component:  current[index],
+		})
+	}
+	for _, dependency := range program.GetSourceFiles() {
+		if dependency == requested || dependency.IsDeclarationFile ||
+			strings.Contains(strings.ReplaceAll(dependency.FileName(), `\`, `/`), "/node_modules/") {
+			continue
+		}
+		components := collectComponents(dependency)
+		if len(components) == 0 {
+			continue
+		}
+		assignComponentIDs(dependency, components, dependency.FileName())
+		aliases, reads, writes := collectStateAnalysis(dependency, typeChecker)
+		reactive := collectReactiveBindings(
+			dependency,
+			typeChecker,
+			aliases,
+			reads,
+		)
+		policy := collectPolicyAnalysis(
+			dependency,
+			typeChecker,
+			components,
+			reads,
+			Request{Target: TargetDefault, Manifests: externalManifests},
+		)
+		tasks := collectTasks(
+			dependency,
+			typeChecker,
+			reads,
+			writes,
+			reactive,
+			callables,
+		)
+		tasks = applyTaskPolicies(tasks, policy)
+		components = analyzeComponents(
+			dependency,
+			components,
+			callables,
+			tasks,
+			typeChecker,
+		)
+		candidates := activeComponentCandidates(dependency)
+		for index := range components {
+			records = append(records, projectComponent{
+				sourceFile: dependency,
+				candidate:  candidates[index],
+				component:  components[index],
+			})
+		}
+	}
+	return records
+}
+
+func componentCandidateIndex(
+	expected componentCandidate,
+	candidates []componentCandidate,
+) int {
+	for index, candidate := range candidates {
+		if candidate.node == expected.node {
+			return index
+		}
+	}
+	return -1
+}
+
+func jsxTagNode(node *ast.Node) *ast.Node {
+	if ast.IsJsxOpeningElement(node) {
+		return node.AsJsxOpeningElement().TagName
+	}
+	if ast.IsJsxSelfClosingElement(node) {
+		return node.AsJsxSelfClosingElement().TagName
+	}
+	return nil
+}
+
+func jsxTagSymbolNode(tag *ast.Node) *ast.Node {
+	if ast.IsPropertyAccessExpression(tag) {
+		return tag.AsPropertyAccessExpression().Name()
+	}
+	return tag
+}
+
+func resolveProjectComponentSubgraphs(records []projectComponent) {
+	byID := make(map[string]int, len(records))
+	for index, record := range records {
+		byID[record.component.ID] = index
+	}
+	changed := true
+	for changed {
+		changed = false
+		for index := range records {
+			placements := []string{records[index].component.Placement}
+			for _, edge := range records[index].component.RenderEdges {
+				if target, exists := byID[edge.ComponentID]; exists {
+					placements = append(
+						placements,
+						records[target].component.SubgraphPlacement,
+					)
+				} else {
+					placements = append(placements, edge.Placement)
+				}
+			}
+			next := combinePlacements(placements)
+			if next != records[index].component.SubgraphPlacement {
+				records[index].component.SubgraphPlacement = next
+				changed = true
+			}
+		}
+	}
+}

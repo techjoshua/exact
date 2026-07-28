@@ -76,11 +76,11 @@ render(<Counter />, document.getElementById('app')!);
 
 ## TypeScript versions
 
-Use TypeScript 7 for a new application's editor and command-line type-checking. Current eXact
-compiler packages intentionally depend on `typescript` aliased to
-`@typescript/typescript6`, because TypeScript 7.0 does not provide the programmatic compiler API
-used by eXact's transforms and language tooling. Do not replace, override, or deduplicate that
-aliased dependency with TypeScript 7.
+Use TypeScript 7 for a new application's editor and command-line type-checking. eXact component
+compilation runs in the npm-selected native `exactc-native` host and does not use the
+application's TypeScript package as a compiler API.
 
-Seeing TypeScript 6 and TypeScript 7 in the same dependency tree is expected. TypeScript 7 checks
-the application; the private TypeScript 6 dependency powers eXact's compiler integrations.
+Do not add `@exactjs/expressions`, `@typescript/native`, or a compiler backend option to generated
+applications. Some optional build-time compatibility features may bring their own TypeScript 6
+API for a bounded transform, but that package is not the eXact compiler and should not replace the
+application's TypeScript 7 dependency.

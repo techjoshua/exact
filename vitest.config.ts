@@ -8,6 +8,12 @@ export default defineConfig({
 		}
 	},
 	test: {
-		exclude: [...configDefaults.exclude, '**/dist/**', 'packages/bun-test/test-fixtures/**']
+		maxWorkers: 2,
+		exclude: [
+			...configDefaults.exclude,
+			'**/.tmp/**',
+			'**/dist/**',
+			'packages/bun-test/test-fixtures/**'
+		]
 	}
 });

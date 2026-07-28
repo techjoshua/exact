@@ -1,4 +1,4 @@
-import { markExactComponent, type Component } from '@exactjs/core';
+import { markExactComponent, peek, type Component } from '@exactjs/core';
 
 import { FieldContext, FormContext } from './context.js';
 import type { FieldContextValue, FieldProps, FieldState, FormContextValue } from './contracts.js';
@@ -11,7 +11,7 @@ import {
 	withoutId
 } from './values.js';
 
-/** Performs the field domain operation. */
+/** Performs the browser-owned field domain operation. @exact client */
 export function Field(this: Component<FieldState>, props: FieldProps) {
 	this.state.error = undefined;
 	this.state.touched = false;
@@ -116,7 +116,7 @@ export function Field(this: Component<FieldState>, props: FieldProps) {
 	const thisState = <K extends keyof FieldState>(key: K, value: FieldState[K]) => {
 		this.state[key] = value;
 	};
-	const registered = form?.register(context) ?? true;
+	const registered = peek(() => form?.register(context) ?? true);
 	if (registered) this.setContext(FieldContext, context);
 	this.onUnmount(() => {
 		generation++;

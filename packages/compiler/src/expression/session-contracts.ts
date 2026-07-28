@@ -1,27 +1,7 @@
-import type {
-	BoundModule,
-	ExpressionDiagnostic,
-	ExpressionProjectProfileEvent
-} from '@exactjs/expressions';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
+import type { NativeCompilerProcessOptions } from '../native/process.js';
 
-/** Cached expression module state owned by a compiler session. */
-export type ModuleCacheEntry = Readonly<{
-	projectKey: string;
-	filename: string;
-	source: string;
-	module: BoundModule;
-	dependencies: readonly string[];
-}>;
-
-/** Controls how a source file participates in an expression project. */
-export type ExpressionModuleOptions = Readonly<{
-	root?: string;
-	virtual?: boolean;
-	diagnostics?: 'syntax' | 'full';
-}>;
-
-/** Observable resource and invalidation totals for a compiler session. */
+/** Observable resource totals for a native compiler session. */
 export type ExactCompilerSessionStats = Readonly<{
 	workspaces: number;
 	rebuilds: number;
@@ -37,21 +17,27 @@ export type ExactCompilerSessionStats = Readonly<{
 	languageServiceSynchronizationMs: number;
 }>;
 
-/** Configures incremental services and optional profiling for a compiler session. */
+/** Configures one persistent native compiler session. */
 export type ExactCompilerSessionOptions = Readonly<{
-	languageService?: boolean;
-	/** Receives compiler and nested expression profiling observations. */
-	onProfile?: ExactProfileSink<ExactCompilerProfileEvent | ExpressionProjectProfileEvent>;
+	/** Overrides the platform-native compiler process. */
+	nativeCompiler?: NativeCompilerProcessOptions;
+	/** Receives compiler profiling observations. */
+	onProfile?: ExactProfileSink<ExactCompilerProfileEvent>;
 }>;
 
-/** Compiler-owned profiling phases emitted around expression work. */
+/** Compiler-owned profiling phases emitted around native work. */
 export type ExactCompilerProfileEvent = ExactProfileEvent<
 	'compiler',
-	'expression-module' | 'invalidate' | 'clear'
+	'native-request' | 'invalidate' | 'clear'
 >;
 
-/** Describes files and diagnostics affected by an incremental invalidation. */
+/** Describes files affected by an incremental invalidation. */
 export type ExactCompilerInvalidation = Readonly<{
 	affectedFiles: readonly string[];
-	diagnostics: readonly ExpressionDiagnostic[];
+	diagnostics: readonly Readonly<{
+		code: string;
+		message: string;
+		filename?: string;
+		span?: Readonly<{ line: number; column: number }>;
+	}>[];
 }>;

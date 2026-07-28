@@ -46,7 +46,10 @@ const staticChecks = [
 	task('test typecheck', ['run', 'typecheck:tests']),
 	task('package contents', ['run', 'check:publish'])
 ];
-const expressionCorpus = task('expression corpus', ['run', 'check:expressions']);
+const nativeCompilerCorpus = task('native compiler corpus', [
+	'run',
+	'check:native-compiler-corpus'
+]);
 const sampleBuilds = [
 	task('Kanban build', ['run', 'build:kanban']),
 	task('Workbench build', ['run', 'build:workbench'])
@@ -54,6 +57,10 @@ const sampleBuilds = [
 const testSuite = task('test suite', ['test']);
 const reactCompatibility = task('React compatibility', ['run', 'check:react-compat:built']);
 const r3fBrowser = task('R3F browser matrix', ['run', 'check:r3f-browser:built']);
+const compilerAcceptance = task('compiler browser acceptance', [
+	'run',
+	'check:compiler-acceptance:built'
+]);
 const performanceChecks = [
 	task('reactive benchmarks', ['run', 'benchmark:reactive']),
 	task('expression benchmarks', ['run', 'benchmark:expressions']),
@@ -71,7 +78,7 @@ try {
 		await runAffected();
 	} else if (profile !== 'performance') {
 		await runPool(staticChecks, 3);
-		await run(expressionCorpus);
+		await run(nativeCompilerCorpus);
 		await runPool(sampleBuilds, 2);
 		await run(testSuite);
 		if (profile !== 'quick') {
@@ -166,7 +173,8 @@ async function runAffected() {
 		task('test typecheck', ['run', 'typecheck:tests']),
 		task('package contents', ['run', 'check:publish'])
 	];
-	if (plan.expressions) checks.push(task('expression corpus', ['run', 'check:expressions']));
+	if (plan.expressions)
+		checks.push(task('native compiler corpus', ['run', 'check:native-compiler-corpus']));
 	await runPool(checks, 3);
 
 	const verification = [];
@@ -191,4 +199,5 @@ async function runAffected() {
 
 	if (plan.reactCompatibility) await run(reactCompatibility);
 	if (plan.r3fBrowser) await run(r3fBrowser);
+	if (plan.compilerAcceptance) await run(compilerAcceptance);
 }
