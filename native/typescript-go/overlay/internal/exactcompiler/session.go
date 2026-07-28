@@ -169,10 +169,20 @@ func (s *Session) Execute(request Request) Response {
 	markExportedComponents(sourceFile, components, generation.checker)
 	jsx := collectJSX(sourceFile)
 	stateAliases, stateReads, stateWrites := collectStateAnalysis(sourceFile, generation.checker)
+	stateWriteDiagnostics := unsupportedStateWriteDiagnostics(
+		sourceFile,
+		generation.checker,
+	)
 	formBindings, formBindingDiagnostics := analyzeFormBindings(
 		sourceFile,
 		generation.checker,
 		stateReads,
+	)
+	classNameDiagnostics := analyzeClassNames(sourceFile)
+	renderContractDiagnostics := renderDiagnostics(
+		sourceFile,
+		generation.checker,
+		stateWrites,
 	)
 	reactiveBindings := collectReactiveBindings(
 		sourceFile,
@@ -324,7 +334,7 @@ func (s *Session) Execute(request Request) Response {
 	)
 	response.Diagnostics = append(
 		response.Diagnostics,
-		taskDiagnostics(sourceFile, tasks)...,
+		taskDiagnostics(sourceFile, generation.checker, tasks, stateWrites)...,
 	)
 	response.Diagnostics = append(
 		response.Diagnostics,
@@ -358,6 +368,9 @@ func (s *Session) Execute(request Request) Response {
 		)...,
 	)
 	response.Diagnostics = append(response.Diagnostics, formBindingDiagnostics...)
+	response.Diagnostics = append(response.Diagnostics, classNameDiagnostics...)
+	response.Diagnostics = append(response.Diagnostics, renderContractDiagnostics...)
+	response.Diagnostics = append(response.Diagnostics, stateWriteDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, policy.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, capabilityDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, assets.diagnostics...)

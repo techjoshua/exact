@@ -39,26 +39,6 @@ export function unit(suffix: string): (value: CssInput) => ReactiveValue<string>
 	return (value: CssInput) => computed(() => `${unwrap(value) ?? ''}${suffix}`);
 }
 
-/** Normalizes string, array, object, and reactive class values into a class attribute string. */
-export function normalizeClass(value: unknown): string {
-	const actual = unwrap(value);
-	if (actual === false || actual === null || actual === undefined) return '';
-	if (typeof actual === 'string') return actual;
-	if (Array.isArray(actual)) {
-		return actual
-			.map((item) => normalizeClass(item))
-			.filter(Boolean)
-			.join(' ');
-	}
-	if (typeof actual === 'object') {
-		return Object.entries(actual)
-			.filter(([, enabled]) => Boolean(unwrap(enabled)))
-			.map(([name]) => name)
-			.join(' ');
-	}
-	return String(actual);
-}
-
 /** Converts a camelCase style property name to its CSS property spelling. */
 export function toCssProperty(name: string): string {
 	return name.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);

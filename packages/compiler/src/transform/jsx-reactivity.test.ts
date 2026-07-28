@@ -3,6 +3,114 @@ import { describe, expect, it } from 'vitest';
 import { transform } from '../index.js';
 
 describe('@exactjs/compiler: JSX reactivity', () => {
+	it('merges namespaced conditional classes in authored order', () => {
+		const output = transform(
+			`function Card(this: Component<{ active: boolean; disabled: boolean }>, props: { className?: unknown }) {
+				return () => (
+					<div
+						className:active={this.state.active}
+						className={props.className}
+						className:disabled={!this.state.disabled}
+					/>
+				);
+			}`,
+			{ filename: 'Card.tsx' }
+		);
+
+		expect(output).toMatch(
+			/className: \[\{ "active": __exactExpression\(\(\) => this\.state\.active\) \}, __exactExpression\(\(\) => props\.className\), \{ "disabled": __exactExpression\(\(\) => !this\.state\.disabled\) \}\]/
+		);
+		expect(output).not.toContain('className:active');
+		expect(output).not.toContain('className:disabled');
+	});
+
+	it('rejects redundant and ambiguously spread conditional classes', () => {
+		expect(() =>
+			transform(`const view = <div className="card active" className:active={ready} />;`, {
+				filename: 'DuplicateClass.tsx'
+			})
+		).toThrow(/class token "active" is already contributed/);
+		expect(() =>
+			transform(`const view = <div className:active={ready} {...props} />;`, {
+				filename: 'SpreadClass.tsx'
+			})
+		).toThrow(/prop spreads cannot be combined with className:name/);
+	});
+
+	it('retains possible dynamic class duplicates in authored order', () => {
+		const output = transform(
+			`const view = (
+				<div className:active={selected} className:active={focused} />
+			);`,
+			{ filename: 'PossibleDuplicateClass.tsx' }
+		);
+
+		expect(output.match(/"active":/g)).toHaveLength(2);
+		expect(output.indexOf('selected')).toBeLessThan(output.indexOf('focused'));
+	});
+
+	it('lowers embedded callback destructuring through ordered state setters', () => {
+		const output = transform(
+			`declare function consume(value: unknown): void;
+			declare function load(): [number | undefined, number];
+			declare function fallback(): number;
+			function Selection(this: Component<{ selected: number; remaining: number }>) {
+				return () => <button onClick={() => consume(
+					([this.state.selected = fallback(), this.state.remaining] = load())
+				)} />;
+			}`,
+			{ filename: 'Selection.tsx' }
+		);
+
+		expect(output).toContain('set value_0(');
+		expect(output).toContain('set value_1(');
+		expect(output).toContain('__exactWrite(this.state, ["selected"]');
+		expect(output).toContain('__exactWrite(this.state, ["remaining"]');
+		expect(output).toContain('return ([__exactDestructured_');
+		expect(output).toContain('] = load())');
+	});
+
+	it('preserves mixed destructuring, computed keys, and chained assignment results', () => {
+		const output = transform(
+			`declare function load(): [number, number];
+			declare function consume(value: unknown): void;
+			function Selection(
+				this: Component<{ rows: Array<{ value: number }>; selected: number }>,
+				props: { index: number }
+			) {
+				let local = 0;
+				return () => <button onClick={() => {
+					([this.state.selected, local] = load());
+					consume(this.state.rows[props.index].value = this.state.selected = local);
+				}} />;
+			}`,
+			{ filename: 'Selection.tsx' }
+		);
+
+		expect(output).toContain('set value_0(');
+		expect(output).toContain('set value_1(');
+		expect(output).toContain('__exactWrite(this.state, ["rows", props.index, "value"]');
+		expect(output).toContain('__exactWrite(this.state, ["selected"]');
+		expect(output).toContain('consume(__exactWrite');
+	});
+
+	it('rejects dynamic computed writes in server continuation contracts', () => {
+		expect(() =>
+			transform(
+				`function Selection(
+					this: Component<{ rows: Array<{ value: number }> }>,
+					props: { index: number }
+				) {
+					this.task(() => {
+						this.state.rows[props.index].value = 1;
+					});
+					return () => <output />;
+				}`,
+				{ filename: 'Selection.tsx' }
+			)
+		).toThrow(/server continuation cannot publish a state write through a dynamic computed path/);
+	});
+
 	it('lowers imported components through the configured runtime adapter', () => {
 		const output = transform(
 			`import { Widget } from 'react-widget';

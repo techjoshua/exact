@@ -3,6 +3,7 @@ import {
 	createErrorReport,
 	handleComponentError,
 	isVNode,
+	normalizeClassValue,
 	observeComponentAsync,
 	sanitizeUrlAttribute,
 	UnsafeHtml,
@@ -16,7 +17,7 @@ import { ensureDelegated, requiresDirectListener } from './events.js';
 import { preserveFocus } from './focus.js';
 import { findOwnerInstance } from './ownership.js';
 import { directEventHandlers, eventHandlers, propBindings } from './state.js';
-import { normalizeClass, toCssProperty } from './style.js';
+import { toCssProperty } from './style.js';
 import type { Root } from './types.js';
 
 /** Applies prop changes to a DOM element, including reactive bindings and delegated events. */
@@ -150,7 +151,7 @@ function setProp(
 					key === 'srcdoc' || key === 'srcDoc'
 						? unsafeHtmlAttribute(root, actual)
 						: key === 'class' || key === 'className'
-							? normalizeClass(actual)
+							? normalizeClassValue(actual)
 							: actual;
 				setDomProp(root, element, key, sanitizeUrlAttribute(key, normalized));
 			}),

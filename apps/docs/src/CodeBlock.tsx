@@ -35,7 +35,7 @@ export function CodeBlock(this: Component<CodeBlockState>, props: CodeBlockProps
 	};
 
 	return () => (
-		<figure className={['code-block', props.compact && 'code-block--compact']}>
+		<figure className="code-block" className:code-block--compact={props.compact}>
 			<figcaption className="code-toolbar">
 				<span>
 					{props.title ?? 'Example'} <small>{language}</small>
@@ -47,7 +47,7 @@ export function CodeBlock(this: Component<CodeBlockState>, props: CodeBlockProps
 			<pre tabindex="0" aria-label={`${props.title ?? 'Code'} in ${language}`}>
 				<code>
 					{lines.map((line) => (
-						<span className={['code-line', highlighted.has(line.number) && 'is-highlighted']}>
+						<span className="code-line" className:is-highlighted={highlighted.has(line.number)}>
 							<span className="line-number" aria-hidden="true">
 								{line.number}
 							</span>

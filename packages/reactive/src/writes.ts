@@ -112,6 +112,27 @@ export function mutateReactiveArray(
 	return mutation.apply(value, input);
 }
 
+/** Compiler runtime hook for standard Map and Set mutators. */
+export function mutateReactiveCollection(
+	target: object,
+	path: readonly PropertyKey[],
+	kind: 'map' | 'set',
+	method: 'set' | 'add' | 'delete' | 'clear',
+	args: unknown[] | (() => unknown[])
+): unknown {
+	const { parent, key } = resolveReactivePath(target, path);
+	const value = Reflect.get(parent, key);
+	if (
+		(kind === 'map' && !(unwrap(value) instanceof Map)) ||
+		(kind === 'set' && !(unwrap(value) instanceof Set))
+	) {
+		throw new TypeError(`Cannot call ${method} on a non-${kind} reactive value`);
+	}
+	const mutation = Reflect.get(value as object, method) as (...input: unknown[]) => unknown;
+	const input = typeof args === 'function' ? args() : args;
+	return mutation.apply(value, input);
+}
+
 /** Records the stable identity used by a keyed list for compiler reconciliation. */
 export function registerReactiveListKey(
 	collection: Iterable<unknown>,

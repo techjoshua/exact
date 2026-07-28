@@ -114,6 +114,145 @@ func TestNormalizeAuthoredSourcePublishesDestructuredState(t *testing.T) {
 	}
 }
 
+func TestNormalizeAuthoredSourcePreservesNestedDestructuringSemantics(t *testing.T) {
+	normalized, err := normalizeAuthoredSource(
+		normalizationTestFile(t, "callback-selection.tsx"),
+		`
+			export function Selection(
+				this: Component<{ values: number[]; selected: number; remaining: number[] }>
+			) {
+				return () => <button onClick={() => consume(
+					([this.state.selected = fallback(), ...this.state.remaining] = load())
+				)} />;
+			}
+		`,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		"const __exactDestructured_",
+		"set value_0(",
+		"this.state.selected = __exactDestructured_",
+		"set value_1(",
+		"...__exactDestructured_",
+		"return ([__exactDestructured_",
+		"= fallback()",
+		"] = load());",
+	} {
+		if !strings.Contains(normalized.text, expected) {
+			t.Fatalf("nested destructuring normalization is missing %q:\n%s", expected, normalized.text)
+		}
+	}
+}
+
+func TestNormalizeAuthoredSourceRejectsDestructuringWritesInRender(t *testing.T) {
+	for name, source := range map[string]string{
+		"literal": `
+			function Selection(this: Component<{ selected: number }>) {
+				return () => {
+					[this.state.selected] = load();
+					return <output />;
+				};
+			}
+		`,
+		"local": `
+			function Selection(this: Component<{ selected: number }>) {
+				const render = () => {
+					[this.state.selected] = load();
+					return <output />;
+				};
+				return render;
+			}
+		`,
+		"shared": `
+			function renderSelection(this: Component<{ selected: number }>) {
+				[this.state.selected] = load();
+				return <output />;
+			}
+			function Selection(this: Component<{ selected: number }>) {
+				return renderSelection;
+			}
+		`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := normalizeAuthoredSource(
+				normalizationTestFile(t, name+".tsx"),
+				source,
+			)
+			if err == nil ||
+				!strings.Contains(
+					err.Error(),
+					"render functions may not write component state",
+				) {
+				t.Fatalf("missing render-write error: %v", err)
+			}
+		})
+	}
+}
+
+func TestNormalizeAuthoredSourcePreservesMixedObjectDestructuring(t *testing.T) {
+	normalized, err := normalizeAuthoredSource(
+		normalizationTestFile(t, "object-selection.tsx"),
+		`
+			function Selection(this: Component<{ selected: number }>) {
+				const state = this.state;
+				let local = 0;
+				let remaining = {};
+				return () => <button onClick={() => consume(
+					({ primary: state.selected = fallback(), secondary: local, ...remaining } = load())
+				)} />;
+			}
+		`,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		"primary: __exactDestructured_",
+		"= fallback()",
+		"secondary: __exactDestructured_",
+		"...__exactDestructured_",
+		"state.selected = __exactDestructured_",
+		"local = __exactDestructured_",
+		"remaining = __exactDestructured_",
+	} {
+		if !strings.Contains(normalized.text, expected) {
+			t.Fatalf("mixed object destructuring is missing %q:\n%s", expected, normalized.text)
+		}
+	}
+}
+
+func TestNormalizeAuthoredSourceLowersNestedDestructuringAssignments(t *testing.T) {
+	normalized, err := normalizeAuthoredSource(
+		normalizationTestFile(t, "nested-assignment.tsx"),
+		`
+			function Selection(
+				this: Component<{ selected: number; mirrored: number }>
+			) {
+				return () => <button onClick={() => consume(
+					([this.state.selected] = [this.state.mirrored] = load())
+				)} />;
+			}
+		`,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count := strings.Count(normalized.text, "set value_0("); count != 2 {
+		t.Fatalf(
+			"expected both destructuring assignments to be lowered, received %d:\n%s",
+			count,
+			normalized.text,
+		)
+	}
+	for _, target := range []string{"this.state.selected =", "this.state.mirrored ="} {
+		if !strings.Contains(normalized.text, target) {
+			t.Fatalf("nested assignment is missing %q:\n%s", target, normalized.text)
+		}
+	}
+}
+
 func TestNormalizedSourceRemapsSourceMapColumns(t *testing.T) {
 	authored := `const view = <Card {value} />;`
 	normalized, err := normalizeAuthoredSource(

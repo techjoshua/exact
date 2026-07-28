@@ -341,12 +341,14 @@ function nativeExternalCallable(
 			path: effect.path,
 			kind: effect.kind,
 			confidence: effect.confidence,
+			...(effect.operation ? { operation: effect.operation } : {}),
 			...(effect.receiver ? { receiver: { ...effect.receiver } } : {})
 		})),
 		stateWrites: callable.stateWrites.map((effect) => ({
 			path: effect.path,
 			kind: effect.kind,
 			confidence: effect.confidence,
+			...(effect.operation ? { operation: effect.operation } : {}),
 			...(effect.receiver ? { receiver: { ...effect.receiver } } : {})
 		})),
 		contexts: callable.contexts.map((effect) => ({ ...effect })),

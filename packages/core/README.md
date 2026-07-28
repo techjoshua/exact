@@ -20,3 +20,13 @@ runs once per instance; its returned render function and compiled expression cel
 inactive mounted subtree in `parked` or deferred `background` mode. Task policy facets compose:
 `this.task.server.deferred.blocking(...)` independently selects placement, scheduling priority,
 and readiness.
+
+Renderer packages share `normalizeClassValue()` so native DOM updates, SSR markup, and hydration
+apply the same ordered string, nested-array, truthy-map, and reactive-value class contract.
+Application TSX normally reaches that helper through compiled `className` values rather than
+calling it directly.
+
+Reactive component state supports ordinary `Map` and `Set` reads, iteration, and mutators.
+Hydration and server operations encode them as tagged JSON values and restore real collections;
+generated continuations use ordered entry deltas so a changed Map key or Set membership does not
+require returning the complete collection.

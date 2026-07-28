@@ -14,13 +14,23 @@ function ProfileCard(this: Component<CardState>, props: CardProps) {
 
   // View: the returned function keeps reactive expressions connected.
   return () => (
-    <article>
+    <article className="profile-card" className:is-open={this.state.open}>
       <button onClick={() => this.state.open = !this.state.open}>
         {props.name}
       </button>
       {this.state.open ? props.children : null}
     </article>
   );
+}`;
+
+const sharedRenderSource = `function renderStatus(this: Component<StatusState>) {
+  const label = formatStatus(this.state.status);
+  return <output>{label}</output>;
+}
+
+function Status(this: Component<StatusState>) {
+  // Regular shared render functions receive this component instance as \`this\`.
+  return renderStatus;
 }`;
 
 const contextSource = `const ThemeContext = createContext<Theme>('theme');
@@ -51,8 +61,10 @@ const componentTaskSource = `function Presence(this: Component<{ userId: string;
 
 const componentValueSource = `function Results(this: Component<{ layout: 'grid' | 'list' }>) {
   // Immutable aliases and finite choices remain ordinary component values.
-  const View = this.state.layout === 'grid' ? ResultGrid : ResultList;
-  return () => <View />;
+  return () => {
+    const View = this.state.layout === 'grid' ? ResultGrid : ResultList;
+    return <View />;
+  };
 }`;
 
 /** Explains setup-once components, component values, context, and owned task behavior. */
@@ -79,6 +91,25 @@ export function ComponentsPage(this: Component<{}>) {
 					refs, and lifecycle. Props remain parent-owned input. An event can assign state directly
 					because the compiler has already connected consumers of that field.
 				</p>
+				<p>
+					The returned function is synchronous and may run again. Use ordinary statements for pure,
+					deterministic derivation and tree control. State writes, task or lifecycle registration,
+					scheduling, and known DOM or storage effects belong in setup, a task, or an interaction
+					callback and are compiler errors in the render body.
+				</p>
+				<p>
+					For a static conditional token on an intrinsic element, <code>className:name</code>{' '}
+					appends the token when its value is truthy. Contributions keep prop order and become one
+					DOM <code>class</code> value; arrays and maps remain useful when the token name itself is
+					dynamic.
+				</p>
+				<CodeBlock source={sharedRenderSource} language="tsx" title="Shared render function" />
+				<p>
+					A component-local arrow is the usual render form. A shared render must be a regular
+					function so eXact can invoke it with the component instance as <code>this</code>. A
+					module-level shared arrow is rejected unless a local wrapper establishes the intended
+					receiver.
+				</p>
 			</section>
 			<section>
 				<h2>Components can provide services to descendants</h2>
@@ -98,9 +129,10 @@ export function ComponentsPage(this: Component<{}>) {
 				<p>
 					An immutable local function, an alias to a known component, or a finite conditional choice
 					can be used as a JSX tag. A reactive choice is mounted through a slot, so changing the
-					selected component replaces only that subtree. Arbitrary registry lookups remain a
-					compiler error because the compiler cannot determine their complete client/server
-					placement graph.
+					selected component replaces only that subtree. Keep a choice used by one view inside the
+					render function; a setup-derived component value is useful when several consumers share
+					it. Arbitrary registry lookups remain a compiler error because the compiler cannot
+					determine their complete client/server placement graph.
 				</p>
 				<CodeBlock source={componentValueSource} language="tsx" title="Results.tsx" />
 			</section>

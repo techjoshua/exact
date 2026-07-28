@@ -13,7 +13,7 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
 	const workbench = this.getContext(WorkbenchContext);
 
 	return () => (
-		<article className={['task-card', props.compact && 'compact']}>
+		<article className="task-card" className:compact={props.compact}>
 			<span className={['task-priority', 'priority', props.task.priority]}>
 				{props.task.priority}
 			</span>
@@ -26,7 +26,7 @@ export function TaskCard(this: Component<{}>, props: TaskCardProps) {
 				{columns.map((column) => (
 					<button
 						type="button"
-						className={[props.task.status === column.id && 'active']}
+						className:active={props.task.status === column.id}
 						disabled={props.task.status === column.id}
 						onClick={() => workbench.moveTask(props.task, column.id as Status)}
 					>

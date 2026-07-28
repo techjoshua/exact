@@ -19,7 +19,7 @@ var neutralReceiverType = regexp.MustCompile(
 	`\b(?:AbortController|AbortSignal|Array|Date|Headers|Map|Promise|RegExp|Request|Response|Set|String|URL|URLSearchParams|WeakMap|WeakSet)\b|\[\](?:\s|$)|^(?:readonly\s+)?\[|^(?:bigint|boolean|number|string|symbol)$`,
 )
 var browserReceiverType = regexp.MustCompile(
-	`\b(?:Animation|CSSStyleDeclaration|Document|DOMTokenList|Element|Event|EventTarget|HTMLElement|Node|PointerEvent|Range|Selection|ShadowRoot|Text|Window)\b`,
+	`\b(?:Animation|CSSStyleDeclaration|Document|DOMTokenList|Element|Event|EventTarget|HTMLElement|Node|PointerEvent|Range|Selection|ShadowRoot|Storage|Text|Window)\b`,
 )
 
 var universalCallRoots = map[string]struct{}{
@@ -851,7 +851,10 @@ func collectDirectCallableEffects(
 				confidence = "broad"
 			}
 			fact.directWrites = append(fact.directWrites, StateEffect{
-				Path: strings.Join(write.Path, "."), Kind: "write", Confidence: confidence,
+				Path:       strings.Join(write.Path, "."),
+				Kind:       "write",
+				Confidence: confidence,
+				Operation:  stateEffectOperation(write.Operation),
 			})
 		}
 	}
@@ -1052,13 +1055,14 @@ func collectParameterStateEffects(
 	reads := []StateEffect{}
 	writes := []StateEffect{}
 	walkCallable(callable, func(node *ast.Node) bool {
-		if target, operation := stateWriteTarget(node); operation != "" {
+		if target, operation := stateWriteTarget(node, typeChecker); operation != "" {
 			if effect, exists := parameterStateEffect(
 				target,
 				"write",
 				parameters,
 				typeChecker,
 			); exists {
+				effect.Operation = stateEffectOperation(operation)
 				writes = append(writes, effect)
 			}
 			return true

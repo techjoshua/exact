@@ -215,6 +215,17 @@ async function emitOperationStreamEvents(
 			value: result.state
 		});
 	}
+	if (result.mutations?.length) {
+		await emit({
+			event: 'mutations',
+			version: 1,
+			index,
+			type: result.type,
+			id: result.id,
+			...(result.opId === undefined ? {} : { opId: result.opId }),
+			mutations: result.mutations
+		});
+	}
 	if (result.html !== undefined) {
 		await emit({
 			event: 'html',

@@ -15,7 +15,7 @@ export function ExactLens(this: Component<{}>, props: ExactLensProps) {
 	const game = this.getContext(SudokuContext);
 
 	return () => (
-		<aside className={['exact-lens', props.open && 'is-open']} aria-label="eXact Lens">
+		<aside className="exact-lens" className:is-open={props.open} aria-label="eXact Lens">
 			<button
 				type="button"
 				className="lens-tab"

@@ -3,12 +3,18 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import { checkoutNativeTypeScriptGo } from './checkout-native-typescript-go.mjs';
+import { prepareNativeCompilerSource } from './native-compiler-source.mjs';
 import { stageNativeCompilerPackage } from './package-native-compiler.mjs';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const nativeRoot = path.join(repositoryRoot, 'native', 'typescript-go');
 const upstream = JSON.parse(await readFile(path.join(nativeRoot, 'upstream.json'), 'utf8'));
-const source = argument('source') ?? process.env.EXACT_TYPESCRIPT_GO_SOURCE;
+const source = await prepareNativeCompilerSource({
+	explicitSource: argument('source') ?? process.env.EXACT_TYPESCRIPT_GO_SOURCE,
+	repositoryRoot,
+	checkout: checkoutNativeTypeScriptGo
+});
 const targetPlatform = argument('platform') ?? process.platform;
 const targetArch = argument('arch') ?? process.arch;
 const goTargetPlatform = targetPlatform === 'win32' ? 'windows' : targetPlatform;
@@ -24,12 +30,6 @@ const supportedTargets = new Set([
 ]);
 const target = `${targetPlatform}-${targetArch}`;
 
-if (!source) {
-	throw new Error(
-		'Pass --source <typescript-go checkout> or set EXACT_TYPESCRIPT_GO_SOURCE. ' +
-			`The checkout must be at ${upstream.revision}.`
-	);
-}
 if (!supportedTargets.has(target)) throw new Error(`Unsupported native compiler target ${target}`);
 
 const sourceRoot = path.resolve(source);

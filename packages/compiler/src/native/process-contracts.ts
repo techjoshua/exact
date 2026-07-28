@@ -407,6 +407,7 @@ export type NativeCompilerStateEffect = Readonly<{
 	path: string;
 	kind: 'read' | 'write';
 	confidence: 'exact' | 'broad' | 'unknown';
+	operation?: 'map' | 'set';
 	receiver?:
 		| Readonly<{ kind: 'component' }>
 		| Readonly<{ kind: 'parameter'; index: number }>

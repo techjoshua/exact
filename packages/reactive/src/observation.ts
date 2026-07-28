@@ -312,13 +312,28 @@ export function ref<T>(value: T): ReactiveRef<T> | undefined {
 /** Creates a plain recursive snapshot of reactive state for serialization or comparison. */
 export function snapshot<T>(value: T): T {
 	const root = unwrap(value);
-	if (!root || typeof root !== 'object' || (!Array.isArray(root) && !isPlainObject(root)))
+	if (
+		!root ||
+		typeof root !== 'object' ||
+		(!Array.isArray(root) &&
+			!(root instanceof Map) &&
+			!(root instanceof Set) &&
+			!isPlainObject(root))
+	)
 		return root;
-	const output: any = Array.isArray(root) ? [] : Object.create(Object.getPrototypeOf(root));
+	const output: any = createSnapshotContainer(root);
 	const seen = new WeakMap<object, unknown>([[root, output]]);
 	const pending: Array<{ source: any; target: any }> = [{ source: root, target: output }];
 	while (pending.length) {
 		const { source, target } = pending.pop()!;
+		if (source instanceof Map) {
+			for (const [key, child] of source) target.set(key, snapshotChild(child, seen, pending));
+			continue;
+		}
+		if (source instanceof Set) {
+			for (const child of source) target.add(snapshotChild(child, seen, pending));
+			continue;
+		}
 		if (Array.isArray(source)) target.length = source.length;
 		const keys: PropertyKey[] = Array.isArray(source)
 			? Array.from({ length: source.length }, (_, index) => index).filter((index) =>
@@ -326,21 +341,38 @@ export function snapshot<T>(value: T): T {
 				)
 			: Reflect.ownKeys(source);
 		for (const key of keys) {
-			const child = unwrap(source[key]);
-			if (!child || typeof child !== 'object' || (!Array.isArray(child) && !isPlainObject(child))) {
-				target[key] = child;
-				continue;
-			}
-			const prior = seen.get(child);
-			if (prior) {
-				target[key] = prior;
-				continue;
-			}
-			const clone: any = Array.isArray(child) ? [] : Object.create(Object.getPrototypeOf(child));
-			seen.set(child, clone);
-			target[key] = clone;
-			pending.push({ source: child, target: clone });
+			target[key] = snapshotChild(source[key], seen, pending);
 		}
 	}
 	return output as T;
+}
+
+function snapshotChild(
+	value: unknown,
+	seen: WeakMap<object, unknown>,
+	pending: Array<{ source: any; target: any }>
+): unknown {
+	const child = unwrap(value);
+	if (
+		!child ||
+		typeof child !== 'object' ||
+		(!Array.isArray(child) &&
+			!(child instanceof Map) &&
+			!(child instanceof Set) &&
+			!isPlainObject(child))
+	)
+		return child;
+	const prior = seen.get(child);
+	if (prior) return prior;
+	const clone = createSnapshotContainer(child);
+	seen.set(child, clone);
+	pending.push({ source: child, target: clone });
+	return clone;
+}
+
+function createSnapshotContainer(value: object): any {
+	if (Array.isArray(value)) return [];
+	if (value instanceof Map) return new Map();
+	if (value instanceof Set) return new Set();
+	return Object.create(Object.getPrototypeOf(value));
 }

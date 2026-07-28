@@ -1,4 +1,4 @@
-import type { ExactContinuationStatePathContract } from '@exactjs/core';
+import type { ExactCollectionMutation, ExactContinuationStatePathContract } from '@exactjs/core';
 import { isSafeObjectKey } from './safety.js';
 
 type MutableStateContainer = Record<string, unknown> | unknown[];
@@ -73,6 +73,118 @@ export function commitStateForContract(
 	for (const write of writes) {
 		const value = getPath(update, write.path);
 		if (value !== undefined) setPath(target, write.path, value);
+	}
+}
+
+/** Validates and immutably applies ordered Map and Set continuation deltas. */
+export function mergeCollectionMutationsForContract(
+	state: unknown,
+	mutations: readonly ExactCollectionMutation[],
+	contract: StateWriteContract
+): { ok: true; state: unknown } | { ok: false } {
+	const allowed = collectionWritePaths(contract);
+	const output = cloneContainer(state);
+	if (!output) return { ok: false };
+	const cloned = new Set<string>();
+	for (const mutation of mutations) {
+		const expected = mutation.operation.startsWith('map-') ? 'map' : 'set';
+		if (allowed.get(mutation.path) !== expected) return { ok: false };
+		if (!cloned.has(mutation.path)) {
+			if (!cloneCollectionAtPath(output, mutation.path, expected)) return { ok: false };
+			cloned.add(mutation.path);
+		}
+		const collection = getPath(output, mutation.path);
+		if (!applyCollectionMutation(collection, mutation)) return { ok: false };
+	}
+	return { ok: true, state: output };
+}
+
+/** Applies already-validated ordered collection deltas to live reactive state. */
+export function commitCollectionMutationsForContract(
+	target: Record<string, unknown>,
+	mutations: readonly ExactCollectionMutation[],
+	contract: StateWriteContract
+): boolean {
+	const allowed = collectionWritePaths(contract);
+	for (const mutation of mutations) {
+		const expected = mutation.operation.startsWith('map-') ? 'map' : 'set';
+		if (allowed.get(mutation.path) !== expected) return false;
+		if (!applyCollectionMutation(getPath(target, mutation.path), mutation)) return false;
+	}
+	return true;
+}
+
+function collectionWritePaths(contract: StateWriteContract): Map<string, 'map' | 'set'> {
+	return new Map(
+		(contract.writes ?? [])
+			.filter(
+				(write) =>
+					write.kind === 'write' &&
+					write.confidence === 'exact' &&
+					(write.operation === 'map' || write.operation === 'set')
+			)
+			.map((write) => [write.path, write.operation as 'map' | 'set'])
+	);
+}
+
+function cloneCollectionAtPath(
+	root: MutableStateContainer,
+	path: string,
+	kind: 'map' | 'set'
+): boolean {
+	const segments = path.split('.');
+	let source: unknown = root;
+	let target: MutableStateContainer = root;
+	for (let index = 0; index < segments.length; index++) {
+		const segment = segments[index]!;
+		if (!isSafeObjectKey(segment) && !isArrayIndex(segment)) return false;
+		const next = readContainerValue(source as MutableStateContainer, segment);
+		if (index === segments.length - 1) {
+			if (kind === 'map' && next instanceof Map) {
+				writeContainerValue(target, segment, new Map(next));
+				return true;
+			}
+			if (kind === 'set' && next instanceof Set) {
+				writeContainerValue(target, segment, new Set(next));
+				return true;
+			}
+			return false;
+		}
+		const clone = cloneContainer(next);
+		if (!clone) return false;
+		writeContainerValue(target, segment, clone);
+		source = next;
+		target = clone;
+	}
+	return false;
+}
+
+function applyCollectionMutation(value: unknown, mutation: ExactCollectionMutation): boolean {
+	switch (mutation.operation) {
+		case 'map-set':
+			if (!(value instanceof Map)) return false;
+			value.set(mutation.key, mutation.value);
+			return true;
+		case 'map-delete':
+			if (!(value instanceof Map)) return false;
+			value.delete(mutation.key);
+			return true;
+		case 'map-clear':
+			if (!(value instanceof Map)) return false;
+			value.clear();
+			return true;
+		case 'set-add':
+			if (!(value instanceof Set)) return false;
+			value.add(mutation.value);
+			return true;
+		case 'set-delete':
+			if (!(value instanceof Set)) return false;
+			value.delete(mutation.value);
+			return true;
+		case 'set-clear':
+			if (!(value instanceof Set)) return false;
+			value.clear();
+			return true;
 	}
 }
 

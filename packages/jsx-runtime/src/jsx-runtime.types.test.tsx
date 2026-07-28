@@ -43,7 +43,7 @@ describe('@exactjs/jsx types', () => {
 		const query = { value: '' };
 
 		const vnode = (
-			<section className="panel" data-kind="example">
+			<section className="panel" className:active={true} data-kind="example">
 				<Label text="Save">
 					<button
 						ref={ref}

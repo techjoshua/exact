@@ -5,6 +5,7 @@ export {
 	deleteReactiveValue,
 	encodeReactiveProtocolValue,
 	mutateReactiveArray,
+	mutateReactiveCollection,
 	peek,
 	runWithPriority,
 	unwrap,
@@ -14,6 +15,7 @@ export {
 	writeReactive,
 	writeReactiveLazy
 } from '@exactjs/reactive';
+export { normalizeClassValue } from './class-values.js';
 export type { Reactive, ReactiveValue, StopHandle, WorkPriority } from '@exactjs/reactive';
 export {
 	attachSuppressedCleanupFailure,
@@ -117,6 +119,7 @@ export {
 	markExactComponent,
 	readExactComponentContract,
 	type ExactComponentBoundaryContract,
+	type ExactCollectionMutation,
 	type ExactComponentContinuationActivation,
 	type ExactComponentContinuationContract,
 	type ExactComponentContinuationExecution,
@@ -165,10 +168,12 @@ export {
 export {
 	createDerived,
 	discardTaskMutations,
+	mutateTaskCollection,
 	ownTaskResource,
 	publishTaskMutations,
 	registerTaskCleanup,
 	stageTaskMutation,
+	takeTaskCollectionMutations,
 	taskAnimationFrame,
 	taskAwait,
 	taskFetch,

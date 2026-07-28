@@ -2,6 +2,7 @@ package exactcompiler
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/microsoft/typescript-go/internal/ast"
 	"github.com/microsoft/typescript-go/internal/checker"
@@ -17,6 +18,18 @@ var reactiveArrayMutators = map[string]struct{}{
 	"sort":       {},
 	"splice":     {},
 	"unshift":    {},
+}
+
+var reactiveMapMutators = map[string]struct{}{
+	"clear":  {},
+	"delete": {},
+	"set":    {},
+}
+
+var reactiveSetMutators = map[string]struct{}{
+	"add":    {},
+	"clear":  {},
+	"delete": {},
 }
 
 type stateAliasBinding struct {
@@ -49,8 +62,8 @@ func collectStateAnalysis(
 			collectComponentStateReads(candidate, componentAliases.bySymbol, typeChecker)...,
 		)
 		walkNode(candidate.node, func(node *ast.Node) bool {
-			target, operation := stateWriteTarget(node)
-			path, ok := statePath(target, componentAliases.bySymbol, typeChecker, false)
+			target, operation := stateWriteTarget(node, typeChecker)
+			path, ok := statePath(target, componentAliases.bySymbol, typeChecker, true)
 			if !ok || len(path) == 0 {
 				return true
 			}
@@ -71,6 +84,10 @@ func collectStateAnalysis(
 				Length:    node.End() - node.Pos(),
 				RootAlias: rootAlias,
 				RootDepth: rootDepth,
+				DynamicSegments: stateWriteDynamicSegments(
+					target,
+					path,
+				),
 			})
 			return true
 		})
@@ -85,6 +102,166 @@ func collectStateAnalysis(
 		return reads[left].Start < reads[right].Start
 	})
 	return aliases, reads, writes
+}
+
+// unsupportedStateWriteDiagnostics rejects mutation forms whose runtime
+// effects cannot yet be represented by the compiler's precise write and
+// continuation contracts.
+func unsupportedStateWriteDiagnostics(
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) []Diagnostic {
+	var diagnostics []Diagnostic
+	for _, component := range componentCandidates(sourceFile) {
+		if len(componentSignals(component, sourceFile)) == 0 {
+			continue
+		}
+		aliases := collectComponentStateAliases(component, typeChecker)
+		walkNode(component.node, func(node *ast.Node) bool {
+			if ast.IsForInStatement(node) || ast.IsForOfStatement(node) {
+				initializer := node.AsForInOrOfStatement().Initializer
+				if initializer != nil &&
+					!ast.IsVariableDeclarationList(initializer) &&
+					targetContainsStatePath(
+						initializer,
+						aliases.bySymbol,
+						typeChecker,
+					) {
+					diagnostics = append(diagnostics, unsupportedStateWriteDiagnostic(
+						initializer,
+						"component state cannot be a for-in or for-of assignment target; assign the iteration value explicitly inside the loop body",
+					))
+				}
+			}
+			if !ast.IsCallExpression(node) {
+				return true
+			}
+			call := node.AsCallExpression()
+			if call.Arguments == nil || len(call.Arguments.Nodes) == 0 ||
+				!unsupportedReflectiveStateMutation(
+					call.Expression,
+					sourceFile,
+					typeChecker,
+				) {
+				return true
+			}
+			if _, ok := statePath(
+				call.Arguments.Nodes[0],
+				aliases.bySymbol,
+				typeChecker,
+				true,
+			); ok {
+				diagnostics = append(diagnostics, unsupportedStateWriteDiagnostic(
+					node,
+					"reflective component-state mutation cannot preserve the reactive write contract; use an ordinary assignment, delete, array mutator, or Object.assign()",
+				))
+			}
+			return true
+		})
+	}
+	return diagnostics
+}
+
+func targetContainsStatePath(
+	target *ast.Node,
+	aliases map[ast.SymbolId]stateAliasBinding,
+	typeChecker *checker.Checker,
+) bool {
+	found := false
+	walkNode(target, func(node *ast.Node) bool {
+		if _, ok := statePath(node, aliases, typeChecker, true); ok {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
+func unsupportedReflectiveStateMutation(
+	expression *ast.Node,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) bool {
+	if !ast.IsPropertyAccessExpression(expression) {
+		return false
+	}
+	member := expression.AsPropertyAccessExpression()
+	if member.Name() == nil || !ast.IsIdentifier(member.Expression) {
+		return false
+	}
+	root := member.Expression.Text()
+	name := member.Name().Text()
+	if root == "Reflect" && name != "set" && name != "deleteProperty" &&
+		name != "defineProperty" {
+		return false
+	}
+	if root == "Object" && name != "defineProperty" &&
+		name != "defineProperties" {
+		return false
+	}
+	if root != "Reflect" && root != "Object" {
+		return false
+	}
+	return symbolIsOutsideSource(
+		typeChecker.GetSymbolAtLocation(member.Expression),
+		sourceFile,
+	)
+}
+
+func unsupportedStateWriteDiagnostic(node *ast.Node, message string) Diagnostic {
+	return Diagnostic{
+		Severity: "error",
+		Code:     "EXACT_STATE_WRITE",
+		Message:  "error: " + message,
+		Start:    node.Pos(),
+		Length:   node.End() - node.Pos(),
+	}
+}
+
+// stateWriteDynamicSegments retains authored computed keys while the public
+// analysis path uses "*" to describe their conservative state contract.
+func stateWriteDynamicSegments(
+	target *ast.Node,
+	path []string,
+) map[int]*ast.Node {
+	segments := []*ast.Node{}
+	var collect func(*ast.Node)
+	collect = func(node *ast.Node) {
+		switch {
+		case ast.IsParenthesizedExpression(node):
+			collect(node.AsParenthesizedExpression().Expression)
+		case ast.IsPropertyAccessExpression(node):
+			member := node.AsPropertyAccessExpression()
+			if member.Expression.Kind == ast.KindThisKeyword &&
+				member.Name() != nil &&
+				member.Name().Text() == "state" {
+				return
+			}
+			collect(member.Expression)
+			segments = append(segments, nil)
+		case ast.IsElementAccessExpression(node):
+			member := node.AsElementAccessExpression()
+			collect(member.Expression)
+			argument := member.ArgumentExpression
+			if argument != nil &&
+				!ast.IsStringLiteral(argument) &&
+				!ast.IsNumericLiteral(argument) {
+				segments = append(segments, argument)
+			} else {
+				segments = append(segments, nil)
+			}
+		}
+	}
+	collect(target)
+	offset := len(path) - len(segments)
+	result := map[int]*ast.Node{}
+	for index, segment := range segments {
+		if segment != nil {
+			result[offset+index] = segment
+		}
+	}
+	return result
 }
 
 func stateWriteHasNestedThis(node *ast.Node, component *ast.Node) bool {
@@ -360,7 +537,7 @@ func numericSegment(value int) string {
 	return string(digits[index:])
 }
 
-func stateWriteTarget(node *ast.Node) (*ast.Node, string) {
+func stateWriteTarget(node *ast.Node, typeChecker *checker.Checker) (*ast.Node, string) {
 	switch {
 	case ast.IsBinaryExpression(node):
 		expression := node.AsBinaryExpression()
@@ -392,12 +569,37 @@ func stateWriteTarget(node *ast.Node) (*ast.Node, string) {
 		}
 		member := call.Expression.AsPropertyAccessExpression()
 		if member.Name() != nil {
-			if _, mutator := reactiveArrayMutators[member.Name().Text()]; mutator {
+			method := member.Name().Text()
+			if _, mutator := reactiveArrayMutators[method]; mutator {
 				return member.Expression, "array-mutation"
+			}
+			receiver := typeChecker.GetTypeAtLocation(member.Expression)
+			receiverDisplay := typeChecker.TypeToString(receiver)
+			mapLike := isCollectionType(receiverDisplay, "Map") ||
+				(typeChecker.GetPropertyOfType(receiver, "get") != nil &&
+					typeChecker.GetPropertyOfType(receiver, "set") != nil &&
+					typeChecker.GetPropertyOfType(receiver, "size") != nil)
+			setLike := isCollectionType(receiverDisplay, "Set") ||
+				(typeChecker.GetPropertyOfType(receiver, "add") != nil &&
+					typeChecker.GetPropertyOfType(receiver, "has") != nil &&
+					typeChecker.GetPropertyOfType(receiver, "size") != nil)
+			if _, mutator := reactiveMapMutators[method]; mutator &&
+				mapLike {
+				return member.Expression, "map-mutation"
+			}
+			if _, mutator := reactiveSetMutators[method]; mutator &&
+				setLike {
+				return member.Expression, "set-mutation"
 			}
 		}
 	}
 	return nil, ""
+}
+
+func isCollectionType(display string, name string) bool {
+	return display == name ||
+		strings.HasPrefix(display, name+"<") ||
+		strings.HasPrefix(display, "Readonly"+name+"<")
 }
 
 func statePath(

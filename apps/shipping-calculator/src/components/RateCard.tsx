@@ -11,11 +11,9 @@ type RateCardProps = {
 export function RateCard(this: Component<{}>, props: RateCardProps) {
 	return () => (
 		<article
-			className={[
-				'rate-card',
-				!props.quote.compatible && 'incompatible',
-				props.refreshing && 'refreshing'
-			]}
+			className="rate-card"
+			className:incompatible={!props.quote.compatible}
+			className:refreshing={props.refreshing}
 		>
 			<div className="rate-main">
 				<div className="carrier-row">
@@ -73,7 +71,8 @@ export function RateCard(this: Component<{}>, props: RateCardProps) {
 function Feature(this: Component<{}>, props: { feature: ExtraService }) {
 	return () => (
 		<span
-			className={['feature', props.feature.availability, props.feature.selected && 'selected']}
+			className={['feature', props.feature.availability]}
+			className:selected={props.feature.selected}
 			title={props.feature.explanation}
 		>
 			{props.feature.availability === 'included'
