@@ -1884,7 +1884,14 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 			)
 		}
 	}
-	rewrittenWork := lowering.rewriteTaskWork(work, dependencies, task)
+	rewrittenWork := lowering.rewriteTaskWork(
+		work,
+		dependencies,
+		task,
+		// Runtime task context follows every activation dependency, including
+		// authored dependencies that do not appear in the inferred plan.
+		len(nextArguments),
+	)
 	if lowering.target == TargetClient && task.Placement == "server" {
 		if component, exists := lowering.components[task.Component]; exists &&
 			component.Placement == "isomorphic" {
@@ -2332,6 +2339,7 @@ func (lowering *jsxLowering) inferredTaskDependencies(
 			requiredReads[effect.Path] = struct{}{}
 		}
 	}
+	updateTargets := stateUpdateTargetSpans(work)
 	result := []nativeTaskDependency{}
 	byPath := make(map[string]int)
 	for _, read := range lowering.stateReads {
@@ -2342,6 +2350,9 @@ func (lowering *jsxLowering) inferredTaskDependencies(
 		}
 		path := strings.Join(read.Path, ".")
 		if _, required := requiredReads[path]; !required {
+			continue
+		}
+		if _, updated := updateTargets[[2]int{read.Start, read.Start + read.Length}]; updated {
 			continue
 		}
 		key := path
@@ -2536,6 +2547,7 @@ func (lowering *jsxLowering) rewriteTaskWork(
 	work *ast.Node,
 	dependencies []nativeTaskDependency,
 	task Task,
+	dependencyCount int,
 ) *ast.Node {
 	replacements := make(map[string]string)
 	for _, dependency := range dependencies {
@@ -2573,7 +2585,7 @@ func (lowering *jsxLowering) rewriteTaskWork(
 	if len(dependencies) != 0 {
 		rewritten = lowering.prependTaskParameters(rewritten, dependencies)
 	}
-	rewritten = lowering.manageTaskWork(rewritten, task, len(dependencies))
+	rewritten = lowering.manageTaskWork(rewritten, task, dependencyCount)
 	return lowering.visitor.VisitEachChild(rewritten)
 }
 

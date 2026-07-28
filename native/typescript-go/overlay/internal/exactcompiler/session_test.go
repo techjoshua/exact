@@ -2334,6 +2334,47 @@ func TestSessionReusesAuthoredSignalContextAfterReactiveDependencies(t *testing.
 	}
 }
 
+func TestSessionAppendsSignalContextAfterExplicitTaskDependencies(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "component.tsx",
+		Kind: "compile",
+		Source: `
+			declare class Component<State> {
+				state: State
+				task(...values: unknown[]): void
+			}
+			function Timer(this: Component<{ paused: boolean }>) {
+				this.task(this.state.paused, false, (paused, complete) => {
+					if (paused || complete) return;
+					setInterval(() => {}, 1000);
+				});
+				return () => <output />;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(
+		response.Code,
+		`(paused, complete, { signal: __exactSignal })`,
+	) || !strings.Contains(
+		response.Code,
+		`__exactTaskInterval(__exactSignal, () => { }, 1000)`,
+	) {
+		t.Fatalf(
+			"native lowering reused an explicit dependency as task context:\n%s",
+			response.Code,
+		)
+	}
+	if strings.Contains(response.Code, "complete.signal") {
+		t.Fatalf(
+			"native lowering read task context from an explicit dependency:\n%s",
+			response.Code,
+		)
+	}
+}
+
 func TestSessionKeepsEventHandlerFactoriesAsFunctions(t *testing.T) {
 	response := NewSession(nil).Execute(Request{
 		ID:   "view.tsx",
@@ -2427,8 +2468,7 @@ func TestSessionBuildsContinuationAndResumptionContracts(t *testing.T) {
 		continuation.Ownership.Lifetime != "component" ||
 		len(continuation.Activation.StateReads) != 1 ||
 		continuation.Activation.StateReads[0].Path != "count" ||
-		len(continuation.Activation.Dependencies) != 1 ||
-		continuation.Activation.Dependencies[0].Source != "state" ||
+		len(continuation.Activation.Dependencies) != 0 ||
 		len(continuation.Effects.StateWrites) != 1 ||
 		continuation.Effects.StateWrites[0].Path != "count" {
 		t.Fatalf("unexpected continuation contract: %#v", continuation)
@@ -2465,7 +2505,7 @@ func TestSessionTagsServerContinuationWorkAndOmitsItFromClient(t *testing.T) {
 	taskID := server.Analysis.Tasks[0].ID
 	for _, expected := range []string{
 		`markComponentContinuationTask as __exactContinuationTask`,
-		`this.task.server(this.reactive(() => this.state.count), __exactContinuationTask("` +
+		`this.task.server(__exactContinuationTask("` +
 			taskID + `", async`,
 	} {
 		if !strings.Contains(server.Code, expected) {
@@ -2531,9 +2571,9 @@ func TestSessionEmitsClientDispatchStubForIsomorphicContinuation(t *testing.T) {
 	for _, expected := range []string{
 		`markComponentContinuationTask as __exactContinuationTask`,
 		`dispatchComponentContinuation as __exactDispatchContinuation`,
-		`this.task(this.reactive(() => this.state.count), __exactContinuationTask("` + taskID,
-		`(__exactDependency, { signal: __exactSignal }) => __exactDispatchContinuation(this, "` +
-			taskID + `", [__exactDependency], __exactSignal, [])`,
+		`this.task(__exactContinuationTask("` + taskID,
+		`({ signal: __exactSignal }) => __exactDispatchContinuation(this, "` +
+			taskID + `", [], __exactSignal, [])`,
 		`const __exactImplementation_Loader_1 = function Loader(`,
 		`export const Loader: typeof __exactImplementation_Loader_1`,
 		`Object.assign(__exactImplementation_Loader_1, {`,
@@ -2593,8 +2633,8 @@ func TestSessionEmitsServerContinuationExecutorContract(t *testing.T) {
 		`componentId: "` + continuation.ComponentID + `"`,
 		`execute: async (__exactActivation_1: any, __exactExecution_1: any) =>`,
 		`const __exactComponent_1 = { state: __exactActivation_1.state }`,
-		`await (async (__exactDependency: number, { signal: __exactSignal }) =>`,
-		`)(__exactActivation_1.dependencies[0], { signal: __exactExecution_1.signal })`,
+		`await (async ({ signal: __exactSignal }) =>`,
+		`})({ signal: __exactExecution_1.signal })`,
 		`__exactUpdateResult(__exactComponent_1.state, ["count"]`,
 		`return { state: __exactComponent_1.state, contexts: __exactContextWrites_1 }`,
 	} {
@@ -3048,6 +3088,57 @@ func TestSessionUsesExplicitPlacementToConstrainOpaqueComponentCalls(t *testing.
 	}
 	if len(field.Diagnostics) != 0 {
 		t.Fatalf("constrained opaque call produced diagnostics: %#v", field.Diagnostics)
+	}
+}
+
+func TestSessionPreservesKnownClientPlacementThroughOpaqueRenderCalls(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "component.tsx",
+		Kind: "analyze",
+		Source: `
+			declare function checked(value: unknown): boolean;
+			function renderPanel(value: unknown) {
+				return <button onClick={() => {}}>{checked(value) ? "yes" : "no"}</button>;
+			}
+			export function Panel(this: Component<{}>, props: { value: unknown }) {
+				this.task.client(() => {});
+				return () => renderPanel(props.value);
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	panel := findComponent(t, response.Analysis.Components, "Panel")
+	if panel.Placement != "client" || panel.EnvironmentEffect != "browser" {
+		t.Fatalf("opaque render call erased known client placement: %#v", panel)
+	}
+}
+
+func TestSessionDoesNotScheduleTaskFromItsOwnUpdateTarget(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "component.tsx",
+		Kind: "compile",
+		Source: `
+			export function Counter(this: Component<{ revision: number }>) {
+				this.task.client(() => { this.state.revision++; });
+				return () => <output>{this.state.revision}</output>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if len(response.Analysis.Tasks) != 1 ||
+		len(response.Analysis.Tasks[0].Reads) != 1 ||
+		len(response.Analysis.Tasks[0].Writes) != 1 ||
+		len(response.Analysis.Tasks[0].Dependencies) != 0 ||
+		strings.Contains(response.Code, "this.reactive(() => this.state.revision)") {
+		t.Fatalf(
+			"task mutation became a self-invalidating dependency: %#v\n%s",
+			response.Analysis.Tasks,
+			response.Code,
+		)
 	}
 }
 

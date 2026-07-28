@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
 	compileProjectArtifacts,
@@ -8,6 +8,8 @@ import {
 
 const root = path.resolve('src');
 const outDir = path.resolve('.exact');
+await rm(outDir, { recursive: true, force: true });
+await mkdir(outDir, { recursive: true });
 const results = await compileProjectArtifacts([path.join(root, 'App.tsx')], {
 	rootDir: root,
 	outDir,

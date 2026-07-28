@@ -1,6 +1,7 @@
 node_modules/
 coverage/
 .tmp/
+.exact/
 packages/*/dist/
 packages/*/*.tsbuildinfo
 framework-adapters/*/dist/

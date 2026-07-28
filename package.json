@@ -14,8 +14,9 @@
 		"native/npm/*"
 	],
 	"scripts": {
-		"build": "tsc6 -b",
-		"build:typescript7": "tsc -b",
+		"generate:app-artifacts": "npm run generate -w @exactjs/sample-server-components && npm run generate -w @exactjs/sample-shipping-calculator",
+		"build": "npm run generate:app-artifacts && tsc6 -b",
+		"build:typescript7": "npm run generate:app-artifacts && tsc -b",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"lint": "eslint . --cache --cache-location .tmp/eslint-cache",
@@ -37,8 +38,8 @@
 		"check:sample-builds": "npm run build:kanban && npm run build:workbench && npm run build:sudoku && npm run build:microfrontends",
 		"test:packages": "vitest run --config vitest.config.ts packages framework-adapters react-adapters plugins component-libraries --testTimeout=30000",
 		"test:coverage": "npm run test:coverage --workspaces --if-present",
-		"typecheck": "tsc6 -b --pretty",
-		"typecheck:typescript7": "tsc -b --pretty",
+		"typecheck": "npm run generate:app-artifacts && tsc6 -b --pretty",
+		"typecheck:typescript7": "npm run generate:app-artifacts && tsc -b --pretty",
 		"typecheck:tests": "tsc6 -p tsconfig.test.json --pretty",
 		"check:typescript-compatibility": "node scripts/check-typescript-compatibility.mjs",
 		"benchmark:reactive": "node scripts/benchmark-reactive.mjs && node scripts/benchmark-dom-list.mjs",

@@ -63,11 +63,7 @@ func analyzeComponents(
 						effectSourcePath(setup.EffectSources)+")",
 				)
 			case "unknown":
-				knownBrowser, knownServer := false, false
-				for _, source := range setup.EffectSources {
-					knownBrowser = knownBrowser || source.Environment == "browser"
-					knownServer = knownServer || source.Environment == "server"
-				}
+				knownBrowser, knownServer := knownEffectEnvironments(setup.EffectSources)
 				switch {
 				case knownBrowser && knownServer:
 					indivisible = "mixed"
@@ -168,8 +164,26 @@ func analyzeComponents(
 						splitBoundaries["server-call:"+strings.TrimSpace(
 							sourceText(sourceFile, call.Expression),
 						)] = struct{}{}
-					case "mixed", "unknown":
+					case "mixed":
 						indivisible = target.Effect
+					case "unknown":
+						knownBrowser, knownServer := knownEffectEnvironments(target.EffectSources)
+						switch {
+						case knownBrowser && knownServer:
+							indivisible = "mixed"
+						case knownBrowser:
+							clientEffects = true
+							splitBoundaries["browser-call:"+strings.TrimSpace(
+								sourceText(sourceFile, call.Expression),
+							)] = struct{}{}
+						case knownServer:
+							serverEffects = true
+							splitBoundaries["server-call:"+strings.TrimSpace(
+								sourceText(sourceFile, call.Expression),
+							)] = struct{}{}
+						default:
+							indivisible = "unknown"
+						}
 					}
 				}
 			}
@@ -262,6 +276,19 @@ func analyzeComponents(
 	}
 	resolveComponentSubgraphs(sourceFile, components)
 	return components
+}
+
+// knownEffectEnvironments preserves proven placement when a callable also
+// contains unresolved ordinary calls. Unknown evidence must not erase a known
+// browser or server requirement, but evidence for both remains indivisible.
+func knownEffectEnvironments(
+	sources []EnvironmentEffectSource,
+) (browser bool, server bool) {
+	for _, source := range sources {
+		browser = browser || source.Environment == "browser"
+		server = server || source.Environment == "server"
+	}
+	return browser, server
 }
 
 func componentContextEffects(

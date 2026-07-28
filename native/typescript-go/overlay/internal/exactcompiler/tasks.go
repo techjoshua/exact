@@ -441,6 +441,7 @@ func taskDependencyRecords(
 			required[read.Path] = struct{}{}
 		}
 	}
+	updateTargets := stateUpdateTargetSpans(work)
 	type positionedDependency struct {
 		position   int
 		dependency TaskDependency
@@ -456,6 +457,9 @@ func taskDependencyRecords(
 		}
 		path := strings.Join(read.Path, ".")
 		if _, needed := required[path]; !needed {
+			continue
+		}
+		if _, updated := updateTargets[[2]int{read.Start, read.Start + read.Length}]; updated {
 			continue
 		}
 		key := path
@@ -525,6 +529,36 @@ func taskDependencyRecords(
 		result[index] = positioned[index].dependency
 		result[index].Index = index
 	}
+	return result
+}
+
+// stateUpdateTargetSpans separates mutation input from scheduling input.
+// Increment and decrement still read their previous value for effect and
+// continuation contracts, but subscribing a task to the value it increments
+// would make the task immediately invalidate itself.
+func stateUpdateTargetSpans(work *ast.Node) map[[2]int]struct{} {
+	result := make(map[[2]int]struct{})
+	walkNode(work, func(node *ast.Node) bool {
+		var operand *ast.Node
+		switch {
+		case ast.IsPrefixUnaryExpression(node):
+			expression := node.AsPrefixUnaryExpression()
+			if expression.Operator == ast.KindPlusPlusToken ||
+				expression.Operator == ast.KindMinusMinusToken {
+				operand = expression.Operand
+			}
+		case ast.IsPostfixUnaryExpression(node):
+			expression := node.AsPostfixUnaryExpression()
+			if expression.Operator == ast.KindPlusPlusToken ||
+				expression.Operator == ast.KindMinusMinusToken {
+				operand = expression.Operand
+			}
+		}
+		if operand != nil {
+			result[[2]int{operand.Pos(), operand.End()}] = struct{}{}
+		}
+		return true
+	})
 	return result
 }
 

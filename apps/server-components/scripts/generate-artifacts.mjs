@@ -1,9 +1,10 @@
-import { mkdir } from 'node:fs/promises';
+import { mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { compileFileArtifacts } from '@exactjs/compiler';
 
 const root = path.resolve('src');
 const outDir = path.resolve('.exact');
+await rm(outDir, { recursive: true, force: true });
 await mkdir(outDir, { recursive: true });
 const names = ['IdentityProvider', 'ProfilePage'];
 const results = [];
