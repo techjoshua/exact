@@ -46,7 +46,8 @@ const packageGroups: PackageGroup[] = [
 		packages: [
 			{
 				name: '@exactjs/compiler',
-				purpose: 'Transforms, analysis, artifacts, manifests, sessions, and the exactc CLI.'
+				purpose:
+					'Native compiler host, analysis and artifact contracts, persistent sessions, and the exactc CLI.'
 			},
 			{ name: '@exactjs/vite-plugin', purpose: 'Vite integration over the shared compiler.' },
 			{
@@ -139,6 +140,14 @@ export function PackagesPage(this: Component<{}>) {
 				<p>
 					The repository also includes Kanban, Workbench, Shipping Calculator, server-component, and
 					microfrontend applications. They are executable companions to these guides.
+				</p>
+			</Callout>
+			<Callout title="Platform packages are selected, not bundled together">
+				<p>
+					<code>@exactjs/compiler</code> declares six optional target packages so npm can select the
+					one matching macOS, Linux, or Windows on ARM64 or x64. The JavaScript host tarball
+					contains no native executables, and a normal install receives only one matching binary
+					package.
 				</p>
 			</Callout>
 		</Article>

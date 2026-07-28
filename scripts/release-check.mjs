@@ -57,6 +57,10 @@ const sampleBuilds = [
 const testSuite = task('test suite', ['test']);
 const reactCompatibility = task('React compatibility', ['run', 'check:react-compat:built']);
 const r3fBrowser = task('R3F browser matrix', ['run', 'check:r3f-browser:built']);
+const compilerAcceptance = task('compiler browser acceptance', [
+	'run',
+	'check:compiler-acceptance:built'
+]);
 const performanceChecks = [
 	task('reactive benchmarks', ['run', 'benchmark:reactive']),
 	task('expression benchmarks', ['run', 'benchmark:expressions']),
@@ -195,4 +199,5 @@ async function runAffected() {
 
 	if (plan.reactCompatibility) await run(reactCompatibility);
 	if (plan.r3fBrowser) await run(r3fBrowser);
+	if (plan.compilerAcceptance) await run(compilerAcceptance);
 }

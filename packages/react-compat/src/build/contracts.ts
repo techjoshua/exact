@@ -104,5 +104,5 @@ export interface ReactCompatibilityJsxInterop {
 		readonly declarationSignatures: readonly string[];
 	}): 'exact' | 'component' | 'unknown' | 'ambiguous';
 }
-import type { ModuleRewriteOptions } from '@exactjs/expressions';
+import type { ModuleRewriteOptions } from '@exactjs/module-rewrite';
 import type { ResolvedReactCompatibility } from '../plugin.js';

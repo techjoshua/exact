@@ -52,8 +52,6 @@ export type ExactBunPluginOptions = {
 	pluginRegistry?: ExactPreparedCompilerRegistry;
 	assetRules?: readonly ExactAssetRule[];
 	diagnostics?: boolean;
-	/** Selects the all-Go compiler host; legacy is an explicit compatibility mode. */
-	compiler?: 'native' | 'legacy';
 	onProfile?: ExactProfileSink;
 };
 
@@ -119,10 +117,7 @@ export type BunPluginLike = {
 export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 	let diagnosticsEnabled = options.diagnostics ?? false;
 	let compilerSession = createCompilerSession({
-		languageService: diagnosticsEnabled,
-		...(options.compiler === 'legacy'
-			? { compiler: 'legacy' as const }
-			: { nativeCompiler: { executable: resolveNativeCompilerExecutable() } }),
+		nativeCompiler: { executable: resolveNativeCompilerExecutable() },
 		onProfile: options.onProfile
 	});
 	const reportDiagnostics = createExactDiagnosticReporter();
@@ -140,10 +135,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 				compilerSession.dispose();
 				diagnosticsEnabled = nextDiagnostics;
 				compilerSession = createCompilerSession({
-					languageService: nextDiagnostics,
-					...(options.compiler === 'legacy'
-						? { compiler: 'legacy' as const }
-						: { nativeCompiler: { executable: resolveNativeCompilerExecutable() } }),
+					nativeCompiler: { executable: resolveNativeCompilerExecutable() },
 					onProfile: options.onProfile
 				});
 			}

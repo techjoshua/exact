@@ -7,18 +7,6 @@ Current capabilities and limits are indexed in [`../README.md`](../README.md).
 A candidate should move into its own decision-complete proposal before
 implementation.
 
-## Native TypeScript compiler backend
-
-The TypeScript 7 native API proof of concept can load in-memory TSX, query the
-Go type checker, and advance incremental snapshots while reproducing a narrow
-slice of the current expression projection. The next step is a complete
-`@exactjs/expressions` semantic backend with differential and performance gates,
-followed by native validation and emission.
-
-See [`native-typescript-compiler.md`](native-typescript-compiler.md) for the
-findings, architecture, migration phases, fork contingency, and acceptance
-criteria.
-
 ## Remove compiler manifest files
 
 The current compiler still produces `*.exact.manifest.json` planning sidecars,

@@ -1,4 +1,5 @@
 import type { NativeCompilerModuleRewrite } from './process-module-contracts.js';
+import type { NativeCompilerDiagnostic } from './process-diagnostic-contracts.js';
 import type { NativeCompilerPolicyManifest } from './process-policy-contracts.js';
 import type { NativeCompilerSemanticGraph } from './process-semantic-contracts.js';
 
@@ -6,6 +7,7 @@ export type {
 	NativeCompilerModuleExportReplacement,
 	NativeCompilerModuleRewrite
 } from './process-module-contracts.js';
+export type { NativeCompilerDiagnostic } from './process-diagnostic-contracts.js';
 export type {
 	NativeCompilerDataPolicy,
 	NativeCompilerPolicyFlow,
@@ -16,12 +18,12 @@ export type {
 export type { NativeCompilerSemanticGraph } from './process-semantic-contracts.js';
 
 /** Exact protocol implemented by this JavaScript facade. */
-export const nativeCompilerProtocolVersion = '1.21.0';
+export const nativeCompilerProtocolVersion = '1.22.0';
 
 /** Request accepted by the persistent native eXact compiler process. */
 export type NativeCompilerRequest = Readonly<{
 	id?: string;
-	kind: 'version' | 'reset' | 'analyze' | 'compile';
+	kind: 'version' | 'reset' | 'diagnose' | 'analyze' | 'compile';
 	source?: string;
 	root?: string;
 	configFile?: string;
@@ -102,15 +104,6 @@ export type NativeCompilerCapabilityRequirements = Readonly<{
 		symbol: string;
 		targets: readonly ('client' | 'server')[];
 	}>[];
-}>;
-
-/** Stable diagnostic returned by the native eXact compiler process. */
-export type NativeCompilerDiagnostic = Readonly<{
-	severity: 'info' | 'warning' | 'error';
-	code: string;
-	message: string;
-	start?: number;
-	length?: number;
 }>;
 
 /** Describes one static ECMAScript import discovered by the native parser. */

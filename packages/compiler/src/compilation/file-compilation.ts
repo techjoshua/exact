@@ -12,7 +12,7 @@ export async function compileFile(
 	inputFile: string,
 	options: CompileFileOptions = {}
 ): Promise<CompileFileResult> {
-	const ownedSession = createOwnedNativeCompilationSession(options.session, options.compiler);
+	const ownedSession = createOwnedNativeCompilationSession(options.session);
 	if (ownedSession) {
 		try {
 			return await compileFile(inputFile, { ...options, session: ownedSession });
@@ -75,7 +75,7 @@ export async function compileProject(
 	inputs: readonly string[],
 	options: CompileProjectOptions = {}
 ): Promise<CompileFileResult[]> {
-	const ownedSession = createOwnedNativeCompilationSession(options.session, options.compiler);
+	const ownedSession = createOwnedNativeCompilationSession(options.session);
 	if (ownedSession) {
 		try {
 			return await compileProject(inputs, { ...options, session: ownedSession });

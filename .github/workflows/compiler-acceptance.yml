@@ -1,0 +1,47 @@
+name: Compiler browser acceptance
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/compiler-acceptance.yml'
+      - 'packages/compiler/**'
+      - 'packages/expressions/**'
+      - 'packages/plugin-api/**'
+      - 'packages/plugin-host/**'
+      - 'framework-adapters/bun-plugin/**'
+      - 'framework-adapters/vite-plugin/**'
+      - 'framework-adapters/webpack-plugin/**'
+      - 'scripts/check-compiler-acceptance.mjs'
+      - 'scripts/start-vite-acceptance-server.mjs'
+      - 'scripts/release-affected.mjs'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/compiler-acceptance.yml'
+      - 'packages/compiler/**'
+      - 'packages/expressions/**'
+      - 'packages/plugin-api/**'
+      - 'packages/plugin-host/**'
+      - 'framework-adapters/bun-plugin/**'
+      - 'framework-adapters/vite-plugin/**'
+      - 'framework-adapters/webpack-plugin/**'
+      - 'scripts/check-compiler-acceptance.mjs'
+      - 'scripts/start-vite-acceptance-server.mjs'
+      - 'scripts/release-affected.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run check:compiler-acceptance

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { preprocessPropPunning, transform, transformSource } from '../index.js';
+import { transform, transformSource } from '../index.js';
 
 describe('@exactjs/compiler: derived values', () => {
 	it('shares cached derived consts across reactive JSX children', () => {
@@ -337,24 +337,6 @@ describe('@exactjs/compiler: derived values', () => {
 		expect(output).not.toContain('this.reactive(() => () => this.state.query)');
 	});
 
-	it('preprocesses Svelte-like prop punning', () => {
-		expect(preprocessPropPunning('<UserCard {user} {selected} />')).toBe(
-			'<UserCard user={user} selected={selected} />'
-		);
-	});
-
-	it('does not preprocess puns inside strings or comments', () => {
-		const source = [
-			'const text = "<UserCard {user} />";',
-			'// <UserCard {commented} />',
-			'const view = <UserCard {user} label="{raw}" />;'
-		].join('\n');
-
-		expect(preprocessPropPunning(source)).toContain('"<UserCard {user} />"');
-		expect(preprocessPropPunning(source)).toContain('// <UserCard {commented} />');
-		expect(preprocessPropPunning(source)).toContain('<UserCard user={user} label="{raw}" />');
-	});
-
 	it('preserves directive prologues before helper imports', () => {
 		const output = transform('"use client";\nconst view = <span />;');
 
@@ -368,15 +350,6 @@ describe('@exactjs/compiler: derived values', () => {
 		expect(output).toContain('createCompiledVNode as __exactVNode_1');
 		expect(output).toContain('__exactVNode_1("span"');
 		expect(output).toContain('const __exactVNode = 1');
-	});
-
-	it('scans complete JSX expressions before recognizing tag boundaries', () => {
-		const source =
-			'<View value={{ compare: 2 > 1, text: `${`inner ${3 > 2}`}`, match: (() => { return /[>]/.test(">") })() }} {selected} />';
-		const output = preprocessPropPunning(source);
-		expect(output).toContain('compare: 2 > 1');
-		expect(output).toContain('/[>]/.test');
-		expect(output).toContain('selected={selected}');
 	});
 
 	it('returns source maps from transformSource when requested', () => {

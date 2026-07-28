@@ -1,4 +1,3 @@
-import { type ModuleRewriteOptions } from '@exactjs/expressions';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { discoverExactPackageManifests } from '../artifacts.js';
@@ -11,6 +10,7 @@ import type {
 	CompileArtifactsResult,
 	ExactArtifactPlanEntry,
 	ExactCompilerManifest,
+	ModuleRewriteOptions,
 	TransformOptions
 } from '../types.js';
 import {
@@ -39,7 +39,7 @@ export async function compileFileArtifacts(
 	inputFile: string,
 	options: CompileArtifactsOptions
 ): Promise<CompileArtifactsResult> {
-	const ownedSession = createOwnedNativeCompilationSession(options.session, options.compiler);
+	const ownedSession = createOwnedNativeCompilationSession(options.session);
 	if (ownedSession) {
 		try {
 			return await compileFileArtifacts(inputFile, { ...options, session: ownedSession });
@@ -157,7 +157,7 @@ export async function compileProjectArtifacts(
 	inputs: readonly string[],
 	options: CompileArtifactsOptions
 ): Promise<CompileArtifactsResult[]> {
-	const ownedSession = createOwnedNativeCompilationSession(options.session, options.compiler);
+	const ownedSession = createOwnedNativeCompilationSession(options.session);
 	if (ownedSession) {
 		try {
 			return await compileProjectArtifacts(inputs, { ...options, session: ownedSession });
@@ -189,7 +189,7 @@ export async function compileArtifactPlanEntries(
 	entries: readonly ExactArtifactPlanEntry[],
 	options: CompileArtifactPlanEntriesOptions = {}
 ): Promise<CompileArtifactsResult[]> {
-	const ownedSession = createOwnedNativeCompilationSession(options.session, options.compiler);
+	const ownedSession = createOwnedNativeCompilationSession(options.session);
 	if (ownedSession) {
 		try {
 			return await compileArtifactPlanEntries(entries, {
@@ -235,40 +235,7 @@ export async function compileArtifactPlanEntries(
 			})
 		);
 	}
-	if (!options.session?.hasNativeCompiler()) {
-		// The compatibility backend exchanges immutable manifests until imported
-		// callable effects converge. The retained Go program resolves the same
-		// source project as one checker-owned graph and must not repeat this loop.
-		const maxPasses = Math.max(2, sources.size + 2);
-		for (let pass = 0; pass < maxPasses; pass++) {
-			const imported = [...externalManifests, ...manifestBases.values()];
-			const next = new Map<string, ExactCompilerManifest>();
-			let changed = false;
-			for (const [key, source] of sources) {
-				const entry = entries.find((candidate) => path.resolve(candidate.inputFile) === key);
-				const filename = entry ? (options.filename?.(entry) ?? entry.inputFile) : key;
-				const manifest = analyzeSource(source, {
-					filename,
-					session: options.session,
-					importedManifests: imported,
-					assetRules: options.assetRules,
-					pluginRegistry: options.pluginRegistry,
-					generatedValidation: options.generatedValidation,
-					...capabilityOptions
-				});
-				next.set(key, manifest);
-				if (callableEffectSignature(manifest) !== callableEffectSignature(manifestBases.get(key)!))
-					changed = true;
-			}
-			manifestBases.clear();
-			for (const [key, manifest] of next) manifestBases.set(key, manifest);
-			if (!changed) break;
-			if (pass === maxPasses - 1) throw new Error('eXact placement inference did not converge');
-		}
-	}
-	const importedManifests = options.session?.hasNativeCompiler()
-		? externalManifests
-		: [...externalManifests, ...manifestBases.values()];
+	const importedManifests = externalManifests;
 
 	for (const entry of entries) {
 		const filename = options.filename?.(entry) ?? entry.inputFile;
@@ -298,15 +265,6 @@ export async function compileArtifactPlanEntries(
 	}
 
 	return results;
-}
-
-function callableEffectSignature(manifest: ExactCompilerManifest): string {
-	return manifest.callables
-		.map(
-			(callable) =>
-				`${callable.id}:${callable.effect}:${callable.reevaluationSafe === true}:${callable.effectSources.map((source) => `${source.environment}:${source.description}`).join(',')}:${JSON.stringify(callable.stateReads)}:${JSON.stringify(callable.stateWrites)}:${JSON.stringify(callable.contexts)}`
-		)
-		.join('|');
 }
 
 async function compileArtifactPlanEntry(

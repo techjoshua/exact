@@ -43,11 +43,11 @@ export function CompilerTourPage(this: Component<{}>) {
 			<section>
 				<h2>What the compiler generates</h2>
 				<p>
-					This is a compiler-faithful lowering, formatted and annotated for people rather than
-					copied byte-for-byte from a build artifact. Unchanged type declarations are omitted,
-					intermediate values are named where that clarifies sequencing, and opaque stable IDs are
-					replaced with descriptive placeholders. The helper calls and ownership structure are the
-					machinery the compiler creates.
+					This is a conceptual view of the current native compiler contracts, formatted and
+					annotated for people rather than copied byte-for-byte from a build artifact. Unchanged
+					type declarations are omitted, intermediate values are named where that clarifies
+					sequencing, and opaque stable IDs are replaced with descriptive placeholders. Generated
+					helper names and exact statement layout are private and may change.
 				</p>
 				<h3>Browser artifact: a continuation, not the repository</h3>
 				<CodeBlock

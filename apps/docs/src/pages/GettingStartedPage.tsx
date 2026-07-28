@@ -93,6 +93,19 @@ export function GettingStartedPage(this: Component<{}>) {
 					runner-appropriate component test. You can inspect and change every generated file; the
 					scaffolder is a starting point, not a hidden runtime dependency.
 				</p>
+				<Callout title="One native compiler for your platform" tone="tip">
+					<p>
+						The compiler package is a small JavaScript host. npm selects one native binary for your
+						operating system and architecture from the platform packages declared by{' '}
+						<code>@exactjs/compiler</code>; it does not install all six targets or the retired
+						JavaScript compiler.
+					</p>
+				</Callout>
+				<p>
+					TypeScript 7 remains the application&apos;s editor and command-line type-checker. The
+					persistent native compiler owns its pinned TypeScript-Go version independently, so there
+					is no compiler-backend option to add to the generated Vite, Webpack, or Bun configuration.
+				</p>
 			</section>
 		</Article>
 	);

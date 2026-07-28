@@ -4256,6 +4256,72 @@ func TestSessionInvalidatesRetainedProjectCallableEffects(t *testing.T) {
 	}
 }
 
+func TestSessionDiagnosesConsumersAfterProjectSourceChanges(t *testing.T) {
+	root := t.TempDir()
+	configFile := filepath.Join(root, "tsconfig.json")
+	if err := os.WriteFile(
+		configFile,
+		[]byte(`{
+			"compilerOptions": {
+				"module": "ESNext",
+				"moduleResolution": "Bundler",
+				"target": "ES2022"
+			},
+			"include": ["*.ts"]
+		}`),
+		0o600,
+	); err != nil {
+		t.Fatal(err)
+	}
+	model := filepath.Join(root, "model.ts")
+	initialModel := `export interface Model { value: number }
+export const model: Model = { value: 1 };`
+	if err := os.WriteFile(model, []byte(initialModel), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	consumer := filepath.Join(root, "consumer.ts")
+	if err := os.WriteFile(
+		consumer,
+		[]byte(`import { model } from "./model.js";
+export const value: number = model.value;`),
+		0o600,
+	); err != nil {
+		t.Fatal(err)
+	}
+	session := NewSession(nil)
+	initial := session.Execute(Request{
+		ID: model, Root: root, ConfigFile: configFile,
+		Kind: "diagnose", Source: initialModel, Diagnostics: "semantic",
+	})
+	if initial.Error != "" {
+		t.Fatal(initial.Error)
+	}
+	if len(initial.Diagnostics) != 0 {
+		t.Fatalf("valid project returned diagnostics: %#v", initial.Diagnostics)
+	}
+
+	changedModel := `export interface Model { value: string }
+export const model: Model = { value: "changed" };`
+	changed := session.Execute(Request{
+		ID: model, Root: root, ConfigFile: configFile,
+		Kind: "diagnose", Source: changedModel, Diagnostics: "semantic",
+	})
+	if changed.Error != "" {
+		t.Fatal(changed.Error)
+	}
+	found := false
+	for _, diagnostic := range changed.Diagnostics {
+		if diagnostic.Code == "TS2322" &&
+			filepath.ToSlash(diagnostic.FileName) == filepath.ToSlash(consumer) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("consumer type error was not reported: %#v", changed.Diagnostics)
+	}
+}
+
 func TestSessionResolvesImportedComponentPlacementSubgraphs(t *testing.T) {
 	root := t.TempDir()
 	childFile := filepath.Join(root, "child.tsx")

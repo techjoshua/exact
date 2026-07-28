@@ -48,6 +48,7 @@ export async function createAffectedReleasePlan(base = process.env.RELEASE_BASE 
 				`${workspace.name} ${workspace.directory}`
 			)
 		) || changedScripts.some((filename) => /r3f|react-reconciler/.test(filename));
+	const compilerAcceptance = compilerAcceptanceAffected(changedFiles);
 
 	return Object.freeze({
 		base,
@@ -69,12 +70,32 @@ export async function createAffectedReleasePlan(base = process.env.RELEASE_BASE 
 		}),
 		reactCompatibility,
 		r3fBrowser,
+		compilerAcceptance,
 		expressions:
 			selected.some(
 				(workspace) =>
 					workspace.name === '@exactjs/expressions' || workspace.name === '@exactjs/compiler'
 			) || changedScripts.some((filename) => filename.includes('expression'))
 	});
+}
+
+/**
+ * Reports whether changed source can alter compiler output or its bundler assembly.
+ *
+ * Runtime-only and application changes intentionally remain outside this slower browser gate.
+ */
+export function compilerAcceptanceAffected(changedFiles) {
+	return changedFiles.some(
+		(filename) =>
+			filename.startsWith('native/typescript-go/') ||
+			/^packages\/(?:compiler|expressions|plugin-api|plugin-host)\//.test(filename) ||
+			/^framework-adapters\/(?:bun|vite|webpack)-plugin\//.test(filename) ||
+			[
+				'scripts/check-compiler-acceptance.mjs',
+				'scripts/start-vite-acceptance-server.mjs',
+				'scripts/release-affected.mjs'
+			].includes(filename)
+	);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename)) {

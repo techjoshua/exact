@@ -12,7 +12,7 @@ import (
 )
 
 // ProtocolVersion identifies the process request and response contract.
-const ProtocolVersion = "1.21.0"
+const ProtocolVersion = "1.22.0"
 
 // BackendVersion identifies the eXact-owned native implementation.
 const BackendVersion = ProtocolVersion
@@ -148,6 +148,7 @@ type Diagnostic struct {
 	Severity string `json:"severity"`
 	Code     string `json:"code"`
 	Message  string `json:"message"`
+	FileName string `json:"filename,omitempty"`
 	Start    int    `json:"start,omitempty"`
 	Length   int    `json:"length,omitempty"`
 }

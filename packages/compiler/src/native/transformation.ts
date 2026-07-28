@@ -21,7 +21,7 @@ import type {
  *
  * Options whose semantics have not moved into the native protocol are rejected
  * explicitly. A configured native session is an execution choice, not a
- * best-effort fallback to the legacy JavaScript compiler.
+ * fallback to a second compiler implementation.
  */
 export function transformSourceWithNativeCompiler(
 	normalized: string,

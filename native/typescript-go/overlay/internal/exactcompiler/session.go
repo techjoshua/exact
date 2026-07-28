@@ -60,7 +60,7 @@ func (s *Session) Execute(request Request) Response {
 		s.projects = make(map[string]*projectState)
 		return response
 	}
-	if request.Kind != "compile" && request.Kind != "analyze" {
+	if request.Kind != "compile" && request.Kind != "analyze" && request.Kind != "diagnose" {
 		response.Error = fmt.Sprintf("unsupported native compiler request kind %q", request.Kind)
 		return response
 	}
@@ -143,6 +143,23 @@ func (s *Session) Execute(request Request) Response {
 	defer generation.release()
 	response.CacheHit = generation.reused
 	sourceFile := generation.sourceFile
+	if request.Kind == "diagnose" {
+		checkStarted := time.Now()
+		for _, projectSource := range generation.program.GetSourceFiles() {
+			for _, diagnostic := range projectSource.BindDiagnostics() {
+				response.Diagnostics = append(response.Diagnostics, projectDiagnostic(diagnostic))
+			}
+			for _, diagnostic := range generation.checker.GetDiagnostics(
+				context.Background(),
+				projectSource,
+			) {
+				response.Diagnostics = append(response.Diagnostics, projectDiagnostic(diagnostic))
+			}
+		}
+		response.Timings.CheckMicroseconds = time.Since(checkStarted).Microseconds()
+		response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
+		return response
+	}
 	analysisStarted := time.Now()
 	directives := collectDirectives(sourceFile.Text())
 	imports := collectImports(sourceFile)
@@ -588,10 +605,15 @@ func (s *Session) Execute(request Request) Response {
 }
 
 func projectDiagnostic(diagnostic *ast.Diagnostic) Diagnostic {
+	fileName := ""
+	if diagnostic.File() != nil {
+		fileName = diagnostic.File().FileName()
+	}
 	return Diagnostic{
 		Severity: "error",
 		Code:     fmt.Sprintf("TS%d", diagnostic.Code()),
 		Message:  diagnostic.String(),
+		FileName: fileName,
 		Start:    diagnostic.Pos(),
 		Length:   diagnostic.Len(),
 	}

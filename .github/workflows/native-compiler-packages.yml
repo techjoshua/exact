@@ -98,6 +98,15 @@ jobs:
           npm run build -w @exactjs/compiler
           EXACT_NATIVE_COMPILER="$PWD/.tmp/native-compiler/exactc-native" \
             npm run check:native-compiler-corpus
+      - name: Install acceptance browser
+        if: ${{ matrix.platform == 'linux' && matrix.arch == 'x64' }}
+        run: npx playwright install --with-deps chromium
+      - name: Exercise compiler browser acceptance
+        if: ${{ matrix.platform == 'linux' && matrix.arch == 'x64' }}
+        shell: bash
+        run: |
+          EXACT_NATIVE_COMPILER="$PWD/.tmp/native-compiler/exactc-native" \
+            npm run check:compiler-acceptance
       - uses: actions/upload-artifact@v4
         with:
           name: compiler-native-${{ matrix.platform }}-${{ matrix.arch }}

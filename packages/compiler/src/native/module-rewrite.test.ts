@@ -45,24 +45,22 @@ describe('native module rewriting', () => {
 			sourceMap: true
 		} as const;
 		const native = transformSource(source, options);
-		const legacy = transformSource(source, { ...options, compiler: 'legacy' });
+		const output = native.code;
 
-		for (const output of [native.code, legacy.code]) {
-			expect(output).toContain('import { useQuery, type QueryKey } from "@tanstack/react-query";');
-			expect(output).toContain(
-				'import { ExactQueryClientProvider as Provider } from "@exactjs/tanstack-query/provider";'
-			);
-			expect(output).toContain(
-				'export { ExactQueryClientProvider as ExportedProvider } from "@exactjs/tanstack-query/provider";'
-			);
-			expect(output).toContain(
-				'require("@exactjs/tanstack-query/provider").ExactQueryClientProvider'
-			);
-			expect(output).toContain(
-				'{ ExactQueryClientProvider: DestructuredProvider } = require("@exactjs/tanstack-query/provider")'
-			);
-			expect(output).toContain('return Query.QueryClientProvider;');
-		}
+		expect(output).toContain('import { useQuery, type QueryKey } from "@tanstack/react-query";');
+		expect(output).toContain(
+			'import { ExactQueryClientProvider as Provider } from "@exactjs/tanstack-query/provider";'
+		);
+		expect(output).toContain(
+			'export { ExactQueryClientProvider as ExportedProvider } from "@exactjs/tanstack-query/provider";'
+		);
+		expect(output).toContain(
+			'require("@exactjs/tanstack-query/provider").ExactQueryClientProvider'
+		);
+		expect(output).toContain(
+			'{ ExactQueryClientProvider: DestructuredProvider } = require("@exactjs/tanstack-query/provider")'
+		);
+		expect(output).toContain('return Query.QueryClientProvider;');
 		expect(native.code).toMatch(
 			/import \{ ExactQueryClientProvider as __exact_ExactQueryClientProvider(?:_\d+)? \}/
 		);

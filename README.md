@@ -61,16 +61,15 @@ Jest, or Bun's native test runner; and optional repo-local installation of the e
 
 ## TypeScript compatibility
 
-eXact applications use TypeScript 7 for editor support and command-line type-checking. eXact's
-compiler, expression tooling, transforms, and test integrations currently use the stable
-TypeScript 6 programmatic API. Those packages declare `typescript` as an npm alias of
-`@typescript/typescript6`, allowing the API implementation to coexist safely with an
-application's TypeScript 7 installation.
+eXact applications use TypeScript 7 for editor support and command-line type-checking. Component
+compilation runs in the persistent native `exactc-native` host built from a pinned TypeScript-Go
+revision; it does not load a JavaScript compiler backend from the application dependency tree.
 
-This split is required because TypeScript 7.0 does not ship a programmatic compiler API. The
-repository builds against TypeScript 6 and runs a separate TypeScript 7 compatibility build so
-application-facing types, JSX, and configuration remain compatible. The compiler integration can
-move to TypeScript 7 after its new API is released and adopted.
+The compiler owns its TypeScript version independently of the application's `typescript`
+dependency. A few bounded build-time compatibility packages still use the TypeScript 6
+programmatic API for configuration loading or React source transformation, but they are not an
+alternative eXact compiler. See [the native compiler reference](docs/native-compiler.md) for the
+process, npm distribution, and compatibility boundaries.
 
 The Kanban sample can be run from the workspace root:
 
@@ -132,7 +131,7 @@ The package entrypoints are:
   - Browser app surface: `render(vnode, container, options?)`.
   - CSS helper surface: `px`, `rem`, `em`, `percent`, `vh`, `vw`, `vmin`, `vmax`, `fr`, `ms`, `s`, `deg`, `rad`, `turn`.
 - `@exactjs/compiler`
-  - Build-tool surface: `createCompilerSession`, `transform`, `transformSource`, `compileFile`, `compileProject`, `compileFileArtifacts`, `compileProjectArtifacts`, `createExactArtifactPlan`, `diffExactArtifactPlans`, `createExactArtifactDevState`, `updateExactArtifactDevState`, `readExactArtifactManifestEntries`, `exactExportConditions`, `resolveExactArtifactImport`, `createExactArtifactGraph`, `createPackageExportMap`, `createExactHydrationRegistrationModule`, the compatibility registry helpers, and `preprocessPropPunning`.
+  - Build-tool surface: `createCompilerSession`, `transform`, `transformSource`, `compileFile`, `compileProject`, `compileFileArtifacts`, `compileProjectArtifacts`, `createExactArtifactPlan`, `diffExactArtifactPlans`, `createExactArtifactDevState`, `updateExactArtifactDevState`, `readExactArtifactManifestEntries`, `exactExportConditions`, `resolveExactArtifactImport`, `createExactArtifactGraph`, `createPackageExportMap`, `createExactHydrationRegistrationModule`, and the compatibility registry helpers.
   - Semantic surface: `analyzeSource` and emitted manifests for component/task placement planning.
   - CLI: `exactc`.
 - `@exactjs/plugin-host`

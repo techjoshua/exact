@@ -1,4 +1,3 @@
-import type { ModuleRewriteOptions } from '@exactjs/expressions';
 import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import type { ExactCompilerSession } from '../expression/project.js';
 import type {
@@ -9,6 +8,7 @@ import type {
 import type { ExactCompilerManifest } from './manifest.js';
 import type {
 	ExactAssetRule,
+	ModuleRewriteOptions,
 	ModuleTransform,
 	TransformOptions,
 	TransformResult
@@ -49,7 +49,6 @@ export type CompileArtifactsOptions = {
 	jsxInterop?: TransformOptions['jsxInterop'];
 	assetRules?: readonly ExactAssetRule[];
 	session?: ExactCompilerSession;
-	compiler?: TransformOptions['compiler'];
 	pluginRegistry?: ExactPreparedCompilerRegistry;
 	generatedValidation?: 'syntax' | 'semantic';
 	packageType?: TransformOptions['packageType'];
@@ -95,7 +94,6 @@ export type CompileArtifactPlanEntriesOptions = {
 	jsxInterop?: TransformOptions['jsxInterop'];
 	assetRules?: readonly ExactAssetRule[];
 	session?: ExactCompilerSession;
-	compiler?: TransformOptions['compiler'];
 	pluginRegistry?: ExactPreparedCompilerRegistry;
 	generatedValidation?: 'syntax' | 'semantic';
 	packageType?: TransformOptions['packageType'];

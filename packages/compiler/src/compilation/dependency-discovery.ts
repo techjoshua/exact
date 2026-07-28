@@ -1,8 +1,6 @@
 import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import ts from 'typescript';
 import type { ExactCompilerSession } from '../expression/project.js';
-import { expressionDependencyFiles } from '../expression/session.js';
 
 /**
  * Local dependency facts discovered in one compiler-owned source pass.
@@ -26,32 +24,26 @@ export async function collectPlacementAnalysisDependencies(
 ): Promise<PlacementDependencyAnalysis> {
 	const graph = new Map<string, string[]>();
 	const localDependencies = new Map<string, readonly { specifier: string; file: string }[]>();
+	if (!session) throw new Error('Dependency discovery requires a native compiler session');
 	const pending = [...sources.keys()];
 	while (pending.length) {
 		const filename = pending.shift()!;
 		const source = sources.get(filename)!;
 		const resolvedDependencies: string[] = [];
-		const native = session?.hasNativeCompiler()
-			? session.compileNative({
-					id: filename,
-					kind: 'analyze',
-					source,
-					diagnostics: 'syntax'
-				})
-			: undefined;
-		const semanticDependencies = native
-			? []
-			: session
-				? session.expressionDependencyFiles(filename, source)
-				: expressionDependencyFiles(filename, source);
+		const native = session.compileNative({
+			id: filename,
+			kind: 'analyze',
+			source,
+			diagnostics: 'syntax'
+		});
 		const local = await localModuleDependencyEntries(
 			filename,
 			source,
-			native?.analysis.imports.map((entry) => entry.moduleSpecifier)
+			native.analysis.imports.map((entry) => entry.moduleSpecifier)
 		);
 		localDependencies.set(filename, local);
 		const syntacticDependencies = local.map((entry) => entry.file);
-		for (const dependency of [...semanticDependencies, ...syntacticDependencies]) {
+		for (const dependency of syntacticDependencies) {
 			const resolved = path.resolve(dependency);
 			if (
 				/(?:^|[\\/])node_modules(?:[\\/]|$)/.test(resolved) ||
@@ -79,24 +71,10 @@ export async function collectPlacementAnalysisDependencies(
 /** Resolves authored relative module specifiers to local source files. */
 export async function localModuleDependencyEntries(
 	filename: string,
-	source: string,
-	nativeSpecifiers?: readonly string[]
+	_source: string,
+	nativeSpecifiers: readonly string[]
 ): Promise<Array<{ specifier: string; file: string }>> {
-	const specifiers = (
-		nativeSpecifiers ??
-		ts
-			.createSourceFile(filename, source, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TSX)
-			.statements.flatMap((statement) => {
-				if (
-					(ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)) &&
-					statement.moduleSpecifier &&
-					ts.isStringLiteral(statement.moduleSpecifier)
-				) {
-					return [statement.moduleSpecifier.text];
-				}
-				return [];
-			})
-	).filter((specifier) => specifier.startsWith('.'));
+	const specifiers = nativeSpecifiers.filter((specifier) => specifier.startsWith('.'));
 	const dependencies: Array<{ specifier: string; file: string }> = [];
 	for (const specifier of specifiers) {
 		const absolute = path.resolve(path.dirname(filename), specifier);

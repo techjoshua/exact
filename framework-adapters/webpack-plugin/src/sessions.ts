@@ -10,8 +10,7 @@ let nextSessionId = 0;
 
 /** Creates a webpack compiler session. */
 export function createWebpackCompilerSession(
-	enabled: boolean,
-	compiler: 'native' | 'legacy' | undefined,
+	_enabled: boolean,
 	onProfile?: ExactCompilerSessionOptions['onProfile']
 ): Readonly<{
 	id: string;
@@ -19,10 +18,7 @@ export function createWebpackCompilerSession(
 }> {
 	const id = `exact-webpack-${++nextSessionId}`;
 	const session = createCompilerSession({
-		languageService: enabled,
-		...(compiler === 'legacy'
-			? { compiler: 'legacy' as const }
-			: { nativeCompiler: { executable: resolveNativeCompilerExecutable() } }),
+		nativeCompiler: { executable: resolveNativeCompilerExecutable() },
 		onProfile
 	});
 	sessions.set(id, session);
@@ -37,16 +33,12 @@ export function webpackCompilerSession(id: string | undefined): ExactCompilerSes
 /** Performs the replace webpack compiler session domain operation. */
 export function replaceWebpackCompilerSession(
 	id: string,
-	enabled: boolean,
-	compiler: 'native' | 'legacy' | undefined,
+	_enabled: boolean,
 	onProfile?: ExactCompilerSessionOptions['onProfile']
 ): ExactCompilerSession {
 	sessions.get(id)?.dispose();
 	const session = createCompilerSession({
-		languageService: enabled,
-		...(compiler === 'legacy'
-			? { compiler: 'legacy' as const }
-			: { nativeCompiler: { executable: resolveNativeCompilerExecutable() } }),
+		nativeCompiler: { executable: resolveNativeCompilerExecutable() },
 		onProfile
 	});
 	sessions.set(id, session);

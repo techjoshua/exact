@@ -37,10 +37,11 @@ const buildIntegrations: IntegrationStatus[] = [
 	},
 	{
 		name: 'Precompiled output',
-		status: 'Portable fallback',
+		status: 'Supported',
 		package: '@exactjs/compiler',
-		coverage: 'The exactc CLI emits compiled JavaScript before another tool consumes it.',
-		boundary: 'You must configure asset handling, export conditions, and client/server entrypoints.'
+		coverage: 'The native exactc CLI emits compiled JavaScript before another tool consumes it.',
+		boundary:
+			'The surrounding pipeline must configure asset handling, export conditions, and client/server entrypoints.'
 	}
 ];
 
@@ -189,7 +190,8 @@ export function RuntimesPage(this: Component<{}>) {
 				<h2>Compiler and bundler integrations</h2>
 				<p>
 					Every eXact application must run the compiler. A first-class or supported plugin embeds it
-					in the host build; <code>exactc</code> remains the escape hatch for other pipelines.
+					in the host build; <code>exactc</code> remains the escape hatch for other pipelines. All
+					four routes use the same persistent native compiler and expose no alternate backend.
 				</p>
 				<StatusTable caption="Build integration status" integrations={buildIntegrations} />
 			</section>

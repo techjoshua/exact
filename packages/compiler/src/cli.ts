@@ -16,7 +16,6 @@ type CliOptions = {
 	artifacts?: boolean;
 	serverComponents?: boolean;
 	sourceMap?: boolean;
-	compiler: 'native' | 'legacy';
 };
 
 async function main(argv: string[]): Promise<void> {
@@ -29,11 +28,9 @@ async function main(argv: string[]): Promise<void> {
 	const pluginRegistry = await prepareCliRegistry(options);
 	const hasCompilerRegistry =
 		pluginRegistry !== undefined && Object.keys(pluginRegistry.plugins).length > 0;
-	const session = createCompilerSession(
-		options.compiler === 'native'
-			? { nativeCompiler: { executable: resolveNativeCompilerExecutable() } }
-			: { compiler: 'legacy' }
-	);
+	const session = createCompilerSession({
+		nativeCompiler: { executable: resolveNativeCompilerExecutable() }
+	});
 
 	try {
 		if (options.artifacts) {
@@ -113,8 +110,6 @@ function parseArgs(argv: string[]): CliOptions {
 	let artifacts = false;
 	let serverComponents = false;
 	let sourceMap = false;
-	let compiler: CliOptions['compiler'] = 'native';
-
 	for (let index = 0; index < argv.length; index++) {
 		const arg = argv[index]!;
 		if (arg === '--outDir') {
@@ -131,8 +126,6 @@ function parseArgs(argv: string[]): CliOptions {
 			serverComponents = true;
 		} else if (arg === '--sourceMap') {
 			sourceMap = true;
-		} else if (arg === '--compiler') {
-			compiler = parseCompiler(argv[++index]);
 		} else if (arg === '--help' || arg === '-h') {
 			printUsage();
 			process.exit(0);
@@ -149,25 +142,19 @@ function parseArgs(argv: string[]): CliOptions {
 		emitManifest,
 		artifacts,
 		serverComponents,
-		sourceMap,
-		compiler
+		sourceMap
 	};
 }
 
 function printUsage(): void {
 	console.log(
-		'Usage: exactc [--compiler native|legacy] [--outDir dir] [--rootDir dir] [--target default|client|server] [--manifest] [--artifacts] [--serverComponents] [--sourceMap] <file-or-directory...>'
+		'Usage: exactc [--outDir dir] [--rootDir dir] [--target default|client|server] [--manifest] [--artifacts] [--serverComponents] [--sourceMap] <file-or-directory...>'
 	);
 }
 
 function parseTarget(value: string | undefined): TransformTarget {
 	if (value === 'default' || value === 'client' || value === 'server') return value;
 	throw new Error(`Invalid --target ${value ?? ''}`);
-}
-
-function parseCompiler(value: string | undefined): CliOptions['compiler'] {
-	if (value === 'native' || value === 'legacy') return value;
-	throw new Error(`Invalid --compiler ${value ?? ''}`);
 }
 
 main(process.argv.slice(2)).catch((error) => {

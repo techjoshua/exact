@@ -3,7 +3,42 @@
 	"version": "0.1.0",
 	"type": "module",
 	"files": [
-		"dist",
+		"dist/adapter-support.*",
+		"dist/artifact-isolation.*",
+		"dist/artifacts.*",
+		"dist/cli.*",
+		"dist/compilation",
+		"!dist/compilation/analysis-results.*",
+		"!dist/compilation/generated-diagnostics.*",
+		"dist/contracts",
+		"!dist/contracts/emission.*",
+		"dist/explanation.*",
+		"dist/exposures.*",
+		"dist/expression/project.*",
+		"dist/expression/session.*",
+		"dist/expression/session-contracts.*",
+		"dist/ids.*",
+		"dist/index.*",
+		"dist/manifest",
+		"dist/manifest-parse.*",
+		"dist/names.*",
+		"dist/native/executable.*",
+		"dist/native/manifest.*",
+		"dist/native/process.*",
+		"dist/native/process-contracts.*",
+		"dist/native/process-diagnostic-contracts.*",
+		"dist/native/process-module-contracts.*",
+		"dist/native/process-policy-contracts.*",
+		"dist/native/process-semantic-contracts.*",
+		"dist/native/process-worker.*",
+		"dist/native/transformation.*",
+		"dist/paths.*",
+		"dist/plugins.*",
+		"dist/policy-report.*",
+		"dist/registry.*",
+		"dist/source-maps.*",
+		"dist/types.*",
+		"dist/versions.*",
 		"!dist/**/*.test.*"
 	],
 	"exports": {
@@ -26,14 +61,9 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/core": "^0.1.0",
-		"@exactjs/expressions": "^0.1.0",
 		"@exactjs/instrumentation": "^0.1.0",
 		"@exactjs/plugin-api": "^0.1.0",
-		"@exactjs/plugin-host": "^0.1.0",
-		"@typescript/native": "npm:typescript@^7.0.2",
-		"entities": "^6.0.1",
-		"typescript": "npm:@typescript/typescript6@^6.0.2"
+		"@exactjs/plugin-host": "^0.1.0"
 	},
 	"optionalDependencies": {
 		"@exactjs/compiler-native-darwin-arm64": "^0.1.0",
@@ -44,6 +74,8 @@
 		"@exactjs/compiler-native-win32-x64": "^0.1.0"
 	},
 	"devDependencies": {
+		"@exactjs/core": "^0.1.0",
+		"typescript": "npm:@typescript/typescript6@^6.0.2",
 		"vite": "^8.1.5"
 	},
 	"scripts": {

@@ -53,8 +53,6 @@ export type ExactWebpackPluginOptions = {
 	pluginRegistry?: ExactPreparedCompilerRegistry;
 	assetRules?: readonly ExactAssetRule[];
 	diagnostics?: boolean;
-	/** Selects the all-Go compiler host; legacy is an explicit compatibility mode. */
-	compiler?: 'native' | 'legacy';
 	onProfile?: ExactProfileSink;
 };
 
@@ -164,21 +162,12 @@ export class ExactWebpackPlugin {
 	apply(compiler: WebpackCompilerLike): void {
 		let diagnosticsEnabled =
 			this.options.diagnostics ?? Boolean(compiler.watchMode || compiler.options.watch);
-		const owned = createWebpackCompilerSession(
-			diagnosticsEnabled,
-			this.options.compiler,
-			this.options.onProfile
-		);
+		const owned = createWebpackCompilerSession(diagnosticsEnabled, this.options.onProfile);
 		let compilerSession = owned.session;
 		const configureDiagnostics = (enabled: boolean): void => {
 			if (enabled === diagnosticsEnabled) return;
 			diagnosticsEnabled = enabled;
-			compilerSession = replaceWebpackCompilerSession(
-				owned.id,
-				enabled,
-				this.options.compiler,
-				this.options.onProfile
-			);
+			compilerSession = replaceWebpackCompilerSession(owned.id, enabled, this.options.onProfile);
 		};
 		const reporter = createExactDiagnosticReporter();
 		const warn = (message: string): void =>

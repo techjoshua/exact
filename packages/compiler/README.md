@@ -60,18 +60,18 @@ may submit public map sources for a separate disclosure audit.
 
 ## TypeScript compatibility
 
-The default compiler is `exactc-native`, built from a pinned official
+The compiler is `exactc-native`, built from a pinned official
 TypeScript-Go revision with eXact's analysis and lowering passes in the same Go
 process. The tool owns that compiler version independently of the application's
 declared TypeScript dependency. TypeScript 6 repositories remain supported
 because emitted source is constrained to the TypeScript 6 compatibility
 contract.
 
-npm installs a small optional platform package for macOS, Linux, or Windows on
-ARM64 or x64. Application developers do not need Go installed. Set
-`EXACT_NATIVE_COMPILER` only for a hermetic or development build. The CLI and
-bundler adapters expose `compiler: "legacy"` as an explicit differential and
-transition mode; native failures never silently retry through TypeScript 6.
+npm installs only the matching optional platform package for macOS, Linux, or
+Windows on ARM64 or x64. Application developers do not need Go installed. Set
+`EXACT_NATIVE_COMPILER` only for a hermetic or development build. The public
+compiler package, CLI, and bundler adapters use the native host exclusively;
+there is no JavaScript compiler fallback.
 
 ## SSR island activation
 
