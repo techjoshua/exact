@@ -144,6 +144,10 @@ benchmarks. Accept a layout change only when repeated measurements improve a hot
 workload without materially regressing another supported engine or observable
 own-property behavior.
 
+See [`javascript-runtime-object-layout.md`](javascript-runtime-object-layout.md)
+for the initial measurements, rejected options, prioritized experiments, and
+acceptance gates.
+
 ## Partial prerender and resume
 
 Native eXact progressive SSR can emit a fallback shell and reveal settled
