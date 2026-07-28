@@ -1,0 +1,30 @@
+{
+	"name": "Sudoku Atelier",
+	"short_name": "Sudoku",
+	"description": "A tactile, offline Sudoku game built with eXact.",
+	"id": "./sudoku-atelier",
+	"start_url": "./sudoku.html",
+	"scope": "./",
+	"display": "standalone",
+	"orientation": "any",
+	"background_color": "#f3eadc",
+	"theme_color": "#f3eadc",
+	"categories": [
+		"games",
+		"puzzles"
+	],
+	"icons": [
+		{
+			"src": "./sudoku-icon-192.png",
+			"sizes": "192x192",
+			"type": "image/png",
+			"purpose": "any"
+		},
+		{
+			"src": "./sudoku-icon-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "any maskable"
+		}
+	]
+}
