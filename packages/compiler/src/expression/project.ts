@@ -12,6 +12,9 @@ import type { ExactProfileSink } from '@exactjs/instrumentation';
 import fs from 'node:fs';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
+import { NativeCompilerProcess } from '../native/process.js';
+import { resolveNativeCompilerExecutable } from '../native/executable.js';
+import type { NativeCompilerRequest, NativeCompilerResponse } from '../native/process-contracts.js';
 import { canonical, moduleDependencies } from './project-dependencies.js';
 import type {
 	ExactCompilerInvalidation,
@@ -30,6 +33,7 @@ export class ExactCompilerSession {
 	private readonly inferredRoots = new Map<string, string>();
 	private readonly languageServices = new Map<string, ExpressionLanguageService>();
 	private readonly languageServiceEnabled: boolean;
+	private readonly nativeCompiler?: NativeCompilerProcess;
 	private readonly onProfile?: ExactProfileSink<
 		ExactCompilerProfileEvent | ExpressionProjectProfileEvent
 	>;
@@ -38,6 +42,34 @@ export class ExactCompilerSession {
 	constructor(options: ExactCompilerSessionOptions = {}) {
 		this.languageServiceEnabled = options.languageService ?? false;
 		this.onProfile = options.onProfile;
+		if (options.compiler === 'legacy' && options.nativeCompiler)
+			throw new Error('Legacy compiler sessions cannot configure a native compiler process');
+		const nativeCompiler =
+			options.nativeCompiler ??
+			(options.compiler === 'legacy'
+				? undefined
+				: { executable: resolveNativeCompilerExecutable() });
+		this.nativeCompiler = nativeCompiler ? new NativeCompilerProcess(nativeCompiler) : undefined;
+	}
+
+	/** Reports whether transforms owned by this session execute in the Go host. */
+	hasNativeCompiler(): boolean {
+		this.assertActive();
+		return this.nativeCompiler !== undefined;
+	}
+
+	/** Executes one request through this session's persistent Go compiler host. */
+	compileNative(request: NativeCompilerRequest): NativeCompilerResponse {
+		this.assertActive();
+		if (!this.nativeCompiler)
+			throw new Error('This eXact compiler session has no native compiler host');
+		const profileStarted = this.onProfile ? performance.now() : undefined;
+		const response = this.nativeCompiler.request(request);
+		this.profile('expression-module', profileStarted, {
+			cached: response.cacheHit ? 1 : 0,
+			dependencies: response.analysis.imports.length
+		});
+		return response;
 	}
 
 	/** Performs the expression module for domain operation for this exact compiler session instance. */
@@ -202,6 +234,7 @@ export class ExactCompilerSession {
 		this.inferredRoots.clear();
 		for (const service of this.languageServices.values()) service.dispose();
 		this.languageServices.clear();
+		this.nativeCompiler?.request({ kind: 'reset' });
 		this.profile('clear', profileStarted, { projects: projectCount, modules: moduleCount });
 	}
 
@@ -209,6 +242,7 @@ export class ExactCompilerSession {
 	dispose(): void {
 		if (this.disposed) return;
 		this.clear();
+		this.nativeCompiler?.dispose();
 		this.disposed = true;
 	}
 

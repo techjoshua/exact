@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from '../../native-typescript.js';
 import { isFunctionLikeExpression } from '../../calls.js';
 import type {
 	ExpressionTaskResource,
@@ -143,16 +143,16 @@ export function transformTaskWork(
 	let signal: ts.Expression;
 	const contextParameter =
 		parameters.length > dependencyCount ? parameters[parameters.length - 1] : undefined;
-	if (contextParameter && ts.isIdentifier(contextParameter.name)) {
+	if (contextParameter?.name && ts.isIdentifier(contextParameter.name)) {
 		signal = factory.createPropertyAccessExpression(contextParameter.name, 'signal');
-	} else if (contextParameter && ts.isObjectBindingPattern(contextParameter.name)) {
+	} else if (contextParameter?.name && ts.isObjectBindingPattern(contextParameter.name)) {
 		const binding = contextParameter.name.elements.find((element) => {
 			const property = element.propertyName;
 			return property && ts.isIdentifier(property)
 				? property.text === 'signal'
-				: ts.isIdentifier(element.name) && element.name.text === 'signal';
+				: !!element.name && ts.isIdentifier(element.name) && element.name.text === 'signal';
 		});
-		if (binding && ts.isIdentifier(binding.name)) {
+		if (binding?.name && ts.isIdentifier(binding.name)) {
 			signal = binding.name;
 		} else {
 			const local = factory.createIdentifier(helpers.taskSignal);

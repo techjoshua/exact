@@ -83,7 +83,7 @@ export function alignNodeIdentities(
 	const expressionShapeCache = new WeakMap<ExpressionNode, string>();
 	const syntaxChildren = (node: ts.Node): ts.Node[] => {
 		const children: ts.Node[] = [];
-		ts.forEachChild(node, (child) => {
+		node.forEachChild((child) => {
 			children.push(child);
 		});
 		return children;
@@ -307,7 +307,11 @@ function walkIdentityScopes(owner: ts.Node, visit: (node: ts.Node) => boolean): 
 			if (ts.isFunctionLike(node) || ts.isClassLike(node) || ts.isModuleDeclaration(node))
 				return true;
 		}
-		for (const child of node.getChildren()) if (!walk(child)) return false;
+		const children: ts.Node[] = [];
+		node.forEachChild((child) => {
+			children.push(child);
+		});
+		for (const child of children) if (!walk(child)) return false;
 		return true;
 	};
 	walk(owner);
@@ -361,7 +365,7 @@ function indexDeclarationOrdinals(owner: ts.Node): void {
 			declarationOrdinals.set(node, ordinal);
 			counts.set(key, ordinal + 1);
 		}
-		ts.forEachChild(node, visit);
+		node.forEachChild(visit);
 	};
 	visit(owner);
 }

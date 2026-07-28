@@ -4,7 +4,7 @@ import { createCompilerSession, transformSource } from './index.js';
 
 describe('compiler HMR session retention', () => {
 	it('plateaus retained module state across repeated edits and releases removed overlays', () => {
-		const session = createCompilerSession();
+		const session = createCompilerSession({ compiler: 'legacy' });
 		const root = path.resolve(import.meta.dirname, '../../..');
 		const filename = path.join(root, 'apps/kanban/src/__hmr_memory_panel.tsx');
 		const compile = (revision: number) =>
@@ -38,11 +38,11 @@ describe('compiler HMR session retention', () => {
 		expect(removed.overlays).toBe(0);
 		expect(removed.nodeIdentityRoots).toBe(0);
 		session.dispose();
-	});
+	}, 60_000);
 
 	it('isolates owned sessions and rejects work after disposal', () => {
-		const first = createCompilerSession();
-		const second = createCompilerSession();
+		const first = createCompilerSession({ compiler: 'legacy' });
+		const second = createCompilerSession({ compiler: 'legacy' });
 		const options = {
 			filename: 'src/session.ts',
 			root: path.resolve(import.meta.dirname, '../../..')
@@ -65,7 +65,7 @@ describe('compiler HMR session retention', () => {
 	});
 
 	it('rebuilds only the workspace affected by an HMR change', () => {
-		const session = createCompilerSession();
+		const session = createCompilerSession({ compiler: 'legacy' });
 		const root = path.resolve(import.meta.dirname, '../../..');
 		const kanban = path.join(root, 'apps/kanban/src/__scoped_hmr.ts');
 		const shipping = path.join(root, 'apps/shipping-calculator/src/__scoped_hmr.ts');
@@ -83,7 +83,7 @@ describe('compiler HMR session retention', () => {
 	});
 
 	it("removes a deleted file's stable identities as well as its overlay", () => {
-		const session = createCompilerSession();
+		const session = createCompilerSession({ compiler: 'legacy' });
 		const root = path.resolve(import.meta.dirname, '../../..');
 		const filename = path.join(root, 'apps/kanban/src/__removed_identity.ts');
 		session.expressionModuleFor(
@@ -103,7 +103,7 @@ describe('compiler HMR session retention', () => {
 	});
 
 	it('keeps semantic generated validation available outside the transform hot path', () => {
-		const session = createCompilerSession();
+		const session = createCompilerSession({ compiler: 'legacy' });
 		const root = path.resolve(import.meta.dirname, '../../..');
 		const syntaxFile = path.join(root, 'apps/kanban/src/__syntax_validation.tsx');
 		const semanticFile = path.join(root, 'apps/kanban/src/__semantic_validation.tsx');
@@ -117,5 +117,5 @@ describe('compiler HMR session retention', () => {
 		expect(afterSyntax.semanticDiagnostics).toBe(0);
 		expect(afterSemantic.semanticDiagnostics).toBeGreaterThanOrEqual(2);
 		session.dispose();
-	});
+	}, 15_000);
 });

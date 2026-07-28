@@ -1,4 +1,4 @@
-import type ts from 'typescript';
+import type * as ts from '../../native-typescript.js';
 
 /** Defines the component local info type contract. */
 export type ComponentLocalInfo = { functions: Map<string, ts.Statement> };

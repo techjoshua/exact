@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from '../../native-typescript.js';
 import { isIdentifierDeclarationName, isPropertyAccessName } from '../../ast.js';
 import { isThisTaskCall } from '../../calls.js';
 import { expressionEmissionId } from './identity.js';
@@ -255,7 +255,7 @@ export function visitJsxExpression(
 			helpers
 		);
 	}
-	if (node.pos >= 0 && ts.isShorthandPropertyAssignment(node)) {
+	if (node.pos >= 0 && ts.isShorthandPropertyAssignment(node) && ts.isIdentifier(node.name)) {
 		const derived = derivedReactiveLocals.references.get(expressionEmissionId(node.name) ?? '');
 		if (derived?.cached) {
 			return factory.createPropertyAssignment(

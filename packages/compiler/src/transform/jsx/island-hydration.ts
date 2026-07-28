@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from '../../native-typescript.js';
 import type { ClientIslandElementNode, HelperNames } from '../../types.js';
 import type { DerivedReactiveIndex } from './contracts.js';
 import { canonicalElementId } from './element-emission.js';
@@ -248,7 +248,8 @@ function interactionFallbackSpread(
 		value,
 		value.properties
 			.filter((property) => {
-				const name = property.name && staticJsxPropertyName(property.name);
+				const name =
+					'name' in property && property.name ? staticJsxPropertyName(property.name) : undefined;
 				return name !== 'ref' && !(name && /^on[A-Z]/.test(name));
 			})
 			.map((property) => ts.visitNode(property, visitor) as ts.ObjectLiteralElementLike)

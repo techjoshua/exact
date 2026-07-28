@@ -372,7 +372,8 @@ describe('symbol-level placement inference', () => {
 			transform(
 				`import "opaque-package/register"; export function Pure() { return () => <p />; }`,
 				{
-					filename: 'C:/src/Page.tsx'
+					filename: 'C:/src/Page.tsx',
+					target: 'client'
 				}
 			)
 		).toThrow('executable module initializer depends on an opaque call or side-effect import');

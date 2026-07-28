@@ -1,6 +1,7 @@
 import { rewriteModuleReferences } from '@exactjs/expressions';
 import path from 'node:path';
 import ts from 'typescript';
+import { transformSourceFile as transformNativeSourceFile } from '../native-typescript.js';
 import { analyzeCallableEffects } from '../analysis/callable-effects.js';
 import { analyzeExactAnnotations } from '../annotations.js';
 import { analyzeModuleImports } from '../assets.js';
@@ -13,6 +14,8 @@ import { analyzeExpressionJsx, reactInteropFactoryCallEffects } from '../express
 import { analyzeExpressionTasks } from '../expression/task-analysis.js';
 import { analyzeExpressionWrites } from '../expression/writes.js';
 import { collectExpressionImportedComponents } from '../imports.js';
+import { printNativeSource } from '../emission/native-printing.js';
+import { transformSourceWithNativeCompiler } from '../native/transformation.js';
 import {
 	analyzeExactPolicyMetadata,
 	applyExactPolicyToCallables,
@@ -28,6 +31,7 @@ import { exactJsxTransformer } from '../transform/jsx/transformer.js';
 import type { ExactImportedComponentIR, TransformOptions, TransformResult } from '../types.js';
 
 import { analyzeNormalizedSource } from './source-analysis.js';
+import { defaultNativeCompilerSession } from '../expression/session.js';
 
 /** Analyzes generic dependencies and overlays eXact reactive provenance. */
 export function analyzeReactiveProvenance(source: string, options: TransformOptions = {}) {
@@ -51,7 +55,14 @@ export function transform(source: string, options: TransformOptions = {}): strin
 
 /** Transforms eXact TSX/JSX source into code, source map metadata, and compiler manifest. */
 export function transformSource(source: string, options: TransformOptions = {}): TransformResult {
+	if (!options.session && options.compiler !== 'legacy')
+		return transformSource(source, {
+			...options,
+			session: defaultNativeCompilerSession()
+		});
 	const filename = options.filename ?? 'input.tsx';
+	if (options.session?.hasNativeCompiler())
+		return transformSourceWithNativeCompiler(source, filename, options);
 	const normalized = preprocessComponentComputations(preprocessPropPunning(source), filename);
 	const virtual = !path.isAbsolute(filename);
 	const importedManifests = validatedImportedManifests(
@@ -182,7 +193,7 @@ export function transformSource(source: string, options: TransformOptions = {}):
 			placement: component.placement,
 			componentId: component.id
 		});
-	const result = ts.transform(sourceFile, [
+	const nativeTransformers = [
 		exactJsxTransformer(
 			expressionModule,
 			filename,
@@ -208,18 +219,17 @@ export function transformSource(source: string, options: TransformOptions = {}):
 			options.serverComponents ?? false
 		),
 		exactSecretQualificationTransformer(secretQualifications)
-	]);
-	const transformed = result.transformed[0]!;
-	const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
+	] as const;
 	const printed = emitExpressionRewrite(
 		expressionModule,
-		printer.printFile(transformed as ts.SourceFile),
+		printNativeSource(normalized, (nativeSource) =>
+			transformNativeSourceFile(nativeSource, nativeTransformers)
+		),
 		options.root,
 		virtual,
 		options.session,
 		options.generatedValidation ?? 'syntax'
 	);
-	result.dispose();
 	validateTargetAnalysis(callableEffects, target, filename);
 	const output = options.moduleTransform
 		? options.moduleTransform({ id: filename, source: printed, target }).code

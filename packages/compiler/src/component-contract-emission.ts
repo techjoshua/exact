@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from './native-typescript.js';
 import type { ContinuationExecutorEmission } from './continuation-executor-emission.js';
 import { continuationDescriptorExpression, inertMetadataExpression } from './descriptor-values.js';
 import type {

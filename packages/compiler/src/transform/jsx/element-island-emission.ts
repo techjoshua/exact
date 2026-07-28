@@ -1,4 +1,4 @@
-import type ts from 'typescript';
+import type * as ts from '../../native-typescript.js';
 import {
 	clientComponentChildrenProp,
 	jsxElementHasNoMeaningfulChildren,
@@ -52,7 +52,8 @@ export function transformJsxElementIsland(
 			node.openingElement.tagName,
 			node.openingElement.attributes,
 			childrenProp,
-			serverChildren
+			serverChildren,
+			componentRenderIdentity(environment, node)
 		);
 	}
 	const ownsClientMachine = componentOwnsClientMachine(
@@ -154,7 +155,10 @@ export function transformJsxSelfClosingIsland(
 			componentInfo,
 			node,
 			node.tagName,
-			node.attributes
+			node.attributes,
+			undefined,
+			undefined,
+			componentRenderIdentity(environment, node)
 		);
 	}
 	const ownsClientMachine = componentOwnsClientMachine(
@@ -202,6 +206,22 @@ export function transformJsxSelfClosingIsland(
 			derivedReactiveLocals,
 			expressionJsx
 		);
+	}
+	return undefined;
+}
+
+function componentRenderIdentity(
+	environment: JsxVisitorEnvironment,
+	node: ts.JsxElement | ts.JsxSelfClosingElement
+): string | undefined {
+	const owner = environment.state.componentSiteStack.at(-1);
+	const site = owner ? environment.expressionComponents.sites.get(owner) : undefined;
+	const start = node.getStart(environment.sourceFile);
+	const owned = site?.renders.find((render) => render.start === start);
+	if (owned) return owned.nodeId;
+	for (const candidate of environment.expressionComponents.sites.values()) {
+		const render = candidate.renders.find((entry) => entry.start === start);
+		if (render) return render.nodeId;
 	}
 	return undefined;
 }

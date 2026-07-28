@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from '../../native-typescript.js';
 import { isFunctionLikeExpression } from '../../calls.js';
 import type { ExpressionDerivedPlan } from '../../expression/derived.js';
 import type { ExpressionJsxPlan } from '../../expression/jsx.js';

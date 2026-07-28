@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from '../../native-typescript.js';
 import type { HelperNames } from '../../types.js';
 
 import type { DerivedReactiveIndex } from './contracts.js';

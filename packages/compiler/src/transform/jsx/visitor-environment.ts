@@ -1,4 +1,4 @@
-import type ts from 'typescript';
+import type * as ts from '../../native-typescript.js';
 import type { CallableEffectPlan } from '../../analysis/callable-effects.js';
 import type { ExactModuleImportPlan } from '../../assets.js';
 import type {
@@ -74,21 +74,13 @@ export function createJsxVisitorEnvironment(
 ): JsxVisitorEnvironment {
 	const expressionTaskFor = (node: ts.Node) => expressionTasks.sites.get(expressionId(node) ?? '');
 	const expressionResourceFor = (node: ts.Node) =>
-		node.pos < 0 || node.end < 0
-			? undefined
-			: expressionTasks.resources.get(expressionId(node) ?? '');
+		expressionTasks.resources.get(expressionId(node) ?? '');
 	const expressionListenerFor = (node: ts.Node) =>
-		node.pos < 0 || node.end < 0
-			? undefined
-			: expressionTasks.lifecycleListeners.get(expressionId(node) ?? '');
+		expressionTasks.lifecycleListeners.get(expressionId(node) ?? '');
 	const expressionSetupFor = (node: ts.Node) =>
-		node.pos < 0 || node.end < 0
-			? undefined
-			: expressionTasks.setupTasks.get(expressionId(node) ?? '');
+		expressionTasks.setupTasks.get(expressionId(node) ?? '');
 	const expressionSignalFor = (node: ts.Node) =>
-		node.pos < 0 || node.end < 0
-			? undefined
-			: expressionTasks.signalCalls.get(expressionId(node) ?? '');
+		expressionTasks.signalCalls.get(expressionId(node) ?? '');
 	const taskPlacementFor = (node: ts.Node): ExactPlacement =>
 		expressionTaskFor(node)?.placement ?? 'unknown';
 	const isClientComponentTag = (tag: ts.JsxTagNameExpression): boolean =>

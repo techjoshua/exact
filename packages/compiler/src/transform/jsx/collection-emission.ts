@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from '../../native-typescript.js';
 import { isFunctionLikeExpression } from '../../calls.js';
 import type { ExpressionJsxListSite } from '../../expression/jsx.js';
 import { stableId } from '../../ids.js';

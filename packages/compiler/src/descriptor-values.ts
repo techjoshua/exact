@@ -1,4 +1,4 @@
-import type ts from 'typescript';
+import type * as ts from './native-typescript.js';
 import type { ExactContinuationIR } from './types.js';
 
 /** Emits target-local continuation contracts as inert artifact metadata. */
@@ -27,6 +27,9 @@ export function continuationDescriptorValues(
 			? []
 			: continuation.activation.serverContexts.map((context) => context.token),
 		contextWrites: continuation.effects.contextWrites.map((context) => context.token),
+		serverContextWrites: client
+			? []
+			: continuation.effects.serverContextWrites.map((context) => context.token),
 		boundaries: continuation.effects.boundaries
 	}));
 }

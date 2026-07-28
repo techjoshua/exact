@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from '../../native-typescript.js';
 import { isIdentifierDeclarationName, isPropertyAccessName } from '../../ast.js';
 import {
 	isFunctionLikeExpression,
@@ -63,7 +63,7 @@ export function rewriteDerivedReactiveExpression(
 				)
 			);
 		}
-		if (ts.isShorthandPropertyAssignment(node)) {
+		if (ts.isShorthandPropertyAssignment(node) && ts.isIdentifier(node.name)) {
 			const derived = derivedReactiveLocals.references.get(expressionEmissionId(node.name) ?? '');
 			if (derived?.cached) {
 				return context.factory.createPropertyAssignment(

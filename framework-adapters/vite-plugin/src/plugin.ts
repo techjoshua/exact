@@ -2,6 +2,7 @@ import {
 	createCompilerSession,
 	createLineSourceMap,
 	exactExportConditions,
+	resolveNativeCompilerExecutable,
 	resolveExactArtifactImport,
 	transformSource,
 	type ExactAssetRule,
@@ -61,6 +62,8 @@ export type ExactPluginOptions = {
 	pluginRegistry?: ExactPreparedCompilerRegistry;
 	assetRules?: readonly ExactAssetRule[];
 	diagnostics?: boolean;
+	/** Selects the all-Go compiler host; legacy is an explicit compatibility mode. */
+	compiler?: 'native' | 'legacy';
 	configureJsxRuntime?: boolean;
 	compileTestModules?: boolean;
 	onProfile?: ExactProfileSink;
@@ -149,6 +152,9 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 	let diagnosticsEnabled = options.diagnostics ?? false;
 	let compilerSession = createCompilerSession({
 		languageService: diagnosticsEnabled,
+		...(options.compiler === 'legacy'
+			? { compiler: 'legacy' as const }
+			: { nativeCompiler: { executable: resolveNativeCompilerExecutable() } }),
 		onProfile: options.onProfile
 	});
 	const diagnosticReporter = createExactDiagnosticReporter();
@@ -158,6 +164,9 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		diagnosticsEnabled = enabled;
 		compilerSession = createCompilerSession({
 			languageService: enabled,
+			...(options.compiler === 'legacy'
+				? { compiler: 'legacy' as const }
+				: { nativeCompiler: { executable: resolveNativeCompilerExecutable() } }),
 			onProfile: options.onProfile
 		});
 	};

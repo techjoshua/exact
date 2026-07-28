@@ -29,7 +29,7 @@ describe('component task call facets', () => {
 	});
 });
 
-function taskCall(source: string): ts.CallExpression {
+function taskCall(source: string): Parameters<typeof isThisTaskCall>[0] {
 	const file = ts.createSourceFile(
 		'task.ts',
 		source,
@@ -44,5 +44,5 @@ function taskCall(source: string): ts.CallExpression {
 		!ts.isCallExpression(statement.expression)
 	)
 		throw new Error('Expected task call expression');
-	return statement.expression;
+	return statement.expression as unknown as Parameters<typeof isThisTaskCall>[0];
 }

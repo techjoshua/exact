@@ -1,9 +1,8 @@
-import type ts from 'typescript';
 import type { ExactSemanticGraphIR, ExportBinding } from './types.js';
 
 /** Collects exported names from a source file. */
 export function collectExports(
-	_sourceFile: ts.SourceFile,
+	_sourceFile: unknown,
 	semanticGraph: ExactSemanticGraphIR
 ): Set<string> {
 	return new Set([...collectExpressionExportBindings(semanticGraph).keys()]);
@@ -11,7 +10,7 @@ export function collectExports(
 
 /** Collects exported-to-local binding names from semantic export declarations. */
 export function collectExportBindings(
-	sourceFile: ts.SourceFile,
+	sourceFile: unknown,
 	semanticGraph: ExactSemanticGraphIR
 ): Map<string, ExportBinding> {
 	void sourceFile;

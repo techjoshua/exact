@@ -1,6 +1,6 @@
 import { builtinModules } from 'node:module';
 import path from 'node:path';
-import ts from 'typescript';
+import * as ts from './native-typescript.js';
 import { slashPath } from './paths.js';
 import type {
 	ExactCompilerManifest,
@@ -152,7 +152,7 @@ export function isServerOnlyImportDeclaration(statement: ts.Statement): boolean 
 function importDeclarationHasRuntimeBinding(statement: ts.ImportDeclaration): boolean {
 	const clause = statement.importClause;
 	if (!clause) return true;
-	if (clause.isTypeOnly) return false;
+	if (clause.phaseModifier === ts.SyntaxKind.TypeKeyword) return false;
 	if (clause.name) return true;
 	const bindings = clause.namedBindings;
 	if (!bindings) return false;

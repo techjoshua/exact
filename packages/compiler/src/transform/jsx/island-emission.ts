@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from '../../native-typescript.js';
 import { stableId } from '../../ids.js';
 import { clientComponentBoundaryId } from '../../names.js';
 import type { ExactImportedComponentIR, HelperNames, StateSnapshotTree } from '../../types.js';
@@ -18,16 +18,17 @@ export function createComponentIslandBoundaryCall(
 	tagName: ts.JsxTagNameExpression,
 	attributes: ts.JsxAttributes,
 	children?: ts.Expression,
-	serverChildren?: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[]
+	serverChildren?: ts.NodeArray<ts.JsxChild> | readonly ts.JsxChild[],
+	nodeIdentity?: string
 ): ts.Expression {
 	const factory = context.factory;
 	const componentName = componentBoundaryName(tagName, componentInfo, sourceFile);
-	const nodeId = expressionEmissionId(node);
+	const nodeId = nodeIdentity ?? expressionEmissionId(node);
 	if (!nodeId)
 		throw new Error(
 			`Missing canonical expression identity for component boundary emission in ${sourceFile.fileName}`
 		);
-	const id = clientComponentBoundaryId(sourceFile.fileName, componentName, nodeId);
+	const id = clientComponentBoundaryId(identityFilenameFor(sourceFile), componentName, nodeId);
 	const props = islandProps(context, attributes);
 	return factory.createCallExpression(factory.createIdentifier(helpers.boundary), undefined, [
 		factory.createStringLiteral(id),

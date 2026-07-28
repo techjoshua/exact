@@ -12,7 +12,8 @@ const packageRoots = [
 	'framework-adapters',
 	'react-adapters',
 	'plugins',
-	'component-libraries'
+	'component-libraries',
+	'native/npm'
 ].map((directory) => path.join(root, directory));
 const npmCommand = process.env.npm_execpath
 	? { file: process.execPath, args: [process.env.npm_execpath] }

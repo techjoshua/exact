@@ -1,4 +1,4 @@
-import { createCompiledVNode as __exactVNode, createCompiledFragment as __exactFragment, createExpression as __exactExpression, createDynamicChild as __exactDynamic, createDerived as __exactDerived, writeReactiveLazy as __exactWrite, updateReactiveValue as __exactUpdate, updateReactiveValueWithResult as __exactUpdateResult, deleteReactiveValue as __exactDelete, mutateReactiveArray as __exactArrayMutation } from "@exactjs/core";
+import { createCompiledVNode as __exactVNode, createExpression as __exactExpression, createDynamicChild as __exactDynamic, createServerBoundary as __exactBoundary, updateReactiveValue as __exactUpdate } from "@exactjs/core";
 import { createContext, type Child, type Component } from '@exactjs/core';
 /** Defines the server authorization interface contract. */
 export interface ServerAuthorization {
@@ -30,8 +30,6 @@ export interface PublicIdentity {
         accent: string;
     };
 }
-;
-;
 /** Provides the canonical authorization context value. */
 export const AuthorizationContext = createContext<Authorization>('sample.authorization.public', {
     global: true,
@@ -42,7 +40,13 @@ export const BrandContext = createContext<Brand>('sample.brand.public', {
     global: true,
     reactive: false
 });
-;
+/**
+ * Reads protected server contexts and projects only explicitly shared public
+ * results into client-visible component state.
+ */
+export function ServerIdentityProjection(props = {}) {
+    return () => __exactBoundary("x7lUG8ar6kMFhXkbBAturJw", "ServerIdentityProjection", props);
+}
 /**
  * Reconstructs public context methods from plain state during both SSR and
  * hydration. This context remains component-tree scoped.
@@ -61,12 +65,12 @@ export function IdentityProvider(this: Component<{
     const authorization: Authorization = {
         hasRole: (role) => this.state.roleNames.split(',').includes(role)
     };
-    const brand = __exactDerived(() => ({
+    const brand = {
         name: () => this.state.brandName,
         accent: () => this.state.brandAccent
-    }));
+    };
     this.setContext(AuthorizationContext, authorization);
-    this.setContext(BrandContext, brand.get());
+    this.setContext(BrandContext, brand);
     return () => props.children ?? __exactVNode(IdentitySummary, {});
 }
 Object.assign(IdentityProvider, { [Symbol.for("@exactjs/component")]: true });
@@ -74,6 +78,6 @@ Object.assign(IdentityProvider, { [Symbol.for("@exactjs/component")]: true });
 export function IdentitySummary(this: Component<Record<string, never>>) {
     const authorization = this.getContext(AuthorizationContext);
     const brand = this.getContext(BrandContext);
-    return () => (__exactVNode("button", { "data-exact-id": "xIrMXn9l9qpxy-0CWHBPPL6", "data-brand": __exactExpression(() => brand.name()), "data-accent": __exactExpression(() => brand.accent()), "data-editor": __exactExpression(() => authorization.hasRole('editor') ? 'true' : 'false') }, __exactDynamic(() => brand.name(), "xo60leiF3LuiZwniWkUKuZd"), ":", __exactDynamic(() => authorization.hasRole('editor') ? 'editor' : 'viewer', "xk7W_9JNvDZyK8H_cT5y_mm")));
+    return () => (__exactVNode("button", { "data-exact-id": "xczfR4as2ORYHnW6n2Y0hU9", "data-brand": __exactExpression(() => brand.name()), "data-accent": __exactExpression(() => brand.accent()), "data-editor": __exactExpression(() => authorization.hasRole('editor') ? 'true' : 'false') }, __exactDynamic(() => brand.name(), "xFb9nRzr4451CyTG9GFbdtb"), ":", __exactDynamic(() => authorization.hasRole('editor') ? 'editor' : 'viewer', "xgQR3dLVk7L7B6JPABwp1PX")));
 }
 Object.assign(IdentitySummary, { [Symbol.for("@exactjs/component")]: true });

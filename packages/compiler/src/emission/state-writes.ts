@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from '../native-typescript.js';
 import type { HelperNames } from '../types.js';
 
 /** Lowers a component-state assignment through the transactional runtime API. */

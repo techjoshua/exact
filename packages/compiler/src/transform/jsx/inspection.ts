@@ -1,10 +1,10 @@
-import ts from 'typescript';
+import * as ts from '../../native-typescript.js';
 import type { ExactImportedComponentIR } from '../../types.js';
 
 /** Returns whether JSX attributes force an element into a client island. */
 export function jsxElementIsClientIsland(attributes: ts.JsxAttributes): boolean {
 	return attributes.properties.some((property) => {
-		if (ts.isJsxSpreadAttribute(property)) return false;
+		if (!('name' in property) || !property.name) return false;
 		const name = property.name.getText();
 		return /^on[A-Z]/.test(name) || name === 'ref' || isReactiveFormAttribute(name);
 	});
@@ -63,13 +63,14 @@ export function componentBoundaryName(
 
 /** Returns whether a JSX tag is an intrinsic DOM-like element. */
 export function jsxTagIsIntrinsicElement(tagName: ts.JsxTagNameExpression): boolean {
-	if (ts.isIdentifier(tagName)) return /^[a-z]/.test(tagName.text);
+	if (typeof (tagName as { text?: unknown }).text === 'string')
+		return /^[a-z]/.test((tagName as { text: string }).text);
 	return ts.isJsxNamespacedName(tagName);
 }
 
 /** Returns whether a JSX element has only empty text children. */
 export function jsxElementHasNoMeaningfulChildren(node: ts.JsxElement): boolean {
-	return node.children.every((child) => ts.isJsxText(child) && !child.text.trim());
+	return node.children.every((child) => isJsxTextLike(child) && !child.text.trim());
 }
 
 /** Converts simple client-component JSX children into a serializable children prop expression. */
@@ -80,7 +81,7 @@ export function clientComponentChildrenProp(
 	const values: ts.Expression[] = [];
 	let text = '';
 	for (const child of node.children) {
-		if (ts.isJsxText(child)) {
+		if (isJsxTextLike(child)) {
 			text += child.text;
 			continue;
 		}
@@ -88,7 +89,7 @@ export function clientComponentChildrenProp(
 		if (normalized) values.push(context.factory.createStringLiteral(normalized));
 		text = '';
 
-		if (ts.isJsxExpression(child)) {
+		if (isJsxExpressionLike(child)) {
 			if (!child.expression) continue;
 			if (containsJsx(child.expression)) return undefined;
 			values.push(child.expression);
@@ -106,8 +107,8 @@ export function clientComponentChildrenProp(
 /** Returns whether client component children require a server slot boundary. */
 export function clientComponentHasServerSlotChildren(node: ts.JsxElement): boolean {
 	for (const child of node.children) {
-		if (ts.isJsxText(child)) continue;
-		if (ts.isJsxExpression(child)) {
+		if (isJsxTextLike(child)) continue;
+		if (isJsxExpressionLike(child)) {
 			if (child.expression && containsJsx(child.expression)) return true;
 			continue;
 		}
@@ -124,7 +125,8 @@ export function containsJsx(node: ts.Node): boolean {
 		if (
 			ts.isJsxElement(current) ||
 			ts.isJsxSelfClosingElement(current) ||
-			ts.isJsxFragment(current)
+			ts.isJsxFragment(current) ||
+			isJsxContainerLike(current)
 		) {
 			found = true;
 			return;
@@ -133,4 +135,41 @@ export function containsJsx(node: ts.Node): boolean {
 	}
 	visit(node);
 	return found;
+}
+
+function isJsxTextLike(node: ts.Node): node is ts.JsxText {
+	return (
+		ts.isJsxText(node) ||
+		(typeof (node as { text?: unknown }).text === 'string' &&
+			!('expression' in node) &&
+			!('tagName' in node))
+	);
+}
+
+function isJsxExpressionLike(node: ts.Node): node is ts.JsxExpression {
+	const value = node as unknown as {
+		expression?: unknown;
+		name?: unknown;
+		tagName?: unknown;
+	};
+	return (
+		ts.isJsxExpression(node) ||
+		(value.expression !== undefined && value.name === undefined && value.tagName === undefined)
+	);
+}
+
+function isJsxContainerLike(node: ts.Node): boolean {
+	const value = node as unknown as {
+		openingElement?: unknown;
+		closingElement?: unknown;
+		tagName?: unknown;
+		attributes?: unknown;
+		openingFragment?: unknown;
+		closingFragment?: unknown;
+	};
+	return (
+		(value.openingElement !== undefined && value.closingElement !== undefined) ||
+		(value.tagName !== undefined && value.attributes !== undefined) ||
+		(value.openingFragment !== undefined && value.closingFragment !== undefined)
+	);
 }

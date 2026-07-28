@@ -1,10 +1,9 @@
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
-import ts from 'typescript';
+import { discoverExpressionCorpus } from './expression-corpus/discovery.mjs';
 import {
 	appendExpressionCorpusHistory,
 	batchExpressionCorpusGroups,
@@ -12,8 +11,6 @@ import {
 	defaultExpressionCorpusWorkerHeapMb,
 	expressionCorpusRunRecord,
 	expressionCorpusTrend,
-	isExpressionCorpusProject,
-	isExpressionCorpusSource,
 	positiveInteger,
 	readExpressionCorpusBaseline,
 	writeExpressionCorpusBaseline
@@ -27,22 +24,7 @@ if (process.argv[2] === '--group') {
 	process.stdout.write(JSON.stringify(await checkGroup(config, filenames, profileDetail)));
 } else {
 	const corpusStarted = performance.now();
-	const files = await collectSources(root);
-	const groups = new Map();
-	const projectEligibility = new Map();
-	for (const filename of files) {
-		const config = nearestConfig(path.dirname(filename));
-		if (!config) throw new Error(`No tsconfig.json found for ${filename}`);
-		let eligible = projectEligibility.get(config);
-		if (eligible === undefined) {
-			eligible = await expressionCorpusProject(config);
-			projectEligibility.set(config, eligible);
-		}
-		if (!eligible) continue;
-		const group = groups.get(config) ?? [];
-		group.push(filename);
-		groups.set(config, group);
-	}
+	const { groups } = await discoverExpressionCorpus(root);
 
 	const batchSize = positiveInteger(
 		process.env.EXACT_EXPRESSION_BATCH_SIZE,
@@ -322,64 +304,6 @@ async function readStandardInput() {
 	let input = '';
 	for await (const chunk of process.stdin) input += chunk;
 	return input;
-}
-
-async function collectSources(directory) {
-	const output = [];
-	for (const entry of await readdir(directory, { withFileTypes: true })) {
-		if (
-			entry.name === 'node_modules' ||
-			entry.name === 'dist' ||
-			entry.name === '.git' ||
-			entry.name === '.tmp'
-		)
-			continue;
-		const filename = path.join(directory, entry.name);
-		if (entry.isDirectory()) output.push(...(await collectSources(filename)));
-		else if (isExpressionCorpusSource(entry.name)) output.push(filename);
-	}
-	return output;
-}
-
-async function expressionCorpusProject(config) {
-	const read = ts.readConfigFile(config, ts.sys.readFile);
-	if (read.error) return false;
-	const parsed = ts.parseJsonConfigFileContent(
-		read.config,
-		ts.sys,
-		path.dirname(config),
-		undefined,
-		config
-	);
-	const manifest = nearestManifest(path.dirname(config));
-	return isExpressionCorpusProject(
-		manifest ? JSON.parse(await readFile(manifest, 'utf8')) : undefined,
-		parsed.options.jsxImportSource
-	);
-}
-
-function nearestManifest(directory) {
-	let cursor = directory;
-	while (cursor.startsWith(root)) {
-		const candidate = path.join(cursor, 'package.json');
-		if (existsSync(candidate)) return candidate;
-		const parent = path.dirname(cursor);
-		if (parent === cursor) break;
-		cursor = parent;
-	}
-	return undefined;
-}
-
-function nearestConfig(directory) {
-	let cursor = directory;
-	while (cursor.startsWith(root)) {
-		const candidate = path.join(cursor, 'tsconfig.json');
-		if (existsSync(candidate)) return candidate;
-		const parent = path.dirname(cursor);
-		if (parent === cursor) break;
-		cursor = parent;
-	}
-	return undefined;
 }
 
 function normalize(filename) {

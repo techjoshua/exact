@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from './native-typescript.js';
 import { isThisTaskCall } from './calls.js';
 import {
 	continuationContextValueExpression,
@@ -136,7 +136,6 @@ function continuationExecutor(
 	const execution = factory.createUniqueName('__exactExecution');
 	const component = factory.createUniqueName('__exactComponent');
 	const contextWrites = factory.createUniqueName('__exactContextWrites');
-	const serverContextWrites = factory.createUniqueName('__exactServerContextWrites');
 	const referenced = referencedFreeNames(work);
 	const aliasStatements = aliases
 		.filter((alias) => referenced.has(alias.name))
@@ -172,7 +171,6 @@ function continuationExecutor(
 			execution,
 			component,
 			contextWrites,
-			serverContextWrites,
 			context,
 			filename
 		),
@@ -244,20 +242,6 @@ function continuationExecutor(
 						[
 							factory.createVariableDeclaration(
 								contextWrites,
-								undefined,
-								undefined,
-								factory.createObjectLiteralExpression()
-							)
-						],
-						ts.NodeFlags.Const
-					)
-				),
-				factory.createVariableStatement(
-					undefined,
-					factory.createVariableDeclarationList(
-						[
-							factory.createVariableDeclaration(
-								serverContextWrites,
 								undefined,
 								undefined,
 								factory.createObjectLiteralExpression()
@@ -352,7 +336,7 @@ function collectBindingNames(name: ts.BindingName, output: Set<string>): void {
 		return;
 	}
 	for (const element of name.elements)
-		if (!ts.isOmittedExpression(element)) collectBindingNames(element.name, output);
+		if (!ts.isOmittedExpression(element) && element.name) collectBindingNames(element.name, output);
 }
 
 /** Excludes syntax positions whose identifier text is not a value read. */

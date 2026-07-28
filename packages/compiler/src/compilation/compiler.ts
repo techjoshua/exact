@@ -84,4 +84,29 @@ export {
 	compileProjectArtifacts
 } from './artifact-compilation.js';
 export { createExactArtifactDevState, updateExactArtifactDevState } from './dev-state.js';
+export { NativeCompilerProcess } from '../native/process.js';
+export {
+	nativeCompilerPlatformPackage,
+	resolveNativeCompilerExecutable
+} from '../native/executable.js';
+export { nativeCompilerProtocolVersion } from '../native/process-contracts.js';
+export type {
+	NativeCompilerAnalysis,
+	NativeCompilerComponent,
+	NativeCompilerDiagnostic,
+	NativeCompilerImport,
+	NativeCompilerJSXAttribute,
+	NativeCompilerJSXElement,
+	NativeCompilerReactiveBinding,
+	NativeCompilerStateAlias,
+	NativeCompilerStateRead,
+	NativeCompilerStateWrite,
+	NativeCompilerStateEffect,
+	NativeCompilerTask,
+	NativeCompilerRequest,
+	NativeCompilerResponse,
+	NativeCompilerSourceMap,
+	NativeCompilerTimings
+} from '../native/process-contracts.js';
+export type { NativeCompilerProcessOptions } from '../native/process.js';
 export { createExactArtifactPlan } from './artifact-plan.js';

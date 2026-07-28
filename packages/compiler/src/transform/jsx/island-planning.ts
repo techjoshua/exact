@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from '../../native-typescript.js';
 import { isIdentifierDeclarationName, isPropertyAccessName } from '../../ast.js';
 import { collectExports } from '../../exports.js';
 import type { ExpressionJsxPlan } from '../../expression/jsx.js';

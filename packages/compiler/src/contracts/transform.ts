@@ -12,6 +12,8 @@ export type TransformOptions = {
 	root?: string;
 	/** Owned incremental compiler state; direct callers use the process-default session when omitted. */
 	session?: ExactCompilerSession;
+	/** Uses the all-Go host by default; legacy retains the compatibility compiler. */
+	compiler?: 'native' | 'legacy';
 	target?: TransformTarget;
 	importedManifests?: readonly ExactCompilerManifest[];
 	serverComponents?: boolean;

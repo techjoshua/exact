@@ -10,7 +10,8 @@
 		"react-adapters/*",
 		"plugins/*",
 		"component-libraries/*",
-		"apps/*"
+		"apps/*",
+		"native/npm/*"
 	],
 	"scripts": {
 		"build": "tsc6 -b",
@@ -22,7 +23,7 @@
 		"check:style": "npm run format:check && npm run lint",
 		"test": "npm run test:packages && npm run test:server-components && npm run test:shipping",
 		"test:bun": "npm run build -w @exactjs/bun-plugin -w @exactjs/bun-adapter -w @exactjs/bun-test && npm run test:bun -w @exactjs/bun-plugin -w @exactjs/bun-adapter -w @exactjs/bun-test",
-		"check:publish": "node scripts/check-release-manifests.mjs && node scripts/check-package-contents.mjs && npm run check:readmes",
+		"check:publish": "node scripts/check-release-manifests.mjs && node scripts/check-native-compiler-packages.mjs && node scripts/check-package-contents.mjs && npm run check:readmes",
 		"check:readmes": "node scripts/check-package-readmes.mjs",
 		"version:packages": "node scripts/version-packages.mjs",
 		"release:check": "node scripts/release-check.mjs --profile=check",
@@ -42,7 +43,11 @@
 		"check:typescript-compatibility": "node scripts/check-typescript-compatibility.mjs",
 		"benchmark:reactive": "node scripts/benchmark-reactive.mjs && node scripts/benchmark-dom-list.mjs",
 		"benchmark:expressions": "node scripts/benchmark-expressions.mjs && node scripts/benchmark-compiler-workflow.mjs && node scripts/benchmark-language-service.mjs",
+		"poc:native-checker": "npm run build -w @exactjs/expressions && node experiments/typescript7-native-checker/probe.mjs",
 		"check:expressions": "node scripts/check-expressions-roundtrip.mjs",
+		"check:native-compiler-corpus": "node scripts/check-native-compiler-corpus.mjs",
+		"build:native-compiler": "node scripts/build-native-compiler.mjs",
+		"package:native-compiler": "node scripts/package-native-compiler.mjs",
 		"check:expressions:baseline": "node scripts/check-expressions-roundtrip.mjs --update-baseline",
 		"check:react-compat": "npm run build -w @exactjs/react-compatibility && npm run check:react-compat:built",
 		"check:react-compat:built": "node scripts/check-react-package-corpus.mjs && node scripts/check-react-conformance.mjs && node scripts/check-react-reconciler-compat.mjs",

@@ -31,15 +31,24 @@
 		"@exactjs/instrumentation": "^0.1.0",
 		"@exactjs/plugin-api": "^0.1.0",
 		"@exactjs/plugin-host": "^0.1.0",
+		"@typescript/native": "npm:typescript@^7.0.2",
 		"entities": "^6.0.1",
 		"typescript": "npm:@typescript/typescript6@^6.0.2"
+	},
+	"optionalDependencies": {
+		"@exactjs/compiler-native-darwin-arm64": "^0.1.0",
+		"@exactjs/compiler-native-darwin-x64": "^0.1.0",
+		"@exactjs/compiler-native-linux-arm64": "^0.1.0",
+		"@exactjs/compiler-native-linux-x64": "^0.1.0",
+		"@exactjs/compiler-native-win32-arm64": "^0.1.0",
+		"@exactjs/compiler-native-win32-x64": "^0.1.0"
 	},
 	"devDependencies": {
 		"vite": "^8.1.5"
 	},
 	"scripts": {
 		"build": "tsc6 -b",
-		"test": "vitest run",
+		"test": "vitest run --maxWorkers=4",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},
 	"publishConfig": {

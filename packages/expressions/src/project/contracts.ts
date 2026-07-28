@@ -1,5 +1,8 @@
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 
+/** Semantic compiler implementation selected for an expression project. */
+export type SemanticBackend = 'native' | 'legacy';
+
 /** Configuration for one TypeScript-backed expression project session. */
 export interface ExpressionProjectOptions {
 	readonly tsconfigPath?: string;
@@ -18,6 +21,13 @@ export interface ExpressionProjectOptions {
 	 * routine production telemetry.
 	 */
 	readonly profileDetail?: 'summary' | 'detailed';
+	/**
+	 * Selects the semantic compiler implementation.
+	 *
+	 * The native TypeScript 7 backend is the default. The legacy backend remains
+	 * available as an explicit compatibility and differential-testing mode.
+	 */
+	readonly semanticBackend?: SemanticBackend;
 }
 
 /** Profiling observation emitted by expression project phases. */
@@ -25,6 +35,8 @@ export type ExpressionProjectProfileEvent = ExactProfileEvent<
 	'expressions',
 	| 'configuration'
 	| 'program'
+	| 'native-snapshot'
+	| 'native-queries'
 	| 'syntax-diagnostics'
 	| 'semantic-diagnostics'
 	| 'module-projection'
@@ -62,6 +74,10 @@ export type ExpressionProjectProfileEvent = ExactProfileEvent<
 		resolvedSignatureQueries?: number;
 		directiveScans?: number;
 		directiveCharacters?: number;
+		requestCount?: number;
+		bytesSent?: number;
+		bytesReceived?: number;
+		nodesMaterialized?: number;
 	}>;
 
 /** Current retained-state counters for an expression project. */
@@ -72,6 +88,12 @@ export type ExpressionProjectStats = Readonly<{
 	sourceFiles: number;
 	nodeIdentityRoots: number;
 	symbolIdentities: number;
+	semanticBackend: SemanticBackend;
+	nativeSnapshots: number;
+	nativeRequests: number;
+	nativeBytesSent: number;
+	nativeBytesReceived: number;
+	nativeNodesMaterialized: number;
 }>;
 
 /** Defines the type projection bucket type contract. */

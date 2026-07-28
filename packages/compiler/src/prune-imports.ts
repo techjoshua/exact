@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from './native-typescript.js';
 
 /** Removes import bindings that are no longer referenced after compiler transforms. */
 export function pruneUnusedImports(
@@ -33,7 +33,12 @@ export function pruneUnusedImports(
 			factory.updateImportDeclaration(
 				statement,
 				statement.modifiers,
-				factory.updateImportClause(clause, clause.isTypeOnly, defaultName, namedBindings),
+				factory.updateImportClause(
+					clause,
+					clause.phaseModifier === ts.SyntaxKind.TypeKeyword,
+					defaultName,
+					namedBindings
+				),
 				statement.moduleSpecifier,
 				statement.attributes
 			)

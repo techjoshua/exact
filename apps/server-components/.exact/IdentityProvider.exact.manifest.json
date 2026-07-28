@@ -3,474 +3,1409 @@
   "filename": "apps\\server-components\\src\\IdentityProvider.tsx",
   "dependencies": [],
   "assets": [],
+  "components": [
+    {
+      "id": "xwcWw5nxhcqKi7LH40FTp66",
+      "name": "ServerIdentityProjection",
+      "exported": true,
+      "placement": "server",
+      "subgraphPlacement": "isomorphic",
+      "renderEdges": [
+        {
+          "id": "xwcWw5nxhcqKi7LH40FTp66:render:2375:IdentityProvider",
+          "tag": "IdentityProvider",
+          "name": "IdentityProvider",
+          "componentId": "xzcpAN1EsXdsqtChp4aTmG2",
+          "placement": "isomorphic",
+          "boundary": "isomorphic",
+          "index": 1,
+          "path": "2375"
+        }
+      ],
+      "clientIslandCount": 0,
+      "tasks": [
+        {
+          "id": "xBSFY15Nxenh4yiPSTnHZOB",
+          "placement": "server",
+          "requestedPlacement": "server",
+          "priority": "normal",
+          "readiness": "nonblocking",
+          "async": true,
+          "browserEffects": false,
+          "dependencies": [],
+          "reads": [],
+          "writes": [
+            {
+              "path": "roleNames",
+              "kind": "write",
+              "confidence": "exact"
+            },
+            {
+              "path": "brandName",
+              "kind": "write",
+              "confidence": "exact"
+            },
+            {
+              "path": "brandAccent",
+              "kind": "write",
+              "confidence": "exact"
+            }
+          ],
+          "contexts": [
+            {
+              "token": "ServerAuthorizationContext",
+              "kind": "read",
+              "confidence": "exact"
+            },
+            {
+              "token": "ServerBrandContext",
+              "kind": "read",
+              "confidence": "exact"
+            },
+            {
+              "token": "BrandContext",
+              "kind": "read",
+              "confidence": "exact"
+            },
+            {
+              "token": "AuthorizationContext",
+              "kind": "read",
+              "confidence": "exact"
+            }
+          ],
+          "diagnostics": [
+            "task placement forced by this.task.server()"
+          ],
+          "environmentEffect": "server",
+          "effectSources": [
+            {
+              "environment": "server",
+              "description": "data policy",
+              "path": [
+                "ServerIdentityProjection",
+                "data policy"
+              ]
+            }
+          ]
+        }
+      ],
+      "contexts": [
+        {
+          "token": "ServerAuthorizationContext",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "token": "ServerBrandContext",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "token": "BrandContext",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "token": "AuthorizationContext",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "splitBoundaries": [],
+      "diagnostics": [
+        "task placement forced by this.task.server()"
+      ],
+      "environmentEffect": "server",
+      "artifactTargets": [
+        "server"
+      ]
+    },
+    {
+      "id": "xzcpAN1EsXdsqtChp4aTmG2",
+      "name": "IdentityProvider",
+      "exported": true,
+      "placement": "isomorphic",
+      "subgraphPlacement": "isomorphic",
+      "renderEdges": [
+        {
+          "id": "xzcpAN1EsXdsqtChp4aTmG2:render:3423:IdentitySummary",
+          "tag": "IdentitySummary",
+          "name": "IdentitySummary",
+          "componentId": "x4Brm2enc9_G-7e3Idar9GA",
+          "placement": "isomorphic",
+          "boundary": "isomorphic",
+          "index": 1,
+          "path": "3423"
+        }
+      ],
+      "clientIslandCount": 0,
+      "tasks": [],
+      "contexts": [
+        {
+          "token": "AuthorizationContext",
+          "kind": "write",
+          "confidence": "exact"
+        },
+        {
+          "token": "BrandContext",
+          "kind": "write",
+          "confidence": "exact"
+        }
+      ],
+      "splitBoundaries": [],
+      "diagnostics": [],
+      "environmentEffect": "neutral",
+      "artifactTargets": [
+        "client",
+        "server"
+      ]
+    },
+    {
+      "id": "x4Brm2enc9_G-7e3Idar9GA",
+      "name": "IdentitySummary",
+      "exported": true,
+      "placement": "isomorphic",
+      "subgraphPlacement": "isomorphic",
+      "renderEdges": [],
+      "clientIslandCount": 0,
+      "tasks": [],
+      "contexts": [
+        {
+          "token": "AuthorizationContext",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "token": "BrandContext",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "splitBoundaries": [],
+      "diagnostics": [],
+      "environmentEffect": "neutral",
+      "artifactTargets": [
+        "client",
+        "server"
+      ]
+    }
+  ],
+  "exports": [
+    {
+      "name": "AuthorizationContext",
+      "kind": "value",
+      "placement": "isomorphic"
+    },
+    {
+      "name": "BrandContext",
+      "kind": "value",
+      "placement": "isomorphic"
+    },
+    {
+      "name": "IdentityProvider",
+      "kind": "component",
+      "placement": "isomorphic"
+    },
+    {
+      "name": "IdentitySummary",
+      "kind": "component",
+      "placement": "isomorphic"
+    },
+    {
+      "name": "ServerAuthorizationContext",
+      "kind": "value",
+      "placement": "server"
+    },
+    {
+      "name": "ServerBrandContext",
+      "kind": "value",
+      "placement": "server"
+    },
+    {
+      "name": "ServerIdentityProjection",
+      "kind": "component",
+      "placement": "isomorphic"
+    }
+  ],
+  "symbols": [
+    {
+      "id": "xcKvKF6oTfFCQZ_avT0svoy",
+      "exportName": "ServerBrandContext",
+      "localName": "ServerBrandContext",
+      "generatedName": "ServerBrandContext",
+      "debugName": "ServerBrandContext",
+      "kind": "value",
+      "role": "root",
+      "target": "server",
+      "placement": "server"
+    },
+    {
+      "id": "xczVSvdXLMIoe6Zvnj2GKYc",
+      "componentId": "xzcpAN1EsXdsqtChp4aTmG2",
+      "exportName": "IdentityProvider",
+      "localName": "IdentityProvider",
+      "generatedName": "IdentityProvider",
+      "debugName": "IdentityProvider",
+      "kind": "component",
+      "role": "root",
+      "target": "both",
+      "placement": "isomorphic"
+    },
+    {
+      "id": "xdVaaaEAXpMiIvGiErCxYVL",
+      "exportName": "ServerAuthorizationContext",
+      "localName": "ServerAuthorizationContext",
+      "generatedName": "ServerAuthorizationContext",
+      "debugName": "ServerAuthorizationContext",
+      "kind": "value",
+      "role": "root",
+      "target": "server",
+      "placement": "server"
+    },
+    {
+      "id": "xeN7bLBJ0BjloCyVObq5nlJ",
+      "componentId": "x4Brm2enc9_G-7e3Idar9GA",
+      "exportName": "IdentitySummary",
+      "localName": "IdentitySummary",
+      "generatedName": "IdentitySummary",
+      "debugName": "IdentitySummary",
+      "kind": "component",
+      "role": "root",
+      "target": "both",
+      "placement": "isomorphic"
+    },
+    {
+      "id": "xkJvYpgTLFHSaFhvprHa6mG",
+      "exportName": "AuthorizationContext",
+      "localName": "AuthorizationContext",
+      "generatedName": "AuthorizationContext",
+      "debugName": "AuthorizationContext",
+      "kind": "value",
+      "role": "root",
+      "target": "both",
+      "placement": "isomorphic"
+    },
+    {
+      "id": "xl2_CyAlHSZ7-MGRi7BTIJc",
+      "componentId": "xwcWw5nxhcqKi7LH40FTp66",
+      "exportName": "ServerIdentityProjection",
+      "localName": "ServerIdentityProjection",
+      "generatedName": "ServerIdentityProjection",
+      "debugName": "ServerIdentityProjection",
+      "kind": "component",
+      "role": "root",
+      "target": "server",
+      "placement": "server"
+    },
+    {
+      "id": "xlDOWaUB4yBprOmfgflJPE6",
+      "exportName": "BrandContext",
+      "localName": "BrandContext",
+      "generatedName": "BrandContext",
+      "debugName": "BrandContext",
+      "kind": "value",
+      "role": "root",
+      "target": "both",
+      "placement": "isomorphic"
+    }
+  ],
+  "boundaries": [],
+  "callables": [
+    {
+      "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:1619",
+      "name": "ServerIdentityProjection",
+      "kind": "component",
+      "exportNames": [
+        "ServerIdentityProjection"
+      ],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:1619:call:1980",
+          "name": "this.task.server",
+          "resolved": false
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [
+        {
+          "path": "roleNames",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "path": "brandName",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "path": "brandAccent",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "stateWrites": [
+        {
+          "path": "roleNames",
+          "kind": "write",
+          "confidence": "exact"
+        },
+        {
+          "path": "brandName",
+          "kind": "write",
+          "confidence": "exact"
+        },
+        {
+          "path": "brandAccent",
+          "kind": "write",
+          "confidence": "exact"
+        }
+      ],
+      "contexts": [],
+      "reevaluationSafe": false
+    },
+    {
+      "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2000",
+      "name": "task@2000",
+      "kind": "task",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2000:call:2021",
+          "name": "Promise.resolve",
+          "resolved": false
+        },
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2000:call:2064",
+          "name": "this.getContext",
+          "resolved": false
+        },
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2000:call:2125",
+          "name": "this.getContext",
+          "resolved": false
+        },
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2000:call:2184",
+          "name": "brand.publicBrand",
+          "resolved": false
+        },
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2000:call:2230",
+          "name": "authorization.roles().join",
+          "resolved": false
+        },
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2000:call:2230",
+          "name": "authorization.roles",
+          "resolved": false
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [
+        {
+          "path": "roleNames",
+          "kind": "write",
+          "confidence": "exact"
+        },
+        {
+          "path": "brandName",
+          "kind": "write",
+          "confidence": "exact"
+        },
+        {
+          "path": "brandAccent",
+          "kind": "write",
+          "confidence": "exact"
+        }
+      ],
+      "contexts": [
+        {
+          "token": "ServerAuthorizationContext",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "token": "ServerBrandContext",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "token": "BrandContext",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "token": "AuthorizationContext",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "reevaluationSafe": false
+    },
+    {
+      "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2367",
+      "name": "<anonymous@2367>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2367:call:2420",
+          "name": "this.state.roleNames.split(',').filter",
+          "resolved": false
+        },
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2367:call:2420",
+          "name": "this.state.roleNames.split",
+          "resolved": false
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [
+        {
+          "path": "roleNames",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "path": "brandName",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "path": "brandAccent",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "stateWrites": [],
+      "contexts": [],
+      "reevaluationSafe": false
+    },
+    {
+      "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2574",
+      "name": "IdentityProvider",
+      "kind": "component",
+      "exportNames": [
+        "IdentityProvider"
+      ],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2574:call:2925",
+          "name": "(props.initial?.roles ?? []).join",
+          "resolved": false
+        },
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2574:call:3296",
+          "name": "this.setContext",
+          "resolved": false
+        },
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2574:call:3351",
+          "name": "this.setContext",
+          "resolved": false
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [
+        {
+          "path": "roleNames",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "path": "brandName",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "path": "brandAccent",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "stateWrites": [
+        {
+          "path": "roleNames",
+          "kind": "write",
+          "confidence": "exact"
+        },
+        {
+          "path": "brandName",
+          "kind": "write",
+          "confidence": "exact"
+        },
+        {
+          "path": "brandAccent",
+          "kind": "write",
+          "confidence": "exact"
+        }
+      ],
+      "contexts": [
+        {
+          "token": "AuthorizationContext",
+          "kind": "write",
+          "confidence": "exact"
+        },
+        {
+          "token": "BrandContext",
+          "kind": "write",
+          "confidence": "exact"
+        }
+      ],
+      "reevaluationSafe": false
+    },
+    {
+      "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3139",
+      "name": "<anonymous@3139>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3139:call:3149",
+          "name": "this.state.roleNames.split(',').includes",
+          "resolved": false
+        },
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3139:call:3149",
+          "name": "this.state.roleNames.split",
+          "resolved": false
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [
+        {
+          "path": "roleNames",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "stateWrites": [],
+      "contexts": [],
+      "reevaluationSafe": false
+    },
+    {
+      "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3225",
+      "name": "<anonymous@3225>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [
+        {
+          "path": "brandName",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "stateWrites": [],
+      "contexts": [],
+      "reevaluationSafe": false
+    },
+    {
+      "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3263",
+      "name": "<anonymous@3263>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [
+        {
+          "path": "brandAccent",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "stateWrites": [],
+      "contexts": [],
+      "reevaluationSafe": false
+    },
+    {
+      "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3399",
+      "name": "<anonymous@3399>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": [],
+      "reevaluationSafe": false
+    },
+    {
+      "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3446",
+      "name": "IdentitySummary",
+      "kind": "component",
+      "exportNames": [
+        "IdentitySummary"
+      ],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3446:call:3599",
+          "name": "this.getContext",
+          "resolved": false
+        },
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3446:call:3653",
+          "name": "this.getContext",
+          "resolved": false
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [],
+      "stateWrites": [],
+      "contexts": [
+        {
+          "token": "AuthorizationContext",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "token": "BrandContext",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "reevaluationSafe": false
+    },
+    {
+      "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3693",
+      "name": "<anonymous@3693>",
+      "kind": "function",
+      "exportNames": [],
+      "directEffect": "neutral",
+      "effect": "neutral",
+      "directEffectSources": [],
+      "effectSources": [],
+      "calls": [
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3693:call:3727",
+          "name": "brand.name",
+          "targetId": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3225",
+          "resolved": true
+        },
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3693:call:3757",
+          "name": "brand.accent",
+          "targetId": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3263",
+          "resolved": true
+        },
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3693:call:3789",
+          "name": "authorization.hasRole",
+          "targetId": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3139",
+          "resolved": true,
+          "receiverBindings": [
+            {
+              "parameterIndex": 0,
+              "source": "unknown"
+            }
+          ]
+        },
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3693:call:3849",
+          "name": "brand.name",
+          "targetId": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3225",
+          "resolved": true
+        },
+        {
+          "id": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3693:call:3864",
+          "name": "authorization.hasRole",
+          "targetId": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3139",
+          "resolved": true,
+          "receiverBindings": [
+            {
+              "parameterIndex": 0,
+              "source": "unknown"
+            }
+          ]
+        }
+      ],
+      "artifactTargets": [
+        "client",
+        "server"
+      ],
+      "stateReads": [
+        {
+          "path": "brandName",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "path": "brandAccent",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "path": "roleNames",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "stateWrites": [],
+      "contexts": [
+        {
+          "token": "BrandContext",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "token": "AuthorizationContext",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ],
+      "reevaluationSafe": false
+    }
+  ],
+  "continuations": [
+    {
+      "id": "xBSFY15Nxenh4yiPSTnHZOB",
+      "kind": "task",
+      "componentId": "xwcWw5nxhcqKi7LH40FTp66",
+      "taskId": "xBSFY15Nxenh4yiPSTnHZOB",
+      "placement": "server",
+      "readiness": "nonblocking",
+      "async": true,
+      "activation": {
+        "stateReads": [],
+        "dependencies": [],
+        "serverContexts": [
+          {
+            "token": "ServerAuthorizationContext",
+            "kind": "read",
+            "confidence": "exact"
+          },
+          {
+            "token": "ServerBrandContext",
+            "kind": "read",
+            "confidence": "exact"
+          }
+        ],
+        "publicContexts": [
+          {
+            "token": "BrandContext",
+            "kind": "read",
+            "confidence": "exact"
+          },
+          {
+            "token": "AuthorizationContext",
+            "kind": "read",
+            "confidence": "exact"
+          }
+        ]
+      },
+      "effects": {
+        "stateWrites": [
+          {
+            "path": "roleNames",
+            "kind": "write",
+            "confidence": "exact"
+          },
+          {
+            "path": "brandName",
+            "kind": "write",
+            "confidence": "exact"
+          },
+          {
+            "path": "brandAccent",
+            "kind": "write",
+            "confidence": "exact"
+          }
+        ],
+        "contextWrites": [],
+        "serverContextWrites": [],
+        "boundaries": []
+      },
+      "ownership": {
+        "componentId": "xwcWw5nxhcqKi7LH40FTp66",
+        "lifetime": "component"
+      },
+      "cancellation": "abort-signal"
+    }
+  ],
+  "resumptions": [
+    {
+      "componentId": "x4Brm2enc9_G-7e3Idar9GA",
+      "serverRender": {
+        "stateReads": [],
+        "serverContexts": [
+          {
+            "token": "AuthorizationContext",
+            "kind": "read",
+            "confidence": "exact"
+          },
+          {
+            "token": "BrandContext",
+            "kind": "read",
+            "confidence": "exact"
+          }
+        ]
+      },
+      "client": {
+        "statePaths": [],
+        "valueCaptures": [],
+        "contexts": [],
+        "boundaries": []
+      }
+    },
+    {
+      "componentId": "xwcWw5nxhcqKi7LH40FTp66",
+      "serverRender": {
+        "stateReads": [],
+        "serverContexts": [
+          {
+            "token": "ServerAuthorizationContext",
+            "kind": "read",
+            "confidence": "exact"
+          },
+          {
+            "token": "ServerBrandContext",
+            "kind": "read",
+            "confidence": "exact"
+          },
+          {
+            "token": "BrandContext",
+            "kind": "read",
+            "confidence": "exact"
+          },
+          {
+            "token": "AuthorizationContext",
+            "kind": "read",
+            "confidence": "exact"
+          }
+        ]
+      },
+      "client": {
+        "statePaths": [
+          "brandAccent",
+          "brandName",
+          "roleNames"
+        ],
+        "valueCaptures": [],
+        "contexts": [],
+        "boundaries": []
+      }
+    },
+    {
+      "componentId": "xzcpAN1EsXdsqtChp4aTmG2",
+      "serverRender": {
+        "stateReads": [],
+        "serverContexts": []
+      },
+      "client": {
+        "statePaths": [
+          "brandAccent",
+          "brandName",
+          "roleNames"
+        ],
+        "valueCaptures": [],
+        "contexts": [],
+        "boundaries": []
+      }
+    }
+  ],
   "semanticGraph": {
     "scopes": [
       {
-        "id": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "id": "apps/server-components/src/identityprovider.tsx:scope:1619",
+        "parentId": "apps/server-components/src/identityprovider.tsx:scope:module",
+        "kind": "function",
+        "nodeKind": "FunctionDeclaration"
+      },
+      {
+        "id": "apps/server-components/src/identityprovider.tsx:scope:1886",
+        "parentId": "apps/server-components/src/identityprovider.tsx:scope:1619",
+        "kind": "block",
+        "nodeKind": "Block"
+      },
+      {
+        "id": "apps/server-components/src/identityprovider.tsx:scope:2000",
+        "parentId": "apps/server-components/src/identityprovider.tsx:scope:1886",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
+      },
+      {
+        "id": "apps/server-components/src/identityprovider.tsx:scope:2011",
+        "parentId": "apps/server-components/src/identityprovider.tsx:scope:2000",
+        "kind": "block",
+        "nodeKind": "Block"
+      },
+      {
+        "id": "apps/server-components/src/identityprovider.tsx:scope:2367",
+        "parentId": "apps/server-components/src/identityprovider.tsx:scope:1886",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
+      },
+      {
+        "id": "apps/server-components/src/identityprovider.tsx:scope:2574",
+        "parentId": "apps/server-components/src/identityprovider.tsx:scope:module",
+        "kind": "function",
+        "nodeKind": "FunctionDeclaration"
+      },
+      {
+        "id": "apps/server-components/src/identityprovider.tsx:scope:2897",
+        "parentId": "apps/server-components/src/identityprovider.tsx:scope:2574",
+        "kind": "block",
+        "nodeKind": "Block"
+      },
+      {
+        "id": "apps/server-components/src/identityprovider.tsx:scope:3139",
+        "parentId": "apps/server-components/src/identityprovider.tsx:scope:2897",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
+      },
+      {
+        "id": "apps/server-components/src/identityprovider.tsx:scope:3225",
+        "parentId": "apps/server-components/src/identityprovider.tsx:scope:2897",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
+      },
+      {
+        "id": "apps/server-components/src/identityprovider.tsx:scope:3263",
+        "parentId": "apps/server-components/src/identityprovider.tsx:scope:2897",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
+      },
+      {
+        "id": "apps/server-components/src/identityprovider.tsx:scope:3399",
+        "parentId": "apps/server-components/src/identityprovider.tsx:scope:2897",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
+      },
+      {
+        "id": "apps/server-components/src/identityprovider.tsx:scope:3446",
+        "parentId": "apps/server-components/src/identityprovider.tsx:scope:module",
+        "kind": "function",
+        "nodeKind": "FunctionDeclaration"
+      },
+      {
+        "id": "apps/server-components/src/identityprovider.tsx:scope:3574",
+        "parentId": "apps/server-components/src/identityprovider.tsx:scope:3446",
+        "kind": "block",
+        "nodeKind": "Block"
+      },
+      {
+        "id": "apps/server-components/src/identityprovider.tsx:scope:3693",
+        "parentId": "apps/server-components/src/identityprovider.tsx:scope:3574",
+        "kind": "function",
+        "nodeKind": "ArrowFunction"
+      },
+      {
+        "id": "apps/server-components/src/identityprovider.tsx:scope:module",
         "kind": "module",
         "nodeKind": "SourceFile"
-      },
-      {
-        "id": "apps/server-components/src/identityprovider.tsx:scope:1619:2574:FunctionDeclaration",
-        "parentId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
-        "kind": "function",
-        "nodeKind": "FunctionDeclaration"
-      },
-      {
-        "id": "apps/server-components/src/identityprovider.tsx:scope:174:225:MethodSignature",
-        "parentId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
-        "kind": "function",
-        "nodeKind": "MethodSignature"
-      },
-      {
-        "id": "apps/server-components/src/identityprovider.tsx:scope:1886:2574:Block",
-        "parentId": "apps/server-components/src/identityprovider.tsx:scope:1619:2574:FunctionDeclaration",
-        "kind": "block",
-        "nodeKind": "Block"
-      },
-      {
-        "id": "apps/server-components/src/identityprovider.tsx:scope:2000:2356:ArrowFunction",
-        "parentId": "apps/server-components/src/identityprovider.tsx:scope:1886:2574:Block",
-        "kind": "function",
-        "nodeKind": "ArrowFunction"
-      },
-      {
-        "id": "apps/server-components/src/identityprovider.tsx:scope:2011:2356:Block",
-        "parentId": "apps/server-components/src/identityprovider.tsx:scope:2000:2356:ArrowFunction",
-        "kind": "block",
-        "nodeKind": "Block"
-      },
-      {
-        "id": "apps/server-components/src/identityprovider.tsx:scope:2367:2571:ArrowFunction",
-        "parentId": "apps/server-components/src/identityprovider.tsx:scope:1886:2574:Block",
-        "kind": "function",
-        "nodeKind": "ArrowFunction"
-      },
-      {
-        "id": "apps/server-components/src/identityprovider.tsx:scope:2574:3446:FunctionDeclaration",
-        "parentId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
-        "kind": "function",
-        "nodeKind": "FunctionDeclaration"
-      },
-      {
-        "id": "apps/server-components/src/identityprovider.tsx:scope:2897:3446:Block",
-        "parentId": "apps/server-components/src/identityprovider.tsx:scope:2574:3446:FunctionDeclaration",
-        "kind": "block",
-        "nodeKind": "Block"
-      },
-      {
-        "id": "apps/server-components/src/identityprovider.tsx:scope:311:399:MethodSignature",
-        "parentId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
-        "kind": "function",
-        "nodeKind": "MethodSignature"
-      },
-      {
-        "id": "apps/server-components/src/identityprovider.tsx:scope:3139:3196:ArrowFunction",
-        "parentId": "apps/server-components/src/identityprovider.tsx:scope:2897:3446:Block",
-        "kind": "function",
-        "nodeKind": "ArrowFunction"
-      },
-      {
-        "id": "apps/server-components/src/identityprovider.tsx:scope:3225:3252:ArrowFunction",
-        "parentId": "apps/server-components/src/identityprovider.tsx:scope:2897:3446:Block",
-        "kind": "function",
-        "nodeKind": "ArrowFunction"
-      },
-      {
-        "id": "apps/server-components/src/identityprovider.tsx:scope:3263:3292:ArrowFunction",
-        "parentId": "apps/server-components/src/identityprovider.tsx:scope:2897:3446:Block",
-        "kind": "function",
-        "nodeKind": "ArrowFunction"
-      },
-      {
-        "id": "apps/server-components/src/identityprovider.tsx:scope:3399:3443:ArrowFunction",
-        "parentId": "apps/server-components/src/identityprovider.tsx:scope:2897:3446:Block",
-        "kind": "function",
-        "nodeKind": "ArrowFunction"
-      },
-      {
-        "id": "apps/server-components/src/identityprovider.tsx:scope:3446:3936:FunctionDeclaration",
-        "parentId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
-        "kind": "function",
-        "nodeKind": "FunctionDeclaration"
-      },
-      {
-        "id": "apps/server-components/src/identityprovider.tsx:scope:3574:3936:Block",
-        "parentId": "apps/server-components/src/identityprovider.tsx:scope:3446:3936:FunctionDeclaration",
-        "kind": "block",
-        "nodeKind": "Block"
-      },
-      {
-        "id": "apps/server-components/src/identityprovider.tsx:scope:3693:3933:ArrowFunction",
-        "parentId": "apps/server-components/src/identityprovider.tsx:scope:3574:3936:Block",
-        "kind": "function",
-        "nodeKind": "ArrowFunction"
-      },
-      {
-        "id": "apps/server-components/src/identityprovider.tsx:scope:488:521:MethodSignature",
-        "parentId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
-        "kind": "function",
-        "nodeKind": "MethodSignature"
-      },
-      {
-        "id": "apps/server-components/src/identityprovider.tsx:scope:594:611:MethodSignature",
-        "parentId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
-        "kind": "function",
-        "nodeKind": "MethodSignature"
-      },
-      {
-        "id": "apps/server-components/src/identityprovider.tsx:scope:611:630:MethodSignature",
-        "parentId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
-        "kind": "function",
-        "nodeKind": "MethodSignature"
       }
     ],
     "declarations": [
       {
-        "id": "apps/server-components/src/identityprovider.tsx::ImportSpecifier#0:createContext",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:8",
         "name": "createContext",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "kind": "import",
-        "nodeStart": 9,
+        "nodeStart": 8,
         "nodeEnd": 22,
         "moduleSpecifier": "@exactjs/core",
         "importedName": "createContext"
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx::ImportSpecifier#0:Child",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:28",
         "name": "Child",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "kind": "import",
-        "nodeStart": 29,
+        "nodeStart": 28,
         "nodeEnd": 34,
         "moduleSpecifier": "@exactjs/core",
         "importedName": "Child",
         "typeOnly": true
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx::ImportSpecifier#0:Component",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:40",
         "name": "Component",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "kind": "import",
-        "nodeStart": 41,
+        "nodeStart": 40,
         "nodeEnd": 50,
         "moduleSpecifier": "@exactjs/core",
         "importedName": "Component",
         "typeOnly": true
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx::InterfaceDeclaration#0:ServerAuthorization",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:152",
         "name": "ServerAuthorization",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "kind": "interface",
-        "nodeStart": 153,
+        "nodeStart": 152,
         "nodeEnd": 172,
         "exportedName": "ServerAuthorization"
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx::InterfaceDeclaration#0:ServerBrand",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:297",
         "name": "ServerBrand",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "kind": "interface",
-        "nodeStart": 298,
+        "nodeStart": 297,
         "nodeEnd": 309,
         "exportedName": "ServerBrand"
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx::InterfaceDeclaration#0:Authorization",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:472",
         "name": "Authorization",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "kind": "interface",
-        "nodeStart": 473,
+        "nodeStart": 472,
         "nodeEnd": 486,
         "exportedName": "Authorization"
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx:MethodSignature:hasRole:Parameter#0:role",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:498",
         "name": "role",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:488:521:MethodSignature",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "kind": "parameter",
         "nodeStart": 498,
         "nodeEnd": 502
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx::InterfaceDeclaration#0:Brand",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:586",
         "name": "Brand",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "kind": "interface",
-        "nodeStart": 587,
+        "nodeStart": 586,
         "nodeEnd": 592,
         "exportedName": "Brand"
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx::InterfaceDeclaration#0:PublicIdentity",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:705",
         "name": "PublicIdentity",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "kind": "interface",
-        "nodeStart": 706,
+        "nodeStart": 705,
         "nodeEnd": 720,
         "exportedName": "PublicIdentity"
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx::VariableDeclaration#0:ServerAuthorizationContext",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:864",
         "name": "ServerAuthorizationContext",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "kind": "variable",
-        "nodeStart": 865,
+        "nodeStart": 864,
         "nodeEnd": 891,
         "exportedName": "ServerAuthorizationContext"
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx::VariableDeclaration#0:ServerBrandContext",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:1114",
         "name": "ServerBrandContext",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "kind": "variable",
-        "nodeStart": 1115,
+        "nodeStart": 1114,
         "nodeEnd": 1133,
         "exportedName": "ServerBrandContext"
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx::VariableDeclaration#0:AuthorizationContext",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:1336",
         "name": "AuthorizationContext",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "kind": "variable",
-        "nodeStart": 1337,
+        "nodeStart": 1336,
         "nodeEnd": 1357,
         "exportedName": "AuthorizationContext"
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx::VariableDeclaration#0:BrandContext",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:1522",
         "name": "BrandContext",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "kind": "variable",
-        "nodeStart": 1523,
+        "nodeStart": 1522,
         "nodeEnd": 1535,
         "exportedName": "BrandContext"
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx::FunctionDeclaration#0:ServerIdentityProjection",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:1770",
         "name": "ServerIdentityProjection",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:1619:2574:FunctionDeclaration",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:1619",
         "kind": "function",
-        "nodeStart": 1771,
+        "nodeStart": 1770,
         "nodeEnd": 1795,
         "exportedName": "ServerIdentityProjection"
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:ServerIdentityProjection:Parameter#0:this",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:1796",
         "name": "this",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:1619:2574:FunctionDeclaration",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:1619",
         "kind": "parameter",
-        "nodeStart": 1798,
+        "nodeStart": 1796,
         "nodeEnd": 1802
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:ServerIdentityProjection/Block:function-body/ArrowFunction:CallExpression:ztntfp#0/Block:function-body:VariableDeclaration#0:authorization",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:2048",
         "name": "authorization",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2011:2356:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2011",
         "kind": "variable",
-        "nodeStart": 2049,
+        "nodeStart": 2048,
         "nodeEnd": 2062
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:ServerIdentityProjection/Block:function-body/ArrowFunction:CallExpression:ztntfp#0/Block:function-body:VariableDeclaration#0:brand",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:2117",
         "name": "brand",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2011:2356:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2011",
         "kind": "variable",
-        "nodeStart": 2118,
+        "nodeStart": 2117,
         "nodeEnd": 2123
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:ServerIdentityProjection/Block:function-body/ArrowFunction:CallExpression:ztntfp#0/Block:function-body:VariableDeclaration#0:publicBrand",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:2170",
         "name": "publicBrand",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2011:2356:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2011",
         "kind": "variable",
-        "nodeStart": 2171,
+        "nodeStart": 2170,
         "nodeEnd": 2182
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx::FunctionDeclaration#0:IdentityProvider",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:2733",
         "name": "IdentityProvider",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2574:3446:FunctionDeclaration",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2574",
         "kind": "function",
-        "nodeStart": 2734,
+        "nodeStart": 2733,
         "nodeEnd": 2750,
         "exportedName": "IdentityProvider"
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:IdentityProvider:Parameter#0:this",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:2751",
         "name": "this",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2574:3446:FunctionDeclaration",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2574",
         "kind": "parameter",
-        "nodeStart": 2753,
+        "nodeStart": 2751,
         "nodeEnd": 2757
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:IdentityProvider:Parameter#0:props",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:2840",
         "name": "props",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2574:3446:FunctionDeclaration",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2574",
         "kind": "parameter",
-        "nodeStart": 2842,
+        "nodeStart": 2840,
         "nodeEnd": 2847
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:IdentityProvider/Block:function-body:VariableDeclaration#0:authorization",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:3095",
         "name": "authorization",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2897:3446:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2897",
         "kind": "variable",
-        "nodeStart": 3096,
+        "nodeStart": 3095,
         "nodeEnd": 3109
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:IdentityProvider/Block:function-body/ArrowFunction:PropertyAssignment:ztntfp#0@1:Parameter#0:role",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:3141",
         "name": "role",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3139:3196:ArrowFunction",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3139",
         "kind": "parameter",
         "nodeStart": 3141,
         "nodeEnd": 3145
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:IdentityProvider/Block:function-body:VariableDeclaration#0:brand",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:3207",
         "name": "brand",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2897:3446:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2897",
         "kind": "variable",
-        "nodeStart": 3208,
+        "nodeStart": 3207,
         "nodeEnd": 3213
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx::FunctionDeclaration#0:IdentitySummary",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:3518",
         "name": "IdentitySummary",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3446:3936:FunctionDeclaration",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3446",
         "kind": "function",
-        "nodeStart": 3519,
+        "nodeStart": 3518,
         "nodeEnd": 3534,
         "exportedName": "IdentitySummary"
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:IdentitySummary:Parameter#0:this",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:3535",
         "name": "this",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3446:3936:FunctionDeclaration",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3446",
         "kind": "parameter",
         "nodeStart": 3535,
         "nodeEnd": 3539
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:IdentitySummary/Block:function-body:VariableDeclaration#0:authorization",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:3583",
         "name": "authorization",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3574:3936:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3574",
         "kind": "variable",
-        "nodeStart": 3584,
+        "nodeStart": 3583,
         "nodeEnd": 3597
       },
       {
-        "id": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:IdentitySummary/Block:function-body:VariableDeclaration#0:brand",
+        "id": "apps/server-components/src/identityprovider.tsx:declaration:3645",
         "name": "brand",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3574:3936:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3574",
         "kind": "variable",
-        "nodeStart": 3646,
+        "nodeStart": 3645,
         "nodeEnd": 3651
       }
     ],
     "references": [
       {
         "name": "Readonly",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:311:399:MethodSignature",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "source": "unresolved",
-        "nodeStart": 350,
+        "nodeStart": 349,
         "nodeEnd": 358,
         "typeOnly": true
       },
       {
         "name": "createContext",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "source": "import",
-        "nodeStart": 894,
+        "nodeStart": 893,
         "nodeEnd": 907,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::ImportSpecifier#0:createContext",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:8",
         "declarationKind": "import",
         "moduleSpecifier": "@exactjs/core",
         "importedName": "createContext"
       },
       {
         "name": "ServerAuthorization",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "source": "local",
         "nodeStart": 908,
         "nodeEnd": 927,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::InterfaceDeclaration#0:ServerAuthorization",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:152",
         "declarationKind": "interface",
         "typeOnly": true
       },
       {
         "name": "createContext",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "source": "import",
-        "nodeStart": 1136,
+        "nodeStart": 1135,
         "nodeEnd": 1149,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::ImportSpecifier#0:createContext",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:8",
         "declarationKind": "import",
         "moduleSpecifier": "@exactjs/core",
         "importedName": "createContext"
       },
       {
         "name": "ServerBrand",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "source": "local",
         "nodeStart": 1150,
         "nodeEnd": 1161,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::InterfaceDeclaration#0:ServerBrand",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:297",
         "declarationKind": "interface",
         "typeOnly": true
       },
       {
         "name": "createContext",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "source": "import",
-        "nodeStart": 1360,
+        "nodeStart": 1359,
         "nodeEnd": 1373,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::ImportSpecifier#0:createContext",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:8",
         "declarationKind": "import",
         "moduleSpecifier": "@exactjs/core",
         "importedName": "createContext"
       },
       {
         "name": "Authorization",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "source": "local",
         "nodeStart": 1374,
         "nodeEnd": 1387,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::InterfaceDeclaration#0:Authorization",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:472",
         "declarationKind": "interface",
         "typeOnly": true
       },
       {
         "name": "createContext",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "source": "import",
-        "nodeStart": 1538,
+        "nodeStart": 1537,
         "nodeEnd": 1551,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::ImportSpecifier#0:createContext",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:8",
         "declarationKind": "import",
         "moduleSpecifier": "@exactjs/core",
         "importedName": "createContext"
       },
       {
         "name": "Brand",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:0:3937:SourceFile",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:module",
         "source": "local",
         "nodeStart": 1552,
         "nodeEnd": 1557,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::InterfaceDeclaration#0:Brand",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:586",
         "declarationKind": "interface",
         "typeOnly": true
       },
       {
         "name": "Component",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:1619:2574:FunctionDeclaration",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:1619",
         "source": "import",
-        "nodeStart": 1804,
+        "nodeStart": 1803,
         "nodeEnd": 1813,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::ImportSpecifier#0:Component",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:40",
         "declarationKind": "import",
         "moduleSpecifier": "@exactjs/core",
         "importedName": "Component",
@@ -478,88 +1413,88 @@
       },
       {
         "name": "Promise",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2011:2356:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2011",
         "source": "unresolved",
-        "nodeStart": 2022,
+        "nodeStart": 2021,
         "nodeEnd": 2029
       },
       {
         "name": "ServerAuthorizationContext",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2011:2356:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2011",
         "source": "local",
         "nodeStart": 2081,
         "nodeEnd": 2107,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::VariableDeclaration#0:ServerAuthorizationContext",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:864",
         "declarationKind": "variable"
       },
       {
         "name": "ServerBrandContext",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2011:2356:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2011",
         "source": "local",
         "nodeStart": 2142,
         "nodeEnd": 2160,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::VariableDeclaration#0:ServerBrandContext",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:1114",
         "declarationKind": "variable"
       },
       {
         "name": "brand",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2011:2356:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2011",
         "source": "local",
-        "nodeStart": 2185,
+        "nodeStart": 2184,
         "nodeEnd": 2190,
-        "declarationId": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:ServerIdentityProjection/Block:function-body/ArrowFunction:CallExpression:ztntfp#0/Block:function-body:VariableDeclaration#0:brand",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:2117",
         "declarationKind": "variable"
       },
       {
         "name": "authorization",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2011:2356:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2011",
         "source": "local",
-        "nodeStart": 2231,
+        "nodeStart": 2230,
         "nodeEnd": 2244,
-        "declarationId": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:ServerIdentityProjection/Block:function-body/ArrowFunction:CallExpression:ztntfp#0/Block:function-body:VariableDeclaration#0:authorization",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:2048",
         "declarationKind": "variable"
       },
       {
         "name": "publicBrand",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2011:2356:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2011",
         "source": "local",
-        "nodeStart": 2289,
+        "nodeStart": 2288,
         "nodeEnd": 2300,
-        "declarationId": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:ServerIdentityProjection/Block:function-body/ArrowFunction:CallExpression:ztntfp#0/Block:function-body:VariableDeclaration#0:publicBrand",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:2170",
         "declarationKind": "variable"
       },
       {
         "name": "publicBrand",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2011:2356:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2011",
         "source": "local",
-        "nodeStart": 2334,
+        "nodeStart": 2333,
         "nodeEnd": 2345,
-        "declarationId": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:ServerIdentityProjection/Block:function-body/ArrowFunction:CallExpression:ztntfp#0/Block:function-body:VariableDeclaration#0:publicBrand",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:2170",
         "declarationKind": "variable"
       },
       {
         "name": "IdentityProvider",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2367:2571:ArrowFunction",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2367",
         "source": "local",
         "nodeStart": 2379,
         "nodeEnd": 2395,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::FunctionDeclaration#0:IdentityProvider",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:2733",
         "declarationKind": "function"
       },
       {
         "name": "Boolean",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2367:2571:ArrowFunction",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2367",
         "source": "unresolved",
         "nodeStart": 2460,
         "nodeEnd": 2467
       },
       {
         "name": "Component",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2574:3446:FunctionDeclaration",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2574",
         "source": "import",
-        "nodeStart": 2759,
+        "nodeStart": 2758,
         "nodeEnd": 2768,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::ImportSpecifier#0:Component",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:40",
         "declarationKind": "import",
         "moduleSpecifier": "@exactjs/core",
         "importedName": "Component",
@@ -567,21 +1502,21 @@
       },
       {
         "name": "PublicIdentity",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2574:3446:FunctionDeclaration",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2574",
         "source": "local",
-        "nodeStart": 2861,
+        "nodeStart": 2860,
         "nodeEnd": 2875,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::InterfaceDeclaration#0:PublicIdentity",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:705",
         "declarationKind": "interface",
         "typeOnly": true
       },
       {
         "name": "Child",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2574:3446:FunctionDeclaration",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2574",
         "source": "import",
-        "nodeStart": 2888,
+        "nodeStart": 2887,
         "nodeEnd": 2893,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::ImportSpecifier#0:Child",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:28",
         "declarationKind": "import",
         "moduleSpecifier": "@exactjs/core",
         "importedName": "Child",
@@ -589,111 +1524,111 @@
       },
       {
         "name": "props",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2897:3446:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2897",
         "source": "local",
         "nodeStart": 2927,
         "nodeEnd": 2932,
-        "declarationId": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:IdentityProvider:Parameter#0:props",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:2840",
         "declarationKind": "parameter"
       },
       {
         "name": "props",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2897:3446:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2897",
         "source": "local",
-        "nodeStart": 2992,
+        "nodeStart": 2991,
         "nodeEnd": 2997,
-        "declarationId": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:IdentityProvider:Parameter#0:props",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:2840",
         "declarationKind": "parameter"
       },
       {
         "name": "props",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2897:3446:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2897",
         "source": "local",
-        "nodeStart": 3053,
+        "nodeStart": 3052,
         "nodeEnd": 3058,
-        "declarationId": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:IdentityProvider:Parameter#0:props",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:2840",
         "declarationKind": "parameter"
       },
       {
         "name": "Authorization",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2897:3446:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2897",
         "source": "local",
-        "nodeStart": 3111,
+        "nodeStart": 3110,
         "nodeEnd": 3124,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::InterfaceDeclaration#0:Authorization",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:472",
         "declarationKind": "interface",
         "typeOnly": true
       },
       {
         "name": "role",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3139:3196:ArrowFunction",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3139",
         "source": "local",
         "nodeStart": 3191,
         "nodeEnd": 3195,
-        "declarationId": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:IdentityProvider/Block:function-body/ArrowFunction:PropertyAssignment:ztntfp#0@1:Parameter#0:role",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:3141",
         "declarationKind": "parameter"
       },
       {
         "name": "AuthorizationContext",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2897:3446:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2897",
         "source": "local",
         "nodeStart": 3314,
         "nodeEnd": 3334,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::VariableDeclaration#0:AuthorizationContext",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:1336",
         "declarationKind": "variable"
       },
       {
         "name": "authorization",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2897:3446:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2897",
         "source": "local",
-        "nodeStart": 3336,
+        "nodeStart": 3335,
         "nodeEnd": 3349,
-        "declarationId": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:IdentityProvider/Block:function-body:VariableDeclaration#0:authorization",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:3095",
         "declarationKind": "variable"
       },
       {
         "name": "BrandContext",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2897:3446:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2897",
         "source": "local",
         "nodeStart": 3369,
         "nodeEnd": 3381,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::VariableDeclaration#0:BrandContext",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:1522",
         "declarationKind": "variable"
       },
       {
         "name": "brand",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2897:3446:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:2897",
         "source": "local",
-        "nodeStart": 3383,
+        "nodeStart": 3382,
         "nodeEnd": 3388,
-        "declarationId": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:IdentityProvider/Block:function-body:VariableDeclaration#0:brand",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:3207",
         "declarationKind": "variable"
       },
       {
         "name": "props",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3399:3443:ArrowFunction",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3399",
         "source": "local",
-        "nodeStart": 3406,
+        "nodeStart": 3405,
         "nodeEnd": 3411,
-        "declarationId": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:IdentityProvider:Parameter#0:props",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:2840",
         "declarationKind": "parameter"
       },
       {
         "name": "IdentitySummary",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3399:3443:ArrowFunction",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3399",
         "source": "local",
         "nodeStart": 3425,
         "nodeEnd": 3440,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::FunctionDeclaration#0:IdentitySummary",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:3518",
         "declarationKind": "function"
       },
       {
         "name": "Component",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3446:3936:FunctionDeclaration",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3446",
         "source": "import",
-        "nodeStart": 3541,
+        "nodeStart": 3540,
         "nodeEnd": 3550,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::ImportSpecifier#0:Component",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:40",
         "declarationKind": "import",
         "moduleSpecifier": "@exactjs/core",
         "importedName": "Component",
@@ -701,7 +1636,7 @@
       },
       {
         "name": "Record",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3446:3936:FunctionDeclaration",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3446",
         "source": "unresolved",
         "nodeStart": 3551,
         "nodeEnd": 3557,
@@ -709,65 +1644,65 @@
       },
       {
         "name": "AuthorizationContext",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3574:3936:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3574",
         "source": "local",
         "nodeStart": 3616,
         "nodeEnd": 3636,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::VariableDeclaration#0:AuthorizationContext",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:1336",
         "declarationKind": "variable"
       },
       {
         "name": "BrandContext",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3574:3936:Block",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3574",
         "source": "local",
         "nodeStart": 3670,
         "nodeEnd": 3682,
-        "declarationId": "apps/server-components/src/identityprovider.tsx::VariableDeclaration#0:BrandContext",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:1522",
         "declarationKind": "variable"
       },
       {
         "name": "brand",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3693:3933:ArrowFunction",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3693",
         "source": "local",
         "nodeStart": 3727,
         "nodeEnd": 3732,
-        "declarationId": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:IdentitySummary/Block:function-body:VariableDeclaration#0:brand",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:3645",
         "declarationKind": "variable"
       },
       {
         "name": "brand",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3693:3933:ArrowFunction",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3693",
         "source": "local",
         "nodeStart": 3757,
         "nodeEnd": 3762,
-        "declarationId": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:IdentitySummary/Block:function-body:VariableDeclaration#0:brand",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:3645",
         "declarationKind": "variable"
       },
       {
         "name": "authorization",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3693:3933:ArrowFunction",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3693",
         "source": "local",
         "nodeStart": 3789,
         "nodeEnd": 3802,
-        "declarationId": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:IdentitySummary/Block:function-body:VariableDeclaration#0:authorization",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:3583",
         "declarationKind": "variable"
       },
       {
         "name": "brand",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3693:3933:ArrowFunction",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3693",
         "source": "local",
         "nodeStart": 3849,
         "nodeEnd": 3854,
-        "declarationId": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:IdentitySummary/Block:function-body:VariableDeclaration#0:brand",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:3645",
         "declarationKind": "variable"
       },
       {
         "name": "authorization",
-        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3693:3933:ArrowFunction",
+        "scopeId": "apps/server-components/src/identityprovider.tsx:scope:3693",
         "source": "local",
         "nodeStart": 3864,
         "nodeEnd": 3877,
-        "declarationId": "apps/server-components/src/identityprovider.tsx:FunctionDeclaration:IdentitySummary/Block:function-body:VariableDeclaration#0:authorization",
+        "declarationId": "apps/server-components/src/identityprovider.tsx:declaration:3583",
         "declarationKind": "variable"
       }
     ],
@@ -822,1180 +1757,11 @@
       }
     ]
   },
-  "components": [
-    {
-      "id": "xEwpO8d5H94aI5YNcUZQaAX",
-      "name": "ServerIdentityProjection",
-      "exported": true,
-      "placement": "server",
-      "subgraphPlacement": "isomorphic",
-      "renderEdges": [
-        {
-          "id": "xm-O8k3kivfLZMSEwkbOQYn",
-          "tag": "IdentityProvider",
-          "name": "IdentityProvider",
-          "componentId": "xL5Duoj1QpRsOxoiQZ_6hBj",
-          "placement": "isomorphic",
-          "boundary": "isomorphic",
-          "index": 1,
-          "path": "3.4.0.1.0"
-        }
-      ],
-      "clientIslandCount": 0,
-      "tasks": [
-        {
-          "id": "xBSFY15Nxenh4yiPSTnHZOB",
-          "placement": "server",
-          "requestedPlacement": "server",
-          "priority": "normal",
-          "readiness": "nonblocking",
-          "async": true,
-          "browserEffects": false,
-          "dependencies": [
-            {
-              "index": 0,
-              "source": "context",
-              "contextToken": "ServerAuthorizationContext"
-            },
-            {
-              "index": 1,
-              "source": "context",
-              "contextToken": "ServerBrandContext"
-            }
-          ],
-          "reads": [],
-          "writes": [
-            {
-              "path": "roleNames",
-              "kind": "write",
-              "confidence": "exact"
-            },
-            {
-              "path": "brandName",
-              "kind": "write",
-              "confidence": "exact"
-            },
-            {
-              "path": "brandAccent",
-              "kind": "write",
-              "confidence": "exact"
-            }
-          ],
-          "contexts": [
-            {
-              "token": "ServerAuthorizationContext",
-              "kind": "read",
-              "confidence": "exact"
-            },
-            {
-              "token": "ServerBrandContext",
-              "kind": "read",
-              "confidence": "exact"
-            }
-          ],
-          "diagnostics": [
-            "task placement forced by this.task.server()"
-          ],
-          "environmentEffect": "server",
-          "effectSources": [
-            {
-              "environment": "server",
-              "description": "server context call",
-              "path": [
-                "ServerIdentityProjection.task@2000",
-                "server context call"
-              ]
-            },
-            {
-              "environment": "server",
-              "description": "server-kept data policy",
-              "path": [
-                "ServerIdentityProjection.task@2000",
-                "server-kept data policy"
-              ]
-            }
-          ]
-        }
-      ],
-      "contexts": [
-        {
-          "token": "ServerAuthorizationContext",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "token": "ServerBrandContext",
-          "kind": "read",
-          "confidence": "exact"
-        }
-      ],
-      "splitBoundaries": [],
-      "diagnostics": [
-        "task placement forced by this.task.server()"
-      ],
-      "environmentEffect": "server",
-      "artifactTargets": [
-        "server"
-      ]
-    },
-    {
-      "id": "xL5Duoj1QpRsOxoiQZ_6hBj",
-      "name": "IdentityProvider",
-      "exported": true,
-      "placement": "isomorphic",
-      "subgraphPlacement": "isomorphic",
-      "renderEdges": [
-        {
-          "id": "xeJFI354uvO1PFaMnp0xJoW",
-          "tag": "IdentitySummary",
-          "name": "IdentitySummary",
-          "componentId": "xxkzmrkp0Yqo77yZYKIEJmn",
-          "placement": "isomorphic",
-          "boundary": "isomorphic",
-          "index": 1,
-          "path": "4.7.0.1.2"
-        }
-      ],
-      "clientIslandCount": 0,
-      "tasks": [],
-      "contexts": [
-        {
-          "token": "AuthorizationContext",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "token": "BrandContext",
-          "kind": "write",
-          "confidence": "exact"
-        }
-      ],
-      "splitBoundaries": [],
-      "diagnostics": [],
-      "environmentEffect": "neutral",
-      "artifactTargets": [
-        "client",
-        "server"
-      ]
-    },
-    {
-      "id": "xxkzmrkp0Yqo77yZYKIEJmn",
-      "name": "IdentitySummary",
-      "exported": true,
-      "placement": "isomorphic",
-      "subgraphPlacement": "isomorphic",
-      "renderEdges": [],
-      "clientIslandCount": 0,
-      "tasks": [],
-      "contexts": [
-        {
-          "token": "AuthorizationContext",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "token": "BrandContext",
-          "kind": "read",
-          "confidence": "exact"
-        }
-      ],
-      "splitBoundaries": [],
-      "diagnostics": [],
-      "environmentEffect": "neutral",
-      "artifactTargets": [
-        "client",
-        "server"
-      ]
-    }
-  ],
-  "exports": [
-    {
-      "name": "Authorization",
-      "kind": "value",
-      "placement": "unknown"
-    },
-    {
-      "name": "AuthorizationContext",
-      "kind": "value",
-      "placement": "isomorphic"
-    },
-    {
-      "name": "Brand",
-      "kind": "value",
-      "placement": "unknown"
-    },
-    {
-      "name": "BrandContext",
-      "kind": "value",
-      "placement": "isomorphic"
-    },
-    {
-      "name": "IdentityProvider",
-      "kind": "component",
-      "placement": "isomorphic"
-    },
-    {
-      "name": "IdentitySummary",
-      "kind": "component",
-      "placement": "isomorphic"
-    },
-    {
-      "name": "PublicIdentity",
-      "kind": "value",
-      "placement": "unknown"
-    },
-    {
-      "name": "ServerAuthorization",
-      "kind": "value",
-      "placement": "unknown"
-    },
-    {
-      "name": "ServerAuthorizationContext",
-      "kind": "value",
-      "placement": "server"
-    },
-    {
-      "name": "ServerBrand",
-      "kind": "value",
-      "placement": "unknown"
-    },
-    {
-      "name": "ServerBrandContext",
-      "kind": "value",
-      "placement": "server"
-    },
-    {
-      "name": "ServerIdentityProjection",
-      "kind": "component",
-      "placement": "server"
-    }
-  ],
-  "symbols": [
-    {
-      "id": "xdCiN5z_CKm_KxZ6wLPty-X",
-      "componentId": "xEwpO8d5H94aI5YNcUZQaAX",
-      "exportName": "ServerIdentityProjection",
-      "localName": "ServerIdentityProjection",
-      "generatedName": "ServerIdentityProjection",
-      "debugName": "ServerIdentityProjection",
-      "kind": "component",
-      "role": "root",
-      "target": "server",
-      "placement": "server"
-    },
-    {
-      "id": "xH6cSqjPyO3oDMjwv2WHGfG",
-      "componentId": "xL5Duoj1QpRsOxoiQZ_6hBj",
-      "exportName": "IdentityProvider",
-      "localName": "IdentityProvider",
-      "generatedName": "IdentityProvider",
-      "debugName": "IdentityProvider",
-      "kind": "component",
-      "role": "root",
-      "target": "both",
-      "placement": "isomorphic"
-    },
-    {
-      "id": "xTo_jL1arCpmb1bFNb5wgtq",
-      "componentId": "xxkzmrkp0Yqo77yZYKIEJmn",
-      "exportName": "IdentitySummary",
-      "localName": "IdentitySummary",
-      "generatedName": "IdentitySummary",
-      "debugName": "IdentitySummary",
-      "kind": "component",
-      "role": "root",
-      "target": "both",
-      "placement": "isomorphic"
-    },
-    {
-      "id": "x-szldXEN-uReDOiFRyVwob",
-      "exportName": "AuthorizationContext",
-      "localName": "AuthorizationContext",
-      "generatedName": "AuthorizationContext",
-      "debugName": "AuthorizationContext",
-      "kind": "value",
-      "role": "root",
-      "target": "both",
-      "placement": "isomorphic"
-    },
-    {
-      "id": "xbPdWmgF1nAwvxNUH1QwCQb",
-      "exportName": "ServerAuthorizationContext",
-      "localName": "ServerAuthorizationContext",
-      "generatedName": "ServerAuthorizationContext",
-      "debugName": "ServerAuthorizationContext",
-      "kind": "value",
-      "role": "root",
-      "target": "server",
-      "placement": "server"
-    },
-    {
-      "id": "xItFErd4BMbifX5PLJ9L0VY",
-      "exportName": "BrandContext",
-      "localName": "BrandContext",
-      "generatedName": "BrandContext",
-      "debugName": "BrandContext",
-      "kind": "value",
-      "role": "root",
-      "target": "both",
-      "placement": "isomorphic"
-    },
-    {
-      "id": "xoZbmE1BjqEjY1GW3evQJfl",
-      "exportName": "ServerBrandContext",
-      "localName": "ServerBrandContext",
-      "generatedName": "ServerBrandContext",
-      "debugName": "ServerBrandContext",
-      "kind": "value",
-      "role": "root",
-      "target": "server",
-      "placement": "server"
-    }
-  ],
-  "boundaries": [],
-  "callables": [
-    {
-      "id": "x1fxlFwJ_Ltg_NoLOhX59Jl",
-      "name": "BrandContext.initializer",
-      "kind": "initializer",
-      "exportNames": [
-        "BrandContext"
-      ],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [
-        {
-          "id": "xFye2cFqTHFNGMa5owK314y",
-          "name": "createContext",
-          "moduleSpecifier": "@exactjs/core",
-          "exportName": "createContext",
-          "resolved": false
-        }
-      ],
-      "artifactTargets": [
-        "client",
-        "server"
-      ],
-      "stateReads": [],
-      "stateWrites": [],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "x1y3VUyDrbZlUrri-4-BhYe",
-      "name": "AuthorizationContext.initializer",
-      "kind": "initializer",
-      "exportNames": [
-        "AuthorizationContext"
-      ],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [
-        {
-          "id": "xF1s7Ld9eR5jYRDefYqoCvR",
-          "name": "createContext",
-          "moduleSpecifier": "@exactjs/core",
-          "exportName": "createContext",
-          "resolved": false
-        }
-      ],
-      "artifactTargets": [
-        "client",
-        "server"
-      ],
-      "stateReads": [],
-      "stateWrites": [],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "x96WzBQpBtsdacb5-ATM74K",
-      "name": "brand",
-      "kind": "function",
-      "exportNames": [],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [],
-      "artifactTargets": [],
-      "stateReads": [
-        {
-          "path": "brandAccent",
-          "kind": "read",
-          "confidence": "exact"
-        }
-      ],
-      "stateWrites": [],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xD6P_K6TdGRkviVjwijr7dn",
-      "name": "<function@3400>",
-      "kind": "function",
-      "exportNames": [],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [],
-      "artifactTargets": [
-        "client",
-        "server"
-      ],
-      "stateReads": [],
-      "stateWrites": [],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xfCFdWzCeBVwWG9BMx27DNZ",
-      "name": "ServerIdentityProjection.task@2000",
-      "kind": "task",
-      "exportNames": [],
-      "directEffect": "server",
-      "effect": "server",
-      "directEffectSources": [
-        {
-          "environment": "server",
-          "description": "server context call",
-          "path": [
-            "ServerIdentityProjection.task@2000",
-            "server context call"
-          ]
-        },
-        {
-          "environment": "server",
-          "description": "server-kept data policy",
-          "path": [
-            "ServerIdentityProjection.task@2000",
-            "server-kept data policy"
-          ]
-        }
-      ],
-      "effectSources": [
-        {
-          "environment": "server",
-          "description": "server context call",
-          "path": [
-            "ServerIdentityProjection.task@2000",
-            "server context call"
-          ]
-        },
-        {
-          "environment": "server",
-          "description": "server-kept data policy",
-          "path": [
-            "ServerIdentityProjection.task@2000",
-            "server-kept data policy"
-          ]
-        }
-      ],
-      "calls": [
-        {
-          "id": "x0lb4GXlB0AtP4U8mPyWTAX",
-          "name": "this.getContext",
-          "resolved": false
-        },
-        {
-          "id": "xazB_p3_X8g2F5Hfm0cwTeP",
-          "name": "brand.publicBrand",
-          "resolved": true
-        },
-        {
-          "id": "xFj85s-_Suqu4eISqK7S4zL",
-          "name": "authorization.roles",
-          "resolved": true
-        },
-        {
-          "id": "xGfUUyW3QJPvh2nurROGDPx",
-          "name": "ServerAuthorizationContext",
-          "targetId": "xUdTickdcgh621qpYqdN9pb",
-          "resolved": true
-        },
-        {
-          "id": "xOHAunPNNANc8_psYuBTUmg",
-          "name": "authorization.roles().join",
-          "resolved": true
-        },
-        {
-          "id": "xQ34uJLYp5YoAMvcLLc0A-Y",
-          "name": "this.getContext",
-          "resolved": false
-        },
-        {
-          "id": "xUKIME9auy8unWV9MoNxLa3",
-          "name": "Promise.resolve",
-          "resolved": false
-        },
-        {
-          "id": "xZiRV8gzVscrQxFCacDejdo",
-          "name": "ServerBrandContext",
-          "targetId": "xPGDA7yY0ieURhq4EDNgvo_",
-          "resolved": true
-        }
-      ],
-      "artifactTargets": [
-        "server"
-      ],
-      "stateReads": [],
-      "stateWrites": [
-        {
-          "path": "brandAccent",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "brandName",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "roleNames",
-          "kind": "write",
-          "confidence": "exact"
-        }
-      ],
-      "contexts": [
-        {
-          "token": "ServerAuthorizationContext",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "token": "ServerBrandContext",
-          "kind": "read",
-          "confidence": "exact"
-        }
-      ],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xN2QNvLm60QKfcs_c9AuwXC",
-      "name": "<function@3694>",
-      "kind": "function",
-      "exportNames": [],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [
-        {
-          "id": "x_Z5OF05kjQwe5RroO-0xHH",
-          "name": "brand.name",
-          "resolved": true
-        },
-        {
-          "id": "xeyq_arEQjjzo1rUTL0_VxP",
-          "name": "authorization.hasRole",
-          "resolved": true
-        },
-        {
-          "id": "xhm1SfTGer4E8ijvbKwG_3a",
-          "name": "brand.accent",
-          "resolved": true
-        },
-        {
-          "id": "xJRykE5AVbPKQg6KIXKgnri",
-          "name": "brand.name",
-          "resolved": true
-        },
-        {
-          "id": "xqOkobYRUM7vjZ5BPgWHhZn",
-          "name": "authorization.hasRole",
-          "resolved": true
-        }
-      ],
-      "artifactTargets": [
-        "client",
-        "server"
-      ],
-      "stateReads": [],
-      "stateWrites": [],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xPGDA7yY0ieURhq4EDNgvo_",
-      "name": "ServerBrandContext.initializer",
-      "kind": "initializer",
-      "exportNames": [
-        "ServerBrandContext"
-      ],
-      "directEffect": "server",
-      "effect": "server",
-      "directEffectSources": [
-        {
-          "environment": "server",
-          "description": "server-kept data policy",
-          "path": [
-            "ServerBrandContext.initializer",
-            "server-kept data policy"
-          ]
-        }
-      ],
-      "effectSources": [
-        {
-          "environment": "server",
-          "description": "server-kept data policy",
-          "path": [
-            "ServerBrandContext.initializer",
-            "server-kept data policy"
-          ]
-        }
-      ],
-      "calls": [
-        {
-          "id": "xeF127_cEHgwh9svonXIaqE",
-          "name": "createContext",
-          "moduleSpecifier": "@exactjs/core",
-          "exportName": "createContext",
-          "resolved": false
-        }
-      ],
-      "artifactTargets": [
-        "server"
-      ],
-      "stateReads": [],
-      "stateWrites": [],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xqWhXF6mTBkR-wuGzh9opHl",
-      "name": "brand",
-      "kind": "function",
-      "exportNames": [],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [],
-      "artifactTargets": [],
-      "stateReads": [
-        {
-          "path": "brandName",
-          "kind": "read",
-          "confidence": "exact"
-        }
-      ],
-      "stateWrites": [],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xr1TxQn90UerQDKJhaP6Bhx",
-      "name": "IdentitySummary",
-      "kind": "component",
-      "exportNames": [
-        "IdentitySummary"
-      ],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [
-        {
-          "id": "x9YYJ9S__EfyqRi_9l1yG2V",
-          "name": "<function@3694>:returned",
-          "targetId": "xN2QNvLm60QKfcs_c9AuwXC",
-          "resolved": true
-        },
-        {
-          "id": "xeOADnjUKA8ZuJydmyLezrR",
-          "name": "BrandContext",
-          "targetId": "x1fxlFwJ_Ltg_NoLOhX59Jl",
-          "resolved": true
-        },
-        {
-          "id": "xINJAI4JxDb_JdQg7prWgLi",
-          "name": "this.getContext",
-          "resolved": false
-        },
-        {
-          "id": "xX-5j9bAc2z0MfEeVK_Ra0l",
-          "name": "this.getContext",
-          "resolved": false
-        },
-        {
-          "id": "xXYtzuKanCWJY5VX233jsza",
-          "name": "AuthorizationContext",
-          "targetId": "x1y3VUyDrbZlUrri-4-BhYe",
-          "resolved": true
-        }
-      ],
-      "artifactTargets": [
-        "client",
-        "server"
-      ],
-      "stateReads": [],
-      "stateWrites": [],
-      "contexts": [
-        {
-          "token": "AuthorizationContext",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "token": "BrandContext",
-          "kind": "read",
-          "confidence": "exact"
-        }
-      ],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xU0Erx0riKLoIV9chtSsRpl",
-      "name": "authorization",
-      "kind": "function",
-      "exportNames": [],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [
-        {
-          "id": "x6ZE-hlB_YObZcSB-usjimf",
-          "name": "this.state.roleNames.split(',').includes",
-          "resolved": false
-        },
-        {
-          "id": "xadho4b83oej4u7ivAW-6Ij",
-          "name": "this.state.roleNames.split",
-          "resolved": false
-        }
-      ],
-      "artifactTargets": [],
-      "stateReads": [
-        {
-          "path": "roleNames",
-          "kind": "read",
-          "confidence": "exact"
-        }
-      ],
-      "stateWrites": [],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xUdTickdcgh621qpYqdN9pb",
-      "name": "ServerAuthorizationContext.initializer",
-      "kind": "initializer",
-      "exportNames": [
-        "ServerAuthorizationContext"
-      ],
-      "directEffect": "server",
-      "effect": "server",
-      "directEffectSources": [
-        {
-          "environment": "server",
-          "description": "server-kept data policy",
-          "path": [
-            "ServerAuthorizationContext.initializer",
-            "server-kept data policy"
-          ]
-        }
-      ],
-      "effectSources": [
-        {
-          "environment": "server",
-          "description": "server-kept data policy",
-          "path": [
-            "ServerAuthorizationContext.initializer",
-            "server-kept data policy"
-          ]
-        }
-      ],
-      "calls": [
-        {
-          "id": "xY_-kHHXXbUsR3-aoqmXAzn",
-          "name": "createContext",
-          "moduleSpecifier": "@exactjs/core",
-          "exportName": "createContext",
-          "resolved": false
-        }
-      ],
-      "artifactTargets": [
-        "server"
-      ],
-      "stateReads": [],
-      "stateWrites": [],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xUOkLF_Ro6KowQfOcnZZ08f",
-      "name": "<function@2368>",
-      "kind": "function",
-      "exportNames": [],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [
-        {
-          "id": "xFjGpK4p2SkoC_m_V2aCTeM",
-          "name": "this.state.roleNames.split(',').filter",
-          "resolved": false
-        },
-        {
-          "id": "xhA9B7i_k5PNz1xy_8BcrRC",
-          "name": "this.state.roleNames.split",
-          "resolved": false
-        }
-      ],
-      "artifactTargets": [
-        "client",
-        "server"
-      ],
-      "stateReads": [
-        {
-          "path": "brandAccent",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "path": "brandName",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "path": "roleNames",
-          "kind": "read",
-          "confidence": "exact"
-        }
-      ],
-      "stateWrites": [],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xxG5LFU3PzHNt8YwK0q-18K",
-      "name": "IdentityProvider",
-      "kind": "component",
-      "exportNames": [
-        "IdentityProvider"
-      ],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [
-        {
-          "id": "xbK01X9VYeYbU48SU4fAV56",
-          "name": "<function@3400>:returned",
-          "targetId": "xD6P_K6TdGRkviVjwijr7dn",
-          "resolved": true
-        },
-        {
-          "id": "xd_p2uL2p5tuZHgByIMhVM3",
-          "name": "this.setContext",
-          "resolved": false
-        },
-        {
-          "id": "xL_sA9u_zSK1f090_TXGXFh",
-          "name": "AuthorizationContext",
-          "targetId": "x1y3VUyDrbZlUrri-4-BhYe",
-          "resolved": true
-        },
-        {
-          "id": "xo6UncCfl2uNeyXnFVQI8vd",
-          "name": "this.setContext",
-          "resolved": false
-        },
-        {
-          "id": "xvJtzIIVzwhRpXZHxoztO4S",
-          "name": "BrandContext",
-          "targetId": "x1fxlFwJ_Ltg_NoLOhX59Jl",
-          "resolved": true
-        },
-        {
-          "id": "xXg5XdUOPvTnwZfLaPe-Jiw",
-          "name": "(props.initial?.roles ?? []).join",
-          "resolved": false
-        }
-      ],
-      "artifactTargets": [
-        "client",
-        "server"
-      ],
-      "stateReads": [
-        {
-          "path": "brandAccent",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "path": "brandName",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "path": "roleNames",
-          "kind": "read",
-          "confidence": "exact"
-        }
-      ],
-      "stateWrites": [
-        {
-          "path": "brandAccent",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "brandName",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "roleNames",
-          "kind": "write",
-          "confidence": "exact"
-        }
-      ],
-      "contexts": [
-        {
-          "token": "AuthorizationContext",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "token": "BrandContext",
-          "kind": "write",
-          "confidence": "exact"
-        }
-      ],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xy9BR2HJs5_I9iGQxr4TBpD",
-      "name": "ServerIdentityProjection",
-      "kind": "component",
-      "exportNames": [
-        "ServerIdentityProjection"
-      ],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [
-        {
-          "id": "x-Rm_Grbc0SGeb7ABDIKha_",
-          "name": "this.task.server",
-          "resolved": false
-        },
-        {
-          "id": "xn-xz-J0jb41nP9aE1lhxxV",
-          "name": "<function@2368>:returned",
-          "targetId": "xUOkLF_Ro6KowQfOcnZZ08f",
-          "resolved": true
-        }
-      ],
-      "artifactTargets": [
-        "client",
-        "server"
-      ],
-      "stateReads": [
-        {
-          "path": "brandAccent",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "path": "brandName",
-          "kind": "read",
-          "confidence": "exact"
-        },
-        {
-          "path": "roleNames",
-          "kind": "read",
-          "confidence": "exact"
-        }
-      ],
-      "stateWrites": [
-        {
-          "path": "brandAccent",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "brandName",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "roleNames",
-          "kind": "write",
-          "confidence": "exact"
-        }
-      ],
-      "contexts": [],
-      "reevaluationSafe": false
-    }
-  ],
-  "continuations": [
-    {
-      "id": "xBSFY15Nxenh4yiPSTnHZOB",
-      "kind": "task",
-      "componentId": "xEwpO8d5H94aI5YNcUZQaAX",
-      "taskId": "xBSFY15Nxenh4yiPSTnHZOB",
-      "placement": "server",
-      "readiness": "nonblocking",
-      "async": true,
-      "activation": {
-        "stateReads": [],
-        "dependencies": [],
-        "serverContexts": [
-          {
-            "token": "ServerAuthorizationContext",
-            "kind": "read",
-            "confidence": "exact"
-          },
-          {
-            "token": "ServerBrandContext",
-            "kind": "read",
-            "confidence": "exact"
-          }
-        ],
-        "publicContexts": []
-      },
-      "effects": {
-        "stateWrites": [
-          {
-            "path": "roleNames",
-            "kind": "write",
-            "confidence": "exact"
-          },
-          {
-            "path": "brandName",
-            "kind": "write",
-            "confidence": "exact"
-          },
-          {
-            "path": "brandAccent",
-            "kind": "write",
-            "confidence": "exact"
-          }
-        ],
-        "contextWrites": [],
-        "serverContextWrites": [],
-        "boundaries": []
-      },
-      "ownership": {
-        "componentId": "xEwpO8d5H94aI5YNcUZQaAX",
-        "lifetime": "component"
-      },
-      "cancellation": "abort-signal"
-    }
-  ],
-  "resumptions": [
-    {
-      "componentId": "xEwpO8d5H94aI5YNcUZQaAX",
-      "serverRender": {
-        "stateReads": [],
-        "serverContexts": [
-          {
-            "token": "ServerAuthorizationContext",
-            "kind": "read",
-            "confidence": "exact"
-          },
-          {
-            "token": "ServerBrandContext",
-            "kind": "read",
-            "confidence": "exact"
-          }
-        ]
-      },
-      "client": {
-        "statePaths": [
-          "brandAccent",
-          "brandName",
-          "roleNames"
-        ],
-        "valueCaptures": [],
-        "contexts": [],
-        "boundaries": []
-      }
-    },
-    {
-      "componentId": "xL5Duoj1QpRsOxoiQZ_6hBj",
-      "serverRender": {
-        "stateReads": [],
-        "serverContexts": []
-      },
-      "client": {
-        "statePaths": [],
-        "valueCaptures": [],
-        "contexts": [],
-        "boundaries": []
-      }
-    },
-    {
-      "componentId": "xxkzmrkp0Yqo77yZYKIEJmn",
-      "serverRender": {
-        "stateReads": [],
-        "serverContexts": [
-          {
-            "token": "AuthorizationContext",
-            "kind": "read",
-            "confidence": "exact"
-          },
-          {
-            "token": "BrandContext",
-            "kind": "read",
-            "confidence": "exact"
-          }
-        ]
-      },
-      "client": {
-        "statePaths": [],
-        "valueCaptures": [],
-        "contexts": [],
-        "boundaries": []
-      }
-    }
-  ],
   "policy": {
     "version": 1,
     "subjects": [
       {
-        "id": "x5vDXXMij62iSwiX8hIJ-2h",
-        "kind": "context",
-        "name": "AuthorizationContext",
-        "policy": {
-          "residency": "shared",
-          "secret": false
-        },
-        "source": "inference"
-      },
-      {
-        "id": "x7L_fh3R7x_Iu2QlEuA3BOe",
-        "kind": "return",
-        "name": "brand.publicBrand",
-        "policy": {
-          "residency": "shared",
-          "secret": false
-        },
-        "source": "annotation"
-      },
-      {
-        "id": "xDHiF_GaOg0M4CvcZbcUGI6",
-        "kind": "return",
-        "name": "IdentitySummary",
-        "callableId": "xr1TxQn90UerQDKJhaP6Bhx",
-        "policy": {
-          "residency": "shared",
-          "secret": false
-        },
-        "source": "inference"
-      },
-      {
-        "id": "xe6WZgcC5lyDdwCu-q89Gs6",
+        "id": "policy:context:1114:ServerBrandContext",
         "kind": "context",
         "name": "ServerBrandContext",
         "policy": {
@@ -2005,17 +1771,17 @@
         "source": "context-option"
       },
       {
-        "id": "xMlzPkugk5OYSE_o9fby40m",
+        "id": "policy:context:1336:AuthorizationContext",
         "kind": "context",
-        "name": "ServerAuthorizationContext",
+        "name": "AuthorizationContext",
         "policy": {
-          "residency": "server",
+          "residency": "shared",
           "secret": false
         },
-        "source": "context-option"
+        "source": "inference"
       },
       {
-        "id": "xPSCmtJOHmQPI1fyPzJczuj",
+        "id": "policy:context:1522:BrandContext",
         "kind": "context",
         "name": "BrandContext",
         "policy": {
@@ -2025,9 +1791,39 @@
         "source": "inference"
       },
       {
-        "id": "xshktuvGHQtbuZXs-yKIMQh",
+        "id": "policy:context:864:ServerAuthorizationContext",
+        "kind": "context",
+        "name": "ServerAuthorizationContext",
+        "policy": {
+          "residency": "server",
+          "secret": false
+        },
+        "source": "context-option"
+      },
+      {
+        "id": "policy:declaration:2048:authorization",
+        "kind": "declaration",
+        "name": "authorization",
+        "policy": {
+          "residency": "server",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "policy:declaration:2117:brand",
         "kind": "declaration",
         "name": "brand",
+        "policy": {
+          "residency": "server",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "policy:declaration:2170:publicBrand",
+        "kind": "declaration",
+        "name": "publicBrand",
         "policy": {
           "residency": "shared",
           "secret": false
@@ -2035,7 +1831,7 @@
         "source": "inference"
       },
       {
-        "id": "xwj-Bk1SUp_3LSbdtUXEAVr",
+        "id": "policy:declaration:3583:authorization",
         "kind": "declaration",
         "name": "authorization",
         "policy": {
@@ -2045,9 +1841,118 @@
         "source": "inference"
       },
       {
-        "id": "xxXoOSNlSdXL5-YGhujVzVq",
+        "id": "policy:declaration:3645:brand",
         "kind": "declaration",
+        "name": "brand",
+        "policy": {
+          "residency": "shared",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "policy:return:1619:ServerIdentityProjection",
+        "kind": "return",
+        "name": "ServerIdentityProjection",
+        "callableId": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:1619",
+        "policy": {
+          "residency": "shared",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "policy:return:174:roles",
+        "kind": "return",
+        "name": "roles",
+        "policy": {
+          "residency": "shared",
+          "secret": false
+        },
+        "source": "annotation"
+      },
+      {
+        "id": "policy:return:2574:IdentityProvider",
+        "kind": "return",
+        "name": "IdentityProvider",
+        "callableId": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2574",
+        "policy": {
+          "residency": "shared",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "policy:return:311:publicBrand",
+        "kind": "return",
         "name": "publicBrand",
+        "policy": {
+          "residency": "shared",
+          "secret": false
+        },
+        "source": "annotation"
+      },
+      {
+        "id": "policy:return:3446:IdentitySummary",
+        "kind": "return",
+        "name": "IdentitySummary",
+        "callableId": "callable:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3446",
+        "policy": {
+          "residency": "shared",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "policy:return:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2184:brand.publicBrand",
+        "kind": "return",
+        "name": "brand.publicBrand",
+        "policy": {
+          "residency": "shared",
+          "secret": false
+        },
+        "source": "annotation"
+      },
+      {
+        "id": "policy:return:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2230:authorization.roles",
+        "kind": "return",
+        "name": "authorization.roles",
+        "policy": {
+          "residency": "shared",
+          "secret": false
+        },
+        "source": "annotation"
+      },
+      {
+        "id": "policy:state:ServerIdentityProjection:brandAccent",
+        "kind": "state",
+        "name": "ServerIdentityProjection.state.brandAccent",
+        "path": "brandAccent",
+        "componentId": "xwcWw5nxhcqKi7LH40FTp66",
+        "policy": {
+          "residency": "shared",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "policy:state:ServerIdentityProjection:brandName",
+        "kind": "state",
+        "name": "ServerIdentityProjection.state.brandName",
+        "path": "brandName",
+        "componentId": "xwcWw5nxhcqKi7LH40FTp66",
+        "policy": {
+          "residency": "shared",
+          "secret": false
+        },
+        "source": "inference"
+      },
+      {
+        "id": "policy:state:ServerIdentityProjection:roleNames",
+        "kind": "state",
+        "name": "ServerIdentityProjection.state.roleNames",
+        "path": "roleNames",
+        "componentId": "xwcWw5nxhcqKi7LH40FTp66",
         "policy": {
           "residency": "shared",
           "secret": false
@@ -2057,12 +1962,25 @@
     ],
     "flows": [
       {
-        "id": "x2DazBYcLhXp7Y-z_IPhd88",
+        "id": "policy:flow:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:1619:policy:return:1619:ServerIdentityProjection",
         "kind": "propagation",
         "from": [
-          "xe6WZgcC5lyDdwCu-q89Gs6"
+          "policy:return:2574:IdentityProvider"
         ],
-        "to": "xshktuvGHQtbuZXs-yKIMQh",
+        "to": "policy:return:1619:ServerIdentityProjection",
+        "policy": {
+          "residency": "shared",
+          "secret": false
+        },
+        "authorized": true
+      },
+      {
+        "id": "policy:flow:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2048:policy:declaration:2048:authorization",
+        "kind": "propagation",
+        "from": [
+          "policy:context:864:ServerAuthorizationContext"
+        ],
+        "to": "policy:declaration:2048:authorization",
         "policy": {
           "residency": "server",
           "secret": false
@@ -2070,94 +1988,12 @@
         "authorized": true
       },
       {
-        "id": "x9M1G6f_JuRH7ZetvPb2ckN",
-        "kind": "transfer",
-        "from": [
-          "x5vDXXMij62iSwiX8hIJ-2h"
-        ],
-        "to": "xxkzmrkp0Yqo77yZYKIEJmn",
-        "policy": {
-          "residency": "shared",
-          "secret": false
-        },
-        "boundary": "context",
-        "authorized": true
-      },
-      {
-        "id": "x9zUDwY97mctWhM4WKwEz6C",
+        "id": "policy:flow:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2117:policy:declaration:2117:brand",
         "kind": "propagation",
         "from": [
-          "x7L_fh3R7x_Iu2QlEuA3BOe"
+          "policy:context:1114:ServerBrandContext"
         ],
-        "to": "xxXoOSNlSdXL5-YGhujVzVq",
-        "policy": {
-          "residency": "shared",
-          "secret": false
-        },
-        "authorized": true
-      },
-      {
-        "id": "xa1iISGLk2IwpNLi8eyzwqT",
-        "kind": "transfer",
-        "from": [
-          "xPSCmtJOHmQPI1fyPzJczuj"
-        ],
-        "to": "xxkzmrkp0Yqo77yZYKIEJmn",
-        "policy": {
-          "residency": "shared",
-          "secret": false
-        },
-        "boundary": "context",
-        "authorized": true
-      },
-      {
-        "id": "xiTDOoygvaViAgZpdx-0j63",
-        "kind": "transfer",
-        "from": [
-          "xMlzPkugk5OYSE_o9fby40m"
-        ],
-        "to": "xEwpO8d5H94aI5YNcUZQaAX",
-        "policy": {
-          "residency": "server",
-          "secret": false
-        },
-        "boundary": "context",
-        "authorized": true
-      },
-      {
-        "id": "xNmd5YbUrYPZnJ-90xBqMPh",
-        "kind": "transfer",
-        "from": [
-          "xe6WZgcC5lyDdwCu-q89Gs6"
-        ],
-        "to": "xEwpO8d5H94aI5YNcUZQaAX",
-        "policy": {
-          "residency": "server",
-          "secret": false
-        },
-        "boundary": "context",
-        "authorized": true
-      },
-      {
-        "id": "xRcoJlCBeUiHFv5WZphAWdK",
-        "kind": "propagation",
-        "from": [
-          "x5vDXXMij62iSwiX8hIJ-2h"
-        ],
-        "to": "xwj-Bk1SUp_3LSbdtUXEAVr",
-        "policy": {
-          "residency": "shared",
-          "secret": false
-        },
-        "authorized": true
-      },
-      {
-        "id": "xRn_laaG79Nm8qDjk6tN3WR",
-        "kind": "propagation",
-        "from": [
-          "xMlzPkugk5OYSE_o9fby40m"
-        ],
-        "to": "xwj-Bk1SUp_3LSbdtUXEAVr",
+        "to": "policy:declaration:2117:brand",
         "policy": {
           "residency": "server",
           "secret": false
@@ -2165,12 +2001,12 @@
         "authorized": true
       },
       {
-        "id": "xx2sVnPDUoUbNAAzp7kwlzF",
+        "id": "policy:flow:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2170:policy:declaration:2170:publicBrand",
         "kind": "propagation",
         "from": [
-          "xPSCmtJOHmQPI1fyPzJczuj"
+          "policy:return:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2184:brand.publicBrand"
         ],
-        "to": "xshktuvGHQtbuZXs-yKIMQh",
+        "to": "policy:declaration:2170:publicBrand",
         "policy": {
           "residency": "shared",
           "secret": false
@@ -2178,27 +2014,149 @@
         "authorized": true
       },
       {
-        "id": "xZNn0HvnfsVUZ1OI2m_4opD",
+        "id": "policy:flow:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2574:policy:return:2574:IdentityProvider",
         "kind": "propagation",
         "from": [
-          "xshktuvGHQtbuZXs-yKIMQh",
-          "xwj-Bk1SUp_3LSbdtUXEAVr"
+          "policy:return:3446:IdentitySummary"
         ],
-        "to": "xDHiF_GaOg0M4CvcZbcUGI6",
+        "to": "policy:return:2574:IdentityProvider",
         "policy": {
           "residency": "shared",
           "secret": false
         },
+        "authorized": true
+      },
+      {
+        "id": "policy:flow:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3446:policy:return:3446:IdentitySummary",
+        "kind": "propagation",
+        "from": [
+          "policy:declaration:3583:authorization",
+          "policy:declaration:3645:brand"
+        ],
+        "to": "policy:return:3446:IdentitySummary",
+        "policy": {
+          "residency": "shared",
+          "secret": false
+        },
+        "authorized": true
+      },
+      {
+        "id": "policy:flow:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3583:policy:declaration:3583:authorization",
+        "kind": "propagation",
+        "from": [
+          "policy:context:1336:AuthorizationContext"
+        ],
+        "to": "policy:declaration:3583:authorization",
+        "policy": {
+          "residency": "shared",
+          "secret": false
+        },
+        "authorized": true
+      },
+      {
+        "id": "policy:flow:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:3645:policy:declaration:3645:brand",
+        "kind": "propagation",
+        "from": [
+          "policy:context:1522:BrandContext"
+        ],
+        "to": "policy:declaration:3645:brand",
+        "policy": {
+          "residency": "shared",
+          "secret": false
+        },
+        "authorized": true
+      },
+      {
+        "id": "policy:projection:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2420:roleNames",
+        "kind": "projection",
+        "from": [
+          "policy:state:ServerIdentityProjection:roleNames"
+        ],
+        "to": "policy:state:ServerIdentityProjection:roleNames",
+        "policy": {
+          "residency": "shared",
+          "secret": false
+        },
+        "boundary": "state",
+        "authorized": true
+      },
+      {
+        "id": "policy:projection:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2493:brandName",
+        "kind": "projection",
+        "from": [
+          "policy:state:ServerIdentityProjection:brandName"
+        ],
+        "to": "policy:state:ServerIdentityProjection:brandName",
+        "policy": {
+          "residency": "shared",
+          "secret": false
+        },
+        "boundary": "state",
+        "authorized": true
+      },
+      {
+        "id": "policy:projection:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2528:brandAccent",
+        "kind": "projection",
+        "from": [
+          "policy:state:ServerIdentityProjection:brandAccent"
+        ],
+        "to": "policy:state:ServerIdentityProjection:brandAccent",
+        "policy": {
+          "residency": "shared",
+          "secret": false
+        },
+        "boundary": "state",
+        "authorized": true
+      },
+      {
+        "id": "policy:transfer:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2420:roleNames",
+        "kind": "transfer",
+        "from": [
+          "policy:state:ServerIdentityProjection:roleNames"
+        ],
+        "to": "policy:state:ServerIdentityProjection:roleNames",
+        "policy": {
+          "residency": "shared",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "policy:transfer:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2493:brandName",
+        "kind": "transfer",
+        "from": [
+          "policy:state:ServerIdentityProjection:brandName"
+        ],
+        "to": "policy:state:ServerIdentityProjection:brandName",
+        "policy": {
+          "residency": "shared",
+          "secret": false
+        },
+        "boundary": "client-island",
+        "authorized": true
+      },
+      {
+        "id": "policy:transfer:C:/Users/techj/Projects/eXact/apps/server-components/apps/server-components/src/IdentityProvider.tsx:2528:brandAccent",
+        "kind": "transfer",
+        "from": [
+          "policy:state:ServerIdentityProjection:brandAccent"
+        ],
+        "to": "policy:state:ServerIdentityProjection:brandAccent",
+        "policy": {
+          "residency": "shared",
+          "secret": false
+        },
+        "boundary": "client-island",
         "authorized": true
       }
     ],
     "secretConsumers": []
   },
-  "packageName": "@exactjs/sample-server-components",
   "serverActions": {
     "xBSFY15Nxenh4yiPSTnHZOB": {
       "id": "xBSFY15Nxenh4yiPSTnHZOB",
-      "componentId": "xEwpO8d5H94aI5YNcUZQaAX",
+      "componentId": "xwcWw5nxhcqKi7LH40FTp66",
       "taskId": "xBSFY15Nxenh4yiPSTnHZOB",
       "placement": "server",
       "stateContract": {
@@ -2233,12 +2191,24 @@
           "confidence": "exact"
         }
       ],
-      "publicContextContract": []
+      "publicContextContract": [
+        {
+          "token": "BrandContext",
+          "kind": "read",
+          "confidence": "exact"
+        },
+        {
+          "token": "AuthorizationContext",
+          "kind": "read",
+          "confidence": "exact"
+        }
+      ]
     }
   },
   "diagnostics": [
     "task placement forced by this.task.server()"
   ],
+  "packageName": "@exactjs/sample-server-components",
   "artifacts": {
     "source": "../src/IdentityProvider.tsx",
     "client": "IdentityProvider.exact.client.ts",
@@ -2250,21 +2220,9 @@
     },
     "exports": [
       {
-        "name": "Authorization",
-        "kind": "value",
-        "placement": "unknown",
-        "artifactClass": "dual"
-      },
-      {
         "name": "AuthorizationContext",
         "kind": "value",
         "placement": "isomorphic",
-        "artifactClass": "dual"
-      },
-      {
-        "name": "Brand",
-        "kind": "value",
-        "placement": "unknown",
         "artifactClass": "dual"
       },
       {
@@ -2286,28 +2244,10 @@
         "artifactClass": "dual"
       },
       {
-        "name": "PublicIdentity",
-        "kind": "value",
-        "placement": "unknown",
-        "artifactClass": "dual"
-      },
-      {
-        "name": "ServerAuthorization",
-        "kind": "value",
-        "placement": "unknown",
-        "artifactClass": "dual"
-      },
-      {
         "name": "ServerAuthorizationContext",
         "kind": "value",
         "placement": "server",
         "artifactClass": "server"
-      },
-      {
-        "name": "ServerBrand",
-        "kind": "value",
-        "placement": "unknown",
-        "artifactClass": "dual"
       },
       {
         "name": "ServerBrandContext",
@@ -2318,26 +2258,25 @@
       {
         "name": "ServerIdentityProjection",
         "kind": "component",
-        "placement": "server",
-        "artifactClass": "server"
+        "placement": "isomorphic",
+        "artifactClass": "dual"
       }
     ],
     "symbols": [
       {
-        "id": "xdCiN5z_CKm_KxZ6wLPty-X",
-        "componentId": "xEwpO8d5H94aI5YNcUZQaAX",
-        "exportName": "ServerIdentityProjection",
-        "localName": "ServerIdentityProjection",
-        "generatedName": "ServerIdentityProjection",
-        "debugName": "ServerIdentityProjection",
-        "kind": "component",
+        "id": "xcKvKF6oTfFCQZ_avT0svoy",
+        "exportName": "ServerBrandContext",
+        "localName": "ServerBrandContext",
+        "generatedName": "ServerBrandContext",
+        "debugName": "ServerBrandContext",
+        "kind": "value",
         "role": "root",
         "target": "server",
         "placement": "server"
       },
       {
-        "id": "xH6cSqjPyO3oDMjwv2WHGfG",
-        "componentId": "xL5Duoj1QpRsOxoiQZ_6hBj",
+        "id": "xczVSvdXLMIoe6Zvnj2GKYc",
+        "componentId": "xzcpAN1EsXdsqtChp4aTmG2",
         "exportName": "IdentityProvider",
         "localName": "IdentityProvider",
         "generatedName": "IdentityProvider",
@@ -2348,30 +2287,7 @@
         "placement": "isomorphic"
       },
       {
-        "id": "xTo_jL1arCpmb1bFNb5wgtq",
-        "componentId": "xxkzmrkp0Yqo77yZYKIEJmn",
-        "exportName": "IdentitySummary",
-        "localName": "IdentitySummary",
-        "generatedName": "IdentitySummary",
-        "debugName": "IdentitySummary",
-        "kind": "component",
-        "role": "root",
-        "target": "both",
-        "placement": "isomorphic"
-      },
-      {
-        "id": "x-szldXEN-uReDOiFRyVwob",
-        "exportName": "AuthorizationContext",
-        "localName": "AuthorizationContext",
-        "generatedName": "AuthorizationContext",
-        "debugName": "AuthorizationContext",
-        "kind": "value",
-        "role": "root",
-        "target": "both",
-        "placement": "isomorphic"
-      },
-      {
-        "id": "xbPdWmgF1nAwvxNUH1QwCQb",
+        "id": "xdVaaaEAXpMiIvGiErCxYVL",
         "exportName": "ServerAuthorizationContext",
         "localName": "ServerAuthorizationContext",
         "generatedName": "ServerAuthorizationContext",
@@ -2382,7 +2298,42 @@
         "placement": "server"
       },
       {
-        "id": "xItFErd4BMbifX5PLJ9L0VY",
+        "id": "xeN7bLBJ0BjloCyVObq5nlJ",
+        "componentId": "x4Brm2enc9_G-7e3Idar9GA",
+        "exportName": "IdentitySummary",
+        "localName": "IdentitySummary",
+        "generatedName": "IdentitySummary",
+        "debugName": "IdentitySummary",
+        "kind": "component",
+        "role": "root",
+        "target": "both",
+        "placement": "isomorphic"
+      },
+      {
+        "id": "xkJvYpgTLFHSaFhvprHa6mG",
+        "exportName": "AuthorizationContext",
+        "localName": "AuthorizationContext",
+        "generatedName": "AuthorizationContext",
+        "debugName": "AuthorizationContext",
+        "kind": "value",
+        "role": "root",
+        "target": "both",
+        "placement": "isomorphic"
+      },
+      {
+        "id": "xl2_CyAlHSZ7-MGRi7BTIJc",
+        "componentId": "xwcWw5nxhcqKi7LH40FTp66",
+        "exportName": "ServerIdentityProjection",
+        "localName": "ServerIdentityProjection",
+        "generatedName": "ServerIdentityProjection",
+        "debugName": "ServerIdentityProjection",
+        "kind": "component",
+        "role": "root",
+        "target": "server",
+        "placement": "server"
+      },
+      {
+        "id": "xlDOWaUB4yBprOmfgflJPE6",
         "exportName": "BrandContext",
         "localName": "BrandContext",
         "generatedName": "BrandContext",
@@ -2391,17 +2342,6 @@
         "role": "root",
         "target": "both",
         "placement": "isomorphic"
-      },
-      {
-        "id": "xoZbmE1BjqEjY1GW3evQJfl",
-        "exportName": "ServerBrandContext",
-        "localName": "ServerBrandContext",
-        "generatedName": "ServerBrandContext",
-        "debugName": "ServerBrandContext",
-        "kind": "value",
-        "role": "root",
-        "target": "server",
-        "placement": "server"
       }
     ],
     "boundaries": []

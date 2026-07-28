@@ -36,6 +36,7 @@ import {
 	createServerPartSymbols,
 	createValueRootSymbols
 } from '../symbols.js';
+import { analyzeSourceWithNativeCompiler } from '../native/transformation.js';
 import type {
 	ExactBoundaryIR,
 	ExactCompilerManifest,
@@ -46,6 +47,7 @@ import type {
 	TransformOptions
 } from '../types.js';
 import { exactCompilerManifestVersion } from '../versions.js';
+import { defaultNativeCompilerSession } from '../expression/session.js';
 
 import {
 	assertUniqueIds,
@@ -65,7 +67,14 @@ export function analyzeSource(
 	source: string,
 	options: TransformOptions = {}
 ): ExactCompilerManifest {
+	if (!options.session && options.compiler !== 'legacy')
+		return analyzeSource(source, {
+			...options,
+			session: defaultNativeCompilerSession()
+		});
 	const filename = options.filename ?? 'input.tsx';
+	if (options.session?.hasNativeCompiler())
+		return analyzeSourceWithNativeCompiler(source, filename, options);
 	const normalized = preprocessComponentComputations(preprocessPropPunning(source), filename);
 	return analyzeNormalizedSource(normalized, { ...options, filename });
 }
@@ -80,8 +89,10 @@ export function analyzeNormalizedSource(
 	normalized: string,
 	options: TransformOptions
 ): ExactCompilerManifest {
-	const policyOptions = { ...options, ...capabilityCompilationOptions(options) };
 	const filename = options.filename ?? 'input.tsx';
+	if (options.session?.hasNativeCompiler())
+		return analyzeSourceWithNativeCompiler(normalized, filename, options);
+	const policyOptions = { ...options, ...capabilityCompilationOptions(options) };
 	const sourceFile = ts.createSourceFile(
 		filename,
 		normalized,

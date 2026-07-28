@@ -1,5 +1,5 @@
 import type { BoundModule } from '@exactjs/expressions';
-import ts from 'typescript';
+import * as ts from '../../native-typescript.js';
 import type { CallableEffectPlan } from '../../analysis/callable-effects.js';
 import type { ExpressionComponentPlan } from '../../expression/contracts.js';
 import type { ExpressionDerivedPlan } from '../../expression/derived.js';
@@ -14,10 +14,16 @@ export const identityFilenameFor = (sourceFile: ts.SourceFile): string =>
 	sourceIdentityFilenames.get(sourceFile) ?? sourceFile.fileName;
 /** Provides the canonical expression emission ids value. */
 export const expressionEmissionIds = new WeakMap<ts.Node, string>();
+let expressionEmissionRanges = new Map<string, string>();
 
 /** Performs the expression emission id domain operation. */
 export function expressionEmissionId(node: ts.Node): string | undefined {
-	return expressionEmissionIds.get(node) ?? expressionEmissionIds.get(ts.getOriginalNode(node));
+	const original = ts.getOriginalNode(node);
+	return (
+		expressionEmissionIds.get(node) ??
+		expressionEmissionIds.get(original) ??
+		expressionEmissionRanges.get(emissionRangeKey(original))
+	);
 }
 
 /** Pairs emission handles by the canonical expression tree's structural child path. */
@@ -26,6 +32,7 @@ export function bindExpressionEmissionNodes(
 	module: BoundModule,
 	required: ReadonlySet<string>
 ): void {
+	expressionEmissionRanges = new Map();
 	const bind = (syntax: ts.Node, expression: BoundModule['rootNode']): void => {
 		const syntaxKind = emissionSyntaxKindName(syntax);
 		if (syntaxKind !== expression.kind) {
@@ -33,14 +40,19 @@ export function bindExpressionEmissionNodes(
 				`Expression emission tree diverged at ${expression.id}: expected ${expression.kind}, received ${syntaxKind} in ${sourceFile.fileName}`
 			);
 		}
-		if (required.has(expression.id)) expressionEmissionIds.set(syntax, expression.id);
+		if (required.has(expression.id)) {
+			expressionEmissionIds.set(syntax, expression.id);
+			expressionEmissionRanges.set(emissionRangeKey(syntax), expression.id);
+		}
 		const syntaxChildren: ts.Node[] = [];
 		ts.forEachChild(syntax, (child) => {
 			syntaxChildren.push(child);
 		});
 		if (syntaxChildren.length !== expression.children.length) {
 			throw new Error(
-				`Expression emission child count diverged at ${expression.id} in ${sourceFile.fileName}`
+				`Expression emission child count diverged at ${expression.id} in ${sourceFile.fileName}: ` +
+					`emitter=[${syntaxChildren.map(emissionSyntaxKindName).join(', ')}], ` +
+					`semantic=[${expression.children.map((child) => child.kind).join(', ')}]`
 			);
 		}
 		for (let index = 0; index < syntaxChildren.length; index++)
@@ -49,8 +61,15 @@ export function bindExpressionEmissionNodes(
 	bind(sourceFile, module.rootNode);
 }
 
+function emissionRangeKey(node: ts.Node): string {
+	return `${node.pos}:${node.end}:${emissionSyntaxKindName(node)}`;
+}
+
 /** Performs the emission syntax kind name domain operation. */
 export function emissionSyntaxKindName(node: ts.Node): string {
+	if (node.kind === ts.SyntaxKind.EndOfFile) return 'EndOfFileToken';
+	if (node.kind === ts.SyntaxKind.ImportAttributes) return 'AssertClause';
+	if (node.kind === ts.SyntaxKind.ImportAttribute) return 'AssertEntry';
 	if (ts.isNumericLiteral(node)) return 'NumericLiteral';
 	if (ts.isBigIntLiteral(node)) return 'BigIntLiteral';
 	if (ts.isStringLiteral(node)) return 'StringLiteral';

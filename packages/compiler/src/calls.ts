@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from './native-typescript.js';
 
 /** Returns whether a call expression invokes this.<methodName>(). */
 export function isThisMethodCall(node: ts.CallExpression, methodName: string): boolean {
@@ -28,7 +28,7 @@ export function taskRequestedPlacement(node: ts.CallExpression): 'server' | 'cli
 export function taskCallFacets(node: ts.CallExpression): TaskCallFacets | undefined {
 	const names: string[] = [];
 	let expression: ts.Expression = node.expression;
-	while (ts.isPropertyAccessExpression(expression)) {
+	while (isPropertyAccessLike(expression)) {
 		if (isThisMethodAccess(expression, 'task')) {
 			names.reverse();
 			return normalizeTaskFacetNames(names);
@@ -82,9 +82,9 @@ export function normalizeTaskFacetNames(names: readonly string[]): TaskCallFacet
 /** Returns whether an expression is direct access to this.<methodName>. */
 export function isThisMethodAccess(expression: ts.Expression, methodName: string): boolean {
 	return (
-		ts.isPropertyAccessExpression(expression) &&
+		isPropertyAccessLike(expression) &&
 		expression.name.text === methodName &&
-		expression.expression.kind === ts.SyntaxKind.ThisKeyword
+		isThisExpressionLike(expression.expression)
 	);
 }
 
@@ -93,4 +93,30 @@ export function isFunctionLikeExpression(
 	node: ts.Expression
 ): node is ts.ArrowFunction | ts.FunctionExpression {
 	return ts.isArrowFunction(node) || ts.isFunctionExpression(node);
+}
+
+type PropertyAccessLike = ts.Expression & {
+	readonly expression: ts.Expression;
+	readonly name: { readonly text: string };
+};
+
+function isPropertyAccessLike(expression: ts.Expression): expression is PropertyAccessLike {
+	const value = expression as unknown as {
+		expression?: unknown;
+		name?: { text?: unknown };
+		argumentExpression?: unknown;
+	};
+	return (
+		typeof value.expression === 'object' &&
+		value.expression !== null &&
+		typeof value.name?.text === 'string' &&
+		value.argumentExpression === undefined
+	);
+}
+
+function isThisExpressionLike(expression: ts.Expression): boolean {
+	return (
+		expression.kind === ts.SyntaxKind.ThisKeyword ||
+		(expression as unknown as { kind?: number }).kind === 110
+	);
 }

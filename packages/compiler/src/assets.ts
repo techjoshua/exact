@@ -1,4 +1,5 @@
 import ts from 'typescript';
+import type * as nativeTs from './native-typescript.js';
 import type {
 	ExactAssetDependencyIR,
 	ExactAssetImportMode,
@@ -79,15 +80,15 @@ export function analyzeModuleImports(
 
 /** Performs the strip exact import attribute domain operation. */
 export function stripExactImportAttribute(
-	node: ts.ImportDeclaration,
-	factory: ts.NodeFactory
-): ts.ImportDeclaration {
+	node: nativeTs.ImportDeclaration,
+	factory: nativeTs.NodeFactory
+): nativeTs.ImportDeclaration {
 	const attributes = node.attributes;
 	if (!attributes) return node;
-	const retained = attributes.elements.filter(
+	const retained = attributes.attributes.filter(
 		(element) => importAttributeName(element.name) !== 'exact'
 	);
-	if (retained.length === attributes.elements.length) return node;
+	if (retained.length === attributes.attributes.length) return node;
 	const next = retained.length
 		? factory.updateImportAttributes(
 				attributes,
@@ -131,7 +132,7 @@ function exactImportPlacement(
 	return value.text;
 }
 
-function importAttributeName(name: ts.ImportAttributeName): string {
+function importAttributeName(name: Readonly<{ text: string }>): string {
 	return name.text;
 }
 

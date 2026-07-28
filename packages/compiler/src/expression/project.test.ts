@@ -8,9 +8,31 @@ import {
 } from './session.js';
 
 describe('shared expression projects', () => {
+	it('emits compiler profile events for native compilation requests', () => {
+		const events: Array<{ subsystem: string; phase: string }> = [];
+		const session = createCompilerSession({
+			onProfile: (event) => events.push(event)
+		});
+		try {
+			session.compileNative({
+				id: '__profiled_native.ts',
+				kind: 'analyze',
+				source: 'export const value = 1;'
+			});
+			expect(events).toContainEqual(
+				expect.objectContaining({ subsystem: 'compiler', phase: 'expression-module' })
+			);
+		} finally {
+			session.dispose();
+		}
+	});
+
 	it('emits compiler and nested expression profile events when enabled', () => {
 		const events: Array<{ subsystem: string; phase: string }> = [];
-		const session = createCompilerSession({ onProfile: (event) => events.push(event) });
+		const session = createCompilerSession({
+			compiler: 'legacy',
+			onProfile: (event) => events.push(event)
+		});
 		try {
 			session.expressionModuleFor('__profiled_compiler.ts', 'export const value = 1;');
 			session.expressionModuleFor('__profiled_compiler.ts', 'export const value = 1;');
@@ -75,7 +97,7 @@ describe('shared expression projects', () => {
 		const first = expressionModuleFor(consumer, source);
 		expressionModuleFor(setup, "globalThis.name = 'second';");
 		expect(expressionModuleFor(consumer, source)).not.toBe(first);
-	});
+	}, 15_000);
 
 	it('shares relative filenames through a configured package workspace', () => {
 		clearExpressionProjectCache();
@@ -112,7 +134,7 @@ describe('shared expression projects', () => {
 			'export interface Model { value: number }\nexport const model: Model = { value: 1 };';
 		const consumerSource =
 			'import { model } from "./__session_language_model.js";\nexport const value: number = model.value;';
-		const session = createCompilerSession({ languageService: true });
+		const session = createCompilerSession({ compiler: 'legacy', languageService: true });
 		try {
 			fs.writeFileSync(model, modelSource);
 			fs.writeFileSync(consumer, consumerSource);

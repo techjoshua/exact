@@ -1,5 +1,5 @@
 import type { BoundModule } from '@exactjs/expressions';
-import ts from 'typescript';
+import * as ts from '../../native-typescript.js';
 import type { CallableEffectPlan } from '../../analysis/callable-effects.js';
 import { stripExactImportAttribute, type ExactModuleImportPlan } from '../../assets.js';
 import { isThisTaskCall } from '../../calls.js';

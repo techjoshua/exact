@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from '../../native-typescript.js';
 import { componentStateRoot } from '../../emission/state-writes.js';
 import type { ExpressionWriteSite } from '../../expression/writes.js';
 

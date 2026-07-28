@@ -1,4 +1,4 @@
-import { createCompiledVNode as __exactVNode, createCompiledFragment as __exactFragment, createExpression as __exactExpression, createDynamicChild as __exactDynamic, writeReactiveLazy as __exactWrite, updateReactiveValue as __exactUpdate, updateReactiveValueWithResult as __exactUpdateResult, deleteReactiveValue as __exactDelete, mutateReactiveArray as __exactArrayMutation, taskAwait as __exactTaskAwait, stageTaskMutation as __exactStageTaskMutation, markComponentContinuationTask as __exactContinuationTask, createServerBoundary as __exactBoundary } from "@exactjs/core";
+import { createCompiledVNode as __exactVNode, createDynamicChild as __exactDynamic, createServerBoundary as __exactBoundary, writeReactiveLazy as __exactWrite, taskAwait as __exactTaskAwait, markComponentContinuationTask as __exactContinuationTask } from "@exactjs/core";
 import type { Component } from '@exactjs/core';
 const __exactComponentContract_1 = /* @__PURE__ */ Symbol.for("@exactjs/component-contract");
 /** Tracks the state owned by profile. */
@@ -15,30 +15,30 @@ const __exactImplementation_ProfilePage_1 = function ProfilePage(this: Component
         await __exactTaskAwait(__exactSignal, Promise.resolve());
         __exactWrite(this.state, ["status"], () => `Ready for ${__exactDependency}`);
     }));
-    return () => (__exactVNode("section", { "data-exact-id": "xbSlycRQOMTMIout-46XRGt" }, __exactVNode("p", { "data-exact-id": "xI2oufUW56KAQo6TSBTmvEG" }, __exactDynamic(() => this.state.status, "x-f2xy-ZZk2LjXLDd_1G8li")), __exactBoundary("xjbD874UpZxqjxcAu1_iYpK", "ProfilePage_ExactClient_1", { "__exactState": { saves: this.state.saves }, __exactHydration: "interaction", __exactHydrationFallback: __exactVNode("button", { "data-exact-id": "x_36QDkuwkjhvmVwTM7OF9w" }, "Saved ", __exactDynamic(() => this.state.saves, "xqDvDe78Z92z2v3BWyk0tC8"), " times") })));
+    return () => (__exactVNode("section", { "data-exact-id": "x91DlmGFHlO7hRIHCYfi6W4" }, __exactVNode("p", { "data-exact-id": "x0uIyTxI6b8R0bMrkGRfcdZ" }, __exactDynamic(() => this.state.status, "x6tBszz1lCYsoheQvnH_Oxo")), __exactBoundary("xrHxq9Y7w8skEZZ2M2GUSX6", "ProfilePage_ExactClient_1", { "__exactState": { saves: this.state.saves }, __exactHydration: "interaction", __exactHydrationFallback: __exactVNode("button", { "data-exact-id": "xsQT8gL9moAWOGCCuPTnOch" }, "Saved ", __exactDynamic(() => this.state.saves, "xIodKowU09dfGB3PKWiIA5d"), " times") })));
 };
 export const ProfilePage: typeof __exactImplementation_ProfilePage_1 = /* @__PURE__ */ (() => Object.assign(__exactImplementation_ProfilePage_1, {
     [Symbol.for("@exactjs/component")]: true,
     [__exactComponentContract_1]: {
         version: 1,
-        id: "x7gsBV1RVj9VfGBkq4km6f7",
+        id: "xRdU3mscyYrAomNNIg-BJhz",
         placement: "isomorphic",
         role: "executor",
         implementations: [
-            { id: "xn4HBfS6VSk_X0fHSn2U6sr", name: "ProfilePage_ExactServer_1", role: "server-part", implementation: __exactImplementation_ProfilePage_1 }
+            { id: "xsX_qll2rbi25aQ5cBiDmbh", name: "ProfilePage_ExactServer_1", role: "server-part", implementation: __exactImplementation_ProfilePage_1 }
         ],
         continuations: [],
         executors: [],
         boundaries: [
             {
-                id: "xjbD874UpZxqjxcAu1_iYpK",
-                componentId: "x7gsBV1RVj9VfGBkq4km6f7",
-                ownerComponentId: "x7gsBV1RVj9VfGBkq4km6f7",
+                id: "xrHxq9Y7w8skEZZ2M2GUSX6",
+                componentId: "xRdU3mscyYrAomNNIg-BJhz",
+                ownerComponentId: "xRdU3mscyYrAomNNIg-BJhz",
                 kind: "client-island"
             }
         ],
         resumption: {
-            componentId: "x7gsBV1RVj9VfGBkq4km6f7",
+            componentId: "xRdU3mscyYrAomNNIg-BJhz",
             statePaths: [
                 "saves",
                 "status"
@@ -46,7 +46,7 @@ export const ProfilePage: typeof __exactImplementation_ProfilePage_1 = /* @__PUR
             valueCaptures: [],
             contexts: [],
             boundaries: [
-                "xjbD874UpZxqjxcAu1_iYpK"
+                "xrHxq9Y7w8skEZZ2M2GUSX6"
             ]
         }
     }

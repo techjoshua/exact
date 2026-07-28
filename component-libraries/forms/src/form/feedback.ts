@@ -1,4 +1,4 @@
-import { createVNode, markExactComponent, type Component } from '@exactjs/core';
+import { createVNode, markExactComponent, peek, type Component } from '@exactjs/core';
 
 import { FieldContext } from './context.js';
 import type { FieldHelpProps } from './contracts.js';
@@ -7,7 +7,7 @@ import { childrenArray } from './values.js';
 /** Performs the field help domain operation. */
 export function FieldHelp(this: Component<{}>, props: FieldHelpProps) {
 	const field = this.getContext(FieldContext);
-	const helpId = typeof props.id === 'string' ? props.id : field.nextHelpId();
+	const helpId = peek(() => (typeof props.id === 'string' ? props.id : field.nextHelpId()));
 	this.onMount(() => field.registerHelp(helpId));
 	this.onUnmount(() => field.unregisterHelp(helpId));
 	return () => {

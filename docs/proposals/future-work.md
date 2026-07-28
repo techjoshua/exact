@@ -7,6 +7,18 @@ Current capabilities and limits are indexed in [`../README.md`](../README.md).
 A candidate should move into its own decision-complete proposal before
 implementation.
 
+## Native TypeScript compiler backend
+
+The TypeScript 7 native API proof of concept can load in-memory TSX, query the
+Go type checker, and advance incremental snapshots while reproducing a narrow
+slice of the current expression projection. The next step is a complete
+`@exactjs/expressions` semantic backend with differential and performance gates,
+followed by native validation and emission.
+
+See [`native-typescript-compiler.md`](native-typescript-compiler.md) for the
+findings, architecture, migration phases, fork contingency, and acceptance
+criteria.
+
 ## Remove compiler manifest files
 
 The current compiler still produces `*.exact.manifest.json` planning sidecars,
@@ -50,6 +62,51 @@ runtime selection. The design must preserve:
 
 This should be an eXact compiler contract, not an application-local
 `createVNode()` escape that hides the graph.
+
+## Conditional classes through namespaced props
+
+Investigate compiler support for declaring a statically named conditional class
+as a namespaced intrinsic-element prop:
+
+```tsx
+<div
+	className={['card', this.state.compact && 'compact']}
+	className:selected={this.state.selected}
+	className:disabled={!this.state.enabled}
+/>
+```
+
+Each `className:name` entry would append `name` after the ordinary `class` or
+`className` input while its value is truthy and omit it while falsey. An entry
+without an initializer would be unconditionally enabled. The compiler should
+lower all inputs to one canonical class value so namespaced props do not escape
+into DOM attributes, SSR markup, hydration contracts, or component props.
+
+An initial design should:
+
+- support intrinsic and custom elements, but reject the syntax on components;
+- preserve the authored order of namespaced classes after the ordinary class
+  input;
+- treat `class` and `className` as aliases of the same input;
+- report an error for duplicate class tokens when the collision is statically
+  provable, while accepting possible collisions hidden in dynamic class values;
+- retain the existing truthy-map semantics rather than requiring boolean-only
+  conditions; and
+- either define correct spread ordering and single-evaluation semantics or
+  reject prop spreads on elements using conditional class props in the first
+  version.
+
+The suffix is limited by TypeScript's JSX namespaced-name grammar. It can
+represent common names such as `selected` and `is-active`, but not every valid
+CSS token, including names with another colon, a slash, brackets, or a leading
+digit. Existing string, array, map, CSS-module, and computed class forms must
+remain available.
+
+Before lowering the feature to the existing class-list representation, make
+class normalization a shared DOM, SSR, and hydration contract. The DOM renderer
+currently normalizes arrays and truthy maps, while native SSR and static
+hydration do not apply the same normalization. Add compiler diagnostics and
+emission tests plus DOM reactivity, SSR, and hydration regression coverage.
 
 ## Partial prerender and resume
 

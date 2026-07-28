@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from './native-typescript.js';
 import type { ExactContinuationIR } from './types.js';
 
 /** Rewrites component context effects and receiver access for stateless server execution. */
@@ -9,7 +9,6 @@ export function rewriteContinuationContextWork(
 	execution: ts.Identifier,
 	component: ts.Identifier,
 	contextWrites: ts.Identifier,
-	serverContextWrites: ts.Identifier,
 	context: ts.TransformationContext,
 	filename: string
 ): ts.ArrowFunction | ts.FunctionExpression {
@@ -47,14 +46,22 @@ export function rewriteContinuationContextWork(
 					throw new Error(
 						`Server continuation ${continuation.id} writes undeclared component context in ${filename}`
 					);
+				const rewrittenValue = ts.visitNode(value, visit) as ts.Expression;
+				if (server) {
+					return factory.createCallExpression(
+						factory.createPropertyAccessExpression(execution, 'setContext'),
+						undefined,
+						[token, rewrittenValue, factory.createStringLiteral(tokenName)]
+					);
+				}
 				return factory.createBinaryExpression(
 					factory.createBinaryExpression(
 						factory.createElementAccessExpression(
-							shared ? contextWrites : serverContextWrites,
+							contextWrites,
 							factory.createStringLiteral(tokenName)
 						),
 						factory.createToken(ts.SyntaxKind.EqualsToken),
-						ts.visitNode(value, visit) as ts.Expression
+						rewrittenValue
 					),
 					factory.createToken(ts.SyntaxKind.CommaToken),
 					factory.createVoidExpression(factory.createNumericLiteral(0))

@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from '../../native-typescript.js';
 import type { ExpressionJsxBinding } from '../../expression/jsx.js';
 import type { HelperNames } from '../../types.js';
 
@@ -131,7 +131,7 @@ function convertBindingValue(
 		: binding.valueKind === 'date'
 			? factory.createNewExpression(factory.createIdentifier('Date'), undefined, [value])
 			: binding.valueKind === 'string' && widenString
-				? factory.createAsExpression(value, factory.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword))
+				? factory.createCallExpression(factory.createIdentifier('__exactAny'), undefined, [value])
 				: value;
 }
 

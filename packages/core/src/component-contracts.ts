@@ -34,6 +34,8 @@ export type ExactComponentContinuationContract = Readonly<{
 	publicContexts: readonly string[];
 	serverContexts: readonly string[];
 	contextWrites: readonly string[];
+	/** Server-owned context mutations which never enter the client response. */
+	serverContextWrites?: readonly string[];
 	boundaries: readonly string[];
 }>;
 
@@ -48,6 +50,7 @@ export type ExactComponentContinuationActivation = Readonly<{
 export type ExactComponentContinuationExecution = Readonly<{
 	signal: AbortSignal;
 	getContext<T>(token: ContextToken<T>, authoredName?: string): T;
+	setContext<T>(token: ContextToken<T>, value: T, authoredName?: string): void;
 }>;
 
 /** State accumulated by a generated continuation before write-contract projection. */
@@ -289,6 +292,7 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 			'publicContexts',
 			'serverContexts',
 			'contextWrites',
+			'serverContextWrites',
 			'boundaries'
 		]) &&
 		isString(value.id) &&
@@ -303,6 +307,7 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 		isSafeStringList(value.publicContexts) &&
 		isSafeStringList(value.serverContexts) &&
 		isSafeStringList(value.contextWrites) &&
+		(value.serverContextWrites === undefined || isSafeStringList(value.serverContextWrites)) &&
 		isSafeStringList(value.boundaries)
 	);
 }

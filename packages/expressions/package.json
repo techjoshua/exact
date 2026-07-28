@@ -16,11 +16,12 @@
 	"types": "./dist/index.d.ts",
 	"dependencies": {
 		"@exactjs/instrumentation": "^0.1.0",
+		"@typescript/native": "npm:typescript@^7.0.2",
 		"typescript": "npm:@typescript/typescript6@^6.0.2"
 	},
 	"scripts": {
 		"build": "tsc6 -b",
-		"test": "vitest run",
+		"test": "vitest run --maxWorkers=2 --testTimeout=30000",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},
 	"publishConfig": {

@@ -238,7 +238,7 @@ describe('@exactjs/compiler: derived values', () => {
     `);
 
 		expect(output).toContain('const label = __exactDerived(() => `${this.state.query}!`);');
-		expect(output).toContain('this.task(label, async (value) => { });');
+		expect(output).toMatch(/this\.task\(label, async \(value\) => \{\s*\}\);/);
 	});
 
 	it('inlines safe prop-derived consts inside task dependency captures', () => {
@@ -250,7 +250,7 @@ describe('@exactjs/compiler: derived values', () => {
     `);
 
 		expect(output).toContain('const label = __exactDerived(() => `${props.query}!`);');
-		expect(output).toContain('this.task(label, async (value) => { });');
+		expect(output).toMatch(/this\.task\(label, async \(value\) => \{\s*\}\);/);
 	});
 
 	it('materializes safe derived consts declared inside render functions', () => {
@@ -323,7 +323,7 @@ describe('@exactjs/compiler: derived values', () => {
 		);
 
 		expect(output).toMatch(
-			/this\.map\(items, item => item\.id, item => __exactVNode\("li", \{ "data-exact-id": "x[A-Za-z0-9_-]{22}" \}, __exactDynamic\(\(\) => item\.title, "x[A-Za-z0-9_-]{22}"\)\), "x[A-Za-z0-9_-]{22}", undefined, "member:id"\)/
+			/this\.map\(items, \(?item\)? => item\.id, \(?item\)? => __exactVNode\("li", \{ "data-exact-id": "x[A-Za-z0-9_-]{22}" \}, __exactDynamic\(\(\) => item\.title, "x[A-Za-z0-9_-]{22}"\)\), "x[A-Za-z0-9_-]{22}", undefined, "member:id"\)/
 		);
 	});
 

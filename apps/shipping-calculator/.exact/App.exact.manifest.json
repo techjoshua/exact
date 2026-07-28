@@ -22,10 +22,99 @@
     "types.ts"
   ],
   "assets": [],
+  "components": [],
+  "exports": [
+    {
+      "name": "CalculatorWorkspace",
+      "kind": "value",
+      "placement": "isomorphic"
+    },
+    {
+      "name": "Feature",
+      "kind": "value",
+      "placement": "isomorphic"
+    },
+    {
+      "name": "RateCard",
+      "kind": "value",
+      "placement": "isomorphic"
+    },
+    {
+      "name": "RouteMap",
+      "kind": "value",
+      "placement": "isomorphic"
+    },
+    {
+      "name": "ShippingCalculatorPage",
+      "kind": "value",
+      "placement": "isomorphic"
+    }
+  ],
+  "symbols": [
+    {
+      "id": "x-0a6si_48-V4tax0YO3aY6",
+      "exportName": "ShippingCalculatorPage",
+      "localName": "ShippingCalculatorPage",
+      "generatedName": "ShippingCalculatorPage",
+      "debugName": "ShippingCalculatorPage",
+      "kind": "value",
+      "role": "root",
+      "target": "both",
+      "placement": "isomorphic"
+    },
+    {
+      "id": "x4OzFQpluS4DACcuP6obEdd",
+      "exportName": "RouteMap",
+      "localName": "RouteMap",
+      "generatedName": "RouteMap",
+      "debugName": "RouteMap",
+      "kind": "value",
+      "role": "root",
+      "target": "both",
+      "placement": "isomorphic"
+    },
+    {
+      "id": "xLtSM6VKKeuWTi1g7rPpkNZ",
+      "exportName": "RateCard",
+      "localName": "RateCard",
+      "generatedName": "RateCard",
+      "debugName": "RateCard",
+      "kind": "value",
+      "role": "root",
+      "target": "both",
+      "placement": "isomorphic"
+    },
+    {
+      "id": "xjmpV6R9DV2QQk4EP6bRCHT",
+      "exportName": "CalculatorWorkspace",
+      "localName": "CalculatorWorkspace",
+      "generatedName": "CalculatorWorkspace",
+      "debugName": "CalculatorWorkspace",
+      "kind": "value",
+      "role": "root",
+      "target": "both",
+      "placement": "isomorphic"
+    },
+    {
+      "id": "xsFzg6CZdriyC8pIL-S30zq",
+      "exportName": "Feature",
+      "localName": "Feature",
+      "generatedName": "Feature",
+      "debugName": "Feature",
+      "kind": "value",
+      "role": "root",
+      "target": "both",
+      "placement": "isomorphic"
+    }
+  ],
+  "boundaries": [],
+  "callables": [],
+  "continuations": [],
+  "resumptions": [],
   "semanticGraph": {
     "scopes": [
       {
-        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/app.tsx:scope:0:204:SourceFile",
+        "id": "c:/users/techj/projects/exact/apps/shipping-calculator/src/app.tsx:scope:module",
         "kind": "module",
         "nodeKind": "SourceFile"
       }
@@ -60,404 +149,6 @@
       }
     ]
   },
-  "components": [],
-  "exports": [],
-  "symbols": [
-    {
-      "id": "xfltLAW_o3E97OqXmNzGuHu",
-      "exportName": "RouteMap",
-      "localName": "RouteMap",
-      "generatedName": "RouteMap",
-      "debugName": "RouteMap",
-      "kind": "value",
-      "role": "root",
-      "target": "both",
-      "placement": "isomorphic"
-    },
-    {
-      "id": "xppKZzpTz9XEYpqzI4gLHUo",
-      "exportName": "RateCard",
-      "localName": "RateCard",
-      "generatedName": "RateCard",
-      "debugName": "RateCard",
-      "kind": "value",
-      "role": "root",
-      "target": "both",
-      "placement": "isomorphic"
-    },
-    {
-      "id": "xqIBsYHUNuLVJtEAlo6jtDu",
-      "exportName": "ShippingCalculatorPage",
-      "localName": "ShippingCalculatorPage",
-      "generatedName": "ShippingCalculatorPage",
-      "debugName": "ShippingCalculatorPage",
-      "kind": "value",
-      "role": "root",
-      "target": "server",
-      "placement": "server"
-    },
-    {
-      "id": "xqZPeROweLDyhVaEk6XnCnd",
-      "exportName": "CalculatorWorkspace",
-      "localName": "CalculatorWorkspace",
-      "generatedName": "CalculatorWorkspace",
-      "debugName": "CalculatorWorkspace",
-      "kind": "value",
-      "role": "root",
-      "target": "client",
-      "placement": "client"
-    },
-    {
-      "id": "xrUbM8JkZ0xEB7evWGLqlac",
-      "exportName": "Feature",
-      "localName": "Feature",
-      "generatedName": "Feature",
-      "debugName": "Feature",
-      "kind": "value",
-      "role": "root",
-      "target": "both",
-      "placement": "isomorphic"
-    }
-  ],
-  "boundaries": [],
-  "callables": [
-    {
-      "id": "x9xCq1POf-2LdYV4z9H2AB3",
-      "name": "ShippingCalculatorPage",
-      "kind": "component",
-      "exportNames": [
-        "ShippingCalculatorPage"
-      ],
-      "directEffect": "unknown",
-      "effect": "unknown",
-      "directEffectSources": [
-        {
-          "environment": "server",
-          "description": "process",
-          "path": [
-            "ShippingCalculatorPage",
-            "configuredProviderIds",
-            "process"
-          ]
-        },
-        {
-          "environment": "unknown",
-          "description": "provider.configured",
-          "path": [
-            "ShippingCalculatorPage",
-            "configuredProviderIds",
-            "<function@1335>",
-            "provider.configured"
-          ]
-        }
-      ],
-      "effectSources": [
-        {
-          "environment": "server",
-          "description": "process",
-          "path": [
-            "ShippingCalculatorPage",
-            "configuredProviderIds",
-            "process"
-          ]
-        },
-        {
-          "environment": "unknown",
-          "description": "provider.configured",
-          "path": [
-            "ShippingCalculatorPage",
-            "configuredProviderIds",
-            "<function@1335>",
-            "provider.configured"
-          ]
-        }
-      ],
-      "calls": [
-        {
-          "id": "xPbY-b8MIQGyX5t_KUjomQd",
-          "name": "ShippingCalculatorPage",
-          "moduleSpecifier": "./components/page.js",
-          "exportName": "ShippingCalculatorPage",
-          "resolved": true
-        }
-      ],
-      "artifactTargets": [
-        "server"
-      ],
-      "stateReads": [
-        {
-          "path": "model",
-          "kind": "read",
-          "confidence": "exact"
-        }
-      ],
-      "stateWrites": [
-        {
-          "path": "model",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "model.configuredProviders",
-          "kind": "write",
-          "confidence": "exact"
-        }
-      ],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xAfkD392h-q_iBscBdSte8m",
-      "name": "RateCard",
-      "kind": "component",
-      "exportNames": [
-        "RateCard"
-      ],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [
-        {
-          "id": "xfcxskQ7AwuDAfmk17U2T7g",
-          "name": "RateCard",
-          "moduleSpecifier": "./components/presentation.js",
-          "exportName": "RateCard",
-          "resolved": true
-        }
-      ],
-      "artifactTargets": [
-        "client",
-        "server"
-      ],
-      "stateReads": [],
-      "stateWrites": [],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xeuLvBpo4rzb1x6bHi5Pqaj",
-      "name": "CalculatorWorkspace",
-      "kind": "component",
-      "exportNames": [
-        "CalculatorWorkspace"
-      ],
-      "directEffect": "unknown",
-      "effect": "unknown",
-      "directEffectSources": [
-        {
-          "environment": "browser",
-          "description": "interactive JSX",
-          "path": [
-            "CalculatorWorkspace",
-            "<function@4198>",
-            "renderWorkspace",
-            "interactive JSX"
-          ]
-        },
-        {
-          "environment": "unknown",
-          "description": "checked",
-          "path": [
-            "CalculatorWorkspace",
-            "<function@4198>",
-            "renderWorkspace",
-            "checked"
-          ]
-        },
-        {
-          "environment": "unknown",
-          "description": "select",
-          "path": [
-            "CalculatorWorkspace",
-            "<function@4198>",
-            "renderWorkspace",
-            "select"
-          ]
-        },
-        {
-          "environment": "unknown",
-          "description": "text",
-          "path": [
-            "CalculatorWorkspace",
-            "<function@4198>",
-            "renderWorkspace",
-            "text"
-          ]
-        }
-      ],
-      "effectSources": [
-        {
-          "environment": "browser",
-          "description": "interactive JSX",
-          "path": [
-            "CalculatorWorkspace",
-            "<function@4198>",
-            "renderWorkspace",
-            "interactive JSX"
-          ]
-        },
-        {
-          "environment": "unknown",
-          "description": "checked",
-          "path": [
-            "CalculatorWorkspace",
-            "<function@4198>",
-            "renderWorkspace",
-            "checked"
-          ]
-        },
-        {
-          "environment": "unknown",
-          "description": "select",
-          "path": [
-            "CalculatorWorkspace",
-            "<function@4198>",
-            "renderWorkspace",
-            "select"
-          ]
-        },
-        {
-          "environment": "unknown",
-          "description": "text",
-          "path": [
-            "CalculatorWorkspace",
-            "<function@4198>",
-            "renderWorkspace",
-            "text"
-          ]
-        }
-      ],
-      "calls": [
-        {
-          "id": "xeooLbVn-zHmrsU4ngDQtZ1",
-          "name": "CalculatorWorkspace",
-          "moduleSpecifier": "./components/workspace.js",
-          "exportName": "CalculatorWorkspace",
-          "resolved": true
-        }
-      ],
-      "artifactTargets": [
-        "client"
-      ],
-      "stateReads": [
-        {
-          "path": "revision",
-          "kind": "read",
-          "confidence": "exact"
-        }
-      ],
-      "stateWrites": [
-        {
-          "path": "draft",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "enabledFilters",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "error",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "loading",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "providers",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "restored",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "revision",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "route",
-          "kind": "write",
-          "confidence": "exact"
-        },
-        {
-          "path": "sort",
-          "kind": "write",
-          "confidence": "exact"
-        }
-      ],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xsWQnCDDsZ7lovTK5jEwZSd",
-      "name": "Feature",
-      "kind": "component",
-      "exportNames": [
-        "Feature"
-      ],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [
-        {
-          "id": "x-CWuJ2Rjk4eOZ6QYCXcyMi",
-          "name": "Feature",
-          "moduleSpecifier": "./components/presentation.js",
-          "exportName": "Feature",
-          "resolved": true
-        }
-      ],
-      "artifactTargets": [
-        "client",
-        "server"
-      ],
-      "stateReads": [],
-      "stateWrites": [],
-      "contexts": [],
-      "reevaluationSafe": false
-    },
-    {
-      "id": "xTkpGvNpRTyPgMUBHrI11VU",
-      "name": "RouteMap",
-      "kind": "component",
-      "exportNames": [
-        "RouteMap"
-      ],
-      "directEffect": "neutral",
-      "effect": "neutral",
-      "directEffectSources": [],
-      "effectSources": [],
-      "calls": [
-        {
-          "id": "xgDcYw5nNMY_y4oQ4rQwdLT",
-          "name": "RouteMap",
-          "moduleSpecifier": "./components/presentation.js",
-          "exportName": "RouteMap",
-          "resolved": true
-        }
-      ],
-      "artifactTargets": [
-        "client",
-        "server"
-      ],
-      "stateReads": [],
-      "stateWrites": [],
-      "contexts": [],
-      "reevaluationSafe": false
-    }
-  ],
-  "continuations": [],
-  "resumptions": [],
   "policy": {
     "version": 1,
     "subjects": [],
@@ -475,10 +166,52 @@
       "client": "client",
       "server": "server"
     },
-    "exports": [],
+    "exports": [
+      {
+        "name": "CalculatorWorkspace",
+        "kind": "value",
+        "placement": "isomorphic",
+        "artifactClass": "dual"
+      },
+      {
+        "name": "Feature",
+        "kind": "value",
+        "placement": "isomorphic",
+        "artifactClass": "dual"
+      },
+      {
+        "name": "RateCard",
+        "kind": "value",
+        "placement": "isomorphic",
+        "artifactClass": "dual"
+      },
+      {
+        "name": "RouteMap",
+        "kind": "value",
+        "placement": "isomorphic",
+        "artifactClass": "dual"
+      },
+      {
+        "name": "ShippingCalculatorPage",
+        "kind": "value",
+        "placement": "isomorphic",
+        "artifactClass": "dual"
+      }
+    ],
     "symbols": [
       {
-        "id": "xfltLAW_o3E97OqXmNzGuHu",
+        "id": "x-0a6si_48-V4tax0YO3aY6",
+        "exportName": "ShippingCalculatorPage",
+        "localName": "ShippingCalculatorPage",
+        "generatedName": "ShippingCalculatorPage",
+        "debugName": "ShippingCalculatorPage",
+        "kind": "value",
+        "role": "root",
+        "target": "both",
+        "placement": "isomorphic"
+      },
+      {
+        "id": "x4OzFQpluS4DACcuP6obEdd",
         "exportName": "RouteMap",
         "localName": "RouteMap",
         "generatedName": "RouteMap",
@@ -489,7 +222,7 @@
         "placement": "isomorphic"
       },
       {
-        "id": "xppKZzpTz9XEYpqzI4gLHUo",
+        "id": "xLtSM6VKKeuWTi1g7rPpkNZ",
         "exportName": "RateCard",
         "localName": "RateCard",
         "generatedName": "RateCard",
@@ -500,29 +233,18 @@
         "placement": "isomorphic"
       },
       {
-        "id": "xqIBsYHUNuLVJtEAlo6jtDu",
-        "exportName": "ShippingCalculatorPage",
-        "localName": "ShippingCalculatorPage",
-        "generatedName": "ShippingCalculatorPage",
-        "debugName": "ShippingCalculatorPage",
-        "kind": "value",
-        "role": "root",
-        "target": "server",
-        "placement": "server"
-      },
-      {
-        "id": "xqZPeROweLDyhVaEk6XnCnd",
+        "id": "xjmpV6R9DV2QQk4EP6bRCHT",
         "exportName": "CalculatorWorkspace",
         "localName": "CalculatorWorkspace",
         "generatedName": "CalculatorWorkspace",
         "debugName": "CalculatorWorkspace",
         "kind": "value",
         "role": "root",
-        "target": "client",
-        "placement": "client"
+        "target": "both",
+        "placement": "isomorphic"
       },
       {
-        "id": "xrUbM8JkZ0xEB7evWGLqlac",
+        "id": "xsFzg6CZdriyC8pIL-S30zq",
         "exportName": "Feature",
         "localName": "Feature",
         "generatedName": "Feature",

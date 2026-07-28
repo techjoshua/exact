@@ -1,5 +1,5 @@
 import { decodeHTMLStrict } from 'entities';
-import ts from 'typescript';
+import * as ts from '../../native-typescript.js';
 import type { ExpressionJsxPlan } from '../../expression/jsx.js';
 import { stableId } from '../../ids.js';
 import type { HelperNames } from '../../types.js';

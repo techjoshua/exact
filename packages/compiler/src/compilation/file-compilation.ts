@@ -5,12 +5,21 @@ import { sourceMapPathFor, withSourceMapFile, withSourceMappingUrl } from '../so
 import type { CompileFileOptions, CompileFileResult, CompileProjectOptions } from '../types.js';
 import { capabilityCompilationOptions } from './capability-options.js';
 import { transformSource } from './transformation.js';
+import { createOwnedNativeCompilationSession } from './native-session.js';
 
 /** Compiles one input file and optionally writes code, source map, and manifest artifacts. */
 export async function compileFile(
 	inputFile: string,
 	options: CompileFileOptions = {}
 ): Promise<CompileFileResult> {
+	const ownedSession = createOwnedNativeCompilationSession(options.session, options.compiler);
+	if (ownedSession) {
+		try {
+			return await compileFile(inputFile, { ...options, session: ownedSession });
+		} finally {
+			ownedSession.dispose();
+		}
+	}
 	const source = await readFile(inputFile, 'utf8');
 	const result = transformSource(source, {
 		filename: options.filename ?? inputFile,
@@ -66,6 +75,14 @@ export async function compileProject(
 	inputs: readonly string[],
 	options: CompileProjectOptions = {}
 ): Promise<CompileFileResult[]> {
+	const ownedSession = createOwnedNativeCompilationSession(options.session, options.compiler);
+	if (ownedSession) {
+		try {
+			return await compileProject(inputs, { ...options, session: ownedSession });
+		} finally {
+			ownedSession.dispose();
+		}
+	}
 	const files = await collectInputFiles(inputs);
 	const rootDir = options.rootDir ?? commonRoot(files);
 	const results: CompileFileResult[] = [];

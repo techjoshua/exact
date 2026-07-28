@@ -213,6 +213,21 @@ export function createExpressionTypeProjection(options: ExpressionTypeProjection
 		const display = displayType(value, location);
 		const callSignatures = value.getCallSignatures();
 		const properties = value.getProperties();
+		const collectionKind = checker.isTupleType(value)
+			? 'tuple'
+			: checker.isArrayType(value)
+				? 'array'
+				: isReadonlyArrayType(checker, value)
+					? 'readonly-array'
+					: undefined;
+		const typeArguments =
+			collectionKind &&
+			value.flags & ts.TypeFlags.Object &&
+			(value as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference
+				? checker
+						.getTypeArguments(value as ts.TypeReference)
+						.map((argument) => typeFor(argument, location))
+				: [];
 		const result = typeProjectionTimer.measure('construction', () =>
 			Object.freeze({
 				id: `type-summary:${value.flags}:${display}`,
@@ -227,8 +242,9 @@ export function createExpressionTypeProjection(options: ExpressionTypeProjection
 				propertyTypes: Object.freeze([]),
 				unionMembers: Object.freeze([]),
 				callSignatures: Object.freeze([]),
-				typeArguments: Object.freeze([]),
-				typeParameters: Object.freeze([])
+				typeArguments: Object.freeze(typeArguments),
+				typeParameters: Object.freeze([]),
+				collectionKind
 			})
 		);
 		const target = locations ?? new Map<ts.Node, ExpressionType>();
@@ -257,6 +273,21 @@ export function createExpressionTypeProjection(options: ExpressionTypeProjection
 		if (detailedProfile) projectionCounters.shallowTypeCacheMisses++;
 		const callSignatures = type.getCallSignatures();
 		const properties = type.getProperties();
+		const collectionKind = checker.isTupleType(type)
+			? 'tuple'
+			: checker.isArrayType(type)
+				? 'array'
+				: isReadonlyArrayType(checker, type)
+					? 'readonly-array'
+					: undefined;
+		const typeArguments =
+			collectionKind &&
+			type.flags & ts.TypeFlags.Object &&
+			(type as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference
+				? checker
+						.getTypeArguments(type as ts.TypeReference)
+						.map((argument) => typeFor(argument, at))
+				: [];
 		const members = typeProjectionTimer.measure('members', () =>
 			type.isUnionOrIntersection() ? type.types.map((member) => summary(member, at)) : []
 		);
@@ -306,8 +337,9 @@ export function createExpressionTypeProjection(options: ExpressionTypeProjection
 				propertyTypes: Object.freeze([]),
 				unionMembers: Object.freeze(members),
 				callSignatures: Object.freeze(signatures),
-				typeArguments: Object.freeze([]),
-				typeParameters: Object.freeze([])
+				typeArguments: Object.freeze(typeArguments),
+				typeParameters: Object.freeze([]),
+				collectionKind
 			})
 		);
 		const target = variants ?? new Map<string, ExpressionType>();

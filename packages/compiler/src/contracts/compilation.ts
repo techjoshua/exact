@@ -49,6 +49,7 @@ export type CompileArtifactsOptions = {
 	jsxInterop?: TransformOptions['jsxInterop'];
 	assetRules?: readonly ExactAssetRule[];
 	session?: ExactCompilerSession;
+	compiler?: TransformOptions['compiler'];
 	pluginRegistry?: ExactPreparedCompilerRegistry;
 	generatedValidation?: 'syntax' | 'semantic';
 	packageType?: TransformOptions['packageType'];
@@ -94,6 +95,7 @@ export type CompileArtifactPlanEntriesOptions = {
 	jsxInterop?: TransformOptions['jsxInterop'];
 	assetRules?: readonly ExactAssetRule[];
 	session?: ExactCompilerSession;
+	compiler?: TransformOptions['compiler'];
 	pluginRegistry?: ExactPreparedCompilerRegistry;
 	generatedValidation?: 'syntax' | 'semantic';
 	packageType?: TransformOptions['packageType'];

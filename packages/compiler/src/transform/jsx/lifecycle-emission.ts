@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from '../../native-typescript.js';
 import type {
 	ExpressionTaskResource,
 	ExpressionTaskResourceKind,
@@ -116,7 +116,7 @@ export function expressionWriteSite(
 	sourceFile: ts.SourceFile,
 	plan?: ExpressionWritePlan
 ): ExpressionWriteSite | undefined {
-	if (!plan || node.pos < 0 || node.end < 0) return undefined;
+	if (!plan) return undefined;
 	return plan.sites.get(expressionEmissionId(node) ?? '');
 }
 

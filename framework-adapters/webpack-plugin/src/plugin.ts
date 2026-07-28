@@ -9,8 +9,7 @@ import {
 } from '@exactjs/compiler';
 import {
 	createExactDiagnosticReporter,
-	loadExactImportedManifests,
-	matchesExactBuildFilter
+	loadExactImportedManifests
 } from '@exactjs/compiler/adapter-support';
 import {
 	profileTimestamp,
@@ -35,6 +34,7 @@ import {
 	webpackCompilerSession
 } from './sessions.js';
 import { webpackCompatibilityEngine } from './react-compatibility.js';
+import { shouldTransformWebpackModule, webpackTransformTarget } from './transform-selection.js';
 
 /** Configures exact webpack plugin. */
 export type ExactWebpackPluginOptions = {
@@ -53,6 +53,8 @@ export type ExactWebpackPluginOptions = {
 	pluginRegistry?: ExactPreparedCompilerRegistry;
 	assetRules?: readonly ExactAssetRule[];
 	diagnostics?: boolean;
+	/** Selects the all-Go compiler host; legacy is an explicit compatibility mode. */
+	compiler?: 'native' | 'legacy';
 	onProfile?: ExactProfileSink;
 };
 
@@ -162,17 +164,29 @@ export class ExactWebpackPlugin {
 	apply(compiler: WebpackCompilerLike): void {
 		let diagnosticsEnabled =
 			this.options.diagnostics ?? Boolean(compiler.watchMode || compiler.options.watch);
-		const owned = createWebpackCompilerSession(diagnosticsEnabled, this.options.onProfile);
+		const owned = createWebpackCompilerSession(
+			diagnosticsEnabled,
+			this.options.compiler,
+			this.options.onProfile
+		);
 		let compilerSession = owned.session;
 		const configureDiagnostics = (enabled: boolean): void => {
 			if (enabled === diagnosticsEnabled) return;
 			diagnosticsEnabled = enabled;
-			compilerSession = replaceWebpackCompilerSession(owned.id, enabled, this.options.onProfile);
+			compilerSession = replaceWebpackCompilerSession(
+				owned.id,
+				enabled,
+				this.options.compiler,
+				this.options.onProfile
+			);
 		};
 		const reporter = createExactDiagnosticReporter();
 		const warn = (message: string): void =>
 			compiler.getInfrastructureLogger?.('ExactWebpackPlugin').warn(message);
-		addWebpackConditions(compiler, exactExportConditions(targetFor(this.options), this.options));
+		addWebpackConditions(
+			compiler,
+			exactExportConditions(webpackTransformTarget(this.options), this.options)
+		);
 		const reactCompatibility = resolveReactCompatibility(this.options.reactCompatibility);
 		if (reactCompatibility) addWebpackReactAliases(compiler, reactCompatibility);
 		compiler.options.module ??= {};
@@ -226,7 +240,7 @@ export function transformExactWebpackSource(
 	options: ExactWebpackPluginOptions = {},
 	session?: ExactCompilerSession
 ): { code: string; map: unknown } | null {
-	if (!shouldTransform(filename, source, options)) return null;
+	if (!shouldTransformWebpackModule(filename, source, options)) return null;
 	const profileStarted = options.onProfile ? profileTimestamp() : undefined;
 	try {
 		const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
@@ -249,7 +263,7 @@ export function transformExactWebpackSource(
 		const result = transformSource(source, {
 			filename,
 			session,
-			target: targetFor(options),
+			target: webpackTransformTarget(options),
 			importedManifests: importedManifestsFor(options),
 			serverComponents: options.serverComponents,
 			sourceMap: options.sourceMap ?? true,
@@ -324,7 +338,7 @@ export function resolveExactWebpackRequest(
 	importer: string | undefined,
 	options: ExactWebpackPluginOptions = {}
 ): string | null {
-	return resolveExactArtifactImport(request, importer, targetFor(options))?.id ?? null;
+	return resolveExactArtifactImport(request, importer, webpackTransformTarget(options))?.id ?? null;
 }
 
 /** Installs .exact facade resolution into a webpack resolver. */
@@ -404,25 +418,4 @@ export function addWebpackReactAliases(
 		),
 		...current
 	};
-}
-
-function targetFor(options: ExactWebpackPluginOptions): 'client' | 'server' {
-	return options.target === 'server' ? 'server' : 'client';
-}
-
-function shouldTransform(id: string, code: string, options: ExactWebpackPluginOptions): boolean {
-	if (!/\.[cm]?[jt]sx?(?:$|\?)/.test(id)) return false;
-	if (!options.include && /(?:^|[\\/])node_modules(?:[\\/]|$)/.test(id)) return false;
-	if (options.include && !matchesExactBuildFilter(id, options.include)) return false;
-	if (options.exclude && matchesExactBuildFilter(id, options.exclude)) return false;
-	return (
-		code.includes('<') ||
-		/@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(code) ||
-		Object.values(options.pluginRegistry?.plugins ?? {}).some((plugin) => {
-			const include = plugin.extension?.include;
-			if (!include) return false;
-			include.lastIndex = 0;
-			return include.test(id);
-		})
-	);
 }

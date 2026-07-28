@@ -60,14 +60,18 @@ may submit public map sources for a separate disclosure audit.
 
 ## TypeScript compatibility
 
-The compiler imports the programmatic TypeScript API and therefore depends on
-`typescript` aliased to Microsoft's `@typescript/typescript6` compatibility package. TypeScript
-7.0 intentionally ships without a programmatic API, so it cannot replace that dependency.
+The default compiler is `exactc-native`, built from a pinned official
+TypeScript-Go revision with eXact's analysis and lowering passes in the same Go
+process. The tool owns that compiler version independently of the application's
+declared TypeScript dependency. TypeScript 6 repositories remain supported
+because emitted source is constrained to the TypeScript 6 compatibility
+contract.
 
-Applications may still use TypeScript 7 for editor support and command-line type-checking. npm
-keeps the application's TypeScript 7 executable alongside eXact's private TypeScript 6 API
-dependency. This separation will remain until the new programmatic API planned for TypeScript 7.1
-is available and eXact has adopted it.
+npm installs a small optional platform package for macOS, Linux, or Windows on
+ARM64 or x64. Application developers do not need Go installed. Set
+`EXACT_NATIVE_COMPILER` only for a hermetic or development build. The CLI and
+bundler adapters expose `compiler: "legacy"` as an explicit differential and
+transition mode; native failures never silently retry through TypeScript 6.
 
 ## SSR island activation
 

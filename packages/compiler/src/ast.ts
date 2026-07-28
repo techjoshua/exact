@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from './native-typescript.js';
 
 /** Returns whether a node has an export modifier. */
 export function hasExportModifier(node: ts.Node): boolean {

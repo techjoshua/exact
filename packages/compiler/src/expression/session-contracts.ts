@@ -4,6 +4,7 @@ import type {
 	ExpressionProjectProfileEvent
 } from '@exactjs/expressions';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
+import type { NativeCompilerProcessOptions } from '../native/process.js';
 
 /** Cached expression module state owned by a compiler session. */
 export type ModuleCacheEntry = Readonly<{
@@ -40,6 +41,10 @@ export type ExactCompilerSessionStats = Readonly<{
 /** Configures incremental services and optional profiling for a compiler session. */
 export type ExactCompilerSessionOptions = Readonly<{
 	languageService?: boolean;
+	/** Selects the all-Go host by default; legacy is an explicit compatibility mode. */
+	compiler?: 'native' | 'legacy';
+	/** Enables the persistent all-Go compiler host for transform operations. */
+	nativeCompiler?: NativeCompilerProcessOptions;
 	/** Receives compiler and nested expression profiling observations. */
 	onProfile?: ExactProfileSink<ExactCompilerProfileEvent | ExpressionProjectProfileEvent>;
 }>;

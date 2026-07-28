@@ -1,4 +1,4 @@
-import type ts from 'typescript';
+import type * as ts from '../../native-typescript.js';
 import type {
 	ExpressionTaskResourceKind,
 	ExpressionTaskSignalCall

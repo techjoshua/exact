@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import * as ts from '../../native-typescript.js';
 import type { ExpressionTaskDependency } from '../../expression/task-dependencies.js';
 import { expressionEmissionId } from './identity.js';
 import { parseTypeNode } from './type-node.js';

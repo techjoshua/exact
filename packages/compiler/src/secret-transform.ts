@@ -1,4 +1,5 @@
-import ts from 'typescript';
+import * as ts from './native-typescript.js';
+import { parseNativeTypeNode } from './emission/native-type-parsing.js';
 import type { ExactSecretQualificationPlan } from './policy/analysis.js';
 
 const secretModule = '@exactjs/secrets';
@@ -57,16 +58,7 @@ export function exactSecretQualificationTransformer(
 }
 
 function parseTypeNode(source: string): ts.TypeNode {
-	const file = ts.createSourceFile(
-		'__exact_secret_type.ts',
-		`type __ExactSecretValue = ${source};`,
-		ts.ScriptTarget.Latest,
-		false,
-		ts.ScriptKind.TS
-	);
-	const statement = file.statements[0];
-	if (statement && ts.isTypeAliasDeclaration(statement)) return statement.type;
-	return ts.factory.createKeywordTypeNode(ts.SyntaxKind.UnknownKeyword);
+	return parseNativeTypeNode(source);
 }
 
 function uniqueAlias(sourceFile: ts.SourceFile, preferred: string): string {

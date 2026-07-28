@@ -40,8 +40,13 @@ function printChildrenProp(text: string): string | undefined {
 	ts.transform(file, [
 		(context) => (root) => {
 			const element = firstJsxElement(root);
-			const prop = clientComponentChildrenProp(context, element);
-			printed = prop ? printer.printNode(ts.EmitHint.Expression, prop, file) : undefined;
+			const prop = clientComponentChildrenProp(
+				context as unknown as Parameters<typeof clientComponentChildrenProp>[0],
+				element as unknown as Parameters<typeof clientComponentChildrenProp>[1]
+			);
+			printed = prop
+				? printer.printNode(ts.EmitHint.Expression, prop as unknown as ts.Node, file)
+				: undefined;
 			return root;
 		}
 	]);
@@ -52,28 +57,39 @@ describe('jsx inspection helpers', () => {
 	it('detects client islands from event handlers and refs', () => {
 		expect(
 			jsxElementIsClientIsland(
-				firstSelfClosingElement('const x = <Panel onClick={save} />;').attributes
+				firstSelfClosingElement('const x = <Panel onClick={save} />;')
+					.attributes as unknown as Parameters<typeof jsxElementIsClientIsland>[0]
 			)
 		).toBe(true);
 		expect(
 			jsxElementIsClientIsland(
-				firstSelfClosingElement('const x = <Panel ref={node} />;').attributes
+				firstSelfClosingElement('const x = <Panel ref={node} />;')
+					.attributes as unknown as Parameters<typeof jsxElementIsClientIsland>[0]
 			)
 		).toBe(true);
 		expect(
 			jsxElementIsClientIsland(
-				firstSelfClosingElement('const x = <Panel title="Work" />;').attributes
+				firstSelfClosingElement('const x = <Panel title="Work" />;')
+					.attributes as unknown as Parameters<typeof jsxElementIsClientIsland>[0]
 			)
 		).toBe(false);
 	});
 
 	it('classifies intrinsic tags without treating components as intrinsic', () => {
-		expect(jsxTagIsIntrinsicElement(firstSelfClosingElement('const x = <div />;').tagName)).toBe(
-			true
-		);
-		expect(jsxTagIsIntrinsicElement(firstSelfClosingElement('const x = <Panel />;').tagName)).toBe(
-			false
-		);
+		expect(
+			jsxTagIsIntrinsicElement(
+				firstSelfClosingElement('const x = <div />;').tagName as unknown as Parameters<
+					typeof jsxTagIsIntrinsicElement
+				>[0]
+			)
+		).toBe(true);
+		expect(
+			jsxTagIsIntrinsicElement(
+				firstSelfClosingElement('const x = <Panel />;').tagName as unknown as Parameters<
+					typeof jsxTagIsIntrinsicElement
+				>[0]
+			)
+		).toBe(false);
 	});
 
 	it('serializes simple client component children props', () => {
@@ -82,7 +98,16 @@ describe('jsx inspection helpers', () => {
 
 	it('marks nested JSX children as server slot children', () => {
 		const element = firstJsxElement(source('const x = <Panel><span>{name}</span></Panel>;'));
-		expect(clientComponentChildrenProp({} as ts.TransformationContext, element)).toBeUndefined();
-		expect(clientComponentHasServerSlotChildren(element)).toBe(true);
+		expect(
+			clientComponentChildrenProp(
+				{} as Parameters<typeof clientComponentChildrenProp>[0],
+				element as unknown as Parameters<typeof clientComponentChildrenProp>[1]
+			)
+		).toBeUndefined();
+		expect(
+			clientComponentHasServerSlotChildren(
+				element as unknown as Parameters<typeof clientComponentHasServerSlotChildren>[0]
+			)
+		).toBe(true);
 	});
 });
