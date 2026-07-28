@@ -9,6 +9,7 @@ const artifactDirectory = path.resolve(process.argv[2] ?? '');
 if (!process.argv[2]) {
 	throw new Error('Usage: node scripts/test-native-compiler-package.mjs <artifact directory>');
 }
+const npm = npmInvocation();
 const archives = (await readdir(artifactDirectory))
 	.filter((entry) => entry.endsWith('.tgz'))
 	.map((entry) => path.join(artifactDirectory, entry));
@@ -21,9 +22,9 @@ try {
 		`${JSON.stringify({ name: 'exact-native-package-test', private: true })}\n`
 	);
 	await run(
-		process.execPath,
+		npm.command,
 		[
-			path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+			...npm.prefix,
 			'install',
 			'--ignore-scripts',
 			'--no-audit',
@@ -60,6 +61,17 @@ try {
 	);
 } finally {
 	await rm(fixture, { recursive: true, force: true });
+}
+
+/** Resolves npm without assuming a runner colocates its CLI with the Node executable. */
+function npmInvocation() {
+	const cli = process.env.npm_execpath;
+	if (cli) return { command: process.execPath, prefix: [cli] };
+	if (process.platform !== 'win32') return { command: 'npm', prefix: [] };
+	return {
+		command: process.env.ComSpec ?? 'cmd.exe',
+		prefix: ['/d', '/s', '/c', 'npm.cmd']
+	};
 }
 
 function requestVersion(executable) {
