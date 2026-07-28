@@ -8,6 +8,8 @@ on:
       - 'native/npm/**'
       - 'packages/compiler/package.json'
       - 'scripts/build-native-compiler.mjs'
+      - 'scripts/native-compiler-build-cache.mjs'
+      - 'scripts/native-compiler-build-cache.test.mjs'
       - 'scripts/checkout-native-typescript-go.mjs'
       - 'scripts/native-compiler-source.mjs'
       - 'scripts/native-compiler-source.test.mjs'
@@ -22,6 +24,8 @@ on:
       - 'native/npm/**'
       - 'packages/compiler/package.json'
       - 'scripts/build-native-compiler.mjs'
+      - 'scripts/native-compiler-build-cache.mjs'
+      - 'scripts/native-compiler-build-cache.test.mjs'
       - 'scripts/checkout-native-typescript-go.mjs'
       - 'scripts/native-compiler-source.mjs'
       - 'scripts/native-compiler-source.test.mjs'
@@ -75,7 +79,7 @@ jobs:
           go-version: '1.26.2'
           cache: false
       - run: npm ci
-      - run: node --test scripts/native-compiler-source.test.mjs
+      - run: npm run test:build-scripts
       - run: npm run build -w @exactjs/core
       - name: Build and stage package
         run: >-

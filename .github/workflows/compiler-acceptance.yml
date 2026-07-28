@@ -13,10 +13,13 @@ on:
       - 'framework-adapters/webpack-plugin/**'
       - 'scripts/check-compiler-acceptance.mjs'
       - 'scripts/build-native-compiler.mjs'
+      - 'scripts/native-compiler-build-cache.mjs'
+      - 'scripts/native-compiler-build-cache.test.mjs'
       - 'scripts/checkout-native-typescript-go.mjs'
       - 'scripts/native-compiler-source.mjs'
       - 'scripts/start-vite-acceptance-server.mjs'
       - 'scripts/release-affected.mjs'
+      - 'package.json'
   push:
     branches:
       - main
@@ -31,10 +34,13 @@ on:
       - 'framework-adapters/webpack-plugin/**'
       - 'scripts/check-compiler-acceptance.mjs'
       - 'scripts/build-native-compiler.mjs'
+      - 'scripts/native-compiler-build-cache.mjs'
+      - 'scripts/native-compiler-build-cache.test.mjs'
       - 'scripts/checkout-native-typescript-go.mjs'
       - 'scripts/native-compiler-source.mjs'
       - 'scripts/start-vite-acceptance-server.mjs'
       - 'scripts/release-affected.mjs'
+      - 'package.json'
   workflow_dispatch:
 
 permissions:
@@ -53,9 +59,5 @@ jobs:
           go-version: '1.26.2'
           cache: false
       - run: npm ci
-      - run: npm run build -w @exactjs/core
-      - run: npm run build:native-compiler
       - run: npx playwright install --with-deps chromium
       - run: npm run check:compiler-acceptance
-        env:
-          EXACT_NATIVE_COMPILER: ${{ github.workspace }}/.tmp/native-compiler/exactc-native
