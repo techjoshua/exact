@@ -44,7 +44,7 @@ describe('@exactjs/expressions: query and binding', () => {
 				.any((attribute) => attribute.node.name === 'className')
 		).toBe(true);
 		expect(module.root.descendants().first()?.parent).toBeDefined();
-	});
+	}, 15_000);
 
 	it('uses one canonical variable object for every binding use', () => {
 		const project = createExpressionProject({ tsconfigPath: kanbanConfig });

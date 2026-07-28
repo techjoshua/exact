@@ -28,8 +28,8 @@ describe('@exactjs/compiler: islands', () => {
 
 		expect(client).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');
 		expect(client).toContain('title: props.title');
-		expect(client).toContain('onClick: () => this.state.count++');
-		expect(client).toContain('__exactDynamic(() => this.state.count)');
+		expect(client).toContain('__exactUpdateResult(this.state, ["count"]');
+		expect(client).toContain('__exactDynamic(() => this.state.count');
 		expect(server).toContain(
 			'"__exactState": { count: this.state.count, label: this.state.label }'
 		);
@@ -172,9 +172,11 @@ describe('@exactjs/compiler: islands', () => {
 			serverComponents: true
 		});
 
-		expect(server).toContain('"__exactCapture": { label: label }');
-		expect(client).toContain('console.log(props.__exactCapture.label)');
-		expect(client).toContain('__exactDynamic(() => props.__exactCapture.label)');
+		expect(server).not.toContain('"__exactCapture"');
+		expect(server).toContain('"__exactState": { count: this.state.count }');
+		expect(client).toContain('const label = __exactDerived(() => String(this.state.count));');
+		expect(client).toContain('console.log(label.get())');
+		expect(client).toContain('__exactDynamic(() => label.get()');
 	});
 
 	it('does not capture shadowed client island identifiers', () => {
@@ -259,7 +261,7 @@ describe('@exactjs/compiler: islands', () => {
 		});
 
 		expect(server).not.toContain('__exactCapture');
-		expect(client).toContain('const save = () => this.state.count++;');
+		expect(client).toContain('const save = () => __exactUpdateResult(this.state, ["count"]');
 		expect(client).toContain('onClick: () => save()');
 	});
 

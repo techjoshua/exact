@@ -1,4 +1,4 @@
-import { rewriteModuleReferences, type ModuleExportReplacement } from '@exactjs/expressions';
+import { rewriteModuleReferences, type ModuleExportReplacement } from '@exactjs/module-rewrite';
 import type { PackageManifestLike } from '@exactjs/react-compat-adapter-api';
 import { createHash } from 'node:crypto';
 import path from 'node:path';

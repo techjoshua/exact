@@ -18,11 +18,12 @@ export function createVNode(
 	props: Record<string, unknown> | null,
 	...children: unknown[]
 ): VNode {
-	const normalizedProps = { ...(props ?? {}) };
-	const rawKey = unwrap(normalizedProps.key);
+	// Exclude the JSX-only key while copying so V8 can construct the normalized props object
+	// directly instead of transitioning it through a property deletion.
+	const { key: authoredKey, ...normalizedProps } = props ?? {};
+	const rawKey = unwrap(authoredKey);
 	const key = rawKey === null || rawKey === undefined ? undefined : String(rawKey);
 	const domain = currentComponentDomain();
-	delete normalizedProps.key;
 
 	return {
 		type,

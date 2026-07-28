@@ -61,7 +61,7 @@ export {
 	type ModuleExportReplacement,
 	type ModuleRewriteOptions,
 	type ModuleRewriteResult
-} from './module-rewrite.js';
+} from '@exactjs/module-rewrite';
 export {
 	createModule,
 	ExpressionModule,
@@ -88,6 +88,6 @@ export {
 	type TextLowerer,
 	type TextLoweringContext
 } from './rewrite.js';
-export { createLineSourceMap, type GeneratedSourceMap } from './source-map.js';
+export { createLineSourceMap, type GeneratedSourceMap } from '@exactjs/module-rewrite';
 export { validateExpressionTree } from './validation.js';
 export { expressions } from './namespace.js';

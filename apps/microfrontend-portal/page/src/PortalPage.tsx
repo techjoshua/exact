@@ -4,50 +4,15 @@ import {
 	PortalContext,
 	type PortalContextValue
 } from '@exactjs/sample-microfrontend-portal/shared';
+import { AccountBadge } from './AccountBadge.js';
+import { BillingSlot } from './BillingSlot.js';
+import { Navigation } from './Navigation.js';
 
 type PortalState = {
 	portal: PortalContextValue;
 	compact: boolean;
 	remoteOffline: boolean;
 };
-
-/** Creates page-owned navigation that may be embedded beneath a remote shell. */
-export function Navigation() {
-	return () => (
-		<nav class="portal-navigation" data-owner="page">
-			<a href="#overview">Overview</a>
-			<a href="#billing">Billing</a>
-		</nav>
-	);
-}
-
-/** Keeps page-local reactive state while the instance is displayed inside a remote root. */
-export function AccountBadge(this: Component<{ visits: number }>) {
-	const portal = this.getContext(PortalContext);
-	this.state.visits = 0;
-	return () => (
-		<button
-			class="account-badge"
-			data-owner="page"
-			data-testid="page-owned-account"
-			onClick={() => this.state.visits++}
-		>
-			{portal.accountId} · local clicks {this.state.visits}
-		</button>
-	);
-}
-
-/** Mounts the nested billing binding using the account selected by the page context. */
-export function BillingSlot(this: Component<Record<string, never>>) {
-	const portal = this.getContext(PortalContext);
-	return () => (
-		<RemoteComponent
-			binding="billing"
-			fallback={<p role="alert">The billing application is unavailable.</p>}
-			props={{ accountId: portal.accountId }}
-		/>
-	);
-}
 
 /** Owns shared portal context and composes page children with independently loaded roots. */
 export default function PortalPage(this: Component<PortalState>) {
@@ -63,7 +28,7 @@ export default function PortalPage(this: Component<PortalState>) {
 
 	return () => (
 		<div
-			class={`page-frame ${this.state.portal.mode}`}
+			class={['page-frame', this.state.portal.mode]}
 			style={{ '--accent': this.state.portal.accent } as Record<string, string>}
 		>
 			<section class="page-controls" aria-label="Page host controls">

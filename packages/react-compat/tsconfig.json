@@ -11,7 +11,7 @@
 		{ "path": "../core" },
 		{ "path": "../reactive" },
 		{ "path": "../react-compat-adapter-api" },
-		{ "path": "../expressions" }
+		{ "path": "../module-rewrite" }
 	],
 	"include": ["src"],
 	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]

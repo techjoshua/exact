@@ -64,6 +64,21 @@ export function removeQueuedComputation(computation: () => void): void {
 	queuedComputations.delete(computation);
 }
 
+/**
+ * Releases every scheduler entry owned directly by a stopped scope.
+ *
+ * Paused work is deliberately ineligible for ordinary draining, so scope teardown must remove it
+ * explicitly rather than relying on a later flush to observe that the scope is inactive.
+ */
+export function discardScheduledScopeWork(scope: EffectScopeImpl): void {
+	for (const reaction of queuedReactions.keys()) {
+		if (reaction.scope === scope) queuedReactions.delete(reaction);
+	}
+	for (const [computation, queued] of queuedComputations) {
+		if (queued.scope === scope) queuedComputations.delete(computation);
+	}
+}
+
 /** Returns the priority inherited by work scheduled in the current synchronous execution scope. */
 export function currentWorkPriority(): WorkPriority {
 	return priorityStack[priorityStack.length - 1] ?? 'normal';

@@ -1,7 +1,8 @@
 import type { Component } from '@exactjs/core';
 import { Link } from '@exactjs/router';
 import { CodeBlock } from '../CodeBlock.jsx';
-import { Article, Callout } from './Article.jsx';
+import { Article } from './Article.jsx';
+import { Callout } from './Callout.jsx';
 
 const asyncSource = `async function loadProfile(id: string) {
   try {
@@ -135,9 +136,7 @@ export function StoryPage(this: Component<{}>) {
 					The code read from top to bottom, almost like an ordinary synchronous function.
 				</p>
 				<CodeBlock source={asyncSource} language="ts" title="Readable asynchronous control flow" />
-				<p>
-					To them, it felt like magic. To me, it felt familiar.
-				</p>
+				<p>To them, it felt like magic. To me, it felt familiar.</p>
 				<p>
 					My background was in C#, starting with .NET 1.0. When C# async support was previewed for
 					.NET 4.5, I was excited for the same reason. My work was still on .NET 4, so I could not
@@ -178,9 +177,9 @@ export function StoryPage(this: Component<{}>) {
 			<section>
 				<h2>JavaScript completed the circle</h2>
 				<p>
-					JavaScript standardized generators before <code>async</code>/<code>await</code>. During the
-					long period when browser support varied, tools such as Babel and TypeScript could lower
-					newer syntax into generator-like or explicit state-machine code for older targets.
+					JavaScript standardized generators before <code>async</code>/<code>await</code>. During
+					the long period when browser support varied, tools such as Babel and TypeScript could
+					lower newer syntax into generator-like or explicit state-machine code for older targets.
 					Modern engines support async functions directly and may optimize them in different ways;
 					the language specification defines their observable behavior, not one mandatory internal
 					implementation.
@@ -209,9 +208,9 @@ export function StoryPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={reactCounterSource} language="tsx" title="A React counter" />
 				<p>
-					That is a coherent architecture, not an accident. It also puts your code in a box: repeated
-					component execution shapes how state, effects, closures, identity, and memoization must be
-					handled, and Hooks must be called in the same order on every render.
+					That is a coherent architecture, not an accident. It also puts your code in a box:
+					repeated component execution shapes how state, effects, closures, identity, and
+					memoization must be handled, and Hooks must be called in the same order on every render.
 				</p>
 				<p>
 					Every framework makes tradeoffs as it balances its goals against reality. Some achieve
@@ -239,8 +238,8 @@ export function StoryPage(this: Component<{}>) {
 				<p>
 					When <code>count</code> changes, the component function does not run again and there is no
 					virtual tree to diff. The count text and the derived value are invalidated as precise
-					reactive expressions. The runtime updates the affected DOM ranges while the component,
-					its state, its tasks, and its owned resources remain in place.
+					reactive expressions. The runtime updates the affected DOM ranges while the component, its
+					state, its tasks, and its owned resources remain in place.
 				</p>
 				<Callout title="Where the state-machine analogy fits" tone="note">
 					<p>

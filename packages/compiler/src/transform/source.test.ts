@@ -29,7 +29,7 @@ describe('@exactjs/compiler: transform', () => {
       }
     `);
 		expect(output).toContain('this.map(props.tasks');
-		expect(output).toMatch(/__exactItem_?\d* => __exactItem_?\d*\.id/);
+		expect(output).toMatch(/\(?__exactItem_?\d*\)? => __exactItem_?\d*\.id/);
 		expect(output).toContain('this.map(props.labels');
 	});
 
@@ -42,7 +42,7 @@ describe('@exactjs/compiler: transform', () => {
       }
     `);
 		expect(output).toContain('this.map(tasks');
-		expect(output).toMatch(/__exactItem_?\d* => __exactItem_?\d*\.externalId/);
+		expect(output).toMatch(/\(?__exactItem_?\d*\)? => __exactItem_?\d*\.externalId/);
 	});
 
 	it('preserves native map semantics when a render callback uses the index', () => {
@@ -65,7 +65,7 @@ describe('@exactjs/compiler: transform', () => {
 				return () => <Route>{pages.map(page => <Route path={page.path} component={page.component} />)}</Route>;
 			}
 		`);
-		expect(output).toContain('pages.map(page =>');
+		expect(output).toMatch(/pages\.map\(\(?page\)? =>/);
 		expect(output).not.toContain('this.map(pages');
 		expect(output).not.toContain('__exactDynamic(() => pages.map');
 	});
@@ -236,8 +236,8 @@ describe('@exactjs/compiler: transform', () => {
 		);
 		expect(output).toContain('__exactTaskResource(__exactSignal, disposableApi())');
 		expect(output).toContain('load(__exactTaskOptionsSignal({ priority: 1 }, __exactSignal))');
-		expect(output).toContain(
-			'bus.addEventListener("message", () => { }, __exactTaskOptionsSignal(undefined, __exactSignal))'
+		expect(output).toMatch(
+			/bus\.addEventListener\("message", \(\) => \{\s*\}, __exactTaskOptionsSignal\(undefined, __exactSignal\)\)/
 		);
 	});
 
@@ -327,9 +327,11 @@ describe('@exactjs/compiler: transform', () => {
 		expect(output).not.toContain('async function ShippingOptions');
 		expect(output).toContain('this.task.blocking(this.reactive(() => this.state.destination)');
 		expect(output).toContain('getOptions(__exactDependency');
-		expect(output).toMatch(/__exactTaskOptionsSignal\(undefined, __exactTaskContext_\d+\.signal\)/);
-		expect(output).toMatch(/await __exactTaskAwait\(__exactTaskContext_\d+\.signal, .*getOptions/);
-		expect(output).toMatch(/__exactStageTaskMutation\(__exactTaskContext_\d+\.signal, \(\) =>/);
+		expect(output).toContain('__exactTaskOptionsSignal(undefined, __exactSignal)');
+		expect(output).toContain('const __exactTaskResult = await');
+		expect(output).toContain(
+			'__exactStageTaskMutation(__exactTaskArgs[__exactTaskArgs.length - 1].signal, () =>'
+		);
 	});
 
 	it('owns disposable task resources and injects signals from call signatures', () => {
@@ -363,7 +365,7 @@ describe('@exactjs/compiler: transform', () => {
 		expect(output).toContain('ownTaskResource as __exactTaskResource');
 		expect(output).toContain('withTaskSignal as __exactTaskOptionsSignal');
 		expect(output).toContain('combineTaskSignal as __exactTaskCombinedSignal');
-		expect(output).toContain('__exactTaskIdleCallback(__exactSignal, () => { })');
+		expect(output).toMatch(/__exactTaskIdleCallback\(__exactSignal, \(\) => \{\s*\}\)/);
 		expect(output).toContain(
 			'__exactTaskResource(__exactSignal, new WebSocket("/events"), "close")'
 		);
@@ -371,8 +373,8 @@ describe('@exactjs/compiler: transform', () => {
 			'__exactTaskResource(__exactSignal, new Worker("worker.js"), "terminate")'
 		);
 		expect(output).toContain('__exactTaskResource(__exactSignal, disposableApi())');
-		expect(output).toContain(
-			'__exactTaskResource(__exactSignal, store.subscribe(() => { }), "unsubscribe")'
+		expect(output).toMatch(
+			/__exactTaskResource\(__exactSignal, store\.subscribe\(\(\) => \{\s*\}\), "unsubscribe"\)/
 		);
 		expect(output).toContain(
 			'optionsApi("ready", __exactTaskOptionsSignal({ priority: 1 }, __exactSignal))'

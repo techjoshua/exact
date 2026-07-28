@@ -1,0 +1,115 @@
+import type { Component } from '@exactjs/core';
+import type { ExtraService, ProviderId, RateQuote } from '../types.js';
+
+type RateCardProps = {
+	quote: RateQuote;
+	best: boolean;
+	refreshing: boolean;
+};
+
+/** Renders a provider quote, its delivery promise, features, and price breakdown. */
+export function RateCard(this: Component<{}>, props: RateCardProps) {
+	return () => (
+		<article
+			className={[
+				'rate-card',
+				!props.quote.compatible && 'incompatible',
+				props.refreshing && 'refreshing'
+			]}
+		>
+			<div className="rate-main">
+				<div className="carrier-row">
+					<span className={['carrier-logo', props.quote.providerId]}>
+						{carrierInitials(props.quote.providerId)}
+					</span>
+					<div>
+						<p>
+							{props.quote.providerName}
+							<span className={['source', props.quote.source]}>
+								{props.quote.source === 'mock'
+									? 'Fictional'
+									: props.quote.accountRate
+										? 'Account'
+										: 'Live'}
+							</span>
+						</p>
+						<h3>{props.quote.serviceName}</h3>
+					</div>
+				</div>
+				<div className="delivery">
+					<small>Estimated delivery</small>
+					<strong>{deliveryLabel(props.quote)}</strong>
+					{props.quote.delivery.guaranteed ? <span>Guaranteed</span> : null}
+				</div>
+				<div className="price">
+					<small>Total estimate</small>
+					<strong>{money(props.quote.totalPriceCents)}</strong>
+					{props.best ? <span className="best">Best value</span> : null}
+				</div>
+			</div>
+			<div className="feature-row">
+				{props.quote.features.map((feature) => (
+					<Feature feature={feature} />
+				))}
+			</div>
+			<details className="breakdown">
+				<summary>Price details</summary>
+				<dl>
+					{props.quote.charges.map((charge) => (
+						<>
+							<dt>{charge.name}</dt>
+							<dd>{money(charge.amountCents)}</dd>
+						</>
+					))}
+				</dl>
+			</details>
+			{props.quote.warnings.map((warning) => (
+				<p className="quote-warning">{warning}</p>
+			))}
+		</article>
+	);
+}
+
+function Feature(this: Component<{}>, props: { feature: ExtraService }) {
+	return () => (
+		<span
+			className={['feature', props.feature.availability, props.feature.selected && 'selected']}
+			title={props.feature.explanation}
+		>
+			{props.feature.availability === 'included'
+				? '✓'
+				: props.feature.availability === 'available'
+					? '+'
+					: '×'}{' '}
+			{props.feature.name}
+			{props.feature.selected &&
+			props.feature.availability === 'available' &&
+			props.feature.priceCents
+				? ` ${money(props.feature.priceCents)}`
+				: props.feature.availability === 'included'
+					? ' included'
+					: ''}
+		</span>
+	);
+}
+
+function money(cents: number): string {
+	return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
+}
+
+function carrierInitials(id: ProviderId): string {
+	return { doop: 'D', usps: 'US', ups: 'UP', fedex: 'FX', dhl: 'DH' }[id];
+}
+
+function deliveryLabel(quote: RateQuote): string {
+	const { minimumDays, maximumDays, estimatedDate } = quote.delivery;
+	if (estimatedDate)
+		return new Date(`${estimatedDate}T12:00:00`).toLocaleDateString('en-US', {
+			month: 'short',
+			day: 'numeric'
+		});
+	if (minimumDays === undefined && maximumDays === undefined) return 'Carrier estimate';
+	if (minimumDays === maximumDays)
+		return `${minimumDays} business day${minimumDays === 1 ? '' : 's'}`;
+	return `${minimumDays ?? 1}–${maximumDays} business days`;
+}

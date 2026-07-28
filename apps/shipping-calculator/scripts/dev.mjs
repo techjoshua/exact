@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { createServer as createViteServer } from 'vite';
 
 const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'custom' });
+const port = readPort(process.env.PORT);
 let generating = false;
 let queued = false;
 
@@ -51,4 +52,27 @@ const server = createHttpServer((request, response) => {
 	});
 });
 
-server.listen(4175, '0.0.0.0', () => console.log('Parcel Lab running at http://localhost:4175'));
+server.listen(port, '0.0.0.0', () => console.log(`Parcel Lab running at http://localhost:${port}`));
+process.on('message', (message) => {
+	if (message?.type === 'exact-acceptance-close') void close();
+});
+
+let closing;
+function close() {
+	return (closing ??= new Promise((resolve, reject) => {
+		server.close((error) => (error ? reject(error) : resolve()));
+	})
+		.then(() => vite.close())
+		.then(() => process.exit(0)));
+}
+
+function readPort(value) {
+	if (value === undefined || value === '') return 4175;
+	const port = Number(value);
+	if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+		throw new Error(
+			`PORT must be an integer from 1 through 65535, received ${JSON.stringify(value)}`
+		);
+	}
+	return port;
+}

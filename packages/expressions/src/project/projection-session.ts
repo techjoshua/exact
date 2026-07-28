@@ -18,6 +18,10 @@ export type ExpressionProjectionSessionOptions = {
 	diagnosticMode: 'syntax' | 'full';
 	profileEnabled: boolean;
 	profileDetail: 'summary' | 'detailed';
+	/** Controls whether ordinary expression nodes eagerly expand complete type graphs. */
+	nodeTypeProjection?: 'full' | 'shallow';
+	/** Uses canonical variable types for identifiers when node projection is shallow. */
+	preferVariableTypes?: boolean;
 	recordProfile: ExactProfileSink<ExpressionProjectProfileEvent>;
 	recordSemanticDiagnostics(): void;
 	nodeIdentityRoots: Map<string, ExpressionNode>;
@@ -108,6 +112,7 @@ export function projectExpressionModule(options: ExpressionProjectionSessionOpti
 	const directives = new ExpressionDirectiveIndex(detailedProfile, projectionCounters);
 	const {
 		typeFor,
+		shallowTypeFor,
 		displayType,
 		displaySignature,
 		typeCache,
@@ -145,9 +150,11 @@ export function projectExpressionModule(options: ExpressionProjectionSessionOpti
 			priorRoot: options.nodeIdentityRoots.get(filename),
 			overlayVersion: options.overlayVersions.get(filename) ?? 0,
 			measure: measureProjection,
-			typeFor,
+			typeFor: options.nodeTypeProjection === 'shallow' ? shallowTypeFor : typeFor,
+			signatureTypeFor: typeFor,
 			displayType,
 			displaySignature,
+			preferVariableTypes: options.preferVariableTypes,
 			scopeFor,
 			variableFor,
 			variableForThis

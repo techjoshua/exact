@@ -2,6 +2,7 @@ import {
 	createCompilerSession,
 	createLineSourceMap,
 	exactExportConditions,
+	resolveNativeCompilerExecutable,
 	resolveExactArtifactImport,
 	transformSource,
 	type ExactAssetRule,
@@ -148,7 +149,7 @@ export type ExactPlugin = {
 export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 	let diagnosticsEnabled = options.diagnostics ?? false;
 	let compilerSession = createCompilerSession({
-		languageService: diagnosticsEnabled,
+		nativeCompiler: { executable: resolveNativeCompilerExecutable() },
 		onProfile: options.onProfile
 	});
 	const diagnosticReporter = createExactDiagnosticReporter();
@@ -157,7 +158,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		compilerSession.dispose();
 		diagnosticsEnabled = enabled;
 		compilerSession = createCompilerSession({
-			languageService: enabled,
+			nativeCompiler: { executable: resolveNativeCompilerExecutable() },
 			onProfile: options.onProfile
 		});
 	};

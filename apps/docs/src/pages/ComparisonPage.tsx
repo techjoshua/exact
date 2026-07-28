@@ -1,5 +1,6 @@
 import type { Component } from '@exactjs/core';
-import { Article, Callout } from './Article.jsx';
+import { Article } from './Article.jsx';
+import { Callout } from './Callout.jsx';
 
 /** Compares framework execution and reactivity models without reducing them to a scorecard. */
 export function ComparisonPage(this: Component<{}>) {

@@ -154,6 +154,7 @@ export function watch(
 	const reaction: Reaction = {
 		active: true,
 		scheduled: false,
+		pendingPriority: undefined,
 		scope,
 		deps: new Set(),
 		run() {
@@ -243,6 +244,7 @@ export function subscribe<T>(
 	const reaction: Reaction = {
 		active: true,
 		scheduled: false,
+		pendingPriority: undefined,
 		deps: new Set([dep]),
 		run() {
 			reaction.scheduled = false;

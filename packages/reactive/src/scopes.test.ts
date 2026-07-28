@@ -15,6 +15,7 @@ import {
 	whenEffectScopeResumed,
 	withEffectScope
 } from './index.js';
+import { inspectScheduledWork } from './internal/scheduler.js';
 
 describe('@exactjs/reactive scopes', () => {
 	it('profiles scheduler work owned by an explicit effect scope', () => {
@@ -249,6 +250,29 @@ describe('@exactjs/reactive scopes', () => {
 		flushSync();
 		expect(seen).toEqual([0, 2]);
 		scope.stop();
+	});
+
+	it('releases queued work when a paused scope is stopped', () => {
+		const scope = createEffectScope();
+		const state = reactive({ value: 0 });
+		const derived = withEffectScope(scope, () => computed(() => state.value * 2));
+		withEffectScope(scope, () => watch(() => void state.value));
+		derived.get();
+
+		scope.pause();
+		state.value = 1;
+		expect(inspectScheduledWork()).toMatchObject({
+			computations: { normal: 1 },
+			reactions: { normal: 1 }
+		});
+
+		scope.stop();
+		flushSync();
+
+		expect(inspectScheduledWork()).toMatchObject({
+			computations: { normal: 0 },
+			reactions: { normal: 0 }
+		});
 	});
 
 	it('inherits ancestor pauses while preserving a child own pause', () => {

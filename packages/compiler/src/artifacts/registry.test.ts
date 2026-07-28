@@ -475,7 +475,27 @@ describe('@exactjs/compiler: registries', () => {
 		);
 
 		expect(output).toContain('"__exactState": { project: { title: this.state.project.title } }');
-		expect(output).toContain('title: project.title');
+		expect(output).toContain('title: project.get().title');
+		expect(output).not.toContain('onClick');
+	});
+
+	it('retains whole-object snapshots when a state alias is consumed as a value', () => {
+		const output = transform(
+			`
+      import { readFile } from "node:fs/promises";
+
+      export function Panel(this: Component<{ project: { title: string } }>) {
+        this.task.server(async () => {
+          await readFile("panel.txt", "utf8");
+        });
+        const project = this.state.project;
+        return () => <button title={String(project)} onClick={() => save(project)} />;
+      }
+    `,
+			{ filename: 'Panel.tsx', target: 'server', serverComponents: true }
+		);
+
+		expect(output).toContain('"__exactState": { project: this.state.project }');
 		expect(output).not.toContain('onClick');
 	});
 
@@ -540,7 +560,9 @@ describe('@exactjs/compiler: registries', () => {
 		expect(output).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');
 		expect(output).toContain('Object.assign(this.state, props.__exactState)');
 		expect(output).toContain('title: props.title');
-		expect(output).toContain('onClick: () => this.state.count++');
+		expect(output).toContain(
+			'onClick: () => __exactUpdateResult(this.state, ["count"], previous =>'
+		);
 		expect(output).not.toContain('export const Panel_ExactClient_1 = Panel');
 	});
 
@@ -560,10 +582,15 @@ describe('@exactjs/compiler: registries', () => {
 		);
 
 		expect(output).toContain('export function Panel_ExactClient_1(this: any, props: any = {})');
-		expect(output).not.toContain('export function Panel(');
+		expect(output).toMatch(
+			/export const Panel: typeof __exactImplementation_Panel_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/
+		);
+		expect(output).toContain('__exactBoundary(');
 		expect(output).not.toContain('node:fs/promises');
 		expect(output).not.toContain('readFile');
-		expect(output).toContain('onClick: () => this.state.count++');
+		expect(output).toContain(
+			'onClick: () => __exactUpdateResult(this.state, ["count"], previous =>'
+		);
 	});
 
 	it('keeps pure client components in client artifacts during server component mode', () => {
@@ -581,7 +608,9 @@ describe('@exactjs/compiler: registries', () => {
 		);
 
 		expect(output).toContain('function ClientWidget()');
-		expect(output).toContain('export function Page()');
+		expect(output).toMatch(
+			/export const Page: typeof __exactImplementation_Page_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/
+		);
 		expect(output).toContain('onClick: () => save()');
 	});
 });

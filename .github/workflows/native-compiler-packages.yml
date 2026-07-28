@@ -1,0 +1,120 @@
+name: Native compiler packages
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/native-compiler-packages.yml'
+      - 'native/typescript-go/**'
+      - 'native/npm/**'
+      - 'packages/compiler/package.json'
+      - 'scripts/build-native-compiler.mjs'
+      - 'scripts/checkout-native-typescript-go.mjs'
+      - 'scripts/package-native-compiler.mjs'
+      - 'scripts/test-native-compiler-package.mjs'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/native-compiler-packages.yml'
+      - 'native/typescript-go/**'
+      - 'native/npm/**'
+      - 'packages/compiler/package.json'
+      - 'scripts/build-native-compiler.mjs'
+      - 'scripts/checkout-native-typescript-go.mjs'
+      - 'scripts/package-native-compiler.mjs'
+      - 'scripts/test-native-compiler-package.mjs'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the staged platform packages to npm
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: ${{ matrix.platform }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: darwin
+            arch: arm64
+            runner: macos-15
+          - platform: darwin
+            arch: x64
+            runner: macos-15-intel
+          - platform: linux
+            arch: arm64
+            runner: ubuntu-24.04-arm
+          - platform: linux
+            arch: x64
+            runner: ubuntu-24.04
+          - platform: win32
+            arch: arm64
+            runner: windows-11-arm
+          - platform: win32
+            arch: x64
+            runner: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.2'
+          cache: false
+      - run: npm ci
+      - run: npm run build -w @exactjs/core
+      - name: Checkout pinned TypeScript-Go
+        run: node scripts/checkout-native-typescript-go.mjs .tmp/typescript-go-source
+      - name: Build and stage package
+        run: >-
+          node scripts/build-native-compiler.mjs
+          --source .tmp/typescript-go-source
+          --platform ${{ matrix.platform }}
+          --arch ${{ matrix.arch }}
+          --package
+      - name: Prepare release artifact directory
+        run: >-
+          node -e
+          "require('node:fs').mkdirSync('.tmp/native-package-artifacts',{recursive:true})"
+      - name: Pack release artifact
+        run: >-
+          npm pack
+          ".tmp/native-packages/compiler-native-${{ matrix.platform }}-${{ matrix.arch }}"
+          --pack-destination .tmp/native-package-artifacts
+      - name: Install and execute packaged compiler
+        run: node scripts/test-native-compiler-package.mjs .tmp/native-package-artifacts
+      - name: Exercise repository compiler corpus
+        if: ${{ matrix.platform == 'linux' && matrix.arch == 'x64' }}
+        shell: bash
+        run: |
+          npm run build -w @exactjs/compiler
+          EXACT_NATIVE_COMPILER="$PWD/.tmp/native-compiler/exactc-native" \
+            npm run check:native-compiler-corpus
+      - name: Install acceptance browser
+        if: ${{ matrix.platform == 'linux' && matrix.arch == 'x64' }}
+        run: npx playwright install --with-deps chromium
+      - name: Exercise compiler browser acceptance
+        if: ${{ matrix.platform == 'linux' && matrix.arch == 'x64' }}
+        shell: bash
+        run: |
+          EXACT_NATIVE_COMPILER="$PWD/.tmp/native-compiler/exactc-native" \
+            npm run check:compiler-acceptance
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compiler-native-${{ matrix.platform }}-${{ matrix.arch }}
+          path: .tmp/native-package-artifacts/*.tgz
+          if-no-files-found: error
+      - name: Publish platform package
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
+        run: npm publish ".tmp/native-packages/compiler-native-${{ matrix.platform }}-${{ matrix.arch }}"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

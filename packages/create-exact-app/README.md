@@ -33,6 +33,5 @@ use the public `@exactjs` package scope and contain a minimal reactive component
 configuration, optional server endpoint, and runner-appropriate component test.
 
 Generated applications use TypeScript 7 for editor and command-line type-checking. The eXact
-compiler and integrations bring their own aliased TypeScript 6 compatibility API, because
-TypeScript 7.0 does not expose a programmatic compiler API. The two versions are intentionally
-installed side-by-side and do not require application code to use an older type-checker.
+compiler is a small JavaScript host package plus one npm-selected native binary for the current
+operating system and architecture. It does not install or expose the retired JavaScript compiler.

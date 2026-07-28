@@ -36,10 +36,14 @@ describe('create-exact-app', () => {
 		});
 
 		const manifest = JSON.parse(await readFile(path.join(target, 'package.json'), 'utf8'));
+		const config = await readFile(path.join(target, 'vite.config.ts'), 'utf8');
 		expect(manifest.devDependencies).toHaveProperty('@exactjs/vitest');
 		expect(manifest.devDependencies.typescript).toBe('^7.0.2');
+		expect(manifest.dependencies).not.toHaveProperty('@exactjs/compiler');
+		expect(manifest.devDependencies).not.toHaveProperty('@exactjs/compiler');
+		expect(config).not.toContain('compiler:');
 		expect(manifest.scripts.typecheck).toBe('tsc --noEmit');
-		expect(await readFile(path.join(target, 'vite.config.ts'), 'utf8')).toContain('exactVitest');
+		expect(config).toContain('exactVitest');
 		expect(
 			await readFile(path.join(target, '.agents/skills/exact-web-development/SKILL.md'), 'utf8')
 		).toContain('name: exact-web-development');

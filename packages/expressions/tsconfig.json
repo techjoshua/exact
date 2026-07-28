@@ -7,7 +7,7 @@
 		"lib": ["ES2022"],
 		"types": ["node"]
 	},
-	"references": [{ "path": "../instrumentation" }],
+	"references": [{ "path": "../instrumentation" }, { "path": "../module-rewrite" }],
 	"include": ["src"],
 	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/test-support"]
 }

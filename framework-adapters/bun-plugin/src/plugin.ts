@@ -1,6 +1,7 @@
 import {
 	createCompilerSession,
 	exactExportConditions,
+	resolveNativeCompilerExecutable,
 	resolveExactArtifactImport,
 	transformSource,
 	type ExactAssetRule,
@@ -116,7 +117,7 @@ export type BunPluginLike = {
 export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 	let diagnosticsEnabled = options.diagnostics ?? false;
 	let compilerSession = createCompilerSession({
-		languageService: diagnosticsEnabled,
+		nativeCompiler: { executable: resolveNativeCompilerExecutable() },
 		onProfile: options.onProfile
 	});
 	const reportDiagnostics = createExactDiagnosticReporter();
@@ -134,7 +135,7 @@ export function exact(options: ExactBunPluginOptions = {}): BunPluginLike {
 				compilerSession.dispose();
 				diagnosticsEnabled = nextDiagnostics;
 				compilerSession = createCompilerSession({
-					languageService: nextDiagnostics,
+					nativeCompiler: { executable: resolveNativeCompilerExecutable() },
 					onProfile: options.onProfile
 				});
 			}

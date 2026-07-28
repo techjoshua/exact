@@ -103,7 +103,7 @@ export function CatalogEditor(this: Component<CatalogState>) {
 }`;
 
 /**
- * Compiler-faithful browser lowering, formatted and annotated for explanation.
+ * Conceptual native browser lowering, formatted and annotated for explanation.
  *
  * Unchanged application types and private generated IDs are omitted.
  */
@@ -171,7 +171,7 @@ export function CatalogEditor(this: Component<CatalogState>) {
 }`;
 
 /**
- * Compiler-faithful server executor, formatted and annotated for explanation.
+ * Conceptual native server executor, formatted and annotated for explanation.
  *
  * Contract-registration boilerplate and private generated IDs are shortened.
  */
@@ -246,7 +246,7 @@ const CatalogEditorContract = {
 // dependencies exist only in this server artifact.`;
 
 /**
- * Compiler-faithful view lowering, formatted and annotated for explanation.
+ * Conceptual native view lowering, formatted and annotated for explanation.
  *
  * Stable generated IDs are shortened because their values are intentionally
  * opaque and do not help explain the transformation.

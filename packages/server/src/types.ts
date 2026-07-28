@@ -150,6 +150,8 @@ export type ExactContextScope = {
 	readonly componentValues: ComponentContextValues;
 	get<T>(token: ContextToken<T>): Promise<T>;
 	getSync<T>(token: ContextToken<T>): T;
+	/** Replaces a request-local value for compiler-authorized continuation work. */
+	setSync?<T>(token: ContextToken<T>, value: T): void;
 };
 
 /** Defines the exact context runtime type contract. */

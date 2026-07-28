@@ -145,11 +145,14 @@ export function nodeOperator(node: ts.Node): string | undefined {
 }
 
 /** Collects binding identifiers in deterministic order. */
-export function collectBindingIdentifiers(name: ts.BindingName): ts.Identifier[] {
+export function collectBindingIdentifiers(name: ts.BindingName | undefined): ts.Identifier[] {
+	if (!name) return [];
 	if (ts.isIdentifier(name)) return [name];
-	return name.elements.flatMap((element) =>
-		ts.isOmittedExpression(element) ? [] : collectBindingIdentifiers(element.name)
-	);
+	return name.elements.flatMap((element) => {
+		if (!element || ts.isOmittedExpression(element)) return [];
+		const nested = element.name;
+		return nested ? collectBindingIdentifiers(nested) : [];
+	});
 }
 
 /** Performs the declaration binding name domain operation. */

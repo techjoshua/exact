@@ -12,6 +12,10 @@ npm run dev -w @exactjs/docs
 
 Development uses Vite and falls back from an empty document to the normal client render. The production build additionally prerenders the initial documentation route and hydrates that existing markup.
 
+The Vite integration uses the same native-only compiler path as generated applications. npm
+selects one platform-specific `exactc-native` package; the docs app does not carry a JavaScript
+compiler fallback.
+
 ## Build
 
 ```sh

@@ -13,6 +13,25 @@ const root = path.resolve(import.meta.dirname, '../../..');
 const config = path.join(root, 'apps/kanban/tsconfig.json');
 
 describe('@exactjs/expressions binding', () => {
+	it('contains native contextual tuple serialization failures at array literals', () => {
+		const project = createExpressionProject({ tsconfigPath: config });
+		const filename = path.join(root, 'apps/kanban/src/__expressions_contextual_tuple.ts');
+		const module = project.updateModule(
+			filename,
+			`declare const values: readonly { name: string }[];
+			export const entries = new Map(values.flatMap(value => [[value.name, value] as const]));`
+		);
+
+		expect(module.emit().code).toContain('export const entries');
+		expect(
+			module
+				.walk()
+				.where((reference) => reference.node.kind === 'ArrayLiteralExpression')
+				.any()
+		).toBe(true);
+		project.dispose();
+	});
+
 	it('reuses an unchanged bound overlay without rebuilding', () => {
 		const project = createExpressionProject({ tsconfigPath: config });
 		const filename = path.join(root, 'apps/kanban/src/__expressions_unchanged.ts');
@@ -91,13 +110,13 @@ describe('@exactjs/expressions binding', () => {
 
 		expect(events.map((event) => event.phase)).toEqual([
 			'configuration',
-			'program',
+			'native-snapshot',
 			'syntax-diagnostics',
 			'semantic-diagnostics',
 			'module-projection'
 		]);
 		expect(events.every((event) => event.elapsedMs >= 0)).toBe(true);
-		expect(events.find((event) => event.phase === 'program')?.fileCount).toBeGreaterThan(0);
+		expect(events.find((event) => event.phase === 'native-snapshot')?.fileCount).toBeGreaterThan(0);
 		const projection = events.find((event) => event.phase === 'module-projection');
 		expect(projection?.filename?.toLowerCase()).toBe(filename.replaceAll('\\', '/').toLowerCase());
 		expect(projection).toMatchObject({

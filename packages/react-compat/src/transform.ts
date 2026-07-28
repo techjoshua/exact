@@ -1,4 +1,4 @@
-import { rewriteModuleReferences, type ModuleExportReplacement } from '@exactjs/expressions';
+import { rewriteModuleReferences, type ModuleExportReplacement } from '@exactjs/module-rewrite';
 import ts from 'typescript';
 import { reactCompatibilityAliases } from './plugin.js';
 

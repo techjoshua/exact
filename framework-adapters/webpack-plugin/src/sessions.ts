@@ -1,5 +1,6 @@
 import {
 	createCompilerSession,
+	resolveNativeCompilerExecutable,
 	type ExactCompilerSession,
 	type ExactCompilerSessionOptions
 } from '@exactjs/compiler';
@@ -9,14 +10,17 @@ let nextSessionId = 0;
 
 /** Creates a webpack compiler session. */
 export function createWebpackCompilerSession(
-	enabled: boolean,
+	_enabled: boolean,
 	onProfile?: ExactCompilerSessionOptions['onProfile']
 ): Readonly<{
 	id: string;
 	session: ExactCompilerSession;
 }> {
 	const id = `exact-webpack-${++nextSessionId}`;
-	const session = createCompilerSession({ languageService: enabled, onProfile });
+	const session = createCompilerSession({
+		nativeCompiler: { executable: resolveNativeCompilerExecutable() },
+		onProfile
+	});
 	sessions.set(id, session);
 	return { id, session };
 }
@@ -29,11 +33,14 @@ export function webpackCompilerSession(id: string | undefined): ExactCompilerSes
 /** Performs the replace webpack compiler session domain operation. */
 export function replaceWebpackCompilerSession(
 	id: string,
-	enabled: boolean,
+	_enabled: boolean,
 	onProfile?: ExactCompilerSessionOptions['onProfile']
 ): ExactCompilerSession {
 	sessions.get(id)?.dispose();
-	const session = createCompilerSession({ languageService: enabled, onProfile });
+	const session = createCompilerSession({
+		nativeCompiler: { executable: resolveNativeCompilerExecutable() },
+		onProfile
+	});
 	sessions.set(id, session);
 	return session;
 }

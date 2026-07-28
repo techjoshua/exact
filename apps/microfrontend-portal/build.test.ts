@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 const execute = promisify(execFile);
 const root = path.resolve(import.meta.dirname);
-const typescriptCli = path.resolve(root, '../../node_modules/typescript/bin/tsc');
+const typescriptCli = path.resolve(root, 'node_modules/typescript/bin/tsc');
 
 describe('microfrontend portal production build', () => {
 	it.each(['page', 'billing', 'branding'])(

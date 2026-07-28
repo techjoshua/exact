@@ -11,6 +11,7 @@ import { context } from './test-support/server.js';
 const DatabaseContext = createContext<{
 	find(id: string): Promise<{ title: string; secret: string }>;
 }>('database', { scope: 'request' });
+const StatusContext = createContext<{ ready: boolean }>('status', { scope: 'request' });
 
 const contract: ExactComponentContinuationContract = {
 	id: 'task:load',
@@ -74,6 +75,46 @@ describe('@exactjs/server generated continuation execution', () => {
 			}
 		]);
 		expect(JSON.stringify(contextAccesses)).not.toContain('Visible');
+	});
+
+	it('applies only compiler-authorized server context writes', async () => {
+		let status: { ready: boolean } | undefined;
+		const handler = createExactContinuationHandler(
+			{ ...contract, serverContextWrites: ['StatusContext'] },
+			{
+				id: contract.id,
+				componentId: contract.componentId,
+				execute(activation, execution) {
+					execution.setContext(StatusContext, { ready: true }, 'StatusContext');
+					return { state: activation.state };
+				}
+			}
+		);
+		await handler(
+			{
+				type: 'action',
+				id: contract.id,
+				payload: { dependencies: ['p1'] },
+				state: { id: 'p1' }
+			},
+			context({
+				contexts: {
+					kind: 'request',
+					componentValues: new Map(),
+					async get<T>() {
+						return { ready: false } as T;
+					},
+					getSync<T>() {
+						return { ready: false } as T;
+					},
+					setSync: (token, value) => {
+						if (token !== StatusContext) throw new Error('unexpected context');
+						status = value as { ready: boolean };
+					}
+				}
+			})
+		);
+		expect(status).toEqual({ ready: true });
 	});
 
 	it('rejects malformed dependency activation before executing authored work', async () => {

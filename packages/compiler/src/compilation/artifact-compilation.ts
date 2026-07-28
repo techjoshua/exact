@@ -1,4 +1,3 @@
-import { type ModuleRewriteOptions } from '@exactjs/expressions';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { discoverExactPackageManifests } from '../artifacts.js';
@@ -11,11 +10,11 @@ import type {
 	CompileArtifactsResult,
 	ExactArtifactPlanEntry,
 	ExactCompilerManifest,
+	ModuleRewriteOptions,
 	TransformOptions
 } from '../types.js';
 import {
 	collectPlacementAnalysisDependencies,
-	localModuleDependencyEntries,
 	transitiveDependencies
 } from './dependency-discovery.js';
 import { createExactArtifactPlan } from './artifact-plan.js';
@@ -32,12 +31,22 @@ import {
 } from './capability-options.js';
 import { analyzeSource } from './source-analysis.js';
 import { transformSource } from './transformation.js';
+import { createOwnedNativeCompilationSession } from './native-session.js';
+import { writeArtifactPlanEntry } from './artifact-entry-output.js';
 
 /** Compiles one source file into paired client/server artifacts plus an artifact manifest. */
 export async function compileFileArtifacts(
 	inputFile: string,
 	options: CompileArtifactsOptions
 ): Promise<CompileArtifactsResult> {
+	const ownedSession = createOwnedNativeCompilationSession(options.session);
+	if (ownedSession) {
+		try {
+			return await compileFileArtifacts(inputFile, { ...options, session: ownedSession });
+		} finally {
+			ownedSession.dispose();
+		}
+	}
 	const source = await readFile(inputFile, 'utf8');
 	const filename = options.filename ?? inputFile;
 	const capabilityOptions = capabilityCompilationOptions(options);
@@ -148,6 +157,14 @@ export async function compileProjectArtifacts(
 	inputs: readonly string[],
 	options: CompileArtifactsOptions
 ): Promise<CompileArtifactsResult[]> {
+	const ownedSession = createOwnedNativeCompilationSession(options.session);
+	if (ownedSession) {
+		try {
+			return await compileProjectArtifacts(inputs, { ...options, session: ownedSession });
+		} finally {
+			ownedSession.dispose();
+		}
+	}
 	const plan = await createExactArtifactPlan(inputs, options);
 	const entries = await expandArtifactPlanDependencies(plan.entries, options);
 	return compileArtifactPlanEntries(entries, {
@@ -172,6 +189,17 @@ export async function compileArtifactPlanEntries(
 	entries: readonly ExactArtifactPlanEntry[],
 	options: CompileArtifactPlanEntriesOptions = {}
 ): Promise<CompileArtifactsResult[]> {
+	const ownedSession = createOwnedNativeCompilationSession(options.session);
+	if (ownedSession) {
+		try {
+			return await compileArtifactPlanEntries(entries, {
+				...options,
+				session: ownedSession
+			});
+		} finally {
+			ownedSession.dispose();
+		}
+	}
 	const results: CompileArtifactsResult[] = [];
 	const manifestBases = new Map<string, ExactCompilerManifest>();
 	const sources = new Map<string, string>();
@@ -180,10 +208,9 @@ export async function compileArtifactPlanEntries(
 		const source = await readFile(entry.inputFile, 'utf8');
 		sources.set(path.resolve(entry.inputFile), source);
 	}
-	const dependencyGraph = await collectPlacementAnalysisDependencies(sources, options.session);
-	const localDependencies = new Map<string, Array<{ specifier: string; file: string }>>();
-	for (const [filename, source] of sources)
-		localDependencies.set(filename, await localModuleDependencyEntries(filename, source));
+	const dependencyAnalysis = await collectPlacementAnalysisDependencies(sources, options.session);
+	const dependencyGraph = dependencyAnalysis.graph;
+	const localDependencies = dependencyAnalysis.localDependencies;
 	const packageManifests =
 		options.discoverPackageManifests === false || !entries.length
 			? []
@@ -208,36 +235,7 @@ export async function compileArtifactPlanEntries(
 			})
 		);
 	}
-	// Resolve cross-file callable summaries to a fixed point. Each pass consumes
-	// the previous immutable manifest generation, so results do not depend on
-	// source ordering and recursive import groups converge monotonically.
-	const maxPasses = Math.max(2, sources.size + 2);
-	for (let pass = 0; pass < maxPasses; pass++) {
-		const imported = [...externalManifests, ...manifestBases.values()];
-		const next = new Map<string, ExactCompilerManifest>();
-		let changed = false;
-		for (const [key, source] of sources) {
-			const entry = entries.find((candidate) => path.resolve(candidate.inputFile) === key);
-			const filename = entry ? (options.filename?.(entry) ?? entry.inputFile) : key;
-			const manifest = analyzeSource(source, {
-				filename,
-				session: options.session,
-				importedManifests: imported,
-				assetRules: options.assetRules,
-				pluginRegistry: options.pluginRegistry,
-				generatedValidation: options.generatedValidation,
-				...capabilityOptions
-			});
-			next.set(key, manifest);
-			if (callableEffectSignature(manifest) !== callableEffectSignature(manifestBases.get(key)!))
-				changed = true;
-		}
-		manifestBases.clear();
-		for (const [key, manifest] of next) manifestBases.set(key, manifest);
-		if (!changed) break;
-		if (pass === maxPasses - 1) throw new Error('eXact placement inference did not converge');
-	}
-	const importedManifests = [...externalManifests, ...manifestBases.values()];
+	const importedManifests = externalManifests;
 
 	for (const entry of entries) {
 		const filename = options.filename?.(entry) ?? entry.inputFile;
@@ -267,15 +265,6 @@ export async function compileArtifactPlanEntries(
 	}
 
 	return results;
-}
-
-function callableEffectSignature(manifest: ExactCompilerManifest): string {
-	return manifest.callables
-		.map(
-			(callable) =>
-				`${callable.id}:${callable.effect}:${callable.reevaluationSafe === true}:${callable.effectSources.map((source) => `${source.environment}:${source.description}`).join(',')}:${JSON.stringify(callable.stateReads)}:${JSON.stringify(callable.stateWrites)}:${JSON.stringify(callable.contexts)}`
-		)
-		.join('|');
 }
 
 async function compileArtifactPlanEntry(
@@ -359,56 +348,5 @@ async function compileArtifactPlanEntry(
 		generatedValidation,
 		...capabilityOptions
 	});
-	const shared = !sourceMap && sharedArtifactResult(base, client, server);
-	const manifest = withArtifactMetadata(base, entry.inputFile, {
-		...entry,
-		...(!shared ? { sharedFile: undefined } : {})
-	});
-	const clientMapFile = client.map ? sourceMapPathFor(entry.clientFile) : undefined;
-	const serverMapFile = server.map ? sourceMapPathFor(entry.serverFile) : undefined;
-
-	await mkdir(path.dirname(entry.clientFile), { recursive: true });
-	await writeFile(
-		entry.clientFile,
-		shared
-			? sharedArtifactFacade(base, entry.sharedFile, entry.clientFile)
-			: clientMapFile
-				? withSourceMappingUrl(client.code, path.basename(clientMapFile))
-				: client.code
-	);
-	await writeFile(
-		entry.serverFile,
-		shared
-			? sharedArtifactFacade(base, entry.sharedFile, entry.serverFile)
-			: serverMapFile
-				? withSourceMappingUrl(server.code, path.basename(serverMapFile))
-				: server.code
-	);
-	if (shared) await writeFile(entry.sharedFile, shared.code);
-	else await removeGeneratedArtifact(entry.sharedFile);
-	if (clientMapFile && client.map)
-		await writeFile(
-			clientMapFile,
-			`${JSON.stringify(withSourceMapFile(client.map, path.basename(entry.clientFile)), null, 2)}\n`
-		);
-	if (serverMapFile && server.map)
-		await writeFile(
-			serverMapFile,
-			`${JSON.stringify(withSourceMapFile(server.map, path.basename(entry.serverFile)), null, 2)}\n`
-		);
-	await writeFile(entry.manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
-
-	return {
-		inputFile: entry.inputFile,
-		clientFile: entry.clientFile,
-		serverFile: entry.serverFile,
-		...(shared ? { sharedFile: entry.sharedFile } : {}),
-		clientMapFile,
-		serverMapFile,
-		manifestFile: entry.manifestFile,
-		client,
-		server,
-		...(shared ? { shared } : {}),
-		manifest
-	};
+	return writeArtifactPlanEntry(entry, base, client, server, sourceMap);
 }

@@ -1,0 +1,1593 @@
+package exactcompiler
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+	"unicode"
+	"unicode/utf8"
+
+	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/typescript-go/internal/core"
+	"github.com/microsoft/typescript-go/internal/parser"
+	"github.com/microsoft/typescript-go/internal/scanner"
+	"github.com/microsoft/typescript-go/internal/tspath"
+)
+
+type sourceEdit struct {
+	start int
+	end   int
+	text  string
+	order int
+}
+
+type normalizedSource struct {
+	text            string
+	authored        string
+	authoredOffsets []int
+}
+
+type componentComputationLocals struct {
+	props    string
+	reactive map[string]struct{}
+}
+
+type componentComputationWrite struct {
+	node *ast.Node
+	path string
+}
+
+type componentComputationEffects struct {
+	reactive bool
+	reads    map[string]struct{}
+	writes   []componentComputationWrite
+}
+
+type componentComputation struct {
+	statement *ast.Node
+	effects   componentComputationEffects
+}
+
+type destructuredStateBinding struct {
+	target    *ast.Node
+	temporary string
+}
+
+// normalizeAuthoredSource owns syntax normalization that must happen before
+// TypeScript can bind the module. Raw application source enters the Go host;
+// JavaScript never parses or reconstructs the compiler AST on the native path.
+func normalizeAuthoredSource(fileName string, source string) (normalizedSource, error) {
+	result := newNormalizedSource(source)
+	result.apply(propPunningEdits(result.text))
+	destructuringEdits, err := planComponentStateDestructuring(fileName, result.text)
+	if err != nil {
+		return normalizedSource{}, err
+	}
+	result.apply(destructuringEdits)
+	computationEdits, err := planComponentComputations(fileName, result.text)
+	if err != nil {
+		return normalizedSource{}, err
+	}
+	result.apply(computationEdits)
+	return result, nil
+}
+
+func newNormalizedSource(source string) normalizedSource {
+	offsets := make([]int, len(source)+1)
+	for index := range offsets {
+		offsets[index] = index
+	}
+	return normalizedSource{
+		text:            source,
+		authored:        source,
+		authoredOffsets: offsets,
+	}
+}
+
+func (source *normalizedSource) apply(edits []sourceEdit) {
+	sortSourceEdits(edits)
+	for _, edit := range edits {
+		if edit.start < 0 || edit.end < edit.start || edit.end > len(source.text) {
+			continue
+		}
+		nextOffsets := make([]int, 0, len(source.text)-edit.end+edit.start+len(edit.text)+1)
+		nextOffsets = append(nextOffsets, source.authoredOffsets[:edit.start+1]...)
+		for index := 1; index <= len(edit.text); index++ {
+			offset := source.authoredOffsets[edit.start]
+			if index == len(edit.text) {
+				offset = source.authoredOffsets[edit.end]
+			}
+			nextOffsets = append(nextOffsets, offset)
+		}
+		nextOffsets = append(nextOffsets, source.authoredOffsets[edit.end+1:]...)
+		source.text = source.text[:edit.start] + edit.text + source.text[edit.end:]
+		source.authoredOffsets = nextOffsets
+	}
+}
+
+func (source normalizedSource) authoredOffset(offset int) int {
+	if offset < 0 {
+		return 0
+	}
+	if offset >= len(source.authoredOffsets) {
+		return len(source.authored)
+	}
+	return source.authoredOffsets[offset]
+}
+
+func (source normalizedSource) authoredSpan(start int, length int) (int, int) {
+	end := start + length
+	authoredStart := source.authoredOffset(start)
+	authoredEnd := source.authoredOffset(end)
+	if authoredEnd < authoredStart {
+		authoredEnd = authoredStart
+	}
+	return authoredStart, authoredEnd - authoredStart
+}
+
+func parseNormalizationSource(fileName string, source string) *ast.SourceFile {
+	return parser.ParseSourceFile(
+		ast.SourceFileParseOptions{
+			FileName: fileName,
+			Path: tspath.ToPath(
+				fileName,
+				tspath.GetDirectoryPath(fileName),
+				true,
+			),
+		},
+		source,
+		core.ScriptKindTSX,
+	)
+}
+
+func applySourceEdits(source string, edits []sourceEdit) string {
+	sortSourceEdits(edits)
+	for _, edit := range edits {
+		if edit.start < 0 || edit.end < edit.start || edit.end > len(source) {
+			continue
+		}
+		source = source[:edit.start] + edit.text + source[edit.end:]
+	}
+	return source
+}
+
+func sortSourceEdits(edits []sourceEdit) {
+	sort.SliceStable(edits, func(left int, right int) bool {
+		if edits[left].start != edits[right].start {
+			return edits[left].start > edits[right].start
+		}
+		if edits[left].end != edits[right].end {
+			return edits[left].end > edits[right].end
+		}
+		return edits[left].order > edits[right].order
+	})
+}
+
+func nodeTokenStart(sourceFile *ast.SourceFile, node *ast.Node) int {
+	return scanner.GetTokenPosOfNode(node, sourceFile, false)
+}
+
+func normalizationNodeText(sourceFile *ast.SourceFile, node *ast.Node) string {
+	if node == nil {
+		return ""
+	}
+	start := nodeTokenStart(sourceFile, node)
+	if start < 0 || node.End() < start || node.End() > len(sourceFile.Text()) {
+		return ""
+	}
+	return sourceFile.Text()[start:node.End()]
+}
+
+func componentComputationError(
+	sourceFile *ast.SourceFile,
+	node *ast.Node,
+	message string,
+) error {
+	position := nodeTokenStart(sourceFile, node)
+	line, column := sourceLineAndColumn(sourceFile.Text(), position)
+	return fmt.Errorf("%s:%d:%d - %s", sourceFile.FileName(), line, column, message)
+}
+
+func sourceLineAndColumn(source string, position int) (int, int) {
+	if position < 0 {
+		position = 0
+	}
+	if position > len(source) {
+		position = len(source)
+	}
+	line := 1
+	column := 1
+	for index := 0; index < position; {
+		r, size := utf8.DecodeRuneInString(source[index:])
+		if r == '\n' {
+			line++
+			column = 1
+		} else {
+			column++
+		}
+		index += size
+	}
+	return line, column
+}
+
+func preprocessComponentStateDestructuring(
+	fileName string,
+	source string,
+) (string, error) {
+	edits, err := planComponentStateDestructuring(fileName, source)
+	if err != nil {
+		return "", err
+	}
+	return applySourceEdits(source, edits), nil
+}
+
+func planComponentStateDestructuring(
+	fileName string,
+	source string,
+) ([]sourceEdit, error) {
+	sourceFile := parseNormalizationSource(fileName, source)
+	edits := []sourceEdit{}
+	var normalizationError error
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if normalizationError != nil {
+			return false
+		}
+		if !isComponentComputationFunction(node, sourceFile) {
+			return true
+		}
+		body := node.Body()
+		if body == nil || !ast.IsBlock(body) {
+			return false
+		}
+		for _, statement := range body.AsBlock().Statements.Nodes {
+			if ast.IsReturnStatement(statement) {
+				continue
+			}
+			visitDirectComponentSyntax(statement, func(candidate *ast.Node) {
+				if normalizationError != nil || !ast.IsExpressionStatement(candidate) {
+					return
+				}
+				expression := unwrapNormalizationParentheses(
+					candidate.AsExpressionStatement().Expression,
+				)
+				if !ast.IsBinaryExpression(expression) {
+					return
+				}
+				binary := expression.AsBinaryExpression()
+				if binary.OperatorToken.Kind != ast.KindEqualsToken ||
+					(!ast.IsArrayLiteralExpression(binary.Left) &&
+						!ast.IsObjectLiteralExpression(binary.Left)) {
+					return
+				}
+				bindings := []destructuredStateBinding{}
+				prefix := fmt.Sprintf(
+					"__exactDestructured_%d",
+					nodeTokenStart(sourceFile, candidate),
+				)
+				pattern, err := rewriteDestructuredStatePattern(
+					sourceFile,
+					binary.Left,
+					prefix,
+					&bindings,
+				)
+				if err != nil {
+					normalizationError = err
+					return
+				}
+				if len(bindings) == 0 {
+					return
+				}
+				var bodyText strings.Builder
+				for _, binding := range bindings {
+					if bodyText.Len() != 0 {
+						bodyText.WriteByte(' ')
+					}
+					bodyText.WriteString(normalizationNodeText(sourceFile, binding.target))
+					bodyText.WriteString(" = ")
+					bodyText.WriteString(binding.temporary)
+					bodyText.WriteByte(';')
+				}
+				edits = append(edits, sourceEdit{
+					start: nodeTokenStart(sourceFile, candidate),
+					end:   candidate.End(),
+					text: fmt.Sprintf(
+						"{ const %s = %s; %s }",
+						pattern,
+						normalizationNodeText(sourceFile, binary.Right),
+						bodyText.String(),
+					),
+				})
+			})
+		}
+		return false
+	})
+	if normalizationError != nil {
+		return nil, normalizationError
+	}
+	return edits, nil
+}
+
+func unwrapNormalizationParentheses(node *ast.Node) *ast.Node {
+	for ast.IsParenthesizedExpression(node) {
+		node = node.AsParenthesizedExpression().Expression
+	}
+	return node
+}
+
+func rewriteDestructuredStatePattern(
+	sourceFile *ast.SourceFile,
+	pattern *ast.Node,
+	prefix string,
+	bindings *[]destructuredStateBinding,
+) (string, error) {
+	if ast.IsArrayLiteralExpression(pattern) {
+		elements := pattern.AsArrayLiteralExpression().Elements.Nodes
+		values := make([]string, 0, len(elements))
+		for _, element := range elements {
+			if ast.IsOmittedExpression(element) {
+				values = append(values, "")
+				continue
+			}
+			if ast.IsSpreadElement(element) {
+				value, err := rewriteDestructuredStateTarget(
+					sourceFile,
+					element.AsSpreadElement().Expression,
+					prefix,
+					bindings,
+				)
+				if err != nil {
+					return "", err
+				}
+				values = append(values, "..."+value)
+				continue
+			}
+			value, err := rewriteDestructuredStateTarget(
+				sourceFile,
+				element,
+				prefix,
+				bindings,
+			)
+			if err != nil {
+				return "", err
+			}
+			values = append(values, value)
+		}
+		return "[" + strings.Join(values, ", ") + "]", nil
+	}
+	if !ast.IsObjectLiteralExpression(pattern) {
+		return rewriteDestructuredStateTarget(sourceFile, pattern, prefix, bindings)
+	}
+	properties := []string{}
+	for _, property := range pattern.AsObjectLiteralExpression().Properties.Nodes {
+		if ast.IsSpreadAssignment(property) {
+			value, err := rewriteDestructuredStateTarget(
+				sourceFile,
+				property.AsSpreadAssignment().Expression,
+				prefix,
+				bindings,
+			)
+			if err != nil {
+				return "", err
+			}
+			properties = append(properties, "..."+value)
+			continue
+		}
+		if !ast.IsPropertyAssignment(property) {
+			return "", componentComputationError(
+				sourceFile,
+				property,
+				"error: every derived object-destructuring entry must explicitly target this.state",
+			)
+		}
+		assignment := property.AsPropertyAssignment()
+		value, err := rewriteDestructuredStateTarget(
+			sourceFile,
+			assignment.Initializer,
+			prefix,
+			bindings,
+		)
+		if err != nil {
+			return "", err
+		}
+		properties = append(
+			properties,
+			normalizationNodeText(sourceFile, assignment.Name())+": "+value,
+		)
+	}
+	return "{ " + strings.Join(properties, ", ") + " }", nil
+}
+
+func rewriteDestructuredStateTarget(
+	sourceFile *ast.SourceFile,
+	target *ast.Node,
+	prefix string,
+	bindings *[]destructuredStateBinding,
+) (string, error) {
+	if ast.IsArrayLiteralExpression(target) || ast.IsObjectLiteralExpression(target) {
+		return rewriteDestructuredStatePattern(sourceFile, target, prefix, bindings)
+	}
+	if ast.IsBinaryExpression(target) &&
+		target.AsBinaryExpression().OperatorToken.Kind == ast.KindEqualsToken {
+		binary := target.AsBinaryExpression()
+		left, err := rewriteDestructuredStateTarget(
+			sourceFile,
+			binary.Left,
+			prefix,
+			bindings,
+		)
+		if err != nil {
+			return "", err
+		}
+		return left + " = " + normalizationNodeText(sourceFile, binary.Right), nil
+	}
+	if _, ok := componentComputationStatePath(target); !ok {
+		return "", componentComputationError(
+			sourceFile,
+			target,
+			"error: every derived destructuring target must be a writable this.state location",
+		)
+	}
+	temporary := fmt.Sprintf("%s_%d", prefix, len(*bindings))
+	*bindings = append(*bindings, destructuredStateBinding{
+		target:    target,
+		temporary: temporary,
+	})
+	return temporary, nil
+}
+
+func preprocessComponentComputations(
+	fileName string,
+	source string,
+) (string, error) {
+	edits, err := planComponentComputations(fileName, source)
+	if err != nil {
+		return "", err
+	}
+	return applySourceEdits(source, edits), nil
+}
+
+func planComponentComputations(
+	fileName string,
+	source string,
+) ([]sourceEdit, error) {
+	sourceFile := parseNormalizationSource(fileName, source)
+	environment := componentComputationEnvironmentBindings(sourceFile)
+	edits := []sourceEdit{}
+	var normalizationError error
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if normalizationError != nil {
+			return false
+		}
+		if !isComponentComputationFunction(node, sourceFile) {
+			return true
+		}
+		if err := planComponentComputationEdits(
+			sourceFile,
+			node,
+			environment,
+			&edits,
+		); err != nil {
+			normalizationError = err
+		}
+		return false
+	})
+	if normalizationError != nil {
+		return nil, normalizationError
+	}
+	return edits, nil
+}
+
+func planComponentComputationEdits(
+	sourceFile *ast.SourceFile,
+	component *ast.Node,
+	environment map[string]struct{},
+	edits *[]sourceEdit,
+) error {
+	body := component.Body()
+	if body == nil || !ast.IsBlock(body) {
+		return nil
+	}
+	statements := append([]*ast.Node(nil), body.AsBlock().Statements.Nodes...)
+	var renderReturn *ast.Node
+	if len(statements) != 0 && ast.IsReturnStatement(statements[len(statements)-1]) {
+		renderReturn = statements[len(statements)-1]
+		statements = statements[:len(statements)-1]
+	}
+	if len(statements) == 0 {
+		return nil
+	}
+	asyncModifier := componentAsyncModifier(component)
+	hasRawAwait := false
+	for _, statement := range statements {
+		for _, await := range collectDirectComponentAwaits(statement) {
+			if !isAwaitedComponentTask(await) {
+				hasRawAwait = true
+			}
+		}
+	}
+	if asyncModifier != nil && hasRawAwait {
+		return planAsyncComponentComputation(
+			sourceFile,
+			statements,
+			renderReturn,
+			asyncModifier,
+			edits,
+		)
+	}
+
+	locals := analyzeComponentComputationLocals(component, statements, environment)
+	computations := []componentComputation{}
+	for _, statement := range statements {
+		if isAuthoredTaskStatement(statement) ||
+			isComponentStateInitialization(statement) {
+			continue
+		}
+		effects := inspectComponentComputationStatement(statement, locals)
+		if len(effects.writes) != 0 && effects.reactive {
+			computations = append(computations, componentComputation{
+				statement: statement,
+				effects:   effects,
+			})
+		}
+	}
+	if err := validateSynchronousComputationCycles(sourceFile, computations); err != nil {
+		return err
+	}
+	for _, computation := range computations {
+		start := nodeTokenStart(sourceFile, computation.statement)
+		*edits = append(
+			*edits,
+			sourceEdit{
+				start: start,
+				end:   start,
+				text:  "this.task(() => { ",
+				order: 0,
+			},
+			sourceEdit{
+				start: computation.statement.End(),
+				end:   computation.statement.End(),
+				text:  " });",
+				order: 1,
+			},
+		)
+	}
+	return nil
+}
+
+func componentAsyncModifier(component *ast.Node) *ast.Node {
+	modifiers := component.Modifiers()
+	if modifiers == nil {
+		return nil
+	}
+	for _, modifier := range modifiers.Nodes {
+		if modifier.Kind == ast.KindAsyncKeyword {
+			return modifier
+		}
+	}
+	return nil
+}
+
+func isComponentStateInitialization(statement *ast.Node) bool {
+	if !ast.IsExpressionStatement(statement) {
+		return false
+	}
+	expression := statement.AsExpressionStatement().Expression
+	return ast.IsBinaryExpression(expression) &&
+		expression.AsBinaryExpression().OperatorToken.Kind ==
+			ast.KindQuestionQuestionEqualsToken &&
+		len(componentComputationStateTargets(
+			expression.AsBinaryExpression().Left,
+		)) != 0
+}
+
+func isAuthoredTaskStatement(statement *ast.Node) bool {
+	if !ast.IsExpressionStatement(statement) {
+		return false
+	}
+	expression := statement.AsExpressionStatement().Expression
+	return ast.IsCallExpression(expression) &&
+		isComponentTaskExpression(expression.AsCallExpression().Expression)
+}
+
+func validateSynchronousComputationCycles(
+	sourceFile *ast.SourceFile,
+	computations []componentComputation,
+) error {
+	writes := []componentComputationWrite{}
+	for _, computation := range computations {
+		for _, write := range computation.effects.writes {
+			if write.path != "" {
+				writes = append(writes, write)
+			}
+		}
+	}
+	nodes := []string{}
+	seen := map[string]struct{}{}
+	for _, write := range writes {
+		if _, exists := seen[write.path]; exists {
+			continue
+		}
+		seen[write.path] = struct{}{}
+		nodes = append(nodes, write.path)
+	}
+	edges := map[string]map[string]struct{}{}
+	for _, path := range nodes {
+		edges[path] = map[string]struct{}{}
+	}
+	for _, computation := range computations {
+		for _, write := range computation.effects.writes {
+			if write.path == "" {
+				continue
+			}
+			for read := range computation.effects.reads {
+				for _, target := range nodes {
+					if componentComputationPathsOverlap(read, target) {
+						edges[write.path][target] = struct{}{}
+					}
+				}
+			}
+		}
+	}
+	active := map[string]struct{}{}
+	complete := map[string]struct{}{}
+	var visit func(string) bool
+	visit = func(path string) bool {
+		if _, exists := active[path]; exists {
+			return true
+		}
+		if _, exists := complete[path]; exists {
+			return false
+		}
+		active[path] = struct{}{}
+		for dependency := range edges[path] {
+			if visit(dependency) {
+				return true
+			}
+		}
+		delete(active, path)
+		complete[path] = struct{}{}
+		return false
+	}
+	for _, path := range nodes {
+		if !visit(path) {
+			continue
+		}
+		var location *ast.Node
+		for _, write := range writes {
+			if write.path == path {
+				location = write.node
+				break
+			}
+		}
+		return componentComputationError(
+			sourceFile,
+			location,
+			fmt.Sprintf(
+				"error: derived state assignment involving %s creates a reactive dependency cycle; wrap one read in peek(() => ...) for a snapshot or use this.task() for deliberate feedback",
+				path,
+			),
+		)
+	}
+	return nil
+}
+
+func componentComputationPathsOverlap(left string, right string) bool {
+	return left == right ||
+		strings.HasPrefix(left, right+".") ||
+		strings.HasPrefix(right, left+".")
+}
+
+func analyzeComponentComputationLocals(
+	component *ast.Node,
+	statements []*ast.Node,
+	environment map[string]struct{},
+) componentComputationLocals {
+	locals := componentComputationLocals{
+		reactive: make(map[string]struct{}, len(environment)),
+	}
+	for name := range environment {
+		locals.reactive[name] = struct{}{}
+	}
+	for _, parameter := range component.Parameters() {
+		name := parameter.Name()
+		if name == nil || !ast.IsIdentifier(name) || name.Text() == "this" {
+			continue
+		}
+		locals.props = name.Text()
+		break
+	}
+	changed := true
+	for changed {
+		changed = false
+		for _, statement := range statements {
+			if !ast.IsVariableStatement(statement) {
+				continue
+			}
+			list := statement.AsVariableStatement().DeclarationList.AsVariableDeclarationList()
+			for _, declarationNode := range list.Declarations.Nodes {
+				declaration := declarationNode.AsVariableDeclaration()
+				name := declaration.Name()
+				if name == nil || !ast.IsIdentifier(name) ||
+					declaration.Initializer == nil {
+					continue
+				}
+				if _, exists := locals.reactive[name.Text()]; exists {
+					continue
+				}
+				if containsComponentReactiveRead(declaration.Initializer, locals) {
+					locals.reactive[name.Text()] = struct{}{}
+					changed = true
+				}
+			}
+		}
+	}
+	return locals
+}
+
+func inspectComponentComputationStatement(
+	statement *ast.Node,
+	locals componentComputationLocals,
+) componentComputationEffects {
+	effects := componentComputationEffects{
+		reads:  map[string]struct{}{},
+		writes: []componentComputationWrite{},
+	}
+	var visit func(*ast.Node, bool)
+	visit = func(node *ast.Node, assignmentTarget bool) {
+		if node == nil ||
+			(node != statement && ast.IsFunctionLike(node)) ||
+			isComponentPeekCall(node) {
+			return
+		}
+		if ast.IsBinaryExpression(node) {
+			binary := node.AsBinaryExpression()
+			if binary.OperatorToken.Kind >= ast.KindFirstAssignment &&
+				binary.OperatorToken.Kind <= ast.KindLastAssignment {
+				for _, target := range componentComputationStateTargets(binary.Left) {
+					path, _ := componentComputationStatePath(target)
+					effects.writes = append(effects.writes, componentComputationWrite{
+						node: target,
+						path: path,
+					})
+				}
+				visit(binary.Left, true)
+				visit(binary.Right, false)
+				return
+			}
+		}
+		var operand *ast.Node
+		if ast.IsPrefixUnaryExpression(node) {
+			unary := node.AsPrefixUnaryExpression()
+			if unary.Operator == ast.KindPlusPlusToken ||
+				unary.Operator == ast.KindMinusMinusToken {
+				operand = unary.Operand
+			}
+		} else if ast.IsPostfixUnaryExpression(node) {
+			unary := node.AsPostfixUnaryExpression()
+			if unary.Operator == ast.KindPlusPlusToken ||
+				unary.Operator == ast.KindMinusMinusToken {
+				operand = unary.Operand
+			}
+		}
+		if operand != nil {
+			if path, ok := componentComputationStatePath(operand); ok {
+				effects.writes = append(effects.writes, componentComputationWrite{
+					node: operand,
+					path: path,
+				})
+			}
+			visit(operand, true)
+			return
+		}
+		if path, ok := componentComputationStatePath(node); ok && !assignmentTarget {
+			effects.reactive = true
+			effects.reads[path] = struct{}{}
+			return
+		}
+		if isComponentGetContextCall(node) {
+			effects.reactive = true
+		}
+		if ast.IsIdentifier(node) && !assignmentTarget &&
+			!isNonReferenceComponentIdentifier(node) {
+			if node.Text() == locals.props {
+				effects.reactive = true
+			}
+			if _, exists := locals.reactive[node.Text()]; exists {
+				effects.reactive = true
+			}
+		}
+		node.ForEachChild(func(child *ast.Node) bool {
+			visit(child, assignmentTarget)
+			return false
+		})
+	}
+	visit(statement, false)
+	return effects
+}
+
+func containsComponentReactiveRead(
+	root *ast.Node,
+	locals componentComputationLocals,
+) bool {
+	found := false
+	var visit func(*ast.Node)
+	visit = func(node *ast.Node) {
+		if node == nil || found ||
+			(node != root && ast.IsFunctionLike(node)) ||
+			isComponentPeekCall(node) {
+			return
+		}
+		if _, ok := componentComputationStatePath(node); ok ||
+			isComponentGetContextCall(node) {
+			found = true
+			return
+		}
+		if ast.IsIdentifier(node) && !isNonReferenceComponentIdentifier(node) {
+			if node.Text() == locals.props {
+				found = true
+				return
+			}
+			if _, exists := locals.reactive[node.Text()]; exists {
+				found = true
+				return
+			}
+		}
+		node.ForEachChild(func(child *ast.Node) bool {
+			visit(child)
+			return false
+		})
+	}
+	visit(root)
+	return found
+}
+
+func componentComputationEnvironmentBindings(
+	sourceFile *ast.SourceFile,
+) map[string]struct{} {
+	bindings := make(map[string]struct{}, len(browserGlobals))
+	for name := range browserGlobals {
+		bindings[name] = struct{}{}
+	}
+	for _, statement := range sourceFile.Statements.Nodes {
+		if !ast.IsImportDeclaration(statement) {
+			continue
+		}
+		declaration := statement.AsImportDeclaration()
+		if !ast.IsStringLiteral(declaration.ModuleSpecifier) ||
+			!serverOnlyModule(declaration.ModuleSpecifier.Text()) ||
+			declaration.ImportClause == nil {
+			continue
+		}
+		clause := declaration.ImportClause.AsImportClause()
+		if clause.Name() != nil {
+			bindings[clause.Name().Text()] = struct{}{}
+		}
+		named := clause.NamedBindings
+		if named == nil {
+			continue
+		}
+		if ast.IsNamespaceImport(named) {
+			bindings[named.Name().Text()] = struct{}{}
+			continue
+		}
+		for _, element := range named.AsNamedImports().Elements.Nodes {
+			name := element.Name()
+			if name != nil {
+				bindings[name.Text()] = struct{}{}
+			}
+		}
+	}
+	return bindings
+}
+
+func isComponentGetContextCall(node *ast.Node) bool {
+	if !ast.IsCallExpression(node) {
+		return false
+	}
+	expression := node.AsCallExpression().Expression
+	if !ast.IsPropertyAccessExpression(expression) {
+		return false
+	}
+	member := expression.AsPropertyAccessExpression()
+	return member.Expression.Kind == ast.KindThisKeyword &&
+		member.Name() != nil &&
+		member.Name().Text() == "getContext"
+}
+
+func isComponentPeekCall(node *ast.Node) bool {
+	return ast.IsCallExpression(node) &&
+		ast.IsIdentifier(node.AsCallExpression().Expression) &&
+		node.AsCallExpression().Expression.Text() == "peek"
+}
+
+func isNonReferenceComponentIdentifier(node *ast.Node) bool {
+	if ast.IsDeclarationName(node) {
+		return true
+	}
+	parent := node.Parent
+	if parent == nil {
+		return false
+	}
+	if ast.IsPropertyAccessExpression(parent) &&
+		parent.AsPropertyAccessExpression().Name() == node {
+		return true
+	}
+	if ast.IsPropertyAssignment(parent) &&
+		parent.AsPropertyAssignment().Name() == node {
+		return true
+	}
+	return false
+}
+
+func componentComputationStatePath(node *ast.Node) (string, bool) {
+	segments := []string{}
+	current := node
+	for ast.IsPropertyAccessExpression(current) ||
+		ast.IsElementAccessExpression(current) {
+		if ast.IsPropertyAccessExpression(current) {
+			member := current.AsPropertyAccessExpression()
+			if member.Expression.Kind == ast.KindThisKeyword &&
+				member.Name() != nil &&
+				member.Name().Text() == "state" {
+				path := "this.state"
+				if len(segments) != 0 {
+					path += "." + strings.Join(segments, ".")
+				}
+				return path, true
+			}
+			if member.Name() == nil {
+				return "", false
+			}
+			segments = append([]string{member.Name().Text()}, segments...)
+			current = member.Expression
+			continue
+		}
+		member := current.AsElementAccessExpression()
+		argument := member.ArgumentExpression
+		if argument == nil ||
+			(!ast.IsStringLiteral(argument) &&
+				!ast.IsNumericLiteral(argument)) {
+			return "", false
+		}
+		segments = append([]string{argument.Text()}, segments...)
+		current = member.Expression
+	}
+	return "", false
+}
+
+func componentComputationStateTargets(node *ast.Node) []*ast.Node {
+	if _, ok := componentComputationStatePath(node); ok {
+		return []*ast.Node{node}
+	}
+	if ast.IsArrayLiteralExpression(node) {
+		result := []*ast.Node{}
+		for _, element := range node.AsArrayLiteralExpression().Elements.Nodes {
+			if ast.IsOmittedExpression(element) || ast.IsSpreadElement(element) {
+				continue
+			}
+			result = append(result, componentComputationStateTargets(element)...)
+		}
+		return result
+	}
+	if ast.IsObjectLiteralExpression(node) {
+		result := []*ast.Node{}
+		for _, property := range node.AsObjectLiteralExpression().Properties.Nodes {
+			if ast.IsPropertyAssignment(property) {
+				result = append(
+					result,
+					componentComputationStateTargets(
+						property.AsPropertyAssignment().Initializer,
+					)...,
+				)
+			} else if ast.IsShorthandPropertyAssignment(property) {
+				result = append(result, componentComputationStateTargets(property.Name())...)
+			}
+		}
+		return result
+	}
+	return nil
+}
+
+func isComponentComputationFunction(
+	node *ast.Node,
+	sourceFile *ast.SourceFile,
+) bool {
+	if !ast.IsFunctionDeclaration(node) &&
+		!ast.IsFunctionExpression(node) &&
+		!ast.IsArrowFunction(node) {
+		return false
+	}
+	if hasComponentReceiver(node, sourceFile) {
+		return true
+	}
+	if ast.IsArrowFunction(node) {
+		return false
+	}
+	name := node.Name()
+	return name != nil &&
+		componentName(name.Text()) &&
+		node.Body() != nil &&
+		containsJSX(node.Body())
+}
+
+func visitDirectComponentSyntax(root *ast.Node, visit func(*ast.Node)) {
+	var walk func(*ast.Node)
+	walk = func(node *ast.Node) {
+		if node == nil || (node != root && ast.IsFunctionLike(node)) {
+			return
+		}
+		visit(node)
+		node.ForEachChild(func(child *ast.Node) bool {
+			walk(child)
+			return false
+		})
+	}
+	walk(root)
+}
+
+func collectDirectComponentAwaits(root *ast.Node) []*ast.Node {
+	result := []*ast.Node{}
+	visitDirectComponentSyntax(root, func(node *ast.Node) {
+		if ast.IsAwaitExpression(node) {
+			result = append(result, node)
+		}
+	})
+	return result
+}
+
+func isAwaitedComponentTask(await *ast.Node) bool {
+	expression := await.AsAwaitExpression().Expression
+	return ast.IsCallExpression(expression) &&
+		isComponentTaskExpression(expression.AsCallExpression().Expression)
+}
+
+func isComponentTaskExpression(expression *ast.Node) bool {
+	current := expression
+	for ast.IsPropertyAccessExpression(current) {
+		member := current.AsPropertyAccessExpression()
+		if member.Expression.Kind == ast.KindThisKeyword {
+			return member.Name() != nil && member.Name().Text() == "task"
+		}
+		current = member.Expression
+	}
+	return false
+}
+
+func planAsyncComponentComputation(
+	sourceFile *ast.SourceFile,
+	setupStatements []*ast.Node,
+	renderReturn *ast.Node,
+	asyncModifier *ast.Node,
+	edits *[]sourceEdit,
+) error {
+	statements := asyncComponentRegion(setupStatements)
+	if err := validateAsyncComponentRegion(
+		sourceFile,
+		statements,
+		renderReturn,
+	); err != nil {
+		return err
+	}
+	first := statements[0]
+	last := statements[len(statements)-1]
+	*edits = append(
+		*edits,
+		sourceEdit{
+			start: nodeTokenStart(sourceFile, asyncModifier),
+			end:   asyncModifier.End(),
+			text:  "",
+		},
+		sourceEdit{
+			start: nodeTokenStart(sourceFile, first),
+			end:   nodeTokenStart(sourceFile, first),
+			text:  "this.task.blocking(async ({ signal: __exactComponentSignal }) => { ",
+			order: 0,
+		},
+		sourceEdit{
+			start: last.End(),
+			end:   last.End(),
+			text:  " });",
+			order: 1,
+		},
+	)
+	for _, statement := range statements {
+		visitDirectComponentSyntax(statement, func(node *ast.Node) {
+			if !ast.IsCatchClause(node) {
+				return
+			}
+			block := node.AsCatchClause().Block.AsNode()
+			start := nodeTokenStart(sourceFile, block) + 1
+			*edits = append(*edits, sourceEdit{
+				start: start,
+				end:   start,
+				text:  " if (__exactComponentSignal.aborted) throw __exactComponentSignal.reason;",
+				order: 0,
+			})
+		})
+	}
+	return nil
+}
+
+func asyncComponentRegion(statements []*ast.Node) []*ast.Node {
+	firstAwait := -1
+	for index, statement := range statements {
+		if len(collectDirectComponentAwaits(statement)) != 0 {
+			firstAwait = index
+			break
+		}
+	}
+	if firstAwait < 0 {
+		return statements
+	}
+	start := firstAwait
+	for index := firstAwait - 1; index >= 0; index-- {
+		statement := statements[index]
+		if isFrameworkSetupRegistration(statement) ||
+			hasDirectComponentStateWrite(statement) {
+			break
+		}
+		start = index
+	}
+	return statements[start:]
+}
+
+func hasDirectComponentStateWrite(statement *ast.Node) bool {
+	found := false
+	visitDirectComponentSyntax(statement, func(node *ast.Node) {
+		if found || !ast.IsBinaryExpression(node) {
+			return
+		}
+		binary := node.AsBinaryExpression()
+		if binary.OperatorToken.Kind >= ast.KindFirstAssignment &&
+			binary.OperatorToken.Kind <= ast.KindLastAssignment &&
+			len(componentComputationStateTargets(binary.Left)) != 0 {
+			found = true
+		}
+	})
+	return found
+}
+
+func isFrameworkSetupRegistration(statement *ast.Node) bool {
+	if !ast.IsExpressionStatement(statement) {
+		return false
+	}
+	expression := statement.AsExpressionStatement().Expression
+	if !ast.IsCallExpression(expression) {
+		return false
+	}
+	callee := expression.AsCallExpression().Expression
+	if isComponentTaskExpression(callee) {
+		return true
+	}
+	if !ast.IsPropertyAccessExpression(callee) {
+		return false
+	}
+	member := callee.AsPropertyAccessExpression()
+	if member.Expression.Kind != ast.KindThisKeyword || member.Name() == nil {
+		return false
+	}
+	switch member.Name().Text() {
+	case "onMount", "onRender", "onUnmount", "onActivate",
+		"onDeactivate", "setContext":
+		return true
+	default:
+		return false
+	}
+}
+
+func validateAsyncComponentRegion(
+	sourceFile *ast.SourceFile,
+	statements []*ast.Node,
+	renderReturn *ast.Node,
+) error {
+	reads := map[string]struct{}{}
+	writes := []componentComputationWrite{}
+	for _, statement := range statements {
+		effects := inspectComponentComputationStatement(
+			statement,
+			componentComputationLocals{reactive: map[string]struct{}{}},
+		)
+		for path := range effects.reads {
+			reads[path] = struct{}{}
+		}
+		writes = append(writes, effects.writes...)
+	}
+	for _, write := range writes {
+		if _, exists := reads[write.path]; write.path != "" && exists {
+			return componentComputationError(
+				sourceFile,
+				write.node,
+				fmt.Sprintf(
+					"error: async derived state assignment to %s reads its own target and would create a reactive cycle; use a local intermediate, peek(() => ...) for a snapshot, or an explicit this.task() feedback policy",
+					write.path,
+				),
+			)
+		}
+	}
+
+	setupBindings := map[string]*ast.Node{}
+	for _, statement := range statements {
+		var regionError error
+		visitDirectComponentSyntax(statement, func(node *ast.Node) {
+			if regionError != nil {
+				return
+			}
+			if ast.IsVariableDeclaration(node) {
+				for _, name := range componentBindingNames(node.Name()) {
+					setupBindings[name] = node
+				}
+			}
+			if node != statement && ast.IsReturnStatement(node) {
+				expression := node.AsReturnStatement().Expression
+				if expression != nil &&
+					(isComponentRenderValue(expression) || containsJSX(expression)) {
+					regionError = componentComputationError(
+						sourceFile,
+						node,
+						"error: an async component may not select its render function from inside the managed continuation; assign the awaited result to this.state and return one final render function",
+					)
+				}
+			}
+		})
+		if regionError != nil {
+			return regionError
+		}
+	}
+	if renderReturn == nil ||
+		renderReturn.AsReturnStatement().Expression == nil ||
+		len(setupBindings) == 0 {
+		return nil
+	}
+	var escaped string
+	walkNode(renderReturn.AsReturnStatement().Expression, func(node *ast.Node) bool {
+		if escaped != "" {
+			return false
+		}
+		if ast.IsIdentifier(node) &&
+			!isNonReferenceComponentIdentifier(node) {
+			if _, exists := setupBindings[node.Text()]; exists {
+				escaped = node.Text()
+				return false
+			}
+		}
+		return true
+	})
+	if escaped != "" {
+		return componentComputationError(
+			sourceFile,
+			setupBindings[escaped],
+			fmt.Sprintf(
+				"error: async component local %s escapes into the render function before its continuation settles; assign the value to this.state instead",
+				escaped,
+			),
+		)
+	}
+	return nil
+}
+
+func componentBindingNames(name *ast.Node) []string {
+	if name == nil {
+		return nil
+	}
+	if ast.IsIdentifier(name) {
+		return []string{name.Text()}
+	}
+	result := []string{}
+	if ast.IsArrayBindingPattern(name) {
+		for _, element := range name.AsBindingPattern().Elements.Nodes {
+			if ast.IsOmittedExpression(element) {
+				continue
+			}
+			result = append(result, componentBindingNames(element.Name())...)
+		}
+	} else if ast.IsObjectBindingPattern(name) {
+		for _, element := range name.AsBindingPattern().Elements.Nodes {
+			result = append(result, componentBindingNames(element.Name())...)
+		}
+	}
+	return result
+}
+
+func isComponentRenderValue(expression *ast.Node) bool {
+	return ast.IsArrowFunction(expression) || ast.IsFunctionExpression(expression)
+}
+
+func preprocessPropPunning(source string) string {
+	return applySourceEdits(source, propPunningEdits(source))
+}
+
+func propPunningEdits(source string) []sourceEdit {
+	edits := []sourceEdit{}
+	for index := 0; index < len(source); {
+		char := source[index]
+		next := byte(0)
+		if index+1 < len(source) {
+			next = source[index+1]
+		}
+		switch {
+		case char == '"' || char == '\'':
+			end := scanPunningQuoted(source, index, char)
+			index = end
+		case char == '`':
+			end := scanPunningTemplate(source, index)
+			index = end
+		case char == '/' && next == '/':
+			end := scanPunningLineComment(source, index)
+			index = end
+		case char == '/' && next == '*':
+			end := scanPunningBlockComment(source, index)
+			index = end
+		case char == '<' && index+1 < len(source) &&
+			isPunningTagStart(source[index+1]) &&
+			source[index+1] != '/':
+			end := scanPunningOpeningTag(source, index)
+			if end > index {
+				edits = append(
+					edits,
+					punnedPropEditsInTag(source[index:end], index)...,
+				)
+				index = end
+			} else {
+				index++
+			}
+		default:
+			index++
+		}
+	}
+	return edits
+}
+
+func rewritePunnedPropsInTag(tag string) string {
+	return applySourceEdits(tag, punnedPropEditsInTag(tag, 0))
+}
+
+func punnedPropEditsInTag(tag string, base int) []sourceEdit {
+	edits := []sourceEdit{}
+	var quote byte
+	for index := 0; index < len(tag); {
+		char := tag[index]
+		if quote != 0 {
+			if char == '\\' && index+1 < len(tag) {
+				index += 2
+				continue
+			}
+			if char == quote {
+				quote = 0
+			}
+			index++
+			continue
+		}
+		if char == '"' || char == '\'' {
+			quote = char
+			index++
+			continue
+		}
+		if char == '{' {
+			previousWhitespace := index > 0 && isPunningWhitespace(tag[index-1])
+			if previousWhitespace && index+1 < len(tag) &&
+				isPunningIdentifierStart(tag[index+1]) {
+				end := scanPunningIdentifier(tag, index+1)
+				if end < len(tag) && tag[end] == '}' {
+					name := tag[index+1 : end]
+					edits = append(edits, sourceEdit{
+						start: base + index,
+						end:   base + index,
+						text:  name + "=",
+					})
+					index = end + 1
+					continue
+				}
+			}
+			end := scanPunningJSExpression(tag, index)
+			if end <= index {
+				end = len(tag)
+			}
+			index = end
+			continue
+		}
+		index++
+	}
+	return edits
+}
+
+func scanPunningOpeningTag(source string, start int) int {
+	var quote byte
+	for index := start + 1; index < len(source); {
+		char := source[index]
+		if quote != 0 {
+			if char == '\\' {
+				index += 2
+				continue
+			}
+			if char == quote {
+				quote = 0
+			}
+			index++
+			continue
+		}
+		if char == '"' || char == '\'' {
+			quote = char
+			index++
+			continue
+		}
+		if char == '{' {
+			end := scanPunningJSExpression(source, index)
+			if end <= index {
+				return -1
+			}
+			index = end
+			continue
+		}
+		if char == '>' {
+			return index + 1
+		}
+		index++
+	}
+	return -1
+}
+
+func scanPunningJSExpression(source string, start int) int {
+	depth := 0
+	for index := start; index < len(source); {
+		char := source[index]
+		next := byte(0)
+		if index+1 < len(source) {
+			next = source[index+1]
+		}
+		switch {
+		case char == '"' || char == '\'':
+			index = scanPunningQuoted(source, index, char)
+			continue
+		case char == '`':
+			index = scanPunningTemplate(source, index)
+			continue
+		case char == '/' && next == '/':
+			index = scanPunningLineComment(source, index)
+			continue
+		case char == '/' && next == '*':
+			index = scanPunningBlockComment(source, index)
+			continue
+		case char == '/' && isPunningRegexStart(source, index):
+			index = scanPunningRegex(source, index)
+			continue
+		case char == '{':
+			depth++
+		case char == '}':
+			depth--
+			if depth == 0 {
+				return index + 1
+			}
+		}
+		index++
+	}
+	return -1
+}
+
+func isPunningRegexStart(source string, slash int) bool {
+	index := slash - 1
+	for index >= 0 && isPunningWhitespace(source[index]) {
+		index--
+	}
+	if index < 0 || strings.ContainsRune("([{,:;=!?&|+-*%^~<>", rune(source[index])) {
+		return true
+	}
+	if !isPunningIdentifierPart(source[index]) {
+		return false
+	}
+	start := index
+	for start > 0 && isPunningIdentifierPart(source[start-1]) {
+		start--
+	}
+	switch source[start : index+1] {
+	case "return", "throw", "case", "delete", "void", "typeof",
+		"instanceof", "in", "of", "yield", "await", "new":
+		return true
+	default:
+		return false
+	}
+}
+
+func scanPunningRegex(source string, start int) int {
+	characterClass := false
+	for index := start + 1; index < len(source); {
+		char := source[index]
+		if char == '\\' {
+			index += 2
+			continue
+		}
+		if char == '[' {
+			characterClass = true
+		} else if char == ']' {
+			characterClass = false
+		} else if char == '/' && !characterClass {
+			index++
+			for index < len(source) &&
+				((source[index] >= 'A' && source[index] <= 'Z') ||
+					(source[index] >= 'a' && source[index] <= 'z')) {
+				index++
+			}
+			return index
+		}
+		index++
+	}
+	return len(source)
+}
+
+func scanPunningQuoted(source string, start int, quote byte) int {
+	for index := start + 1; index < len(source); {
+		if source[index] == '\\' {
+			index += 2
+			continue
+		}
+		if source[index] == quote {
+			return index + 1
+		}
+		index++
+	}
+	return len(source)
+}
+
+func scanPunningTemplate(source string, start int) int {
+	for index := start + 1; index < len(source); {
+		if source[index] == '\\' {
+			index += 2
+			continue
+		}
+		if source[index] == '`' {
+			return index + 1
+		}
+		if source[index] == '$' && index+1 < len(source) &&
+			source[index+1] == '{' {
+			end := scanPunningJSExpression(source, index+1)
+			if end < 0 {
+				return len(source)
+			}
+			index = end
+			continue
+		}
+		index++
+	}
+	return len(source)
+}
+
+func scanPunningLineComment(source string, start int) int {
+	if offset := strings.IndexByte(source[start+2:], '\n'); offset >= 0 {
+		return start + 2 + offset
+	}
+	return len(source)
+}
+
+func scanPunningBlockComment(source string, start int) int {
+	if offset := strings.Index(source[start+2:], "*/"); offset >= 0 {
+		return start + 2 + offset + 2
+	}
+	return len(source)
+}
+
+func scanPunningIdentifier(source string, start int) int {
+	index := start + 1
+	for index < len(source) && isPunningIdentifierPart(source[index]) {
+		index++
+	}
+	return index
+}
+
+func isPunningTagStart(char byte) bool {
+	return isPunningIdentifierStart(char) || char == '>'
+}
+
+func isPunningIdentifierStart(char byte) bool {
+	return (char >= 'A' && char <= 'Z') ||
+		(char >= 'a' && char <= 'z') ||
+		char == '_' ||
+		char == '$'
+}
+
+func isPunningIdentifierPart(char byte) bool {
+	return isPunningIdentifierStart(char) ||
+		(char >= '0' && char <= '9')
+}
+
+func isPunningWhitespace(char byte) bool {
+	return unicode.IsSpace(rune(char))
+}

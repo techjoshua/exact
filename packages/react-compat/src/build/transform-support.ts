@@ -1,4 +1,4 @@
-import type { ModuleExportReplacement } from '@exactjs/expressions';
+import type { ModuleExportReplacement } from '@exactjs/module-rewrite';
 import { readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';

@@ -1,6 +1,7 @@
 import type { Component } from '@exactjs/core';
 import { CodeBlock } from '../CodeBlock.jsx';
-import { Article, Callout } from './Article.jsx';
+import { Article } from './Article.jsx';
+import { Callout } from './Callout.jsx';
 
 const routerSource = `function Layout() {
   // Outlet renders the child selected beneath this layout route.

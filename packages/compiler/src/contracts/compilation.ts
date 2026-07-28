@@ -1,4 +1,3 @@
-import type { ModuleRewriteOptions } from '@exactjs/expressions';
 import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
 import type { ExactCompilerSession } from '../expression/project.js';
 import type {
@@ -9,6 +8,7 @@ import type {
 import type { ExactCompilerManifest } from './manifest.js';
 import type {
 	ExactAssetRule,
+	ModuleRewriteOptions,
 	ModuleTransform,
 	TransformOptions,
 	TransformResult

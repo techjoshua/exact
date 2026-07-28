@@ -96,6 +96,83 @@ describe('exactc', { timeout: 15_000 }, () => {
 		expect(Object.keys(manifest.serverActions)).toHaveLength(1);
 	});
 
+	it('runs JavaScript compatibility plugins while compilation remains native', async () => {
+		const root = await mkdtemp(path.join(tmpdir(), 'exact-cli-native-plugin-'));
+		const sourceRoot = path.join(root, 'src');
+		const input = path.join(sourceRoot, 'config.tsx');
+		const outDir = path.join(root, 'out');
+		const pluginRoot = path.join(root, 'node_modules', '@exactjs', 'cli-test-plugin');
+		const pluginApiRoot = path.join(root, 'node_modules', '@exactjs', 'plugin-api');
+		await mkdir(sourceRoot, { recursive: true });
+		await mkdir(pluginRoot, { recursive: true });
+		await mkdir(pluginApiRoot, { recursive: true });
+		await writeFile(
+			path.join(root, 'package.json'),
+			JSON.stringify({
+				name: '@fixture/native-plugin-app',
+				version: '1.0.0',
+				dependencies: { '@exactjs/cli-test-plugin': '1.0.0' }
+			})
+		);
+		await writeFile(
+			path.join(pluginApiRoot, 'package.json'),
+			JSON.stringify({ name: '@exactjs/plugin-api', version: '1.0.0' })
+		);
+		await writeFile(
+			path.join(pluginRoot, 'package.json'),
+			JSON.stringify({
+				name: '@exactjs/cli-test-plugin',
+				version: '1.0.0',
+				type: 'module',
+				dependencies: { '@exactjs/plugin-api': '^1.0.0' },
+				exports: { './config': './config.js' },
+				exact: {
+					plugin: {
+						schemaVersion: 1,
+						protocolVersion: '1.0.0',
+						configKey: 'cliTest',
+						entries: { config: './config' }
+					}
+				}
+			})
+		);
+		await writeFile(
+			path.join(pluginRoot, 'config.js'),
+			`
+				export default {
+					defaults() { return {}; },
+					validate() {},
+					compilerConfig() {
+						return {
+							cacheKey: { version: 1 },
+							extension: {
+								namespace: "cliTest",
+								directives: ["mark"],
+								analyzeModule(view) {
+									return { manifestData: { target: view.target } };
+								}
+							}
+						};
+					}
+				};
+			`
+		);
+		await writeFile(input, '/** @exact cliTest.mark */\nexport const value = 1;');
+
+		await execFileAsync(process.execPath, [
+			cliPath,
+			'--rootDir',
+			sourceRoot,
+			'--outDir',
+			outDir,
+			'--manifest',
+			input
+		]);
+
+		const manifest = JSON.parse(await readFile(path.join(outDir, 'config.exact.json'), 'utf8'));
+		expect(manifest.pluginData['@exactjs/cli-test-plugin']).toEqual({ target: 'default' });
+	});
+
 	it('emits paired target artifacts through the CLI', async () => {
 		const root = await mkdtemp(path.join(tmpdir(), 'exact-cli-artifacts-'));
 		const input = path.join(root, 'src', 'page.tsx');
@@ -173,7 +250,10 @@ describe('exactc', { timeout: 15_000 }, () => {
 		const server = await readFile(path.join(outDir, 'page.exact.server.ts'), 'utf8');
 
 		expect(client).toContain('Page_ExactClient_1');
-		expect(client).not.toContain('export function Page(');
+		expect(client).toMatch(
+			/export const Page: typeof __exactImplementation_Page_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/
+		);
+		expect(client).toContain('__exactBoundary(');
 		expect(client).not.toContain('node:fs/promises');
 		expect(server).toMatch(
 			/export const Page: typeof __exactImplementation_Page_\d+ = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/

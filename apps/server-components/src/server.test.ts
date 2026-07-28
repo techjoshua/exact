@@ -12,13 +12,13 @@ import { flushSync } from '@exactjs/reactive';
 import { createExactServerRuntime, renderExactRequestToHtmlResponse } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
 import { IdentityProvider } from '../.exact/IdentityProvider.exact.client.js';
+import { ServerIdentityProjection } from '../.exact/ServerIdentityProjection.exact.server.js';
+import { ProfilePage_ExactClient_1 } from '../.exact/ProfilePage.exact.client.js';
 import {
 	ServerAuthorizationContext,
 	ServerBrandContext,
-	ServerIdentityProjection
-} from '../.exact/IdentityProvider.exact.server.js';
-import { ProfilePage_ExactClient_1 } from '../.exact/ProfilePage.exact.client.js';
-import type { PublicIdentity } from './IdentityProvider.js';
+	type PublicIdentity
+} from './identity-context.js';
 import {
 	exactContract,
 	handleExactServerRequest,

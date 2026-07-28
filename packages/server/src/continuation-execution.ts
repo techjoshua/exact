@@ -61,6 +61,28 @@ export function createExactContinuationHandler(
 							})
 						);
 						return context.contexts.getSync(token);
+					},
+					setContext: (token, value, authoredName) => {
+						const name = authoredName ?? token.description;
+						if (!(contract.serverContextWrites ?? []).includes(name)) {
+							throw new TypeError(
+								`Continuation ${contract.id} wrote undeclared server context ${name}`
+							);
+						}
+						if (!context.contexts?.setSync) {
+							throw new Error(
+								`No mutable server context scope is active for eXact continuation ${contract.id}`
+							);
+						}
+						context.onContextAccess?.(
+							Object.freeze({
+								operationId: contract.id,
+								componentId: contract.componentId,
+								token: name,
+								scope: token.scope
+							})
+						);
+						context.contexts.setSync(token, value);
 					}
 				}
 			);

@@ -1,32 +1,49 @@
 import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import ts from 'typescript';
 import type { ExactCompilerSession } from '../expression/project.js';
-import { expressionDependencyFiles } from '../expression/session.js';
 
 /**
- * Discovers local source dependencies needed for placement analysis.
+ * Local dependency facts discovered in one compiler-owned source pass.
+ */
+export interface PlacementDependencyAnalysis {
+	readonly graph: ReadonlyMap<string, readonly string[]>;
+	readonly localDependencies: ReadonlyMap<string, readonly { specifier: string; file: string }[]>;
+}
+
+/**
+ * Discovers local source dependencies needed for placement and artifact rewriting.
  *
  * Newly discovered files are installed in `sources` so callers can analyze a
  * complete project graph without maintaining a second source-content store.
+ * Native import facts are retained with their resolved files so the caller
+ * never reparses source through the JavaScript compatibility compiler.
  */
 export async function collectPlacementAnalysisDependencies(
 	sources: Map<string, string>,
 	session?: ExactCompilerSession
-): Promise<Map<string, string[]>> {
+): Promise<PlacementDependencyAnalysis> {
 	const graph = new Map<string, string[]>();
+	const localDependencies = new Map<string, readonly { specifier: string; file: string }[]>();
+	if (!session) throw new Error('Dependency discovery requires a native compiler session');
 	const pending = [...sources.keys()];
 	while (pending.length) {
 		const filename = pending.shift()!;
 		const source = sources.get(filename)!;
 		const resolvedDependencies: string[] = [];
-		const semanticDependencies = session
-			? session.expressionDependencyFiles(filename, source)
-			: expressionDependencyFiles(filename, source);
-		const syntacticDependencies = (await localModuleDependencyEntries(filename, source)).map(
-			(entry) => entry.file
+		const native = session.compileNative({
+			id: filename,
+			kind: 'analyze',
+			source,
+			diagnostics: 'syntax'
+		});
+		const local = await localModuleDependencyEntries(
+			filename,
+			source,
+			native.analysis.imports.map((entry) => entry.moduleSpecifier)
 		);
-		for (const dependency of [...semanticDependencies, ...syntacticDependencies]) {
+		localDependencies.set(filename, local);
+		const syntacticDependencies = local.map((entry) => entry.file);
+		for (const dependency of syntacticDependencies) {
 			const resolved = path.resolve(dependency);
 			if (
 				/(?:^|[\\/])node_modules(?:[\\/]|$)/.test(resolved) ||
@@ -48,32 +65,16 @@ export async function collectPlacementAnalysisDependencies(
 		}
 		graph.set(filename, [...new Set(resolvedDependencies)].sort());
 	}
-	return graph;
+	return { graph, localDependencies };
 }
 
 /** Resolves authored relative module specifiers to local source files. */
 export async function localModuleDependencyEntries(
 	filename: string,
-	source: string
+	_source: string,
+	nativeSpecifiers: readonly string[]
 ): Promise<Array<{ specifier: string; file: string }>> {
-	const sourceFile = ts.createSourceFile(
-		filename,
-		source,
-		ts.ScriptTarget.ES2022,
-		true,
-		ts.ScriptKind.TSX
-	);
-	const specifiers = sourceFile.statements.flatMap((statement) => {
-		if (
-			(ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)) &&
-			statement.moduleSpecifier &&
-			ts.isStringLiteral(statement.moduleSpecifier) &&
-			statement.moduleSpecifier.text.startsWith('.')
-		) {
-			return [statement.moduleSpecifier.text];
-		}
-		return [];
-	});
+	const specifiers = nativeSpecifiers.filter((specifier) => specifier.startsWith('.'));
 	const dependencies: Array<{ specifier: string; file: string }> = [];
 	for (const specifier of specifiers) {
 		const absolute = path.resolve(path.dirname(filename), specifier);

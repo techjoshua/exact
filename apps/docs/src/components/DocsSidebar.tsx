@@ -10,7 +10,7 @@ type DocsSidebarProps = {
 /** Renders grouped documentation routes and closes mobile navigation after selection. */
 export function DocsSidebar(this: Component<{}>, props: DocsSidebarProps) {
 	return () => (
-		<aside className={props.open ? 'sidebar is-open' : 'sidebar'}>
+		<aside className={['sidebar', props.open && 'is-open']}>
 			<nav aria-label="Documentation">
 				{docGroups.map((group) => (
 					<section className="nav-group">

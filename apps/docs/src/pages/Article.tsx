@@ -46,16 +46,3 @@ export function Article(this: Component<{}>, props: ArticleProps) {
 		</article>
 	);
 }
-
-/** Renders a semantically titled aside for important article guidance. */
-export function Callout(
-	this: Component<{}>,
-	props: { tone?: 'note' | 'warning' | 'tip'; title: string; children?: Child | Child[] }
-) {
-	return () => (
-		<aside className={`callout callout--${props.tone ?? 'note'}`}>
-			<strong>{props.title}</strong>
-			<div>{props.children}</div>
-		</aside>
-	);
-}

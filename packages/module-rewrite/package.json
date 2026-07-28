@@ -1,0 +1,28 @@
+{
+	"name": "@exactjs/module-rewrite",
+	"version": "0.1.0",
+	"type": "module",
+	"files": [
+		"dist",
+		"!dist/**/*.test.*"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"dependencies": {
+		"typescript": "npm:@typescript/typescript6@^6.0.2"
+	},
+	"scripts": {
+		"build": "tsc6 -b",
+		"test": "vitest run",
+		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

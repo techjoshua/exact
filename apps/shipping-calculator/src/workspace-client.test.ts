@@ -31,7 +31,6 @@ describe('shipping client workspace', () => {
 		expect(destination).not.toBeNull();
 		destination!.value = '97209';
 		destination!.dispatchEvent(new InputEvent('input', { bubbles: true }));
-
 		await vi.waitFor(() => expect(invokeAction.mock.calls.length).toBeGreaterThan(initialCalls));
 	});
 
