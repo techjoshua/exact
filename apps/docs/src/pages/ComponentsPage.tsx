@@ -1,7 +1,8 @@
 import type { Component } from '@exactjs/core';
 import { Link } from '@exactjs/router';
 import { CodeBlock } from '../CodeBlock.jsx';
-import { Article, Callout } from './Article.jsx';
+import { Article } from './Article.jsx';
+import { Callout } from './Callout.jsx';
 
 const componentSource = `type CardState = { open: boolean };
 type CardProps = { name: string; children?: Child };

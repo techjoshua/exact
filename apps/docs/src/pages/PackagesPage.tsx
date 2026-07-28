@@ -1,5 +1,6 @@
 import type { Component } from '@exactjs/core';
-import { Article, Callout } from './Article.jsx';
+import { Article } from './Article.jsx';
+import { Callout } from './Callout.jsx';
 
 type PackageGroup = {
 	/** @exact key */ title: string;

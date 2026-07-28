@@ -7,7 +7,8 @@ import {
 	compilerTourGeneratedServerSource,
 	compilerTourGeneratedViewSource
 } from '../examples/compiler-tour.js';
-import { Article, Callout } from './Article.jsx';
+import { Article } from './Article.jsx';
+import { Callout } from './Callout.jsx';
 
 /** Explains how ordinary eXact source becomes precise runtime machinery. */
 export function CompilerTourPage(this: Component<{}>) {

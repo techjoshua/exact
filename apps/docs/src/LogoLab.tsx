@@ -199,7 +199,7 @@ export function LogoLab(this: Component<LogoState>) {
 							<g className="turtle-path">
 								{this.state.segments.map((segment) => (
 									<line
-										className={`turtle-segment color-${segment.color}`}
+										className={['turtle-segment', `color-${segment.color}`]}
 										x1={segment.x1}
 										y1={segment.y1}
 										x2={segment.x2}

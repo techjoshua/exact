@@ -2,7 +2,8 @@ import type { Component } from '@exactjs/core';
 import { Link } from '@exactjs/router';
 import { CodeBlock } from '../CodeBlock.jsx';
 import { CounterDemo } from '../demos/CounterDemo.jsx';
-import { Article, Callout } from './Article.jsx';
+import { Article } from './Article.jsx';
+import { Callout } from './Callout.jsx';
 
 const counterSource = `import type { Component } from '@exactjs/core';
 

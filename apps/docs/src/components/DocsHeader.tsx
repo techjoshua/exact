@@ -1,6 +1,6 @@
 import type { Component } from '@exactjs/core';
 import { Link } from '@exactjs/router';
-import { ThemeControl } from './Theme.jsx';
+import { ThemeControl } from './ThemeControl.jsx';
 
 type DocsHeaderProps = {
 	mobileOpen: boolean;

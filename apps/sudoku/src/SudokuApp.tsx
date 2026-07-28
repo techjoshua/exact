@@ -239,7 +239,7 @@ export function SudokuApp(this: Component<SudokuState>) {
 	});
 
 	return () => (
-		<div className={`sudoku-app theme-${this.state.theme}`}>
+		<div className={['sudoku-app', `theme-${this.state.theme}`]}>
 			<div className="ambient ambient-one" aria-hidden="true" />
 			<div className="ambient ambient-two" aria-hidden="true" />
 			<header className="topbar">
