@@ -4,12 +4,15 @@ import type {
 	ExactComponentBoundaryContract,
 	ExactComponentContinuationContract,
 	ExactComponentContinuationExecutorContract,
+	ExactCollectionMutation,
 	ComponentResumptionActivation,
 	Logger
 } from '@exactjs/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type { ExactOutputExtension } from '@exactjs/plugin-api';
 import type { RequestContextValue, RequestResponseState } from '@exactjs/request';
+
+export type { ExactCollectionMutation } from '@exactjs/core';
 
 /** Defines the exact invocation kind type contract. */
 export type ExactInvocationKind = 'action' | 'refresh';
@@ -49,6 +52,7 @@ export type ExactStatePath = {
 	path: string;
 	kind: 'read' | 'write';
 	confidence: 'exact' | 'broad' | 'unknown';
+	operation?: 'value' | 'map' | 'set';
 };
 
 /** Configures executor composition from imported component contracts. */
@@ -253,6 +257,8 @@ export type ExactBatchRequest = {
 export type ExactInvocationResult = {
 	patches?: ExactPatch[];
 	state?: unknown;
+	/** Ordered fine-grained Map and Set changes produced by a generated continuation. */
+	mutations?: ExactCollectionMutation[];
 	/** Compiler-approved component-context projections returned to the owning client instance. */
 	contexts?: Record<string, unknown>;
 	html?: string;
@@ -306,6 +312,15 @@ export type ExactStreamEvent =
 			id: string;
 			opId?: string;
 			value: unknown;
+	  }
+	| {
+			event: 'mutations';
+			version: 1;
+			index: number;
+			type: ExactInvocationKind;
+			id: string;
+			opId?: string;
+			mutations: ExactCollectionMutation[];
 	  }
 	| {
 			event: 'html';

@@ -3,6 +3,7 @@ import {
 	decodeExactMarkerPart,
 	encodeExactMarkerPart,
 	isVNode,
+	normalizeClassValue,
 	sanitizeUrlAttribute
 } from '@exactjs/core';
 import { unwrap } from '@exactjs/reactive';
@@ -48,11 +49,13 @@ export function renderAttrs(
 				? unsafeHtmlAttribute(rawValue, context)
 				: unwrap(rawValue);
 		const normalized =
-			name === 'value' && tag === 'input' && props.type === 'date' && unwrapped instanceof Date
-				? Number.isNaN(unwrapped.getTime())
-					? ''
-					: unwrapped.toISOString().slice(0, 10)
-				: unwrapped;
+			!reactMarkup && (name === 'className' || name === 'class')
+				? normalizeClassValue(unwrapped)
+				: name === 'value' && tag === 'input' && props.type === 'date' && unwrapped instanceof Date
+					? Number.isNaN(unwrapped.getTime())
+						? ''
+						: unwrapped.toISOString().slice(0, 10)
+					: unwrapped;
 		const value = sanitizeUrlAttribute(name, normalized);
 		const attrName = reactMarkup
 			? reactAttributeName(name, reactMarkup, customElement)

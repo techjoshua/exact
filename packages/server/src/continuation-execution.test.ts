@@ -1,6 +1,8 @@
 import {
 	createContext,
+	mutateTaskCollection,
 	stageTaskMutation,
+	takeTaskCollectionMutations,
 	type ExactComponentContinuationContract
 } from '@exactjs/core';
 import { describe, expect, it } from 'vitest';
@@ -163,6 +165,50 @@ describe('@exactjs/server generated continuation execution', () => {
 		).resolves.toEqual({ state: { title: 'Settled' } });
 	});
 
+	it('returns ordered Map and Set deltas without projecting whole collections', async () => {
+		const collectionContract: ExactComponentContinuationContract = {
+			...contract,
+			stateWrites: [
+				{ path: 'lookup', kind: 'write', confidence: 'exact', operation: 'map' },
+				{ path: 'selected', kind: 'write', confidence: 'exact', operation: 'set' }
+			]
+		};
+		const handler = createExactContinuationHandler(collectionContract, {
+			id: contract.id,
+			componentId: contract.componentId,
+			execute(activation, execution) {
+				mutateTaskCollection(execution.signal, activation.state, ['lookup'], 'map', 'set', [
+					'answer',
+					42
+				]);
+				mutateTaskCollection(execution.signal, activation.state, ['selected'], 'set', 'add', [
+					'answer'
+				]);
+				mutateTaskCollection(execution.signal, activation.state, ['selected'], 'set', 'add', [
+					'answer'
+				]);
+				return { state: activation.state };
+			}
+		});
+
+		await expect(
+			handler(
+				{
+					type: 'action',
+					id: contract.id,
+					payload: { dependencies: ['p1'] },
+					state: { lookup: new Map(), selected: new Set() }
+				},
+				context()
+			)
+		).resolves.toEqual({
+			mutations: [
+				{ path: 'lookup', operation: 'map-set', key: 'answer', value: 42 },
+				{ path: 'selected', operation: 'set-add', value: 'answer' }
+			]
+		});
+	});
+
 	it('discards compiler-staged writes when a continuation fails', async () => {
 		const activationState = { id: 'p1' };
 		const handler = createExactContinuationHandler(contract, {
@@ -188,6 +234,38 @@ describe('@exactjs/server generated continuation execution', () => {
 			)
 		).rejects.toThrow('query failed');
 		expect(activationState).toEqual({ id: 'p1' });
+	});
+
+	it('discards collection deltas when a continuation fails', async () => {
+		const signal = new AbortController().signal;
+		const collectionContract: ExactComponentContinuationContract = {
+			...contract,
+			stateWrites: [{ path: 'lookup', kind: 'write', confidence: 'exact', operation: 'map' }]
+		};
+		const handler = createExactContinuationHandler(collectionContract, {
+			id: contract.id,
+			componentId: contract.componentId,
+			execute(activation, execution) {
+				mutateTaskCollection(execution.signal, activation.state, ['lookup'], 'map', 'set', [
+					'leaked',
+					1
+				]);
+				throw new Error('query failed');
+			}
+		});
+
+		await expect(
+			handler(
+				{
+					type: 'action',
+					id: contract.id,
+					payload: { dependencies: ['p1'] },
+					state: { lookup: new Map() }
+				},
+				context({ signal })
+			)
+		).rejects.toThrow('query failed');
+		expect(takeTaskCollectionMutations(signal)).toBeUndefined();
 	});
 
 	it('returns only declared public component-context writes', async () => {

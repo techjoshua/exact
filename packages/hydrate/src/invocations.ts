@@ -1,4 +1,4 @@
-import { logFrameworkEvent } from '@exactjs/core';
+import { encodeReactiveProtocolValue, logFrameworkEvent } from '@exactjs/core';
 import {
 	parseExactBatchResponse,
 	parseExactInvocationResponse,
@@ -181,7 +181,7 @@ function responseHeader(
 }
 
 function encodeRequest(value: unknown, maxBytes?: number): string {
-	const body = JSON.stringify(value);
+	const body = JSON.stringify(encodeReactiveProtocolValue(value));
 	if (new TextEncoder().encode(body).byteLength > positiveLimit(maxBytes, 4 * 1024 * 1024)) {
 		throw new Error('eXact request exceeded maxRequestBytes');
 	}

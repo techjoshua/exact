@@ -14,7 +14,7 @@ export function BoardView(this: Component<{}>, props: BoardViewProps) {
 			{props.columns.map((column) => {
 				const tasks = props.tasks.filter((task) => task.status === column.id);
 				return (
-					<section className={['column', tasks.length === 0 && 'empty']}>
+					<section className="column" className:empty={tasks.length === 0}>
 						<header>
 							<h2>{column.title}</h2>
 							<span>{tasks.length}</span>

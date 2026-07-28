@@ -16,6 +16,50 @@ import {
 import { noopLogger, testContinuation } from './test-support/responses.js';
 
 describe('@exactjs/hydrate request-operations', () => {
+	it('encodes request Maps and Sets and decodes them in responses', async () => {
+		let requestBody: any;
+		const result = await invokeExact({
+			endpoint: '/__exact',
+			type: 'action',
+			id: 'collections',
+			payload: {
+				lookup: new Map([['answer', 42]]),
+				selected: new Set(['answer'])
+			},
+			fetch: async (_input, init) => {
+				requestBody = JSON.parse(init.body);
+				return {
+					ok: true,
+					status: 200,
+					async json() {
+						return {
+							ok: true,
+							type: 'action',
+							id: 'collections',
+							state: {
+								lookup: { $exact: 'map', version: 1, entries: [['answer', 42]] },
+								selected: { $exact: 'set', version: 1, values: ['answer'] }
+							}
+						};
+					}
+				};
+			}
+		});
+
+		expect(requestBody.payload.lookup).toEqual({
+			$exact: 'map',
+			version: 1,
+			entries: [['answer', 42]]
+		});
+		expect(requestBody.payload.selected).toEqual({
+			$exact: 'set',
+			version: 1,
+			values: ['answer']
+		});
+		expect((result.state as any).lookup).toEqual(new Map([['answer', 42]]));
+		expect((result.state as any).selected).toEqual(new Set(['answer']));
+	});
+
 	it('keeps unrelated client ownership active after a server prop patch', () => {
 		let clicks = 0;
 		function Counter() {

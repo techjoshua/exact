@@ -17,6 +17,7 @@ import type {
 import {
 	boundaryHintsAllowed,
 	contextResponseMatchesContract,
+	collectionMutationsMatchContract,
 	isExecutorAllowed,
 	isInvocationResultSafe,
 	publicContextMatchesContract,
@@ -198,6 +199,7 @@ async function dispatchExactOperationAfterSecurity(
 		if (
 			input.type === 'action' &&
 			(!stateResponseMatchesContract(result.state, action?.stateWrites ?? []) ||
+				!collectionMutationsMatchContract(result.mutations, action?.stateWrites ?? []) ||
 				!contextResponseMatchesContract(result.contexts, action?.contextWrites ?? []))
 		) {
 			return reject(

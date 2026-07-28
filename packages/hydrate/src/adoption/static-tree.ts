@@ -3,6 +3,7 @@ import {
 	Text,
 	UnsafeHtml,
 	isVNode,
+	normalizeClassValue,
 	sanitizeUrlAttribute,
 	type Child,
 	type VNode
@@ -269,6 +270,7 @@ function createStaticNode(
 }
 
 function staticAttributeValue(name: string, value: unknown, budget: StaticAdoptionBudget): unknown {
+	if (name === 'className' || name === 'class') return normalizeClassValue(value);
 	if (name !== 'srcdoc' && name !== 'srcDoc') return value;
 	const candidate = unwrap(value);
 	if (!isVNode(candidate) || candidate.type !== UnsafeHtml) {

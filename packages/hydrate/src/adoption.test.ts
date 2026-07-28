@@ -80,6 +80,21 @@ describe('@exactjs/hydrate adoption', () => {
 		expect(observations).toEqual([{ kind: 'root', outcome: 'adopted', markers: 'exact' }]);
 	});
 
+	it('adopts normalized static class-list values without replacing the server node', () => {
+		const root = document.createElement('div');
+		root.innerHTML =
+			'<!--exact:component:0--><p class="panel active">server</p><!--/exact:component:0-->';
+		const serverNode = root.querySelector('p');
+
+		hydrate(
+			createVNode('p', { className: ['panel', { active: true, hidden: false }] }, 'server'),
+			root,
+			{ logger: noopLogger }
+		);
+
+		expect(root.querySelector('p')).toBe(serverNode);
+	});
+
 	it('adopts opted-in iframe srcdoc through the unsafe HTML capability', () => {
 		const root = document.createElement('div');
 		root.innerHTML =

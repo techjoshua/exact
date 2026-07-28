@@ -1,4 +1,4 @@
-import { encodeReactiveProtocolValue } from '@exactjs/core';
+import { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from '@exactjs/core';
 import type {
 	ExactBatchRequest,
 	ExactInvocationRequest,
@@ -30,10 +30,10 @@ export function parseExactRequestBody(
 	) {
 		throw new Error('request byte limit exceeded');
 	}
-	const value = typeof body === 'string' ? JSON.parse(body) : body;
+	const encodedValue = typeof body === 'string' ? JSON.parse(body) : body;
 	const requestLimit = positiveLimit(options.maxRequestBytes, 4 * 1024 * 1024);
 	if (
-		!isJsonSafe(value, {
+		!isJsonSafe(encodedValue, {
 			maxDepth: positiveLimit(options.maxJsonDepth, 100),
 			maxNodes: positiveLimit(options.maxJsonNodes, 100_000),
 			maxBytes: requestLimit
@@ -41,10 +41,11 @@ export function parseExactRequestBody(
 	)
 		throw new Error('request graph limit exceeded');
 	if (typeof body !== 'string') {
-		const encoded = JSON.stringify(value);
+		const encoded = JSON.stringify(encodedValue);
 		if (encoded === undefined || utf8Length(encoded) > requestLimit)
 			throw new Error('request byte limit exceeded');
 	}
+	const value = decodeReactiveProtocolValue(encodedValue);
 	if (!value || typeof value !== 'object') throw new Error('invalid invocation');
 	const record = value as Record<string, unknown>;
 	if (record.type === 'batch')
@@ -120,6 +121,18 @@ export function isJsonSafe(
 			}
 			if (typeof item !== 'object' || seen.has(item)) return false;
 			seen.add(item);
+			if (item instanceof Map) {
+				for (const [key, entryValue] of item) {
+					if (!isTransportableMapKey(key)) return false;
+					pending.push({ value: entryValue, depth: current.depth + 1 });
+				}
+				continue;
+			}
+			if (item instanceof Set) {
+				for (const entryValue of item)
+					pending.push({ value: entryValue, depth: current.depth + 1 });
+				continue;
+			}
 			if (!Array.isArray(item) && Object.getPrototypeOf(item) !== Object.prototype) return false;
 			const keys = Object.keys(item);
 			if (nodes + pending.length + keys.length > maxNodes) return false;
@@ -135,6 +148,15 @@ export function isJsonSafe(
 	} catch {
 		return false;
 	}
+}
+
+function isTransportableMapKey(value: unknown): boolean {
+	return (
+		value === null ||
+		typeof value === 'boolean' ||
+		typeof value === 'string' ||
+		(typeof value === 'number' && Number.isFinite(value))
+	);
 }
 
 function parseBatch(record: Record<string, unknown>, maxOperations: number): ExactBatchRequest {

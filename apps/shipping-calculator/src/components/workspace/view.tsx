@@ -85,7 +85,7 @@ export function renderWorkspace(
 							{mailpieceKinds.map((kind) => (
 								<button
 									type="button"
-									className={[state.draft.kind === kind.id && 'active']}
+									className:active={state.draft.kind === kind.id}
 									aria-pressed={state.draft.kind === kind.id}
 									onClick={() => change('kind', kind.id)}
 								>

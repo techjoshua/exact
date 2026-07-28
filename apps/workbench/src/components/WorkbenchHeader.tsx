@@ -34,14 +34,14 @@ export function WorkbenchHeader(this: Component<{}>, props: WorkbenchHeaderProps
 				<div className="segmented" role="group" aria-label="View mode">
 					<button
 						type="button"
-						className={[props.view === 'board' && 'active']}
+						className:active={props.view === 'board'}
 						onClick={() => workbench.setView('board')}
 					>
 						Board
 					</button>
 					<button
 						type="button"
-						className={[props.view === 'list' && 'active']}
+						className:active={props.view === 'list'}
 						onClick={() => workbench.setView('list')}
 					>
 						List

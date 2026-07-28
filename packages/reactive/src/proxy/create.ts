@@ -11,6 +11,7 @@ import type { ReactiveOptions, ReactiveRef } from '../internal/types.js';
 
 import { createPropertyUndo, mutateArray, recordPropertyUndo } from '../array-mutation.js';
 import { hasChanged, isReactiveContainer } from '../change-detection.js';
+import { reactiveCollectionMember } from './collections.js';
 
 import {
 	defaultReactiveOptions,
@@ -45,6 +46,17 @@ export function createReactive(
 			if (key === rawTarget) return target;
 
 			trackProxySources(proxy);
+			if (target instanceof Map || target instanceof Set) {
+				return reactiveCollectionMember(target, key, proxy, options, (current, dependency) => {
+					if (!current || typeof current !== 'object' || !isReactiveContainer(unwrap(current)))
+						return current;
+					return createReactive(
+						unwrap(current) as object,
+						options,
+						dependency === undefined ? undefined : createParentSource(target, dependency, options)
+					);
+				});
+			}
 			const current = Reflect.get(target, key, receiver);
 			if (Array.isArray(target) && mutatingArrayMethods.has(key) && typeof current === 'function') {
 				return (...args: unknown[]) => mutateArray(target, String(key), current, args, receiver);

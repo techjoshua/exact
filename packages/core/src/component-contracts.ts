@@ -19,7 +19,17 @@ export type ExactContinuationStatePathContract = Readonly<{
 	path: string;
 	kind: 'read' | 'write';
 	confidence: 'exact' | 'broad' | 'unknown';
+	operation?: 'value' | 'map' | 'set';
 }>;
+
+/** One ordered Map or Set mutation returned by a server continuation. */
+export type ExactCollectionMutation =
+	| Readonly<{ path: string; operation: 'map-set'; key: unknown; value: unknown }>
+	| Readonly<{ path: string; operation: 'map-delete'; key: unknown }>
+	| Readonly<{ path: string; operation: 'map-clear' }>
+	| Readonly<{ path: string; operation: 'set-add'; value: unknown }>
+	| Readonly<{ path: string; operation: 'set-delete'; value: unknown }>
+	| Readonly<{ path: string; operation: 'set-clear' }>;
 
 /** Private operation contract attached to the component artifact that owns it. */
 export type ExactComponentContinuationContract = Readonly<{
@@ -361,10 +371,16 @@ function isDependency(value: unknown): boolean {
 function isStatePath(value: unknown): value is ExactContinuationStatePathContract {
 	return (
 		isRecord(value) &&
-		hasOnlyKeys(value, ['path', 'kind', 'confidence']) &&
+		hasOnlyKeys(value, ['path', 'kind', 'confidence', 'operation']) &&
 		isString(value.path) &&
 		(value.kind === 'read' || value.kind === 'write') &&
-		(value.confidence === 'exact' || value.confidence === 'broad' || value.confidence === 'unknown')
+		(value.confidence === 'exact' ||
+			value.confidence === 'broad' ||
+			value.confidence === 'unknown') &&
+		(value.operation === undefined ||
+			value.operation === 'value' ||
+			value.operation === 'map' ||
+			value.operation === 'set')
 	);
 }
 

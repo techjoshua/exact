@@ -59,7 +59,10 @@ function isStateEffect(value: unknown): value is ExactStateEffect {
 	return (
 		typeof value.path === 'string' &&
 		(value.kind === 'read' || value.kind === 'write') &&
-		(value.confidence === 'exact' || value.confidence === 'broad' || value.confidence === 'unknown')
+		(value.confidence === 'exact' ||
+			value.confidence === 'broad' ||
+			value.confidence === 'unknown') &&
+		(value.operation === undefined || value.operation === 'map' || value.operation === 'set')
 	);
 }
 

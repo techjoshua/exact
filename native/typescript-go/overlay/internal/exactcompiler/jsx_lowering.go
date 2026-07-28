@@ -39,16 +39,18 @@ type jsxRuntimeNames struct {
 	taskObserver         string
 	taskFetch            string
 	taskResource         string
-	taskAwait            string
-	stageTaskMutation    string
-	taskContinuation     string
-	dispatchContinuation string
-	registerContexts     string
-	taskOptions          string
-	taskCombined         string
-	delete               string
-	arrayMutation        string
-	interop              string
+	taskAwait              string
+	stageTaskMutation      string
+	taskCollectionMutation string
+	taskContinuation       string
+	dispatchContinuation   string
+	registerContexts       string
+	taskOptions            string
+	taskCombined           string
+	delete                 string
+	arrayMutation          string
+	collectionMutation     string
+	interop                string
 }
 
 type jsxLowering struct {
@@ -976,7 +978,22 @@ func (lowering *jsxLowering) propsWithReactivity(
 		)
 	}
 	if attributes != nil {
+		conditionalClasses := jsxHasConditionalClassName(attributes)
+		classNameEmitted := false
 		for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+			if conditionalClasses && jsxClassNameContribution(property) {
+				if !classNameEmitted {
+					properties = append(
+						properties,
+						lowering.property(
+							lowering.factory.NewIdentifier("className"),
+							lowering.lowerClassNameValue(attributes, reactive),
+						),
+					)
+					classNameEmitted = true
+				}
+				continue
+			}
 			if ast.IsJsxSpreadAttribute(property) {
 				expression := property.AsJsxSpreadAttribute().Expression
 				properties = append(
@@ -1038,6 +1055,133 @@ func (lowering *jsxLowering) propsWithReactivity(
 		lowering.factory.NewNodeList(properties),
 		false,
 	)
+}
+
+func jsxClassNameContribution(property *ast.Node) bool {
+	if !ast.IsJsxAttribute(property) {
+		return false
+	}
+	name := property.AsJsxAttribute().Name()
+	if ast.IsJsxNamespacedName(name) {
+		return name.AsJsxNamespacedName().Namespace.Text() == "className"
+	}
+	return name.Text() == "className"
+}
+
+// lowerClassNameValue retains each authored class contribution as one ordered
+// list entry. Conditional names use truthy-map entries so their reactive
+// condition remains independently observable by the shared class normalizer.
+func (lowering *jsxLowering) lowerClassNameValue(
+	attributes *ast.Node,
+	reactive bool,
+) *ast.Node {
+	contributions := []*ast.Node{}
+	allStatic := true
+	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+		if !jsxClassNameContribution(property) {
+			continue
+		}
+		attribute := property.AsJsxAttribute()
+		name := attribute.Name()
+		if !ast.IsJsxNamespacedName(name) {
+			value, static := lowering.lowerOrdinaryClassName(attribute, reactive)
+			if value != nil {
+				contributions = append(contributions, value)
+				allStatic = allStatic && static
+			}
+			continue
+		}
+		token := name.AsJsxNamespacedName().Name().Text()
+		if attribute.Initializer == nil {
+			contributions = append(
+				contributions,
+				lowering.factory.NewStringLiteral(token, ast.TokenFlagsNone),
+			)
+			continue
+		}
+		condition := lowering.lowerClassNameCondition(attribute, reactive)
+		if condition == nil {
+			continue
+		}
+		allStatic = false
+		contributions = append(
+			contributions,
+			lowering.factory.NewObjectLiteralExpression(
+				lowering.factory.NewNodeList([]*ast.Node{
+					lowering.property(
+						lowering.factory.NewStringLiteral(token, ast.TokenFlagsNone),
+						condition,
+					),
+				}),
+				false,
+			),
+		)
+	}
+	if allStatic {
+		values := make([]string, 0, len(contributions))
+		for _, contribution := range contributions {
+			values = append(values, contribution.AsStringLiteral().Text)
+		}
+		return lowering.factory.NewStringLiteral(
+			strings.Join(values, " "),
+			ast.TokenFlagsNone,
+		)
+	}
+	return lowering.factory.NewArrayLiteralExpression(
+		lowering.factory.NewNodeList(contributions),
+		false,
+	)
+}
+
+func (lowering *jsxLowering) lowerOrdinaryClassName(
+	attribute *ast.JsxAttribute,
+	reactive bool,
+) (*ast.Node, bool) {
+	switch {
+	case attribute.Initializer == nil:
+		return lowering.factory.NewTrueExpression(), false
+	case ast.IsStringLiteral(attribute.Initializer):
+		return lowering.factory.NewStringLiteral(
+			attribute.Initializer.AsStringLiteral().Text,
+			ast.TokenFlagsNone,
+		), true
+	case ast.IsJsxExpression(attribute.Initializer):
+		expression := attribute.Initializer.AsJsxExpression().Expression
+		if expression == nil {
+			return nil, false
+		}
+		value := lowering.visitor.VisitNode(expression)
+		if reactive && !jsxCallbackExpression(expression) {
+			value = lowering.reactiveExpression(expression, value)
+		}
+		return value, false
+	default:
+		return lowering.visitor.VisitNode(attribute.Initializer), false
+	}
+}
+
+func (lowering *jsxLowering) lowerClassNameCondition(
+	attribute *ast.JsxAttribute,
+	reactive bool,
+) *ast.Node {
+	if ast.IsStringLiteral(attribute.Initializer) {
+		return lowering.factory.NewStringLiteral(
+			attribute.Initializer.AsStringLiteral().Text,
+			ast.TokenFlagsNone,
+		)
+	}
+	if !ast.IsJsxExpression(attribute.Initializer) {
+		return lowering.visitor.VisitNode(attribute.Initializer)
+	}
+	expression := attribute.Initializer.AsJsxExpression().Expression
+	if expression == nil {
+		return nil
+	}
+	value := lowering.visitor.VisitNode(expression)
+	if reactive && !jsxCallbackExpression(expression) {
+		value = lowering.reactiveExpression(expression, value)
+	}
+	return value
 }
 
 func jsxEventAttribute(name string) bool {
@@ -2638,10 +2782,19 @@ func (lowering *jsxLowering) manageTaskWork(
 							expression.Pos(),
 						)
 					}
-					if mutation := lowering.lowerStateWrite(
-						expression,
-						write,
-					); mutation != nil {
+					var mutation *ast.Node
+					if lowering.target == TargetServer &&
+						(write.Operation == "map-mutation" ||
+							write.Operation == "set-mutation") {
+						mutation = lowering.lowerServerTaskCollectionWrite(
+							expression,
+							write,
+							signal,
+						)
+					} else {
+						mutation = lowering.lowerStateWrite(expression, write)
+					}
+					if mutation != nil {
 						if lowering.target == TargetServer ||
 							task.Readiness != "blocking" {
 							return lowering.factory.NewExpressionStatement(mutation)
@@ -2693,6 +2846,46 @@ func (lowering *jsxLowering) manageTaskWork(
 	return lowering.updateTaskWorkBody(work, body)
 }
 
+func (lowering *jsxLowering) lowerServerTaskCollectionWrite(
+	node *ast.Node,
+	write StateWrite,
+	signal *ast.Node,
+) *ast.Node {
+	if !ast.IsCallExpression(node) ||
+		!ast.IsPropertyAccessExpression(node.AsCallExpression().Expression) {
+		return nil
+	}
+	call := node.AsCallExpression()
+	method := call.Expression.AsPropertyAccessExpression().Name().Text()
+	arguments := []*ast.Node{}
+	if call.Arguments != nil {
+		for _, argument := range call.Arguments.Nodes {
+			arguments = append(arguments, lowering.visitor.VisitNode(argument))
+		}
+	}
+	kind := "map"
+	if write.Operation == "set-mutation" {
+		kind = "set"
+	}
+	return lowering.taskHelperCall(
+		"mutateTaskCollection",
+		lowering.names.taskCollectionMutation,
+		[]*ast.Node{
+			signal,
+			lowering.stateWriteRoot(write),
+			lowering.stateWritePathNode(write),
+			lowering.factory.NewStringLiteral(kind, ast.TokenFlagsNone),
+			lowering.factory.NewStringLiteral(method, ast.TokenFlagsNone),
+			lowering.arrow(
+				lowering.factory.NewArrayLiteralExpression(
+					lowering.factory.NewNodeList(arguments),
+					false,
+				),
+			),
+		},
+	)
+}
+
 func (lowering *jsxLowering) directTaskAssignment(
 	value *ast.Node,
 	writeEffect StateWrite,
@@ -2727,7 +2920,7 @@ func (lowering *jsxLowering) directTaskAssignment(
 		lowering.names.write,
 		[]*ast.Node{
 			lowering.stateWriteRoot(writeEffect),
-			lowering.statePath(lowering.stateWritePath(writeEffect)),
+			lowering.stateWritePathNode(writeEffect),
 			lowering.arrow(writeValue),
 		},
 	)
@@ -2779,7 +2972,7 @@ func (lowering *jsxLowering) stagedTaskAssignment(
 		lowering.names.write,
 		[]*ast.Node{
 			lowering.stateWriteRoot(writeEffect),
-			lowering.statePath(lowering.stateWritePath(writeEffect)),
+			lowering.stateWritePathNode(writeEffect),
 			lowering.arrow(writeValue),
 		},
 	)
@@ -3212,7 +3405,7 @@ func (lowering *jsxLowering) lowerStateWrite(
 				lowering.names.write,
 				[]*ast.Node{
 					lowering.stateWriteRoot(write),
-					lowering.statePath(lowering.stateWritePath(write)),
+					lowering.stateWritePathNode(write),
 					lowering.arrow(value),
 				},
 			)
@@ -3233,7 +3426,7 @@ func (lowering *jsxLowering) lowerStateWrite(
 			lowering.names.update,
 			[]*ast.Node{
 				lowering.stateWriteRoot(write),
-				lowering.statePath(lowering.stateWritePath(write)),
+				lowering.stateWritePathNode(write),
 				lowering.arrowWithParameter(previous, updated),
 			},
 		)
@@ -3242,7 +3435,7 @@ func (lowering *jsxLowering) lowerStateWrite(
 			lowering.names.delete,
 			[]*ast.Node{
 				lowering.stateWriteRoot(write),
-				lowering.statePath(lowering.stateWritePath(write)),
+				lowering.stateWritePathNode(write),
 			},
 		)
 	case "array-mutation":
@@ -3262,7 +3455,39 @@ func (lowering *jsxLowering) lowerStateWrite(
 			lowering.names.arrayMutation,
 			[]*ast.Node{
 				lowering.stateWriteRoot(write),
-				lowering.statePath(lowering.stateWritePath(write)),
+				lowering.stateWritePathNode(write),
+				lowering.factory.NewStringLiteral(method, ast.TokenFlagsNone),
+				lowering.arrow(
+					lowering.factory.NewArrayLiteralExpression(
+						lowering.factory.NewNodeList(arguments),
+						false,
+					),
+				),
+			},
+		)
+	case "map-mutation", "set-mutation":
+		if !ast.IsCallExpression(node) ||
+			!ast.IsPropertyAccessExpression(node.AsCallExpression().Expression) {
+			return nil
+		}
+		call := node.AsCallExpression()
+		method := call.Expression.AsPropertyAccessExpression().Name().Text()
+		arguments := []*ast.Node{}
+		if call.Arguments != nil {
+			for _, argument := range call.Arguments.Nodes {
+				arguments = append(arguments, lowering.visitor.VisitNode(argument))
+			}
+		}
+		kind := "map"
+		if write.Operation == "set-mutation" {
+			kind = "set"
+		}
+		return lowering.call(
+			lowering.names.collectionMutation,
+			[]*ast.Node{
+				lowering.stateWriteRoot(write),
+				lowering.stateWritePathNode(write),
+				lowering.factory.NewStringLiteral(kind, ast.TokenFlagsNone),
 				lowering.factory.NewStringLiteral(method, ast.TokenFlagsNone),
 				lowering.arrow(
 					lowering.factory.NewArrayLiteralExpression(
@@ -3348,7 +3573,7 @@ func (lowering *jsxLowering) lowerStateUpdate(
 		lowering.names.updateResult,
 		[]*ast.Node{
 			lowering.stateWriteRoot(write),
-			lowering.statePath(lowering.stateWritePath(write)),
+			lowering.stateWritePathNode(write),
 			lowering.arrowWithParameter(previous, body),
 		},
 	)
@@ -3400,6 +3625,29 @@ func (lowering *jsxLowering) stateWritePath(write StateWrite) []string {
 		return write.Path
 	}
 	return write.Path[write.RootDepth:]
+}
+
+func (lowering *jsxLowering) stateWritePathNode(write StateWrite) *ast.Node {
+	path := lowering.stateWritePath(write)
+	offset := 0
+	if write.RootAlias != "" && write.RootDepth < len(write.Path) {
+		offset = write.RootDepth
+	}
+	segments := make([]*ast.Node, 0, len(path))
+	for index, segment := range path {
+		if dynamic := write.DynamicSegments[offset+index]; dynamic != nil {
+			segments = append(segments, lowering.visitor.VisitNode(dynamic))
+			continue
+		}
+		segments = append(
+			segments,
+			lowering.factory.NewStringLiteral(segment, ast.TokenFlagsNone),
+		)
+	}
+	return lowering.factory.NewArrayLiteralExpression(
+		lowering.factory.NewNodeList(segments),
+		false,
+	)
 }
 
 func (lowering *jsxLowering) statePath(path []string) *ast.Node {
@@ -3502,6 +3750,7 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 		{"updateReactiveValueWithResult", lowering.names.updateResult},
 		{"deleteReactiveValue", lowering.names.delete},
 		{"mutateReactiveArray", lowering.names.arrayMutation},
+		{"mutateReactiveCollection", lowering.names.collectionMutation},
 	}
 	for _, helper := range helpers {
 		used := containsIdentifier(root, helper.local)
@@ -3529,6 +3778,7 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 		"combineTaskSignal",
 		"taskAwait",
 		"stageTaskMutation",
+		"mutateTaskCollection",
 		"markComponentContinuationTask",
 		"dispatchComponentContinuation",
 		"registerComponentContinuationContexts",
@@ -3677,13 +3927,15 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		taskOptions:          allocate("__exactTaskOptionsSignal"),
 		taskCombined:         allocate("__exactTaskCombinedSignal"),
 		taskAwait:            allocate("__exactTaskAwait"),
-		stageTaskMutation:    allocate("__exactStageTaskMutation"),
-		taskContinuation:     allocate("__exactContinuationTask"),
-		dispatchContinuation: allocate("__exactDispatchContinuation"),
-		registerContexts:     allocate("__exactRegisterContinuationContexts"),
-		delete:               allocate("__exactDelete"),
-		arrayMutation:        allocate("__exactArrayMutation"),
-		interop:              allocate("__exactInteropComponent"),
+		stageTaskMutation:      allocate("__exactStageTaskMutation"),
+		taskCollectionMutation: allocate("__exactTaskCollectionMutation"),
+		taskContinuation:       allocate("__exactContinuationTask"),
+		dispatchContinuation:   allocate("__exactDispatchContinuation"),
+		registerContexts:       allocate("__exactRegisterContinuationContexts"),
+		delete:                 allocate("__exactDelete"),
+		arrayMutation:          allocate("__exactArrayMutation"),
+		collectionMutation:     allocate("__exactCollectionMutation"),
+		interop:                allocate("__exactInteropComponent"),
 	}
 }
 

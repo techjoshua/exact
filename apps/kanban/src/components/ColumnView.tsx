@@ -38,7 +38,8 @@ export function ColumnView(this: Component<{}>, props: ColumnViewProps) {
 	return () => (
 		<article
 			id={`column-${props.column.id}`}
-			className={['column', { empty: columnTasks.length === 0 }]}
+			className="column"
+			className:empty={columnTasks.length === 0}
 			onDragEnter={(event) => allowDrop(event)}
 			onDragOver={(event) => allowDrop(event)}
 			onDrop={(event) => dropTask(event)}
