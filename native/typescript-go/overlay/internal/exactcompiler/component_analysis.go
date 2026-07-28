@@ -40,6 +40,7 @@ func analyzeComponents(
 		candidate := candidates[index]
 		clientEffects, serverEffects := false, false
 		indivisible := ""
+		opaquePath := ""
 		splitBoundaries := make(map[string]struct{})
 		contexts := componentContextEffects(
 			candidate,
@@ -78,11 +79,7 @@ func analyzeComponents(
 					serverEffects = true
 				default:
 					indivisible = "unknown"
-					diagnostics = append(
-						diagnostics,
-						"error: component placement depends on an opaque call ("+
-							effectSourcePath(setup.EffectSources)+")",
-					)
+					opaquePath = effectSourcePath(setup.EffectSources)
 				}
 			}
 		}
@@ -183,6 +180,9 @@ func analyzeComponents(
 							)] = struct{}{}
 						default:
 							indivisible = "unknown"
+							if opaquePath == "" {
+								opaquePath = effectSourcePath(target.EffectSources)
+							}
 						}
 					}
 				}
@@ -206,6 +206,18 @@ func analyzeComponents(
 			diagnostics = append(diagnostics, task.Diagnostics...)
 		}
 
+		// Opaque ordinary calls cannot erase a placement requirement proven by
+		// browser globals, server imports, interactive JSX, or explicit tasks.
+		if indivisible == "unknown" && (clientEffects || serverEffects) {
+			indivisible = ""
+		}
+		if indivisible == "unknown" {
+			diagnostics = append(
+				diagnostics,
+				"error: component placement depends on an opaque call ("+
+					opaquePath+")",
+			)
+		}
 		component.Contexts = uniqueContextEffects(contexts)
 		component.SplitBoundaries = sortedSet(splitBoundaries)
 		component.Diagnostics = uniqueStrings(diagnostics)

@@ -3115,6 +3115,47 @@ func TestSessionPreservesKnownClientPlacementThroughOpaqueRenderCalls(t *testing
 	}
 }
 
+func TestSessionBrandsBrowserComponentWithOpaqueSetupCalls(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Target: TargetClient,
+		Source: `
+			declare class Component<State> { state: State }
+			declare function tokenize(source: string): string[];
+			export function CodeBlock(
+				this: Component<{ copied: boolean }>,
+				props: { source: string },
+			) {
+				void tokenize(props.source);
+				const copy = () => navigator.clipboard.writeText(props.source);
+				return () => <button onClick={() => void copy()}>Copy</button>;
+			}
+		`,
+		JSXInterop: &JSXInterop{
+			AdapterModule: "@exactjs/react-compat/exact",
+			AdapterExport: "adaptReactComponent",
+		},
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if len(response.Diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %#v", response.Diagnostics)
+	}
+	component := findComponent(t, response.Analysis.Components, "CodeBlock")
+	if component.Placement != "client" ||
+		component.EnvironmentEffect != "browser" ||
+		strings.Contains(strings.Join(component.Diagnostics, "\n"), "opaque call") ||
+		!strings.Contains(response.Code, `[Symbol.for("@exactjs/component")]: true`) {
+		t.Fatalf(
+			"opaque setup call erased the browser component contract: %#v\n%s",
+			component,
+			response.Code,
+		)
+	}
+}
+
 func TestSessionDoesNotScheduleTaskFromItsOwnUpdateTarget(t *testing.T) {
 	response := NewSession(nil).Execute(Request{
 		ID:   "component.tsx",
