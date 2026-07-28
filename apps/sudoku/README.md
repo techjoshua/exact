@@ -13,4 +13,13 @@ npm run build:sudoku
 ```
 
 The app can also produce its self-contained distribution through the `build:standalone` workspace
-script. Its tests cover the puzzle model and user-facing game behavior.
+script. New games are generated locally from storage-safe seeds, remain reproducible across saved
+sessions, and retain a unique solution. The number pad visualizes each digit's placement progress,
+marks locally conflicting digits, and highlights nine non-conflicting placements without revealing
+whether player entries match the solution. Mobile layouts expose new-game controls both during play
+and after a win. Tests cover the puzzle generator, puzzle model, and user-facing game behavior.
+
+Both production formats are installable progressive web apps. Their service worker precaches the
+application shell, manifest, icons, and generated code so saved and newly generated games remain
+playable offline after the first successful installation. The GitHub Pages build keeps its app
+code inside `sudoku.html` and publishes the small PWA companion files beside it.

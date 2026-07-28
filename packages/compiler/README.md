@@ -29,6 +29,36 @@ function Summary(this: Component<State>, props: { taxRate: number }) {
 
 Reactive reads on the right become dependencies; state destinations are effects. Destructured
 destinations publish as one transaction. `peek()` explicitly retains one-time snapshot semantics.
+Inside callbacks, destructuring may mix state and local targets while preserving JavaScript's
+right-side evaluation, defaults, rest, target order, partial writes, iterator cleanup, and
+assignment result. Chained, compound, logical, and computed-path state assignments retain their
+ordinary expression semantics. A dynamic computed write cannot be exported as a server
+continuation effect; assign an enclosing statically named state value at that boundary.
+
+State-owned `Map` and `Set` mutations are also recognized. The compiler lowers
+`Map.set/delete/clear` and `Set.add/delete/clear` with native return semantics and records them as
+precise continuation effects. Server continuations transport effective mutations as ordered
+deltas; transported Map keys are limited to `null`, booleans, finite numbers, and strings.
+
+The returned render function is synchronous and rerunnable. Deterministic statements and tree
+control are supported, while state writes, lifecycle or task registration, scheduling, and known
+DOM or storage effects are compile errors. A local arrow is the normal form. A shared regular
+function is also supported and receives the component instance as `this`; a shared arrow cannot
+be returned directly.
+
+Static conditional class tokens can use compiler-owned namespaced props:
+
+```tsx
+<article
+	className="card"
+	className:selected={this.state.selected}
+	className:is-compact={props.compact}
+/>
+```
+
+They are combined with ordinary class values in authored order and lowered to one `className`
+value. The syntax is limited to intrinsic and custom elements and cannot currently be combined
+with a prop spread. Arrays and truthy-key maps remain supported for dynamic token names.
 
 Async component source may await ordinary operations into state:
 

@@ -1,23 +1,26 @@
 import { spawn } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
-const destination = path.resolve(process.argv[2] ?? '');
-if (!process.argv[2]) {
-	throw new Error('Usage: node scripts/checkout-native-typescript-go.mjs <destination directory>');
+const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+/**
+ * Clones and checks out the TypeScript-Go revision pinned by this repository.
+ *
+ * The destination must not contain an existing checkout. Callers own deciding
+ * whether an existing checkout should be reused.
+ */
+export async function checkoutNativeTypeScriptGo(destination) {
+	const resolvedDestination = path.resolve(destination);
+	const upstream = JSON.parse(
+		await readFile(path.join(repositoryRoot, 'native', 'typescript-go', 'upstream.json'), 'utf8')
+	);
+	await mkdir(path.dirname(resolvedDestination), { recursive: true });
+	await run('git', ['clone', '--filter=blob:none', upstream.repository, resolvedDestination]);
+	await run('git', ['-C', resolvedDestination, 'checkout', upstream.revision]);
 }
-const upstream = JSON.parse(
-	await readFile(path.resolve('native', 'typescript-go', 'upstream.json'), 'utf8')
-);
-
-await run('git', [
-	'clone',
-	'--filter=blob:none',
-	'https://github.com/microsoft/typescript-go.git',
-	destination
-]);
-await run('git', ['-C', destination, 'checkout', upstream.revision]);
 
 function run(command, arguments_) {
 	return new Promise((resolve, reject) => {
@@ -31,4 +34,13 @@ function run(command, arguments_) {
 			else reject(new Error(`${command} exited with ${code}`));
 		});
 	});
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+	if (!process.argv[2]) {
+		throw new Error(
+			'Usage: node scripts/checkout-native-typescript-go.mjs <destination directory>'
+		);
+	}
+	await checkoutNativeTypeScriptGo(process.argv[2]);
 }

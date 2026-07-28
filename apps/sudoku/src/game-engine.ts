@@ -2,6 +2,13 @@ import type { CellChange, Digit, GameMove, Puzzle, SudokuCell } from './types.js
 
 const digits: readonly Digit[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
+/** Describes one digit's visible progress without revealing solution correctness. */
+export type DigitPlacementProgress = {
+	placed: number;
+	conflicting: boolean;
+	complete: boolean;
+};
+
 /** Creates the stable 81-cell model for a puzzle. @exact client */
 export function createCells(puzzle: Puzzle): SudokuCell[] {
 	return Array.from({ length: 81 }, (_, index) => {
@@ -98,6 +105,34 @@ export function enteredCellCount(cells: readonly SudokuCell[]): number {
  */
 export function editableCellCount(cells: readonly SudokuCell[]): number {
 	return cells.filter((cell) => !cell.given).length;
+}
+
+/**
+ * Derives count and board-validity progress for every number-pad digit.
+ *
+ * Completion means exactly nine placements and no current row, column, or box
+ * conflict. It deliberately does not compare player entries with the solution.
+ * @exact client
+ * @exact pure
+ */
+export function digitPlacementProgress(
+	cells: readonly SudokuCell[],
+	conflicts: readonly number[]
+): readonly DigitPlacementProgress[] {
+	const progress = Array.from<unknown, DigitPlacementProgress>({ length: 9 }, () => ({
+		placed: 0,
+		conflicting: false,
+		complete: false
+	}));
+	const conflictIndexes = new Set(conflicts);
+	for (const cell of cells) {
+		if (cell.value === undefined) continue;
+		const digit = progress[cell.value - 1]!;
+		digit.placed++;
+		if (conflictIndexes.has(cell.index)) digit.conflicting = true;
+	}
+	for (const digit of progress) digit.complete = digit.placed === 9 && !digit.conflicting;
+	return progress;
 }
 
 /**

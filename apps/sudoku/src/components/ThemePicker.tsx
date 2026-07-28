@@ -35,7 +35,8 @@ export function ThemePicker(this: Component<{}>, props: ThemePickerProps) {
 								type="button"
 								role="menuitemradio"
 								aria-checked={props.current === theme.id}
-								className={['theme-option', props.current === theme.id && 'is-active']}
+								className="theme-option"
+								className:is-active={props.current === theme.id}
 								onClick={() => game.setTheme(theme.id)}
 							>
 								<span className={['theme-swatch', `swatch-${theme.id}`]} aria-hidden="true">

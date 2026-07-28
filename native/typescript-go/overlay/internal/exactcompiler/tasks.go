@@ -818,9 +818,21 @@ func taskWriteEffects(writes []StateWrite, component string, work *ast.Node) []S
 			Path:       strings.Join(write.Path, "."),
 			Kind:       "write",
 			Confidence: confidence,
+			Operation:  stateEffectOperation(write.Operation),
 		})
 	}
 	return uniqueStateEffects(effects)
+}
+
+func stateEffectOperation(operation string) string {
+	switch operation {
+	case "map-mutation":
+		return "map"
+	case "set-mutation":
+		return "set"
+	default:
+		return ""
+	}
 }
 
 func minimalStateEffects(effects []StateEffect) []StateEffect {
@@ -855,7 +867,7 @@ func uniqueStateEffects(effects []StateEffect) []StateEffect {
 	seen := make(map[string]struct{}, len(effects))
 	result := make([]StateEffect, 0, len(effects))
 	for _, effect := range effects {
-		key := effect.Kind + ":" + effect.Path + ":" +
+		key := effect.Kind + ":" + effect.Path + ":" + effect.Operation + ":" +
 			stateReceiverSignature(effect.Receiver)
 		if _, exists := seen[key]; exists || effect.Path == "" {
 			continue
@@ -886,9 +898,51 @@ func joinTaskFacets(facets []string) string {
 	return result
 }
 
-func taskDiagnostics(sourceFile *ast.SourceFile, tasks []Task) []Diagnostic {
+func taskDiagnostics(
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+	tasks []Task,
+	stateWrites []StateWrite,
+) []Diagnostic {
 	var diagnostics []Diagnostic
 	for _, task := range tasks {
+		if task.Placement == "server" || task.Placement == "isomorphic" {
+			for _, write := range task.Writes {
+				if !strings.Contains(write.Path, "*") {
+					continue
+				}
+				diagnostics = append(diagnostics, Diagnostic{
+					Severity: "error",
+					Code:     "EXACT2001",
+					Message: "error: a server continuation cannot publish a state write through a dynamic computed path (" +
+						write.Path + "); write an enclosing statically named state value or keep the mutation client-side",
+					Start:  task.Start,
+					Length: task.Length,
+				})
+			}
+			for _, write := range stateWrites {
+				if write.Operation != "map-mutation" ||
+					write.Start < task.Start ||
+					write.Start+write.Length > task.Start+task.Length {
+					continue
+				}
+				if key := collectionMutationKeyAt(
+					sourceFile,
+					write,
+				); key != nil && definitelyNonTransportableMapKey(
+					typeChecker.TypeToString(typeChecker.GetTypeAtLocation(key)),
+				) {
+					diagnostics = append(diagnostics, Diagnostic{
+						Severity: "error",
+						Code:     "EXACT2001",
+						Message: "error: a server continuation Map key must be null, boolean, a finite number, or a string; received " +
+							typeChecker.TypeToString(typeChecker.GetTypeAtLocation(key)),
+						Start:  key.Pos(),
+						Length: key.End() - key.Pos(),
+					})
+				}
+			}
+		}
 		for _, message := range task.Diagnostics {
 			if !strings.HasPrefix(message, "error:") {
 				continue
@@ -907,4 +961,36 @@ func taskDiagnostics(sourceFile *ast.SourceFile, tasks []Task) []Diagnostic {
 		}
 	}
 	return diagnostics
+}
+
+func collectionMutationKeyAt(
+	sourceFile *ast.SourceFile,
+	write StateWrite,
+) *ast.Node {
+	var key *ast.Node
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if node.Pos() != write.Start || node.End()-node.Pos() != write.Length ||
+			!ast.IsCallExpression(node) {
+			return key == nil
+		}
+		call := node.AsCallExpression()
+		if call.Arguments != nil && len(call.Arguments.Nodes) > 0 {
+			key = call.Arguments.Nodes[0]
+		}
+		return false
+	})
+	return key
+}
+
+func definitelyNonTransportableMapKey(display string) bool {
+	trimmed := strings.TrimSpace(display)
+	return strings.HasPrefix(trimmed, "{") ||
+		strings.HasPrefix(trimmed, "[") ||
+		strings.HasPrefix(trimmed, "Map<") ||
+		strings.HasPrefix(trimmed, "Set<") ||
+		strings.HasPrefix(trimmed, "Array<") ||
+		strings.Contains(trimmed, "=>") ||
+		trimmed == "symbol" ||
+		trimmed == "bigint" ||
+		trimmed == "undefined"
 }

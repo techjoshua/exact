@@ -9,6 +9,16 @@ import {
 } from './index.js';
 
 describe('@exactjs/ssr rendering', () => {
+	it('normalizes native class arrays and truthy maps', () => {
+		const output = renderToString(
+			createVNode('section', {
+				className: ['panel', false, { active: true, hidden: false }, ['nested']]
+			})
+		).html;
+
+		expect(output).toContain('class="panel active nested"');
+	});
+
 	it('reports opt-in string render timings', () => {
 		const events: Array<{ subsystem: string; phase: string }> = [];
 

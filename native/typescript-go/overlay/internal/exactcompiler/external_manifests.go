@@ -97,9 +97,10 @@ func externalModuleKey(specifier string, sourceDirectory string) string {
 	portableRooted := runtime.GOOS == "windows" && strings.HasPrefix(value, "/")
 	if portableRooted {
 		// Portable manifests commonly use project-rooted POSIX filenames
-		// ("/src/View.tsx"). Native request ids use the same spelling but are
-		// resolved relative to the retained project's root on Windows.
-		value = strings.TrimLeft(value, "/")
+		// ("/src/View.tsx"). Preserve the leading separator so filepath.Abs
+		// resolves them against the current drive root, matching native request
+		// ids and relative imports from those virtual source files.
+		value = filepath.FromSlash(value)
 	}
 	if portableRooted || strings.HasPrefix(value, ".") || filepath.IsAbs(specifier) {
 		if !portableRooted && !filepath.IsAbs(specifier) {

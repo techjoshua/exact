@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exact } from '@exactjs/vite-plugin';
@@ -7,7 +7,8 @@ import { build } from 'vite';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const buildRoot = join(root, '.standalone-build');
 const outputRoot = join(root, 'dist');
-const outputPath = join(outputRoot, 'sudoku-atelier.html');
+const outputFileName = 'sudoku.html';
+const outputPath = join(outputRoot, outputFileName);
 
 await rm(buildRoot, { recursive: true, force: true });
 await rm(outputRoot, { recursive: true, force: true });
@@ -66,11 +67,34 @@ if (
 
 await mkdir(outputRoot, { recursive: true });
 await writeFile(outputPath, documentHtml);
+
+const manifest = JSON.parse(await readFile(join(buildRoot, 'manifest.webmanifest'), 'utf8'));
+manifest.start_url = `./${outputFileName}`;
+await writeFile(
+	join(outputRoot, 'manifest.webmanifest'),
+	`${JSON.stringify(manifest, null, '\t')}\n`
+);
+
+const serviceWorker = (await readFile(join(buildRoot, 'service-worker.js'), 'utf8'))
+	.replace("const entryFile = './index.html';", `const entryFile = './${outputFileName}';`)
+	.replace("const startFile = './';", `const startFile = './${outputFileName}';`);
+await writeFile(join(outputRoot, 'service-worker.js'), serviceWorker);
+await copyFile(join(buildRoot, 'sudoku-icon.svg'), join(outputRoot, 'sudoku-icon.svg'));
+await copyFile(join(buildRoot, 'sudoku-icon-192.png'), join(outputRoot, 'sudoku-icon-192.png'));
+await copyFile(join(buildRoot, 'sudoku-icon-512.png'), join(outputRoot, 'sudoku-icon-512.png'));
 await rm(buildRoot, { recursive: true, force: true });
 
-const outputFiles = await readdir(outputRoot);
-if (outputFiles.length !== 1 || outputFiles[0] !== 'sudoku-atelier.html') {
-	throw new Error(`Expected one standalone HTML file, found: ${outputFiles.join(', ')}`);
+const outputFiles = (await readdir(outputRoot)).sort();
+const expectedFiles = [
+	'manifest.webmanifest',
+	'service-worker.js',
+	'sudoku-icon-192.png',
+	'sudoku-icon-512.png',
+	'sudoku-icon.svg',
+	outputFileName
+].sort();
+if (JSON.stringify(outputFiles) !== JSON.stringify(expectedFiles)) {
+	throw new Error(`Unexpected GitHub Pages files: ${outputFiles.join(', ')}`);
 }
 
 console.log(`Built standalone Sudoku: ${outputPath} (${documentHtml.length} bytes)`);

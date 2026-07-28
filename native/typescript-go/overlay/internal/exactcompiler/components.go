@@ -125,6 +125,18 @@ func markExportedComponents(
 }
 
 func componentCandidates(sourceFile *ast.SourceFile) []componentCandidate {
+	candidates := rawComponentCandidates(sourceFile)
+	renderTargets := returnedLocalRenderTargets(candidates, sourceFile)
+	filtered := make([]componentCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		if _, isRender := renderTargets[candidate.node]; !isRender {
+			filtered = append(filtered, candidate)
+		}
+	}
+	return filtered
+}
+
+func rawComponentCandidates(sourceFile *ast.SourceFile) []componentCandidate {
 	var candidates []componentCandidate
 	walkNode(sourceFile.AsNode(), func(statement *ast.Node) bool {
 		switch {
@@ -155,6 +167,78 @@ func componentCandidates(sourceFile *ast.SourceFile) []componentCandidate {
 		return true
 	})
 	return candidates
+}
+
+// returnedLocalRenderTargets keeps same-module shared render declarations out
+// of component ownership. A render function describes one component's current
+// tree; it does not establish a second durable component instance.
+func returnedLocalRenderTargets(
+	candidates []componentCandidate,
+	sourceFile *ast.SourceFile,
+) map[*ast.Node]struct{} {
+	declarations := make(map[string]*ast.Node)
+	for _, candidate := range candidates {
+		declarations[candidate.name] = candidate.node
+	}
+	result := make(map[*ast.Node]struct{})
+	for _, candidate := range candidates {
+		if len(componentSignals(candidate, sourceFile)) == 0 {
+			continue
+		}
+		for _, expression := range directCallableReturns(candidate.node) {
+			expression = unwrapRenderExpression(expression)
+			if !ast.IsIdentifier(expression) {
+				continue
+			}
+			if target := declarations[expression.Text()]; target != nil &&
+				target != candidate.node && directlyReturnsRenderedValue(target) {
+				result[target] = struct{}{}
+			}
+		}
+	}
+	return result
+}
+
+func directlyReturnsRenderedValue(callable *ast.Node) bool {
+	if ast.IsArrowFunction(callable) {
+		body := callable.Body()
+		if body != nil && !ast.IsBlock(body) && containsJSX(body) {
+			return true
+		}
+	}
+	for _, expression := range directCallableReturns(callable) {
+		expression = unwrapRenderExpression(expression)
+		if ast.IsArrowFunction(expression) || ast.IsFunctionExpression(expression) {
+			continue
+		}
+		if containsJSX(expression) {
+			return true
+		}
+	}
+	return false
+}
+
+func directCallableReturns(callable *ast.Node) []*ast.Node {
+	var result []*ast.Node
+	walkNode(callable, func(node *ast.Node) bool {
+		if node != callable && ast.IsFunctionLike(node) {
+			return false
+		}
+		if ast.IsReturnStatement(node) {
+			if expression := node.AsReturnStatement().Expression; expression != nil {
+				result = append(result, expression)
+			}
+		}
+		return true
+	})
+	return result
+}
+
+func unwrapRenderExpression(node *ast.Node) *ast.Node {
+	for node != nil && ast.IsParenthesizedExpression(node) {
+		node = node.AsParenthesizedExpression().Expression
+	}
+	return node
 }
 
 func enclosingVariableStatement(node *ast.Node) *ast.Node {

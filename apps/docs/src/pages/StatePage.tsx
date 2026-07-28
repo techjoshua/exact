@@ -90,6 +90,25 @@ const derivedAssignmentSource = `function Summary(
   return () => <Invoice state={this.state} />;
 }`;
 
+const collectionSource = `function Selection(
+  this: Component<{
+    prices: Map<string, number>;
+    selected: Set<string>;
+  }>,
+  props: { productId: string }
+) {
+  return () => (
+    <button onClick={() => {
+      this.state.selected.add(props.productId);
+      this.state.prices.set(props.productId, 42);
+    }}>
+      {this.state.selected.has(props.productId) ? 'Selected' : 'Select'}
+      {' · $'}
+      {this.state.prices.get(props.productId) ?? '—'}
+    </button>
+  );
+}`;
+
 /** Documents direct reactive state, derived expressions, batching, and explicit cells. */
 export function StatePage(this: Component<{}>) {
 	return () => (
@@ -158,6 +177,14 @@ export function StatePage(this: Component<{}>) {
 					the same state target on the right would create a feedback cycle, so the compiler asks you
 					to choose an explicit snapshot or task instead.
 				</p>
+				<p>
+					In callbacks, chained, compound, logical, computed-key, array-destructured, and
+					object-destructured writes keep JavaScript evaluation order and expression results.
+					Destructuring may mix local and state targets, including defaults and rest. A server
+					continuation still needs a statically transportable write path, so publish an enclosing
+					state value instead of a dynamic path such as <code>rows[index].value</code> at that
+					boundary.
+				</p>
 			</section>
 			<section>
 				<h2>Where reactive values can flow</h2>
@@ -175,6 +202,21 @@ export function StatePage(this: Component<{}>) {
 					<code>Context</code>
 					<p>Carry reactive configuration or data through descendants without prop plumbing.</p>
 				</div>
+			</section>
+			<section>
+				<h2>Maps and Sets are reactive collections</h2>
+				<p>
+					Use the native collection APIs directly. Map reads track individual keys, Set membership
+					tracks individual values, and iteration tracks structural changes. Native return values
+					and Set uniqueness are preserved.
+				</p>
+				<CodeBlock source={collectionSource} language="tsx" title="Selection.tsx" />
+				<p>
+					Maps and Sets are encoded for SSR, hydration, and server operations and restored as real
+					collections. Server continuations return ordered entry deltas instead of the complete
+					collection. Transported Map keys may be null, booleans, finite numbers, or strings; local
+					collections may still use object keys.
+				</p>
 			</section>
 		</Article>
 	);

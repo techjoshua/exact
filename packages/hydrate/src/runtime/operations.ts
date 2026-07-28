@@ -9,7 +9,13 @@ import {
 	boundaryInnerHtmls,
 	createPatchBoundaryResolver
 } from '../patches.js';
-import { commitStateForContract, mergeStateForContract, stateForContract } from '../state.js';
+import {
+	commitCollectionMutationsForContract,
+	commitStateForContract,
+	mergeCollectionMutationsForContract,
+	mergeStateForContract,
+	stateForContract
+} from '../state.js';
 import type {
 	ExactClient,
 	ExactInvocationKind,
@@ -119,19 +125,32 @@ export async function invokeAndApply(
 		if (error instanceof ExactBuildUnsupportedError) options.onBuildUnsupported?.();
 		throw error;
 	}
+	let responseHasState = false;
+	let responseState: unknown;
 	if (continuation) {
+		responseHasState = 'state' in result;
+		responseState = result.state;
 		const invalidPatch = unauthorizedContinuationPatch(
 			container,
 			result.patches,
 			continuation.boundaries,
 			work
 		);
-		const mergedState =
+		let mergedState =
 			'state' in result
 				? mergeStateForContract(client.state, result.state, {
 						writes: continuation.stateWrites
 					})
 				: undefined;
+		if (result.mutations) {
+			const mergedCollections = mergeCollectionMutationsForContract(
+				mergedState?.ok ? mergedState.state : client.state,
+				result.mutations,
+				{ writes: continuation.stateWrites }
+			);
+			if (mergedCollections.ok) mergedState = mergedCollections;
+			else mergedState = { ok: false };
+		}
 		const invalidContexts = unauthorizedContinuationContexts(
 			result.contexts,
 			continuation.contextWrites,
@@ -223,9 +242,14 @@ export async function invokeAndApply(
 		) {
 			versions.set(stateCommittedKey, requestOrdinal);
 			if (component) {
-				commitStateForContract(component.instance.state, result.state, {
-					writes: continuation!.stateWrites
-				});
+				if (responseHasState)
+					commitStateForContract(component.instance.state, responseState, {
+						writes: continuation!.stateWrites
+					});
+				if (result.mutations)
+					commitCollectionMutationsForContract(component.instance.state, result.mutations, {
+						writes: continuation!.stateWrites
+					});
 			} else {
 				client.state = result.state;
 			}

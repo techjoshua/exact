@@ -42,6 +42,7 @@ function isExactStateEffect(value: unknown): boolean {
 		typeof effect.path === 'string' &&
 		(effect.kind === 'read' || effect.kind === 'write') &&
 		['exact', 'broad', 'unknown'].includes(String(effect.confidence)) &&
+		(effect.operation === undefined || effect.operation === 'map' || effect.operation === 'set') &&
 		(receiver === undefined ||
 			receiver.kind === 'component' ||
 			receiver.kind === 'unknown' ||

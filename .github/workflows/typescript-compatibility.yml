@@ -21,8 +21,7 @@ jobs:
           cache: false
       - run: npm ci
       - run: npm run build -w @exactjs/core
-      - run: node scripts/checkout-native-typescript-go.mjs .tmp/typescript-go-source
-      - run: node scripts/build-native-compiler.mjs --source .tmp/typescript-go-source
+      - run: npm run build:native-compiler
       - run: npm run check:typescript-compatibility
         env:
           EXACT_NATIVE_COMPILER: ${{ github.workspace }}/.tmp/native-compiler/exactc-native

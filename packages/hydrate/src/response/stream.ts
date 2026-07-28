@@ -8,6 +8,7 @@ import { isJsonSafe } from '../validation.js';
 import {
 	isExactStreamCompleteEvent,
 	isExactStreamHtmlEvent,
+	isExactStreamMutationsEvent,
 	isExactStreamPatchEvent,
 	isExactStreamResultEvent,
 	isExactStreamStartEvent,
@@ -33,6 +34,7 @@ export async function readExactStreamResponse(
 		.fill(undefined)
 		.map(() => ({}));
 	const stateReceived = new Array<boolean>(expectedOperations).fill(false);
+	const mutationsReceived = new Array<boolean>(expectedOperations).fill(false);
 	const htmlReceived = new Array<boolean>(expectedOperations).fill(false);
 	const maxPatches = positiveLimit(normalized.maxPatches, 10_000);
 	let started = false;
@@ -89,6 +91,14 @@ export async function readExactStreamResponse(
 				if (results[event.index] || stateReceived[event.index]) throw new Error(message);
 				stateReceived[event.index] = true;
 				chunks[event.index]!.state = event.value;
+				return;
+			}
+			if (isExactStreamMutationsEvent(event)) {
+				assertStreamIndex(event.index, expectedOperations, message);
+				assertStreamOperation(event.index, event, expectedList, message);
+				if (results[event.index] || mutationsReceived[event.index]) throw new Error(message);
+				mutationsReceived[event.index] = true;
+				chunks[event.index]!.mutations = event.mutations;
 				return;
 			}
 			if (isExactStreamHtmlEvent(event)) {

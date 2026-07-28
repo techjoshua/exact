@@ -9,7 +9,9 @@ export function hasChanged(previous: unknown, next: unknown): boolean {
 
 /** Identifies objects whose nested structure can participate in reactive reconciliation. */
 export function isReactiveContainer(value: unknown): value is object {
-	return Array.isArray(value) || isPlainObject(value);
+	return (
+		Array.isArray(value) || value instanceof Map || value instanceof Set || isPlainObject(value)
+	);
 }
 
 /** Detects replacement of reactive value identities. */

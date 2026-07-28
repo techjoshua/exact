@@ -40,6 +40,7 @@ export { updateReactive } from './reconciliation.js';
 export {
 	deleteReactiveValue,
 	mutateReactiveArray,
+	mutateReactiveCollection,
 	registerReactiveListKey,
 	updateReactiveValue,
 	updateReactiveValueWithResult,

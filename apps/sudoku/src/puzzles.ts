@@ -1,4 +1,5 @@
 import type { Difficulty, Puzzle } from './types.js';
+import { createPuzzleSeed, generatePuzzle, generatedPuzzleFromId } from './puzzle-generation.js';
 
 /** Locally bundled puzzles keep the demo deterministic and fully offline. */
 export const puzzles: readonly Puzzle[] = [
@@ -52,16 +53,15 @@ export const puzzles: readonly Puzzle[] = [
  * @exact pure
  */
 export function findPuzzle(id: string): Puzzle {
-	return puzzles.find((puzzle) => puzzle.id === id) ?? puzzles[0]!;
+	return puzzles.find((puzzle) => puzzle.id === id) ?? generatedPuzzleFromId(id) ?? puzzles[0]!;
 }
 
 /**
- * Returns the next puzzle in a difficulty without randomness or network access.
+ * Generates a fresh offline puzzle for the requested difficulty.
  * @exact client
- * @exact pure
  */
 export function nextPuzzle(difficulty: Difficulty, currentId?: string): Puzzle {
-	const choices = puzzles.filter((puzzle) => puzzle.difficulty === difficulty);
-	const currentIndex = choices.findIndex((puzzle) => puzzle.id === currentId);
-	return choices[(currentIndex + 1 + choices.length) % choices.length]!;
+	let seed = createPuzzleSeed();
+	while (`generated-${difficulty}-${seed.toString(36)}` === currentId) seed = (seed + 1) >>> 0;
+	return generatePuzzle(difficulty, seed);
 }

@@ -33,6 +33,17 @@ export function isJsonSafe(
 			}
 			if (typeof item !== 'object' || seen.has(item)) return false;
 			seen.add(item);
+			if (item instanceof Map) {
+				for (const [key, entryValue] of item) {
+					if (!isTransportableMapKey(key)) return false;
+					pending.push({ value: entryValue, depth: depth + 1 });
+				}
+				continue;
+			}
+			if (item instanceof Set) {
+				for (const entryValue of item) pending.push({ value: entryValue, depth: depth + 1 });
+				continue;
+			}
 			if (!Array.isArray(item) && Object.getPrototypeOf(item) !== Object.prototype) return false;
 			const keys = Object.keys(item);
 			if (nodes + pending.length + keys.length > maxNodes) return false;
@@ -48,6 +59,15 @@ export function isJsonSafe(
 	} catch {
 		return false;
 	}
+}
+
+function isTransportableMapKey(value: unknown): boolean {
+	return (
+		value === null ||
+		typeof value === 'boolean' ||
+		typeof value === 'string' ||
+		(typeof value === 'number' && Number.isFinite(value))
+	);
 }
 
 function positiveLimit(value: number | undefined, fallback: number): number {

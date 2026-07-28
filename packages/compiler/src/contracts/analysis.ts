@@ -50,6 +50,7 @@ export type ExactStateEffect = {
 	path: string;
 	kind: 'read' | 'write';
 	confidence: 'exact' | 'broad' | 'unknown';
+	operation?: 'map' | 'set';
 	receiver?: { kind: 'component' } | { kind: 'parameter'; index: number } | { kind: 'unknown' };
 };
 

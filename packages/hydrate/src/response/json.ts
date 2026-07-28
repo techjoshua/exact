@@ -7,7 +7,7 @@ import type {
 } from '@exactjs/server';
 import { hasOnlyKeys, isJsonSafe } from '../validation.js';
 import { positiveLimit } from './ndjson.js';
-import { isPatchLike, parseExactOperationResult } from './result.js';
+import { isCollectionMutationLike, isPatchLike, parseExactOperationResult } from './result.js';
 import { matchesOperation } from './stream.js';
 
 /** Defines the response limits type contract. */
@@ -49,7 +49,19 @@ export function parseExactInvocationResponse(
 		throw new Error(message);
 	const record = body as Record<string, unknown>;
 	if (record.ok !== true) throw new Error(message);
-	if (!hasOnlyKeys(record, ['ok', 'type', 'id', 'opId', 'patches', 'state', 'contexts', 'html']))
+	if (
+		!hasOnlyKeys(record, [
+			'ok',
+			'type',
+			'id',
+			'opId',
+			'patches',
+			'state',
+			'mutations',
+			'contexts',
+			'html'
+		])
+	)
 		throw new Error(message);
 	if (expected && !matchesOperation(record, expected)) throw new Error(message);
 	if ('state' in record && record.state === undefined) throw new Error(message);
@@ -64,6 +76,12 @@ export function parseExactInvocationResponse(
 	)
 		throw new Error(message);
 	if (
+		record.mutations !== undefined &&
+		(!Array.isArray(record.mutations) ||
+			!record.mutations.every((value) => isCollectionMutationLike(value)))
+	)
+		throw new Error(message);
+	if (
 		Array.isArray(record.patches) &&
 		record.patches.length > positiveLimit(limits.maxPatches, 10_000)
 	)
@@ -72,6 +90,7 @@ export function parseExactInvocationResponse(
 	return {
 		...(record.patches === undefined ? {} : { patches: record.patches as ExactPatch[] }),
 		...('state' in record ? { state: record.state } : {}),
+		...(record.mutations === undefined ? {} : { mutations: record.mutations }),
 		...(record.contexts === undefined
 			? {}
 			: { contexts: record.contexts as Record<string, unknown> }),

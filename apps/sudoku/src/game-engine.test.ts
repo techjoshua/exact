@@ -4,6 +4,7 @@ import {
 	arePeers,
 	candidatesFor,
 	createCells,
+	digitPlacementProgress,
 	findConflicts,
 	isSolved,
 	planNoteToggle,
@@ -49,6 +50,34 @@ describe('Sudoku rules', () => {
 
 		expect(findConflicts(cells)).toEqual(expect.arrayContaining([0, 2]));
 		expect(isSolved(cells)).toBe(false);
+	});
+
+	it('tracks board-valid progress without checking the stored solution', () => {
+		const cells = createCells(puzzles[0]!);
+		const before = digitPlacementProgress(cells, findConflicts(cells));
+		const empty = cells.find((cell) => !cell.given)!;
+		applyMove(
+			cells,
+			{ id: 1, label: 'Enter 4', changes: planValueEntry(cells, empty.index, 4) },
+			'forward'
+		);
+
+		expect(digitPlacementProgress(cells, findConflicts(cells))[3]!.placed).toBe(
+			before[3]!.placed + 1
+		);
+		const solved = createCells({ ...puzzles[0]!, givens: puzzles[0]!.solution });
+		expect(digitPlacementProgress(solved, findConflicts(solved))).toEqual(
+			Array.from({ length: 9 }, () => ({
+				placed: 9,
+				conflicting: false,
+				complete: true
+			}))
+		);
+
+		[solved[0]!.value, solved[1]!.value] = [solved[1]!.value, solved[0]!.value];
+		const swapped = digitPlacementProgress(solved, findConflicts(solved));
+		expect(swapped[2]).toMatchObject({ placed: 9, conflicting: true, complete: false });
+		expect(swapped[4]).toMatchObject({ placed: 9, conflicting: true, complete: false });
 	});
 });
 

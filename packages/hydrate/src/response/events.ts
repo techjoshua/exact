@@ -1,6 +1,6 @@
 import type { ExactStreamEvent } from '@exactjs/server';
 import { hasOnlyKeys, isJsonSafe } from '../validation.js';
-import { isPatchLike } from './result.js';
+import { isCollectionMutationLike, isPatchLike } from './result.js';
 
 /** Reports whether exact stream start event. */
 export function isExactStreamStartEvent(
@@ -73,6 +73,27 @@ export function isExactStreamStateEvent(
 		(record.opId === undefined || typeof record.opId === 'string') &&
 		'value' in record &&
 		record.value !== undefined
+	);
+}
+
+/** Reports whether an exact stream event contains ordered collection deltas. */
+export function isExactStreamMutationsEvent(
+	value: unknown
+): value is Extract<ExactStreamEvent, { event: 'mutations' }> {
+	if (!value || typeof value !== 'object' || Array.isArray(value) || !isJsonSafe(value))
+		return false;
+	const record = value as Record<string, unknown>;
+	return (
+		hasOnlyKeys(record, ['event', 'version', 'index', 'type', 'id', 'opId', 'mutations']) &&
+		record.event === 'mutations' &&
+		record.version === 1 &&
+		typeof record.index === 'number' &&
+		(record.type === 'action' || record.type === 'refresh') &&
+		typeof record.id === 'string' &&
+		!!record.id &&
+		(record.opId === undefined || typeof record.opId === 'string') &&
+		Array.isArray(record.mutations) &&
+		record.mutations.every(isCollectionMutationLike)
 	);
 }
 

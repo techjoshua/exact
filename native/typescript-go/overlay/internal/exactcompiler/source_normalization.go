@@ -59,11 +59,19 @@ type destructuredStateBinding struct {
 func normalizeAuthoredSource(fileName string, source string) (normalizedSource, error) {
 	result := newNormalizedSource(source)
 	result.apply(propPunningEdits(result.text))
-	destructuringEdits, err := planComponentStateDestructuring(fileName, result.text)
-	if err != nil {
-		return normalizedSource{}, err
+	for {
+		destructuringEdits, err := planComponentStateDestructuring(
+			fileName,
+			result.text,
+		)
+		if err != nil {
+			return normalizedSource{}, err
+		}
+		if len(destructuringEdits) == 0 {
+			break
+		}
+		result.apply(destructuringEdits)
 	}
-	result.apply(destructuringEdits)
 	computationEdits, err := planComponentComputations(fileName, result.text)
 	if err != nil {
 		return normalizedSource{}, err
@@ -227,6 +235,14 @@ func planComponentStateDestructuring(
 ) ([]sourceEdit, error) {
 	sourceFile := parseNormalizationSource(fileName, source)
 	edits := []sourceEdit{}
+	rewritten := map[string]struct{}{}
+	renderCallables := normalizationRenderCallables(sourceFile)
+	if err := validateRenderDestructuring(
+		sourceFile,
+		renderCallables,
+	); err != nil {
+		return nil, err
+	}
 	var normalizationError error
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		if normalizationError != nil {
@@ -239,6 +255,7 @@ func planComponentStateDestructuring(
 		if body == nil || !ast.IsBlock(body) {
 			return false
 		}
+		stateAliases := normalizationStateAliases(node)
 		for _, statement := range body.AsBlock().Statements.Nodes {
 			if ast.IsReturnStatement(statement) {
 				continue
@@ -269,6 +286,7 @@ func planComponentStateDestructuring(
 					binary.Left,
 					prefix,
 					&bindings,
+					false,
 				)
 				if err != nil {
 					normalizationError = err
@@ -297,14 +315,322 @@ func planComponentStateDestructuring(
 						bodyText.String(),
 					),
 				})
+				rewritten[nodeSpanKey(expression)] = struct{}{}
 			})
 		}
+		walkNode(node, func(candidate *ast.Node) bool {
+			if normalizationError != nil || !ast.IsBinaryExpression(candidate) {
+				return normalizationError == nil
+			}
+			if _, exists := rewritten[nodeSpanKey(candidate)]; exists {
+				return true
+			}
+			binary := candidate.AsBinaryExpression()
+			if binary.OperatorToken.Kind != ast.KindEqualsToken ||
+				(!ast.IsArrayLiteralExpression(binary.Left) &&
+					!ast.IsObjectLiteralExpression(binary.Left)) ||
+				!insideNestedComponentCallable(candidate, node) ||
+				!destructuringTargetsComponentState(binary.Left, stateAliases) {
+				return true
+			}
+			if insideNormalizationRender(candidate, renderCallables) {
+				normalizationError = componentComputationError(
+					sourceFile,
+					candidate,
+					"error: render functions may not write component state because render work can run again",
+				)
+				return false
+			}
+			bindings := []destructuredStateBinding{}
+			prefix := fmt.Sprintf(
+				"__exactDestructured_%d",
+				nodeTokenStart(sourceFile, candidate),
+			)
+			pattern, err := rewriteDestructuredStatePattern(
+				sourceFile,
+				binary.Left,
+				prefix,
+				&bindings,
+				true,
+			)
+			if err != nil {
+				normalizationError = err
+				return false
+			}
+			if len(bindings) == 0 {
+				return true
+			}
+			edits = append(edits, sourceEdit{
+				start: nodeTokenStart(sourceFile, candidate),
+				end:   candidate.End(),
+				text: lowerNestedDestructuredStateAssignment(
+					sourceFile,
+					binary,
+					pattern,
+					prefix,
+					bindings,
+				),
+			})
+			return false
+		})
 		return false
 	})
 	if normalizationError != nil {
 		return nil, normalizationError
 	}
 	return edits, nil
+}
+
+func normalizationRenderCallables(sourceFile *ast.SourceFile) map[*ast.Node]struct{} {
+	candidates := rawComponentCandidates(sourceFile)
+	declarations := make(map[string][]*ast.Node)
+	for _, candidate := range candidates {
+		declarations[candidate.name] = append(
+			declarations[candidate.name],
+			candidate.node,
+		)
+	}
+	result := make(map[*ast.Node]struct{})
+	for _, candidate := range candidates {
+		if len(componentSignals(candidate, sourceFile)) == 0 {
+			continue
+		}
+		for _, returned := range directCallableReturns(candidate.node) {
+			expression := unwrapRenderExpression(returned)
+			if ast.IsArrowFunction(expression) ||
+				ast.IsFunctionExpression(expression) {
+				result[expression] = struct{}{}
+				continue
+			}
+			if !ast.IsIdentifier(expression) {
+				continue
+			}
+			for _, target := range declarations[expression.Text()] {
+				if target != candidate.node &&
+					directlyReturnsRenderedValue(target) {
+					result[target] = struct{}{}
+				}
+			}
+		}
+	}
+	return result
+}
+
+func insideNormalizationRender(
+	node *ast.Node,
+	renderCallables map[*ast.Node]struct{},
+) bool {
+	for current := node; current != nil; current = current.Parent {
+		if _, render := renderCallables[current]; render {
+			return true
+		}
+		if ast.IsFunctionLike(current) && current != node &&
+			!eagerRenderCallback(current) {
+			return false
+		}
+	}
+	return false
+}
+
+func validateRenderDestructuring(
+	sourceFile *ast.SourceFile,
+	renderCallables map[*ast.Node]struct{},
+) error {
+	for render := range renderCallables {
+		aliases := normalizationStateAliases(render)
+		var validationError error
+		walkNode(render, func(node *ast.Node) bool {
+			if validationError != nil {
+				return false
+			}
+			if node != render && ast.IsFunctionLike(node) &&
+				!eagerRenderCallback(node) {
+				return false
+			}
+			if !ast.IsBinaryExpression(node) {
+				return true
+			}
+			binary := node.AsBinaryExpression()
+			if binary.OperatorToken.Kind != ast.KindEqualsToken ||
+				(!ast.IsArrayLiteralExpression(binary.Left) &&
+					!ast.IsObjectLiteralExpression(binary.Left)) ||
+				!destructuringTargetsComponentState(binary.Left, aliases) {
+				return true
+			}
+			validationError = componentComputationError(
+				sourceFile,
+				node,
+				"error: render functions may not write component state because render work can run again",
+			)
+			return false
+		})
+		if validationError != nil {
+			return validationError
+		}
+	}
+	return nil
+}
+
+func insideNestedComponentCallable(node *ast.Node, component *ast.Node) bool {
+	for current := node.Parent; current != nil && current != component; current = current.Parent {
+		if ast.IsFunctionLike(current) {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizationStateAliases(component *ast.Node) map[string]struct{} {
+	aliases := map[string]struct{}{}
+	declarations := []*ast.Node{}
+	walkNode(component, func(node *ast.Node) bool {
+		if ast.IsVariableDeclaration(node) {
+			declarations = append(declarations, node)
+		}
+		return true
+	})
+	for changed := true; changed; {
+		changed = false
+		for _, node := range declarations {
+			declaration := node.AsVariableDeclaration()
+			if !normalizationStateAliasSource(declaration.Initializer, aliases) {
+				continue
+			}
+			for _, name := range componentBindingNames(declaration.Name()) {
+				if _, exists := aliases[name]; exists {
+					continue
+				}
+				aliases[name] = struct{}{}
+				changed = true
+			}
+		}
+	}
+	return aliases
+}
+
+func normalizationStateAliasSource(
+	node *ast.Node,
+	aliases map[string]struct{},
+) bool {
+	if node == nil {
+		return false
+	}
+	current := unwrapNormalizationParentheses(node)
+	for ast.IsPropertyAccessExpression(current) ||
+		ast.IsElementAccessExpression(current) {
+		if ast.IsPropertyAccessExpression(current) {
+			member := current.AsPropertyAccessExpression()
+			if member.Expression.Kind == ast.KindThisKeyword &&
+				member.Name() != nil &&
+				member.Name().Text() == "state" {
+				return true
+			}
+			current = member.Expression
+			continue
+		}
+		current = current.AsElementAccessExpression().Expression
+	}
+	if ast.IsIdentifier(current) {
+		_, exists := aliases[current.Text()]
+		return exists
+	}
+	return false
+}
+
+func destructuringTargetsComponentState(
+	pattern *ast.Node,
+	aliases map[string]struct{},
+) bool {
+	switch {
+	case ast.IsArrayLiteralExpression(pattern):
+		for _, element := range pattern.AsArrayLiteralExpression().Elements.Nodes {
+			if ast.IsOmittedExpression(element) {
+				continue
+			}
+			if ast.IsSpreadElement(element) {
+				element = element.AsSpreadElement().Expression
+			}
+			if destructuringTargetsComponentState(element, aliases) {
+				return true
+			}
+		}
+	case ast.IsObjectLiteralExpression(pattern):
+		for _, property := range pattern.AsObjectLiteralExpression().Properties.Nodes {
+			var target *ast.Node
+			switch {
+			case ast.IsPropertyAssignment(property):
+				target = property.AsPropertyAssignment().Initializer
+			case ast.IsShorthandPropertyAssignment(property):
+				target = property.Name()
+			case ast.IsSpreadAssignment(property):
+				target = property.AsSpreadAssignment().Expression
+			}
+			if target != nil &&
+				destructuringTargetsComponentState(target, aliases) {
+				return true
+			}
+		}
+	case ast.IsBinaryExpression(pattern) &&
+		pattern.AsBinaryExpression().OperatorToken.Kind == ast.KindEqualsToken:
+		return destructuringTargetsComponentState(
+			pattern.AsBinaryExpression().Left,
+			aliases,
+		)
+	default:
+		if normalizationStateAliasSource(pattern, aliases) {
+			return true
+		}
+	}
+	return false
+}
+
+// lowerNestedDestructuredStateAssignment preserves the native destructuring
+// algorithm by replacing only state targets with generated setter properties.
+// Defaults, rest, iterator closing, partial writes, and the assignment result
+// therefore retain JavaScript's own ordering and abrupt-completion behavior.
+func lowerNestedDestructuredStateAssignment(
+	sourceFile *ast.SourceFile,
+	binary *ast.BinaryExpression,
+	pattern string,
+	prefix string,
+	bindings []destructuredStateBinding,
+) string {
+	targetObject := prefix + "_targets"
+	var declarations strings.Builder
+	var setters strings.Builder
+	for index, binding := range bindings {
+		value := fmt.Sprintf("%s_value_%d", prefix, index)
+		writer := fmt.Sprintf("%s_write_%d", prefix, index)
+		member := fmt.Sprintf("%s.value_%d", targetObject, index)
+		pattern = strings.ReplaceAll(pattern, binding.temporary, member)
+		fmt.Fprintf(
+			&declarations,
+			"const %s = (%s) => { %s = %s; }; ",
+			writer,
+			value,
+			normalizationNodeText(sourceFile, binding.target),
+			value,
+		)
+		if setters.Len() != 0 {
+			setters.WriteString(", ")
+		}
+		fmt.Fprintf(
+			&setters,
+			"set value_%d(%s) { %s(%s); }",
+			index,
+			value,
+			writer,
+			value,
+		)
+	}
+	return fmt.Sprintf(
+		"(() => { %sconst %s = { %s }; return (%s = %s); })()",
+		declarations.String(),
+		targetObject,
+		setters.String(),
+		pattern,
+		normalizationNodeText(sourceFile, binary.Right),
+	)
 }
 
 func unwrapNormalizationParentheses(node *ast.Node) *ast.Node {
@@ -319,6 +645,7 @@ func rewriteDestructuredStatePattern(
 	pattern *ast.Node,
 	prefix string,
 	bindings *[]destructuredStateBinding,
+	allowOrdinary bool,
 ) (string, error) {
 	if ast.IsArrayLiteralExpression(pattern) {
 		elements := pattern.AsArrayLiteralExpression().Elements.Nodes
@@ -334,6 +661,7 @@ func rewriteDestructuredStatePattern(
 					element.AsSpreadElement().Expression,
 					prefix,
 					bindings,
+					allowOrdinary,
 				)
 				if err != nil {
 					return "", err
@@ -346,6 +674,7 @@ func rewriteDestructuredStatePattern(
 				element,
 				prefix,
 				bindings,
+				allowOrdinary,
 			)
 			if err != nil {
 				return "", err
@@ -355,7 +684,13 @@ func rewriteDestructuredStatePattern(
 		return "[" + strings.Join(values, ", ") + "]", nil
 	}
 	if !ast.IsObjectLiteralExpression(pattern) {
-		return rewriteDestructuredStateTarget(sourceFile, pattern, prefix, bindings)
+		return rewriteDestructuredStateTarget(
+			sourceFile,
+			pattern,
+			prefix,
+			bindings,
+			allowOrdinary,
+		)
 	}
 	properties := []string{}
 	for _, property := range pattern.AsObjectLiteralExpression().Properties.Nodes {
@@ -365,6 +700,7 @@ func rewriteDestructuredStatePattern(
 				property.AsSpreadAssignment().Expression,
 				prefix,
 				bindings,
+				allowOrdinary,
 			)
 			if err != nil {
 				return "", err
@@ -373,6 +709,13 @@ func rewriteDestructuredStatePattern(
 			continue
 		}
 		if !ast.IsPropertyAssignment(property) {
+			if allowOrdinary {
+				properties = append(
+					properties,
+					normalizationNodeText(sourceFile, property),
+				)
+				continue
+			}
 			return "", componentComputationError(
 				sourceFile,
 				property,
@@ -385,6 +728,7 @@ func rewriteDestructuredStatePattern(
 			assignment.Initializer,
 			prefix,
 			bindings,
+			allowOrdinary,
 		)
 		if err != nil {
 			return "", err
@@ -402,9 +746,16 @@ func rewriteDestructuredStateTarget(
 	target *ast.Node,
 	prefix string,
 	bindings *[]destructuredStateBinding,
+	allowOrdinary bool,
 ) (string, error) {
 	if ast.IsArrayLiteralExpression(target) || ast.IsObjectLiteralExpression(target) {
-		return rewriteDestructuredStatePattern(sourceFile, target, prefix, bindings)
+		return rewriteDestructuredStatePattern(
+			sourceFile,
+			target,
+			prefix,
+			bindings,
+			allowOrdinary,
+		)
 	}
 	if ast.IsBinaryExpression(target) &&
 		target.AsBinaryExpression().OperatorToken.Kind == ast.KindEqualsToken {
@@ -414,6 +765,7 @@ func rewriteDestructuredStateTarget(
 			binary.Left,
 			prefix,
 			bindings,
+			allowOrdinary,
 		)
 		if err != nil {
 			return "", err
@@ -421,6 +773,14 @@ func rewriteDestructuredStateTarget(
 		return left + " = " + normalizationNodeText(sourceFile, binary.Right), nil
 	}
 	if _, ok := componentComputationStatePath(target); !ok {
+		if allowOrdinary {
+			temporary := fmt.Sprintf("%s_%d", prefix, len(*bindings))
+			*bindings = append(*bindings, destructuredStateBinding{
+				target:    target,
+				temporary: temporary,
+			})
+			return temporary, nil
+		}
 		return "", componentComputationError(
 			sourceFile,
 			target,
@@ -962,7 +1322,16 @@ func componentComputationStateTargets(node *ast.Node) []*ast.Node {
 	if ast.IsArrayLiteralExpression(node) {
 		result := []*ast.Node{}
 		for _, element := range node.AsArrayLiteralExpression().Elements.Nodes {
-			if ast.IsOmittedExpression(element) || ast.IsSpreadElement(element) {
+			if ast.IsOmittedExpression(element) {
+				continue
+			}
+			if ast.IsSpreadElement(element) {
+				result = append(
+					result,
+					componentComputationStateTargets(
+						element.AsSpreadElement().Expression,
+					)...,
+				)
 				continue
 			}
 			result = append(result, componentComputationStateTargets(element)...)
@@ -981,6 +1350,13 @@ func componentComputationStateTargets(node *ast.Node) []*ast.Node {
 				)
 			} else if ast.IsShorthandPropertyAssignment(property) {
 				result = append(result, componentComputationStateTargets(property.Name())...)
+			} else if ast.IsSpreadAssignment(property) {
+				result = append(
+					result,
+					componentComputationStateTargets(
+						property.AsSpreadAssignment().Expression,
+					)...,
+				)
 			}
 		}
 		return result
@@ -995,6 +1371,12 @@ func isComponentComputationFunction(
 	if !ast.IsFunctionDeclaration(node) &&
 		!ast.IsFunctionExpression(node) &&
 		!ast.IsArrowFunction(node) {
+		return false
+	}
+	if _, sharedRender := returnedLocalRenderTargets(
+		rawComponentCandidates(sourceFile),
+		sourceFile,
+	)[node]; sharedRender {
 		return false
 	}
 	if hasComponentReceiver(node, sourceFile) {

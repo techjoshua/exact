@@ -1,4 +1,9 @@
-import type { ExactInvocationRequest, ExactOperationResult, ExactPatch } from '@exactjs/server';
+import type {
+	ExactCollectionMutation,
+	ExactInvocationRequest,
+	ExactOperationResult,
+	ExactPatch
+} from '@exactjs/server';
 import { hasOnlyKeys, isJsonSafe } from '../validation.js';
 import { type ResponseLimits, parseExactInvocationResponse } from './json.js';
 import { matchesOperation } from './stream.js';
@@ -21,7 +26,19 @@ export function parseExactOperationResult(
 		throw new Error('eXact batch invocation returned malformed results');
 	const record = value as Record<string, unknown>;
 	if (record.ok === true) {
-		if (!hasOnlyKeys(record, ['ok', 'type', 'id', 'opId', 'patches', 'state', 'contexts', 'html']))
+		if (
+			!hasOnlyKeys(record, [
+				'ok',
+				'type',
+				'id',
+				'opId',
+				'patches',
+				'state',
+				'mutations',
+				'contexts',
+				'html'
+			])
+		)
 			throw new Error('eXact batch invocation returned malformed results');
 		if (record.type !== 'action' && record.type !== 'refresh')
 			throw new Error('eXact batch invocation returned malformed results');
@@ -36,6 +53,7 @@ export function parseExactOperationResult(
 				ok: true,
 				...(record.patches === undefined ? {} : { patches: record.patches }),
 				...('state' in record ? { state: record.state } : {}),
+				...(record.mutations === undefined ? {} : { mutations: record.mutations }),
 				...(record.contexts === undefined ? {} : { contexts: record.contexts }),
 				...(record.html === undefined ? {} : { html: record.html })
 			},
@@ -83,6 +101,40 @@ export function parseExactOperationResult(
 		};
 	}
 	throw new Error('eXact batch invocation returned malformed results');
+}
+
+/** Reports whether a decoded ordered collection delta has a valid protocol shape. */
+export function isCollectionMutationLike(value: unknown): value is ExactCollectionMutation {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const record = value as Record<string, unknown>;
+	if (typeof record.path !== 'string' || !record.path) return false;
+	switch (record.operation) {
+		case 'map-set':
+			return (
+				hasOnlyKeys(record, ['path', 'operation', 'key', 'value']) &&
+				isTransportableMapKey(record.key) &&
+				'value' in record
+			);
+		case 'map-delete':
+			return hasOnlyKeys(record, ['path', 'operation', 'key']) && isTransportableMapKey(record.key);
+		case 'map-clear':
+		case 'set-clear':
+			return hasOnlyKeys(record, ['path', 'operation']);
+		case 'set-add':
+		case 'set-delete':
+			return hasOnlyKeys(record, ['path', 'operation', 'value']) && 'value' in record;
+		default:
+			return false;
+	}
+}
+
+function isTransportableMapKey(value: unknown): boolean {
+	return (
+		value === null ||
+		typeof value === 'boolean' ||
+		typeof value === 'string' ||
+		(typeof value === 'number' && Number.isFinite(value))
+	);
 }
 
 /** Reports whether patch like. */

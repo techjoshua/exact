@@ -1767,6 +1767,123 @@ func TestSessionCollectsNamespacedJSXAttributes(t *testing.T) {
 	}
 }
 
+func TestSessionLowersConditionalClassNamesInAuthoredOrder(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "component.tsx",
+		Kind: "compile",
+		Source: `
+			function Card(this: Component<{ active: boolean; disabled: boolean }>, props: { className?: unknown }) {
+				return () => (
+					<div
+						className:active={this.state.active}
+						className={props.className}
+						className:disabled={!this.state.disabled}
+					/>
+				);
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	for _, expected := range []string{
+		`className: [`,
+		`{ "active": __exactExpression(() => this.state.active) }`,
+		`__exactExpression(() => props.className)`,
+		`{ "disabled": __exactExpression(() => !this.state.disabled) }`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("conditional class output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+	if strings.Contains(response.Code, `"className:active"`) ||
+		strings.Contains(response.Code, `"className:disabled"`) {
+		t.Fatalf("conditional class namespace escaped into output:\n%s", response.Code)
+	}
+}
+
+func TestSessionFoldsStaticConditionalClassNames(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:     "component.tsx",
+		Kind:   "compile",
+		Source: `const view = <div className="card" className:selected />;`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if !strings.Contains(response.Code, `className: "card selected"`) {
+		t.Fatalf("static class contributions were not folded:\n%s", response.Code)
+	}
+}
+
+func TestSessionAllowsPossibleDynamicConditionalClassDuplicates(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "component.tsx",
+		Kind: "compile",
+		Source: `const view = (
+			<div className:active={selected} className:active={focused} />
+		);`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if len(response.Diagnostics) != 0 {
+		t.Fatalf("possible dynamic collision was rejected: %#v", response.Diagnostics)
+	}
+	if strings.Count(response.Code, `"active":`) != 2 {
+		t.Fatalf("dynamic class contributions were deduplicated:\n%s", response.Code)
+	}
+}
+
+func TestSessionRejectsAmbiguousConditionalClassInputs(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		message string
+	}{
+		{
+			name:    "spread",
+			source:  `const view = <div className:active={ready} {...props} />;`,
+			message: "prop spreads cannot be combined with className:name",
+		},
+		{
+			name:    "component",
+			source:  `const view = <Card className:active={ready} />;`,
+			message: "not component props",
+		},
+		{
+			name:    "class alias",
+			source:  `const view = <div class="card" className:active={ready} />;`,
+			message: "use className",
+		},
+		{
+			name:    "static collision",
+			source:  `const view = <div className="card active" className:active={ready} />;`,
+			message: `class token "active" is already contributed`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			response := NewSession(nil).Execute(Request{
+				ID:     "component.tsx",
+				Kind:   "compile",
+				Source: test.source,
+			})
+			found := false
+			for _, diagnostic := range response.Diagnostics {
+				if diagnostic.Code == "EXACT_CLASS_NAME" &&
+					strings.Contains(diagnostic.Message, test.message) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("missing %q diagnostic: %#v", test.message, response.Diagnostics)
+			}
+		})
+	}
+}
+
 func TestSessionCollectsDirectComponentStateWrites(t *testing.T) {
 	response := NewSession(nil).Execute(Request{
 		ID:   "component.tsx",
@@ -1813,6 +1930,105 @@ func TestSessionCollectsDirectComponentStateWrites(t *testing.T) {
 	}
 }
 
+func TestSessionLowersMapAndSetStateMutations(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "component.tsx",
+		Kind: "compile",
+		Source: `
+			function Collections(this: {
+				state: {
+					lookup: Map<string, number>;
+					selected: Set<string>;
+				};
+			}) {
+				this.state.lookup.set("answer", 42);
+				this.state.lookup.delete("missing");
+				this.state.selected.add("answer");
+				this.state.selected.clear();
+				return () => <output>{this.state.lookup.get("answer")}</output>;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	writes := response.Analysis.StateWrites
+	if len(writes) != 4 {
+		t.Fatalf("received %d collection writes, expected 4: %#v", len(writes), writes)
+	}
+	expectedOperations := []string{
+		"map-mutation",
+		"map-mutation",
+		"set-mutation",
+		"set-mutation",
+	}
+	for index, operation := range expectedOperations {
+		if writes[index].Operation != operation {
+			t.Fatalf("unexpected collection write %d: %#v", index, writes[index])
+		}
+	}
+	for _, expected := range []string{
+		`mutateReactiveCollection as __exactCollectionMutation`,
+		`__exactCollectionMutation(this.state, ["lookup"], "map", "set", () => ["answer", 42])`,
+		`__exactCollectionMutation(this.state, ["lookup"], "map", "delete", () => ["missing"])`,
+		`__exactCollectionMutation(this.state, ["selected"], "set", "add", () => ["answer"])`,
+		`__exactCollectionMutation(this.state, ["selected"], "set", "clear", () => [])`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("collection state-write output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+
+	server := NewSession(nil).Execute(Request{
+		ID:     "server-collections.tsx",
+		Kind:   "compile",
+		Target: TargetServer,
+		Source: `
+			function Collections(this: {
+				state: { lookup: Map<string, number> };
+				task: { server(work: () => void): void };
+			}) {
+				this.task.server(() => {
+					this.state.lookup.set("answer", 42);
+				});
+				return () => <output />;
+			}
+		`,
+	})
+	if !strings.Contains(
+		server.Code,
+		`__exactTaskCollectionMutation(__exactSignal, this.state, ["lookup"], "map", "set", () => ["answer", 42])`,
+	) {
+		t.Fatalf("server collection delta lowering is missing:\n%s", server.Code)
+	}
+
+	invalid := NewSession(nil).Execute(Request{
+		ID:   "invalid-server-map-key.tsx",
+		Kind: "compile",
+		Source: `
+			function Collections(this: {
+				state: { lookup: Map<{ id: string }, number> };
+				task: { server(work: () => void): void };
+			}) {
+				this.task.server(() => {
+					this.state.lookup.set({ id: "answer" }, 42);
+				});
+				return () => <output />;
+			}
+		`,
+	})
+	found := false
+	for _, diagnostic := range invalid.Diagnostics {
+		if diagnostic.Code == "EXACT2001" &&
+			strings.Contains(diagnostic.Message, "Map key must be") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("missing server Map key diagnostic: %#v", invalid.Diagnostics)
+	}
+}
+
 func TestSessionLowersAliasedCompoundStateWrites(t *testing.T) {
 	response := NewSession(nil).Execute(Request{
 		ID:   "component.tsx",
@@ -1837,6 +2053,265 @@ func TestSessionLowersAliasedCompoundStateWrites(t *testing.T) {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("aliased state-write output is missing %q:\n%s", expected, response.Code)
 		}
+	}
+}
+
+func TestSessionLowersComputedStateWriteKeysAsExecutablePaths(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "computed-write.tsx",
+		Kind: "compile",
+		Source: `
+			declare class Component<State> { state: State }
+			function Editor(
+				this: Component<{ rows: Array<{ value: number }> }>,
+				props: { index: number },
+			) {
+				const rows = this.state.rows;
+				return () => <button onClick={() => {
+					rows[props.index].value += calculate();
+				}} />;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if len(response.Diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %#v", response.Diagnostics)
+	}
+	if len(response.Analysis.StateWrites) != 1 {
+		t.Fatalf("unexpected writes: %#v", response.Analysis.StateWrites)
+	}
+	write := response.Analysis.StateWrites[0]
+	if strings.Join(write.Path, ".") != "rows.*.value" {
+		t.Fatalf("unexpected computed write path: %#v", write)
+	}
+	for _, expected := range []string{
+		`__exactUpdate(this.state, ["rows", props.index, "value"]`,
+		`previous => previous + calculate()`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("computed write output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
+func TestSessionEnforcesRerunnableRenderContract(t *testing.T) {
+	accepted := NewSession(nil).Execute(Request{
+		ID:   "accepted-render.tsx",
+		Kind: "compile",
+		Source: `
+			declare class Component<State> { state: State }
+			function renderPanel(this: Component<{ count: number }>) {
+				const label = String(this.state.count);
+				return <button onClick={() => this.state.count++}>{label}</button>;
+			}
+			function Panel(this: Component<{ count: number }>) {
+				return renderPanel;
+			}
+		`,
+	})
+	if accepted.Error != "" {
+		t.Fatal(accepted.Error)
+	}
+	if len(accepted.Diagnostics) != 0 {
+		t.Fatalf("valid shared render produced diagnostics: %#v", accepted.Diagnostics)
+	}
+	for _, component := range accepted.Analysis.Components {
+		if component.Name == "renderPanel" {
+			t.Fatalf("shared render was classified as a component: %#v", component)
+		}
+	}
+
+	rejected := NewSession(nil).Execute(Request{
+		ID:   "rejected-render.tsx",
+		Kind: "compile",
+		Source: `
+			declare class Component<State> {
+				state: State;
+				onMount(work: () => void): void;
+			}
+			function Panel(this: Component<{ count: number }>) {
+				return () => {
+					this.state.count++;
+					this.onMount(() => undefined);
+					setTimeout(() => undefined, 1);
+					return <button onClick={() => this.state.count++} />;
+				};
+			}
+		`,
+	})
+	messages := []string{}
+	for _, diagnostic := range rejected.Diagnostics {
+		if diagnostic.Code == "EXACT_RENDER" {
+			messages = append(messages, diagnostic.Message)
+		}
+	}
+	if len(messages) != 3 {
+		t.Fatalf("expected three render diagnostics, received %#v", rejected.Diagnostics)
+	}
+}
+
+func TestSessionRejectsSharedArrowRender(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "shared-arrow.tsx",
+		Kind: "compile",
+		Source: `
+			declare class Component<State> { state: State }
+			const renderPanel = () => <p />;
+			function Panel(this: Component<{}>) {
+				return renderPanel;
+			}
+		`,
+	})
+	found := false
+	for _, diagnostic := range response.Diagnostics {
+		if diagnostic.Code == "EXACT_RENDER" &&
+			strings.Contains(diagnostic.Message, "shared arrow") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("missing shared-arrow diagnostic: %#v", response.Diagnostics)
+	}
+}
+
+func TestSessionValidatesStandaloneRegularRenderBody(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "shared-render.tsx",
+		Kind: "compile",
+		Source: `
+			declare class Component<State> { state: State }
+			export function renderStatus(
+				this: Component<{ message: string }>
+			) {
+				this.state.message = "rendered";
+				return <output>{this.state.message}</output>;
+			}
+		`,
+	})
+	found := false
+	for _, diagnostic := range response.Diagnostics {
+		if diagnostic.Code == "EXACT_RENDER" &&
+			strings.Contains(diagnostic.Message, "may not write component state") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("missing standalone render diagnostic: %#v", response.Diagnostics)
+	}
+}
+
+func TestSessionPreservesChainedAndMixedAssignmentResults(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "assignment-results.tsx",
+		Kind: "compile",
+		Source: `
+			declare class Component<State> { state: State }
+			function Editor(this: Component<{ a: number; b: number }>) {
+				let local = 1;
+				return () => <button onClick={() => consume(
+					this.state.a = this.state.b = local = calculate()
+				)} />;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	if len(response.Diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %#v", response.Diagnostics)
+	}
+	for _, expected := range []string{
+		`__exactWrite(this.state, ["a"], () => __exactWrite(this.state, ["b"], () => local = calculate()))`,
+		`consume(__exactWrite`,
+	} {
+		if !strings.Contains(response.Code, expected) {
+			t.Fatalf("chained assignment output is missing %q:\n%s", expected, response.Code)
+		}
+	}
+}
+
+func TestSessionRejectsDynamicContinuationWriteContract(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "dynamic-continuation.tsx",
+		Kind: "compile",
+		Source: `
+			declare class Component<State> {
+				state: State;
+				task(work: () => void): void;
+			}
+			function Editor(
+				this: Component<{ rows: Array<{ value: number }> }>,
+				props: { index: number },
+			) {
+				this.task(() => {
+					this.state.rows[props.index].value = calculate();
+				});
+				return () => <output />;
+			}
+		`,
+	})
+	found := false
+	for _, diagnostic := range response.Diagnostics {
+		if diagnostic.Code == "EXACT2001" &&
+			strings.Contains(diagnostic.Message, "dynamic computed path") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("missing dynamic continuation diagnostic: %#v", response.Diagnostics)
+	}
+}
+
+func TestSessionRejectsUnrepresentableStateMutationForms(t *testing.T) {
+	tests := map[string]string{
+		"for-of target": `
+			function Editor(this: Component<{ current: number }>) {
+				return () => <button onClick={() => {
+					for (this.state.current of values) consume(this.state.current);
+				}} />;
+			}
+		`,
+		"destructured for-of target": `
+			function Editor(this: Component<{ current: number }>) {
+				return () => <button onClick={() => {
+					for ([this.state.current] of values) consume(this.state.current);
+				}} />;
+			}
+		`,
+		"Reflect.set": `
+			function Editor(this: Component<{ current: number }>) {
+				return () => <button onClick={() => {
+					Reflect.set(this.state, "current", 1);
+				}} />;
+			}
+		`,
+		"Object.defineProperty": `
+			function Editor(this: Component<{ current: number }>) {
+				return () => <button onClick={() => {
+					Object.defineProperty(this.state, "current", { value: 1 });
+				}} />;
+			}
+		`,
+	}
+	for name, source := range tests {
+		t.Run(name, func(t *testing.T) {
+			response := NewSession(nil).Execute(Request{
+				ID:     name + ".tsx",
+				Kind:   "compile",
+				Source: source,
+			})
+			found := false
+			for _, diagnostic := range response.Diagnostics {
+				if diagnostic.Code == "EXACT_STATE_WRITE" {
+					found = true
+				}
+			}
+			if !found {
+				t.Fatalf("missing state-write diagnostic: %#v", response.Diagnostics)
+			}
+		})
 	}
 }
 
@@ -1879,7 +2354,7 @@ func TestSessionLowersFragmentsSpreadsAndNamespacedAttributes(t *testing.T) {
 		Source: `
 			const __exactVNode = "occupied";
 			const view = <>
-				<input disabled className:active={ready} {...props} />
+				<input disabled custom:active={ready} {...props} />
 				{value}
 			</>;
 		`,
@@ -1892,7 +2367,7 @@ func TestSessionLowersFragmentsSpreadsAndNamespacedAttributes(t *testing.T) {
 		`__exactFragment({}`,
 		`__exactVNode_1("input"`,
 		`disabled: true`,
-		`"className:active": __exactExpression(() => ready)`,
+		`"custom:active": __exactExpression(() => ready)`,
 		`...props`,
 		`__exactDynamic(() => value`,
 	} {

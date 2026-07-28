@@ -322,13 +322,14 @@ type JSXElement struct {
 
 // StateWrite identifies one direct write to component-owned state.
 type StateWrite struct {
-	Component string   `json:"component"`
-	Path      []string `json:"path"`
-	Operation string   `json:"operation"`
-	Start     int      `json:"start"`
-	Length    int      `json:"length"`
-	RootAlias string   `json:"-"`
-	RootDepth int      `json:"-"`
+	Component       string            `json:"component"`
+	Path            []string          `json:"path"`
+	Operation       string            `json:"operation"`
+	Start           int               `json:"start"`
+	Length          int               `json:"length"`
+	RootAlias       string            `json:"-"`
+	RootDepth       int               `json:"-"`
+	DynamicSegments map[int]*ast.Node `json:"-"`
 }
 
 // StateAlias identifies one lexical alias for a component-state path.
@@ -355,6 +356,7 @@ type StateEffect struct {
 	Path       string         `json:"path"`
 	Kind       string         `json:"kind"`
 	Confidence string         `json:"confidence"`
+	Operation  string         `json:"operation,omitempty"`
 	Receiver   *StateReceiver `json:"receiver,omitempty"`
 }
 

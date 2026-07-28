@@ -1,6 +1,7 @@
 import { hasOnlyKeys, isJsonSafe } from './protocol.js';
 import type {
 	ExactExecutorContract,
+	ExactCollectionMutation,
 	ExactInvocationRequest,
 	ExactInvocationResult,
 	ExactPatch,
@@ -37,7 +38,7 @@ export function isInvocationResultSafe(
 		return false;
 	if (!result || typeof result !== 'object' || Array.isArray(result)) return false;
 	const record = result as Record<string, unknown>;
-	if (!hasOnlyKeys(record, ['patches', 'state', 'contexts', 'html'])) return false;
+	if (!hasOnlyKeys(record, ['patches', 'state', 'mutations', 'contexts', 'html'])) return false;
 	if ('state' in record && record.state === undefined) return false;
 	if (
 		record.contexts !== undefined &&
@@ -49,8 +50,69 @@ export function isInvocationResultSafe(
 		if (record.patches.length > positiveLimit(limits.maxPatches, 10_000)) return false;
 		if (!record.patches.every(isPatchSafe)) return false;
 	}
+	if (
+		record.mutations !== undefined &&
+		(!Array.isArray(record.mutations) || !record.mutations.every(isCollectionMutationSafe))
+	)
+		return false;
 	if (record.html !== undefined && typeof record.html !== 'string') return false;
 	return true;
+}
+
+/** Returns whether collection deltas target exact compiler-authorized collection writes. */
+export function collectionMutationsMatchContract(
+	mutations: readonly ExactCollectionMutation[] | undefined,
+	writes: readonly ExactStatePath[]
+): boolean {
+	if (!mutations) return true;
+	const allowed = new Map(
+		writes
+			.filter(
+				(write) =>
+					write.kind === 'write' &&
+					write.confidence === 'exact' &&
+					(write.operation === 'map' || write.operation === 'set')
+			)
+			.map((write) => [write.path, write.operation])
+	);
+	return mutations.every((mutation) => {
+		const kind = mutation.operation.startsWith('map-') ? 'map' : 'set';
+		return allowed.get(mutation.path) === kind;
+	});
+}
+
+function isCollectionMutationSafe(value: unknown): value is ExactCollectionMutation {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const record = value as Record<string, unknown>;
+	if (typeof record.path !== 'string' || !record.path.split('.').every(isSafeObjectKey))
+		return false;
+	switch (record.operation) {
+		case 'map-set':
+			return (
+				hasOnlyKeys(record, ['path', 'operation', 'key', 'value']) &&
+				isTransportableMapKey(record.key) &&
+				'value' in record
+			);
+		case 'map-delete':
+			return hasOnlyKeys(record, ['path', 'operation', 'key']) && isTransportableMapKey(record.key);
+		case 'map-clear':
+		case 'set-clear':
+			return hasOnlyKeys(record, ['path', 'operation']);
+		case 'set-add':
+		case 'set-delete':
+			return hasOnlyKeys(record, ['path', 'operation', 'value']) && 'value' in record;
+		default:
+			return false;
+	}
+}
+
+function isTransportableMapKey(value: unknown): boolean {
+	return (
+		value === null ||
+		typeof value === 'boolean' ||
+		typeof value === 'string' ||
+		(typeof value === 'number' && Number.isFinite(value))
+	);
 }
 
 function positiveLimit(value: number | undefined, fallback: number): number {

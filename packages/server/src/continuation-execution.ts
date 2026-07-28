@@ -2,7 +2,11 @@ import type {
 	ExactComponentContinuationContract,
 	ExactComponentContinuationExecutorContract
 } from '@exactjs/core';
-import { discardTaskMutations, publishTaskMutations } from '@exactjs/core';
+import {
+	discardTaskMutations,
+	publishTaskMutations,
+	takeTaskCollectionMutations
+} from '@exactjs/core';
 import type { ExactInvocationRequest, ExactInvocationResult, ExactServerContext } from './types.js';
 
 /** Application-compatible handler generated from one compiler-owned continuation executor. */
@@ -36,7 +40,7 @@ export function createExactContinuationHandler(
 		if (!dependencies)
 			throw new TypeError(`Malformed activation record for eXact continuation ${contract.id}`);
 		const state = activationState(input.state);
-		const signal = context.signal ?? neverAbortedSignal();
+		const signal = context.signal ?? new AbortController().signal;
 		let result: Awaited<ReturnType<typeof executor.execute>>;
 		try {
 			result = await executor.execute(
@@ -94,9 +98,11 @@ export function createExactContinuationHandler(
 			throw error;
 		}
 		const projected = projectContinuationState(result.state, contract.stateWrites);
+		const mutations = takeTaskCollectionMutations(signal);
 		const contexts = projectContinuationContexts(result.contexts, contract.contextWrites);
 		return {
 			...(projected === undefined ? {} : { state: projected }),
+			...(mutations === undefined ? {} : { mutations: [...mutations] }),
 			...(contexts === undefined ? {} : { contexts })
 		};
 	};
@@ -146,7 +152,13 @@ function projectContinuationState(
 	writes: ExactComponentContinuationContract['stateWrites']
 ): unknown {
 	const paths = writes
-		.filter((write) => write.kind === 'write' && write.confidence === 'exact')
+		.filter(
+			(write) =>
+				write.kind === 'write' &&
+				write.confidence === 'exact' &&
+				write.operation !== 'map' &&
+				write.operation !== 'set'
+		)
 		.map((write) => write.path);
 	if (!paths.length) return undefined;
 	if (paths.includes('*')) return state;
@@ -198,11 +210,4 @@ function safeSegment(segment: string): boolean {
 		segment !== 'prototype' &&
 		segment !== 'constructor'
 	);
-}
-
-let inertSignal: AbortSignal | undefined;
-
-/** Supplies a stable non-aborted signal to direct low-level dispatch callers. */
-function neverAbortedSignal(): AbortSignal {
-	return (inertSignal ??= new AbortController().signal);
 }

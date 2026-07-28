@@ -3,6 +3,7 @@ import {
 	computed,
 	flushSync,
 	mutateReactiveArray,
+	mutateReactiveCollection,
 	reactive,
 	ref,
 	registerReactiveListKey,
@@ -98,6 +99,81 @@ describe('@exactjs/reactive collections', () => {
 		expect(state.map.get('answer')).toBe(42);
 		expect(reactive(date)).toBe(date);
 		expect(snapshot(date)).toBe(date);
+	});
+
+	it('tracks Map keys independently and iteration structurally', () => {
+		const state = reactive({
+			values: new Map<string, { count: number }>([
+				['a', { count: 1 }],
+				['b', { count: 2 }]
+			])
+		});
+		const a = vi.fn(() => state.values.get('a')?.count);
+		const b = vi.fn(() => state.values.has('b'));
+		const entries = vi.fn(() => [...state.values].map(([key, value]) => `${key}:${value.count}`));
+		watch(a);
+		watch(b);
+		watch(entries);
+
+		expect(state.values.set('a', { count: 3 })).toBe(state.values);
+		flushSync();
+		expect(a).toHaveBeenCalledTimes(2);
+		expect(b).toHaveBeenCalledTimes(1);
+		expect(entries).toHaveBeenCalledTimes(2);
+
+		expect(state.values.delete('missing')).toBe(false);
+		flushSync();
+		expect(entries).toHaveBeenCalledTimes(2);
+		expect(state.values.delete('b')).toBe(true);
+		flushSync();
+		expect(b).toHaveBeenCalledTimes(2);
+		expect(entries).toHaveBeenCalledTimes(3);
+	});
+
+	it('preserves Set uniqueness, return values, and structural dependencies', () => {
+		const state = reactive({ selected: new Set(['a']) });
+		const hasA = vi.fn(() => state.selected.has('a'));
+		const values = vi.fn(() => [...state.selected].join(','));
+		const sizes = vi.fn(() => state.selected.size);
+		watch(hasA);
+		watch(values);
+		watch(sizes);
+
+		expect(state.selected.add('a')).toBe(state.selected);
+		flushSync();
+		expect(values).toHaveBeenCalledTimes(1);
+		expect(sizes).toHaveBeenCalledTimes(1);
+
+		expect(state.selected.add('b')).toBe(state.selected);
+		flushSync();
+		expect(hasA).toHaveBeenCalledTimes(1);
+		expect(values).toHaveBeenCalledTimes(2);
+		expect(sizes).toHaveBeenCalledTimes(2);
+		expect(state.selected.clear()).toBeUndefined();
+		flushSync();
+		expect(hasA).toHaveBeenCalledTimes(2);
+		expect(values).toHaveBeenCalledTimes(3);
+		expect(sizes).toHaveBeenCalledTimes(3);
+	});
+
+	it('supports compiler collection helpers and recursive snapshots', () => {
+		const state = reactive({
+			values: new Map<string, { count: number }>([['a', { count: 1 }]]),
+			selected: new Set([{ id: 'first' }])
+		});
+		expect(mutateReactiveCollection(state, ['values'], 'map', 'set', ['b', { count: 2 }])).toBe(
+			state.values
+		);
+		expect(
+			mutateReactiveCollection(state, ['selected'], 'set', 'delete', [{ id: 'missing' }])
+		).toBe(false);
+
+		const copy = snapshot(state);
+		expect(copy).not.toBe(state);
+		expect(copy.values).toBeInstanceOf(Map);
+		expect(copy.values.get('a')).toEqual({ count: 1 });
+		expect(copy.values.get('a')).not.toBe(state.values.get('a'));
+		expect(copy.selected).toBeInstanceOf(Set);
 	});
 
 	it('compares accessors without invoking them', () => {

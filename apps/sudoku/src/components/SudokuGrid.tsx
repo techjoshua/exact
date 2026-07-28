@@ -21,9 +21,10 @@ export function SudokuGrid(this: Component<{}>, props: SudokuGridProps) {
 	const selectedValue = props.selectedDigit ?? props.cells[props.selectedIndex]?.value;
 
 	return () => (
-		<div className={['board-frame', props.complete && 'is-complete']}>
+		<div className="board-frame" className:is-complete={props.complete}>
 			<div
-				className={['sudoku-board', props.paused && 'is-paused']}
+				className="sudoku-board"
+				className:is-paused={props.paused}
 				role="grid"
 				aria-label="Sudoku puzzle"
 				aria-rowcount={9}
@@ -63,6 +64,9 @@ export function SudokuGrid(this: Component<{}>, props: SudokuGridProps) {
 					<span className="victory-mark">✦</span>
 					<strong>Beautifully solved</strong>
 					<small>Every row, column and house is complete.</small>
+					<button type="button" onClick={() => game.newGame()}>
+						Start a new puzzle
+					</button>
 				</div>
 			) : null}
 		</div>
@@ -88,14 +92,12 @@ function CellButton(this: Component<{}>, props: CellButtonProps) {
 		<button
 			type="button"
 			role="gridcell"
-			className={[
-				'sudoku-cell',
-				props.cell.given && 'is-given',
-				props.selected && 'is-selected',
-				props.peer && 'is-peer',
-				props.matching && 'is-matching',
-				props.conflict && 'is-conflict'
-			]}
+			className="sudoku-cell"
+			className:is-given={props.cell.given}
+			className:is-selected={props.selected}
+			className:is-peer={props.peer}
+			className:is-matching={props.matching}
+			className:is-conflict={props.conflict}
 			aria-label={label}
 			aria-selected={props.selected}
 			disabled={props.paused}
@@ -108,10 +110,8 @@ function CellButton(this: Component<{}>, props: CellButtonProps) {
 				<span className="cell-notes" aria-hidden="true">
 					{noteDigits.map((digit) => (
 						<span
-							className={
+							className:is-note-match={
 								props.cell.notes.includes(digit) && digit === props.matchingDigit
-									? 'is-note-match'
-									: ''
 							}
 						>
 							{props.cell.notes.includes(digit) ? digit : ''}

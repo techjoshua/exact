@@ -11,6 +11,7 @@ These documents describe behavior that exists in the repository today:
 | Document                                                                         | Subject                                                                    |
 | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | [code-maintainability.md](code-maintainability.md)                               | Required source, ownership, JSDoc, and testing standards.                  |
+| [component-language.md](component-language.md)                                   | Complete native component and TSX authoring reference.                     |
 | [distributed-component-continuations.md](distributed-component-continuations.md) | Compiler-distributed client/server component state machines.               |
 | [framework-plugins.md](framework-plugins.md)                                     | Plugin discovery, configuration, projections, and lifecycle.               |
 | [instrumentation.md](instrumentation.md)                                         | Optional profiling contracts and event collection.                         |

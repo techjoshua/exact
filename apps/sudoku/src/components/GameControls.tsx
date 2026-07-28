@@ -1,5 +1,6 @@
 import type { Component } from '@exactjs/core';
 import { SudokuContext } from '../context.js';
+import type { DigitPlacementProgress } from '../game-engine.js';
 import type { Digit } from '../types.js';
 
 const digits: readonly Digit[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -11,6 +12,7 @@ type GameControlsProps = {
 	canRedo: boolean;
 	paused: boolean;
 	remaining: number;
+	digitProgress: readonly DigitPlacementProgress[];
 };
 
 /** Renders thumb-friendly number entry and history controls. */
@@ -23,20 +25,33 @@ export function GameControls(this: Component<{}>, props: GameControlsProps) {
 				{digits.map((digit) => (
 					<button
 						type="button"
-						className={['number-key', props.selectedDigit === digit && 'is-active']}
-						aria-label={`${props.selectedDigit === digit ? 'Clear' : 'Select'} ${digit}`}
+						className="number-key"
+						className:is-active={props.selectedDigit === digit}
+						className:is-complete={props.digitProgress[digit - 1]?.complete}
+						className:is-conflicting={props.digitProgress[digit - 1]?.conflicting}
+						aria-label={`${props.selectedDigit === digit ? 'Clear' : 'Select'} ${digit}; ${
+							props.digitProgress[digit - 1]?.placed ?? 0
+						} of 9 placed${progressStatus(props.digitProgress[digit - 1])}`}
 						aria-pressed={props.selectedDigit === digit}
 						onClick={() => game.toggleDigit(digit)}
 						disabled={props.paused}
 					>
-						{digit}
+						<span className="number-key-digit">{digit}</span>
+						<span
+							className="number-key-progress"
+							style={{
+								width: `${Math.min(props.digitProgress[digit - 1]?.placed ?? 0, 9) * (100 / 9)}%`
+							}}
+							aria-hidden="true"
+						/>
 					</button>
 				))}
 			</div>
 			<div className="control-row">
 				<button
 					type="button"
-					className={['tool-button', props.noteMode && 'is-active']}
+					className="tool-button"
+					className:is-active={props.noteMode}
 					aria-pressed={props.noteMode}
 					onClick={() => game.toggleNotes()}
 					disabled={props.paused}
@@ -72,6 +87,10 @@ export function GameControls(this: Component<{}>, props: GameControlsProps) {
 					Redo
 				</button>
 			</div>
+			<button type="button" className="mobile-new-game-button" onClick={() => game.newGame()}>
+				<span aria-hidden="true">↻</span>
+				New puzzle
+			</button>
 			<p className="remaining-copy">
 				{props.selectedDigit === undefined
 					? 'Choose a number, then tap cells'
@@ -82,4 +101,10 @@ export function GameControls(this: Component<{}>, props: GameControlsProps) {
 			</p>
 		</section>
 	);
+}
+
+function progressStatus(progress: DigitPlacementProgress | undefined): string {
+	if (progress?.complete) return '; complete without conflicts';
+	if (progress?.conflicting) return '; has conflicts';
+	return '';
 }

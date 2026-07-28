@@ -4,6 +4,7 @@ import {
 	applyMove,
 	candidatesFor,
 	createCells,
+	digitPlacementProgress,
 	editableCellCount,
 	enteredCellCount,
 	findConflicts,
@@ -41,7 +42,7 @@ export function SudokuApp(this: Component<SudokuState>) {
 	this.state.elapsedSeconds = restored?.saved.elapsedSeconds ?? 0;
 	this.state.paused = false;
 	this.state.theme = restored?.saved.theme ?? 'paper';
-	this.state.lensOpen = true;
+	this.state.lensOpen = false;
 	this.state.themeMenuOpen = false;
 
 	const puzzle = findPuzzle(this.state.puzzleId);
@@ -54,6 +55,7 @@ export function SudokuApp(this: Component<SudokuState>) {
 	const lastMove = this.state.history[this.state.history.length - 1];
 	const remaining = editable - entered;
 	const progress = editable === 0 ? 100 : Math.round((entered / editable) * 100);
+	const digitProgress = digitPlacementProgress(this.state.cells, conflicts);
 
 	const commit = (label: string, changes: GameMove['changes']) => {
 		if (!changes.length || complete) return;
@@ -326,6 +328,7 @@ export function SudokuApp(this: Component<SudokuState>) {
 						canRedo={this.state.future.length > 0}
 						paused={this.state.paused}
 						remaining={remaining}
+						digitProgress={digitProgress}
 					/>
 				</section>
 

@@ -1298,7 +1298,7 @@ func stateEffectMetadata(
 ) *ast.Node {
 	values := make([]*ast.Node, 0, len(effects))
 	for _, effect := range effects {
-		values = append(values, contractObject(factory, true,
+		properties := []*ast.Node{
 			contractProperty(
 				factory,
 				"path",
@@ -1314,7 +1314,15 @@ func stateEffectMetadata(
 				"confidence",
 				contractString(factory, effect.Confidence),
 			),
-		))
+		}
+		if effect.Operation != "" {
+			properties = append(properties, contractProperty(
+				factory,
+				"operation",
+				contractString(factory, effect.Operation),
+			))
+		}
+		values = append(values, contractObject(factory, true, properties...))
 	}
 	return contractArray(factory, values...)
 }

@@ -143,9 +143,14 @@ component libraries, tests, documentation, and examples.
 
 ```sh
 npm install
+npm run build:native-compiler
 npm run build
 npm test
 ```
+
+The native compiler build requires Go 1.26.2 and automatically creates a pinned TypeScript-Go
+checkout under `.tmp/typescript-go-source` when one is not already present. Pass `--source <path>`
+or set `EXACT_TYPESCRIPT_GO_SOURCE` only to use an existing TypeScript-Go checkout instead.
 
 Compiler changes have an additional cross-application acceptance suite:
 
