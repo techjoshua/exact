@@ -549,16 +549,10 @@ func TestSessionCreatesValueExportsForAliasesAndDefaults(t *testing.T) {
 }
 
 func TestSessionMatchesCanonicalComponentIdentity(t *testing.T) {
-	workingDirectory, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
 	response := NewSession(nil).Execute(Request{
-		ID:   "component.tsx",
+		ID:   "C:/exact/fixtures/component.tsx",
 		Kind: "compile",
-		Root: filepath.Clean(
-			filepath.Join(workingDirectory, "..", "..", "..", ".."),
-		),
+		Root: "C:/exact/fixtures",
 		Source: "export function Panel() { const value: number = 1; " +
 			"return () => <main />; }",
 	})
@@ -568,11 +562,24 @@ func TestSessionMatchesCanonicalComponentIdentity(t *testing.T) {
 	if len(response.Analysis.Components) != 1 {
 		t.Fatalf("unexpected components: %#v", response.Analysis.Components)
 	}
-	if response.Analysis.Components[0].ID != "xUe2-1EODUcoRs7LuYoY2GZ" {
+	if response.Analysis.Components[0].ID != "xWukFpfVGAdZkgIIpKdIh5C" {
 		t.Fatalf(
 			"native component identity diverged from the compiler contract: %#v",
 			response.Analysis.Components[0],
 		)
+	}
+}
+
+func TestNormalizeFileNameRecognizesWindowsPathsOnEveryHost(t *testing.T) {
+	filename, err := normalizeFileName(
+		`C:\exact\fixtures\component.tsx`,
+		"",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filename != "C:/exact/fixtures/component.tsx" {
+		t.Fatalf("Windows request path was made host-relative: %q", filename)
 	}
 }
 

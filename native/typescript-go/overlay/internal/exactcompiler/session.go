@@ -623,8 +623,8 @@ func normalizeFileName(id string, root string) (string, error) {
 	if strings.TrimSpace(id) == "" {
 		return "", fmt.Errorf("native compiler request id must be a filename")
 	}
-	absolute := id
-	if !filepath.IsAbs(absolute) {
+	absolute := tspath.NormalizePath(filepath.ToSlash(id))
+	if !tspath.IsRootedDiskPath(absolute) {
 		base := root
 		if strings.TrimSpace(base) == "" {
 			var err error
@@ -636,7 +636,8 @@ func normalizeFileName(id string, root string) (string, error) {
 				)
 			}
 		}
-		if !filepath.IsAbs(base) {
+		base = tspath.NormalizePath(filepath.ToSlash(base))
+		if !tspath.IsRootedDiskPath(base) {
 			var err error
 			base, err = filepath.Abs(base)
 			if err != nil {
@@ -646,10 +647,11 @@ func normalizeFileName(id string, root string) (string, error) {
 					err,
 				)
 			}
+			base = tspath.NormalizePath(filepath.ToSlash(base))
 		}
-		absolute = filepath.Join(base, id)
+		absolute = tspath.GetNormalizedAbsolutePath(absolute, base)
 	}
-	return tspath.NormalizePath(filepath.ToSlash(absolute)), nil
+	return absolute, nil
 }
 
 // nearestTypeScriptConfig finds the project owning one real source file.

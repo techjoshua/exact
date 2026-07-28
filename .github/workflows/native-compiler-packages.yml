@@ -70,6 +70,8 @@ jobs:
         with:
           go-version: '1.26.2'
           cache: false
+      - run: npm ci
+      - run: npm run build -w @exactjs/core
       - name: Checkout pinned TypeScript-Go
         run: node scripts/checkout-native-typescript-go.mjs .tmp/typescript-go-source
       - name: Build and stage package
@@ -94,7 +96,6 @@ jobs:
         if: ${{ matrix.platform == 'linux' && matrix.arch == 'x64' }}
         shell: bash
         run: |
-          npm ci
           npm run build -w @exactjs/compiler
           EXACT_NATIVE_COMPILER="$PWD/.tmp/native-compiler/exactc-native" \
             npm run check:native-compiler-corpus

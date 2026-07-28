@@ -1,7 +1,6 @@
 package exactcompiler
 
 import (
-	"runtime"
 	"sort"
 	"strings"
 	"unicode"
@@ -82,8 +81,10 @@ func assignComponentIDs(
 
 func normalizedIdentityFilename(filename string) string {
 	filename = strings.ReplaceAll(filename, `\`, "/")
-	if runtime.GOOS == "windows" {
-		filename = strings.ToLower(filename)
+	if len(filename) >= 3 &&
+		((filename[1] == ':' && filename[2] == '/') ||
+			strings.HasPrefix(filename, "//")) {
+		return strings.ToLower(filename)
 	}
 	return filename
 }
