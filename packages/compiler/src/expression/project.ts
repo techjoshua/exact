@@ -11,6 +11,7 @@ import type {
 	ExactCompilerSessionOptions,
 	ExactCompilerSessionStats
 } from './session-contracts.js';
+import { classifyExactWatchInvalidation } from './watch-invalidation.js';
 
 /** Owns one persistent native compiler process for a compiler or bundler lifecycle. */
 export class ExactCompilerSession {
@@ -48,7 +49,13 @@ export class ExactCompilerSession {
 		this.assertActive();
 		const started = this.onProfile ? performance.now() : undefined;
 		const absoluteFilename = path.resolve(filename);
-		if (removed || !existsSync(absoluteFilename)) {
+		const kind = classifyExactWatchInvalidation(absoluteFilename);
+		if (kind === 'ignore') {
+			const ignoredResult = emptyInvalidation;
+			this.profile('invalidate', started, { affectedFiles: 0 });
+			return ignoredResult;
+		}
+		if (kind === 'project' || removed || !existsSync(absoluteFilename)) {
 			this.nativeCompiler.request({ kind: 'reset' });
 			const removedResult = Object.freeze({
 				affectedFiles: Object.freeze([absoluteFilename]),
@@ -139,6 +146,11 @@ export class ExactCompilerSession {
 		);
 	}
 }
+
+const emptyInvalidation: ExactCompilerInvalidation = Object.freeze({
+	affectedFiles: Object.freeze([]),
+	diagnostics: Object.freeze([])
+});
 
 function sourceLocation(
 	source: string,
