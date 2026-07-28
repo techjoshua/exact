@@ -185,10 +185,6 @@ export class ExactWebpackPlugin {
 			if (this.options.diagnostics === undefined) configureDiagnostics(true);
 			const modified = [...(current.modifiedFiles ?? [])];
 			const removed = new Set(current.removedFiles ?? []);
-			if (modified.some((file) => /(?:^|[\\/])tsconfig(?:\.[^\\/]+)?\.json$/i.test(file))) {
-				compilerSession.clear();
-				return;
-			}
 			for (const file of modified)
 				reporter(compilerSession.invalidate(file, removed.has(file)), warn);
 			for (const file of removed)

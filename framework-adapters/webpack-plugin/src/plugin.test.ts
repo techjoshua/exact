@@ -1,4 +1,5 @@
-import { rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -133,6 +134,51 @@ describe('@exactjs/webpack-plugin', () => {
 				modifiedFiles: ['/project/tsconfig.json']
 			})
 		).not.toThrow();
+	});
+
+	it('ignores broad watch sets that contain files outside the compiler program', () => {
+		const directory = mkdtempSync(path.join(tmpdir(), 'exact-webpack-watch-'));
+		const style = path.join(directory, 'styles.css');
+		const manifest = path.join(directory, 'manifest.webmanifest');
+		const buildInfo = path.join(directory, 'tsconfig.tsbuildinfo');
+		let watchRun!: (
+			compiler: WebpackCompilerLike & {
+				modifiedFiles?: Iterable<string>;
+				removedFiles?: Iterable<string>;
+			}
+		) => void;
+		let shutdown!: () => void;
+		const compiler: WebpackCompilerLike = {
+			options: {},
+			hooks: {
+				watchRun: {
+					tap(_name, handler) {
+						watchRun = handler;
+					}
+				},
+				shutdown: {
+					tap(_name, handler) {
+						shutdown = handler;
+					}
+				}
+			}
+		};
+		try {
+			writeFileSync(style, '.view { display: grid; }');
+			writeFileSync(manifest, '{"name":"fixture"}');
+			writeFileSync(buildInfo, '{}');
+			new ExactWebpackPlugin().apply(compiler);
+
+			expect(() =>
+				watchRun({
+					options: compiler.options,
+					modifiedFiles: [style, manifest, buildInfo]
+				})
+			).not.toThrow();
+		} finally {
+			shutdown?.();
+			rmSync(directory, { recursive: true, force: true });
+		}
 	});
 
 	it('owns, deduplicates, and releases diagnostics by default in watch mode', () => {

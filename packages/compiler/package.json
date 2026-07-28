@@ -17,6 +17,7 @@
 		"dist/expression/project.*",
 		"dist/expression/session.*",
 		"dist/expression/session-contracts.*",
+		"dist/expression/watch-invalidation.*",
 		"dist/ids.*",
 		"dist/index.*",
 		"dist/manifest",

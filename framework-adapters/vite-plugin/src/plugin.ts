@@ -277,13 +277,11 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				invalidateExactPluginRegistry(preparedRegistry.applicationRoot);
 				preparedRegistry = undefined;
 			}
-			// Semantic changes can originate in imported .ts/.d.ts files or the
-			// project config even when that file itself contains no JSX.
-			if (/(?:^|[\\/])tsconfig(?:\.[^\\/]+)?\.json$/i.test(context.file)) compilerSession.clear();
-			else
-				diagnosticReporter(compilerSession.invalidate(context.file), (message) =>
-					this.warn?.(message)
-				);
+			// The compiler session owns watch-file classification so every
+			// integration applies the same source, project, and asset rules.
+			diagnosticReporter(compilerSession.invalidate(context.file), (message) =>
+				this.warn?.(message)
+			);
 		},
 		watchChange(id, change) {
 			if (options.diagnostics === undefined) configureDiagnostics(true);
@@ -292,11 +290,9 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				invalidateExactPluginRegistry(preparedRegistry.applicationRoot);
 				preparedRegistry = undefined;
 			}
-			if (/(?:^|[\\/])tsconfig(?:\.[^\\/]+)?\.json$/i.test(id)) compilerSession.clear();
-			else
-				diagnosticReporter(compilerSession.invalidate(id, change.event === 'delete'), (message) =>
-					this.warn?.(message)
-				);
+			diagnosticReporter(compilerSession.invalidate(id, change.event === 'delete'), (message) =>
+				this.warn?.(message)
+			);
 		},
 		closeBundle() {
 			compilerSession.dispose();
