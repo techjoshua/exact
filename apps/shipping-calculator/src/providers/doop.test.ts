@@ -33,6 +33,15 @@ describe('DOOP reference rates', () => {
 		);
 	});
 
+	it('returns JSON-serializable feature metadata for server rendering', async () => {
+		const quotes = await doopProvider.quote(normalizeDraft(defaultDraft), context);
+		expect(() => JSON.stringify(quotes)).not.toThrow();
+		expect(
+			quotes.flatMap((quote) => quote.features).some((feature) => 'explanation' in feature)
+		).toBe(true);
+		expect(JSON.parse(JSON.stringify(quotes))).toEqual(quotes);
+	});
+
 	it('uses dimensional weight and adds oversize, signature, and insurance charges', async () => {
 		const request = normalizeDraft({
 			...defaultDraft,

@@ -45,6 +45,7 @@ type jsxRuntimeNames struct {
 	stageTaskMutation      string
 	taskCollectionMutation string
 	taskContinuation       string
+	actionContinuation     string
 	dispatchContinuation   string
 	registerContexts       string
 	inspectionSource       string
@@ -2029,10 +2030,27 @@ func (lowering *jsxLowering) lowerAction(
 		return lowering.visitor.VisitEachChild(node)
 	}
 	dependencyCount := len(work.Parameters())
-	if actionWorkHasContextParameter(work, lowering.sourceFile) {
+	hasAuthoredContext := actionWorkHasContextParameter(work, lowering.sourceFile)
+	if hasAuthoredContext {
 		dependencyCount--
 	}
 	signal, work := lowering.taskSignalExpression(work, dependencyCount)
+	if !hasAuthoredContext && action != nil &&
+		lowering.target == TargetServer &&
+		action.Placement == "server" {
+		parameters := append([]*ast.Node(nil), work.Parameters()...)
+		context := parameters[len(parameters)-1].AsParameterDeclaration()
+		parameters[len(parameters)-1] = lowering.factory.UpdateParameterDeclaration(
+			context,
+			context.Modifiers(),
+			context.DotDotDotToken,
+			context.Name(),
+			context.QuestionToken,
+			lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword),
+			context.Initializer,
+		)
+		work = lowering.updateTaskWorkParameters(work, parameters)
+	}
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(
 		func(current *ast.Node) *ast.Node {
@@ -2095,8 +2113,8 @@ func (lowering *jsxLowering) lowerAction(
 			)
 		}
 		rewrittenWork = lowering.taskHelperCall(
-			"markComponentContinuationTask",
-			lowering.names.taskContinuation,
+			"markComponentContinuationAction",
+			lowering.names.actionContinuation,
 			[]*ast.Node{
 				lowering.factory.NewStringLiteral(action.ID, ast.TokenFlagsNone),
 				rewrittenWork,
@@ -2150,7 +2168,10 @@ func (lowering *jsxLowering) clientActionContinuationWork(
 		"dispatchComponentContinuation",
 		lowering.names.dispatchContinuation,
 		[]*ast.Node{
-			lowering.factory.NewThisExpression(),
+			lowering.factory.NewAsExpression(
+				lowering.factory.NewThisExpression(),
+				lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword),
+			),
 			lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone),
 			args,
 			signal,
@@ -2169,7 +2190,7 @@ func (lowering *jsxLowering) clientActionContinuationWork(
 					lowering.factory.NewVariableDeclaration(
 						context,
 						nil,
-						nil,
+						lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword),
 						contextValue,
 					),
 				}),
@@ -2197,7 +2218,9 @@ func (lowering *jsxLowering) clientActionContinuationWork(
 				lowering.factory.NewToken(ast.KindDotDotDotToken),
 				args,
 				nil,
-				nil,
+				lowering.factory.NewArrayTypeNode(
+					lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword),
+				),
 				nil,
 			),
 		}),
@@ -4186,6 +4209,7 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 		"interactionMutation",
 		"stageTaskMutation",
 		"mutateTaskCollection",
+		"markComponentContinuationAction",
 		"markComponentContinuationTask",
 		"dispatchComponentContinuation",
 		"registerComponentContinuationContexts",
@@ -4340,6 +4364,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		stageTaskMutation:      allocate("__exactStageTaskMutation"),
 		taskCollectionMutation: allocate("__exactTaskCollectionMutation"),
 		taskContinuation:       allocate("__exactContinuationTask"),
+		actionContinuation:     allocate("__exactContinuationAction"),
 		dispatchContinuation:   allocate("__exactDispatchContinuation"),
 		registerContexts:       allocate("__exactRegisterContinuationContexts"),
 		inspectionSource:       allocate("__exactInspectionSource"),

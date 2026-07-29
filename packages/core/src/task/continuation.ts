@@ -2,7 +2,7 @@ import type { ComponentInstance, TaskResult } from '../component/contracts.js';
 
 const exactContinuationTask = Symbol.for('@exactjs/continuation-task');
 
-type TaggedContinuationTask = ((...args: any[]) => TaskResult) & {
+type TaggedContinuationTask = ((...args: any[]) => unknown) & {
 	[exactContinuationTask]?: string;
 };
 
@@ -11,7 +11,20 @@ export function markComponentContinuationTask<T extends (...args: any[]) => Task
 	id: string,
 	work: T
 ): T {
-	if (!id) throw new Error('eXact continuation task id must be non-empty');
+	return markContinuationWork(id, work);
+}
+
+/** Tags compiler-generated action work while preserving its authored result type. */
+export function markComponentContinuationAction<T extends (...args: any[]) => unknown>(
+	id: string,
+	work: T
+): T {
+	return markContinuationWork(id, work);
+}
+
+/** Applies the shared non-enumerable continuation identity without changing callable behavior. */
+function markContinuationWork<T extends (...args: any[]) => unknown>(id: string, work: T): T {
+	if (!id) throw new Error('eXact continuation id must be non-empty');
 	Object.defineProperty(work, exactContinuationTask, {
 		value: id,
 		configurable: false,

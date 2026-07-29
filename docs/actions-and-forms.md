@@ -103,8 +103,15 @@ application-owned messages to fields; it does not create a second form store.
 The compiler lowers placed actions into the existing continuation protocol.
 Only declared argument slots and approved captures cross the boundary.
 Request cancellation and the invocation generation reach the server executor;
-the result returns inside the validated continuation envelope. Stale
+the authored return value comes back through the validated continuation
+envelope with its TypeScript type preserved at the component call site. Stale
 generations cannot commit.
+
+Application code calls the typed function returned by `this.action.server()`.
+It does not acquire the low-level transport client, call `invokeAction()`, or
+name a generated continuation. Server-only imports used by the action body stay
+in the server artifact; the client artifact contains only an opaque compiler
+dispatch stub.
 
 Action contexts, DOM events, elements, functions, services, secrets, and raw
 `FormData` are not transport values. Server endpoints retain allowlisting,

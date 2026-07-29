@@ -135,7 +135,10 @@ source.
 
 Explicit `this.action()` registrations extend the same continuation model with invocation
 arguments, concurrency, opaque operation identity, cancellation fencing, and compiler-owned
-optimistic client preludes for server actions. Finite `createComponentRegistry()` declarations
+optimistic client preludes for server actions. Authored server-action result types survive the
+generated client dispatch stub, while server-only body imports and implementations remain in the
+server artifact. Applications call the returned action function and never name or dispatch an
+operation identifier themselves. Finite `createComponentRegistry()` declarations
 add entry provenance, lazy import/export boundaries, per-entry placement and artifact targets,
 and diagnostic/explain metadata. Dynamic registry keys must be proven by
 `KeyOf<typeof Registry>` or `hasComponent()`.

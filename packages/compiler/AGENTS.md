@@ -51,7 +51,10 @@ component without inheriting the containing component's semantics.
 Keep `this.action()` registrations in setup and preserve compiler-generated action identifiers,
 argument slots, generations, placement, and optimistic preludes. Authored labels are diagnostics,
 not dispatch names. A server action must not transport its `ActionContext`, DOM values, services,
-or secrets.
+or secrets. Preserve authored action return types through generated client stubs, retain action
+body imports in the server artifact, and keep those imports out of client artifacts. Application
+components call the returned action function; do not introduce low-level client access or
+handwritten operation identifiers.
 
 Keep `createComponentRegistry()` declarations finite, immutable, named, and module-scoped.
 Preserve entry provenance, lazy export resolution, placement, artifact targets, and opaque

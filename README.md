@@ -101,7 +101,8 @@ and architecture.
 
 - Fine-grained reactive state, derived values, DOM updates, and keyed collections
 - Long-lived component instances with context, refs, lifecycle, tasks, and cleanup
-- Coordinated actions with cancellation, concurrency, optimistic state, forms, and navigation
+- Coordinated actions with typed server results, compiler-owned opaque dispatch, cancellation,
+  concurrency, optimistic state, forms, and navigation
 - Finite eager/lazy component registries with compiler-checked identity, placement, SSR, and hydration
 - Browser rendering, SSR, streaming, hydration, server actions, and component continuations
 - Vite, Webpack, and Bun compiler integrations

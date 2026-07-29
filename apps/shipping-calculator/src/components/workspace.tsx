@@ -1,7 +1,8 @@
-import { peek, type Component } from '@exactjs/core';
-import { exactClient } from '../client-runtime.js';
+import { peek, type ActionContext, type Component } from '@exactjs/core';
+import { resolveRoute } from '../geography.js';
 import { defaultDraft, draftUrl, normalizeDraft } from '../model.js';
-import type { InitialModel, ProviderResult, RouteResult, ShipmentDraft } from '../types.js';
+import { quoteProvider } from '../providers/registry.js';
+import type { InitialModel, ProviderId, RateRequest, ShipmentDraft } from '../types.js';
 
 import { renderWorkspace } from './workspace/view.js';
 import type { WorkspaceState } from './workspace/contracts.js';
@@ -21,6 +22,16 @@ export function CalculatorWorkspace(
 	this.state.sort = 'recommended';
 	this.state.enabledFilters = peek(() => [...props.initial.configuredProviders]);
 	this.state.restored = false;
+
+	const resolveRouteOnServer = this.action.server('resolve route', (request: RateRequest) =>
+		resolveRoute(request.originZip5, request.destinationZip5)
+	);
+	const quoteProviderOnServer = this.action.server(
+		'quote provider',
+		(id: ProviderId, request: RateRequest, { signal }: ActionContext) =>
+			quoteProvider(id, request, signal),
+		'parallel'
+	);
 
 	this.task(() => {
 		if (props.initial.explicitUrlState) return;
@@ -52,16 +63,14 @@ export function CalculatorWorkspace(
 		const generation = this.state.revision;
 		const ids = props.initial.configuredProviders;
 		this.state.loading = [...ids];
-		const client = exactClient();
-		const routePromise = client.invokeAction('route.resolve', request);
+		const routePromise = resolveRouteOnServer(request);
 		const providerPromises = ids.map((id) => ({
 			id,
-			promise: client.invokeAction(`quote.${id}`, request)
+			promise: quoteProviderOnServer(id, request)
 		}));
 		routePromise
 			.then((result) => {
-				if (generation === this.state.revision && result.state)
-					this.state.route = result.state as RouteResult;
+				if (generation === this.state.revision) this.state.route = result;
 			})
 			.catch(() => {
 				if (signal.aborted || generation !== this.state.revision) return;
@@ -73,10 +82,9 @@ export function CalculatorWorkspace(
 				promise
 					.then((result) => {
 						if (generation !== this.state.revision) return;
-						const provider = result.state as ProviderResult;
 						this.state.providers = [
 							...this.state.providers.filter((item) => item.providerId !== id),
-							provider
+							result
 						];
 						this.state.loading = this.state.loading.filter((item) => item !== id);
 					})

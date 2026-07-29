@@ -160,7 +160,7 @@ function quoteFor(
 				: 'available',
 		priceCents: signaturePrice,
 		selected: signatureSelected,
-		explanation: signatureUnavailable ? 'DOOP Scoot cannot verify an adult recipient' : undefined
+		...(signatureUnavailable ? { explanation: 'DOOP Scoot cannot verify an adult recipient' } : {})
 	});
 	if (signatureSelected && signaturePrice)
 		charges.push({

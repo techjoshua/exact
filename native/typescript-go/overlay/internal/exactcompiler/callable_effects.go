@@ -1482,6 +1482,8 @@ func exactComponentOperation(text string) bool {
 	}
 	return member == "task" ||
 		strings.HasPrefix(member, "task.") ||
+		member == "action" ||
+		strings.HasPrefix(member, "action.") ||
 		strings.HasPrefix(member, "log.") ||
 		strings.HasPrefix(member, "refs.")
 }

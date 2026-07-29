@@ -221,6 +221,7 @@ export {
 } from './symbols.js';
 export { withTaskObserver } from './task/observers.js';
 export {
+	markComponentContinuationAction,
 	markComponentContinuationTask,
 	settledComponentContinuationIds
 } from './task/continuation.js';

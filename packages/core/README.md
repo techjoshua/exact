@@ -39,7 +39,9 @@ const save = this.action.server.deferred(
 
 The returned action exposes reactive pending/result/error status and owns cancellation,
 optimistic rollback, and component disposal. `inspectComponentActions()` returns immutable
-diagnostic snapshots without exposing work callbacks or protocol IDs.
+diagnostic snapshots without exposing work callbacks or protocol IDs. A compiled server action
+preserves its authored return type: application code calls the returned function normally and
+never needs the transport client or a generated continuation identifier.
 
 `createComponentRegistry()` declares a finite immutable set of eager and lazy components.
 Registry members are stable component facades, `KeyOf<typeof Registry>` derives the key union,

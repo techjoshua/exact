@@ -22,6 +22,9 @@ Register named work with `this.action()` during setup when it needs status, conc
 placement, priority, direct invocation, or optimistic state. Keep the final `ActionContext`
 framework-owned, mutate `this.state` directly inside synchronous `optimistic()` blocks, and let
 component disposal cancel active and queued generations.
+Call the typed function returned by `this.action.server()` for distributed work and results.
+Never acquire an `ExactClient`, call low-level dispatch APIs, or author continuation identifiers
+inside a component.
 
 Declare finite dynamic component choices with a named module-level
 `createComponentRegistry()`. Derive keys with `KeyOf`, narrow untrusted strings with

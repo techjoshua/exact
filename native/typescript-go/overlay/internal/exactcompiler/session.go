@@ -481,6 +481,11 @@ func (s *Session) Execute(request Request) Response {
 		generation.checker,
 		request.JSXInterop,
 	)
+	// Contract wrapping synthesizes nested component implementations. Retain
+	// target-local import uses observed after task/action lowering so wrapping
+	// cannot make an authored render-helper reference invisible to import
+	// pruning.
+	targetImportUses := artifactIdentifierUses(transformed)
 	transformed = lowerComponentContracts(
 		transformed,
 		emitContext,
@@ -579,6 +584,7 @@ func (s *Session) Execute(request Request) Response {
 		emitContext.Factory,
 		request,
 		assets,
+		targetImportUses,
 	)
 	if request.ModuleRewrite != nil {
 		transformed, err = rewriteModuleReferences(

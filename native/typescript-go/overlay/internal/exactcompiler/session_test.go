@@ -3173,6 +3173,73 @@ func TestSessionEmitsServerContinuationExecutorContract(t *testing.T) {
 	}
 }
 
+func TestSessionEmitsTypedServerActionArtifactsWithRenderImports(t *testing.T) {
+	root := t.TempDir()
+	helper := filepath.Join(root, "view.tsx")
+	if err := os.WriteFile(
+		helper,
+		[]byte(`
+			export function renderWorkspace() {
+				return "workspace";
+			}
+		`),
+		0o600,
+	); err != nil {
+		t.Fatal(err)
+	}
+	entry := filepath.Join(root, "workspace.tsx")
+	source := `
+		import { renderWorkspace } from "./view.js";
+		declare class Component<State> {
+			state: State;
+			action: {
+				server: (name: string, work: (...args: any[]) => unknown) => unknown;
+			};
+		}
+		export function Workspace(this: Component<{}>) {
+			this.action.server("load", (id: string) => Promise.resolve(id));
+			return () => renderWorkspace();
+		}
+	`
+	session := NewSession(nil)
+	client := session.Execute(Request{
+		ID: entry, Root: root, Kind: "compile", Target: TargetClient, Source: source,
+	})
+	if client.Error != "" {
+		t.Fatal(client.Error)
+	}
+	for _, expected := range []string{
+		`(...__exactActionArgs: any[]) =>`,
+		`const __exactActionContext: any`,
+		`__exactDispatchContinuation(this as any, "`,
+	} {
+		if !strings.Contains(client.Code, expected) {
+			t.Fatalf("client action artifact is missing %q:\n%s", expected, client.Code)
+		}
+	}
+
+	server := session.Execute(Request{
+		ID: entry, Root: root, Kind: "compile", Target: TargetServer, Source: source,
+	})
+	if server.Error != "" {
+		t.Fatal(server.Error)
+	}
+	for _, expected := range []string{
+		`import { renderWorkspace } from "./view.js"`,
+		`markComponentContinuationAction as __exactContinuationAction`,
+		`{ signal: __exactExecution_1.signal, generation: __exactActivation_1.generation } as any`,
+		`value: __exactActionResult_1`,
+	} {
+		if !strings.Contains(server.Code, expected) {
+			t.Fatalf("server action artifact is missing %q:\n%s", expected, server.Code)
+		}
+	}
+	component := findComponent(t, server.Analysis.Components, "Workspace")
+	if component.EnvironmentEffect != "neutral" {
+		t.Fatalf("action registration polluted component placement: %#v", component)
+	}
+}
+
 func TestSessionReconstructsContinuationContextsByResidency(t *testing.T) {
 	response := NewSession(nil).Execute(Request{
 		ID:     "component.tsx",

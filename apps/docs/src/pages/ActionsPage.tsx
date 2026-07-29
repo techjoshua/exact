@@ -91,6 +91,11 @@ export function ActionsPage(this: Component<{}>) {
 					Events, elements, services, secrets, functions, and action contexts never become payload
 					data.
 				</p>
+				<p>
+					Call the typed function returned by <code>this.action.server()</code>, including when its
+					return value is needed. Components never acquire the transport client or name a generated
+					continuation; server-only action imports remain in the server artifact.
+				</p>
 			</section>
 			<section>
 				<h2>Current boundary</h2>

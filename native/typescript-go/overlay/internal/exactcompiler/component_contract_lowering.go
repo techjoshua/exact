@@ -1068,10 +1068,17 @@ func continuationExecutor(
 			),
 		))
 	}
-	arguments = append(
-		arguments,
-		contractObject(factory, false, contextProperties...),
-	)
+	contextArgument := contractObject(factory, false, contextProperties...)
+	if continuation.Kind == "action" {
+		// The server half receives cancellation and generation only. Optimistic
+		// mutation is a client prelude and must never become executable server
+		// authority, even when the authored callback names ActionContext.
+		contextArgument = factory.NewAsExpression(
+			contextArgument,
+			factory.NewKeywordTypeNode(ast.KindAnyKeyword),
+		)
+	}
+	arguments = append(arguments, contextArgument)
 	invocation := factory.NewCallExpression(
 		factory.NewParenthesizedExpression(rewrittenWork),
 		nil,
