@@ -266,5 +266,5 @@ page-host source are excluded.
 
 Runtime instance events, authorization, redaction, Chromium DevTools, and
 microfrontend catalog federation remain outside this static language-tools
-delivery. Their proposed design is documented in
-[`proposals/server-cooperative-full-stack-devtools.md`](proposals/server-cooperative-full-stack-devtools.md).
+package boundary. The implemented runtime projection builds on these source
+identities and is documented in [Server-cooperative full-stack DevTools](devtools.md).

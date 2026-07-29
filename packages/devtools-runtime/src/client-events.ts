@@ -37,7 +37,7 @@ export function createExactClientEventStore(
 				retainedBytes -= events.shift()!.bytes;
 			for (const subscription of listeners)
 				if (exactInspectionEventMatches(event, subscription.filter))
-					subscription.listener(event);
+					deliver(subscription.listener, event);
 		},
 		query(cursor, filter) {
 			const sequence = cursor ? Number.parseInt(cursor, 36) : 0;
@@ -45,13 +45,12 @@ export function createExactClientEventStore(
 				events
 					.map(({ event }) => event)
 					.filter(
-						(event) =>
-							event.sequence > sequence && exactInspectionEventMatches(event, filter)
+						(event) => event.sequence > sequence && exactInspectionEventMatches(event, filter)
 					)
 			);
 		},
 		subscribe(cursor, filter, listener) {
-			for (const event of store.query(cursor, filter)) listener(event);
+			for (const event of store.query(cursor, filter)) deliver(listener, event);
 			const subscription = { filter, listener };
 			listeners.add(subscription);
 			return () => listeners.delete(subscription);
@@ -63,4 +62,15 @@ export function createExactClientEventStore(
 		}
 	};
 	return Object.freeze(store);
+}
+
+function deliver(
+	listener: (event: ExactRuntimeInspectionEvent) => void,
+	event: ExactRuntimeInspectionEvent
+): void {
+	try {
+		listener(event);
+	} catch {
+		// Inspection subscribers are observational and cannot affect application publication.
+	}
 }

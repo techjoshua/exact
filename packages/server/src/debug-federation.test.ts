@@ -1,6 +1,6 @@
 import type { ExactBuildInspectionCatalog } from '@exactjs/devtools-protocol';
 import { describe, expect, it, vi } from 'vitest';
-import { createExactBindingGateway, handleExactRequest } from './index.js';
+import { createExactBindingGateway, exactServerDebugRuntime, handleExactRequest } from './index.js';
 import type { ExactRequestLike, ExactResponseLike, ExactServerContext } from './types.js';
 
 const brandingBuild = '1'.repeat(40);
@@ -43,7 +43,7 @@ describe('federated server inspection', () => {
 				return {
 					...request,
 					headers: new Headers({
-						...(Object.fromEntries(new Headers(request.headers as HeadersInit))),
+						...Object.fromEntries(new Headers(request.headers as HeadersInit)),
 						'x-service-auth': 'trusted-page-host'
 					})
 				};
@@ -56,21 +56,11 @@ describe('federated server inspection', () => {
 		const opened = await handleExactRequest(debugOpen(), page);
 		const parentSessionId = json(opened).session.id as string;
 		const brand = await handleExactRequest(
-			federatedQuery(
-				parentSessionId,
-				'branding',
-				brandingBuild,
-				'@company/branding#./Shell'
-			),
+			federatedQuery(parentSessionId, 'branding', brandingBuild, '@company/branding#./Shell'),
 			page
 		);
 		const bill = await handleExactRequest(
-			federatedQuery(
-				parentSessionId,
-				'billing',
-				billingBuild,
-				'@company/billing#./Area'
-			),
+			federatedQuery(parentSessionId, 'billing', billingBuild, '@company/billing#./Area'),
 			page
 		);
 
@@ -83,6 +73,30 @@ describe('federated server inspection', () => {
 		expect(forwardedHeaders.every((headers) => !headers.has('cookie'))).toBe(true);
 		expect(forwardedHeaders.every((headers) => !headers.has('authorization'))).toBe(true);
 		expect(forwardedHeaders.every((headers) => !headers.has('origin'))).toBe(true);
+
+		exactServerDebugRuntime(branding).observe({
+			kind: 'continuation.execute',
+			buildKey: brandingBuild,
+			executionRoot: '@company/branding#./Shell',
+			componentTypeId: 'component:Shared'
+		});
+		const subscribed = await handleExactRequest(
+			federatedSubscription(
+				parentSessionId,
+				'branding',
+				brandingBuild,
+				'@company/branding#./Shell'
+			),
+			page
+		);
+		const streamed = await subscribed.stream!.getReader().read();
+		const streamedEvent = JSON.parse(new TextDecoder().decode(streamed.value));
+		expect(streamedEvent.id).toMatchObject({
+			sessionId: parentSessionId,
+			binding: 'branding',
+			buildKey: brandingBuild,
+			executionRoot: '@company/branding#./Shell'
+		});
 
 		await handleExactRequest(
 			{
@@ -129,12 +143,7 @@ describe('federated server inspection', () => {
 		const opened = await handleExactRequest(debugOpen(), page);
 		const sessionId = json(opened).session.id as string;
 		const denied = await handleExactRequest(
-			federatedQuery(
-				sessionId,
-				'branding',
-				brandingBuild,
-				'@company/branding#./Shell'
-			),
+			federatedQuery(sessionId, 'branding', brandingBuild, '@company/branding#./Shell'),
 			page
 		);
 		const wrongRoot = await handleExactRequest(
@@ -258,6 +267,29 @@ function federatedQuery(
 					sourceEntityId: 'component:Shared'
 				}
 			}
+		}
+	};
+}
+
+function federatedSubscription(
+	sessionId: string,
+	binding: string,
+	buildKey: string,
+	executionRoot: string
+): ExactRequestLike {
+	return {
+		method: 'POST',
+		url: '/__exact',
+		headers: {
+			'x-exact-binding': binding,
+			'x-exact-build': buildKey
+		},
+		body: {
+			type: 'debug',
+			version: 1,
+			request: 'subscribe',
+			sessionId,
+			filter: { side: 'server', binding, buildKey, executionRoot }
 		}
 	};
 }

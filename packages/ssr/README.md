@@ -32,3 +32,9 @@ otherwise they conservatively replace the root.
 
 See [Actions and forms](../../docs/actions-and-forms.md) and
 [finite component registries](../../docs/component-registries.md).
+
+Request rendering automatically inherits a server inspection owner when its server runtime retains
+the selected build/root catalog. SSR component, state, readiness, and disposal observations fan out
+only to active authorized sessions and do not retain request-owned instances. Lower-level render
+APIs may receive an explicit `inspection` owner. See
+[Server-cooperative full-stack DevTools](../../docs/devtools.md).

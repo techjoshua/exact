@@ -329,6 +329,15 @@ export function createComponentInstance<
 		setActivity(token: symbol, active: boolean, reason = 'activity'): void {
 			if (active) activityBlockers.delete(token);
 			else activityBlockers.add(token);
+			domain.inspection?.publish({
+				kind: 'activity.change',
+				component: instance,
+				reason,
+				attributes: Object.freeze({
+					active: activityBlockers.size === 0,
+					blockers: activityBlockers.size
+				})
+			});
 			activation.update(reason);
 		},
 		updateProps(nextProps): void {
@@ -437,11 +446,7 @@ function publishContextAccess(
 			name: token.description,
 			scope: token.scope,
 			availability:
-				token.keep === 'secret'
-					? 'secret'
-					: token.keep === 'server'
-						? 'resource'
-						: 'value',
+				token.keep === 'secret' ? 'secret' : token.keep === 'server' ? 'resource' : 'value',
 			operation
 		})
 	});

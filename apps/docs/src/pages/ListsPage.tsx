@@ -42,7 +42,7 @@ export function ListsPage(this: Component<{}>) {
 			eyebrow="Learn"
 			title="Lists keep the identity you give them"
 			description="Use ordinary map syntax and mark the field that means identity. Reorders then move the existing item rather than quietly turning it into a different one."
-			previous={{ path: '/learn/language-tools', label: 'Compiler-aware language tools' }}
+			previous={{ path: '/learn/devtools', label: 'Full-stack DevTools' }}
 			next={{ path: '/learn/component-registries', label: 'Component registries' }}
 		>
 			<section>

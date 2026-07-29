@@ -83,6 +83,12 @@ SSR, hydration, or server components. Read
 [runtime-configuration.md](references/runtime-configuration.md) before configuring Vite, Webpack,
 Bun, Node, Fetch runtimes, server frameworks, serverless targets, or eXact plugins.
 
+When configuring runtime inspection, first read the installed `@exactjs/config`, build-adapter,
+`@exactjs/server`, `@exactjs/devtools-runtime`, and consumer package `AGENTS.md` files. Keep
+server-owned catalog output, compact client instrumentation, runtime `allowDebug`, and optional
+operator identity binding separate. Never enable production inspection merely to diagnose a build
+that omitted its catalog or runtime hooks.
+
 ## Prefer eXact's source simplifications
 
 - Choose the simplest form that states the intent completely: ordinary TypeScript first,

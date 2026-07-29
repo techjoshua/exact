@@ -106,6 +106,7 @@ and architecture.
 - Browser rendering, SSR, streaming, hydration, server actions, and component continuations
 - Vite, Webpack, and Bun compiler integrations
 - Compiler-aware language tools with a no-emit project service, LSP server, and VS Code client
+- Optional server-cooperative Chromium DevTools and a read-only CDP agent
 - Routing, accessible form primitives, and compiler-aware component testing
 - React 18 and 19 compatibility for React-owned code
 - Node, Fetch, Express, Fastify, Hapi, Koa, Bun, Deno, Cloudflare, and serverless runtime adapters
@@ -122,6 +123,7 @@ The package-specific READMEs describe the supported APIs and environment boundar
 - [Select finite dynamic components](apps/docs/src/pages/ComponentRegistriesPage.tsx)
 - [Follow one component through the compiler](apps/docs/src/pages/CompilerTourPage.tsx)
 - [Use compiler-aware editor tooling](docs/language-tools.md)
+- [Inspect running browser, server, and microfrontend components](docs/devtools.md)
 - [Read about server execution](apps/docs/src/pages/ServerExecutionPage.tsx)
 - [Review the native compiler architecture](docs/native-compiler.md)
 - [Browse the current engineering references](docs/README.md)

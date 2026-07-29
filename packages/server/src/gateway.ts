@@ -72,7 +72,7 @@ export function createExactBindingGateway(
 				context
 			);
 			if (!child) return reject(options, 'upstream_unavailable', binding, 404);
-			const translated = Object.freeze({ ...input, sessionId: child.childSessionId });
+			const translated = remoteDebugRequest(input, child.childSessionId);
 			const response = await forwardEnvelope(
 				request,
 				translated,
@@ -81,7 +81,13 @@ export function createExactBindingGateway(
 				target.endpoint,
 				context
 			);
-			return translateDebugResponse(response, child.childSessionId, input.sessionId);
+			return translateDebugResponse(
+				response,
+				child.childSessionId,
+				input.sessionId,
+				binding,
+				buildKey
+			);
 		},
 		async closeDebugSession(sessionId, context) {
 			const owned = [...children.entries()].filter(
@@ -239,19 +245,29 @@ function debugRoute(
 function translateDebugResponse(
 	response: ExactResponseLike,
 	childSessionId: string,
-	parentSessionId: string
+	parentSessionId: string,
+	binding: string,
+	buildKey: string
 ): ExactResponseLike {
 	if (response.stream) {
 		return {
 			...response,
-			stream: translateDebugStream(response.stream, childSessionId, parentSessionId)
+			stream: translateDebugStream(
+				response.stream,
+				childSessionId,
+				parentSessionId,
+				binding,
+				buildKey
+			)
 		};
 	}
 	try {
 		const parsed = JSON.parse(response.body);
 		return {
 			...response,
-			body: JSON.stringify(replaceSessionId(parsed, childSessionId, parentSessionId))
+			body: JSON.stringify(
+				translateDebugValue(parsed, childSessionId, parentSessionId, binding, buildKey)
+			)
 		};
 	} catch {
 		return response;
@@ -261,7 +277,9 @@ function translateDebugResponse(
 function translateDebugStream(
 	source: ReadableStream<Uint8Array>,
 	childSessionId: string,
-	parentSessionId: string
+	parentSessionId: string,
+	binding: string,
+	buildKey: string
 ): ReadableStream<Uint8Array> {
 	const reader = source.getReader();
 	const decoder = new TextDecoder();
@@ -292,21 +310,82 @@ function translateDebugStream(
 	function translateLine(line: string): string {
 		if (!line.trim()) return line;
 		return JSON.stringify(
-			replaceSessionId(JSON.parse(line), childSessionId, parentSessionId)
+			translateDebugValue(JSON.parse(line), childSessionId, parentSessionId, binding, buildKey)
 		);
 	}
 }
 
-function replaceSessionId(value: unknown, child: string, parent: string): unknown {
+function translateDebugValue(
+	value: unknown,
+	child: string,
+	parent: string,
+	binding: string,
+	buildKey: string
+): unknown {
 	if (value === child) return parent;
-	if (Array.isArray(value)) return value.map((entry) => replaceSessionId(entry, child, parent));
+	if (Array.isArray(value))
+		return value.map((entry) => translateDebugValue(entry, child, parent, binding, buildKey));
 	if (!value || typeof value !== 'object') return value;
-	return Object.fromEntries(
+	const translated = Object.fromEntries(
 		Object.entries(value).map(([key, entry]) => [
 			key,
-			replaceSessionId(entry, child, parent)
+			translateDebugValue(entry, child, parent, binding, buildKey)
 		])
 	);
+	if (
+		translated.sessionId === parent &&
+		(translated.buildKey === buildKey || translated.side === 'server')
+	)
+		translated.binding = binding;
+	return translated;
+}
+
+function remoteDebugRequest(
+	input: Exclude<ExactDebugRequest, { request: 'open' | 'close' }>,
+	childSessionId: string
+): ExactDebugRequest {
+	if (input.request === 'subscribe') {
+		const { binding: _binding, ...filter } = input.filter ?? {};
+		return Object.freeze({
+			...input,
+			sessionId: childSessionId,
+			...(input.filter ? { filter: Object.freeze(filter) } : {})
+		});
+	}
+	const identity = input.query.params?.identity;
+	const remoteIdentity = identity
+		? Object.freeze({
+				...identity,
+				sessionId: childSessionId,
+				...(identity.binding ? { binding: undefined } : {})
+			})
+		: undefined;
+	return Object.freeze({
+		...input,
+		sessionId: childSessionId,
+		query: Object.freeze({
+			...input.query,
+			...(input.query.params
+				? {
+						params: Object.freeze({
+							...input.query.params,
+							...(remoteIdentity ? { identity: remoteIdentity } : {}),
+							...(input.query.params.filter
+								? {
+										filter: Object.freeze(
+											Object.fromEntries(
+												Object.entries(input.query.params.filter).filter(
+													([key]) => key !== 'binding'
+												)
+											)
+										)
+									}
+								: {})
+						})
+					}
+				: {})
+		})
+	});
 }
 
 function assertSafeTransform(

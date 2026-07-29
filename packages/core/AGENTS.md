@@ -32,3 +32,8 @@ Wrap ordinary application recovery points with the exported `<ErrorBoundary>`. I
 fallback reports captured errors and offers a retry; pass a `fallback` function when the product
 needs custom presentation. Build a custom boundary with `ErrorContext` and `createErrorContext`
 only when capture, reporting, or reset behavior must differ.
+
+Runtime inspection is inherited through `ComponentDomain`; never install a process-global
+component registry or expose raw instances. Publish shallow, immutable, value-free transition
+records only when an owner is attached, preview values through the owner's redactor, and isolate
+all sink failures from lifecycle, scheduling, tasks, actions, and rendering.

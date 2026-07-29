@@ -191,7 +191,27 @@ async function dispatchExactOperationAfterSecurity(
 			request.signal && request.signal !== context.signal
 				? { ...context, signal: request.signal }
 				: context;
-		const result = await handler(input, requestContext);
+		const observedRequestContext = context.debugRuntime
+			? {
+					...requestContext,
+					onContextAccess(
+						observed: Parameters<NonNullable<ExactServerContext['onContextAccess']>>[0]
+					) {
+						requestContext.onContextAccess?.(observed);
+						context.debugRuntime!.observe({
+							kind: 'context.access',
+							...observation,
+							componentTypeId: observed.componentId,
+							operationId: observed.operationId,
+							attributes: Object.freeze({
+								token: observed.token,
+								scope: observed.scope
+							})
+						});
+					}
+				}
+			: requestContext;
+		const result = await handler(input, observedRequestContext);
 		context.debugRuntime?.observe({
 			kind: executor ? 'continuation.respond' : 'action.settle',
 			...observation

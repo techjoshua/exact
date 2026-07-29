@@ -54,3 +54,8 @@ component ownership, or server-operation contracts.
 
 See [Actions and forms](../../docs/actions-and-forms.md) and
 [finite component registries](../../docs/component-registries.md).
+
+When an inspection owner is supplied or installed by the browser runtime, hydration emits
+activation, resumption, continuation, and patch observations under the selected build, binding,
+and execution root. Records carry opaque identities and counts, not response payloads or component
+instances. See [Server-cooperative full-stack DevTools](../../docs/devtools.md).

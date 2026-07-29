@@ -11,3 +11,8 @@ Deliver direct and delegated events through the owning component interaction so 
 asynchronous settlement, error ownership, and cancellation stay coordinated. Registry entry keys
 are component identities: retain same-key ranges, replace different-key ranges, and discard stale
 lazy candidates without disturbing compatible siblings.
+
+For instrumented builds, use the weak root registry and `createExactDomInspectionHost()` for late
+attachment, logical element ownership, and highlighting. Remove disposed roots immediately and
+restore authored element styles on disconnect. Do not return `Mounted`, `Root`, component
+instances, handlers, refs, or DOM mutation capabilities through the inspection host.

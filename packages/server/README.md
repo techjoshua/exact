@@ -23,3 +23,19 @@ and invocation generation through their runtime context, and return the authored
 inside the validated continuation envelope.
 
 See [Actions, interactions, optimistic state, and forms](../../docs/actions-and-forms.md).
+
+## Server-cooperative inspection
+
+`allowDebug` enables bounded read-only queries at the existing eXact endpoint. It accepts a boolean
+or asynchronous per-capability resolver and defaults unavailable in production. Use
+`debugSessionIdentity` to bind an opened session to the authenticated operator identity selected by
+the application. All requests remain subject to the endpoint's origin, CSRF, request-limit, and
+adapter policies.
+
+Pass server-owned compiler catalogs through `inspectionCatalogs`. Dynamic retained builds use
+`registerExactInspectionCatalog()` and dispose the returned handle when the build retires; lookup
+requires the exact build and execution root. `createExactBindingGateway()` routes registered remote
+roots through their existing endpoints, strips browser credentials, and requires independent
+remote authorization.
+
+See [Server-cooperative full-stack DevTools](../../docs/devtools.md).

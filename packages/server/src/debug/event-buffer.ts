@@ -56,13 +56,15 @@ export function createExactInspectionEventBuffer(
 			}
 			for (const subscriber of subscribers) {
 				if (exactInspectionEventMatches(event, subscriber.filter))
-					subscriber.listener(event);
+					deliver(subscriber.listener, event);
 			}
 		},
 		query(cursor, filter) {
 			const offset = decodeCursor(cursor);
 			const selected = events
-				.filter(({ event }) => event.sequence > offset && exactInspectionEventMatches(event, filter))
+				.filter(
+					({ event }) => event.sequence > offset && exactInspectionEventMatches(event, filter)
+				)
 				.map(({ event }) => event);
 			return Object.freeze({
 				events: Object.freeze(selected),
@@ -72,7 +74,7 @@ export function createExactInspectionEventBuffer(
 		subscribe(cursor, filter, listener) {
 			for (const event of events) {
 				if (event.event.sequence <= decodeCursor(cursor)) continue;
-				if (exactInspectionEventMatches(event.event, filter)) listener(event.event);
+				if (exactInspectionEventMatches(event.event, filter)) deliver(listener, event.event);
 			}
 			const subscription = { filter, listener };
 			subscribers.add(subscription);
@@ -85,6 +87,17 @@ export function createExactInspectionEventBuffer(
 		}
 	};
 	return Object.freeze(buffer);
+}
+
+function deliver(
+	listener: (event: ExactRuntimeInspectionEvent) => void,
+	event: ExactRuntimeInspectionEvent
+): void {
+	try {
+		listener(event);
+	} catch {
+		// Debug transport failures cannot escape into observed server work.
+	}
 }
 
 function decodeCursor(cursor: string | undefined): number {

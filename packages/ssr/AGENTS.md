@@ -11,3 +11,8 @@ Render eager and lazy registry entries through the ordinary component and Suspen
 Preserve the compiler-owned registry binding, selected key, and opaque entry identity in
 hydratable component markers. Compose distributed action handlers from generated artifacts rather
 than deriving endpoints from authored labels.
+
+Request rendering should inherit the server debug runtime's owner for the exact selected
+build/execution root. Keep SSR observations request-owned and value-free, release components after
+render, and never retain VNodes, instances, contexts, source text, or response bodies in event
+history. Explicit low-level owners remain acceptable for tests and tooling.

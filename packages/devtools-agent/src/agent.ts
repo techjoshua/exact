@@ -1,4 +1,5 @@
 import {
+	isExactRuntimeInspectionEvent,
 	parseExactInspectionRequest,
 	parseExactInspectionSubscription,
 	type ExactInspectionQueryService,
@@ -29,7 +30,10 @@ export async function connectExactDevtoolsAgent(
 	await cdp.request('Runtime.addBinding', { name: bindingName });
 	const eventListeners = new Map<
 		string,
-		(event: ExactRuntimeInspectionEvent) => void
+		Readonly<{
+			listener: (event: ExactRuntimeInspectionEvent) => void;
+			sequences: Map<string, number>;
+		}>
 	>();
 	const removeEventListener = cdp.onEvent((method, params) => {
 		if (method !== 'Runtime.bindingCalled' || !bindingPayload(params)) return;
@@ -39,13 +43,29 @@ export async function connectExactDevtoolsAgent(
 				subscriptionId?: unknown;
 				event?: ExactRuntimeInspectionEvent;
 			};
-			if (typeof message.subscriptionId !== 'string' || !message.event) return;
-			eventListeners.get(message.subscriptionId)?.(message.event);
+			if (
+				typeof message.subscriptionId !== 'string' ||
+				!isExactRuntimeInspectionEvent(message.event) ||
+				message.event.id.sessionId !== connectedSessionId
+			)
+				return;
+			const subscription = eventListeners.get(message.subscriptionId);
+			if (!subscription) return;
+			const host = JSON.stringify([
+				message.event.id.side,
+				message.event.id.binding ?? '',
+				message.event.id.buildKey,
+				message.event.id.executionRoot
+			]);
+			if (message.event.sequence <= (subscription.sequences.get(host) ?? 0)) return;
+			subscription.sequences.set(host, message.event.sequence);
+			subscription.listener(message.event);
 		} catch {
 			// Malformed page messages are ignored and never reflected into CDP evaluation.
 		}
 	});
 	const connected = await callHook<{ id: string }>(cdp, hook, connectFunction);
+	const connectedSessionId = connected.id;
 	const subscriptions = new Map<string, ExactInspectionSubscriptionHandle>();
 	let disconnected = false;
 	let nextSubscription = 1;
@@ -66,7 +86,10 @@ export async function connectExactDevtoolsAgent(
 			if (request.sessionId !== connected.id) return closedSubscription();
 			const subscriptionId = `agent-${nextSubscription++}`;
 			let closed = false;
-			eventListeners.set(subscriptionId, listener);
+			eventListeners.set(
+				subscriptionId,
+				Object.freeze({ listener, sequences: new Map() })
+			);
 			void callHook(cdp, hook, subscribeFunction, [subscriptionId, request]).catch(() => {
 				eventListeners.delete(subscriptionId);
 				closed = true;
@@ -80,9 +103,7 @@ export async function connectExactDevtoolsAgent(
 					closed = true;
 					eventListeners.delete(subscriptionId);
 					subscriptions.delete(subscriptionId);
-					void callHook(cdp, hook, unsubscribeFunction, [subscriptionId]).catch(
-						() => undefined
-					);
+					void callHook(cdp, hook, unsubscribeFunction, [subscriptionId]).catch(() => undefined);
 				}
 			});
 			subscriptions.set(subscriptionId, handle);
@@ -164,9 +185,7 @@ const unsubscribeFunction = `function (subscriptionId) {
 	subscriptions?.delete(subscriptionId);
 }`;
 
-function bindingPayload(
-	params: unknown
-): params is { name: string; payload: string } {
+function bindingPayload(params: unknown): params is { name: string; payload: string } {
 	return (
 		typeof params === 'object' &&
 		params !== null &&

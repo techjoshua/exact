@@ -51,6 +51,7 @@ export function initializeSuspense(
 		mounted.children = candidate;
 		suspense.revealed = true;
 	}
+	publishSuspenseChange(mounted);
 	suspense.owner.markMounted();
 }
 
@@ -62,6 +63,7 @@ export function prepareSuspense(
 ): void {
 	let queuedGeneration: number | undefined;
 	const coordinator = createReadinessCoordinator((pending, generation, retry) => {
+		publishSuspenseChange(mounted);
 		if (pending) {
 			retainSuspenseTransition(mounted);
 			return;
@@ -151,10 +153,12 @@ export function updateSuspense(
 			for (const child of mounted.children) placeMountedBefore(root, parent, child, mounted.end);
 			suspense.revealed = false;
 		}
+		publishSuspenseChange(mounted);
 		return;
 	}
 	replacePresentedChildren(root, parent, mounted, candidate);
 	suspense.revealed = true;
+	publishSuspenseChange(mounted);
 }
 
 function commitSuspenseCandidate(root: Root, mounted: Mounted, generation: number): void {
@@ -172,6 +176,22 @@ function commitSuspenseCandidate(root: Root, mounted: Mounted, generation: numbe
 	replacePresentedChildren(root, parent, mounted, candidate.children);
 	suspense.revealed = true;
 	releaseSuspenseTransition(mounted);
+	publishSuspenseChange(mounted);
+}
+
+function publishSuspenseChange(mounted: Mounted): void {
+	const suspense = mounted.suspense;
+	if (!suspense) return;
+	suspense.owner.domain.inspection?.publish({
+		kind: 'suspense.change',
+		component: suspense.owner,
+		attributes: Object.freeze({
+			pending: suspense.coordinator.pending,
+			generation: suspense.coordinator.generation,
+			revealed: suspense.revealed,
+			hasCandidate: !!suspense.candidate
+		})
+	});
 }
 
 function replacePresentedChildren(

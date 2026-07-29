@@ -47,6 +47,7 @@
 		"check:typescript-compatibility": "node scripts/check-typescript-compatibility.mjs",
 		"benchmark:reactive": "node scripts/benchmark-reactive.mjs && node scripts/benchmark-dom-list.mjs",
 		"benchmark:expressions": "node scripts/benchmark-expressions.mjs && node scripts/benchmark-compiler-workflow.mjs && node scripts/benchmark-language-service.mjs",
+		"benchmark:devtools": "node scripts/benchmark-devtools.mjs",
 		"poc:native-checker": "npm run build -w @exactjs/expressions && node experiments/typescript7-native-checker/probe.mjs",
 		"check:expressions": "node scripts/check-expressions-roundtrip.mjs",
 		"check:native-compiler-corpus": "node scripts/check-native-compiler-corpus.mjs",

@@ -6,6 +6,7 @@ const root = process.cwd();
 const guidedPackages = [
 	'packages/core',
 	'packages/compiler',
+	'packages/config',
 	'packages/language-server',
 	'packages/vscode-extension',
 	'packages/reactive',
@@ -13,10 +14,17 @@ const guidedPackages = [
 	'packages/ssr',
 	'packages/hydrate',
 	'packages/server',
+	'packages/plugin-host',
+	'packages/instrumentation',
+	'packages/devtools-protocol',
+	'packages/devtools-runtime',
+	'packages/devtools-agent',
+	'packages/chromium-devtools',
 	'packages/jsx-runtime',
 	'component-libraries/forms',
 	'component-libraries/router',
-	'framework-adapters/vite-plugin'
+	'framework-adapters/vite-plugin',
+	'plugins/secrets'
 ];
 const repositoryGuides = ['apps/docs/AGENTS.md'];
 
@@ -49,12 +57,20 @@ for (const guidePath of repositoryGuides) {
 const featureGuideRequirements = new Map([
 	['packages/core/AGENTS.md', ['this.action()', 'createComponentRegistry()']],
 	['packages/compiler/AGENTS.md', ['action identifiers', 'registry identity']],
+	['packages/config/AGENTS.md', ['debug.catalog', 'allowDebug']],
 	['packages/language-server/AGENTS.md', ['stale-result', 'standard LSP', 'untrusted workspace']],
 	['packages/vscode-extension/AGENTS.md', ['presentation', 'workspace.isTrusted', 'classifier']],
 	['packages/reactive/AGENTS.md', ['Optimistic action rollback']],
 	['packages/dom/AGENTS.md', ['component interaction', 'Registry entry keys']],
 	['packages/hydrate/AGENTS.md', ['invocation generations', 'component registries']],
 	['packages/server/AGENTS.md', ['Action continuations']],
+	['packages/plugin-host/AGENTS.md', ['prepared `debug` config', 'client projection']],
+	['packages/instrumentation/AGENTS.md', ['observational', 'raw component instances']],
+	['packages/devtools-protocol/AGENTS.md', ['read-only', 'redaction before traversal']],
+	['packages/devtools-runtime/AGENTS.md', ['read-only', 'dispose']],
+	['packages/devtools-agent/AGENTS.md', ['CDP', 'arbitrary JavaScript']],
+	['packages/chromium-devtools/AGENTS.md', ['read-only', 'page bridge']],
+	['plugins/secrets/AGENTS.md', ['never enter', 'redaction selectors']],
 	['packages/ssr/AGENTS.md', ['registry entries', 'action handlers']],
 	['packages/jsx-runtime/AGENTS.md', ['InteractionHandler', 'registry']],
 	['component-libraries/forms/AGENTS.md', ['interaction host']],
@@ -79,7 +95,8 @@ for (const required of [
 	'<ErrorBoundary>',
 	'className:token',
 	'`Map` and `Set`',
-	'createExactLanguageService()'
+	'createExactLanguageService()',
+	'runtime inspection'
 ]) {
 	if (skill.includes(required)) continue;
 	console.error(`eXact agent skill is missing current guidance: ${required}`);

@@ -37,3 +37,9 @@ Keep `createComponentRegistry()` declarations finite, immutable, named, and modu
 Preserve entry provenance, lazy export resolution, placement, artifact targets, and opaque
 registry identity through analysis and explanation output. Diagnose an unproven key or ownership
 boundary instead of lowering it to an open runtime lookup.
+
+Derive DevTools catalogs and compact runtime correlation from the canonical source inspection; do
+not recreate entity ordering in an adapter or UI. Rich classifications, reasons, paths, source
+text, and redaction selectors belong only to server artifacts. Client output may carry opaque
+correlation identities only. Hardened transforms set both inspection controls to `false` and must
+leave no catalog or optional registration.

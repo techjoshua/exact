@@ -73,7 +73,7 @@ export function LanguageToolsPage(this: Component<{}>) {
 			title="See what the compiler sees"
 			description="eXact Language Tools explains setup, render work, tasks, placement, dependencies, effects, and ownership while you edit—using the same native analysis that builds the application."
 			previous={{ path: '/learn/compiler-tour', label: 'Inside the compiler' }}
-			next={{ path: '/learn/lists', label: 'Keyed lists' }}
+			next={{ path: '/learn/devtools', label: 'Full-stack DevTools' }}
 		>
 			<section>
 				<h2>Compiler meaning at the source</h2>

@@ -8,6 +8,7 @@ import type {
 	ComponentResumptionActivation,
 	Logger
 } from '@exactjs/core';
+import type { ExactRuntimeInspectionOwner } from '@exactjs/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
 import type {
 	ExactBuildInspectionCatalog,
@@ -151,6 +152,8 @@ export type ExactServerContextConfiguration = {
 	inspectionCatalogs?: readonly ExactBuildInspectionCatalog[];
 	/** Authorizes one session or capability and defaults off in production. */
 	allowDebug?: ExactAllowDebug;
+	/** Selects the authenticated browser/operator identity bound to an opened debug session. */
+	debugSessionIdentity?: ExactDebugSessionIdentity;
 	/** Resource ceilings for bounded inspection sessions, snapshots, events, and source excerpts. */
 	debugLimits?: ExactDebugLimits;
 	/** Optional live snapshot/query projection for server-owned runtime observations. */
@@ -177,6 +180,11 @@ export type ExactServerContextConfiguration = {
 export type ExactAllowDebug =
 	| boolean
 	| ((context: ExactDebugAuthorizationContext) => boolean | Promise<boolean>);
+
+/** Application-owned authenticated identity used to prevent session transfer between operators. */
+export type ExactDebugSessionIdentity = (
+	context: ExactDebugAuthorizationContext
+) => string | undefined | Promise<string | undefined>;
 
 /** Trusted request context supplied to the application-owned debug authorizer. */
 export type ExactDebugAuthorizationContext = Readonly<{
@@ -519,6 +527,16 @@ export interface ExactServerDebugRuntime {
 	/** Revalidates a page session before the binding gateway creates or uses a remote child. */
 	authorize(request: ExactRequestLike, input: ExactDebugRequest): Promise<boolean>;
 	close(): Promise<void>;
+	/** Registers one retained build catalog; disposing the handle retires that exact build. */
+	registerCatalog(catalog: ExactBuildInspectionCatalog): Readonly<{ dispose(): void }>;
+	/** Creates a request/root owner that fans component observations out to active sessions. */
+	inspectionOwner(
+		options: Readonly<{
+			buildKey: string;
+			executionRoot: string;
+			binding?: string;
+		}>
+	): ExactRuntimeInspectionOwner;
 	publish(event: ExactRuntimeInspectionEvent): void;
 	/** Publishes one server observation to each currently authorized attached session. */
 	observe(
@@ -526,6 +544,7 @@ export interface ExactServerDebugRuntime {
 			kind: ExactRuntimeInspectionEvent['kind'];
 			buildKey: string;
 			executionRoot: string;
+			binding?: string;
 			componentTypeId: string;
 			instanceId?: string;
 			sourceEntityId?: string;

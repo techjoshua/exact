@@ -9,6 +9,7 @@ import {
 	type ExactInspectionRuntimeId,
 	type ExactInspectionSubscription,
 	type ExactInspectionSubscriptionHandle,
+	type ExactInspectionExecutionRoot,
 	type ExactInspectedRuntimeComponent,
 	type ExactRuntimeInspectionEvent
 } from '@exactjs/devtools-protocol';
@@ -43,9 +44,7 @@ export function createExactClientInspectionQueryService(
 			}
 			const snapshot = correlatedSnapshot(options.dom.snapshot().components, options.correlations);
 			const serverOwned =
-				request.params?.identity?.side === 'server' &&
-				options.serverConnected &&
-				options.server;
+				request.params?.identity?.side === 'server' && options.serverConnected && options.server;
 			if (
 				serverOwned &&
 				[
@@ -61,12 +60,7 @@ export function createExactClientInspectionQueryService(
 				return options.server!.query(options.sessionId, request);
 			switch (request.method) {
 				case 'roots.list':
-					return mergedServerCollection(
-						request,
-						options,
-						options.dom.snapshot().roots,
-						maxResults
-					);
+					return mergedServerCollection(request, options, options.dom.snapshot().roots, maxResults);
 				case 'microfrontends.list':
 					return collection(
 						request,
@@ -95,18 +89,27 @@ export function createExactClientInspectionQueryService(
 						props: component.props
 					}));
 				case 'contexts.list':
-					return componentResponse(request, options.sessionId, snapshot, (component) =>
-						component.contexts
+					return componentResponse(
+						request,
+						options.sessionId,
+						snapshot,
+						(component) => component.contexts
 					);
 				case 'tasks.list':
-					return componentResponse(request, options.sessionId, snapshot, (component) =>
-						component.tasks
+					return componentResponse(
+						request,
+						options.sessionId,
+						snapshot,
+						(component) => component.tasks
 					);
 				case 'tasks.get':
 					return nestedResponse(request, options.sessionId, snapshot, 'tasks');
 				case 'actions.list':
-					return componentResponse(request, options.sessionId, snapshot, (component) =>
-						component.actions
+					return componentResponse(
+						request,
+						options.sessionId,
+						snapshot,
+						(component) => component.actions
 					);
 				case 'actions.get':
 					return nestedResponse(request, options.sessionId, snapshot, 'actions');
@@ -130,19 +133,25 @@ export function createExactClientInspectionQueryService(
 			}
 			if (request.sessionId !== options.sessionId) return closedSubscription();
 			let closed = false;
-			const cursors = splitHostCursor(request.cursor);
-			const unsubscribe = options.events.subscribe(cursors.client, request.filter, listener);
-			const { cursor: _cursor, ...subscription } = request;
-			const remote =
-				options.serverConnected && options.server
-					? options.server.subscribe(
-							{
-								...subscription,
-								...(cursors.server ? { cursor: cursors.server } : {})
-							},
-							listener
-						)
-					: undefined;
+			const cursors = splitHostCursors(request.cursor);
+			const closes: Array<() => void> = [
+				options.events.subscribe(cursors.get(CLIENT_HOST), request.filter, listener)
+			];
+			if (options.serverConnected && options.server) {
+				for (const target of serverTargets(options.dom.snapshot().roots, request.filter)) {
+					const cursor = cursors.get(target.key);
+					const remote = options.server.subscribe(
+						{
+							protocol: 1,
+							sessionId: request.sessionId,
+							...(cursor ? { cursor } : {}),
+							...(target.filter ? { filter: target.filter } : {})
+						},
+						listener
+					);
+					closes.push(() => remote.close());
+				}
+			}
 			return Object.freeze({
 				get closed() {
 					return closed;
@@ -150,8 +159,7 @@ export function createExactClientInspectionQueryService(
 				close() {
 					if (closed) return;
 					closed = true;
-					unsubscribe();
-					remote?.close();
+					for (const close of closes) close();
 				}
 			});
 		}
@@ -165,83 +173,139 @@ async function mergedTimeline(
 	maximum: number,
 	errorsOnly = false
 ): Promise<ExactInspectionResponse> {
-	const cursors = splitHostCursor(request.params?.page?.cursor);
+	const cursors = splitHostCursors(request.params?.page?.cursor);
 	const filter = errorsOnly
 		? { ...request.params?.filter, kinds: ['error'] }
 		: request.params?.filter;
-	const clientEvents = options.events.query(cursors.client, filter);
-	let serverEvents: readonly ExactRuntimeInspectionEvent[] = [];
-	let serverCursor = cursors.server;
-	let remoteNextCursor: string | undefined;
-	if (options.serverConnected && options.server) {
-		try {
-			const remote = await options.server.query(options.sessionId, {
-				...request,
-				params: {
-					...request.params,
-					filter,
-					page: {
-						limit: maximum,
-						...(cursors.server ? { cursor: cursors.server } : {})
-					}
-				}
-			});
-			if (remote.ok && Array.isArray(remote.result)) {
-				serverEvents = remote.result.filter(isExactRuntimeInspectionEvent);
-				remoteNextCursor = remote.page?.nextCursor;
-			}
-		} catch {
-			// Preserve the attached client branch when server cooperation disappears.
+	const hosts: Array<Readonly<{ key: string; events: readonly ExactRuntimeInspectionEvent[] }>> = [
+		{
+			key: CLIENT_HOST,
+			events: options.events.query(cursors.get(CLIENT_HOST), filter)
 		}
+	];
+	if (options.serverConnected && options.server) {
+		hosts.push(
+			...(await Promise.all(
+				serverTargets(options.dom.snapshot().roots, filter).map(async (target) => {
+					try {
+						const cursor = cursors.get(target.key);
+						const remote = await options.server!.query(options.sessionId, {
+							...request,
+							params: {
+								...request.params,
+								filter: target.filter,
+								page: {
+									limit: maximum,
+									...(cursor ? { cursor } : {})
+								}
+							}
+						});
+						return Object.freeze({
+							key: target.key,
+							events:
+								remote.ok && Array.isArray(remote.result)
+									? remote.result.filter(isExactRuntimeInspectionEvent)
+									: []
+						});
+					} catch {
+						return Object.freeze({ key: target.key, events: [] });
+					}
+				})
+			))
+		);
 	}
 	const limit = Math.min(request.params?.page?.limit ?? 100, maximum);
 	const selected: ExactRuntimeInspectionEvent[] = [];
-	let clientIndex = 0;
-	let serverIndex = 0;
-	let clientCursor = cursors.client;
-	while (
-		selected.length < limit &&
-		(clientIndex < clientEvents.length || serverIndex < serverEvents.length)
-	) {
-		if (clientIndex < clientEvents.length && selected.length < limit) {
-			const event = clientEvents[clientIndex++]!;
+	const indexes = new Map(hosts.map((host) => [host.key, 0]));
+	while (selected.length < limit) {
+		let progressed = false;
+		for (const host of hosts) {
+			const index = indexes.get(host.key) ?? 0;
+			const event = host.events[index];
+			if (!event || selected.length >= limit) continue;
 			selected.push(event);
-			clientCursor = event.cursor;
+			indexes.set(host.key, index + 1);
+			cursors.set(host.key, event.cursor);
+			progressed = true;
 		}
-		if (serverIndex < serverEvents.length && selected.length < limit) {
-			const event = serverEvents[serverIndex++]!;
-			selected.push(event);
-			serverCursor = event.cursor;
+		if (!progressed) break;
+	}
+	const hasMore = hosts.some((host) => (indexes.get(host.key) ?? 0) < host.events.length);
+	const nextCursor =
+		selected.length || hasMore ? joinHostCursors(cursors) : request.params?.page?.cursor;
+	return success(request, options.sessionId, Object.freeze(selected), nextCursor);
+}
+
+const CLIENT_HOST = '$client';
+const PAGE_SERVER_HOST = '$server';
+
+function splitHostCursors(cursor: string | undefined): Map<string, string> {
+	if (!cursor) return new Map();
+	if (cursor.startsWith('m2:')) {
+		try {
+			const decoded = JSON.parse(decodeURIComponent(cursor.slice(3))) as unknown;
+			if (!decoded || typeof decoded !== 'object' || Array.isArray(decoded)) return new Map();
+			return new Map(
+				Object.entries(decoded)
+					.filter(
+						(entry): entry is [string, string] =>
+							entry[0].length <= 512 && typeof entry[1] === 'string' && entry[1].length <= 512
+					)
+					.slice(0, 32)
+			);
+		} catch {
+			return new Map();
 		}
 	}
-	const hasMore = clientIndex < clientEvents.length || serverIndex < serverEvents.length;
-	if (!serverEvents.length && remoteNextCursor) serverCursor = remoteNextCursor;
-	const nextCursor =
-		selected.length || hasMore
-			? joinHostCursor(clientCursor, serverCursor)
-			: request.params?.page?.cursor;
-	return success(
-		request,
-		options.sessionId,
-		Object.freeze(selected),
-		nextCursor
-	);
-}
-
-function splitHostCursor(cursor: string | undefined): {
-	client?: string;
-	server?: string;
-} {
-	if (!cursor?.startsWith('m:')) return cursor ? { client: cursor, server: cursor } : {};
+	if (!cursor.startsWith('m:'))
+		return new Map([
+			[CLIENT_HOST, cursor],
+			[PAGE_SERVER_HOST, cursor]
+		]);
 	const [, client = '', server = ''] = cursor.split(':', 3);
-	return {
-		...(client && client !== '-' ? { client: decodeURIComponent(client) } : {}),
-		...(server && server !== '-' ? { server: decodeURIComponent(server) } : {})
-	};
+	return new Map([
+		...(client && client !== '-' ? ([[CLIENT_HOST, decodeURIComponent(client)]] as const) : []),
+		...(server && server !== '-' ? ([[PAGE_SERVER_HOST, decodeURIComponent(server)]] as const) : [])
+	]);
 }
 
-function joinHostCursor(client: string | undefined, server: string | undefined): string {
-	return `m:${client ? encodeURIComponent(client) : '-'}:${server ? encodeURIComponent(server) : '-'}`;
+function joinHostCursors(cursors: ReadonlyMap<string, string>): string {
+	const sorted = [...cursors].sort(([left], [right]) => left.localeCompare(right));
+	return `m2:${encodeURIComponent(JSON.stringify(Object.fromEntries(sorted)))}`;
+}
+
+type ServerTarget = Readonly<{
+	key: string;
+	filter: ExactInspectionSubscription['filter'];
+}>;
+
+function serverTargets(
+	roots: readonly ExactInspectionExecutionRoot[],
+	filter: ExactInspectionSubscription['filter']
+): readonly ServerTarget[] {
+	if (filter?.side === 'client') return [];
+	const targets: ServerTarget[] = [];
+	if (!filter?.binding) targets.push({ key: PAGE_SERVER_HOST, filter });
+	const seen = new Set<string>();
+	for (const root of roots) {
+		if (!root.binding || (filter?.binding && filter.binding !== root.binding)) continue;
+		if (filter?.buildKey && filter.buildKey !== root.buildKey) continue;
+		if (filter?.executionRoot && filter.executionRoot !== root.executionRoot) continue;
+		const key = `binding:${root.binding}:${root.buildKey}:${root.executionRoot}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		targets.push({
+			key,
+			filter: {
+				...filter,
+				side: 'server',
+				binding: root.binding,
+				buildKey: root.buildKey,
+				executionRoot: root.executionRoot
+			}
+		});
+	}
+	return targets;
 }
 
 async function mergedServerCollection(
@@ -252,12 +316,35 @@ async function mergedServerCollection(
 ): Promise<ExactInspectionResponse> {
 	let serverValues: readonly unknown[] = [];
 	if (options.serverConnected && options.server) {
-		try {
-			const remote = await options.server.query(options.sessionId, request);
-			if (remote.ok && Array.isArray(remote.result)) serverValues = remote.result;
-		} catch {
-			// Client inspection remains available when server cooperation disconnects.
-		}
+		const responses = await Promise.all(
+			serverTargets(options.dom.snapshot().roots, request.params?.filter).map(async (target) => {
+				try {
+					const route = target.filter;
+					const remote = await options.server!.query(options.sessionId, {
+						...request,
+						...(target.key === PAGE_SERVER_HOST
+							? {}
+							: {
+									params: {
+										...request.params,
+										identity: {
+											sessionId: options.sessionId,
+											side: 'server',
+											binding: route?.binding!,
+											buildKey: route?.buildKey!,
+											executionRoot: route?.executionRoot!,
+											componentTypeId: 'execution-root'
+										}
+									}
+								})
+					});
+					return remote.ok && Array.isArray(remote.result) ? remote.result : [];
+				} catch {
+					return [];
+				}
+			})
+		);
+		serverValues = Object.freeze(responses.flat());
 	}
 	return collection(
 		request,
@@ -336,8 +423,7 @@ function nestedResponse(
 	key: 'tasks' | 'actions'
 ): ExactInspectionResponse {
 	const component = findComponent(request.params?.identity, components);
-	const sourceEntityId =
-		request.params?.sourceEntityId ?? request.params?.identity?.sourceEntityId;
+	const sourceEntityId = request.params?.sourceEntityId ?? request.params?.identity?.sourceEntityId;
 	const record = component?.[key].find((entry) => entry.id.sourceEntityId === sourceEntityId);
 	return record
 		? success(request, sessionId, record)
@@ -379,15 +465,11 @@ function success(
 		ok: true,
 		identity: Object.freeze({
 			sessionId,
-			...(request.params?.identity?.buildKey
-				? { buildKey: request.params.identity.buildKey }
-				: {}),
+			...(request.params?.identity?.buildKey ? { buildKey: request.params.identity.buildKey } : {}),
 			...(request.params?.identity?.executionRoot
 				? { executionRoot: request.params.identity.executionRoot }
 				: {}),
-			...(request.params?.identity?.binding
-				? { binding: request.params.identity.binding }
-				: {})
+			...(request.params?.identity?.binding ? { binding: request.params.identity.binding } : {})
 		}),
 		result,
 		...(nextCursor

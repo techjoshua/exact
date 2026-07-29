@@ -17,6 +17,7 @@ export type ExactDebugSession = {
 	expiresAt: number;
 	readonly capabilities: Set<ExactDebugCapability>;
 	readonly closeListeners: Set<() => void>;
+	readonly authenticatedIdentity?: string;
 };
 
 /** Session lifecycle and revocation operations owned by one server context. */
@@ -53,6 +54,12 @@ export function createExactDebugSessionManager(
 			for (const capability of capabilities) {
 				if (!(await authorize(context, request, capability))) return undefined;
 			}
+			const authenticatedIdentity = await resolveIdentity(
+				context,
+				request,
+				capabilities[0] ?? 'snapshot'
+			);
+			if (authenticatedIdentity === null) return undefined;
 			const openedAt = Date.now();
 			const session: ExactDebugSession = {
 				id: randomSessionId(),
@@ -60,7 +67,8 @@ export function createExactDebugSessionManager(
 				absoluteExpiry: openedAt + lifetime,
 				expiresAt: Math.min(openedAt + inactivity, openedAt + lifetime),
 				capabilities: new Set(capabilities),
-				closeListeners: new Set()
+				closeListeners: new Set(),
+				...(authenticatedIdentity ? { authenticatedIdentity } : {})
 			};
 			sessions.set(session.id, session);
 			return session;
@@ -72,6 +80,14 @@ export function createExactDebugSessionManager(
 				return undefined;
 			}
 			if (!(await authorize(context, request, capability))) {
+				manager.close(sessionId);
+				return undefined;
+			}
+			const authenticatedIdentity = await resolveIdentity(context, request, capability);
+			if (
+				authenticatedIdentity === null ||
+				authenticatedIdentity !== session.authenticatedIdentity
+			) {
 				manager.close(sessionId);
 				return undefined;
 			}
@@ -125,19 +141,44 @@ async function authorize(
 		return process.env.NODE_ENV !== 'production' && !!context.inspectionCatalogs?.length;
 	if (typeof policy === 'boolean') return policy;
 	try {
-		return await policy({
-			request,
-			platformRequest: request.platformRequest ?? context.platformRequest,
-			capability,
-			binding: requestHeader(request, 'x-exact-binding'),
-			buildKey: requestHeader(request, 'x-exact-build'),
-			executionRoots: context.inspectionCatalogs?.flatMap((catalog) =>
-				Object.keys(catalog.roots)
-			) ?? []
-		} satisfies ExactDebugAuthorizationContext);
+		return await policy(authorizationContext(context, request, capability));
 	} catch {
 		return false;
 	}
+}
+
+async function resolveIdentity(
+	context: ExactServerContext,
+	request: ExactRequestLike,
+	capability: ExactDebugCapability
+): Promise<string | undefined | null> {
+	if (!context.debugSessionIdentity) return undefined;
+	try {
+		const identity = await context.debugSessionIdentity(
+			authorizationContext(context, request, capability)
+		);
+		return typeof identity === 'string' && identity.length > 0 && identity.length <= 512
+			? identity
+			: null;
+	} catch {
+		return null;
+	}
+}
+
+function authorizationContext(
+	context: ExactServerContext,
+	request: ExactRequestLike,
+	capability: ExactDebugCapability
+): ExactDebugAuthorizationContext {
+	return {
+		request,
+		platformRequest: request.platformRequest ?? context.platformRequest,
+		capability,
+		binding: requestHeader(request, 'x-exact-binding'),
+		buildKey: requestHeader(request, 'x-exact-build'),
+		executionRoots:
+			context.inspectionCatalogs?.flatMap((catalog) => Object.keys(catalog.roots)) ?? []
+	};
 }
 
 function expired(session: ExactDebugSession): boolean {

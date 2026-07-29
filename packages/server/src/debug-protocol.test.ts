@@ -103,7 +103,7 @@ describe('server-cooperative debug protocol', () => {
 
 	it('requires source capability and a matching hash while redacting known secret literals', async () => {
 		const context = server({
-			allowDebug: ({ capability }) => capability !== 'source' ? true : true,
+			allowDebug: ({ capability }) => (capability !== 'source' ? true : true),
 			inspectionSources: {
 				[`${buildKey}\0page\0src/Page.tsx`]: {
 					buildKey,
@@ -114,10 +114,7 @@ describe('server-cooperative debug protocol', () => {
 				}
 			}
 		});
-		const opened = await handleExactRequest(
-			debugOpen(['snapshot']),
-			context
-		);
+		const opened = await handleExactRequest(debugOpen(['snapshot']), context);
 		const sessionId = responseJson(opened).session.id as string;
 		const source = await handleExactRequest(
 			debugQuery(sessionId, 'source.excerpt', {
@@ -210,6 +207,37 @@ describe('server-cooperative debug protocol', () => {
 		);
 		expect(response.status).toBe(404);
 		expect(allowDebug).not.toHaveBeenCalled();
+	});
+
+	it('binds a session to the application-selected authenticated identity', async () => {
+		const context = server({
+			allowDebug: true,
+			debugSessionIdentity: ({ request }) =>
+				request.headers instanceof Headers
+					? (request.headers.get('x-user') ?? undefined)
+					: (request.headers?.['x-user'] as string | undefined)
+		});
+		const opened = await handleExactRequest(
+			{ ...debugOpen(), headers: { 'x-user': 'operator-a' } },
+			context
+		);
+		const sessionId = responseJson(opened).session.id as string;
+		const transferred = await handleExactRequest(
+			{
+				...debugQuery(sessionId, 'timeline.query', { page: { limit: 1 } }),
+				headers: { 'x-user': 'operator-b' }
+			},
+			context
+		);
+		expect(transferred.status).toBe(404);
+		const originalAfterTransfer = await handleExactRequest(
+			{
+				...debugQuery(sessionId, 'timeline.query', { page: { limit: 1 } }),
+				headers: { 'x-user': 'operator-a' }
+			},
+			context
+		);
+		expect(originalAfterTransfer.status).toBe(404);
 	});
 
 	it('reauthorizes idle event streams and closes them after resolver revocation', async () => {

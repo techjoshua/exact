@@ -158,3 +158,15 @@ Current guides: [actions and forms](../../docs/actions-and-forms.md) and
 [finite component registries](../../docs/component-registries.md). Language
 service contracts and editor behavior are documented in
 [compiler-aware language tools](../../docs/language-tools.md).
+
+## Runtime inspection artifacts
+
+`emitInspection` retains the compiler's rich source model for a server-owned catalog, while
+`instrumentInspection` independently appends compact client correlation. Artifact compilation
+aggregates module inspection into one deterministic build/root catalog under `.exact-inspection`;
+server transforms never receive client registration code. Use
+`createExactInspectionRedactions()` for qualified selectors without values and
+`assertExactClientArtifactIsolation()` to reject catalog reachability from a public graph.
+
+Hardened builds disable both controls. See
+[Server-cooperative full-stack DevTools](../../docs/devtools.md).

@@ -3,10 +3,7 @@ import {
 	type ExactBuildInspectionCatalog,
 	type ExactInspectionRuntimeId
 } from './identity.js';
-import type {
-	ExactInspectedMicrofrontend,
-	ExactRuntimeInspectionEvent
-} from './runtime.js';
+import type { ExactInspectedMicrofrontend, ExactRuntimeInspectionEvent } from './runtime.js';
 
 /** Read-only methods understood by both Chromium and agent consumers. */
 export const EXACT_INSPECTION_METHODS = Object.freeze([
@@ -167,7 +164,7 @@ export function parseExactInspectionSubscription(
 		!onlyKeys(value, ['protocol', 'sessionId', 'cursor', 'filter'])
 	)
 		throw new TypeError('Invalid eXact inspection subscription');
-	if (value.cursor !== undefined && !boundedString(value.cursor, 256))
+	if (value.cursor !== undefined && !boundedString(value.cursor, 2_048))
 		throw new TypeError('Invalid eXact inspection subscription cursor');
 	if (value.filter !== undefined) validateFilter(value.filter, options.maxFilterKinds ?? 32);
 	return value as ExactInspectionSubscription;
@@ -237,10 +234,7 @@ function validateParams(
 		if (value[key] !== undefined && !boundedString(value[key], key === 'path' ? 2048 : 512))
 			throw new TypeError(`Invalid eXact inspection ${key}`);
 	if (value.page !== undefined) {
-		if (
-			!record(value.page) ||
-			!onlyKeys(value.page, ['limit', 'cursor'])
-		)
+		if (!record(value.page) || !onlyKeys(value.page, ['limit', 'cursor']))
 			throw new TypeError('Invalid eXact inspection pagination');
 		if (
 			value.page.limit !== undefined &&
@@ -249,11 +243,10 @@ function validateParams(
 				(value.page.limit as number) > (options.maxResults ?? 500))
 		)
 			throw new RangeError('eXact inspection page limit exceeded');
-		if (value.page.cursor !== undefined && !boundedString(value.page.cursor, 256))
+		if (value.page.cursor !== undefined && !boundedString(value.page.cursor, 2_048))
 			throw new TypeError('Invalid eXact inspection cursor');
 	}
-	if (value.filter !== undefined)
-		validateFilter(value.filter, options.maxFilterKinds ?? 32);
+	if (value.filter !== undefined) validateFilter(value.filter, options.maxFilterKinds ?? 32);
 }
 
 function validateFilter(value: unknown, maxFilterKinds: number): void {

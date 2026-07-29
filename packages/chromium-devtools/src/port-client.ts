@@ -1,6 +1,7 @@
 import type {
 	ExactInspectionRequest,
-	ExactInspectionResponse
+	ExactInspectionResponse,
+	ExactRuntimeInspectionEvent
 } from '@exactjs/devtools-protocol';
 import type {
 	ExactExtensionQueryClient,
@@ -17,13 +18,14 @@ type ExactExtensionRequestWithoutId = ExactExtensionRequest extends infer Reques
 /** Creates request/response ownership over the inspected tab's extension port. */
 export function createExactExtensionQueryClient(tabId: number): ExactExtensionQueryClient {
 	const port = chrome.runtime.connect({ name: `exact-devtools-panel:${tabId}` });
-	const pending = new Map<
-		string,
-		{ resolve(value: any): void; reject(error: unknown): void }
-	>();
+	const pending = new Map<string, { resolve(value: any): void; reject(error: unknown): void }>();
+	const subscriptions = new Map<string, (event: ExactRuntimeInspectionEvent) => void>();
 	let nextId = 1;
 	port.onMessage.addListener((message: ExactExtensionResponse) => {
-		if (!('id' in message)) return;
+		if (!('id' in message)) {
+			subscriptions.get(message.subscriptionId)?.(message.event);
+			return;
+		}
 		const request = pending.get(message.id);
 		if (!request) return;
 		pending.delete(message.id);
@@ -38,7 +40,28 @@ export function createExactExtensionQueryClient(tabId: number): ExactExtensionQu
 		connect: () => send({ type: 'connect' }) as Promise<{ id: string }>,
 		request: async (request: ExactInspectionRequest) =>
 			(await send({ type: 'query', request })) as ExactInspectionResponse,
+		async subscribe(sessionId, cursor, listener) {
+			const result = (await send({
+				type: 'subscribe',
+				sessionId,
+				...(cursor ? { cursor } : {})
+			})) as { subscriptionId: string };
+			subscriptions.set(result.subscriptionId, listener);
+			let closed = false;
+			return Object.freeze({
+				async close() {
+					if (closed) return;
+					closed = true;
+					subscriptions.delete(result.subscriptionId);
+					await send({
+						type: 'unsubscribe',
+						subscriptionId: result.subscriptionId
+					}).catch(() => undefined);
+				}
+			});
+		},
 		disconnect: async () => {
+			subscriptions.clear();
 			await send({ type: 'disconnect' }).catch(() => undefined);
 			port.disconnect();
 		},

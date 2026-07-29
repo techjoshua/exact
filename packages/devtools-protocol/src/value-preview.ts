@@ -106,10 +106,8 @@ function preview(
 		return Object.freeze({ kind: 'unavailable', reason: typeof value });
 	try {
 		if (domNode(value)) return previewDom(value);
-		if (depth >= state.limits.maxDepth)
-			return objectPreview(typeName(value), [], true);
-		if (state.seen.has(value))
-			return Object.freeze({ kind: 'unavailable', reason: 'cycle' });
+		if (depth >= state.limits.maxDepth) return objectPreview(typeName(value), [], true);
+		if (state.seen.has(value)) return Object.freeze({ kind: 'unavailable', reason: 'cycle' });
 		state.seen.add(value);
 		if (value instanceof Map) return previewMap(value, path, depth, state);
 		if (value instanceof Set) return previewSet(value, path, depth, state);
@@ -192,7 +190,10 @@ function previewMap(
 				value: objectPreview(
 					'Entry',
 					[
-						Object.freeze({ key: 'key', value: preview(key, [...path, label, 'key'], depth + 1, state) }),
+						Object.freeze({
+							key: 'key',
+							value: preview(key, [...path, label, 'key'], depth + 1, state)
+						}),
 						Object.freeze({
 							key: 'value',
 							value: preview(item, [...path, label, 'value'], depth + 1, state)
@@ -224,13 +225,41 @@ function previewSet(
 
 function scalarString(value: string, state: PreviewState): ExactValuePreview {
 	const truncated = value.length > state.limits.maxStringLength;
-	const output = truncated ? `${value.slice(0, state.limits.maxStringLength)}…` : value;
-	state.bytes += output.length;
+	const characterBounded = truncated ? value.slice(0, state.limits.maxStringLength) : value;
+	const remaining = Math.max(0, state.limits.maxBytes - state.bytes);
+	const output = boundedStringPreview(characterBounded, truncated, remaining);
+	state.bytes += new TextEncoder().encode(output).byteLength;
 	return Object.freeze({ kind: 'scalar', value: output });
 }
 
+function boundedStringPreview(value: string, alreadyTruncated: boolean, maxBytes: number): string {
+	const encoder = new TextEncoder();
+	if (!alreadyTruncated && encoder.encode(value).byteLength <= maxBytes) return value;
+	const suffix = maxBytes >= 3 ? '…' : '';
+	const contentBudget = Math.max(0, maxBytes - encoder.encode(suffix).byteLength);
+	let low = 0;
+	let high = value.length;
+	while (low < high) {
+		const middle = Math.ceil((low + high) / 2);
+		const candidate = safeUtf16Prefix(value, middle);
+		if (encoder.encode(candidate).byteLength <= contentBudget) low = middle;
+		else high = middle - 1;
+	}
+	return `${safeUtf16Prefix(value, low)}${suffix}`;
+}
+
+function safeUtf16Prefix(value: string, length: number): string {
+	let end = Math.min(length, value.length);
+	if (end > 0 && end < value.length) {
+		const code = value.charCodeAt(end - 1);
+		if (code >= 0xd800 && code <= 0xdbff) end--;
+	}
+	return value.slice(0, end);
+}
+
 function reserve(key: string, state: PreviewState): boolean {
-	if (state.entries >= state.limits.maxEntries || state.bytes >= state.limits.maxBytes) return false;
+	if (state.entries >= state.limits.maxEntries || state.bytes >= state.limits.maxBytes)
+		return false;
 	state.entries++;
 	state.bytes += key.length;
 	return true;
@@ -271,12 +300,7 @@ function previewDom(value: {
 		const id = ownDataProperty(value, 'id');
 		const className = ownDataProperty(value, 'className');
 		const classes =
-			typeof className === 'string'
-				? className
-						.split(/\s+/)
-						.filter(Boolean)
-						.slice(0, 10)
-				: [];
+			typeof className === 'string' ? className.split(/\s+/).filter(Boolean).slice(0, 10) : [];
 		return Object.freeze({
 			kind: 'dom',
 			tag: typeof nodeName === 'string' ? nodeName.toLowerCase().slice(0, 64) : 'element',
@@ -293,7 +317,9 @@ function ownDataProperty(value: object, key: PropertyKey): unknown {
 	return descriptor && 'value' in descriptor ? descriptor.value : undefined;
 }
 
-function normalizeLimits(limits: ExactValuePreviewLimits | undefined): Required<ExactValuePreviewLimits> {
+function normalizeLimits(
+	limits: ExactValuePreviewLimits | undefined
+): Required<ExactValuePreviewLimits> {
 	return {
 		maxDepth: positive(limits?.maxDepth, defaults.maxDepth, 20),
 		maxEntries: positive(limits?.maxEntries, defaults.maxEntries, 10_000),

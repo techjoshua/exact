@@ -6,8 +6,8 @@ Implemented by the compiler source-inspection contracts and no-emit language
 service, `@exactjs/language-server`, and the eXact VS Code extension. The current
 public contract is documented in [`../language-tools.md`](../language-tools.md).
 
-Runtime instance inspection and Chromium DevTools remain outside this delivery
-and are designed in
+Runtime instance inspection and Chromium DevTools remain outside this static
+language-tools delivery and are implemented separately by
 [`server-cooperative-full-stack-devtools.md`](server-cooperative-full-stack-devtools.md).
 The implemented source identities and vocabulary are their static foundation;
 they are not dispatch identities or authorization capabilities.

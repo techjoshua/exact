@@ -11,3 +11,9 @@ Action continuations accept only compiler-declared argument slots. Supply cancel
 invocation generation through trusted runtime context, return the authored value inside the
 validated envelope, and keep authored labels, action contexts, services, secrets, and raw DOM or
 form objects out of the transport contract.
+
+For DevTools, keep `allowDebug` separate from build output and default it unavailable in production.
+Use `debugSessionIdentity` for restricted operator sessions, exact build/root catalog lookup, and
+the existing eXact endpoint and binding gateway. Never treat debug IDs as invocation selectors,
+forward browser credentials to component hosts, or include values in audit records. Dispose
+dynamic catalog registrations and child sessions with their retained build/page session.

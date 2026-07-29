@@ -15,6 +15,7 @@ These documents describe behavior that exists in the repository today:
 | [component-language.md](component-language.md)                                   | Complete native component and TSX authoring reference.                     |
 | [component-registries.md](component-registries.md)                               | Finite eager/lazy component selection, identity, SSR, and hydration.       |
 | [distributed-component-continuations.md](distributed-component-continuations.md) | Compiler-distributed client/server component state machines.               |
+| [devtools.md](devtools.md)                                                       | Authorized browser/server inspection, federation, redaction, and agents.   |
 | [framework-plugins.md](framework-plugins.md)                                     | Plugin discovery, configuration, projections, and lifecycle.               |
 | [instrumentation.md](instrumentation.md)                                         | Optional profiling contracts and event collection.                         |
 | [jsx-cells.md](jsx-cells.md)                                                     | Internal reactive JSX cell and mounted-range model.                        |

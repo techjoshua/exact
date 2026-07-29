@@ -10,8 +10,7 @@ describe('eXact CDP agent adapter', () => {
 		const transport: ExactCdpTransport = {
 			async request<Result>(method, params = {}) {
 				methods.push(method);
-				if (method === 'Runtime.evaluate')
-					return { result: { objectId: 'hook-1' } } as Result;
+				if (method === 'Runtime.evaluate') return { result: { objectId: 'hook-1' } } as Result;
 				if (method === 'Runtime.callFunctionOn') {
 					declarations.push(String(params.functionDeclaration));
 					if (String(params.functionDeclaration).includes('this.connect'))
@@ -55,6 +54,71 @@ describe('eXact CDP agent adapter', () => {
 		expect(declarations.every((declaration) => !declaration.includes('components.tree'))).toBe(
 			true
 		);
+		const observed: number[] = [];
+		agent.subscribe({ protocol: 1, sessionId: 'session-1' }, (event) =>
+			observed.push(event.sequence)
+		);
+		listener?.('Runtime.bindingCalled', {
+			name: '__exactDevtoolsAgentBinding',
+			payload: JSON.stringify({
+				subscriptionId: 'agent-1',
+				event: {
+					protocol: 1,
+					cursor: '1',
+					sequence: 1,
+					timestamp: 1,
+					kind: 'component.mount',
+					id: {
+						sessionId: 'other-session',
+						side: 'client',
+						buildKey: 'build',
+						executionRoot: 'page',
+						componentTypeId: 'component:Page'
+					}
+				}
+			})
+		});
+		listener?.('Runtime.bindingCalled', {
+			name: '__exactDevtoolsAgentBinding',
+			payload: JSON.stringify({
+				subscriptionId: 'agent-1',
+				event: {
+					protocol: 1,
+					cursor: '2',
+					sequence: 2,
+					timestamp: 2,
+					kind: 'component.mount',
+					id: {
+						sessionId: 'session-1',
+						side: 'client',
+						buildKey: 'build',
+						executionRoot: 'page',
+						componentTypeId: 'component:Page'
+					}
+				}
+			})
+		});
+		listener?.('Runtime.bindingCalled', {
+			name: '__exactDevtoolsAgentBinding',
+			payload: JSON.stringify({
+				subscriptionId: 'agent-1',
+				event: {
+					protocol: 1,
+					cursor: '2',
+					sequence: 2,
+					timestamp: 2,
+					kind: 'component.mount',
+					id: {
+						sessionId: 'session-1',
+						side: 'client',
+						buildKey: 'build',
+						executionRoot: 'page',
+						componentTypeId: 'component:Page'
+					}
+				}
+			})
+		});
+		expect(observed).toEqual([2]);
 		await agent.disconnect();
 		expect(methods).toContain('Runtime.removeBinding');
 		expect(methods).toContain('Runtime.releaseObjectGroup');

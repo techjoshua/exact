@@ -13,3 +13,7 @@ Optimistic action rollback is implemented with internal mutation journals. Prese
 array-sequence, Map-entry, and Set-membership granularity so rollback does not overwrite later
 authoritative writes. Applications should not call journal internals or maintain a parallel
 optimistic store.
+
+`onMutation` is a framework diagnostic boundary. Invoke it after a successful mutation, isolate
+its failures, and report only the mutated key and operation. Do not pass values, read reactive
+state from the callback, create dependencies, or change batching and notification order.

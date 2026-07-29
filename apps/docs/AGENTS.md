@@ -13,3 +13,7 @@ For compiler-aware language tools, keep the public route, navigation/search
 metadata, no-emit compiler contract, LSP/VS Code ownership split, trust
 boundary, task-refactor limitations, and package map aligned with
 `docs/language-tools.md`.
+
+For full-stack DevTools, keep build controls, `allowDebug`, redaction, catalog identity,
+microfrontend federation, Chromium/agent read-only behavior, and package ownership aligned with
+`docs/devtools.md`.

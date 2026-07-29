@@ -25,3 +25,9 @@ portal output—without losing component, node, ref, handler, or form-control id
 
 See [Actions and forms](../../docs/actions-and-forms.md) and
 [finite component registries](../../docs/component-registries.md).
+
+Instrumented builds maintain a weak active-root registry for late DevTools attachment.
+`createExactDomInspectionHost()` projects logical components, execution roots, element ownership,
+Activity/Suspense status, and owned elements without returning renderer internals. Disposed roots
+are removed immediately, and disconnecting inspection does not affect rendering. See
+[Server-cooperative full-stack DevTools](../../docs/devtools.md).

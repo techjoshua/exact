@@ -44,3 +44,15 @@ unbranded values use the active React layer. Reference the matching
 
 See [Actions and forms](../../docs/actions-and-forms.md) and
 [finite component registries](../../docs/component-registries.md).
+
+## DevTools build output
+
+The plugin reads `debug` from its options or prepared eXact config. On server builds, `catalog`
+collects target-neutral compiler inspection once per authored module and emits one private
+`.exact-inspection/<buildKey>.json` asset. Client builds never receive that catalog. On client
+builds, `runtime` emits compact correlation and injects `@exactjs/devtools-runtime` before the
+application entry. Set both controls to `false` for hardened output.
+
+Production deployments should provide the same immutable `buildKey` and `executionRoot` to their
+client and server builds, register the emitted catalog with the server runtime, and configure
+`allowDebug` separately. See [Server-cooperative full-stack DevTools](../../docs/devtools.md).

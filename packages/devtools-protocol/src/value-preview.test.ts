@@ -35,9 +35,12 @@ describe('safe eXact value previews', () => {
 				}
 			}
 		);
-		const preview = previewExactValue({ apiKey: guarded }, {
-			redact: (path) => (path.join('.') === 'apiKey' ? 'secret' : undefined)
-		});
+		const preview = previewExactValue(
+			{ apiKey: guarded },
+			{
+				redact: (path) => (path.join('.') === 'apiKey' ? 'secret' : undefined)
+			}
+		);
 		expect(preview).toMatchObject({
 			kind: 'object',
 			entries: [{ key: 'apiKey', value: { kind: 'redacted', reason: 'secret' } }]
@@ -84,5 +87,13 @@ describe('safe eXact value previews', () => {
 		});
 		expect(previewExactValue(value)).toMatchObject({ kind: 'dom', tag: 'element' });
 		expect(reads).toBe(0);
+	});
+
+	it('bounds UTF-8 preview bytes without splitting surrogate pairs', () => {
+		const preview = previewExactValue('😀😀😀😀', { limits: { maxBytes: 8 } });
+		expect(preview).toEqual({ kind: 'scalar', value: '😀…' });
+		expect(
+			new TextEncoder().encode((preview as { value: string }).value).byteLength
+		).toBeLessThanOrEqual(8);
 	});
 });

@@ -1,10 +1,12 @@
 import {
 	exactDebugCapabilityForRequest,
+	isExactRuntimeInspectionEvent,
 	type ExactDebugCapability,
 	type ExactDebugRequest,
 	type ExactInspectionRuntimeId,
 	type ExactRuntimeInspectionEvent
 } from '@exactjs/devtools-protocol';
+import { createExactRuntimeInspectionOwner } from '@exactjs/core';
 import { jsonResponse } from '../protocol.js';
 import type {
 	ExactDebugLimits,
@@ -28,6 +30,14 @@ export function exactServerDebugRuntime(context: ExactServerContext): ExactServe
 	const runtime = createExactServerDebugRuntime(context);
 	debugRuntimes.set(context, runtime);
 	return runtime;
+}
+
+/** Couples one server-owned inspection catalog to its retained build lifecycle. */
+export function registerExactInspectionCatalog(
+	context: ExactServerContext,
+	catalog: Parameters<ExactServerDebugRuntime['registerCatalog']>[0]
+): Readonly<{ dispose(): void }> {
+	return exactServerDebugRuntime(context).registerCatalog(catalog);
 }
 
 /** Creates catalog, session, event, query, and streaming ownership for one server context. */
@@ -90,7 +100,10 @@ export function createExactServerDebugRuntime(
 				maxSourceExcerptBytes: limits.maxSourceExcerptBytes
 			});
 			audit(context, session.id, input.query.method, input.query.params?.identity, response);
-			return jsonResponse(response.ok ? 200 : response.error === 'bad-request' ? 400 : 404, response);
+			return jsonResponse(
+				response.ok ? 200 : response.error === 'bad-request' ? 400 : 404,
+				response
+			);
 		},
 		async authorize(request, input) {
 			if (closed || input.request === 'open' || input.request === 'close') return false;
@@ -107,8 +120,38 @@ export function createExactServerDebugRuntime(
 			events.clear();
 			catalogs.dispose();
 		},
+		registerCatalog(catalog) {
+			if (closed) throw new Error('Cannot register a catalog on a closed debug runtime');
+			return catalogs.register(catalog);
+		},
+		inspectionOwner(options) {
+			if (closed) throw new Error('Cannot inspect through a closed debug runtime');
+			const owner = createExactRuntimeInspectionOwner({
+				...options,
+				side: 'server'
+			});
+			owner.attach('server-observation', {
+				publish(event) {
+					runtime.observe({
+						kind: event.kind,
+						buildKey: event.id.buildKey,
+						executionRoot: event.id.executionRoot,
+						...(event.id.binding ? { binding: event.id.binding } : {}),
+						componentTypeId: event.id.componentTypeId,
+						...(event.id.instanceId ? { instanceId: event.id.instanceId } : {}),
+						...(event.id.sourceEntityId ? { sourceEntityId: event.id.sourceEntityId } : {}),
+						...(event.id.operationId ? { operationId: event.id.operationId } : {}),
+						...(event.id.generation === undefined ? {} : { generation: event.id.generation }),
+						...(event.requestId ? { requestId: event.requestId } : {}),
+						...(event.reason ? { reason: event.reason } : {}),
+						...(event.attributes ? { attributes: event.attributes } : {})
+					});
+				}
+			});
+			return owner;
+		},
 		publish(event) {
-			if (closed) return;
+			if (closed || !isExactRuntimeInspectionEvent(event)) return;
 			events.publish(event);
 		},
 		observe(event) {
@@ -126,6 +169,7 @@ export function createExactServerDebugRuntime(
 						id: Object.freeze({
 							sessionId: session.id,
 							side: 'server',
+							...(event.binding ? { binding: event.binding } : {}),
 							buildKey: event.buildKey,
 							executionRoot: event.executionRoot,
 							componentTypeId: event.componentTypeId,
@@ -179,13 +223,20 @@ function eventStream(
 				controller.close();
 			};
 			const publish = (event: ExactRuntimeInspectionEvent): void => {
-				void owners.sessions.require(request, sessionId, 'events').then((session) => {
-					if (!session) {
-						close();
-						return;
-					}
-					controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
-				});
+				void owners.sessions
+					.require(request, sessionId, 'events')
+					.then((session) => {
+						if (!session) {
+							close();
+							return;
+						}
+						try {
+							controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+						} catch {
+							close();
+						}
+					})
+					.catch(close);
 			};
 			unsubscribe = owners.events.subscribe(input.cursor, input.filter, publish);
 			void owners.sessions.require(request, sessionId, 'events').then((session) => {
@@ -193,12 +244,11 @@ function eventStream(
 				else {
 					unregisterClose = owners.sessions.onClose(session, close);
 					authorizationTimer = setInterval(() => {
-						void owners.sessions
-							.require(request, sessionId, 'events')
-							.then((authorized) => {
-								if (!authorized) close();
-							});
+						void owners.sessions.require(request, sessionId, 'events').then((authorized) => {
+							if (!authorized) close();
+						});
 					}, 1_000);
+					(authorizationTimer as { unref?: () => void }).unref?.();
 				}
 			});
 		},
@@ -267,16 +317,20 @@ function audit(
 	response: unknown
 ): void {
 	if (!context.onDebugAudit) return;
-	context.onDebugAudit(
-		Object.freeze({
-			sessionId,
-			method,
-			...(identity?.binding ? { binding: identity.binding } : {}),
-			...(identity?.buildKey ? { buildKey: identity.buildKey } : {}),
-			...(identity?.executionRoot ? { executionRoot: identity.executionRoot } : {}),
-			resultBytes: new TextEncoder().encode(JSON.stringify(response)).byteLength
-		})
-	);
+	try {
+		context.onDebugAudit(
+			Object.freeze({
+				sessionId,
+				method,
+				...(identity?.binding ? { binding: identity.binding } : {}),
+				...(identity?.buildKey ? { buildKey: identity.buildKey } : {}),
+				...(identity?.executionRoot ? { executionRoot: identity.executionRoot } : {}),
+				resultBytes: new TextEncoder().encode(JSON.stringify(response)).byteLength
+			})
+		);
+	} catch {
+		// Application audit failures cannot change an already-authorized read-only query.
+	}
 }
 
 function requestHeader(request: ExactRequestLike, name: string): string | undefined {

@@ -79,3 +79,9 @@ require returning the complete collection.
 
 Current guides: [actions and forms](../../docs/actions-and-forms.md) and
 [finite component registries](../../docs/component-registries.md).
+
+Instrumented component domains may carry an `ExactRuntimeInspectionOwner`. While attached, it
+publishes immutable lifecycle, state, props, task, action, render invalidation, Activity, and
+Suspense observations. `inspectExactRuntimeComponent()` returns bounded previews without exposing
+the durable instance, callbacks, controllers, or resources. Sink failures never participate in
+application behavior. See [Server-cooperative full-stack DevTools](../../docs/devtools.md).

@@ -26,3 +26,8 @@ later authoritative writes. Application code reaches that behavior through `this
 than calling journal internals.
 
 See [Actions, interactions, optimistic state, and forms](../../docs/actions-and-forms.md).
+
+Framework integrations may supply `ReactiveOptions.onMutation` to observe a mutation key and
+operation after the reactive write. The callback is diagnostic-only: failures are isolated and it
+must not read application values, add dependencies, or alter scheduling. eXact component domains
+use this boundary for value-free DevTools state-change records.

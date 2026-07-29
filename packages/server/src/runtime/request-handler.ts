@@ -61,7 +61,11 @@ export {
 	type ExactInspectionCatalogRegistration,
 	type ExactInspectionCatalogRegistry
 } from '../debug/catalog-registry.js';
-export { createExactServerDebugRuntime, exactServerDebugRuntime } from '../debug/runtime.js';
+export {
+	createExactServerDebugRuntime,
+	exactServerDebugRuntime,
+	registerExactInspectionCatalog
+} from '../debug/runtime.js';
 export type * from '../types.js';
 
 /** Handles an eXact endpoint request using the runtime-neutral server protocol. */
@@ -151,10 +155,7 @@ async function handleExactRequestOwned(
 			logReject(context, 'rejected exact invocation for unknown binding');
 			return jsonResponse(404, { error: 'unknown_binding' });
 		}
-		if (
-			input.type === 'debug' &&
-			!(await context.debugRuntime!.authorize(request, input))
-		)
+		if (input.type === 'debug' && !(await context.debugRuntime!.authorize(request, input)))
 			return jsonResponse(404, { error: 'not_found' });
 		return context.gateway.forward(request, input, context);
 	}

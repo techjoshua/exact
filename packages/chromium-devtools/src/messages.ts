@@ -25,6 +25,11 @@ export type ExactExtensionResponse = Readonly<
 export interface ExactExtensionQueryClient {
 	connect(): Promise<{ id: string }>;
 	request(request: ExactInspectionRequest): Promise<ExactInspectionResponse>;
+	subscribe(
+		sessionId: string,
+		cursor: string | undefined,
+		listener: (event: ExactRuntimeInspectionEvent) => void
+	): Promise<Readonly<{ close(): Promise<void> }>>;
 	disconnect(): Promise<void>;
 	highlight(identity: unknown): Promise<void>;
 }
