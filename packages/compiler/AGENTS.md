@@ -23,6 +23,9 @@ generations, and dispose the service with its project owner. Treat source entity
 IDs as generation-local diagnostic correlation only.
 Keep native UTF-8 byte spans behind the language-service boundary and publish
 only normalized UTF-16 `ExactSourceRange` offsets.
+Project only `EXACT`-namespaced diagnostics into editor source inspection.
+Leave ordinary TypeScript diagnostics to the host editor even though the native
+build response retains them.
 Keep task and action selection ranges on their callable identifier, not the
 whole property-access expression. Presentation clients must be able to add
 framework meaning without recoloring `this`, punctuation, or adjacent syntax.

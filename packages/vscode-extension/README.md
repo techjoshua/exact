@@ -8,6 +8,10 @@ semantics tree, and a read-only compiler-separation view.
 
 The extension does not parse or classify eXact source. All semantic labels,
 reasons, edits, and diagnostics come from `@exactjs/compiler`.
+Only `EXACT`-namespaced framework diagnostics are presented by this extension;
+ordinary TypeScript squiggles remain owned by VS Code. Asynchronous eXact
+results are version-fenced so adding or removing an error is reflected by that
+edit rather than the following one.
 
 Hovering an authored JSX component tag presents the referenced component's
 compiler-resolved placement and boundary. This distinguishes, for example, a

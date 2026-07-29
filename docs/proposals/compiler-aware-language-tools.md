@@ -5,6 +5,9 @@
 Implemented by the compiler source-inspection contracts and no-emit language
 service, `@exactjs/language-server`, and the eXact VS Code extension. The current
 public contract is documented in [`../language-tools.md`](../language-tools.md).
+Editor publication uses immutable document snapshots and exposes only
+`EXACT`-namespaced diagnostics; ordinary TypeScript diagnostics remain owned by
+the editor's TypeScript service.
 
 Runtime instance inspection and Chromium DevTools remain outside this static
 language-tools delivery and are implemented separately by

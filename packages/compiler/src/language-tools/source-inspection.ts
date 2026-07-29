@@ -18,7 +18,7 @@ import {
 	registrySelectionEntities,
 	stateDependencies
 } from './semantic-entities.js';
-import { sourceDiagnostic } from './source-diagnostics.js';
+import { isExactCompilerDiagnostic, sourceDiagnostic } from './source-diagnostics.js';
 import {
 	clampRange,
 	contains,
@@ -51,9 +51,11 @@ export function createExactSourceInspection(
 		}),
 		components: Object.freeze(components),
 		diagnostics: Object.freeze(
-			response.diagnostics.map((diagnostic) =>
-				sourceDiagnostic(filename, source, diagnostic, response.analysis)
-			)
+			// TypeScript diagnostics remain available from the native response for builds,
+			// but editor inspection has a separate owner for them.
+			response.diagnostics
+				.filter(isExactCompilerDiagnostic)
+				.map((diagnostic) => sourceDiagnostic(filename, source, diagnostic, response.analysis))
 		)
 	});
 }

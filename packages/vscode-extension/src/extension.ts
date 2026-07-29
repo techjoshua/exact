@@ -44,6 +44,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	await client.start();
 
 	const semantics = new ComponentSemanticsProvider(client);
+	const regionDecoration = vscode.window.createTextEditorDecorationType({
+		isWholeLine: true,
+		borderWidth: '0 0 0 2px',
+		borderStyle: 'solid',
+		borderColor: new vscode.ThemeColor('editorInfo.foreground'),
+		overviewRulerColor: new vscode.ThemeColor('editorInfo.foreground'),
+		overviewRulerLane: vscode.OverviewRulerLane.Left
+	});
 	const tree = vscode.window.createTreeView('exact.componentSemantics', {
 		treeDataProvider: semantics,
 		showCollapseAll: true
@@ -56,16 +64,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	context.subscriptions.push(
 		tree,
 		status,
+		regionDecoration,
 		vscode.workspace.registerTextDocumentContentProvider('exact-separation', separation),
 		vscode.window.onDidChangeActiveTextEditor((editor) => {
 			semantics.select(editor?.document.uri);
-			void decorateEditor(editor, client!);
+			void decorateEditor(editor, client!, regionDecoration);
 			void updateStatus(status, editor?.document.uri, client!);
 		}),
 		vscode.workspace.onDidChangeTextDocument((event) => {
 			if (event.document === vscode.window.activeTextEditor?.document) {
 				semantics.refresh();
-				void decorateEditor(vscode.window.activeTextEditor, client!);
+				void decorateEditor(vscode.window.activeTextEditor, client!, regionDecoration);
 			}
 		}),
 		vscode.commands.registerCommand('exact.showComponentSemantics', async () => {
@@ -93,7 +102,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		)
 	);
 	semantics.select(vscode.window.activeTextEditor?.document.uri);
-	await decorateEditor(vscode.window.activeTextEditor, client);
+	await decorateEditor(vscode.window.activeTextEditor, client, regionDecoration);
 	await updateStatus(status, vscode.window.activeTextEditor?.document.uri, client);
 }
 
@@ -127,6 +136,7 @@ class ComponentSemanticsProvider implements vscode.TreeDataProvider<SemanticTree
 	readonly onDidChangeTreeData = this.changed.event;
 	private uri: vscode.Uri | undefined;
 	private inspection: ExactComponentSemanticsResult | undefined;
+	private requestGeneration = 0;
 
 	constructor(private readonly languageClient: LanguageClient) {}
 
@@ -136,6 +146,7 @@ class ComponentSemanticsProvider implements vscode.TreeDataProvider<SemanticTree
 	}
 
 	refresh(): void {
+		this.requestGeneration++;
 		this.inspection = undefined;
 		this.changed.fire(undefined);
 	}
@@ -153,10 +164,14 @@ class ComponentSemanticsProvider implements vscode.TreeDataProvider<SemanticTree
 	async getChildren(item?: SemanticTreeItem): Promise<SemanticTreeItem[]> {
 		if (item) return item.entity.children.map((entity) => new SemanticTreeItem(entity));
 		if (!this.uri) return [];
-		this.inspection ??= await this.languageClient.sendRequest<ExactComponentSemanticsResult>(
-			'exact/componentSemantics',
-			{ textDocument: { uri: this.uri.toString() } }
-		);
+		if (!this.inspection) {
+			const requestGeneration = this.requestGeneration;
+			const inspection = await this.languageClient.sendRequest<
+				ExactComponentSemanticsResult | undefined
+			>('exact/componentSemantics', { textDocument: { uri: this.uri.toString() } });
+			if (!inspection || requestGeneration !== this.requestGeneration) return [];
+			this.inspection = inspection;
+		}
 		return this.inspection.components.map((component) => new SemanticTreeItem(component));
 	}
 }
@@ -187,25 +202,23 @@ class SeparationDocumentProvider implements vscode.TextDocumentContentProvider {
 
 async function decorateEditor(
 	editor: vscode.TextEditor | undefined,
-	languageClient: LanguageClient
+	languageClient: LanguageClient,
+	decoration: vscode.TextEditorDecorationType
 ): Promise<void> {
 	if (!editor || editor.document.uri.scheme !== 'file') return;
 	const mode = vscode.workspace
 		.getConfiguration('exact.languageTools')
 		.get<'off' | 'boundaries' | 'all'>('regionDecorations', 'boundaries');
-	if (mode === 'off') return;
-	const inspection = await languageClient.sendRequest<ExactComponentSemanticsResult>(
+	if (mode === 'off') {
+		editor.setDecorations(decoration, []);
+		return;
+	}
+	const version = editor.document.version;
+	const inspection = await languageClient.sendRequest<ExactComponentSemanticsResult | undefined>(
 		'exact/componentSemantics',
 		{ textDocument: { uri: editor.document.uri.toString() } }
 	);
-	const decoration = vscode.window.createTextEditorDecorationType({
-		isWholeLine: true,
-		borderWidth: '0 0 0 2px',
-		borderStyle: 'solid',
-		borderColor: new vscode.ThemeColor('editorInfo.foreground'),
-		overviewRulerColor: new vscode.ThemeColor('editorInfo.foreground'),
-		overviewRulerLane: vscode.OverviewRulerLane.Left
-	});
+	if (!inspection || editor.document.version !== version) return;
 	const entities = inspection.components
 		.flatMap(flattenEntity)
 		.filter((entity) =>
@@ -227,7 +240,6 @@ async function decorateEditor(
 			hoverMessage: `${entity.name ?? entity.kind} · compiler-owned eXact region`
 		}))
 	);
-	setTimeout(() => decoration.dispose(), 10_000);
 }
 
 async function revealEntity(uri: vscode.Uri, entity: ExactSourceEntity): Promise<void> {

@@ -29,6 +29,12 @@ Custom requests:
 The server analyzes in memory. It never emits JavaScript, manifests, maps, or
 inspection catalogs.
 
+Each asynchronous request captures an immutable document URI, version, and
+source. Results are discarded when the open document has advanced, and
+published diagnostics carry the captured version and source coordinates.
+Compiler inspection supplies only framework-owned diagnostics; VS Code's
+TypeScript service remains the sole presenter of ordinary type errors.
+
 JSX component-tag hovers project the referenced component's compiler-owned
 placement and boundary classification. Their hover range is limited to the
 authored tag, so a client child rendered by a server parent is identified as the

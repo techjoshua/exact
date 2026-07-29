@@ -6,6 +6,11 @@ import type {
 import type { ExactSourceDiagnostic } from './contracts.js';
 import { clampRange, overlaps } from './source-ranges.js';
 
+/** Reports whether a native diagnostic belongs to the eXact framework namespace. */
+export function isExactCompilerDiagnostic(diagnostic: NativeCompilerDiagnostic): boolean {
+	return diagnostic.code.startsWith('EXACT');
+}
+
 /** Projects one compact native diagnostic into the editor-facing explanation model. */
 export function sourceDiagnostic(
 	filename: string,

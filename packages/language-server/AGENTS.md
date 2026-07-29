@@ -7,6 +7,9 @@ semantics from source text in this package.
 Keep every response tied to the latest document version and compiler generation.
 Use stale-result suppression for cancelled and superseded analysis instead of publishing it. Dispose every
 workspace service during folder removal and shutdown.
+Capture URI, version, and source before awaiting compiler work. Verify that
+snapshot against the open document before projecting or publishing a result,
+and publish only framework-owned diagnostics supplied by compiler inspection.
 
 Prefer standard LSP capabilities. Add a custom request only when structured
 component semantics cannot be represented by an existing protocol feature.

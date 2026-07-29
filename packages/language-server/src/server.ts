@@ -36,6 +36,11 @@ import type {
 	ExactPreviewSemanticChangeParams
 } from './contracts.js';
 import {
+	captureDocumentSnapshot,
+	isCurrentDocumentSnapshot,
+	type ExactDocumentSnapshot
+} from './document-snapshots.js';
+import {
 	exactSemanticTokenModifiers,
 	exactSemanticTokenTypes,
 	lspRange,
@@ -130,11 +135,12 @@ connection.onCodeAction(async (params): Promise<CodeAction[]> => {
 	const document = documents.get(params.textDocument.uri);
 	const manager = workspaces;
 	if (!document || !manager) return [];
-	const inspection = await manager.inspect(document.uri);
-	if (!inspection) return [];
+	const snapshot = captureDocumentSnapshot(document);
+	const inspection = await manager.inspect(snapshot.uri);
+	if (!inspection || !isCurrentDocumentSnapshot(snapshot, documents.get(snapshot.uri))) return [];
 	const sourceRange = {
-		start: sourceOffset(document.getText(), params.range.start),
-		end: sourceOffset(document.getText(), params.range.end)
+		start: sourceOffset(snapshot.source, params.range.start),
+		end: sourceOffset(snapshot.source, params.range.end)
 	};
 	const task = flattenInspection(inspection).find(
 		(entity) =>
@@ -149,16 +155,17 @@ connection.onCodeAction(async (params): Promise<CodeAction[]> => {
 			: ['convert-to-inferred-task', 'make-placement-explicit'];
 	const actions: CodeAction[] = [];
 	for (const kind of kinds) {
-		const plan = await manager.refactor(document.uri, {
+		const plan = await manager.refactor(snapshot.uri, {
 			generation: inspection.generation,
 			range: task.range,
 			kind
 		});
+		if (!isCurrentDocumentSnapshot(snapshot, documents.get(snapshot.uri))) return [];
 		if (!plan) continue;
 		actions.push({
 			title: plan.title,
 			kind: CodeActionKind.RefactorRewrite,
-			edit: workspaceEdit(document, plan.edits),
+			edit: workspaceEdit(snapshot, plan.edits),
 			data: { semanticChange: plan.semanticChange, expected: plan.expected }
 		});
 	}
@@ -166,12 +173,12 @@ connection.onCodeAction(async (params): Promise<CodeAction[]> => {
 });
 
 connection.onRequest('exact/componentSemantics', async (params: ExactComponentSemanticsParams) =>
-	workspaces?.inspect(params.textDocument.uri)
+	withInspection(params, (inspection) => inspection)
 );
 connection.onRequest(
 	'exact/projectStatus',
 	async (params: ExactComponentSemanticsParams): Promise<ExactProjectStatusResult> => {
-		const inspection = await workspaces?.inspect(params.textDocument.uri);
+		const inspection = await withInspection(params, (current) => current);
 		return {
 			trusted: workspaces?.isTrusted() === true,
 			...(inspection?.project ? { project: inspection.project } : {}),
@@ -180,7 +187,7 @@ connection.onRequest(
 	}
 );
 connection.onRequest('exact/explainEntity', async (params: ExactExplainEntityParams) => {
-	const inspection = await workspaces?.inspect(params.textDocument.uri);
+	const inspection = await withInspection(params, (current) => current);
 	return inspection
 		? flattenInspection(inspection).find((entity) => entity.id === params.entityId)
 		: undefined;
@@ -190,13 +197,16 @@ connection.onRequest(
 	async (params: ExactPreviewSemanticChangeParams) => {
 		const document = documents.get(params.textDocument.uri);
 		if (!document || document.version !== params.version) return undefined;
-		const inspection = await workspaces?.inspect(document.uri);
-		if (!inspection) return undefined;
-		return workspaces?.refactor(document.uri, {
+		const snapshot = captureDocumentSnapshot(document);
+		const inspection = await workspaces?.inspect(snapshot.uri);
+		if (!inspection || !isCurrentDocumentSnapshot(snapshot, documents.get(snapshot.uri)))
+			return undefined;
+		const plan = await workspaces?.refactor(snapshot.uri, {
 			generation: inspection.generation,
 			range: params.range,
 			kind: params.kind
 		});
+		return isCurrentDocumentSnapshot(snapshot, documents.get(snapshot.uri)) ? plan : undefined;
 	}
 );
 connection.onRequest(
@@ -204,7 +214,7 @@ connection.onRequest(
 	async (
 		params: ExactComponentSemanticsParams
 	): Promise<ExactCompilerSeparationResult | undefined> => {
-		const inspection = await workspaces?.inspect(params.textDocument.uri);
+		const inspection = await withInspection(params, (current) => current);
 		if (!inspection) return undefined;
 		return {
 			generation: inspection.generation,
@@ -226,23 +236,29 @@ connection.listen();
 async function synchronize(document: TextDocument): Promise<void> {
 	const manager = workspaces;
 	if (!manager) return;
-	activeAnalysis.get(document.uri)?.abort();
+	const snapshot = captureDocumentSnapshot(document);
+	activeAnalysis.get(snapshot.uri)?.abort();
 	const controller = new AbortController();
-	activeAnalysis.set(document.uri, controller);
+	activeAnalysis.set(snapshot.uri, controller);
 	try {
 		const result = await manager.synchronizeDocument(
-			document.uri,
-			document.version,
-			document.getText(),
+			snapshot.uri,
+			snapshot.version,
+			snapshot.source,
 			controller.signal
 		);
-		if (!result || controller.signal.aborted || activeAnalysis.get(document.uri) !== controller)
+		if (
+			!result ||
+			controller.signal.aborted ||
+			activeAnalysis.get(snapshot.uri) !== controller ||
+			!isCurrentDocumentSnapshot(snapshot, documents.get(snapshot.uri))
+		)
 			return;
 		void connection.sendDiagnostics({
-			uri: document.uri,
-			version: document.version,
+			uri: snapshot.uri,
+			version: snapshot.version,
 			diagnostics: result.inspection.diagnostics.map((diagnostic) =>
-				lspDiagnostic(document, diagnostic)
+				lspDiagnostic(snapshot, diagnostic)
 			)
 		});
 		connection.languages.semanticTokens.refresh();
@@ -251,7 +267,7 @@ async function synchronize(document: TextDocument): Promise<void> {
 	} catch (error) {
 		if (!isExpectedSupersession(error)) logRequestError(error);
 	} finally {
-		if (activeAnalysis.get(document.uri) === controller) activeAnalysis.delete(document.uri);
+		if (activeAnalysis.get(snapshot.uri) === controller) activeAnalysis.delete(snapshot.uri);
 	}
 }
 
@@ -260,15 +276,21 @@ async function withInspection<TParams extends { textDocument: { uri: string } },
 	project: (inspection: ExactSourceInspection, source: string, position: never) => TResult
 ): Promise<TResult | undefined> {
 	const document = documents.get(params.textDocument.uri);
-	const inspection = document ? await workspaces?.inspect(document.uri) : undefined;
-	if (!document || !inspection) return undefined;
+	if (!document) return undefined;
+	const snapshot = captureDocumentSnapshot(document);
+	const inspection = await workspaces?.inspect(snapshot.uri);
+	if (!inspection || !isCurrentDocumentSnapshot(snapshot, documents.get(snapshot.uri)))
+		return undefined;
 	const position = 'position' in params ? params.position : undefined;
-	return project(inspection, document.getText(), position as never);
+	return project(inspection, snapshot.source, position as never);
 }
 
-function lspDiagnostic(document: TextDocument, diagnostic: ExactSourceDiagnostic): Diagnostic {
+function lspDiagnostic(
+	document: ExactDocumentSnapshot,
+	diagnostic: ExactSourceDiagnostic
+): Diagnostic {
 	return {
-		range: lspRange(document.getText(), diagnostic.range),
+		range: lspRange(document.source, diagnostic.range),
 		severity: diagnosticSeverity(diagnostic.severity),
 		code: diagnostic.code,
 		source: 'eXact',
@@ -277,7 +299,7 @@ function lspDiagnostic(document: TextDocument, diagnostic: ExactSourceDiagnostic
 			DiagnosticRelatedInformation.create(
 				{
 					uri: document.uri,
-					range: lspRange(document.getText(), related.range)
+					range: lspRange(document.source, related.range)
 				},
 				related.message
 			)
@@ -292,7 +314,7 @@ function diagnosticSeverity(severity: ExactSourceDiagnostic['severity']): Diagno
 }
 
 function workspaceEdit(
-	document: TextDocument,
+	document: ExactDocumentSnapshot,
 	edits: readonly Readonly<{
 		filename: string;
 		range: Readonly<{ start: number; end: number }>;
@@ -304,7 +326,7 @@ function workspaceEdit(
 			{
 				textDocument: { uri: document.uri, version: document.version },
 				edits: edits.map((edit) => ({
-					range: lspRange(document.getText(), edit.range),
+					range: lspRange(document.source, edit.range),
 					newText: edit.newText
 				}))
 			}

@@ -16,6 +16,10 @@ diagnostics, referenced JSX component placement and boundaries, and
 version-bound task refactor plans. The service never writes JavaScript,
 manifests, maps, or catalogs:
 
+Source inspection exposes only `EXACT`-namespaced framework diagnostics.
+Ordinary TypeScript diagnostics remain in the native build response but are
+left to the editor's TypeScript service for interactive presentation.
+
 Native UTF-8 byte spans are normalized to the public UTF-16 source-range
 contract before inspection data is returned.
 Task and action `selectionRange` values isolate the authored `task` or `action`

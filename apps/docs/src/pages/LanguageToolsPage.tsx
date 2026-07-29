@@ -135,8 +135,10 @@ export function LanguageToolsPage(this: Component<{}>) {
 				<p>
 					Unsaved text overlays disk files without writing them. Every synchronization receives an
 					immutable generation; rapid edits cancel or supersede older work, and stale diagnostics or
-					refactor edits are never published. Closing a workspace disposes its overlays, dependency
-					indexes, pending requests, and native compiler process.
+					refactor edits are never published. The server also captures the document version and text
+					before awaiting analysis, then rejects the result if another edit has arrived. Closing a
+					workspace disposes its overlays, dependency indexes, pending requests, and native compiler
+					process.
 				</p>
 			</section>
 			<section>
@@ -145,7 +147,9 @@ export function LanguageToolsPage(this: Component<{}>) {
 					VS Code's TypeScript extension continues to provide completion, rename, navigation,
 					formatting, and ordinary type diagnostics. The separate eXact language server adds only
 					framework-owned diagnostics, semantic modifiers, hovers, line-edge inlay badges, CodeLens,
-					symbols, code actions, and the read-only Compiler Separation view.
+					symbols, code actions, and the read-only Compiler Separation view. It filters ordinary
+					TypeScript diagnostics from compiler inspection so refactors do not leave a duplicate
+					squiggle behind.
 				</p>
 				<p>
 					Inlay metadata appears after the authored source instead of inside a token, preserving

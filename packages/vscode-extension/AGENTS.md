@@ -6,6 +6,8 @@ extension-local eXact parser or classifier.
 
 Respect `vscode.workspace.isTrusted` when starting semantic analysis. Apply
 only generation/version-bound workspace edits returned by the language server.
+Keep ordinary TypeScript diagnostics owned by VS Code and rely on the language
+server's immutable document snapshot fence for eXact diagnostic publication.
 Keep region decorations optional and restrained, and use the structured custom
 requests for the semantics tree rather than parsing hover Markdown.
 Keep referenced-component hover presentation scoped to the compiler-provided JSX

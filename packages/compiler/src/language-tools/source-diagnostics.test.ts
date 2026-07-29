@@ -3,9 +3,20 @@ import type {
 	NativeCompilerAnalysis,
 	NativeCompilerDiagnostic
 } from '../native/process-contracts.js';
-import { sourceDiagnostic } from './source-diagnostics.js';
+import { isExactCompilerDiagnostic, sourceDiagnostic } from './source-diagnostics.js';
 
 describe('source diagnostic projection', () => {
+	it('distinguishes framework diagnostics from ordinary TypeScript diagnostics', () => {
+		const diagnostic = (code: string): NativeCompilerDiagnostic => ({
+			severity: 'error',
+			code,
+			message: 'example'
+		});
+
+		expect(isExactCompilerDiagnostic(diagnostic('EXACT_TASK_PLACEMENT_CONFLICT'))).toBe(true);
+		expect(isExactCompilerDiagnostic(diagnostic('TS2304'))).toBe(false);
+	});
+
 	it('retains the native code, primary range, causal facts, and validated fix kind', () => {
 		const diagnostic: NativeCompilerDiagnostic = {
 			severity: 'error',

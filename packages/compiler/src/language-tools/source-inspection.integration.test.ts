@@ -85,6 +85,36 @@ export function ShippingCalculatorPage(this: Component<{}>) {
 			await service.dispose();
 		}
 	});
+
+	it('publishes only current framework diagnostics across consecutive edits', async () => {
+		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
+		const clean = `import type { Component } from '@exactjs/core';
+export function Page(this: Component<{}>) {
+	this.task.server(() => {});
+	return () => null;
+}`;
+		const conflicting = clean.replace(
+			'this.task.server(() => {});',
+			"this.task.server(() => { document.title = 'foobar'; });"
+		);
+		try {
+			for (const [index, source] of [clean, conflicting, clean].entries()) {
+				await service.synchronize([
+					{ kind: 'upsert', filename: 'DiagnosticPage.tsx', version: index + 1, source }
+				]);
+				const inspection = await service.inspect('DiagnosticPage.tsx');
+				expect(inspection.generation).toBe(index + 1);
+				expect(
+					inspection.diagnostics.every((diagnostic) => diagnostic.code.startsWith('EXACT'))
+				).toBe(true);
+				expect(inspection.diagnostics.map((diagnostic) => diagnostic.code)).toEqual(
+					index === 1 ? ['EXACT2001'] : []
+				);
+			}
+		} finally {
+			await service.dispose();
+		}
+	});
 });
 
 function flatten(entity: ExactSourceEntity): ExactSourceEntity[] {
