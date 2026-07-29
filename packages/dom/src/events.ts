@@ -2,13 +2,17 @@ import {
 	batch,
 	createErrorReport,
 	handleComponentError,
-	observeComponentAsync
+	observeComponentAsync,
+	runComponentInteraction,
+	type ComponentInstance
 } from '@exactjs/core';
 import { runWithPriority } from '@exactjs/reactive';
 import { preserveFocus } from './focus.js';
 import { findOwnerInstance } from './ownership.js';
 import { eventHandlers } from './state.js';
 import type { Root } from './types.js';
+
+const eventGenerations = new WeakMap<object, number>();
 
 // Delegation is valid only for events whose platform contract bubbles.
 const DIRECT_EVENTS = new Set([
@@ -76,7 +80,9 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 					try {
 						const owner = findOwnerInstance(current);
 						const result = runWithPriority('interactive', () =>
-							batch(() => callDelegatedHandler(handler, current, event))
+							batch(() =>
+								runEventInteraction(owner, () => callDelegatedHandler(handler, current, event))
+							)
 						);
 						observeComponentAsync(owner, result, 'event', type);
 					} catch (error) {
@@ -92,6 +98,32 @@ export function ensureDelegated(root: Root, type: string, container: Node = root
 
 	container.addEventListener(type, listener);
 	listeners.set(type, listener);
+}
+
+/**
+ * Runs one direct or delegated DOM callback in the owning component interaction.
+ *
+ * The caller retains responsibility for the synchronous reactive batch and error observation.
+ */
+export function runEventInteraction<Result>(
+	owner: ComponentInstance<any> | undefined,
+	work: () => Result | PromiseLike<Result>
+): Result | PromiseLike<Result> {
+	if (!owner) return work();
+	return runComponentInteraction(
+		owner,
+		'event',
+		nextEventGeneration(owner),
+		'interactive',
+		new AbortController(),
+		() => work()
+	);
+}
+
+function nextEventGeneration(owner: object): number {
+	const generation = (eventGenerations.get(owner) ?? 0) + 1;
+	eventGenerations.set(owner, generation);
+	return generation;
 }
 
 /** Removes every event listener delegated through a renderer root. */

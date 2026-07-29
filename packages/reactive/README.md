@@ -19,3 +19,10 @@ models.
 Framework work is scheduled at `interactive`, `normal`, or `deferred` priority. Effect scopes can
 be paused and resumed without disposal; invalidations received while paused settle once after
 reactivation.
+
+The package also owns the internal mutation journals used by component actions. Journals track
+object paths, array sequences, Map entries, and Set memberships so optimistic rollback preserves
+later authoritative writes. Application code reaches that behavior through `this.action()` rather
+than calling journal internals.
+
+See [Actions, interactions, optimistic state, and forms](../../docs/actions-and-forms.md).

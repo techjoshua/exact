@@ -99,6 +99,41 @@ func linkProjectComponents(
 				}
 			}
 			if !exists {
+				if value, resolved := resolveJSXRegistryComponentValue(
+					tag,
+					record.sourceFile,
+					typeChecker,
+				); resolved {
+					for _, possible := range value {
+						possibleIndex, found := componentIndexForSymbol(
+							possible.symbol,
+							componentBySymbol,
+							componentByIdentity,
+						)
+						if !found {
+							continue
+						}
+						target := records[possibleIndex]
+						edgeIndex := len(edges) + 1
+						edges = append(edges, RenderEdge{
+							ID: fmt.Sprintf(
+								"%s:render:%d:%s",
+								record.component.ID,
+								node.Pos(),
+								possible.tag,
+							),
+							NodeID:      nodeIDs[node],
+							Tag:         possible.tag,
+							Name:        target.component.Name,
+							ComponentID: target.component.ID,
+							Placement:   target.component.Placement,
+							Boundary:    target.component.Placement,
+							Index:       edgeIndex,
+							Path:        fmt.Sprintf("%d", node.Pos()),
+						})
+					}
+					return true
+				}
 				if jsxTagResolvesToLocalValue(tag, record.sourceFile, typeChecker) {
 					value, resolved := resolveJSXComponentValue(
 						tag,
@@ -310,6 +345,162 @@ func jsxTagResolvesToCallableValue(
 type jsxComponentValueTarget struct {
 	symbol *ast.Symbol
 	tag    string
+}
+
+// resolveJSXRegistryComponentValue recognizes static members, immutable
+// aliases, and finite indexed selections rooted in createComponentRegistry().
+// Lazy entries remain opaque render targets until their target-local artifact
+// is loaded, while eager local entries contribute precise component edges.
+func resolveJSXRegistryComponentValue(
+	tag *ast.Node,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) ([]jsxComponentValueTarget, bool) {
+	root := tag
+	if ast.IsIdentifier(tag) {
+		symbol := typeChecker.GetSymbolAtLocation(tag)
+		if symbol == nil {
+			return nil, false
+		}
+		for _, declaration := range symbol.Declarations {
+			if !ast.IsVariableDeclaration(declaration) ||
+				declaration.Parent == nil ||
+				!ast.IsVariableDeclarationList(declaration.Parent) ||
+				declaration.Parent.Flags&ast.NodeFlagsConst == 0 {
+				continue
+			}
+			if componentValueSymbolIsWrittenAfter(
+				symbol,
+				declaration.End(),
+				sourceFile,
+				typeChecker,
+			) {
+				return nil, false
+			}
+			root = declaration.AsVariableDeclaration().Initializer
+			break
+		}
+	}
+	if root == nil {
+		return nil, false
+	}
+
+	var registryExpression *ast.Node
+	selectedKey := ""
+	switch {
+	case ast.IsPropertyAccessExpression(root):
+		member := root.AsPropertyAccessExpression()
+		registryExpression = member.Expression
+		selectedKey = member.Name().Text()
+	case ast.IsElementAccessExpression(root):
+		member := root.AsElementAccessExpression()
+		registryExpression = member.Expression
+		argument := member.ArgumentExpression
+		if argument != nil &&
+			(ast.IsStringLiteral(argument) || ast.IsNoSubstitutionTemplateLiteral(argument)) {
+			selectedKey = argument.Text()
+		}
+	default:
+		return nil, false
+	}
+
+	definition := componentRegistryDefinition(
+		registryExpression,
+		sourceFile,
+		typeChecker,
+	)
+	if definition == nil {
+		return nil, false
+	}
+	targets := []jsxComponentValueTarget{}
+	for _, property := range definition.AsObjectLiteralExpression().Properties.Nodes {
+		key, value, valid := componentRegistryProperty(property)
+		if !valid || (selectedKey != "" && key != selectedKey) {
+			continue
+		}
+		if ast.IsCallExpression(value) &&
+			strings.TrimSpace(sourceText(
+				sourceFile,
+				value.AsCallExpression().Expression,
+			)) == "lazy" {
+			targets = append(targets, jsxComponentValueTarget{tag: key})
+			continue
+		}
+		resolved, ok := resolveJSXComponentValueExpression(
+			value,
+			sourceFile,
+			typeChecker,
+			make(map[ast.SymbolId]bool),
+		)
+		if !ok {
+			// The registry runtime retains safe provenance even when an entry
+			// is imported or otherwise opaque to this project compilation.
+			targets = append(targets, jsxComponentValueTarget{tag: key})
+			continue
+		}
+		for index := range resolved {
+			resolved[index].tag = key
+		}
+		targets = append(targets, resolved...)
+	}
+	return uniqueJSXComponentValueTargets(targets), len(targets) > 0
+}
+
+func componentRegistryDefinition(
+	expression *ast.Node,
+	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
+) *ast.Node {
+	if expression == nil {
+		return nil
+	}
+	symbol := typeChecker.GetSymbolAtLocation(expression)
+	if symbol == nil {
+		return nil
+	}
+	for _, declaration := range symbol.Declarations {
+		if !ast.IsVariableDeclaration(declaration) ||
+			declaration.Parent == nil ||
+			!ast.IsVariableDeclarationList(declaration.Parent) ||
+			declaration.Parent.Flags&ast.NodeFlagsConst == 0 {
+			continue
+		}
+		call := declaration.AsVariableDeclaration().Initializer
+		if call == nil || !ast.IsCallExpression(call) {
+			continue
+		}
+		invocation := call.AsCallExpression()
+		if strings.TrimSpace(sourceText(sourceFile, invocation.Expression)) !=
+			"createComponentRegistry" ||
+			invocation.Arguments == nil ||
+			len(invocation.Arguments.Nodes) != 1 {
+			continue
+		}
+		define := invocation.Arguments.Nodes[0]
+		if !ast.IsArrowFunction(define) && !ast.IsFunctionExpression(define) {
+			continue
+		}
+		body := unwrapRegistryDefinitionBody(define.Body())
+		if body != nil && ast.IsObjectLiteralExpression(body) {
+			return body
+		}
+	}
+	return nil
+}
+
+func componentRegistryProperty(property *ast.Node) (string, *ast.Node, bool) {
+	if ast.IsPropertyAssignment(property) {
+		assignment := property.AsPropertyAssignment()
+		name := assignment.Name()
+		if name == nil || ast.IsComputedPropertyName(name) {
+			return "", nil, false
+		}
+		return name.Text(), assignment.Initializer, true
+	}
+	if ast.IsShorthandPropertyAssignment(property) {
+		return property.Name().Text(), property.Name(), true
+	}
+	return "", nil, false
 }
 
 func componentIndexForSymbol(

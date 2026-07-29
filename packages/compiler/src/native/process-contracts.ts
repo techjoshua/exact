@@ -1,4 +1,5 @@
 import type { NativeCompilerModuleRewrite } from './process-module-contracts.js';
+import type { NativeCompilerComponent } from './process-component-contracts.js';
 import type { NativeCompilerDiagnostic } from './process-diagnostic-contracts.js';
 import type { NativeCompilerPolicyManifest } from './process-policy-contracts.js';
 import type { NativeCompilerSemanticGraph } from './process-semantic-contracts.js';
@@ -7,6 +8,10 @@ export type {
 	NativeCompilerModuleExportReplacement,
 	NativeCompilerModuleRewrite
 } from './process-module-contracts.js';
+export type {
+	NativeCompilerComponent,
+	NativeCompilerRenderEdge
+} from './process-component-contracts.js';
 export type { NativeCompilerDiagnostic } from './process-diagnostic-contracts.js';
 export type {
 	NativeCompilerDataPolicy,
@@ -18,7 +23,7 @@ export type {
 export type { NativeCompilerSemanticGraph } from './process-semantic-contracts.js';
 
 /** Exact protocol implemented by this JavaScript facade. */
-export const nativeCompilerProtocolVersion = '1.22.0';
+export const nativeCompilerProtocolVersion = '1.23.0';
 
 /** Request accepted by the persistent native eXact compiler process. */
 export type NativeCompilerRequest = Readonly<{
@@ -143,38 +148,6 @@ export type NativeCompilerSourceMap = Readonly<{
 	sourcesContent?: readonly (string | null)[];
 }>;
 
-/** Describes one component declaration discovered inside the native process. */
-export type NativeCompilerComponent = Readonly<{
-	id: string;
-	name: string;
-	start: number;
-	length: number;
-	exported: boolean;
-	signals: readonly string[];
-	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
-	subgraphPlacement: 'client' | 'server' | 'isomorphic' | 'unknown';
-	environmentEffect: 'neutral' | 'browser' | 'server' | 'mixed' | 'unknown';
-	artifactTargets: readonly ('client' | 'server')[];
-	renderEdges: readonly NativeCompilerRenderEdge[];
-	clientIslandCount: number;
-	contexts: readonly NativeCompilerContextEffect[];
-	splitBoundaries: readonly string[];
-	diagnostics: readonly string[];
-}>;
-
-/** Describes one local component rendered by another component. */
-export type NativeCompilerRenderEdge = Readonly<{
-	id: string;
-	nodeId?: string;
-	tag: string;
-	name: string;
-	componentId?: string;
-	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
-	boundary: 'client' | 'server' | 'isomorphic' | 'unknown';
-	index: number;
-	path: string;
-}>;
-
 /** Describes one authored or compiler-generated artifact export. */
 export type NativeCompilerSymbol = Readonly<{
 	id: string;
@@ -287,7 +260,8 @@ export type NativeCompilerTask = Readonly<{
 /** Describes one compiler-owned cross-runtime task transition. */
 export type NativeCompilerContinuation = Readonly<{
 	id: string;
-	kind: 'task';
+	kind: 'task' | 'action';
+	label?: string;
 	componentId: string;
 	taskId: string;
 	placement: 'server' | 'isomorphic';
@@ -297,7 +271,7 @@ export type NativeCompilerContinuation = Readonly<{
 		stateReads: readonly NativeCompilerStateEffect[];
 		dependencies: readonly Readonly<{
 			index: number;
-			source: 'state' | 'props' | 'derived';
+			source: 'state' | 'props' | 'derived' | 'argument';
 		}>[];
 		serverContexts: readonly NativeCompilerContextEffect[];
 		publicContexts: readonly NativeCompilerContextEffect[];
@@ -310,9 +284,16 @@ export type NativeCompilerContinuation = Readonly<{
 	}>;
 	ownership: Readonly<{
 		componentId: string;
-		lifetime: 'component';
+		lifetime: 'component' | 'invocation';
 	}>;
 	cancellation: 'abort-signal';
+	invocation?: Readonly<{
+		arguments: readonly Readonly<{
+			index: number;
+			source: 'argument';
+		}>[];
+		concurrency: 'parallel' | 'latest' | 'queue';
+	}>;
 }>;
 
 /** Separates server activation requirements from browser resumption data. */
@@ -441,11 +422,29 @@ export type NativeCompilerAnalysis = Readonly<{
 	symbols: readonly NativeCompilerSymbol[];
 	boundaries: readonly NativeCompilerBoundary[];
 	continuations: readonly NativeCompilerContinuation[];
+	registries?: readonly NativeCompilerComponentRegistry[];
 	resumptions: readonly NativeCompilerComponentResumption[];
 	policy: NativeCompilerPolicyManifest;
 	requiredCapabilities: NativeCompilerCapabilityRequirements;
 	assets: readonly NativeCompilerAssetDependency[];
 	semanticGraph: NativeCompilerSemanticGraph;
+}>;
+
+/** Process-safe component registry provenance emitted by the native compiler. */
+export type NativeCompilerComponentRegistry = Readonly<{
+	id: string;
+	name: string;
+	entries: readonly Readonly<{
+		key: string;
+		mode: 'eager' | 'lazy';
+		componentId: string;
+		componentName: string;
+		placement: 'client' | 'server' | 'isomorphic' | 'unknown';
+		moduleSpecifier?: string;
+		exportName?: string;
+		ownership: 'exact' | 'react-compat';
+		artifactTargets: readonly ('client' | 'server')[];
+	}>[];
 }>;
 
 /** Response returned for one native compiler request. */

@@ -28,29 +28,6 @@ current consumers and
 [`remove-compiler-manifests.md`](remove-compiler-manifests.md) for the proposed
 clean break.
 
-## Runtime component registries
-
-The compiler supports declared components, immutable aliases, and finite
-conditional component values. It intentionally rejects opaque lookup such as:
-
-```tsx
-const View = views[this.state.kind];
-return () => <View />;
-```
-
-A useful explicit registry would declare a finite component set while allowing
-runtime selection. The design must preserve:
-
-- client/server placement and artifact reachability;
-- tree shaking and lazy chunk boundaries;
-- SSR and hydration identity;
-- prop typing;
-- server operation allowlisting; and
-- a clear failure for unknown registry keys.
-
-This should be an eXact compiler contract, not an application-local
-`createVNode()` escape that hides the graph.
-
 ## JavaScript runtime object layout
 
 Investigate whether the client renderer and server runtime can reduce polymorphic
@@ -106,24 +83,6 @@ than renderer call stacks. It must answer:
 - how secret and server-only values are excluded;
 - how stale or retired deployments fail; and
 - whether resumption continues on a server, a client, or either.
-
-## Coordinated platform transitions and form actions
-
-Tasks, state, Suspense, and the DOM API can express optimistic updates, pending
-forms, navigation transitions, and browser View Transitions today, but the
-framework does not yet provide a single compiler-aware authoring model for
-them.
-
-A proposal should investigate:
-
-- a scoped View Transition boundary integrated with Activity and Suspense;
-- form submission tasks with pending/result state and automatic cancellation;
-- optimistic state overlays that commit or discard with a task generation;
-- server action placement and validation without hidden form protocols; and
-- accessibility and no-JavaScript behavior.
-
-The source model should remain ordinary TypeScript and native forms. Avoid
-adding Hook-shaped APIs merely because React uses them.
 
 ## Reactive secret rotation
 

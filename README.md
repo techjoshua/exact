@@ -101,6 +101,8 @@ and architecture.
 
 - Fine-grained reactive state, derived values, DOM updates, and keyed collections
 - Long-lived component instances with context, refs, lifecycle, tasks, and cleanup
+- Coordinated actions with cancellation, concurrency, optimistic state, forms, and navigation
+- Finite eager/lazy component registries with compiler-checked identity, placement, SSR, and hydration
 - Browser rendering, SSR, streaming, hydration, server actions, and component continuations
 - Vite, Webpack, and Bun compiler integrations
 - Routing, accessible form primitives, and compiler-aware component testing
@@ -115,6 +117,8 @@ The package-specific READMEs describe the supported APIs and environment boundar
 - [Play the live Sudoku Atelier sample](https://techjoshua.github.io/exact/sudoku.html)
 - [Browse the documentation source](apps/docs/README.md)
 - [Understand components and state](apps/docs/src/pages/ComponentsPage.tsx)
+- [Coordinate actions and optimistic state](apps/docs/src/pages/ActionsPage.tsx)
+- [Select finite dynamic components](apps/docs/src/pages/ComponentRegistriesPage.tsx)
 - [Follow one component through the compiler](apps/docs/src/pages/CompilerTourPage.tsx)
 - [Read about server execution](apps/docs/src/pages/ServerExecutionPage.tsx)
 - [Review the native compiler architecture](docs/native-compiler.md)

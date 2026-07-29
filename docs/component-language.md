@@ -125,15 +125,35 @@ function Results(this: Component<{ layout: 'grid' | 'list' }>) {
 
 A reactive choice owns a dynamic slot and replaces only that subtree. Keep a
 choice used by one render inside the render function; use a setup-derived
-component value when several consumers share the same selection. A reassigned
-variable or arbitrary registry lookup is rejected because the compiler cannot
-determine the complete component and placement graph:
+component value when several consumers share the same selection.
 
 ```tsx
-// Not currently supported.
-const View = views[this.state.kind];
-return () => <View />;
+const Widget = createComponentRegistry(({ lazy }) => ({
+	grid: GridWidget,
+	table: lazy(() => import('./TableWidget.js').then(({ TableWidget }) => TableWidget))
+}));
+
+type WidgetKey = KeyOf<typeof Widget>;
+
+function Dashboard(this: Component<{ widget: WidgetKey }>) {
+	return () => {
+		const Current = Widget[this.state.widget];
+		return <Current />;
+	};
+}
 ```
+
+Component registries are immutable module-level declarations. Static members such as
+`<Widget.grid />` retain entry-specific props and tree shaking. Dynamic selection must be finite
+through `KeyOf<typeof Widget>` or a successful `hasComponent(Widget, untrustedKey)` check.
+Registry keys are component identity: changing keys replaces only the registry-owned component
+range, while same-key prop updates retain the instance. Lazy entries deduplicate loading and
+participate in `Suspense`; `preloadComponent()` starts loading without constructing an instance.
+Use `renderComponent()` with `ComponentSelection<typeof Widget>` when heterogeneous entries need
+correlated key-specific props.
+
+Mutable dictionaries, reassigned component variables, and unproven string lookups remain
+diagnostics because they do not provide a finite component, placement, or artifact graph.
 
 ## Setup, render, and deferred callbacks
 
@@ -833,7 +853,83 @@ State section.
 Use explicit `this.task()` for external effects, cleanup, deliberately
 nonblocking work, or manual placement and scheduling.
 
-## Suspense and Activity
+## Interactions, actions, and optimistic state
+
+DOM events and framework-owned form callbacks run in a component interaction. The interaction
+owns asynchronous settlement, cancellation, error routing, scheduling priority, and work joined
+by the router. Ordinary callbacks remain the default:
+
+```tsx
+async function save(_event: SubmitEvent, data: FormData) {
+	this.state.profile = await profiles.save(readProfile(data));
+}
+
+return () => <Form onValidSubmit={save}>...</Form>;
+```
+
+Register an explicit action during setup when code needs inspectable status, direct invocation,
+placement, concurrency, deferred priority, or optimistic state:
+
+```tsx
+const save = this.action.server(
+	'save profile',
+	async (profile: Profile, { optimistic, signal }) => {
+		optimistic(() => {
+			this.state.profile = profile;
+		});
+		this.state.profile = await profiles.save(profile, { signal });
+	},
+	'latest'
+);
+```
+
+Actions are durable callables with reactive `pending`, `pendingCount`, `generation`, `result`, and
+`error` properties plus `cancel()`. Concurrency is `parallel`, `latest`, or `queue`; optimistic
+blocks require `latest` or `queue`, run synchronously, and may use ordinary deep object, array,
+`Map`, and `Set` mutations. Failure, cancellation, supersession, and unmount remove every owned
+overlay while preserving newer authoritative writes.
+
+Placement and priority facets compose as `this.action.client(...)`, `this.action.server(...)`,
+`this.action.deferred(...)`, and `this.action.server.deferred(...)`. Server actions use
+compiler-generated opaque continuation identity; the authored name is diagnostic only.
+
+## Error boundaries, Suspense, and Activity
+
+`ErrorBoundary` captures failures from descendant construction, rendering, events, lifecycle,
+reactive work, and component tasks. Its default fallback reports the captured errors and provides
+a retry button that remounts the failed subtree:
+
+```tsx
+import { ErrorBoundary } from '@exactjs/core';
+
+function AppShell() {
+	return () => (
+		<ErrorBoundary>
+			<App />
+		</ErrorBoundary>
+	);
+}
+```
+
+Pass a fallback function for application-specific presentation. It receives the latest report,
+all reports captured since the last reset, and the reset operation:
+
+```tsx
+<ErrorBoundary
+	fallback={({ error, reset }) => (
+		<section role="alert">
+			<p>{String(error.error)}</p>
+			<button onClick={reset}>Return to the app</button>
+		</section>
+	)}
+>
+	<Workspace />
+</ErrorBoundary>
+```
+
+An error thrown by the boundary or its fallback proceeds to the next enclosing boundary. Use the
+lower-level `ErrorContext` and `createErrorContext()` when capture, reporting, or reset behavior
+must differ; ordinary application recovery should prefer the built-in component.
 
 `Suspense` waits for descendant blocking task generations:
 
@@ -1039,7 +1135,10 @@ transport contract. Important examples are:
   effects inside a rerunnable render body;
 - a module-level shared arrow returned as a render function;
 - task registration outside direct component setup;
-- reassigned or arbitrary registry-selected component values;
+- reassigned component values, mutable component dictionaries, or registry selection not proven
+  by `KeyOf` or `hasComponent()`;
+- action registration outside direct component setup, action invocation during render, escaping
+  `ActionContext`, asynchronous optimistic callbacks, or optimistic parallel actions;
 - reflective state mutation and state targets in `for-in` or `for-of`;
 - a setup derived-state cycle without `peek()` or an explicit task;
 - a derived setup destructuring target that is not component state;

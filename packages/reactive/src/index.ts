@@ -5,7 +5,13 @@ export {
 	type ExternalSourceOptions,
 	type SelectedExternalSourceOptions
 } from './external-source.js';
-export { batch, peek } from './internal/deps.js';
+export {
+	batch,
+	captureReactiveMutations,
+	rollbackReactiveMutationJournals,
+	peek,
+	type ReactiveMutationJournal
+} from './internal/deps.js';
 export {
 	currentWorkPriority,
 	flushSync,

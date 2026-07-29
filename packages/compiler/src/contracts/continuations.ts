@@ -8,7 +8,7 @@ export type ExactContinuationActivationIR = {
 	/** Source paths whose values are substituted into inferred task parameters. */
 	dependencies: Array<{
 		index: number;
-		source: 'state' | 'props' | 'derived';
+		source: 'state' | 'props' | 'derived' | 'argument';
 	}>;
 	/** Server-owned tokens resolved for each invocation rather than transported by the client. */
 	serverContexts: ExactContextEffect[];
@@ -31,7 +31,9 @@ export type ExactContinuationEffectsIR = {
 /** Compiler-owned description of one cross-runtime component state-machine transition. */
 export type ExactContinuationIR = {
 	id: string;
-	kind: 'task';
+	kind: 'task' | 'action';
+	/** Authored diagnostic label; never used as a protocol operation identity. */
+	label?: string;
 	componentId: string;
 	taskId: string;
 	placement: Extract<ExactPlacement, 'server' | 'isomorphic'>;
@@ -41,9 +43,13 @@ export type ExactContinuationIR = {
 	effects: ExactContinuationEffectsIR;
 	ownership: {
 		componentId: string;
-		lifetime: 'component';
+		lifetime: 'component' | 'invocation';
 	};
 	cancellation: 'abort-signal';
+	invocation?: {
+		arguments: Array<{ index: number; source: 'argument' }>;
+		concurrency: 'parallel' | 'latest' | 'queue';
+	};
 };
 
 /** Values required only while the server performs the initial component transition. */

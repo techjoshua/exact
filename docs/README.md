@@ -10,8 +10,10 @@ These documents describe behavior that exists in the repository today:
 
 | Document                                                                         | Subject                                                                    |
 | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| [actions-and-forms.md](actions-and-forms.md)                                     | Interactions, explicit actions, optimism, forms, and router coordination.  |
 | [code-maintainability.md](code-maintainability.md)                               | Required source, ownership, JSDoc, and testing standards.                  |
 | [component-language.md](component-language.md)                                   | Complete native component and TSX authoring reference.                     |
+| [component-registries.md](component-registries.md)                               | Finite eager/lazy component selection, identity, SSR, and hydration.       |
 | [distributed-component-continuations.md](distributed-component-continuations.md) | Compiler-distributed client/server component state machines.               |
 | [framework-plugins.md](framework-plugins.md)                                     | Plugin discovery, configuration, projections, and lifecycle.               |
 | [instrumentation.md](instrumentation.md)                                         | Optional profiling contracts and event collection.                         |
@@ -34,9 +36,10 @@ The public learning guide is the eXact docs application under
 
 ## Proposals
 
-[`proposals`](proposals) contains designs that are not current framework
-behavior. A proposal must say what is already available, what would change,
-and which decisions remain open. Code and current references take precedence.
+[`proposals`](proposals) contains both active designs and retained rationale
+for delivered designs. Every proposal begins with an implementation-status
+ledger that distinguishes current behavior from deferred work. Code and the
+current references above remain authoritative.
 
 ## Historical evidence
 

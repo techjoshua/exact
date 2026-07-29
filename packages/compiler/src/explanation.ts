@@ -18,6 +18,22 @@ export function createExactCompilerExplanation(
 	return Object.freeze({
 		filename: manifest.filename,
 		target,
+		registries: Object.freeze(
+			(manifest.registries ?? []).map((registry) =>
+				Object.freeze({
+					id: registry.id,
+					name: registry.name,
+					entries: Object.freeze(
+						registry.entries.map((entry) =>
+							Object.freeze({
+								...entry,
+								artifactTargets: Object.freeze([...entry.artifactTargets])
+							})
+						)
+					)
+				})
+			)
+		),
 		components: Object.freeze(
 			manifest.components.map((component) => {
 				const componentContinuations = continuations.get(component.id) ?? [];
@@ -53,6 +69,8 @@ function explainContinuation(
 ): import('./types.js').ExactContinuationExplanation {
 	return Object.freeze({
 		id: continuation.id,
+		kind: continuation.kind,
+		...(continuation.label ? { label: continuation.label } : {}),
 		placement: continuation.placement,
 		clientToServer: Object.freeze({
 			state: Object.freeze(continuation.activation.stateReads.map((effect) => effect.path)),
@@ -70,7 +88,17 @@ function explainContinuation(
 			state: Object.freeze(continuation.effects.stateWrites.map((effect) => effect.path)),
 			contexts: Object.freeze(continuation.effects.contextWrites.map((context) => context.token)),
 			boundaries: Object.freeze([...continuation.effects.boundaries])
-		})
+		}),
+		...(continuation.invocation
+			? {
+					invocation: Object.freeze({
+						concurrency: continuation.invocation.concurrency,
+						arguments: Object.freeze(
+							continuation.invocation.arguments.map((argument) => argument.index)
+						)
+					})
+				}
+			: {})
 	});
 }
 

@@ -7,6 +7,7 @@ import {
 	isExactContinuation
 } from './manifest/continuation-validation.js';
 import { validatePluginEnvelope } from './manifest/plugin-validation.js';
+import { isExactComponentRegistry } from './manifest/registry-validation.js';
 import {
 	isExactAssetDependency,
 	isExactCapabilityRequirements,
@@ -51,6 +52,15 @@ export function parseExactCompilerManifest(
 		!Array.isArray(manifest.diagnostics)
 	) {
 		throw new Error(`Malformed eXact ${kind} manifest in ${source}`);
+	}
+	if (
+		manifest.registries !== undefined &&
+		(!Array.isArray(manifest.registries) ||
+			!manifest.registries.every(isExactComponentRegistry) ||
+			new Set(manifest.registries.map((registry) => registry.id)).size !==
+				manifest.registries.length)
+	) {
+		throw new Error(`Malformed eXact ${kind} component registries in ${source}`);
 	}
 	if (manifest.version !== exactCompilerManifestVersion) {
 		throw new Error(
@@ -106,7 +116,7 @@ export function parseExactCompilerManifest(
 		manifest.continuations!.some(
 			(continuation) =>
 				!componentIds.has(continuation.componentId) ||
-				!taskIds.has(continuation.taskId) ||
+				(continuation.kind === 'task' && !taskIds.has(continuation.taskId)) ||
 				continuation.effects.boundaries.some((boundary) => !boundaryIds.has(boundary))
 		) ||
 		manifest.resumptions!.some(

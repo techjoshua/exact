@@ -84,7 +84,8 @@ function reactiveMapMember(
 				assertWritable(options, 'clear');
 				if (!target.size) return undefined;
 				const previous = [...target.entries()];
-				if (hasActiveTransaction()) recordTransactionUndo(() => restoreMap(target, previous));
+				if (hasActiveTransaction())
+					recordTransactionUndo(() => restoreMap(target, previous), target, iterateDependency);
 				target.clear();
 				for (const [entryKey] of previous)
 					trigger(target, collectionKeyDependency(target, entryKey));
@@ -132,7 +133,12 @@ function reactiveSetMember(
 				assertWritable(options, 'add');
 				const rawValue = unwrap(input);
 				if (target.has(rawValue)) return receiver;
-				if (hasActiveTransaction()) recordTransactionUndo(() => target.delete(rawValue));
+				if (hasActiveTransaction())
+					recordTransactionUndo(
+						() => target.delete(rawValue),
+						target,
+						collectionKeyDependency(target, rawValue)
+					);
 				target.add(rawValue);
 				trigger(target, collectionKeyDependency(target, rawValue));
 				trigger(target, iterateDependency);
@@ -144,7 +150,12 @@ function reactiveSetMember(
 				assertWritable(options, 'delete');
 				const rawValue = unwrap(input);
 				if (!target.has(rawValue)) return false;
-				if (hasActiveTransaction()) recordTransactionUndo(() => target.add(rawValue));
+				if (hasActiveTransaction())
+					recordTransactionUndo(
+						() => target.add(rawValue),
+						target,
+						collectionKeyDependency(target, rawValue)
+					);
 				const deleted = target.delete(rawValue);
 				if (deleted) {
 					triggerCollectionRemoval(target, rawValue);
@@ -157,7 +168,8 @@ function reactiveSetMember(
 				assertWritable(options, 'clear');
 				if (!target.size) return undefined;
 				const previous = [...target.values()];
-				if (hasActiveTransaction()) recordTransactionUndo(() => restoreSet(target, previous));
+				if (hasActiveTransaction())
+					recordTransactionUndo(() => restoreSet(target, previous), target, iterateDependency);
 				target.clear();
 				for (const value of previous) trigger(target, collectionKeyDependency(target, value));
 				keyDependencies.delete(target);
@@ -263,10 +275,14 @@ function recordMapUndo(
 	previous: unknown
 ): void {
 	if (!hasActiveTransaction()) return;
-	recordTransactionUndo(() => {
-		if (had) target.set(key, previous);
-		else target.delete(key);
-	});
+	recordTransactionUndo(
+		() => {
+			if (had) target.set(key, previous);
+			else target.delete(key);
+		},
+		target,
+		collectionKeyDependency(target, key)
+	);
 }
 
 function restoreMap(
