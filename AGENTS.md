@@ -6,6 +6,27 @@ All repository changes must follow the
 [code maintainability standard](docs/code-maintainability.md). Treat its module ownership, JSDoc,
 testing, and change-acceptance rules as required review criteria rather than optional cleanup.
 
+## Keep documentation and agent guidance synchronized
+
+Every feature addition, removal, or behavior change must update all relevant engineering
+documentation under [`docs`](docs) and the public documentation application under
+[`apps/docs`](apps/docs). Treat those updates as part of the feature, not optional follow-up work.
+Create, remove, split, combine, or reorganize reference documents and docs-app pages when that
+best reflects the resulting framework. Keep proposal status, current references, docs-app route
+metadata, navigation, search terms, examples, and stated limitations consistent with the
+implemented behavior.
+
+A feature change must also update both `README.md` and package-local `AGENTS.md` guidance for every
+affected core package, component library, plugin, or adapter. Document the public contract and
+environment boundary in the README; document the safest and most idiomatic agent usage in
+`AGENTS.md`. Ensure published-package manifests include package-local guidance and extend
+repository documentation checks when a new affected project should remain covered.
+
+Every new package must begin with an appropriate `README.md` and `AGENTS.md`, including package
+purpose, supported contracts, ownership boundaries, and usage guidance. When the package adds or
+changes an application-authoring surface, also update the reusable eXact agent skill so it directs
+agents to read the installed package's `AGENTS.md` and knows when that package should be used.
+
 ## Preserve what makes eXact different
 
 eXact is a compiler-led web framework, not a React dialect. Its TSX is intentionally familiar,
