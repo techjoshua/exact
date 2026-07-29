@@ -56,3 +56,7 @@ vocabulary is `📋` task, `▶` action, `🖥` server, `📱` client, `⇄` iso
 Hover and optional region projections use entity selection ranges, never the
 whole containing initializer or task body. Component CodeLens is a compact
 count; operation details remain on their badges and focused hovers.
+Explicit-task hover lists only authored activation arguments, while inferred
+tasks use compiler-retained authored paths. Callback captures are not presented
+as extra task dependencies, and destructured props never appear as a synthetic
+`props` identifier.

@@ -120,6 +120,62 @@ export function Summary(
 		}
 	});
 
+	it('shows only authored activation dependencies for explicit tasks', async () => {
+		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
+		const source = `import type { Component } from '@exactjs/core';
+export function Workspace(
+	this: Component<{ revision: number; draft: string; loading: boolean }>,
+	{ initial }: { initial: { provider: string } }
+) {
+	this.task(this.state.revision, async (_revision) => {
+		consume(this.state.draft, this.state.revision, this.state.loading, initial.provider);
+	});
+	return () => null;
+}`;
+		try {
+			await service.synchronize([
+				{ kind: 'upsert', filename: 'Workspace.tsx', version: 1, source }
+			]);
+			const inspection = await service.inspect('Workspace.tsx');
+			const task = inspection.components
+				.flatMap(flatten)
+				.find((entity) => entity.kind === 'explicit-task');
+
+			expect(task?.classification).toMatchObject({
+				kind: 'task',
+				dependencies: [{ kind: 'state', path: 'this.state.revision' }]
+			});
+		} finally {
+			await service.dispose();
+		}
+	});
+
+	it('names inferred dependencies from authored destructured bindings', async () => {
+		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
+		const source = `import type { Component } from '@exactjs/core';
+export async function Product(
+	this: Component<{ name?: string }>,
+	{ productId }: { productId: string }
+) {
+	this.state.name = await loadProduct(productId);
+	return () => <h1>{this.state.name}</h1>;
+}`;
+		try {
+			await service.synchronize([{ kind: 'upsert', filename: 'Product.tsx', version: 1, source }]);
+			const inspection = await service.inspect('Product.tsx');
+			const task = inspection.components
+				.flatMap(flatten)
+				.find((entity) => entity.kind === 'inferred-task');
+
+			expect(task?.classification).toMatchObject({
+				kind: 'task',
+				dependencies: [{ kind: 'prop', path: 'productId' }]
+			});
+		} finally {
+			await service.dispose();
+		}
+	});
+
 	it('publishes only current framework diagnostics across consecutive edits', async () => {
 		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
 		const clean = `import type { Component } from '@exactjs/core';

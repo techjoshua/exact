@@ -125,9 +125,9 @@ function responseFor(filename: string, source: string): NativeCompilerResponse {
 	}));
 	return {
 		id: filename,
-		protocolVersion: '1.25.0',
+		protocolVersion: '1.26.0',
 		typescriptVersion: '7.0.0',
-		backendVersion: '1.25.0',
+		backendVersion: '1.26.0',
 		diagnostics: [],
 		analysis: {
 			imports: [],

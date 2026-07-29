@@ -2933,7 +2933,9 @@ func TestSessionLowersInferredAndExplicitTaskDependencies(t *testing.T) {
 	if len(response.Analysis.Tasks) != 2 ||
 		len(response.Analysis.Tasks[0].Dependencies) != 2 ||
 		response.Analysis.Tasks[0].Dependencies[0].Source != "state" ||
-		response.Analysis.Tasks[0].Dependencies[1].Source != "derived" {
+		response.Analysis.Tasks[0].Dependencies[0].Path != "this.state.count" ||
+		response.Analysis.Tasks[0].Dependencies[1].Source != "derived" ||
+		response.Analysis.Tasks[0].Dependencies[1].Path != "label" {
 		t.Fatalf(
 			"unexpected structured task dependencies: %#v",
 			response.Analysis.Tasks,

@@ -230,7 +230,7 @@ function explicitDependencyPaths(call: string): string[] {
 	return argumentsList
 		.slice(0, -1)
 		.map((value) => value.trim())
-		.filter((value) => /^(?:props|this\.state|state)\.[A-Za-z_$][\w$.]*$/.test(value));
+		.filter(Boolean);
 }
 
 function splitTopLevel(source: string): string[] {

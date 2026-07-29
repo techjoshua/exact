@@ -32,6 +32,10 @@ project assignment entities at their precise state targets.
 Keep task and action selection ranges on their callable identifier, not the
 whole property-access expression. Presentation clients must be able to add
 framework meaning without recoloring `this`, punctuation, or adjacent syntax.
+For explicit tasks, project only authored call arguments as activation
+dependencies. Do not promote callback reads or captures into dependencies.
+For inferred tasks, preserve native authored dependency paths and deduplicate
+presentation without changing compiler scheduling.
 
 Request task refactors from the compiler and apply only plans matching the
 current generation. Do not reproduce placement, readiness, dependency, signal,

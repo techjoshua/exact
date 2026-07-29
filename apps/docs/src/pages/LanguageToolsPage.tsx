@@ -165,6 +165,12 @@ export function LanguageToolsPage(this: Component<{}>) {
 					inner-call parameter information.
 				</p>
 				<p>
+					Explicit-task hover lists only the arguments that activate the task, once and in source
+					order; values read inside its callback remain captures or effects. Inferred tasks show
+					compiler-discovered inputs using authored state paths and local destructured prop names,
+					never a synthetic identifier absent from the source.
+				</p>
+				<p>
 					Hovering a component JSX tag describes that referenced component rather than merely the
 					containing component. For example, a client component rendered from a server page reports
 					its client placement and boundary at the tag while retaining TypeScript's ordinary symbol

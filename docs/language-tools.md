@@ -294,6 +294,12 @@ containing setup or callback body. TypeScript hover therefore remains available
 for assignments, variables, parameters, and inner calls. Region markers use
 the same selection spans instead of decorating every line in a function.
 
+Task dependency hover describes activation, not every value read while the
+callback runs. An explicit task lists only its authored arguments, once and in
+source order. An inferred task lists the compiler-discovered inputs by their
+authored paths; destructured prop bindings retain their local names instead of
+appearing as a synthetic `props` identifier.
+
 ## Trust and local-data boundary
 
 The language server is local and does not send source, diagnostics, or

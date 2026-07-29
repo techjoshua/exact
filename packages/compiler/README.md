@@ -31,6 +31,9 @@ contract before inspection data is returned.
 Task and action `selectionRange` values isolate the authored `task` or `action`
 identifier rather than the surrounding `this.` property access, allowing LSP
 clients to preserve ordinary method-call coloring.
+Explicit-task classifications expose only authored activation arguments as
+dependencies. Inferred-task dependencies retain their authored state paths or
+local destructured binding names across the native process boundary.
 
 ```ts
 const language = createExactLanguageService({ root, noEmit: true });

@@ -107,7 +107,8 @@ and architecture.
 - Vite, Webpack, and Bun compiler integrations
 - Compiler-aware language tools with a no-emit project service, LSP server, and VS Code client,
   including syntax-preserving semantic tokens, precise referenced-component hovers, and
-  operation-local badges with version-fenced, framework-only diagnostics
+  operation-local badges with authored task dependencies and version-fenced,
+  framework-only diagnostics
 - Optional server-cooperative Chromium DevTools and a read-only CDP agent
 - Routing, accessible form primitives, and compiler-aware component testing
 - React 18 and 19 compatibility for React-owned code

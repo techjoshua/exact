@@ -27,6 +27,9 @@ Place assignment badges before the line's first token and call badges after the
 opening parenthesis. Do not badge the whole initializer. Restrict source hover,
 CodeLens detail, and region presentation to precise selection ranges so eXact
 does not obscure TypeScript information inside a function.
+Render explicit-task dependencies from authored call arguments only. For
+inferred tasks, present compiler-retained authored paths once; never expose
+coarse native source categories such as `props` as if they were identifiers.
 Do not access negotiated capability getters before `initialize`; register
 workspace-folder change listeners from `onInitialized` only when the client
 advertised support.

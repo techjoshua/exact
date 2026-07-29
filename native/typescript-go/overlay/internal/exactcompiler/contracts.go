@@ -12,7 +12,7 @@ import (
 )
 
 // ProtocolVersion identifies the process request and response contract.
-const ProtocolVersion = "1.25.0"
+const ProtocolVersion = "1.26.0"
 
 // BackendVersion identifies the eXact-owned native implementation.
 const BackendVersion = ProtocolVersion
@@ -441,6 +441,7 @@ type TaskSignalCall struct {
 type TaskDependency struct {
 	Index        int    `json:"index"`
 	Source       string `json:"source"`
+	Path         string `json:"path,omitempty"`
 	ContextToken string `json:"contextToken,omitempty"`
 }
 

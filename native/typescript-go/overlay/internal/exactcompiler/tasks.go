@@ -499,6 +499,7 @@ func taskDependencyRecords(
 			position: read.Start,
 			dependency: TaskDependency{
 				Source: "state",
+				Path:   "this.state." + path,
 			},
 		})
 	}
@@ -538,6 +539,7 @@ func taskDependencyRecords(
 			position: position,
 			dependency: TaskDependency{
 				Source:       source,
+				Path:         binding.Name,
 				ContextToken: binding.ContextToken,
 			},
 		})

@@ -60,39 +60,34 @@ function taskClassification(
 	region: AuthoredTaskRegion,
 	source: string
 ): ExactTaskClassification {
-	const dependencies = task?.dependencies.length
-		? task.dependencies.map((dependency) => {
-				const fallback = region.range;
-				const kind =
-					dependency.source === 'props'
-						? 'prop'
-						: dependency.source === 'derived'
-							? 'derived'
-							: dependency.source;
-				const path =
-					dependency.source === 'context'
-						? (dependency.contextToken ?? 'context')
-						: inferredDependencyPath(source, region.range, dependency.source);
-				return Object.freeze({
-					kind,
-					path,
-					range: findTextRange(source, path, region.range) ?? fallback,
-					confidence: path.endsWith('.*') ? 'broad' : 'exact'
-				}) as ExactSourceDependency;
-			})
-		: region.dependencyPaths.map((path) => {
-				const kind = path.startsWith('props.')
-					? ('prop' as const)
-					: path.includes('state.')
-						? ('state' as const)
-						: ('capture' as const);
-				return Object.freeze({
-					kind,
-					path,
-					range: findTextRange(source, path, region.range) ?? region.range,
-					confidence: 'exact' as const
-				});
-			});
+	const dependencies =
+		region.origin === 'explicit'
+			? sourceDependencies(region.dependencyPaths, region.range, source)
+			: task?.dependencies.length
+				? uniqueDependencies(
+						task.dependencies.map((dependency) => {
+							const fallback = region.range;
+							const kind =
+								dependency.source === 'props'
+									? 'prop'
+									: dependency.source === 'derived'
+										? 'derived'
+										: dependency.source;
+							const path =
+								dependency.path && !(dependency.source === 'props' && dependency.path === 'props')
+									? dependency.path
+									: dependency.source === 'context'
+										? (dependency.contextToken ?? 'context')
+										: inferredDependencyPath(source, region.range, dependency.source);
+							return Object.freeze({
+								kind,
+								path,
+								range: findTextRange(source, path, region.range) ?? fallback,
+								confidence: path.endsWith('.*') ? 'broad' : 'exact'
+							}) as ExactSourceDependency;
+						})
+					)
+				: [];
 	const effects = task
 		? [
 				...task.writes.map(
@@ -148,6 +143,46 @@ function taskClassification(
 			)
 		),
 		cleanup: task?.resources.length ? 'generation' : 'none'
+	});
+}
+
+/** Projects authored explicit task arguments into their scheduling dependencies. */
+function sourceDependencies(
+	paths: readonly string[],
+	range: ExactSourceRange,
+	source: string
+): ExactSourceDependency[] {
+	return paths.map((path) => {
+		const kind = path.startsWith('props.')
+			? ('prop' as const)
+			: path.includes('state.')
+				? ('state' as const)
+				: ('capture' as const);
+		return Object.freeze({
+			kind,
+			path,
+			range: findTextRange(source, path, range) ?? range,
+			confidence: 'exact' as const
+		});
+	});
+}
+
+/**
+ * Collapses native scheduling records that resolve to the same authored input.
+ *
+ * Native analysis may retain more than one capture occurrence for conservative
+ * invalidation, while source inspection describes dependency slots rather than
+ * internal occurrences.
+ */
+function uniqueDependencies(
+	dependencies: readonly ExactSourceDependency[]
+): ExactSourceDependency[] {
+	const seen = new Set<string>();
+	return dependencies.filter((dependency) => {
+		const key = `${dependency.kind}:${dependency.path}`;
+		if (seen.has(key)) return false;
+		seen.add(key);
+		return true;
 	});
 }
 

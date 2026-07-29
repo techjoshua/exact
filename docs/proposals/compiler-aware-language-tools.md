@@ -1006,7 +1006,11 @@ dense editor.
 ### Inlay hints
 
 Assignment badges precede the assignment and call badges follow the opening
-parenthesis. Useful facts include:
+parenthesis. Explicit task hover reports only authored activation arguments;
+callback-body captures and effects do not become additional activation
+dependencies. Inferred-task dependency slots retain authored state paths or
+local destructured binding names and are deduplicated for presentation. Useful
+facts include:
 
 - `inferred server`;
 - `blocking`;
