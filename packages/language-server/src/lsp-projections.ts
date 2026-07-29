@@ -19,7 +19,12 @@ import { projectInlayHints } from './inlay-hints.js';
 export { projectInlayHints };
 
 /** Base token types emitted only for eXact-owned semantic distinctions. */
-export const exactSemanticTokenTypes = Object.freeze(['function', 'variable', 'property']);
+export const exactSemanticTokenTypes = Object.freeze([
+	'function',
+	'variable',
+	'property',
+	'method'
+]);
 
 /** Stable semantic-token modifiers understood by eXact editor clients. */
 export const exactSemanticTokenModifiers = Object.freeze([
@@ -47,16 +52,16 @@ export function projectSemanticTokens(
 ): SemanticTokens {
 	const builder = new SemanticTokensBuilder();
 	for (const entity of flattenInspection(inspection)) {
-		const modifiers = entityModifiers(entity);
-		if (!modifiers.length) continue;
+		const projection = entitySemanticToken(entity);
+		if (!projection) continue;
 		const range = lspRange(source, entity.selectionRange);
 		if (range.start.line !== range.end.line) continue;
 		builder.push(
 			range.start.line,
 			range.start.character,
 			Math.max(1, range.end.character - range.start.character),
-			entity.kind === 'component' || entity.kind === 'action' ? 0 : 1,
-			modifierMask(modifiers)
+			exactSemanticTokenTypes.indexOf(projection.type),
+			modifierMask(projection.modifiers)
 		);
 	}
 	return builder.build();
@@ -197,31 +202,39 @@ function entityDetail(entity: ExactSourceEntity): string {
 	return classification?.kind === 'task' ? taskLensTitle(classification) : entity.kind;
 }
 
-function entityModifiers(entity: ExactSourceEntity): string[] {
+type ExactSemanticTokenProjection = Readonly<{
+	type: (typeof exactSemanticTokenTypes)[number];
+	modifiers: readonly string[];
+}>;
+
+/**
+ * Selects only identifier-shaped entities whose standard token type agrees with TypeScript.
+ *
+ * Keywords, JSX tags, and inferred `await` sites remain owned by TypeScript/TextMate coloring;
+ * emitting an eXact token over those ranges would replace their normal syntax classification.
+ */
+function entitySemanticToken(entity: ExactSourceEntity): ExactSemanticTokenProjection | undefined {
 	const modifiers: string[] = [];
+	let type: ExactSemanticTokenProjection['type'];
 	switch (entity.kind) {
 		case 'component':
 			modifiers.push('exact.component');
-			break;
-		case 'initializer':
-			modifiers.push('exact.initializer');
-			break;
-		case 'render':
-		case 'render-expression':
-			modifiers.push('exact.render');
-			break;
-		case 'inferred-task':
-			modifiers.push('exact.inferredTask');
+			type = 'function';
 			break;
 		case 'explicit-task':
 			modifiers.push('exact.explicitTask');
+			type = 'method';
 			break;
 		case 'action':
 			modifiers.push('exact.action');
+			type = 'method';
 			break;
 		case 'derived':
 			modifiers.push('exact.derived');
+			type = 'variable';
 			break;
+		default:
+			return undefined;
 	}
 	const classification = entity.classification;
 	if (classification?.kind === 'task') {
@@ -231,7 +244,11 @@ function entityModifiers(entity: ExactSourceEntity): string[] {
 		if (classification.priority === 'deferred') modifiers.push('exact.deferred');
 		if (classification.resources.length) modifiers.push('exact.owned', 'exact.disposable');
 	}
-	return modifiers;
+	if (classification?.kind === 'action') {
+		if (classification.placement === 'server') modifiers.push('exact.server');
+		if (classification.placement === 'client') modifiers.push('exact.client');
+	}
+	return { type, modifiers };
 }
 
 function modifierMask(modifiers: readonly string[]): number {

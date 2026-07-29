@@ -101,6 +101,13 @@ describe('language-server projections', () => {
 			kind: 'markdown',
 			value: expect.stringContaining('latest')
 		});
+		expect(
+			semanticTokenFacts(source, projectSemanticTokens(compositeInspection, source).data)
+		).toEqual([
+			{ text: 'Page', type: 0 },
+			{ text: 'task', type: 3 },
+			{ text: 'action', type: 3 }
+		]);
 	});
 
 	it('explains the referenced component instead of its containing component', () => {
@@ -152,6 +159,9 @@ describe('language-server projections', () => {
 			start: { line: 0, character: tagRange.start },
 			end: { line: 0, character: tagRange.end }
 		});
+		expect(
+			semanticTokenFacts(source, projectSemanticTokens(preciseInspection, source).data)
+		).toEqual([{ text: 'Page', type: 0 }]);
 	});
 
 	it('places badges after authored source instead of inside selected tokens', () => {
@@ -291,4 +301,25 @@ function badgeParts(
 function sourceRange(source: string, token: string): { start: number; end: number } {
 	const start = source.indexOf(token);
 	return { start, end: start + token.length };
+}
+
+function semanticTokenFacts(
+	source: string,
+	data: readonly number[]
+): { text: string; type: number }[] {
+	const lines = source.split(/\r?\n/);
+	const result: { text: string; type: number }[] = [];
+	let line = 0;
+	let character = 0;
+	for (let index = 0; index < data.length; index += 5) {
+		const lineDelta = data[index]!;
+		line += lineDelta;
+		character = lineDelta ? data[index + 1]! : character + data[index + 1]!;
+		const length = data[index + 2]!;
+		result.push({
+			text: lines[line]!.slice(character, character + length),
+			type: data[index + 3]!
+		});
+	}
+	return result;
 }

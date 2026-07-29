@@ -167,6 +167,13 @@ export function LanguageToolsPage(this: Component<{}>) {
 					handshake. Clients without workspace-folder change support continue as stable single-root
 					sessions.
 				</p>
+				<p>
+					eXact semantic tokens preserve TypeScript's standard syntax classes: components remain
+					functions, explicit task and action identifiers are methods, and derived names are
+					variables. Keywords such as <code>return</code>, inferred <code>await</code> sites, JSX
+					tags, and surrounding property-access syntax stay entirely under TypeScript and the active
+					theme.
+				</p>
 				<CodeBlock source={settingsSource} language="json" title="VS Code settings" />
 				<p>
 					Presentation choices never change compiler semantics. In untrusted workspaces the

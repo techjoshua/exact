@@ -207,15 +207,15 @@ npx exact-language-server --stdio
 
 Standard capabilities carry the common experiences:
 
-| Experience               | LSP capability                   |
-| ------------------------ | -------------------------------- |
-| eXact compiler errors    | diagnostics                      |
-| classification colors    | semantic tokens full/delta       |
-| detailed explanations    | hover                            |
-| important inferred facts | hoverable line-edge inlay badges |
-| component/task summaries | CodeLens                         |
-| semantic outline         | document symbols                 |
-| safe transformations     | code actions and workspace edits |
+| Experience                           | LSP capability                   |
+| ------------------------------------ | -------------------------------- |
+| eXact compiler errors                | diagnostics                      |
+| compatible identifier classification | semantic tokens full/delta       |
+| detailed explanations                | hover                            |
+| important inferred facts             | hoverable line-edge inlay badges |
+| component/task summaries             | CodeLens                         |
+| semantic outline                     | document symbols                 |
+| safe transformations                 | code actions and workspace edits |
 
 Structured custom requests are limited to information that standard LSP cannot
 represent cleanly:
@@ -259,6 +259,15 @@ Presentation settings are independent:
 ```
 
 These settings never change compiler meaning.
+
+Semantic tokens are emitted only where eXact can preserve TypeScript's standard
+base classification: component declarations remain `function`, explicit
+`task` and `action` identifiers are `method`, and derived names remain
+`variable`. eXact does not publish semantic tokens over TypeScript keywords,
+inferred `await` sites, JSX tags, or whole property-access expressions. Those
+ranges remain entirely owned by TypeScript and the active color theme; eXact
+meaning is still available through badges, CodeLens, hovers, and the semantics
+tree.
 
 Inlay metadata is anchored after the authored source on the relevant line so it
 cannot split a TypeScript token or interfere with syntax highlighting. Badges

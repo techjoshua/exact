@@ -7,6 +7,7 @@ describe('compiler source inspection', () => {
 		const source = `export function Editor(this: Component<{ name: string }>) {
 	this.onMount(() => focus());
 	const save = this.action('Save', async () => submit(this.state.name));
+	this.task(() => save());
 	const upper = this.state.name.toUpperCase();
 	return () => (
 		<input value:input={this.state.name} onInput={() => save()} aria-label={upper} />
@@ -21,12 +22,21 @@ describe('compiler source inspection', () => {
 				'initializer',
 				'render',
 				'action',
+				'explicit-task',
 				'derived',
 				'binding',
 				'interaction',
 				'lifecycle'
 			])
 		);
+		const action = inspection.components
+			.flatMap(flatten)
+			.find((entity) => entity.kind === 'action');
+		const task = inspection.components
+			.flatMap(flatten)
+			.find((entity) => entity.kind === 'explicit-task');
+		expect(source.slice(action!.selectionRange.start, action!.selectionRange.end)).toBe('action');
+		expect(source.slice(task!.selectionRange.start, task!.selectionRange.end)).toBe('task');
 		await service.dispose();
 	});
 

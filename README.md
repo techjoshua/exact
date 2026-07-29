@@ -106,8 +106,8 @@ and architecture.
 - Browser rendering, SSR, streaming, hydration, server actions, and component continuations
 - Vite, Webpack, and Bun compiler integrations
 - Compiler-aware language tools with a no-emit project service, LSP server, and VS Code client,
-  including precise referenced-component hovers and composable line-edge badges that never split
-  authored tokens
+  including syntax-preserving semantic tokens, precise referenced-component hovers, and
+  composable line-edge badges
 - Optional server-cooperative Chromium DevTools and a read-only CDP agent
 - Routing, accessible form primitives, and compiler-aware component testing
 - React 18 and 19 compatibility for React-owned code

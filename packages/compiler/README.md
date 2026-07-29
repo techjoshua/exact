@@ -18,6 +18,9 @@ manifests, maps, or catalogs:
 
 Native UTF-8 byte spans are normalized to the public UTF-16 source-range
 contract before inspection data is returned.
+Task and action `selectionRange` values isolate the authored `task` or `action`
+identifier rather than the surrounding `this.` property access, allowing LSP
+clients to preserve ordinary method-call coloring.
 
 ```ts
 const language = createExactLanguageService({ root, noEmit: true });

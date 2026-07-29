@@ -23,6 +23,9 @@ generations, and dispose the service with its project owner. Treat source entity
 IDs as generation-local diagnostic correlation only.
 Keep native UTF-8 byte spans behind the language-service boundary and publish
 only normalized UTF-16 `ExactSourceRange` offsets.
+Keep task and action selection ranges on their callable identifier, not the
+whole property-access expression. Presentation clients must be able to add
+framework meaning without recoloring `this`, punctuation, or adjacent syntax.
 
 Request task refactors from the compiler and apply only plans matching the
 current generation. Do not reproduce placement, readiness, dependency, signal,

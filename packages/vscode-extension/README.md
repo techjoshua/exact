@@ -14,6 +14,11 @@ compiler-resolved placement and boundary. This distinguishes, for example, a
 client child element from the server component that contains it while leaving
 VS Code's TypeScript symbol information intact.
 
+Semantic modifiers are applied only to compatible identifier tokens:
+component functions, explicit task/action methods, and derived variables.
+Keywords, JSX tags, inferred `await` sites, punctuation, and surrounding
+property-access syntax retain VS Code's normal TypeScript/theme highlighting.
+
 Setup, task, and action inlay metadata is rendered after the authored source on
 its line, so it does not interrupt TypeScript syntax highlighting. Composable
 badges distinguish kind (`⚙`, `📋`, `▶`), inference (`⚡`), placement (`🖥`,

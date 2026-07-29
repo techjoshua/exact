@@ -13,6 +13,9 @@ component semantics cannot be represented by an existing protocol feature.
 For JSX component references, project the compiler's render-expression entity
 and tag selection range; never substitute the containing component's placement
 or infer placement from TypeScript hover text.
+Emit semantic tokens only for precise identifiers with a TypeScript-compatible
+standard base type. Never place an eXact token over keywords, JSX tags,
+inferred `await` sites, punctuation, or complete property-access expressions.
 Project inlay metadata only at line edges, never inside an authored token.
 Compose badge label parts by semantic fact, give each part a focused hover, omit
 default facts when that reduces noise, and keep the complete classification and

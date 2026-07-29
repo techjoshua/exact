@@ -11,6 +11,9 @@ requests for the semantics tree rather than parsing hover Markdown.
 Keep referenced-component hover presentation scoped to the compiler-provided JSX
 tag range and render-edge classification. Do not derive child placement from
 imports or TypeScript hover text in the extension.
+Do not compensate for broad or incompatible server semantic tokens in the
+extension. The language server must preserve TypeScript base token types and
+omit framework tokens where no compatible identifier projection exists.
 Preserve TypeScript token presentation: compiler inlay metadata belongs at a
 line edge. Preserve independently hoverable badge label parts supplied by the
 language server and keep detailed meaning in the combined hover content.

@@ -34,6 +34,12 @@ placement and boundary classification. Their hover range is limited to the
 authored tag, so a client child rendered by a server parent is identified as the
 client child rather than described with the parent's server reasons.
 
+Semantic tokens are limited to identifier ranges whose standard base type
+agrees with TypeScript: component functions, explicit task/action methods, and
+derived variables. The server deliberately emits no token over keywords,
+inferred `await` sites, JSX tags, or whole property accesses, preventing eXact
+modifiers from replacing normal syntax highlighting.
+
 Important setup, task, and action facts are projected as composable inlay badges
 at the end of the relevant authored line. Badge placement never splits a source
 token. The vocabulary is `⚙` initialization, `📋` task, `▶` action, `⚡`

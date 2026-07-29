@@ -75,7 +75,9 @@ export function actionEntities(
 		const end = findBalancedCallEnd(source, start) ?? start + match[0].length;
 		const actionRange = Object.freeze({ start, end });
 		const nativeAction = analysis.actions?.find(
-			(candidate) => candidate.component === component.name && candidate.start === start
+			(candidate) =>
+				candidate.component === component.name &&
+				clampRange(source, candidate.start, candidate.length).start === start
 		);
 		const continuation = analysis.continuations.find(
 			(candidate) =>
@@ -93,7 +95,7 @@ export function actionEntities(
 			name: nativeAction?.label ?? continuation?.label ?? 'Action',
 			range: actionRange,
 			selectionRange: Object.freeze({
-				start,
+				start: start + 'this.'.length,
 				end: start + 'this.action'.length
 			}),
 			children: Object.freeze([]),

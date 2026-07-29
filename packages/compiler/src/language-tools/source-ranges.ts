@@ -23,7 +23,7 @@ export function findTaskRegions(source: string): AuthoredTaskRegion[] {
 			origin: 'explicit' as const,
 			range: statementRange(source, start, end),
 			selectionRange: Object.freeze({
-				start: callStart,
+				start: callStart + 'this.'.length,
 				end: callStart + 'this.task'.length
 			}),
 			awaited: /^\s*await\b/.test(match[0]),
