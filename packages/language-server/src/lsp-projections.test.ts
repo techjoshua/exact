@@ -1,4 +1,4 @@
-import type { ExactSourceInspection } from '@exactjs/compiler';
+import type { ExactSourceEntity, ExactSourceInspection } from '@exactjs/compiler';
 import { describe, expect, it } from 'vitest';
 import {
 	projectCodeLenses,
@@ -21,7 +21,10 @@ describe('language-server projections', () => {
 			])
 		);
 		const hints = projectInlayHints(inspection, source);
-		expect(hints.map((hint) => hint.label)).toEqual(['◆', '⚡']);
+		expect(hints.map((hint) => badgeValues(hint.label))).toEqual([
+			['⚙', '⇄'],
+			['📋', '⚡', '🖥']
+		]);
 		expect(hints.every((hint) => hint.position.character === source.length)).toBe(true);
 		expect(hints[0]?.tooltip).toMatchObject({
 			kind: 'markdown',
@@ -35,6 +38,69 @@ describe('language-server projections', () => {
 			kind: 'markdown'
 		});
 		expect(projectSemanticTokens(inspection, source).data.length).toBeGreaterThan(0);
+	});
+
+	it('composes independently explained badges for explicit tasks and actions', () => {
+		const source = 'function Page() { this.task(); this.action(); }';
+		const inspection = fixture(source);
+		const initializer = inspection.components[0]?.children[0];
+		const inferredTask = initializer?.children[0];
+		if (!initializer || !inferredTask) throw new Error('Expected language-tools fixture entities.');
+		const explicitTask: ExactSourceEntity = {
+			...inferredTask,
+			id: 'Page:explicit-task',
+			kind: 'explicit-task',
+			selectionRange: sourceRange(source, 'task'),
+			classification: {
+				...inferredTask.classification!,
+				kind: 'task',
+				origin: 'explicit',
+				priority: 'deferred',
+				publication: 'immediate'
+			}
+		};
+		const action: ExactSourceEntity = {
+			id: 'Page:action',
+			kind: 'action',
+			name: 'Save',
+			range: { start: 0, end: source.length },
+			selectionRange: sourceRange(source, 'action'),
+			children: [],
+			classification: {
+				kind: 'action',
+				placement: 'server',
+				concurrency: 'latest'
+			},
+			reasons: []
+		};
+		const compositeInspection: ExactSourceInspection = {
+			...inspection,
+			components: [
+				{
+					...inspection.components[0]!,
+					children: [{ ...initializer, children: [explicitTask, action] }]
+				}
+			]
+		};
+
+		const hints = projectInlayHints(compositeInspection, source);
+		expect(hints.map((hint) => badgeValues(hint.label))).toEqual([
+			['⚙', '⇄'],
+			['📋', '🖥', '⏳', '🚨'],
+			['▶', '🖥']
+		]);
+		expect(badgeParts(hints[1]?.label)[2]?.tooltip).toMatchObject({
+			kind: 'markdown',
+			value: expect.stringContaining('Deferred priority')
+		});
+		expect(badgeParts(hints[2]?.label)[0]?.tooltip).toMatchObject({
+			kind: 'markdown',
+			value: expect.stringContaining('Action')
+		});
+		expect(hints[2]?.tooltip).toMatchObject({
+			kind: 'markdown',
+			value: expect.stringContaining('latest')
+		});
 	});
 
 	it('places badges after authored source instead of inside selected tokens', () => {
@@ -158,4 +224,20 @@ function fixture(source: string): ExactSourceInspection {
 			}
 		]
 	};
+}
+
+function badgeValues(label: string | { value: string }[]): string[] {
+	return badgeParts(label).map((part) => part.value.trim());
+}
+
+function badgeParts(
+	label: string | { value: string; tooltip?: unknown }[] | undefined
+): { value: string; tooltip?: unknown }[] {
+	if (!label) return [];
+	return typeof label === 'string' ? [{ value: label }] : label;
+}
+
+function sourceRange(source: string, token: string): { start: number; end: number } {
+	const start = source.indexOf(token);
+	return { start, end: start + token.length };
 }

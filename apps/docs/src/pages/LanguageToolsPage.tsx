@@ -149,10 +149,12 @@ export function LanguageToolsPage(this: Component<{}>) {
 				</p>
 				<p>
 					Inlay metadata appears after the authored source instead of inside a token, preserving
-					TypeScript syntax highlighting. Compact <code>◆</code>, <code>⚡</code>, and{' '}
-					<code>▶</code> badges identify initialization, inferred tasks, and explicit tasks; hover
-					the badge for placement, readiness, ownership, dependencies, effects, and compiler
-					reasons.
+					TypeScript syntax highlighting. Composable badges use <code>⚙</code> for initialization,{' '}
+					<code>📋</code> for tasks, <code>▶</code> for actions, <code>⚡</code> for compiler
+					inference, <code>🖥</code> or <code>📱</code> for placement, <code>⏳</code> for deferred
+					priority, and <code>🚨</code> for immediate publication. Each symbol has a focused hover,
+					while the combined hint explains readiness, ownership, concurrency, dependencies, effects,
+					and compiler reasons.
 				</p>
 				<p>
 					The language server installs negotiated listeners only after the LSP initialization

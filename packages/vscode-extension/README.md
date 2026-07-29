@@ -9,10 +9,12 @@ semantics tree, and a read-only compiler-separation view.
 The extension does not parse or classify eXact source. All semantic labels,
 reasons, edits, and diagnostics come from `@exactjs/compiler`.
 
-Setup and task inlay metadata is rendered after the authored source on its line,
-so it does not interrupt TypeScript syntax highlighting. Hover the compact `◆`
-initialization, `⚡` inferred-task, or `▶` explicit-task badge for the complete
-compiler explanation.
+Setup, task, and action inlay metadata is rendered after the authored source on
+its line, so it does not interrupt TypeScript syntax highlighting. Composable
+badges distinguish kind (`⚙`, `📋`, `▶`), inference (`⚡`), placement (`🖥`,
+`📱`, `⇄`), deferred priority (`⏳`), and immediate publication (`🚨`). Each
+symbol has a focused hover, and the combined hint provides the complete compiler
+explanation.
 
 Compiler execution is enabled only in trusted workspaces. Source and inspection
 data remain local. Presentation settings never change compiler meaning.

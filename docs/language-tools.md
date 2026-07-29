@@ -250,11 +250,14 @@ Presentation settings are independent:
 These settings never change compiler meaning.
 
 Inlay metadata is anchored after the authored source on the relevant line so it
-cannot split a TypeScript token or interfere with syntax highlighting. The
-compact badges use `◆` for setup-once initialization, `⚡` for compiler-inferred
-tasks, and `▶` for explicitly registered tasks. Hover a badge for placement,
-readiness, cancellation, dependencies, effects, and the compiler's inference
-reasons.
+cannot split a TypeScript token or interfere with syntax highlighting. Badges
+compose one semantic fact at a time: `⚙` identifies setup-once initialization,
+`📋` a task, `▶` an action, `⚡` compiler inference, `🖥` server placement, `📱`
+client placement, `⇄` isomorphic placement, `⏳` deferred priority, and `🚨`
+immediate publication. Normal priority, staged publication, and explicit task
+origin are left implicit to avoid visual noise. Each symbol has a focused hover;
+the combined hint explains readiness, cancellation, concurrency, dependencies,
+effects, and the compiler's inference reasons.
 
 ## Trust and local-data boundary
 

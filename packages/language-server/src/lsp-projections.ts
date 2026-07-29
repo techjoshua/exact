@@ -14,7 +14,12 @@ import {
 	SemanticTokensBuilder,
 	SymbolKind
 } from 'vscode-languageserver/node.js';
-import type { CodeLens, Hover, SemanticTokens } from 'vscode-languageserver/node.js';
+import type {
+	CodeLens,
+	Hover,
+	InlayHintLabelPart,
+	SemanticTokens
+} from 'vscode-languageserver/node.js';
 
 /** Base token types emitted only for eXact-owned semantic distinctions. */
 export const exactSemanticTokenTypes = Object.freeze(['function', 'variable', 'property']);
@@ -130,23 +135,58 @@ export function projectInlayHints(inspection: ExactSourceInspection, source: str
 				lineEdgeBadge(
 					source,
 					entity,
-					'◆',
+					[
+						badge('⚙', 'Initialization', 'Setup runs once per component instance.'),
+						placementBadge(classification.placement)
+					],
 					'Initialization',
-					'Runs once per component instance.',
 					entityFacts(entity)
 				)
 			];
-		if (classification?.kind !== 'task') return [];
-		return [
-			lineEdgeBadge(
-				source,
-				entity,
-				classification.origin === 'explicit' ? '▶' : '⚡',
-				classification.origin === 'explicit' ? 'Explicit task' : 'Inferred task',
-				`${capitalize(classification.readiness)} ${classification.placement} work.`,
-				entityFacts(entity)
-			)
-		];
+		if (classification?.kind === 'task')
+			return [
+				lineEdgeBadge(
+					source,
+					entity,
+					[
+						badge('📋', 'Task', 'Compiler-owned asynchronous work.'),
+						classification.origin === 'inferred'
+							? badge(
+									'⚡',
+									'Inferred',
+									'The compiler inferred this task from authored control flow.'
+								)
+							: undefined,
+						placementBadge(classification.placement),
+						classification.priority === 'deferred'
+							? badge('⏳', 'Deferred priority', 'This task is scheduled as deferred work.')
+							: undefined,
+						classification.publication === 'immediate'
+							? badge(
+									'🚨',
+									'Immediate publication',
+									'State effects publish as the task progresses instead of staging until completion.'
+								)
+							: undefined
+					],
+					classification.origin === 'explicit' ? 'Explicit task' : 'Inferred task',
+					entityFacts(entity)
+				)
+			];
+		if (classification?.kind === 'action')
+			return [
+				lineEdgeBadge(
+					source,
+					entity,
+					[
+						badge('▶', 'Action', 'Named component-owned interaction work.'),
+						placementBadge(classification.placement)
+					],
+					'Action',
+					entityFacts(entity)
+				)
+			];
+		return [];
 	});
 }
 
@@ -195,22 +235,59 @@ function positionAt(source: string, requested: number): Position {
 function lineEdgeBadge(
 	source: string,
 	entity: ExactSourceEntity,
-	icon: string,
+	badges: readonly (InlayBadge | undefined)[],
 	title: string,
-	summary: string,
 	facts: readonly string[]
 ): InlayHint {
+	const label = badges.filter((candidate): candidate is InlayBadge => candidate !== undefined);
 	const hint = InlayHint.create(
 		lineEndPosition(source, entity.selectionRange.start),
-		icon,
+		label.map(badgeLabelPart),
 		InlayHintKind.Type
 	);
 	hint.paddingLeft = true;
 	hint.tooltip = {
 		kind: MarkupKind.Markdown,
-		value: [`### ${title}`, summary, ...facts, ...reasonFacts(entity)].join('\n\n')
+		value: [`### ${title}`, ...facts, ...reasonFacts(entity)].join('\n\n')
 	};
 	return hint;
+}
+
+type InlayBadge = Readonly<{
+	icon: string;
+	title: string;
+	detail: string;
+}>;
+
+function badge(icon: string, title: string, detail: string): InlayBadge {
+	return { icon, title, detail };
+}
+
+function badgeLabelPart(value: InlayBadge, index: number): InlayHintLabelPart {
+	return {
+		value: `${index ? ' ' : ''}${value.icon}`,
+		tooltip: {
+			kind: MarkupKind.Markdown,
+			value: `**${value.title}**\n\n${value.detail}`
+		}
+	};
+}
+
+function placementBadge(placement: 'server' | 'client' | 'isomorphic' | 'unknown'): InlayBadge {
+	switch (placement) {
+		case 'server':
+			return badge('🖥', 'Server placement', 'This work executes on the server.');
+		case 'client':
+			return badge('📱', 'Client placement', 'This work executes in the browser.');
+		case 'isomorphic':
+			return badge(
+				'⇄',
+				'Isomorphic placement',
+				'This work is valid in server and client contexts.'
+			);
+		case 'unknown':
+			return badge('?', 'Unknown placement', 'The compiler cannot prove a placement yet.');
+	}
 }
 
 function lineEndPosition(source: string, requested: number): Position {
@@ -343,6 +420,11 @@ function entityFacts(entity: ExactSourceEntity): string[] {
 				(effect) =>
 					`Effect: \`${effect.path ?? effect.kind}\`${effect.confidence === 'exact' ? '' : ` (${effect.confidence})`}`
 			)
+		];
+	if (classification.kind === 'action')
+		return [
+			`Runs as a named **${classification.placement}** action.`,
+			`Concurrency: **${classification.concurrency}**.`
 		];
 	return [];
 }

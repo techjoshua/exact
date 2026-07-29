@@ -9,8 +9,8 @@ only generation/version-bound workspace edits returned by the language server.
 Keep region decorations optional and restrained, and use the structured custom
 requests for the semantics tree rather than parsing hover Markdown.
 Preserve TypeScript token presentation: compiler inlay metadata belongs at a
-line edge, with compact badges in the editor and detailed meaning in hover
-content.
+line edge. Preserve independently hoverable badge label parts supplied by the
+language server and keep detailed meaning in the combined hover content.
 
 Use `npm run dev:vscode-extension` from the repository root for development.
 Keep the launcher responsible for building both process owners and opening the

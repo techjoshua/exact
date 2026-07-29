@@ -11,8 +11,9 @@ workspace service during folder removal and shutdown.
 Prefer standard LSP capabilities. Add a custom request only when structured
 component semantics cannot be represented by an existing protocol feature.
 Project inlay metadata only at line edges, never inside an authored token.
-Keep badge labels compact and put classifications and inference evidence in
-their hover content.
+Compose badge label parts by semantic fact, give each part a focused hover, omit
+default facts when that reduces noise, and keep the complete classification and
+inference evidence in the combined hover.
 Do not access negotiated capability getters before `initialize`; register
 workspace-folder change listeners from `onInitialized` only when the client
 advertised support.

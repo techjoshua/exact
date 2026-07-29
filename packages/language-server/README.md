@@ -29,7 +29,10 @@ Custom requests:
 The server analyzes in memory. It never emits JavaScript, manifests, maps, or
 inspection catalogs.
 
-Important setup and task facts are projected as compact inlay badges at the end
-of the relevant authored line. Badge placement never splits a source token.
-Hovering `◆` (initialization), `⚡` (inferred task), or `▶` (explicit task)
-reveals the full compiler-owned classification and inference reasons.
+Important setup, task, and action facts are projected as composable inlay badges
+at the end of the relevant authored line. Badge placement never splits a source
+token. The vocabulary is `⚙` initialization, `📋` task, `▶` action, `⚡`
+compiler-inferred, `🖥` server, `📱` client, `⇄` isomorphic, `⏳` deferred
+priority, and `🚨` immediate publication. Each label part has a focused hover,
+and the combined hint retains the full compiler classification and inference
+reasons.
