@@ -5,6 +5,12 @@ import { describe, expect, it } from 'vitest';
 import { resolveExactLanguageServerModule } from './server-module.js';
 
 describe('VS Code language-server module resolution', () => {
+	it('prefers the freshly built sibling workspace over an installed dependency copy', () => {
+		expect(resolveExactLanguageServerModule(import.meta.url)).toBe(
+			path.resolve(import.meta.dirname, '../../language-server/dist/server.js')
+		);
+	});
+
 	it('resolves a workspace-hoisted package without an extension-local node_modules link', () => {
 		const extensionEntry = pathToFileURL(
 			path.resolve('.tmp/exact-vscode-resolution/extension.js')

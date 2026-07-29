@@ -23,5 +23,6 @@ npm run dev:vscode-extension
 
 The launcher supports `--code code-insiders`, `--workspace <path>`,
 `--skip-build`, and `--dry-run`. `EXACT_VSCODE_COMMAND` may also select another
-VS Code CLI. The extension resolves `@exactjs/language-server` from packaged or
-workspace-hoisted dependencies, so no local `node_modules` junction is needed.
+VS Code CLI. A development host prefers the freshly built sibling
+`packages/language-server`; packaged extensions fall back to their installed
+dependency. No local `node_modules` junction or copy synchronization is needed.

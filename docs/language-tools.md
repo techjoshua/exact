@@ -35,9 +35,10 @@ Use `npm run dev:vscode-extension -- --code code-insiders` for VS Code Insiders,
 `--workspace <path>` to open a particular sample, or `--skip-build` while
 iterating on already-built output. `--dry-run` prints the exact build and launch
 plan. The extension resolves both packaged and npm-workspace-hoisted language
-server layouts without creating a package-local dependency link. The opened
-workspace must be trusted, and opening a TypeScript or TSX file triggers
-activation.
+server layouts without creating a package-local dependency link. Development
+prefers the freshly built sibling workspace package over any stale installed
+copy. The opened workspace must be trusted, and opening a TypeScript or TSX
+file triggers activation.
 
 ## Source inspection
 

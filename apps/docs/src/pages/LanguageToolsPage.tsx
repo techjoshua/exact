@@ -167,10 +167,11 @@ export function LanguageToolsPage(this: Component<{}>) {
 					title="Extension Development Host"
 				/>
 				<p>
-					The launcher builds the language server and VS Code client, resolves the workspace-hoisted
-					server dependency, and opens a fresh development host. Use <code>--skip-build</code> when
-					reusing current output or <code>--dry-run</code> to inspect the launch plan. Trust the
-					opened workspace and open a TypeScript or TSX file to activate eXact Language Tools.
+					The launcher builds the language server and VS Code client, prefers that freshly built
+					sibling over any installed dependency copy, and opens a fresh development host. Use{' '}
+					<code>--skip-build</code> when reusing current output or <code>--dry-run</code> to inspect
+					the launch plan. Trust the opened workspace and open a TypeScript or TSX file to activate
+					eXact Language Tools.
 				</p>
 			</section>
 			<Callout title="One compiler authority">
