@@ -43,6 +43,12 @@ for delivered designs. Every proposal begins with an implementation-status
 ledger that distinguishes current behavior from deferred work. Code and the
 current references above remain authoritative.
 
+Active proposals:
+
+| Proposal                                                                                                | Scope                                                                                                                                                     |
+| ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Unified function-defined tasks and structured task trees](proposals/unified-function-defined-tasks.md) | Replaces separate authored task/action APIs with compiler-recognized functions, one structured lifetime, unified tooling, and a future motion foundation. |
+
 ## Historical evidence
 
 [`history`](history) contains dated benchmark and adversarial-review records.
