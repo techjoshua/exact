@@ -28,3 +28,8 @@ Custom requests:
 
 The server analyzes in memory. It never emits JavaScript, manifests, maps, or
 inspection catalogs.
+
+Important setup and task facts are projected as compact inlay badges at the end
+of the relevant authored line. Badge placement never splits a source token.
+Hovering `◆` (initialization), `⚡` (inferred task), or `▶` (explicit task)
+reveals the full compiler-owned classification and inference reasons.

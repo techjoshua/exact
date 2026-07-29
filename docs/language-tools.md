@@ -201,7 +201,7 @@ Standard capabilities carry the common experiences:
 | eXact compiler errors    | diagnostics                      |
 | classification colors    | semantic tokens full/delta       |
 | detailed explanations    | hover                            |
-| important inferred facts | inlay hints                      |
+| important inferred facts | hoverable line-edge inlay badges |
 | component/task summaries | CodeLens                         |
 | semantic outline         | document symbols                 |
 | safe transformations     | code actions and workspace edits |
@@ -228,7 +228,7 @@ The VS Code extension presents:
 
 - eXact-owned semantic modifiers without replacing TypeScript coloring;
 - optional `INIT`, `TASK`, and `VIEW`-style region boundaries;
-- concise CodeLens and important inlay hints;
+- concise CodeLens and important line-edge inlay badges;
 - compiler-backed diagnostics and code actions;
 - the Component Semantics tree;
 - source navigation for inference evidence; and
@@ -248,6 +248,13 @@ Presentation settings are independent:
 ```
 
 These settings never change compiler meaning.
+
+Inlay metadata is anchored after the authored source on the relevant line so it
+cannot split a TypeScript token or interfere with syntax highlighting. The
+compact badges use `◆` for setup-once initialization, `⚡` for compiler-inferred
+tasks, and `▶` for explicitly registered tasks. Hover a badge for placement,
+readiness, cancellation, dependencies, effects, and the compiler's inference
+reasons.
 
 ## Trust and local-data boundary
 

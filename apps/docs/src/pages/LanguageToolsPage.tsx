@@ -144,8 +144,15 @@ export function LanguageToolsPage(this: Component<{}>) {
 				<p>
 					VS Code's TypeScript extension continues to provide completion, rename, navigation,
 					formatting, and ordinary type diagnostics. The separate eXact language server adds only
-					framework-owned diagnostics, semantic modifiers, hovers, inlay hints, CodeLens, symbols,
-					code actions, and the read-only Compiler Separation view.
+					framework-owned diagnostics, semantic modifiers, hovers, line-edge inlay badges, CodeLens,
+					symbols, code actions, and the read-only Compiler Separation view.
+				</p>
+				<p>
+					Inlay metadata appears after the authored source instead of inside a token, preserving
+					TypeScript syntax highlighting. Compact <code>◆</code>, <code>⚡</code>, and{' '}
+					<code>▶</code> badges identify initialization, inferred tasks, and explicit tasks; hover
+					the badge for placement, readiness, ownership, dependencies, effects, and compiler
+					reasons.
 				</p>
 				<p>
 					The language server installs negotiated listeners only after the LSP initialization
@@ -163,7 +170,7 @@ export function LanguageToolsPage(this: Component<{}>) {
 				<h2>Run the extension from a checkout</h2>
 				<CodeBlock
 					source={extensionLauncherSource}
-					language="sh"
+					language="shell"
 					title="Extension Development Host"
 				/>
 				<p>

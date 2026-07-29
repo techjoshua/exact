@@ -116,25 +116,35 @@ export function projectCodeLenses(inspection: ExactSourceInspection, source: str
 	return lenses;
 }
 
-/** Projects important placement, readiness, and ownership facts as inlay hints. */
+/**
+ * Projects important placement, readiness, and ownership facts as line-edge badges.
+ *
+ * Badge positions are always after the authored source on the entity's selection line. Keeping
+ * the hints outside token ranges prevents presentation metadata from splitting TypeScript tokens.
+ */
 export function projectInlayHints(inspection: ExactSourceInspection, source: string): InlayHint[] {
 	return flattenInspection(inspection).flatMap((entity) => {
 		const classification = entity.classification;
 		if (classification?.kind === 'initializer')
 			return [
-				InlayHint.create(
-					lspRange(source, entity.selectionRange).end,
-					' setup once',
-					InlayHintKind.Type
+				lineEdgeBadge(
+					source,
+					entity,
+					'◆',
+					'Initialization',
+					'Runs once per component instance.',
+					entityFacts(entity)
 				)
 			];
 		if (classification?.kind !== 'task') return [];
-		const ownership = classification.resources.length ? ' · disposed with generation' : '';
 		return [
-			InlayHint.create(
-				lspRange(source, entity.selectionRange).end,
-				` ${classification.origin} ${classification.placement} · ${classification.readiness}${ownership}`,
-				InlayHintKind.Type
+			lineEdgeBadge(
+				source,
+				entity,
+				classification.origin === 'explicit' ? '▶' : '⚡',
+				classification.origin === 'explicit' ? 'Explicit task' : 'Inferred task',
+				`${capitalize(classification.readiness)} ${classification.placement} work.`,
+				entityFacts(entity)
 			)
 		];
 	});
@@ -180,6 +190,43 @@ function positionAt(source: string, requested: number): Position {
 	const before = source.slice(0, offset);
 	const lines = before.split('\n');
 	return Position.create(lines.length - 1, lines.at(-1)!.replace(/\r$/, '').length);
+}
+
+function lineEdgeBadge(
+	source: string,
+	entity: ExactSourceEntity,
+	icon: string,
+	title: string,
+	summary: string,
+	facts: readonly string[]
+): InlayHint {
+	const hint = InlayHint.create(
+		lineEndPosition(source, entity.selectionRange.start),
+		icon,
+		InlayHintKind.Type
+	);
+	hint.paddingLeft = true;
+	hint.tooltip = {
+		kind: MarkupKind.Markdown,
+		value: [`### ${title}`, summary, ...facts, ...reasonFacts(entity)].join('\n\n')
+	};
+	return hint;
+}
+
+function lineEndPosition(source: string, requested: number): Position {
+	const selection = positionAt(source, requested);
+	const lineStart = sourceOffset(source, Position.create(selection.line, 0));
+	const newline = source.indexOf('\n', lineStart);
+	const rawEnd = newline < 0 ? source.length : newline;
+	const lineEnd = rawEnd > lineStart && source.charCodeAt(rawEnd - 1) === 13 ? rawEnd - 1 : rawEnd;
+	return positionAt(source, lineEnd);
+}
+
+function reasonFacts(entity: ExactSourceEntity): string[] {
+	return entity.reasons.flatMap((reason) => [
+		`**Why:** ${reason.summary}`,
+		...(reason.related ?? []).map((related) => `- ${related.summary}`)
+	]);
 }
 
 function symbolForEntity(entity: ExactSourceEntity, source: string): DocumentSymbol {

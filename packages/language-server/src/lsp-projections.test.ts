@@ -20,11 +20,63 @@ describe('language-server projections', () => {
 				expect.stringContaining('Inferred blocking server task')
 			])
 		);
-		expect(projectInlayHints(inspection, source)[0]?.label).toContain('setup once');
+		const hints = projectInlayHints(inspection, source);
+		expect(hints.map((hint) => hint.label)).toEqual(['◆', '⚡']);
+		expect(hints.every((hint) => hint.position.character === source.length)).toBe(true);
+		expect(hints[0]?.tooltip).toMatchObject({
+			kind: 'markdown',
+			value: expect.stringContaining('Initialization')
+		});
+		expect(hints[1]?.tooltip).toMatchObject({
+			kind: 'markdown',
+			value: expect.stringContaining('Inferred task')
+		});
 		expect(projectHover(inspection, source, { line: 0, character: 10 })?.contents).toMatchObject({
 			kind: 'markdown'
 		});
 		expect(projectSemanticTokens(inspection, source).data.length).toBeGreaterThan(0);
+	});
+
+	it('places badges after authored source instead of inside selected tokens', () => {
+		const source = [
+			'function Page() {',
+			'\tthis.task(async () => {});',
+			'\treturn () => <main />;',
+			'}'
+		].join('\r\n');
+		const inspection = fixture(source);
+		const pageOffset = source.indexOf('Page');
+		const taskOffset = source.indexOf('task');
+		const initializer = inspection.components[0]?.children[0];
+		const task = initializer?.children[0];
+		if (!initializer || !task) throw new Error('Expected language-tools fixture entities.');
+		const rangedInspection: ExactSourceInspection = {
+			...inspection,
+			components: [
+				{
+					...inspection.components[0]!,
+					selectionRange: { start: pageOffset, end: pageOffset + 4 },
+					children: [
+						{
+							...initializer,
+							selectionRange: { start: pageOffset, end: pageOffset + 4 },
+							children: [
+								{
+									...task,
+									selectionRange: { start: taskOffset, end: taskOffset + 4 }
+								}
+							]
+						}
+					]
+				}
+			]
+		};
+
+		const hints = projectInlayHints(rangedInspection, source);
+		expect(hints.map((hint) => hint.position)).toEqual([
+			{ line: 0, character: 'function Page() {'.length },
+			{ line: 1, character: '\tthis.task(async () => {});'.length }
+		]);
 	});
 });
 

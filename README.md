@@ -105,7 +105,8 @@ and architecture.
 - Finite eager/lazy component registries with compiler-checked identity, placement, SSR, and hydration
 - Browser rendering, SSR, streaming, hydration, server actions, and component continuations
 - Vite, Webpack, and Bun compiler integrations
-- Compiler-aware language tools with a no-emit project service, LSP server, and VS Code client
+- Compiler-aware language tools with a no-emit project service, LSP server, and VS Code client,
+  including hoverable line-edge badges that never split authored tokens
 - Optional server-cooperative Chromium DevTools and a read-only CDP agent
 - Routing, accessible form primitives, and compiler-aware component testing
 - React 18 and 19 compatibility for React-owned code
