@@ -37,6 +37,13 @@ export {
 	selectExactExposureArtifactGraph
 } from '../exposures.js';
 export type { ExactExposureInspectionCatalog } from '../exposures.js';
+export {
+	createExactBuildInspectionCatalog,
+	exactInspectionSourceHash,
+	type ExactBuildInspectionCatalogOptions,
+	type ExactBuildInspectionRootInput
+} from '../language-tools/build-catalog.js';
+export { createExactRuntimeInspectionCorrelation } from '../language-tools/runtime-correlation.js';
 export { generatedComponentName } from '../names.js';
 export {
 	createExactPolicyAuditReport,

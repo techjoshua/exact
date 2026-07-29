@@ -1,7 +1,9 @@
 import { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from '@exactjs/core';
+import { parseExactDebugRequest } from '@exactjs/devtools-protocol';
 import type {
 	ExactBatchRequest,
 	ExactInvocationRequest,
+	ExactProtocolRequest,
 	ExactRequestLike,
 	ExactResponseLike
 } from './types.js';
@@ -23,7 +25,7 @@ export function parseExactRequestBody(
 		maxJsonNodes?: number;
 		maxRequestBytes?: number;
 	} = {}
-): ExactInvocationRequest | ExactBatchRequest {
+): ExactProtocolRequest {
 	if (
 		typeof body === 'string' &&
 		utf8Length(body) > positiveLimit(options.maxRequestBytes, 4 * 1024 * 1024)
@@ -48,6 +50,7 @@ export function parseExactRequestBody(
 	const value = decodeReactiveProtocolValue(encodedValue);
 	if (!value || typeof value !== 'object') throw new Error('invalid invocation');
 	const record = value as Record<string, unknown>;
+	if (record.type === 'debug') return parseExactDebugRequest(record);
 	if (record.type === 'batch')
 		return parseBatch(record, positiveLimit(options.maxBatchOperations, 100));
 	return parseInvocationRecord(record);
@@ -55,12 +58,13 @@ export function parseExactRequestBody(
 
 /** Returns whether a parsed request contains only JSON-safe payload, state, and context values. */
 export function requestPayloadSafe(
-	input: ExactInvocationRequest | ExactBatchRequest,
+	input: ExactProtocolRequest,
 	limits: { maxJsonDepth?: number; maxJsonNodes?: number; maxRequestBytes?: number } = {}
 ): boolean {
 	if (input.type === 'batch') {
 		return input.operations.every((operation) => requestPayloadSafe(operation, limits));
 	}
+	if (input.type === 'debug') return true;
 	const options = {
 		maxDepth: limits.maxJsonDepth,
 		maxNodes: limits.maxJsonNodes,

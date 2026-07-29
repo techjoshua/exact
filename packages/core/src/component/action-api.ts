@@ -162,6 +162,12 @@ function createAction<Result>(
 		if (concurrency === 'latest') cancelAll('superseded');
 		cancellationReason = undefined;
 		const generation = ++status.generation;
+		owner.domain.inspection?.publish({
+			kind: 'action.queue',
+			component: owner,
+			generation,
+			attributes: Object.freeze({ name })
+		});
 		status.error = undefined;
 		status.pendingCount++;
 		let resolve!: (value: Awaited<Result>) => void;
@@ -212,6 +218,12 @@ function createAction<Result>(
 			return;
 		}
 		record.started = true;
+		owner.domain.inspection?.publish({
+			kind: 'action.start',
+			component: owner,
+			generation: record.generation,
+			attributes: Object.freeze({ name })
+		});
 		const context: ActionContext = {
 			signal: record.controller.signal,
 			generation: record.generation,
@@ -229,6 +241,12 @@ function createAction<Result>(
 					throw new TypeError('ActionContext.optimistic() requires a synchronous callback');
 				}
 				record.journals.push(journal);
+				owner.domain.inspection?.publish({
+					kind: 'action.optimistic',
+					component: owner,
+					generation: record.generation,
+					attributes: Object.freeze({ name })
+				});
 			}
 		};
 		let execution: Promise<Awaited<Result>>;
@@ -251,6 +269,12 @@ function createAction<Result>(
 				for (const journal of record.journals) journal.discard();
 				status.result = value;
 				finish(record);
+				owner.domain.inspection?.publish({
+					kind: 'action.settle',
+					component: owner,
+					generation: record.generation,
+					attributes: Object.freeze({ name })
+				});
 				record.resolve(value);
 			},
 			(error) => fail(record, error)
@@ -261,6 +285,13 @@ function createAction<Result>(
 		rollbackReactiveMutationJournals(record.journals);
 		record.journals.length = 0;
 		if (!isInteractionCancellation(error)) status.error = error;
+		owner.domain.inspection?.publish({
+			kind: isInteractionCancellation(error) ? 'action.cancel' : 'action.rollback',
+			component: owner,
+			generation: record.generation,
+			reason: error instanceof Error ? error.name : 'action-failed',
+			attributes: Object.freeze({ name })
+		});
 		finish(record);
 		record.reject(error);
 	}
@@ -284,6 +315,13 @@ function createAction<Result>(
 			rollbackReactiveMutationJournals(record.journals);
 			record.journals.length = 0;
 			record.controller.abort(reason);
+			owner.domain.inspection?.publish({
+				kind: 'action.cancel',
+				component: owner,
+				generation: record.generation,
+				reason: String(reason),
+				attributes: Object.freeze({ name })
+			});
 		}
 		for (const record of [...queued]) {
 			const index = queued.indexOf(record);

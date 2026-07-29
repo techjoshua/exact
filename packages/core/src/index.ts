@@ -75,6 +75,13 @@ export {
 } from './component/action-contracts.js';
 export { inspectComponentActions } from './component/action-api.js';
 export {
+	createExactRuntimeInspectionOwner,
+	inspectExactRuntimeComponent,
+	type ExactRuntimeInspectionEventInput,
+	type ExactRuntimeInspectionOwner,
+	type ExactRuntimeInspectionOwnerOptions
+} from './component/inspection.js';
+export {
 	createCompiledComponentRegistry,
 	createComponentRegistry,
 	hasComponent,

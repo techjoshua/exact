@@ -8,6 +8,7 @@
 		"types": ["node"]
 	},
 	"references": [
+		{ "path": "../devtools-protocol" },
 		{ "path": "../instrumentation" },
 		{ "path": "../plugin-api" },
 		{ "path": "../plugin-host" }
@@ -70,7 +71,9 @@
 		"src/native/process.ts",
 		"src/native/transformation.ts",
 		"src/language-tools/contracts.ts",
+		"src/language-tools/build-catalog.ts",
 		"src/language-tools/refactor-equivalence.ts",
+		"src/language-tools/runtime-correlation.ts",
 		"src/language-tools/service.ts",
 		"src/language-tools/semantic-entities.ts",
 		"src/language-tools/source-diagnostics.ts",

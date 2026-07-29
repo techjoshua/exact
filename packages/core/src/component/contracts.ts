@@ -8,6 +8,7 @@ import type {
 
 import type { ComponentLog } from '../logging.js';
 import type { ComponentActionFactory } from './action-contracts.js';
+import type { ExactRuntimeInspectionOwner } from './inspection.js';
 
 import type {
 	Activity,
@@ -43,6 +44,8 @@ export type ActivityMode = 'active' | 'parked' | 'background';
 /** Immutable execution-root ownership for one component instance. */
 export type ComponentDomain = {
 	readonly executionRoot: string;
+	/** Optional explicit runtime inspection owner; absent from hardened builds. */
+	readonly inspection?: ExactRuntimeInspectionOwner;
 	/** Framework-private bridge used by compiler-generated distributed continuations. */
 	readonly dispatchContinuation?: ComponentContinuationDispatcher;
 	/** Framework-private source of one serialized SSR component activation. */

@@ -1,6 +1,10 @@
 {
 	"files": [],
 	"references": [
+		{ "path": "./packages/devtools-protocol" },
+		{ "path": "./packages/devtools-runtime" },
+		{ "path": "./packages/devtools-agent" },
+		{ "path": "./packages/chromium-devtools" },
 		{ "path": "./packages/instrumentation" },
 		{ "path": "./packages/plugin-api" },
 		{ "path": "./packages/config" },

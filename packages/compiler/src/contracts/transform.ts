@@ -1,9 +1,11 @@
 import type { ExactPreparedCompilerRegistry } from '@exactjs/plugin-api';
+import type { ExactBuildInspectionCatalog } from '@exactjs/devtools-protocol';
 import type { ExactCompilerSession } from '../expression/project.js';
 import type { ExactArtifactTarget } from './artifacts.js';
 import type { ExactCompilerExplanation } from './explanation.js';
 import type { ExactCompilerManifest } from './manifest.js';
 import type { ExactSourceInspection } from '../language-tools/contracts.js';
+import type { ExactSourceEntityKind } from '../language-tools/contracts.js';
 
 /** Replaces one imported or exported binding during native module lowering. */
 export interface ModuleExportReplacement {
@@ -45,6 +47,11 @@ export type TransformOptions = {
 	 * default and is disabled when NODE_ENV is production.
 	 */
 	emitInspection?: boolean | 'auto';
+	/**
+	 * Lowers compact build-local source correlation records for an attached runtime inspector.
+	 * `auto` follows the development default. Rich source metadata remains out-of-band.
+	 */
+	instrumentInspection?: boolean | 'auto';
 	moduleRewrite?: ModuleRewriteOptions;
 	moduleTransform?: ModuleTransform;
 	/**
@@ -172,7 +179,24 @@ export type TransformResult = {
 	explanation?: ExactCompilerExplanation;
 	/** Optional host-side inspection catalog; never embedded in generated code. */
 	inspectionCatalog?: ExactSourceInspection;
+	/** Compact IDs lowered for runtime correlation; contains no paths, reasons, or source text. */
+	inspectionCorrelation?: ExactRuntimeInspectionCorrelation;
 };
+
+/** Compact component-local source entity identity shared with instrumented runtime output. */
+export type ExactRuntimeInspectionCorrelation = Readonly<{
+	protocol: 1;
+	components: readonly Readonly<{
+		componentTypeId: string;
+		slots: readonly Readonly<{ id: string; kind: ExactSourceEntityKind }>[];
+	}>[];
+}>;
+
+/** Server-only build catalog emitted by a compiler or framework adapter. */
+export type ExactCompiledBuildInspection = Readonly<{
+	inspectionFile?: string;
+	catalog: ExactBuildInspectionCatalog;
+}>;
 
 /** Defines the exact source map type contract. */
 export type ExactSourceMap = {

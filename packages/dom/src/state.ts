@@ -18,3 +18,36 @@ export const nodeOwners = new WeakMap<Node, ComponentInstance<any>>();
 export const propBindings = new WeakMap<Element, Map<string, StopHandle>>();
 /** Provides the canonical component mounts value. */
 export const componentMounts = new WeakMap<ComponentInstance<any>, Mounted>();
+
+const inspectableRoots = new Set<WeakRef<Root>>();
+const rootInspectionReferences = new WeakMap<Root, WeakRef<Root>>();
+
+/** Registers one active root for bounded late-attachment inspection. */
+export function registerInspectableRoot(root: Root): void {
+	if (rootInspectionReferences.has(root)) return;
+	const reference = new WeakRef(root);
+	rootInspectionReferences.set(root, reference);
+	inspectableRoots.add(reference);
+}
+
+/** Removes one disposed root from future late-attachment snapshots. */
+export function unregisterInspectableRoot(root: Root): void {
+	const reference = rootInspectionReferences.get(root);
+	if (!reference) return;
+	inspectableRoots.delete(reference);
+	rootInspectionReferences.delete(root);
+}
+
+/** Materializes only live instrumented roots and prunes collected references. */
+export function activeInspectableRoots(): readonly Root[] {
+	const active: Root[] = [];
+	for (const reference of inspectableRoots) {
+		const root = reference.deref();
+		if (!root) {
+			inspectableRoots.delete(reference);
+			continue;
+		}
+		if (root.current.domain?.inspection) active.push(root);
+	}
+	return Object.freeze(active);
+}

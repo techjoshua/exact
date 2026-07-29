@@ -295,6 +295,7 @@ export function createComponentInstance<
 		markMounted(): void {
 			if (mounted || disposed) return;
 			mounted = true;
+			domain.inspection?.publish({ kind: 'component.mount', component: instance });
 			instance.mountController = new AbortController();
 			for (const handler of instance.mountHandlers) {
 				if (disposed || !mounted) break;
@@ -315,9 +316,15 @@ export function createComponentInstance<
 		},
 		updateProps(nextProps): void {
 			updateReactive(props, nextProps);
+			domain.inspection?.publish({ kind: 'props.change', component: instance, path: 'props' });
 		},
 		unmount(reason = 'unmount'): void {
 			if (disposed) return;
+			domain.inspection?.publish({
+				kind: 'component.unmount',
+				component: instance,
+				reason
+			});
 			if (activation.active) activation.deactivate(reason);
 			disposed = true;
 			mounted = false;
@@ -357,6 +364,7 @@ export function createComponentInstance<
 			if (failed) throw firstError;
 		}
 	};
+	domain.inspection?.publish({ kind: 'component.construct', component: instance });
 
 	// Framework fallback errors belong to one application root. A user-provided
 	// ErrorContext installed during construction replaces this seed for its tree.

@@ -30,13 +30,30 @@ describe('compiler inspection catalog boundary', () => {
 			});
 			const automatic = transformSource('export const value = 1;', {
 				filename: 'automatic.ts',
-				emitInspection: 'auto'
+				emitInspection: 'auto',
+				instrumentInspection: 'auto'
 			});
 			expect(disabled.inspectionCatalog).toBeUndefined();
 			expect(automatic.inspectionCatalog).toBeUndefined();
+			expect(automatic.inspectionCorrelation).toBeUndefined();
+			expect(automatic.code).not.toContain('@exactjs/devtools-runtime');
 		} finally {
 			if (previous === undefined) delete process.env.NODE_ENV;
 			else process.env.NODE_ENV = previous;
 		}
+	});
+
+	it('lowers compact canonical IDs without rich source descriptions', () => {
+		const source = `export function Page(this: Component<{ count: number }>) {
+	return () => <button>{this.state.count}</button>;
+}`;
+		const result = transformSource(source, {
+			filename: 'Page.tsx',
+			instrumentInspection: true
+		});
+		expect(result.inspectionCorrelation?.components[0]?.componentTypeId).toBeTruthy();
+		expect(result.code).toContain('@exactjs/devtools-runtime');
+		expect(result.code).not.toContain('reactive-dependency');
+		expect(result.code).not.toContain('Page.tsx');
 	});
 });

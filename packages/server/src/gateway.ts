@@ -1,10 +1,14 @@
 import { jsonResponse } from './protocol.js';
+import {
+	exactDebugCapabilityForRequest,
+	type ExactDebugCapability,
+	type ExactDebugRequest
+} from '@exactjs/devtools-protocol';
 import type {
-	ExactBatchRequest,
 	ExactBindingGateway,
 	ExactBindingGatewayOptions,
 	ExactGatewayRejectEvent,
-	ExactInvocationRequest,
+	ExactProtocolRequest,
 	ExactRequestLike,
 	ExactResponseLike,
 	ExactServerContext
@@ -27,12 +31,18 @@ export function createExactBindingGateway(
 ): ExactBindingGateway {
 	const bindings = Object.freeze({ ...options.bindings });
 	const maximumBindingLength = positiveLimit(options.maxBindingLength, 128);
-	return Object.freeze({
-		async forward(
-			request: ExactRequestLike,
-			input: ExactInvocationRequest | ExactBatchRequest,
-			context: ExactServerContext
-		): Promise<ExactResponseLike> {
+	const children = new Map<
+		string,
+		{
+			parentSessionId: string;
+			childSessionId: string;
+			binding: string;
+			buildKey: string;
+			capabilities: Set<ExactDebugCapability>;
+		}
+	>();
+	const gateway: ExactBindingGateway = {
+		async forward(request, input, context) {
 			const binding = headerValue(request.headers, 'x-exact-binding');
 			if (!validBinding(binding, maximumBindingLength))
 				return reject(options, 'invalid_binding', undefined, 400);
@@ -41,55 +51,262 @@ export function createExactBindingGateway(
 			const buildKey = headerValue(request.headers, 'x-exact-build');
 			if (!buildKey || !/^[0-9a-f]{40}$/i.test(buildKey))
 				return reject(options, 'invalid_build', binding, 400);
-
-			const body = JSON.stringify(input);
-			const forwardedHeaders = sanitizedRequestHeaders(request.headers);
-			forwardedHeaders.set('content-type', 'application/json');
-			forwardedHeaders.set('x-exact-build', buildKey);
-			const base: ExactRequestLike = {
-				method: 'POST',
-				url: target.endpoint,
-				headers: forwardedHeaders,
-				body,
-				signal: request.signal
-			};
-
-			let transformed = base;
-			if (options.transformForwardedRequest) {
-				try {
-					transformed = await options.transformForwardedRequest(
-						base,
-						{ binding, buildKey, endpoint: target.endpoint },
-						context
-					);
-					assertSafeTransform(transformed, base, target.endpoint, buildKey);
-				} catch {
-					return reject(options, 'transform_failed', binding, 502);
-				}
-			}
-
-			const fetchImpl = options.fetch ?? globalThis.fetch;
-			if (!fetchImpl) return reject(options, 'upstream_unavailable', binding, 502);
-			let upstream: Response;
-			try {
-				upstream = await fetchImpl(target.endpoint, {
-					method: 'POST',
-					headers: new Headers(transformed.headers as HeadersInit),
-					body,
-					signal: request.signal,
-					redirect: 'follow'
-				});
-			} catch {
-				return reject(options, 'upstream_unavailable', binding, 502);
-			}
-
-			try {
-				return await copyValidatedResponse(upstream, context);
-			} catch {
-				return reject(options, 'upstream_invalid_response', binding, 502);
+			if (input.type !== 'debug')
+				return forwardEnvelope(request, input, binding, buildKey, target.endpoint, context);
+			if (input.request === 'open' || input.request === 'close')
+				return reject(options, 'invalid_binding', binding, 400);
+			const route = debugRoute(input);
+			if (!route || route.buildKey !== buildKey)
+				return reject(options, 'invalid_build', binding, 400);
+			const allowedRoots = target.debugBuilds?.[buildKey];
+			if (!allowedRoots?.includes(route.executionRoot))
+				return reject(options, 'invalid_build', binding, 404);
+			const capability = exactDebugCapabilityForRequest(input);
+			const child = await ensureChildSession(
+				request,
+				input.sessionId,
+				binding,
+				buildKey,
+				target.endpoint,
+				capability,
+				context
+			);
+			if (!child) return reject(options, 'upstream_unavailable', binding, 404);
+			const translated = Object.freeze({ ...input, sessionId: child.childSessionId });
+			const response = await forwardEnvelope(
+				request,
+				translated,
+				binding,
+				buildKey,
+				target.endpoint,
+				context
+			);
+			return translateDebugResponse(response, child.childSessionId, input.sessionId);
+		},
+		async closeDebugSession(sessionId, context) {
+			const owned = [...children.entries()].filter(
+				([, child]) => child.parentSessionId === sessionId
+			);
+			for (const [key, child] of owned) {
+				children.delete(key);
+				const target = bindings[child.binding];
+				if (!target) continue;
+				await forwardEnvelope(
+					{
+						method: 'POST',
+						headers: { 'x-exact-build': child.buildKey },
+						body: ''
+					},
+					{
+						type: 'debug',
+						version: 1,
+						request: 'close',
+						sessionId: child.childSessionId
+					},
+					child.binding,
+					child.buildKey,
+					target.endpoint,
+					context
+				).catch(() => undefined);
 			}
 		}
+	};
+	return Object.freeze(gateway);
+
+	async function ensureChildSession(
+		request: ExactRequestLike,
+		parentSessionId: string,
+		binding: string,
+		buildKey: string,
+		endpoint: string,
+		capability: ExactDebugCapability,
+		context: ExactServerContext
+	): Promise<
+		| {
+				parentSessionId: string;
+				childSessionId: string;
+				binding: string;
+				buildKey: string;
+				capabilities: Set<ExactDebugCapability>;
+		  }
+		| undefined
+	> {
+		const key = `${parentSessionId}\0${binding}\0${buildKey}`;
+		const existing = children.get(key);
+		if (existing) {
+			existing.capabilities.add(capability);
+			return existing;
+		}
+		const response = await forwardEnvelope(
+			request,
+			{ type: 'debug', version: 1, request: 'open', capabilities: [capability] },
+			binding,
+			buildKey,
+			endpoint,
+			context
+		);
+		if (response.status !== 200) return undefined;
+		try {
+			const parsed = JSON.parse(response.body) as {
+				session?: { id?: unknown };
+			};
+			if (typeof parsed.session?.id !== 'string') return undefined;
+			const child = {
+				parentSessionId,
+				childSessionId: parsed.session.id,
+				binding,
+				buildKey,
+				capabilities: new Set([capability])
+			};
+			children.set(key, child);
+			return child;
+		} catch {
+			return undefined;
+		}
+	}
+
+	async function forwardEnvelope(
+		request: ExactRequestLike,
+		input: ExactProtocolRequest,
+		binding: string,
+		buildKey: string,
+		endpoint: string,
+		context: ExactServerContext
+	): Promise<ExactResponseLike> {
+		const body = JSON.stringify(input);
+		const forwardedHeaders = sanitizedRequestHeaders(request.headers);
+		forwardedHeaders.set('content-type', 'application/json');
+		forwardedHeaders.set('x-exact-build', buildKey);
+		const base: ExactRequestLike = {
+			method: 'POST',
+			url: endpoint,
+			headers: forwardedHeaders,
+			body,
+			signal: request.signal
+		};
+		let transformed = base;
+		if (options.transformForwardedRequest) {
+			try {
+				transformed = await options.transformForwardedRequest(
+					base,
+					{ binding, buildKey, endpoint },
+					context
+				);
+				assertSafeTransform(transformed, base, endpoint, buildKey);
+			} catch {
+				return reject(options, 'transform_failed', binding, 502);
+			}
+		}
+		const fetchImpl = options.fetch ?? globalThis.fetch;
+		if (!fetchImpl) return reject(options, 'upstream_unavailable', binding, 502);
+		let upstream: Response;
+		try {
+			upstream = await fetchImpl(endpoint, {
+				method: 'POST',
+				headers: new Headers(transformed.headers as HeadersInit),
+				body,
+				signal: request.signal,
+				redirect: 'follow'
+			});
+		} catch {
+			return reject(options, 'upstream_unavailable', binding, 502);
+		}
+		try {
+			return await copyValidatedResponse(upstream, context);
+		} catch {
+			return reject(options, 'upstream_invalid_response', binding, 502);
+		}
+	}
+}
+
+function debugRoute(
+	input: ExactDebugRequest
+): Readonly<{ buildKey: string; executionRoot: string }> | undefined {
+	if (input.request === 'query') {
+		const identity = input.query.params?.identity;
+		return identity
+			? { buildKey: identity.buildKey, executionRoot: identity.executionRoot }
+			: undefined;
+	}
+	if (input.request === 'subscribe') {
+		const buildKey = input.filter?.buildKey;
+		const executionRoot = input.filter?.executionRoot;
+		return buildKey && executionRoot ? { buildKey, executionRoot } : undefined;
+	}
+	return undefined;
+}
+
+function translateDebugResponse(
+	response: ExactResponseLike,
+	childSessionId: string,
+	parentSessionId: string
+): ExactResponseLike {
+	if (response.stream) {
+		return {
+			...response,
+			stream: translateDebugStream(response.stream, childSessionId, parentSessionId)
+		};
+	}
+	try {
+		const parsed = JSON.parse(response.body);
+		return {
+			...response,
+			body: JSON.stringify(replaceSessionId(parsed, childSessionId, parentSessionId))
+		};
+	} catch {
+		return response;
+	}
+}
+
+function translateDebugStream(
+	source: ReadableStream<Uint8Array>,
+	childSessionId: string,
+	parentSessionId: string
+): ReadableStream<Uint8Array> {
+	const reader = source.getReader();
+	const decoder = new TextDecoder();
+	const encoder = new TextEncoder();
+	let buffered = '';
+	return new ReadableStream<Uint8Array>({
+		async pull(controller) {
+			const next = await reader.read();
+			if (next.done) {
+				if (buffered.trim()) controller.enqueue(encoder.encode(translateLine(buffered)));
+				controller.close();
+				reader.releaseLock();
+				return;
+			}
+			buffered += decoder.decode(next.value, { stream: true });
+			let newline: number;
+			while ((newline = buffered.indexOf('\n')) >= 0) {
+				const line = buffered.slice(0, newline);
+				buffered = buffered.slice(newline + 1);
+				controller.enqueue(encoder.encode(`${translateLine(line)}\n`));
+			}
+		},
+		async cancel(reason) {
+			await reader.cancel(reason);
+		}
 	});
+
+	function translateLine(line: string): string {
+		if (!line.trim()) return line;
+		return JSON.stringify(
+			replaceSessionId(JSON.parse(line), childSessionId, parentSessionId)
+		);
+	}
+}
+
+function replaceSessionId(value: unknown, child: string, parent: string): unknown {
+	if (value === child) return parent;
+	if (Array.isArray(value)) return value.map((entry) => replaceSessionId(entry, child, parent));
+	if (!value || typeof value !== 'object') return value;
+	return Object.fromEntries(
+		Object.entries(value).map(([key, entry]) => [
+			key,
+			replaceSessionId(entry, child, parent)
+		])
+	);
 }
 
 function assertSafeTransform(
@@ -195,6 +412,8 @@ function sanitizedRequestHeaders(headers: ExactRequestLike['headers']): Headers 
 	result.delete('x-exact-binding');
 	result.delete('cookie');
 	result.delete('authorization');
+	result.delete('origin');
+	result.delete('referer');
 	result.delete('host');
 	result.delete('content-length');
 	for (const header of hopByHopHeaders) result.delete(header);

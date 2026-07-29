@@ -10,10 +10,12 @@ import {
 } from '../operations.js';
 import { jsonResponse, parseExactRequestBody, readBody, requestPayloadSafe } from '../protocol.js';
 import { dispatchExactBatch, streamExactResponse, wantsStreaming } from '../streaming.js';
+import { exactServerDebugRuntime } from '../debug/runtime.js';
 import type {
 	ExactBatchRequest,
 	ExactBatchResult,
 	ExactInvocationRequest,
+	ExactProtocolRequest,
 	ExactRequestLike,
 	ExactRemoteBuildRegistration,
 	ExactResponseLike,
@@ -54,6 +56,12 @@ export {
 	type ExactGeneratedContinuationHandler
 } from '../continuation-execution.js';
 export { createExactBindingGateway } from '../gateway.js';
+export {
+	createExactInspectionCatalogRegistry,
+	type ExactInspectionCatalogRegistration,
+	type ExactInspectionCatalogRegistry
+} from '../debug/catalog-registry.js';
+export { createExactServerDebugRuntime, exactServerDebugRuntime } from '../debug/runtime.js';
 export type * from '../types.js';
 
 /** Handles an eXact endpoint request using the runtime-neutral server protocol. */
@@ -61,6 +69,9 @@ export async function handleExactRequest(
 	request: ExactRequestLike,
 	context: ExactServerContext
 ): Promise<ExactResponseLike> {
+	if (!context.debugRuntime) {
+		context = { ...context, debugRuntime: exactServerDebugRuntime(context) };
+	}
 	const profileStarted = context.onProfile ? performance.now() : undefined;
 	try {
 		return await handleExactRequestOwned(request, context);
@@ -98,7 +109,7 @@ async function handleExactRequestOwned(
 		return jsonResponse(404, { error: 'not_found' });
 	}
 
-	let input: ExactInvocationRequest | ExactBatchRequest;
+	let input: ExactProtocolRequest;
 	try {
 		input = parseExactRequestBody(await readBody(request), {
 			maxBatchOperations: context.limits?.maxBatchOperations,
@@ -140,8 +151,15 @@ async function handleExactRequestOwned(
 			logReject(context, 'rejected exact invocation for unknown binding');
 			return jsonResponse(404, { error: 'unknown_binding' });
 		}
+		if (
+			input.type === 'debug' &&
+			!(await context.debugRuntime!.authorize(request, input))
+		)
+			return jsonResponse(404, { error: 'not_found' });
 		return context.gateway.forward(request, input, context);
 	}
+
+	if (input.type === 'debug') return context.debugRuntime!.handle(request, input);
 
 	const build = resolveRemoteBuild(request, context);
 	if (build === null) {
@@ -219,6 +237,7 @@ function contextForRemoteOperation(
 	}
 	return {
 		...context,
+		debugBuildKey: build.buildKey,
 		contract: root.contract,
 		actions: root.actions,
 		refreshBoundaries: root.refreshBoundaries

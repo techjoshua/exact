@@ -6,6 +6,7 @@ import type {
 	ComponentResumptionActivation,
 	ComponentFunction
 } from './contracts.js';
+import type { ExactRuntimeInspectionOwner } from './inspection.js';
 
 let activeDomain: ComponentDomain | undefined;
 
@@ -16,13 +17,15 @@ export const pageComponentDomain = createComponentDomain('page');
 export function createComponentDomain(
 	executionRoot: string,
 	dispatchContinuation?: ComponentContinuationDispatcher,
-	resumeComponent?: (type: ComponentFunction<any, any>) => ComponentResumptionActivation | undefined
+	resumeComponent?: (type: ComponentFunction<any, any>) => ComponentResumptionActivation | undefined,
+	inspection?: ExactRuntimeInspectionOwner
 ): ComponentDomain {
 	if (!executionRoot) throw new Error('Component execution root must be a non-empty string');
 	return Object.freeze({
 		executionRoot,
 		...(dispatchContinuation ? { dispatchContinuation } : {}),
-		...(resumeComponent ? { resumeComponent } : {})
+		...(resumeComponent ? { resumeComponent } : {}),
+		...(inspection ? { inspection } : {})
 	});
 }
 

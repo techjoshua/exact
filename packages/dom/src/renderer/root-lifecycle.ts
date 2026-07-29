@@ -1,7 +1,18 @@
-import { createVNode, Text, type ComponentInstance, type VNode } from '@exactjs/core';
+import {
+	createComponentDomain,
+	createVNode,
+	Text,
+	type ComponentInstance,
+	type VNode
+} from '@exactjs/core';
 import { flushSync } from '@exactjs/reactive';
 import { clearDelegated } from '../events.js';
-import { componentMounts, roots } from '../state.js';
+import {
+	componentMounts,
+	registerInspectableRoot,
+	roots,
+	unregisterInspectableRoot
+} from '../state.js';
 import type { DomProfileEvent, Mounted, RenderOptions } from '../types.js';
 import { walkDomSubtree, type DomWorkBudget } from '../work.js';
 import { normalizeTreeDepth, normalizeTreeNodes, withDomWork } from './limits.js';
@@ -46,6 +57,17 @@ export function ownMountedInstance(mounted: Mounted, instance: ComponentInstance
 
 /** Transforms render into its required representation. */
 export function render(vnode: VNode, container: Element, options: RenderOptions = {}): void {
+	if (options.inspection && !vnode.domain) {
+		vnode = {
+			...vnode,
+			domain: createComponentDomain(
+				options.inspection.executionRoot,
+				undefined,
+				undefined,
+				options.inspection
+			)
+		};
+	}
 	let root = roots.get(container);
 	if (root?.current.domain && !vnode.domain) {
 		// A hydrated root keeps owning later authored updates even when callers
@@ -75,6 +97,7 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 		};
 		root.boundary = createRootBoundary(root);
 		roots.set(container, root);
+		if (vnode.domain?.inspection) registerInspectableRoot(root);
 	}
 	root.current = vnode;
 	root.version++;
@@ -133,6 +156,7 @@ export function dispose(container: Element, removeDom = false): boolean {
 	// Delete first so lifecycle callbacks may safely render a fresh root into the
 	// same container without the old root later deleting the replacement.
 	roots.delete(container);
+	unregisterInspectableRoot(root);
 	const failure = teardownFailure();
 	attemptTeardown(failure, () => clearDelegated(root));
 

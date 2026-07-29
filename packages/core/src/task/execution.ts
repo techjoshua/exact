@@ -68,11 +68,24 @@ export function createTask(
 		stopped: false,
 		run() {
 			const generation = ++task.generation;
+			instance.domain.inspection?.publish({
+				kind: 'task.queue',
+				component: instance,
+				generation
+			});
 			task.readinessRegistration?.cancel();
 			task.readinessRegistration = undefined;
 			task.queuedGeneration = generation;
 			task.stopped = false;
 			const previousSignal = task.controller?.signal;
+			if (task.controller && !task.controller.signal.aborted) {
+				instance.domain.inspection?.publish({
+					kind: 'task.supersede',
+					component: instance,
+					generation: generation - 1,
+					reason: 'rerun'
+				});
+			}
 			task.controller?.abort('rerun');
 			const cleanupSettlement = runTaskCleanup(task, instance);
 			const resourceSettlement = drainTaskCleanupPromises(previousSignal);
@@ -119,6 +132,12 @@ export function createTask(
 			task.stopped = true;
 			task.queuedGeneration = undefined;
 			task.generation++;
+			instance.domain.inspection?.publish({
+				kind: 'task.cancel',
+				component: instance,
+				generation: task.generation,
+				reason: 'unmount'
+			});
 			task.readinessRegistration?.cancel();
 			task.readinessRegistration = undefined;
 			const signal = task.controller?.signal;
@@ -154,6 +173,11 @@ function startTaskGeneration(
 	if (task.stopped || task.queuedGeneration !== generation || task.generation !== generation)
 		return;
 	task.queuedGeneration = undefined;
+	instance.domain.inspection?.publish({
+		kind: 'task.start',
+		component: instance,
+		generation
+	});
 	const controller = new AbortController();
 	task.controller = controller;
 	trackTaskOwner(controller.signal, instance);
@@ -164,6 +188,12 @@ function startTaskGeneration(
 			batch(() => task.work(...values, { signal: controller.signal }))
 		);
 	} catch (error) {
+		instance.domain.inspection?.publish({
+			kind: 'task.fail',
+			component: instance,
+			generation,
+			reason: error instanceof Error ? error.name : 'task-failed'
+		});
 		handleComponentError(instance, createErrorReport(error, 'task', instance, 'run'));
 		return;
 	}
@@ -193,6 +223,12 @@ function startTaskGeneration(
 				if (task.generation !== generation || (controller.signal.aborted && isAbortError(error)))
 					return;
 				task.failedGeneration = generation;
+				instance.domain.inspection?.publish({
+					kind: 'task.fail',
+					component: instance,
+					generation,
+					reason: error instanceof Error ? error.name : 'task-failed'
+				});
 				handleComponentError(instance, createErrorReport(error, 'task', instance, 'promise'));
 			});
 		const settlement = observed.then(() => undefined);
@@ -223,9 +259,20 @@ function startTaskGeneration(
 		observeTaskPromise(settlement, instance);
 		void settlement.then(() => {
 			if (task.settlement === settlement) task.settlement = undefined;
+			if (task.completedGeneration === generation)
+				instance.domain.inspection?.publish({
+					kind: 'task.settle',
+					component: instance,
+					generation
+				});
 		});
 	} else {
 		task.completedGeneration = generation;
+		instance.domain.inspection?.publish({
+			kind: 'task.settle',
+			component: instance,
+			generation
+		});
 		if (typeof result === 'function') task.cleanup = result;
 	}
 }

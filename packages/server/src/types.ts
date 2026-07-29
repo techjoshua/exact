@@ -9,6 +9,14 @@ import type {
 	Logger
 } from '@exactjs/core';
 import type { ExactProfileEvent, ExactProfileSink } from '@exactjs/instrumentation';
+import type {
+	ExactBuildInspectionCatalog,
+	ExactDebugCapability,
+	ExactDebugRequest,
+	ExactInspectionQueryService,
+	ExactInspectionRuntimeId,
+	ExactRuntimeInspectionEvent
+} from '@exactjs/devtools-protocol';
 import type { ExactOutputExtension } from '@exactjs/plugin-api';
 import type { RequestContextValue, RequestResponseState } from '@exactjs/request';
 
@@ -139,7 +147,61 @@ export type ExactServerContextConfiguration = {
 	contextOverrides?: ExactContextOverrides;
 	/** Observes generated continuation context access without disclosing the resolved value. */
 	onContextAccess?: (observation: ExactServerContextAccessObservation) => void;
+	/** Server-owned build catalogs. Rich metadata must never be reachable from a client entry. */
+	inspectionCatalogs?: readonly ExactBuildInspectionCatalog[];
+	/** Authorizes one session or capability and defaults off in production. */
+	allowDebug?: ExactAllowDebug;
+	/** Resource ceilings for bounded inspection sessions, snapshots, events, and source excerpts. */
+	debugLimits?: ExactDebugLimits;
+	/** Optional live snapshot/query projection for server-owned runtime observations. */
+	inspectionQueryService?: ExactInspectionQueryService;
+	/** Optional protected source content selected only after catalog hash validation. */
+	inspectionSources?: Readonly<
+		Record<
+			string,
+			Readonly<{ buildKey: string; executionRoot: string; sourceHash: string; content: string }>
+		>
+	>;
+	/** Receives metadata-only debug audit records; state and preview values are never included. */
+	onDebugAudit?: (event: ExactDebugAuditEvent) => void;
 };
+
+/** Boolean or application-owned asynchronous debug authorization policy. */
+export type ExactAllowDebug =
+	| boolean
+	| ((context: ExactDebugAuthorizationContext) => boolean | Promise<boolean>);
+
+/** Trusted request context supplied to the application-owned debug authorizer. */
+export type ExactDebugAuthorizationContext = Readonly<{
+	request: ExactRequestLike;
+	platformRequest?: unknown;
+	capability: ExactDebugCapability;
+	binding?: string;
+	buildKey?: string;
+	executionRoots: readonly string[];
+}>;
+
+/** Conservative limits applied to all debug sessions and queries. */
+export type ExactDebugLimits = Readonly<{
+	maxSessions?: number;
+	maxSessionMinutes?: number;
+	maxEvents?: number;
+	maxEventBytes?: number;
+	maxSnapshotBytes?: number;
+	maxQueryDepth?: number;
+	maxQueryResults?: number;
+	maxSourceExcerptBytes?: number;
+}>;
+
+/** Metadata-only audit record chosen by the application for security accounting. */
+export type ExactDebugAuditEvent = Readonly<{
+	sessionId: string;
+	method: string;
+	binding?: string;
+	buildKey?: string;
+	executionRoot?: string;
+	resultBytes: number;
+}>;
 
 /** Untrusted request metadata available to an application-owned public-origin resolver. */
 export type ExactPublicOriginRequest = Readonly<{
@@ -196,6 +258,9 @@ export type ExactInvocationRequest = {
 	boundaryHtmls?: Record<string, string>;
 };
 
+/** Full top-level protocol union accepted at the configured eXact endpoint. */
+export type ExactProtocolRequest = ExactInvocationRequest | ExactBatchRequest | ExactDebugRequest;
+
 /** Selects the manifest and handlers for one execution root in a retained build. */
 export type ExactRemoteRootDispatch = {
 	contract: ExactExecutorContract;
@@ -230,7 +295,16 @@ export type TransformForwardedExactRequest = (
 
 /** Configures binding lookup and forwarding at the page's ordinary eXact endpoint. */
 export type ExactBindingGatewayOptions = {
-	bindings: Readonly<Record<string, { endpoint: string }>>;
+	bindings: Readonly<
+		Record<
+			string,
+			{
+				endpoint: string;
+				/** Exact retained builds and roots eligible for federated inspection. */
+				debugBuilds?: Readonly<Record<string, readonly string[]>>;
+			}
+		>
+	>;
 	fetch?: typeof fetch;
 	transformForwardedRequest?: TransformForwardedExactRequest;
 	maxBindingLength?: number;
@@ -241,9 +315,11 @@ export type ExactBindingGatewayOptions = {
 export type ExactBindingGateway = {
 	forward(
 		request: ExactRequestLike,
-		input: ExactInvocationRequest | ExactBatchRequest,
+		input: ExactProtocolRequest,
 		context: ExactServerContext
 	): Promise<ExactResponseLike>;
+	/** Closes every remote child debug session owned by one page session. */
+	closeDebugSession?(sessionId: string, context: ExactServerContext): Promise<void>;
 };
 
 /** Defines the exact batch request type contract. */
@@ -377,12 +453,12 @@ export type ExactServerContext = ExactServerContextConfiguration & {
 	gateway?: ExactBindingGateway;
 	authorize?(
 		request: ExactRequestLike,
-		input: ExactInvocationRequest | ExactBatchRequest,
+		input: ExactProtocolRequest,
 		context: ExactServerContext
 	): Promise<boolean> | boolean;
 	validateCsrf?(
 		request: ExactRequestLike,
-		input: ExactInvocationRequest | ExactBatchRequest,
+		input: ExactProtocolRequest,
 		context: ExactServerContext
 	): Promise<boolean> | boolean;
 	logger?: Logger;
@@ -422,9 +498,42 @@ export type ExactServerContext = ExactServerContextConfiguration & {
 	responseState?: RequestResponseState;
 	/** Receives request protocol profiling observations. */
 	onProfile?: ExactProfileSink;
+	/** Internal stable owner reused by request-scoped context clones. */
+	debugRuntime?: ExactServerDebugRuntime;
+	/** Internal immutable build selection used only for observation correlation. */
+	debugBuildKey?: string;
 	/** Disposes application-scoped resources owned by this server runtime. */
 	dispose?(): Promise<void>;
 };
+
+/** Internal server debug runtime kept opaque to adapters and application code. */
+export interface ExactServerDebugRuntime {
+	handle(request: ExactRequestLike, input: ExactDebugRequest): Promise<ExactResponseLike>;
+	/** Revalidates a page session before the binding gateway creates or uses a remote child. */
+	authorize(request: ExactRequestLike, input: ExactDebugRequest): Promise<boolean>;
+	close(): Promise<void>;
+	publish(event: ExactRuntimeInspectionEvent): void;
+	/** Publishes one server observation to each currently authorized attached session. */
+	observe(
+		event: Readonly<{
+			kind: ExactRuntimeInspectionEvent['kind'];
+			buildKey: string;
+			executionRoot: string;
+			componentTypeId: string;
+			instanceId?: string;
+			sourceEntityId?: string;
+			operationId?: string;
+			generation?: number;
+			requestId?: string;
+			reason?: string;
+			attributes?: ExactRuntimeInspectionEvent['attributes'];
+		}>
+	): void;
+	identityFor(
+		sessionId: string,
+		input: Omit<ExactInspectionRuntimeId, 'sessionId' | 'side'>
+	): ExactInspectionRuntimeId;
+}
 
 /** Reports an observable server profile event. */
 export type ServerProfileEvent = ExactProfileEvent<'server', 'request'>;
