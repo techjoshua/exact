@@ -16,6 +16,7 @@
 	"types": "./dist/index.d.ts",
 	"sideEffects": false,
 	"dependencies": {
+		"@exactjs/devtools-protocol": "^0.1.0",
 		"@exactjs/plugin-api": "^0.1.0"
 	},
 	"scripts": {

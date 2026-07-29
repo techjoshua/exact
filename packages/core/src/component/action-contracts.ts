@@ -59,6 +59,7 @@ export type ComponentActionInspection = Readonly<{
 	priority: 'normal' | 'deferred';
 	pending: boolean;
 	pendingCount: number;
+	optimistic: boolean;
 	generation: number;
 	result: unknown;
 	error: unknown;

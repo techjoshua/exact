@@ -42,6 +42,11 @@ export type ReactiveOptions = {
 	readonly?: boolean;
 	passthroughKeys?: readonly PropertyKey[];
 	onReadonlyWrite?(key: PropertyKey): void;
+	/**
+	 * Observes successful mutations after dependency invalidation.
+	 * Failures are isolated so diagnostics cannot alter reactive semantics.
+	 */
+	onMutation?(key: PropertyKey | undefined, operation: string): void;
 };
 
 /** Defines the stop handle type contract. */

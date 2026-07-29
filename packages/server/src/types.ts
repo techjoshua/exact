@@ -159,7 +159,14 @@ export type ExactServerContextConfiguration = {
 	inspectionSources?: Readonly<
 		Record<
 			string,
-			Readonly<{ buildKey: string; executionRoot: string; sourceHash: string; content: string }>
+			Readonly<{
+				buildKey: string;
+				executionRoot: string;
+				sourceHash: string;
+				content: string;
+				/** Required when the selected catalog contains any secret-qualified source. */
+				redacted?: boolean;
+			}>
 		>
 	>;
 	/** Receives metadata-only debug audit records; state and preview values are never included. */

@@ -31,7 +31,8 @@ export function renderNativeSuspenseSync(
 		SsrReadinessOwner,
 		{ context: coordinator.context },
 		parent,
-		context.componentContexts
+		context.componentContexts,
+		context.componentDomain
 	);
 	const candidate = renderChildren(context, vnode.children, owner);
 	const pending = coordinator.pending > 0;

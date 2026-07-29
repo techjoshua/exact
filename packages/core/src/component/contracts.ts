@@ -46,6 +46,8 @@ export type ComponentDomain = {
 	readonly executionRoot: string;
 	/** Optional explicit runtime inspection owner; absent from hardened builds. */
 	readonly inspection?: ExactRuntimeInspectionOwner;
+	/** Framework-private activation phase inherited by the root component. */
+	readonly inspectionActivation?: 'hydration';
 	/** Framework-private bridge used by compiler-generated distributed continuations. */
 	readonly dispatchContinuation?: ComponentContinuationDispatcher;
 	/** Framework-private source of one serialized SSR component activation. */
@@ -382,6 +384,8 @@ export type ComponentInstance<State extends object> = Component<State> & {
 	readonly domain: ComponentDomain;
 	readonly props: Reactive<Record<string, unknown>>;
 	readonly contexts: Map<symbol, unknown>;
+	/** Context policy identities accessed by this instance; values remain with their original owner. */
+	readonly contextTokens: Map<symbol, ContextToken<unknown>>;
 	/** Server-owned values inherited by the whole component root. */
 	readonly ambientContexts?: ComponentContextValues;
 	readonly id: string;

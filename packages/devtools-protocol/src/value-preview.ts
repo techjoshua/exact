@@ -87,7 +87,12 @@ function preview(
 	depth: number,
 	state: PreviewState
 ): ExactValuePreview {
-	const redaction = state.redact?.(path, value);
+	let redaction: ReturnType<ExactValueRedactor>;
+	try {
+		redaction = state.redact?.(path, value);
+	} catch {
+		return Object.freeze({ kind: 'unavailable', reason: 'redaction-failed' });
+	}
 	if (redaction) return redactExactValue(redaction);
 	if (value === null || typeof value === 'boolean' || typeof value === 'number')
 		return Object.freeze({ kind: 'scalar', value });
@@ -96,21 +101,33 @@ function preview(
 	if (typeof value === 'symbol') return scalarString(String(value), state);
 	if (typeof value === 'undefined')
 		return Object.freeze({ kind: 'unavailable', reason: 'undefined' });
-	if (typeof value === 'function')
-		return Object.freeze({ kind: 'function', ...(value.name ? { name: value.name } : {}) });
+	if (typeof value === 'function') return previewFunction(value);
 	if (typeof value !== 'object')
 		return Object.freeze({ kind: 'unavailable', reason: typeof value });
-	if (domNode(value)) return previewDom(value);
-	if (depth >= state.limits.maxDepth)
-		return objectPreview(typeName(value), [], true);
-	if (state.seen.has(value))
-		return Object.freeze({ kind: 'unavailable', reason: 'cycle' });
-	state.seen.add(value);
 	try {
+		if (domNode(value)) return previewDom(value);
+		if (depth >= state.limits.maxDepth)
+			return objectPreview(typeName(value), [], true);
+		if (state.seen.has(value))
+			return Object.freeze({ kind: 'unavailable', reason: 'cycle' });
+		state.seen.add(value);
 		if (value instanceof Map) return previewMap(value, path, depth, state);
 		if (value instanceof Set) return previewSet(value, path, depth, state);
 		if (Array.isArray(value)) return previewArray(value, path, depth, state);
 		return previewObject(value, path, depth, state);
+	} catch {
+		return Object.freeze({ kind: 'unavailable', reason: 'inspection-failed' });
+	}
+}
+
+function previewFunction(value: Function): ExactValuePreview {
+	try {
+		const descriptor = Object.getOwnPropertyDescriptor(value, 'name');
+		const name =
+			descriptor && 'value' in descriptor && typeof descriptor.value === 'string'
+				? descriptor.value.slice(0, 128)
+				: undefined;
+		return Object.freeze({ kind: 'function', ...(name ? { name } : {}) });
 	} catch {
 		return Object.freeze({ kind: 'unavailable', reason: 'inspection-failed' });
 	}
@@ -249,18 +266,31 @@ function previewDom(value: {
 	id?: string;
 	classList?: Iterable<string>;
 }): ExactValuePreview {
-	let classes: string[] = [];
 	try {
-		classes = value.classList ? [...value.classList].slice(0, 10) : [];
+		const nodeName = ownDataProperty(value, 'nodeName');
+		const id = ownDataProperty(value, 'id');
+		const className = ownDataProperty(value, 'className');
+		const classes =
+			typeof className === 'string'
+				? className
+						.split(/\s+/)
+						.filter(Boolean)
+						.slice(0, 10)
+				: [];
+		return Object.freeze({
+			kind: 'dom',
+			tag: typeof nodeName === 'string' ? nodeName.toLowerCase().slice(0, 64) : 'element',
+			...(typeof id === 'string' && id ? { id: id.slice(0, 128) } : {}),
+			classes: Object.freeze(classes.map((value) => String(value).slice(0, 128)))
+		});
 	} catch {
-		classes = [];
+		return Object.freeze({ kind: 'unavailable', reason: 'inspection-failed' });
 	}
-	return Object.freeze({
-		kind: 'dom',
-		tag: String(value.nodeName).toLowerCase().slice(0, 64),
-		...(typeof value.id === 'string' && value.id ? { id: value.id.slice(0, 128) } : {}),
-		classes: Object.freeze(classes.map((value) => String(value).slice(0, 128)))
-	});
+}
+
+function ownDataProperty(value: object, key: PropertyKey): unknown {
+	const descriptor = Object.getOwnPropertyDescriptor(value, key);
+	return descriptor && 'value' in descriptor ? descriptor.value : undefined;
 }
 
 function normalizeLimits(limits: ExactValuePreviewLimits | undefined): Required<ExactValuePreviewLimits> {

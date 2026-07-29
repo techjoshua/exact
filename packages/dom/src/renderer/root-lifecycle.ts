@@ -9,6 +9,7 @@ import { flushSync } from '@exactjs/reactive';
 import { clearDelegated } from '../events.js';
 import {
 	componentMounts,
+	exactDomInspectionOwner,
 	registerInspectableRoot,
 	roots,
 	unregisterInspectableRoot
@@ -57,14 +58,15 @@ export function ownMountedInstance(mounted: Mounted, instance: ComponentInstance
 
 /** Transforms render into its required representation. */
 export function render(vnode: VNode, container: Element, options: RenderOptions = {}): void {
-	if (options.inspection && !vnode.domain) {
+	const inspection = options.inspection ?? exactDomInspectionOwner();
+	if (inspection && !vnode.domain) {
 		vnode = {
 			...vnode,
 			domain: createComponentDomain(
-				options.inspection.executionRoot,
+				inspection.executionRoot,
 				undefined,
 				undefined,
-				options.inspection
+				inspection
 			)
 		};
 	}
@@ -100,6 +102,7 @@ export function render(vnode: VNode, container: Element, options: RenderOptions 
 		if (vnode.domain?.inspection) registerInspectableRoot(root);
 	}
 	root.current = vnode;
+	if (vnode.domain?.inspection) registerInspectableRoot(root);
 	root.version++;
 	root.logger = options.logger;
 	root.debugMarkers = options.debugMarkers ?? false;

@@ -63,6 +63,7 @@ function reactiveMapMember(
 				trigger(target, collectionKeyDependency(target, rawKey));
 				trigger(target, iterateDependency);
 				if (!had) trigger(target, sizeDependency);
+				notifyMutation(options, rawKey, 'map.set');
 				return receiver;
 			};
 		case 'delete':
@@ -76,6 +77,7 @@ function reactiveMapMember(
 				if (deleted) {
 					triggerCollectionRemoval(target, rawKey);
 					releaseCollectionKeyDependency(target, rawKey);
+					notifyMutation(options, rawKey, 'map.delete');
 				}
 				return deleted;
 			};
@@ -92,6 +94,7 @@ function reactiveMapMember(
 				keyDependencies.delete(target);
 				trigger(target, iterateDependency);
 				trigger(target, sizeDependency);
+				notifyMutation(options, undefined, 'map.clear');
 				return undefined;
 			};
 		case 'keys':
@@ -143,6 +146,7 @@ function reactiveSetMember(
 				trigger(target, collectionKeyDependency(target, rawValue));
 				trigger(target, iterateDependency);
 				trigger(target, sizeDependency);
+				notifyMutation(options, undefined, 'set.add');
 				return receiver;
 			};
 		case 'delete':
@@ -160,6 +164,7 @@ function reactiveSetMember(
 				if (deleted) {
 					triggerCollectionRemoval(target, rawValue);
 					releaseCollectionKeyDependency(target, rawValue);
+					notifyMutation(options, undefined, 'set.delete');
 				}
 				return deleted;
 			};
@@ -175,6 +180,7 @@ function reactiveSetMember(
 				keyDependencies.delete(target);
 				trigger(target, iterateDependency);
 				trigger(target, sizeDependency);
+				notifyMutation(options, undefined, 'set.clear');
 				return undefined;
 			};
 		case 'keys':
@@ -302,4 +308,20 @@ function assertWritable(options: ReactiveOptions, operation: string): void {
 	if (!options.readonly) return;
 	options.onReadonlyWrite?.(operation);
 	throw new TypeError(`Cannot call ${operation} on a readonly reactive collection`);
+}
+
+function notifyMutation(
+	options: ReactiveOptions,
+	key: unknown,
+	operation: string
+): void {
+	const propertyKey =
+		typeof key === 'string' || typeof key === 'number' || typeof key === 'symbol'
+			? key
+			: undefined;
+	try {
+		options.onMutation?.(propertyKey, operation);
+	} catch {
+		// Diagnostic observation must not change collection mutation behavior.
+	}
 }

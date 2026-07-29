@@ -96,8 +96,9 @@ export function createExactRuntimeInspectionOwner(
 			const id = owner.identity(input.component, input);
 			if (!id) return;
 			const current = ++sequence;
-			sink.publish(
-				Object.freeze({
+			try {
+				sink.publish(
+					Object.freeze({
 					protocol: EXACT_DEVTOOLS_PROTOCOL_VERSION,
 					cursor: current.toString(36),
 					sequence: current,
@@ -110,8 +111,11 @@ export function createExactRuntimeInspectionOwner(
 					...(input.path ? { path: input.path } : {}),
 					...(input.reason ? { reason: input.reason } : {}),
 					...(input.attributes ? { attributes: Object.freeze({ ...input.attributes }) } : {})
-				} satisfies ExactRuntimeInspectionEvent)
-			);
+					} satisfies ExactRuntimeInspectionEvent)
+				);
+			} catch {
+				// Inspection is observational and cannot participate in application errors.
+			}
 		},
 		identity(component, details = {}) {
 			if (!sessionId) return undefined;
@@ -158,7 +162,7 @@ export function inspectExactRuntimeComponent(
 		status: options.status ?? (component.mounted ? 'mounted' : 'constructing'),
 		props: owner.preview(component.props, ['props']),
 		state: owner.preview(component.state, ['state']),
-		contexts: Object.freeze([...(options.contexts ?? [])]),
+		contexts: Object.freeze([...(options.contexts ?? inspectContexts(component, owner))]),
 		tasks: Object.freeze(component.tasks.map((task) => inspectTask(owner, component, task))),
 		actions: Object.freeze(
 			inspectComponentActions(component).map((action) => {
@@ -180,7 +184,7 @@ export function inspectExactRuntimeComponent(
 									: 'idle',
 					generation: action.generation,
 					pending: action.pendingCount,
-					optimistic: false
+					optimistic: action.optimistic
 				} satisfies ExactActionRuntimeSnapshot);
 			})
 		),
@@ -188,6 +192,63 @@ export function inspectExactRuntimeComponent(
 		...(options.suspense ? { suspense: options.suspense } : {}),
 		ownedElements: options.ownedElements ?? 0
 	});
+}
+
+function inspectContexts(
+	component: ComponentInstance<any>,
+	owner: ExactRuntimeInspectionOwner
+): ExactContextPreview[] {
+	const contexts: ExactContextPreview[] = [];
+	for (const token of component.contextTokens.values()) {
+		if (token.keep === 'secret') {
+			contexts.push(
+				Object.freeze({
+					name: token.description,
+					scope: token.scope,
+					availability: 'secret',
+					secretName: token.description
+				})
+			);
+			continue;
+		}
+		if (token.keep === 'server') {
+			contexts.push(
+				Object.freeze({
+					name: token.description,
+					scope: token.scope,
+					availability: 'resource',
+					type: 'server-resource'
+				})
+			);
+			continue;
+		}
+		const value = resolveInspectedContext(component, token.id);
+		contexts.push(
+			Object.freeze({
+				name: token.description,
+				scope: token.scope,
+				availability: value.found ? 'value' : 'unavailable',
+				...(value.found
+					? { value: owner.preview(value.value, ['context', token.description]) }
+					: {})
+			})
+		);
+	}
+	return contexts;
+}
+
+function resolveInspectedContext(
+	component: ComponentInstance<any>,
+	token: symbol
+): Readonly<{ found: boolean; value?: unknown }> {
+	if (component.contexts.has(token))
+		return Object.freeze({ found: true, value: component.contexts.get(token) });
+	for (let cursor = component.parent; cursor; cursor = cursor.parent)
+		if (cursor.contexts.has(token))
+			return Object.freeze({ found: true, value: cursor.contexts.get(token) });
+	if (component.ambientContexts?.has(token))
+		return Object.freeze({ found: true, value: component.ambientContexts.get(token) });
+	return Object.freeze({ found: false });
 }
 
 function inspectTask(

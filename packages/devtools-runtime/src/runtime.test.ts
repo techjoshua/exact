@@ -26,6 +26,61 @@ afterEach(async () => {
 });
 
 describe('page-world eXact DevTools runtime', () => {
+	it('automatically owns roots created after an instrumented bootstrap and preserves authored styles', async () => {
+		function Card(this: Component<{ label?: string }>) {
+			this.state.label = 'Ready';
+			return () => createVNode('article', { id: 'card', style: 'outline: 1px solid red' }, this.state.label);
+		}
+		installation = installExactDevtoolsRuntime({
+			buildKey: 'build-client',
+			executionRoot: 'page',
+			fetch: vi.fn(async () => {
+				throw new Error('server unavailable');
+			}) as typeof fetch
+		});
+		container = document.createElement('main');
+		document.body.append(container);
+		render(createVNode(Card, {}), container);
+
+		await installation.hook.connect();
+		const card = document.querySelector('#card') as HTMLElement;
+		const identity = installation.hook.ownerOfElement(card);
+		expect(identity).toMatchObject({
+			buildKey: 'build-client',
+			executionRoot: 'page',
+			componentTypeId: 'Card'
+		});
+		installation.hook.highlight(identity!);
+		installation.hook.clearHighlight();
+		expect(card.style.outline).toBe('1px solid red');
+	});
+
+	it('redacts compiler-qualified state paths before snapshot traversal', async () => {
+		function Account(this: Component<{ profile?: { token: string; name: string } }>) {
+			this.state.profile = { token: 'must-never-appear', name: 'Ada' };
+			return () => createVNode('p', null, this.state.profile.name);
+		}
+		installation = installExactDevtoolsRuntime({
+			redactions: { statePaths: ['state.profile.token'] },
+			fetch: vi.fn(async () => {
+				throw new Error('server unavailable');
+			}) as typeof fetch
+		});
+		container = document.createElement('main');
+		document.body.append(container);
+		render(createVNode(Account, {}), container);
+		await installation.hook.connect();
+
+		const tree = await installation.hook.request({
+			protocol: 1,
+			id: 'tree',
+			method: 'components.tree'
+		});
+		expect(JSON.stringify(tree)).not.toContain('must-never-appear');
+		expect(JSON.stringify(tree)).toContain('"reason":"secret"');
+		expect(JSON.stringify(tree)).toContain('Ada');
+	});
+
 	it('late-attaches to active roots and exposes only bounded read-only projections', async () => {
 		function Counter(this: Component<{ count?: number }>) {
 			this.state.count = 1;

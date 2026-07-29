@@ -5,8 +5,10 @@ import type {
 	ExactInspectionRuntimeId,
 	ExactInspectionSessionDescription,
 	ExactInspectionSubscription,
-	ExactInspectionSubscriptionHandle
+	ExactInspectionSubscriptionHandle,
+	ExactInspectionRedactionCatalog
 } from '@exactjs/devtools-protocol';
+import type { ExactRuntimeInspectionOwner } from '@exactjs/core';
 
 /** Compact compiler registration present only in instrumented client output. */
 export type ExactClientSourceCorrelation = Readonly<{
@@ -43,6 +45,10 @@ export interface ExactDevtoolsPageHook extends ExactInspectionQueryService {
 export type ExactDevtoolsRuntimeOptions = Readonly<{
 	endpoint?: string;
 	fetch?: typeof fetch;
+	buildKey?: string;
+	executionRoot?: string;
+	binding?: string;
+	redactions?: Partial<ExactInspectionRedactionCatalog>;
 	maxEvents?: number;
 	maxEventBytes?: number;
 	highlightDurationMs?: number;
@@ -51,5 +57,6 @@ export type ExactDevtoolsRuntimeOptions = Readonly<{
 /** Disposable ownership returned by `installExactDevtoolsRuntime()`. */
 export interface ExactDevtoolsRuntimeInstallation {
 	readonly hook: ExactDevtoolsPageHook;
+	readonly inspection: ExactRuntimeInspectionOwner;
 	dispose(): Promise<void>;
 }

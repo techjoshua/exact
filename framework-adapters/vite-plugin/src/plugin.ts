@@ -1,5 +1,8 @@
 import {
 	createCompilerSession,
+	createExactBuildInspectionCatalog,
+	createExactInspectionBuildKey,
+	createExactInspectionRedactions,
 	createLineSourceMap,
 	exactExportConditions,
 	resolveNativeCompilerExecutable,
@@ -7,8 +10,10 @@ import {
 	transformSource,
 	type ExactAssetRule,
 	type ExactCompilerManifest,
+	type ExactSourceInspection,
 	type TransformTarget
 } from '@exactjs/compiler';
+import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import { createExactDiagnosticReporter } from '@exactjs/compiler/adapter-support';
 import {
 	profileTimestamp,
@@ -67,12 +72,27 @@ export type ExactPluginOptions = {
 	onProfile?: ExactProfileSink;
 	onRemoteEntries?: (entries: Readonly<Record<string, string>>) => void;
 	onRemoteDevelopmentEntries?: (entries: Readonly<Record<string, string>>) => void;
+	/** Derives server catalog emission and compact client runtime correlation together. */
+	debug?: ExactViteDebugOptions;
+};
+
+/** Higher-level build controls for server-cooperative DevTools output. */
+export type ExactViteDebugOptions = {
+	catalog?: boolean | 'auto';
+	runtime?: boolean | 'auto';
+	buildKey?: string;
+	executionRoot?: string;
+	rootComponentId?: string;
+	producer?: Readonly<{ packageName?: string; version?: string }>;
+	redactions?: Partial<ExactInspectionRedactionCatalog>;
 };
 
 /** Reports an observable exact vite profile event. */
 export type ExactViteProfileEvent = ExactProfileEvent<'vite-plugin', 'transform'>;
 
 type FilterPattern = string | RegExp | readonly (string | RegExp)[];
+const exactDevtoolsRuntimeModule = 'virtual:exact/devtools-runtime';
+const resolvedExactDevtoolsRuntimeModule = `\0${exactDevtoolsRuntimeModule}`;
 
 /** Defines the exact plugin type contract. */
 export type ExactPlugin = {
@@ -93,10 +113,12 @@ export type ExactPlugin = {
 		addWatchFile(file: string): void;
 		warn?(message: string): void;
 		emitFile?(file: {
-			type: 'chunk';
-			id: string;
-			name: string;
-			preserveSignature: 'strict';
+			type: 'chunk' | 'asset';
+			id?: string;
+			name?: string;
+			fileName?: string;
+			source?: string;
+			preserveSignature?: 'strict';
 		}): string;
 	}): void | Promise<void>;
 	configureServer?(server: {
@@ -141,7 +163,13 @@ export type ExactPlugin = {
 		order: 'pre';
 		handler(html: string): string;
 	};
-	generateBundle?(_options: unknown, bundle: Readonly<Record<string, ExactRollupOutputLike>>): void;
+	generateBundle?(
+		this: {
+			emitFile?(file: { type: 'asset'; fileName: string; source: string }): string;
+		},
+		_options: unknown,
+		bundle: Readonly<Record<string, ExactRollupOutputLike>>
+	): void;
 	closeBundle?(): void;
 };
 
@@ -179,6 +207,15 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		: undefined;
 	let preparedRegistry: ExactPreparedPluginRegistry | undefined;
 	let viteCommand: 'build' | 'serve' = 'build';
+	let configuredDebug = options.debug;
+	const inspectionModules = new Map<
+		string,
+		Readonly<{
+			inspection: ExactSourceInspection;
+			manifest: ExactCompilerManifest;
+			source: string;
+		}>
+	>();
 	const microfrontends = createExactViteMicrofrontendIntegration(options);
 	const prepareRegistry = async (): Promise<ExactPreparedPluginRegistry> => {
 		if (preparedRegistry) return preparedRegistry;
@@ -187,6 +224,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			configPath: options.configPath,
 			hostMode: 'compiler'
 		});
+		configuredDebug ??= preparedRegistry.config?.debug;
 		return preparedRegistry;
 	};
 	return {
@@ -218,13 +256,22 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			configureDiagnostics(options.diagnostics ?? config.command === 'serve');
 		},
 		async buildStart() {
+			inspectionModules.clear();
 			for (const file of compatibilityEngine?.watchFiles ?? []) this.addWatchFile(file);
 			const registry = await prepareRegistry();
 			for (const file of registry.watchFiles) this.addWatchFile(file);
 			for (const warning of registry.warnings) this.warn?.(warning);
 			await microfrontends.buildStart(
 				registry,
-				viteCommand === 'build' && this.emitFile ? (file) => this.emitFile!(file) : undefined,
+				viteCommand === 'build' && this.emitFile
+					? (file) =>
+							this.emitFile!({
+								type: 'chunk',
+								id: file.id,
+								name: file.name,
+								preserveSignature: file.preserveSignature
+							})
+					: undefined,
 				viteCommand
 			);
 		},
@@ -233,6 +280,12 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			server.watcher?.once('close', () => compilerSession.dispose());
 		},
 		resolveId(source, importer) {
+			if (
+				source === exactDevtoolsRuntimeModule &&
+				options.target !== 'server' &&
+				inspectionRuntimeEnabled(configuredDebug, viteCommand)
+			)
+				return resolvedExactDevtoolsRuntimeModule;
 			const resolveFrameworkImport = () => {
 				if (source === 'react-reconciler' && reactCompatibility) {
 					validateInstalledReactReconciler(
@@ -258,16 +311,47 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			);
 		},
 		load(id) {
+			if (id === resolvedExactDevtoolsRuntimeModule)
+				return {
+					code: exactDevtoolsRuntimeBootstrap(configuredDebug),
+					moduleType: 'js'
+				};
 			return microfrontends.load(id);
 		},
 		transformIndexHtml: {
 			order: 'pre',
 			handler(html) {
-				return microfrontends.transformIndexHtml(html);
+				const remoteHtml = microfrontends.transformIndexHtml(html);
+				if (
+					options.target === 'server' ||
+					!inspectionRuntimeEnabled(configuredDebug, viteCommand)
+				)
+					return remoteHtml;
+				const moduleId =
+					viteCommand === 'serve'
+						? `/@id/${exactDevtoolsRuntimeModule}`
+						: exactDevtoolsRuntimeModule;
+				return injectModuleBootstrap(remoteHtml, moduleId);
 			}
 		},
 		generateBundle(_output, bundle) {
 			if (options.target !== 'server') assertExactViteClientArtifactIsolation(bundle);
+			if (options.target === 'server' && inspectionCatalogEnabled(configuredDebug, viteCommand)) {
+				const catalog = createViteInspectionCatalog(
+					options,
+					configuredDebug,
+					inspectionModules
+				);
+				if (catalog) {
+					if (!this.emitFile)
+						throw new Error('Vite/Rollup emitFile is unavailable for eXact inspection catalog');
+					this.emitFile({
+						type: 'asset',
+						fileName: `.exact-inspection/${catalog.buildKey}.json`,
+						source: `${JSON.stringify(catalog, null, 2)}\n`
+					});
+				}
+			}
 			microfrontends.generateBundle(bundle);
 		},
 		handleHotUpdate(context) {
@@ -343,8 +427,21 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 						assetRules: options.assetRules,
 						preserveClientAssetImports: true,
 						pluginRegistry: options.pluginRegistry ?? preparedRegistry?.compiler,
-						jsxInterop: compatibilityEngine?.jsxInterop
+						jsxInterop: compatibilityEngine?.jsxInterop,
+						emitInspection:
+							options.target === 'server' &&
+							inspectionCatalogEnabled(configuredDebug, viteCommand),
+						instrumentInspection:
+							options.target !== 'server' &&
+							inspectionRuntimeEnabled(configuredDebug, viteCommand)
 					});
+					if (result.inspectionCatalog && options.target === 'server') {
+						inspectionModules.set(path.resolve(filename), {
+							inspection: result.inspectionCatalog,
+							manifest: result.manifest,
+							source: code
+						});
+					}
 					const rewritten = compatibilityEngine
 						? compatibilityEngine.transformModule({
 								id: filename,
@@ -395,4 +492,86 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			}
 		}
 	};
+}
+
+function exactDevtoolsRuntimeBootstrap(debug: ExactViteDebugOptions | undefined): string {
+	return `import { installExactDevtoolsRuntime } from '@exactjs/devtools-runtime';
+const key = Symbol.for('@exactjs/devtools-installation');
+globalThis[key] ??= installExactDevtoolsRuntime(${JSON.stringify({
+		buildKey: debug?.buildKey ?? 'development',
+		executionRoot: debug?.executionRoot ?? debug?.rootComponentId ?? 'page',
+		...(debug?.redactions ? { redactions: debug.redactions } : {})
+	})});
+`;
+}
+
+function injectModuleBootstrap(html: string, moduleId: string): string {
+	const bootstrap = `<script type="module" src=${JSON.stringify(moduleId)}></script>`;
+	const firstModule = /<script\b(?=[^>]*\btype\s*=\s*["']module["'])[^>]*>/i;
+	if (firstModule.test(html)) return html.replace(firstModule, `${bootstrap}$&`);
+	const body = /<\/body\s*>/i;
+	if (body.test(html)) return html.replace(body, `${bootstrap}$&`);
+	return `${html}${bootstrap}`;
+}
+
+function inspectionCatalogEnabled(
+	debug: ExactViteDebugOptions | undefined,
+	command: 'build' | 'serve'
+): boolean {
+	const value = debug?.catalog ?? 'auto';
+	return value === true || (value === 'auto' && command === 'serve');
+}
+
+function inspectionRuntimeEnabled(
+	debug: ExactViteDebugOptions | undefined,
+	command: 'build' | 'serve'
+): boolean {
+	const value = debug?.runtime ?? 'auto';
+	return value === true || (value === 'auto' && command === 'serve');
+}
+
+function createViteInspectionCatalog(
+	options: ExactPluginOptions,
+	debug: ExactViteDebugOptions | undefined,
+	modules: ReadonlyMap<
+		string,
+		Readonly<{
+			inspection: ExactSourceInspection;
+			manifest: ExactCompilerManifest;
+			source: string;
+		}>
+	>
+) {
+	if (!modules.size) return undefined;
+	const root = path.resolve(options.applicationRoot ?? process.cwd());
+	const entries = [...modules.entries()].map(([filename, entry]) => ({
+		filename,
+		source: entry.source
+	}));
+	const buildKey = debug?.buildKey ?? createExactInspectionBuildKey(root, entries);
+	const inspections = [...modules.values()].map((entry) => entry.inspection);
+	const rootComponentId =
+		debug?.rootComponentId ??
+		inspections.flatMap((inspection) => inspection.components)[0]?.id;
+	if (!rootComponentId) return undefined;
+	const sources = Object.fromEntries(
+		[...modules.entries()].map(([filename, entry]) => [filename, entry.source])
+	);
+	return createExactBuildInspectionCatalog({
+		buildKey,
+		root,
+		...(debug?.producer ? { producer: debug.producer } : {}),
+		roots: [
+			{
+				executionRoot: debug?.executionRoot ?? rootComponentId,
+				rootComponentId,
+				inspections,
+				sources,
+				redactions: createExactInspectionRedactions(
+					[...modules.values()].map((entry) => entry.manifest),
+					debug?.redactions
+				)
+			}
+		]
+	});
 }

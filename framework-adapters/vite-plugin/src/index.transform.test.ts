@@ -23,6 +23,21 @@ describe('@exactjs/vite-plugin: transform', () => {
 		).toThrow('page.js: module /src/private.exact.server.ts');
 	});
 
+	it('rejects inspection catalogs in final client output', () => {
+		const plugin = exact();
+		expect(() =>
+			plugin.generateBundle?.(
+				{},
+				{
+					'.exact-inspection/build.json': {
+						type: 'asset',
+						fileName: '.exact-inspection/build.json'
+					}
+				}
+			)
+		).toThrow('.exact-inspection/build.json');
+	});
+
 	it('forwards profiling into its compiler session', () => {
 		const events: Array<{ subsystem: string; phase: string }> = [];
 		const plugin = exact({
@@ -182,5 +197,87 @@ describe('@exactjs/vite-plugin: transform', () => {
 		expect(exact({ target: 'server', reactCompatibility: false }).config?.()).toMatchObject({
 			resolve: { conditions: ['exact-server'] }
 		});
+	});
+
+	it('emits one server-only catalog asset with explicit production debug output', () => {
+		const emitted: Array<{ type: 'asset'; fileName: string; source: string }> = [];
+		const plugin = exact({
+			target: 'server',
+			applicationRoot: process.cwd(),
+			reactCompatibility: false,
+			debug: {
+				catalog: true,
+				runtime: true,
+				buildKey: 'immutable-build',
+				executionRoot: 'page'
+			}
+		});
+		plugin.transform(
+			`export function Page(this: Component<{}>) { return () => <main />; }`,
+			`${process.cwd()}/src/Page.tsx`
+		);
+		plugin.generateBundle?.call(
+			{ emitFile: (asset) => (emitted.push(asset), 'inspection') },
+			{},
+			{}
+		);
+
+		expect(emitted).toHaveLength(1);
+		expect(emitted[0]!.fileName).toBe('.exact-inspection/immutable-build.json');
+		expect(JSON.parse(emitted[0]!.source)).toMatchObject({
+			protocol: 1,
+			buildKey: 'immutable-build',
+			roots: { page: { executionRoot: 'page' } }
+		});
+	});
+
+	it('derives independent auto runtime and hardened controls', () => {
+		const development = exact({ target: 'client', reactCompatibility: false });
+		development.configResolved?.({ command: 'serve' });
+		const instrumented = development.transform(
+			`export function Page(this: Component<{}>) { return () => <main />; }`,
+			'/src/Page.tsx'
+		);
+		expect(instrumented?.code).toContain('@exactjs/devtools-runtime');
+
+		const hardened = exact({
+			target: 'client',
+			reactCompatibility: false,
+			debug: { catalog: false, runtime: false }
+		});
+		hardened.configResolved?.({ command: 'serve' });
+		const output = hardened.transform(
+			`export function Page(this: Component<{}>) { return () => <main />; }`,
+			'/src/Page.tsx'
+		);
+		expect(output?.code).not.toContain('@exactjs/devtools');
+	});
+
+	it('injects the page-world runtime before application modules only when instrumented', () => {
+		const development = exact({
+			target: 'client',
+			debug: { runtime: true, buildKey: 'build-client', executionRoot: 'page' }
+		});
+		development.configResolved?.({ command: 'build' });
+		const html = development.transformIndexHtml!.handler(
+			'<body><script type="module" src="/src/main.ts"></script></body>'
+		);
+		expect(html.indexOf('virtual:exact/devtools-runtime')).toBeLessThan(
+			html.indexOf('/src/main.ts')
+		);
+		expect(
+			development.resolveId?.('virtual:exact/devtools-runtime')
+		).toBe('\0virtual:exact/devtools-runtime');
+		expect(
+			development.load?.('\0virtual:exact/devtools-runtime')
+		).toMatchObject({
+			code: expect.stringContaining('"buildKey":"build-client"')
+		});
+
+		const hardened = exact({ target: 'client', debug: { runtime: false } });
+		hardened.configResolved?.({ command: 'serve' });
+		expect(hardened.transformIndexHtml!.handler('<body></body>')).not.toContain(
+			'exact/devtools-runtime'
+		);
 	});
 });

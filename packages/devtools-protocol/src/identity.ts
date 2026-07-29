@@ -117,7 +117,12 @@ export function isExactInspectionRuntimeId(value: unknown): value is ExactInspec
 /** Validates a server-owned catalog before registry insertion. */
 export function isExactBuildInspectionCatalog(value: unknown): value is ExactBuildInspectionCatalog {
 	if (!record(value) || value.protocol !== EXACT_DEVTOOLS_PROTOCOL_VERSION) return false;
-	if (!boundedString(value.buildKey, 256) || !record(value.producer) || !record(value.roots))
+	if (
+		!boundedString(value.buildKey, 256) ||
+		!validProducer(value.producer) ||
+		!record(value.roots) ||
+		Object.keys(value.roots).length > 100
+	)
 		return false;
 	for (const [key, root] of Object.entries(value.roots)) {
 		if (!boundedString(key, 512) || !validRootCatalog(root, key)) return false;
@@ -132,21 +137,160 @@ function validRootCatalog(value: unknown, key: string): value is ExactInspection
 		!boundedString(value.executionRoot, 512) ||
 		!boundedString(value.rootComponentId, 512) ||
 		!Array.isArray(value.files) ||
-		!record(value.redactions)
+		value.files.length > 10_000 ||
+		!validRedactions(value.redactions)
 	)
 		return false;
-	return value.files.every(
-		(file) =>
-			record(file) &&
-			boundedString(file.path, 2048) &&
-			!absolutePath(file.path) &&
-			boundedString(file.sourceHash, 128) &&
-			Array.isArray(file.components)
+	const entityIds = new Set<string>();
+	let entities = 0;
+	const valid = value.files.every((file) => {
+		if (
+			!record(file) ||
+			!relativeSourcePath(file.path) ||
+			!sourceHash(file.sourceHash) ||
+			!Array.isArray(file.components)
+		)
+			return false;
+		return file.components.every((component) =>
+			validEntity(component, file.path, file.sourceHash, entityIds, () => ++entities <= 100_000)
+		);
+	});
+	return valid && entityIds.has(value.rootComponentId);
+}
+
+function validProducer(value: unknown): boolean {
+	if (!record(value) || hasValueField(value)) return false;
+	return (
+		(value.packageName === undefined || boundedString(value.packageName, 512)) &&
+		(value.version === undefined || boundedString(value.version, 128))
 	);
 }
 
-function absolutePath(path: string): boolean {
-	return /^(?:[A-Za-z]:[\\/]|\\\\|\/)/.test(path);
+function validRedactions(value: unknown): value is ExactInspectionRedactionCatalog {
+	if (
+		!record(value) ||
+		hasValueField(value) ||
+		!Array.isArray(value.statePaths) ||
+		!Array.isArray(value.contextTokens) ||
+		!Array.isArray(value.secretNames) ||
+		value.statePaths.length > 10_000 ||
+		value.contextTokens.length > 10_000 ||
+		value.secretNames.length > 10_000
+	)
+		return false;
+	return (
+		value.statePaths.every((path) => boundedString(path, 2048)) &&
+		value.secretNames.every((name) => boundedString(name, 512)) &&
+		value.contextTokens.every(
+			(token) =>
+				record(token) &&
+				!hasValueField(token) &&
+				boundedString(token.name, 512) &&
+				['component', 'request', 'application'].includes(token.scope) &&
+				['secret', 'server-resource'].includes(token.kind)
+		)
+	);
+}
+
+function validEntity(
+	value: unknown,
+	path: string,
+	hash: string,
+	ids: Set<string>,
+	count: () => boolean
+): value is ExactRuntimeSourceEntity {
+	if (
+		!count() ||
+		!record(value) ||
+		hasValueField(value) ||
+		!boundedString(value.id, 1024) ||
+		ids.has(value.id) ||
+		!boundedString(value.kind, 128) ||
+		(value.name !== undefined && !boundedString(value.name, 512)) ||
+		!validLocation(value.location, path, hash) ||
+		(value.classification !== undefined &&
+			(!record(value.classification) || !boundedJson(value.classification, 0))) ||
+		!Array.isArray(value.reasons) ||
+		value.reasons.length > 1_000 ||
+		!Array.isArray(value.children) ||
+		value.children.length > 10_000
+	)
+		return false;
+	ids.add(value.id);
+	if (
+		!value.reasons.every(
+			(reason) =>
+				record(reason) &&
+				!hasValueField(reason) &&
+				boundedString(reason.code, 256) &&
+				boundedString(reason.summary, 4_096) &&
+				validLocation(reason.location, path, hash)
+		)
+	)
+		return false;
+	return value.children.every((child) => validEntity(child, path, hash, ids, count));
+}
+
+function validLocation(value: unknown, path: string, hash: string): boolean {
+	if (
+		!record(value) ||
+		value.path !== path ||
+		value.sourceHash !== hash ||
+		!validPoint(value.start) ||
+		!validPoint(value.end)
+	)
+		return false;
+	return value.start.offset <= value.end.offset;
+}
+
+function validPoint(value: unknown): boolean {
+	return (
+		record(value) &&
+		nonnegativeInteger(value.offset) &&
+		positiveInteger(value.line) &&
+		positiveInteger(value.column)
+	);
+}
+
+function boundedJson(value: unknown, depth: number): boolean {
+	if (depth > 20) return false;
+	if (
+		value === null ||
+		typeof value === 'boolean' ||
+		(typeof value === 'number' && Number.isFinite(value)) ||
+		(typeof value === 'string' && value.length <= 16_384)
+	)
+		return true;
+	if (Array.isArray(value))
+		return value.length <= 10_000 && value.every((item) => boundedJson(item, depth + 1));
+	if (!record(value) || hasValueField(value) || Object.keys(value).length > 1_000) return false;
+	return Object.entries(value).every(
+		([key, item]) => key.length <= 512 && boundedJson(item, depth + 1)
+	);
+}
+
+function hasValueField(value: Record<string, unknown>): boolean {
+	return Object.prototype.hasOwnProperty.call(value, 'value');
+}
+
+function relativeSourcePath(value: unknown): value is string {
+	return (
+		boundedString(value, 2048) &&
+		!(/^(?:[A-Za-z]:[\\/]|\\\\|\/)/.test(value)) &&
+		!value.split(/[\\/]/).includes('..')
+	);
+}
+
+function sourceHash(value: unknown): value is string {
+	return typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value);
+}
+
+function nonnegativeInteger(value: unknown): value is number {
+	return Number.isSafeInteger(value) && (value as number) >= 0;
+}
+
+function positiveInteger(value: unknown): value is number {
+	return Number.isSafeInteger(value) && (value as number) > 0;
 }
 
 function boundedString(value: unknown, maximum: number): value is string {

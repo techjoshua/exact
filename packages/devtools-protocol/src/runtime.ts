@@ -1,4 +1,7 @@
-import type { ExactInspectionRuntimeId } from './identity.js';
+import {
+	isExactInspectionRuntimeId,
+	type ExactInspectionRuntimeId
+} from './identity.js';
 import type { ExactValuePreview } from './value-preview.js';
 
 /** Public, redaction-safe context observation. */
@@ -165,6 +168,133 @@ export type ExactRuntimeInspectionEvent = Readonly<{
 /** Explicit sink inherited from a runtime owner; it never changes scheduling. */
 export interface ExactRuntimeInspectionSink {
 	publish(event: ExactRuntimeInspectionEvent): void;
+}
+
+const inspectionEventKinds = new Set<ExactRuntimeInspectionEventKind>([
+	'component.construct',
+	'component.mount',
+	'component.activate',
+	'component.deactivate',
+	'component.unmount',
+	'state.change',
+	'props.change',
+	'task.queue',
+	'task.start',
+	'task.settle',
+	'task.fail',
+	'task.cancel',
+	'task.supersede',
+	'action.queue',
+	'action.start',
+	'action.optimistic',
+	'action.rollback',
+	'action.discard',
+	'action.settle',
+	'action.cancel',
+	'render.invalidate',
+	'binding.invalidate',
+	'activity.change',
+	'suspense.change',
+	'continuation.dispatch',
+	'continuation.receive',
+	'continuation.execute',
+	'continuation.respond',
+	'continuation.apply',
+	'context.access',
+	'hydration.activate',
+	'resumption.activate',
+	'patch.apply',
+	'interaction',
+	'navigation',
+	'error',
+	'profile'
+]);
+
+/** Validates one untrusted event before extension or CDP delivery. */
+export function isExactRuntimeInspectionEvent(
+	value: unknown
+): value is ExactRuntimeInspectionEvent {
+	if (
+		!record(value) ||
+		value.protocol !== 1 ||
+		!boundedString(value.cursor, 256) ||
+		!positiveInteger(value.sequence) ||
+		typeof value.timestamp !== 'number' ||
+		!Number.isFinite(value.timestamp) ||
+		(value.wallTime !== undefined &&
+			(typeof value.wallTime !== 'number' || !Number.isFinite(value.wallTime))) ||
+		!inspectionEventKinds.has(value.kind) ||
+		!isExactInspectionRuntimeId(value.id)
+	)
+		return false;
+	for (const key of ['requestId', 'interactionId', 'path', 'reason'] as const)
+		if (value[key] !== undefined && !boundedString(value[key], key === 'path' ? 2048 : 1024))
+			return false;
+	if (value.attributes !== undefined) {
+		if (!record(value.attributes) || Object.keys(value.attributes).length > 100) return false;
+		for (const [key, attribute] of Object.entries(value.attributes))
+			if (
+				key.length > 256 ||
+				!(
+					attribute === null ||
+					typeof attribute === 'string' ||
+					typeof attribute === 'boolean' ||
+					(typeof attribute === 'number' && Number.isFinite(attribute))
+				) ||
+				(typeof attribute === 'string' && attribute.length > 4_096)
+			)
+				return false;
+	}
+	return value.preview === undefined || validPreview(value.preview, 0);
+}
+
+function validPreview(value: unknown, depth: number): boolean {
+	if (depth > 20 || !record(value) || typeof value.kind !== 'string') return false;
+	if (value.kind === 'scalar')
+		return (
+			value.value === null ||
+			typeof value.value === 'boolean' ||
+			(typeof value.value === 'number' && Number.isFinite(value.value)) ||
+			(typeof value.value === 'string' && value.value.length <= 100_000)
+		);
+	if (value.kind === 'redacted')
+		return ['secret', 'server-resource', 'policy'].includes(value.reason);
+	if (value.kind === 'unavailable') return boundedString(value.reason, 1024);
+	if (value.kind === 'function')
+		return value.name === undefined || boundedString(value.name, 128);
+	if (value.kind === 'dom')
+		return (
+			boundedString(value.tag, 64) &&
+			(value.id === undefined || boundedString(value.id, 128)) &&
+			Array.isArray(value.classes) &&
+			value.classes.length <= 10 &&
+			value.classes.every((item: unknown) => boundedString(item, 128))
+		);
+	return (
+		value.kind === 'object' &&
+		boundedString(value.type, 256) &&
+		typeof value.truncated === 'boolean' &&
+		Array.isArray(value.entries) &&
+		value.entries.length <= 10_000 &&
+		value.entries.every(
+			(entry: unknown) =>
+				record(entry) &&
+				boundedString(entry.key, 512) &&
+				validPreview(entry.value, depth + 1)
+		)
+	);
+}
+
+function boundedString(value: unknown, maximum: number): value is string {
+	return typeof value === 'string' && value.length > 0 && value.length <= maximum;
+}
+
+function positiveInteger(value: unknown): value is number {
+	return Number.isSafeInteger(value) && (value as number) > 0;
+}
+
+function record(value: unknown): value is Record<string, any> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /** Browser-visible microfrontend availability and retained-build status. */

@@ -8,6 +8,11 @@ export {
 	type ExactDomInspectionSnapshot
 } from './inspection.js';
 export {
+	exactDomInspectionOwner,
+	setExactDomInspectionOwner,
+	setExactDomInspectionOwnerFactory
+} from './state.js';
+export {
 	adoptComponentRoot,
 	adoptDocumentRoot,
 	adoptMarkerlessComponentRoot,

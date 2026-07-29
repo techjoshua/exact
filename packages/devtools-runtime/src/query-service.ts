@@ -1,6 +1,8 @@
 import {
+	isExactRuntimeInspectionEvent,
 	paginateExactInspection,
 	parseExactInspectionRequest,
+	parseExactInspectionSubscription,
 	type ExactInspectionQueryService,
 	type ExactInspectionRequest,
 	type ExactInspectionResponse,
@@ -40,9 +42,31 @@ export function createExactClientInspectionQueryService(
 				return failure(requestId(untrusted), 'bad-request', error);
 			}
 			const snapshot = correlatedSnapshot(options.dom.snapshot().components, options.correlations);
+			const serverOwned =
+				request.params?.identity?.side === 'server' &&
+				options.serverConnected &&
+				options.server;
+			if (
+				serverOwned &&
+				[
+					'components.get',
+					'state.get',
+					'contexts.list',
+					'tasks.list',
+					'tasks.get',
+					'actions.list',
+					'actions.get'
+				].includes(request.method)
+			)
+				return options.server!.query(options.sessionId, request);
 			switch (request.method) {
 				case 'roots.list':
-					return collection(request, options.sessionId, options.dom.snapshot().roots, maxResults);
+					return mergedServerCollection(
+						request,
+						options,
+						options.dom.snapshot().roots,
+						maxResults
+					);
 				case 'microfrontends.list':
 					return collection(
 						request,
@@ -62,7 +86,7 @@ export function createExactClientInspectionQueryService(
 						maxResults
 					);
 				case 'components.tree':
-					return collection(request, options.sessionId, snapshot, maxResults);
+					return mergedServerCollection(request, options, snapshot, maxResults);
 				case 'components.get':
 					return componentResponse(request, options.sessionId, snapshot, (component) => component);
 				case 'state.get':
@@ -87,22 +111,9 @@ export function createExactClientInspectionQueryService(
 				case 'actions.get':
 					return nestedResponse(request, options.sessionId, snapshot, 'actions');
 				case 'timeline.query':
-				return collection(
-					request,
-					options.sessionId,
-					options.events.query(request.params?.page?.cursor, request.params?.filter),
-					maxResults
-				);
+					return mergedTimeline(request, options, maxResults);
 				case 'errors.list':
-					return collection(
-						request,
-						options.sessionId,
-						options.events.query(request.params?.page?.cursor, {
-							...request.params?.filter,
-							kinds: ['error']
-						}),
-						maxResults
-					);
+					return mergedTimeline(request, options, maxResults, true);
 				case 'components.ownerOfElement':
 					return failure(request.id, 'bad-request', 'use the fixed page-hook element bridge');
 				default:
@@ -112,10 +123,26 @@ export function createExactClientInspectionQueryService(
 			}
 		},
 		subscribe(request, listener) {
-			if (request.sessionId !== options.sessionId)
+			try {
+				request = parseExactInspectionSubscription(request);
+			} catch {
 				return closedSubscription();
+			}
+			if (request.sessionId !== options.sessionId) return closedSubscription();
 			let closed = false;
-			const unsubscribe = options.events.subscribe(request.cursor, request.filter, listener);
+			const cursors = splitHostCursor(request.cursor);
+			const unsubscribe = options.events.subscribe(cursors.client, request.filter, listener);
+			const { cursor: _cursor, ...subscription } = request;
+			const remote =
+				options.serverConnected && options.server
+					? options.server.subscribe(
+							{
+								...subscription,
+								...(cursors.server ? { cursor: cursors.server } : {})
+							},
+							listener
+						)
+					: undefined;
 			return Object.freeze({
 				get closed() {
 					return closed;
@@ -124,11 +151,120 @@ export function createExactClientInspectionQueryService(
 					if (closed) return;
 					closed = true;
 					unsubscribe();
+					remote?.close();
 				}
 			});
 		}
 	};
 	return Object.freeze(service);
+}
+
+async function mergedTimeline(
+	request: ExactInspectionRequest,
+	options: ExactClientQueryServiceOptions,
+	maximum: number,
+	errorsOnly = false
+): Promise<ExactInspectionResponse> {
+	const cursors = splitHostCursor(request.params?.page?.cursor);
+	const filter = errorsOnly
+		? { ...request.params?.filter, kinds: ['error'] }
+		: request.params?.filter;
+	const clientEvents = options.events.query(cursors.client, filter);
+	let serverEvents: readonly ExactRuntimeInspectionEvent[] = [];
+	let serverCursor = cursors.server;
+	let remoteNextCursor: string | undefined;
+	if (options.serverConnected && options.server) {
+		try {
+			const remote = await options.server.query(options.sessionId, {
+				...request,
+				params: {
+					...request.params,
+					filter,
+					page: {
+						limit: maximum,
+						...(cursors.server ? { cursor: cursors.server } : {})
+					}
+				}
+			});
+			if (remote.ok && Array.isArray(remote.result)) {
+				serverEvents = remote.result.filter(isExactRuntimeInspectionEvent);
+				remoteNextCursor = remote.page?.nextCursor;
+			}
+		} catch {
+			// Preserve the attached client branch when server cooperation disappears.
+		}
+	}
+	const limit = Math.min(request.params?.page?.limit ?? 100, maximum);
+	const selected: ExactRuntimeInspectionEvent[] = [];
+	let clientIndex = 0;
+	let serverIndex = 0;
+	let clientCursor = cursors.client;
+	while (
+		selected.length < limit &&
+		(clientIndex < clientEvents.length || serverIndex < serverEvents.length)
+	) {
+		if (clientIndex < clientEvents.length && selected.length < limit) {
+			const event = clientEvents[clientIndex++]!;
+			selected.push(event);
+			clientCursor = event.cursor;
+		}
+		if (serverIndex < serverEvents.length && selected.length < limit) {
+			const event = serverEvents[serverIndex++]!;
+			selected.push(event);
+			serverCursor = event.cursor;
+		}
+	}
+	const hasMore = clientIndex < clientEvents.length || serverIndex < serverEvents.length;
+	if (!serverEvents.length && remoteNextCursor) serverCursor = remoteNextCursor;
+	const nextCursor =
+		selected.length || hasMore
+			? joinHostCursor(clientCursor, serverCursor)
+			: request.params?.page?.cursor;
+	return success(
+		request,
+		options.sessionId,
+		Object.freeze(selected),
+		nextCursor
+	);
+}
+
+function splitHostCursor(cursor: string | undefined): {
+	client?: string;
+	server?: string;
+} {
+	if (!cursor?.startsWith('m:')) return cursor ? { client: cursor, server: cursor } : {};
+	const [, client = '', server = ''] = cursor.split(':', 3);
+	return {
+		...(client && client !== '-' ? { client: decodeURIComponent(client) } : {}),
+		...(server && server !== '-' ? { server: decodeURIComponent(server) } : {})
+	};
+}
+
+function joinHostCursor(client: string | undefined, server: string | undefined): string {
+	return `m:${client ? encodeURIComponent(client) : '-'}:${server ? encodeURIComponent(server) : '-'}`;
+}
+
+async function mergedServerCollection(
+	request: ExactInspectionRequest,
+	options: ExactClientQueryServiceOptions,
+	clientValues: readonly unknown[],
+	maximum: number
+): Promise<ExactInspectionResponse> {
+	let serverValues: readonly unknown[] = [];
+	if (options.serverConnected && options.server) {
+		try {
+			const remote = await options.server.query(options.sessionId, request);
+			if (remote.ok && Array.isArray(remote.result)) serverValues = remote.result;
+		} catch {
+			// Client inspection remains available when server cooperation disconnects.
+		}
+	}
+	return collection(
+		request,
+		options.sessionId,
+		Object.freeze([...clientValues, ...serverValues]),
+		maximum
+	);
 }
 
 function correlatedSnapshot(

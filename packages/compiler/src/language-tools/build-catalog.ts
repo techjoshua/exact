@@ -13,6 +13,7 @@ import type {
 	ExactSourceInspection,
 	ExactSourceRange
 } from './contracts.js';
+import type { ExactCompilerManifest } from '../contracts/manifest.js';
 
 /** One execution-root partition supplied to build catalog creation. */
 export type ExactBuildInspectionRootInput = Readonly<{
@@ -58,6 +59,67 @@ export function createExactBuildInspectionCatalog(
 /** Returns a stable SHA-256 source hash used to reject mismatched source projections. */
 export function exactInspectionSourceHash(source: string): string {
 	return createHash('sha256').update(source).digest('hex');
+}
+
+/** Derives an immutable build key from relative authored paths and their exact source bytes. */
+export function createExactInspectionBuildKey(
+	projectRoot: string,
+	entries: readonly Readonly<{ filename: string; source: string }>[]
+): string {
+	const hash = createHash('sha1');
+	for (const entry of [...entries].sort((left, right) =>
+		left.filename.localeCompare(right.filename)
+	)) {
+		const filename = path.resolve(entry.filename);
+		const relative = normalizeRelativePath(projectRoot, filename);
+		hash.update(relative);
+		hash.update('\0');
+		hash.update(exactInspectionSourceHash(entry.source));
+		hash.update('\0');
+	}
+	return hash.digest('hex');
+}
+
+/** Projects compiler data-policy identities into a value-free runtime redaction catalog. */
+export function createExactInspectionRedactions(
+	manifests: readonly ExactCompilerManifest[],
+	configured: Partial<ExactInspectionRedactionCatalog> = {}
+): ExactInspectionRedactionCatalog {
+	const statePaths = new Set(configured.statePaths ?? []);
+	const contextTokens = new Map(
+		(configured.contextTokens ?? []).map((token) => [
+			`${token.name}\0${token.scope}\0${token.kind}`,
+			token
+		])
+	);
+	const secretNames = new Set(configured.secretNames ?? []);
+	for (const manifest of manifests) {
+		for (const subject of manifest.policy.subjects) {
+			if (subject.policy.secret && subject.selector) secretNames.add(subject.selector);
+			if (subject.kind === 'state' && subject.policy.secret) {
+				const path = subject.path ?? subject.name;
+				statePaths.add(path.startsWith('state.') ? path : `state.${path}`);
+			}
+			if (subject.kind === 'context') {
+				const token = Object.freeze({
+					name: subject.selector ?? subject.name,
+					scope: 'component' as const,
+					kind: subject.policy.secret ? ('secret' as const) : ('server-resource' as const)
+				});
+				if (subject.policy.secret || subject.policy.residency === 'server')
+					contextTokens.set(`${token.name}\0${token.scope}\0${token.kind}`, token);
+			}
+		}
+		for (const consumer of manifest.policy.secretConsumers)
+			if (consumer.selector) secretNames.add(consumer.selector);
+	}
+	return Object.freeze({
+		statePaths: Object.freeze([...statePaths].sort()),
+		contextTokens: Object.freeze(
+			[...contextTokens.values()].sort((left, right) => left.name.localeCompare(right.name))
+		),
+		secretNames: Object.freeze([...secretNames].sort())
+	});
 }
 
 function createRootCatalog(

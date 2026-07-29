@@ -91,7 +91,17 @@ export function createComponentInstance<
 	const scope = createEffectScope(undefined, (error) => {
 		handleComponentError(instance, createErrorReport(error, 'reactive', instance, 'watch'));
 	});
-	const state = reactive({} as State);
+	const state = reactive({} as State, {
+		onMutation(key, operation) {
+			if (!instance) return;
+			domain.inspection?.publish({
+				kind: 'state.change',
+				component: instance,
+				path: key === undefined ? 'state' : `state.${String(key)}`,
+				attributes: Object.freeze({ operation })
+			});
+		}
+	});
 	if (resumption) applyComponentResumption(state as Reactive<Record<string, unknown>>, resumption);
 	const props = reactive(rawProps, {
 		readonly: true,
@@ -124,6 +134,7 @@ export function createComponentInstance<
 		action: actionApi.action,
 		props,
 		contexts: new Map(),
+		contextTokens: new Map(),
 		ambientContexts,
 		tasks: [],
 		mountHandlers: [],
@@ -155,13 +166,19 @@ export function createComponentInstance<
 			}
 		},
 		hasContext(token: ContextToken<unknown>): boolean {
+			instance.contextTokens.set(token.id, token);
+			publishContextAccess(instance, token, 'read');
 			return hasComponentContext(instance, ambientContexts, token);
 		},
 		getContext<T>(token: ContextToken<T>): Reactive<T> {
+			instance.contextTokens.set(token.id, token);
+			publishContextAccess(instance, token, 'read');
 			return getComponentContext(instance, ambientContexts, token);
 		},
 		setContext<T>(token: ContextToken<T>, value: T): void {
+			instance.contextTokens.set(token.id, token);
 			setComponentContext(instance, token, value);
+			publishContextAccess(instance, token, 'write');
 		},
 		reactive<T>(
 			input: TemplateStringsArray | (() => T) | T,
@@ -365,6 +382,8 @@ export function createComponentInstance<
 		}
 	};
 	domain.inspection?.publish({ kind: 'component.construct', component: instance });
+	if (!parent && domain.inspectionActivation === 'hydration')
+		domain.inspection?.publish({ kind: 'hydration.activate', component: instance });
 
 	// Framework fallback errors belong to one application root. A user-provided
 	// ErrorContext installed during construction replaces this seed for its tree.
@@ -392,6 +411,7 @@ export function createComponentInstance<
 	}
 	if (resumption) {
 		applyComponentResumption(state as Reactive<Record<string, unknown>>, resumption);
+		domain.inspection?.publish({ kind: 'resumption.activate', component: instance });
 		startResumedComponentTasks(instance, resumption);
 	}
 	acceptingTaskRegistrations = false;
@@ -403,6 +423,28 @@ export function createComponentInstance<
 	if (taskObserver?.retain) retainTaskObserver(instance, taskObserver);
 
 	return instance;
+}
+
+function publishContextAccess(
+	instance: ComponentInstance<any>,
+	token: ContextToken<unknown>,
+	operation: 'read' | 'write'
+): void {
+	instance.domain.inspection?.publish({
+		kind: 'context.access',
+		component: instance,
+		attributes: Object.freeze({
+			name: token.description,
+			scope: token.scope,
+			availability:
+				token.keep === 'secret'
+					? 'secret'
+					: token.keep === 'server'
+						? 'resource'
+						: 'value',
+			operation
+		})
+	});
 }
 
 /** Transfers a live component to a new logical parent during renderer-owned root replacement. */

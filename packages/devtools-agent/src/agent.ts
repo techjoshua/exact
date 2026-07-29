@@ -1,5 +1,6 @@
 import {
 	parseExactInspectionRequest,
+	parseExactInspectionSubscription,
 	type ExactInspectionQueryService,
 	type ExactInspectionRequest,
 	type ExactInspectionResponse,
@@ -56,8 +57,13 @@ export async function connectExactDevtoolsAgent(
 			return callHook<ExactInspectionResponse>(cdp, hook, requestFunction, [request]);
 		},
 		subscribe(request, listener) {
-			if (disconnected || !validSubscription(request, connected.id))
+			if (disconnected) return closedSubscription();
+			try {
+				request = parseExactInspectionSubscription(request);
+			} catch {
 				return closedSubscription();
+			}
+			if (request.sessionId !== connected.id) return closedSubscription();
 			const subscriptionId = `agent-${nextSubscription++}`;
 			let closed = false;
 			eventListeners.set(subscriptionId, listener);
@@ -157,15 +163,6 @@ const unsubscribeFunction = `function (subscriptionId) {
 	subscriptions?.get(subscriptionId)?.close();
 	subscriptions?.delete(subscriptionId);
 }`;
-
-function validSubscription(
-	request: ExactInspectionSubscription,
-	sessionId: string
-): boolean {
-	if (request.protocol !== 1 || request.sessionId !== sessionId) return false;
-	if (request.cursor !== undefined && !/^[0-9a-z]+$/.test(request.cursor)) return false;
-	return !request.filter?.kinds || request.filter.kinds.length <= 32;
-}
 
 function bindingPayload(
 	params: unknown

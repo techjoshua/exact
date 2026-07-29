@@ -1,10 +1,12 @@
 import type {
 	Child,
+	ComponentDomain,
 	ComponentContextValues,
 	ExactComponentContinuationContract,
 	ComponentFunction,
 	ComponentInstance,
 	ComponentResumptionActivation,
+	ExactRuntimeInspectionOwner,
 	Logger,
 	TaskObserver,
 	UnsafeHtmlAuditEvent,
@@ -62,6 +64,8 @@ export type RenderToStringOptions = {
 	onComponentCreated?: (instance: ComponentInstance<any>) => void;
 	/** Receives SSR rendering profiling observations. */
 	onProfile?: ExactProfileSink;
+	/** Internal request-owned observation boundary; omitted in hardened server output. */
+	inspection?: ExactRuntimeInspectionOwner;
 };
 
 /** Reports an observable ssr profile event. */
@@ -285,6 +289,7 @@ export type SsrContext = {
 	documentBodySeen: boolean;
 	hostStack: string[];
 	componentContexts?: ComponentContextValues;
+	componentDomain?: ComponentDomain;
 	onComponentCreated?: (instance: ComponentInstance<any>) => void;
 	onComponentRendered?: (instance: ComponentInstance<any>) => void;
 };

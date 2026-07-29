@@ -80,5 +80,9 @@ function normalizeArtifactPath(value: string): string {
 
 /** Recognizes compiler target artifacts independent of source extension. */
 function isServerArtifactPath(value: string): boolean {
-	return /(?:^|\/)[^/]+\.exact\.server(?:\.|$)/i.test(value);
+	return (
+		/(?:^|\/)[^/]+\.exact\.server(?:\.|$)/i.test(value) ||
+		/(?:^|\/)\.exact-inspection(?:\/|$)/i.test(value) ||
+		value.includes('virtual:exact/inspection-catalog')
+	);
 }

@@ -244,7 +244,8 @@ async function renderNativeSuspenseAsync(
 		SsrReadinessOwner,
 		{ context: coordinator.context },
 		parent,
-		context.componentContexts
+		context.componentContexts,
+		context.componentDomain
 	);
 	try {
 		const maxPasses = options.maxTaskPasses ?? 10;
@@ -301,7 +302,8 @@ export function renderComponent(
 			vnode.type as ComponentFunction<any, Record<string, unknown>>,
 			getComponentProps(vnode),
 			parent,
-			context.componentContexts
+			context.componentContexts,
+			context.componentDomain
 		);
 		context.onComponentCreated?.(instance);
 		let invalidated = false;
@@ -364,7 +366,8 @@ export async function renderComponentAsync(
 					vnode.type as ComponentFunction<any, Record<string, unknown>>,
 					getComponentProps(vnode),
 					parent,
-					context.componentContexts
+					context.componentContexts,
+					context.componentDomain
 				)
 			);
 			options.onComponentCreated?.(instance);

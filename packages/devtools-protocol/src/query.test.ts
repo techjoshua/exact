@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
 	paginateExactInspection,
-	parseExactInspectionRequest
+	parseExactInspectionRequest,
+	parseExactInspectionSubscription
 } from './query.js';
 
 describe('eXact inspection query validation', () => {
@@ -27,5 +28,42 @@ describe('eXact inspection query validation', () => {
 		});
 		expect(first.values).toEqual([1, 2]);
 		expect(second.values).toEqual([3]);
+	});
+
+	it('rejects malformed identities, unknown fields, excessive depth, and subscriptions', () => {
+		expect(() =>
+			parseExactInspectionRequest({
+				protocol: 1,
+				id: 'bad-identity',
+				method: 'components.get',
+				params: { identity: { sessionId: 'session' } }
+			})
+		).toThrow('runtime identity');
+		expect(() =>
+			parseExactInspectionRequest({
+				protocol: 1,
+				id: 'unknown',
+				method: 'roots.list',
+				params: { execute: true }
+			})
+		).toThrow('Unknown');
+		expect(() =>
+			parseExactInspectionRequest(
+				{
+					protocol: 1,
+					id: 'deep',
+					method: 'roots.list',
+					params: { filter: { kinds: [[['error']]] } }
+				},
+				{ maxDepth: 3 }
+			)
+		).toThrow('deep');
+		expect(() =>
+			parseExactInspectionSubscription({
+				protocol: 1,
+				sessionId: 'session',
+				filter: { kinds: Array.from({ length: 33 }, () => 'error') }
+			})
+		).toThrow('too large');
 	});
 });

@@ -39,6 +39,8 @@ export {
 export type { ExactExposureInspectionCatalog } from '../exposures.js';
 export {
 	createExactBuildInspectionCatalog,
+	createExactInspectionBuildKey,
+	createExactInspectionRedactions,
 	exactInspectionSourceHash,
 	type ExactBuildInspectionCatalogOptions,
 	type ExactBuildInspectionRootInput

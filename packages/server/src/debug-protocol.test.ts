@@ -109,7 +109,8 @@ describe('server-cooperative debug protocol', () => {
 					buildKey,
 					executionRoot: 'page',
 					sourceHash,
-					content: `const API_SECRET = "do-not-expose";\nexport function Page() {}`
+					content: `const API_SECRET = "[redacted]";\nexport function Page() {}`,
+					redacted: true
 				}
 			}
 		});
@@ -138,6 +139,32 @@ describe('server-cooperative debug protocol', () => {
 			context
 		);
 		expect(mismatch.status).toBe(404);
+	});
+
+	it('refuses retained source that was not pre-redacted when a catalog contains secrets', async () => {
+		const context = server({
+			allowDebug: true,
+			inspectionSources: {
+				[`${buildKey}\0page\0src/Page.tsx`]: {
+					buildKey,
+					executionRoot: 'page',
+					sourceHash,
+					content: `sendSomewhere("do-not-expose")`
+				}
+			}
+		});
+		const opened = await handleExactRequest(debugOpen(['source']), context);
+		const sessionId = responseJson(opened).session.id as string;
+		const source = await handleExactRequest(
+			debugQuery(sessionId, 'source.excerpt', {
+				identity: runtimeIdentity(sessionId),
+				path: 'src/Page.tsx',
+				sourceHash
+			}),
+			context
+		);
+		expect(source.status).toBe(404);
+		expect(source.body).not.toContain('do-not-expose');
 	});
 
 	it('keeps debug IDs out of invocation dispatch and records bounded observations', async () => {
@@ -183,6 +210,34 @@ describe('server-cooperative debug protocol', () => {
 		);
 		expect(response.status).toBe(404);
 		expect(allowDebug).not.toHaveBeenCalled();
+	});
+
+	it('reauthorizes idle event streams and closes them after resolver revocation', async () => {
+		vi.useFakeTimers();
+		let authorized = true;
+		const context = server({ allowDebug: async () => authorized });
+		const opened = await handleExactRequest(debugOpen(['events']), context);
+		const sessionId = responseJson(opened).session.id as string;
+		const subscribed = await handleExactRequest(
+			{
+				method: 'POST',
+				url: '/__exact',
+				headers: { accept: 'application/x-ndjson' },
+				body: {
+					type: 'debug',
+					version: 1,
+					request: 'subscribe',
+					sessionId
+				}
+			},
+			context
+		);
+		const reader = subscribed.stream!.getReader();
+		await Promise.resolve();
+		authorized = false;
+		await vi.advanceTimersByTimeAsync(1_000);
+
+		await expect(reader.read()).resolves.toEqual({ done: true, value: undefined });
 	});
 });
 

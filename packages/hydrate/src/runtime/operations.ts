@@ -97,6 +97,12 @@ export async function invokeAndApply(
 				? boundaryHtmlsFor(container, configuredBoundaries, work, options.executionRoot ?? 'page')
 				: undefined
 	};
+	component?.instance.domain.inspection?.publish({
+		kind: 'continuation.dispatch',
+		component: component.instance,
+		operationId: id,
+		generation: component.generation
+	});
 	const endpoint = requireEndpoint(endpointForOperation(client, type, id));
 	const transport = transportForEndpoint(options, endpoint);
 	// Operations can route to per-action or per-boundary endpoints, which keeps
@@ -264,6 +270,23 @@ export async function invokeAndApply(
 			const tokens = new Map(component.contextWrites.map((write) => [write.name, write.token]));
 			for (const [name, value] of Object.entries(result.contexts))
 				component.instance.setContext(tokens.get(name)!, value);
+		}
+		if (component) {
+			if (appliedPatches.length)
+				component.instance.domain.inspection?.publish({
+					kind: 'patch.apply',
+					component: component.instance,
+					operationId: id,
+					generation: component.generation,
+					attributes: Object.freeze({ count: appliedPatches.length })
+				});
+			component.instance.domain.inspection?.publish({
+				kind: 'continuation.apply',
+				component: component.instance,
+				operationId: id,
+				generation: component.generation,
+				attributes: Object.freeze({ stale: partiallyStale })
+			});
 		}
 		options.onOperation?.({
 			operation,

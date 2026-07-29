@@ -148,6 +148,7 @@ function createAction<Result>(
 				priority: policy.priority,
 				pending: status.pendingCount > 0,
 				pendingCount: status.pendingCount,
+				optimistic: [...active.values()].some((record) => record.journals.length > 0),
 				generation: status.generation,
 				result: status.result,
 				error: status.error,

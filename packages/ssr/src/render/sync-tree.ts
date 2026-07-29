@@ -177,7 +177,8 @@ export function* renderVNodeChunks(
 				vnode.type as ComponentFunction<any, Record<string, unknown>>,
 				getComponentProps(vnode),
 				parent,
-				context.componentContexts
+				context.componentContexts,
+				context.componentDomain
 			);
 			context.onComponentCreated?.(instance);
 			childParent = instance;

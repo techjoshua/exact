@@ -19,6 +19,7 @@ export type ExactServerInspectionQueryContext = Readonly<{
 	events: ExactInspectionEventBuffer;
 	sessions: ExactDebugSessionManager;
 	maxResults: number;
+	maxQueryDepth: number;
 	maxSnapshotBytes: number;
 	maxSourceExcerptBytes: number;
 }>;
@@ -32,7 +33,8 @@ export async function dispatchExactInspectionQuery(
 	let request: ExactInspectionRequest;
 	try {
 		request = parseExactInspectionRequest(untrusted, {
-			maxResults: queryContext.maxResults
+			maxResults: queryContext.maxResults,
+			maxDepth: queryContext.maxQueryDepth
 		});
 	} catch (error) {
 		return failure(requestId(untrusted), 'bad-request', error);
@@ -148,6 +150,8 @@ function sourceResponse(
 		source.executionRoot !== identity.executionRoot ||
 		source.sourceHash !== sourceHash
 	)
+		return failure(request.id, 'unavailable', 'source-unavailable');
+	if (root.redactions.secretNames.length && source.redacted !== true)
 		return failure(request.id, 'unavailable', 'source-unavailable');
 	const excerpt = boundedUtf8(
 		redactKnownSecrets(source.content, root.redactions.secretNames),

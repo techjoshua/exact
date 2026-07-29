@@ -43,4 +43,46 @@ describe('safe eXact value previews', () => {
 			entries: [{ key: 'apiKey', value: { kind: 'redacted', reason: 'secret' } }]
 		});
 	});
+
+	it('stops after hostile proxy failures without retrying through other traps', () => {
+		let traps = 0;
+		const guarded = new Proxy(
+			{},
+			{
+				getPrototypeOf() {
+					traps++;
+					throw new Error('blocked');
+				},
+				ownKeys() {
+					traps++;
+					throw new Error('must not retry');
+				}
+			}
+		);
+		expect(previewExactValue(guarded)).toEqual({
+			kind: 'unavailable',
+			reason: 'inspection-failed'
+		});
+		expect(traps).toBe(1);
+	});
+
+	it('does not invoke accessors when an object resembles a DOM node', () => {
+		let reads = 0;
+		const prototype = {};
+		Object.defineProperty(prototype, 'nodeType', {
+			get() {
+				reads++;
+				return 1;
+			}
+		});
+		const value = Object.create(prototype);
+		Object.defineProperty(value, 'nodeName', {
+			get() {
+				reads++;
+				return 'SCRIPT';
+			}
+		});
+		expect(previewExactValue(value)).toMatchObject({ kind: 'dom', tag: 'element' });
+		expect(reads).toBe(0);
+	});
 });

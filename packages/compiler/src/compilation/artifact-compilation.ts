@@ -1,8 +1,13 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import {
+	createExactBuildInspectionCatalog,
+	createExactInspectionBuildKey,
+	createExactInspectionRedactions
+} from '../language-tools/build-catalog.js';
 import { discoverExactPackageManifests } from '../artifacts.js';
 import type { ExactCompilerSession } from '../expression/project.js';
-import { artifactPathsFor, withArtifactMetadata } from '../paths.js';
+import { artifactPathsFor, commonRoot, withArtifactMetadata } from '../paths.js';
 import { sourceMapPathFor, withSourceMapFile, withSourceMappingUrl } from '../source-maps.js';
 import type {
 	CompileArtifactPlanEntriesOptions,
@@ -13,6 +18,7 @@ import type {
 	ModuleRewriteOptions,
 	TransformOptions
 } from '../types.js';
+import type { ExactSourceInspection } from '../language-tools/contracts.js';
 import {
 	collectPlacementAnalysisDependencies,
 	transitiveDependencies
@@ -80,6 +86,8 @@ export async function compileFileArtifacts(
 		assetRules: options.assetRules,
 		pluginRegistry: options.pluginRegistry,
 		generatedValidation: options.generatedValidation,
+		emitInspection: options.emitInspection,
+		instrumentInspection: options.instrumentInspection,
 		...capabilityOptions
 	});
 	const server = transformSource(source, {
@@ -95,6 +103,8 @@ export async function compileFileArtifacts(
 		assetRules: options.assetRules,
 		pluginRegistry: options.pluginRegistry,
 		generatedValidation: options.generatedValidation,
+		emitInspection: false,
+		instrumentInspection: false,
 		...capabilityOptions
 	});
 	const paths = artifactPathsFor(inputFile, options.outDir, options.rootDir);
@@ -137,7 +147,7 @@ export async function compileFileArtifacts(
 		);
 	await writeFile(paths.manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
 
-	return {
+	const result: CompileArtifactsResult = {
 		inputFile,
 		clientFile: paths.clientFile,
 		serverFile: paths.serverFile,
@@ -148,8 +158,13 @@ export async function compileFileArtifacts(
 		client,
 		server,
 		...(shared ? { shared } : {}),
-		manifest
+		manifest,
+		...(client.inspectionCatalog
+			? { inspection: Object.freeze({ inspection: client.inspectionCatalog }) }
+			: {})
 	};
+	const finalized = await finalizeArtifactInspection([result], options, new Map([[path.resolve(inputFile), source]]));
+	return finalized[0]!;
 }
 
 /** Compiles all artifact plan entries for the provided source inputs. */
@@ -167,7 +182,7 @@ export async function compileProjectArtifacts(
 	}
 	const plan = await createExactArtifactPlan(inputs, options);
 	const entries = await expandArtifactPlanDependencies(plan.entries, options);
-	return compileArtifactPlanEntries(entries, {
+	const results = await compileArtifactPlanEntries(entries, {
 		filename: (entry) =>
 			entries.length === 1 ? (options.filename ?? entry.inputFile) : entry.inputFile,
 		importedManifests: options.importedManifests,
@@ -180,8 +195,14 @@ export async function compileProjectArtifacts(
 		assetRules: options.assetRules,
 		pluginRegistry: options.pluginRegistry,
 		discoverPackageManifests: options.discoverPackageManifests,
+		emitInspection: options.emitInspection,
+		instrumentInspection: options.instrumentInspection,
 		...capabilityCompilationOptions(options)
 	});
+	const sources = new Map<string, string>();
+	for (const result of results)
+		sources.set(path.resolve(result.inputFile), await readFile(result.inputFile, 'utf8'));
+	return finalizeArtifactInspection(results, options, sources);
 }
 
 /** Compiles precomputed artifact plan entries, sharing manifests so cross-file analysis can see siblings. */
@@ -259,6 +280,8 @@ export async function compileArtifactPlanEntries(
 				options.assetRules,
 				options.pluginRegistry,
 				options.generatedValidation,
+				options.emitInspection,
+				options.instrumentInspection,
 				capabilityOptions
 			)
 		);
@@ -284,6 +307,8 @@ async function compileArtifactPlanEntry(
 	assetRules?: TransformOptions['assetRules'],
 	pluginRegistry?: TransformOptions['pluginRegistry'],
 	generatedValidation?: TransformOptions['generatedValidation'],
+	emitInspection?: TransformOptions['emitInspection'],
+	instrumentInspection?: TransformOptions['instrumentInspection'],
 	capabilityOptions: CapabilityCompilationOptions = {}
 ): Promise<CompileArtifactsResult> {
 	const source = await readFile(entry.inputFile, 'utf8');
@@ -295,6 +320,8 @@ async function compileArtifactPlanEntry(
 		jsxInterop,
 		pluginRegistry,
 		generatedValidation,
+		emitInspection,
+		instrumentInspection,
 		...capabilityOptions
 	});
 	base.dependencies = [
@@ -324,6 +351,8 @@ async function compileArtifactPlanEntry(
 		assetRules,
 		pluginRegistry,
 		generatedValidation,
+		emitInspection,
+		instrumentInspection,
 		...capabilityOptions
 	});
 	const server = transformSource(source, {
@@ -346,7 +375,90 @@ async function compileArtifactPlanEntry(
 		assetRules,
 		pluginRegistry,
 		generatedValidation,
+		emitInspection: false,
+		instrumentInspection: false,
 		...capabilityOptions
 	});
-	return writeArtifactPlanEntry(entry, base, client, server, sourceMap);
+	const result = await writeArtifactPlanEntry(entry, base, client, server, sourceMap);
+	return client.inspectionCatalog
+		? {
+				...result,
+				inspection: Object.freeze({ inspection: client.inspectionCatalog })
+			}
+		: result;
+}
+
+async function finalizeArtifactInspection(
+	results: readonly CompileArtifactsResult[],
+	options: CompileArtifactsOptions,
+	sources: ReadonlyMap<string, string>
+): Promise<CompileArtifactsResult[]> {
+	const inspected = results.filter(
+		(result): result is CompileArtifactsResult & { inspection: { inspection: ExactSourceInspection } } =>
+			result.inspection !== undefined
+	);
+	if (!inspected.length) return [...results];
+	const rootComponentId =
+		options.inspection?.rootComponentId ??
+		inspected.flatMap((result) => result.inspection.inspection.components)[0]?.id;
+	if (!rootComponentId) return [...results];
+	const projectRoot = path.resolve(
+		options.inspection?.projectRoot ??
+			options.rootDir ??
+			commonRoot(results.map((result) => result.inputFile))
+	);
+	const sourceRecord: Record<string, string> = {};
+	for (const [filename, source] of sources) sourceRecord[filename] = source;
+	const inspections = inspected.map((result) => result.inspection.inspection);
+	const buildKey =
+		options.inspection?.buildKey ??
+		createExactInspectionBuildKey(
+			projectRoot,
+			inspections.map((inspection) => ({
+				filename: inspection.filename,
+				source: sourceRecord[inspection.filename] ?? sourceRecord[path.resolve(inspection.filename)]!
+			}))
+		);
+	const executionRoot = options.inspection?.executionRoot ?? rootComponentId;
+	const catalog = createExactBuildInspectionCatalog({
+		buildKey,
+		root: projectRoot,
+		...(options.inspection?.producer ? { producer: options.inspection.producer } : {}),
+		roots: [
+			{
+				executionRoot,
+				rootComponentId,
+				inspections,
+				sources: sourceRecord,
+				redactions: createExactInspectionRedactions(
+					results.map((result) => result.manifest),
+					options.inspection?.redactions
+				)
+			}
+		]
+	});
+	const inspectionFile = path.resolve(
+		options.inspection?.outputFile ??
+			path.join(options.outDir, '.exact-inspection', `${buildKey}.json`)
+	);
+	if (!isWithinDirectory(path.resolve(options.outDir), inspectionFile))
+		throw new Error(`Inspection output ${inspectionFile} must remain inside artifact output`);
+	await mkdir(path.dirname(inspectionFile), { recursive: true });
+	await writeFile(inspectionFile, `${JSON.stringify(catalog, null, 2)}\n`);
+	return results.map((result) =>
+		result.inspection
+			? {
+					...result,
+					inspection: Object.freeze({
+						inspectionFile,
+						inspection: result.inspection.inspection
+					})
+				}
+			: result
+	);
+}
+
+function isWithinDirectory(directory: string, candidate: string): boolean {
+	const relative = path.relative(directory, candidate);
+	return relative !== '' && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
 }

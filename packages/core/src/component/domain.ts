@@ -18,14 +18,16 @@ export function createComponentDomain(
 	executionRoot: string,
 	dispatchContinuation?: ComponentContinuationDispatcher,
 	resumeComponent?: (type: ComponentFunction<any, any>) => ComponentResumptionActivation | undefined,
-	inspection?: ExactRuntimeInspectionOwner
+	inspection?: ExactRuntimeInspectionOwner,
+	inspectionActivation?: ComponentDomain['inspectionActivation']
 ): ComponentDomain {
 	if (!executionRoot) throw new Error('Component execution root must be a non-empty string');
 	return Object.freeze({
 		executionRoot,
 		...(dispatchContinuation ? { dispatchContinuation } : {}),
 		...(resumeComponent ? { resumeComponent } : {}),
-		...(inspection ? { inspection } : {})
+		...(inspection ? { inspection } : {}),
+		...(inspectionActivation ? { inspectionActivation } : {})
 	});
 }
 

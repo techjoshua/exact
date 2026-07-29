@@ -1,4 +1,8 @@
-import type { ExactBuildInspectionCatalog, ExactInspectionRuntimeId } from './identity.js';
+import {
+	isExactInspectionRuntimeId,
+	type ExactBuildInspectionCatalog,
+	type ExactInspectionRuntimeId
+} from './identity.js';
 import type {
 	ExactInspectedMicrofrontend,
 	ExactRuntimeInspectionEvent
@@ -131,8 +135,14 @@ export type ExactInspectionQueryData = Readonly<{
 /** Parses and bounds an untrusted inspection query. */
 export function parseExactInspectionRequest(
 	value: unknown,
-	options: Readonly<{ maxResults?: number; maxFilterKinds?: number }> = {}
+	options: Readonly<{
+		maxResults?: number;
+		maxFilterKinds?: number;
+		maxDepth?: number;
+		maxNodes?: number;
+	}> = {}
 ): ExactInspectionRequest {
+	validateStructure(value, options.maxDepth ?? 20, options.maxNodes ?? 10_000);
 	if (!record(value) || value.protocol !== 1 || !boundedString(value.id, 256))
 		throw new TypeError('Invalid eXact inspection request envelope');
 	if (
@@ -142,6 +152,25 @@ export function parseExactInspectionRequest(
 		throw new TypeError('Unknown eXact inspection method');
 	if (value.params !== undefined) validateParams(value.params, options);
 	return value as ExactInspectionRequest;
+}
+
+/** Parses an untrusted subscription without accepting query methods or executable fields. */
+export function parseExactInspectionSubscription(
+	value: unknown,
+	options: Readonly<{ maxFilterKinds?: number; maxDepth?: number; maxNodes?: number }> = {}
+): ExactInspectionSubscription {
+	validateStructure(value, options.maxDepth ?? 10, options.maxNodes ?? 1_000);
+	if (
+		!record(value) ||
+		value.protocol !== 1 ||
+		!boundedString(value.sessionId, 256) ||
+		!onlyKeys(value, ['protocol', 'sessionId', 'cursor', 'filter'])
+	)
+		throw new TypeError('Invalid eXact inspection subscription');
+	if (value.cursor !== undefined && !boundedString(value.cursor, 256))
+		throw new TypeError('Invalid eXact inspection subscription cursor');
+	if (value.filter !== undefined) validateFilter(value.filter, options.maxFilterKinds ?? 32);
+	return value as ExactInspectionSubscription;
 }
 
 /** Applies deterministic cursor pagination without retaining a caller-owned collection. */
@@ -190,8 +219,29 @@ function validateParams(
 	options: Readonly<{ maxResults?: number; maxFilterKinds?: number }>
 ): void {
 	if (!record(value)) throw new TypeError('Invalid eXact inspection parameters');
+	if (
+		!onlyKeys(value, [
+			'identity',
+			'elementId',
+			'sourceEntityId',
+			'sourceHash',
+			'path',
+			'filter',
+			'page'
+		])
+	)
+		throw new TypeError('Unknown eXact inspection parameter');
+	if (value.identity !== undefined && !isExactInspectionRuntimeId(value.identity))
+		throw new TypeError('Invalid eXact inspection runtime identity');
+	for (const key of ['elementId', 'sourceEntityId', 'sourceHash', 'path'] as const)
+		if (value[key] !== undefined && !boundedString(value[key], key === 'path' ? 2048 : 512))
+			throw new TypeError(`Invalid eXact inspection ${key}`);
 	if (value.page !== undefined) {
-		if (!record(value.page)) throw new TypeError('Invalid eXact inspection pagination');
+		if (
+			!record(value.page) ||
+			!onlyKeys(value.page, ['limit', 'cursor'])
+		)
+			throw new TypeError('Invalid eXact inspection pagination');
 		if (
 			value.page.limit !== undefined &&
 			(!Number.isSafeInteger(value.page.limit) ||
@@ -202,16 +252,70 @@ function validateParams(
 		if (value.page.cursor !== undefined && !boundedString(value.page.cursor, 256))
 			throw new TypeError('Invalid eXact inspection cursor');
 	}
-	if (value.filter !== undefined) {
-		if (!record(value.filter)) throw new TypeError('Invalid eXact inspection filter');
-		if (
-			value.filter.kinds !== undefined &&
-			(!Array.isArray(value.filter.kinds) ||
-				value.filter.kinds.length > (options.maxFilterKinds ?? 32) ||
-				!value.filter.kinds.every((entry: unknown) => boundedString(entry, 128)))
-		)
-			throw new RangeError('eXact inspection filter is too large');
-	}
+	if (value.filter !== undefined)
+		validateFilter(value.filter, options.maxFilterKinds ?? 32);
+}
+
+function validateFilter(value: unknown, maxFilterKinds: number): void {
+	if (
+		!record(value) ||
+		!onlyKeys(value, [
+			'side',
+			'binding',
+			'buildKey',
+			'executionRoot',
+			'componentTypeId',
+			'instanceId',
+			'sourceEntityId',
+			'operationId',
+			'requestId',
+			'interactionId',
+			'kinds'
+		])
+	)
+		throw new TypeError('Invalid eXact inspection filter');
+	if (value.side !== undefined && value.side !== 'client' && value.side !== 'server')
+		throw new TypeError('Invalid eXact inspection side filter');
+	for (const key of [
+		'binding',
+		'buildKey',
+		'executionRoot',
+		'componentTypeId',
+		'instanceId',
+		'sourceEntityId',
+		'operationId',
+		'requestId',
+		'interactionId'
+	] as const)
+		if (value[key] !== undefined && !boundedString(value[key], 512))
+			throw new TypeError(`Invalid eXact inspection ${key} filter`);
+	if (
+		value.kinds !== undefined &&
+		(!Array.isArray(value.kinds) ||
+			value.kinds.length > maxFilterKinds ||
+			!value.kinds.every((entry: unknown) => boundedString(entry, 128)))
+	)
+		throw new RangeError('eXact inspection filter is too large');
+}
+
+function validateStructure(value: unknown, maxDepth: number, maxNodes: number): void {
+	let nodes = 0;
+	const visit = (current: unknown, depth: number): void => {
+		if (++nodes > maxNodes) throw new RangeError('eXact inspection query is too large');
+		if (depth > maxDepth) throw new RangeError('eXact inspection query is too deep');
+		if (Array.isArray(current)) {
+			for (const item of current) visit(item, depth + 1);
+			return;
+		}
+		if (!record(current)) return;
+		for (const item of Object.values(current)) visit(item, depth + 1);
+	};
+	visit(value, 0);
+}
+
+function onlyKeys(value: Record<string, unknown>, allowed: readonly string[]): boolean {
+	const keys = new Set(allowed);
+	return Object.keys(value).every((key) => keys.has(key));
 }
 
 function encodeCursor(offset: number): string {

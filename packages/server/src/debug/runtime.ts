@@ -85,6 +85,7 @@ export function createExactServerDebugRuntime(
 				events,
 				sessions,
 				maxResults: limits.maxQueryResults,
+				maxQueryDepth: limits.maxQueryDepth,
 				maxSnapshotBytes: limits.maxSnapshotBytes,
 				maxSourceExcerptBytes: limits.maxSourceExcerptBytes
 			});
@@ -165,6 +166,7 @@ function eventStream(
 	const encoder = new TextEncoder();
 	let unsubscribe: (() => void) | undefined;
 	let unregisterClose: (() => void) | undefined;
+	let authorizationTimer: ReturnType<typeof setInterval> | undefined;
 	const stream = new ReadableStream<Uint8Array>({
 		start(controller) {
 			let ended = false;
@@ -173,6 +175,7 @@ function eventStream(
 				ended = true;
 				unsubscribe?.();
 				unregisterClose?.();
+				if (authorizationTimer) clearInterval(authorizationTimer);
 				controller.close();
 			};
 			const publish = (event: ExactRuntimeInspectionEvent): void => {
@@ -187,12 +190,22 @@ function eventStream(
 			unsubscribe = owners.events.subscribe(input.cursor, input.filter, publish);
 			void owners.sessions.require(request, sessionId, 'events').then((session) => {
 				if (!session) close();
-				else unregisterClose = owners.sessions.onClose(session, close);
+				else {
+					unregisterClose = owners.sessions.onClose(session, close);
+					authorizationTimer = setInterval(() => {
+						void owners.sessions
+							.require(request, sessionId, 'events')
+							.then((authorized) => {
+								if (!authorized) close();
+							});
+					}, 1_000);
+				}
 			});
 		},
 		cancel() {
 			unsubscribe?.();
 			unregisterClose?.();
+			if (authorizationTimer) clearInterval(authorizationTimer);
 		}
 	});
 	void runtime;
