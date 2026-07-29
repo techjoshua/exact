@@ -45,7 +45,7 @@ func (s *Session) Execute(request Request) Response {
 		Diagnostics: []Diagnostic{},
 		Analysis: NewAnalysis(
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
-			nil, nil, nil,
+			nil, nil, nil, nil,
 			newPolicyManifest(),
 			CapabilityRequirements{},
 			nil,
@@ -184,6 +184,14 @@ func (s *Session) Execute(request Request) Response {
 		generation.checker,
 		stateWrites,
 	)
+	registryDiagnostics := componentRegistryDiagnostics(
+		sourceFile,
+		generation.checker,
+	)
+	componentActionDiagnostics := actionDiagnostics(
+		sourceFile,
+		generation.checker,
+	)
 	reactiveBindings := collectReactiveBindings(
 		sourceFile,
 		generation.checker,
@@ -232,6 +240,14 @@ func (s *Session) Execute(request Request) Response {
 		)...,
 	)
 	assignTaskIDs(tasks, components, request.ID)
+	actions := collectActions(
+		sourceFile,
+		generation.checker,
+		stateReads,
+		stateWrites,
+		callables,
+	)
+	assignActionIDs(actions, components, request.ID)
 	tasks = applyTaskPolicies(tasks, policy)
 	components = analyzeComponents(
 		sourceFile,
@@ -293,11 +309,18 @@ func (s *Session) Execute(request Request) Response {
 	continuations, resumptions := createContinuationContracts(
 		components,
 		tasks,
+		actions,
 		stateReads,
 		policy,
 		boundaries,
 		clientIslands,
 		request.ServerComponents,
+	)
+	registries := collectComponentRegistries(
+		sourceFile,
+		generation.checker,
+		components,
+		request.ID,
 	)
 	response.Timings.AnalysisMicroseconds = time.Since(
 		analysisStarted,
@@ -316,6 +339,7 @@ func (s *Session) Execute(request Request) Response {
 		symbols,
 		boundaries,
 		continuations,
+		registries,
 		resumptions,
 		policy.manifest,
 		capabilities,
@@ -370,6 +394,8 @@ func (s *Session) Execute(request Request) Response {
 	response.Diagnostics = append(response.Diagnostics, formBindingDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, classNameDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, renderContractDiagnostics...)
+	response.Diagnostics = append(response.Diagnostics, registryDiagnostics...)
+	response.Diagnostics = append(response.Diagnostics, componentActionDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, stateWriteDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, policy.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, capabilityDiagnostics...)
@@ -439,6 +465,7 @@ func (s *Session) Execute(request Request) Response {
 		formBindings,
 		components,
 		tasks,
+		actions,
 		continuations,
 		clientIslands,
 		request.Target,

@@ -8,10 +8,11 @@ const formSource = `import {
   FieldHelp,
   Form,
   Input,
-  Label
+  Label,
+  Submit
 } from '@exactjs/forms';
 
-<Form onValidSubmit={(_event, data) => save(data)}>
+<Form errors={this.state.errors} onValidSubmit={(_event, data) => save(data)}>
   <Field
     name="email"
     required
@@ -25,7 +26,7 @@ const formSource = `import {
     <FieldHelp>We only use this for account messages.</FieldHelp>
     <FieldError />
   </Field>
-  <button type="submit">Save</button>
+  <Submit pendingText="Saving…">Save</Submit>
 </Form>`;
 
 const reactiveInputSource = `function ProfileEditor(this: Component<{
@@ -212,6 +213,21 @@ export function FormsPage(this: Component<{}>) {
 					<code>{'<form>'}</code>. The browser still participates in validation. Form context
 					coordinates IDs, names, descriptions, errors, and events rather than replacing native
 					behavior with a proprietary field model.
+				</p>
+			</section>
+			<section>
+				<h2>Submission coordinates the complete interaction</h2>
+				<p>
+					<code>{'<Form>'}</code> drops duplicate submissions while one is active. Its{' '}
+					<code>aria-busy</code> state and the <code>{'<Submit>'}</code> pending label and disabled
+					state remain active until validation, the submission callback, placed server work, and
+					router operations started by that callback settle.
+				</p>
+				<p>
+					The <code>errors</code> prop projects application-owned server validation messages into
+					matching fields. Clearing or replacing those errors remains a normal direct state
+					mutation; the form library does not hide another application-data store behind its
+					context.
 				</p>
 			</section>
 		</Article>

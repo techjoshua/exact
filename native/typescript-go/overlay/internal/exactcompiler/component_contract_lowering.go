@@ -1044,7 +1044,7 @@ func continuationExecutor(
 			),
 		)
 	}
-	arguments = append(arguments, contractObject(factory, false,
+	contextProperties := []*ast.Node{
 		contractProperty(
 			factory,
 			"signal",
@@ -1055,7 +1055,23 @@ func continuationExecutor(
 				ast.NodeFlagsNone,
 			),
 		),
-	))
+	}
+	if continuation.Kind == "action" {
+		contextProperties = append(contextProperties, contractProperty(
+			factory,
+			"generation",
+			factory.NewPropertyAccessExpression(
+				activation,
+				nil,
+				factory.NewIdentifier("generation"),
+				ast.NodeFlagsNone,
+			),
+		))
+	}
+	arguments = append(
+		arguments,
+		contractObject(factory, false, contextProperties...),
+	)
 	invocation := factory.NewCallExpression(
 		factory.NewParenthesizedExpression(rewrittenWork),
 		nil,
@@ -1112,28 +1128,47 @@ func continuationExecutor(
 		),
 	}
 	statements = append(statements, aliasStatements...)
-	statements = append(statements,
-		factory.NewExpressionStatement(
-			factory.NewAwaitExpression(invocation),
-		),
-		factory.NewReturnStatement(
-			contractObject(factory, false,
-				contractProperty(
-					factory,
-					"state",
-					factory.NewPropertyAccessExpression(
-						component,
-						nil,
-						factory.NewIdentifier("state"),
-						ast.NodeFlagsNone,
-					),
-				),
-				contractProperty(
-					factory,
-					"contexts",
-					contextWrites,
-				),
+	resultProperties := []*ast.Node{
+		contractProperty(
+			factory,
+			"state",
+			factory.NewPropertyAccessExpression(
+				component,
+				nil,
+				factory.NewIdentifier("state"),
+				ast.NodeFlagsNone,
 			),
+		),
+		contractProperty(
+			factory,
+			"contexts",
+			contextWrites,
+		),
+	}
+	if continuation.Kind == "action" {
+		result := factory.NewIdentifier(
+			allocateGeneratedName(used, "__exactActionResult"),
+		)
+		statements = append(statements, constStatement(
+			factory,
+			result,
+			factory.NewAwaitExpression(invocation),
+		))
+		resultProperties = append(
+			resultProperties,
+			contractProperty(factory, "value", result),
+		)
+	} else {
+		statements = append(
+			statements,
+			factory.NewExpressionStatement(
+				factory.NewAwaitExpression(invocation),
+			),
+		)
+	}
+	statements = append(statements,
+		factory.NewReturnStatement(
+			contractObject(factory, false, resultProperties...),
 		),
 	)
 	body := factory.NewBlock(
@@ -1231,7 +1266,12 @@ func continuationMetadata(
 				)
 			}
 		}
-		values = append(values, contractObject(factory, true,
+		properties := []*ast.Node{
+			contractProperty(
+				factory,
+				"kind",
+				contractString(factory, continuation.Kind),
+			),
 			contractProperty(
 				factory,
 				"id",
@@ -1287,9 +1327,52 @@ func continuationMetadata(
 				"boundaries",
 				stringMetadata(factory, continuation.Effects.Boundaries),
 			),
-		))
+		}
+		if continuation.Invocation != nil {
+			properties = append(properties, continuationInvocationMetadata(factory, continuation))
+		}
+		values = append(values, contractObject(factory, true, properties...))
 	}
 	return contractArray(factory, values...)
+}
+
+func continuationInvocationMetadata(
+	factory *printer.NodeFactory,
+	continuation Continuation,
+) *ast.Node {
+	if continuation.Invocation == nil {
+		panic("continuation invocation metadata requires action invocation analysis")
+	}
+	arguments := make([]*ast.Node, 0, len(continuation.Invocation.Arguments))
+	for _, argument := range continuation.Invocation.Arguments {
+		arguments = append(arguments, contractObject(
+			factory,
+			true,
+			contractProperty(
+				factory,
+				"source",
+				contractString(factory, argument.Source),
+			),
+		))
+	}
+	return contractProperty(
+		factory,
+		"invocation",
+		contractObject(
+			factory,
+			true,
+			contractProperty(
+				factory,
+				"arguments",
+				contractArray(factory, arguments...),
+			),
+			contractProperty(
+				factory,
+				"concurrency",
+				contractString(factory, continuation.Invocation.Concurrency),
+			),
+		),
+	)
 }
 
 func stateEffectMetadata(

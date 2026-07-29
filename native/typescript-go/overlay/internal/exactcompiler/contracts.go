@@ -12,7 +12,7 @@ import (
 )
 
 // ProtocolVersion identifies the process request and response contract.
-const ProtocolVersion = "1.22.0"
+const ProtocolVersion = "1.23.0"
 
 // BackendVersion identifies the eXact-owned native implementation.
 const BackendVersion = ProtocolVersion
@@ -490,6 +490,12 @@ type ContinuationActivation struct {
 	PublicContexts []ContextEffect  `json:"publicContexts"`
 }
 
+// ContinuationInvocation describes values accepted only when an action is invoked.
+type ContinuationInvocation struct {
+	Arguments   []TaskDependency `json:"arguments"`
+	Concurrency string           `json:"concurrency"`
+}
+
 // ContinuationEffects bounds the mutations returned by one server transition.
 type ContinuationEffects struct {
 	StateWrites         []StateEffect   `json:"stateWrites"`
@@ -506,17 +512,19 @@ type ContinuationOwnership struct {
 
 // Continuation is the compiler-owned cross-runtime task contract.
 type Continuation struct {
-	ID           string                 `json:"id"`
-	Kind         string                 `json:"kind"`
-	ComponentID  string                 `json:"componentId"`
-	TaskID       string                 `json:"taskId"`
-	Placement    string                 `json:"placement"`
-	Readiness    string                 `json:"readiness"`
-	Async        bool                   `json:"async"`
-	Activation   ContinuationActivation `json:"activation"`
-	Effects      ContinuationEffects    `json:"effects"`
-	Ownership    ContinuationOwnership  `json:"ownership"`
-	Cancellation string                 `json:"cancellation"`
+	ID           string                  `json:"id"`
+	Kind         string                  `json:"kind"`
+	Label        string                  `json:"label,omitempty"`
+	ComponentID  string                  `json:"componentId"`
+	TaskID       string                  `json:"taskId"`
+	Placement    string                  `json:"placement"`
+	Readiness    string                  `json:"readiness"`
+	Async        bool                    `json:"async"`
+	Activation   ContinuationActivation  `json:"activation"`
+	Effects      ContinuationEffects     `json:"effects"`
+	Ownership    ContinuationOwnership   `json:"ownership"`
+	Cancellation string                  `json:"cancellation"`
+	Invocation   *ContinuationInvocation `json:"invocation,omitempty"`
 }
 
 // ServerRenderRecord contains server-only activation requirements.
@@ -594,6 +602,26 @@ type SemanticGraph struct {
 	Exports      []SemanticExport      `json:"exports"`
 }
 
+// ComponentRegistryEntry is one finite target in a compiler-owned registry.
+type ComponentRegistryEntry struct {
+	Key             string   `json:"key"`
+	Mode            string   `json:"mode"`
+	ComponentID     string   `json:"componentId"`
+	ComponentName   string   `json:"componentName"`
+	Placement       string   `json:"placement"`
+	ModuleSpecifier string   `json:"moduleSpecifier,omitempty"`
+	ExportName      string   `json:"exportName,omitempty"`
+	Ownership       string   `json:"ownership"`
+	ArtifactTargets []string `json:"artifactTargets"`
+}
+
+// ComponentRegistry is the process-safe finite registry analysis contract.
+type ComponentRegistry struct {
+	ID      string                   `json:"id"`
+	Name    string                   `json:"name"`
+	Entries []ComponentRegistryEntry `json:"entries"`
+}
+
 // Analysis contains eXact-owned semantic facts returned by the native host.
 type Analysis struct {
 	Imports          []Import               `json:"imports"`
@@ -609,6 +637,7 @@ type Analysis struct {
 	Symbols          []SymbolRecord         `json:"symbols"`
 	Boundaries       []Boundary             `json:"boundaries"`
 	Continuations    []Continuation         `json:"continuations"`
+	Registries       []ComponentRegistry    `json:"registries"`
 	Resumptions      []ComponentResumption  `json:"resumptions"`
 	Policy           PolicyManifest         `json:"policy"`
 	Capabilities     CapabilityRequirements `json:"requiredCapabilities"`
@@ -632,6 +661,7 @@ func NewAnalysis(
 	symbols []SymbolRecord,
 	boundaries []Boundary,
 	continuations []Continuation,
+	registries []ComponentRegistry,
 	resumptions []ComponentResumption,
 	policy PolicyManifest,
 	capabilities CapabilityRequirements,
@@ -652,6 +682,7 @@ func NewAnalysis(
 		Symbols:          nonNilSlice(symbols),
 		Boundaries:       nonNilSlice(boundaries),
 		Continuations:    normalizedContinuations(continuations),
+		Registries:       normalizedComponentRegistries(registries),
 		Resumptions:      normalizedResumptions(resumptions),
 		Policy:           normalizedPolicy(policy),
 		Capabilities: CapabilityRequirements{
@@ -660,6 +691,20 @@ func NewAnalysis(
 		Assets:        nonNilSlice(assets),
 		SemanticGraph: normalizedSemanticGraph(semanticGraph),
 	}
+}
+
+func normalizedComponentRegistries(
+	registries []ComponentRegistry,
+) []ComponentRegistry {
+	registries = nonNilSlice(registries)
+	for index := range registries {
+		registries[index].Entries = nonNilSlice(registries[index].Entries)
+		for entry := range registries[index].Entries {
+			registries[index].Entries[entry].ArtifactTargets =
+				nonNilSlice(registries[index].Entries[entry].ArtifactTargets)
+		}
+	}
+	return registries
 }
 
 func normalizedSemanticGraph(graph SemanticGraph) SemanticGraph {

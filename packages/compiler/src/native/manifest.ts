@@ -86,6 +86,14 @@ export function nativeCompilerManifest(
 			contexts: callable.contexts.map((effect) => ({ ...effect }))
 		})),
 		continuations,
+		registries: (response.analysis.registries ?? []).map((registry) => ({
+			id: registry.id,
+			name: registry.name,
+			entries: registry.entries.map((entry) => ({
+				...entry,
+				artifactTargets: [...entry.artifactTargets]
+			}))
+		})),
 		resumptions: response.analysis.resumptions.map((resumption) => ({
 			componentId: resumption.componentId,
 			serverRender: {
@@ -196,8 +204,9 @@ function nativeTask(task: NativeCompilerTask): ExactTaskIR {
 }
 
 function nativeContinuation(continuation: NativeCompilerContinuation): ExactContinuationIR {
+	const { invocation, ...base } = continuation;
 	return {
-		...continuation,
+		...base,
 		activation: {
 			stateReads: continuation.activation.stateReads.map((effect) => ({ ...effect })),
 			dependencies: continuation.activation.dependencies.map((dependency) => ({
@@ -218,6 +227,16 @@ function nativeContinuation(continuation: NativeCompilerContinuation): ExactCont
 			})),
 			boundaries: [...continuation.effects.boundaries]
 		},
-		ownership: { ...continuation.ownership }
+		ownership: { ...continuation.ownership },
+		...(invocation
+			? {
+					invocation: {
+						arguments: invocation.arguments.map((argument) => ({
+							...argument
+						})),
+						concurrency: invocation.concurrency
+					}
+				}
+			: {})
 	};
 }

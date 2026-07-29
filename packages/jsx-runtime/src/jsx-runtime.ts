@@ -4,6 +4,7 @@ import type {
 	AsyncComponentFunction,
 	Child,
 	ComponentFunction,
+	InteractionHandler,
 	RefBinding,
 	Suspense,
 	VNode
@@ -110,7 +111,7 @@ export namespace JSX {
 	export type EventHandler<
 		TEvent extends Event = Event,
 		TCurrentTarget extends EventTarget = EventTarget
-	> = (event: TargetedEvent<TCurrentTarget, TEvent>) => void;
+	> = InteractionHandler<[event: TargetedEvent<TCurrentTarget, TEvent>]>;
 	export type StyleValue = unknown;
 	export type StyleObject = Record<string, StyleValue>;
 	export interface IntrinsicAttributes {

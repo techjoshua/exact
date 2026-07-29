@@ -19,6 +19,11 @@ Blocking distributed continuations validate their response first, then stage aut
 component-state, and public-context changes under the task generation signal. The nearest
 readiness boundary publishes that response atomically or discards it when the generation is stale.
 
+Action continuations return their validated result through the existing response envelope and
+carry invocation generations for stale-commit fencing. Named component markers validate registry
+and selected-entry identity; a nested mismatch mounts only that component range and preserves
+compatible adopted siblings.
+
 ## Interaction hydration
 
 Compiler-approved intrinsic islands whose initial client work consists only of supported events
@@ -46,3 +51,6 @@ createExactClient(root, {
 
 The strategy changes activation timing only. It does not weaken serialization, placement,
 component ownership, or server-operation contracts.
+
+See [Actions and forms](../../docs/actions-and-forms.md) and
+[finite component registries](../../docs/component-registries.md).

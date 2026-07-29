@@ -7,6 +7,7 @@ import type {
 } from '@exactjs/reactive';
 
 import type { ComponentLog } from '../logging.js';
+import type { ComponentActionFactory } from './action-contracts.js';
 
 import type {
 	Activity,
@@ -71,12 +72,13 @@ export type ComponentContinuationDispatch = {
 	readonly dependencies: readonly unknown[];
 	readonly contextWrites: readonly ComponentContinuationContextBinding[];
 	readonly signal: AbortSignal;
+	readonly generation?: number;
 };
 
 /** Runtime-owned transport bridge for one immutable component domain. */
 export type ComponentContinuationDispatcher = (
 	request: ComponentContinuationDispatch
-) => Promise<void>;
+) => Promise<unknown>;
 
 /** Defines the vnode type contract. */
 export type VNode<Props = Record<string, unknown>> = {
@@ -138,6 +140,7 @@ export type ErrorSource =
 	| 'construct'
 	| 'render'
 	| 'task'
+	| 'action'
 	| 'event'
 	| 'lifecycle'
 	| 'reactive'
@@ -334,6 +337,8 @@ export type RenderEventHandler = (event: { duration: number; dependencies?: unkn
 export interface Component<State extends object> {
 	state: Reactive<State>;
 	log: ComponentLog;
+	/** Registers durable, inspectable work owned by this component instance. */
+	action: ComponentActionFactory;
 	/** Reports whether a context lookup would resolve without reading its value. */
 	hasContext(token: ContextToken<unknown>): boolean;
 	getContext<T>(token: ContextToken<T>): Reactive<T>;

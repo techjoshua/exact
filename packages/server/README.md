@@ -18,3 +18,8 @@ authority automatically.
 Generated continuation handlers resolve application and request resources from trusted server
 context rather than client payloads. `onContextAccess` can report the authored token and opaque
 operation identity for tests and diagnostics; resolved context values are never included.
+Action continuations accept only compiler-declared argument slots, receive request cancellation
+and invocation generation through their runtime context, and return the authored result only
+inside the validated continuation envelope.
+
+See [Actions, interactions, optimistic state, and forms](../../docs/actions-and-forms.md).

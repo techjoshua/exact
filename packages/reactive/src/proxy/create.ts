@@ -126,7 +126,7 @@ export function createReactive(
 				forwardingSet = false;
 			}
 			if (ok && undo && (!hadKey || !Object.is(previous, Reflect.get(target, key, receiver))))
-				recordTransactionUndo(undo);
+				recordTransactionUndo(undo, target, key);
 			if (ok && changed) {
 				markReactiveHashDirty(target);
 				trigger(target, key);
@@ -154,7 +154,7 @@ export function createReactive(
 			const oldLength = Array.isArray(target) ? target.length : undefined;
 			const ok = Reflect.defineProperty(target, key, normalizeDescriptor(descriptor));
 			if (!ok) return false;
-			if (undo) recordTransactionUndo(undo);
+			if (undo) recordTransactionUndo(undo, target, key);
 			markReactiveHashDirty(target);
 			trigger(target, key);
 			if (!previous || isArrayStructureKey(target, key)) trigger(target, iterateKey);
@@ -176,9 +176,13 @@ export function createReactive(
 			const ok = Reflect.deleteProperty(target, key);
 			if (ok && hadKey) {
 				if (descriptor)
-					recordTransactionUndo(() => {
-						Reflect.defineProperty(target, key, descriptor);
-					});
+					recordTransactionUndo(
+						() => {
+							Reflect.defineProperty(target, key, descriptor);
+						},
+						target,
+						key
+					);
 				markReactiveHashDirty(target);
 				trigger(target, key);
 				trigger(target, iterateKey);

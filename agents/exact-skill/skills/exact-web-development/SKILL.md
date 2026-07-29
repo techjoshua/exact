@@ -11,9 +11,11 @@ reactive expressions. Do not translate React patterns mechanically.
 ## Work from the installed version
 
 Inspect `package.json`, the installed `@exactjs/*` package manifests, existing configuration, and
-nearby source before editing. Prefer the project's established package versions and APIs. Do not
-invent React hooks, lifecycle behavior, package exports, or server protocols that the installed
-eXact version does not provide.
+nearby source before editing. For every installed eXact package relevant to the task, read its
+package-local `AGENTS.md` when present, then its `README.md` and exported declarations as needed.
+Package-local guidance is versioned with the code and overrides this skill's general examples.
+Prefer the project's established package versions and APIs. Do not invent React hooks, lifecycle
+behavior, package exports, or server protocols that the installed eXact version does not provide.
 
 When creating or repairing compiler configuration, read
 [getting-started.md](references/getting-started.md).
@@ -69,15 +71,33 @@ Bun, Node, Fetch runtimes, server frameworks, serverless targets, or eXact plugi
 
 ## Prefer eXact's source simplifications
 
+- Choose the simplest form that states the intent completely: ordinary TypeScript first,
+  compiler-owned syntax second, and explicit runtime machinery only when code needs the boundary
+  or policy it provides.
+- Keep pure calculations as expressions. Put a calculation in `this.state` when it should be
+  inspectable, and use `this.reactive()` only when another API needs a first-class reactive value.
 - Use inferred DOM event types: `onInput={(event) => event.currentTarget.value}` normally needs no
   manual `Event` annotation or element cast.
 - Use `value:input`, `value:change`, and `checked:change` for supported two-way native-control
   bindings when the target is one writable state location.
+- Use `className:token={condition}` for a static conditional class token. Use a class array or
+  truthy-key object when token names are dynamic; authored class sources compose in prop order.
 - Use ordinary compiled `Array.map()` with an `@exact key` identity annotation, an explicit
   `key={...}` prop, or `this.map()` when an explicit selector is clearer.
+- Use native-looking reactive `Map` and `Set` operations. Let compiler-generated continuations
+  transport collection deltas instead of cloning or manually serializing whole collections.
+- Use the core `<ErrorBoundary>` at ordinary recovery points. Supply a custom `fallback` for
+  product-specific presentation; build directly on `ErrorContext` only for different capture or
+  reset semantics.
 - Use `this.task(...)` for component-owned effects, cleanup, nonblocking work, or explicit
   scheduling and placement. Declare it during setup, let the compiler infer
   direct state, prop, and context reads, and let each generation own cancellation and cleanup.
+- Keep ordinary event and form callbacks when inferred interaction ownership is sufficient. Use
+  `this.action(name, work, concurrency?)` when code needs reactive status, direct invocation,
+  placement, concurrency, deferred priority, or synchronous optimistic state.
+- Use `createComponentRegistry()` for finite runtime component selection. Derive keys with
+  `KeyOf<typeof Registry>` or narrow untrusted strings with `hasComponent()`; do not replace it
+  with a mutable component dictionary or an untyped `createVNode()` escape.
   Pass explicit reactive dependencies only when they must be supplied indirectly.
 - Use `this.task.client(...)` or `this.task.server(...)` only when placement is architectural or
   cannot be inferred from browser/server usage.
@@ -102,3 +122,6 @@ components and samples as the primary style reference.
 Run the narrowest relevant typecheck, tests, and build. Treat compiler diagnostics as design
 feedback: binding expressions must be writable, task placement must be consistent, keyed
 identities must be stable, and owned resources must not escape their lifecycle.
+
+Never edit or commit generated `.exact` directories or `.exact.*` files. They are disposable
+compiler output, not source documentation.

@@ -40,6 +40,7 @@ var renderLifecycleCalls = map[string]string{
 	"onMount":      "register lifecycle work",
 	"onRender":     "register lifecycle work",
 	"onUnmount":    "register lifecycle work",
+	"action":       "register action work",
 	"reactive":     "allocate a component-owned reactive value",
 	"setContext":   "mutate component context",
 	"task":         "register task work",
@@ -300,6 +301,13 @@ func knownRenderEffect(
 	name := member.Name().Text()
 	if member.Expression.Kind == ast.KindThisKeyword {
 		return renderLifecycleCalls[name]
+	}
+	for receiver := member.Expression; ast.IsPropertyAccessExpression(receiver); {
+		facet := receiver.AsPropertyAccessExpression()
+		if facet.Expression.Kind == ast.KindThisKeyword {
+			return renderLifecycleCalls[facet.Name().Text()]
+		}
+		receiver = facet.Expression
 	}
 	if receiverTypeEnvironment(call.Expression, typeChecker) == "browser" {
 		return renderBrowserEffectMethods[name]

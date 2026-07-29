@@ -131,8 +131,10 @@ export function ComponentsPage(this: Component<{}>) {
 					can be used as a JSX tag. A reactive choice is mounted through a slot, so changing the
 					selected component replaces only that subtree. Keep a choice used by one view inside the
 					render function; a setup-derived component value is useful when several consumers share
-					it. Arbitrary registry lookups remain a compiler error because the compiler cannot
-					determine their complete client/server placement graph.
+					it. When the choice comes from a reusable named collection, declare its complete key set
+					with <code>createComponentRegistry()</code>. Open-ended object lookup remains a compiler
+					error because the compiler cannot determine its complete client/server placement graph.{' '}
+					<Link to="/learn/component-registries">Read the component registry guide.</Link>
 				</p>
 				<CodeBlock source={componentValueSource} language="tsx" title="Results.tsx" />
 			</section>

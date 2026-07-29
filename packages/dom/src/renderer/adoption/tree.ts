@@ -36,6 +36,11 @@ import { unmountMany, unmountMounted } from '../teardown.js';
 import { assertUnsafeHtmlAllowed, bindUnsafeHtml } from '../unsafe-html.js';
 import { adoptActivityBoundary, adoptSuspenseBoundary } from './mode-boundaries.js';
 import {
+	componentMarkerBoundary,
+	recoverMismatchedComponentRange,
+	stopFailedAdoption
+} from './identity.js';
+import {
 	adoptStaticChildren,
 	adoptStaticChildrenRange,
 	authoredChildNodes,
@@ -112,17 +117,20 @@ export function adoptStaticMountedInner(
 				throw error;
 			}
 		}
-		const start = nodes[cursor];
-		if (!(start instanceof Comment) || !start.data.startsWith('exact:component:')) {
-			scope.stop();
-			return undefined;
-		}
-		const endIndex = nodes.findIndex(
-			(node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`
-		);
-		if (endIndex < 0) {
-			scope.stop();
-			return undefined;
+		const boundary = componentMarkerBoundary(nodes, cursor, vnode.type);
+		if (!boundary) return stopFailedAdoption(scope);
+		const { start, endIndex } = boundary;
+		if (!boundary.matches) {
+			return recoverMismatchedComponentRange(
+				root,
+				vnode,
+				nodes,
+				cursor,
+				endIndex,
+				parentInstance,
+				parentScope,
+				scope
+			);
 		}
 		const mounted: Mounted = { vnode, dom: start, end: nodes[endIndex]!, scope, children: [] };
 		try {
@@ -161,17 +169,12 @@ export function adoptStaticMountedInner(
 	if (isCellVNode(vnode) || vnode.type === Dynamic) {
 		const kind = isCellVNode(vnode) ? 'cell' : 'dynamic';
 		const start = nodes[cursor];
-		if (!(start instanceof Comment) || !start.data.startsWith(`exact:${kind}:`)) {
-			scope.stop();
-			return undefined;
-		}
+		if (!(start instanceof Comment) || !start.data.startsWith(`exact:${kind}:`))
+			return stopFailedAdoption(scope);
 		const endIndex = nodes.findIndex(
 			(node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`
 		);
-		if (endIndex < 0) {
-			scope.stop();
-			return undefined;
-		}
+		if (endIndex < 0) return stopFailedAdoption(scope);
 		const end = nodes[endIndex] as Comment;
 		const mounted: Mounted = { vnode, dom: start, end, scope, children: [] };
 		const initial = isCellVNode(vnode)
@@ -222,17 +225,12 @@ export function adoptStaticMountedInner(
 	if (vnode.type === UnsafeHtml) {
 		assertUnsafeHtmlAllowed(root);
 		const start = nodes[cursor];
-		if (!(start instanceof Comment) || !start.data.startsWith('exact:unsafe-html:')) {
-			scope.stop();
-			return undefined;
-		}
+		if (!(start instanceof Comment) || !start.data.startsWith('exact:unsafe-html:'))
+			return stopFailedAdoption(scope);
 		const endIndex = nodes.findIndex(
 			(node, index) => index > cursor && node instanceof Comment && node.data === `/${start.data}`
 		);
-		if (endIndex < 0) {
-			scope.stop();
-			return undefined;
-		}
+		if (endIndex < 0) return stopFailedAdoption(scope);
 		const mounted: Mounted = {
 			vnode,
 			dom: start,

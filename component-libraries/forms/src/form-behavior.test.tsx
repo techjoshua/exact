@@ -5,7 +5,7 @@ import { createErrorContext, ErrorContext } from '@exactjs/core';
 import { render } from '@exactjs/dom';
 import { testComponent } from '@exactjs/testing';
 import { describe, expect, it, vi } from 'vitest';
-import { Field, FieldError, FieldHelp, Form, Input, Label } from './index.js';
+import { Field, FieldError, FieldHelp, Form, Input, Label, Submit } from './index.js';
 
 describe('forms', () => {
 	it('wires accessible fields and validates submission', async () => {
@@ -177,5 +177,47 @@ describe('forms', () => {
 		const distinct = await testComponent(DistinctForm).mount();
 		expect(distinct.getAllByRole('textbox')).toHaveLength(2);
 		distinct.unmount();
+	});
+
+	it('projects application errors without creating hidden form state', async () => {
+		function FailedForm() {
+			return () => (
+				<Form errors={{ email: ['Address is unknown', 'Try another'] }}>
+					<Field name="email">
+						<Input />
+						<FieldError />
+					</Field>
+				</Form>
+			);
+		}
+		const view = await testComponent(FailedForm).mount();
+		expect(view.getByRole('alert').text()).toBe('Address is unknown Try another');
+		expect(view.getByRole('textbox').attribute('aria-invalid')).toBe('true');
+		view.unmount();
+	});
+
+	it('drops duplicate submissions and exposes pending state through Submit', async () => {
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const submitted = vi.fn(() => gate);
+		const container = document.createElement('div');
+		render(
+			<Form onValidSubmit={submitted}>
+				<Submit pendingText="Saving">Save</Submit>
+			</Form>,
+			container
+		);
+		const form = container.querySelector('form')!;
+		const button = container.querySelector('button')!;
+		form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }));
+		await vi.waitFor(() => expect(button.textContent).toBe('Saving'));
+		expect(button.disabled).toBe(true);
+
+		form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }));
+		expect(submitted).toHaveBeenCalledTimes(1);
+		release();
+		await vi.waitFor(() => expect(button.textContent).toBe('Save'));
 	});
 });

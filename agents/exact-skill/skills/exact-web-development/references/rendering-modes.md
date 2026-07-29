@@ -87,15 +87,20 @@ server actions, refreshable server boundaries, or generated client islands.
 5. Expose the eXact endpoint through the deployment runtime's adapter.
 6. Configure the hydration client with the same endpoint and register generated client islands.
 
-Inspect existing generated `.exact.*` artifacts and nearby sample applications before modifying
-this flow. Keep endpoint routes, private component contracts, state contracts, and action boundary
-hints aligned. Do not model this after React Server Components or dispatch client-provided module
-names.
+Inspect compiler contracts and nearby source applications before modifying this flow. Generated
+`.exact` directories and `.exact.*` files are disposable build output: inspect them only while
+diagnosing emission, and never edit or commit them. Keep endpoint routes, private component
+contracts, state contracts, and action boundary hints aligned. Do not model this after React
+Server Components or dispatch client-provided module names.
 
 Compiler-generated reactive JSX marker ranges also let element-mode server refreshes replace the
 smallest proven changing structure while retaining unaffected DOM and component ownership. Keep
 the compiler-generated markers intact. Whole-boundary replacement is an intentional recovery path,
 not a reason to implement application-local diffing.
+
+Keep finite component selection compiler-visible with `createComponentRegistry()`. Eager and lazy
+entries retain per-entry placement, artifact provenance, and SSR/hydration identity; an untyped
+component dictionary hides exactly the graph the split build needs.
 
 Server-component capabilities are version-sensitive. Inspect the installed `@exactjs/compiler`,
 `@exactjs/server`, `@exactjs/ssr`, and `@exactjs/hydrate` exports before writing integration code.

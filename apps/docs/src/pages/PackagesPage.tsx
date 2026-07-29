@@ -14,7 +14,8 @@ const packageGroups: PackageGroup[] = [
 		packages: [
 			{
 				name: '@exactjs/core',
-				purpose: 'Components, state ownership, context, tasks, lifecycle, and errors.'
+				purpose:
+					'Components, state ownership, context, tasks, actions, finite registries, lifecycle, and errors.'
 			},
 			{
 				name: '@exactjs/dom',
@@ -29,11 +30,12 @@ const packageGroups: PackageGroup[] = [
 		packages: [
 			{
 				name: '@exactjs/router',
-				purpose: 'Nested history/hash routing, links, outlets, and data operations.'
+				purpose:
+					'Nested routing, links, outlets, data operations, and interaction-coordinated navigation.'
 			},
 			{
 				name: '@exactjs/forms',
-				purpose: 'Accessible field composition and synchronous or async validation.'
+				purpose: 'Accessible fields, validation, external errors, and coordinated submission state.'
 			},
 			{
 				name: '@exactjs/testing',
@@ -48,7 +50,7 @@ const packageGroups: PackageGroup[] = [
 			{
 				name: '@exactjs/compiler',
 				purpose:
-					'Native compiler host, analysis and artifact contracts, persistent sessions, and the exactc CLI.'
+					'Native analysis and artifacts for reactivity, actions, registries, placement, and the exactc CLI.'
 			},
 			{ name: '@exactjs/vite-plugin', purpose: 'Vite integration over the shared compiler.' },
 			{
@@ -72,9 +74,13 @@ const packageGroups: PackageGroup[] = [
 			},
 			{
 				name: '@exactjs/hydrate',
-				purpose: 'DOM adoption, client operations, and safe server patch application.'
+				purpose:
+					'DOM adoption, action results, registry identity recovery, and safe server patch application.'
 			},
-			{ name: '@exactjs/server', purpose: 'Manifest-allowlisted actions and refresh handling.' }
+			{
+				name: '@exactjs/server',
+				purpose: 'Opaque allowlisted action continuations, refreshes, and transport validation.'
+			}
 		]
 	},
 	{

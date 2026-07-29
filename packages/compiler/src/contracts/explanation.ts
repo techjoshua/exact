@@ -15,6 +15,8 @@ export type ExactResumptionFieldExplanation = Readonly<{
 /** Explains one compiler-generated transition between component runtimes. */
 export type ExactContinuationExplanation = Readonly<{
 	id: string;
+	kind: 'task' | 'action';
+	label?: string;
 	placement: Extract<ExactPlacement, 'server' | 'isomorphic'>;
 	clientToServer: Readonly<{
 		state: readonly string[];
@@ -26,6 +28,10 @@ export type ExactContinuationExplanation = Readonly<{
 		state: readonly string[];
 		contexts: readonly string[];
 		boundaries: readonly string[];
+	}>;
+	invocation?: Readonly<{
+		concurrency: 'parallel' | 'latest' | 'queue';
+		arguments: readonly number[];
 	}>;
 }>;
 
@@ -43,9 +49,27 @@ export type ExactComponentExplanation = Readonly<{
 	}>;
 }>;
 
+/** Explains one finite component registry and the artifact provenance of its entries. */
+export type ExactComponentRegistryExplanation = Readonly<{
+	id: string;
+	name: string;
+	entries: readonly Readonly<{
+		key: string;
+		mode: 'eager' | 'lazy';
+		componentId: string;
+		componentName: string;
+		placement: ExactPlacement;
+		moduleSpecifier?: string;
+		exportName?: string;
+		ownership: 'exact' | 'react-compat';
+		artifactTargets: readonly ('client' | 'server')[];
+	}>[];
+}>;
+
 /** Optional human- and tool-readable account of one compiler transform. */
 export type ExactCompilerExplanation = Readonly<{
 	filename: string;
 	target: 'default' | 'client' | 'server';
 	components: readonly ExactComponentExplanation[];
+	registries: readonly ExactComponentRegistryExplanation[];
 }>;

@@ -169,9 +169,10 @@ export function createExactClient(container: Element, options: HydrateOptions = 
 					instance: request.instance,
 					dependencies: request.dependencies,
 					contextWrites: request.contextWrites,
-					signal: request.signal
+					signal: request.signal,
+					generation: request.generation
 				})
-			).then(() => undefined),
+			).then((result) => result.value),
 		resumptionResolver
 	);
 	bindComponentResumptionResolver(domain, resumptionResolver);

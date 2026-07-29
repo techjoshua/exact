@@ -19,6 +19,11 @@ Client builds also verify the final Rollup output graph. A module, dynamic impor
 runtime asset carrying an `.exact.server` contribution fails the build after bundling, while
 private development source maps remain available for debugging.
 
+The same generated-artifact path carries distributed component actions and finite component
+registries. Action operation identities remain opaque, while registry entries retain eager/lazy
+provenance, placement, and target ownership. Final client-graph verification rejects server action
+bodies and server-only registry entries instead of relying on authored names.
+
 It also configures the automatic JSX runtime with `@exactjs/jsx`. This is required explicitly by
 Vite 8's Oxc transform and also protects Vitest runs that load the Vite configuration. User Vite
 configuration can still override the returned Oxc options; set `configureJsxRuntime: false` when a
@@ -36,3 +41,6 @@ from native eXact JSX. The compiler inserts the adapter without compiling depend
 implementations from `node_modules`; compiler-branded eXact components pass through unchanged and
 unbranded values use the active React layer. Reference the matching
 `@exactjs/react-compat/types18` or `types19` facade in the application TypeScript configuration.
+
+See [Actions and forms](../../docs/actions-and-forms.md) and
+[finite component registries](../../docs/component-registries.md).

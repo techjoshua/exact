@@ -20,7 +20,15 @@ Hydratable results expose the same public component resumption activations seria
 hydration script. Server-only context and resources may influence permitted HTML but never enter
 that client record.
 
+Eager and lazy registry selections render through the ordinary component/Suspense pipeline.
+Registry binding, key, and opaque compiled identity are retained in the component marker name so
+the hydration client can reject a stale or different selection without accepting ambiguous
+component ownership.
+
 Synchronous rendering emits native Suspense fallbacks with explicit status markers. Async
 rendering waits for blocking descendants, and progressive document streams emit the smallest
 outermost settled Suspense range when boundary-local replacement can reproduce the final output;
 otherwise they conservatively replace the root.
+
+See [Actions and forms](../../docs/actions-and-forms.md) and
+[finite component registries](../../docs/component-registries.md).

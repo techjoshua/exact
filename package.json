@@ -27,7 +27,7 @@
 		"test": "npm run test:build-scripts && npm run test:packages && npm run test:server-components && npm run test:shipping",
 		"test:build-scripts": "node --test scripts/local-build.test.mjs scripts/native-compiler-source.test.mjs scripts/native-compiler-build-cache.test.mjs",
 		"test:bun": "npm run build -w @exactjs/bun-plugin -w @exactjs/bun-adapter -w @exactjs/bun-test && npm run test:bun -w @exactjs/bun-plugin -w @exactjs/bun-adapter -w @exactjs/bun-test",
-		"check:publish": "node scripts/check-release-manifests.mjs && node scripts/check-native-compiler-packages.mjs && node scripts/check-compiler-distribution.mjs && node scripts/check-package-contents.mjs && npm run check:readmes",
+		"check:publish": "node scripts/check-release-manifests.mjs && node scripts/check-native-compiler-packages.mjs && node scripts/check-compiler-distribution.mjs && node scripts/check-package-agent-guides.mjs && node scripts/check-package-contents.mjs && npm run check:readmes",
 		"check:readmes": "node scripts/check-package-readmes.mjs",
 		"version:packages": "node scripts/version-packages.mjs",
 		"release:check": "node scripts/release-check.mjs --profile=check",

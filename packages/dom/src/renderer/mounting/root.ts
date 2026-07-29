@@ -302,7 +302,8 @@ export function mountInner(
 			if (isDomRenderLimitError(error)) throw error;
 			const fallback = handleComponentError(
 				parentInstance,
-				createErrorReport(error, 'construct', parentInstance, describeVNodeType(vnode.type))
+				createErrorReport(error, 'construct', parentInstance, describeVNodeType(vnode.type)),
+				null
 			);
 			mounted.children = fallback
 				? mountDetachedChildren(

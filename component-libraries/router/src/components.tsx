@@ -6,10 +6,13 @@ import {
 	getCellVNode,
 	isCellVNode,
 	markExactComponent,
+	observeComponentAsync,
 	unwrap,
 	type Child,
 	type Component,
 	type ComponentFunction,
+	type ComponentInstance,
+	type InteractionHandler,
 	type VNode
 } from '@exactjs/core';
 import { getRequestContext, RequestContext, type RequestContextValue } from '@exactjs/request';
@@ -276,14 +279,24 @@ export type LinkProps = Record<string, unknown> & {
 	replace?: boolean;
 	state?: unknown;
 	children?: Child | Child[];
-	onClick?: (event: MouseEvent) => unknown;
+	onClick?: InteractionHandler<[event: MouseEvent]>;
 };
 
 /** Performs the link domain operation. */
 export function Link(this: Component<{}>, props: LinkProps) {
 	const route = this.getContext(RouteContext);
 	const click = (event: MouseEvent) => {
-		const result = props.onClick?.(event);
+		let result = props.onClick?.(event);
+		if (
+			result !== null &&
+			(typeof result === 'object' || typeof result === 'function') &&
+			typeof (result as PromiseLike<unknown>).then === 'function'
+		) {
+			// The link may unmount as navigation commits. Observe the consumer callback against
+			// the durable Link owner before that unmount cancels the surrounding interaction.
+			observeComponentAsync(this as ComponentInstance<{}>, result, 'event', 'click');
+			result = Promise.resolve(result).catch(() => undefined);
+		}
 		if (
 			event.defaultPrevented ||
 			event.button !== 0 ||

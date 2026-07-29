@@ -11,9 +11,7 @@ import {
 	UnsafeHtml,
 	createComponentInstance,
 	createReadinessCoordinator,
-	createErrorReport,
 	getCellVNode,
-	handleComponentError,
 	isCellVNode,
 	isVNode,
 	normalizeRenderResult,
@@ -49,6 +47,7 @@ import type {
 	TaskObserver
 } from '../types.js';
 import { componentName, getComponentProps, renderServerBoundaryAsync } from './boundaries.js';
+import { handleSsrConstructionError } from './construction-errors.js';
 import { awaitWithAbort, drainTasks } from './context.js';
 import { type SsrRenderOptions } from './entrypoints.js';
 import {
@@ -328,10 +327,7 @@ export function renderComponent(
 			throw new Error('eXact SSR component did not stabilize after 25 render passes');
 	} catch (error) {
 		if (isSsrRenderLimitError(error)) throw error;
-		const fallback = handleComponentError(
-			parent,
-			createErrorReport(error, 'construct', parent, componentName(vnode.type))
-		);
+		const fallback = handleSsrConstructionError(parent, error, componentName(vnode.type));
 		const html = fallback ? renderChildren(context, normalizeRenderResult(fallback()), parent) : '';
 		output =
 			documentProbe && context.documentRootSeen
@@ -394,10 +390,7 @@ export async function renderComponentAsync(
 			);
 		} catch (error) {
 			if (isSsrRenderInterruption(error, options.signal)) throw error;
-			const fallback = handleComponentError(
-				parent,
-				createErrorReport(error, 'construct', parent, componentName(vnode.type))
-			);
+			const fallback = handleSsrConstructionError(parent, error, componentName(vnode.type));
 			const html = fallback
 				? await renderChildrenAsync(context, normalizeRenderResult(fallback()), parent, options)
 				: '';

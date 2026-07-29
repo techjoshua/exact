@@ -2,6 +2,11 @@
 
 This workspace contains the routed, client-only eXact documentation site. It is intentionally isolated from the framework packages: its source, build orchestration, and generated output all live under `apps/docs`.
 
+The public learning sequence includes dedicated current guides for coordinated
+actions and optimistic state, enhanced forms, and finite eager/lazy component
+registries. Keep their route metadata in `src/docs-manifest.ts` aligned with
+the engineering references under `docs` and with package-level READMEs.
+
 ## Develop
 
 From the repository root:
@@ -55,6 +60,11 @@ Then open `http://127.0.0.1:4175/`.
 
 ## GitHub Pages
 
-Publish `apps/docs/dist` as the Pages artifact after running the build. The application uses hash routing, so every documentation route can be opened or refreshed on GitHub Pages without a rewrite rule. No base-path substitution is required because the final page has no external assets.
+The `Publish Pages apps` workflow runs after every push to `main`, including a
+merged pull request. It builds this standalone document and Sudoku, assembles
+the Pages root, and publishes it to the `gh-pages` branch. The docs application
+becomes `index.html`; Sudoku becomes `sudoku.html` with its PWA companions.
 
-The repository-level Pages workflow is deliberately not included here: the implementation was scoped to this new package only.
+The application uses hash routing, so every documentation route can be opened
+or refreshed on GitHub Pages without a rewrite rule. No base-path substitution
+is required because the final page has no external script or stylesheet.

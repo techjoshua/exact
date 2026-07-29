@@ -37,7 +37,7 @@ import type {
 
 import { createNoopComponentLog } from './log.js';
 
-import { applyInternalPlugins, defaultContexts } from './plugins.js';
+import { applyInternalPlugins } from './plugins.js';
 import { createComponentActivation, type ComponentActivation } from './activation.js';
 
 import { createComponentReactiveValue, createTask } from '../task/execution.js';
@@ -46,6 +46,7 @@ import { releaseTaskObserver, retainTaskObserver, taskObserverFor } from '../tas
 import { isPromiseLike } from './async-value.js';
 import { observeLifecyclePromise } from './async.js';
 import { ErrorContext } from './contexts.js';
+import { getComponentContext, hasComponentContext, setComponentContext } from './context-api.js';
 import { prepareComponentContextResumption } from './context-resumption.js';
 import { cleanupFailedComponentConstruction, isTemplateStringsArray } from './construction.js';
 import { pageComponentDomain, withComponentDomain } from './domain.js';
@@ -56,6 +57,8 @@ import {
 	startRegisteredTask,
 	startResumedComponentTasks
 } from './resumption.js';
+import { createComponentActionApi } from './action-api.js';
+import { cancelComponentInteractions } from '../interaction/execution.js';
 
 let nextComponentId = 1;
 
@@ -102,8 +105,13 @@ export function createComponentInstance<
 	let disposed = false;
 	const activityBlockers = new Set<symbol>();
 	let acceptingTaskRegistrations = true;
+	let acceptingActionRegistrations = true;
 	let renderFunction: RenderFunction = () => null;
 	const id = `c${nextComponentId++}`;
+	const actionApi = createComponentActionApi(
+		() => instance,
+		() => acceptingActionRegistrations
+	);
 
 	instance = {
 		type,
@@ -113,6 +121,7 @@ export function createComponentInstance<
 		scope,
 		state,
 		log: createNoopComponentLog(),
+		action: actionApi.action,
 		props,
 		contexts: new Map(),
 		ambientContexts,
@@ -146,49 +155,13 @@ export function createComponentInstance<
 			}
 		},
 		hasContext(token: ContextToken<unknown>): boolean {
-			for (let cursor = instance.parent; cursor; cursor = cursor.parent)
-				if (cursor.contexts.has(token.id)) return true;
-			return ambientContexts?.has(token.id) === true || defaultContexts.has(token.id);
+			return hasComponentContext(instance, ambientContexts, token);
 		},
 		getContext<T>(token: ContextToken<T>): Reactive<T> {
-			// Context lookup walks parents first, then falls back to framework defaults.
-			// Values are stored reactive so consumers can keep using normal state reads.
-			let cursor = instance.parent;
-			while (cursor) {
-				if (cursor.contexts.has(token.id)) {
-					return cursor.contexts.get(token.id) as Reactive<T>;
-				}
-				cursor = cursor.parent;
-			}
-
-			if (ambientContexts?.has(token.id)) {
-				const value = ambientContexts.get(token.id) as T;
-				return (token.reactive ? reactiveValue(value) : value) as Reactive<T>;
-			}
-
-			if (defaultContexts.has(token.id)) {
-				const value = defaultContexts.get(token.id) as T;
-				return (token.reactive ? reactiveValue(value) : value) as Reactive<T>;
-			}
-
-			throw new Error(`Context "${token.description}" was not provided`);
+			return getComponentContext(instance, ambientContexts, token);
 		},
 		setContext<T>(token: ContextToken<T>, value: T): void {
-			const existing = instance.contexts.get(token.id);
-			if (
-				token.reactive &&
-				existing &&
-				typeof existing === 'object' &&
-				value &&
-				typeof value === 'object'
-			) {
-				updateReactive(existing as Reactive<object>, value as object);
-				return;
-			}
-			instance.contexts.set(
-				token.id,
-				token.reactive ? reactiveValue(value) : (value as Reactive<T>)
-			);
+			setComponentContext(instance, token, value);
 		},
 		reactive<T>(
 			input: TemplateStringsArray | (() => T) | T,
@@ -363,6 +336,8 @@ export function createComponentInstance<
 			for (const registration of listKeyRegistrations.values()) teardown(registration.stop);
 			listKeyRegistrations.clear();
 			if (instance.mountController) teardown(() => instance.mountController!.abort(reason));
+			teardown(() => actionApi.dispose(reason));
+			teardown(() => cancelComponentInteractions(instance, reason));
 			for (const task of instance.tasks) teardown(() => task.stop());
 			for (const handler of instance.unmountHandlers) {
 				try {
@@ -403,6 +378,7 @@ export function createComponentInstance<
 		);
 	} catch (error) {
 		acceptingTaskRegistrations = false;
+		acceptingActionRegistrations = false;
 		cleanupFailedComponentConstruction(instance, error);
 		throw error;
 	}
@@ -411,6 +387,7 @@ export function createComponentInstance<
 		startResumedComponentTasks(instance, resumption);
 	}
 	acceptingTaskRegistrations = false;
+	acceptingActionRegistrations = false;
 	renderFunction = typeof result === 'function' ? (result as RenderFunction) : () => result;
 
 	const taskObserver = taskObserverFor(instance);

@@ -115,14 +115,16 @@ export function ComparisonPage(this: Component<{}>) {
 					eXact covers precise client updates, keyed identity, portals, typed bindings, owned async
 					work, Suspense, retained inactive trees, scheduling, SSR, progressive boundary reveals,
 					DOM adoption, lazy interaction hydration, server execution, and fine-grained server
-					patches. Those are current capabilities rather than roadmap labels.
+					patches. It also has coordinated component actions, optimistic state, enhanced forms, and
+					compiler-checked finite eager/lazy component registries. Those are current capabilities
+					rather than roadmap labels.
 				</p>
 				<p>
 					React remains more permissive when a component type comes from an opaque runtime registry.
-					It also exposes coordinated form Actions, optimistic state, View Transitions, resource
-					hints, and partial-prerender resume primitives that eXact does not yet match with one
-					native API. eXact supports declared components, immutable aliases, and finite conditional
-					component values; arbitrary registry lookup still needs an explicit compiler contract.
+					eXact deliberately requires a finite registry contract so placement, lazy imports, SSR,
+					hydration, and component identity remain provable. React also exposes View Transitions,
+					resource hints, file-upload and no-JavaScript action paths, and partial-prerender resume
+					primitives that eXact does not yet match with native contracts.
 				</p>
 				<p>
 					eXact&apos;s progressive renderer does not serialize postponed renderer state for a later

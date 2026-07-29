@@ -23,3 +23,7 @@ Both production formats are installable progressive web apps. Their service work
 application shell, manifest, icons, and generated code so saved and newly generated games remain
 playable offline after the first successful installation. The GitHub Pages build keeps its app
 code inside `sudoku.html` and publishes the small PWA companion files beside it.
+
+The repository's `Publish Pages apps` workflow rebuilds that distribution after every push to
+`main`, including merged pull requests, and publishes it beside the standalone documentation on
+the `gh-pages` branch.

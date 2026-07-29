@@ -17,7 +17,6 @@ export function mutateArray(
 		return mutateArrayEnd(target, methodName, method, args, receiver);
 	}
 	const previous = target.slice();
-	recordArrayUndo(target);
 	let result: unknown;
 	try {
 		result = method.apply(
@@ -25,6 +24,7 @@ export function mutateArray(
 			args.map((arg) => unwrap(arg))
 		);
 	} finally {
+		recordArrayMutationUndo(target, previous);
 		batch(() => {
 			const maxLength = Math.max(previous.length, target.length);
 			let changed = previous.length !== target.length;
@@ -47,6 +47,89 @@ export function mutateArray(
 	return result === target ? receiver : result;
 }
 
+/**
+ * Records a sequence-aware inverse for an authored array method.
+ *
+ * The changed middle segment is replaced while any later authoritative prefix, suffix, or append
+ * remains in place. If authoritative work changed the optimistic segment itself, rollback falls
+ * back to restoring only positions that still contain the optimistic value.
+ */
+function recordArrayMutationUndo(target: unknown[], previous: unknown[]): void {
+	if (!hasActiveTransaction()) return;
+	const optimistic = target.slice();
+	let prefix = 0;
+	while (
+		prefix < previous.length &&
+		prefix < optimistic.length &&
+		sameArraySlot(previous, optimistic, prefix, prefix)
+	)
+		prefix++;
+
+	let suffix = 0;
+	while (
+		suffix < previous.length - prefix &&
+		suffix < optimistic.length - prefix &&
+		sameArraySlot(
+			previous,
+			optimistic,
+			previous.length - suffix - 1,
+			optimistic.length - suffix - 1
+		)
+	)
+		suffix++;
+
+	const previousEnd = previous.length - suffix;
+	const optimisticEnd = optimistic.length - suffix;
+	const removed = previous.slice(prefix, previousEnd);
+	const inserted = optimistic.slice(prefix, optimisticEnd);
+	recordTransactionUndo(() => {
+		let segmentUnchanged = true;
+		for (let offset = 0; offset < inserted.length; offset++) {
+			if (!sameArraySlot(optimistic, target, prefix + offset, prefix + offset)) {
+				segmentUnchanged = false;
+				break;
+			}
+		}
+		if (segmentUnchanged) {
+			Array.prototype.splice.call(
+				target,
+				prefix,
+				inserted.length,
+				...removed.map((value) => unwrap(value))
+			);
+			for (let offset = 0; offset < removed.length; offset++) {
+				const previousIndex = prefix + offset;
+				const targetIndex = prefix + offset;
+				const descriptor = Reflect.getOwnPropertyDescriptor(previous, String(previousIndex));
+				if (descriptor) Reflect.defineProperty(target, String(targetIndex), descriptor);
+				else Reflect.deleteProperty(target, String(targetIndex));
+			}
+			return;
+		}
+
+		const changedLength = Math.max(previousEnd, optimisticEnd);
+		for (let index = prefix; index < changedLength; index++) {
+			if (!sameArraySlot(optimistic, target, index, index)) continue;
+			if (Reflect.has(previous, index)) target[index] = previous[index];
+			else Reflect.deleteProperty(target, index);
+		}
+	});
+}
+
+function sameArraySlot(
+	left: readonly unknown[],
+	right: readonly unknown[],
+	leftIndex: number,
+	rightIndex: number
+): boolean {
+	const leftExists = Reflect.has(left, leftIndex);
+	const rightExists = Reflect.has(right, rightIndex);
+	return (
+		leftExists === rightExists &&
+		(!leftExists || Object.is(unwrap(left[leftIndex]), unwrap(right[rightIndex])))
+	);
+}
+
 function mutateArrayEnd(
 	target: unknown[],
 	methodName: 'push' | 'pop',
@@ -59,23 +142,37 @@ function mutateArrayEnd(
 		methodName === 'pop' && oldLength > 0
 			? Reflect.getOwnPropertyDescriptor(target, String(oldLength - 1))
 			: undefined;
-	if (hasActiveTransaction()) {
-		recordTransactionUndo(() => {
-			if (methodName === 'push') {
-				target.length = oldLength;
-			} else if (oldLength > 0) {
-				target.length = oldLength;
-				if (removed) Reflect.defineProperty(target, String(oldLength - 1), removed);
-				else Reflect.deleteProperty(target, String(oldLength - 1));
-			}
-		});
-	}
+	const journaled = hasActiveTransaction();
 	const result = method.apply(
 		target,
 		args.map((arg) => unwrap(arg))
 	);
 	const newLength = target.length;
 	if (newLength !== oldLength) {
+		if (journaled) {
+			if (methodName === 'push') {
+				for (let index = oldLength; index < newLength; index++) {
+					const insertedIndex = index;
+					recordTransactionUndo(
+						() => {
+							Array.prototype.splice.call(target, insertedIndex, 1);
+						},
+						target,
+						String(insertedIndex)
+					);
+				}
+			} else {
+				recordTransactionUndo(
+					() => {
+						Array.prototype.splice.call(target, oldLength - 1, 0, undefined);
+						if (removed) Reflect.defineProperty(target, String(oldLength - 1), removed);
+						else Reflect.deleteProperty(target, String(oldLength - 1));
+					},
+					target,
+					String(oldLength - 1)
+				);
+			}
+		}
 		batch(() => {
 			markReactiveHashDirty(target);
 			if (methodName === 'push') {
@@ -93,7 +190,7 @@ function mutateArrayEnd(
 /** Performs the record property undo domain operation. */
 export function recordPropertyUndo(target: object, key: PropertyKey): void {
 	if (!hasActiveTransaction()) return;
-	recordTransactionUndo(createPropertyUndo(target, key));
+	recordTransactionUndo(createPropertyUndo(target, key), target, key);
 }
 
 /** Creates a property undo. */
@@ -113,7 +210,7 @@ export function createPropertyUndo(target: object, key: PropertyKey): () => void
 /** Performs the record array undo domain operation. */
 export function recordArrayUndo(target: unknown[]): void {
 	if (!hasActiveTransaction()) return;
-	recordTransactionUndo(createArrayUndo(target));
+	recordTransactionUndo(createArrayUndo(target), target, iterateKey);
 }
 
 /** Creates an array undo. */

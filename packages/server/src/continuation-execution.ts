@@ -40,6 +40,7 @@ export function createExactContinuationHandler(
 		if (!dependencies)
 			throw new TypeError(`Malformed activation record for eXact continuation ${contract.id}`);
 		const state = activationState(input.state);
+		const generation = continuationGeneration(input.payload);
 		const signal = context.signal ?? new AbortController().signal;
 		let result: Awaited<ReturnType<typeof executor.execute>>;
 		try {
@@ -47,7 +48,8 @@ export function createExactContinuationHandler(
 				{
 					state,
 					dependencies,
-					publicContext: input.publicContext ?? {}
+					publicContext: input.publicContext ?? {},
+					...(generation === undefined ? {} : { generation })
 				},
 				{
 					signal,
@@ -103,11 +105,21 @@ export function createExactContinuationHandler(
 		return {
 			...(projected === undefined ? {} : { state: projected }),
 			...(mutations === undefined ? {} : { mutations: [...mutations] }),
-			...(contexts === undefined ? {} : { contexts })
+			...(contexts === undefined ? {} : { contexts }),
+			...('value' in result ? { value: result.value } : {})
 		};
 	};
 	generatedHandlers.set(executor, handler);
 	return handler;
+}
+
+function continuationGeneration(payload: unknown): number | undefined {
+	if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return undefined;
+	const generation = (payload as Record<string, unknown>).generation;
+	if (generation === undefined) return undefined;
+	if (!Number.isSafeInteger(generation) || (generation as number) < 1)
+		throw new TypeError('Malformed continuation invocation generation');
+	return generation as number;
 }
 
 /** Selects only compiler-authorized public component-context writes. */
@@ -133,7 +145,11 @@ export function continuationDependencies(
 ): readonly unknown[] | undefined {
 	if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return undefined;
 	const keys = Object.keys(payload);
-	if (keys.length !== 1 || keys[0] !== 'dependencies') return undefined;
+	if (
+		!keys.includes('dependencies') ||
+		keys.some((key) => key !== 'dependencies' && key !== 'generation')
+	)
+		return undefined;
 	const dependencies = (payload as Record<string, unknown>).dependencies;
 	return Array.isArray(dependencies) && dependencies.length === expected ? dependencies : undefined;
 }

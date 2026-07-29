@@ -11,6 +11,7 @@ import type {
 	ExactSymbolIR
 } from './analysis.js';
 import type { ExactComponentResumptionIR, ExactContinuationIR } from './continuations.js';
+import type { ExactComponentRegistryIR } from './registries.js';
 import type { ExactPlacement, ExactPolicyManifestIR } from './policy.js';
 import type { ExactAssetDependencyIR, ExactRawHtmlCapabilityIR } from './transform.js';
 
@@ -44,6 +45,7 @@ export type ExactCompilerManifest = {
 	boundaries: ExactBoundaryIR[];
 	callables: ExactCallableSummaryIR[];
 	continuations: ExactContinuationIR[];
+	registries?: ExactComponentRegistryIR[];
 	resumptions: ExactComponentResumptionIR[];
 	policy: ExactPolicyManifestIR;
 	packageName?: string;

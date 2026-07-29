@@ -39,6 +39,7 @@ export async function invokeAndApply(
 		dependencies: readonly unknown[];
 		contextWrites: readonly Readonly<{ name: string; token: ContextToken<any> }>[];
 		signal: AbortSignal;
+		generation?: number;
 	}
 ): Promise<ExactInvocationResult> {
 	const work = createDomWorkBudget(options.maxTreeNodes);
@@ -71,7 +72,12 @@ export async function invokeAndApply(
 		type,
 		root: options.executionRoot ?? 'page',
 		id,
-		payload: component ? { dependencies: component.dependencies } : payload,
+		payload: component
+			? {
+					dependencies: component.dependencies,
+					...(component.generation === undefined ? {} : { generation: component.generation })
+				}
+			: payload,
 		state:
 			type === 'action'
 				? stateForContract(component?.instance.state ?? client.state, {

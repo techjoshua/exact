@@ -32,10 +32,10 @@ export function Field(this: Component<FieldState>, props: FieldProps) {
 			return props.required ?? false;
 		},
 		get error() {
-			return owner.state.error;
+			return form?.error(props.name) ?? owner.state.error;
 		},
 		get touched() {
-			return owner.state.touched;
+			return owner.state.touched || !!form?.error(props.name);
 		},
 		get validating() {
 			return owner.state.validating;

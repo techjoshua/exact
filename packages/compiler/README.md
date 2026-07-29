@@ -82,6 +82,13 @@ context tokens, returned effects, and SSR resumption liveness. The explanation
 is optional and does not make the compiler's planning manifest a public runtime
 contract.
 
+Explicit `this.action()` registrations extend the same continuation model with invocation
+arguments, concurrency, opaque operation identity, cancellation fencing, and compiler-owned
+optimistic client preludes for server actions. Finite `createComponentRegistry()` declarations
+add entry provenance, lazy import/export boundaries, per-entry placement and artifact targets,
+and diagnostic/explain metadata. Dynamic registry keys must be proven by
+`KeyOf<typeof Registry>` or `hasComponent()`.
+
 Bundler integrations can call `assertExactClientArtifactIsolation()` with
 their final output graph. It rejects server artifacts or host-discovered
 server-only modules in client runtime chunks and assets. Source map paths are
@@ -115,3 +122,6 @@ The fallback omits handlers and refs but retains the intrinsic element, serializ
 generated element identity, current binding value, and renderable children. The hydration runtime
 can therefore adopt the server DOM on first interaction instead of mounting into an empty
 placeholder.
+
+Current guides: [actions and forms](../../docs/actions-and-forms.md) and
+[finite component registries](../../docs/component-registries.md).

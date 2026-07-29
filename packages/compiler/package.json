@@ -3,6 +3,7 @@
 	"version": "0.1.0",
 	"type": "module",
 	"files": [
+		"AGENTS.md",
 		"dist/adapter-support.*",
 		"dist/artifact-isolation.*",
 		"dist/artifacts.*",

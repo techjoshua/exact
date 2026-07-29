@@ -36,6 +36,7 @@ export function parseExactOperationResult(
 				'state',
 				'mutations',
 				'contexts',
+				'value',
 				'html'
 			])
 		)
@@ -55,6 +56,7 @@ export function parseExactOperationResult(
 				...('state' in record ? { state: record.state } : {}),
 				...(record.mutations === undefined ? {} : { mutations: record.mutations }),
 				...(record.contexts === undefined ? {} : { contexts: record.contexts }),
+				...('value' in record ? { value: record.value } : {}),
 				...(record.html === undefined ? {} : { html: record.html })
 			},
 			'eXact batch invocation returned malformed results',

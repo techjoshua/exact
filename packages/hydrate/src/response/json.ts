@@ -59,6 +59,7 @@ export function parseExactInvocationResponse(
 			'state',
 			'mutations',
 			'contexts',
+			'value',
 			'html'
 		])
 	)
@@ -94,6 +95,7 @@ export function parseExactInvocationResponse(
 		...(record.contexts === undefined
 			? {}
 			: { contexts: record.contexts as Record<string, unknown> }),
+		...('value' in record ? { value: record.value } : {}),
 		...(record.html === undefined ? {} : { html: record.html })
 	};
 }

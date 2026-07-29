@@ -10,7 +10,8 @@ export function isExactContinuation(value: unknown): value is ExactContinuationI
 	if (!record(value)) return false;
 	return (
 		typeof value.id === 'string' &&
-		value.kind === 'task' &&
+		(value.kind === 'task' || value.kind === 'action') &&
+		(value.label === undefined || typeof value.label === 'string') &&
 		typeof value.componentId === 'string' &&
 		typeof value.taskId === 'string' &&
 		(value.placement === 'server' || value.placement === 'isomorphic') &&
@@ -33,7 +34,10 @@ export function isExactContinuation(value: unknown): value is ExactContinuationI
 		value.effects.boundaries.every((boundary) => typeof boundary === 'string') &&
 		record(value.ownership) &&
 		value.ownership.componentId === value.componentId &&
-		value.ownership.lifetime === 'component' &&
+		(value.ownership.lifetime === 'component' || value.ownership.lifetime === 'invocation') &&
+		(value.kind === 'action'
+			? typeof value.label === 'string' && isInvocation(value.invocation)
+			: value.invocation === undefined && value.label === undefined) &&
 		value.cancellation === 'abort-signal'
 	);
 }
@@ -81,7 +85,18 @@ function isDependency(value: unknown): boolean {
 	if (!record(value)) return false;
 	return (
 		Number.isSafeInteger(value.index) &&
-		['state', 'props', 'derived'].includes(String(value.source))
+		['state', 'props', 'derived', 'argument'].includes(String(value.source))
+	);
+}
+
+/** Reports whether action invocation metadata is finite and transport-safe. */
+function isInvocation(value: unknown): boolean {
+	if (!record(value) || !Array.isArray(value.arguments)) return false;
+	return (
+		value.arguments.every(
+			(argument) =>
+				record(argument) && Number.isSafeInteger(argument.index) && argument.source === 'argument'
+		) && ['parallel', 'latest', 'queue'].includes(String(value.concurrency))
 	);
 }
 

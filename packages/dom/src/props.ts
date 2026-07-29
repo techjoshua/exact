@@ -13,7 +13,7 @@ import {
 } from '@exactjs/core';
 import type { EffectScope } from '@exactjs/reactive';
 import { describeNode, domDebug } from './debug.js';
-import { ensureDelegated, requiresDirectListener } from './events.js';
+import { ensureDelegated, requiresDirectListener, runEventInteraction } from './events.js';
 import { preserveFocus } from './focus.js';
 import { findOwnerInstance } from './ownership.js';
 import { directEventHandlers, eventHandlers, propBindings } from './state.js';
@@ -183,7 +183,9 @@ function setDirectEventHandler(
 			try {
 				const owner = findOwnerInstance(element);
 				const result = batch(() =>
-					(handler as (this: Element, event: Event) => unknown).call(element, event)
+					runEventInteraction(owner, () =>
+						(handler as (this: Element, event: Event) => unknown).call(element, event)
+					)
 				);
 				observeComponentAsync(owner, result, 'event', type);
 			} catch (error) {

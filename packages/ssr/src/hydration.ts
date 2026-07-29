@@ -22,14 +22,11 @@ export function renderHydrationScript(options: HydrationScriptOptions = {}): str
 		{ kind: 'hydration' },
 		(options.outputExtensions ?? []) as readonly ExactOutputExtension<Record<string, unknown>>[]
 	);
-	if (
-		!isStrictJsonSafe(payloadValue, {
-			maxDepth: options.maxHydrationDepth,
-			maxNodes: options.maxHydrationNodes
-		})
-	) {
-		throw new Error('Hydration payload must be JSON-serializable');
-	}
+	const unsafePath = findJsonUnsafePath(payloadValue, '$', new Set(), true, {
+		maxDepth: options.maxHydrationDepth,
+		maxNodes: options.maxHydrationNodes
+	});
+	if (unsafePath) throw new Error(`Hydration payload must be JSON-serializable at ${unsafePath}`);
 	const payload = serializeHydrationPayload(payloadValue);
 	if (
 		new TextEncoder().encode(payload).byteLength >
@@ -70,13 +67,6 @@ function omitUndefinedProperties(value: Record<string, unknown>): Record<string,
 		if (item !== undefined) output[key] = item;
 	}
 	return output;
-}
-
-function isStrictJsonSafe(
-	value: unknown,
-	limits: { maxDepth?: number; maxNodes?: number }
-): boolean {
-	return findJsonUnsafePath(value, '$', new Set(), true, limits) === undefined;
 }
 
 function findJsonUnsafePath(

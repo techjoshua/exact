@@ -1,0 +1,10 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"composite": true,
+		"rootDir": ".",
+		"outDir": "../../.tmp/typescript-compatibility"
+	},
+	"references": [{ "path": "../../packages/core" }],
+	"include": ["contracts.ts"]
+}

@@ -32,6 +32,12 @@ Hydration adopts matching server nodes rather than recreating them. It
 preserves element identity, form state, refs, handlers, retained Activity
 ranges, and component ownership.
 
+Finite component-registry selections retain the registry binding, selected
+key, and opaque compiled entry identity in their component marker. A matching
+selection adopts normally. A nested mismatch remounts only that owned
+component range and preserves compatible sibling DOM; a root mismatch follows
+the configured root recovery policy.
+
 The compiler classifies safe interaction-only islands. Their SSR fallback
 contains the real intrinsic markup and binding values but no active handlers.
 The generated hydration registration uses dynamic imports, so the island code
@@ -69,9 +75,11 @@ replacement remains the correctness fallback.
 
 ## Data boundary
 
-Hydration bootstrap data and protocol values must be JSON-safe plain data.
-Functions, DOM nodes, class instances, `Map`, `Set`, `Date`, cycles, server
-contexts, and secret-qualified values are rejected.
+Hydration bootstrap data and protocol values use validated JSON-safe data.
+Compiler-approved `Map` and `Set` state uses tagged entries and is restored as
+real collections; continuation changes travel as ordered entry or membership
+deltas. Functions, DOM nodes, unsupported class instances, `Date`, cycles,
+server contexts, and secret-qualified values are rejected.
 
 ## Remaining work
 
@@ -83,5 +91,8 @@ contexts, and secret-qualified values are rejected.
   does not serialize an opaque suspended renderer state.
 
 See [server-components.md](server-components.md) for authoring and
+[component-registries.md](component-registries.md) for finite dynamic
+component selection,
+[actions-and-forms.md](actions-and-forms.md) for coordinated actions, and
 [native-ssr-production-guide.md](native-ssr-production-guide.md) for production
 operation.

@@ -1,9 +1,11 @@
 import type { ComponentFunction } from '@exactjs/core';
+import { ActionsPage } from './pages/ActionsPage.jsx';
 import { AdvancedPage } from './pages/AdvancedPage.jsx';
 import { AsyncInterfacesPage } from './pages/AsyncInterfacesPage.jsx';
 import { ComparisonPage } from './pages/ComparisonPage.jsx';
 import { CompilerTourPage } from './pages/CompilerTourPage.jsx';
 import { ComponentsPage } from './pages/ComponentsPage.jsx';
+import { ComponentRegistriesPage } from './pages/ComponentRegistriesPage.jsx';
 import { FormsPage } from './pages/FormsPage.jsx';
 import { GettingStartedPage } from './pages/GettingStartedPage.jsx';
 import { IntroductionPage } from './pages/IntroductionPage.jsx';
@@ -114,11 +116,27 @@ export const docGroups: DocGroup[] = [
 				component: ListsPage
 			},
 			{
+				path: '/learn/component-registries',
+				label: 'Component registries',
+				summary: 'Select finite eager and lazy components without losing identity or safety.',
+				keywords:
+					'component registry dynamic lazy eager key identity preload SSR hydration placement bundle',
+				component: ComponentRegistriesPage
+			},
+			{
 				path: '/learn/tasks',
 				label: 'Tasks & cleanup',
 				summary: 'Own asynchronous work with the component.',
 				keywords: 'task async abort signal cleanup effects',
 				component: TasksPage
+			},
+			{
+				path: '/learn/actions',
+				label: 'Actions & optimistic state',
+				summary: 'Coordinate events, forms, server work, optimism, and navigation.',
+				keywords:
+					'action interaction optimistic pending concurrency latest queue form server navigation rollback',
+				component: ActionsPage
 			},
 			{
 				path: '/learn/async-interfaces',

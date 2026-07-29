@@ -96,8 +96,8 @@ export function TasksPage(this: Component<{}>) {
 			eyebrow="Learn"
 			title="Work follows the component"
 			description="Tasks are setup declarations for work the component owns. The compiler turns state, prop, and context reads into rerun dependencies; reruns and unmounts cancel the previous generation."
-			previous={{ path: '/learn/lists', label: 'Keyed lists' }}
-			next={{ path: '/learn/async-interfaces', label: 'Suspense, Activity & scheduling' }}
+			previous={{ path: '/learn/component-registries', label: 'Component registries' }}
+			next={{ path: '/learn/actions', label: 'Actions & optimistic state' }}
 		>
 			<section>
 				<h2>Why tasks are a framework primitive</h2>

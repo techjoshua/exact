@@ -8,9 +8,7 @@ import {
 	Text,
 	UnsafeHtml,
 	createComponentInstance,
-	createErrorReport,
 	getCellVNode,
-	handleComponentError,
 	isCellVNode,
 	isVNode,
 	normalizeRenderResult,
@@ -38,6 +36,7 @@ import {
 	withSsrTreeDepth
 } from '../render/limits.js';
 import type { Child, ComponentFunction, ComponentInstance, SsrContext } from '../types.js';
+import { handleSsrConstructionError } from './construction-errors.js';
 import { dynamicMarkerId } from './marker-identity.js';
 import { renderComponent } from './async-tree.js';
 import {
@@ -185,10 +184,7 @@ export function* renderVNodeChunks(
 			children = renderInstance(instance, () => undefined);
 		} catch (error) {
 			if (isSsrRenderLimitError(error)) throw error;
-			const fallback = handleComponentError(
-				parent,
-				createErrorReport(error, 'construct', parent, componentName(vnode.type))
-			);
+			const fallback = handleSsrConstructionError(parent, error, componentName(vnode.type));
 			children = fallback ? normalizeRenderResult(fallback()) : [];
 		}
 		// Construction is recoverable before bytes are emitted. Once a component

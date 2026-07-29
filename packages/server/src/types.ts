@@ -261,6 +261,8 @@ export type ExactInvocationResult = {
 	mutations?: ExactCollectionMutation[];
 	/** Compiler-approved component-context projections returned to the owning client instance. */
 	contexts?: Record<string, unknown>;
+	/** Serializable return value of an explicit distributed component action. */
+	value?: unknown;
 	html?: string;
 };
 

@@ -1,4 +1,4 @@
-import { type Child, type RefBinding } from '@exactjs/core';
+import { type Child, type InteractionHandler, type RefBinding } from '@exactjs/core';
 
 /** Defines the field value type contract. */
 export type FieldValue = string | string[] | boolean | FileList | null;
@@ -43,6 +43,8 @@ export type FormContextValue = {
 	register(field: FieldContextValue): boolean;
 	unregister(field: FieldContextValue): void;
 	validate(): Promise<boolean>;
+	readonly submitting: boolean;
+	error(name: string): string | undefined;
 };
 
 /** Tracks the state owned by form. */
@@ -50,9 +52,15 @@ export type FormState = { submitting: boolean };
 /** Defines the properties accepted by form. */
 export type FormProps = Record<string, unknown> & {
 	children?: Child | Child[];
-	onSubmit?(event: SubmitEvent): unknown;
-	onValidSubmit?(event: SubmitEvent, data: FormData): unknown;
-	onInvalidSubmit?(event: SubmitEvent): unknown;
+	errors?: Readonly<Record<string, string | readonly string[] | undefined>>;
+	onSubmit?: InteractionHandler<[event: SubmitEvent]>;
+	onValidSubmit?: InteractionHandler<[event: SubmitEvent, data: FormData]>;
+	onInvalidSubmit?: InteractionHandler<[event: SubmitEvent]>;
+};
+/** Defines the properties accepted by the native form submit control. */
+export type SubmitProps = Record<string, unknown> & {
+	children?: Child | Child[];
+	pendingText?: Child;
 };
 
 /** Tracks the state owned by field. */

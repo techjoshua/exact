@@ -5,6 +5,7 @@ import {
 	createCompiledVNode,
 	createErrorContext,
 	createExpression,
+	ErrorBoundary,
 	ErrorContext,
 	type Component,
 	type ErrorContextValue,
@@ -422,6 +423,94 @@ describe('@exactjs/dom events-errors', () => {
 		expect(parent.state.errors).toHaveLength(1);
 		expect(parent.state.errors[0]!.source).toBe('construct');
 		expect(container.textContent).toBe('Child failed');
+	});
+
+	it('provides a default error boundary that can retry a failed subtree', () => {
+		let shouldFail = true;
+		let constructions = 0;
+
+		function Child() {
+			constructions++;
+			if (shouldFail) throw new Error('construct failed');
+			return () => jsx('p', { children: 'Recovered' });
+		}
+
+		const container = document.createElement('div');
+		render(jsx(ErrorBoundary, { children: jsx(Child, {}) }), container);
+		flushSync();
+
+		expect(container.textContent).toContain('Application error');
+		expect(container.textContent).toContain('construct failed');
+
+		shouldFail = false;
+		container.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		flushSync();
+
+		expect(container.textContent).toBe('Recovered');
+		expect(constructions).toBe(2);
+	});
+
+	it('supplies captured reports and reset to a custom error boundary fallback', () => {
+		let reset!: () => void;
+
+		function Broken() {
+			return () =>
+				jsx('button', {
+					onClick: () => {
+						throw new Error('event failed');
+					},
+					children: 'Break'
+				});
+		}
+
+		const container = document.createElement('div');
+		render(
+			jsx(ErrorBoundary, {
+				fallback: ({ error, reset: retry }) => {
+					reset = retry;
+					return jsx('p', { children: `${error.source}:${String(error.error)}` });
+				},
+				children: jsx(Broken, {})
+			}),
+			container
+		);
+		container.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		flushSync();
+
+		expect(container.textContent).toContain('event:Error: event failed');
+		reset();
+		flushSync();
+		expect(container.textContent).toBe('Break');
+	});
+
+	it('routes a failing fallback to the next enclosing error boundary', () => {
+		function Broken() {
+			return () =>
+				jsx('button', {
+					onClick: () => {
+						throw new Error('child failed');
+					},
+					children: 'Break'
+				});
+		}
+
+		const container = document.createElement('div');
+		render(
+			jsx(ErrorBoundary, {
+				fallback: ({ error }) => jsx('p', { children: `Outer: ${String(error.error)}` }),
+				children: jsx(ErrorBoundary, {
+					fallback: () => {
+						throw new Error('fallback failed');
+					},
+					children: jsx(Broken, {})
+				})
+			}),
+			container
+		);
+		container.querySelector('button')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		flushSync();
+
+		expect(container.textContent).toContain('Outer: Error: fallback failed');
 	});
 
 	it('renders the root default error view for unclaimed event failures', () => {

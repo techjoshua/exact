@@ -79,6 +79,43 @@ describe('@exactjs/server generated continuation execution', () => {
 		expect(JSON.stringify(contextAccesses)).not.toContain('Visible');
 	});
 
+	it('returns an explicit action result through the existing continuation envelope', async () => {
+		const handler = createExactContinuationHandler(
+			{
+				...contract,
+				kind: 'action',
+				dependencies: [{ source: 'argument' }],
+				invocation: {
+					arguments: [{ source: 'argument' }],
+					concurrency: 'latest'
+				}
+			},
+			{
+				id: contract.id,
+				componentId: contract.componentId,
+				execute(activation) {
+					expect(activation.generation).toBe(3);
+					return {
+						state: activation.state,
+						value: `saved:${String(activation.dependencies[0])}`
+					};
+				}
+			}
+		);
+
+		await expect(
+			handler(
+				{
+					type: 'action',
+					id: contract.id,
+					payload: { dependencies: ['title'], generation: 3 },
+					state: { id: 'p1' }
+				},
+				context()
+			)
+		).resolves.toEqual({ value: 'saved:title' });
+	});
+
 	it('applies only compiler-authorized server context writes', async () => {
 		let status: { ready: boolean } | undefined;
 		const handler = createExactContinuationHandler(

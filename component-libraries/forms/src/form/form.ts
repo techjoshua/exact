@@ -10,6 +10,13 @@ export function Form(this: Component<FormState>, props: FormProps) {
 	const fields = new Set<FieldContextValue>();
 	const errors = this.getContext(ErrorContext);
 	const context: FormContextValue = {
+		get submitting() {
+			return owner.state.submitting;
+		},
+		error(name) {
+			const value = props.errors?.[name];
+			return typeof value === 'string' ? value : value?.join(' ');
+		},
 		register(field) {
 			const duplicate = [...fields].find((existing) => existing.id === field.id);
 			if (duplicate) {
@@ -33,8 +40,13 @@ export function Form(this: Component<FormState>, props: FormProps) {
 			return results.every(Boolean);
 		}
 	};
+	const owner = this;
 	this.setContext(FormContext, context);
 	const submit = async (event: SubmitEvent) => {
+		if (this.state.submitting) {
+			event.preventDefault();
+			return;
+		}
 		const userResult = props.onSubmit?.(event);
 		const cancelled = event.defaultPrevented;
 		event.preventDefault();
@@ -58,6 +70,7 @@ export function Form(this: Component<FormState>, props: FormProps) {
 	return () => {
 		const {
 			children,
+			errors: _errors,
 			onSubmit: _submit,
 			onValidSubmit: _valid,
 			onInvalidSubmit: _invalid,

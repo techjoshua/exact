@@ -43,7 +43,7 @@ export function ListsPage(this: Component<{}>) {
 			title="Lists keep the identity you give them"
 			description="Use ordinary map syntax and mark the field that means identity. Reorders then move the existing item rather than quietly turning it into a different one."
 			previous={{ path: '/learn/compiler-tour', label: 'Inside the compiler' }}
-			next={{ path: '/learn/tasks', label: 'Tasks & cleanup' }}
+			next={{ path: '/learn/component-registries', label: 'Component registries' }}
 		>
 			<section>
 				<h2>Why identity matters</h2>

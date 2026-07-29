@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { createComponentInstance, runComponentInteraction } from '@exactjs/core';
 import {
 	createExactRouter,
 	generatePath,
@@ -77,6 +78,43 @@ describe('renderer-neutral router core', () => {
 			historyAction: 'POP',
 			location: { pathname: '/' }
 		});
+	});
+
+	it('joins navigation readiness to an active component interaction', async () => {
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const source = createMemoryLocationSource(['https://example.test/'], 0);
+		const router = createExactRouter({
+			source,
+			routes: [
+				{ id: 'home', path: '/' },
+				{ id: 'next', path: '/next', loader: () => gate }
+			]
+		});
+		const owner = createComponentInstance(() => () => null, {});
+		let settled = false;
+		const interaction = runComponentInteraction(
+			owner,
+			'action',
+			1,
+			'normal',
+			new AbortController(),
+			() => {
+				void router.navigate('/next');
+			}
+		).then(() => {
+			settled = true;
+		});
+
+		await Promise.resolve();
+		expect(settled).toBe(false);
+		release();
+		await interaction;
+		expect(router.getSnapshot().location.pathname).toBe('/next');
+		owner.unmount();
+		router.dispose();
 	});
 
 	it('blocks navigation and rejects use after disposal', async () => {
