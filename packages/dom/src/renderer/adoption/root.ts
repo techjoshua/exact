@@ -22,6 +22,7 @@ import { ownMountedInstance } from '../root-lifecycle.js';
 import { createDomErrorContext, createRootBoundary } from '../root-support.js';
 import { unmountMounted } from '../teardown.js';
 import { adoptStaticChildren, boundaryMarkers, contentNodesBetween } from './boundaries.js';
+import { componentMarkerMatchesType } from './identity.js';
 
 /** Performs the adopt static domain operation. */
 export function adoptStatic(
@@ -103,7 +104,12 @@ export function adoptComponentRoot(
 ): boolean {
 	if (typeof vnode.type !== 'function' || roots.has(container)) return false;
 	const markers = boundaryMarkers(container);
-	if (!markers || !markers.start.data.startsWith('exact:component:')) return false;
+	if (
+		!markers ||
+		!markers.start.data.startsWith('exact:component:') ||
+		!componentMarkerMatchesType(markers.start, vnode.type)
+	)
+		return false;
 	const root: Root = {
 		container,
 		delegated: new Map(),

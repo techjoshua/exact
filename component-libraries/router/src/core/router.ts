@@ -1,3 +1,5 @@
+import { joinCurrentInteraction } from '@exactjs/core';
+
 import type {
 	CreateExactRouterOptions,
 	ExactRouteDefinition,
@@ -377,11 +379,14 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 			refresh(snapshot.historyAction);
 		},
 		createHref: (to: string | URL) => hrefFor(to, source.location(), basename, mode),
-		navigate,
-		initialize,
-		submit,
-		fetch,
-		revalidate: () => revalidate(),
+		navigate(to: string | URL | number, navigationOptions?: NavigationOptions) {
+			return joinRouterOperation(navigate(to, navigationOptions));
+		},
+		initialize: () => joinRouterOperation(initialize()),
+		submit: (target: string | URL, init?: RequestInit) => joinRouterOperation(submit(target, init)),
+		fetch: (key: string, routeId: string, target: string | URL, init?: RequestInit) =>
+			joinRouterOperation(fetch(key, routeId, target, init)),
+		revalidate: () => joinRouterOperation(revalidate()),
 		block(blocker: NavigationBlocker) {
 			assertActive();
 			blockers.add(blocker);
@@ -398,4 +403,14 @@ export function createExactRouter<Route extends ExactRouteDefinition>(
 			blockers.clear();
 		}
 	});
+}
+
+/**
+ * Joins one router promise to a synchronously active form, event, or action interaction.
+ *
+ * The same promise remains the public router result; joining adds settlement ownership only.
+ */
+function joinRouterOperation<Result>(operation: Promise<Result>): Promise<Result> {
+	joinCurrentInteraction(operation);
+	return operation;
 }

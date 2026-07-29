@@ -79,7 +79,27 @@ function Todos(this: Component<{ todos: Todo[] }>) {
 }
 ```
 
-Do not add a JSX `key`. The compiler lowers compiled `map()` to eXact's keyed reconciliation.
-String arrays use their values as keys. Use `this.map(collection, selector, render)` when the data
-type cannot carry the annotation or an explicit selector improves clarity. Treat duplicate keys as
-an error rather than falling back to positional identity.
+Prefer an `@exact key` annotation when one field is the type's natural identity. Use an explicit
+`key={...}` when identity is local to one view, and `this.map(collection, selector, render)` when
+an explicit selector is clearest or the data type cannot carry the annotation. The compiler lowers
+all three forms to eXact's keyed reconciliation. String arrays use their values as keys. Treat
+duplicate keys as an error rather than falling back to positional identity.
+
+## Conditional classes
+
+Use a namespaced prop when a static class token has a dynamic condition:
+
+```tsx
+<article className="card" className:selected={this.state.selected} />
+```
+
+Class sources compose in authored prop order. Use arrays and truthy-key objects when token names
+are dynamic. Do not concatenate strings merely to express conditional static tokens.
+
+## Coordinated form submission
+
+`Form` is an interaction host. Use `onValidSubmit` for validated `FormData`, pass application-owned
+server errors through `errors`, and use `Submit pendingText="…"` for accessible pending
+presentation. The form drops duplicate submissions and remains pending through action and router
+work joined to the callback. Keep expected validation failures in component state rather than
+returning a framework-specific magic error object.

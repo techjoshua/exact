@@ -3,6 +3,7 @@ import type { ComponentInstance, ErrorSource } from './contracts.js';
 import { observeTaskPromise } from '../task/observers.js';
 import { isPromiseLike } from './async-value.js';
 import { createErrorReport, handleComponentError } from './errors.js';
+import { isInteractionCancellation } from '../interaction/execution.js';
 
 /** Performs the observe lifecycle promise domain operation. */
 export function observeLifecyclePromise(
@@ -25,6 +26,7 @@ export function observeComponentAsync(
 ): void {
 	if (!isPromiseLike(value)) return;
 	const observed = Promise.resolve(value).catch((error) => {
+		if (isInteractionCancellation(error)) return;
 		handleComponentError(instance, createErrorReport(error, source, instance, phase));
 	});
 	if (instance) observeTaskPromise(observed, instance);

@@ -20,26 +20,28 @@ import (
 )
 
 type jsxRuntimeNames struct {
-	element              string
-	fragment             string
-	expression           string
-	dynamic              string
-	boundary             string
-	clientProps          string
-	derived              string
-	write                string
-	update               string
-	updateResult         string
-	abortOptions         string
-	taskSignal           string
-	taskTimeout          string
-	taskInterval         string
-	taskAnimation        string
-	taskIdle             string
-	taskObserver         string
-	taskFetch            string
-	taskResource         string
+	element                string
+	fragment               string
+	expression             string
+	dynamic                string
+	boundary               string
+	clientProps            string
+	derived                string
+	write                  string
+	update                 string
+	updateResult           string
+	abortOptions           string
+	taskSignal             string
+	taskTimeout            string
+	taskInterval           string
+	taskAnimation          string
+	taskIdle               string
+	taskObserver           string
+	taskFetch              string
+	taskResource           string
 	taskAwait              string
+	interactionAwait       string
+	interactionMutation    string
 	stageTaskMutation      string
 	taskCollectionMutation string
 	taskContinuation       string
@@ -50,6 +52,7 @@ type jsxRuntimeNames struct {
 	delete                 string
 	arrayMutation          string
 	collectionMutation     string
+	componentRegistry      string
 	interop                string
 }
 
@@ -61,6 +64,7 @@ type jsxLowering struct {
 	nodeIDs           map[*ast.Node]string
 	writes            map[string]StateWrite
 	tasks             map[string]Task
+	actions           map[string]Action
 	stateReads        []StateRead
 	bindings          []ReactiveBinding
 	formBindings      map[int]formBinding
@@ -100,6 +104,7 @@ func lowerExactJSX(
 	formBindings map[int]formBinding,
 	components []Component,
 	tasks []Task,
+	actions []Action,
 	continuations []Continuation,
 	clientIslands map[*ast.Node]clientElementIsland,
 	target Target,
@@ -121,6 +126,7 @@ func lowerExactJSX(
 		nodeIDs:           expressionNodeIDs(sourceFile),
 		writes:            indexStateWrites(stateWrites),
 		tasks:             indexTasks(tasks),
+		actions:           indexActions(actions),
 		stateReads:        stateReads,
 		bindings:          reactiveBindings,
 		formBindings:      formBindings,
@@ -189,6 +195,9 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	if captured := lowering.lowerReactiveCapture(node); captured != nil {
 		return captured
 	}
+	if compiled := lowering.lowerComponentRegistryCreation(node); compiled != nil {
+		return compiled
+	}
 	if ast.IsCallExpression(node) && isComponentMapCall(node) {
 		return lowering.lowerComponentMapCall(node)
 	}
@@ -197,6 +206,13 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 		return lowering.lowerSetupResourceTask(node, task)
 	}
 	if ast.IsCallExpression(node) {
+		if _, action := actionFacets(node.AsCallExpression().Expression); action {
+			analyzed, exists := lowering.actions[nodeSpanKey(node)]
+			if exists {
+				return lowering.lowerAction(node, &analyzed)
+			}
+			return lowering.lowerAction(node, nil)
+		}
 		if mapped := lowering.lowerAnnotatedMap(node); mapped != nil {
 			return mapped
 		}
@@ -326,6 +342,44 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	default:
 		return lowering.visitor.VisitEachChild(node)
 	}
+}
+
+func (lowering *jsxLowering) lowerComponentRegistryCreation(
+	node *ast.Node,
+) *ast.Node {
+	if !ast.IsCallExpression(node) {
+		return nil
+	}
+	call := node.AsCallExpression()
+	if !ast.IsIdentifier(call.Expression) ||
+		call.Expression.Text() != "createComponentRegistry" ||
+		call.Arguments == nil ||
+		len(call.Arguments.Nodes) != 1 {
+		return nil
+	}
+	declaration := componentRegistryDeclaration(node)
+	if declaration == nil || !ast.IsIdentifier(declaration.Name()) {
+		return nil
+	}
+	name := declaration.Name().Text()
+	return lowering.factory.NewCallExpression(
+		lowering.factory.NewIdentifier(lowering.names.componentRegistry),
+		call.QuestionDotToken,
+		call.TypeArguments,
+		lowering.factory.NewNodeList([]*ast.Node{
+			lowering.factory.NewStringLiteral(
+				exactStableID(
+					normalizedIdentityFilename(lowering.sourceFile.FileName()),
+					"registry",
+					name,
+				),
+				ast.TokenFlagsNone,
+			),
+			lowering.factory.NewStringLiteral(name, ast.TokenFlagsNone),
+			lowering.visitor.VisitNode(call.Arguments.Nodes[0]),
+		}),
+		call.Flags,
+	)
 }
 
 func (lowering *jsxLowering) lowerComponentMapCall(node *ast.Node) *ast.Node {
@@ -1957,6 +2011,302 @@ func (lowering *jsxLowering) derivedGet(expression *ast.Node) *ast.Node {
 	)
 }
 
+func (lowering *jsxLowering) lowerAction(
+	node *ast.Node,
+	action *Action,
+) *ast.Node {
+	call := node.AsCallExpression()
+	if call.Arguments == nil || len(call.Arguments.Nodes) < 2 {
+		return lowering.visitor.VisitEachChild(node)
+	}
+	arguments := append([]*ast.Node(nil), call.Arguments.Nodes...)
+	work := arguments[1]
+	if !ast.IsArrowFunction(work) && !ast.IsFunctionExpression(work) {
+		return lowering.visitor.VisitEachChild(node)
+	}
+	dependencyCount := len(work.Parameters())
+	if actionWorkHasContextParameter(work, lowering.sourceFile) {
+		dependencyCount--
+	}
+	signal, work := lowering.taskSignalExpression(work, dependencyCount)
+	var visitor *ast.NodeVisitor
+	visitor = ast.NewNodeVisitor(
+		func(current *ast.Node) *ast.Node {
+			if current != work && isCallableNode(current) {
+				return current
+			}
+			if write, exists := lowering.writes[nodeSpanKey(current)]; exists {
+				mutation := lowering.lowerStateWrite(
+					visitor.VisitEachChild(current),
+					write,
+				)
+				if mutation != nil {
+					return lowering.taskHelperCall(
+						"interactionMutation",
+						lowering.names.interactionMutation,
+						[]*ast.Node{signal, lowering.arrow(mutation)},
+					)
+				}
+			}
+			if ast.IsAwaitExpression(current) {
+				value := visitor.VisitNode(current.AsAwaitExpression().Expression)
+				return lowering.factory.NewAwaitExpression(
+					lowering.taskHelperCall(
+						"interactionAwait",
+						lowering.names.interactionAwait,
+						[]*ast.Node{signal, value},
+					),
+				)
+			}
+			return visitor.VisitEachChild(current)
+		},
+		&lowering.factory.NodeFactory,
+		ast.NodeVisitorHooks{},
+	)
+	rewrittenWork := lowering.visitor.VisitEachChild(visitor.VisitNode(work))
+	if action != nil && lowering.target == TargetClient &&
+		action.Placement == "server" {
+		arguments[1] = lowering.clientActionContinuationWork(
+			action.ID,
+			rewrittenWork,
+		)
+		return lowering.factory.NewCallExpression(
+			lowering.visitor.VisitNode(call.Expression),
+			call.QuestionDotToken,
+			call.TypeArguments,
+			lowering.factory.NewNodeList(arguments),
+			call.Flags,
+		)
+	}
+	if action != nil &&
+		(lowering.target == TargetServer ||
+			lowering.target == TargetDefault) &&
+		(action.Placement == "server" || action.Placement == "isomorphic") {
+		if lowering.target == TargetServer && action.Placement == "server" {
+			rewrittenWork = lowering.withoutActionOptimisticStatements(
+				rewrittenWork,
+			)
+		}
+		rewrittenWork = lowering.taskHelperCall(
+			"markComponentContinuationTask",
+			lowering.names.taskContinuation,
+			[]*ast.Node{
+				lowering.factory.NewStringLiteral(action.ID, ast.TokenFlagsNone),
+				rewrittenWork,
+			},
+		)
+	}
+	arguments[1] = rewrittenWork
+	return lowering.factory.NewCallExpression(
+		lowering.visitor.VisitNode(call.Expression),
+		call.QuestionDotToken,
+		call.TypeArguments,
+		lowering.factory.NewNodeList(arguments),
+		call.Flags,
+	)
+}
+
+func (lowering *jsxLowering) clientActionContinuationWork(
+	id string,
+	work *ast.Node,
+) *ast.Node {
+	args := lowering.factory.NewIdentifier("__exactActionArgs")
+	context := lowering.factory.NewIdentifier("__exactActionContext")
+	contextValue := lowering.factory.NewCallExpression(
+		lowering.factory.NewPropertyAccessExpression(
+			args,
+			nil,
+			lowering.factory.NewIdentifier("pop"),
+			ast.NodeFlagsNone,
+		),
+		nil,
+		nil,
+		lowering.factory.NewNodeList(nil),
+		ast.NodeFlagsNone,
+	)
+	signal := lowering.factory.NewPropertyAccessExpression(
+		context,
+		nil,
+		lowering.factory.NewIdentifier("signal"),
+		ast.NodeFlagsNone,
+	)
+	generation := lowering.factory.NewPropertyAccessExpression(
+		context,
+		nil,
+		lowering.factory.NewIdentifier("generation"),
+		ast.NodeFlagsNone,
+	)
+	dispatch := lowering.taskHelperCall(
+		"dispatchComponentContinuation",
+		lowering.names.dispatchContinuation,
+		[]*ast.Node{
+			lowering.factory.NewThisExpression(),
+			lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone),
+			args,
+			signal,
+			lowering.factory.NewArrayLiteralExpression(
+				lowering.factory.NewNodeList(nil),
+				false,
+			),
+			generation,
+		},
+	)
+	statements := []*ast.Node{
+		lowering.factory.NewVariableStatement(
+			nil,
+			lowering.factory.NewVariableDeclarationList(
+				lowering.factory.NewNodeList([]*ast.Node{
+					lowering.factory.NewVariableDeclaration(
+						context,
+						nil,
+						nil,
+						contextValue,
+					),
+				}),
+				ast.NodeFlagsConst,
+			),
+		),
+	}
+	if prelude := lowering.actionOptimisticPrelude(work, args, context); prelude != nil {
+		statements = append(statements, prelude)
+	}
+	statements = append(
+		statements,
+		lowering.factory.NewReturnStatement(dispatch),
+	)
+	body := lowering.factory.NewBlock(
+		lowering.factory.NewNodeList(statements),
+		true,
+	)
+	return lowering.factory.NewArrowFunction(
+		nil,
+		nil,
+		lowering.factory.NewNodeList([]*ast.Node{
+			lowering.factory.NewParameterDeclaration(
+				nil,
+				lowering.factory.NewToken(ast.KindDotDotDotToken),
+				args,
+				nil,
+				nil,
+				nil,
+			),
+		}),
+		nil,
+		nil,
+		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
+		body,
+	)
+}
+
+func (lowering *jsxLowering) actionOptimisticPrelude(
+	work *ast.Node,
+	args *ast.Node,
+	context *ast.Node,
+) *ast.Node {
+	body := work.Body()
+	if body == nil || !ast.IsBlock(body) {
+		return nil
+	}
+	statements := []*ast.Node{}
+	for _, statement := range body.AsBlock().Statements.Nodes {
+		if actionOptimisticStatement(statement) {
+			statements = append(statements, statement)
+		}
+	}
+	if len(statements) == 0 {
+		return nil
+	}
+	prelude := lowering.updateTaskWorkBody(
+		work,
+		lowering.factory.NewBlock(
+			lowering.factory.NewNodeList(statements),
+			true,
+		),
+	)
+	return lowering.factory.NewExpressionStatement(
+		lowering.factory.NewCallExpression(
+			lowering.factory.NewParenthesizedExpression(prelude),
+			nil,
+			nil,
+			lowering.factory.NewNodeList([]*ast.Node{
+				lowering.factory.NewSpreadElement(args),
+				context,
+			}),
+			ast.NodeFlagsNone,
+		),
+	)
+}
+
+func (lowering *jsxLowering) withoutActionOptimisticStatements(
+	work *ast.Node,
+) *ast.Node {
+	body := work.Body()
+	if body == nil || !ast.IsBlock(body) {
+		return work
+	}
+	statements := []*ast.Node{}
+	for _, statement := range body.AsBlock().Statements.Nodes {
+		if !actionOptimisticStatement(statement) {
+			statements = append(statements, statement)
+		}
+	}
+	return lowering.updateTaskWorkBody(
+		work,
+		lowering.factory.NewBlock(
+			lowering.factory.NewNodeList(statements),
+			true,
+		),
+	)
+}
+
+func actionOptimisticStatement(statement *ast.Node) bool {
+	if !ast.IsExpressionStatement(statement) {
+		return false
+	}
+	expression := statement.AsExpressionStatement().Expression
+	if !ast.IsCallExpression(expression) {
+		return false
+	}
+	callee := expression.AsCallExpression().Expression
+	if ast.IsIdentifier(callee) {
+		return callee.Text() == "optimistic"
+	}
+	return ast.IsPropertyAccessExpression(callee) &&
+		callee.AsPropertyAccessExpression().Name().Text() == "optimistic"
+}
+
+func actionWorkHasContextParameter(
+	work *ast.Node,
+	sourceFile *ast.SourceFile,
+) bool {
+	parameters := work.Parameters()
+	if len(parameters) == 0 {
+		return false
+	}
+	last := parameters[len(parameters)-1]
+	if strings.Contains(sourceText(sourceFile, last), "ActionContext") {
+		return true
+	}
+	name := last.Name()
+	if !ast.IsObjectBindingPattern(name) {
+		return false
+	}
+	for _, element := range name.AsBindingPattern().Elements.Nodes {
+		binding := element.AsBindingElement()
+		property := binding.PropertyName
+		if property == nil {
+			property = binding.Name()
+		}
+		if ast.IsIdentifier(property) &&
+			(property.Text() == "signal" ||
+				property.Text() == "optimistic" ||
+				property.Text() == "generation") {
+			return true
+		}
+	}
+	return false
+}
+
 type nativeTaskDependency struct {
 	parameter    string
 	expression   *ast.Node
@@ -3076,6 +3426,33 @@ func (lowering *jsxLowering) taskSignalExpression(
 					return local, work
 				}
 			}
+			local := lowering.factory.NewIdentifier(lowering.names.taskSignal)
+			pattern := name.AsBindingPattern()
+			elements := append([]*ast.Node(nil), pattern.Elements.Nodes...)
+			elements = append(
+				elements,
+				lowering.factory.NewBindingElement(
+					nil,
+					lowering.factory.NewIdentifier("signal"),
+					local,
+					nil,
+				),
+			)
+			nextName := lowering.factory.UpdateBindingPattern(
+				pattern,
+				lowering.factory.NewNodeList(elements),
+			)
+			parameter := context.AsParameterDeclaration()
+			parameters[len(parameters)-1] = lowering.factory.UpdateParameterDeclaration(
+				parameter,
+				parameter.Modifiers(),
+				parameter.DotDotDotToken,
+				nextName,
+				parameter.QuestionToken,
+				parameter.Type,
+				parameter.Initializer,
+			)
+			return local, lowering.updateTaskWorkParameters(work, parameters)
 		}
 	}
 	local := lowering.factory.NewIdentifier(lowering.names.taskSignal)
@@ -3751,6 +4128,7 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 		{"deleteReactiveValue", lowering.names.delete},
 		{"mutateReactiveArray", lowering.names.arrayMutation},
 		{"mutateReactiveCollection", lowering.names.collectionMutation},
+		{"createCompiledComponentRegistry", lowering.names.componentRegistry},
 	}
 	for _, helper := range helpers {
 		used := containsIdentifier(root, helper.local)
@@ -3777,6 +4155,8 @@ func (lowering *jsxLowering) runtimeImport(root *ast.Node) *ast.Node {
 		"withTaskSignal",
 		"combineTaskSignal",
 		"taskAwait",
+		"interactionAwait",
+		"interactionMutation",
 		"stageTaskMutation",
 		"mutateTaskCollection",
 		"markComponentContinuationTask",
@@ -3905,28 +4285,30 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		}
 	}
 	return jsxRuntimeNames{
-		element:              allocate("__exactVNode"),
-		fragment:             allocate("__exactFragment"),
-		expression:           allocate("__exactExpression"),
-		dynamic:              allocate("__exactDynamic"),
-		boundary:             allocate("__exactBoundary"),
-		clientProps:          allocate("__exactElementProps"),
-		derived:              allocate("__exactDerived"),
-		write:                allocate("__exactWrite"),
-		update:               allocate("__exactUpdate"),
-		updateResult:         allocate("__exactUpdateResult"),
-		abortOptions:         allocate("__exactAbortOptions"),
-		taskSignal:           allocate("__exactSignal"),
-		taskTimeout:          allocate("__exactTaskTimeout"),
-		taskInterval:         allocate("__exactTaskInterval"),
-		taskAnimation:        allocate("__exactTaskAnimationFrame"),
-		taskIdle:             allocate("__exactTaskIdleCallback"),
-		taskObserver:         allocate("__exactTaskObserver"),
-		taskFetch:            allocate("__exactTaskFetch"),
-		taskResource:         allocate("__exactTaskResource"),
-		taskOptions:          allocate("__exactTaskOptionsSignal"),
-		taskCombined:         allocate("__exactTaskCombinedSignal"),
-		taskAwait:            allocate("__exactTaskAwait"),
+		element:                allocate("__exactVNode"),
+		fragment:               allocate("__exactFragment"),
+		expression:             allocate("__exactExpression"),
+		dynamic:                allocate("__exactDynamic"),
+		boundary:               allocate("__exactBoundary"),
+		clientProps:            allocate("__exactElementProps"),
+		derived:                allocate("__exactDerived"),
+		write:                  allocate("__exactWrite"),
+		update:                 allocate("__exactUpdate"),
+		updateResult:           allocate("__exactUpdateResult"),
+		abortOptions:           allocate("__exactAbortOptions"),
+		taskSignal:             allocate("__exactSignal"),
+		taskTimeout:            allocate("__exactTaskTimeout"),
+		taskInterval:           allocate("__exactTaskInterval"),
+		taskAnimation:          allocate("__exactTaskAnimationFrame"),
+		taskIdle:               allocate("__exactTaskIdleCallback"),
+		taskObserver:           allocate("__exactTaskObserver"),
+		taskFetch:              allocate("__exactTaskFetch"),
+		taskResource:           allocate("__exactTaskResource"),
+		taskOptions:            allocate("__exactTaskOptionsSignal"),
+		taskCombined:           allocate("__exactTaskCombinedSignal"),
+		taskAwait:              allocate("__exactTaskAwait"),
+		interactionAwait:       allocate("__exactInteractionAwait"),
+		interactionMutation:    allocate("__exactInteractionMutation"),
 		stageTaskMutation:      allocate("__exactStageTaskMutation"),
 		taskCollectionMutation: allocate("__exactTaskCollectionMutation"),
 		taskContinuation:       allocate("__exactContinuationTask"),
@@ -3935,6 +4317,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		delete:                 allocate("__exactDelete"),
 		arrayMutation:          allocate("__exactArrayMutation"),
 		collectionMutation:     allocate("__exactCollectionMutation"),
+		componentRegistry:      allocate("__exactComponentRegistry"),
 		interop:                allocate("__exactInteropComponent"),
 	}
 }

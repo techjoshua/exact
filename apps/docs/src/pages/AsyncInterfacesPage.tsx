@@ -92,7 +92,7 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 			eyebrow="Learn"
 			title="Async components as ordinary value flow"
 			description="Await ordinary operations into state, coordinate readiness with Suspense, retain inactive mounted trees with Activity, and choose lower-priority work without introducing a rerender loop."
-			previous={{ path: '/learn/tasks', label: 'Tasks & cleanup' }}
+			previous={{ path: '/learn/actions', label: 'Actions & optimistic state' }}
 			next={{ path: '/learn/server-execution', label: 'Server execution' }}
 		>
 			<section>

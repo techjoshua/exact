@@ -34,11 +34,16 @@ export type ExactCollectionMutation =
 /** Private operation contract attached to the component artifact that owns it. */
 export type ExactComponentContinuationContract = Readonly<{
 	id: string;
+	kind?: 'task' | 'action';
 	componentId: string;
 	readiness: 'blocking' | 'nonblocking';
 	dependencies: readonly Readonly<{
-		source: 'state' | 'props' | 'derived';
+		source: 'state' | 'props' | 'derived' | 'argument';
 	}>[];
+	invocation?: Readonly<{
+		arguments: readonly Readonly<{ source: 'argument' }>[];
+		concurrency: 'parallel' | 'latest' | 'queue';
+	}>;
 	stateReads: readonly ExactContinuationStatePathContract[];
 	stateWrites: readonly ExactContinuationStatePathContract[];
 	publicContexts: readonly string[];
@@ -54,6 +59,7 @@ export type ExactComponentContinuationActivation = Readonly<{
 	state: Record<string, unknown>;
 	dependencies: readonly unknown[];
 	publicContext: Readonly<Record<string, unknown>>;
+	generation?: number;
 }>;
 
 /** Trusted invocation resources available only while a server continuation executes. */
@@ -67,6 +73,7 @@ export type ExactComponentContinuationExecution = Readonly<{
 export type ExactComponentContinuationExecutionResult = Readonly<{
 	state: Record<string, unknown>;
 	contexts?: Readonly<Record<string, unknown>>;
+	value?: unknown;
 }>;
 
 /** Executable server half paired with one inert continuation descriptor. */
@@ -294,6 +301,7 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 	return (
 		hasOnlyKeys(value, [
 			'id',
+			'kind',
 			'componentId',
 			'readiness',
 			'dependencies',
@@ -303,9 +311,11 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 			'serverContexts',
 			'contextWrites',
 			'serverContextWrites',
-			'boundaries'
+			'boundaries',
+			'invocation'
 		]) &&
 		isString(value.id) &&
+		(value.kind === undefined || value.kind === 'task' || value.kind === 'action') &&
 		isString(value.componentId) &&
 		(value.readiness === 'blocking' || value.readiness === 'nonblocking') &&
 		Array.isArray(value.dependencies) &&
@@ -318,7 +328,24 @@ function isContinuation(value: unknown): value is ExactComponentContinuationCont
 		isSafeStringList(value.serverContexts) &&
 		isSafeStringList(value.contextWrites) &&
 		(value.serverContextWrites === undefined || isSafeStringList(value.serverContextWrites)) &&
-		isSafeStringList(value.boundaries)
+		isSafeStringList(value.boundaries) &&
+		(value.invocation === undefined || isInvocation(value.invocation))
+	);
+}
+
+/** Validates action-only invocation metadata attached to a continuation. */
+function isInvocation(value: unknown): boolean {
+	if (!isRecord(value)) return false;
+	return (
+		hasOnlyKeys(value, ['arguments', 'concurrency']) &&
+		Array.isArray(value.arguments) &&
+		value.arguments.every(
+			(argument) =>
+				isRecord(argument) && hasOnlyKeys(argument, ['source']) && argument.source === 'argument'
+		) &&
+		(value.concurrency === 'parallel' ||
+			value.concurrency === 'latest' ||
+			value.concurrency === 'queue')
 	);
 }
 
@@ -363,7 +390,10 @@ function isDependency(value: unknown): boolean {
 	return (
 		isRecord(value) &&
 		hasOnlyKeys(value, ['source']) &&
-		(value.source === 'state' || value.source === 'props' || value.source === 'derived')
+		(value.source === 'state' ||
+			value.source === 'props' ||
+			value.source === 'derived' ||
+			value.source === 'argument')
 	);
 }
 

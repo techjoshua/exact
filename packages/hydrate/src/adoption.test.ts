@@ -4,6 +4,7 @@
 import {
 	Fragment,
 	createCompiledVNode,
+	createComponentRegistry,
 	createDynamicChild,
 	createRef,
 	createVNode,
@@ -361,5 +362,35 @@ describe('@exactjs/hydrate adoption', () => {
 		hydrate(createVNode('p', null, 'ready'), container, { logger: noopLogger });
 
 		expect(container.querySelector('p')?.textContent).toBe('ready');
+	});
+
+	it('recovers a mismatched registry entry without replacing adjacent adopted DOM', () => {
+		function First() {
+			return () => createVNode('p', null, 'first');
+		}
+		function Second() {
+			return () => createVNode('p', null, 'second');
+		}
+		const View = createComponentRegistry(() => ({ first: First, second: Second }));
+		let selected: 'first' | 'second' = 'first';
+		function Parent() {
+			const Current = View[selected];
+			return () =>
+				createVNode(
+					Fragment,
+					null,
+					createVNode('span', null, 'stable'),
+					createVNode(Current, null)
+				);
+		}
+		const container = document.createElement('div');
+		container.innerHTML = renderToString(createVNode(Parent, null)).html;
+		const stable = container.querySelector('span');
+		selected = 'second';
+
+		hydrate(createVNode(Parent, null), container, { logger: noopLogger });
+
+		expect(container.querySelector('span')).toBe(stable);
+		expect(container.querySelector('p')?.textContent).toBe('second');
 	});
 });

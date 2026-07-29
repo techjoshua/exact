@@ -6,8 +6,8 @@ import {
 	type RefBinding
 } from '@exactjs/core';
 
-import { ControlRef, FieldContext } from './context.js';
-import type { LabelProps } from './contracts.js';
+import { ControlRef, FieldContext, FormContext } from './context.js';
+import type { LabelProps, SubmitProps } from './contracts.js';
 import { childrenArray, combineAsync, mergeIds } from './values.js';
 
 /** Performs the label domain operation. */
@@ -54,8 +54,26 @@ export function Select(this: Component<{}>, props: SelectProps) {
 export function Checkbox(this: Component<{}>, props: CheckboxProps) {
 	return controlComponent.call(this, 'input', { ...props, type: 'checkbox' });
 }
+/** Renders the form-owned native submit control and its accessible pending presentation. */
+export function Submit(this: Component<{}>, props: SubmitProps) {
+	const form = this.getContext(FormContext);
+	return () => {
+		const { children, pendingText, ...rest } = props;
+		return createVNode(
+			'button',
+			{
+				...rest,
+				type: props.type ?? 'submit',
+				disabled: form.submitting || props.disabled || undefined,
+				'aria-disabled': form.submitting || props['aria-disabled'] || undefined
+			},
+			...childrenArray(form.submitting && pendingText !== undefined ? pendingText : children)
+		);
+	};
+}
 
-for (const component of [Label, Input, Textarea, Select, Checkbox]) markExactComponent(component);
+for (const component of [Label, Input, Textarea, Select, Checkbox, Submit])
+	markExactComponent(component);
 
 function controlComponent(
 	this: Component<{}>,

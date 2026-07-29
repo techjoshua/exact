@@ -64,6 +64,32 @@ Props remain parent-owned inputs. Local mutable data belongs in `this.state`; de
 usually remain an ordinary compiler-observed expression or an explicit reactive value when a
 first-class value is useful.
 
+### Actions, interactions, and optimistic state
+
+Keep ordinary event and form callbacks when inferred interaction ownership is sufficient. Use
+`this.action()` when work needs a name, inspectable status, direct invocation, an explicit
+placement or priority, a concurrency policy, or synchronous optimistic state. Actions are
+setup-owned component resources; do not register them from render or recreate them per update.
+
+Optimistic work mutates `this.state` normally inside the action context's synchronous
+`optimistic()` callback. Do not introduce reducers, authored patches, shadow stores, or manual
+rollback to imitate another framework. Router work begun synchronously by an event, form, or action
+joins that interaction. Preserve opaque compiler operation identities and generation fencing
+across distributed actions.
+
+### Finite component registries
+
+Use `createComponentRegistry()` for dynamic selection from a finite set of native eXact
+components. Keep the registry in a named module-level `const`, use its scoped `lazy()` capability,
+derive keys with `KeyOf`, and narrow untrusted strings with `hasComponent()`. Do not mutate a
+registry, cast arbitrary strings into keys, build an application-local loader table, or treat
+authored names as protocol identity.
+
+Registry keys own component identity and lifecycle. Preserve same-key instances, replace
+different-key ranges, fence stale lazy candidates, and carry compiler-owned registry identity
+through SSR and hydration. React-owned values still cross the explicit compatibility boundary
+when ownership is not compiler-branded.
+
 ### JSX is source syntax, not the runtime architecture
 
 Familiar JSX should make eXact easy to read without importing React's semantics:

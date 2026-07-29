@@ -1,4 +1,12 @@
-import { Activity, Suspense, createVNode, stageTaskMutation, type Component } from '@exactjs/core';
+import {
+	Activity,
+	ErrorBoundary,
+	Suspense,
+	createVNode,
+	stageTaskMutation,
+	type Component,
+	type ErrorBoundaryFallbackProps
+} from '@exactjs/core';
 import { defineExactActionContract, defineExactBoundaryContract } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import {
@@ -189,6 +197,26 @@ describe('@exactjs/ssr rendering', () => {
 		expect(renderToString(createVNode(Broken, {}), { markers: false }).html).toContain(
 			'exact-error'
 		);
+	});
+
+	it('renders an error boundary fallback after async child construction fails', async () => {
+		function Broken(): never {
+			throw new Error('construction failed');
+		}
+
+		const result = await renderToStringAsync(
+			createVNode(
+				ErrorBoundary,
+				{
+					fallback: ({ error }: ErrorBoundaryFallbackProps) =>
+						createVNode('p', null, String(error.error))
+				},
+				createVNode(Broken, {})
+			),
+			{ markers: false }
+		);
+
+		expect(result.html).toBe('<p>Error: construction failed</p>');
 	});
 
 	it('waits for async tasks before rendering a component in async mode', async () => {

@@ -27,16 +27,24 @@ export function createComponentDomain(
 }
 
 /** Advances the server continuation registered for a compiled component task. */
-export function dispatchComponentContinuation(
+export function dispatchComponentContinuation<Result = void>(
 	instance: ComponentInstance<any>,
 	id: string,
 	dependencies: readonly unknown[],
 	signal: AbortSignal,
-	contextWrites: ComponentContinuationDispatch['contextWrites'] = []
-): Promise<void> {
+	contextWrites: ComponentContinuationDispatch['contextWrites'] = [],
+	generation?: number
+): Promise<Result> {
 	const dispatch = instance.domain.dispatchContinuation;
 	if (!dispatch) throw new Error(`No eXact continuation transport is registered for ${id}`);
-	return dispatch({ instance, id, dependencies, contextWrites, signal });
+	return dispatch({
+		instance,
+		id,
+		dependencies,
+		contextWrites,
+		signal,
+		...(generation === undefined ? {} : { generation })
+	}) as Promise<Result>;
 }
 
 /** Runs synchronous VNode creation with an explicit immutable component domain. */

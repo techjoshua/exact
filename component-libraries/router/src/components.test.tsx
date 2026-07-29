@@ -16,7 +16,7 @@ import {
 	type RequestResponseState
 } from '@exactjs/request';
 import { renderToString } from '@exactjs/ssr';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
 	createMemoryLocationSource,
 	Link,
@@ -270,8 +270,6 @@ describe('router', () => {
 		const container = document.createElement('div');
 		render(<App />, container);
 		container.querySelector('a')!.click();
-		await Promise.resolve();
-		await Promise.resolve();
-		expect(errors.errors[0]?.error).toEqual(new Error('link failed'));
+		await vi.waitFor(() => expect(errors.errors[0]?.error).toEqual(new Error('link failed')));
 	});
 });

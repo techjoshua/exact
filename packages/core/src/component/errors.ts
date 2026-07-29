@@ -90,13 +90,14 @@ function createErrorReportFromOptions(
 /** Routes a component error to the nearest error context or installs the default fallback view. */
 export function handleComponentError(
 	instance: ComponentInstance<any> | undefined,
-	event: ErrorReport
+	event: ErrorReport,
+	errorOwner: ComponentInstance<any> | null | undefined = instance
 ): RenderFunction | undefined {
 	let cursor = instance;
 	while (cursor) {
 		if (cursor.contexts.has(ErrorContext.id)) {
 			const context = unwrap(cursor.contexts.get(ErrorContext.id)) as ErrorContextValue;
-			if (context.boundary === instance) {
+			if (context.boundary === errorOwner) {
 				cursor = cursor.parent;
 				continue;
 			}

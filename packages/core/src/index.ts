@@ -28,6 +28,19 @@ export {
 export { normalizeActivityMode } from './activity.js';
 export { observeComponentAsync, trackComponentAsync } from './component/async.js';
 export {
+	cancelComponentInteractions,
+	currentInteraction,
+	interactionAwait,
+	interactionMutation,
+	isInteractionCancellation,
+	joinCurrentInteraction,
+	runComponentInteraction,
+	InteractionCancellation,
+	type InteractionPriority,
+	type InteractionScope,
+	type InteractionSource
+} from './interaction/execution.js';
+export {
 	createComponentDomain,
 	currentComponentDomain,
 	dispatchComponentContinuation,
@@ -44,6 +57,44 @@ export {
 	ReadinessContext,
 	SuspensionContext
 } from './component/contexts.js';
+export {
+	ErrorBoundary,
+	type ErrorBoundaryFallbackProps,
+	type ErrorBoundaryProps
+} from './component/error-boundary.js';
+export {
+	interactionHandler,
+	type ActionConcurrency,
+	type ActionContext,
+	type ActionPlacementRequest,
+	type ComponentAction,
+	type ComponentActionFactory,
+	type ComponentActionInspection,
+	type ComponentActionRegistration,
+	type InteractionHandler
+} from './component/action-contracts.js';
+export { inspectComponentActions } from './component/action-api.js';
+export {
+	createCompiledComponentRegistry,
+	createComponentRegistry,
+	hasComponent,
+	inspectComponentRegistry,
+	preloadComponent,
+	renderComponent
+} from './component-registry/creation.js';
+export type {
+	ComponentProps,
+	ComponentRegistry,
+	ComponentRegistryBuilder,
+	ComponentRegistryDefinition,
+	ComponentRegistryDefinitionEntry,
+	ComponentRegistryInspection,
+	ComponentSelection,
+	KeyOf,
+	LazyRegistryEntry,
+	ResolveRegistryDefinition,
+	ResolveRegistryEntry
+} from './component-registry/contracts.js';
 export {
 	componentReadinessContext,
 	createReadinessCoordinator,

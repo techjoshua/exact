@@ -21,6 +21,52 @@ inactive mounted subtree in `parked` or deferred `background` mode. Task policy 
 `this.task.server.deferred.blocking(...)` independently selects placement, scheduling priority,
 and readiness.
 
+Use `this.action()` for named, inspectable component work with `parallel`, `latest`, or `queue`
+concurrency. Placement and scheduling facets compose:
+
+```tsx
+const save = this.action.server.deferred(
+	'save profile',
+	async (profile, { optimistic, signal }) => {
+		optimistic(() => {
+			this.state.profile = profile;
+		});
+		this.state.profile = await repository.save(profile, { signal });
+	},
+	'latest'
+);
+```
+
+The returned action exposes reactive pending/result/error status and owns cancellation,
+optimistic rollback, and component disposal. `inspectComponentActions()` returns immutable
+diagnostic snapshots without exposing work callbacks or protocol IDs.
+
+`createComponentRegistry()` declares a finite immutable set of eager and lazy components.
+Registry members are stable component facades, `KeyOf<typeof Registry>` derives the key union,
+`hasComponent()` narrows untrusted strings, and `preloadComponent()` deduplicates lazy loading.
+Compiled registries carry opaque identity into SSR/hydration markers; a mismatched selected entry
+is recovered inside its own range. `inspectComponentRegistry()` reports entry mode, status, and
+load generation without exposing loaders.
+
+`ErrorBoundary` supplies an application-level recovery point without requiring every project to
+rebuild `ErrorContext` plumbing:
+
+```tsx
+<ErrorBoundary
+	fallback={({ error, reset }) => (
+		<section role="alert">
+			<p>{String(error.error)}</p>
+			<button onClick={reset}>Try again</button>
+		</section>
+	)}
+>
+	<App />
+</ErrorBoundary>
+```
+
+Omit `fallback` for the framework's simple report-and-retry view. Use `ErrorContext` and
+`createErrorContext()` directly when an application needs different capture or reporting behavior.
+
 Renderer packages share `normalizeClassValue()` so native DOM updates, SSR markup, and hydration
 apply the same ordered string, nested-array, truthy-map, and reactive-value class contract.
 Application TSX normally reaches that helper through compiled `className` values rather than
@@ -30,3 +76,6 @@ Reactive component state supports ordinary `Map` and `Set` reads, iteration, and
 Hydration and server operations encode them as tagged JSON values and restore real collections;
 generated continuations use ordered entry deltas so a changed Map key or Set membership does not
 require returning the complete collection.
+
+Current guides: [actions and forms](../../docs/actions-and-forms.md) and
+[finite component registries](../../docs/component-registries.md).

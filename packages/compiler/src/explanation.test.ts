@@ -73,4 +73,69 @@ describe('@exactjs/compiler explanation', () => {
 			}).explanation
 		).toBeUndefined();
 	});
+
+	it('explains component registry entry provenance and artifact targets', () => {
+		const result = transformSource(
+			`
+				function Grid() { return () => <p>grid</p>; }
+				const Widget = createComponentRegistry(({ lazy }) => ({
+					grid: Grid,
+					table: lazy(() => import('./table.js').then(({ Table }) => Table))
+				}));
+			`,
+			{
+				filename: path.join(process.cwd(), 'registry-explanation.fixture.tsx'),
+				explain: true
+			}
+		);
+
+		expect(result.explanation?.registries).toEqual([
+			expect.objectContaining({
+				name: 'Widget',
+				entries: [
+					expect.objectContaining({
+						key: 'grid',
+						mode: 'eager',
+						componentName: 'Grid'
+					}),
+					expect.objectContaining({
+						key: 'table',
+						mode: 'lazy',
+						moduleSpecifier: './table.js',
+						exportName: 'Table'
+					})
+				]
+			})
+		]);
+	});
+
+	it('keeps action labels diagnostic while explaining invocation policy', () => {
+		const result = transformSource(
+			`
+				export function Editor(this: Component<{ title: string }>) {
+					this.action.server(
+						"save title",
+						async (title: string) => {
+							this.state.title = title;
+						},
+						"latest"
+					);
+					return () => <p>{this.state.title}</p>;
+				}
+			`,
+			{
+				filename: path.join(process.cwd(), 'action-explanation.fixture.tsx'),
+				explain: true
+			}
+		);
+
+		expect(result.explanation?.components[0]?.continuations[0]).toMatchObject({
+			kind: 'action',
+			label: 'save title',
+			invocation: {
+				concurrency: 'latest',
+				arguments: [0]
+			}
+		});
+	});
 });
