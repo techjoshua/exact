@@ -21,12 +21,19 @@ looping over `transformSource()`. Keep it `noEmit`, synchronize unsaved overlays
 with monotonically increasing document versions, discard cancelled or stale
 generations, and dispose the service with its project owner. Treat source entity
 IDs as generation-local diagnostic correlation only.
+Keep native UTF-8 byte spans behind the language-service boundary and publish
+only normalized UTF-16 `ExactSourceRange` offsets.
 
 Request task refactors from the compiler and apply only plans matching the
 current generation. Do not reproduce placement, readiness, dependency, signal,
 resource, or equivalence analysis in an LSP or editor package. Keep optional
 inspection catalogs server-owned and set `emitInspection: false` for hardened
 builds.
+
+Preserve native render-edge identity, placement, and boundary facts on JSX
+render-expression inspections. Keep the entity range on the element and its
+selection range on the authored tag so editor hovers describe the referenced
+component without inheriting the containing component's semantics.
 
 Keep `this.action()` registrations in setup and preserve compiler-generated action identifiers,
 argument slots, generations, placement, and optimistic preludes. Authored labels are diagnostics,

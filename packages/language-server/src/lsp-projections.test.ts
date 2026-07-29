@@ -103,6 +103,57 @@ describe('language-server projections', () => {
 		});
 	});
 
+	it('explains the referenced component instead of its containing component', () => {
+		const source = 'function Page() { return () => <CalculatorWorkspace />; }';
+		const inspection = fixture(source);
+		const component = inspection.components[0]!;
+		const tagRange = sourceRange(source, 'CalculatorWorkspace');
+		const elementRange = {
+			start: tagRange.start - 1,
+			end: source.indexOf('/>', tagRange.end) + 2
+		};
+		const renderExpression: ExactSourceEntity = {
+			id: 'Page:render:0',
+			kind: 'render-expression',
+			name: 'CalculatorWorkspace',
+			range: elementRange,
+			selectionRange: tagRange,
+			children: [],
+			classification: {
+				kind: 'render',
+				execution: 'reactive',
+				dependencies: [],
+				effects: [],
+				referencedComponent: {
+					id: 'CalculatorWorkspace',
+					placement: 'client',
+					boundary: 'client'
+				}
+			},
+			reasons: []
+		};
+		const preciseInspection: ExactSourceInspection = {
+			...inspection,
+			components: [{ ...component, children: [...component.children, renderExpression] }]
+		};
+
+		const hover = projectHover(preciseInspection, source, {
+			line: 0,
+			character: tagRange.start + 2
+		});
+		expect(hover?.contents).toMatchObject({
+			kind: 'markdown',
+			value: expect.stringMatching(/CalculatorWorkspace[\s\S]+client component/)
+		});
+		expect(hover?.contents).not.toMatchObject({
+			value: expect.stringContaining('Page')
+		});
+		expect(hover?.range).toEqual({
+			start: { line: 0, character: tagRange.start },
+			end: { line: 0, character: tagRange.end }
+		});
+	});
+
 	it('places badges after authored source instead of inside selected tokens', () => {
 		const source = [
 			'function Page() {',

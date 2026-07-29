@@ -10,6 +10,9 @@ workspace service during folder removal and shutdown.
 
 Prefer standard LSP capabilities. Add a custom request only when structured
 component semantics cannot be represented by an existing protocol feature.
+For JSX component references, project the compiler's render-expression entity
+and tag selection range; never substitute the containing component's placement
+or infer placement from TypeScript hover text.
 Project inlay metadata only at line edges, never inside an authored token.
 Compose badge label parts by semantic fact, give each part a focused hover, omit
 default facts when that reduces noise, and keep the complete classification and

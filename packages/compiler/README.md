@@ -12,8 +12,12 @@ continuation explanations, and the CLI.
 Editor and agent integrations can use `createExactLanguageService()` for a
 long-lived, asynchronous, no-emit project. Unsaved overlays produce immutable
 generations, compiler-owned component regions and inference reasons, rich eXact
-diagnostics, and version-bound task refactor plans. The service never writes
-JavaScript, manifests, maps, or catalogs:
+diagnostics, referenced JSX component placement and boundaries, and
+version-bound task refactor plans. The service never writes JavaScript,
+manifests, maps, or catalogs:
+
+Native UTF-8 byte spans are normalized to the public UTF-16 source-range
+contract before inspection data is returned.
 
 ```ts
 const language = createExactLanguageService({ root, noEmit: true });

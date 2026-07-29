@@ -103,9 +103,20 @@ registrations, and registry selections.
 
 Each entity has a complete `range`, a small `selectionRange`, compiler-local
 identity, children, a normalized classification, and typed inference reasons.
+Native UTF-8 byte positions are normalized to the UTF-16 offsets used by
+TypeScript and LSP before any range is published, so preceding Unicode text
+cannot shift a hover or diagnostic.
 Entity IDs are valid only within the owning project generation. They are not
 action IDs, continuation dispatch IDs, hydration identities, cross-build
 identifiers, package ABI, or authorization capabilities.
+
+A JSX render expression that resolves to an eXact component retains the native
+render edge as `referencedComponent`, including its compiler-local identity,
+placement, and boundary classification. Hovering the authored JSX tag therefore
+explains the referenced component—such as a client component rendered by a
+server parent—instead of falling back to the containing component's placement.
+Intrinsic elements and unresolved external component values do not invent this
+metadata.
 
 Task classifications expose:
 

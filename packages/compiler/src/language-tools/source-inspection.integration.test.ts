@@ -29,6 +29,52 @@ describe('compiler source inspection', () => {
 		);
 		await service.dispose();
 	});
+
+	it('preserves referenced component placement in multiline JSX render expressions', async () => {
+		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
+		try {
+			const source = `function CalculatorWorkspace(this: Component<{}>) {
+	document.title = 'Calculator';
+	return () => <section>Workspace</section>;
+}
+
+export function ShippingCalculatorPage(this: Component<{}>) {
+	return () => (
+		<main>
+			<p>Ready · launch 🚀</p>
+			<CalculatorWorkspace />
+		</main>
+	);
+}`;
+			await service.synchronize([{ kind: 'upsert', filename: 'Page.tsx', version: 1, source }]);
+			const inspection = await service.inspect('Page.tsx');
+			const page = inspection.components.find(
+				(component) => component.name === 'ShippingCalculatorPage'
+			);
+			const workspace = page?.children
+				.flatMap(flatten)
+				.find((entity) => entity.name === 'CalculatorWorkspace');
+
+			expect(workspace).toMatchObject({
+				kind: 'render-expression',
+				classification: {
+					kind: 'render',
+					referencedComponent: {
+						placement: 'client',
+						boundary: 'client'
+					}
+				}
+			});
+			expect(source.slice(workspace!.range.start, workspace!.range.end)).toContain(
+				'<CalculatorWorkspace'
+			);
+			expect(source.slice(workspace!.selectionRange.start, workspace!.selectionRange.end)).toBe(
+				'CalculatorWorkspace'
+			);
+		} finally {
+			await service.dispose();
+		}
+	});
 });
 
 function flatten(entity: ExactSourceEntity): ExactSourceEntity[] {

@@ -9,6 +9,11 @@ semantics tree, and a read-only compiler-separation view.
 The extension does not parse or classify eXact source. All semantic labels,
 reasons, edits, and diagnostics come from `@exactjs/compiler`.
 
+Hovering an authored JSX component tag presents the referenced component's
+compiler-resolved placement and boundary. This distinguishes, for example, a
+client child element from the server component that contains it while leaving
+VS Code's TypeScript symbol information intact.
+
 Setup, task, and action inlay metadata is rendered after the authored source on
 its line, so it does not interrupt TypeScript syntax highlighting. Composable
 badges distinguish kind (`⚙`, `📋`, `▶`), inference (`⚡`), placement (`🖥`,

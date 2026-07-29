@@ -101,6 +101,11 @@ export type ExactRenderClassification = Readonly<{
 	execution: 'reactive';
 	dependencies: readonly ExactSourceDependency[];
 	effects: readonly ExactSourceEffect[];
+	referencedComponent?: Readonly<{
+		id?: string;
+		placement: ExactPlacement;
+		boundary: ExactPlacement;
+	}>;
 }>;
 
 /** Normalized semantics of inferred or explicitly registered task work. */

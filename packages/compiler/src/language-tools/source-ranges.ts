@@ -66,11 +66,27 @@ export function findReturnedRender(
 	const match = matches.at(-1);
 	if (!match) return undefined;
 	const start = componentRange.start + match.index;
-	const end = statementEnd(source, start + match[0].length);
+	const expressionStart = skipWhitespace(source, start + match[0].length);
+	const expressionEnd =
+		source[expressionStart] === '('
+			? findMatchingDelimiter(source, expressionStart, '(', ')')
+			: source[expressionStart] === '{'
+				? findMatchingDelimiter(source, expressionStart, '{', '}')
+				: undefined;
+	const end = statementEnd(
+		source,
+		expressionEnd === undefined ? expressionStart : expressionEnd + 1
+	);
 	return Object.freeze({
 		range: Object.freeze({ start, end }),
 		selectionRange: Object.freeze({ start, end: start + 'return'.length })
 	});
+}
+
+function skipWhitespace(source: string, offset: number): number {
+	let current = offset;
+	while (current < source.length && /\s/.test(source[current]!)) current++;
+	return current;
 }
 
 /** Returns the first authored position inside a component body. */
@@ -89,13 +105,51 @@ export function findBodyStart(source: string, range: ExactSourceRange): number {
 	return start >= 0 && start < range.end ? start + 1 : range.start;
 }
 
-/** Clamps one native offset/length pair to the current authored source. */
+/**
+ * Converts and clamps one native UTF-8 byte span to the authored UTF-16 source contract.
+ *
+ * The native TypeScript-Go process reports AST positions as UTF-8 byte offsets, while JavaScript,
+ * LSP, and `ExactSourceRange` use UTF-16 code units.
+ */
 export function clampRange(source: string, start: number, length: number): ExactSourceRange {
-	const safeStart = Math.max(0, Math.min(source.length, start));
+	const offsets = utf8ToUtf16Offsets(source);
+	const safeStart = Math.max(0, Math.min(offsets.length - 1, start));
+	const safeEnd = Math.max(
+		safeStart,
+		Math.min(offsets.length - 1, safeStart + Math.max(0, length))
+	);
 	return Object.freeze({
-		start: safeStart,
-		end: Math.max(safeStart, Math.min(source.length, safeStart + Math.max(0, length)))
+		start: offsets[safeStart]!,
+		end: offsets[safeEnd]!
 	});
+}
+
+let cachedOffsetSource: string | undefined;
+let cachedUtf8ToUtf16Offsets: readonly number[] = [];
+
+/**
+ * Builds a byte-boundary lookup while retaining only the most recently inspected source.
+ *
+ * Source inspection converts many ranges synchronously for one document, so the bounded cache
+ * avoids rescanning that document without retaining superseded overlays or whole projects.
+ */
+function utf8ToUtf16Offsets(source: string): readonly number[] {
+	if (source === cachedOffsetSource) return cachedUtf8ToUtf16Offsets;
+	const offsets: number[] = [0];
+	let byteOffset = 0;
+	let utf16Offset = 0;
+	for (const character of source) {
+		const codePoint = character.codePointAt(0)!;
+		const byteLength = codePoint <= 0x7f ? 1 : codePoint <= 0x7ff ? 2 : codePoint <= 0xffff ? 3 : 4;
+		for (let byte = 1; byte <= byteLength; byte++)
+			offsets[byteOffset + byte] =
+				byte === byteLength ? utf16Offset + character.length : utf16Offset;
+		byteOffset += byteLength;
+		utf16Offset += character.length;
+	}
+	cachedOffsetSource = source;
+	cachedUtf8ToUtf16Offsets = offsets;
+	return offsets;
 }
 
 /** Locates authored text within a bounded semantic source range. */

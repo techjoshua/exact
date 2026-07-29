@@ -153,15 +153,22 @@ function renderEntity(
 					.filter((element) =>
 						contains(returned.range, clampRange(source, element.start, element.length))
 					)
-					.map((element, index) =>
-						renderExpression(
+					.map((element, index) => {
+						const elementRange = clampRange(source, element.start, element.length);
+						const edge = component.renderEdges.find(
+							(candidate) =>
+								candidate.path === String(element.start) && candidate.tag === element.tag
+						);
+						return renderExpression(
 							component.id,
 							index,
 							element.tag,
-							clampRange(source, element.start, element.length),
-							dependencies
-						)
-					),
+							elementRange,
+							findTextRange(source, element.tag, elementRange) ?? elementRange,
+							dependencies,
+							edge
+						);
+					}),
 				...ownedChildren
 			].sort((left, right) => left.range.start - right.range.start)
 		),
@@ -190,14 +197,16 @@ function renderExpression(
 	index: number,
 	tag: string,
 	range: Readonly<{ start: number; end: number }>,
-	dependencies: ReturnType<typeof stateDependencies>
+	selectionRange: Readonly<{ start: number; end: number }>,
+	dependencies: ReturnType<typeof stateDependencies>,
+	edge: NativeCompilerComponent['renderEdges'][number] | undefined
 ): ExactSourceEntity {
 	return Object.freeze({
 		id: `${componentId}:render:${index}`,
 		kind: 'render-expression',
 		name: tag,
 		range,
-		selectionRange: range,
+		selectionRange,
 		children: Object.freeze([]),
 		classification: Object.freeze({
 			kind: 'render',
@@ -205,7 +214,16 @@ function renderExpression(
 			dependencies: Object.freeze(
 				dependencies.filter((dependency) => contains(range, dependency.range))
 			),
-			effects: Object.freeze([])
+			effects: Object.freeze([]),
+			...(edge
+				? {
+						referencedComponent: Object.freeze({
+							...(edge.componentId ? { id: edge.componentId } : {}),
+							placement: edge.placement,
+							boundary: edge.boundary
+						})
+					}
+				: {})
 		}),
 		reasons: Object.freeze([])
 	});

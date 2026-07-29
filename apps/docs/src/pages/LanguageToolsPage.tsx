@@ -157,6 +157,12 @@ export function LanguageToolsPage(this: Component<{}>) {
 					and compiler reasons.
 				</p>
 				<p>
+					Hovering a component JSX tag describes that referenced component rather than merely the
+					containing component. For example, a client component rendered from a server page reports
+					its client placement and boundary at the tag while retaining TypeScript's ordinary symbol
+					hover alongside it.
+				</p>
+				<p>
 					The language server installs negotiated listeners only after the LSP initialization
 					handshake. Clients without workspace-folder change support continue as stable single-root
 					sessions.

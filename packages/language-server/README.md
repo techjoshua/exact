@@ -29,6 +29,11 @@ Custom requests:
 The server analyzes in memory. It never emits JavaScript, manifests, maps, or
 inspection catalogs.
 
+JSX component-tag hovers project the referenced component's compiler-owned
+placement and boundary classification. Their hover range is limited to the
+authored tag, so a client child rendered by a server parent is identified as the
+client child rather than described with the parent's server reasons.
+
 Important setup, task, and action facts are projected as composable inlay badges
 at the end of the relevant authored line. Badge placement never splits a source
 token. The vocabulary is `⚙` initialization, `📋` task, `▶` action, `⚡`
