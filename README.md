@@ -145,6 +145,12 @@ npm run build
 npm run dev:sudoku
 ```
 
+To build and open the VS Code language-tools Extension Development Host:
+
+```sh
+npm run dev:vscode-extension
+```
+
 ## Work on eXact
 
 This repository is an npm workspace monorepo containing the compiler, runtimes, integrations,

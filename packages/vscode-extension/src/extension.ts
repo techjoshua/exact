@@ -4,7 +4,6 @@ import type {
 	ExactProjectStatusResult,
 	ExactSourceEntity
 } from '@exactjs/language-server';
-import path from 'node:path';
 import * as vscode from 'vscode';
 import {
 	LanguageClient,
@@ -12,6 +11,7 @@ import {
 	type LanguageClientOptions,
 	type ServerOptions
 } from 'vscode-languageclient/node.js';
+import { resolveExactLanguageServerModule } from './server-module.js';
 
 let client: LanguageClient | undefined;
 
@@ -19,9 +19,7 @@ let client: LanguageClient | undefined;
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
 	const configuration = vscode.workspace.getConfiguration('exact.languageTools');
 	if (!configuration.get('enabled', true)) return;
-	const serverModule = context.asAbsolutePath(
-		path.join('node_modules', '@exactjs', 'language-server', 'dist', 'server.js')
-	);
+	const serverModule = resolveExactLanguageServerModule(import.meta.url);
 	const serverOptions: ServerOptions = {
 		run: { module: serverModule, transport: TransportKind.stdio },
 		debug: { module: serverModule, transport: TransportKind.stdio }

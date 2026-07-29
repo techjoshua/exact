@@ -11,3 +11,17 @@ reasons, edits, and diagnostics come from `@exactjs/compiler`.
 
 Compiler execution is enabled only in trusted workspaces. Source and inspection
 data remain local. Presentation settings never change compiler meaning.
+
+## Run from this repository
+
+From the repository root, build the language server and extension and open a
+fresh Extension Development Host with:
+
+```sh
+npm run dev:vscode-extension
+```
+
+The launcher supports `--code code-insiders`, `--workspace <path>`,
+`--skip-build`, and `--dry-run`. `EXACT_VSCODE_COMMAND` may also select another
+VS Code CLI. The extension resolves `@exactjs/language-server` from packaged or
+workspace-hoisted dependencies, so no local `node_modules` junction is needed.

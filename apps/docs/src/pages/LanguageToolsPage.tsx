@@ -65,6 +65,11 @@ const settingsSource = `{
   "exact.languageTools.trace.server": "off"
 }`;
 
+const extensionLauncherSource = `npm run dev:vscode-extension
+
+# VS Code Insiders or a focused sample workspace
+npm run dev:vscode-extension -- --code code-insiders --workspace apps/kanban`;
+
 /** Documents compiler-owned editor semantics, diagnostics, and task refactors. */
 export function LanguageToolsPage(this: Component<{}>) {
 	return () => (
@@ -147,6 +152,20 @@ export function LanguageToolsPage(this: Component<{}>) {
 					Presentation choices never change compiler semantics. In untrusted workspaces the
 					extension does not execute workspace binaries, configuration modules, or plugins. Source,
 					diagnostics, and inspection facts remain local.
+				</p>
+			</section>
+			<section>
+				<h2>Run the extension from a checkout</h2>
+				<CodeBlock
+					source={extensionLauncherSource}
+					language="sh"
+					title="Extension Development Host"
+				/>
+				<p>
+					The launcher builds the language server and VS Code client, resolves the workspace-hoisted
+					server dependency, and opens a fresh development host. Use <code>--skip-build</code> when
+					reusing current output or <code>--dry-run</code> to inspect the launch plan. Trust the
+					opened workspace and open a TypeScript or TSX file to activate eXact Language Tools.
 				</p>
 			</section>
 			<Callout title="One compiler authority">

@@ -8,6 +8,7 @@ import {
 import path from 'node:path';
 import type { ExactBunDebugOptions, ExactBunPluginOptions } from './plugin.js';
 
+/** Compiler output retained only until one Bun server catalog is emitted. */
 export type ExactBunInspectionModule = Readonly<{
 	inspection: ExactSourceInspection;
 	manifest: ExactCompilerManifest;

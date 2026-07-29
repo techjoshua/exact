@@ -8,3 +8,8 @@ Respect `vscode.workspace.isTrusted` when starting semantic analysis. Apply
 only generation/version-bound workspace edits returned by the language server.
 Keep region decorations optional and restrained, and use the structured custom
 requests for the semantics tree rather than parsing hover Markdown.
+
+Use `npm run dev:vscode-extension` from the repository root for development.
+Keep the launcher responsible for building both process owners and opening the
+Extension Development Host; keep dependency-layout resolution inside the
+extension so development never requires hand-authored `node_modules` links.
