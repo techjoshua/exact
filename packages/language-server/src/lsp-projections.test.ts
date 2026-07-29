@@ -14,23 +14,12 @@ describe('language-server projections', () => {
 		const inspection = fixture(source);
 
 		expect(projectDocumentSymbols(inspection, source)[0]?.name).toBe('Page');
-		expect(projectCodeLenses(inspection, source).map((lens) => lens.command?.title)).toEqual(
-			expect.arrayContaining([
-				expect.stringContaining('eXact component'),
-				expect.stringContaining('Inferred blocking server task')
-			])
-		);
-		const hints = projectInlayHints(inspection, source);
-		expect(hints.map((hint) => badgeValues(hint.label))).toEqual([
-			['⚙', '⇄'],
-			['📋', '⚡', '🖥']
+		expect(projectCodeLenses(inspection, source).map((lens) => lens.command?.title)).toEqual([
+			'eXact · 1 task'
 		]);
-		expect(hints.every((hint) => hint.position.character === source.length)).toBe(true);
+		const hints = projectInlayHints(inspection, source);
+		expect(hints.map((hint) => badgeValues(hint.label))).toEqual([['📋', '⚡', '🖥']]);
 		expect(hints[0]?.tooltip).toMatchObject({
-			kind: 'markdown',
-			value: expect.stringContaining('Initialization')
-		});
-		expect(hints[1]?.tooltip).toMatchObject({
 			kind: 'markdown',
 			value: expect.stringContaining('Inferred task')
 		});
@@ -85,19 +74,18 @@ describe('language-server projections', () => {
 
 		const hints = projectInlayHints(compositeInspection, source);
 		expect(hints.map((hint) => badgeValues(hint.label))).toEqual([
-			['⚙', '⇄'],
 			['📋', '🖥', '⏳', '🚨'],
 			['▶', '🖥']
 		]);
-		expect(badgeParts(hints[1]?.label)[2]?.tooltip).toMatchObject({
+		expect(badgeParts(hints[0]?.label)[2]?.tooltip).toMatchObject({
 			kind: 'markdown',
 			value: expect.stringContaining('Deferred priority')
 		});
-		expect(badgeParts(hints[2]?.label)[0]?.tooltip).toMatchObject({
+		expect(badgeParts(hints[1]?.label)[0]?.tooltip).toMatchObject({
 			kind: 'markdown',
 			value: expect.stringContaining('Action')
 		});
-		expect(hints[2]?.tooltip).toMatchObject({
+		expect(hints[1]?.tooltip).toMatchObject({
 			kind: 'markdown',
 			value: expect.stringContaining('latest')
 		});
@@ -164,7 +152,7 @@ describe('language-server projections', () => {
 		).toEqual([{ text: 'Page', type: 0 }]);
 	});
 
-	it('places badges after authored source instead of inside selected tokens', () => {
+	it('places call badges after the opening parenthesis', () => {
 		const source = [
 			'function Page() {',
 			'\tthis.task(async () => {});',
@@ -190,7 +178,17 @@ describe('language-server projections', () => {
 							children: [
 								{
 									...task,
-									selectionRange: { start: taskOffset, end: taskOffset + 4 }
+									kind: 'explicit-task',
+									range: {
+										start: source.indexOf('this.task'),
+										end: source.indexOf(';', source.indexOf('this.task')) + 1
+									},
+									selectionRange: { start: taskOffset, end: taskOffset + 4 },
+									classification: {
+										...task.classification!,
+										kind: 'task',
+										origin: 'explicit'
+									}
 								}
 							]
 						}
@@ -200,10 +198,67 @@ describe('language-server projections', () => {
 		};
 
 		const hints = projectInlayHints(rangedInspection, source);
-		expect(hints.map((hint) => hint.position)).toEqual([
-			{ line: 0, character: 'function Page() {'.length },
-			{ line: 1, character: '\tthis.task(async () => {});'.length }
-		]);
+		expect(hints.map((hint) => hint.position)).toEqual([{ line: 1, character: 11 }]);
+	});
+
+	it('places assignment badges before the assignment and explains the specific write', () => {
+		const source = 'function Page() {\n\tthis.state.total = this.state.price * 2;\n}';
+		const inspection = fixture(source);
+		const assignmentStart = source.indexOf('this.state.total');
+		const assignmentEnd = source.indexOf(';', assignmentStart) + 1;
+		const initializer = inspection.components[0]!.children[0]!;
+		const assignment: ExactSourceEntity = {
+			id: 'Page:state-assignment:0',
+			kind: 'state-assignment',
+			name: 'state.total',
+			range: { start: assignmentStart, end: assignmentEnd },
+			selectionRange: { start: assignmentStart, end: assignmentStart + 'this.state.total'.length },
+			children: [],
+			classification: {
+				kind: 'state-assignment',
+				execution: 'deferred-reactive',
+				dependencies: [
+					{
+						kind: 'state',
+						path: 'state.price',
+						range: sourceRange(source, 'this.state.price'),
+						confidence: 'exact'
+					}
+				],
+				effect: {
+					kind: 'state-write',
+					path: 'state.total',
+					range: { start: assignmentStart, end: assignmentStart + 'this.state.total'.length },
+					confidence: 'exact'
+				}
+			},
+			reasons: []
+		};
+		const precise: ExactSourceInspection = {
+			...inspection,
+			components: [
+				{
+					...inspection.components[0]!,
+					children: [{ ...initializer, children: [assignment] }]
+				}
+			]
+		};
+
+		const [hint] = projectInlayHints(precise, source);
+		expect(hint?.position).toEqual({ line: 1, character: 1 });
+		expect(badgeValues(hint!.label)).toEqual(['⚡']);
+		expect(hint?.tooltip).toMatchObject({
+			kind: 'markdown',
+			value: expect.stringMatching(/state\.total[\s\S]+deferred reactive assignment/i)
+		});
+	});
+
+	it('does not claim hover ownership across a containing function or task body', () => {
+		const source = 'function Page() { this.task(() => inner(value)); }';
+		const inspection = fixture(source);
+		const inner = source.indexOf('inner');
+
+		expect(projectHover(inspection, source, { line: 0, character: inner })).toBeUndefined();
 	});
 });
 
@@ -256,7 +311,7 @@ function fixture(source: string): ExactSourceInspection {
 	return {
 		generation: 1,
 		filename: 'Page.tsx',
-		compiler: { typescriptVersion: '7.0.0', backendVersion: '1.24.0' },
+		compiler: { typescriptVersion: '7.0.0', backendVersion: '1.25.0' },
 		diagnostics: [],
 		components: [
 			{

@@ -86,6 +86,40 @@ export function ShippingCalculatorPage(this: Component<{}>) {
 		}
 	});
 
+	it('classifies individual setup assignments as initialization or deferred reactive work', async () => {
+		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
+		const source = `import type { Component } from '@exactjs/core';
+export function Summary(
+	this: Component<{ base: number; total: number }>,
+	{ multiplier }: { multiplier: number }
+) {
+	this.state.base = 2;
+	this.state.total = this.state.base * multiplier;
+	return () => null;
+}`;
+		try {
+			await service.synchronize([{ kind: 'upsert', filename: 'Summary.tsx', version: 1, source }]);
+			const inspection = await service.inspect('Summary.tsx');
+			const assignments = inspection.components
+				.flatMap(flatten)
+				.filter((entity) => entity.classification?.kind === 'state-assignment');
+
+			expect(assignments.map((entity) => entity.name)).toEqual(['state.base', 'state.total']);
+			expect(
+				assignments.map((entity) =>
+					entity.classification?.kind === 'state-assignment'
+						? entity.classification.execution
+						: undefined
+				)
+			).toEqual(['once-per-instance', 'deferred-reactive']);
+			expect(
+				source.slice(assignments[0]!.selectionRange.start, assignments[0]!.selectionRange.end)
+			).toBe('this.state.base');
+		} finally {
+			await service.dispose();
+		}
+	});
+
 	it('publishes only current framework diagnostics across consecutive edits', async () => {
 		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
 		const clean = `import type { Component } from '@exactjs/core';

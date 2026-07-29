@@ -1930,6 +1930,41 @@ func TestSessionCollectsDirectComponentStateWrites(t *testing.T) {
 	}
 }
 
+func TestSessionClassifiesSetupStateAssignments(t *testing.T) {
+	response := NewSession(nil).Execute(Request{
+		ID:   "component.tsx",
+		Kind: "analyze",
+		Source: `
+			declare function peek<T>(read: () => T): T;
+			function Counter(
+				this: Component<{ initial: number; snapshot: number; derived: number; task: number }>,
+				{ value }: { value: number },
+			) {
+				this.state.initial = 1;
+				this.state.snapshot = peek(() => value);
+				this.state.derived = value * 2;
+				this.task(() => {
+					this.state.task = value;
+				});
+				return () => null;
+			}
+		`,
+	})
+	if response.Error != "" {
+		t.Fatal(response.Error)
+	}
+	writes := response.Analysis.StateWrites
+	if len(writes) != 4 {
+		t.Fatalf("received %d state writes, expected 4: %#v", len(writes), writes)
+	}
+	expected := []string{"initialization", "initialization", "deferred-reactive", ""}
+	for index, execution := range expected {
+		if writes[index].SetupExecution != execution {
+			t.Fatalf("unexpected setup execution for write %d: %#v", index, writes[index])
+		}
+	}
+}
+
 func TestSessionLowersMapAndSetStateMutations(t *testing.T) {
 	response := NewSession(nil).Execute(Request{
 		ID:   "component.tsx",

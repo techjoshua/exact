@@ -39,6 +39,16 @@ export function entityFacts(entity: ExactSourceEntity): string[] {
 			`Runs as a named **${classification.placement}** action.`,
 			`Concurrency: **${classification.concurrency}**.`
 		];
+	if (classification.kind === 'state-assignment')
+		return [
+			classification.execution === 'once-per-instance'
+				? `Initializes \`${classification.effect.path}\` **once per component instance**.`
+				: `Reevaluates \`${classification.effect.path}\` as a **deferred reactive assignment**.`,
+			...classification.dependencies.map(
+				(dependency) =>
+					`Dependency: \`${dependency.path}\`${dependency.confidence === 'exact' ? '' : ` (${dependency.confidence})`}`
+			)
+		];
 	return [];
 }
 

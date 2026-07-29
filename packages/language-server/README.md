@@ -46,10 +46,13 @@ derived variables. The server deliberately emits no token over keywords,
 inferred `await` sites, JSX tags, or whole property accesses, preventing eXact
 modifiers from replacing normal syntax highlighting.
 
-Important setup, task, and action facts are projected as composable inlay badges
-at the end of the relevant authored line. Badge placement never splits a source
-token. The vocabulary is `⚙` initialization, `📋` task, `▶` action, `⚡`
-compiler-inferred, `🖥` server, `📱` client, `⇄` isomorphic, `⏳` deferred
-priority, and `🚨` immediate publication. Each label part has a focused hover,
-and the combined hint retains the full compiler classification and inference
-reasons.
+Important assignment, task, and action facts are projected as composable inlay
+badges at token boundaries. Assignment badges precede the assignment; call
+badges follow its opening parenthesis. `⚙` marks a specific initialization and
+`⚡` marks a deferred reactive assignment or compiler inference. The remaining
+vocabulary is `📋` task, `▶` action, `🖥` server, `📱` client, `⇄` isomorphic,
+`⏳` deferred priority, and `🚨` immediate publication.
+
+Hover and optional region projections use entity selection ranges, never the
+whole containing initializer or task body. Component CodeLens is a compact
+count; operation details remain on their badges and focused hovers.

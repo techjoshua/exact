@@ -4,31 +4,40 @@ import type { InlayHintLabelPart } from 'vscode-languageserver/node.js';
 import { entityFacts, reasonFacts } from './entity-explanations.js';
 
 /**
- * Projects important placement, readiness, and ownership facts as line-edge badges.
+ * Projects concise semantic badges beside the operation they classify.
  *
- * Badge positions are always after the authored source on the entity's selection line. Keeping
- * the hints outside token ranges prevents presentation metadata from splitting TypeScript tokens.
+ * Assignment badges precede the authored expression and call badges follow the opening
+ * parenthesis. Both anchors are token boundaries, preserving TypeScript syntax classification.
  */
 export function projectInlayHints(inspection: ExactSourceInspection, source: string): InlayHint[] {
 	return flattenInspection(inspection).flatMap((entity) => {
 		const classification = entity.classification;
-		if (classification?.kind === 'initializer')
+		if (classification?.kind === 'state-assignment')
 			return [
-				lineEdgeBadge(
-					source,
+				semanticBadge(
+					lineFirstTokenPosition(source, entity.selectionRange.start),
 					entity,
 					[
-						badge('⚙', 'Initialization', 'Setup runs once per component instance.'),
-						placementBadge(classification.placement)
+						classification.execution === 'once-per-instance'
+							? badge('⚙', 'Initialization', `Initializes ${classification.effect.path} once.`)
+							: badge(
+									'⚡',
+									'Deferred reactive assignment',
+									`Reevaluates ${classification.effect.path} when its reactive inputs change.`
+								)
 					],
-					'Initialization',
+					classification.execution === 'once-per-instance'
+						? 'Initialization'
+						: 'Deferred reactive assignment',
 					entityFacts(entity)
 				)
 			];
 		if (classification?.kind === 'task')
 			return [
-				lineEdgeBadge(
-					source,
+				semanticBadge(
+					classification.origin === 'explicit'
+						? callArgumentPosition(source, entity)
+						: lineFirstTokenPosition(source, entity.selectionRange.start),
 					entity,
 					[
 						badge('📋', 'Task', 'Compiler-owned asynchronous work.'),
@@ -57,8 +66,8 @@ export function projectInlayHints(inspection: ExactSourceInspection, source: str
 			];
 		if (classification?.kind === 'action')
 			return [
-				lineEdgeBadge(
-					source,
+				semanticBadge(
+					callArgumentPosition(source, entity),
 					entity,
 					[
 						badge('▶', 'Action', 'Named component-owned interaction work.'),
@@ -78,20 +87,16 @@ type InlayBadge = Readonly<{
 	detail: string;
 }>;
 
-function lineEdgeBadge(
-	source: string,
+function semanticBadge(
+	position: Position,
 	entity: ExactSourceEntity,
 	badges: readonly (InlayBadge | undefined)[],
 	title: string,
 	facts: readonly string[]
 ): InlayHint {
 	const label = badges.filter((candidate): candidate is InlayBadge => candidate !== undefined);
-	const hint = InlayHint.create(
-		lineEndPosition(source, entity.selectionRange.start),
-		label.map(badgeLabelPart),
-		InlayHintKind.Type
-	);
-	hint.paddingLeft = true;
+	const hint = InlayHint.create(position, label.map(badgeLabelPart), InlayHintKind.Type);
+	hint.paddingRight = true;
 	hint.tooltip = {
 		kind: MarkupKind.Markdown,
 		value: [`### ${title}`, ...facts, ...reasonFacts(entity)].join('\n\n')
@@ -130,13 +135,19 @@ function placementBadge(placement: 'server' | 'client' | 'isomorphic' | 'unknown
 	}
 }
 
-function lineEndPosition(source: string, requested: number): Position {
-	const selection = positionAt(source, requested);
-	const lineStart = sourceOffset(source, Position.create(selection.line, 0));
-	const newline = source.indexOf('\n', lineStart);
-	const rawEnd = newline < 0 ? source.length : newline;
-	const lineEnd = rawEnd > lineStart && source.charCodeAt(rawEnd - 1) === 13 ? rawEnd - 1 : rawEnd;
-	return positionAt(source, lineEnd);
+function callArgumentPosition(source: string, entity: ExactSourceEntity): Position {
+	const opening = source.indexOf('(', entity.selectionRange.end);
+	const bounded =
+		opening >= entity.selectionRange.end && opening < entity.range.end
+			? opening + 1
+			: entity.selectionRange.end;
+	return positionAt(source, bounded);
+}
+
+function lineFirstTokenPosition(source: string, requested: number): Position {
+	let offset = source.lastIndexOf('\n', Math.max(0, requested - 1)) + 1;
+	while (offset < source.length && (source[offset] === ' ' || source[offset] === '\t')) offset++;
+	return positionAt(source, offset);
 }
 
 function positionAt(source: string, requested: number): Position {
@@ -144,18 +155,6 @@ function positionAt(source: string, requested: number): Position {
 	const before = source.slice(0, offset);
 	const lines = before.split('\n');
 	return Position.create(lines.length - 1, lines.at(-1)!.replace(/\r$/, '').length);
-}
-
-function sourceOffset(source: string, position: Position): number {
-	let line = 0;
-	let offset = 0;
-	while (line < position.line && offset < source.length) {
-		const newline = source.indexOf('\n', offset);
-		if (newline < 0) return source.length;
-		offset = newline + 1;
-		line++;
-	}
-	return Math.min(source.length, offset + position.character);
 }
 
 function flattenInspection(inspection: ExactSourceInspection): ExactSourceEntity[] {

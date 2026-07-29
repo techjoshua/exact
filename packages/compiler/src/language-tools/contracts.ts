@@ -17,6 +17,7 @@ export type ExactSourceEntityKind =
 	| 'action'
 	| 'interaction'
 	| 'derived'
+	| 'state-assignment'
 	| 'binding'
 	| 'context-read'
 	| 'context-write'
@@ -138,6 +139,14 @@ export type ExactDerivedClassification = Readonly<{
 	dependencies: readonly ExactSourceDependency[];
 }>;
 
+/** Setup assignment classified as one-time initialization or deferred reactive work. */
+export type ExactStateAssignmentClassification = Readonly<{
+	kind: 'state-assignment';
+	execution: 'once-per-instance' | 'deferred-reactive';
+	dependencies: readonly ExactSourceDependency[];
+	effect: ExactSourceEffect;
+}>;
+
 /** Reactive DOM or property binding classification. */
 export type ExactBindingClassification = Readonly<{
 	kind: 'binding';
@@ -158,6 +167,7 @@ export type ExactSourceClassification =
 	| ExactTaskClassification
 	| ExactActionClassification
 	| ExactDerivedClassification
+	| ExactStateAssignmentClassification
 	| ExactBindingClassification
 	| ExactLifecycleClassification;
 

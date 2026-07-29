@@ -90,11 +90,11 @@ export function LanguageToolsPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={inferredTaskSource} language="tsx" title="ProductPage.tsx" />
 				<p>
-					Above the awaited assignment, CodeLens can summarize{' '}
-					<code>Inferred blocking server task · props.productId → state.product</code>. Hover adds
-					the native compiler reasons: the repository context selects server placement, the initial
-					view consumes <code>state.product</code>, and the task generation owns cancellation and
-					staged publication.
+					A compact component CodeLens reports <code>eXact · 1 task</code>. The badge beside the
+					awaited assignment carries the detailed task facts; hover adds the native compiler
+					reasons: the repository context selects server placement, the initial view consumes{' '}
+					<code>state.product</code>, and the task generation owns cancellation and staged
+					publication.
 				</p>
 			</section>
 			<section>
@@ -146,19 +146,23 @@ export function LanguageToolsPage(this: Component<{}>) {
 				<p>
 					VS Code's TypeScript extension continues to provide completion, rename, navigation,
 					formatting, and ordinary type diagnostics. The separate eXact language server adds only
-					framework-owned diagnostics, semantic modifiers, hovers, line-edge inlay badges, CodeLens,
+					framework-owned diagnostics, semantic modifiers, hovers, operation badges, CodeLens,
 					symbols, code actions, and the read-only Compiler Separation view. It filters ordinary
 					TypeScript diagnostics from compiler inspection so refactors do not leave a duplicate
 					squiggle behind.
 				</p>
 				<p>
-					Inlay metadata appears after the authored source instead of inside a token, preserving
-					TypeScript syntax highlighting. Composable badges use <code>⚙</code> for initialization,{' '}
-					<code>📋</code> for tasks, <code>▶</code> for actions, <code>⚡</code> for compiler
-					inference, <code>🖥</code> or <code>📱</code> for placement, <code>⏳</code> for deferred
-					priority, and <code>🚨</code> for immediate publication. Each symbol has a focused hover,
-					while the combined hint explains readiness, ownership, concurrency, dependencies, effects,
-					and compiler reasons.
+					Badges sit at token boundaries: before an assignment or immediately after a call's opening
+					parenthesis. <code>⚙</code> marks a specific one-time state initialization;{' '}
+					<code>⚡</code> on an assignment marks a deferred reactive calculation. Composable task
+					and action badges use <code>📋</code>, <code>▶</code>, <code>🖥</code> or <code>📱</code>{' '}
+					for placement, <code>⏳</code> for deferred priority, and <code>🚨</code> for immediate
+					publication.
+				</p>
+				<p>
+					eXact hover and region markers are limited to the selected operation or identifier. They
+					do not cover the containing function body, so TypeScript can still show variable types and
+					inner-call parameter information.
 				</p>
 				<p>
 					Hovering a component JSX tag describes that referenced component rather than merely the

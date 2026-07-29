@@ -26,6 +26,9 @@ only normalized UTF-16 `ExactSourceRange` offsets.
 Project only `EXACT`-namespaced diagnostics into editor source inspection.
 Leave ordinary TypeScript diagnostics to the host editor even though the native
 build response retains them.
+Preserve authored `setupExecution` on direct state assignments across
+normalization. Classify destructured prop bindings as reactive inputs and
+project assignment entities at their precise state targets.
 Keep task and action selection ranges on their callable identifier, not the
 whole property-access expression. Presentation clients must be able to add
 framework meaning without recoloring `this`, punctuation, or adjacent syntax.

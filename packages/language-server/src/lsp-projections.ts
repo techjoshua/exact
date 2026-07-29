@@ -86,14 +86,11 @@ export function projectHover(
 			kind: MarkupKind.Markdown,
 			value: [`### ${entity.name ?? entity.kind}`, ...facts, ...reasons].join('\n\n')
 		},
-		range: lspRange(
-			source,
-			entity.kind === 'render-expression' ? entity.selectionRange : entity.range
-		)
+		range: lspRange(source, entity.selectionRange)
 	};
 }
 
-/** Projects concise component and task summaries into standard CodeLens items. */
+/** Projects one compact component summary into a standard CodeLens item. */
 export function projectCodeLenses(inspection: ExactSourceInspection, source: string): CodeLens[] {
 	const lenses: CodeLens[] = [];
 	for (const component of inspection.components) {
@@ -101,27 +98,25 @@ export function projectCodeLenses(inspection: ExactSourceInspection, source: str
 		const tasks = descendants.filter(
 			(entity) => entity.kind === 'inferred-task' || entity.kind === 'explicit-task'
 		);
-		const derived = descendants.filter((entity) => entity.kind === 'derived');
+		const derived = descendants.filter(
+			(entity) =>
+				entity.kind === 'derived' ||
+				(entity.classification?.kind === 'state-assignment' &&
+					entity.classification.execution === 'deferred-reactive')
+		);
+		const summary = [
+			'eXact',
+			...(tasks.length ? [`${tasks.length} task${tasks.length === 1 ? '' : 's'}`] : []),
+			...(derived.length ? [`${derived.length} reactive`] : [])
+		].join(' · ');
 		lenses.push({
 			range: lspRange(source, component.selectionRange),
 			command: {
-				title: `eXact component · setup once · ${tasks.length} task${tasks.length === 1 ? '' : 's'} · ${derived.length} derived`,
+				title: summary,
 				command: 'exact.showComponentSemantics',
 				arguments: [inspection.filename, component.id]
 			}
 		});
-		for (const task of tasks) {
-			const classification = task.classification?.kind === 'task' ? task.classification : undefined;
-			if (!classification) continue;
-			lenses.push({
-				range: lspRange(source, task.selectionRange),
-				command: {
-					title: taskLensTitle(classification),
-					command: 'exact.explainEntity',
-					arguments: [inspection.filename, task.id]
-				}
-			});
-		}
 	}
 	return lenses;
 }
@@ -187,6 +182,7 @@ function symbolKind(entity: ExactSourceEntity): SymbolKind {
 		case 'interaction':
 			return SymbolKind.Method;
 		case 'derived':
+		case 'state-assignment':
 		case 'binding':
 			return SymbolKind.Variable;
 		case 'render':
@@ -281,8 +277,16 @@ function smallestEntityAt(
 	offset: number
 ): ExactSourceEntity | undefined {
 	return flattenInspection(inspection)
-		.filter((entity) => offset >= entity.range.start && offset <= entity.range.end)
+		.filter(
+			(entity) =>
+				entity.kind !== 'initializer' &&
+				offset >= entity.selectionRange.start &&
+				offset < entity.selectionRange.end
+		)
 		.sort(
-			(left, right) => left.range.end - left.range.start - (right.range.end - right.range.start)
+			(left, right) =>
+				left.selectionRange.end -
+				left.selectionRange.start -
+				(right.selectionRange.end - right.selectionRange.start)
 		)[0];
 }

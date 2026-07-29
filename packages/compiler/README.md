@@ -20,6 +20,12 @@ Source inspection exposes only `EXACT`-namespaced framework diagnostics.
 Ordinary TypeScript diagnostics remain in the native build response but are
 left to the editor's TypeScript service for interactive presentation.
 
+Each direct setup state assignment reports whether it is one-time
+initialization or a deferred reactive calculation. That authored classification
+survives computation normalization, including assignments driven by destructured
+props, so editor clients can annotate the specific write instead of the whole
+component initializer.
+
 Native UTF-8 byte spans are normalized to the public UTF-16 source-range
 contract before inspection data is returned.
 Task and action `selectionRange` values isolate the authored `task` or `action`

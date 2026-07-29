@@ -23,12 +23,16 @@ component functions, explicit task/action methods, and derived variables.
 Keywords, JSX tags, inferred `await` sites, punctuation, and surrounding
 property-access syntax retain VS Code's normal TypeScript/theme highlighting.
 
-Setup, task, and action inlay metadata is rendered after the authored source on
-its line, so it does not interrupt TypeScript syntax highlighting. Composable
-badges distinguish kind (`⚙`, `📋`, `▶`), inference (`⚡`), placement (`🖥`,
-`📱`, `⇄`), deferred priority (`⏳`), and immediate publication (`🚨`). Each
-symbol has a focused hover, and the combined hint provides the complete compiler
-explanation.
+Assignment metadata appears before the assignment; task and action metadata
+appears immediately after the call's opening parenthesis. `⚙` marks the
+particular assignment that initializes state, while `⚡` marks a deferred
+reactive assignment or inferred work. Composable call badges add kind (`📋`,
+`▶`), placement (`🖥`, `📱`, `⇄`), deferred priority (`⏳`), and immediate
+publication (`🚨`).
+
+Region markers and eXact source hovers are limited to selected operation spans.
+They do not decorate the entire containing function, leaving TypeScript type and
+signature hovers available within task callbacks and component setup.
 
 Compiler execution is enabled only in trusted workspaces. Source and inspection
 data remain local. Presentation settings never change compiler meaning.

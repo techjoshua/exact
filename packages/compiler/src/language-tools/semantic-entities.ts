@@ -60,6 +60,55 @@ export function derivedEntities(
 		});
 }
 
+/** Projects compiler-classified setup assignments at their authored state targets. */
+export function stateAssignmentEntities(
+	component: NativeCompilerComponent,
+	source: string,
+	analysis: NativeCompilerAnalysis
+): ExactSourceEntity[] {
+	return analysis.stateWrites
+		.filter((write) => write.component === component.name && write.setupExecution !== undefined)
+		.map((write, index) => {
+			const range = clampRange(source, write.start, write.length);
+			const path = `state.${write.path.join('.')}`;
+			const authoredPath = `this.${path}`;
+			const selectionRange = findTextRange(source, authoredPath, range) ?? range;
+			const dependencies = stateDependencies(analysis, component.name, source, range);
+			const reactive = write.setupExecution === 'deferred-reactive';
+			return Object.freeze({
+				id: `${component.id}:state-assignment:${index}`,
+				kind: 'state-assignment' as const,
+				name: path,
+				range,
+				selectionRange,
+				children: Object.freeze([]),
+				classification: Object.freeze({
+					kind: 'state-assignment' as const,
+					execution: reactive ? ('deferred-reactive' as const) : ('once-per-instance' as const),
+					dependencies: Object.freeze(dependencies),
+					effect: Object.freeze({
+						kind: 'state-write' as const,
+						path,
+						range: selectionRange,
+						confidence: write.path.includes('*') ? ('broad' as const) : ('exact' as const)
+					})
+				}),
+				reasons: Object.freeze(
+					reactive
+						? [
+								Object.freeze({
+									code: 'reactive-dependency' as const,
+									summary:
+										'The compiler defers and reevaluates this assignment when its reactive inputs change.',
+									range
+								})
+							]
+						: []
+				)
+			});
+		});
+}
+
 /** Projects named action registrations and normalized concurrency. */
 export function actionEntities(
 	component: NativeCompilerComponent,

@@ -98,7 +98,7 @@ ProductPage
 
 The public source-entity vocabulary includes components, initializers, render
 regions and render expressions, inferred and explicit tasks, actions,
-interactions, derived values, bindings, context operations, lifecycle
+interactions, per-write setup assignments, derived values, bindings, context operations, lifecycle
 registrations, and registry selections.
 
 Each entity has a complete `range`, a small `selectionRange`, compiler-local
@@ -109,6 +109,13 @@ cannot shift a hover or diagnostic.
 Entity IDs are valid only within the owning project generation. They are not
 action IDs, continuation dispatch IDs, hydration identities, cross-build
 identifiers, package ABI, or authorization capabilities.
+
+Direct setup state writes retain their authored execution classification even
+when native normalization lowers a reactive calculation into generated owned
+work. `once-per-instance` means the assignment is initialization;
+`deferred-reactive` means its right side is reevaluated from reactive inputs.
+This classification includes destructured prop bindings and is attached to the
+specific state target.
 
 A JSX render expression that resolves to an eXact component retains the native
 render edge as `referencedComponent`, including its compiler-local identity,
@@ -215,8 +222,8 @@ Standard capabilities carry the common experiences:
 | eXact compiler errors                | diagnostics                      |
 | compatible identifier classification | semantic tokens full/delta       |
 | detailed explanations                | hover                            |
-| important inferred facts             | hoverable line-edge inlay badges |
-| component/task summaries             | CodeLens                         |
+| important operation facts            | hoverable inlay badges           |
+| compact component summaries          | CodeLens                         |
 | semantic outline                     | document symbols                 |
 | safe transformations                 | code actions and workspace edits |
 
@@ -241,8 +248,8 @@ sessions.
 The VS Code extension presents:
 
 - eXact-owned semantic modifiers without replacing TypeScript coloring;
-- optional `INIT`, `TASK`, and `VIEW`-style region boundaries;
-- concise CodeLens and important line-edge inlay badges;
+- optional source-operation markers without whole-function decoration;
+- concise component CodeLens and operation-local inlay badges;
 - compiler-backed diagnostics and code actions;
 - the Component Semantics tree;
 - source navigation for inference evidence; and
@@ -272,15 +279,20 @@ ranges remain entirely owned by TypeScript and the active color theme; eXact
 meaning is still available through badges, CodeLens, hovers, and the semantics
 tree.
 
-Inlay metadata is anchored after the authored source on the relevant line so it
-cannot split a TypeScript token or interfere with syntax highlighting. Badges
-compose one semantic fact at a time: `⚙` identifies setup-once initialization,
-`📋` a task, `▶` an action, `⚡` compiler inference, `🖥` server placement, `📱`
-client placement, `⇄` isomorphic placement, `⏳` deferred priority, and `🚨`
-immediate publication. Normal priority, staged publication, and explicit task
-origin are left implicit to avoid visual noise. Each symbol has a focused hover;
-the combined hint explains readiness, cancellation, concurrency, dependencies,
-effects, and the compiler's inference reasons.
+Badges sit beside the operation they classify without splitting a token.
+Assignment badges appear before the first authored token on the line; call
+badges appear immediately after the opening parenthesis. `⚙` identifies a
+specific one-time state initialization, while `⚡` on an assignment identifies
+a deferred reactive state calculation. `📋` identifies a task, `▶` an action,
+`🖥` server placement, `📱` client placement, `⇄` isomorphic placement, `⏳`
+deferred priority, and `🚨` immediate publication. Normal priority, staged
+publication, and explicit task origin are left implicit.
+
+Source hover is similarly precise. eXact responds only on the selected
+component, task, action, derived value, or JSX tag span; it does not claim the
+containing setup or callback body. TypeScript hover therefore remains available
+for assignments, variables, parameters, and inner calls. Region markers use
+the same selection spans instead of decorating every line in a function.
 
 ## Trust and local-data boundary
 

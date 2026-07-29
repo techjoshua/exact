@@ -19,10 +19,14 @@ or infer placement from TypeScript hover text.
 Emit semantic tokens only for precise identifiers with a TypeScript-compatible
 standard base type. Never place an eXact token over keywords, JSX tags,
 inferred `await` sites, punctuation, or complete property-access expressions.
-Project inlay metadata only at line edges, never inside an authored token.
+Project inlay metadata only at safe token boundaries, never inside an authored token.
 Compose badge label parts by semantic fact, give each part a focused hover, omit
 default facts when that reduces noise, and keep the complete classification and
 inference evidence in the combined hover.
+Place assignment badges before the line's first token and call badges after the
+opening parenthesis. Do not badge the whole initializer. Restrict source hover,
+CodeLens detail, and region presentation to precise selection ranges so eXact
+does not obscure TypeScript information inside a function.
 Do not access negotiated capability getters before `initialize`; register
 workspace-folder change listeners from `onInitialized` only when the client
 advertised support.

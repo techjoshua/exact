@@ -23,7 +23,7 @@ export type {
 export type { NativeCompilerSemanticGraph } from './process-semantic-contracts.js';
 
 /** Exact protocol implemented by this JavaScript facade. */
-export const nativeCompilerProtocolVersion = '1.24.0';
+export const nativeCompilerProtocolVersion = '1.25.0';
 
 /** Request accepted by the persistent native eXact compiler process. */
 export type NativeCompilerRequest = Readonly<{
@@ -206,6 +206,7 @@ export type NativeCompilerStateWrite = Readonly<{
 	component: string;
 	path: readonly string[];
 	operation: 'assignment' | 'update' | 'delete' | 'array-mutation';
+	setupExecution?: 'initialization' | 'deferred-reactive';
 	start: number;
 	length: number;
 }>;

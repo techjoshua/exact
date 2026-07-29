@@ -26,6 +26,10 @@ Language sessions are permanently `noEmit: true`: they never write JavaScript,
 target artifacts, manifests, source maps, or inspection catalogs. Source
 entities, typed reasons, rich diagnostics, and refactor plans are in-memory
 projections of the same native component and placement analysis used by builds.
+Native protocol 1.25 retains `setupExecution` on authored state assignments
+across source normalization, distinguishing one-time initialization from
+deferred reactive calculation. Analysis responses remap those assignment spans
+to the original source before returning them to the language service.
 See [Compiler-aware language tools](language-tools.md).
 
 ## Application and compiler TypeScript versions

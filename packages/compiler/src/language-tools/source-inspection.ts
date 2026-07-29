@@ -16,6 +16,7 @@ import {
 	interactionEntities,
 	lifecycleEntities,
 	registrySelectionEntities,
+	stateAssignmentEntities,
 	stateDependencies
 } from './semantic-entities.js';
 import { isExactCompilerDiagnostic, sourceDiagnostic } from './source-diagnostics.js';
@@ -92,6 +93,7 @@ function inspectComponent(
 		...regions,
 		...derivedEntities(component, source, analysis),
 		...actionEntities(component, source, analysis),
+		...stateAssignmentEntities(component, source, analysis),
 		...lifecycleEntities(component, source),
 		...contextEntities(component, source),
 		...registrySelections

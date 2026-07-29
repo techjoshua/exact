@@ -57,7 +57,7 @@
 				"exact.languageTools.codeLens": {
 					"type": "boolean",
 					"default": true,
-					"description": "Show compiler-owned component and task CodeLens summaries."
+					"description": "Show compact compiler-owned component CodeLens summaries."
 				},
 				"exact.languageTools.inlayHints": {
 					"type": "string",

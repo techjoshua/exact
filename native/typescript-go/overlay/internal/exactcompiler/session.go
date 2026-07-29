@@ -102,6 +102,7 @@ func (s *Session) Execute(request Request) Response {
 		response.Error = err.Error()
 		return response
 	}
+	setupAssignmentExecutions := collectAuthoredSetupAssignmentExecutions(fileName, request.Source)
 	normalization, err := normalizeAuthoredSource(fileName, request.Source)
 	if err != nil {
 		response.Error = err.Error()
@@ -442,10 +443,15 @@ func (s *Session) Execute(request Request) Response {
 		}
 		response.Timings.CheckMicroseconds = time.Since(checkStarted).Microseconds()
 	}
-	if len(response.Diagnostics) != 0 {
+	if request.Kind == "analyze" {
+		remapAuthoredLocations(&response, normalization, len(response.Diagnostics))
+		applySetupAssignmentExecutions(
+			response.Analysis.StateWrites,
+			setupAssignmentExecutions,
+		)
 		return response
 	}
-	if request.Kind == "analyze" {
+	if len(response.Diagnostics) != 0 {
 		return response
 	}
 
@@ -642,6 +648,10 @@ func (s *Session) Execute(request Request) Response {
 	sourceDiagnosticCount := len(response.Diagnostics)
 	response.Diagnostics = append(response.Diagnostics, generatedDiagnostics...)
 	remapAuthoredLocations(&response, normalization, sourceDiagnosticCount)
+	applySetupAssignmentExecutions(
+		response.Analysis.StateWrites,
+		setupAssignmentExecutions,
+	)
 	response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
 	return response
 }

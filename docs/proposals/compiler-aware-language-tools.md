@@ -198,11 +198,13 @@ ProductPage
    └─ price text ← displayPrice
 ```
 
-The source editor should also show a restrained CodeLens above the inferred
-region:
+The source editor should show a compact component CodeLens and put the task
+facts on a hoverable badge at the authored operation:
 
 ```text
-Inferred blocking server task · props.productId → state.product
+eXact · 1 task
+
+this.task(📋 🖥 async ...)
 ```
 
 Hovering the awaited expression should explain:
@@ -262,6 +264,7 @@ export type ExactSourceEntityKind =
 	| 'action'
 	| 'interaction'
 	| 'derived'
+	| 'state-assignment'
 	| 'binding'
 	| 'context-read'
 	| 'context-write'
@@ -304,6 +307,7 @@ export type ExactSourceClassification =
 	| ExactTaskClassification
 	| ExactActionClassification
 	| ExactDerivedClassification
+	| ExactStateAssignmentClassification
 	| ExactBindingClassification
 	| ExactLifecycleClassification;
 ```
@@ -315,6 +319,18 @@ export type ExactInitializerClassification = Readonly<{
 	kind: 'initializer';
 	execution: 'once-per-instance';
 	placement: ExactPlacement;
+}>;
+```
+
+Each direct setup state assignment retains the authored decision that would
+otherwise be hidden by normalization:
+
+```ts
+export type ExactStateAssignmentClassification = Readonly<{
+	kind: 'state-assignment';
+	execution: 'once-per-instance' | 'deferred-reactive';
+	dependencies: readonly ExactSourceDependency[];
+	effect: ExactSourceEffect;
 }>;
 ```
 
@@ -901,8 +917,8 @@ Use standard Language Server Protocol capabilities wherever possible:
 | eXact compiler errors             | diagnostics                  |
 | classification colors             | semantic tokens full/delta   |
 | detailed explanations             | hover                        |
-| concise inferred labels           | inlay hints                  |
-| component/task summaries          | CodeLens                     |
+| concise operation labels          | inlay hints                  |
+| compact component summaries       | CodeLens                     |
 | component semantic outline        | document symbols             |
 | safe fixes and transformations    | code actions                 |
 | apply compiler-planned edits      | workspace edits              |
@@ -964,8 +980,8 @@ defaults and document customization.
 
 ### Region visibility
 
-Semantic tokens identify individual source tokens but do not clearly show the
-extent of an inferred task. Add optional gutter and range decorations:
+Semantic tokens identify individual source tokens. Optional gutter decorations
+mark the selected operation line rather than painting an entire function body:
 
 ```text
 INIT  component setup
@@ -978,14 +994,10 @@ coloring every ordinary reactive read.
 
 ### CodeLens
 
-Examples:
+Example:
 
 ```text
-eXact component · setup once · 1 inferred task · 1 derived value
-
-Inferred blocking server task · props.productId → state.product
-
-Explicit deferred client task · 2 dependencies · owns cleanup
+eXact · 1 task · 1 reactive
 ```
 
 CodeLens is configurable independently because some developers prefer a less
@@ -993,7 +1005,8 @@ dense editor.
 
 ### Inlay hints
 
-Useful hints include:
+Assignment badges precede the assignment and call badges follow the opening
+parenthesis. Useful facts include:
 
 - `inferred server`;
 - `blocking`;

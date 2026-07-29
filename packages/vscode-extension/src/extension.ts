@@ -236,7 +236,7 @@ async function decorateEditor(
 	editor.setDecorations(
 		decoration,
 		entities.map((entity) => ({
-			range: offsetRange(editor.document, entity.range),
+			range: offsetRange(editor.document, entity.selectionRange),
 			hoverMessage: `${entity.name ?? entity.kind} · compiler-owned eXact region`
 		}))
 	);
@@ -266,6 +266,10 @@ function entityDescription(entity: ExactSourceEntity): string | undefined {
 	if (classification?.kind === 'task')
 		return `${classification.origin}, ${classification.placement}, ${classification.readiness}`;
 	if (classification?.kind === 'initializer') return 'runs once per instance';
+	if (classification?.kind === 'state-assignment')
+		return classification.execution === 'once-per-instance'
+			? 'initializes once'
+			: 'deferred reactive assignment';
 	if (classification?.kind === 'render') return 'reactive';
 	return undefined;
 }

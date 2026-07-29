@@ -16,9 +16,11 @@ imports or TypeScript hover text in the extension.
 Do not compensate for broad or incompatible server semantic tokens in the
 extension. The language server must preserve TypeScript base token types and
 omit framework tokens where no compatible identifier projection exists.
-Preserve TypeScript token presentation: compiler inlay metadata belongs at a
-line edge. Preserve independently hoverable badge label parts supplied by the
-language server and keep detailed meaning in the combined hover content.
+Preserve TypeScript token presentation: assignment metadata belongs before the
+first authored token and call metadata after the opening parenthesis. Keep
+region decorations on entity selection ranges, never whole function bodies.
+Preserve independently hoverable badge label parts supplied by the language
+server and keep detailed meaning in the combined hover content.
 
 Use `npm run dev:vscode-extension` from the repository root for development.
 Keep the launcher responsible for building both process owners and opening the
