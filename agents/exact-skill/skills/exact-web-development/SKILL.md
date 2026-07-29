@@ -48,6 +48,20 @@ expression boundaries and is not an equivalent application runtime.
 
 Use the package scope `@exactjs`, not the former `@exact` scope.
 
+When the installed project provides eXact Language Tools, use its
+compiler-backed diagnostics and Component Semantics view to inspect setup,
+render, inferred and explicit tasks, placement, readiness, dependencies,
+effects, signal injection, and cleanup. Treat those facts as compiler
+authority. Do not infer eXact behavior from generated JavaScript or reproduce a
+classifier in an editor or agent.
+
+For programmatic inspection, first read the installed `@exactjs/compiler`
+package-local `AGENTS.md`, then use `createExactLanguageService()` with
+`noEmit: true`. Synchronize unsaved text with monotonically increasing document
+versions, discard stale generations, and dispose the service. Apply only
+compiler-planned refactors that still match the current generation. Entity IDs
+are local diagnostic correlation values, not runtime or security identities.
+
 ## Choose rendering, build, and runtime deliberately
 
 Decide the rendering mode before adding packages or entrypoints: client-only rendering, server

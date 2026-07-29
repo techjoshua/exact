@@ -105,6 +105,7 @@ and architecture.
 - Finite eager/lazy component registries with compiler-checked identity, placement, SSR, and hydration
 - Browser rendering, SSR, streaming, hydration, server actions, and component continuations
 - Vite, Webpack, and Bun compiler integrations
+- Compiler-aware language tools with a no-emit project service, LSP server, and VS Code client
 - Routing, accessible form primitives, and compiler-aware component testing
 - React 18 and 19 compatibility for React-owned code
 - Node, Fetch, Express, Fastify, Hapi, Koa, Bun, Deno, Cloudflare, and serverless runtime adapters
@@ -120,6 +121,7 @@ The package-specific READMEs describe the supported APIs and environment boundar
 - [Coordinate actions and optimistic state](apps/docs/src/pages/ActionsPage.tsx)
 - [Select finite dynamic components](apps/docs/src/pages/ComponentRegistriesPage.tsx)
 - [Follow one component through the compiler](apps/docs/src/pages/CompilerTourPage.tsx)
+- [Use compiler-aware editor tooling](docs/language-tools.md)
 - [Read about server execution](apps/docs/src/pages/ServerExecutionPage.tsx)
 - [Review the native compiler architecture](docs/native-compiler.md)
 - [Browse the current engineering references](docs/README.md)

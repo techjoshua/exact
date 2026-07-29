@@ -4,7 +4,9 @@ This workspace contains the routed, client-only eXact documentation site. It is 
 
 The public learning sequence includes dedicated current guides for coordinated
 actions and optimistic state, enhanced forms, and finite eager/lazy component
-registries. Keep their route metadata in `src/docs-manifest.ts` aligned with
+registries. It also documents the compiler-aware no-emit service, language
+server, VS Code presentation, and safe task refactors. Keep route metadata in
+`src/docs-manifest.ts` aligned with
 the engineering references under `docs` and with package-level READMEs.
 
 ## Develop

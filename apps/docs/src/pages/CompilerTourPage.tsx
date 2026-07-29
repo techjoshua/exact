@@ -18,7 +18,7 @@ export function CompilerTourPage(this: Component<{}>) {
 			title="What the compiler writes for you"
 			description="Follow one component across browser and server artifacts, from ordinary state and TSX to reactive DOM work and a compiler-generated protocol."
 			previous={{ path: '/learn/state', label: 'State & derived values' }}
-			next={{ path: '/learn/lists', label: 'Keyed lists' }}
+			next={{ path: '/learn/language-tools', label: 'Compiler-aware language tools' }}
 		>
 			<section>
 				<h2>What you write</h2>

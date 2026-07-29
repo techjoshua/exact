@@ -16,6 +16,18 @@ effects out of render functions.
 Treat generated `.exact` directories and `.exact.*` files as disposable build output. Never edit
 or commit them.
 
+Use `createExactLanguageService()` for editor or agent inspection instead of
+looping over `transformSource()`. Keep it `noEmit`, synchronize unsaved overlays
+with monotonically increasing document versions, discard cancelled or stale
+generations, and dispose the service with its project owner. Treat source entity
+IDs as generation-local diagnostic correlation only.
+
+Request task refactors from the compiler and apply only plans matching the
+current generation. Do not reproduce placement, readiness, dependency, signal,
+resource, or equivalence analysis in an LSP or editor package. Keep optional
+inspection catalogs server-owned and set `emitInspection: false` for hardened
+builds.
+
 Keep `this.action()` registrations in setup and preserve compiler-generated action identifiers,
 argument slots, generations, placement, and optimistic preludes. Authored labels are diagnostics,
 not dispatch names. A server action must not transport its `ActionContext`, DOM values, services,

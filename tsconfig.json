@@ -31,6 +31,8 @@
 		{ "path": "./packages/jsx-runtime" },
 		{ "path": "./packages/dom" },
 		{ "path": "./packages/compiler" },
+		{ "path": "./packages/language-server" },
+		{ "path": "./packages/vscode-extension" },
 		{ "path": "./packages/server" },
 		{ "path": "./framework-adapters/fetch-adapter" },
 		{ "path": "./framework-adapters/node-adapter" },

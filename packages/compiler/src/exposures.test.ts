@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { ExactArtifactGraph } from './contracts/artifacts.js';
-import { exactReachableExposureComponents, selectExactExposureArtifactGraph } from './exposures.js';
+import {
+	exactReachableExposureComponents,
+	selectExactExposureArtifactGraph,
+	selectExactExposureInspectionCatalog
+} from './exposures.js';
 
 describe('exposure artifact graph selection', () => {
 	it('selects only modules reachable from the explicit component root', () => {
@@ -19,6 +23,30 @@ describe('exposure artifact graph selection', () => {
 		expect(() => selectExactExposureArtifactGraph(fixtureGraph(), 'missing')).toThrow(
 			/Unknown eXact exposure root/
 		);
+	});
+
+	it('partitions server-owned inspection data to the reachable exposure', () => {
+		const inspection = {
+			generation: 1,
+			filename: '/src/components.tsx',
+			compiler: { typescriptVersion: '7.0.0', backendVersion: '1.23.0' },
+			diagnostics: [],
+			components: ['billing', 'button', 'admin'].map((id) => ({
+				id,
+				kind: 'component' as const,
+				name: id,
+				range: { start: 0, end: 1 },
+				selectionRange: { start: 0, end: 1 },
+				children: [],
+				reasons: []
+			}))
+		};
+		const catalog = selectExactExposureInspectionCatalog(fixtureGraph(), 'billing', [inspection]);
+		expect(catalog.files[0]?.components.map((component) => component.id)).toEqual([
+			'billing',
+			'button'
+		]);
+		expect(JSON.stringify(catalog)).not.toContain('admin');
 	});
 });
 

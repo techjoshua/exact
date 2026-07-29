@@ -9,6 +9,24 @@ Most applications should consume the compiler through `@exactjs/vite-plugin`,
 compiler sessions, artifact planning, diagnostics, final client-artifact isolation, optional
 continuation explanations, and the CLI.
 
+Editor and agent integrations can use `createExactLanguageService()` for a
+long-lived, asynchronous, no-emit project. Unsaved overlays produce immutable
+generations, compiler-owned component regions and inference reasons, rich eXact
+diagnostics, and version-bound task refactor plans. The service never writes
+JavaScript, manifests, maps, or catalogs:
+
+```ts
+const language = createExactLanguageService({ root, noEmit: true });
+await language.synchronize([{ kind: 'upsert', filename, version, source: unsavedText }]);
+const inspection = await language.inspect(filename);
+await language.dispose();
+```
+
+Use `@exactjs/language-server` for LSP lifecycle instead of orchestrating
+compiler requests in an editor. Source entity IDs are project-generation
+correlation values, not runtime, dispatch, hydration, ABI, or authorization
+identities.
+
 ```sh
 npx exactc --help
 ```
@@ -82,6 +100,19 @@ context tokens, returned effects, and SSR resumption liveness. The explanation
 is optional and does not make the compiler's planning manifest a public runtime
 contract.
 
+Set `emitInspection: true` to return a separate server-owned static inspection
+catalog to a build host, or `false` for a hardened build. `auto` follows the
+development default and is disabled in production. Rich catalog descriptions
+are returned out of band and are never embedded in generated JavaScript.
+Language-service inspection is independent and remains available through its
+no-emit session.
+
+Microfrontend producers can call
+`selectExactExposureInspectionCatalog()` with an exposure artifact graph to
+partition catalogs to components reachable from that producer root. The
+selection preserves producer provenance and excludes sibling or page-host
+source.
+
 Explicit `this.action()` registrations extend the same continuation model with invocation
 arguments, concurrency, opaque operation identity, cancellation fencing, and compiler-owned
 optimistic client preludes for server actions. Finite `createComponentRegistry()` declarations
@@ -124,4 +155,6 @@ can therefore adopt the server DOM on first interaction instead of mounting into
 placeholder.
 
 Current guides: [actions and forms](../../docs/actions-and-forms.md) and
-[finite component registries](../../docs/component-registries.md).
+[finite component registries](../../docs/component-registries.md). Language
+service contracts and editor behavior are documented in
+[compiler-aware language tools](../../docs/language-tools.md).

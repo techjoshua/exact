@@ -9,6 +9,13 @@ The reference describes source code, not generated `.exact.client`,
 `.exact.server`, or `.exact.shared` artifacts. Those files are build output and
 are not an application authoring surface.
 
+Compiler-aware editor support exposes the same language model without requiring
+generated-code inspection. eXact Language Tools identifies setup-once
+initializers, reactive render regions, inferred and explicit tasks, actions,
+derived values, bindings, and lifecycle registrations; each classification
+links to the compiler-owned source evidence behind it. See
+[Compiler-aware language tools](language-tools.md).
+
 ## Imports and JSX configuration
 
 Application TSX uses the automatic JSX runtime:
@@ -353,6 +360,14 @@ const initialQuery = peek(() => this.state.query);
 
 Use `this.task()` instead when the relationship is effectful, asynchronous, or
 intentionally feeds back into its own dependencies.
+
+The editor can convert a simple inferred awaited assignment to its explicit
+`this.task()` form when the compiler proves equivalent placement, readiness,
+dependency ordering, cancellation, publication, and diagnostics. It can
+simplify an explicit blocking task back to inferred source only when cleanup,
+resources, external effects, manual dependency choices, signal use, and control
+flow are all reconstructable. These are compiler-planned, version-bound
+refactors rather than textual source templates.
 
 ### Explicit reactive values
 

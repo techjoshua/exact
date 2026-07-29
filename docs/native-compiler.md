@@ -7,6 +7,27 @@ generated-code validation, and printing execute in one persistent TypeScript-Go 
 There is no JavaScript compiler fallback and no public backend selector. Native failures remain
 visible instead of silently changing compiler semantics.
 
+## No-emit language sessions
+
+`createExactLanguageService()` owns a persistent editor-oriented project in the
+pinned native compiler. Unsaved `upsert` changes overlay disk files by document
+version, `close` releases an overlay, and `delete` removes the source from the
+retained project. Each synchronization publishes one immutable generation with
+changed files, affected dependents, and eXact diagnostics.
+
+The language transport is asynchronous and serializes semantic mutations
+without blocking the language server's JSON-RPC loop. Cancellation fences
+native results even when a compiler phase cannot yet be interrupted internally,
+and document-version checks prevent an older response from replacing newer
+editor state. Disposal releases overlays, dependency indexes, pending work, and
+the native process.
+
+Language sessions are permanently `noEmit: true`: they never write JavaScript,
+target artifacts, manifests, source maps, or inspection catalogs. Source
+entities, typed reasons, rich diagnostics, and refactor plans are in-memory
+projections of the same native component and placement analysis used by builds.
+See [Compiler-aware language tools](language-tools.md).
+
 ## Application and compiler TypeScript versions
 
 New applications use TypeScript 7 for editor support and `tsc` type-checking. The compiler owns

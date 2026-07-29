@@ -1,0 +1,171 @@
+{
+	"name": "@exactjs/vscode",
+	"displayName": "eXact Language Tools",
+	"description": "Compiler-aware language tools for the eXact framework.",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"engines": {
+		"vscode": "^1.96.0"
+	},
+	"categories": [
+		"Programming Languages",
+		"Other"
+	],
+	"activationEvents": [
+		"onLanguage:typescript",
+		"onLanguage:typescriptreact"
+	],
+	"main": "./dist/extension.js",
+	"files": [
+		"AGENTS.md",
+		"dist",
+		"package.json",
+		"README.md"
+	],
+	"contributes": {
+		"commands": [
+			{
+				"command": "exact.showComponentSemantics",
+				"title": "eXact: Show Component Semantics"
+			},
+			{
+				"command": "exact.showCompilerSeparation",
+				"title": "eXact: Show Compiler Separation"
+			},
+			{
+				"command": "exact.explainEntity",
+				"title": "eXact: Explain Source Entity"
+			}
+		],
+		"views": {
+			"explorer": [
+				{
+					"id": "exact.componentSemantics",
+					"name": "eXact Component Semantics"
+				}
+			]
+		},
+		"configuration": {
+			"title": "eXact Language Tools",
+			"properties": {
+				"exact.languageTools.enabled": {
+					"type": "boolean",
+					"default": true,
+					"description": "Enable compiler-aware eXact language features."
+				},
+				"exact.languageTools.codeLens": {
+					"type": "boolean",
+					"default": true,
+					"description": "Show compiler-owned component and task CodeLens summaries."
+				},
+				"exact.languageTools.inlayHints": {
+					"type": "string",
+					"enum": [
+						"off",
+						"important",
+						"all"
+					],
+					"default": "important"
+				},
+				"exact.languageTools.regionDecorations": {
+					"type": "string",
+					"enum": [
+						"off",
+						"boundaries",
+						"all"
+					],
+					"default": "boundaries"
+				},
+				"exact.languageTools.semanticsView": {
+					"type": "boolean",
+					"default": true
+				},
+				"exact.languageTools.trace.server": {
+					"type": "string",
+					"enum": [
+						"off",
+						"messages",
+						"verbose"
+					],
+					"default": "off"
+				}
+			}
+		},
+		"semanticTokenModifiers": [
+			{
+				"id": "exact.component",
+				"description": "eXact component"
+			},
+			{
+				"id": "exact.initializer",
+				"description": "Setup-once initialization"
+			},
+			{
+				"id": "exact.render",
+				"description": "Reactive render work"
+			},
+			{
+				"id": "exact.inferredTask",
+				"description": "Compiler-inferred task"
+			},
+			{
+				"id": "exact.explicitTask",
+				"description": "Explicit task"
+			},
+			{
+				"id": "exact.action",
+				"description": "Component action"
+			},
+			{
+				"id": "exact.derived",
+				"description": "Derived reactive value"
+			},
+			{
+				"id": "exact.dependency",
+				"description": "Reactive dependency"
+			},
+			{
+				"id": "exact.effect",
+				"description": "Task effect"
+			},
+			{
+				"id": "exact.server",
+				"description": "Server placement"
+			},
+			{
+				"id": "exact.client",
+				"description": "Client placement"
+			},
+			{
+				"id": "exact.blocking",
+				"description": "Blocking readiness"
+			},
+			{
+				"id": "exact.deferred",
+				"description": "Deferred priority"
+			},
+			{
+				"id": "exact.owned",
+				"description": "Component-owned value"
+			},
+			{
+				"id": "exact.disposable",
+				"description": "Automatically disposed value"
+			}
+		]
+	},
+	"dependencies": {
+		"@exactjs/language-server": "^0.1.0",
+		"vscode-languageclient": "^9.0.1"
+	},
+	"devDependencies": {
+		"@types/node": "^22.10.2",
+		"@types/vscode": "^1.96.0",
+		"typescript": "npm:@typescript/typescript6@^6.0.2"
+	},
+	"scripts": {
+		"build": "tsc6 -b",
+		"test": "vitest run --maxWorkers=4"
+	}
+}

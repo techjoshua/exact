@@ -33,8 +33,10 @@ export {
 export { parseExactCompilerManifest } from '../manifest-parse.js';
 export {
 	exactReachableExposureComponents,
+	selectExactExposureInspectionCatalog,
 	selectExactExposureArtifactGraph
 } from '../exposures.js';
+export type { ExactExposureInspectionCatalog } from '../exposures.js';
 export { generatedComponentName } from '../names.js';
 export {
 	createExactPolicyAuditReport,
@@ -64,6 +66,11 @@ export {
 export { createExactArtifactDevState, updateExactArtifactDevState } from './dev-state.js';
 export { NativeCompilerProcess } from '../native/process.js';
 export {
+	NativeCompilerLanguageClient,
+	type ExactNativeLanguageClient,
+	type ExactNativeLanguageClientOptions
+} from '../native/async-language-client.js';
+export {
 	nativeCompilerPlatformPackage,
 	resolveNativeCompilerExecutable
 } from '../native/executable.js';
@@ -88,3 +95,9 @@ export type {
 } from '../native/process-contracts.js';
 export type { NativeCompilerProcessOptions } from '../native/process.js';
 export { createExactArtifactPlan } from './artifact-plan.js';
+export {
+	createExactLanguageService,
+	ExactCompilerLanguageService,
+	type ExactLanguageServiceHostOptions
+} from '../language-tools/service.js';
+export type * from '../language-tools/contracts.js';

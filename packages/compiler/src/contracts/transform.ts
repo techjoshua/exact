@@ -3,6 +3,7 @@ import type { ExactCompilerSession } from '../expression/project.js';
 import type { ExactArtifactTarget } from './artifacts.js';
 import type { ExactCompilerExplanation } from './explanation.js';
 import type { ExactCompilerManifest } from './manifest.js';
+import type { ExactSourceInspection } from '../language-tools/contracts.js';
 
 /** Replaces one imported or exported binding during native module lowering. */
 export interface ModuleExportReplacement {
@@ -38,6 +39,12 @@ export type TransformOptions = {
 	sourceMap?: boolean;
 	/** Emits a stable account of placement, transport, effects, and SSR resumption liveness. */
 	explain?: boolean;
+	/**
+	 * Returns a server-owned static inspection catalog without embedding rich
+	 * descriptions in generated JavaScript. `auto` follows the development
+	 * default and is disabled when NODE_ENV is production.
+	 */
+	emitInspection?: boolean | 'auto';
 	moduleRewrite?: ModuleRewriteOptions;
 	moduleTransform?: ModuleTransform;
 	/**
@@ -163,6 +170,8 @@ export type TransformResult = {
 	filename: string;
 	manifest: ExactCompilerManifest;
 	explanation?: ExactCompilerExplanation;
+	/** Optional host-side inspection catalog; never embedded in generated code. */
+	inspectionCatalog?: ExactSourceInspection;
 };
 
 /** Defines the exact source map type contract. */

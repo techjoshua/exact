@@ -18,6 +18,7 @@ These documents describe behavior that exists in the repository today:
 | [framework-plugins.md](framework-plugins.md)                                     | Plugin discovery, configuration, projections, and lifecycle.               |
 | [instrumentation.md](instrumentation.md)                                         | Optional profiling contracts and event collection.                         |
 | [jsx-cells.md](jsx-cells.md)                                                     | Internal reactive JSX cell and mounted-range model.                        |
+| [language-tools.md](language-tools.md)                                           | Compiler inspection, LSP, VS Code, diagnostics, and safe task refactors.   |
 | [manifest-usage-inventory.md](manifest-usage-inventory.md)                       | Remaining compiler-manifest producers and consumers.                       |
 | [microfrontends.md](microfrontends.md)                                           | Implemented trusted microfrontend scope and remaining adapter work.        |
 | [native-compiler.md](native-compiler.md)                                         | Native compiler architecture, distribution, sessions, and release checks.  |

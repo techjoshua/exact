@@ -2,6 +2,7 @@ import { capabilityCompilationOptions } from '../compilation/capability-options.
 import { createExactCompilerExplanation } from '../explanation.js';
 import { applyCompilerPlugins, validateImportedPluginRegistries } from '../plugins.js';
 import { createLineSourceMap } from '../source-maps.js';
+import { createExactSourceInspection } from '../language-tools/source-inspection.js';
 import type {
 	ExactCompilerManifest,
 	TransformOptions,
@@ -91,8 +92,17 @@ export function transformSourceWithNativeCompiler(
 			: null,
 		filename,
 		manifest,
-		...(options.explain ? { explanation: createExactCompilerExplanation(manifest, target) } : {})
+		...(options.explain ? { explanation: createExactCompilerExplanation(manifest, target) } : {}),
+		...(shouldEmitInspection(options.emitInspection)
+			? {
+					inspectionCatalog: createExactSourceInspection(filename, normalized, 0, response)
+				}
+			: {})
 	};
+}
+
+function shouldEmitInspection(value: TransformOptions['emitInspection']): boolean {
+	return value === true || (value === 'auto' && process.env.NODE_ENV !== 'production');
 }
 
 function throwNativePluginErrors(manifest: ExactCompilerManifest): void {

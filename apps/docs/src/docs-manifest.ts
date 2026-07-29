@@ -10,6 +10,7 @@ import { FormsPage } from './pages/FormsPage.jsx';
 import { GettingStartedPage } from './pages/GettingStartedPage.jsx';
 import { IntroductionPage } from './pages/IntroductionPage.jsx';
 import { ListsPage } from './pages/ListsPage.jsx';
+import { LanguageToolsPage } from './pages/LanguageToolsPage.jsx';
 import { LogoLabPage } from './pages/LogoLabPage.jsx';
 import { MicrofrontendsPluginPage } from './pages/MicrofrontendsPluginPage.jsx';
 import { PackagesPage } from './pages/PackagesPage.jsx';
@@ -107,6 +108,15 @@ export const docGroups: DocGroup[] = [
 				keywords:
 					'compiler native TypeScript Go generated output lowering transform reactive helpers task binding map JSX',
 				component: CompilerTourPage
+			},
+			{
+				path: '/learn/language-tools',
+				label: 'Compiler-aware language tools',
+				summary:
+					'Inspect compiler regions, reasons, diagnostics, and safe task refactors while editing.',
+				keywords:
+					'language tools VS Code extension LSP semantic tokens hover CodeLens inlay hints diagnostics refactor compiler inspection inferred explicit task no emit',
+				component: LanguageToolsPage
 			},
 			{
 				path: '/learn/lists',

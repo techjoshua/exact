@@ -6,6 +6,27 @@ runtime.
 These facilities extend eXact's setup-once, fine-grained reactive model. They
 do not introduce a component rerender loop.
 
+## Language-tool presentation
+
+eXact Language Tools displays task origin, placement, readiness, and priority
+at the task's authored source range. A blocking inferred server task may appear
+as:
+
+```text
+Inferred blocking server task · props.productId → state.product
+```
+
+Hover and the Component Semantics tree add dependencies, effects, staged or
+immediate publication, supplied cancellation, resource ownership, cleanup, and
+the source reasons that selected server/client placement or blocking
+readiness. `broad` and `unknown` dependencies remain explicitly qualified.
+
+CodeLens and inlay hints are presentation preferences; disabling them does not
+change scheduling. Refactors between inferred and explicit task source are
+offered only when compiler reanalysis proves that readiness, priority,
+cancellation, publication, and exception behavior are preserved. See
+[Compiler-aware language tools](language-tools.md).
+
 ## Scheduling
 
 Reactive and task work uses three priorities:

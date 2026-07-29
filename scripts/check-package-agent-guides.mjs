@@ -6,6 +6,8 @@ const root = process.cwd();
 const guidedPackages = [
 	'packages/core',
 	'packages/compiler',
+	'packages/language-server',
+	'packages/vscode-extension',
 	'packages/reactive',
 	'packages/dom',
 	'packages/ssr',
@@ -47,6 +49,8 @@ for (const guidePath of repositoryGuides) {
 const featureGuideRequirements = new Map([
 	['packages/core/AGENTS.md', ['this.action()', 'createComponentRegistry()']],
 	['packages/compiler/AGENTS.md', ['action identifiers', 'registry identity']],
+	['packages/language-server/AGENTS.md', ['stale-result', 'standard LSP', 'untrusted workspace']],
+	['packages/vscode-extension/AGENTS.md', ['presentation', 'workspace.isTrusted', 'classifier']],
 	['packages/reactive/AGENTS.md', ['Optimistic action rollback']],
 	['packages/dom/AGENTS.md', ['component interaction', 'Registry entry keys']],
 	['packages/hydrate/AGENTS.md', ['invocation generations', 'component registries']],
@@ -74,7 +78,8 @@ for (const required of [
 	'package-local `AGENTS.md`',
 	'<ErrorBoundary>',
 	'className:token',
-	'`Map` and `Set`'
+	'`Map` and `Set`',
+	'createExactLanguageService()'
 ]) {
 	if (skill.includes(required)) continue;
 	console.error(`eXact agent skill is missing current guidance: ${required}`);
