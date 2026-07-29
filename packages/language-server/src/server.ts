@@ -47,15 +47,18 @@ import {
 	sourceOffset
 } from './lsp-projections.js';
 import { ExactLanguageWorkspaceManager } from './workspace-manager.js';
+import { supportsExactWorkspaceFolderChanges } from './workspace-folders.js';
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
 const activeAnalysis = new Map<string, AbortController>();
 let workspaces: ExactLanguageWorkspaceManager | undefined;
+let workspaceFolderChangesSupported = false;
 
 connection.onInitialize((params: InitializeParams): InitializeResult => {
 	const initialization = (params.initializationOptions ??
 		{}) as ExactLanguageServerInitializationOptions;
+	workspaceFolderChangesSupported = supportsExactWorkspaceFolderChanges(params);
 	const roots = workspaceRoots(params);
 	workspaces = new ExactLanguageWorkspaceManager(roots, initialization.workspaceTrusted === true);
 	return {
@@ -80,17 +83,17 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
 });
 
 connection.onInitialized(() => {
+	if (workspaceFolderChangesSupported)
+		connection.workspace.onDidChangeWorkspaceFolders(async (event) => {
+			for (const folder of event.added)
+				if (folder.uri.startsWith('file:')) workspaces?.addRoot(fileURLToPath(folder.uri));
+			for (const folder of event.removed)
+				if (folder.uri.startsWith('file:')) await workspaces?.removeRoot(fileURLToPath(folder.uri));
+		});
 	if (!workspaces?.isTrusted())
 		connection.window.showWarningMessage(
 			'eXact Language Tools is in untrusted-workspace mode. Compiler execution and semantic analysis are disabled.'
 		);
-});
-
-connection.workspace.onDidChangeWorkspaceFolders(async (event) => {
-	for (const folder of event.added)
-		if (folder.uri.startsWith('file:')) workspaces?.addRoot(fileURLToPath(folder.uri));
-	for (const folder of event.removed)
-		if (folder.uri.startsWith('file:')) await workspaces?.removeRoot(fileURLToPath(folder.uri));
 });
 
 documents.onDidOpen((event) => void synchronize(event.document));

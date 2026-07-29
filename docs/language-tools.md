@@ -14,7 +14,9 @@ The implementation has three boundaries:
   sessions;
 - `@exactjs/language-server` owns LSP lifecycle, workspace/project selection,
   document overlays and versions, cancellation, stale-result suppression, and
-  protocol projection; and
+  protocol projection. Negotiated listeners, including workspace-folder
+  changes, are installed only after initialization and only when the client
+  advertised them; and
 - `@exactjs/vscode` starts the local server and presents compiler facts through
   VS Code.
 

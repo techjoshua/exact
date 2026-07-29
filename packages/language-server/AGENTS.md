@@ -10,5 +10,8 @@ workspace service during folder removal and shutdown.
 
 Prefer standard LSP capabilities. Add a custom request only when structured
 component semantics cannot be represented by an existing protocol feature.
+Do not access negotiated capability getters before `initialize`; register
+workspace-folder change listeners from `onInitialized` only when the client
+advertised support.
 Never execute workspace configuration, binaries, or plugins when the client
 reports an untrusted workspace.

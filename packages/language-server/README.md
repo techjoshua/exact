@@ -14,6 +14,10 @@ Run `exact-language-server --stdio` from an LSP client. Trusted clients should
 send `initializationOptions.workspaceTrusted: true`; untrusted workspaces do
 not launch workspace compiler binaries or plugins.
 
+Workspace-folder change listeners are installed only after initialization and
+only when the client advertised `workspace.workspaceFolders`. Single-root and
+clients without folder-change support continue without that subscription.
+
 Custom requests:
 
 - `exact/componentSemantics` returns the structured component outline.

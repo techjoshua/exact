@@ -147,6 +147,11 @@ export function LanguageToolsPage(this: Component<{}>) {
 					framework-owned diagnostics, semantic modifiers, hovers, inlay hints, CodeLens, symbols,
 					code actions, and the read-only Compiler Separation view.
 				</p>
+				<p>
+					The language server installs negotiated listeners only after the LSP initialization
+					handshake. Clients without workspace-folder change support continue as stable single-root
+					sessions.
+				</p>
 				<CodeBlock source={settingsSource} language="json" title="VS Code settings" />
 				<p>
 					Presentation choices never change compiler semantics. In untrusted workspaces the
